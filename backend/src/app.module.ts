@@ -7,7 +7,7 @@ import { join } from 'path';
 @Module({
   imports: [
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'frontend-dist'), // <- Angular folder
+      rootPath: join(__dirname, '..', 'frontend-dist', 'frontend', 'browser'),
     }),
   ],
   controllers: [AppController],
