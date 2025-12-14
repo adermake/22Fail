@@ -63,7 +63,7 @@ export enum FormulaType {
 export class CharacterSheetService {
   characterSheetId!: string;
   currentSheet!: CharacterSheet;
-  backendUrl = 'http://localhost:3000';
+  
   constructor(private http: HttpClient, private route: ActivatedRoute) {}
 
   starterSheet: CharacterSheet = {
@@ -120,12 +120,12 @@ export class CharacterSheetService {
 
   async loadCharacter(id: string): Promise<any> {
     console.log('SEND ID ' + id);
-    const observable = this.http.get(`${this.backendUrl}/api/characters/${id}`);
+    const observable = this.http.get(`/api/characters/${id}`);
     return await firstValueFrom(observable);
   }
 
   async saveCharacter(id: string, sheet: any): Promise<any> {
-    const observable = this.http.post(`${this.backendUrl}/api/characters/${id}`, sheet);
+    const observable = this.http.post(`/api/characters/${id}`, sheet);
     return await firstValueFrom(observable);
   }
 
