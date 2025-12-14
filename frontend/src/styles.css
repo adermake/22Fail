@@ -1,0 +1,50 @@
+/* You can add global styles to this file, and also import other style files */
+:root {
+  --accent: #6b46c1;
+  --muted: #6b7280;
+  --card: #ffffff;
+  --bg: #f3f4f6;
+  --border: #e5e7eb;
+}
+
+body {
+  background-color: var(--bg);
+}
+
+* {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue',
+    Arial;
+}
+
+input[type='text'],
+input[type='number'],
+select,
+textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+input {
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.row{display:flex;gap:10px}
+    .col{flex:1}
+
+
+.big {
+  font-size: 20px;
+  font-weight: 700;
+}
+  h2{margin:0 0 8px 0;font-size:20px;color:var(--accent)}

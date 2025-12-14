@@ -1,0 +1,36 @@
+<div class="stat-card">
+  <div class="stat-header">{{name}}</div>
+
+  <div class="stat-row">
+    <div class="stat-bar-wrapper">
+      <div
+        class="stat-bar-fill"
+        [style.background-color]="color"
+        [style.width.%]="(current / statusMax) * 100">
+      </div>
+    </div>
+    <span class="stat-max">/ {{ statusMax }}</span>
+  </div>
+
+  <!-- Inputs -->
+  <div class="stat-inputs">
+    <div class="stat-input-group">
+      <label>Aktuell</label>
+      <input type="number" [(ngModel)]="current" />
+    </div>
+
+
+  </div>
+
+  <div class="stat-inputs">
+    <div class="stat-input-group">
+      <label>Basis</label>
+      <input type="number"  [(ngModel)]="base"/>
+    </div>
+
+    <div class="stat-input-group">
+      <label>Bonus</label>
+      <input type="number"  [(ngModel)]="bonus"/>
+    </div>
+  </div>
+</div>

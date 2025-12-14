@@ -1,0 +1,17 @@
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { DataService } from './data.service';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+
+@Module({
+  imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'frontend-dist'), // <- Angular folder
+      exclude: ['/api/(.*)'], // use regex-style path
+    }),
+  ],
+  controllers: [AppController],
+  providers: [DataService],
+})
+export class AppModule {}

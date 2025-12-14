@@ -1,0 +1,15 @@
+<app-card>
+  <div class="currentstat-row">
+    @for (status of sheetservice.currentSheet.statuses; track status.statusName) {
+      <app-currentstat
+        [name]="status.statusName"
+        [current]="status.statusCurrent"
+        [color]="status.statusColor"
+        [base]="status.statusBase"
+        [bonus]="status.statusBonus"
+        [formula]="status.formulaType"
+        >></app-currentstat
+      >
+    }
+  </div>
+</app-card>

@@ -1,0 +1,8 @@
+.statgrid {
+  display: grid;
+  grid-template-columns: auto auto;
+}
+.stats {
+  width: 80%;
+  padding: 1%;
+}

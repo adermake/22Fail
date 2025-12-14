@@ -1,0 +1,8 @@
+@if (sheetservice.currentSheet) {
+  <div class="sheetgrid">
+    <app-character [sheet]="sheetservice.currentSheet"></app-character>
+    <app-stats></app-stats>
+    <app-levelclass [sheet]="sheetservice.currentSheet"></app-levelclass>
+    <app-currentstats></app-currentstats>
+  </div>
+}

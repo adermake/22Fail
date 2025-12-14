@@ -1,0 +1,31 @@
+<div class="stats">
+  <app-card>
+    <h2>Stats</h2>
+    <div class="statgrid">
+      <app-stat
+        [stat]="sheetservice.currentSheet.strength"
+        [sheet]="sheetservice.currentSheet"
+      ></app-stat>
+      <app-stat
+        [stat]="sheetservice.currentSheet.constitution"
+        [sheet]="sheetservice.currentSheet"
+      ></app-stat>
+      <app-stat
+        [stat]="sheetservice.currentSheet.speed"
+        [sheet]="sheetservice.currentSheet"
+      ></app-stat>
+      <app-stat
+        [stat]="sheetservice.currentSheet.dexterity"
+        [sheet]="sheetservice.currentSheet"
+      ></app-stat>
+      <app-stat
+        [stat]="sheetservice.currentSheet.intelligence"
+        [sheet]="sheetservice.currentSheet"
+      ></app-stat>
+      <app-stat
+        [stat]="sheetservice.currentSheet.chill"
+        [sheet]="sheetservice.currentSheet"
+      ></app-stat>
+    </div>
+  </app-card>
+</div>

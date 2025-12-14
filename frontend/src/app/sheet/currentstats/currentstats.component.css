@@ -1,0 +1,4 @@
+.currentstat-row {
+  display: flex;
+  gap: 16px;
+}

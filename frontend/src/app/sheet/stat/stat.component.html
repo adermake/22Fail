@@ -1,0 +1,29 @@
+<div class="container" (click)="pressed()">
+  <app-card>
+    <div class="stat-title">{{stat.name}}</div>
+
+   
+
+    <div class="statbox">
+      <div class="column">
+        <label class="text">Basis</label>
+        <input type="number" min="1" max="99" [(ngModel)]="stat.base" />
+      </div>
+
+      <div class="column">
+        <label class="text">Steigung</label>
+        <input type="number" min="1" max="99" [(ngModel)]="stat.gain" />
+      </div>
+
+      <div class="column">
+        <label class="text">Bonus</label>
+        <input type="number" min="1" max="99" [(ngModel)]="stat.bonus" />
+      </div>
+
+      <div class="right-values">
+        <div class="value">{{ total }}</div>
+        <div class="value bonus" [ngClass]="bonusClass">{{ bonusValue }}</div>
+      </div>
+    </div>
+  </app-card>
+</div>

@@ -1,0 +1,37 @@
+<div class="character">
+  <app-card>
+    <h2>Character</h2>
+
+    <div class="field">
+      <label for="name">Name</label>
+      <input id="name" type="text" placeholder="Name" [(ngModel)]="sheet.name"/>
+    </div>
+
+    <div class="row">
+      <div class="col">
+        <label for="race">Rasse</label>
+        <input id="race" type="text" placeholder="Mensch" [(ngModel)]="sheet.race"/>
+      </div>
+      <div class="col">
+        <label for="age">Alter</label>
+        <input id="age" type="text" placeholder="24" [(ngModel)]="sheet.age"/>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col">
+        <label for="alignment">Gesinnung</label>
+        <input id="alignment" type="text" placeholder="Ganz net eigentlich" [(ngModel)]="sheet.alginment"/>
+      </div>
+      <div class="col">
+        <label for="size">Größe</label>
+        <input id="size" type="text" placeholder="1.8M" [(ngModel)]="sheet.size"/>
+      </div>
+    </div>
+    <app-portrait></app-portrait>
+    <div class="field">
+      <label for="player">Extra Info</label>
+      <input id="player" type="text" placeholder="..." [(ngModel)]="sheet.extrainfo"/>
+    </div>
+  </app-card>
+</div>

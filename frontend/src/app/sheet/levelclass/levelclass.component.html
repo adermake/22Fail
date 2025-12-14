@@ -1,0 +1,28 @@
+<div class="character">
+  <app-card>
+    <h2>Klassen</h2>
+    
+    
+    <div class="row">
+      <div class="col">
+        <label for="race">Primär</label>
+        <input id="race" type="text" placeholder="Kämpfer" [(ngModel)]="sheet.primary_class"/>
+      </div>
+      <div class="col">
+        <label for="race">Sekundär</label>
+        <input id="race" type="text" placeholder="Techniker" [(ngModel)]="sheet.secondary_class"/>
+      </div>
+      <div class="col">
+        <label for="age">Level</label>
+        <input id="age" type="text" placeholder="24" [(ngModel)]="sheet.level"/>
+      </div>
+    </div>
+       <div class="row">
+      <div class="col">
+        <label for="race">Verinnerlicht</label>
+        <input id="race" type="text" placeholder="Kämpfer/Techniker/Magier" [(ngModel)]="sheet.learned_classes"/>
+      </div>
+
+    </div>
+  </app-card>
+</div>

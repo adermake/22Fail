@@ -1,0 +1,4 @@
+.sheetgrid {
+      display: grid;
+  grid-template-columns: auto auto;
+}
