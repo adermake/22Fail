@@ -8,7 +8,7 @@ export interface CharacterSheet {
   name: string;
   race: string;
   age: number;
-  alginment: string;
+  alignment: string;
   size: string;
   extrainfo: string;
 
@@ -63,7 +63,7 @@ export enum FormulaType {
 export class CharacterSheetService {
   characterSheetId!: string;
   currentSheet!: CharacterSheet;
-  
+
   constructor(private http: HttpClient, private route: ActivatedRoute) {}
 
   starterSheet: CharacterSheet = {
@@ -71,7 +71,7 @@ export class CharacterSheetService {
     name: 'Arion Stormblade',
     race: 'Elf',
     age: 125,
-    alginment: 'Neutral Good',
+    alignment: 'Neutral Good',
     size: 'Medium',
     extrainfo: 'A skilled archer and scholar, known for calm demeanor and precise aim.',
 
@@ -138,5 +138,17 @@ export class CharacterSheetService {
   deserializeCharacterSheet(json: string): CharacterSheet {
     var sheet = JSON.parse(json);
     return sheet;
+  }
+
+  async applyPatch(patch: { path: string; value: any }) {
+    if (!this.characterSheetId) return;
+    console.log('SENIND PATCH');
+    await fetch(`/api/characters/${this.characterSheetId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(patch),
+    });
   }
 }

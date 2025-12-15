@@ -4,34 +4,70 @@
 
     <div class="field">
       <label for="name">Name</label>
-      <input id="name" type="text" placeholder="Name" [(ngModel)]="sheet.name"/>
+      <input
+        id="name"
+        type="text"
+        placeholder="Name"
+        [(ngModel)]="sheetservice.currentSheet.name"
+        (ngModelChange)="sheetservice.applyPatch({ path: 'name', value: $event })"
+      />
     </div>
 
     <div class="row">
       <div class="col">
         <label for="race">Rasse</label>
-        <input id="race" type="text" placeholder="Mensch" [(ngModel)]="sheet.race"/>
+        <input
+          id="race"
+          type="text"
+          placeholder="Mensch"
+          [(ngModel)]="sheetservice.currentSheet.race"
+          (ngModelChange)="sheetservice.applyPatch({ path: 'race', value: $event })"
+        />
       </div>
       <div class="col">
         <label for="age">Alter</label>
-        <input id="age" type="text" placeholder="24" [(ngModel)]="sheet.age"/>
+        <input
+          id="age"
+          type="text"
+          placeholder="24"
+          [(ngModel)]="sheetservice.currentSheet.age"
+          (ngModelChange)="sheetservice.applyPatch({ path: 'age', value: $event })"
+        />
       </div>
     </div>
 
     <div class="row">
       <div class="col">
         <label for="alignment">Gesinnung</label>
-        <input id="alignment" type="text" placeholder="Ganz net eigentlich" [(ngModel)]="sheet.alginment"/>
+        <input
+          id="alignment"
+          type="text"
+          placeholder="Ganz net eigentlich"
+          [(ngModel)]="sheetservice.currentSheet.alignment"
+          (ngModelChange)="sheetservice.applyPatch({ path: 'alignment', value: $event })"
+        />
       </div>
       <div class="col">
         <label for="size">Größe</label>
-        <input id="size" type="text" placeholder="1.8M" [(ngModel)]="sheet.size"/>
+        <input
+          id="size"
+          type="text"
+          placeholder="1.8M"
+          [(ngModel)]="sheetservice.currentSheet.size"
+           (ngModelChange)="sheetservice.applyPatch({ path: 'size', value: $event })"
+        />
       </div>
     </div>
     <app-portrait></app-portrait>
     <div class="field">
       <label for="player">Extra Info</label>
-      <input id="player" type="text" placeholder="..." [(ngModel)]="sheet.extrainfo"/>
+      <input
+        id="player"
+        type="text"
+        placeholder="..."
+        [(ngModel)]="sheetservice.currentSheet.extrainfo"
+         (ngModelChange)="sheetservice.applyPatch({ path: 'extrainfo', value: $event })"
+      />
     </div>
   </app-card>
 </div>

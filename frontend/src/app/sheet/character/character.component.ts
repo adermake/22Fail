@@ -13,6 +13,6 @@ import { CommonModule } from '@angular/common';
 })
 export class CharacterComponent {
 
-  @Input({required:true}) sheet!: CharacterSheet;
+  sheetservice: CharacterSheetService = inject(CharacterSheetService);
 
 }
