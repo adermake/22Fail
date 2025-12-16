@@ -149,22 +149,27 @@ export class CharacterSheetService {
   private socket?: Socket;
 
   // 🔌 Connect to backend socket
-  connectSocket() {
-    if (this.socket) return; // prevent double connect
+connectSocket() {
+  if (this.socket) return;
 
-    this.socket = io('/', {
-      transports: ['websocket'],
-    });
+  this.socket = io(window.location.origin, {
+    path: '/socket.io',
+    transports: ['websocket'],
+  });
 
-    this.socket.on('connect', () => {
-      console.log('Socket connected:', this.socket?.id);
-    });
+  this.socket.on('connect', () => {
+    console.log('Socket connected:', this.socket?.id);
+  });
 
-    // 🔁 Receive patches from other users
-    this.socket.on('characterPatched', (patch: JsonPatch) => {
-      this.applyJsonPatch(this.currentSheet, patch);
-    });
-  }
+  this.socket.on('connect_error', (err) => {
+    console.error('Socket connection error:', err);
+  });
+
+  this.socket.on('characterPatched', (patch: JsonPatch) => {
+    this.applyJsonPatch(this.currentSheet, patch);
+  });
+}
+
 
   // 🏠 Join a character room
   joinCharacter(characterId: string) {
