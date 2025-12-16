@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectorRef, Injectable } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 
 export interface JsonPatch {
@@ -69,8 +69,12 @@ export enum FormulaType {
 export class CharacterSheetService {
   characterSheetId!: string;
   currentSheet!: CharacterSheet;
+  //EVENTS AND STUFF
+  private patchSubject = new Subject<JsonPatch>();
+  characterSheet$ = this.patchSubject.asObservable();
 
-  constructor(private cdr: ChangeDetectorRef,private http: HttpClient, private route: ActivatedRoute) {}
+  //EVENTS AND STUFF
+  constructor(private http: HttpClient, private route: ActivatedRoute) {}
 
   starterSheet: CharacterSheet = {
     // Character
@@ -205,6 +209,6 @@ export class CharacterSheetService {
     }
 
     current[keys[keys.length - 1]] = patch.value;
-     this.cdr.detectChanges();
+    this.patchSubject.next(patch);
   }
 }

@@ -53,17 +53,16 @@ export class SheetComponent implements OnInit {
     this.sheetservice.characterSheetId = this.route.snapshot.paramMap.get('id')!;
 
     // 1️⃣ Load initial state
-    this.sheetservice.currentSheet =
-      (await this.sheetservice.loadCharacter(this.sheetservice.characterSheetId)) 
+    this.sheetservice.currentSheet = await this.sheetservice.loadCharacter(
+      this.sheetservice.characterSheetId
+    );
 
-      if (!this.sheetservice.currentSheet) {
-        console.log("WAS null creating new");
-        this.sheetservice.currentSheet = structuredClone(this.sheetservice.starterSheet);
-      }
-      else {
-         console.log("Recieved "+ JSON.stringify(this.sheetservice.currentSheet));
-      }
-      
+    if (!this.sheetservice.currentSheet) {
+      console.log('WAS null creating new');
+      this.sheetservice.currentSheet = structuredClone(this.sheetservice.starterSheet);
+    } else {
+      console.log('Recieved ' + JSON.stringify(this.sheetservice.currentSheet));
+    }
 
     // 2️⃣ Connect websocket
     this.sheetservice.connectSocket();
@@ -71,6 +70,9 @@ export class SheetComponent implements OnInit {
     // 3️⃣ Join room
     this.sheetservice.joinCharacter(this.sheetservice.characterSheetId);
 
+    this.sheetservice.characterSheet$.subscribe((event) => {
+      this.cdr.detectChanges(); // detect changes in the component
+    });
     this.cdr.detectChanges();
   }
 }
