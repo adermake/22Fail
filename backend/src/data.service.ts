@@ -43,6 +43,7 @@ export class DataService {
     const data = this.readData();
     if (!data[id]) {
       // Character does not exist yet
+      console.log('GET CHARACTER CALLED');
       return null;
     }
     return data[id];
@@ -51,12 +52,13 @@ export class DataService {
   saveCharacter(id: string, sheetJson: string): void {
     const data = this.readData();
     data[id] = sheetJson;
+    console.log('SAVE CHARACTER CALLED');
     this.writeData(data);
   }
 
   applyPatchToCharacter(id: string, patch: JsonPatch): string | null {
     const data = this.readData();
-
+    console.log('APPLY PATCH CHARACTER CALLED');
     if (!data[id]) {
       return null; // character does not exist
     }
