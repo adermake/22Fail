@@ -49,7 +49,7 @@ export class CharacterGateway
 
     // 1️⃣ Apply patch in backend
     this.dataService.applyPatchToCharacter(characterId, patch);
-
+    console.log('CHARACTER PATCH Chaining');
     // 2️⃣ Broadcast patch to all other clients in the same room
     client.to(characterId).emit('characterPatched', patch);
   }
