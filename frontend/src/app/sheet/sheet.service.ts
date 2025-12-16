@@ -149,27 +149,28 @@ export class CharacterSheetService {
   private socket?: Socket;
 
   // 🔌 Connect to backend socket
-connectSocket() {
-  if (this.socket) return;
+  connectSocket() {
+    if (this.socket) return;
 
-  this.socket = io(window.location.origin, {
-    path: '/socket.io',
-    transports: ['websocket'],
-  });
+    this.socket = io(window.location.origin, {
+      path: '/socket.io',
+      transports: ['websocket'],
+    });
 
-  this.socket.on('connect', () => {
-    console.log('Socket connected:', this.socket?.id);
-  });
+    this.socket.on('connect', () => {
+      console.log('Socket connected:', this.socket?.id);
+    });
 
-  this.socket.on('connect_error', (err) => {
-    console.error('Socket connection error:', err);
-  });
+    this.socket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err);
+    });
 
-  this.socket.on('characterPatched', (patch: JsonPatch) => {
-    this.applyJsonPatch(this.currentSheet, patch);
-  });
-}
+    this.socket.on('characterPatched', (patch: JsonPatch) => {
+      console.log('Change from server ');
 
+      this.applyJsonPatch(this.currentSheet, patch);
+    });
+  }
 
   // 🏠 Join a character room
   joinCharacter(characterId: string) {
@@ -177,12 +178,13 @@ connectSocket() {
       console.warn('Socket not connected yet');
       return;
     }
-
+    console.log('Joined room!');
     this.socket.emit('joinCharacter', characterId);
   }
 
   // ✏️ Called by ngModelChange
   applyPatch(patch: JsonPatch) {
+    console.log('Detected changes');
     if (!this.socket) return;
 
     // emit patch to backend
@@ -195,7 +197,7 @@ connectSocket() {
   private applyJsonPatch(target: any, patch: JsonPatch) {
     const keys = patch.path.split('.');
     let current = target;
-    console.log("Applying patch!");
+    console.log('Applying patch!');
     for (let i = 0; i < keys.length - 1; i++) {
       const key = keys[i];
       if (current[key] == null) current[key] = {};
