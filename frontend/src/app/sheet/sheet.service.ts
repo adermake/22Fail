@@ -205,6 +205,6 @@ export class CharacterSheetService {
     }
 
     current[keys[keys.length - 1]] = patch.value;
-    window.location.reload();
+    
   }
 }
