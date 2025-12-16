@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { ChangeDetectorRef, Injectable } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
@@ -70,7 +70,7 @@ export class CharacterSheetService {
   characterSheetId!: string;
   currentSheet!: CharacterSheet;
 
-  constructor(private http: HttpClient, private route: ActivatedRoute) {}
+  constructor(private cdr: ChangeDetectorRef,private http: HttpClient, private route: ActivatedRoute) {}
 
   starterSheet: CharacterSheet = {
     // Character
@@ -205,6 +205,6 @@ export class CharacterSheetService {
     }
 
     current[keys[keys.length - 1]] = patch.value;
-    
+     this.cdr.detectChanges();
   }
 }
