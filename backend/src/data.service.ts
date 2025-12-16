@@ -5,7 +5,7 @@ type JsonObject = Record<string, any>;
 
 @Injectable()
 export class DataService {
-  private filePath = path.join(__dirname, '../data.json');
+  private filePath = path.join(__dirname, '../../data.json');
 
   private applyJsonPatch(target: unknown, patch: JsonPatch): void {
     const keys = patch.path.split('.');
