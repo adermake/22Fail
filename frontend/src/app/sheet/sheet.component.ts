@@ -54,8 +54,13 @@ export class SheetComponent implements OnInit {
 
     // 1️⃣ Load initial state
     this.sheetservice.currentSheet =
-      (await this.sheetservice.loadCharacter(this.sheetservice.characterSheetId)) ??
-      structuredClone(this.sheetservice.starterSheet);
+      (await this.sheetservice.loadCharacter(this.sheetservice.characterSheetId)) 
+
+      if (!this.sheetservice.currentSheet) {
+        console.log("WAS null creating new");
+        this.sheetservice.currentSheet = structuredClone(this.sheetservice.starterSheet);
+      }
+      
 
     // 2️⃣ Connect websocket
     this.sheetservice.connectSocket();
