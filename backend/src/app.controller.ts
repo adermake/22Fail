@@ -11,10 +11,11 @@ export class AppController {
     console.log('LOADING ' + id);
     if (!sheetJson) {
       // Character not found → send null
-
+      console.log('sendnull for ' + id);
       return null;
     }
 
+    console.log('sendnull for ' + sheetJson);
     return JSON.parse(sheetJson); // existing character
   }
 
