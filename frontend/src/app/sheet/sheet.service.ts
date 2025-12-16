@@ -195,7 +195,7 @@ connectSocket() {
   private applyJsonPatch(target: any, patch: JsonPatch) {
     const keys = patch.path.split('.');
     let current = target;
-
+    console.log("Applying patch!");
     for (let i = 0; i < keys.length - 1; i++) {
       const key = keys[i];
       if (current[key] == null) current[key] = {};
