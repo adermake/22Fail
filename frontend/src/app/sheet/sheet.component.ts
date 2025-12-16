@@ -60,6 +60,9 @@ export class SheetComponent implements OnInit {
         console.log("WAS null creating new");
         this.sheetservice.currentSheet = structuredClone(this.sheetservice.starterSheet);
       }
+      else {
+         console.log("Recieved "+ this.sheetservice.currentSheet);
+      }
       
 
     // 2️⃣ Connect websocket
