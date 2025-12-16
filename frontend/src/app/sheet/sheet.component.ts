@@ -25,6 +25,7 @@ export class SheetComponent implements OnInit {
   sheetservice: CharacterSheetService = inject(CharacterSheetService);
   private cdr = inject(ChangeDetectorRef);
   constructor(private route: ActivatedRoute) {}
+  /*
   async ngOnInit() {
     // Get the ID from the URL
     console.log('INIT START');
@@ -36,13 +37,7 @@ export class SheetComponent implements OnInit {
       this.sheetservice.characterSheetId
     );
 
-    // Auto-save every 3 seconds
-    /*
-      setInterval(async () => {
-        console.log("SAVING");
-        await this.sheetservice.saveCharacter(this.sheetservice.characterSheetId, this.sheetservice.currentSheet);
-      }, 3000);
-  */
+
     if (!this.sheetservice.currentSheet) {
       this.sheetservice.currentSheet = JSON.parse(JSON.stringify(this.sheetservice.starterSheet));
       console.log('GOT NOTHING');
@@ -52,5 +47,22 @@ export class SheetComponent implements OnInit {
     }
     this.cdr.detectChanges();
     console.log('INIT DONE');
+  }
+    */
+  async ngOnInit() {
+    this.sheetservice.characterSheetId = this.route.snapshot.paramMap.get('id')!;
+
+    // 1️⃣ Load initial state
+    this.sheetservice.currentSheet =
+      (await this.sheetservice.loadCharacter(this.sheetservice.characterSheetId)) ??
+      structuredClone(this.sheetservice.starterSheet);
+
+    // 2️⃣ Connect websocket
+    this.sheetservice.connectSocket();
+
+    // 3️⃣ Join room
+    this.sheetservice.joinCharacter(this.sheetservice.characterSheetId);
+
+    this.cdr.detectChanges();
   }
 }

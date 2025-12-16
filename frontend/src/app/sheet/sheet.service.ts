@@ -2,6 +2,12 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { io, Socket } from 'socket.io-client';
+
+export interface JsonPatch {
+  path: string;
+  value: any;
+}
 
 export interface CharacterSheet {
   // Character
@@ -140,15 +146,57 @@ export class CharacterSheetService {
     return sheet;
   }
 
-  async applyPatch(patch: { path: string; value: any }) {
-    if (!this.characterSheetId) return;
-    console.log('SENIND PATCH');
-    await fetch(`/api/characters/${this.characterSheetId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(patch),
+  private socket?: Socket;
+
+  // 🔌 Connect to backend socket
+  connectSocket() {
+    if (this.socket) return; // prevent double connect
+
+    this.socket = io('/', {
+      transports: ['websocket'],
     });
+
+    this.socket.on('connect', () => {
+      console.log('Socket connected:', this.socket?.id);
+    });
+
+    // 🔁 Receive patches from other users
+    this.socket.on('characterPatched', (patch: JsonPatch) => {
+      this.applyJsonPatch(this.currentSheet, patch);
+    });
+  }
+
+  // 🏠 Join a character room
+  joinCharacter(characterId: string) {
+    if (!this.socket) {
+      console.warn('Socket not connected yet');
+      return;
+    }
+
+    this.socket.emit('joinCharacter', characterId);
+  }
+
+  // ✏️ Called by ngModelChange
+  applyPatch(patch: JsonPatch) {
+    if (!this.socket) return;
+
+    // emit patch to backend
+    this.socket.emit('patchCharacter', {
+      characterId: this.characterSheetId,
+      patch,
+    });
+  }
+
+  private applyJsonPatch(target: any, patch: JsonPatch) {
+    const keys = patch.path.split('.');
+    let current = target;
+
+    for (let i = 0; i < keys.length - 1; i++) {
+      const key = keys[i];
+      if (current[key] == null) current[key] = {};
+      current = current[key];
+    }
+
+    current[keys[keys.length - 1]] = patch.value;
   }
 }
