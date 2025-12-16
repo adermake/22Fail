@@ -61,7 +61,7 @@ export class SheetComponent implements OnInit {
         this.sheetservice.currentSheet = structuredClone(this.sheetservice.starterSheet);
       }
       else {
-         console.log("Recieved "+ this.sheetservice.currentSheet);
+         console.log("Recieved "+ JSON.stringify(this.sheetservice.currentSheet));
       }
       
 
