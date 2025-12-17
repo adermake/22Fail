@@ -59,7 +59,9 @@ export class StatComponent {
     if (!this.isPopupVisible) return '';
     return '';
   }
-
+  ngOnChanges() {
+    this.cd.markForCheck(); // Trigger detection when inputs change
+  }
   @Output() patch = new EventEmitter<JsonPatch>();
   updateField(path: string, value: any) {
     console.log('Emitting patch:', { path, value });
