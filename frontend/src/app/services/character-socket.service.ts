@@ -27,7 +27,7 @@ export class CharacterSocketService {
   }
 
   sendPatch(characterId: string, patch: JsonPatch) {
-    console.log('Sending patch '+patch);
+    console.log('Sending patch '+JSON.stringify(patch));
     this.socket?.emit('patchCharacter', { characterId, patch });
   }
 }
