@@ -14,15 +14,29 @@ export class DataService {
     for (let i = 0; i < keys.length - 1; i++) {
       const key = keys[i];
 
-      if (typeof current[key] !== 'object' || current[key] === null) {
-        current[key] = {};
+      // Check if the key is a numeric index (for arrays)
+      const index = parseInt(key, 10);
+      if (!isNaN(index) && Array.isArray(current)) {
+        current = current[index] as JsonObject;
+      } else {
+        if (typeof current[key] !== 'object' || current[key] === null) {
+          current[key] = {};
+        }
+        current = current[key] as JsonObject;
       }
-
-      current = current[key] as JsonObject;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    current[keys[keys.length - 1]] = patch.value;
+    const finalKey = keys[keys.length - 1];
+
+    // Handle final key - could also be an array index
+    const finalIndex = parseInt(finalKey, 10);
+    if (!isNaN(finalIndex) && Array.isArray(current)) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      current[finalIndex] = patch.value;
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      current[finalKey] = patch.value;
+    }
   }
 
   private readData(): Record<string, string> {
