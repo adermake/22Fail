@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { CharacterApiService } from './character-api.service';
 import { CharacterSocketService } from './character-socket.service';
-import { CharacterSheet } from '../model/character-sheet-model';
+import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 import { JsonPatch } from '../model/json-patch.model';
 
 @Injectable({ providedIn: 'root' })
@@ -12,11 +12,8 @@ export class CharacterStoreService {
 
   characterId!: string;
 
-  constructor(
-    private api: CharacterApiService,
-    private socket: CharacterSocketService
-  ) {
-    this.socket.patches$.subscribe(patch => {
+  constructor(private api: CharacterApiService, private socket: CharacterSocketService) {
+    this.socket.patches$.subscribe((patch) => {
       const sheet = this.sheetSubject.value;
       if (!sheet) return;
       this.applyJsonPatch(sheet, patch);
@@ -26,7 +23,10 @@ export class CharacterStoreService {
 
   async load(id: string) {
     this.characterId = id;
-    const sheet = await this.api.loadCharacter(id);
+    let sheet = await this.api.loadCharacter(id);
+    if (!sheet) {
+      sheet = createEmptySheet();
+    }
     this.sheetSubject.next(sheet);
 
     this.socket.connect();

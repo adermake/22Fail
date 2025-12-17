@@ -1,7 +1,5 @@
-import { StatBlock } from "./stat-block.model";
-import { StatusBlock } from "./status-block.model";
-
-
+import { StatBlock } from './stat-block.model';
+import { StatusBlock } from './status-block.model';
 
 export interface CharacterSheet {
   // Character
@@ -26,4 +24,30 @@ export interface CharacterSheet {
   constitution: StatBlock;
 
   statuses: StatusBlock[];
+}
+
+export function createEmptySheet(): CharacterSheet {
+  return {
+    name: '',
+    race: '',
+    age: 0,
+    alignment: '',
+    size: '',
+    extrainfo: '',
+    primary_class: '',
+    secondary_class: '',
+    level: 1,
+    learned_classes: '',
+    strength: createEmptyStatBlock("Stärke"),
+    dexterity: createEmptyStatBlock("Geschicklichkeit"),
+    speed: createEmptyStatBlock("Geschwindigkeit"),
+    intelligence: createEmptyStatBlock("Intelligenz"),
+    chill: createEmptyStatBlock("Chill"),
+    constitution: createEmptyStatBlock("Konstitution"),
+    statuses: [],
+  };
+}
+
+function createEmptyStatBlock(name: string): StatBlock {
+  return new StatBlock(name, 10, 5, 0);
 }
