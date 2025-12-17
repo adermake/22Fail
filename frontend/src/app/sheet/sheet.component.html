@@ -1,7 +1,7 @@
 @if (store.sheet$ | async; as sheet) {
 <div class="sheetgrid">
   <app-character [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-character>
-  <app-stats [sheet]="sheet"></app-stats>
+  <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>
   <app-levelclass [sheet]="sheet"></app-levelclass>
   <app-currentstats [sheet]="sheet"></app-currentstats>
 </div>
