@@ -2,6 +2,7 @@
   <div class="currentstat-row">
     @for (status of sheet.statuses; track status.statusName) {
       <app-currentstat
+        [sheet]="sheet"
         [name]="status.statusName"
         [current]="status.statusCurrent"
         [color]="status.statusColor"

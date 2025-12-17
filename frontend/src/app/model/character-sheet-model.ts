@@ -56,12 +56,20 @@ function createEmptyStatBlock(name: string): StatBlock {
 export function createBasicStatuses(): StatusBlock[] {
   return [
     {
-      statusName: 'Life',
+      statusName: 'Leben',
       statusColor: 'red',
       statusBase: 80,
       statusBonus: 0,
       statusCurrent: 80,
       formulaType: FormulaType.LIFE,
+    },
+    {
+      statusName: 'Ausdauer',
+      statusColor: 'green',
+      statusBase: 50,
+      statusBonus: 0,
+      statusCurrent: 50,
+      formulaType: FormulaType.ENERGY,
     },
     {
       statusName: 'Mana',
@@ -70,14 +78,6 @@ export function createBasicStatuses(): StatusBlock[] {
       statusBonus: 0,
       statusCurrent: 40,
       formulaType: FormulaType.MANA,
-    },
-    {
-      statusName: 'Energy',
-      statusColor: 'green',
-      statusBase: 50,
-      statusBonus: 0,
-      statusCurrent: 50,
-      formulaType: FormulaType.ENERGY,
     },
   ];
 }
