@@ -5,26 +5,32 @@
       <app-stat
         [stat]="sheet.strength"
         [sheet]="sheet"
+        (patch)="updateField('strength',$event)"
       ></app-stat>
       <app-stat
         [stat]="sheet.constitution"
         [sheet]="sheet"
+        (patch)="updateField('constitution',$event)"
       ></app-stat>
       <app-stat
         [stat]="sheet.speed"
         [sheet]="sheet"
+        (patch)="updateField('speed',$event)"
       ></app-stat>
       <app-stat
         [stat]="sheet.dexterity"
         [sheet]="sheet"
+        (patch)="updateField('dexterity',$event)"
       ></app-stat>
       <app-stat
         [stat]="sheet.intelligence"
         [sheet]="sheet"
+        (patch)="updateField('intelligence',$event)"
       ></app-stat>
       <app-stat
         [stat]="sheet.chill"
         [sheet]="sheet"
+        (patch)="updateField('chill',$event)"
       ></app-stat>
     </div>
   </app-card>

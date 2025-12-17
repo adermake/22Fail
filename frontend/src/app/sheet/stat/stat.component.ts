@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Input, NgZone } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, Output } from '@angular/core';
 import { CardComponent } from '../../shared/card/card.component';
 import { required } from '@angular/forms/signals';
 import { BrowserModule } from '@angular/platform-browser';
@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { StatBlock } from '../../model/stat-block.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
+import { JsonPatch } from '../../model/json-patch.model';
 
 @Component({
   selector: 'app-stat',
@@ -21,9 +22,7 @@ export class StatComponent {
   constructor(private cd: ChangeDetectorRef) {}
 
   get total(): number {
-    this.stat.current =
-      (this.stat.base + this.stat.bonus + this.sheet.level / this.stat.gain) |
-      0;
+    this.stat.current = (this.stat.base + this.stat.bonus + this.sheet.level / this.stat.gain) | 0;
     return this.stat.current;
   }
 
@@ -59,5 +58,11 @@ export class StatComponent {
     if (this.isPopupVisible) return 'show';
     if (!this.isPopupVisible) return '';
     return '';
+  }
+
+  @Output() patch = new EventEmitter<JsonPatch>();
+  updateField(path: string, value: any) {
+    console.log('Emitting patch:', { path, value });
+    this.patch.emit({ path, value });
   }
 }
