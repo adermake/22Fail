@@ -16,7 +16,7 @@
   <div class="stat-inputs">
     <div class="stat-input-group">
       <label>Aktuell</label>
-      <input type="number" [(ngModel)]="current" (ngModelChange)="updateCurrent('current', $event)"/>
+      <input type="number" [(ngModel)]="current" (ngModelChange)="updateCurrent('statusCurrent', $event)"/>
     </div>
 
 
@@ -25,12 +25,12 @@
   <div class="stat-inputs">
     <div class="stat-input-group">
       <label>Basis</label>
-      <input type="number"  [(ngModel)]="base" (ngModelChange)="updateBase('base', $event)"/>
+      <input type="number"  [(ngModel)]="base" (ngModelChange)="updateBase('statusBase', $event)"/>
     </div>
 
     <div class="stat-input-group">
       <label>Bonus</label>
-      <input type="number"  [(ngModel)]="bonus"(ngModelChange)="updateBonus('bonus', $event)"/>
+      <input type="number"  [(ngModel)]="bonus"(ngModelChange)="updateBonus('statusBonus', $event)"/>
     </div>
   </div>
 </div>
