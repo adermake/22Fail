@@ -12,7 +12,6 @@ export class CharacterSocketService {
 
   connect() {
     if (this.socket) return;
-    console.log('Connecting to socket!');
     this.socket = io(window.location.origin, {
       path: '/socket.io',
       transports: ['websocket'],
@@ -24,7 +23,6 @@ export class CharacterSocketService {
   }
 
   joinCharacter(characterId: string) {
-    console.log('Joining character!');
     this.socket?.emit('joinCharacter', characterId);
   }
 
