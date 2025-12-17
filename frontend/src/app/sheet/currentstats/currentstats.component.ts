@@ -19,6 +19,7 @@ export class CurrentstatsComponent {
 
   updateField(prefix: string, patch: JsonPatch) {
     patch.path = prefix + '.' + patch.path;
+    console.log("PATCHING "+patch.path);
     this.patch.emit(patch);
   }
 }

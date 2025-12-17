@@ -42,12 +42,12 @@ export class CurrentstatComponent {
     this.cd.detectChanges();
   }
   updateCurrent(path: string, value: any) {
-    this.base = value;
+    this.current = value;
     this.patch.emit({ path: path, value });
     this.cd.detectChanges();
   }
   updateBonus(path: string, value: any) {
-    this.base = value;
+    this.bonus= value;
     this.patch.emit({ path, value });
     this.cd.detectChanges();
   }
