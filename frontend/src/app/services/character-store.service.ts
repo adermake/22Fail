@@ -46,12 +46,12 @@ export class CharacterStoreService {
     if (!sheet) {
       console.log('GOT NOTHING Creating new');
       sheet = createEmptySheet();
-      this.save();
     }
     this.sheetSubject.next(sheet);
 
     this.socket.connect();
     this.socket.joinCharacter(id);
+    this.save();
   }
 
   applyPatch(patch: JsonPatch) {
