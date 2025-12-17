@@ -2,7 +2,7 @@
 <div class="sheetgrid">
   <app-character [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-character>
   <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>
-  <app-levelclass [sheet]="sheet"></app-levelclass>
+  <app-levelclass [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-levelclass>
   <app-currentstats [sheet]="sheet"></app-currentstats>
 </div>
 }

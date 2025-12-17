@@ -1,16 +1,18 @@
 <app-card>
   <div class="currentstat-row">
-    @for (status of sheet.statuses; track status.statusName) {
-      <app-currentstat
-        [sheet]="sheet"
-        [name]="status.statusName"
-        [current]="status.statusCurrent"
-        [color]="status.statusColor"
-        [base]="status.statusBase"
-        [bonus]="status.statusBonus"
-        [formula]="status.formulaType"
-        >></app-currentstat
-      >
+    @for (status of sheet.statuses; track status.statusName; let i = $index) {
+    <app-currentstat
+      [sheet]="sheet"
+      [name]="status.statusName"
+      [current]="status.statusCurrent"
+      [color]="status.statusColor"
+      [base]="status.statusBase"
+      [bonus]="status.statusBonus"
+      [formula]="status.formulaType"
+      (patch)="updateField('statuses.' + i, $event)"
+
+      >></app-currentstat
+    >
     }
   </div>
 </app-card>

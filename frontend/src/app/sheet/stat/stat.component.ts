@@ -73,7 +73,6 @@ export class StatComponent {
   @Output() patch = new EventEmitter<JsonPatch>();
   updateField(path: string, value: any) {
     (this.stat as any)[path] = Number(value);
-    console.log('Emitting patch:', { path, value });
     this.patch.emit({ path, value });
     this.cd.detectChanges();
   }
