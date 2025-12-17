@@ -34,6 +34,7 @@ export class CharacterStoreService {
   }
 
   applyPatch(patch: JsonPatch) {
+    console.log("APPLY PATCH");
     this.socket.sendPatch(this.characterId, patch);
   }
 
