@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, Output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, NgZone, Output } from '@angular/core';
 import { CardComponent } from '../../shared/card/card.component';
 import { required } from '@angular/forms/signals';
 import { BrowserModule } from '@angular/platform-browser';
@@ -13,6 +13,7 @@ import { JsonPatch } from '../../model/json-patch.model';
   imports: [CardComponent, FormsModule, CommonModule],
   templateUrl: './stat.component.html',
   styleUrl: './stat.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StatComponent {
   @Input({ required: true }) stat!: StatBlock;
