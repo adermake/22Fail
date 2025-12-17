@@ -13,7 +13,6 @@ import { JsonPatch } from '../../model/json-patch.model';
   imports: [CardComponent, FormsModule, CommonModule],
   templateUrl: './stat.component.html',
   styleUrl: './stat.component.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StatComponent {
   @Input({ required: true }) stat!: StatBlock;
