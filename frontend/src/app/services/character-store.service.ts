@@ -42,11 +42,17 @@ export class CharacterStoreService {
   async load(id: string) {
     this.characterId = id;
     let sheet = await this.api.loadCharacter(id);
+
+    console.log('=== LOAD DEBUG ===');
+    console.log('Raw loaded sheet:', sheet);
+    console.log('Statuses on load:', sheet?.statuses);
     if (!sheet) {
+      console.log('Creating empty sheet');
       sheet = createEmptySheet();
       this.sheetSubject.next(sheet);
       this.save();
     } else {
+      console.log('Using existing sheet');
       this.sheetSubject.next(sheet);
     }
 
