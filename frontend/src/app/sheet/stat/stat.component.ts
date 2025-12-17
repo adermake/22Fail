@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, NgZone, Output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  EventEmitter,
+  Input,
+  NgZone,
+  Output,
+} from '@angular/core';
 import { CardComponent } from '../../shared/card/card.component';
 import { required } from '@angular/forms/signals';
 import { BrowserModule } from '@angular/platform-browser';
@@ -64,6 +72,7 @@ export class StatComponent {
   }
   @Output() patch = new EventEmitter<JsonPatch>();
   updateField(path: string, value: any) {
+    (this.stat as any)[path] = Number(value);
     console.log('Emitting patch:', { path, value });
     this.patch.emit({ path, value });
     this.cd.detectChanges();
