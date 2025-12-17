@@ -21,12 +21,32 @@ export class CharacterStoreService {
     });
   }
 
+  async save(): Promise<void> {
+    const sheet = this.sheetSubject.value;
+    if (!sheet) {
+      console.warn('No character sheet loaded, cannot save.');
+      return;
+    }
+
+    if (!this.characterId) {
+      console.error('No characterId set, cannot save.');
+      return;
+    }
+
+    try {
+      await this.api.saveCharacter(this.characterId, sheet);
+      console.log('Character saved successfully!');
+    } catch (err) {
+      console.error('Failed to save character:', err);
+    }
+  }
   async load(id: string) {
     this.characterId = id;
     let sheet = await this.api.loadCharacter(id);
     if (!sheet) {
       console.log('GOT NOTHING Creating new');
       sheet = createEmptySheet();
+      this.save();
     }
     this.sheetSubject.next(sheet);
 
