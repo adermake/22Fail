@@ -16,4 +16,8 @@ export class CharacterComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
 
+  updateField(path: string, value: any) {
+    console.log('Emitting patch:', { path, value });
+    this.patch.emit({ path, value });
+  }
 }

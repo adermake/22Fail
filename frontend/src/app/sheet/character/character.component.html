@@ -9,7 +9,7 @@
         type="text"
         placeholder="Name"
         [ngModel]="sheet.name"
-        (ngModelChange)="patch.emit({ path: 'name', value: $event })"
+        (ngModelChange)="updateField('name', $event)"
       />
     </div>
 
