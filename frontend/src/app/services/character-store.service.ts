@@ -25,6 +25,7 @@ export class CharacterStoreService {
     this.characterId = id;
     let sheet = await this.api.loadCharacter(id);
     if (!sheet) {
+      console.log('GOT NOTHING Creating new');
       sheet = createEmptySheet();
     }
     this.sheetSubject.next(sheet);
@@ -34,7 +35,7 @@ export class CharacterStoreService {
   }
 
   applyPatch(patch: JsonPatch) {
-    console.log("APPLY PATCH");
+    console.log('APPLY PATCH');
     this.socket.sendPatch(this.characterId, patch);
   }
 
