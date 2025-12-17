@@ -61,9 +61,27 @@ export class CharacterStoreService {
   private applyJsonPatch(target: any, patch: JsonPatch) {
     const keys = patch.path.split('.');
     let current = target;
+
     for (let i = 0; i < keys.length - 1; i++) {
-      current = current[keys[i]] ??= {};
+      const key = keys[i];
+      const index = parseInt(key, 10);
+
+      // Check if it's an array index
+      if (!isNaN(index) && Array.isArray(current)) {
+        current = current[index];
+      } else {
+        current = current[key] ??= {};
+      }
     }
-    current[keys[keys.length - 1]] = patch.value;
+
+    const finalKey = keys[keys.length - 1];
+    const finalIndex = parseInt(finalKey, 10);
+
+    // Handle final key - could also be an array index
+    if (!isNaN(finalIndex) && Array.isArray(current)) {
+      current[finalIndex] = patch.value;
+    } else {
+      current[finalKey] = patch.value;
+    }
   }
 }
