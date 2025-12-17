@@ -64,5 +64,6 @@ export class StatComponent {
   updateField(path: string, value: any) {
     console.log('Emitting patch:', { path, value });
     this.patch.emit({ path, value });
+    this.cd.detectChanges();
   }
 }
