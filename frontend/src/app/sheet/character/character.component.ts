@@ -1,18 +1,19 @@
-import { Component, inject, Input } from '@angular/core';
-import { CardComponent } from "../../shared/card/card.component";
-import { PortraitComponent } from "../portrait/portrait.component";
-import { CharacterSheet, CharacterSheetService } from '../sheet.service';
+import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
+import { CardComponent } from '../../shared/card/card.component';
+import { PortraitComponent } from '../portrait/portrait.component';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { CharacterSheet } from '../../model/character-sheet-model';
+import { JsonPatch } from '../../model/json-patch.model';
 
 @Component({
   selector: 'app-character',
-  imports: [CardComponent, PortraitComponent,FormsModule,CommonModule],
+  imports: [CardComponent, PortraitComponent, FormsModule, CommonModule],
   templateUrl: './character.component.html',
   styleUrl: './character.component.css',
 })
 export class CharacterComponent {
-
-  sheetservice: CharacterSheetService = inject(CharacterSheetService);
+  @Input({ required: true }) sheet!: CharacterSheet;
+  @Output() patch = new EventEmitter<JsonPatch>();
 
 }

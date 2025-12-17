@@ -1,8 +1,8 @@
-@if (sheetservice.currentSheet) {
-  <div class="sheetgrid">
-    <app-character ></app-character>
-    <app-stats></app-stats>
-    <app-levelclass [sheet]="sheetservice.currentSheet"></app-levelclass>
-    <app-currentstats></app-currentstats>
-  </div>
+@if (store.sheet$ | async; as sheet) {
+<div class="sheetgrid">
+  <app-character [sheet]="sheet"></app-character>
+  <app-stats [sheet]="sheet"></app-stats>
+  <app-levelclass [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-levelclass>
+  <app-currentstats [sheet]="sheet"></app-currentstats>
+</div>
 }

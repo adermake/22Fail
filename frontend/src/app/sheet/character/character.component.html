@@ -8,8 +8,8 @@
         id="name"
         type="text"
         placeholder="Name"
-        [(ngModel)]="sheetservice.currentSheet.name"
-        (ngModelChange)="sheetservice.applyPatch({ path: 'name', value: $event })"
+        [ngModel]="sheet.name"
+        (ngModelChange)="patch.emit({ path: 'name', value: $event })"
       />
     </div>
 
@@ -20,8 +20,8 @@
           id="race"
           type="text"
           placeholder="Mensch"
-          [(ngModel)]="sheetservice.currentSheet.race"
-          (ngModelChange)="sheetservice.applyPatch({ path: 'race', value: $event })"
+          [ngModel]="sheet.race"
+          (ngModelChange)="patch.emit({ path: 'race', value: $event })"
         />
       </div>
       <div class="col">
@@ -30,8 +30,8 @@
           id="age"
           type="text"
           placeholder="24"
-          [(ngModel)]="sheetservice.currentSheet.age"
-          (ngModelChange)="sheetservice.applyPatch({ path: 'age', value: $event })"
+          [ngModel]="sheet.age"
+          (ngModelChange)="patch.emit({ path: 'age', value: $event })"
         />
       </div>
     </div>
@@ -43,8 +43,8 @@
           id="alignment"
           type="text"
           placeholder="Ganz net eigentlich"
-          [(ngModel)]="sheetservice.currentSheet.alignment"
-          (ngModelChange)="sheetservice.applyPatch({ path: 'alignment', value: $event })"
+          [ngModel]="sheet.alignment"
+          (ngModelChange)="patch.emit({ path: 'alignment', value: $event })"
         />
       </div>
       <div class="col">
@@ -53,8 +53,8 @@
           id="size"
           type="text"
           placeholder="1.8M"
-          [(ngModel)]="sheetservice.currentSheet.size"
-           (ngModelChange)="sheetservice.applyPatch({ path: 'size', value: $event })"
+          [ngModel]="sheet.size"
+          (ngModelChange)="patch.emit({ path: 'size', value: $event })"
         />
       </div>
     </div>
@@ -65,8 +65,8 @@
         id="player"
         type="text"
         placeholder="..."
-        [(ngModel)]="sheetservice.currentSheet.extrainfo"
-         (ngModelChange)="sheetservice.applyPatch({ path: 'extrainfo', value: $event })"
+        [ngModel]="sheet.extrainfo"
+        (ngModelChange)="patch.emit({ path: 'extrainfo', value: $event })"
       />
     </div>
   </app-card>

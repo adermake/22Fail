@@ -4,7 +4,8 @@ import { required } from '@angular/forms/signals';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { CharacterSheet, CharacterSheetService, StatBlock } from '../sheet.service';
+import { StatBlock } from '../../model/stat-block.model';
+import { CharacterSheet } from '../../model/character-sheet-model';
 
 @Component({
   selector: 'app-stat',

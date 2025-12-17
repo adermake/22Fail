@@ -1,7 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, Input } from '@angular/core';
 import { CardComponent } from '../../shared/card/card.component';
 import { StatComponent } from '../stat/stat.component';
-import { CharacterSheetService } from '../sheet.service';
+import { CharacterSheet } from '../../model/character-sheet-model';
 
 @Component({
   selector: 'app-stats',
@@ -10,5 +10,6 @@ import { CharacterSheetService } from '../sheet.service';
   styleUrl: './stats.component.css',
 })
 export class StatsComponent {
-  sheetservice: CharacterSheetService = inject(CharacterSheetService);
+  @Input({required:true}) sheet!: CharacterSheet;
+  
 }

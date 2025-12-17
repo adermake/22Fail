@@ -27,7 +27,6 @@ export class PortraitComponent {
   onDrop(event: DragEvent) {
     event.preventDefault();
 
-    console.log("PRESS");
     this.zone.run(() => {
       this.isDragging = false;
 

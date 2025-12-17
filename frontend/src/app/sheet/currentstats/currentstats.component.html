@@ -1,6 +1,6 @@
 <app-card>
   <div class="currentstat-row">
-    @for (status of sheetservice.currentSheet.statuses; track status.statusName) {
+    @for (status of sheet.statuses; track status.statusName) {
       <app-currentstat
         [name]="status.statusName"
         [current]="status.statusCurrent"

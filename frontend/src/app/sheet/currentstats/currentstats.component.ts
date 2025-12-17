@@ -1,8 +1,8 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, Input } from '@angular/core';
 import { SheetComponent } from "../sheet.component";
 import { CurrentstatComponent } from "../currentstat/currentstat.component";
 import { CardComponent } from "../../shared/card/card.component";
-import { CharacterSheetService } from '../sheet.service';
+import { CharacterSheet } from '../../model/character-sheet-model';
 
 @Component({
   selector: 'app-currentstats',
@@ -12,5 +12,5 @@ import { CharacterSheetService } from '../sheet.service';
 })
 export class CurrentstatsComponent {
 
-  sheetservice: CharacterSheetService = inject(CharacterSheetService);
+  @Input() sheet!: CharacterSheet;
 }

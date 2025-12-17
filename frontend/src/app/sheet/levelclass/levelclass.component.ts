@@ -1,8 +1,8 @@
 import { Component, Input } from '@angular/core';
 import { CardComponent } from "../../shared/card/card.component";
-import { CharacterSheet } from '../sheet.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CharacterSheet } from '../../model/character-sheet-model';
 
 @Component({
   selector: 'app-levelclass',
