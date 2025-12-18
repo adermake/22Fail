@@ -12,7 +12,7 @@ import { JsonPatch } from '../../model/json-patch.model';
 export class PortraitComponent {
   imagePreview: string | ArrayBuffer | null = null;
   isDragging = false;
-  @Output() patch = new EventEmitter<JsonPatch>();
+  @Output() baseImage = new EventEmitter<string>();
 
   constructor(private zone: NgZone, private cd: ChangeDetectorRef) {}
 
@@ -55,10 +55,7 @@ export class PortraitComponent {
 
       this.imagePreview = base64;
 
-      this.patch.emit({
-        path: 'portrait',
-        value: base64,
-      });
+      this.baseImage.emit(base64);
     };
 
     reader.readAsDataURL(file);
