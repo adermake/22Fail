@@ -1,16 +1,18 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, EventEmitter, NgZone, Output } from '@angular/core';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { JsonPatch } from '../../model/json-patch.model';
 
 @Component({
   selector: 'app-portrait',
-  imports: [CommonModule,FormsModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './portrait.component.html',
   styleUrl: './portrait.component.css',
 })
 export class PortraitComponent {
   imagePreview: string | ArrayBuffer | null = null;
   isDragging = false;
+  @Output() patch = new EventEmitter<JsonPatch>();
 
   constructor(private zone: NgZone, private cd: ChangeDetectorRef) {}
 
@@ -44,15 +46,21 @@ export class PortraitComponent {
     }
   }
 
-private loadImage(file: File) {
+  private loadImage(file: File) {
     if (!file.type.startsWith('image/')) return;
 
     const reader = new FileReader();
     reader.onload = () => {
-        this.imagePreview = reader.result;
-        this.cd.detectChanges(); // <-- force update
+      const base64 = reader.result as string;
+
+      this.imagePreview = base64;
+
+      this.patch.emit({
+        path: 'portrait',
+        value: base64,
+      });
     };
 
     reader.readAsDataURL(file);
-}
+  }
 }

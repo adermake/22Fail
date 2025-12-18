@@ -10,7 +10,7 @@ export interface CharacterSheet {
   alignment: string;
   size: string;
   extrainfo: string;
-
+  portrait?: string;
   // Klassen
   primary_class: string;
   secondary_class: string;
