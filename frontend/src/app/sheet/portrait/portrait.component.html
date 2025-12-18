@@ -13,10 +13,10 @@
     (change)="onFileSelected($event)"
   />
 
-  <div *ngIf="!imagePreview" (click)="fileInput.click()">
+  <div *ngIf="!sheet.portrait" (click)="fileInput.click()">
     <p>Drag & drop an image here</p>
     <span>or click to upload</span>
   </div>
 
-  <img *ngIf="imagePreview" [src]="imagePreview" alt="Preview" />
+  <img *ngIf="sheet.portrait" [src]="sheet.portrait" alt="Preview" />
 </div>

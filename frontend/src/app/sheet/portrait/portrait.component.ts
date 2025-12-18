@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, EventEmitter, NgZone, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, Output } from '@angular/core';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { JsonPatch } from '../../model/json-patch.model';
+import { CharacterSheet } from '../../model/character-sheet-model';
 
 @Component({
   selector: 'app-portrait',
@@ -10,10 +11,9 @@ import { JsonPatch } from '../../model/json-patch.model';
   styleUrl: './portrait.component.css',
 })
 export class PortraitComponent {
-  imagePreview: string | ArrayBuffer | null = null;
   isDragging = false;
   @Output() baseImage = new EventEmitter<string>();
-
+  @Input({ required: true }) sheet!: CharacterSheet;
   constructor(private zone: NgZone, private cd: ChangeDetectorRef) {}
 
   onDragOver(event: DragEvent) {
@@ -53,7 +53,7 @@ export class PortraitComponent {
     reader.onload = () => {
       const base64 = reader.result as string;
 
-      this.imagePreview = base64;
+      this.sheet.portrait = base64;
 
       this.baseImage.emit(base64);
     };
