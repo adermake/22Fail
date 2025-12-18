@@ -1,9 +1,24 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { DataService } from './data.service';
 import type { JsonPatch } from './data.service';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { CharacterGateway } from './character.gateway';
 @Controller('api')
 export class AppController {
-  constructor(private readonly dataService: DataService) {}
+  constructor(
+    private readonly dataService: DataService,
+    private readonly characterGateway: CharacterGateway, // Add this
+  ) {}
 
   @Get('characters/:id')
   getCharacter(@Param('id') id: string): any {
@@ -43,5 +58,37 @@ export class AppController {
       success: true,
       patch,
     };
+  }
+
+  // In your controller
+  @Post('characters/:id/portrait')
+  @UseInterceptors(FileInterceptor('portrait'))
+  uploadPortrait(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    // Convert to base64
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const base64 = Buffer.from(file.buffer).toString('base64');
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const dataUrl = `data:${file.mimetype};base64,${base64}`;
+
+    // Apply as a patch
+    this.dataService.applyPatchToCharacter(id, {
+      path: 'portrait',
+      value: dataUrl,
+    });
+
+    // Broadcast to other clients using the helper method
+    this.characterGateway.broadcastPatch(id, {
+      path: 'portrait',
+      value: dataUrl,
+    });
+
+    return { success: true };
   }
 }

@@ -3,6 +3,7 @@ import { ChangeDetectorRef, Component, EventEmitter, Input, NgZone, Output } fro
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
+import { CharacterApiService } from '../../services/character-api.service';
 
 @Component({
   selector: 'app-portrait',
@@ -14,7 +15,12 @@ export class PortraitComponent {
   isDragging = false;
   @Output() baseImage = new EventEmitter<string>();
   @Input({ required: true }) sheet!: CharacterSheet;
-  constructor(private zone: NgZone, private cd: ChangeDetectorRef) {}
+  @Input({ required: true }) characterId!: string;
+  constructor(
+    private zone: NgZone,
+    private cd: ChangeDetectorRef,
+    private api: CharacterApiService
+  ) {}
 
   onDragOver(event: DragEvent) {
     event.preventDefault();
@@ -46,18 +52,22 @@ export class PortraitComponent {
     }
   }
 
-  private loadImage(file: File) {
+  private async loadImage(file: File) {
     if (!file.type.startsWith('image/')) return;
 
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
-
       this.sheet.portrait = base64;
-
-      this.baseImage.emit(base64);
+      this.cd.detectChanges();
     };
-
     reader.readAsDataURL(file);
+
+    // Upload to server
+    try {
+      await this.api.uploadPortrait(this.characterId, file);
+    } catch (err) {
+      console.error('Failed to upload portrait:', err);
+    }
   }
 }

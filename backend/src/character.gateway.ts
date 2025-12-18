@@ -13,6 +13,7 @@ import { DataService, JsonPatch } from './data.service';
 
 @WebSocketGateway({
   cors: { origin: '*' }, // for dev, restrict later
+  maxHttpBufferSize: 10 * 1024 * 1024, // 10 MB
 })
 export class CharacterGateway
   implements OnGatewayConnection, OnGatewayDisconnect
@@ -52,5 +53,11 @@ export class CharacterGateway
     console.log('CHARACTER PATCH Chaining');
     // 2️⃣ Broadcast patch to all other clients in the same room
     client.to(characterId).emit('characterPatched', patch);
+  }
+
+  broadcastPatch(characterId: string, patch: JsonPatch) {
+    if (this.server) {
+      this.server.to(characterId).emit('characterPatched', patch);
+    }
   }
 }
