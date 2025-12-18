@@ -15,7 +15,7 @@ export class PortraitComponent {
   isDragging = false;
   @Output() baseImage = new EventEmitter<string>();
   @Input({ required: true }) sheet!: CharacterSheet;
-  @Input({ required: true }) characterId!: string;
+  @Input({ required: true }) charId!: string;
   constructor(
     private zone: NgZone,
     private cd: ChangeDetectorRef,
@@ -65,7 +65,7 @@ export class PortraitComponent {
 
     // Upload to server
     try {
-      await this.api.uploadPortrait(this.characterId, file);
+      await this.api.uploadPortrait(this.charId, file);
     } catch (err) {
       console.error('Failed to upload portrait:', err);
     }

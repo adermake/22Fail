@@ -58,7 +58,7 @@
         />
       </div>
     </div>
-    <app-portrait [sheet]="sheet" (baseImage)="updateField('portrait', $event)"></app-portrait>
+    <app-portrait [sheet]="sheet" [charId]="characterId" (baseImage)="updateField('portrait', $event)"></app-portrait>
     <div class="field">
       <label for="player">Extra Info</label>
       <input
