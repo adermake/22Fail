@@ -1,9 +1,14 @@
-<div class="skill-card" [class.editing]="isEditing">
+<div class="skill-card" [class.editing]="isEditing" [class.passive]="skill.type === 'passive'">
   @if (!isEditing) {
     <div class="skill-view">
       <div class="skill-header">
         <h4>{{ skill.name }}</h4>
-        <span class="skill-class">{{ skill.class }}</span>
+        <div class="skill-badges">
+          <span class="skill-class">{{ skill.class }}</span>
+          @if (skill.enlightened) {
+            <span class="skill-enlightened">⭐ Enlightened</span>
+          }
+        </div>
       </div>
       <p class="skill-description">{{ skill.description || 'No description' }}</p>
       <div class="skill-actions">
@@ -29,6 +34,28 @@
           [ngModel]="skill.class"
           (ngModelChange)="updateField('class', $event)"
         />
+      </div>
+
+      <div class="field">
+        <label>Type</label>
+        <select
+          [ngModel]="skill.type"
+          (ngModelChange)="updateField('type', $event)"
+        >
+          <option value="active">Active</option>
+          <option value="passive">Passive</option>
+        </select>
+      </div>
+
+      <div class="field checkbox-field">
+        <label>
+          <input
+            type="checkbox"
+            [ngModel]="skill.enlightened"
+            (ngModelChange)="updateField('enlightened', $event)"
+          />
+          Enlightened
+        </label>
       </div>
 
       <div class="field">

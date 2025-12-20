@@ -17,6 +17,8 @@ export class SkillCreatorComponent {
     name: '',
     class: '',
     description: '',
+    type: 'active', // Default to active
+    enlightened: false, // Default to not enlightened
   };
 
   createSkill() {
@@ -26,15 +28,16 @@ export class SkillCreatorComponent {
     }
 
     this.create.emit({ ...this.newSkill });
-    
+
     // Reset form
     this.newSkill = {
       name: '',
       class: '',
       description: '',
+      type: 'active',
+      enlightened: false,
     };
   }
-
   cancelCreate() {
     this.cancel.emit();
   }

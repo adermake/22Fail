@@ -4,6 +4,12 @@
   border-radius: 6px;
   padding: 1rem;
   transition: all 0.2s;
+  border-left: 4px solid #2196f3; /* Active skill - blue */
+}
+
+.skill-card.passive {
+  border-left: 4px solid #9c27b0; /* Passive skill - purple */
+  background: #f3e5f5;
 }
 
 .skill-card:hover {
@@ -27,12 +33,28 @@
   font-size: 1.1rem;
 }
 
+.skill-badges {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .skill-class {
   background: #2196f3;
   color: white;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   font-size: 0.85rem;
+}
+
+.skill-enlightened {
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  color: #333;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
 }
 
 .skill-description {
@@ -86,7 +108,8 @@
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.field select {
   width: 100%;
   padding: 0.5rem;
   border: 1px solid #ddd;
@@ -96,11 +119,30 @@
 }
 
 .field input:focus,
-.field textarea:focus {
+.field textarea:focus,
+.field select:focus {
   outline: none;
   border-color: #4caf50;
 }
 
 .field textarea {
   resize: vertical;
+}
+
+.checkbox-field {
+  flex-direction: row !important;
+  align-items: center;
+}
+
+.checkbox-field label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  margin-bottom: 0;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
 }

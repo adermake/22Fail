@@ -23,6 +23,29 @@
   </div>
 
   <div class="field">
+    <label for="type">Type</label>
+    <select
+      id="type"
+      [(ngModel)]="newSkill.type"
+      name="type"
+    >
+      <option value="active">Active</option>
+      <option value="passive">Passive</option>
+    </select>
+  </div>
+
+  <div class="field checkbox-field">
+    <label>
+      <input
+        type="checkbox"
+        [(ngModel)]="newSkill.enlightened"
+        name="enlightened"
+      />
+      Enlightened
+    </label>
+  </div>
+
+  <div class="field">
     <label for="description">Description</label>
     <textarea
       id="description"
