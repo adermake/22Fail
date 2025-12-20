@@ -1,0 +1,40 @@
+<form (ngSubmit)="createSkill()" class="creator-form">
+  <div class="field">
+    <label for="name">Skill Name *</label>
+    <input
+      id="name"
+      type="text"
+      [(ngModel)]="newSkill.name"
+      name="name"
+      placeholder="Enter skill name"
+      required
+    />
+  </div>
+
+  <div class="field">
+    <label for="class">Class</label>
+    <input
+      id="class"
+      type="text"
+      [(ngModel)]="newSkill.class"
+      name="class"
+      placeholder="e.g., Warrior, Mage"
+    />
+  </div>
+
+  <div class="field">
+    <label for="description">Description</label>
+    <textarea
+      id="description"
+      [(ngModel)]="newSkill.description"
+      name="description"
+      rows="4"
+      placeholder="Describe the skill..."
+    ></textarea>
+  </div>
+
+  <div class="button-group">
+    <button type="submit" class="create-btn">Create</button>
+    <button type="button" class="cancel-btn" (click)="cancelCreate()">Cancel</button>
+  </div>
+</form>

@@ -9,6 +9,7 @@ import { ActivatedRoute } from '@angular/router';
 import { CharacterApiService } from '../services/character-api.service';
 import { CharacterStoreService } from '../services/character-store.service';
 import { CommonModule } from '@angular/common';
+import { SkillsComponent } from "./skills/skills.component";
 
 @Component({
   selector: 'app-sheet',
@@ -20,7 +21,8 @@ import { CommonModule } from '@angular/common';
     CurrentstatComponent,
     CurrentstatsComponent,
     PortraitComponent,
-  ],
+    SkillsComponent
+],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
 })

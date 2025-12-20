@@ -1,8 +1,13 @@
 @if (store.sheet$ | async; as sheet) {
 <div class="sheetgrid">
-  <app-character [sheet]="sheet" [characterId]="store.characterId" (patch)="store.applyPatch($any($event))"></app-character>
+  <app-character
+    [sheet]="sheet"
+    [characterId]="store.characterId"
+    (patch)="store.applyPatch($any($event))"
+  ></app-character>
   <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>
   <app-levelclass [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-levelclass>
   <app-currentstats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-currentstats>
+  <app-skills [sheet]="sheet"></app-skills>
 </div>
 }

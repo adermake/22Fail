@@ -1,1 +1,49 @@
-<p>skill works!</p>
+<div class="skill-card" [class.editing]="isEditing">
+  @if (!isEditing) {
+    <div class="skill-view">
+      <div class="skill-header">
+        <h4>{{ skill.name }}</h4>
+        <span class="skill-class">{{ skill.class }}</span>
+      </div>
+      <p class="skill-description">{{ skill.description || 'No description' }}</p>
+      <div class="skill-actions">
+        <button class="edit-btn" (click)="toggleEdit()">Edit</button>
+        <button class="delete-btn" (click)="deleteSkill()">Delete</button>
+      </div>
+    </div>
+  } @else {
+    <div class="skill-edit">
+      <div class="field">
+        <label>Name</label>
+        <input
+          type="text"
+          [ngModel]="skill.name"
+          (ngModelChange)="updateField('name', $event)"
+        />
+      </div>
+
+      <div class="field">
+        <label>Class</label>
+        <input
+          type="text"
+          [ngModel]="skill.class"
+          (ngModelChange)="updateField('class', $event)"
+        />
+      </div>
+
+      <div class="field">
+        <label>Description</label>
+        <textarea
+          [ngModel]="skill.description"
+          (ngModelChange)="updateField('description', $event)"
+          rows="3"
+        ></textarea>
+      </div>
+
+      <div class="skill-actions">
+        <button class="save-btn" (click)="toggleEdit()">Done</button>
+        <button class="delete-btn" (click)="deleteSkill()">Delete</button>
+      </div>
+    </div>
+  }
+</div>
