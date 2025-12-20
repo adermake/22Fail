@@ -9,14 +9,24 @@ export class DataService {
 
   private applyJsonPatch(target: unknown, patch: JsonPatch): void {
     const keys = patch.path.split('.');
+
+    // Special case: if path has only one key and value is an array, replace entire array
+    if (keys.length === 1 && Array.isArray(patch.value)) {
+      (target as JsonObject)[keys[0]] = patch.value;
+      return;
+    }
+
     let current = target as JsonObject;
 
     for (let i = 0; i < keys.length - 1; i++) {
       const key = keys[i];
-
-      // Check if the key is a numeric index (for arrays)
       const index = parseInt(key, 10);
+
       if (!isNaN(index) && Array.isArray(current)) {
+        // Ensure array has enough elements
+        while (current.length <= index) {
+          current.push({});
+        }
         current = current[index] as JsonObject;
       } else {
         if (typeof current[key] !== 'object' || current[key] === null) {
@@ -27,10 +37,13 @@ export class DataService {
     }
 
     const finalKey = keys[keys.length - 1];
-
-    // Handle final key - could also be an array index
     const finalIndex = parseInt(finalKey, 10);
+
     if (!isNaN(finalIndex) && Array.isArray(current)) {
+      // Ensure array has enough elements
+      while (current.length <= finalIndex) {
+        current.push({});
+      }
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       current[finalIndex] = patch.value;
     } else {
