@@ -63,3 +63,25 @@
 .dialog-content h3 {
   margin-top: 0;
 }
+
+/* Drag and Drop Styles */
+.cdk-drag-preview {
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  opacity: 0.8;
+}
+
+.cdk-drag-animating {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.drag-placeholder {
+  background: #f0f0f0;
+  border: 2px dashed #ccc;
+  border-radius: 6px;
+  min-height: 80px;
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}

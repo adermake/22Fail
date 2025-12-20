@@ -5,7 +5,11 @@
   padding: 1rem;
   transition: all 0.2s;
   border-left: 3px solid #4a90e2;
-  cursor: pointer;
+  cursor: grab;
+}
+
+.skill-card:active {
+  cursor: grabbing;
 }
 
 .skill-card.editing {
@@ -35,6 +39,7 @@
   background: #fff;
   border-color: #999;
   opacity: 1;
+  cursor: default;
 }
 
 .skill-header {

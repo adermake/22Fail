@@ -4,15 +4,18 @@
     <button class="add-btn" (click)="openCreateDialog()">+ Add Skill</button>
   </div>
 
-  <div class="skills-list">
+  <div class="skills-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
     @for (skill of (sheet.skills || []); track skill.name; let i = $index) {
-      <app-skill
-        [skill]="skill"
-        [sheet]="sheet"
-        [index]="i"
-        (patch)="updateSkill(i, $event)"
-        (delete)="deleteSkill(i)"
-      ></app-skill>
+      <div cdkDrag>
+        <div class="drag-placeholder" *cdkDragPlaceholder></div>
+        <app-skill
+          [skill]="skill"
+          [sheet]="sheet"
+          [index]="i"
+          (patch)="updateSkill(i, $event)"
+          (delete)="deleteSkill(i)"
+        ></app-skill>
+      </div>
     }
     
     @if ((sheet.skills || []).length === 0) {

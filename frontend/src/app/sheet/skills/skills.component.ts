@@ -6,10 +6,11 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { CommonModule } from '@angular/common';
 import { SkillCreatorComponent } from '../skillcreator/skillcreator.component';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 
 @Component({
   selector: 'app-skills',
-  imports: [CommonModule, SkillComponent, CardComponent, SkillCreatorComponent],
+  imports: [CommonModule, SkillComponent, CardComponent, SkillCreatorComponent, DragDropModule],
   templateUrl: './skills.component.html',
   styleUrl: './skills.component.css',
 })
@@ -37,20 +38,20 @@ export class SkillsComponent {
   createSkill(skill: SkillBlock) {
     // Add new skill to array (optimistic update)
     this.sheet.skills = [...this.sheet.skills, skill];
-
+    
     // Emit patch
     this.patch.emit({
       path: 'skills',
       value: this.sheet.skills,
     });
-
+    
     this.closeCreateDialog();
   }
 
   deleteSkill(index: number) {
     // Remove skill from array (optimistic update)
     this.sheet.skills = this.sheet.skills.filter((_, i) => i !== index);
-
+    
     // Emit patch
     this.patch.emit({
       path: 'skills',
@@ -62,14 +63,37 @@ export class SkillsComponent {
     // Apply optimistically on client - handle all types of values
     const field = patch.path as keyof SkillBlock;
     (this.sheet.skills[index] as any)[field] = patch.value;
-
+    
     // Force change detection by creating new array reference
     this.sheet.skills = [...this.sheet.skills];
-
+    
     // Forward patch with index prefix
     this.patch.emit({
       path: `skills.${index}.${patch.path}`,
       value: patch.value,
+    });
+  }
+
+  onDrop(event: CdkDragDrop<SkillBlock[]>) {
+    // Reorder the array
+    const previousIndex = event.previousIndex;
+    const currentIndex = event.currentIndex;
+    
+    if (previousIndex === currentIndex) {
+      return; // No change
+    }
+
+    // Create a new array with reordered items
+    const newSkills = [...this.sheet.skills];
+    moveItemInArray(newSkills, previousIndex, currentIndex);
+    
+    // Update locally
+    this.sheet.skills = newSkills;
+    
+    // Send patch with entire array
+    this.patch.emit({
+      path: 'skills',
+      value: newSkills,
     });
   }
 }
