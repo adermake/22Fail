@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { CardComponent } from "../../shared/card/card.component";
+import { CardComponent } from '../../shared/card/card.component';
 import { SkillComponent } from '../skill/skill.component';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -37,20 +37,20 @@ export class SkillsComponent {
   createSkill(skill: SkillBlock) {
     // Add new skill to array (optimistic update)
     this.sheet.skills = [...this.sheet.skills, skill];
-    
+
     // Emit patch
     this.patch.emit({
       path: 'skills',
       value: this.sheet.skills,
     });
-    
+
     this.closeCreateDialog();
   }
 
   deleteSkill(index: number) {
     // Remove skill from array (optimistic update)
     this.sheet.skills = this.sheet.skills.filter((_, i) => i !== index);
-    
+
     // Emit patch
     this.patch.emit({
       path: 'skills',
@@ -59,6 +59,10 @@ export class SkillsComponent {
   }
 
   updateSkill(index: number, patch: JsonPatch) {
+    // Apply optimistically on client
+    const field = patch.path as keyof SkillBlock;
+    (this.sheet.skills[index] as any)[field] = patch.value;
+
     // Forward patch with index prefix
     this.patch.emit({
       path: `skills.${index}.${patch.path}`,
