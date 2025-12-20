@@ -13,7 +13,7 @@ export class ClassTree {
    */
   static async initialize(classDefinitions: string) {
     this.classes.clear();
-    console.log("INIT Classes");
+    console.log("INIT Classes"+classDefinitions);
     const lines = classDefinitions.split('\n');
     
     for (const line of lines) {
