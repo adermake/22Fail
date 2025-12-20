@@ -9,7 +9,8 @@ import { ActivatedRoute } from '@angular/router';
 import { CharacterApiService } from '../services/character-api.service';
 import { CharacterStoreService } from '../services/character-store.service';
 import { CommonModule } from '@angular/common';
-import { SkillsComponent } from "./skills/skills.component";
+import { SkillsComponent } from './skills/skills.component';
+import { ClassTree } from './class-tree-model';
 
 @Component({
   selector: 'app-sheet',
@@ -21,8 +22,8 @@ import { SkillsComponent } from "./skills/skills.component";
     CurrentstatComponent,
     CurrentstatsComponent,
     PortraitComponent,
-    SkillsComponent
-],
+    SkillsComponent,
+  ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
 })
@@ -30,7 +31,9 @@ export class SheetComponent implements OnInit {
   public store = inject(CharacterStoreService);
   private route = inject(ActivatedRoute);
 
-  ngOnInit() {
+  async ngOnInit() {
+    const classDefinitions = await fetch('/assets/class-definitions.txt').then((r) => r.text());
+    await ClassTree.initialize(classDefinitions);
     const id = this.route.snapshot.paramMap.get('id')!;
     this.store.load(id);
   }

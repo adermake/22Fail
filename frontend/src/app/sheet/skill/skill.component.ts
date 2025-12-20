@@ -4,6 +4,7 @@ import { SkillBlock } from '../../model/skill-block.model';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
+import { ClassTree } from '../class-tree-model';
 
 @Component({
   selector: 'app-skill',
@@ -28,12 +29,12 @@ export class SkillComponent {
       return false;
     }
 
-    // Check if skill class matches primary or secondary class
-    const skillClass = this.skill.class?.toLowerCase().trim();
-    const primaryClass = this.sheet.primary_class?.toLowerCase().trim();
-    const secondaryClass = this.sheet.secondary_class?.toLowerCase().trim();
-
-    return skillClass !== primaryClass && skillClass !== secondaryClass;
+    // Use ClassTree to check if skill is enabled
+    return !ClassTree.isClassEnabled(
+      this.skill.class,
+      this.sheet.primary_class,
+      this.sheet.secondary_class
+    );
   }
 
   toggleEdit() {

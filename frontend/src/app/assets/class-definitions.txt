@@ -1,0 +1,9 @@
+Warrior: Knight, Berserker
+Mage: Archmage, Necromancer
+Rogue: Assassin, Thief
+Knight: Epic Knight, Holy Knight
+Berserker: Rage Knight
+Warrior + Mage: Paladin, Spellblade
+Warrior + Rogue: Shadow Knight
+Mage + Rogue: Trickster
+Epic Knight: Legendary Knight
