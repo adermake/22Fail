@@ -1,4 +1,4 @@
-<div class="skill-card" [class.editing]="isEditing" [class.passive]="skill.type === 'passive'">
+<div class="skill-card" [class.editing]="isEditing" [class.passive]="skill.type === 'passive'" [class.active]="skill.type === 'active'" [class.disabled]="isDisabled">
   @if (!isEditing) {
     <div class="skill-view">
       <div class="skill-header">
@@ -11,6 +11,9 @@
           @if (skill.enlightened) {
             <span class="skill-enlightened">⭐ Enlightened</span>
           }
+          @if (isDisabled) {
+            <span class="skill-disabled-badge">Disabled</span>
+          }
         </div>
       </div>
       <p class="skill-description">{{ skill.description || 'No description' }}</p>
@@ -20,7 +23,6 @@
       </div>
     </div>
   } @else {
-    <!-- Edit mode stays the same -->
     <div class="skill-edit">
       <div class="field">
         <label>Name</label>

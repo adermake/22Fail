@@ -5,16 +5,17 @@
   </div>
 
   <div class="skills-list">
-    @for (skill of sheet.skills; track skill.name; let i = $index) {
+    @for (skill of (sheet.skills || []); track skill.name; let i = $index) {
       <app-skill
         [skill]="skill"
+        [sheet]="sheet"
         [index]="i"
         (patch)="updateSkill(i, $event)"
         (delete)="deleteSkill(i)"
       ></app-skill>
     }
     
-    @if (sheet.skills.length === 0) {
+    @if ((sheet.skills || []).length === 0) {
       <p class="empty-message">No skills yet. Click + to add one.</p>
     }
   </div>
