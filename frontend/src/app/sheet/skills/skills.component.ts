@@ -19,6 +19,13 @@ export class SkillsComponent {
 
   showCreateDialog = false;
 
+  ngOnInit() {
+    // Initialize skills array if it doesn't exist
+    if (!this.sheet.skills) {
+      this.sheet.skills = [];
+    }
+  }
+
   openCreateDialog() {
     this.showCreateDialog = true;
   }
@@ -28,21 +35,26 @@ export class SkillsComponent {
   }
 
   createSkill(skill: SkillBlock) {
-    // Add new skill to array
-    const newSkills = [...this.sheet.skills, skill];
+    // Add new skill to array (optimistic update)
+    this.sheet.skills = [...this.sheet.skills, skill];
+    
+    // Emit patch
     this.patch.emit({
       path: 'skills',
-      value: newSkills,
+      value: this.sheet.skills,
     });
+    
     this.closeCreateDialog();
   }
 
   deleteSkill(index: number) {
-    // Remove skill from array
-    const newSkills = this.sheet.skills.filter((_, i) => i !== index);
+    // Remove skill from array (optimistic update)
+    this.sheet.skills = this.sheet.skills.filter((_, i) => i !== index);
+    
+    // Emit patch
     this.patch.emit({
       path: 'skills',
-      value: newSkills,
+      value: this.sheet.skills,
     });
   }
 
