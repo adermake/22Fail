@@ -32,7 +32,7 @@ export class SheetComponent implements OnInit {
   private route = inject(ActivatedRoute);
 
   async ngOnInit() {
-    const classDefinitions = await fetch('/assets/class-definitions.txt').then((r) => r.text());
+    const classDefinitions = await fetch('class-definitions.txt').then((r) => r.text());
     await ClassTree.initialize(classDefinitions);
     const id = this.route.snapshot.paramMap.get('id')!;
     this.store.load(id);
