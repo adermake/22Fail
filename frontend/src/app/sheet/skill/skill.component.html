@@ -4,6 +4,9 @@
       <div class="skill-header">
         <h4>{{ skill.name }}</h4>
         <div class="skill-badges">
+          <span class="skill-type" [class.active]="skill.type === 'active'" [class.passive]="skill.type === 'passive'">
+            {{ skill.type === 'active' ? 'Active' : 'Passive' }}
+          </span>
           <span class="skill-class">{{ skill.class }}</span>
           @if (skill.enlightened) {
             <span class="skill-enlightened">⭐ Enlightened</span>
@@ -17,6 +20,7 @@
       </div>
     </div>
   } @else {
+    <!-- Edit mode stays the same -->
     <div class="skill-edit">
       <div class="field">
         <label>Name</label>

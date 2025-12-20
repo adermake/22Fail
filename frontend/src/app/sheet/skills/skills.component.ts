@@ -59,9 +59,12 @@ export class SkillsComponent {
   }
 
   updateSkill(index: number, patch: JsonPatch) {
-    // Apply optimistically on client
+    // Apply optimistically on client - handle all types of values
     const field = patch.path as keyof SkillBlock;
     (this.sheet.skills[index] as any)[field] = patch.value;
+
+    // Force change detection by creating new array reference
+    this.sheet.skills = [...this.sheet.skills];
 
     // Forward patch with index prefix
     this.patch.emit({

@@ -1,24 +1,25 @@
 .skill-card {
-  background: #f9f9f9;
-  border: 1px solid #ddd;
+  background: #fff;
+  border: 1px solid #e0e0e0;
   border-radius: 6px;
   padding: 1rem;
   transition: all 0.2s;
-  border-left: 4px solid #2196f3; /* Active skill - blue */
+  border-left: 3px solid #666; /* Neutral gray for active */
 }
 
 .skill-card.passive {
-  border-left: 4px solid #9c27b0; /* Passive skill - purple */
-  background: #f3e5f5;
+  border-left: 3px solid #999; /* Lighter gray for passive */
+  background: #fafafa;
 }
 
 .skill-card:hover {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  border-color: #d0d0d0;
 }
 
 .skill-card.editing {
   background: #fff;
-  border-color: #4caf50;
+  border-color: #999;
 }
 
 .skill-header {
@@ -31,6 +32,7 @@
 .skill-header h4 {
   margin: 0;
   font-size: 1.1rem;
+  color: #333;
 }
 
 .skill-badges {
@@ -39,28 +41,51 @@
   align-items: center;
 }
 
-.skill-class {
-  background: #2196f3;
-  color: white;
+.skill-type {
   padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.skill-type.active {
+  background: #f5f5f5;
+  color: #555;
+  border-color: #ddd;
+}
+
+.skill-type.passive {
+  background: #fafafa;
+  color: #666;
+  border-color: #e0e0e0;
+  font-style: italic;
+}
+
+.skill-class {
+  background: #f0f0f0;
+  color: #555;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  border: 1px solid #ddd;
 }
 
 .skill-enlightened {
-  background: linear-gradient(135deg, #ffd700, #ffed4e);
-  color: #333;
+  background: #fffbf0;
+  color: #b8860b;
   padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
   font-weight: 600;
-  box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+  border: 1px solid #f0e68c;
 }
 
 .skill-description {
   color: #666;
   margin: 0.5rem 0;
   font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .skill-actions {
@@ -71,29 +96,28 @@
 
 .skill-actions button {
   padding: 0.4rem 0.8rem;
-  border: none;
+  border: 1px solid #ddd;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.85rem;
   transition: all 0.2s;
-}
-
-.edit-btn, .save-btn {
-  background-color: #2196f3;
-  color: white;
+  background: white;
+  color: #555;
 }
 
 .edit-btn:hover, .save-btn:hover {
-  background-color: #1976d2;
+  background-color: #f5f5f5;
+  border-color: #999;
 }
 
 .delete-btn {
-  background-color: #f44336;
-  color: white;
+  color: #d32f2f;
+  border-color: #ffcdd2;
 }
 
 .delete-btn:hover {
-  background-color: #d32f2f;
+  background-color: #ffebee;
+  border-color: #ef5350;
 }
 
 .field {
@@ -105,6 +129,7 @@
   margin-bottom: 0.25rem;
   font-weight: 500;
   font-size: 0.9rem;
+  color: #555;
 }
 
 .field input,
@@ -122,7 +147,7 @@
 .field textarea:focus,
 .field select:focus {
   outline: none;
-  border-color: #4caf50;
+  border-color: #999;
 }
 
 .field textarea {
