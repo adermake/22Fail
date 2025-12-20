@@ -8,6 +8,6 @@
   <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>
   <app-levelclass [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-levelclass>
   <app-currentstats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-currentstats>
-  <app-skills [sheet]="sheet"></app-skills>
+  <app-skills [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-skills>
 </div>
 }
