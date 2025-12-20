@@ -14,9 +14,6 @@
           </span>
           <span class="skill-class" [class.disabled]="isDisabled">
             {{ skill.class }}
-            @if (isDisabled) {
-              <span class="disabled-x">✕</span>
-            }
           </span>
           @if (skill.enlightened) {
             <span class="skill-enlightened">Enlightened</span>
