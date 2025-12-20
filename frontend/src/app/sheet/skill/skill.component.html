@@ -1,4 +1,9 @@
-<div class="skill-card" [class.editing]="isEditing" [class.passive]="skill.type === 'passive'" [class.active]="skill.type === 'active'" [class.disabled]="isDisabled">
+<div class="skill-card" 
+     [class.editing]="isEditing" 
+     [class.passive]="skill.type === 'passive'" 
+     [class.active]="skill.type === 'active'" 
+     [class.disabled]="isDisabled"
+     (click)="!isEditing && toggleEdit()">
   @if (!isEditing) {
     <div class="skill-view">
       <div class="skill-header">
@@ -7,23 +12,21 @@
           <span class="skill-type" [class.active]="skill.type === 'active'" [class.passive]="skill.type === 'passive'">
             {{ skill.type === 'active' ? 'Active' : 'Passive' }}
           </span>
-          <span class="skill-class">{{ skill.class }}</span>
+          <span class="skill-class" [class.disabled]="isDisabled">
+            {{ skill.class }}
+            @if (isDisabled) {
+              <span class="disabled-x">✕</span>
+            }
+          </span>
           @if (skill.enlightened) {
-            <span class="skill-enlightened">⭐ Enlightened</span>
-          }
-          @if (isDisabled) {
-            <span class="skill-disabled-badge">Disabled</span>
+            <span class="skill-enlightened">Enlightened</span>
           }
         </div>
       </div>
       <p class="skill-description">{{ skill.description || 'No description' }}</p>
-      <div class="skill-actions">
-        <button class="edit-btn" (click)="toggleEdit()">Edit</button>
-        <button class="delete-btn" (click)="deleteSkill()">Delete</button>
-      </div>
     </div>
   } @else {
-    <div class="skill-edit">
+    <div class="skill-edit" (click)="$event.stopPropagation()">
       <div class="field">
         <label>Name</label>
         <input
