@@ -3,6 +3,7 @@
      [class.passive]="skill.type === 'passive'" 
      [class.active]="skill.type === 'active'" 
      [class.disabled]="isDisabled"
+     [attr.cdkDragDisabled]="isEditing"
      (click)="!isEditing && toggleEdit()">
   @if (!isEditing) {
     <div class="skill-view">
