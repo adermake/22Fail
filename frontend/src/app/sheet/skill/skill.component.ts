@@ -37,14 +37,17 @@ export class SkillComponent {
     );
   }
 
- get enhancedDescription(): string {
-  const original = this.skill.description || 'No description';
-  const enhanced = KeywordEnhancer.enhance(original);
-  console.log('Original:', original);
-  console.log('Enhanced:', enhanced);
-  return enhanced;
-}
+  get enhancedDescription(): string {
+    console.log('Full skill object:', this.skill);
+    console.log('Description value:', this.skill.description);
+    console.log('Description type:', typeof this.skill.description);
 
+    const original = this.skill.description || 'No description';
+    const enhanced = KeywordEnhancer.enhance(original);
+    console.log('Original:', original);
+    console.log('Enhanced:', enhanced);
+    return enhanced;
+  }
   toggleEdit() {
     this.isEditing = !this.isEditing;
     this.editingChange.emit(this.isEditing);
