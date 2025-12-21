@@ -32,6 +32,10 @@
   min-height: 100px;
 }
 
+.skill-drag-wrapper {
+  /* Wrapper takes full width */
+}
+
 .empty-message {
   text-align: center;
   color: #666;
@@ -67,10 +71,6 @@
 }
 
 /* Drag and Drop Styles */
-.cdk-drag {
-  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-}
-
 .cdk-drag-preview {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
   opacity: 0.8;
@@ -88,5 +88,11 @@
   background: #f5f5f5;
   border: 2px dashed #ccc;
   border-radius: 6px;
-  /* The placeholder will automatically inherit the height of the dragged element */
+  min-height: 80px;
+}
+
+.placeholder-content {
+  opacity: 0;
+  /* Just to give it some height if needed */
+  height: 100%;
 }
