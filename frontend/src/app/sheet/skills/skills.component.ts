@@ -6,7 +6,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { CommonModule } from '@angular/common';
 import { SkillCreatorComponent } from '../skillcreator/skillcreator.component';
-import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 
 @Component({
   selector: 'app-skills',
@@ -20,6 +20,8 @@ export class SkillsComponent {
 
   showCreateDialog = false;
   private editingSkills = new Set<number>();
+  placeholderHeight = '90px';
+  placeholderWidth = '100%';
 
   ngOnInit() {
     if (!this.sheet.skills) {
@@ -61,6 +63,13 @@ export class SkillsComponent {
       path: `skills.${index}.${patch.path}`,
       value: patch.value,
     });
+  }
+
+  onDragStarted(event: CdkDragStart) {
+    const element = event.source.element.nativeElement;
+    const rect = element.getBoundingClientRect();
+    this.placeholderHeight = `${rect.height}px`;
+    this.placeholderWidth = `${rect.width}px`;
   }
 
   onDrop(event: CdkDragDrop<SkillBlock[]>) {

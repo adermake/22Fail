@@ -73,12 +73,10 @@
   opacity: 0.8;
 }
 
-.cdk-drag-placeholder {
+.drag-placeholder-wrapper {
   background: #f5f5f5;
   border: 2px dashed #ccc;
   border-radius: 6px;
-  opacity: 0.5;
-  /* This is key - the placeholder inherits the exact size from the dragged element */
   box-sizing: border-box;
 }
 
