@@ -6,6 +6,8 @@
   transition: all 0.2s;
   border-left: 3px solid #4a90e2;
   cursor: grab;
+  width: 100%; /* Take full width of container */
+  box-sizing: border-box;
 }
 
 .skill-card:active {
@@ -21,12 +23,12 @@
 }
 
 .skill-card.disabled {
-  opacity: 0.2;
+  opacity: 0.6;
   background: #fafafa;
 }
 
 .skill-card.disabled .skill-class {
-  opacity: 1; /* Keep class box fully visible */
+  opacity: 1;
 }
 
 .skill-card:not(.editing):hover {
@@ -47,12 +49,16 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.5rem;
+  gap: 1rem;
 }
 
 .skill-header h4 {
   margin: 0;
   font-size: 1.1rem;
   color: #333;
+  word-break: break-word; /* Break long skill names */
+  flex: 1;
+  min-width: 0; /* Allow flex item to shrink */
 }
 
 .skill-badges {
@@ -60,6 +66,7 @@
   gap: 0.5rem;
   align-items: center;
   flex-wrap: wrap;
+  flex-shrink: 0; /* Prevent badges from shrinking */
 }
 
 .skill-type {
@@ -67,6 +74,7 @@
   border-radius: 3px;
   font-size: 0.8rem;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .skill-type.active {
@@ -89,6 +97,7 @@
   font-size: 0.8rem;
   border: 1px solid #ddd;
   position: relative;
+  white-space: nowrap;
 }
 
 .skill-class.disabled {
@@ -106,6 +115,7 @@
   font-size: 0.8rem;
   font-weight: 600;
   border: 1px solid #a5d6a7;
+  white-space: nowrap;
 }
 
 .skill-description {
@@ -113,6 +123,9 @@
   margin: 0.5rem 0;
   font-size: 0.9rem;
   line-height: 1.5;
+  word-wrap: break-word; /* Break long words */
+  overflow-wrap: break-word; /* Modern alternative */
+  white-space: pre-wrap; /* Preserve line breaks from user input */
 }
 
 .skill-actions {
@@ -175,6 +188,7 @@
   border-radius: 4px;
   font-family: inherit;
   font-size: 0.9rem;
+  box-sizing: border-box;
 }
 
 .field input:focus,
