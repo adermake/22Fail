@@ -3,7 +3,6 @@
      [class.passive]="skill.type === 'passive'" 
      [class.active]="skill.type === 'active'" 
      [class.disabled]="isDisabled"
-     [attr.cdkDragDisabled]="isEditing"
      (click)="!isEditing && toggleEdit()">
   @if (!isEditing) {
     <div class="skill-view">
@@ -21,7 +20,7 @@
           }
         </div>
       </div>
-      <p class="skill-description">{{ skill.description || 'No description' }}</p>
+      <p class="skill-description" [innerHTML]="enhancedDescription"></p>
     </div>
   } @else {
     <div class="skill-edit" (click)="$event.stopPropagation()">

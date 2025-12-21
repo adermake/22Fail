@@ -5,6 +5,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ClassTree } from '../class-tree-model';
+import { KeywordEnhancer } from '../keyword-enhancer';
 
 @Component({
   selector: 'app-skill',
@@ -34,6 +35,10 @@ export class SkillComponent {
       this.sheet.primary_class,
       this.sheet.secondary_class
     );
+  }
+
+  get enhancedDescription(): string {
+    return KeywordEnhancer.enhance(this.skill.description || 'No description');
   }
 
   toggleEdit() {
