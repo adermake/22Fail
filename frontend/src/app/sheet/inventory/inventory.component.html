@@ -1,0 +1,47 @@
+<app-card>
+  <div class="inventory-header">
+    <div>
+      <h2>Inventory</h2>
+      <span class="total-weight">Total Weight: {{ totalWeight }} kg</span>
+    </div>
+    <button class="add-btn" (click)="openCreateDialog()">+ Add Item</button>
+  </div>
+
+  <div class="inventory-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
+    @for (item of (sheet.inventory || []); track item.name; let i = $index) {
+      <div cdkDrag [cdkDragDisabled]="isItemEditing(i)" (cdkDragStarted)="onDragStarted($event)">
+        <app-item
+          [item]="item"
+          [sheet]="sheet"
+          [index]="i"
+          (patch)="updateItem(i, $event)"
+          (delete)="deleteItem(i)"
+          (editingChange)="onEditingChange(i, $event)"
+        ></app-item>
+        <div 
+          class="drag-placeholder-wrapper" 
+          *cdkDragPlaceholder
+          [style.height]="placeholderHeight"
+          [style.width]="placeholderWidth">
+        </div>
+      </div>
+    }
+    
+    @if ((sheet.inventory || []).length === 0) {
+      <p class="empty-message">No items yet. Click + to add one.</p>
+    }
+  </div>
+
+  <!-- Create Dialog -->
+  @if (showCreateDialog) {
+    <div class="dialog-overlay" (click)="closeCreateDialog()">
+      <div class="dialog-content" (click)="$event.stopPropagation()">
+        <h3>Add New Item</h3>
+        <app-item-creator
+          (create)="createItem($event)"
+          (cancel)="closeCreateDialog()"
+        ></app-item-creator>
+      </div>
+    </div>
+  }
+</app-card>

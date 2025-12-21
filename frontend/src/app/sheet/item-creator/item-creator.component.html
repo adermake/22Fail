@@ -1,0 +1,108 @@
+<form (ngSubmit)="createItem()" class="creator-form">
+  <div class="field">
+    <label for="name">Item Name *</label>
+    <input
+      id="name"
+      type="text"
+      [(ngModel)]="newItem.name"
+      name="name"
+      placeholder="Enter item name"
+      required
+    />
+  </div>
+
+  <div class="field">
+    <label for="weight">Weight (kg)</label>
+    <input
+      id="weight"
+      type="number"
+      step="0.1"
+      min="0"
+      [(ngModel)]="newItem.weight"
+      name="weight"
+      placeholder="0"
+    />
+  </div>
+
+  <div class="field">
+    <label for="description">Description</label>
+    <textarea
+      id="description"
+      [(ngModel)]="newItem.description"
+      name="description"
+      rows="4"
+      placeholder="Describe the item..."
+    ></textarea>
+  </div>
+
+  <div class="requirements-section">
+    <label>Requirements</label>
+    <div class="requirements-grid">
+      <div class="req-field">
+        <label>STR</label>
+        <input
+          type="number"
+          min="0"
+          [(ngModel)]="newItem.requirements.strength"
+          name="reqStrength"
+          placeholder="-"
+        />
+      </div>
+      <div class="req-field">
+        <label>DEX</label>
+        <input
+          type="number"
+          min="0"
+          [(ngModel)]="newItem.requirements.dexterity"
+          name="reqDexterity"
+          placeholder="-"
+        />
+      </div>
+      <div class="req-field">
+        <label>SPD</label>
+        <input
+          type="number"
+          min="0"
+          [(ngModel)]="newItem.requirements.speed"
+          name="reqSpeed"
+          placeholder="-"
+        />
+      </div>
+      <div class="req-field">
+        <label>INT</label>
+        <input
+          type="number"
+          min="0"
+          [(ngModel)]="newItem.requirements.intelligence"
+          name="reqIntelligence"
+          placeholder="-"
+        />
+      </div>
+      <div class="req-field">
+        <label>CON</label>
+        <input
+          type="number"
+          min="0"
+          [(ngModel)]="newItem.requirements.constitution"
+          name="reqConstitution"
+          placeholder="-"
+        />
+      </div>
+      <div class="req-field">
+        <label>CHL</label>
+        <input
+          type="number"
+          min="0"
+          [(ngModel)]="newItem.requirements.chill"
+          name="reqChill"
+          placeholder="-"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div class="button-group">
+    <button type="submit" class="create-btn">Create</button>
+    <button type="button" class="cancel-btn" (click)="cancelCreate()">Cancel</button>
+  </div>
+</form>

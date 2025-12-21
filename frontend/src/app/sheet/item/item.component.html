@@ -1,0 +1,157 @@
+<div class="item-card" 
+     [class.editing]="isEditing" 
+     [class.unusable]="!canUseItem"
+     (dblclick)="!isEditing && toggleEdit()">
+  @if (!isEditing) {
+    <div class="item-view">
+      <div class="item-header">
+        <h4>{{ item.name }}</h4>
+        <div class="item-badges">
+          <span class="item-weight">{{ item.weight }} kg</span>
+          @if (!canUseItem) {
+            <span class="item-unusable-badge">Cannot Use</span>
+          }
+        </div>
+      </div>
+      <p class="item-description" [innerHTML]="enhancedDescription"></p>
+      
+      @if (item.requirements && (item.requirements.strength || item.requirements.dexterity || item.requirements.speed || item.requirements.intelligence || item.requirements.constitution || item.requirements.chill)) {
+        <div class="item-requirements">
+          <span class="req-label">Requires:</span>
+          @if (item.requirements.strength) {
+            <span class="req-stat" [class.unmet]="sheet.strength.current < item.requirements.strength">
+              STR {{ item.requirements.strength }}
+            </span>
+          }
+          @if (item.requirements.dexterity) {
+            <span class="req-stat" [class.unmet]="sheet.dexterity.current < item.requirements.dexterity">
+              DEX {{ item.requirements.dexterity }}
+            </span>
+          }
+          @if (item.requirements.speed) {
+            <span class="req-stat" [class.unmet]="sheet.speed.current < item.requirements.speed">
+              SPD {{ item.requirements.speed }}
+            </span>
+          }
+          @if (item.requirements.intelligence) {
+            <span class="req-stat" [class.unmet]="sheet.intelligence.current < item.requirements.intelligence">
+              INT {{ item.requirements.intelligence }}
+            </span>
+          }
+          @if (item.requirements.constitution) {
+            <span class="req-stat" [class.unmet]="sheet.constitution.current < item.requirements.constitution">
+              CON {{ item.requirements.constitution }}
+            </span>
+          }
+          @if (item.requirements.chill) {
+            <span class="req-stat" [class.unmet]="sheet.chill.current < item.requirements.chill">
+              CHL {{ item.requirements.chill }}
+            </span>
+          }
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="item-edit" (click)="$event.stopPropagation()">
+      <div class="field">
+        <label>Name</label>
+        <input
+          type="text"
+          [ngModel]="item.name"
+          (ngModelChange)="updateField('name', $event)"
+        />
+      </div>
+
+      <div class="field">
+        <label>Weight (kg)</label>
+        <input
+          type="number"
+          step="0.1"
+          min="0"
+          [ngModel]="item.weight"
+          (ngModelChange)="updateField('weight', +$event)"
+        />
+      </div>
+
+      <div class="field">
+        <label>Description</label>
+        <textarea
+          [ngModel]="item.description"
+          (ngModelChange)="updateField('description', $event)"
+          rows="3"
+        ></textarea>
+      </div>
+
+      <div class="requirements-section">
+        <label>Requirements</label>
+        <div class="requirements-grid">
+          <div class="req-field">
+            <label>STR</label>
+            <input
+              type="number"
+              min="0"
+              [ngModel]="item.requirements?.strength || ''"
+              (ngModelChange)="updateField('requirements.strength', $event ? +$event : undefined)"
+              placeholder="-"
+            />
+          </div>
+          <div class="req-field">
+            <label>DEX</label>
+            <input
+              type="number"
+              min="0"
+              [ngModel]="item.requirements?.dexterity || ''"
+              (ngModelChange)="updateField('requirements.dexterity', $event ? +$event : undefined)"
+              placeholder="-"
+            />
+          </div>
+          <div class="req-field">
+            <label>SPD</label>
+            <input
+              type="number"
+              min="0"
+              [ngModel]="item.requirements?.speed || ''"
+              (ngModelChange)="updateField('requirements.speed', $event ? +$event : undefined)"
+              placeholder="-"
+            />
+          </div>
+          <div class="req-field">
+            <label>INT</label>
+            <input
+              type="number"
+              min="0"
+              [ngModel]="item.requirements?.intelligence || ''"
+              (ngModelChange)="updateField('requirements.intelligence', $event ? +$event : undefined)"
+              placeholder="-"
+            />
+          </div>
+          <div class="req-field">
+            <label>CON</label>
+            <input
+              type="number"
+              min="0"
+              [ngModel]="item.requirements?.constitution || ''"
+              (ngModelChange)="updateField('requirements.constitution', $event ? +$event : undefined)"
+              placeholder="-"
+            />
+          </div>
+          <div class="req-field">
+            <label>CHL</label>
+            <input
+              type="number"
+              min="0"
+              [ngModel]="item.requirements?.chill || ''"
+              (ngModelChange)="updateField('requirements.chill', $event ? +$event : undefined)"
+              placeholder="-"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="item-actions">
+        <button class="save-btn" (click)="toggleEdit()">Done</button>
+        <button class="delete-btn" (click)="deleteItem()">Delete</button>
+      </div>
+    </div>
+  }
+</div>

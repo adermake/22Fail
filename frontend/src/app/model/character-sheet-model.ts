@@ -1,4 +1,5 @@
 import { FormulaType } from './formula-type.enum';
+import { ItemBlock } from './item-block.model';
 import { SkillBlock } from './skill-block.model';
 import { StatBlock } from './stat-block.model';
 import { StatusBlock } from './status-block.model';
@@ -26,6 +27,7 @@ export interface CharacterSheet {
   constitution: StatBlock;
   skills: SkillBlock[];
   statuses: StatusBlock[];
+  inventory: ItemBlock[];
 }
 
 export function createEmptySheet(): CharacterSheet {
@@ -47,6 +49,7 @@ export function createEmptySheet(): CharacterSheet {
     chill: createEmptyStatBlock('Chill'),
     constitution: createEmptyStatBlock('Konstitution'),
     skills: [],
+    inventory: [],
     statuses: createBasicStatuses(),
   };
 }

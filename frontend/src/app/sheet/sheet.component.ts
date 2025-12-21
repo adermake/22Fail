@@ -11,6 +11,7 @@ import { CharacterStoreService } from '../services/character-store.service';
 import { CommonModule } from '@angular/common';
 import { SkillsComponent } from './skills/skills.component';
 import { ClassTree } from './class-tree-model';
+import { InventoryComponent } from "./inventory/inventory.component";
 
 @Component({
   selector: 'app-sheet',
@@ -23,7 +24,8 @@ import { ClassTree } from './class-tree-model';
     CurrentstatsComponent,
     PortraitComponent,
     SkillsComponent,
-  ],
+    InventoryComponent
+],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
 })
