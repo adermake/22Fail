@@ -6,83 +6,45 @@ export interface KeywordStyle {
 
 export class KeywordEnhancer {
   private static styles: KeywordStyle[] = [
-    // Damage types
+    // Resouces types
     {
-      keywords: ['fire', 'flame', 'burn', 'burning'],
+      keywords: ['leben', 'trefferpunkte'],
       className: 'keyword-fire',
-      color: '#ff6b35'
+      color: '#a30d0dff'
     },
     {
-      keywords: ['ice', 'frost', 'freeze', 'frozen', 'cold'],
-      className: 'keyword-ice',
-      color: '#4ecdc4'
+      keywords: ['ausdauer'],
+      className: 'keyword-fire',
+      color: '#207934ff'
     },
     {
-      keywords: ['lightning', 'thunder', 'shock', 'electric'],
-      className: 'keyword-lightning',
-      color: '#ffe66d'
+      keywords: ['mana'],
+      className: 'keyword-fire',
+      color: '#2a83beff'
     },
-    {
-      keywords: ['poison', 'venom', 'toxic'],
-      className: 'keyword-poison',
-      color: '#95e1d3'
+     {
+      keywords: ['fokus'],
+      className: 'keyword-fire',
+      color: '#3e13b3ff'
     },
-    {
-      keywords: ['shadow', 'dark', 'darkness'],
-      className: 'keyword-shadow',
-      color: '#6c5ce7'
-    },
-    {
-      keywords: ['holy', 'light', 'divine', 'blessed'],
-      className: 'keyword-holy',
-      color: '#ffd700'
-    },
-    
-    // Effects
-    {
-      keywords: ['stun', 'stunned', 'paralyze', 'paralyzed'],
-      className: 'keyword-stun',
-      color: '#fdcb6e'
-    },
-    {
-      keywords: ['heal', 'healing', 'restore', 'regenerate'],
-      className: 'keyword-heal',
-      color: '#00b894'
-    },
-    {
-      keywords: ['damage', 'dmg', 'hurt'],
-      className: 'keyword-damage',
-      color: '#d63031'
-    },
-    {
-      keywords: ['buff', 'enhance', 'strengthen'],
-      className: 'keyword-buff',
-      color: '#0984e3'
-    },
-    {
-      keywords: ['debuff', 'weaken', 'curse'],
-      className: 'keyword-debuff',
-      color: '#6c5ce7'
-    },
-    
     // Stats
     {
-      keywords: ['strength', 'str'],
+      keywords: ['stärke', 'str'],
       className: 'keyword-stat',
-      color: '#e17055'
+      color: '#631400ff'
     },
     {
-      keywords: ['dexterity', 'dex'],
+      keywords: ['geschicklichkeit', 'dex'],
       className: 'keyword-stat',
       color: '#00b894'
     },
     {
-      keywords: ['intelligence', 'int'],
+      keywords: ['intelligenz', 'int'],
       className: 'keyword-stat',
       color: '#0984e3'
     },
     {
-      keywords: ['constitution', 'con', 'hp', 'health'],
+      keywords: ['konstitution', 'con', 'hp', 'health'],
       className: 'keyword-stat',
       color: '#d63031'
     },
@@ -116,7 +78,7 @@ export class KeywordEnhancer {
           );
 
           if (!overlaps) {
-            const replacement = `<span class="${style.className}" style="color: ${style.color}; font-weight: 600;">${match[0]}</span>`;
+            const replacement = `<span class="${style.className}" style="color: ${style.color}; font-weight: 700;">${match[0]}</span>`;
             replacements.push({ start, end, replacement });
           }
         }
