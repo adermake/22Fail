@@ -151,12 +151,12 @@
 }
 
 .save-btn {
-  background-color: #4caf50;
+  background-color: var(--accent);
   color: white;
 }
 
 .save-btn:hover {
-  background-color: #45a049;
+  background-color: brightness(0.9); /* Or calculate darker: filter: brightness(0.9); */
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
 }
