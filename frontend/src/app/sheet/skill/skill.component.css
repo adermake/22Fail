@@ -223,3 +223,8 @@
 .skill-edit {
   pointer-events: all;
 }
+
+:host {
+  display: block;
+  width: 100%;
+}
