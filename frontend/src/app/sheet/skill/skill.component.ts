@@ -18,18 +18,17 @@ export class SkillComponent {
   @Input({ required: true }) index!: number;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
+  @Output() editingChange = new EventEmitter<boolean>();
 
   isEditing = false;
 
   constructor(private cd: ChangeDetectorRef) {}
 
   get isDisabled(): boolean {
-    // Enlightened skills are never disabled
     if (this.skill.enlightened) {
       return false;
     }
 
-    // Use ClassTree to check if skill is enabled
     return !ClassTree.isClassEnabled(
       this.skill.class,
       this.sheet.primary_class,
@@ -39,6 +38,7 @@ export class SkillComponent {
 
   toggleEdit() {
     this.isEditing = !this.isEditing;
+    this.editingChange.emit(this.isEditing);
   }
 
   updateField(field: string, value: any) {

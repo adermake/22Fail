@@ -19,9 +19,9 @@ export class SkillsComponent {
   @Output() patch = new EventEmitter<JsonPatch>();
 
   showCreateDialog = false;
+  private editingSkills = new Set<number>();
 
   ngOnInit() {
-    // Initialize skills array if it doesn't exist
     if (!this.sheet.skills) {
       this.sheet.skills = [];
     }
@@ -36,23 +36,16 @@ export class SkillsComponent {
   }
 
   createSkill(skill: SkillBlock) {
-    // Add new skill to array (optimistic update)
     this.sheet.skills = [...this.sheet.skills, skill];
-    
-    // Emit patch
     this.patch.emit({
       path: 'skills',
       value: this.sheet.skills,
     });
-    
     this.closeCreateDialog();
   }
 
   deleteSkill(index: number) {
-    // Remove skill from array (optimistic update)
     this.sheet.skills = this.sheet.skills.filter((_, i) => i !== index);
-    
-    // Emit patch
     this.patch.emit({
       path: 'skills',
       value: this.sheet.skills,
@@ -60,14 +53,10 @@ export class SkillsComponent {
   }
 
   updateSkill(index: number, patch: JsonPatch) {
-    // Apply optimistically on client - handle all types of values
     const field = patch.path as keyof SkillBlock;
     (this.sheet.skills[index] as any)[field] = patch.value;
-    
-    // Force change detection by creating new array reference
     this.sheet.skills = [...this.sheet.skills];
     
-    // Forward patch with index prefix
     this.patch.emit({
       path: `skills.${index}.${patch.path}`,
       value: patch.value,
@@ -75,25 +64,33 @@ export class SkillsComponent {
   }
 
   onDrop(event: CdkDragDrop<SkillBlock[]>) {
-    // Reorder the array
     const previousIndex = event.previousIndex;
     const currentIndex = event.currentIndex;
     
     if (previousIndex === currentIndex) {
-      return; // No change
+      return;
     }
 
-    // Create a new array with reordered items
     const newSkills = [...this.sheet.skills];
     moveItemInArray(newSkills, previousIndex, currentIndex);
     
-    // Update locally
     this.sheet.skills = newSkills;
     
-    // Send patch with entire array
     this.patch.emit({
       path: 'skills',
       value: newSkills,
     });
+  }
+
+  onEditingChange(index: number, isEditing: boolean) {
+    if (isEditing) {
+      this.editingSkills.add(index);
+    } else {
+      this.editingSkills.delete(index);
+    }
+  }
+
+  isSkillEditing(index: number): boolean {
+    return this.editingSkills.has(index);
   }
 }
