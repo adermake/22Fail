@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ClassTree } from '../class-tree-model';
 import { KeywordEnhancer } from '../keyword-enhancer';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-skill',
@@ -23,7 +24,10 @@ export class SkillComponent {
 
   isEditing = false;
 
-  constructor(private cd: ChangeDetectorRef) {}
+  constructor(
+    private cd: ChangeDetectorRef,
+    private sanitizer: DomSanitizer
+  ) {}
 
   get isDisabled(): boolean {
     if (this.skill.enlightened) {
@@ -37,17 +41,12 @@ export class SkillComponent {
     );
   }
 
-  get enhancedDescription(): string {
-    console.log('Full skill object:', this.skill);
-    console.log('Description value:', this.skill.description);
-    console.log('Description type:', typeof this.skill.description);
-
+  get enhancedDescription(): SafeHtml {
     const original = this.skill.description || 'No description';
     const enhanced = KeywordEnhancer.enhance(original);
-    console.log('Original:', original);
-    console.log('Enhanced:', enhanced);
-    return enhanced;
+    return this.sanitizer.bypassSecurityTrustHtml(enhanced);
   }
+
   toggleEdit() {
     this.isEditing = !this.isEditing;
     this.editingChange.emit(this.isEditing);
