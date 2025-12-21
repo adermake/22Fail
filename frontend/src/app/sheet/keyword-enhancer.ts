@@ -7,24 +7,29 @@ export interface KeywordStyle {
 export class KeywordEnhancer {
   private static styles: KeywordStyle[] = [
     // Resouces types
+     {
+      keywords: ['kosten', 'bedingung' ,'bedingungen','voraussetzung','voraussetzungen','effektivität',"effekt"],
+      className: 'keyword-bold',
+      color: '#0c0c0cff'
+    },
     {
       keywords: ['leben', 'trefferpunkte'],
-      className: 'keyword-fire',
+      className: 'keyword-life',
       color: '#a30d0dff'
     },
     {
       keywords: ['ausdauer'],
-      className: 'keyword-fire',
+      className: 'keyword-energy',
       color: '#207934ff'
     },
     {
       keywords: ['mana'],
-      className: 'keyword-fire',
+      className: 'keyword-mana',
       color: '#2a83beff'
     },
      {
       keywords: ['fokus'],
-      className: 'keyword-fire',
+      className: 'keyword-fokus',
       color: '#3e13b3ff'
     },
     // Stats
