@@ -6,17 +6,7 @@
 
   <div class="skills-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
     @for (skill of (sheet.skills || []); track skill.name; let i = $index) {
-      <div cdkDrag [cdkDragDisabled]="isSkillEditing(i)" class="skill-drag-wrapper">
-        <app-skill
-          [skill]="skill"
-          [sheet]="sheet"
-          [index]="i"
-          (patch)="updateSkill(i, $event)"
-          (delete)="deleteSkill(i)"
-          (editingChange)="onEditingChange(i, $event)"
-          *cdkDragPreview
-        ></app-skill>
-        
+      <div cdkDrag [cdkDragDisabled]="isSkillEditing(i)">
         <app-skill
           [skill]="skill"
           [sheet]="sheet"
@@ -25,10 +15,7 @@
           (delete)="deleteSkill(i)"
           (editingChange)="onEditingChange(i, $event)"
         ></app-skill>
-        
-        <div class="drag-placeholder" *cdkDragPlaceholder>
-          <div class="placeholder-content"></div>
-        </div>
+        <div *cdkDragPlaceholder></div>
       </div>
     }
     
