@@ -7,10 +7,11 @@ import { CardComponent } from '../../shared/card/card.component';
 import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ItemComponent } from '../item/item.component';
 import { ItemCreatorComponent } from '../item-creator/item-creator.component';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-inventory',
-  imports: [CommonModule, ItemComponent, CardComponent, ItemCreatorComponent, DragDropModule],
+  imports: [CommonModule, ItemComponent, CardComponent, ItemCreatorComponent, DragDropModule, FormsModule],
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.css',
 })
@@ -19,6 +20,7 @@ export class InventoryComponent {
   @Output() patch = new EventEmitter<JsonPatch>();
 
   showCreateDialog = false;
+  showSettingsDialog = false;
   private editingItems = new Set<number>();
   placeholderHeight = '90px';
   placeholderWidth = '100%';
@@ -26,6 +28,12 @@ export class InventoryComponent {
   ngOnInit() {
     if (!this.sheet.inventory) {
       this.sheet.inventory = [];
+    }
+    if (this.sheet.carryCapacityMultiplier === undefined) {
+      this.sheet.carryCapacityMultiplier = 10;
+    }
+    if (this.sheet.carryCapacityBonus === undefined) {
+      this.sheet.carryCapacityBonus = 0;
     }
   }
 
@@ -37,8 +45,50 @@ export class InventoryComponent {
     this.showCreateDialog = false;
   }
 
+  openSettingsDialog() {
+    this.showSettingsDialog = true;
+  }
+
+  closeSettingsDialog() {
+    this.showSettingsDialog = false;
+  }
+
   get totalWeight(): number {
     return this.sheet.inventory?.reduce((sum, item) => sum + (item.weight || 0), 0) || 0;
+  }
+
+  get maxCapacity(): number {
+    const strength = this.sheet.strength?.current || 10;
+    return (strength * this.sheet.carryCapacityMultiplier) + this.sheet.carryCapacityBonus;
+  }
+
+  get encumbrancePercentage(): number {
+    return (this.totalWeight / this.maxCapacity) * 100;
+  }
+
+  get encumbranceColor(): string {
+    const percentage = this.encumbrancePercentage;
+    if (percentage < 50) {
+      return '#4caf50'; // Green
+    } else if (percentage < 75) {
+      return '#ffd700'; // Yellow
+    } else if (percentage < 100) {
+      return '#ff9800'; // Orange
+    } else {
+      return '#f44336'; // Red
+    }
+  }
+
+  get encumbranceClass(): string {
+    const percentage = this.encumbrancePercentage;
+    if (percentage < 50) return 'light';
+    if (percentage < 75) return 'medium';
+    if (percentage < 100) return 'heavy';
+    return 'overencumbered';
+  }
+
+  updateCapacitySetting(field: string, value: any) {
+    this.patch.emit({ path: field, value: Number(value) });
   }
 
   createItem(item: ItemBlock) {
@@ -62,10 +112,8 @@ export class InventoryComponent {
     const pathParts = patch.path.split('.');
     
     if (pathParts.length === 1) {
-      // Simple field like name, description, weight
       (this.sheet.inventory[index] as any)[patch.path] = patch.value;
     } else if (pathParts[0] === 'requirements') {
-      // Nested requirement field
       if (!this.sheet.inventory[index].requirements) {
         this.sheet.inventory[index].requirements = {};
       }

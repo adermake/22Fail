@@ -2,9 +2,22 @@
   <div class="inventory-header">
     <div>
       <h2>Inventory</h2>
-      <span class="total-weight">Total Weight: {{ totalWeight }} kg</span>
+      <div class="weight-info">
+        <span class="weight-display" [class]="encumbranceClass" [style.color]="encumbranceColor">
+          {{ totalWeight }} / {{ maxCapacity }} kg
+        </span>
+        <div class="weight-bar">
+          <div class="weight-fill" 
+               [style.width.%]="encumbrancePercentage" 
+               [style.background-color]="encumbranceColor">
+          </div>
+        </div>
+      </div>
     </div>
-    <button class="add-btn" (click)="openCreateDialog()">+ Add Item</button>
+    <div class="header-buttons">
+      <button class="settings-btn" (click)="openSettingsDialog()" title="Carry Capacity Settings">⚙️</button>
+      <button class="add-btn" (click)="openCreateDialog()">+ Add Item</button>
+    </div>
   </div>
 
   <div class="inventory-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
@@ -41,6 +54,46 @@
           (create)="createItem($event)"
           (cancel)="closeCreateDialog()"
         ></app-item-creator>
+      </div>
+    </div>
+  }
+
+  <!-- Settings Dialog -->
+  @if (showSettingsDialog) {
+    <div class="dialog-overlay" (click)="closeSettingsDialog()">
+      <div class="dialog-content" (click)="$event.stopPropagation()">
+        <h3>Carry Capacity Settings</h3>
+        <div class="settings-form">
+          <div class="field">
+            <label>Formula: (Strength × Multiplier) + Bonus</label>
+          </div>
+          <div class="field">
+            <label for="multiplier">Multiplier</label>
+            <input
+              id="multiplier"
+              type="number"
+              step="0.5"
+              min="0"
+              [ngModel]="sheet.carryCapacityMultiplier"
+              (ngModelChange)="updateCapacitySetting('carryCapacityMultiplier', $event)"
+            />
+          </div>
+          <div class="field">
+            <label for="bonus">Bonus (kg)</label>
+            <input
+              id="bonus"
+              type="number"
+              step="1"
+              [ngModel]="sheet.carryCapacityBonus"
+              (ngModelChange)="updateCapacitySetting('carryCapacityBonus', $event)"
+            />
+          </div>
+          <div class="field preview">
+            <label>Current Capacity:</label>
+            <span class="capacity-preview">{{ maxCapacity }} kg</span>
+          </div>
+          <button class="close-btn" (click)="closeSettingsDialog()">Close</button>
+        </div>
       </div>
     </div>
   }

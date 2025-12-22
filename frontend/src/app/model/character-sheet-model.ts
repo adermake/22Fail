@@ -28,6 +28,8 @@ export interface CharacterSheet {
   skills: SkillBlock[];
   statuses: StatusBlock[];
   inventory: ItemBlock[];
+  carryCapacityMultiplier: number; // Default: 10
+  carryCapacityBonus: number; // Default: 0
 }
 
 export function createEmptySheet(): CharacterSheet {
@@ -50,6 +52,8 @@ export function createEmptySheet(): CharacterSheet {
     constitution: createEmptyStatBlock('Konstitution'),
     skills: [],
     inventory: [],
+    carryCapacityMultiplier: 1,
+    carryCapacityBonus: 0,
     statuses: createBasicStatuses(),
   };
 }
