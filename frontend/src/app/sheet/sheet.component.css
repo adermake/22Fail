@@ -1,4 +1,26 @@
-.sheetgrid {
-      display: grid;
-  grid-template-columns: auto auto;
+.character-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* For larger screens, you might want specific layouts */
+@media (min-width: 1200px) {
+  .character-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1600px) {
+  .character-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Make all cards same height in their row */
+.character-grid > * {
+  min-height: 300px;
 }
