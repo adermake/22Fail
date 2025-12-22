@@ -1,7 +1,6 @@
 .stats {
-  /* Remove width: 100% and padding: 1rem */
+  padding: 0; /* Remove all padding since the grid handles it */
 }
-
 .statgrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
