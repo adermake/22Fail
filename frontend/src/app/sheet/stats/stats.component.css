@@ -1,12 +1,9 @@
+.stats {
+  /* Remove width: 100% and padding: 1rem */
+}
+
 .statgrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-}
-
-.stats {
-  width: 100%;
-  padding: 1rem;
-  box-sizing: border-box;
-  grid-column: span 2;
 }
