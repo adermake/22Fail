@@ -8,4 +8,5 @@
   width: 100%;
   padding: 1rem;
   box-sizing: border-box;
+  grid-column: span 2;
 }
