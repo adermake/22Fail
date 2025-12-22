@@ -1,8 +1,11 @@
 .statgrid {
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
 }
+
 .stats {
-  width: 80%;
-  padding: 1%;
+  width: 100%;
+  padding: 1rem;
+  box-sizing: border-box;
 }
