@@ -1,16 +1,13 @@
 .character-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
   padding: 1rem;
   width: 100%;
   box-sizing: border-box;
 }
 
-/* Make stats span 2 columns */
-app-stats {
-  grid-column: span 2;
-}
+
 
 /* For larger screens, you might want specific layouts */
 @media (min-width: 1200px) {
