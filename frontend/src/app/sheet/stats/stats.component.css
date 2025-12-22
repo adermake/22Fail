@@ -1,5 +1,6 @@
 .stats {
-  padding: 0; /* Remove all padding since the grid handles it */
+  padding: 1rem;
+  font-family: sans-serif;
 }
 .statgrid {
   display: grid;

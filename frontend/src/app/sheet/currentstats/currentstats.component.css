@@ -1,5 +1,8 @@
 .currentstat-row {
   display: flex;
   gap: 16px;
-  padding: 0;
+}
+.box {
+  padding: 1rem;
+  font-family: sans-serif;
 }
