@@ -152,7 +152,7 @@
 
 .save-btn {
   background-color: var(--accent);
-  color: var(--accent);
+  color: white;
 }
 
 .save-btn:hover {
