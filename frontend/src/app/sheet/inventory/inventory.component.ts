@@ -88,6 +88,7 @@ export class InventoryComponent {
   }
 
   updateCapacitySetting(field: string, value: any) {
+    (this.sheet as any)[field] = value;
     this.patch.emit({ path: field, value: Number(value) });
   }
 
