@@ -27,7 +27,7 @@
 }
 
 .add-btn:hover {
-  background-color: brightness(0.9);
+  background-color: var(--accentdark);
 }
 
 .inventory-list {

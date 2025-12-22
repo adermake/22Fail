@@ -1,6 +1,7 @@
 /* You can add global styles to this file, and also import other style files */
 :root {
   --accent: #6b46c1;
+  --accentdark: #5c3ca7;
   --muted: #6b7280;
   --card: #ffffff;
   --bg: #f3f4f6;

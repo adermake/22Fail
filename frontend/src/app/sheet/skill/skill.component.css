@@ -152,13 +152,13 @@
 
 .save-btn {
   background-color: var(--accent);
-  color: white;
+  color: var(--accent);
 }
 
 .save-btn:hover {
-  background-color: brightness(0.9); /* Or calculate darker: filter: brightness(0.9); */
+  background-color: var(--accentdark);; /* Or calculate darker: filter: brightness(0.9); */
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+  box-shadow: 0 2px 4px rgba(18, 0, 36, 0.3);
 }
 
 .delete-btn {
