@@ -12,6 +12,7 @@ import { CommonModule } from '@angular/common';
 import { SkillsComponent } from './skills/skills.component';
 import { ClassTree } from './class-tree-model';
 import { InventoryComponent } from "./inventory/inventory.component";
+import { EquipmentComponent } from './equipment/equipment.component';
 
 @Component({
   selector: 'app-sheet',
@@ -22,6 +23,7 @@ import { InventoryComponent } from "./inventory/inventory.component";
     LevelclassComponent,
     CurrentstatComponent,
     CurrentstatsComponent,
+    EquipmentComponent,
     PortraitComponent,
     SkillsComponent,
     InventoryComponent
