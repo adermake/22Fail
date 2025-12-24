@@ -143,24 +143,47 @@ export class InventoryComponent {
     this.placeholderWidth = `${rect.width}px`;
   }
 
-  onDrop(event: CdkDragDrop<ItemBlock[]>) {
+onDrop(event: CdkDragDrop<ItemBlock[]>) {
+  if (event.previousContainer === event.container) {
+    // Reorder within inventory
     const previousIndex = event.previousIndex;
     const currentIndex = event.currentIndex;
-
+    
     if (previousIndex === currentIndex) {
       return;
     }
 
     const newInventory = [...this.sheet.inventory];
     moveItemInArray(newInventory, previousIndex, currentIndex);
-
+    
     this.sheet.inventory = newInventory;
-
+    
     this.patch.emit({
       path: 'inventory',
       value: newInventory,
     });
+  } else {
+    // Transfer from equipment to inventory
+    const item = event.previousContainer.data[event.previousIndex];
+    
+    // Add to inventory
+    this.sheet.inventory = [...this.sheet.inventory];
+    this.sheet.inventory.splice(event.currentIndex, 0, item);
+    
+    // Remove from equipment
+    this.sheet.equipment = this.sheet.equipment.filter((_, i) => i !== event.previousIndex);
+    
+    // Emit both changes
+    this.patch.emit({
+      path: 'inventory',
+      value: this.sheet.inventory,
+    });
+    this.patch.emit({
+      path: 'equipment',
+      value: this.sheet.equipment,
+    });
   }
+}
 
   onEditingChange(index: number, isEditing: boolean) {
     if (isEditing) {

@@ -7,94 +7,102 @@
           {{ totalWeight }} / {{ maxCapacity }} kg
         </span>
         <div class="weight-bar">
-          <div class="weight-fill" 
-               [style.width.%]="encumbrancePercentage" 
-               [style.background-color]="encumbranceColor">
-          </div>
+          <div
+            class="weight-fill"
+            [style.width.%]="encumbrancePercentage"
+            [style.background-color]="encumbranceColor"
+          ></div>
         </div>
       </div>
     </div>
     <div class="header-buttons">
-      <button class="settings-btn" (click)="openSettingsDialog()" title="Carry Capacity Settings">⚙️</button>
+      <button class="settings-btn" (click)="openSettingsDialog()" title="Carry Capacity Settings">
+        ⚙️
+      </button>
       <button class="add-btn" (click)="openCreateDialog()">+ Add Item</button>
     </div>
   </div>
 
-  <div class="inventory-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
+  <div
+    class="inventory-list"
+    cdkDropList
+    id="inventoryList"
+    [cdkDropListData]="sheet.inventory"
+    [cdkDropListConnectedTo]="['equipmentList']"
+    (cdkDropListDropped)="onDrop($event)"
+  >
     @for (item of (sheet.inventory || []); track item.name; let i = $index) {
-      <div cdkDrag [cdkDragDisabled]="isItemEditing(i)" (cdkDragStarted)="onDragStarted($event)">
-        <app-item
-          [item]="item"
-          [sheet]="sheet"
-          [index]="i"
-          (patch)="updateItem(i, $event)"
-          (delete)="deleteItem(i)"
-          (editingChange)="onEditingChange(i, $event)"
-        ></app-item>
-        <div 
-          class="drag-placeholder-wrapper" 
-          *cdkDragPlaceholder
-          [style.height]="placeholderHeight"
-          [style.width]="placeholderWidth">
-        </div>
-      </div>
-    }
-    
-    @if ((sheet.inventory || []).length === 0) {
-      <p class="empty-message">No items yet. Click + to add one.</p>
+    <div cdkDrag [cdkDragDisabled]="isItemEditing(i)" (cdkDragStarted)="onDragStarted($event)">
+      <app-item
+        [item]="item"
+        [sheet]="sheet"
+        [index]="i"
+        (patch)="updateItem(i, $event)"
+        (delete)="deleteItem(i)"
+        (editingChange)="onEditingChange(i, $event)"
+      ></app-item>
+      <div
+        class="drag-placeholder-wrapper"
+        *cdkDragPlaceholder
+        [style.height]="placeholderHeight"
+        [style.width]="placeholderWidth"
+      ></div>
+    </div>
+    } @if ((sheet.inventory || []).length === 0) {
+    <p class="empty-message">No items yet. Click + to add one.</p>
     }
   </div>
 
   <!-- Create Dialog -->
   @if (showCreateDialog) {
-    <div class="dialog-overlay" (click)="closeCreateDialog()">
-      <div class="dialog-content" (click)="$event.stopPropagation()">
-        <h3>Add New Item</h3>
-        <app-item-creator
-          (create)="createItem($event)"
-          (cancel)="closeCreateDialog()"
-        ></app-item-creator>
-      </div>
+  <div class="dialog-overlay" (click)="closeCreateDialog()">
+    <div class="dialog-content" (click)="$event.stopPropagation()">
+      <h3>Add New Item</h3>
+      <app-item-creator
+        (create)="createItem($event)"
+        (cancel)="closeCreateDialog()"
+      ></app-item-creator>
     </div>
+  </div>
   }
 
   <!-- Settings Dialog -->
   @if (showSettingsDialog) {
-    <div class="dialog-overlay">
-      <div class="dialog-content" (click)="$event.stopPropagation()">
-        <h3>Carry Capacity Settings</h3>
-        <div class="settings-form">
-          <div class="field">
-            <label>Formula: (Strength × Multiplier) + Bonus</label>
-          </div>
-          <div class="field">
-            <label for="multiplier">Multiplier</label>
-            <input
-              id="multiplier"
-              type="number"
-              step="0.5"
-              min="0"
-              [ngModel]="sheet.carryCapacityMultiplier"
-              (ngModelChange)="updateCapacitySetting('carryCapacityMultiplier', $event)"
-            />
-          </div>
-          <div class="field">
-            <label for="bonus">Bonus (kg)</label>
-            <input
-              id="bonus"
-              type="number"
-              step="1"
-              [ngModel]="sheet.carryCapacityBonus"
-              (ngModelChange)="updateCapacitySetting('carryCapacityBonus', $event)"
-            />
-          </div>
-          <div class="field preview">
-            <label>Current Capacity:</label>
-            <span class="capacity-preview">{{ maxCapacity }} kg</span>
-          </div>
-          <button class="close-btn" (click)="closeSettingsDialog()">Close</button>
+  <div class="dialog-overlay">
+    <div class="dialog-content" (click)="$event.stopPropagation()">
+      <h3>Carry Capacity Settings</h3>
+      <div class="settings-form">
+        <div class="field">
+          <label>Formula: (Strength × Multiplier) + Bonus</label>
         </div>
+        <div class="field">
+          <label for="multiplier">Multiplier</label>
+          <input
+            id="multiplier"
+            type="number"
+            step="0.5"
+            min="0"
+            [ngModel]="sheet.carryCapacityMultiplier"
+            (ngModelChange)="updateCapacitySetting('carryCapacityMultiplier', $event)"
+          />
+        </div>
+        <div class="field">
+          <label for="bonus">Bonus (kg)</label>
+          <input
+            id="bonus"
+            type="number"
+            step="1"
+            [ngModel]="sheet.carryCapacityBonus"
+            (ngModelChange)="updateCapacitySetting('carryCapacityBonus', $event)"
+          />
+        </div>
+        <div class="field preview">
+          <label>Current Capacity:</label>
+          <span class="capacity-preview">{{ maxCapacity }} kg</span>
+        </div>
+        <button class="close-btn" (click)="closeSettingsDialog()">Close</button>
       </div>
     </div>
+  </div>
   }
 </app-card>
