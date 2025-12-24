@@ -11,7 +11,14 @@ import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-inventory',
-  imports: [CommonModule, ItemComponent, CardComponent, ItemCreatorComponent, DragDropModule, FormsModule],
+  imports: [
+    CommonModule,
+    ItemComponent,
+    CardComponent,
+    ItemCreatorComponent,
+    DragDropModule,
+    FormsModule,
+  ],
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.css',
 })
@@ -58,8 +65,8 @@ export class InventoryComponent {
   }
 
   get maxCapacity(): number {
-    const strength = this.sheet.strength?.current || 10;
-    return (strength * this.sheet.carryCapacityMultiplier) + this.sheet.carryCapacityBonus;
+    const strength = this.sheet.strength?.current * 8 || 10;
+    return strength * this.sheet.carryCapacityMultiplier + this.sheet.carryCapacityBonus;
   }
 
   get encumbrancePercentage(): number {
@@ -70,9 +77,9 @@ export class InventoryComponent {
     const percentage = this.encumbrancePercentage;
     if (percentage < 50) {
       return '#4caf50'; // Green
-    } else if (percentage < 75) {
-      return '#ffd700'; // Yellow
     } else if (percentage < 100) {
+      return '#ffd700'; // Yellow
+    } else if (percentage < 125) {
       return '#ff9800'; // Orange
     } else {
       return '#f44336'; // Red
@@ -111,7 +118,7 @@ export class InventoryComponent {
 
   updateItem(index: number, patch: JsonPatch) {
     const pathParts = patch.path.split('.');
-    
+
     if (pathParts.length === 1) {
       (this.sheet.inventory[index] as any)[patch.path] = patch.value;
     } else if (pathParts[0] === 'requirements') {
@@ -120,9 +127,9 @@ export class InventoryComponent {
       }
       (this.sheet.inventory[index].requirements as any)[pathParts[1]] = patch.value;
     }
-    
+
     this.sheet.inventory = [...this.sheet.inventory];
-    
+
     this.patch.emit({
       path: `inventory.${index}.${patch.path}`,
       value: patch.value,
@@ -139,16 +146,16 @@ export class InventoryComponent {
   onDrop(event: CdkDragDrop<ItemBlock[]>) {
     const previousIndex = event.previousIndex;
     const currentIndex = event.currentIndex;
-    
+
     if (previousIndex === currentIndex) {
       return;
     }
 
     const newInventory = [...this.sheet.inventory];
     moveItemInArray(newInventory, previousIndex, currentIndex);
-    
+
     this.sheet.inventory = newInventory;
-    
+
     this.patch.emit({
       path: 'inventory',
       value: newInventory,

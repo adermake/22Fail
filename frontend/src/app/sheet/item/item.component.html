@@ -72,7 +72,14 @@
           (ngModelChange)="updateField('weight', +$event)"
         />
       </div>
-
+     <div class="field">
+        <label>Verloren</label>
+        <input
+          type="checkbox"
+          [ngModel]="item.lost"
+          (ngModelChange)="updateField('lost', +$event)"
+        />
+      </div>
       <div class="field">
         <label>Description</label>
         <textarea

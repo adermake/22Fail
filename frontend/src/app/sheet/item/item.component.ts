@@ -46,7 +46,7 @@ export class ItemComponent {
     if (reqs.intelligence && stats.intelligence.current < reqs.intelligence) return false;
     if (reqs.constitution && stats.constitution.current < reqs.constitution) return false;
     if (reqs.chill && stats.chill.current < reqs.chill) return false;
-
+    if (this.item.lost) return false;
     return true;
   }
 

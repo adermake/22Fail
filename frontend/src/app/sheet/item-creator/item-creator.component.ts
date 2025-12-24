@@ -17,6 +17,7 @@ export class ItemCreatorComponent {
     name: '',
     description: '',
     weight: 0,
+    lost: false,
     requirements: {},
   };
 
@@ -31,6 +32,7 @@ export class ItemCreatorComponent {
     // Reset form
     this.newItem = {
       name: '',
+      lost: false,
       description: '',
       weight: 0,
       requirements: {},
