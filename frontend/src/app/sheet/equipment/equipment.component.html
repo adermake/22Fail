@@ -1,0 +1,40 @@
+<app-card>
+  <div class="equipment-header">
+    <div>
+      <h2>Equipment / Armor</h2>
+      <span class="armor-weight">Armor Weight: {{ armorWeight }} kg</span>
+    </div>
+  </div>
+
+  <div 
+    class="equipment-list" 
+    cdkDropList 
+    #equipmentList="cdkDropList"
+    [cdkDropListData]="sheet.equipment"
+    [cdkDropListConnectedTo]="['inventoryList']"
+    (cdkDropListDropped)="onDrop($event)">
+    
+    @for (item of (sheet.equipment || []); track item.name; let i = $index) {
+      <div cdkDrag [cdkDragDisabled]="isItemEditing(i)" (cdkDragStarted)="onDragStarted($event)">
+        <app-item
+          [item]="item"
+          [sheet]="sheet"
+          [index]="i"
+          (patch)="updateItem(i, $event)"
+          (delete)="deleteItem(i)"
+          (editingChange)="onEditingChange(i, $event)"
+        ></app-item>
+        <div 
+          class="drag-placeholder-wrapper" 
+          *cdkDragPlaceholder
+          [style.height]="placeholderHeight"
+          [style.width]="placeholderWidth">
+        </div>
+      </div>
+    }
+    
+    @if ((sheet.equipment || []).length === 0) {
+      <p class="empty-message">No equipment. Drag items from inventory here.</p>
+    }
+  </div>
+</app-card>
