@@ -5,6 +5,7 @@ import { StatBlock } from './stat-block.model';
 import { StatusBlock } from './status-block.model';
 
 export interface CharacterSheet {
+  runes: any;
   // Character
   name: string;
   race: string;
@@ -57,6 +58,7 @@ export function createEmptySheet(): CharacterSheet {
     carryCapacityMultiplier: 1,
     carryCapacityBonus: 0,
     statuses: createBasicStatuses(),
+    runes: [],
   };
 }
 

@@ -15,6 +15,7 @@ import { InventoryComponent } from "./inventory/inventory.component";
 import { EquipmentComponent } from './equipment/equipment.component';
 
 import { SpellsComponent } from "./spells/spells.component";
+import { RunesComponent } from '../shared/runes/runes.component';
 
 @Component({
   selector: 'app-sheet',
@@ -29,7 +30,8 @@ import { SpellsComponent } from "./spells/spells.component";
     PortraitComponent,
     SkillsComponent,
     InventoryComponent,
-    SpellsComponent
+    SpellsComponent,
+    RunesComponent
 ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',

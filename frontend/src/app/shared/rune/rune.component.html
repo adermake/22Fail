@@ -1,0 +1,62 @@
+<div class="rune-card" 
+     [class.editing]="isEditing"
+     (dblclick)="!isEditing && toggleEdit()">
+  @if (!isEditing) {
+    <div class="rune-view">
+      <div class="rune-header">
+        <div class="rune-drawing">
+          <img [src]="rune.drawing" alt="Rune drawing" />
+        </div>
+        <div class="rune-info">
+          <h4>{{ rune.name }}</h4>
+          <div class="rune-tags">
+            @for (tag of rune.tags; track tag) {
+              <span class="tag">{{ tag }}</span>
+            }
+          </div>
+        </div>
+      </div>
+      <p class="rune-description" [innerHTML]="enhancedDescription"></p>
+    </div>
+  } @else {
+    <div class="rune-edit" (click)="$event.stopPropagation()">
+      <div class="field">
+        <label>Name</label>
+        <input
+          type="text"
+          [ngModel]="rune.name"
+          (ngModelChange)="updateField('name', $event)"
+        />
+      </div>
+
+      <div class="field">
+        <label>Description</label>
+        <textarea
+          [ngModel]="rune.description"
+          (ngModelChange)="updateField('description', $event)"
+          rows="3"
+        ></textarea>
+      </div>
+
+      <div class="field">
+        <label>Tags</label>
+        <div class="tag-selector">
+          @for (tag of tagOptions; track tag) {
+            <button 
+              type="button"
+              class="tag-option" 
+              [class.selected]="hasTag(tag)"
+              (click)="toggleTag(tag)">
+              {{ tag }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="rune-actions">
+        <button class="save-btn" (click)="toggleEdit()">Done</button>
+        <button class="delete-btn" (click)="deleteRune()">Delete</button>
+      </div>
+    </div>
+  }
+</div>

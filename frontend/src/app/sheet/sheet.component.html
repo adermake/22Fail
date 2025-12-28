@@ -12,5 +12,9 @@
   <app-inventory [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-inventory>
   <app-spells></app-spells>
   <app-equipment [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-equipment>
+  <app-runes 
+  [sheet]="sheet" 
+  (patch)="store.applyPatch($any($event))">
+</app-runes>
 </div>
 }

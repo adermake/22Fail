@@ -1,0 +1,43 @@
+<app-card>
+  <div class="runes-header">
+    <h2>Runes</h2>
+    <button class="add-btn" (click)="openCreateDialog()">+ Add Rune</button>
+  </div>
+
+  <div class="runes-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
+    @for (rune of (sheet.runes || []); track rune.name; let i = $index) {
+      <div cdkDrag [cdkDragDisabled]="isRuneEditing(i)" (cdkDragStarted)="onDragStarted($event)">
+        <app-rune
+          [rune]="rune"
+          [index]="i"
+          (patch)="updateRune(i, $event)"
+          (delete)="deleteRune(i)"
+          (editingChange)="onEditingChange(i, $event)"
+        ></app-rune>
+        <div 
+          class="drag-placeholder-wrapper" 
+          *cdkDragPlaceholder
+          [style.height]="placeholderHeight"
+          [style.width]="placeholderWidth">
+        </div>
+      </div>
+    }
+    
+    @if ((sheet.runes || []).length === 0) {
+      <p class="empty-message">No runes yet. Click + to add one.</p>
+    }
+  </div>
+
+  <!-- Create Dialog -->
+  @if (showCreateDialog) {
+    <div class="dialog-overlay" (click)="closeCreateDialog()">
+      <div class="dialog-content" (click)="$event.stopPropagation()">
+        <h3>Create New Rune</h3>
+        <app-rune-creator
+          (create)="createRune($event)"
+          (cancel)="closeCreateDialog()"
+        ></app-rune-creator>
+      </div>
+    </div>
+  }
+</app-card>

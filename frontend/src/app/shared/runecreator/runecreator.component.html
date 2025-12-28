@@ -1,0 +1,60 @@
+<form (ngSubmit)="createRune()" class="creator-form">
+  <div class="field">
+    <label for="name">Rune Name *</label>
+    <input
+      id="name"
+      type="text"
+      [(ngModel)]="newRune.name"
+      name="name"
+      placeholder="Enter rune name"
+      required
+    />
+  </div>
+
+  <div class="field">
+    <label>Draw Rune</label>
+    <div class="canvas-container">
+      <canvas 
+        #canvas
+        width="200"
+        height="200"
+        (mousedown)="startDrawing($event)"
+        (mousemove)="draw($event)"
+        (mouseup)="stopDrawing()"
+        (mouseleave)="stopDrawing()"
+      ></canvas>
+    </div>
+    <button type="button" class="clear-btn" (click)="clearCanvas()">Clear Drawing</button>
+  </div>
+
+  <div class="field">
+    <label for="description">Description</label>
+    <textarea
+      id="description"
+      [(ngModel)]="newRune.description"
+      name="description"
+      rows="4"
+      placeholder="Describe the rune's power..."
+    ></textarea>
+  </div>
+
+  <div class="field">
+    <label>Tags</label>
+    <div class="tag-selector">
+      @for (tag of tagOptions; track tag) {
+        <button 
+          type="button"
+          class="tag-option" 
+          [class.selected]="hasTag(tag)"
+          (click)="toggleTag(tag)">
+          {{ tag }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="button-group">
+    <button type="submit" class="create-btn">Create</button>
+    <button type="button" class="cancel-btn" (click)="cancelCreate()">Cancel</button>
+  </div>
+</form>
