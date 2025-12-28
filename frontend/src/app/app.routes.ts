@@ -4,5 +4,5 @@ import { SessionComponent } from './session/session.component';
 
 export const routes: Routes = [
     { path: 'characters/:id', component: SheetComponent },
-    { path: 'session/:id', component: SessionComponent }
+    { path: 'game/:id', component: SessionComponent }
 ];

@@ -9,7 +9,7 @@ import { CharacterGateway } from './character.gateway';
   imports: [
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'frontend-dist', 'frontend', 'browser'),
-      exclude: ['api/*'], //api/*path
+      exclude: ['api/*path'],
     }),
   ],
   controllers: [AppController],
