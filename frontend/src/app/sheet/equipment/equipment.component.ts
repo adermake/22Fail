@@ -67,46 +67,50 @@ export class EquipmentComponent {
   }
 
   onDrop(event: CdkDragDrop<ItemBlock[]>) {
-    if (event.previousContainer === event.container) {
-      // Reorder within equipment
-      const previousIndex = event.previousIndex;
-      const currentIndex = event.currentIndex;
-      
-      if (previousIndex === currentIndex) {
-        return;
-      }
-
-      const newEquipment = [...this.sheet.equipment];
-      moveItemInArray(newEquipment, previousIndex, currentIndex);
-      
-      this.sheet.equipment = newEquipment;
-      
-      this.patch.emit({
-        path: 'equipment',
-        value: newEquipment,
-      });
-    } else {
-      // Transfer from inventory to equipment
-      const item = event.previousContainer.data[event.previousIndex];
-      
-      // Add to equipment
-      this.sheet.equipment = [...this.sheet.equipment];
-      this.sheet.equipment.splice(event.currentIndex, 0, item);
-      
-      // Remove from inventory
-      this.sheet.inventory = this.sheet.inventory.filter((_, i) => i !== event.previousIndex);
-      
-      // Emit both changes
-      this.patch.emit({
-        path: 'equipment',
-        value: this.sheet.equipment,
-      });
-      this.patch.emit({
-        path: 'inventory',
-        value: this.sheet.inventory,
-      });
+  if (event.previousContainer === event.container) {
+    // Reorder within equipment
+    const previousIndex = event.previousIndex;
+    const currentIndex = event.currentIndex;
+    
+    if (previousIndex === currentIndex) {
+      return;
     }
+
+    const newEquipment = [...this.sheet.equipment];
+    moveItemInArray(newEquipment, previousIndex, currentIndex);
+    
+    this.sheet.equipment = newEquipment;
+    
+    this.patch.emit({
+      path: 'equipment',
+      value: newEquipment,
+    });
+  } else {
+    // Transfer from inventory to equipment
+    const newEquipment = [...this.sheet.equipment];
+    const newInventory = [...this.sheet.inventory];
+    
+    transferArrayItem(
+      event.previousContainer.data as ItemBlock[],
+      newEquipment,
+      event.previousIndex,
+      event.currentIndex
+    );
+    
+    this.sheet.equipment = newEquipment;
+    this.sheet.inventory = newInventory;
+    
+    // Emit both changes
+    this.patch.emit({
+      path: 'equipment',
+      value: this.sheet.equipment,
+    });
+    this.patch.emit({
+      path: 'inventory',
+      value: this.sheet.inventory,
+    });
   }
+}
 
   onEditingChange(index: number, isEditing: boolean) {
     if (isEditing) {

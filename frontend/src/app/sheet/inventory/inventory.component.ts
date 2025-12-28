@@ -4,7 +4,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CardComponent } from '../../shared/card/card.component';
-import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { ItemComponent } from '../item/item.component';
 import { ItemCreatorComponent } from '../item-creator/item-creator.component';
 import { FormsModule } from '@angular/forms';
@@ -164,14 +164,18 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
     });
   } else {
     // Transfer from equipment to inventory
-    const item = event.previousContainer.data[event.previousIndex];
+    const newInventory = [...this.sheet.inventory];
+    const newEquipment = [...this.sheet.equipment];
     
-    // Add to inventory
-    this.sheet.inventory = [...this.sheet.inventory];
-    this.sheet.inventory.splice(event.currentIndex, 0, item);
+    transferArrayItem(
+      event.previousContainer.data as ItemBlock[],
+      newInventory,
+      event.previousIndex,
+      event.currentIndex
+    );
     
-    // Remove from equipment
-    this.sheet.equipment = this.sheet.equipment.filter((_, i) => i !== event.previousIndex);
+    this.sheet.inventory = newInventory;
+    this.sheet.equipment = newEquipment;
     
     // Emit both changes
     this.patch.emit({
