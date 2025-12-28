@@ -164,27 +164,24 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
     });
   } else {
     // Transfer from equipment to inventory
+    const item = event.previousContainer.data[event.previousIndex];
+    
+    // Remove from equipment
+    this.sheet.equipment = this.sheet.equipment.filter((_, i) => i !== event.previousIndex);
+    
+    // Add to inventory
     const newInventory = [...this.sheet.inventory];
-    const newEquipment = [...this.sheet.equipment];
-    
-    transferArrayItem(
-      event.previousContainer.data as ItemBlock[],
-      newInventory,
-      event.previousIndex,
-      event.currentIndex
-    );
-    
+    newInventory.splice(event.currentIndex, 0, item);
     this.sheet.inventory = newInventory;
-    this.sheet.equipment = newEquipment;
     
     // Emit both changes
     this.patch.emit({
-      path: 'inventory',
-      value: this.sheet.inventory,
-    });
-    this.patch.emit({
       path: 'equipment',
       value: this.sheet.equipment,
+    });
+    this.patch.emit({
+      path: 'inventory',
+      value: this.sheet.inventory,
     });
   }
 }

@@ -87,27 +87,24 @@ export class EquipmentComponent {
     });
   } else {
     // Transfer from inventory to equipment
+    const item = event.previousContainer.data[event.previousIndex];
+    
+    // Remove from inventory
+    this.sheet.inventory = this.sheet.inventory.filter((_, i) => i !== event.previousIndex);
+    
+    // Add to equipment
     const newEquipment = [...this.sheet.equipment];
-    const newInventory = [...this.sheet.inventory];
-    
-    transferArrayItem(
-      event.previousContainer.data as ItemBlock[],
-      newEquipment,
-      event.previousIndex,
-      event.currentIndex
-    );
-    
+    newEquipment.splice(event.currentIndex, 0, item);
     this.sheet.equipment = newEquipment;
-    this.sheet.inventory = newInventory;
     
     // Emit both changes
     this.patch.emit({
-      path: 'equipment',
-      value: this.sheet.equipment,
-    });
-    this.patch.emit({
       path: 'inventory',
       value: this.sheet.inventory,
+    });
+    this.patch.emit({
+      path: 'equipment',
+      value: this.sheet.equipment,
     });
   }
 }
