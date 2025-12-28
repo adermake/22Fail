@@ -14,6 +14,8 @@ import { ClassTree } from './class-tree-model';
 import { InventoryComponent } from "./inventory/inventory.component";
 import { EquipmentComponent } from './equipment/equipment.component';
 
+import { SpellsComponent } from "./spells/spells.component";
+
 @Component({
   selector: 'app-sheet',
   imports: [
@@ -26,7 +28,8 @@ import { EquipmentComponent } from './equipment/equipment.component';
     EquipmentComponent,
     PortraitComponent,
     SkillsComponent,
-    InventoryComponent
+    InventoryComponent,
+    SpellsComponent
 ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
