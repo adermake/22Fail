@@ -10,11 +10,8 @@
   <app-currentstats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-currentstats>
   <app-skills [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-skills>
   <app-inventory [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-inventory>
-  <app-spells></app-spells>
+  <app-spells [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-spells>
   <app-equipment [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-equipment>
-  <app-runes 
-  [sheet]="sheet" 
-  (patch)="store.applyPatch($any($event))">
-</app-runes>
+  <app-runes [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-runes>
 </div>
 }

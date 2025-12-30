@@ -1,6 +1,7 @@
 import { FormulaType } from './formula-type.enum';
 import { ItemBlock } from './item-block.model';
 import { SkillBlock } from './skill-block.model';
+import { SpellBlock } from './spell-block-model';
 import { StatBlock } from './stat-block.model';
 import { StatusBlock } from './status-block.model';
 
@@ -30,8 +31,9 @@ export interface CharacterSheet {
   statuses: StatusBlock[];
   inventory: ItemBlock[];
   equipment: ItemBlock[];
-  carryCapacityMultiplier: number; // Default: 10
-  carryCapacityBonus: number; // Default: 0
+  carryCapacityMultiplier: number; 
+  carryCapacityBonus: number;
+  spells: SpellBlock[]
 }
 
 export function createEmptySheet(): CharacterSheet {
@@ -59,6 +61,7 @@ export function createEmptySheet(): CharacterSheet {
     carryCapacityBonus: 0,
     statuses: createBasicStatuses(),
     runes: [],
+    spells: [], 
   };
 }
 
