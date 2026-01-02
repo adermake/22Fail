@@ -41,26 +41,31 @@
   resize: vertical;
 }
 
+.canvas-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .canvas-container {
   border: 2px solid #ddd;
   border-radius: 8px;
-  display: block;
+  display: inline-block;
   background: white;
   cursor: crosshair;
-  padding: 0.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  touch-action: none; /* Prevent touch scrolling */
+  touch-action: none;
+  /* REMOVED padding */
+  overflow: hidden; /* Important for no offset */
 }
 
 canvas {
   display: block;
-  width: 100%;
-  height: auto;
-  touch-action: none; /* Prevent touch scrolling */
+  touch-action: none;
+  /* Don't scale canvas with CSS */
 }
 
 .clear-btn {
-  margin-top: 0.5rem;
   padding: 0.5rem 1rem;
   background: #f5f5f5;
   border: 1px solid #ddd;
@@ -68,10 +73,19 @@ canvas {
   cursor: pointer;
   font-size: 0.9rem;
   transition: all 0.2s;
+  align-self: flex-start;
 }
 
 .clear-btn:hover {
   background: #e0e0e0;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: normal !important;
 }
 
 .binding-type-selector {

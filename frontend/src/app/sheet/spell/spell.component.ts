@@ -42,9 +42,30 @@ export class SpellComponent implements AfterViewInit {
 
   constructor(private cd: ChangeDetectorRef, private sanitizer: DomSanitizer) {}
 
+  private canvasInitialized = false;
+
   ngAfterViewInit() {
-    if (this.isEditing && this.hasDrawing && this.canvasRef) {
+    this.tryInitCanvas();
+  }
+
+  ngAfterViewChecked() {
+    this.tryInitCanvas();
+  }
+
+  private tryInitCanvas() {
+    if (this.isEditing && this.hasDrawing && this.canvasRef && !this.canvasInitialized) {
       this.initCanvas();
+      this.canvasInitialized = true;
+    } else if (!this.isEditing || !this.hasDrawing) {
+      this.canvasInitialized = false;
+    }
+  }
+
+  toggleDrawing() {
+    this.hasDrawing = !this.hasDrawing;
+    this.canvasInitialized = false;
+    if (!this.hasDrawing) {
+      this.updateField('drawing', undefined);
     }
   }
 
@@ -117,19 +138,6 @@ export class SpellComponent implements AfterViewInit {
     }
   }
 
-  toggleDrawing() {
-    this.hasDrawing = !this.hasDrawing;
-    if (!this.hasDrawing) {
-      this.updateField('drawing', undefined);
-    }
-    this.cd.detectChanges(); // Force immediate update
-
-    if (this.hasDrawing) {
-      setTimeout(() => {
-        this.initCanvas();
-      }, 0);
-    }
-  }
 
   startDrawing(event: MouseEvent) {
     if (!this.canvasRef) return;

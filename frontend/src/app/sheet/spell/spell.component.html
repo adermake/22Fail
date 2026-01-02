@@ -54,18 +54,23 @@
         rows="3"
       ></textarea>
     </div>
-    <div class="field">
-      <label>
-        <input type="checkbox" [checked]="hasDrawing" (change)="toggleDrawing()" />
-        Add spell symbol drawing
-      </label>
-    </div>
+   <div class="field">
+  <label class="checkbox-label">
+    <input 
+      type="checkbox" 
+      [(ngModel)]="hasDrawing"
+      name="hasDrawing"
+    />
+    Add spell symbol drawing
+  </label>
+</div>
 
-    @if (hasDrawing) {
-    <div class="field">
-      <label>Draw Spell Symbol</label>
+@if (hasDrawing) {
+  <div class="field">
+    <label>Draw Spell Symbol</label>
+    <div class="canvas-wrapper">
       <div class="canvas-container">
-        <canvas
+        <canvas 
           #canvas
           width="400"
           height="150"
@@ -80,8 +85,8 @@
       </div>
       <button type="button" class="clear-btn" (click)="clearCanvas()">Clear Drawing</button>
     </div>
-    }
-
+  </div>
+}
     <div class="field">
       <label>Binding Type</label>
       <div class="binding-type-selector">
