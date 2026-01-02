@@ -1,4 +1,13 @@
-import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, Output, ViewChild, AfterViewInit } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  Output,
+  ViewChild,
+  AfterViewInit,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -25,16 +34,13 @@ export class SpellComponent implements AfterViewInit {
   isEditing = false;
   tagOptions = SPELL_TAG_OPTIONS;
   hasDrawing = false;
-  
+
   private ctx?: CanvasRenderingContext2D;
-  private isDrawingMode = false;
+  private isDrawing= false;
   private lastX = 0;
   private lastY = 0;
 
-  constructor(
-    private cd: ChangeDetectorRef,
-    private sanitizer: DomSanitizer
-  ) {}
+  constructor(private cd: ChangeDetectorRef, private sanitizer: DomSanitizer) {}
 
   ngAfterViewInit() {
     if (this.isEditing && this.hasDrawing && this.canvasRef) {
@@ -44,14 +50,14 @@ export class SpellComponent implements AfterViewInit {
 
   initCanvas() {
     if (!this.canvasRef) return;
-    
+
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d')!;
     this.ctx.lineWidth = 2;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
     this.ctx.strokeStyle = '#000';
-    
+
     // Load existing drawing if available
     if (this.spell.drawing) {
       const img = new Image();
@@ -74,30 +80,24 @@ export class SpellComponent implements AfterViewInit {
     if (this.spell.binding.type === 'learned') {
       return false;
     }
-    
+
     const itemName = this.spell.binding.itemName?.toLowerCase().trim();
     if (!itemName) return true;
-    
-    const allItems = [
-      ...(this.sheet.inventory || []),
-      ...(this.sheet.equipment || [])
-    ];
-    
-    return !allItems.some(item => item.name.toLowerCase().trim() === itemName);
+
+    const allItems = [...(this.sheet.inventory || []), ...(this.sheet.equipment || [])];
+
+    return !allItems.some((item) => item.name.toLowerCase().trim() === itemName);
   }
 
   get availableItems(): string[] {
-    const allItems = [
-      ...(this.sheet.inventory || []),
-      ...(this.sheet.equipment || [])
-    ];
-    return allItems.map(item => item.name);
+    const allItems = [...(this.sheet.inventory || []), ...(this.sheet.equipment || [])];
+    return allItems.map((item) => item.name);
   }
 
   toggleEdit() {
     this.isEditing = !this.isEditing;
     this.editingChange.emit(this.isEditing);
-    
+
     if (this.isEditing) {
       this.hasDrawing = !!this.spell.drawing;
       setTimeout(() => {
@@ -121,25 +121,27 @@ export class SpellComponent implements AfterViewInit {
     this.hasDrawing = !this.hasDrawing;
     if (!this.hasDrawing) {
       this.updateField('drawing', undefined);
-    } else {
+    }
+    this.cd.detectChanges(); // Force immediate update
+
+    if (this.hasDrawing) {
       setTimeout(() => {
         this.initCanvas();
-        this.cd.detectChanges();
       }, 0);
     }
   }
 
   startDrawing(event: MouseEvent) {
     if (!this.canvasRef) return;
-    
-    this.isDrawingMode = true;
+
+    this.isDrawing = true;
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     this.lastX = event.clientX - rect.left;
     this.lastY = event.clientY - rect.top;
   }
 
   draw(event: MouseEvent) {
-    if (!this.isDrawingMode || !this.ctx || !this.canvasRef) return;
+    if (!this.isDrawing || !this.ctx || !this.canvasRef) return;
 
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -155,12 +157,12 @@ export class SpellComponent implements AfterViewInit {
   }
 
   stopDrawing() {
-    this.isDrawingMode = false;
+    this.isDrawing = false;
   }
 
   clearCanvas() {
     if (!this.canvasRef || !this.ctx) return;
-    
+
     const canvas = this.canvasRef.nativeElement;
     this.ctx.fillStyle = '#fff';
     this.ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -175,16 +177,16 @@ export class SpellComponent implements AfterViewInit {
     if (!this.spell.tags) {
       this.spell.tags = [];
     }
-    
+
     const index = this.spell.tags.indexOf(tag);
     let newTags: string[];
-    
+
     if (index > -1) {
-      newTags = this.spell.tags.filter(t => t !== tag);
+      newTags = this.spell.tags.filter((t) => t !== tag);
     } else {
       newTags = [...this.spell.tags, tag];
     }
-    
+
     this.updateField('tags', newTags);
   }
 
@@ -196,5 +198,34 @@ export class SpellComponent implements AfterViewInit {
     if (confirm(`Delete spell "${this.spell.name}"?`)) {
       this.delete.emit();
     }
+  }
+
+  handleTouch(event: TouchEvent) {
+    event.preventDefault(); // Prevent scrolling
+    if (!this.canvasRef) return;
+
+    const touch = event.touches[0];
+    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+    this.isDrawing = true; // or this.isDrawingMode = true for spell.component
+    this.lastX = touch.clientX - rect.left;
+    this.lastY = touch.clientY - rect.top;
+  }
+
+  handleTouchMove(event: TouchEvent) {
+    event.preventDefault(); // Prevent scrolling
+    if (!this.isDrawing || !this.ctx || !this.canvasRef) return; // Use isDrawingMode for spell.component
+
+    const touch = event.touches[0];
+    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.lastX, this.lastY);
+    this.ctx.lineTo(x, y);
+    this.ctx.stroke();
+
+    this.lastX = x;
+    this.lastY = y;
   }
 }

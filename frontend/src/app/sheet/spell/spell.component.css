@@ -268,3 +268,45 @@
 .spell-edit {
   pointer-events: all;
 }
+
+.canvas-container {
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  display: block;
+  background: white;
+  cursor: crosshair;
+  padding: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  touch-action: none; /* Prevent touch scrolling */
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: none; /* Prevent touch scrolling */
+}
+
+.clear-btn {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.clear-btn:hover {
+  background: #e0e0e0;
+}
+.spell-drawing {
+  flex-shrink: 0;
+  width: 150px;
+  height: 60px;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  background: white;
+}

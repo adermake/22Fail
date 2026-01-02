@@ -67,12 +67,15 @@
       <div class="canvas-container">
         <canvas
           #canvas
-          width="300"
-          height="100"
+          width="400"
+          height="150"
           (mousedown)="startDrawing($event)"
           (mousemove)="draw($event)"
           (mouseup)="stopDrawing()"
           (mouseleave)="stopDrawing()"
+          (touchstart)="handleTouch($event)"
+          (touchmove)="handleTouchMove($event)"
+          (touchend)="stopDrawing()"
         ></canvas>
       </div>
       <button type="button" class="clear-btn" (click)="clearCanvas()">Clear Drawing</button>

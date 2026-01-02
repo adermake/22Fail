@@ -60,19 +60,20 @@ export class SpellCreatorComponent implements AfterViewInit {
     return allItems.map(item => item.name);
   }
 
-  toggleDrawing() {
-    this.hasDrawing = !this.hasDrawing;
-    if (!this.hasDrawing) {
-      this.newSpell.drawing = undefined;
-    } else {
-      // Initialize canvas after it's rendered
-      setTimeout(() => {
-        this.initCanvas();
-        this.cd.detectChanges();
-      }, 0);
-    }
+ toggleDrawing() {
+  this.hasDrawing = !this.hasDrawing;
+  if (!this.hasDrawing) {
+    this.newSpell.drawing = undefined;
   }
-
+  this.cd.detectChanges(); // Force immediate update
+  
+  if (this.hasDrawing) {
+    // Initialize canvas after it's rendered
+    setTimeout(() => {
+      this.initCanvas();
+    }, 0);
+  }
+}
   startDrawing(event: MouseEvent) {
     if (!this.canvasRef) return;
     
@@ -159,4 +160,33 @@ export class SpellCreatorComponent implements AfterViewInit {
   cancelCreate() {
     this.cancel.emit();
   }
+
+  handleTouch(event: TouchEvent) {
+  event.preventDefault(); // Prevent scrolling
+  if (!this.canvasRef) return;
+  
+  const touch = event.touches[0];
+  const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+  this.isDrawing = true; // or this.isDrawingMode = true for spell.component
+  this.lastX = touch.clientX - rect.left;
+  this.lastY = touch.clientY - rect.top;
+}
+
+handleTouchMove(event: TouchEvent) {
+  event.preventDefault(); // Prevent scrolling
+  if (!this.isDrawing || !this.ctx || !this.canvasRef) return; // Use isDrawingMode for spell.component
+  
+  const touch = event.touches[0];
+  const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+  const x = touch.clientX - rect.left;
+  const y = touch.clientY - rect.top;
+
+  this.ctx.beginPath();
+  this.ctx.moveTo(this.lastX, this.lastY);
+  this.ctx.lineTo(x, y);
+  this.ctx.stroke();
+
+  this.lastX = x;
+  this.lastY = y;
+}
 }

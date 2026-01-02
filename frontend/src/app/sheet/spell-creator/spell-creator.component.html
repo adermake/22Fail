@@ -13,8 +13,8 @@
 
   <div class="field">
     <label>
-      <input 
-        type="checkbox" 
+      <input
+        type="checkbox"
         [(ngModel)]="hasDrawing"
         name="hasDrawing"
         (change)="toggleDrawing()"
@@ -24,21 +24,24 @@
   </div>
 
   @if (hasDrawing) {
-    <div class="field">
-      <label>Draw Spell Symbol</label>
-      <div class="canvas-container">
-        <canvas 
-          #canvas
-          width="300"
-          height="100"
-          (mousedown)="startDrawing($event)"
-          (mousemove)="draw($event)"
-          (mouseup)="stopDrawing()"
-          (mouseleave)="stopDrawing()"
-        ></canvas>
-      </div>
-      <button type="button" class="clear-btn" (click)="clearCanvas()">Clear Drawing</button>
+  <div class="field">
+    <label>Draw Spell Symbol</label>
+    <div class="canvas-container">
+      <canvas
+        #canvas
+        width="400"
+        height="150"
+        (mousedown)="startDrawing($event)"
+        (mousemove)="draw($event)"
+        (mouseup)="stopDrawing()"
+        (mouseleave)="stopDrawing()"
+        (touchstart)="handleTouch($event)"
+        (touchmove)="handleTouchMove($event)"
+        (touchend)="stopDrawing()"
+      ></canvas>
     </div>
+    <button type="button" class="clear-btn" (click)="clearCanvas()">Clear Drawing</button>
+  </div>
   }
 
   <div class="field">
@@ -56,8 +59,8 @@
     <label>Binding Type</label>
     <div class="binding-type-selector">
       <label class="radio-label">
-        <input 
-          type="radio" 
+        <input
+          type="radio"
           [(ngModel)]="newSpell.binding.type"
           name="bindingType"
           value="learned"
@@ -65,68 +68,61 @@
         Learned
       </label>
       <label class="radio-label">
-        <input 
-          type="radio" 
-          [(ngModel)]="newSpell.binding.type"
-          name="bindingType"
-          value="item"
-        />
+        <input type="radio" [(ngModel)]="newSpell.binding.type" name="bindingType" value="item" />
         Item-Bound
       </label>
     </div>
   </div>
 
   @if (newSpell.binding.type === 'item') {
-    <div class="field">
-      <label for="itemName">Bound Item *</label>
-      <select
-        id="itemName"
-        [(ngModel)]="newSpell.binding.itemName"
-        name="itemName">
-        <option value="">Select an item...</option>
-        @for (item of availableItems; track item) {
-          <option [value]="item">{{ item }}</option>
-        }
-      </select>
-    </div>
+  <div class="field">
+    <label for="itemName">Bound Item *</label>
+    <select id="itemName" [(ngModel)]="newSpell.binding.itemName" name="itemName">
+      <option value="">Select an item...</option>
+      @for (item of availableItems; track item) {
+      <option [value]="item">{{ item }}</option>
+      }
+    </select>
+  </div>
 
-    <div class="durability-fields">
-      <div class="field">
-        <label for="durability">Current Durability</label>
-        <input
-          id="durability"
-          type="number"
-          min="0"
-          [(ngModel)]="newSpell.binding.durability"
-          name="durability"
-          placeholder="10"
-        />
-      </div>
-      <div class="field">
-        <label for="maxDurability">Max Durability</label>
-        <input
-          id="maxDurability"
-          type="number"
-          min="1"
-          [(ngModel)]="newSpell.binding.maxDurability"
-          name="maxDurability"
-          placeholder="10"
-        />
-      </div>
+  <div class="durability-fields">
+    <div class="field">
+      <label for="durability">Current Durability</label>
+      <input
+        id="durability"
+        type="number"
+        min="0"
+        [(ngModel)]="newSpell.binding.durability"
+        name="durability"
+        placeholder="10"
+      />
     </div>
+    <div class="field">
+      <label for="maxDurability">Max Durability</label>
+      <input
+        id="maxDurability"
+        type="number"
+        min="1"
+        [(ngModel)]="newSpell.binding.maxDurability"
+        name="maxDurability"
+        placeholder="10"
+      />
+    </div>
+  </div>
   }
 
   <div class="field">
     <label>Tags</label>
     <div class="tag-selector">
       @for (tag of tagOptions; track tag) {
-        <button 
-          type="button"
-          class="tag-option" 
-          [class.selected]="hasTag(tag)"
-          (click)="toggleTag(tag)">
-          {{ tag }}
-        </button>
+      <button
+        type="button"
+        class="tag-option"
+        [class.selected]="hasTag(tag)"
+        (click)="toggleTag(tag)"
+      >
+        {{ tag }}
+      </button>
       }
     </div>
   </div>
