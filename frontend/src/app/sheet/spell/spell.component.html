@@ -1,136 +1,162 @@
-<div class="spell-card" 
-     [class.editing]="isEditing"
-     [class.disabled]="isDisabled"
-     (dblclick)="!isEditing && toggleEdit()">
+<div
+  class="spell-card"
+  [class.editing]="isEditing"
+  [class.disabled]="isDisabled"
+  (dblclick)="!isEditing && toggleEdit()"
+>
   @if (!isEditing) {
-    <div class="spell-view">
-      <div class="spell-header">
-        @if (spell.drawing) {
-          <div class="spell-drawing">
-            <img [src]="spell.drawing" alt="Spell symbol" />
-          </div>
-        }
-        <div class="spell-info">
-          <div class="spell-title-row">
-            <h4>{{ spell.name }}</h4>
-            <div class="spell-badges">
-              @if (spell.binding.type === 'learned') {
-                <span class="binding-badge learned">Learned</span>
-              } @else {
-                <span class="binding-badge item" [class.missing]="isDisabled">
-                  {{ spell.binding.itemName }}
-                  @if (spell.binding.durability !== undefined) {
-                    <span class="durability">{{ spell.binding.durability }}/{{ spell.binding.maxDurability }}</span>
-                  }
-                </span>
-              }
-            </div>
-          </div>
-          <div class="spell-tags">
-            @for (tag of spell.tags; track tag) {
-              <span class="tag">{{ tag }}</span>
-            }
-          </div>
-        </div>
+  <div class="spell-view">
+    <div class="spell-header">
+      @if (spell.drawing) {
+      <div class="spell-drawing">
+        <img [src]="spell.drawing" alt="Spell symbol" />
       </div>
-      <p class="spell-description" [innerHTML]="enhancedDescription"></p>
-    </div>
-  } @else {
-    <div class="spell-edit" (click)="$event.stopPropagation()">
-      <div class="field">
-        <label>Name</label>
-        <input
-          type="text"
-          [ngModel]="spell.name"
-          (ngModelChange)="updateField('name', $event)"
-        />
-      </div>
-
-      <div class="field">
-        <label>Description</label>
-        <textarea
-          [ngModel]="spell.description"
-          (ngModelChange)="updateField('description', $event)"
-          rows="3"
-        ></textarea>
-      </div>
-
-      <div class="field">
-        <label>Binding Type</label>
-        <div class="binding-type-selector">
-          <label class="radio-label">
-            <input 
-              type="radio" 
-              [checked]="spell.binding.type === 'learned'"
-              (change)="updateField('binding.type', 'learned')"
-            />
-            Learned
-          </label>
-          <label class="radio-label">
-            <input 
-              type="radio" 
-              [checked]="spell.binding.type === 'item'"
-              (change)="updateField('binding.type', 'item')"
-            />
-            Item-Bound
-          </label>
-        </div>
-      </div>
-
-      @if (spell.binding.type === 'item') {
-        <div class="field">
-          <label>Bound Item</label>
-          <select
-            [ngModel]="spell.binding.itemName"
-            (ngModelChange)="updateField('binding.itemName', $event)">
-            <option value="">Select an item...</option>
-            @for (item of availableItems; track item) {
-              <option [value]="item">{{ item }}</option>
-            }
-          </select>
-        </div>
-
-        <div class="durability-fields">
-          <div class="field">
-            <label>Durability</label>
-            <input
-              type="number"
-              min="0"
-              [ngModel]="spell.binding.durability || 0"
-              (ngModelChange)="updateField('binding.durability', +$event)"
-            />
-          </div>
-          <div class="field">
-            <label>Max Durability</label>
-            <input
-              type="number"
-              min="1"
-              [ngModel]="spell.binding.maxDurability || 10"
-              (ngModelChange)="updateField('binding.maxDurability', +$event)"
-            />
-          </div>
-        </div>
       }
-
-      <div class="field">
-        <label>Tags</label>
-        <div class="tag-selector">
-          @for (tag of tagOptions; track tag) {
-            <button 
-              type="button"
-              class="tag-option" 
-              [class.selected]="hasTag(tag)"
-              (click)="toggleTag(tag)">
-              {{ tag }}
-            </button>
+      <div class="spell-info">
+        <div class="spell-title-row">
+          <h4>{{ spell.name }}</h4>
+          <div class="spell-badges">
+            @if (spell.binding.type === 'learned') {
+            <span class="binding-badge learned">Learned</span>
+            } @else {
+            <span class="binding-badge item" [class.missing]="isDisabled">
+              {{ spell.binding.itemName }}
+              @if (spell.binding.durability !== undefined) {
+              <span class="durability"
+                >{{ spell.binding.durability }}/{{ spell.binding.maxDurability }}</span
+              >
+              }
+            </span>
+            }
+          </div>
+        </div>
+        <div class="spell-tags">
+          @for (tag of spell.tags; track tag) {
+          <span class="tag">{{ tag }}</span>
           }
         </div>
       </div>
+    </div>
+    <p class="spell-description" [innerHTML]="enhancedDescription"></p>
+  </div>
+  } @else {
+  <div class="spell-edit" (click)="$event.stopPropagation()">
+    <div class="field">
+      <label>Name</label>
+      <input type="text" [ngModel]="spell.name" (ngModelChange)="updateField('name', $event)" />
+    </div>
 
-      <div class="spell-actions">
-        <button class="save-btn" (click)="toggleEdit()">Done</button>
-        <button class="delete-btn" (click)="deleteSpell()">Delete</button>
+    <div class="field">
+      <label>Description</label>
+      <textarea
+        [ngModel]="spell.description"
+        (ngModelChange)="updateField('description', $event)"
+        rows="3"
+      ></textarea>
+    </div>
+    <div class="field">
+      <label>
+        <input type="checkbox" [checked]="hasDrawing" (change)="toggleDrawing()" />
+        Add spell symbol drawing
+      </label>
+    </div>
+
+    @if (hasDrawing) {
+    <div class="field">
+      <label>Draw Spell Symbol</label>
+      <div class="canvas-container">
+        <canvas
+          #canvas
+          width="300"
+          height="100"
+          (mousedown)="startDrawing($event)"
+          (mousemove)="draw($event)"
+          (mouseup)="stopDrawing()"
+          (mouseleave)="stopDrawing()"
+        ></canvas>
+      </div>
+      <button type="button" class="clear-btn" (click)="clearCanvas()">Clear Drawing</button>
+    </div>
+    }
+
+    <div class="field">
+      <label>Binding Type</label>
+      <div class="binding-type-selector">
+        <label class="radio-label">
+          <input
+            type="radio"
+            [checked]="spell.binding.type === 'learned'"
+            (change)="updateField('binding.type', 'learned')"
+          />
+          Learned
+        </label>
+        <label class="radio-label">
+          <input
+            type="radio"
+            [checked]="spell.binding.type === 'item'"
+            (change)="updateField('binding.type', 'item')"
+          />
+          Item-Bound
+        </label>
       </div>
     </div>
+
+    @if (spell.binding.type === 'item') {
+    <div class="field">
+      <label>Bound Item</label>
+      <select
+        [ngModel]="spell.binding.itemName"
+        (ngModelChange)="updateField('binding.itemName', $event)"
+      >
+        <option value="">Select an item...</option>
+        @for (item of availableItems; track item) {
+        <option [value]="item">{{ item }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="durability-fields">
+      <div class="field">
+        <label>Durability</label>
+        <input
+          type="number"
+          min="0"
+          [ngModel]="spell.binding.durability || 0"
+          (ngModelChange)="updateField('binding.durability', +$event)"
+        />
+      </div>
+      <div class="field">
+        <label>Max Durability</label>
+        <input
+          type="number"
+          min="1"
+          [ngModel]="spell.binding.maxDurability || 10"
+          (ngModelChange)="updateField('binding.maxDurability', +$event)"
+        />
+      </div>
+    </div>
+    }
+
+    <div class="field">
+      <label>Tags</label>
+      <div class="tag-selector">
+        @for (tag of tagOptions; track tag) {
+        <button
+          type="button"
+          class="tag-option"
+          [class.selected]="hasTag(tag)"
+          (click)="toggleTag(tag)"
+        >
+          {{ tag }}
+        </button>
+        }
+      </div>
+    </div>
+
+    <div class="spell-actions">
+      <button class="save-btn" (click)="toggleEdit()">Done</button>
+      <button class="delete-btn" (click)="deleteSpell()">Delete</button>
+    </div>
+  </div>
   }
 </div>

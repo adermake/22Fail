@@ -1,8 +1,8 @@
-import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
-import { SpellBlock, SPELL_TAG_OPTIONS } from '../../model/spell-block-model';
+import { SPELL_TAG_OPTIONS, SpellBlock } from '../../model/spell-block-model';
 
 @Component({
   selector: 'app-spell-creator',
@@ -11,7 +11,7 @@ import { SpellBlock, SPELL_TAG_OPTIONS } from '../../model/spell-block-model';
   styleUrl: './spell-creator.component.css',
 })
 export class SpellCreatorComponent implements AfterViewInit {
-  @ViewChild('canvas', { static: false }) canvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('canvas', { static: false }) canvasRef?: ElementRef<HTMLCanvasElement>;
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() create = new EventEmitter<SpellBlock>();
   @Output() cancel = new EventEmitter<void>();
@@ -26,12 +26,22 @@ export class SpellCreatorComponent implements AfterViewInit {
 
   tagOptions = SPELL_TAG_OPTIONS;
   hasDrawing = false;
-  private ctx!: CanvasRenderingContext2D;
+  private ctx?: CanvasRenderingContext2D;
   private isDrawing = false;
   private lastX = 0;
   private lastY = 0;
 
+  constructor(private cd: ChangeDetectorRef) {}
+
   ngAfterViewInit() {
+    if (this.canvasRef) {
+      this.initCanvas();
+    }
+  }
+
+  initCanvas() {
+    if (!this.canvasRef) return;
+    
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d')!;
     this.ctx.lineWidth = 2;
@@ -54,10 +64,18 @@ export class SpellCreatorComponent implements AfterViewInit {
     this.hasDrawing = !this.hasDrawing;
     if (!this.hasDrawing) {
       this.newSpell.drawing = undefined;
+    } else {
+      // Initialize canvas after it's rendered
+      setTimeout(() => {
+        this.initCanvas();
+        this.cd.detectChanges();
+      }, 0);
     }
   }
 
   startDrawing(event: MouseEvent) {
+    if (!this.canvasRef) return;
+    
     this.isDrawing = true;
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     this.lastX = event.clientX - rect.left;
@@ -65,7 +83,7 @@ export class SpellCreatorComponent implements AfterViewInit {
   }
 
   draw(event: MouseEvent) {
-    if (!this.isDrawing) return;
+    if (!this.isDrawing || !this.ctx || !this.canvasRef) return;
 
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -85,6 +103,8 @@ export class SpellCreatorComponent implements AfterViewInit {
   }
 
   clearCanvas() {
+    if (!this.canvasRef || !this.ctx) return;
+    
     const canvas = this.canvasRef.nativeElement;
     this.ctx.fillStyle = '#fff';
     this.ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -115,7 +135,7 @@ export class SpellCreatorComponent implements AfterViewInit {
     }
 
     // Convert canvas to base64 image if drawing is enabled
-    if (this.hasDrawing) {
+    if (this.hasDrawing && this.canvasRef) {
       const canvas = this.canvasRef.nativeElement;
       this.newSpell.drawing = canvas.toDataURL('image/png');
     }
@@ -131,7 +151,9 @@ export class SpellCreatorComponent implements AfterViewInit {
       binding: { type: 'learned' },
     };
     this.hasDrawing = false;
-    this.clearCanvas();
+    if (this.canvasRef) {
+      this.clearCanvas();
+    }
   }
 
   cancelCreate() {
