@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -20,10 +20,11 @@ export class SpellsComponent {
   @Output() patch = new EventEmitter<JsonPatch>();
 
   showCreateDialog = false;
-  showFokusSettings = false;
   private editingSpells = new Set<number>();
   placeholderHeight = '90px';
   placeholderWidth = '100%';
+
+  constructor(private cd: ChangeDetectorRef) {}
 
   ngOnInit() {
     if (!this.sheet.spells) {
@@ -36,7 +37,6 @@ export class SpellsComponent {
       this.sheet.fokusBonus = 0;
     }
   }
-
   get fokusValue(): number {
     const intelligence = this.sheet.intelligence?.current || 10;
     return Math.floor((intelligence * this.sheet.fokusMultiplier) + this.sheet.fokusBonus);
@@ -52,10 +52,15 @@ export class SpellsComponent {
 
 
 
+
   updateFokusSetting(field: string, value: any) {
+    // Update locally first for immediate feedback
+    (this.sheet as any)[field] = Number(value);
+    this.cd.detectChanges();
+    
+    // Then emit patch
     this.patch.emit({ path: field, value: Number(value) });
   }
-
   createSpell(spell: SpellBlock) {
     this.sheet.spells = [...this.sheet.spells, spell];
     this.patch.emit({

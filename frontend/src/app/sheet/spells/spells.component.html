@@ -8,24 +8,26 @@
           <span class="fokus-value">{{ fokusValue }}</span>
         </div>
         <div class="fokus-inputs">
-          <div class="fokus-input-group">
-            <label>×</label>
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              [ngModel]="sheet.fokusMultiplier"
-              (ngModelChange)="updateFokusSetting('fokusMultiplier', $event)"
-            />
-          </div>
-          <div class="fokus-input-group">
-            <label>+</label>
-            <input
-              type="number"
-              step="1"
-              [ngModel]="sheet.fokusBonus"
-              (ngModelChange)="updateFokusSetting('fokusBonus', $event)"
-            />
+          <div class="fokus-inputs">
+            <div class="fokus-input-group">
+              <label>+</label>
+              <input
+                type="number"
+                step="1"
+                [ngModel]="sheet.fokusBonus"
+                (ngModelChange)="updateFokusSetting('fokusBonus', $event)"
+              />
+            </div>
+            <div class="fokus-input-group">
+              <label>×</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                [ngModel]="sheet.fokusMultiplier"
+                (ngModelChange)="updateFokusSetting('fokusMultiplier', $event)"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -35,40 +37,38 @@
 
   <div class="spells-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
     @for (spell of (sheet.spells || []); track spell.name; let i = $index) {
-      <div cdkDrag [cdkDragDisabled]="isSpellEditing(i)" (cdkDragStarted)="onDragStarted($event)">
-        <app-spell
-          [spell]="spell"
-          [sheet]="sheet"
-          [index]="i"
-          (patch)="updateSpell(i, $event)"
-          (delete)="deleteSpell(i)"
-          (editingChange)="onEditingChange(i, $event)"
-        ></app-spell>
-        <div 
-          class="drag-placeholder-wrapper" 
-          *cdkDragPlaceholder
-          [style.height]="placeholderHeight"
-          [style.width]="placeholderWidth">
-        </div>
-      </div>
-    }
-    
-    @if ((sheet.spells || []).length === 0) {
-      <p class="empty-message">No spells yet. Click + to add one.</p>
+    <div cdkDrag [cdkDragDisabled]="isSpellEditing(i)" (cdkDragStarted)="onDragStarted($event)">
+      <app-spell
+        [spell]="spell"
+        [sheet]="sheet"
+        [index]="i"
+        (patch)="updateSpell(i, $event)"
+        (delete)="deleteSpell(i)"
+        (editingChange)="onEditingChange(i, $event)"
+      ></app-spell>
+      <div
+        class="drag-placeholder-wrapper"
+        *cdkDragPlaceholder
+        [style.height]="placeholderHeight"
+        [style.width]="placeholderWidth"
+      ></div>
+    </div>
+    } @if ((sheet.spells || []).length === 0) {
+    <p class="empty-message">No spells yet. Click + to add one.</p>
     }
   </div>
 
   <!-- Create Dialog -->
   @if (showCreateDialog) {
-    <div class="dialog-overlay" (click)="closeCreateDialog()">
-      <div class="dialog-content" (click)="$event.stopPropagation()">
-        <h3>Create New Spell</h3>
-        <app-spell-creator
-          [sheet]="sheet"
-          (create)="createSpell($event)"
-          (cancel)="closeCreateDialog()"
-        ></app-spell-creator>
-      </div>
+  <div class="dialog-overlay" (click)="closeCreateDialog()">
+    <div class="dialog-content" (click)="$event.stopPropagation()">
+      <h3>Create New Spell</h3>
+      <app-spell-creator
+        [sheet]="sheet"
+        (create)="createSpell($event)"
+        (cancel)="closeCreateDialog()"
+      ></app-spell-creator>
     </div>
+  </div>
   }
 </app-card>
