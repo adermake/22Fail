@@ -50,13 +50,7 @@ export class SpellsComponent {
     this.showCreateDialog = false;
   }
 
-  openFokusSettings() {
-    this.showFokusSettings = true;
-  }
 
-  closeFokusSettings() {
-    this.showFokusSettings = false;
-  }
 
   updateFokusSetting(field: string, value: any) {
     this.patch.emit({ path: field, value: Number(value) });
