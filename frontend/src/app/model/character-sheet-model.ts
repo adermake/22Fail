@@ -1,3 +1,4 @@
+import { Currency } from './currency-model';
 import { FormulaType } from './formula-type.enum';
 import { ItemBlock } from './item-block.model';
 import { SkillBlock } from './skill-block.model';
@@ -35,6 +36,7 @@ export interface CharacterSheet {
   carryCapacityMultiplier: number;
   carryCapacityBonus: number;
   spells: SpellBlock[];
+  currency: Currency; // Add this
 }
 
 export function createEmptySheet(): CharacterSheet {
@@ -65,6 +67,12 @@ export function createEmptySheet(): CharacterSheet {
     spells: [],
     fokusMultiplier: 1,
     fokusBonus: 0,
+    currency: {
+      copper: 0,
+      silver: 0,
+      gold: 0,
+      platinum: 0,
+    },
   };
 }
 

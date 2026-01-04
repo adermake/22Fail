@@ -37,9 +37,9 @@ export class SpellsComponent {
       this.sheet.fokusBonus = 0;
     }
   }
-  get fokusValue(): number {
+   get fokusValue(): number {
     const intelligence = this.sheet.intelligence?.current || 10;
-    return Math.floor((intelligence * this.sheet.fokusMultiplier) + this.sheet.fokusBonus);
+    return Math.floor((intelligence + this.sheet.fokusBonus) * this.sheet.fokusMultiplier);
   }
 
   openCreateDialog() {
