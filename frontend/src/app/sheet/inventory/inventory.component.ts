@@ -8,6 +8,7 @@ import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray, transferArr
 import { ItemComponent } from '../item/item.component';
 import { ItemCreatorComponent } from '../item-creator/item-creator.component';
 import { FormsModule } from '@angular/forms';
+import { COIN_WEIGHT } from '../../model/currency-model';
 
 @Component({
   selector: 'app-inventory',
@@ -197,4 +198,15 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
   isItemEditing(index: number): boolean {
     return this.editingItems.has(index);
   }
+
+  getCurrencyWeight(): number {
+  if (!this.sheet.currency) return 0;
+  const totalCoins = (
+    (this.sheet.currency.copper || 0) +
+    (this.sheet.currency.silver || 0) +
+    (this.sheet.currency.gold || 0) +
+    (this.sheet.currency.platinum || 0)
+  );
+  return totalCoins * COIN_WEIGHT;
+}
 }

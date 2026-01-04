@@ -6,6 +6,9 @@
         <span class="weight-display" [class]="encumbranceClass" [style.color]="encumbranceColor">
           {{ totalWeight }} / {{ maxCapacity }} kg
         </span>
+        <span class="currency-weight-label"
+          >Currency: {{ getCurrencyWeight() | number : '1.2-2' }} kg</span
+        >
         <div class="weight-bar">
           <div
             class="weight-fill"
