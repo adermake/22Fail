@@ -61,9 +61,22 @@ export class InventoryComponent {
     this.showSettingsDialog = false;
   }
 
-  get totalWeight(): number {
-    return this.sheet.inventory?.reduce((sum, item) => sum + (item.weight || 0), 0) || 0;
-  }
+ get totalWeight(): number {
+  const itemWeight = this.sheet.inventory?.reduce((sum, item) => sum + (item.weight || 0), 0) || 0;
+  const currencyWeight = this.getCurrencyWeight();
+  return itemWeight + currencyWeight;
+}
+
+getCurrencyWeight(): number {
+  if (!this.sheet.currency) return 0;
+  const totalCoins = (
+    (this.sheet.currency.copper || 0) +
+    (this.sheet.currency.silver || 0) +
+    (this.sheet.currency.gold || 0) +
+    (this.sheet.currency.platinum || 0)
+  );
+  return totalCoins * COIN_WEIGHT;
+}
 
   get maxCapacity(): number {
     const strength = this.sheet.strength?.current * 8 || 10;
@@ -199,14 +212,5 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
     return this.editingItems.has(index);
   }
 
-  getCurrencyWeight(): number {
-  if (!this.sheet.currency) return 0;
-  const totalCoins = (
-    (this.sheet.currency.copper || 0) +
-    (this.sheet.currency.silver || 0) +
-    (this.sheet.currency.gold || 0) +
-    (this.sheet.currency.platinum || 0)
-  );
-  return totalCoins * COIN_WEIGHT;
-}
+
 }
