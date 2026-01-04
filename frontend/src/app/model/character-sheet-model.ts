@@ -20,7 +20,8 @@ export interface CharacterSheet {
   secondary_class: string;
   level: number;
   learned_classes: string;
-
+  fokusMultiplier: number;
+  fokusBonus: number;
   strength: StatBlock;
   dexterity: StatBlock;
   speed: StatBlock;
@@ -31,9 +32,9 @@ export interface CharacterSheet {
   statuses: StatusBlock[];
   inventory: ItemBlock[];
   equipment: ItemBlock[];
-  carryCapacityMultiplier: number; 
+  carryCapacityMultiplier: number;
   carryCapacityBonus: number;
-  spells: SpellBlock[]
+  spells: SpellBlock[];
 }
 
 export function createEmptySheet(): CharacterSheet {
@@ -61,7 +62,9 @@ export function createEmptySheet(): CharacterSheet {
     carryCapacityBonus: 0,
     statuses: createBasicStatuses(),
     runes: [],
-    spells: [], 
+    spells: [],
+    fokusMultiplier: 1,
+    fokusBonus: 0,
   };
 }
 

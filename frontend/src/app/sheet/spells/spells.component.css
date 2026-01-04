@@ -1,12 +1,51 @@
 .spells-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.header-left {
+  flex: 1;
 }
 
 .spells-header h2 {
-  margin: 0;
+  margin: 0 0 0.5rem 0;
+}
+
+.fokus-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fokus-label {
+  font-size: 0.95rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.fokus-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #673ab7;
+  min-width: 40px;
+}
+
+.fokus-settings-btn {
+  padding: 0.25rem 0.5rem;
+  background-color: #607d8b;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.fokus-settings-btn:hover {
+  background-color: #546e7a;
 }
 
 .add-btn {
@@ -19,6 +58,7 @@
   font-size: 0.9rem;
   transition: background-color 0.2s;
   white-space: nowrap;
+  align-self: flex-start;
 }
 
 .add-btn:hover {
@@ -64,6 +104,67 @@
 
 .dialog-content h3 {
   margin-top: 0;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settings-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.settings-form .field label {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.settings-form .field input {
+  padding: 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.settings-form .field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.settings-form .field.preview {
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.fokus-preview {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #673ab7;
+}
+
+.close-btn {
+  padding: 0.75rem;
+  background-color: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.close-btn:hover {
+  background-color: var(--accentdark);
 }
 
 /* Drag and Drop Styles */

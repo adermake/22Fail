@@ -1,6 +1,13 @@
 <app-card>
   <div class="spells-header">
-    <h2>Spells</h2>
+    <div class="header-left">
+      <h2>Spells</h2>
+      <div class="fokus-display">
+        <span class="fokus-label">Fokus:</span>
+        <span class="fokus-value">{{ fokusValue }}</span>
+        <button class="fokus-settings-btn" (click)="openFokusSettings()" title="Fokus Settings">⚙️</button>
+      </div>
+    </div>
     <button class="add-btn" (click)="openCreateDialog()">+ Add Spell</button>
   </div>
 
@@ -39,6 +46,46 @@
           (create)="createSpell($event)"
           (cancel)="closeCreateDialog()"
         ></app-spell-creator>
+      </div>
+    </div>
+  }
+
+  <!-- Fokus Settings Dialog -->
+  @if (showFokusSettings) {
+    <div class="dialog-overlay" (click)="closeFokusSettings()">
+      <div class="dialog-content" (click)="$event.stopPropagation()">
+        <h3>Fokus Settings</h3>
+        <div class="settings-form">
+          <div class="field">
+            <label>Formula: (Intelligence × Multiplier) + Bonus</label>
+          </div>
+          <div class="field">
+            <label for="multiplier">Multiplier</label>
+            <input
+              id="multiplier"
+              type="number"
+              step="0.1"
+              min="0"
+              [ngModel]="sheet.fokusMultiplier"
+              (ngModelChange)="updateFokusSetting('fokusMultiplier', $event)"
+            />
+          </div>
+          <div class="field">
+            <label for="bonus">Bonus</label>
+            <input
+              id="bonus"
+              type="number"
+              step="1"
+              [ngModel]="sheet.fokusBonus"
+              (ngModelChange)="updateFokusSetting('fokusBonus', $event)"
+            />
+          </div>
+          <div class="field preview">
+            <label>Current Fokus:</label>
+            <span class="fokus-preview">{{ fokusValue }}</span>
+          </div>
+          <button class="close-btn" (click)="closeFokusSettings()">Close</button>
+        </div>
       </div>
     </div>
   }

@@ -1,16 +1,17 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { SpellComponent } from '../spell/spell.component';
 import { CardComponent } from '../../shared/card/card.component';
-import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { SpellCreatorComponent } from '../spell-creator/spell-creator.component';
+import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { SpellBlock } from '../../model/spell-block-model';
 
 @Component({
   selector: 'app-spells',
-  imports: [CommonModule, SpellComponent, CardComponent, SpellCreatorComponent, DragDropModule],
+  imports: [CommonModule, SpellComponent, CardComponent, SpellCreatorComponent, DragDropModule, FormsModule],
   templateUrl: './spells.component.html',
   styleUrl: './spells.component.css',
 })
@@ -19,6 +20,7 @@ export class SpellsComponent {
   @Output() patch = new EventEmitter<JsonPatch>();
 
   showCreateDialog = false;
+  showFokusSettings = false;
   private editingSpells = new Set<number>();
   placeholderHeight = '90px';
   placeholderWidth = '100%';
@@ -27,6 +29,17 @@ export class SpellsComponent {
     if (!this.sheet.spells) {
       this.sheet.spells = [];
     }
+    if (this.sheet.fokusMultiplier === undefined) {
+      this.sheet.fokusMultiplier = 1;
+    }
+    if (this.sheet.fokusBonus === undefined) {
+      this.sheet.fokusBonus = 0;
+    }
+  }
+
+  get fokusValue(): number {
+    const intelligence = this.sheet.intelligence?.current || 10;
+    return Math.floor((intelligence * this.sheet.fokusMultiplier) + this.sheet.fokusBonus);
   }
 
   openCreateDialog() {
@@ -35,6 +48,18 @@ export class SpellsComponent {
 
   closeCreateDialog() {
     this.showCreateDialog = false;
+  }
+
+  openFokusSettings() {
+    this.showFokusSettings = true;
+  }
+
+  closeFokusSettings() {
+    this.showFokusSettings = false;
+  }
+
+  updateFokusSetting(field: string, value: any) {
+    this.patch.emit({ path: field, value: Number(value) });
   }
 
   createSpell(spell: SpellBlock) {
