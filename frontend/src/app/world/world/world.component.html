@@ -64,27 +64,27 @@
               <h3>{{ member.sheet.name || member.id }}</h3>
               <div class="drop-hint">Drop items here</div>
               <div class="stat-row">
-                <span class="stat-label">Health:</span>
-                <div class="stat-bar">
-                  <div class="stat-fill health"
+                <span class="stat-label">Health</span>
+                <div class="stat-bar-wrapper">
+                  <div class="stat-bar-fill health"
                        [style.width.%]="((member.sheet.statuses[0]?.statusCurrent || 0) / (member.sheet.statuses[0]?.statusBase || 1) * 100)">
                   </div>
                   <span class="stat-value">{{ member.sheet.statuses[0]?.statusCurrent || 0 }} / {{ member.sheet.statuses[0]?.statusBase || 0 }}</span>
                 </div>
               </div>
               <div class="stat-row">
-                <span class="stat-label">Energy:</span>
-                <div class="stat-bar">
-                  <div class="stat-fill energy"
+                <span class="stat-label">Energy</span>
+                <div class="stat-bar-wrapper">
+                  <div class="stat-bar-fill energy"
                        [style.width.%]="((member.sheet.statuses[1]?.statusCurrent || 0) / (member.sheet.statuses[1]?.statusBase || 1) * 100)">
                   </div>
                   <span class="stat-value">{{ member.sheet.statuses[1]?.statusCurrent || 0 }} / {{ member.sheet.statuses[1]?.statusBase || 0 }}</span>
                 </div>
               </div>
               <div class="stat-row">
-                <span class="stat-label">Mana:</span>
-                <div class="stat-bar">
-                  <div class="stat-fill mana"
+                <span class="stat-label">Mana</span>
+                <div class="stat-bar-wrapper">
+                  <div class="stat-bar-fill mana"
                        [style.width.%]="((member.sheet.statuses[2]?.statusCurrent || 0) / (member.sheet.statuses[2]?.statusBase || 1) * 100)">
                   </div>
                   <span class="stat-value">{{ member.sheet.statuses[2]?.statusCurrent || 0 }} / {{ member.sheet.statuses[2]?.statusBase || 0 }}</span>

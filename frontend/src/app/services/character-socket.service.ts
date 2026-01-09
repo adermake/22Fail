@@ -4,10 +4,15 @@ import { io, Socket } from 'socket.io-client';
 import { JsonPatch } from '../model/json-patch.model';
 import { LootItem } from '../model/world.model';
 
+export interface CharacterPatchEvent {
+  characterId: string;
+  patch: JsonPatch;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CharacterSocketService {
   private socket?: Socket;
-  private patchSubject = new Subject<JsonPatch>();
+  private patchSubject = new Subject<CharacterPatchEvent>();
   private lootReceivedSubject = new Subject<LootItem>();
   private battleLootReceivedSubject = new Subject<LootItem[]>();
 
@@ -22,8 +27,8 @@ export class CharacterSocketService {
       transports: ['websocket'],
     });
 
-    this.socket.on('characterPatched', (patch: JsonPatch) => {
-      this.patchSubject.next(patch);
+    this.socket.on('characterPatched', (data: CharacterPatchEvent) => {
+      this.patchSubject.next(data);
     });
 
     this.socket.on('lootReceived', (loot: LootItem) => {

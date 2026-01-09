@@ -17,11 +17,14 @@ export class CharacterStoreService {
   }
 
   constructor(private api: CharacterApiService, private socket: CharacterSocketService) {
-    this.socket.patches$.subscribe((patch) => {
+    this.socket.patches$.subscribe((data) => {
       const sheet = this.sheetSubject.value;
       if (!sheet) return;
-      this.applyJsonPatch(sheet, patch);
-      this.sheetSubject.next({ ...sheet });
+      // Only apply the patch if it's for our character
+      if (data.characterId === this.characterId) {
+        this.applyJsonPatch(sheet, data.patch);
+        this.sheetSubject.next({ ...sheet });
+      }
     });
   }
 
