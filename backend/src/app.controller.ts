@@ -34,6 +34,30 @@ export class AppController {
     return JSON.parse(sheetJson); // existing character
   }
 
+  @Get('characters')
+  listCharacters(): any {
+    return this.dataService.getAllCharacters();
+  }
+
+  @Get('worlds')
+  listWorlds(): any {
+    return this.dataService.listWorlds();
+  }
+
+  @Get('worlds/:name')
+  getWorld(@Param('name') name: string): any {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const world = this.dataService.getWorld(name);
+    if (!world) return null;
+    return world;
+  }
+
+  @Post('worlds/:name')
+  saveWorld(@Param('name') name: string, @Body() body: any): any {
+    this.dataService.saveWorld(name, body);
+    return { success: true };
+  }
+
   // POST /characters/:id
   @Post('characters/:id')
   saveCharacter(@Param('id') id: string, @Body() body: any): any {

@@ -6,22 +6,63 @@
   <div class="world-grid">
     <app-card>
       <h2>Characters</h2>
-      <p>Character management coming soon...</p>
+      <div>
+        <input placeholder="Character ID" [(ngModel)]="newCharacterId" />
+        <button (click)="addCharacterToWorld()">Add</button>
+      </div>
+      <ul>
+        <li *ngFor="let id of world?.characters">
+          <b>{{ allCharacters[id]?.name || id }}</b>
+          <button (click)="addToParty(id)">Add to Party</button>
+          <button (click)="removeCharacter(id)">Remove</button>
+        </li>
+      </ul>
     </app-card>
 
     <app-card>
       <h2>Active Party</h2>
-      <p>Party management coming soon...</p>
+      <ul>
+        <li *ngFor="let id of world?.party">
+          <b>{{ allCharacters[id]?.name || id }}</b>
+          <button (click)="removeFromParty(id)">Remove</button>
+        </li>
+      </ul>
     </app-card>
 
     <app-card>
       <h2>Party Dashboard</h2>
-      <p>Health, mana, energy overview coming soon...</p>
+      <div *ngIf="world">
+        <table>
+          <tr><th>Player</th><th>Life</th><th>Energy</th><th>Mana</th><th>Gold</th></tr>
+          <tr *ngFor="let id of world.party">
+            <td>{{ allCharacters[id]?.name || id }}</td>
+            <td>{{ getStatusCurrent(id,'LIFE') }}</td>
+            <td>{{ getStatusCurrent(id,'ENERGY') }}</td>
+            <td>{{ getStatusCurrent(id,'MANA') }}</td>
+            <td>{{ allCharacters[id]?.currency?.gold || 0 }}</td>
+          </tr>
+        </table>
+      </div>
     </app-card>
 
     <app-card>
       <h2>Libraries</h2>
-      <p>Items, runes, spells library coming soon...</p>
+      <div>
+        <input placeholder="New item name" [(ngModel)]="newItemName" />
+        <button (click)="addItemToLibrary()">Add Item</button>
+      </div>
+      <h3>Items</h3>
+      <ul>
+        <li *ngFor="let it of world?.library?.items">{{ it.name }}</li>
+      </ul>
+      <h3>Runes</h3>
+      <ul>
+        <li *ngFor="let r of world?.library?.runes">{{ r.name || r }}</li>
+      </ul>
+      <h3>Spells</h3>
+      <ul>
+        <li *ngFor="let s of world?.library?.spells">{{ s.name || s }}</li>
+      </ul>
     </app-card>
   </div>
 </div>

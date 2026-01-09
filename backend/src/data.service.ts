@@ -76,6 +76,66 @@ export class DataService {
     return data[id];
   }
 
+  getAllCharacters(): Record<string, any> {
+    const data = this.readData();
+    const result: Record<string, any> = {};
+    for (const key of Object.keys(data)) {
+      if (key === 'worlds') continue;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        result[key] = JSON.parse(data[key]);
+      } catch {
+        // ignore invalid entries
+      }
+    }
+    return result;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+  getWorld(name: string): any | null {
+    const data = this.readData();
+    const worldsRaw = data['worlds'];
+    if (!worldsRaw) return null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const worlds = JSON.parse(worldsRaw);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      return worlds[name] ?? null;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
+      return null;
+    }
+  }
+
+  saveWorld(name: string, worldObj: any): void {
+    const data = this.readData();
+    let worlds: Record<string, any> = {};
+    if (data['worlds']) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        worlds = JSON.parse(data['worlds']);
+      } catch {
+        worlds = {};
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    worlds[name] = worldObj;
+    data['worlds'] = JSON.stringify(worlds, null, 2);
+    this.writeData(data);
+  }
+
+  listWorlds(): string[] {
+    const data = this.readData();
+    if (!data['worlds']) return [];
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const worlds = JSON.parse(data['worlds']);
+      return Object.keys(worlds);
+    } catch {
+      return [];
+    }
+  }
+
   saveCharacter(id: string, sheetJson: string): void {
     const data = this.readData();
     data[id] = sheetJson;
