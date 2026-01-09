@@ -15,13 +15,8 @@
 
 .world-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 1rem;
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 1100px) {
-  .world-grid { grid-template-columns: 320px 1fr 320px; }
-}
 }
 
 .party-dashboard {
@@ -32,10 +27,10 @@
 
 .party-member {
   flex: 1 1 320px;
-  border-radius: 8px;
-  padding: 0.8rem;
-  background: linear-gradient(180deg, #ffffff, #fbfdff);
-  box-shadow: 0 1px 6px rgba(16,24,40,0.04);
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 0.6rem;
+  background: #fafafa;
 }
 
 .party-member h3 {
@@ -58,37 +53,23 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  padding: 0.6rem;
-  border: 1px dashed var(--border);
-  border-radius: 8px;
+  padding: 0.5rem;
+  border: 1px dashed #ddd;
+  border-radius: 6px;
   background: #fff;
 }
 
 .lib-item {
-  padding: 0.5rem 0.6rem;
-  border-radius: 6px;
-  background: linear-gradient(180deg,#fbfbfb,#f7f7f8);
+  padding: 0.5rem;
+  border-radius: 4px;
+  background: #f5f5f5;
   cursor: grab;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
 }
-
-.lib-item-row { display:flex; align-items:center; gap:10px; width:100%; }
-.lib-item-name { font-weight:600; }
-.lib-item-meta { font-size:12px; color:var(--muted); }
 
 .battle-loot {
   min-height: 50px;
-  border: 1px dashed rgba(198,40,40,0.2);
-  padding: 0.6rem;
-  border-radius: 8px;
-  background: linear-gradient(180deg,#fff6f6,#fffefc);
+  border: 1px dashed #c62828;
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: #fff6f6;
 }
-
-.battle-item { display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-radius:6px; background:#fff; box-shadow:0 1px 0 rgba(0,0,0,0.03); margin-bottom:6px; }
-.battle-item-name { font-weight:600; }
-.battle-item-actions { display:flex; gap:8px; }
-
-.compact-list { list-style:none; padding:0; margin:0; }
-.party-list-item { padding:6px 0; border-bottom:1px solid rgba(0,0,0,0.03); }

@@ -67,12 +67,7 @@ export class WorldStoreService {
   }
 
   applyPatch(patch: JsonPatch) {
-    // Prefer sending via socket; fallback to HTTP PATCH if socket not connected
-    if (this.socket && this.socket['isConnected'] && this.socket.isConnected()) {
-      this.socket.sendPatch(this.worldName, patch);
-    } else {
-      // Use HTTP PATCH as fallback to persist state
-      this.api.patchWorld(this.worldName, patch).catch((err) => console.error('Patch world failed', err));
-    }
+    // send patch to backend via socket
+    this.socket.sendPatch(this.worldName, patch);
   }
 }
