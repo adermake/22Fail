@@ -18,10 +18,7 @@ import { CharacterGateway } from './character.gateway';
 export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
-  constructor(
-    private readonly dataService: DataService,
-    private readonly characterGateway: CharacterGateway,
-  ) {}
+  constructor(private readonly dataService: DataService, private readonly characterGateway: CharacterGateway) {}
 
   handleConnection(client: Socket) {
     console.log('Client connected to world gateway:', client.id);
@@ -76,7 +73,6 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('claimLoot')
-  // eslint-disable-next-line @typescript-eslint/require-await
   async handleClaim(
     @MessageBody() data: { worldName: string; index: number; characterId: string },
     @ConnectedSocket() client: Socket,
@@ -84,18 +80,13 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { worldName, index, characterId } = data;
 
     const world = this.dataService.getWorld(worldName);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (!world || !Array.isArray(world.battleLoot)) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const item = world.battleLoot[index];
     if (!item) return;
 
     // Remove from battleLoot
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    const newBattle = world.battleLoot.filter(
-      (_: any, i: number) => i !== index,
-    );
+    const newBattle = world.battleLoot.filter((_: any, i: number) => i !== index);
     this.dataService.saveWorld(worldName, { ...world, battleLoot: newBattle });
 
     // Add to character inventory
@@ -107,19 +98,12 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } catch {
       return;
     }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const newInv = [...(sheet.inventory || []), item];
-    this.dataService.applyPatchToCharacter(characterId, {
-      path: 'inventory',
-      value: newInv,
-    });
+    this.dataService.applyPatchToCharacter(characterId, { path: 'inventory', value: newInv });
 
     // Broadcast updates
     this.broadcastPatch(worldName, { path: 'battleLoot', value: newBattle });
-    this.characterGateway.broadcastPatch(characterId, {
-      path: 'inventory',
-      value: newInv,
-    });
+    this.characterGateway.broadcastPatch(characterId, { path: 'inventory', value: newInv });
 
     // Notify claimant
     this.server.to(characterId).emit('lootClaimed', { item, index, worldName });
