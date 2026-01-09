@@ -46,9 +46,8 @@ export class WorldComponent implements OnInit {
     this.route.params.subscribe(async (params) => {
       this.worldName = params['worldName'];
       console.log('Loading world:', this.worldName);
-      // subscribe first so we receive the value emitted by load immediately
-      this.store.world$.subscribe((w) => (this.world = w));
       await this.store.load(this.worldName);
+      this.store.world$.subscribe((w) => (this.world = w));
 
       // load characters
       this.allCharacters = await this.api.listCharacters();
