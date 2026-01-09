@@ -32,24 +32,53 @@
     <app-card>
       <h2>Party Dashboard</h2>
       <div *ngIf="world">
-        <table>
-          <tr><th>Player</th><th>Life</th><th>Energy</th><th>Mana</th><th>Gold</th></tr>
-          <tr *ngFor="let id of world.party">
-            <td>{{ allCharacters[id]?.name || id }}</td>
-            <td>{{ getStatusCurrent(id,'LIFE') }}</td>
-            <td>{{ getStatusCurrent(id,'ENERGY') }}</td>
-            <td>{{ getStatusCurrent(id,'MANA') }}</td>
-            <td>{{ allCharacters[id]?.currency?.gold || 0 }}</td>
-          </tr>
-        </table>
+        <div class="party-dashboard">
+          <div class="party-member" *ngFor="let id of world.party">
+            <h3>{{ allCharacters[id]?.name || id }}</h3>
+            <div class="stat-row">
+              <app-currentstat
+                [sheet]="allCharacters[id]"
+                [name]="'Life'"
+                [current]="getStatusCurrent(id,FormulaType.LIFE)"
+                [color]="getStatusObj(id,FormulaType.LIFE).statusColor"
+                [base]="getStatusObj(id,FormulaType.LIFE).statusBase"
+                [bonus]="getStatusObj(id,FormulaType.LIFE).statusBonus"
+                [formula]="FormulaType.LIFE"
+              ></app-currentstat>
+
+              <app-currentstat
+                [sheet]="allCharacters[id]"
+                [name]="'Energy'"
+                [current]="getStatusCurrent(id,FormulaType.ENERGY)"
+                [color]="getStatusObj(id,FormulaType.ENERGY).statusColor"
+                [base]="getStatusObj(id,FormulaType.ENERGY).statusBase"
+                [bonus]="getStatusObj(id,FormulaType.ENERGY).statusBonus"
+                [formula]="FormulaType.ENERGY"
+              ></app-currentstat>
+
+              <app-currentstat
+                [sheet]="allCharacters[id]"
+                [name]="'Mana'"
+                [current]="getStatusCurrent(id,FormulaType.MANA)"
+                [color]="getStatusObj(id,FormulaType.MANA).statusColor"
+                [base]="getStatusObj(id,FormulaType.MANA).statusBase"
+                [bonus]="getStatusObj(id,FormulaType.MANA).statusBonus"
+                [formula]="FormulaType.MANA"
+              ></app-currentstat>
+            </div>
+            <div class="party-currency">Gold: {{ allCharacters[id]?.currency?.gold || 0 }}</div>
+          </div>
+        </div>
       </div>
     </app-card>
 
     <app-card>
       <h2>Libraries</h2>
       <div>
-        <input placeholder="New item name" [(ngModel)]="newItemName" />
-        <button (click)="addItemToLibrary()">Add Item</button>
+        <button (click)="showCreateItem = true">Create Item</button>
+      </div>
+      <div *ngIf="showCreateItem">
+        <app-item-creator (create)="createLibraryItem($event)" (cancel)="cancelCreateItem()"></app-item-creator>
       </div>
       <h3>Items</h3>
       <ul>

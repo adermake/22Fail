@@ -18,3 +18,33 @@
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 1rem;
 }
+
+.party-dashboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.party-member {
+  flex: 1 1 320px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 0.6rem;
+  background: #fafafa;
+}
+
+.party-member h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.05rem;
+}
+
+.stat-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.party-currency {
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
