@@ -111,17 +111,16 @@
       <p class="drag-hint">Drag items onto characters or battle loot</p>
       <div class="library-list">
         @for (item of world.itemLibrary; track item.name; let i = $index) {
-          <div class="library-item-wrapper draggable"
-               draggable="true"
-               (dragstart)="onDragStart($event, 'item', i)">
-            <app-item
-              [item]="item"
-              [sheet]="dummySheet"
-              [index]="i"
-              (patch)="updateItem(i, $event)"
-              (delete)="removeItem(i)">
-            </app-item>
-          </div>
+          <app-item
+            class="draggable"
+            [attr.draggable]="true"
+            (dragstart)="onDragStart($event, 'item', i)"
+            [item]="item"
+            [sheet]="dummySheet"
+            [index]="i"
+            (patch)="updateItem(i, $event)"
+            (delete)="removeItem(i)">
+          </app-item>
         }
       </div>
       <button (click)="addItem()">Add Item</button>
@@ -132,16 +131,15 @@
       <p class="drag-hint">Drag runes onto characters or battle loot</p>
       <div class="library-list">
         @for (rune of world.runeLibrary; track rune.name; let i = $index) {
-          <div class="library-item-wrapper draggable"
-               draggable="true"
-               (dragstart)="onDragStart($event, 'rune', i)">
-            <app-rune
-              [rune]="rune"
-              [index]="i"
-              (patch)="updateRune(i, $event)"
-              (delete)="removeRune(i)">
-            </app-rune>
-          </div>
+          <app-rune
+            class="draggable"
+            [attr.draggable]="true"
+            (dragstart)="onDragStart($event, 'rune', i)"
+            [rune]="rune"
+            [index]="i"
+            (patch)="updateRune(i, $event)"
+            (delete)="removeRune(i)">
+          </app-rune>
         }
       </div>
       <button (click)="addRune()">Add Rune</button>
@@ -152,17 +150,16 @@
       <p class="drag-hint">Drag spells onto characters or battle loot</p>
       <div class="library-list">
         @for (spell of world.spellLibrary; track spell.name; let i = $index) {
-          <div class="library-item-wrapper draggable"
-               draggable="true"
-               (dragstart)="onDragStart($event, 'spell', i)">
-            <app-spell
-              [spell]="spell"
-              [sheet]="dummySheet"
-              [index]="i"
-              (patch)="updateSpell(i, $event)"
-              (delete)="removeSpell(i)">
-            </app-spell>
-          </div>
+          <app-spell
+            class="draggable"
+            [attr.draggable]="true"
+            (dragstart)="onDragStart($event, 'spell', i)"
+            [spell]="spell"
+            [sheet]="dummySheet"
+            [index]="i"
+            (patch)="updateSpell(i, $event)"
+            (delete)="removeSpell(i)">
+          </app-spell>
         }
       </div>
       <button (click)="addSpell()">Add Spell</button>
