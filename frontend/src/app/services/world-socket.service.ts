@@ -10,6 +10,7 @@ export class WorldSocketService {
 
   patches$ = this.patchSubject.asObservable();
 
+
   connect() {
     if (this.socket) return;
     this.socket = io(window.location.origin, {
@@ -28,5 +29,9 @@ export class WorldSocketService {
 
   sendPatch(worldName: string, patch: JsonPatch) {
     this.socket?.emit('patchWorld', { worldName, patch });
+  }
+
+  isConnected(): boolean {
+    return !!(this.socket && this.socket.connected);
   }
 }

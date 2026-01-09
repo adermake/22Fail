@@ -49,3 +49,27 @@ label {
   font-weight: 700;
 }
   h2{margin:0 0 8px 0;font-size:20px;color:var(--accent)}
+
+  /* Button styles used across app */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: #111827;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .btn:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+  .btn-primary {
+    background: linear-gradient(180deg, var(--accent), var(--accentdark));
+    color: #fff;
+    border-color: rgba(0,0,0,0.08);
+  }
+
+  .muted { color: var(--muted); }

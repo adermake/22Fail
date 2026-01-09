@@ -25,4 +25,9 @@ export class WorldApiService {
     const obs = this.http.get(`/api/characters`);
     return await firstValueFrom(obs);
   }
+
+  async patchWorld(name: string, patch: any): Promise<any> {
+    const obs = this.http.patch(`/api/worlds/${name}`, patch);
+    return await firstValueFrom(obs);
+  }
 }
