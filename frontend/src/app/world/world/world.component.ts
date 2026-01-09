@@ -175,4 +175,17 @@ export class WorldComponent implements OnInit {
     const newBattle = [...(this.world.battleLoot || []), item];
     this.store.applyPatch({ path: 'battleLoot', value: newBattle });
   }
+
+  /**
+   * Offer an existing battle loot item to the party.
+   * This method re-sends the `battleLoot` array to trigger server-side loot offers.
+   */
+  offerToParty(item: any) {
+    if (!this.world || !Array.isArray(this.world.battleLoot)) return;
+    const idx = this.world.battleLoot.findIndex((it: any) => it === item || (it && it.name && item && item.name && it.name === item.name));
+    if (idx < 0) return;
+
+    // Re-send the current battleLoot array so the backend will emit loot offers
+    this.store.applyPatch({ path: 'battleLoot', value: [...this.world.battleLoot] });
+  }
 }
