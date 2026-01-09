@@ -4,6 +4,7 @@ import { DataService } from './data.service';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { CharacterGateway } from './character.gateway';
+import { WorldGateway } from './world.gateway';
 
 @Module({
   imports: [
@@ -13,6 +14,6 @@ import { CharacterGateway } from './character.gateway';
     }),
   ],
   controllers: [AppController],
-  providers: [CharacterGateway, DataService],
+  providers: [CharacterGateway, WorldGateway, DataService],
 })
 export class AppModule {}

@@ -82,8 +82,10 @@ export class DataService {
     for (const key of Object.keys(data)) {
       if (key === 'worlds') continue;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        result[key] = JSON.parse(data[key]);
+        const parsed = JSON.parse(data[key]);
+        if (parsed && typeof parsed === 'object') {
+          result[key] = parsed as Record<string, any>;
+        }
       } catch {
         // ignore invalid entries
       }
@@ -98,9 +100,12 @@ export class DataService {
     if (!worldsRaw) return null;
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const worlds = JSON.parse(worldsRaw);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      return worlds[name] ?? null;
+      const parsed = JSON.parse(worldsRaw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const worlds = parsed as Record<string, any>;
+        return worlds[name] ?? null;
+      }
+      return null;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       return null;
@@ -112,13 +117,14 @@ export class DataService {
     let worlds: Record<string, any> = {};
     if (data['worlds']) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        worlds = JSON.parse(data['worlds']);
+        const parsed = JSON.parse(data['worlds']);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          worlds = parsed as Record<string, any>;
+        }
       } catch {
         worlds = {};
       }
     }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     worlds[name] = worldObj;
     data['worlds'] = JSON.stringify(worlds, null, 2);
     this.writeData(data);
@@ -128,12 +134,44 @@ export class DataService {
     const data = this.readData();
     if (!data['worlds']) return [];
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const worlds = JSON.parse(data['worlds']);
-      return Object.keys(worlds);
+      const parsed = JSON.parse(data['worlds']);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const worlds = parsed as Record<string, any>;
+        return Object.keys(worlds);
+      }
+      return [];
     } catch {
       return [];
     }
+  }
+
+  applyPatchToWorld(name: string, patch: JsonPatch): string | null {
+    const data = this.readData();
+    if (!data['worlds']) return null;
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(data['worlds']);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
+      return null;
+    }
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+      return null;
+
+    const worlds = parsed as Record<string, any>;
+    if (!worlds[name] || typeof worlds[name] !== 'object') return null;
+
+    const world = worlds[name] as Record<string, any>;
+
+    this.applyJsonPatch(world, patch);
+
+    worlds[name] = world;
+    data['worlds'] = JSON.stringify(worlds, null, 2);
+    this.writeData(data);
+
+    return JSON.stringify(world, null, 2);
   }
 
   saveCharacter(id: string, sheetJson: string): void {

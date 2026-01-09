@@ -4,11 +4,14 @@ import { CharacterApiService } from './character-api.service';
 import { CharacterSocketService } from './character-socket.service';
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 import { JsonPatch } from '../model/json-patch.model';
+import { Subject } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class CharacterStoreService {
   private sheetSubject = new BehaviorSubject<CharacterSheet | null>(null);
   sheet$ = this.sheetSubject.asObservable();
+  private lootOfferSubject = new Subject<any>();
+  lootOffer$ = this.lootOfferSubject.asObservable();
 
   characterId!: string;
 
@@ -19,6 +22,22 @@ export class CharacterStoreService {
       this.applyJsonPatch(sheet, patch);
       this.sheetSubject.next({ ...sheet });
     });
+    this.socket.lootOffer$.subscribe((payload) => {
+      // forward loot offers to UI
+      this.lootOfferSubject.next(payload);
+    });
+    this.socket.lootClaimed$.subscribe((payload) => {
+      // optional: could show claimed notifications
+      console.log('lootClaimed', payload);
+    });
+  }
+
+  claimLoot(worldName: string, index: number) {
+    if (!this.characterId) {
+      console.warn('No characterId set, cannot claim loot');
+      return;
+    }
+    this.socket.sendClaim(worldName, index, this.characterId);
   }
 
   async save(): Promise<void> {

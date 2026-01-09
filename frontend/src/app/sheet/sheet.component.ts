@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit, AfterViewInit } from '@angular/core';
 import { StatsComponent } from './stats/stats.component';
 import { CharacterComponent } from './character/character.component';
 import { LevelclassComponent } from './levelclass/levelclass.component';
@@ -38,9 +38,33 @@ import { CurrencyComponent } from "./currency/currency.component";
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
 })
-export class SheetComponent implements OnInit {
+export class SheetComponent implements OnInit, AfterViewInit {
   public store = inject(CharacterStoreService);
   private route = inject(ActivatedRoute);
+  private cdr = inject(ChangeDetectorRef);
+
+  ngAfterViewInit() {
+    // Subscribe to loot offers and present a simple accept/decline dialog
+    this.store.lootOffer$.subscribe(async (payload: any) => {
+      try {
+        const items = payload.items || [];
+        if (!items.length) return;
+        const names = items.map((it: any) => it.item?.name || it.item).join(', ');
+        const accept = confirm(`You found loot: ${names}. Take all?`);
+        if (accept) {
+          // claim each item by index
+          const worldName = payload.worldName;
+          for (const idxInfo of items) {
+            // send claim via store helper
+            this.store.claimLoot(worldName, idxInfo.index);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    });
+    this.cdr.detectChanges();
+  }
 
   async ngOnInit() {
     const classDefinitions = await fetch('class-definitions.txt').then((r) => r.text());

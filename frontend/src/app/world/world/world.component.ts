@@ -7,6 +7,9 @@ import { WorldApiService } from '../../services/world-api.service';
 import { FormulaType } from '../../model/formula-type.enum';
 import { CurrentstatComponent } from '../../sheet/currentstat/currentstat.component';
 import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.component';
+import { WorldStoreService } from '../../services/world-store.service';
+import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
+import { CharacterSocketService } from '../../services/character-socket.service';
 
 
 interface WorldData {
@@ -18,7 +21,7 @@ interface WorldData {
 
 @Component({
   selector: 'app-world',
-  imports: [CommonModule, FormsModule, CardComponent, CurrentstatComponent, ItemCreatorComponent],
+  imports: [CommonModule, FormsModule, CardComponent, CurrentstatComponent, ItemCreatorComponent, DragDropModule],
   templateUrl: './world.component.html',
   styleUrls: ['./world.component.css'],
 })
@@ -32,13 +35,22 @@ export class WorldComponent implements OnInit {
   showCreateItem = false;
   FormulaType = FormulaType;
 
-  constructor(private route: ActivatedRoute, private api: WorldApiService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private api: WorldApiService,
+    private store: WorldStoreService,
+    private charSocket: CharacterSocketService,
+  ) {}
 
   async ngOnInit() {
     this.route.params.subscribe(async (params) => {
       this.worldName = params['worldName'];
       console.log('Loading world:', this.worldName);
-      await this.loadWorld();
+      await this.store.load(this.worldName);
+      this.store.world$.subscribe((w) => (this.world = w));
+
+      // load characters
+      this.allCharacters = await this.api.listCharacters();
     });
   }
 
@@ -64,38 +76,39 @@ export class WorldComponent implements OnInit {
   async addCharacterToWorld() {
     if (!this.newCharacterId || !this.world) return;
     if (!this.world.characters.includes(this.newCharacterId)) {
-      this.world.characters.push(this.newCharacterId);
-      await this.saveWorld();
+      const newChars = [...this.world.characters, this.newCharacterId];
+      this.store.applyPatch({ path: 'characters', value: newChars });
       this.newCharacterId = '';
     }
   }
 
   async removeCharacter(id: string) {
     if (!this.world) return;
-    this.world.characters = this.world.characters.filter((c) => c !== id);
-    this.world.party = this.world.party.filter((p) => p !== id);
-    await this.saveWorld();
+    const newChars = this.world.characters.filter((c) => c !== id);
+    const newParty = this.world.party.filter((p) => p !== id);
+    this.store.applyPatch({ path: 'characters', value: newChars });
+    this.store.applyPatch({ path: 'party', value: newParty });
   }
 
   async addToParty(id: string) {
     if (!this.world) return;
     if (!this.world.party.includes(id)) {
-      this.world.party.push(id);
-      await this.saveWorld();
+      const newParty = [...this.world.party, id];
+      this.store.applyPatch({ path: 'party', value: newParty });
     }
   }
 
   async removeFromParty(id: string) {
     if (!this.world) return;
-    this.world.party = this.world.party.filter((p) => p !== id);
-    await this.saveWorld();
+    const newParty = this.world.party.filter((p) => p !== id);
+    this.store.applyPatch({ path: 'party', value: newParty });
   }
 
   async addItemToLibrary() {
     if (!this.world || !this.newItemName) return;
-    this.world.library.items.push({ name: this.newItemName });
+    const newItems = [...this.world.library.items, { name: this.newItemName }];
+    this.store.applyPatch({ path: 'library.items', value: newItems });
     this.newItemName = '';
-    await this.saveWorld();
   }
 
   createLibraryItem(item: any) {
@@ -130,5 +143,36 @@ export class WorldComponent implements OnInit {
       statusBonus: Number(s?.statusBonus ?? 0),
       statusColor: s?.statusColor ?? '#999',
     };
+  }
+
+  // Drag & drop handlers
+  async dropToPlayer(event: CdkDragDrop<any[]>, playerId: string) {
+    if (!this.world) return;
+    // Get item from library
+    const item = event.previousContainer.data[event.previousIndex];
+    if (!item) return;
+
+    // Remove from library
+    const newLib = this.world.library.items.filter((_, i) => i !== event.previousIndex);
+    this.store.applyPatch({ path: 'library.items', value: newLib });
+
+    // Add to player's inventory via socket patch
+    const player = this.allCharacters[playerId] || {};
+    const newInv = [...(player.inventory || []), item];
+    this.charSocket.sendPatch(playerId, { path: 'inventory', value: newInv });
+  }
+
+  async dropToBattle(event: CdkDragDrop<any[]>) {
+    if (!this.world) return;
+    const item = event.previousContainer.data[event.previousIndex];
+    if (!item) return;
+
+    // Remove from library
+    const newLib = this.world.library.items.filter((_, i) => i !== event.previousIndex);
+    this.store.applyPatch({ path: 'library.items', value: newLib });
+
+    // Add to battleLoot
+    const newBattle = [...(this.world.battleLoot || []), item];
+    this.store.applyPatch({ path: 'battleLoot', value: newBattle });
   }
 }
