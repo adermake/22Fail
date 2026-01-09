@@ -213,13 +213,23 @@ export class WorldComponent implements OnInit, OnDestroy {
       const updatedItems = [...world.itemLibrary];
       const item = { ...updatedItems[index] };
 
-      // Apply the patch to the item
+      // Apply the patch to the item - handle nested objects properly
       const keys = patch.path.split('.');
       let current: any = item;
+
       for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
+        const key = keys[i];
+        // Create a copy of nested objects to avoid mutation
+        if (current[key] && typeof current[key] === 'object' && !Array.isArray(current[key])) {
+          current[key] = { ...current[key] };
+        } else if (!current[key]) {
+          current[key] = {};
+        }
+        current = current[key];
       }
-      current[keys[keys.length - 1]] = patch.value;
+
+      const finalKey = keys[keys.length - 1];
+      current[finalKey] = patch.value;
 
       updatedItems[index] = item;
       this.store.applyPatch({
