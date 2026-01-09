@@ -111,15 +111,17 @@
       <p class="drag-hint">Drag items onto characters or battle loot. Double-click to edit.</p>
       <div class="library-list">
         @for (item of world.itemLibrary; track item.name; let i = $index) {
-          <div class="library-item-wrapper draggable"
-               draggable="true"
+          <div class="library-item-wrapper"
+               [class.draggable]="!isItemEditing(i)"
+               [attr.draggable]="!isItemEditing(i)"
                (dragstart)="onDragStart($event, 'item', i)">
             <app-item
               [item]="item"
               [sheet]="dummySheet"
               [index]="i"
               (patch)="updateItem(i, $event)"
-              (delete)="removeItem(i)">
+              (delete)="removeItem(i)"
+              (editingChange)="onItemEditingChange(i, $event)">
             </app-item>
           </div>
         }

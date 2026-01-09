@@ -41,6 +41,9 @@ export class WorldComponent implements OnInit, OnDestroy {
   // Item creator dialog
   showItemCreator = false;
 
+  // Track which items are being edited (to disable dragging)
+  editingItems = new Set<number>();
+
   constructor(
     private route: ActivatedRoute
   ) {}
@@ -236,6 +239,18 @@ export class WorldComponent implements OnInit, OnDestroy {
         value: newItems
       });
     }
+  }
+
+  onItemEditingChange(index: number, isEditing: boolean) {
+    if (isEditing) {
+      this.editingItems.add(index);
+    } else {
+      this.editingItems.delete(index);
+    }
+  }
+
+  isItemEditing(index: number): boolean {
+    return this.editingItems.has(index);
   }
 
   // Rune library management
