@@ -1,0 +1,20 @@
+.world-container {
+  padding: 1rem;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+.world-header {
+  margin-bottom: 2rem;
+}
+
+.world-header h1 {
+  margin: 0;
+  color: #333;
+}
+
+.world-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1rem;
+}
