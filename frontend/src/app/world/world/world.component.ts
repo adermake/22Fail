@@ -4,9 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { CardComponent } from '../../shared/card/card.component';
 import { WorldApiService } from '../../services/world-api.service';
-import { FormulaType } from '../../model/formula-type.enum';
-import { CurrentstatComponent } from '../../sheet/currentstat/currentstat.component';
-import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.component';
 
 
 interface WorldData {
@@ -18,7 +15,7 @@ interface WorldData {
 
 @Component({
   selector: 'app-world',
-  imports: [CommonModule, FormsModule, CardComponent, CurrentstatComponent, ItemCreatorComponent],
+  imports: [CommonModule, FormsModule, CardComponent],
   templateUrl: './world.component.html',
   styleUrls: ['./world.component.css'],
 })
@@ -29,8 +26,6 @@ export class WorldComponent implements OnInit {
 
   newCharacterId = '';
   newItemName = '';
-  showCreateItem = false;
-  FormulaType = FormulaType;
 
   constructor(private route: ActivatedRoute, private api: WorldApiService) {}
 
@@ -98,37 +93,15 @@ export class WorldComponent implements OnInit {
     await this.saveWorld();
   }
 
-  createLibraryItem(item: any) {
-    if (!this.world) return;
-    this.world.library.items.push(item);
-    this.showCreateItem = false;
-    this.saveWorld();
-  }
-
-  cancelCreateItem() {
-    this.showCreateItem = false;
-  }
-
   async saveWorld() {
     if (!this.world) return;
     await this.api.saveWorld(this.worldName, this.world);
   }
 
-  getStatusCurrent(id: string, formulaType: FormulaType): number {
+  getStatusCurrent(id: string, formulaType: string): number | string {
     const ch = this.allCharacters[id];
-    if (!ch || !ch.statuses) return 0;
+    if (!ch || !ch.statuses) return '-';
     const s = ch.statuses.find((st: any) => st.formulaType === formulaType);
-    return Number(s?.statusCurrent ?? 0);
-  }
-
-  getStatusObj(id: string, formulaType: FormulaType): { statusBase: number; statusBonus: number; statusColor: string } {
-    const ch = this.allCharacters[id];
-    if (!ch || !ch.statuses) return { statusBase: 0, statusBonus: 0, statusColor: '#999' };
-    const s = ch.statuses.find((st: any) => st.formulaType === formulaType) ?? null;
-    return {
-      statusBase: Number(s?.statusBase ?? 0),
-      statusBonus: Number(s?.statusBonus ?? 0),
-      statusColor: s?.statusColor ?? '#999',
-    };
+    return s?.statusCurrent ?? '-';
   }
 }
