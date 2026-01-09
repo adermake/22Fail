@@ -68,11 +68,19 @@ export class WorldStoreService {
   }
 
   applyPatch(patch: JsonPatch) {
-    // Prefer sending via socket; fallback to HTTP PATCH if socket not connected
+    // Optimistically apply patch locally so UI updates immediately
+    const current = this.worldSubject.value;
+    if (current) {
+      // clone current
+      const cloned = JSON.parse(JSON.stringify(current));
+      this.applyJsonPatch(cloned, patch);
+      this.zone.run(() => this.worldSubject.next(cloned));
+    }
+
+    // send patch to backend (prefer socket)
     if (this.socket && this.socket['isConnected'] && this.socket.isConnected()) {
       this.socket.sendPatch(this.worldName, patch);
     } else {
-      // Use HTTP PATCH as fallback to persist state
       this.api.patchWorld(this.worldName, patch).catch((err) => console.error('Patch world failed', err));
     }
   }
