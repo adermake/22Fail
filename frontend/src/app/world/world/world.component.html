@@ -111,11 +111,16 @@
       <p class="drag-hint">Drag items onto characters or battle loot</p>
       <div class="library-list">
         @for (item of world.itemLibrary; track item.name; let i = $index) {
-          <div class="library-item draggable"
+          <div class="library-item-wrapper draggable"
                draggable="true"
                (dragstart)="onDragStart($event, 'item', i)">
-            <span>{{ item.name }}</span>
-            <button (click)="removeItem(i)">Remove</button>
+            <app-item
+              [item]="item"
+              [sheet]="dummySheet"
+              [index]="i"
+              (patch)="updateItem(i, $event)"
+              (delete)="removeItem(i)">
+            </app-item>
           </div>
         }
       </div>
@@ -127,11 +132,15 @@
       <p class="drag-hint">Drag runes onto characters or battle loot</p>
       <div class="library-list">
         @for (rune of world.runeLibrary; track rune.name; let i = $index) {
-          <div class="library-item draggable"
+          <div class="library-item-wrapper draggable"
                draggable="true"
                (dragstart)="onDragStart($event, 'rune', i)">
-            <span>{{ rune.name }}</span>
-            <button (click)="removeRune(i)">Remove</button>
+            <app-rune
+              [rune]="rune"
+              [index]="i"
+              (patch)="updateRune(i, $event)"
+              (delete)="removeRune(i)">
+            </app-rune>
           </div>
         }
       </div>
@@ -143,11 +152,16 @@
       <p class="drag-hint">Drag spells onto characters or battle loot</p>
       <div class="library-list">
         @for (spell of world.spellLibrary; track spell.name; let i = $index) {
-          <div class="library-item draggable"
+          <div class="library-item-wrapper draggable"
                draggable="true"
                (dragstart)="onDragStart($event, 'spell', i)">
-            <span>{{ spell.name }}</span>
-            <button (click)="removeSpell(i)">Remove</button>
+            <app-spell
+              [spell]="spell"
+              [sheet]="dummySheet"
+              [index]="i"
+              (patch)="updateSpell(i, $event)"
+              (delete)="removeSpell(i)">
+            </app-spell>
           </div>
         }
       </div>

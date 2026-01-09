@@ -9,13 +9,16 @@ import { CharacterSocketService, CharacterPatchEvent } from '../../services/char
 import { ItemBlock } from '../../model/item-block.model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
-import { CharacterSheet } from '../../model/character-sheet-model';
+import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { Subscription } from 'rxjs';
+import { ItemComponent } from '../../sheet/item/item.component';
+import { RuneComponent } from '../../shared/rune/rune.component';
+import { SpellComponent } from '../../sheet/spell/spell.component';
 
 @Component({
   selector: 'app-world',
-  imports: [CommonModule, CardComponent, FormsModule],
+  imports: [CommonModule, CardComponent, FormsModule, ItemComponent, RuneComponent, SpellComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
 })
@@ -30,6 +33,9 @@ export class WorldComponent implements OnInit, OnDestroy {
   selectedCharacterForParty: string = '';
   partyCharacters: Map<string, CharacterSheet> = new Map();
   private characterPatchSubscription?: Subscription;
+
+  // Dummy sheet for item/spell components that require it
+  dummySheet: CharacterSheet = createEmptySheet();
 
   constructor(
     private route: ActivatedRoute
@@ -96,6 +102,9 @@ export class WorldComponent implements OnInit, OnDestroy {
         // Note: We don't have a "leave" method, but the socket will handle it
       }
     }
+
+    // Trigger change detection after loading characters
+    this.cdr.detectChanges();
   }
 
   getPartyCharacterArray(): Array<{id: string, sheet: CharacterSheet}> {
@@ -184,6 +193,28 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
   }
 
+  updateItem(index: number, patch: JsonPatch) {
+    const world = this.store.worldValue;
+    if (world) {
+      const updatedItems = [...world.itemLibrary];
+      const item = { ...updatedItems[index] };
+
+      // Apply the patch to the item
+      const keys = patch.path.split('.');
+      let current: any = item;
+      for (let i = 0; i < keys.length - 1; i++) {
+        current = current[keys[i]];
+      }
+      current[keys[keys.length - 1]] = patch.value;
+
+      updatedItems[index] = item;
+      this.store.applyPatch({
+        path: 'itemLibrary',
+        value: updatedItems
+      });
+    }
+  }
+
   removeItem(index: number) {
     const world = this.store.worldValue;
     if (world) {
@@ -209,6 +240,28 @@ export class WorldComponent implements OnInit, OnDestroy {
       this.store.applyPatch({
         path: 'runeLibrary',
         value: [...world.runeLibrary, newRune]
+      });
+    }
+  }
+
+  updateRune(index: number, patch: JsonPatch) {
+    const world = this.store.worldValue;
+    if (world) {
+      const updatedRunes = [...world.runeLibrary];
+      const rune = { ...updatedRunes[index] };
+
+      // Apply the patch to the rune
+      const keys = patch.path.split('.');
+      let current: any = rune;
+      for (let i = 0; i < keys.length - 1; i++) {
+        current = current[keys[i]];
+      }
+      current[keys[keys.length - 1]] = patch.value;
+
+      updatedRunes[index] = rune;
+      this.store.applyPatch({
+        path: 'runeLibrary',
+        value: updatedRunes
       });
     }
   }
@@ -239,6 +292,28 @@ export class WorldComponent implements OnInit, OnDestroy {
       this.store.applyPatch({
         path: 'spellLibrary',
         value: [...world.spellLibrary, newSpell]
+      });
+    }
+  }
+
+  updateSpell(index: number, patch: JsonPatch) {
+    const world = this.store.worldValue;
+    if (world) {
+      const updatedSpells = [...world.spellLibrary];
+      const spell = { ...updatedSpells[index] };
+
+      // Apply the patch to the spell
+      const keys = patch.path.split('.');
+      let current: any = spell;
+      for (let i = 0; i < keys.length - 1; i++) {
+        current = current[keys[i]];
+      }
+      current[keys[keys.length - 1]] = patch.value;
+
+      updatedSpells[index] = spell;
+      this.store.applyPatch({
+        path: 'spellLibrary',
+        value: updatedSpells
       });
     }
   }

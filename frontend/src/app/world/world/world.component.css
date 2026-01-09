@@ -30,7 +30,7 @@
   overflow-y: auto;
 }
 
-.character-item, .party-item, .library-item, .loot-item {
+.character-item, .party-item, .loot-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -40,12 +40,16 @@
   border: 1px solid var(--border);
 }
 
-.character-item span, .party-item span, .library-item span, .loot-item span {
+.library-item-wrapper {
+  margin-bottom: 0.5rem;
+}
+
+.character-item span, .party-item span, .loot-item span {
   flex: 1;
   color: #374151;
 }
 
-.character-item button, .party-item button, .library-item button, .loot-item button {
+.character-item button, .party-item button, .loot-item button {
   padding: 0.25rem 0.75rem;
   background: #ef4444;
   color: white;
@@ -56,8 +60,7 @@
   transition: background 0.2s;
 }
 
-.character-item button:hover, .party-item button:hover,
-.library-item button:hover, .loot-item button:hover {
+.character-item button:hover, .party-item button:hover, .loot-item button:hover {
   background: #dc2626;
 }
 
