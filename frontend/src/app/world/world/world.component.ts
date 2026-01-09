@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -40,6 +40,7 @@ export class WorldComponent implements OnInit {
     private api: WorldApiService,
     private store: WorldStoreService,
     private charSocket: CharacterSocketService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   async ngOnInit() {
@@ -47,11 +48,21 @@ export class WorldComponent implements OnInit {
       this.worldName = params['worldName'];
       console.log('Loading world:', this.worldName);
       // subscribe first so we receive the value emitted by load immediately
-      this.store.world$.subscribe((w) => (this.world = w));
+      this.store.world$.subscribe((w) => {
+        this.world = w;
+        // ensure change detection updates immediately
+        try {
+          this.cdr.detectChanges();
+        } catch {}
+      });
+
       await this.store.load(this.worldName);
 
       // load characters
       this.allCharacters = await this.api.listCharacters();
+      try {
+        this.cdr.detectChanges();
+      } catch {}
     });
   }
 
