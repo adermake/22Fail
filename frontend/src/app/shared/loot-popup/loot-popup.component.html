@@ -1,0 +1,45 @@
+<div class="popup-overlay" (click)="onClose()">
+  <div class="popup-content" (click)="$event.stopPropagation()">
+    <app-card>
+      <div class="popup-header">
+        <h2>{{ isBattleLoot ? 'Battle Loot!' : 'You found loot!' }}</h2>
+        <button class="close-btn" (click)="onClose()">×</button>
+      </div>
+
+      <div class="loot-list">
+        @if (loot.length === 0) {
+          <p class="no-loot">No loot available</p>
+        }
+
+        @for (item of loot; track item.id) {
+          <div class="loot-item-card">
+            <div class="loot-type-badge" [class]="item.type">
+              {{ item.type }}
+            </div>
+            <div class="loot-details">
+              <h3>{{ item.data.name }}</h3>
+              <p>{{ item.data.description }}</p>
+              @if (item.type === 'item') {
+                <div class="item-stats">
+                  <span>Weight: {{ item.data.weight }}</span>
+                </div>
+              }
+              @if (isBattleLoot) {
+                <div class="claimed-info">
+                  {{ item.claimedBy.length }} player(s) claimed
+                </div>
+              }
+            </div>
+            <button class="claim-btn" (click)="onClaim(item)">
+              {{ isBattleLoot ? 'Take' : 'Accept' }}
+            </button>
+          </div>
+        }
+      </div>
+
+      <div class="popup-footer">
+        <button class="close-footer-btn" (click)="onClose()">Close</button>
+      </div>
+    </app-card>
+  </div>
+</div>

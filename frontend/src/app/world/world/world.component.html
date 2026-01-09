@@ -1,27 +1,178 @@
+@if (store.world$ | async; as world) {
 <div class="world-container">
   <div class="world-header">
     <h1>{{ worldName }} - GM View</h1>
   </div>
 
   <div class="world-grid">
+    <!-- Characters Section -->
     <app-card>
-      <h2>Characters</h2>
-      <p>Character management coming soon...</p>
+      <h2>All Characters</h2>
+      <div class="character-list">
+        @for (characterId of world.characterIds; track characterId; let i = $index) {
+          <div class="character-item">
+            <span>{{ characterId }}</span>
+            <button (click)="removeCharacter(i)">Remove</button>
+          </div>
+        }
+      </div>
+      <div class="add-section">
+        <input
+          type="text"
+          [(ngModel)]="newCharacterId"
+          placeholder="Character ID"
+        />
+        <button (click)="addCharacter()">Add Character</button>
+      </div>
     </app-card>
 
+    <!-- Active Party Section -->
     <app-card>
       <h2>Active Party</h2>
-      <p>Party management coming soon...</p>
+      <div class="party-list">
+        @for (partyId of world.partyIds; track partyId; let i = $index) {
+          <div class="party-item">
+            <span>{{ partyId }}</span>
+            <button (click)="removeFromParty(i)">Remove</button>
+          </div>
+        }
+      </div>
+      <div class="add-section">
+        <select [(ngModel)]="selectedCharacterForParty">
+          <option value="">Select a character...</option>
+          @for (characterId of world.characterIds; track characterId) {
+            @if (!world.partyIds.includes(characterId)) {
+              <option [value]="characterId">{{ characterId }}</option>
+            }
+          }
+        </select>
+        <button (click)="addToParty()">Add to Party</button>
+      </div>
     </app-card>
 
+    <!-- Party Dashboard Section -->
     <app-card>
       <h2>Party Dashboard</h2>
-      <p>Health, mana, energy overview coming soon...</p>
+      @if (getPartyCharacterArray().length === 0) {
+        <p>No characters in party. Add characters to see their stats.</p>
+      } @else {
+        <div class="dashboard-grid">
+          @for (member of getPartyCharacterArray(); track member.id) {
+            <div class="character-card drop-zone"
+                 (dragover)="onDragOver($event)"
+                 (drop)="onDropOnCharacter($event, member.id)">
+              <h3>{{ member.sheet.name || member.id }}</h3>
+              <div class="drop-hint">Drop items here</div>
+              <div class="stat-row">
+                <span class="stat-label">Health:</span>
+                <div class="stat-bar">
+                  <div class="stat-fill health"
+                       [style.width.%]="((member.sheet.statuses[0]?.statusCurrent || 0) / (member.sheet.statuses[0]?.statusBase || 1) * 100)">
+                  </div>
+                  <span class="stat-value">{{ member.sheet.statuses[0]?.statusCurrent || 0 }} / {{ member.sheet.statuses[0]?.statusBase || 0 }}</span>
+                </div>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Energy:</span>
+                <div class="stat-bar">
+                  <div class="stat-fill energy"
+                       [style.width.%]="((member.sheet.statuses[1]?.statusCurrent || 0) / (member.sheet.statuses[1]?.statusBase || 1) * 100)">
+                  </div>
+                  <span class="stat-value">{{ member.sheet.statuses[1]?.statusCurrent || 0 }} / {{ member.sheet.statuses[1]?.statusBase || 0 }}</span>
+                </div>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Mana:</span>
+                <div class="stat-bar">
+                  <div class="stat-fill mana"
+                       [style.width.%]="((member.sheet.statuses[2]?.statusCurrent || 0) / (member.sheet.statuses[2]?.statusBase || 1) * 100)">
+                  </div>
+                  <span class="stat-value">{{ member.sheet.statuses[2]?.statusCurrent || 0 }} / {{ member.sheet.statuses[2]?.statusBase || 0 }}</span>
+                </div>
+              </div>
+              <div class="stat-row money">
+                <span class="stat-label">Money:</span>
+                <div class="currency">
+                  <span class="copper">{{ member.sheet.currency.copper || 0 }}c</span>
+                  <span class="silver">{{ member.sheet.currency.silver || 0 }}s</span>
+                  <span class="gold">{{ member.sheet.currency.gold || 0 }}g</span>
+                  <span class="platinum">{{ member.sheet.currency.platinum || 0 }}p</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </app-card>
+
+    <!-- Libraries Section -->
+    <app-card>
+      <h2>Item Library</h2>
+      <p class="drag-hint">Drag items onto characters or battle loot</p>
+      <div class="library-list">
+        @for (item of world.itemLibrary; track item.name; let i = $index) {
+          <div class="library-item draggable"
+               draggable="true"
+               (dragstart)="onDragStart($event, 'item', i)">
+            <span>{{ item.name }}</span>
+            <button (click)="removeItem(i)">Remove</button>
+          </div>
+        }
+      </div>
+      <button (click)="addItem()">Add Item</button>
     </app-card>
 
     <app-card>
-      <h2>Libraries</h2>
-      <p>Items, runes, spells library coming soon...</p>
+      <h2>Rune Library</h2>
+      <p class="drag-hint">Drag runes onto characters or battle loot</p>
+      <div class="library-list">
+        @for (rune of world.runeLibrary; track rune.name; let i = $index) {
+          <div class="library-item draggable"
+               draggable="true"
+               (dragstart)="onDragStart($event, 'rune', i)">
+            <span>{{ rune.name }}</span>
+            <button (click)="removeRune(i)">Remove</button>
+          </div>
+        }
+      </div>
+      <button (click)="addRune()">Add Rune</button>
+    </app-card>
+
+    <app-card>
+      <h2>Spell Library</h2>
+      <p class="drag-hint">Drag spells onto characters or battle loot</p>
+      <div class="library-list">
+        @for (spell of world.spellLibrary; track spell.name; let i = $index) {
+          <div class="library-item draggable"
+               draggable="true"
+               (dragstart)="onDragStart($event, 'spell', i)">
+            <span>{{ spell.name }}</span>
+            <button (click)="removeSpell(i)">Remove</button>
+          </div>
+        }
+      </div>
+      <button (click)="addSpell()">Add Spell</button>
+    </app-card>
+
+    <!-- Battle Loot Section -->
+    <app-card>
+      <h2>Battle Loot</h2>
+      <p class="drag-hint">Drop items here for party-wide loot</p>
+      <div class="loot-list drop-zone"
+           (dragover)="onDragOver($event)"
+           (drop)="onDropOnBattleLoot($event)">
+        @if (world.battleLoot.length === 0) {
+          <p class="empty-loot">No battle loot yet. Drag items here!</p>
+        }
+        @for (loot of world.battleLoot; track loot.id; let i = $index) {
+          <div class="loot-item">
+            <span>{{ loot.type }}: {{ loot.data.name }}</span>
+            <span class="claimed-count">{{ loot.claimedBy.length }} claimed</span>
+            <button (click)="removeBattleLoot(i)">Remove</button>
+          </div>
+        }
+      </div>
     </app-card>
   </div>
 </div>
+}

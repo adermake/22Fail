@@ -18,3 +18,260 @@
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 1rem;
 }
+
+.character-list, .party-list, .library-list, .loot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.character-item, .party-item, .library-item, .loot-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.character-item span, .party-item span, .library-item span, .loot-item span {
+  flex: 1;
+}
+
+.character-item button, .party-item button, .library-item button, .loot-item button {
+  padding: 0.25rem 0.5rem;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.character-item button:hover, .party-item button:hover,
+.library-item button:hover, .loot-item button:hover {
+  background: #cc0000;
+}
+
+.add-section {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.add-section input, .add-section select {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.add-section button, app-card button {
+  padding: 0.5rem 1rem;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.add-section button:hover, app-card button:hover {
+  background: #45a049;
+}
+
+/* Party Dashboard Styles */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.character-card {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.character-card h3 {
+  margin: 0 0 1rem 0;
+  color: #333;
+  font-size: 1.1rem;
+  border-bottom: 2px solid #4CAF50;
+  padding-bottom: 0.5rem;
+}
+
+.stat-row {
+  margin-bottom: 0.75rem;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 0.25rem;
+}
+
+.stat-bar {
+  position: relative;
+  background: #e0e0e0;
+  height: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.stat-fill {
+  position: absolute;
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 12px;
+}
+
+.stat-fill.health {
+  background: linear-gradient(90deg, #ff4444, #ff6666);
+}
+
+.stat-fill.energy {
+  background: linear-gradient(90deg, #44ff44, #66ff66);
+}
+
+.stat-fill.mana {
+  background: linear-gradient(90deg, #4444ff, #6666ff);
+}
+
+.stat-value {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #333;
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
+}
+
+.stat-row.money {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #ddd;
+}
+
+.currency {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.currency span {
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.currency .copper {
+  background: #cd7f32;
+  color: white;
+}
+
+.currency .silver {
+  background: #c0c0c0;
+  color: #333;
+}
+
+.currency .gold {
+  background: #ffd700;
+  color: #333;
+}
+
+.currency .platinum {
+  background: #e5e4e2;
+  color: #333;
+  border: 1px solid #999;
+}
+
+/* Drag and Drop Styles */
+.draggable {
+  cursor: move;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.draggable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.draggable:active {
+  cursor: grabbing;
+}
+
+.drop-zone {
+  position: relative;
+  transition: background 0.2s, border 0.2s;
+}
+
+.drop-zone.drag-over {
+  background: #e8f5e9;
+  border: 2px dashed #4CAF50;
+}
+
+.character-card.drop-zone {
+  border: 2px solid transparent;
+}
+
+.character-card.drop-zone:hover {
+  border-color: #4CAF50;
+}
+
+.drop-hint {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(76, 175, 80, 0.9);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 600;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.drop-zone:hover .drop-hint {
+  display: block;
+}
+
+.drag-hint {
+  font-size: 0.85rem;
+  color: #666;
+  font-style: italic;
+  margin: 0.5rem 0;
+}
+
+.empty-loot {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 2rem;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #ddd;
+  border-radius: 4px;
+  margin: 0;
+}
+
+.claimed-count {
+  font-size: 0.75rem;
+  color: #666;
+  background: #f0f0f0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  margin-left: 0.5rem;
+}

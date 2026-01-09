@@ -15,4 +15,13 @@
   <app-equipment [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-equipment>
   <app-runes [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-runes>
 </div>
+
+@if (showLootPopup) {
+  <app-loot-popup
+    [loot]="receivedLoot"
+    [isBattleLoot]="isBattleLoot"
+    (claimItem)="onClaimLoot($event)"
+    (close)="onCloseLootPopup()">
+  </app-loot-popup>
+}
 }

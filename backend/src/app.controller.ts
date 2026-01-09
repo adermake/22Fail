@@ -91,4 +91,40 @@ export class AppController {
 
     return { success: true };
   }
+
+  // World endpoints
+  @Get('worlds/:name')
+  getWorld(@Param('name') name: string): any {
+    const worldJson = this.dataService.getWorld(name);
+    console.log('LOADING WORLD ' + name);
+    if (!worldJson) {
+      console.log('World not found: ' + name);
+      return null;
+    }
+    return JSON.parse(worldJson);
+  }
+
+  @Post('worlds/:name')
+  saveWorld(@Param('name') name: string, @Body() body: any): any {
+    console.log('SAVING WORLD ' + name);
+    const worldJson = JSON.stringify(body);
+    this.dataService.saveWorld(name, worldJson);
+    return { success: true };
+  }
+
+  @Patch('worlds/:name')
+  applyWorldPatch(@Param('name') name: string, @Body() patch: JsonPatch): any {
+    console.log('PATCH WORLD', name, patch);
+
+    const updatedWorld = this.dataService.applyPatchToWorld(name, patch);
+
+    if (!updatedWorld) {
+      return { success: false, error: 'World not found' };
+    }
+
+    return {
+      success: true,
+      patch,
+    };
+  }
 }

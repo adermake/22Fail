@@ -6,6 +6,7 @@ type JsonObject = Record<string, any>;
 @Injectable()
 export class DataService {
   private filePath = path.join(__dirname, '../../../data.json');
+  private worldsFilePath = path.join(__dirname, '../../../worlds.json');
 
   private applyJsonPatch(target: unknown, patch: JsonPatch): void {
     const keys = patch.path.split('.');
@@ -104,6 +105,62 @@ export class DataService {
     const updatedJson = JSON.stringify(sheet, null, 2);
     data[id] = updatedJson;
     this.writeData(data);
+
+    return updatedJson;
+  }
+
+  // World data methods
+  private readWorlds(): Record<string, string> {
+    try {
+      const json = fs.readFileSync(this.worldsFilePath, 'utf-8');
+      return JSON.parse(json) as Record<string, string>;
+    } catch (error) {
+      console.error('Error reading worlds file:', error);
+      return {};
+    }
+  }
+
+  private writeWorlds(data: Record<string, string>): void {
+    fs.writeFileSync(this.worldsFilePath, JSON.stringify(data, null, 2), 'utf-8');
+  }
+
+  getWorld(name: string): string | null {
+    const data = this.readWorlds();
+    if (!data[name]) {
+      console.log('GET WORLD CALLED - not found');
+      return null;
+    }
+    return data[name];
+  }
+
+  saveWorld(name: string, worldJson: string): void {
+    const data = this.readWorlds();
+    data[name] = worldJson;
+    console.log('SAVE WORLD CALLED');
+    this.writeWorlds(data);
+  }
+
+  applyPatchToWorld(name: string, patch: JsonPatch): string | null {
+    const data = this.readWorlds();
+    console.log('APPLY PATCH WORLD CALLED');
+    if (!data[name]) {
+      return null; // world does not exist
+    }
+
+    let world: any;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      world = JSON.parse(data[name]);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
+      throw new Error(`Invalid JSON for world ${name}`);
+    }
+
+    this.applyJsonPatch(world, patch);
+
+    const updatedJson = JSON.stringify(world, null, 2);
+    data[name] = updatedJson;
+    this.writeWorlds(data);
 
     return updatedJson;
   }

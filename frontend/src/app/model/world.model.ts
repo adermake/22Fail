@@ -18,3 +18,15 @@ export interface LootItem {
   data: any; // The actual item/rune/spell data
   claimedBy: string[]; // Character IDs who have claimed this
 }
+
+export function createEmptyWorld(name: string): WorldData {
+  return {
+    name,
+    characterIds: [],
+    partyIds: [],
+    itemLibrary: [],
+    runeLibrary: [],
+    spellLibrary: [],
+    battleLoot: [],
+  };
+}

@@ -12,6 +12,10 @@ export class CharacterStoreService {
 
   characterId!: string;
 
+  get sheetValue(): CharacterSheet | null {
+    return this.sheetSubject.value;
+  }
+
   constructor(private api: CharacterApiService, private socket: CharacterSocketService) {
     this.socket.patches$.subscribe((patch) => {
       const sheet = this.sheetSubject.value;

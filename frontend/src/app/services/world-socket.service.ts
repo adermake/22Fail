@@ -2,14 +2,13 @@ import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 import { JsonPatch } from '../model/json-patch.model';
-import { LootItem } from '../model/world.model';
 
 @Injectable({ providedIn: 'root' })
-export class CharacterSocketService {
+export class WorldSocketService {
   private socket?: Socket;
   private patchSubject = new Subject<JsonPatch>();
-  private lootReceivedSubject = new Subject<LootItem>();
-  private battleLootReceivedSubject = new Subject<LootItem[]>();
+  private lootReceivedSubject = new Subject<any>();
+  private battleLootReceivedSubject = new Subject<any>();
 
   patches$ = this.patchSubject.asObservable();
   lootReceived$ = this.lootReceivedSubject.asObservable();
@@ -22,25 +21,25 @@ export class CharacterSocketService {
       transports: ['websocket'],
     });
 
-    this.socket.on('characterPatched', (patch: JsonPatch) => {
+    this.socket.on('worldPatched', (patch: JsonPatch) => {
       this.patchSubject.next(patch);
     });
 
-    this.socket.on('lootReceived', (loot: LootItem) => {
+    this.socket.on('lootReceived', (loot: any) => {
       this.lootReceivedSubject.next(loot);
     });
 
-    this.socket.on('battleLootReceived', (lootItems: LootItem[]) => {
-      this.battleLootReceivedSubject.next(lootItems);
+    this.socket.on('battleLootReceived', (loot: any) => {
+      this.battleLootReceivedSubject.next(loot);
     });
   }
 
-  joinCharacter(characterId: string) {
-    this.socket?.emit('joinCharacter', characterId);
+  joinWorld(worldName: string) {
+    this.socket?.emit('joinWorld', worldName);
   }
 
-  sendPatch(characterId: string, patch: JsonPatch) {
-    console.log('Sending patch '+JSON.stringify(patch));
-    this.socket?.emit('patchCharacter', { characterId, patch });
+  sendPatch(worldName: string, patch: JsonPatch) {
+    console.log('Sending world patch:', JSON.stringify(patch));
+    this.socket?.emit('patchWorld', { worldName, patch });
   }
 }
