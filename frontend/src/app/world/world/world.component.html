@@ -111,16 +111,17 @@
       <p class="drag-hint">Drag items onto characters or battle loot. Double-click to edit.</p>
       <div class="library-list">
         @for (item of world.itemLibrary; track item.name; let i = $index) {
-          <app-item
-            class="draggable"
-            [attr.draggable]="true"
-            (dragstart)="onDragStart($event, 'item', i)"
-            [item]="item"
-            [sheet]="dummySheet"
-            [index]="i"
-            (patch)="updateItem(i, $event)"
-            (delete)="removeItem(i)">
-          </app-item>
+          <div class="library-item-wrapper draggable"
+               draggable="true"
+               (dragstart)="onDragStart($event, 'item', i)">
+            <app-item
+              [item]="item"
+              [sheet]="dummySheet"
+              [index]="i"
+              (patch)="updateItem(i, $event)"
+              (delete)="removeItem(i)">
+            </app-item>
+          </div>
         }
         @if (world.itemLibrary.length === 0) {
           <p class="empty-message">No items yet. Click + to add one.</p>
@@ -131,8 +132,8 @@
 
     <!-- Item Creator Dialog -->
     @if (showItemCreator) {
-      <div class="dialog-overlay" (click)="closeItemCreator()">
-        <div class="dialog-content" (click)="$event.stopPropagation()">
+      <div class="dialog-overlay" (mousedown)="closeItemCreator()">
+        <div class="dialog-content" (mousedown)="$event.stopPropagation()">
           <h3>Add New Item</h3>
           <app-item-creator
             (create)="createItem($event)"

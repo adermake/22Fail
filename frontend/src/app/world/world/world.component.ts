@@ -189,6 +189,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   createItem(item: ItemBlock) {
+    console.log('Creating item:', item);
     const world = this.store.worldValue;
     if (world) {
       this.store.applyPatch({
