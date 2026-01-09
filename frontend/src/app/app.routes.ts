@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { SheetComponent } from './sheet/sheet.component';
 import { SessionComponent } from './session/session.component';
+import { WorldComponent } from './world/world/world.component';
 
 export const routes: Routes = [
     { path: 'characters/:id', component: SheetComponent },
