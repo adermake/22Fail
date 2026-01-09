@@ -33,7 +33,7 @@
       <h2>Party Dashboard</h2>
       <div *ngIf="world">
         <div class="party-dashboard">
-          <div class="party-member" *ngFor="let id of world.party" cdkDropList (cdkDropListDropped)="dropToPlayer($event,id)">
+          <div class="party-member" *ngFor="let id of world.party">
             <h3>{{ allCharacters[id]?.name || id }}</h3>
             <div class="stat-row">
               <app-currentstat
@@ -74,18 +74,16 @@
 
     <app-card>
       <h2>Libraries</h2>
-      <div class="lib-actions">
+      <div>
         <button (click)="showCreateItem = true">Create Item</button>
       </div>
       <div *ngIf="showCreateItem">
         <app-item-creator (create)="createLibraryItem($event)" (cancel)="cancelCreateItem()"></app-item-creator>
       </div>
       <h3>Items</h3>
-      <div cdkDropList [cdkDropListData]="world?.library?.items" class="library-list">
-        <div class="lib-item" *ngFor="let it of world?.library?.items; let i = index" cdkDrag>
-          {{ it.name }}
-        </div>
-      </div>
+      <ul>
+        <li *ngFor="let it of world?.library?.items">{{ it.name }}</li>
+      </ul>
       <h3>Runes</h3>
       <ul>
         <li *ngFor="let r of world?.library?.runes">{{ r.name || r }}</li>
@@ -94,10 +92,6 @@
       <ul>
         <li *ngFor="let s of world?.library?.spells">{{ s.name || s }}</li>
       </ul>
-      <h3>Battle Loot</h3>
-      <div cdkDropList (cdkDropListDropped)="dropToBattle($event)" class="battle-loot">
-        <div *ngFor="let it of world?.battleLoot">{{ it.name || it }}</div>
-      </div>
     </app-card>
   </div>
 </div>

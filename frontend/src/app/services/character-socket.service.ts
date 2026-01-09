@@ -7,10 +7,6 @@ import { JsonPatch } from '../model/json-patch.model';
 export class CharacterSocketService {
   private socket?: Socket;
   private patchSubject = new Subject<JsonPatch>();
-  private lootOfferSubject = new Subject<any>();
-  lootOffer$ = this.lootOfferSubject.asObservable();
-  private lootClaimedSubject = new Subject<any>();
-  lootClaimed$ = this.lootClaimedSubject.asObservable();
 
   patches$ = this.patchSubject.asObservable();
 
@@ -24,12 +20,6 @@ export class CharacterSocketService {
     this.socket.on('characterPatched', (patch: JsonPatch) => {
       this.patchSubject.next(patch);
     });
-    this.socket.on('lootOffer', (payload: any) => {
-      this.lootOfferSubject.next(payload);
-    });
-    this.socket.on('lootClaimed', (payload: any) => {
-      this.lootClaimedSubject.next(payload);
-    });
   }
 
   joinCharacter(characterId: string) {
@@ -39,9 +29,5 @@ export class CharacterSocketService {
   sendPatch(characterId: string, patch: JsonPatch) {
     console.log('Sending patch '+JSON.stringify(patch));
     this.socket?.emit('patchCharacter', { characterId, patch });
-  }
-
-  sendClaim(worldName: string, index: number, characterId: string) {
-    this.socket?.emit('claimLoot', { worldName, index, characterId });
   }
 }

@@ -13,13 +13,11 @@ import { DataService } from './data.service';
 import type { JsonPatch } from './data.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CharacterGateway } from './character.gateway';
-import { WorldGateway } from './world.gateway';
 @Controller('api')
 export class AppController {
   constructor(
     private readonly dataService: DataService,
     private readonly characterGateway: CharacterGateway, // Add this
-    private readonly worldGateway: WorldGateway, // world gateway
   ) {}
 
   @Get('characters/:id')
@@ -84,21 +82,6 @@ export class AppController {
       success: true,
       patch,
     };
-  }
-
-  @Patch('worlds/:name')
-  applyWorldPatch(@Param('name') name: string, @Body() patch: JsonPatch): any {
-    console.log('WORLD PATCH', name, patch);
-
-    const updated = this.dataService.applyPatchToWorld(name, patch);
-    if (!updated) {
-      return { success: false, error: 'World not found' };
-    }
-
-    // Broadcast via gateway
-    this.worldGateway.broadcastPatch(name, patch);
-
-    return { success: true, patch };
   }
 
   // In your controller
