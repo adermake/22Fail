@@ -15,10 +15,11 @@ import { Subscription } from 'rxjs';
 import { ItemComponent } from '../../sheet/item/item.component';
 import { RuneComponent } from '../../shared/rune/rune.component';
 import { SpellComponent } from '../../sheet/spell/spell.component';
+import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.component';
 
 @Component({
   selector: 'app-world',
-  imports: [CommonModule, CardComponent, FormsModule, ItemComponent, RuneComponent, SpellComponent],
+  imports: [CommonModule, CardComponent, FormsModule, ItemComponent, RuneComponent, SpellComponent, ItemCreatorComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
 })
@@ -36,6 +37,9 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   // Dummy sheet for item/spell components that require it
   dummySheet: CharacterSheet = createEmptySheet();
+
+  // Item creator dialog
+  showItemCreator = false;
 
   constructor(
     private route: ActivatedRoute
@@ -176,21 +180,23 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   // Item library management
-  addItem() {
+  openItemCreator() {
+    this.showItemCreator = true;
+  }
+
+  closeItemCreator() {
+    this.showItemCreator = false;
+  }
+
+  createItem(item: ItemBlock) {
     const world = this.store.worldValue;
     if (world) {
-      const newItem: ItemBlock = {
-        name: 'New Item',
-        description: '',
-        weight: 0,
-        lost: false,
-        requirements: {}
-      };
       this.store.applyPatch({
         path: 'itemLibrary',
-        value: [...world.itemLibrary, newItem]
+        value: [...world.itemLibrary, item]
       });
     }
+    this.closeItemCreator();
   }
 
   updateItem(index: number, patch: JsonPatch) {

@@ -108,7 +108,7 @@
     <!-- Libraries Section -->
     <app-card>
       <h2>Item Library</h2>
-      <p class="drag-hint">Drag items onto characters or battle loot</p>
+      <p class="drag-hint">Drag items onto characters or battle loot. Double-click to edit.</p>
       <div class="library-list">
         @for (item of world.itemLibrary; track item.name; let i = $index) {
           <app-item
@@ -122,9 +122,25 @@
             (delete)="removeItem(i)">
           </app-item>
         }
+        @if (world.itemLibrary.length === 0) {
+          <p class="empty-message">No items yet. Click + to add one.</p>
+        }
       </div>
-      <button (click)="addItem()">Add Item</button>
+      <button (click)="openItemCreator()">+ Add Item</button>
     </app-card>
+
+    <!-- Item Creator Dialog -->
+    @if (showItemCreator) {
+      <div class="dialog-overlay" (click)="closeItemCreator()">
+        <div class="dialog-content" (click)="$event.stopPropagation()">
+          <h3>Add New Item</h3>
+          <app-item-creator
+            (create)="createItem($event)"
+            (cancel)="closeItemCreator()">
+          </app-item-creator>
+        </div>
+      </div>
+    }
 
     <app-card>
       <h2>Rune Library</h2>
