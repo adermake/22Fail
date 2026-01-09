@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { WorldApiService } from './world-api.service';
 import { WorldSocketService } from './world-socket.service';
@@ -11,12 +11,13 @@ export class WorldStoreService {
 
   worldName!: string;
 
-  constructor(private api: WorldApiService, private socket: WorldSocketService) {
+  constructor(private api: WorldApiService, private socket: WorldSocketService, private zone: NgZone) {
     this.socket.patches$.subscribe((patch) => {
       const world = this.worldSubject.value;
       if (!world) return;
       this.applyJsonPatch(world, patch);
-      this.worldSubject.next({ ...world });
+      // ensure change detection runs
+      this.zone.run(() => this.worldSubject.next({ ...world }));
     });
   }
 
@@ -50,10 +51,10 @@ export class WorldStoreService {
     let w = await this.api.getWorld(name);
     if (!w) {
       w = { characters: [], party: [], library: { items: [], runes: [], spells: [] }, battleLoot: [] };
-      this.worldSubject.next(w);
+      this.zone.run(() => this.worldSubject.next(w));
       await this.api.saveWorld(name, w);
     } else {
-      this.worldSubject.next(w);
+      this.zone.run(() => this.worldSubject.next(w));
     }
 
     this.socket.connect();
