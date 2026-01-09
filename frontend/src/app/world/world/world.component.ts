@@ -88,6 +88,10 @@ export class WorldComponent implements OnInit, OnDestroy {
         try {
           const sheet = await this.characterApi.loadCharacter(characterId);
           if (sheet) {
+            // Ensure currency is initialized (for older character sheets)
+            if (!sheet.currency) {
+              sheet.currency = { copper: 0, silver: 0, gold: 0, platinum: 0 };
+            }
             this.partyCharacters.set(characterId, sheet);
             // Join the character's socket room to receive real-time updates
             this.characterSocket.joinCharacter(characterId);
