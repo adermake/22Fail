@@ -9,12 +9,17 @@ export interface CharacterPatchEvent {
   patch: JsonPatch;
 }
 
+export interface BattleLootEvent {
+  worldName: string;
+  loot: LootItem[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class CharacterSocketService {
   private socket?: Socket;
   private patchSubject = new Subject<CharacterPatchEvent>();
   private lootReceivedSubject = new Subject<LootItem>();
-  private battleLootReceivedSubject = new Subject<LootItem[]>();
+  private battleLootReceivedSubject = new Subject<BattleLootEvent>();
 
   patches$ = this.patchSubject.asObservable();
   lootReceived$ = this.lootReceivedSubject.asObservable();
@@ -35,8 +40,8 @@ export class CharacterSocketService {
       this.lootReceivedSubject.next(loot);
     });
 
-    this.socket.on('battleLootReceived', (lootItems: LootItem[]) => {
-      this.battleLootReceivedSubject.next(lootItems);
+    this.socket.on('battleLootReceived', (data: BattleLootEvent) => {
+      this.battleLootReceivedSubject.next(data);
     });
   }
 

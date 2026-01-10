@@ -384,6 +384,20 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
   }
 
+  revealBattleLoot() {
+    const world = this.store.worldValue;
+    if (world && world.battleLoot.length > 0) {
+      console.log('Revealing battle loot to party:', world.battleLoot);
+
+      // Trigger a patch update which will cause the backend to broadcast
+      // The backend gateway will detect this and send to all party members
+      this.store.applyPatch({
+        path: 'battleLoot',
+        value: [...world.battleLoot]
+      });
+    }
+  }
+
   // Drag and drop functionality
   onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell', index: number) {
     event.dataTransfer!.effectAllowed = 'copy';

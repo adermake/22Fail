@@ -83,8 +83,42 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
   sendBattleLootToParty(worldName: string, partyIds: string[], loot: any) {
     if (this.server) {
       partyIds.forEach(characterId => {
-        this.server.to(characterId).emit('battleLootReceived', loot);
+        this.server.to(characterId).emit('battleLootReceived', { worldName, loot });
       });
     }
+  }
+
+  // Handle claiming battle loot (removes item from battle loot)
+  @SubscribeMessage('claimBattleLoot')
+  handleClaimBattleLoot(
+    @MessageBody() data: { worldName: string; lootId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { worldName, lootId } = data;
+    console.log(`Claiming loot ${lootId} from world ${worldName}`);
+
+    // Load the world
+    const worldJson = this.dataService.getWorld(worldName);
+    if (!worldJson) {
+      console.error(`World ${worldName} not found`);
+      return;
+    }
+
+    const world = JSON.parse(worldJson);
+
+    // Remove the loot item
+    const newBattleLoot = world.battleLoot.filter((item: any) => item.id !== lootId);
+
+    // Apply the patch
+    this.dataService.applyPatchToWorld(worldName, {
+      path: 'battleLoot',
+      value: newBattleLoot
+    });
+
+    // Broadcast the updated battle loot to all clients in the world
+    this.server.to(worldName).emit('worldPatched', {
+      path: 'battleLoot',
+      value: newBattleLoot
+    });
   }
 }

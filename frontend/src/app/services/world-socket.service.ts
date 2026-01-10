@@ -42,4 +42,9 @@ export class WorldSocketService {
     console.log('Sending world patch:', JSON.stringify(patch));
     this.socket?.emit('patchWorld', { worldName, patch });
   }
+
+  claimBattleLoot(worldName: string, lootId: string) {
+    console.log('Claiming battle loot:', lootId);
+    this.socket?.emit('claimBattleLoot', { worldName, lootId });
+  }
 }

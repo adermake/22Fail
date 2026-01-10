@@ -188,7 +188,7 @@
     <!-- Battle Loot Section -->
     <app-card>
       <h2>Battle Loot</h2>
-      <p class="drag-hint">Drop items here for party-wide loot</p>
+      <p class="drag-hint">Drop items here, then reveal to players when ready</p>
       <div class="loot-list drop-zone"
            (dragover)="onDragOver($event)"
            (drop)="onDropOnBattleLoot($event)">
@@ -198,11 +198,13 @@
         @for (loot of world.battleLoot; track loot.id; let i = $index) {
           <div class="loot-item">
             <span>{{ loot.type }}: {{ loot.data.name }}</span>
-            <span class="claimed-count">{{ loot.claimedBy.length }} claimed</span>
             <button (click)="removeBattleLoot(i)">Remove</button>
           </div>
         }
       </div>
+      @if (world.battleLoot.length > 0) {
+        <button class="reveal-loot-btn" (click)="revealBattleLoot()">Reveal Loot to Party</button>
+      }
     </app-card>
   </div>
 </div>

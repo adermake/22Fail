@@ -8,7 +8,8 @@ import { PortraitComponent } from './portrait/portrait.component';
 import { ActivatedRoute } from '@angular/router';
 import { CharacterApiService } from '../services/character-api.service';
 import { CharacterStoreService } from '../services/character-store.service';
-import { CharacterSocketService } from '../services/character-socket.service';
+import { CharacterSocketService, BattleLootEvent } from '../services/character-socket.service';
+import { WorldSocketService } from '../services/world-socket.service';
 import { CommonModule } from '@angular/common';
 import { SkillsComponent } from './skills/skills.component';
 import { ClassTree } from './class-tree-model';
@@ -46,16 +47,21 @@ export class SheetComponent implements OnInit {
   public store = inject(CharacterStoreService);
   private route = inject(ActivatedRoute);
   private socket = inject(CharacterSocketService);
+  private worldSocket = inject(WorldSocketService);
 
   showLootPopup = false;
   receivedLoot: LootItem[] = [];
   isBattleLoot = false;
+  currentWorldName = '';
 
   async ngOnInit() {
     const classDefinitions = await fetch('class-definitions.txt').then((r) => r.text());
     await ClassTree.initialize(classDefinitions);
     const id = this.route.snapshot.paramMap.get('id')!;
     this.store.load(id);
+
+    // Connect to world socket for battle loot notifications
+    this.worldSocket.connect();
 
     // Listen for loot notifications
     this.socket.lootReceived$.subscribe((loot: LootItem) => {
@@ -64,9 +70,10 @@ export class SheetComponent implements OnInit {
       this.showLootPopup = true;
     });
 
-    this.socket.battleLootReceived$.subscribe((lootItems: LootItem[]) => {
-      this.receivedLoot = lootItems;
+    this.socket.battleLootReceived$.subscribe((data: BattleLootEvent) => {
+      this.receivedLoot = data.loot;
       this.isBattleLoot = true;
+      this.currentWorldName = data.worldName;
       this.showLootPopup = true;
     });
   }
@@ -105,7 +112,10 @@ export class SheetComponent implements OnInit {
       this.showLootPopup = false;
     }
 
-    // TODO: Notify server that loot was claimed
+    // Notify server that loot was claimed (only for battle loot)
+    if (this.isBattleLoot && this.currentWorldName) {
+      this.worldSocket.claimBattleLoot(this.currentWorldName, lootItem.id);
+    }
   }
 
   onCloseLootPopup() {
