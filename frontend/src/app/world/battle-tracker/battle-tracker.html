@@ -59,7 +59,7 @@
         @for (group of turnQueue; track $index) {
           <!-- Drop zone before each group -->
           <div class="drop-zone"
-               [class.drop-zone-active]="dragOverIndex === $index"
+               [class.drop-zone-active]="dragOverIndex === $index && dropPosition === 'before'"
                (dragover)="onDragOverDropZone($event, $index)"
                (dragleave)="onDragLeaveQueue()"
                (drop)="onDropBetween($event, $index)"></div>
@@ -67,7 +67,10 @@
           <div class="queue-group"
                [class.current-turn]="$index === 0"
                [class.is-group]="group.participants.length > 1"
-               [class.completing]="$index === 0 && completingTurn">
+               [class.completing]="$index === 0 && completingTurn"
+               (dragover)="onDragOverGroup($event, $index)"
+               (dragleave)="onDragLeaveQueue()"
+               (drop)="onDropOnGroup($event, $index)">
 
             <div class="group-portraits">
               @for (participant of group.participants; track participant.characterId) {
@@ -97,7 +100,7 @@
         }
         <!-- Drop zone after the last group -->
         <div class="drop-zone"
-             [class.drop-zone-active]="dragOverIndex === turnQueue.length"
+             [class.drop-zone-active]="dragOverIndex === turnQueue.length && dropPosition === 'after'"
              (dragover)="onDragOverDropZone($event, turnQueue.length)"
              (dragleave)="onDragLeaveQueue()"
              (drop)="onDropBetween($event, turnQueue.length)"></div>

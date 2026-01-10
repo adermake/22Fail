@@ -29,6 +29,7 @@ export class BattleTracker {
 
   draggedParticipant: string | null = null;
   dragOverIndex: number | null = null;
+  dropPosition: 'before' | 'after' | null = null;
   completingTurn = false;
   availableTeams = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
 
@@ -112,6 +113,30 @@ export class BattleTracker {
   onDragOverDropZone(event: DragEvent, dropIndex: number) {
     event.preventDefault();
     this.dragOverIndex = dropIndex;
+    this.dropPosition = 'before';
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  onDragOverGroup(event: DragEvent, groupIndex: number) {
+    event.preventDefault();
+
+    // Determine if we're closer to the left or right edge of the group
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const midpoint = rect.left + rect.width / 2;
+
+    if (event.clientX < midpoint) {
+      // Left side - drop before this group
+      this.dragOverIndex = groupIndex;
+      this.dropPosition = 'before';
+    } else {
+      // Right side - drop after this group
+      this.dragOverIndex = groupIndex + 1;
+      this.dropPosition = 'after';
+    }
 
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'move';
@@ -120,14 +145,34 @@ export class BattleTracker {
 
   onDragLeaveQueue() {
     this.dragOverIndex = null;
+    this.dropPosition = null;
   }
 
   onDropBetween(event: DragEvent, dropIndex: number) {
     event.preventDefault();
     this.dragOverIndex = null;
+    this.dropPosition = null;
 
     if (this.draggedParticipant) {
       // Emit reorder with the drop index (character will be inserted at this position)
+      this.reorder.emit({ characterId: this.draggedParticipant, newIndex: dropIndex });
+    }
+    this.draggedParticipant = null;
+  }
+
+  onDropOnGroup(event: DragEvent, groupIndex: number) {
+    event.preventDefault();
+
+    // Determine final drop position based on where we were hovering
+    let dropIndex = groupIndex;
+    if (this.dropPosition === 'after') {
+      dropIndex = groupIndex + 1;
+    }
+
+    this.dragOverIndex = null;
+    this.dropPosition = null;
+
+    if (this.draggedParticipant) {
       this.reorder.emit({ characterId: this.draggedParticipant, newIndex: dropIndex });
     }
     this.draggedParticipant = null;
