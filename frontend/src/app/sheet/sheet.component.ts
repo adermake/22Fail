@@ -113,13 +113,16 @@ export class SheetComponent implements OnInit {
         break;
     }
 
-    // Remove claimed loot from popup
+    // Remove claimed loot from popup immediately
     this.receivedLoot = this.receivedLoot.filter(l => l.id !== lootItem.id);
 
     // Close popup if no more loot
     if (this.receivedLoot.length === 0) {
       this.showLootPopup = false;
     }
+
+    // Trigger change detection to update UI immediately
+    this.cdr.detectChanges();
 
     // Notify server that loot was claimed (only for battle loot)
     if (this.isBattleLoot && this.currentWorldName) {
