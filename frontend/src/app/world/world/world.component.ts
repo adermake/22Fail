@@ -418,9 +418,43 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
 
     if (lootData) {
-      // Send loot to specific character via WebSocket
+      // Get the character sheet to determine the current array length
+      const characterSheet = this.partyCharacters.get(characterId);
+      if (!characterSheet) {
+        console.error(`Character ${characterId} not found in party`);
+        return;
+      }
+
+      // Determine which field to update based on type
+      let fieldPath: string;
+      let currentArray: any[];
+
+      switch (type) {
+        case 'item':
+          fieldPath = 'inventory';
+          currentArray = characterSheet.inventory || [];
+          break;
+        case 'rune':
+          fieldPath = 'runes';
+          currentArray = characterSheet.runes || [];
+          break;
+        case 'spell':
+          fieldPath = 'spells';
+          currentArray = characterSheet.spells || [];
+          break;
+      }
+
+      // Create a copy of the loot data to add to the character
+      const newItem = { ...lootData };
+
+      // Send patch to add the item to the character's inventory
+      const patch: JsonPatch = {
+        path: fieldPath,
+        value: [...currentArray, newItem]
+      };
+
       console.log(`Giving ${type} to ${characterId}:`, lootData);
-      // TODO: Implement server-side loot notification
+      this.characterSocket.sendPatch(characterId, patch);
     }
   }
 
