@@ -510,7 +510,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   // Drag and drop functionality
-  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell', index: number) {
+  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill', index: number) {
     event.dataTransfer!.effectAllowed = 'copy';
     event.dataTransfer!.setData('lootType', type);
     event.dataTransfer!.setData('lootIndex', index.toString());
@@ -566,7 +566,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     event.preventDefault();
     this.stopAutoScroll();
 
-    const type = event.dataTransfer!.getData('lootType') as 'item' | 'rune' | 'spell';
+    const type = event.dataTransfer!.getData('lootType') as 'item' | 'rune' | 'spell' | 'skill';
     const index = parseInt(event.dataTransfer!.getData('lootIndex'));
 
     const world = this.store.worldValue;
@@ -582,6 +582,9 @@ export class WorldComponent implements OnInit, OnDestroy {
         break;
       case 'spell':
         lootData = world.spellLibrary[index];
+        break;
+      case 'skill':
+        lootData = world.skillLibrary[index];
         break;
     }
 
@@ -610,6 +613,10 @@ export class WorldComponent implements OnInit, OnDestroy {
             fieldPath = 'spells';
             currentArray = freshSheet.spells || [];
             break;
+          case 'skill':
+            fieldPath = 'skills';
+            currentArray = freshSheet.skills || [];
+            break;
         }
 
         // Create a copy of the loot data to add to the character
@@ -633,7 +640,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
   }
 
-  private sendDirectLootNotification(characterId: string, type: 'item' | 'rune' | 'spell', data: any) {
+  private sendDirectLootNotification(characterId: string, type: 'item' | 'rune' | 'spell' | 'skill', data: any) {
     // Create a loot item for the notification
     const lootItem = {
       id: `direct_${type}_${Date.now()}_${Math.random()}`,
@@ -650,7 +657,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     event.preventDefault();
     this.stopAutoScroll();
 
-    const type = event.dataTransfer!.getData('lootType') as 'item' | 'rune' | 'spell';
+    const type = event.dataTransfer!.getData('lootType') as 'item' | 'rune' | 'spell' | 'skill';
     const index = parseInt(event.dataTransfer!.getData('lootIndex'));
 
     const world = this.store.worldValue;
@@ -666,6 +673,9 @@ export class WorldComponent implements OnInit, OnDestroy {
         break;
       case 'spell':
         lootData = world.spellLibrary[index];
+        break;
+      case 'skill':
+        lootData = world.skillLibrary[index];
         break;
     }
 
