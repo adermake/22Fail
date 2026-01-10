@@ -17,12 +17,22 @@
               {{ item.type }}
             </div>
             <div class="loot-details">
-              <h3>{{ item.data.name }}</h3>
-              <p>{{ item.data.description }}</p>
-              @if (item.type === 'item') {
-                <div class="item-stats">
-                  <span>Weight: {{ item.data.weight }}</span>
+              @if (item.type === 'currency') {
+                <h3>Currency Reward</h3>
+                <div class="currency-display">
+                  @if (item.data.platinum > 0) { <span class="currency-amount">{{ item.data.platinum }} Platinum</span> }
+                  @if (item.data.gold > 0) { <span class="currency-amount">{{ item.data.gold }} Gold</span> }
+                  @if (item.data.silver > 0) { <span class="currency-amount">{{ item.data.silver }} Silver</span> }
+                  @if (item.data.copper > 0) { <span class="currency-amount">{{ item.data.copper }} Copper</span> }
                 </div>
+              } @else {
+                <h3>{{ item.data.name }}</h3>
+                <p>{{ item.data.description }}</p>
+                @if (item.type === 'item') {
+                  <div class="item-stats">
+                    <span>Weight: {{ item.data.weight }}</span>
+                  </div>
+                }
               }
               @if (isBattleLoot) {
                 <div class="claimed-info">

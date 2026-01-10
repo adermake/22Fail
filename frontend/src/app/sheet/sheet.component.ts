@@ -111,6 +111,20 @@ export class SheetComponent implements OnInit {
           value: [...sheet.spells, lootItem.data]
         });
         break;
+      case 'currency':
+        // Add currency to character's currency
+        const currentCurrency = sheet.currency || { copper: 0, silver: 0, gold: 0, platinum: 0 };
+        const newCurrency = {
+          copper: (currentCurrency.copper || 0) + (lootItem.data.copper || 0),
+          silver: (currentCurrency.silver || 0) + (lootItem.data.silver || 0),
+          gold: (currentCurrency.gold || 0) + (lootItem.data.gold || 0),
+          platinum: (currentCurrency.platinum || 0) + (lootItem.data.platinum || 0)
+        };
+        this.store.applyPatch({
+          path: 'currency',
+          value: newCurrency
+        });
+        break;
     }
 
     // Remove claimed loot from popup immediately

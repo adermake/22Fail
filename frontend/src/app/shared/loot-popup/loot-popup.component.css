@@ -120,6 +120,11 @@
   background: #2196F3;
 }
 
+.loot-type-badge.currency {
+  background: #FFC107;
+  color: #333;
+}
+
 .loot-details {
   flex: 1;
 }
@@ -194,4 +199,23 @@
 
 .close-footer-btn:hover {
   background: #e0e0e0;
+}
+
+/* Currency Display */
+.currency-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.currency-amount {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: #333;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+  border: 1px solid rgba(255, 165, 0, 0.3);
 }

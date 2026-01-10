@@ -46,6 +46,14 @@ export class WorldComponent implements OnInit, OnDestroy {
   editingRunes = new Set<number>();
   editingSpells = new Set<number>();
 
+  // Currency reward form
+  newCurrencyReward = {
+    copper: 0,
+    silver: 0,
+    gold: 0,
+    platinum: 0
+  };
+
   constructor(
     private route: ActivatedRoute
   ) {}
@@ -418,6 +426,83 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
   }
 
+  addCurrencyReward() {
+    const world = this.store.worldValue;
+    if (!world) return;
+
+    // Check if any currency value is greater than 0
+    const hasValue = this.newCurrencyReward.copper > 0 ||
+                     this.newCurrencyReward.silver > 0 ||
+                     this.newCurrencyReward.gold > 0 ||
+                     this.newCurrencyReward.platinum > 0;
+
+    if (!hasValue) {
+      alert('Please enter at least one currency value greater than 0');
+      return;
+    }
+
+    const currencyLoot = {
+      id: `currency_${Date.now()}_${Math.random()}`,
+      type: 'currency' as const,
+      data: { ...this.newCurrencyReward },
+      claimedBy: [],
+      recipientIds: world.partyIds // Default to all party members
+    };
+
+    this.store.applyPatch({
+      path: 'battleLoot',
+      value: [...world.battleLoot, currencyLoot]
+    });
+
+    // Reset form
+    this.newCurrencyReward = {
+      copper: 0,
+      silver: 0,
+      gold: 0,
+      platinum: 0
+    };
+  }
+
+  isRecipient(loot: any, characterId: string): boolean {
+    // If recipientIds is not set or empty, everyone receives it
+    if (!loot.recipientIds || loot.recipientIds.length === 0) {
+      return true;
+    }
+    return loot.recipientIds.includes(characterId);
+  }
+
+  toggleRecipient(lootIndex: number, characterId: string) {
+    const world = this.store.worldValue;
+    if (!world) return;
+
+    const loot = world.battleLoot[lootIndex];
+    let recipientIds = loot.recipientIds || [];
+
+    // If recipientIds was empty (meaning "all"), initialize it with all party members
+    if (recipientIds.length === 0) {
+      recipientIds = [...world.partyIds];
+    }
+
+    // Toggle this character
+    if (recipientIds.includes(characterId)) {
+      recipientIds = recipientIds.filter(id => id !== characterId);
+    } else {
+      recipientIds = [...recipientIds, characterId];
+    }
+
+    // Update the loot item
+    const updatedLoot = [...world.battleLoot];
+    updatedLoot[lootIndex] = {
+      ...loot,
+      recipientIds
+    };
+
+    this.store.applyPatch({
+      path: 'battleLoot',
+      value: updatedLoot
+    });
+  }
+
   // Drag and drop functionality
   onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell', index: number) {
     event.dataTransfer!.effectAllowed = 'copy';
@@ -523,7 +608,8 @@ export class WorldComponent implements OnInit, OnDestroy {
         id: `${type}_${Date.now()}_${Math.random()}`,
         type,
         data: lootData,
-        claimedBy: []
+        claimedBy: [],
+        recipientIds: world.partyIds // Default to all party members
       };
 
       this.store.applyPatch({

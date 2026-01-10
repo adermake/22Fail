@@ -90,7 +90,20 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
   sendBattleLootToParty(worldName: string, partyIds: string[], loot: any) {
     if (this.server) {
       partyIds.forEach(characterId => {
-        this.server.to(characterId).emit('battleLootReceived', { worldName, loot });
+        // Filter loot to only include items this character should receive
+        const filteredLoot = loot.filter((item: any) => {
+          // If recipientIds is not set or empty, everyone gets it
+          if (!item.recipientIds || item.recipientIds.length === 0) {
+            return true;
+          }
+          // Otherwise, only include if this character is in the recipients list
+          return item.recipientIds.includes(characterId);
+        });
+
+        // Only send if there's loot for this character
+        if (filteredLoot.length > 0) {
+          this.server.to(characterId).emit('battleLootReceived', { worldName, loot: filteredLoot });
+        }
       });
     }
   }
