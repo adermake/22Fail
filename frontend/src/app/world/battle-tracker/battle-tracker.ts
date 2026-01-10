@@ -29,7 +29,6 @@ export class BattleTracker {
 
   draggedParticipant: string | null = null;
   dragOverIndex: number | null = null;
-  dropPosition: 'before' | 'after' | null = null;
   completingTurn = false;
   availableTeams = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
 
@@ -56,13 +55,15 @@ export class BattleTracker {
     }
 
     // Group turns that happen at the same time (within threshold) and same team
+    // BUT only group DIFFERENT characters (same character can't be in a group with itself)
     const grouped: Array<{ participants: BattleParticipant[], nextTurnAt: number, team?: string }> = [];
     for (const turn of queue) {
       const lastGroup = grouped[grouped.length - 1];
       if (lastGroup &&
           Math.abs(lastGroup.nextTurnAt - turn.nextTurnAt) < 0.01 &&
-          lastGroup.team === turn.team) {
-        // Add to existing group if same team and time
+          lastGroup.team === turn.team &&
+          !lastGroup.participants.some(p => p.characterId === turn.characterId)) {
+        // Add to existing group if same team, same time, and NOT the same character
         lastGroup.participants.push(turn);
       } else {
         // Create new group
@@ -108,15 +109,9 @@ export class BattleTracker {
     }
   }
 
-  onDragOverQueue(event: DragEvent, groupIndex: number) {
+  onDragOverDropZone(event: DragEvent, dropIndex: number) {
     event.preventDefault();
-    this.dragOverIndex = groupIndex;
-
-    // Determine if we're in the top or bottom half to show before/after indicator
-    const target = event.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    const midpoint = rect.left + rect.width / 2;
-    this.dropPosition = event.clientX < midpoint ? 'before' : 'after';
+    this.dragOverIndex = dropIndex;
 
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'move';
@@ -125,24 +120,15 @@ export class BattleTracker {
 
   onDragLeaveQueue() {
     this.dragOverIndex = null;
-    this.dropPosition = null;
   }
 
-  onDropOnQueue(event: DragEvent, groupIndex: number) {
+  onDropBetween(event: DragEvent, dropIndex: number) {
     event.preventDefault();
-
-    // Calculate actual index based on before/after position
-    let targetIndex = groupIndex;
-    if (this.dropPosition === 'after') {
-      targetIndex = groupIndex + 1;
-    }
-
     this.dragOverIndex = null;
-    this.dropPosition = null;
 
     if (this.draggedParticipant) {
-      // Reorder the character to this position
-      this.reorder.emit({ characterId: this.draggedParticipant, newIndex: targetIndex });
+      // Emit reorder with the drop index (character will be inserted at this position)
+      this.reorder.emit({ characterId: this.draggedParticipant, newIndex: dropIndex });
     }
     this.draggedParticipant = null;
   }

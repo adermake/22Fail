@@ -1004,7 +1004,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Change a participant's team and auto-sync with adjacent same-team members
+  // Change a participant's team and auto-sync with adjacent DIFFERENT same-team members
   changeParticipantTeam(characterId: string, team: string) {
     const world = this.store.worldValue;
     if (!world) return;
@@ -1019,27 +1019,32 @@ export class WorldComponent implements OnInit, OnDestroy {
     // Update team
     sorted[charIndex] = { ...sorted[charIndex], team };
 
-    // Auto-sync with adjacent same-team members
-    // Look backward for same team
+    // Auto-sync with adjacent same-team DIFFERENT character members
+    // Look backward for same team with different character
     let syncTurnAt = sorted[charIndex].nextTurnAt;
     for (let i = charIndex - 1; i >= 0; i--) {
-      if (sorted[i].team === team) {
-        // Found adjacent same-team member, sync to their time
+      if (sorted[i].team === team && sorted[i].characterId !== characterId) {
+        // Found adjacent same-team DIFFERENT character, sync to their time
         syncTurnAt = sorted[i].nextTurnAt;
         break;
-      } else {
+      } else if (sorted[i].team !== team) {
         // Different team, stop looking
         break;
       }
+      // Same character, continue looking
     }
 
-    // Look forward for same team and sync them all to the earliest time
+    // Look forward for same team with different characters and sync them all to the earliest time
     for (let i = charIndex; i < sorted.length; i++) {
-      if (sorted[i].team === team) {
+      if (sorted[i].team === team && sorted[i].characterId !== characterId) {
         sorted[i] = { ...sorted[i], nextTurnAt: syncTurnAt };
-      } else {
+      } else if (sorted[i].team !== team) {
         // Different team, stop looking
         break;
+      }
+      // Same character gets synced too if it's the character we're changing
+      if (sorted[i].characterId === characterId) {
+        sorted[i] = { ...sorted[i], nextTurnAt: syncTurnAt };
       }
     }
 
@@ -1067,21 +1072,38 @@ export class WorldComponent implements OnInit, OnDestroy {
     // Insert at new position
     filtered.splice(newIndex, 0, movingParticipant);
 
-    // Recalculate nextTurnAt values, grouping same team adjacent members
+    // NEW LOGIC: Queue is fixed up to the drop point, then calculated from there
     const reordered: BattleParticipant[] = [];
     let currentTime = 0;
 
     for (let i = 0; i < filtered.length; i++) {
       const current = filtered[i];
 
-      // Check if previous participant has same team
-      if (i > 0 && reordered[i - 1].team === current.team) {
-        // Same team as previous, use same time
-        reordered.push({ ...current, nextTurnAt: reordered[i - 1].nextTurnAt });
+      if (i <= newIndex) {
+        // FIXED PART: Up to and including the drop point
+        // Check if previous participant is DIFFERENT and has same team
+        if (i > 0 &&
+            reordered[i - 1].team === current.team &&
+            reordered[i - 1].characterId !== current.characterId) {
+          // Same team as previous AND different character, use same time (group turn)
+          reordered.push({ ...current, nextTurnAt: reordered[i - 1].nextTurnAt });
+        } else {
+          // Different team or same character or first participant, use new time
+          reordered.push({ ...current, nextTurnAt: currentTime });
+          currentTime += 10;
+        }
       } else {
-        // Different team or first participant, use new time
-        reordered.push({ ...current, nextTurnAt: currentTime });
-        currentTime += 10;
+        // CALCULATED PART: After the drop point, continue the sequence
+        // Check if previous participant is DIFFERENT and has same team
+        if (reordered[i - 1].team === current.team &&
+            reordered[i - 1].characterId !== current.characterId) {
+          // Same team as previous AND different character, use same time (group turn)
+          reordered.push({ ...current, nextTurnAt: reordered[i - 1].nextTurnAt });
+        } else {
+          // Different team or same character, use new time
+          reordered.push({ ...current, nextTurnAt: currentTime });
+          currentTime += 10;
+        }
       }
     }
 

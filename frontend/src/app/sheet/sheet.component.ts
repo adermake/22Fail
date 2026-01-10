@@ -10,6 +10,7 @@ import { CharacterApiService } from '../services/character-api.service';
 import { CharacterStoreService } from '../services/character-store.service';
 import { CharacterSocketService, BattleLootEvent } from '../services/character-socket.service';
 import { WorldSocketService } from '../services/world-socket.service';
+import { WorldApiService } from '../services/world-api.service';
 import { CommonModule } from '@angular/common';
 import { SkillsComponent } from './skills/skills.component';
 import { ClassTree } from './class-tree-model';
@@ -48,6 +49,7 @@ export class SheetComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private socket = inject(CharacterSocketService);
   private worldSocket = inject(WorldSocketService);
+  private worldApi = inject(WorldApiService);
   private cdr = inject(ChangeDetectorRef);
   private ngZone = inject(NgZone);
 
@@ -67,11 +69,32 @@ export class SheetComponent implements OnInit {
     this.worldSocket.connect();
 
     // Join world room when character sheet loads (if character has a world)
-    this.store.sheet$.subscribe((sheet) => {
+    this.store.sheet$.subscribe(async (sheet) => {
       if (sheet && sheet.worldName) {
         console.log('Joining world room:', sheet.worldName);
         this.currentWorldName = sheet.worldName;
         this.worldSocket.joinWorld(sheet.worldName);
+
+        // Check initial turn state
+        try {
+          const world = await this.worldApi.loadWorld(sheet.worldName);
+          if (world && world.battleParticipants && world.battleParticipants.length > 0) {
+            const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+            const currentTurnAt = sorted[0].nextTurnAt;
+            const currentTurnTeam = sorted[0].team;
+
+            // Find all in current group (same time and team)
+            const currentGroup = sorted.filter(p =>
+              Math.abs(p.nextTurnAt - currentTurnAt) < 0.01 && p.team === currentTurnTeam
+            );
+
+            this.isCurrentTurn = currentGroup.some(p => p.characterId === id);
+            console.log('Initial turn check - Is current turn:', this.isCurrentTurn);
+            this.cdr.detectChanges();
+          }
+        } catch (error) {
+          console.error('Failed to check initial turn state:', error);
+        }
       }
     });
 

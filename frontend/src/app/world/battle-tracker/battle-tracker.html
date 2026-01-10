@@ -54,19 +54,20 @@
   @if (turnQueue.length > 0) {
     <div class="turn-queue-section">
       <h3>Turn Order Queue</h3>
-      <p class="queue-hint">Drag portraits to reorder turns or onto each other to create group turns</p>
+      <p class="queue-hint">Drag portraits to reorder turns between positions</p>
       <div class="turn-queue">
         @for (group of turnQueue; track $index) {
+          <!-- Drop zone before each group -->
+          <div class="drop-zone"
+               [class.drop-zone-active]="dragOverIndex === $index"
+               (dragover)="onDragOverDropZone($event, $index)"
+               (dragleave)="onDragLeaveQueue()"
+               (drop)="onDropBetween($event, $index)"></div>
+
           <div class="queue-group"
                [class.current-turn]="$index === 0"
                [class.is-group]="group.participants.length > 1"
-               [class.drag-over]="dragOverIndex === $index"
-               [class.drop-indicator-before]="dragOverIndex === $index && dropPosition === 'before'"
-               [class.drop-indicator-after]="dragOverIndex === $index && dropPosition === 'after'"
-               [class.completing]="$index === 0 && completingTurn"
-               (dragover)="onDragOverQueue($event, $index)"
-               (dragleave)="onDragLeaveQueue()"
-               (drop)="onDropOnQueue($event, $index)">
+               [class.completing]="$index === 0 && completingTurn">
 
             <div class="group-portraits">
               @for (participant of group.participants; track participant.characterId) {
@@ -94,6 +95,12 @@
             }
           </div>
         }
+        <!-- Drop zone after the last group -->
+        <div class="drop-zone"
+             [class.drop-zone-active]="dragOverIndex === turnQueue.length"
+             (dragover)="onDragOverDropZone($event, turnQueue.length)"
+             (dragleave)="onDragLeaveQueue()"
+             (drop)="onDropBetween($event, turnQueue.length)"></div>
       </div>
 
       @if (currentTurn) {

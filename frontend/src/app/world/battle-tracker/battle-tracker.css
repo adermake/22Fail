@@ -223,12 +223,39 @@
 
 .turn-queue {
   display: flex;
-  gap: 1rem;
+  align-items: center;
   padding: 1rem;
   background: var(--bg);
   border-radius: 8px;
   overflow-x: auto;
   margin-bottom: 1rem;
+}
+
+/* Drop zones between queue groups */
+.drop-zone {
+  flex-shrink: 0;
+  width: 8px;
+  min-height: 80px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.drop-zone-active {
+  width: 16px;
+}
+
+.drop-zone-active::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent);
+  border-radius: 2px;
+  transform: translateX(-50%);
+  box-shadow: 0 0 12px var(--accent);
+  animation: dropIndicatorPulse 0.6s ease-in-out infinite;
 }
 
 .queue-group {
@@ -256,45 +283,6 @@
   }
 }
 
-.queue-group.drag-over {
-  border-color: var(--accent);
-  background: rgba(139, 92, 246, 0.1);
-  transform: scale(1.05);
-}
-
-/* Drop indicator lines */
-.queue-group.drop-indicator-before::before,
-.queue-group.drop-indicator-after::after {
-  content: '';
-  position: absolute;
-  top: -5px;
-  bottom: -5px;
-  width: 4px;
-  background: var(--accent);
-  border-radius: 2px;
-  z-index: 100;
-  box-shadow: 0 0 8px var(--accent);
-  animation: dropIndicatorPulse 0.8s ease-in-out infinite;
-}
-
-.queue-group.drop-indicator-before::before {
-  left: -10px;
-}
-
-.queue-group.drop-indicator-after::after {
-  right: -10px;
-}
-
-@keyframes dropIndicatorPulse {
-  0%, 100% {
-    opacity: 0.6;
-    transform: scaleY(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scaleY(1.05);
-  }
-}
 
 .queue-group.is-group {
   background: rgba(139, 92, 246, 0.05);
