@@ -816,12 +816,17 @@ export class WorldComponent implements OnInit, OnDestroy {
     if (!character) return;
 
     const speed = this.calculateSpeed(character);
+
+    // Stagger initial nextTurnAt to avoid ties
+    // Add a small offset based on current participant count
+    const offset = world.battleParticipants.length * 0.1;
+
     const newParticipant: BattleParticipant = {
       characterId,
       name: character.name || characterId,
       speed,
       turnFrequency: speed,
-      nextTurnAt: 0,
+      nextTurnAt: offset,
       portrait: character.portrait
     };
 
