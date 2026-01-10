@@ -73,12 +73,16 @@ export class WorldStoreService {
   }
 
   applyPatch(patch: JsonPatch) {
+    console.log('[WORLD STORE] Applying patch:', patch);
     // Apply optimistically
     const world = this.worldSubject.value;
     if (world) {
+      console.log('[WORLD STORE] World before patch:', JSON.parse(JSON.stringify(world)));
       this.applyJsonPatch(world, patch);
+      console.log('[WORLD STORE] World after patch:', JSON.parse(JSON.stringify(world)));
       this.worldSubject.next({ ...world });
     }
+    console.log('[WORLD STORE] Sending patch to socket for world:', this.worldName);
     this.socket.sendPatch(this.worldName, patch);
   }
 
