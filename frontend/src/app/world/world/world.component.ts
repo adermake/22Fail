@@ -10,6 +10,7 @@ import { CharacterSocketService, CharacterPatchEvent } from '../../services/char
 import { ItemBlock } from '../../model/item-block.model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
+import { SkillBlock } from '../../model/skill-block.model';
 import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { Subscription } from 'rxjs';
@@ -43,10 +44,11 @@ export class WorldComponent implements OnInit, OnDestroy {
   // Item creator dialog
   showItemCreator = false;
 
-  // Track which items/runes/spells are being edited (to disable dragging)
+  // Track which items/runes/spells/skills are being edited (to disable dragging)
   editingItems = new Set<number>();
   editingRunes = new Set<number>();
   editingSpells = new Set<number>();
+  editingSkills = new Set<number>();
 
   // Currency reward form
   newCurrencyReward = {
@@ -408,6 +410,65 @@ export class WorldComponent implements OnInit, OnDestroy {
         path: 'spellLibrary',
         value: newSpells
       });
+    }
+  }
+
+  // Skill library management
+  addSkill() {
+    const world = this.store.worldValue;
+    if (world) {
+      const newSkill = new SkillBlock();
+      newSkill.name = 'New Skill';
+      newSkill.description = '';
+      newSkill.type = 'passive';
+      newSkill.class = '';
+      newSkill.enlightened = false;
+      this.store.applyPatch({
+        path: 'skillLibrary',
+        value: [...world.skillLibrary, newSkill]
+      });
+    }
+  }
+
+  updateSkill(index: number, patch: JsonPatch) {
+    const world = this.store.worldValue;
+    if (world) {
+      const updatedSkills = [...world.skillLibrary];
+      const skill = { ...updatedSkills[index] };
+
+      // Apply the patch to the skill
+      const keys = patch.path.split('.');
+      let current: any = skill;
+      for (let i = 0; i < keys.length - 1; i++) {
+        current = current[keys[i]];
+      }
+      current[keys[keys.length - 1]] = patch.value;
+
+      updatedSkills[index] = skill;
+      this.store.applyPatch({
+        path: 'skillLibrary',
+        value: updatedSkills
+      });
+    }
+  }
+
+  removeSkill(index: number) {
+    const world = this.store.worldValue;
+    if (world) {
+      const newSkills = [...world.skillLibrary];
+      newSkills.splice(index, 1);
+      this.store.applyPatch({
+        path: 'skillLibrary',
+        value: newSkills
+      });
+    }
+  }
+
+  onSkillEditingChange(index: number, isEditing: boolean) {
+    if (isEditing) {
+      this.editingSkills.add(index);
+    } else {
+      this.editingSkills.delete(index);
     }
   }
 
