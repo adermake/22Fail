@@ -26,19 +26,22 @@ h2 {
 label {
   margin-bottom: 0.3rem;
   font-weight: 500;
+  color: var(--text);
 }
 
 input {
   padding: 0.5rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 6px;
   width: 100%;
   box-sizing: border-box;
   font-size: 1rem;
+  background: var(--bg);
+  color: var(--text);
 }
 
 input:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0,123,255,0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(107, 70, 193, 0.2);
 }

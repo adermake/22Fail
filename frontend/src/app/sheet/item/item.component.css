@@ -25,7 +25,7 @@
 
 .item-card.unusable {
   opacity: 0.6;
-  background: #fafafa;
+  background: var(--bg);
   border-left-color: #f44336;
 }
 
@@ -37,7 +37,7 @@
 
 .item-card.editing {
   background: var(--card);
-  border-color: #999;
+  border-color: var(--muted);
   opacity: 1;
   cursor: default;
 }
@@ -53,7 +53,7 @@
 .item-header h4 {
   margin: 0;
   font-size: 1.1rem;
-  color: #333;
+  color: var(--text);
   word-break: break-word;
   flex: 1;
   min-width: 0;
@@ -68,8 +68,8 @@
 }
 
 .item-weight {
-  background: #f0f0f0;
-  color: #555;
+  background: var(--bg);
+  color: var(--text);
   padding: 0.25rem 0.5rem;
   border-radius: 3px;
   font-size: 0.8rem;
@@ -88,7 +88,7 @@
 }
 
 .item-description {
-  color: #666;
+  color: var(--text);
   margin: 0.5rem 0;
   font-size: 0.9rem;
   line-height: 1.5;
@@ -104,30 +104,30 @@
   flex-wrap: wrap;
   margin-top: 0.75rem;
   padding-top: 0.75rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border);
 }
 
 .req-label {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--muted);
   font-weight: 500;
 }
 
 .req-stat {
-  background: #e3f2fd;
-  color: #1976d2;
+  background: rgba(25, 118, 210, 0.2);
+  color: #64b5f6;
   padding: 0.2rem 0.5rem;
   border-radius: 3px;
   font-size: 0.8rem;
-  border: 1px solid #90caf9;
+  border: 1px solid rgba(25, 118, 210, 0.4);
   white-space: nowrap;
   font-weight: 600;
 }
 
 .req-stat.unmet {
-  background: #ffebee;
-  color: #c62828;
-  border-color: #ef9a9a;
+  background: rgba(244, 67, 54, 0.2);
+  color: #ef5350;
+  border-color: rgba(244, 67, 54, 0.4);
   text-decoration: line-through;
 }
 
@@ -179,7 +179,7 @@
   margin-bottom: 0.25rem;
   font-weight: 500;
   font-size: 0.9rem;
-  color: #555;
+  color: var(--text);
 }
 
 .field input,
@@ -191,12 +191,14 @@
   font-family: inherit;
   font-size: 0.9rem;
   box-sizing: border-box;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .field input:focus,
 .field textarea:focus {
   outline: none;
-  border-color: #999;
+  border-color: var(--accent);
 }
 
 .field textarea {
@@ -212,7 +214,7 @@
   margin-bottom: 0.5rem;
   font-weight: 500;
   font-size: 0.9rem;
-  color: #555;
+  color: var(--text);
 }
 
 .requirements-grid {
@@ -229,7 +231,7 @@
 
 .req-field label {
   font-size: 0.8rem;
-  color: #666;
+  color: var(--text);
   font-weight: 500;
 }
 
@@ -238,11 +240,13 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 0.85rem;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .req-field input:focus {
   outline: none;
-  border-color: #999;
+  border-color: var(--accent);
 }
 
 .item-edit {

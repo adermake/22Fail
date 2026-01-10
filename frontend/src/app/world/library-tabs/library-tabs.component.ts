@@ -65,7 +65,7 @@ export class LibraryTabsComponent {
       );
     }
 
-    return filtered.sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       const nameA = (a.name || '').toLowerCase();
       const nameB = (b.name || '').toLowerCase();
       return nameA.localeCompare(nameB);

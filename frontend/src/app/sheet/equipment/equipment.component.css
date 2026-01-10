@@ -10,7 +10,7 @@
 }
 
 .armor-weight {
-  color: #666;
+  color: var(--muted);
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -21,19 +21,19 @@
   gap: 0.5rem;
   min-height: 150px;
   padding: 0.5rem;
-  border: 2px dashed #ddd;
+  border: 2px dashed var(--border);
   border-radius: 6px;
-  background: #fafafa;
+  background: var(--bg);
 }
 
 .equipment-list.cdk-drop-list-dragging {
-  background: #f0f0f0;
+  background: var(--card);
   border-color: var(--accent);
 }
 
 .empty-message {
   text-align: center;
-  color: #999;
+  color: var(--muted);
   padding: 2rem;
   font-style: italic;
   margin: 0;
@@ -47,8 +47,8 @@
 }
 
 .drag-placeholder-wrapper {
-  background: #f5f5f5;
-  border: 2px dashed #ccc;
+  background: var(--bg);
+  border: 2px dashed var(--border);
   border-radius: 6px;
   box-sizing: border-box;
 }

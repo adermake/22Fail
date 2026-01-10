@@ -38,9 +38,10 @@
 .weight-bar {
   width: 200px;
   height: 8px;
-  background: #e0e0e0;
+  background: var(--bg);
   border-radius: 4px;
   overflow: hidden;
+  border: 1px solid var(--border);
 }
 
 .weight-fill {
@@ -57,7 +58,7 @@
 
 .settings-btn {
   padding: 0.5rem 0.75rem;
-  background-color: #607d8b;
+  background-color: var(--muted);
   color: white;
   border: none;
   border-radius: 4px;
@@ -67,7 +68,7 @@
 }
 
 .settings-btn:hover {
-  background-color: #546e7a;
+  background-color: var(--text);
 }
 
 .add-btn {
@@ -95,7 +96,7 @@
 
 .empty-message {
   text-align: center;
-  color: #666;
+  color: var(--muted);
   padding: 2rem;
   font-style: italic;
 }
@@ -142,7 +143,7 @@
 .settings-form .field label {
   font-weight: 500;
   font-size: 0.9rem;
-  color: #555;
+  color: var(--text);
 }
 
 .settings-form .field input {
@@ -162,7 +163,7 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: #f5f5f5;
+  background: var(--bg);
   border-radius: 4px;
 }
 
@@ -196,8 +197,8 @@
 }
 
 .drag-placeholder-wrapper {
-  background: #f5f5f5;
-  border: 2px dashed #ccc;
+  background: var(--bg);
+  border: 2px dashed var(--border);
   border-radius: 6px;
   box-sizing: border-box;
 }
@@ -212,5 +213,5 @@
 
 .currency-weight-label {
   font-size: 0.8rem;
-  color: #999;
+  color: var(--muted);
 }
