@@ -185,15 +185,28 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   // Party management
-  addToParty() {
+  async addToParty() {
     if (!this.selectedCharacterForParty) return;
 
     const world = this.store.worldValue;
     if (world && !world.partyIds.includes(this.selectedCharacterForParty)) {
+      // Update world to include character in party
       this.store.applyPatch({
         path: 'partyIds',
         value: [...world.partyIds, this.selectedCharacterForParty]
       });
+
+      // Update character's worldName so they auto-join the world room
+      try {
+        const character = await this.characterApi.loadCharacter(this.selectedCharacterForParty);
+        if (character && character.worldName !== world.name) {
+          character.worldName = world.name;
+          await this.characterApi.saveCharacter(this.selectedCharacterForParty, character);
+        }
+      } catch (error) {
+        console.error('Failed to update character worldName:', error);
+      }
+
       this.selectedCharacterForParty = '';
     }
   }

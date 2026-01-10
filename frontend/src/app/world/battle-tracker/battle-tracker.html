@@ -27,12 +27,7 @@
       <div class="participants-list">
         @for (participant of battleParticipants; track participant.characterId) {
           <div class="participant-item"
-               [attr.data-team]="participant.team"
-               draggable="true"
-               (dragstart)="onDragStartParticipant($event, participant.characterId)"
-               (dragover)="onDragOverParticipant($event)"
-               (drop)="onDropOnParticipant($event, participant.characterId)"
-               (dragend)="onDragEnd()">
+               [attr.data-team]="participant.team">
             <div class="participant-info">
               @if (participant.portrait) {
                 <img [src]="participant.portrait" alt="{{ participant.name }}" class="participant-portrait">

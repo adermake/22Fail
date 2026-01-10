@@ -97,30 +97,6 @@ export class BattleTracker {
     this.resetBattle.emit();
   }
 
-  // Drag and drop handlers for participants list
-  onDragStartParticipant(event: DragEvent, characterId: string) {
-    this.draggedParticipant = characterId;
-    if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', characterId);
-    }
-  }
-
-  onDragOverParticipant(event: DragEvent) {
-    event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
-    }
-  }
-
-  onDropOnParticipant(event: DragEvent, targetId: string) {
-    event.preventDefault();
-    if (this.draggedParticipant && this.draggedParticipant !== targetId) {
-      // Sync the dragged character's turn with the target character
-      this.syncTurns.emit({ sourceId: this.draggedParticipant, targetId });
-    }
-    this.draggedParticipant = null;
-  }
 
   // Drag and drop handlers for turn queue
   onDragStartQueue(event: DragEvent, characterId: string) {

@@ -16,6 +16,7 @@ export interface CharacterSheet {
   size: string;
   extrainfo: string;
   portrait?: string;
+  worldName?: string; // The world this character belongs to
   // Klassen
   primary_class: string;
   secondary_class: string;

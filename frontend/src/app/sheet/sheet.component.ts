@@ -63,8 +63,17 @@ export class SheetComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id')!;
     this.store.load(id);
 
-    // Connect to world socket for battle loot notifications
+    // Connect to world socket for battle loot notifications and turn tracking
     this.worldSocket.connect();
+
+    // Join world room when character sheet loads (if character has a world)
+    this.store.sheet$.subscribe((sheet) => {
+      if (sheet && sheet.worldName) {
+        console.log('Joining world room:', sheet.worldName);
+        this.currentWorldName = sheet.worldName;
+        this.worldSocket.joinWorld(sheet.worldName);
+      }
+    });
 
     // Listen for loot notifications
     this.socket.lootReceived$.subscribe((loot: LootItem) => {

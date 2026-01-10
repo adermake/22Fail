@@ -114,7 +114,6 @@
   border-left: 4px solid var(--border);
   border-radius: 6px;
   transition: all 0.2s;
-  cursor: grab;
 }
 
 .participant-item[data-team="blue"] {
