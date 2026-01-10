@@ -111,9 +111,29 @@
   padding: 0.75rem;
   background: var(--bg);
   border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
   border-radius: 6px;
   transition: all 0.2s;
   cursor: grab;
+}
+
+.participant-item[data-team="blue"] {
+  border-left-color: #3b82f6;
+}
+.participant-item[data-team="red"] {
+  border-left-color: #ef4444;
+}
+.participant-item[data-team="green"] {
+  border-left-color: #22c55e;
+}
+.participant-item[data-team="yellow"] {
+  border-left-color: #eab308;
+}
+.participant-item[data-team="purple"] {
+  border-left-color: #a855f7;
+}
+.participant-item[data-team="orange"] {
+  border-left-color: #f97316;
 }
 
 .participant-item:active {
@@ -144,6 +164,22 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.team-selector {
+  padding: 0.25rem 0.5rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 0.25rem;
+}
+
+.team-selector:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .participant-name {
@@ -283,6 +319,31 @@
   border: 3px solid var(--border);
   transition: all 0.2s;
   background: var(--card);
+}
+
+.queue-item[data-team="blue"] .queue-portrait,
+.queue-item[data-team="blue"] .queue-portrait-placeholder {
+  border-color: #3b82f6;
+}
+.queue-item[data-team="red"] .queue-portrait,
+.queue-item[data-team="red"] .queue-portrait-placeholder {
+  border-color: #ef4444;
+}
+.queue-item[data-team="green"] .queue-portrait,
+.queue-item[data-team="green"] .queue-portrait-placeholder {
+  border-color: #22c55e;
+}
+.queue-item[data-team="yellow"] .queue-portrait,
+.queue-item[data-team="yellow"] .queue-portrait-placeholder {
+  border-color: #eab308;
+}
+.queue-item[data-team="purple"] .queue-portrait,
+.queue-item[data-team="purple"] .queue-portrait-placeholder {
+  border-color: #a855f7;
+}
+.queue-item[data-team="orange"] .queue-portrait,
+.queue-item[data-team="orange"] .queue-portrait-placeholder {
+  border-color: #f97316;
 }
 
 .queue-portrait-placeholder {

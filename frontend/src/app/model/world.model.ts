@@ -47,6 +47,7 @@ export interface BattleParticipant {
   turnFrequency: number; // Calculated based on speed
   nextTurnAt: number; // Used to determine turn order
   portrait?: string; // Character portrait URL
+  team?: string; // Team color for grouping (e.g., 'red', 'blue', 'green', 'yellow', 'purple')
 }
 
 export function createEmptyWorld(name: string): WorldData {

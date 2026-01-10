@@ -27,6 +27,7 @@
       <div class="participants-list">
         @for (participant of battleParticipants; track participant.characterId) {
           <div class="participant-item"
+               [attr.data-team]="participant.team"
                draggable="true"
                (dragstart)="onDragStartParticipant($event, participant.characterId)"
                (dragover)="onDragOverParticipant($event)"
@@ -39,6 +40,11 @@
               <div class="participant-details">
                 <span class="participant-name">{{ participant.name }}</span>
                 <span class="participant-speed">Speed: {{ participant.speed }}</span>
+                <select class="team-selector" [ngModel]="participant.team" (ngModelChange)="onTeamChange(participant.characterId, $any($event))">
+                  @for (team of availableTeams; track team) {
+                    <option [value]="team">{{ team }}</option>
+                  }
+                </select>
               </div>
             </div>
             <button class="remove-button" (click)="onRemoveCharacter(participant.characterId)">×</button>
@@ -68,10 +74,9 @@
             <div class="group-portraits">
               @for (participant of group.participants; track participant.characterId) {
                 <div class="queue-item"
+                     [attr.data-team]="participant.team"
                      draggable="true"
                      (dragstart)="onDragStartQueue($event, participant.characterId)"
-                     (drop)="onDropOnCharacter($event, participant.characterId)"
-                     (dragover)="$event.preventDefault()"
                      (dragend)="onDragEnd()">
                   @if (participant.portrait) {
                     <img [src]="participant.portrait" alt="{{ participant.name }}" class="queue-portrait">

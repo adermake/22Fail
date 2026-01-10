@@ -827,7 +827,8 @@ export class WorldComponent implements OnInit, OnDestroy {
       speed,
       turnFrequency: speed,
       nextTurnAt: offset,
-      portrait: character.portrait
+      portrait: character.portrait,
+      team: 'blue' // Default team color
     };
 
     this.store.applyPatch({
@@ -856,16 +857,21 @@ export class WorldComponent implements OnInit, OnDestroy {
 
     // Sort by nextTurnAt to find who goes next
     const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-    const currentParticipant = sorted[0];
+    const currentTurnAt = sorted[0].nextTurnAt;
 
-    // Update participants with fresh speed calculations and advance current turn
+    // Find all participants in the current group (same nextTurnAt within threshold and same team)
+    const currentGroup = sorted.filter(p =>
+      Math.abs(p.nextTurnAt - currentTurnAt) < 0.01 && p.team === sorted[0].team
+    );
+    const currentGroupIds = new Set(currentGroup.map(p => p.characterId));
+
+    // Update participants with fresh speed calculations and advance current group
     const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
       const character = this.partyCharacters.get(p.characterId);
       const freshSpeed = character ? this.calculateSpeed(character) : p.speed;
 
-      if (p.characterId === currentParticipant.characterId) {
-        // Advance this participant's turn by incrementing based on inverse of speed
-        // Higher speed = smaller increment = more frequent turns
+      if (currentGroupIds.has(p.characterId)) {
+        // Advance all participants in the current group
         return {
           ...p,
           speed: freshSpeed,
@@ -983,6 +989,54 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.store.applyPatch({
       path: 'battleParticipants',
       value: updatedParticipants
+    });
+  }
+
+  // Change a participant's team
+  changeParticipantTeam(characterId: string, team: string) {
+    const world = this.store.worldValue;
+    if (!world) return;
+
+    const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
+      if (p.characterId === characterId) {
+        return { ...p, team };
+      }
+      return p;
+    });
+
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: updatedParticipants
+    });
+  }
+
+  // Reorder participants by moving one to a new position
+  reorderParticipants(characterId: string, newIndex: number) {
+    const world = this.store.worldValue;
+    if (!world) return;
+
+    // Sort current participants by nextTurnAt
+    const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+
+    // Find the participant being moved
+    const movingParticipant = sorted.find(p => p.characterId === characterId);
+    if (!movingParticipant) return;
+
+    // Remove from current position
+    const filtered = sorted.filter(p => p.characterId !== characterId);
+
+    // Insert at new position
+    filtered.splice(newIndex, 0, movingParticipant);
+
+    // Recalculate nextTurnAt values based on new order
+    const reordered = filtered.map((p, index) => ({
+      ...p,
+      nextTurnAt: index * 10 // Space them out by 10 units
+    }));
+
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: reordered
     });
   }
 }

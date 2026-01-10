@@ -118,12 +118,15 @@ export class SheetComponent implements OnInit {
 
         // Check if battle participants were updated to determine current turn
         if (patch.path === 'battleParticipants') {
+          console.log('Battle participants updated:', patch.value);
           const participants = patch.value as any[];
           if (participants && participants.length > 0) {
             // Find who has the current turn (lowest nextTurnAt)
             const sorted = [...participants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
             const currentTurnCharacterId = sorted[0]?.characterId;
+            console.log('Current turn character ID:', currentTurnCharacterId, 'My ID:', id);
             this.isCurrentTurn = currentTurnCharacterId === id;
+            console.log('Is current turn:', this.isCurrentTurn);
             this.cdr.detectChanges();
           } else {
             this.isCurrentTurn = false;

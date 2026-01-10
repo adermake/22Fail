@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { BattleParticipant } from '../../model/world.model';
 
 interface CharacterOption {
@@ -10,7 +11,7 @@ interface CharacterOption {
 
 @Component({
   selector: 'app-battle-tracker',
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './battle-tracker.html',
   styleUrl: './battle-tracker.css',
 })
@@ -23,12 +24,13 @@ export class BattleTracker {
   @Output() removeParticipant = new EventEmitter<string>();
   @Output() nextTurn = new EventEmitter<void>();
   @Output() resetBattle = new EventEmitter<void>();
-  @Output() syncTurns = new EventEmitter<{ sourceId: string; targetId: string }>();
-  @Output() setTurnOrder = new EventEmitter<{ characterId: string; position: number }>();
+  @Output() changeTeam = new EventEmitter<{ characterId: string; team: string }>();
+  @Output() reorder = new EventEmitter<{ characterId: string; newIndex: number }>();
 
   draggedParticipant: string | null = null;
   dragOverIndex: number | null = null;
   completingTurn = false;
+  availableTeams = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
 
   get sortedTurnOrder(): BattleParticipant[] {
     return [...this.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
@@ -38,8 +40,8 @@ export class BattleTracker {
     return this.sortedTurnOrder[0];
   }
 
-  // Generate turn queue showing next N turns with grouping
-  get turnQueue(): Array<{ participants: BattleParticipant[], nextTurnAt: number }> {
+  // Generate turn queue showing next N turns with grouping by team
+  get turnQueue(): Array<{ participants: BattleParticipant[], nextTurnAt: number, team?: string }> {
     if (this.battleParticipants.length === 0) return [];
 
     const queue: BattleParticipant[] = [];
@@ -52,16 +54,18 @@ export class BattleTracker {
       next.nextTurnAt = next.nextTurnAt + (1000 / next.speed);
     }
 
-    // Group turns that happen at the same time (within threshold of 0.01)
-    const grouped: Array<{ participants: BattleParticipant[], nextTurnAt: number }> = [];
+    // Group turns that happen at the same time (within threshold) and same team
+    const grouped: Array<{ participants: BattleParticipant[], nextTurnAt: number, team?: string }> = [];
     for (const turn of queue) {
       const lastGroup = grouped[grouped.length - 1];
-      if (lastGroup && Math.abs(lastGroup.nextTurnAt - turn.nextTurnAt) < 0.01) {
-        // Add to existing group
+      if (lastGroup &&
+          Math.abs(lastGroup.nextTurnAt - turn.nextTurnAt) < 0.01 &&
+          lastGroup.team === turn.team) {
+        // Add to existing group if same team and time
         lastGroup.participants.push(turn);
       } else {
         // Create new group
-        grouped.push({ participants: [turn], nextTurnAt: turn.nextTurnAt });
+        grouped.push({ participants: [turn], nextTurnAt: turn.nextTurnAt, team: turn.team });
       }
     }
 
@@ -143,22 +147,14 @@ export class BattleTracker {
     event.preventDefault();
     this.dragOverIndex = null;
     if (this.draggedParticipant) {
-      // Set the character to appear at this position in the queue
-      this.setTurnOrder.emit({ characterId: this.draggedParticipant, position: groupIndex });
+      // Reorder the character to this position
+      this.reorder.emit({ characterId: this.draggedParticipant, newIndex: groupIndex });
     }
     this.draggedParticipant = null;
   }
 
-  // Drop on specific character to create group
-  onDropOnCharacter(event: DragEvent, targetCharacterId: string) {
-    event.preventDefault();
-    event.stopPropagation();
-    this.dragOverIndex = null;
-    if (this.draggedParticipant && this.draggedParticipant !== targetCharacterId) {
-      // Sync the dragged character's turn with the target character
-      this.syncTurns.emit({ sourceId: this.draggedParticipant, targetId: targetCharacterId });
-    }
-    this.draggedParticipant = null;
+  onTeamChange(characterId: string, team: string) {
+    this.changeTeam.emit({ characterId, team });
   }
 
   onDragEnd() {
