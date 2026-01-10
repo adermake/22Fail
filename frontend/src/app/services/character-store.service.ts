@@ -68,6 +68,12 @@ export class CharacterStoreService {
   }
 
   applyPatch(patch: JsonPatch) {
+    // Apply optimistically
+    const sheet = this.sheetSubject.value;
+    if (sheet) {
+      this.applyJsonPatch(sheet, patch);
+      this.sheetSubject.next({ ...sheet });
+    }
     this.socket.sendPatch(this.characterId, patch);
   }
 
