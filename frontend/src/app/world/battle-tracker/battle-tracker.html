@@ -1,0 +1,50 @@
+<div class="battle-tracker">
+  <div class="battle-header">
+    <h2>Battle Tracker</h2>
+    <button class="reset-button" (click)="onResetBattle()">Reset Battle</button>
+  </div>
+
+  <div class="add-character-section">
+    <h3>Add to Battle</h3>
+    @if (availableToAdd.length > 0) {
+      <div class="character-list">
+        @for (char of availableToAdd; track char.id) {
+          <div class="character-option">
+            <span class="character-name">{{ char.name }}</span>
+            <span class="character-speed">Speed: {{ char.speed }}</span>
+            <button class="add-button" (click)="onAddCharacter(char.id)">+</button>
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="empty-message">All characters are in battle</p>
+    }
+  </div>
+
+  <div class="turn-order-section">
+    <h3>Turn Order</h3>
+    @if (battleParticipants.length > 0) {
+      <div class="turn-list">
+        @for (participant of sortedTurnOrder; track participant.characterId; let i = $index) {
+          <div class="turn-item" [class.current-turn]="i === 0">
+            <div class="turn-info">
+              <span class="turn-name">{{ participant.name }}</span>
+              <span class="turn-speed">Speed: {{ participant.speed }}</span>
+              <span class="turn-next">Next: {{ participant.nextTurnAt }}</span>
+            </div>
+            <button class="remove-button" (click)="onRemoveCharacter(participant.characterId)">×</button>
+          </div>
+        }
+      </div>
+
+      @if (currentTurn) {
+        <div class="current-turn-display">
+          <p><strong>Current Turn:</strong> {{ currentTurn.name }}</p>
+          <button class="complete-turn-button" (click)="onNextTurn()">Complete Turn</button>
+        </div>
+      }
+    } @else {
+      <p class="empty-message">No participants in battle</p>
+    }
+  </div>
+</div>

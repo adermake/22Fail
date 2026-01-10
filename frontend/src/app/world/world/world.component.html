@@ -70,7 +70,6 @@
                 }
                 <div class="character-info">
                   <h3>{{ member.sheet.name || member.id }}</h3>
-                  <div class="drop-hint">Drop items here</div>
                 </div>
               </div>
 
@@ -117,6 +116,19 @@
         </div>
       }
     </app-card>
+  </div>
+
+  <!-- Battle Tracker Section -->
+  <div class="battle-tracker-section">
+    <app-battle-tracker
+      [battleParticipants]="world.battleParticipants"
+      [currentTurnIndex]="world.currentTurnIndex"
+      [availableCharacters]="availableCharactersForBattle"
+      (addParticipant)="addToBattle($event)"
+      (removeParticipant)="removeFromBattle($event)"
+      (nextTurn)="advanceTurn()"
+      (resetBattle)="resetBattle()">
+    </app-battle-tracker>
   </div>
 
   <!-- Bottom Section: Battle Loot + Library -->

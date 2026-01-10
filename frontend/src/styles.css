@@ -33,6 +33,14 @@ textarea {
   color: var(--text);
 }
 
+/* Style number input spinner arrows for dark theme */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  opacity: 1;
+  cursor: pointer;
+  filter: invert(0.8);
+}
+
 input {
   padding: 4px;
   border: 1px solid var(--border);

@@ -55,6 +55,13 @@ export class WorldStoreService {
       this.worldSubject.next(world);
       this.save();
     } else {
+      // Migrate existing worlds to include new fields
+      if (!world.battleParticipants) {
+        world.battleParticipants = [];
+      }
+      if (world.currentTurnIndex === undefined) {
+        world.currentTurnIndex = 0;
+      }
       this.worldSubject.next(world);
     }
 

@@ -13,6 +13,8 @@ export interface WorldData {
   skillLibrary: SkillBlock[];
   lootBundles: LootBundle[];
   battleLoot: LootItem[];
+  battleParticipants: BattleParticipant[];
+  currentTurnIndex: number;
 }
 
 export interface LootItem {
@@ -38,6 +40,14 @@ export interface LootBundle {
   };
 }
 
+export interface BattleParticipant {
+  characterId: string;
+  name: string;
+  speed: number;
+  turnFrequency: number; // Calculated based on speed
+  nextTurnAt: number; // Used to determine turn order
+}
+
 export function createEmptyWorld(name: string): WorldData {
   return {
     name,
@@ -49,5 +59,7 @@ export function createEmptyWorld(name: string): WorldData {
     skillLibrary: [],
     lootBundles: [],
     battleLoot: [],
+    battleParticipants: [],
+    currentTurnIndex: 0,
   };
 }

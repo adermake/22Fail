@@ -15,10 +15,12 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { Subscription } from 'rxjs';
 import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.component';
 import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
+import { BattleTracker } from '../battle-tracker/battle-tracker';
+import { BattleParticipant } from '../../model/world.model';
 
 @Component({
   selector: 'app-world',
-  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent],
+  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
 })
@@ -710,5 +712,92 @@ export class WorldComponent implements OnInit, OnDestroy {
     } else {
       current[finalKey] = patch.value;
     }
+  }
+
+  // Battle tracker methods
+  get availableCharactersForBattle() {
+    return this.getPartyCharacterArray().map(member => ({
+      id: member.id,
+      name: member.sheet.name || member.id,
+      speed: member.sheet.speed?.current || 10
+    }));
+  }
+
+  addToBattle(characterId: string) {
+    const world = this.store.worldValue;
+    if (!world) return;
+
+    const character = this.partyCharacters.get(characterId);
+    if (!character) return;
+
+    const speed = character.speed?.current || 10;
+    const newParticipant: BattleParticipant = {
+      characterId,
+      name: character.name || characterId,
+      speed,
+      turnFrequency: speed,
+      nextTurnAt: 0
+    };
+
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: [...world.battleParticipants, newParticipant]
+    });
+  }
+
+  removeFromBattle(characterId: string) {
+    const world = this.store.worldValue;
+    if (!world) return;
+
+    const updatedParticipants = world.battleParticipants.filter(
+      (p: BattleParticipant) => p.characterId !== characterId
+    );
+
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: updatedParticipants
+    });
+  }
+
+  advanceTurn() {
+    const world = this.store.worldValue;
+    if (!world || world.battleParticipants.length === 0) return;
+
+    // Sort by nextTurnAt to find who goes next
+    const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+    const currentParticipant = sorted[0];
+
+    // Advance this participant's next turn based on their speed
+    // Lower speed = longer wait between turns
+    const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
+      if (p.characterId === currentParticipant.characterId) {
+        return {
+          ...p,
+          nextTurnAt: p.nextTurnAt + (100 / p.speed) // Speed-based turn calculation
+        };
+      }
+      return p;
+    });
+
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: updatedParticipants
+    });
+  }
+
+  resetBattle() {
+    const world = this.store.worldValue;
+    if (!world) return;
+
+    // Reset all participants' nextTurnAt to 0
+    const resetParticipants = world.battleParticipants.map((p: BattleParticipant) => ({
+      ...p,
+      nextTurnAt: 0
+    }));
+
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: resetParticipants
+    });
   }
 }
