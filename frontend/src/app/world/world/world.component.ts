@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { CardComponent } from '../../shared/card/card.component';
 import { WorldStoreService } from '../../services/world-store.service';
+import { WorldSocketService } from '../../services/world-socket.service';
 import { CharacterApiService } from '../../services/character-api.service';
 import { CharacterSocketService, CharacterPatchEvent } from '../../services/character-socket.service';
 import { ItemBlock } from '../../model/item-block.model';
@@ -12,20 +13,19 @@ import { SpellBlock } from '../../model/spell-block-model';
 import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { Subscription } from 'rxjs';
-import { ItemComponent } from '../../sheet/item/item.component';
-import { RuneComponent } from '../../shared/rune/rune.component';
-import { SpellComponent } from '../../sheet/spell/spell.component';
 import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.component';
+import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
 
 @Component({
   selector: 'app-world',
-  imports: [CommonModule, CardComponent, FormsModule, ItemComponent, RuneComponent, SpellComponent, ItemCreatorComponent],
+  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
 })
 export class WorldComponent implements OnInit, OnDestroy {
   worldName: string = '';
   store = inject(WorldStoreService);
+  worldSocket = inject(WorldSocketService);
   characterApi = inject(CharacterApiService);
   characterSocket = inject(CharacterSocketService);
   cdr = inject(ChangeDetectorRef);
@@ -53,6 +53,10 @@ export class WorldComponent implements OnInit, OnDestroy {
     gold: 0,
     platinum: 0
   };
+
+  // Auto-scroll while dragging
+  private dragScrollInterval?: number;
+  private isDragging = false;
 
   constructor(
     private route: ActivatedRoute
@@ -508,15 +512,58 @@ export class WorldComponent implements OnInit, OnDestroy {
     event.dataTransfer!.effectAllowed = 'copy';
     event.dataTransfer!.setData('lootType', type);
     event.dataTransfer!.setData('lootIndex', index.toString());
+
+    this.isDragging = true;
+    this.startAutoScroll();
   }
 
   onDragOver(event: DragEvent) {
     event.preventDefault();
     event.dataTransfer!.dropEffect = 'copy';
+
+    // Update auto-scroll based on mouse position
+    this.updateAutoScroll(event.clientY);
+  }
+
+  private startAutoScroll() {
+    if (this.dragScrollInterval) {
+      clearInterval(this.dragScrollInterval);
+    }
+
+    this.dragScrollInterval = window.setInterval(() => {
+      if (!this.isDragging) {
+        this.stopAutoScroll();
+      }
+    }, 16); // ~60fps
+  }
+
+  private updateAutoScroll(mouseY: number) {
+    const scrollSpeed = 10;
+    const scrollThreshold = 100; // pixels from edge
+
+    const viewportHeight = window.innerHeight;
+
+    if (mouseY < scrollThreshold) {
+      // Scroll up
+      window.scrollBy(0, -scrollSpeed);
+    } else if (mouseY > viewportHeight - scrollThreshold) {
+      // Scroll down
+      window.scrollBy(0, scrollSpeed);
+    }
+  }
+
+  private stopAutoScroll() {
+    if (this.dragScrollInterval) {
+      clearInterval(this.dragScrollInterval);
+      this.dragScrollInterval = undefined;
+    }
+    this.isDragging = false;
   }
 
   onDropOnCharacter(event: DragEvent, characterId: string) {
     event.preventDefault();
+    this.stopAutoScroll();
+
     const type = event.dataTransfer!.getData('lootType') as 'item' | 'rune' | 'spell';
     const index = parseInt(event.dataTransfer!.getData('lootIndex'));
 
@@ -575,14 +622,32 @@ export class WorldComponent implements OnInit, OnDestroy {
         console.log(`Giving ${type} to ${characterId}:`, lootData);
         this.characterSocket.sendPatch(characterId, patch);
 
+        // Send notification to the player
+        this.sendDirectLootNotification(characterId, type, lootData);
+
         // Update our local copy
         this.partyCharacters.set(characterId, freshSheet);
       });
     }
   }
 
+  private sendDirectLootNotification(characterId: string, type: 'item' | 'rune' | 'spell', data: any) {
+    // Create a loot item for the notification
+    const lootItem = {
+      id: `direct_${type}_${Date.now()}_${Math.random()}`,
+      type,
+      data,
+      claimedBy: []
+    };
+
+    // Send via world socket to trigger notification on player's screen
+    this.worldSocket.sendDirectLoot(characterId, lootItem);
+  }
+
   onDropOnBattleLoot(event: DragEvent) {
     event.preventDefault();
+    this.stopAutoScroll();
+
     const type = event.dataTransfer!.getData('lootType') as 'item' | 'rune' | 'spell';
     const index = parseInt(event.dataTransfer!.getData('lootIndex'));
 

@@ -86,6 +86,17 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  // Handle sending direct loot to a character (GM drops item on player)
+  @SubscribeMessage('sendDirectLoot')
+  handleSendDirectLoot(
+    @MessageBody() data: { characterId: string; loot: any },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { characterId, loot } = data;
+    console.log(`Sending direct loot to ${characterId}:`, loot);
+    this.sendLootToCharacter(characterId, loot);
+  }
+
   // Send battle loot notification to all party members
   sendBattleLootToParty(worldName: string, partyIds: string[], loot: any) {
     if (this.server) {

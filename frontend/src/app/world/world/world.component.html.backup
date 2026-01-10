@@ -1,0 +1,276 @@
+@if (store.world$ | async; as world) {
+<div class="world-container">
+  <div class="world-header">
+    <h1>{{ worldName }} - GM View</h1>
+  </div>
+
+  <div class="world-grid">
+    <!-- Characters Section -->
+    <app-card>
+      <h2>All Characters</h2>
+      <div class="character-list">
+        @for (characterId of world.characterIds; track characterId; let i = $index) {
+          <div class="character-item">
+            <span>{{ characterId }}</span>
+            <button (click)="removeCharacter(i)">Remove</button>
+          </div>
+        }
+      </div>
+      <div class="add-section">
+        <input
+          type="text"
+          [(ngModel)]="newCharacterId"
+          placeholder="Character ID"
+        />
+        <button (click)="addCharacter()">Add Character</button>
+      </div>
+    </app-card>
+
+    <!-- Active Party Section -->
+    <app-card>
+      <h2>Active Party</h2>
+      <div class="party-list">
+        @for (partyId of world.partyIds; track partyId; let i = $index) {
+          <div class="party-item">
+            <span>{{ partyId }}</span>
+            <button (click)="removeFromParty(i)">Remove</button>
+          </div>
+        }
+      </div>
+      <div class="add-section">
+        <select [(ngModel)]="selectedCharacterForParty">
+          <option value="">Select a character...</option>
+          @for (characterId of world.characterIds; track characterId) {
+            @if (!world.partyIds.includes(characterId)) {
+              <option [value]="characterId">{{ characterId }}</option>
+            }
+          }
+        </select>
+        <button (click)="addToParty()">Add to Party</button>
+      </div>
+    </app-card>
+
+    <!-- Party Dashboard Section -->
+    <app-card>
+      <h2>Party Dashboard</h2>
+      @if (getPartyCharacterArray().length === 0) {
+        <p>No characters in party. Add characters to see their stats.</p>
+      } @else {
+        <div class="dashboard-grid">
+          @for (member of getPartyCharacterArray(); track member.id) {
+            <div class="character-card drop-zone"
+                 (dragover)="onDragOver($event)"
+                 (drop)="onDropOnCharacter($event, member.id)">
+              @if (member.sheet.portrait) {
+                <div class="character-portrait">
+                  <img [src]="member.sheet.portrait" alt="{{ member.sheet.name || member.id }}" />
+                </div>
+              }
+              <h3>{{ member.sheet.name || member.id }}</h3>
+              <div class="drop-hint">Drop items here</div>
+              <div class="stat-row">
+                <span class="stat-label">Health</span>
+                <div class="stat-bar-wrapper">
+                  <div class="stat-bar-fill health"
+                       [style.width.%]="((member.sheet.statuses[0]?.statusCurrent || 0) / (member.sheet.statuses[0]?.statusBase || 1) * 100)">
+                  </div>
+                  <span class="stat-value">{{ member.sheet.statuses[0]?.statusCurrent || 0 }} / {{ member.sheet.statuses[0]?.statusBase || 0 }}</span>
+                </div>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Energy</span>
+                <div class="stat-bar-wrapper">
+                  <div class="stat-bar-fill energy"
+                       [style.width.%]="((member.sheet.statuses[1]?.statusCurrent || 0) / (member.sheet.statuses[1]?.statusBase || 1) * 100)">
+                  </div>
+                  <span class="stat-value">{{ member.sheet.statuses[1]?.statusCurrent || 0 }} / {{ member.sheet.statuses[1]?.statusBase || 0 }}</span>
+                </div>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Mana</span>
+                <div class="stat-bar-wrapper">
+                  <div class="stat-bar-fill mana"
+                       [style.width.%]="((member.sheet.statuses[2]?.statusCurrent || 0) / (member.sheet.statuses[2]?.statusBase || 1) * 100)">
+                  </div>
+                  <span class="stat-value">{{ member.sheet.statuses[2]?.statusCurrent || 0 }} / {{ member.sheet.statuses[2]?.statusBase || 0 }}</span>
+                </div>
+              </div>
+              <div class="stat-row money">
+                <span class="stat-label">Money:</span>
+                <div class="currency">
+                  <span class="copper">{{ member.sheet.currency?.copper || 0 }}c</span>
+                  <span class="silver">{{ member.sheet.currency?.silver || 0 }}s</span>
+                  <span class="gold">{{ member.sheet.currency?.gold || 0 }}g</span>
+                  <span class="platinum">{{ member.sheet.currency?.platinum || 0 }}p</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </app-card>
+
+    <!-- Libraries Section -->
+    <app-card>
+      <h2>Item Library</h2>
+      <p class="drag-hint">Drag items onto characters or battle loot. Double-click to edit.</p>
+      <div class="library-list">
+        @for (item of world.itemLibrary; track $index; let i = $index) {
+          <div class="library-item-wrapper"
+               [class.draggable]="!isItemEditing(i)"
+               [attr.draggable]="!isItemEditing(i)"
+               (dragstart)="onDragStart($event, 'item', i)">
+            <app-item
+              [item]="item"
+              [sheet]="dummySheet"
+              [index]="i"
+              [isEditing]="isItemEditing(i)"
+              (patch)="updateItem(i, $event)"
+              (delete)="removeItem(i)"
+              (editingChange)="onItemEditingChange(i, $event)">
+            </app-item>
+          </div>
+        }
+        @if (world.itemLibrary.length === 0) {
+          <p class="empty-message">No items yet. Click + to add one.</p>
+        }
+      </div>
+      <button (click)="openItemCreator()">+ Add Item</button>
+    </app-card>
+
+    <!-- Item Creator Dialog -->
+    @if (showItemCreator) {
+      <div class="dialog-overlay" (mousedown)="closeItemCreator()">
+        <div class="dialog-content" (mousedown)="$event.stopPropagation()">
+          <h3>Add New Item</h3>
+          <app-item-creator
+            (create)="createItem($event)"
+            (cancel)="closeItemCreator()">
+          </app-item-creator>
+        </div>
+      </div>
+    }
+
+    <app-card>
+      <h2>Rune Library</h2>
+      <p class="drag-hint">Drag runes onto characters or battle loot. Double-click to edit.</p>
+      <div class="library-list">
+        @for (rune of world.runeLibrary; track $index; let i = $index) {
+          <div class="library-item-wrapper"
+               [class.draggable]="!isRuneEditing(i)"
+               [attr.draggable]="!isRuneEditing(i)"
+               (dragstart)="onDragStart($event, 'rune', i)">
+            <app-rune
+              [rune]="rune"
+              [index]="i"
+              [isEditing]="isRuneEditing(i)"
+              (patch)="updateRune(i, $event)"
+              (delete)="removeRune(i)"
+              (editingChange)="onRuneEditingChange(i, $event)">
+            </app-rune>
+          </div>
+        }
+      </div>
+      <button (click)="addRune()">Add Rune</button>
+    </app-card>
+
+    <app-card>
+      <h2>Spell Library</h2>
+      <p class="drag-hint">Drag spells onto characters or battle loot. Double-click to edit.</p>
+      <div class="library-list">
+        @for (spell of world.spellLibrary; track $index; let i = $index) {
+          <div class="library-item-wrapper"
+               [class.draggable]="!isSpellEditing(i)"
+               [attr.draggable]="!isSpellEditing(i)"
+               (dragstart)="onDragStart($event, 'spell', i)">
+            <app-spell
+              [spell]="spell"
+              [sheet]="dummySheet"
+              [index]="i"
+              [isEditing]="isSpellEditing(i)"
+              (patch)="updateSpell(i, $event)"
+              (delete)="removeSpell(i)"
+              (editingChange)="onSpellEditingChange(i, $event)">
+            </app-spell>
+          </div>
+        }
+      </div>
+      <button (click)="addSpell()">Add Spell</button>
+    </app-card>
+
+    <!-- Battle Loot Section -->
+    <app-card>
+      <h2>Battle Loot</h2>
+      <p class="drag-hint">Drop items here, add currency, then reveal to players when ready</p>
+
+      <!-- Currency Reward Section -->
+      <div class="currency-reward">
+        <h3>Add Currency Reward</h3>
+        <div class="currency-inputs">
+          <div class="currency-input">
+            <label>Copper</label>
+            <input type="number" [(ngModel)]="newCurrencyReward.copper" min="0" />
+          </div>
+          <div class="currency-input">
+            <label>Silver</label>
+            <input type="number" [(ngModel)]="newCurrencyReward.silver" min="0" />
+          </div>
+          <div class="currency-input">
+            <label>Gold</label>
+            <input type="number" [(ngModel)]="newCurrencyReward.gold" min="0" />
+          </div>
+          <div class="currency-input">
+            <label>Platinum</label>
+            <input type="number" [(ngModel)]="newCurrencyReward.platinum" min="0" />
+          </div>
+        </div>
+        <button (click)="addCurrencyReward()">Add Currency to Loot</button>
+      </div>
+
+      <div class="loot-list drop-zone"
+           (dragover)="onDragOver($event)"
+           (drop)="onDropOnBattleLoot($event)">
+        @if (world.battleLoot.length === 0) {
+          <p class="empty-loot">No battle loot yet. Drag items here or add currency!</p>
+        }
+        @for (loot of world.battleLoot; track loot.id; let i = $index) {
+          <div class="loot-item-container">
+            <div class="loot-item-header">
+              <span class="loot-name">
+                @if (loot.type === 'currency') {
+                  Currency:
+                  @if (loot.data.platinum > 0) { {{ loot.data.platinum }}pp }
+                  @if (loot.data.gold > 0) { {{ loot.data.gold }}gp }
+                  @if (loot.data.silver > 0) { {{ loot.data.silver }}sp }
+                  @if (loot.data.copper > 0) { {{ loot.data.copper }}cp }
+                } @else {
+                  {{ loot.type }}: {{ loot.data.name }}
+                }
+              </span>
+              <button (click)="removeBattleLoot(i)">Remove</button>
+            </div>
+            <div class="loot-recipients">
+              <span class="recipients-label">Send to:</span>
+              <div class="recipient-checkboxes">
+                @for (partyMember of getPartyCharacterArray(); track partyMember.id) {
+                  <label class="recipient-checkbox">
+                    <input
+                      type="checkbox"
+                      [checked]="isRecipient(loot, partyMember.id)"
+                      (change)="toggleRecipient(i, partyMember.id)"
+                    />
+                    {{ partyMember.sheet.name || partyMember.id }}
+                  </label>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+      @if (world.battleLoot.length > 0) {
+        <button class="reveal-loot-btn" (click)="revealBattleLoot()">Reveal Loot to Party</button>
+      }
+    </app-card>
+  </div>
+</div>
+}

@@ -15,10 +15,32 @@
   font-weight: 600;
 }
 
-.world-grid {
+/* Top grid for character management */
+.management-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: 1fr 1fr 2fr;
   gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Bottom grid for battle loot and library */
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1rem;
+  height: calc(100vh - 400px);
+  min-height: 600px;
+}
+
+.battle-loot-card,
+.library-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.party-dashboard-card {
+  grid-column: span 3;
 }
 
 .character-list, .party-list, .library-list, .loot-list {
@@ -350,21 +372,44 @@
   font-style: italic;
 }
 
-/* Character Portrait */
+/* Character Card Header with Portrait */
+.character-header {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: flex-start;
+}
+
 .character-portrait {
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 12px;
-  border-radius: 50%;
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+  border-radius: 10px;
   overflow: hidden;
   border: 3px solid var(--accent);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
 }
 
 .character-portrait img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.character-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.character-info h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.character-stats {
+  flex: 1;
 }
 
 /* Currency Reward Section */

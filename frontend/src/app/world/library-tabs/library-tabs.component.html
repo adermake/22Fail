@@ -1,0 +1,92 @@
+<div class="library-tabs-container">
+  <div class="tabs-header">
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'items'"
+      (click)="setActiveTab('items')">
+      Items ({{ items.length }})
+    </button>
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'runes'"
+      (click)="setActiveTab('runes')">
+      Runes ({{ runes.length }})
+    </button>
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'spells'"
+      (click)="setActiveTab('spells')">
+      Spells ({{ spells.length }})
+    </button>
+  </div>
+
+  <div class="tab-content">
+    <!-- Items Tab -->
+    @if (activeTab === 'items') {
+      <div class="library-list">
+        @for (item of items; track $index) {
+          <div class="library-item-wrapper"
+               [class.draggable]="!isItemEditing($index)"
+               [attr.draggable]="!isItemEditing($index)"
+               (dragstart)="onDragStart($event, 'item', $index)">
+            <app-item
+              [item]="item"
+              [sheet]="dummySheet"
+              [index]="$index"
+              [isEditing]="isItemEditing($index)"
+              (patch)="onItemUpdate($index, $event)"
+              (delete)="removeItem.emit($index)"
+              (editingChange)="onItemEditingChange($index, $event)">
+            </app-item>
+          </div>
+        }
+        <button class="add-button" (click)="addItem.emit()">+ Add Item</button>
+      </div>
+    }
+
+    <!-- Runes Tab -->
+    @if (activeTab === 'runes') {
+      <div class="library-list">
+        @for (rune of runes; track $index) {
+          <div class="library-item-wrapper"
+               [class.draggable]="!isRuneEditing($index)"
+               [attr.draggable]="!isRuneEditing($index)"
+               (dragstart)="onDragStart($event, 'rune', $index)">
+            <app-rune
+              [rune]="rune"
+              [index]="$index"
+              [isEditing]="isRuneEditing($index)"
+              (patch)="onRuneUpdate($index, $event)"
+              (delete)="removeRune.emit($index)"
+              (editingChange)="onRuneEditingChange($index, $event)">
+            </app-rune>
+          </div>
+        }
+        <button class="add-button" (click)="addRune.emit()">+ Add Rune</button>
+      </div>
+    }
+
+    <!-- Spells Tab -->
+    @if (activeTab === 'spells') {
+      <div class="library-list">
+        @for (spell of spells; track $index) {
+          <div class="library-item-wrapper"
+               [class.draggable]="!isSpellEditing($index)"
+               [attr.draggable]="!isSpellEditing($index)"
+               (dragstart)="onDragStart($event, 'spell', $index)">
+            <app-spell
+              [spell]="spell"
+              [sheet]="dummySheet"
+              [index]="$index"
+              [isEditing]="isSpellEditing($index)"
+              (patch)="onSpellUpdate($index, $event)"
+              (delete)="removeSpell.emit($index)"
+              (editingChange)="onSpellEditingChange($index, $event)">
+            </app-spell>
+          </div>
+        }
+        <button class="add-button" (click)="addSpell.emit()">+ Add Spell</button>
+      </div>
+    }
+  </div>
+</div>

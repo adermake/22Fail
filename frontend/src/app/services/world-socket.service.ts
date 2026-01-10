@@ -52,4 +52,9 @@ export class WorldSocketService {
     console.log('Revealing battle loot for:', worldName);
     this.socket?.emit('revealBattleLoot', { worldName });
   }
+
+  sendDirectLoot(characterId: string, loot: any) {
+    console.log('Sending direct loot to:', characterId, loot);
+    this.socket?.emit('sendDirectLoot', { characterId, loot });
+  }
 }
