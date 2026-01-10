@@ -924,4 +924,65 @@ export class WorldComponent implements OnInit, OnDestroy {
       value: updatedParticipants
     });
   }
+
+  // Sync one character's turn with another (for manual turn synchronization)
+  syncTurns(sourceId: string, targetId: string) {
+    const world = this.store.worldValue;
+    if (!world) return;
+
+    const targetParticipant = world.battleParticipants.find(p => p.characterId === targetId);
+    if (!targetParticipant) return;
+
+    const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
+      if (p.characterId === sourceId) {
+        return {
+          ...p,
+          nextTurnAt: targetParticipant.nextTurnAt
+        };
+      }
+      return p;
+    });
+
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: updatedParticipants
+    });
+  }
+
+  // Set a character's position in the turn queue (manual priority override)
+  setTurnOrder(characterId: string, position: number) {
+    const world = this.store.worldValue;
+    if (!world || world.battleParticipants.length === 0) return;
+
+    // Calculate the turn queue to know what nextTurnAt values exist
+    const queue: BattleParticipant[] = [];
+    const participants = world.battleParticipants.map(p => ({ ...p }));
+
+    for (let i = 0; i < 10; i++) {
+      participants.sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+      const next = participants[0];
+      queue.push({ ...next });
+      next.nextTurnAt = next.nextTurnAt + (1000 / next.speed);
+    }
+
+    // Get the nextTurnAt value at the desired position
+    const targetTurnAt = queue[position]?.nextTurnAt;
+    if (targetTurnAt === undefined) return;
+
+    // Set the character's nextTurnAt to match that position
+    const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
+      if (p.characterId === characterId) {
+        return {
+          ...p,
+          nextTurnAt: targetTurnAt
+        };
+      }
+      return p;
+    });
+
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: updatedParticipants
+    });
+  }
 }

@@ -3,6 +3,7 @@
   <app-character
     [sheet]="sheet"
     [characterId]="store.characterId"
+    [isCurrentTurn]="isCurrentTurn"
     (patch)="store.applyPatch($any($event))"
   ></app-character>
   <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>

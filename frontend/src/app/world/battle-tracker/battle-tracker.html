@@ -26,7 +26,12 @@
     @if (battleParticipants.length > 0) {
       <div class="participants-list">
         @for (participant of battleParticipants; track participant.characterId) {
-          <div class="participant-item">
+          <div class="participant-item"
+               draggable="true"
+               (dragstart)="onDragStartParticipant($event, participant.characterId)"
+               (dragover)="onDragOverParticipant($event)"
+               (drop)="onDropOnParticipant($event, participant.characterId)"
+               (dragend)="onDragEnd()">
             <div class="participant-info">
               @if (participant.portrait) {
                 <img [src]="participant.portrait" alt="{{ participant.name }}" class="participant-portrait">
@@ -50,7 +55,13 @@
       <h3>Turn Order Queue</h3>
       <div class="turn-queue">
         @for (turn of turnQueue; track $index) {
-          <div class="queue-item" [class.current-turn]="$index === 0">
+          <div class="queue-item"
+               [class.current-turn]="$index === 0"
+               draggable="true"
+               (dragstart)="onDragStartQueue($event, turn.characterId)"
+               (dragover)="onDragOverQueue($event)"
+               (drop)="onDropOnQueue($event, $index)"
+               (dragend)="onDragEnd()">
             @if (turn.portrait) {
               <img [src]="turn.portrait" alt="{{ turn.name }}" class="queue-portrait">
             } @else {

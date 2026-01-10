@@ -112,7 +112,17 @@
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
+  cursor: grab;
+}
+
+.participant-item:active {
+  cursor: grabbing;
+}
+
+.participant-item:hover {
+  border-color: var(--accent);
+  background: rgba(139, 92, 246, 0.05);
 }
 
 .participant-info {
@@ -186,6 +196,16 @@
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+  cursor: grab;
+  transition: transform 0.2s;
+}
+
+.queue-item:active {
+  cursor: grabbing;
+}
+
+.queue-item:hover {
+  transform: scale(1.1);
 }
 
 .queue-item.current-turn .queue-portrait,

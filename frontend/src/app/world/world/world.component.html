@@ -127,7 +127,9 @@
       (addParticipant)="addToBattle($event)"
       (removeParticipant)="removeFromBattle($event)"
       (nextTurn)="advanceTurn()"
-      (resetBattle)="resetBattle()">
+      (resetBattle)="resetBattle()"
+      (syncTurns)="syncTurns($event.sourceId, $event.targetId)"
+      (setTurnOrder)="setTurnOrder($event.characterId, $event.position)">
     </app-battle-tracker>
   </div>
 

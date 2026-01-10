@@ -23,6 +23,10 @@ export class BattleTracker {
   @Output() removeParticipant = new EventEmitter<string>();
   @Output() nextTurn = new EventEmitter<void>();
   @Output() resetBattle = new EventEmitter<void>();
+  @Output() syncTurns = new EventEmitter<{ sourceId: string; targetId: string }>();
+  @Output() setTurnOrder = new EventEmitter<{ characterId: string; position: number }>();
+
+  draggedParticipant: string | null = null;
 
   get sortedTurnOrder(): BattleParticipant[] {
     return [...this.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
@@ -75,5 +79,59 @@ export class BattleTracker {
 
   onResetBattle() {
     this.resetBattle.emit();
+  }
+
+  // Drag and drop handlers for participants list
+  onDragStartParticipant(event: DragEvent, characterId: string) {
+    this.draggedParticipant = characterId;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', characterId);
+    }
+  }
+
+  onDragOverParticipant(event: DragEvent) {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  onDropOnParticipant(event: DragEvent, targetId: string) {
+    event.preventDefault();
+    if (this.draggedParticipant && this.draggedParticipant !== targetId) {
+      // Sync the dragged character's turn with the target character
+      this.syncTurns.emit({ sourceId: this.draggedParticipant, targetId });
+    }
+    this.draggedParticipant = null;
+  }
+
+  // Drag and drop handlers for turn queue
+  onDragStartQueue(event: DragEvent, characterId: string) {
+    this.draggedParticipant = characterId;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', characterId);
+    }
+  }
+
+  onDragOverQueue(event: DragEvent) {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  onDropOnQueue(event: DragEvent, position: number) {
+    event.preventDefault();
+    if (this.draggedParticipant) {
+      // Set the character to appear at this position in the queue
+      this.setTurnOrder.emit({ characterId: this.draggedParticipant, position });
+    }
+    this.draggedParticipant = null;
+  }
+
+  onDragEnd() {
+    this.draggedParticipant = null;
   }
 }

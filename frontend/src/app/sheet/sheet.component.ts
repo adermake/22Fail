@@ -55,6 +55,7 @@ export class SheetComponent implements OnInit {
   receivedLoot: LootItem[] = [];
   isBattleLoot = false;
   currentWorldName = '';
+  isCurrentTurn = false;
 
   async ngOnInit() {
     const classDefinitions = await fetch('class-definitions.txt').then((r) => r.text());
@@ -113,6 +114,21 @@ export class SheetComponent implements OnInit {
           }
 
           this.cdr.detectChanges();
+        }
+
+        // Check if battle participants were updated to determine current turn
+        if (patch.path === 'battleParticipants') {
+          const participants = patch.value as any[];
+          if (participants && participants.length > 0) {
+            // Find who has the current turn (lowest nextTurnAt)
+            const sorted = [...participants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+            const currentTurnCharacterId = sorted[0]?.characterId;
+            this.isCurrentTurn = currentTurnCharacterId === id;
+            this.cdr.detectChanges();
+          } else {
+            this.isCurrentTurn = false;
+            this.cdr.detectChanges();
+          }
         }
       });
     });
