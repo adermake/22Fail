@@ -7,7 +7,9 @@
       "Bash(dir:*)",
       "Bash(npm start)",
       "Bash(findstr:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(node:*)",
+      "Bash(taskkill:*)"
     ]
   }
 }

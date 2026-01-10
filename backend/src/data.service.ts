@@ -145,18 +145,34 @@ export class DataService {
     console.log('APPLY PATCH WORLD CALLED for:', name);
     console.log('Available worlds:', Object.keys(data));
     console.log('Patch:', patch);
-    if (!data[name]) {
-      console.error(`World "${name}" does not exist in backend! Cannot apply patch.`);
-      return null; // world does not exist
-    }
 
     let world: any;
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      world = JSON.parse(data[name]);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (e) {
-      throw new Error(`Invalid JSON for world ${name}`);
+
+    if (!data[name]) {
+      console.warn(`World "${name}" does not exist in backend! Creating it now...`);
+      // Create a minimal world structure
+      world = {
+        name: name,
+        characterIds: [],
+        partyIds: [],
+        itemLibrary: [],
+        runeLibrary: [],
+        spellLibrary: [],
+        skillLibrary: [],
+        battleParticipants: [],
+        currentTurnIndex: 0,
+        lootBundles: [],
+        battleLoot: []
+      };
+      data[name] = JSON.stringify(world, null, 2);
+    } else {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        world = JSON.parse(data[name]);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {
+        throw new Error(`Invalid JSON for world ${name}`);
+      }
     }
 
     this.applyJsonPatch(world, patch);
