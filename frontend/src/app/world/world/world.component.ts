@@ -865,16 +865,23 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   advanceTurn() {
     const world = this.store.worldValue;
-    if (!world || world.battleParticipants.length === 0) return;
+    if (!world || world.battleParticipants.length === 0) {
+      console.log('[TURN DEBUG] No world or no participants');
+      return;
+    }
+
+    console.log('[TURN DEBUG] Current participants before advance:', world.battleParticipants);
 
     // Sort by nextTurnAt to find who goes next
     const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
     const currentTurnAt = sorted[0].nextTurnAt;
+    console.log('[TURN DEBUG] Current turn at:', currentTurnAt, 'First:', sorted[0]);
 
     // Find all participants in the current group (same nextTurnAt within threshold and same team)
     const currentGroup = sorted.filter(p =>
       Math.abs(p.nextTurnAt - currentTurnAt) < 0.01 && p.team === sorted[0].team
     );
+    console.log('[TURN DEBUG] Current group:', currentGroup);
     const currentGroupIds = new Set(currentGroup.map(p => p.characterId));
 
     // Update participants with fresh speed calculations and advance current group
@@ -884,10 +891,12 @@ export class WorldComponent implements OnInit, OnDestroy {
 
       if (currentGroupIds.has(p.characterId)) {
         // Advance all participants in the current group
+        const newNextTurnAt = p.nextTurnAt + (1000 / freshSpeed);
+        console.log('[TURN DEBUG] Advancing', p.characterId, 'from', p.nextTurnAt, 'to', newNextTurnAt);
         return {
           ...p,
           speed: freshSpeed,
-          nextTurnAt: p.nextTurnAt + (1000 / freshSpeed)
+          nextTurnAt: newNextTurnAt
         };
       }
       return {
@@ -895,6 +904,8 @@ export class WorldComponent implements OnInit, OnDestroy {
         speed: freshSpeed
       };
     });
+
+    console.log('[TURN DEBUG] Updated participants after advance:', updatedParticipants);
 
     this.store.applyPatch({
       path: 'battleParticipants',
