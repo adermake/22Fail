@@ -5,6 +5,23 @@
   padding: 1rem;
   width: 100%;
   box-sizing: border-box;
+  transition: all 0.3s ease;
+}
+
+.character-grid.current-turn {
+  animation: pulse-glow 2s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0),
+                0 0 30px 8px rgba(139, 92, 246, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.5),
+                0 0 50px 15px rgba(139, 92, 246, 0.9);
+  }
 }
 
 

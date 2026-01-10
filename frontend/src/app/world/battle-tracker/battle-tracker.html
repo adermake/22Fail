@@ -53,24 +53,42 @@
   @if (turnQueue.length > 0) {
     <div class="turn-queue-section">
       <h3>Turn Order Queue</h3>
+      <p class="queue-hint">Drag portraits to reorder turns or onto each other to create group turns</p>
       <div class="turn-queue">
-        @for (turn of turnQueue; track $index) {
-          <div class="queue-item"
+        @for (group of turnQueue; track $index) {
+          <div class="queue-group"
                [class.current-turn]="$index === 0"
-               draggable="true"
-               (dragstart)="onDragStartQueue($event, turn.characterId)"
-               (dragover)="onDragOverQueue($event)"
-               (drop)="onDropOnQueue($event, $index)"
-               (dragend)="onDragEnd()">
-            @if (turn.portrait) {
-              <img [src]="turn.portrait" alt="{{ turn.name }}" class="queue-portrait">
-            } @else {
-              <div class="queue-portrait-placeholder">
-                {{ turn.name.charAt(0).toUpperCase() }}
-              </div>
-            }
+               [class.is-group]="group.participants.length > 1"
+               [class.drag-over]="dragOverIndex === $index"
+               [class.completing]="$index === 0 && completingTurn"
+               (dragover)="onDragOverQueue($event, $index)"
+               (dragleave)="onDragLeaveQueue()"
+               (drop)="onDropOnQueue($event, $index)">
+
+            <div class="group-portraits">
+              @for (participant of group.participants; track participant.characterId) {
+                <div class="queue-item"
+                     draggable="true"
+                     (dragstart)="onDragStartQueue($event, participant.characterId)"
+                     (drop)="onDropOnCharacter($event, participant.characterId)"
+                     (dragover)="$event.preventDefault()"
+                     (dragend)="onDragEnd()">
+                  @if (participant.portrait) {
+                    <img [src]="participant.portrait" alt="{{ participant.name }}" class="queue-portrait">
+                  } @else {
+                    <div class="queue-portrait-placeholder">
+                      {{ participant.name.charAt(0).toUpperCase() }}
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
             @if ($index === 0) {
               <span class="turn-label">Now</span>
+            }
+            @if (group.participants.length > 1) {
+              <span class="group-indicator">Group Turn ({{ group.participants.length }})</span>
             }
           </div>
         }

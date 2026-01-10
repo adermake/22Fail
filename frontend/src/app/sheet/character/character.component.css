@@ -1,22 +1,6 @@
 .character {
   padding: 1rem;
   font-family: sans-serif;
-  transition: all 0.3s ease;
-}
-
-.character.current-turn {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0),
-                0 0 20px 5px rgba(139, 92, 246, 0.6);
-  }
-  50% {
-    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.4),
-                0 0 30px 10px rgba(139, 92, 246, 0.8);
-  }
 }
 
 h2 {

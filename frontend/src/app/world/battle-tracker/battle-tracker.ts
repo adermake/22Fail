@@ -27,6 +27,8 @@ export class BattleTracker {
   @Output() setTurnOrder = new EventEmitter<{ characterId: string; position: number }>();
 
   draggedParticipant: string | null = null;
+  dragOverIndex: number | null = null;
+  completingTurn = false;
 
   get sortedTurnOrder(): BattleParticipant[] {
     return [...this.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
@@ -36,28 +38,34 @@ export class BattleTracker {
     return this.sortedTurnOrder[0];
   }
 
-  // Generate turn queue showing next N turns
-  get turnQueue(): BattleParticipant[] {
+  // Generate turn queue showing next N turns with grouping
+  get turnQueue(): Array<{ participants: BattleParticipant[], nextTurnAt: number }> {
     if (this.battleParticipants.length === 0) return [];
 
-    // Create a simulated queue of next 10 turns
     const queue: BattleParticipant[] = [];
     const participants = this.battleParticipants.map(p => ({ ...p }));
 
-    for (let i = 0; i < 10; i++) {
-      // Find who goes next
+    for (let i = 0; i < 15; i++) {
       participants.sort((a, b) => a.nextTurnAt - b.nextTurnAt);
       const next = participants[0];
-
-      // Add to queue
       queue.push({ ...next });
-
-      // Advance their turn using same formula as actual turn advancement
-      // Higher speed = smaller increment = more frequent turns
       next.nextTurnAt = next.nextTurnAt + (1000 / next.speed);
     }
 
-    return queue;
+    // Group turns that happen at the same time (within threshold of 0.01)
+    const grouped: Array<{ participants: BattleParticipant[], nextTurnAt: number }> = [];
+    for (const turn of queue) {
+      const lastGroup = grouped[grouped.length - 1];
+      if (lastGroup && Math.abs(lastGroup.nextTurnAt - turn.nextTurnAt) < 0.01) {
+        // Add to existing group
+        lastGroup.participants.push(turn);
+      } else {
+        // Create new group
+        grouped.push({ participants: [turn], nextTurnAt: turn.nextTurnAt });
+      }
+    }
+
+    return grouped.slice(0, 10); // Show 10 turn slots (groups)
   }
 
   get availableToAdd(): CharacterOption[] {
@@ -74,7 +82,11 @@ export class BattleTracker {
   }
 
   onNextTurn() {
-    this.nextTurn.emit();
+    this.completingTurn = true;
+    setTimeout(() => {
+      this.nextTurn.emit();
+      this.completingTurn = false;
+    }, 300); // Match animation duration
   }
 
   onResetBattle() {
@@ -115,23 +127,42 @@ export class BattleTracker {
     }
   }
 
-  onDragOverQueue(event: DragEvent) {
+  onDragOverQueue(event: DragEvent, groupIndex: number) {
     event.preventDefault();
+    this.dragOverIndex = groupIndex;
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'move';
     }
   }
 
-  onDropOnQueue(event: DragEvent, position: number) {
+  onDragLeaveQueue() {
+    this.dragOverIndex = null;
+  }
+
+  onDropOnQueue(event: DragEvent, groupIndex: number) {
     event.preventDefault();
+    this.dragOverIndex = null;
     if (this.draggedParticipant) {
       // Set the character to appear at this position in the queue
-      this.setTurnOrder.emit({ characterId: this.draggedParticipant, position });
+      this.setTurnOrder.emit({ characterId: this.draggedParticipant, position: groupIndex });
+    }
+    this.draggedParticipant = null;
+  }
+
+  // Drop on specific character to create group
+  onDropOnCharacter(event: DragEvent, targetCharacterId: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dragOverIndex = null;
+    if (this.draggedParticipant && this.draggedParticipant !== targetCharacterId) {
+      // Sync the dragged character's turn with the target character
+      this.syncTurns.emit({ sourceId: this.draggedParticipant, targetId: targetCharacterId });
     }
     this.draggedParticipant = null;
   }
 
   onDragEnd() {
     this.draggedParticipant = null;
+    this.dragOverIndex = null;
   }
 }

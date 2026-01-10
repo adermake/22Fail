@@ -1,9 +1,8 @@
 @if (store.sheet$ | async; as sheet) {
-<div class="character-grid">
+<div class="character-grid" [class.current-turn]="isCurrentTurn">
   <app-character
     [sheet]="sheet"
     [characterId]="store.characterId"
-    [isCurrentTurn]="isCurrentTurn"
     (patch)="store.applyPatch($any($event))"
   ></app-character>
   <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>

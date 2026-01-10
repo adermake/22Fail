@@ -15,7 +15,6 @@ import { JsonPatch } from '../../model/json-patch.model';
 export class CharacterComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Input({ required: true }) characterId!: string;
-  @Input() isCurrentTurn = false;
   @Output() patch = new EventEmitter<JsonPatch>();
 
   updateField(path: string, value: any) {

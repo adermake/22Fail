@@ -179,9 +179,16 @@
 }
 
 /* Turn Queue Visualization */
+.queue-hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 1rem 0;
+  font-style: italic;
+}
+
 .turn-queue {
   display: flex;
-  gap: 0.5rem;
+  gap: 1rem;
   padding: 1rem;
   background: var(--bg);
   border-radius: 8px;
@@ -189,13 +196,71 @@
   margin-bottom: 1rem;
 }
 
-.queue-item {
+.queue-group {
   position: relative;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.75rem;
+  border: 2px dashed transparent;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.queue-group.drag-over {
+  border-color: var(--accent);
+  background: rgba(139, 92, 246, 0.1);
+  transform: scale(1.05);
+}
+
+.queue-group.is-group {
+  background: rgba(139, 92, 246, 0.05);
+  border: 2px solid rgba(139, 92, 246, 0.3);
+}
+
+.queue-group.current-turn {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.queue-group.completing {
+  animation: slideOut 0.3s ease-in forwards;
+}
+
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-100px) scale(0.8);
+  }
+}
+
+.group-portraits {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 150px;
+}
+
+.queue-item {
+  position: relative;
   cursor: grab;
   transition: transform 0.2s;
 }
@@ -205,13 +270,8 @@
 }
 
 .queue-item:hover {
-  transform: scale(1.1);
-}
-
-.queue-item.current-turn .queue-portrait,
-.queue-item.current-turn .queue-portrait-placeholder {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+  transform: scale(1.15);
+  z-index: 10;
 }
 
 .queue-portrait,
@@ -236,14 +296,25 @@
 
 .turn-label {
   position: absolute;
-  bottom: -20px;
-  font-size: 12px;
+  top: -10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  background: var(--accent);
+  padding: 2px 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.group-indicator {
+  font-size: 11px;
   font-weight: 600;
   color: var(--accent);
   background: var(--bg);
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 4px;
   border: 1px solid var(--accent);
+  margin-top: 0.25rem;
 }
 
 .current-turn-display {
