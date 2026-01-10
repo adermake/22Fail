@@ -83,6 +83,12 @@ export class WorldComponent implements OnInit, OnDestroy {
       if (sheet) {
         // Apply the patch to the specific character sheet
         this.applyJsonPatch(sheet, data.patch);
+
+        // If speed stat or level changed, refresh battle speeds
+        if (data.patch.path.includes('speed') || data.patch.path === 'level') {
+          this.refreshBattleSpeeds();
+        }
+
         // Trigger change detection to update the view
         this.cdr.markForCheck();
       }
@@ -847,16 +853,24 @@ export class WorldComponent implements OnInit, OnDestroy {
     const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
     const currentParticipant = sorted[0];
 
-    // Advance this participant's next turn based on their speed
-    // Lower speed = longer wait between turns
+    // Update participants with fresh speed calculations and advance current turn
     const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
+      const character = this.partyCharacters.get(p.characterId);
+      const freshSpeed = character ? this.calculateSpeed(character) : p.speed;
+
       if (p.characterId === currentParticipant.characterId) {
+        // Advance this participant's turn by incrementing based on inverse of speed
+        // Higher speed = smaller increment = more frequent turns
         return {
           ...p,
-          nextTurnAt: p.nextTurnAt + (100 / p.speed) // Speed-based turn calculation
+          speed: freshSpeed,
+          nextTurnAt: p.nextTurnAt + (1000 / freshSpeed)
         };
       }
-      return p;
+      return {
+        ...p,
+        speed: freshSpeed
+      };
     });
 
     this.store.applyPatch({
@@ -869,15 +883,40 @@ export class WorldComponent implements OnInit, OnDestroy {
     const world = this.store.worldValue;
     if (!world) return;
 
-    // Reset all participants' nextTurnAt to 0
-    const resetParticipants = world.battleParticipants.map((p: BattleParticipant) => ({
-      ...p,
-      nextTurnAt: 0
-    }));
+    // Reset all participants' nextTurnAt to 0 and refresh speeds
+    const resetParticipants = world.battleParticipants.map((p: BattleParticipant) => {
+      const character = this.partyCharacters.get(p.characterId);
+      const freshSpeed = character ? this.calculateSpeed(character) : p.speed;
+      return {
+        ...p,
+        speed: freshSpeed,
+        nextTurnAt: 0
+      };
+    });
 
     this.store.applyPatch({
       path: 'battleParticipants',
       value: resetParticipants
+    });
+  }
+
+  // Refresh speeds for all battle participants (call when character stats change)
+  refreshBattleSpeeds() {
+    const world = this.store.worldValue;
+    if (!world) return;
+
+    const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
+      const character = this.partyCharacters.get(p.characterId);
+      const freshSpeed = character ? this.calculateSpeed(character) : p.speed;
+      return {
+        ...p,
+        speed: freshSpeed
+      };
+    });
+
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: updatedParticipants
     });
   }
 }

@@ -48,8 +48,9 @@ export class BattleTracker {
       // Add to queue
       queue.push({ ...next });
 
-      // Advance their turn
-      next.nextTurnAt = next.nextTurnAt + (100 / next.speed);
+      // Advance their turn using same formula as actual turn advancement
+      // Higher speed = smaller increment = more frequent turns
+      next.nextTurnAt = next.nextTurnAt + (1000 / next.speed);
     }
 
     return queue;
