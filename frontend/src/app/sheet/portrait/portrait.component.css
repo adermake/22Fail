@@ -1,5 +1,5 @@
 .drop-zone {
-  border: 2px dashed #e6e6e6;
+  border: 2px dashed var(--border);
   border-radius: 12px;
   padding: 2px;
   text-align: center;
@@ -8,18 +8,19 @@
 }
 
 .drop-zone.dragging {
-  border-color: #3f51b5;
-  background-color: #f0f3ff;
+  border-color: var(--accent);
+  background-color: rgba(107, 70, 193, 0.1);
 }
 
 .drop-zone p {
   margin: 0;
   font-size: 16px;
+  color: var(--text);
 }
 
 .drop-zone span {
   font-size: 13px;
-  color: #777;
+  color: var(--muted);
 }
 
 .drop-zone img {

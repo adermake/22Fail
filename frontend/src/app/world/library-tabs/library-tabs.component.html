@@ -18,6 +18,12 @@
       (click)="setActiveTab('spells')">
       Spells ({{ spells.length }})
     </button>
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'skills'"
+      (click)="setActiveTab('skills')">
+      Skills ({{ skills.length }})
+    </button>
   </div>
 
   <div class="search-container">
@@ -94,6 +100,27 @@
           </div>
         }
         <button class="add-button" (click)="addSpell.emit()">+ Add Spell</button>
+      </div>
+    }
+
+    <!-- Skills Tab -->
+    @if (activeTab === 'skills') {
+      <div class="library-list">
+        @for (skill of filteredSkills; track skill) {
+          <div class="library-item-wrapper"
+               draggable="true"
+               (dragstart)="onDragStart($event, 'skill', getOriginalIndex(skill, 'skills'))">
+            <app-skill
+              [skill]="skill"
+              [sheet]="dummySheet"
+              [index]="getOriginalIndex(skill, 'skills')"
+              (patch)="onSkillUpdate(getOriginalIndex(skill, 'skills'), $event)"
+              (delete)="removeSkill.emit(getOriginalIndex(skill, 'skills'))"
+              (editingChange)="onSkillEditingChange(getOriginalIndex(skill, 'skills'), $event)">
+            </app-skill>
+          </div>
+        }
+        <button class="add-button" (click)="addSkill.emit()">+ Add Skill</button>
       </div>
     }
   </div>
