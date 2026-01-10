@@ -34,11 +34,6 @@
                   </div>
                 }
               }
-              @if (isBattleLoot) {
-                <div class="claimed-info">
-                  {{ item.claimedBy.length }} player(s) claimed
-                </div>
-              }
             </div>
             <button class="claim-btn" (click)="onClaim(item)">
               {{ isBattleLoot ? 'Take' : 'Accept' }}

@@ -82,6 +82,10 @@ export class SheetComponent implements OnInit {
         this.isBattleLoot = true;
         this.currentWorldName = data.worldName;
         this.showLootPopup = true;
+
+        // Join the world room to receive battle loot updates
+        this.worldSocket.joinWorld(data.worldName);
+
         this.cdr.detectChanges();
       });
     });
@@ -91,15 +95,21 @@ export class SheetComponent implements OnInit {
       this.ngZone.run(() => {
         // If battle loot was updated and we're showing the popup
         if (patch.path === 'battleLoot' && this.showLootPopup && this.isBattleLoot) {
+          console.log('Received battleLoot patch:', patch);
           const updatedBattleLoot = patch.value as any[];
+          console.log('Current receivedLoot:', this.receivedLoot);
+          console.log('Updated battleLoot from server:', updatedBattleLoot);
 
           // Filter our current loot to only show items that still exist
           const updatedLootIds = new Set(updatedBattleLoot.map((item: any) => item.id));
+          const beforeLength = this.receivedLoot.length;
           this.receivedLoot = this.receivedLoot.filter(loot => updatedLootIds.has(loot.id));
+          console.log(`Filtered loot from ${beforeLength} to ${this.receivedLoot.length}`);
 
           // Close popup if no more loot
           if (this.receivedLoot.length === 0) {
             this.showLootPopup = false;
+            console.log('Closing popup - no more loot');
           }
 
           this.cdr.detectChanges();

@@ -53,7 +53,7 @@
 }
 
 .dialog-content {
-  background: white;
+  background: var(--card);
   padding: 2rem;
   border-radius: 8px;
   max-width: 600px;

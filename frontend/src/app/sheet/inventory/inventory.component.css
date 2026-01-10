@@ -114,7 +114,7 @@
 }
 
 .dialog-content {
-  background: white;
+  background: var(--card);
   padding: 2rem;
   border-radius: 8px;
   max-width: 600px;
@@ -147,7 +147,7 @@
 
 .settings-form .field input {
   padding: 0.6rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 0.95rem;
 }

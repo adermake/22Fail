@@ -4,8 +4,8 @@
 }
 
 .skill-card {
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 1rem;
   transition: all 0.2s;
@@ -43,7 +43,7 @@
 }
 
 .skill-card.editing {
-  background: #fff;
+  background: var(--card);
   border-color: #999;
   opacity: 1;
   cursor: default;
@@ -100,7 +100,7 @@
   padding: 0.25rem 0.5rem;
   border-radius: 3px;
   font-size: 0.8rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   position: relative;
   white-space: nowrap;
 }
@@ -189,7 +189,7 @@
 .field select {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 4px;
   font-family: inherit;
   font-size: 0.9rem;

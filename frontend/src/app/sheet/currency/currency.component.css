@@ -42,7 +42,7 @@
 
 .coin-input input {
   padding: 0.4rem;
-  border: 2px solid #ddd;
+  border: 2px solid var(--border);
   border-radius: 4px;
   font-size: 0.9rem;
   font-weight: 600;
@@ -50,6 +50,7 @@
   transition: border-color 0.2s;
   width: 100%;
   box-sizing: border-box;
+  color: #000;
 }
 
 .coin-input input:focus {

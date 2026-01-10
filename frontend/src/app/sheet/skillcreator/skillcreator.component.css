@@ -19,7 +19,7 @@
 .field textarea,
 .field select {
   padding: 0.6rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 4px;
   font-family: inherit;
   font-size: 0.95rem;

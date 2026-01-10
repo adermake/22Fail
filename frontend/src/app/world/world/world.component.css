@@ -213,22 +213,22 @@
 
 .currency .copper {
   background: #cd7f32;
-  color: white;
+  color: #000;
 }
 
 .currency .silver {
   background: #c0c0c0;
-  color: var(--text);
+  color: #000;
 }
 
 .currency .gold {
   background: #ffd700;
-  color: var(--text);
+  color: #000;
 }
 
 .currency .platinum {
   background: #e5e4e2;
-  color: var(--text);
+  color: #000;
   border: 1px solid #9ca3af;
 }
 
@@ -351,7 +351,7 @@
 }
 
 .dialog-content {
-  background: white;
+  background: var(--card);
   padding: 2rem;
   border-radius: 8px;
   max-width: 600px;
