@@ -418,43 +418,47 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
 
     if (lootData) {
-      // Get the character sheet to determine the current array length
-      const characterSheet = this.partyCharacters.get(characterId);
-      if (!characterSheet) {
-        console.error(`Character ${characterId} not found in party`);
-        return;
-      }
+      // Reload the character to get the latest data
+      this.characterApi.loadCharacter(characterId).then(freshSheet => {
+        if (!freshSheet) {
+          console.error(`Failed to reload character ${characterId}`);
+          return;
+        }
 
-      // Determine which field to update based on type
-      let fieldPath: string;
-      let currentArray: any[];
+        // Determine which field to update based on type
+        let fieldPath: string;
+        let currentArray: any[];
 
-      switch (type) {
-        case 'item':
-          fieldPath = 'inventory';
-          currentArray = characterSheet.inventory || [];
-          break;
-        case 'rune':
-          fieldPath = 'runes';
-          currentArray = characterSheet.runes || [];
-          break;
-        case 'spell':
-          fieldPath = 'spells';
-          currentArray = characterSheet.spells || [];
-          break;
-      }
+        switch (type) {
+          case 'item':
+            fieldPath = 'inventory';
+            currentArray = freshSheet.inventory || [];
+            break;
+          case 'rune':
+            fieldPath = 'runes';
+            currentArray = freshSheet.runes || [];
+            break;
+          case 'spell':
+            fieldPath = 'spells';
+            currentArray = freshSheet.spells || [];
+            break;
+        }
 
-      // Create a copy of the loot data to add to the character
-      const newItem = { ...lootData };
+        // Create a copy of the loot data to add to the character
+        const newItem = { ...lootData };
 
-      // Send patch to add the item to the character's inventory
-      const patch: JsonPatch = {
-        path: fieldPath,
-        value: [...currentArray, newItem]
-      };
+        // Send patch to add the item to the character's inventory
+        const patch: JsonPatch = {
+          path: fieldPath,
+          value: [...currentArray, newItem]
+        };
 
-      console.log(`Giving ${type} to ${characterId}:`, lootData);
-      this.characterSocket.sendPatch(characterId, patch);
+        console.log(`Giving ${type} to ${characterId}:`, lootData);
+        this.characterSocket.sendPatch(characterId, patch);
+
+        // Update our local copy
+        this.partyCharacters.set(characterId, freshSheet);
+      });
     }
   }
 
