@@ -17,11 +17,10 @@ export class ItemComponent {
   @Input({ required: true }) item!: ItemBlock;
   @Input({ required: true }) sheet!: CharacterSheet;
   @Input({ required: true }) index!: number;
+  @Input() isEditing = false;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
-
-  isEditing = false;
 
   constructor(
     private cd: ChangeDetectorRef,

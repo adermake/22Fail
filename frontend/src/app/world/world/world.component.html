@@ -110,7 +110,7 @@
       <h2>Item Library</h2>
       <p class="drag-hint">Drag items onto characters or battle loot. Double-click to edit.</p>
       <div class="library-list">
-        @for (item of world.itemLibrary; track item.name; let i = $index) {
+        @for (item of world.itemLibrary; track $index; let i = $index) {
           <div class="library-item-wrapper"
                [class.draggable]="!isItemEditing(i)"
                [attr.draggable]="!isItemEditing(i)"
@@ -119,6 +119,7 @@
               [item]="item"
               [sheet]="dummySheet"
               [index]="i"
+              [isEditing]="isItemEditing(i)"
               (patch)="updateItem(i, $event)"
               (delete)="removeItem(i)"
               (editingChange)="onItemEditingChange(i, $event)">

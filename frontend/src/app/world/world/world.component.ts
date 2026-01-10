@@ -263,6 +263,11 @@ export class WorldComponent implements OnInit, OnDestroy {
     return this.editingItems.has(index);
   }
 
+  // TrackBy function to prevent component recreation
+  trackByIndex(index: number): number {
+    return index;
+  }
+
   // Rune library management
   addRune() {
     const world = this.store.worldValue;
