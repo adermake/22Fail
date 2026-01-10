@@ -15,13 +15,30 @@ export class WorldSocketService {
   battleLootReceived$ = this.battleLootReceivedSubject.asObservable();
 
   connect() {
-    if (this.socket) return;
+    if (this.socket) {
+      console.log('[WORLD SOCKET] Already connected');
+      return;
+    }
+    console.log('[WORLD SOCKET] Connecting to:', window.location.origin);
     this.socket = io(window.location.origin, {
       path: '/socket.io',
       transports: ['websocket'],
     });
 
+    this.socket.on('connect', () => {
+      console.log('[WORLD SOCKET] Connected! Socket ID:', this.socket?.id);
+    });
+
+    this.socket.on('disconnect', () => {
+      console.log('[WORLD SOCKET] Disconnected');
+    });
+
+    this.socket.on('connect_error', (error) => {
+      console.error('[WORLD SOCKET] Connection error:', error);
+    });
+
     this.socket.on('worldPatched', (patch: JsonPatch) => {
+      console.log('[WORLD SOCKET] Received worldPatched:', patch);
       this.patchSubject.next(patch);
     });
 

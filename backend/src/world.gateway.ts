@@ -43,14 +43,16 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { worldName: string; patch: JsonPatch },
     @ConnectedSocket() client: Socket,
   ) {
+    console.log('[WORLD GATEWAY] Received patchWorld message:', data);
     const { worldName, patch } = data;
 
     // Apply patch in backend
-    this.dataService.applyPatchToWorld(worldName, patch);
-    console.log('WORLD PATCH Applied');
+    const result = this.dataService.applyPatchToWorld(worldName, patch);
+    console.log('[WORLD GATEWAY] Patch applied, result:', result ? 'success' : 'failed');
 
     // Broadcast patch to all clients in the same world room
     this.server.to(worldName).emit('worldPatched', patch);
+    console.log('[WORLD GATEWAY] Broadcasted patch to room:', worldName);
   }
 
   // Manually reveal battle loot to party
