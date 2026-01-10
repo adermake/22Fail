@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit, NgZone } from '@angular/core';
 import { StatsComponent } from './stats/stats.component';
 import { CharacterComponent } from './character/character.component';
 import { LevelclassComponent } from './levelclass/levelclass.component';
@@ -48,6 +48,8 @@ export class SheetComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private socket = inject(CharacterSocketService);
   private worldSocket = inject(WorldSocketService);
+  private cdr = inject(ChangeDetectorRef);
+  private ngZone = inject(NgZone);
 
   showLootPopup = false;
   receivedLoot: LootItem[] = [];
@@ -65,16 +67,23 @@ export class SheetComponent implements OnInit {
 
     // Listen for loot notifications
     this.socket.lootReceived$.subscribe((loot: LootItem) => {
-      this.receivedLoot = [loot];
-      this.isBattleLoot = false;
-      this.showLootPopup = true;
+      this.ngZone.run(() => {
+        this.receivedLoot = [loot];
+        this.isBattleLoot = false;
+        this.showLootPopup = true;
+        this.cdr.detectChanges();
+      });
     });
 
     this.socket.battleLootReceived$.subscribe((data: BattleLootEvent) => {
-      this.receivedLoot = data.loot;
-      this.isBattleLoot = true;
-      this.currentWorldName = data.worldName;
-      this.showLootPopup = true;
+      this.ngZone.run(() => {
+        console.log('Battle loot received in sheet component:', data);
+        this.receivedLoot = data.loot;
+        this.isBattleLoot = true;
+        this.currentWorldName = data.worldName;
+        this.showLootPopup = true;
+        this.cdr.detectChanges();
+      });
     });
   }
 
