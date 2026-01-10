@@ -46,6 +46,7 @@ export interface BattleParticipant {
   speed: number;
   turnFrequency: number; // Calculated based on speed
   nextTurnAt: number; // Used to determine turn order
+  portrait?: string; // Character portrait URL
 }
 
 export function createEmptyWorld(name: string): WorldData {

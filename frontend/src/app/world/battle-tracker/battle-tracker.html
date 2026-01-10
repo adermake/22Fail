@@ -21,30 +21,64 @@
     }
   </div>
 
-  <div class="turn-order-section">
-    <h3>Turn Order</h3>
+  <div class="participants-section">
+    <h3>Battle Participants</h3>
     @if (battleParticipants.length > 0) {
-      <div class="turn-list">
-        @for (participant of sortedTurnOrder; track participant.characterId; let i = $index) {
-          <div class="turn-item" [class.current-turn]="i === 0">
-            <div class="turn-info">
-              <span class="turn-name">{{ participant.name }}</span>
-              <span class="turn-speed">Speed: {{ participant.speed }}</span>
-              <span class="turn-next">Next: {{ participant.nextTurnAt }}</span>
+      <div class="participants-list">
+        @for (participant of battleParticipants; track participant.characterId) {
+          <div class="participant-item">
+            <div class="participant-info">
+              @if (participant.portrait) {
+                <img [src]="participant.portrait" alt="{{ participant.name }}" class="participant-portrait">
+              }
+              <div class="participant-details">
+                <span class="participant-name">{{ participant.name }}</span>
+                <span class="participant-speed">Speed: {{ participant.speed }}</span>
+              </div>
             </div>
             <button class="remove-button" (click)="onRemoveCharacter(participant.characterId)">×</button>
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="empty-message">No participants in battle</p>
+    }
+  </div>
+
+  @if (turnQueue.length > 0) {
+    <div class="turn-queue-section">
+      <h3>Turn Order Queue</h3>
+      <div class="turn-queue">
+        @for (turn of turnQueue; track $index) {
+          <div class="queue-item" [class.current-turn]="$index === 0">
+            @if (turn.portrait) {
+              <img [src]="turn.portrait" alt="{{ turn.name }}" class="queue-portrait">
+            } @else {
+              <div class="queue-portrait-placeholder">
+                {{ turn.name.charAt(0).toUpperCase() }}
+              </div>
+            }
+            @if ($index === 0) {
+              <span class="turn-label">Now</span>
+            }
           </div>
         }
       </div>
 
       @if (currentTurn) {
         <div class="current-turn-display">
-          <p><strong>Current Turn:</strong> {{ currentTurn.name }}</p>
+          <div class="current-turn-info">
+            @if (currentTurn.portrait) {
+              <img [src]="currentTurn.portrait" alt="{{ currentTurn.name }}" class="current-portrait">
+            }
+            <div>
+              <p><strong>Current Turn:</strong></p>
+              <p class="current-name">{{ currentTurn.name }}</p>
+            </div>
+          </div>
           <button class="complete-turn-button" (click)="onNextTurn()">Complete Turn</button>
         </div>
       }
-    } @else {
-      <p class="empty-message">No participants in battle</p>
-    }
-  </div>
+    </div>
+  }
 </div>

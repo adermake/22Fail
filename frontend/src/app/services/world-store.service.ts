@@ -62,6 +62,9 @@ export class WorldStoreService {
       if (world.currentTurnIndex === undefined) {
         world.currentTurnIndex = 0;
       }
+      if (!world.skillLibrary) {
+        world.skillLibrary = [];
+      }
       this.worldSubject.next(world);
     }
 

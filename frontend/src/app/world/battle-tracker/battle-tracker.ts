@@ -32,6 +32,29 @@ export class BattleTracker {
     return this.sortedTurnOrder[0];
   }
 
+  // Generate turn queue showing next N turns
+  get turnQueue(): BattleParticipant[] {
+    if (this.battleParticipants.length === 0) return [];
+
+    // Create a simulated queue of next 10 turns
+    const queue: BattleParticipant[] = [];
+    const participants = this.battleParticipants.map(p => ({ ...p }));
+
+    for (let i = 0; i < 10; i++) {
+      // Find who goes next
+      participants.sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+      const next = participants[0];
+
+      // Add to queue
+      queue.push({ ...next });
+
+      // Advance their turn
+      next.nextTurnAt = next.nextTurnAt + (100 / next.speed);
+    }
+
+    return queue;
+  }
+
   get availableToAdd(): CharacterOption[] {
     const participantIds = new Set(this.battleParticipants.map(p => p.characterId));
     return this.availableCharacters.filter(char => !participantIds.has(char.id));

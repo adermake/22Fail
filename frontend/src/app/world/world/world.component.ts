@@ -786,11 +786,19 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   // Battle tracker methods
+  private calculateSpeed(character: CharacterSheet): number {
+    const speedStat = character.speed;
+    if (!speedStat) return 10;
+    // Formula: base + bonus + (level / gain)
+    const calculated = speedStat.base + speedStat.bonus + (character.level / (speedStat.gain || 1));
+    return Math.floor(calculated) || 10;
+  }
+
   get availableCharactersForBattle() {
     return this.getPartyCharacterArray().map(member => ({
       id: member.id,
       name: member.sheet.name || member.id,
-      speed: member.sheet.speed?.current || 10
+      speed: this.calculateSpeed(member.sheet)
     }));
   }
 
@@ -801,13 +809,14 @@ export class WorldComponent implements OnInit, OnDestroy {
     const character = this.partyCharacters.get(characterId);
     if (!character) return;
 
-    const speed = character.speed?.current || 10;
+    const speed = this.calculateSpeed(character);
     const newParticipant: BattleParticipant = {
       characterId,
       name: character.name || characterId,
       speed,
       turnFrequency: speed,
-      nextTurnAt: 0
+      nextTurnAt: 0,
+      portrait: character.portrait
     };
 
     this.store.applyPatch({
