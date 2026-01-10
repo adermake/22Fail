@@ -31,7 +31,7 @@
 
 .item-card:not(.editing):hover {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-  border-color: #d0d0d0;
+  border-color: var(--accent);
   transform: translateY(-1px);
 }
 

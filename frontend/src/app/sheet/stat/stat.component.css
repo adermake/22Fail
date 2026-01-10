@@ -4,7 +4,7 @@
 }
 
 .statbox {
-  background-color: #fbfbfd;
+  background-color: var(--card);
   display: grid;
   grid-template-columns: repeat(3, 1fr) auto;
   gap: 16px;
@@ -24,7 +24,9 @@ input[type='number'] {
   width: 100%; /* Take full column width */
   padding: 5px 6px;
   border-radius: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
   box-sizing: border-box;
 }
 
@@ -62,7 +64,7 @@ input[type='number'] {
 .popup {
   background: var(--card);
   padding: 1rem;
-  border: 1px solid #000;
+  border: 1px solid var(--border);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   opacity: 0;
   transition: opacity 0.5s ease;

@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ItemBlock } from '../../model/item-block.model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
@@ -11,7 +12,7 @@ import { SpellComponent } from '../../sheet/spell/spell.component';
 
 @Component({
   selector: 'app-library-tabs',
-  imports: [CommonModule, ItemComponent, RuneComponent, SpellComponent],
+  imports: [CommonModule, FormsModule, ItemComponent, RuneComponent, SpellComponent],
   templateUrl: './library-tabs.component.html',
   styleUrl: './library-tabs.component.css',
 })
@@ -39,6 +40,43 @@ export class LibraryTabsComponent {
   @Output() dragStart = new EventEmitter<{ event: DragEvent; type: 'item' | 'rune' | 'spell'; index: number }>();
 
   activeTab: 'items' | 'runes' | 'spells' = 'items';
+  searchTerm: string = '';
+
+  get filteredItems() {
+    return this.filterAndSort(this.items, this.searchTerm);
+  }
+
+  get filteredRunes() {
+    return this.filterAndSort(this.runes, this.searchTerm);
+  }
+
+  get filteredSpells() {
+    return this.filterAndSort(this.spells, this.searchTerm);
+  }
+
+  private filterAndSort(array: any[], searchTerm: string) {
+    let filtered = array;
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = array.filter(item =>
+        item.name?.toLowerCase().includes(term) ||
+        item.description?.toLowerCase().includes(term)
+      );
+    }
+
+    return filtered.sort((a, b) => {
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+  }
+
+  getOriginalIndex(item: any, type: 'items' | 'runes' | 'spells'): number {
+    const originalArray = type === 'items' ? this.items :
+                          type === 'runes' ? this.runes : this.spells;
+    return originalArray.indexOf(item);
+  }
 
   setActiveTab(tab: 'items' | 'runes' | 'spells') {
     this.activeTab = tab;

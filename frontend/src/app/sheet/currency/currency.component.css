@@ -18,7 +18,7 @@
 }
 
 .currency-total {
-  color: #666;
+  color: var(--muted);
   font-weight: 600;
 }
 
@@ -37,7 +37,7 @@
 .coin-input label {
   font-weight: 600;
   font-size: 0.85rem;
-  color: #555;
+  color: var(--text);
 }
 
 .coin-input input {
@@ -50,7 +50,8 @@
   transition: border-color 0.2s;
   width: 100%;
   box-sizing: border-box;
-  color: #000;
+  color: var(--text);
+  background: var(--bg);
 }
 
 .coin-input input:focus {

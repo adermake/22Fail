@@ -20,23 +20,31 @@
     </button>
   </div>
 
+  <div class="search-container">
+    <input
+      type="text"
+      class="search-input"
+      [(ngModel)]="searchTerm"
+      placeholder="Search by name or description...">
+  </div>
+
   <div class="tab-content">
     <!-- Items Tab -->
     @if (activeTab === 'items') {
       <div class="library-list">
-        @for (item of items; track $index) {
+        @for (item of filteredItems; track item) {
           <div class="library-item-wrapper"
-               [class.draggable]="!isItemEditing($index)"
-               [attr.draggable]="!isItemEditing($index)"
-               (dragstart)="onDragStart($event, 'item', $index)">
+               [class.draggable]="!isItemEditing(getOriginalIndex(item, 'items'))"
+               [attr.draggable]="!isItemEditing(getOriginalIndex(item, 'items'))"
+               (dragstart)="onDragStart($event, 'item', getOriginalIndex(item, 'items'))">
             <app-item
               [item]="item"
               [sheet]="dummySheet"
-              [index]="$index"
-              [isEditing]="isItemEditing($index)"
-              (patch)="onItemUpdate($index, $event)"
-              (delete)="removeItem.emit($index)"
-              (editingChange)="onItemEditingChange($index, $event)">
+              [index]="getOriginalIndex(item, 'items')"
+              [isEditing]="isItemEditing(getOriginalIndex(item, 'items'))"
+              (patch)="onItemUpdate(getOriginalIndex(item, 'items'), $event)"
+              (delete)="removeItem.emit(getOriginalIndex(item, 'items'))"
+              (editingChange)="onItemEditingChange(getOriginalIndex(item, 'items'), $event)">
             </app-item>
           </div>
         }
@@ -47,18 +55,18 @@
     <!-- Runes Tab -->
     @if (activeTab === 'runes') {
       <div class="library-list">
-        @for (rune of runes; track $index) {
+        @for (rune of filteredRunes; track rune) {
           <div class="library-item-wrapper"
-               [class.draggable]="!isRuneEditing($index)"
-               [attr.draggable]="!isRuneEditing($index)"
-               (dragstart)="onDragStart($event, 'rune', $index)">
+               [class.draggable]="!isRuneEditing(getOriginalIndex(rune, 'runes'))"
+               [attr.draggable]="!isRuneEditing(getOriginalIndex(rune, 'runes'))"
+               (dragstart)="onDragStart($event, 'rune', getOriginalIndex(rune, 'runes'))">
             <app-rune
               [rune]="rune"
-              [index]="$index"
-              [isEditing]="isRuneEditing($index)"
-              (patch)="onRuneUpdate($index, $event)"
-              (delete)="removeRune.emit($index)"
-              (editingChange)="onRuneEditingChange($index, $event)">
+              [index]="getOriginalIndex(rune, 'runes')"
+              [isEditing]="isRuneEditing(getOriginalIndex(rune, 'runes'))"
+              (patch)="onRuneUpdate(getOriginalIndex(rune, 'runes'), $event)"
+              (delete)="removeRune.emit(getOriginalIndex(rune, 'runes'))"
+              (editingChange)="onRuneEditingChange(getOriginalIndex(rune, 'runes'), $event)">
             </app-rune>
           </div>
         }
@@ -69,19 +77,19 @@
     <!-- Spells Tab -->
     @if (activeTab === 'spells') {
       <div class="library-list">
-        @for (spell of spells; track $index) {
+        @for (spell of filteredSpells; track spell) {
           <div class="library-item-wrapper"
-               [class.draggable]="!isSpellEditing($index)"
-               [attr.draggable]="!isSpellEditing($index)"
-               (dragstart)="onDragStart($event, 'spell', $index)">
+               [class.draggable]="!isSpellEditing(getOriginalIndex(spell, 'spells'))"
+               [attr.draggable]="!isSpellEditing(getOriginalIndex(spell, 'spells'))"
+               (dragstart)="onDragStart($event, 'spell', getOriginalIndex(spell, 'spells'))">
             <app-spell
               [spell]="spell"
               [sheet]="dummySheet"
-              [index]="$index"
-              [isEditing]="isSpellEditing($index)"
-              (patch)="onSpellUpdate($index, $event)"
-              (delete)="removeSpell.emit($index)"
-              (editingChange)="onSpellEditingChange($index, $event)">
+              [index]="getOriginalIndex(spell, 'spells')"
+              [isEditing]="isSpellEditing(getOriginalIndex(spell, 'spells'))"
+              (patch)="onSpellUpdate(getOriginalIndex(spell, 'spells'), $event)"
+              (delete)="removeSpell.emit(getOriginalIndex(spell, 'spells'))"
+              (editingChange)="onSpellEditingChange(getOriginalIndex(spell, 'spells'), $event)">
             </app-spell>
           </div>
         }
