@@ -198,11 +198,10 @@ export class WorldComponent implements OnInit, OnDestroy {
 
       // Update character's worldName so they auto-join the world room
       try {
-        const character = await this.characterApi.loadCharacter(this.selectedCharacterForParty);
-        if (character && character.worldName !== world.name) {
-          character.worldName = world.name;
-          await this.characterApi.saveCharacter(this.selectedCharacterForParty, character);
-        }
+        await this.characterApi.patchCharacter(this.selectedCharacterForParty, {
+          path: 'worldName',
+          value: world.name
+        });
       } catch (error) {
         console.error('Failed to update character worldName:', error);
       }

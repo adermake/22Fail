@@ -29,6 +29,7 @@ export class BattleTracker {
 
   draggedParticipant: string | null = null;
   dragOverIndex: number | null = null;
+  dropPosition: 'before' | 'after' | null = null;
   completingTurn = false;
   availableTeams = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
 
@@ -110,6 +111,13 @@ export class BattleTracker {
   onDragOverQueue(event: DragEvent, groupIndex: number) {
     event.preventDefault();
     this.dragOverIndex = groupIndex;
+
+    // Determine if we're in the top or bottom half to show before/after indicator
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const midpoint = rect.left + rect.width / 2;
+    this.dropPosition = event.clientX < midpoint ? 'before' : 'after';
+
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'move';
     }
@@ -117,14 +125,24 @@ export class BattleTracker {
 
   onDragLeaveQueue() {
     this.dragOverIndex = null;
+    this.dropPosition = null;
   }
 
   onDropOnQueue(event: DragEvent, groupIndex: number) {
     event.preventDefault();
+
+    // Calculate actual index based on before/after position
+    let targetIndex = groupIndex;
+    if (this.dropPosition === 'after') {
+      targetIndex = groupIndex + 1;
+    }
+
     this.dragOverIndex = null;
+    this.dropPosition = null;
+
     if (this.draggedParticipant) {
       // Reorder the character to this position
-      this.reorder.emit({ characterId: this.draggedParticipant, newIndex: groupIndex });
+      this.reorder.emit({ characterId: this.draggedParticipant, newIndex: targetIndex });
     }
     this.draggedParticipant = null;
   }

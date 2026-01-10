@@ -15,6 +15,12 @@ export class CharacterApiService {
     const observable = this.http.post(`/api/characters/${id}`, sheet);
     return await firstValueFrom(observable);
   }
+
+  async patchCharacter(id: string, patch: any): Promise<any> {
+    const observable = this.http.patch(`/api/characters/${id}`, patch);
+    return await firstValueFrom(observable);
+  }
+
   async uploadPortrait(id: string, file: File): Promise<void> {
     const formData = new FormData();
     formData.append('portrait', file);

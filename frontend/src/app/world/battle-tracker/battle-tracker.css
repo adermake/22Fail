@@ -262,6 +262,40 @@
   transform: scale(1.05);
 }
 
+/* Drop indicator lines */
+.queue-group.drop-indicator-before::before,
+.queue-group.drop-indicator-after::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 4px;
+  background: var(--accent);
+  border-radius: 2px;
+  z-index: 100;
+  box-shadow: 0 0 8px var(--accent);
+  animation: dropIndicatorPulse 0.8s ease-in-out infinite;
+}
+
+.queue-group.drop-indicator-before::before {
+  left: -10px;
+}
+
+.queue-group.drop-indicator-after::after {
+  right: -10px;
+}
+
+@keyframes dropIndicatorPulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1.05);
+  }
+}
+
 .queue-group.is-group {
   background: rgba(139, 92, 246, 0.05);
   border: 2px solid rgba(139, 92, 246, 0.3);
