@@ -41,8 +41,10 @@ export class WorldComponent implements OnInit, OnDestroy {
   // Item creator dialog
   showItemCreator = false;
 
-  // Track which items are being edited (to disable dragging)
+  // Track which items/runes/spells are being edited (to disable dragging)
   editingItems = new Set<number>();
+  editingRunes = new Set<number>();
+  editingSpells = new Set<number>();
 
   constructor(
     private route: ActivatedRoute
@@ -263,6 +265,30 @@ export class WorldComponent implements OnInit, OnDestroy {
     return this.editingItems.has(index);
   }
 
+  onRuneEditingChange(index: number, isEditing: boolean) {
+    if (isEditing) {
+      this.editingRunes.add(index);
+    } else {
+      this.editingRunes.delete(index);
+    }
+  }
+
+  isRuneEditing(index: number): boolean {
+    return this.editingRunes.has(index);
+  }
+
+  onSpellEditingChange(index: number, isEditing: boolean) {
+    if (isEditing) {
+      this.editingSpells.add(index);
+    } else {
+      this.editingSpells.delete(index);
+    }
+  }
+
+  isSpellEditing(index: number): boolean {
+    return this.editingSpells.has(index);
+  }
+
   // TrackBy function to prevent component recreation
   trackByIndex(index: number): number {
     return index;
@@ -388,13 +414,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     const world = this.store.worldValue;
     if (world && world.battleLoot.length > 0) {
       console.log('Revealing battle loot to party:', world.battleLoot);
-
-      // Trigger a patch update which will cause the backend to broadcast
-      // The backend gateway will detect this and send to all party members
-      this.store.applyPatch({
-        path: 'battleLoot',
-        value: [...world.battleLoot]
-      });
+      this.store.revealBattleLoot();
     }
   }
 

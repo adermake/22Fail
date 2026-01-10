@@ -47,4 +47,9 @@ export class WorldSocketService {
     console.log('Claiming battle loot:', lootId);
     this.socket?.emit('claimBattleLoot', { worldName, lootId });
   }
+
+  revealBattleLoot(worldName: string) {
+    console.log('Revealing battle loot for:', worldName);
+    this.socket?.emit('revealBattleLoot', { worldName });
+  }
 }

@@ -72,6 +72,10 @@ export class WorldStoreService {
     this.socket.sendPatch(this.worldName, patch);
   }
 
+  revealBattleLoot() {
+    this.socket.revealBattleLoot(this.worldName);
+  }
+
   private applyJsonPatch(target: any, patch: JsonPatch) {
     const keys = patch.path.split('.');
     let current = target;

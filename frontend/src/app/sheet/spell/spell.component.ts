@@ -27,11 +27,11 @@ export class SpellComponent implements AfterViewInit {
   @Input({ required: true }) spell!: SpellBlock;
   @Input({ required: true }) sheet!: CharacterSheet;
   @Input({ required: true }) index!: number;
+  @Input() isEditing = false;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
 
-  isEditing = false;
   tagOptions = SPELL_TAG_OPTIONS;
   hasDrawing = false;
 

@@ -42,9 +42,9 @@
         <label>Tags</label>
         <div class="tag-selector">
           @for (tag of tagOptions; track tag) {
-            <button 
+            <button
               type="button"
-              class="tag-option" 
+              class="tag-option"
               [class.selected]="hasTag(tag)"
               (click)="toggleTag(tag)">
               {{ tag }}
@@ -52,6 +52,36 @@
           }
         </div>
       </div>
+
+      <div class="field">
+        <label>
+          <input type="checkbox" [checked]="hasDrawing" (change)="toggleDrawing()" />
+          Draw Rune Symbol
+        </label>
+      </div>
+
+      @if (hasDrawing) {
+        <div class="field">
+          <label>Draw Rune Symbol</label>
+          <div class="canvas-wrapper">
+            <div class="canvas-container">
+              <canvas
+                #canvas
+                width="400"
+                height="150"
+                (mousedown)="startDrawing($event)"
+                (mousemove)="draw($event)"
+                (mouseup)="stopDrawing()"
+                (mouseleave)="stopDrawing()"
+                (touchstart)="handleTouch($event)"
+                (touchmove)="handleTouchMove($event)"
+                (touchend)="stopDrawing()"
+              ></canvas>
+            </div>
+            <button type="button" class="clear-btn" (click)="clearCanvas()">Clear Drawing</button>
+          </div>
+        </div>
+      }
 
       <div class="rune-actions">
         <button class="save-btn" (click)="toggleEdit()">Done</button>

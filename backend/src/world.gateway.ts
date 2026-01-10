@@ -51,16 +51,23 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Broadcast patch to all clients in the same world room
     this.server.to(worldName).emit('worldPatched', patch);
+  }
 
-    // If battle loot was updated, notify all party members
-    if (patch.path === 'battleLoot') {
-      const worldJson = this.dataService.getWorld(worldName);
-      if (worldJson) {
-        const world = JSON.parse(worldJson);
-        if (world && world.partyIds && world.battleLoot) {
-          // Send the entire battle loot array to all party members
-          this.sendBattleLootToParty(worldName, world.partyIds, world.battleLoot);
-        }
+  // Manually reveal battle loot to party
+  @SubscribeMessage('revealBattleLoot')
+  handleRevealBattleLoot(
+    @MessageBody() data: { worldName: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { worldName } = data;
+    console.log(`Revealing battle loot for world ${worldName}`);
+
+    const worldJson = this.dataService.getWorld(worldName);
+    if (worldJson) {
+      const world = JSON.parse(worldJson);
+      if (world && world.partyIds && world.battleLoot) {
+        // Send the entire battle loot array to all party members
+        this.sendBattleLootToParty(worldName, world.partyIds, world.battleLoot);
       }
     }
   }
