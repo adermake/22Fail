@@ -131,10 +131,21 @@ export class SheetComponent implements OnInit {
           const participants = patch.value as any[];
           if (participants && participants.length > 0) {
             // Find who has the current turn (lowest nextTurnAt)
+            // For groups, check if ANY member of the current group matches this character
             const sorted = [...participants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-            const currentTurnCharacterId = sorted[0]?.characterId;
-            console.log('Current turn character ID:', currentTurnCharacterId, 'My ID:', id);
-            this.isCurrentTurn = currentTurnCharacterId === id;
+            const currentTurnAt = sorted[0].nextTurnAt;
+            const currentTurnTeam = sorted[0].team;
+
+            // Find all in current group (same time and team)
+            const currentGroup = sorted.filter(p =>
+              Math.abs(p.nextTurnAt - currentTurnAt) < 0.01 && p.team === currentTurnTeam
+            );
+
+            const isInCurrentGroup = currentGroup.some(p => p.characterId === id);
+            console.log('Current group:', currentGroup.map(p => p.characterId));
+            console.log('My ID:', id, 'Is in group:', isInCurrentGroup);
+
+            this.isCurrentTurn = isInCurrentGroup;
             console.log('Is current turn:', this.isCurrentTurn);
             this.cdr.detectChanges();
           } else {

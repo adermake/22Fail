@@ -1005,25 +1005,52 @@ export class WorldComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Change a participant's team
+  // Change a participant's team and auto-sync with adjacent same-team members
   changeParticipantTeam(characterId: string, team: string) {
     const world = this.store.worldValue;
     if (!world) return;
 
-    const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
-      if (p.characterId === characterId) {
-        return { ...p, team };
+    // Sort by current turn order
+    const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+
+    // Find the index of the character being changed
+    const charIndex = sorted.findIndex(p => p.characterId === characterId);
+    if (charIndex === -1) return;
+
+    // Update team
+    sorted[charIndex] = { ...sorted[charIndex], team };
+
+    // Auto-sync with adjacent same-team members
+    // Look backward for same team
+    let syncTurnAt = sorted[charIndex].nextTurnAt;
+    for (let i = charIndex - 1; i >= 0; i--) {
+      if (sorted[i].team === team) {
+        // Found adjacent same-team member, sync to their time
+        syncTurnAt = sorted[i].nextTurnAt;
+        break;
+      } else {
+        // Different team, stop looking
+        break;
       }
-      return p;
-    });
+    }
+
+    // Look forward for same team and sync them all to the earliest time
+    for (let i = charIndex; i < sorted.length; i++) {
+      if (sorted[i].team === team) {
+        sorted[i] = { ...sorted[i], nextTurnAt: syncTurnAt };
+      } else {
+        // Different team, stop looking
+        break;
+      }
+    }
 
     this.store.applyPatch({
       path: 'battleParticipants',
-      value: updatedParticipants
+      value: sorted
     });
   }
 
-  // Reorder participants by moving one to a new position
+  // Reorder participants by moving one to a new position and auto-group same team
   reorderParticipants(characterId: string, newIndex: number) {
     const world = this.store.worldValue;
     if (!world) return;
@@ -1041,11 +1068,23 @@ export class WorldComponent implements OnInit, OnDestroy {
     // Insert at new position
     filtered.splice(newIndex, 0, movingParticipant);
 
-    // Recalculate nextTurnAt values based on new order
-    const reordered = filtered.map((p, index) => ({
-      ...p,
-      nextTurnAt: index * 10 // Space them out by 10 units
-    }));
+    // Recalculate nextTurnAt values, grouping same team adjacent members
+    const reordered: BattleParticipant[] = [];
+    let currentTime = 0;
+
+    for (let i = 0; i < filtered.length; i++) {
+      const current = filtered[i];
+
+      // Check if previous participant has same team
+      if (i > 0 && reordered[i - 1].team === current.team) {
+        // Same team as previous, use same time
+        reordered.push({ ...current, nextTurnAt: reordered[i - 1].nextTurnAt });
+      } else {
+        // Different team or first participant, use new time
+        reordered.push({ ...current, nextTurnAt: currentTime });
+        currentTime += 10;
+      }
+    }
 
     this.store.applyPatch({
       path: 'battleParticipants',
