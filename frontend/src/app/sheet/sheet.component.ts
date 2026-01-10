@@ -85,6 +85,27 @@ export class SheetComponent implements OnInit {
         this.cdr.detectChanges();
       });
     });
+
+    // Listen for world patches to update battle loot when someone else claims
+    this.worldSocket.patches$.subscribe((patch) => {
+      this.ngZone.run(() => {
+        // If battle loot was updated and we're showing the popup
+        if (patch.path === 'battleLoot' && this.showLootPopup && this.isBattleLoot) {
+          const updatedBattleLoot = patch.value as any[];
+
+          // Filter our current loot to only show items that still exist
+          const updatedLootIds = new Set(updatedBattleLoot.map((item: any) => item.id));
+          this.receivedLoot = this.receivedLoot.filter(loot => updatedLootIds.has(loot.id));
+
+          // Close popup if no more loot
+          if (this.receivedLoot.length === 0) {
+            this.showLootPopup = false;
+          }
+
+          this.cdr.detectChanges();
+        }
+      });
+    });
   }
 
   onClaimLoot(lootItem: LootItem) {

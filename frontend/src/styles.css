@@ -1,15 +1,18 @@
 /* You can add global styles to this file, and also import other style files */
 :root {
-  --accent: #6b46c1;
-  --accentdark: #5c3ca7;
-  --muted: #6b7280;
-  --card: #ffffff;
-  --bg: #f3f4f6;
-  --border: #e5e7eb;
+  --accent: #8b5cf6;
+  --accentdark: #7c3aed;
+  --muted: #9ca3af;
+  --card: #1f2937;
+  --bg: #111827;
+  --border: #374151;
+  --text: #e5e7eb;
+  --text-muted: #9ca3af;
 }
 
 body {
   background-color: var(--bg);
+  color: var(--text);
 }
 
 * {
@@ -26,18 +29,22 @@ textarea {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
+  background: #0f172a;
+  color: var(--text);
 }
 
 input {
   padding: 4px;
   border: 1px solid var(--border);
   border-radius: 6px;
+  background: #0f172a;
+  color: var(--text);
 }
 
 label {
   display: block;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--text-muted);
   margin-bottom: 6px;
 }
 .row{display:flex;gap:10px}
