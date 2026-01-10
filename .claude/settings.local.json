@@ -6,7 +6,8 @@
       "Bash(npm run build:*)",
       "Bash(dir:*)",
       "Bash(npm start)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(pkill:*)"
     ]
   }
 }

@@ -31,19 +31,22 @@ export class WorldStoreService {
   async save(): Promise<void> {
     const world = this.worldSubject.value;
     if (!world) {
-      console.warn('No world loaded, cannot save.');
+      console.warn('[WORLD STORE] No world loaded, cannot save.');
       return;
     }
 
     if (!this.worldName) {
-      console.error('No worldName set, cannot save.');
+      console.error('[WORLD STORE] No worldName set, cannot save.');
       return;
     }
 
+    console.log('[WORLD STORE] Saving world to backend:', this.worldName);
+    console.log('[WORLD STORE] World data being saved:', JSON.stringify(world, null, 2));
     try {
       await this.api.saveWorld(this.worldName, world);
+      console.log('[WORLD STORE] World saved successfully');
     } catch (err) {
-      console.error('Failed to save world:', err);
+      console.error('[WORLD STORE] Failed to save world:', err);
     }
   }
 

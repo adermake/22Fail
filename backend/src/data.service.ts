@@ -142,8 +142,11 @@ export class DataService {
 
   applyPatchToWorld(name: string, patch: JsonPatch): string | null {
     const data = this.readWorlds();
-    console.log('APPLY PATCH WORLD CALLED');
+    console.log('APPLY PATCH WORLD CALLED for:', name);
+    console.log('Available worlds:', Object.keys(data));
+    console.log('Patch:', patch);
     if (!data[name]) {
+      console.error(`World "${name}" does not exist in backend! Cannot apply patch.`);
       return null; // world does not exist
     }
 
