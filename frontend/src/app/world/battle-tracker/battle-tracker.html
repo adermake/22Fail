@@ -4,50 +4,39 @@
     <button class="reset-button" (click)="onResetBattle()">Reset Battle</button>
   </div>
 
-  <div class="add-character-section">
-    <h3>Add to Battle</h3>
-    @if (availableToAdd.length > 0) {
+  <div class="characters-section">
+    <h3>Characters</h3>
+    @if (availableCharacters.length > 0) {
       <div class="character-list">
-        @for (char of availableToAdd; track char.id) {
-          <div class="character-option">
-            <span class="character-name">{{ char.name }}</span>
-            <span class="character-speed">Speed: {{ char.speed }}</span>
-            <button class="add-button" (click)="onAddCharacter(char.id)">+</button>
-          </div>
-        }
-      </div>
-    } @else {
-      <p class="empty-message">All characters are in battle</p>
-    }
-  </div>
-
-  <div class="participants-section">
-    <h3>Battle Participants</h3>
-    @if (participantsWithPortraits.length > 0) {
-      <div class="participants-list">
-        @for (participant of participantsWithPortraits; track participant.characterId) {
-          <div class="participant-item"
-               [attr.data-team]="participant.team">
-            <div class="participant-info">
-              @if (participant.portrait) {
-                <img [src]="participant.portrait" alt="{{ participant.name }}" class="participant-portrait">
+        @for (char of availableCharacters; track char.id) {
+          <div class="character-option" [class.in-battle]="isInBattle(char.id)">
+            <div class="character-info">
+              @if (getCharacterPortrait(char.id)) {
+                <img [src]="getCharacterPortrait(char.id)" alt="{{ char.name }}" class="character-portrait-small">
               }
-              <div class="participant-details">
-                <span class="participant-name">{{ participant.name }}</span>
-                <span class="participant-speed">Speed: {{ participant.speed }}</span>
-                <select class="team-selector" [ngModel]="participant.team" (ngModelChange)="onTeamChange(participant.characterId, $any($event))">
-                  @for (team of availableTeams; track team) {
-                    <option [value]="team">{{ team }}</option>
-                  }
-                </select>
+              <div class="character-details">
+                <span class="character-name">{{ char.name }}</span>
+                <span class="character-speed">Speed: {{ char.speed }}</span>
+                @if (isInBattle(char.id)) {
+                  <select class="team-selector" [ngModel]="getParticipant(char.id)?.team" (ngModelChange)="onTeamChange(char.id, $any($event))">
+                    @for (team of availableTeams; track team) {
+                      <option [value]="team">{{ team }}</option>
+                    }
+                  </select>
+                }
               </div>
             </div>
-            <button class="remove-button" (click)="onRemoveCharacter(participant.characterId)">×</button>
+            <button
+              class="toggle-button"
+              [class.in-battle]="isInBattle(char.id)"
+              (click)="isInBattle(char.id) ? onRemoveCharacter(char.id) : onAddCharacter(char.id)">
+              {{ isInBattle(char.id) ? 'Remove' : 'Add' }}
+            </button>
           </div>
         }
       </div>
     } @else {
-      <p class="empty-message">No participants in battle</p>
+      <p class="empty-message">No characters available</p>
     }
   </div>
 
@@ -93,9 +82,6 @@
             @if ($index === 0) {
               <span class="turn-label">Now</span>
             }
-            @if (group.participants.length > 1) {
-              <span class="group-indicator">Group Turn ({{ group.participants.length }})</span>
-            }
           </div>
         }
         <!-- Drop zone after the last group -->
@@ -106,15 +92,19 @@
              (drop)="onDropBetween($event, turnQueue.length)"></div>
       </div>
 
-      @if (currentTurn) {
+      @if (currentTurnGroup.length > 0) {
         <div class="current-turn-display">
           <div class="current-turn-info">
-            @if (currentTurn.portrait) {
-              <img [src]="currentTurn.portrait" alt="{{ currentTurn.name }}" class="current-portrait">
-            }
+            <div class="current-portraits">
+              @for (participant of currentTurnGroup; track participant.characterId) {
+                @if (participant.portrait) {
+                  <img [src]="participant.portrait" alt="{{ participant.name }}" class="current-portrait">
+                }
+              }
+            </div>
             <div>
               <p><strong>Current Turn:</strong></p>
-              <p class="current-name">{{ currentTurn.name }}</p>
+              <p class="current-name">{{ currentTurnNames }}</p>
             </div>
           </div>
           <button class="complete-turn-button" (click)="onNextTurn()">Complete Turn</button>

@@ -54,6 +54,36 @@ export class BattleTracker {
     return this.sortedTurnOrder[0];
   }
 
+  // Get all participants in the current turn group (same nextTurnAt and team)
+  get currentTurnGroup(): ParticipantWithPortrait[] {
+    if (this.sortedTurnOrder.length === 0) return [];
+
+    const first = this.sortedTurnOrder[0];
+    return this.sortedTurnOrder.filter(p =>
+      Math.abs(p.nextTurnAt - first.nextTurnAt) < 0.01 && p.team === first.team
+    );
+  }
+
+  // Get comma-separated names for current turn display
+  get currentTurnNames(): string {
+    return this.currentTurnGroup.map(p => p.name).join(', ');
+  }
+
+  // Check if a character is in battle
+  isInBattle(characterId: string): boolean {
+    return this.battleParticipants.some(p => p.characterId === characterId);
+  }
+
+  // Get participant by character ID
+  getParticipant(characterId: string): BattleParticipant | undefined {
+    return this.battleParticipants.find(p => p.characterId === characterId);
+  }
+
+  // Get character portrait URL
+  getCharacterPortrait(characterId: string): string | undefined {
+    return this.characterPortraits.get(characterId);
+  }
+
   // Generate turn queue showing next N turns with grouping by team
   get turnQueue(): Array<{ participants: ParticipantWithPortrait[], nextTurnAt: number, team?: string }> {
     if (this.battleParticipants.length === 0) return [];
@@ -86,11 +116,6 @@ export class BattleTracker {
     }
 
     return grouped.slice(0, 10); // Show 10 turn slots (groups)
-  }
-
-  get availableToAdd(): CharacterOption[] {
-    const participantIds = new Set(this.battleParticipants.map(p => p.characterId));
-    return this.availableCharacters.filter(char => !participantIds.has(char.id));
   }
 
   onAddCharacter(characterId: string) {
