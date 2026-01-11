@@ -1070,6 +1070,7 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   // Helper function to recalculate all timing with automatic grouping
   // Groups characters based on adjacency in the projected turn queue
+  // Groups are created left-to-right based on participant list order
   private recalculateTimingWithGrouping(participants: BattleParticipant[]) {
     if (participants.length === 0) return;
 
@@ -1086,65 +1087,55 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
 
     // Analyze which same-team different characters are consistently adjacent
-    const adjacencyMap = new Map<string, Set<string>>();
+    const adjacentPairs = new Set<string>();
     for (let i = 0; i < queue.length - 1; i++) {
       const current = queue[i];
       const next = queue[i + 1];
 
       // Only consider same team, different characters
       if (current.team === next.team && current.characterId !== next.characterId) {
+        // Use consistent ordering for the pair key
         const key = [current.characterId, next.characterId].sort().join('-');
-        if (!adjacencyMap.has(key)) {
-          adjacencyMap.set(key, new Set([current.characterId, next.characterId]));
-        }
+        adjacentPairs.add(key);
       }
     }
 
-    // Find groups of characters that should act together
-    const groups: Set<string>[] = [];
-    adjacencyMap.forEach((chars, key) => {
-      // Check if this pair should be merged with an existing group
-      let merged = false;
-      for (const group of groups) {
-        // If any character in the pair is already in a group, add both
-        if (Array.from(chars).some(c => group.has(c))) {
-          chars.forEach(c => group.add(c));
-          merged = true;
-          break;
-        }
-      }
-      if (!merged) {
-        groups.push(new Set(chars));
-      }
-    });
+    // Check if two characters are adjacent in the simulated queue
+    const areAdjacent = (id1: string, id2: string): boolean => {
+      const key = [id1, id2].sort().join('-');
+      return adjacentPairs.has(key);
+    };
 
-    // Assign same nextTurnAt to characters in the same group
+    // Process participants left-to-right, grouping same-team adjacent characters
     const result: BattleParticipant[] = [];
     const processed = new Set<string>();
     let currentTime = 0;
 
-    // Process participants, grouping those that should act together
-    for (const participant of participants) {
+    for (let i = 0; i < participants.length; i++) {
+      const participant = participants[i];
       if (processed.has(participant.characterId)) continue;
 
-      // Find if this participant belongs to a group
-      const group = groups.find(g => g.has(participant.characterId));
+      // Start a new group with this participant
+      const groupMembers = [participant];
+      processed.add(participant.characterId);
 
-      if (group) {
-        // Add all members of the group with the same nextTurnAt
-        participants
-          .filter(p => group.has(p.characterId))
-          .forEach(p => {
-            if (!processed.has(p.characterId)) {
-              result.push({ ...p, nextTurnAt: currentTime });
-              processed.add(p.characterId);
-            }
-          });
-      } else {
-        // Not in a group, add individually
-        result.push({ ...participant, nextTurnAt: currentTime });
-        processed.add(participant.characterId);
+      // Look ahead to find other same-team members that are adjacent in queue
+      for (let j = i + 1; j < participants.length; j++) {
+        const candidate = participants[j];
+        if (processed.has(candidate.characterId)) continue;
+
+        // Check if candidate is same team and adjacent to any member of current group
+        if (candidate.team === participant.team &&
+            groupMembers.some(member => areAdjacent(member.characterId, candidate.characterId))) {
+          groupMembers.push(candidate);
+          processed.add(candidate.characterId);
+        }
       }
+
+      // Add all group members with the same nextTurnAt
+      groupMembers.forEach(member => {
+        result.push({ ...member, nextTurnAt: currentTime });
+      });
 
       currentTime += 10;
     }
