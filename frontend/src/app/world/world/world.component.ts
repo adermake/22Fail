@@ -799,16 +799,17 @@ export class WorldComponent implements OnInit, OnDestroy {
 
     const speed = this.calculateSpeed(character);
 
-    // Stagger initial nextTurnAt to avoid ties
-    // Add a small offset based on current participant count
-    const offset = world.battleParticipants.length * 0.1;
+    // Place at the end of the current queue
+    const maxTurn = world.battleParticipants.length > 0
+      ? Math.max(...world.battleParticipants.map(p => p.nextTurnAt))
+      : 0;
 
     const newParticipant: BattleParticipant = {
       characterId,
       name: character.name || characterId,
       speed,
       turnFrequency: speed,
-      nextTurnAt: offset,
+      nextTurnAt: maxTurn + 10,
       // NOTE: portrait removed to avoid socket disconnect with large images
       // Battle tracker will fetch portrait from character data using characterId
       team: 'blue' // Default team color
@@ -816,8 +817,10 @@ export class WorldComponent implements OnInit, OnDestroy {
 
     const updatedParticipants = [...world.battleParticipants, newParticipant];
 
-    // After adding, check if we should auto-group same-team adjacent characters
-    this.applyCurrentTurnGrouping(updatedParticipants);
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: updatedParticipants
+    });
   }
 
   removeFromBattle(characterId: string) {
@@ -996,11 +999,14 @@ export class WorldComponent implements OnInit, OnDestroy {
     const charIndex = sorted.findIndex(p => p.characterId === characterId);
     if (charIndex === -1) return;
 
-    // Update team
-    sorted[charIndex] = { ...sorted[charIndex], team };
+    const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => 
+      p.characterId === characterId ? { ...p, team } : p
+    );
 
-    // Recalculate timing with automatic grouping
-    this.applyCurrentTurnGrouping(sorted);
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: updatedParticipants
+    });
   }
 
   // Reorder participants by moving one to a new position
@@ -1010,97 +1016,33 @@ export class WorldComponent implements OnInit, OnDestroy {
     const world = this.store.worldValue;
     if (!world) return;
 
-    console.log('[REORDER] Moving', characterId, 'to index', newIndex);
-
-    // Sort current participants by nextTurnAt
+    // Sort current participants
     const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-
-    // Remove ALL occurrences of this character from the queue (they're passing their turn)
-    const filtered = sorted.filter(p => p.characterId !== characterId);
-
-    // Find the character in the original participants list to get their stats
-    const character = world.battleParticipants.find(p => p.characterId === characterId);
-    if (!character) return;
-
-    // Insert at new position with fresh participant data
-    filtered.splice(newIndex, 0, { ...character });
-
-    console.log('[REORDER] New order after removing all earlier turns:', filtered.map(p => p.characterId));
-
-    // Assign nextTurnAt values based on position (0, 10, 20, 30, ...)
-    // This gives each character a distinct position while preserving the order
-    const result = filtered.map((p, idx) => ({
-      ...p,
-      nextTurnAt: idx * 10
-    }));
-
-    // Now apply grouping logic to group consecutive same-team characters at the front
-    this.applyCurrentTurnGrouping(result);
-  }
-
-  // Helper function to recalculate all timing with automatic grouping
-  // Groups same-team characters that appear consecutively at the front of the turn queue
-  // Grouping is based purely on queue position, not speed
-  private applyCurrentTurnGrouping(participants: BattleParticipant[]) {
-    if (participants.length === 0) {
-      this.store.applyPatch({
-        path: 'battleParticipants',
-        value: []
-      });
-      return;
+    
+    const others = sorted.filter(p => p.characterId !== characterId);
+    
+    let newNextTurnAt: number;
+    
+    if (newIndex <= 0) {
+      newNextTurnAt = others.length > 0 ? others[0].nextTurnAt - 10 : 0;
+    } else if (newIndex >= others.length) {
+      newNextTurnAt = others.length > 0 ? others[others.length - 1].nextTurnAt + 10 : 10;
+    } else {
+      const prev = others[newIndex - 1];
+      const next = others[newIndex];
+      newNextTurnAt = (prev.nextTurnAt + next.nextTurnAt) / 2;
     }
 
-    // Step 1: Sort by nextTurnAt (speed-based position calculation)
-    const sorted = [...participants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-
-    // Step 2: Look at ONLY the characters at position 0 (first in queue)
-    // Group them ONLY if they are consecutive same-team characters AT THE SAME TIME
-    const firstChar = sorted[0];
-    const firstTeam = firstChar.team;
-    const lowestTime = firstChar.nextTurnAt;
-
-    console.log('[GROUPING] First character:', firstChar.characterId, 'team:', firstTeam, 'time:', lowestTime);
-
-    // Start with first character in the group
-    const groupIds = new Set<string>([firstChar.characterId]);
-
-    // ONLY group characters that are already at the same time (within 1.0) and same team
-    // This prevents pulling future turns into the current group
-    // Using 1.0 tolerance to handle initial staggered offsets (0.1 per character)
-    for (let i = 1; i < sorted.length; i++) {
-      const char = sorted[i];
-
-      // Must be at approximately the same time (within 1.0) - this is the KEY check
-      if (Math.abs(char.nextTurnAt - lowestTime) >= 1.0) {
-        console.log('[GROUPING] Different time found, stopping at:', char.characterId, 'time:', char.nextTurnAt);
-        break;
-      }
-
-      // Must be same team
-      if (char.team !== firstTeam) {
-        console.log('[GROUPING] Different team found, stopping at:', char.characterId);
-        break;
-      }
-
-      // Same time and same team - add to group
-      groupIds.add(char.characterId);
-      console.log('[GROUPING] Adding consecutive same-team same-time character:', char.characterId);
-    }
-
-    // Step 3: Sync all group members to the exact same nextTurnAt (the lowest one)
-    // This ensures they display as a perfectly synced group on the UI
-    const result = participants.map(p => {
-      if (groupIds.has(p.characterId)) {
-        return { ...p, nextTurnAt: lowestTime };
+    const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
+      if (p.characterId === characterId) {
+        return { ...p, nextTurnAt: newNextTurnAt };
       }
       return p;
     });
 
-    console.log('[GROUPING] Final group size:', groupIds.size);
-
     this.store.applyPatch({
       path: 'battleParticipants',
-      value: result
+      value: updatedParticipants
     });
   }
 }
