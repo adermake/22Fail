@@ -18,16 +18,7 @@ import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.comp
 import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
 import { BattleTracker } from '../battle-tracker/battle-tracker';
 import { BattleParticipant } from '../../model/world.model';
-
-export interface LootBundle {
-  name: string;
-  description: string;
-  items: ItemBlock[];
-  runes: RuneBlock[];
-  spells: SpellBlock[];
-  skills: SkillBlock[];
-  currency: { copper: number; silver: number; gold: number; platinum: number };
-}
+import { LootManagerComponent, LootBundle } from '../loot-manager/loot-manager.component';
 
 export interface SimulatedTurn {
   characterId: string;
@@ -46,7 +37,7 @@ export interface BattleGroup {
 
 @Component({
   selector: 'app-world',
-  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker],
+  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
 })
@@ -87,14 +78,6 @@ export class WorldComponent implements OnInit, OnDestroy {
   editingRunes = new Set<number>();
   editingSpells = new Set<number>();
   editingSkills = new Set<number>();
-
-  // Currency reward form
-  newCurrencyReward = {
-    copper: 0,
-    silver: 0,
-    gold: 0,
-    platinum: 0
-  };
 
   // Auto-scroll while dragging
   private dragScrollInterval?: number;
@@ -214,6 +197,13 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   getPartyCharacterArray(): Array<{id: string, sheet: CharacterSheet}> {
     return Array.from(this.partyCharacters.entries()).map(([id, sheet]) => ({id, sheet}));
+  }
+
+  get partyMembersForLoot() {
+    return this.getPartyCharacterArray().map(p => ({
+      id: p.id,
+      name: p.sheet.name || p.id
+    }));
   }
 
   // Character management
@@ -506,104 +496,6 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Battle loot management
-  removeBattleLoot(index: number) {
-    const world = this.store.worldValue;
-    if (world) {
-      const newLoot = [...world.battleLoot];
-      newLoot.splice(index, 1);
-      this.store.applyPatch({
-        path: 'battleLoot',
-        value: newLoot
-      });
-    }
-  }
-
-  revealBattleLoot() {
-    const world = this.store.worldValue;
-    if (world && world.battleLoot.length > 0) {
-      console.log('Revealing battle loot to party:', world.battleLoot);
-      this.store.revealBattleLoot();
-    }
-  }
-
-  addCurrencyReward() {
-    const world = this.store.worldValue;
-    if (!world) return;
-
-    // Check if any currency value is greater than 0
-    const hasValue = this.newCurrencyReward.copper > 0 ||
-                     this.newCurrencyReward.silver > 0 ||
-                     this.newCurrencyReward.gold > 0 ||
-                     this.newCurrencyReward.platinum > 0;
-
-    if (!hasValue) {
-      alert('Please enter at least one currency value greater than 0');
-      return;
-    }
-
-    const currencyLoot = {
-      id: `currency_${Date.now()}_${Math.random()}`,
-      type: 'currency' as const,
-      data: { ...this.newCurrencyReward },
-      claimedBy: [],
-      recipientIds: world.partyIds // Default to all party members
-    };
-
-    this.store.applyPatch({
-      path: 'battleLoot',
-      value: [...world.battleLoot, currencyLoot]
-    });
-
-    // Reset form
-    this.newCurrencyReward = {
-      copper: 0,
-      silver: 0,
-      gold: 0,
-      platinum: 0
-    };
-  }
-
-  isRecipient(loot: any, characterId: string): boolean {
-    // If recipientIds is not set or empty, everyone receives it
-    if (!loot.recipientIds || loot.recipientIds.length === 0) {
-      return true;
-    }
-    return loot.recipientIds.includes(characterId);
-  }
-
-  toggleRecipient(lootIndex: number, characterId: string) {
-    const world = this.store.worldValue;
-    if (!world) return;
-
-    const loot = world.battleLoot[lootIndex];
-    let recipientIds = loot.recipientIds || [];
-
-    // If recipientIds was empty (meaning "all"), initialize it with all party members
-    if (recipientIds.length === 0) {
-      recipientIds = [...world.partyIds];
-    }
-
-    // Toggle this character
-    if (recipientIds.includes(characterId)) {
-      recipientIds = recipientIds.filter(id => id !== characterId);
-    } else {
-      recipientIds = [...recipientIds, characterId];
-    }
-
-    // Update the loot item
-    const updatedLoot = [...world.battleLoot];
-    updatedLoot[lootIndex] = {
-      ...loot,
-      recipientIds
-    };
-
-    this.store.applyPatch({
-      path: 'battleLoot',
-      value: updatedLoot
-    });
-  }
-
   // Drag and drop functionality
   onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'bundle', index: number) {
     event.dataTransfer!.effectAllowed = 'copy';
@@ -670,42 +562,16 @@ export class WorldComponent implements OnInit, OnDestroy {
     if (type === 'bundle') {
       const bundle = this.lootBundleLibrary[index];
       if (bundle) {
-        const newLootItems: any[] = [];
-        const recipientIds = world.partyIds;
-
-        // Helper to create loot item
-        const createLoot = (lootType: 'item' | 'rune' | 'spell' | 'skill', data: any) => ({
-          id: `${lootType}_${Date.now()}_${Math.random()}`,
-          type: lootType,
-          data: { ...data },
-          claimedBy: [],
-          recipientIds
+        // Unpack bundle directly to character
+        this.characterApi.loadCharacter(characterId).then(freshSheet => {
+          if (!freshSheet) return;
+          // We need to send multiple patches or one big update. 
+          // For simplicity, we'll iterate and send patches.
+          bundle.items.forEach(item => this.giveItemToCharacter(characterId, 'item', item, freshSheet));
+          bundle.runes.forEach(rune => this.giveItemToCharacter(characterId, 'rune', rune, freshSheet));
+          bundle.spells.forEach(spell => this.giveItemToCharacter(characterId, 'spell', spell, freshSheet));
+          bundle.skills.forEach(skill => this.giveItemToCharacter(characterId, 'skill', skill, freshSheet));
         });
-
-        bundle.items.forEach(item => newLootItems.push(createLoot('item', item)));
-        bundle.runes.forEach(rune => newLootItems.push(createLoot('rune', rune)));
-        bundle.spells.forEach(spell => newLootItems.push(createLoot('spell', spell)));
-        bundle.skills.forEach(skill => newLootItems.push(createLoot('skill', skill)));
-
-        const hasCurrency = bundle.currency.copper > 0 || bundle.currency.silver > 0 || 
-                            bundle.currency.gold > 0 || bundle.currency.platinum > 0;
-        
-        if (hasCurrency) {
-          newLootItems.push({
-            id: `currency_${Date.now()}_${Math.random()}`,
-            type: 'currency',
-            data: { ...bundle.currency },
-            claimedBy: [],
-            recipientIds
-          });
-        }
-
-        if (newLootItems.length > 0) {
-          this.store.applyPatch({
-            path: 'battleLoot',
-            value: [...world.battleLoot, ...newLootItems]
-          });
-        }
       }
       return;
     }
@@ -734,48 +600,44 @@ export class WorldComponent implements OnInit, OnDestroy {
           return;
         }
 
-        // Determine which field to update based on type
-        let fieldPath: string;
-        let currentArray: any[];
-
-        switch (type) {
-          case 'item':
-            fieldPath = 'inventory';
-            currentArray = freshSheet.inventory || [];
-            break;
-          case 'rune':
-            fieldPath = 'runes';
-            currentArray = freshSheet.runes || [];
-            break;
-          case 'spell':
-            fieldPath = 'spells';
-            currentArray = freshSheet.spells || [];
-            break;
-          case 'skill':
-            fieldPath = 'skills';
-            currentArray = freshSheet.skills || [];
-            break;
-        }
-
-        // Create a copy of the loot data to add to the character
-        const newItem = { ...lootData };
-
-        // Send patch to add the item to the character's inventory
-        const patch: JsonPatch = {
-          path: fieldPath,
-          value: [...currentArray, newItem]
-        };
-
-        console.log(`Giving ${type} to ${characterId}:`, lootData);
-        this.characterSocket.sendPatch(characterId, patch);
-
-        // Send notification to the player
-        this.sendDirectLootNotification(characterId, type, lootData);
-
-        // Update our local copy
-        this.partyCharacters.set(characterId, freshSheet);
+        this.giveItemToCharacter(characterId, type, lootData, freshSheet);
       });
     }
+  }
+
+  private giveItemToCharacter(characterId: string, type: 'item' | 'rune' | 'spell' | 'skill', lootData: any, freshSheet: CharacterSheet) {
+    let fieldPath: string;
+    let currentArray: any[];
+
+    switch (type) {
+      case 'item':
+        fieldPath = 'inventory';
+        currentArray = freshSheet.inventory || [];
+        break;
+      case 'rune':
+        fieldPath = 'runes';
+        currentArray = freshSheet.runes || [];
+        break;
+      case 'spell':
+        fieldPath = 'spells';
+        currentArray = freshSheet.spells || [];
+        break;
+      case 'skill':
+        fieldPath = 'skills';
+        currentArray = freshSheet.skills || [];
+        break;
+    }
+
+    const newItem = { ...lootData };
+    const patch: JsonPatch = {
+      path: fieldPath,
+      value: [...currentArray, newItem]
+    };
+
+    this.characterSocket.sendPatch(characterId, patch);
+    this.sendDirectLootNotification(characterId, type, lootData);
+    
+    // Note: We don't update local partyCharacters map here because the socket patch event will do it
   }
 
   private sendDirectLootNotification(characterId: string, type: 'item' | 'rune' | 'spell' | 'skill', data: any) {
@@ -791,77 +653,8 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.worldSocket.sendDirectLoot(characterId, lootItem);
   }
 
-  onDropOnBattleLoot(event: DragEvent) {
-    event.preventDefault();
-    this.stopAutoScroll();
-
-    const type = event.dataTransfer!.getData('lootType') as 'item' | 'rune' | 'spell' | 'skill';
-    const index = parseInt(event.dataTransfer!.getData('lootIndex'));
-
-    const world = this.store.worldValue;
-    if (!world) return;
-
-    let lootData: any;
-    switch (type) {
-      case 'item':
-        lootData = world.itemLibrary[index];
-        break;
-      case 'rune':
-        lootData = world.runeLibrary[index];
-        break;
-      case 'spell':
-        lootData = world.spellLibrary[index];
-        break;
-      case 'skill':
-        lootData = world.skillLibrary[index];
-        break;
-    }
-
-    if (lootData) {
-      // Add to battle loot
-      const newLootItem = {
-        id: `${type}_${Date.now()}_${Math.random()}`,
-        type,
-        data: lootData,
-        claimedBy: [],
-        recipientIds: world.partyIds // Default to all party members
-      };
-
-      this.store.applyPatch({
-        path: 'battleLoot',
-        value: [...world.battleLoot, newLootItem]
-      });
-    }
-  }
-
-  // Helper to create a bundle from the current battle loot (can be hooked to a button)
-  createBundleFromCurrentLoot(name: string) {
-    const world = this.store.worldValue;
-    if (!world) return;
-
-    const bundle: LootBundle = {
-      name,
-      description: 'Created from battle loot',
-      items: [],
-      runes: [],
-      spells: [],
-      skills: [],
-      currency: { copper: 0, silver: 0, gold: 0, platinum: 0 }
-    };
-
-    world.battleLoot.forEach((loot: any) => {
-      if (loot.type === 'item') bundle.items.push(loot.data);
-      else if (loot.type === 'rune') bundle.runes.push(loot.data);
-      else if (loot.type === 'spell') bundle.spells.push(loot.data);
-      else if (loot.type === 'skill') bundle.skills.push(loot.data);
-      else if (loot.type === 'currency') {
-        bundle.currency.copper += loot.data.copper || 0;
-        bundle.currency.silver += loot.data.silver || 0;
-        bundle.currency.gold += loot.data.gold || 0;
-        bundle.currency.platinum += loot.data.platinum || 0;
-      }
-    });
-
+  // Event handler for bundle creation from LootManager
+  onBundleCreated(bundle: LootBundle) {
     this.lootBundleLibrary.push(bundle);
   }
 

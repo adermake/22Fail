@@ -139,75 +139,11 @@
     <!-- Battle Loot Section (Left) -->
     <app-card class="battle-loot-card">
       <h2>Battle Loot</h2>
-      <p class="drag-hint">Drop items here, add currency, then reveal to players when ready</p>
-
-      <!-- Currency Reward Section -->
-      <div class="currency-reward">
-        <h3>Add Currency Reward</h3>
-        <div class="currency-inputs">
-          <div class="currency-input">
-            <label>Copper</label>
-            <input type="number" [(ngModel)]="newCurrencyReward.copper" min="0" />
-          </div>
-          <div class="currency-input">
-            <label>Silver</label>
-            <input type="number" [(ngModel)]="newCurrencyReward.silver" min="0" />
-          </div>
-          <div class="currency-input">
-            <label>Gold</label>
-            <input type="number" [(ngModel)]="newCurrencyReward.gold" min="0" />
-          </div>
-          <div class="currency-input">
-            <label>Platinum</label>
-            <input type="number" [(ngModel)]="newCurrencyReward.platinum" min="0" />
-          </div>
-        </div>
-        <button (click)="addCurrencyReward()">Add Currency to Loot</button>
-      </div>
-
-      <div class="loot-list drop-zone"
-           (dragover)="onDragOver($event)"
-           (drop)="onDropOnBattleLoot($event)">
-        @if (world.battleLoot.length === 0) {
-          <p class="empty-loot">No battle loot yet. Drag items here or add currency!</p>
-        }
-        @for (loot of world.battleLoot; track loot.id; let i = $index) {
-          <div class="loot-item-container">
-            <div class="loot-item-header">
-              <span class="loot-name">
-                @if (loot.type === 'currency') {
-                  Currency:
-                  @if (loot.data.platinum > 0) { {{ loot.data.platinum }}pp }
-                  @if (loot.data.gold > 0) { {{ loot.data.gold }}gp }
-                  @if (loot.data.silver > 0) { {{ loot.data.silver }}sp }
-                  @if (loot.data.copper > 0) { {{ loot.data.copper }}cp }
-                } @else {
-                  {{ loot.type }}: {{ loot.data.name }}
-                }
-              </span>
-              <button (click)="removeBattleLoot(i)">Remove</button>
-            </div>
-            <div class="loot-recipients">
-              <span class="recipients-label">Send to:</span>
-              <div class="recipient-checkboxes">
-                @for (partyMember of getPartyCharacterArray(); track partyMember.id) {
-                  <label class="recipient-checkbox">
-                    <input
-                      type="checkbox"
-                      [checked]="isRecipient(loot, partyMember.id)"
-                      (change)="toggleRecipient(i, partyMember.id)"
-                    />
-                    {{ partyMember.sheet.name || partyMember.id }}
-                  </label>
-                }
-              </div>
-            </div>
-          </div>
-        }
-      </div>
-      @if (world.battleLoot.length > 0) {
-        <button class="reveal-loot-btn" (click)="revealBattleLoot()">Reveal Loot to Party</button>
-      }
+      <app-loot-manager 
+        [bundles]="lootBundleLibrary" 
+        [partyMembers]="partyMembersForLoot"
+        (bundleCreated)="onBundleCreated($event)">
+      </app-loot-manager>
     </app-card>
 
     <!-- Library Tabs Section (Right) -->
