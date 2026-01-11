@@ -932,8 +932,32 @@ export class WorldComponent implements OnInit, OnDestroy {
 
     console.log('[TURN DEBUG] Updated participants after advance:', updatedParticipants);
 
-    // Don't regroup after turn advance - let natural speed-based ordering take over
-    // Grouping only happens once when characters are added to battle
+    // Sync same-team characters with identical speeds to the same nextTurnAt
+    // This prevents floating-point drift from breaking up groups
+    const speedGroups = new Map<string, BattleParticipant[]>();
+
+    updatedParticipants.forEach(p => {
+      const key = `${p.team}-${p.speed}`;
+      if (!speedGroups.has(key)) {
+        speedGroups.set(key, []);
+      }
+      speedGroups.get(key)!.push(p);
+    });
+
+    // For each speed group with multiple members, sync them to the average nextTurnAt
+    speedGroups.forEach((group, key) => {
+      if (group.length > 1) {
+        // Find the average nextTurnAt for this group
+        const avgNextTurnAt = group.reduce((sum, p) => sum + p.nextTurnAt, 0) / group.length;
+        console.log('[TURN DEBUG] Syncing group', key, 'to', avgNextTurnAt);
+
+        // Set all members to the same nextTurnAt
+        group.forEach(p => {
+          p.nextTurnAt = avgNextTurnAt;
+        });
+      }
+    });
+
     this.store.applyPatch({
       path: 'battleParticipants',
       value: updatedParticipants
