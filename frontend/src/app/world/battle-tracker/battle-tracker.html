@@ -46,13 +46,6 @@
       <p class="queue-hint">Drag portraits to reorder turns between positions</p>
       <div class="turn-queue">
         @for (group of turnQueue; track $index) {
-          <!-- Drop zone before each group -->
-          <div class="drop-zone"
-               [class.drop-zone-active]="dragOverIndex === $index && dropPosition === 'before'"
-               (dragover)="onDragOverDropZone($event, $index)"
-               (dragleave)="onDragLeaveQueue()"
-               (drop)="onDropBetween($event, $index)"></div>
-
           <div class="queue-group"
                [class.current-turn]="$index === 0"
                [class.is-group]="group.participants.length > 1"
@@ -86,12 +79,6 @@
             }
           </div>
         }
-        <!-- Drop zone after the last group -->
-        <div class="drop-zone"
-             [class.drop-zone-active]="dragOverIndex === turnQueue.length && dropPosition === 'after'"
-             (dragover)="onDragOverDropZone($event, turnQueue.length)"
-             (dragleave)="onDragLeaveQueue()"
-             (drop)="onDropBetween($event, turnQueue.length)"></div>
       </div>
 
       @if (currentTurnGroup.length > 0) {

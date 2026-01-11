@@ -162,16 +162,6 @@ export class BattleTracker {
     }
   }
 
-  onDragOverDropZone(event: DragEvent, dropIndex: number) {
-    event.preventDefault();
-    this.dragOverIndex = dropIndex;
-    this.dropPosition = 'before';
-
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
-    }
-  }
-
   onDragOverGroup(event: DragEvent, groupIndex: number) {
     event.preventDefault();
 
@@ -198,18 +188,6 @@ export class BattleTracker {
   onDragLeaveQueue() {
     this.dragOverIndex = null;
     this.dropPosition = null;
-  }
-
-  onDropBetween(event: DragEvent, dropIndex: number) {
-    event.preventDefault();
-    this.dragOverIndex = null;
-    this.dropPosition = null;
-
-    if (this.draggedParticipant) {
-      // Emit reorder with the drop index (character will be inserted at this position)
-      this.reorder.emit({ characterId: this.draggedParticipant, newIndex: dropIndex });
-    }
-    this.draggedParticipant = null;
   }
 
   onDropOnGroup(event: DragEvent, groupIndex: number) {

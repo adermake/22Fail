@@ -1058,6 +1058,8 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   // Reorder participants by moving one to a new position
+  // This represents a "pass turn" - the character's turn is moved to the new position
+  // All earlier turns of this character are removed from the queue
   reorderParticipants(characterId: string, newIndex: number) {
     const world = this.store.worldValue;
     if (!world) return;
@@ -1067,17 +1069,17 @@ export class WorldComponent implements OnInit, OnDestroy {
     // Sort current participants by nextTurnAt
     const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
 
-    // Find the participant being moved
-    const movingParticipant = sorted.find(p => p.characterId === characterId);
-    if (!movingParticipant) return;
-
-    // Remove from current position
+    // Remove ALL occurrences of this character from the queue (they're passing their turn)
     const filtered = sorted.filter(p => p.characterId !== characterId);
 
-    // Insert at new position
-    filtered.splice(newIndex, 0, movingParticipant);
+    // Find the character in the original participants list to get their stats
+    const character = world.battleParticipants.find(p => p.characterId === characterId);
+    if (!character) return;
 
-    console.log('[REORDER] New order:', filtered.map(p => p.characterId));
+    // Insert at new position with fresh participant data
+    filtered.splice(newIndex, 0, { ...character });
+
+    console.log('[REORDER] New order after removing all earlier turns:', filtered.map(p => p.characterId));
 
     // Assign nextTurnAt values based on position (0, 10, 20, 30, ...)
     // This gives each character a distinct position while preserving the order

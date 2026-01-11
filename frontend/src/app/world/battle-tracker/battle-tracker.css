@@ -168,33 +168,7 @@
   border-radius: 8px;
   overflow-x: auto;
   margin-bottom: 1rem;
-}
-
-/* Drop zones between queue groups */
-.drop-zone {
-  flex-shrink: 0;
-  width: 8px;
-  min-height: 80px;
-  position: relative;
-  transition: all 0.2s ease;
-}
-
-.drop-zone-active {
-  width: 16px;
-}
-
-.drop-zone-active::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--accent);
-  border-radius: 2px;
-  transform: translateX(-50%);
-  box-shadow: 0 0 12px var(--accent);
-  animation: dropIndicatorPulse 0.6s ease-in-out infinite;
+  gap: 0.5rem;
 }
 
 .queue-group {
