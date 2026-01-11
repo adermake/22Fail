@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ItemBlock } from '../../model/item-block.model';
@@ -16,8 +16,7 @@ import { SkillComponent } from '../../sheet/skill/skill.component';
   selector: 'app-library-tabs',
   imports: [CommonModule, FormsModule, ItemComponent, RuneComponent, SpellComponent, SkillComponent],
   templateUrl: './library-tabs.component.html',
-  styleUrl: './library-tabs.component.css',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrl: './library-tabs.component.css'
 })
 export class LibraryTabsComponent implements OnChanges {
   @Input({ required: true }) items: ItemBlock[] = [];
