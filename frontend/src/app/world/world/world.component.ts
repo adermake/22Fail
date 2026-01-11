@@ -19,6 +19,16 @@ import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
 import { BattleTracker } from '../battle-tracker/battle-tracker';
 import { BattleParticipant } from '../../model/world.model';
 
+export interface LootBundle {
+  name: string;
+  description: string;
+  items: ItemBlock[];
+  runes: RuneBlock[];
+  spells: SpellBlock[];
+  skills: SkillBlock[];
+  currency: { copper: number; silver: number; gold: number; platinum: number };
+}
+
 export interface SimulatedTurn {
   characterId: string;
   name: string;
@@ -89,6 +99,19 @@ export class WorldComponent implements OnInit, OnDestroy {
   // Auto-scroll while dragging
   private dragScrollInterval?: number;
   private isDragging = false;
+
+  // Loot Bundles
+  lootBundleLibrary: LootBundle[] = [
+    {
+      name: 'Starter Bundle',
+      description: 'A set of basic items and currency.',
+      items: [],
+      runes: [],
+      spells: [],
+      skills: [],
+      currency: { copper: 0, silver: 50, gold: 10, platinum: 0 }
+    }
+  ];
 
   constructor(
     private route: ActivatedRoute
@@ -582,7 +605,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   // Drag and drop functionality
-  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill', index: number) {
+  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'bundle', index: number) {
     event.dataTransfer!.effectAllowed = 'copy';
     event.dataTransfer!.setData('lootType', type);
     event.dataTransfer!.setData('lootIndex', index.toString());
@@ -638,11 +661,54 @@ export class WorldComponent implements OnInit, OnDestroy {
     event.preventDefault();
     this.stopAutoScroll();
 
-    const type = event.dataTransfer!.getData('lootType') as 'item' | 'rune' | 'spell' | 'skill';
+    const type = event.dataTransfer!.getData('lootType') as 'item' | 'rune' | 'spell' | 'skill' | 'bundle';
     const index = parseInt(event.dataTransfer!.getData('lootIndex'));
 
     const world = this.store.worldValue;
     if (!world) return;
+
+    if (type === 'bundle') {
+      const bundle = this.lootBundleLibrary[index];
+      if (bundle) {
+        const newLootItems: any[] = [];
+        const recipientIds = world.partyIds;
+
+        // Helper to create loot item
+        const createLoot = (lootType: 'item' | 'rune' | 'spell' | 'skill', data: any) => ({
+          id: `${lootType}_${Date.now()}_${Math.random()}`,
+          type: lootType,
+          data: { ...data },
+          claimedBy: [],
+          recipientIds
+        });
+
+        bundle.items.forEach(item => newLootItems.push(createLoot('item', item)));
+        bundle.runes.forEach(rune => newLootItems.push(createLoot('rune', rune)));
+        bundle.spells.forEach(spell => newLootItems.push(createLoot('spell', spell)));
+        bundle.skills.forEach(skill => newLootItems.push(createLoot('skill', skill)));
+
+        const hasCurrency = bundle.currency.copper > 0 || bundle.currency.silver > 0 || 
+                            bundle.currency.gold > 0 || bundle.currency.platinum > 0;
+        
+        if (hasCurrency) {
+          newLootItems.push({
+            id: `currency_${Date.now()}_${Math.random()}`,
+            type: 'currency',
+            data: { ...bundle.currency },
+            claimedBy: [],
+            recipientIds
+          });
+        }
+
+        if (newLootItems.length > 0) {
+          this.store.applyPatch({
+            path: 'battleLoot',
+            value: [...world.battleLoot, ...newLootItems]
+          });
+        }
+      }
+      return;
+    }
 
     let lootData: any;
     switch (type) {
@@ -766,6 +832,37 @@ export class WorldComponent implements OnInit, OnDestroy {
         value: [...world.battleLoot, newLootItem]
       });
     }
+  }
+
+  // Helper to create a bundle from the current battle loot (can be hooked to a button)
+  createBundleFromCurrentLoot(name: string) {
+    const world = this.store.worldValue;
+    if (!world) return;
+
+    const bundle: LootBundle = {
+      name,
+      description: 'Created from battle loot',
+      items: [],
+      runes: [],
+      spells: [],
+      skills: [],
+      currency: { copper: 0, silver: 0, gold: 0, platinum: 0 }
+    };
+
+    world.battleLoot.forEach((loot: any) => {
+      if (loot.type === 'item') bundle.items.push(loot.data);
+      else if (loot.type === 'rune') bundle.runes.push(loot.data);
+      else if (loot.type === 'spell') bundle.spells.push(loot.data);
+      else if (loot.type === 'skill') bundle.skills.push(loot.data);
+      else if (loot.type === 'currency') {
+        bundle.currency.copper += loot.data.copper || 0;
+        bundle.currency.silver += loot.data.silver || 0;
+        bundle.currency.gold += loot.data.gold || 0;
+        bundle.currency.platinum += loot.data.platinum || 0;
+      }
+    });
+
+    this.lootBundleLibrary.push(bundle);
   }
 
   // Apply JSON patch to character sheet (for real-time updates)
