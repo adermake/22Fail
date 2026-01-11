@@ -34,7 +34,7 @@ export class BattleTracker {
 
   draggedParticipant: string | null = null;
   dragOverIndex: number | null = null;
-  dropPosition: 'before' | 'after' | null = null;
+  dropPosition: 'before' | 'after' | 'left' | 'right' | null = null;
   completingTurn = false;
   availableTeams = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
 
@@ -180,14 +180,14 @@ export class BattleTracker {
     const rect = target.getBoundingClientRect();
     const midpoint = rect.left + rect.width / 2;
 
+    this.dragOverIndex = groupIndex;
+
     if (event.clientX < midpoint) {
       // Left side - drop before this group
-      this.dragOverIndex = groupIndex;
-      this.dropPosition = 'before';
+      this.dropPosition = 'left';
     } else {
       // Right side - drop after this group
-      this.dragOverIndex = groupIndex + 1;
-      this.dropPosition = 'after';
+      this.dropPosition = 'right';
     }
 
     if (event.dataTransfer) {
@@ -217,7 +217,7 @@ export class BattleTracker {
 
     // Determine final drop position based on where we were hovering
     let dropIndex = groupIndex;
-    if (this.dropPosition === 'after') {
+    if (this.dropPosition === 'right') {
       dropIndex = groupIndex + 1;
     }
 

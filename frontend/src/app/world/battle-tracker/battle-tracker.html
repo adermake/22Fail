@@ -57,6 +57,8 @@
                [class.current-turn]="$index === 0"
                [class.is-group]="group.participants.length > 1"
                [class.completing]="$index === 0 && completingTurn"
+               [class.drag-over-left]="dragOverIndex === $index && dropPosition === 'left'"
+               [class.drag-over-right]="dragOverIndex === $index && dropPosition === 'right'"
                (dragover)="onDragOverGroup($event, $index)"
                (dragleave)="onDragLeaveQueue()"
                (drop)="onDropOnGroup($event, $index)">

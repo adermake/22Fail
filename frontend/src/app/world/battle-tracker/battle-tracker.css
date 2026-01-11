@@ -173,14 +173,14 @@
 /* Drop zones between queue groups */
 .drop-zone {
   flex-shrink: 0;
-  width: 32px;
+  width: 8px;
   min-height: 80px;
   position: relative;
   transition: all 0.2s ease;
 }
 
 .drop-zone-active {
-  width: 40px;
+  width: 16px;
 }
 
 .drop-zone-active::before {
@@ -209,6 +209,18 @@
   border-radius: 8px;
   transition: all 0.3s ease;
   animation: slideIn 0.3s ease-out;
+}
+
+.queue-group.drag-over-left {
+  border-left: 3px solid var(--accent);
+  padding-left: calc(0.75rem + 3px);
+  box-shadow: -4px 0 12px var(--accent);
+}
+
+.queue-group.drag-over-right {
+  border-right: 3px solid var(--accent);
+  padding-right: calc(0.75rem + 3px);
+  box-shadow: 4px 0 12px var(--accent);
 }
 
 @keyframes slideIn {

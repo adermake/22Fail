@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ItemBlock } from '../../model/item-block.model';
@@ -18,7 +18,7 @@ import { SkillComponent } from '../../sheet/skill/skill.component';
   templateUrl: './library-tabs.component.html',
   styleUrl: './library-tabs.component.css'
 })
-export class LibraryTabsComponent {
+export class LibraryTabsComponent implements OnChanges {
   @Input({ required: true }) items: ItemBlock[] = [];
   @Input({ required: true }) runes: RuneBlock[] = [];
   @Input({ required: true }) spells: SpellBlock[] = [];
@@ -48,22 +48,31 @@ export class LibraryTabsComponent {
   @Output() dragStart = new EventEmitter<{ event: DragEvent; type: 'item' | 'rune' | 'spell' | 'skill'; index: number }>();
 
   activeTab: 'items' | 'runes' | 'spells' | 'skills' = 'items';
-  searchTerm: string = '';
+  private _searchTerm: string = '';
 
-  get filteredItems() {
-    return this.filterAndSort(this.items, this.searchTerm);
+  filteredItems: any[] = [];
+  filteredRunes: any[] = [];
+  filteredSpells: any[] = [];
+  filteredSkills: any[] = [];
+
+  get searchTerm(): string {
+    return this._searchTerm;
   }
 
-  get filteredRunes() {
-    return this.filterAndSort(this.runes, this.searchTerm);
+  set searchTerm(value: string) {
+    this._searchTerm = value;
+    this.updateFilteredArrays();
   }
 
-  get filteredSpells() {
-    return this.filterAndSort(this.spells, this.searchTerm);
+  ngOnChanges() {
+    this.updateFilteredArrays();
   }
 
-  get filteredSkills() {
-    return this.filterAndSort(this.skills, this.searchTerm);
+  private updateFilteredArrays() {
+    this.filteredItems = this.filterAndSort(this.items, this._searchTerm);
+    this.filteredRunes = this.filterAndSort(this.runes, this._searchTerm);
+    this.filteredSpells = this.filterAndSort(this.spells, this._searchTerm);
+    this.filteredSkills = this.filterAndSort(this.skills, this._searchTerm);
   }
 
   private filterAndSort(array: any[], searchTerm: string) {
