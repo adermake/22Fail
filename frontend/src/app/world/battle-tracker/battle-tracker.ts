@@ -195,6 +195,7 @@ interface QueueGroup {
       border-radius: 2px;
       z-index: 20;
       box-shadow: 0 0 8px var(--accent);
+      pointer-events: none;
     }
 
     .controls { margin-top: 1rem; display: flex; gap: 0.5rem; }
@@ -243,7 +244,7 @@ interface QueueGroup {
         <div class="turn-queue" 
              [class.is-dragging]="!!draggedParticipant"
              (dragover)="onDragOverQueue($event)"
-             (dragleave)="onDragLeaveQueue()"
+             (dragleave)="onDragLeaveQueue($event)"
              (drop)="onDropOnQueue($event)">
              
           <div *ngFor="let group of queueGroups; let gIdx = index; trackBy: trackByGroup" 
@@ -257,7 +258,8 @@ interface QueueGroup {
                  class="battle-card"
                  [class.is-anchor]="turn.isAnchor"
                  [draggable]="turn.isAnchor"
-                 (dragstart)="onDragStartQueue($event, turn)">
+                 (dragstart)="onDragStartQueue($event, turn)"
+                 (dragend)="onDragEnd()">
               <img [src]="turn.portrait || 'assets/default-portrait.png'" [alt]="turn.name">
               <span>{{turn.name}}</span>
               <div *ngIf="turn.isAnchor" class="anchor-indicator" title="Anchor Point">⚓</div>
@@ -489,7 +491,13 @@ export class BattleTracker implements OnChanges {
     this.dropPosition = position;
   }
 
-  onDragLeaveQueue() {
+  onDragLeaveQueue(event: DragEvent) {
+    const container = event.currentTarget as HTMLElement;
+    const relatedTarget = event.relatedTarget as Node;
+    
+    if (relatedTarget && container.contains(relatedTarget)) {
+      return;
+    }
     this.dragOverIndex = null;
     this.dropPosition = null;
   }
