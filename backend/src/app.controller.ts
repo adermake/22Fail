@@ -23,14 +23,13 @@ export class AppController {
   @Get('characters/:id')
   getCharacter(@Param('id') id: string): any {
     const sheetJson = this.dataService.getCharacter(id);
-    console.log('LOADING ' + id);
+    console.log('LOADING CHARACTER: ' + id);
     if (!sheetJson) {
       // Character not found → send null
-      console.log('sendnull for ' + id);
+      console.log('Character not found: ' + id);
       return null;
     }
 
-    console.log('sendnull for ' + sheetJson);
     return JSON.parse(sheetJson); // existing character
   }
 
@@ -96,11 +95,12 @@ export class AppController {
   @Get('worlds/:name')
   getWorld(@Param('name') name: string): any {
     const worldJson = this.dataService.getWorld(name);
-    console.log('LOADING WORLD ' + name);
+    console.log('LOADING WORLD: ' + name);
     if (!worldJson) {
       console.log('World not found: ' + name);
       return null;
     }
+    console.log('World loaded successfully: ' + name);
     return JSON.parse(worldJson);
   }
 

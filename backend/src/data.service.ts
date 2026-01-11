@@ -71,7 +71,6 @@ export class DataService {
     const data = this.readData();
     if (!data[id]) {
       // Character does not exist yet
-      console.log('GET CHARACTER CALLED');
       return null;
     }
     return data[id];
@@ -80,13 +79,14 @@ export class DataService {
   saveCharacter(id: string, sheetJson: string): void {
     const data = this.readData();
     data[id] = sheetJson;
-    console.log('SAVE CHARACTER CALLED');
+    console.log('SAVE CHARACTER CALLED for:', id);
     this.writeData(data);
   }
 
   applyPatchToCharacter(id: string, patch: JsonPatch): string | null {
     const data = this.readData();
-    console.log('APPLY PATCH CHARACTER CALLED');
+    const logPatch = this.truncateImageData(patch);
+    console.log('APPLY PATCH CHARACTER CALLED for:', id, 'Patch:', logPatch);
     if (!data[id]) {
       return null; // character does not exist
     }
@@ -127,7 +127,6 @@ export class DataService {
   getWorld(name: string): string | null {
     const data = this.readWorlds();
     if (!data[name]) {
-      console.log('GET WORLD CALLED - not found');
       return null;
     }
     return data[name];
@@ -136,7 +135,7 @@ export class DataService {
   saveWorld(name: string, worldJson: string): void {
     const data = this.readWorlds();
     data[name] = worldJson;
-    console.log('SAVE WORLD CALLED');
+    console.log('SAVE WORLD CALLED for:', name);
     this.writeWorlds(data);
   }
 
