@@ -27,6 +27,23 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log('Client disconnected from world gateway:', client.id);
   }
 
+  private truncateImageData(obj: any): any {
+    if (typeof obj === 'string' && obj.startsWith('data:image') && obj.length > 100) {
+      return obj.substring(0, 50) + '...[TRUNCATED ' + obj.length + ' chars]';
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.truncateImageData(item));
+    }
+    if (obj && typeof obj === 'object') {
+      const result: any = {};
+      for (const key in obj) {
+        result[key] = this.truncateImageData(obj[key]);
+      }
+      return result;
+    }
+    return obj;
+  }
+
   // Join a world "room"
   @SubscribeMessage('joinWorld')
   joinWorld(
@@ -43,16 +60,8 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { worldName: string; patch: JsonPatch },
     @ConnectedSocket() client: Socket,
   ) {
-    // Truncate portrait data in logs to keep console readable
-    const logData = JSON.parse(JSON.stringify(data));
-    if (Array.isArray(logData.patch?.value)) {
-      logData.patch.value = logData.patch.value.map((item: any) => {
-        if (item?.portrait && typeof item.portrait === 'string' && item.portrait.length > 100) {
-          return { ...item, portrait: item.portrait.substring(0, 50) + '...[TRUNCATED]' };
-        }
-        return item;
-      });
-    }
+    // Truncate all image data in logs to keep console readable
+    const logData = this.truncateImageData(data);
     console.log('[WORLD GATEWAY] Received patchWorld message:', logData);
     const { worldName, patch } = data;
 

@@ -140,21 +140,30 @@ export class DataService {
     this.writeWorlds(data);
   }
 
+  private truncateImageData(obj: any): any {
+    if (typeof obj === 'string' && obj.startsWith('data:image') && obj.length > 100) {
+      return obj.substring(0, 50) + '...[TRUNCATED ' + obj.length + ' chars]';
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.truncateImageData(item));
+    }
+    if (obj && typeof obj === 'object') {
+      const result: any = {};
+      for (const key in obj) {
+        result[key] = this.truncateImageData(obj[key]);
+      }
+      return result;
+    }
+    return obj;
+  }
+
   applyPatchToWorld(name: string, patch: JsonPatch): string | null {
     const data = this.readWorlds();
     console.log('APPLY PATCH WORLD CALLED for:', name);
     console.log('Available worlds:', Object.keys(data));
 
-    // Truncate portrait data in logs to keep console readable
-    const logPatch = JSON.parse(JSON.stringify(patch));
-    if (Array.isArray(logPatch.value)) {
-      logPatch.value = logPatch.value.map((item: any) => {
-        if (item?.portrait && typeof item.portrait === 'string' && item.portrait.length > 100) {
-          return { ...item, portrait: item.portrait.substring(0, 50) + '...[TRUNCATED]' };
-        }
-        return item;
-      });
-    }
+    // Truncate all image data in logs to keep console readable
+    const logPatch = this.truncateImageData(patch);
     console.log('Patch:', logPatch);
 
     let world: any;
