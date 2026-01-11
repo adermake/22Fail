@@ -1094,29 +1094,32 @@ export class WorldComponent implements OnInit, OnDestroy {
     // Step 1: Sort by nextTurnAt (speed-based position calculation)
     const sorted = [...participants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
 
-    // Step 2: Look at the first character and group with following same-team characters
+    // Step 2: Look at consecutive same-team characters starting from the first position
+    // Group ONLY if they are physically next to each other in the sorted order
     const firstChar = sorted[0];
     const firstTeam = firstChar.team;
     const lowestTime = firstChar.nextTurnAt;
 
     console.log('[GROUPING] First character:', firstChar.characterId, 'team:', firstTeam, 'time:', lowestTime);
 
-    // Find all same-team characters that can be grouped with the first
-    // They must be immediately following in the sorted order (no different team in between)
+    // Start with first character in the group
     const groupIds = new Set<string>([firstChar.characterId]);
 
+    // Check each following character - only group if SAME TEAM and CONSECUTIVE
     for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i].team === firstTeam) {
-        groupIds.add(sorted[i].characterId);
-        console.log('[GROUPING] Adding to group:', sorted[i].characterId);
-      } else {
-        // Different team found, stop grouping
+      // If different team, stop grouping (not next to each other anymore)
+      if (sorted[i].team !== firstTeam) {
         console.log('[GROUPING] Different team found, stopping at:', sorted[i].characterId);
         break;
       }
+
+      // Same team and consecutive in order - add to group
+      groupIds.add(sorted[i].characterId);
+      console.log('[GROUPING] Adding consecutive same-team character:', sorted[i].characterId);
     }
 
     // Step 3: Sync all group members to the same nextTurnAt (the lowest one)
+    // This ensures they display as a group on the UI
     const result = participants.map(p => {
       if (groupIds.has(p.characterId)) {
         return { ...p, nextTurnAt: lowestTime };
