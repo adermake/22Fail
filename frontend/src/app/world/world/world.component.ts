@@ -18,7 +18,7 @@ import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.comp
 import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
 import { BattleTracker } from '../battle-tracker/battle-tracker';
 import { BattleParticipant } from '../../model/world.model';
-import { LootManagerComponent, LootBundle } from '../loot-manager/loot-manager.component';
+import { LootManagerComponent, LootBundle } from './loot-manager.component';
 
 export interface SimulatedTurn {
   characterId: string;
@@ -612,26 +612,32 @@ export class WorldComponent implements OnInit, OnDestroy {
     switch (type) {
       case 'item':
         fieldPath = 'inventory';
-        currentArray = freshSheet.inventory || [];
+        if (!freshSheet.inventory) freshSheet.inventory = [];
+        currentArray = freshSheet.inventory;
         break;
       case 'rune':
         fieldPath = 'runes';
-        currentArray = freshSheet.runes || [];
+        if (!freshSheet.runes) freshSheet.runes = [];
+        currentArray = freshSheet.runes;
         break;
       case 'spell':
         fieldPath = 'spells';
-        currentArray = freshSheet.spells || [];
+        if (!freshSheet.spells) freshSheet.spells = [];
+        currentArray = freshSheet.spells;
         break;
       case 'skill':
         fieldPath = 'skills';
-        currentArray = freshSheet.skills || [];
+        if (!freshSheet.skills) freshSheet.skills = [];
+        currentArray = freshSheet.skills;
         break;
     }
 
     const newItem = { ...lootData };
+    currentArray.push(newItem);
+
     const patch: JsonPatch = {
       path: fieldPath,
-      value: [...currentArray, newItem]
+      value: currentArray
     };
 
     this.characterSocket.sendPatch(characterId, patch);
