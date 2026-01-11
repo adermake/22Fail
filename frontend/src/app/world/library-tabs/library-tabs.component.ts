@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ItemBlock } from '../../model/item-block.model';
@@ -16,8 +16,7 @@ import { SkillComponent } from '../../sheet/skill/skill.component';
   selector: 'app-library-tabs',
   imports: [CommonModule, FormsModule, ItemComponent, RuneComponent, SpellComponent, SkillComponent],
   templateUrl: './library-tabs.component.html',
-  styleUrl: './library-tabs.component.css',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrl: './library-tabs.component.css'
 })
 export class LibraryTabsComponent {
   @Input({ required: true }) items: ItemBlock[] = [];
@@ -92,27 +91,6 @@ export class LibraryTabsComponent {
     return originalArray.indexOf(item);
   }
 
-  // TrackBy functions to prevent unnecessary re-renders
-  trackByOriginalIndex(index: number, item: any): number {
-    // Use the original index from the unfiltered array as the unique identifier
-    const originalIndex = this.getOriginalIndexForTrackBy(item);
-    return originalIndex;
-  }
-
-  private getOriginalIndexForTrackBy(item: any): number {
-    // Check which array this item belongs to based on activeTab
-    let originalIndex = this.items.indexOf(item);
-    if (originalIndex !== -1) return originalIndex;
-
-    originalIndex = this.runes.indexOf(item);
-    if (originalIndex !== -1) return originalIndex;
-
-    originalIndex = this.spells.indexOf(item);
-    if (originalIndex !== -1) return originalIndex;
-
-    originalIndex = this.skills.indexOf(item);
-    return originalIndex;
-  }
 
   setActiveTab(tab: 'items' | 'runes' | 'spells' | 'skills') {
     this.activeTab = tab;

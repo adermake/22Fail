@@ -173,14 +173,14 @@
 /* Drop zones between queue groups */
 .drop-zone {
   flex-shrink: 0;
-  width: 8px;
+  width: 32px;
   min-height: 80px;
   position: relative;
   transition: all 0.2s ease;
 }
 
 .drop-zone-active {
-  width: 16px;
+  width: 40px;
 }
 
 .drop-zone-active::before {
