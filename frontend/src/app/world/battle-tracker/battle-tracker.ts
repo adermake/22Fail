@@ -98,19 +98,33 @@ export class BattleTracker {
       next.nextTurnAt = next.nextTurnAt + (1000 / next.speed);
     }
 
-    // Group turns that happen at the same time (within threshold) and same team
-    // BUT only group DIFFERENT characters (same character can't be in a group with itself)
+    // Only show grouping for the FIRST position (index 0)
+    // All other positions should be individual turns
     const grouped: Array<{ participants: ParticipantWithPortrait[], nextTurnAt: number, team?: string }> = [];
-    for (const turn of queue) {
-      const lastGroup = grouped[grouped.length - 1];
-      if (lastGroup &&
-          Math.abs(lastGroup.nextTurnAt - turn.nextTurnAt) < 0.01 &&
-          lastGroup.team === turn.team &&
-          !lastGroup.participants.some(p => p.characterId === turn.characterId)) {
-        // Add to existing group if same team, same time, and NOT the same character
-        lastGroup.participants.push(turn);
+
+    for (let i = 0; i < queue.length; i++) {
+      const turn = queue[i];
+
+      if (i === 0) {
+        // First position: check if we can group with following turns
+        const firstGroup: ParticipantWithPortrait[] = [turn];
+
+        // Look ahead for consecutive same-team turns at the same time
+        for (let j = i + 1; j < queue.length; j++) {
+          const nextTurn = queue[j];
+          if (Math.abs(nextTurn.nextTurnAt - turn.nextTurnAt) < 0.01 &&
+              nextTurn.team === turn.team &&
+              !firstGroup.some(p => p.characterId === nextTurn.characterId)) {
+            firstGroup.push(nextTurn);
+            i++; // Skip this turn in the outer loop
+          } else {
+            break;
+          }
+        }
+
+        grouped.push({ participants: firstGroup, nextTurnAt: turn.nextTurnAt, team: turn.team });
       } else {
-        // Create new group
+        // All other positions: individual turns only
         grouped.push({ participants: [turn], nextTurnAt: turn.nextTurnAt, team: turn.team });
       }
     }
