@@ -133,6 +133,19 @@ export class WorldComponent implements OnInit, OnDestroy {
             this.partyCharacters.set(characterId, sheet);
             // Join the character's socket room to receive real-time updates
             this.characterSocket.joinCharacter(characterId);
+
+            // Auto-assign world to character if it doesn't match
+            if (sheet.worldName !== this.worldName) {
+              try {
+                await this.characterApi.patchCharacter(characterId, {
+                  path: 'worldName',
+                  value: this.worldName
+                });
+                console.log(`Auto-assigned world ${this.worldName} to character ${characterId}`);
+              } catch (error) {
+                console.error(`Failed to auto-assign world to character ${characterId}:`, error);
+              }
+            }
           }
         } catch (err) {
           console.error(`Failed to load character ${characterId}:`, err);
@@ -1069,75 +1082,52 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   // Helper function to recalculate all timing with automatic grouping
-  // Groups characters based on adjacency in the projected turn queue
+  // Only groups characters that are currently at the front (lowest nextTurnAt, same team)
   // Groups are created left-to-right based on participant list order
   private recalculateTimingWithGrouping(participants: BattleParticipant[]) {
     if (participants.length === 0) return;
 
-    // First, simulate the turn queue to see who appears adjacent
-    const queue: BattleParticipant[] = [];
-    const tempParticipants = participants.map(p => ({ ...p }));
+    // Sort by nextTurnAt to find who's currently at the front
+    const sorted = [...participants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+    const minTime = sorted[0].nextTurnAt;
+    const frontTeam = sorted[0].team;
 
-    // Generate 20 turns to analyze patterns
-    for (let i = 0; i < 20; i++) {
-      tempParticipants.sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-      const next = tempParticipants[0];
-      queue.push({ ...next });
-      next.nextTurnAt = next.nextTurnAt + (1000 / next.speed);
-    }
-
-    // Analyze which same-team different characters are consistently adjacent
-    const adjacentPairs = new Set<string>();
-    for (let i = 0; i < queue.length - 1; i++) {
-      const current = queue[i];
-      const next = queue[i + 1];
-
-      // Only consider same team, different characters
-      if (current.team === next.team && current.characterId !== next.characterId) {
-        // Use consistent ordering for the pair key
-        const key = [current.characterId, next.characterId].sort().join('-');
-        adjacentPairs.add(key);
+    // Find all characters at the front (same nextTurnAt, same team)
+    const currentGroupIds = new Set<string>();
+    for (const p of sorted) {
+      if (Math.abs(p.nextTurnAt - minTime) < 0.01 && p.team === frontTeam) {
+        currentGroupIds.add(p.characterId);
+      } else {
+        break; // Stop once we hit characters with different time or team
       }
     }
 
-    // Check if two characters are adjacent in the simulated queue
-    const areAdjacent = (id1: string, id2: string): boolean => {
-      const key = [id1, id2].sort().join('-');
-      return adjacentPairs.has(key);
-    };
-
-    // Process participants left-to-right, grouping same-team adjacent characters
+    // Rebuild the participants array:
+    // - Characters in current group get the same nextTurnAt (grouped)
+    // - Everyone else keeps their relative timing
     const result: BattleParticipant[] = [];
-    const processed = new Set<string>();
     let currentTime = 0;
+    const processed = new Set<string>();
 
-    for (let i = 0; i < participants.length; i++) {
-      const participant = participants[i];
-      if (processed.has(participant.characterId)) continue;
-
-      // Start a new group with this participant
-      const groupMembers = [participant];
-      processed.add(participant.characterId);
-
-      // Look ahead to find other same-team members that are adjacent in queue
-      for (let j = i + 1; j < participants.length; j++) {
-        const candidate = participants[j];
-        if (processed.has(candidate.characterId)) continue;
-
-        // Check if candidate is same team and adjacent to any member of current group
-        if (candidate.team === participant.team &&
-            groupMembers.some(member => areAdjacent(member.characterId, candidate.characterId))) {
-          groupMembers.push(candidate);
-          processed.add(candidate.characterId);
-        }
+    // First, process the current turn group (left-to-right from original order)
+    for (const p of participants) {
+      if (currentGroupIds.has(p.characterId)) {
+        result.push({ ...p, nextTurnAt: currentTime });
+        processed.add(p.characterId);
       }
+    }
 
-      // Add all group members with the same nextTurnAt
-      groupMembers.forEach(member => {
-        result.push({ ...member, nextTurnAt: currentTime });
-      });
-
+    // Move to next time slot
+    if (result.length > 0) {
       currentTime += 10;
+    }
+
+    // Then process everyone else (left-to-right from original order)
+    for (const p of participants) {
+      if (!processed.has(p.characterId)) {
+        result.push({ ...p, nextTurnAt: currentTime });
+        currentTime += 10;
+      }
     }
 
     this.store.applyPatch({
