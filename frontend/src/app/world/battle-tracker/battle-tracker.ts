@@ -1,7 +1,6 @@
 import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
 import { BattleParticipant } from '../../model/world.model';
 
 interface CharacterOption {
@@ -23,21 +22,6 @@ interface QueueGroup {
 @Component({
   selector: 'app-battle-tracker',
   imports: [CommonModule, FormsModule],
-  animations: [
-    trigger('listAnimation', [
-      transition('* => *', [
-        query(':enter', [
-          style({ opacity: 0, transform: 'translateY(-20px) scale(0.9)' }),
-          stagger(30, [
-            animate('400ms cubic-bezier(0.25, 0.8, 0.25, 1)', style({ opacity: 1, transform: 'none' }))
-          ])
-        ], { optional: true }),
-        query(':leave', [
-          animate('200ms ease-out', style({ opacity: 0, transform: 'translateY(20px) scale(0.9)' }))
-        ], { optional: true })
-      ])
-    ])
-  ],
   styles: [`
     .battle-tracker-container {
       display: flex;
@@ -257,7 +241,6 @@ interface QueueGroup {
       
       <div class="turn-queue-container">
         <div class="turn-queue" 
-             [@listAnimation]="queueGroups"
              [class.is-dragging]="!!draggedParticipant"
              (dragover)="onDragOverQueue($event)"
              (dragleave)="onDragLeaveQueue()"
