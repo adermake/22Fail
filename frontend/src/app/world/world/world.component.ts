@@ -855,10 +855,10 @@ export class WorldComponent implements OnInit, OnDestroy {
       team: 'blue' // Default team color
     };
 
-    this.store.applyPatch({
-      path: 'battleParticipants',
-      value: [...world.battleParticipants, newParticipant]
-    });
+    const updatedParticipants = [...world.battleParticipants, newParticipant];
+
+    // After adding, check if we should auto-group same-team adjacent characters
+    this.recalculateTimingWithGrouping(updatedParticipants);
   }
 
   removeFromBattle(characterId: string) {
