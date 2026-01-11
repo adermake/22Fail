@@ -1108,7 +1108,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     const sorted = [...participants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
 
     // Step 2: Look at consecutive same-team characters starting from the first position
-    // Group ONLY if they are physically next to each other in the sorted order
+    // Group ONLY if they are: same team AND consecutive AND at the same time (within tolerance)
     const firstChar = sorted[0];
     const firstTeam = firstChar.team;
     const lowestTime = firstChar.nextTurnAt;
@@ -1118,20 +1118,28 @@ export class WorldComponent implements OnInit, OnDestroy {
     // Start with first character in the group
     const groupIds = new Set<string>([firstChar.characterId]);
 
-    // Check each following character - only group if SAME TEAM and CONSECUTIVE
+    // Check each following character - only group if SAME TEAM, CONSECUTIVE, and SAME TIME
     for (let i = 1; i < sorted.length; i++) {
-      // If different team, stop grouping (not next to each other anymore)
-      if (sorted[i].team !== firstTeam) {
-        console.log('[GROUPING] Different team found, stopping at:', sorted[i].characterId);
+      const char = sorted[i];
+
+      // Must be same team
+      if (char.team !== firstTeam) {
+        console.log('[GROUPING] Different team found, stopping at:', char.characterId);
         break;
       }
 
-      // Same team and consecutive in order - add to group
-      groupIds.add(sorted[i].characterId);
-      console.log('[GROUPING] Adding consecutive same-team character:', sorted[i].characterId);
+      // Must be at approximately the same time (within 0.01)
+      if (Math.abs(char.nextTurnAt - lowestTime) >= 0.01) {
+        console.log('[GROUPING] Different time found, stopping at:', char.characterId, 'time:', char.nextTurnAt);
+        break;
+      }
+
+      // Same team, consecutive in order, and same time - add to group
+      groupIds.add(char.characterId);
+      console.log('[GROUPING] Adding consecutive same-team same-time character:', char.characterId);
     }
 
-    // Step 3: Sync all group members to the same nextTurnAt (the lowest one)
+    // Step 3: Sync all group members to the exact same nextTurnAt (the lowest one)
     // This ensures they display as a group on the UI
     const result = participants.map(p => {
       if (groupIds.has(p.characterId)) {

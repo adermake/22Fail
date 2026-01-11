@@ -98,35 +98,28 @@ export class BattleTracker {
       next.nextTurnAt = next.nextTurnAt + (1000 / next.speed);
     }
 
-    // Only show grouping for the FIRST position (index 0)
-    // All other positions should be individual turns
+    // Group all same-team same-time consecutive characters
     const grouped: Array<{ participants: ParticipantWithPortrait[], nextTurnAt: number, team?: string }> = [];
 
     for (let i = 0; i < queue.length; i++) {
       const turn = queue[i];
+      const currentGroup: ParticipantWithPortrait[] = [turn];
 
-      if (i === 0) {
-        // First position: check if we can group with following turns
-        const firstGroup: ParticipantWithPortrait[] = [turn];
-
-        // Look ahead for consecutive same-team turns at the same time
-        for (let j = i + 1; j < queue.length; j++) {
-          const nextTurn = queue[j];
-          if (Math.abs(nextTurn.nextTurnAt - turn.nextTurnAt) < 0.01 &&
-              nextTurn.team === turn.team &&
-              !firstGroup.some(p => p.characterId === nextTurn.characterId)) {
-            firstGroup.push(nextTurn);
-            i++; // Skip this turn in the outer loop
-          } else {
-            break;
-          }
+      // Look ahead for consecutive same-team turns at the same time
+      for (let j = i + 1; j < queue.length; j++) {
+        const nextTurn = queue[j];
+        // Must be same team, same time, and not already in group
+        if (Math.abs(nextTurn.nextTurnAt - turn.nextTurnAt) < 0.01 &&
+            nextTurn.team === turn.team &&
+            !currentGroup.some(p => p.characterId === nextTurn.characterId)) {
+          currentGroup.push(nextTurn);
+          i++; // Skip this turn in the outer loop
+        } else {
+          break; // Stop if conditions not met
         }
-
-        grouped.push({ participants: firstGroup, nextTurnAt: turn.nextTurnAt, team: turn.team });
-      } else {
-        // All other positions: individual turns only
-        grouped.push({ participants: [turn], nextTurnAt: turn.nextTurnAt, team: turn.team });
       }
+
+      grouped.push({ participants: currentGroup, nextTurnAt: turn.nextTurnAt, team: turn.team });
     }
 
     return grouped.slice(0, 10); // Show 10 turn slots (groups)

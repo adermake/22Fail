@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, OnChanges } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ItemBlock } from '../../model/item-block.model';
@@ -16,7 +16,8 @@ import { SkillComponent } from '../../sheet/skill/skill.component';
   selector: 'app-library-tabs',
   imports: [CommonModule, FormsModule, ItemComponent, RuneComponent, SpellComponent, SkillComponent],
   templateUrl: './library-tabs.component.html',
-  styleUrl: './library-tabs.component.css'
+  styleUrl: './library-tabs.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LibraryTabsComponent implements OnChanges {
   @Input({ required: true }) items: ItemBlock[] = [];
@@ -55,6 +56,12 @@ export class LibraryTabsComponent implements OnChanges {
   filteredSpells: any[] = [];
   filteredSkills: any[] = [];
 
+  // Track previous array lengths to detect add/remove vs patch
+  private prevItemsLength = 0;
+  private prevRunesLength = 0;
+  private prevSpellsLength = 0;
+  private prevSkillsLength = 0;
+
   get searchTerm(): string {
     return this._searchTerm;
   }
@@ -64,8 +71,37 @@ export class LibraryTabsComponent implements OnChanges {
     this.updateFilteredArrays();
   }
 
-  ngOnChanges() {
-    this.updateFilteredArrays();
+  ngOnChanges(changes: SimpleChanges) {
+    // Only update filtered arrays if array lengths changed (add/remove)
+    // Don't update on content patches (which would recreate DOM and lose focus)
+    let shouldUpdate = false;
+
+    if (changes['items'] && this.items.length !== this.prevItemsLength) {
+      this.prevItemsLength = this.items.length;
+      shouldUpdate = true;
+    }
+    if (changes['runes'] && this.runes.length !== this.prevRunesLength) {
+      this.prevRunesLength = this.runes.length;
+      shouldUpdate = true;
+    }
+    if (changes['spells'] && this.spells.length !== this.prevSpellsLength) {
+      this.prevSpellsLength = this.spells.length;
+      shouldUpdate = true;
+    }
+    if (changes['skills'] && this.skills.length !== this.prevSkillsLength) {
+      this.prevSkillsLength = this.skills.length;
+      shouldUpdate = true;
+    }
+
+    // Always update on first change
+    if (changes['items']?.firstChange || changes['runes']?.firstChange ||
+        changes['spells']?.firstChange || changes['skills']?.firstChange) {
+      shouldUpdate = true;
+    }
+
+    if (shouldUpdate) {
+      this.updateFilteredArrays();
+    }
   }
 
   private updateFilteredArrays() {
