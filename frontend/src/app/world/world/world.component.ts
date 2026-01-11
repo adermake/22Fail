@@ -1080,46 +1080,50 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   // Helper function to recalculate all timing with automatic grouping
-  // Groups same-team characters that are at the front (have lowest nextTurnAt values)
-  // Groups are created left-to-right based on participant list order
+  // Groups same-team characters that appear consecutively at the front of the turn queue
+  // Grouping is based purely on queue position, not speed
   private recalculateTimingWithGrouping(participants: BattleParticipant[]) {
     if (participants.length === 0) return;
 
-    // Sort by nextTurnAt to find who's currently at the front
-    const sorted = [...participants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-    const minTime = sorted[0].nextTurnAt;
-    const frontTeam = sorted[0].team;
+    // Sort by nextTurnAt to get the turn queue order
+    const queue = [...participants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
 
-    // Find all same-team characters that are close to the front (within 1.0 of minTime)
-    // This allows characters added with slight offset (0.1, 0.2, etc) to still group
-    const currentGroupIds = new Set<string>();
-    for (const p of sorted) {
-      if (Math.abs(p.nextTurnAt - minTime) < 1.0 && p.team === frontTeam) {
-        currentGroupIds.add(p.characterId);
+    // Find consecutive same-team characters at the front of the queue
+    const firstTeam = queue[0].team;
+    const frontGroupIds = new Set<string>();
+    frontGroupIds.add(queue[0].characterId);
+
+    // Keep adding consecutive characters of the same team
+    for (let i = 1; i < queue.length; i++) {
+      if (queue[i].team === firstTeam) {
+        frontGroupIds.add(queue[i].characterId);
+      } else {
+        // Stop when we hit a different team
+        break;
       }
     }
 
-    // Rebuild the participants array:
-    // - Characters in current group get the same nextTurnAt (grouped at 0)
-    // - Everyone else gets individual slots starting from 10
+    // Rebuild with grouped timing:
+    // - Front group all gets nextTurnAt: 0
+    // - Everyone else gets individual slots (10, 20, 30, ...)
     const result: BattleParticipant[] = [];
     let currentTime = 0;
     const processed = new Set<string>();
 
-    // First, process the current turn group (left-to-right from original order)
+    // First, add all members of the front group (in original order)
     for (const p of participants) {
-      if (currentGroupIds.has(p.characterId)) {
+      if (frontGroupIds.has(p.characterId)) {
         result.push({ ...p, nextTurnAt: currentTime });
         processed.add(p.characterId);
       }
     }
 
-    // Move to next time slot
+    // Move to next time slot if we added anyone
     if (result.length > 0) {
       currentTime += 10;
     }
 
-    // Then process everyone else (left-to-right from original order)
+    // Then add everyone else individually (in original order)
     for (const p of participants) {
       if (!processed.has(p.characterId)) {
         result.push({ ...p, nextTurnAt: currentTime });
