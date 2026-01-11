@@ -656,9 +656,32 @@ export class WorldComponent implements OnInit, OnDestroy {
     const world = this.store.worldValue;
     if (world) {
       const currentBundles = (world as any).lootBundleLibrary || [];
+      const existingIndex = currentBundles.findIndex((b: LootBundle) => b.name === bundle.name);
+      
+      let newBundles;
+      if (existingIndex >= 0) {
+        newBundles = [...currentBundles];
+        newBundles[existingIndex] = bundle;
+      } else {
+        newBundles = [...currentBundles, bundle];
+      }
+
       this.store.applyPatch({
         path: 'lootBundleLibrary',
-        value: [...currentBundles, bundle]
+        value: newBundles
+      });
+    }
+  }
+
+  onBundleDeleted(index: number) {
+    const world = this.store.worldValue;
+    if (world) {
+      const currentBundles = (world as any).lootBundleLibrary || [];
+      const newBundles = [...currentBundles];
+      newBundles.splice(index, 1);
+      this.store.applyPatch({
+        path: 'lootBundleLibrary',
+        value: newBundles
       });
     }
   }

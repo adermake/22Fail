@@ -142,7 +142,8 @@
       <app-loot-manager 
         [bundles]="lootBundleLibrary" 
         [partyMembers]="partyMembersForLoot"
-        (bundleCreated)="onBundleCreated($event)">
+        (bundleCreated)="onBundleCreated($event)"
+        (bundleDeleted)="onBundleDeleted($event)">
       </app-loot-manager>
     </app-card>
 

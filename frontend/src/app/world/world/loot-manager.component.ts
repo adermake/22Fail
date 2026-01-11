@@ -94,10 +94,30 @@ export interface LootBundle {
       border-radius: 6px;
       cursor: grab;
       text-align: center;
+      position: relative;
     }
     .bundle-card:active { cursor: grabbing; }
     .bundle-name { font-weight: bold; font-size: 0.9rem; display: block; margin-bottom: 4px; }
     .bundle-desc { font-size: 0.75rem; color: var(--text-muted); }
+    .bundle-delete {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ef4444;
+      color: white;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .bundle-card:hover .bundle-delete { opacity: 1; }
 
     button {
       padding: 4px 8px;
@@ -143,6 +163,7 @@ export interface LootBundle {
                class="bundle-card"
                draggable="true"
                (dragstart)="onDragStartBundle($event, i)">
+            <button class="bundle-delete" (click)="deleteBundle(i, $event)" title="Delete Bundle">×</button>
             <span class="bundle-name">{{bundle.name}}</span>
             <span class="bundle-desc">{{bundle.items.length + bundle.runes.length + bundle.spells.length}} items</span>
           </div>
@@ -206,6 +227,7 @@ export class LootManagerComponent {
   @Input() bundles: LootBundle[] = [];
   @Input() partyMembers: {id: string, name: string}[] = [];
   @Output() bundleCreated = new EventEmitter<LootBundle>();
+  @Output() bundleDeleted = new EventEmitter<number>();
 
   newCurrency = { copper: 0, silver: 0, gold: 0, platinum: 0 };
 
@@ -280,6 +302,12 @@ export class LootManagerComponent {
     const name = prompt('Enter bundle name:');
     if (!name) return;
 
+    if (this.bundles.some(b => b.name === name)) {
+      if (!confirm(`A bundle named "${name}" already exists. Overwrite it?`)) {
+        return;
+      }
+    }
+
     const bundle: LootBundle = {
       name,
       description: 'Created from battle loot',
@@ -301,6 +329,13 @@ export class LootManagerComponent {
     });
 
     this.bundleCreated.emit(bundle);
+  }
+
+  deleteBundle(index: number, event: Event) {
+    event.stopPropagation();
+    if (confirm('Are you sure you want to delete this bundle?')) {
+      this.bundleDeleted.emit(index);
+    }
   }
 
   onDragStartBundle(event: DragEvent, index: number) {
