@@ -274,7 +274,7 @@ export class WorldComponent implements OnInit, OnDestroy {
       const item = { ...updatedItems[index] };
 
       // Apply the patch to the item - handle nested objects properly
-      const keys = patch.path.split('.');
+      const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');
       let current: any = item;
 
       for (let i = 0; i < keys.length - 1; i++) {
@@ -378,7 +378,7 @@ export class WorldComponent implements OnInit, OnDestroy {
       const rune = { ...updatedRunes[index] };
 
       // Apply the patch to the rune
-      const keys = patch.path.split('.');
+      const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');
       let current: any = rune;
       for (let i = 0; i < keys.length - 1; i++) {
         current = current[keys[i]];
@@ -432,7 +432,7 @@ export class WorldComponent implements OnInit, OnDestroy {
       const spell = { ...updatedSpells[index] };
 
       // Apply the patch to the spell
-      const keys = patch.path.split('.');
+      const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');
       let current: any = spell;
       for (let i = 0; i < keys.length - 1; i++) {
         current = current[keys[i]];
@@ -483,7 +483,7 @@ export class WorldComponent implements OnInit, OnDestroy {
       const skill = { ...updatedSkills[index] };
 
       // Apply the patch to the skill
-      const keys = patch.path.split('.');
+      const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');
       let current: any = skill;
       for (let i = 0; i < keys.length - 1; i++) {
         current = current[keys[i]];
@@ -805,7 +805,7 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   // Apply JSON patch to character sheet (for real-time updates)
   private applyJsonPatch(target: any, patch: JsonPatch) {
-    const keys = patch.path.split('.');
+    const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');
     let current = target;
 
     for (let i = 0; i < keys.length - 1; i++) {
