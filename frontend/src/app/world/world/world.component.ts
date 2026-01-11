@@ -54,14 +54,16 @@ export class WorldComponent implements OnInit, OnDestroy {
   private characterPatchSubscription?: Subscription;
 
   // Map of character IDs to portrait URLs (for battle tracker)
-  get characterPortraitsMap(): Map<string, string> {
+  characterPortraitsMap: Map<string, string> = new Map();
+
+  updateCharacterPortraits() {
     const map = new Map<string, string>();
     this.partyCharacters.forEach((sheet, id) => {
       if (sheet.portrait) {
         map.set(id, sheet.portrait);
       }
     });
-    return map;
+    this.characterPortraitsMap = map;
   }
 
   // Dummy sheet for item/spell components that require it
@@ -113,6 +115,11 @@ export class WorldComponent implements OnInit, OnDestroy {
         // If speed stat or level changed, refresh battle speeds
         if (data.patch.path.includes('speed') || data.patch.path === 'level') {
           this.refreshBattleSpeeds();
+        }
+
+        // Update portraits if needed
+        if (data.patch.path.includes('portrait')) {
+          this.updateCharacterPortraits();
         }
 
         // Trigger change detection to update the view
@@ -178,6 +185,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
 
     // Trigger change detection after loading characters
+    this.updateCharacterPortraits();
     this.cdr.detectChanges();
   }
 

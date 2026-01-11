@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BattleParticipant } from '../../model/world.model';
@@ -55,7 +55,15 @@ interface QueueGroup {
     /* Character List */
     .characters-section { margin-bottom: 1rem; }
     .characters-section h3 { margin: 0 0 0.5rem 0; font-size: 1rem; color: var(--text); }
-    .character-list { display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto; }
+    .character-list { 
+      display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto;
+      padding-right: 4px;
+    }
+    .character-list::-webkit-scrollbar { width: 6px; }
+    .character-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+    .character-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .character-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
     .character-option {
       display: flex; align-items: center; justify-content: space-between;
       padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
@@ -80,12 +88,19 @@ interface QueueGroup {
     .turn-queue-container {
       overflow-x: auto;
       padding-bottom: 0.5rem;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent) transparent;
     }
+    .turn-queue-container::-webkit-scrollbar { height: 6px; }
+    .turn-queue-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 3px; }
+    .turn-queue-container::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
     .turn-queue {
       display: flex;
       gap: 4px;
       min-height: 100px;
       align-items: center;
+      padding: 4px;
     }
     .battle-group {
       display: flex;
@@ -180,7 +195,7 @@ interface QueueGroup {
       <div class="characters-section">
         <h3>Characters</h3>
         <div class="character-list" *ngIf="availableCharacters.length > 0; else noChars">
-          <div *ngFor="let char of availableCharacters" class="character-option" [class.in-battle]="isInBattle(char.id)">
+          <div *ngFor="let char of availableCharacters; trackBy: trackByCharId" class="character-option" [class.in-battle]="isInBattle(char.id)">
             <div class="character-info">
               <img [src]="getCharacterPortrait(char.id) || 'assets/default-portrait.png'" class="character-portrait-small">
               <div class="character-details">
@@ -208,7 +223,7 @@ interface QueueGroup {
       
       <div class="turn-queue-container">
         <div class="turn-queue">
-          <div *ngFor="let group of turnQueue; let gIdx = index" 
+          <div *ngFor="let group of queueGroups; let gIdx = index; trackBy: trackByGroup" 
                class="battle-group"
                [ngClass]="'team-' + group.team"
                (dragover)="onDragOverGroup($event, gIdx)"
@@ -217,7 +232,7 @@ interface QueueGroup {
                [class.drop-target-left]="dragOverIndex === gIdx && dropPosition === 'left'"
                [class.drop-target-right]="dragOverIndex === gIdx && dropPosition === 'right'">
             
-            <div *ngFor="let turn of group.participants" 
+            <div *ngFor="let turn of group.participants; trackBy: trackByCharId" 
                  class="battle-card"
                  [class.is-anchor]="turn.isAnchor"
                  [draggable]="turn.isAnchor"
@@ -236,7 +251,7 @@ interface QueueGroup {
     </div>
   `
 })
-export class BattleTracker {
+export class BattleTracker implements OnChanges {
   @Input() battleParticipants: BattleParticipant[] = [];
   @Input() currentTurnIndex: number = 0;
   @Input() availableCharacters: CharacterOption[] = [];
@@ -254,6 +269,14 @@ export class BattleTracker {
   dropPosition: 'before' | 'after' | 'left' | 'right' | null = null;
   completingTurn = false;
   availableTeams = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
+  
+  queueGroups: QueueGroup[] = [];
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['battleParticipants'] || changes['characterPortraits']) {
+      this.calculateTurnQueue();
+    }
+  }
 
   // Enrich participants with portraits from character map
   get participantsWithPortraits(): ParticipantWithPortrait[] {
@@ -301,9 +324,9 @@ export class BattleTracker {
     return this.characterPortraits.get(characterId);
   }
 
-  // Generate turn queue showing next N turns with grouping by team
-  get turnQueue(): QueueGroup[] {
-    if (this.battleParticipants.length === 0) return [];
+  // Calculate turn queue (moved from getter to method for performance)
+  calculateTurnQueue() {
+    if (this.battleParticipants.length === 0) { this.queueGroups = []; return; }
 
     // 1. Simulate turns
     const turns: (ParticipantWithPortrait & { isAnchor: boolean, time: number })[] = [];
@@ -333,7 +356,7 @@ export class BattleTracker {
     // 2. Group adjacent same-team turns (Adjacency ONLY, no time check)
     const grouped: QueueGroup[] = [];
     
-    if (turns.length === 0) return [];
+    if (turns.length === 0) { this.queueGroups = []; return; }
 
     let currentGroup = {
       participants: [turns[0]],
@@ -365,7 +388,7 @@ export class BattleTracker {
     }
     grouped.push(currentGroup);
 
-    return grouped.slice(0, 15);
+    this.queueGroups = grouped.slice(0, 15);
   }
 
   onAddCharacter(characterId: string) {
@@ -461,5 +484,13 @@ export class BattleTracker {
   onDragEnd() {
     this.draggedParticipant = null;
     this.dragOverIndex = null;
+  }
+
+  trackByCharId(index: number, item: any): string {
+    return item.id || item.characterId;
+  }
+
+  trackByGroup(index: number, item: QueueGroup): number {
+    return index; // Groups are positional
   }
 }
