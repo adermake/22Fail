@@ -1069,29 +1069,89 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   // Helper function to recalculate all timing with automatic grouping
+  // Groups characters based on adjacency in the projected turn queue
   private recalculateTimingWithGrouping(participants: BattleParticipant[]) {
-    const reordered: BattleParticipant[] = [];
+    if (participants.length === 0) return;
+
+    // First, simulate the turn queue to see who appears adjacent
+    const queue: BattleParticipant[] = [];
+    const tempParticipants = participants.map(p => ({ ...p }));
+
+    // Generate 20 turns to analyze patterns
+    for (let i = 0; i < 20; i++) {
+      tempParticipants.sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+      const next = tempParticipants[0];
+      queue.push({ ...next });
+      next.nextTurnAt = next.nextTurnAt + (1000 / next.speed);
+    }
+
+    // Analyze which same-team different characters are consistently adjacent
+    const adjacencyMap = new Map<string, Set<string>>();
+    for (let i = 0; i < queue.length - 1; i++) {
+      const current = queue[i];
+      const next = queue[i + 1];
+
+      // Only consider same team, different characters
+      if (current.team === next.team && current.characterId !== next.characterId) {
+        const key = [current.characterId, next.characterId].sort().join('-');
+        if (!adjacencyMap.has(key)) {
+          adjacencyMap.set(key, new Set([current.characterId, next.characterId]));
+        }
+      }
+    }
+
+    // Find groups of characters that should act together
+    const groups: Set<string>[] = [];
+    adjacencyMap.forEach((chars, key) => {
+      // Check if this pair should be merged with an existing group
+      let merged = false;
+      for (const group of groups) {
+        // If any character in the pair is already in a group, add both
+        if (Array.from(chars).some(c => group.has(c))) {
+          chars.forEach(c => group.add(c));
+          merged = true;
+          break;
+        }
+      }
+      if (!merged) {
+        groups.push(new Set(chars));
+      }
+    });
+
+    // Assign same nextTurnAt to characters in the same group
+    const result: BattleParticipant[] = [];
+    const processed = new Set<string>();
     let currentTime = 0;
 
-    for (let i = 0; i < participants.length; i++) {
-      const current = participants[i];
+    // Process participants, grouping those that should act together
+    for (const participant of participants) {
+      if (processed.has(participant.characterId)) continue;
 
-      // Check if previous participant is DIFFERENT and has same team
-      if (i > 0 &&
-          reordered[i - 1].team === current.team &&
-          reordered[i - 1].characterId !== current.characterId) {
-        // Same team as previous AND different character, use same time (group turn)
-        reordered.push({ ...current, nextTurnAt: reordered[i - 1].nextTurnAt });
+      // Find if this participant belongs to a group
+      const group = groups.find(g => g.has(participant.characterId));
+
+      if (group) {
+        // Add all members of the group with the same nextTurnAt
+        participants
+          .filter(p => group.has(p.characterId))
+          .forEach(p => {
+            if (!processed.has(p.characterId)) {
+              result.push({ ...p, nextTurnAt: currentTime });
+              processed.add(p.characterId);
+            }
+          });
       } else {
-        // Different team or same character or first participant, use new time
-        reordered.push({ ...current, nextTurnAt: currentTime });
-        currentTime += 10;
+        // Not in a group, add individually
+        result.push({ ...participant, nextTurnAt: currentTime });
+        processed.add(participant.characterId);
       }
+
+      currentTime += 10;
     }
 
     this.store.applyPatch({
       path: 'battleParticipants',
-      value: reordered
+      value: result
     });
   }
 }

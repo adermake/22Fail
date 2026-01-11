@@ -9,14 +9,21 @@ export class WorldSocketService {
   private patchSubject = new Subject<JsonPatch>();
   private lootReceivedSubject = new Subject<any>();
   private battleLootReceivedSubject = new Subject<any>();
+  private connectionReadySubject = new Subject<void>();
+  private isConnected = false;
 
   patches$ = this.patchSubject.asObservable();
   lootReceived$ = this.lootReceivedSubject.asObservable();
   battleLootReceived$ = this.battleLootReceivedSubject.asObservable();
+  connectionReady$ = this.connectionReadySubject.asObservable();
 
   connect() {
     if (this.socket) {
       console.log('[WORLD SOCKET] Already connected');
+      if (this.isConnected) {
+        // Emit immediately if already connected
+        this.connectionReadySubject.next();
+      }
       return;
     }
     console.log('[WORLD SOCKET] Connecting to:', window.location.origin);
@@ -27,10 +34,13 @@ export class WorldSocketService {
 
     this.socket.on('connect', () => {
       console.log('[WORLD SOCKET] Connected! Socket ID:', this.socket?.id);
+      this.isConnected = true;
+      this.connectionReadySubject.next();
     });
 
     this.socket.on('disconnect', (reason) => {
       console.log('[WORLD SOCKET] Disconnected. Reason:', reason);
+      this.isConnected = false;
       if (reason === 'io server disconnect' || reason === 'io client disconnect') {
         console.warn('[WORLD SOCKET] Socket disconnected! This may be due to large message size.');
       }
@@ -54,7 +64,18 @@ export class WorldSocketService {
     });
   }
 
-  joinWorld(worldName: string) {
+  async joinWorld(worldName: string): Promise<void> {
+    // If not connected yet, wait for connection
+    if (!this.isConnected) {
+      console.log('[WORLD SOCKET] Waiting for connection before joining world:', worldName);
+      await new Promise<void>((resolve) => {
+        const sub = this.connectionReady$.subscribe(() => {
+          sub.unsubscribe();
+          resolve();
+        });
+      });
+    }
+    console.log('[WORLD SOCKET] Joining world:', worldName);
     this.socket?.emit('joinWorld', worldName);
   }
 

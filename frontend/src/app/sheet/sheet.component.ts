@@ -71,9 +71,12 @@ export class SheetComponent implements OnInit {
     // Join world room when character sheet loads (if character has a world)
     this.store.sheet$.subscribe(async (sheet) => {
       if (sheet && sheet.worldName) {
-        console.log('Joining world room:', sheet.worldName);
+        console.log('[GLOW DEBUG] Character has world:', sheet.worldName);
         this.currentWorldName = sheet.worldName;
-        this.worldSocket.joinWorld(sheet.worldName);
+
+        // Wait for socket connection before joining world room
+        await this.worldSocket.joinWorld(sheet.worldName);
+        console.log('[GLOW DEBUG] Successfully joined world room:', sheet.worldName);
 
         // Check initial turn state
         try {
@@ -118,8 +121,8 @@ export class SheetComponent implements OnInit {
       });
     });
 
-    this.socket.battleLootReceived$.subscribe((data: BattleLootEvent) => {
-      this.ngZone.run(() => {
+    this.socket.battleLootReceived$.subscribe(async (data: BattleLootEvent) => {
+      await this.ngZone.run(async () => {
         console.log('Battle loot received in sheet component:', data);
         this.receivedLoot = data.loot;
         this.isBattleLoot = true;
@@ -127,7 +130,7 @@ export class SheetComponent implements OnInit {
         this.showLootPopup = true;
 
         // Join the world room to receive battle loot updates
-        this.worldSocket.joinWorld(data.worldName);
+        await this.worldSocket.joinWorld(data.worldName);
 
         this.cdr.detectChanges();
       });
