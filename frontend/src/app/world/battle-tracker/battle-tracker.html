@@ -23,9 +23,9 @@
 
   <div class="participants-section">
     <h3>Battle Participants</h3>
-    @if (battleParticipants.length > 0) {
+    @if (participantsWithPortraits.length > 0) {
       <div class="participants-list">
-        @for (participant of battleParticipants; track participant.characterId) {
+        @for (participant of participantsWithPortraits; track participant.characterId) {
           <div class="participant-item"
                [attr.data-team]="participant.team">
             <div class="participant-info">

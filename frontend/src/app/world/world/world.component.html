@@ -124,6 +124,7 @@
       [battleParticipants]="world.battleParticipants"
       [currentTurnIndex]="world.currentTurnIndex"
       [availableCharacters]="availableCharactersForBattle"
+      [characterPortraits]="characterPortraitsMap"
       (addParticipant)="addToBattle($event)"
       (removeParticipant)="removeFromBattle($event)"
       (nextTurn)="advanceTurn()"

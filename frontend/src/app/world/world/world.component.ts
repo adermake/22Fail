@@ -38,6 +38,17 @@ export class WorldComponent implements OnInit, OnDestroy {
   partyCharacters: Map<string, CharacterSheet> = new Map();
   private characterPatchSubscription?: Subscription;
 
+  // Map of character IDs to portrait URLs (for battle tracker)
+  get characterPortraitsMap(): Map<string, string> {
+    const map = new Map<string, string>();
+    this.partyCharacters.forEach((sheet, id) => {
+      if (sheet.portrait) {
+        map.set(id, sheet.portrait);
+      }
+    });
+    return map;
+  }
+
   // Dummy sheet for item/spell components that require it
   dummySheet: CharacterSheet = createEmptySheet();
 
@@ -839,7 +850,8 @@ export class WorldComponent implements OnInit, OnDestroy {
       speed,
       turnFrequency: speed,
       nextTurnAt: offset,
-      portrait: character.portrait,
+      // NOTE: portrait removed to avoid socket disconnect with large images
+      // Battle tracker will fetch portrait from character data using characterId
       team: 'blue' // Default team color
     };
 

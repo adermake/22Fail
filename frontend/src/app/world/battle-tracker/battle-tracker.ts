@@ -9,6 +9,10 @@ interface CharacterOption {
   speed: number;
 }
 
+interface ParticipantWithPortrait extends BattleParticipant {
+  portrait?: string;
+}
+
 @Component({
   selector: 'app-battle-tracker',
   imports: [CommonModule, FormsModule],
@@ -19,6 +23,7 @@ export class BattleTracker {
   @Input() battleParticipants: BattleParticipant[] = [];
   @Input() currentTurnIndex: number = 0;
   @Input() availableCharacters: CharacterOption[] = [];
+  @Input() characterPortraits: Map<string, string> = new Map(); // Character ID -> portrait URL
 
   @Output() addParticipant = new EventEmitter<string>();
   @Output() removeParticipant = new EventEmitter<string>();
@@ -33,20 +38,28 @@ export class BattleTracker {
   completingTurn = false;
   availableTeams = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
 
-  get sortedTurnOrder(): BattleParticipant[] {
-    return [...this.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+  // Enrich participants with portraits from character map
+  get participantsWithPortraits(): ParticipantWithPortrait[] {
+    return this.battleParticipants.map(p => ({
+      ...p,
+      portrait: this.characterPortraits.get(p.characterId) || p.portrait
+    }));
   }
 
-  get currentTurn(): BattleParticipant | undefined {
+  get sortedTurnOrder(): ParticipantWithPortrait[] {
+    return [...this.participantsWithPortraits].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+  }
+
+  get currentTurn(): ParticipantWithPortrait | undefined {
     return this.sortedTurnOrder[0];
   }
 
   // Generate turn queue showing next N turns with grouping by team
-  get turnQueue(): Array<{ participants: BattleParticipant[], nextTurnAt: number, team?: string }> {
+  get turnQueue(): Array<{ participants: ParticipantWithPortrait[], nextTurnAt: number, team?: string }> {
     if (this.battleParticipants.length === 0) return [];
 
-    const queue: BattleParticipant[] = [];
-    const participants = this.battleParticipants.map(p => ({ ...p }));
+    const queue: ParticipantWithPortrait[] = [];
+    const participants = this.participantsWithPortraits.map(p => ({ ...p }));
 
     for (let i = 0; i < 15; i++) {
       participants.sort((a, b) => a.nextTurnAt - b.nextTurnAt);
@@ -57,7 +70,7 @@ export class BattleTracker {
 
     // Group turns that happen at the same time (within threshold) and same team
     // BUT only group DIFFERENT characters (same character can't be in a group with itself)
-    const grouped: Array<{ participants: BattleParticipant[], nextTurnAt: number, team?: string }> = [];
+    const grouped: Array<{ participants: ParticipantWithPortrait[], nextTurnAt: number, team?: string }> = [];
     for (const turn of queue) {
       const lastGroup = grouped[grouped.length - 1];
       if (lastGroup &&
