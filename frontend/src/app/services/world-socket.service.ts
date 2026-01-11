@@ -23,14 +23,18 @@ export class WorldSocketService {
     this.socket = io(window.location.origin, {
       path: '/socket.io',
       transports: ['websocket'],
+      maxHttpBufferSize: 10 * 1024 * 1024, // 10 MB - match backend
     });
 
     this.socket.on('connect', () => {
       console.log('[WORLD SOCKET] Connected! Socket ID:', this.socket?.id);
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('[WORLD SOCKET] Disconnected');
+    this.socket.on('disconnect', (reason) => {
+      console.log('[WORLD SOCKET] Disconnected. Reason:', reason);
+      if (reason === 'io server disconnect' || reason === 'io client disconnect') {
+        console.warn('[WORLD SOCKET] Socket disconnected! This may be due to large message size.');
+      }
     });
 
     this.socket.on('connect_error', (error) => {

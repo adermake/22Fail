@@ -30,6 +30,7 @@ export class CharacterSocketService {
     this.socket = io(window.location.origin, {
       path: '/socket.io',
       transports: ['websocket'],
+      maxHttpBufferSize: 10 * 1024 * 1024, // 10 MB - match backend
     });
 
     this.socket.on('characterPatched', (data: CharacterPatchEvent) => {
