@@ -19,6 +19,21 @@ import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
 import { BattleTracker } from '../battle-tracker/battle-tracker';
 import { BattleParticipant } from '../../model/world.model';
 
+export interface SimulatedTurn {
+  characterId: string;
+  name: string;
+  team: string;
+  time: number;
+  isAnchor: boolean;
+  speed: number;
+}
+
+export interface BattleGroup {
+  turns: SimulatedTurn[];
+  team: string;
+  startTime: number;
+}
+
 @Component({
   selector: 'app-world',
   imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker],
@@ -844,30 +859,19 @@ export class WorldComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Sort by nextTurnAt to find who goes next
-    const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-    
-    // Identify the first group (adjacent same-team characters)
-    const group = [sorted[0]];
-    const firstTeam = sorted[0].team;
+    // Use the battle queue to identify the first group (which handles all grouping logic)
+    const queue = this.battleQueue;
+    if (queue.length === 0) return;
 
-    for (let i = 1; i < sorted.length; i++) {
-      const current = sorted[i];
-      if (current.team === firstTeam) {
-        group.push(current);
-      } else {
-        break;
-      }
-    }
-
-    const groupIds = new Set(group.map(p => p.characterId));
+    const firstGroup = queue[0];
+    const groupIds = new Set(firstGroup.turns.map(t => t.characterId));
 
     const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
       const character = this.partyCharacters.get(p.characterId);
       const freshSpeed = character ? this.calculateSpeed(character) : p.speed;
 
       if (groupIds.has(p.characterId)) {
-        // Advance all participants in the current group
+        // Advance all participants in the current group by their speed interval
         return {
           ...p,
           speed: freshSpeed,
@@ -1017,21 +1021,20 @@ export class WorldComponent implements OnInit, OnDestroy {
     const world = this.store.worldValue;
     if (!world) return;
 
-    // Sort current participants
-    const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-    
-    const others = sorted.filter(p => p.characterId !== characterId);
+    // Use the projected queue to determine the time at the new index
+    const queue = this.battleQueue;
+    if (queue.length === 0) return;
     
     let newNextTurnAt: number;
     
     if (newIndex <= 0) {
-      newNextTurnAt = others.length > 0 ? others[0].nextTurnAt - 10 : 0;
-    } else if (newIndex >= others.length) {
-      newNextTurnAt = others.length > 0 ? others[others.length - 1].nextTurnAt + 10 : 10;
+      newNextTurnAt = queue[0].startTime - 10;
+    } else if (newIndex >= queue.length) {
+      newNextTurnAt = queue[queue.length - 1].startTime + 10;
     } else {
-      const prev = others[newIndex - 1];
-      const next = others[newIndex];
-      newNextTurnAt = (prev.nextTurnAt + next.nextTurnAt) / 2;
+      const prev = queue[newIndex - 1];
+      const next = queue[newIndex];
+      newNextTurnAt = (prev.startTime + next.startTime) / 2;
     }
 
     const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
@@ -1077,5 +1080,81 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
 
     return result;
+  }
+
+  // Generates the projected battle queue with proper grouping
+  get battleQueue(): BattleGroup[] {
+    const world = this.store.worldValue;
+    if (!world || world.battleParticipants.length === 0) return [];
+
+    // 1. Generate flat list of simulated turns
+    const turns: SimulatedTurn[] = [];
+    const participants = world.battleParticipants.map(p => ({
+      ...p,
+      currentTurnAt: p.nextTurnAt,
+      // Ensure speed is up to date
+      speed: this.partyCharacters.get(p.characterId) 
+        ? this.calculateSpeed(this.partyCharacters.get(p.characterId)!) 
+        : p.speed
+    }));
+
+    // Simulate 50 turns into the future
+    for (let step = 0; step < 50; step++) {
+      // Sort by time
+      participants.sort((a, b) => a.currentTurnAt - b.currentTurnAt);
+      
+      const next = participants[0];
+      
+      // Check if this is the "anchor" (the actual next turn stored in DB)
+      const original = world.battleParticipants.find(p => p.characterId === next.characterId);
+      const isAnchor = original ? Math.abs(original.nextTurnAt - next.currentTurnAt) < 0.001 : false;
+
+      turns.push({
+        characterId: next.characterId,
+        name: next.name,
+        team: next.team,
+        time: next.currentTurnAt,
+        isAnchor,
+        speed: next.speed
+      });
+
+      // Advance this participant in the simulation
+      next.currentTurnAt += (1000 / next.speed);
+    }
+
+    // 2. Group adjacent same-team turns
+    const groups: BattleGroup[] = [];
+    if (turns.length === 0) return [];
+
+    let currentGroup: BattleGroup = {
+      turns: [turns[0]],
+      team: turns[0].team,
+      startTime: turns[0].time
+    };
+    let membersInGroup = new Set<string>([turns[0].characterId]);
+
+    for (let i = 1; i < turns.length; i++) {
+      const turn = turns[i];
+      
+      // Check if can join group: Same team AND not already in group
+      if (turn.team === currentGroup.team && !membersInGroup.has(turn.characterId)) {
+        currentGroup.turns.push(turn);
+        membersInGroup.add(turn.characterId);
+      } else {
+        // Finalize current group
+        groups.push(currentGroup);
+        
+        // Start new group
+        currentGroup = {
+          turns: [turn],
+          team: turn.team,
+          startTime: turn.time
+        };
+        membersInGroup = new Set([turn.characterId]);
+      }
+    }
+    groups.push(currentGroup);
+
+    return groups;
   }
 }
