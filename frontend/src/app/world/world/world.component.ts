@@ -1112,7 +1112,7 @@ export class WorldComponent implements OnInit, OnDestroy {
       turns.push({
         characterId: next.characterId,
         name: next.name,
-        team: next.team,
+        team: next.team || 'blue',
         time: next.currentTurnAt,
         isAnchor,
         speed: next.speed
