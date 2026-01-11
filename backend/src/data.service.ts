@@ -144,7 +144,18 @@ export class DataService {
     const data = this.readWorlds();
     console.log('APPLY PATCH WORLD CALLED for:', name);
     console.log('Available worlds:', Object.keys(data));
-    console.log('Patch:', patch);
+
+    // Truncate portrait data in logs to keep console readable
+    const logPatch = JSON.parse(JSON.stringify(patch));
+    if (Array.isArray(logPatch.value)) {
+      logPatch.value = logPatch.value.map((item: any) => {
+        if (item?.portrait && typeof item.portrait === 'string' && item.portrait.length > 100) {
+          return { ...item, portrait: item.portrait.substring(0, 50) + '...[TRUNCATED]' };
+        }
+        return item;
+      });
+    }
+    console.log('Patch:', logPatch);
 
     let world: any;
 

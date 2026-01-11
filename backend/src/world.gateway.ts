@@ -43,7 +43,17 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { worldName: string; patch: JsonPatch },
     @ConnectedSocket() client: Socket,
   ) {
-    console.log('[WORLD GATEWAY] Received patchWorld message:', data);
+    // Truncate portrait data in logs to keep console readable
+    const logData = JSON.parse(JSON.stringify(data));
+    if (Array.isArray(logData.patch?.value)) {
+      logData.patch.value = logData.patch.value.map((item: any) => {
+        if (item?.portrait && typeof item.portrait === 'string' && item.portrait.length > 100) {
+          return { ...item, portrait: item.portrait.substring(0, 50) + '...[TRUNCATED]' };
+        }
+        return item;
+      });
+    }
+    console.log('[WORLD GATEWAY] Received patchWorld message:', logData);
     const { worldName, patch } = data;
 
     // Apply patch in backend
