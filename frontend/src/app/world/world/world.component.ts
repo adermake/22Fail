@@ -1057,10 +1057,12 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.applyCurrentTurnGrouping(sorted);
   }
 
-  // Reorder participants by moving one to a new position and auto-group same team
+  // Reorder participants by moving one to a new position
   reorderParticipants(characterId: string, newIndex: number) {
     const world = this.store.worldValue;
     if (!world) return;
+
+    console.log('[REORDER] Moving', characterId, 'to index', newIndex);
 
     // Sort current participants by nextTurnAt
     const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
@@ -1075,8 +1077,17 @@ export class WorldComponent implements OnInit, OnDestroy {
     // Insert at new position
     filtered.splice(newIndex, 0, movingParticipant);
 
-    // Recalculate timing with automatic grouping for same-team adjacent DIFFERENT characters
-    this.applyCurrentTurnGrouping(filtered);
+    console.log('[REORDER] New order:', filtered.map(p => p.characterId));
+
+    // Assign nextTurnAt values based on position (0, 10, 20, 30, ...)
+    // This gives each character a distinct position while preserving the order
+    const result = filtered.map((p, idx) => ({
+      ...p,
+      nextTurnAt: idx * 10
+    }));
+
+    // Now apply grouping logic to group consecutive same-team characters at the front
+    this.applyCurrentTurnGrouping(result);
   }
 
   // Helper function to recalculate all timing with automatic grouping

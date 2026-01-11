@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ItemBlock } from '../../model/item-block.model';
@@ -17,6 +17,7 @@ import { SkillComponent } from '../../sheet/skill/skill.component';
   imports: [CommonModule, FormsModule, ItemComponent, RuneComponent, SpellComponent, SkillComponent],
   templateUrl: './library-tabs.component.html',
   styleUrl: './library-tabs.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LibraryTabsComponent {
   @Input({ required: true }) items: ItemBlock[] = [];
