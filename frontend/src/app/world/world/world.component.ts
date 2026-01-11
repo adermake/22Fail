@@ -84,17 +84,9 @@ export class WorldComponent implements OnInit, OnDestroy {
   private isDragging = false;
 
   // Loot Bundles
-  lootBundleLibrary: LootBundle[] = [
-    {
-      name: 'Starter Bundle',
-      description: 'A set of basic items and currency.',
-      items: [],
-      runes: [],
-      spells: [],
-      skills: [],
-      currency: { copper: 0, silver: 50, gold: 10, platinum: 0 }
-    }
-  ];
+  get lootBundleLibrary(): LootBundle[] {
+    return (this.store.worldValue as any)?.lootBundleLibrary || [];
+  }
 
   constructor(
     private route: ActivatedRoute
@@ -661,7 +653,14 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   // Event handler for bundle creation from LootManager
   onBundleCreated(bundle: LootBundle) {
-    this.lootBundleLibrary.push(bundle);
+    const world = this.store.worldValue;
+    if (world) {
+      const currentBundles = (world as any).lootBundleLibrary || [];
+      this.store.applyPatch({
+        path: 'lootBundleLibrary',
+        value: [...currentBundles, bundle]
+      });
+    }
   }
 
   // Apply JSON patch to character sheet (for real-time updates)
