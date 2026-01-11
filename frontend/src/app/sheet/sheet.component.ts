@@ -58,6 +58,7 @@ export class SheetComponent implements OnInit {
   isBattleLoot = false;
   currentWorldName = '';
   isCurrentTurn = false;
+  isGroupTurn = false;
 
   async ngOnInit() {
     const classDefinitions = await fetch('class-definitions.txt').then((r) => r.text());
@@ -99,8 +100,9 @@ export class SheetComponent implements OnInit {
             console.log('[GLOW DEBUG] My character ID:', id);
 
             this.isCurrentTurn = currentGroup.some(p => p.characterId === id);
+            this.isGroupTurn = currentGroup.length > 1 && this.isCurrentTurn;
             console.log('[GLOW DEBUG] Initial turn check - Is current turn:', this.isCurrentTurn);
-            console.log('[GLOW DEBUG] Setting character-grid.current-turn class to:', this.isCurrentTurn);
+            console.log('[GLOW DEBUG] Is group turn:', this.isGroupTurn);
             this.cdr.detectChanges();
           } else {
             console.log('[GLOW DEBUG] No battle participants in world');
@@ -183,11 +185,14 @@ export class SheetComponent implements OnInit {
             console.log('[GLOW DEBUG] My ID:', id, 'Is in group:', isInCurrentGroup);
 
             this.isCurrentTurn = isInCurrentGroup;
+            this.isGroupTurn = currentGroup.length > 1 && isInCurrentGroup;
             console.log('[GLOW DEBUG] Patch handler - Is current turn:', this.isCurrentTurn);
+            console.log('[GLOW DEBUG] Patch handler - Is group turn:', this.isGroupTurn);
             this.cdr.detectChanges();
           } else {
             console.log('[GLOW DEBUG] No participants, setting isCurrentTurn to false');
             this.isCurrentTurn = false;
+            this.isGroupTurn = false;
             this.cdr.detectChanges();
           }
         }

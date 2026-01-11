@@ -932,8 +932,12 @@ export class WorldComponent implements OnInit, OnDestroy {
 
     console.log('[TURN DEBUG] Updated participants after advance:', updatedParticipants);
 
-    // After advancing turn, regroup same-team characters at the front
-    this.recalculateTimingWithGrouping(updatedParticipants);
+    // Don't regroup after turn advance - let natural speed-based ordering take over
+    // Grouping only happens once when characters are added to battle
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: updatedParticipants
+    });
   }
 
   resetBattle() {

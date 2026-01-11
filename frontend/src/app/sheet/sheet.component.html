@@ -1,5 +1,5 @@
 @if (store.sheet$ | async; as sheet) {
-<div class="character-grid" [class.current-turn]="isCurrentTurn">
+<div class="character-grid" [class.current-turn]="isCurrentTurn" [class.group-turn]="isGroupTurn">
   <app-character
     [sheet]="sheet"
     [characterId]="store.characterId"
