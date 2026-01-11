@@ -91,6 +91,28 @@ export class LibraryTabsComponent {
     return originalArray.indexOf(item);
   }
 
+  // TrackBy functions to prevent unnecessary re-renders
+  trackByOriginalIndex(index: number, item: any): number {
+    // Use the original index from the unfiltered array as the unique identifier
+    const originalIndex = this.getOriginalIndexForTrackBy(item);
+    return originalIndex;
+  }
+
+  private getOriginalIndexForTrackBy(item: any): number {
+    // Check which array this item belongs to based on activeTab
+    let originalIndex = this.items.indexOf(item);
+    if (originalIndex !== -1) return originalIndex;
+
+    originalIndex = this.runes.indexOf(item);
+    if (originalIndex !== -1) return originalIndex;
+
+    originalIndex = this.spells.indexOf(item);
+    if (originalIndex !== -1) return originalIndex;
+
+    originalIndex = this.skills.indexOf(item);
+    return originalIndex;
+  }
+
   setActiveTab(tab: 'items' | 'runes' | 'spells' | 'skills') {
     this.activeTab = tab;
   }
