@@ -844,33 +844,34 @@ export class WorldComponent implements OnInit, OnDestroy {
       return;
     }
 
-    console.log('[TURN DEBUG] Current participants before advance:', world.battleParticipants);
-
     // Sort by nextTurnAt to find who goes next
     const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-    const currentTurnAt = sorted[0].nextTurnAt;
-    console.log('[TURN DEBUG] Current turn at:', currentTurnAt, 'First:', sorted[0]);
+    
+    // Identify the first group (adjacent same-team characters)
+    const group = [sorted[0]];
+    const firstTeam = sorted[0].team;
 
-    // Find all participants in the current group (same nextTurnAt within threshold and same team)
-    const currentGroup = sorted.filter(p =>
-      Math.abs(p.nextTurnAt - currentTurnAt) < 0.01 && p.team === sorted[0].team
-    );
-    console.log('[TURN DEBUG] Current group:', currentGroup);
-    const currentGroupIds = new Set(currentGroup.map(p => p.characterId));
+    for (let i = 1; i < sorted.length; i++) {
+      const current = sorted[i];
+      if (current.team === firstTeam) {
+        group.push(current);
+      } else {
+        break;
+      }
+    }
 
-    // Update participants with fresh speed calculations and advance current group
+    const groupIds = new Set(group.map(p => p.characterId));
+
     const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
       const character = this.partyCharacters.get(p.characterId);
       const freshSpeed = character ? this.calculateSpeed(character) : p.speed;
 
-      if (currentGroupIds.has(p.characterId)) {
+      if (groupIds.has(p.characterId)) {
         // Advance all participants in the current group
-        const newNextTurnAt = p.nextTurnAt + (1000 / freshSpeed);
-        console.log('[TURN DEBUG] Advancing', p.characterId, 'from', p.nextTurnAt, 'to', newNextTurnAt);
         return {
           ...p,
           speed: freshSpeed,
-          nextTurnAt: newNextTurnAt
+          nextTurnAt: p.nextTurnAt + (1000 / freshSpeed)
         };
       }
       return {
@@ -879,10 +880,10 @@ export class WorldComponent implements OnInit, OnDestroy {
       };
     });
 
-    console.log('[TURN DEBUG] Updated participants after advance:', updatedParticipants);
-
-    // Apply grouping logic: look at first position and group same-team characters
-    this.applyCurrentTurnGrouping(updatedParticipants);
+    this.store.applyPatch({
+      path: 'battleParticipants',
+      value: updatedParticipants
+    });
   }
 
   resetBattle() {
