@@ -932,10 +932,8 @@ export class WorldComponent implements OnInit, OnDestroy {
 
     console.log('[TURN DEBUG] Updated participants after advance:', updatedParticipants);
 
-    this.store.applyPatch({
-      path: 'battleParticipants',
-      value: updatedParticipants
-    });
+    // After advancing turn, regroup same-team characters at the front
+    this.recalculateTimingWithGrouping(updatedParticipants);
   }
 
   resetBattle() {
@@ -1082,7 +1080,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   // Helper function to recalculate all timing with automatic grouping
-  // Only groups characters that are currently at the front (lowest nextTurnAt, same team)
+  // Groups same-team characters that are at the front (have lowest nextTurnAt values)
   // Groups are created left-to-right based on participant list order
   private recalculateTimingWithGrouping(participants: BattleParticipant[]) {
     if (participants.length === 0) return;
@@ -1092,19 +1090,18 @@ export class WorldComponent implements OnInit, OnDestroy {
     const minTime = sorted[0].nextTurnAt;
     const frontTeam = sorted[0].team;
 
-    // Find all characters at the front (same nextTurnAt, same team)
+    // Find all same-team characters that are close to the front (within 1.0 of minTime)
+    // This allows characters added with slight offset (0.1, 0.2, etc) to still group
     const currentGroupIds = new Set<string>();
     for (const p of sorted) {
-      if (Math.abs(p.nextTurnAt - minTime) < 0.01 && p.team === frontTeam) {
+      if (Math.abs(p.nextTurnAt - minTime) < 1.0 && p.team === frontTeam) {
         currentGroupIds.add(p.characterId);
-      } else {
-        break; // Stop once we hit characters with different time or team
       }
     }
 
     // Rebuild the participants array:
-    // - Characters in current group get the same nextTurnAt (grouped)
-    // - Everyone else keeps their relative timing
+    // - Characters in current group get the same nextTurnAt (grouped at 0)
+    // - Everyone else gets individual slots starting from 10
     const result: BattleParticipant[] = [];
     let currentTime = 0;
     const processed = new Set<string>();
