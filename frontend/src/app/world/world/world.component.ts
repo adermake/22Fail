@@ -268,11 +268,11 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   updateItem(index: number, patch: JsonPatch) {
-    let subPath = patch.path.replace(/\./g, '/');
-    if (!subPath.startsWith('/')) subPath = '/' + subPath;
+    let subPath = patch.path.replace(/\//g, '.');
+    if (subPath.startsWith('.')) subPath = subPath.substring(1);
 
     this.store.applyPatch({
-      path: `/itemLibrary/${index}${subPath}`,
+      path: `itemLibrary.${index}.${subPath}`,
       value: patch.value
     });
   }
@@ -350,11 +350,11 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   updateRune(index: number, patch: JsonPatch) {
-    let subPath = patch.path.replace(/\./g, '/');
-    if (!subPath.startsWith('/')) subPath = '/' + subPath;
+    let subPath = patch.path.replace(/\//g, '.');
+    if (subPath.startsWith('.')) subPath = subPath.substring(1);
 
     this.store.applyPatch({
-      path: `/runeLibrary/${index}${subPath}`,
+      path: `runeLibrary.${index}.${subPath}`,
       value: patch.value
     });
   }
@@ -392,11 +392,11 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   updateSpell(index: number, patch: JsonPatch) {
-    let subPath = patch.path.replace(/\./g, '/');
-    if (!subPath.startsWith('/')) subPath = '/' + subPath;
+    let subPath = patch.path.replace(/\//g, '.');
+    if (subPath.startsWith('.')) subPath = subPath.substring(1);
 
     this.store.applyPatch({
-      path: `/spellLibrary/${index}${subPath}`,
+      path: `spellLibrary.${index}.${subPath}`,
       value: patch.value
     });
   }
@@ -431,11 +431,11 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   updateSkill(index: number, patch: JsonPatch) {
-    let subPath = patch.path.replace(/\./g, '/');
-    if (!subPath.startsWith('/')) subPath = '/' + subPath;
+    let subPath = patch.path.replace(/\//g, '.');
+    if (subPath.startsWith('.')) subPath = subPath.substring(1);
 
     this.store.applyPatch({
-      path: `/skillLibrary/${index}${subPath}`,
+      path: `skillLibrary.${index}.${subPath}`,
       value: patch.value
     });
   }
