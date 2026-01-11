@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
 import { BattleParticipant } from '../../model/world.model';
 
 interface CharacterOption {
@@ -22,6 +23,21 @@ interface QueueGroup {
 @Component({
   selector: 'app-battle-tracker',
   imports: [CommonModule, FormsModule],
+  animations: [
+    trigger('listAnimation', [
+      transition('* => *', [
+        query(':enter', [
+          style({ opacity: 0, transform: 'translateY(-20px) scale(0.9)' }),
+          stagger(30, [
+            animate('400ms cubic-bezier(0.25, 0.8, 0.25, 1)', style({ opacity: 1, transform: 'none' }))
+          ])
+        ], { optional: true }),
+        query(':leave', [
+          animate('200ms ease-out', style({ opacity: 0, transform: 'translateY(20px) scale(0.9)' }))
+        ], { optional: true })
+      ])
+    ])
+  ],
   styles: [`
     .battle-tracker-container {
       display: flex;
@@ -101,6 +117,7 @@ interface QueueGroup {
       min-height: 100px;
       align-items: center;
       padding: 4px;
+      position: relative;
     }
     .battle-group {
       display: flex;
@@ -109,6 +126,7 @@ interface QueueGroup {
       border-radius: 8px;
       background: rgba(0,0,0,0.1);
       transition: all 0.3s ease;
+      position: relative;
     }
     .battle-card {
       position: relative;
@@ -123,7 +141,7 @@ interface QueueGroup {
       justify-content: center;
       font-size: 10px;
       overflow: hidden;
-      transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s;
+      transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s;
       user-select: none;
     }
     .battle-card img {
@@ -176,8 +194,24 @@ interface QueueGroup {
     .team-purple { border-bottom: 3px solid #a855f7; }
     .team-orange { border-bottom: 3px solid #f97316; }
     
-    .drop-target-left { border-left: 2px solid var(--accent); margin-left: 4px; }
-    .drop-target-right { border-right: 2px solid var(--accent); margin-right: 4px; }
+    /* Fix hover jitter during drag */
+    .turn-queue:not(.is-dragging) .battle-card:hover {
+      transform: scale(1.15);
+      z-index: 10;
+    }
+    .turn-queue.is-dragging .battle-card {
+      pointer-events: none;
+    }
+
+    .drop-indicator {
+      position: absolute;
+      top: -5px; bottom: -5px;
+      width: 4px;
+      background: var(--accent);
+      border-radius: 2px;
+      z-index: 20;
+      box-shadow: 0 0 8px var(--accent);
+    }
 
     .controls { margin-top: 1rem; display: flex; gap: 0.5rem; }
     .controls button {
@@ -222,15 +256,19 @@ interface QueueGroup {
       </div>
       
       <div class="turn-queue-container">
-        <div class="turn-queue">
+        <div class="turn-queue" 
+             [@listAnimation]="queueGroups"
+             [class.is-dragging]="!!draggedParticipant"
+             (dragover)="onDragOverQueue($event)"
+             (dragleave)="onDragLeaveQueue()"
+             (drop)="onDropOnQueue($event)">
+             
           <div *ngFor="let group of queueGroups; let gIdx = index; trackBy: trackByGroup" 
                class="battle-group"
-               [ngClass]="'team-' + group.team"
-               (dragover)="onDragOverGroup($event, gIdx)"
-               (dragleave)="onDragLeaveQueue()"
-               (drop)="onDropOnGroup($event, gIdx)"
-               [class.drop-target-left]="dragOverIndex === gIdx && dropPosition === 'left'"
-               [class.drop-target-right]="dragOverIndex === gIdx && dropPosition === 'right'">
+               [ngClass]="'team-' + group.team">
+            
+            <div *ngIf="dragOverIndex === gIdx && dropPosition === 'before'" class="drop-indicator" style="left: -4px;"></div>
+            <div *ngIf="dragOverIndex === gIdx && dropPosition === 'after'" class="drop-indicator" style="right: -4px;"></div>
             
             <div *ngFor="let turn of group.participants; trackBy: trackByCharId" 
                  class="battle-card"
@@ -242,6 +280,8 @@ interface QueueGroup {
               <div *ngIf="turn.isAnchor" class="anchor-indicator" title="Anchor Point">⚓</div>
             </div>
           </div>
+          
+          <div *ngIf="dragOverIndex === queueGroups.length" class="drop-indicator" style="right: 0; position: relative; height: 80px; margin-left: 4px;"></div>
         </div>
       </div>
 
@@ -425,27 +465,45 @@ export class BattleTracker implements OnChanges {
     }
   }
 
-  onDragOverGroup(event: DragEvent, groupIndex: number) {
+  onDragOverQueue(event: DragEvent) {
     event.preventDefault();
+    if (!this.draggedParticipant) return;
 
-    // Determine if we're closer to the left or right edge of the group
-    const target = event.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    const midpoint = rect.left + rect.width / 2;
+    const container = event.currentTarget as HTMLElement;
+    const groups = Array.from(container.querySelectorAll('.battle-group'));
+    
+    let closestIndex = -1;
+    let minDistance = Infinity;
+    let position: 'before' | 'after' = 'before';
 
-    this.dragOverIndex = groupIndex;
-
-    if (event.clientX < midpoint) {
-      // Left side - drop before this group
-      this.dropPosition = 'left';
-    } else {
-      // Right side - drop after this group
-      this.dropPosition = 'right';
+    if (groups.length === 0) {
+      this.dragOverIndex = 0;
+      this.dropPosition = 'before';
+      return;
     }
 
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
+    groups.forEach((group, index) => {
+      const rect = group.getBoundingClientRect();
+      const center = rect.left + rect.width / 2;
+      const dist = Math.abs(event.clientX - center);
+      
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestIndex = index;
+        position = event.clientX < center ? 'before' : 'after';
+      }
+    });
+
+    // Check if past the last group
+    const lastGroup = groups[groups.length - 1];
+    const lastRect = lastGroup.getBoundingClientRect();
+    if (event.clientX > lastRect.right) {
+      closestIndex = groups.length;
+      position = 'before';
     }
+
+    this.dragOverIndex = closestIndex;
+    this.dropPosition = position;
   }
 
   onDragLeaveQueue() {
@@ -453,28 +511,21 @@ export class BattleTracker implements OnChanges {
     this.dropPosition = null;
   }
 
-  onDropOnGroup(event: DragEvent, groupIndex: number) {
+  onDropOnQueue(event: DragEvent) {
     event.preventDefault();
+    if (!this.draggedParticipant || this.dragOverIndex === null) return;
 
-    // Calculate the flat index in the queue
-    // We need to count how many groups are before this one
-    // Since we are dropping *between* groups, we treat the group index as the position
-    
-    let targetGroupIndex = groupIndex;
-    if (this.dropPosition === 'right') {
-      targetGroupIndex = groupIndex + 1;
+    let targetIndex = this.dragOverIndex;
+    if (this.dropPosition === 'after') {
+      targetIndex++;
     }
     
-    // We pass the group index to the parent, which will map it to the battleQueue
-    // The parent's reorderParticipants logic expects an index into the battleQueue (groups)
-
-    this.dragOverIndex = null;
-    this.dropPosition = null;
-
-    if (this.draggedParticipant) {
-      this.reorder.emit({ characterId: this.draggedParticipant, newIndex: targetGroupIndex });
+    if (this.dragOverIndex === this.queueGroups.length) {
+      targetIndex = this.queueGroups.length;
     }
-    this.draggedParticipant = null;
+
+    this.reorder.emit({ characterId: this.draggedParticipant, newIndex: targetIndex });
+    this.onDragEnd();
   }
 
   onTeamChange(characterId: string, team: string) {
@@ -490,7 +541,8 @@ export class BattleTracker implements OnChanges {
     return item.id || item.characterId;
   }
 
-  trackByGroup(index: number, item: QueueGroup): number {
-    return index; // Groups are positional
+  trackByGroup(index: number, item: QueueGroup): string {
+    // Track by participants and time to trigger animations on change
+    return item.participants.map(p => p.characterId).join('-') + '-' + item.startTime;
   }
 }
