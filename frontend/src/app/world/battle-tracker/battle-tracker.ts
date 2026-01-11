@@ -13,6 +13,12 @@ interface ParticipantWithPortrait extends BattleParticipant {
   portrait?: string;
 }
 
+interface QueueGroup {
+  participants: (ParticipantWithPortrait & { isAnchor: boolean })[];
+  team: string;
+  startTime: number;
+}
+
 @Component({
   selector: 'app-battle-tracker',
   imports: [CommonModule, FormsModule],
@@ -24,13 +30,61 @@ interface ParticipantWithPortrait extends BattleParticipant {
       padding: 1rem;
       background: var(--bg-secondary);
       border-radius: 8px;
+    }
+    
+    /* Header & Controls */
+    .battle-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .battle-header h2 { margin: 0; color: var(--accent); font-size: 1.2rem; }
+    .reset-button {
+      padding: 4px 8px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .reset-button:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Character List */
+    .characters-section { margin-bottom: 1rem; }
+    .characters-section h3 { margin: 0 0 0.5rem 0; font-size: 1rem; color: var(--text); }
+    .character-list { display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto; }
+    .character-option {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    }
+    .character-option.in-battle { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.05); }
+    .character-info { display: flex; align-items: center; gap: 0.75rem; }
+    .character-portrait-small { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+    .character-details { display: flex; flex-direction: column; }
+    .character-name { font-weight: 500; font-size: 0.9rem; }
+    .character-speed { font-size: 0.75rem; color: var(--text-muted); }
+    .team-selector {
+      margin-top: 2px; padding: 2px; font-size: 0.75rem;
+      background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px;
+    }
+    .toggle-button {
+      padding: 4px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;
+      background: var(--accent); color: white;
+    }
+    .toggle-button.in-battle { background: var(--bg-secondary); color: var(--text); border: 1px solid var(--border); }
+
+    /* Turn Queue */
+    .turn-queue-container {
       overflow-x: auto;
+      padding-bottom: 0.5rem;
     }
     .turn-queue {
       display: flex;
       gap: 4px;
-      padding-bottom: 1rem;
-      min-height: 120px;
+      min-height: 100px;
       align-items: center;
     }
     .battle-group {
@@ -104,37 +158,80 @@ interface ParticipantWithPortrait extends BattleParticipant {
     .team-red { border-bottom: 3px solid #ef4444; }
     .team-green { border-bottom: 3px solid #10b981; }
     .team-yellow { border-bottom: 3px solid #eab308; }
+    .team-purple { border-bottom: 3px solid #a855f7; }
+    .team-orange { border-bottom: 3px solid #f97316; }
     
     .drop-target-left { border-left: 2px solid var(--accent); margin-left: 4px; }
     .drop-target-right { border-right: 2px solid var(--accent); margin-right: 4px; }
+
+    .controls { margin-top: 1rem; display: flex; gap: 0.5rem; }
+    .controls button {
+      padding: 0.5rem 1rem; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer;
+    }
+    .controls button:disabled { opacity: 0.5; cursor: not-allowed; }
   `],
   template: `
     <div class="battle-tracker-container">
-      <div class="controls">
-        <button (click)="onNextTurn()" [disabled]="completingTurn">Next Turn</button>
-        <button (click)="onResetBattle()">Reset</button>
+      <div class="battle-header">
+        <h2>Battle Tracker</h2>
+        <button class="reset-button" (click)="onResetBattle()">Reset Battle</button>
       </div>
-      
-      <div class="turn-queue">
-        <div *ngFor="let group of turnQueue; let gIdx = index" 
-             class="battle-group"
-             [ngClass]="'team-' + group.team"
-             (dragover)="onDragOverGroup($event, gIdx)"
-             (dragleave)="onDragLeaveQueue()"
-             (drop)="onDropOnGroup($event, gIdx)"
-             [class.drop-target-left]="dragOverIndex === gIdx && dropPosition === 'left'"
-             [class.drop-target-right]="dragOverIndex === gIdx && dropPosition === 'right'">
-          
-          <div *ngFor="let turn of group.participants" 
-               class="battle-card"
-               [class.is-anchor]="turn.isAnchor"
-               [draggable]="turn.isAnchor"
-               (dragstart)="onDragStartQueue($event, turn)">
-            <img [src]="turn.portrait || 'assets/default-portrait.png'" [alt]="turn.name">
-            <span>{{turn.name}}</span>
-            <div *ngIf="turn.isAnchor" class="anchor-indicator" title="Anchor Point">⚓</div>
+
+      <div class="characters-section">
+        <h3>Characters</h3>
+        <div class="character-list" *ngIf="availableCharacters.length > 0; else noChars">
+          <div *ngFor="let char of availableCharacters" class="character-option" [class.in-battle]="isInBattle(char.id)">
+            <div class="character-info">
+              <img [src]="getCharacterPortrait(char.id) || 'assets/default-portrait.png'" class="character-portrait-small">
+              <div class="character-details">
+                <span class="character-name">{{ char.name }}</span>
+                <span class="character-speed">Speed: {{ char.speed }}</span>
+                <select *ngIf="isInBattle(char.id)" 
+                        class="team-selector" 
+                        [ngModel]="getParticipant(char.id)?.team" 
+                        (ngModelChange)="onTeamChange(char.id, $event)">
+                  <option *ngFor="let team of availableTeams" [value]="team">{{ team }}</option>
+                </select>
+              </div>
+            </div>
+            <button class="toggle-button" 
+                    [class.in-battle]="isInBattle(char.id)"
+                    (click)="isInBattle(char.id) ? onRemoveCharacter(char.id) : onAddCharacter(char.id)">
+              {{ isInBattle(char.id) ? 'Remove' : 'Add' }}
+            </button>
           </div>
         </div>
+        <ng-template #noChars>
+          <p style="color: var(--text-muted); font-style: italic;">No characters available</p>
+        </ng-template>
+      </div>
+      
+      <div class="turn-queue-container">
+        <div class="turn-queue">
+          <div *ngFor="let group of turnQueue; let gIdx = index" 
+               class="battle-group"
+               [ngClass]="'team-' + group.team"
+               (dragover)="onDragOverGroup($event, gIdx)"
+               (dragleave)="onDragLeaveQueue()"
+               (drop)="onDropOnGroup($event, gIdx)"
+               [class.drop-target-left]="dragOverIndex === gIdx && dropPosition === 'left'"
+               [class.drop-target-right]="dragOverIndex === gIdx && dropPosition === 'right'">
+            
+            <div *ngFor="let turn of group.participants" 
+                 class="battle-card"
+                 [class.is-anchor]="turn.isAnchor"
+                 [draggable]="turn.isAnchor"
+                 (dragstart)="onDragStartQueue($event, turn)">
+              <img [src]="turn.portrait || 'assets/default-portrait.png'" [alt]="turn.name">
+              <span>{{turn.name}}</span>
+              <div *ngIf="turn.isAnchor" class="anchor-indicator" title="Anchor Point">⚓</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button (click)="onNextTurn()" [disabled]="completingTurn">Next Turn</button>
       </div>
     </div>
   `
@@ -158,18 +255,11 @@ export class BattleTracker {
   completingTurn = false;
   availableTeams = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
 
-  // Interface for the view
-  interface QueueGroup {
-    participants: (ParticipantWithPortrait & { isAnchor: boolean })[];
-    team: string;
-    startTime: number;
-  }
-
   // Enrich participants with portraits from character map
   get participantsWithPortraits(): ParticipantWithPortrait[] {
     return this.battleParticipants.map(p => ({
       ...p,
-      portrait: this.characterPortraits.get(p.characterId) || p.portrait
+      portrait: this.characterPortraits.get(p.characterId) || (p as any).portrait
     }));
   }
 
@@ -212,7 +302,7 @@ export class BattleTracker {
   }
 
   // Generate turn queue showing next N turns with grouping by team
-  get turnQueue(): Array<{ participants: (ParticipantWithPortrait & { isAnchor: boolean })[], team: string, startTime: number }> {
+  get turnQueue(): QueueGroup[] {
     if (this.battleParticipants.length === 0) return [];
 
     // 1. Simulate turns
@@ -241,7 +331,7 @@ export class BattleTracker {
     }
 
     // 2. Group adjacent same-team turns (Adjacency ONLY, no time check)
-    const grouped: Array<{ participants: (ParticipantWithPortrait & { isAnchor: boolean })[], team: string, startTime: number }> = [];
+    const grouped: QueueGroup[] = [];
     
     if (turns.length === 0) return [];
 
