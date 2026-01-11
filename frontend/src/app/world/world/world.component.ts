@@ -268,35 +268,13 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   updateItem(index: number, patch: JsonPatch) {
-    const world = this.store.worldValue;
-    if (world) {
-      const updatedItems = [...world.itemLibrary];
-      const item = { ...updatedItems[index] };
+    let subPath = patch.path.replace(/\./g, '/');
+    if (!subPath.startsWith('/')) subPath = '/' + subPath;
 
-      // Apply the patch to the item - handle nested objects properly
-      const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');
-      let current: any = item;
-
-      for (let i = 0; i < keys.length - 1; i++) {
-        const key = keys[i];
-        // Create a copy of nested objects to avoid mutation
-        if (current[key] && typeof current[key] === 'object' && !Array.isArray(current[key])) {
-          current[key] = { ...current[key] };
-        } else if (!current[key]) {
-          current[key] = {};
-        }
-        current = current[key];
-      }
-
-      const finalKey = keys[keys.length - 1];
-      current[finalKey] = patch.value;
-
-      updatedItems[index] = item;
-      this.store.applyPatch({
-        path: 'itemLibrary',
-        value: updatedItems
-      });
-    }
+    this.store.applyPatch({
+      path: `/itemLibrary/${index}${subPath}`,
+      value: patch.value
+    });
   }
 
   removeItem(index: number) {
@@ -372,25 +350,13 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   updateRune(index: number, patch: JsonPatch) {
-    const world = this.store.worldValue;
-    if (world) {
-      const updatedRunes = [...world.runeLibrary];
-      const rune = { ...updatedRunes[index] };
+    let subPath = patch.path.replace(/\./g, '/');
+    if (!subPath.startsWith('/')) subPath = '/' + subPath;
 
-      // Apply the patch to the rune
-      const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');
-      let current: any = rune;
-      for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
-      }
-      current[keys[keys.length - 1]] = patch.value;
-
-      updatedRunes[index] = rune;
-      this.store.applyPatch({
-        path: 'runeLibrary',
-        value: updatedRunes
-      });
-    }
+    this.store.applyPatch({
+      path: `/runeLibrary/${index}${subPath}`,
+      value: patch.value
+    });
   }
 
   removeRune(index: number) {
@@ -426,25 +392,13 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   updateSpell(index: number, patch: JsonPatch) {
-    const world = this.store.worldValue;
-    if (world) {
-      const updatedSpells = [...world.spellLibrary];
-      const spell = { ...updatedSpells[index] };
+    let subPath = patch.path.replace(/\./g, '/');
+    if (!subPath.startsWith('/')) subPath = '/' + subPath;
 
-      // Apply the patch to the spell
-      const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');
-      let current: any = spell;
-      for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
-      }
-      current[keys[keys.length - 1]] = patch.value;
-
-      updatedSpells[index] = spell;
-      this.store.applyPatch({
-        path: 'spellLibrary',
-        value: updatedSpells
-      });
-    }
+    this.store.applyPatch({
+      path: `/spellLibrary/${index}${subPath}`,
+      value: patch.value
+    });
   }
 
   removeSpell(index: number) {
@@ -477,25 +431,13 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   updateSkill(index: number, patch: JsonPatch) {
-    const world = this.store.worldValue;
-    if (world) {
-      const updatedSkills = [...world.skillLibrary];
-      const skill = { ...updatedSkills[index] };
+    let subPath = patch.path.replace(/\./g, '/');
+    if (!subPath.startsWith('/')) subPath = '/' + subPath;
 
-      // Apply the patch to the skill
-      const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');
-      let current: any = skill;
-      for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
-      }
-      current[keys[keys.length - 1]] = patch.value;
-
-      updatedSkills[index] = skill;
-      this.store.applyPatch({
-        path: 'skillLibrary',
-        value: updatedSkills
-      });
-    }
+    this.store.applyPatch({
+      path: `/skillLibrary/${index}${subPath}`,
+      value: patch.value
+    });
   }
 
   removeSkill(index: number) {
