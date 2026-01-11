@@ -50,8 +50,7 @@ export class ItemComponent {
   }
 
   toggleEdit() {
-    this.isEditing = !this.isEditing;
-    this.editingChange.emit(this.isEditing);
+    this.editingChange.emit(!this.isEditing);
   }
 
   updateField(field: string, value: any) {

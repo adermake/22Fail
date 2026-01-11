@@ -108,12 +108,14 @@
       <div class="library-list">
         @for (skill of filteredSkills; track skill.name; let i = $index) {
           <div class="library-item-wrapper"
-               draggable="true"
+               [class.draggable]="!isSkillEditing(getOriginalIndex(skill, 'skills'))"
+               [attr.draggable]="!isSkillEditing(getOriginalIndex(skill, 'skills'))"
                (dragstart)="onDragStart($event, 'skill', getOriginalIndex(skill, 'skills'))">
             <app-skill
               [skill]="skill"
               [sheet]="dummySheet"
               [index]="getOriginalIndex(skill, 'skills')"
+              [isEditing]="isSkillEditing(getOriginalIndex(skill, 'skills'))"
               (patch)="onSkillUpdate(getOriginalIndex(skill, 'skills'), $event)"
               (delete)="removeSkill.emit(getOriginalIndex(skill, 'skills'))"
               (editingChange)="onSkillEditingChange(getOriginalIndex(skill, 'skills'), $event)">

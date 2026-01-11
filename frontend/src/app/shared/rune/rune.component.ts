@@ -59,10 +59,10 @@ export class RuneComponent implements AfterViewInit {
   }
 
   toggleEdit() {
-    this.isEditing = !this.isEditing;
-    this.editingChange.emit(this.isEditing);
+    const newEditingState = !this.isEditing;
+    this.editingChange.emit(newEditingState);
 
-    if (this.isEditing) {
+    if (newEditingState) {
       this.hasDrawing = !!this.rune.drawing;
       setTimeout(() => {
         if (this.hasDrawing && this.canvasRef) {

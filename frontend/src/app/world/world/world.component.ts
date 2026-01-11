@@ -1118,13 +1118,14 @@ export class WorldComponent implements OnInit, OnDestroy {
     // Start with first character in the group
     const groupIds = new Set<string>([firstChar.characterId]);
 
-    // ONLY group characters that are already at the same time (within 0.01) and same team
+    // ONLY group characters that are already at the same time (within 1.0) and same team
     // This prevents pulling future turns into the current group
+    // Using 1.0 tolerance to handle initial staggered offsets (0.1 per character)
     for (let i = 1; i < sorted.length; i++) {
       const char = sorted[i];
 
-      // Must be at approximately the same time (within 0.01) - this is the KEY check
-      if (Math.abs(char.nextTurnAt - lowestTime) >= 0.01) {
+      // Must be at approximately the same time (within 1.0) - this is the KEY check
+      if (Math.abs(char.nextTurnAt - lowestTime) >= 1.0) {
         console.log('[GROUPING] Different time found, stopping at:', char.characterId, 'time:', char.nextTurnAt);
         break;
       }

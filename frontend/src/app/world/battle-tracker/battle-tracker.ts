@@ -60,7 +60,7 @@ export class BattleTracker {
 
     const first = this.sortedTurnOrder[0];
     return this.sortedTurnOrder.filter(p =>
-      Math.abs(p.nextTurnAt - first.nextTurnAt) < 0.01 && p.team === first.team
+      Math.abs(p.nextTurnAt - first.nextTurnAt) < 1.0 && p.team === first.team
     );
   }
 
@@ -109,7 +109,7 @@ export class BattleTracker {
       for (let j = i + 1; j < queue.length; j++) {
         const nextTurn = queue[j];
         // Must be same team, same time, and not already in group
-        if (Math.abs(nextTurn.nextTurnAt - turn.nextTurnAt) < 0.01 &&
+        if (Math.abs(nextTurn.nextTurnAt - turn.nextTurnAt) < 1.0 &&
             nextTurn.team === turn.team &&
             !currentGroup.some(p => p.characterId === nextTurn.characterId)) {
           currentGroup.push(nextTurn);
