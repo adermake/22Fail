@@ -8,12 +8,12 @@
   <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>
   <app-levelclass [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-levelclass>
   <app-currentstats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-currentstats>
-  <app-skills [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-skills>
+  <app-skills [sheet]="sheet" (patch)="store.applyPatch($any($event))" [editingSkills]="editingSkills" (editingChange)="onSkillEditingChange($event.index, $event.isEditing)"></app-skills>
   <app-inventory [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-inventory>
   <app-currency [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-currency>
-  <app-spells [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-spells>
+  <app-spells [sheet]="sheet" (patch)="store.applyPatch($any($event))" [editingSpells]="editingSpells" (editingChange)="onSpellEditingChange($event.index, $event.isEditing)"></app-spells>
   <app-equipment [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-equipment>
-  <app-runes [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-runes>
+  <app-runes [sheet]="sheet" (patch)="store.applyPatch($any($event))" [editingRunes]="editingRunes" (editingChange)="onRuneEditingChange($event.index, $event.isEditing)"></app-runes>
 </div>
 
 @if (showLootPopup) {

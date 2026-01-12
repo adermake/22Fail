@@ -5,12 +5,13 @@
   </div>
 
   <div class="skills-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
-    @for (skill of (sheet.skills || []); track skill.name; let i = $index) {
+    @for (skill of (sheet.skills || []); track i; let i = $index) {
       <div cdkDrag [cdkDragDisabled]="isSkillEditing(i)" (cdkDragStarted)="onDragStarted($event)">
         <app-skill
           [skill]="skill"
           [sheet]="sheet"
           [index]="i"
+          [isEditing]="isSkillEditing(i)"
           (patch)="updateSkill(i, $event)"
           (delete)="deleteSkill(i)"
           (editingChange)="onEditingChange(i, $event)"

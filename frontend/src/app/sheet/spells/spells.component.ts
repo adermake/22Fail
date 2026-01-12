@@ -17,10 +17,11 @@ import { SpellBlock } from '../../model/spell-block-model';
 })
 export class SpellsComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
+  @Input() editingSpells!: Set<number>;
   @Output() patch = new EventEmitter<JsonPatch>();
+  @Output() editingChange = new EventEmitter<{index: number, isEditing: boolean}>();
 
   showCreateDialog = false;
-  private editingSpells = new Set<number>();
   placeholderHeight = '90px';
   placeholderWidth = '100%';
 
@@ -125,11 +126,7 @@ export class SpellsComponent {
   }
 
   onEditingChange(index: number, isEditing: boolean) {
-    if (isEditing) {
-      this.editingSpells.add(index);
-    } else {
-      this.editingSpells.delete(index);
-    }
+    this.editingChange.emit({index, isEditing});
   }
 
   isSpellEditing(index: number): boolean {

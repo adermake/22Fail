@@ -16,10 +16,11 @@ import { RuneCreatorComponent } from '../runecreator/runecreator.component';
 })
 export class RunesComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
+  @Input() editingRunes!: Set<number>;
   @Output() patch = new EventEmitter<JsonPatch>();
+  @Output() editingChange = new EventEmitter<{index: number, isEditing: boolean}>();
 
   showCreateDialog = false;
-  private editingRunes = new Set<number>();
   placeholderHeight = '90px';
   placeholderWidth = '100%';
 
@@ -92,14 +93,13 @@ export class RunesComponent {
   }
 
   onEditingChange(index: number, isEditing: boolean) {
-    if (isEditing) {
-      this.editingRunes.add(index);
-    } else {
-      this.editingRunes.delete(index);
-    }
+    this.editingChange.emit({index, isEditing});
   }
 
   isRuneEditing(index: number): boolean {
+    if (!this.editingRunes) {
+      return false;
+    }
     return this.editingRunes.has(index);
   }
 }

@@ -5,11 +5,12 @@
   </div>
 
   <div class="runes-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
-    @for (rune of (sheet.runes || []); track rune.name; let i = $index) {
+    @for (rune of (sheet.runes || []); track i; let i = $index) {
       <div cdkDrag [cdkDragDisabled]="isRuneEditing(i)" (cdkDragStarted)="onDragStarted($event)">
         <app-rune
           [rune]="rune"
           [index]="i"
+          [isEditing]="isRuneEditing(i)"
           (patch)="updateRune(i, $event)"
           (delete)="deleteRune(i)"
           (editingChange)="onEditingChange(i, $event)"

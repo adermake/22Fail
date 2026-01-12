@@ -16,10 +16,11 @@ import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@ang
 })
 export class SkillsComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
+  @Input() editingSkills!: Set<number>;
   @Output() patch = new EventEmitter<JsonPatch>();
+  @Output() editingChange = new EventEmitter<{index: number, isEditing: boolean}>();
 
   showCreateDialog = false;
-  private editingSkills = new Set<number>();
   placeholderHeight = '90px';
   placeholderWidth = '100%';
 
@@ -92,11 +93,7 @@ export class SkillsComponent {
   }
 
   onEditingChange(index: number, isEditing: boolean) {
-    if (isEditing) {
-      this.editingSkills.add(index);
-    } else {
-      this.editingSkills.delete(index);
-    }
+    this.editingChange.emit({index, isEditing});
   }
 
   isSkillEditing(index: number): boolean {

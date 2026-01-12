@@ -65,6 +65,11 @@ export class SheetComponent implements OnInit {
   isCurrentTurn = false;
   isGroupTurn = false;
 
+  // Editing states
+  editingRunes = new Set<number>();
+  editingSpells = new Set<number>();
+  editingSkills = new Set<number>();
+
   async ngOnInit() {
     const classDefinitions = await fetch('class-definitions.txt').then((r) => r.text());
     await ClassTree.initialize(classDefinitions);
@@ -204,6 +209,37 @@ export class SheetComponent implements OnInit {
       });
     });
   }
+
+  onRuneEditingChange(index: number, isEditing: boolean) {
+    const newSet = new Set(this.editingRunes);
+    if (isEditing) {
+      newSet.add(index);
+    } else {
+      newSet.delete(index);
+    }
+    this.editingRunes = newSet;
+  }
+
+  onSpellEditingChange(index: number, isEditing: boolean) {
+    const newSet = new Set(this.editingSpells);
+    if (isEditing) {
+      newSet.add(index);
+    } else {
+      newSet.delete(index);
+    }
+    this.editingSpells = newSet;
+  }
+
+  onSkillEditingChange(index: number, isEditing: boolean) {
+    const newSet = new Set(this.editingSkills);
+    if (isEditing) {
+      newSet.add(index);
+    } else {
+      newSet.delete(index);
+    }
+    this.editingSkills = newSet;
+  }
+
 
   onClaimLoot(lootItem: LootItem) {
     // Add item to character sheet based on type

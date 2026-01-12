@@ -36,12 +36,13 @@
   </div>
 
   <div class="spells-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
-    @for (spell of (sheet.spells || []); track spell.name; let i = $index) {
+    @for (spell of (sheet.spells || []); track i; let i = $index) {
     <div cdkDrag [cdkDragDisabled]="isSpellEditing(i)" (cdkDragStarted)="onDragStarted($event)">
       <app-spell
         [spell]="spell"
         [sheet]="sheet"
         [index]="i"
+        [isEditing]="isSpellEditing(i)"
         (patch)="updateSpell(i, $event)"
         (delete)="deleteSpell(i)"
         (editingChange)="onEditingChange(i, $event)"

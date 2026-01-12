@@ -38,7 +38,7 @@
     <!-- Items Tab -->
     @if (activeTab === 'items') {
       <div class="library-list">
-        @for (item of filteredItems; track item.name; let i = $index) {
+        @for (item of filteredItems; track getOriginalIndex(item, 'items'); let i = $index) {
           <div class="library-item-wrapper"
                [class.draggable]="!isItemEditing(getOriginalIndex(item, 'items'))"
                [attr.draggable]="!isItemEditing(getOriginalIndex(item, 'items'))"
@@ -61,7 +61,7 @@
     <!-- Runes Tab -->
     @if (activeTab === 'runes') {
       <div class="library-list">
-        @for (rune of filteredRunes; track rune.name; let i = $index) {
+        @for (rune of filteredRunes; track getOriginalIndex(rune, 'runes'); let i = $index) {
           <div class="library-item-wrapper"
                [class.draggable]="!isRuneEditing(getOriginalIndex(rune, 'runes'))"
                [attr.draggable]="!isRuneEditing(getOriginalIndex(rune, 'runes'))"
@@ -83,7 +83,7 @@
     <!-- Spells Tab -->
     @if (activeTab === 'spells') {
       <div class="library-list">
-        @for (spell of filteredSpells; track spell.name; let i = $index) {
+        @for (spell of filteredSpells; track getOriginalIndex(spell, 'spells'); let i = $index) {
           <div class="library-item-wrapper"
                [class.draggable]="!isSpellEditing(getOriginalIndex(spell, 'spells'))"
                [attr.draggable]="!isSpellEditing(getOriginalIndex(spell, 'spells'))"
@@ -106,7 +106,7 @@
     <!-- Skills Tab -->
     @if (activeTab === 'skills') {
       <div class="library-list">
-        @for (skill of filteredSkills; track skill.name; let i = $index) {
+        @for (skill of filteredSkills; track getOriginalIndex(skill, 'skills'); let i = $index) {
           <div class="library-item-wrapper"
                [class.draggable]="!isSkillEditing(getOriginalIndex(skill, 'skills'))"
                [attr.draggable]="!isSkillEditing(getOriginalIndex(skill, 'skills'))"
