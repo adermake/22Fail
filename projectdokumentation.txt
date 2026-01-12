@@ -1,28 +1,102 @@
-This APP is a DND like Assist tool there to support the GM and the Players. It follows a custom ruleset.
-The grounding principles for the project is that everything should be easy and convinient todo. 
-Like creating a new character for example is opening the server with a new url like characters/coolguy
-This creates a real time synced page that everyone can edit and look at for that specific character.
+=== D&D GM ASSIST TOOL - PROJECT DOCUMENTATION ===
 
-[IMPORTANT]
-The most important principle for the Project. EVERYTHING should be synced in real time and STATE should always be saved.
-This applies for the sheet view and world view.
-This is mostly done through json patches.
+## OVERVIEW
+DND-like assist tool for GM and players. Custom ruleset. Core principle: every page view auto-creates via URL and syncs in real-time.
 
+## STACK
+Frontend: Angular 21 (standalone, signals) | Backend: NestJS 11 | Real-time: Socket.IO 4.8 | Storage: JSON files
 
-// GAME RULES 
-// Todo ill probably fill GAME RULES  myself. Or if you understand something you can write something too.
+## ARCHITECTURE
+- Client patches state locally (optimistic UI) → sends patch via WebSocket
+- Server applies patch to JSON file → broadcasts to all room members
+- Custom JSON patch: {path: "inventory.0.name", value: "Sword"}
+- Path uses dot notation, supports array indexing
 
+## DATA STORAGE
+- backend/data.json: {characterId: JSON.stringify(CharacterSheet)}
+- backend/worlds.json: {worldName: JSON.stringify(WorldData)}
+- Atomic file writes, no database
 
-// TECHNICAL 
+## ROUTING
+/characters/:id → SheetComponent (player view) - auto-creates if missing
+/world/:worldName → WorldComponent (GM dashboard) - auto-creates if missing
+/game/:id → SessionComponent (placeholder)
 
-There are two important pages for now: world and sheet.
+## SHEET VIEW (Player Features)
+- Character attributes (name, race, class, age, alignment)
+- Stats: Strength, Dexterity, Speed, Intelligence, Chill, Constitution (base/gain/bonus/current)
+- Status: Leben (Life), Ausdauer (Stamina), Mana
+- Inventory/Equipment with weight, requirements
+- Skills, Runes, Spells (create/edit UI)
+- Currency: copper, silver, gold, platinum
+- Battle turn tracker with visual indicators
+- Loot popup system (receives items during battle)
+- Portrait upload (base64)
 
-Sheet represents a character for a player, this is what the Player will be looking at.
-Sheet has the current following features:
-//TODO fill out
+## WORLD VIEW (GM Features)
+- Character library CRUD
+- Party management (add/remove members)
+- Item/Rune/Spell/Skill libraries (world-scoped)
+- Drag-drop loot distribution to party
+- Battle tracker: turn order, team grouping, participant add/remove
+- Battle controls: advance turn, reset, reveal loot
+- Loot bundles (predefined reward packages)
+- Real-time character sheet monitoring
 
-World represents the GM view where he has the following Features:
-//TODO fill out
+## WEBSOCKET EVENTS
+joinCharacter, patchCharacter, characterPatched
+joinWorld, patchWorld, worldPatched
+claimBattleLoot, battleLootReceived, revealBattleLoot
+sendDirectLoot, lootReceived
+
+## KEY FILES
+Backend:
+- main.ts: Bootstrap (port 3000, CORS)
+- app.module.ts: Module config, serves frontend
+- app.controller.ts: REST API (GET/POST/PATCH)
+- data.service.ts: File I/O, patch logic
+- character.gateway.ts: Character WebSocket
+- world.gateway.ts: World WebSocket, loot distribution
+
+Frontend Services:
+- character-socket.service.ts: Socket.IO for characters
+- character-store.service.ts: State + patch application
+- character-api.service.ts: HTTP endpoints
+- world-socket.service.ts: Socket.IO for worlds
+- world-store.service.ts: World state + migrations
+- world-api.service.ts: World HTTP endpoints
+- weapon-generator.service.ts: Procedural generation
+
+Frontend Models:
+- character-sheet-model.ts: CharacterSheet interface
+- world.model.ts: WorldData, LootItem, BattleParticipant
+- stat-block.model.ts: StatBlock (base/gain/bonus/current)
+- json-patch.model.ts: {path, value}
+- item-block, spell-block, rune-block, skill-block models
+
+Frontend Components:
+- sheet.component.ts: Player view
+- world/world.component.ts: GM view
+- session.component.ts: Empty placeholder
+
+## API ROUTES
+GET /api/characters/:id - Load sheet (null if missing)
+POST /api/characters/:id - Save full sheet
+PATCH /api/characters/:id - Apply patch
+POST /api/characters/:id/portrait - Upload portrait
+GET /api/worlds/:name - Load world
+POST /api/worlds/:name - Save world
+PATCH /api/worlds/:name - Apply patch
+
+## DESIGN PRINCIPLES
+1. URL creates objects on-the-fly (convenience-first)
+2. Real-time sync always via WebSockets
+3  State should always persist and be stored.
+4. Optimistic UI (client patches before server confirm)
+5. Simple custom JSON patch (dot-path, not RFC 6902)
+6. World-scoped libraries (items/runes/spells/skills)
+7. Battle system: turn order, teams, loot distribution
+
 
 
 

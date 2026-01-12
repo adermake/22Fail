@@ -340,8 +340,17 @@ export class WorldComponent implements OnInit, OnDestroy {
         path: 'itemLibrary',
         value: newItems
       });
-      // Clear editing state when items are removed to prevent index mismatches
-      this.editingItems.clear();
+      // Update editing state: remove the deleted item and shift indices
+      const newSet = new Set<number>();
+      this.editingItems.forEach(i => {
+        if (i < index) {
+          newSet.add(i);
+        } else if (i > index) {
+          newSet.add(i - 1);
+        }
+        // Skip i === index (the deleted item)
+      });
+      this.editingItems = newSet;
     }
   }
 
@@ -428,8 +437,16 @@ export class WorldComponent implements OnInit, OnDestroy {
         path: 'runeLibrary',
         value: newRunes
       });
-      // Clear editing state when runes are removed to prevent index mismatches
-      this.editingRunes.clear();
+      // Update editing state: remove the deleted rune and shift indices
+      const newSet = new Set<number>();
+      this.editingRunes.forEach(i => {
+        if (i < index) {
+          newSet.add(i);
+        } else if (i > index) {
+          newSet.add(i - 1);
+        }
+      });
+      this.editingRunes = newSet;
     }
   }
 

@@ -20,6 +20,7 @@
         [item]="item"
         [sheet]="sheet"
         [index]="i"
+        [isEditing]="isItemEditing(i)"
         (patch)="updateItem(i, $event)"
         (delete)="deleteItem(i)"
         (editingChange)="onEditingChange(i, $event)"
