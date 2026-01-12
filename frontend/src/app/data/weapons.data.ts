@@ -1,0 +1,46 @@
+import {
+  BaseWeaponType,
+  DamageType,
+  WeaponType,
+} from '../model/weapon.model';
+
+export const BASE_WEAPON_TYPES: BaseWeaponType[] = [
+  // Leicht
+  { name: 'Messer', damageType: DamageType.SCHNITT, range: 0.5, type: WeaponType.LEICHT },
+  { name: 'Sichel', damageType: DamageType.SCHNITT, range: 0.5, type: WeaponType.LEICHT },
+  { name: 'Kurzschwert', damageType: DamageType.SCHNITT, range: 1, type: WeaponType.LEICHT },
+  { name: 'Peitsche', damageType: DamageType.SCHNITT, range: 3, type: WeaponType.LEICHT },
+  { name: 'Dolch', damageType: DamageType.STICH, range: 0.5, type: WeaponType.LEICHT },
+  { name: 'Rapier', damageType: DamageType.STICH, range: 1.5, type: WeaponType.LEICHT },
+  { name: 'Handschuhe', damageType: DamageType.WUCHT, range: 0.5, type: WeaponType.LEICHT },
+  { name: 'Nunchaku', damageType: DamageType.WUCHT, range: 0.5, type: WeaponType.LEICHT },
+  { name: 'Stab', damageType: DamageType.WUCHT, range: 1, type: WeaponType.LEICHT },
+  // Fernkampf
+  { name: 'Wurfbeil', damageType: DamageType.SCHNITT, range: 10, type: WeaponType.FERNKAMPF },
+  { name: 'Wurfmesser', damageType: DamageType.SCHNITT, range: 20, type: WeaponType.FERNKAMPF },
+  { name: 'Wurfspeer', damageType: DamageType.STICH, range: 50, type: WeaponType.FERNKAMPF },
+  { name: 'Kurzbogen', damageType: DamageType.STICH, range: 50, type: WeaponType.FERNKAMPF },
+  { name: 'Armbrust', damageType: DamageType.STICH, range: 100, type: WeaponType.FERNKAMPF },
+  { name: 'Langbogen', damageType: DamageType.STICH, range: 100, type: WeaponType.FERNKAMPF },
+  { name: 'Bola', damageType: DamageType.WUCHT, range: 20, type: WeaponType.FERNKAMPF },
+  { name: 'Bumerang', damageType: DamageType.WUCHT, range: 30, type: WeaponType.FERNKAMPF },
+  { name: 'Schleuder', damageType: DamageType.WUCHT, range: 50, type: WeaponType.FERNKAMPF },
+  // Schwer
+  { name: 'Axt', damageType: DamageType.SCHNITT, range: 1.5, type: WeaponType.SCHWER },
+  { name: 'Säbel', damageType: DamageType.SCHNITT, range: 1.5, type: WeaponType.SCHWER },
+  { name: 'Sense', damageType: DamageType.SCHNITT, range: 1.5, type: WeaponType.SCHWER },
+  { name: 'Kriegsaxt', damageType: DamageType.SCHNITT, range: 2, type: WeaponType.SCHWER },
+  { name: 'Langschwert', damageType: DamageType.SCHNITT, range: 2, type: WeaponType.SCHWER },
+  { name: 'Gleve', damageType: DamageType.SCHNITT, range: 2.5, type: WeaponType.SCHWER },
+  { name: 'Großschwert', damageType: DamageType.SCHNITT, range: 2.5, type: WeaponType.SCHWER },
+  { name: 'Hellebarde', damageType: DamageType.SCHNITT, range: 3, type: WeaponType.SCHWER },
+  { name: 'Hacke', damageType: DamageType.STICH, range: 1, type: WeaponType.SCHWER },
+  { name: 'Dreizack', damageType: DamageType.STICH, range: 2, type: WeaponType.SCHWER },
+  { name: 'Langspeer', damageType: DamageType.STICH, range: 3, type: WeaponType.SCHWER },
+  { name: 'Lanze', damageType: DamageType.STICH, range: 3, type: WeaponType.SCHWER },
+  { name: 'Schild', damageType: DamageType.WUCHT, range: 0.5, type: WeaponType.SCHWER },
+  { name: 'Hammer', damageType: DamageType.WUCHT, range: 1, type: WeaponType.SCHWER },
+  { name: 'Keule', damageType: DamageType.WUCHT, range: 2, type: WeaponType.SCHWER },
+  { name: 'Kriegshammer', damageType: DamageType.WUCHT, range: 2, type: WeaponType.SCHWER },
+  { name: 'Morgenstern', damageType: DamageType.WUCHT, range: 2.5, type: WeaponType.SCHWER },
+];

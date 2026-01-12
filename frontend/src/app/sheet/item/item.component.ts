@@ -9,6 +9,7 @@ import { KeywordEnhancer } from '../keyword-enhancer';
 
 @Component({
   selector: 'app-item',
+  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './item.component.html',
   styleUrl: './item.component.css',

@@ -19,6 +19,8 @@ import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
 import { BattleTracker } from '../battle-tracker/battle-tracker';
 import { BattleParticipant } from '../../model/world.model';
 import { LootManagerComponent, LootBundle } from './loot-manager.component';
+import { WeaponGeneratorService } from '../../services/weapon-generator.service';
+import { Armor } from '../../model/armor.model';
 
 export interface SimulatedTurn {
   characterId: string;
@@ -37,6 +39,7 @@ export interface BattleGroup {
 
 @Component({
   selector: 'app-world',
+  standalone: true,
   imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
@@ -47,6 +50,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   worldSocket = inject(WorldSocketService);
   characterApi = inject(CharacterApiService);
   characterSocket = inject(CharacterSocketService);
+  weaponGenerator = inject(WeaponGeneratorService);
   cdr = inject(ChangeDetectorRef);
 
   newCharacterId: string = '';
@@ -293,6 +297,28 @@ export class WorldComponent implements OnInit, OnDestroy {
       });
     }
     this.closeItemCreator();
+  }
+
+  generateRandomWeapon() {
+    // Generiert eine Waffe (Level 5 als Beispiel)
+    const world = this.store.worldValue;
+    if (!world) return;
+    const weapon = this.weaponGenerator.generateWeapon(5);
+    this.store.applyPatch({
+      path: 'itemLibrary',
+      value: [...world.itemLibrary, weapon]
+    });
+  }
+
+  generateRandomArmor() {
+    // Generiert eine Rüstung (Level 5 als Beispiel)
+    const world = this.store.worldValue;
+    if (!world) return;
+    const armor = this.weaponGenerator.generateArmor(5);
+    this.store.applyPatch({
+      path: 'itemLibrary',
+      value: [...world.itemLibrary, armor]
+    });
   }
 
   updateItem(index: number, patch: JsonPatch) {

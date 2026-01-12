@@ -5,6 +5,7 @@ import { ItemBlock } from '../../model/item-block.model';
 
 @Component({
   selector: 'app-item-creator',
+  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './item-creator.component.html',
   styleUrl: './item-creator.component.css',

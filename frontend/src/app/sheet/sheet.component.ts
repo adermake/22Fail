@@ -16,15 +16,20 @@ import { SkillsComponent } from './skills/skills.component';
 import { ClassTree } from './class-tree-model';
 import { InventoryComponent } from "./inventory/inventory.component";
 import { EquipmentComponent } from './equipment/equipment.component';
-
 import { SpellsComponent } from "./spells/spells.component";
 import { RunesComponent } from '../shared/runes/runes.component';
 import { CurrencyComponent } from "./currency/currency.component";
 import { LootPopupComponent } from '../shared/loot-popup/loot-popup.component';
 import { LootItem } from '../model/world.model';
+import { FormsModule } from '@angular/forms';
+import { DragDropModule } from '@angular/cdk/drag-drop';
+import { ItemComponent } from './item/item.component';
+import { ItemCreatorComponent } from './item-creator/item-creator.component';
+import { CardComponent } from '../shared/card/card.component';
 
 @Component({
   selector: 'app-sheet',
+  standalone: true,
   imports: [
     CommonModule,
     StatsComponent,
@@ -39,8 +44,13 @@ import { LootItem } from '../model/world.model';
     SpellsComponent,
     RunesComponent,
     CurrencyComponent,
-    LootPopupComponent
-],
+    LootPopupComponent,
+    FormsModule,
+    DragDropModule,
+    ItemComponent,
+    ItemCreatorComponent,
+    CardComponent
+  ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
 })

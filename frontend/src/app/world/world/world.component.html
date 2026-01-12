@@ -150,6 +150,10 @@
     <!-- Library Tabs Section (Right) -->
     <app-card class="library-card">
       <h2>Library</h2>
+      <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
+        <button (click)="generateRandomWeapon()" style="width: 100%; background: var(--accent); color: white; padding: 8px;">Zufällige Waffe schmieden</button>
+        <button (click)="generateRandomArmor()" style="width: 100%; background: var(--accent); color: white; padding: 8px;">Zufällige Rüstung schmieden</button>
+      </div>
       <p class="drag-hint">Drag items onto characters or battle loot. Double-click to edit.</p>
       <app-library-tabs
         [items]="world.itemLibrary"
