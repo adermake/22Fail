@@ -1,0 +1,31 @@
+This APP is a DND like Assist tool there to support the GM and the Players. It follows a custom ruleset.
+The grounding principles for the project is that everything should be easy and convinient todo. 
+Like creating a new character for example is opening the server with a new url like characters/coolguy
+This creates a real time synced page that everyone can edit and look at for that specific character.
+
+[IMPORTANT]
+The most important principle for the Project. EVERYTHING should be synced in real time and STATE should always be saved.
+This applies for the sheet view and world view.
+This is mostly done through json patches.
+
+
+// GAME RULES 
+// Todo ill probably fill GAME RULES  myself. Or if you understand something you can write something too.
+
+
+// TECHNICAL 
+
+There are two important pages for now: world and sheet.
+
+Sheet represents a character for a player, this is what the Player will be looking at.
+Sheet has the current following features:
+//TODO fill out
+
+World represents the GM view where he has the following Features:
+//TODO fill out
+
+
+
+
+
+
