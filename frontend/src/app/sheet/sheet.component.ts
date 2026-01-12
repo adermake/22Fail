@@ -302,4 +302,84 @@ export class SheetComponent implements OnInit {
     this.showLootPopup = false;
     this.receivedLoot = [];
   }
+
+  // Trash management
+  showTrash = false;
+
+  openTrash() {
+    this.showTrash = true;
+  }
+
+  closeTrash() {
+    this.showTrash = false;
+  }
+
+  restoreFromTrash(index: number) {
+    const sheet = this.store.sheetValue;
+    if (!sheet || !sheet.trash) return;
+
+    const trashItem = sheet.trash[index];
+    const newTrash = [...sheet.trash];
+    newTrash.splice(index, 1);
+
+    // Restore to appropriate location
+    switch (trashItem.type) {
+      case 'item':
+        this.store.applyPatch({
+          path: 'inventory',
+          value: [...sheet.inventory, trashItem.data]
+        });
+        break;
+      case 'equipment':
+        this.store.applyPatch({
+          path: 'equipment',
+          value: [...sheet.equipment, trashItem.data]
+        });
+        break;
+      case 'rune':
+        this.store.applyPatch({
+          path: 'runes',
+          value: [...sheet.runes, trashItem.data]
+        });
+        break;
+      case 'spell':
+        this.store.applyPatch({
+          path: 'spells',
+          value: [...sheet.spells, trashItem.data]
+        });
+        break;
+      case 'skill':
+        this.store.applyPatch({
+          path: 'skills',
+          value: [...sheet.skills, trashItem.data]
+        });
+        break;
+    }
+
+    // Update trash
+    this.store.applyPatch({
+      path: 'trash',
+      value: newTrash
+    });
+  }
+
+  permanentlyDelete(index: number) {
+    const sheet = this.store.sheetValue;
+    if (!sheet || !sheet.trash) return;
+
+    const newTrash = [...sheet.trash];
+    newTrash.splice(index, 1);
+
+    this.store.applyPatch({
+      path: 'trash',
+      value: newTrash
+    });
+  }
+
+  emptyTrash() {
+    this.store.applyPatch({
+      path: 'trash',
+      value: []
+    });
+  }
 }

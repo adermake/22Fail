@@ -1,4 +1,13 @@
 @if (store.sheet$ | async; as sheet) {
+<!-- Trash Button (floating) -->
+<button
+  class="trash-button-floating"
+  (click)="openTrash()"
+  title="Open Trash"
+  [attr.data-count]="(sheet.trash || []).length">
+  🗑️
+</button>
+
 <div class="character-grid" [class.current-turn]="isCurrentTurn" [class.group-turn]="isGroupTurn">
   <app-character
     [sheet]="sheet"
@@ -23,5 +32,59 @@
     (claimItem)="onClaimLoot($event)"
     (close)="onCloseLootPopup()">
   </app-loot-popup>
+}
+
+<!-- Trash Dialog -->
+@if (showTrash) {
+  <div class="dialog-overlay" (click)="closeTrash()">
+    <div class="dialog-content trash-dialog" (click)="$event.stopPropagation()" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2>🗑️ Trash</h2>
+        <div style="display: flex; gap: 0.5rem;">
+          <button (click)="emptyTrash()" [disabled]="!sheet.trash || sheet.trash.length === 0" style="background: #d32f2f; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;">
+            Empty Trash
+          </button>
+          <button (click)="closeTrash()" style="background: #666; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;">
+            Close
+          </button>
+        </div>
+      </div>
+
+      @if (!sheet.trash || sheet.trash.length === 0) {
+        <p style="text-align: center; color: #999; padding: 2rem;">Trash is empty</p>
+      } @else {
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          @for (trashItem of sheet.trash; track $index; let i = $index) {
+            <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 4px; padding: 1rem; display: flex; justify-content: space-between; align-items: center;">
+              <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="background: var(--accent); color: white; padding: 2px 8px; border-radius: 3px; font-size: 0.75rem; text-transform: uppercase;">
+                    {{ trashItem.type }}
+                  </span>
+                  <strong>{{ trashItem.data.name || 'Unnamed' }}</strong>
+                </div>
+                <div style="color: #999; font-size: 0.85rem; margin-top: 0.25rem;">
+                  Deleted: {{ trashItem.deletedAt | date:'short' }}
+                </div>
+                @if (trashItem.data.description) {
+                  <div style="color: #ccc; font-size: 0.9rem; margin-top: 0.5rem; max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ trashItem.data.description }}
+                  </div>
+                }
+              </div>
+              <div style="display: flex; gap: 0.5rem;">
+                <button (click)="restoreFromTrash(i)" style="background: #4caf50; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;">
+                  Restore
+                </button>
+                <button (click)="permanentlyDelete(i)" style="background: #d32f2f; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;">
+                  Delete Forever
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
 }
 }
