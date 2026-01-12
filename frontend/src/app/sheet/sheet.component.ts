@@ -44,12 +44,7 @@ import { CardComponent } from '../shared/card/card.component';
     SpellsComponent,
     RunesComponent,
     CurrencyComponent,
-    LootPopupComponent,
-    FormsModule,
-    DragDropModule,
-    ItemComponent,
-    ItemCreatorComponent,
-    CardComponent
+    LootPopupComponent
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',

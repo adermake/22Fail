@@ -1,11 +1,26 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
-import { JsonPatch } from '../../model/json-patch.model';
 import { ItemBlock } from '../../model/item-block.model';
+import { JsonPatch } from '../../model/json-patch.model';
+import { CardComponent } from '../../shared/card/card.component';
+import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { ItemComponent } from '../item/item.component';
+import { ItemCreatorComponent } from '../item-creator/item-creator.component';
+import { FormsModule } from '@angular/forms';
 import { COIN_WEIGHT } from '../../model/currency-model';
 
 @Component({
   selector: 'app-inventory',
+  standalone: true,
+  imports: [
+    CommonModule,
+    ItemComponent,
+    CardComponent,
+    ItemCreatorComponent,
+    DragDropModule,
+    FormsModule,
+  ],
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.css',
 })
@@ -19,8 +34,6 @@ export class InventoryComponent {
   placeholderHeight = '90px';
   placeholderWidth = '100%';
 
-  constructor() {}
-
   ngOnInit() {
     if (!this.sheet.inventory) {
       this.sheet.inventory = [];
@@ -32,6 +45,11 @@ export class InventoryComponent {
       this.sheet.carryCapacityBonus = 0;
     }
   }
+
+  openCreateDialog() {
+    this.showCreateDialog = true;
+  }
+
   closeCreateDialog() {
     this.showCreateDialog = false;
   }
@@ -194,6 +212,5 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
   isItemEditing(index: number): boolean {
     return this.editingItems.has(index);
   }
-
-
 }
+
