@@ -1,5 +1,5 @@
-<div class="item-card" 
-     [class.editing]="isEditing" 
+<div class="item-card"
+     [class.editing]="isEditing"
      [class.unusable]="!canUseItem"
      (dblclick)="!isEditing && toggleEdit()">
   @if (!isEditing) {
@@ -11,6 +11,7 @@
           @if (!canUseItem) {
             <span class="item-unusable-badge">Cannot Use</span>
           }
+          <button class="delete-btn-compact" (click)="deleteItem(); $event.stopPropagation()" title="Delete">🗑️</button>
         </div>
       </div>
       <p class="item-description" [innerHTML]="enhancedDescription"></p>
@@ -157,7 +158,6 @@
 
       <div class="item-actions">
         <button class="save-btn" (click)="toggleEdit()">Done</button>
-        <button class="delete-btn" (click)="deleteItem()">Delete</button>
       </div>
     </div>
   }

@@ -135,6 +135,18 @@ getCurrencyWeight(): number {
       deletedAt: Date.now()
     });
 
+    // Update editing state: remove the deleted item and shift indices
+    const newSet = new Set<number>();
+    this.editingItems.forEach(i => {
+      if (i < index) {
+        newSet.add(i);
+      } else if (i > index) {
+        newSet.add(i - 1);
+      }
+      // Skip i === index (the deleted item)
+    });
+    this.editingItems = newSet;
+
     this.patch.emit({
       path: 'inventory',
       value: this.sheet.inventory,

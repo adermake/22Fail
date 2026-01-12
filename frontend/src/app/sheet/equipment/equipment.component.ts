@@ -43,6 +43,17 @@ export class EquipmentComponent {
       deletedAt: Date.now()
     });
 
+    // Update editing state: remove the deleted item and shift indices
+    const newSet = new Set<number>();
+    this.editingItems.forEach(i => {
+      if (i < index) {
+        newSet.add(i);
+      } else if (i > index) {
+        newSet.add(i - 1);
+      }
+    });
+    this.editingItems = newSet;
+
     this.patch.emit({
       path: 'equipment',
       value: this.sheet.equipment,
