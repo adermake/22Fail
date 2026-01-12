@@ -11,6 +11,7 @@ export class WorldStoreService {
   world$ = this.worldSubject.asObservable();
 
   worldName!: string;
+  private pendingPatchPaths = new Set<string>();
 
   get worldValue(): WorldData | null {
     return this.worldSubject.value;
@@ -23,6 +24,14 @@ export class WorldStoreService {
     this.socket.patches$.subscribe((patch) => {
       const world = this.worldSubject.value;
       if (!world) return;
+
+      // Skip if this is an echo of our own patch
+      if (this.pendingPatchPaths.has(patch.path)) {
+        console.log('[WORLD STORE] Skipping echo of own patch:', patch.path);
+        this.pendingPatchPaths.delete(patch.path);
+        return;
+      }
+
       this.applyJsonPatch(world, patch);
       this.worldSubject.next({ ...world });
     });
@@ -143,6 +152,12 @@ export class WorldStoreService {
       this.worldSubject.next({ ...world });
     }
     console.log('[WORLD STORE] Sending patch to socket for world:', this.worldName);
+
+    // Mark this patch path as pending so we can skip the echo from server
+    this.pendingPatchPaths.add(patch.path);
+    // Clear after 5 seconds in case the echo never arrives
+    setTimeout(() => this.pendingPatchPaths.delete(patch.path), 5000);
+
     this.socket.sendPatch(this.worldName, patch);
   }
 
