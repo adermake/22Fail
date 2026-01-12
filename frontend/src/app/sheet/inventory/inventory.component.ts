@@ -124,10 +124,24 @@ getCurrencyWeight(): number {
   }
 
   deleteItem(index: number) {
+    const item = this.sheet.inventory[index];
     this.sheet.inventory = this.sheet.inventory.filter((_, i) => i !== index);
+
+    // Add to trash
+    const trash = this.sheet.trash || [];
+    trash.push({
+      type: 'item',
+      data: item,
+      deletedAt: Date.now()
+    });
+
     this.patch.emit({
       path: 'inventory',
       value: this.sheet.inventory,
+    });
+    this.patch.emit({
+      path: 'trash',
+      value: trash,
     });
   }
 

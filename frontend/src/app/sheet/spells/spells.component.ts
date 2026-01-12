@@ -72,10 +72,24 @@ export class SpellsComponent {
   }
 
   deleteSpell(index: number) {
+    const spell = this.sheet.spells[index];
     this.sheet.spells = this.sheet.spells.filter((_, i) => i !== index);
+
+    // Add to trash
+    const trash = this.sheet.trash || [];
+    trash.push({
+      type: 'spell',
+      data: spell,
+      deletedAt: Date.now()
+    });
+
     this.patch.emit({
       path: 'spells',
       value: this.sheet.spells,
+    });
+    this.patch.emit({
+      path: 'trash',
+      value: trash,
     });
   }
 

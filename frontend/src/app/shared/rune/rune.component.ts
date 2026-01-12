@@ -204,8 +204,6 @@ export class RuneComponent implements AfterViewInit {
   }
 
   deleteRune() {
-    if (confirm(`Delete rune "${this.rune.name}"?`)) {
-      this.delete.emit();
-    }
+    this.delete.emit();
   }
 }

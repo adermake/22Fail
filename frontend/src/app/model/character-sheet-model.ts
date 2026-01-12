@@ -5,6 +5,13 @@ import { SkillBlock } from './skill-block.model';
 import { SpellBlock } from './spell-block-model';
 import { StatBlock } from './stat-block.model';
 import { StatusBlock } from './status-block.model';
+import { RuneBlock } from './rune-block.model';
+
+export interface SheetTrashItem {
+  type: 'item' | 'equipment' | 'rune' | 'spell' | 'skill';
+  data: ItemBlock | RuneBlock | SpellBlock | SkillBlock;
+  deletedAt: number; // Timestamp
+}
 
 export interface CharacterSheet {
   runes: any;
@@ -37,7 +44,8 @@ export interface CharacterSheet {
   carryCapacityMultiplier: number;
   carryCapacityBonus: number;
   spells: SpellBlock[];
-  currency: Currency; // Add this
+  currency: Currency;
+  trash: SheetTrashItem[]; // Recycle bin for deleted items
 }
 
 export function createEmptySheet(): CharacterSheet {
@@ -74,6 +82,7 @@ export function createEmptySheet(): CharacterSheet {
       gold: 0,
       platinum: 0,
     },
+    trash: [],
   };
 }
 

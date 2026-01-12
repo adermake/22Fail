@@ -203,9 +203,7 @@ export class SpellComponent implements AfterViewInit {
   }
 
   deleteSpell() {
-    if (confirm(`Delete spell "${this.spell.name}"?`)) {
-      this.delete.emit();
-    }
+    this.delete.emit();
   }
 
   handleTouch(event: TouchEvent) {

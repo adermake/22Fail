@@ -56,8 +56,6 @@ export class SkillComponent {
   }
 
   deleteSkill() {
-    if (confirm(`Delete skill "${this.skill.name}"?`)) {
-      this.delete.emit();
-    }
+    this.delete.emit();
   }
 }

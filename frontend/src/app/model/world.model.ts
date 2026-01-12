@@ -3,6 +3,12 @@ import { RuneBlock } from "./rune-block.model";
 import { SpellBlock } from "./spell-block-model";
 import { SkillBlock } from "./skill-block.model";
 
+export interface TrashItem {
+  type: 'item' | 'rune' | 'spell' | 'skill';
+  data: ItemBlock | RuneBlock | SpellBlock | SkillBlock;
+  deletedAt: number; // Timestamp
+}
+
 export interface WorldData {
   name: string;
   characterIds: string[]; // All characters in this world
@@ -15,6 +21,7 @@ export interface WorldData {
   battleLoot: LootItem[];
   battleParticipants: BattleParticipant[];
   currentTurnIndex: number;
+  trash: TrashItem[]; // Recycle bin for deleted items
 }
 
 export interface LootItem {
@@ -63,5 +70,6 @@ export function createEmptyWorld(name: string): WorldData {
     battleLoot: [],
     battleParticipants: [],
     currentTurnIndex: 0,
+    trash: [],
   };
 }

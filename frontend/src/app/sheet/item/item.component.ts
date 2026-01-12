@@ -60,8 +60,6 @@ export class ItemComponent {
   }
 
   deleteItem() {
-    if (confirm(`Delete item "${this.item.name}"?`)) {
-      this.delete.emit();
-    }
+    this.delete.emit();
   }
 }

@@ -126,6 +126,11 @@ export class WorldStoreService {
         world.skillLibrary = [];
         needsSave = true;
       }
+      if (!world.trash) {
+        console.log('[WORLD STORE] Migrating: adding trash');
+        world.trash = [];
+        needsSave = true;
+      }
 
       console.log('[WORLD STORE] Setting loaded world with', world.battleParticipants?.length || 0, 'battle participants');
       this.worldSubject.next(world);

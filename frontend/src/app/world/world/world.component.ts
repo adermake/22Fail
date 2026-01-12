@@ -334,12 +334,26 @@ export class WorldComponent implements OnInit, OnDestroy {
   removeItem(index: number) {
     const world = this.store.worldValue;
     if (world) {
+      const item = world.itemLibrary[index];
       const newItems = [...world.itemLibrary];
       newItems.splice(index, 1);
+
+      // Add to trash
+      const newTrash = [...(world.trash || []), {
+        type: 'item' as const,
+        data: item,
+        deletedAt: Date.now()
+      }];
+
       this.store.applyPatch({
         path: 'itemLibrary',
         value: newItems
       });
+      this.store.applyPatch({
+        path: 'trash',
+        value: newTrash
+      });
+
       // Update editing state: remove the deleted item and shift indices
       const newSet = new Set<number>();
       this.editingItems.forEach(i => {
@@ -348,7 +362,6 @@ export class WorldComponent implements OnInit, OnDestroy {
         } else if (i > index) {
           newSet.add(i - 1);
         }
-        // Skip i === index (the deleted item)
       });
       this.editingItems = newSet;
     }
@@ -431,12 +444,26 @@ export class WorldComponent implements OnInit, OnDestroy {
   removeRune(index: number) {
     const world = this.store.worldValue;
     if (world) {
+      const rune = world.runeLibrary[index];
       const newRunes = [...world.runeLibrary];
       newRunes.splice(index, 1);
+
+      // Add to trash
+      const newTrash = [...(world.trash || []), {
+        type: 'rune' as const,
+        data: rune,
+        deletedAt: Date.now()
+      }];
+
       this.store.applyPatch({
         path: 'runeLibrary',
         value: newRunes
       });
+      this.store.applyPatch({
+        path: 'trash',
+        value: newTrash
+      });
+
       // Update editing state: remove the deleted rune and shift indices
       const newSet = new Set<number>();
       this.editingRunes.forEach(i => {
@@ -481,11 +508,24 @@ export class WorldComponent implements OnInit, OnDestroy {
   removeSpell(index: number) {
     const world = this.store.worldValue;
     if (world) {
+      const spell = world.spellLibrary[index];
       const newSpells = [...world.spellLibrary];
       newSpells.splice(index, 1);
+
+      // Add to trash
+      const newTrash = [...(world.trash || []), {
+        type: 'spell' as const,
+        data: spell,
+        deletedAt: Date.now()
+      }];
+
       this.store.applyPatch({
         path: 'spellLibrary',
         value: newSpells
+      });
+      this.store.applyPatch({
+        path: 'trash',
+        value: newTrash
       });
     }
   }
@@ -520,11 +560,24 @@ export class WorldComponent implements OnInit, OnDestroy {
   removeSkill(index: number) {
     const world = this.store.worldValue;
     if (world) {
+      const skill = world.skillLibrary[index];
       const newSkills = [...world.skillLibrary];
       newSkills.splice(index, 1);
+
+      // Add to trash
+      const newTrash = [...(world.trash || []), {
+        type: 'skill' as const,
+        data: skill,
+        deletedAt: Date.now()
+      }];
+
       this.store.applyPatch({
         path: 'skillLibrary',
         value: newSkills
+      });
+      this.store.applyPatch({
+        path: 'trash',
+        value: newTrash
       });
     }
   }
@@ -1133,5 +1186,79 @@ export class WorldComponent implements OnInit, OnDestroy {
     groups.push(currentGroup);
 
     return groups;
+  }
+
+  // Trash management
+  showTrash = false;
+
+  openTrash() {
+    this.showTrash = true;
+  }
+
+  closeTrash() {
+    this.showTrash = false;
+  }
+
+  restoreFromTrash(index: number) {
+    const world = this.store.worldValue;
+    if (!world || !world.trash) return;
+
+    const trashItem = world.trash[index];
+    const newTrash = [...world.trash];
+    newTrash.splice(index, 1);
+
+    // Restore to appropriate library
+    switch (trashItem.type) {
+      case 'item':
+        this.store.applyPatch({
+          path: 'itemLibrary',
+          value: [...world.itemLibrary, trashItem.data]
+        });
+        break;
+      case 'rune':
+        this.store.applyPatch({
+          path: 'runeLibrary',
+          value: [...world.runeLibrary, trashItem.data]
+        });
+        break;
+      case 'spell':
+        this.store.applyPatch({
+          path: 'spellLibrary',
+          value: [...world.spellLibrary, trashItem.data]
+        });
+        break;
+      case 'skill':
+        this.store.applyPatch({
+          path: 'skillLibrary',
+          value: [...world.skillLibrary, trashItem.data]
+        });
+        break;
+    }
+
+    // Update trash
+    this.store.applyPatch({
+      path: 'trash',
+      value: newTrash
+    });
+  }
+
+  permanentlyDelete(index: number) {
+    const world = this.store.worldValue;
+    if (!world || !world.trash) return;
+
+    const newTrash = [...world.trash];
+    newTrash.splice(index, 1);
+
+    this.store.applyPatch({
+      path: 'trash',
+      value: newTrash
+    });
+  }
+
+  emptyTrash() {
+    this.store.applyPatch({
+      path: 'trash',
+      value: []
+    });
   }
 }

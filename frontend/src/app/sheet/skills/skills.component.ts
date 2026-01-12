@@ -48,10 +48,24 @@ export class SkillsComponent {
   }
 
   deleteSkill(index: number) {
+    const skill = this.sheet.skills[index];
     this.sheet.skills = this.sheet.skills.filter((_, i) => i !== index);
+
+    // Add to trash
+    const trash = this.sheet.trash || [];
+    trash.push({
+      type: 'skill',
+      data: skill,
+      deletedAt: Date.now()
+    });
+
     this.patch.emit({
       path: 'skills',
       value: this.sheet.skills,
+    });
+    this.patch.emit({
+      path: 'trash',
+      value: trash,
     });
   }
 

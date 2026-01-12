@@ -32,10 +32,24 @@ export class EquipmentComponent {
   }
 
   deleteItem(index: number) {
+    const item = this.sheet.equipment[index];
     this.sheet.equipment = this.sheet.equipment.filter((_, i) => i !== index);
+
+    // Add to trash
+    const trash = this.sheet.trash || [];
+    trash.push({
+      type: 'equipment',
+      data: item,
+      deletedAt: Date.now()
+    });
+
     this.patch.emit({
       path: 'equipment',
       value: this.sheet.equipment,
+    });
+    this.patch.emit({
+      path: 'trash',
+      value: trash,
     });
   }
 
