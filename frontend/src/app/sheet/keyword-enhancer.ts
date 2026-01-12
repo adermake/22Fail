@@ -10,48 +10,48 @@ export class KeywordEnhancer {
      {
       keywords: ['kosten', 'bedingung' ,'bedingungen','voraussetzung','voraussetzungen','effektivität',"effekt"],
       className: 'keyword-bold',
-      color: '#0c0c0cff'
+      color: '#A9A9A9' // DarkGray - neutral but visible
     },
     {
       keywords: ['leben', 'trefferpunkte'],
       className: 'keyword-life',
-      color: '#a30d0dff'
+      color: '#FF6B6B' // Bright Red
     },
     {
       keywords: ['ausdauer'],
       className: 'keyword-energy',
-      color: '#207934ff'
+      color: '#4ECDC4' // Teal
     },
     {
       keywords: ['mana'],
       className: 'keyword-mana',
-      color: '#2a83beff'
+      color: '#45A1FF' // Bright Blue
     },
      {
       keywords: ['fokus'],
       className: 'keyword-fokus',
-      color: '#3e13b3ff'
+      color: '#9D6BFF' // Vibrant Purple
     },
     // Stats
     {
       keywords: ['stärke', 'str'],
       className: 'keyword-stat',
-      color: '#631400ff'
+      color: '#FF9F6B' // Orange
     },
     {
       keywords: ['geschicklichkeit', 'dex'],
       className: 'keyword-stat',
-      color: '#00b894'
+      color: '#26D0B3' // Bright Teal
     },
     {
       keywords: ['intelligenz', 'int'],
       className: 'keyword-stat',
-      color: '#0984e3'
+      color: '#54A0FF' // Bright Blue
     },
     {
       keywords: ['konstitution', 'con', 'hp', 'health'],
       className: 'keyword-stat',
-      color: '#d63031'
+      color: '#FF7675' // Soft Red
     },
   ];
 

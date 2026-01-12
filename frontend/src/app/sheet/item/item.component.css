@@ -9,7 +9,7 @@
   border-radius: 6px;
   padding: 1rem;
   transition: all 0.2s;
-  border-left: 3px solid #607d8b;
+  border-left: 3px solid var(--accent); /* Use accent color for the border */
   cursor: grab;
   width: 100%;
   box-sizing: border-box;
@@ -24,20 +24,20 @@
 }
 
 .item-card.unusable {
-  opacity: 0.6;
+  opacity: 0.7;
   background: var(--bg);
-  border-left-color: #f44336;
+  border-left-color: #e53935; /* Brighter red for unusable */
 }
 
 .item-card:not(.editing):hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   border-color: var(--accent);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 .item-card.editing {
-  background: var(--card);
-  border-color: var(--muted);
+  background: #2c3a4f; /* Slightly lighter for editing */
+  border-color: var(--accent);
   opacity: 1;
   cursor: default;
 }
@@ -57,6 +57,7 @@
   word-break: break-word;
   flex: 1;
   min-width: 0;
+  font-weight: 600; /* Bolder title */
 }
 
 .item-badges {
@@ -69,26 +70,26 @@
 
 .item-weight {
   background: var(--bg);
-  color: var(--text);
+  color: var(--text-muted);
   padding: 0.25rem 0.5rem;
-  border-radius: 3px;
+  border-radius: 4px;
   font-size: 0.8rem;
   border: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .item-unusable-badge {
-  background: #ffebee;
-  color: #c62828;
+  background: #4d1c21; /* Dark red background */
+  color: #ffcdd2; /* Light red text */
   padding: 0.25rem 0.5rem;
-  border-radius: 3px;
+  border-radius: 4px;
   font-size: 0.8rem;
-  border: 1px solid #ef9a9a;
+  border: 1px solid #e57373; /* Red border */
   white-space: nowrap;
 }
 
 .item-description {
-  color: var(--text);
+  color: var(--text-muted); /* Use muted text for description for better hierarchy */
   margin: 0.5rem 0;
   font-size: 0.9rem;
   line-height: 1.5;
@@ -109,25 +110,25 @@
 
 .req-label {
   font-size: 0.85rem;
-  color: var(--muted);
-  font-weight: 500;
+  color: var(--text-muted);
+  font-weight: 600; /* Bolder label */
 }
 
 .req-stat {
-  background: rgba(25, 118, 210, 0.2);
-  color: #64b5f6;
+  background: #1e3a5f; /* Dark blue background */
+  color: #90caf9; /* Light blue text */
   padding: 0.2rem 0.5rem;
-  border-radius: 3px;
+  border-radius: 4px;
   font-size: 0.8rem;
-  border: 1px solid rgba(25, 118, 210, 0.4);
+  border: 1px solid #42a5f5; /* Blue border */
   white-space: nowrap;
   font-weight: 600;
 }
 
 .req-stat.unmet {
-  background: rgba(244, 67, 54, 0.2);
-  color: #ef5350;
-  border-color: rgba(244, 67, 54, 0.4);
+  background: #4d1c21; /* Dark red background */
+  color: #ffcdd2; /* Light red text */
+  border-color: #e57373; /* Red border */
   text-decoration: line-through;
 }
 
