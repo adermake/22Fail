@@ -202,11 +202,13 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
 }
 
   onEditingChange(index: number, isEditing: boolean) {
+    const newSet = new Set(this.editingItems);
     if (isEditing) {
-      this.editingItems.add(index);
+      newSet.add(index);
     } else {
-      this.editingItems.delete(index);
+      newSet.delete(index);
     }
+    this.editingItems = newSet;
   }
 
   isItemEditing(index: number): boolean {

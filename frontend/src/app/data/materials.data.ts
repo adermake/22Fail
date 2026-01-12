@@ -27,7 +27,7 @@ export const WEAPON_MATERIALS: Material[] = [
   {
     name: 'Ahnenholz',
     type: 'sehr leicht',
-    rarity: 'häufig',
+    rarity: 'selten',
     locations: ['in magischen Wäldern'],
     durability: 70,
     efficiency: 5,

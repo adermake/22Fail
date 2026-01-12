@@ -345,36 +345,42 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
   }
 
-  onItemEditingChange(index: number, isEditing: boolean) {
+  onItemEditingChange({ index, isEditing }: { index: number; isEditing: boolean }) {
+    const newSet = new Set(this.editingItems);
     if (isEditing) {
-      this.editingItems.add(index);
+      newSet.add(index);
     } else {
-      this.editingItems.delete(index);
+      newSet.delete(index);
     }
+    this.editingItems = newSet;
   }
 
   isItemEditing(index: number): boolean {
     return this.editingItems.has(index);
   }
 
-  onRuneEditingChange(index: number, isEditing: boolean) {
+  onRuneEditingChange({ index, isEditing }: { index: number; isEditing: boolean }) {
+    const newSet = new Set(this.editingRunes);
     if (isEditing) {
-      this.editingRunes.add(index);
+      newSet.add(index);
     } else {
-      this.editingRunes.delete(index);
+      newSet.delete(index);
     }
+    this.editingRunes = newSet;
   }
 
   isRuneEditing(index: number): boolean {
     return this.editingRunes.has(index);
   }
 
-  onSpellEditingChange(index: number, isEditing: boolean) {
+  onSpellEditingChange({ index, isEditing }: { index: number; isEditing: boolean }) {
+    const newSet = new Set(this.editingSpells);
     if (isEditing) {
-      this.editingSpells.add(index);
+      newSet.add(index);
     } else {
-      this.editingSpells.delete(index);
+      newSet.delete(index);
     }
+    this.editingSpells = newSet;
   }
 
   isSpellEditing(index: number): boolean {
@@ -506,12 +512,14 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
   }
 
-  onSkillEditingChange(index: number, isEditing: boolean) {
+  onSkillEditingChange({ index, isEditing }: { index: number; isEditing: boolean }) {
+    const newSet = new Set(this.editingSkills);
     if (isEditing) {
-      this.editingSkills.add(index);
+      newSet.add(index);
     } else {
-      this.editingSkills.delete(index);
+      newSet.delete(index);
     }
+    this.editingSkills = newSet;
   }
 
   // Drag and drop functionality

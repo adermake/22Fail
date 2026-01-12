@@ -177,10 +177,10 @@
         (removeRune)="removeRune($event)"
         (removeSpell)="removeSpell($event)"
         (removeSkill)="removeSkill($event)"
-        (itemEditingChange)="onItemEditingChange($event.index, $event.isEditing)"
-        (runeEditingChange)="onRuneEditingChange($event.index, $event.isEditing)"
-        (spellEditingChange)="onSpellEditingChange($event.index, $event.isEditing)"
-        (skillEditingChange)="onSkillEditingChange($event.index, $event.isEditing)"
+        (itemEditingChange)="onItemEditingChange($event)"
+        (runeEditingChange)="onRuneEditingChange($event)"
+        (spellEditingChange)="onSpellEditingChange($event)"
+        (skillEditingChange)="onSkillEditingChange($event)"
         (dragStart)="onDragStart($event.event, $event.type, $event.index)">
       </app-library-tabs>
     </app-card>
