@@ -38,7 +38,7 @@
     <!-- Items Tab -->
     @if (activeTab === 'items') {
       <div class="library-list">
-        @for (item of filteredItems; track getOriginalIndex(item, 'items'); let i = $index) {
+        @for (item of filteredItems; track i; let i = $index) {
           <div class="library-item-wrapper"
                [class.draggable]="!isItemEditing(getOriginalIndex(item, 'items'))"
                [attr.draggable]="!isItemEditing(getOriginalIndex(item, 'items'))"
