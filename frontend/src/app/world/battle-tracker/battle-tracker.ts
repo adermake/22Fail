@@ -429,7 +429,7 @@ export class BattleTracker implements OnChanges {
     setTimeout(() => {
       this.nextTurn.emit();
       this.completingTurn = false;
-    }, 300); // Match animation duration
+    }, 1500); // Match animation duration
   }
 
   onResetBattle() {
@@ -456,37 +456,52 @@ export class BattleTracker implements OnChanges {
 
     const container = event.currentTarget as HTMLElement;
     const groups = Array.from(container.querySelectorAll('.battle-group'));
-    
-    let closestIndex = -1;
-    let minDistance = Infinity;
-    let position: 'before' | 'after' = 'before';
 
+    // Always allow dropping, even if no groups exist
     if (groups.length === 0) {
       this.dragOverIndex = 0;
       this.dropPosition = 'before';
       return;
     }
 
+    const mouseX = event.clientX;
+
+    // Check if before first group
+    const firstGroup = groups[0];
+    const firstRect = firstGroup.getBoundingClientRect();
+    if (mouseX < firstRect.left) {
+      this.dragOverIndex = 0;
+      this.dropPosition = 'before';
+      return;
+    }
+
+    // Check if after last group
+    const lastGroup = groups[groups.length - 1];
+    const lastRect = lastGroup.getBoundingClientRect();
+    if (mouseX > lastRect.right) {
+      this.dragOverIndex = groups.length;
+      this.dropPosition = 'before';
+      return;
+    }
+
+    // Find the closest group and determine position
+    let closestIndex = 0;
+    let minDistance = Infinity;
+    let position: 'before' | 'after' = 'before';
+
     groups.forEach((group, index) => {
       const rect = group.getBoundingClientRect();
       const center = rect.left + rect.width / 2;
-      const dist = Math.abs(event.clientX - center);
-      
+      const dist = Math.abs(mouseX - center);
+
       if (dist < minDistance) {
         minDistance = dist;
         closestIndex = index;
-        position = event.clientX < center ? 'before' : 'after';
+        position = mouseX < center ? 'before' : 'after';
       }
     });
 
-    // Check if past the last group
-    const lastGroup = groups[groups.length - 1];
-    const lastRect = lastGroup.getBoundingClientRect();
-    if (event.clientX > lastRect.right) {
-      closestIndex = groups.length;
-      position = 'before';
-    }
-
+    // Always set a valid drop position
     this.dragOverIndex = closestIndex;
     this.dropPosition = position;
   }

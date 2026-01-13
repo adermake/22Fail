@@ -181,8 +181,8 @@
   padding: 0.75rem 0.25rem;
   border: 2px dashed transparent;
   border-radius: 8px;
-  transition: border 0.2s ease, box-shadow 0.2s ease;
-  animation: slideIn 0.3s ease-out;
+  transition: border 0.8s ease, box-shadow 0.8s ease;
+  animation: slideIn 1.5s ease-out;
   min-width: 80px;
   max-width: 170px;
 }
@@ -213,7 +213,7 @@
   background: rgba(234, 179, 8, 0.1);
   border: 2px solid #eab308;
   box-shadow: 0 0 20px rgba(234, 179, 8, 0.3);
-  animation: groupGlow 2s ease-in-out infinite;
+  animation: groupGlow 3s ease-in-out infinite;
 }
 
 @keyframes groupGlow {
@@ -234,7 +234,7 @@
 }
 
 .queue-group.completing {
-  animation: slideOut 0.3s ease-in forwards;
+  animation: slideOut 1.5s ease-in forwards;
 }
 
 @keyframes slideOut {
@@ -259,7 +259,7 @@
 .queue-item {
   position: relative;
   cursor: grab;
-  transition: transform 0.2s;
+  transition: transform 0.8s;
 }
 
 .queue-item:active {
@@ -278,7 +278,7 @@
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid var(--border);
-  transition: all 0.2s;
+  transition: all 0.8s;
   background: var(--card);
 }
 
