@@ -1096,32 +1096,11 @@ export class WorldComponent implements OnInit, OnDestroy {
   private applyAdjacencyGrouping(participants: BattleParticipant[]): BattleParticipant[] {
     if (participants.length === 0) return participants;
 
-    // Sort by nextTurnAt to establish order
-    const sorted = [...participants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-    const result = [...sorted];
-
-    let i = 0;
-    while (i < result.length) {
-      const currentTeam = result[i].team;
-      let j = i + 1;
-      
-      // Find end of current group (adjacent and same team)
-      while (j < result.length && result[j].team === currentTeam) {
-        j++;
-      }
-
-      // If group size > 1, sync times to the first member
-      if (j > i + 1) {
-        const groupTime = result[i].nextTurnAt;
-        for (let k = i; k < j; k++) {
-          result[k] = { ...result[k], nextTurnAt: groupTime };
-        }
-      }
-
-      i = j;
-    }
-
-    return result;
+    // Don't apply grouping at all - it was causing issues where dragging
+    // would get overridden by grouping logic
+    // Users can manually group characters by setting the same time if desired
+    console.log('[ADJACENCY DEBUG] Skipping adjacency grouping - returning participants as-is');
+    return participants;
   }
 
   // Generates the projected battle queue with proper grouping
