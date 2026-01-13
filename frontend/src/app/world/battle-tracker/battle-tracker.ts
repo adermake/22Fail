@@ -300,17 +300,8 @@ export class BattleTracker implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['battleParticipants'] || changes['characterPortraits']) {
-      // Trigger animations by clearing and rebuilding
-      this.isAnimating = true;
-      this.queueGroups = [];
-
-      // Force reflow to ensure old elements are removed
-      setTimeout(() => {
-        this.calculateTurnQueue();
-        setTimeout(() => {
-          this.isAnimating = false;
-        }, 4000); // Keep animating flag for duration of all animations
-      }, 50);
+      // Recalculate immediately - CSS animations will handle the visual effects
+      this.calculateTurnQueue();
     }
   }
 
