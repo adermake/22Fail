@@ -296,11 +296,21 @@ export class BattleTracker implements OnChanges {
   availableTeams = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
 
   queueGroups: QueueGroup[] = [];
+  isAnimating = false;
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['battleParticipants'] || changes['characterPortraits']) {
-      // Immediately recalculate - animations are handled by CSS
-      this.calculateTurnQueue();
+      // Trigger animations by clearing and rebuilding
+      this.isAnimating = true;
+      this.queueGroups = [];
+
+      // Force reflow to ensure old elements are removed
+      setTimeout(() => {
+        this.calculateTurnQueue();
+        setTimeout(() => {
+          this.isAnimating = false;
+        }, 4000); // Keep animating flag for duration of all animations
+      }, 50);
     }
   }
 
@@ -526,10 +536,17 @@ export class BattleTracker implements OnChanges {
     if (this.dropPosition === 'after') {
       targetIndex++;
     }
-    
+
     if (this.dragOverIndex === this.queueGroups.length) {
       targetIndex = this.queueGroups.length;
     }
+
+    console.log('[DRAG DEBUG] Dropping character:', this.draggedParticipant, 'at index:', targetIndex);
+    console.log('[DRAG DEBUG] Queue groups:', this.queueGroups.map((g, i) => ({
+      index: i,
+      team: g.team,
+      participants: g.participants.map(p => p.characterId)
+    })));
 
     this.reorder.emit({ characterId: this.draggedParticipant, newIndex: targetIndex });
     this.onDragEnd();

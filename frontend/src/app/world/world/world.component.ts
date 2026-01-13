@@ -1054,21 +1054,33 @@ export class WorldComponent implements OnInit, OnDestroy {
     // Use the projected queue to determine the time at the new index
     const queue = this.battleQueue;
     if (queue.length === 0) return;
-    
+
+    console.log('[REORDER DEBUG] Character:', characterId, 'New index:', newIndex);
+    console.log('[REORDER DEBUG] Queue length:', queue.length);
+    console.log('[REORDER DEBUG] Queue:', queue.map((g, i) => ({
+      index: i,
+      team: g.team,
+      startTime: g.startTime
+    })));
+
     let newNextTurnAt: number;
-    
+
     if (newIndex <= 0) {
       newNextTurnAt = queue[0].startTime - 10;
+      console.log('[REORDER DEBUG] Placing before first, time:', newNextTurnAt);
     } else if (newIndex >= queue.length) {
       newNextTurnAt = queue[queue.length - 1].startTime + 10;
+      console.log('[REORDER DEBUG] Placing after last, time:', newNextTurnAt);
     } else {
       const prev = queue[newIndex - 1];
       const next = queue[newIndex];
       newNextTurnAt = (prev.startTime + next.startTime) / 2;
+      console.log('[REORDER DEBUG] Placing between', prev.startTime, 'and', next.startTime, '=', newNextTurnAt);
     }
 
     const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
       if (p.characterId === characterId) {
+        console.log('[REORDER DEBUG] Updating anchor from', p.nextTurnAt, 'to', newNextTurnAt);
         return { ...p, nextTurnAt: newNextTurnAt };
       }
       return p;
