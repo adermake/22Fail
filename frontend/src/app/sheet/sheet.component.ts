@@ -39,6 +39,7 @@ import { CharacterTabsComponent } from './character-tabs/character-tabs';
     CurrentstatComponent,
     CurrentstatsComponent,
     CurrencyComponent,
+    EquipmentComponent,
     LootPopupComponent,
     CharacterTabsComponent
   ],

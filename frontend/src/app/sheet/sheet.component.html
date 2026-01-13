@@ -10,7 +10,10 @@
   <app-currentstats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-currentstats>
   <app-currency [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-currency>
 
-  <!-- New Tabbed Component for Inventory, Equipment, Spells, Runes, Skills -->
+  <!-- Equipment - Separate so you can drag items from inventory -->
+  <app-equipment [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-equipment>
+
+  <!-- Tabbed Component for Inventory, Spells, Runes, Skills -->
   <app-character-tabs
     [sheet]="sheet"
     [editingRunes]="editingRunes"

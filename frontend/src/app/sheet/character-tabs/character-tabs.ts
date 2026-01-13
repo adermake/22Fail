@@ -28,9 +28,9 @@ export class CharacterTabsComponent {
   @Output() skillEditingChange = new EventEmitter<{index: number, isEditing: boolean}>();
   @Output() openTrash = new EventEmitter<void>();
 
-  activeTab: 'inventory' | 'equipment' | 'spells' | 'runes' | 'skills' = 'inventory';
+  activeTab: 'inventory' | 'spells' | 'runes' | 'skills' = 'inventory';
 
-  setActiveTab(tab: 'inventory' | 'equipment' | 'spells' | 'runes' | 'skills') {
+  setActiveTab(tab: 'inventory' | 'spells' | 'runes' | 'skills') {
     this.activeTab = tab;
   }
 

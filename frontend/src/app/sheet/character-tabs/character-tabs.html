@@ -8,12 +8,6 @@
     </button>
     <button
       class="tab-button"
-      [class.active]="activeTab === 'equipment'"
-      (click)="setActiveTab('equipment')">
-      Equipment ({{ (sheet.equipment || []).length }})
-    </button>
-    <button
-      class="tab-button"
       [class.active]="activeTab === 'spells'"
       (click)="setActiveTab('spells')">
       Spells ({{ (sheet.spells || []).length }})
@@ -43,11 +37,6 @@
     <!-- Inventory Tab -->
     @if (activeTab === 'inventory') {
       <app-inventory [sheet]="sheet" (patch)="onPatch($event)"></app-inventory>
-    }
-
-    <!-- Equipment Tab -->
-    @if (activeTab === 'equipment') {
-      <app-equipment [sheet]="sheet" (patch)="onPatch($event)"></app-equipment>
     }
 
     <!-- Spells Tab -->
