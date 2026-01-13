@@ -1,0 +1,83 @@
+<div class="character-tabs-container">
+  <div class="tabs-header">
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'inventory'"
+      (click)="setActiveTab('inventory')">
+      Inventory ({{ (sheet.inventory || []).length }})
+    </button>
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'equipment'"
+      (click)="setActiveTab('equipment')">
+      Equipment ({{ (sheet.equipment || []).length }})
+    </button>
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'spells'"
+      (click)="setActiveTab('spells')">
+      Spells ({{ (sheet.spells || []).length }})
+    </button>
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'runes'"
+      (click)="setActiveTab('runes')">
+      Runes ({{ (sheet.runes || []).length }})
+    </button>
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'skills'"
+      (click)="setActiveTab('skills')">
+      Skills ({{ (sheet.skills || []).length }})
+    </button>
+    <button
+      class="trash-button"
+      (click)="openTrash.emit()"
+      title="Open Trash"
+      [attr.data-count]="(sheet.trash || []).length">
+      🗑️
+    </button>
+  </div>
+
+  <div class="tab-content">
+    <!-- Inventory Tab -->
+    @if (activeTab === 'inventory') {
+      <app-inventory [sheet]="sheet" (patch)="onPatch($event)"></app-inventory>
+    }
+
+    <!-- Equipment Tab -->
+    @if (activeTab === 'equipment') {
+      <app-equipment [sheet]="sheet" (patch)="onPatch($event)"></app-equipment>
+    }
+
+    <!-- Spells Tab -->
+    @if (activeTab === 'spells') {
+      <app-spells
+        [sheet]="sheet"
+        [editingSpells]="editingSpells"
+        (patch)="onPatch($event)"
+        (editingChange)="onSpellEditingChange($event)">
+      </app-spells>
+    }
+
+    <!-- Runes Tab -->
+    @if (activeTab === 'runes') {
+      <app-runes
+        [sheet]="sheet"
+        [editingRunes]="editingRunes"
+        (patch)="onPatch($event)"
+        (editingChange)="onRuneEditingChange($event)">
+      </app-runes>
+    }
+
+    <!-- Skills Tab -->
+    @if (activeTab === 'skills') {
+      <app-skills
+        [sheet]="sheet"
+        [editingSkills]="editingSkills"
+        (patch)="onPatch($event)"
+        (editingChange)="onSkillEditingChange($event)">
+      </app-skills>
+    }
+  </div>
+</div>
