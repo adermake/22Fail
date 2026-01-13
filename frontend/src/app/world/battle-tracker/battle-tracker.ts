@@ -296,18 +296,11 @@ export class BattleTracker implements OnChanges {
   availableTeams = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
 
   queueGroups: QueueGroup[] = [];
-  private recalculateTimeout: any = null;
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['battleParticipants'] || changes['characterPortraits']) {
-      // Delay recalculation to allow animations to complete smoothly
-      if (this.recalculateTimeout) {
-        clearTimeout(this.recalculateTimeout);
-      }
-      this.recalculateTimeout = setTimeout(() => {
-        this.calculateTurnQueue();
-        this.recalculateTimeout = null;
-      }, 100);
+      // Immediately recalculate - animations are handled by CSS
+      this.calculateTurnQueue();
     }
   }
 
@@ -437,7 +430,7 @@ export class BattleTracker implements OnChanges {
     setTimeout(() => {
       this.nextTurn.emit();
       this.completingTurn = false;
-    }, 1500); // Match animation duration
+    }, 2000); // Match animation duration
   }
 
   onResetBattle() {
