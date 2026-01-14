@@ -111,12 +111,23 @@ interface QueueGroup {
       border-radius: 8px;
       background: rgba(0,0,0,0.1);
       position: relative;
-      transition: all 2s ease-out;
+      animation: quickFadeIn 0.3s ease-out;
+    }
+
+    @keyframes quickFadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
 
     /* Fade out + slide up animation for turns being removed during drag */
     .battle-group.fading-out {
-      animation: fadeOutSlideUp 2s ease-out forwards;
+      animation: fadeOutSlideUp 1s ease-out forwards !important;
       pointer-events: none;
     }
 
@@ -570,12 +581,6 @@ export class BattleTracker implements OnChanges {
       targetIndex = this.queueGroups.length;
     }
 
-    console.log('[DRAG DEBUG] Dropping character:', this.draggedParticipant, 'at index:', targetIndex);
-    console.log('[DRAG DEBUG] Queue groups:', this.queueGroups.map((g, i) => ({
-      index: i,
-      team: g.team,
-      participants: g.participants.map(p => p.characterId)
-    })));
 
     this.reorder.emit({ characterId: this.draggedParticipant, newIndex: targetIndex });
     this.onDragEnd();
