@@ -109,9 +109,40 @@ interface QueueGroup {
       padding: 4px;
       border-radius: 8px;
       background: rgba(0,0,0,0.1);
-      transition: all 0.3s ease;
       position: relative;
+      animation: slideInBattleGroup 2s ease-out;
     }
+
+    @keyframes slideInBattleGroup {
+      0% {
+        opacity: 0;
+        transform: translateX(-100px) scale(0.7);
+      }
+      60% {
+        opacity: 0.8;
+        transform: translateX(15px) scale(1.05);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+    }
+
+    .battle-group:nth-child(1) { animation-delay: 0s; }
+    .battle-group:nth-child(2) { animation-delay: 0.15s; }
+    .battle-group:nth-child(3) { animation-delay: 0.3s; }
+    .battle-group:nth-child(4) { animation-delay: 0.45s; }
+    .battle-group:nth-child(5) { animation-delay: 0.6s; }
+    .battle-group:nth-child(6) { animation-delay: 0.75s; }
+    .battle-group:nth-child(7) { animation-delay: 0.9s; }
+    .battle-group:nth-child(8) { animation-delay: 1.05s; }
+    .battle-group:nth-child(9) { animation-delay: 1.2s; }
+    .battle-group:nth-child(10) { animation-delay: 1.35s; }
+    .battle-group:nth-child(11) { animation-delay: 1.5s; }
+    .battle-group:nth-child(12) { animation-delay: 1.65s; }
+    .battle-group:nth-child(13) { animation-delay: 1.8s; }
+    .battle-group:nth-child(14) { animation-delay: 1.95s; }
+    .battle-group:nth-child(15) { animation-delay: 2.1s; }
     .battle-card {
       position: relative;
       width: 60px;
