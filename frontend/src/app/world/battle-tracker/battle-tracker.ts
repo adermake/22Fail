@@ -17,7 +17,7 @@ interface QueueGroup {
   participants: (ParticipantWithPortrait & { isAnchor: boolean })[];
   team: string;
   startTime: number;
-  isNewlyAdded?: boolean; // Flag to trigger slide-in animation
+  shouldFadeOut?: boolean; // Flag for turns that should fade out (removed during drag)
 }
 
 @Component({
@@ -111,25 +111,23 @@ interface QueueGroup {
       border-radius: 8px;
       background: rgba(0,0,0,0.1);
       position: relative;
-      transition: transform 1.5s ease-out, opacity 1.5s ease-out;
+      transition: all 2s ease-out;
     }
 
-    .battle-group.sliding-in {
-      animation: slideInFromRight 2s ease-out;
+    /* Fade out + slide up animation for turns being removed during drag */
+    .battle-group.fading-out {
+      animation: fadeOutSlideUp 2s ease-out forwards;
+      pointer-events: none;
     }
 
-    @keyframes slideInFromRight {
+    @keyframes fadeOutSlideUp {
       0% {
-        opacity: 0;
-        transform: translateX(200px) scale(0.7);
-      }
-      60% {
-        opacity: 0.8;
-        transform: translateX(-15px) scale(1.05);
+        opacity: 1;
+        transform: translateY(0) scale(1);
       }
       100% {
-        opacity: 1;
-        transform: translateX(0) scale(1);
+        opacity: 0;
+        transform: translateY(-80px) scale(0.5);
       }
     }
     .battle-card {
@@ -269,7 +267,7 @@ interface QueueGroup {
              
           <div *ngFor="let group of queueGroups; let gIdx = index; trackBy: trackByGroup"
                class="battle-group"
-               [class.sliding-in]="group.isNewlyAdded"
+               [class.fading-out]="group.shouldFadeOut"
                [ngClass]="'team-' + group.team">
             
             <div *ngIf="dragOverIndex === gIdx && dropPosition === 'before'" class="drop-indicator" style="left: -4px;"></div>
@@ -318,7 +316,6 @@ export class BattleTracker implements OnChanges {
 
   queueGroups: QueueGroup[] = [];
   isAnimating = false;
-  private previousGroupKeys = new Set<string>();
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['battleParticipants'] || changes['characterPortraits']) {
@@ -436,22 +433,25 @@ export class BattleTracker implements OnChanges {
     }
     grouped.push(currentGroup);
 
-    // Mark groups as newly added if they weren't in the previous render
+    // Mark groups that should fade out during drag
     const finalGroups = grouped.slice(0, 15);
-    const currentKeys = new Set<string>();
 
     finalGroups.forEach(group => {
-      const key = group.startTime + '-' + group.participants.map(p => p.characterId).join('-');
-      currentKeys.add(key);
+      // If we're dragging a character, mark all non-anchor turns of that character for fade-out
+      if (this.draggedParticipant) {
+        const hasAnchor = group.participants.some(p =>
+          p.characterId === this.draggedParticipant && p.isAnchor
+        );
+        const hasDraggedChar = group.participants.some(p =>
+          p.characterId === this.draggedParticipant
+        );
 
-      // Mark as new if this key wasn't in the previous set
-      if (!this.previousGroupKeys.has(key)) {
-        group.isNewlyAdded = true;
+        // If this group has the dragged character but NOT as an anchor, it should fade out
+        if (hasDraggedChar && !hasAnchor) {
+          group.shouldFadeOut = true;
+        }
       }
     });
-
-    // Update previous keys for next comparison
-    this.previousGroupKeys = currentKeys;
 
     this.queueGroups = finalGroups;
   }
