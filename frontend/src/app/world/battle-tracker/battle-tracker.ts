@@ -297,10 +297,12 @@ export class BattleTracker implements OnChanges {
 
   queueGroups: QueueGroup[] = [];
   isAnimating = false;
+  private queueVersion = 0; // Increment to force full recreation
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['battleParticipants'] || changes['characterPortraits']) {
-      // Recalculate immediately - CSS animations will handle the visual effects
+      // Increment version to force all animations to retrigger
+      this.queueVersion++;
       this.calculateTurnQueue();
     }
   }
@@ -431,7 +433,7 @@ export class BattleTracker implements OnChanges {
     setTimeout(() => {
       this.nextTurn.emit();
       this.completingTurn = false;
-    }, 2000); // Match animation duration
+    }, 300); // Quick response
   }
 
   onResetBattle() {
@@ -557,7 +559,7 @@ export class BattleTracker implements OnChanges {
   }
 
   trackByGroup(index: number, item: QueueGroup): string {
-    // Track by participants and time to trigger animations on change
-    return item.participants.map(p => p.characterId).join('-') + '-' + item.startTime;
+    // Include queueVersion to force recreation and retrigger animations on every change
+    return this.queueVersion + '-' + item.participants.map(p => p.characterId).join('-') + '-' + item.startTime;
   }
 }
