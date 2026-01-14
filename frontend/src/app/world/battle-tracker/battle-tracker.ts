@@ -17,6 +17,7 @@ interface QueueGroup {
   participants: (ParticipantWithPortrait & { isAnchor: boolean })[];
   team: string;
   startTime: number;
+  isNewlyAdded?: boolean; // Flag to trigger slide-in animation
 }
 
 @Component({
@@ -110,39 +111,27 @@ interface QueueGroup {
       border-radius: 8px;
       background: rgba(0,0,0,0.1);
       position: relative;
-      animation: slideInBattleGroup 2s ease-out;
+      transition: transform 1.5s ease-out, opacity 1.5s ease-out;
     }
 
-    @keyframes slideInBattleGroup {
+    .battle-group.sliding-in {
+      animation: slideInFromRight 2s ease-out;
+    }
+
+    @keyframes slideInFromRight {
       0% {
         opacity: 0;
-        transform: translateX(-100px) scale(0.7);
+        transform: translateX(200px) scale(0.7);
       }
       60% {
         opacity: 0.8;
-        transform: translateX(15px) scale(1.05);
+        transform: translateX(-15px) scale(1.05);
       }
       100% {
         opacity: 1;
         transform: translateX(0) scale(1);
       }
     }
-
-    .battle-group:nth-child(1) { animation-delay: 0s; }
-    .battle-group:nth-child(2) { animation-delay: 0.15s; }
-    .battle-group:nth-child(3) { animation-delay: 0.3s; }
-    .battle-group:nth-child(4) { animation-delay: 0.45s; }
-    .battle-group:nth-child(5) { animation-delay: 0.6s; }
-    .battle-group:nth-child(6) { animation-delay: 0.75s; }
-    .battle-group:nth-child(7) { animation-delay: 0.9s; }
-    .battle-group:nth-child(8) { animation-delay: 1.05s; }
-    .battle-group:nth-child(9) { animation-delay: 1.2s; }
-    .battle-group:nth-child(10) { animation-delay: 1.35s; }
-    .battle-group:nth-child(11) { animation-delay: 1.5s; }
-    .battle-group:nth-child(12) { animation-delay: 1.65s; }
-    .battle-group:nth-child(13) { animation-delay: 1.8s; }
-    .battle-group:nth-child(14) { animation-delay: 1.95s; }
-    .battle-group:nth-child(15) { animation-delay: 2.1s; }
     .battle-card {
       position: relative;
       width: 60px;
@@ -278,8 +267,9 @@ interface QueueGroup {
              (dragleave)="onDragLeaveQueue($event)"
              (drop)="onDropOnQueue($event)">
              
-          <div *ngFor="let group of queueGroups; let gIdx = index; trackBy: trackByGroup" 
+          <div *ngFor="let group of queueGroups; let gIdx = index; trackBy: trackByGroup"
                class="battle-group"
+               [class.sliding-in]="group.isNewlyAdded"
                [ngClass]="'team-' + group.team">
             
             <div *ngIf="dragOverIndex === gIdx && dropPosition === 'before'" class="drop-indicator" style="left: -4px;"></div>
@@ -328,12 +318,10 @@ export class BattleTracker implements OnChanges {
 
   queueGroups: QueueGroup[] = [];
   isAnimating = false;
-  private queueVersion = 0; // Increment to force full recreation
+  private previousGroupKeys = new Set<string>();
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['battleParticipants'] || changes['characterPortraits']) {
-      // Increment version to force all animations to retrigger
-      this.queueVersion++;
       this.calculateTurnQueue();
     }
   }
@@ -448,7 +436,24 @@ export class BattleTracker implements OnChanges {
     }
     grouped.push(currentGroup);
 
-    this.queueGroups = grouped.slice(0, 15);
+    // Mark groups as newly added if they weren't in the previous render
+    const finalGroups = grouped.slice(0, 15);
+    const currentKeys = new Set<string>();
+
+    finalGroups.forEach(group => {
+      const key = group.startTime + '-' + group.participants.map(p => p.characterId).join('-');
+      currentKeys.add(key);
+
+      // Mark as new if this key wasn't in the previous set
+      if (!this.previousGroupKeys.has(key)) {
+        group.isNewlyAdded = true;
+      }
+    });
+
+    // Update previous keys for next comparison
+    this.previousGroupKeys = currentKeys;
+
+    this.queueGroups = finalGroups;
   }
 
   onAddCharacter(characterId: string) {
@@ -590,7 +595,8 @@ export class BattleTracker implements OnChanges {
   }
 
   trackByGroup(index: number, item: QueueGroup): string {
-    // Include queueVersion to force recreation and retrigger animations on every change
-    return this.queueVersion + '-' + item.participants.map(p => p.characterId).join('-') + '-' + item.startTime;
+    // Track by startTime and participants - keeps same DOM elements as they reorder
+    // This allows CSS transitions to animate position changes smoothly
+    return item.startTime + '-' + item.participants.map(p => p.characterId).join('-');
   }
 }
