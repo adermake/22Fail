@@ -111,17 +111,17 @@ interface QueueGroup {
       border-radius: 8px;
       background: rgba(0,0,0,0.1);
       position: relative;
-      animation: quickFadeIn 0.3s ease-out;
+      animation: slideLeftIn 1s ease-out;
     }
 
-    @keyframes quickFadeIn {
+    @keyframes slideLeftIn {
       from {
         opacity: 0;
-        transform: scale(0.9);
+        transform: translateX(100px) scale(0.8);
       }
       to {
         opacity: 1;
-        transform: scale(1);
+        transform: translateX(0) scale(1);
       }
     }
 
@@ -327,9 +327,12 @@ export class BattleTracker implements OnChanges {
 
   queueGroups: QueueGroup[] = [];
   isAnimating = false;
+  private animationKey = 0;
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['battleParticipants'] || changes['characterPortraits']) {
+      // Increment animation key to force DOM recreation for animations
+      this.animationKey++;
       this.calculateTurnQueue();
     }
   }
@@ -447,22 +450,31 @@ export class BattleTracker implements OnChanges {
     // Mark groups that should fade out during drag
     const finalGroups = grouped.slice(0, 15);
 
-    finalGroups.forEach(group => {
-      // If we're dragging a character, mark all non-anchor turns of that character for fade-out
-      if (this.draggedParticipant) {
-        const hasAnchor = group.participants.some(p =>
+    if (this.draggedParticipant) {
+      // Find the index of the anchor turn for the dragged character
+      let anchorIndex = -1;
+      for (let i = 0; i < finalGroups.length; i++) {
+        const hasAnchor = finalGroups[i].participants.some(p =>
           p.characterId === this.draggedParticipant && p.isAnchor
         );
-        const hasDraggedChar = group.participants.some(p =>
-          p.characterId === this.draggedParticipant
-        );
-
-        // If this group has the dragged character but NOT as an anchor, it should fade out
-        if (hasDraggedChar && !hasAnchor) {
-          group.shouldFadeOut = true;
+        if (hasAnchor) {
+          anchorIndex = i;
+          break;
         }
       }
-    });
+
+      // Mark all non-anchor turns of the dragged character that are BEFORE the anchor
+      if (anchorIndex >= 0) {
+        for (let i = 0; i < anchorIndex; i++) {
+          const hasDraggedChar = finalGroups[i].participants.some(p =>
+            p.characterId === this.draggedParticipant
+          );
+          if (hasDraggedChar) {
+            finalGroups[i].shouldFadeOut = true;
+          }
+        }
+      }
+    }
 
     this.queueGroups = finalGroups;
   }
@@ -600,8 +612,7 @@ export class BattleTracker implements OnChanges {
   }
 
   trackByGroup(index: number, item: QueueGroup): string {
-    // Track by startTime and participants - keeps same DOM elements as they reorder
-    // This allows CSS transitions to animate position changes smoothly
-    return item.startTime + '-' + item.participants.map(p => p.characterId).join('-');
+    // Include animation key to force recreation on every change
+    return this.animationKey + '-' + index + '-' + item.participants.map(p => p.characterId).join('-');
   }
 }
