@@ -117,11 +117,9 @@ interface QueueGroup {
     @keyframes slideIn {
       from {
         transform: translateX(100px);
-        opacity: 0;
       }
       to {
         transform: translateX(0);
-        opacity: 1;
       }
     }
 
