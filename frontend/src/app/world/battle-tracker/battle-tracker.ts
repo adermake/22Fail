@@ -111,34 +111,34 @@ interface QueueGroup {
       border-radius: 8px;
       background: rgba(0,0,0,0.1);
       position: relative;
-      animation: slideLeftIn 1s ease-out;
+      animation: slideIn 1.5s ease-out;
     }
 
-    @keyframes slideLeftIn {
+    @keyframes slideIn {
       from {
+        transform: translateX(100px);
         opacity: 0;
-        transform: translateX(100px) scale(0.8);
       }
       to {
+        transform: translateX(0);
         opacity: 1;
-        transform: translateX(0) scale(1);
       }
     }
 
     /* Fade out + slide up animation for turns being removed during drag */
     .battle-group.fading-out {
-      animation: fadeOutSlideUp 1s ease-out forwards !important;
+      animation: fadeOutSlideUp 1.5s ease-out forwards !important;
       pointer-events: none;
     }
 
     @keyframes fadeOutSlideUp {
-      0% {
+      from {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translateY(0);
       }
-      100% {
+      to {
         opacity: 0;
-        transform: translateY(-80px) scale(0.5);
+        transform: translateY(-80px);
       }
     }
     .battle-card {

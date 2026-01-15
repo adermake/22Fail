@@ -885,7 +885,6 @@ export class WorldComponent implements OnInit, OnDestroy {
   advanceTurn() {
     const world = this.store.worldValue;
     if (!world || world.battleParticipants.length === 0) {
-      console.log('[TURN DEBUG] No world or no participants');
       return;
     }
 
@@ -896,16 +895,25 @@ export class WorldComponent implements OnInit, OnDestroy {
     const firstGroup = queue[0];
     const groupIds = new Set(firstGroup.turns.map(t => t.characterId));
 
+    console.log('[ADVANCE TURN] First group character IDs:', Array.from(groupIds));
+    console.log('[ADVANCE TURN] Current participants:', world.battleParticipants.map(p => ({
+      id: p.characterId,
+      nextTurnAt: p.nextTurnAt,
+      speed: p.speed
+    })));
+
     const updatedParticipants = world.battleParticipants.map((p: BattleParticipant) => {
       const character = this.partyCharacters.get(p.characterId);
       const freshSpeed = character ? this.calculateSpeed(character) : p.speed;
 
       if (groupIds.has(p.characterId)) {
         // Advance all participants in the current group by their speed interval
+        const newNextTurnAt = p.nextTurnAt + (1000 / freshSpeed);
+        console.log('[ADVANCE TURN] Advancing', p.characterId, 'from', p.nextTurnAt, 'to', newNextTurnAt);
         return {
           ...p,
           speed: freshSpeed,
-          nextTurnAt: p.nextTurnAt + (1000 / freshSpeed)
+          nextTurnAt: newNextTurnAt
         };
       }
       return {
@@ -913,6 +921,11 @@ export class WorldComponent implements OnInit, OnDestroy {
         speed: freshSpeed
       };
     });
+
+    console.log('[ADVANCE TURN] Updated participants:', updatedParticipants.map(p => ({
+      id: p.characterId,
+      nextTurnAt: p.nextTurnAt
+    })));
 
     this.store.applyPatch({
       path: 'battleParticipants',
