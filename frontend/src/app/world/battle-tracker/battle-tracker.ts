@@ -111,16 +111,6 @@ interface QueueGroup {
       border-radius: 8px;
       background: rgba(0,0,0,0.1);
       position: relative;
-      animation: slideIn 1.5s ease-out;
-    }
-
-    @keyframes slideIn {
-      from {
-        transform: translateX(100px);
-      }
-      to {
-        transform: translateX(0);
-      }
     }
 
     /* Fade out + slide up animation for turns being removed during drag */
@@ -325,12 +315,9 @@ export class BattleTracker implements OnChanges {
 
   queueGroups: QueueGroup[] = [];
   isAnimating = false;
-  private animationKey = 0;
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['battleParticipants'] || changes['characterPortraits']) {
-      // Increment animation key to force DOM recreation for animations
-      this.animationKey++;
       this.calculateTurnQueue();
     }
   }
@@ -610,7 +597,6 @@ export class BattleTracker implements OnChanges {
   }
 
   trackByGroup(index: number, item: QueueGroup): string {
-    // Include animation key to force recreation on every change
-    return this.animationKey + '-' + index + '-' + item.participants.map(p => p.characterId).join('-');
+    return index + '-' + item.participants.map(p => p.characterId).join('-');
   }
 }
