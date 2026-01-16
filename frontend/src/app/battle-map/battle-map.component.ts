@@ -7,14 +7,8 @@ import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { BattleMapStoreService } from '../services/battlemap-store.service';
 import { WorldStoreService } from '../services/world-store.service';
 import { CharacterApiService } from '../services/character-api.service';
-import { Drawing, Token } from '../model/world.model';
+import { Drawing, Token, Hex } from '../model/world.model';
 import { CharacterSheet } from '../model/character-sheet-model';
-
-interface Hex {
-  q: number;
-  r: number;
-  s: number;
-}
 
 interface Point {
   x: number;
@@ -122,7 +116,7 @@ export class BattleMapComponent implements OnInit {
     }
   }
   
-onDrop(event: CdkDragDrop<any>) {
+  onDrop(event: CdkDragDrop<any>) {
     if (!this.isGmMode || !this.isDragMode) {
       return;
     }
@@ -140,7 +134,7 @@ onDrop(event: CdkDragDrop<any>) {
         characterId: character.id!,
         name: character.name,
         image: character.portrait,
-        position: { q: droppedOnHex.q, r: droppedOnHex.r }
+        position: droppedOnHex
       };
       
       const currentTokens = this.store.battleMapValue?.tokens || [];
@@ -157,14 +151,14 @@ onDrop(event: CdkDragDrop<any>) {
       if (tokenIndex !== -1) {
         this.store.applyPatch({
           path: `tokens.${tokenIndex}.position`,
-          value: { q: droppedOnHex.q, r: droppedOnHex.r }
+          value: droppedOnHex
         });
       }
     }
   }
 
   private getHexFromDropEvent(event: CdkDragDrop<any>): Hex | null {
-    const point = event.pointerPosition;
+    const point = event.dropPoint;
     const svg = (event.container.element.nativeElement as HTMLElement).closest('svg')!;
     if (!svg) {
       console.error('Could not find SVG container for drop event.');
@@ -329,6 +323,7 @@ onDrop(event: CdkDragDrop<any>) {
       const dy = endPoint.y - this.startPoint.y;
       
       const svg = (event.target as HTMLElement).closest('svg')!;
+      if (!svg) return;
       const viewboxWidth = svg.viewBox.baseVal.width;
 
       this.panOffset.x -= dx * (viewboxWidth / svg.clientWidth);

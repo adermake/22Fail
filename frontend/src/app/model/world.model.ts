@@ -3,6 +3,12 @@ import { RuneBlock } from "./rune-block.model";
 import { SpellBlock } from "./spell-block-model";
 import { SkillBlock } from "./skill-block.model";
 
+export interface Hex {
+  q: number;
+  r: number;
+  s: number;
+}
+
 export interface Drawing {
   path: string;
   color: string;
@@ -11,7 +17,7 @@ export interface Drawing {
 
 export interface Token {
   characterId: string;
-  position: { q: number; r: number };
+  position: Hex;
   image?: string;
   name: string;
 }
