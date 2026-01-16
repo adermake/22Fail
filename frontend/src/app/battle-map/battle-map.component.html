@@ -19,8 +19,8 @@
             cdkDropList id="grid-drop-list" (cdkDropListDropped)="onDrop($event)"
         >
             <defs>
-                <clipPath *ngFor="let token of (store.battleMap$ | async)?.tokens" [attr.id]="'clip-' + token.characterId">
-                    <polygon [attr.points]="getHexClipPoints(token)"></polygon>
+                <clipPath id="hex-clip">
+                    <polygon [attr.points]="hexClipPathPoints"></polygon>
                 </clipPath>
             </defs>
             <g class="grid">
@@ -33,7 +33,7 @@
                     [attr.href]="token.image || 'assets/default-token.png'"
                     [attr.width]="layout.size.x * 2"
                     [attr.height]="layout.size.y * 2"
-                    [attr.clip-path]="'url(#clip-' + token.characterId + ')'"
+                    [attr.clip-path]="'url(#hex-clip)'"
                     cdkDrag
                     [cdkDragData]="token"
                 />

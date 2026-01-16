@@ -94,6 +94,9 @@ export class BattleMapComponent implements OnInit {
   }
 
   getHexClipPoints(token: Token): string {
+    if (!token || !token.position) {
+      return ''; 
+    }
     const corners = this.polygonCorners(token.position);
     return corners.map(p => `${p.x},${p.y}`).join(' ');
   }
