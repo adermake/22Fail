@@ -8,5 +8,6 @@ export const routes: Routes = [
     { path: 'characters/:id', component: SheetComponent },
     { path: 'game/:id', component: SessionComponent },
     { path: 'world/:worldName', component: WorldComponent },
+    { path: 'battlemap/:id', redirectTo: 'battlemap/default/:id', pathMatch: 'full' },
     { path: 'battlemap/:worldName/:id', component: BattleMapComponent }
 ];

@@ -15,8 +15,9 @@
         (mousedown)="onMouseDown($event)"
         (mousemove)="onMouseMove($event)"
         (mouseup)="onMouseUp()"
+        cdkDropList id="grid-drop-list" (cdkDropListDropped)="onDrop($event)"
     >
-        <g class="grid" cdkDropList id="grid-drop-list" (cdkDropListDropped)="onDrop($event)">
+        <g class="grid">
             <polygon *ngFor="let hex of hexagons" [attr.points]="hex.points" class="hexagon" [attr.data-hex-id]="hex.id"></polygon>
         </g>
         <g class="tokens">
