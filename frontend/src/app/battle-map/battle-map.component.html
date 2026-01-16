@@ -18,16 +18,22 @@
             (mouseup)="onMouseUp()"
             cdkDropList id="grid-drop-list" (cdkDropListDropped)="onDrop($event)"
         >
+            <defs>
+                <clipPath *ngFor="let token of (store.battleMap$ | async)?.tokens" [attr.id]="'clip-' + token.characterId">
+                    <polygon [attr.points]="getHexClipPoints(token)"></polygon>
+                </clipPath>
+            </defs>
             <g class="grid">
                 <polygon *ngFor="let hex of hexagons" [attr.points]="hex.points" class="hexagon" [attr.data-hex-id]="hex.id"></polygon>
             </g>
             <g class="tokens">
                 <image *ngFor="let token of (store.battleMap$ | async)?.tokens"
-                    [attr.href]="token.image || 'assets/default-token.png'" 
-                    [attr.x]="hexToPixel({q: token.position.q, r: token.position.r, s: -token.position.q - token.position.r}).x - layout.size.x"
-                    [attr.y]="hexToPixel({q: token.position.q, r: token.position.r, s: -token.position.q - token.position.r}).y - layout.size.y"
+                    [attr.x]="hexToPixel(token.position).x - layout.size.x"
+                    [attr.y]="hexToPixel(token.position).y - layout.size.y"
+                    [attr.href]="token.image || 'assets/default-token.png'"
                     [attr.width]="layout.size.x * 2"
                     [attr.height]="layout.size.y * 2"
+                    [attr.clip-path]="'url(#clip-' + token.characterId + ')'"
                     cdkDrag
                     [cdkDragData]="token"
                 />

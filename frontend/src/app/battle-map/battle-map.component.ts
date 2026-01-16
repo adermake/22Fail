@@ -99,6 +99,11 @@ export class BattleMapComponent implements OnInit {
     this.updateViewBox();
   }
 
+  getHexClipPoints(token: Token): string {
+    const corners = this.polygonCorners(token.position);
+    return corners.map(p => `${p.x},${p.y}`).join(' ');
+  }
+
   async loadWorld(worldName: string) {
     this.currentWorldName = worldName;
     await this.worldStore.load(worldName);
@@ -118,9 +123,7 @@ export class BattleMapComponent implements OnInit {
   }
   
 onDrop(event: CdkDragDrop<any>) {
-    console.log('onDrop event:', event);
     if (!this.isGmMode || !this.isDragMode) {
-      console.log('Drop rejected: Not in GM or Drag mode.');
       return;
     }
 
@@ -129,11 +132,8 @@ onDrop(event: CdkDragDrop<any>) {
       console.log('Drop rejected: Not on a valid hex.');
       return;
     }
-    
-    console.log('Dropped on hex:', droppedOnHex);
 
     if (event.previousContainer.id === 'token-list-drop-list') {
-      console.log('Drop from token list.');
       // New token from list
       const character = event.item.data as CharacterSheet;
       const newToken: Token = {
@@ -148,10 +148,8 @@ onDrop(event: CdkDragDrop<any>) {
         path: `tokens.${currentTokens.length}`,
         value: newToken
       });
-      console.log('New token patch sent:', newToken);
 
     } else if (event.previousContainer.id === 'grid-drop-list') {
-      console.log('Drop from grid (moving token).');
       // Move existing token
       const token = event.item.data as Token;
       const tokenIndex = this.store.battleMapValue?.tokens.findIndex(t => t.characterId === token.characterId);
@@ -161,22 +159,26 @@ onDrop(event: CdkDragDrop<any>) {
           path: `tokens.${tokenIndex}.position`,
           value: { q: droppedOnHex.q, r: droppedOnHex.r }
         });
-        console.log('Move token patch sent:', token.characterId, droppedOnHex);
       }
     }
   }
 
   private getHexFromDropEvent(event: CdkDragDrop<any>): Hex | null {
-    const point = event.dropPoint;
+    const point = event.pointerPosition;
     const svg = (event.container.element.nativeElement as HTMLElement).closest('svg')!;
-    if (!svg) return null;
+    if (!svg) {
+      console.error('Could not find SVG container for drop event.');
+      return null;
+    }
     const svgPoint = svg.createSVGPoint();
     svgPoint.x = point.x;
     svgPoint.y = point.y;
+    
     const transformedPoint = svgPoint.matrixTransform(svg.getScreenCTM()!.inverse());
 
     const hex = this.pixelToHex(transformedPoint);
-    return this.hexagons.find(h => h.hex.q === hex.q && h.hex.r === hex.r)?.hex || null;
+    const foundHex = this.hexagons.find(h => this.hexDistance(h.hex, hex) < 0.1);
+    return foundHex ? foundHex.hex : null;
   }
 
   private getHexFromMouseEvent(event: MouseEvent): Hex | null {
