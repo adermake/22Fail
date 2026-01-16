@@ -8,6 +8,24 @@ export class DataService {
   private filePath = path.join(__dirname, '../../../data.json');
   private worldsFilePath = path.join(__dirname, '../../../worlds.json');
 
+  private createEmptyWorld(name: string): any {
+    return {
+      name,
+      characterIds: [],
+      partyIds: [],
+      itemLibrary: [],
+      runeLibrary: [],
+      spellLibrary: [],
+      skillLibrary: [],
+      lootBundles: [],
+      battleLoot: [],
+      battleParticipants: [],
+      currentTurnIndex: 0,
+      trash: [],
+      battleMaps: [],
+    };
+  }
+
   private applyJsonPatch(target: unknown, patch: JsonPatch): void {
     const keys = patch.path.split('.');
 
@@ -202,6 +220,70 @@ export class DataService {
 
     return updatedJson;
   }
+
+  getBattleMap(worldName: string, battleMapId: string): any | null {
+    const worldJson = this.getWorld(worldName);
+    if (!worldJson) {
+        return null;
+    }
+    const world = JSON.parse(worldJson);
+    if (!world.battleMaps) {
+        return null;
+    }
+    const battleMap = world.battleMaps.find((bm: any) => bm.id === battleMapId);
+    return battleMap || null;
+  }
+
+  addBattleMap(worldName: string, battleMap: any): any {
+      const worlds = this.readWorlds();
+      let worldJson = this.getWorld(worldName);
+      if (!worldJson) {
+        // if world does not exist, create it.
+        const newWorld = this.createEmptyWorld(worldName);
+        this.saveWorld(worldName, JSON.stringify(newWorld, null, 2));
+        worldJson = this.getWorld(worldName)
+      }
+      const world = worldJson ? JSON.parse(worldJson) : this.createEmptyWorld(worldName);
+
+      if (!world.battleMaps) {
+          world.battleMaps = [];
+      }
+      world.battleMaps.push(battleMap);
+      
+      const updatedWorldJson = JSON.stringify(world, null, 2);
+      worlds[worldName] = updatedWorldJson;
+      this.writeWorlds(worlds);
+      return battleMap;
+  }
+
+  applyPatchToBattleMap(worldName: string, battleMapId: string, patch: JsonPatch): string | null {
+      const worlds = this.readWorlds();
+      if (!worlds[worldName]) {
+        console.error(`World ${worldName} not found`);
+        return null;
+      }
+
+      const world = JSON.parse(worlds[worldName]);
+      const battleMapIndex = world.battleMaps.findIndex((bm: any) => bm.id === battleMapId);
+
+      if (battleMapIndex === -1) {
+        console.error(`Battle map ${battleMapId} not found in world ${worldName}`);
+        return null;
+      }
+
+      const worldPatch: JsonPatch = {
+        path: `battleMaps.${battleMapIndex}.${patch.path}`,
+        value: patch.value
+      };
+      
+      this.applyJsonPatch(world, worldPatch);
+
+      const updatedWorldJson = JSON.stringify(world, null, 2);
+      worlds[worldName] = updatedWorldJson;
+      this.writeWorlds(worlds);
+
+      return updatedWorldJson;
+    }
 }
 
 export interface JsonPatch {

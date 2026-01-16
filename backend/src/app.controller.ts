@@ -35,7 +35,7 @@ export class AppController {
 
   // POST /characters/:id
   @Post('characters/:id')
-  saveCharacter(@Param('id') id: string, @Body() body: any): any {
+  saveCharacter(@Param('id') id:string, @Body() body: any): any {
     // body is already an object, convert to JSON string
     console.log('SAVED ' + id);
     const sheetJson = JSON.stringify(body);
@@ -126,5 +126,21 @@ export class AppController {
       success: true,
       patch,
     };
+  }
+
+  // Battle Map Endpoints
+  @Get('worlds/:worldName/battlemaps/:battleMapId')
+  getBattleMap(@Param('worldName') worldName: string, @Param('battleMapId') battleMapId: string): any {
+    const battleMap = this.dataService.getBattleMap(worldName, battleMapId);
+    if (!battleMap) {
+      return null;
+    }
+    return battleMap;
+  }
+
+  @Post('worlds/:worldName/battlemaps')
+  addBattleMap(@Param('worldName') worldName: string, @Body() body: any): any {
+    const newBattleMap = this.dataService.addBattleMap(worldName, body);
+    return { success: true, battleMap: newBattleMap };
   }
 }

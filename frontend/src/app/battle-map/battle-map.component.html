@@ -1,0 +1,86 @@
+<div class="toolbar">
+    <button (click)="toggleGmMode()" [class.active]="isGmMode">GM Mode</button>
+    <ng-container *ngIf="isGmMode">
+        <button (click)="toggleDrawingMode()" [class.active]="isDrawingMode">Draw</button>
+        <button (click)="toggleDragMode()" [class.active]="isDragMode">Drag</button>
+        <button (click)="toggleMeasureMode()" [class.active]="isMeasuring">Measure</button>
+    </ng-container>
+</div>
+
+<div class="world-selection-panel" *ngIf="isGmMode">
+    <input type="text" [(ngModel)]="worldNameToLoad" placeholder="Enter world name">
+    <button (click)="loadWorld()">Load World</button>
+</div>
+
+<div class="battle-map-container" cdkDropListGroup>
+    <svg 
+        class="battle-map-svg"
+        [attr.viewBox]="viewBox"
+        (wheel)="onWheel($event)"
+        (mousedown)="onMouseDown($event)"
+        (mousemove)="onMouseMove($event)"
+        (mouseup)="onMouseUp()"
+    >
+        <g class="grid" cdkDropList id="grid-drop-list" (cdkDropListDropped)="onDrop($event)">
+            <polygon *ngFor="let hex of hexagons" [attr.points]="hex.points" class="hexagon" [attr.data-hex-id]="hex.id"></polygon>
+        </g>
+        <g class="tokens">
+            <image *ngFor="let token of (store.battleMap$ | async)?.tokens"
+                [attr.href]="token.image || 'assets/default-token.png'" 
+                [attr.x]="hexToPixel({q: token.position.q, r: token.position.r, s: -token.position.q - token.position.r}).x - layout.size.x"
+                [attr.y]="hexToPixel({q: token.position.q, r: token.position.r, s: -token.position.q - token.position.r}).y - layout.size.y"
+                [attr.width]="layout.size.x * 2"
+                [attr.height]="layout.size.y * 2"
+                cdkDrag
+                [cdkDragData]="token"
+            />
+        </g>
+        <g class="drawings">
+            <path *ngFor="let drawing of (store.battleMap$ | async)?.drawings" 
+                  [attr.d]="drawing.path" 
+                  [attr.stroke]="drawing.color" 
+                  [attr.stroke-width]="drawing.lineWidth"
+                  fill="none"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+            ></path>
+            <path
+                *ngIf="isDrawing"
+                [attr.d]="currentDrawingPath"
+                stroke="#FF0000"
+                stroke-width="5"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            ></path>
+            
+            <line *ngIf="isMeasuring && measurementStart"
+                [attr.x1]="measurementStart.x"
+                [attr.y1]="measurementStart.y"
+                [attr.x2]="measurementEnd.x"
+                [attr.y2]="measurementEnd.y"
+                stroke="cyan"
+                stroke-width="3"
+                stroke-dasharray="10,5"
+            ></line>
+            <text *ngIf="isMeasuring && measurementStart"
+                [attr.x]="measurementEnd.x + 10"
+                [attr.y]="measurementEnd.y + 10"
+                fill="cyan"
+                font-size="24"
+            >{{ measurementDistance }}</text>
+        </g>
+    </svg>
+</div>
+
+<div class="token-panel" cdkDropList id="token-list-drop-list" [cdkDropListData]="worldCharacters" (cdkDropListDropped)="onDrop($event)" *ngIf="isGmMode">
+    <h3>{{ currentWorldName || 'No world selected' }}</h3>
+    <ul>
+        <li *ngFor="let char of worldCharacters" cdkDrag [cdkDragData]="char">
+            <img [src]="char.portrait || 'assets/default-token.png'" width="30" height="30">
+            {{ char.name }}
+        </li>
+    </ul>
+</div>
+
+<pre *ngIf="isGmMode">{{ store.battleMap$ | async | json }}</pre>

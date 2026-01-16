@@ -14,7 +14,8 @@ export interface SheetTrashItem {
 }
 
 export interface CharacterSheet {
-  runes: any;
+  id?: string; // Optional because it's not stored in the JSON file itself
+  runes: RuneBlock[];
   // Character
   name: string;
   race: string;
