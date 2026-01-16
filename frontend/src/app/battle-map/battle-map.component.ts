@@ -58,7 +58,6 @@ export class BattleMapComponent implements OnInit {
   };
 
   // World and Tokens
-  public worldNameToLoad = 'default';
   public currentWorldName = '';
   public worldCharacters: CharacterSheet[] = [];
 
@@ -86,16 +85,23 @@ export class BattleMapComponent implements OnInit {
   private measurementStartHex: Hex | null = null;
 
   ngOnInit() {
-    const id = this.route.snapshot.paramMap.get('id')!;
-    const worldName = 'default'; 
-    this.store.load(worldName, id);
+    this.route.params.subscribe(params => {
+      const worldName = params['worldName'];
+      const id = params['id'];
+      if (worldName && id) {
+        this.currentWorldName = worldName;
+        this.store.load(worldName, id);
+        this.loadWorld(worldName);
+      }
+    });
+    
     this.generateHexGrid();
     this.updateViewBox();
   }
 
-  async loadWorld() {
-    this.currentWorldName = this.worldNameToLoad;
-    await this.worldStore.load(this.worldNameToLoad);
+  async loadWorld(worldName: string) {
+    this.currentWorldName = worldName;
+    await this.worldStore.load(worldName);
     const world = this.worldStore.worldValue;
     if (world) {
       const charSheets = await Promise.all(
@@ -111,13 +117,23 @@ export class BattleMapComponent implements OnInit {
     }
   }
   
-  onDrop(event: CdkDragDrop<any>) {
-    if (!this.isGmMode || !this.isDragMode) return;
+onDrop(event: CdkDragDrop<any>) {
+    console.log('onDrop event:', event);
+    if (!this.isGmMode || !this.isDragMode) {
+      console.log('Drop rejected: Not in GM or Drag mode.');
+      return;
+    }
 
     const droppedOnHex = this.getHexFromDropEvent(event);
-    if (!droppedOnHex) return;
+    if (!droppedOnHex) {
+      console.log('Drop rejected: Not on a valid hex.');
+      return;
+    }
+    
+    console.log('Dropped on hex:', droppedOnHex);
 
     if (event.previousContainer.id === 'token-list-drop-list') {
+      console.log('Drop from token list.');
       // New token from list
       const character = event.item.data as CharacterSheet;
       const newToken: Token = {
@@ -132,8 +148,10 @@ export class BattleMapComponent implements OnInit {
         path: `tokens.${currentTokens.length}`,
         value: newToken
       });
+      console.log('New token patch sent:', newToken);
 
     } else if (event.previousContainer.id === 'grid-drop-list') {
+      console.log('Drop from grid (moving token).');
       // Move existing token
       const token = event.item.data as Token;
       const tokenIndex = this.store.battleMapValue?.tokens.findIndex(t => t.characterId === token.characterId);
@@ -143,6 +161,7 @@ export class BattleMapComponent implements OnInit {
           path: `tokens.${tokenIndex}.position`,
           value: { q: droppedOnHex.q, r: droppedOnHex.r }
         });
+        console.log('Move token patch sent:', token.characterId, droppedOnHex);
       }
     }
   }
@@ -150,6 +169,7 @@ export class BattleMapComponent implements OnInit {
   private getHexFromDropEvent(event: CdkDragDrop<any>): Hex | null {
     const point = event.dropPoint;
     const svg = (event.container.element.nativeElement as HTMLElement).closest('svg')!;
+    if (!svg) return null;
     const svgPoint = svg.createSVGPoint();
     svgPoint.x = point.x;
     svgPoint.y = point.y;

@@ -7,11 +7,6 @@
     </ng-container>
 </div>
 
-<div class="world-selection-panel" *ngIf="isGmMode">
-    <input type="text" [(ngModel)]="worldNameToLoad" placeholder="Enter world name">
-    <button (click)="loadWorld()">Load World</button>
-</div>
-
 <div class="battle-map-container" cdkDropListGroup>
     <svg 
         class="battle-map-svg"
