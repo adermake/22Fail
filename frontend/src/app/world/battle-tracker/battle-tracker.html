@@ -1,104 +1,72 @@
-<div class="battle-tracker">
-  <div class="battle-header">
-    <h2>Battle Tracker</h2>
-    <button class="reset-button" (click)="onResetBattle()">Reset Battle</button>
-  </div>
 
-  <div class="characters-section">
-    <h3>Characters</h3>
-    @if (availableCharacters.length > 0) {
-      <div class="character-list">
-        @for (char of availableCharacters; track char.id) {
-          <div class="character-option" [class.in-battle]="isInBattle(char.id)">
+    <div class="battle-tracker-container">
+      <div class="battle-header">
+        <h2>Battle Tracker</h2>
+        <button class="reset-button" (click)="onResetBattle()">Reset Battle</button>
+      </div>
+
+      <div class="characters-section">
+        <h3>Characters</h3>
+        <div class="character-list" *ngIf="availableCharacters.length > 0; else noChars">
+          <div *ngFor="let char of availableCharacters; trackBy: trackByCharId" class="character-option" [class.in-battle]="isInBattle(char.id)">
             <div class="character-info">
-              @if (getCharacterPortrait(char.id)) {
-                <img [src]="getCharacterPortrait(char.id)" alt="{{ char.name }}" class="character-portrait-small">
-              }
+              <img [src]="getCharacterPortrait(char.id) || 'assets/default-portrait.png'" class="character-portrait-small">
               <div class="character-details">
                 <span class="character-name">{{ char.name }}</span>
                 <span class="character-speed">Speed: {{ char.speed }}</span>
-                @if (isInBattle(char.id)) {
-                  <select class="team-selector" [ngModel]="getParticipant(char.id)?.team" (ngModelChange)="onTeamChange(char.id, $any($event))">
-                    @for (team of availableTeams; track team) {
-                      <option [value]="team">{{ team }}</option>
-                    }
-                  </select>
-                }
+                <select *ngIf="isInBattle(char.id)" 
+                        class="team-selector" 
+                        [ngModel]="getParticipant(char.id)?.team" 
+                        (ngModelChange)="onTeamChange(char.id, $event)">
+                  <option *ngFor="let team of availableTeams" [value]="team">{{ team }}</option>
+                </select>
               </div>
             </div>
-            <button
-              class="toggle-button"
-              [class.in-battle]="isInBattle(char.id)"
-              (click)="isInBattle(char.id) ? onRemoveCharacter(char.id) : onAddCharacter(char.id)">
+            <button class="toggle-button" 
+                    [class.in-battle]="isInBattle(char.id)"
+                    (click)="isInBattle(char.id) ? onRemoveCharacter(char.id) : onAddCharacter(char.id)">
               {{ isInBattle(char.id) ? 'Remove' : 'Add' }}
             </button>
           </div>
-        }
-      </div>
-    } @else {
-      <p class="empty-message">No characters available</p>
-    }
-  </div>
-
-  @if (turnQueue.length > 0) {
-    <div class="turn-queue-section">
-      <h3>Turn Order Queue</h3>
-      <p class="queue-hint">Drag portraits to reorder turns between positions</p>
-      <div class="turn-queue">
-        @for (group of turnQueue; track $index) {
-          <div class="queue-group"
-               [class.current-turn]="$index === 0"
-               [class.is-group]="group.participants.length > 1"
-               [class.completing]="$index === 0 && completingTurn"
-               [class.drag-over-left]="dragOverIndex === $index && dropPosition === 'left'"
-               [class.drag-over-right]="dragOverIndex === $index && dropPosition === 'right'"
-               (dragover)="onDragOverGroup($event, $index)"
-               (dragleave)="onDragLeaveQueue()"
-               (drop)="onDropOnGroup($event, $index)">
-
-            <div class="group-portraits">
-              @for (participant of group.participants; track participant.characterId) {
-                <div class="queue-item"
-                     [attr.data-team]="participant.team"
-                     draggable="true"
-                     (dragstart)="onDragStartQueue($event, participant.characterId)"
-                     (dragend)="onDragEnd()">
-                  @if (participant.portrait) {
-                    <img [src]="participant.portrait" alt="{{ participant.name }}" class="queue-portrait">
-                  } @else {
-                    <div class="queue-portrait-placeholder">
-                      {{ participant.name.charAt(0).toUpperCase() }}
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-
-            @if ($index === 0) {
-              <span class="turn-label">Now</span>
-            }
-          </div>
-        }
-      </div>
-
-      @if (currentTurnGroup.length > 0) {
-        <div class="current-turn-display">
-          <div class="current-turn-info">
-            <div class="current-portraits">
-              @for (participant of currentTurnGroup; track participant.characterId) {
-                @if (participant.portrait) {
-                  <img [src]="participant.portrait" alt="{{ participant.name }}" class="current-portrait">
-                }
-              }
-            </div>
-            <div>
-              <p><strong>Current Turn:</strong></p>
-              <p class="current-name">{{ currentTurnNames }}</p>
-            </div>
-          </div>
-          <button class="complete-turn-button" (click)="onNextTurn()">Complete Turn</button>
         </div>
-      }
+        <ng-template #noChars>
+          <p style="color: var(--text-muted); font-style: italic;">No characters available</p>
+        </ng-template>
+      </div>
+      
+      <div class="turn-queue-container">
+        <div class="turn-queue" 
+             [class.is-dragging]="!!draggedParticipant"
+             (dragover)="onDragOverQueue($event)"
+             (dragleave)="onDragLeaveQueue($event)"
+             (drop)="onDropOnQueue($event)">
+             
+          <div *ngFor="let group of queueGroups; let gIdx = index; trackBy: trackByGroup"
+               class="battle-group"
+               [class.fading-out]="group.shouldFadeOut"
+               [ngClass]="'team-' + group.team">
+            
+            <div *ngIf="dragOverIndex === gIdx && dropPosition === 'before'" class="drop-indicator" style="left: -4px;"></div>
+            <div *ngIf="dragOverIndex === gIdx && dropPosition === 'after'" class="drop-indicator" style="right: -4px;"></div>
+            
+            <div *ngFor="let turn of group.participants; trackBy: trackByCharId" 
+                 class="battle-card"
+                 [class.is-anchor]="turn.isAnchor"
+                 [draggable]="turn.isAnchor"
+                 (dragstart)="onDragStartQueue($event, turn)"
+                 (dragend)="onDragEnd()">
+              <img [src]="turn.portrait || 'assets/default-portrait.png'" [alt]="turn.name">
+              <span>{{turn.name}}</span>
+              <div *ngIf="turn.isAnchor" class="anchor-indicator" title="Anchor Point">⚓</div>
+            </div>
+          </div>
+          
+          <div *ngIf="dragOverIndex === queueGroups.length" class="drop-indicator" style="right: 0; position: relative; height: 80px; margin-left: 4px;"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button (click)="onNextTurn()" [disabled]="completingTurn">Next Turn</button>
+      </div>
     </div>
-  }
-</div>
+  
