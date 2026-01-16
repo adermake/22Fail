@@ -4,7 +4,6 @@ import { BattleMapApiService } from './battlemap-api.service';
 import { BattleMapSocketService } from './battlemap-socket.service';
 import { BattleMap } from '../model/world.model';
 import { JsonPatch } from '../model/json-patch.model';
-import { v4 as uuidv4 } from 'uuid';
 
 export function createEmptyBattleMap(id: string, name: string): BattleMap {
     return {
