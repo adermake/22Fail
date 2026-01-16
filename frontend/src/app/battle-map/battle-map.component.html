@@ -73,7 +73,7 @@
     </svg>
 </div>
 
-<div class="token-panel" cdkDropList id="token-list-drop-list" [cdkDropListData]="worldCharacters" (cdkDropListDropped)="onDrop($event)" *ngIf="isGmMode">
+<div class="token-panel" cdkDropList id="token-list-drop-list" [cdkDropListData]="worldCharacters" *ngIf="isGmMode">
     <h3>{{ currentWorldName || 'No world selected' }}</h3>
     <ul>
         <li *ngFor="let char of worldCharacters" cdkDrag [cdkDragData]="char">
@@ -82,5 +82,3 @@
         </li>
     </ul>
 </div>
-
-<pre *ngIf="isGmMode">{{ store.battleMap$ | async | json }}</pre>
