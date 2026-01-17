@@ -134,13 +134,16 @@ export class BattleTracker implements OnChanges {
       next.currentTurnAt += 1000 / next.speed;
     }
 
-    // 2. Group adjacent same-team turns (Adjacency ONLY, no time check)
+    // 2. Group adjacent same-team turns that happen at nearly the same time
     const grouped: QueueGroup[] = [];
 
     if (turns.length === 0) {
       this.queueGroups = [];
       return;
     }
+
+    // Time threshold for grouping - only group turns that happen at nearly the same time
+    const TIME_THRESHOLD = 1.0;
 
     let currentGroup = {
       participants: [turns[0]],
@@ -153,8 +156,9 @@ export class BattleTracker implements OnChanges {
       const turn = turns[i];
       const turnTeam = turn.team || 'blue';
 
-      // Join group if: Same team AND not already in group (no duplicates)
-      if (turnTeam === currentGroup.team && !membersInGroup.has(turn.characterId)) {
+      // Join group if: Same team, not already in group, AND time is very close to group start
+      const timeDiff = Math.abs(turn.time - currentGroup.startTime);
+      if (turnTeam === currentGroup.team && !membersInGroup.has(turn.characterId) && timeDiff < TIME_THRESHOLD) {
         currentGroup.participants.push(turn);
         membersInGroup.add(turn.characterId);
       } else {

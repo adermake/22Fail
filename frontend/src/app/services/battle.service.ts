@@ -303,6 +303,9 @@ export class BattleService {
     const groups: BattleGroup[] = [];
     if (turns.length === 0) return [];
 
+    // Time threshold for grouping - only group turns that happen at nearly the same time
+    const TIME_THRESHOLD = 1.0;
+
     let currentGroup: BattleGroup = {
       turns: [turns[0]],
       team: turns[0].team,
@@ -313,7 +316,9 @@ export class BattleService {
     for (let i = 1; i < turns.length; i++) {
       const turn = turns[i];
 
-      if (turn.team === currentGroup.team && !membersInGroup.has(turn.characterId)) {
+      // Only group if: same team, not already in group, AND time is very close to group start
+      const timeDiff = Math.abs(turn.time - currentGroup.startTime);
+      if (turn.team === currentGroup.team && !membersInGroup.has(turn.characterId) && timeDiff < TIME_THRESHOLD) {
         currentGroup.turns.push(turn);
         membersInGroup.add(turn.characterId);
       } else {
