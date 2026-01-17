@@ -1,0 +1,215 @@
+.loot-manager-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100%;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.section-header h3 {
+  margin: 0;
+  color: var(--accent);
+  font-size: 1.1rem;
+}
+
+.loot-list {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  min-height: 200px;
+}
+
+.loot-item {
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.loot-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.loot-type {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.1);
+  padding: 2px 4px;
+  border-radius: 3px;
+  margin-right: 0.5rem;
+}
+
+.loot-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.currency-form {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) auto;
+  gap: 0.5rem;
+  align-items: end;
+  background: var(--bg-secondary);
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+
+.currency-input label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.currency-input input {
+  width: 100%;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.bundle-list {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.bundle-card {
+  min-width: 120px;
+  padding: 0.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: grab;
+  text-align: center;
+  position: relative;
+}
+
+.bundle-card:active {
+  cursor: grabbing;
+}
+
+.bundle-name {
+  font-weight: bold;
+  font-size: 0.9rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.bundle-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.bundle-delete {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.bundle-card:hover .bundle-delete {
+  opacity: 1;
+}
+
+button {
+  padding: 4px 8px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--accent-hover);
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+button.secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button.danger {
+  background: #ef4444;
+}
+
+.loot-recipients {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.recipients-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.recipient-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.recipient-checkbox {
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.loot-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.empty-loot {
+  text-align: center;
+  padding: 2rem;
+  color: gray;
+  font-style: italic;
+}
+
+.currency-display {
+  font-size: 0.8rem;
+  margin-top: 4px;
+}

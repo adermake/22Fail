@@ -10,7 +10,11 @@
       "Bash(pkill:*)",
       "Bash(node:*)",
       "Bash(taskkill:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(npx ng build)",
+      "Bash(npx ng build:*)",
+      "Bash(node_modules/.bin/ng build --configuration=development)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

@@ -1,0 +1,106 @@
+<div class="loot-manager-container">
+  <!-- Currency Reward -->
+  <div class="currency-form">
+    <div class="currency-input">
+      <label>CP</label>
+      <input type="number" [(ngModel)]="newCurrency.copper">
+    </div>
+    <div class="currency-input">
+      <label>SP</label>
+      <input type="number" [(ngModel)]="newCurrency.silver">
+    </div>
+    <div class="currency-input">
+      <label>GP</label>
+      <input type="number" [(ngModel)]="newCurrency.gold">
+    </div>
+    <div class="currency-input">
+      <label>PP</label>
+      <input type="number" [(ngModel)]="newCurrency.platinum">
+    </div>
+    <button (click)="addCurrency()">Add</button>
+  </div>
+
+  <!-- Bundles -->
+  <div class="bundles-section">
+    <div class="section-header">
+      <h3>Loot Bundles</h3>
+      <button class="secondary" (click)="createBundleFromLoot()">Save Current as Bundle</button>
+    </div>
+    <div class="bundle-list">
+      @for (bundle of bundles; track bundle.name; let i = $index) {
+        <div class="bundle-card"
+             draggable="true"
+             (dragstart)="onDragStartBundle($event, i)">
+          <button class="bundle-delete" (click)="deleteBundle(i, $event)" title="Delete Bundle">×</button>
+          <span class="bundle-name">{{ bundle.name }}</span>
+          <span class="bundle-desc">{{ bundle.items.length + bundle.runes.length + bundle.spells.length }} items</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Battle Loot List -->
+  <div class="loot-section">
+    <div class="section-header">
+      <h3>Battle Loot</h3>
+      <div style="display: flex; gap: 0.5rem;">
+        <button (click)="revealLoot()">Reveal All</button>
+        <button class="danger" (click)="clearLoot()">Clear</button>
+      </div>
+    </div>
+
+    <div class="loot-list"
+         (dragover)="onDragOver($event)"
+         (drop)="onDrop($event)">
+
+      @if (store.worldValue?.battleLoot?.length === 0) {
+        <div class="empty-loot">
+          Drag items or bundles here to add loot
+        </div>
+      }
+
+      @for (item of store.worldValue?.battleLoot; track item.id; let i = $index) {
+        <div class="loot-item">
+          <div class="loot-item-header">
+            <div>
+              <span class="loot-type">{{ item.type }}</span>
+              <strong>{{ item.data.name || 'Currency' }}</strong>
+            </div>
+            <button class="danger" (click)="removeLoot(i)">×</button>
+          </div>
+
+          @if (item.type === 'currency') {
+            <div class="currency-display">
+              @if (item.data.platinum) {
+                <span>{{ item.data.platinum }} pp </span>
+              }
+              @if (item.data.gold) {
+                <span>{{ item.data.gold }} gp </span>
+              }
+              @if (item.data.silver) {
+                <span>{{ item.data.silver }} sp </span>
+              }
+              @if (item.data.copper) {
+                <span>{{ item.data.copper }} cp</span>
+              }
+            </div>
+          }
+
+          <div class="loot-recipients">
+            <span class="recipients-label">Send to:</span>
+            <div class="recipient-checkboxes">
+              @for (member of partyMembers; track member.id) {
+                <label class="recipient-checkbox">
+                  <input type="checkbox"
+                         [checked]="isRecipient(item, member.id)"
+                         (change)="toggleRecipient(i, member.id)">
+                  {{ member.name }}
+                </label>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>
