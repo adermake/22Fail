@@ -1,45 +1,52 @@
+# Tier 1
 Magier: Kampfzauberer, Heiler
 Kämpfer: Krieger, Barbar
 Techniker: Schütze, Dieb
 
+
+# Tier 2
 Kampfzauberer: Arkanist, Hämonant
 Heiler: Seelenmagier, Paladin
-
-Arkanist: Formationsmagier, Phantom, Runenkünstler
-Formationsmagier: Manalord, Artificer
-Runenkünstler: Manalord, Dunkler Ritter
-
-Hämonant: Nekromant
-
-Seelenmagier: Gestaltenwandler, Mentalist
-Mentalist: Orakel, Nekromant
-
-
-
 Schütze: Jäger, Schnellschütze
-Jäger: Attentäter
-Assassine: Attentäter
-
-Dieb: Kampfakrobat, Assassine, Kampfakrobat
-Kampfakrobat: Klingentänzer, Duellant
-Klingentänzer: Waffenmeister
-
-
+Dieb: Kampfakrobat, Assassine
 Krieger: Ritter, Mönch
 Barbar: Berserker, Plünderer
 
-Ritter: Erzritter, Paladin, Wächter
-Erzritter: Wächter
 
+# Tier 3
+Arkanist: Formationsmagier, Phantom, Runenkünstler
+Hämonant: Nekromant
+Seelenmagier: Gestaltenwandler, Mentalist
+Jäger: Attentäter
+Kampfakrobat: Klingentänzer, Duellant
+Ritter: Erzritter, Paladin, Wächter
 Berserker: Kriegsherr, Omen
 Plünderer: General
-General: Kriegsherr
-
-
-Paladin: Dunkler Ritter
-
 Mönch: Templer
+
+
+# Tier 4
+Formationsmagier: Manalord, Artificer
+Runenkünstler: Manalord, Dunkler Ritter
+Mentalist: Orakel, Nekromant
+Assassine: Attentäter
+Klingentänzer: Waffenmeister
+Erzritter: Wächter
+General: Kriegsherr
+Paladin: Dunkler Ritter
 Templer: Koloss, Omen
 
 
-
+# Tier 5
+Manalord:
+Artificer:
+Attentäter:
+Duellant:
+Waffenmeister:
+Kriegsherr:
+Omen:
+Koloss:
+Wächter:
+Dunkler Ritter:
+Orakel:
+Nekromant:

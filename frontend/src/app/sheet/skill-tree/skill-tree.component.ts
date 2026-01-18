@@ -1,5 +1,6 @@
-import { Component, Input, Output, EventEmitter, OnInit, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, ElementRef, ViewChild, AfterViewInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { SkillDefinition } from '../../model/skill-definition.model';
@@ -22,13 +23,13 @@ interface Connection {
 }
 
 // Tier color definitions
-export const TIER_COLORS = {
+export const TIER_COLORS: Record<number, string> = {
   1: '#22c55e',  // Green
   2: '#eab308',  // Yellow
   3: '#ef4444',  // Red
   4: '#a855f7',  // Purple
   5: '#3b82f6',  // Blue
-} as const;
+};
 
 @Component({
   selector: 'app-skill-tree',
@@ -60,197 +61,289 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
   centerX = 600;
   centerY = 600;
 
-  // Ring radii for each tier
-  tierRadii = [0, 120, 220, 320, 420, 520];
+  // Ring radii for each tier (5 tiers)
+  tierRadii = [0, 100, 200, 320, 440, 560];
 
   // Class hierarchy parsed from class-definitions
   classHierarchy: Map<string, string[]> = new Map();
   classParents: Map<string, string[]> = new Map();
+  classTiers: Map<string, number> = new Map();
+
+  constructor(private http: HttpClient) {}
 
   ngOnInit() {
-    this.parseClassHierarchy();
-    this.buildFixedLayout();
+    this.loadClassDefinitions();
   }
 
   ngAfterViewInit() {
     setTimeout(() => {
       this.centerView();
-    }, 0);
+    }, 100);
   }
 
-  parseClassHierarchy() {
-    // Parse from class-definitions.txt format
-    const definitions = `
-Magier: Kampfzauberer, Heiler
-Kämpfer: Krieger, Barbar
-Techniker: Schütze, Dieb
-Kampfzauberer: Arkanist, Hämonant
-Heiler: Seelenmagier
-Arkanist: Formationsmagier
-Formationsmagier: Runenkünstler
-Runenkünstler: Manalord
-Hämonant: Nekromant
-Seelenmagier: Gestaltenwandler
-Gestaltenwandler: Mentalist
-Mentalist: Orakel
-Schütze: Jäger, Schnellschütze
-Jäger: Attentäter
-Attentäter: Assassine
-Dieb: Kampfakrobat
-Kampfakrobat: Klingentänzer
-Klingentänzer: Waffenmeister
-Waffenmeister: Duellant
-Krieger: Ritter, Mönch
-Barbar: Berserker
-Ritter: Erzritter
-Erzritter: Wächter
-Berserker: Plünderer
-Plünderer: General
-General: Kriegsherr
-Ritter + Heiler: Paladin
-Paladin: Dunkler Ritter
-Mönch + Barbar: Templer
-Templer: Koloss
-Berserker + Templer: Omen
-Arkanist: Phantom
-Schnellschütze: Artificer
-`;
-
-    definitions.trim().split('\n').forEach(line => {
-      const match = line.match(/^(.+?):\s*(.+)$/);
-      if (match) {
-        const parentPart = match[1].trim();
-        const children = match[2].split(',').map(c => c.trim());
-        const parents = parentPart.split('+').map(p => p.trim());
-
-        children.forEach(child => {
-          parents.forEach(parent => {
-            if (!this.classHierarchy.has(parent)) {
-              this.classHierarchy.set(parent, []);
-            }
-            const existing = this.classHierarchy.get(parent)!;
-            if (!existing.includes(child)) {
-              existing.push(child);
-            }
-          });
-
-          if (!this.classParents.has(child)) {
-            this.classParents.set(child, []);
-          }
-          const existingParents = this.classParents.get(child)!;
-          parents.forEach(p => {
-            if (!existingParents.includes(p)) {
-              existingParents.push(p);
-            }
-          });
-        });
+  loadClassDefinitions() {
+    this.http.get('class-definitions.txt', { responseType: 'text' }).subscribe({
+      next: (content) => {
+        this.parseClassDefinitions(content);
+        this.buildLayout();
+        setTimeout(() => this.centerView(), 0);
+      },
+      error: (err) => {
+        console.error('Failed to load class-definitions.txt', err);
+        // Fallback to hardcoded definitions
+        this.parseClassDefinitions(this.getFallbackDefinitions());
+        this.buildLayout();
       }
     });
   }
 
-  // Build layout matching the reference image
-  buildFixedLayout() {
+  getFallbackDefinitions(): string {
+    return `# Tier 1
+Magier: Kampfzauberer, Heiler
+Kämpfer: Krieger, Barbar
+Techniker: Schütze, Dieb
+
+# Tier 2
+Kampfzauberer: Arkanist, Hämonant
+Heiler: Seelenmagier, Paladin
+Schütze: Jäger, Schnellschütze
+Dieb: Kampfakrobat, Assassine
+Krieger: Ritter, Mönch
+Barbar: Berserker, Plünderer
+
+# Tier 3
+Arkanist: Formationsmagier, Phantom, Runenkünstler
+Hämonant: Nekromant
+Seelenmagier: Gestaltenwandler, Mentalist
+Jäger: Attentäter
+Kampfakrobat: Klingentänzer, Duellant
+Ritter: Erzritter, Paladin, Wächter
+Berserker: Kriegsherr, Omen
+Plünderer: General
+Mönch: Templer
+
+# Tier 4
+Formationsmagier: Manalord, Artificer
+Runenkünstler: Manalord, Dunkler Ritter
+Mentalist: Orakel, Nekromant
+Assassine: Attentäter
+Klingentänzer: Waffenmeister
+Erzritter: Wächter
+General: Kriegsherr
+Paladin: Dunkler Ritter
+Templer: Koloss, Omen
+
+# Tier 5
+Manalord:
+Artificer:
+Attentäter:
+Duellant:
+Waffenmeister:
+Kriegsherr:
+Omen:
+Koloss:
+Wächter:
+Dunkler Ritter:
+Orakel:
+Nekromant:`;
+  }
+
+  parseClassDefinitions(content: string) {
+    this.classHierarchy.clear();
+    this.classParents.clear();
+    this.classTiers.clear();
+
+    let currentTier = 0;
+    const lines = content.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      // Skip empty lines
+      if (!trimmed) continue;
+
+      // Check for tier marker
+      const tierMatch = trimmed.match(/^#\s*Tier\s*(\d+)/i);
+      if (tierMatch) {
+        currentTier = parseInt(tierMatch[1], 10);
+        continue;
+      }
+
+      // Skip other comments
+      if (trimmed.startsWith('#')) continue;
+
+      // Parse class definition: "Parent: Child1, Child2" or "Parent1 + Parent2: Child"
+      const match = trimmed.match(/^(.+?):\s*(.*)$/);
+      if (match) {
+        const parentPart = match[1].trim();
+        const childrenPart = match[2].trim();
+
+        // Handle multi-parent classes (e.g., "Ritter + Heiler")
+        const parents = parentPart.split('+').map(p => p.trim());
+
+        // Register parent classes at current tier if not already set
+        parents.forEach(parent => {
+          if (!this.classTiers.has(parent)) {
+            this.classTiers.set(parent, currentTier);
+          }
+        });
+
+        // Parse children (may be empty for leaf nodes)
+        if (childrenPart) {
+          const children = childrenPart.split(',').map(c => c.trim()).filter(c => c);
+
+          children.forEach(child => {
+            // Store children for each parent
+            parents.forEach(parent => {
+              if (!this.classHierarchy.has(parent)) {
+                this.classHierarchy.set(parent, []);
+              }
+              const existing = this.classHierarchy.get(parent)!;
+              if (!existing.includes(child)) {
+                existing.push(child);
+              }
+            });
+
+            // Store parents for each child
+            if (!this.classParents.has(child)) {
+              this.classParents.set(child, []);
+            }
+            const existingParents = this.classParents.get(child)!;
+            parents.forEach(p => {
+              if (!existingParents.includes(p)) {
+                existingParents.push(p);
+              }
+            });
+
+            // Child is one tier below parent
+            if (!this.classTiers.has(child)) {
+              this.classTiers.set(child, currentTier + 1);
+            }
+          });
+        }
+      }
+    }
+  }
+
+  buildLayout() {
     this.classPositions = [];
     this.connections = [];
 
-    // Define positions based on reference image angles (0° = right, going counter-clockwise)
-    // The image shows: Magier at top, Kämpfer at bottom-right, Techniker at bottom-left
+    // Group classes by tier
+    const tierClasses: Map<number, string[]> = new Map();
+    this.classTiers.forEach((tier, className) => {
+      if (!tierClasses.has(tier)) {
+        tierClasses.set(tier, []);
+      }
+      tierClasses.get(tier)!.push(className);
+    });
 
-    const positions: { name: string; angle: number; tier: number }[] = [
-      // Tier 1 - Base classes (inner ring)
-      { name: 'Magier', angle: 90, tier: 1 },
-      { name: 'Kämpfer', angle: -30, tier: 1 },
-      { name: 'Techniker', angle: 210, tier: 1 },
+    // Define angle sectors for the three main branches
+    // Magier: top (60° to 150°), Kämpfer: bottom-right (-60° to 30°), Techniker: bottom-left (180° to 270°)
+    const branchAngles: Record<string, { start: number; end: number }> = {
+      'Magier': { start: 50, end: 140 },
+      'Kämpfer': { start: -70, end: 20 },
+      'Techniker': { start: 160, end: 280 },
+    };
 
-      // Tier 2 - Magier branch
-      { name: 'Kampfzauberer', angle: 115, tier: 2 },
-      { name: 'Heiler', angle: 65, tier: 2 },
+    // Track which branch each class belongs to
+    const classBranch: Map<string, string> = new Map();
+    const baseClasses = ['Magier', 'Kämpfer', 'Techniker'];
+    baseClasses.forEach(bc => classBranch.set(bc, bc));
 
-      // Tier 2 - Kämpfer branch
-      { name: 'Krieger', angle: -10, tier: 2 },
-      { name: 'Barbar', angle: -50, tier: 2 },
+    // Propagate branch assignment through hierarchy
+    const assignBranches = () => {
+      let changed = true;
+      while (changed) {
+        changed = false;
+        this.classHierarchy.forEach((children, parent) => {
+          const parentBranch = classBranch.get(parent);
+          if (parentBranch) {
+            children.forEach(child => {
+              if (!classBranch.has(child)) {
+                classBranch.set(child, parentBranch);
+                changed = true;
+              }
+            });
+          }
+        });
+      }
+    };
+    assignBranches();
 
-      // Tier 2 - Techniker branch
-      { name: 'Schütze', angle: 185, tier: 2 },
-      { name: 'Dieb', angle: 235, tier: 2 },
+    // Place classes tier by tier
+    const placedClasses = new Set<string>();
 
-      // Tier 3 - Magier sub-branches
-      { name: 'Arkanist', angle: 130, tier: 3 },
-      { name: 'Hämonant', angle: 105, tier: 3 },
-      { name: 'Seelenmagier', angle: 60, tier: 3 },
-
-      // Tier 3 - Kämpfer sub-branches
-      { name: 'Ritter', angle: 0, tier: 3 },
-      { name: 'Mönch', angle: -20, tier: 3 },
-      { name: 'Berserker', angle: -55, tier: 3 },
-
-      // Tier 3 - Techniker sub-branches
-      { name: 'Jäger', angle: 175, tier: 3 },
-      { name: 'Schnellschütze', angle: 195, tier: 3 },
-      { name: 'Kampfakrobat', angle: 240, tier: 3 },
-
-      // Tier 4 - Magier deep branches
-      { name: 'Formationsmagier', angle: 140, tier: 4 },
-      { name: 'Phantom', angle: 125, tier: 4 },
-      { name: 'Nekromant', angle: 95, tier: 4 },
-      { name: 'Gestaltenwandler', angle: 55, tier: 4 },
-      { name: 'Paladin', angle: 35, tier: 4 },
-
-      // Tier 4 - Kämpfer deep branches
-      { name: 'Erzritter', angle: 5, tier: 4 },
-      { name: 'Templer', angle: -35, tier: 4 },
-      { name: 'Plünderer', angle: -60, tier: 4 },
-
-      // Tier 4 - Techniker deep branches
-      { name: 'Attentäter', angle: 165, tier: 4 },
-      { name: 'Artificer', angle: 200, tier: 4 },
-      { name: 'Klingentänzer', angle: 250, tier: 4 },
-
-      // Tier 5 - Deepest branches
-      { name: 'Runenkünstler', angle: 145, tier: 5 },
-      { name: 'Mentalist', angle: 50, tier: 5 },
-      { name: 'Dunkler Ritter', angle: 40, tier: 5 },
-      { name: 'Wächter', angle: 10, tier: 5 },
-      { name: 'Koloss', angle: -30, tier: 5 },
-      { name: 'Omen', angle: -45, tier: 5 },
-      { name: 'General', angle: -65, tier: 5 },
-      { name: 'Assassine', angle: 160, tier: 5 },
-      { name: 'Waffenmeister', angle: 260, tier: 5 },
-
-      // Tier 6 - Outermost
-      { name: 'Manalord', angle: 150, tier: 6 },
-      { name: 'Orakel', angle: 45, tier: 6 },
-      { name: 'Kriegsherr', angle: -70, tier: 6 },
-      { name: 'Duellant', angle: 270, tier: 6 },
-    ];
-
-    // Add extra tier radius for tier 6
-    if (this.tierRadii.length < 7) {
-      this.tierRadii.push(620);
-    }
-
-    // Create class positions
-    positions.forEach(pos => {
-      const angleRad = pos.angle * (Math.PI / 180);
-      const radius = this.tierRadii[pos.tier] || this.tierRadii[this.tierRadii.length - 1];
+    // Place base classes first (Tier 1)
+    baseClasses.forEach((cls, index) => {
+      const angles = branchAngles[cls];
+      const centerAngle = (angles.start + angles.end) / 2;
+      const angleRad = centerAngle * (Math.PI / 180);
+      const radius = this.tierRadii[1];
 
       this.classPositions.push({
-        name: pos.name,
+        name: cls,
         x: this.centerX + Math.cos(angleRad) * radius,
-        y: this.centerY - Math.sin(angleRad) * radius, // Negative because Y is inverted
-        tier: pos.tier,
-        parents: this.classParents.get(pos.name) || []
+        y: this.centerY - Math.sin(angleRad) * radius,
+        tier: 1,
+        parents: []
       });
+      placedClasses.add(cls);
     });
+
+    // Place remaining tiers
+    for (let tier = 2; tier <= 5; tier++) {
+      const classesInTier = tierClasses.get(tier) || [];
+
+      // Group by branch
+      const branchClasses: Map<string, string[]> = new Map();
+      classesInTier.forEach(cls => {
+        if (placedClasses.has(cls)) return;
+        const branch = classBranch.get(cls) || 'Magier';
+        if (!branchClasses.has(branch)) {
+          branchClasses.set(branch, []);
+        }
+        branchClasses.get(branch)!.push(cls);
+      });
+
+      // Place classes in each branch
+      branchClasses.forEach((classes, branch) => {
+        const angles = branchAngles[branch] || branchAngles['Magier'];
+        const angleRange = angles.end - angles.start;
+        const count = classes.length;
+
+        classes.forEach((cls, index) => {
+          // Distribute evenly within the branch's angle range
+          const angle = count === 1
+            ? (angles.start + angles.end) / 2
+            : angles.start + (angleRange * (index + 0.5)) / count;
+
+          const angleRad = angle * (Math.PI / 180);
+          const radius = this.tierRadii[tier] || this.tierRadii[this.tierRadii.length - 1];
+
+          this.classPositions.push({
+            name: cls,
+            x: this.centerX + Math.cos(angleRad) * radius,
+            y: this.centerY - Math.sin(angleRad) * radius,
+            tier: tier,
+            parents: this.classParents.get(cls) || []
+          });
+          placedClasses.add(cls);
+        });
+      });
+    }
 
     // Build connections based on class hierarchy
     this.classHierarchy.forEach((children, parent) => {
       children.forEach(child => {
-        // Only add connection if both classes exist in our positions
         const parentExists = this.classPositions.some(p => p.name === parent);
         const childExists = this.classPositions.some(p => p.name === child);
         if (parentExists && childExists) {
-          this.connections.push({ from: parent, to: child });
+          // Avoid duplicate connections
+          const exists = this.connections.some(c => c.from === parent && c.to === child);
+          if (!exists) {
+            this.connections.push({ from: parent, to: child });
+          }
         }
       });
     });
@@ -453,7 +546,7 @@ Schnellschütze: Artificer
   }
 
   getTierColor(tier: number): string {
-    return TIER_COLORS[tier as keyof typeof TIER_COLORS] || TIER_COLORS[5];
+    return TIER_COLORS[tier] || TIER_COLORS[5];
   }
 
   onClose() {
