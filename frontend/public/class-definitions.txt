@@ -23,6 +23,7 @@ Ritter: Erzritter, Paladin, Wächter
 Berserker: Kriegsherr, Omen
 Plünderer: General
 Mönch: Templer
+Schnellschütze: Artificer
 
 
 # Tier 4
@@ -31,9 +32,9 @@ Runenkünstler: Manalord, Dunkler Ritter
 Mentalist: Orakel, Nekromant
 Assassine: Attentäter
 Klingentänzer: Waffenmeister
-Erzritter: Wächter
+Erzritter: Wächter, Dunkler Ritter
 General: Kriegsherr
-Paladin: Dunkler Ritter
+Paladin:
 Templer: Koloss, Omen
 
 
