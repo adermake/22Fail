@@ -91,6 +91,7 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
     this.http.get('class-definitions.txt', { responseType: 'text' }).subscribe({
       next: (content) => {
         this.parseClassDefinitions(content);
+        this.loadSavedAngles(); // Load saved angles from localStorage
         this.buildLayout();
         setTimeout(() => this.centerView(), 0);
       },
@@ -98,9 +99,44 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
         console.error('Failed to load class-definitions.txt', err);
         // Fallback to hardcoded definitions
         this.parseClassDefinitions(this.getFallbackDefinitions());
+        this.loadSavedAngles();
         this.buildLayout();
       }
     });
+  }
+
+  // Load saved angles from localStorage
+  private loadSavedAngles() {
+    try {
+      const saved = localStorage.getItem('skill-tree-layout');
+      if (saved) {
+        const angles = JSON.parse(saved) as Record<string, number>;
+        const count = Object.keys(angles).length;
+        if (count > 0) {
+          console.log(`Loading ${count} saved class positions from localStorage`);
+          Object.entries(angles).forEach(([name, angle]) => {
+            this.classManualAngles.set(name, angle);
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load saved layout', e);
+    }
+  }
+
+  // Save angles to localStorage
+  private saveAngles() {
+    try {
+      const angles: Record<string, number> = {};
+      this.classManualAngles.forEach((angle, name) => {
+        angles[name] = angle;
+      });
+      const json = JSON.stringify(angles);
+      localStorage.setItem('skill-tree-layout', json);
+      console.log(`Saved ${Object.keys(angles).length} class positions to localStorage`);
+    } catch (e) {
+      console.error('Failed to save layout', e);
+    }
   }
 
   getFallbackDefinitions(): string {
@@ -545,6 +581,7 @@ Nekromant:`;
 
     // Save the angle
     this.classManualAngles.set(this.draggedClassName, angle);
+    this.saveAngles(); // Persist to localStorage
   }
 
   toggleEditMode() {
@@ -554,6 +591,7 @@ Nekromant:`;
   // Reset layout to default (clear all manual angles and rebuild)
   resetLayout() {
     this.classManualAngles.clear();
+    localStorage.removeItem('skill-tree-layout'); // Clear saved layout
     this.buildLayout();
   }
 
