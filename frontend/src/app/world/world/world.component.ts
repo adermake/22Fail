@@ -18,8 +18,6 @@ import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.comp
 import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
 import { BattleTracker } from '../battle-tracker/battle-tracker';
 import { LootManagerComponent, LootBundle } from '../loot-manager/loot-manager.component';
-import { BattleTimeline } from '../battle-timeline/battle-timeline.component';
-import { BattleTrackerEngine } from '../battle-timeline/battle-tracker-engine';
 
 // Re-export types for template usage
 export type { SimulatedTurn, BattleGroup };
@@ -27,7 +25,7 @@ export type { SimulatedTurn, BattleGroup };
 @Component({
   selector: 'app-world',
   standalone: true,
-  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker,BattleTimeline ,LootManagerComponent],
+  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
 })
@@ -63,9 +61,6 @@ export class WorldComponent implements OnInit, OnDestroy {
   // Drag state
   private dragScrollInterval?: number;
   private isDragging = false;
-
-  //timeline
-  battleTimeline = new BattleTrackerEngine();
 
   constructor(private route: ActivatedRoute) {}
 
