@@ -3,45 +3,43 @@ Kämpfer: Krieger, Barbar
 Techniker: Schütze, Dieb
 
 Kampfzauberer: Arkanist, Hämonant
-Heiler: Seelenmagier
+Heiler: Seelenmagier, Paladin
 
-Arkanist: Formationsmagier
-Formationsmagier: Runenkünstler
-Runenkünstler: Manalord
+Arkanist: Formationsmagier, Phantom, Runenkünstler
+Formationsmagier: Manalord, Artificer
+Runenkünstler: Manalord, Dunkler Ritter
 
 Hämonant: Nekromant
 
-Seelenmagier: Gestaltenwandler
-Gestaltenwandler: Mentalist
-Mentalist: Orakel
+Seelenmagier: Gestaltenwandler, Mentalist
+Mentalist: Orakel, Nekromant
+
+
 
 Schütze: Jäger, Schnellschütze
 Jäger: Attentäter
-Attentäter: Assassine
+Assassine: Attentäter
 
-Dieb: Kampfakrobat
-Kampfakrobat: Klingentänzer
+Dieb: Kampfakrobat, Assassine, Kampfakrobat
+Kampfakrobat: Klingentänzer, Duellant
 Klingentänzer: Waffenmeister
-Waffenmeister: Duellant
+
 
 Krieger: Ritter, Mönch
-Barbar: Berserker
+Barbar: Berserker, Plünderer
 
-Ritter: Erzritter
+Ritter: Erzritter, Paladin, Wächter
 Erzritter: Wächter
 
-Berserker: Plünderer
+Berserker: Kriegsherr, Omen
 Plünderer: General
 General: Kriegsherr
 
-Ritter + Heiler: Paladin
+
 Paladin: Dunkler Ritter
 
-Mönch + Barbar: Templer
-Templer: Koloss
+Mönch: Templer
+Templer: Koloss, Omen
 
-Berserker + Templer: Omen
 
-Magier + Kämpfer: Kampfzauberer
-Magier + Techniker: Arkanist
-Kämpfer + Techniker: Plünderer
+
