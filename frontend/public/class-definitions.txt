@@ -1,9 +1,47 @@
-Warrior: Knight, Berserker
-Mage: Archmage, Necromancer
-Rogue: Assassin, Thief
-Knight: Epic Knight, Holy Knight
-Berserker: Rage Knight
-Warrior + Mage: Paladin, Spellblade
-Warrior + Rogue: Shadow Knight
-Mage + Rogue: Trickster
-Epic Knight: Legendary Knight
+Magier: Kampfzauberer, Heiler
+Kämpfer: Krieger, Barbar
+Techniker: Schütze, Dieb
+
+Kampfzauberer: Arkanist, Hämonant
+Heiler: Seelenmagier
+
+Arkanist: Formationsmagier
+Formationsmagier: Runenkünstler
+Runenkünstler: Manalord
+
+Hämonant: Nekromant
+
+Seelenmagier: Gestaltenwandler
+Gestaltenwandler: Mentalist
+Mentalist: Orakel
+
+Schütze: Jäger, Schnellschütze
+Jäger: Attentäter
+Attentäter: Assassine
+
+Dieb: Kampfakrobat
+Kampfakrobat: Klingentänzer
+Klingentänzer: Waffenmeister
+Waffenmeister: Duellant
+
+Krieger: Ritter, Mönch
+Barbar: Berserker
+
+Ritter: Erzritter
+Erzritter: Wächter
+
+Berserker: Plünderer
+Plünderer: General
+General: Kriegsherr
+
+Ritter + Heiler: Paladin
+Paladin: Dunkler Ritter
+
+Mönch + Barbar: Templer
+Templer: Koloss
+
+Berserker + Templer: Omen
+
+Magier + Kämpfer: Kampfzauberer
+Magier + Techniker: Arkanist
+Kämpfer + Techniker: Plünderer

@@ -76,7 +76,7 @@ export class BattleTracker implements OnChanges {
 
     const first = this.sortedTurnOrder[0];
     return this.sortedTurnOrder.filter(
-      (p) => Math.abs(p.nextTurnAt - first.nextTurnAt) < 1.0 && p.team === first.team
+      (p) => p.team === first.team
     );
   }
 
