@@ -238,47 +238,22 @@ Nekromant:`;
       tierClasses.get(tier)!.push(className);
     });
 
-    // Define angle sectors for the three main branches
-    // Magier: top (60° to 150°), Kämpfer: bottom-right (-60° to 30°), Techniker: bottom-left (180° to 270°)
-    const branchAngles: Record<string, { start: number; end: number }> = {
-      'Magier': { start: 50, end: 140 },
-      'Kämpfer': { start: -70, end: 20 },
-      'Techniker': { start: 160, end: 280 },
-    };
-
-    // Track which branch each class belongs to
-    const classBranch: Map<string, string> = new Map();
     const baseClasses = ['Magier', 'Kämpfer', 'Techniker'];
-    baseClasses.forEach(bc => classBranch.set(bc, bc));
-
-    // Propagate branch assignment through hierarchy
-    const assignBranches = () => {
-      let changed = true;
-      while (changed) {
-        changed = false;
-        this.classHierarchy.forEach((children, parent) => {
-          const parentBranch = classBranch.get(parent);
-          if (parentBranch) {
-            children.forEach(child => {
-              if (!classBranch.has(child)) {
-                classBranch.set(child, parentBranch);
-                changed = true;
-              }
-            });
-          }
-        });
-      }
+    // Base class angles (in degrees) - spread around the circle
+    const baseAngles: Record<string, number> = {
+      'Magier': 90,      // top
+      'Kämpfer': -30,    // bottom-right
+      'Techniker': 210,  // bottom-left
     };
-    assignBranches();
 
-    // Place classes tier by tier
+    // Track placed classes and their angles
+    const classAngles: Map<string, number> = new Map();
     const placedClasses = new Set<string>();
 
-    // Place base classes first (Tier 1)
-    baseClasses.forEach((cls, index) => {
-      const angles = branchAngles[cls];
-      const centerAngle = (angles.start + angles.end) / 2;
-      const angleRad = centerAngle * (Math.PI / 180);
+    // Place base classes (Tier 1)
+    baseClasses.forEach(cls => {
+      const angle = baseAngles[cls];
+      const angleRad = angle * (Math.PI / 180);
       const radius = this.tierRadii[1];
 
       this.classPositions.push({
@@ -288,78 +263,85 @@ Nekromant:`;
         tier: 1,
         parents: []
       });
+      classAngles.set(cls, angle);
       placedClasses.add(cls);
     });
 
-    // Helper to get angle from position
-    const getAngle = (x: number, y: number): number => {
-      return Math.atan2(this.centerY - y, x - this.centerX) * (180 / Math.PI);
+    // Helper: normalize angle to -180 to 180
+    const normalizeAngle = (angle: number): number => {
+      while (angle > 180) angle -= 360;
+      while (angle < -180) angle += 360;
+      return angle;
     };
 
-    // Helper to get average parent angle (barycenter)
-    const getParentBarycenter = (cls: string): number => {
+    // Helper: get average angle of parents
+    const getParentAvgAngle = (cls: string): number => {
       const parents = this.classParents.get(cls) || [];
       if (parents.length === 0) return 0;
 
-      let sumAngle = 0;
-      let count = 0;
+      // For averaging angles, need to handle wraparound
+      let sumSin = 0, sumCos = 0;
       parents.forEach(parent => {
-        const parentPos = this.classPositions.find(p => p.name === parent);
-        if (parentPos) {
-          sumAngle += getAngle(parentPos.x, parentPos.y);
-          count++;
+        const angle = classAngles.get(parent);
+        if (angle !== undefined) {
+          const rad = angle * (Math.PI / 180);
+          sumSin += Math.sin(rad);
+          sumCos += Math.cos(rad);
         }
       });
-      return count > 0 ? sumAngle / count : 0;
+      return Math.atan2(sumSin, sumCos) * (180 / Math.PI);
     };
 
-    // Place remaining tiers
+    // Place tiers 2-5: position children near their parents
     for (let tier = 2; tier <= 5; tier++) {
-      const classesInTier = tierClasses.get(tier) || [];
+      const classesInTier = (tierClasses.get(tier) || []).filter(c => !placedClasses.has(c));
+      if (classesInTier.length === 0) continue;
 
-      // Group by branch
-      const branchClasses: Map<string, string[]> = new Map();
+      const radius = this.tierRadii[tier] || this.tierRadii[this.tierRadii.length - 1];
+
+      // Calculate target angle for each class based on parents
+      const classTargetAngles: { cls: string; targetAngle: number }[] = [];
       classesInTier.forEach(cls => {
-        if (placedClasses.has(cls)) return;
-        const branch = classBranch.get(cls) || 'Magier';
-        if (!branchClasses.has(branch)) {
-          branchClasses.set(branch, []);
-        }
-        branchClasses.get(branch)!.push(cls);
+        const targetAngle = getParentAvgAngle(cls);
+        classTargetAngles.push({ cls, targetAngle });
       });
 
-      // Place classes in each branch
-      branchClasses.forEach((classes, branch) => {
-        const angles = branchAngles[branch] || branchAngles['Magier'];
-        const angleRange = angles.end - angles.start;
+      // Sort by target angle
+      classTargetAngles.sort((a, b) => normalizeAngle(a.targetAngle) - normalizeAngle(b.targetAngle));
 
-        // Sort classes by their parent's barycenter angle to reduce crossings
-        const sortedClasses = [...classes].sort((a, b) => {
-          const aAngle = getParentBarycenter(a);
-          const bAngle = getParentBarycenter(b);
-          return bAngle - aAngle; // Sort by angle (descending for proper radial order)
+      // Minimum angular separation between nodes (in degrees)
+      const minSeparation = 18;
+
+      // Assign final angles, spreading out if too close
+      const finalAngles: number[] = [];
+      classTargetAngles.forEach((item, index) => {
+        let angle = item.targetAngle;
+
+        // Check collision with previously placed nodes in this tier
+        for (let i = 0; i < finalAngles.length; i++) {
+          const diff = normalizeAngle(angle - finalAngles[i]);
+          if (Math.abs(diff) < minSeparation) {
+            // Push this node away
+            if (diff >= 0) {
+              angle = finalAngles[i] + minSeparation;
+            } else {
+              angle = finalAngles[i] - minSeparation;
+            }
+          }
+        }
+
+        finalAngles.push(normalizeAngle(angle));
+        classAngles.set(item.cls, normalizeAngle(angle));
+
+        const angleRad = angle * (Math.PI / 180);
+        this.classPositions.push({
+          name: item.cls,
+          x: this.centerX + Math.cos(angleRad) * radius,
+          y: this.centerY - Math.sin(angleRad) * radius,
+          tier: tier,
+          parents: this.classParents.get(item.cls) || []
         });
-
-        const count = sortedClasses.length;
-
-        sortedClasses.forEach((cls, index) => {
-          // Distribute evenly within the branch's angle range
-          const angle = count === 1
-            ? (angles.start + angles.end) / 2
-            : angles.start + (angleRange * (index + 0.5)) / count;
-
-          const angleRad = angle * (Math.PI / 180);
-          const radius = this.tierRadii[tier] || this.tierRadii[this.tierRadii.length - 1];
-
-          this.classPositions.push({
-            name: cls,
-            x: this.centerX + Math.cos(angleRad) * radius,
-            y: this.centerY - Math.sin(angleRad) * radius,
-            tier: tier,
-            parents: this.classParents.get(cls) || []
-          });
-          placedClasses.add(cls);
-        });
+        placedClasses.add(item.cls);
       });
     }
 
@@ -369,7 +351,6 @@ Nekromant:`;
         const parentExists = this.classPositions.some(p => p.name === parent);
         const childExists = this.classPositions.some(p => p.name === child);
         if (parentExists && childExists) {
-          // Avoid duplicate connections
           const exists = this.connections.some(c => c.from === parent && c.to === child);
           if (!exists) {
             this.connections.push({ from: parent, to: child });
@@ -386,40 +367,12 @@ Nekromant:`;
     return { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
   }
 
-  // Get curved path for connection (quadratic bezier that arcs outward from center)
+  // Get path for connection - straight line since layout minimizes crossings
   getConnectionPath(conn: Connection): string | null {
     const from = this.classPositions.find(p => p.name === conn.from);
     const to = this.classPositions.find(p => p.name === conn.to);
     if (!from || !to) return null;
-
-    // Calculate midpoint
-    const midX = (from.x + to.x) / 2;
-    const midY = (from.y + to.y) / 2;
-
-    // Vector from center to midpoint
-    const dx = midX - this.centerX;
-    const dy = midY - this.centerY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist < 1) {
-      // Straight line if midpoint is at center
-      return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
-    }
-
-    // Normalize and push control point outward
-    // The curve amount is proportional to the angular distance between nodes
-    const fromAngle = Math.atan2(from.y - this.centerY, from.x - this.centerX);
-    const toAngle = Math.atan2(to.y - this.centerY, to.x - this.centerX);
-    let angleDiff = Math.abs(fromAngle - toAngle);
-    if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
-
-    // More curve for larger angular differences, subtle curve for small angles
-    const curveAmount = 20 + angleDiff * 30;
-
-    const ctrlX = midX + (dx / dist) * curveAmount;
-    const ctrlY = midY + (dy / dist) * curveAmount;
-
-    return `M ${from.x} ${from.y} Q ${ctrlX} ${ctrlY} ${to.x} ${to.y}`;
+    return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
   }
 
   // Pan and zoom methods
