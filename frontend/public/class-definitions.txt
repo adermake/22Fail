@@ -1,53 +1,51 @@
 # Tier 1
-Magier: Kampfzauberer, Heiler
-Kämpfer: Krieger, Barbar
-Techniker: Schütze, Dieb
-
+Magier@90: Kampfzauberer@114, Heiler@67
+Kämpfer@-41: Krieger@-57, Barbar@-10
+Techniker@-147: Schütze@-165, Dieb@-125
 
 # Tier 2
-Kampfzauberer: Arkanist, Hämonant
-Heiler: Seelenmagier, Paladin
-Schütze: Jäger, Schnellschütze
-Dieb: Kampfakrobat, Assassine
-Krieger: Ritter, Mönch
-Barbar: Berserker, Plünderer
-
+Kampfzauberer@114: Arkanist@123, Hämonant@90
+Heiler@67: Seelenmagier@59, Paladin@27
+Schütze@-165: Jäger@-168, Schnellschütze@172
+Dieb@-125: Kampfakrobat@-119, Assassine@-150
+Krieger@-57: Ritter@3, Mönch@-31
+Barbar@-10: Berserker@-66, Plünderer@-96
 
 # Tier 3
-Arkanist: Formationsmagier, Phantom, Runenkünstler
-Hämonant: Nekromant
-Seelenmagier: Gestaltenwandler, Mentalist
-Jäger: Attentäter
-Kampfakrobat: Klingentänzer, Duellant
-Ritter: Erzritter, Paladin, Wächter
-Berserker: Kriegsherr, Omen
-Plünderer: General
-Mönch: Templer
-Schnellschütze: Artificer
-
+Arkanist@123: Formationsmagier@127, Phantom@179, Runenkünstler@104
+Hämonant@90: Nekromant@83
+Seelenmagier@59: Gestaltenwandler@60, Mentalist@71
+Jäger@-168: Attentäter
+Kampfakrobat@-119: Klingentänzer@-133, Duellant@-116, Phantom@179:
+Ritter@3: Erzritter@12, Paladin@27, Wächter@-4
+Berserker@-66: Kriegsherr@-92, Omen@-48
+Plünderer@-96: General@-94
+Mönch@-31: Templer
+Schnellschütze@172: Artificer
 
 # Tier 4
-Formationsmagier: Manalord, Artificer
-Runenkünstler: Manalord, Dunkler Ritter
-Mentalist: Orakel, Nekromant
-Assassine: Attentäter
-Klingentänzer: Waffenmeister
-Erzritter: Wächter, Dunkler Ritter
-General: Kriegsherr
-Paladin:
-Templer: Koloss, Omen
-
+Phantom@179:
+Gestaltenwandler@60:
+Formationsmagier@127: Manalord@118, Artificer
+Runenkünstler@104: Manalord@118, Dunkler Ritter@24
+Mentalist@71: Orakel@67, Nekromant@83
+Assassine@-150: Attentäter
+Klingentänzer@-133: Waffenmeister@-133
+Erzritter@12: Wächter@-4, Dunkler Ritter@24
+General@-94: Kriegsherr@-92
+Paladin@27:
+Templer: Koloss@-20, Omen@-48
 
 # Tier 5
-Manalord:
+Manalord@118:
 Artificer:
 Attentäter:
-Duellant:
-Waffenmeister:
-Kriegsherr:
-Omen:
-Koloss:
-Wächter:
-Dunkler Ritter:
-Orakel:
-Nekromant:
+Duellant@-116:
+Waffenmeister@-133:
+Kriegsherr@-92:
+Omen@-48:
+Koloss@-20:
+Wächter@-4:
+Dunkler Ritter@24:
+Orakel@67:
+Nekromant@83:
