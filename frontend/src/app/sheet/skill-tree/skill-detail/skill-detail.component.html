@@ -5,6 +5,13 @@
   </div>
 
   <div class="panel-content">
+    @if (!canLearnFromClass) {
+      <div class="locked-notice">
+        <span class="lock-icon">🔒</span>
+        <span>{{ getLockedReason() }}</span>
+      </div>
+    }
+
     @if (skills.length === 0) {
       <div class="empty-state">
         <p>Keine Skills für diese Klasse definiert.</p>
@@ -16,6 +23,7 @@
             class="skill-item"
             [class.learned]="isLearned(skill)"
             [class.can-learn]="canLearn(skill)"
+            [class.enlightened]="skill.enlightened"
           >
             <div class="skill-header">
               <div class="skill-title">
@@ -23,17 +31,27 @@
                 <span class="skill-type" [class]="getTypeClass(skill.type)">
                   {{ getTypeLabel(skill.type) }}
                 </span>
+                @if (skill.enlightened) {
+                  <span class="enlightened-badge" title="Verinnerlichter Skill">✨</span>
+                }
               </div>
 
               @if (isLearned(skill)) {
-                <span class="learned-badge">Gelernt</span>
+                <div class="learned-actions">
+                  <span class="learned-badge">Gelernt</span>
+                  <button class="unlearn-btn" (click)="onUnlearn(skill)" title="Verlernen">
+                    ✕
+                  </button>
+                </div>
               } @else if (canLearn(skill)) {
                 <button class="learn-btn" (click)="onLearn(skill)">
                   Lernen (1 Punkt)
                 </button>
               } @else {
                 <span class="locked-badge">
-                  @if (availablePoints <= 0) {
+                  @if (!canLearnFromClass) {
+                    Gesperrt
+                  } @else if (availablePoints <= 0) {
                     Keine Punkte
                   } @else if (skill.requiresSkill) {
                     Voraussetzung fehlt

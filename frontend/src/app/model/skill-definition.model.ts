@@ -4,6 +4,7 @@ export interface SkillDefinition {
   class: string;                 // Class: "Magier"
   type: 'stat_bonus' | 'passive' | 'active';
   description: string;           // Full description
+  enlightened?: boolean;         // If true, skill is "enlightened" (marked with ! in original data)
 
   // For stat bonuses (type: 'stat_bonus')
   statBonus?: {

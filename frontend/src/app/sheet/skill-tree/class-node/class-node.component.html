@@ -3,15 +3,20 @@
   [class.selected]="isSelected"
   [class.accessible]="isAccessible"
   [class.complete]="isComplete"
+  [class.locked]="!canLearn"
   [class]="tierClass"
   [style.left.px]="x"
   [style.top.px]="y"
+  [style.borderColor]="tierColor"
   (click)="onClick()"
 >
   <div class="node-content">
     <span class="class-name">{{ className }}</span>
     @if (totalCount > 0) {
       <span class="skill-count">{{ learnedCount }}/{{ totalCount }}</span>
+    }
+    @if (!canLearn) {
+      <span class="locked-icon">🔒</span>
     }
   </div>
 
@@ -29,6 +34,7 @@
         cx="50" cy="50" r="46"
         fill="none"
         stroke-width="4"
+        [style.stroke]="tierColor"
         [style.strokeDasharray]="'289'"
         [style.strokeDashoffset]="289 - (289 * progress / 100)"
       />

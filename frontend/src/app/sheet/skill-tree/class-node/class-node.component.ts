@@ -1,6 +1,15 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
+// Tier color definitions
+const TIER_COLORS: Record<number, string> = {
+  1: '#22c55e',  // Green
+  2: '#eab308',  // Yellow
+  3: '#ef4444',  // Red
+  4: '#a855f7',  // Purple
+  5: '#3b82f6',  // Blue
+};
+
 @Component({
   selector: 'app-class-node',
   standalone: true,
@@ -17,6 +26,7 @@ export class ClassNodeComponent {
   @Input() totalCount: number = 0;
   @Input() isSelected: boolean = false;
   @Input() isAccessible: boolean = false;
+  @Input() canLearn: boolean = true;  // Can learn from this class (has 3 skills from parent)
 
   @Output() select = new EventEmitter<void>();
 
@@ -35,5 +45,9 @@ export class ClassNodeComponent {
 
   get tierClass(): string {
     return `tier-${this.tier}`;
+  }
+
+  get tierColor(): string {
+    return TIER_COLORS[this.tier] || TIER_COLORS[5];
   }
 }

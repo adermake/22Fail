@@ -14,8 +14,10 @@ export class SkillDetailComponent {
   @Input() skills: SkillDefinition[] = [];
   @Input() learnedSkillIds: string[] = [];
   @Input() availablePoints: number = 0;
+  @Input() canLearnFromClass: boolean = true;  // Has 3 skills from parent class
 
   @Output() learnSkill = new EventEmitter<SkillDefinition>();
+  @Output() unlearnSkill = new EventEmitter<SkillDefinition>();
   @Output() close = new EventEmitter<void>();
 
   isLearned(skill: SkillDefinition): boolean {
@@ -25,6 +27,7 @@ export class SkillDetailComponent {
   canLearn(skill: SkillDefinition): boolean {
     if (this.isLearned(skill)) return false;
     if (this.availablePoints <= 0) return false;
+    if (!this.canLearnFromClass) return false;
 
     // Check required skill
     if (skill.requiresSkill && !this.learnedSkillIds.includes(skill.requiresSkill)) {
@@ -37,6 +40,12 @@ export class SkillDetailComponent {
   onLearn(skill: SkillDefinition) {
     if (this.canLearn(skill)) {
       this.learnSkill.emit(skill);
+    }
+  }
+
+  onUnlearn(skill: SkillDefinition) {
+    if (this.isLearned(skill)) {
+      this.unlearnSkill.emit(skill);
     }
   }
 
@@ -98,5 +107,12 @@ export class SkillDetailComponent {
     const label = statLabels[skill.statBonus.stat] || skill.statBonus.stat;
     const sign = skill.statBonus.amount >= 0 ? '+' : '';
     return `${sign}${skill.statBonus.amount} ${label}`;
+  }
+
+  getLockedReason(): string {
+    if (!this.canLearnFromClass) {
+      return 'Benötigt 3 Skills von einer Vorgängerklasse';
+    }
+    return '';
   }
 }

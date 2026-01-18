@@ -2,8 +2,8 @@ import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
-import { SkillDefinition, getSkillsForClass } from '../../model/skill-definition.model';
-import { SKILL_DEFINITIONS, getSkillById } from '../../data/skill-definitions';
+import { SkillDefinition } from '../../model/skill-definition.model';
+import { SKILL_DEFINITIONS, getSkillById, getSkillsForClass } from '../../data/skill-definitions';
 import { ClassNodeComponent } from './class-node/class-node.component';
 import { SkillDetailComponent } from './skill-detail/skill-detail.component';
 import { SkillBlock } from '../../model/skill-block.model';
@@ -21,6 +21,15 @@ interface Connection {
   to: ClassPosition;
 }
 
+// Tier color definitions
+export const TIER_COLORS = {
+  1: '#22c55e',  // Green
+  2: '#eab308',  // Yellow
+  3: '#ef4444',  // Red
+  4: '#a855f7',  // Purple
+  5: '#3b82f6',  // Blue
+} as const;
+
 @Component({
   selector: 'app-skill-tree',
   standalone: true,
@@ -37,12 +46,12 @@ export class SkillTreeComponent implements OnInit {
   classPositions: ClassPosition[] = [];
   connections: Connection[] = [];
 
-  // Center of the tree
-  centerX = 400;
-  centerY = 400;
+  // Center of the tree - will be calculated based on container
+  centerX = 350;
+  centerY = 350;
 
-  // Ring radii for each tier
-  tierRadii = [0, 100, 180, 260, 340, 420];
+  // Ring radii for each tier - scaled down for better fit
+  tierRadii = [0, 80, 150, 220, 290, 360];
 
   // Class hierarchy parsed from class-definitions
   classHierarchy: Map<string, string[]> = new Map();
@@ -165,7 +174,7 @@ Berserker + Templer: Omen
 
           // Calculate position for this child
           const parentAngle = Math.atan2(parentPos.y - this.centerY, parentPos.x - this.centerX);
-          const spreadAngle = 25 * (Math.PI / 180); // Spread children by 25 degrees
+          const spreadAngle = 20 * (Math.PI / 180); // Spread children by 20 degrees
           const childCount = children.filter(c => !placed.has(c)).length;
           const startOffset = -(childCount - 1) / 2;
           const angleOffset = (startOffset + childIndex) * spreadAngle;
@@ -198,7 +207,7 @@ Berserker + Templer: Omen
 
   getSkillsForSelectedClass(): SkillDefinition[] {
     if (!this.selectedClass) return [];
-    return getSkillsForClass(SKILL_DEFINITIONS, this.selectedClass);
+    return getSkillsForClass(this.selectedClass);
   }
 
   isSkillLearned(skillId: string): boolean {
@@ -206,12 +215,12 @@ Berserker + Templer: Omen
   }
 
   getLearnedCountForClass(className: string): number {
-    const classSkills = getSkillsForClass(SKILL_DEFINITIONS, className);
+    const classSkills = getSkillsForClass(className);
     return classSkills.filter(s => this.isSkillLearned(s.id)).length;
   }
 
   getTotalSkillsForClass(className: string): number {
-    return getSkillsForClass(SKILL_DEFINITIONS, className).length;
+    return getSkillsForClass(className).length;
   }
 
   getAvailableTalentPoints(): number {
@@ -222,12 +231,34 @@ Berserker + Templer: Omen
     return basePoints + bonusPoints - spentPoints;
   }
 
+  // Check if a class can have skills learned (needs 3 skills from at least one parent)
+  canLearnFromClass(className: string): boolean {
+    // Base classes (Tier 1) can always learn
+    const classPos = this.classPositions.find(p => p.name === className);
+    if (!classPos || classPos.tier === 1) return true;
+
+    // For higher tiers, need 3 skills from at least one parent
+    const parents = this.classParents.get(className) || [];
+    for (const parent of parents) {
+      const parentLearnedCount = this.getLearnedCountForClass(parent);
+      if (parentLearnedCount >= 3) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   canLearnSkill(skill: SkillDefinition): boolean {
     if (this.isSkillLearned(skill.id)) return false;
     if (this.getAvailableTalentPoints() <= 0) return false;
 
     // Check if required skill is learned
     if (skill.requiresSkill && !this.isSkillLearned(skill.requiresSkill)) {
+      return false;
+    }
+
+    // Check 3-skill prerequisite from parent class
+    if (!this.canLearnFromClass(skill.class)) {
       return false;
     }
 
@@ -245,15 +276,37 @@ Berserker + Templer: Omen
     });
 
     // Create a SkillBlock and add to character's skills
+    // Use the skill's enlightened value from the definition
     const newSkillBlock: SkillBlock = {
       name: skill.name,
       class: skill.class,
       description: skill.description,
       type: skill.type === 'active' ? 'active' : 'passive',
-      enlightened: true // Tree skills are always available
+      enlightened: skill.enlightened ?? false  // Use skill definition's enlightened value
     };
 
     const newSkills = [...(this.sheet.skills || []), newSkillBlock];
+    this.patch.emit({
+      path: 'skills',
+      value: newSkills
+    });
+  }
+
+  unlearnSkill(skill: SkillDefinition) {
+    if (!this.isSkillLearned(skill.id)) return;
+
+    // Remove from learned skill IDs
+    const newLearnedIds = (this.sheet.learnedSkillIds || []).filter(id => id !== skill.id);
+    this.patch.emit({
+      path: 'learnedSkillIds',
+      value: newLearnedIds
+    });
+
+    // Remove the skill from character's skills array
+    // Match by name and class since we don't have a unique id on SkillBlock
+    const newSkills = (this.sheet.skills || []).filter(
+      s => !(s.name === skill.name && s.class === skill.class)
+    );
     this.patch.emit({
       path: 'skills',
       value: newSkills
@@ -281,6 +334,10 @@ Berserker + Templer: Omen
     }
 
     return false;
+  }
+
+  getTierColor(tier: number): string {
+    return TIER_COLORS[tier as keyof typeof TIER_COLORS] || TIER_COLORS[5];
   }
 
   onClose() {
