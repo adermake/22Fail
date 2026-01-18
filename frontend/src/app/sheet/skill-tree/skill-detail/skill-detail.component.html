@@ -7,8 +7,7 @@
   <div class="panel-content">
     @if (!canLearnFromClass) {
       <div class="locked-notice">
-        <span class="lock-icon">🔒</span>
-        <span>{{ getLockedReason() }}</span>
+        {{ getLockedReason() }}
       </div>
     }
 

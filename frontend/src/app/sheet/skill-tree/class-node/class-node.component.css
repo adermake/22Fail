@@ -33,11 +33,13 @@
 }
 
 .class-node.locked {
-  opacity: 0.6;
+  opacity: 0.4;
+  filter: grayscale(70%);
 }
 
 .class-node.locked:hover {
-  opacity: 0.8;
+  opacity: 0.6;
+  filter: grayscale(50%);
 }
 
 /* Tier-based sizes */
@@ -98,13 +100,6 @@
 
 .class-node.complete .skill-count {
   color: #22c55e;
-}
-
-.locked-icon {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  font-size: 0.7rem;
 }
 
 /* Progress ring */
