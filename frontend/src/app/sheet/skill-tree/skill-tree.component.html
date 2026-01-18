@@ -1,0 +1,73 @@
+<div class="skill-tree-overlay" (click)="onClose()">
+  <div class="skill-tree-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Talentbaum</h2>
+      <div class="talent-points">
+        <span class="points-label">Talentpunkte:</span>
+        <span class="points-value">{{ getAvailableTalentPoints() }}</span>
+      </div>
+      <button class="close-btn" (click)="onClose()">&times;</button>
+    </div>
+
+    <div class="modal-content">
+      <!-- Tree View -->
+      <div class="tree-container">
+        <svg class="tree-svg" [attr.viewBox]="'0 0 800 800'">
+          <!-- Connection lines -->
+          @for (conn of connections; track conn.from.name + '-' + conn.to.name) {
+            <line
+              class="connection-line"
+              [class.accessible]="isClassAccessible(conn.from.name) || isClassAccessible(conn.to.name)"
+              [attr.x1]="conn.from.x"
+              [attr.y1]="conn.from.y"
+              [attr.x2]="conn.to.x"
+              [attr.y2]="conn.to.y"
+            />
+          }
+
+          <!-- Tier rings (decorative) -->
+          @for (radius of tierRadii; track radius; let i = $index) {
+            @if (i > 0) {
+              <circle
+                class="tier-ring"
+                [attr.cx]="centerX"
+                [attr.cy]="centerY"
+                [attr.r]="radius"
+                fill="none"
+              />
+            }
+          }
+        </svg>
+
+        <!-- Class nodes -->
+        @for (classPos of classPositions; track classPos.name) {
+          <app-class-node
+            [className]="classPos.name"
+            [x]="classPos.x"
+            [y]="classPos.y"
+            [tier]="classPos.tier"
+            [learnedCount]="getLearnedCountForClass(classPos.name)"
+            [totalCount]="getTotalSkillsForClass(classPos.name)"
+            [isSelected]="selectedClass === classPos.name"
+            [isAccessible]="isClassAccessible(classPos.name)"
+            (select)="selectClass(classPos.name)"
+          />
+        }
+      </div>
+
+      <!-- Skill Detail Panel -->
+      @if (selectedClass) {
+        <div class="skill-panel">
+          <app-skill-detail
+            [className]="selectedClass"
+            [skills]="getSkillsForSelectedClass()"
+            [learnedSkillIds]="sheet.learnedSkillIds || []"
+            [availablePoints]="getAvailableTalentPoints()"
+            (learnSkill)="learnSkill($event)"
+            (close)="selectedClass = null"
+          />
+        </div>
+      }
+    </div>
+  </div>
+</div>

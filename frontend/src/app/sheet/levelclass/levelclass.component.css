@@ -45,3 +45,121 @@ input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(107, 70, 193, 0.2);
 }
+
+/* Talent Points Section */
+.talent-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.talent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.talent-header h3 {
+  margin: 0;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.skill-tree-btn {
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.skill-tree-btn:hover {
+  background: var(--accentdark);
+  transform: translateY(-1px);
+}
+
+.talent-info {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.talent-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.talent-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.talent-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.talent-value.available {
+  color: var(--accent);
+}
+
+.talent-value.spent {
+  color: #f59e0b;
+}
+
+.talent-value.total {
+  color: var(--text);
+}
+
+.bonus-adjust {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  background: var(--bg);
+  border-radius: 6px;
+}
+
+.bonus-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.bonus-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.adjust-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.adjust-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.bonus-value {
+  min-width: 30px;
+  text-align: center;
+  font-weight: 600;
+}

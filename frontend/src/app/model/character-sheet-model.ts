@@ -47,6 +47,10 @@ export interface CharacterSheet {
   spells: SpellBlock[];
   currency: Currency;
   trash: SheetTrashItem[]; // Recycle bin for deleted items
+  // Talent System
+  talentPoints: number;           // Available talent points to spend
+  talentPointsBonus: number;      // GM-assigned bonus talent points
+  learnedSkillIds: string[];      // IDs of skills learned from the skill tree
 }
 
 export function createEmptySheet(): CharacterSheet {
@@ -84,6 +88,9 @@ export function createEmptySheet(): CharacterSheet {
       platinum: 0,
     },
     trash: [],
+    talentPoints: 0,
+    talentPointsBonus: 0,
+    learnedSkillIds: [],
   };
 }
 

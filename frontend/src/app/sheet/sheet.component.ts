@@ -27,6 +27,7 @@ import { ItemComponent } from './item/item.component';
 import { ItemCreatorComponent } from './item-creator/item-creator.component';
 import { CardComponent } from '../shared/card/card.component';
 import { CharacterTabsComponent } from './character-tabs/character-tabs';
+import { SkillTreeComponent } from './skill-tree/skill-tree.component';
 
 @Component({
   selector: 'app-sheet',
@@ -41,7 +42,8 @@ import { CharacterTabsComponent } from './character-tabs/character-tabs';
     CurrencyComponent,
     EquipmentComponent,
     LootPopupComponent,
-    CharacterTabsComponent
+    CharacterTabsComponent,
+    SkillTreeComponent
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
@@ -298,6 +300,17 @@ export class SheetComponent implements OnInit {
   onCloseLootPopup() {
     this.showLootPopup = false;
     this.receivedLoot = [];
+  }
+
+  // Skill Tree
+  showSkillTree = false;
+
+  openSkillTree() {
+    this.showSkillTree = true;
+  }
+
+  closeSkillTree() {
+    this.showSkillTree = false;
   }
 
   // Trash management

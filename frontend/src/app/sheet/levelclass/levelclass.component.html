@@ -4,9 +4,9 @@
 
     <div class="row">
       <div class="col">
-        <label for="race">Primär</label>
+        <label for="primary">Primär</label>
         <input
-          id="race"
+          id="primary"
           type="text"
           placeholder="Kämpfer"
           [(ngModel)]="sheet.primary_class"
@@ -14,9 +14,9 @@
         />
       </div>
       <div class="col">
-        <label for="race">Sekundär</label>
+        <label for="secondary">Sekundär</label>
         <input
-          id="race"
+          id="secondary"
           type="text"
           placeholder="Techniker"
           [(ngModel)]="sheet.secondary_class"
@@ -24,26 +24,61 @@
         />
       </div>
       <div class="col">
-        <label for="age">Level</label>
+        <label for="level">Level</label>
         <input
-          id="age"
-          type="text"
-          placeholder="24"
+          id="level"
+          type="number"
+          placeholder="1"
           [(ngModel)]="sheet.level"
           (ngModelChange)="updateField('level', $event)"
         />
       </div>
     </div>
+
     <div class="row">
       <div class="col">
-        <label for="race">Verinnerlicht</label>
+        <label for="learned">Verinnerlicht</label>
         <input
-          id="race"
+          id="learned"
           type="text"
           placeholder="Kämpfer/Techniker/Magier"
           [(ngModel)]="sheet.learned_classes"
           (ngModelChange)="updateField('learned_classes', $event)"
         />
+      </div>
+    </div>
+
+    <!-- Talent Points Section -->
+    <div class="talent-section">
+      <div class="talent-header">
+        <h3>Talentpunkte</h3>
+        <button class="skill-tree-btn" (click)="onOpenSkillTree()">
+          Talentbaum öffnen
+        </button>
+      </div>
+
+      <div class="talent-info">
+        <div class="talent-stat">
+          <span class="talent-label">Verfügbar:</span>
+          <span class="talent-value available">{{ availableTalentPoints }}</span>
+        </div>
+        <div class="talent-stat">
+          <span class="talent-label">Ausgegeben:</span>
+          <span class="talent-value spent">{{ spentTalentPoints }}</span>
+        </div>
+        <div class="talent-stat">
+          <span class="talent-label">Gesamt:</span>
+          <span class="talent-value total">{{ totalTalentPoints }}</span>
+        </div>
+      </div>
+
+      <div class="bonus-adjust">
+        <span class="bonus-label">Bonus-Punkte (GM):</span>
+        <div class="bonus-controls">
+          <button class="adjust-btn" (click)="adjustBonusPoints(-1)">-</button>
+          <span class="bonus-value">{{ sheet.talentPointsBonus || 0 }}</span>
+          <button class="adjust-btn" (click)="adjustBonusPoints(1)">+</button>
+        </div>
       </div>
     </div>
   </app-card>

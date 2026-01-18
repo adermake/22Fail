@@ -1,0 +1,71 @@
+<div class="skill-detail-panel">
+  <div class="panel-header">
+    <h3>{{ className }}</h3>
+    <button class="close-btn" (click)="onClose()">&times;</button>
+  </div>
+
+  <div class="panel-content">
+    @if (skills.length === 0) {
+      <div class="empty-state">
+        <p>Keine Skills für diese Klasse definiert.</p>
+      </div>
+    } @else {
+      <div class="skills-list">
+        @for (skill of skills; track skill.id) {
+          <div
+            class="skill-item"
+            [class.learned]="isLearned(skill)"
+            [class.can-learn]="canLearn(skill)"
+          >
+            <div class="skill-header">
+              <div class="skill-title">
+                <span class="skill-name">{{ skill.name }}</span>
+                <span class="skill-type" [class]="getTypeClass(skill.type)">
+                  {{ getTypeLabel(skill.type) }}
+                </span>
+              </div>
+
+              @if (isLearned(skill)) {
+                <span class="learned-badge">Gelernt</span>
+              } @else if (canLearn(skill)) {
+                <button class="learn-btn" (click)="onLearn(skill)">
+                  Lernen (1 Punkt)
+                </button>
+              } @else {
+                <span class="locked-badge">
+                  @if (availablePoints <= 0) {
+                    Keine Punkte
+                  } @else if (skill.requiresSkill) {
+                    Voraussetzung fehlt
+                  }
+                </span>
+              }
+            </div>
+
+            <div class="skill-body">
+              @if (skill.type === 'stat_bonus' && skill.statBonus) {
+                <div class="stat-bonus">
+                  {{ getStatBonusDisplay(skill) }}
+                </div>
+              }
+
+              <p class="skill-description">{{ skill.description }}</p>
+
+              @if (skill.cost && skill.cost.amount > 0) {
+                <div class="skill-cost">
+                  Kosten: {{ getCostDisplay(skill) }}
+                </div>
+              }
+
+              @if (skill.requiresSkill) {
+                <div class="skill-requirement">
+                  Benötigt: {{ skill.requiresSkill }}
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

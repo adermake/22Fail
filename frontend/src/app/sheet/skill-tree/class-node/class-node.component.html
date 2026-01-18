@@ -1,0 +1,37 @@
+<div
+  class="class-node"
+  [class.selected]="isSelected"
+  [class.accessible]="isAccessible"
+  [class.complete]="isComplete"
+  [class]="tierClass"
+  [style.left.px]="x"
+  [style.top.px]="y"
+  (click)="onClick()"
+>
+  <div class="node-content">
+    <span class="class-name">{{ className }}</span>
+    @if (totalCount > 0) {
+      <span class="skill-count">{{ learnedCount }}/{{ totalCount }}</span>
+    }
+  </div>
+
+  <!-- Progress ring -->
+  @if (totalCount > 0) {
+    <svg class="progress-ring" viewBox="0 0 100 100">
+      <circle
+        class="progress-bg"
+        cx="50" cy="50" r="46"
+        fill="none"
+        stroke-width="4"
+      />
+      <circle
+        class="progress-fill"
+        cx="50" cy="50" r="46"
+        fill="none"
+        stroke-width="4"
+        [style.strokeDasharray]="'289'"
+        [style.strokeDashoffset]="289 - (289 * progress / 100)"
+      />
+    </svg>
+  }
+</div>

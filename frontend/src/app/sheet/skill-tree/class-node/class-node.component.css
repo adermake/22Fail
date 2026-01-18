@@ -1,0 +1,121 @@
+.class-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 3px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.class-node:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+}
+
+.class-node.selected {
+  border-color: var(--accent);
+  background: var(--accentdark);
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.5);
+}
+
+.class-node.accessible {
+  border-color: var(--accent);
+}
+
+.class-node.complete {
+  border-color: #22c55e;
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+}
+
+/* Tier-based colors */
+.class-node.tier-1 {
+  width: 90px;
+  height: 90px;
+  background: linear-gradient(135deg, var(--card) 0%, #2d3748 100%);
+}
+
+.class-node.tier-2 {
+  width: 75px;
+  height: 75px;
+}
+
+.class-node.tier-3 {
+  width: 70px;
+  height: 70px;
+}
+
+.class-node.tier-4,
+.class-node.tier-5,
+.class-node.tier-6 {
+  width: 65px;
+  height: 65px;
+}
+
+.node-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.25rem;
+  z-index: 2;
+}
+
+.class-name {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.1;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tier-1 .class-name {
+  font-size: 0.75rem;
+  max-width: 70px;
+}
+
+.skill-count {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.class-node.complete .skill-count {
+  color: #22c55e;
+}
+
+/* Progress ring */
+.progress-ring {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: calc(100% + 6px);
+  height: calc(100% + 6px);
+  pointer-events: none;
+  transform: rotate(-90deg);
+}
+
+.progress-bg {
+  stroke: var(--border);
+  opacity: 0.3;
+}
+
+.progress-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.class-node.complete .progress-fill {
+  stroke: #22c55e;
+}

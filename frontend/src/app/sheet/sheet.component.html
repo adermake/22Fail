@@ -6,7 +6,7 @@
     (patch)="store.applyPatch($any($event))"
   ></app-character>
   <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>
-  <app-levelclass [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-levelclass>
+  <app-levelclass [sheet]="sheet" (patch)="store.applyPatch($any($event))" (openSkillTree)="showSkillTree = true"></app-levelclass>
   <app-currentstats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-currentstats>
   <app-currency [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-currency>
 
@@ -34,6 +34,15 @@
     (claimItem)="onClaimLoot($event)"
     (close)="onCloseLootPopup()">
   </app-loot-popup>
+}
+
+<!-- Skill Tree Modal -->
+@if (showSkillTree) {
+  <app-skill-tree
+    [sheet]="sheet"
+    (patch)="store.applyPatch($any($event))"
+    (close)="closeSkillTree()">
+  </app-skill-tree>
 }
 
 <!-- Trash Dialog -->
