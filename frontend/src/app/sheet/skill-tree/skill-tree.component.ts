@@ -292,45 +292,31 @@ Nekromant:`;
       return Math.atan2(sumSin, sumCos) * (180 / Math.PI);
     };
 
-    // Place tiers 2-5: position children near their parents
+    // Place tiers 2-5: evenly spaced, sorted by parent angle
     for (let tier = 2; tier <= 5; tier++) {
       const classesInTier = (tierClasses.get(tier) || []).filter(c => !placedClasses.has(c));
       if (classesInTier.length === 0) continue;
 
       const radius = this.tierRadii[tier] || this.tierRadii[this.tierRadii.length - 1];
 
-      // Calculate target angle for each class based on parents
+      // Calculate target angle for each class based on parents (for sorting)
       const classTargetAngles: { cls: string; targetAngle: number }[] = [];
       classesInTier.forEach(cls => {
         const targetAngle = getParentAvgAngle(cls);
         classTargetAngles.push({ cls, targetAngle });
       });
 
-      // Sort by target angle
+      // Sort by target angle so related classes stay grouped
       classTargetAngles.sort((a, b) => normalizeAngle(a.targetAngle) - normalizeAngle(b.targetAngle));
 
-      // Minimum angular separation between nodes (in degrees)
-      const minSeparation = 18;
+      // Distribute evenly around the circle
+      const count = classTargetAngles.length;
+      const angleStep = 360 / count;
 
-      // Assign final angles, spreading out if too close
-      const finalAngles: number[] = [];
       classTargetAngles.forEach((item, index) => {
-        let angle = item.targetAngle;
+        // Evenly spaced starting from -180
+        const angle = -180 + (index * angleStep) + (angleStep / 2);
 
-        // Check collision with previously placed nodes in this tier
-        for (let i = 0; i < finalAngles.length; i++) {
-          const diff = normalizeAngle(angle - finalAngles[i]);
-          if (Math.abs(diff) < minSeparation) {
-            // Push this node away
-            if (diff >= 0) {
-              angle = finalAngles[i] + minSeparation;
-            } else {
-              angle = finalAngles[i] - minSeparation;
-            }
-          }
-        }
-
-        finalAngles.push(normalizeAngle(angle));
         classAngles.set(item.cls, normalizeAngle(angle));
 
         const angleRad = angle * (Math.PI / 180);
