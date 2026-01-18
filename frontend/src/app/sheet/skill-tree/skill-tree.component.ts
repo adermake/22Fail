@@ -291,6 +291,28 @@ Nekromant:`;
       placedClasses.add(cls);
     });
 
+    // Helper to get angle from position
+    const getAngle = (x: number, y: number): number => {
+      return Math.atan2(this.centerY - y, x - this.centerX) * (180 / Math.PI);
+    };
+
+    // Helper to get average parent angle (barycenter)
+    const getParentBarycenter = (cls: string): number => {
+      const parents = this.classParents.get(cls) || [];
+      if (parents.length === 0) return 0;
+
+      let sumAngle = 0;
+      let count = 0;
+      parents.forEach(parent => {
+        const parentPos = this.classPositions.find(p => p.name === parent);
+        if (parentPos) {
+          sumAngle += getAngle(parentPos.x, parentPos.y);
+          count++;
+        }
+      });
+      return count > 0 ? sumAngle / count : 0;
+    };
+
     // Place remaining tiers
     for (let tier = 2; tier <= 5; tier++) {
       const classesInTier = tierClasses.get(tier) || [];
@@ -310,9 +332,17 @@ Nekromant:`;
       branchClasses.forEach((classes, branch) => {
         const angles = branchAngles[branch] || branchAngles['Magier'];
         const angleRange = angles.end - angles.start;
-        const count = classes.length;
 
-        classes.forEach((cls, index) => {
+        // Sort classes by their parent's barycenter angle to reduce crossings
+        const sortedClasses = [...classes].sort((a, b) => {
+          const aAngle = getParentBarycenter(a);
+          const bAngle = getParentBarycenter(b);
+          return bAngle - aAngle; // Sort by angle (descending for proper radial order)
+        });
+
+        const count = sortedClasses.length;
+
+        sortedClasses.forEach((cls, index) => {
           // Distribute evenly within the branch's angle range
           const angle = count === 1
             ? (angles.start + angles.end) / 2
@@ -354,6 +384,42 @@ Nekromant:`;
     const to = this.classPositions.find(p => p.name === conn.to);
     if (!from || !to) return null;
     return { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
+  }
+
+  // Get curved path for connection (quadratic bezier that arcs outward from center)
+  getConnectionPath(conn: Connection): string | null {
+    const from = this.classPositions.find(p => p.name === conn.from);
+    const to = this.classPositions.find(p => p.name === conn.to);
+    if (!from || !to) return null;
+
+    // Calculate midpoint
+    const midX = (from.x + to.x) / 2;
+    const midY = (from.y + to.y) / 2;
+
+    // Vector from center to midpoint
+    const dx = midX - this.centerX;
+    const dy = midY - this.centerY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 1) {
+      // Straight line if midpoint is at center
+      return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+    }
+
+    // Normalize and push control point outward
+    // The curve amount is proportional to the angular distance between nodes
+    const fromAngle = Math.atan2(from.y - this.centerY, from.x - this.centerX);
+    const toAngle = Math.atan2(to.y - this.centerY, to.x - this.centerX);
+    let angleDiff = Math.abs(fromAngle - toAngle);
+    if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+
+    // More curve for larger angular differences, subtle curve for small angles
+    const curveAmount = 20 + angleDiff * 30;
+
+    const ctrlX = midX + (dx / dist) * curveAmount;
+    const ctrlY = midY + (dy / dist) * curveAmount;
+
+    return `M ${from.x} ${from.y} Q ${ctrlX} ${ctrlY} ${to.x} ${to.y}`;
   }
 
   // Pan and zoom methods
