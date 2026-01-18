@@ -1,16 +1,16 @@
 # Tier 1
-Magier@90: Kampfzauberer, Heiler
-Kämpfer@135: Krieger, Barbar
-Techniker@225: Schütze, Dieb
+Magier: Kampfzauberer, Heiler
+Kämpfer: Krieger, Barbar
+Techniker: Schütze, Dieb
 
 
 # Tier 2
-Kampfzauberer@115: Arkanist, Hämonant
-Heiler@75: Seelenmagier, Paladin
-Schütze@250: Jäger, Schnellschütze
-Dieb@200: Kampfakrobat, Assassine
-Krieger@115: Ritter, Mönch
-Barbar@160: Berserker, Plünderer
+Kampfzauberer: Arkanist, Hämonant
+Heiler: Seelenmagier, Paladin
+Schütze: Jäger, Schnellschütze
+Dieb: Kampfakrobat, Assassine
+Krieger: Ritter, Mönch
+Barbar: Berserker, Plünderer
 
 
 # Tier 3
