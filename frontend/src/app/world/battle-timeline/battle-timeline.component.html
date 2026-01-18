@@ -1,0 +1,17 @@
+<div class="timeline">
+  <div
+    class="timeline-group"
+    *ngFor="let g of timeline; let i=index"
+    (drop)="onDrop(i)"
+    (dragover)="$event.preventDefault()"
+  >
+    <div
+      class="entry"
+      *ngFor="let p of g.participants"
+      draggable="true"
+      (dragstart)="onDragStart(p)"
+    >
+      {{p.characterId}}
+    </div>
+  </div>
+</div>

@@ -70,7 +70,7 @@ export class BattleTracker implements OnChanges {
     return this.sortedTurnOrder[0];
   }
 
-  // Get all participants in the current turn group (same nextTurnAt and team)
+  // Get all participants in the current turn group that are next to eachother
   get currentTurnGroup(): ParticipantWithPortrait[] {
     if (this.sortedTurnOrder.length === 0) return [];
 
