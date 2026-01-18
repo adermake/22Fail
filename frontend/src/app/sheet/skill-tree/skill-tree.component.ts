@@ -68,6 +68,7 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
   classHierarchy: Map<string, string[]> = new Map();
   classParents: Map<string, string[]> = new Map();
   classTiers: Map<string, number> = new Map();
+  classManualAngles: Map<string, number> = new Map(); // Manual angle overrides
 
   constructor(private http: HttpClient) {}
 
@@ -152,9 +153,19 @@ Nekromant:`;
     this.classHierarchy.clear();
     this.classParents.clear();
     this.classTiers.clear();
+    this.classManualAngles.clear();
 
     let currentTier = 0;
     const lines = content.split('\n');
+
+    // Helper to parse class name with optional angle: "ClassName@45" or "ClassName"
+    const parseClassWithAngle = (str: string): { name: string; angle?: number } => {
+      const angleMatch = str.match(/^(.+?)@(-?\d+(?:\.\d+)?)$/);
+      if (angleMatch) {
+        return { name: angleMatch[1].trim(), angle: parseFloat(angleMatch[2]) };
+      }
+      return { name: str.trim() };
+    };
 
     for (const line of lines) {
       const trimmed = line.trim();
@@ -172,27 +183,44 @@ Nekromant:`;
       // Skip other comments
       if (trimmed.startsWith('#')) continue;
 
-      // Parse class definition: "Parent: Child1, Child2" or "Parent1 + Parent2: Child"
+      // Parse class definition: "Parent@angle: Child1@angle, Child2"
       const match = trimmed.match(/^(.+?):\s*(.*)$/);
       if (match) {
         const parentPart = match[1].trim();
         const childrenPart = match[2].trim();
 
         // Handle multi-parent classes (e.g., "Ritter + Heiler")
-        const parents = parentPart.split('+').map(p => p.trim());
+        const parentStrings = parentPart.split('+').map(p => p.trim());
+        const parents: string[] = [];
 
-        // Register parent classes at current tier if not already set
-        parents.forEach(parent => {
-          if (!this.classTiers.has(parent)) {
-            this.classTiers.set(parent, currentTier);
+        parentStrings.forEach(pStr => {
+          const parsed = parseClassWithAngle(pStr);
+          parents.push(parsed.name);
+
+          // Store manual angle if provided
+          if (parsed.angle !== undefined) {
+            this.classManualAngles.set(parsed.name, parsed.angle);
+          }
+
+          // Register parent classes at current tier if not already set
+          if (!this.classTiers.has(parsed.name)) {
+            this.classTiers.set(parsed.name, currentTier);
           }
         });
 
         // Parse children (may be empty for leaf nodes)
         if (childrenPart) {
-          const children = childrenPart.split(',').map(c => c.trim()).filter(c => c);
+          const childStrings = childrenPart.split(',').map(c => c.trim()).filter(c => c);
 
-          children.forEach(child => {
+          childStrings.forEach(cStr => {
+            const parsed = parseClassWithAngle(cStr);
+            const child = parsed.name;
+
+            // Store manual angle if provided
+            if (parsed.angle !== undefined) {
+              this.classManualAngles.set(child, parsed.angle);
+            }
+
             // Store children for each parent
             parents.forEach(parent => {
               if (!this.classHierarchy.has(parent)) {
@@ -238,34 +266,9 @@ Nekromant:`;
       tierClasses.get(tier)!.push(className);
     });
 
-    const baseClasses = ['Magier', 'Kämpfer', 'Techniker'];
-    // Base class angles (in degrees) - spread around the circle
-    const baseAngles: Record<string, number> = {
-      'Magier': 90,      // top
-      'Kämpfer': -30,    // bottom-right
-      'Techniker': 210,  // bottom-left
-    };
-
     // Track placed classes and their angles
     const classAngles: Map<string, number> = new Map();
     const placedClasses = new Set<string>();
-
-    // Place base classes (Tier 1)
-    baseClasses.forEach(cls => {
-      const angle = baseAngles[cls];
-      const angleRad = angle * (Math.PI / 180);
-      const radius = this.tierRadii[1];
-
-      this.classPositions.push({
-        name: cls,
-        x: this.centerX + Math.cos(angleRad) * radius,
-        y: this.centerY - Math.sin(angleRad) * radius,
-        tier: 1,
-        parents: []
-      });
-      classAngles.set(cls, angle);
-      placedClasses.add(cls);
-    });
 
     // Helper: normalize angle to -180 to 180
     const normalizeAngle = (angle: number): number => {
@@ -274,12 +277,11 @@ Nekromant:`;
       return angle;
     };
 
-    // Helper: get average angle of parents
+    // Helper: get average angle of parents (fallback for classes without manual angle)
     const getParentAvgAngle = (cls: string): number => {
       const parents = this.classParents.get(cls) || [];
       if (parents.length === 0) return 0;
 
-      // For averaging angles, need to handle wraparound
       let sumSin = 0, sumCos = 0;
       parents.forEach(parent => {
         const angle = classAngles.get(parent);
@@ -292,43 +294,95 @@ Nekromant:`;
       return Math.atan2(sumSin, sumCos) * (180 / Math.PI);
     };
 
-    // Place tiers 2-5: evenly spaced, sorted by parent angle
-    for (let tier = 2; tier <= 5; tier++) {
+    // Place all tiers
+    for (let tier = 1; tier <= 5; tier++) {
       const classesInTier = (tierClasses.get(tier) || []).filter(c => !placedClasses.has(c));
       if (classesInTier.length === 0) continue;
 
       const radius = this.tierRadii[tier] || this.tierRadii[this.tierRadii.length - 1];
 
-      // Calculate target angle for each class based on parents (for sorting)
-      const classTargetAngles: { cls: string; targetAngle: number }[] = [];
+      // Separate classes with manual angles from those without
+      const withManualAngle: { cls: string; angle: number }[] = [];
+      const withoutManualAngle: string[] = [];
+
       classesInTier.forEach(cls => {
-        const targetAngle = getParentAvgAngle(cls);
-        classTargetAngles.push({ cls, targetAngle });
+        const manualAngle = this.classManualAngles.get(cls);
+        if (manualAngle !== undefined) {
+          withManualAngle.push({ cls, angle: manualAngle });
+        } else {
+          withoutManualAngle.push(cls);
+        }
       });
 
-      // Sort by target angle so related classes stay grouped
-      classTargetAngles.sort((a, b) => normalizeAngle(a.targetAngle) - normalizeAngle(b.targetAngle));
-
-      // Distribute evenly around the circle
-      const count = classTargetAngles.length;
-      const angleStep = 360 / count;
-
-      classTargetAngles.forEach((item, index) => {
-        // Evenly spaced starting from -180
-        const angle = -180 + (index * angleStep) + (angleStep / 2);
-
-        classAngles.set(item.cls, normalizeAngle(angle));
-
+      // Place classes with manual angles first
+      withManualAngle.forEach(({ cls, angle }) => {
+        classAngles.set(cls, normalizeAngle(angle));
         const angleRad = angle * (Math.PI / 180);
         this.classPositions.push({
-          name: item.cls,
+          name: cls,
           x: this.centerX + Math.cos(angleRad) * radius,
           y: this.centerY - Math.sin(angleRad) * radius,
           tier: tier,
-          parents: this.classParents.get(item.cls) || []
+          parents: this.classParents.get(cls) || []
         });
-        placedClasses.add(item.cls);
+        placedClasses.add(cls);
       });
+
+      // For classes without manual angles, distribute evenly in remaining space
+      if (withoutManualAngle.length > 0) {
+        // Sort by parent angle
+        const sorted = withoutManualAngle.map(cls => ({
+          cls,
+          targetAngle: getParentAvgAngle(cls)
+        })).sort((a, b) => normalizeAngle(a.targetAngle) - normalizeAngle(b.targetAngle));
+
+        // Find gaps between manually placed classes
+        const usedAngles = withManualAngle.map(w => normalizeAngle(w.angle)).sort((a, b) => a - b);
+
+        if (usedAngles.length === 0) {
+          // No manual angles, distribute evenly
+          const angleStep = 360 / sorted.length;
+          sorted.forEach((item, index) => {
+            const angle = -180 + (index * angleStep) + (angleStep / 2);
+            classAngles.set(item.cls, normalizeAngle(angle));
+            const angleRad = angle * (Math.PI / 180);
+            this.classPositions.push({
+              name: item.cls,
+              x: this.centerX + Math.cos(angleRad) * radius,
+              y: this.centerY - Math.sin(angleRad) * radius,
+              tier: tier,
+              parents: this.classParents.get(item.cls) || []
+            });
+            placedClasses.add(item.cls);
+          });
+        } else {
+          // Distribute in gaps between manual angles
+          const angleStep = 360 / (sorted.length + usedAngles.length);
+          let autoIndex = 0;
+
+          for (let i = 0; i < sorted.length; i++) {
+            // Find a slot that doesn't collide with manual angles
+            let angle: number;
+            let attempts = 0;
+            do {
+              angle = -180 + (autoIndex * angleStep) + (angleStep / 2);
+              autoIndex++;
+              attempts++;
+            } while (usedAngles.some(ua => Math.abs(normalizeAngle(angle - ua)) < 15) && attempts < 360);
+
+            classAngles.set(sorted[i].cls, normalizeAngle(angle));
+            const angleRad = angle * (Math.PI / 180);
+            this.classPositions.push({
+              name: sorted[i].cls,
+              x: this.centerX + Math.cos(angleRad) * radius,
+              y: this.centerY - Math.sin(angleRad) * radius,
+              tier: tier,
+              parents: this.classParents.get(sorted[i].cls) || []
+            });
+            placedClasses.add(sorted[i].cls);
+          }
+        }
+      }
     }
 
     // Build connections based on class hierarchy
