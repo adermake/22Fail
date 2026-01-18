@@ -16,7 +16,7 @@ Arkanist@123: Formationsmagier@127, Phantom@179, Runenkünstler@104
 Hämonant@90: Nekromant@83
 Seelenmagier@59: Gestaltenwandler@60, Mentalist@71
 Jäger@-168: Attentäter
-Kampfakrobat@-119: Klingentänzer@-133, Duellant@-116, Phantom@179:
+Kampfakrobat@-119: Klingentänzer@-133, Duellant@-116, Phantom@179
 Ritter@3: Erzritter@12, Paladin@27, Wächter@-4
 Berserker@-66: Kriegsherr@-92, Omen@-48
 Plünderer@-96: General@-94
