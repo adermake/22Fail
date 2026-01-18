@@ -588,11 +588,21 @@ Nekromant:`;
     this.editMode = !this.editMode;
   }
 
-  // Reset layout to default (clear all manual angles and rebuild)
+  // Reset layout to default (reload from class-definitions.txt, ignore localStorage)
   resetLayout() {
-    this.classManualAngles.clear();
     localStorage.removeItem('skill-tree-layout'); // Clear saved layout
-    this.buildLayout();
+    // Reload class definitions to get angles from file
+    this.http.get('class-definitions.txt', { responseType: 'text' }).subscribe({
+      next: (content) => {
+        this.parseClassDefinitions(content);
+        // Don't call loadSavedAngles() - we want file defaults only
+        this.buildLayout();
+      },
+      error: () => {
+        this.parseClassDefinitions(this.getFallbackDefinitions());
+        this.buildLayout();
+      }
+    });
   }
 
   // Export layout as class-definitions.txt format
