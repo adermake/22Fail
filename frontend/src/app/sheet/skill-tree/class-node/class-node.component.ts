@@ -27,11 +27,21 @@ export class ClassNodeComponent {
   @Input() isSelected: boolean = false;
   @Input() isAccessible: boolean = false;
   @Input() canLearn: boolean = true;  // Can learn from this class (has 3 skills from parent)
+  @Input() editMode: boolean = false;
 
   @Output() select = new EventEmitter<void>();
+  @Output() dragStart = new EventEmitter<MouseEvent>();
 
   onClick() {
-    this.select.emit();
+    if (!this.editMode) {
+      this.select.emit();
+    }
+  }
+
+  onMouseDown(event: MouseEvent) {
+    if (this.editMode) {
+      this.dragStart.emit(event);
+    }
   }
 
   get progress(): number {

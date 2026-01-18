@@ -4,11 +4,13 @@
   [class.accessible]="isAccessible"
   [class.complete]="isComplete"
   [class.locked]="!canLearn"
+  [class.edit-mode]="editMode"
   [class]="tierClass"
   [style.left.px]="x"
   [style.top.px]="y"
   [style.borderColor]="tierColor"
   (click)="onClick()"
+  (mousedown)="onMouseDown($event)"
 >
   <div class="node-content">
     <span class="class-name">{{ className }}</span>

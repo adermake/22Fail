@@ -57,6 +57,11 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
   lastMouseX = 0;
   lastMouseY = 0;
 
+  // Drag node state
+  isDraggingNode = false;
+  draggedClassName: string | null = null;
+  editMode = false; // Toggle for edit mode
+
   // Center of the tree
   centerX = 600;
   centerY = 600;
@@ -433,6 +438,7 @@ Nekromant:`;
   }
 
   onMouseDown(event: MouseEvent) {
+    if (this.isDraggingNode) return; // Don't pan while dragging node
     if (event.button === 1 || (event.target as HTMLElement).classList.contains('tree-inner')) {
       this.isPanning = true;
       this.lastMouseX = event.clientX;
@@ -442,6 +448,10 @@ Nekromant:`;
   }
 
   onMouseMove(event: MouseEvent) {
+    if (this.isDraggingNode && this.draggedClassName) {
+      this.handleNodeDrag(event);
+      return;
+    }
     if (this.isPanning) {
       const deltaX = event.clientX - this.lastMouseX;
       const deltaY = event.clientY - this.lastMouseY;
@@ -454,10 +464,110 @@ Nekromant:`;
 
   onMouseUp() {
     this.isPanning = false;
+    if (this.isDraggingNode) {
+      this.isDraggingNode = false;
+      this.draggedClassName = null;
+    }
   }
 
   onMouseLeave() {
     this.isPanning = false;
+    if (this.isDraggingNode) {
+      this.isDraggingNode = false;
+      this.draggedClassName = null;
+    }
+  }
+
+  // Node dragging methods
+  startNodeDrag(className: string, event: MouseEvent) {
+    if (!this.editMode) return;
+    event.stopPropagation();
+    event.preventDefault();
+    this.isDraggingNode = true;
+    this.draggedClassName = className;
+  }
+
+  handleNodeDrag(event: MouseEvent) {
+    if (!this.draggedClassName) return;
+
+    const classPos = this.classPositions.find(p => p.name === this.draggedClassName);
+    if (!classPos) return;
+
+    const rect = this.treeContainer?.nativeElement.getBoundingClientRect();
+    if (!rect) return;
+
+    // Convert screen coordinates to tree coordinates
+    const treeX = (event.clientX - rect.left - this.panX) / this.scale;
+    const treeY = (event.clientY - rect.top - this.panY) / this.scale;
+
+    // Calculate angle from center
+    const dx = treeX - this.centerX;
+    const dy = this.centerY - treeY; // Flip Y for standard math coordinates
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+    // Get the tier radius
+    const radius = this.tierRadii[classPos.tier] || this.tierRadii[this.tierRadii.length - 1];
+
+    // Update position (constrained to tier circle)
+    const angleRad = angle * (Math.PI / 180);
+    classPos.x = this.centerX + Math.cos(angleRad) * radius;
+    classPos.y = this.centerY - Math.sin(angleRad) * radius;
+
+    // Save the angle
+    this.classManualAngles.set(this.draggedClassName, angle);
+  }
+
+  toggleEditMode() {
+    this.editMode = !this.editMode;
+  }
+
+  // Export layout as class-definitions.txt format
+  exportLayout() {
+    const lines: string[] = [];
+
+    // Group by tier
+    for (let tier = 1; tier <= 5; tier++) {
+      lines.push(`# Tier ${tier}`);
+
+      // Get all classes in this tier that have children or are parents
+      const classesInTier = Array.from(this.classTiers.entries())
+        .filter(([_, t]) => t === tier)
+        .map(([name, _]) => name);
+
+      classesInTier.forEach(className => {
+        const angle = this.classManualAngles.get(className);
+        const children = this.classHierarchy.get(className) || [];
+
+        // Format: ClassName@angle: Child1@angle, Child2@angle
+        let line = className;
+        if (angle !== undefined) {
+          line += `@${Math.round(angle)}`;
+        }
+        line += ':';
+
+        if (children.length > 0) {
+          const childParts = children.map(child => {
+            const childAngle = this.classManualAngles.get(child);
+            return childAngle !== undefined ? `${child}@${Math.round(childAngle)}` : child;
+          });
+          line += ' ' + childParts.join(', ');
+        }
+
+        lines.push(line);
+      });
+
+      lines.push('');
+    }
+
+    // Create and download file
+    const content = lines.join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'class-definitions.txt';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   centerView() {

@@ -11,6 +11,21 @@
         <button class="zoom-btn" (click)="resetView()" title="Zurücksetzen">⟲</button>
         <button class="zoom-btn" (click)="zoomIn()" title="Vergrößern">+</button>
       </div>
+      <div class="edit-controls">
+        <button
+          class="edit-btn"
+          [class.active]="editMode"
+          (click)="toggleEditMode()"
+          title="Layout bearbeiten"
+        >
+          {{ editMode ? 'Fertig' : 'Layout' }}
+        </button>
+        @if (editMode) {
+          <button class="export-btn" (click)="exportLayout()" title="Layout exportieren">
+            Export
+          </button>
+        }
+      </div>
       <button class="close-btn" (click)="onClose()">&times;</button>
     </div>
   </div>
@@ -67,7 +82,9 @@
             [isSelected]="selectedClass === classPos.name"
             [isAccessible]="isClassAccessible(classPos.name)"
             [canLearn]="canLearnFromClass(classPos.name)"
+            [editMode]="editMode"
             (select)="selectClass(classPos.name)"
+            (dragStart)="startNodeDrag(classPos.name, $event)"
           />
         }
       </div>
