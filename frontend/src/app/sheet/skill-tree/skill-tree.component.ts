@@ -17,8 +17,8 @@ interface ClassPosition {
 }
 
 interface Connection {
-  from: ClassPosition;
-  to: ClassPosition;
+  from: string;
+  to: string;
 }
 
 // Tier color definitions
@@ -49,7 +49,7 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
   connections: Connection[] = [];
 
   // Pan and zoom state
-  scale = 1;
+  scale = 0.8;
   panX = 0;
   panY = 0;
   isPanning = false;
@@ -60,41 +60,37 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
   centerX = 600;
   centerY = 600;
 
-  // Ring radii for each tier - larger spacing to avoid overlap
-  tierRadii = [0, 120, 240, 360, 480, 600];
+  // Ring radii for each tier
+  tierRadii = [0, 120, 220, 320, 420, 520];
 
   // Class hierarchy parsed from class-definitions
   classHierarchy: Map<string, string[]> = new Map();
   classParents: Map<string, string[]> = new Map();
 
-  // Track angle allocations per tier to avoid overlaps
-  tierAngleAllocations: Map<number, number[]> = new Map();
-
   ngOnInit() {
     this.parseClassHierarchy();
-    this.calculateLayout();
+    this.buildFixedLayout();
   }
 
   ngAfterViewInit() {
-    // Center the view on init
     setTimeout(() => {
       this.centerView();
     }, 0);
   }
 
   parseClassHierarchy() {
-    // Define the class tree based on class-definitions.txt
+    // Parse from class-definitions.txt format
     const definitions = `
 Magier: Kampfzauberer, Heiler
 Kämpfer: Krieger, Barbar
 Techniker: Schütze, Dieb
-Kampfzauberer: Arkanist, Hämomant
-Heiler: Seelenformer
+Kampfzauberer: Arkanist, Hämonant
+Heiler: Seelenmagier
 Arkanist: Formationsmagier
 Formationsmagier: Runenkünstler
 Runenkünstler: Manalord
-Hämomant: Nekromant
-Seelenformer: Gestaltenwandler
+Hämonant: Nekromant
+Seelenmagier: Gestaltenwandler
 Gestaltenwandler: Mentalist
 Mentalist: Orakel
 Schütze: Jäger, Schnellschütze
@@ -116,6 +112,8 @@ Paladin: Dunkler Ritter
 Mönch + Barbar: Templer
 Templer: Koloss
 Berserker + Templer: Omen
+Arkanist: Phantom
+Schnellschütze: Artificer
 `;
 
     definitions.trim().split('\n').forEach(line => {
@@ -123,12 +121,9 @@ Berserker + Templer: Omen
       if (match) {
         const parentPart = match[1].trim();
         const children = match[2].split(',').map(c => c.trim());
-
-        // Handle multi-parent classes (e.g., "Ritter + Heiler")
         const parents = parentPart.split('+').map(p => p.trim());
 
         children.forEach(child => {
-          // Store children for each parent
           parents.forEach(parent => {
             if (!this.classHierarchy.has(parent)) {
               this.classHierarchy.set(parent, []);
@@ -139,7 +134,6 @@ Berserker + Templer: Omen
             }
           });
 
-          // Store parents for each child
           if (!this.classParents.has(child)) {
             this.classParents.set(child, []);
           }
@@ -154,140 +148,119 @@ Berserker + Templer: Omen
     });
   }
 
-  // Find a non-overlapping angle for a given tier
-  findAvailableAngle(tier: number, preferredAngle: number, minSeparation: number = 25): number {
-    if (!this.tierAngleAllocations.has(tier)) {
-      this.tierAngleAllocations.set(tier, []);
-    }
-    const allocations = this.tierAngleAllocations.get(tier)!;
-
-    // Normalize angle to 0-360
-    let angle = ((preferredAngle * 180 / Math.PI) % 360 + 360) % 360;
-
-    // Check if angle is available
-    const isAvailable = (testAngle: number) => {
-      for (const allocated of allocations) {
-        const diff = Math.abs(testAngle - allocated);
-        const wrapDiff = Math.min(diff, 360 - diff);
-        if (wrapDiff < minSeparation) {
-          return false;
-        }
-      }
-      return true;
-    };
-
-    // Try preferred angle first
-    if (isAvailable(angle)) {
-      allocations.push(angle);
-      return angle * Math.PI / 180;
-    }
-
-    // Search for nearest available angle
-    for (let offset = minSeparation; offset < 180; offset += 5) {
-      if (isAvailable((angle + offset) % 360)) {
-        const newAngle = (angle + offset) % 360;
-        allocations.push(newAngle);
-        return newAngle * Math.PI / 180;
-      }
-      if (isAvailable((angle - offset + 360) % 360)) {
-        const newAngle = (angle - offset + 360) % 360;
-        allocations.push(newAngle);
-        return newAngle * Math.PI / 180;
-      }
-    }
-
-    // Fallback: just use the preferred angle
-    allocations.push(angle);
-    return angle * Math.PI / 180;
-  }
-
-  calculateLayout() {
-    const baseClasses = ['Magier', 'Kämpfer', 'Techniker'];
-    const placed = new Set<string>();
-    const classAngles = new Map<string, number>(); // Track angle for each class
+  // Build layout matching the reference image
+  buildFixedLayout() {
     this.classPositions = [];
     this.connections = [];
-    this.tierAngleAllocations.clear();
 
-    // Place base classes in inner ring at 120° apart
-    baseClasses.forEach((cls, index) => {
-      const angle = (index * 120 - 90) * (Math.PI / 180); // Start from top
-      const radius = this.tierRadii[1];
+    // Define positions based on reference image angles (0° = right, going counter-clockwise)
+    // The image shows: Magier at top, Kämpfer at bottom-right, Techniker at bottom-left
 
-      this.tierAngleAllocations.set(1, this.tierAngleAllocations.get(1) || []);
-      this.tierAngleAllocations.get(1)!.push((angle * 180 / Math.PI + 360) % 360);
+    const positions: { name: string; angle: number; tier: number }[] = [
+      // Tier 1 - Base classes (inner ring)
+      { name: 'Magier', angle: 90, tier: 1 },
+      { name: 'Kämpfer', angle: -30, tier: 1 },
+      { name: 'Techniker', angle: 210, tier: 1 },
+
+      // Tier 2 - Magier branch
+      { name: 'Kampfzauberer', angle: 115, tier: 2 },
+      { name: 'Heiler', angle: 65, tier: 2 },
+
+      // Tier 2 - Kämpfer branch
+      { name: 'Krieger', angle: -10, tier: 2 },
+      { name: 'Barbar', angle: -50, tier: 2 },
+
+      // Tier 2 - Techniker branch
+      { name: 'Schütze', angle: 185, tier: 2 },
+      { name: 'Dieb', angle: 235, tier: 2 },
+
+      // Tier 3 - Magier sub-branches
+      { name: 'Arkanist', angle: 130, tier: 3 },
+      { name: 'Hämonant', angle: 105, tier: 3 },
+      { name: 'Seelenmagier', angle: 60, tier: 3 },
+
+      // Tier 3 - Kämpfer sub-branches
+      { name: 'Ritter', angle: 0, tier: 3 },
+      { name: 'Mönch', angle: -20, tier: 3 },
+      { name: 'Berserker', angle: -55, tier: 3 },
+
+      // Tier 3 - Techniker sub-branches
+      { name: 'Jäger', angle: 175, tier: 3 },
+      { name: 'Schnellschütze', angle: 195, tier: 3 },
+      { name: 'Kampfakrobat', angle: 240, tier: 3 },
+
+      // Tier 4 - Magier deep branches
+      { name: 'Formationsmagier', angle: 140, tier: 4 },
+      { name: 'Phantom', angle: 125, tier: 4 },
+      { name: 'Nekromant', angle: 95, tier: 4 },
+      { name: 'Gestaltenwandler', angle: 55, tier: 4 },
+      { name: 'Paladin', angle: 35, tier: 4 },
+
+      // Tier 4 - Kämpfer deep branches
+      { name: 'Erzritter', angle: 5, tier: 4 },
+      { name: 'Templer', angle: -35, tier: 4 },
+      { name: 'Plünderer', angle: -60, tier: 4 },
+
+      // Tier 4 - Techniker deep branches
+      { name: 'Attentäter', angle: 165, tier: 4 },
+      { name: 'Artificer', angle: 200, tier: 4 },
+      { name: 'Klingentänzer', angle: 250, tier: 4 },
+
+      // Tier 5 - Deepest branches
+      { name: 'Runenkünstler', angle: 145, tier: 5 },
+      { name: 'Mentalist', angle: 50, tier: 5 },
+      { name: 'Dunkler Ritter', angle: 40, tier: 5 },
+      { name: 'Wächter', angle: 10, tier: 5 },
+      { name: 'Koloss', angle: -30, tier: 5 },
+      { name: 'Omen', angle: -45, tier: 5 },
+      { name: 'General', angle: -65, tier: 5 },
+      { name: 'Assassine', angle: 160, tier: 5 },
+      { name: 'Waffenmeister', angle: 260, tier: 5 },
+
+      // Tier 6 - Outermost
+      { name: 'Manalord', angle: 150, tier: 6 },
+      { name: 'Orakel', angle: 45, tier: 6 },
+      { name: 'Kriegsherr', angle: -70, tier: 6 },
+      { name: 'Duellant', angle: 270, tier: 6 },
+    ];
+
+    // Add extra tier radius for tier 6
+    if (this.tierRadii.length < 7) {
+      this.tierRadii.push(620);
+    }
+
+    // Create class positions
+    positions.forEach(pos => {
+      const angleRad = pos.angle * (Math.PI / 180);
+      const radius = this.tierRadii[pos.tier] || this.tierRadii[this.tierRadii.length - 1];
 
       this.classPositions.push({
-        name: cls,
-        x: this.centerX + Math.cos(angle) * radius,
-        y: this.centerY + Math.sin(angle) * radius,
-        tier: 1,
-        parents: []
+        name: pos.name,
+        x: this.centerX + Math.cos(angleRad) * radius,
+        y: this.centerY - Math.sin(angleRad) * radius, // Negative because Y is inverted
+        tier: pos.tier,
+        parents: this.classParents.get(pos.name) || []
       });
-      placed.add(cls);
-      classAngles.set(cls, angle);
     });
 
-    // BFS to place children in subsequent tiers
-    let currentTier = 1;
-    let toProcess = [...baseClasses];
-
-    while (toProcess.length > 0 && currentTier < 6) {
-      const nextToProcess: string[] = [];
-      currentTier++;
-
-      toProcess.forEach(parentName => {
-        const children = this.classHierarchy.get(parentName) || [];
-        const parentPos = this.classPositions.find(p => p.name === parentName);
-        if (!parentPos) return;
-
-        const parentAngle = classAngles.get(parentName) || 0;
-        const unplacedChildren = children.filter(c => !placed.has(c));
-
-        unplacedChildren.forEach((child, childIndex) => {
-          // Calculate preferred angle based on parent
-          const spreadAngle = 25 * (Math.PI / 180);
-          const childCount = unplacedChildren.length;
-          const startOffset = -(childCount - 1) / 2;
-          const angleOffset = (startOffset + childIndex) * spreadAngle;
-          const preferredAngle = parentAngle + angleOffset;
-
-          // Find non-overlapping angle
-          const actualAngle = this.findAvailableAngle(currentTier, preferredAngle);
-          const radius = this.tierRadii[Math.min(currentTier, this.tierRadii.length - 1)];
-
-          const childPos: ClassPosition = {
-            name: child,
-            x: this.centerX + Math.cos(actualAngle) * radius,
-            y: this.centerY + Math.sin(actualAngle) * radius,
-            tier: currentTier,
-            parents: this.classParents.get(child) || []
-          };
-
-          this.classPositions.push(childPos);
-          this.connections.push({ from: parentPos, to: childPos });
-          placed.add(child);
-          classAngles.set(child, actualAngle);
-          nextToProcess.push(child);
-        });
-
-        // Add connections to already-placed children (multi-parent classes)
-        children.filter(c => placed.has(c) && !unplacedChildren.includes(c)).forEach(child => {
-          const childPos = this.classPositions.find(p => p.name === child);
-          if (childPos) {
-            // Check if connection already exists
-            const exists = this.connections.some(
-              c => c.from.name === parentName && c.to.name === child
-            );
-            if (!exists) {
-              this.connections.push({ from: parentPos, to: childPos });
-            }
-          }
-        });
+    // Build connections based on class hierarchy
+    this.classHierarchy.forEach((children, parent) => {
+      children.forEach(child => {
+        // Only add connection if both classes exist in our positions
+        const parentExists = this.classPositions.some(p => p.name === parent);
+        const childExists = this.classPositions.some(p => p.name === child);
+        if (parentExists && childExists) {
+          this.connections.push({ from: parent, to: child });
+        }
       });
+    });
+  }
 
-      toProcess = nextToProcess;
-    }
+  getConnectionLine(conn: Connection): { x1: number; y1: number; x2: number; y2: number } | null {
+    const from = this.classPositions.find(p => p.name === conn.from);
+    const to = this.classPositions.find(p => p.name === conn.to);
+    if (!from || !to) return null;
+    return { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
   }
 
   // Pan and zoom methods
@@ -296,13 +269,10 @@ Berserker + Templer: Omen
     const delta = event.deltaY > 0 ? 0.9 : 1.1;
     const newScale = Math.max(0.3, Math.min(3, this.scale * delta));
 
-    // Zoom towards mouse position
     const rect = this.treeContainer?.nativeElement.getBoundingClientRect();
     if (rect) {
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
-
-      // Adjust pan to zoom towards mouse
       this.panX = mouseX - (mouseX - this.panX) * (newScale / this.scale);
       this.panY = mouseY - (mouseY - this.panY) * (newScale / this.scale);
     }
@@ -311,7 +281,6 @@ Berserker + Templer: Omen
   }
 
   onMouseDown(event: MouseEvent) {
-    // Only pan with middle mouse or when not clicking on a node
     if (event.button === 1 || (event.target as HTMLElement).classList.contains('tree-inner')) {
       this.isPanning = true;
       this.lastMouseX = event.clientX;
@@ -349,7 +318,7 @@ Berserker + Templer: Omen
   }
 
   resetView() {
-    this.scale = 1;
+    this.scale = 0.8;
     this.centerView();
   }
 
@@ -388,20 +357,16 @@ Berserker + Templer: Omen
   }
 
   getAvailableTalentPoints(): number {
-    // Base points = level, plus any bonus points, minus spent points
     const basePoints = this.sheet.level || 1;
     const bonusPoints = this.sheet.talentPointsBonus || 0;
     const spentPoints = (this.sheet.learnedSkillIds || []).length;
     return basePoints + bonusPoints - spentPoints;
   }
 
-  // Check if a class can have skills learned (needs 3 skills from at least one parent)
   canLearnFromClass(className: string): boolean {
-    // Base classes (Tier 1) can always learn
     const classPos = this.classPositions.find(p => p.name === className);
     if (!classPos || classPos.tier === 1) return true;
 
-    // For higher tiers, need 3 skills from at least one parent
     const parents = this.classParents.get(className) || [];
     for (const parent of parents) {
       const parentLearnedCount = this.getLearnedCountForClass(parent);
@@ -416,12 +381,10 @@ Berserker + Templer: Omen
     if (this.isSkillLearned(skill.id)) return false;
     if (this.getAvailableTalentPoints() <= 0) return false;
 
-    // Check if required skill is learned
     if (skill.requiresSkill && !this.isSkillLearned(skill.requiresSkill)) {
       return false;
     }
 
-    // Check 3-skill prerequisite from parent class
     if (!this.canLearnFromClass(skill.class)) {
       return false;
     }
@@ -432,21 +395,18 @@ Berserker + Templer: Omen
   learnSkill(skill: SkillDefinition) {
     if (!this.canLearnSkill(skill)) return;
 
-    // Add to learned skill IDs
     const newLearnedIds = [...(this.sheet.learnedSkillIds || []), skill.id];
     this.patch.emit({
       path: 'learnedSkillIds',
       value: newLearnedIds
     });
 
-    // Create a SkillBlock and add to character's skills
-    // Use the skill's enlightened value from the definition
     const newSkillBlock: SkillBlock = {
       name: skill.name,
       class: skill.class,
       description: skill.description,
       type: skill.type === 'active' ? 'active' : 'passive',
-      enlightened: skill.enlightened ?? false  // Use skill definition's enlightened value
+      enlightened: skill.enlightened ?? false
     };
 
     const newSkills = [...(this.sheet.skills || []), newSkillBlock];
@@ -459,15 +419,12 @@ Berserker + Templer: Omen
   unlearnSkill(skill: SkillDefinition) {
     if (!this.isSkillLearned(skill.id)) return;
 
-    // Remove from learned skill IDs
     const newLearnedIds = (this.sheet.learnedSkillIds || []).filter(id => id !== skill.id);
     this.patch.emit({
       path: 'learnedSkillIds',
       value: newLearnedIds
     });
 
-    // Remove the skill from character's skills array
-    // Match by name and class since we don't have a unique id on SkillBlock
     const newSkills = (this.sheet.skills || []).filter(
       s => !(s.name === skill.name && s.class === skill.class)
     );
@@ -478,8 +435,6 @@ Berserker + Templer: Omen
   }
 
   isClassAccessible(className: string): boolean {
-    // A class is accessible if the character has it as primary/secondary
-    // or if one of their classes inherits from it
     const charClasses = [
       this.sheet.primary_class?.toLowerCase(),
       this.sheet.secondary_class?.toLowerCase()
@@ -487,11 +442,8 @@ Berserker + Templer: Omen
 
     const targetLower = className.toLowerCase();
 
-    // Direct match
     if (charClasses.includes(targetLower)) return true;
 
-    // Check inheritance (simplified - you might want to use ClassTree here)
-    // For now, just check direct parent relationship
     for (const charClass of charClasses) {
       const parents = this.classParents.get(className) || [];
       if (parents.some(p => p.toLowerCase() === charClass)) return true;

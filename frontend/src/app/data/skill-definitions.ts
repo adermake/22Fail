@@ -231,38 +231,38 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     cost: { type: 'mana', amount: 10 }
   },
 
-  // ==================== HÄMOMANT ====================
+  // ==================== HÄMONANT ====================
   // Based on original: Leben+40, (p) Magisches Blut, (p) Kaltblütig, (a) Transfusion (Bonusaktion), (a) Blutecho, !(a) Hypertonie, !(a) Aderlass
   // "Hypertonie" and "Aderlass" are enlightened
   {
-    id: 'haemomant_leben_40',
+    id: 'haemonant_leben_40',
     name: 'Leben+40',
-    class: 'Hämomant',
+    class: 'Hämonant',
     type: 'stat_bonus',
     description: '+40 Leben',
     enlightened: false,
     statBonus: { stat: 'life', amount: 40 }
   },
   {
-    id: 'haemomant_magisches_blut',
+    id: 'haemonant_magisches_blut',
     name: 'Magisches Blut',
-    class: 'Hämomant',
+    class: 'Hämonant',
     type: 'passive',
     description: 'Kann eigenes Blut als Startpunkt für Zauber benutzen',
     enlightened: false
   },
   {
-    id: 'haemomant_kaltbluetig',
+    id: 'haemonant_kaltbluetig',
     name: 'Kaltblütig',
-    class: 'Hämomant',
+    class: 'Hämonant',
     type: 'passive',
     description: '+1 im Kampf gegen Gegner mit offenen Wunden',
     enlightened: false
   },
   {
-    id: 'haemomant_transfusion',
+    id: 'haemonant_transfusion',
     name: 'Transfusion',
-    class: 'Hämomant',
+    class: 'Hämonant',
     type: 'active',
     description: 'Absorbiere umliegendes Blut und heile dich um den gewürfelten Betrag (D8).',
     enlightened: false,
@@ -270,74 +270,74 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     bonusAction: true
   },
   {
-    id: 'haemomant_blutecho',
+    id: 'haemonant_blutecho',
     name: 'Blutecho',
-    class: 'Hämomant',
+    class: 'Hämonant',
     type: 'active',
     description: 'Absorbiert einen genannten Skill aus gegnerischem Blut und verwende ihn direkt ohne Kosten. Sollte der genannte Skill nicht existieren, wird ein zufälliger Skill ausgewählt. Nur einmal pro Person möglich.',
     enlightened: false,
     cost: { type: 'mana', amount: 20 }
   },
   {
-    id: 'haemomant_hypertonie',
+    id: 'haemonant_hypertonie',
     name: 'Hypertonie',
-    class: 'Hämomant',
+    class: 'Hämonant',
     type: 'active',
     description: '+2 im Kampf',
     enlightened: true,  // Marked with ! in original
     cost: { type: 'life', amount: 20, perRound: true }
   },
   {
-    id: 'haemomant_aderlass',
+    id: 'haemonant_aderlass',
     name: 'Aderlass',
-    class: 'Hämomant',
+    class: 'Hämonant',
     type: 'active',
     description: 'Konvertiert 1x Leben zu 0,8x Mana (wird abgerundet)',
     enlightened: true,  // Marked with ! in original
     cost: { type: 'life', amount: 0 }
   },
 
-  // ==================== SEELENFORMER ====================
+  // ==================== SEELENMAGIER ====================
   // Based on original: Fokus+4, (p) Runenkonvergenz, !(p) Hausgemacht, (a) Seelenwacht, (a) Erweitertes Bewusstsein (Bonusaktion), (a) Adlerauge, !(a) Sanktum (Bonusaktion)
   // "Hausgemacht" and "Sanktum" are enlightened
   {
-    id: 'seelenformer_fokus_4',
+    id: 'seelenmagier_fokus_4',
     name: 'Fokus+4',
-    class: 'Seelenformer',
+    class: 'Seelenmagier',
     type: 'stat_bonus',
     description: '+4 Fokus',
     enlightened: false,
     statBonus: { stat: 'focus', amount: 4 }
   },
   {
-    id: 'seelenformer_runenkonvergenz',
+    id: 'seelenmagier_runenkonvergenz',
     name: 'Runenkonvergenz',
-    class: 'Seelenformer',
+    class: 'Seelenmagier',
     type: 'passive',
     description: '+1 auf Nutzung von Zaubern die eine Elementarrune beinhalten, die für eine aktive Beschwörung benutzt wurde.',
     enlightened: false
   },
   {
-    id: 'seelenformer_hausgemacht',
+    id: 'seelenmagier_hausgemacht',
     name: 'Hausgemacht',
-    class: 'Seelenformer',
+    class: 'Seelenmagier',
     type: 'passive',
     description: 'Senkt Fokuskosten für selbst kreierte Seelenrunen in Beschwörungszaubern um 20%.',
     enlightened: true  // Marked with ! in original
   },
   {
-    id: 'seelenformer_seelenwacht',
+    id: 'seelenmagier_seelenwacht',
     name: 'Seelenwacht',
-    class: 'Seelenformer',
+    class: 'Seelenmagier',
     type: 'active',
     description: 'Kann Seelen von Tieren analysieren, um sie als Rune zu speichern. Benötigt mehrere Tage intensiver Inspektion.',
     enlightened: false,
     cost: { type: 'mana', amount: 0 }
   },
   {
-    id: 'seelenformer_erweitertes_bewusstsein',
+    id: 'seelenmagier_erweitertes_bewusstsein',
     name: 'Erweitertes Bewusstsein',
-    class: 'Seelenformer',
+    class: 'Seelenmagier',
     type: 'active',
     description: 'Reduziert Ausdauer auf 0, um den maximalen Fokus zu verdreifachen. Muss deaktiviert werden, um Ausdauer zu regenerieren.',
     enlightened: false,
@@ -345,18 +345,18 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     bonusAction: true
   },
   {
-    id: 'seelenformer_adlerauge',
+    id: 'seelenmagier_adlerauge',
     name: 'Adlerauge',
-    class: 'Seelenformer',
+    class: 'Seelenmagier',
     type: 'active',
     description: 'Nutze die Wahrnehmung einer deiner Beschwörungen als deine eigene',
     enlightened: false,
     cost: { type: 'mana', amount: 10, perRound: true }
   },
   {
-    id: 'seelenformer_sanktum',
+    id: 'seelenmagier_sanktum',
     name: 'Sanktum',
-    class: 'Seelenformer',
+    class: 'Seelenmagier',
     type: 'active',
     description: 'Festige die Seele eines Verbündeten, was ihn immun gegen psychische Angriffe macht.',
     enlightened: true,  // Marked with ! in original

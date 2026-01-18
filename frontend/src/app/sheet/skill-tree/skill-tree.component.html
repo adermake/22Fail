@@ -29,15 +29,17 @@
       <div class="tree-inner" [style.transform]="transformStyle">
         <svg class="tree-svg" [attr.viewBox]="'0 0 1200 1200'">
           <!-- Connection lines -->
-          @for (conn of connections; track conn.from.name + '-' + conn.to.name) {
-            <line
-              class="connection-line"
-              [class.accessible]="isClassAccessible(conn.from.name) || isClassAccessible(conn.to.name)"
-              [attr.x1]="conn.from.x"
-              [attr.y1]="conn.from.y"
-              [attr.x2]="conn.to.x"
-              [attr.y2]="conn.to.y"
-            />
+          @for (conn of connections; track conn.from + '-' + conn.to) {
+            @if (getConnectionLine(conn); as line) {
+              <line
+                class="connection-line"
+                [class.accessible]="isClassAccessible(conn.from) || isClassAccessible(conn.to)"
+                [attr.x1]="line.x1"
+                [attr.y1]="line.y1"
+                [attr.x2]="line.x2"
+                [attr.y2]="line.y2"
+              />
+            }
           }
 
           <!-- Tier rings (decorative) with tier-based colors -->
