@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
@@ -37,7 +37,9 @@ export const TIER_COLORS = {
   templateUrl: './skill-tree.component.html',
   styleUrl: './skill-tree.component.css'
 })
-export class SkillTreeComponent implements OnInit {
+export class SkillTreeComponent implements OnInit, AfterViewInit {
+  @ViewChild('treeContainer') treeContainer!: ElementRef<HTMLDivElement>;
+
   @Input() sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() close = new EventEmitter<void>();
@@ -46,20 +48,38 @@ export class SkillTreeComponent implements OnInit {
   classPositions: ClassPosition[] = [];
   connections: Connection[] = [];
 
-  // Center of the tree - will be calculated based on container
-  centerX = 350;
-  centerY = 350;
+  // Pan and zoom state
+  scale = 1;
+  panX = 0;
+  panY = 0;
+  isPanning = false;
+  lastMouseX = 0;
+  lastMouseY = 0;
 
-  // Ring radii for each tier - scaled down for better fit
-  tierRadii = [0, 80, 150, 220, 290, 360];
+  // Center of the tree
+  centerX = 600;
+  centerY = 600;
+
+  // Ring radii for each tier - larger spacing to avoid overlap
+  tierRadii = [0, 120, 240, 360, 480, 600];
 
   // Class hierarchy parsed from class-definitions
   classHierarchy: Map<string, string[]> = new Map();
   classParents: Map<string, string[]> = new Map();
 
+  // Track angle allocations per tier to avoid overlaps
+  tierAngleAllocations: Map<number, number[]> = new Map();
+
   ngOnInit() {
     this.parseClassHierarchy();
     this.calculateLayout();
+  }
+
+  ngAfterViewInit() {
+    // Center the view on init
+    setTimeout(() => {
+      this.centerView();
+    }, 0);
   }
 
   parseClassHierarchy() {
@@ -123,22 +143,80 @@ Berserker + Templer: Omen
           if (!this.classParents.has(child)) {
             this.classParents.set(child, []);
           }
-          this.classParents.get(child)!.push(...parents);
+          const existingParents = this.classParents.get(child)!;
+          parents.forEach(p => {
+            if (!existingParents.includes(p)) {
+              existingParents.push(p);
+            }
+          });
         });
       }
     });
   }
 
+  // Find a non-overlapping angle for a given tier
+  findAvailableAngle(tier: number, preferredAngle: number, minSeparation: number = 25): number {
+    if (!this.tierAngleAllocations.has(tier)) {
+      this.tierAngleAllocations.set(tier, []);
+    }
+    const allocations = this.tierAngleAllocations.get(tier)!;
+
+    // Normalize angle to 0-360
+    let angle = ((preferredAngle * 180 / Math.PI) % 360 + 360) % 360;
+
+    // Check if angle is available
+    const isAvailable = (testAngle: number) => {
+      for (const allocated of allocations) {
+        const diff = Math.abs(testAngle - allocated);
+        const wrapDiff = Math.min(diff, 360 - diff);
+        if (wrapDiff < minSeparation) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    // Try preferred angle first
+    if (isAvailable(angle)) {
+      allocations.push(angle);
+      return angle * Math.PI / 180;
+    }
+
+    // Search for nearest available angle
+    for (let offset = minSeparation; offset < 180; offset += 5) {
+      if (isAvailable((angle + offset) % 360)) {
+        const newAngle = (angle + offset) % 360;
+        allocations.push(newAngle);
+        return newAngle * Math.PI / 180;
+      }
+      if (isAvailable((angle - offset + 360) % 360)) {
+        const newAngle = (angle - offset + 360) % 360;
+        allocations.push(newAngle);
+        return newAngle * Math.PI / 180;
+      }
+    }
+
+    // Fallback: just use the preferred angle
+    allocations.push(angle);
+    return angle * Math.PI / 180;
+  }
+
   calculateLayout() {
     const baseClasses = ['Magier', 'Kämpfer', 'Techniker'];
     const placed = new Set<string>();
+    const classAngles = new Map<string, number>(); // Track angle for each class
     this.classPositions = [];
     this.connections = [];
+    this.tierAngleAllocations.clear();
 
     // Place base classes in inner ring at 120° apart
     baseClasses.forEach((cls, index) => {
       const angle = (index * 120 - 90) * (Math.PI / 180); // Start from top
       const radius = this.tierRadii[1];
+
+      this.tierAngleAllocations.set(1, this.tierAngleAllocations.get(1) || []);
+      this.tierAngleAllocations.get(1)!.push((angle * 180 / Math.PI + 360) % 360);
+
       this.classPositions.push({
         name: cls,
         x: this.centerX + Math.cos(angle) * radius,
@@ -147,6 +225,7 @@ Berserker + Templer: Omen
         parents: []
       });
       placed.add(cls);
+      classAngles.set(cls, angle);
     });
 
     // BFS to place children in subsequent tiers
@@ -162,30 +241,25 @@ Berserker + Templer: Omen
         const parentPos = this.classPositions.find(p => p.name === parentName);
         if (!parentPos) return;
 
-        children.forEach((child, childIndex) => {
-          if (placed.has(child)) {
-            // Already placed, just add connection
-            const childPos = this.classPositions.find(p => p.name === child);
-            if (childPos) {
-              this.connections.push({ from: parentPos, to: childPos });
-            }
-            return;
-          }
+        const parentAngle = classAngles.get(parentName) || 0;
+        const unplacedChildren = children.filter(c => !placed.has(c));
 
-          // Calculate position for this child
-          const parentAngle = Math.atan2(parentPos.y - this.centerY, parentPos.x - this.centerX);
-          const spreadAngle = 20 * (Math.PI / 180); // Spread children by 20 degrees
-          const childCount = children.filter(c => !placed.has(c)).length;
+        unplacedChildren.forEach((child, childIndex) => {
+          // Calculate preferred angle based on parent
+          const spreadAngle = 25 * (Math.PI / 180);
+          const childCount = unplacedChildren.length;
           const startOffset = -(childCount - 1) / 2;
           const angleOffset = (startOffset + childIndex) * spreadAngle;
-          const childAngle = parentAngle + angleOffset;
+          const preferredAngle = parentAngle + angleOffset;
 
+          // Find non-overlapping angle
+          const actualAngle = this.findAvailableAngle(currentTier, preferredAngle);
           const radius = this.tierRadii[Math.min(currentTier, this.tierRadii.length - 1)];
 
           const childPos: ClassPosition = {
             name: child,
-            x: this.centerX + Math.cos(childAngle) * radius,
-            y: this.centerY + Math.sin(childAngle) * radius,
+            x: this.centerX + Math.cos(actualAngle) * radius,
+            y: this.centerY + Math.sin(actualAngle) * radius,
             tier: currentTier,
             parents: this.classParents.get(child) || []
           };
@@ -193,12 +267,102 @@ Berserker + Templer: Omen
           this.classPositions.push(childPos);
           this.connections.push({ from: parentPos, to: childPos });
           placed.add(child);
+          classAngles.set(child, actualAngle);
           nextToProcess.push(child);
+        });
+
+        // Add connections to already-placed children (multi-parent classes)
+        children.filter(c => placed.has(c) && !unplacedChildren.includes(c)).forEach(child => {
+          const childPos = this.classPositions.find(p => p.name === child);
+          if (childPos) {
+            // Check if connection already exists
+            const exists = this.connections.some(
+              c => c.from.name === parentName && c.to.name === child
+            );
+            if (!exists) {
+              this.connections.push({ from: parentPos, to: childPos });
+            }
+          }
         });
       });
 
       toProcess = nextToProcess;
     }
+  }
+
+  // Pan and zoom methods
+  onWheel(event: WheelEvent) {
+    event.preventDefault();
+    const delta = event.deltaY > 0 ? 0.9 : 1.1;
+    const newScale = Math.max(0.3, Math.min(3, this.scale * delta));
+
+    // Zoom towards mouse position
+    const rect = this.treeContainer?.nativeElement.getBoundingClientRect();
+    if (rect) {
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+
+      // Adjust pan to zoom towards mouse
+      this.panX = mouseX - (mouseX - this.panX) * (newScale / this.scale);
+      this.panY = mouseY - (mouseY - this.panY) * (newScale / this.scale);
+    }
+
+    this.scale = newScale;
+  }
+
+  onMouseDown(event: MouseEvent) {
+    // Only pan with middle mouse or when not clicking on a node
+    if (event.button === 1 || (event.target as HTMLElement).classList.contains('tree-inner')) {
+      this.isPanning = true;
+      this.lastMouseX = event.clientX;
+      this.lastMouseY = event.clientY;
+      event.preventDefault();
+    }
+  }
+
+  onMouseMove(event: MouseEvent) {
+    if (this.isPanning) {
+      const deltaX = event.clientX - this.lastMouseX;
+      const deltaY = event.clientY - this.lastMouseY;
+      this.panX += deltaX;
+      this.panY += deltaY;
+      this.lastMouseX = event.clientX;
+      this.lastMouseY = event.clientY;
+    }
+  }
+
+  onMouseUp() {
+    this.isPanning = false;
+  }
+
+  onMouseLeave() {
+    this.isPanning = false;
+  }
+
+  centerView() {
+    const container = this.treeContainer?.nativeElement;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      this.panX = rect.width / 2 - this.centerX * this.scale;
+      this.panY = rect.height / 2 - this.centerY * this.scale;
+    }
+  }
+
+  resetView() {
+    this.scale = 1;
+    this.centerView();
+  }
+
+  zoomIn() {
+    this.scale = Math.min(3, this.scale * 1.2);
+  }
+
+  zoomOut() {
+    this.scale = Math.max(0.3, this.scale / 1.2);
+  }
+
+  get transformStyle(): string {
+    return `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
   }
 
   selectClass(className: string) {
