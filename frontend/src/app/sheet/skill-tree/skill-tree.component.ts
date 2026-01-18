@@ -172,6 +172,37 @@ Nekromant:`;
       return { name: str.trim() };
     };
 
+    // Track explicitly defined tiers (from # Tier X sections)
+    const explicitTiers: Map<string, number> = new Map();
+
+    // First pass: collect all explicitly defined tiers (classes that appear as parents under # Tier X)
+    let firstPassTier = 0;
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      const tierMatch = trimmed.match(/^#\s*Tier\s*(\d+)/i);
+      if (tierMatch) {
+        firstPassTier = parseInt(tierMatch[1], 10);
+        continue;
+      }
+
+      if (trimmed.startsWith('#')) continue;
+
+      const match = trimmed.match(/^(.+?):\s*(.*)$/);
+      if (match) {
+        const parentPart = match[1].trim();
+        const parentStrings = parentPart.split('+').map(p => p.trim());
+
+        parentStrings.forEach(pStr => {
+          const parsed = parseClassWithAngle(pStr);
+          // This class is explicitly defined at this tier
+          explicitTiers.set(parsed.name, firstPassTier);
+        });
+      }
+    }
+
+    // Second pass: build hierarchy and assign tiers
     for (const line of lines) {
       const trimmed = line.trim();
 
@@ -207,10 +238,8 @@ Nekromant:`;
             this.classManualAngles.set(parsed.name, parsed.angle);
           }
 
-          // Register parent classes at current tier if not already set
-          if (!this.classTiers.has(parsed.name)) {
-            this.classTiers.set(parsed.name, currentTier);
-          }
+          // Use explicit tier (already set in first pass)
+          this.classTiers.set(parsed.name, currentTier);
         });
 
         // Parse children (may be empty for leaf nodes)
@@ -248,8 +277,9 @@ Nekromant:`;
               }
             });
 
-            // Child is one tier below parent
-            if (!this.classTiers.has(child)) {
+            // Only set child tier if it doesn't have an explicit tier defined
+            // (i.e., the child doesn't appear as a parent under any # Tier X section)
+            if (!explicitTiers.has(child) && !this.classTiers.has(child)) {
               this.classTiers.set(child, currentTier + 1);
             }
           });
@@ -519,6 +549,12 @@ Nekromant:`;
 
   toggleEditMode() {
     this.editMode = !this.editMode;
+  }
+
+  // Reset layout to default (clear all manual angles and rebuild)
+  resetLayout() {
+    this.classManualAngles.clear();
+    this.buildLayout();
   }
 
   // Export layout as class-definitions.txt format

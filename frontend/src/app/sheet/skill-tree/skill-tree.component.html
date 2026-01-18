@@ -21,6 +21,9 @@
           {{ editMode ? 'Fertig' : 'Layout' }}
         </button>
         @if (editMode) {
+          <button class="reset-btn" (click)="resetLayout()" title="Layout zurücksetzen">
+            Reset
+          </button>
           <button class="export-btn" (click)="exportLayout()" title="Layout exportieren">
             Export
           </button>

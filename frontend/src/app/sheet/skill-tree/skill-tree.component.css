@@ -109,7 +109,8 @@
 }
 
 .edit-btn,
-.export-btn {
+.export-btn,
+.reset-btn {
   padding: 0.4rem 0.8rem;
   border-radius: 6px;
   background: var(--bg);
@@ -121,7 +122,8 @@
 }
 
 .edit-btn:hover,
-.export-btn:hover {
+.export-btn:hover,
+.reset-btn:hover {
   background: var(--border);
   color: var(--accent);
 }
@@ -129,6 +131,18 @@
 .edit-btn.active {
   background: var(--accent);
   border-color: var(--accent);
+  color: white;
+}
+
+.reset-btn {
+  background: #6b7280;
+  border-color: #6b7280;
+  color: white;
+}
+
+.reset-btn:hover {
+  background: #4b5563;
+  border-color: #4b5563;
   color: white;
 }
 
