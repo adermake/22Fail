@@ -179,7 +179,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
     const fastest = timings[0];
 
     const tile: TimelineTile = {
-      id: `${fastest.char.id}_turn_${this.tiles.length}`,
+      id: `${fastest.char.id}_turn_${fastest.char.turn}`,
       characterId: fastest.char.id,
       timing: fastest.timing,
       name: fastest.char.name,

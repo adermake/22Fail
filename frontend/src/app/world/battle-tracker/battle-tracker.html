@@ -53,6 +53,7 @@
   <!-- Timeline - All tiles are draggable -->
   <div class="turn-queue-container">
     <div class="turn-queue"
+         #turnQueue
          [class.is-dragging]="!!draggedTileId"
          (dragover)="onDragOver($event)"
          (dragleave)="onDragLeave($event)"
@@ -69,8 +70,10 @@
           <!-- Tiles in this group -->
           @for (tile of group.tiles; track tile.id) {
             <div class="battle-card"
+                 [attr.data-tile-id]="tile.id"
                  [class.fading]="shouldTileFade(tile.id)"
                  [class.is-dragged]="draggedTileId === tile.id"
+                 [class.is-animating]="isAnimating(tile.id)"
                  [ngClass]="'team-' + tile.team"
                  draggable="true"
                  (dragstart)="onDragStart($event, tile)"

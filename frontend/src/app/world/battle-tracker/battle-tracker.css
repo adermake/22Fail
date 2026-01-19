@@ -202,6 +202,12 @@
   opacity: 0.5;
 }
 
+/* During animation - disable hover effects */
+.battle-card.is-animating {
+  pointer-events: none;
+  z-index: 5;
+}
+
 /* Fading tiles during drag preview */
 .battle-card.fading {
   animation: fadeOutSlideUp 0.5s ease-out forwards;
