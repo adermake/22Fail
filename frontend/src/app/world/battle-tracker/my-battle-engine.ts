@@ -5,36 +5,33 @@ import {
   CharacterOption,
 } from './battle-timeline-engine';
 
+interface Participant {
+  characterId: string;
+  name: string;
+  portrait?: string;
+  team: string;
+  speed: number;
+  nextTurn: number; // Which turn number this character will take next
+}
+
 /**
- * Your Battle Engine Implementation
+ * Battle Engine Implementation
  *
- * Fill in the methods below with your game logic.
- * The UI will call these methods and display the results.
+ * Turn timing formula: timing = (turnNumber * 1000) / speed
+ * Higher speed = lower timing = goes first
  */
 export class MyBattleEngine extends BattleTimelineEngine {
-  // ===========================================
-  // YOUR STATE - store your data here
-  // ===========================================
+  // Characters available to add to battle
+  private allCharacters: { id: string; name: string; portrait?: string; speed: number }[] = [];
 
-  private participants: Map<
-    string,
-    {
-      characterId: string;
-      name: string;
-      portrait?: string;
-      team: string;
-      speed: number;
-      // Add whatever else you need...
-    }
-  > = new Map();
+  // Characters currently in battle with their state
+  private participants: Map<string, Participant> = new Map();
 
-  private allCharacters: CharacterOption[] = [];
-
-  // The timeline - array of tiles in order
+  // The displayed timeline
   private tiles: TimelineTile[] = [];
 
   // ===========================================
-  // SETUP - call this to initialize characters
+  // SETUP
   // ===========================================
 
   setAvailableCharacters(
@@ -43,124 +40,80 @@ export class MyBattleEngine extends BattleTimelineEngine {
     this.allCharacters = characters.map((c) => ({
       id: c.id,
       name: c.name,
-      turn: 1,
       portrait: c.portrait,
-      speed: c.speed,
-      isInBattle: this.participants.has(c.id),
-      team: this.participants.get(c.id)?.team,
+      speed: c.speed ?? 10,
     }));
     this.notifyChange();
   }
 
   // ===========================================
-  // REQUIRED METHODS - Implement your logic
+  // REQUIRED METHODS
   // ===========================================
 
   getTimeline(): TimelineGroup[] {
-    // TODO: Return your timeline as groups
-    // For now, each tile is its own group
     return this.tiles.map((tile, index) => ({
-      id: `group_${index}`,
+      id: `group_${tile.id}`, // Use tile id for stable group tracking
       tiles: [tile],
       team: tile.team,
     }));
   }
 
   getCharacters(): CharacterOption[] {
-    // Update isInBattle status
     return this.allCharacters.map((c) => ({
-      ...c,
+      id: c.id,
+      name: c.name,
+      portrait: c.portrait,
+      speed: c.speed,
+      turn: this.participants.get(c.id)?.nextTurn ?? 1,
       isInBattle: this.participants.has(c.id),
       team: this.participants.get(c.id)?.team,
     }));
-  }
-
-  onTileDrop(tileId: string, targetGroupIndex: number, position: 'before' | 'after'): void {
-    // Find the tile being dragged
-    const tileIndex = this.tiles.findIndex((t) => t.id === tileId);
-    if (tileIndex === -1) return;
-
-    // Remove from current position
-    const [tile] = this.tiles.splice(tileIndex, 1);
-
-    // Calculate new index
-    let newIndex = targetGroupIndex;
-    if (position === 'after') {
-      newIndex++;
-    }
-    // Adjust if we removed from before the target
-    if (tileIndex < newIndex) {
-      newIndex--;
-    }
-
-    // Insert at new position
-    this.tiles.splice(newIndex, 0, tile);
-
-    this.tiles = this.tiles.filter((t, i) => !(i < newIndex && t.characterId === tile.characterId));
-    newIndex = this.tiles.findIndex((t) => t.id === tile.id);
-
-    //TODO
-    // remove all tiles after new index
-    this.tiles = this.tiles.slice(0, newIndex + 1);
-    //TODO
-    const lastTile = this.tiles[this.tiles.length - 1];
-
-    this.allCharacters.forEach((char) => {
-      const lastCharTile = [...this.tiles].reverse().find((t) => t.characterId === char.id);
-
-      if (lastCharTile) {
-        char.turn = lastCharTile.turn;
-      } else {
-        char.turn = 1; // or undefined / null depending on your design
-      }
-    });
-
-    this.orderTilesByTiming();
   }
 
   onAddCharacter(characterId: string): void {
     const char = this.allCharacters.find((c) => c.id === characterId);
     if (!char || this.participants.has(characterId)) return;
 
-    // Add to participants
+    // Add to participants starting at turn 1
     this.participants.set(characterId, {
       characterId,
       name: char.name,
       portrait: char.portrait,
-      team: 'blue', // Default team
-      speed: char.speed ?? 10,
+      team: 'blue',
+      speed: char.speed,
+      nextTurn: 1,
     });
 
-    let speed = char.speed;
-    if (!speed) {
-      speed = 1;
-    }
-    // Add a tile for this character
-
-    this.orderTilesByTiming();
+    // Rebuild timeline from scratch
+    this.rebuildTimeline();
   }
 
   onRemoveCharacter(characterId: string): void {
     this.participants.delete(characterId);
 
-    // Remove all tiles for this character
+    // Remove this character's tiles
     this.tiles = this.tiles.filter((t) => t.characterId !== characterId);
 
+    // Refill if needed
+    this.fillTimeline();
     this.notifyChange();
   }
 
   onNextTurn(): void {
-    // TODO: Implement your turn advancement logic
-    // Example: move first tile to end
+    if (this.tiles.length === 0) return;
 
-    if (this.tiles.length > 0) {
-      const first = this.tiles.shift()!;
-      const char = this.allCharacters.find((c) => c.id === first.characterId);
-      first.timing = this.getNextSpeedTiming(char!);
+    // Remove the first tile (current turn)
+    const completedTile = this.tiles.shift()!;
 
-      char!.turn += 1;
+    // Update that character's next turn number
+    const participant = this.participants.get(completedTile.characterId);
+    if (participant) {
+      participant.nextTurn = completedTile.turn + 1;
     }
-    this.orderTilesByTiming();
+
+    // Generate more tiles to fill the queue
+    this.fillTimeline();
+    this.notifyChange();
   }
 
   onResetBattle(): void {
@@ -174,7 +127,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
     if (participant) {
       participant.team = team;
 
-      // Update tiles for this character
+      // Update all tiles for this character
       this.tiles.forEach((tile) => {
         if (tile.characterId === characterId) {
           tile.team = team;
@@ -185,64 +138,160 @@ export class MyBattleEngine extends BattleTimelineEngine {
     }
   }
 
-  generateNextTile(): TimelineTile {
-    const timings = this.allCharacters.map((char) => ({
-      char,
-      timing: this.getNextSpeedTiming(char),
-    }));
+  onTileDrop(tileId: string, targetGroupIndex: number, position: 'before' | 'after'): void {
+    const tileIndex = this.tiles.findIndex((t) => t.id === tileId);
+    if (tileIndex === -1) return;
 
-    timings.sort((a, b) => a.timing - b.timing);
+    const draggedTile = this.tiles[tileIndex];
 
-    const fastest = timings[0];
-
-    const tile: TimelineTile = {
-      id: `${fastest.char.id}_turn_${fastest.char.turn}`,
-      characterId: fastest.char.id,
-      timing: fastest.timing,
-      name: fastest.char.name,
-      turn: fastest.char.turn,
-      portrait: fastest.char.portrait,
-      team: fastest.char.team ?? 'blue',
-    };
-
-    fastest.char.turn += 1;
-    this.tiles.push(tile);
-
-    return tile;
-  }
-
-  getNextSpeedTiming(char: CharacterOption) {
-    let speed = char.speed;
-    if (!speed) {
-      speed = 1;
+    // Calculate target position in tiles array
+    let targetIndex = targetGroupIndex;
+    if (position === 'after') {
+      targetIndex++;
     }
-    return (char.turn * 1000) / speed;
-  }
-  orderTilesByTiming(): void {
-    while (this.tiles.length < 10) {
-      this.generateNextTile();
+
+    // Adjust for removal
+    if (tileIndex < targetIndex) {
+      targetIndex--;
     }
-    this.tiles.sort((a, b) => a.timing - b.timing);
+
+    // Remove dragged tile
+    this.tiles.splice(tileIndex, 1);
+
+    // Insert at new position
+    this.tiles.splice(targetIndex, 0, draggedTile);
+
+    // Remove earlier occurrences of this character (before the dropped position)
+    const newPosition = this.tiles.findIndex((t) => t.id === tileId);
+    this.tiles = this.tiles.filter((t, i) => {
+      // Keep the dragged tile
+      if (t.id === tileId) return true;
+      // Remove same-character tiles that come before it
+      if (t.characterId === draggedTile.characterId && i < newPosition) return false;
+      return true;
+    });
+
+    // Recalculate position after filtering
+    const finalPosition = this.tiles.findIndex((t) => t.id === tileId);
+
+    // Truncate everything after the dropped tile and rebuild
+    this.tiles = this.tiles.slice(0, finalPosition + 1);
+
+    // Sync participant turn numbers based on remaining tiles
+    this.syncTurnNumbers();
+
+    // Refill the timeline
+    this.fillTimeline();
     this.notifyChange();
   }
 
   // ===========================================
-  // OPTIONAL OVERRIDES
+  // HELPER METHODS
   // ===========================================
 
-  // Return false to prevent dragging specific tiles
-  // canDragTile(tileId: string): boolean {
-  //   return true;
-  // }
+  /** Rebuild the entire timeline from scratch */
+  private rebuildTimeline(): void {
+    this.tiles = [];
 
-  // Return tile IDs that should fade during drag
-  // getTilesToFadeOnDrag(draggedTileId: string): string[] {
-  //   return [];
-  // }
+    // Reset all participants to turn 1
+    this.participants.forEach((p) => {
+      p.nextTurn = 1;
+    });
 
-  // Customize the "Current Turn" display
-  // getCurrentTurnDisplay(): string | null {
-  //   if (this.tiles.length === 0) return null;
-  //   return this.tiles[0].name;
-  // }
+    this.fillTimeline();
+    this.notifyChange();
+  }
+
+  /** Fill the timeline to have at least 10 tiles */
+  private fillTimeline(): void {
+    if (this.participants.size === 0) return;
+
+    // Create a working copy of turn numbers
+    const turnNumbers = new Map<string, number>();
+    this.participants.forEach((p, id) => {
+      turnNumbers.set(id, p.nextTurn);
+    });
+
+    // Account for existing tiles
+    this.tiles.forEach((tile) => {
+      const current = turnNumbers.get(tile.characterId);
+      if (current !== undefined && tile.turn >= current) {
+        turnNumbers.set(tile.characterId, tile.turn + 1);
+      }
+    });
+
+    // Generate tiles until we have 10
+    while (this.tiles.length < 10) {
+      const nextTile = this.generateNextTile(turnNumbers);
+      if (!nextTile) break;
+      this.tiles.push(nextTile);
+    }
+
+    // Sort by timing
+    this.tiles.sort((a, b) => a.timing - b.timing);
+  }
+
+  /** Generate the next tile based on who has the lowest timing */
+  private generateNextTile(turnNumbers: Map<string, number>): TimelineTile | null {
+    let bestParticipant: Participant | undefined;
+    let bestTiming = Infinity;
+    let bestTurn = 0;
+
+    for (const participant of this.participants.values()) {
+      const turn = turnNumbers.get(participant.characterId) ?? 1;
+      const timing = this.calculateTiming(turn, participant.speed);
+
+      if (timing < bestTiming) {
+        bestTiming = timing;
+        bestParticipant = participant;
+        bestTurn = turn;
+      }
+    }
+
+    if (!bestParticipant) return null;
+
+    const tile: TimelineTile = {
+      id: `${bestParticipant.characterId}_turn_${bestTurn}`,
+      characterId: bestParticipant.characterId,
+      name: bestParticipant.name,
+      portrait: bestParticipant.portrait,
+      team: bestParticipant.team,
+      turn: bestTurn,
+      timing: bestTiming,
+    };
+
+    // Increment the turn counter for this character
+    turnNumbers.set(bestParticipant.characterId, bestTurn + 1);
+
+    return tile;
+  }
+
+  /** Calculate timing for a given turn and speed */
+  private calculateTiming(turn: number, speed: number): number {
+    return (turn * 1000) / speed;
+  }
+
+  /** Sync participant nextTurn values based on existing tiles */
+  private syncTurnNumbers(): void {
+    // Find the highest turn number for each character in existing tiles
+    const maxTurns = new Map<string, number>();
+
+    this.tiles.forEach((tile) => {
+      const current = maxTurns.get(tile.characterId) ?? 0;
+      if (tile.turn > current) {
+        maxTurns.set(tile.characterId, tile.turn);
+      }
+    });
+
+    // Set nextTurn to maxTurn + 1 for each participant
+    this.participants.forEach((participant, id) => {
+      const maxTurn = maxTurns.get(id);
+      if (maxTurn !== undefined) {
+        participant.nextTurn = maxTurn + 1;
+      } else {
+        // Character has no tiles, start from 1
+        participant.nextTurn = 1;
+      }
+    });
+  }
 }
