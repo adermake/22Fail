@@ -120,18 +120,7 @@
 
   <!-- Battle Tracker Section -->
   <div class="battle-tracker-section">
-    <app-battle-tracker
-      [battleParticipants]="world.battleParticipants"
-      [currentTurnIndex]="world.currentTurnIndex"
-      [availableCharacters]="availableCharactersForBattle"
-      [characterPortraits]="characterPortraitsMap"
-      (addParticipant)="addToBattle($event)"
-      (removeParticipant)="removeFromBattle($event)"
-      (nextTurn)="advanceTurn()"
-      (resetBattle)="resetBattle()"
-      (changeTeam)="changeParticipantTeam($event.characterId, $event.team)"
-      (reorder)="reorderParticipants($event.characterId, $event.newIndex)">
-    </app-battle-tracker>
+    <app-battle-tracker [engine]="battleEngine"></app-battle-tracker>
   </div>
 
   <!-- Bottom Section: Battle Loot + Library -->

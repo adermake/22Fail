@@ -18,6 +18,7 @@ import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.comp
 import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
 import { BattleTracker } from '../battle-tracker/battle-tracker';
 import { LootManagerComponent, LootBundle } from '../loot-manager/loot-manager.component';
+import { MyBattleEngine } from '../battle-tracker/my-battle-engine';
 
 // Re-export types for template usage
 export type { SimulatedTurn, BattleGroup };
@@ -48,6 +49,9 @@ export class WorldComponent implements OnInit, OnDestroy {
   partyCharacters: Map<string, CharacterSheet> = new Map();
   characterPortraitsMap: Map<string, string> = new Map();
   private characterPatchSubscription?: Subscription;
+
+  // Battle Engine
+  battleEngine = new MyBattleEngine();
 
   // UI state
   dummySheet: CharacterSheet = createEmptySheet();
@@ -155,6 +159,17 @@ export class WorldComponent implements OnInit, OnDestroy {
     // Update battle service with current party characters
     this.battleService.setPartyCharacters(this.partyCharacters);
     this.updateCharacterPortraits();
+
+    // Update battle engine with available characters
+    this.battleEngine.setAvailableCharacters(
+      Array.from(this.partyCharacters.entries()).map(([id, sheet]) => ({
+        id,
+        name: sheet.name || id,
+        portrait: sheet.portrait,
+        speed: this.battleService.calculateSpeed(sheet)
+      }))
+    );
+
     this.cdr.detectChanges();
   }
 

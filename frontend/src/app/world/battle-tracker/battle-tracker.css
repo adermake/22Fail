@@ -1,198 +1,273 @@
+.battle-tracker-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
 
-    .battle-tracker-container {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      padding: 1rem;
-      background: var(--bg-secondary);
-      border-radius: 8px;
-    }
-    
-    /* Header & Controls */
-    .battle-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .battle-header h2 { margin: 0; color: var(--accent); font-size: 1.2rem; }
-    .reset-button {
-      padding: 4px 8px;
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .reset-button:hover { border-color: var(--accent); color: var(--accent); }
+/* Header & Controls */
+.battle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.battle-header h2 { margin: 0; color: var(--accent); font-size: 1.2rem; }
+.reset-button {
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.reset-button:hover { border-color: var(--accent); color: var(--accent); }
 
-    /* Character List */
-    .characters-section { margin-bottom: 1rem; }
-    .characters-section h3 { margin: 0 0 0.5rem 0; font-size: 1rem; color: var(--text); }
-    .character-list { 
-      display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto;
-      padding-right: 4px;
-    }
-    .character-list::-webkit-scrollbar { width: 6px; }
-    .character-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
-    .character-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    .character-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+/* Current Turn Display */
+.current-turn-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(var(--accent-rgb), 0.1);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+.current-turn-label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.current-turn-names {
+  color: var(--accent);
+  font-weight: 500;
+}
 
-    .character-option {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-    }
-    .character-option.in-battle { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.05); }
-    .character-info { display: flex; align-items: center; gap: 0.75rem; }
-    .character-portrait-small { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
-    .character-details { display: flex; flex-direction: column; }
-    .character-name { font-weight: 500; font-size: 0.9rem; }
-    .character-speed { font-size: 0.75rem; color: var(--text-muted); }
-    .team-selector {
-      margin-top: 2px; padding: 2px; font-size: 0.75rem;
-      background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px;
-    }
-    .toggle-button {
-      padding: 4px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;
-      background: var(--accent); color: white;
-    }
-    .toggle-button.in-battle { background: var(--bg-secondary); color: var(--text); border: 1px solid var(--border); }
+/* Character List */
+.characters-section { margin-bottom: 1rem; }
+.characters-section h3 { margin: 0 0 0.5rem 0; font-size: 1rem; color: var(--text); }
+.character-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.character-list::-webkit-scrollbar { width: 6px; }
+.character-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+.character-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.character-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
-    /* Turn Queue */
-    .turn-queue-container {
-      overflow-x: auto;
-      padding-bottom: 0.5rem;
-      scrollbar-width: thin;
-      scrollbar-color: var(--accent) transparent;
-    }
-    .turn-queue-container::-webkit-scrollbar { height: 6px; }
-    .turn-queue-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 3px; }
-    .turn-queue-container::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+.character-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.character-option.in-battle {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.05);
+}
+.character-info { display: flex; align-items: center; gap: 0.75rem; }
+.character-portrait-small { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.character-details { display: flex; flex-direction: column; }
+.character-name { font-weight: 500; font-size: 0.9rem; }
+.character-speed { font-size: 0.75rem; color: var(--text-muted); }
+.team-selector {
+  margin-top: 2px;
+  padding: 2px;
+  font-size: 0.75rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.toggle-button {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  background: var(--accent);
+  color: white;
+}
+.toggle-button.in-battle {
+  background: var(--bg-secondary);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.no-chars {
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+}
 
-    .turn-queue {
-      display: flex;
-      gap: 4px;
-      min-height: 100px;
-      align-items: center;
-      padding: 4px;
-      position: relative;
-    }
-    .battle-group {
-      display: flex;
-      gap: 2px;
-      padding: 4px;
-      border-radius: 8px;
-      background: rgba(0,0,0,0.1);
-      position: relative;
-    }
+/* Turn Queue / Timeline */
+.turn-queue-container {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+.turn-queue-container::-webkit-scrollbar { height: 6px; }
+.turn-queue-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 3px; }
+.turn-queue-container::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
 
-    /* Fade out + slide up animation for turns being removed during drag */
-    .battle-group.fading-out {
-      animation: fadeOutSlideUp 1.5s ease-out forwards !important;
-      pointer-events: none;
-    }
+.turn-queue {
+  display: flex;
+  gap: 4px;
+  min-height: 100px;
+  align-items: center;
+  padding: 4px;
+  position: relative;
+}
 
-    @keyframes fadeOutSlideUp {
-      from {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      to {
-        opacity: 0;
-        transform: translateY(-80px);
-      }
-    }
-    .battle-card {
-      position: relative;
-      width: 60px;
-      height: 80px;
-      background: var(--card-bg);
-      border: 2px solid transparent;
-      border-radius: 6px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      overflow: hidden;
-      transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s;
-      user-select: none;
-    }
-    .battle-card img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0.8;
-    }
-    .battle-card span {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(0,0,0,0.7);
-      color: white;
-      text-align: center;
-      padding: 2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .battle-card.is-anchor {
-      border-color: var(--accent);
-      opacity: 1;
-      cursor: grab;
-      z-index: 2;
-    }
-    .battle-card.is-anchor:active {
-      cursor: grabbing;
-      transform: scale(1.05);
-    }
-    .anchor-indicator {
-      position: absolute;
-      top: 2px;
-      right: 2px;
-      font-size: 12px;
-      background: rgba(0,0,0,0.5);
-      border-radius: 50%;
-      width: 16px;
-      height: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #ffd700;
-    }
-    .team-blue { border-bottom: 3px solid #3b82f6; }
-    .team-red { border-bottom: 3px solid #ef4444; }
-    .team-green { border-bottom: 3px solid #10b981; }
-    .team-yellow { border-bottom: 3px solid #eab308; }
-    .team-purple { border-bottom: 3px solid #a855f7; }
-    .team-orange { border-bottom: 3px solid #f97316; }
-    
-    /* Fix hover jitter during drag */
-    .turn-queue:not(.is-dragging) .battle-card:hover {
-      transform: scale(1.15);
-      z-index: 10;
-    }
-    .turn-queue.is-dragging .battle-card {
-      pointer-events: none;
-    }
+.battle-group {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.1);
+  position: relative;
+}
 
-    .drop-indicator {
-      position: absolute;
-      top: -5px; bottom: -5px;
-      width: 4px;
-      background: var(--accent);
-      border-radius: 2px;
-      z-index: 20;
-      box-shadow: 0 0 8px var(--accent);
-      pointer-events: none;
-    }
+/* Battle Card - Every tile is draggable */
+.battle-card {
+  position: relative;
+  width: 60px;
+  height: 80px;
+  background: var(--card-bg);
+  border: 2px solid transparent;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  overflow: hidden;
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s, opacity 0.3s;
+  user-select: none;
+  cursor: grab;
+}
+.battle-card:active {
+  cursor: grabbing;
+}
+.battle-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.9;
+}
+.battle-card span {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  text-align: center;
+  padding: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-    .controls { margin-top: 1rem; display: flex; gap: 0.5rem; }
-    .controls button {
-      padding: 0.5rem 1rem; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer;
-    }
-    .controls button:disabled { opacity: 0.5; cursor: not-allowed; }
-  
+/* Team Colors */
+.team-blue { border-bottom: 3px solid #3b82f6; }
+.team-red { border-bottom: 3px solid #ef4444; }
+.team-green { border-bottom: 3px solid #10b981; }
+.team-yellow { border-bottom: 3px solid #eab308; }
+.team-purple { border-bottom: 3px solid #a855f7; }
+.team-orange { border-bottom: 3px solid #f97316; }
+
+/* Hover effect - only when not dragging */
+.turn-queue:not(.is-dragging) .battle-card:hover {
+  transform: scale(1.15);
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* During drag - disable pointer events on cards */
+.turn-queue.is-dragging .battle-card {
+  pointer-events: none;
+}
+.turn-queue.is-dragging .battle-card.is-dragged {
+  opacity: 0.5;
+}
+
+/* Fading tiles during drag preview */
+.battle-card.fading {
+  animation: fadeOutSlideUp 0.5s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes fadeOutSlideUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0.2;
+    transform: translateY(-20px);
+  }
+}
+
+/* Drop Indicator */
+.drop-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent);
+  border-radius: 2px;
+  z-index: 20;
+  box-shadow: 0 0 8px var(--accent), 0 0 16px var(--accent);
+  pointer-events: none;
+}
+.drop-indicator.drop-before {
+  left: -4px;
+}
+.drop-indicator.drop-after {
+  right: -4px;
+}
+
+/* Empty Timeline */
+.empty-timeline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  width: 100%;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Controls */
+.controls {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.5rem;
+}
+.controls button {
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.controls button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
