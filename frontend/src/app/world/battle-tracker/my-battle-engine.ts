@@ -116,21 +116,21 @@ export class MyBattleEngine extends BattleTimelineEngine {
 
     let speed = char.speed;
     if (!speed) {
-        speed = 1;
+      speed = 1;
     }
     // Add a tile for this character
     for (let i = 1; i <= 3; i++) {
       this.tiles.push({
-        id: `${characterId}_turn_`+i,
+        id: `${characterId}_turn_` + i,
         characterId,
-        timing: char.turn*1000/ (speed),
+        timing: (char.turn * 1000) / speed,
         name: char.name,
         portrait: char.portrait,
         team: 'blue',
       });
-       char.turn += 1;
+      char.turn += 1;
     }
-    
+
     this.orderTilesByTiming();
   }
 
@@ -146,23 +146,24 @@ export class MyBattleEngine extends BattleTimelineEngine {
   onNextTurn(): void {
     // TODO: Implement your turn advancement logic
     // Example: move first tile to end
-  
+
     if (this.tiles.length > 0) {
       const first = this.tiles.shift()!;
-       const char = this.allCharacters.find((c) => c.id === first.characterId);
-       first.timing = this.getNextSpeedTiming(char!);
+      const char = this.allCharacters.find((c) => c.id === first.characterId);
+      first.timing = this.getNextSpeedTiming(char!);
+      this.tiles.push(first);
+      char!.turn += 1;
     }
     this.orderTilesByTiming();
   }
 
-  getNextSpeedTiming( char: CharacterOption) {
+  getNextSpeedTiming(char: CharacterOption) {
     let speed = char.speed;
     if (!speed) {
-        speed = 1;
+      speed = 1;
     }
-    return char.turn*1000/ speed;
+    return (char.turn * 1000) / speed;
   }
-
 
   onResetBattle(): void {
     this.participants.clear();
