@@ -128,8 +128,8 @@ export class MyBattleEngine extends BattleTimelineEngine {
         team: 'blue',
       });
     }
-
-    this.notifyChange();
+    
+    this.orderTilesByTiming();
   }
 
   onRemoveCharacter(characterId: string): void {
@@ -144,11 +144,12 @@ export class MyBattleEngine extends BattleTimelineEngine {
   onNextTurn(): void {
     // TODO: Implement your turn advancement logic
     // Example: move first tile to end
+
     if (this.tiles.length > 0) {
       const first = this.tiles.shift()!;
       this.tiles.push(first);
-      this.notifyChange();
     }
+    this.orderTilesByTiming();
   }
 
   onResetBattle(): void {
@@ -171,6 +172,11 @@ export class MyBattleEngine extends BattleTimelineEngine {
 
       this.notifyChange();
     }
+  }
+
+  orderTilesByTiming(): void {
+    this.tiles.sort((a, b) => a.timing - b.timing);
+    this.notifyChange();
   }
 
   // ===========================================
