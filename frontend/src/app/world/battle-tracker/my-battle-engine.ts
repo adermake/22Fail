@@ -76,8 +76,6 @@ export class MyBattleEngine extends BattleTimelineEngine {
   }
 
   onTileDrop(tileId: string, targetGroupIndex: number, position: 'before' | 'after'): void {
-    // TODO: Implement your reorder logic
-
     // Find the tile being dragged
     const tileIndex = this.tiles.findIndex((t) => t.id === tileId);
     if (tileIndex === -1) return;
@@ -97,6 +95,20 @@ export class MyBattleEngine extends BattleTimelineEngine {
 
     // Insert at new position
     this.tiles.splice(newIndex, 0, tile);
+
+    this.tiles = this.tiles.filter((t, i) => !(i < newIndex && t.characterId === tile.characterId));
+    newIndex = this.tiles.findIndex((t) => t.id === tile.id);
+
+    //TODO
+    // remove all tiles after new index
+    this.tiles = this.tiles.slice(0, newIndex + 1);
+    //TODO
+    const lastTile = this.tiles[this.tiles.length - 1];
+
+    const character = this.allCharacters.find((c) => c.id === tile.characterId);
+    if (character && lastTile) {
+      character.turn = lastTile.turn + 1;
+    }
 
     this.notifyChange();
   }
@@ -183,6 +195,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
       characterId: fastest.char.id,
       timing: fastest.timing,
       name: fastest.char.name,
+      turn: fastest.char.turn,
       portrait: fastest.char.portrait,
       team: fastest.char.team ?? 'blue',
     };

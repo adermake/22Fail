@@ -17,6 +17,7 @@ export interface TimelineTile {
   name: string;         // Display name
   portrait?: string;    // Optional portrait URL
   timing: number;
+  turn: number;         // Which turn number this is for the character
   team: string;         // Team color: 'blue' | 'red' | 'green' | 'yellow' | 'purple' | 'orange'
   // Add any extra data you need - the UI won't touch it
   [key: string]: any;
