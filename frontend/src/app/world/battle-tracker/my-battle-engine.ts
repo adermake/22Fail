@@ -1,4 +1,9 @@
-import { BattleTimelineEngine, TimelineGroup, TimelineTile, CharacterOption } from './battle-timeline-engine';
+import {
+  BattleTimelineEngine,
+  TimelineGroup,
+  TimelineTile,
+  CharacterOption,
+} from './battle-timeline-engine';
 
 /**
  * Your Battle Engine Implementation
@@ -7,19 +12,21 @@ import { BattleTimelineEngine, TimelineGroup, TimelineTile, CharacterOption } fr
  * The UI will call these methods and display the results.
  */
 export class MyBattleEngine extends BattleTimelineEngine {
-
   // ===========================================
   // YOUR STATE - store your data here
   // ===========================================
 
-  private participants: Map<string, {
-    characterId: string;
-    name: string;
-    portrait?: string;
-    team: string;
-    speed: number;
-    // Add whatever else you need...
-  }> = new Map();
+  private participants: Map<
+    string,
+    {
+      characterId: string;
+      name: string;
+      portrait?: string;
+      team: string;
+      speed: number;
+      // Add whatever else you need...
+    }
+  > = new Map();
 
   private allCharacters: CharacterOption[] = [];
 
@@ -30,14 +37,16 @@ export class MyBattleEngine extends BattleTimelineEngine {
   // SETUP - call this to initialize characters
   // ===========================================
 
-  setAvailableCharacters(characters: { id: string; name: string; portrait?: string; speed?: number }[]) {
-    this.allCharacters = characters.map(c => ({
+  setAvailableCharacters(
+    characters: { id: string; name: string; portrait?: string; speed?: number }[],
+  ) {
+    this.allCharacters = characters.map((c) => ({
       id: c.id,
       name: c.name,
       portrait: c.portrait,
       speed: c.speed,
       isInBattle: this.participants.has(c.id),
-      team: this.participants.get(c.id)?.team
+      team: this.participants.get(c.id)?.team,
     }));
     this.notifyChange();
   }
@@ -52,16 +61,16 @@ export class MyBattleEngine extends BattleTimelineEngine {
     return this.tiles.map((tile, index) => ({
       id: `group_${index}`,
       tiles: [tile],
-      team: tile.team
+      team: tile.team,
     }));
   }
 
   getCharacters(): CharacterOption[] {
     // Update isInBattle status
-    return this.allCharacters.map(c => ({
+    return this.allCharacters.map((c) => ({
       ...c,
       isInBattle: this.participants.has(c.id),
-      team: this.participants.get(c.id)?.team
+      team: this.participants.get(c.id)?.team,
     }));
   }
 
@@ -69,7 +78,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
     // TODO: Implement your reorder logic
 
     // Find the tile being dragged
-    const tileIndex = this.tiles.findIndex(t => t.id === tileId);
+    const tileIndex = this.tiles.findIndex((t) => t.id === tileId);
     if (tileIndex === -1) return;
 
     // Remove from current position
@@ -92,7 +101,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
   }
 
   onAddCharacter(characterId: string): void {
-    const char = this.allCharacters.find(c => c.id === characterId);
+    const char = this.allCharacters.find((c) => c.id === characterId);
     if (!char || this.participants.has(characterId)) return;
 
     // Add to participants
@@ -101,17 +110,24 @@ export class MyBattleEngine extends BattleTimelineEngine {
       name: char.name,
       portrait: char.portrait,
       team: 'blue', // Default team
-      speed: char.speed ?? 10
+      speed: char.speed ?? 10,
     });
 
+    let speed = char.speed;
+    if (!speed) {
+        speed = 1;
+    }
     // Add a tile for this character
-    this.tiles.push({
-      id: `${characterId}_turn_0`,
-      characterId,
-      name: char.name,
-      portrait: char.portrait,
-      team: 'blue'
-    });
+    for (let i = 0; i < 3; i++) {
+      this.tiles.push({
+        id: `${characterId}_turn_`+i,
+        characterId,
+        timing: 1000/ (speed*i),
+        name: char.name,
+        portrait: char.portrait,
+        team: 'blue',
+      });
+    }
 
     this.notifyChange();
   }
@@ -120,7 +136,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
     this.participants.delete(characterId);
 
     // Remove all tiles for this character
-    this.tiles = this.tiles.filter(t => t.characterId !== characterId);
+    this.tiles = this.tiles.filter((t) => t.characterId !== characterId);
 
     this.notifyChange();
   }
@@ -147,7 +163,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
       participant.team = team;
 
       // Update tiles for this character
-      this.tiles.forEach(tile => {
+      this.tiles.forEach((tile) => {
         if (tile.characterId === characterId) {
           tile.team = team;
         }
