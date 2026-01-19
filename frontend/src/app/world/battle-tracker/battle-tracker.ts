@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BattleTimelineEngine, TimelineGroup, TimelineTile, CharacterOption } from './battle-timeline-engine';
 
-interface TilePosition {
+interface ElementPosition {
   x: number;
   y: number;
 }
@@ -30,10 +30,11 @@ export class BattleTracker implements OnInit, OnDestroy, AfterViewChecked {
   availableTeams: string[] = [];
   currentTurnDisplay: string | null = null;
 
-  // FLIP animation state
-  private previousPositions: Map<string, TilePosition> = new Map();
+  // FLIP animation state - track both groups and tiles
+  private previousGroupPositions: Map<string, ElementPosition> = new Map();
+  private previousTilePositions: Map<string, ElementPosition> = new Map();
   private pendingAnimation = false;
-  private animatingTiles: Set<string> = new Set();
+  private animatingElements: Set<string> = new Set();
 
   ngOnInit() {
     if (this.engine) {
@@ -51,14 +52,14 @@ export class BattleTracker implements OnInit, OnDestroy, AfterViewChecked {
   ngAfterViewChecked() {
     if (this.pendingAnimation) {
       this.pendingAnimation = false;
-      this.animateTiles();
+      this.animateElements();
     }
   }
 
   /** Called when engine notifies of a change */
   private onEngineChange() {
     // FLIP Step 1: Record current positions (First)
-    this.recordTilePositions();
+    this.recordPositions();
 
     // Update data
     this.refresh();
@@ -75,89 +76,127 @@ export class BattleTracker implements OnInit, OnDestroy, AfterViewChecked {
     this.currentTurnDisplay = this.engine.getCurrentTurnDisplay();
   }
 
-  /** FLIP Step 1: Record current tile positions */
-  private recordTilePositions() {
+  /** FLIP Step 1: Record current positions for both groups and tiles */
+  private recordPositions() {
     if (!this.turnQueueRef) return;
 
     const container = this.turnQueueRef.nativeElement;
-    const tileElements = container.querySelectorAll('.battle-card[data-tile-id]');
 
-    this.previousPositions.clear();
+    // Record group positions
+    this.previousGroupPositions.clear();
+    const groupElements = container.querySelectorAll('.battle-group[data-group-id]');
+    groupElements.forEach((el) => {
+      const groupId = el.getAttribute('data-group-id');
+      if (groupId) {
+        const rect = el.getBoundingClientRect();
+        this.previousGroupPositions.set(groupId, { x: rect.left, y: rect.top });
+      }
+    });
+
+    // Record tile positions (for tiles that might move between groups)
+    this.previousTilePositions.clear();
+    const tileElements = container.querySelectorAll('.battle-card[data-tile-id]');
     tileElements.forEach((el) => {
       const tileId = el.getAttribute('data-tile-id');
       if (tileId) {
         const rect = el.getBoundingClientRect();
-        this.previousPositions.set(tileId, { x: rect.left, y: rect.top });
+        this.previousTilePositions.set(tileId, { x: rect.left, y: rect.top });
       }
     });
   }
 
   /** FLIP Steps 2-4: Calculate delta and animate */
-  private animateTiles() {
+  private animateElements() {
     if (!this.turnQueueRef) return;
 
     const container = this.turnQueueRef.nativeElement;
-    const tileElements = container.querySelectorAll('.battle-card[data-tile-id]');
 
+    // Animate groups
+    const groupElements = container.querySelectorAll('.battle-group[data-group-id]');
+    groupElements.forEach((el) => {
+      const groupId = el.getAttribute('data-group-id');
+      if (!groupId) return;
+
+      const prevPos = this.previousGroupPositions.get(groupId);
+      if (!prevPos) {
+        // New group - animate in
+        this.animateNewElement(el as HTMLElement, groupId);
+        return;
+      }
+
+      this.animateToNewPosition(el as HTMLElement, groupId, prevPos);
+    });
+
+    // Animate individual tiles that moved (in case they change groups)
+    const tileElements = container.querySelectorAll('.battle-card[data-tile-id]');
     tileElements.forEach((el) => {
       const tileId = el.getAttribute('data-tile-id');
       if (!tileId) return;
 
-      const prevPos = this.previousPositions.get(tileId);
-      if (!prevPos) {
-        // New tile - animate in from above
-        this.animateNewTile(el as HTMLElement);
+      // Skip if parent group is animating (tile moves with group)
+      const parentGroup = el.closest('.battle-group[data-group-id]');
+      const parentGroupId = parentGroup?.getAttribute('data-group-id');
+      if (parentGroupId && this.animatingElements.has(parentGroupId)) {
         return;
       }
 
-      // FLIP Step 2: Get new position (Last)
-      const newRect = el.getBoundingClientRect();
-      const newPos = { x: newRect.left, y: newRect.top };
+      const prevPos = this.previousTilePositions.get(tileId);
+      if (!prevPos) {
+        // New tile - animate in
+        this.animateNewElement(el as HTMLElement, tileId);
+        return;
+      }
 
-      // FLIP Step 3: Calculate the delta (Invert)
-      const deltaX = prevPos.x - newPos.x;
-      const deltaY = prevPos.y - newPos.y;
-
-      // Skip if no movement
-      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) return;
-
-      // FLIP Step 4: Animate (Play)
-      const htmlEl = el as HTMLElement;
-      this.animatingTiles.add(tileId);
-
-      // Apply inverted position immediately (no transition)
-      htmlEl.style.transition = 'none';
-      htmlEl.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-
-      // Force reflow
-      htmlEl.offsetHeight;
-
-      // Animate to final position
-      htmlEl.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)';
-      htmlEl.style.transform = 'translate(0, 0)';
-
-      // Clean up after animation
-      const cleanup = () => {
-        htmlEl.style.transition = '';
-        htmlEl.style.transform = '';
-        this.animatingTiles.delete(tileId);
-        htmlEl.removeEventListener('transitionend', cleanup);
-      };
-      htmlEl.addEventListener('transitionend', cleanup, { once: true });
-
-      // Fallback cleanup
-      setTimeout(cleanup, 350);
+      this.animateToNewPosition(el as HTMLElement, tileId, prevPos);
     });
 
-    this.previousPositions.clear();
+    this.previousGroupPositions.clear();
+    this.previousTilePositions.clear();
   }
 
-  /** Animate a new tile entering */
-  private animateNewTile(el: HTMLElement) {
-    const tileId = el.getAttribute('data-tile-id');
-    if (!tileId || this.animatingTiles.has(tileId)) return;
+  /** Animate an element from its previous position to its new position */
+  private animateToNewPosition(el: HTMLElement, id: string, prevPos: ElementPosition) {
+    const newRect = el.getBoundingClientRect();
+    const newPos = { x: newRect.left, y: newRect.top };
 
-    this.animatingTiles.add(tileId);
+    // Calculate delta
+    const deltaX = prevPos.x - newPos.x;
+    const deltaY = prevPos.y - newPos.y;
+
+    // Skip if no significant movement
+    if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) return;
+
+    this.animatingElements.add(id);
+
+    // Apply inverted position immediately (no transition)
+    el.style.transition = 'none';
+    el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+
+    // Force reflow
+    el.offsetHeight;
+
+    // Animate to final position
+    el.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)';
+    el.style.transform = 'translate(0, 0)';
+
+    // Clean up after animation
+    const cleanup = () => {
+      el.style.transition = '';
+      el.style.transform = '';
+      this.animatingElements.delete(id);
+      el.removeEventListener('transitionend', cleanup);
+    };
+    el.addEventListener('transitionend', cleanup, { once: true });
+
+    // Fallback cleanup
+    setTimeout(cleanup, 350);
+  }
+
+  /** Animate a new element entering */
+  private animateNewElement(el: HTMLElement, id: string) {
+    if (this.animatingElements.has(id)) return;
+
+    this.animatingElements.add(id);
 
     // Start from above and faded
     el.style.transition = 'none';
@@ -177,7 +216,7 @@ export class BattleTracker implements OnInit, OnDestroy, AfterViewChecked {
       el.style.transition = '';
       el.style.transform = '';
       el.style.opacity = '';
-      this.animatingTiles.delete(tileId!);
+      this.animatingElements.delete(id);
       el.removeEventListener('transitionend', cleanup);
     };
     el.addEventListener('transitionend', cleanup, { once: true });
@@ -327,8 +366,8 @@ export class BattleTracker implements OnInit, OnDestroy, AfterViewChecked {
     return this.tilesToFade.has(tileId);
   }
 
-  isAnimating(tileId: string): boolean {
-    return this.animatingTiles.has(tileId);
+  isAnimating(id: string): boolean {
+    return this.animatingElements.has(id);
   }
 
   trackByCharId(_index: number, item: CharacterOption): string {

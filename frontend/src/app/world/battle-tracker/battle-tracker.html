@@ -60,7 +60,10 @@
          (drop)="onDrop($event)">
 
       @for (group of timeline; track group.id; let gIdx = $index) {
-        <div class="battle-group" [ngClass]="'team-' + group.team">
+        <div class="battle-group"
+             [attr.data-group-id]="group.id"
+             [class.is-animating]="isAnimating(group.id)"
+             [ngClass]="'team-' + group.team">
 
           <!-- Drop indicator before this group -->
           @if (dragOverGroupIndex === gIdx && dropPosition === 'before') {

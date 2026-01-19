@@ -203,9 +203,15 @@
 }
 
 /* During animation - disable hover effects */
-.battle-card.is-animating {
+.battle-card.is-animating,
+.battle-group.is-animating {
   pointer-events: none;
   z-index: 5;
+}
+
+/* Groups should animate together with their cards */
+.battle-group.is-animating .battle-card {
+  pointer-events: none;
 }
 
 /* Fading tiles during drag preview */
