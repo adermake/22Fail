@@ -19,6 +19,7 @@ export interface TimelineTile {
   timing: number;
   turn: number;         // Which turn number this is for the character
   team: string;         // Team color: 'blue' | 'red' | 'green' | 'yellow' | 'purple' | 'orange'
+  isScripted?: boolean; // True if this tile is locked in (scripted), false if calculated
   // Add any extra data you need - the UI won't touch it
   [key: string]: any;
 }

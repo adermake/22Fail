@@ -77,6 +77,8 @@
                  [class.fading]="shouldTileFade(tile.id)"
                  [class.is-dragged]="draggedTileId === tile.id"
                  [class.is-animating]="isAnimating(tile.id)"
+                 [class.scripted]="tile.isScripted"
+                 [class.calculated]="!tile.isScripted"
                  [ngClass]="'team-' + tile.team"
                  draggable="true"
                  (dragstart)="onDragStart($event, tile)"

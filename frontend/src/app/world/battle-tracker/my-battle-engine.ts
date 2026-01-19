@@ -19,6 +19,10 @@ interface Participant {
  *
  * Turn timing formula: timing = (turnNumber * 1000) / speed
  * Higher speed = lower timing = goes first
+ *
+ * Timeline has two parts:
+ * - Scripted: Locked in, won't change (everything affected by manual drags)
+ * - Calculated: Predicted based on speed, can shift
  */
 export class MyBattleEngine extends BattleTimelineEngine {
   // Characters available to add to battle
@@ -27,8 +31,11 @@ export class MyBattleEngine extends BattleTimelineEngine {
   // Characters currently in battle with their state
   private participants: Map<string, Participant> = new Map();
 
-  // The displayed timeline
+  // The displayed timeline (scripted + calculated)
   private tiles: TimelineTile[] = [];
+
+  // How many tiles at the front are "scripted" (locked in)
+  private scriptedCount: number = 0;
 
   // ===========================================
   // SETUP
@@ -53,7 +60,10 @@ export class MyBattleEngine extends BattleTimelineEngine {
   getTimeline(): TimelineGroup[] {
     return this.tiles.map((tile, index) => ({
       id: `group_${tile.id}`, // Use tile id for stable group tracking
-      tiles: [tile],
+      tiles: [{
+        ...tile,
+        isScripted: index < this.scriptedCount, // Mark if this tile is scripted
+      }],
       team: tile.team,
     }));
   }
@@ -105,20 +115,26 @@ export class MyBattleEngine extends BattleTimelineEngine {
     // Remove the first tile (current turn)
     const completedTile = this.tiles.shift()!;
 
-    // Update that character's next turn number
+    // If we consumed a scripted tile, decrement the count
+    if (this.scriptedCount > 0) {
+      this.scriptedCount--;
+    }
+
+    // Update that character's next turn number (only if it would advance)
     const participant = this.participants.get(completedTile.characterId);
-    if (participant) {
+    if (participant && completedTile.turn >= participant.nextTurn) {
       participant.nextTurn = completedTile.turn + 1;
     }
 
-    // Generate more tiles to fill the queue
-    this.fillTimeline();
+    // Regenerate calculated portion of timeline
+    this.rebuildCalculatedPortion();
     this.notifyChange();
   }
 
   onResetBattle(): void {
     this.participants.clear();
     this.tiles = [];
+    this.scriptedCount = 0;
     this.notifyChange();
   }
 
@@ -157,11 +173,10 @@ export class MyBattleEngine extends BattleTimelineEngine {
       return;
     }
 
-    // Step 1: Remove ALL tiles for the dragged character
+    // Step 1: Remove ALL tiles for the dragged character from the timeline
     const otherTiles = this.tiles.filter((t) => t.characterId !== draggedCharId);
 
     // Step 2: Figure out where to insert relative to other characters' tiles
-    // targetIndex was in the original array, we need to find where it maps to in otherTiles
     let insertAt = 0;
     let originalIndex = 0;
     for (let i = 0; i < this.tiles.length && originalIndex < targetIndex; i++) {
@@ -171,21 +186,12 @@ export class MyBattleEngine extends BattleTimelineEngine {
       originalIndex++;
     }
 
-    // Step 3: Preserve tiles before the insert point exactly as they are
-    const beforeTiles = otherTiles.slice(0, insertAt);
-    const afterTiles = otherTiles.slice(insertAt);
-
-    // Step 4: Create new tile for the dragged character at the insert point
+    // Step 3: Create new tile for the dragged character at the insert point
     const participant = this.participants.get(draggedCharId);
     if (!participant) {
       this.notifyChange();
       return;
     }
-
-    // Calculate timing that fits between before and after tiles
-    const beforeTiming = beforeTiles.length > 0 ? beforeTiles[beforeTiles.length - 1].timing : 0;
-    const afterTiming = afterTiles.length > 0 ? afterTiles[0].timing : beforeTiming + 1000;
-    const newTiming = (beforeTiming + afterTiming) / 2;
 
     const newTurn = participant.nextTurn;
     const newTile: TimelineTile = {
@@ -195,53 +201,78 @@ export class MyBattleEngine extends BattleTimelineEngine {
       portrait: participant.portrait,
       team: participant.team,
       turn: newTurn,
-      timing: newTiming, // Use calculated timing, not formula-based
+      timing: 0, // Timing doesn't matter for scripted tiles
     };
 
-    // Step 5: Build the new timeline - before + dragged + after
-    this.tiles = [...beforeTiles, newTile, ...afterTiles];
+    // Step 4: Build the scripted portion - everything up to and including the dropped tile
+    const scriptedTiles = [
+      ...otherTiles.slice(0, insertAt),
+      newTile,
+    ];
+
+    // Step 5: This becomes our new scripted count
+    this.scriptedCount = scriptedTiles.length;
 
     // Step 6: Update the participant's next turn
     participant.nextTurn = newTurn + 1;
 
-    // Step 7: Append more tiles for the dragged character to fill timeline
-    this.appendTilesForCharacter(draggedCharId);
+    // Step 7: Set tiles to just the scripted portion, then rebuild calculated
+    this.tiles = scriptedTiles;
+    this.rebuildCalculatedPortion();
 
     this.notifyChange();
   }
 
-  /** Append tiles for a specific character until timeline has enough tiles */
-  private appendTilesForCharacter(characterId: string): void {
-    const participant = this.participants.get(characterId);
-    if (!participant) return;
+  /** Rebuild the calculated portion of the timeline (everything after scriptedCount) */
+  private rebuildCalculatedPortion(): void {
+    if (this.participants.size === 0) return;
 
-    // Count existing tiles
+    // Keep only the scripted tiles
+    this.tiles = this.tiles.slice(0, this.scriptedCount);
+
+    // Sync nextTurn for each participant based on scripted tiles
+    for (const participant of this.participants.values()) {
+      const maxTurnInScripted = this.tiles
+        .filter(t => t.characterId === participant.characterId)
+        .reduce((max, t) => Math.max(max, t.turn), 0);
+
+      if (maxTurnInScripted >= participant.nextTurn) {
+        participant.nextTurn = maxTurnInScripted + 1;
+      }
+    }
+
+    // Generate calculated tiles until we have 10 total
     while (this.tiles.length < 10) {
-      // Find the right position to insert based on timing
-      const turn = participant.nextTurn;
-      const timing = this.calculateTiming(turn, participant.speed);
+      // Find which character should go next (lowest timing for their next turn)
+      let bestParticipant: Participant | undefined;
+      let bestTiming = Infinity;
+      let bestTurn = 0;
 
-      const newTile: TimelineTile = {
-        id: `${characterId}_turn_${turn}`,
-        characterId: characterId,
-        name: participant.name,
-        portrait: participant.portrait,
-        team: participant.team,
-        turn: turn,
-        timing: timing,
-      };
+      for (const participant of this.participants.values()) {
+        const turn = participant.nextTurn;
+        const timing = this.calculateTiming(turn, participant.speed);
 
-      // Find insertion point - after existing tiles, sorted by timing among remaining
-      let insertIndex = this.tiles.length;
-      for (let i = 0; i < this.tiles.length; i++) {
-        if (this.tiles[i].timing > timing) {
-          insertIndex = i;
-          break;
+        if (timing < bestTiming) {
+          bestTiming = timing;
+          bestParticipant = participant;
+          bestTurn = turn;
         }
       }
 
-      this.tiles.splice(insertIndex, 0, newTile);
-      participant.nextTurn = turn + 1;
+      if (!bestParticipant) break;
+
+      const newTile: TimelineTile = {
+        id: `${bestParticipant.characterId}_turn_${bestTurn}`,
+        characterId: bestParticipant.characterId,
+        name: bestParticipant.name,
+        portrait: bestParticipant.portrait,
+        team: bestParticipant.team,
+        turn: bestTurn,
+        timing: bestTiming,
+      };
+
+      this.tiles.push(newTile);
+      bestParticipant.nextTurn = bestTurn + 1;
     }
   }
 

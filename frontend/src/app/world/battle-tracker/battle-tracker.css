@@ -187,6 +187,15 @@
 .team-purple { border-bottom: 3px solid #a855f7; }
 .team-orange { border-bottom: 3px solid #f97316; }
 
+/* Scripted vs Calculated indicator */
+.battle-card.scripted {
+  border-top: 3px solid var(--accent);
+}
+.battle-card.calculated {
+  border-top: 3px dashed rgba(255, 255, 255, 0.3);
+  opacity: 0.8;
+}
+
 /* Hover effect - only when not dragging */
 .turn-queue:not(.is-dragging) .battle-card:hover {
   transform: scale(1.15);
