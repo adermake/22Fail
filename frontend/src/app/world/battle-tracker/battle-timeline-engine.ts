@@ -50,6 +50,7 @@ export interface CharacterOption {
   name: string;
   portrait?: string;
   speed?: number;       // Optional - display in UI if provided
+  turn: number;        // Current turn number
   team?: string;        // Current team if in battle
   isInBattle: boolean;
 }
