@@ -1,0 +1,303 @@
+<div class="race-selector-overlay" (click)="onClose()">
+  <div class="race-selector-modal" (click)="$event.stopPropagation()">
+    <button class="close-button" (click)="onClose()">&times;</button>
+
+    <!-- Loading State -->
+    @if (loading) {
+      <div class="loading">Loading races...</div>
+    }
+
+    <!-- Selection Screen -->
+    @if (!loading && viewMode === 'select') {
+      <div class="selection-screen">
+        <h2>Select Race</h2>
+
+        @if (selectedRace) {
+          <div class="current-race">
+            <span>Current: <strong>{{ selectedRace.name }}</strong></span>
+            <button class="btn-small btn-danger" (click)="clearRace()">Clear</button>
+          </div>
+        }
+
+        <div class="race-grid">
+          @for (race of races; track race.id) {
+            <div
+              class="race-card"
+              [class.selected]="isCurrentRace(race)"
+              (click)="selectRace(race)">
+              <div class="race-image">
+                @if (race.baseImage) {
+                  <img [src]="race.baseImage" [alt]="race.name">
+                } @else {
+                  <div class="placeholder-image">?</div>
+                }
+              </div>
+              <div class="race-name">{{ race.name }}</div>
+              <div class="race-age">{{ race.ageRange }} years</div>
+            </div>
+          }
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" (click)="startCreate()">+ Create New Race</button>
+        </div>
+      </div>
+    }
+
+    <!-- View Race Details -->
+    @if (!loading && viewMode === 'view' && selectedRace) {
+      <div class="view-screen">
+        <button class="back-button" (click)="backToSelect()">&larr; Back</button>
+
+        <div class="race-header">
+          <div class="race-portrait">
+            @if (selectedRace.baseImage) {
+              <img [src]="selectedRace.baseImage" [alt]="selectedRace.name">
+            } @else {
+              <div class="placeholder-image large">?</div>
+            }
+          </div>
+          <div class="race-info">
+            <h2>{{ selectedRace.name }}</h2>
+            <div class="age-range">Lifespan: {{ selectedRace.ageRange }} years</div>
+          </div>
+        </div>
+
+        <div class="race-lore">
+          <h3>Lore</h3>
+          <p>{{ selectedRace.lore || 'No lore available.' }}</p>
+        </div>
+
+        <div class="stats-section">
+          <h3>Base Stats</h3>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-label">Health</span>
+              <span class="stat-value">{{ selectedRace.baseHealth }}</span>
+              <span class="stat-gain">(+{{ selectedRace.healthPerLevel }}/lvl)</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Energy</span>
+              <span class="stat-value">{{ selectedRace.baseEnergy }}</span>
+              <span class="stat-gain">(+{{ selectedRace.energyPerLevel }}/lvl)</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Mana</span>
+              <span class="stat-value">{{ selectedRace.baseMana }}</span>
+              <span class="stat-gain">(+{{ selectedRace.manaPerLevel }}/lvl)</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Strength</span>
+              <span class="stat-value">{{ selectedRace.baseStrength }}</span>
+              <span class="stat-gain">(+{{ selectedRace.strengthPerLevel }}/lvl)</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Dexterity</span>
+              <span class="stat-value">{{ selectedRace.baseDexterity }}</span>
+              <span class="stat-gain">(+{{ selectedRace.dexterityPerLevel }}/lvl)</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Speed</span>
+              <span class="stat-value">{{ selectedRace.baseSpeed }}</span>
+              <span class="stat-gain">(+{{ selectedRace.speedPerLevel }}/lvl)</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Intelligence</span>
+              <span class="stat-value">{{ selectedRace.baseIntelligence }}</span>
+              <span class="stat-gain">(+{{ selectedRace.intelligencePerLevel }}/lvl)</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Constitution</span>
+              <span class="stat-value">{{ selectedRace.baseConstitution }}</span>
+              <span class="stat-gain">(+{{ selectedRace.constitutionPerLevel }}/lvl)</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Chill</span>
+              <span class="stat-value">{{ selectedRace.baseChill }}</span>
+              <span class="stat-gain">(+{{ selectedRace.chillPerLevel }}/lvl)</span>
+            </div>
+          </div>
+        </div>
+
+        @if (selectedRace.skills.length > 0) {
+          <div class="skills-section">
+            <h3>Racial Skills</h3>
+            <div class="skills-list">
+              @for (raceSkill of selectedRace.skills; track $index) {
+                <div class="skill-item">
+                  <div class="skill-level">Lvl {{ raceSkill.levelRequired }}</div>
+                  <div class="skill-info">
+                    <div class="skill-name">{{ raceSkill.skill.name }}</div>
+                    <div class="skill-type">{{ raceSkill.skill.type }}</div>
+                    <div class="skill-desc">{{ raceSkill.skill.description }}</div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="actions">
+          <button class="btn btn-primary" (click)="confirmSelection()">Select This Race</button>
+          <button class="btn btn-secondary" (click)="startEdit(selectedRace)">Edit</button>
+          <button class="btn btn-danger" (click)="deleteRace(selectedRace)">Delete</button>
+        </div>
+      </div>
+    }
+
+    <!-- Create/Edit Screen -->
+    @if (!loading && (viewMode === 'create' || viewMode === 'edit')) {
+      <div class="edit-screen">
+        <button class="back-button" (click)="cancelEdit()">&larr; Cancel</button>
+
+        <h2>{{ viewMode === 'create' ? 'Create New Race' : 'Edit Race' }}</h2>
+
+        <div class="form-section">
+          <h3>Basic Info</h3>
+          <div class="form-row">
+            <div class="form-field">
+              <label>Name *</label>
+              <input type="text" [(ngModel)]="editingRace.name" placeholder="Race name">
+            </div>
+            <div class="form-field">
+              <label>Age Range</label>
+              <input type="text" [(ngModel)]="editingRace.ageRange" placeholder="e.g., 60-80">
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Base Image</label>
+            <div class="image-upload">
+              @if (editingRace.baseImage) {
+                <img [src]="editingRace.baseImage" class="preview-image">
+              }
+              <input type="file" accept="image/*" (change)="onImageSelect($event)">
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Lore</label>
+            <textarea [(ngModel)]="editingRace.lore" rows="4" placeholder="Race description and lore..."></textarea>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>Base Stats & Per-Level Gains</h3>
+          <div class="stats-edit-grid">
+            <div class="stat-edit-row">
+              <label>Health</label>
+              <input type="number" [(ngModel)]="editingRace.baseHealth">
+              <span>+</span>
+              <input type="number" [(ngModel)]="editingRace.healthPerLevel">
+              <span>/lvl</span>
+            </div>
+            <div class="stat-edit-row">
+              <label>Energy</label>
+              <input type="number" [(ngModel)]="editingRace.baseEnergy">
+              <span>+</span>
+              <input type="number" [(ngModel)]="editingRace.energyPerLevel">
+              <span>/lvl</span>
+            </div>
+            <div class="stat-edit-row">
+              <label>Mana</label>
+              <input type="number" [(ngModel)]="editingRace.baseMana">
+              <span>+</span>
+              <input type="number" [(ngModel)]="editingRace.manaPerLevel">
+              <span>/lvl</span>
+            </div>
+            <div class="stat-edit-row">
+              <label>Strength</label>
+              <input type="number" [(ngModel)]="editingRace.baseStrength">
+              <span>+</span>
+              <input type="number" [(ngModel)]="editingRace.strengthPerLevel">
+              <span>/lvl</span>
+            </div>
+            <div class="stat-edit-row">
+              <label>Dexterity</label>
+              <input type="number" [(ngModel)]="editingRace.baseDexterity">
+              <span>+</span>
+              <input type="number" [(ngModel)]="editingRace.dexterityPerLevel">
+              <span>/lvl</span>
+            </div>
+            <div class="stat-edit-row">
+              <label>Speed</label>
+              <input type="number" [(ngModel)]="editingRace.baseSpeed">
+              <span>+</span>
+              <input type="number" [(ngModel)]="editingRace.speedPerLevel">
+              <span>/lvl</span>
+            </div>
+            <div class="stat-edit-row">
+              <label>Intelligence</label>
+              <input type="number" [(ngModel)]="editingRace.baseIntelligence">
+              <span>+</span>
+              <input type="number" [(ngModel)]="editingRace.intelligencePerLevel">
+              <span>/lvl</span>
+            </div>
+            <div class="stat-edit-row">
+              <label>Constitution</label>
+              <input type="number" [(ngModel)]="editingRace.baseConstitution">
+              <span>+</span>
+              <input type="number" [(ngModel)]="editingRace.constitutionPerLevel">
+              <span>/lvl</span>
+            </div>
+            <div class="stat-edit-row">
+              <label>Chill</label>
+              <input type="number" [(ngModel)]="editingRace.baseChill">
+              <span>+</span>
+              <input type="number" [(ngModel)]="editingRace.chillPerLevel">
+              <span>/lvl</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>Racial Skills</h3>
+
+          @if (editingRace.skills.length > 0) {
+            <div class="skills-edit-list">
+              @for (raceSkill of editingRace.skills; track $index) {
+                <div class="skill-edit-item">
+                  <span class="skill-level">Lvl {{ raceSkill.levelRequired }}</span>
+                  <span class="skill-name">{{ raceSkill.skill.name }}</span>
+                  <span class="skill-type">({{ raceSkill.skill.type }})</span>
+                  <button class="btn-remove" (click)="removeSkillFromRace($index)">&times;</button>
+                </div>
+              }
+            </div>
+          }
+
+          <div class="add-skill-form">
+            <h4>Add Skill</h4>
+            <div class="form-row">
+              <div class="form-field small">
+                <label>Level</label>
+                <input type="number" [(ngModel)]="newSkillLevelRequired" min="1">
+              </div>
+              <div class="form-field">
+                <label>Name</label>
+                <input type="text" [(ngModel)]="newSkill.name" placeholder="Skill name">
+              </div>
+              <div class="form-field small">
+                <label>Type</label>
+                <select [(ngModel)]="newSkill.type">
+                  <option value="passive">Passive</option>
+                  <option value="active">Active</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Description</label>
+              <textarea [(ngModel)]="newSkill.description" rows="2" placeholder="Skill description"></textarea>
+            </div>
+            <button class="btn btn-secondary" (click)="addSkillToRace()">+ Add Skill</button>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" (click)="saveRace()">Save Race</button>
+          <button class="btn btn-secondary" (click)="cancelEdit()">Cancel</button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

@@ -7,6 +7,7 @@ type JsonObject = Record<string, any>;
 export class DataService {
   private filePath = path.join(__dirname, '../../../data.json');
   private worldsFilePath = path.join(__dirname, '../../../worlds.json');
+  private racesFilePath = path.join(__dirname, '../../../races.json');
 
   private createEmptyWorld(name: string): any {
     return {
@@ -275,7 +276,7 @@ export class DataService {
         path: `battleMaps.${battleMapIndex}.${patch.path}`,
         value: patch.value
       };
-      
+
       this.applyJsonPatch(world, worldPatch);
 
       const updatedWorldJson = JSON.stringify(world, null, 2);
@@ -284,6 +285,64 @@ export class DataService {
 
       return updatedWorldJson;
     }
+
+  // Race data methods - globally shared across all characters
+  private readRaces(): any[] {
+    try {
+      if (!fs.existsSync(this.racesFilePath)) {
+        return [];
+      }
+      const json = fs.readFileSync(this.racesFilePath, 'utf-8');
+      return JSON.parse(json) as any[];
+    } catch (error) {
+      console.error('Error reading races file:', error);
+      return [];
+    }
+  }
+
+  private writeRaces(races: any[]): void {
+    fs.writeFileSync(this.racesFilePath, JSON.stringify(races, null, 2), 'utf-8');
+  }
+
+  getAllRaces(): any[] {
+    return this.readRaces();
+  }
+
+  getRace(id: string): any | null {
+    const races = this.readRaces();
+    return races.find((r: any) => r.id === id) || null;
+  }
+
+  saveRace(race: any): any {
+    const races = this.readRaces();
+    const existingIndex = races.findIndex((r: any) => r.id === race.id);
+
+    if (existingIndex >= 0) {
+      // Update existing race
+      races[existingIndex] = race;
+      console.log('UPDATED RACE:', race.id);
+    } else {
+      // Add new race
+      races.push(race);
+      console.log('ADDED NEW RACE:', race.id);
+    }
+
+    this.writeRaces(races);
+    return race;
+  }
+
+  deleteRace(id: string): boolean {
+    const races = this.readRaces();
+    const index = races.findIndex((r: any) => r.id === id);
+
+    if (index >= 0) {
+      races.splice(index, 1);
+      this.writeRaces(races);
+      console.log('DELETED RACE:', id);
+      return true;
+    }
+    return false;
+  }
 }
 
 export interface JsonPatch {

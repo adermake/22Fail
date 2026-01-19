@@ -5,10 +5,11 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
+import { RaceSelectorComponent } from '../race-selector/race-selector.component';
 
 @Component({
   selector: 'app-character',
-  imports: [CardComponent, PortraitComponent, FormsModule, CommonModule],
+  imports: [CardComponent, PortraitComponent, FormsModule, CommonModule, RaceSelectorComponent],
   templateUrl: './character.component.html',
   styleUrl: './character.component.css',
 })
@@ -17,7 +18,21 @@ export class CharacterComponent {
   @Input({ required: true }) characterId!: string;
   @Output() patch = new EventEmitter<JsonPatch>();
 
+  showRaceSelector = false;
+
   updateField(path: string, value: any) {
     this.patch.emit({ path, value });
+  }
+
+  openRaceSelector() {
+    this.showRaceSelector = true;
+  }
+
+  closeRaceSelector() {
+    this.showRaceSelector = false;
+  }
+
+  onRacePatch(patch: JsonPatch) {
+    this.patch.emit(patch);
   }
 }

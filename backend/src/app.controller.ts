@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -142,5 +143,36 @@ export class AppController {
   addBattleMap(@Param('worldName') worldName: string, @Body() body: any): any {
     const newBattleMap = this.dataService.addBattleMap(worldName, body);
     return { success: true, battleMap: newBattleMap };
+  }
+
+  // Race endpoints - globally shared across all characters
+  @Get('races')
+  getAllRaces(): any {
+    console.log('LOADING ALL RACES');
+    return this.dataService.getAllRaces();
+  }
+
+  @Get('races/:id')
+  getRace(@Param('id') id: string): any {
+    console.log('LOADING RACE:', id);
+    const race = this.dataService.getRace(id);
+    if (!race) {
+      return null;
+    }
+    return race;
+  }
+
+  @Post('races')
+  saveRace(@Body() body: any): any {
+    console.log('SAVING RACE:', body.id || body.name);
+    const race = this.dataService.saveRace(body);
+    return { success: true, race };
+  }
+
+  @Delete('races/:id')
+  deleteRace(@Param('id') id: string): any {
+    console.log('DELETING RACE:', id);
+    const success = this.dataService.deleteRace(id);
+    return { success };
   }
 }

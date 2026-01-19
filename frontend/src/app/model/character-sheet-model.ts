@@ -19,6 +19,7 @@ export interface CharacterSheet {
   // Character
   name: string;
   race: string;
+  raceId?: string; // Reference to the Race object in races.json
   age: number;
   alignment: string;
   size: string;

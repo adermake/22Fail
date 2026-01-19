@@ -15,14 +15,10 @@
 
     <div class="row">
       <div class="col">
-        <label for="race">Rasse</label>
-        <input
-          id="race"
-          type="text"
-          placeholder="Mensch"
-          [ngModel]="sheet.race"
-          (ngModelChange)="patch.emit({ path: 'race', value: $event })"
-        />
+        <label>Rasse</label>
+        <button class="race-button" (click)="openRaceSelector()">
+          {{ sheet.race || 'Rasse wählen...' }}
+        </button>
       </div>
       <div class="col">
         <label for="age">Alter</label>
@@ -71,3 +67,11 @@
     </div>
   </app-card>
 </div>
+
+@if (showRaceSelector) {
+  <app-race-selector
+    [sheet]="sheet"
+    (patch)="onRacePatch($event)"
+    (close)="closeRaceSelector()">
+  </app-race-selector>
+}
