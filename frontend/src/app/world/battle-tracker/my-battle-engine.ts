@@ -119,17 +119,6 @@ export class MyBattleEngine extends BattleTimelineEngine {
       speed = 1;
     }
     // Add a tile for this character
-    for (let i = 1; i <= 3; i++) {
-      this.tiles.push({
-        id: `${characterId}_turn_` + i,
-        characterId,
-        timing: (char.turn * 1000) / speed,
-        name: char.name,
-        portrait: char.portrait,
-        team: 'blue',
-      });
-      char.turn += 1;
-    }
 
     this.orderTilesByTiming();
   }
@@ -151,18 +140,10 @@ export class MyBattleEngine extends BattleTimelineEngine {
       const first = this.tiles.shift()!;
       const char = this.allCharacters.find((c) => c.id === first.characterId);
       first.timing = this.getNextSpeedTiming(char!);
-      this.tiles.push(first);
+
       char!.turn += 1;
     }
     this.orderTilesByTiming();
-  }
-
-  getNextSpeedTiming(char: CharacterOption) {
-    let speed = char.speed;
-    if (!speed) {
-      speed = 1;
-    }
-    return (char.turn * 1000) / speed;
   }
 
   onResetBattle(): void {
@@ -187,7 +168,42 @@ export class MyBattleEngine extends BattleTimelineEngine {
     }
   }
 
+  generateNextTile(): TimelineTile {
+    const timings = this.allCharacters.map((char) => ({
+      char,
+      timing: this.getNextSpeedTiming(char),
+    }));
+
+    timings.sort((a, b) => a.timing - b.timing);
+
+    const fastest = timings[0];
+
+    const tile: TimelineTile = {
+      id: `${fastest.char.id}_turn_${this.tiles.length}`,
+      characterId: fastest.char.id,
+      timing: fastest.timing,
+      name: fastest.char.name,
+      portrait: fastest.char.portrait,
+      team: fastest.char.team ?? 'blue',
+    };
+
+    fastest.char.turn += 1;
+    this.tiles.push(tile);
+
+    return tile;
+  }
+
+  getNextSpeedTiming(char: CharacterOption) {
+    let speed = char.speed;
+    if (!speed) {
+      speed = 1;
+    }
+    return (char.turn * 1000) / speed;
+  }
   orderTilesByTiming(): void {
+    while (this.tiles.length < 10) {
+      this.generateNextTile();
+    }
     this.tiles.sort((a, b) => a.timing - b.timing);
     this.notifyChange();
   }
