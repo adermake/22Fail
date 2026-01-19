@@ -143,6 +143,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
     if (tileIndex === -1) return;
 
     const draggedTile = this.tiles[tileIndex];
+    const draggedCharId = draggedTile.characterId;
 
     // Calculate target position in tiles array
     let targetIndex = targetGroupIndex;
@@ -150,39 +151,95 @@ export class MyBattleEngine extends BattleTimelineEngine {
       targetIndex++;
     }
 
-    // Adjust for removal
-    if (tileIndex < targetIndex) {
-      targetIndex--;
+    // Can't drop before current position (no going backwards in time)
+    if (targetIndex <= tileIndex) {
+      this.notifyChange();
+      return;
     }
 
-    // Remove dragged tile
-    this.tiles.splice(tileIndex, 1);
+    // Step 1: Remove ALL tiles for the dragged character
+    const otherTiles = this.tiles.filter((t) => t.characterId !== draggedCharId);
 
-    // Insert at new position
-    this.tiles.splice(targetIndex, 0, draggedTile);
+    // Step 2: Figure out where to insert relative to other characters' tiles
+    // targetIndex was in the original array, we need to find where it maps to in otherTiles
+    let insertAt = 0;
+    let originalIndex = 0;
+    for (let i = 0; i < this.tiles.length && originalIndex < targetIndex; i++) {
+      if (this.tiles[i].characterId !== draggedCharId) {
+        insertAt++;
+      }
+      originalIndex++;
+    }
 
-    // Remove earlier occurrences of this character (before the dropped position)
-    const newPosition = this.tiles.findIndex((t) => t.id === tileId);
-    this.tiles = this.tiles.filter((t, i) => {
-      // Keep the dragged tile
-      if (t.id === tileId) return true;
-      // Remove same-character tiles that come before it
-      if (t.characterId === draggedTile.characterId && i < newPosition) return false;
-      return true;
-    });
+    // Step 3: Preserve tiles before the insert point exactly as they are
+    const beforeTiles = otherTiles.slice(0, insertAt);
+    const afterTiles = otherTiles.slice(insertAt);
 
-    // Recalculate position after filtering
-    const finalPosition = this.tiles.findIndex((t) => t.id === tileId);
+    // Step 4: Create new tile for the dragged character at the insert point
+    const participant = this.participants.get(draggedCharId);
+    if (!participant) {
+      this.notifyChange();
+      return;
+    }
 
-    // Truncate everything after the dropped tile and rebuild
-    this.tiles = this.tiles.slice(0, finalPosition + 1);
+    // Find the highest turn number used by this character in beforeTiles (should be 0)
+    // and what turn this new tile should be
+    const newTurn = participant.nextTurn;
+    const newTile: TimelineTile = {
+      id: `${draggedCharId}_turn_${newTurn}`,
+      characterId: draggedCharId,
+      name: participant.name,
+      portrait: participant.portrait,
+      team: participant.team,
+      turn: newTurn,
+      timing: this.calculateTiming(newTurn, participant.speed),
+    };
 
-    // Sync participant turn numbers based on remaining tiles
-    this.syncTurnNumbers();
+    // Step 5: Build the new timeline - before + dragged + after
+    this.tiles = [...beforeTiles, newTile, ...afterTiles];
 
-    // Refill the timeline
-    this.fillTimeline();
+    // Step 6: Update the participant's next turn
+    participant.nextTurn = newTurn + 1;
+
+    // Step 7: Append more tiles for the dragged character to fill timeline
+    this.appendTilesForCharacter(draggedCharId);
+
     this.notifyChange();
+  }
+
+  /** Append tiles for a specific character until timeline has enough tiles */
+  private appendTilesForCharacter(characterId: string): void {
+    const participant = this.participants.get(characterId);
+    if (!participant) return;
+
+    // Count existing tiles
+    while (this.tiles.length < 10) {
+      // Find the right position to insert based on timing
+      const turn = participant.nextTurn;
+      const timing = this.calculateTiming(turn, participant.speed);
+
+      const newTile: TimelineTile = {
+        id: `${characterId}_turn_${turn}`,
+        characterId: characterId,
+        name: participant.name,
+        portrait: participant.portrait,
+        team: participant.team,
+        turn: turn,
+        timing: timing,
+      };
+
+      // Find insertion point - after existing tiles, sorted by timing among remaining
+      let insertIndex = this.tiles.length;
+      for (let i = 0; i < this.tiles.length; i++) {
+        if (this.tiles[i].timing > timing) {
+          insertIndex = i;
+          break;
+        }
+      }
+
+      this.tiles.splice(insertIndex, 0, newTile);
+      participant.nextTurn = turn + 1;
+    }
   }
 
   // ===========================================
@@ -269,29 +326,5 @@ export class MyBattleEngine extends BattleTimelineEngine {
   /** Calculate timing for a given turn and speed */
   private calculateTiming(turn: number, speed: number): number {
     return (turn * 1000) / speed;
-  }
-
-  /** Sync participant nextTurn values based on existing tiles */
-  private syncTurnNumbers(): void {
-    // Find the highest turn number for each character in existing tiles
-    const maxTurns = new Map<string, number>();
-
-    this.tiles.forEach((tile) => {
-      const current = maxTurns.get(tile.characterId) ?? 0;
-      if (tile.turn > current) {
-        maxTurns.set(tile.characterId, tile.turn);
-      }
-    });
-
-    // Set nextTurn to maxTurn + 1 for each participant
-    this.participants.forEach((participant, id) => {
-      const maxTurn = maxTurns.get(id);
-      if (maxTurn !== undefined) {
-        participant.nextTurn = maxTurn + 1;
-      } else {
-        // Character has no tiles, start from 1
-        participant.nextTurn = 1;
-      }
-    });
   }
 }
