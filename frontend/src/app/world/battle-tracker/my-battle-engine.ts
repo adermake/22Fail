@@ -105,12 +105,17 @@ export class MyBattleEngine extends BattleTimelineEngine {
     //TODO
     const lastTile = this.tiles[this.tiles.length - 1];
 
-    const character = this.allCharacters.find((c) => c.id === tile.characterId);
-    if (character && lastTile) {
-      character.turn = lastTile.turn + 1;
-    }
+    this.allCharacters.forEach((char) => {
+      const lastCharTile = [...this.tiles].reverse().find((t) => t.characterId === char.id);
 
-    this.notifyChange();
+      if (lastCharTile) {
+        char.turn = lastCharTile.turn;
+      } else {
+        char.turn = 1; // or undefined / null depending on your design
+      }
+    });
+
+    this.orderTilesByTiming();
   }
 
   onAddCharacter(characterId: string): void {
