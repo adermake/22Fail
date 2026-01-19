@@ -120,15 +120,54 @@ export class MyBattleEngine extends BattleTimelineEngine {
       this.scriptedCount--;
     }
 
-    // Update that character's next turn number (only if it would advance)
+    // Update that character's next turn number
     const participant = this.participants.get(completedTile.characterId);
-    if (participant && completedTile.turn >= participant.nextTurn) {
-      participant.nextTurn = completedTile.turn + 1;
+    if (participant) {
+      // Always advance past the completed turn
+      participant.nextTurn = Math.max(participant.nextTurn, completedTile.turn + 1);
     }
 
-    // Regenerate calculated portion of timeline
-    this.rebuildCalculatedPortion();
+    // Fill timeline back to 10 tiles
+    this.appendCalculatedTiles();
     this.notifyChange();
+  }
+
+  /** Append calculated tiles to fill timeline to 10, without touching existing tiles */
+  private appendCalculatedTiles(): void {
+    if (this.participants.size === 0) return;
+
+    while (this.tiles.length < 10) {
+      // Find which character should go next (lowest timing for their next turn)
+      let bestParticipant: Participant | undefined;
+      let bestTiming = Infinity;
+      let bestTurn = 0;
+
+      for (const participant of this.participants.values()) {
+        const turn = participant.nextTurn;
+        const timing = this.calculateTiming(turn, participant.speed);
+
+        if (timing < bestTiming) {
+          bestTiming = timing;
+          bestParticipant = participant;
+          bestTurn = turn;
+        }
+      }
+
+      if (!bestParticipant) break;
+
+      const newTile: TimelineTile = {
+        id: `${bestParticipant.characterId}_turn_${bestTurn}`,
+        characterId: bestParticipant.characterId,
+        name: bestParticipant.name,
+        portrait: bestParticipant.portrait,
+        team: bestParticipant.team,
+        turn: bestTurn,
+        timing: bestTiming,
+      };
+
+      this.tiles.push(newTile);
+      bestParticipant.nextTurn = bestTurn + 1;
+    }
   }
 
   onResetBattle(): void {
