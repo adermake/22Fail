@@ -182,8 +182,11 @@ export class MyBattleEngine extends BattleTimelineEngine {
       return;
     }
 
-    // Find the highest turn number used by this character in beforeTiles (should be 0)
-    // and what turn this new tile should be
+    // Calculate timing that fits between before and after tiles
+    const beforeTiming = beforeTiles.length > 0 ? beforeTiles[beforeTiles.length - 1].timing : 0;
+    const afterTiming = afterTiles.length > 0 ? afterTiles[0].timing : beforeTiming + 1000;
+    const newTiming = (beforeTiming + afterTiming) / 2;
+
     const newTurn = participant.nextTurn;
     const newTile: TimelineTile = {
       id: `${draggedCharId}_turn_${newTurn}`,
@@ -192,7 +195,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
       portrait: participant.portrait,
       team: participant.team,
       turn: newTurn,
-      timing: this.calculateTiming(newTurn, participant.speed),
+      timing: newTiming, // Use calculated timing, not formula-based
     };
 
     // Step 5: Build the new timeline - before + dragged + after
