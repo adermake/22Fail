@@ -14,7 +14,8 @@
       "Bash(npx ng build)",
       "Bash(npx ng build:*)",
       "Bash(node_modules/.bin/ng build --configuration=development)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(powershell -Command \"\\(Get-Item ''c:\\\\Users\\\\adermake\\\\Documents\\\\22FailApp\\\\frontend\\\\src\\\\app\\\\sheet\\\\race-selector\\\\race-selector.component.css''\\).Length\")"
     ]
   }
 }

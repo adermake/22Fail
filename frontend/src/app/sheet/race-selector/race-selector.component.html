@@ -27,8 +27,7 @@
           </div>
         }
 
-        <div class="race-grid">
-          <!-- Race Cards -->
+        <div class="race-list">
           @for (race of races; track race.id) {
             <div
               class="race-card"
@@ -44,7 +43,7 @@
               <div class="race-card-content">
                 <div class="race-card-header">
                   <h3 class="race-card-name">{{ race.name }}</h3>
-                  <span class="race-card-age">{{ race.ageRange }} yrs</span>
+                  <span class="race-card-age">Lifespan: {{ race.ageRange }} years</span>
                 </div>
                 @if (race.lore) {
                   <div class="race-card-lore">{{ race.lore }}</div>
@@ -53,6 +52,14 @@
                   <div class="race-card-stat">
                     <span class="label">HP</span>
                     <span class="value">{{ race.baseHealth }}</span>
+                  </div>
+                  <div class="race-card-stat">
+                    <span class="label">EN</span>
+                    <span class="value">{{ race.baseEnergy }}</span>
+                  </div>
+                  <div class="race-card-stat">
+                    <span class="label">MP</span>
+                    <span class="value">{{ race.baseMana }}</span>
                   </div>
                   <div class="race-card-stat">
                     <span class="label">STR</span>
@@ -70,14 +77,19 @@
                     <span class="label">INT</span>
                     <span class="value">{{ race.baseIntelligence }}</span>
                   </div>
+                  <div class="race-card-stat">
+                    <span class="label">CON</span>
+                    <span class="value">{{ race.baseConstitution }}</span>
+                  </div>
+                  <div class="race-card-stat">
+                    <span class="label">CHL</span>
+                    <span class="value">{{ race.baseChill }}</span>
+                  </div>
                 </div>
                 @if (race.skills.length > 0) {
                   <div class="race-card-skills">
-                    @for (raceSkill of race.skills.slice(0, 3); track $index) {
-                      <span class="race-card-skill-badge">{{ raceSkill.skill.name }}</span>
-                    }
-                    @if (race.skills.length > 3) {
-                      <span class="race-card-skill-badge">+{{ race.skills.length - 3 }} more</span>
+                    @for (raceSkill of race.skills; track $index) {
+                      <span class="race-card-skill-badge">Lvl {{ raceSkill.levelRequired }}: {{ raceSkill.skill.name }}</span>
                     }
                   </div>
                 }
@@ -85,12 +97,9 @@
             </div>
           }
 
-          <!-- Create New Race Card -->
           <div class="create-card" (click)="startCreate()">
-            <div class="create-card-content">
-              <div class="icon">+</div>
-              <div class="text">Create New Race</div>
-            </div>
+            <div class="icon">+</div>
+            <div class="text">Create New Race</div>
           </div>
         </div>
       </div>
