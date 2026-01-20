@@ -45,6 +45,8 @@
   border-radius: 4px;
   overflow: hidden;
   background: #000;
+  box-shadow: 0 0 20px rgba(156, 39, 176, 0.6), 0 0 40px rgba(156, 39, 176, 0.3);
+  animation: rune-glow 2s ease-in-out infinite;
 }
 
 .rune-drawing img {
@@ -58,11 +60,38 @@
   min-width: 0;
 }
 
+.rune-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .rune-info h4 {
   margin: 0 0 0.5rem 0;
   font-size: 1.1rem;
   color: var(--text);
   word-break: break-word;
+  flex: 1;
+}
+
+.delete-btn-compact {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.25rem 0.5rem;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.delete-btn-compact:hover {
+  background: #f44336;
+  border-color: #f44336;
+  color: white;
+  transform: scale(1.1);
 }
 
 .rune-tags {
@@ -88,6 +117,15 @@
   word-wrap: break-word;
   overflow-wrap: break-word;
   white-space: pre-wrap;
+}
+
+@keyframes rune-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(156, 39, 176, 0.6), 0 0 40px rgba(156, 39, 176, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(156, 39, 176, 0.9), 0 0 60px rgba(156, 39, 176, 0.5);
+  }
 }
 
 .rune-actions {

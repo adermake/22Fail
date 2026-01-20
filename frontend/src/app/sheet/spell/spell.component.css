@@ -49,7 +49,9 @@
   border: 2px solid var(--border);
   border-radius: 4px;
   overflow: hidden;
-  background: var(--card);
+  background: #000;
+  box-shadow: 0 0 20px rgba(103, 58, 183, 0.6), 0 0 40px rgba(103, 58, 183, 0.3);
+  animation: spell-glow 2s ease-in-out infinite;
 }
 
 .spell-drawing img {
@@ -82,6 +84,28 @@
 
 .spell-badges {
   flex-shrink: 0;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.delete-btn-compact {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.25rem 0.5rem;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.delete-btn-compact:hover {
+  background: #f44336;
+  border-color: #f44336;
+  color: white;
+  transform: scale(1.1);
 }
 
 .binding-badge {
@@ -139,6 +163,15 @@
   word-wrap: break-word;
   overflow-wrap: break-word;
   white-space: pre-wrap;
+}
+
+@keyframes spell-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(103, 58, 183, 0.6), 0 0 40px rgba(103, 58, 183, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(103, 58, 183, 0.9), 0 0 60px rgba(103, 58, 183, 0.5);
+  }
 }
 
 .spell-actions {
@@ -283,18 +316,54 @@
   border: 2px solid var(--border);
   border-radius: 4px;
   display: inline-block;
-  background: white;
+  background: #000;
   cursor: crosshair;
-  box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
-  touch-action: none;
   overflow: hidden;
 }
 
 canvas {
   display: block;
   touch-action: none;
-  background: white;
+  background: #000;
   cursor: crosshair;
+}
+
+.color-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.color-option {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+}
+
+.color-option.selected {
+  border-color: var(--text);
+  box-shadow: 0 0 8px currentColor;
+}
+
+.color-option.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #000;
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 0 0 2px #fff;
 }
 
 .clear-btn {

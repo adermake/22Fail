@@ -18,6 +18,7 @@
           @if (skill.enlightened) {
             <span class="skill-enlightened">Enlightened</span>
           }
+          <button class="delete-btn-compact" (click)="deleteSkill(); $event.stopPropagation()" title="Delete">🗑️</button>
         </div>
       </div>
       <p class="skill-description" [innerHTML]="enhancedDescription"></p>
@@ -75,7 +76,6 @@
 
       <div class="skill-actions">
         <button class="save-btn" (click)="toggleEdit()">Done</button>
-        <button class="delete-btn" (click)="deleteSkill()">Delete</button>
       </div>
     </div>
   }

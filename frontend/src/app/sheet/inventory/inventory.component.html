@@ -62,7 +62,59 @@
     <p class="empty-message">No items yet. Click + to add one.</p>
     }
   </div>
-
+  <!-- Currency Section at Bottom -->
+  <div class="currency-section">
+    <h3>Currency</h3>
+    <div class="currency-grid">
+      <div class="coin-input copper">
+        <label for="copper">Copper</label>
+        <input
+          id="copper"
+          type="number"
+          min="0"
+          step="1"
+          [ngModel]="sheet.currency?.copper || 0"
+          (ngModelChange)="updateCurrency('copper', $event)"
+        />
+      </div>
+      <div class="coin-input silver">
+        <label for="silver">Silver</label>
+        <input
+          id="silver"
+          type="number"
+          min="0"
+          step="1"
+          [ngModel]="sheet.currency?.silver || 0"
+          (ngModelChange)="updateCurrency('silver', $event)"
+        />
+      </div>
+      <div class="coin-input gold">
+        <label for="gold">Gold</label>
+        <input
+          id="gold"
+          type="number"
+          min="0"
+          step="1"
+          [ngModel]="sheet.currency?.gold || 0"
+          (ngModelChange)="updateCurrency('gold', $event)"
+        />
+      </div>
+      <div class="coin-input platinum">
+        <label for="platinum">Platinum</label>
+        <input
+          id="platinum"
+          type="number"
+          min="0"
+          step="1"
+          [ngModel]="sheet.currency?.platinum || 0"
+          (ngModelChange)="updateCurrency('platinum', $event)"
+        />
+      </div>
+    </div>
+    <div class="currency-total">
+      Total: {{ getCurrencyTotalValue() | number:'1.2-2' }} gp
+    </div>
+  </div>
   <!-- Create Dialog -->
   @if (showCreateDialog) {
   <div class="dialog-overlay" (click)="closeCreateDialog()">

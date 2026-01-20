@@ -15,7 +15,9 @@
   /* Fix blurriness from scaling */
   backface-visibility: hidden;
   -webkit-font-smoothing: subpixel-antialiased;
-  image-rendering: -webkit-optimize-contrast;
+  transform-origin: center center;
+  will-change: transform;
+  image-rendering: crisp-edges;
 }
 
 .class-node:hover {

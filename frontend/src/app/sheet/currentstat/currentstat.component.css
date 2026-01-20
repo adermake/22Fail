@@ -36,17 +36,35 @@
 
 .stat-bar-fill.health {
   background: var(--health-color);
-  box-shadow: 0 0 8px var(--health-color), 0 0 4px var(--health-color);
+  box-shadow: 0 0 16px var(--health-color), 0 0 8px var(--health-color), 0 0 4px var(--health-color);
+  animation: health-glow 2s ease-in-out infinite;
 }
 
 .stat-bar-fill.energy {
   background: var(--energy-color);
-  box-shadow: 0 0 8px var(--energy-color), 0 0 4px var(--energy-color);
+  box-shadow: 0 0 16px var(--energy-color), 0 0 8px var(--energy-color), 0 0 4px var(--energy-color);
+  animation: energy-glow 2s ease-in-out infinite;
 }
 
 .stat-bar-fill.mana {
   background: var(--mana-color);
-  box-shadow: 0 0 8px var(--mana-color), 0 0 4px var(--mana-color);
+  box-shadow: 0 0 16px var(--mana-color), 0 0 8px var(--mana-color), 0 0 4px var(--mana-color);
+  animation: mana-glow 2s ease-in-out infinite;
+}
+
+@keyframes health-glow {
+  0%, 100% { box-shadow: 0 0 16px var(--health-color), 0 0 8px var(--health-color), 0 0 4px var(--health-color); }
+  50% { box-shadow: 0 0 24px var(--health-color), 0 0 12px var(--health-color), 0 0 6px var(--health-color); }
+}
+
+@keyframes energy-glow {
+  0%, 100% { box-shadow: 0 0 16px var(--energy-color), 0 0 8px var(--energy-color), 0 0 4px var(--energy-color); }
+  50% { box-shadow: 0 0 24px var(--energy-color), 0 0 12px var(--energy-color), 0 0 6px var(--energy-color); }
+}
+
+@keyframes mana-glow {
+  0%, 100% { box-shadow: 0 0 16px var(--mana-color), 0 0 8px var(--mana-color), 0 0 4px var(--mana-color); }
+  50% { box-shadow: 0 0 24px var(--mana-color), 0 0 12px var(--mana-color), 0 0 6px var(--mana-color); }
 }
 
 .stat-max {

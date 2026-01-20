@@ -8,7 +8,10 @@
           <img [src]="rune.drawing" alt="Rune drawing" />
         </div>
         <div class="rune-info">
-          <h4>{{ rune.name }}</h4>
+          <div class="rune-title-row">
+            <h4>{{ rune.name }}</h4>
+            <button class="delete-btn-compact" (click)="deleteRune(); $event.stopPropagation()" title="Delete">🗑️</button>
+          </div>
           <div class="rune-tags">
             @for (tag of rune.tags; track tag) {
               <span class="tag">{{ tag }}</span>
@@ -101,7 +104,6 @@
 
       <div class="rune-actions">
         <button class="save-btn" (click)="toggleEdit()">Done</button>
-        <button class="delete-btn" (click)="deleteRune()">Delete</button>
       </div>
     </div>
   }

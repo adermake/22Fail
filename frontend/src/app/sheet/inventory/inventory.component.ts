@@ -120,6 +120,24 @@ getCurrencyWeight(): number {
     this.patch.emit({ path: field, value: Number(value) });
   }
 
+  updateCurrency(coin: string, value: any) {
+    if (!this.sheet.currency) {
+      this.sheet.currency = { copper: 0, silver: 0, gold: 0, platinum: 0 };
+    }
+    (this.sheet.currency as any)[coin] = Number(value) || 0;
+    this.patch.emit({ path: `currency.${coin}`, value: Number(value) || 0 });
+  }
+
+  getCurrencyTotalValue(): number {
+    if (!this.sheet.currency) return 0;
+    return (
+      (this.sheet.currency.copper || 0) * 0.01 +
+      (this.sheet.currency.silver || 0) * 0.1 +
+      (this.sheet.currency.gold || 0) +
+      (this.sheet.currency.platinum || 0) * 10
+    );
+  }
+
   createItem(item: ItemBlock) {
     this.sheet.inventory = [...this.sheet.inventory, item];
     this.patch.emit({

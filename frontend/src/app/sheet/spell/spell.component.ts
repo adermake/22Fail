@@ -14,7 +14,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { KeywordEnhancer } from '../keyword-enhancer';
-import { SpellBlock, SPELL_TAG_OPTIONS } from '../../model/spell-block-model';
+import { SpellBlock, SPELL_TAG_OPTIONS, SPELL_GLOW_COLORS } from '../../model/spell-block-model';
 
 @Component({
   selector: 'app-spell',
@@ -33,6 +33,7 @@ export class SpellComponent implements AfterViewInit {
   @Output() editingChange = new EventEmitter<boolean>();
 
   tagOptions = SPELL_TAG_OPTIONS;
+  glowColors = SPELL_GLOW_COLORS;
   hasDrawing = false;
 
   private ctx?: CanvasRenderingContext2D;
@@ -69,6 +70,10 @@ export class SpellComponent implements AfterViewInit {
     }
   }
 
+  get strokeColor(): string {
+    return this.spell.strokeColor || '#673ab7';
+  }
+
   initCanvas() {
     if (!this.canvasRef) return;
 
@@ -77,7 +82,9 @@ export class SpellComponent implements AfterViewInit {
     this.ctx.lineWidth = 2;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
-    this.ctx.strokeStyle = '#000';
+    this.ctx.strokeStyle = this.strokeColor;
+    this.ctx.shadowColor = this.strokeColor;
+    this.ctx.shadowBlur = 8;
 
     // Load existing drawing if available
     if (this.spell.drawing) {
@@ -172,8 +179,12 @@ export class SpellComponent implements AfterViewInit {
     if (!this.canvasRef || !this.ctx) return;
 
     const canvas = this.canvasRef.nativeElement;
-    this.ctx.fillStyle = '#fff';
+    this.ctx.fillStyle = '#000';
     this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Restore stroke settings after clearing
+    this.ctx.strokeStyle = this.strokeColor;
+    this.ctx.shadowColor = this.strokeColor;
+    this.ctx.shadowBlur = 8;
   }
 
   updateField(field: string, value: any) {
@@ -196,6 +207,14 @@ export class SpellComponent implements AfterViewInit {
     }
 
     this.updateField('tags', newTags);
+  }
+
+  updateStrokeColor(color: string) {
+    this.updateField('strokeColor', color);
+    if (this.ctx) {
+      this.ctx.strokeStyle = color;
+      this.ctx.shadowColor = color;
+    }
   }
 
   hasTag(tag: string): boolean {
