@@ -361,6 +361,8 @@ export class SheetComponent implements OnInit {
 
     this.closeUseResource();
     this.resourceAmount = 0; // Reset amount after using
+  }
+
   loadRecentSpendings() {
     const key = `recentSpendings_${this.store.characterId}`;
     const stored = localStorage.getItem(key);
@@ -391,8 +393,6 @@ export class SheetComponent implements OnInit {
     this.resourceType = spending.type;
     this.resourceAmount = spending.amount;
     // Let the user confirm by clicking the Use button
-  }
-
   }
 
   // Trash management
