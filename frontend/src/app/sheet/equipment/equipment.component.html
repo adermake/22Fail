@@ -2,7 +2,15 @@
   <div class="equipment-header">
     <div>
       <h2>Equipment / Armor</h2>
-      <span class="armor-weight">Armor Weight: {{ armorWeight }} kg</span>
+      <div class="equipment-stats">
+        <span class="armor-weight">Weight: {{ armorWeight }} kg</span>
+        <span class="armor-debuff" [class.has-debuff]="totalArmorDebuff > 0">
+          Speed Penalty: -{{ totalArmorDebuff }}
+          @if (totalArmorDebuff > 0) {
+            <span class="effective-speed">(Effective: {{ effectiveSpeed }})</span>
+          }
+        </span>
+      </div>
     </div>
   </div>
 

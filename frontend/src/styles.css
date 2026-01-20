@@ -8,6 +8,11 @@
   --border: #374151;
   --text: #e5e7eb;
   --text-muted: #9ca3af;
+
+  /* Resource bar colors - change these to customize health/energy/mana colors */
+  --health-color: #ef4444;
+  --energy-color: #22c55e;
+  --mana-color: #3b82f6;
 }
 
 body {

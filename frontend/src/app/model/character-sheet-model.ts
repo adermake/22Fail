@@ -52,6 +52,8 @@ export interface CharacterSheet {
   talentPoints: number;           // Available talent points to spend
   talentPointsBonus: number;      // GM-assigned bonus talent points
   learnedSkillIds: string[];      // IDs of skills learned from the skill tree
+  // Backstory
+  backstory?: string;             // Character background story (supports simple markdown)
 }
 
 export function createEmptySheet(): CharacterSheet {
@@ -92,6 +94,7 @@ export function createEmptySheet(): CharacterSheet {
     talentPoints: 0,
     talentPointsBonus: 0,
     learnedSkillIds: [],
+    backstory: '',
   };
 }
 

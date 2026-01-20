@@ -3,7 +3,7 @@ import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, Output, 
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { JsonPatch } from '../../model/json-patch.model';
-import { RuneBlock, RUNE_TAG_OPTIONS } from '../../model/rune-block.model';
+import { RuneBlock, RUNE_TAG_OPTIONS, RUNE_GLOW_COLORS } from '../../model/rune-block.model';
 import { KeywordEnhancer } from '../../sheet/keyword-enhancer';
 
 @Component({
@@ -22,6 +22,7 @@ export class RuneComponent implements AfterViewInit {
   @Output() editingChange = new EventEmitter<boolean>();
 
   tagOptions = RUNE_TAG_OPTIONS;
+  glowColors = RUNE_GLOW_COLORS;
   hasDrawing = false;
   private canvasInitialized = false;
 
@@ -89,15 +90,21 @@ export class RuneComponent implements AfterViewInit {
     }
   }
 
+  get strokeColor(): string {
+    return this.rune.strokeColor || '#8b5cf6';
+  }
+
   initCanvas() {
     if (!this.canvasRef) return;
 
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d')!;
-    this.ctx.lineWidth = 2;
+    this.ctx.lineWidth = 3;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
-    this.ctx.strokeStyle = '#000';
+    this.ctx.strokeStyle = this.strokeColor;
+    this.ctx.shadowColor = this.strokeColor;
+    this.ctx.shadowBlur = 8;
 
     // Load existing drawing if available
     if (this.rune.drawing) {
@@ -108,6 +115,14 @@ export class RuneComponent implements AfterViewInit {
       img.src = this.rune.drawing;
     } else {
       this.clearCanvas();
+    }
+  }
+
+  updateStrokeColor(color: string) {
+    this.updateField('strokeColor', color);
+    if (this.ctx) {
+      this.ctx.strokeStyle = color;
+      this.ctx.shadowColor = color;
     }
   }
 
@@ -144,8 +159,12 @@ export class RuneComponent implements AfterViewInit {
     if (!this.canvasRef || !this.ctx) return;
 
     const canvas = this.canvasRef.nativeElement;
-    this.ctx.fillStyle = '#fff';
+    this.ctx.fillStyle = '#000';
     this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Restore stroke settings after clearing
+    this.ctx.strokeStyle = this.strokeColor;
+    this.ctx.shadowColor = this.strokeColor;
+    this.ctx.shadowBlur = 8;
   }
 
   handleTouch(event: TouchEvent) {

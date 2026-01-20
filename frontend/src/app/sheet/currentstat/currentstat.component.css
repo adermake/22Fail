@@ -34,6 +34,18 @@
   transition: width 0.3s ease;
 }
 
+.stat-bar-fill.health {
+  background: var(--health-color);
+}
+
+.stat-bar-fill.energy {
+  background: var(--energy-color);
+}
+
+.stat-bar-fill.mana {
+  background: var(--mana-color);
+}
+
 .stat-max {
   font-size: 14px;
   color: var(--muted);

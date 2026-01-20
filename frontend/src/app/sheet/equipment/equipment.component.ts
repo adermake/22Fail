@@ -31,6 +31,15 @@ export class EquipmentComponent {
     return this.sheet.equipment?.reduce((sum, item) => sum + (item.weight || 0), 0) || 0;
   }
 
+  get totalArmorDebuff(): number {
+    return this.sheet.equipment?.reduce((sum, item) => sum + (item.armorDebuff || 0), 0) || 0;
+  }
+
+  get effectiveSpeed(): number {
+    const baseSpeed = this.sheet.speed?.current || 0;
+    return Math.max(0, baseSpeed - this.totalArmorDebuff);
+  }
+
   deleteItem(index: number) {
     const item = this.sheet.equipment[index];
     this.sheet.equipment = this.sheet.equipment.filter((_, i) => i !== index);

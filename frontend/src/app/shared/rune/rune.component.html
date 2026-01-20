@@ -47,9 +47,25 @@
 
       @if (hasDrawing) {
         <div class="field">
+          <label>Glow Color</label>
+          <div class="color-selector">
+            @for (color of glowColors; track color.value) {
+              <button
+                type="button"
+                class="color-option"
+                [class.selected]="strokeColor === color.value"
+                [style.background-color]="color.value"
+                [style.box-shadow]="strokeColor === color.value ? '0 0 12px ' + color.value : 'none'"
+                [title]="color.name"
+                (click)="updateStrokeColor(color.value)">
+              </button>
+            }
+          </div>
+        </div>
+        <div class="field">
           <label>Draw Rune Symbol</label>
           <div class="canvas-wrapper">
-            <div class="canvas-container">
+            <div class="canvas-container" [style.box-shadow]="'0 0 15px ' + strokeColor + '40'">
               <canvas
                 #canvas
                 width="300"

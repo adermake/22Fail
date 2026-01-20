@@ -13,4 +13,5 @@ export class ItemBlock {
   weight!: number;
   lost! : boolean;
   requirements!: ItemRequirements;
+  armorDebuff?: number; // Speed penalty for wearing this armor
 }

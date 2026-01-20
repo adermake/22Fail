@@ -1,0 +1,116 @@
+.backstory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.backstory-header h2 {
+  margin: 0;
+}
+
+.edit-btn {
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.edit-btn:hover {
+  background: var(--accentdark);
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.editor-help {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0.5rem;
+  background: var(--bg);
+  border-radius: 4px;
+}
+
+.editor textarea {
+  width: 100%;
+  min-height: 400px;
+  padding: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.editor textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.backstory-content {
+  padding: 0.5rem;
+  line-height: 1.7;
+  color: var(--text);
+  min-height: 200px;
+}
+
+.backstory-content h2 {
+  color: var(--accent);
+  margin: 1.5rem 0 0.75rem 0;
+  font-size: 1.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
+.backstory-content h2:first-child {
+  margin-top: 0;
+}
+
+.backstory-content h3 {
+  color: var(--text);
+  margin: 1.25rem 0 0.5rem 0;
+  font-size: 1.25rem;
+}
+
+.backstory-content h4 {
+  color: var(--text-muted);
+  margin: 1rem 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.backstory-content p {
+  margin: 0.75rem 0;
+}
+
+.backstory-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5rem 0;
+}
+
+.backstory-content strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.backstory-content em {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.backstory-content .placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 2rem;
+}

@@ -52,6 +52,28 @@ export class RaceSelectorComponent implements OnInit {
     this.selectedRace = race;
     this.patch.emit({ path: 'raceId', value: race.id });
     this.patch.emit({ path: 'race', value: race.name });
+
+    // Apply race base stats to character
+    this.patch.emit({ path: 'strength.base', value: race.baseStrength });
+    this.patch.emit({ path: 'dexterity.base', value: race.baseDexterity });
+    this.patch.emit({ path: 'speed.base', value: race.baseSpeed });
+    this.patch.emit({ path: 'intelligence.base', value: race.baseIntelligence });
+    this.patch.emit({ path: 'constitution.base', value: race.baseConstitution });
+    this.patch.emit({ path: 'chill.base', value: race.baseChill });
+
+    // Apply race stat gains per level
+    this.patch.emit({ path: 'strength.gain', value: race.strengthPerLevel });
+    this.patch.emit({ path: 'dexterity.gain', value: race.dexterityPerLevel });
+    this.patch.emit({ path: 'speed.gain', value: race.speedPerLevel });
+    this.patch.emit({ path: 'intelligence.gain', value: race.intelligencePerLevel });
+    this.patch.emit({ path: 'constitution.gain', value: race.constitutionPerLevel });
+    this.patch.emit({ path: 'chill.gain', value: race.chillPerLevel });
+
+    // Apply race resource bases (Health, Energy, Mana)
+    // Statuses array: [0] = Leben (Health), [1] = Ausdauer (Energy), [2] = Mana
+    this.patch.emit({ path: 'statuses.0.statusBase', value: race.baseHealth });
+    this.patch.emit({ path: 'statuses.1.statusBase', value: race.baseEnergy });
+    this.patch.emit({ path: 'statuses.2.statusBase', value: race.baseMana });
   }
 
   clearRace() {

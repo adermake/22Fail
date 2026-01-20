@@ -65,7 +65,7 @@ export class InventoryComponent {
  get totalWeight(): number {
   const itemWeight = this.sheet.inventory?.reduce((sum, item) => sum + (item.weight || 0), 0) || 0;
   const currencyWeight = this.getCurrencyWeight();
-  return itemWeight + currencyWeight;
+  return Math.floor(itemWeight + currencyWeight);
 }
 
 getCurrencyWeight(): number {
@@ -81,7 +81,7 @@ getCurrencyWeight(): number {
 
   get maxCapacity(): number {
     const strength = this.sheet.strength?.current * 8 || 10;
-    return strength * this.sheet.carryCapacityMultiplier + this.sheet.carryCapacityBonus;
+    return Math.floor(strength * this.sheet.carryCapacityMultiplier + this.sheet.carryCapacityBonus);
   }
 
   get encumbrancePercentage(): number {

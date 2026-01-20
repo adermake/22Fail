@@ -8,11 +8,12 @@ import { EquipmentComponent } from '../equipment/equipment.component';
 import { SpellsComponent } from '../spells/spells.component';
 import { RunesComponent } from '../../shared/runes/runes.component';
 import { SkillsComponent } from '../skills/skills.component';
+import { BackstoryComponent } from '../backstory/backstory.component';
 
 @Component({
   selector: 'app-character-tabs',
   standalone: true,
-  imports: [CommonModule, FormsModule, InventoryComponent, EquipmentComponent, SpellsComponent, RunesComponent, SkillsComponent],
+  imports: [CommonModule, FormsModule, InventoryComponent, EquipmentComponent, SpellsComponent, RunesComponent, SkillsComponent, BackstoryComponent],
   templateUrl: './character-tabs.html',
   styleUrl: './character-tabs.css',
 })
@@ -28,9 +29,9 @@ export class CharacterTabsComponent {
   @Output() skillEditingChange = new EventEmitter<{index: number, isEditing: boolean}>();
   @Output() openTrash = new EventEmitter<void>();
 
-  activeTab: 'inventory' | 'spells' | 'runes' | 'skills' = 'inventory';
+  activeTab: 'inventory' | 'spells' | 'runes' | 'skills' | 'backstory' = 'inventory';
 
-  setActiveTab(tab: 'inventory' | 'spells' | 'runes' | 'skills') {
+  setActiveTab(tab: 'inventory' | 'spells' | 'runes' | 'skills' | 'backstory') {
     this.activeTab = tab;
   }
 

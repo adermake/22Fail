@@ -1,11 +1,12 @@
 .character-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  padding: 1rem;
+  gap: 0.75rem;
+  padding: 0.75rem;
   width: 100%;
   box-sizing: border-box;
   transition: all 0.3s ease;
+  align-items: start;
 }
 
 .character-grid.current-turn {
@@ -55,9 +56,9 @@
   }
 }
 
-/* Make all cards same height in their row */
+/* Remove forced height - let content determine size */
 .character-grid > * {
-  min-height: 300px;
+  min-height: auto;
 }
 
 /* Dialog styles */

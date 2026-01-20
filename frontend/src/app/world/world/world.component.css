@@ -167,15 +167,15 @@
 }
 
 .stat-bar-fill.health {
-  background: #ef4444;
+  background: var(--health-color);
 }
 
 .stat-bar-fill.energy {
-  background: #10b981;
+  background: var(--energy-color);
 }
 
 .stat-bar-fill.mana {
-  background: #3b82f6;
+  background: var(--mana-color);
 }
 
 .stat-value {

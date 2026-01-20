@@ -1,0 +1,34 @@
+<app-card>
+  <div class="backstory-header">
+    <h2>Hintergrundgeschichte</h2>
+    <button class="edit-btn" (click)="toggleEdit()">
+      {{ isEditing ? 'Preview' : 'Edit' }}
+    </button>
+  </div>
+
+  @if (isEditing) {
+    <div class="editor">
+      <div class="editor-help">
+        <span>Markdown: # Title, ## Subtitle, **bold**, *italic*, --- for line</span>
+      </div>
+      <textarea
+        [ngModel]="sheet.backstory"
+        (ngModelChange)="updateBackstory($event)"
+        placeholder="Write your character's backstory here...
+
+# Early Life
+Born in a small village...
+
+## The Turning Point
+Everything changed when...
+
+---
+
+**Important:** Use # for titles and **bold** for emphasis."
+        rows="20">
+      </textarea>
+    </div>
+  } @else {
+    <div class="backstory-content" [innerHTML]="renderedBackstory"></div>
+  }
+</app-card>

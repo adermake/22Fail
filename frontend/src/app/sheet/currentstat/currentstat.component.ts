@@ -35,6 +35,19 @@ export class CurrentstatComponent {
     }
   }
 
+  get barClass(): string {
+    switch (this.formula) {
+      case FormulaType.LIFE:
+        return 'health';
+      case FormulaType.ENERGY:
+        return 'energy';
+      case FormulaType.MANA:
+        return 'mana';
+      default:
+        return '';
+    }
+  }
+
   @Output() patch = new EventEmitter<JsonPatch>();
   updateBase(path: string, value: any) {
     this.base = value;

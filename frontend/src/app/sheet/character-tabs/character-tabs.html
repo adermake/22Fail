@@ -25,6 +25,12 @@
       Skills ({{ (sheet.skills || []).length }})
     </button>
     <button
+      class="tab-button"
+      [class.active]="activeTab === 'backstory'"
+      (click)="setActiveTab('backstory')">
+      Geschichte
+    </button>
+    <button
       class="trash-button"
       (click)="openTrash.emit()"
       title="Open Trash"
@@ -67,6 +73,14 @@
         (patch)="onPatch($event)"
         (editingChange)="onSkillEditingChange($event)">
       </app-skills>
+    }
+
+    <!-- Backstory Tab -->
+    @if (activeTab === 'backstory') {
+      <app-backstory
+        [sheet]="sheet"
+        (patch)="onPatch($event)">
+      </app-backstory>
     }
   </div>
 </div>
