@@ -46,7 +46,7 @@
 .race-card-age { color: var(--text-muted); }
 .race-card-lore {
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.6;
   margin-bottom: 1rem;
 }
 
@@ -76,7 +76,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 .stat {
   background: var(--bg);
@@ -91,13 +91,41 @@
 .stat .value { color: var(--accent); font-weight: 600; font-size: 1rem; }
 .stat .gain { color: #22c55e; font-size: 0.7rem; }
 
-.race-card-skills { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.skill-badge {
-  background: rgba(74, 158, 255, 0.2);
-  color: var(--accent);
-  padding: 0.25rem 0.5rem;
+.race-card-skills {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 1rem;
+}
+.race-card-skills h4 {
+  margin: 0 0 0.75rem;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.skill-item {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border, #333);
+}
+.skill-item:last-child { border-bottom: none; }
+.skill-level {
+  background: var(--accent);
+  color: #fff;
+  padding: 0.2rem 0.5rem;
   border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  height: fit-content;
+}
+.skill-info { flex: 1; }
+.skill-name { font-weight: 600; color: var(--text); }
+.skill-type { color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem; }
+.skill-desc {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
   font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 @media (max-width: 700px) {

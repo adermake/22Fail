@@ -60,10 +60,16 @@
   border: 1px solid var(--accent);
   border-radius: 8px;
   padding: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.hint {
+  color: var(--text-muted, #888);
+  font-size: 0.9rem;
+  margin: 0 0 1.5rem;
 }
 
 .race-list {

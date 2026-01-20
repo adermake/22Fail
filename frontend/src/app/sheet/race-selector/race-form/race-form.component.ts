@@ -18,6 +18,7 @@ export class RaceFormComponent {
   @Input() pendingImagePreview = '';
   @Output() save = new EventEmitter<void>();
   @Output() cancel = new EventEmitter<void>();
+  @Output() delete = new EventEmitter<void>();
   @Output() imageSelect = new EventEmitter<Event>();
 
   newSkillLevelRequired = 1;
@@ -56,4 +57,5 @@ export class RaceFormComponent {
 
   onSave() { this.save.emit(); }
   onCancel() { this.cancel.emit(); }
+  onDelete() { this.delete.emit(); }
 }

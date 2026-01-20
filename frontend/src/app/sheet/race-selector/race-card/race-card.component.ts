@@ -13,8 +13,13 @@ export class RaceCardComponent {
   @Input() race!: Race;
   @Input() isSelected = false;
   @Output() select = new EventEmitter<Race>();
+  @Output() edit = new EventEmitter<Race>();
 
   onClick() {
     this.select.emit(this.race);
+  }
+
+  onDoubleClick() {
+    this.edit.emit(this.race);
   }
 }

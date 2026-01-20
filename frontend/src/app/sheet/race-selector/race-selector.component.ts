@@ -5,15 +5,14 @@ import { RaceService } from '../../services/race.service';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { RaceCardComponent } from './race-card/race-card.component';
-import { RaceDetailComponent } from './race-detail/race-detail.component';
 import { RaceFormComponent } from './race-form/race-form.component';
 
-type ViewMode = 'select' | 'create' | 'edit' | 'view';
+type ViewMode = 'select' | 'create' | 'edit';
 
 @Component({
   selector: 'app-race-selector',
   standalone: true,
-  imports: [CommonModule, RaceCardComponent, RaceDetailComponent, RaceFormComponent],
+  imports: [CommonModule, RaceCardComponent, RaceFormComponent],
   templateUrl: './race-selector.component.html',
   styleUrl: './race-selector.component.css'
 })
@@ -48,17 +47,11 @@ export class RaceSelectorComponent implements OnInit {
     }
   }
 
+  // Single click selects the race
   selectRace(race: Race) {
     this.selectedRace = race;
-    this.viewMode = 'view';
-  }
-
-  confirmSelection() {
-    if (this.selectedRace) {
-      this.patch.emit({ path: 'raceId', value: this.selectedRace.id });
-      this.patch.emit({ path: 'race', value: this.selectedRace.name });
-      this.close.emit();
-    }
+    this.patch.emit({ path: 'raceId', value: race.id });
+    this.patch.emit({ path: 'race', value: race.name });
   }
 
   clearRace() {
@@ -75,13 +68,12 @@ export class RaceSelectorComponent implements OnInit {
     this.viewMode = 'create';
   }
 
-  startEdit() {
-    if (this.selectedRace) {
-      this.editingRace = JSON.parse(JSON.stringify(this.selectedRace));
-      this.pendingImageFile = null;
-      this.pendingImagePreview = '';
-      this.viewMode = 'edit';
-    }
+  // Double click opens edit mode
+  startEdit(race: Race) {
+    this.editingRace = JSON.parse(JSON.stringify(race));
+    this.pendingImageFile = null;
+    this.pendingImagePreview = '';
+    this.viewMode = 'edit';
   }
 
   async saveRace() {
@@ -108,19 +100,19 @@ export class RaceSelectorComponent implements OnInit {
   }
 
   async deleteRace() {
-    if (this.selectedRace && confirm(`Are you sure you want to delete "${this.selectedRace.name}"?`)) {
-      await this.raceService.deleteRace(this.selectedRace.id);
+    if (this.editingRace && confirm(`Are you sure you want to delete "${this.editingRace.name}"?`)) {
+      await this.raceService.deleteRace(this.editingRace.id);
       this.races = await this.raceService.loadRaces();
-      this.selectedRace = null;
+      if (this.selectedRace?.id === this.editingRace.id) {
+        this.selectedRace = null;
+        this.patch.emit({ path: 'raceId', value: '' });
+        this.patch.emit({ path: 'race', value: '' });
+      }
       this.viewMode = 'select';
     }
   }
 
   cancelEdit() {
-    this.viewMode = 'select';
-  }
-
-  backToSelect() {
     this.viewMode = 'select';
   }
 

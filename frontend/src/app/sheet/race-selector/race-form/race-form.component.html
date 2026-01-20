@@ -149,5 +149,8 @@
       {{ saving ? 'Saving...' : 'Save Race' }}
     </button>
     <button class="btn btn-secondary" (click)="onCancel()" [disabled]="saving">Cancel</button>
+    @if (!isCreate) {
+      <button class="btn btn-danger" (click)="onDelete()" [disabled]="saving">Delete Race</button>
+    }
   </div>
 </div>

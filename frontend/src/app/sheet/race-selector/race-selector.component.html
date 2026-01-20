@@ -4,8 +4,6 @@
     <div class="header">
       @if (viewMode === 'select') {
         <h1>Select Race</h1>
-      } @else if (viewMode === 'view') {
-        <button class="back-button" (click)="backToSelect()">&larr; Back to Races</button>
       } @else {
         <button class="back-button" (click)="cancelEdit()">&larr; Cancel</button>
       }
@@ -27,12 +25,15 @@
           </div>
         }
 
+        <p class="hint">Click to select a race. Double-click to edit.</p>
+
         <div class="race-list">
           @for (race of races; track race.id) {
             <app-race-card
               [race]="race"
               [isSelected]="isCurrentRace(race)"
-              (select)="selectRace($event)">
+              (select)="selectRace($event)"
+              (edit)="startEdit($event)">
             </app-race-card>
           }
 
@@ -44,16 +45,6 @@
       </div>
     }
 
-    <!-- View Race Details -->
-    @if (!loading && viewMode === 'view' && selectedRace) {
-      <app-race-detail
-        [race]="selectedRace"
-        (confirm)="confirmSelection()"
-        (edit)="startEdit()"
-        (delete)="deleteRace()">
-      </app-race-detail>
-    }
-
     <!-- Create/Edit Screen -->
     @if (!loading && (viewMode === 'create' || viewMode === 'edit')) {
       <app-race-form
@@ -63,6 +54,7 @@
         [pendingImagePreview]="pendingImagePreview"
         (save)="saveRace()"
         (cancel)="cancelEdit()"
+        (delete)="deleteRace()"
         (imageSelect)="onImageSelect($event)">
       </app-race-form>
     }

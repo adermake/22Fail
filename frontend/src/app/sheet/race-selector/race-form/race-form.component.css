@@ -111,6 +111,7 @@ h4 { margin: 1rem 0 0.5rem; color: var(--text-muted, #888); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: #ef4444; color: #fff; margin-left: auto; }
 
 @media (max-width: 700px) {
   .resources-edit-grid { flex-direction: column; }
