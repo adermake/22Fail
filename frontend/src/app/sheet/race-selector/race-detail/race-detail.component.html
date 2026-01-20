@@ -1,0 +1,107 @@
+<div class="view-screen">
+  <div class="race-header">
+    <div class="race-portrait">
+      @if (race.baseImage) {
+        <img [src]="race.baseImage" [alt]="race.name">
+      } @else {
+        <div class="placeholder-image large">?</div>
+      }
+    </div>
+    <div class="race-info">
+      <h2>{{ race.name }}</h2>
+      <div class="age-range">Lifespan: {{ race.ageRange }} years</div>
+    </div>
+  </div>
+
+  <div class="race-lore">
+    <h3>Lore</h3>
+    <p>{{ race.lore || 'No lore available.' }}</p>
+  </div>
+
+  <div class="resources-section">
+    <h3>Resources</h3>
+    <div class="resources-grid">
+      <div class="resource-item health">
+        <span class="resource-icon">❤</span>
+        <div class="resource-details">
+          <span class="resource-name">Health</span>
+          <span class="resource-value">{{ race.baseHealth }}</span>
+        </div>
+      </div>
+      <div class="resource-item energy">
+        <span class="resource-icon">⚡</span>
+        <div class="resource-details">
+          <span class="resource-name">Energy</span>
+          <span class="resource-value">{{ race.baseEnergy }}</span>
+        </div>
+      </div>
+      <div class="resource-item mana">
+        <span class="resource-icon">✦</span>
+        <div class="resource-details">
+          <span class="resource-name">Mana</span>
+          <span class="resource-value">{{ race.baseMana }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-section">
+    <h3>Attributes</h3>
+    <div class="stats-grid">
+      <div class="stat-item">
+        <span class="stat-label">Strength</span>
+        <span class="stat-value">{{ race.baseStrength }}</span>
+        <span class="stat-gain">+{{ race.strengthPerLevel }}/lvl</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Dexterity</span>
+        <span class="stat-value">{{ race.baseDexterity }}</span>
+        <span class="stat-gain">+{{ race.dexterityPerLevel }}/lvl</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Speed</span>
+        <span class="stat-value">{{ race.baseSpeed }}</span>
+        <span class="stat-gain">+{{ race.speedPerLevel }}/lvl</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Intelligence</span>
+        <span class="stat-value">{{ race.baseIntelligence }}</span>
+        <span class="stat-gain">+{{ race.intelligencePerLevel }}/lvl</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Constitution</span>
+        <span class="stat-value">{{ race.baseConstitution }}</span>
+        <span class="stat-gain">+{{ race.constitutionPerLevel }}/lvl</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Chill</span>
+        <span class="stat-value">{{ race.baseChill }}</span>
+        <span class="stat-gain">+{{ race.chillPerLevel }}/lvl</span>
+      </div>
+    </div>
+  </div>
+
+  @if (race.skills.length > 0) {
+    <div class="skills-section">
+      <h3>Racial Skills</h3>
+      <div class="skills-list">
+        @for (raceSkill of race.skills; track $index) {
+          <div class="skill-item">
+            <div class="skill-level">Lvl {{ raceSkill.levelRequired }}</div>
+            <div class="skill-info">
+              <div class="skill-name">{{ raceSkill.skill.name }}</div>
+              <div class="skill-type">{{ raceSkill.skill.type }}</div>
+              <div class="skill-desc">{{ raceSkill.skill.description }}</div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <div class="actions">
+    <button class="btn btn-primary" (click)="onConfirm()">Select This Race</button>
+    <button class="btn btn-secondary" (click)="onEdit()">Edit</button>
+    <button class="btn btn-danger" (click)="onDelete()">Delete</button>
+  </div>
+</div>

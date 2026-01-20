@@ -1,0 +1,153 @@
+<div class="edit-screen">
+  <h2>{{ isCreate ? 'Create New Race' : 'Edit Race' }}</h2>
+
+  <div class="form-section">
+    <h3>Basic Info</h3>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Name *</label>
+        <input type="text" [(ngModel)]="race.name" placeholder="Race name">
+      </div>
+      <div class="form-field">
+        <label>Age Range</label>
+        <input type="text" [(ngModel)]="race.ageRange" placeholder="e.g., 60-80">
+      </div>
+    </div>
+
+    <div class="form-field">
+      <label>Base Image</label>
+      <div class="image-upload">
+        @if (pendingImagePreview) {
+          <img [src]="pendingImagePreview" class="preview-image">
+        } @else if (race.baseImage) {
+          <img [src]="race.baseImage" class="preview-image">
+        }
+        <input type="file" accept="image/*" (change)="onImageSelect($event)">
+      </div>
+    </div>
+
+    <div class="form-field">
+      <label>Lore</label>
+      <textarea [(ngModel)]="race.lore" rows="4" placeholder="Race description and lore..."></textarea>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h3>Resources</h3>
+    <div class="resources-edit-grid">
+      <div class="resource-edit-row health">
+        <span class="resource-icon">❤</span>
+        <label>Health</label>
+        <input type="number" [(ngModel)]="race.baseHealth">
+      </div>
+      <div class="resource-edit-row energy">
+        <span class="resource-icon">⚡</span>
+        <label>Energy</label>
+        <input type="number" [(ngModel)]="race.baseEnergy">
+      </div>
+      <div class="resource-edit-row mana">
+        <span class="resource-icon">✦</span>
+        <label>Mana</label>
+        <input type="number" [(ngModel)]="race.baseMana">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h3>Attributes & Per-Level Gains</h3>
+    <div class="stats-edit-grid">
+      <div class="stat-edit-row">
+        <label>Strength</label>
+        <input type="number" [(ngModel)]="race.baseStrength">
+        <span>+</span>
+        <input type="number" [(ngModel)]="race.strengthPerLevel">
+        <span>/lvl</span>
+      </div>
+      <div class="stat-edit-row">
+        <label>Dexterity</label>
+        <input type="number" [(ngModel)]="race.baseDexterity">
+        <span>+</span>
+        <input type="number" [(ngModel)]="race.dexterityPerLevel">
+        <span>/lvl</span>
+      </div>
+      <div class="stat-edit-row">
+        <label>Speed</label>
+        <input type="number" [(ngModel)]="race.baseSpeed">
+        <span>+</span>
+        <input type="number" [(ngModel)]="race.speedPerLevel">
+        <span>/lvl</span>
+      </div>
+      <div class="stat-edit-row">
+        <label>Intelligence</label>
+        <input type="number" [(ngModel)]="race.baseIntelligence">
+        <span>+</span>
+        <input type="number" [(ngModel)]="race.intelligencePerLevel">
+        <span>/lvl</span>
+      </div>
+      <div class="stat-edit-row">
+        <label>Constitution</label>
+        <input type="number" [(ngModel)]="race.baseConstitution">
+        <span>+</span>
+        <input type="number" [(ngModel)]="race.constitutionPerLevel">
+        <span>/lvl</span>
+      </div>
+      <div class="stat-edit-row">
+        <label>Chill</label>
+        <input type="number" [(ngModel)]="race.baseChill">
+        <span>+</span>
+        <input type="number" [(ngModel)]="race.chillPerLevel">
+        <span>/lvl</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h3>Racial Skills</h3>
+
+    @if (race.skills.length > 0) {
+      <div class="skills-edit-list">
+        @for (raceSkill of race.skills; track $index) {
+          <div class="skill-edit-item">
+            <span class="skill-level">Lvl {{ raceSkill.levelRequired }}</span>
+            <span class="skill-name">{{ raceSkill.skill.name }}</span>
+            <span class="skill-type">({{ raceSkill.skill.type }})</span>
+            <button class="btn-remove" (click)="removeSkillFromRace($index)">&times;</button>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="add-skill-form">
+      <h4>Add Skill</h4>
+      <div class="form-row">
+        <div class="form-field small">
+          <label>Level</label>
+          <input type="number" [(ngModel)]="newSkillLevelRequired" min="1">
+        </div>
+        <div class="form-field">
+          <label>Name</label>
+          <input type="text" [(ngModel)]="newSkill.name" placeholder="Skill name">
+        </div>
+        <div class="form-field small">
+          <label>Type</label>
+          <select [(ngModel)]="newSkill.type">
+            <option value="passive">Passive</option>
+            <option value="active">Active</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Description</label>
+        <textarea [(ngModel)]="newSkill.description" rows="2" placeholder="Skill description"></textarea>
+      </div>
+      <button class="btn btn-secondary" (click)="addSkillToRace()">+ Add Skill</button>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" (click)="onSave()" [disabled]="saving">
+      {{ saving ? 'Saving...' : 'Save Race' }}
+    </button>
+    <button class="btn btn-secondary" (click)="onCancel()" [disabled]="saving">Cancel</button>
+  </div>
+</div>
