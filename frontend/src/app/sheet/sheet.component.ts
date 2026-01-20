@@ -319,8 +319,10 @@ export class SheetComponent implements OnInit {
   showUseResource = false;
   resourceType: 'health' | 'energy' | 'mana' = 'health';
   resourceAmount = 0;
+  recentSpendings: Array<{ type: 'health' | 'energy' | 'mana', amount: number }> = [];
 
   openUseResource() {
+    this.loadRecentSpendings();
     this.showUseResource = true;
     this.resourceType = 'health';
     this.resourceAmount = 0;
@@ -346,7 +348,11 @@ export class SheetComponent implements OnInit {
     if (!sheet || !this.canUseResource()) return;
 
     const index = this.resourceType === 'health' ? 0 : this.resourceType === 'energy' ? 1 : 2;
-    const newValue = sheet.statuses[index].statusCurrent - this.resourceAmount;
+    const currentValue = sheet.statuses[index].statusCurrent;
+    const newValue = currentValue - this.resourceAmount;
+
+    // Store spending in recent history
+    this.addRecentSpending(this.resourceType, this.resourceAmount);
 
     this.store.applyPatch({
       path: `statuses.${index}.statusCurrent`,
@@ -354,6 +360,39 @@ export class SheetComponent implements OnInit {
     });
 
     this.closeUseResource();
+    this.resourceAmount = 0; // Reset amount after using
+  loadRecentSpendings() {
+    const key = `recentSpendings_${this.store.characterId}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try {
+        this.recentSpendings = JSON.parse(stored);
+      } catch {
+        this.recentSpendings = [];
+      }
+    }
+  }
+
+  addRecentSpending(type: 'health' | 'energy' | 'mana', amount: number) {
+    // Add to front of array
+    this.recentSpendings.unshift({ type, amount });
+    
+    // Keep only last 10
+    if (this.recentSpendings.length > 10) {
+      this.recentSpendings = this.recentSpendings.slice(0, 10);
+    }
+    
+    // Save to localStorage
+    const key = `recentSpendings_${this.store.characterId}`;
+    localStorage.setItem(key, JSON.stringify(this.recentSpendings));
+  }
+
+  useRecentSpending(spending: { type: 'health' | 'energy' | 'mana', amount: number }) {
+    this.resourceType = spending.type;
+    this.resourceAmount = spending.amount;
+    // Let the user confirm by clicking the Use button
+  }
+
   }
 
   // Trash management

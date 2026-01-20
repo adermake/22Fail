@@ -31,8 +31,10 @@ export class SpellCreatorComponent implements AfterViewInit {
     drawing: undefined,
     tags: [],
     binding: { type: 'learned' },
+    strokeColor: '#673ab7',
   };
 
+  strokeColor = '#673ab7';
   tagOptions = SPELL_TAG_OPTIONS;
   hasDrawing = false;
   private ctx?: CanvasRenderingContext2D;
@@ -76,9 +78,20 @@ export class SpellCreatorComponent implements AfterViewInit {
     this.ctx.lineWidth = 2;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
-    this.ctx.strokeStyle = '#000';
+    this.ctx.strokeStyle = this.strokeColor;
+    this.ctx.shadowColor = this.strokeColor;
+    this.ctx.shadowBlur = 8;
 
     this.clearCanvas();
+  }
+
+  updateStrokeColor(color: string) {
+    this.strokeColor = color;
+    this.newSpell.strokeColor = color;
+    if (this.ctx) {
+      this.ctx.strokeStyle = color;
+      this.ctx.shadowColor = color;
+    }
   }
 
   get availableItems(): string[] {
@@ -120,8 +133,12 @@ export class SpellCreatorComponent implements AfterViewInit {
     if (!this.canvasRef || !this.ctx) return;
 
     const canvas = this.canvasRef.nativeElement;
-    this.ctx.fillStyle = '#fff';
+    this.ctx.fillStyle = '#000';
     this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Restore stroke settings
+    this.ctx.strokeStyle = this.strokeColor;
+    this.ctx.shadowColor = this.strokeColor;
+    this.ctx.shadowBlur = 8;
   }
 
   toggleTag(tag: string) {

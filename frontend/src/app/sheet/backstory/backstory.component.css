@@ -69,6 +69,19 @@
   border-radius: 8px;
 }
 
+.backstory-content h1 {
+  color: #fff;
+  margin: 1.5rem 0 0.75rem 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0.75rem;
+}
+
+.backstory-content h1:first-child {
+  margin-top: 0;
+}
+
 .backstory-content h2 {
   color: #fff;
   margin: 1.5rem 0 0.75rem 0;

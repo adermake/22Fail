@@ -26,11 +26,23 @@ export class SkillDetailComponent {
   @Output() setSecondary = new EventEmitter<void>();
 
   onSetPrimary() {
+    // Check if at least one skill is learned from this class
+    if (!this.hasLearnedSkill()) {
+      return;
+    }
     this.setPrimary.emit();
   }
 
   onSetSecondary() {
+    // Check if at least one skill is learned from this class
+    if (!this.hasLearnedSkill()) {
+      return;
+    }
     this.setSecondary.emit();
+  }
+
+  hasLearnedSkill(): boolean {
+    return this.skills.some(skill => this.isLearned(skill));
   }
 
   isLearned(skill: SkillDefinition): boolean {

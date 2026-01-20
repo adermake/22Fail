@@ -88,14 +88,15 @@
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text);
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  line-height: 1;
+  line-height: 0;
   padding: 0;
+  font-family: Arial, sans-serif;
 }
 
 .close-btn:hover {

@@ -69,19 +69,12 @@
 @if (hasDrawing) {
   <div class="field">
     <label>Glow Color</label>
-    <div class="color-selector">
-      @for (color of glowColors; track color.value) {
-        <button
-          type="button"
-          class="color-option"
-          [class.selected]="strokeColor === color.value"
-          [style.background-color]="color.value"
-          [style.box-shadow]="strokeColor === color.value ? '0 0 12px ' + color.value : 'none'"
-          [title]="color.name"
-          (click)="updateStrokeColor(color.value)">
-        </button>
-      }
-    </div>
+    <input
+      type="color"
+      [ngModel]="strokeColor"
+      (ngModelChange)="updateStrokeColor($event)"
+      class="color-picker"
+    />
   </div>
   <div class="field">
     <label>Draw Spell Symbol</label>

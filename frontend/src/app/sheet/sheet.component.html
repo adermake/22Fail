@@ -75,18 +75,40 @@
           [class.selected]="resourceType === 'energy'"
           (click)="resourceType = 'energy'">
           <span class="resource-icon">⚡</span>
-          <span>Energy</span>
-          <span class="resource-value">{{ getResourceCurrent('energy') }}</span>
+          <span style="color: #22c55e;">Energy</span>
+          <span class="resource-value" style="color: #22c55e;">{{ getResourceCurrent('energy') }}</span>
         </button>
         <button
           class="resource-option mana"
           [class.selected]="resourceType === 'mana'"
           (click)="resourceType = 'mana'">
           <span class="resource-icon">💧</span>
-          <span>Mana</span>
-          <span class="resource-value">{{ getResourceCurrent('mana') }}</span>
+          <span style="color: #3b82f6;">Mana</span>
+          <span class="resource-value" style="color: #3b82f6;">{{ getResourceCurrent('mana') }}</span>
         </button>
       </div>
+
+      @if (recentSpendings.length > 0) {
+        <div class="recent-spendings">
+          <h3>Recent Spendings</h3>
+          <div class="spending-buttons">
+            @for (spending of recentSpendings; track $index) {
+              <button 
+                class="spending-btn" 
+                [class.health-spending]="spending.type === 'health'"
+                [class.energy-spending]="spending.type === 'energy'"
+                [class.mana-spending]="spending.type === 'mana'"
+                (click)="useRecentSpending(spending)"
+                title="Use {{ spending.amount }} {{ spending.type }}">
+                @if (spending.type === 'health') {<span>❤️</span>}
+                @if (spending.type === 'energy') {<span>⚡</span>}
+                @if (spending.type === 'mana') {<span>💧</span>}
+                <span class="spending-amount">{{ spending.amount }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
 
       <div class="amount-input">
         <label>Amount to use:</label>

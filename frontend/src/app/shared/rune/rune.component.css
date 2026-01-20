@@ -45,8 +45,9 @@
   border-radius: 4px;
   overflow: hidden;
   background: #000;
-  box-shadow: 0 0 20px rgba(156, 39, 176, 0.6), 0 0 40px rgba(156, 39, 176, 0.3);
+  box-shadow: 0 0 40px rgba(156, 39, 176, 1), 0 0 80px rgba(156, 39, 176, 0.8), 0 0 120px rgba(156, 39, 176, 0.6), inset 0 0 20px rgba(156, 39, 176, 0.4);
   animation: rune-glow 2s ease-in-out infinite;
+  filter: brightness(1.2);
 }
 
 .rune-drawing img {
@@ -121,10 +122,12 @@
 
 @keyframes rune-glow {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(156, 39, 176, 0.6), 0 0 40px rgba(156, 39, 176, 0.3);
+    box-shadow: 0 0 40px rgba(156, 39, 176, 1), 0 0 80px rgba(156, 39, 176, 0.8), 0 0 120px rgba(156, 39, 176, 0.6), inset 0 0 20px rgba(156, 39, 176, 0.4);
+    filter: brightness(1.2);
   }
   50% {
-    box-shadow: 0 0 35px rgba(156, 39, 176, 0.9), 0 0 60px rgba(156, 39, 176, 0.5);
+    box-shadow: 0 0 60px rgba(156, 39, 176, 1), 0 0 120px rgba(156, 39, 176, 1), 0 0 180px rgba(156, 39, 176, 0.8), inset 0 0 30px rgba(156, 39, 176, 0.6);
+    filter: brightness(1.4);
   }
 }
 
@@ -289,6 +292,21 @@ canvas {
   font-size: 14px;
   font-weight: bold;
   text-shadow: 0 0 2px #fff;
+}
+
+.color-picker {
+  width: 100%;
+  height: 48px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--bg);
+  transition: all 0.2s;
+}
+
+.color-picker:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 15px currentColor;
 }
 
 .clear-btn {

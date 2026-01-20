@@ -19,8 +19,10 @@ export class RuneCreatorComponent implements AfterViewInit {
     description: '',
     drawing: '',
     tags: [],
+    strokeColor: '#8b5cf6',
   };
 
+  strokeColor = '#8b5cf6';
   tagOptions = RUNE_TAG_OPTIONS;
   private ctx!: CanvasRenderingContext2D;
   private isDrawing = false;
@@ -33,10 +35,21 @@ export class RuneCreatorComponent implements AfterViewInit {
     this.ctx.lineWidth = 3;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
-    this.ctx.strokeStyle = '#000';
+    this.ctx.strokeStyle = this.strokeColor;
+    this.ctx.shadowColor = this.strokeColor;
+    this.ctx.shadowBlur = 8;
     
-    // Fill with white background
+    // Fill with black background
     this.clearCanvas();
+  }
+
+  updateStrokeColor(color: string) {
+    this.strokeColor = color;
+    this.newRune.strokeColor = color;
+    if (this.ctx) {
+      this.ctx.strokeStyle = color;
+      this.ctx.shadowColor = color;
+    }
   }
 
   startDrawing(event: MouseEvent) {
@@ -68,8 +81,12 @@ export class RuneCreatorComponent implements AfterViewInit {
 
   clearCanvas() {
     const canvas = this.canvasRef.nativeElement;
-    this.ctx.fillStyle = '#fff';
+    this.ctx.fillStyle = '#000';
     this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Restore stroke settings
+    this.ctx.strokeStyle = this.strokeColor;
+    this.ctx.shadowColor = this.strokeColor;
+    this.ctx.shadowBlur = 8;
   }
 
   toggleTag(tag: string) {

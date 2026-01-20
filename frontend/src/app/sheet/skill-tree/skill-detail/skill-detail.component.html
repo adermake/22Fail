@@ -12,7 +12,8 @@
           class="class-select-btn primary"
           [class.active]="isPrimaryClass"
           (click)="onSetPrimary()"
-          [disabled]="isPrimaryClass"
+          [disabled]="!hasLearnedSkill()"
+          [title]="!hasLearnedSkill() ? 'Du musst mindestens einen Skill aus dieser Klasse lernen' : ''"
         >
           @if (isPrimaryClass) {
             Primärklasse
@@ -24,7 +25,8 @@
           class="class-select-btn secondary"
           [class.active]="isSecondaryClass"
           (click)="onSetSecondary()"
-          [disabled]="isSecondaryClass"
+          [disabled]="!hasLearnedSkill()"
+          [title]="!hasLearnedSkill() ? 'Du musst mindestens einen Skill aus dieser Klasse lernen' : ''"
         >
           @if (isSecondaryClass) {
             Sekundärklasse

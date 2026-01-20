@@ -24,9 +24,19 @@
 
 @if (hasDrawing) {
   <div class="field">
+    <label>Glow Color</label>
+    <input
+      type="color"
+      [(ngModel)]="strokeColor"
+      (ngModelChange)="updateStrokeColor($event)"
+      name="strokeColor"
+      class="color-picker"
+    />
+  </div>
+  <div class="field">
     <label>Draw Spell Symbol</label>
     <div class="canvas-wrapper">
-      <div class="canvas-container">
+      <div class="canvas-container" [style.box-shadow]="'0 0 15px ' + strokeColor + '40'">
         <canvas 
           #canvas
           width="400"
