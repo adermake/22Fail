@@ -1,6 +1,16 @@
-<div class="race-selector-overlay" (click)="onClose()">
-  <div class="race-selector-modal" (click)="$event.stopPropagation()">
-    <button class="close-button" (click)="onClose()">&times;</button>
+<div class="race-selector-overlay">
+  <div class="race-selector-container">
+    <!-- Header -->
+    <div class="header">
+      @if (viewMode === 'select') {
+        <h1>Select Race</h1>
+      } @else if (viewMode === 'view') {
+        <button class="back-button" (click)="backToSelect()">&larr; Back to Races</button>
+      } @else {
+        <button class="back-button" (click)="cancelEdit()">&larr; Cancel</button>
+      }
+      <button class="close-button" (click)="onClose()">&times;</button>
+    </div>
 
     <!-- Loading State -->
     @if (loading) {
@@ -10,36 +20,78 @@
     <!-- Selection Screen -->
     @if (!loading && viewMode === 'select') {
       <div class="selection-screen">
-        <h2>Select Race</h2>
-
         @if (selectedRace) {
           <div class="current-race">
-            <span>Current: <strong>{{ selectedRace.name }}</strong></span>
-            <button class="btn-small btn-danger" (click)="clearRace()">Clear</button>
+            <span>Currently selected: <strong>{{ selectedRace.name }}</strong></span>
+            <button class="btn btn-small btn-danger" (click)="clearRace()">Clear Selection</button>
           </div>
         }
 
         <div class="race-grid">
+          <!-- Race Cards -->
           @for (race of races; track race.id) {
             <div
               class="race-card"
               [class.selected]="isCurrentRace(race)"
               (click)="selectRace(race)">
-              <div class="race-image">
+              <div class="race-card-image">
                 @if (race.baseImage) {
                   <img [src]="race.baseImage" [alt]="race.name">
                 } @else {
                   <div class="placeholder-image">?</div>
                 }
               </div>
-              <div class="race-name">{{ race.name }}</div>
-              <div class="race-age">{{ race.ageRange }} years</div>
+              <div class="race-card-content">
+                <div class="race-card-header">
+                  <h3 class="race-card-name">{{ race.name }}</h3>
+                  <span class="race-card-age">{{ race.ageRange }} yrs</span>
+                </div>
+                @if (race.lore) {
+                  <div class="race-card-lore">{{ race.lore }}</div>
+                }
+                <div class="race-card-stats">
+                  <div class="race-card-stat">
+                    <span class="label">HP</span>
+                    <span class="value">{{ race.baseHealth }}</span>
+                  </div>
+                  <div class="race-card-stat">
+                    <span class="label">STR</span>
+                    <span class="value">{{ race.baseStrength }}</span>
+                  </div>
+                  <div class="race-card-stat">
+                    <span class="label">DEX</span>
+                    <span class="value">{{ race.baseDexterity }}</span>
+                  </div>
+                  <div class="race-card-stat">
+                    <span class="label">SPD</span>
+                    <span class="value">{{ race.baseSpeed }}</span>
+                  </div>
+                  <div class="race-card-stat">
+                    <span class="label">INT</span>
+                    <span class="value">{{ race.baseIntelligence }}</span>
+                  </div>
+                </div>
+                @if (race.skills.length > 0) {
+                  <div class="race-card-skills">
+                    @for (raceSkill of race.skills.slice(0, 3); track $index) {
+                      <span class="race-card-skill-badge">{{ raceSkill.skill.name }}</span>
+                    }
+                    @if (race.skills.length > 3) {
+                      <span class="race-card-skill-badge">+{{ race.skills.length - 3 }} more</span>
+                    }
+                  </div>
+                }
+              </div>
             </div>
           }
-        </div>
 
-        <div class="actions">
-          <button class="btn btn-primary" (click)="startCreate()">+ Create New Race</button>
+          <!-- Create New Race Card -->
+          <div class="create-card" (click)="startCreate()">
+            <div class="create-card-content">
+              <div class="icon">+</div>
+              <div class="text">Create New Race</div>
+            </div>
+          </div>
         </div>
       </div>
     }
@@ -47,8 +99,6 @@
     <!-- View Race Details -->
     @if (!loading && viewMode === 'view' && selectedRace) {
       <div class="view-screen">
-        <button class="back-button" (click)="backToSelect()">&larr; Back</button>
-
         <div class="race-header">
           <div class="race-portrait">
             @if (selectedRace.baseImage) {
@@ -74,47 +124,47 @@
             <div class="stat-item">
               <span class="stat-label">Health</span>
               <span class="stat-value">{{ selectedRace.baseHealth }}</span>
-              <span class="stat-gain">(+{{ selectedRace.healthPerLevel }}/lvl)</span>
+              <span class="stat-gain">+{{ selectedRace.healthPerLevel }}/lvl</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">Energy</span>
               <span class="stat-value">{{ selectedRace.baseEnergy }}</span>
-              <span class="stat-gain">(+{{ selectedRace.energyPerLevel }}/lvl)</span>
+              <span class="stat-gain">+{{ selectedRace.energyPerLevel }}/lvl</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">Mana</span>
               <span class="stat-value">{{ selectedRace.baseMana }}</span>
-              <span class="stat-gain">(+{{ selectedRace.manaPerLevel }}/lvl)</span>
+              <span class="stat-gain">+{{ selectedRace.manaPerLevel }}/lvl</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">Strength</span>
               <span class="stat-value">{{ selectedRace.baseStrength }}</span>
-              <span class="stat-gain">(+{{ selectedRace.strengthPerLevel }}/lvl)</span>
+              <span class="stat-gain">+{{ selectedRace.strengthPerLevel }}/lvl</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">Dexterity</span>
               <span class="stat-value">{{ selectedRace.baseDexterity }}</span>
-              <span class="stat-gain">(+{{ selectedRace.dexterityPerLevel }}/lvl)</span>
+              <span class="stat-gain">+{{ selectedRace.dexterityPerLevel }}/lvl</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">Speed</span>
               <span class="stat-value">{{ selectedRace.baseSpeed }}</span>
-              <span class="stat-gain">(+{{ selectedRace.speedPerLevel }}/lvl)</span>
+              <span class="stat-gain">+{{ selectedRace.speedPerLevel }}/lvl</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">Intelligence</span>
               <span class="stat-value">{{ selectedRace.baseIntelligence }}</span>
-              <span class="stat-gain">(+{{ selectedRace.intelligencePerLevel }}/lvl)</span>
+              <span class="stat-gain">+{{ selectedRace.intelligencePerLevel }}/lvl</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">Constitution</span>
               <span class="stat-value">{{ selectedRace.baseConstitution }}</span>
-              <span class="stat-gain">(+{{ selectedRace.constitutionPerLevel }}/lvl)</span>
+              <span class="stat-gain">+{{ selectedRace.constitutionPerLevel }}/lvl</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">Chill</span>
               <span class="stat-value">{{ selectedRace.baseChill }}</span>
-              <span class="stat-gain">(+{{ selectedRace.chillPerLevel }}/lvl)</span>
+              <span class="stat-gain">+{{ selectedRace.chillPerLevel }}/lvl</span>
             </div>
           </div>
         </div>
@@ -148,8 +198,6 @@
     <!-- Create/Edit Screen -->
     @if (!loading && (viewMode === 'create' || viewMode === 'edit')) {
       <div class="edit-screen">
-        <button class="back-button" (click)="cancelEdit()">&larr; Cancel</button>
-
         <h2>{{ viewMode === 'create' ? 'Create New Race' : 'Edit Race' }}</h2>
 
         <div class="form-section">
