@@ -3,16 +3,22 @@
     <div>
       <h2>Inventory</h2>
       <div class="weight-info">
-        <span class="weight-display" [class]="encumbranceClass" [style.color]="encumbranceColor">
-          {{ totalWeight }} / {{ maxCapacity }} kg
-        </span>
+        <div class="weight-row">
+          <span class="weight-display" [class]="encumbranceClass" [style.color]="encumbranceColor">
+            {{ totalWeight }} / {{ maxCapacity }} kg
+          </span>
+          @if (speedPenaltyText) {
+            <span class="speed-penalty" [class]="encumbranceClass">{{ speedPenaltyText }}</span>
+          }
+        </div>
         <span class="currency-weight-label"
           >Currency: {{ getCurrencyWeight() | number : '1.2-2' }} kg</span
         >
-        <div class="weight-bar">
+        <div class="weight-bar" [class]="encumbranceClass">
           <div
             class="weight-fill"
-            [style.width.%]="encumbrancePercentage"
+            [class]="encumbranceClass"
+            [style.width.%]="Math.min(encumbrancePercentage, 100)"
             [style.background-color]="encumbranceColor"
           ></div>
         </div>

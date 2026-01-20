@@ -9,10 +9,32 @@
   margin: 0 0 0.25rem 0;
 }
 
+.equipment-stats {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
 .armor-weight {
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+.armor-debuff {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.armor-debuff.has-debuff {
+  color: #f97316;
+}
+
+.effective-speed {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-left: 0.25rem;
 }
 
 .equipment-list {

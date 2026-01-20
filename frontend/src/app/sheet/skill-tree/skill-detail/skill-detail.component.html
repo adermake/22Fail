@@ -5,6 +5,36 @@
   </div>
 
   <div class="panel-content">
+    <!-- Class Selection Buttons (only for tier 1 classes) -->
+    @if (isTier1Class) {
+      <div class="class-selection">
+        <button
+          class="class-select-btn primary"
+          [class.active]="isPrimaryClass"
+          (click)="onSetPrimary()"
+          [disabled]="isPrimaryClass"
+        >
+          @if (isPrimaryClass) {
+            Primärklasse
+          } @else {
+            Als Primärklasse setzen
+          }
+        </button>
+        <button
+          class="class-select-btn secondary"
+          [class.active]="isSecondaryClass"
+          (click)="onSetSecondary()"
+          [disabled]="isSecondaryClass"
+        >
+          @if (isSecondaryClass) {
+            Sekundärklasse
+          } @else {
+            Als Sekundärklasse setzen
+          }
+        </button>
+      </div>
+    }
+
     @if (!canLearnFromClass) {
       <div class="locked-notice">
         {{ getLockedReason() }}

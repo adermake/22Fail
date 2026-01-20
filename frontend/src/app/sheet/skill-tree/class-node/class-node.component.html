@@ -5,6 +5,10 @@
   [class.complete]="isComplete"
   [class.locked]="!canLearn"
   [class.edit-mode]="editMode"
+  [class.is-primary]="isPrimary"
+  [class.is-secondary]="isSecondary"
+  [class.on-primary-path]="onPath === 'primary'"
+  [class.on-secondary-path]="onPath === 'secondary'"
   [class]="tierClass"
   [style.left.px]="x"
   [style.top.px]="y"
@@ -12,6 +16,12 @@
   (click)="onClick()"
   (mousedown)="onMouseDown($event)"
 >
+  @if (isPrimary) {
+    <div class="class-badge primary">P</div>
+  }
+  @if (isSecondary) {
+    <div class="class-badge secondary">S</div>
+  }
   <div class="node-content">
     <span class="class-name">{{ className }}</span>
     @if (totalCount > 0) {

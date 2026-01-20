@@ -798,6 +798,104 @@ Nekromant:`;
     return false;
   }
 
+  // Check if a class is the primary or secondary class
+  isPrimaryClass(className: string): boolean {
+    return this.sheet.primary_class?.toLowerCase() === className.toLowerCase();
+  }
+
+  isSecondaryClass(className: string): boolean {
+    return this.sheet.secondary_class?.toLowerCase() === className.toLowerCase();
+  }
+
+  // Set class as primary or secondary
+  setPrimaryClass(className: string) {
+    this.patch.emit({ path: 'primary_class', value: className });
+  }
+
+  setSecondaryClass(className: string) {
+    this.patch.emit({ path: 'secondary_class', value: className });
+  }
+
+  // Find path from tier 1 to a given class
+  getPathToClass(targetClass: string): Set<string> {
+    const path = new Set<string>();
+    const visited = new Set<string>();
+
+    const findPath = (className: string): boolean => {
+      if (visited.has(className)) return false;
+      visited.add(className);
+
+      if (className.toLowerCase() === targetClass.toLowerCase()) {
+        path.add(className);
+        return true;
+      }
+
+      const children = this.classHierarchy.get(className) || [];
+      for (const child of children) {
+        if (findPath(child)) {
+          path.add(className);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    // Start from tier 1 classes
+    const tier1Classes = Array.from(this.classTiers.entries())
+      .filter(([_, tier]) => tier === 1)
+      .map(([name, _]) => name);
+
+    for (const t1Class of tier1Classes) {
+      findPath(t1Class);
+    }
+
+    return path;
+  }
+
+  // Check if a connection is on the path to primary or secondary class
+  isConnectionOnClassPath(conn: Connection): boolean {
+    const primaryPath = this.sheet.primary_class ? this.getPathToClass(this.sheet.primary_class) : new Set<string>();
+    const secondaryPath = this.sheet.secondary_class ? this.getPathToClass(this.sheet.secondary_class) : new Set<string>();
+
+    // Check if both ends of the connection are on the same class path
+    const fromOnPrimary = primaryPath.has(conn.from);
+    const toOnPrimary = primaryPath.has(conn.to);
+    const fromOnSecondary = secondaryPath.has(conn.from);
+    const toOnSecondary = secondaryPath.has(conn.to);
+
+    return (fromOnPrimary && toOnPrimary) || (fromOnSecondary && toOnSecondary);
+  }
+
+  // Get the color for a connection if it's on a class path
+  getConnectionPathColor(conn: Connection): string | null {
+    const primaryPath = this.sheet.primary_class ? this.getPathToClass(this.sheet.primary_class) : new Set<string>();
+    const secondaryPath = this.sheet.secondary_class ? this.getPathToClass(this.sheet.secondary_class) : new Set<string>();
+
+    const fromOnPrimary = primaryPath.has(conn.from);
+    const toOnPrimary = primaryPath.has(conn.to);
+    const fromOnSecondary = secondaryPath.has(conn.from);
+    const toOnSecondary = secondaryPath.has(conn.to);
+
+    if (fromOnPrimary && toOnPrimary) return '#8b5cf6'; // Purple for primary
+    if (fromOnSecondary && toOnSecondary) return '#eab308'; // Yellow for secondary
+    return null;
+  }
+
+  // Check if class is on path to primary or secondary
+  isClassOnPath(className: string): 'primary' | 'secondary' | null {
+    const primaryPath = this.sheet.primary_class ? this.getPathToClass(this.sheet.primary_class) : new Set<string>();
+    const secondaryPath = this.sheet.secondary_class ? this.getPathToClass(this.sheet.secondary_class) : new Set<string>();
+
+    if (primaryPath.has(className)) return 'primary';
+    if (secondaryPath.has(className)) return 'secondary';
+    return null;
+  }
+
+  // Check if a class is tier 1 (base class)
+  isClassTier1(className: string): boolean {
+    return this.classTiers.get(className) === 1;
+  }
+
   getTierColor(tier: number): string {
     return TIER_COLORS[tier] || TIER_COLORS[5];
   }

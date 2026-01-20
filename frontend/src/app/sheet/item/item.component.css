@@ -88,6 +88,26 @@
   white-space: nowrap;
 }
 
+.item-armor-debuff {
+  background: #4a2c00;
+  color: #f97316;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  border: 1px solid #f97316;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.field-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.field-row .field {
+  flex: 1;
+}
+
 .item-description {
   color: var(--text-muted); /* Use muted text for description for better hierarchy */
   margin: 0.5rem 0;

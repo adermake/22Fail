@@ -228,3 +228,61 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* Class Selection Buttons */
+.class-selection {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.class-select-btn {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.class-select-btn.primary {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
+  color: #8b5cf6;
+}
+
+.class-select-btn.primary:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: #8b5cf6;
+}
+
+.class-select-btn.primary.active {
+  background: #8b5cf6;
+  border-color: #8b5cf6;
+  color: white;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
+}
+
+.class-select-btn.secondary {
+  background: rgba(234, 179, 8, 0.15);
+  border-color: rgba(234, 179, 8, 0.3);
+  color: #eab308;
+}
+
+.class-select-btn.secondary:hover:not(:disabled) {
+  background: rgba(234, 179, 8, 0.25);
+  border-color: #eab308;
+}
+
+.class-select-btn.secondary.active {
+  background: #eab308;
+  border-color: #eab308;
+  color: #000;
+  box-shadow: 0 0 12px rgba(234, 179, 8, 0.5);
+}
+
+.class-select-btn:disabled {
+  cursor: default;
+}

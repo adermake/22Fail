@@ -28,6 +28,8 @@ export class InventoryComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
 
+  Math = Math; // Expose Math to template
+
   showCreateDialog = false;
   showSettingsDialog = false;
   private editingItems = new Set<number>();
@@ -90,23 +92,27 @@ getCurrencyWeight(): number {
 
   get encumbranceColor(): string {
     const percentage = this.encumbrancePercentage;
-    if (percentage < 50) {
-      return '#4caf50'; // Green
+    if (percentage < 80) {
+      return '#22c55e'; // Green - no penalty
     } else if (percentage < 100) {
-      return '#ffd700'; // Yellow
-    } else if (percentage < 125) {
-      return '#ff9800'; // Orange
+      return '#eab308'; // Yellow - half speed
     } else {
-      return '#f44336'; // Red
+      return '#ef4444'; // Red - speed 0
     }
   }
 
   get encumbranceClass(): string {
     const percentage = this.encumbrancePercentage;
-    if (percentage < 50) return 'light';
-    if (percentage < 75) return 'medium';
+    if (percentage < 80) return 'normal';
     if (percentage < 100) return 'heavy';
     return 'overencumbered';
+  }
+
+  get speedPenaltyText(): string {
+    const percentage = this.encumbrancePercentage;
+    if (percentage < 80) return '';
+    if (percentage < 100) return 'Half Speed';
+    return 'Speed = 0';
   }
 
   updateCapacitySetting(field: string, value: any) {

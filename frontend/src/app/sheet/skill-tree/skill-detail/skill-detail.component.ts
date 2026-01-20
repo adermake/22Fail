@@ -15,10 +15,23 @@ export class SkillDetailComponent {
   @Input() learnedSkillIds: string[] = [];
   @Input() availablePoints: number = 0;
   @Input() canLearnFromClass: boolean = true;  // Has 3 skills from parent class
+  @Input() isPrimaryClass: boolean = false;
+  @Input() isSecondaryClass: boolean = false;
+  @Input() isTier1Class: boolean = false;  // Only tier 1 classes can be selected as primary/secondary
 
   @Output() learnSkill = new EventEmitter<SkillDefinition>();
   @Output() unlearnSkill = new EventEmitter<SkillDefinition>();
   @Output() close = new EventEmitter<void>();
+  @Output() setPrimary = new EventEmitter<void>();
+  @Output() setSecondary = new EventEmitter<void>();
+
+  onSetPrimary() {
+    this.setPrimary.emit();
+  }
+
+  onSetSecondary() {
+    this.setSecondary.emit();
+  }
 
   isLearned(skill: SkillDefinition): boolean {
     return this.learnedSkillIds.includes(skill.id);

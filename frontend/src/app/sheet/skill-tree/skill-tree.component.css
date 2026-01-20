@@ -205,6 +205,23 @@
   opacity: 0.8;
 }
 
+/* Glowing connection lines for primary/secondary class paths */
+.connection-line.on-class-path {
+  stroke-width: 3;
+  opacity: 1;
+  filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 8px currentColor);
+  animation: connection-glow 2s ease-in-out infinite;
+}
+
+@keyframes connection-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 8px currentColor);
+  }
+  50% {
+    filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px currentColor);
+  }
+}
+
 .tier-ring {
   stroke: var(--border);
   stroke-width: 1;

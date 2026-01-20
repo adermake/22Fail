@@ -34,6 +34,7 @@ import { SkillTreeComponent } from './skill-tree/skill-tree.component';
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     StatsComponent,
     CharacterComponent,
     LevelclassComponent,
@@ -311,6 +312,47 @@ export class SheetComponent implements OnInit {
 
   closeSkillTree() {
     this.showSkillTree = false;
+  }
+
+  // Use Resource
+  showUseResource = false;
+  resourceType: 'health' | 'energy' | 'mana' = 'health';
+  resourceAmount = 0;
+
+  openUseResource() {
+    this.showUseResource = true;
+    this.resourceType = 'health';
+    this.resourceAmount = 0;
+  }
+
+  closeUseResource() {
+    this.showUseResource = false;
+  }
+
+  getResourceCurrent(type: 'health' | 'energy' | 'mana'): number {
+    const sheet = this.store.sheetValue;
+    if (!sheet) return 0;
+    const index = type === 'health' ? 0 : type === 'energy' ? 1 : 2;
+    return sheet.statuses[index]?.statusCurrent || 0;
+  }
+
+  canUseResource(): boolean {
+    return this.resourceAmount > 0 && this.resourceAmount <= this.getResourceCurrent(this.resourceType);
+  }
+
+  useResource() {
+    const sheet = this.store.sheetValue;
+    if (!sheet || !this.canUseResource()) return;
+
+    const index = this.resourceType === 'health' ? 0 : this.resourceType === 'energy' ? 1 : 2;
+    const newValue = sheet.statuses[index].statusCurrent - this.resourceAmount;
+
+    this.store.applyPatch({
+      path: `statuses.${index}.statusCurrent`,
+      value: newValue
+    });
+
+    this.closeUseResource();
   }
 
   // Trash management

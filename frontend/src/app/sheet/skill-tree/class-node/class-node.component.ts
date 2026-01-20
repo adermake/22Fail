@@ -28,9 +28,14 @@ export class ClassNodeComponent {
   @Input() isAccessible: boolean = false;
   @Input() canLearn: boolean = true;  // Can learn from this class (has 3 skills from parent)
   @Input() editMode: boolean = false;
+  @Input() isPrimary: boolean = false;
+  @Input() isSecondary: boolean = false;
+  @Input() onPath: 'primary' | 'secondary' | null = null;
 
   @Output() select = new EventEmitter<void>();
   @Output() dragStart = new EventEmitter<MouseEvent>();
+  @Output() setPrimary = new EventEmitter<void>();
+  @Output() setSecondary = new EventEmitter<void>();
 
   onClick() {
     if (!this.editMode) {

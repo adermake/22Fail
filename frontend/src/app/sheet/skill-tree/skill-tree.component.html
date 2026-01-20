@@ -52,7 +52,9 @@
               <path
                 class="connection-line"
                 [class.accessible]="isClassAccessible(conn.from) || isClassAccessible(conn.to)"
+                [class.on-class-path]="isConnectionOnClassPath(conn)"
                 [attr.d]="pathData"
+                [style.stroke]="getConnectionPathColor(conn)"
                 fill="none"
               />
             }
@@ -86,8 +88,13 @@
             [isAccessible]="isClassAccessible(classPos.name)"
             [canLearn]="canLearnFromClass(classPos.name)"
             [editMode]="editMode"
+            [isPrimary]="isPrimaryClass(classPos.name)"
+            [isSecondary]="isSecondaryClass(classPos.name)"
+            [onPath]="isClassOnPath(classPos.name)"
             (select)="selectClass(classPos.name)"
             (dragStart)="startNodeDrag(classPos.name, $event)"
+            (setPrimary)="setPrimaryClass(classPos.name)"
+            (setSecondary)="setSecondaryClass(classPos.name)"
           />
         }
       </div>
@@ -102,8 +109,13 @@
           [learnedSkillIds]="sheet.learnedSkillIds || []"
           [availablePoints]="getAvailableTalentPoints()"
           [canLearnFromClass]="canLearnFromClass(selectedClass)"
+          [isPrimaryClass]="isPrimaryClass(selectedClass)"
+          [isSecondaryClass]="isSecondaryClass(selectedClass)"
+          [isTier1Class]="isClassTier1(selectedClass)"
           (learnSkill)="learnSkill($event)"
           (unlearnSkill)="unlearnSkill($event)"
+          (setPrimary)="setPrimaryClass(selectedClass)"
+          (setSecondary)="setSecondaryClass(selectedClass)"
           (close)="selectedClass = null"
         />
       </div>

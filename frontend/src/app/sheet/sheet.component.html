@@ -45,6 +45,70 @@
   </app-skill-tree>
 }
 
+<!-- Sticky Use Resource Button -->
+<button class="use-resource-btn" (click)="openUseResource()">
+  Use Resource
+</button>
+
+<!-- Use Resource Dialog -->
+@if (showUseResource) {
+  <div class="dialog-overlay" (click)="closeUseResource()">
+    <div class="dialog-content use-resource-dialog" (click)="$event.stopPropagation()">
+      <h2>Use Resource</h2>
+
+      <div class="resource-selector">
+        <button
+          class="resource-option health"
+          [class.selected]="resourceType === 'health'"
+          (click)="resourceType = 'health'">
+          <span class="resource-icon">❤️</span>
+          <span>Health</span>
+          <span class="resource-value">{{ getResourceCurrent('health') }}</span>
+        </button>
+        <button
+          class="resource-option energy"
+          [class.selected]="resourceType === 'energy'"
+          (click)="resourceType = 'energy'">
+          <span class="resource-icon">⚡</span>
+          <span>Energy</span>
+          <span class="resource-value">{{ getResourceCurrent('energy') }}</span>
+        </button>
+        <button
+          class="resource-option mana"
+          [class.selected]="resourceType === 'mana'"
+          (click)="resourceType = 'mana'">
+          <span class="resource-icon">💧</span>
+          <span>Mana</span>
+          <span class="resource-value">{{ getResourceCurrent('mana') }}</span>
+        </button>
+      </div>
+
+      <div class="amount-input">
+        <label>Amount to use:</label>
+        <input
+          type="number"
+          [(ngModel)]="resourceAmount"
+          min="0"
+          [max]="getResourceCurrent(resourceType)"
+          placeholder="0"
+        />
+        <span class="max-hint">Max: {{ getResourceCurrent(resourceType) }}</span>
+      </div>
+
+      <div class="dialog-actions">
+        <button
+          class="use-btn"
+          [class.disabled]="!canUseResource()"
+          [disabled]="!canUseResource()"
+          (click)="useResource()">
+          Use {{ resourceAmount }} {{ resourceType | titlecase }}
+        </button>
+        <button class="cancel-btn" (click)="closeUseResource()">Cancel</button>
+      </div>
+    </div>
+  </div>
+}
+
 <!-- Trash Dialog -->
 @if (showTrash) {
   <div class="dialog-overlay" (click)="closeTrash()">
