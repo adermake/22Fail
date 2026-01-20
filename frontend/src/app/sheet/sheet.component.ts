@@ -28,6 +28,7 @@ import { ItemCreatorComponent } from './item-creator/item-creator.component';
 import { CardComponent } from '../shared/card/card.component';
 import { CharacterTabsComponent } from './character-tabs/character-tabs';
 import { SkillTreeComponent } from './skill-tree/skill-tree.component';
+import { BackstoryComponent } from './backstory/backstory.component';
 
 @Component({
   selector: 'app-sheet',
@@ -40,11 +41,11 @@ import { SkillTreeComponent } from './skill-tree/skill-tree.component';
     LevelclassComponent,
     CurrentstatComponent,
     CurrentstatsComponent,
-    CurrencyComponent,
     EquipmentComponent,
     LootPopupComponent,
     CharacterTabsComponent,
-    SkillTreeComponent
+    SkillTreeComponent,
+    BackstoryComponent
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',

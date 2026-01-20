@@ -4,16 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { InventoryComponent } from '../inventory/inventory.component';
-import { EquipmentComponent } from '../equipment/equipment.component';
 import { SpellsComponent } from '../spells/spells.component';
 import { RunesComponent } from '../../shared/runes/runes.component';
 import { SkillsComponent } from '../skills/skills.component';
-import { BackstoryComponent } from '../backstory/backstory.component';
 
 @Component({
   selector: 'app-character-tabs',
   standalone: true,
-  imports: [CommonModule, FormsModule, InventoryComponent, EquipmentComponent, SpellsComponent, RunesComponent, SkillsComponent, BackstoryComponent],
+  imports: [CommonModule, FormsModule, InventoryComponent, SpellsComponent, RunesComponent, SkillsComponent],
   templateUrl: './character-tabs.html',
   styleUrl: './character-tabs.css',
 })
@@ -29,9 +27,9 @@ export class CharacterTabsComponent {
   @Output() skillEditingChange = new EventEmitter<{index: number, isEditing: boolean}>();
   @Output() openTrash = new EventEmitter<void>();
 
-  activeTab: 'inventory' | 'spells' | 'runes' | 'skills' | 'backstory' = 'inventory';
+  activeTab: 'inventory' | 'spells' | 'runes' | 'skills' = 'inventory';
 
-  setActiveTab(tab: 'inventory' | 'spells' | 'runes' | 'skills' | 'backstory') {
+  setActiveTab(tab: 'inventory' | 'spells' | 'runes' | 'skills') {
     this.activeTab = tab;
   }
 

@@ -36,14 +36,17 @@
 
 .stat-bar-fill.health {
   background: var(--health-color);
+  box-shadow: 0 0 8px var(--health-color), 0 0 4px var(--health-color);
 }
 
 .stat-bar-fill.energy {
   background: var(--energy-color);
+  box-shadow: 0 0 8px var(--energy-color), 0 0 4px var(--energy-color);
 }
 
 .stat-bar-fill.mana {
   background: var(--mana-color);
+  box-shadow: 0 0 8px var(--mana-color), 0 0 4px var(--mana-color);
 }
 
 .stat-max {

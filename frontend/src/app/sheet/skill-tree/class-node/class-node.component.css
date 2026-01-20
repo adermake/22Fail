@@ -12,6 +12,10 @@
   align-items: center;
   justify-content: center;
   z-index: 1;
+  /* Fix blurriness from scaling */
+  backface-visibility: hidden;
+  -webkit-font-smoothing: subpixel-antialiased;
+  image-rendering: -webkit-optimize-contrast;
 }
 
 .class-node:hover {

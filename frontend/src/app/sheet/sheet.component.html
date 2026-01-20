@@ -8,7 +8,6 @@
   <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>
   <app-levelclass [sheet]="sheet" (patch)="store.applyPatch($any($event))" (openSkillTree)="showSkillTree = true"></app-levelclass>
   <app-currentstats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-currentstats>
-  <app-currency [sheet]="sheet" (patch)="store.applyPatch($any($event))"> </app-currency>
 
   <!-- Equipment - Separate so you can drag items from inventory -->
   <app-equipment [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-equipment>
@@ -25,6 +24,12 @@
     (skillEditingChange)="onSkillEditingChange($any($event).index, $any($event).isEditing)"
     (openTrash)="openTrash()">
   </app-character-tabs>
+
+  <!-- Backstory - Standalone Section -->
+  <app-backstory
+    [sheet]="sheet"
+    (patch)="store.applyPatch($any($event))">
+  </app-backstory>
 </div>
 
 @if (showLootPopup) {
