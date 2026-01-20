@@ -175,4 +175,30 @@ export class AppController {
     const success = this.dataService.deleteRace(id);
     return { success };
   }
+
+  @Post('races/:id/image')
+  @UseInterceptors(FileInterceptor('image'))
+  uploadRaceImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    // Convert to base64
+    const base64 = Buffer.from(file.buffer).toString('base64');
+    const dataUrl = `data:${file.mimetype};base64,${base64}`;
+
+    // Update the race with the new image
+    const race = this.dataService.getRace(id);
+    if (!race) {
+      throw new BadRequestException('Race not found');
+    }
+
+    race.baseImage = dataUrl;
+    this.dataService.saveRace(race);
+
+    return { success: true, imageUrl: dataUrl };
+  }
 }

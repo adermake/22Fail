@@ -168,7 +168,9 @@
           <div class="form-field">
             <label>Base Image</label>
             <div class="image-upload">
-              @if (editingRace.baseImage) {
+              @if (pendingImagePreview) {
+                <img [src]="pendingImagePreview" class="preview-image">
+              } @else if (editingRace.baseImage) {
                 <img [src]="editingRace.baseImage" class="preview-image">
               }
               <input type="file" accept="image/*" (change)="onImageSelect($event)">

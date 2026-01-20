@@ -72,4 +72,24 @@ export class RaceService {
   generateId(): string {
     return 'race_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   }
+
+  /** Upload race image separately to avoid payload size issues */
+  async uploadRaceImage(raceId: string, file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await firstValueFrom(
+      this.http.post<{ success: boolean; imageUrl: string }>(`/api/races/${raceId}/image`, formData)
+    );
+
+    // Update local cache with new image
+    const races = this.racesSubject.value;
+    const race = races.find(r => r.id === raceId);
+    if (race) {
+      race.baseImage = response.imageUrl;
+      this.racesSubject.next([...races]);
+    }
+
+    return response.imageUrl;
+  }
 }

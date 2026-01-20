@@ -30,6 +30,10 @@ export class RaceSelectorComponent implements OnInit {
   newSkillLevelRequired: number = 1;
   newSkill: SkillBlock = this.createEmptySkill();
 
+  // Pending image file to upload after save
+  pendingImageFile: File | null = null;
+  pendingImagePreview: string = '';
+
   loading = true;
 
   constructor(private raceService: RaceService) {}
@@ -76,11 +80,15 @@ export class RaceSelectorComponent implements OnInit {
   startCreate() {
     this.editingRace = createEmptyRace();
     this.editingRace.id = this.raceService.generateId();
+    this.pendingImageFile = null;
+    this.pendingImagePreview = '';
     this.viewMode = 'create';
   }
 
   startEdit(race: Race) {
     this.editingRace = JSON.parse(JSON.stringify(race)); // Deep copy
+    this.pendingImageFile = null;
+    this.pendingImagePreview = '';
     this.viewMode = 'edit';
   }
 
@@ -89,7 +97,22 @@ export class RaceSelectorComponent implements OnInit {
       return; // Name is required
     }
 
-    await this.raceService.saveRace(this.editingRace);
+    // Don't include base64 image in the main save - it will be uploaded separately
+    const raceToSave = { ...this.editingRace };
+    if (this.pendingImageFile) {
+      // Clear the base64 preview, we'll upload the file separately
+      raceToSave.baseImage = this.editingRace.baseImage; // Keep existing if no new file
+    }
+
+    await this.raceService.saveRace(raceToSave);
+
+    // Upload image separately if there's a pending file
+    if (this.pendingImageFile) {
+      await this.raceService.uploadRaceImage(this.editingRace.id, this.pendingImageFile);
+      this.pendingImageFile = null;
+      this.pendingImagePreview = '';
+    }
+
     this.races = await this.raceService.loadRaces();
     this.viewMode = 'select';
   }
@@ -143,14 +166,17 @@ export class RaceSelectorComponent implements OnInit {
     this.editingRace.skills.splice(index, 1);
   }
 
-  // Image handling
+  // Image handling - store file for later upload, show preview
   onImageSelect(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files[0]) {
       const file = input.files[0];
+      this.pendingImageFile = file;
+
+      // Create preview for UI
       const reader = new FileReader();
       reader.onload = () => {
-        this.editingRace.baseImage = reader.result as string;
+        this.pendingImagePreview = reader.result as string;
       };
       reader.readAsDataURL(file);
     }
