@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Race, RaceSkill, createEmptyRace } from '../../model/race.model';
@@ -35,13 +35,17 @@ export class RaceSelectorComponent implements OnInit {
   pendingImagePreview: string = '';
 
   loading = true;
+  saving = false;
 
-  constructor(private raceService: RaceService) {}
+  constructor(private raceService: RaceService, private cd: ChangeDetectorRef) {}
 
   async ngOnInit() {
     this.loading = true;
+    this.cd.detectChanges();
+
     this.races = await this.raceService.loadRaces();
     this.loading = false;
+    this.cd.detectChanges();
 
     // If character already has a race, try to find it
     if (this.sheet.raceId) {
@@ -93,28 +97,36 @@ export class RaceSelectorComponent implements OnInit {
   }
 
   async saveRace() {
-    if (!this.editingRace.name.trim()) {
-      return; // Name is required
+    if (!this.editingRace.name.trim() || this.saving) {
+      return; // Name is required or already saving
     }
 
-    // Don't include base64 image in the main save - it will be uploaded separately
-    const raceToSave = { ...this.editingRace };
-    if (this.pendingImageFile) {
-      // Clear the base64 preview, we'll upload the file separately
-      raceToSave.baseImage = this.editingRace.baseImage; // Keep existing if no new file
+    this.saving = true;
+    this.cd.detectChanges();
+
+    try {
+      // Don't include base64 image in the main save - it will be uploaded separately
+      const raceToSave = { ...this.editingRace };
+      if (this.pendingImageFile) {
+        // Clear the base64 preview, we'll upload the file separately
+        raceToSave.baseImage = this.editingRace.baseImage; // Keep existing if no new file
+      }
+
+      await this.raceService.saveRace(raceToSave);
+
+      // Upload image separately if there's a pending file
+      if (this.pendingImageFile) {
+        await this.raceService.uploadRaceImage(this.editingRace.id, this.pendingImageFile);
+        this.pendingImageFile = null;
+        this.pendingImagePreview = '';
+      }
+
+      this.races = await this.raceService.loadRaces();
+      this.viewMode = 'select';
+    } finally {
+      this.saving = false;
+      this.cd.detectChanges();
     }
-
-    await this.raceService.saveRace(raceToSave);
-
-    // Upload image separately if there's a pending file
-    if (this.pendingImageFile) {
-      await this.raceService.uploadRaceImage(this.editingRace.id, this.pendingImageFile);
-      this.pendingImageFile = null;
-      this.pendingImagePreview = '';
-    }
-
-    this.races = await this.raceService.loadRaces();
-    this.viewMode = 'select';
   }
 
   async deleteRace(race: Race) {

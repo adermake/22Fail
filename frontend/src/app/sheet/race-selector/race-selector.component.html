@@ -296,8 +296,10 @@
         </div>
 
         <div class="actions">
-          <button class="btn btn-primary" (click)="saveRace()">Save Race</button>
-          <button class="btn btn-secondary" (click)="cancelEdit()">Cancel</button>
+          <button class="btn btn-primary" (click)="saveRace()" [disabled]="saving">
+            {{ saving ? 'Saving...' : 'Save Race' }}
+          </button>
+          <button class="btn btn-secondary" (click)="cancelEdit()" [disabled]="saving">Cancel</button>
         </div>
       </div>
     }
