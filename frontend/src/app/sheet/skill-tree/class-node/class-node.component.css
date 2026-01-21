@@ -79,6 +79,9 @@
   padding: 0.25rem;
   z-index: 2;
   position: relative;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 .class-name {

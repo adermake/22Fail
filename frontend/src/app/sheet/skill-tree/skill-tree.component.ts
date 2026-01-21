@@ -677,7 +677,7 @@ Nekromant:`;
   }
 
   get transformStyle(): string {
-    return `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
+    return `translate3d(${this.panX}px, ${this.panY}px, 0) scale(${this.scale})`;
   }
 
   selectClass(className: string) {
@@ -863,6 +863,18 @@ Nekromant:`;
     const toIsSecondary = this.sheet.secondary_class?.toLowerCase() === conn.to.toLowerCase();
     
     return (fromIsPrimary || fromIsSecondary) && !toIsPrimary && !toIsSecondary;
+  }
+
+  // Check if connection is on primary path
+  isConnectionOnPrimaryPath(conn: Connection): boolean {
+    const primaryPath = this.sheet.primary_class ? this.getPathToClass(this.sheet.primary_class) : new Set<string>();
+    return primaryPath.has(conn.from) && primaryPath.has(conn.to);
+  }
+
+  // Check if connection is on secondary path
+  isConnectionOnSecondaryPath(conn: Connection): boolean {
+    const secondaryPath = this.sheet.secondary_class ? this.getPathToClass(this.sheet.secondary_class) : new Set<string>();
+    return secondaryPath.has(conn.from) && secondaryPath.has(conn.to);
   }
 
   // Get the color for a connection if it's on a class path
