@@ -53,6 +53,7 @@
                 class="connection-line"
                 [class.accessible]="isClassAccessible(conn.from) || isClassAccessible(conn.to)"
                 [class.on-class-path]="isConnectionOnClassPath(conn)"
+                [class.next-class]="isNextClassLine(conn)"
                 [attr.d]="pathData"
                 [style.stroke]="getConnectionPathColor(conn)"
                 fill="none"

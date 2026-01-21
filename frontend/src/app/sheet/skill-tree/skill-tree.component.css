@@ -212,8 +212,16 @@
 .connection-line.on-class-path {
   stroke-width: 3;
   opacity: 1;
-  stroke-dasharray: 8 4;
+  stroke-dasharray: none;
   filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 8px currentColor);
+}
+
+/* Next class lines (from selected class to available children) */
+.connection-line.next-class {
+  stroke-width: 2.5;
+  opacity: 0.9;
+  stroke-dasharray: 8 4;
+  filter: drop-shadow(0 0 2px currentColor);
 }
 
 .tier-ring {

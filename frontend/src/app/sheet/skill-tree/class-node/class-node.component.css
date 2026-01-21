@@ -7,19 +7,20 @@
   background: var(--card);
   border: 3px solid var(--border);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: none;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1;
-  -webkit-font-smoothing: subpixel-antialiased;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
+  transform-origin: center;
 }
 
 .class-node:hover {
-  transform: translate(-50%, -50%) scale(1.1);
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.5), 0 0 40px rgba(139, 92, 246, 0.3);
+  filter: brightness(1.2);
 }
 
 .class-node.selected {
@@ -88,6 +89,9 @@
   max-width: 55px;
   overflow: hidden;
   text-overflow: ellipsis;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 .tier-1 .class-name {

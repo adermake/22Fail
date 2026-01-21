@@ -852,6 +852,19 @@ Nekromant:`;
     return (fromOnPrimary && toOnPrimary) || (fromOnSecondary && toOnSecondary);
   }
 
+  // Check if connection is a "next class" line (from selected class to unselected children)
+  isNextClassLine(conn: Connection): boolean {
+    // Check if 'from' is the primary or secondary class
+    const fromIsPrimary = this.sheet.primary_class?.toLowerCase() === conn.from.toLowerCase();
+    const fromIsSecondary = this.sheet.secondary_class?.toLowerCase() === conn.from.toLowerCase();
+    
+    // Check if 'to' is NOT selected as primary or secondary
+    const toIsPrimary = this.sheet.primary_class?.toLowerCase() === conn.to.toLowerCase();
+    const toIsSecondary = this.sheet.secondary_class?.toLowerCase() === conn.to.toLowerCase();
+    
+    return (fromIsPrimary || fromIsSecondary) && !toIsPrimary && !toIsSecondary;
+  }
+
   // Get the color for a connection if it's on a class path
   getConnectionPathColor(conn: Connection): string | null {
     const primaryPath = this.sheet.primary_class ? this.getPathToClass(this.sheet.primary_class) : new Set<string>();
@@ -862,8 +875,8 @@ Nekromant:`;
     const fromOnSecondary = secondaryPath.has(conn.from);
     const toOnSecondary = secondaryPath.has(conn.to);
 
-    if (fromOnPrimary && toOnPrimary) return '#8b5cf6'; // Purple for primary
-    if (fromOnSecondary && toOnSecondary) return '#eab308'; // Yellow for secondary
+    if (fromOnPrimary && toOnPrimary) return '#eab308'; // Yellow for primary
+    if (fromOnSecondary && toOnSecondary) return '#60a5fa'; // Blue for secondary
     return null;
   }
 
