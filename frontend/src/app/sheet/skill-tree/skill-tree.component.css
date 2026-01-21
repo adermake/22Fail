@@ -238,7 +238,6 @@
   stroke-width: 2.5;
   opacity: 0.9;
   stroke-dasharray: 8 4;
-  filter: drop-shadow(0 0 2px currentColor);
 }
 
 .tier-ring {
