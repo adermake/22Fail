@@ -84,7 +84,7 @@ export class SpellComponent implements AfterViewInit {
     this.ctx.lineJoin = 'round';
     this.ctx.strokeStyle = this.strokeColor;
     this.ctx.shadowColor = this.strokeColor;
-    this.ctx.shadowBlur = 8;
+    this.ctx.shadowBlur = 20;
 
     // Load existing drawing if available
     if (this.spell.drawing) {
@@ -184,7 +184,7 @@ export class SpellComponent implements AfterViewInit {
     // Restore stroke settings after clearing
     this.ctx.strokeStyle = this.strokeColor;
     this.ctx.shadowColor = this.strokeColor;
-    this.ctx.shadowBlur = 8;
+    this.ctx.shadowBlur = 20;
   }
 
   updateField(field: string, value: any) {

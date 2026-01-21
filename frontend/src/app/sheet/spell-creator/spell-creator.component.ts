@@ -80,7 +80,7 @@ export class SpellCreatorComponent implements AfterViewInit {
     this.ctx.lineJoin = 'round';
     this.ctx.strokeStyle = this.strokeColor;
     this.ctx.shadowColor = this.strokeColor;
-    this.ctx.shadowBlur = 8;
+    this.ctx.shadowBlur = 20;
 
     this.clearCanvas();
   }
@@ -138,7 +138,7 @@ export class SpellCreatorComponent implements AfterViewInit {
     // Restore stroke settings
     this.ctx.strokeStyle = this.strokeColor;
     this.ctx.shadowColor = this.strokeColor;
-    this.ctx.shadowBlur = 8;
+    this.ctx.shadowBlur = 20;
   }
 
   toggleTag(tag: string) {

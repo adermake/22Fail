@@ -5,37 +5,35 @@
   </div>
 
   <div class="panel-content">
-    <!-- Class Selection Buttons (only for tier 1 classes) -->
-    @if (isTier1Class) {
-      <div class="class-selection">
-        <button
-          class="class-select-btn primary"
-          [class.active]="isPrimaryClass"
-          (click)="onSetPrimary()"
-          [disabled]="!hasLearnedSkill()"
-          [title]="!hasLearnedSkill() ? 'Du musst mindestens einen Skill aus dieser Klasse lernen' : ''"
-        >
-          @if (isPrimaryClass) {
-            Primärklasse
-          } @else {
-            Als Primärklasse setzen
-          }
-        </button>
-        <button
-          class="class-select-btn secondary"
-          [class.active]="isSecondaryClass"
-          (click)="onSetSecondary()"
-          [disabled]="!hasLearnedSkill()"
-          [title]="!hasLearnedSkill() ? 'Du musst mindestens einen Skill aus dieser Klasse lernen' : ''"
-        >
-          @if (isSecondaryClass) {
-            Sekundärklasse
-          } @else {
-            Als Sekundärklasse setzen
-          }
-        </button>
-      </div>
-    }
+    <!-- Class Selection Buttons (available for all classes) -->
+    <div class="class-selection">
+      <button
+        class="class-select-btn primary"
+        [class.active]="isPrimaryClass"
+        (click)="onSetPrimary()"
+        [disabled]="!hasLearnedSkill()"
+        [title]="!hasLearnedSkill() ? 'Du musst mindestens einen Skill aus dieser Klasse lernen' : ''"
+      >
+        @if (isPrimaryClass) {
+          Primärklasse
+        } @else {
+          Als Primärklasse setzen
+        }
+      </button>
+      <button
+        class="class-select-btn secondary"
+        [class.active]="isSecondaryClass"
+        (click)="onSetSecondary()"
+        [disabled]="!hasLearnedSkill()"
+        [title]="!hasLearnedSkill() ? 'Du musst mindestens einen Skill aus dieser Klasse lernen' : ''"
+      >
+        @if (isSecondaryClass) {
+          Sekundärklasse
+        } @else {
+          Als Sekundärklasse setzen
+        }
+      </button>
+    </div>
 
     @if (!canLearnFromClass) {
       <div class="locked-notice">

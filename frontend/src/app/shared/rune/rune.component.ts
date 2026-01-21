@@ -104,7 +104,7 @@ export class RuneComponent implements AfterViewInit {
     this.ctx.lineJoin = 'round';
     this.ctx.strokeStyle = this.strokeColor;
     this.ctx.shadowColor = this.strokeColor;
-    this.ctx.shadowBlur = 8;
+    this.ctx.shadowBlur = 20;
 
     // Load existing drawing if available
     if (this.rune.drawing) {
@@ -164,7 +164,7 @@ export class RuneComponent implements AfterViewInit {
     // Restore stroke settings after clearing
     this.ctx.strokeStyle = this.strokeColor;
     this.ctx.shadowColor = this.strokeColor;
-    this.ctx.shadowBlur = 8;
+    this.ctx.shadowBlur = 20;
   }
 
   handleTouch(event: TouchEvent) {

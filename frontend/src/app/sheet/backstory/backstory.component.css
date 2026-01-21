@@ -69,7 +69,7 @@
   border-radius: 8px;
 }
 
-.backstory-content h1 {
+:host ::ng-deep .backstory-content h1 {
   color: #fff !important;
   margin: 1.5rem 0 0.75rem 0;
   font-size: 2.5rem;

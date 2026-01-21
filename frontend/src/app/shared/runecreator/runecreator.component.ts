@@ -37,7 +37,7 @@ export class RuneCreatorComponent implements AfterViewInit {
     this.ctx.lineJoin = 'round';
     this.ctx.strokeStyle = this.strokeColor;
     this.ctx.shadowColor = this.strokeColor;
-    this.ctx.shadowBlur = 8;
+    this.ctx.shadowBlur = 20;
     
     // Fill with black background
     this.clearCanvas();
@@ -86,7 +86,7 @@ export class RuneCreatorComponent implements AfterViewInit {
     // Restore stroke settings
     this.ctx.strokeStyle = this.strokeColor;
     this.ctx.shadowColor = this.strokeColor;
-    this.ctx.shadowBlur = 8;
+    this.ctx.shadowBlur = 20;
   }
 
   toggleTag(tag: string) {

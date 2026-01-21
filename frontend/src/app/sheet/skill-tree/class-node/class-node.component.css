@@ -1,6 +1,6 @@
 .class-node {
   position: absolute;
-  transform: translate(-50%, -50%) translateZ(0);
+  transform: translate(-50%, -50%);
   width: 70px;
   height: 70px;
   border-radius: 50%;
@@ -12,14 +12,12 @@
   align-items: center;
   justify-content: center;
   z-index: 1;
-  backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
-  transform-origin: center center;
-  will-change: transform;
+  will-change: auto;
 }
 
 .class-node:hover {
-  transform: translate(-50%, -50%) translateZ(0) scale(1.1);
+  transform: translate(-50%, -50%) scale(1.1);
   box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
 }
 
