@@ -29,6 +29,7 @@ import { CardComponent } from '../shared/card/card.component';
 import { CharacterTabsComponent } from './character-tabs/character-tabs';
 import { SkillTreeComponent } from './skill-tree/skill-tree.component';
 import { BackstoryComponent } from './backstory/backstory.component';
+import { FormulaType } from '../model/formula-type.enum';
 
 @Component({
   selector: 'app-sheet',
@@ -335,8 +336,15 @@ export class SheetComponent implements OnInit {
   getResourceCurrent(type: 'health' | 'energy' | 'mana'): number {
     const sheet = this.store.sheetValue;
     if (!sheet) return 0;
-    const index = type === 'health' ? 0 : type === 'energy' ? 1 : 2;
-    return sheet.statuses[index]?.statusCurrent || 0;
+    
+    // Map type to FormulaType
+    const formulaType = type === 'health' ? FormulaType.LIFE : 
+                       type === 'energy' ? FormulaType.ENERGY : 
+                       FormulaType.MANA;
+    
+    // Find the status by its formulaType instead of assuming array order
+    const status = sheet.statuses.find(s => s.formulaType === formulaType);
+    return status?.statusCurrent || 0;
   }
 
   canUseResource(): boolean {
@@ -347,15 +355,23 @@ export class SheetComponent implements OnInit {
     const sheet = this.store.sheetValue;
     if (!sheet || !this.canUseResource()) return;
 
-    const index = this.resourceType === 'health' ? 0 : this.resourceType === 'energy' ? 1 : 2;
-    const currentValue = sheet.statuses[index].statusCurrent;
+    // Map type to FormulaType
+    const formulaType = this.resourceType === 'health' ? FormulaType.LIFE : 
+                       this.resourceType === 'energy' ? FormulaType.ENERGY : 
+                       FormulaType.MANA;
+    
+    // Find the status by its formulaType
+    const statusIndex = sheet.statuses.findIndex(s => s.formulaType === formulaType);
+    if (statusIndex === -1) return;
+    
+    const currentValue = sheet.statuses[statusIndex].statusCurrent;
     const newValue = currentValue - this.resourceAmount;
 
     // Store spending in recent history
     this.addRecentSpending(this.resourceType, this.resourceAmount);
 
     this.store.applyPatch({
-      path: `statuses.${index}.statusCurrent`,
+      path: `statuses.${statusIndex}.statusCurrent`,
       value: newValue
     });
 
@@ -376,6 +392,10 @@ export class SheetComponent implements OnInit {
   }
 
   addRecentSpending(type: 'health' | 'energy' | 'mana', amount: number) {
+    // Check if this exact spending already exists
+    const exists = this.recentSpendings.some(s => s.type === type && s.amount === amount);
+    if (exists) return;
+    
     // Add to front of array
     this.recentSpendings.unshift({ type, amount });
     

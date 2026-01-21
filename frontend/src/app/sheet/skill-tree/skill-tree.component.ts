@@ -816,39 +816,25 @@ Nekromant:`;
     this.patch.emit({ path: 'secondary_class', value: className });
   }
 
-  // Find path from tier 1 to a given class
+  // Find path from selected class DOWN to base tier 1 classes
   getPathToClass(targetClass: string): Set<string> {
     const path = new Set<string>();
     const visited = new Set<string>();
 
-    const findPath = (className: string): boolean => {
-      if (visited.has(className)) return false;
+    // Start from target class and walk UP to parents until we reach tier 1
+    const walkToTier1 = (className: string) => {
+      if (visited.has(className)) return;
       visited.add(className);
+      path.add(className);
 
-      if (className.toLowerCase() === targetClass.toLowerCase()) {
-        path.add(className);
-        return true;
+      // Get parents of this class (reverse lookup in hierarchy)
+      const parents = this.classParents.get(className) || [];
+      for (const parent of parents) {
+        walkToTier1(parent);
       }
-
-      const children = this.classHierarchy.get(className) || [];
-      for (const child of children) {
-        if (findPath(child)) {
-          path.add(className);
-          return true;
-        }
-      }
-      return false;
     };
 
-    // Start from tier 1 classes
-    const tier1Classes = Array.from(this.classTiers.entries())
-      .filter(([_, tier]) => tier === 1)
-      .map(([name, _]) => name);
-
-    for (const t1Class of tier1Classes) {
-      findPath(t1Class);
-    }
-
+    walkToTier1(targetClass);
     return path;
   }
 

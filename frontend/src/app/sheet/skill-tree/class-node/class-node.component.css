@@ -1,6 +1,6 @@
 .class-node {
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) translateZ(0);
   width: 70px;
   height: 70px;
   border-radius: 50%;
@@ -12,18 +12,14 @@
   align-items: center;
   justify-content: center;
   z-index: 1;
-  /* Fix blurriness from scaling */
   backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
   transform-origin: center center;
   will-change: transform;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  transform: translate(-50%, -50%) translateZ(0);
 }
 
 .class-node:hover {
-  transform: translate(-50%, -50%) scale(1.1);
+  transform: translate(-50%, -50%) translateZ(0) scale(1.1);
   box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
 }
 

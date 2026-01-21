@@ -70,7 +70,7 @@
 }
 
 .backstory-content h1 {
-  color: #fff;
+  color: #fff !important;
   margin: 1.5rem 0 0.75rem 0;
   font-size: 2.5rem;
   font-weight: 700;
