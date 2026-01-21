@@ -66,10 +66,15 @@ export class RuneCreatorComponent implements AfterViewInit {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.lastX, this.lastY);
-    this.ctx.lineTo(x, y);
-    this.ctx.stroke();
+    // Draw multiple passes with different blur levels for stronger glow
+    const blurLevels = [30, 20, 10, 5];
+    blurLevels.forEach(blur => {
+      this.ctx.shadowBlur = blur;
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.lastX, this.lastY);
+      this.ctx.lineTo(x, y);
+      this.ctx.stroke();
+    });
 
     this.lastX = x;
     this.lastY = y;

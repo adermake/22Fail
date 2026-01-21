@@ -7,13 +7,14 @@
   background: var(--card);
   border: 3px solid var(--border);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1;
-  -webkit-font-smoothing: antialiased;
-  will-change: auto;
+  -webkit-font-smoothing: subpixel-antialiased;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 
 .class-node:hover {
@@ -141,61 +142,23 @@
 
 /* Primary/Secondary class styling */
 .class-node.is-primary {
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.8), 0 0 60px rgba(139, 92, 246, 0.5), 0 0 90px rgba(139, 92, 246, 0.3);
-  animation: glow-primary 2s ease-in-out infinite;
+  box-shadow: 0 0 30px rgba(234, 179, 8, 0.8), 0 0 60px rgba(234, 179, 8, 0.5), 0 0 90px rgba(234, 179, 8, 0.3);
 }
 
 .class-node.is-secondary {
-  box-shadow: 0 0 30px rgba(234, 179, 8, 0.8), 0 0 60px rgba(234, 179, 8, 0.5), 0 0 90px rgba(234, 179, 8, 0.3);
-  animation: glow-secondary 2s ease-in-out infinite;
+  box-shadow: 0 0 30px rgba(96, 165, 250, 0.8), 0 0 60px rgba(96, 165, 250, 0.5), 0 0 90px rgba(96, 165, 250, 0.3);
 }
 
 /* Classes on the path to primary/secondary */
 .class-node.on-primary-path:not(.is-primary) {
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.5), 0 0 40px rgba(139, 92, 246, 0.3);
-  animation: glow-primary-path 2s ease-in-out infinite;
+  box-shadow: 0 0 20px rgba(234, 179, 8, 0.5), 0 0 40px rgba(234, 179, 8, 0.3);
 }
 
 .class-node.on-secondary-path:not(.is-secondary) {
-  box-shadow: 0 0 20px rgba(234, 179, 8, 0.5), 0 0 40px rgba(234, 179, 8, 0.3);
-  animation: glow-secondary-path 2s ease-in-out infinite;
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.5), 0 0 40px rgba(96, 165, 250, 0.3);
 }
 
-@keyframes glow-primary {
-  0%, 100% {
-    box-shadow: 0 0 30px rgba(139, 92, 246, 0.8), 0 0 60px rgba(139, 92, 246, 0.5), 0 0 90px rgba(139, 92, 246, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 45px rgba(139, 92, 246, 1), 0 0 90px rgba(139, 92, 246, 0.7), 0 0 135px rgba(139, 92, 246, 0.5);
-  }
-}
 
-@keyframes glow-secondary {
-  0%, 100% {
-    box-shadow: 0 0 30px rgba(234, 179, 8, 0.8), 0 0 60px rgba(234, 179, 8, 0.5), 0 0 90px rgba(234, 179, 8, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 45px rgba(234, 179, 8, 1), 0 0 90px rgba(234, 179, 8, 0.7), 0 0 135px rgba(234, 179, 8, 0.5);
-  }
-}
-
-@keyframes glow-primary-path {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.5), 0 0 40px rgba(139, 92, 246, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(139, 92, 246, 0.7), 0 0 60px rgba(139, 92, 246, 0.5);
-  }
-}
-
-@keyframes glow-secondary-path {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(234, 179, 8, 0.5), 0 0 40px rgba(234, 179, 8, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(234, 179, 8, 0.7), 0 0 60px rgba(234, 179, 8, 0.5);
-  }
-}
 
 /* Class badges */
 .class-badge {
@@ -214,13 +177,13 @@
 }
 
 .class-badge.primary {
-  background: #8b5cf6;
-  color: white;
-  box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
-}
-
-.class-badge.secondary {
   background: #eab308;
   color: #000;
   box-shadow: 0 0 8px rgba(234, 179, 8, 0.6);
+}
+
+.class-badge.secondary {
+  background: #60a5fa;
+  color: white;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
 }

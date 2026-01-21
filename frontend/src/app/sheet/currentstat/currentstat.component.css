@@ -38,56 +38,22 @@
 .stat-bar-fill.health {
   background: var(--health-color);
   box-shadow: 0 0 30px var(--health-color), 0 0 60px var(--health-color), 0 0 90px var(--health-color), inset 0 0 15px var(--health-color);
-  animation: health-glow 2s ease-in-out infinite;
   filter: brightness(1.3);
 }
 
 .stat-bar-fill.energy {
   background: var(--energy-color);
   box-shadow: 0 0 30px var(--energy-color), 0 0 60px var(--energy-color), 0 0 90px var(--energy-color), inset 0 0 15px var(--energy-color);
-  animation: energy-glow 2s ease-in-out infinite;
   filter: brightness(1.3);
 }
 
 .stat-bar-fill.mana {
   background: var(--mana-color);
   box-shadow: 0 0 30px var(--mana-color), 0 0 60px var(--mana-color), 0 0 90px var(--mana-color), inset 0 0 15px var(--mana-color);
-  animation: mana-glow 2s ease-in-out infinite;
   filter: brightness(1.3);
 }
 
-@keyframes health-glow {
-  0%, 100% { 
-    box-shadow: 0 0 30px var(--health-color), 0 0 60px var(--health-color), 0 0 90px var(--health-color), inset 0 0 15px var(--health-color); 
-    filter: brightness(1.3);
-  }
-  50% { 
-    box-shadow: 0 0 45px var(--health-color), 0 0 90px var(--health-color), 0 0 135px var(--health-color), inset 0 0 25px var(--health-color); 
-    filter: brightness(1.5);
-  }
-}
 
-@keyframes energy-glow {
-  0%, 100% { 
-    box-shadow: 0 0 30px var(--energy-color), 0 0 60px var(--energy-color), 0 0 90px var(--energy-color), inset 0 0 15px var(--energy-color); 
-    filter: brightness(1.3);
-  }
-  50% { 
-    box-shadow: 0 0 45px var(--energy-color), 0 0 90px var(--energy-color), 0 0 135px var(--energy-color), inset 0 0 25px var(--energy-color); 
-    filter: brightness(1.5);
-  }
-}
-
-@keyframes mana-glow {
-  0%, 100% { 
-    box-shadow: 0 0 30px var(--mana-color), 0 0 60px var(--mana-color), 0 0 90px var(--mana-color), inset 0 0 15px var(--mana-color); 
-    filter: brightness(1.3);
-  }
-  50% { 
-    box-shadow: 0 0 45px var(--mana-color), 0 0 90px var(--mana-color), 0 0 135px var(--mana-color), inset 0 0 25px var(--mana-color); 
-    filter: brightness(1.5);
-  }
-}
 
 .stat-max {
   font-size: 14px;
