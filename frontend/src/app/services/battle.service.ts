@@ -38,6 +38,18 @@ export class BattleService {
     return Math.floor(calculated) || 10;
   }
 
+  getHealth(character: CharacterSheet): { current: number; max: number } {
+    // Find the "Leben" (Life) status block
+    const lifeStatus = character.statuses?.find(s => s.statusName === 'Leben');
+    if (lifeStatus) {
+      return {
+        current: lifeStatus.statusCurrent || 0,
+        max: (lifeStatus.statusBase || 0) + (lifeStatus.statusBonus || 0)
+      };
+    }
+    return { current: 0, max: 0 };
+  }
+
   getAvailableCharactersForBattle(partyArray: Array<{id: string, sheet: CharacterSheet}>) {
     return partyArray.map(member => ({
       id: member.id,
@@ -54,6 +66,7 @@ export class BattleService {
     if (!character) return;
 
     const speed = this.calculateSpeed(character);
+    const health = this.getHealth(character);
 
     const maxTurn = world.battleParticipants.length > 0
       ? Math.max(...world.battleParticipants.map(p => p.nextTurnAt))
@@ -65,7 +78,10 @@ export class BattleService {
       speed,
       turnFrequency: speed,
       nextTurnAt: maxTurn + 10,
-      team: 'blue'
+      team: 'blue',
+      portrait: character.portrait,
+      currentHealth: health.current,
+      maxHealth: health.max
     };
 
     const updatedParticipants = [...world.battleParticipants, newParticipant];

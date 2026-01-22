@@ -7,10 +7,11 @@
   [class.tool-walls]="currentTool === 'walls'"
   [class.tool-measure]="currentTool === 'measure'"
   [class.external-drag-active]="isExternalDragActive"
-  (mousedown)="onMouseDown($event)"
-  (mousemove)="onMouseMove($event)"
-  (mouseup)="onMouseUp($event)"
-  (mouseleave)="onMouseLeave()"
+  (pointerdown)="onPointerDown($event)"
+  (pointermove)="onPointerMove($event)"
+  (pointerup)="onPointerUp($event)"
+  (pointerleave)="onPointerLeave($event)"
+  (pointercancel)="onPointerLeave($event)"
   (wheel)="onWheel($event)"
   (contextmenu)="onContextMenu($event)"
   (dragenter)="onDragEnter($event)"
@@ -34,6 +35,7 @@
           [position]="getTokenScreenPosition(token)"
           [scale]="scale"
           [currentTool]="currentTool"
+          [syncedTeam]="getSyncedTeam(token)"
           (dragStart)="onTokenDragStart(token, $event.event)"
           (dragEnd)="onTokenDragEnd($event.event, token.id)"
           (remove)="tokenRemove.emit(token.id)"
@@ -62,6 +64,20 @@
           <div class="ghost-initials">{{ getInitials(draggingToken.characterName) }}</div>
         }
       </div>
+    </div>
+  }
+
+  <!-- Context menu for creating quick tokens -->
+  @if (showContextMenu()) {
+    <div 
+      class="grid-context-menu"
+      [style.left.px]="contextMenuPosition().x"
+      [style.top.px]="contextMenuPosition().y"
+      (click)="$event.stopPropagation()"
+    >
+      <button class="context-menu-item" (click)="onCreateQuickToken()">
+        <span>➕</span> Create Token
+      </button>
     </div>
   }
 

@@ -167,6 +167,12 @@
   margin-top: 0.25rem;
 }
 
+.health-badge {
+  font-size: 0.7rem;
+  color: #ef4444;
+  font-weight: 600;
+}
+
 .speed-badge {
   font-size: 0.7rem;
   color: var(--text-muted);

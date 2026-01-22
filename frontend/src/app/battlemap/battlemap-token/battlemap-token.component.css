@@ -6,6 +6,7 @@
   transition: filter 0.15s ease, box-shadow 0.15s ease;
   /* Default cursor - not draggable */
   cursor: default;
+  touch-action: none; /* Disable browser gestures for tablet/pen support */
 }
 
 /* Only show grab cursor when drag is enabled (cursor tool) */

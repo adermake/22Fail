@@ -67,6 +67,12 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     return world.battleParticipants[currentIndex]?.characterId || null;
   });
 
+  // Computed: battle participants from world
+  battleParticipants = computed(() => {
+    const world = this.worldStore.worldValue;
+    return world?.battleParticipants || [];
+  });
+
   // Panel visibility
   showCharacterList = signal(true);
   showBattleTracker = signal(true);

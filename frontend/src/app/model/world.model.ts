@@ -76,6 +76,8 @@ export interface BattleParticipant {
   nextTurnAt: number; // Used to determine turn order
   portrait?: string; // Character portrait URL
   team?: string; // Team color for grouping (e.g., 'red', 'blue', 'green', 'yellow', 'purple')
+  currentHealth?: number; // Current health points
+  maxHealth?: number; // Maximum health points
 }
 
 export function createEmptyWorld(name: string): WorldData {

@@ -6,6 +6,7 @@
   background: #e8e8e8;
   background-image: 
     radial-gradient(circle at 50% 50%, rgba(200, 200, 200, 0.3) 0%, transparent 50%);
+  touch-action: none; /* Disable browser gestures for tablet/pen support */
 }
 
 .grid-canvas,
@@ -125,4 +126,36 @@
 
 .grid-container.tool-measure {
   cursor: crosshair;
+}
+
+/* Context menu */
+.grid-context-menu {
+  position: absolute;
+  z-index: 2000;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  min-width: 150px;
+  padding: 4px;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.context-menu-item:hover {
+  background: var(--accent);
+  color: white;
 }

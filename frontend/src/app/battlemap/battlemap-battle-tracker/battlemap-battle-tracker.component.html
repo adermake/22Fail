@@ -38,6 +38,11 @@
             <div class="participant-info">
               <div class="participant-name">{{ participant.name }}</div>
               <div class="participant-stats">
+                @if (participant.maxHealth) {
+                  <span class="health-badge" title="Health">
+                    ❤️ {{ participant.currentHealth || 0 }}/{{ participant.maxHealth }}
+                  </span>
+                }
                 <span class="speed-badge" title="Speed">⚡ {{ participant.speed }}</span>
               </div>
             </div>

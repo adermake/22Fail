@@ -20,6 +20,7 @@ export class BattlemapTokenComponent {
   @Input() scale = 1;
   @Input() currentTool: ToolType = 'cursor';
   @Input() isDragEnabled = false; // Only true when cursor tool is selected
+  @Input() syncedTeam?: string; // Team color synced from battleParticipants
 
   @Output() dragStart = new EventEmitter<{ event: MouseEvent }>();
   @Output() dragMove = new EventEmitter<{ event: MouseEvent }>();
@@ -50,6 +51,10 @@ export class BattlemapTokenComponent {
     return this.currentTool === 'cursor';
   }
 
+  onPointerDown(event: PointerEvent) {
+    this.onMouseDown(event);
+  }
+
   onMouseDown(event: MouseEvent) {
     // Only allow dragging with cursor tool and left mouse button
     if (!this.canDrag || event.button !== 0) return;
@@ -59,6 +64,16 @@ export class BattlemapTokenComponent {
     
     this.isDragging = true;
     this.dragStart.emit({ event });
+  }
+  
+  @HostListener('document:pointermove', ['$event'])
+  onDocumentPointerMove(event: PointerEvent) {
+    this.onDocumentMouseMove(event);
+  }
+  
+  @HostListener('document:pointerup', ['$event'])
+  onDocumentPointerUp(event: PointerEvent) {
+    this.onDocumentMouseUp(event);
   }
   
   @HostListener('document:mousemove', ['$event'])
@@ -71,6 +86,9 @@ export class BattlemapTokenComponent {
   @HostListener('document:mouseup', ['$event'])
   onDocumentMouseUp(event: MouseEvent) {
     if (!this.isDragging) return;
+    
+    // Only end drag on left-click release, not right-click
+    if (event.button !== 0) return;
     
     this.isDragging = false;
     this.dragEnd.emit({ event });
@@ -101,9 +119,10 @@ export class BattlemapTokenComponent {
       .toUpperCase();
   }
 
-  // Team color for border
+  // Team color for border - use synced team from battleParticipants if available
   get teamColor(): string {
-    switch (this.token.team) {
+    const team = this.syncedTeam || this.token.team;
+    switch (team) {
       case 'red': return '#ef4444';
       case 'blue': return '#3b82f6';
       case 'green': return '#22c55e';

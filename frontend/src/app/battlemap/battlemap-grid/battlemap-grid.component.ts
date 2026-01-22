@@ -31,6 +31,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   @Input() drawWithWalls = false;
   @Input() dragMode: DragMode = 'free';
   @Input() currentTurnCharacterId: string | null = null;
+  @Input() battleParticipants: { characterId: string; team?: string }[] = [];
 
   @Output() tokenDrop = new EventEmitter<{ characterId: string; position: HexCoord }>();
   @Output() tokenMove = new EventEmitter<{ tokenId: string; position: HexCoord }>();
@@ -74,10 +75,16 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   dragPath = signal<HexCoord[]>([]); // Path for enforced movement visualization
   dragWaypoints = signal<HexCoord[]>([]); // Fixed waypoints set by right-click
   dragStartHex = signal<HexCoord | null>(null); // Starting hex for movement distance calc
+  dragPathInvalid = signal<boolean>(false); // True if path is blocked or exceeds movement
 
   // Drag over from character list (native HTML drag for new tokens only)
   private dragOverHex: HexCoord | null = null;
   isExternalDragActive = false; // Flag to disable token pointer-events during external drag
+
+  // Context menu state
+  showContextMenu = signal<boolean>(false);
+  contextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+  contextMenuHex = signal<HexCoord | null>(null);
 
   ngAfterViewInit() {
     this.initCanvases();
@@ -306,14 +313,21 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     const canvas = this.overlayCanvas?.nativeElement;
     if (!canvas) return;
     
+    const dpr = window.devicePixelRatio || 1;
+    
     // Clear overlay canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.save();
+    ctx.scale(dpr, dpr);
     
     // Render measurement ruler
     this.renderMeasurementOnOverlay(ctx);
     
     // Render movement path
     this.renderMovementPathOnOverlay(ctx);
+    
+    ctx.restore();
   }
 
   private renderMeasurementOnOverlay(ctx: CanvasRenderingContext2D) {
@@ -372,10 +386,14 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     const path = this.dragPath();
     const waypoints = this.dragWaypoints();
     const startHex = this.dragStartHex();
+    const isInvalid = this.dragPathInvalid();
     
     if (!startHex || path.length === 0) return;
 
     ctx.save();
+
+    // Color based on path validity
+    const pathColor = isInvalid ? '#ef4444' : '#22c55e'; // Red if invalid, green if valid
 
     // Build complete path: start -> waypoints -> current
     const pathPoints: { x: number; y: number }[] = [];
@@ -408,7 +426,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     for (let i = 1; i < pathPoints.length; i++) {
       ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
     }
-    ctx.strokeStyle = '#22c55e';
+    ctx.strokeStyle = pathColor;
     ctx.lineWidth = 4;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -435,7 +453,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       // Draw waypoint circle
       ctx.beginPath();
       ctx.arc(screen.x, screen.y, 8, 0, Math.PI * 2);
-      ctx.fillStyle = '#f59e0b';
+      ctx.fillStyle = isInvalid ? '#f87171' : '#f59e0b'; // Lighter red for waypoints when invalid
       ctx.fill();
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
@@ -462,20 +480,20 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     const endPoint = pathPoints[pathPoints.length - 1];
     ctx.beginPath();
     ctx.arc(endPoint.x, endPoint.y, 6, 0, Math.PI * 2);
-    ctx.fillStyle = '#22c55e';
+    ctx.fillStyle = pathColor;
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.stroke();
 
     // Calculate and draw total distance
-    const totalHexDistance = path.length;
+    const totalHexDistance = waypoints.length + path.length;
     const totalMeters = totalHexDistance * 1.5;
 
     // Draw distance at end point
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
     ctx.fillRect(endPoint.x + 10, endPoint.y - 12, 60, 24);
-    ctx.fillStyle = '#22c55e';
+    ctx.fillStyle = pathColor;
     ctx.font = 'bold 14px system-ui';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -490,6 +508,9 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
 
   // Mouse event handlers
   onMouseDown(event: MouseEvent) {
+    // Close context menu on any click
+    this.closeContextMenu();
+    
     // Ignore if dragging a token (handled by token component)
     if (this.draggingToken) return;
     
@@ -599,14 +620,21 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
         const maxMoves = this.draggingToken.movementSpeed || 100; // Default high if not set
         const path = HexMath.findPath(this.draggingToken.position, hoverHex, walls, maxMoves);
         
-        // Limit path by movement speed
-        if (path) {
-          const limitedPath = path.slice(0, maxMoves + 1);
-          this.dragPath.set(limitedPath);
+        // Check if path is valid and within movement range
+        if (path && path.length > 0) {
+          const totalDistance = this.dragWaypoints().length + path.length;
+          const isBlocked = path.length === 0;
+          const isTooFar = totalDistance > maxMoves;
+          
+          this.dragPathInvalid.set(isBlocked || isTooFar);
+          this.dragPath.set(path);
         } else {
+          // No valid path found - blocked
+          this.dragPathInvalid.set(true);
           this.dragPath.set([]);
         }
       } else {
+        this.dragPathInvalid.set(false);
         this.dragPath.set([]);
       }
       
@@ -682,8 +710,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   }
 
   onMouseUp(event: MouseEvent) {
-    // Handle token drag end
-    if (this.draggingToken) {
+    // Handle token drag end - only on left-click
+    if (this.draggingToken && event.button === 0) {
       const rect = this.container.nativeElement.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
@@ -783,12 +811,36 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     this.render();
   }
 
+  // Pointer event handlers (for tablet/pen/touch support)
+  onPointerDown(event: PointerEvent) {
+    // Capture pointer to receive events even if pointer leaves element
+    (event.target as HTMLElement).setPointerCapture(event.pointerId);
+    this.onMouseDown(event);
+  }
+
+  onPointerMove(event: PointerEvent) {
+    this.onMouseMove(event);
+  }
+
+  onPointerUp(event: PointerEvent) {
+    // Release pointer capture
+    (event.target as HTMLElement).releasePointerCapture(event.pointerId);
+    this.onMouseUp(event);
+  }
+
+  onPointerLeave(event: PointerEvent) {
+    // Only trigger leave if we don't have pointer capture
+    if (!(event.target as HTMLElement).hasPointerCapture(event.pointerId)) {
+      this.onMouseLeave();
+    }
+  }
+
   onContextMenu(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    
     // During enforced movement drag, right-click adds a waypoint
     if (this.draggingToken && this.dragMode === 'enforced' && !this.draggingToken.isOnTheFly) {
-      event.preventDefault();
-      event.stopPropagation();
-      
       const rect = this.container.nativeElement.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
@@ -807,8 +859,46 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       return;
     }
     
-    // Otherwise prevent default context menu
-    event.preventDefault();
+    // Show context menu on empty space (cursor tool only)
+    if (this.currentTool === 'cursor' && !this.draggingToken) {
+      const rect = this.container.nativeElement.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const world = this.screenToWorld(x, y);
+      const hex = HexMath.pixelToHex(world.x, world.y);
+      
+      // Check if there's a token at this hex
+      const hasToken = this.battleMap?.tokens.some(t => t.position.q === hex.q && t.position.r === hex.r);
+      
+      if (!hasToken) {
+        this.contextMenuPosition.set({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+        this.contextMenuHex.set(hex);
+        this.showContextMenu.set(true);
+      }
+    }
+  }
+
+  closeContextMenu() {
+    this.showContextMenu.set(false);
+    this.contextMenuHex.set(null);
+  }
+
+  onCreateQuickToken() {
+    const hex = this.contextMenuHex();
+    if (hex) {
+      // Create an on-the-fly token with a placeholder name
+      const tokenName = prompt('Enter token name:', 'Enemy');
+      if (tokenName) {
+        this.store.addToken({
+          characterId: generateId(),
+          characterName: tokenName,
+          position: hex,
+          team: 'red',
+          isOnTheFly: true,
+        });
+      }
+    }
+    this.closeContextMenu();
   }
 
   onWheel(event: WheelEvent) {
@@ -990,6 +1080,17 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       .join('')
       .substring(0, 2)
       .toUpperCase();
+  }
+  
+  // Helper: Get synced team for a token from battleParticipants
+  getSyncedTeam(token: BattlemapToken): string | undefined {
+    // If it's an on-the-fly token, use its own team
+    if (token.isOnTheFly) {
+      return token.team;
+    }
+    // Look up team from battleParticipants
+    const participant = this.battleParticipants.find(p => p.characterId === token.characterId);
+    return participant?.team || token.team;
   }
   
   // Helper: Get team color
