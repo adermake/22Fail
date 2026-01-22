@@ -25,6 +25,7 @@
           [isCurrentTurn]="isTokenCurrentTurn(token)"
           [position]="getTokenScreenPosition(token)"
           [scale]="scale"
+          [currentTool]="currentTool"
           (dragStart)="onTokenDragStart(token.id)"
           (dragEnd)="onTokenDragEnd($event, token.id)"
           (remove)="tokenRemove.emit(token.id)"
@@ -37,7 +38,7 @@
   @if (measureDistance() > 0) {
     <div class="measure-info">
       <span class="measure-icon">📏</span>
-      <span class="measure-value">{{ measureDistance() }} ft</span>
+      <span class="measure-value">{{ measureDistance().toFixed(1) }} m</span>
     </div>
   }
 </div>

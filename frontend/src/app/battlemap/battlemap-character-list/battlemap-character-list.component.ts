@@ -24,16 +24,53 @@ export class BattlemapCharacterListComponent {
       event.dataTransfer.setData('text/plain', characterId);
       event.dataTransfer.effectAllowed = 'move';
       
-      // Create custom drag image (hexagon)
-      const dragImg = document.createElement('div');
-      dragImg.style.width = '80px';
-      dragImg.style.height = '80px';
-      dragImg.style.background = 'rgba(96, 165, 250, 0.9)';
-      dragImg.style.clipPath = 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)';
+      // Get character info for drag image
+      const char = this.characters.find(c => c.id === characterId);
+      
+      // Create custom hex drag image with portrait
+      const dragImg = document.createElement('canvas');
+      dragImg.width = 100;
+      dragImg.height = 100;
+      const ctx = dragImg.getContext('2d');
+      
+      if (ctx) {
+        // Draw hexagon
+        ctx.save();
+        ctx.translate(50, 50);
+        
+        // Hexagon path (flat-top)
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 180) * (60 * i);
+          const x = 40 * Math.cos(angle);
+          const y = 40 * Math.sin(angle);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        
+        // Fill with blue
+        ctx.fillStyle = 'rgba(96, 165, 250, 0.9)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(59, 130, 246, 1)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Draw character name
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 12px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const name = char?.sheet.name || 'Token';
+        ctx.fillText(name.substring(0, 8), 0, 0);
+        
+        ctx.restore();
+      }
+      
       dragImg.style.position = 'absolute';
       dragImg.style.top = '-1000px';
       document.body.appendChild(dragImg);
-      event.dataTransfer.setDragImage(dragImg, 40, 40);
+      event.dataTransfer.setDragImage(dragImg, 50, 50);
       setTimeout(() => document.body.removeChild(dragImg), 0);
       
       console.log('[CHARACTER LIST] Drag started for character', characterId);

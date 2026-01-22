@@ -52,6 +52,9 @@ export interface BattlemapData {
     maxR: number;
   };
   
+  // Active hexes for free-form grid (stores hex coordinates as strings "q,r")
+  activeHexes: Set<string>;
+  
   // Tokens on the map
   tokens: BattlemapToken[];
   
@@ -71,16 +74,29 @@ export interface BattlemapData {
 
 // Helper function to create an empty battlemap
 export function createEmptyBattlemap(id: string, name: string, worldName: string): BattlemapData {
+  // Create initial circular grid
+  const activeHexes = new Set<string>();
+  const radius = 5;
+  for (let q = -radius; q <= radius; q++) {
+    for (let r = -radius; r <= radius; r++) {
+      // Only add hexes within circular distance
+      if (Math.abs(q) + Math.abs(r) + Math.abs(-q-r) <= radius * 2) {
+        activeHexes.add(`${q},${r}`);
+      }
+    }
+  }
+  
   return {
     id,
     name,
     worldName,
     gridBounds: {
-      minQ: -5,
-      maxQ: 5,
-      minR: -5,
-      maxR: 5,
+      minQ: -radius,
+      maxQ: radius,
+      minR: -radius,
+      maxR: radius,
     },
+    activeHexes,
     tokens: [],
     strokes: [],
     measurementLines: [],
@@ -92,20 +108,20 @@ export function createEmptyBattlemap(id: string, name: string, worldName: string
 // Hexagon math utilities
 export class HexMath {
   static readonly SIZE = 40; // Radius of hexagon (center to corner)
-  static readonly WIDTH = HexMath.SIZE * 2;
-  static readonly HEIGHT = Math.sqrt(3) * HexMath.SIZE;
+  static readonly WIDTH = Math.sqrt(3) * HexMath.SIZE; // Width flat edge to flat edge
+  static readonly HEIGHT = HexMath.SIZE * 2; // Height point to point
   
   // Convert axial coordinates to pixel coordinates (flat-top hexagons)
   static hexToPixel(hex: HexCoord): { x: number; y: number } {
-    const x = HexMath.SIZE * (Math.sqrt(3) * hex.q + Math.sqrt(3)/2 * hex.r);
-    const y = HexMath.SIZE * (3/2 * hex.r);
+    const x = HexMath.WIDTH * (hex.q + hex.r * 0.5);
+    const y = HexMath.SIZE * 1.5 * hex.r;
     return { x, y };
   }
   
   // Convert pixel coordinates to axial coordinates
   static pixelToHex(x: number, y: number): HexCoord {
-    const q = (Math.sqrt(3)/3 * x - 1/3 * y) / HexMath.SIZE;
-    const r = (2/3 * y) / HexMath.SIZE;
+    const q = (x / HexMath.WIDTH) - (y / HexMath.SIZE / 3) * 0.5;
+    const r = (y / HexMath.SIZE) * (2/3);
     return HexMath.hexRound({ q, r });
   }
   

@@ -2,7 +2,7 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
-type ToolType = 'select' | 'draw' | 'erase' | 'measure';
+type ToolType = 'select' | 'cursor' | 'draw' | 'erase' | 'measure';
 
 @Component({
   selector: 'app-battlemap-toolbar',
@@ -24,7 +24,8 @@ export class BattlemapToolbarComponent {
   @Output() clearDrawings = new EventEmitter<void>();
 
   tools: { id: ToolType; icon: string; label: string }[] = [
-    { id: 'select', icon: '🖐️', label: 'Pan & Select' },
+    { id: 'select', icon: '🖐️', label: 'Pan' },
+    { id: 'cursor', icon: '↖️', label: 'Move Tokens' },
     { id: 'draw', icon: '✏️', label: 'Draw' },
     { id: 'erase', icon: '🧹', label: 'Erase' },
     { id: 'measure', icon: '📏', label: 'Measure Distance' },

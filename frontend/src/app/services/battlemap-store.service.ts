@@ -74,6 +74,24 @@ export class BattleMapStoreService {
     if (!battleMap.measurementLines) {
       battleMap.measurementLines = [];
     }
+    // Migrate to free-form grid
+    if (!battleMap.activeHexes) {
+      const activeHexes = new Set<string>();
+      // Create initial circle based on bounds
+      const bounds = battleMap.gridBounds;
+      for (let q = bounds.minQ; q <= bounds.maxQ; q++) {
+        for (let r = bounds.minR; r <= bounds.maxR; r++) {
+          // Only add hexes within circular distance from center
+          if (Math.abs(q) + Math.abs(r) + Math.abs(-q-r) <= 10) {
+            activeHexes.add(`${q},${r}`);
+          }
+        }
+      }
+      battleMap.activeHexes = activeHexes;
+    } else if (Array.isArray(battleMap.activeHexes)) {
+      // Convert array to Set if needed
+      battleMap.activeHexes = new Set(battleMap.activeHexes);
+    }
     return battleMap as BattlemapData;
   }
 
@@ -167,6 +185,16 @@ export class BattleMapStoreService {
 
   private applyJsonPatch(target: any, patch: JsonPatch) {
     const keys = patch.path.split('.');
+    
+    // Handle activeHexes Set conversion
+    if (keys[0] === 'activeHexes') {
+      if (Array.isArray(patch.value)) {
+        target.activeHexes = new Set(patch.value);
+      } else if (patch.value instanceof Set) {
+        target.activeHexes = patch.value;
+      }
+      return;
+    }
     
     // Handle single key with array value
     if (keys.length === 1 && Array.isArray(patch.value)) {

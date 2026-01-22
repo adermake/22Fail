@@ -7,7 +7,7 @@ import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, HexMath, Meas
 import { BattleMapStoreService } from '../../services/battlemap-store.service';
 import { BattlemapTokenComponent } from '../battlemap-token/battlemap-token.component';
 
-type ToolType = 'select' | 'draw' | 'erase' | 'measure';
+type ToolType = 'select' | 'cursor' | 'draw' | 'erase' | 'measure';
 
 @Component({
   selector: 'app-battlemap-grid',
@@ -156,14 +156,23 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
 
-    const bounds = this.battleMap.gridBounds;
-    
-    // Draw hexagons
-    for (let q = bounds.minQ; q <= bounds.maxQ; q++) {
-      for (let r = bounds.minR; r <= bounds.maxR; r++) {
+    // Only render active hexes for free-form grid
+    if (this.battleMap.activeHexes) {
+      this.battleMap.activeHexes.forEach(hexKey => {
+        const [q, r] = hexKey.split(',').map(Number);
         const hex = { q, r };
         const isHover = this.dragOverHex ? (this.dragOverHex.q === q && this.dragOverHex.r === r) : false;
         this.drawHexagon(ctx, hex, isHover);
+      });
+    } else {
+      // Fallback to bounds-based rendering for old data
+      const bounds = this.battleMap.gridBounds;
+      for (let q = bounds.minQ; q <= bounds.maxQ; q++) {
+        for (let r = bounds.minR; r <= bounds.maxR; r++) {
+          const hex = { q, r };
+          const isHover = this.dragOverHex ? (this.dragOverHex.q === q && this.dragOverHex.r === r) : false;
+          this.drawHexagon(ctx, hex, isHover);
+        }
       }
     }
 
@@ -271,9 +280,9 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     const startHex = HexMath.pixelToHex(start.x, start.y);
     const endHex = HexMath.pixelToHex(end.x, end.y);
     const hexDistance = HexMath.hexDistance(startHex, endHex);
-    const feet = hexDistance * 5; // 5 feet per hex
+    const meters = hexDistance * 1.5; // 1.5 meters per hex
     
-    this.measureDistance.set(feet);
+    this.measureDistance.set(meters);
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
     ctx.fillRect(midX - 30, midY - 15, 60, 24);
@@ -281,7 +290,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     ctx.font = 'bold 14px system-ui';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${feet} ft`, midX, midY);
+    ctx.fillText(`${meters.toFixed(1)} m`, midX, midY);
 
     ctx.restore();
   }
@@ -309,6 +318,10 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
           this.lastMouseX = event.clientX;
           this.lastMouseY = event.clientY;
         }
+        break;
+
+      case 'cursor':
+        // Cursor tool is for token movement only, handled by token component
         break;
 
       case 'draw':
@@ -528,26 +541,44 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   private expandGridIfNeeded(hex: HexCoord) {
     if (!this.battleMap) return;
     
-    const bounds = this.battleMap.gridBounds;
-    const expandRadius = 8;
-    let needsExpand = false;
-
-    // Check if hex is near the edge
-    const margin = 3;
-    if (hex.q <= bounds.minQ + margin || hex.q >= bounds.maxQ - margin ||
-        hex.r <= bounds.minR + margin || hex.r >= bounds.maxR - margin) {
-      needsExpand = true;
+    // Ensure activeHexes exists
+    if (!this.battleMap.activeHexes) {
+      this.battleMap.activeHexes = new Set<string>();
     }
-
-    if (needsExpand) {
-      // Expand in all directions equally from the hex that triggered expansion
-      const newBounds = {
-        minQ: Math.min(bounds.minQ, hex.q - expandRadius),
-        maxQ: Math.max(bounds.maxQ, hex.q + expandRadius),
-        minR: Math.min(bounds.minR, hex.r - expandRadius),
-        maxR: Math.max(bounds.maxR, hex.r + expandRadius),
-      };
-      this.store.applyPatch({ path: 'gridBounds', value: newBounds });
+    
+    const hexKey = `${hex.q},${hex.r}`;
+    const wasAdded = !this.battleMap.activeHexes.has(hexKey);
+    
+    // Add the current hex and neighbors in a circle
+    const expandRadius = 3;
+    for (let dq = -expandRadius; dq <= expandRadius; dq++) {
+      for (let dr = -expandRadius; dr <= expandRadius; dr++) {
+        // Only add hexes within circular distance
+        if (Math.abs(dq) + Math.abs(dr) + Math.abs(-dq-dr) <= expandRadius * 2) {
+          const newHex = { q: hex.q + dq, r: hex.r + dr };
+          const newKey = `${newHex.q},${newHex.r}`;
+          this.battleMap.activeHexes.add(newKey);
+          
+          // Update bounds if needed
+          const bounds = this.battleMap.gridBounds;
+          if (newHex.q < bounds.minQ) bounds.minQ = newHex.q;
+          if (newHex.q > bounds.maxQ) bounds.maxQ = newHex.q;
+          if (newHex.r < bounds.minR) bounds.minR = newHex.r;
+          if (newHex.r > bounds.maxR) bounds.maxR = newHex.r;
+        }
+      }
+    }
+    
+    // Only send patch if we added new hexes
+    if (wasAdded) {
+      this.store.applyPatch({
+        path: 'activeHexes',
+        value: Array.from(this.battleMap.activeHexes)
+      });
+      this.store.applyPatch({
+        path: 'gridBounds',
+        value: this.battleMap.gridBounds
+      });
     }
   }
 

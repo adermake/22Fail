@@ -14,7 +14,7 @@ import { BattlemapToolbarComponent } from './battlemap-toolbar/battlemap-toolbar
 import { BattlemapCharacterListComponent } from './battlemap-character-list/battlemap-character-list.component';
 import { BattlemapBattleTrackerComponent } from './battlemap-battle-tracker/battlemap-battle-tracker.component';
 
-export type ToolType = 'select' | 'draw' | 'erase' | 'measure';
+export type ToolType = 'select' | 'cursor' | 'draw' | 'erase' | 'measure';
 
 @Component({
   selector: 'app-battlemap',

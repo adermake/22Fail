@@ -6,7 +6,7 @@
   [style.width.px]="tokenSize"
   [style.height.px]="tokenSize"
   [style.--team-color]="teamColor"
-  draggable="true"
+  [draggable]="currentTool === 'cursor'"
   (dragstart)="onDragStart($event)"
   (dragend)="onDragEnd($event)"
   (contextmenu)="onContextMenu($event)"
