@@ -28,10 +28,16 @@
   left: 0;
   transform-origin: 0 0;
   pointer-events: none;
+  z-index: 10;
 }
 
 .tokens-layer > * {
   pointer-events: auto;
+}
+
+/* Disable token pointer events during external drag to allow drop on grid */
+.grid-container.external-drag-active .tokens-layer > * {
+  pointer-events: none;
 }
 
 /* Drag ghost - smooth following of mouse cursor */
@@ -81,7 +87,8 @@
   gap: 0.75rem;
   border: 1px solid var(--accent);
   box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
-  z-index: 100;
+  z-index: 2000;
+  pointer-events: none;
 }
 
 .measure-icon {
@@ -95,14 +102,6 @@
 }
 
 /* Tool-specific cursors */
-.grid-container.tool-select {
-  cursor: grab;
-}
-
-.grid-container.tool-select:active {
-  cursor: grabbing;
-}
-
 .grid-container.tool-cursor {
   cursor: default;
 }

@@ -1,16 +1,17 @@
 <div 
   #container 
   class="grid-container"
-  [class.tool-select]="currentTool === 'select'"
   [class.tool-cursor]="currentTool === 'cursor'"
   [class.tool-draw]="currentTool === 'draw'"
   [class.tool-erase]="currentTool === 'erase'"
   [class.tool-measure]="currentTool === 'measure'"
+  [class.external-drag-active]="isExternalDragActive"
   (mousedown)="onMouseDown($event)"
   (mousemove)="onMouseMove($event)"
   (mouseup)="onMouseUp($event)"
   (mouseleave)="onMouseLeave()"
   (wheel)="onWheel($event)"
+  (dragenter)="onDragEnter($event)"
   (dragover)="onDragOver($event)"
   (dragleave)="onDragLeave($event)"
   (drop)="onDrop($event)"

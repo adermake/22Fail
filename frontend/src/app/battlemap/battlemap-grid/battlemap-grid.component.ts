@@ -7,7 +7,7 @@ import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, HexMath, Wall
 import { BattleMapStoreService } from '../../services/battlemap-store.service';
 import { BattlemapTokenComponent } from '../battlemap-token/battlemap-token.component';
 
-type ToolType = 'select' | 'cursor' | 'draw' | 'erase' | 'measure';
+type ToolType = 'cursor' | 'draw' | 'erase' | 'measure';
 type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -23,7 +23,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   @ViewChild('container') container!: ElementRef<HTMLDivElement>;
 
   @Input() battleMap: BattlemapData | null = null;
-  @Input() currentTool: ToolType = 'select';
+  @Input() currentTool: ToolType = 'cursor';
   @Input() brushColor = '#ef4444';
   @Input() penBrushSize = 4;
   @Input() eraserBrushSize = 12;
@@ -51,6 +51,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   private isPanning = false;
   private isDrawing = false;
   private isWallDrawing = false;
+  private wallPaintMode: 'add' | 'remove' = 'add'; // Track whether we're adding or removing walls
+  private wallPaintedHexes = new Set<string>(); // Track hexes painted in current stroke
   private lastMouseX = 0;
   private lastMouseY = 0;
   private currentStrokePoints: { x: number; y: number }[] = [];
@@ -70,6 +72,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
 
   // Drag over from character list (native HTML drag for new tokens only)
   private dragOverHex: HexCoord | null = null;
+  isExternalDragActive = false; // Flag to disable token pointer-events during external drag
 
   ngAfterViewInit() {
     this.initCanvases();
@@ -354,7 +357,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     }
 
     switch (this.currentTool) {
-      case 'select':
+      case 'cursor':
+        // Cursor tool: left click on empty space starts panning
         if (event.button === 0) {
           this.isPanning = true;
           this.lastMouseX = event.clientX;
@@ -362,17 +366,25 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
         }
         break;
 
-      case 'cursor':
-        // Cursor tool is for token movement only, handled by token component
-        // Clicking on empty space does nothing
-        break;
-
       case 'draw':
         if (this.isWallMode) {
-          // Wall drawing mode - toggle wall on clicked hex
-          this.isWallDrawing = true;
+          // Wall drawing mode - determine if we're adding or removing based on first hex
           const hex = HexMath.pixelToHex(world.x, world.y);
-          this.store.toggleWall(hex);
+          const hexKey = `${hex.q},${hex.r}`;
+          const exists = this.battleMap?.walls?.some(w => w.q === hex.q && w.r === hex.r) ?? false;
+          
+          // Set paint mode based on whether first hex has a wall
+          this.wallPaintMode = exists ? 'remove' : 'add';
+          this.wallPaintedHexes.clear();
+          this.wallPaintedHexes.add(hexKey);
+          this.isWallDrawing = true;
+          
+          // Apply to first hex
+          if (this.wallPaintMode === 'add') {
+            this.store.addWall(hex);
+          } else {
+            this.store.removeWall(hex);
+          }
         } else {
           // Normal drawing mode
           this.isDrawing = true;
@@ -458,8 +470,19 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     // Wall drawing mode - continuous painting of walls while dragging
     if (this.isWallDrawing && this.currentTool === 'draw' && this.isWallMode) {
       const hex = HexMath.pixelToHex(world.x, world.y);
-      this.store.addWall(hex);
-      this.render();
+      const hexKey = `${hex.q},${hex.r}`;
+      
+      // Only process if this is a new hex we haven't painted in this stroke
+      if (!this.wallPaintedHexes.has(hexKey)) {
+        this.wallPaintedHexes.add(hexKey);
+        
+        if (this.wallPaintMode === 'add') {
+          this.store.addWall(hex);
+        } else {
+          this.store.removeWall(hex);
+        }
+        this.render();
+      }
       return;
     }
 
@@ -507,9 +530,10 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       return;
     }
     
-    // Stop wall drawing
+    // Stop wall drawing and clean up
     if (this.isWallDrawing) {
       this.isWallDrawing = false;
+      this.wallPaintedHexes.clear();
       this.render();
     }
     
@@ -550,6 +574,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     // Stop wall drawing
     if (this.isWallDrawing) {
       this.isWallDrawing = false;
+      this.wallPaintedHexes.clear();
     }
     
     // Stop all interactions when mouse leaves canvas
@@ -587,10 +612,23 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   }
 
   // Drag and drop handlers (for NEW tokens from character list only)
+  onDragEnter(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isExternalDragActive = true;
+  }
+  
   onDragOver(event: DragEvent) {
     event.preventDefault();
+    event.stopPropagation();
+    
+    // Set flag to disable token pointer-events during external drag
+    if (!this.isExternalDragActive) {
+      this.isExternalDragActive = true;
+    }
+    
     if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
+      event.dataTransfer.dropEffect = 'copy';
     }
     
     // Track hover hex for highlight
@@ -607,13 +645,24 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   }
   
   onDragLeave(event: DragEvent) {
-    this.dragOverHex = null;
-    this.render();
+    // Only deactivate if leaving the container entirely, not just entering a child
+    const rect = this.container.nativeElement.getBoundingClientRect();
+    const x = event.clientX;
+    const y = event.clientY;
+    
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      this.isExternalDragActive = false;
+      this.dragOverHex = null;
+      this.render();
+    }
   }
 
   onDrop(event: DragEvent) {
     event.preventDefault();
     event.stopPropagation();
+    
+    // Reset external drag state
+    this.isExternalDragActive = false;
     
     // Get character ID from text/plain (for new tokens from character list)
     const characterId = event.dataTransfer?.getData('text/plain');

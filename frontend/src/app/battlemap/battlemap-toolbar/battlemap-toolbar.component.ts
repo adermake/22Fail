@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HexCoord } from '../../model/battlemap.model';
 
-type ToolType = 'select' | 'cursor' | 'draw' | 'erase' | 'measure';
+type ToolType = 'cursor' | 'draw' | 'erase' | 'measure';
 type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -14,7 +14,7 @@ type DragMode = 'free' | 'enforced';
   styleUrl: './battlemap-toolbar.component.css',
 })
 export class BattlemapToolbarComponent {
-  @Input() currentTool: ToolType = 'select';
+  @Input() currentTool: ToolType = 'cursor';
   @Input() brushColor = '#ef4444';
   @Input() penBrushSize = 4;
   @Input() eraserBrushSize = 12;
@@ -33,8 +33,7 @@ export class BattlemapToolbarComponent {
   @Output() quickTokenCreate = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
 
   tools: { id: ToolType; icon: string; label: string }[] = [
-    { id: 'select', icon: '🖐️', label: 'Pan' },
-    { id: 'cursor', icon: '↖️', label: 'Move Tokens' },
+    { id: 'cursor', icon: '↖️', label: 'Move Tokens (Middle-click to pan)' },
     { id: 'draw', icon: '✏️', label: 'Draw' },
     { id: 'erase', icon: '🧹', label: 'Erase' },
     { id: 'measure', icon: '📏', label: 'Measure Distance' },

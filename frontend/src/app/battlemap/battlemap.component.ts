@@ -14,7 +14,7 @@ import { BattlemapToolbarComponent } from './battlemap-toolbar/battlemap-toolbar
 import { BattlemapCharacterListComponent } from './battlemap-character-list/battlemap-character-list.component';
 import { BattlemapBattleTrackerComponent } from './battlemap-battle-tracker/battlemap-battle-tracker.component';
 
-export type ToolType = 'select' | 'cursor' | 'draw' | 'erase' | 'measure';
+export type ToolType = 'cursor' | 'draw' | 'erase' | 'measure';
 export type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -49,7 +49,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   worldCharacters = signal<{ id: string; sheet: CharacterSheet }[]>([]);
 
   // Current tool state
-  currentTool = signal<ToolType>('select');
+  currentTool = signal<ToolType>('cursor');
   brushColor = signal<string>('#ef4444');
   penBrushSize = signal<number>(4);
   eraserBrushSize = signal<number>(12);
