@@ -7,19 +7,172 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { DataService } from './data.service';
 import type { JsonPatch } from './data.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CharacterGateway } from './character.gateway';
+import * as https from 'https';
+import * as http from 'http';
+import * as path from 'path';
+import * as fs from 'fs';
+
 @Controller('api')
 export class AppController {
   constructor(
     private readonly dataService: DataService,
     private readonly characterGateway: CharacterGateway, // Add this
   ) {}
+
+  // Image proxy endpoint - downloads image from URL and returns it
+  // This avoids CORS issues when searching for images
+  @Get('images/proxy')
+  async proxyImage(@Query('url') url: string, @Res() res: Response): Promise<void> {
+    if (!url) {
+      res.status(400).send('URL is required');
+      return;
+    }
+
+    const protocol = url.startsWith('https') ? https : http;
+    
+    return new Promise((resolve) => {
+      protocol.get(url, { timeout: 10000 }, (response) => {
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          // Follow redirects
+          const redirectUrl = response.headers.location;
+          if (redirectUrl) {
+            this.proxyImage(redirectUrl, res).then(resolve);
+            return;
+          }
+        }
+        
+        const contentType = response.headers['content-type'] || 'image/jpeg';
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        
+        response.pipe(res);
+        response.on('end', () => resolve());
+      }).on('error', (err) => {
+        console.error('Proxy error:', err);
+        res.status(500).send('Failed to fetch image');
+        resolve();
+      });
+    });
+  }
+
+  // Download image to server and return a local path
+  @Post('images/download')
+  async downloadImage(@Body() body: { url: string; name: string }): Promise<{ success: boolean; path?: string; error?: string }> {
+    const { url, name } = body;
+    
+    if (!url || !name) {
+      return { success: false, error: 'URL and name are required' };
+    }
+
+    try {
+      // Create tokens directory if it doesn't exist
+      const tokensDir = path.join(__dirname, '..', 'token-images');
+      if (!fs.existsSync(tokensDir)) {
+        fs.mkdirSync(tokensDir, { recursive: true });
+      }
+
+      // Generate unique filename
+      const sanitizedName = name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
+      const timestamp = Date.now();
+      const ext = this.getExtensionFromUrl(url) || '.png';
+      const filename = `${sanitizedName}_${timestamp}${ext}`;
+      const filepath = path.join(tokensDir, filename);
+
+      // Download the image
+      await this.downloadFile(url, filepath);
+
+      // Return relative path that can be served
+      return { 
+        success: true, 
+        path: `/api/token-images/${filename}` 
+      };
+    } catch (error) {
+      console.error('Download error:', error);
+      return { success: false, error: 'Failed to download image' };
+    }
+  }
+
+  // Serve token images
+  @Get('token-images/:filename')
+  serveTokenImage(@Param('filename') filename: string, @Res() res: Response): void {
+    const tokensDir = path.join(__dirname, '..', 'token-images');
+    const filepath = path.join(tokensDir, filename);
+    
+    if (!fs.existsSync(filepath)) {
+      res.status(404).send('Image not found');
+      return;
+    }
+
+    res.sendFile(filepath);
+  }
+
+  private getExtensionFromUrl(url: string): string {
+    const urlPath = new URL(url).pathname;
+    const ext = path.extname(urlPath).toLowerCase();
+    if (['.png', '.jpg', '.jpeg', '.gif', '.webp'].includes(ext)) {
+      return ext;
+    }
+    return '.png';
+  }
+
+  private downloadFile(url: string, destPath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const protocol = url.startsWith('https') ? https : http;
+      const file = fs.createWriteStream(destPath);
+      
+      const request = protocol.get(url, { timeout: 30000 }, (response) => {
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          const redirectUrl = response.headers.location;
+          if (redirectUrl) {
+            file.close();
+            fs.unlinkSync(destPath);
+            this.downloadFile(redirectUrl, destPath).then(resolve).catch(reject);
+            return;
+          }
+        }
+        
+        if (response.statusCode !== 200) {
+          file.close();
+          fs.unlinkSync(destPath);
+          reject(new Error(`HTTP ${response.statusCode}`));
+          return;
+        }
+
+        response.pipe(file);
+        file.on('finish', () => {
+          file.close();
+          resolve();
+        });
+      });
+
+      request.on('error', (err) => {
+        file.close();
+        if (fs.existsSync(destPath)) {
+          fs.unlinkSync(destPath);
+        }
+        reject(err);
+      });
+      
+      request.on('timeout', () => {
+        request.destroy();
+        file.close();
+        if (fs.existsSync(destPath)) {
+          fs.unlinkSync(destPath);
+        }
+        reject(new Error('Download timeout'));
+      });
+    });
+  }
 
   @Get('characters/:id')
   getCharacter(@Param('id') id: string): any {

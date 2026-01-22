@@ -36,6 +36,14 @@ export interface BattlemapToken {
   portrait?: string; // Base64 or URL of character portrait
   position: HexCoord;
   team?: string; // Team color for grouping
+  isOnTheFly?: boolean; // True if this is a quick-created token (not from character list)
+  movementSpeed?: number; // Movement speed in hexes (only for character tokens)
+}
+
+// A wall hex that blocks movement
+export interface WallHex {
+  q: number;
+  r: number;
 }
 
 // The main battlemap data structure
@@ -49,6 +57,9 @@ export interface BattlemapData {
   
   // Drawing strokes
   strokes: BattlemapStroke[];
+  
+  // Wall hexes that block movement
+  walls: WallHex[];
   
   // Active measurement lines (synced in real-time)
   measurementLines: MeasurementLine[];
@@ -66,6 +77,7 @@ export function createEmptyBattlemap(id: string, name: string, worldName: string
     worldName,
     tokens: [],
     strokes: [],
+    walls: [],
     measurementLines: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -195,6 +207,92 @@ export class HexMath {
       minR: Math.min(topLeft.r, topRight.r, bottomLeft.r, bottomRight.r) - 1,
       maxR: Math.max(topLeft.r, topRight.r, bottomLeft.r, bottomRight.r) + 1,
     };
+  }
+  
+  // Get a line of hexes between two points (for movement path)
+  static hexLineDraw(a: HexCoord, b: HexCoord): HexCoord[] {
+    const N = HexMath.hexDistance(a, b);
+    if (N === 0) return [a];
+    
+    const results: HexCoord[] = [];
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      const q = a.q + (b.q - a.q) * t;
+      const r = a.r + (b.r - a.r) * t;
+      results.push(HexMath.hexRound({ q, r }));
+    }
+    return results;
+  }
+  
+  // Check if a hex is in a wall set
+  static isWall(hex: HexCoord, walls: WallHex[]): boolean {
+    return walls.some(w => w.q === hex.q && w.r === hex.r);
+  }
+  
+  // Get hex key for use in Sets/Maps
+  static hexKey(hex: HexCoord): string {
+    return `${hex.q},${hex.r}`;
+  }
+  
+  // Parse hex key back to coordinates
+  static parseHexKey(key: string): HexCoord {
+    const [q, r] = key.split(',').map(Number);
+    return { q, r };
+  }
+  
+  // Find path avoiding walls using BFS (returns null if no path exists within maxDistance)
+  static findPath(
+    start: HexCoord, 
+    end: HexCoord, 
+    walls: WallHex[], 
+    maxDistance: number
+  ): HexCoord[] | null {
+    if (HexMath.hexDistance(start, end) > maxDistance) {
+      return null; // Too far even in straight line
+    }
+    
+    const wallSet = new Set(walls.map(w => HexMath.hexKey(w)));
+    const startKey = HexMath.hexKey(start);
+    const endKey = HexMath.hexKey(end);
+    
+    if (wallSet.has(endKey)) {
+      return null; // Destination is a wall
+    }
+    
+    // BFS
+    const queue: { hex: HexCoord; path: HexCoord[]; distance: number }[] = [
+      { hex: start, path: [start], distance: 0 }
+    ];
+    const visited = new Set<string>([startKey]);
+    
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      
+      if (HexMath.hexKey(current.hex) === endKey) {
+        return current.path;
+      }
+      
+      if (current.distance >= maxDistance) {
+        continue; // Can't go further
+      }
+      
+      for (const neighbor of HexMath.getNeighbors(current.hex)) {
+        const neighborKey = HexMath.hexKey(neighbor);
+        
+        if (visited.has(neighborKey) || wallSet.has(neighborKey)) {
+          continue;
+        }
+        
+        visited.add(neighborKey);
+        queue.push({
+          hex: neighbor,
+          path: [...current.path, neighbor],
+          distance: current.distance + 1
+        });
+      }
+    }
+    
+    return null; // No path found
   }
 }
 

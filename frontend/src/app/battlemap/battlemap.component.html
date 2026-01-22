@@ -3,12 +3,19 @@
   <app-battlemap-toolbar
     [currentTool]="currentTool()"
     [brushColor]="brushColor()"
-    [brushSize]="brushSize()"
+    [penBrushSize]="penBrushSize()"
+    [eraserBrushSize]="eraserBrushSize()"
+    [isWallMode]="isWallMode()"
+    [dragMode]="dragMode()"
     (toolChange)="onToolChange($event)"
     (brushColorChange)="onBrushColorChange($event)"
-    (brushSizeChange)="onBrushSizeChange($event)"
+    (penBrushSizeChange)="onPenBrushSizeChange($event)"
+    (eraserBrushSizeChange)="onEraserBrushSizeChange($event)"
+    (wallModeChange)="onWallModeChange($event)"
+    (dragModeChange)="onDragModeChange($event)"
     (toggleCharacterList)="toggleCharacterList()"
     (toggleBattleTracker)="toggleBattleTracker()"
+    (quickTokenCreate)="onQuickTokenDrop($event)"
   />
 
   <div class="battlemap-content">
@@ -25,11 +32,15 @@
       [battleMap]="battleMap()"
       [currentTool]="currentTool()"
       [brushColor]="brushColor()"
-      [brushSize]="brushSize()"
+      [penBrushSize]="penBrushSize()"
+      [eraserBrushSize]="eraserBrushSize()"
+      [isWallMode]="isWallMode()"
+      [dragMode]="dragMode()"
       [currentTurnCharacterId]="currentTurnCharacterId()"
       (tokenDrop)="onTokenDrop($event)"
       (tokenMove)="onTokenMove($event)"
       (tokenRemove)="onTokenRemove($event)"
+      (quickTokenDrop)="onQuickTokenDrop($event)"
     />
 
     <!-- Right Panel: Battle Tracker -->

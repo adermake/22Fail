@@ -15,6 +15,7 @@ import { BattlemapCharacterListComponent } from './battlemap-character-list/batt
 import { BattlemapBattleTrackerComponent } from './battlemap-battle-tracker/battlemap-battle-tracker.component';
 
 export type ToolType = 'select' | 'cursor' | 'draw' | 'erase' | 'measure';
+export type DragMode = 'free' | 'enforced';
 
 @Component({
   selector: 'app-battlemap',
@@ -50,7 +51,10 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   // Current tool state
   currentTool = signal<ToolType>('select');
   brushColor = signal<string>('#ef4444');
-  brushSize = signal<number>(4);
+  penBrushSize = signal<number>(4);
+  eraserBrushSize = signal<number>(12);
+  isWallMode = signal<boolean>(false);
+  dragMode = signal<DragMode>('free');
 
   // Computed: current turn character from world battle tracker
   currentTurnCharacterId = computed(() => {
@@ -137,11 +141,23 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     this.brushColor.set(color);
   }
 
-  onBrushSizeChange(size: number) {
-    this.brushSize.set(size);
+  onPenBrushSizeChange(size: number) {
+    this.penBrushSize.set(size);
   }
 
-  // Token handlers
+  onEraserBrushSizeChange(size: number) {
+    this.eraserBrushSize.set(size);
+  }
+
+  onWallModeChange(enabled: boolean) {
+    this.isWallMode.set(enabled);
+  }
+
+  onDragModeChange(mode: DragMode) {
+    this.dragMode.set(mode);
+  }
+
+  // Token handlers - now allows multiple tokens of the same character
   onTokenDrop(data: { characterId: string; position: HexCoord }) {
     console.log('[BATTLEMAP] Token drop event received:', data);
     const character = this.worldCharacters().find(c => c.id === data.characterId);
@@ -150,24 +166,35 @@ export class BattlemapComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Check if token already exists for this character
-    const existingToken = this.battleMap()?.tokens.find(t => t.characterId === data.characterId);
+    // Always create a new token (library behavior - can have multiples)
+    console.log('[BATTLEMAP] Adding new token at', data.position);
     
-    if (existingToken) {
-      // Move existing token
-      console.log('[BATTLEMAP] Moving existing token to', data.position);
-      this.store.moveToken(existingToken.id, data.position);
-    } else {
-      // Add new token
-      console.log('[BATTLEMAP] Adding new token at', data.position);
-      this.store.addToken({
-        characterId: data.characterId,
-        characterName: character.sheet.name || data.characterId,
-        portrait: character.sheet.portrait,
-        position: data.position,
-        team: 'blue',
-      });
-    }
+    // Get character's movement speed from their speed stat
+    const speedStat = character.sheet.speed;
+    const movementSpeed = speedStat ? (speedStat.base + (speedStat.bonus || 0)) : 6;
+    
+    this.store.addToken({
+      characterId: data.characterId,
+      characterName: character.sheet.name || data.characterId,
+      portrait: character.sheet.portrait,
+      position: data.position,
+      team: 'blue',
+      isOnTheFly: false,
+      movementSpeed: movementSpeed,
+    });
+  }
+
+  // Handler for on-the-fly tokens
+  onQuickTokenDrop(data: { name: string; portrait: string; position: HexCoord }) {
+    console.log('[BATTLEMAP] Quick token drop:', data);
+    this.store.addToken({
+      characterId: 'quick-' + Date.now(),
+      characterName: data.name,
+      portrait: data.portrait,
+      position: data.position,
+      team: 'red',
+      isOnTheFly: true,
+    });
   }
 
   onTokenMove(data: { tokenId: string; position: HexCoord }) {

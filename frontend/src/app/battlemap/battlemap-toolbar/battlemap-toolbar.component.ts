@@ -1,8 +1,10 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HexCoord } from '../../model/battlemap.model';
 
 type ToolType = 'select' | 'cursor' | 'draw' | 'erase' | 'measure';
+type DragMode = 'free' | 'enforced';
 
 @Component({
   selector: 'app-battlemap-toolbar',
@@ -14,14 +16,21 @@ type ToolType = 'select' | 'cursor' | 'draw' | 'erase' | 'measure';
 export class BattlemapToolbarComponent {
   @Input() currentTool: ToolType = 'select';
   @Input() brushColor = '#ef4444';
-  @Input() brushSize = 4;
+  @Input() penBrushSize = 4;
+  @Input() eraserBrushSize = 12;
+  @Input() isWallMode = false;
+  @Input() dragMode: DragMode = 'free';
 
   @Output() toolChange = new EventEmitter<ToolType>();
   @Output() brushColorChange = new EventEmitter<string>();
-  @Output() brushSizeChange = new EventEmitter<number>();
+  @Output() penBrushSizeChange = new EventEmitter<number>();
+  @Output() eraserBrushSizeChange = new EventEmitter<number>();
+  @Output() wallModeChange = new EventEmitter<boolean>();
+  @Output() dragModeChange = new EventEmitter<DragMode>();
   @Output() toggleCharacterList = new EventEmitter<void>();
   @Output() toggleBattleTracker = new EventEmitter<void>();
   @Output() clearDrawings = new EventEmitter<void>();
+  @Output() quickTokenCreate = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
 
   tools: { id: ToolType; icon: string; label: string }[] = [
     { id: 'select', icon: '🖐️', label: 'Pan' },
@@ -31,7 +40,13 @@ export class BattlemapToolbarComponent {
     { id: 'measure', icon: '📏', label: 'Measure Distance' },
   ];
 
-  brushSizes = [2, 4, 8, 12, 20];
+  penBrushSizes = [2, 4, 8, 12, 20];
+  eraserBrushSizes = [8, 12, 20, 32, 48];
+
+  // Helper to limit displayed dot size in the UI
+  clampSize(size: number): number {
+    return Math.min(size, 24);
+  }
 
   presetColors = [
     '#ef4444', // Red
@@ -45,6 +60,11 @@ export class BattlemapToolbarComponent {
     '#000000', // Black
   ];
 
+  // Quick token creator state
+  showQuickTokenModal = signal(false);
+  quickTokenName = signal('');
+  quickTokenImageUrl = signal('');
+
   selectTool(tool: ToolType) {
     this.toolChange.emit(tool);
   }
@@ -53,12 +73,90 @@ export class BattlemapToolbarComponent {
     this.brushColorChange.emit(color);
   }
 
-  selectSize(size: number) {
-    this.brushSizeChange.emit(size);
+  selectPenSize(size: number) {
+    this.penBrushSizeChange.emit(size);
+  }
+
+  selectEraserSize(size: number) {
+    this.eraserBrushSizeChange.emit(size);
+  }
+
+  toggleWallMode() {
+    this.wallModeChange.emit(!this.isWallMode);
+  }
+
+  setDragMode(mode: DragMode) {
+    this.dragModeChange.emit(mode);
   }
 
   onColorInput(event: Event) {
     const target = event.target as HTMLInputElement;
     this.brushColorChange.emit(target.value);
+  }
+
+  // Quick token methods
+  openQuickTokenModal() {
+    this.showQuickTokenModal.set(true);
+    this.quickTokenName.set('');
+    this.quickTokenImageUrl.set('');
+  }
+
+  closeQuickTokenModal() {
+    this.showQuickTokenModal.set(false);
+  }
+
+  // Use proxy for preview to avoid CORS issues
+  getProxiedUrl(url: string): string {
+    if (!url) return '';
+    // If it's already a local path, use it directly
+    if (url.startsWith('/api/') || url.startsWith('data:')) {
+      return url;
+    }
+    return `/api/images/proxy?url=${encodeURIComponent(url)}`;
+  }
+
+  onImageError(event: Event) {
+    const img = event.target as HTMLImageElement;
+    img.style.display = 'none';
+  }
+
+  async createQuickToken() {
+    const name = this.quickTokenName();
+    const imageUrl = this.quickTokenImageUrl();
+    
+    if (!name.trim()) {
+      alert('Please enter a token name');
+      return;
+    }
+
+    let portrait = '';
+    
+    // If there's an image URL, download it to the server
+    if (imageUrl && imageUrl.trim()) {
+      try {
+        const response = await fetch('/api/images/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: imageUrl, name: name }),
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.path) {
+            portrait = result.path;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to download image:', e);
+      }
+    }
+
+    // Emit the quick token with position (0,0) - will be placed at center
+    this.quickTokenCreate.emit({
+      name: name,
+      portrait: portrait,
+      position: { q: 0, r: 0 },
+    });
+
+    this.closeQuickTokenModal();
   }
 }

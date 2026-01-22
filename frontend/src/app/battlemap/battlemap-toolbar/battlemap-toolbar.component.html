@@ -8,6 +8,13 @@
     >
       <span class="btn-icon">👥</span>
     </button>
+    <button 
+      class="toolbar-btn"
+      title="Quick Token"
+      (click)="openQuickTokenModal()"
+    >
+      <span class="btn-icon">➕</span>
+    </button>
   </div>
 
   <!-- Center: Tools -->
@@ -24,11 +31,21 @@
     }
   </div>
 
-  <!-- Brush settings (visible when draw/erase selected) -->
-  @if (currentTool === 'draw' || currentTool === 'erase') {
+  <!-- Draw tool settings -->
+  @if (currentTool === 'draw') {
     <div class="toolbar-section brush-settings">
+      <!-- Wall mode toggle -->
+      <label class="wall-mode-toggle" title="Wall Mode - hexes become impassable">
+        <input 
+          type="checkbox" 
+          [checked]="isWallMode"
+          (change)="toggleWallMode()"
+        />
+        <span class="toggle-label">🧱 Wall</span>
+      </label>
+
       <!-- Color picker -->
-      @if (currentTool === 'draw') {
+      @if (!isWallMode) {
         <div class="color-picker">
           @for (color of presetColors; track color) {
             <button 
@@ -50,19 +67,62 @@
         </div>
       }
 
-      <!-- Brush size -->
+      <!-- Pen brush size -->
       <div class="size-picker">
-        @for (size of brushSizes; track size) {
+        <span class="size-label">Size:</span>
+        @for (size of penBrushSizes; track size) {
           <button 
             class="size-btn"
-            [class.active]="brushSize === size"
+            [class.active]="penBrushSize === size"
             [title]="size + 'px'"
-            (click)="selectSize(size)"
+            (click)="selectPenSize(size)"
           >
             <span class="size-dot" [style.width.px]="size" [style.height.px]="size"></span>
           </button>
         }
       </div>
+    </div>
+  }
+
+  <!-- Erase tool settings -->
+  @if (currentTool === 'erase') {
+    <div class="toolbar-section brush-settings">
+      <div class="size-picker">
+        <span class="size-label">Size:</span>
+        @for (size of eraserBrushSizes; track size) {
+          <button 
+            class="size-btn"
+            [class.active]="eraserBrushSize === size"
+            [title]="size + 'px'"
+            (click)="selectEraserSize(size)"
+          >
+            <span class="size-dot" [style.width.px]="clampSize(size)" [style.height.px]="clampSize(size)"></span>
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Cursor tool settings (drag mode) -->
+  @if (currentTool === 'cursor') {
+    <div class="toolbar-section drag-mode-settings">
+      <span class="mode-label">Mode:</span>
+      <button 
+        class="mode-btn"
+        [class.active]="dragMode === 'free'"
+        title="Free movement - no restrictions"
+        (click)="setDragMode('free')"
+      >
+        Free
+      </button>
+      <button 
+        class="mode-btn"
+        [class.active]="dragMode === 'enforced'"
+        title="Enforced - respects movement speed and walls"
+        (click)="setDragMode('enforced')"
+      >
+        Enforced
+      </button>
     </div>
   }
 
@@ -77,3 +137,50 @@
     </button>
   </div>
 </div>
+
+<!-- Quick Token Modal -->
+@if (showQuickTokenModal()) {
+  <div class="modal-overlay" (click)="closeQuickTokenModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Create Quick Token</h3>
+        <button class="modal-close" (click)="closeQuickTokenModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Token Name</label>
+          <input 
+            type="text" 
+            [value]="quickTokenName()"
+            (input)="quickTokenName.set($any($event.target).value)"
+            placeholder="e.g., Goblin, Dragon..."
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Image URL (optional)</label>
+          <input 
+            type="text" 
+            [value]="quickTokenImageUrl()"
+            (input)="quickTokenImageUrl.set($any($event.target).value)"
+            placeholder="https://example.com/image.png"
+          />
+          <p class="form-hint">Paste a direct link to a token image, or leave empty for initials only.</p>
+        </div>
+
+        @if (quickTokenImageUrl()) {
+          <div class="selected-preview">
+            <label>Preview:</label>
+            <img [src]="getProxiedUrl(quickTokenImageUrl()!)" alt="Token preview" (error)="onImageError($event)" />
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeQuickTokenModal()">Cancel</button>
+        <button class="btn-primary" (click)="createQuickToken()">Create Token</button>
+      </div>
+    </div>
+  </div>
+}

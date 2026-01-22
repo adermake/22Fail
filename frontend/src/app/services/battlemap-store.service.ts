@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { BattleMapApiService } from './battlemap-api.service';
 import { BattleMapSocketService } from './battlemap-socket.service';
-import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, createEmptyBattlemap, generateId } from '../model/battlemap.model';
+import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, WallHex, createEmptyBattlemap, generateId } from '../model/battlemap.model';
 import { JsonPatch } from '../model/json-patch.model';
 
 @Injectable({ providedIn: 'root' })
@@ -71,6 +71,9 @@ export class BattleMapStoreService {
     if (!battleMap.measurementLines) {
       battleMap.measurementLines = [];
     }
+    if (!battleMap.walls) {
+      battleMap.walls = [];
+    }
     return battleMap as BattlemapData;
   }
 
@@ -135,6 +138,43 @@ export class BattleMapStoreService {
 
   clearStrokes() {
     this.applyPatch({ path: 'strokes', value: [] });
+  }
+
+  // Wall operations
+  addWall(hex: HexCoord) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    // Check if wall already exists at this hex
+    const exists = battleMap.walls.some(w => w.q === hex.q && w.r === hex.r);
+    if (exists) return;
+
+    const walls = [...battleMap.walls, { q: hex.q, r: hex.r }];
+    this.applyPatch({ path: 'walls', value: walls });
+  }
+
+  removeWall(hex: HexCoord) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const walls = battleMap.walls.filter(w => !(w.q === hex.q && w.r === hex.r));
+    this.applyPatch({ path: 'walls', value: walls });
+  }
+
+  toggleWall(hex: HexCoord) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const exists = battleMap.walls.some(w => w.q === hex.q && w.r === hex.r);
+    if (exists) {
+      this.removeWall(hex);
+    } else {
+      this.addWall(hex);
+    }
+  }
+
+  clearWalls() {
+    this.applyPatch({ path: 'walls', value: [] });
   }
 
   private applyJsonPatch(target: any, patch: JsonPatch) {
