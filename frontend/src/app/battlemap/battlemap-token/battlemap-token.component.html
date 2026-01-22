@@ -2,20 +2,19 @@
   class="token"
   [class.current-turn]="isCurrentTurn"
   [class.dragging]="isDragging"
+  [class.can-drag]="canDrag"
   [style.left.px]="worldPosition.x"
   [style.top.px]="worldPosition.y"
   [style.width.px]="tokenSize"
   [style.height.px]="tokenSize"
   [style.--team-color]="teamColor"
-  [draggable]="currentTool === 'cursor'"
-  (dragstart)="onDragStart($event)"
-  (dragend)="onDragEnd($event)"
+  (mousedown)="onMouseDown($event)"
   (contextmenu)="onContextMenu($event)"
   (click)="closeContextMenu()"
 >
   <div class="token-hexagon">
     @if (token.portrait) {
-      <img [src]="token.portrait" [alt]="token.characterName" class="portrait" />
+      <img [src]="token.portrait" [alt]="token.characterName" class="portrait" draggable="false" />
     } @else {
       <div class="initials">{{ initials }}</div>
     }

@@ -1,26 +1,33 @@
 .token {
   position: absolute;
   transform: translate(-50%, -50%);
-  cursor: grab;
   user-select: none;
   z-index: 10;
-  transition: filter 0.2s ease, opacity 0.15s ease, transform 0.15s ease;
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+  /* Default cursor - not draggable */
+  cursor: default;
 }
 
-.token:hover {
+/* Only show grab cursor when drag is enabled (cursor tool) */
+.token.can-drag {
+  cursor: grab;
+}
+
+.token.can-drag:hover {
   filter: brightness(1.1);
   z-index: 20;
-  transform: translate(-50%, -50%) scale(1.05);
 }
 
-.token:active {
+.token.can-drag:active {
   cursor: grabbing;
 }
 
-/* Hide token while dragging */
+/* When being dragged - the actual token becomes semi-transparent */
+/* A ghost follows the mouse (handled by grid component) */
 .token.dragging {
-  opacity: 0.3;
-  transform: translate(-50%, -50%) scale(0.9);
+  opacity: 0.4;
+  cursor: grabbing;
+  z-index: 5;
 }
 
 /* Hexagonal clipping using CSS clip-path - flat-top */

@@ -37,7 +37,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   private gridCtx: CanvasRenderingContext2D | null = null;
   private drawCtx: CanvasRenderingContext2D | null = null;
 
-  // Pan and zoom
+  // Pan and zoom state
   panX = 0;
   panY = 0;
   scale = 1;
@@ -56,12 +56,13 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   measureEnd = signal<{ x: number; y: number } | null>(null);
   measureDistance = signal<number>(0);
 
-  // Drag state for tokens
-  draggedTokenId: string | null = null;
-  draggedCharacterId: string | null = null;
+  // Token dragging state (custom mouse-based, not native drag)
+  draggingToken: BattlemapToken | null = null;
+  dragGhostPosition = signal<{ x: number; y: number } | null>(null);
+  dragHoverHex = signal<HexCoord | null>(null);
 
-  // Hex grid rendering
-  private hexSize = HexMath.SIZE;
+  // Drag over from character list (native HTML drag for new tokens only)
+  private dragOverHex: HexCoord | null = null;
 
   ngAfterViewInit() {
     this.initCanvases();
@@ -95,8 +96,16 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     if (!container) return;
     
     const rect = container.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.scale(dpr, dpr);
+    }
   }
 
   private setupResizeObserver() {
@@ -150,38 +159,33 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
 
     const canvas = this.gridCanvas.nativeElement;
     const ctx = this.gridCtx;
+    const dpr = window.devicePixelRatio || 1;
     
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Clear using logical size
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     ctx.save();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
 
     // Calculate visible area in world coordinates
     const topLeft = this.screenToWorld(0, 0);
-    const bottomRight = this.screenToWorld(canvas.width, canvas.height);
+    const bottomRight = this.screenToWorld(canvas.width / dpr, canvas.height / dpr);
     
-    // Add margin for partially visible hexes
-    const margin = HexMath.SIZE * 2;
-    const minX = topLeft.x - margin;
-    const maxX = bottomRight.x + margin;
-    const minY = topLeft.y - margin;
-    const maxY = bottomRight.y + margin;
+    // Use the helper to get proper hex bounds
+    const bounds = HexMath.getVisibleHexBounds(
+      topLeft.x, bottomRight.x,
+      topLeft.y, bottomRight.y
+    );
     
-    // Convert to hex bounds
-    const topLeftHex = HexMath.pixelToHex(minX, minY);
-    const bottomRightHex = HexMath.pixelToHex(maxX, maxY);
+    // Get current hover hex for highlighting
+    const hoverHex = this.dragHoverHex() || this.dragOverHex;
     
-    // Render only visible hexes (infinite grid)
-    for (let r = topLeftHex.r - 2; r <= bottomRightHex.r + 2; r++) {
-      for (let q = topLeftHex.q - 2; q <= bottomRightHex.q + 2; q++) {
+    // Render visible hexes
+    for (let q = bounds.minQ; q <= bounds.maxQ; q++) {
+      for (let r = bounds.minR; r <= bounds.maxR; r++) {
         const hex = { q, r };
-        const center = HexMath.hexToPixel(hex);
-        
-        // Only draw if center is within visible bounds
-        if (center.x >= minX && center.x <= maxX && center.y >= minY && center.y <= maxY) {
-          const isHover = this.dragOverHex ? (this.dragOverHex.q === q && this.dragOverHex.r === r) : false;
-          this.drawHexagon(ctx, hex, isHover);
-        }
+        const isHover = hoverHex && hoverHex.q === q && hoverHex.r === r;
+        this.drawHexagon(ctx, hex, isHover || false);
       }
     }
 
@@ -201,10 +205,10 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
 
     // Fill with subtle color or highlight if hover
     if (isHover) {
-      ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
+      ctx.fillStyle = 'rgba(96, 165, 250, 0.4)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(96, 165, 250, 0.9)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(96, 165, 250, 1)';
+      ctx.lineWidth = 3;
     } else {
       ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
       ctx.fill();
@@ -219,8 +223,9 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
 
     const canvas = this.drawCanvas.nativeElement;
     const ctx = this.drawCtx;
+    const dpr = window.devicePixelRatio || 1;
     
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     ctx.save();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
@@ -306,6 +311,9 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
 
   // Mouse event handlers
   onMouseDown(event: MouseEvent) {
+    // Ignore if dragging a token (handled by token component)
+    if (this.draggingToken) return;
+    
     const rect = this.container.nativeElement.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
@@ -331,6 +339,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
 
       case 'cursor':
         // Cursor tool is for token movement only, handled by token component
+        // Clicking on empty space does nothing
         break;
 
       case 'draw':
@@ -354,6 +363,18 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     const world = this.screenToWorld(x, y);
+
+    // Handle token dragging (mouse-based, smooth)
+    if (this.draggingToken) {
+      // Update ghost position (screen coords for the overlay)
+      this.dragGhostPosition.set({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+      
+      // Update hover hex for highlight
+      const hoverHex = HexMath.pixelToHex(world.x, world.y);
+      this.dragHoverHex.set(hoverHex);
+      this.render();
+      return;
+    }
 
     if (this.isPanning) {
       const deltaX = event.clientX - this.lastMouseX;
@@ -389,6 +410,25 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   }
 
   onMouseUp(event: MouseEvent) {
+    // Handle token drag end
+    if (this.draggingToken) {
+      const rect = this.container.nativeElement.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const world = this.screenToWorld(x, y);
+      const targetHex = HexMath.pixelToHex(world.x, world.y);
+      
+      // Emit move event
+      this.tokenMove.emit({ tokenId: this.draggingToken.id, position: targetHex });
+      
+      // Clear drag state
+      this.draggingToken = null;
+      this.dragGhostPosition.set(null);
+      this.dragHoverHex.set(null);
+      this.render();
+      return;
+    }
+    
     if (this.isDrawing && this.currentStrokePoints.length > 1) {
       // Save the stroke
       this.store.addStroke({
@@ -413,6 +453,14 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   }
 
   onMouseLeave() {
+    // Handle token drag if mouse leaves - cancel the drag
+    if (this.draggingToken) {
+      this.draggingToken = null;
+      this.dragGhostPosition.set(null);
+      this.dragHoverHex.set(null);
+      this.render();
+    }
+    
     // Stop all interactions when mouse leaves canvas
     if (this.isDrawing && this.currentStrokePoints.length > 1) {
       this.store.addStroke({
@@ -446,9 +494,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     this.render();
   }
 
-  // Drag and drop handlers
-  private dragOverHex: HexCoord | null = null;
-
+  // Drag and drop handlers (for NEW tokens from character list only)
   onDragOver(event: DragEvent) {
     event.preventDefault();
     if (event.dataTransfer) {
@@ -477,7 +523,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     event.preventDefault();
     event.stopPropagation();
     
-    // Get character ID from text/plain
+    // Get character ID from text/plain (for new tokens from character list)
     const characterId = event.dataTransfer?.getData('text/plain');
     if (!characterId) {
       console.log('[BATTLEMAP GRID] Drop event has no characterId');
@@ -496,20 +542,26 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     this.render();
   }
 
-  // Token interaction
-  onTokenDragStart(tokenId: string) {
-    this.draggedTokenId = tokenId;
+  // Token drag handlers (custom mouse-based, smooth drag)
+  onTokenDragStart(token: BattlemapToken, event: MouseEvent) {
+    this.draggingToken = token;
+    
+    // Initialize ghost position
+    const rect = this.container.nativeElement.getBoundingClientRect();
+    this.dragGhostPosition.set({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+    
+    // Set initial hover hex
+    const world = this.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
+    this.dragHoverHex.set(HexMath.pixelToHex(world.x, world.y));
   }
 
-  onTokenDragEnd(event: DragEvent, tokenId: string) {
-    const rect = this.container.nativeElement.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const world = this.screenToWorld(x, y);
-    const hex = HexMath.pixelToHex(world.x, world.y);
+  onTokenDragMove(event: MouseEvent) {
+    // This is handled by onMouseMove when draggingToken is set
+  }
 
-    this.tokenMove.emit({ tokenId, position: hex });
-    this.draggedTokenId = null;
+  onTokenDragEnd(event: MouseEvent, tokenId: string) {
+    // This is handled by onMouseUp when draggingToken is set
+    // The token component emits this but we handle it in onMouseUp
   }
 
   // Helper functions
@@ -543,14 +595,42 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     ctx.restore();
   }
 
-  // Get token screen position for rendering
+  // Get token screen position for rendering (returns world position, transform applied via CSS)
   getTokenScreenPosition(token: BattlemapToken): { x: number; y: number } {
-    const worldPos = HexMath.hexToPixel(token.position);
-    return this.worldToScreen(worldPos.x, worldPos.y);
+    // The tokens-layer has a CSS transform applied, so we return world coordinates
+    return HexMath.hexToPixel(token.position);
   }
 
   // Check if token is current turn
   isTokenCurrentTurn(token: BattlemapToken): boolean {
     return token.characterId === this.currentTurnCharacterId;
+  }
+  
+  // Get the size for the drag ghost (matches token size)
+  get ghostSize(): number {
+    return HexMath.HEIGHT * 0.9 * this.scale;
+  }
+  
+  // Helper: Get initials from a name
+  getInitials(name: string): string {
+    if (!name) return '??';
+    return name.split(' ')
+      .filter(word => word.length > 0)
+      .map(word => word[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
+  }
+  
+  // Helper: Get team color
+  getTeamColor(team: string | undefined): string {
+    switch (team) {
+      case 'red': return '#ef4444';
+      case 'blue': return '#3b82f6';
+      case 'green': return '#22c55e';
+      case 'yellow': return '#eab308';
+      case 'purple': return '#a855f7';
+      default: return '#60a5fa';
+    }
   }
 }

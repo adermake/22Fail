@@ -1,6 +1,11 @@
 <div 
   #container 
   class="grid-container"
+  [class.tool-select]="currentTool === 'select'"
+  [class.tool-cursor]="currentTool === 'cursor'"
+  [class.tool-draw]="currentTool === 'draw'"
+  [class.tool-erase]="currentTool === 'erase'"
+  [class.tool-measure]="currentTool === 'measure'"
   (mousedown)="onMouseDown($event)"
   (mousemove)="onMouseMove($event)"
   (mouseup)="onMouseUp($event)"
@@ -16,7 +21,7 @@
   <!-- Drawing canvas (strokes) -->
   <canvas #drawCanvas class="draw-canvas"></canvas>
 
-  <!-- Tokens layer -->
+  <!-- Tokens layer - uses world coordinates with CSS transform -->
   <div class="tokens-layer" [style.transform]="'translate(' + panX + 'px, ' + panY + 'px) scale(' + scale + ')'">
     @if (battleMap) {
       @for (token of battleMap.tokens; track token.id) {
@@ -26,13 +31,33 @@
           [position]="getTokenScreenPosition(token)"
           [scale]="scale"
           [currentTool]="currentTool"
-          (dragStart)="onTokenDragStart(token.id)"
-          (dragEnd)="onTokenDragEnd($event, token.id)"
+          (dragStart)="onTokenDragStart(token, $event.event)"
+          (dragEnd)="onTokenDragEnd($event.event, token.id)"
           (remove)="tokenRemove.emit(token.id)"
         />
       }
     }
   </div>
+
+  <!-- Drag ghost - follows mouse exactly during token drag -->
+  @if (draggingToken && dragGhostPosition()) {
+    <div 
+      class="drag-ghost"
+      [style.left.px]="dragGhostPosition()!.x"
+      [style.top.px]="dragGhostPosition()!.y"
+      [style.width.px]="ghostSize"
+      [style.height.px]="ghostSize"
+      [style.--team-color]="getTeamColor(draggingToken.team)"
+    >
+      <div class="ghost-hexagon">
+        @if (draggingToken.portrait) {
+          <img [src]="draggingToken.portrait" [alt]="draggingToken.characterName" class="ghost-portrait" draggable="false" />
+        } @else {
+          <div class="ghost-initials">{{ getInitials(draggingToken.characterName) }}</div>
+        }
+      </div>
+    </div>
+  }
 
   <!-- Measurement display -->
   @if (measureDistance() > 0) {

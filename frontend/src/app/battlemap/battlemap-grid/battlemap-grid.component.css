@@ -3,14 +3,9 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  cursor: grab;
   background: #e8e8e8;
   background-image: 
     radial-gradient(circle at 50% 50%, rgba(200, 200, 200, 0.3) 0%, transparent 50%);
-}
-
-.grid-container:active {
-  cursor: grabbing;
 }
 
 .grid-canvas,
@@ -39,6 +34,40 @@
   pointer-events: auto;
 }
 
+/* Drag ghost - smooth following of mouse cursor */
+.drag-ghost {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.9;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+}
+
+.ghost-hexagon {
+  width: 100%;
+  height: 100%;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background: var(--team-color, #60a5fa);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ghost-portrait {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ghost-initials {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
 .measure-info {
   position: fixed;
   bottom: 20px;
@@ -65,7 +94,19 @@
   color: #fbbf24;
 }
 
-/* Tool cursors */
+/* Tool-specific cursors */
+.grid-container.tool-select {
+  cursor: grab;
+}
+
+.grid-container.tool-select:active {
+  cursor: grabbing;
+}
+
+.grid-container.tool-cursor {
+  cursor: default;
+}
+
 .grid-container.tool-draw {
   cursor: crosshair;
 }
@@ -76,12 +117,4 @@
 
 .grid-container.tool-measure {
   cursor: crosshair;
-}
-
-.grid-container.tool-select {
-  cursor: grab;
-}
-
-.grid-container.tool-select:active {
-  cursor: grabbing;
 }
