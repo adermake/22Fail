@@ -30,7 +30,8 @@
   z-index: 5;
 }
 
-/* Hexagonal clipping using CSS clip-path - flat-top */
+/* Hexagonal clipping using CSS clip-path - flat-top hex in bounding box */
+/* For flat-top: points at left/right, flat edges at top/bottom */
 .token-hexagon {
   width: 100%;
   height: 100%;

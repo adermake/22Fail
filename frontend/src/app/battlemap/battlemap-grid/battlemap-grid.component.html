@@ -4,6 +4,7 @@
   [class.tool-cursor]="currentTool === 'cursor'"
   [class.tool-draw]="currentTool === 'draw'"
   [class.tool-erase]="currentTool === 'erase'"
+  [class.tool-walls]="currentTool === 'walls'"
   [class.tool-measure]="currentTool === 'measure'"
   [class.external-drag-active]="isExternalDragActive"
   (mousedown)="onMouseDown($event)"
@@ -11,12 +12,13 @@
   (mouseup)="onMouseUp($event)"
   (mouseleave)="onMouseLeave()"
   (wheel)="onWheel($event)"
+  (contextmenu)="onContextMenu($event)"
   (dragenter)="onDragEnter($event)"
   (dragover)="onDragOver($event)"
   (dragleave)="onDragLeave($event)"
   (drop)="onDrop($event)"
 >
-  <!-- Grid canvas (hexagons, measurement) -->
+  <!-- Grid canvas (hexagons) -->
   <canvas #gridCanvas class="grid-canvas"></canvas>
   
   <!-- Drawing canvas (strokes) -->
@@ -40,14 +42,17 @@
     }
   </div>
 
+  <!-- Overlay canvas (ruler, movement path) - on top of tokens -->
+  <canvas #overlayCanvas class="overlay-canvas"></canvas>
+
   <!-- Drag ghost - follows mouse exactly during token drag -->
   @if (draggingToken && dragGhostPosition()) {
     <div 
       class="drag-ghost"
       [style.left.px]="dragGhostPosition()!.x"
       [style.top.px]="dragGhostPosition()!.y"
-      [style.width.px]="ghostSize"
-      [style.height.px]="ghostSize"
+      [style.width.px]="ghostWidth"
+      [style.height.px]="ghostHeight"
       [style.--team-color]="getTeamColor(draggingToken.team)"
     >
       <div class="ghost-hexagon">

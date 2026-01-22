@@ -34,38 +34,36 @@
   <!-- Draw tool settings -->
   @if (currentTool === 'draw') {
     <div class="toolbar-section brush-settings">
-      <!-- Wall mode toggle -->
-      <label class="wall-mode-toggle" title="Wall Mode - hexes become impassable">
+      <!-- Draw with walls toggle -->
+      <label class="wall-mode-toggle" title="Also place walls while drawing">
         <input 
           type="checkbox" 
-          [checked]="isWallMode"
-          (change)="toggleWallMode()"
+          [checked]="drawWithWalls"
+          (change)="toggleDrawWithWalls()"
         />
-        <span class="toggle-label">🧱 Wall</span>
+        <span class="toggle-label">+🧱</span>
       </label>
 
       <!-- Color picker -->
-      @if (!isWallMode) {
-        <div class="color-picker">
-          @for (color of presetColors; track color) {
-            <button 
-              class="color-swatch"
-              [class.active]="brushColor === color"
-              [style.background]="color"
-              [style.border-color]="color === '#ffffff' ? '#666' : color"
-              (click)="selectColor(color)"
-            ></button>
-          }
-          <label class="custom-color">
-            <input 
-              type="color" 
-              [value]="brushColor"
-              (input)="onColorInput($event)"
-            />
-            <span class="custom-color-preview" [style.background]="brushColor"></span>
-          </label>
-        </div>
-      }
+      <div class="color-picker">
+        @for (color of presetColors; track color) {
+          <button 
+            class="color-swatch"
+            [class.active]="brushColor === color"
+            [style.background]="color"
+            [style.border-color]="color === '#ffffff' ? '#666' : color"
+            (click)="selectColor(color)"
+          ></button>
+        }
+        <label class="custom-color">
+          <input 
+            type="color" 
+            [value]="brushColor"
+            (input)="onColorInput($event)"
+          />
+          <span class="custom-color-preview" [style.background]="brushColor"></span>
+        </label>
+      </div>
 
       <!-- Pen brush size -->
       <div class="size-picker">
@@ -87,6 +85,16 @@
   <!-- Erase tool settings -->
   @if (currentTool === 'erase') {
     <div class="toolbar-section brush-settings">
+      <!-- Erase walls toggle -->
+      <label class="wall-mode-toggle" title="Also remove walls while erasing">
+        <input 
+          type="checkbox" 
+          [checked]="drawWithWalls"
+          (change)="toggleDrawWithWalls()"
+        />
+        <span class="toggle-label">-🧱</span>
+      </label>
+
       <div class="size-picker">
         <span class="size-label">Size:</span>
         @for (size of eraserBrushSizes; track size) {
@@ -100,6 +108,19 @@
           </button>
         }
       </div>
+    </div>
+  }
+  
+  <!-- Walls tool settings -->
+  @if (currentTool === 'walls') {
+    <div class="toolbar-section brush-settings">
+      <button 
+        class="action-btn danger"
+        title="Clear all walls"
+        (click)="clearWalls.emit()"
+      >
+        🗑️ Clear Walls
+      </button>
     </div>
   }
 

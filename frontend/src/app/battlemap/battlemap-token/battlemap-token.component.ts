@@ -2,6 +2,8 @@ import { Component, Input, Output, EventEmitter, HostListener, ElementRef, injec
 import { CommonModule } from '@angular/common';
 import { BattlemapToken, HexMath } from '../../model/battlemap.model';
 
+type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
+
 @Component({
   selector: 'app-battlemap-token',
   standalone: true,
@@ -16,7 +18,7 @@ export class BattlemapTokenComponent {
   @Input() isCurrentTurn = false;
   @Input() position: { x: number; y: number } = { x: 0, y: 0 };
   @Input() scale = 1;
-  @Input() currentTool: 'select' | 'cursor' | 'draw' | 'erase' | 'measure' = 'cursor';
+  @Input() currentTool: ToolType = 'cursor';
   @Input() isDragEnabled = false; // Only true when cursor tool is selected
 
   @Output() dragStart = new EventEmitter<{ event: MouseEvent }>();
@@ -32,10 +34,14 @@ export class BattlemapTokenComponent {
     return HexMath.hexToPixel(this.token.position);
   }
 
-  // Size based on hex - sized to fit nicely inside the hex
-  get tokenSize(): number {
-    // For flat-top hex, we want token to fit inside
-    // Use 90% of the height (which is the smaller dimension for flat-top)
+  // Token dimensions based on hex - for flat-top hex, width > height
+  get tokenWidth(): number {
+    // Use 90% of hex width (point to point horizontally)
+    return HexMath.WIDTH * 0.9;
+  }
+  
+  get tokenHeight(): number {
+    // Use 90% of hex height (flat edge to flat edge vertically)
     return HexMath.HEIGHT * 0.9;
   }
   

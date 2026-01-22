@@ -1,13 +1,13 @@
 import { 
   Component, Input, Output, EventEmitter, ElementRef, ViewChild, 
-  AfterViewInit, OnChanges, SimpleChanges, inject, signal 
+  AfterViewInit, OnChanges, SimpleChanges, inject, signal, HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, HexMath, WallHex, MeasurementLine, generateId } from '../../model/battlemap.model';
 import { BattleMapStoreService } from '../../services/battlemap-store.service';
 import { BattlemapTokenComponent } from '../battlemap-token/battlemap-token.component';
 
-type ToolType = 'cursor' | 'draw' | 'erase' | 'measure';
+type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
 type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -20,6 +20,7 @@ type DragMode = 'free' | 'enforced';
 export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   @ViewChild('gridCanvas') gridCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('drawCanvas') drawCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('container') container!: ElementRef<HTMLDivElement>;
 
   @Input() battleMap: BattlemapData | null = null;
@@ -27,7 +28,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   @Input() brushColor = '#ef4444';
   @Input() penBrushSize = 4;
   @Input() eraserBrushSize = 12;
-  @Input() isWallMode = false;
+  @Input() drawWithWalls = false;
   @Input() dragMode: DragMode = 'free';
   @Input() currentTurnCharacterId: string | null = null;
 
@@ -41,6 +42,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
   private drawCtx: CanvasRenderingContext2D | null = null;
+  private overlayCtx: CanvasRenderingContext2D | null = null;
 
   // Pan and zoom state
   panX = 0;
@@ -56,6 +58,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   private lastMouseX = 0;
   private lastMouseY = 0;
   private currentStrokePoints: { x: number; y: number }[] = [];
+  private currentStrokeHexes = new Set<string>(); // Track hex keys for wall placement during draw
   private lastDrawTime = 0;
   private drawThrottle = 16; // ~60fps
 
@@ -69,6 +72,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   dragGhostPosition = signal<{ x: number; y: number } | null>(null);
   dragHoverHex = signal<HexCoord | null>(null);
   dragPath = signal<HexCoord[]>([]); // Path for enforced movement visualization
+  dragWaypoints = signal<HexCoord[]>([]); // Fixed waypoints set by right-click
+  dragStartHex = signal<HexCoord | null>(null); // Starting hex for movement distance calc
 
   // Drag over from character list (native HTML drag for new tokens only)
   private dragOverHex: HexCoord | null = null;
@@ -90,6 +95,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   private initCanvases() {
     const gridEl = this.gridCanvas?.nativeElement;
     const drawEl = this.drawCanvas?.nativeElement;
+    const overlayEl = this.overlayCanvas?.nativeElement;
     
     if (gridEl) {
       this.gridCtx = gridEl.getContext('2d');
@@ -98,6 +104,10 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     if (drawEl) {
       this.drawCtx = drawEl.getContext('2d');
       this.resizeCanvas(drawEl);
+    }
+    if (overlayEl) {
+      this.overlayCtx = overlayEl.getContext('2d');
+      this.resizeCanvas(overlayEl);
     }
   }
 
@@ -125,8 +135,10 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     const observer = new ResizeObserver(() => {
       const gridEl = this.gridCanvas?.nativeElement;
       const drawEl = this.drawCanvas?.nativeElement;
+      const overlayEl = this.overlayCanvas?.nativeElement;
       if (gridEl) this.resizeCanvas(gridEl);
       if (drawEl) this.resizeCanvas(drawEl);
+      if (overlayEl) this.resizeCanvas(overlayEl);
       this.render();
     });
     observer.observe(container);
@@ -161,7 +173,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   render() {
     this.renderGrid();
     this.renderStrokes();
-    this.renderMeasurement();
+    this.renderOverlay();
   }
 
   private renderGrid() {
@@ -190,19 +202,28 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     // Get current hover hex for highlighting
     const hoverHex = this.dragHoverHex() || this.dragOverHex;
     
+    // Build wall set for quick lookup
+    const wallSet = new Set(this.battleMap.walls?.map(w => `${w.q},${w.r}`) || []);
+    
+    // Build path set for quick lookup
+    const pathSet = new Set(this.dragPath().map(p => `${p.q},${p.r}`));
+    
     // Render visible hexes
     for (let q = bounds.minQ; q <= bounds.maxQ; q++) {
       for (let r = bounds.minR; r <= bounds.maxR; r++) {
         const hex = { q, r };
         const isHover = hoverHex && hoverHex.q === q && hoverHex.r === r;
-        this.drawHexagon(ctx, hex, isHover || false);
+        const hexKey = `${q},${r}`;
+        const isWall = wallSet.has(hexKey);
+        const isInPath = pathSet.has(hexKey);
+        this.drawHexagon(ctx, hex, isHover || false, isWall, isInPath);
       }
     }
 
     ctx.restore();
   }
 
-  private drawHexagon(ctx: CanvasRenderingContext2D, hex: HexCoord, isHover = false) {
+  private drawHexagon(ctx: CanvasRenderingContext2D, hex: HexCoord, isHover: boolean, isWall: boolean, isInPath: boolean) {
     const center = HexMath.hexToPixel(hex);
     const corners = HexMath.getHexCorners(center);
 
@@ -213,30 +234,25 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     }
     ctx.closePath();
 
-    // Check if this hex is a wall
-    const isWall = this.battleMap?.walls?.some(w => w.q === hex.q && w.r === hex.r) ?? false;
-    
-    // Check if this hex is in the enforced drag path
-    const isInPath = this.dragPath().some(p => p.q === hex.q && p.r === hex.r);
-
     // Fill with appropriate color
     if (isHover) {
       ctx.fillStyle = 'rgba(96, 165, 250, 0.4)';
       ctx.fill();
       ctx.strokeStyle = 'rgba(96, 165, 250, 1)';
       ctx.lineWidth = 3;
-    } else if (isWall) {
-      // Wall hexes are red-tinted
-      ctx.fillStyle = 'rgba(220, 38, 38, 0.4)';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(220, 38, 38, 0.8)';
-      ctx.lineWidth = 2;
     } else if (isInPath) {
       // Path hexes are highlighted green
       ctx.fillStyle = 'rgba(34, 197, 94, 0.3)';
       ctx.fill();
       ctx.strokeStyle = 'rgba(34, 197, 94, 0.8)';
       ctx.lineWidth = 2;
+    } else if (isWall) {
+      // Wall hexes are subtly darker with a border pattern
+      ctx.fillStyle = 'rgba(60, 60, 60, 0.3)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(80, 80, 80, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 2]);
     } else {
       ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
       ctx.fill();
@@ -244,6 +260,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       ctx.lineWidth = 1;
     }
     ctx.stroke();
+    ctx.setLineDash([]); // Reset line dash
   }
 
   private renderStrokes() {
@@ -282,15 +299,29 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     ctx.restore();
   }
 
-  private renderMeasurement() {
-    if (!this.gridCtx) return;
+  private renderOverlay() {
+    if (!this.overlayCtx) return;
     
+    const ctx = this.overlayCtx;
+    const canvas = this.overlayCanvas?.nativeElement;
+    if (!canvas) return;
+    
+    // Clear overlay canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Render measurement ruler
+    this.renderMeasurementOnOverlay(ctx);
+    
+    // Render movement path
+    this.renderMovementPathOnOverlay(ctx);
+  }
+
+  private renderMeasurementOnOverlay(ctx: CanvasRenderingContext2D) {
     const start = this.measureStart();
     const end = this.measureEnd();
     
     if (!start || !end) return;
 
-    const ctx = this.gridCtx;
     ctx.save();
 
     const startScreen = this.worldToScreen(start.x, start.y);
@@ -337,6 +368,126 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     ctx.restore();
   }
 
+  private renderMovementPathOnOverlay(ctx: CanvasRenderingContext2D) {
+    const path = this.dragPath();
+    const waypoints = this.dragWaypoints();
+    const startHex = this.dragStartHex();
+    
+    if (!startHex || path.length === 0) return;
+
+    ctx.save();
+
+    // Build complete path: start -> waypoints -> current
+    const pathPoints: { x: number; y: number }[] = [];
+    
+    // Add start point
+    const startCenter = HexMath.hexToPixel(startHex);
+    pathPoints.push(this.worldToScreen(startCenter.x, startCenter.y));
+    
+    // Add waypoints
+    for (const wp of waypoints) {
+      const wpCenter = HexMath.hexToPixel(wp);
+      pathPoints.push(this.worldToScreen(wpCenter.x, wpCenter.y));
+    }
+    
+    // Add current position (end of path)
+    if (path.length > 0) {
+      const endHex = path[path.length - 1];
+      const endCenter = HexMath.hexToPixel(endHex);
+      pathPoints.push(this.worldToScreen(endCenter.x, endCenter.y));
+    }
+
+    if (pathPoints.length < 2) {
+      ctx.restore();
+      return;
+    }
+
+    // Draw path line
+    ctx.beginPath();
+    ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+    for (let i = 1; i < pathPoints.length; i++) {
+      ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+    }
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Draw dashed outline for visibility
+    ctx.beginPath();
+    ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+    for (let i = 1; i < pathPoints.length; i++) {
+      ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+    }
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 6;
+    ctx.setLineDash([8, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw waypoint markers
+    for (let i = 0; i < waypoints.length; i++) {
+      const wp = waypoints[i];
+      const wpCenter = HexMath.hexToPixel(wp);
+      const screen = this.worldToScreen(wpCenter.x, wpCenter.y);
+      
+      // Draw waypoint circle
+      ctx.beginPath();
+      ctx.arc(screen.x, screen.y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = '#f59e0b';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Draw waypoint number
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 10px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${i + 1}`, screen.x, screen.y);
+    }
+
+    // Draw start point
+    ctx.beginPath();
+    ctx.arc(pathPoints[0].x, pathPoints[0].y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#3b82f6';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Draw end point
+    const endPoint = pathPoints[pathPoints.length - 1];
+    ctx.beginPath();
+    ctx.arc(endPoint.x, endPoint.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#22c55e';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Calculate and draw total distance
+    const totalHexDistance = path.length;
+    const totalMeters = totalHexDistance * 1.5;
+
+    // Draw distance at end point
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(endPoint.x + 10, endPoint.y - 12, 60, 24);
+    ctx.fillStyle = '#22c55e';
+    ctx.font = 'bold 14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${totalMeters.toFixed(1)} m`, endPoint.x + 40, endPoint.y);
+
+    ctx.restore();
+  }
+
+  private renderMeasurement() {
+    // Legacy - now handled by renderOverlay
+  }
+
   // Mouse event handlers
   onMouseDown(event: MouseEvent) {
     // Ignore if dragging a token (handled by token component)
@@ -366,44 +517,64 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
         }
         break;
 
-      case 'draw':
-        if (this.isWallMode) {
-          // Wall drawing mode - determine if we're adding or removing based on first hex
-          const hex = HexMath.pixelToHex(world.x, world.y);
-          const hexKey = `${hex.q},${hex.r}`;
-          const exists = this.battleMap?.walls?.some(w => w.q === hex.q && w.r === hex.r) ?? false;
-          
-          // Set paint mode based on whether first hex has a wall
-          this.wallPaintMode = exists ? 'remove' : 'add';
-          this.wallPaintedHexes.clear();
-          this.wallPaintedHexes.add(hexKey);
-          this.isWallDrawing = true;
-          
-          // Apply to first hex
-          if (this.wallPaintMode === 'add') {
-            this.store.addWall(hex);
-          } else {
-            this.store.removeWall(hex);
-          }
-        } else {
-          // Normal drawing mode
-          this.isDrawing = true;
-          this.currentStrokePoints = [world];
-        }
-        break;
-        
-      case 'erase':
+      case 'draw': {
+        // Normal drawing mode - optionally add walls if checkbox enabled
         this.isDrawing = true;
         this.currentStrokePoints = [world];
+        this.currentStrokeHexes.clear();
+        
+        if (this.drawWithWalls) {
+          const hex = HexMath.pixelToHex(world.x, world.y);
+          const hexKey = `${hex.q},${hex.r}`;
+          this.currentStrokeHexes.add(hexKey);
+          this.store.addWall(hex);
+        }
         break;
+      }
+        
+      case 'erase': {
+        this.isDrawing = true;
+        this.currentStrokePoints = [world];
+        this.currentStrokeHexes.clear();
+        
+        if (this.drawWithWalls) {
+          const hex = HexMath.pixelToHex(world.x, world.y);
+          const hexKey = `${hex.q},${hex.r}`;
+          this.currentStrokeHexes.add(hexKey);
+          this.store.removeWall(hex);
+        }
+        break;
+      }
 
-      case 'measure':
+      case 'walls': {
+        // Walls tool - determine if we're adding or removing based on first hex
+        const hex = HexMath.pixelToHex(world.x, world.y);
+        const hexKey = `${hex.q},${hex.r}`;
+        const exists = this.battleMap?.walls?.some(w => w.q === hex.q && w.r === hex.r) ?? false;
+        
+        // Set paint mode based on whether first hex has a wall
+        this.wallPaintMode = exists ? 'remove' : 'add';
+        this.wallPaintedHexes.clear();
+        this.wallPaintedHexes.add(hexKey);
+        this.isWallDrawing = true;
+        
+        // Apply to first hex
+        if (this.wallPaintMode === 'add') {
+          this.store.addWall(hex);
+        } else {
+          this.store.removeWall(hex);
+        }
+        break;
+      }
+
+      case 'measure': {
         // Snap to hex center
         const startHex = HexMath.pixelToHex(world.x, world.y);
         const startSnapped = HexMath.hexToPixel(startHex);
         this.measureStart.set(startSnapped);
         this.measureEnd.set(startSnapped);
         break;
+      }
     }
   }
 
@@ -463,12 +634,27 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       this.lastDrawTime = now;
       
       this.currentStrokePoints.push(world);
+      
+      // Also add/remove walls while drawing if checkbox is enabled
+      if (this.drawWithWalls) {
+        const hex = HexMath.pixelToHex(world.x, world.y);
+        const hexKey = `${hex.q},${hex.r}`;
+        if (!this.currentStrokeHexes.has(hexKey)) {
+          this.currentStrokeHexes.add(hexKey);
+          if (this.currentTool === 'draw') {
+            this.store.addWall(hex);
+          } else if (this.currentTool === 'erase') {
+            this.store.removeWall(hex);
+          }
+        }
+      }
+      
       this.renderLiveStroke();
       return;
     }
     
-    // Wall drawing mode - continuous painting of walls while dragging
-    if (this.isWallDrawing && this.currentTool === 'draw' && this.isWallMode) {
+    // Walls tool - continuous painting of walls while dragging
+    if (this.isWallDrawing && this.currentTool === 'walls') {
       const hex = HexMath.pixelToHex(world.x, world.y);
       const hexKey = `${hex.q},${hex.r}`;
       
@@ -526,6 +712,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       this.dragGhostPosition.set(null);
       this.dragHoverHex.set(null);
       this.dragPath.set([]);
+      this.dragWaypoints.set([]);
+      this.dragStartHex.set(null);
       this.render();
       return;
     }
@@ -568,6 +756,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       this.dragGhostPosition.set(null);
       this.dragHoverHex.set(null);
       this.dragPath.set([]);
+      this.dragWaypoints.set([]);
+      this.dragStartHex.set(null);
       this.render();
     }
     
@@ -591,6 +781,34 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     this.isDrawing = false;
     this.currentStrokePoints = [];
     this.render();
+  }
+
+  onContextMenu(event: MouseEvent) {
+    // During enforced movement drag, right-click adds a waypoint
+    if (this.draggingToken && this.dragMode === 'enforced' && !this.draggingToken.isOnTheFly) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      const rect = this.container.nativeElement.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const world = this.screenToWorld(x, y);
+      const currentHex = HexMath.pixelToHex(world.x, world.y);
+      
+      // Don't add duplicate waypoints
+      const waypoints = this.dragWaypoints();
+      const alreadyExists = waypoints.some(wp => wp.q === currentHex.q && wp.r === currentHex.r);
+      
+      if (!alreadyExists) {
+        // Add the current position as a waypoint
+        this.dragWaypoints.set([...waypoints, currentHex]);
+        this.render();
+      }
+      return;
+    }
+    
+    // Otherwise prevent default context menu
+    event.preventDefault();
   }
 
   onWheel(event: WheelEvent) {
@@ -694,6 +912,10 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     // Set initial hover hex
     const world = this.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
     this.dragHoverHex.set(HexMath.pixelToHex(world.x, world.y));
+    
+    // Initialize waypoints for enforced movement
+    this.dragWaypoints.set([]);
+    this.dragStartHex.set(token.position);
   }
 
   onTokenDragMove(event: MouseEvent) {
@@ -750,8 +972,12 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     return token.characterId === this.currentTurnCharacterId;
   }
   
-  // Get the size for the drag ghost (matches token size)
-  get ghostSize(): number {
+  // Get the size for the drag ghost (matches token dimensions)
+  get ghostWidth(): number {
+    return HexMath.WIDTH * 0.9 * this.scale;
+  }
+  
+  get ghostHeight(): number {
     return HexMath.HEIGHT * 0.9 * this.scale;
   }
   

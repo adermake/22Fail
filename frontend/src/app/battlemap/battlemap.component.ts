@@ -14,7 +14,7 @@ import { BattlemapToolbarComponent } from './battlemap-toolbar/battlemap-toolbar
 import { BattlemapCharacterListComponent } from './battlemap-character-list/battlemap-character-list.component';
 import { BattlemapBattleTrackerComponent } from './battlemap-battle-tracker/battlemap-battle-tracker.component';
 
-export type ToolType = 'cursor' | 'draw' | 'erase' | 'measure';
+export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
 export type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -53,7 +53,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   brushColor = signal<string>('#ef4444');
   penBrushSize = signal<number>(4);
   eraserBrushSize = signal<number>(12);
-  isWallMode = signal<boolean>(false);
+  drawWithWalls = signal<boolean>(false);
   dragMode = signal<DragMode>('free');
 
   // Computed: current turn character from world battle tracker
@@ -149,8 +149,12 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     this.eraserBrushSize.set(size);
   }
 
-  onWallModeChange(enabled: boolean) {
-    this.isWallMode.set(enabled);
+  onDrawWithWallsChange(enabled: boolean) {
+    this.drawWithWalls.set(enabled);
+  }
+
+  onClearWalls() {
+    this.store.clearWalls();
   }
 
   onDragModeChange(mode: DragMode) {
