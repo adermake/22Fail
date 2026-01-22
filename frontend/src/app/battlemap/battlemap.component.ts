@@ -143,17 +143,23 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   // Token handlers
   onTokenDrop(data: { characterId: string; position: HexCoord }) {
+    console.log('[BATTLEMAP] Token drop event received:', data);
     const character = this.worldCharacters().find(c => c.id === data.characterId);
-    if (!character) return;
+    if (!character) {
+      console.log('[BATTLEMAP] Character not found:', data.characterId);
+      return;
+    }
 
     // Check if token already exists for this character
     const existingToken = this.battleMap()?.tokens.find(t => t.characterId === data.characterId);
     
     if (existingToken) {
       // Move existing token
+      console.log('[BATTLEMAP] Moving existing token to', data.position);
       this.store.moveToken(existingToken.id, data.position);
     } else {
       // Add new token
+      console.log('[BATTLEMAP] Adding new token at', data.position);
       this.store.addToken({
         characterId: data.characterId,
         characterName: character.sheet.name || data.characterId,

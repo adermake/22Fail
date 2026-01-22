@@ -22,6 +22,7 @@ export class BattlemapCharacterListComponent {
     if (event.dataTransfer) {
       event.dataTransfer.setData('characterId', characterId);
       event.dataTransfer.effectAllowed = 'copy';
+      console.log('[CHARACTER LIST] Drag started for character', characterId);
     }
   }
 

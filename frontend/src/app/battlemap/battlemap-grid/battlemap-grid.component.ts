@@ -204,6 +204,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     for (const stroke of this.battleMap.strokes) {
       if (stroke.points.length < 2) continue;
       
+      ctx.globalCompositeOperation = stroke.isEraser ? 'destination-out' : 'source-over';
+      
       ctx.beginPath();
       ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
       
@@ -211,20 +213,14 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
         ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
       }
 
-      if (stroke.isEraser) {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.strokeStyle = 'rgba(0,0,0,1)';
-      } else {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = stroke.color;
-      }
-
+      ctx.strokeStyle = stroke.isEraser ? 'rgba(0,0,0,1)' : stroke.color;
       ctx.lineWidth = stroke.lineWidth;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.stroke();
     }
 
+    ctx.globalCompositeOperation = 'source-over';
     ctx.restore();
   }
 
@@ -315,11 +311,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
         break;
 
       case 'measure':
-        // Snap to hex center
-        const hex = HexMath.pixelToHex(world.x, world.y);
-        const snappedWorld = HexMath.hexToPixel(hex);
-        this.measureStart.set(snappedWorld);
-        this.measureEnd.set(snappedWorld);
+        this.measureStart.set(world);
+        this.measureEnd.set(world);
         break;
     }
   }
@@ -359,10 +352,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     }
 
     if (this.currentTool === 'measure' && this.measureStart()) {
-      // Snap to hex center
-      const hex = HexMath.pixelToHex(world.x, world.y);
-      const snappedWorld = HexMath.hexToPixel(hex);
-      this.measureEnd.set(snappedWorld);
+      this.measureEnd.set(world);
       this.render();
     }
   }
@@ -435,9 +425,13 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
 
   onDrop(event: DragEvent) {
     event.preventDefault();
+    event.stopPropagation();
     
     const characterId = event.dataTransfer?.getData('characterId');
-    if (!characterId) return;
+    if (!characterId) {
+      console.log('[BATTLEMAP GRID] Drop event has no characterId');
+      return;
+    }
 
     const rect = this.container.nativeElement.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -445,6 +439,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     const world = this.screenToWorld(x, y);
     const hex = HexMath.pixelToHex(world.x, world.y);
 
+    console.log('[BATTLEMAP GRID] Dropping character', characterId, 'at hex', hex);
     this.tokenDrop.emit({ characterId, position: hex });
   }
 
@@ -468,63 +463,61 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   private renderLiveStroke() {
     if (!this.drawCtx || this.currentStrokePoints.length < 2) return;
 
-    // Use requestAnimationFrame for smoother rendering
-    requestAnimationFrame(() => {
-      if (!this.drawCtx) return;
-      
-      const ctx = this.drawCtx;
-      const points = this.currentStrokePoints;
-      
-      // Clear and redraw all strokes plus live stroke
-      this.renderStrokes();
-      
-      ctx.save();
-      ctx.translate(this.panX, this.panY);
-      ctx.scale(this.scale, this.scale);
+    const ctx = this.drawCtx;
+    const points = this.currentStrokePoints;
+    
+    // Clear and redraw all strokes plus live stroke
+    this.renderStrokes();
+    
+    ctx.save();
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.scale, this.scale);
 
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < points.length; i++) {
-        ctx.lineTo(points[i].x, points[i].y);
-      }
+    ctx.globalCompositeOperation = this.currentTool === 'erase' ? 'destination-out' : 'source-over';
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
 
-      if (this.currentTool === 'erase') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.strokeStyle = 'rgba(0,0,0,1)';
-      } else {
-        ctx.strokeStyle = this.brushColor;
-      }
+    ctx.strokeStyle = this.currentTool === 'erase' ? 'rgba(0,0,0,1)' : this.brushColor;
+    ctx.lineWidth = this.brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
 
-      ctx.lineWidth = this.brushSize;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
-
-      ctx.restore();
-    });
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
   }
 
   private expandGridIfNeeded(hex: HexCoord) {
     if (!this.battleMap) return;
     
     const bounds = this.battleMap.gridBounds;
-    const expandRadius = 5; // Expand in a radius around the hex
+    const expandRadius = 10; // Larger expand radius for circular feel
     let needsExpand = false;
 
     // Check if hex is near the edge
-    const margin = 2;
+    const margin = 3;
     if (hex.q <= bounds.minQ + margin || hex.q >= bounds.maxQ - margin ||
         hex.r <= bounds.minR + margin || hex.r >= bounds.maxR - margin) {
       needsExpand = true;
     }
 
     if (needsExpand) {
-      // Expand in a circular pattern around the hex
+      // Calculate new bounds as a circle around current bounds center
+      const centerQ = (bounds.minQ + bounds.maxQ) / 2;
+      const centerR = (bounds.minR + bounds.maxR) / 2;
+      const currentRadiusQ = (bounds.maxQ - bounds.minQ) / 2;
+      const currentRadiusR = (bounds.maxR - bounds.minR) / 2;
+      const newRadiusQ = currentRadiusQ + expandRadius;
+      const newRadiusR = currentRadiusR + expandRadius;
+      
       const newBounds = {
-        minQ: Math.min(bounds.minQ, hex.q - expandRadius),
-        maxQ: Math.max(bounds.maxQ, hex.q + expandRadius),
-        minR: Math.min(bounds.minR, hex.r - expandRadius),
-        maxR: Math.max(bounds.maxR, hex.r + expandRadius),
+        minQ: Math.floor(centerQ - newRadiusQ),
+        maxQ: Math.ceil(centerQ + newRadiusQ),
+        minR: Math.floor(centerR - newRadiusR),
+        maxR: Math.ceil(centerR + newRadiusR),
       };
       this.store.applyPatch({ path: 'gridBounds', value: newBounds });
     }
