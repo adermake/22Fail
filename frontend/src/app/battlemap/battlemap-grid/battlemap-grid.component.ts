@@ -156,20 +156,29 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
 
-    // Only render active hexes for free-form grid
-    if (this.battleMap.activeHexes) {
-      this.battleMap.activeHexes.forEach(hexKey => {
-        const [q, r] = hexKey.split(',').map(Number);
+    // Calculate visible area in world coordinates
+    const topLeft = this.screenToWorld(0, 0);
+    const bottomRight = this.screenToWorld(canvas.width, canvas.height);
+    
+    // Add margin for partially visible hexes
+    const margin = HexMath.SIZE * 2;
+    const minX = topLeft.x - margin;
+    const maxX = bottomRight.x + margin;
+    const minY = topLeft.y - margin;
+    const maxY = bottomRight.y + margin;
+    
+    // Convert to hex bounds
+    const topLeftHex = HexMath.pixelToHex(minX, minY);
+    const bottomRightHex = HexMath.pixelToHex(maxX, maxY);
+    
+    // Render only visible hexes (infinite grid)
+    for (let r = topLeftHex.r - 2; r <= bottomRightHex.r + 2; r++) {
+      for (let q = topLeftHex.q - 2; q <= bottomRightHex.q + 2; q++) {
         const hex = { q, r };
-        const isHover = this.dragOverHex ? (this.dragOverHex.q === q && this.dragOverHex.r === r) : false;
-        this.drawHexagon(ctx, hex, isHover);
-      });
-    } else {
-      // Fallback to bounds-based rendering for old data
-      const bounds = this.battleMap.gridBounds;
-      for (let q = bounds.minQ; q <= bounds.maxQ; q++) {
-        for (let r = bounds.minR; r <= bounds.maxR; r++) {
-          const hex = { q, r };
+        const center = HexMath.hexToPixel(hex);
+        
+        // Only draw if center is within visible bounds
+        if (center.x >= minX && center.x <= maxX && center.y >= minY && center.y <= maxY) {
           const isHover = this.dragOverHex ? (this.dragOverHex.q === q && this.dragOverHex.r === r) : false;
           this.drawHexagon(ctx, hex, isHover);
         }
@@ -367,10 +376,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       
       this.currentStrokePoints.push(world);
       this.renderLiveStroke();
-      
-      // Expand grid if drawing outside bounds
-      const hex = HexMath.pixelToHex(world.x, world.y);
-      this.expandGridIfNeeded(hex);
       return;
     }
 
@@ -536,50 +541,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
 
     ctx.globalCompositeOperation = 'source-over';
     ctx.restore();
-  }
-
-  private expandGridIfNeeded(hex: HexCoord) {
-    if (!this.battleMap) return;
-    
-    // Ensure activeHexes exists
-    if (!this.battleMap.activeHexes) {
-      this.battleMap.activeHexes = new Set<string>();
-    }
-    
-    const hexKey = `${hex.q},${hex.r}`;
-    const wasAdded = !this.battleMap.activeHexes.has(hexKey);
-    
-    // Add the current hex and neighbors in a circle
-    const expandRadius = 3;
-    for (let dq = -expandRadius; dq <= expandRadius; dq++) {
-      for (let dr = -expandRadius; dr <= expandRadius; dr++) {
-        // Only add hexes within circular distance
-        if (Math.abs(dq) + Math.abs(dr) + Math.abs(-dq-dr) <= expandRadius * 2) {
-          const newHex = { q: hex.q + dq, r: hex.r + dr };
-          const newKey = `${newHex.q},${newHex.r}`;
-          this.battleMap.activeHexes.add(newKey);
-          
-          // Update bounds if needed
-          const bounds = this.battleMap.gridBounds;
-          if (newHex.q < bounds.minQ) bounds.minQ = newHex.q;
-          if (newHex.q > bounds.maxQ) bounds.maxQ = newHex.q;
-          if (newHex.r < bounds.minR) bounds.minR = newHex.r;
-          if (newHex.r > bounds.maxR) bounds.maxR = newHex.r;
-        }
-      }
-    }
-    
-    // Only send patch if we added new hexes
-    if (wasAdded) {
-      this.store.applyPatch({
-        path: 'activeHexes',
-        value: Array.from(this.battleMap.activeHexes)
-      });
-      this.store.applyPatch({
-        path: 'gridBounds',
-        value: this.battleMap.gridBounds
-      });
-    }
   }
 
   // Get token screen position for rendering

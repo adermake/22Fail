@@ -21,6 +21,7 @@ export class BattlemapTokenComponent {
   @Output() remove = new EventEmitter<void>();
 
   showContextMenu = false;
+  isDragging = false;
 
   // Get the world position directly from hex coordinates
   get worldPosition(): { x: number; y: number } {
@@ -33,44 +34,56 @@ export class BattlemapTokenComponent {
   }
 
   onDragStart(event: DragEvent) {
+    this.isDragging = true;
+    
     if (event.dataTransfer) {
       event.dataTransfer.setData('tokenId', this.token.id);
       event.dataTransfer.effectAllowed = 'move';
       
-      // Create hex drag image
+      // Create beautiful hex drag image with portrait
+      const size = 80;
       const dragImg = document.createElement('canvas');
-      dragImg.width = 100;
-      dragImg.height = 100;
+      dragImg.width = size;
+      dragImg.height = size;
       const ctx = dragImg.getContext('2d');
       
       if (ctx) {
         ctx.save();
-        ctx.translate(50, 50);
+        ctx.translate(size/2, size/2);
         
         // Hexagon path (flat-top)
         ctx.beginPath();
+        const hexRadius = size/2 - 4;
         for (let i = 0; i < 6; i++) {
           const angle = (Math.PI / 180) * (60 * i);
-          const x = 40 * Math.cos(angle);
-          const y = 40 * Math.sin(angle);
+          const x = hexRadius * Math.cos(angle);
+          const y = hexRadius * Math.sin(angle);
           if (i === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
         ctx.closePath();
         
-        // Fill with team color
-        ctx.fillStyle = this.teamColor + 'E6'; // Add alpha
+        // Fill with gradient
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, hexRadius);
+        grad.addColorStop(0, this.teamColor);
+        grad.addColorStop(1, this.darkenColor(this.teamColor, 30));
+        ctx.fillStyle = grad;
         ctx.fill();
-        ctx.strokeStyle = this.teamColor;
-        ctx.lineWidth = 3;
+        
+        // Outer glow
+        ctx.shadowColor = this.teamColor;
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
         ctx.stroke();
         
-        // Draw character name
+        // Draw character initials
+        ctx.shadowBlur = 0;
         ctx.fillStyle = 'white';
-        ctx.font = 'bold 12px system-ui';
+        ctx.font = 'bold 16px system-ui';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(this.token.characterName.substring(0, 8), 0, 0);
+        ctx.fillText(this.initials, 0, 0);
         
         ctx.restore();
       }
@@ -78,14 +91,24 @@ export class BattlemapTokenComponent {
       dragImg.style.position = 'absolute';
       dragImg.style.top = '-1000px';
       document.body.appendChild(dragImg);
-      event.dataTransfer.setDragImage(dragImg, 50, 50);
+      event.dataTransfer.setDragImage(dragImg, size/2, size/2);
       setTimeout(() => document.body.removeChild(dragImg), 0);
     }
     this.dragStart.emit();
   }
 
   onDragEnd(event: DragEvent) {
+    this.isDragging = false;
     this.dragEnd.emit(event);
+  }
+  
+  private darkenColor(hex: string, percent: number): string {
+    const num = parseInt(hex.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.max((num >> 16) - amt, 0);
+    const G = Math.max((num >> 8 & 0x00FF) - amt, 0);
+    const B = Math.max((num & 0x0000FF) - amt, 0);
+    return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
   }
 
   onContextMenu(event: MouseEvent) {

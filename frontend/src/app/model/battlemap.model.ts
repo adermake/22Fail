@@ -44,17 +44,6 @@ export interface BattlemapData {
   name: string;
   worldName: string;
   
-  // Grid bounds - auto-expands as content is added
-  gridBounds: {
-    minQ: number;
-    maxQ: number;
-    minR: number;
-    maxR: number;
-  };
-  
-  // Active hexes for free-form grid (stores hex coordinates as strings "q,r")
-  activeHexes: Set<string>;
-  
   // Tokens on the map
   tokens: BattlemapToken[];
   
@@ -64,9 +53,6 @@ export interface BattlemapData {
   // Active measurement lines (synced in real-time)
   measurementLines: MeasurementLine[];
   
-  // Pan and zoom state (per-user, not synced)
-  // viewState is handled locally
-  
   // Metadata
   createdAt: number;
   updatedAt: number;
@@ -74,29 +60,10 @@ export interface BattlemapData {
 
 // Helper function to create an empty battlemap
 export function createEmptyBattlemap(id: string, name: string, worldName: string): BattlemapData {
-  // Create initial circular grid
-  const activeHexes = new Set<string>();
-  const radius = 5;
-  for (let q = -radius; q <= radius; q++) {
-    for (let r = -radius; r <= radius; r++) {
-      // Only add hexes within circular distance
-      if (Math.abs(q) + Math.abs(r) + Math.abs(-q-r) <= radius * 2) {
-        activeHexes.add(`${q},${r}`);
-      }
-    }
-  }
-  
   return {
     id,
     name,
     worldName,
-    gridBounds: {
-      minQ: -radius,
-      maxQ: radius,
-      minR: -radius,
-      maxR: radius,
-    },
-    activeHexes,
     tokens: [],
     strokes: [],
     measurementLines: [],
@@ -118,10 +85,10 @@ export class HexMath {
     return { x, y };
   }
   
-  // Convert pixel coordinates to axial coordinates
+  // Convert pixel coordinates to axial coordinates (FIXED)
   static pixelToHex(x: number, y: number): HexCoord {
-    const q = (x / HexMath.WIDTH) - (y / HexMath.SIZE / 3) * 0.5;
-    const r = (y / HexMath.SIZE) * (2/3);
+    const q = (x / HexMath.WIDTH) - (y / (3 * HexMath.SIZE));
+    const r = (2 * y) / (3 * HexMath.SIZE);
     return HexMath.hexRound({ q, r });
   }
   

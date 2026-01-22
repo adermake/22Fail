@@ -62,9 +62,6 @@ export class BattleMapStoreService {
 
   private migrateBattleMap(battleMap: any): BattlemapData {
     // Ensure all required fields exist
-    if (!battleMap.gridBounds) {
-      battleMap.gridBounds = { minQ: -5, maxQ: 5, minR: -5, maxR: 5 };
-    }
     if (!battleMap.strokes) {
       battleMap.strokes = battleMap.drawings || [];
     }
@@ -73,24 +70,6 @@ export class BattleMapStoreService {
     }
     if (!battleMap.measurementLines) {
       battleMap.measurementLines = [];
-    }
-    // Migrate to free-form grid
-    if (!battleMap.activeHexes) {
-      const activeHexes = new Set<string>();
-      // Create initial circle based on bounds
-      const bounds = battleMap.gridBounds;
-      for (let q = bounds.minQ; q <= bounds.maxQ; q++) {
-        for (let r = bounds.minR; r <= bounds.maxR; r++) {
-          // Only add hexes within circular distance from center
-          if (Math.abs(q) + Math.abs(r) + Math.abs(-q-r) <= 10) {
-            activeHexes.add(`${q},${r}`);
-          }
-        }
-      }
-      battleMap.activeHexes = activeHexes;
-    } else if (Array.isArray(battleMap.activeHexes)) {
-      // Convert array to Set if needed
-      battleMap.activeHexes = new Set(battleMap.activeHexes);
     }
     return battleMap as BattlemapData;
   }
@@ -160,44 +139,17 @@ export class BattleMapStoreService {
     this.applyPatch({ path: 'strokes', value: [] });
   }
 
-  // Grid expansion
-  private expandGridIfNeeded(hex: HexCoord) {
-    const battleMap = this.battleMapValue;
-    if (!battleMap) return;
-
-    const bounds = { ...battleMap.gridBounds };
-    let changed = false;
-
-    if (hex.q < bounds.minQ) { bounds.minQ = hex.q - 2; changed = true; }
-    if (hex.q > bounds.maxQ) { bounds.maxQ = hex.q + 2; changed = true; }
-    if (hex.r < bounds.minR) { bounds.minR = hex.r - 2; changed = true; }
-    if (hex.r > bounds.maxR) { bounds.maxR = hex.r + 2; changed = true; }
-
-    if (changed) {
-      this.applyPatch({ path: 'gridBounds', value: bounds });
-    }
-  }
-
-  expandGridToPixel(x: number, y: number) {
-    // Import HexMath at the call site to calculate hex from pixel
-    // This will be called by the component with calculated hex coords
-  }
-
   private applyJsonPatch(target: any, patch: JsonPatch) {
     const keys = patch.path.split('.');
     
-    // Handle activeHexes Set conversion
-    if (keys[0] === 'activeHexes') {
-      if (Array.isArray(patch.value)) {
-        target.activeHexes = new Set(patch.value);
-      } else if (patch.value instanceof Set) {
-        target.activeHexes = patch.value;
-      }
+    // Handle single key with array value
+    if (keys.length === 1 && Array.isArray(patch.value)) {
+      target[keys[0]] = patch.value;
       return;
     }
     
-    // Handle single key with array value
-    if (keys.length === 1 && Array.isArray(patch.value)) {
+    // Handle single key with any value
+    if (keys.length === 1) {
       target[keys[0]] = patch.value;
       return;
     }
