@@ -161,14 +161,16 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     // Draw hexagons
     for (let q = bounds.minQ; q <= bounds.maxQ; q++) {
       for (let r = bounds.minR; r <= bounds.maxR; r++) {
-        this.drawHexagon(ctx, { q, r });
+        const hex = { q, r };
+        const isHover = this.dragOverHex ? (this.dragOverHex.q === q && this.dragOverHex.r === r) : false;
+        this.drawHexagon(ctx, hex, isHover);
       }
     }
 
     ctx.restore();
   }
 
-  private drawHexagon(ctx: CanvasRenderingContext2D, hex: HexCoord) {
+  private drawHexagon(ctx: CanvasRenderingContext2D, hex: HexCoord, isHover = false) {
     const center = HexMath.hexToPixel(hex);
     const corners = HexMath.getHexCorners(center);
 
@@ -179,13 +181,18 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     }
     ctx.closePath();
 
-    // Fill with subtle color
-    ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
-    ctx.fill();
-
-    // Stroke border
-    ctx.strokeStyle = 'rgba(71, 85, 105, 0.6)';
-    ctx.lineWidth = 1;
+    // Fill with subtle color or highlight if hover
+    if (isHover) {
+      ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(96, 165, 250, 0.9)';
+      ctx.lineWidth = 2;
+    } else {
+      ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(71, 85, 105, 0.6)';
+      ctx.lineWidth = 1;
+    }
     ctx.stroke();
   }
 
@@ -311,8 +318,11 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
         break;
 
       case 'measure':
-        this.measureStart.set(world);
-        this.measureEnd.set(world);
+        // Snap to hex center
+        const startHex = HexMath.pixelToHex(world.x, world.y);
+        const startSnapped = HexMath.hexToPixel(startHex);
+        this.measureStart.set(startSnapped);
+        this.measureEnd.set(startSnapped);
         break;
     }
   }
@@ -352,7 +362,10 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     }
 
     if (this.currentTool === 'measure' && this.measureStart()) {
-      this.measureEnd.set(world);
+      // Snap to hex center
+      const endHex = HexMath.pixelToHex(world.x, world.y);
+      const endSnapped = HexMath.hexToPixel(endHex);
+      this.measureEnd.set(endSnapped);
       this.render();
     }
   }
@@ -416,18 +429,38 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   }
 
   // Drag and drop handlers
+  private dragOverHex: HexCoord | null = null;
+
   onDragOver(event: DragEvent) {
     event.preventDefault();
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'move';
     }
+    
+    // Track hover hex for highlight
+    const rect = this.container.nativeElement.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const world = this.screenToWorld(x, y);
+    const hex = HexMath.pixelToHex(world.x, world.y);
+    
+    if (!this.dragOverHex || this.dragOverHex.q !== hex.q || this.dragOverHex.r !== hex.r) {
+      this.dragOverHex = hex;
+      this.render();
+    }
+  }
+  
+  onDragLeave(event: DragEvent) {
+    this.dragOverHex = null;
+    this.render();
   }
 
   onDrop(event: DragEvent) {
     event.preventDefault();
     event.stopPropagation();
     
-    const characterId = event.dataTransfer?.getData('characterId');
+    // Get character ID from text/plain
+    const characterId = event.dataTransfer?.getData('text/plain');
     if (!characterId) {
       console.log('[BATTLEMAP GRID] Drop event has no characterId');
       return;
@@ -440,7 +473,9 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     const hex = HexMath.pixelToHex(world.x, world.y);
 
     console.log('[BATTLEMAP GRID] Dropping character', characterId, 'at hex', hex);
+    this.dragOverHex = null;
     this.tokenDrop.emit({ characterId, position: hex });
+    this.render();
   }
 
   // Token interaction
@@ -494,7 +529,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     if (!this.battleMap) return;
     
     const bounds = this.battleMap.gridBounds;
-    const expandRadius = 10; // Larger expand radius for circular feel
+    const expandRadius = 8;
     let needsExpand = false;
 
     // Check if hex is near the edge
@@ -505,19 +540,12 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     }
 
     if (needsExpand) {
-      // Calculate new bounds as a circle around current bounds center
-      const centerQ = (bounds.minQ + bounds.maxQ) / 2;
-      const centerR = (bounds.minR + bounds.maxR) / 2;
-      const currentRadiusQ = (bounds.maxQ - bounds.minQ) / 2;
-      const currentRadiusR = (bounds.maxR - bounds.minR) / 2;
-      const newRadiusQ = currentRadiusQ + expandRadius;
-      const newRadiusR = currentRadiusR + expandRadius;
-      
+      // Expand in all directions equally from the hex that triggered expansion
       const newBounds = {
-        minQ: Math.floor(centerQ - newRadiusQ),
-        maxQ: Math.ceil(centerQ + newRadiusQ),
-        minR: Math.floor(centerR - newRadiusR),
-        maxR: Math.ceil(centerR + newRadiusR),
+        minQ: Math.min(bounds.minQ, hex.q - expandRadius),
+        maxQ: Math.max(bounds.maxQ, hex.q + expandRadius),
+        minR: Math.min(bounds.minR, hex.r - expandRadius),
+        maxR: Math.max(bounds.maxR, hex.r + expandRadius),
       };
       this.store.applyPatch({ path: 'gridBounds', value: newBounds });
     }
