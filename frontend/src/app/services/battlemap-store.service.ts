@@ -97,7 +97,6 @@ export class BattleMapStoreService {
 
     const tokens = [...battleMap.tokens, newToken];
     this.applyPatch({ path: 'tokens', value: tokens });
-    this.expandGridIfNeeded(token.position);
   }
 
   moveToken(tokenId: string, newPosition: HexCoord) {
@@ -110,7 +109,6 @@ export class BattleMapStoreService {
     const tokens = [...battleMap.tokens];
     tokens[tokenIndex] = { ...tokens[tokenIndex], position: newPosition };
     this.applyPatch({ path: 'tokens', value: tokens });
-    this.expandGridIfNeeded(newPosition);
   }
 
   removeToken(tokenId: string) {
