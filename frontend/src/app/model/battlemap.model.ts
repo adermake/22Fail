@@ -95,17 +95,17 @@ export class HexMath {
   static readonly WIDTH = HexMath.SIZE * 2;
   static readonly HEIGHT = Math.sqrt(3) * HexMath.SIZE;
   
-  // Convert axial coordinates to pixel coordinates (pointy-top hexagons)
+  // Convert axial coordinates to pixel coordinates (flat-top hexagons)
   static hexToPixel(hex: HexCoord): { x: number; y: number } {
-    const x = HexMath.SIZE * (3/2 * hex.q);
-    const y = HexMath.SIZE * (Math.sqrt(3)/2 * hex.q + Math.sqrt(3) * hex.r);
+    const x = HexMath.SIZE * (Math.sqrt(3) * hex.q + Math.sqrt(3)/2 * hex.r);
+    const y = HexMath.SIZE * (3/2 * hex.r);
     return { x, y };
   }
   
   // Convert pixel coordinates to axial coordinates
   static pixelToHex(x: number, y: number): HexCoord {
-    const q = (2/3 * x) / HexMath.SIZE;
-    const r = (-1/3 * x + Math.sqrt(3)/3 * y) / HexMath.SIZE;
+    const q = (Math.sqrt(3)/3 * x - 1/3 * y) / HexMath.SIZE;
+    const r = (2/3 * y) / HexMath.SIZE;
     return HexMath.hexRound({ q, r });
   }
   
@@ -135,11 +135,11 @@ export class HexMath {
     return (Math.abs(a.q - b.q) + Math.abs(a.q + a.r - b.q - b.r) + Math.abs(a.r - b.r)) / 2;
   }
   
-  // Get the 6 corner points of a hexagon (pointy-top)
+  // Get the 6 corner points of a hexagon (flat-top)
   static getHexCorners(center: { x: number; y: number }): { x: number; y: number }[] {
     const corners: { x: number; y: number }[] = [];
     for (let i = 0; i < 6; i++) {
-      const angleDeg = 60 * i - 30;
+      const angleDeg = 60 * i; // No offset for flat-top
       const angleRad = (Math.PI / 180) * angleDeg;
       corners.push({
         x: center.x + HexMath.SIZE * Math.cos(angleRad),

@@ -48,6 +48,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   private lastMouseX = 0;
   private lastMouseY = 0;
   private currentStrokePoints: { x: number; y: number }[] = [];
+  private lastDrawTime = 0;
+  private drawThrottle = 16; // ~60fps
 
   // Measurement
   measureStart = signal<{ x: number; y: number } | null>(null);
@@ -215,8 +217,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       } else {
         ctx.globalCompositeOperation = 'source-over';
         ctx.strokeStyle = stroke.color;
-        ctx.shadowColor = stroke.color;
-        ctx.shadowBlur = 8;
       }
 
       ctx.lineWidth = stroke.lineWidth;
@@ -315,8 +315,11 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
         break;
 
       case 'measure':
-        this.measureStart.set(world);
-        this.measureEnd.set(world);
+        // Snap to hex center
+        const hex = HexMath.pixelToHex(world.x, world.y);
+        const snappedWorld = HexMath.hexToPixel(hex);
+        this.measureStart.set(snappedWorld);
+        this.measureEnd.set(snappedWorld);
         break;
     }
   }
@@ -339,6 +342,13 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     }
 
     if (this.isDrawing) {
+      const now = performance.now();
+      // Throttle drawing updates for better performance
+      if (now - this.lastDrawTime < this.drawThrottle) {
+        return;
+      }
+      this.lastDrawTime = now;
+      
       this.currentStrokePoints.push(world);
       this.renderLiveStroke();
       
@@ -349,7 +359,10 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     }
 
     if (this.currentTool === 'measure' && this.measureStart()) {
-      this.measureEnd.set(world);
+      // Snap to hex center
+      const hex = HexMath.pixelToHex(world.x, world.y);
+      const snappedWorld = HexMath.hexToPixel(hex);
+      this.measureEnd.set(snappedWorld);
       this.render();
     }
   }
@@ -369,14 +382,29 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     this.isDrawing = false;
     this.currentStrokePoints = [];
 
+    // Clear ruler on mouse release
     if (this.currentTool === 'measure') {
-      // Keep measurement visible, will be cleared on next click
+      this.measureStart.set(null);
+      this.measureEnd.set(null);
+      this.measureDistance.set(0);
+      this.render();
     }
   }
 
   onMouseLeave() {
+    // Stop all interactions when mouse leaves canvas
+    if (this.isDrawing && this.currentStrokePoints.length > 1) {
+      this.store.addStroke({
+        points: this.currentStrokePoints,
+        color: this.brushColor,
+        lineWidth: this.brushSize,
+        isEraser: this.currentTool === 'erase',
+      });
+    }
     this.isPanning = false;
     this.isDrawing = false;
+    this.currentStrokePoints = [];
+    this.render();
   }
 
   onWheel(event: WheelEvent) {
@@ -440,57 +468,63 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   private renderLiveStroke() {
     if (!this.drawCtx || this.currentStrokePoints.length < 2) return;
 
-    const ctx = this.drawCtx;
-    const points = this.currentStrokePoints;
-    
-    // Clear and redraw all strokes plus live stroke
-    this.renderStrokes();
-    
-    ctx.save();
-    ctx.translate(this.panX, this.panY);
-    ctx.scale(this.scale, this.scale);
+    // Use requestAnimationFrame for smoother rendering
+    requestAnimationFrame(() => {
+      if (!this.drawCtx) return;
+      
+      const ctx = this.drawCtx;
+      const points = this.currentStrokePoints;
+      
+      // Clear and redraw all strokes plus live stroke
+      this.renderStrokes();
+      
+      ctx.save();
+      ctx.translate(this.panX, this.panY);
+      ctx.scale(this.scale, this.scale);
 
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i].x, points[i].y);
-    }
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
 
-    if (this.currentTool === 'erase') {
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.strokeStyle = 'rgba(0,0,0,1)';
-    } else {
-      ctx.strokeStyle = this.brushColor;
-      ctx.shadowColor = this.brushColor;
-      ctx.shadowBlur = 8;
-    }
+      if (this.currentTool === 'erase') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.strokeStyle = 'rgba(0,0,0,1)';
+      } else {
+        ctx.strokeStyle = this.brushColor;
+      }
 
-    ctx.lineWidth = this.brushSize;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
+      ctx.lineWidth = this.brushSize;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
 
-    ctx.restore();
+      ctx.restore();
+    });
   }
 
   private expandGridIfNeeded(hex: HexCoord) {
     if (!this.battleMap) return;
     
     const bounds = this.battleMap.gridBounds;
+    const expandRadius = 5; // Expand in a radius around the hex
     let needsExpand = false;
-    const margin = 2;
 
+    // Check if hex is near the edge
+    const margin = 2;
     if (hex.q <= bounds.minQ + margin || hex.q >= bounds.maxQ - margin ||
         hex.r <= bounds.minR + margin || hex.r >= bounds.maxR - margin) {
       needsExpand = true;
     }
 
     if (needsExpand) {
+      // Expand in a circular pattern around the hex
       const newBounds = {
-        minQ: Math.min(bounds.minQ, hex.q - 3),
-        maxQ: Math.max(bounds.maxQ, hex.q + 3),
-        minR: Math.min(bounds.minR, hex.r - 3),
-        maxR: Math.max(bounds.maxR, hex.r + 3),
+        minQ: Math.min(bounds.minQ, hex.q - expandRadius),
+        maxQ: Math.max(bounds.maxQ, hex.q + expandRadius),
+        minR: Math.min(bounds.minR, hex.r - expandRadius),
+        maxR: Math.max(bounds.maxR, hex.r + expandRadius),
       };
       this.store.applyPatch({ path: 'gridBounds', value: newBounds });
     }
