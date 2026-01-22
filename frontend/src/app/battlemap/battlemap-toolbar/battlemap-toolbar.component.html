@@ -1,0 +1,79 @@
+<div class="toolbar">
+  <!-- Left: Panel toggles -->
+  <div class="toolbar-section">
+    <button 
+      class="toolbar-btn"
+      title="Toggle Character List"
+      (click)="toggleCharacterList.emit()"
+    >
+      <span class="btn-icon">👥</span>
+    </button>
+  </div>
+
+  <!-- Center: Tools -->
+  <div class="toolbar-section tools">
+    @for (tool of tools; track tool.id) {
+      <button 
+        class="toolbar-btn"
+        [class.active]="currentTool === tool.id"
+        [title]="tool.label"
+        (click)="selectTool(tool.id)"
+      >
+        <span class="btn-icon">{{ tool.icon }}</span>
+      </button>
+    }
+  </div>
+
+  <!-- Brush settings (visible when draw/erase selected) -->
+  @if (currentTool === 'draw' || currentTool === 'erase') {
+    <div class="toolbar-section brush-settings">
+      <!-- Color picker -->
+      @if (currentTool === 'draw') {
+        <div class="color-picker">
+          @for (color of presetColors; track color) {
+            <button 
+              class="color-swatch"
+              [class.active]="brushColor === color"
+              [style.background]="color"
+              [style.border-color]="color === '#ffffff' ? '#666' : color"
+              (click)="selectColor(color)"
+            ></button>
+          }
+          <label class="custom-color">
+            <input 
+              type="color" 
+              [value]="brushColor"
+              (input)="onColorInput($event)"
+            />
+            <span class="custom-color-preview" [style.background]="brushColor"></span>
+          </label>
+        </div>
+      }
+
+      <!-- Brush size -->
+      <div class="size-picker">
+        @for (size of brushSizes; track size) {
+          <button 
+            class="size-btn"
+            [class.active]="brushSize === size"
+            [title]="size + 'px'"
+            (click)="selectSize(size)"
+          >
+            <span class="size-dot" [style.width.px]="size" [style.height.px]="size"></span>
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Right: Panel toggles -->
+  <div class="toolbar-section">
+    <button 
+      class="toolbar-btn"
+      title="Toggle Battle Tracker"
+      (click)="toggleBattleTracker.emit()"
+    >
+      <span class="btn-icon">⚔️</span>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,183 @@
+import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
+import { Subscription } from 'rxjs';
+
+import { BattleMapStoreService } from '../services/battlemap-store.service';
+import { WorldStoreService } from '../services/world-store.service';
+import { BattlemapData, BattlemapToken, HexCoord, HexMath } from '../model/battlemap.model';
+import { CharacterSheet } from '../model/character-sheet-model';
+import { CharacterApiService } from '../services/character-api.service';
+
+import { BattlemapGridComponent } from './battlemap-grid/battlemap-grid.component';
+import { BattlemapToolbarComponent } from './battlemap-toolbar/battlemap-toolbar.component';
+import { BattlemapCharacterListComponent } from './battlemap-character-list/battlemap-character-list.component';
+import { BattlemapBattleTrackerComponent } from './battlemap-battle-tracker/battlemap-battle-tracker.component';
+
+export type ToolType = 'select' | 'draw' | 'erase' | 'measure';
+
+@Component({
+  selector: 'app-battlemap',
+  standalone: true,
+  imports: [
+    CommonModule,
+    BattlemapGridComponent,
+    BattlemapToolbarComponent,
+    BattlemapCharacterListComponent,
+    BattlemapBattleTrackerComponent,
+  ],
+  templateUrl: './battlemap.component.html',
+  styleUrl: './battlemap.component.css',
+})
+export class BattlemapComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
+  private store = inject(BattleMapStoreService);
+  private worldStore = inject(WorldStoreService);
+  private characterApi = inject(CharacterApiService);
+  
+  private subscriptions: Subscription[] = [];
+
+  // Route params
+  worldName = signal<string>('');
+  battleMapId = signal<string>('');
+
+  // Battlemap data
+  battleMap = signal<BattlemapData | null>(null);
+
+  // World characters for the character list
+  worldCharacters = signal<{ id: string; sheet: CharacterSheet }[]>([]);
+
+  // Current tool state
+  currentTool = signal<ToolType>('select');
+  brushColor = signal<string>('#ef4444');
+  brushSize = signal<number>(4);
+
+  // Computed: current turn character from world battle tracker
+  currentTurnCharacterId = computed(() => {
+    const world = this.worldStore.worldValue;
+    if (!world || !world.battleParticipants || world.battleParticipants.length === 0) {
+      return null;
+    }
+    const currentIndex = world.currentTurnIndex || 0;
+    if (currentIndex >= world.battleParticipants.length) return null;
+    return world.battleParticipants[currentIndex]?.characterId || null;
+  });
+
+  // Panel visibility
+  showCharacterList = signal(true);
+  showBattleTracker = signal(true);
+
+  ngOnInit() {
+    // Subscribe to route params
+    this.subscriptions.push(
+      this.route.paramMap.subscribe(async (params) => {
+        const worldName = params.get('worldName') || 'default';
+        const mapId = params.get('mapId') || 'default';
+        
+        this.worldName.set(worldName);
+        this.battleMapId.set(mapId);
+
+        // Load the battlemap
+        await this.store.load(worldName, mapId);
+        
+        // Also load world data for characters and battle tracker
+        await this.worldStore.load(worldName);
+        
+        // Load characters from the world
+        await this.loadWorldCharacters();
+      })
+    );
+
+    // Subscribe to battlemap changes
+    this.subscriptions.push(
+      this.store.battleMap$.subscribe((map) => {
+        this.battleMap.set(map);
+      })
+    );
+
+    // Subscribe to world changes (for battle tracker)
+    this.subscriptions.push(
+      this.worldStore.world$.subscribe(() => {
+        // World updated, recompute current turn
+        // The computed signal will handle this automatically
+      })
+    );
+  }
+
+  ngOnDestroy() {
+    this.subscriptions.forEach(s => s.unsubscribe());
+  }
+
+  private async loadWorldCharacters() {
+    const world = this.worldStore.worldValue;
+    if (!world) return;
+
+    const characters: { id: string; sheet: CharacterSheet }[] = [];
+    
+    for (const charId of world.characterIds || []) {
+      try {
+        const sheet = await this.characterApi.loadCharacter(charId);
+        if (sheet) {
+          characters.push({ id: charId, sheet });
+        }
+      } catch (e) {
+        console.error(`Failed to load character ${charId}:`, e);
+      }
+    }
+
+    this.worldCharacters.set(characters);
+  }
+
+  // Tool handlers
+  onToolChange(tool: ToolType) {
+    this.currentTool.set(tool);
+  }
+
+  onBrushColorChange(color: string) {
+    this.brushColor.set(color);
+  }
+
+  onBrushSizeChange(size: number) {
+    this.brushSize.set(size);
+  }
+
+  // Token handlers
+  onTokenDrop(data: { characterId: string; position: HexCoord }) {
+    const character = this.worldCharacters().find(c => c.id === data.characterId);
+    if (!character) return;
+
+    // Check if token already exists for this character
+    const existingToken = this.battleMap()?.tokens.find(t => t.characterId === data.characterId);
+    
+    if (existingToken) {
+      // Move existing token
+      this.store.moveToken(existingToken.id, data.position);
+    } else {
+      // Add new token
+      this.store.addToken({
+        characterId: data.characterId,
+        characterName: character.sheet.name || data.characterId,
+        portrait: character.sheet.portrait,
+        position: data.position,
+        team: 'blue',
+      });
+    }
+  }
+
+  onTokenMove(data: { tokenId: string; position: HexCoord }) {
+    this.store.moveToken(data.tokenId, data.position);
+  }
+
+  onTokenRemove(tokenId: string) {
+    this.store.removeToken(tokenId);
+  }
+
+  // Panel toggles
+  toggleCharacterList() {
+    this.showCharacterList.set(!this.showCharacterList());
+  }
+
+  toggleBattleTracker() {
+    this.showBattleTracker.set(!this.showBattleTracker());
+  }
+}

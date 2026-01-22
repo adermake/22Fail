@@ -1,0 +1,38 @@
+<div 
+  class="token"
+  [class.current-turn]="isCurrentTurn"
+  [style.left.px]="worldPosition.x"
+  [style.top.px]="worldPosition.y"
+  [style.width.px]="tokenSize"
+  [style.height.px]="tokenSize"
+  [style.--team-color]="teamColor"
+  draggable="true"
+  (dragstart)="onDragStart($event)"
+  (dragend)="onDragEnd($event)"
+  (contextmenu)="onContextMenu($event)"
+  (click)="closeContextMenu()"
+>
+  <div class="token-hexagon">
+    @if (token.portrait) {
+      <img [src]="token.portrait" [alt]="token.characterName" class="portrait" />
+    } @else {
+      <div class="initials">{{ initials }}</div>
+    }
+  </div>
+  
+  <div class="token-name">{{ token.characterName }}</div>
+
+  <!-- Glow effect for current turn -->
+  @if (isCurrentTurn) {
+    <div class="turn-glow"></div>
+  }
+
+  <!-- Context menu -->
+  @if (showContextMenu) {
+    <div class="context-menu" (click)="$event.stopPropagation()">
+      <button class="menu-item danger" (click)="onRemove()">
+        <span>🗑️</span> Remove
+      </button>
+    </div>
+  }
+</div>

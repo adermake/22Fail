@@ -1,0 +1,42 @@
+<div 
+  #container 
+  class="grid-container"
+  (mousedown)="onMouseDown($event)"
+  (mousemove)="onMouseMove($event)"
+  (mouseup)="onMouseUp($event)"
+  (mouseleave)="onMouseLeave()"
+  (wheel)="onWheel($event)"
+  (dragover)="onDragOver($event)"
+  (drop)="onDrop($event)"
+>
+  <!-- Grid canvas (hexagons, measurement) -->
+  <canvas #gridCanvas class="grid-canvas"></canvas>
+  
+  <!-- Drawing canvas (strokes) -->
+  <canvas #drawCanvas class="draw-canvas"></canvas>
+
+  <!-- Tokens layer -->
+  <div class="tokens-layer" [style.transform]="'translate(' + panX + 'px, ' + panY + 'px) scale(' + scale + ')'">
+    @if (battleMap) {
+      @for (token of battleMap.tokens; track token.id) {
+        <app-battlemap-token
+          [token]="token"
+          [isCurrentTurn]="isTokenCurrentTurn(token)"
+          [position]="getTokenScreenPosition(token)"
+          [scale]="scale"
+          (dragStart)="onTokenDragStart(token.id)"
+          (dragEnd)="onTokenDragEnd($event, token.id)"
+          (remove)="tokenRemove.emit(token.id)"
+        />
+      }
+    }
+  </div>
+
+  <!-- Measurement display -->
+  @if (measureDistance() > 0) {
+    <div class="measure-info">
+      <span class="measure-icon">📏</span>
+      <span class="measure-value">{{ measureDistance() }} ft</span>
+    </div>
+  }
+</div>

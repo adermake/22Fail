@@ -1,0 +1,40 @@
+<div class="battlemap-container">
+  <!-- Top Toolbar -->
+  <app-battlemap-toolbar
+    [currentTool]="currentTool()"
+    [brushColor]="brushColor()"
+    [brushSize]="brushSize()"
+    (toolChange)="onToolChange($event)"
+    (brushColorChange)="onBrushColorChange($event)"
+    (brushSizeChange)="onBrushSizeChange($event)"
+    (toggleCharacterList)="toggleCharacterList()"
+    (toggleBattleTracker)="toggleBattleTracker()"
+  />
+
+  <div class="battlemap-content">
+    <!-- Left Panel: Character List -->
+    @if (showCharacterList()) {
+      <app-battlemap-character-list
+        [characters]="worldCharacters()"
+        [tokensOnMap]="battleMap()?.tokens || []"
+      />
+    }
+
+    <!-- Main Grid Area -->
+    <app-battlemap-grid
+      [battleMap]="battleMap()"
+      [currentTool]="currentTool()"
+      [brushColor]="brushColor()"
+      [brushSize]="brushSize()"
+      [currentTurnCharacterId]="currentTurnCharacterId()"
+      (tokenDrop)="onTokenDrop($event)"
+      (tokenMove)="onTokenMove($event)"
+      (tokenRemove)="onTokenRemove($event)"
+    />
+
+    <!-- Right Panel: Battle Tracker -->
+    @if (showBattleTracker()) {
+      <app-battlemap-battle-tracker />
+    }
+  </div>
+</div>

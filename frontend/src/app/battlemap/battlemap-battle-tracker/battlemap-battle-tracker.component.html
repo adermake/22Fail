@@ -1,0 +1,51 @@
+<div class="battle-tracker">
+  <div class="tracker-header">
+    <h3>⚔️ Battle Tracker</h3>
+    <span class="view-only-badge">View Only</span>
+  </div>
+
+  <div class="tracker-content">
+    @if (participants.length === 0) {
+      <div class="empty-state">
+        <span class="empty-icon">⚔️</span>
+        <p>No battle in progress</p>
+        <p class="sub-text">The GM can start a battle from the World view</p>
+      </div>
+    } @else {
+      <div class="turn-queue">
+        @for (participant of participants; track participant.characterId; let i = $index) {
+          <div 
+            class="participant-card"
+            [class.current-turn]="isCurrentTurn(i)"
+            [style.--team-color]="getTeamColor(participant.team)"
+          >
+            <div class="turn-indicator">
+              @if (isCurrentTurn(i)) {
+                <span class="current-marker">▶</span>
+              } @else {
+                <span class="turn-number">{{ i + 1 }}</span>
+              }
+            </div>
+
+            <div class="participant-portrait">
+              @if (participant.portrait) {
+                <img [src]="participant.portrait" [alt]="participant.name" />
+              } @else {
+                <div class="participant-initials">{{ getInitials(participant.name) }}</div>
+              }
+            </div>
+
+            <div class="participant-info">
+              <div class="participant-name">{{ participant.name }}</div>
+              <div class="participant-stats">
+                <span class="speed-badge" title="Speed">⚡ {{ participant.speed }}</span>
+              </div>
+            </div>
+
+            <div class="team-indicator" [style.background]="getTeamColor(participant.team)"></div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
