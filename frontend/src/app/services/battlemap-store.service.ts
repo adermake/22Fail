@@ -13,6 +13,10 @@ export class BattleMapStoreService {
   worldName!: string;
   battleMapId!: string;
   private pendingPatchPaths = new Set<string>();
+  
+  // Undo history for strokes
+  private strokeUndoHistory: BattlemapStroke[][] = [];
+  private maxUndoHistory = 50;
 
   private api = inject(BattleMapApiService);
   private socket = inject(BattleMapSocketService);
@@ -127,6 +131,12 @@ export class BattleMapStoreService {
     const battleMap = this.battleMapValue;
     if (!battleMap) return;
 
+    // Save current state to undo history before adding
+    this.strokeUndoHistory.push([...battleMap.strokes]);
+    if (this.strokeUndoHistory.length > this.maxUndoHistory) {
+      this.strokeUndoHistory.shift();
+    }
+
     const newStroke: BattlemapStroke = {
       ...stroke,
       id: generateId(),
@@ -136,7 +146,25 @@ export class BattleMapStoreService {
     this.applyPatch({ path: 'strokes', value: strokes });
   }
 
+  undoStroke(): boolean {
+    const battleMap = this.battleMapValue;
+    if (!battleMap || this.strokeUndoHistory.length === 0) return false;
+
+    const previousStrokes = this.strokeUndoHistory.pop()!;
+    this.applyPatch({ path: 'strokes', value: previousStrokes });
+    return true;
+  }
+
   clearStrokes() {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+    
+    // Save current state before clearing
+    this.strokeUndoHistory.push([...battleMap.strokes]);
+    if (this.strokeUndoHistory.length > this.maxUndoHistory) {
+      this.strokeUndoHistory.shift();
+    }
+    
     this.applyPatch({ path: 'strokes', value: [] });
   }
 

@@ -28,6 +28,15 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   @Input() brushColor = '#ef4444';
   @Input() penBrushSize = 4;
   @Input() eraserBrushSize = 12;
+
+  // Handle Ctrl+Z for undo
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent) {
+    if (event.ctrlKey && event.key === 'z') {
+      event.preventDefault();
+      this.store.undoStroke();
+    }
+  }
   @Input() drawWithWalls = false;
   @Input() dragMode: DragMode = 'free';
   @Input() currentTurnCharacterId: string | null = null;
@@ -387,6 +396,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     const waypoints = this.dragWaypoints();
     const startHex = this.dragStartHex();
     const isInvalid = this.dragPathInvalid();
+    const token = this.draggingToken;
     
     if (!startHex || path.length === 0) return;
 
@@ -395,7 +405,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     // Color based on path validity
     const pathColor = isInvalid ? '#ef4444' : '#22c55e'; // Red if invalid, green if valid
 
-    // Build complete path: start -> waypoints -> current
+    // Build complete path: start -> waypoints -> current target
     const pathPoints: { x: number; y: number }[] = [];
     
     // Add start point
@@ -453,7 +463,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       // Draw waypoint circle
       ctx.beginPath();
       ctx.arc(screen.x, screen.y, 8, 0, Math.PI * 2);
-      ctx.fillStyle = isInvalid ? '#f87171' : '#f59e0b'; // Lighter red for waypoints when invalid
+      ctx.fillStyle = isInvalid ? '#f87171' : '#f59e0b';
       ctx.fill();
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
@@ -486,18 +496,38 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Calculate and draw total distance
-    const totalHexDistance = waypoints.length + path.length;
+    // Calculate total distance through all waypoints + path
+    let totalHexDistance = 0;
+    let lastHex = startHex;
+    
+    // Distance through waypoints
+    for (const wp of waypoints) {
+      totalHexDistance += HexMath.hexDistance(lastHex, wp);
+      lastHex = wp;
+    }
+    
+    // Distance for the final segment (path length - 1 because path includes start point)
+    if (path.length > 1) {
+      totalHexDistance += path.length - 1;
+    } else if (path.length === 1) {
+      // Direct line (blocked case) - use hex distance
+      const endHex = path[path.length - 1];
+      totalHexDistance += HexMath.hexDistance(lastHex, endHex);
+    }
+    
     const totalMeters = totalHexDistance * 1.5;
+    const maxMoves = token?.movementSpeed || 100;
+    const maxMeters = maxMoves * 1.5;
 
-    // Draw distance at end point
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(endPoint.x + 10, endPoint.y - 12, 60, 24);
+    // Draw distance at end point (above tokens - will be rendered last)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    const labelWidth = 80;
+    ctx.fillRect(endPoint.x + 10, endPoint.y - 14, labelWidth, 28);
     ctx.fillStyle = pathColor;
     ctx.font = 'bold 14px system-ui';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${totalMeters.toFixed(1)} m`, endPoint.x + 40, endPoint.y);
+    ctx.fillText(`${totalMeters.toFixed(1)}/${maxMeters}m`, endPoint.x + 10 + labelWidth / 2, endPoint.y);
 
     ctx.restore();
   }
@@ -617,21 +647,38 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       // Calculate path for enforced movement mode
       if (this.dragMode === 'enforced' && !this.draggingToken.isOnTheFly) {
         const walls = this.battleMap?.walls || [];
-        const maxMoves = this.draggingToken.movementSpeed || 100; // Default high if not set
-        const path = HexMath.findPath(this.draggingToken.position, hoverHex, walls, maxMoves);
+        const maxMoves = this.draggingToken.movementSpeed || 100;
+        const waypoints = this.dragWaypoints();
         
-        // Check if path is valid and within movement range
+        // Calculate total distance used by waypoints
+        let waypointDistance = 0;
+        let lastPos = this.draggingToken.position;
+        for (const wp of waypoints) {
+          waypointDistance += HexMath.hexDistance(lastPos, wp);
+          lastPos = wp;
+        }
+        
+        // Find path from last waypoint (or start) to hover hex
+        const startForPath = waypoints.length > 0 ? waypoints[waypoints.length - 1] : this.draggingToken.position;
+        const remainingMoves = maxMoves - waypointDistance;
+        
+        // Try to find a valid path
+        const path = remainingMoves > 0 
+          ? HexMath.findPath(startForPath, hoverHex, walls, remainingMoves)
+          : null;
+        
         if (path && path.length > 0) {
-          const totalDistance = this.dragWaypoints().length + path.length;
-          const isBlocked = path.length === 0;
+          // Valid path found - check if total is too far
+          const totalDistance = waypointDistance + path.length - 1; // -1 because path includes start
           const isTooFar = totalDistance > maxMoves;
           
-          this.dragPathInvalid.set(isBlocked || isTooFar);
+          this.dragPathInvalid.set(isTooFar);
           this.dragPath.set(path);
         } else {
-          // No valid path found - blocked
+          // No valid path - show direct line in red
           this.dragPathInvalid.set(true);
-          this.dragPath.set([]);
+          // Create a direct path for visualization (just start and end)
+          this.dragPath.set([startForPath, hoverHex]);
         }
       } else {
         this.dragPathInvalid.set(false);

@@ -45,6 +45,9 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   // Battlemap data
   battleMap = signal<BattlemapData | null>(null);
 
+  // World data signal for reactive updates
+  world = signal<any>(null);
+
   // World characters for the character list
   worldCharacters = signal<{ id: string; sheet: CharacterSheet }[]>([]);
 
@@ -58,7 +61,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   // Computed: current turn character from world battle tracker
   currentTurnCharacterId = computed(() => {
-    const world = this.worldStore.worldValue;
+    const world = this.world();
     if (!world || !world.battleParticipants || world.battleParticipants.length === 0) {
       return null;
     }
@@ -69,7 +72,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   // Computed: battle participants from world
   battleParticipants = computed(() => {
-    const world = this.worldStore.worldValue;
+    const world = this.world();
     return world?.battleParticipants || [];
   });
 
@@ -105,11 +108,11 @@ export class BattlemapComponent implements OnInit, OnDestroy {
       })
     );
 
-    // Subscribe to world changes (for battle tracker)
+    // Subscribe to world changes (for battle tracker and team colors)
     this.subscriptions.push(
-      this.worldStore.world$.subscribe(() => {
-        // World updated, recompute current turn
-        // The computed signal will handle this automatically
+      this.worldStore.world$.subscribe((world) => {
+        // Update world signal for reactive computed properties
+        this.world.set(world);
       })
     );
   }

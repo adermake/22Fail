@@ -37,12 +37,17 @@
 
             <div class="participant-info">
               <div class="participant-name">{{ participant.name }}</div>
+              @if (participant.maxHealth && participant.maxHealth > 0) {
+                <div class="health-bar-container">
+                  <div class="health-bar" 
+                       [style.width.%]="getHealthPercent(participant)"
+                       [class.health-low]="getHealthPercent(participant) <= 25"
+                       [class.health-medium]="getHealthPercent(participant) > 25 && getHealthPercent(participant) <= 50">
+                  </div>
+                  <span class="health-text">{{ participant.currentHealth || 0 }}/{{ participant.maxHealth }}</span>
+                </div>
+              }
               <div class="participant-stats">
-                @if (participant.maxHealth) {
-                  <span class="health-badge" title="Health">
-                    ❤️ {{ participant.currentHealth || 0 }}/{{ participant.maxHealth }}
-                  </span>
-                }
                 <span class="speed-badge" title="Speed">⚡ {{ participant.speed }}</span>
               </div>
             </div>

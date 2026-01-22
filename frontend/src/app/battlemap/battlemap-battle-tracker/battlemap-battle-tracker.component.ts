@@ -54,4 +54,10 @@ export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
       .substring(0, 2)
       .toUpperCase();
   }
+
+  getHealthPercent(participant: BattleParticipant): number {
+    if (!participant.maxHealth || participant.maxHealth <= 0) return 0;
+    const current = participant.currentHealth || 0;
+    return Math.round((current / participant.maxHealth) * 100);
+  }
 }
