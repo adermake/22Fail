@@ -441,12 +441,24 @@ export class MyBattleEngine extends BattleTimelineEngine {
       bestParticipant.nextTurn = bestTurn + 1;
     }
     
+    console.log('[BATTLE ENGINE] Before sort, scriptedCount =', this.scriptedCount);
+    console.log('[BATTLE ENGINE] Tiles before sort:', this.tiles.map(t => `${t.name}_t${t.turn}(timing=${t.timing})`).join(', '));
+    
     // Sort calculated portion by timing (keep scripted portion in place)
     // Only sort tiles after the scripted count
     const scriptedPortion = this.tiles.slice(0, this.scriptedCount);
     const calculatedPortion = this.tiles.slice(this.scriptedCount);
+    
+    console.log('[BATTLE ENGINE] Scripted portion:', scriptedPortion.map(t => `${t.name}_t${t.turn}`).join(', '));
+    console.log('[BATTLE ENGINE] Calculated portion before sort:', calculatedPortion.map(t => `${t.name}_t${t.turn}(timing=${t.timing})`).join(', '));
+    
     calculatedPortion.sort((a, b) => a.timing - b.timing);
+    
+    console.log('[BATTLE ENGINE] Calculated portion after sort:', calculatedPortion.map(t => `${t.name}_t${t.turn}(timing=${t.timing})`).join(', '));
+    
     this.tiles = [...scriptedPortion, ...calculatedPortion];
+    
+    console.log('[BATTLE ENGINE] Final tiles after sort:', this.tiles.map(t => `${t.name}_t${t.turn}(timing=${t.timing})`).join(', '));
   }
 
   onResetBattle(): void {
