@@ -47,6 +47,9 @@ export class MyBattleEngine extends BattleTimelineEngine {
 
   // How many tiles at the front are "scripted" (locked in)
   private scriptedCount: number = 0;
+  
+  // Flag to prevent reload loops when we're saving
+  private isSaving: boolean = false;
 
   // ===========================================
   // SETUP & PERSISTENCE
@@ -66,6 +69,12 @@ export class MyBattleEngine extends BattleTimelineEngine {
    */
   loadFromWorldStore() {
     console.log('[BATTLE ENGINE] loadFromWorldStore() called');
+    
+    // Skip reload if we're currently saving (prevents reload loops)
+    if (this.isSaving) {
+      console.log('[BATTLE ENGINE] Skipping reload - currently saving');
+      return;
+    }
     
     if (!this.worldStore) {
       console.log('[BATTLE ENGINE] No world store, skipping load');
@@ -181,10 +190,18 @@ export class MyBattleEngine extends BattleTimelineEngine {
     
     console.log('[BATTLE ENGINE] Saving to world store (without portraits):', battleParticipants.map(p => p.name).join(', '));
     
+    // Set flag to prevent reload loop
+    this.isSaving = true;
+    
     this.worldStore.applyPatch({
       path: 'battleParticipants',
       value: battleParticipants
     });
+    
+    // Clear flag after a short delay (allows the subscription to skip the reload)
+    setTimeout(() => {
+      this.isSaving = false;
+    }, 100);
   }
 
   setAvailableCharacters(
