@@ -222,14 +222,58 @@ export class MyBattleEngine extends BattleTimelineEngine {
   // ===========================================
 
   getTimeline(): TimelineGroup[] {
-    return this.tiles.map((tile, index) => ({
-      id: `group_${tile.id}`, // Use tile id for stable group tracking
-      tiles: [{
+    if (this.tiles.length === 0) return [];
+    
+    // Group adjacent tiles that have the same team
+    // BUT: a character cannot be grouped with themselves (only different characters)
+    const groups: TimelineGroup[] = [];
+    let currentGroup: TimelineTile[] = [];
+    let currentTeam: string | null = null;
+    let currentGroupCharacterIds = new Set<string>();
+    
+    for (let i = 0; i < this.tiles.length; i++) {
+      const tile = this.tiles[i];
+      const tileWithScripted = {
         ...tile,
-        isScripted: index < this.scriptedCount, // Mark if this tile is scripted
-      }],
-      team: tile.team,
-    }));
+        isScripted: i < this.scriptedCount,
+      };
+      
+      // Check if we should start a new group
+      const shouldStartNewGroup = 
+        currentTeam === null ||  // First tile
+        tile.team !== currentTeam ||  // Different team
+        currentGroupCharacterIds.has(tile.characterId);  // Same character already in group
+      
+      if (shouldStartNewGroup) {
+        // Save the current group if it has tiles
+        if (currentGroup.length > 0) {
+          groups.push({
+            id: `group_${groups.length}_${currentGroup[0].id}`,
+            tiles: currentGroup,
+            team: currentTeam!,
+          });
+        }
+        // Start a new group
+        currentGroup = [tileWithScripted];
+        currentTeam = tile.team;
+        currentGroupCharacterIds = new Set([tile.characterId]);
+      } else {
+        // Add to current group
+        currentGroup.push(tileWithScripted);
+        currentGroupCharacterIds.add(tile.characterId);
+      }
+    }
+    
+    // Don't forget the last group
+    if (currentGroup.length > 0) {
+      groups.push({
+        id: `group_${groups.length}_${currentGroup[0].id}`,
+        tiles: currentGroup,
+        team: currentTeam!,
+      });
+    }
+    
+    return groups;
   }
 
   getCharacters(): CharacterOption[] {
@@ -324,6 +368,17 @@ export class MyBattleEngine extends BattleTimelineEngine {
   private appendCalculatedTiles(): void {
     if (this.participants.size === 0) return;
 
+    // First, sync nextTurn with existing tiles to avoid duplicates
+    for (const participant of this.participants.values()) {
+      const maxTurnInTiles = this.tiles
+        .filter(t => t.characterId === participant.characterId)
+        .reduce((max, t) => Math.max(max, t.turn), 0);
+      
+      if (maxTurnInTiles >= participant.nextTurn) {
+        participant.nextTurn = maxTurnInTiles + 1;
+      }
+    }
+
     while (this.tiles.length < 10) {
       // Find which character should go next (lowest timing for their next turn)
       let bestParticipant: Participant | undefined;
@@ -356,6 +411,13 @@ export class MyBattleEngine extends BattleTimelineEngine {
       this.tiles.push(newTile);
       bestParticipant.nextTurn = bestTurn + 1;
     }
+    
+    // Sort calculated portion by timing (keep scripted portion in place)
+    // Only sort tiles after the scripted count
+    const scriptedPortion = this.tiles.slice(0, this.scriptedCount);
+    const calculatedPortion = this.tiles.slice(this.scriptedCount);
+    calculatedPortion.sort((a, b) => a.timing - b.timing);
+    this.tiles = [...scriptedPortion, ...calculatedPortion];
   }
 
   onResetBattle(): void {
@@ -390,6 +452,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
   onTileDrop(tileId: string, targetGroupIndex: number, position: 'before' | 'after'): void {
     console.log('[BATTLE ENGINE] onTileDrop called:', { tileId, targetGroupIndex, position, tilesLength: this.tiles.length });
     
+    // Find the dragged tile
     const tileIndex = this.tiles.findIndex((t) => t.id === tileId);
     if (tileIndex === -1) {
       console.log('[BATTLE ENGINE] Tile not found:', tileId);
@@ -398,16 +461,29 @@ export class MyBattleEngine extends BattleTimelineEngine {
 
     const draggedTile = this.tiles[tileIndex];
     const draggedCharId = draggedTile.characterId;
-    console.log('[BATTLE ENGINE] Dragged tile:', draggedTile.name, 'from index', tileIndex);
+    console.log('[BATTLE ENGINE] Dragged tile:', draggedTile.name, 'from tile index', tileIndex);
 
-    // Calculate target position in tiles array
-    let targetIndex = targetGroupIndex;
-    if (position === 'after') {
-      targetIndex++;
+    // Convert group index to tile index
+    // We need to get the current timeline (groups) to figure out which tiles are in which group
+    const timeline = this.getTimeline();
+    
+    // Find the target tile index based on group index and position
+    let targetTileIndex = 0;
+    for (let g = 0; g < targetGroupIndex; g++) {
+      if (timeline[g]) {
+        targetTileIndex += timeline[g].tiles.length;
+      }
     }
+    
+    // If position is 'after', we want to go after the target group
+    if (position === 'after' && timeline[targetGroupIndex]) {
+      targetTileIndex += timeline[targetGroupIndex].tiles.length;
+    }
+    
+    console.log('[BATTLE ENGINE] Converted group index', targetGroupIndex, 'to tile index', targetTileIndex);
 
-    // Can't drop before current position (no going backwards in time)
-    if (targetIndex <= tileIndex) {
+    // Can't drop before or at current position (no going backwards in time)
+    if (targetTileIndex <= tileIndex) {
       console.log('[BATTLE ENGINE] Cannot drop before current position');
       this.notifyChange();
       return;
@@ -419,7 +495,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
     // Step 2: Figure out where to insert relative to other characters' tiles
     let insertAt = 0;
     let originalIndex = 0;
-    for (let i = 0; i < this.tiles.length && originalIndex < targetIndex; i++) {
+    for (let i = 0; i < this.tiles.length && originalIndex < targetTileIndex; i++) {
       if (this.tiles[i].characterId !== draggedCharId) {
         insertAt++;
       }

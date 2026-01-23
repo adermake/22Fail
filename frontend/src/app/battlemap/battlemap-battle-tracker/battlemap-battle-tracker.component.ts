@@ -15,7 +15,7 @@ import { BattleParticipant, WorldData } from '../../model/world.model';
 export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
   private worldStore = inject(WorldStoreService);
   private battlemapStore = inject(BattleMapStoreService);
-  private subscription?: Subscription;
+  private subscriptions: Subscription[] = [];
 
   world: WorldData | null = null;
   participants: BattleParticipant[] = [];
@@ -25,26 +25,42 @@ export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
   private portraitMap = new Map<string, string>();
 
   ngOnInit() {
-    this.subscription = this.worldStore.world$.subscribe(world => {
-      console.log('[BATTLEMAP TRACKER] World update received, battleParticipants:', world?.battleParticipants?.length || 0);
-      this.world = world;
-      this.participants = world?.battleParticipants || [];
-      this.currentTurnIndex = world?.currentTurnIndex || 0;
-      this.updatePortraitMap();
-    });
+    // Subscribe to world updates
+    this.subscriptions.push(
+      this.worldStore.world$.subscribe(world => {
+        console.log('[BATTLEMAP TRACKER] World update received, battleParticipants:', world?.battleParticipants?.length || 0);
+        this.world = world;
+        this.participants = world?.battleParticipants || [];
+        this.currentTurnIndex = world?.currentTurnIndex || 0;
+        this.updatePortraitMap();
+      })
+    );
+    
+    // Subscribe to battlemap updates to get token portraits
+    this.subscriptions.push(
+      this.battlemapStore.battleMap$.subscribe(() => {
+        this.updatePortraitMap();
+      })
+    );
   }
   
   // Build portrait map from battlemap tokens
   private updatePortraitMap() {
     const battlemap = this.battlemapStore.battleMapValue;
-    if (!battlemap?.tokens) return;
+    if (!battlemap?.tokens) {
+      console.log('[BATTLEMAP TRACKER] No battlemap tokens available for portrait lookup');
+      return;
+    }
     
+    console.log('[BATTLEMAP TRACKER] Building portrait map from', battlemap.tokens.length, 'tokens');
     this.portraitMap.clear();
     for (const token of battlemap.tokens) {
       if (token.portrait && !this.portraitMap.has(token.characterId)) {
         this.portraitMap.set(token.characterId, token.portrait);
+        console.log('[BATTLEMAP TRACKER] Added portrait for', token.characterId);
       }
     }
+    console.log('[BATTLEMAP TRACKER] Portrait map size:', this.portraitMap.size);
   }
   
   // Get portrait for a participant - look it up from tokens
@@ -56,7 +72,7 @@ export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    this.subscription?.unsubscribe();
+    this.subscriptions.forEach(s => s.unsubscribe());
   }
 
   isCurrentTurn(index: number): boolean {
