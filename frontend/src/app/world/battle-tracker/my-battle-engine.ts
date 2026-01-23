@@ -112,10 +112,13 @@ export class MyBattleEngine extends BattleTimelineEngine {
     
     // Load participants - they start at turn 1 in the order they appear
     for (const bp of sortedParticipants) {
+      // Look up portrait from allCharacters (not from saved data)
+      const char = this.allCharacters.find(c => c.id === bp.characterId);
+      
       this.participants.set(bp.characterId, {
         characterId: bp.characterId,
         name: bp.name,
-        portrait: bp.portrait,
+        portrait: char?.portrait, // Look up from allCharacters
         team: bp.team || 'blue',
         speed: bp.speed,
         nextTurn: 1, // Everyone starts at turn 1 when loading
@@ -334,6 +337,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
 
   onNextTurn(): void {
     console.log('[BATTLE ENGINE] onNextTurn called, tiles.length =', this.tiles.length);
+    console.log('[BATTLE ENGINE] Current timeline:', this.tiles.map(t => `${t.name}_t${t.turn}`).join(', '));
     
     if (this.tiles.length === 0) {
       console.log('[BATTLE ENGINE] No tiles, skipping next turn');
@@ -342,22 +346,27 @@ export class MyBattleEngine extends BattleTimelineEngine {
 
     // Remove the first tile (current turn)
     const completedTile = this.tiles.shift()!;
-    console.log('[BATTLE ENGINE] Completed turn for:', completedTile.name);
+    console.log('[BATTLE ENGINE] Completed turn for:', completedTile.name, 'turn', completedTile.turn);
+    console.log('[BATTLE ENGINE] Remaining tiles after shift:', this.tiles.map(t => `${t.name}_t${t.turn}`).join(', '));
 
     // If we consumed a scripted tile, decrement the count
     if (this.scriptedCount > 0) {
       this.scriptedCount--;
+      console.log('[BATTLE ENGINE] Decremented scriptedCount to:', this.scriptedCount);
     }
 
     // Update that character's next turn number
     const participant = this.participants.get(completedTile.characterId);
     if (participant) {
+      const oldNextTurn = participant.nextTurn;
       // Always advance past the completed turn
       participant.nextTurn = Math.max(participant.nextTurn, completedTile.turn + 1);
+      console.log('[BATTLE ENGINE] Updated', participant.name, 'nextTurn from', oldNextTurn, 'to', participant.nextTurn);
     }
 
     // Fill timeline back to 10 tiles
     this.appendCalculatedTiles();
+    console.log('[BATTLE ENGINE] After appendCalculatedTiles:', this.tiles.map(t => `${t.name}_t${t.turn}`).join(', '));
     this.notifyChange();
     
     // Persist to world store
@@ -368,6 +377,8 @@ export class MyBattleEngine extends BattleTimelineEngine {
   private appendCalculatedTiles(): void {
     if (this.participants.size === 0) return;
 
+    console.log('[BATTLE ENGINE] appendCalculatedTiles: Starting with', this.tiles.length, 'tiles');
+    
     // First, sync nextTurn with existing tiles to avoid duplicates
     for (const participant of this.participants.values()) {
       const maxTurnInTiles = this.tiles
@@ -375,6 +386,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
         .reduce((max, t) => Math.max(max, t.turn), 0);
       
       if (maxTurnInTiles >= participant.nextTurn) {
+        console.log('[BATTLE ENGINE] Syncing', participant.name, 'nextTurn from', participant.nextTurn, 'to', maxTurnInTiles + 1);
         participant.nextTurn = maxTurnInTiles + 1;
       }
     }
@@ -616,7 +628,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
         id: `${bp.characterId}_turn_1`,
         characterId: bp.characterId,
         name: bp.name,
-        portrait: bp.portrait,
+        portrait: participant.portrait, // Use portrait from participants map (looked up from allCharacters)
         team: bp.team || 'blue',
         turn: 1,
         timing: baseTiming++, // Use incrementing timing to preserve order
