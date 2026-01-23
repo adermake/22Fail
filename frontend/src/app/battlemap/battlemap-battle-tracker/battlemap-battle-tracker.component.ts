@@ -21,6 +21,7 @@ export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.subscription = this.worldStore.world$.subscribe(world => {
+      console.log('[BATTLEMAP TRACKER] World update received, battleParticipants:', world?.battleParticipants?.length || 0);
       this.world = world;
       this.participants = world?.battleParticipants || [];
       this.currentTurnIndex = world?.currentTurnIndex || 0;

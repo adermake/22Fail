@@ -27,9 +27,10 @@ interface Participant {
  * - Calculated: Predicted based on speed, can shift
  * 
  * STATE PERSISTENCE:
- * - All state is stored in WorldStore.battleParticipants
- * - The engine reads from and writes to the WorldStore
- * - This ensures persistence across page reloads and sync with battlemap
+ * - The engine saves the TIMELINE (tiles array) to WorldStore.battleParticipants
+ * - The order of battleParticipants IS the turn order
+ * - This ensures the battlemap tracker shows the same order
+ * - scriptedCount is stored in the first entry to preserve locked-in turns
  */
 export class MyBattleEngine extends BattleTimelineEngine {
   // Reference to the world store for persistence
@@ -38,7 +39,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
   // Characters available to add to battle
   private allCharacters: { id: string; name: string; portrait?: string; speed: number }[] = [];
 
-  // Characters currently in battle with their state (derived from worldStore)
+  // Characters currently in battle with their state
   private participants: Map<string, Participant> = new Map();
 
   // The displayed timeline (scripted + calculated)
@@ -59,59 +60,121 @@ export class MyBattleEngine extends BattleTimelineEngine {
   }
 
   /**
-   * Load state from WorldStore's battleParticipants
+   * Load state from WorldStore's battleParticipants.
+   * Each entry represents one CHARACTER (not one turn).
+   * The nextTurnAt value indicates when they next act (for ordering).
    */
   loadFromWorldStore() {
-    if (!this.worldStore) return;
+    console.log('[BATTLE ENGINE] loadFromWorldStore() called');
+    
+    if (!this.worldStore) {
+      console.log('[BATTLE ENGINE] No world store, skipping load');
+      return;
+    }
     
     const world = this.worldStore.worldValue;
-    if (!world) return;
+    if (!world) {
+      console.log('[BATTLE ENGINE] No world data available, skipping load');
+      return;
+    }
+    
+    const savedParticipants = world.battleParticipants || [];
+    console.log('[BATTLE ENGINE] Loading from world store, battleParticipants:', JSON.stringify(savedParticipants));
+    
+    if (savedParticipants.length === 0) {
+      console.log('[BATTLE ENGINE] No participants, clearing state');
+      // No battle in progress
+      this.participants.clear();
+      this.tiles = [];
+      this.scriptedCount = 0;
+      this.notifyChange();
+      return;
+    }
     
     // Clear current state
     this.participants.clear();
     this.tiles = [];
-    this.scriptedCount = 0;
     
-    // Load participants from world
-    for (const bp of world.battleParticipants || []) {
+    // First, extract scriptedCount from first participant's turnFrequency
+    // We use turnFrequency >= 10000 to indicate scriptedCount
+    const firstParticipant = savedParticipants[0];
+    if (firstParticipant && firstParticipant.turnFrequency >= 10000) {
+      this.scriptedCount = firstParticipant.turnFrequency - 10000;
+      console.log('[BATTLE ENGINE] Extracted scriptedCount from turnFrequency:', this.scriptedCount);
+    } else {
+      this.scriptedCount = 0;
+    }
+    
+    // Sort by nextTurnAt to get the turn order (smaller = earlier)
+    const sortedParticipants = [...savedParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+    
+    console.log('[BATTLE ENGINE] Sorted participants:', sortedParticipants.map(p => `${p.name}(order=${p.nextTurnAt})`).join(', '));
+    
+    // Load participants - they start at turn 1 in the order they appear
+    for (const bp of sortedParticipants) {
       this.participants.set(bp.characterId, {
         characterId: bp.characterId,
         name: bp.name,
         portrait: bp.portrait,
         team: bp.team || 'blue',
         speed: bp.speed,
-        nextTurn: Math.floor(bp.nextTurnAt / 100) + 1 || 1, // Convert timing back to turn number
+        nextTurn: 1, // Everyone starts at turn 1 when loading
       });
     }
     
-    // Rebuild timeline from loaded participants
-    if (this.participants.size > 0) {
-      this.rebuildTimeline();
-    }
+    // Build the timeline respecting the saved order for first round
+    this.tiles = [];
+    this.buildInitialTimeline(sortedParticipants);
+    
+    // Re-apply scriptedCount (cap to tile length)
+    this.scriptedCount = Math.min(this.scriptedCount, this.tiles.length);
+    
+    console.log('[BATTLE ENGINE] After fillTimeline: tiles count =', this.tiles.length);
+    console.log('[BATTLE ENGINE] Timeline:', this.tiles.map(t => `${t.name}(turn ${t.turn})`).join(', '));
     
     this.notifyChange();
   }
 
   /**
-   * Save current state to WorldStore
+   * Save current state to WorldStore.
+   * We save participants in TIMELINE ORDER (based on first appearance in tiles).
+   * This ensures the battlemap tracker shows them in the correct order.
    */
   private saveToWorldStore() {
-    if (!this.worldStore) return;
+    if (!this.worldStore) {
+      console.log('[BATTLE ENGINE] No world store, cannot save');
+      return;
+    }
     
-    // Convert participants to BattleParticipant format
+    // Build battleParticipants in the order they appear in the timeline
+    // Each character appears once, based on their FIRST tile in the timeline
     const battleParticipants: BattleParticipant[] = [];
+    const seen = new Set<string>();
     
-    for (const p of this.participants.values()) {
+    for (const tile of this.tiles) {
+      if (seen.has(tile.characterId)) continue;
+      seen.add(tile.characterId);
+      
+      const participant = this.participants.get(tile.characterId);
+      if (!participant) continue;
+      
+      // Use index as the ordering value (smaller = earlier in queue)
+      const orderIndex = battleParticipants.length;
+      
       battleParticipants.push({
-        characterId: p.characterId,
-        name: p.name,
-        portrait: p.portrait,
-        team: p.team,
-        speed: p.speed,
-        turnFrequency: p.speed,
-        nextTurnAt: (p.nextTurn - 1) * 100, // Convert turn number to timing-like value
+        characterId: participant.characterId,
+        name: participant.name,
+        portrait: participant.portrait,
+        team: participant.team,
+        speed: participant.speed,
+        // Store scriptedCount in the first entry's turnFrequency (add 10000 to distinguish)
+        turnFrequency: orderIndex === 0 ? (10000 + this.scriptedCount) : participant.speed,
+        // Use order index for simple ordering (smaller = first)
+        nextTurnAt: orderIndex,
       });
     }
+    
+    console.log('[BATTLE ENGINE] Saving to world store:', JSON.stringify(battleParticipants, null, 2));
     
     this.worldStore.applyPatch({
       path: 'battleParticipants',
@@ -122,6 +185,8 @@ export class MyBattleEngine extends BattleTimelineEngine {
   setAvailableCharacters(
     characters: { id: string; name: string; portrait?: string; speed?: number }[],
   ) {
+    console.log('[BATTLE ENGINE] setAvailableCharacters called with', characters.length, 'characters');
+    
     this.allCharacters = characters.map((c) => ({
       id: c.id,
       name: c.name,
@@ -178,9 +243,16 @@ export class MyBattleEngine extends BattleTimelineEngine {
   }
 
   onAddCharacter(characterId: string): void {
+    console.log('[BATTLE ENGINE] onAddCharacter called:', characterId);
+    
     const char = this.allCharacters.find((c) => c.id === characterId);
-    if (!char || this.participants.has(characterId)) return;
+    if (!char || this.participants.has(characterId)) {
+      console.log('[BATTLE ENGINE] Character not found or already in battle');
+      return;
+    }
 
+    console.log('[BATTLE ENGINE] Adding character:', char.name, 'speed:', char.speed);
+    
     // Add to participants starting at turn 1
     this.participants.set(characterId, {
       characterId,
@@ -193,6 +265,8 @@ export class MyBattleEngine extends BattleTimelineEngine {
 
     // Rebuild timeline from scratch
     this.rebuildTimeline();
+    
+    console.log('[BATTLE ENGINE] After rebuildTimeline, tiles:', this.tiles.length);
     
     // Persist to world store
     this.saveToWorldStore();
@@ -213,10 +287,16 @@ export class MyBattleEngine extends BattleTimelineEngine {
   }
 
   onNextTurn(): void {
-    if (this.tiles.length === 0) return;
+    console.log('[BATTLE ENGINE] onNextTurn called, tiles.length =', this.tiles.length);
+    
+    if (this.tiles.length === 0) {
+      console.log('[BATTLE ENGINE] No tiles, skipping next turn');
+      return;
+    }
 
     // Remove the first tile (current turn)
     const completedTile = this.tiles.shift()!;
+    console.log('[BATTLE ENGINE] Completed turn for:', completedTile.name);
 
     // If we consumed a scripted tile, decrement the count
     if (this.scriptedCount > 0) {
@@ -306,11 +386,17 @@ export class MyBattleEngine extends BattleTimelineEngine {
   }
 
   onTileDrop(tileId: string, targetGroupIndex: number, position: 'before' | 'after'): void {
+    console.log('[BATTLE ENGINE] onTileDrop called:', { tileId, targetGroupIndex, position, tilesLength: this.tiles.length });
+    
     const tileIndex = this.tiles.findIndex((t) => t.id === tileId);
-    if (tileIndex === -1) return;
+    if (tileIndex === -1) {
+      console.log('[BATTLE ENGINE] Tile not found:', tileId);
+      return;
+    }
 
     const draggedTile = this.tiles[tileIndex];
     const draggedCharId = draggedTile.characterId;
+    console.log('[BATTLE ENGINE] Dragged tile:', draggedTile.name, 'from index', tileIndex);
 
     // Calculate target position in tiles array
     let targetIndex = targetGroupIndex;
@@ -320,6 +406,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
 
     // Can't drop before current position (no going backwards in time)
     if (targetIndex <= tileIndex) {
+      console.log('[BATTLE ENGINE] Cannot drop before current position');
       this.notifyChange();
       return;
     }
@@ -433,6 +520,68 @@ export class MyBattleEngine extends BattleTimelineEngine {
   // ===========================================
   // HELPER METHODS
   // ===========================================
+
+  /**
+   * Build the initial timeline respecting saved order for the first round.
+   * First round tiles are in saved order, subsequent rounds based on speed.
+   */
+  private buildInitialTimeline(orderedParticipants: BattleParticipant[]): void {
+    if (orderedParticipants.length === 0) return;
+    
+    // First, add turn 1 for each participant in the saved order
+    let baseTiming = 0;
+    for (const bp of orderedParticipants) {
+      const participant = this.participants.get(bp.characterId);
+      if (!participant) continue;
+      
+      this.tiles.push({
+        id: `${bp.characterId}_turn_1`,
+        characterId: bp.characterId,
+        name: bp.name,
+        portrait: bp.portrait,
+        team: bp.team || 'blue',
+        turn: 1,
+        timing: baseTiming++, // Use incrementing timing to preserve order
+      });
+      
+      participant.nextTurn = 2; // Next turn for this character is 2
+    }
+    
+    // Now fill remaining slots based on speed
+    while (this.tiles.length < 10) {
+      let bestParticipant: Participant | undefined;
+      let bestTiming = Infinity;
+      let bestTurn = 0;
+      
+      for (const participant of this.participants.values()) {
+        const turn = participant.nextTurn;
+        const timing = this.calculateTiming(turn, participant.speed);
+        
+        if (timing < bestTiming) {
+          bestTiming = timing;
+          bestParticipant = participant;
+          bestTurn = turn;
+        }
+      }
+      
+      if (!bestParticipant) break;
+      
+      this.tiles.push({
+        id: `${bestParticipant.characterId}_turn_${bestTurn}`,
+        characterId: bestParticipant.characterId,
+        name: bestParticipant.name,
+        portrait: bestParticipant.portrait,
+        team: bestParticipant.team,
+        turn: bestTurn,
+        timing: 1000 + bestTiming, // Offset to ensure they come after first round
+      });
+      
+      bestParticipant.nextTurn = bestTurn + 1;
+    }
+    
+    // Sort by timing to get final order
+    this.tiles.sort((a, b) => a.timing - b.timing);
+  }
 
   /** Rebuild the entire timeline from scratch */
   private rebuildTimeline(): void {
