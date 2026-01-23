@@ -83,6 +83,9 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    // Connect battle engine to world store for persistence
+    this.battleEngine.setWorldStore(this.store);
+    
     this.route.params.subscribe(params => {
       this.worldName = params['worldName'];
       this.store.load(this.worldName);
@@ -169,6 +172,9 @@ export class WorldComponent implements OnInit, OnDestroy {
         speed: this.battleService.calculateSpeed(sheet)
       }))
     );
+    
+    // Load battle state from world store (after setting available characters)
+    this.battleEngine.loadFromWorldStore();
 
     this.cdr.detectChanges();
   }

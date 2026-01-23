@@ -4,6 +4,8 @@ import {
   TimelineTile,
   CharacterOption,
 } from './battle-timeline-engine';
+import { WorldStoreService } from '../../services/world-store.service';
+import { BattleParticipant } from '../../model/world.model';
 
 interface Participant {
   characterId: string;
@@ -23,12 +25,20 @@ interface Participant {
  * Timeline has two parts:
  * - Scripted: Locked in, won't change (everything affected by manual drags)
  * - Calculated: Predicted based on speed, can shift
+ * 
+ * STATE PERSISTENCE:
+ * - All state is stored in WorldStore.battleParticipants
+ * - The engine reads from and writes to the WorldStore
+ * - This ensures persistence across page reloads and sync with battlemap
  */
 export class MyBattleEngine extends BattleTimelineEngine {
+  // Reference to the world store for persistence
+  private worldStore: WorldStoreService | null = null;
+  
   // Characters available to add to battle
   private allCharacters: { id: string; name: string; portrait?: string; speed: number }[] = [];
 
-  // Characters currently in battle with their state
+  // Characters currently in battle with their state (derived from worldStore)
   private participants: Map<string, Participant> = new Map();
 
   // The displayed timeline (scripted + calculated)
@@ -38,8 +48,76 @@ export class MyBattleEngine extends BattleTimelineEngine {
   private scriptedCount: number = 0;
 
   // ===========================================
-  // SETUP
+  // SETUP & PERSISTENCE
   // ===========================================
+
+  /**
+   * Connect the engine to the WorldStore for persistence
+   */
+  setWorldStore(store: WorldStoreService) {
+    this.worldStore = store;
+  }
+
+  /**
+   * Load state from WorldStore's battleParticipants
+   */
+  loadFromWorldStore() {
+    if (!this.worldStore) return;
+    
+    const world = this.worldStore.worldValue;
+    if (!world) return;
+    
+    // Clear current state
+    this.participants.clear();
+    this.tiles = [];
+    this.scriptedCount = 0;
+    
+    // Load participants from world
+    for (const bp of world.battleParticipants || []) {
+      this.participants.set(bp.characterId, {
+        characterId: bp.characterId,
+        name: bp.name,
+        portrait: bp.portrait,
+        team: bp.team || 'blue',
+        speed: bp.speed,
+        nextTurn: Math.floor(bp.nextTurnAt / 100) + 1 || 1, // Convert timing back to turn number
+      });
+    }
+    
+    // Rebuild timeline from loaded participants
+    if (this.participants.size > 0) {
+      this.rebuildTimeline();
+    }
+    
+    this.notifyChange();
+  }
+
+  /**
+   * Save current state to WorldStore
+   */
+  private saveToWorldStore() {
+    if (!this.worldStore) return;
+    
+    // Convert participants to BattleParticipant format
+    const battleParticipants: BattleParticipant[] = [];
+    
+    for (const p of this.participants.values()) {
+      battleParticipants.push({
+        characterId: p.characterId,
+        name: p.name,
+        portrait: p.portrait,
+        team: p.team,
+        speed: p.speed,
+        turnFrequency: p.speed,
+        nextTurnAt: (p.nextTurn - 1) * 100, // Convert turn number to timing-like value
+      });
+    }
+    
+    this.worldStore.applyPatch({
+      path: 'battleParticipants',
+      value: battleParticipants
+    });
+  }
 
   setAvailableCharacters(
     characters: { id: string; name: string; portrait?: string; speed?: number }[],
@@ -50,6 +128,25 @@ export class MyBattleEngine extends BattleTimelineEngine {
       portrait: c.portrait,
       speed: c.speed ?? 10,
     }));
+    
+    // Update existing participants with fresh character data (name, portrait, speed)
+    for (const char of this.allCharacters) {
+      const participant = this.participants.get(char.id);
+      if (participant) {
+        participant.name = char.name;
+        participant.portrait = char.portrait;
+        participant.speed = char.speed;
+        
+        // Update tiles with new data
+        this.tiles.forEach(tile => {
+          if (tile.characterId === char.id) {
+            tile.name = char.name;
+            tile.portrait = char.portrait;
+          }
+        });
+      }
+    }
+    
     this.notifyChange();
   }
 
@@ -96,6 +193,9 @@ export class MyBattleEngine extends BattleTimelineEngine {
 
     // Rebuild timeline from scratch
     this.rebuildTimeline();
+    
+    // Persist to world store
+    this.saveToWorldStore();
   }
 
   onRemoveCharacter(characterId: string): void {
@@ -107,6 +207,9 @@ export class MyBattleEngine extends BattleTimelineEngine {
     // Refill if needed
     this.fillTimeline();
     this.notifyChange();
+    
+    // Persist to world store
+    this.saveToWorldStore();
   }
 
   onNextTurn(): void {
@@ -130,6 +233,9 @@ export class MyBattleEngine extends BattleTimelineEngine {
     // Fill timeline back to 10 tiles
     this.appendCalculatedTiles();
     this.notifyChange();
+    
+    // Persist to world store
+    this.saveToWorldStore();
   }
 
   /** Append calculated tiles to fill timeline to 10, without touching existing tiles */
@@ -175,6 +281,9 @@ export class MyBattleEngine extends BattleTimelineEngine {
     this.tiles = [];
     this.scriptedCount = 0;
     this.notifyChange();
+    
+    // Persist to world store
+    this.saveToWorldStore();
   }
 
   onTeamChange(characterId: string, team: string): void {
@@ -190,6 +299,9 @@ export class MyBattleEngine extends BattleTimelineEngine {
       });
 
       this.notifyChange();
+      
+      // Persist to world store
+      this.saveToWorldStore();
     }
   }
 
@@ -260,6 +372,9 @@ export class MyBattleEngine extends BattleTimelineEngine {
     this.rebuildCalculatedPortion();
 
     this.notifyChange();
+    
+    // Persist to world store
+    this.saveToWorldStore();
   }
 
   /** Rebuild the calculated portion of the timeline (everything after scriptedCount) */

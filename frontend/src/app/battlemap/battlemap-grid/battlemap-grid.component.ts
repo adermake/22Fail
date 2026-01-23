@@ -81,7 +81,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   draggingToken: BattlemapToken | null = null;
   dragGhostPosition = signal<{ x: number; y: number } | null>(null);
   dragHoverHex = signal<HexCoord | null>(null);
-  dragPath = signal<HexCoord[]>([]); // Path for enforced movement visualization
+  dragPath = signal<HexCoord[]>([]); // Path for enforced movement visualization (last segment only)
+  dragFullPath = signal<HexCoord[]>([]); // Complete path from start through all waypoints to current
   dragWaypoints = signal<HexCoord[]>([]); // Fixed waypoints set by right-click
   dragStartHex = signal<HexCoord | null>(null); // Starting hex for movement distance calc
   dragPathInvalid = signal<boolean>(false); // True if path is blocked or exceeds movement
@@ -221,8 +222,9 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     // Build wall set for quick lookup
     const wallSet = new Set(this.battleMap.walls?.map(w => `${w.q},${w.r}`) || []);
     
-    // Build path set for quick lookup
-    const pathSet = new Set(this.dragPath().map(p => `${p.q},${p.r}`));
+    // Build path set for quick lookup - use full path for complete highlighting
+    const fullPath = this.dragFullPath();
+    const pathSet = new Set(fullPath.map(p => `${p.q},${p.r}`));
     
     // Render visible hexes
     for (let q = bounds.minQ; q <= bounds.maxQ; q++) {
@@ -650,11 +652,30 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
         const maxMoves = this.draggingToken.movementSpeed || 100;
         const waypoints = this.dragWaypoints();
         
-        // Calculate total distance used by waypoints
+        // Calculate paths for all waypoint segments and total distance
+        const fullPath: HexCoord[] = [];
         let waypointDistance = 0;
         let lastPos = this.draggingToken.position;
+        let waypointPathsValid = true;
+        
+        // Add starting position
+        fullPath.push(lastPos);
+        
+        // Calculate path for each waypoint segment
         for (const wp of waypoints) {
-          waypointDistance += HexMath.hexDistance(lastPos, wp);
+          const segmentPath = HexMath.findPath(lastPos, wp, walls, maxMoves);
+          if (segmentPath && segmentPath.length > 1) {
+            // Add path excluding the start (already in fullPath)
+            for (let i = 1; i < segmentPath.length; i++) {
+              fullPath.push(segmentPath[i]);
+            }
+            waypointDistance += segmentPath.length - 1;
+          } else {
+            // Direct distance if no path found
+            waypointDistance += HexMath.hexDistance(lastPos, wp);
+            fullPath.push(wp);
+            waypointPathsValid = false;
+          }
           lastPos = wp;
         }
         
@@ -672,17 +693,27 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
           const totalDistance = waypointDistance + path.length - 1; // -1 because path includes start
           const isTooFar = totalDistance > maxMoves;
           
+          // Add final segment to full path (excluding start which is already there)
+          for (let i = 1; i < path.length; i++) {
+            fullPath.push(path[i]);
+          }
+          
           this.dragPathInvalid.set(isTooFar);
           this.dragPath.set(path);
+          this.dragFullPath.set(fullPath);
         } else {
           // No valid path - show direct line in red
           this.dragPathInvalid.set(true);
           // Create a direct path for visualization (just start and end)
           this.dragPath.set([startForPath, hoverHex]);
+          // Full path should still include waypoints plus the invalid end
+          fullPath.push(hoverHex);
+          this.dragFullPath.set(fullPath);
         }
       } else {
         this.dragPathInvalid.set(false);
         this.dragPath.set([]);
+        this.dragFullPath.set([]);
       }
       
       this.render();
@@ -767,15 +798,20 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       
       // Enforced movement mode: validate path and limit by movement speed
       if (this.dragMode === 'enforced' && !this.draggingToken.isOnTheFly) {
-        const path = this.dragPath();
-        if (path.length > 0) {
-          // Get the last reachable hex in the path
-          const maxMoves = this.draggingToken.movementSpeed || Infinity;
-          const reachableIndex = Math.min(path.length - 1, maxMoves);
-          targetHex = path[reachableIndex];
-        } else {
-          // No valid path found, stay in place
+        // If path is invalid (red), snap back to original position
+        if (this.dragPathInvalid()) {
           targetHex = this.draggingToken.position;
+        } else {
+          const path = this.dragPath();
+          if (path.length > 0) {
+            // Get the last reachable hex in the path
+            const maxMoves = this.draggingToken.movementSpeed || Infinity;
+            const reachableIndex = Math.min(path.length - 1, maxMoves);
+            targetHex = path[reachableIndex];
+          } else {
+            // No valid path found, stay in place
+            targetHex = this.draggingToken.position;
+          }
         }
       }
       
@@ -787,6 +823,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       this.dragGhostPosition.set(null);
       this.dragHoverHex.set(null);
       this.dragPath.set([]);
+      this.dragFullPath.set([]);
       this.dragWaypoints.set([]);
       this.dragStartHex.set(null);
       this.render();
@@ -831,6 +868,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
       this.dragGhostPosition.set(null);
       this.dragHoverHex.set(null);
       this.dragPath.set([]);
+      this.dragFullPath.set([]);
       this.dragWaypoints.set([]);
       this.dragStartHex.set(null);
       this.render();
@@ -862,6 +900,22 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   onPointerDown(event: PointerEvent) {
     // Capture pointer to receive events even if pointer leaves element
     (event.target as HTMLElement).setPointerCapture(event.pointerId);
+    
+    // For pen/tablet: barrel button (button 5) or eraser tip (button 5) should pan
+    // The buttons property is a bitmask: 4 = barrel button pressed
+    if (event.pointerType === 'pen' && (event.buttons & 4)) {
+      // Barrel button pressed - treat as middle click for panning
+      const fakeEvent = new MouseEvent('mousedown', {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        button: 1, // Middle button
+        buttons: 4
+      });
+      Object.defineProperty(fakeEvent, 'button', { value: 1 });
+      this.onMouseDown(fakeEvent);
+      return;
+    }
+    
     this.onMouseDown(event);
   }
 

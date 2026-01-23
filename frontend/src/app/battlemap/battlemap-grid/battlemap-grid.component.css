@@ -80,33 +80,6 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-.measure-info {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.85);
-  padding: 0.75rem 1.5rem;
-  border-radius: 30px;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  border: 1px solid var(--accent);
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
-  z-index: 2000;
-  pointer-events: none;
-}
-
-.measure-icon {
-  font-size: 1.2rem;
-}
-
-.measure-value {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #fbbf24;
-}
-
 /* Tool-specific cursors */
 .grid-container.tool-cursor {
   cursor: default;
