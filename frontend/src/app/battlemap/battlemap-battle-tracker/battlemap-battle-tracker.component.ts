@@ -2,6 +2,7 @@ import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { WorldStoreService } from '../../services/world-store.service';
+import { BattleMapStoreService } from '../../services/battlemap-store.service';
 import { BattleParticipant, WorldData } from '../../model/world.model';
 
 @Component({
@@ -13,11 +14,15 @@ import { BattleParticipant, WorldData } from '../../model/world.model';
 })
 export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
   private worldStore = inject(WorldStoreService);
+  private battlemapStore = inject(BattleMapStoreService);
   private subscription?: Subscription;
 
   world: WorldData | null = null;
   participants: BattleParticipant[] = [];
   currentTurnIndex = 0;
+  
+  // Map of characterId -> portrait (from battlemap tokens)
+  private portraitMap = new Map<string, string>();
 
   ngOnInit() {
     this.subscription = this.worldStore.world$.subscribe(world => {
@@ -25,7 +30,29 @@ export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
       this.world = world;
       this.participants = world?.battleParticipants || [];
       this.currentTurnIndex = world?.currentTurnIndex || 0;
+      this.updatePortraitMap();
     });
+  }
+  
+  // Build portrait map from battlemap tokens
+  private updatePortraitMap() {
+    const battlemap = this.battlemapStore.battleMapValue;
+    if (!battlemap?.tokens) return;
+    
+    this.portraitMap.clear();
+    for (const token of battlemap.tokens) {
+      if (token.portrait && !this.portraitMap.has(token.characterId)) {
+        this.portraitMap.set(token.characterId, token.portrait);
+      }
+    }
+  }
+  
+  // Get portrait for a participant - look it up from tokens
+  getPortrait(participant: BattleParticipant): string | undefined {
+    // First check if the participant has a portrait (legacy support)
+    if (participant.portrait) return participant.portrait;
+    // Look up from battlemap tokens
+    return this.portraitMap.get(participant.characterId);
   }
 
   ngOnDestroy() {

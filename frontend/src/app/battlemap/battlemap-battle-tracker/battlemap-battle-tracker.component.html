@@ -28,8 +28,8 @@
             </div>
 
             <div class="participant-portrait">
-              @if (participant.portrait) {
-                <img [src]="participant.portrait" [alt]="participant.name" />
+              @if (getPortrait(participant)) {
+                <img [src]="getPortrait(participant)" [alt]="participant.name" />
               } @else {
                 <div class="participant-initials">{{ getInitials(participant.name) }}</div>
               }

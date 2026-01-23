@@ -148,6 +148,8 @@ export class MyBattleEngine extends BattleTimelineEngine {
     
     // Build battleParticipants in the order they appear in the timeline
     // Each character appears once, based on their FIRST tile in the timeline
+    // NOTE: We do NOT include portrait data here - it's too large for socket messages
+    // The UI should look up portraits using characterId from the character data
     const battleParticipants: BattleParticipant[] = [];
     const seen = new Set<string>();
     
@@ -164,7 +166,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
       battleParticipants.push({
         characterId: participant.characterId,
         name: participant.name,
-        portrait: participant.portrait,
+        // portrait is NOT included - look it up via characterId instead
         team: participant.team,
         speed: participant.speed,
         // Store scriptedCount in the first entry's turnFrequency (add 10000 to distinguish)
@@ -174,7 +176,7 @@ export class MyBattleEngine extends BattleTimelineEngine {
       });
     }
     
-    console.log('[BATTLE ENGINE] Saving to world store:', JSON.stringify(battleParticipants, null, 2));
+    console.log('[BATTLE ENGINE] Saving to world store (without portraits):', battleParticipants.map(p => p.name).join(', '));
     
     this.worldStore.applyPatch({
       path: 'battleParticipants',
