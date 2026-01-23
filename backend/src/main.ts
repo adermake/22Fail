@@ -12,7 +12,7 @@ async function bootstrap() {
   app.useBodyParser('json', { limit: '50mb' });
   app.useBodyParser('urlencoded', { extended: true, limit: '50mb' });
 
-  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
+  await app.listen(process.env.PORT ?? 3000, '::');
 }
 bootstrap();
 //npm run start:dev
