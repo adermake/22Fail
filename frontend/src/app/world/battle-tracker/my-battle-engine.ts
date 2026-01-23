@@ -396,7 +396,24 @@ export class MyBattleEngine extends BattleTimelineEngine {
 
     console.log('[BATTLE ENGINE] appendCalculatedTiles: Starting with', this.tiles.length, 'tiles');
     
-    // First, sync nextTurn with existing tiles to avoid duplicates
+    // First, remove any stale tiles (tiles for turns that are in the past)
+    // A tile is stale if its turn number is less than the participant's nextTurn
+    const tilesToKeep = this.tiles.filter(tile => {
+      const participant = this.participants.get(tile.characterId);
+      if (!participant) return false;
+      
+      // Keep tiles that are for the current turn or future turns
+      const isStale = tile.turn < participant.nextTurn;
+      if (isStale) {
+        console.log('[BATTLE ENGINE] Removing stale tile:', tile.name, 'turn', tile.turn, '(nextTurn is', participant.nextTurn + ')');
+      }
+      return !isStale;
+    });
+    
+    this.tiles = tilesToKeep;
+    console.log('[BATTLE ENGINE] After removing stale tiles:', this.tiles.length, 'tiles');
+    
+    // Sync nextTurn with existing tiles to avoid duplicates
     for (const participant of this.participants.values()) {
       const maxTurnInTiles = this.tiles
         .filter(t => t.characterId === participant.characterId)
