@@ -16,9 +16,9 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { Subscription } from 'rxjs';
 import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.component';
 import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
-import { BattleTracker } from '../battle-tracker/battle-tracker';
+import { BattleTracker } from '../battle-tracker/battle-tracker.component';
 import { LootManagerComponent, LootBundle } from '../loot-manager/loot-manager.component';
-import { MyBattleEngine } from '../battle-tracker/my-battle-engine';
+import { BattleTrackerEngine } from '../battle-tracker/battle-tracker-engine';
 
 // Re-export types for template usage
 export type { SimulatedTurn, BattleGroup };
@@ -51,7 +51,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   private characterPatchSubscription?: Subscription;
 
   // Battle Engine
-  battleEngine = new MyBattleEngine();
+  battleEngine = new BattleTrackerEngine();
 
   // UI state
   dummySheet: CharacterSheet = createEmptySheet();

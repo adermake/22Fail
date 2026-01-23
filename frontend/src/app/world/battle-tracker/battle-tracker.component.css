@@ -1,0 +1,419 @@
+.battle-tracker-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+
+/* ============================================
+   Header
+   ============================================ */
+.battle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.battle-header h2 {
+  margin: 0;
+  color: var(--accent);
+  font-size: 1.2rem;
+}
+
+.reset-button {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.reset-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ============================================
+   Current Turn Display
+   ============================================ */
+.current-turn-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(var(--accent-rgb), 0.1);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+
+.current-turn-display .label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.current-turn-display .names {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ============================================
+   Character List
+   ============================================ */
+.characters-section {
+  margin-bottom: 0.5rem;
+}
+
+.characters-section h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.character-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.character-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.character-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.character-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.character-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: border-color 0.2s;
+}
+
+.character-option.in-battle {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.05);
+}
+
+.character-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.portrait-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+}
+
+.details .name {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.details .speed {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.team-selector {
+  margin-top: 2px;
+  padding: 2px 4px;
+  font-size: 0.75rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.toggle-btn {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  background: var(--accent);
+  color: white;
+  transition: opacity 0.2s;
+}
+
+.toggle-btn:hover {
+  opacity: 0.9;
+}
+
+.toggle-btn.remove {
+  background: var(--bg-secondary);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.no-chars {
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+}
+
+/* ============================================
+   Timeline
+   ============================================ */
+.timeline-section {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.timeline-section::-webkit-scrollbar {
+  height: 6px;
+}
+
+.timeline-section::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.timeline-section::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+.timeline {
+  display: flex;
+  gap: 6px;
+  min-height: 100px;
+  align-items: center;
+  padding: 8px 4px;
+}
+
+.empty-timeline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  width: 100%;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ============================================
+   Turn Group
+   ============================================ */
+.turn-group {
+  display: flex;
+  gap: 3px;
+  padding: 6px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.turn-group.scripted {
+  background: rgba(var(--accent-rgb), 0.15);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.3);
+}
+
+/* ============================================
+   Tile
+   ============================================ */
+.tile {
+  position: relative;
+  width: 60px;
+  height: 85px;
+  background: var(--card-bg, #2a2a2a);
+  border: 2px solid transparent;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tile:active {
+  cursor: grabbing;
+}
+
+.tile-portrait {
+  width: 100%;
+  height: 55px;
+  object-fit: cover;
+  opacity: 0.9;
+}
+
+.tile-name {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  text-align: center;
+  padding: 2px 4px;
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.turn-number {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 8px;
+  padding: 1px;
+}
+
+/* Team colors */
+.tile.team-blue { border-bottom: 3px solid #3b82f6; }
+.tile.team-red { border-bottom: 3px solid #ef4444; }
+.tile.team-green { border-bottom: 3px solid #10b981; }
+.tile.team-yellow { border-bottom: 3px solid #eab308; }
+.tile.team-purple { border-bottom: 3px solid #a855f7; }
+.tile.team-orange { border-bottom: 3px solid #f97316; }
+
+/* Group team indicator */
+.turn-group.team-blue { border-left: 3px solid #3b82f6; }
+.turn-group.team-red { border-left: 3px solid #ef4444; }
+.turn-group.team-green { border-left: 3px solid #10b981; }
+.turn-group.team-yellow { border-left: 3px solid #eab308; }
+.turn-group.team-purple { border-left: 3px solid #a855f7; }
+.turn-group.team-orange { border-left: 3px solid #f97316; }
+
+/* Hover effect - only when not dragging */
+.timeline:not(.dragging) .tile:hover {
+  transform: scale(1.1) translateY(-4px);
+  z-index: 10;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* During drag */
+.timeline.dragging .tile {
+  pointer-events: none;
+}
+
+.tile.dragged {
+  opacity: 0.4;
+}
+
+/* Animating state */
+.tile.animating {
+  pointer-events: none;
+}
+
+/* ============================================
+   Drop Indicator
+   ============================================ */
+.drop-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 4px;
+  background: var(--accent);
+  border-radius: 2px;
+  z-index: 20;
+  box-shadow: 0 0 8px var(--accent), 0 0 16px var(--accent);
+  pointer-events: none;
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+.drop-indicator.before {
+  left: -4px;
+}
+
+.drop-indicator.after {
+  right: -4px;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ============================================
+   Controls
+   ============================================ */
+.controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.next-turn-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.next-turn-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.next-turn-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.next-turn-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   Animations for tile enter/exit
+   ============================================ */
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideOutToBottom {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+}

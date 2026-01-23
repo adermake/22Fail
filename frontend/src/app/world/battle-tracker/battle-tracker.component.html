@@ -1,0 +1,131 @@
+<div class="battle-tracker-container">
+  <!-- Header -->
+  <div class="battle-header">
+    <h2>Battle Tracker</h2>
+    <button class="reset-button" (click)="onResetBattle()" title="Reset battle">
+      Reset
+    </button>
+  </div>
+
+  <!-- Current Turn Display -->
+  @if (currentTurnDisplay()) {
+    <div class="current-turn-display">
+      <span class="label">Current Turn:</span>
+      <span class="names">{{ currentTurnDisplay() }}</span>
+    </div>
+  }
+
+  <!-- Character List -->
+  <div class="characters-section">
+    <h3>Characters</h3>
+    @if (characters().length > 0) {
+      <div class="character-list">
+        @for (char of characters(); track trackChar($index, char)) {
+          <div class="character-option" [class.in-battle]="char.isInBattle">
+            <div class="character-info">
+              <img 
+                [src]="char.portrait || 'assets/default-portrait.png'" 
+                class="portrait-small" 
+                alt=""
+              >
+              <div class="details">
+                <span class="name">{{ char.name }}</span>
+                <span class="speed">Speed: {{ char.speed }}</span>
+                @if (char.isInBattle) {
+                  <select 
+                    class="team-selector"
+                    [ngModel]="char.team"
+                    (ngModelChange)="onTeamChange(char.id, $event)"
+                  >
+                    @for (team of teams; track team) {
+                      <option [value]="team">{{ team }}</option>
+                    }
+                  </select>
+                }
+              </div>
+            </div>
+            <button 
+              class="toggle-btn" 
+              [class.remove]="char.isInBattle"
+              (click)="char.isInBattle ? onRemoveCharacter(char.id) : onAddCharacter(char.id)"
+            >
+              {{ char.isInBattle ? 'Remove' : 'Add' }}
+            </button>
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="no-chars">No characters available</p>
+    }
+  </div>
+
+  <!-- Timeline -->
+  <div class="timeline-section">
+    <div 
+      class="timeline" 
+      #timelineContainer
+      [class.dragging]="!!draggedTileId"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)"
+    >
+      @if (timeline().length === 0) {
+        <div class="empty-timeline">
+          <span>Add characters to start battle</span>
+        </div>
+      } @else {
+        @for (group of timeline(); track trackGroup($index, group); let gIdx = $index) {
+          <div 
+            class="turn-group"
+            [attr.data-group-id]="group.id"
+            [class.scripted]="group.isScripted"
+            [ngClass]="'team-' + group.team"
+          >
+            <!-- Drop indicator before -->
+            @if (dragOverGroupIndex === gIdx && dropPosition === 'before') {
+              <div class="drop-indicator before"></div>
+            }
+
+            <!-- Tiles -->
+            @for (tile of group.tiles; track trackTile($index, tile)) {
+              <div 
+                class="tile"
+                [attr.data-tile-id]="tile.id"
+                [class.dragged]="isDragged(tile.id)"
+                [class.animating]="isAnimating(tile.id)"
+                [ngClass]="'team-' + tile.team"
+                draggable="true"
+                (dragstart)="onDragStart($event, tile)"
+                (dragend)="onDragEnd()"
+              >
+                <img 
+                  [src]="tile.portrait || 'assets/default-portrait.png'" 
+                  [alt]="tile.name"
+                  class="tile-portrait"
+                >
+                <span class="tile-name">{{ tile.name }}</span>
+                <span class="turn-number">T{{ tile.turnNumber }}</span>
+              </div>
+            }
+
+            <!-- Drop indicator after -->
+            @if (dragOverGroupIndex === gIdx && dropPosition === 'after') {
+              <div class="drop-indicator after"></div>
+            }
+          </div>
+        }
+      }
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button 
+      class="next-turn-btn"
+      (click)="onNextTurn()" 
+      [disabled]="timeline().length === 0"
+    >
+      Next Turn
+    </button>
+  </div>
+</div>
