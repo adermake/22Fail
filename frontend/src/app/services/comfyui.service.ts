@@ -641,47 +641,20 @@ export class ComfyUIService {
     };
     const loraNode = nodeId - 1;
 
-    // ============ BASE IMAGE ============
-    // Load the colored sketch as base
+    // ============ EMPTY LATENT START ============
+    // Start from empty latent (pure generation, not img2img)
     workflow[String(nodeId++)] = {
-      "inputs": { "image": baseImageFilename, "upload": "image" },
-      "class_type": "LoadImage",
-      "_meta": { "title": "Load Base Image" }
-    };
-    const loadImageNode = nodeId - 1;
-
-    // Scale to generation resolution
-    workflow[String(nodeId++)] = {
-      "inputs": {
-        "upscale_method": "lanczos",
-        "width": this.generationResolution,
-        "height": this.generationResolution,
-        "crop": "disabled",
-        "image": [String(loadImageNode), 0]
+      "inputs": { 
+        "width": this.generationResolution, 
+        "height": this.generationResolution, 
+        "batch_size": 1 
       },
-      "class_type": "ImageScale",
-      "_meta": { "title": "Scale Image" }
+      "class_type": "EmptyLatentImage",
+      "_meta": { "title": "Empty Latent" }
     };
-    const scaledImageNode = nodeId - 1;
+    let currentLatentNode = nodeId - 1;
 
-    // ============ BASE GENERATION ============
-    // Create combined base prompt
-    const basePrompt = this.customPrompt || this.defaultPrompt;
-    const regionDescriptions = regions.map(r => r.prompt).join(', ');
-    const combinedBasePrompt = `${basePrompt}, featuring: ${regionDescriptions}`;
-
-    // Encode base prompt
-    workflow[String(nodeId++)] = {
-      "inputs": {
-        "text": combinedBasePrompt,
-        "clip": [String(loraNode), 1]
-      },
-      "class_type": "CLIPTextEncode",
-      "_meta": { "title": "Base Prompt" }
-    };
-    const baseCondNode = nodeId - 1;
-
-    // Negative prompt
+    // Negative prompt (shared by all passes)
     workflow[String(nodeId++)] = {
       "inputs": {
         "text": "blurry, low quality, distorted, text, watermark, ugly",
@@ -692,43 +665,15 @@ export class ComfyUIService {
     };
     const negativeNode = nodeId - 1;
 
-    // Encode base image to latent
-    workflow[String(nodeId++)] = {
-      "inputs": {
-        "pixels": [String(scaledImageNode), 0],
-        "vae": [String(checkpointNode), 2]
-      },
-      "class_type": "VAEEncode",
-      "_meta": { "title": "Encode Base" }
-    };
-    const baseLatentNode = nodeId - 1;
-
     // Generate seed
     const seed = this.aiSettings.seed === -1 
       ? Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
       : this.aiSettings.seed;
 
-    // First pass: img2img on base to establish style
-    workflow[String(nodeId++)] = {
-      "inputs": {
-        "seed": seed,
-        "steps": this.aiSettings.steps,
-        "cfg": this.aiSettings.cfg,
-        "sampler_name": "euler_ancestral",
-        "scheduler": "normal",
-        "denoise": 0.5, // Lower denoise for base - preserve sketch structure
-        "model": [String(loraNode), 0],
-        "positive": [String(baseCondNode), 0],
-        "negative": [String(negativeNode), 0],
-        "latent_image": [String(baseLatentNode), 0]
-      },
-      "class_type": "KSampler",
-      "_meta": { "title": "Base Sampler" }
-    };
-    let currentLatentNode = nodeId - 1;
-
     // ============ REGIONAL INPAINTING PASSES ============
     // For each region, load mask and inpaint with region-specific prompt
+    const basePrompt = this.customPrompt || this.defaultPrompt;
+    
     for (let i = 0; i < regions.length; i++) {
       const region = regions[i];
       
@@ -782,7 +727,7 @@ export class ComfyUIService {
           "cfg": this.aiSettings.cfg,
           "sampler_name": "euler_ancestral",
           "scheduler": "normal",
-          "denoise": this.aiSettings.denoise, // Higher denoise for regions to replace content
+          "denoise": 1.0, // Full generation for each region from empty latent
           "model": [String(loraNode), 0],
           "positive": [String(regionCondNode), 0],
           "negative": [String(negativeNode), 0],
