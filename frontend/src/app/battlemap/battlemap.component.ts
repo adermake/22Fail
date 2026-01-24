@@ -63,7 +63,6 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   eraserBrushSize = signal<number>(12);
   drawWithWalls = signal<boolean>(false);
   dragMode = signal<DragMode>('free');
-  aiLayerEnabled = signal<boolean>(false);
 
   // AI drawing tool state
   selectedAiColor = signal<string>('#22c55e'); // Default to forest green
@@ -256,17 +255,6 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   toggleBattleTracker() {
     this.showBattleTracker.set(!this.showBattleTracker());
-  }
-
-  // AI Layer toggle
-  toggleAiLayer() {
-    const newValue = !this.aiLayerEnabled();
-    this.aiLayerEnabled.set(newValue);
-    
-    if (newValue) {
-      // Check availability when enabling
-      this.comfyUI.checkAvailability();
-    }
   }
 
   // AI Prompt change

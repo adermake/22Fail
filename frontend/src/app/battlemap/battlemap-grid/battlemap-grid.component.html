@@ -27,7 +27,7 @@
   <canvas #drawCanvas class="draw-canvas"></canvas>
 
   <!-- AI Layer canvas (ComfyUI generated images) -->
-  <canvas #aiCanvas class="ai-canvas" [class.visible]="aiLayerEnabled"></canvas>
+  <canvas #aiCanvas class="ai-canvas" [class.visible]="aiLayerVisible"></canvas>
 
   <!-- Tokens layer - uses world coordinates with CSS transform -->
   <div class="tokens-layer" [style.transform]="'translate(' + panX + 'px, ' + panY + 'px) scale(' + scale + ')'">

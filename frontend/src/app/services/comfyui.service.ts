@@ -23,12 +23,6 @@ export interface GenerationResult {
   error?: string;
 }
 
-export interface RegionalPrompt {
-  color: string;
-  prompt: string;
-  mask?: Blob;
-}
-
 @Injectable({
   providedIn: 'root'
 })
@@ -62,9 +56,6 @@ export class ComfyUIService {
 
   // Regional workflow uses smaller resolution for speed
   private readonly regionalResolution = 768;
-  
-  // Mask detection resolution - very low is fine, just need to know where colors are
-  private readonly maskDetectionSize = 128;
 
   // Default prompt for D&D maps
   private readonly defaultPrompt = "A detailed fantasy map for Dungeons & Dragons, top-down view. Medieval fantasy style with rich textures, cobblestone paths, grass, forests, and buildings. Hand-drawn RPG map aesthetic with detailed textures and atmospheric lighting.";
@@ -417,38 +408,13 @@ export class ComfyUIService {
 
     try {
       // Step 1: Render AI strokes to a SMALL canvas for mask detection
-      // We use low resolution (128x128) - just need to know WHERE colors are, not exact borders
-      // ComfyUI will scale masks up anyway. This is MUCH faster!
-      const maskDetectionBounds = {
-        panX: bounds.panX * (this.maskDetectionSize / canvasWidth),
-        panY: bounds.panY * (this.maskDetectionSize / canvasHeight),
-        scale: bounds.scale * (this.maskDetectionSize / canvasWidth)
-      };
-      const strokeCanvasSmall = this.renderAiStrokesToCanvas(
-        aiStrokes, 
-        this.maskDetectionSize, 
-        this.maskDetectionSize, 
-        maskDetectionBounds
-      );
-      
-      // Step 2: Identify unique colors used in strokes
+      // Step 1: Identify unique colors used in strokes to build combined prompt
       const usedColors = this.getUsedColors(aiStrokes, colorPrompts);
-      console.log('[ComfyUI] Regional prompting with colors:', usedColors.map(c => c.name));
+      console.log('[ComfyUI] Generating with region prompts:', usedColors.map(c => `${c.name}: ${c.prompt}`));
 
-      // Step 3: For each color, create a mask at low resolution
-      const regionalPrompts: RegionalPrompt[] = [];
-      for (const colorPrompt of usedColors) {
-        const mask = await this.createColorMask(strokeCanvasSmall, colorPrompt.color, this.maskDetectionSize, this.maskDetectionSize);
-        regionalPrompts.push({
-          color: colorPrompt.color,
-          prompt: colorPrompt.prompt,
-          mask
-        });
-      }
-
-      // Step 4: Render strokes again at REGIONAL resolution for ControlNet
-      // This needs to be higher quality since edges are extracted from it
-      const strokeCanvasMain = this.renderAiStrokesToCanvas(
+      // Step 2: Render strokes at generation resolution for ControlNet
+      // The colored sketch provides structure guidance via edge detection
+      const strokeCanvas = this.renderAiStrokesToCanvas(
         aiStrokes, 
         this.regionalResolution, 
         this.regionalResolution, 
@@ -459,26 +425,15 @@ export class ComfyUIService {
         }
       );
       
-      // Step 5: Upload all images (stroke canvas + masks)
-      const mainImageFilename = await this.uploadImage(await this.canvasToBlob(strokeCanvasMain));
-      
-      // Upload masks
-      const uploadedMasks: { color: string; prompt: string; filename: string }[] = [];
-      for (const rp of regionalPrompts) {
-        if (rp.mask) {
-          const maskFilename = await this.uploadImage(rp.mask);
-          uploadedMasks.push({
-            color: rp.color,
-            prompt: rp.prompt,
-            filename: maskFilename
-          });
-        }
-      }
+      // Step 3: Upload sketch image for ControlNet
+      const mainImageFilename = await this.uploadImage(await this.canvasToBlob(strokeCanvas));
 
-      // Step 5: Create regional workflow
-      const workflow = this.createRegionalWorkflow(mainImageFilename, uploadedMasks);
+      // Step 4: Create simplified workflow (combined prompt + ControlNet)
+      // We pass the region info for building the combined prompt
+      const regions = usedColors.map(c => ({ color: c.color, prompt: c.prompt, filename: '' }));
+      const workflow = this.createRegionalWorkflow(mainImageFilename, regions);
       
-      // Step 6: Queue and wait for result
+      // Step 5: Queue and wait for result
       const result = await this.queueAndWait(workflow);
       
       this.isGenerating.set(false);
@@ -552,86 +507,15 @@ export class ComfyUIService {
   }
 
   /**
-   * Create a binary mask for a specific color
-   * White = where this color is, Black = everywhere else
-   */
-  private async createColorMask(
-    sourceCanvas: HTMLCanvasElement,
-    targetColor: string,
-    width: number,
-    height: number
-  ): Promise<Blob> {
-    const maskCanvas = document.createElement('canvas');
-    maskCanvas.width = width;
-    maskCanvas.height = height;
-    // Use willReadFrequently for better performance with getImageData
-    const ctx = maskCanvas.getContext('2d', { willReadFrequently: true })!;
-    
-    // Get source pixels - use willReadFrequently for multiple reads
-    const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true })!;
-    const imageData = sourceCtx.getImageData(0, 0, width, height);
-    const pixels = imageData.data;
-    
-    // Parse target color
-    const targetRgb = this.hexToRgb(targetColor);
-    if (!targetRgb) {
-      // Fallback: return white mask
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
-      return this.canvasToBlob(maskCanvas);
-    }
-    
-    // Create mask - black background
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, width, height);
-    
-    // Create new image data for the mask
-    const maskData = ctx.getImageData(0, 0, width, height);
-    const maskPixels = maskData.data;
-    
-    // Color tolerance for matching (some antialiasing)
-    const tolerance = 40;
-    
-    for (let i = 0; i < pixels.length; i += 4) {
-      const r = pixels[i];
-      const g = pixels[i + 1];
-      const b = pixels[i + 2];
-      
-      // Check if this pixel matches the target color
-      if (
-        Math.abs(r - targetRgb.r) <= tolerance &&
-        Math.abs(g - targetRgb.g) <= tolerance &&
-        Math.abs(b - targetRgb.b) <= tolerance
-      ) {
-        // White in mask
-        maskPixels[i] = 255;     // R
-        maskPixels[i + 1] = 255; // G
-        maskPixels[i + 2] = 255; // B
-        maskPixels[i + 3] = 255; // A
-      }
-    }
-    
-    ctx.putImageData(maskData, 0, 0);
-    return this.canvasToBlob(maskCanvas);
-  }
-
-  /**
-   * Convert hex color to RGB
-   */
-  private hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : null;
-  }
-
-  /**
-   * Create a workflow with regional prompting using ConditioningSetMask
+   * Create a workflow with combined prompts for all regions
    * 
-   * This workflow uses multiple conditioning branches, each with a mask,
-   * then combines them with ConditioningCombine for proper regional generation.
+   * This simplified workflow:
+   * 1. Uses the colored sketch as ControlNet input (structure guide)
+   * 2. Combines all region prompts into one descriptive prompt
+   * 3. FLUX generates based on structure + combined description
+   * 
+   * Note: True per-region prompting with masks doesn't work well with FLUX.
+   * The colored regions serve as visual guide via ControlNet instead.
    */
   private createRegionalWorkflow(
     mainImageFilename: string,
@@ -762,94 +646,9 @@ export class ComfyUIService {
     };
     const controlNetApplyNode = nodeId - 1;
 
-    // Now create individual regional conditionings with masks
-    // Load each mask and apply ConditioningSetMask
-    let currentCondNode = controlNetApplyNode;
-    
-    for (let i = 0; i < regions.length; i++) {
-      const region = regions[i];
-      
-      // Load mask image
-      workflow[String(nodeId++)] = {
-        "inputs": { "image": region.filename, "upload": "image" },
-        "class_type": "LoadImage",
-        "_meta": { "title": `Load Mask: ${region.prompt.substring(0, 20)}` }
-      };
-      const maskLoadNode = nodeId - 1;
-
-      // Scale mask to match generation resolution
-      workflow[String(nodeId++)] = {
-        "inputs": {
-          "upscale_method": "nearest-exact",
-          "width": this.regionalResolution,
-          "height": this.regionalResolution,
-          "crop": "disabled",
-          "image": [String(maskLoadNode), 0]
-        },
-        "class_type": "ImageScale",
-        "_meta": { "title": "Scale Mask" }
-      };
-      const scaledMaskNode = nodeId - 1;
-
-      // Convert image to mask (take red channel)
-      workflow[String(nodeId++)] = {
-        "inputs": {
-          "channel": "red",
-          "image": [String(scaledMaskNode), 0]
-        },
-        "class_type": "ImageToMask",
-        "_meta": { "title": "Image to Mask" }
-      };
-      const maskNode = nodeId - 1;
-
-      // Encode region-specific prompt
-      workflow[String(nodeId++)] = {
-        "inputs": {
-          "text": `${basePrompt}. This specific area shows: ${region.prompt}`,
-          "clip": [String(loraNode), 1]
-        },
-        "class_type": "CLIPTextEncode",
-        "_meta": { "title": `Prompt: ${region.prompt.substring(0, 20)}` }
-      };
-      const regionCondNode = nodeId - 1;
-
-      // Apply ControlNet to this regional conditioning too
-      workflow[String(nodeId++)] = {
-        "inputs": {
-          "strength": this.aiSettings.denoise,
-          "conditioning": [String(regionCondNode), 0],
-          "control_net": [String(controlNetNode), 0],
-          "image": [String(cannyNode), 0]
-        },
-        "class_type": "ControlNetApply",
-        "_meta": { "title": "Regional ControlNet" }
-      };
-      const regionalControlNetNode = nodeId - 1;
-
-      // Set mask on the regional conditioning
-      workflow[String(nodeId++)] = {
-        "inputs": {
-          "conditioning": [String(regionalControlNetNode), 0],
-          "mask": [String(maskNode), 0],
-          "strength": 1.0,
-          "set_cond_area": "default"
-        },
-        "class_type": "ConditioningSetMask",
-        "_meta": { "title": `Set Mask: ${region.prompt.substring(0, 20)}` }
-      };
-      const maskedCondNode = nodeId - 1;
-
-      // Combine with previous conditioning
-      workflow[String(nodeId++)] = {
-        "inputs": {
-          "conditioning_1": [String(currentCondNode), 0],
-          "conditioning_2": [String(maskedCondNode), 0]
-        },
-        "class_type": "ConditioningCombine",
-        "_meta": { "title": "Combine Conditioning" }
-      };
-      currentCondNode = nodeId - 1;
-    }
+    // Use ControlNet conditioning directly (no per-region masking - doesn't work well with FLUX)
+    // The colored sketch provides structure guidance via ControlNet edges
+    const finalCondNode = controlNetApplyNode;
 
     // ============ SAMPLING ============
     // Empty latent at regional resolution
@@ -892,11 +691,11 @@ export class ComfyUIService {
     };
     const schedulerNode = nodeId - 1;
 
-    // Guider with combined regional conditioning
+    // Guider with combined conditioning (ControlNet applied)
     workflow[String(nodeId++)] = {
       "inputs": {
         "model": [String(loraNode), 0],
-        "conditioning": [String(currentCondNode), 0]
+        "conditioning": [String(finalCondNode), 0]
       },
       "class_type": "BasicGuider",
       "_meta": { "title": "Guider" }

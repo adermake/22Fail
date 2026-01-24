@@ -20,7 +20,6 @@ export class BattlemapToolbarComponent {
   @Input() eraserBrushSize = 12;
   @Input() drawWithWalls = false;
   @Input() dragMode: DragMode = 'free';
-  @Input() aiLayerEnabled = false;
   @Input() comfyUIAvailable = false;
   @Input() comfyUIGenerating = false;
   @Input() aiPrompt = '';
@@ -36,7 +35,6 @@ export class BattlemapToolbarComponent {
   @Output() eraserBrushSizeChange = new EventEmitter<number>();
   @Output() drawWithWallsChange = new EventEmitter<boolean>();
   @Output() dragModeChange = new EventEmitter<DragMode>();
-  @Output() aiLayerToggle = new EventEmitter<void>();
   @Output() aiPromptChange = new EventEmitter<string>();
   @Output() aiSettingsChange = new EventEmitter<{ seed?: number; steps?: number; cfg?: number; denoise?: number }>();
   @Output() drawLayerVisibleChange = new EventEmitter<boolean>();

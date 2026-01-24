@@ -41,7 +41,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   }
   @Input() drawWithWalls = false;
   @Input() dragMode: DragMode = 'free';
-  @Input() aiLayerEnabled = false;
   @Input() currentTurnCharacterId: string | null = null;
   @Input() battleParticipants: { characterId: string; team?: string }[] = [];
   @Input() drawLayerVisible = true;
@@ -64,7 +63,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   private overlayCtx: CanvasRenderingContext2D | null = null;
 
   // AI layer state
-  private aiGenerationDebounce: any = null;
   private currentAiImage: HTMLImageElement | null = null;
   private aiImageBounds: { centerX: number; centerY: number; worldSize: number } | null = null;
   aiLayerOpacity = signal<number>(0.7);
@@ -127,9 +125,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   ngOnDestroy() {
-    if (this.aiGenerationDebounce) {
-      clearTimeout(this.aiGenerationDebounce);
-    }
+    // Cleanup if needed
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -137,11 +133,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       this.render();
       // Load persisted AI layer image if available
       this.loadPersistedAiLayer();
-    }
-    if (changes['aiLayerEnabled']) {
-      if (this.aiLayerEnabled) {
-        this.comfyUI.checkAvailability();
-      }
     }
     // React to layer visibility changes
     if (changes['drawLayerVisible'] || changes['aiLayerVisible']) {
@@ -427,7 +418,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       ctx.lineWidth = stroke.lineWidth;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.globalAlpha = 0.7; // Semi-transparent for AI strokes preview
+      ctx.globalAlpha = 1.0; // Full opacity - regions should be solid
       ctx.stroke();
     }
 
@@ -469,123 +460,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     );
     
     ctx.restore();
-  }
-
-  /**
-   * Trigger AI generation after a drawing change (debounced)
-   */
-  private triggerAiGeneration() {
-    if (!this.aiLayerEnabled || !this.comfyUI.isAvailable()) return;
-
-    // Clear existing debounce
-    if (this.aiGenerationDebounce) {
-      clearTimeout(this.aiGenerationDebounce);
-    }
-
-    // Debounce: wait 800ms after last stroke before generating
-    this.aiGenerationDebounce = setTimeout(() => {
-      this.generateAiImage();
-    }, 800);
-  }
-
-  /**
-   * Generate AI image from current drawing canvas
-   * Captures a fixed world area centered at the current view
-   */
-  private async generateAiImage() {
-    if (!this.drawCanvas || this.comfyUI.isGenerating()) return;
-
-    // Create a temporary canvas with just the drawing (no grid)
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = 1024;
-    tempCanvas.height = 1024;
-    const tempCtx = tempCanvas.getContext('2d');
-    
-    if (!tempCtx) return;
-
-    // Fill with white background
-    tempCtx.fillStyle = '#ffffff';
-    tempCtx.fillRect(0, 0, 1024, 1024);
-
-    // Determine the world area to capture
-    // We capture a square centered at world origin (0,0) 
-    // The size is determined by how much is visible at current scale
-    const container = this.container?.nativeElement;
-    if (!container) return;
-    
-    const rect = container.getBoundingClientRect();
-    const viewSize = Math.min(rect.width, rect.height);
-    
-    // World size that maps to the 1024x1024 output
-    // This is the area in world coordinates that we're capturing
-    const worldSize = viewSize / this.scale;
-    
-    // The center of the captured area in world coordinates
-    // Convert the screen center to world coords
-    const screenCenterX = rect.width / 2;
-    const screenCenterY = rect.height / 2;
-    const worldCenter = this.screenToWorld(screenCenterX, screenCenterY);
-    
-    // Store bounds for later rendering alignment
-    const bounds = {
-      centerX: worldCenter.x,
-      centerY: worldCenter.y,
-      worldSize: worldSize
-    };
-    
-    // Draw the strokes onto temp canvas
-    // Map from world coords to 0-1024 canvas coords
-    tempCtx.save();
-    
-    // Transform: world coords -> temp canvas coords
-    // We want worldCenter to map to (512, 512)
-    // And worldSize in world units to map to 1024 pixels
-    const scaleFactor = 1024 / worldSize;
-    tempCtx.translate(512, 512);
-    tempCtx.scale(scaleFactor, scaleFactor);
-    tempCtx.translate(-worldCenter.x, -worldCenter.y);
-    
-    // Render strokes to temp canvas
-    for (const stroke of this.battleMap?.strokes || []) {
-      if (stroke.points.length < 2) continue;
-      
-      tempCtx.globalCompositeOperation = stroke.isEraser ? 'destination-out' : 'source-over';
-      tempCtx.beginPath();
-      tempCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-      
-      for (let i = 1; i < stroke.points.length; i++) {
-        tempCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
-      }
-      
-      tempCtx.strokeStyle = stroke.isEraser ? 'rgba(0,0,0,1)' : stroke.color;
-      tempCtx.lineWidth = stroke.lineWidth;
-      tempCtx.lineCap = 'round';
-      tempCtx.lineJoin = 'round';
-      tempCtx.stroke();
-    }
-    tempCtx.restore();
-
-    // Send to ComfyUI
-    const result = await this.comfyUI.generateFromCanvas(tempCanvas);
-    
-    if (result.success && result.imageBlob) {
-      // Convert blob to base64 for persistence
-      const base64 = await this.blobToBase64(result.imageBlob);
-      
-      // Store bounds for rendering
-      this.aiImageBounds = bounds;
-      
-      // Load the image for display
-      const img = new Image();
-      img.onload = () => {
-        this.currentAiImage = img;
-        this.render();
-        
-        // Persist to battlemap data (syncs to other users)
-        this.store.setAiLayerImage(base64, bounds);
-      };
-      img.src = result.imageUrl!;
-    }
   }
 
   /**
@@ -1248,8 +1122,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
           lineWidth: brushSize,
           isEraser: this.currentTool === 'erase',
         });
-        // Trigger AI generation if enabled (only for regular strokes)
-        this.triggerAiGeneration();
+        // Old auto-generation removed - use AI Draw tool instead
       }
     }
 
@@ -1303,8 +1176,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
           lineWidth: brushSize,
           isEraser: this.currentTool === 'erase',
         });
-        // Trigger AI generation if enabled
-        this.triggerAiGeneration();
+        // Old auto-generation removed - use AI Draw tool instead
       }
     }
     this.isPanning = false;
@@ -1607,7 +1479,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       ctx.lineTo(points[i].x, points[i].y);
     }
 
-    ctx.strokeStyle = isErasing ? 'rgba(0,0,0,1)' : this.brushColor;
+    ctx.strokeStyle = isErasing ? 'rgba(0,0,0,1)' : (this.currentTool === 'ai-draw' ? this.aiDrawColor : this.brushColor);
     ctx.lineWidth = brushSize;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
