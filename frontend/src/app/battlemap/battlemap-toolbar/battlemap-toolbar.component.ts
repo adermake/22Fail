@@ -185,9 +185,9 @@ export class BattlemapToolbarComponent {
   openAiSettingsModal() {
     this.editingAiPrompt.set(this.aiPrompt || '');
     this.editingSeed.set(this.aiSettings?.seed ?? -1);
-    this.editingSteps.set(this.aiSettings?.steps ?? 10);
-    this.editingCfg.set(this.aiSettings?.cfg ?? 1.5);
-    this.editingDenoise.set(this.aiSettings?.denoise ?? 0.75);
+    this.editingSteps.set(this.aiSettings?.steps ?? 20); // FLUX needs more steps
+    this.editingCfg.set(this.aiSettings?.cfg ?? 3.5); // FLUX guidance
+    this.editingDenoise.set(this.aiSettings?.denoise ?? 0.85); // Higher for sketch interpretation
     this.showAiSettingsModal.set(true);
   }
 

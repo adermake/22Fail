@@ -246,33 +246,33 @@
             <label>Steps: {{ editingSteps() }}</label>
             <input 
               type="range" 
-              min="4" max="30" step="1"
+              min="10" max="50" step="1"
               [value]="editingSteps()"
               (input)="editingSteps.set(+$any($event.target).value)"
             />
-            <p class="form-hint">More steps = more detail, slower</p>
+            <p class="form-hint">FLUX needs 15-30 steps for best quality</p>
           </div>
 
           <div class="form-group">
-            <label>CFG: {{ editingCfg() }}</label>
+            <label>Guidance: {{ editingCfg() }}</label>
             <input 
               type="range" 
-              min="1" max="10" step="0.1"
+              min="1" max="7" step="0.5"
               [value]="editingCfg()"
               (input)="editingCfg.set(+$any($event.target).value)"
             />
-            <p class="form-hint">How closely to follow prompt</p>
+            <p class="form-hint">FLUX uses this less - 3-4 is usually good</p>
           </div>
 
           <div class="form-group">
-            <label>Denoise: {{ editingDenoise() }}</label>
+            <label>Creativity: {{ editingDenoise() }}</label>
             <input 
               type="range" 
-              min="0.1" max="1" step="0.05"
+              min="0.5" max="1" step="0.05"
               [value]="editingDenoise()"
               (input)="editingDenoise.set(+$any($event.target).value)"
             />
-            <p class="form-hint">Lower = more of your drawing preserved</p>
+            <p class="form-hint">Higher = AI interprets more freely, lower = follow sketch closely</p>
           </div>
         </div>
       </div>

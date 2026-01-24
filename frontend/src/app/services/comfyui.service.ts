@@ -5,6 +5,9 @@ import { Injectable, signal } from '@angular/core';
  * 
  * Handles communication with a local ComfyUI instance for AI image generation.
  * The browser connects directly to ComfyUI on the local network.
+ * 
+ * Uses FLUX diffusion model for high-quality D&D map generation.
+ * Workflow converts sketches to textured maps - you don't need to worry about color!
  */
 
 export interface ComfyUIConfig {
@@ -45,110 +48,198 @@ export class ComfyUIService {
     denoise: number;
   } = {
     seed: -1, // -1 = random
-    steps: 10,
-    cfg: 1.5,
-    denoise: 0.75
+    steps: 20, // FLUX needs more steps than LCM models
+    cfg: 3.5, // FLUX guidance scale
+    denoise: 0.85 // Higher denoise to really transform the sketch
   };
 
   // Default prompt for D&D maps
-  private readonly defaultPrompt = "((topdown view))A detailed fantasy town map for Dungeons & Dragons, top-down view. The town is medieval-style, with cobblestone streets, timber-framed houses, and thatched roofs. Include a bustling marketplace with stalls, a central town square with a fountain, a small castle or lord's manor on a hill, a temple or chapel, and a blacksmith's forge. Surround the town with wooden palisades and gates, with roads leading into a dense forest and nearby farmlands. Add a river running through or beside the town with a stone bridge. Include small details like wells, carts, trees, and lanterns for atmosphere. Colorful, hand-drawn, fantasy map aesthetic, easy to read with clear labels and icons, vintage RPG style.";
+  private readonly defaultPrompt = "A detailed fantasy map for Dungeons & Dragons, top-down view. Medieval fantasy style with rich textures, cobblestone paths, grass, forests, and buildings. Hand-drawn RPG map aesthetic with detailed textures and atmospheric lighting.";
 
   // Client ID for WebSocket
   private clientId = this.generateClientId();
 
-  // The workflow template - node 21 will be updated with the uploaded image
+  /**
+   * FLUX-based img2img workflow for sketch-to-map generation
+   * 
+   * Flow: LoadImage -> ImageScale -> VAEEncode -> SamplerCustomAdvanced -> VAEDecode -> PreviewImage
+   * 
+   * This workflow:
+   * 1. Loads your sketch and scales it to 1024x1024
+   * 2. Encodes it to latent space
+   * 3. Uses FLUX to denoise/transform it with your prompt
+   * 4. Decodes back to an image
+   * 
+   * With high denoise (0.7-0.9), it interprets your sketch structure 
+   * but completely replaces colors/textures based on the prompt.
+   */
   private workflowTemplate = {
-    "3": {
-      "inputs": {
-        "seed": 0, // Will be randomized
-        "steps": 10,
-        "cfg": 1.5,
-        "sampler_name": "euler_ancestral",
-        "scheduler": "normal",
-        "denoise": 0.75,
-        "model": ["16", 0],
-        "positive": ["6", 0],
-        "negative": ["7", 0],
-        "latent_image": ["11", 0]
-      },
-      "class_type": "KSampler",
-      "_meta": { "title": "KSampler" }
-    },
-    "4": {
-      "inputs": {
-        "ckpt_name": "hephaistosNextgenxlLCM_v20.safetensors"
-      },
-      "class_type": "CheckpointLoaderSimple",
-      "_meta": { "title": "Load Checkpoint" }
-    },
-    "6": {
-      "inputs": {
-        "text": "((topdown view))A detailed fantasy town map for Dungeons & Dragons, top-down view. The town is medieval-style, with cobblestone streets, timber-framed houses, and thatched roofs. Include a bustling marketplace with stalls, a central town square with a fountain, a small castle or lord's manor on a hill, a temple or chapel, and a blacksmith's forge. Surround the town with wooden palisades and gates, with roads leading into a dense forest and nearby farmlands. Add a river running through or beside the town with a stone bridge. Include small details like wells, carts, trees, and lanterns for atmosphere. Colorful, hand-drawn, fantasy map aesthetic, easy to read with clear labels and icons, vintage RPG style.",
-        "clip": ["16", 1]
-      },
-      "class_type": "CLIPTextEncode",
-      "_meta": { "title": "CLIP Text Encode (Prompt)" }
-    },
-    "7": {
-      "inputs": {
-        "text": "low quality",
-        "clip": ["4", 1]
-      },
-      "class_type": "CLIPTextEncode",
-      "_meta": { "title": "CLIP Text Encode (Prompt)" }
-    },
-    "8": {
-      "inputs": {
-        "samples": ["3", 0],
-        "vae": ["4", 2]
-      },
-      "class_type": "VAEDecode",
-      "_meta": { "title": "VAE Decode" }
-    },
-    "11": {
-      "inputs": {
-        "pixels": ["15", 0],
-        "vae": ["4", 2]
-      },
-      "class_type": "VAEEncode",
-      "_meta": { "title": "VAE Encode" }
-    },
-    "14": {
-      "inputs": {
-        "images": ["8", 0]
-      },
-      "class_type": "PreviewImage",
-      "_meta": { "title": "Preview Image" }
-    },
-    "15": {
-      "inputs": {
-        "upscale_method": "nearest-exact",
-        "width": 1024,
-        "height": 1024,
-        "crop": "disabled",
-        "image": ["21", 0]
-      },
-      "class_type": "ImageScale",
-      "_meta": { "title": "Upscale Image" }
-    },
-    "16": {
-      "inputs": {
-        "lora_name": "dnd-maps.safetensors",
-        "strength_model": 1,
-        "strength_clip": 1,
-        "model": ["4", 0],
-        "clip": ["4", 1]
-      },
-      "class_type": "LoraLoader",
-      "_meta": { "title": "Load LoRA" }
-    },
-    "21": {
+    // Load the input sketch image
+    "1": {
       "inputs": {
         "image": "", // Will be set to uploaded filename
         "upload": "image"
       },
       "class_type": "LoadImage",
-      "_meta": { "title": "Load Image" }
+      "_meta": { "title": "Load Sketch" }
+    },
+    
+    // Scale image to 1024x1024 for FLUX
+    "2": {
+      "inputs": {
+        "upscale_method": "lanczos",
+        "width": 1024,
+        "height": 1024,
+        "crop": "disabled",
+        "image": ["1", 0]
+      },
+      "class_type": "ImageScale",
+      "_meta": { "title": "Scale to 1024" }
+    },
+    
+    // Load FLUX VAE
+    "10": {
+      "inputs": {
+        "vae_name": "ae.safetensors"
+      },
+      "class_type": "VAELoader",
+      "_meta": { "title": "Load FLUX VAE" }
+    },
+    
+    // Load FLUX CLIP (dual clip for FLUX)
+    "11": {
+      "inputs": {
+        "clip_name1": "clip_l.safetensors",
+        "clip_name2": "t5\\t5xxl_fp8_e4m3fn.safetensors",
+        "type": "flux",
+        "device": "default"
+      },
+      "class_type": "DualCLIPLoader",
+      "_meta": { "title": "Load FLUX CLIP" }
+    },
+    
+    // Load FLUX diffusion model
+    "12": {
+      "inputs": {
+        "unet_name": "FLUX1\\flux1-dev-fp8.safetensors",
+        "weight_dtype": "default"
+      },
+      "class_type": "UNETLoader",
+      "_meta": { "title": "Load FLUX Model" }
+    },
+    
+    // Apply LoRAs for D&D map style
+    "51": {
+      "inputs": {
+        "PowerLoraLoaderHeaderWidget": { "type": "PowerLoraLoaderHeaderWidget" },
+        "lora_1": {
+          "on": true,
+          "lora": "dnd-maps.safetensors",
+          "strength": 1
+        },
+        "lora_2": {
+          "on": true,
+          "lora": "flux\\aidmaFLUXPro1.1-FLUX-v0.3.safetensors",
+          "strength": 0.8
+        },
+        "➕ Add Lora": "",
+        "model": ["12", 0],
+        "clip": ["11", 0]
+      },
+      "class_type": "Power Lora Loader (rgthree)",
+      "_meta": { "title": "D&D Map LoRAs" }
+    },
+    
+    // Encode the prompt
+    "6": {
+      "inputs": {
+        "text": "", // Will be set to prompt
+        "clip": ["51", 1]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": { "title": "Prompt" }
+    },
+    
+    // Encode sketch to latent space
+    "20": {
+      "inputs": {
+        "pixels": ["2", 0],
+        "vae": ["10", 0]
+      },
+      "class_type": "VAEEncode",
+      "_meta": { "title": "Encode Sketch" }
+    },
+    
+    // Random noise generator
+    "25": {
+      "inputs": {
+        "noise_seed": 0 // Will be randomized
+      },
+      "class_type": "RandomNoise",
+      "_meta": { "title": "Random Noise" }
+    },
+    
+    // Sampler selection
+    "16": {
+      "inputs": {
+        "sampler_name": "euler"
+      },
+      "class_type": "KSamplerSelect",
+      "_meta": { "title": "Sampler" }
+    },
+    
+    // Scheduler with denoise for img2img
+    "17": {
+      "inputs": {
+        "scheduler": "simple",
+        "steps": 20,
+        "denoise": 0.85, // High denoise = more AI interpretation
+        "model": ["51", 0]
+      },
+      "class_type": "BasicScheduler",
+      "_meta": { "title": "Scheduler" }
+    },
+    
+    // Guider connects model with conditioning
+    "22": {
+      "inputs": {
+        "model": ["51", 0],
+        "conditioning": ["6", 0]
+      },
+      "class_type": "BasicGuider",
+      "_meta": { "title": "Guider" }
+    },
+    
+    // Advanced sampler for FLUX
+    "13": {
+      "inputs": {
+        "noise": ["25", 0],
+        "guider": ["22", 0],
+        "sampler": ["16", 0],
+        "sigmas": ["17", 0],
+        "latent_image": ["20", 0] // Use encoded sketch as starting point
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "_meta": { "title": "FLUX Sampler" }
+    },
+    
+    // Decode latent back to image
+    "8": {
+      "inputs": {
+        "samples": ["13", 0],
+        "vae": ["10", 0]
+      },
+      "class_type": "VAEDecode",
+      "_meta": { "title": "Decode Image" }
+    },
+    
+    // Preview/output
+    "14": {
+      "inputs": {
+        "images": ["8", 0]
+      },
+      "class_type": "PreviewImage",
+      "_meta": { "title": "Output" }
     }
   };
 
@@ -307,25 +398,29 @@ export class ComfyUIService {
 
   /**
    * Create a workflow with the specified input image
+   * Updated for FLUX workflow structure
    */
   private createWorkflow(inputImageFilename: string): any {
     const workflow = JSON.parse(JSON.stringify(this.workflowTemplate));
     
-    // Set the input image
-    workflow["21"].inputs.image = inputImageFilename;
+    // Set the input image (node 1 = LoadImage)
+    workflow["1"].inputs.image = inputImageFilename;
     
     // Set seed - use random if -1, otherwise use the specified seed
+    // Node 25 = RandomNoise
     const seed = this.aiSettings.seed === -1 
       ? Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
       : this.aiSettings.seed;
-    workflow["3"].inputs.seed = seed;
+    workflow["25"].inputs.noise_seed = seed;
     
-    // Set other parameters
-    workflow["3"].inputs.steps = this.aiSettings.steps;
-    workflow["3"].inputs.cfg = this.aiSettings.cfg;
-    workflow["3"].inputs.denoise = this.aiSettings.denoise;
+    // Set steps and denoise on the scheduler (node 17 = BasicScheduler)
+    workflow["17"].inputs.steps = this.aiSettings.steps;
+    workflow["17"].inputs.denoise = this.aiSettings.denoise;
     
-    // Set the prompt (custom or default)
+    // Note: FLUX doesn't use CFG in the same way - it's built into the model
+    // The cfg setting is ignored for FLUX, but we keep it for compatibility
+    
+    // Set the prompt (node 6 = CLIPTextEncode)
     const prompt = this.customPrompt || this.defaultPrompt;
     workflow["6"].inputs.text = prompt;
     

@@ -283,7 +283,8 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   // Computed: get AI settings from battlemap
   getAiSettings(): { seed: number; steps: number; cfg: number; denoise: number } {
-    const defaults = { seed: -1, steps: 6, cfg: 1.8, denoise: 0.85 };
+    // FLUX defaults: more steps, higher denoise for sketch interpretation
+    const defaults = { seed: -1, steps: 20, cfg: 3.5, denoise: 0.85 };
     const settings = this.battleMap()?.aiSettings;
     if (!settings) return defaults;
     return {
