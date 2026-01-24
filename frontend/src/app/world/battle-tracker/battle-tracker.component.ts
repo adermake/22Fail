@@ -195,14 +195,18 @@ export class BattleTracker implements OnInit, OnDestroy {
   }
 
   private cleanupAfterAnimation(el: HTMLElement, id: string, timeout: number): void {
+    let cleaned = false;
+    
     const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
       el.style.transition = '';
       el.style.transform = '';
       el.style.opacity = '';
       this.animState.animatingIds.delete(id);
     };
 
-    el.addEventListener('transitionend', cleanup, { once: true });
+    // Use setTimeout only - transitionend can be unreliable
     setTimeout(cleanup, timeout);
   }
 

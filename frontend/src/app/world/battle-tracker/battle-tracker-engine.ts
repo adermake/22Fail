@@ -254,15 +254,16 @@ export class BattleTrackerEngine {
     return (turnNumber * 1000) / Math.max(speed, 1);
   }
 
-  /** Create a tile for a participant - ID is stable based on character + turn number */
+  /** Create a tile for a participant - ID is based on position for stable animations */
   private createTile(
     participant: { characterId: string; name: string; portrait?: string; speed: number; team: string },
     turnNumber: number,
-    _indexHint: number
+    positionHint: number
   ): TurnTile {
     return {
-      // Stable ID: characterId + turnNumber only - this ensures animations work correctly
-      id: `${participant.characterId}_t${turnNumber}`,
+      // Use position-based ID for animation stability
+      // Tiles will animate into their new positions rather than appearing as "new"
+      id: `tile_${positionHint}`,
       characterId: participant.characterId,
       name: participant.name,
       portrait: participant.portrait,
@@ -277,47 +278,55 @@ export class BattleTrackerEngine {
   private fillCalculatedTiles(): void {
     if (this.participants.size === 0) return;
 
-    // Track turn numbers for generation
-    const turnNumbers = new Map<string, number>();
-    for (const [id, p] of this.participants) {
-      turnNumbers.set(id, p.currentTurn);
+    // Trim to max length first to prevent unbounded growth
+    if (this.tiles.length > this.TIMELINE_LENGTH) {
+      this.tiles = this.tiles.slice(0, this.TIMELINE_LENGTH);
     }
 
-    // Account for existing tiles
+    // Track what turn numbers are already in use per character
+    const usedTurns = new Map<string, Set<number>>();
     for (const tile of this.tiles) {
-      const current = turnNumbers.get(tile.characterId) || 1;
-      if (tile.turnNumber >= current) {
-        turnNumbers.set(tile.characterId, tile.turnNumber + 1);
+      if (!usedTurns.has(tile.characterId)) {
+        usedTurns.set(tile.characterId, new Set());
       }
+      usedTurns.get(tile.characterId)!.add(tile.turnNumber);
     }
 
-    // Type for participant tracking
-    type Participant = { 
-      characterId: string; 
-      name: string; 
-      portrait?: string; 
-      speed: number; 
-      team: string;
-      currentTurn: number;
-    };
+    // Track next turn number to generate for each participant
+    const nextTurnNumbers = new Map<string, number>();
+    for (const [id, p] of this.participants) {
+      // Start from currentTurn and find the next unused turn number
+      let turn = p.currentTurn;
+      const used = usedTurns.get(id) || new Set();
+      while (used.has(turn)) {
+        turn++;
+      }
+      nextTurnNumbers.set(id, turn);
+    }
 
-    // Generate tiles until full
-    while (this.tiles.length < this.TIMELINE_LENGTH) {
+    // Generate tiles until full (with safety limit to prevent infinite loop)
+    const maxIterations = this.TIMELINE_LENGTH * 2;
+    let iterations = 0;
+    
+    while (this.tiles.length < this.TIMELINE_LENGTH && iterations < maxIterations) {
+      iterations++;
+      
       // Find participant with lowest timing for their next turn
-      let best: { participant: Participant; turn: number; timing: number } | null = null;
+      let best: { characterId: string; turn: number; timing: number } | null = null;
 
       for (const [id, p] of this.participants) {
-        const turn = turnNumbers.get(id) || 1;
+        const turn = nextTurnNumbers.get(id) || 1;
         const timing = this.calculateTiming(turn, p.speed);
         if (!best || timing < best.timing) {
-          best = { participant: p, turn, timing };
+          best = { characterId: id, turn, timing };
         }
       }
 
       if (!best) break;
 
-      this.tiles.push(this.createTile(best.participant, best.turn, this.tiles.length));
-      turnNumbers.set(best.participant.characterId, best.turn + 1);
+      const participant = this.participants.get(best.characterId)!;
+      this.tiles.push(this.createTile(participant, best.turn, this.tiles.length));
+      nextTurnNumbers.set(best.characterId, best.turn + 1);
     }
 
     // Sort only the calculated portion (after scripted)
@@ -325,6 +334,12 @@ export class BattleTrackerEngine {
     const calculated = this.tiles.slice(this.scriptedCount);
     calculated.sort((a, b) => a.timing - b.timing);
     this.tiles = [...scripted, ...calculated];
+
+    // Reassign stable IDs based on final positions
+    this.tiles = this.tiles.map((tile, index) => ({
+      ...tile,
+      id: `tile_${index}`,
+    }));
   }
 
   /** Rebuild the entire timeline from scratch */
@@ -502,10 +517,12 @@ export class BattleTrackerEngine {
     const tilesToRemove = firstGroup.tiles.length;
 
     // Update currentTurn for each character whose tile we're removing
+    // This represents the next turn they should get
     for (const tile of firstGroup.tiles) {
       const participant = this.participants.get(tile.characterId);
       if (participant) {
-        participant.currentTurn = Math.max(participant.currentTurn, tile.turnNumber + 1);
+        // Set currentTurn to the next turn after the one being consumed
+        participant.currentTurn = tile.turnNumber + 1;
       }
     }
 
@@ -514,6 +531,11 @@ export class BattleTrackerEngine {
 
     // Adjust scripted count
     this.scriptedCount = Math.max(0, this.scriptedCount - tilesToRemove);
+
+    // Cap tiles to max length before refilling
+    if (this.tiles.length > this.TIMELINE_LENGTH) {
+      this.tiles = this.tiles.slice(0, this.TIMELINE_LENGTH);
+    }
 
     // Refill with new tiles at the end
     this.fillCalculatedTiles();
@@ -533,7 +555,8 @@ export class BattleTrackerEngine {
 
   /** 
    * Handle tile drop
-   * When a tile is dragged and dropped, everything from position 0 to the drop position becomes scripted.
+   * Simply moves the dragged tile to the new position.
+   * Everything from position 0 to the new position becomes scripted.
    */
   dropTile(tileId: string, targetGroupIndex: number, position: 'before' | 'after'): void {
     // Find the dragged tile
@@ -552,65 +575,32 @@ export class BattleTrackerEngine {
       targetTileIndex += groups[targetGroupIndex]?.tiles.length || 0;
     }
 
-    // Can't drop before current position (no going back in time)
+    // If dragging to same position or earlier, ignore
     if (targetTileIndex <= tileIndex) {
-      this.notifyChange();
       return;
     }
 
-    // Strategy:
-    // 1. Remove all tiles for this character
-    // 2. Insert one new tile for this character at the drop position
-    // 3. Everything up to and including that position becomes scripted
-    // 4. Regenerate calculated tiles after that
+    // Simple reorder: remove tile from old position, insert at new position
+    const newTiles = [...this.tiles];
+    newTiles.splice(tileIndex, 1); // Remove from old position
+    
+    // Adjust target index since we removed an element
+    const adjustedTargetIndex = targetTileIndex - 1;
+    
+    // Insert at new position  
+    newTiles.splice(adjustedTargetIndex, 0, draggedTile);
 
-    const characterId = draggedTile.characterId;
-    const participant = this.participants.get(characterId);
-    if (!participant) return;
-
-    // Remove character's tiles and track where they were
-    const otherTiles: TurnTile[] = [];
-    let insertPosition = 0;
-    let foundTarget = false;
-
-    for (let i = 0; i < this.tiles.length; i++) {
-      const tile = this.tiles[i];
-      if (tile.characterId === characterId) {
-        continue; // Skip this character's tiles
-      }
-      
-      otherTiles.push(tile);
-      
-      // Check if we've passed the target position
-      if (!foundTarget && i >= targetTileIndex) {
-        insertPosition = otherTiles.length;
-        foundTarget = true;
-      }
-    }
-
-    if (!foundTarget) {
-      insertPosition = otherTiles.length;
-    }
-
-    // Create new tile for the character
-    const newTile = this.createTile(participant, participant.currentTurn, insertPosition);
-
-    // Build new tile list
-    const newTiles = [
-      ...otherTiles.slice(0, insertPosition),
-      newTile,
-      ...otherTiles.slice(insertPosition),
-    ];
-
-    // Everything up to and including the dropped tile is scripted
     this.tiles = newTiles;
-    this.scriptedCount = insertPosition + 1;
 
-    // Update participant's turn
-    participant.currentTurn++;
+    // Everything up to and including the dropped tile is now scripted
+    this.scriptedCount = adjustedTargetIndex + 1;
 
-    // Refill calculated portion
-    this.fillCalculatedTiles();
+    // Reassign stable IDs based on new positions
+    this.tiles = this.tiles.map((tile, index) => ({
+      ...tile,
+      id: `tile_${index}`,
+    }));
+
     this.notifyChange();
     this.saveToWorldStore();
   }
