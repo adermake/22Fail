@@ -186,8 +186,7 @@ export class ComfyUIService {
       "_meta": { "title": "Prompt" }
     },
     
-    // Apply XLabs ControlNet - guides generation with your sketch!
-    // This modifies the model, not the conditioning
+    // Apply XLabs ControlNet - outputs a ControlNetCondition
     "41": {
       "inputs": {
         "strength": 0.7, // How strongly to follow the sketch lines
@@ -197,6 +196,16 @@ export class ComfyUIService {
       },
       "class_type": "ApplyFluxControlNet",
       "_meta": { "title": "Apply ControlNet" }
+    },
+    
+    // Combine text conditioning with ControlNet condition
+    "42": {
+      "inputs": {
+        "conditioning": ["6", 0],
+        "controlnet_condition": ["41", 0]
+      },
+      "class_type": "SetUnionControlNetType",
+      "_meta": { "title": "Set ControlNet Type" }
     },
     
     // ============ LATENT SPACE ============
@@ -236,17 +245,17 @@ export class ComfyUIService {
         "scheduler": "simple",
         "steps": 20,
         "denoise": 1.0, // Full generation, controlled by ControlNet
-        "model": ["41", 0] // Use ControlNet-modified model!
+        "model": ["51", 0] // Use base LoRA'd model (not ControlNet output)
       },
       "class_type": "BasicScheduler",
       "_meta": { "title": "Scheduler" }
     },
     
-    // Guider connects ControlNet-modified model with conditioning
+    // Guider connects model with combined conditioning
     "22": {
       "inputs": {
-        "model": ["41", 0], // Use ControlNet-modified model!
-        "conditioning": ["6", 0] // Regular prompt conditioning
+        "model": ["51", 0], // Use base LoRA'd model
+        "conditioning": ["42", 0] // Use combined text + ControlNet conditioning!
       },
       "class_type": "BasicGuider",
       "_meta": { "title": "Guider" }
