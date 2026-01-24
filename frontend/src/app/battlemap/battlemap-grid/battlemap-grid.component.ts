@@ -63,8 +63,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   private overlayCtx: CanvasRenderingContext2D | null = null;
 
   // AI layer state
-  private currentAiImage: HTMLImageElement | null = null;
-  private aiImageBounds: { centerX: number; centerY: number; worldSize: number } | null = null;
+  // Removed - legacy single image tracking
+  // Now using tile-based aiCanvas system
   aiLayerOpacity = signal<number>(0.7);
 
   // Pan and zoom state
@@ -153,25 +153,11 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   /**
-   * Load AI layer image from persisted battlemap data
+   * Load AI layer image from persisted battlemap data (legacy support)
+   * New system uses tile-based rendering in renderAiLayer()
    */
   private loadPersistedAiLayer() {
-    if (!this.battleMap?.aiLayerImage || !this.battleMap?.aiLayerBounds) {
-      return;
-    }
-
-    // Already loaded this image
-    if (this.currentAiImage && this.aiImageBounds === this.battleMap.aiLayerBounds) {
-      return;
-    }
-
-    const img = new Image();
-    img.onload = () => {
-      this.currentAiImage = img;
-      this.aiImageBounds = this.battleMap!.aiLayerBounds!;
-      this.render();
-    };
-    img.src = this.battleMap.aiLayerImage;
+    // Legacy support removed - tiles load automatically in renderAiLayer()
   }
 
   private initCanvases() {
@@ -437,27 +423,65 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     
-    // Only render if we have an image (visibility is handled via CSS opacity on canvas)
-    if (!this.currentAiImage || !this.aiImageBounds) return;
+    // Render all AI canvas tiles
+    const tiles = this.battleMap?.aiCanvas?.tiles || [];
+    if (tiles.length === 0) return;
 
     ctx.save();
     ctx.globalAlpha = this.aiLayerOpacity();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
     
-    // Draw the AI image using the stored bounds
-    // The bounds tell us where in world coordinates the image should be placed
-    const bounds = this.aiImageBounds;
-    const worldSize = bounds.worldSize;
+    // Calculate visible world bounds for viewport culling
+    const container = this.container?.nativeElement;
+    if (!container) {
+      ctx.restore();
+      return;
+    }
     
-    // Draw the image at the correct world position
-    ctx.drawImage(
-      this.currentAiImage,
-      bounds.centerX - worldSize / 2,
-      bounds.centerY - worldSize / 2,
-      worldSize,
-      worldSize
-    );
+    const rect = container.getBoundingClientRect();
+    const viewportMinX = -this.panX / this.scale;
+    const viewportMinY = -this.panY / this.scale;
+    const viewportMaxX = viewportMinX + rect.width / this.scale;
+    const viewportMaxY = viewportMinY + rect.height / this.scale;
+    
+    // Draw each tile (only if visible in viewport for performance)
+    let renderedCount = 0;
+    for (const tile of tiles) {
+      const bounds = tile.worldBounds;
+      
+      // Viewport culling: skip tiles outside visible area
+      if (bounds.maxX < viewportMinX || bounds.minX > viewportMaxX ||
+          bounds.maxY < viewportMinY || bounds.minY > viewportMaxY) {
+        continue;
+      }
+      
+      // Load and draw tile
+      if (!tile.image) continue;
+      
+      // Create image element if not cached
+      let img = (tile as any).__imageElement as HTMLImageElement;
+      if (!img) {
+        img = new Image();
+        img.src = tile.image;
+        (tile as any).__imageElement = img;
+      }
+      
+      // Only draw if image is loaded
+      if (img.complete) {
+        const width = bounds.maxX - bounds.minX;
+        const height = bounds.maxY - bounds.minY;
+        
+        ctx.drawImage(
+          img,
+          bounds.minX,
+          bounds.minY,
+          width,
+          height
+        );
+        renderedCount++;
+      }
+    }
     
     ctx.restore();
   }
@@ -478,8 +502,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
    * Clear the AI layer
    */
   clearAiLayer() {
-    this.currentAiImage = null;
-    this.aiImageBounds = null;
     if (this.aiCtx) {
       const canvas = this.aiCanvas?.nativeElement;
       if (canvas) {
@@ -487,8 +509,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
         this.aiCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
       }
     }
-    // Clear from store
-    this.store.clearAiLayer();
+    // Clear from store (clears all tiles)
+    this.store.clearAiCanvas();
   }
 
   /**
@@ -513,63 +535,56 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       return;
     }
 
-    // Get container dimensions
-    const container = this.container?.nativeElement;
-    if (!container) return;
-    
-    const rect = container.getBoundingClientRect();
-    const viewSize = Math.min(rect.width, rect.height);
-    const worldSize = viewSize / this.scale;
-    
-    // World center from current view
-    const screenCenterX = rect.width / 2;
-    const screenCenterY = rect.height / 2;
-    const worldCenter = this.screenToWorld(screenCenterX, screenCenterY);
-    
-    // Bounds for rendering and transform calculation
-    const bounds = {
-      centerX: worldCenter.x,
-      centerY: worldCenter.y,
-      worldSize: worldSize
-    };
-
     console.log('[Grid] Generating from AI strokes with regional prompting...');
     console.log('[Grid] Using', colorPrompts.length, 'color prompts for', aiStrokes.length, 'strokes');
 
-    // Calculate transform for strokes
-    // Map world coords to 1024x1024 canvas
-    const scaleFactor = 1024 / worldSize;
-    const transformBounds = {
-      panX: 512 - worldCenter.x * scaleFactor,
-      panY: 512 - worldCenter.y * scaleFactor,
-      scale: scaleFactor
-    };
+    // Calculate tight bounding box around all AI strokes in world coordinates
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const stroke of aiStrokes) {
+      for (const point of stroke.points) {
+        minX = Math.min(minX, point.x);
+        minY = Math.min(minY, point.y);
+        maxX = Math.max(maxX, point.x);
+        maxY = Math.max(maxY, point.y);
+      }
+    }
+
+    // Add padding (10% on each side)
+    const paddingX = (maxX - minX) * 0.1;
+    const paddingY = (maxY - minY) * 0.1;
+    minX -= paddingX;
+    minY -= paddingY;
+    maxX += paddingX;
+    maxY += paddingY;
+
+    const worldBounds = { minX, minY, maxX, maxY };
+    console.log('[Grid] World bounds:', worldBounds);
+
+    // Get prompts from battlemap settings
+    const basePrompt = this.battleMap.aiPrompt || '';
+    const generalRegionPrompt = this.battleMap.aiSettings?.generalRegionPrompt || 'detailed, high quality';
+    const negativePrompt = this.battleMap.aiSettings?.negativePrompt || 'blurry, low quality, distorted, text, watermark, ugly';
 
     const result = await this.comfyUI.generateFromAiStrokes(
       aiStrokes,
       colorPrompts,
-      1024,
-      1024,
-      transformBounds
+      worldBounds,
+      basePrompt,
+      generalRegionPrompt,
+      negativePrompt
     );
 
-    if (result.success && result.imageBlob) {
+    if (result.success && result.imageBlob && result.worldBounds) {
       // Convert blob to base64 for persistence
       const base64 = await this.blobToBase64(result.imageBlob);
       
-      // Store bounds for rendering
-      this.aiImageBounds = bounds;
+      // Add as a new tile to the canvas
+      this.store.addAiCanvasTile(base64, result.worldBounds);
       
-      // Load the image for display
-      const img = new Image();
-      img.onload = () => {
-        this.currentAiImage = img;
-        this.render();
-        
-        // Persist to battlemap data (syncs to other users)
-        this.store.setAiLayerImage(base64, bounds);
-      };
-      img.src = result.imageUrl!;
+      // Trigger re-render
+      this.render();
+      
+      console.log('[Grid] Tile added successfully');
     } else {
       console.error('[Grid] AI generation failed:', result.error);
     }

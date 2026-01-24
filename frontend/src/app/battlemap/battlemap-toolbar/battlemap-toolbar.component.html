@@ -263,14 +263,36 @@
       
       <div class="modal-body">
         <div class="form-group">
-          <label>Prompt:</label>
+          <label>Base Prompt:</label>
           <textarea 
-            rows="4"
+            rows="3"
             [value]="editingAiPrompt()"
             (input)="editingAiPrompt.set($any($event.target).value)"
             placeholder="e.g., A detailed fantasy dungeon map, dark stone walls, torches on the walls..."
           ></textarea>
-          <p class="form-hint">Leave empty for default D&D map style.</p>
+          <p class="form-hint">Base description for your map. Leave empty for default D&D style.</p>
+        </div>
+
+        <div class="form-group">
+          <label>General Region Prompt:</label>
+          <input 
+            type="text"
+            [value]="editingGeneralRegionPrompt()"
+            (input)="editingGeneralRegionPrompt.set($any($event.target).value)"
+            placeholder="e.g., detailed, high quality, clear"
+          />
+          <p class="form-hint">Added to every region (quality tags, style modifiers).</p>
+        </div>
+
+        <div class="form-group">
+          <label>Negative Prompt:</label>
+          <input 
+            type="text"
+            [value]="editingNegativePrompt()"
+            (input)="editingNegativePrompt.set($any($event.target).value)"
+            placeholder="e.g., blurry, low quality, distorted, text, watermark"
+          />
+          <p class="form-hint">What to avoid in generation.</p>
         </div>
 
         <div class="settings-grid">
@@ -315,6 +337,74 @@
       <div class="modal-footer">
         <button class="btn-secondary" (click)="closeAiSettingsModal()">Cancel</button>
         <button class="btn-primary" (click)="saveAiSettings()">Save Settings</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- AI Color Prompts Modal -->
+@if (showAiColorPromptsModal()) {
+  <div class="modal-overlay" (click)="closeAiColorPromptsModal()">
+    <div class="modal-content modal-wide" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Edit AI Color Prompts</h3>
+        <button class="modal-close" (click)="closeAiColorPromptsModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <p class="modal-description">Configure which colors map to which AI prompts. When you paint a color, the AI will generate that element in that region.</p>
+        
+        <div class="color-prompts-list">
+          @for (colorPrompt of editingColorPrompts(); track colorPrompt.id) {
+            <div class="color-prompt-row">
+              <div class="color-preview" [style.background]="colorPrompt.color"></div>
+              
+              <div class="color-input">
+                <label>Color</label>
+                <input 
+                  type="color" 
+                  [value]="colorPrompt.color"
+                  (input)="updateEditingColorPrompt(colorPrompt.id, 'color', $any($event.target).value)"
+                />
+              </div>
+              
+              <div class="name-input">
+                <label>Name</label>
+                <input 
+                  type="text" 
+                  [value]="colorPrompt.name"
+                  (input)="updateEditingColorPrompt(colorPrompt.id, 'name', $any($event.target).value)"
+                  placeholder="e.g., Forest"
+                />
+              </div>
+              
+              <div class="prompt-input">
+                <label>Prompt</label>
+                <input 
+                  type="text" 
+                  [value]="colorPrompt.prompt"
+                  (input)="updateEditingColorPrompt(colorPrompt.id, 'prompt', $any($event.target).value)"
+                  placeholder="e.g., dense forest, tall trees"
+                />
+              </div>
+              
+              <button 
+                class="btn-danger-small" 
+                (click)="deleteEditingColorPrompt(colorPrompt.id)"
+                title="Delete this color"
+              >
+                🗑️
+              </button>
+            </div>
+          }
+        </div>
+        
+        <button class="btn-secondary" (click)="addNewColorPrompt()">➕ Add Color</button>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeAiColorPromptsModal()">Cancel</button>
+        <button class="btn-primary" (click)="saveColorPrompts()">Save Changes</button>
       </div>
     </div>
   </div>

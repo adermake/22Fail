@@ -268,10 +268,39 @@ export class BattleMapStoreService {
     this.applyPatch({ path: 'aiPrompt', value: prompt });
   }
 
-  setAiSettings(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number }) {
+  setAiSettings(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string }) {
     this.applyPatch({ path: 'aiSettings', value: settings });
   }
 
+  // Add a new tile to the AI canvas
+  addAiCanvasTile(
+    imageBase64: string,
+    worldBounds: { minX: number; minY: number; maxX: number; maxY: number }
+  ) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const newTile = {
+      id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9),
+      image: imageBase64,
+      worldBounds,
+      generatedAt: Date.now()
+    };
+
+    const currentTiles = battleMap.aiCanvas?.tiles || [];
+    const updatedCanvas = {
+      tiles: [...currentTiles, newTile]
+    };
+
+    this.applyPatch({ path: 'aiCanvas', value: updatedCanvas });
+  }
+
+  // Clear all AI canvas tiles
+  clearAiCanvas() {
+    this.applyPatch({ path: 'aiCanvas', value: { tiles: [] } });
+  }
+
+  // Legacy support - keep for backwards compat
   setAiLayerImage(imageBase64: string, bounds: { centerX: number; centerY: number; worldSize: number }) {
     const battleMap = this.battleMapValue;
     if (!battleMap) return;

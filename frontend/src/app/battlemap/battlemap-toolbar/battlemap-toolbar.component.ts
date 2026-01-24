@@ -23,7 +23,7 @@ export class BattlemapToolbarComponent {
   @Input() comfyUIAvailable = false;
   @Input() comfyUIGenerating = false;
   @Input() aiPrompt = '';
-  @Input() aiSettings: { seed?: number; steps?: number; cfg?: number; denoise?: number } = {};
+  @Input() aiSettings: { seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string } = {};
   @Input() drawLayerVisible = true;
   @Input() aiLayerVisible = true;
   @Input() aiColorPrompts: AiColorPrompt[] = [];
@@ -36,7 +36,7 @@ export class BattlemapToolbarComponent {
   @Output() drawWithWallsChange = new EventEmitter<boolean>();
   @Output() dragModeChange = new EventEmitter<DragMode>();
   @Output() aiPromptChange = new EventEmitter<string>();
-  @Output() aiSettingsChange = new EventEmitter<{ seed?: number; steps?: number; cfg?: number; denoise?: number }>();
+  @Output() aiSettingsChange = new EventEmitter<{ seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string }>();
   @Output() drawLayerVisibleChange = new EventEmitter<boolean>();
   @Output() aiLayerVisibleChange = new EventEmitter<boolean>();
   @Output() toggleCharacterList = new EventEmitter<void>();
@@ -91,6 +91,8 @@ export class BattlemapToolbarComponent {
   editingSteps = signal<number>(10);
   editingCfg = signal<number>(1.5);
   editingDenoise = signal<number>(0.75);
+  editingGeneralRegionPrompt = signal<string>('');
+  editingNegativePrompt = signal<string>('');
 
   selectTool(tool: ToolType) {
     this.toolChange.emit(tool);
@@ -194,6 +196,8 @@ export class BattlemapToolbarComponent {
     this.editingSteps.set(this.aiSettings?.steps ?? 10); // LCM default
     this.editingCfg.set(this.aiSettings?.cfg ?? 1.5); // LCM default
     this.editingDenoise.set(this.aiSettings?.denoise ?? 0.75); // Inpainting default
+    this.editingGeneralRegionPrompt.set(this.aiSettings?.generalRegionPrompt ?? 'detailed, high quality');
+    this.editingNegativePrompt.set(this.aiSettings?.negativePrompt ?? 'blurry, low quality, distorted, text, watermark, ugly');
     this.showAiSettingsModal.set(true);
   }
 
@@ -207,7 +211,9 @@ export class BattlemapToolbarComponent {
       seed: this.editingSeed(),
       steps: this.editingSteps(),
       cfg: this.editingCfg(),
-      denoise: this.editingDenoise()
+      denoise: this.editingDenoise(),
+      generalRegionPrompt: this.editingGeneralRegionPrompt(),
+      negativePrompt: this.editingNegativePrompt()
     });
     this.closeAiSettingsModal();
   }
@@ -221,7 +227,8 @@ export class BattlemapToolbarComponent {
   editingColorPrompts = signal<AiColorPrompt[]>([]);
 
   openAiColorPromptsModal() {
-    this.editingColorPrompts.set([...this.aiColorPrompts]);
+    // Deep copy to avoid mutating original
+    this.editingColorPrompts.set(JSON.parse(JSON.stringify(this.aiColorPrompts)));
     this.showAiColorPromptsModal.set(true);
   }
 
@@ -229,8 +236,35 @@ export class BattlemapToolbarComponent {
     this.showAiColorPromptsModal.set(false);
   }
 
-  updateColorPromptField(id: string, field: 'name' | 'prompt', value: string) {
-    this.aiColorPromptUpdate.emit({ id, updates: { [field]: value } });
+  updateEditingColorPrompt(id: string, field: 'name' | 'prompt' | 'color', value: string) {
+    const prompts = this.editingColorPrompts();
+    const updated = prompts.map(p => p.id === id ? { ...p, [field]: value } : p);
+    this.editingColorPrompts.set(updated);
+  }
+
+  deleteEditingColorPrompt(id: string) {
+    const prompts = this.editingColorPrompts();
+    this.editingColorPrompts.set(prompts.filter(p => p.id !== id));
+  }
+
+  addNewColorPrompt() {
+    const prompts = this.editingColorPrompts();
+    const newPrompt: AiColorPrompt = {
+      id: Date.now().toString(),
+      color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
+      name: 'New Color',
+      prompt: 'describe what to generate here'
+    };
+    this.editingColorPrompts.set([...prompts, newPrompt]);
+  }
+
+  saveColorPrompts() {
+    // Emit all updated prompts
+    const updated = this.editingColorPrompts();
+    for (const prompt of updated) {
+      this.aiColorPromptUpdate.emit({ id: prompt.id, updates: prompt });
+    }
+    this.closeAiColorPromptsModal();
   }
 
   selectAiColor(color: string) {

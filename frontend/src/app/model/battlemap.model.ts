@@ -28,6 +28,17 @@ export interface AiColorPrompt {
   prompt: string;     // What to generate for this color, e.g., 'dense forest with tall pine trees'
 }
 
+// Global AI generation settings (stored in localStorage)
+export interface GlobalAiSettings {
+  colorPrompts: AiColorPrompt[]; // User's custom color palette
+  basePrompt: string; // Base prompt for all D&D maps
+  generalRegionPrompt: string; // Added to every region (e.g., "best quality, detailed")
+  negativePrompt: string; // Negative prompt for all generations
+  steps: number;
+  cfg: number;
+  denoise: number;
+}
+
 // A measurement line between two points
 export interface MeasurementLine {
   id: string;
@@ -85,12 +96,32 @@ export interface BattlemapData {
     steps?: number;
     cfg?: number;
     denoise?: number;
+    generalRegionPrompt?: string; // Added to every region
+    negativePrompt?: string; // Negative prompt for generation
   };
+  
+  // Legacy AI layer (single image) - kept for backwards compat
   aiLayerImage?: string; // Base64 encoded AI generated image
   aiLayerBounds?: { // World coordinates where the AI image was captured
     centerX: number;
     centerY: number;
     worldSize: number; // Size in world units that the 1024x1024 image covers
+  };
+  
+  // AI Canvas - persistent accumulated generations (tiles composited together)
+  // TODO: Migrate to this system fully
+  aiCanvas?: {
+    tiles: Array<{
+      id: string;
+      image: string; // Base64 encoded
+      worldBounds: { // Exact world coordinates this tile covers
+        minX: number;
+        minY: number;
+        maxX: number;
+        maxY: number;
+      };
+      generatedAt: number;
+    }>;
   };
   
   // Metadata

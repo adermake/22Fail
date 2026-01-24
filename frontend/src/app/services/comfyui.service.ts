@@ -20,6 +20,12 @@ export interface GenerationResult {
   success: boolean;
   imageUrl?: string;
   imageBlob?: Blob;
+  worldBounds?: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  };
   error?: string;
 }
 
@@ -397,9 +403,10 @@ export class ComfyUIService {
   async generateFromAiStrokes(
     aiStrokes: BattlemapStroke[],
     colorPrompts: AiColorPrompt[],
-    canvasWidth: number,
-    canvasHeight: number,
-    bounds: { panX: number; panY: number; scale: number }
+    worldBounds: { minX: number; minY: number; maxX: number; maxY: number },
+    basePrompt: string,
+    generalRegionPrompt: string,
+    negativePrompt: string
   ): Promise<GenerationResult> {
     if (!this.isAvailable()) {
       const available = await this.checkAvailability();
@@ -420,24 +427,17 @@ export class ComfyUIService {
       const usedColors = this.getUsedColors(aiStrokes, colorPrompts);
       console.log('[ComfyUI] Multi-pass inpainting with regions:', usedColors.map(c => `${c.name}: ${c.prompt}`));
 
-      // Step 2: Render strokes at generation resolution
-      const strokeCanvas = this.renderAiStrokesToCanvas(
-        aiStrokes, 
-        this.generationResolution, 
-        this.generationResolution, 
-        {
-          panX: bounds.panX * (this.generationResolution / canvasWidth),
-          panY: bounds.panY * (this.generationResolution / canvasHeight),
-          scale: bounds.scale * (this.generationResolution / canvasWidth)
-        }
+      // Step 2: Render strokes at generation resolution mapped to world bounds
+      const worldWidth = worldBounds.maxX - worldBounds.minX;
+      const worldHeight = worldBounds.maxY - worldBounds.minY;
+      const strokeCanvas = this.renderAiStrokesToCanvasWorldSpace(
+        aiStrokes,
+        worldBounds,
+        this.generationResolution,
+        this.generationResolution
       );
       
-      // Step 3: Upload the stroke canvas as base image
-      const strokeBlob = await this.canvasToBlob(strokeCanvas);
-      const baseImageFilename = await this.uploadImage(strokeBlob);
-      console.log('[ComfyUI] Uploaded base image:', baseImageFilename);
-
-      // Step 4: Create masks for each color region
+      // Step 3: Create masks for each color region
       const regionMasks: { color: string; prompt: string; maskFilename: string }[] = [];
       for (const colorPrompt of usedColors) {
         const maskBlob = await this.createColorMask(strokeCanvas, colorPrompt.color);
@@ -450,27 +450,20 @@ export class ComfyUIService {
         console.log(`[ComfyUI] Uploaded mask for "${colorPrompt.name}"`);
       }
 
-      // Step 5: Create and execute multi-pass inpainting workflow
-      // Use last generation as base if available (incremental building)
-      let baseForInpainting = baseImageFilename;
-      if (this.lastGeneratedBlob) {
-        baseForInpainting = await this.uploadImage(this.lastGeneratedBlob);
-        console.log('[ComfyUI] Using previous generation as base for incremental building');
-      }
+      // Step 4: Create and execute multi-pass inpainting workflow
+      const workflow = this.createInpaintingWorkflow(
+        regionMasks,
+        basePrompt,
+        generalRegionPrompt,
+        negativePrompt
+      );
       
-      const workflow = this.createInpaintingWorkflow(baseForInpainting, regionMasks, this.lastGeneratedBlob !== null);
-      
-      // Step 6: Queue and wait for result
+      // Step 5: Queue and wait for result
       const result = await this.queueAndWait(workflow);
       
-      // Store result for next incremental build
-      if (result.success && result.imageBlob) {
-        // Clean up old stored image
-        if (this.lastGeneratedImageUrl) {
-          URL.revokeObjectURL(this.lastGeneratedImageUrl);
-        }
-        this.lastGeneratedImageUrl = result.imageUrl || null;
-        this.lastGeneratedBlob = result.imageBlob;
+      // Add world bounds to result
+      if (result.success) {
+        result.worldBounds = worldBounds;
       }
       
       this.isGenerating.set(false);
@@ -567,13 +560,13 @@ export class ComfyUIService {
   }
 
   /**
-   * Render AI strokes to an offscreen canvas
+   * Render AI strokes to canvas mapped from world space to pixel space
    */
-  private renderAiStrokesToCanvas(
+  private renderAiStrokesToCanvasWorldSpace(
     strokes: BattlemapStroke[],
+    worldBounds: { minX: number; minY: number; maxX: number; maxY: number },
     width: number,
-    height: number,
-    bounds: { panX: number; panY: number; scale: number }
+    height: number
   ): HTMLCanvasElement {
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -584,23 +577,31 @@ export class ComfyUIService {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
     
-    // Apply transforms
-    ctx.translate(bounds.panX, bounds.panY);
-    ctx.scale(bounds.scale, bounds.scale);
+    // Calculate world to pixel transform
+    const worldWidth = worldBounds.maxX - worldBounds.minX;
+    const worldHeight = worldBounds.maxY - worldBounds.minY;
+    const scaleX = width / worldWidth;
+    const scaleY = height / worldHeight;
     
-    // Render all strokes
+    // Render all strokes, transforming from world coords to pixel coords
     for (const stroke of strokes) {
       if (stroke.points.length < 2) continue;
       
       ctx.beginPath();
-      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      const firstPoint = stroke.points[0];
+      const px = (firstPoint.x - worldBounds.minX) * scaleX;
+      const py = (firstPoint.y - worldBounds.minY) * scaleY;
+      ctx.moveTo(px, py);
       
       for (let i = 1; i < stroke.points.length; i++) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        const point = stroke.points[i];
+        const px = (point.x - worldBounds.minX) * scaleX;
+        const py = (point.y - worldBounds.minY) * scaleY;
+        ctx.lineTo(px, py);
       }
       
       ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = stroke.lineWidth;
+      ctx.lineWidth = stroke.lineWidth * scaleX; // Scale line width too
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.stroke();
@@ -638,15 +639,17 @@ export class ComfyUIService {
    */
   /**
    * Create an inpainting workflow using SDXL LCM model
-   * Multi-pass approach: start from empty latent (or existing image) and inpaint each region
-   * @param baseImageFilename The base image (previous generation or initial sketch)
+   * Multi-pass approach: start from empty latent and inpaint each region
    * @param regions Array of regions to inpaint with their masks
-   * @param hasExistingImage Whether we're building on top of a previous generation
+   * @param basePrompt Base D&D map prompt
+   * @param generalRegionPrompt Added to all regions (quality tags, etc)
+   * @param negativePrompt Negative prompt for all samplers
    */
   private createInpaintingWorkflow(
-    baseImageFilename: string,
     regions: { color: string; prompt: string; maskFilename: string }[],
-    hasExistingImage: boolean = false
+    basePrompt: string,
+    generalRegionPrompt: string,
+    negativePrompt: string
   ): any {
     const workflow: any = {};
     let nodeId = 1;
@@ -674,46 +677,22 @@ export class ComfyUIService {
     };
     const loraNode = nodeId - 1;
 
-    // ============ LATENT START ============
-    let currentLatentNode: number;
-    
-    if (hasExistingImage) {
-      // Load existing image for incremental building
-      workflow[String(nodeId++)] = {
-        "inputs": { "image": baseImageFilename, "upload": "image" },
-        "class_type": "LoadImage",
-        "_meta": { "title": "Load Existing Image" }
-      };
-      const loadImageNode = nodeId - 1;
-
-      // Encode to latent
-      workflow[String(nodeId++)] = {
-        "inputs": {
-          "pixels": [String(loadImageNode), 0],
-          "vae": [String(checkpointNode), 2]
-        },
-        "class_type": "VAEEncode",
-        "_meta": { "title": "Encode Existing" }
-      };
-      currentLatentNode = nodeId - 1;
-    } else {
-      // Start from empty latent (pure generation)
-      workflow[String(nodeId++)] = {
-        "inputs": { 
-          "width": this.generationResolution, 
-          "height": this.generationResolution, 
-          "batch_size": 1 
-        },
-        "class_type": "EmptyLatentImage",
-        "_meta": { "title": "Empty Latent" }
-      };
-      currentLatentNode = nodeId - 1;
-    }
+    // ============ EMPTY LATENT START ============
+    workflow[String(nodeId++)] = {
+      "inputs": { 
+        "width": this.generationResolution, 
+        "height": this.generationResolution, 
+        "batch_size": 1 
+      },
+      "class_type": "EmptyLatentImage",
+      "_meta": { "title": "Empty Latent" }
+    };
+    let currentLatentNode = nodeId - 1;
 
     // Negative prompt (shared by all passes)
     workflow[String(nodeId++)] = {
       "inputs": {
-        "text": "blurry, low quality, distorted, text, watermark, ugly",
+        "text": negativePrompt || "blurry, low quality, distorted, text, watermark, ugly",
         "clip": [String(loraNode), 1]
       },
       "class_type": "CLIPTextEncode",
@@ -728,7 +707,7 @@ export class ComfyUIService {
 
     // ============ REGIONAL INPAINTING PASSES ============
     // For each region, load mask and inpaint with region-specific prompt
-    const basePrompt = this.customPrompt || this.defaultPrompt;
+    const finalBasePrompt = basePrompt || this.defaultPrompt;
     
     for (let i = 0; i < regions.length; i++) {
       const region = regions[i];
@@ -763,8 +742,10 @@ export class ComfyUIService {
       };
       const maskedLatentNode = nodeId - 1;
 
-      // Encode region-specific prompt
-      const regionPrompt = `${basePrompt}, ${region.prompt}, detailed, high quality`;
+      // Encode region-specific prompt: base + specific + general
+      const parts = [finalBasePrompt, region.prompt];
+      if (generalRegionPrompt) parts.push(generalRegionPrompt);
+      const regionPrompt = parts.join(', ');
       workflow[String(nodeId++)] = {
         "inputs": {
           "text": regionPrompt,

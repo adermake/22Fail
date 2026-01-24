@@ -265,9 +265,10 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   }
 
   // AI Settings change
-  onAiSettingsChange(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number }) {
+  onAiSettingsChange(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string }) {
     this.store.setAiSettings(settings);
-    this.comfyUI.setSettings(settings);
+    // Only pass numerical settings to ComfyUI service (prompts are passed per-generation)
+    this.comfyUI.setSettings({ seed: settings.seed, steps: settings.steps, cfg: settings.cfg, denoise: settings.denoise });
   }
 
   // Layer visibility toggles
@@ -302,7 +303,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   // Start fresh AI generation (clear everything)
   onStartFreshAi() {
     this.store.clearAiStrokes();
-    this.store.clearAiLayer();
+    this.store.clearAiCanvas();
     this.comfyUI.clearLastGeneration();
   }
 
