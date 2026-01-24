@@ -228,7 +228,8 @@ export class BattleTrackerEngine {
       battleParticipants.push({
         characterId: participant.characterId,
         name: participant.name,
-        portrait: participant.portrait, // Save portrait!
+        // NOTE: Do NOT save portrait here - it's a huge base64 string that crashes websockets
+        // Portrait is retrieved at runtime from allCharacters
         team: participant.team,
         speed: participant.speed,
         // Store scripted count in first entry

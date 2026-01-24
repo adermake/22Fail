@@ -80,17 +80,7 @@ export class WorldSocketService {
   }
 
   sendPatch(worldName: string, patch: JsonPatch) {
-    // Truncate portrait data in logs to keep console readable
-    const logPatch = JSON.parse(JSON.stringify(patch));
-    if (Array.isArray(logPatch.value)) {
-      logPatch.value = logPatch.value.map((item: any) => {
-        if (item?.portrait && typeof item.portrait === 'string' && item.portrait.length > 100) {
-          return { ...item, portrait: item.portrait.substring(0, 50) + '...[TRUNCATED]' };
-        }
-        return item;
-      });
-    }
-    console.log('Sending world patch:', JSON.stringify(logPatch));
+    // Don't log full patches - they can be huge with base64 data
     this.socket?.emit('patchWorld', { worldName, patch });
   }
 

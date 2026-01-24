@@ -49,8 +49,7 @@ export class WorldStoreService {
       return;
     }
 
-    console.log('[WORLD STORE] Saving world to backend:', this.worldName);
-    console.log('[WORLD STORE] World data being saved:', JSON.stringify(world, null, 2));
+    // Debug logs removed to prevent memory issues with large data
     try {
       await this.api.saveWorld(this.worldName, world);
       console.log('[WORLD STORE] World saved successfully');
@@ -147,16 +146,12 @@ export class WorldStoreService {
   }
 
   applyPatch(patch: JsonPatch) {
-    console.log('[WORLD STORE] Applying patch:', patch);
     // Apply optimistically
     const world = this.worldSubject.value;
     if (world) {
-      console.log('[WORLD STORE] World before patch:', JSON.parse(JSON.stringify(world)));
       this.applyJsonPatch(world, patch);
-      console.log('[WORLD STORE] World after patch:', JSON.parse(JSON.stringify(world)));
       this.worldSubject.next({ ...world });
     }
-    console.log('[WORLD STORE] Sending patch to socket for world:', this.worldName);
 
     // Mark this patch path as pending so we can skip the echo from server
     this.pendingPatchPaths.add(patch.path);

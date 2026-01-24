@@ -84,43 +84,31 @@ export class SheetComponent implements OnInit {
     // Join world room when character sheet loads (if character has a world)
     this.store.sheet$.subscribe(async (sheet) => {
       if (sheet && sheet.worldName) {
-        console.log('[GLOW DEBUG] Character has world:', sheet.worldName);
         this.currentWorldName = sheet.worldName;
 
         // Wait for socket connection before joining world room
         await this.worldSocket.joinWorld(sheet.worldName);
-        console.log('[GLOW DEBUG] Successfully joined world room:', sheet.worldName);
 
         // Check initial turn state
         try {
-          console.log('[GLOW DEBUG] Fetching world data for:', sheet.worldName);
           const world = await this.worldApi.loadWorld(sheet.worldName);
-          console.log('[GLOW DEBUG] World data:', world);
 
           if (world && world.battleParticipants && world.battleParticipants.length > 0) {
-            console.log('[GLOW DEBUG] Battle participants:', world.battleParticipants);
             const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
             const currentTurnAt = sorted[0].nextTurnAt;
             const currentTurnTeam = sorted[0].team;
-            console.log('[GLOW DEBUG] First in queue:', sorted[0]);
 
             // Find all in current group (same time and team)
             const currentGroup = sorted.filter(p =>
               Math.abs(p.nextTurnAt - currentTurnAt) < 0.01 && p.team === currentTurnTeam
             );
-            console.log('[GLOW DEBUG] Current group:', currentGroup);
-            console.log('[GLOW DEBUG] My character ID:', id);
 
             this.isCurrentTurn = currentGroup.some(p => p.characterId === id);
             this.isGroupTurn = currentGroup.length > 1 && this.isCurrentTurn;
-            console.log('[GLOW DEBUG] Initial turn check - Is current turn:', this.isCurrentTurn);
-            console.log('[GLOW DEBUG] Is group turn:', this.isGroupTurn);
             this.cdr.detectChanges();
-          } else {
-            console.log('[GLOW DEBUG] No battle participants in world');
           }
         } catch (error) {
-          console.error('[GLOW DEBUG] Failed to check initial turn state:', error);
+          console.error('Failed to check initial turn state:', error);
         }
       }
     });
@@ -137,7 +125,6 @@ export class SheetComponent implements OnInit {
 
     this.socket.battleLootReceived$.subscribe(async (data: BattleLootEvent) => {
       await this.ngZone.run(async () => {
-        console.log('Battle loot received in sheet component:', data);
         this.receivedLoot = data.loot;
         this.isBattleLoot = true;
         this.currentWorldName = data.worldName;
@@ -155,21 +142,15 @@ export class SheetComponent implements OnInit {
       this.ngZone.run(() => {
         // If battle loot was updated and we're showing the popup
         if (patch.path === 'battleLoot' && this.showLootPopup && this.isBattleLoot) {
-          console.log('Received battleLoot patch:', patch);
           const updatedBattleLoot = patch.value as any[];
-          console.log('Current receivedLoot:', this.receivedLoot);
-          console.log('Updated battleLoot from server:', updatedBattleLoot);
 
           // Filter our current loot to only show items that still exist
           const updatedLootIds = new Set(updatedBattleLoot.map((item: any) => item.id));
-          const beforeLength = this.receivedLoot.length;
           this.receivedLoot = this.receivedLoot.filter(loot => updatedLootIds.has(loot.id));
-          console.log(`Filtered loot from ${beforeLength} to ${this.receivedLoot.length}`);
 
           // Close popup if no more loot
           if (this.receivedLoot.length === 0) {
             this.showLootPopup = false;
-            console.log('Closing popup - no more loot');
           }
 
           this.cdr.detectChanges();
@@ -177,7 +158,6 @@ export class SheetComponent implements OnInit {
 
         // Check if battle participants were updated to determine current turn
         if (patch.path === 'battleParticipants') {
-          console.log('[GLOW DEBUG] Battle participants patch received:', patch.value);
           const participants = patch.value as any[];
           if (participants && participants.length > 0) {
             // Find who has the current turn (lowest nextTurnAt)
@@ -185,7 +165,6 @@ export class SheetComponent implements OnInit {
             const sorted = [...participants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
             const currentTurnAt = sorted[0].nextTurnAt;
             const currentTurnTeam = sorted[0].team;
-            console.log('[GLOW DEBUG] First in queue:', sorted[0]);
 
             // Find all in current group (same time and team)
             const currentGroup = sorted.filter(p =>
@@ -193,16 +172,11 @@ export class SheetComponent implements OnInit {
             );
 
             const isInCurrentGroup = currentGroup.some(p => p.characterId === id);
-            console.log('[GLOW DEBUG] Current group:', currentGroup.map(p => p.characterId));
-            console.log('[GLOW DEBUG] My ID:', id, 'Is in group:', isInCurrentGroup);
 
             this.isCurrentTurn = isInCurrentGroup;
             this.isGroupTurn = currentGroup.length > 1 && isInCurrentGroup;
-            console.log('[GLOW DEBUG] Patch handler - Is current turn:', this.isCurrentTurn);
-            console.log('[GLOW DEBUG] Patch handler - Is group turn:', this.isGroupTurn);
             this.cdr.detectChanges();
           } else {
-            console.log('[GLOW DEBUG] No participants, setting isCurrentTurn to false');
             this.isCurrentTurn = false;
             this.isGroupTurn = false;
             this.cdr.detectChanges();
