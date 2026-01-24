@@ -19,33 +19,35 @@
     (quickTokenCreate)="onQuickTokenDrop($event)"
   />
 
-  <div class="battlemap-content">
-    <!-- Left Panel: Character List -->
-    @if (showCharacterList()) {
-      <app-battlemap-character-list
-        [characters]="worldCharacters()"
-        [tokensOnMap]="battleMap()?.tokens || []"
+  <div class="battlemap-main">
+    <div class="battlemap-content">
+      <!-- Left Panel: Character List -->
+      @if (showCharacterList()) {
+        <app-battlemap-character-list
+          [characters]="worldCharacters()"
+          [tokensOnMap]="battleMap()?.tokens || []"
+        />
+      }
+
+      <!-- Main Grid Area -->
+      <app-battlemap-grid
+        [battleMap]="battleMap()"
+        [currentTool]="currentTool()"
+        [brushColor]="brushColor()"
+        [penBrushSize]="penBrushSize()"
+        [eraserBrushSize]="eraserBrushSize()"
+        [drawWithWalls]="drawWithWalls()"
+        [dragMode]="dragMode()"
+        [currentTurnCharacterId]="currentTurnCharacterId()"
+        [battleParticipants]="battleParticipants()"
+        (tokenDrop)="onTokenDrop($event)"
+        (tokenMove)="onTokenMove($event)"
+        (tokenRemove)="onTokenRemove($event)"
+        (quickTokenDrop)="onQuickTokenDrop($event)"
       />
-    }
+    </div>
 
-    <!-- Main Grid Area -->
-    <app-battlemap-grid
-      [battleMap]="battleMap()"
-      [currentTool]="currentTool()"
-      [brushColor]="brushColor()"
-      [penBrushSize]="penBrushSize()"
-      [eraserBrushSize]="eraserBrushSize()"
-      [drawWithWalls]="drawWithWalls()"
-      [dragMode]="dragMode()"
-      [currentTurnCharacterId]="currentTurnCharacterId()"
-      [battleParticipants]="battleParticipants()"
-      (tokenDrop)="onTokenDrop($event)"
-      (tokenMove)="onTokenMove($event)"
-      (tokenRemove)="onTokenRemove($event)"
-      (quickTokenDrop)="onQuickTokenDrop($event)"
-    />
-
-    <!-- Right Panel: Battle Tracker -->
+    <!-- Bottom Panel: Battle Tracker -->
     @if (showBattleTracker()) {
       <app-battlemap-battle-tracker />
     }

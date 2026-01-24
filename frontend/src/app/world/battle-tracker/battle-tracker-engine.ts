@@ -67,6 +67,7 @@ export class BattleTrackerEngine {
   // World store for persistence
   private worldStore: WorldStoreService | null = null;
   private isSaving = false;
+  private isInitialized = false; // Track if we've done initial load
 
   // All characters available to add to battle
   private allCharacters: Map<string, { id: string; name: string; portrait?: string; speed: number }> = new Map();
@@ -144,11 +145,19 @@ export class BattleTrackerEngine {
   // Persistence
   // ============================================
 
+  /**
+   * Load state from world store. Only loads on first call (initialization).
+   * Subsequent calls are ignored to prevent animations from breaking.
+   */
   loadFromWorldStore(): void {
-    if (this.isSaving || !this.worldStore) return;
+    // Skip if already initialized or currently saving
+    if (this.isInitialized || this.isSaving || !this.worldStore) return;
 
     const world = this.worldStore.worldValue;
     if (!world) return;
+
+    // Mark as initialized - we won't reload again
+    this.isInitialized = true;
 
     const saved = world.battleParticipants || [];
     if (saved.length === 0) {
@@ -219,6 +228,7 @@ export class BattleTrackerEngine {
       battleParticipants.push({
         characterId: participant.characterId,
         name: participant.name,
+        portrait: participant.portrait, // Save portrait!
         team: participant.team,
         speed: participant.speed,
         // Store scripted count in first entry
@@ -505,17 +515,18 @@ export class BattleTrackerEngine {
     // Adjust scripted count
     this.scriptedCount = Math.max(0, this.scriptedCount - tilesToRemove);
 
-    // Refill
+    // Refill with new tiles at the end
     this.fillCalculatedTiles();
     this.notifyChange();
     this.saveToWorldStore();
   }
 
-  /** Reset the battle */
+  /** Reset the battle - also allows reloading from world store */
   resetBattle(): void {
     this.participants.clear();
     this.tiles = [];
     this.scriptedCount = 0;
+    this.isInitialized = false; // Allow reload after reset
     this.notifyChange();
     this.saveToWorldStore();
   }

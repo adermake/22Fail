@@ -1,30 +1,35 @@
 .battle-tracker {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   height: 100%;
   background: var(--card);
+  overflow: hidden;
 }
 
 .tracker-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border);
+  justify-content: center;
+  padding: 0.5rem;
+  border-right: 1px solid var(--border);
+  min-width: 90px;
+  gap: 4px;
 }
 
 .tracker-header h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.8rem;
   color: var(--text);
+  white-space: nowrap;
 }
 
 .view-only-badge {
-  font-size: 0.65rem;
+  font-size: 0.55rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
   background: rgba(96, 165, 250, 0.2);
   color: #60a5fa;
   font-weight: 600;
@@ -32,66 +37,47 @@
 
 .tracker-content {
   flex: 1;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding: 0.5rem;
+  display: flex;
+  align-items: center;
 }
 
 /* Empty State */
 .empty-state {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 2rem;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
   color: var(--text-muted);
-  text-align: center;
 }
 
 .empty-icon {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
   opacity: 0.5;
 }
 
 .empty-state p {
-  margin: 0 0 0.25rem 0;
+  margin: 0;
 }
 
 .sub-text {
-  font-size: 0.8rem;
-  opacity: 0.7;
+  display: none;
 }
 
 /* Current Turn Display */
 .current-turn-display {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  margin-bottom: 0.5rem;
-  background: rgba(251, 191, 36, 0.1);
-  border-left: 3px solid #fbbf24;
-  border-radius: 0 4px 4px 0;
-}
-
-.current-turn-display .label {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-}
-
-.current-turn-display .names {
-  color: #fbbf24;
-  font-weight: 500;
-  font-size: 0.85rem;
+  display: none; /* Hide in compact mode */
 }
 
 /* Timeline */
 .timeline {
   display: flex;
   gap: 4px;
-  overflow-x: auto;
-  padding: 4px 2px 8px 2px;
-  align-items: flex-start;
+  padding: 4px;
+  align-items: center;
+  height: 100%;
 }
 
 .timeline::-webkit-scrollbar {
@@ -111,13 +97,13 @@
 /* Turn Group */
 .turn-group {
   display: flex;
-  flex-wrap: wrap;
   gap: 2px;
   padding: 4px 4px 8px 4px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.1);
   position: relative;
   flex-shrink: 0;
+  height: fit-content;
 }
 
 .turn-group.first-group {
@@ -146,8 +132,8 @@
 /* Tile */
 .tile {
   position: relative;
-  width: 48px;
-  height: 68px;
+  width: 40px;
+  height: 56px;
   background: var(--card-bg, #2a2a2a);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -155,6 +141,7 @@
   flex-direction: column;
   align-items: center;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 /* Scripted tiles have solid accent top */
@@ -170,17 +157,17 @@
 
 .tile-portrait {
   width: 100%;
-  height: 42px;
+  height: 34px;
   object-fit: cover;
 }
 
 .tile-initials {
   width: 100%;
-  height: 42px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--text);
   background: var(--border);
@@ -195,7 +182,7 @@
   color: white;
   text-align: center;
   padding: 1px 2px;
-  font-size: 7px;
+  font-size: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -209,7 +196,7 @@
   background: rgba(0, 0, 0, 0.5);
   color: var(--text-muted);
   text-align: center;
-  font-size: 7px;
+  font-size: 6px;
   padding: 1px;
 }
 
