@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { BattleMapApiService } from './battlemap-api.service';
 import { BattleMapSocketService } from './battlemap-socket.service';
-import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, WallHex, createEmptyBattlemap, generateId } from '../model/battlemap.model';
+import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, WallHex, createEmptyBattlemap, generateId, getDefaultAiColorPrompts } from '../model/battlemap.model';
 import { JsonPatch } from '../model/json-patch.model';
 
 @Injectable({ providedIn: 'root' })
@@ -77,6 +77,12 @@ export class BattleMapStoreService {
     }
     if (!battleMap.walls) {
       battleMap.walls = [];
+    }
+    if (!battleMap.aiStrokes) {
+      battleMap.aiStrokes = [];
+    }
+    if (!battleMap.aiColorPrompts) {
+      battleMap.aiColorPrompts = getDefaultAiColorPrompts();
     }
     return battleMap as BattlemapData;
   }
@@ -166,6 +172,58 @@ export class BattleMapStoreService {
     }
     
     this.applyPatch({ path: 'strokes', value: [] });
+  }
+
+  // AI Stroke operations (separate from regular strokes)
+  addAiStroke(stroke: Omit<BattlemapStroke, 'id'>) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const newStroke: BattlemapStroke = {
+      ...stroke,
+      id: generateId(),
+    };
+
+    const aiStrokes = [...(battleMap.aiStrokes || []), newStroke];
+    this.applyPatch({ path: 'aiStrokes', value: aiStrokes });
+  }
+
+  clearAiStrokes() {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+    this.applyPatch({ path: 'aiStrokes', value: [] });
+  }
+
+  // AI Color Prompt operations
+  updateAiColorPrompt(id: string, updates: Partial<{ name: string; prompt: string; color: string }>) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const prompts = (battleMap.aiColorPrompts || []).map(p => 
+      p.id === id ? { ...p, ...updates } : p
+    );
+    this.applyPatch({ path: 'aiColorPrompts', value: prompts });
+  }
+
+  addAiColorPrompt(prompt: Omit<import('../model/battlemap.model').AiColorPrompt, 'id'>) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const newPrompt = {
+      ...prompt,
+      id: generateId(),
+    };
+
+    const prompts = [...(battleMap.aiColorPrompts || []), newPrompt];
+    this.applyPatch({ path: 'aiColorPrompts', value: prompts });
+  }
+
+  removeAiColorPrompt(id: string) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const prompts = (battleMap.aiColorPrompts || []).filter(p => p.id !== id);
+    this.applyPatch({ path: 'aiColorPrompts', value: prompts });
   }
 
   // Wall operations

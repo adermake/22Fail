@@ -1,9 +1,9 @@
 import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HexCoord } from '../../model/battlemap.model';
+import { HexCoord, AiColorPrompt } from '../../model/battlemap.model';
 
-type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
+type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'ai-draw';
 type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -27,6 +27,8 @@ export class BattlemapToolbarComponent {
   @Input() aiSettings: { seed?: number; steps?: number; cfg?: number; denoise?: number } = {};
   @Input() drawLayerVisible = true;
   @Input() aiLayerVisible = true;
+  @Input() aiColorPrompts: AiColorPrompt[] = [];
+  @Input() selectedAiColor = '#22c55e';
 
   @Output() toolChange = new EventEmitter<ToolType>();
   @Output() brushColorChange = new EventEmitter<string>();
@@ -44,6 +46,10 @@ export class BattlemapToolbarComponent {
   @Output() clearDrawings = new EventEmitter<void>();
   @Output() clearWalls = new EventEmitter<void>();
   @Output() quickTokenCreate = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
+  @Output() selectedAiColorChange = new EventEmitter<string>();
+  @Output() aiColorPromptUpdate = new EventEmitter<{ id: string; updates: Partial<AiColorPrompt> }>();
+  @Output() clearAiStrokes = new EventEmitter<void>();
+  @Output() generateFromAiStrokes = new EventEmitter<void>();
 
   tools: { id: ToolType; icon: string; label: string }[] = [
     { id: 'cursor', icon: '↖️', label: 'Move Tokens (Middle-click to pan)' },
@@ -51,6 +57,7 @@ export class BattlemapToolbarComponent {
     { id: 'erase', icon: '🧹', label: 'Erase' },
     { id: 'walls', icon: '🧱', label: 'Walls' },
     { id: 'measure', icon: '📏', label: 'Measure Distance' },
+    { id: 'ai-draw', icon: '🎨', label: 'AI Region Draw (paint colors for AI generation)' },
   ];
 
   penBrushSizes = [2, 4, 8, 12, 20];
@@ -208,5 +215,30 @@ export class BattlemapToolbarComponent {
 
   randomizeSeed() {
     this.editingSeed.set(-1);
+  }
+
+  // AI Color Prompt editing
+  showAiColorPromptsModal = signal(false);
+  editingColorPrompts = signal<AiColorPrompt[]>([]);
+
+  openAiColorPromptsModal() {
+    this.editingColorPrompts.set([...this.aiColorPrompts]);
+    this.showAiColorPromptsModal.set(true);
+  }
+
+  closeAiColorPromptsModal() {
+    this.showAiColorPromptsModal.set(false);
+  }
+
+  updateColorPromptField(id: string, field: 'name' | 'prompt', value: string) {
+    this.aiColorPromptUpdate.emit({ id, updates: { [field]: value } });
+  }
+
+  selectAiColor(color: string) {
+    this.selectedAiColorChange.emit(color);
+  }
+
+  getSelectedColorPrompt(): AiColorPrompt | undefined {
+    return this.aiColorPrompts.find(p => p.color === this.selectedAiColor);
   }
 }

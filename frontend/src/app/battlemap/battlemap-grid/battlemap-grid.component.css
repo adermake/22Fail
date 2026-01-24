@@ -108,6 +108,10 @@
   cursor: crosshair;
 }
 
+.grid-container.tool-ai-draw {
+  cursor: crosshair;
+}
+
 /* Context menu */
 .grid-context-menu {
   position: absolute;

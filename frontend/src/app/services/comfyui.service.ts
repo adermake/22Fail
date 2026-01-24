@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { BattlemapStroke, AiColorPrompt } from '../model/battlemap.model';
 
 /**
  * ComfyUI Service
@@ -7,7 +8,7 @@ import { Injectable, signal } from '@angular/core';
  * The browser connects directly to ComfyUI on the local network.
  * 
  * Uses FLUX diffusion model for high-quality D&D map generation.
- * Workflow converts sketches to textured maps - you don't need to worry about color!
+ * Supports regional prompting - different prompts for different colored regions.
  */
 
 export interface ComfyUIConfig {
@@ -20,6 +21,12 @@ export interface GenerationResult {
   imageUrl?: string;
   imageBlob?: Blob;
   error?: string;
+}
+
+export interface RegionalPrompt {
+  color: string;
+  prompt: string;
+  mask?: Blob;
 }
 
 @Injectable({
@@ -372,6 +379,540 @@ export class ComfyUIService {
   }
 
   /**
+   * Generate an image from AI strokes with regional prompting
+   * Each color in the AI strokes gets its own prompt from the color-prompt mappings
+   * 
+   * @param aiStrokes The AI drawing strokes
+   * @param colorPrompts Color-to-prompt mappings
+   * @param canvasWidth Width of the source canvas
+   * @param canvasHeight Height of the source canvas
+   * @param bounds World coordinate bounds for rendering strokes
+   */
+  async generateFromAiStrokes(
+    aiStrokes: BattlemapStroke[],
+    colorPrompts: AiColorPrompt[],
+    canvasWidth: number,
+    canvasHeight: number,
+    bounds: { panX: number; panY: number; scale: number }
+  ): Promise<GenerationResult> {
+    if (!this.isAvailable()) {
+      const available = await this.checkAvailability();
+      if (!available) {
+        return { success: false, error: 'ComfyUI is not available' };
+      }
+    }
+
+    if (aiStrokes.length === 0) {
+      return { success: false, error: 'No AI strokes to generate from' };
+    }
+
+    this.isGenerating.set(true);
+    this.lastError.set(null);
+
+    try {
+      // Step 1: Render AI strokes to a canvas
+      const strokeCanvas = this.renderAiStrokesToCanvas(aiStrokes, canvasWidth, canvasHeight, bounds);
+      
+      // Step 2: Identify unique colors used in strokes
+      const usedColors = this.getUsedColors(aiStrokes, colorPrompts);
+      console.log('[ComfyUI] Regional prompting with colors:', usedColors.map(c => c.name));
+
+      // Step 3: For each color, create a mask and get the prompt
+      const regionalPrompts: RegionalPrompt[] = [];
+      for (const colorPrompt of usedColors) {
+        const mask = await this.createColorMask(strokeCanvas, colorPrompt.color, canvasWidth, canvasHeight);
+        regionalPrompts.push({
+          color: colorPrompt.color,
+          prompt: colorPrompt.prompt,
+          mask
+        });
+      }
+
+      // Step 4: Upload all images (stroke canvas + masks)
+      const mainImageFilename = await this.uploadImage(await this.canvasToBlob(strokeCanvas));
+      
+      // Upload masks
+      const uploadedMasks: { color: string; prompt: string; filename: string }[] = [];
+      for (const rp of regionalPrompts) {
+        if (rp.mask) {
+          const maskFilename = await this.uploadImage(rp.mask);
+          uploadedMasks.push({
+            color: rp.color,
+            prompt: rp.prompt,
+            filename: maskFilename
+          });
+        }
+      }
+
+      // Step 5: Create regional workflow
+      const workflow = this.createRegionalWorkflow(mainImageFilename, uploadedMasks);
+      
+      // Step 6: Queue and wait for result
+      const result = await this.queueAndWait(workflow);
+      
+      this.isGenerating.set(false);
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[ComfyUI] Regional generation error:', error);
+      this.lastError.set(errorMessage);
+      this.isGenerating.set(false);
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Render AI strokes to an offscreen canvas
+   */
+  private renderAiStrokesToCanvas(
+    strokes: BattlemapStroke[],
+    width: number,
+    height: number,
+    bounds: { panX: number; panY: number; scale: number }
+  ): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d')!;
+    
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Apply transforms
+    ctx.translate(bounds.panX, bounds.panY);
+    ctx.scale(bounds.scale, bounds.scale);
+    
+    // Render all strokes
+    for (const stroke of strokes) {
+      if (stroke.points.length < 2) continue;
+      
+      ctx.beginPath();
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.lineWidth;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+    
+    return canvas;
+  }
+
+  /**
+   * Get the colors actually used in the strokes
+   */
+  private getUsedColors(strokes: BattlemapStroke[], colorPrompts: AiColorPrompt[]): AiColorPrompt[] {
+    const usedColorSet = new Set<string>();
+    
+    for (const stroke of strokes) {
+      usedColorSet.add(stroke.color.toLowerCase());
+    }
+    
+    // Match to color prompts (normalize hex colors)
+    return colorPrompts.filter(cp => 
+      usedColorSet.has(cp.color.toLowerCase())
+    );
+  }
+
+  /**
+   * Create a binary mask for a specific color
+   * White = where this color is, Black = everywhere else
+   */
+  private async createColorMask(
+    sourceCanvas: HTMLCanvasElement,
+    targetColor: string,
+    width: number,
+    height: number
+  ): Promise<Blob> {
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = width;
+    maskCanvas.height = height;
+    const ctx = maskCanvas.getContext('2d')!;
+    
+    // Get source pixels
+    const sourceCtx = sourceCanvas.getContext('2d')!;
+    const imageData = sourceCtx.getImageData(0, 0, width, height);
+    const pixels = imageData.data;
+    
+    // Parse target color
+    const targetRgb = this.hexToRgb(targetColor);
+    if (!targetRgb) {
+      // Fallback: return white mask
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+      return this.canvasToBlob(maskCanvas);
+    }
+    
+    // Create mask - black background
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Create new image data for the mask
+    const maskData = ctx.getImageData(0, 0, width, height);
+    const maskPixels = maskData.data;
+    
+    // Color tolerance for matching (some antialiasing)
+    const tolerance = 40;
+    
+    for (let i = 0; i < pixels.length; i += 4) {
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+      
+      // Check if this pixel matches the target color
+      if (
+        Math.abs(r - targetRgb.r) <= tolerance &&
+        Math.abs(g - targetRgb.g) <= tolerance &&
+        Math.abs(b - targetRgb.b) <= tolerance
+      ) {
+        // White in mask
+        maskPixels[i] = 255;     // R
+        maskPixels[i + 1] = 255; // G
+        maskPixels[i + 2] = 255; // B
+        maskPixels[i + 3] = 255; // A
+      }
+    }
+    
+    ctx.putImageData(maskData, 0, 0);
+    return this.canvasToBlob(maskCanvas);
+  }
+
+  /**
+   * Convert hex color to RGB
+   */
+  private hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  }
+
+  /**
+   * Create a workflow with regional prompting using ConditioningSetMask
+   * 
+   * This workflow uses multiple conditioning branches, each with a mask,
+   * then combines them with ConditioningCombine for proper regional generation.
+   */
+  private createRegionalWorkflow(
+    mainImageFilename: string,
+    regions: { color: string; prompt: string; filename: string }[]
+  ): any {
+    // Start with base workflow structure
+    const workflow: any = {};
+    let nodeId = 1;
+
+    // ============ IMAGE INPUT ============
+    // Load the main sketch image
+    workflow[String(nodeId++)] = {
+      "inputs": { "image": mainImageFilename, "upload": "image" },
+      "class_type": "LoadImage",
+      "_meta": { "title": "Load Sketch" }
+    };
+    const loadImageNode = nodeId - 1;
+
+    // Scale to 1024x1024
+    workflow[String(nodeId++)] = {
+      "inputs": {
+        "upscale_method": "lanczos",
+        "width": 1024,
+        "height": 1024,
+        "crop": "disabled",
+        "image": [String(loadImageNode), 0]
+      },
+      "class_type": "ImageScale",
+      "_meta": { "title": "Scale to 1024" }
+    };
+    const scaledImageNode = nodeId - 1;
+
+    // Canny edge detection
+    workflow[String(nodeId++)] = {
+      "inputs": {
+        "low_threshold": 0.1,
+        "high_threshold": 0.3,
+        "image": [String(scaledImageNode), 0]
+      },
+      "class_type": "Canny",
+      "_meta": { "title": "Canny Edge Detection" }
+    };
+    const cannyNode = nodeId - 1;
+
+    // ============ MODEL LOADERS ============
+    // VAE
+    workflow[String(nodeId++)] = {
+      "inputs": { "vae_name": "ae.safetensors" },
+      "class_type": "VAELoader",
+      "_meta": { "title": "Load FLUX VAE" }
+    };
+    const vaeNode = nodeId - 1;
+
+    // CLIP
+    workflow[String(nodeId++)] = {
+      "inputs": {
+        "clip_name1": "clip_l.safetensors",
+        "clip_name2": "t5\\t5xxl_fp8_e4m3fn.safetensors",
+        "type": "flux",
+        "device": "default"
+      },
+      "class_type": "DualCLIPLoader",
+      "_meta": { "title": "Load FLUX CLIP" }
+    };
+    const clipNode = nodeId - 1;
+
+    // UNET
+    workflow[String(nodeId++)] = {
+      "inputs": {
+        "unet_name": "FLUX1\\flux1-dev-fp8.safetensors",
+        "weight_dtype": "default"
+      },
+      "class_type": "UNETLoader",
+      "_meta": { "title": "Load FLUX Model" }
+    };
+    const unetNode = nodeId - 1;
+
+    // ControlNet
+    workflow[String(nodeId++)] = {
+      "inputs": { "control_net_name": "flux-canny-controlnet-v3.safetensors" },
+      "class_type": "ControlNetLoader",
+      "_meta": { "title": "Load ControlNet" }
+    };
+    const controlNetNode = nodeId - 1;
+
+    // LoRAs
+    workflow[String(nodeId++)] = {
+      "inputs": {
+        "PowerLoraLoaderHeaderWidget": { "type": "PowerLoraLoaderHeaderWidget" },
+        "lora_1": { "on": true, "lora": "dnd-maps.safetensors", "strength": 1 },
+        "lora_2": { "on": true, "lora": "flux\\aidmaFLUXPro1.1-FLUX-v0.3.safetensors", "strength": 0.8 },
+        "➕ Add Lora": "",
+        "model": [String(unetNode), 0],
+        "clip": [String(clipNode), 0]
+      },
+      "class_type": "Power Lora Loader (rgthree)",
+      "_meta": { "title": "D&D Map LoRAs" }
+    };
+    const loraNode = nodeId - 1;
+
+    // ============ REGIONAL CONDITIONING ============
+    // Build combined prompt for all regions + base map prompt
+    const basePrompt = this.customPrompt || this.defaultPrompt;
+    const regionDescriptions = regions.map(r => r.prompt).join(', ');
+    const combinedPrompt = `${basePrompt}. Map features: ${regionDescriptions}`;
+
+    // Main text encoding with combined prompt
+    workflow[String(nodeId++)] = {
+      "inputs": {
+        "text": combinedPrompt,
+        "clip": [String(loraNode), 1]
+      },
+      "class_type": "CLIPTextEncode",
+      "_meta": { "title": "Combined Prompt" }
+    };
+    const mainCondNode = nodeId - 1;
+
+    // Apply ControlNet to combined conditioning
+    workflow[String(nodeId++)] = {
+      "inputs": {
+        "strength": this.aiSettings.denoise,
+        "conditioning": [String(mainCondNode), 0],
+        "control_net": [String(controlNetNode), 0],
+        "image": [String(cannyNode), 0]
+      },
+      "class_type": "ControlNetApply",
+      "_meta": { "title": "Apply ControlNet" }
+    };
+    const controlNetApplyNode = nodeId - 1;
+
+    // Now create individual regional conditionings with masks
+    // Load each mask and apply ConditioningSetMask
+    let currentCondNode = controlNetApplyNode;
+    
+    for (let i = 0; i < regions.length; i++) {
+      const region = regions[i];
+      
+      // Load mask image
+      workflow[String(nodeId++)] = {
+        "inputs": { "image": region.filename, "upload": "image" },
+        "class_type": "LoadImage",
+        "_meta": { "title": `Load Mask: ${region.prompt.substring(0, 20)}` }
+      };
+      const maskLoadNode = nodeId - 1;
+
+      // Scale mask to 1024x1024
+      workflow[String(nodeId++)] = {
+        "inputs": {
+          "upscale_method": "nearest-exact",
+          "width": 1024,
+          "height": 1024,
+          "crop": "disabled",
+          "image": [String(maskLoadNode), 0]
+        },
+        "class_type": "ImageScale",
+        "_meta": { "title": "Scale Mask" }
+      };
+      const scaledMaskNode = nodeId - 1;
+
+      // Convert image to mask (take red channel)
+      workflow[String(nodeId++)] = {
+        "inputs": {
+          "channel": "red",
+          "image": [String(scaledMaskNode), 0]
+        },
+        "class_type": "ImageToMask",
+        "_meta": { "title": "Image to Mask" }
+      };
+      const maskNode = nodeId - 1;
+
+      // Encode region-specific prompt
+      workflow[String(nodeId++)] = {
+        "inputs": {
+          "text": `${basePrompt}. This specific area shows: ${region.prompt}`,
+          "clip": [String(loraNode), 1]
+        },
+        "class_type": "CLIPTextEncode",
+        "_meta": { "title": `Prompt: ${region.prompt.substring(0, 20)}` }
+      };
+      const regionCondNode = nodeId - 1;
+
+      // Apply ControlNet to this regional conditioning too
+      workflow[String(nodeId++)] = {
+        "inputs": {
+          "strength": this.aiSettings.denoise,
+          "conditioning": [String(regionCondNode), 0],
+          "control_net": [String(controlNetNode), 0],
+          "image": [String(cannyNode), 0]
+        },
+        "class_type": "ControlNetApply",
+        "_meta": { "title": "Regional ControlNet" }
+      };
+      const regionalControlNetNode = nodeId - 1;
+
+      // Set mask on the regional conditioning
+      workflow[String(nodeId++)] = {
+        "inputs": {
+          "conditioning": [String(regionalControlNetNode), 0],
+          "mask": [String(maskNode), 0],
+          "strength": 1.0,
+          "set_cond_area": "default"
+        },
+        "class_type": "ConditioningSetMask",
+        "_meta": { "title": `Set Mask: ${region.prompt.substring(0, 20)}` }
+      };
+      const maskedCondNode = nodeId - 1;
+
+      // Combine with previous conditioning
+      workflow[String(nodeId++)] = {
+        "inputs": {
+          "conditioning_1": [String(currentCondNode), 0],
+          "conditioning_2": [String(maskedCondNode), 0]
+        },
+        "class_type": "ConditioningCombine",
+        "_meta": { "title": "Combine Conditioning" }
+      };
+      currentCondNode = nodeId - 1;
+    }
+
+    // ============ SAMPLING ============
+    // Empty latent
+    workflow[String(nodeId++)] = {
+      "inputs": { "width": 1024, "height": 1024, "batch_size": 1 },
+      "class_type": "EmptyLatentImage",
+      "_meta": { "title": "Empty Latent" }
+    };
+    const latentNode = nodeId - 1;
+
+    // Random noise
+    const seed = this.aiSettings.seed === -1 
+      ? Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
+      : this.aiSettings.seed;
+    workflow[String(nodeId++)] = {
+      "inputs": { "noise_seed": seed },
+      "class_type": "RandomNoise",
+      "_meta": { "title": "Random Noise" }
+    };
+    const noiseNode = nodeId - 1;
+
+    // Sampler
+    workflow[String(nodeId++)] = {
+      "inputs": { "sampler_name": "euler" },
+      "class_type": "KSamplerSelect",
+      "_meta": { "title": "Sampler" }
+    };
+    const samplerNode = nodeId - 1;
+
+    // Scheduler
+    workflow[String(nodeId++)] = {
+      "inputs": {
+        "scheduler": "simple",
+        "steps": this.aiSettings.steps,
+        "denoise": 1.0,
+        "model": [String(loraNode), 0]
+      },
+      "class_type": "BasicScheduler",
+      "_meta": { "title": "Scheduler" }
+    };
+    const schedulerNode = nodeId - 1;
+
+    // Guider with combined regional conditioning
+    workflow[String(nodeId++)] = {
+      "inputs": {
+        "model": [String(loraNode), 0],
+        "conditioning": [String(currentCondNode), 0]
+      },
+      "class_type": "BasicGuider",
+      "_meta": { "title": "Guider" }
+    };
+    const guiderNode = nodeId - 1;
+
+    // Advanced sampler
+    workflow[String(nodeId++)] = {
+      "inputs": {
+        "noise": [String(noiseNode), 0],
+        "guider": [String(guiderNode), 0],
+        "sampler": [String(samplerNode), 0],
+        "sigmas": [String(schedulerNode), 0],
+        "latent_image": [String(latentNode), 0]
+      },
+      "class_type": "SamplerCustomAdvanced",
+      "_meta": { "title": "FLUX Sampler" }
+    };
+    const samplerAdvNode = nodeId - 1;
+
+    // ============ OUTPUT ============
+    // VAE Decode
+    workflow[String(nodeId++)] = {
+      "inputs": {
+        "samples": [String(samplerAdvNode), 0],
+        "vae": [String(vaeNode), 0]
+      },
+      "class_type": "VAEDecode",
+      "_meta": { "title": "Decode Image" }
+    };
+    const decodeNode = nodeId - 1;
+
+    // Preview
+    workflow[String(nodeId++)] = {
+      "inputs": { "images": [String(decodeNode), 0] },
+      "class_type": "PreviewImage",
+      "_meta": { "title": "Output" }
+    };
+    // Store output node ID for fetching results
+    this.lastOutputNode = nodeId - 1;
+
+    return workflow;
+  }
+
+  // Track the output node for result fetching
+  private lastOutputNode = 14; // Default for standard workflow
+
+  /**
    * Convert canvas to PNG blob
    */
   private canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -576,8 +1117,18 @@ export class ComfyUIService {
       throw new Error('No outputs found');
     }
 
-    // Find the preview image output (node 14)
-    const previewOutput = outputs["14"];
+    // Find the preview image output - use dynamic node ID for regional workflow
+    // Try the lastOutputNode first, then fall back to common node IDs
+    let previewOutput = outputs[String(this.lastOutputNode)];
+    if (!previewOutput?.images?.[0]) {
+      // Try other common output node IDs
+      for (const nodeId of ["14", Object.keys(outputs).find(k => outputs[k]?.images?.length > 0)]) {
+        if (nodeId && outputs[nodeId]?.images?.[0]) {
+          previewOutput = outputs[nodeId];
+          break;
+        }
+      }
+    }
     if (!previewOutput?.images?.[0]) {
       throw new Error('No image in output');
     }

@@ -147,6 +147,59 @@
     </div>
   }
 
+  <!-- AI Draw tool settings -->
+  @if (currentTool === 'ai-draw') {
+    <div class="toolbar-section ai-draw-settings">
+      <!-- AI Color palette -->
+      <div class="ai-color-picker">
+        @for (colorPrompt of aiColorPrompts; track colorPrompt.id) {
+          <button 
+            class="ai-color-swatch"
+            [class.active]="selectedAiColor === colorPrompt.color"
+            [style.background]="colorPrompt.color"
+            [title]="colorPrompt.name + ': ' + colorPrompt.prompt"
+            (click)="selectAiColor(colorPrompt.color)"
+          >
+            <span class="ai-color-label">{{ colorPrompt.name }}</span>
+          </button>
+        }
+      </div>
+      
+      <!-- Edit color prompts button -->
+      <button 
+        class="action-btn"
+        title="Edit color-to-prompt mappings"
+        (click)="openAiColorPromptsModal()"
+      >
+        ⚙️ Edit Colors
+      </button>
+
+      <!-- Generate from AI strokes -->
+      <button 
+        class="action-btn generate"
+        [class.disabled]="comfyUIGenerating || !comfyUIAvailable"
+        [disabled]="comfyUIGenerating || !comfyUIAvailable"
+        title="Generate map from AI colored regions"
+        (click)="generateFromAiStrokes.emit()"
+      >
+        @if (comfyUIGenerating) {
+          ⏳ Generating...
+        } @else {
+          🪄 Generate Map
+        }
+      </button>
+
+      <!-- Clear AI strokes -->
+      <button 
+        class="action-btn danger"
+        title="Clear AI drawing"
+        (click)="clearAiStrokes.emit()"
+      >
+        🗑️ Clear
+      </button>
+    </div>
+  }
+
   <!-- Right: Panel toggles -->
   <div class="toolbar-section">
     <!-- Layer visibility toggles -->

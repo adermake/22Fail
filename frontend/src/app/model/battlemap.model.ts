@@ -20,6 +20,14 @@ export interface BattlemapStroke {
   isEraser: boolean;
 }
 
+// AI Color-to-Prompt mapping for regional generation
+export interface AiColorPrompt {
+  id: string;
+  color: string;      // Hex color like '#22c55e'
+  name: string;       // Display name like 'Forest'
+  prompt: string;     // What to generate for this color, e.g., 'dense forest with tall pine trees'
+}
+
 // A measurement line between two points
 export interface MeasurementLine {
   id: string;
@@ -58,6 +66,12 @@ export interface BattlemapData {
   // Drawing strokes
   strokes: BattlemapStroke[];
   
+  // AI Drawing strokes (separate from regular drawing)
+  aiStrokes: BattlemapStroke[];
+  
+  // AI Color-to-Prompt mappings for regional generation
+  aiColorPrompts: AiColorPrompt[];
+  
   // Wall hexes that block movement
   walls: WallHex[];
   
@@ -92,11 +106,27 @@ export function createEmptyBattlemap(id: string, name: string, worldName: string
     worldName,
     tokens: [],
     strokes: [],
+    aiStrokes: [],
+    aiColorPrompts: getDefaultAiColorPrompts(),
     walls: [],
     measurementLines: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
+}
+
+// Default AI color-prompt mappings for new battlemaps
+export function getDefaultAiColorPrompts(): AiColorPrompt[] {
+  return [
+    { id: 'forest', color: '#22c55e', name: 'Forest', prompt: 'dense forest with tall trees and undergrowth' },
+    { id: 'water', color: '#3b82f6', name: 'Water', prompt: 'clear blue water, river or lake' },
+    { id: 'path', color: '#a16207', name: 'Path', prompt: 'dirt path or cobblestone road' },
+    { id: 'building', color: '#dc2626', name: 'Building', prompt: 'medieval wooden building with thatched roof' },
+    { id: 'stone', color: '#6b7280', name: 'Stone', prompt: 'gray stone walls or rocky terrain' },
+    { id: 'grass', color: '#86efac', name: 'Grass', prompt: 'open grassy field or meadow' },
+    { id: 'sand', color: '#fcd34d', name: 'Sand', prompt: 'sandy beach or desert terrain' },
+    { id: 'mountain', color: '#78716c', name: 'Mountain', prompt: 'rocky mountain or cliff face' },
+  ];
 }
 
 // Hexagon math utilities - FLAT-TOP hexagons

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -6,7 +6,7 @@ import { Subscription } from 'rxjs';
 import { BattleMapStoreService } from '../services/battlemap-store.service';
 import { WorldStoreService } from '../services/world-store.service';
 import { ComfyUIService } from '../services/comfyui.service';
-import { BattlemapData, BattlemapToken, HexCoord, HexMath } from '../model/battlemap.model';
+import { BattlemapData, BattlemapToken, HexCoord, HexMath, AiColorPrompt, getDefaultAiColorPrompts } from '../model/battlemap.model';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { CharacterApiService } from '../services/character-api.service';
 
@@ -16,7 +16,7 @@ import { BattlemapCharacterListComponent } from './battlemap-character-list/batt
 import { BattlemapBattleTrackerComponent } from './battlemap-battle-tracker/battlemap-battle-tracker.component';
 
 
-export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
+export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'ai-draw';
 export type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -33,6 +33,8 @@ export type DragMode = 'free' | 'enforced';
   styleUrl: './battlemap.component.css',
 })
 export class BattlemapComponent implements OnInit, OnDestroy {
+  @ViewChild(BattlemapGridComponent) gridComponent!: BattlemapGridComponent;
+
   private route = inject(ActivatedRoute);
   private store = inject(BattleMapStoreService);
   private worldStore = inject(WorldStoreService);
@@ -62,6 +64,9 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   drawWithWalls = signal<boolean>(false);
   dragMode = signal<DragMode>('free');
   aiLayerEnabled = signal<boolean>(false);
+
+  // AI drawing tool state
+  selectedAiColor = signal<string>('#22c55e'); // Default to forest green
 
   // Layer visibility
   drawLayerVisible = signal<boolean>(true);
@@ -274,6 +279,31 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   onAiLayerVisibleChange(visible: boolean) {
     this.aiLayerVisible.set(visible);
+  }
+
+  // AI Color Prompt handlers
+  onSelectedAiColorChange(color: string) {
+    this.selectedAiColor.set(color);
+  }
+
+  onAiColorPromptUpdate(event: { id: string; updates: Partial<AiColorPrompt> }) {
+    this.store.updateAiColorPrompt(event.id, event.updates);
+  }
+
+  onClearAiStrokes() {
+    this.store.clearAiStrokes();
+  }
+
+  // Trigger AI generation from AI strokes with regional prompting
+  onGenerateFromAiStrokes() {
+    if (this.gridComponent) {
+      this.gridComponent.generateFromAiStrokes();
+    }
+  }
+
+  // Computed: get AI color prompts from battlemap
+  getAiColorPrompts(): AiColorPrompt[] {
+    return this.battleMap()?.aiColorPrompts || getDefaultAiColorPrompts();
   }
 
   // Computed: get AI prompt from battlemap

@@ -14,6 +14,8 @@
     [aiSettings]="getAiSettings()"
     [drawLayerVisible]="drawLayerVisible()"
     [aiLayerVisible]="aiLayerVisible()"
+    [aiColorPrompts]="getAiColorPrompts()"
+    [selectedAiColor]="selectedAiColor()"
     (toolChange)="onToolChange($event)"
     (brushColorChange)="onBrushColorChange($event)"
     (penBrushSizeChange)="onPenBrushSizeChange($event)"
@@ -29,6 +31,10 @@
     (toggleBattleTracker)="toggleBattleTracker()"
     (clearWalls)="onClearWalls()"
     (quickTokenCreate)="onQuickTokenDrop($event)"
+    (selectedAiColorChange)="onSelectedAiColorChange($event)"
+    (aiColorPromptUpdate)="onAiColorPromptUpdate($event)"
+    (clearAiStrokes)="onClearAiStrokes()"
+    (generateFromAiStrokes)="onGenerateFromAiStrokes()"
   />
 
   <div class="battlemap-main">
@@ -55,6 +61,7 @@
         [battleParticipants]="battleParticipants()"
         [drawLayerVisible]="drawLayerVisible()"
         [aiLayerVisible]="aiLayerVisible()"
+        [aiDrawColor]="selectedAiColor()"
         (tokenDrop)="onTokenDrop($event)"
         (tokenMove)="onTokenMove($event)"
         (tokenRemove)="onTokenRemove($event)"
