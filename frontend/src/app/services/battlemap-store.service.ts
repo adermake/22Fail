@@ -205,6 +205,25 @@ export class BattleMapStoreService {
     this.applyPatch({ path: 'walls', value: [] });
   }
 
+  // AI Layer operations
+  setAiPrompt(prompt: string) {
+    this.applyPatch({ path: 'aiPrompt', value: prompt });
+  }
+
+  setAiLayerImage(imageBase64: string, bounds: { centerX: number; centerY: number; worldSize: number }) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    // Apply both patches
+    this.applyPatch({ path: 'aiLayerImage', value: imageBase64 });
+    this.applyPatch({ path: 'aiLayerBounds', value: bounds });
+  }
+
+  clearAiLayer() {
+    this.applyPatch({ path: 'aiLayerImage', value: null });
+    this.applyPatch({ path: 'aiLayerBounds', value: null });
+  }
+
   private applyJsonPatch(target: any, patch: JsonPatch) {
     const keys = patch.path.split('.');
     

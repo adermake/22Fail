@@ -109,6 +109,10 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     this.subscriptions.push(
       this.store.battleMap$.subscribe((map) => {
         this.battleMap.set(map);
+        // Load AI prompt into ComfyUI service when battlemap changes
+        if (map?.aiPrompt) {
+          this.comfyUI.setCustomPrompt(map.aiPrompt);
+        }
       })
     );
 
@@ -240,5 +244,17 @@ export class BattlemapComponent implements OnInit, OnDestroy {
       // Check availability when enabling
       this.comfyUI.checkAvailability();
     }
+  }
+
+  // AI Prompt change
+  onAiPromptChange(prompt: string) {
+    this.store.setAiPrompt(prompt);
+    // Update ComfyUI service with new prompt
+    this.comfyUI.setCustomPrompt(prompt);
+  }
+
+  // Computed: get AI prompt from battlemap
+  getAiPrompt(): string {
+    return this.battleMap()?.aiPrompt || '';
   }
 }

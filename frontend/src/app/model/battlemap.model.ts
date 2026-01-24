@@ -64,6 +64,15 @@ export interface BattlemapData {
   // Active measurement lines (synced in real-time)
   measurementLines: MeasurementLine[];
   
+  // AI Layer settings
+  aiPrompt?: string; // Custom prompt for AI generation
+  aiLayerImage?: string; // Base64 encoded AI generated image
+  aiLayerBounds?: { // World coordinates where the AI image was captured
+    centerX: number;
+    centerY: number;
+    worldSize: number; // Size in world units that the 1024x1024 image covers
+  };
+  
   // Metadata
   createdAt: number;
   updatedAt: number;

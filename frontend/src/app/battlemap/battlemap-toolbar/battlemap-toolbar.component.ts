@@ -23,6 +23,7 @@ export class BattlemapToolbarComponent {
   @Input() aiLayerEnabled = false;
   @Input() comfyUIAvailable = false;
   @Input() comfyUIGenerating = false;
+  @Input() aiPrompt = '';
 
   @Output() toolChange = new EventEmitter<ToolType>();
   @Output() brushColorChange = new EventEmitter<string>();
@@ -31,6 +32,7 @@ export class BattlemapToolbarComponent {
   @Output() drawWithWallsChange = new EventEmitter<boolean>();
   @Output() dragModeChange = new EventEmitter<DragMode>();
   @Output() aiLayerToggle = new EventEmitter<void>();
+  @Output() aiPromptChange = new EventEmitter<string>();
   @Output() toggleCharacterList = new EventEmitter<void>();
   @Output() toggleBattleTracker = new EventEmitter<void>();
   @Output() clearDrawings = new EventEmitter<void>();
@@ -69,6 +71,10 @@ export class BattlemapToolbarComponent {
   showQuickTokenModal = signal(false);
   quickTokenName = signal('');
   quickTokenImageUrl = signal('');
+
+  // AI Prompt modal state
+  showAiPromptModal = signal(false);
+  editingAiPrompt = signal('');
 
   selectTool(tool: ToolType) {
     this.toolChange.emit(tool);
@@ -163,5 +169,20 @@ export class BattlemapToolbarComponent {
     });
 
     this.closeQuickTokenModal();
+  }
+
+  // AI Prompt modal methods
+  openAiPromptModal() {
+    this.editingAiPrompt.set(this.aiPrompt || '');
+    this.showAiPromptModal.set(true);
+  }
+
+  closeAiPromptModal() {
+    this.showAiPromptModal.set(false);
+  }
+
+  saveAiPrompt() {
+    this.aiPromptChange.emit(this.editingAiPrompt());
+    this.closeAiPromptModal();
   }
 }

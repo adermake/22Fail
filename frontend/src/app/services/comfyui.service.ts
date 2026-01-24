@@ -34,6 +34,12 @@ export class ComfyUIService {
   isGenerating = signal<boolean>(false);
   lastError = signal<string | null>(null);
 
+  // Custom prompt (can be overridden per battlemap)
+  private customPrompt: string | null = null;
+
+  // Default prompt for D&D maps
+  private readonly defaultPrompt = "((topdown view))A detailed fantasy town map for Dungeons & Dragons, top-down view. The town is medieval-style, with cobblestone streets, timber-framed houses, and thatched roofs. Include a bustling marketplace with stalls, a central town square with a fountain, a small castle or lord's manor on a hill, a temple or chapel, and a blacksmith's forge. Surround the town with wooden palisades and gates, with roads leading into a dense forest and nearby farmlands. Add a river running through or beside the town with a stone bridge. Include small details like wells, carts, trees, and lanterns for atmosphere. Colorful, hand-drawn, fantasy map aesthetic, easy to read with clear labels and icons, vintage RPG style.";
+
   // Client ID for WebSocket
   private clientId = this.generateClientId();
 
@@ -150,18 +156,31 @@ export class ComfyUIService {
    */
   async checkAvailability(): Promise<boolean> {
     try {
+      console.log('[ComfyUI] Checking availability at:', this.baseUrl);
+      
       const response = await fetch(`${this.baseUrl}/system_stats`, {
         method: 'GET',
-        signal: AbortSignal.timeout(3000) // 3 second timeout
+        mode: 'cors',
+        signal: AbortSignal.timeout(5000) // 5 second timeout
       });
       
       const available = response.ok;
       this.isAvailable.set(available);
       this.lastError.set(null);
+      console.log('[ComfyUI] Available:', available);
       return available;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[ComfyUI] Connection error:', error?.message || error);
       this.isAvailable.set(false);
-      this.lastError.set('ComfyUI not reachable');
+      
+      // Provide more helpful error messages
+      if (error?.message?.includes('BLOCKED')) {
+        this.lastError.set('Request blocked - try disabling ad blocker for localhost');
+      } else if (error?.message?.includes('NetworkError') || error?.message?.includes('Failed to fetch')) {
+        this.lastError.set('ComfyUI not reachable - is it running with --enable-cors-header?');
+      } else {
+        this.lastError.set(`ComfyUI error: ${error?.message || 'Unknown'}`);
+      }
       return false;
     }
   }
@@ -243,6 +262,20 @@ export class ComfyUIService {
   }
 
   /**
+   * Set a custom prompt for AI generation
+   */
+  setCustomPrompt(prompt: string | null): void {
+    this.customPrompt = prompt && prompt.trim() ? prompt : null;
+  }
+
+  /**
+   * Get the current prompt (custom or default)
+   */
+  getCurrentPrompt(): string {
+    return this.customPrompt || this.defaultPrompt;
+  }
+
+  /**
    * Create a workflow with the specified input image
    */
   private createWorkflow(inputImageFilename: string): any {
@@ -253,6 +286,10 @@ export class ComfyUIService {
     
     // Randomize the seed
     workflow["3"].inputs.seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+    
+    // Set the prompt (custom or default)
+    const prompt = this.customPrompt || this.defaultPrompt;
+    workflow["6"].inputs.text = prompt;
     
     return workflow;
   }

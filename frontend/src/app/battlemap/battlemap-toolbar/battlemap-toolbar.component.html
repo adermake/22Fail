@@ -149,6 +149,17 @@
 
   <!-- Right: Panel toggles -->
   <div class="toolbar-section">
+    <!-- AI Prompt Edit Button (only visible when AI is available) -->
+    @if (comfyUIAvailable) {
+      <button 
+        class="toolbar-btn"
+        title="Edit AI Prompt"
+        (click)="openAiPromptModal()"
+      >
+        <span class="btn-icon">📝</span>
+      </button>
+    }
+
     <!-- AI Layer Toggle -->
     <button 
       class="toolbar-btn ai-toggle"
@@ -174,6 +185,39 @@
     </button>
   </div>
 </div>
+
+<!-- AI Prompt Modal -->
+@if (showAiPromptModal()) {
+  <div class="modal-overlay" (click)="closeAiPromptModal()">
+    <div class="modal-content modal-wide" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>🤖 AI Generation Prompt</h3>
+        <button class="modal-close" (click)="closeAiPromptModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Describe the map style you want the AI to generate:</label>
+          <textarea 
+            rows="6"
+            [value]="editingAiPrompt()"
+            (input)="editingAiPrompt.set($any($event.target).value)"
+            placeholder="e.g., A detailed fantasy dungeon map, dark stone walls, torches on the walls, ancient runes carved into the floor..."
+          ></textarea>
+          <p class="form-hint">
+            This prompt will be used when the AI generates the map overlay. 
+            Leave empty to use the default D&D town map prompt.
+          </p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeAiPromptModal()">Cancel</button>
+        <button class="btn-primary" (click)="saveAiPrompt()">Save Prompt</button>
+      </div>
+    </div>
+  </div>
+}
 
 <!-- Quick Token Modal -->
 @if (showQuickTokenModal()) {
