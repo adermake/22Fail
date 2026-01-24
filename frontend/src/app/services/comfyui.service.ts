@@ -62,6 +62,9 @@ export class ComfyUIService {
 
   // Regional workflow uses smaller resolution for speed
   private readonly regionalResolution = 768;
+  
+  // Mask detection resolution - very low is fine, just need to know where colors are
+  private readonly maskDetectionSize = 128;
 
   // Default prompt for D&D maps
   private readonly defaultPrompt = "A detailed fantasy map for Dungeons & Dragons, top-down view. Medieval fantasy style with rich textures, cobblestone paths, grass, forests, and buildings. Hand-drawn RPG map aesthetic with detailed textures and atmospheric lighting.";
@@ -413,17 +416,29 @@ export class ComfyUIService {
     this.lastError.set(null);
 
     try {
-      // Step 1: Render AI strokes to a canvas
-      const strokeCanvas = this.renderAiStrokesToCanvas(aiStrokes, canvasWidth, canvasHeight, bounds);
+      // Step 1: Render AI strokes to a SMALL canvas for mask detection
+      // We use low resolution (128x128) - just need to know WHERE colors are, not exact borders
+      // ComfyUI will scale masks up anyway. This is MUCH faster!
+      const maskDetectionBounds = {
+        panX: bounds.panX * (this.maskDetectionSize / canvasWidth),
+        panY: bounds.panY * (this.maskDetectionSize / canvasHeight),
+        scale: bounds.scale * (this.maskDetectionSize / canvasWidth)
+      };
+      const strokeCanvasSmall = this.renderAiStrokesToCanvas(
+        aiStrokes, 
+        this.maskDetectionSize, 
+        this.maskDetectionSize, 
+        maskDetectionBounds
+      );
       
       // Step 2: Identify unique colors used in strokes
       const usedColors = this.getUsedColors(aiStrokes, colorPrompts);
       console.log('[ComfyUI] Regional prompting with colors:', usedColors.map(c => c.name));
 
-      // Step 3: For each color, create a mask and get the prompt
+      // Step 3: For each color, create a mask at low resolution
       const regionalPrompts: RegionalPrompt[] = [];
       for (const colorPrompt of usedColors) {
-        const mask = await this.createColorMask(strokeCanvas, colorPrompt.color, canvasWidth, canvasHeight);
+        const mask = await this.createColorMask(strokeCanvasSmall, colorPrompt.color, this.maskDetectionSize, this.maskDetectionSize);
         regionalPrompts.push({
           color: colorPrompt.color,
           prompt: colorPrompt.prompt,
@@ -431,8 +446,21 @@ export class ComfyUIService {
         });
       }
 
-      // Step 4: Upload all images (stroke canvas + masks)
-      const mainImageFilename = await this.uploadImage(await this.canvasToBlob(strokeCanvas));
+      // Step 4: Render strokes again at REGIONAL resolution for ControlNet
+      // This needs to be higher quality since edges are extracted from it
+      const strokeCanvasMain = this.renderAiStrokesToCanvas(
+        aiStrokes, 
+        this.regionalResolution, 
+        this.regionalResolution, 
+        {
+          panX: bounds.panX * (this.regionalResolution / canvasWidth),
+          panY: bounds.panY * (this.regionalResolution / canvasHeight),
+          scale: bounds.scale * (this.regionalResolution / canvasWidth)
+        }
+      );
+      
+      // Step 5: Upload all images (stroke canvas + masks)
+      const mainImageFilename = await this.uploadImage(await this.canvasToBlob(strokeCanvasMain));
       
       // Upload masks
       const uploadedMasks: { color: string; prompt: string; filename: string }[] = [];

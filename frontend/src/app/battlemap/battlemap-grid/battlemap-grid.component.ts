@@ -446,8 +446,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     
-    // Only render if AI layer is enabled and we have an image
-    if (!this.aiLayerEnabled || !this.currentAiImage || !this.aiImageBounds) return;
+    // Only render if we have an image (visibility is handled via CSS opacity on canvas)
+    if (!this.currentAiImage || !this.aiImageBounds) return;
 
     ctx.save();
     ctx.globalAlpha = this.aiLayerOpacity();
