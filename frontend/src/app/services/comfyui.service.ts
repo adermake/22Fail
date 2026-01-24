@@ -49,16 +49,16 @@ export class ComfyUIService {
     denoise: number; // Used as ControlNet strength
   } = {
     seed: -1, // -1 = random
-    steps: 20, // FLUX can produce good results with 20 steps
-    cfg: 3.5, // Not used by FLUX, kept for compatibility
-    denoise: 0.7 // ControlNet strength - how closely to follow sketch
+    steps: 10, // LCM models work great with 10 steps
+    cfg: 1.5, // LCM uses low CFG
+    denoise: 0.75 // How much to regenerate when inpainting
   };
 
-  // Regional workflow uses smaller resolution for speed
-  private readonly regionalResolution = 768;
+  // Resolution for generation
+  private readonly generationResolution = 1024;
 
-  // Default prompt for D&D maps
-  private readonly defaultPrompt = "A detailed fantasy map for Dungeons & Dragons, top-down view. Medieval fantasy style with rich textures, cobblestone paths, grass, forests, and buildings. Hand-drawn RPG map aesthetic with detailed textures and atmospheric lighting.";
+  // Default prompt for D&D maps (used as base before regional inpainting)
+  private readonly defaultPrompt = "A detailed fantasy map for Dungeons & Dragons, top-down view. Medieval fantasy style with parchment texture background.";
 
   // Client ID for WebSocket
   private clientId = this.generateClientId();
@@ -377,7 +377,12 @@ export class ComfyUIService {
 
   /**
    * Generate an image from AI strokes with regional prompting
-   * Each color in the AI strokes gets its own prompt from the color-prompt mappings
+   * Each color in the AI strokes gets its own prompt from the color-prompt mappings.
+   * Uses multi-pass inpainting for precise regional control:
+   * 1. Generate base map from combined prompt
+   * 2. For each colored region, inpaint with that region's specific prompt
+   * 
+   * This gives NVIDIA Canvas-style control - forest appears exactly where you paint green, etc.
    * 
    * @param aiStrokes The AI drawing strokes
    * @param colorPrompts Color-to-prompt mappings
@@ -407,31 +412,42 @@ export class ComfyUIService {
     this.lastError.set(null);
 
     try {
-      // Step 1: Render AI strokes to a SMALL canvas for mask detection
-      // Step 1: Identify unique colors used in strokes to build combined prompt
+      // Step 1: Identify unique colors used in strokes
       const usedColors = this.getUsedColors(aiStrokes, colorPrompts);
-      console.log('[ComfyUI] Generating with region prompts:', usedColors.map(c => `${c.name}: ${c.prompt}`));
+      console.log('[ComfyUI] Multi-pass inpainting with regions:', usedColors.map(c => `${c.name}: ${c.prompt}`));
 
-      // Step 2: Render strokes at generation resolution for ControlNet
-      // The colored sketch provides structure guidance via edge detection
+      // Step 2: Render strokes at generation resolution
       const strokeCanvas = this.renderAiStrokesToCanvas(
         aiStrokes, 
-        this.regionalResolution, 
-        this.regionalResolution, 
+        this.generationResolution, 
+        this.generationResolution, 
         {
-          panX: bounds.panX * (this.regionalResolution / canvasWidth),
-          panY: bounds.panY * (this.regionalResolution / canvasHeight),
-          scale: bounds.scale * (this.regionalResolution / canvasWidth)
+          panX: bounds.panX * (this.generationResolution / canvasWidth),
+          panY: bounds.panY * (this.generationResolution / canvasHeight),
+          scale: bounds.scale * (this.generationResolution / canvasWidth)
         }
       );
       
-      // Step 3: Upload sketch image for ControlNet
-      const mainImageFilename = await this.uploadImage(await this.canvasToBlob(strokeCanvas));
+      // Step 3: Upload the stroke canvas as base image
+      const strokeBlob = await this.canvasToBlob(strokeCanvas);
+      const baseImageFilename = await this.uploadImage(strokeBlob);
+      console.log('[ComfyUI] Uploaded base image:', baseImageFilename);
 
-      // Step 4: Create simplified workflow (combined prompt + ControlNet)
-      // We pass the region info for building the combined prompt
-      const regions = usedColors.map(c => ({ color: c.color, prompt: c.prompt, filename: '' }));
-      const workflow = this.createRegionalWorkflow(mainImageFilename, regions);
+      // Step 4: Create masks for each color region
+      const regionMasks: { color: string; prompt: string; maskFilename: string }[] = [];
+      for (const colorPrompt of usedColors) {
+        const maskBlob = await this.createColorMask(strokeCanvas, colorPrompt.color);
+        const maskFilename = await this.uploadImage(maskBlob);
+        regionMasks.push({
+          color: colorPrompt.color,
+          prompt: colorPrompt.prompt,
+          maskFilename
+        });
+        console.log(`[ComfyUI] Uploaded mask for "${colorPrompt.name}"`);
+      }
+
+      // Step 5: Create and execute multi-pass inpainting workflow
+      const workflow = this.createInpaintingWorkflow(baseImageFilename, regionMasks);
       
       // Step 5: Queue and wait for result
       const result = await this.queueAndWait(workflow);
@@ -445,6 +461,80 @@ export class ComfyUIService {
       this.isGenerating.set(false);
       return { success: false, error: errorMessage };
     }
+  }
+
+  /**
+   * Create a binary mask for a specific color
+   * White = where this color is (will be inpainted), Black = keep as is
+   */
+  private async createColorMask(
+    sourceCanvas: HTMLCanvasElement,
+    targetColor: string
+  ): Promise<Blob> {
+    const width = sourceCanvas.width;
+    const height = sourceCanvas.height;
+    
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = width;
+    maskCanvas.height = height;
+    const ctx = maskCanvas.getContext('2d', { willReadFrequently: true })!;
+    
+    // Get source pixels
+    const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true })!;
+    const imageData = sourceCtx.getImageData(0, 0, width, height);
+    const pixels = imageData.data;
+    
+    // Parse target color
+    const targetRgb = this.hexToRgb(targetColor);
+    if (!targetRgb) {
+      // Fallback: return black mask (no inpainting)
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, width, height);
+      return this.canvasToBlob(maskCanvas);
+    }
+    
+    // Create mask - black background (preserve), white where color matches (inpaint)
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, height);
+    
+    const maskData = ctx.getImageData(0, 0, width, height);
+    const maskPixels = maskData.data;
+    
+    // Color tolerance for matching
+    const tolerance = 50;
+    
+    for (let i = 0; i < pixels.length; i += 4) {
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+      
+      if (
+        Math.abs(r - targetRgb.r) <= tolerance &&
+        Math.abs(g - targetRgb.g) <= tolerance &&
+        Math.abs(b - targetRgb.b) <= tolerance
+      ) {
+        // White = inpaint this area
+        maskPixels[i] = 255;
+        maskPixels[i + 1] = 255;
+        maskPixels[i + 2] = 255;
+        maskPixels[i + 3] = 255;
+      }
+    }
+    
+    ctx.putImageData(maskData, 0, 0);
+    return this.canvasToBlob(maskCanvas);
+  }
+
+  /**
+   * Convert hex color to RGB
+   */
+  private hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
   }
 
   /**
@@ -517,29 +607,55 @@ export class ComfyUIService {
    * Note: True per-region prompting with masks doesn't work well with FLUX.
    * The colored regions serve as visual guide via ControlNet instead.
    */
-  private createRegionalWorkflow(
-    mainImageFilename: string,
-    regions: { color: string; prompt: string; filename: string }[]
+  /**
+   * Create an inpainting workflow using SDXL LCM model
+   * Multi-pass approach: generate base, then inpaint each region
+   */
+  private createInpaintingWorkflow(
+    baseImageFilename: string,
+    regions: { color: string; prompt: string; maskFilename: string }[]
   ): any {
-    // Start with base workflow structure
     const workflow: any = {};
     let nodeId = 1;
 
-    // ============ IMAGE INPUT ============
-    // Load the main sketch image
+    // ============ MODEL LOADERS ============
+    // Load SDXL LCM checkpoint
     workflow[String(nodeId++)] = {
-      "inputs": { "image": mainImageFilename, "upload": "image" },
+      "inputs": { "ckpt_name": "hephaistosNextgenxlLCM_v20.safetensors" },
+      "class_type": "CheckpointLoaderSimple",
+      "_meta": { "title": "Load SDXL LCM" }
+    };
+    const checkpointNode = nodeId - 1;
+
+    // Load D&D Maps LoRA
+    workflow[String(nodeId++)] = {
+      "inputs": {
+        "lora_name": "dnd-maps.safetensors",
+        "strength_model": 1.0,
+        "strength_clip": 1.0,
+        "model": [String(checkpointNode), 0],
+        "clip": [String(checkpointNode), 1]
+      },
+      "class_type": "LoraLoader",
+      "_meta": { "title": "D&D Maps LoRA" }
+    };
+    const loraNode = nodeId - 1;
+
+    // ============ BASE IMAGE ============
+    // Load the colored sketch as base
+    workflow[String(nodeId++)] = {
+      "inputs": { "image": baseImageFilename, "upload": "image" },
       "class_type": "LoadImage",
-      "_meta": { "title": "Load Sketch" }
+      "_meta": { "title": "Load Base Image" }
     };
     const loadImageNode = nodeId - 1;
 
-    // Scale to smaller size for faster regional generation
+    // Scale to generation resolution
     workflow[String(nodeId++)] = {
       "inputs": {
         "upscale_method": "lanczos",
-        "width": this.regionalResolution,
-        "height": this.regionalResolution,
+        "width": this.generationResolution,
+        "height": this.generationResolution,
         "crop": "disabled",
         "image": [String(loadImageNode), 0]
       },
@@ -548,193 +664,154 @@ export class ComfyUIService {
     };
     const scaledImageNode = nodeId - 1;
 
-    // Canny edge detection
-    workflow[String(nodeId++)] = {
-      "inputs": {
-        "low_threshold": 0.1,
-        "high_threshold": 0.3,
-        "image": [String(scaledImageNode), 0]
-      },
-      "class_type": "Canny",
-      "_meta": { "title": "Canny Edge Detection" }
-    };
-    const cannyNode = nodeId - 1;
-
-    // ============ MODEL LOADERS ============
-    // VAE
-    workflow[String(nodeId++)] = {
-      "inputs": { "vae_name": "ae.safetensors" },
-      "class_type": "VAELoader",
-      "_meta": { "title": "Load FLUX VAE" }
-    };
-    const vaeNode = nodeId - 1;
-
-    // CLIP
-    workflow[String(nodeId++)] = {
-      "inputs": {
-        "clip_name1": "clip_l.safetensors",
-        "clip_name2": "t5\\t5xxl_fp8_e4m3fn.safetensors",
-        "type": "flux",
-        "device": "default"
-      },
-      "class_type": "DualCLIPLoader",
-      "_meta": { "title": "Load FLUX CLIP" }
-    };
-    const clipNode = nodeId - 1;
-
-    // UNET
-    workflow[String(nodeId++)] = {
-      "inputs": {
-        "unet_name": "FLUX1\\flux1-dev-fp8.safetensors",
-        "weight_dtype": "default"
-      },
-      "class_type": "UNETLoader",
-      "_meta": { "title": "Load FLUX Model" }
-    };
-    const unetNode = nodeId - 1;
-
-    // ControlNet
-    workflow[String(nodeId++)] = {
-      "inputs": { "control_net_name": "flux-canny-controlnet-v3.safetensors" },
-      "class_type": "ControlNetLoader",
-      "_meta": { "title": "Load ControlNet" }
-    };
-    const controlNetNode = nodeId - 1;
-
-    // LoRAs
-    workflow[String(nodeId++)] = {
-      "inputs": {
-        "PowerLoraLoaderHeaderWidget": { "type": "PowerLoraLoaderHeaderWidget" },
-        "lora_1": { "on": true, "lora": "dnd-maps.safetensors", "strength": 1 },
-        "lora_2": { "on": true, "lora": "flux\\aidmaFLUXPro1.1-FLUX-v0.3.safetensors", "strength": 0.8 },
-        "➕ Add Lora": "",
-        "model": [String(unetNode), 0],
-        "clip": [String(clipNode), 0]
-      },
-      "class_type": "Power Lora Loader (rgthree)",
-      "_meta": { "title": "D&D Map LoRAs" }
-    };
-    const loraNode = nodeId - 1;
-
-    // ============ REGIONAL CONDITIONING ============
-    // Build combined prompt for all regions + base map prompt
+    // ============ BASE GENERATION ============
+    // Create combined base prompt
     const basePrompt = this.customPrompt || this.defaultPrompt;
     const regionDescriptions = regions.map(r => r.prompt).join(', ');
-    const combinedPrompt = `${basePrompt}. Map features: ${regionDescriptions}`;
+    const combinedBasePrompt = `${basePrompt}, featuring: ${regionDescriptions}`;
 
-    // Main text encoding with combined prompt
+    // Encode base prompt
     workflow[String(nodeId++)] = {
       "inputs": {
-        "text": combinedPrompt,
+        "text": combinedBasePrompt,
         "clip": [String(loraNode), 1]
       },
       "class_type": "CLIPTextEncode",
-      "_meta": { "title": "Combined Prompt" }
+      "_meta": { "title": "Base Prompt" }
     };
-    const mainCondNode = nodeId - 1;
+    const baseCondNode = nodeId - 1;
 
-    // Apply ControlNet to combined conditioning
+    // Negative prompt
     workflow[String(nodeId++)] = {
       "inputs": {
-        "strength": this.aiSettings.denoise,
-        "conditioning": [String(mainCondNode), 0],
-        "control_net": [String(controlNetNode), 0],
-        "image": [String(cannyNode), 0]
+        "text": "blurry, low quality, distorted, text, watermark, ugly",
+        "clip": [String(loraNode), 1]
       },
-      "class_type": "ControlNetApply",
-      "_meta": { "title": "Apply ControlNet" }
+      "class_type": "CLIPTextEncode",
+      "_meta": { "title": "Negative" }
     };
-    const controlNetApplyNode = nodeId - 1;
+    const negativeNode = nodeId - 1;
 
-    // Use ControlNet conditioning directly (no per-region masking - doesn't work well with FLUX)
-    // The colored sketch provides structure guidance via ControlNet edges
-    const finalCondNode = controlNetApplyNode;
-
-    // ============ SAMPLING ============
-    // Empty latent at regional resolution
+    // Encode base image to latent
     workflow[String(nodeId++)] = {
-      "inputs": { "width": this.regionalResolution, "height": this.regionalResolution, "batch_size": 1 },
-      "class_type": "EmptyLatentImage",
-      "_meta": { "title": "Empty Latent" }
+      "inputs": {
+        "pixels": [String(scaledImageNode), 0],
+        "vae": [String(checkpointNode), 2]
+      },
+      "class_type": "VAEEncode",
+      "_meta": { "title": "Encode Base" }
     };
-    const latentNode = nodeId - 1;
+    const baseLatentNode = nodeId - 1;
 
-    // Random noise
+    // Generate seed
     const seed = this.aiSettings.seed === -1 
       ? Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
       : this.aiSettings.seed;
-    workflow[String(nodeId++)] = {
-      "inputs": { "noise_seed": seed },
-      "class_type": "RandomNoise",
-      "_meta": { "title": "Random Noise" }
-    };
-    const noiseNode = nodeId - 1;
 
-    // Sampler
-    workflow[String(nodeId++)] = {
-      "inputs": { "sampler_name": "euler" },
-      "class_type": "KSamplerSelect",
-      "_meta": { "title": "Sampler" }
-    };
-    const samplerNode = nodeId - 1;
-
-    // Scheduler
+    // First pass: img2img on base to establish style
     workflow[String(nodeId++)] = {
       "inputs": {
-        "scheduler": "simple",
+        "seed": seed,
         "steps": this.aiSettings.steps,
-        "denoise": 1.0,
-        "model": [String(loraNode), 0]
-      },
-      "class_type": "BasicScheduler",
-      "_meta": { "title": "Scheduler" }
-    };
-    const schedulerNode = nodeId - 1;
-
-    // Guider with combined conditioning (ControlNet applied)
-    workflow[String(nodeId++)] = {
-      "inputs": {
+        "cfg": this.aiSettings.cfg,
+        "sampler_name": "euler_ancestral",
+        "scheduler": "normal",
+        "denoise": 0.5, // Lower denoise for base - preserve sketch structure
         "model": [String(loraNode), 0],
-        "conditioning": [String(finalCondNode), 0]
+        "positive": [String(baseCondNode), 0],
+        "negative": [String(negativeNode), 0],
+        "latent_image": [String(baseLatentNode), 0]
       },
-      "class_type": "BasicGuider",
-      "_meta": { "title": "Guider" }
+      "class_type": "KSampler",
+      "_meta": { "title": "Base Sampler" }
     };
-    const guiderNode = nodeId - 1;
+    let currentLatentNode = nodeId - 1;
 
-    // Advanced sampler
-    workflow[String(nodeId++)] = {
-      "inputs": {
-        "noise": [String(noiseNode), 0],
-        "guider": [String(guiderNode), 0],
-        "sampler": [String(samplerNode), 0],
-        "sigmas": [String(schedulerNode), 0],
-        "latent_image": [String(latentNode), 0]
-      },
-      "class_type": "SamplerCustomAdvanced",
-      "_meta": { "title": "FLUX Sampler" }
-    };
-    const samplerAdvNode = nodeId - 1;
+    // ============ REGIONAL INPAINTING PASSES ============
+    // For each region, load mask and inpaint with region-specific prompt
+    for (let i = 0; i < regions.length; i++) {
+      const region = regions[i];
+      
+      // Load region mask
+      workflow[String(nodeId++)] = {
+        "inputs": { "image": region.maskFilename, "upload": "image" },
+        "class_type": "LoadImage",
+        "_meta": { "title": `Load Mask: ${region.prompt}` }
+      };
+      const maskImageNode = nodeId - 1;
+
+      // Convert image to mask (use red channel)
+      workflow[String(nodeId++)] = {
+        "inputs": {
+          "channel": "red",
+          "image": [String(maskImageNode), 0]
+        },
+        "class_type": "ImageToMask",
+        "_meta": { "title": `Convert Mask: ${region.prompt}` }
+      };
+      const maskNode = nodeId - 1;
+
+      // Apply mask to latent for inpainting
+      workflow[String(nodeId++)] = {
+        "inputs": {
+          "samples": [String(currentLatentNode), 0],
+          "mask": [String(maskNode), 0]
+        },
+        "class_type": "SetLatentNoiseMask",
+        "_meta": { "title": `Set Mask: ${region.prompt}` }
+      };
+      const maskedLatentNode = nodeId - 1;
+
+      // Encode region-specific prompt
+      const regionPrompt = `${basePrompt}, ${region.prompt}, detailed, high quality`;
+      workflow[String(nodeId++)] = {
+        "inputs": {
+          "text": regionPrompt,
+          "clip": [String(loraNode), 1]
+        },
+        "class_type": "CLIPTextEncode",
+        "_meta": { "title": `Prompt: ${region.prompt}` }
+      };
+      const regionCondNode = nodeId - 1;
+
+      // Inpaint this region
+      workflow[String(nodeId++)] = {
+        "inputs": {
+          "seed": seed + i + 1, // Vary seed slightly per region
+          "steps": this.aiSettings.steps,
+          "cfg": this.aiSettings.cfg,
+          "sampler_name": "euler_ancestral",
+          "scheduler": "normal",
+          "denoise": this.aiSettings.denoise, // Higher denoise for regions to replace content
+          "model": [String(loraNode), 0],
+          "positive": [String(regionCondNode), 0],
+          "negative": [String(negativeNode), 0],
+          "latent_image": [String(maskedLatentNode), 0]
+        },
+        "class_type": "KSampler",
+        "_meta": { "title": `Inpaint: ${region.prompt}` }
+      };
+      currentLatentNode = nodeId - 1;
+    }
 
     // ============ OUTPUT ============
-    // VAE Decode
+    // VAE Decode final result
     workflow[String(nodeId++)] = {
       "inputs": {
-        "samples": [String(samplerAdvNode), 0],
-        "vae": [String(vaeNode), 0]
+        "samples": [String(currentLatentNode), 0],
+        "vae": [String(checkpointNode), 2]
       },
       "class_type": "VAEDecode",
-      "_meta": { "title": "Decode Image" }
+      "_meta": { "title": "Decode Final" }
     };
     const decodeNode = nodeId - 1;
 
-    // Preview
+    // Preview output
     workflow[String(nodeId++)] = {
       "inputs": { "images": [String(decodeNode), 0] },
       "class_type": "PreviewImage",
       "_meta": { "title": "Output" }
     };
-    // Store output node ID for fetching results
     this.lastOutputNode = nodeId - 1;
 
     return workflow;
