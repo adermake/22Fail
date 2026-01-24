@@ -143,13 +143,14 @@ export class ComfyUIService {
       "_meta": { "title": "Load FLUX Model" }
     },
     
-    // Load FLUX ControlNet Canny model
+    // Load FLUX ControlNet Canny model (XLabs)
+    // Uses LoadFluxControlNet for XLabs models
     "40": {
       "inputs": {
-        "control_net_name": "flux\\flux-canny-controlnet-v3.safetensors"
+        "model_name": "flux-canny-controlnet-v3.safetensors"
       },
-      "class_type": "ControlNetLoader",
-      "_meta": { "title": "Load ControlNet Canny" }
+      "class_type": "LoadFluxControlNet",
+      "_meta": { "title": "Load XLabs ControlNet" }
     },
     
     // Apply LoRAs for D&D map style
@@ -185,17 +186,16 @@ export class ComfyUIService {
       "_meta": { "title": "Prompt" }
     },
     
-    // Apply ControlNet to conditioning - THIS guides generation with your sketch!
+    // Apply XLabs ControlNet - guides generation with your sketch!
+    // This modifies the model, not the conditioning
     "41": {
       "inputs": {
         "strength": 0.7, // How strongly to follow the sketch lines
-        "start_percent": 0.0,
-        "end_percent": 0.8,
-        "positive": ["6", 0],
-        "control_net": ["40", 0],
+        "model": ["51", 0], // Takes the LoRA'd model
+        "controlnet": ["40", 0],
         "image": ["30", 0] // Use the Canny edges!
       },
-      "class_type": "ControlNetApplyAdvanced",
+      "class_type": "ApplyFluxControlNet",
       "_meta": { "title": "Apply ControlNet" }
     },
     
@@ -236,17 +236,17 @@ export class ComfyUIService {
         "scheduler": "simple",
         "steps": 20,
         "denoise": 1.0, // Full generation, controlled by ControlNet
-        "model": ["51", 0]
+        "model": ["41", 0] // Use ControlNet-modified model!
       },
       "class_type": "BasicScheduler",
       "_meta": { "title": "Scheduler" }
     },
     
-    // Guider connects model with ControlNet-enhanced conditioning
+    // Guider connects ControlNet-modified model with conditioning
     "22": {
       "inputs": {
-        "model": ["51", 0],
-        "conditioning": ["41", 0] // Use ControlNet conditioning!
+        "model": ["41", 0], // Use ControlNet-modified model!
+        "conditioning": ["6", 0] // Regular prompt conditioning
       },
       "class_type": "BasicGuider",
       "_meta": { "title": "Guider" }
@@ -478,6 +478,7 @@ export class ComfyUIService {
    */
   private async queueAndWait(workflow: any): Promise<GenerationResult> {
     // Queue the prompt
+    console.log('[ComfyUI] Queueing workflow...');
     const queueResponse = await fetch(`${this.baseUrl}/prompt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -488,10 +489,28 @@ export class ComfyUIService {
     });
 
     if (!queueResponse.ok) {
-      throw new Error(`Failed to queue prompt: ${queueResponse.statusText}`);
+      // Try to get more error details
+      let errorDetails = queueResponse.statusText;
+      try {
+        const errorJson = await queueResponse.json();
+        console.error('[ComfyUI] Queue error details:', errorJson);
+        if (errorJson.error) {
+          errorDetails = errorJson.error.message || JSON.stringify(errorJson.error);
+        }
+        if (errorJson.node_errors) {
+          const nodeErrors = Object.entries(errorJson.node_errors)
+            .map(([node, err]: [string, any]) => `Node ${node}: ${err.class_type} - ${err.errors?.map((e: any) => e.message).join(', ')}`)
+            .join('; ');
+          errorDetails += ` | ${nodeErrors}`;
+        }
+      } catch (e) {
+        // Couldn't parse error as JSON
+      }
+      throw new Error(`Failed to queue prompt: ${errorDetails}`);
     }
 
     const { prompt_id } = await queueResponse.json();
+    console.log('[ComfyUI] Queued prompt:', prompt_id);
 
     // Wait for completion via WebSocket
     return this.waitForCompletion(prompt_id);
