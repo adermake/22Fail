@@ -143,14 +143,14 @@ export class ComfyUIService {
       "_meta": { "title": "Load FLUX Model" }
     },
     
-    // Load FLUX ControlNet Canny model (XLabs)
-    // Uses LoadFluxControlNet for XLabs models
+    // Load ControlNet using STANDARD ComfyUI loader
+    // This works with InstantX/Union format ControlNets
     "40": {
       "inputs": {
-        "model_name": "flux-canny-controlnet-v3.safetensors"
+        "control_net_name": "flux-canny-controlnet-v3.safetensors"
       },
-      "class_type": "LoadFluxControlNet",
-      "_meta": { "title": "Load XLabs ControlNet" }
+      "class_type": "ControlNetLoader",
+      "_meta": { "title": "Load ControlNet" }
     },
     
     // Apply LoRAs for D&D map style
@@ -186,26 +186,17 @@ export class ComfyUIService {
       "_meta": { "title": "Prompt" }
     },
     
-    // Apply XLabs ControlNet - outputs a ControlNetCondition
+    // Apply ControlNet using STANDARD ComfyUI node
+    // This takes conditioning and returns modified conditioning
     "41": {
       "inputs": {
         "strength": 0.7, // How strongly to follow the sketch lines
-        "model": ["51", 0], // Takes the LoRA'd model
-        "controlnet": ["40", 0],
-        "image": ["30", 0] // Use the Canny edges!
+        "conditioning": ["6", 0], // Text conditioning
+        "control_net": ["40", 0], // ControlNet model
+        "image": ["30", 0] // Canny edges
       },
-      "class_type": "ApplyFluxControlNet",
+      "class_type": "ControlNetApply",
       "_meta": { "title": "Apply ControlNet" }
-    },
-    
-    // Combine text conditioning with ControlNet condition
-    "42": {
-      "inputs": {
-        "conditioning": ["6", 0],
-        "controlnet_condition": ["41", 0]
-      },
-      "class_type": "SetUnionControlNetType",
-      "_meta": { "title": "Set ControlNet Type" }
     },
     
     // ============ LATENT SPACE ============
@@ -244,18 +235,18 @@ export class ComfyUIService {
       "inputs": {
         "scheduler": "simple",
         "steps": 20,
-        "denoise": 1.0, // Full generation, controlled by ControlNet
-        "model": ["51", 0] // Use base LoRA'd model (not ControlNet output)
+        "denoise": 1.0,
+        "model": ["51", 0]
       },
       "class_type": "BasicScheduler",
       "_meta": { "title": "Scheduler" }
     },
     
-    // Guider connects model with combined conditioning
+    // Guider connects model with ControlNet-enhanced conditioning
     "22": {
       "inputs": {
-        "model": ["51", 0], // Use base LoRA'd model
-        "conditioning": ["42", 0] // Use combined text + ControlNet conditioning!
+        "model": ["51", 0],
+        "conditioning": ["41", 0] // ControlNet-modified conditioning
       },
       "class_type": "BasicGuider",
       "_meta": { "title": "Guider" }
