@@ -318,9 +318,16 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   }
 
   // Computed: get AI settings from battlemap
-  getAiSettings(): { seed: number; steps: number; cfg: number; denoise: number } {
+  getAiSettings(): { seed: number; steps: number; cfg: number; denoise: number; generalRegionPrompt: string; negativePrompt: string } {
     // ControlNet defaults: denoise = ControlNet strength (how closely to follow sketch)
-    const defaults = { seed: -1, steps: 25, cfg: 3.5, denoise: 0.7 };
+    const defaults = { 
+      seed: -1, 
+      steps: 10, 
+      cfg: 1.5, 
+      denoise: 1.0,
+      generalRegionPrompt: 'detailed, high quality',
+      negativePrompt: 'blurry, low quality, distorted, text, watermark, ugly'
+    };
     const settings = this.battleMap()?.aiSettings;
     if (!settings) return defaults;
     return {
@@ -328,6 +335,8 @@ export class BattlemapComponent implements OnInit, OnDestroy {
       steps: settings.steps ?? defaults.steps,
       cfg: settings.cfg ?? defaults.cfg,
       denoise: settings.denoise ?? defaults.denoise,
+      generalRegionPrompt: settings.generalRegionPrompt ?? defaults.generalRegionPrompt,
+      negativePrompt: settings.negativePrompt ?? defaults.negativePrompt,
     };
   }
 }

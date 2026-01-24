@@ -153,11 +153,21 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   /**
-   * Load AI layer image from persisted battlemap data (legacy support)
-   * New system uses tile-based rendering in renderAiLayer()
+   * Load AI layer image from persisted battlemap data
+   * Preload tile images for faster rendering
    */
   private loadPersistedAiLayer() {
-    // Legacy support removed - tiles load automatically in renderAiLayer()
+    const tiles = this.battleMap?.aiCanvas?.tiles || [];
+    // Preload all tile images
+    for (const tile of tiles) {
+      if (!tile.image) continue;
+      if (!(tile as any).__imageElement) {
+        const img = new Image();
+        img.src = tile.image;
+        img.onload = () => this.render(); // Re-render when image loads
+        (tile as any).__imageElement = img;
+      }
+    }
   }
 
   private initCanvases() {
@@ -429,6 +439,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
 
     ctx.save();
     ctx.globalAlpha = this.aiLayerOpacity();
+    ctx.globalCompositeOperation = 'source-over'; // Respect alpha channel for transparency
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
     
@@ -484,6 +495,104 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     }
     
     ctx.restore();
+  }
+
+  /**
+   * Apply alpha mask to generated image - makes unpainted areas transparent
+   */
+  private async applyAlphaMaskToGeneration(
+    imageBlob: Blob,
+    aiStrokes: BattlemapStroke[],
+    worldBounds: { minX: number; minY: number; maxX: number; maxY: number }
+  ): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      // Load the generated image
+      const img = new Image();
+      const url = URL.createObjectURL(imageBlob);
+      
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        
+        // Create canvas for masking
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+        
+        // Draw the generated image
+        ctx.drawImage(img, 0, 0);
+        
+        // Create mask from strokes (with expansion for feathering)
+        const maskCanvas = document.createElement('canvas');
+        maskCanvas.width = img.width;
+        maskCanvas.height = img.height;
+        const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true })!;
+        
+        // Calculate transform
+        const worldWidth = worldBounds.maxX - worldBounds.minX;
+        const worldHeight = worldBounds.maxY - worldBounds.minY;
+        const scaleX = img.width / worldWidth;
+        const scaleY = img.height / worldHeight;
+        
+        // Draw strokes on mask (expanded for feathering)
+        maskCtx.fillStyle = 'white';
+        for (const stroke of aiStrokes) {
+          if (stroke.points.length < 2) continue;
+          
+          maskCtx.beginPath();
+          const firstPoint = stroke.points[0];
+          const px = (firstPoint.x - worldBounds.minX) * scaleX;
+          const py = (firstPoint.y - worldBounds.minY) * scaleY;
+          maskCtx.moveTo(px, py);
+          
+          for (let i = 1; i < stroke.points.length; i++) {
+            const point = stroke.points[i];
+            const px = (point.x - worldBounds.minX) * scaleX;
+            const py = (point.y - worldBounds.minY) * scaleY;
+            maskCtx.lineTo(px, py);
+          }
+          
+          // Expand stroke width for masking to include generated area
+          maskCtx.strokeStyle = 'white';
+          maskCtx.lineWidth = stroke.lineWidth * scaleX * 3; // 3x expansion
+          maskCtx.lineCap = 'round';
+          maskCtx.lineJoin = 'round';
+          maskCtx.stroke();
+        }
+        
+        // Apply blur for smooth edges
+        maskCtx.filter = 'blur(20px)';
+        maskCtx.drawImage(maskCanvas, 0, 0);
+        maskCtx.filter = 'none';
+        
+        // Apply mask as alpha channel
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const maskData = maskCtx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        for (let i = 0; i < imageData.data.length; i += 4) {
+          const maskAlpha = maskData.data[i] / 255; // Use red channel as alpha
+          imageData.data[i + 3] = imageData.data[i + 3] * maskAlpha; // Multiply existing alpha
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+        
+        // Convert to blob
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to create masked blob'));
+          }
+        }, 'image/png');
+      };
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load generated image'));
+      };
+      
+      img.src = url;
+    });
   }
 
   /**
@@ -575,8 +684,15 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     );
 
     if (result.success && result.imageBlob && result.worldBounds) {
+      // Apply alpha masking to remove gray background
+      const maskedBlob = await this.applyAlphaMaskToGeneration(
+        result.imageBlob,
+        aiStrokes,
+        worldBounds
+      );
+      
       // Convert blob to base64 for persistence
-      const base64 = await this.blobToBase64(result.imageBlob);
+      const base64 = await this.blobToBase64(maskedBlob);
       
       // Add as a new tile to the canvas
       this.store.addAiCanvasTile(base64, result.worldBounds);

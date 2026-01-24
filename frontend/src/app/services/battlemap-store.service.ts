@@ -84,6 +84,12 @@ export class BattleMapStoreService {
     if (!battleMap.aiColorPrompts) {
       battleMap.aiColorPrompts = getDefaultAiColorPrompts();
     }
+    if (!battleMap.aiCanvas) {
+      battleMap.aiCanvas = { tiles: [] };
+    }
+    if (!battleMap.aiSettings) {
+      battleMap.aiSettings = {};
+    }
     return battleMap as BattlemapData;
   }
 

@@ -139,6 +139,7 @@ export function createEmptyBattlemap(id: string, name: string, worldName: string
     strokes: [],
     aiStrokes: [],
     aiColorPrompts: getDefaultAiColorPrompts(),
+    aiCanvas: { tiles: [] },
     walls: [],
     measurementLines: [],
     createdAt: Date.now(),
