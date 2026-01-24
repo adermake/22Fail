@@ -66,6 +66,12 @@ export interface BattlemapData {
   
   // AI Layer settings
   aiPrompt?: string; // Custom prompt for AI generation
+  aiSettings?: { // AI generation settings
+    seed?: number; // -1 for random
+    steps?: number;
+    cfg?: number;
+    denoise?: number;
+  };
   aiLayerImage?: string; // Base64 encoded AI generated image
   aiLayerBounds?: { // World coordinates where the AI image was captured
     centerX: number;

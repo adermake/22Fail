@@ -44,6 +44,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() aiLayerEnabled = false;
   @Input() currentTurnCharacterId: string | null = null;
   @Input() battleParticipants: { characterId: string; team?: string }[] = [];
+  @Input() drawLayerVisible = true;
+  @Input() aiLayerVisible = true;
 
   @Output() tokenDrop = new EventEmitter<{ characterId: string; position: HexCoord }>();
   @Output() tokenMove = new EventEmitter<{ tokenId: string; position: HexCoord }>();
@@ -132,6 +134,22 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       if (this.aiLayerEnabled) {
         this.comfyUI.checkAvailability();
       }
+    }
+    // React to layer visibility changes
+    if (changes['drawLayerVisible'] || changes['aiLayerVisible']) {
+      this.updateLayerVisibility();
+    }
+  }
+
+  /**
+   * Update canvas visibility based on layer toggle states
+   */
+  private updateLayerVisibility() {
+    if (this.drawCanvas?.nativeElement) {
+      this.drawCanvas.nativeElement.style.opacity = this.drawLayerVisible ? '1' : '0';
+    }
+    if (this.aiCanvas?.nativeElement) {
+      this.aiCanvas.nativeElement.style.opacity = this.aiLayerVisible ? '1' : '0';
     }
   }
 

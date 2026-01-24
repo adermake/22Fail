@@ -37,6 +37,19 @@ export class ComfyUIService {
   // Custom prompt (can be overridden per battlemap)
   private customPrompt: string | null = null;
 
+  // AI generation settings
+  private aiSettings: {
+    seed: number;
+    steps: number;
+    cfg: number;
+    denoise: number;
+  } = {
+    seed: -1, // -1 = random
+    steps: 10,
+    cfg: 1.5,
+    denoise: 0.75
+  };
+
   // Default prompt for D&D maps
   private readonly defaultPrompt = "((topdown view))A detailed fantasy town map for Dungeons & Dragons, top-down view. The town is medieval-style, with cobblestone streets, timber-framed houses, and thatched roofs. Include a bustling marketplace with stalls, a central town square with a fountain, a small castle or lord's manor on a hill, a temple or chapel, and a blacksmith's forge. Surround the town with wooden palisades and gates, with roads leading into a dense forest and nearby farmlands. Add a river running through or beside the town with a stone bridge. Include small details like wells, carts, trees, and lanterns for atmosphere. Colorful, hand-drawn, fantasy map aesthetic, easy to read with clear labels and icons, vintage RPG style.";
 
@@ -269,6 +282,23 @@ export class ComfyUIService {
   }
 
   /**
+   * Set AI generation settings
+   */
+  setSettings(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number }): void {
+    if (settings.seed !== undefined) this.aiSettings.seed = settings.seed;
+    if (settings.steps !== undefined) this.aiSettings.steps = settings.steps;
+    if (settings.cfg !== undefined) this.aiSettings.cfg = settings.cfg;
+    if (settings.denoise !== undefined) this.aiSettings.denoise = settings.denoise;
+  }
+
+  /**
+   * Get current settings
+   */
+  getSettings(): { seed: number; steps: number; cfg: number; denoise: number } {
+    return { ...this.aiSettings };
+  }
+
+  /**
    * Get the current prompt (custom or default)
    */
   getCurrentPrompt(): string {
@@ -284,8 +314,16 @@ export class ComfyUIService {
     // Set the input image
     workflow["21"].inputs.image = inputImageFilename;
     
-    // Randomize the seed
-    workflow["3"].inputs.seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+    // Set seed - use random if -1, otherwise use the specified seed
+    const seed = this.aiSettings.seed === -1 
+      ? Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
+      : this.aiSettings.seed;
+    workflow["3"].inputs.seed = seed;
+    
+    // Set other parameters
+    workflow["3"].inputs.steps = this.aiSettings.steps;
+    workflow["3"].inputs.cfg = this.aiSettings.cfg;
+    workflow["3"].inputs.denoise = this.aiSettings.denoise;
     
     // Set the prompt (custom or default)
     const prompt = this.customPrompt || this.defaultPrompt;

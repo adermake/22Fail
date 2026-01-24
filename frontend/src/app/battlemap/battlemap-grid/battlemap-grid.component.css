@@ -11,6 +11,7 @@
 
 .grid-canvas,
 .draw-canvas,
+.ai-canvas,
 .overlay-canvas {
   position: absolute;
   top: 0;
@@ -22,17 +23,12 @@
 
 .draw-canvas {
   z-index: 1;
+  transition: opacity 0.2s ease;
 }
 
 .ai-canvas {
   z-index: 2;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-}
-
-.ai-canvas.visible {
-  opacity: 1;
+  transition: opacity 0.2s ease;
 }
 
 .overlay-canvas {

@@ -63,6 +63,10 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   dragMode = signal<DragMode>('free');
   aiLayerEnabled = signal<boolean>(false);
 
+  // Layer visibility
+  drawLayerVisible = signal<boolean>(true);
+  aiLayerVisible = signal<boolean>(true);
+
   // Computed: current turn character from world battle tracker
   currentTurnCharacterId = computed(() => {
     const world = this.world();
@@ -112,6 +116,10 @@ export class BattlemapComponent implements OnInit, OnDestroy {
         // Load AI prompt into ComfyUI service when battlemap changes
         if (map?.aiPrompt) {
           this.comfyUI.setCustomPrompt(map.aiPrompt);
+        }
+        // Load AI settings into ComfyUI service when battlemap changes
+        if (map?.aiSettings) {
+          this.comfyUI.setSettings(map.aiSettings);
         }
       })
     );
@@ -253,8 +261,36 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     this.comfyUI.setCustomPrompt(prompt);
   }
 
+  // AI Settings change
+  onAiSettingsChange(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number }) {
+    this.store.setAiSettings(settings);
+    this.comfyUI.setSettings(settings);
+  }
+
+  // Layer visibility toggles
+  onDrawLayerVisibleChange(visible: boolean) {
+    this.drawLayerVisible.set(visible);
+  }
+
+  onAiLayerVisibleChange(visible: boolean) {
+    this.aiLayerVisible.set(visible);
+  }
+
   // Computed: get AI prompt from battlemap
   getAiPrompt(): string {
     return this.battleMap()?.aiPrompt || '';
+  }
+
+  // Computed: get AI settings from battlemap
+  getAiSettings(): { seed: number; steps: number; cfg: number; denoise: number } {
+    const defaults = { seed: -1, steps: 6, cfg: 1.8, denoise: 0.85 };
+    const settings = this.battleMap()?.aiSettings;
+    if (!settings) return defaults;
+    return {
+      seed: settings.seed ?? defaults.seed,
+      steps: settings.steps ?? defaults.steps,
+      cfg: settings.cfg ?? defaults.cfg,
+      denoise: settings.denoise ?? defaults.denoise,
+    };
   }
 }

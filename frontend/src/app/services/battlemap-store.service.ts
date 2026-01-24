@@ -210,6 +210,10 @@ export class BattleMapStoreService {
     this.applyPatch({ path: 'aiPrompt', value: prompt });
   }
 
+  setAiSettings(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number }) {
+    this.applyPatch({ path: 'aiSettings', value: settings });
+  }
+
   setAiLayerImage(imageBase64: string, bounds: { centerX: number; centerY: number; worldSize: number }) {
     const battleMap = this.battleMapValue;
     if (!battleMap) return;

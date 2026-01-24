@@ -24,6 +24,9 @@ export class BattlemapToolbarComponent {
   @Input() comfyUIAvailable = false;
   @Input() comfyUIGenerating = false;
   @Input() aiPrompt = '';
+  @Input() aiSettings: { seed?: number; steps?: number; cfg?: number; denoise?: number } = {};
+  @Input() drawLayerVisible = true;
+  @Input() aiLayerVisible = true;
 
   @Output() toolChange = new EventEmitter<ToolType>();
   @Output() brushColorChange = new EventEmitter<string>();
@@ -33,6 +36,9 @@ export class BattlemapToolbarComponent {
   @Output() dragModeChange = new EventEmitter<DragMode>();
   @Output() aiLayerToggle = new EventEmitter<void>();
   @Output() aiPromptChange = new EventEmitter<string>();
+  @Output() aiSettingsChange = new EventEmitter<{ seed?: number; steps?: number; cfg?: number; denoise?: number }>();
+  @Output() drawLayerVisibleChange = new EventEmitter<boolean>();
+  @Output() aiLayerVisibleChange = new EventEmitter<boolean>();
   @Output() toggleCharacterList = new EventEmitter<void>();
   @Output() toggleBattleTracker = new EventEmitter<void>();
   @Output() clearDrawings = new EventEmitter<void>();
@@ -72,9 +78,13 @@ export class BattlemapToolbarComponent {
   quickTokenName = signal('');
   quickTokenImageUrl = signal('');
 
-  // AI Prompt modal state
-  showAiPromptModal = signal(false);
+  // AI Settings modal state
+  showAiSettingsModal = signal(false);
   editingAiPrompt = signal('');
+  editingSeed = signal<number>(-1);
+  editingSteps = signal<number>(10);
+  editingCfg = signal<number>(1.5);
+  editingDenoise = signal<number>(0.75);
 
   selectTool(tool: ToolType) {
     this.toolChange.emit(tool);
@@ -171,18 +181,32 @@ export class BattlemapToolbarComponent {
     this.closeQuickTokenModal();
   }
 
-  // AI Prompt modal methods
-  openAiPromptModal() {
+  // AI Settings modal methods
+  openAiSettingsModal() {
     this.editingAiPrompt.set(this.aiPrompt || '');
-    this.showAiPromptModal.set(true);
+    this.editingSeed.set(this.aiSettings?.seed ?? -1);
+    this.editingSteps.set(this.aiSettings?.steps ?? 10);
+    this.editingCfg.set(this.aiSettings?.cfg ?? 1.5);
+    this.editingDenoise.set(this.aiSettings?.denoise ?? 0.75);
+    this.showAiSettingsModal.set(true);
   }
 
-  closeAiPromptModal() {
-    this.showAiPromptModal.set(false);
+  closeAiSettingsModal() {
+    this.showAiSettingsModal.set(false);
   }
 
-  saveAiPrompt() {
+  saveAiSettings() {
     this.aiPromptChange.emit(this.editingAiPrompt());
-    this.closeAiPromptModal();
+    this.aiSettingsChange.emit({
+      seed: this.editingSeed(),
+      steps: this.editingSteps(),
+      cfg: this.editingCfg(),
+      denoise: this.editingDenoise()
+    });
+    this.closeAiSettingsModal();
+  }
+
+  randomizeSeed() {
+    this.editingSeed.set(-1);
   }
 }

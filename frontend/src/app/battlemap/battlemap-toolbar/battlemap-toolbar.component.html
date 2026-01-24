@@ -149,14 +149,34 @@
 
   <!-- Right: Panel toggles -->
   <div class="toolbar-section">
-    <!-- AI Prompt Edit Button (only visible when AI is available) -->
+    <!-- Layer visibility toggles -->
+    <div class="layer-toggles">
+      <button 
+        class="layer-toggle-btn"
+        [class.active]="drawLayerVisible"
+        title="Toggle Drawing Layer visibility"
+        (click)="drawLayerVisibleChange.emit(!drawLayerVisible)"
+      >
+        <span class="btn-icon">✏️</span>
+      </button>
+      <button 
+        class="layer-toggle-btn"
+        [class.active]="aiLayerVisible"
+        title="Toggle AI Layer visibility"
+        (click)="aiLayerVisibleChange.emit(!aiLayerVisible)"
+      >
+        <span class="btn-icon">🎨</span>
+      </button>
+    </div>
+
+    <!-- AI Settings Button (only visible when AI is available) -->
     @if (comfyUIAvailable) {
       <button 
         class="toolbar-btn"
-        title="Edit AI Prompt"
-        (click)="openAiPromptModal()"
+        title="AI Settings & Prompt"
+        (click)="openAiSettingsModal()"
       >
-        <span class="btn-icon">📝</span>
+        <span class="btn-icon">⚙️</span>
       </button>
     }
 
@@ -166,7 +186,7 @@
       [class.active]="aiLayerEnabled"
       [class.available]="comfyUIAvailable"
       [class.generating]="comfyUIGenerating"
-      [title]="comfyUIAvailable ? (aiLayerEnabled ? 'AI Layer ON (click to disable)' : 'AI Layer OFF (click to enable)') : 'ComfyUI not available (start ComfyUI with --enable-cors-header)'"
+      [title]="comfyUIAvailable ? (aiLayerEnabled ? 'AI Generation ON (click to disable)' : 'AI Generation OFF (click to enable)') : 'ComfyUI not available (start ComfyUI with --enable-cors-header)'"
       [disabled]="!comfyUIAvailable"
       (click)="aiLayerToggle.emit()"
     >
@@ -186,34 +206,80 @@
   </div>
 </div>
 
-<!-- AI Prompt Modal -->
-@if (showAiPromptModal()) {
-  <div class="modal-overlay" (click)="closeAiPromptModal()">
+<!-- AI Settings Modal -->
+@if (showAiSettingsModal()) {
+  <div class="modal-overlay" (click)="closeAiSettingsModal()">
     <div class="modal-content modal-wide" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h3>🤖 AI Generation Prompt</h3>
-        <button class="modal-close" (click)="closeAiPromptModal()">✕</button>
+        <h3>🤖 AI Generation Settings</h3>
+        <button class="modal-close" (click)="closeAiSettingsModal()">✕</button>
       </div>
       
       <div class="modal-body">
         <div class="form-group">
-          <label>Describe the map style you want the AI to generate:</label>
+          <label>Prompt:</label>
           <textarea 
-            rows="6"
+            rows="4"
             [value]="editingAiPrompt()"
             (input)="editingAiPrompt.set($any($event.target).value)"
-            placeholder="e.g., A detailed fantasy dungeon map, dark stone walls, torches on the walls, ancient runes carved into the floor..."
+            placeholder="e.g., A detailed fantasy dungeon map, dark stone walls, torches on the walls..."
           ></textarea>
-          <p class="form-hint">
-            This prompt will be used when the AI generates the map overlay. 
-            Leave empty to use the default D&D town map prompt.
-          </p>
+          <p class="form-hint">Leave empty for default D&D map style.</p>
+        </div>
+
+        <div class="settings-grid">
+          <div class="form-group">
+            <label>Seed:</label>
+            <div class="input-with-button">
+              <input 
+                type="number" 
+                [value]="editingSeed()"
+                (input)="editingSeed.set(+$any($event.target).value)"
+                placeholder="-1 for random"
+              />
+              <button class="btn-small" (click)="randomizeSeed()" title="Random seed each time">🎲</button>
+            </div>
+            <p class="form-hint">-1 = random each generation</p>
+          </div>
+
+          <div class="form-group">
+            <label>Steps: {{ editingSteps() }}</label>
+            <input 
+              type="range" 
+              min="4" max="30" step="1"
+              [value]="editingSteps()"
+              (input)="editingSteps.set(+$any($event.target).value)"
+            />
+            <p class="form-hint">More steps = more detail, slower</p>
+          </div>
+
+          <div class="form-group">
+            <label>CFG: {{ editingCfg() }}</label>
+            <input 
+              type="range" 
+              min="1" max="10" step="0.1"
+              [value]="editingCfg()"
+              (input)="editingCfg.set(+$any($event.target).value)"
+            />
+            <p class="form-hint">How closely to follow prompt</p>
+          </div>
+
+          <div class="form-group">
+            <label>Denoise: {{ editingDenoise() }}</label>
+            <input 
+              type="range" 
+              min="0.1" max="1" step="0.05"
+              [value]="editingDenoise()"
+              (input)="editingDenoise.set(+$any($event.target).value)"
+            />
+            <p class="form-hint">Lower = more of your drawing preserved</p>
+          </div>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn-secondary" (click)="closeAiPromptModal()">Cancel</button>
-        <button class="btn-primary" (click)="saveAiPrompt()">Save Prompt</button>
+        <button class="btn-secondary" (click)="closeAiSettingsModal()">Cancel</button>
+        <button class="btn-primary" (click)="saveAiSettings()">Save Settings</button>
       </div>
     </div>
   </div>
