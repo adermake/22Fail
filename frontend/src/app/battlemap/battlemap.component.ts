@@ -15,6 +15,7 @@ import { BattlemapToolbarComponent } from './battlemap-toolbar/battlemap-toolbar
 import { BattlemapCharacterListComponent } from './battlemap-character-list/battlemap-character-list.component';
 import { BattlemapBattleTrackerComponent } from './battlemap-battle-tracker/battlemap-battle-tracker.component';
 
+
 export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
 export type DragMode = 'free' | 'enforced';
 
