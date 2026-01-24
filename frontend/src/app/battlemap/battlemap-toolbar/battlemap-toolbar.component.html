@@ -149,6 +149,22 @@
 
   <!-- Right: Panel toggles -->
   <div class="toolbar-section">
+    <!-- AI Layer Toggle -->
+    <button 
+      class="toolbar-btn ai-toggle"
+      [class.active]="aiLayerEnabled"
+      [class.available]="comfyUIAvailable"
+      [class.generating]="comfyUIGenerating"
+      [title]="comfyUIAvailable ? (aiLayerEnabled ? 'AI Layer ON (click to disable)' : 'AI Layer OFF (click to enable)') : 'ComfyUI not available (start ComfyUI with --enable-cors-header)'"
+      [disabled]="!comfyUIAvailable"
+      (click)="aiLayerToggle.emit()"
+    >
+      <span class="btn-icon">🤖</span>
+      @if (comfyUIGenerating) {
+        <span class="generating-indicator"></span>
+      }
+    </button>
+
     <button 
       class="toolbar-btn"
       title="Toggle Battle Tracker"

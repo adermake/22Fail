@@ -1,0 +1,94 @@
+{
+  "3": {
+    "inputs": {
+      "seed": 0,
+      "steps": 10,
+      "cfg": 1.5,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal",
+      "denoise": 0.75,
+      "model": ["16", 0],
+      "positive": ["6", 0],
+      "negative": ["7", 0],
+      "latent_image": ["11", 0]
+    },
+    "class_type": "KSampler",
+    "_meta": { "title": "KSampler" }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "hephaistosNextgenxlLCM_v20.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": { "title": "Load Checkpoint" }
+  },
+  "6": {
+    "inputs": {
+      "text": "((topdown view))A detailed fantasy town map for Dungeons & Dragons, top-down view. The town is medieval-style, with cobblestone streets, timber-framed houses, and thatched roofs. Include a bustling marketplace with stalls, a central town square with a fountain, a small castle or lord's manor on a hill, a temple or chapel, and a blacksmith's forge. Surround the town with wooden palisades and gates, with roads leading into a dense forest and nearby farmlands. Add a river running through or beside the town with a stone bridge. Include small details like wells, carts, trees, and lanterns for atmosphere. Colorful, hand-drawn, fantasy map aesthetic, easy to read with clear labels and icons, vintage RPG style.",
+      "clip": ["16", 1]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "CLIP Text Encode (Prompt)" }
+  },
+  "7": {
+    "inputs": {
+      "text": "low quality",
+      "clip": ["4", 1]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "CLIP Text Encode (Prompt)" }
+  },
+  "8": {
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["4", 2]
+    },
+    "class_type": "VAEDecode",
+    "_meta": { "title": "VAE Decode" }
+  },
+  "11": {
+    "inputs": {
+      "pixels": ["15", 0],
+      "vae": ["4", 2]
+    },
+    "class_type": "VAEEncode",
+    "_meta": { "title": "VAE Encode" }
+  },
+  "14": {
+    "inputs": {
+      "images": ["8", 0]
+    },
+    "class_type": "PreviewImage",
+    "_meta": { "title": "Preview Image" }
+  },
+  "15": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "width": 1024,
+      "height": 1024,
+      "crop": "disabled",
+      "image": ["21", 0]
+    },
+    "class_type": "ImageScale",
+    "_meta": { "title": "Upscale Image" }
+  },
+  "16": {
+    "inputs": {
+      "lora_name": "dnd-maps.safetensors",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "model": ["4", 0],
+      "clip": ["4", 1]
+    },
+    "class_type": "LoraLoader",
+    "_meta": { "title": "Load LoRA" }
+  },
+  "21": {
+    "inputs": {
+      "image": "",
+      "upload": "image"
+    },
+    "class_type": "LoadImage",
+    "_meta": { "title": "Load Image" }
+  }
+}

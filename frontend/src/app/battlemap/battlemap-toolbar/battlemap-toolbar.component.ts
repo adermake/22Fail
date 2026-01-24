@@ -20,6 +20,9 @@ export class BattlemapToolbarComponent {
   @Input() eraserBrushSize = 12;
   @Input() drawWithWalls = false;
   @Input() dragMode: DragMode = 'free';
+  @Input() aiLayerEnabled = false;
+  @Input() comfyUIAvailable = false;
+  @Input() comfyUIGenerating = false;
 
   @Output() toolChange = new EventEmitter<ToolType>();
   @Output() brushColorChange = new EventEmitter<string>();
@@ -27,6 +30,7 @@ export class BattlemapToolbarComponent {
   @Output() eraserBrushSizeChange = new EventEmitter<number>();
   @Output() drawWithWallsChange = new EventEmitter<boolean>();
   @Output() dragModeChange = new EventEmitter<DragMode>();
+  @Output() aiLayerToggle = new EventEmitter<void>();
   @Output() toggleCharacterList = new EventEmitter<void>();
   @Output() toggleBattleTracker = new EventEmitter<void>();
   @Output() clearDrawings = new EventEmitter<void>();

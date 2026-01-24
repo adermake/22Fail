@@ -1,10 +1,11 @@
 import { 
   Component, Input, Output, EventEmitter, ElementRef, ViewChild, 
-  AfterViewInit, OnChanges, SimpleChanges, inject, signal, HostListener
+  AfterViewInit, OnChanges, SimpleChanges, inject, signal, HostListener, OnDestroy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, HexMath, WallHex, MeasurementLine, generateId } from '../../model/battlemap.model';
 import { BattleMapStoreService } from '../../services/battlemap-store.service';
+import { ComfyUIService } from '../../services/comfyui.service';
 import { BattlemapTokenComponent } from '../battlemap-token/battlemap-token.component';
 
 type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
@@ -17,9 +18,10 @@ type DragMode = 'free' | 'enforced';
   templateUrl: './battlemap-grid.component.html',
   styleUrl: './battlemap-grid.component.css',
 })
-export class BattlemapGridComponent implements AfterViewInit, OnChanges {
+export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('gridCanvas') gridCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('drawCanvas') drawCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('aiCanvas') aiCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('container') container!: ElementRef<HTMLDivElement>;
 
@@ -39,6 +41,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   }
   @Input() drawWithWalls = false;
   @Input() dragMode: DragMode = 'free';
+  @Input() aiLayerEnabled = false;
   @Input() currentTurnCharacterId: string | null = null;
   @Input() battleParticipants: { characterId: string; team?: string }[] = [];
 
@@ -48,11 +51,18 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   @Output() quickTokenDrop = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
 
   private store = inject(BattleMapStoreService);
+  comfyUI = inject(ComfyUIService);
 
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
   private drawCtx: CanvasRenderingContext2D | null = null;
+  private aiCtx: CanvasRenderingContext2D | null = null;
   private overlayCtx: CanvasRenderingContext2D | null = null;
+
+  // AI layer state
+  private aiGenerationDebounce: any = null;
+  private currentAiImage: HTMLImageElement | null = null;
+  aiLayerOpacity = signal<number>(0.7);
 
   // Pan and zoom state
   panX = 0;
@@ -101,17 +111,31 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     this.centerView();
     this.render();
     this.setupResizeObserver();
+    // Check ComfyUI availability on init
+    this.comfyUI.checkAvailability();
+  }
+
+  ngOnDestroy() {
+    if (this.aiGenerationDebounce) {
+      clearTimeout(this.aiGenerationDebounce);
+    }
   }
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['battleMap'] && this.gridCtx) {
       this.render();
     }
+    if (changes['aiLayerEnabled']) {
+      if (this.aiLayerEnabled) {
+        this.comfyUI.checkAvailability();
+      }
+    }
   }
 
   private initCanvases() {
     const gridEl = this.gridCanvas?.nativeElement;
     const drawEl = this.drawCanvas?.nativeElement;
+    const aiEl = this.aiCanvas?.nativeElement;
     const overlayEl = this.overlayCanvas?.nativeElement;
     
     if (gridEl) {
@@ -121,6 +145,10 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     if (drawEl) {
       this.drawCtx = drawEl.getContext('2d');
       this.resizeCanvas(drawEl);
+    }
+    if (aiEl) {
+      this.aiCtx = aiEl.getContext('2d');
+      this.resizeCanvas(aiEl);
     }
     if (overlayEl) {
       this.overlayCtx = overlayEl.getContext('2d');
@@ -152,9 +180,11 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
     const observer = new ResizeObserver(() => {
       const gridEl = this.gridCanvas?.nativeElement;
       const drawEl = this.drawCanvas?.nativeElement;
+      const aiEl = this.aiCanvas?.nativeElement;
       const overlayEl = this.overlayCanvas?.nativeElement;
       if (gridEl) this.resizeCanvas(gridEl);
       if (drawEl) this.resizeCanvas(drawEl);
+      if (aiEl) this.resizeCanvas(aiEl);
       if (overlayEl) this.resizeCanvas(overlayEl);
       this.render();
     });
@@ -190,6 +220,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
   render() {
     this.renderGrid();
     this.renderStrokes();
+    this.renderAiLayer();
     this.renderOverlay();
   }
 
@@ -315,6 +346,143 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
 
     ctx.globalCompositeOperation = 'source-over';
     ctx.restore();
+  }
+
+  private renderAiLayer() {
+    if (!this.aiCtx || !this.aiLayerEnabled || !this.currentAiImage) return;
+
+    const canvas = this.aiCanvas?.nativeElement;
+    if (!canvas) return;
+
+    const ctx = this.aiCtx;
+    const dpr = window.devicePixelRatio || 1;
+    
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    
+    if (!this.currentAiImage) return;
+
+    ctx.save();
+    ctx.globalAlpha = this.aiLayerOpacity();
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.scale, this.scale);
+    
+    // Draw the AI image centered at origin, scaled to match the visible area
+    // The image should overlay the drawing area
+    const imgWidth = this.currentAiImage.width;
+    const imgHeight = this.currentAiImage.height;
+    
+    // Center the image
+    ctx.drawImage(
+      this.currentAiImage,
+      -imgWidth / 2,
+      -imgHeight / 2,
+      imgWidth,
+      imgHeight
+    );
+    
+    ctx.restore();
+  }
+
+  /**
+   * Trigger AI generation after a drawing change (debounced)
+   */
+  private triggerAiGeneration() {
+    if (!this.aiLayerEnabled || !this.comfyUI.isAvailable()) return;
+
+    // Clear existing debounce
+    if (this.aiGenerationDebounce) {
+      clearTimeout(this.aiGenerationDebounce);
+    }
+
+    // Debounce: wait 800ms after last stroke before generating
+    this.aiGenerationDebounce = setTimeout(() => {
+      this.generateAiImage();
+    }, 800);
+  }
+
+  /**
+   * Generate AI image from current drawing canvas
+   */
+  private async generateAiImage() {
+    if (!this.drawCanvas || this.comfyUI.isGenerating()) return;
+
+    const drawEl = this.drawCanvas.nativeElement;
+    
+    // Create a temporary canvas with just the drawing (no grid)
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = 1024;
+    tempCanvas.height = 1024;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    if (!tempCtx) return;
+
+    // Fill with white background
+    tempCtx.fillStyle = '#ffffff';
+    tempCtx.fillRect(0, 0, 1024, 1024);
+
+    // Copy and center the drawing area
+    // Calculate what portion of the drawing canvas to use
+    const container = this.container?.nativeElement;
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const size = Math.min(rect.width, rect.height);
+    
+    // Draw the strokes onto temp canvas
+    tempCtx.save();
+    // Scale to fit 1024x1024
+    const scale = 1024 / size;
+    tempCtx.translate(512, 512); // Center of temp canvas
+    tempCtx.scale(scale, scale);
+    tempCtx.translate(-this.panX, -this.panY);
+    tempCtx.scale(this.scale, this.scale);
+    
+    // Render strokes to temp canvas
+    for (const stroke of this.battleMap?.strokes || []) {
+      if (stroke.points.length < 2) continue;
+      
+      tempCtx.globalCompositeOperation = stroke.isEraser ? 'destination-out' : 'source-over';
+      tempCtx.beginPath();
+      tempCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      
+      for (let i = 1; i < stroke.points.length; i++) {
+        tempCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      
+      tempCtx.strokeStyle = stroke.isEraser ? 'rgba(0,0,0,1)' : stroke.color;
+      tempCtx.lineWidth = stroke.lineWidth;
+      tempCtx.lineCap = 'round';
+      tempCtx.lineJoin = 'round';
+      tempCtx.stroke();
+    }
+    tempCtx.restore();
+
+    // Send to ComfyUI
+    const result = await this.comfyUI.generateFromCanvas(tempCanvas);
+    
+    if (result.success && result.imageUrl) {
+      // Load the image
+      const img = new Image();
+      img.onload = () => {
+        this.currentAiImage = img;
+        this.render();
+      };
+      img.src = result.imageUrl;
+    }
+  }
+
+  /**
+   * Clear the AI layer
+   */
+  clearAiLayer() {
+    this.currentAiImage = null;
+    if (this.aiCtx) {
+      const canvas = this.aiCanvas?.nativeElement;
+      if (canvas) {
+        const dpr = window.devicePixelRatio || 1;
+        this.aiCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+      }
+    }
   }
 
   private renderOverlay() {
@@ -846,6 +1014,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
         lineWidth: brushSize,
         isEraser: this.currentTool === 'erase',
       });
+      // Trigger AI generation if enabled
+      this.triggerAiGeneration();
     }
 
     this.isPanning = false;
@@ -889,6 +1059,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges {
         lineWidth: brushSize,
         isEraser: this.currentTool === 'erase',
       });
+      // Trigger AI generation if enabled
+      this.triggerAiGeneration();
     }
     this.isPanning = false;
     this.isDrawing = false;

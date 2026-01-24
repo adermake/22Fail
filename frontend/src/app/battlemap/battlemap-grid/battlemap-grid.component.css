@@ -24,6 +24,17 @@
   z-index: 1;
 }
 
+.ai-canvas {
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.ai-canvas.visible {
+  opacity: 1;
+}
+
 .overlay-canvas {
   z-index: 100;
 }

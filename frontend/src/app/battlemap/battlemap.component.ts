@@ -5,6 +5,7 @@ import { Subscription } from 'rxjs';
 
 import { BattleMapStoreService } from '../services/battlemap-store.service';
 import { WorldStoreService } from '../services/world-store.service';
+import { ComfyUIService } from '../services/comfyui.service';
 import { BattlemapData, BattlemapToken, HexCoord, HexMath } from '../model/battlemap.model';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { CharacterApiService } from '../services/character-api.service';
@@ -35,6 +36,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   private store = inject(BattleMapStoreService);
   private worldStore = inject(WorldStoreService);
   private characterApi = inject(CharacterApiService);
+  comfyUI = inject(ComfyUIService);
   
   private subscriptions: Subscription[] = [];
 
@@ -58,6 +60,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   eraserBrushSize = signal<number>(12);
   drawWithWalls = signal<boolean>(false);
   dragMode = signal<DragMode>('free');
+  aiLayerEnabled = signal<boolean>(false);
 
   // Computed: current turn character from world battle tracker
   currentTurnCharacterId = computed(() => {
@@ -225,5 +228,16 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   toggleBattleTracker() {
     this.showBattleTracker.set(!this.showBattleTracker());
+  }
+
+  // AI Layer toggle
+  toggleAiLayer() {
+    const newValue = !this.aiLayerEnabled();
+    this.aiLayerEnabled.set(newValue);
+    
+    if (newValue) {
+      // Check availability when enabling
+      this.comfyUI.checkAvailability();
+    }
   }
 }

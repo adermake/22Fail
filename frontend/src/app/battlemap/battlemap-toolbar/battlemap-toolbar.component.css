@@ -412,3 +412,65 @@
   background: var(--border);
   margin: 0 0.5rem;
 }
+
+/* AI Layer Toggle */
+.toolbar-btn.ai-toggle {
+  position: relative;
+}
+
+.toolbar-btn.ai-toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toolbar-btn.ai-toggle.available:not(.active) {
+  border-color: #22c55e;
+}
+
+.toolbar-btn.ai-toggle.active {
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  border-color: transparent;
+  animation: ai-pulse 2s infinite;
+}
+
+.toolbar-btn.ai-toggle.generating {
+  animation: ai-generating 0.5s infinite alternate;
+}
+
+.generating-indicator {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  background: #fbbf24;
+  border-radius: 50%;
+  animation: blink 0.5s infinite alternate;
+}
+
+@keyframes ai-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(236, 72, 153, 0.6);
+  }
+}
+
+@keyframes ai-generating {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes blink {
+  0% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}
