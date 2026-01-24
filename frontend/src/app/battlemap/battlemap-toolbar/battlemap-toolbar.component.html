@@ -179,7 +179,7 @@
         class="action-btn generate"
         [class.disabled]="comfyUIGenerating || !comfyUIAvailable"
         [disabled]="comfyUIGenerating || !comfyUIAvailable"
-        title="Generate map from AI colored regions"
+        title="Generate map from AI colored regions (builds incrementally)"
         (click)="generateFromAiStrokes.emit()"
       >
         @if (comfyUIGenerating) {
@@ -189,13 +189,22 @@
         }
       </button>
 
-      <!-- Clear AI strokes -->
+      <!-- Clear AI strokes (keeps generated image) -->
       <button 
-        class="action-btn danger"
-        title="Clear AI drawing"
+        class="action-btn"
+        title="Clear AI strokes (keeps generated image for incremental building)"
         (click)="clearAiStrokes.emit()"
       >
-        🗑️ Clear
+        🗑️ Clear Strokes
+      </button>
+      
+      <!-- Start fresh (clear everything) -->
+      <button 
+        class="action-btn danger"
+        title="Clear everything and start fresh"
+        (click)="startFreshAi.emit()"
+      >
+        🆕 Start Fresh
       </button>
     </div>
   }

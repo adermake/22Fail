@@ -299,6 +299,13 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Start fresh AI generation (clear everything)
+  onStartFreshAi() {
+    this.store.clearAiStrokes();
+    this.store.clearAiLayer();
+    this.comfyUI.clearLastGeneration();
+  }
+
   // Computed: get AI color prompts from battlemap
   getAiColorPrompts(): AiColorPrompt[] {
     return this.battleMap()?.aiColorPrompts || getDefaultAiColorPrompts();

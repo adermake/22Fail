@@ -48,6 +48,7 @@ export class BattlemapToolbarComponent {
   @Output() aiColorPromptUpdate = new EventEmitter<{ id: string; updates: Partial<AiColorPrompt> }>();
   @Output() clearAiStrokes = new EventEmitter<void>();
   @Output() generateFromAiStrokes = new EventEmitter<void>();
+  @Output() startFreshAi = new EventEmitter<void>();
 
   tools: { id: ToolType; icon: string; label: string }[] = [
     { id: 'cursor', icon: '↖️', label: 'Move Tokens (Middle-click to pan)' },
@@ -190,9 +191,9 @@ export class BattlemapToolbarComponent {
   openAiSettingsModal() {
     this.editingAiPrompt.set(this.aiPrompt || '');
     this.editingSeed.set(this.aiSettings?.seed ?? -1);
-    this.editingSteps.set(this.aiSettings?.steps ?? 25);
-    this.editingCfg.set(this.aiSettings?.cfg ?? 3.5); // Not used by FLUX
-    this.editingDenoise.set(this.aiSettings?.denoise ?? 0.7); // ControlNet strength
+    this.editingSteps.set(this.aiSettings?.steps ?? 10); // LCM default
+    this.editingCfg.set(this.aiSettings?.cfg ?? 1.5); // LCM default
+    this.editingDenoise.set(this.aiSettings?.denoise ?? 0.75); // Inpainting default
     this.showAiSettingsModal.set(true);
   }
 

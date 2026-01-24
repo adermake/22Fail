@@ -63,6 +63,10 @@ export class ComfyUIService {
   // Client ID for WebSocket
   private clientId = this.generateClientId();
 
+  // Track last generation for incremental building
+  private lastGeneratedImageUrl: string | null = null;
+  private lastGeneratedBlob: Blob | null = null;
+
   /**
    * FLUX + ControlNet Canny workflow for proper sketch-to-map generation
    * 
@@ -447,10 +451,27 @@ export class ComfyUIService {
       }
 
       // Step 5: Create and execute multi-pass inpainting workflow
-      const workflow = this.createInpaintingWorkflow(baseImageFilename, regionMasks);
+      // Use last generation as base if available (incremental building)
+      let baseForInpainting = baseImageFilename;
+      if (this.lastGeneratedBlob) {
+        baseForInpainting = await this.uploadImage(this.lastGeneratedBlob);
+        console.log('[ComfyUI] Using previous generation as base for incremental building');
+      }
       
-      // Step 5: Queue and wait for result
+      const workflow = this.createInpaintingWorkflow(baseForInpainting, regionMasks, this.lastGeneratedBlob !== null);
+      
+      // Step 6: Queue and wait for result
       const result = await this.queueAndWait(workflow);
+      
+      // Store result for next incremental build
+      if (result.success && result.imageBlob) {
+        // Clean up old stored image
+        if (this.lastGeneratedImageUrl) {
+          URL.revokeObjectURL(this.lastGeneratedImageUrl);
+        }
+        this.lastGeneratedImageUrl = result.imageUrl || null;
+        this.lastGeneratedBlob = result.imageBlob;
+      }
       
       this.isGenerating.set(false);
       return result;
@@ -464,8 +485,9 @@ export class ComfyUIService {
   }
 
   /**
-   * Create a binary mask for a specific color
+   * Create a feathered mask for a specific color
    * White = where this color is (will be inpainted), Black = keep as is
+   * Feathering creates a gradient at edges for better blending
    */
   private async createColorMask(
     sourceCanvas: HTMLCanvasElement,
@@ -522,6 +544,13 @@ export class ComfyUIService {
     }
     
     ctx.putImageData(maskData, 0, 0);
+    
+    // Apply Gaussian blur for feathered edges (better blending)
+    const featherRadius = 15; // pixels to feather
+    ctx.filter = `blur(${featherRadius}px)`;
+    ctx.drawImage(maskCanvas, 0, 0);
+    ctx.filter = 'none';
+    
     return this.canvasToBlob(maskCanvas);
   }
 
@@ -609,11 +638,15 @@ export class ComfyUIService {
    */
   /**
    * Create an inpainting workflow using SDXL LCM model
-   * Multi-pass approach: generate base, then inpaint each region
+   * Multi-pass approach: start from empty latent (or existing image) and inpaint each region
+   * @param baseImageFilename The base image (previous generation or initial sketch)
+   * @param regions Array of regions to inpaint with their masks
+   * @param hasExistingImage Whether we're building on top of a previous generation
    */
   private createInpaintingWorkflow(
     baseImageFilename: string,
-    regions: { color: string; prompt: string; maskFilename: string }[]
+    regions: { color: string; prompt: string; maskFilename: string }[],
+    hasExistingImage: boolean = false
   ): any {
     const workflow: any = {};
     let nodeId = 1;
@@ -641,18 +674,41 @@ export class ComfyUIService {
     };
     const loraNode = nodeId - 1;
 
-    // ============ EMPTY LATENT START ============
-    // Start from empty latent (pure generation, not img2img)
-    workflow[String(nodeId++)] = {
-      "inputs": { 
-        "width": this.generationResolution, 
-        "height": this.generationResolution, 
-        "batch_size": 1 
-      },
-      "class_type": "EmptyLatentImage",
-      "_meta": { "title": "Empty Latent" }
-    };
-    let currentLatentNode = nodeId - 1;
+    // ============ LATENT START ============
+    let currentLatentNode: number;
+    
+    if (hasExistingImage) {
+      // Load existing image for incremental building
+      workflow[String(nodeId++)] = {
+        "inputs": { "image": baseImageFilename, "upload": "image" },
+        "class_type": "LoadImage",
+        "_meta": { "title": "Load Existing Image" }
+      };
+      const loadImageNode = nodeId - 1;
+
+      // Encode to latent
+      workflow[String(nodeId++)] = {
+        "inputs": {
+          "pixels": [String(loadImageNode), 0],
+          "vae": [String(checkpointNode), 2]
+        },
+        "class_type": "VAEEncode",
+        "_meta": { "title": "Encode Existing" }
+      };
+      currentLatentNode = nodeId - 1;
+    } else {
+      // Start from empty latent (pure generation)
+      workflow[String(nodeId++)] = {
+        "inputs": { 
+          "width": this.generationResolution, 
+          "height": this.generationResolution, 
+          "batch_size": 1 
+        },
+        "class_type": "EmptyLatentImage",
+        "_meta": { "title": "Empty Latent" }
+      };
+      currentLatentNode = nodeId - 1;
+    }
 
     // Negative prompt (shared by all passes)
     workflow[String(nodeId++)] = {
@@ -831,6 +887,17 @@ export class ComfyUIService {
    */
   getCurrentPrompt(): string {
     return this.customPrompt || this.defaultPrompt;
+  }
+
+  /**
+   * Clear last generation (start fresh)
+   */
+  clearLastGeneration(): void {
+    if (this.lastGeneratedImageUrl) {
+      URL.revokeObjectURL(this.lastGeneratedImageUrl);
+    }
+    this.lastGeneratedImageUrl = null;
+    this.lastGeneratedBlob = null;
   }
 
   /**
