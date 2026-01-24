@@ -223,17 +223,41 @@
    ============================================ */
 .turn-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 3px;
-  padding: 6px;
+  padding: 6px 6px 10px 6px;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.1);
   position: relative;
 }
 
+/* Scripted groups have a solid background */
 .turn-group.scripted {
   background: rgba(var(--accent-rgb), 0.15);
-  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.3);
 }
+
+/* Calculated groups have a dashed top border to indicate "predicted" */
+.turn-group.calculated {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Group line at the bottom (only for multi-tile groups) */
+.group-line {
+  position: absolute;
+  bottom: 2px;
+  left: 6px;
+  right: 6px;
+  height: 3px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.turn-group.team-blue .group-line { background: #3b82f6; }
+.turn-group.team-red .group-line { background: #ef4444; }
+.turn-group.team-green .group-line { background: #10b981; }
+.turn-group.team-yellow .group-line { background: #eab308; }
+.turn-group.team-purple .group-line { background: #a855f7; }
+.turn-group.team-orange .group-line { background: #f97316; }
 
 /* ============================================
    Tile
@@ -292,21 +316,24 @@
   padding: 1px;
 }
 
-/* Team colors */
+/* Scripted tiles have a solid top border (locked in) */
+.tile.scripted {
+  border-top: 3px solid var(--accent);
+}
+
+/* Calculated tiles have a dashed top border (predicted) */
+.tile.calculated {
+  border-top: 3px dashed rgba(255, 255, 255, 0.3);
+  opacity: 0.85;
+}
+
+/* Team colors - bottom border */
 .tile.team-blue { border-bottom: 3px solid #3b82f6; }
 .tile.team-red { border-bottom: 3px solid #ef4444; }
 .tile.team-green { border-bottom: 3px solid #10b981; }
 .tile.team-yellow { border-bottom: 3px solid #eab308; }
 .tile.team-purple { border-bottom: 3px solid #a855f7; }
 .tile.team-orange { border-bottom: 3px solid #f97316; }
-
-/* Group team indicator */
-.turn-group.team-blue { border-left: 3px solid #3b82f6; }
-.turn-group.team-red { border-left: 3px solid #ef4444; }
-.turn-group.team-green { border-left: 3px solid #10b981; }
-.turn-group.team-yellow { border-left: 3px solid #eab308; }
-.turn-group.team-purple { border-left: 3px solid #a855f7; }
-.turn-group.team-orange { border-left: 3px solid #f97316; }
 
 /* Hover effect - only when not dragging */
 .timeline:not(.dragging) .tile:hover {

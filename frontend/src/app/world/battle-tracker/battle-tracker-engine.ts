@@ -27,7 +27,7 @@ import { WorldStoreService } from '../../services/world-store.service';
 
 /** A single turn slot in the timeline */
 export interface TurnTile {
-  id: string;           // Unique tile ID (uuid-style)
+  id: string;           // Unique tile ID (characterId_turnNumber)
   characterId: string;
   name: string;
   portrait?: string;
@@ -35,6 +35,7 @@ export interface TurnTile {
   speed: number;
   turnNumber: number;   // Which turn this is for this character (1st, 2nd, etc.)
   timing: number;       // Calculated timing value (lower = sooner)
+  isScripted?: boolean; // Is this tile in the scripted (locked) portion?
 }
 
 /** A group of consecutive tiles (same team, different characters) */
@@ -243,14 +244,15 @@ export class BattleTrackerEngine {
     return (turnNumber * 1000) / Math.max(speed, 1);
   }
 
-  /** Create a tile for a participant */
+  /** Create a tile for a participant - ID is stable based on character + turn number */
   private createTile(
     participant: { characterId: string; name: string; portrait?: string; speed: number; team: string },
     turnNumber: number,
-    indexHint: number
+    _indexHint: number
   ): TurnTile {
     return {
-      id: `tile_${participant.characterId}_${turnNumber}_${indexHint}_${Date.now()}`,
+      // Stable ID: characterId + turnNumber only - this ensures animations work correctly
+      id: `${participant.characterId}_t${turnNumber}`,
       characterId: participant.characterId,
       name: participant.name,
       portrait: participant.portrait,
@@ -352,11 +354,12 @@ export class BattleTrackerEngine {
         currentChars.has(tile.characterId);
 
       if (needNewGroup && currentTiles.length > 0) {
+        const groupStartIdx = tileIndex - currentTiles.length;
         groups.push({
           id: `group_${groups.length}`,
           tiles: currentTiles,
           team: currentTeam!,
-          isScripted: groups.length === 0 ? tileIndex - currentTiles.length < this.scriptedCount : false,
+          isScripted: groupStartIdx < this.scriptedCount,
         });
         currentTiles = [];
         currentChars.clear();
@@ -366,7 +369,8 @@ export class BattleTrackerEngine {
         currentTeam = tile.team;
       }
 
-      currentTiles.push({ ...tile, timing: tile.timing });
+      // Add tile with isScripted flag
+      currentTiles.push({ ...tile, isScripted });
       currentChars.add(tile.characterId);
       tileIndex++;
     }
@@ -380,15 +384,6 @@ export class BattleTrackerEngine {
         team: currentTeam!,
         isScripted: startIndex < this.scriptedCount,
       });
-    }
-
-    // Mark scripted status properly
-    let processedTiles = 0;
-    for (const group of groups) {
-      const groupStartIndex = processedTiles;
-      const groupEndIndex = processedTiles + group.tiles.length - 1;
-      group.isScripted = groupStartIndex < this.scriptedCount;
-      processedTiles += group.tiles.length;
     }
 
     return groups;

@@ -79,6 +79,7 @@
             class="turn-group"
             [attr.data-group-id]="group.id"
             [class.scripted]="group.isScripted"
+            [class.calculated]="!group.isScripted"
             [ngClass]="'team-' + group.team"
           >
             <!-- Drop indicator before -->
@@ -93,6 +94,8 @@
                 [attr.data-tile-id]="tile.id"
                 [class.dragged]="isDragged(tile.id)"
                 [class.animating]="isAnimating(tile.id)"
+                [class.scripted]="tile.isScripted"
+                [class.calculated]="!tile.isScripted"
                 [ngClass]="'team-' + tile.team"
                 draggable="true"
                 (dragstart)="onDragStart($event, tile)"
@@ -106,6 +109,11 @@
                 <span class="tile-name">{{ tile.name }}</span>
                 <span class="turn-number">T{{ tile.turnNumber }}</span>
               </div>
+            }
+
+            <!-- Group indicator line (below tiles) -->
+            @if (group.tiles.length > 1) {
+              <div class="group-line"></div>
             }
 
             <!-- Drop indicator after -->

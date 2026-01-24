@@ -5,54 +5,53 @@
   </div>
 
   <div class="tracker-content">
-    @if (participants.length === 0) {
+    @if (groups.length === 0) {
       <div class="empty-state">
         <span class="empty-icon">⚔️</span>
         <p>No battle in progress</p>
         <p class="sub-text">The GM can start a battle from the World view</p>
       </div>
     } @else {
-      <div class="turn-queue">
-        @for (participant of participants; track participant.characterId; let i = $index) {
+      <!-- Current Turn Display -->
+      @if (currentTurnDisplay) {
+        <div class="current-turn-display">
+          <span class="label">Current Turn:</span>
+          <span class="names">{{ currentTurnDisplay }}</span>
+        </div>
+      }
+
+      <!-- Timeline -->
+      <div class="timeline">
+        @for (group of groups; track trackGroup($index, group); let gIdx = $index) {
           <div 
-            class="participant-card"
-            [class.current-turn]="isCurrentTurn(i)"
-            [style.--team-color]="getTeamColor(participant.team)"
+            class="turn-group"
+            [class.scripted]="group.isScripted"
+            [class.calculated]="!group.isScripted"
+            [class.first-group]="gIdx === 0"
           >
-            <div class="turn-indicator">
-              @if (isCurrentTurn(i)) {
-                <span class="current-marker">▶</span>
-              } @else {
-                <span class="turn-number">{{ i + 1 }}</span>
-              }
-            </div>
-
-            <div class="participant-portrait">
-              @if (getPortrait(participant)) {
-                <img [src]="getPortrait(participant)" [alt]="participant.name" />
-              } @else {
-                <div class="participant-initials">{{ getInitials(participant.name) }}</div>
-              }
-            </div>
-
-            <div class="participant-info">
-              <div class="participant-name">{{ participant.name }}</div>
-              @if (participant.maxHealth && participant.maxHealth > 0) {
-                <div class="health-bar-container">
-                  <div class="health-bar" 
-                       [style.width.%]="getHealthPercent(participant)"
-                       [class.health-low]="getHealthPercent(participant) <= 25"
-                       [class.health-medium]="getHealthPercent(participant) > 25 && getHealthPercent(participant) <= 50">
-                  </div>
-                  <span class="health-text">{{ participant.currentHealth || 0 }}/{{ participant.maxHealth }}</span>
-                </div>
-              }
-              <div class="participant-stats">
-                <span class="speed-badge" title="Speed">⚡ {{ participant.speed }}</span>
+            <!-- Tiles -->
+            @for (tile of group.tiles; track trackTile($index, tile)) {
+              <div 
+                class="tile"
+                [class.scripted]="tile.isScripted"
+                [class.calculated]="!tile.isScripted"
+                [style.--team-color]="getTeamColor(tile.team)"
+              >
+                @if (tile.portrait) {
+                  <img [src]="tile.portrait" [alt]="tile.name" class="tile-portrait">
+                } @else {
+                  <div class="tile-initials">{{ tile.name.substring(0, 2).toUpperCase() }}</div>
+                }
+                <span class="tile-name">{{ tile.name }}</span>
+                <span class="turn-number">T{{ tile.turnNumber }}</span>
+                <div class="team-indicator" [style.background]="getTeamColor(tile.team)"></div>
               </div>
-            </div>
+            }
 
-            <div class="team-indicator" [style.background]="getTeamColor(participant.team)"></div>
+            <!-- Group line at bottom for multi-tile groups -->
+            @if (group.tiles.length > 1) {
+              <div class="group-line" [style.background]="getTeamColor(group.team)"></div>
+            }
           </div>
         }
       </div>
