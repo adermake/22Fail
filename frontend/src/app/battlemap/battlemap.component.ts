@@ -179,6 +179,16 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     this.eraserBrushSize.set(size);
   }
 
+  onBrushSizeChange(size: number) {
+    // Update appropriate brush size based on current tool
+    const tool = this.currentTool();
+    if (tool === 'erase') {
+      this.eraserBrushSize.set(size);
+    } else if (tool === 'draw' || tool === 'ai-draw') {
+      this.penBrushSize.set(size);
+    }
+  }
+
   onDrawWithWallsChange(enabled: boolean) {
     this.drawWithWalls.set(enabled);
   }

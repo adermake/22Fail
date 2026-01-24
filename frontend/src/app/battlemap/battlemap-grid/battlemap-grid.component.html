@@ -84,4 +84,17 @@
       </button>
     </div>
   }
+
+  <!-- Brush resize preview (shown when shift+dragging) -->
+  @if (brushResizePreview()) {
+    <div 
+      class="brush-resize-preview"
+      [style.left.px]="brushResizePreview()!.x"
+      [style.top.px]="brushResizePreview()!.y"
+      [style.width.px]="brushResizePreview()!.size"
+      [style.height.px]="brushResizePreview()!.size"
+    >
+      <span class="brush-size-label">{{ brushResizePreview()!.size | number:'1.0-0' }}</span>
+    </div>
+  }
 </div>

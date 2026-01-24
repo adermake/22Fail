@@ -533,10 +533,11 @@ export class ComfyUIService {
     const maskCanvas = document.createElement('canvas');
     maskCanvas.width = width;
     maskCanvas.height = height;
-    const ctx = maskCanvas.getContext('2d')!;
+    // Use willReadFrequently for better performance with getImageData
+    const ctx = maskCanvas.getContext('2d', { willReadFrequently: true })!;
     
-    // Get source pixels
-    const sourceCtx = sourceCanvas.getContext('2d')!;
+    // Get source pixels - use willReadFrequently for multiple reads
+    const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true })!;
     const imageData = sourceCtx.getImageData(0, 0, width, height);
     const pixels = imageData.data;
     
@@ -1065,14 +1066,23 @@ export class ComfyUIService {
       const wsUrl = `ws://${this.config.host}:${this.config.port}/ws?clientId=${this.clientId}`;
       const ws = new WebSocket(wsUrl);
       
+      // Longer timeout for complex regional workflows (3 minutes)
       const timeout = setTimeout(() => {
         ws.close();
-        reject(new Error('Generation timed out (60s)'));
-      }, 60000);
+        reject(new Error('Generation timed out (180s) - check ComfyUI for errors'));
+      }, 180000);
 
       ws.onmessage = async (event) => {
         try {
           const message = JSON.parse(event.data);
+          
+          // Log progress for debugging
+          if (message.type === 'executing' && message.data.prompt_id === promptId) {
+            console.log('[ComfyUI] Executing node:', message.data.node || 'complete');
+          }
+          if (message.type === 'progress') {
+            console.log('[ComfyUI] Progress:', message.data.value, '/', message.data.max);
+          }
           
           if (message.type === 'executing' && message.data.node === null && message.data.prompt_id === promptId) {
             // Execution complete

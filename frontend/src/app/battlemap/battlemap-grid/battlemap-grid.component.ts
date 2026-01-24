@@ -52,6 +52,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   @Output() tokenMove = new EventEmitter<{ tokenId: string; position: HexCoord }>();
   @Output() tokenRemove = new EventEmitter<string>();
   @Output() quickTokenDrop = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
+  @Output() brushSizeChange = new EventEmitter<number>(); // For shift+drag brush resize
 
   private store = inject(BattleMapStoreService);
   comfyUI = inject(ComfyUIService);
@@ -85,6 +86,12 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   private currentStrokeHexes = new Set<string>(); // Track hex keys for wall placement during draw
   private lastDrawTime = 0;
   private drawThrottle = 16; // ~60fps
+
+  // Brush resize state (Krita-style shift+drag)
+  private isResizingBrush = false;
+  private brushResizeStartX = 0;
+  private brushResizeStartSize = 0;
+  brushResizePreview = signal<{ x: number; y: number; size: number } | null>(null);
 
   // Measurement
   measureStart = signal<{ x: number; y: number } | null>(null);
@@ -1311,6 +1318,22 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     // Capture pointer to receive events even if pointer leaves element
     (event.target as HTMLElement).setPointerCapture(event.pointerId);
     
+    // Shift+click for Krita-style brush resize (only for draw tools)
+    if (event.shiftKey && (this.currentTool === 'draw' || this.currentTool === 'erase' || this.currentTool === 'ai-draw')) {
+      this.isResizingBrush = true;
+      this.brushResizeStartX = event.clientX;
+      this.brushResizeStartSize = this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize;
+      
+      const rect = this.container.nativeElement.getBoundingClientRect();
+      this.brushResizePreview.set({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+        size: this.brushResizeStartSize
+      });
+      event.preventDefault();
+      return;
+    }
+    
     // For pen/tablet: barrel button (button 5) or eraser tip (button 5) should pan
     // The buttons property is a bitmask: 4 = barrel button pressed
     if (event.pointerType === 'pen' && (event.buttons & 4)) {
@@ -1330,18 +1353,50 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   onPointerMove(event: PointerEvent) {
+    // Handle brush resize mode
+    if (this.isResizingBrush) {
+      const delta = event.clientX - this.brushResizeStartX;
+      // Scale: 1 pixel = 0.5 brush size units
+      const newSize = Math.max(1, Math.min(100, Math.round(this.brushResizeStartSize + delta * 0.5)));
+      
+      const rect = this.container.nativeElement.getBoundingClientRect();
+      this.brushResizePreview.set({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+        size: newSize
+      });
+      return;
+    }
+    
     this.onMouseMove(event);
   }
 
   onPointerUp(event: PointerEvent) {
     // Release pointer capture
     (event.target as HTMLElement).releasePointerCapture(event.pointerId);
+    
+    // Finish brush resize
+    if (this.isResizingBrush) {
+      const preview = this.brushResizePreview();
+      if (preview) {
+        this.brushSizeChange.emit(preview.size);
+      }
+      this.isResizingBrush = false;
+      this.brushResizePreview.set(null);
+      return;
+    }
+    
     this.onMouseUp(event);
   }
 
   onPointerLeave(event: PointerEvent) {
     // Only trigger leave if we don't have pointer capture
     if (!(event.target as HTMLElement).hasPointerCapture(event.pointerId)) {
+      // Cancel brush resize if active
+      if (this.isResizingBrush) {
+        this.isResizingBrush = false;
+        this.brushResizePreview.set(null);
+      }
       this.onMouseLeave();
     }
   }
