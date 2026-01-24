@@ -55,10 +55,13 @@ export class ComfyUIService {
     denoise: number; // Used as ControlNet strength
   } = {
     seed: -1, // -1 = random
-    steps: 25, // FLUX needs more steps
+    steps: 20, // FLUX can produce good results with 20 steps
     cfg: 3.5, // Not used by FLUX, kept for compatibility
     denoise: 0.7 // ControlNet strength - how closely to follow sketch
   };
+
+  // Regional workflow uses smaller resolution for speed
+  private readonly regionalResolution = 768;
 
   // Default prompt for D&D maps
   private readonly defaultPrompt = "A detailed fantasy map for Dungeons & Dragons, top-down view. Medieval fantasy style with rich textures, cobblestone paths, grass, forests, and buildings. Hand-drawn RPG map aesthetic with detailed textures and atmospheric lighting.";
@@ -619,17 +622,17 @@ export class ComfyUIService {
     };
     const loadImageNode = nodeId - 1;
 
-    // Scale to 1024x1024
+    // Scale to smaller size for faster regional generation
     workflow[String(nodeId++)] = {
       "inputs": {
         "upscale_method": "lanczos",
-        "width": 1024,
-        "height": 1024,
+        "width": this.regionalResolution,
+        "height": this.regionalResolution,
         "crop": "disabled",
         "image": [String(loadImageNode), 0]
       },
       "class_type": "ImageScale",
-      "_meta": { "title": "Scale to 1024" }
+      "_meta": { "title": "Scale Image" }
     };
     const scaledImageNode = nodeId - 1;
 
@@ -746,12 +749,12 @@ export class ComfyUIService {
       };
       const maskLoadNode = nodeId - 1;
 
-      // Scale mask to 1024x1024
+      // Scale mask to match generation resolution
       workflow[String(nodeId++)] = {
         "inputs": {
           "upscale_method": "nearest-exact",
-          "width": 1024,
-          "height": 1024,
+          "width": this.regionalResolution,
+          "height": this.regionalResolution,
           "crop": "disabled",
           "image": [String(maskLoadNode), 0]
         },
@@ -821,9 +824,9 @@ export class ComfyUIService {
     }
 
     // ============ SAMPLING ============
-    // Empty latent
+    // Empty latent at regional resolution
     workflow[String(nodeId++)] = {
-      "inputs": { "width": 1024, "height": 1024, "batch_size": 1 },
+      "inputs": { "width": this.regionalResolution, "height": this.regionalResolution, "batch_size": 1 },
       "class_type": "EmptyLatentImage",
       "_meta": { "title": "Empty Latent" }
     };
@@ -1066,11 +1069,11 @@ export class ComfyUIService {
       const wsUrl = `ws://${this.config.host}:${this.config.port}/ws?clientId=${this.clientId}`;
       const ws = new WebSocket(wsUrl);
       
-      // Longer timeout for complex regional workflows (3 minutes)
+      // Longer timeout for complex regional workflows (5 minutes)
       const timeout = setTimeout(() => {
         ws.close();
-        reject(new Error('Generation timed out (180s) - check ComfyUI for errors'));
-      }, 180000);
+        reject(new Error('Generation timed out (5 min) - check ComfyUI for errors'));
+      }, 300000);
 
       ws.onmessage = async (event) => {
         try {
