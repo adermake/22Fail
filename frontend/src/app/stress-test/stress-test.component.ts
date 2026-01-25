@@ -113,10 +113,10 @@ export class StressTestComponent {
     this.lastResult.set(null);
 
     try {
-      // Prepare request body
+      // Prepare request body - just send image IDs, backend will use them directly
       const body: any = { ...this.config };
       if (this.uploadedImages().length > 0) {
-        body.customImages = this.uploadedImages();
+        body.imageIds = this.uploadedImages();
       }
 
       this.generationProgress.set('Generating characters, worlds, and items...');

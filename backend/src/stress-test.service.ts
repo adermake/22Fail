@@ -31,7 +31,7 @@ export class StressTestService {
     runes?: number;
     skills?: number;
     battlemaps?: number;
-    customImages?: string[];
+    imageIds?: string[];
   }) {
     const result = {
       characters: [] as any[],
@@ -39,16 +39,12 @@ export class StressTestService {
       imageIds: [] as string[],
     };
 
-    // Store custom images first
-    if (config.customImages && config.customImages.length > 0) {
-      for (const base64Image of config.customImages) {
-        const imageId = this.imageService.storeImage(base64Image);
-        result.imageIds.push(imageId);
-      }
-    }
+    // Use provided image IDs or generate sample images
+    const availableImages = (config.imageIds && config.imageIds.length > 0) 
+      ? config.imageIds 
+      : await this.storeSampleImages();
 
-    // Use sample images if no custom ones provided
-    const availableImages = result.imageIds.length > 0 ? result.imageIds : await this.storeSampleImages();
+    result.imageIds = availableImages;
 
     // Generate characters
     const characterCount = config.characters || 0;
