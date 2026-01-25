@@ -82,13 +82,13 @@ export class BattleTracker implements OnInit, OnDestroy {
     // Update data
     this.refresh();
     
-    // Schedule animation for next frame
-    this.pendingAnimation = true;
+    // Schedule animation - need to wait TWO frames:
+    // Frame 1: Angular renders the new DOM
+    // Frame 2: We can measure new positions and start animation
     requestAnimationFrame(() => {
-      if (this.pendingAnimation) {
-        this.pendingAnimation = false;
+      requestAnimationFrame(() => {
         this.animateTransitions();
-      }
+      });
     });
   }
 
@@ -134,14 +134,21 @@ export class BattleTracker implements OnInit, OnDestroy {
     if (!this.timelineRef?.nativeElement) return;
 
     const container = this.timelineRef.nativeElement;
+    
+    console.log('[ANIM] Starting animation cycle');
+    console.log('[ANIM] Recorded positions:', Array.from(this.animState.previousPositions.keys()));
 
     // Animate tiles
     const tiles = container.querySelectorAll<HTMLElement>('[data-tile-id]');
+    console.log('[ANIM] Current tiles in DOM:', tiles.length);
+    
     tiles.forEach(el => {
       const id = el.dataset['tileId'];
       if (!id) return;
 
       const prevPos = this.animState.previousPositions.get(id);
+      
+      console.log(`[ANIM] Tile ${id}: prevPos=${prevPos ? 'exists' : 'NEW'}`);
       
       if (!prevPos) {
         // New tile - slide in from top
@@ -175,6 +182,8 @@ export class BattleTracker implements OnInit, OnDestroy {
     const rect = el.getBoundingClientRect();
     const deltaX = prevPos.x - rect.left;
     const deltaY = prevPos.y - rect.top;
+
+    console.log(`[ANIM] Tile ${id}: deltaX=${deltaX.toFixed(1)}, deltaY=${deltaY.toFixed(1)}`);
 
     // Skip if movement is negligible
     if (Math.abs(deltaX) < 2 && Math.abs(deltaY) < 2) return;
