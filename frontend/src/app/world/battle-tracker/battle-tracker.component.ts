@@ -21,6 +21,7 @@ interface AnimationState {
   previousPositions: Map<string, { x: number; y: number }>;
   animatingIds: Set<string>;
   removedTiles: Map<string, { x: number; y: number; tile: TurnTile }>;
+  isAnimating: boolean;
 }
 
 @Component({
@@ -54,6 +55,7 @@ export class BattleTracker implements OnInit, OnDestroy {
     previousPositions: new Map(),
     animatingIds: new Set(),
     removedTiles: new Map(),
+    isAnimating: false,
   };
 
   private pendingAnimation = false;
@@ -76,6 +78,9 @@ export class BattleTracker implements OnInit, OnDestroy {
   // ============================================
 
   private onEngineChange(): void {
+    // Set animation lock
+    this.animState.isAnimating = true;
+    
     // Update data
     this.refresh();
     
@@ -85,6 +90,10 @@ export class BattleTracker implements OnInit, OnDestroy {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         this.animateTransitions();
+        // Clear animation lock after animations complete (300ms duration)
+        setTimeout(() => {
+          this.animState.isAnimating = false;
+        }, 350);
       });
     });
   }
@@ -241,6 +250,9 @@ export class BattleTracker implements OnInit, OnDestroy {
   // ============================================
 
   onNextTurn(): void {
+    // Prevent concurrent animations
+    if (this.animState.isAnimating) return;
+    
     // Record positions BEFORE the data changes
     this.recordPositions();
     this.engine.nextTurn();
