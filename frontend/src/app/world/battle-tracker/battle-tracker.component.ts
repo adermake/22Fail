@@ -76,9 +76,6 @@ export class BattleTracker implements OnInit, OnDestroy {
   // ============================================
 
   private onEngineChange(): void {
-    // Step 1 of FLIP: Record current positions before update
-    this.recordPositions();
-    
     // Update data
     this.refresh();
     
@@ -225,14 +222,17 @@ export class BattleTracker implements OnInit, OnDestroy {
   // ============================================
 
   onAddCharacter(characterId: string): void {
+    this.recordPositions();
     this.engine.addCharacter(characterId);
   }
 
   onRemoveCharacter(characterId: string): void {
+    this.recordPositions();
     this.engine.removeCharacter(characterId);
   }
 
   onTeamChange(characterId: string, team: string): void {
+    this.recordPositions();
     this.engine.setTeam(characterId, team);
   }
 
@@ -241,10 +241,13 @@ export class BattleTracker implements OnInit, OnDestroy {
   // ============================================
 
   onNextTurn(): void {
+    // Record positions BEFORE the data changes
+    this.recordPositions();
     this.engine.nextTurn();
   }
 
   onResetBattle(): void {
+    this.recordPositions();
     this.engine.resetBattle();
   }
 
@@ -331,6 +334,7 @@ export class BattleTracker implements OnInit, OnDestroy {
       return;
     }
 
+    this.recordPositions();
     this.engine.dropTile(this.draggedTileId, this.dragOverGroupIndex, this.dropPosition);
     this.clearDragState();
   }
