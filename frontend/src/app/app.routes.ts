@@ -1,13 +1,20 @@
 import { Routes } from '@angular/router';
-import { SheetComponent } from './sheet/sheet.component';
-import { SessionComponent } from './session/session.component';
-import { WorldComponent } from './world/world/world.component';
-import { BattlemapComponent } from './battlemap/battlemap.component';
-
 
 export const routes: Routes = [
-    { path: 'characters/:id', component: SheetComponent },
-    { path: 'game/:id', component: SessionComponent },
-    { path: 'world/:worldName', component: WorldComponent },
-    { path: 'battlemap/:worldName/:mapId', component: BattlemapComponent },
+    { 
+        path: 'characters/:id', 
+        loadComponent: () => import('./sheet/sheet.component').then(m => m.SheetComponent)
+    },
+    { 
+        path: 'game/:id', 
+        loadComponent: () => import('./session/session.component').then(m => m.SessionComponent)
+    },
+    { 
+        path: 'world/:worldName', 
+        loadComponent: () => import('./world/world/world.component').then(m => m.WorldComponent)
+    },
+    { 
+        path: 'battlemap/:worldName/:mapId', 
+        loadComponent: () => import('./battlemap/battlemap.component').then(m => m.BattlemapComponent)
+    },
 ];

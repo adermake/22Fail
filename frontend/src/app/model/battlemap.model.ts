@@ -247,7 +247,8 @@ export class HexMath {
     walls: WallHex[], 
     maxDistance: number
   ): HexCoord[] | null {
-    if (HexMath.hexDistance(start, end) > maxDistance) {
+    const directDist = HexMath.hexDistance(start, end);
+    if (directDist > maxDistance) {
       return null; // Too far even in straight line
     }
     
@@ -259,36 +260,76 @@ export class HexMath {
       return null; // Destination is a wall
     }
     
-    // BFS
-    const queue: { hex: HexCoord; path: HexCoord[]; distance: number }[] = [
-      { hex: start, path: [start], distance: 0 }
-    ];
-    const visited = new Set<string>([startKey]);
+    // Early exit if start === end
+    if (startKey === endKey) {
+      return [start];
+    }
     
-    while (queue.length > 0) {
-      const current = queue.shift()!;
+    // A* pathfinding with parent pointers (avoids path copying)
+    // Priority queue implemented as sorted array (for small hex grids this is efficient enough)
+    const openList: { hex: HexCoord; g: number; f: number }[] = [
+      { hex: start, g: 0, f: directDist }
+    ];
+    const gScore = new Map<string, number>([[startKey, 0]]);
+    const parent = new Map<string, HexCoord>();
+    const closedSet = new Set<string>();
+    
+    while (openList.length > 0) {
+      // Get node with lowest f score
+      let bestIdx = 0;
+      for (let i = 1; i < openList.length; i++) {
+        if (openList[i].f < openList[bestIdx].f) {
+          bestIdx = i;
+        }
+      }
+      const current = openList.splice(bestIdx, 1)[0];
+      const currentKey = HexMath.hexKey(current.hex);
       
-      if (HexMath.hexKey(current.hex) === endKey) {
-        return current.path;
+      if (currentKey === endKey) {
+        // Reconstruct path
+        const path: HexCoord[] = [];
+        let node: HexCoord | undefined = current.hex;
+        while (node) {
+          path.unshift(node);
+          node = parent.get(HexMath.hexKey(node));
+        }
+        return path;
       }
       
-      if (current.distance >= maxDistance) {
-        continue; // Can't go further
+      if (current.g >= maxDistance) {
+        continue; // Can't go further from this node
       }
+      
+      closedSet.add(currentKey);
       
       for (const neighbor of HexMath.getNeighbors(current.hex)) {
         const neighborKey = HexMath.hexKey(neighbor);
         
-        if (visited.has(neighborKey) || wallSet.has(neighborKey)) {
+        if (closedSet.has(neighborKey) || wallSet.has(neighborKey)) {
           continue;
         }
         
-        visited.add(neighborKey);
-        queue.push({
-          hex: neighbor,
-          path: [...current.path, neighbor],
-          distance: current.distance + 1
-        });
+        const tentativeG = current.g + 1;
+        const existingG = gScore.get(neighborKey);
+        
+        if (existingG !== undefined && tentativeG >= existingG) {
+          continue; // Not a better path
+        }
+        
+        gScore.set(neighborKey, tentativeG);
+        parent.set(neighborKey, current.hex);
+        
+        const h = HexMath.hexDistance(neighbor, end);
+        const f = tentativeG + h;
+        
+        // Check if already in open list
+        const existingIdx = openList.findIndex(n => HexMath.hexKey(n.hex) === neighborKey);
+        if (existingIdx >= 0) {
+          openList[existingIdx].g = tentativeG;
+          openList[existingIdx].f = f;
+        } else {
+          openList.push({ hex: neighbor, g: tentativeG, f });
+        }
       }
     }
     

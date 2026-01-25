@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -30,6 +30,7 @@ export type DragMode = 'free' | 'enforced';
   ],
   templateUrl: './battlemap.component.html',
   styleUrl: './battlemap.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BattlemapComponent implements OnInit, OnDestroy {
   @ViewChild(BattlemapGridComponent) gridComponent!: BattlemapGridComponent;

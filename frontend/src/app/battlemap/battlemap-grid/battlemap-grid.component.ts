@@ -1,6 +1,7 @@
 import { 
   Component, Input, Output, EventEmitter, ElementRef, ViewChild, 
-  AfterViewInit, OnChanges, SimpleChanges, inject, signal, HostListener, OnDestroy
+  AfterViewInit, OnChanges, SimpleChanges, inject, signal, HostListener, OnDestroy,
+  ChangeDetectionStrategy, ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, HexMath, WallHex, MeasurementLine, generateId } from '../../model/battlemap.model';
@@ -16,6 +17,7 @@ type DragMode = 'free' | 'enforced';
   imports: [CommonModule, BattlemapTokenComponent],
   templateUrl: './battlemap-grid.component.html',
   styleUrl: './battlemap-grid.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('gridCanvas') gridCanvas!: ElementRef<HTMLCanvasElement>;
@@ -50,11 +52,16 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   @Output() brushSizeChange = new EventEmitter<number>(); // For shift+drag brush resize
 
   private store = inject(BattleMapStoreService);
+  private cdr = inject(ChangeDetectorRef);
 
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
   private drawCtx: CanvasRenderingContext2D | null = null;
   private overlayCtx: CanvasRenderingContext2D | null = null;
+
+  // Render optimization - use requestAnimationFrame batching
+  private renderPending = false;
+  private resizeObserver: ResizeObserver | null = null;
 
   // Pan and zoom state
   panX = 0;
@@ -107,17 +114,21 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   ngAfterViewInit() {
     this.initCanvases();
     this.centerView();
-    this.render();
+    this.scheduleRender();
     this.setupResizeObserver();
   }
 
   ngOnDestroy() {
-    // Cleanup if needed
+    // Cleanup resize observer
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
   }
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['battleMap'] && this.gridCtx) {
-      this.render();
+      this.scheduleRender();
     }
     // React to layer visibility changes
     if (changes['drawLayerVisible']) {
@@ -174,16 +185,16 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     const container = this.container?.nativeElement;
     if (!container) return;
 
-    const observer = new ResizeObserver(() => {
+    this.resizeObserver = new ResizeObserver(() => {
       const gridEl = this.gridCanvas?.nativeElement;
       const drawEl = this.drawCanvas?.nativeElement;
       const overlayEl = this.overlayCanvas?.nativeElement;
       if (gridEl) this.resizeCanvas(gridEl);
       if (drawEl) this.resizeCanvas(drawEl);
       if (overlayEl) this.resizeCanvas(overlayEl);
-      this.render();
+      this.scheduleRender();
     });
-    observer.observe(container);
+    this.resizeObserver.observe(container);
   }
 
   private centerView() {
@@ -211,7 +222,17 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     };
   }
 
-  // Main render function
+  // Schedule a render using requestAnimationFrame for batching
+  private scheduleRender() {
+    if (this.renderPending) return;
+    this.renderPending = true;
+    requestAnimationFrame(() => {
+      this.renderPending = false;
+      this.render();
+    });
+  }
+
+  // Main render function - call scheduleRender() instead of this directly for batched updates
   render() {
     this.renderGrid();
     this.renderStrokes();
@@ -741,7 +762,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
         this.dragFullPath.set([]);
       }
       
-      this.render();
+      this.scheduleRender();
       return;
     }
 
@@ -752,7 +773,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       this.panY += deltaY;
       this.lastMouseX = event.clientX;
       this.lastMouseY = event.clientY;
-      this.render();
+      this.scheduleRender();
       return;
     }
 
@@ -798,7 +819,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
         } else {
           this.store.removeWall(hex);
         }
-        this.render();
+        this.scheduleRender();
       }
       return;
     }
@@ -808,7 +829,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       const endHex = HexMath.pixelToHex(world.x, world.y);
       const endSnapped = HexMath.hexToPixel(endHex);
       this.measureEnd.set(endSnapped);
-      this.render();
+      this.scheduleRender();
     }
   }
 
@@ -851,7 +872,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       this.dragFullPath.set([]);
       this.dragWaypoints.set([]);
       this.dragStartHex.set(null);
-      this.render();
+      this.scheduleRender();
       return;
     }
     
@@ -859,7 +880,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     if (this.isWallDrawing) {
       this.isWallDrawing = false;
       this.wallPaintedHexes.clear();
-      this.render();
+      this.scheduleRender();
     }
     
     if (this.isDrawing && this.currentStrokePoints.length > 1) {
@@ -883,7 +904,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       this.measureStart.set(null);
       this.measureEnd.set(null);
       this.measureDistance.set(0);
-      this.render();
+      this.scheduleRender();
     }
   }
 
@@ -897,7 +918,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       this.dragFullPath.set([]);
       this.dragWaypoints.set([]);
       this.dragStartHex.set(null);
-      this.render();
+      this.scheduleRender();
     }
     
     // Stop wall drawing
@@ -920,7 +941,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     this.isPanning = false;
     this.isDrawing = false;
     this.currentStrokePoints = [];
-    this.render();
+    this.scheduleRender();
   }
 
   // Pointer event handlers (for tablet/pen/touch support)
@@ -1030,7 +1051,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       if (!alreadyExists) {
         // Add the current position as a waypoint
         this.dragWaypoints.set([...waypoints, currentHex]);
-        this.render();
+        this.scheduleRender();
       }
       return;
     }
@@ -1092,7 +1113,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     this.panY = mouseY - (mouseY - this.panY) * (newScale / this.scale);
     this.scale = newScale;
 
-    this.render();
+    this.scheduleRender();
   }
 
   // Drag and drop handlers (for NEW tokens from character list only)
@@ -1124,7 +1145,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     
     if (!this.dragOverHex || this.dragOverHex.q !== hex.q || this.dragOverHex.r !== hex.r) {
       this.dragOverHex = hex;
-      this.render();
+      this.scheduleRender();
     }
   }
   
@@ -1137,7 +1158,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
       this.isExternalDragActive = false;
       this.dragOverHex = null;
-      this.render();
+      this.scheduleRender();
     }
   }
 
@@ -1164,7 +1185,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     console.log('[BATTLEMAP GRID] Dropping character', characterId, 'at hex', hex);
     this.dragOverHex = null;
     this.tokenDrop.emit({ characterId, position: hex });
-    this.render();
+    this.scheduleRender();
   }
 
   // Token drag handlers (custom mouse-based, smooth drag)

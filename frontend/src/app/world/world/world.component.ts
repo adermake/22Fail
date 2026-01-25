@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -29,6 +29,7 @@ export type { SimulatedTurn, BattleGroup };
   imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorldComponent implements OnInit, OnDestroy {
   worldName: string = '';

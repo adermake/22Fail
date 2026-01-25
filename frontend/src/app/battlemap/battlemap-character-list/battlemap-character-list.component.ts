@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { BattlemapToken, HexMath } from '../../model/battlemap.model';
@@ -9,6 +9,7 @@ import { BattlemapToken, HexMath } from '../../model/battlemap.model';
   imports: [CommonModule],
   templateUrl: './battlemap-character-list.component.html',
   styleUrl: './battlemap-character-list.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BattlemapCharacterListComponent {
   @Input() characters: { id: string; sheet: CharacterSheet }[] = [];

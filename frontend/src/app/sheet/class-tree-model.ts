@@ -6,12 +6,29 @@ export interface ClassNode {
 export class ClassTree {
   private static classes: Map<string, ClassNode> = new Map();
   private static initialized = false;
+  private static initPromise: Promise<void> | null = null;
 
   /**
    * Initialize the class tree from a text definition
    * Format: "ParentClass: Child1, Child2" or "Parent1 + Parent2: Child"
+   * Caches the result - subsequent calls return immediately
    */
   static async initialize(classDefinitions: string) {
+    // Return immediately if already initialized
+    if (this.initialized) {
+      return;
+    }
+    
+    // Return existing promise if initialization is in progress
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+    
+    this.initPromise = this.doInitialize(classDefinitions);
+    return this.initPromise;
+  }
+  
+  private static async doInitialize(classDefinitions: string) {
     this.classes.clear();
     const lines = classDefinitions.split('\n');
     

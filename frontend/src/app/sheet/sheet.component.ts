@@ -1,8 +1,7 @@
-import { ChangeDetectorRef, Component, inject, OnInit, NgZone } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit, NgZone, ChangeDetectionStrategy } from '@angular/core';
 import { StatsComponent } from './stats/stats.component';
 import { CharacterComponent } from './character/character.component';
 import { LevelclassComponent } from './levelclass/levelclass.component';
-import { CurrentstatComponent } from './currentstat/currentstat.component';
 import { CurrentstatsComponent } from './currentstats/currentstats.component';
 import { PortraitComponent } from './portrait/portrait.component';
 import { ActivatedRoute } from '@angular/router';
@@ -40,7 +39,6 @@ import { FormulaType } from '../model/formula-type.enum';
     StatsComponent,
     CharacterComponent,
     LevelclassComponent,
-    CurrentstatComponent,
     CurrentstatsComponent,
     EquipmentComponent,
     LootPopupComponent,
@@ -50,6 +48,7 @@ import { FormulaType } from '../model/formula-type.enum';
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SheetComponent implements OnInit {
   public store = inject(CharacterStoreService);
@@ -73,11 +72,16 @@ export class SheetComponent implements OnInit {
   editingSkills = new Set<number>();
 
   async ngOnInit() {
-    const classDefinitions = await fetch('class-definitions.txt').then((r) => r.text());
-    await ClassTree.initialize(classDefinitions);
     const id = this.route.snapshot.paramMap.get('id')!;
-    this.store.load(id);
-
+    
+    // Load class definitions and character data in parallel
+    const classDefinitionsPromise = fetch('class-definitions.txt').then((r) => r.text());
+    const characterLoadPromise = this.store.load(id);
+    
+    // Initialize class tree (can run in parallel with character load)
+    const classDefinitions = await classDefinitionsPromise;
+    await ClassTree.initialize(classDefinitions);
+    
     // Connect to world socket for battle loot notifications and turn tracking
     this.worldSocket.connect();
 

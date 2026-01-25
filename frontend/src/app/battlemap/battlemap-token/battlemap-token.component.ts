@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, HostListener, ElementRef, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener, ElementRef, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BattlemapToken, HexMath } from '../../model/battlemap.model';
 
@@ -10,6 +10,7 @@ type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
   imports: [CommonModule],
   templateUrl: './battlemap-token.component.html',
   styleUrl: './battlemap-token.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BattlemapTokenComponent {
   private elementRef = inject(ElementRef);

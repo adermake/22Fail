@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { WorldStoreService } from '../../services/world-store.service';
@@ -30,10 +30,12 @@ interface DisplayGroup {
   imports: [CommonModule],
   templateUrl: './battlemap-battle-tracker.component.html',
   styleUrl: './battlemap-battle-tracker.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
   private worldStore = inject(WorldStoreService);
   private battlemapStore = inject(BattleMapStoreService);
+  private cdr = inject(ChangeDetectorRef);
   private subscriptions: Subscription[] = [];
 
   // Timeline groups for display
@@ -52,6 +54,7 @@ export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
       this.worldStore.world$.subscribe(world => {
         if (world) {
           this.rebuildTimeline(world);
+          this.cdr.markForCheck();
         }
       })
     );
@@ -65,6 +68,7 @@ export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
         if (world) {
           this.rebuildTimeline(world);
         }
+        this.cdr.markForCheck();
       })
     );
   }

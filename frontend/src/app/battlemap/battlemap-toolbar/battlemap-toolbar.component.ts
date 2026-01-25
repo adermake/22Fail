@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HexCoord } from '../../model/battlemap.model';
@@ -12,6 +12,7 @@ type DragMode = 'free' | 'enforced';
   imports: [CommonModule, FormsModule],
   templateUrl: './battlemap-toolbar.component.html',
   styleUrl: './battlemap-toolbar.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BattlemapToolbarComponent {
   @Input() currentTool: ToolType = 'cursor';
