@@ -975,13 +975,15 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
 
   // Pointer event handlers (for tablet/pen/touch support)
   onPointerDown(event: PointerEvent) {
-    // Debug pen events
+    // Debug pen events - log ALL pen interactions to identify button codes
     if (event.pointerType === 'pen') {
       console.log('Pen event:', {
         button: event.button,
         buttons: event.buttons,
         pointerType: event.pointerType,
-        ctrlKey: event.ctrlKey
+        ctrlKey: event.ctrlKey,
+        pressure: event.pressure,
+        isPrimary: event.isPrimary
       });
     }
     
