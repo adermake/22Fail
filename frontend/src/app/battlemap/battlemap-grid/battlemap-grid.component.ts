@@ -158,6 +158,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
    */
   private loadPersistedAiLayer() {
     const tiles = this.battleMap?.aiCanvas?.tiles || [];
+    console.log('[Grid] Loading persisted tiles:', tiles.length);
     // Preload all tile images
     for (const tile of tiles) {
       if (!tile.image) continue;
@@ -498,22 +499,20 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   /**
-   * Apply alpha mask to generated image - makes unpainted areas transparent
+   * Apply region-based cutoff mask - only keep pixels where strokes were painted
    */
-  private async applyAlphaMaskToGeneration(
+  private async applyRegionCutoffMask(
     imageBlob: Blob,
     aiStrokes: BattlemapStroke[],
     worldBounds: { minX: number; minY: number; maxX: number; maxY: number }
   ): Promise<Blob> {
     return new Promise((resolve, reject) => {
-      // Load the generated image
       const img = new Image();
       const url = URL.createObjectURL(imageBlob);
       
       img.onload = () => {
         URL.revokeObjectURL(url);
         
-        // Create canvas for masking
         const canvas = document.createElement('canvas');
         canvas.width = img.width;
         canvas.height = img.height;
@@ -522,7 +521,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
         // Draw the generated image
         ctx.drawImage(img, 0, 0);
         
-        // Create mask from strokes (with expansion for feathering)
+        // Create region mask from strokes
         const maskCanvas = document.createElement('canvas');
         maskCanvas.width = img.width;
         maskCanvas.height = img.height;
@@ -534,57 +533,51 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
         const scaleX = img.width / worldWidth;
         const scaleY = img.height / worldHeight;
         
-        // Draw strokes on mask (expanded for feathering)
-        maskCtx.fillStyle = 'white';
+        // Draw stroke regions on mask (black background, white strokes)
+        maskCtx.fillStyle = 'black';
+        maskCtx.fillRect(0, 0, img.width, img.height);
+        
         for (const stroke of aiStrokes) {
           if (stroke.points.length < 2) continue;
           
           maskCtx.beginPath();
           const firstPoint = stroke.points[0];
-          const px = (firstPoint.x - worldBounds.minX) * scaleX;
-          const py = (firstPoint.y - worldBounds.minY) * scaleY;
-          maskCtx.moveTo(px, py);
+          maskCtx.moveTo(
+            (firstPoint.x - worldBounds.minX) * scaleX,
+            (firstPoint.y - worldBounds.minY) * scaleY
+          );
           
           for (let i = 1; i < stroke.points.length; i++) {
             const point = stroke.points[i];
-            const px = (point.x - worldBounds.minX) * scaleX;
-            const py = (point.y - worldBounds.minY) * scaleY;
-            maskCtx.lineTo(px, py);
+            maskCtx.lineTo(
+              (point.x - worldBounds.minX) * scaleX,
+              (point.y - worldBounds.minY) * scaleY
+            );
           }
           
-          // More aggressive expansion to cover generated content
           maskCtx.strokeStyle = 'white';
-          maskCtx.lineWidth = stroke.lineWidth * scaleX * 6; // 6x expansion (was 3x)
+          maskCtx.lineWidth = stroke.lineWidth * scaleX * 8; // Generous expansion
           maskCtx.lineCap = 'round';
           maskCtx.lineJoin = 'round';
           maskCtx.stroke();
         }
         
-        // Apply blur for smooth edges
-        maskCtx.filter = 'blur(25px)';
-        maskCtx.drawImage(maskCanvas, 0, 0);
-        maskCtx.filter = 'none';
-        
-        // Apply mask as alpha channel with BINARY threshold to completely eliminate gray backgrounds
+        // Simple binary cutoff based on stroke regions
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const maskData = maskCtx.getImageData(0, 0, canvas.width, canvas.height);
         
-        const threshold = 0.5; // Binary threshold: >50% = keep fully, <50% = remove completely
         for (let i = 0; i < imageData.data.length; i += 4) {
-          const maskAlpha = maskData.data[i] / 255; // Use red channel as alpha
-          // Binary masking: either fully transparent or fully opaque (no gray semi-transparency)
-          imageData.data[i + 3] = maskAlpha >= threshold ? imageData.data[i + 3] : 0;
+          const isInRegion = maskData.data[i] > 128; // White in mask
+          if (!isInRegion) {
+            imageData.data[i + 3] = 0; // Fully transparent outside regions
+          }
         }
         
         ctx.putImageData(imageData, 0, 0);
         
-        // Convert to blob
         canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('Failed to create masked blob'));
-          }
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to create masked blob'));
         }, 'image/png');
       };
       
@@ -695,8 +688,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     );
 
     if (result.success && result.imageBlob && result.worldBounds) {
-      // Apply alpha masking to remove gray background
-      const maskedBlob = await this.applyAlphaMaskToGeneration(
+      // Apply region-based cutoff masking to remove gray background
+      const maskedBlob = await this.applyRegionCutoffMask(
         result.imageBlob,
         aiStrokes,
         worldBounds
@@ -707,6 +700,9 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       
       // Add as a new tile to the canvas
       this.store.addAiCanvasTile(base64, result.worldBounds);
+      
+      // Clear AI strokes after generation
+      this.store.clearAiStrokes();
       
       // Trigger re-render
       this.render();

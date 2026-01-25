@@ -298,6 +298,7 @@ export class BattleMapStoreService {
       tiles: [...currentTiles, newTile]
     };
 
+    console.log('[STORE] Adding tile, total tiles will be:', updatedCanvas.tiles.length);
     this.applyPatch({ path: 'aiCanvas', value: updatedCanvas });
   }
 
