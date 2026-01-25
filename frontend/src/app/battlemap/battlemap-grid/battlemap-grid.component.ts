@@ -598,8 +598,11 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     const y = event.clientY - rect.top;
     const world = this.screenToWorld(x, y);
 
-    if (event.button === 1) {
-      // Middle mouse button - always pan
+    // Middle mouse button OR pen with button pressed - always pan
+    // Check for buttons bitmask: button 4 = pen barrel button (acts like middle click)
+    const isMiddleClick = event.button === 1 || (event.buttons & 4) === 4;
+    
+    if (isMiddleClick) {
       this.isPanning = true;
       this.lastMouseX = event.clientX;
       this.lastMouseY = event.clientY;

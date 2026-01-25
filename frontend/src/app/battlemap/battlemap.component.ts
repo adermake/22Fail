@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, inject, signal, computed, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -151,6 +151,60 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.subscriptions.forEach(s => s.unsubscribe());
+  }
+
+  // Keyboard shortcuts
+  @HostListener('window:keydown', ['$event'])
+  handleKeyDown(event: KeyboardEvent) {
+    // Ignore if user is typing in an input field
+    const target = event.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+      return;
+    }
+
+    const key = event.key.toLowerCase();
+    
+    switch (key) {
+      case 'e':
+        // Toggle between draw and erase
+        if (this.currentTool() === 'draw') {
+          this.currentTool.set('erase');
+        } else if (this.currentTool() === 'erase') {
+          this.currentTool.set('draw');
+        } else {
+          this.currentTool.set('erase');
+        }
+        event.preventDefault();
+        break;
+
+      case 'b':
+        this.currentTool.set('draw');
+        event.preventDefault();
+        break;
+
+      case 'f':
+        this.currentTool.set('cursor');
+        event.preventDefault();
+        break;
+
+      case 'r':
+        this.currentTool.set('measure');
+        event.preventDefault();
+        break;
+
+      case 'w':
+        this.currentTool.set('walls');
+        event.preventDefault();
+        break;
+
+      case 'control':
+        // Toggle drag mode when in cursor/move tool
+        if (this.currentTool() === 'cursor') {
+          this.dragMode.set(this.dragMode() === 'free' ? 'enforced' : 'free');
+          event.preventDefault();
+        }
+        break;
+    }
   }
 
   private async loadWorldCharacters() {
