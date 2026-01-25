@@ -3,7 +3,7 @@
   <div class="world-header">
     <h1>{{ worldName }} - GM View</h1>
   </div>
-
+<button (click)="migrate()">Migrate Images</button>
   <div class="world-grid">
     <!-- Characters Section -->
     <app-card>
