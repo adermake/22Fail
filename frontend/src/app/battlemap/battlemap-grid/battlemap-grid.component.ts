@@ -561,20 +561,19 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
         }
         
         // Apply blur for smooth edges
-        maskCtx.filter = 'blur(25px)'; // Increased blur (was 20px)
+        maskCtx.filter = 'blur(25px)';
         maskCtx.drawImage(maskCanvas, 0, 0);
         maskCtx.filter = 'none';
         
-        // Apply mask as alpha channel with aggressive threshold to eliminate gray
+        // Apply mask as alpha channel with BINARY threshold to completely eliminate gray backgrounds
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const maskData = maskCtx.getImageData(0, 0, canvas.width, canvas.height);
         
-        const threshold = 0.15; // Pixels below 15% opacity become fully transparent
+        const threshold = 0.5; // Binary threshold: >50% = keep fully, <50% = remove completely
         for (let i = 0; i < imageData.data.length; i += 4) {
           const maskAlpha = maskData.data[i] / 255; // Use red channel as alpha
-          // Apply threshold: below threshold = fully transparent, above = keep with smoothing
-          const finalAlpha = maskAlpha < threshold ? 0 : (maskAlpha - threshold) / (1 - threshold);
-          imageData.data[i + 3] = imageData.data[i + 3] * finalAlpha;
+          // Binary masking: either fully transparent or fully opaque (no gray semi-transparency)
+          imageData.data[i + 3] = maskAlpha >= threshold ? imageData.data[i + 3] : 0;
         }
         
         ctx.putImageData(imageData, 0, 0);
