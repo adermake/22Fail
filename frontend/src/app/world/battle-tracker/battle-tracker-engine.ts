@@ -182,7 +182,7 @@ export class BattleTrackerEngine {
         portrait: char?.portrait,
         speed: char?.speed || bp.speed,
         team: bp.team || 'blue',
-        currentTurn: 1,
+        currentTurn: bp.currentTurn || 1,
       });
     }
 
@@ -232,6 +232,7 @@ export class BattleTrackerEngine {
         // Portrait is retrieved at runtime from allCharacters
         team: participant.team,
         speed: participant.speed,
+        currentTurn: participant.currentTurn,
         // Store scripted count in first entry
         turnFrequency: orderIndex === 0 ? 10000 + this.scriptedCount : participant.speed,
         nextTurnAt: orderIndex,

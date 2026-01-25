@@ -125,7 +125,7 @@ export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
         portrait: this.portraitMap.get(bp.characterId) || bp.portrait,
         speed: bp.speed,
         team: bp.team || 'blue',
-        currentTurn: 1,
+        currentTurn: bp.currentTurn || 1,
       });
     }
 
