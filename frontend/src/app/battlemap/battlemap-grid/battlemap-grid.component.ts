@@ -71,6 +71,9 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
 
   // Interaction state
   private isPanning = false;
+  private isZooming = false;
+  private zoomStartY = 0;
+  private zoomStartScale = 1;
   private isDrawing = false;
   private isWallDrawing = false;
   private wallPaintMode: 'add' | 'remove' = 'add'; // Track whether we're adding or removing walls
@@ -598,14 +601,19 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     const y = event.clientY - rect.top;
     const world = this.screenToWorld(x, y);
 
-    // Middle mouse button OR pen with button pressed - always pan
-    // Check for buttons bitmask: button 4 = pen barrel button (acts like middle click)
-    const isMiddleClick = event.button === 1 || (event.buttons & 4) === 4;
-    
-    if (isMiddleClick) {
-      this.isPanning = true;
-      this.lastMouseX = event.clientX;
-      this.lastMouseY = event.clientY;
+    // Middle mouse button - pan or zoom based on Ctrl key
+    if (event.button === 1) {
+      if (event.ctrlKey) {
+        // Ctrl + Middle Click = Zoom mode
+        this.isZooming = true;
+        this.zoomStartY = event.clientY;
+        this.zoomStartScale = this.scale;
+      } else {
+        // Just Middle Click = Pan mode
+        this.isPanning = true;
+        this.lastMouseX = event.clientX;
+        this.lastMouseY = event.clientY;
+      }
       event.preventDefault();
       return;
     }
@@ -686,6 +694,16 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     const world = this.screenToWorld(x, y);
+
+    // Handle zoom mode (Ctrl + middle mouse drag)
+    if (this.isZooming) {
+      const deltaY = this.zoomStartY - event.clientY;
+      const zoomFactor = 1 + (deltaY * 0.01);
+      const newScale = Math.max(0.1, Math.min(5, this.zoomStartScale * zoomFactor));
+      this.scale = newScale;
+      this.scheduleRender();
+      return;
+    }
 
     // Handle token dragging (mouse-based, smooth)
     if (this.draggingToken) {
@@ -828,6 +846,13 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       return;
     }
 
+    // Handle zoom mode end
+    if (this.isZooming && event.button === 1) {
+      this.isZooming = false;
+      return;
+    }
+
+    // Handle measure tool
     if (this.currentTool === 'measure' && this.measureStart()) {
       // Snap to hex center
       const endHex = HexMath.pixelToHex(world.x, world.y);
@@ -969,18 +994,19 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       return;
     }
     
-    // For pen/tablet: barrel button (button 5) or eraser tip (button 5) should pan
-    // The buttons property is a bitmask: 4 = barrel button pressed
+    // For pen/tablet: barrel button (middle button in buttons bitmask) should pan/zoom
+    // The buttons property is a bitmask: 4 = middle button/barrel button pressed
     if (event.pointerType === 'pen' && (event.buttons & 4)) {
-      // Barrel button pressed - treat as middle click for panning
-      const fakeEvent = new MouseEvent('mousedown', {
-        clientX: event.clientX,
-        clientY: event.clientY,
-        button: 1, // Middle button
-        buttons: 4
-      });
-      Object.defineProperty(fakeEvent, 'button', { value: 1 });
-      this.onMouseDown(fakeEvent);
+      if (event.ctrlKey) {
+        // Ctrl + barrel button = zoom
+        this.isZooming = true;
+        this.zoomStartY = event.clientY;
+        this.zoomStartScale = this.scale;
+      } else {
+        // Just barrel button = pan
+        this.isPanning = true;
+      }
+      event.preventDefault();
       return;
     }
     
@@ -988,6 +1014,16 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   onPointerMove(event: PointerEvent) {
+    // Handle zoom mode
+    if (this.isZooming) {
+      const deltaY = this.zoomStartY - event.clientY;
+      const zoomFactor = 1 + (deltaY * 0.01);
+      const newScale = Math.max(0.1, Math.min(5, this.zoomStartScale * zoomFactor));
+      this.scale = newScale;
+      this.scheduleRender();
+      return;
+    }
+
     // Handle brush resize mode
     if (this.isResizingBrush) {
       const delta = event.clientX - this.brushResizeStartX;
@@ -1009,6 +1045,12 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   onPointerUp(event: PointerEvent) {
     // Release pointer capture
     (event.target as HTMLElement).releasePointerCapture(event.pointerId);
+    
+    // End zooming
+    if (this.isZooming) {
+      this.isZooming = false;
+      return;
+    }
     
     // Finish brush resize
     if (this.isResizingBrush) {
