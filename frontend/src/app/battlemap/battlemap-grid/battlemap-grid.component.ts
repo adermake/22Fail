@@ -975,20 +975,25 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
 
   // Pointer event handlers (for tablet/pen/touch support)
   onPointerDown(event: PointerEvent) {
-    // Debug pen events - log ALL pen interactions to identify button codes
-    if (event.pointerType === 'pen') {
-      console.log('Pen event:', {
-        button: event.button,
-        buttons: event.buttons,
-        pointerType: event.pointerType,
-        ctrlKey: event.ctrlKey,
-        pressure: event.pressure,
-        isPrimary: event.isPrimary
-      });
-    }
-    
     // Capture pointer to receive events even if pointer leaves element
     (event.target as HTMLElement).setPointerCapture(event.pointerId);
+    
+    // Pen with Alt key = pan/zoom (workaround for barrel button)
+    if (event.pointerType === 'pen' && event.altKey && event.button === 0) {
+      if (event.ctrlKey) {
+        // Ctrl + Alt + pen = zoom
+        this.isZooming = true;
+        this.zoomStartY = event.clientY;
+        this.zoomStartScale = this.scale;
+      } else {
+        // Alt + pen = pan
+        this.isPanning = true;
+        this.lastMouseX = event.clientX;
+        this.lastMouseY = event.clientY;
+      }
+      event.preventDefault();
+      return;
+    }
     
     // Shift+click for Krita-style brush resize (only for draw tools)
     if (event.shiftKey && (this.currentTool === 'draw' || this.currentTool === 'erase')) {
