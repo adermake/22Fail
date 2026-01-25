@@ -480,12 +480,12 @@ export class AppController {
 
     // Save all generated characters
     for (const char of result.characters) {
-      this.dataService.saveCharacter(char.id, char.data);
+      this.dataService.saveCharacter(char.id, JSON.stringify(char.data, null, 2));
     }
 
     // Save all generated worlds
     for (const world of result.worlds) {
-      this.dataService.saveWorld(world);
+      this.dataService.saveWorld(world.name, JSON.stringify(world, null, 2));
     }
 
     console.log(`[STRESS TEST] Created ${result.characters.length} characters, ${result.worlds.length} worlds, ${result.imageIds.length} images`);
@@ -507,27 +507,33 @@ export class AppController {
   async cleanupStressTestData() {
     console.log('[STRESS TEST] Cleaning up test data');
 
+    // Delete characters
     const allCharIds = this.dataService.getAllCharacterIds();
     const stressCharIds = allCharIds.filter(id => id.startsWith('stress_char_'));
 
     for (const charId of stressCharIds) {
-      this.dataService.deleteCharacter(charId);
+      const data = this.dataService['readData']();
+      delete data[charId];
+      this.dataService['writeData'](data);
     }
 
-    const allWorlds = this.dataService.getAllWorlds();
-    const stressWorlds = allWorlds.filter(w => w.name.startsWith('StressWorld_'));
+    // Delete worlds
+    const worldsData = this.dataService['readWorlds']();
+    const worldNames = Object.keys(worldsData);
+    const stressWorldNames = worldNames.filter(name => name.startsWith('StressWorld_'));
 
-    for (const world of stressWorlds) {
-      this.dataService.deleteWorld(world.name);
+    for (const worldName of stressWorldNames) {
+      delete worldsData[worldName];
     }
+    this.dataService['writeWorlds'](worldsData);
 
-    console.log(`[STRESS TEST] Deleted ${stressCharIds.length} characters, ${stressWorlds.length} worlds`);
+    console.log(`[STRESS TEST] Deleted ${stressCharIds.length} characters, ${stressWorldNames.length} worlds`);
 
     return {
       success: true,
       deleted: {
         characters: stressCharIds.length,
-        worlds: stressWorlds.length,
+        worlds: stressWorldNames.length,
       },
     };
   }

@@ -2,6 +2,11 @@ import { Routes } from '@angular/router';
 
 export const routes: Routes = [
     { 
+        path: '', 
+        redirectTo: 'stress-test', 
+        pathMatch: 'full' 
+    },
+    { 
         path: 'characters/:id', 
         loadComponent: () => import('./sheet/sheet.component').then(m => m.SheetComponent)
     },
