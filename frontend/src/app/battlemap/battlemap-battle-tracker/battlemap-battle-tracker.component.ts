@@ -90,9 +90,12 @@ export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
    * This mirrors the logic in BattleTrackerEngine but is read-only.
    */
   private rebuildTimeline(world: WorldData) {
-    console.log('[BATTLEMAP TRACKER] Rebuilding timeline, participants:', world.battleParticipants?.length || 0);
-    
     const participants = world.battleParticipants || [];
+    console.log('[BATTLEMAP TRACKER] Rebuilding timeline, participants:', participants.length);
+    if (participants.length > 0) {
+      console.log('[BATTLEMAP TRACKER] First participant:', participants[0]);
+    }
+    
     if (participants.length === 0) {
       this.groups = [];
       this.currentTurnDisplay = null;

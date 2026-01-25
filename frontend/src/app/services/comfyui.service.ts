@@ -406,7 +406,8 @@ export class ComfyUIService {
     worldBounds: { minX: number; minY: number; maxX: number; maxY: number },
     basePrompt: string,
     generalRegionPrompt: string,
-    negativePrompt: string
+    negativePrompt: string,
+    scaleContext?: string
   ): Promise<GenerationResult> {
     if (!this.isAvailable()) {
       const available = await this.checkAvailability();
@@ -455,7 +456,8 @@ export class ComfyUIService {
         regionMasks,
         basePrompt,
         generalRegionPrompt,
-        negativePrompt
+        negativePrompt,
+        scaleContext
       );
       
       // Step 5: Queue and wait for result
@@ -649,7 +651,8 @@ export class ComfyUIService {
     regions: { color: string; prompt: string; maskFilename: string }[],
     basePrompt: string,
     generalRegionPrompt: string,
-    negativePrompt: string
+    negativePrompt: string,
+    scaleContext?: string
   ): any {
     const workflow: any = {};
     let nodeId = 1;
@@ -742,9 +745,10 @@ export class ComfyUIService {
       };
       const maskedLatentNode = nodeId - 1;
 
-      // Encode region-specific prompt: base + specific + general
+      // Encode region-specific prompt: base + specific + general + scale
       const parts = [finalBasePrompt, region.prompt];
       if (generalRegionPrompt) parts.push(generalRegionPrompt);
+      if (scaleContext) parts.push(scaleContext);
       const regionPrompt = parts.join(', ');
       workflow[String(nodeId++)] = {
         "inputs": {

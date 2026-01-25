@@ -88,6 +88,31 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     return world?.battleParticipants || [];
   });
 
+  // Computed: battlemap with portraits enriched from worldCharacters
+  enrichedBattleMap = computed(() => {
+    const map = this.battleMap();
+    if (!map) return null;
+
+    const chars = this.worldCharacters();
+    const portraitMap = new Map<string, string>();
+    chars.forEach(c => {
+      if (c.sheet.portrait) {
+        portraitMap.set(c.id, c.sheet.portrait);
+      }
+    });
+
+    // Enrich tokens with portraits from character sheets
+    const enrichedTokens = map.tokens.map(token => ({
+      ...token,
+      portrait: token.isOnTheFly ? token.portrait : (portraitMap.get(token.characterId) || token.portrait)
+    }));
+
+    return {
+      ...map,
+      tokens: enrichedTokens
+    };
+  });
+
   // Panel visibility
   showCharacterList = signal(true);
   showBattleTracker = signal(true);
@@ -219,7 +244,8 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     this.store.addToken({
       characterId: data.characterId,
       characterName: character.sheet.name || data.characterId,
-      portrait: character.sheet.portrait,
+      // NOTE: Do NOT include portrait here - it crashes websockets with large images
+      // Portrait is retrieved at runtime from character sheets
       position: data.position,
       team: 'blue',
       isOnTheFly: false,
@@ -233,6 +259,8 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     this.store.addToken({
       characterId: 'quick-' + Date.now(),
       characterName: data.name,
+      // NOTE: Quick tokens use portrait path from server, not base64
+      // The portrait string here is already a path like '/uploads/xxx.png'
       portrait: data.portrait,
       position: data.position,
       team: 'red',
@@ -265,7 +293,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   }
 
   // AI Settings change
-  onAiSettingsChange(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string }) {
+  onAiSettingsChange(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string; gridScale?: number }) {
     this.store.setAiSettings(settings);
     // Only pass numerical settings to ComfyUI service (prompts are passed per-generation)
     this.comfyUI.setSettings({ seed: settings.seed, steps: settings.steps, cfg: settings.cfg, denoise: settings.denoise });
@@ -318,7 +346,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   }
 
   // Computed: get AI settings from battlemap
-  getAiSettings(): { seed: number; steps: number; cfg: number; denoise: number; generalRegionPrompt: string; negativePrompt: string } {
+  getAiSettings(): { seed: number; steps: number; cfg: number; denoise: number; generalRegionPrompt: string; negativePrompt: string; gridScale: number } {
     // ControlNet defaults: denoise = ControlNet strength (how closely to follow sketch)
     const defaults = { 
       seed: -1, 
@@ -326,7 +354,8 @@ export class BattlemapComponent implements OnInit, OnDestroy {
       cfg: 1.5, 
       denoise: 1.0,
       generalRegionPrompt: 'detailed, high quality',
-      negativePrompt: 'blurry, low quality, distorted, text, watermark, ugly'
+      negativePrompt: 'blurry, low quality, distorted, text, watermark, ugly',
+      gridScale: 5 // 5 feet per grid square (standard D&D)
     };
     const settings = this.battleMap()?.aiSettings;
     if (!settings) return defaults;
@@ -337,6 +366,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
       denoise: settings.denoise ?? defaults.denoise,
       generalRegionPrompt: settings.generalRegionPrompt ?? defaults.generalRegionPrompt,
       negativePrompt: settings.negativePrompt ?? defaults.negativePrompt,
+      gridScale: settings.gridScale ?? defaults.gridScale,
     };
   }
 }

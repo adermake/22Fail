@@ -295,6 +295,18 @@
           <p class="form-hint">What to avoid in generation.</p>
         </div>
 
+        <div class="form-group">
+          <label>Grid Scale (feet per square):</label>
+          <input 
+            type="number"
+            min="1"
+            [value]="editingGridScale()"
+            (input)="editingGridScale.set(+$any($event.target).value)"
+            placeholder="5"
+          />
+          <p class="form-hint">Standard D&D: 5 feet. Helps AI understand building sizes.</p>
+        </div>
+
         <div class="settings-grid">
           <div class="form-group">
             <label>Seed:</label>

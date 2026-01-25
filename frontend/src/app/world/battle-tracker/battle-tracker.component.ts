@@ -78,6 +78,8 @@ export class BattleTracker implements OnInit, OnDestroy {
   // ============================================
 
   private onEngineChange(): void {
+    console.log('[ANIM] onEngineChange called, isAnimating:', this.animState.isAnimating);
+    
     // Set animation lock
     this.animState.isAnimating = true;
     

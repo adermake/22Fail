@@ -552,26 +552,29 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
             maskCtx.lineTo(px, py);
           }
           
-          // Expand stroke width for masking to include generated area
+          // More aggressive expansion to cover generated content
           maskCtx.strokeStyle = 'white';
-          maskCtx.lineWidth = stroke.lineWidth * scaleX * 3; // 3x expansion
+          maskCtx.lineWidth = stroke.lineWidth * scaleX * 6; // 6x expansion (was 3x)
           maskCtx.lineCap = 'round';
           maskCtx.lineJoin = 'round';
           maskCtx.stroke();
         }
         
         // Apply blur for smooth edges
-        maskCtx.filter = 'blur(20px)';
+        maskCtx.filter = 'blur(25px)'; // Increased blur (was 20px)
         maskCtx.drawImage(maskCanvas, 0, 0);
         maskCtx.filter = 'none';
         
-        // Apply mask as alpha channel
+        // Apply mask as alpha channel with aggressive threshold to eliminate gray
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const maskData = maskCtx.getImageData(0, 0, canvas.width, canvas.height);
         
+        const threshold = 0.15; // Pixels below 15% opacity become fully transparent
         for (let i = 0; i < imageData.data.length; i += 4) {
           const maskAlpha = maskData.data[i] / 255; // Use red channel as alpha
-          imageData.data[i + 3] = imageData.data[i + 3] * maskAlpha; // Multiply existing alpha
+          // Apply threshold: below threshold = fully transparent, above = keep with smoothing
+          const finalAlpha = maskAlpha < threshold ? 0 : (maskAlpha - threshold) / (1 - threshold);
+          imageData.data[i + 3] = imageData.data[i + 3] * finalAlpha;
         }
         
         ctx.putImageData(imageData, 0, 0);
@@ -673,6 +676,14 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     const basePrompt = this.battleMap.aiPrompt || '';
     const generalRegionPrompt = this.battleMap.aiSettings?.generalRegionPrompt || 'detailed, high quality';
     const negativePrompt = this.battleMap.aiSettings?.negativePrompt || 'blurry, low quality, distorted, text, watermark, ugly';
+    const gridScale = this.battleMap.aiSettings?.gridScale || 5; // feet per grid square
+
+    // Calculate physical dimensions for scale reference
+    const widthInSquares = (maxX - minX) / HexMath.WIDTH;
+    const heightInSquares = (maxY - minY) / HexMath.HEIGHT;
+    const widthInFeet = Math.round(widthInSquares * gridScale);
+    const heightInFeet = Math.round(heightInSquares * gridScale);
+    const scaleContext = `map scale: ${gridScale} feet per square, total area: ${widthInFeet}x${heightInFeet} feet`;
 
     const result = await this.comfyUI.generateFromAiStrokes(
       aiStrokes,
@@ -680,7 +691,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       worldBounds,
       basePrompt,
       generalRegionPrompt,
-      negativePrompt
+      negativePrompt,
+      scaleContext
     );
 
     if (result.success && result.imageBlob && result.worldBounds) {

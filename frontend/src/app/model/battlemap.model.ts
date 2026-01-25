@@ -98,6 +98,7 @@ export interface BattlemapData {
     denoise?: number;
     generalRegionPrompt?: string; // Added to every region
     negativePrompt?: string; // Negative prompt for generation
+    gridScale?: number; // Feet per grid square (default: 5 for D&D)
   };
   
   // Legacy AI layer (single image) - kept for backwards compat

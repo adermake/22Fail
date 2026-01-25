@@ -23,7 +23,7 @@ export class BattlemapToolbarComponent {
   @Input() comfyUIAvailable = false;
   @Input() comfyUIGenerating = false;
   @Input() aiPrompt = '';
-  @Input() aiSettings: { seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string } = {};
+  @Input() aiSettings: { seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string; gridScale?: number } = {};
   @Input() drawLayerVisible = true;
   @Input() aiLayerVisible = true;
   @Input() aiColorPrompts: AiColorPrompt[] = [];
@@ -36,7 +36,7 @@ export class BattlemapToolbarComponent {
   @Output() drawWithWallsChange = new EventEmitter<boolean>();
   @Output() dragModeChange = new EventEmitter<DragMode>();
   @Output() aiPromptChange = new EventEmitter<string>();
-  @Output() aiSettingsChange = new EventEmitter<{ seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string }>();
+  @Output() aiSettingsChange = new EventEmitter<{ seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string; gridScale?: number }>();
   @Output() drawLayerVisibleChange = new EventEmitter<boolean>();
   @Output() aiLayerVisibleChange = new EventEmitter<boolean>();
   @Output() toggleCharacterList = new EventEmitter<void>();
@@ -93,6 +93,7 @@ export class BattlemapToolbarComponent {
   editingDenoise = signal<number>(0.75);
   editingGeneralRegionPrompt = signal<string>('');
   editingNegativePrompt = signal<string>('');
+  editingGridScale = signal<number>(5);
 
   selectTool(tool: ToolType) {
     this.toolChange.emit(tool);
@@ -198,6 +199,7 @@ export class BattlemapToolbarComponent {
     this.editingDenoise.set(this.aiSettings?.denoise ?? 0.75); // Inpainting default
     this.editingGeneralRegionPrompt.set(this.aiSettings?.generalRegionPrompt ?? 'detailed, high quality');
     this.editingNegativePrompt.set(this.aiSettings?.negativePrompt ?? 'blurry, low quality, distorted, text, watermark, ugly');
+    this.editingGridScale.set(this.aiSettings?.gridScale ?? 5);
     this.showAiSettingsModal.set(true);
   }
 
@@ -213,7 +215,8 @@ export class BattlemapToolbarComponent {
       cfg: this.editingCfg(),
       denoise: this.editingDenoise(),
       generalRegionPrompt: this.editingGeneralRegionPrompt(),
-      negativePrompt: this.editingNegativePrompt()
+      negativePrompt: this.editingNegativePrompt(),
+      gridScale: this.editingGridScale()
     });
     this.closeAiSettingsModal();
   }

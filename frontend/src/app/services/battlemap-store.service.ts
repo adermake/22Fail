@@ -274,7 +274,7 @@ export class BattleMapStoreService {
     this.applyPatch({ path: 'aiPrompt', value: prompt });
   }
 
-  setAiSettings(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string }) {
+  setAiSettings(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string; gridScale?: number }) {
     this.applyPatch({ path: 'aiSettings', value: settings });
   }
 
