@@ -147,8 +147,9 @@ export class BattleTracker implements OnInit, OnDestroy {
       if (!id) return;
 
       const prevPos = this.animState.previousPositions.get(id);
+      const currentRect = el.getBoundingClientRect();
       
-      console.log(`[ANIM] Tile ${id}: prevPos=${prevPos ? 'exists' : 'NEW'}`);
+      console.log(`[ANIM] Tile ${id}: prevPos=${prevPos ? `(${prevPos.x.toFixed(1)}, ${prevPos.y.toFixed(1)})` : 'NEW'}, currentPos=(${currentRect.left.toFixed(1)}, ${currentRect.top.toFixed(1)})`);
       
       if (!prevPos) {
         // New tile - slide in from top
