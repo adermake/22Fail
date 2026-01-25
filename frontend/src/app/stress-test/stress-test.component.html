@@ -16,8 +16,9 @@
           multiple 
           (change)="onFileSelected($event)"
           style="display: none"
+          #fileInput
         />
-        <button class="btn btn-primary" (click)="imageUpload.click()" #imageUpload>
+        <button class="btn btn-primary" (click)="fileInput.click()">
           📤 Upload Images
         </button>
         <span class="upload-status">{{ uploadProgress() }}</span>
