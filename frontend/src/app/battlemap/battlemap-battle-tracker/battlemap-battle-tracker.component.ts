@@ -133,7 +133,7 @@ export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
       const p = participantMap.get(bp.characterId);
       if (p) {
         tiles.push({
-          id: `tile_${tiles.length}`, // Position-based ID for consistency
+          id: `${p.characterId}_t1`, // Content-based ID
           characterId: p.characterId,
           name: p.name,
           portrait: p.portrait,
@@ -163,7 +163,7 @@ export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
       if (!best) break;
 
       tiles.push({
-        id: `tile_${tiles.length}`, // Position-based ID
+        id: `${best.p.characterId}_t${best.p.currentTurn}`, // Content-based ID
         characterId: best.p.characterId,
         name: best.p.name,
         portrait: best.p.portrait,
@@ -190,9 +190,8 @@ export class BattlemapBattleTrackerComponent implements OnInit, OnDestroy {
 
     const finalTiles = [...scripted, ...tilesWithTiming];
 
-    // Reassign IDs and isScripted after sorting
+    // Update isScripted flag (but keep IDs unchanged)
     for (let i = 0; i < finalTiles.length; i++) {
-      finalTiles[i].id = `tile_${i}`;
       finalTiles[i].isScripted = i < scriptedCount;
     }
 

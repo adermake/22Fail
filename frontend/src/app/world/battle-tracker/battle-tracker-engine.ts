@@ -255,16 +255,16 @@ export class BattleTrackerEngine {
     return (turnNumber * 1000) / Math.max(speed, 1);
   }
 
-  /** Create a tile for a participant - ID is based on position for stable animations */
+  /** Create a tile for a participant - ID is based on character and turn number */
   private createTile(
     participant: { characterId: string; name: string; portrait?: string; speed: number; team: string },
     turnNumber: number,
     positionHint: number
   ): TurnTile {
     return {
-      // Use position-based ID for animation stability
-      // Tiles will animate into their new positions rather than appearing as "new"
-      id: `tile_${positionHint}`,
+      // Content-based ID: follows the tile regardless of position
+      // This allows FLIP animations to track tiles as they move
+      id: `${participant.characterId}_t${turnNumber}`,
       characterId: participant.characterId,
       name: participant.name,
       portrait: participant.portrait,
@@ -335,12 +335,6 @@ export class BattleTrackerEngine {
     const calculated = this.tiles.slice(this.scriptedCount);
     calculated.sort((a, b) => a.timing - b.timing);
     this.tiles = [...scripted, ...calculated];
-
-    // Reassign stable IDs based on final positions
-    this.tiles = this.tiles.map((tile, index) => ({
-      ...tile,
-      id: `tile_${index}`,
-    }));
   }
 
   /** Rebuild the entire timeline from scratch */
@@ -595,12 +589,6 @@ export class BattleTrackerEngine {
 
     // Everything up to and including the dropped tile is now scripted
     this.scriptedCount = adjustedTargetIndex + 1;
-
-    // Reassign stable IDs based on new positions
-    this.tiles = this.tiles.map((tile, index) => ({
-      ...tile,
-      id: `tile_${index}`,
-    }));
 
     this.notifyChange();
     this.saveToWorldStore();
