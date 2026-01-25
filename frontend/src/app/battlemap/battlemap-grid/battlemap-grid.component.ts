@@ -7,6 +7,7 @@ import { CommonModule } from '@angular/common';
 import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, HexMath, WallHex, MeasurementLine, generateId } from '../../model/battlemap.model';
 import { BattleMapStoreService } from '../../services/battlemap-store.service';
 import { BattlemapTokenComponent } from '../battlemap-token/battlemap-token.component';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
 type DragMode = 'free' | 'enforced';
@@ -14,7 +15,7 @@ type DragMode = 'free' | 'enforced';
 @Component({
   selector: 'app-battlemap-grid',
   standalone: true,
-  imports: [CommonModule, BattlemapTokenComponent],
+  imports: [CommonModule, BattlemapTokenComponent, ImageUrlPipe],
   templateUrl: './battlemap-grid.component.html',
   styleUrl: './battlemap-grid.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

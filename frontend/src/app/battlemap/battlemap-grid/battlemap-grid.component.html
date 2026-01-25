@@ -59,7 +59,7 @@
     >
       <div class="ghost-hexagon">
         @if (draggingToken.portrait) {
-          <img [src]="draggingToken.portrait" [alt]="draggingToken.characterName" class="ghost-portrait" draggable="false" />
+          <img [src]="draggingToken.portrait | imageUrl" [alt]="draggingToken.characterName" class="ghost-portrait" draggable="false" />
         } @else {
           <div class="ghost-initials">{{ getInitials(draggingToken.characterName) }}</div>
         }

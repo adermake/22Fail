@@ -1,11 +1,12 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Race } from '../../../model/race.model';
+import { ImageUrlPipe } from '../../../shared/image-url.pipe';
 
 @Component({
   selector: 'app-race-card',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ImageUrlPipe],
   templateUrl: './race-card.component.html',
   styleUrl: './race-card.component.css'
 })

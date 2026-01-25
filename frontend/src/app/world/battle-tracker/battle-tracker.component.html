@@ -24,7 +24,7 @@
           <div class="character-option" [class.in-battle]="char.isInBattle">
             <div class="character-info">
               <img 
-                [src]="char.portrait || 'assets/default-portrait.png'" 
+                [src]="char.portrait | imageUrl" 
                 class="portrait-small" 
                 alt=""
               >
@@ -102,7 +102,7 @@
                 (dragend)="onDragEnd()"
               >
                 <img 
-                  [src]="tile.portrait || 'assets/default-portrait.png'" 
+                  [src]="tile.portrait | imageUrl" 
                   [alt]="tile.name"
                   class="tile-portrait"
                 >

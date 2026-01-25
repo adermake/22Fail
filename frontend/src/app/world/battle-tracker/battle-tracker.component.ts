@@ -13,6 +13,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BattleTrackerEngine, TurnGroup, TurnTile, BattleCharacter } from './battle-tracker-engine';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 /**
  * Animation tracking for FLIP animations
@@ -27,7 +28,7 @@ interface AnimationState {
 @Component({
   selector: 'app-battle-tracker',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ImageUrlPipe],
   templateUrl: './battle-tracker.component.html',
   styleUrl: './battle-tracker.component.css',
 })

@@ -14,7 +14,7 @@
 >
   <div class="token-hexagon">
     @if (token.portrait) {
-      <img [src]="token.portrait" [alt]="token.characterName" class="portrait" draggable="false" />
+      <img [src]="token.portrait | imageUrl" [alt]="token.characterName" class="portrait" draggable="false" />
     } @else {
       <div class="initials">{{ initials }}</div>
     }

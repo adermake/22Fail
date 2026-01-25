@@ -20,7 +20,7 @@
         @if (pendingImagePreview) {
           <img [src]="pendingImagePreview" class="preview-image">
         } @else if (race.baseImage) {
-          <img [src]="race.baseImage" class="preview-image">
+          <img [src]="race.baseImage | imageUrl" class="preview-image">
         }
         <input type="file" accept="image/*" (change)="onImageSelect($event)">
       </div>

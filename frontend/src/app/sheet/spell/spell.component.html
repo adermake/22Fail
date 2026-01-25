@@ -9,7 +9,7 @@
     <div class="spell-header">
       @if (spell.drawing) {
       <div class="spell-drawing">
-        <img [src]="spell.drawing" alt="Spell symbol" />
+        <img [src]="spell.drawing | imageUrl" alt="Spell symbol" />
       </div>
       }
       <div class="spell-info">

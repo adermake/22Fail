@@ -95,6 +95,11 @@ export class DataService {
     return data[id];
   }
 
+  getAllCharacterIds(): string[] {
+    const data = this.readData();
+    return Object.keys(data);
+  }
+
   saveCharacter(id: string, sheetJson: string): void {
     const data = this.readData();
     data[id] = sheetJson;

@@ -65,7 +65,7 @@
               <div class="character-header">
                 @if (member.sheet.portrait) {
                   <div class="character-portrait">
-                    <img [src]="member.sheet.portrait" alt="{{ member.sheet.name || member.id }}" />
+                    <img [src]="member.sheet.portrait | imageUrl" alt="{{ member.sheet.name || member.id }}" />
                   </div>
                 }
                 <div class="character-info">

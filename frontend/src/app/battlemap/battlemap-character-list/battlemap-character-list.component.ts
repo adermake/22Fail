@@ -2,11 +2,12 @@ import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { BattlemapToken, HexMath } from '../../model/battlemap.model';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 @Component({
   selector: 'app-battlemap-character-list',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ImageUrlPipe],
   templateUrl: './battlemap-character-list.component.html',
   styleUrl: './battlemap-character-list.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

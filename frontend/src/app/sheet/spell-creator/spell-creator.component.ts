@@ -12,6 +12,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SPELL_TAG_OPTIONS, SpellBlock } from '../../model/spell-block-model';
+import { ImageService } from '../../services/image.service';
 
 @Component({
   selector: 'app-spell-creator',
@@ -42,7 +43,7 @@ export class SpellCreatorComponent implements AfterViewInit {
   private lastX = 0;
   private lastY = 0;
 
-  constructor(private cd: ChangeDetectorRef) {}
+  constructor(private cd: ChangeDetectorRef, private imageService: ImageService) {}
 
   private canvasInitialized = false;
 
@@ -159,7 +160,7 @@ export class SpellCreatorComponent implements AfterViewInit {
     return this.newSpell.tags.includes(tag);
   }
 
-  createSpell() {
+  async createSpell() {
     if (!this.newSpell.name.trim()) {
       alert('Spell name is required');
       return;
@@ -173,7 +174,9 @@ export class SpellCreatorComponent implements AfterViewInit {
     // Convert canvas to base64 image if drawing is enabled
     if (this.hasDrawing && this.canvasRef) {
       const canvas = this.canvasRef.nativeElement;
-      this.newSpell.drawing = canvas.toDataURL('image/png');
+      const dataUrl = canvas.toDataURL('image/png');
+      // Upload image and get ID
+      this.newSpell.drawing = await this.imageService.uploadImage(dataUrl);
     }
 
     this.create.emit({ ...this.newSpell });

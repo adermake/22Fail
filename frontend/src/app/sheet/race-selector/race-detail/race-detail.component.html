@@ -2,7 +2,7 @@
   <div class="race-header">
     <div class="race-portrait">
       @if (race.baseImage) {
-        <img [src]="race.baseImage" [alt]="race.name">
+        <img [src]="race.baseImage | imageUrl" [alt]="race.name">
       } @else {
         <div class="placeholder-image large">?</div>
       }

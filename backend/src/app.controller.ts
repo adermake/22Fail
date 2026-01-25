@@ -11,9 +11,11 @@ import {
   UploadedFile,
   UseInterceptors,
   Res,
+  StreamableFile,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { DataService } from './data.service';
+import { ImageService } from './image.service';
 import type { JsonPatch } from './data.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CharacterGateway } from './character.gateway';
@@ -26,6 +28,7 @@ import * as fs from 'fs';
 export class AppController {
   constructor(
     private readonly dataService: DataService,
+    private readonly imageService: ImageService,
     private readonly characterGateway: CharacterGateway, // Add this
   ) {}
 
@@ -65,9 +68,9 @@ export class AppController {
     });
   }
 
-  // Download image to server and return a local path
+  // Download image to server and return an image ID
   @Post('images/download')
-  async downloadImage(@Body() body: { url: string; name: string }): Promise<{ success: boolean; path?: string; error?: string }> {
+  async downloadImage(@Body() body: { url: string; name: string }): Promise<{ success: boolean; imageId?: string; error?: string }> {
     const { url, name } = body;
     
     if (!url || !name) {
@@ -75,26 +78,23 @@ export class AppController {
     }
 
     try {
-      // Create tokens directory if it doesn't exist
-      const tokensDir = path.join(__dirname, '..', 'token-images');
-      if (!fs.existsSync(tokensDir)) {
-        fs.mkdirSync(tokensDir, { recursive: true });
-      }
+      // Download the image to a temporary buffer
+      const buffer = await this.downloadFileToBuffer(url);
+      
+      // Determine mime type from URL
+      const ext = this.getExtensionFromUrl(url) || 'png';
+      const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+      
+      // Convert to base64 data URL
+      const base64 = buffer.toString('base64');
+      const dataUrl = `data:${mimeType};base64,${base64}`;
+      
+      // Store using image service (automatically deduplicates)
+      const imageId = this.imageService.storeImage(dataUrl);
 
-      // Generate unique filename
-      const sanitizedName = name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
-      const timestamp = Date.now();
-      const ext = this.getExtensionFromUrl(url) || '.png';
-      const filename = `${sanitizedName}_${timestamp}${ext}`;
-      const filepath = path.join(tokensDir, filename);
-
-      // Download the image
-      await this.downloadFile(url, filepath);
-
-      // Return relative path that can be served
       return { 
         success: true, 
-        path: `/api/token-images/${filename}` 
+        imageId 
       };
     } catch (error) {
       console.error('Download error:', error);
@@ -102,27 +102,49 @@ export class AppController {
     }
   }
 
-  // Serve token images
-  @Get('token-images/:filename')
-  serveTokenImage(@Param('filename') filename: string, @Res() res: Response): void {
-    const tokensDir = path.join(__dirname, '..', 'token-images');
-    const filepath = path.join(tokensDir, filename);
-    
-    if (!fs.existsSync(filepath)) {
-      res.status(404).send('Image not found');
-      return;
+  private getExtensionFromUrl(url: string): string {
+    try {
+      const urlPath = new URL(url).pathname;
+      const ext = path.extname(urlPath).toLowerCase().substring(1); // Remove the dot
+      if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
+        return ext;
+      }
+    } catch (err) {
+      // Invalid URL
     }
-
-    res.sendFile(filepath);
+    return 'png';
   }
 
-  private getExtensionFromUrl(url: string): string {
-    const urlPath = new URL(url).pathname;
-    const ext = path.extname(urlPath).toLowerCase();
-    if (['.png', '.jpg', '.jpeg', '.gif', '.webp'].includes(ext)) {
-      return ext;
-    }
-    return '.png';
+  private downloadFileToBuffer(url: string): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const protocol = url.startsWith('https') ? https : http;
+      
+      const request = protocol.get(url, { timeout: 30000 }, (response) => {
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          const redirectUrl = response.headers.location;
+          if (redirectUrl) {
+            this.downloadFileToBuffer(redirectUrl).then(resolve).catch(reject);
+            return;
+          }
+        }
+        
+        if (response.statusCode !== 200) {
+          reject(new Error(`HTTP ${response.statusCode}`));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => resolve(Buffer.concat(chunks)));
+        response.on('error', reject);
+      });
+
+      request.on('error', reject);
+      request.on('timeout', () => {
+        request.destroy();
+        reject(new Error('Download timeout'));
+      });
+    });
   }
 
   private downloadFile(url: string, destPath: string): Promise<void> {
@@ -225,24 +247,63 @@ export class AppController {
     }
 
     // Convert to base64
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const base64 = Buffer.from(file.buffer).toString('base64');
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const dataUrl = `data:${file.mimetype};base64,${base64}`;
 
-    // Apply as a patch
+    // Store image and get ID
+    const imageId = this.imageService.storeImage(dataUrl);
+
+    // Apply as a patch with just the image ID
     this.dataService.applyPatchToCharacter(id, {
       path: 'portrait',
-      value: dataUrl,
+      value: imageId,
     });
 
     // Broadcast to other clients using the helper method
     this.characterGateway.broadcastPatch(id, {
       path: 'portrait',
-      value: dataUrl,
+      value: imageId,
     });
 
-    return { success: true };
+    return { success: true, imageId };
+  }
+
+  // ==================== Image Management ====================
+
+  @Post('images')
+  uploadImage(@Body('data') base64Data: string): any {
+    if (!base64Data) {
+      throw new BadRequestException('No image data provided');
+    }
+
+    const imageId = this.imageService.storeImage(base64Data);
+    return { imageId };
+  }
+
+  @Get('images/:id')
+  getImage(@Param('id') id: string, @Res() res: Response): void {
+    const imageData = this.imageService.getImageBuffer(id);
+    
+    if (!imageData) {
+      res.status(404).send('Image not found');
+      return;
+    }
+
+    res.setHeader('Content-Type', imageData.mimeType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // Cache for 1 year
+    res.send(imageData.buffer);
+  }
+
+  @Delete('images/:id')
+  deleteImage(@Param('id') id: string): any {
+    const deleted = this.imageService.deleteImage(id);
+    return { success: deleted };
+  }
+
+  @Get('images')
+  listImages(): any {
+    const images = this.imageService.listImages();
+    return { images };
   }
 
   // World endpoints
@@ -298,6 +359,46 @@ export class AppController {
     return { success: true, battleMap: newBattleMap };
   }
 
+  // ==================== Migration Utilities ====================
+
+  @Post('migrate/portraits-to-images')
+  async migratePortraitsToImages(): Promise<any> {
+    console.log('[MIGRATION] Starting portrait to image ID migration...');
+    let migrated = 0;
+    let skipped = 0;
+
+    // Migrate all characters
+    const allCharacters = this.dataService.getAllCharacterIds();
+    console.log(`[MIGRATION] Found ${allCharacters.length} characters`);
+
+    for (const characterId of allCharacters) {
+      const characterJson = this.dataService.getCharacter(characterId);
+      if (!characterJson) continue;
+
+      const character = JSON.parse(characterJson);
+      
+      // Check if portrait is a base64 data URL
+      if (character.portrait && typeof character.portrait === 'string' && character.portrait.startsWith('data:image')) {
+        try {
+          const imageId = this.imageService.storeImage(character.portrait);
+          this.dataService.applyPatchToCharacter(characterId, {
+            path: 'portrait',
+            value: imageId,
+          });
+          console.log(`[MIGRATION] Migrated character ${characterId}: ${(character.portrait.length / 1024).toFixed(2)}KB -> ${imageId}`);
+          migrated++;
+        } catch (err) {
+          console.error(`[MIGRATION] Failed to migrate character ${characterId}:`, err);
+        }
+      } else {
+        skipped++;
+      }
+    }
+
+    console.log(`[MIGRATION] Complete: ${migrated} migrated, ${skipped} skipped`);
+    return { success: true, migrated, skipped };
+  }
+
   // Race endpoints - globally shared across all characters
   @Get('races')
   getAllRaces(): any {
@@ -343,15 +444,18 @@ export class AppController {
     const base64 = Buffer.from(file.buffer).toString('base64');
     const dataUrl = `data:${file.mimetype};base64,${base64}`;
 
-    // Update the race with the new image
+    // Store image and get ID
+    const imageId = this.imageService.storeImage(dataUrl);
+
+    // Update the race with the image ID
     const race = this.dataService.getRace(id);
     if (!race) {
       throw new BadRequestException('Race not found');
     }
 
-    race.baseImage = dataUrl;
+    race.baseImage = imageId;
     this.dataService.saveRace(race);
 
-    return { success: true, imageUrl: dataUrl };
+    return { success: true, imageUrl: imageId };
   }
 }

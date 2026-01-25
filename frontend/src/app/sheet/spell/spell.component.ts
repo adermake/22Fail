@@ -15,10 +15,12 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { KeywordEnhancer } from '../keyword-enhancer';
 import { SpellBlock, SPELL_TAG_OPTIONS, SPELL_GLOW_COLORS } from '../../model/spell-block-model';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
+import { ImageService } from '../../services/image.service';
 
 @Component({
   selector: 'app-spell',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ImageUrlPipe],
   templateUrl: './spell.component.html',
   styleUrl: './spell.component.css',
 })
@@ -41,7 +43,7 @@ export class SpellComponent implements AfterViewInit {
   private lastX = 0;
   private lastY = 0;
 
-  constructor(private cd: ChangeDetectorRef, private sanitizer: DomSanitizer) {}
+  constructor(private cd: ChangeDetectorRef, private sanitizer: DomSanitizer, private imageService: ImageService) {}
 
   private canvasInitialized = false;
 
@@ -92,7 +94,7 @@ export class SpellComponent implements AfterViewInit {
       img.onload = () => {
         this.ctx?.drawImage(img, 0, 0);
       };
-      img.src = this.spell.drawing;
+      img.src = this.imageService.getImageUrl(this.spell.drawing) || '';
     } else {
       this.clearCanvas();
     }
@@ -122,7 +124,7 @@ export class SpellComponent implements AfterViewInit {
     return allItems.map((item) => item.name);
   }
 
-  toggleEdit() {
+  async toggleEdit() {
     const newEditingState = !this.isEditing;
     this.editingChange.emit(newEditingState);
 
@@ -138,7 +140,9 @@ export class SpellComponent implements AfterViewInit {
       // Save drawing when closing edit
       if (this.hasDrawing && this.canvasRef) {
         const canvas = this.canvasRef.nativeElement;
-        this.updateField('drawing', canvas.toDataURL('image/png'));
+        const dataUrl = canvas.toDataURL('image/png');
+        const imageId = await this.imageService.uploadImage(dataUrl);
+        this.updateField('drawing', imageId);
       } else if (!this.hasDrawing) {
         this.updateField('drawing', undefined);
       }

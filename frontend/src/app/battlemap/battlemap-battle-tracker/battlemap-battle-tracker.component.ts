@@ -4,6 +4,7 @@ import { Subscription } from 'rxjs';
 import { WorldStoreService } from '../../services/world-store.service';
 import { BattleMapStoreService } from '../../services/battlemap-store.service';
 import { WorldData } from '../../model/world.model';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 /** Tile for display in the timeline */
 interface DisplayTile {
@@ -27,7 +28,7 @@ interface DisplayGroup {
 @Component({
   selector: 'app-battlemap-battle-tracker',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ImageUrlPipe],
   templateUrl: './battlemap-battle-tracker.component.html',
   styleUrl: './battlemap-battle-tracker.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,13 +1,14 @@
 import { Component, Input, Output, EventEmitter, HostListener, ElementRef, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BattlemapToken, HexMath } from '../../model/battlemap.model';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
 
 @Component({
   selector: 'app-battlemap-token',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ImageUrlPipe],
   templateUrl: './battlemap-token.component.html',
   styleUrl: './battlemap-token.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, ElementRef, EventEmitter, Output, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RuneBlock, RUNE_TAG_OPTIONS } from '../../model/rune-block.model';
+import { ImageService } from '../../services/image.service';
 
 @Component({
   selector: 'app-rune-creator',
@@ -28,6 +29,8 @@ export class RuneCreatorComponent implements AfterViewInit {
   private isDrawing = false;
   private lastX = 0;
   private lastY = 0;
+
+  constructor(private imageService: ImageService) {}
 
   ngAfterViewInit() {
     const canvas = this.canvasRef.nativeElement;
@@ -107,7 +110,7 @@ export class RuneCreatorComponent implements AfterViewInit {
     return this.newRune.tags.includes(tag);
   }
 
-  createRune() {
+  async createRune() {
     if (!this.newRune.name.trim()) {
       alert('Rune name is required');
       return;
@@ -115,7 +118,9 @@ export class RuneCreatorComponent implements AfterViewInit {
 
     // Convert canvas to base64 image
     const canvas = this.canvasRef.nativeElement;
-    this.newRune.drawing = canvas.toDataURL('image/png');
+    const dataUrl = canvas.toDataURL('image/png');
+    // Upload image and get ID
+    this.newRune.drawing = await this.imageService.uploadImage(dataUrl);
 
     this.create.emit({ ...this.newRune });
     

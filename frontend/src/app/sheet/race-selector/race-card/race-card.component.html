@@ -1,7 +1,7 @@
 <div class="race-card" [class.selected]="isSelected" (click)="onClick()" (dblclick)="onDoubleClick()">
   <div class="race-card-image">
     @if (race.baseImage) {
-      <img [src]="race.baseImage" [alt]="race.name">
+      <img [src]="race.baseImage | imageUrl" [alt]="race.name">
     } @else {
       <div class="placeholder-image">?</div>
     }

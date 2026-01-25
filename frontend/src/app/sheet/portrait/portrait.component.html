@@ -18,5 +18,5 @@
     <span>or click to upload</span>
   </div>
 
-  <img *ngIf="sheet.portrait" [src]="sheet.portrait" alt="Preview" />
+  <img *ngIf="sheet.portrait" [src]="sheet.portrait | imageUrl" alt="Preview" />
 </div>

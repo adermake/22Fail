@@ -20,7 +20,7 @@
         >
           <div class="char-portrait">
             @if (char.sheet.portrait) {
-              <img [src]="char.sheet.portrait" [alt]="char.sheet.name" />
+              <img [src]="char.sheet.portrait | imageUrl" [alt]="char.sheet.name" />
             } @else {
               <div class="char-initials">{{ getInitials(char.sheet.name || 'Unknown') }}</div>
             }

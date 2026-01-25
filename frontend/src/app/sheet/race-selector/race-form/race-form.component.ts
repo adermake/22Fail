@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Race, RaceSkill } from '../../../model/race.model';
 import { SkillBlock } from '../../../model/skill-block.model';
+import { ImageUrlPipe } from '../../../shared/image-url.pipe';
 
 @Component({
   selector: 'app-race-form',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ImageUrlPipe],
   templateUrl: './race-form.component.html',
   styleUrl: './race-form.component.css'
 })

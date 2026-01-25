@@ -16,4 +16,9 @@ export class WorldApiService {
     const observable = this.http.post(`/api/worlds/${name}`, world);
     return await firstValueFrom(observable);
   }
+
+  async migratePortraitsToImages(): Promise<{ success: boolean; migrated: number; skipped: number }> {
+    const observable = this.http.post<{ success: boolean; migrated: number; skipped: number }>('/api/migrate/portraits-to-images', {});
+    return await firstValueFrom(observable);
+  }
 }

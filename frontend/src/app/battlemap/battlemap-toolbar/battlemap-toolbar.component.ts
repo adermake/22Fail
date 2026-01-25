@@ -145,8 +145,8 @@ export class BattlemapToolbarComponent {
         });
         if (response.ok) {
           const result = await response.json();
-          if (result.success && result.path) {
-            portrait = result.path;
+          if (result.success && result.imageId) {
+            portrait = result.imageId;
           }
         }
       } catch (e) {

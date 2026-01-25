@@ -19,6 +19,7 @@ import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
 import { BattleTracker } from '../battle-tracker/battle-tracker.component';
 import { LootManagerComponent, LootBundle } from '../loot-manager/loot-manager.component';
 import { BattleTrackerEngine } from '../battle-tracker/battle-tracker-engine';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 // Re-export types for template usage
 export type { SimulatedTurn, BattleGroup };
@@ -26,7 +27,7 @@ export type { SimulatedTurn, BattleGroup };
 @Component({
   selector: 'app-world',
   standalone: true,
-  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent],
+  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent, ImageUrlPipe],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

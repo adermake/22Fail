@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { DataService } from './data.service';
+import { ImageService } from './image.service';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { CharacterGateway } from './character.gateway';
@@ -15,6 +16,6 @@ import { BattleMapGateway } from './battlemap.gateway';
     }),
   ],
   controllers: [AppController],
-  providers: [CharacterGateway, WorldGateway, BattleMapGateway, DataService],
+  providers: [CharacterGateway, WorldGateway, BattleMapGateway, DataService, ImageService],
 })
 export class AppModule {}

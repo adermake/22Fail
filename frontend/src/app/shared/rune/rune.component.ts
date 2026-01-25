@@ -5,10 +5,12 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { JsonPatch } from '../../model/json-patch.model';
 import { RuneBlock, RUNE_TAG_OPTIONS, RUNE_GLOW_COLORS } from '../../model/rune-block.model';
 import { KeywordEnhancer } from '../../sheet/keyword-enhancer';
+import { ImageUrlPipe } from '../image-url.pipe';
+import { ImageService } from '../../services/image.service';
 
 @Component({
   selector: 'app-rune',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ImageUrlPipe],
   templateUrl: './rune.component.html',
   styleUrl: './rune.component.css',
 })
@@ -33,7 +35,8 @@ export class RuneComponent implements AfterViewInit {
 
   constructor(
     private cd: ChangeDetectorRef,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private imageService: ImageService
   ) {}
 
   ngAfterViewInit() {
@@ -59,7 +62,7 @@ export class RuneComponent implements AfterViewInit {
     return this.sanitizer.bypassSecurityTrustHtml(enhanced);
   }
 
-  toggleEdit() {
+  async toggleEdit() {
     const newEditingState = !this.isEditing;
     this.editingChange.emit(newEditingState);
 
@@ -75,7 +78,9 @@ export class RuneComponent implements AfterViewInit {
       // Save drawing when closing edit
       if (this.hasDrawing && this.canvasRef) {
         const canvas = this.canvasRef.nativeElement;
-        this.updateField('drawing', canvas.toDataURL('image/png'));
+        const dataUrl = canvas.toDataURL('image/png');
+        const imageId = await this.imageService.uploadImage(dataUrl);
+        this.updateField('drawing', imageId);
       } else if (!this.hasDrawing) {
         this.updateField('drawing', undefined);
       }
@@ -112,7 +117,7 @@ export class RuneComponent implements AfterViewInit {
       img.onload = () => {
         this.ctx?.drawImage(img, 0, 0);
       };
-      img.src = this.rune.drawing;
+      img.src = this.imageService.getImageUrl(this.rune.drawing) || '';
     } else {
       this.clearCanvas();
     }

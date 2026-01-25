@@ -4,10 +4,12 @@ import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angul
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { CharacterApiService } from '../../services/character-api.service';
+import { ImageService } from '../../services/image.service';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 @Component({
   selector: 'app-portrait',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ImageUrlPipe],
   templateUrl: './portrait.component.html',
   styleUrl: './portrait.component.css',
 })
@@ -19,7 +21,8 @@ export class PortraitComponent {
   constructor(
     private zone: NgZone,
     private cd: ChangeDetectorRef,
-    private api: CharacterApiService
+    private api: CharacterApiService,
+    private imageService: ImageService
   ) {}
 
   onDragOver(event: DragEvent) {

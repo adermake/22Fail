@@ -38,7 +38,7 @@
                 [style.--team-color]="getTeamColor(tile.team)"
               >
                 @if (tile.portrait) {
-                  <img [src]="tile.portrait" [alt]="tile.name" class="tile-portrait">
+                  <img [src]="tile.portrait | imageUrl" [alt]="tile.name" class="tile-portrait">
                 } @else {
                   <div class="tile-initials">{{ tile.name.substring(0, 2).toUpperCase() }}</div>
                 }
