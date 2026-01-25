@@ -5,10 +5,9 @@ import {
 import { CommonModule } from '@angular/common';
 import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, HexMath, WallHex, MeasurementLine, generateId } from '../../model/battlemap.model';
 import { BattleMapStoreService } from '../../services/battlemap-store.service';
-import { ComfyUIService } from '../../services/comfyui.service';
 import { BattlemapTokenComponent } from '../battlemap-token/battlemap-token.component';
 
-type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'ai-draw';
+type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
 type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -21,7 +20,6 @@ type DragMode = 'free' | 'enforced';
 export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('gridCanvas') gridCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('drawCanvas') drawCanvas!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('aiCanvas') aiCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('container') container!: ElementRef<HTMLDivElement>;
 
@@ -44,8 +42,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() currentTurnCharacterId: string | null = null;
   @Input() battleParticipants: { characterId: string; team?: string }[] = [];
   @Input() drawLayerVisible = true;
-  @Input() aiLayerVisible = true;
-  @Input() aiDrawColor = '#22c55e'; // Default AI draw color (forest green)
 
   @Output() tokenDrop = new EventEmitter<{ characterId: string; position: HexCoord }>();
   @Output() tokenMove = new EventEmitter<{ tokenId: string; position: HexCoord }>();
@@ -54,18 +50,11 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   @Output() brushSizeChange = new EventEmitter<number>(); // For shift+drag brush resize
 
   private store = inject(BattleMapStoreService);
-  comfyUI = inject(ComfyUIService);
 
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
   private drawCtx: CanvasRenderingContext2D | null = null;
-  private aiCtx: CanvasRenderingContext2D | null = null;
   private overlayCtx: CanvasRenderingContext2D | null = null;
-
-  // AI layer state
-  // Removed - legacy single image tracking
-  // Now using tile-based aiCanvas system
-  aiLayerOpacity = signal<number>(0.7);
 
   // Pan and zoom state
   panX = 0;
@@ -120,8 +109,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     this.centerView();
     this.render();
     this.setupResizeObserver();
-    // Check ComfyUI availability on init
-    this.comfyUI.checkAvailability();
   }
 
   ngOnDestroy() {
@@ -131,11 +118,9 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   ngOnChanges(changes: SimpleChanges) {
     if (changes['battleMap'] && this.gridCtx) {
       this.render();
-      // Load persisted AI layer image if available
-      this.loadPersistedAiLayer();
     }
     // React to layer visibility changes
-    if (changes['drawLayerVisible'] || changes['aiLayerVisible']) {
+    if (changes['drawLayerVisible']) {
       this.updateLayerVisibility();
     }
   }
@@ -147,34 +132,11 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     if (this.drawCanvas?.nativeElement) {
       this.drawCanvas.nativeElement.style.opacity = this.drawLayerVisible ? '1' : '0';
     }
-    if (this.aiCanvas?.nativeElement) {
-      this.aiCanvas.nativeElement.style.opacity = this.aiLayerVisible ? '1' : '0';
-    }
-  }
-
-  /**
-   * Load AI layer image from persisted battlemap data
-   * Preload tile images for faster rendering
-   */
-  private loadPersistedAiLayer() {
-    const tiles = this.battleMap?.aiCanvas?.tiles || [];
-    console.log('[Grid] Loading persisted tiles:', tiles.length);
-    // Preload all tile images
-    for (const tile of tiles) {
-      if (!tile.image) continue;
-      if (!(tile as any).__imageElement) {
-        const img = new Image();
-        img.src = tile.image;
-        img.onload = () => this.render(); // Re-render when image loads
-        (tile as any).__imageElement = img;
-      }
-    }
   }
 
   private initCanvases() {
     const gridEl = this.gridCanvas?.nativeElement;
     const drawEl = this.drawCanvas?.nativeElement;
-    const aiEl = this.aiCanvas?.nativeElement;
     const overlayEl = this.overlayCanvas?.nativeElement;
     
     if (gridEl) {
@@ -184,10 +146,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     if (drawEl) {
       this.drawCtx = drawEl.getContext('2d');
       this.resizeCanvas(drawEl);
-    }
-    if (aiEl) {
-      this.aiCtx = aiEl.getContext('2d');
-      this.resizeCanvas(aiEl);
     }
     if (overlayEl) {
       this.overlayCtx = overlayEl.getContext('2d');
@@ -219,11 +177,9 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     const observer = new ResizeObserver(() => {
       const gridEl = this.gridCanvas?.nativeElement;
       const drawEl = this.drawCanvas?.nativeElement;
-      const aiEl = this.aiCanvas?.nativeElement;
       const overlayEl = this.overlayCanvas?.nativeElement;
       if (gridEl) this.resizeCanvas(gridEl);
       if (drawEl) this.resizeCanvas(drawEl);
-      if (aiEl) this.resizeCanvas(aiEl);
       if (overlayEl) this.resizeCanvas(overlayEl);
       this.render();
     });
@@ -259,7 +215,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   render() {
     this.renderGrid();
     this.renderStrokes();
-    this.renderAiLayer();
     this.renderOverlay();
   }
 
@@ -385,332 +340,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
 
     ctx.globalCompositeOperation = 'source-over';
     ctx.restore();
-
-    // Also render AI strokes on the draw canvas (as a preview overlay)
-    this.renderAiStrokes(ctx);
-  }
-
-  /**
-   * Render AI strokes as a semi-transparent overlay on the draw canvas
-   */
-  private renderAiStrokes(ctx: CanvasRenderingContext2D) {
-    if (!this.battleMap?.aiStrokes || this.battleMap.aiStrokes.length === 0) return;
-
-    ctx.save();
-    ctx.translate(this.panX, this.panY);
-    ctx.scale(this.scale, this.scale);
-
-    // Render AI strokes with slight transparency and a distinctive style
-    for (const stroke of this.battleMap.aiStrokes) {
-      if (stroke.points.length < 2) continue;
-      
-      ctx.beginPath();
-      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-      
-      for (let i = 1; i < stroke.points.length; i++) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
-      }
-
-      ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = stroke.lineWidth;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.globalAlpha = 1.0; // Full opacity - regions should be solid
-      ctx.stroke();
-    }
-
-    ctx.globalAlpha = 1;
-    ctx.restore();
-  }
-
-  private renderAiLayer() {
-    if (!this.aiCtx) return;
-
-    const canvas = this.aiCanvas?.nativeElement;
-    if (!canvas) return;
-
-    const ctx = this.aiCtx;
-    const dpr = window.devicePixelRatio || 1;
-    
-    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-    
-    // Render all AI canvas tiles
-    const tiles = this.battleMap?.aiCanvas?.tiles || [];
-    if (tiles.length === 0) return;
-
-    ctx.save();
-    ctx.globalAlpha = this.aiLayerOpacity();
-    ctx.globalCompositeOperation = 'source-over'; // Respect alpha channel for transparency
-    ctx.translate(this.panX, this.panY);
-    ctx.scale(this.scale, this.scale);
-    
-    // Calculate visible world bounds for viewport culling
-    const container = this.container?.nativeElement;
-    if (!container) {
-      ctx.restore();
-      return;
-    }
-    
-    const rect = container.getBoundingClientRect();
-    const viewportMinX = -this.panX / this.scale;
-    const viewportMinY = -this.panY / this.scale;
-    const viewportMaxX = viewportMinX + rect.width / this.scale;
-    const viewportMaxY = viewportMinY + rect.height / this.scale;
-    
-    // Draw each tile (only if visible in viewport for performance)
-    let renderedCount = 0;
-    for (const tile of tiles) {
-      const bounds = tile.worldBounds;
-      
-      // Viewport culling: skip tiles outside visible area
-      if (bounds.maxX < viewportMinX || bounds.minX > viewportMaxX ||
-          bounds.maxY < viewportMinY || bounds.minY > viewportMaxY) {
-        continue;
-      }
-      
-      // Load and draw tile
-      if (!tile.image) continue;
-      
-      // Create image element if not cached
-      let img = (tile as any).__imageElement as HTMLImageElement;
-      if (!img) {
-        img = new Image();
-        img.src = tile.image;
-        (tile as any).__imageElement = img;
-      }
-      
-      // Only draw if image is loaded
-      if (img.complete) {
-        const width = bounds.maxX - bounds.minX;
-        const height = bounds.maxY - bounds.minY;
-        
-        ctx.drawImage(
-          img,
-          bounds.minX,
-          bounds.minY,
-          width,
-          height
-        );
-        renderedCount++;
-      }
-    }
-    
-    ctx.restore();
-  }
-
-  /**
-   * Apply region-based cutoff mask - only keep pixels where strokes were painted
-   */
-  private async applyRegionCutoffMask(
-    imageBlob: Blob,
-    aiStrokes: BattlemapStroke[],
-    worldBounds: { minX: number; minY: number; maxX: number; maxY: number }
-  ): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(imageBlob);
-      
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-        
-        // Draw the generated image
-        ctx.drawImage(img, 0, 0);
-        
-        // Create region mask from strokes
-        const maskCanvas = document.createElement('canvas');
-        maskCanvas.width = img.width;
-        maskCanvas.height = img.height;
-        const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true })!;
-        
-        // Calculate transform
-        const worldWidth = worldBounds.maxX - worldBounds.minX;
-        const worldHeight = worldBounds.maxY - worldBounds.minY;
-        const scaleX = img.width / worldWidth;
-        const scaleY = img.height / worldHeight;
-        
-        // Draw stroke regions on mask (black background, white strokes)
-        maskCtx.fillStyle = 'black';
-        maskCtx.fillRect(0, 0, img.width, img.height);
-        
-        for (const stroke of aiStrokes) {
-          if (stroke.points.length < 2) continue;
-          
-          maskCtx.beginPath();
-          const firstPoint = stroke.points[0];
-          maskCtx.moveTo(
-            (firstPoint.x - worldBounds.minX) * scaleX,
-            (firstPoint.y - worldBounds.minY) * scaleY
-          );
-          
-          for (let i = 1; i < stroke.points.length; i++) {
-            const point = stroke.points[i];
-            maskCtx.lineTo(
-              (point.x - worldBounds.minX) * scaleX,
-              (point.y - worldBounds.minY) * scaleY
-            );
-          }
-          
-          maskCtx.strokeStyle = 'white';
-          maskCtx.lineWidth = stroke.lineWidth * scaleX * 8; // Generous expansion
-          maskCtx.lineCap = 'round';
-          maskCtx.lineJoin = 'round';
-          maskCtx.stroke();
-        }
-        
-        // Simple binary cutoff based on stroke regions
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const maskData = maskCtx.getImageData(0, 0, canvas.width, canvas.height);
-        
-        for (let i = 0; i < imageData.data.length; i += 4) {
-          const isInRegion = maskData.data[i] > 128; // White in mask
-          if (!isInRegion) {
-            imageData.data[i + 3] = 0; // Fully transparent outside regions
-          }
-        }
-        
-        ctx.putImageData(imageData, 0, 0);
-        
-        canvas.toBlob((blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error('Failed to create masked blob'));
-        }, 'image/png');
-      };
-      
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error('Failed to load generated image'));
-      };
-      
-      img.src = url;
-    });
-  }
-
-  /**
-   * Convert a Blob to base64 string
-   */
-  private blobToBase64(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  }
-
-  /**
-   * Clear the AI layer
-   */
-  clearAiLayer() {
-    if (this.aiCtx) {
-      const canvas = this.aiCanvas?.nativeElement;
-      if (canvas) {
-        const dpr = window.devicePixelRatio || 1;
-        this.aiCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-      }
-    }
-    // Clear from store (clears all tiles)
-    this.store.clearAiCanvas();
-  }
-
-  /**
-   * Generate AI image from AI strokes using regional prompting
-   * Each color in the AI strokes gets its own prompt from the color-prompt mappings
-   */
-  async generateFromAiStrokes() {
-    if (!this.battleMap || !this.comfyUI.isAvailable()) {
-      console.warn('[Grid] Cannot generate: no battlemap or ComfyUI unavailable');
-      return;
-    }
-
-    const aiStrokes = this.battleMap.aiStrokes || [];
-    if (aiStrokes.length === 0) {
-      console.warn('[Grid] No AI strokes to generate from');
-      return;
-    }
-
-    const colorPrompts = this.battleMap.aiColorPrompts || [];
-    if (colorPrompts.length === 0) {
-      console.warn('[Grid] No color prompts defined');
-      return;
-    }
-
-    console.log('[Grid] Generating from AI strokes with regional prompting...');
-    console.log('[Grid] Using', colorPrompts.length, 'color prompts for', aiStrokes.length, 'strokes');
-
-    // Calculate tight bounding box around all AI strokes in world coordinates
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const stroke of aiStrokes) {
-      for (const point of stroke.points) {
-        minX = Math.min(minX, point.x);
-        minY = Math.min(minY, point.y);
-        maxX = Math.max(maxX, point.x);
-        maxY = Math.max(maxY, point.y);
-      }
-    }
-
-    // Add padding (10% on each side)
-    const paddingX = (maxX - minX) * 0.1;
-    const paddingY = (maxY - minY) * 0.1;
-    minX -= paddingX;
-    minY -= paddingY;
-    maxX += paddingX;
-    maxY += paddingY;
-
-    const worldBounds = { minX, minY, maxX, maxY };
-    console.log('[Grid] World bounds:', worldBounds);
-
-    // Get prompts from battlemap settings
-    const basePrompt = this.battleMap.aiPrompt || '';
-    const generalRegionPrompt = this.battleMap.aiSettings?.generalRegionPrompt || 'detailed, high quality';
-    const negativePrompt = this.battleMap.aiSettings?.negativePrompt || 'blurry, low quality, distorted, text, watermark, ugly';
-    const gridScale = this.battleMap.aiSettings?.gridScale || 5; // feet per grid square
-
-    // Calculate physical dimensions for scale reference
-    const widthInSquares = (maxX - minX) / HexMath.WIDTH;
-    const heightInSquares = (maxY - minY) / HexMath.HEIGHT;
-    const widthInFeet = Math.round(widthInSquares * gridScale);
-    const heightInFeet = Math.round(heightInSquares * gridScale);
-    const scaleContext = `map scale: ${gridScale} feet per square, total area: ${widthInFeet}x${heightInFeet} feet`;
-
-    const result = await this.comfyUI.generateFromAiStrokes(
-      aiStrokes,
-      colorPrompts,
-      worldBounds,
-      basePrompt,
-      generalRegionPrompt,
-      negativePrompt,
-      scaleContext
-    );
-
-    if (result.success && result.imageBlob && result.worldBounds) {
-      // Apply region-based cutoff masking to remove gray background
-      const maskedBlob = await this.applyRegionCutoffMask(
-        result.imageBlob,
-        aiStrokes,
-        worldBounds
-      );
-      
-      // Convert blob to base64 for persistence
-      const base64 = await this.blobToBase64(maskedBlob);
-      
-      // Add as a new tile to the canvas
-      this.store.addAiCanvasTile(base64, result.worldBounds);
-      
-      // Clear AI strokes after generation
-      this.store.clearAiStrokes();
-      
-      // Trigger re-render
-      this.render();
-      
-      console.log('[Grid] Tile added successfully');
-    } else {
-      console.error('[Grid] AI generation failed:', result.error);
-    }
   }
 
   private renderOverlay() {
@@ -1024,14 +653,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
         this.measureEnd.set(startSnapped);
         break;
       }
-
-      case 'ai-draw': {
-        // AI drawing mode - draws to separate AI stroke layer
-        this.isDrawing = true;
-        this.currentStrokePoints = [world];
-        this.currentStrokeHexes.clear();
-        break;
-      }
     }
   }
 
@@ -1245,23 +866,12 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       // Save the stroke - use correct brush size based on tool
       const brushSize = this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize;
       
-      if (this.currentTool === 'ai-draw') {
-        // AI drawing goes to separate stroke layer
-        this.store.addAiStroke({
-          points: this.currentStrokePoints,
-          color: this.aiDrawColor,
-          lineWidth: brushSize,
-          isEraser: false,
-        });
-      } else {
-        this.store.addStroke({
-          points: this.currentStrokePoints,
-          color: this.brushColor,
-          lineWidth: brushSize,
-          isEraser: this.currentTool === 'erase',
-        });
-        // Old auto-generation removed - use AI Draw tool instead
-      }
+      this.store.addStroke({
+        points: this.currentStrokePoints,
+        color: this.brushColor,
+        lineWidth: brushSize,
+        isEraser: this.currentTool === 'erase',
+      });
     }
 
     this.isPanning = false;
@@ -1300,22 +910,12 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     if (this.isDrawing && this.currentStrokePoints.length > 1) {
       const brushSize = this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize;
       
-      if (this.currentTool === 'ai-draw') {
-        this.store.addAiStroke({
-          points: this.currentStrokePoints,
-          color: this.aiDrawColor,
-          lineWidth: brushSize,
-          isEraser: false,
-        });
-      } else {
-        this.store.addStroke({
-          points: this.currentStrokePoints,
-          color: this.brushColor,
-          lineWidth: brushSize,
-          isEraser: this.currentTool === 'erase',
-        });
-        // Old auto-generation removed - use AI Draw tool instead
-      }
+      this.store.addStroke({
+        points: this.currentStrokePoints,
+        color: this.brushColor,
+        lineWidth: brushSize,
+        isEraser: this.currentTool === 'erase',
+      });
     }
     this.isPanning = false;
     this.isDrawing = false;
@@ -1329,7 +929,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     (event.target as HTMLElement).setPointerCapture(event.pointerId);
     
     // Shift+click for Krita-style brush resize (only for draw tools)
-    if (event.shiftKey && (this.currentTool === 'draw' || this.currentTool === 'erase' || this.currentTool === 'ai-draw')) {
+    if (event.shiftKey && (this.currentTool === 'draw' || this.currentTool === 'erase')) {
       this.isResizingBrush = true;
       this.brushResizeStartX = event.clientX;
       this.brushResizeStartSize = this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize;
@@ -1617,7 +1217,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       ctx.lineTo(points[i].x, points[i].y);
     }
 
-    ctx.strokeStyle = isErasing ? 'rgba(0,0,0,1)' : (this.currentTool === 'ai-draw' ? this.aiDrawColor : this.brushColor);
+    ctx.strokeStyle = isErasing ? 'rgba(0,0,0,1)' : this.brushColor;
     ctx.lineWidth = brushSize;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';

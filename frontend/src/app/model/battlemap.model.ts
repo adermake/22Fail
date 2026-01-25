@@ -20,25 +20,6 @@ export interface BattlemapStroke {
   isEraser: boolean;
 }
 
-// AI Color-to-Prompt mapping for regional generation
-export interface AiColorPrompt {
-  id: string;
-  color: string;      // Hex color like '#22c55e'
-  name: string;       // Display name like 'Forest'
-  prompt: string;     // What to generate for this color, e.g., 'dense forest with tall pine trees'
-}
-
-// Global AI generation settings (stored in localStorage)
-export interface GlobalAiSettings {
-  colorPrompts: AiColorPrompt[]; // User's custom color palette
-  basePrompt: string; // Base prompt for all D&D maps
-  generalRegionPrompt: string; // Added to every region (e.g., "best quality, detailed")
-  negativePrompt: string; // Negative prompt for all generations
-  steps: number;
-  cfg: number;
-  denoise: number;
-}
-
 // A measurement line between two points
 export interface MeasurementLine {
   id: string;
@@ -77,53 +58,11 @@ export interface BattlemapData {
   // Drawing strokes
   strokes: BattlemapStroke[];
   
-  // AI Drawing strokes (separate from regular drawing)
-  aiStrokes: BattlemapStroke[];
-  
-  // AI Color-to-Prompt mappings for regional generation
-  aiColorPrompts: AiColorPrompt[];
-  
   // Wall hexes that block movement
   walls: WallHex[];
   
   // Active measurement lines (synced in real-time)
   measurementLines: MeasurementLine[];
-  
-  // AI Layer settings
-  aiPrompt?: string; // Custom prompt for AI generation
-  aiSettings?: { // AI generation settings
-    seed?: number; // -1 for random
-    steps?: number;
-    cfg?: number;
-    denoise?: number;
-    generalRegionPrompt?: string; // Added to every region
-    negativePrompt?: string; // Negative prompt for generation
-    gridScale?: number; // Feet per grid square (default: 5 for D&D)
-  };
-  
-  // Legacy AI layer (single image) - kept for backwards compat
-  aiLayerImage?: string; // Base64 encoded AI generated image
-  aiLayerBounds?: { // World coordinates where the AI image was captured
-    centerX: number;
-    centerY: number;
-    worldSize: number; // Size in world units that the 1024x1024 image covers
-  };
-  
-  // AI Canvas - persistent accumulated generations (tiles composited together)
-  // TODO: Migrate to this system fully
-  aiCanvas?: {
-    tiles: Array<{
-      id: string;
-      image: string; // Base64 encoded
-      worldBounds: { // Exact world coordinates this tile covers
-        minX: number;
-        minY: number;
-        maxX: number;
-        maxY: number;
-      };
-      generatedAt: number;
-    }>;
-  };
   
   // Metadata
   createdAt: number;
@@ -138,28 +77,11 @@ export function createEmptyBattlemap(id: string, name: string, worldName: string
     worldName,
     tokens: [],
     strokes: [],
-    aiStrokes: [],
-    aiColorPrompts: getDefaultAiColorPrompts(),
-    aiCanvas: { tiles: [] },
     walls: [],
     measurementLines: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
-}
-
-// Default AI color-prompt mappings for new battlemaps
-export function getDefaultAiColorPrompts(): AiColorPrompt[] {
-  return [
-    { id: 'forest', color: '#22c55e', name: 'Forest', prompt: 'dense forest with tall trees and undergrowth' },
-    { id: 'water', color: '#3b82f6', name: 'Water', prompt: 'clear blue water, river or lake' },
-    { id: 'path', color: '#a16207', name: 'Path', prompt: 'dirt path or cobblestone road' },
-    { id: 'building', color: '#dc2626', name: 'Building', prompt: 'medieval wooden building with thatched roof' },
-    { id: 'stone', color: '#6b7280', name: 'Stone', prompt: 'gray stone walls or rocky terrain' },
-    { id: 'grass', color: '#86efac', name: 'Grass', prompt: 'open grassy field or meadow' },
-    { id: 'sand', color: '#fcd34d', name: 'Sand', prompt: 'sandy beach or desert terrain' },
-    { id: 'mountain', color: '#78716c', name: 'Mountain', prompt: 'rocky mountain or cliff face' },
-  ];
 }
 
 // Hexagon math utilities - FLAT-TOP hexagons

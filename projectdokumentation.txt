@@ -99,6 +99,32 @@ PATCH /api/worlds/:name - Apply patch
 
 
 
+The Battletracker is basically a queue of tiles that indicate the next turn of a character in combat.
+
+The Battletracker should.
+Calculate the turn order places of all tiles using speed of the characters the tiles belong to. More speed = more turns!
+When a tile is dragged, everything to the left of it (including it) will turn into a scripted "area" where speed no longer matters. 
+The turnorder is fixed at that part. 
+The rightside of the scripted turns is still calculated based on the speed of the characters.
+If nothing is dragged everything is based on speed.
+
+Pressing next turn should consume a tile or "grouped turn" having everything move from left to right. 
+
+Group turns. When two teammates are next to eachother they should be grouped into a single turn. 
+A character cannot be grouped with himself.
+
+Animations:
+
+When tiles move to a new place they should just slide left or right depending on where they go.
+If a new tile appears it should fade in from the top
+If a tile is removed it should fade out on the bottom.
+This means that pressing next everything should just slide to the left visually. 
+
+
+
+
+
+
 
 
 

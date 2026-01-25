@@ -6,7 +6,6 @@
   [class.tool-erase]="currentTool === 'erase'"
   [class.tool-walls]="currentTool === 'walls'"
   [class.tool-measure]="currentTool === 'measure'"
-  [class.tool-ai-draw]="currentTool === 'ai-draw'"
   [class.external-drag-active]="isExternalDragActive"
   (pointerdown)="onPointerDown($event)"
   (pointermove)="onPointerMove($event)"
@@ -25,9 +24,6 @@
   
   <!-- Drawing canvas (strokes) -->
   <canvas #drawCanvas class="draw-canvas"></canvas>
-
-  <!-- AI Layer canvas (ComfyUI generated images) -->
-  <canvas #aiCanvas class="ai-canvas" [class.visible]="aiLayerVisible"></canvas>
 
   <!-- Tokens layer - uses world coordinates with CSS transform -->
   <div class="tokens-layer" [style.transform]="'translate(' + panX + 'px, ' + panY + 'px) scale(' + scale + ')'">

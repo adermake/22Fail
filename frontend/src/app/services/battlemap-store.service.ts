@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { BattleMapApiService } from './battlemap-api.service';
 import { BattleMapSocketService } from './battlemap-socket.service';
-import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, WallHex, createEmptyBattlemap, generateId, getDefaultAiColorPrompts } from '../model/battlemap.model';
+import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, WallHex, createEmptyBattlemap, generateId } from '../model/battlemap.model';
 import { JsonPatch } from '../model/json-patch.model';
 
 @Injectable({ providedIn: 'root' })
@@ -77,18 +77,6 @@ export class BattleMapStoreService {
     }
     if (!battleMap.walls) {
       battleMap.walls = [];
-    }
-    if (!battleMap.aiStrokes) {
-      battleMap.aiStrokes = [];
-    }
-    if (!battleMap.aiColorPrompts) {
-      battleMap.aiColorPrompts = getDefaultAiColorPrompts();
-    }
-    if (!battleMap.aiCanvas) {
-      battleMap.aiCanvas = { tiles: [] };
-    }
-    if (!battleMap.aiSettings) {
-      battleMap.aiSettings = {};
     }
     return battleMap as BattlemapData;
   }
@@ -180,58 +168,6 @@ export class BattleMapStoreService {
     this.applyPatch({ path: 'strokes', value: [] });
   }
 
-  // AI Stroke operations (separate from regular strokes)
-  addAiStroke(stroke: Omit<BattlemapStroke, 'id'>) {
-    const battleMap = this.battleMapValue;
-    if (!battleMap) return;
-
-    const newStroke: BattlemapStroke = {
-      ...stroke,
-      id: generateId(),
-    };
-
-    const aiStrokes = [...(battleMap.aiStrokes || []), newStroke];
-    this.applyPatch({ path: 'aiStrokes', value: aiStrokes });
-  }
-
-  clearAiStrokes() {
-    const battleMap = this.battleMapValue;
-    if (!battleMap) return;
-    this.applyPatch({ path: 'aiStrokes', value: [] });
-  }
-
-  // AI Color Prompt operations
-  updateAiColorPrompt(id: string, updates: Partial<{ name: string; prompt: string; color: string }>) {
-    const battleMap = this.battleMapValue;
-    if (!battleMap) return;
-
-    const prompts = (battleMap.aiColorPrompts || []).map(p => 
-      p.id === id ? { ...p, ...updates } : p
-    );
-    this.applyPatch({ path: 'aiColorPrompts', value: prompts });
-  }
-
-  addAiColorPrompt(prompt: Omit<import('../model/battlemap.model').AiColorPrompt, 'id'>) {
-    const battleMap = this.battleMapValue;
-    if (!battleMap) return;
-
-    const newPrompt = {
-      ...prompt,
-      id: generateId(),
-    };
-
-    const prompts = [...(battleMap.aiColorPrompts || []), newPrompt];
-    this.applyPatch({ path: 'aiColorPrompts', value: prompts });
-  }
-
-  removeAiColorPrompt(id: string) {
-    const battleMap = this.battleMapValue;
-    if (!battleMap) return;
-
-    const prompts = (battleMap.aiColorPrompts || []).filter(p => p.id !== id);
-    this.applyPatch({ path: 'aiColorPrompts', value: prompts });
-  }
-
   // Wall operations
   addWall(hex: HexCoord) {
     const battleMap = this.battleMapValue;
@@ -267,59 +203,6 @@ export class BattleMapStoreService {
 
   clearWalls() {
     this.applyPatch({ path: 'walls', value: [] });
-  }
-
-  // AI Layer operations
-  setAiPrompt(prompt: string) {
-    this.applyPatch({ path: 'aiPrompt', value: prompt });
-  }
-
-  setAiSettings(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string; gridScale?: number }) {
-    this.applyPatch({ path: 'aiSettings', value: settings });
-  }
-
-  // Add a new tile to the AI canvas
-  addAiCanvasTile(
-    imageBase64: string,
-    worldBounds: { minX: number; minY: number; maxX: number; maxY: number }
-  ) {
-    const battleMap = this.battleMapValue;
-    if (!battleMap) return;
-
-    const newTile = {
-      id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9),
-      image: imageBase64,
-      worldBounds,
-      generatedAt: Date.now()
-    };
-
-    const currentTiles = battleMap.aiCanvas?.tiles || [];
-    const updatedCanvas = {
-      tiles: [...currentTiles, newTile]
-    };
-
-    console.log('[STORE] Adding tile, total tiles will be:', updatedCanvas.tiles.length);
-    this.applyPatch({ path: 'aiCanvas', value: updatedCanvas });
-  }
-
-  // Clear all AI canvas tiles
-  clearAiCanvas() {
-    this.applyPatch({ path: 'aiCanvas', value: { tiles: [] } });
-  }
-
-  // Legacy support - keep for backwards compat
-  setAiLayerImage(imageBase64: string, bounds: { centerX: number; centerY: number; worldSize: number }) {
-    const battleMap = this.battleMapValue;
-    if (!battleMap) return;
-
-    // Apply both patches
-    this.applyPatch({ path: 'aiLayerImage', value: imageBase64 });
-    this.applyPatch({ path: 'aiLayerBounds', value: bounds });
-  }
-
-  clearAiLayer() {
-    this.applyPatch({ path: 'aiLayerImage', value: null });
-    this.applyPatch({ path: 'aiLayerBounds', value: null });
   }
 
   private applyJsonPatch(target: any, patch: JsonPatch) {

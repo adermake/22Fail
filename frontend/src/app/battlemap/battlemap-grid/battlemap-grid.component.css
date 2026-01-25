@@ -11,7 +11,6 @@
 
 .grid-canvas,
 .draw-canvas,
-.ai-canvas,
 .overlay-canvas {
   position: absolute;
   top: 0;
@@ -23,11 +22,6 @@
 
 .draw-canvas {
   z-index: 1;
-  transition: opacity 0.2s ease;
-}
-
-.ai-canvas {
-  z-index: 2;
   transition: opacity 0.2s ease;
 }
 
@@ -105,10 +99,6 @@
 }
 
 .grid-container.tool-measure {
-  cursor: crosshair;
-}
-
-.grid-container.tool-ai-draw {
   cursor: crosshair;
 }
 

@@ -5,8 +5,7 @@ import { Subscription } from 'rxjs';
 
 import { BattleMapStoreService } from '../services/battlemap-store.service';
 import { WorldStoreService } from '../services/world-store.service';
-import { ComfyUIService } from '../services/comfyui.service';
-import { BattlemapData, BattlemapToken, HexCoord, HexMath, AiColorPrompt, getDefaultAiColorPrompts } from '../model/battlemap.model';
+import { BattlemapData, BattlemapToken, HexCoord, HexMath } from '../model/battlemap.model';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { CharacterApiService } from '../services/character-api.service';
 
@@ -16,7 +15,7 @@ import { BattlemapCharacterListComponent } from './battlemap-character-list/batt
 import { BattlemapBattleTrackerComponent } from './battlemap-battle-tracker/battlemap-battle-tracker.component';
 
 
-export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'ai-draw';
+export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
 export type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -39,7 +38,6 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   private store = inject(BattleMapStoreService);
   private worldStore = inject(WorldStoreService);
   private characterApi = inject(CharacterApiService);
-  comfyUI = inject(ComfyUIService);
   
   private subscriptions: Subscription[] = [];
 
@@ -64,12 +62,8 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   drawWithWalls = signal<boolean>(false);
   dragMode = signal<DragMode>('free');
 
-  // AI drawing tool state
-  selectedAiColor = signal<string>('#22c55e'); // Default to forest green
-
   // Layer visibility
   drawLayerVisible = signal<boolean>(true);
-  aiLayerVisible = signal<boolean>(true);
 
   // Computed: current turn character from world battle tracker
   currentTurnCharacterId = computed(() => {
@@ -142,14 +136,6 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     this.subscriptions.push(
       this.store.battleMap$.subscribe((map) => {
         this.battleMap.set(map);
-        // Load AI prompt into ComfyUI service when battlemap changes
-        if (map?.aiPrompt) {
-          this.comfyUI.setCustomPrompt(map.aiPrompt);
-        }
-        // Load AI settings into ComfyUI service when battlemap changes
-        if (map?.aiSettings) {
-          this.comfyUI.setSettings(map.aiSettings);
-        }
       })
     );
 
@@ -208,7 +194,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     const tool = this.currentTool();
     if (tool === 'erase') {
       this.eraserBrushSize.set(size);
-    } else if (tool === 'draw' || tool === 'ai-draw') {
+    } else {
       this.penBrushSize.set(size);
     }
   }
@@ -285,88 +271,8 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     this.showBattleTracker.set(!this.showBattleTracker());
   }
 
-  // AI Prompt change
-  onAiPromptChange(prompt: string) {
-    this.store.setAiPrompt(prompt);
-    // Update ComfyUI service with new prompt
-    this.comfyUI.setCustomPrompt(prompt);
-  }
-
-  // AI Settings change
-  onAiSettingsChange(settings: { seed?: number; steps?: number; cfg?: number; denoise?: number; generalRegionPrompt?: string; negativePrompt?: string; gridScale?: number }) {
-    this.store.setAiSettings(settings);
-    // Only pass numerical settings to ComfyUI service (prompts are passed per-generation)
-    this.comfyUI.setSettings({ seed: settings.seed, steps: settings.steps, cfg: settings.cfg, denoise: settings.denoise });
-  }
-
   // Layer visibility toggles
   onDrawLayerVisibleChange(visible: boolean) {
     this.drawLayerVisible.set(visible);
-  }
-
-  onAiLayerVisibleChange(visible: boolean) {
-    this.aiLayerVisible.set(visible);
-  }
-
-  // AI Color Prompt handlers
-  onSelectedAiColorChange(color: string) {
-    this.selectedAiColor.set(color);
-  }
-
-  onAiColorPromptUpdate(event: { id: string; updates: Partial<AiColorPrompt> }) {
-    this.store.updateAiColorPrompt(event.id, event.updates);
-  }
-
-  onClearAiStrokes() {
-    this.store.clearAiStrokes();
-  }
-
-  // Trigger AI generation from AI strokes with regional prompting
-  onGenerateFromAiStrokes() {
-    if (this.gridComponent) {
-      this.gridComponent.generateFromAiStrokes();
-    }
-  }
-
-  // Start fresh AI generation (clear everything)
-  onStartFreshAi() {
-    this.store.clearAiStrokes();
-    this.store.clearAiCanvas();
-    this.comfyUI.clearLastGeneration();
-  }
-
-  // Computed: get AI color prompts from battlemap
-  getAiColorPrompts(): AiColorPrompt[] {
-    return this.battleMap()?.aiColorPrompts || getDefaultAiColorPrompts();
-  }
-
-  // Computed: get AI prompt from battlemap
-  getAiPrompt(): string {
-    return this.battleMap()?.aiPrompt || '';
-  }
-
-  // Computed: get AI settings from battlemap
-  getAiSettings(): { seed: number; steps: number; cfg: number; denoise: number; generalRegionPrompt: string; negativePrompt: string; gridScale: number } {
-    // ControlNet defaults: denoise = ControlNet strength (how closely to follow sketch)
-    const defaults = { 
-      seed: -1, 
-      steps: 10, 
-      cfg: 1.5, 
-      denoise: 1.0,
-      generalRegionPrompt: 'detailed, high quality',
-      negativePrompt: 'blurry, low quality, distorted, text, watermark, ugly',
-      gridScale: 5 // 5 feet per grid square (standard D&D)
-    };
-    const settings = this.battleMap()?.aiSettings;
-    if (!settings) return defaults;
-    return {
-      seed: settings.seed ?? defaults.seed,
-      steps: settings.steps ?? defaults.steps,
-      cfg: settings.cfg ?? defaults.cfg,
-      denoise: settings.denoise ?? defaults.denoise,
-      generalRegionPrompt: settings.generalRegionPrompt ?? defaults.generalRegionPrompt,
-      negativePrompt: settings.negativePrompt ?? defaults.negativePrompt,
-      gridScale: settings.gridScale ?? defaults.gridScale,
-    };
   }
 }
