@@ -23,6 +23,51 @@ export class StressTestService {
   private runeNames = ['Power', 'Speed', 'Defense', 'Magic', 'Luck', 'Wisdom', 'Strength', 'Agility', 'Vitality', 'Spirit'];
   private skillNames = ['Stealth', 'Perception', 'Athletics', 'Acrobatics', 'Persuasion', 'Intimidation', 'Investigation', 'Medicine', 'Survival', 'Arcana'];
 
+  // Description templates
+  private itemDescriptions = [
+    'Forged in the depths of Mount Doom, this {item} radiates ancient power.',
+    'A legendary {item} once wielded by the great hero {name}.',
+    'This {item} was discovered in the ruins of an ancient civilization.',
+    'Crafted by master artisans, this {item} is both beautiful and deadly.',
+    'A cursed {item} that whispers secrets to those who dare wield it.',
+    'This enchanted {item} glows with an ethereal light in darkness.',
+    'Found in a dragon\'s hoard, this {item} has seen countless battles.',
+    'A sacred {item} blessed by the gods themselves.',
+  ];
+
+  private spellDescriptions = [
+    'Harness the raw power of {element} to devastate your enemies. Deals {damage}d6 {element} damage in a {area} area.',
+    'Channel arcane energy to create a protective barrier. Reduces incoming damage by {value}% for {duration}.',
+    'Summon forth {creature} to aid you in battle. Lasts for {duration} or until defeated.',
+    'Bend the fabric of reality to {effect}. Requires intense concentration.',
+    'Ancient incantation that {effect} all targets within {area}. Costs {cost} mana.',
+    'Weave threads of magic to {effect}. The spell\'s power grows with your level.',
+    'Forbidden magic that {effect} at the cost of {sacrifice}.',
+    'Divine intervention that {effect} chosen allies within {area}.',
+  ];
+
+  private runeDescriptions = [
+    'An ancient symbol of {aspect} carved into mystical stone. Grants the bearer enhanced {attribute}.',
+    'This glowing rune pulses with {element} energy. When activated, it {effect}.',
+    'Discovered in the tomb of {name} the {title}, this rune holds immense power.',
+    'A Nordic rune that channels the fury of {deity}. Increases {attribute} by {value}.',
+    'Etched with blood magic, this rune {effect} at the cost of {sacrifice}.',
+    'A protective rune that wards against {threat}. Provides {value}% resistance.',
+    'When carved into equipment, this rune {effect} and grants {bonus}.',
+    'A rune of binding that {effect} and cannot be removed once applied.',
+  ];
+
+  private skillDescriptions = [
+    'Years of training have honed your ability to {action}. Grants +{bonus} to {attribute} checks.',
+    'Natural talent combined with practice allows you to {action} with exceptional skill.',
+    'Through rigorous discipline, you have mastered the art of {action}.',
+    'Your experience in {field} gives you an edge when attempting to {action}.',
+    'A lifetime of study has granted you deep understanding of {field}.',
+    'Your instincts guide you when {situation}, providing +{bonus} to related checks.',
+    'Specialized training in {field} allows you to {action} where others fail.',
+    'Raw talent for {action} sets you apart from common adventurers.',
+  ];
+
   async generateStressTestData(config: {
     characters?: number;
     worlds?: number;
@@ -198,9 +243,17 @@ export class StressTestService {
   private generateItems(count: number): any[] {
     const items: any[] = [];
     for (let i = 0; i < count; i++) {
+      const itemName = this.randomFrom(this.itemNames);
+      const bonus = this.randomInt(0, 3);
+      const fullName = bonus > 0 ? `${itemName} +${bonus}` : itemName;
+      
+      const description = this.randomFrom(this.itemDescriptions)
+        .replace('{item}', itemName.toLowerCase())
+        .replace('{name}', this.randomFrom(this.names));
+
       items.push({
-        itemName: `${this.randomFrom(this.itemNames)} +${this.randomInt(0, 3)}`,
-        itemDescription: `A powerful ${this.randomFrom(this.itemNames).toLowerCase()} found in a dungeon`,
+        itemName: fullName,
+        itemDescription: description,
         itemWeight: this.randomInt(1, 20),
         itemValue: this.randomInt(10, 1000),
         itemType: this.randomFrom(['Weapon', 'Armor', 'Consumable', 'Quest', 'Misc']),
@@ -214,16 +267,29 @@ export class StressTestService {
   private generateSpells(count: number, availableImages: string[]): any[] {
     const spells: any[] = [];
     for (let i = 0; i < count; i++) {
+      const spellName = `${this.randomFrom(this.spellNames)} ${this.romanNumeral(this.randomInt(1, 5))}`;
+      
+      const description = this.randomFrom(this.spellDescriptions)
+        .replace('{element}', this.randomFrom(['fire', 'ice', 'lightning', 'arcane', 'holy', 'shadow']))
+        .replace('{damage}', this.randomInt(1, 10).toString())
+        .replace('{area}', this.randomFrom(['5-foot', '10-foot', '20-foot', '30-foot']))
+        .replace('{value}', this.randomInt(10, 50).toString())
+        .replace('{duration}', this.randomFrom(['1 minute', '10 minutes', '1 hour', '8 hours']))
+        .replace('{creature}', this.randomFrom(['elemental spirits', 'spectral warriors', 'shadow demons', 'celestial beings']))
+        .replace('{effect}', this.randomFrom(['teleport allies', 'heal wounds', 'control minds', 'manipulate time', 'summon darkness', 'create illusions']))
+        .replace('{cost}', this.randomInt(5, 50).toString())
+        .replace('{sacrifice}', this.randomFrom(['health', 'sanity', 'life force']));
+
       spells.push({
-        spellName: `${this.randomFrom(this.spellNames)} ${this.romanNumeral(this.randomInt(1, 5))}`,
-        spellDescription: `A powerful spell that deals ${this.randomInt(1, 10)}d6 damage`,
+        spellName,
+        spellDescription: description,
         spellLevel: this.randomInt(1, 9),
         spellSchool: this.randomFrom(['Evocation', 'Conjuration', 'Abjuration', 'Transmutation', 'Divination', 'Necromancy', 'Enchantment', 'Illusion']),
         spellCastingTime: this.randomFrom(['1 action', '1 bonus action', '1 minute', '10 minutes']),
         spellRange: this.randomFrom(['Self', 'Touch', '30 feet', '60 feet', '120 feet', '1 mile']),
         spellDuration: this.randomFrom(['Instantaneous', '1 minute', '10 minutes', '1 hour', '24 hours', 'Concentration']),
         manaCost: this.randomInt(1, 50),
-        drawing: Math.random() > 0.5 ? this.randomFrom(availableImages) : undefined,
+        drawing: this.randomFrom(availableImages), // Always assign image
       });
     }
     return spells;
@@ -232,13 +298,28 @@ export class StressTestService {
   private generateRunes(count: number, availableImages: string[]): any[] {
     const runes: any[] = [];
     for (let i = 0; i < count; i++) {
+      const runeName = `Rune of ${this.randomFrom(this.runeNames)}`;
+      
+      const description = this.randomFrom(this.runeDescriptions)
+        .replace('{aspect}', this.randomFrom(['power', 'wisdom', 'protection', 'destruction', 'creation']))
+        .replace('{attribute}', this.randomFrom(['strength', 'dexterity', 'intelligence', 'constitution', 'speed']))
+        .replace('{element}', this.randomFrom(['fire', 'ice', 'lightning', 'earth', 'wind']))
+        .replace('{effect}', this.randomFrom(['doubles attack speed', 'reflects damage', 'grants invisibility', 'heals wounds', 'burns enemies']))
+        .replace('{name}', this.randomFrom(this.names))
+        .replace('{title}', this.randomFrom(['Ancient', 'Wise', 'Terrible', 'Merciful', 'Cruel']))
+        .replace('{deity}', this.randomFrom(['Thor', 'Odin', 'Loki', 'Freya', 'Baldur']))
+        .replace('{value}', this.randomInt(5, 50).toString())
+        .replace('{sacrifice}', this.randomFrom(['health', 'mana', 'sanity']))
+        .replace('{threat}', this.randomFrom(['fire', 'poison', 'curses', 'death magic', 'mind control']))
+        .replace('{bonus}', this.randomFrom(['extra damage', 'critical strikes', 'life steal', 'mana regeneration']));
+
       runes.push({
-        runeName: `Rune of ${this.randomFrom(this.runeNames)}`,
-        runeDescription: `Grants +${this.randomInt(1, 5)} to ${this.randomFrom(['strength', 'dexterity', 'intelligence'])}`,
+        runeName,
+        runeDescription: description,
         runeLevel: this.randomInt(1, 10),
         runeRarity: this.randomFrom(['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary']),
         runeEffect: `Bonus effect: ${this.randomInt(1, 20)}%`,
-        drawing: Math.random() > 0.5 ? this.randomFrom(availableImages) : undefined,
+        drawing: this.randomFrom(availableImages), // Always assign image
       });
     }
     return runes;
@@ -247,9 +328,18 @@ export class StressTestService {
   private generateSkills(count: number): any[] {
     const skills: any[] = [];
     for (let i = 0; i < count; i++) {
+      const skillName = this.randomFrom(this.skillNames);
+      
+      const description = this.randomFrom(this.skillDescriptions)
+        .replace('{action}', this.randomFrom(['navigate treacherous terrain', 'deceive enemies', 'track prey', 'resist magic', 'perform acrobatics']))
+        .replace('{bonus}', this.randomInt(1, 5).toString())
+        .replace('{attribute}', skillName)
+        .replace('{field}', this.randomFrom(['combat', 'magic', 'stealth', 'diplomacy', 'survival']))
+        .replace('{situation}', this.randomFrom(['danger approaches', 'traps are nearby', 'enemies lurk', 'investigation is needed']));
+
       skills.push({
-        skillName: this.randomFrom(this.skillNames),
-        skillDescription: `Proficiency in ${this.randomFrom(this.skillNames).toLowerCase()}`,
+        skillName,
+        skillDescription: description,
         skillBonus: this.randomInt(0, 10),
         skillProficiency: this.randomFrom(['None', 'Proficient', 'Expert', 'Master']),
       });
