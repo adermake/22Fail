@@ -16,6 +16,7 @@ import {
 import type { Response } from 'express';
 import { DataService } from './data.service';
 import { ImageService } from './image.service';
+import { StressTestService } from './stress-test.service';
 import type { JsonPatch } from './data.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CharacterGateway } from './character.gateway';
@@ -29,6 +30,7 @@ export class AppController {
   constructor(
     private readonly dataService: DataService,
     private readonly imageService: ImageService,
+    private readonly stressTestService: StressTestService,
     private readonly characterGateway: CharacterGateway, // Add this
   ) {}
 
@@ -457,5 +459,76 @@ export class AppController {
     this.dataService.saveRace(race);
 
     return { success: true, imageUrl: imageId };
+  }
+
+  // ==================== STRESS TEST ENDPOINTS ====================
+
+  @Post('stress-test/generate')
+  async generateStressTestData(@Body() config: {
+    characters?: number;
+    worlds?: number;
+    items?: number;
+    spells?: number;
+    runes?: number;
+    skills?: number;
+    battlemaps?: number;
+    customImages?: string[];
+  }) {
+    console.log('[STRESS TEST] Generating test data:', config);
+
+    const result = await this.stressTestService.generateStressTestData(config);
+
+    // Save all generated characters
+    for (const char of result.characters) {
+      this.dataService.saveCharacter(char.id, char.data);
+    }
+
+    // Save all generated worlds
+    for (const world of result.worlds) {
+      this.dataService.saveWorld(world);
+    }
+
+    console.log(`[STRESS TEST] Created ${result.characters.length} characters, ${result.worlds.length} worlds, ${result.imageIds.length} images`);
+
+    return {
+      success: true,
+      created: {
+        characters: result.characters.length,
+        worlds: result.worlds.length,
+        images: result.imageIds.length,
+      },
+      characterIds: result.characters.map(c => c.id),
+      worldNames: result.worlds.map(w => w.name),
+      imageIds: result.imageIds,
+    };
+  }
+
+  @Delete('stress-test/cleanup')
+  async cleanupStressTestData() {
+    console.log('[STRESS TEST] Cleaning up test data');
+
+    const allCharIds = this.dataService.getAllCharacterIds();
+    const stressCharIds = allCharIds.filter(id => id.startsWith('stress_char_'));
+
+    for (const charId of stressCharIds) {
+      this.dataService.deleteCharacter(charId);
+    }
+
+    const allWorlds = this.dataService.getAllWorlds();
+    const stressWorlds = allWorlds.filter(w => w.name.startsWith('StressWorld_'));
+
+    for (const world of stressWorlds) {
+      this.dataService.deleteWorld(world.name);
+    }
+
+    console.log(`[STRESS TEST] Deleted ${stressCharIds.length} characters, ${stressWorlds.length} worlds`);
+
+    return {
+      success: true,
+      deleted: {
+        characters: stressCharIds.length,
+        worlds: stressWorlds.length,
+      },
+    };
   }
 }

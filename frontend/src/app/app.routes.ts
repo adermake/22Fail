@@ -17,4 +17,8 @@ export const routes: Routes = [
         path: 'battlemap/:worldName/:mapId', 
         loadComponent: () => import('./battlemap/battlemap.component').then(m => m.BattlemapComponent)
     },
+    { 
+        path: 'stress-test', 
+        loadComponent: () => import('./stress-test/stress-test.component').then(m => m.StressTestComponent)
+    },
 ];

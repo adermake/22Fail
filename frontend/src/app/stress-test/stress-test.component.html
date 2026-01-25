@@ -1,0 +1,202 @@
+<div class="stress-test-container">
+  <app-card>
+    <h1>🔥 Performance Stress Test Generator</h1>
+    <p class="subtitle">Generate massive amounts of test data to stress test the entire system</p>
+
+    <!-- Image Upload Section -->
+    <div class="section">
+      <h2>📸 Test Images (Optional)</h2>
+      <p>Upload images to use for character portraits, spells, runes, and battlemap tokens. If none provided, system will use default colored pixels.</p>
+      
+      <div class="upload-area">
+        <input 
+          type="file" 
+          id="imageUpload" 
+          accept="image/*" 
+          multiple 
+          (change)="onFileSelected($event)"
+          style="display: none"
+        />
+        <button class="btn btn-primary" (click)="imageUpload.click()" #imageUpload>
+          📤 Upload Images
+        </button>
+        <span class="upload-status">{{ uploadProgress() }}</span>
+      </div>
+
+      @if (uploadedImages().length > 0) {
+        <div class="uploaded-images">
+          <h3>Uploaded: {{ uploadedImages().length }} images</h3>
+          <div class="image-list">
+            @for (imageId of uploadedImages(); track imageId; let i = $index) {
+              <div class="image-item">
+                <img [src]="'/api/images/' + imageId" alt="Test image" />
+                <button class="btn-remove" (click)="removeImage(i)">×</button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Presets -->
+    <div class="section">
+      <h2>⚡ Quick Presets</h2>
+      <div class="preset-buttons">
+        <button class="btn" (click)="loadPresetSmall()">Small (10 chars)</button>
+        <button class="btn" (click)="loadPresetMedium()">Medium (100 chars)</button>
+        <button class="btn" (click)="loadPresetLarge()">Large (500 chars)</button>
+        <button class="btn btn-danger" (click)="loadPresetExtreme()">🔥 Extreme (2000 chars)</button>
+      </div>
+    </div>
+
+    <!-- Configuration Form -->
+    <div class="section">
+      <h2>⚙️ Configuration</h2>
+      
+      <div class="config-grid">
+        <div class="config-item">
+          <label>Characters:</label>
+          <input type="number" [(ngModel)]="config.characters" min="0" max="10000" />
+        </div>
+
+        <div class="config-item">
+          <label>Worlds:</label>
+          <input type="number" [(ngModel)]="config.worlds" min="0" max="100" />
+        </div>
+
+        <div class="config-item">
+          <label>Items (per world):</label>
+          <input type="number" [(ngModel)]="config.items" min="0" max="1000" />
+        </div>
+
+        <div class="config-item">
+          <label>Spells (per world):</label>
+          <input type="number" [(ngModel)]="config.spells" min="0" max="500" />
+        </div>
+
+        <div class="config-item">
+          <label>Runes (per world):</label>
+          <input type="number" [(ngModel)]="config.runes" min="0" max="500" />
+        </div>
+
+        <div class="config-item">
+          <label>Skills (per world):</label>
+          <input type="number" [(ngModel)]="config.skills" min="0" max="500" />
+        </div>
+
+        <div class="config-item">
+          <label>Battlemaps (per world):</label>
+          <input type="number" [(ngModel)]="config.battlemaps" min="0" max="100" />
+        </div>
+      </div>
+
+      <div class="stats">
+        <p><strong>Total Entities:</strong> {{ totalEntities }}</p>
+        <p><strong>Estimated Size:</strong> {{ estimatedDataSize }}</p>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="section">
+      <h2>🚀 Actions</h2>
+      
+      <button 
+        class="btn btn-success btn-large" 
+        (click)="generateTestData()"
+        [disabled]="isGenerating()"
+      >
+        @if (isGenerating()) {
+          ⏳ Generating...
+        } @else {
+          🎲 Generate Test Data
+        }
+      </button>
+
+      <button 
+        class="btn btn-danger btn-large" 
+        (click)="cleanupTestData()"
+        [disabled]="isCleaningUp() || isGenerating()"
+      >
+        @if (isCleaningUp()) {
+          ⏳ Cleaning...
+        } @else {
+          🗑️ Cleanup Test Data
+        }
+      </button>
+
+      @if (generationProgress()) {
+        <div class="progress-message">{{ generationProgress() }}</div>
+      }
+    </div>
+
+    <!-- Results -->
+    @if (lastResult()) {
+      <div class="section results">
+        <h2>✅ Generation Results</h2>
+        
+        <div class="result-grid">
+          <div class="result-item">
+            <div class="result-number">{{ lastResult()!.created.characters }}</div>
+            <div class="result-label">Characters</div>
+          </div>
+          
+          <div class="result-item">
+            <div class="result-number">{{ lastResult()!.created.worlds }}</div>
+            <div class="result-label">Worlds</div>
+          </div>
+          
+          <div class="result-item">
+            <div class="result-number">{{ lastResult()!.created.images }}</div>
+            <div class="result-label">Images</div>
+          </div>
+        </div>
+
+        <div class="result-details">
+          <h3>Generated Worlds:</h3>
+          <ul>
+            @for (worldName of lastResult()!.worldNames; track worldName) {
+              <li>
+                <a [href]="'/world/' + worldName" target="_blank">{{ worldName }}</a>
+              </li>
+            }
+          </ul>
+
+          <details>
+            <summary>Character IDs ({{ lastResult()!.characterIds.length }})</summary>
+            <div class="character-ids">
+              @for (charId of lastResult()!.characterIds; track charId) {
+                <code>{{ charId }}</code>
+              }
+            </div>
+          </details>
+
+          <details>
+            <summary>Image IDs ({{ lastResult()!.imageIds.length }})</summary>
+            <div class="image-ids">
+              @for (imageId of lastResult()!.imageIds; track imageId) {
+                <img [src]="'/api/images/' + imageId" [alt]="imageId" />
+              }
+            </div>
+          </details>
+        </div>
+      </div>
+    }
+
+    <!-- Instructions -->
+    <div class="section instructions">
+      <h2>📖 How to Use</h2>
+      <ol>
+        <li><strong>Optional:</strong> Upload custom images to use for portraits and drawings</li>
+        <li>Choose a preset or configure custom entity counts</li>
+        <li>Click "Generate Test Data" to create all entities</li>
+        <li>Navigate to generated worlds to test performance</li>
+        <li>Click "Cleanup Test Data" when done to remove all test entities</li>
+      </ol>
+
+      <div class="warning">
+        <strong>⚠️ Warning:</strong> The "Extreme" preset generates 2000+ characters and massive amounts of data. 
+        This may take several minutes and could impact performance during generation.
+      </div>
+    </div>
+  </app-card>
+</div>
