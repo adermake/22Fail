@@ -18,6 +18,11 @@
         <input type="number" min="1" max="99" [ngModel]="stat.bonus" (ngModelChange)="updateField('bonus',$event)"/>
       </div>
 
+      <div class="column">
+        <label class="text effect-label" [title]="effectSources.join('\n')">Effekt</label>
+        <div class="effect-value" [title]="effectSources.join('\n')">{{ effectBonus }}</div>
+      </div>
+
       <div class="right-values">
         <div class="value">{{ total }}</div>
         <div class="value bonus" [ngClass]="bonusClass">{{ bonusValue }}</div>

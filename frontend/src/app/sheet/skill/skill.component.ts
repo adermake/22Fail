@@ -58,4 +58,14 @@ export class SkillComponent {
   deleteSkill() {
     this.delete.emit();
   }
+
+  getTypeLabel(type: string): string {
+    const typeLabels: Record<string, string> = {
+      'active': 'Active',
+      'passive': 'Passive',
+      'dice_bonus': 'Dice Bonus',
+      'stat_bonus': 'Stat Bonus'
+    };
+    return typeLabels[type] || type;
+  }
 }

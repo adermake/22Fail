@@ -59,7 +59,7 @@
 @if (showUseResource) {
   <div class="dialog-overlay" (click)="closeUseResource()">
     <div class="dialog-content use-resource-dialog" (click)="$event.stopPropagation()">
-      <h2>Use Resource</h2>
+      <h2>Manage Resource</h2>
 
       <div class="resource-selector">
         <button
@@ -90,7 +90,7 @@
 
       @if (recentSpendings.length > 0) {
         <div class="recent-spendings">
-          <h3>Recent Spendings</h3>
+          <h3>Recent Changes</h3>
           <div class="spending-buttons">
             @for (spending of recentSpendings; track $index) {
               <button 
@@ -99,11 +99,11 @@
                 [class.energy-spending]="spending.type === 'energy'"
                 [class.mana-spending]="spending.type === 'mana'"
                 (click)="useRecentSpending(spending)"
-                title="Use {{ spending.amount }} {{ spending.type }}">
+                title="Change {{ spending.amount }} {{ spending.type }}">
                 @if (spending.type === 'health') {<span>❤️</span>}
                 @if (spending.type === 'energy') {<span>⚡</span>}
                 @if (spending.type === 'mana') {<span>💧</span>}
-                <span class="spending-amount">{{ spending.amount }}</span>
+                <span class="spending-amount">{{ spending.amount >= 0 ? '+' : '' }}{{ spending.amount }}</span>
               </button>
             }
           </div>
@@ -111,24 +111,28 @@
       }
 
       <div class="amount-input">
-        <label>Amount to use:</label>
+        <label>Amount to change:</label>
         <input
           type="number"
           [(ngModel)]="resourceAmount"
-          min="0"
-          [max]="getResourceCurrent(resourceType)"
-          placeholder="0"
+          placeholder="0 (positive to gain, negative to spend)"
         />
-        <span class="max-hint">Max: {{ getResourceCurrent(resourceType) }}</span>
+        <span class="max-hint">Current: {{ getResourceCurrent(resourceType) }}</span>
       </div>
 
       <div class="dialog-actions">
         <button
-          class="use-btn"
-          [class.disabled]="!canUseResource()"
-          [disabled]="!canUseResource()"
-          (click)="useResource()">
-          Use {{ resourceAmount }} {{ resourceType | titlecase }}
+          class="use-btn gain-btn"
+          [class.disabled]="resourceAmount === 0"
+          [disabled]="resourceAmount === 0"
+          (click)="changeResource()">
+          @if (resourceAmount > 0) {
+            <span>➕ Gain {{ resourceAmount }} {{ resourceType | titlecase }}</span>
+          } @else if (resourceAmount < 0) {
+            <span>➖ Spend {{ Math.abs(resourceAmount) }} {{ resourceType | titlecase }}</span>
+          } @else {
+            <span>Change {{ resourceType | titlecase }}</span>
+          }
         </button>
         <button class="cancel-btn" (click)="closeUseResource()">Cancel</button>
       </div>

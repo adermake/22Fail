@@ -33,11 +33,11 @@ export class SkillDetailComponent {
   @Output() setSecondary = new EventEmitter<void>();
 
   private sortSkills(skills: SkillDefinition[]): SkillDefinition[] {
-    // Sort order: stat_bonus, passive, active
-    const typeOrder = { 'stat_bonus': 0, 'passive': 1, 'active': 2 };
+    // Sort order: dice_bonus, active, passive, stat_bonus
+    const typeOrder = { 'dice_bonus': 0, 'active': 1, 'passive': 2, 'stat_bonus': 3 };
     return [...skills].sort((a, b) => {
-      const orderA = typeOrder[a.type] ?? 3;
-      const orderB = typeOrder[b.type] ?? 3;
+      const orderA = typeOrder[a.type] ?? 4;
+      const orderB = typeOrder[b.type] ?? 4;
       return orderA - orderB;
     });
   }

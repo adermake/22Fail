@@ -4,6 +4,7 @@ export class StatBlock {
   base!: number;
   gain!: number;
   current!: number;
+  effectBonus?: number; // Auto-calculated from skills/items
 
   constructor(name: string, base: number, gain: number = 0, bonus: number = 0) {
     this.base = base;
@@ -11,5 +12,6 @@ export class StatBlock {
     this.bonus = bonus;
     this.name = name;
     this.current = 1;
+    this.effectBonus = 0;
   }
 }

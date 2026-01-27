@@ -2,7 +2,7 @@ export interface SkillDefinition {
   id: string;                    // Unique ID: "magier_intelligenz_1"
   name: string;                  // Display name: "Intelligenz+1"
   class: string;                 // Class: "Magier"
-  type: 'stat_bonus' | 'passive' | 'active';
+  type: 'stat_bonus' | 'passive' | 'active' | 'dice_bonus';
   description: string;           // Full description
   enlightened?: boolean;         // If true, skill is "enlightened" (marked with ! in original data)
 

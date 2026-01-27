@@ -59,6 +59,9 @@ export class SheetComponent implements OnInit {
   private cdr = inject(ChangeDetectorRef);
   private ngZone = inject(NgZone);
 
+  // Expose Math for template
+  Math = Math;
+
   showLootPopup = false;
   receivedLoot: LootItem[] = [];
   isBattleLoot = false;
@@ -329,6 +332,34 @@ export class SheetComponent implements OnInit {
     return this.resourceAmount > 0 && this.resourceAmount <= this.getResourceCurrent(this.resourceType);
   }
 
+  changeResource() {
+    const sheet = this.store.sheetValue;
+    if (!sheet || this.resourceAmount === 0) return;
+
+    // Map type to FormulaType
+    const formulaType = this.resourceType === 'health' ? FormulaType.LIFE : 
+                       this.resourceType === 'energy' ? FormulaType.ENERGY : 
+                       FormulaType.MANA;
+    
+    // Find the status by its formulaType
+    const statusIndex = sheet.statuses.findIndex(s => s.formulaType === formulaType);
+    if (statusIndex === -1) return;
+    
+    const currentValue = sheet.statuses[statusIndex].statusCurrent;
+    const newValue = currentValue + this.resourceAmount; // Add (can be negative)
+
+    // Store change in recent history
+    this.addRecentSpending(this.resourceType, this.resourceAmount);
+
+    this.store.applyPatch({
+      path: `statuses.${statusIndex}.statusCurrent`,
+      value: newValue
+    });
+
+    this.closeUseResource();
+    this.resourceAmount = 0; // Reset amount after using
+  }
+
   useResource() {
     const sheet = this.store.sheetValue;
     if (!sheet || !this.canUseResource()) return;
@@ -346,7 +377,7 @@ export class SheetComponent implements OnInit {
     const newValue = currentValue - this.resourceAmount;
 
     // Store spending in recent history
-    this.addRecentSpending(this.resourceType, this.resourceAmount);
+    this.addRecentSpending(this.resourceType, -this.resourceAmount); // Store as negative
 
     this.store.applyPatch({
       path: `statuses.${statusIndex}.statusCurrent`,

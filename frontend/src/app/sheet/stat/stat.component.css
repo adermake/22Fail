@@ -6,7 +6,7 @@
 .statbox {
   background-color: var(--card);
   display: grid;
-  grid-template-columns: repeat(3, 1fr) auto;
+  grid-template-columns: repeat(4, 1fr) auto;
   gap: 16px;
   padding: 14px;
   border-radius: 8px;
@@ -59,6 +59,25 @@ input[type='number'] {
 
 .value.bonus.positive {
   color: #a259ff;
+}
+
+.effect-label {
+  cursor: help;
+  text-decoration: underline dotted;
+}
+
+.effect-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--accent);
+  font-weight: 600;
+  cursor: help;
+  min-height: 30px;
 }
 
 .popup {

@@ -5,7 +5,7 @@
   </div>
 
   <div class="skills-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
-    @for (skill of (sheet.skills || []); track i; let i = $index) {
+    @for (skill of sortedSkills; track i; let i = $index) {
       <div cdkDrag [cdkDragDisabled]="isSkillEditing(i)" (cdkDragStarted)="onDragStarted($event)">
         <app-skill
           [skill]="skill"

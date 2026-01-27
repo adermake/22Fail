@@ -30,6 +30,16 @@ export class SkillsComponent {
     }
   }
 
+  get sortedSkills(): SkillBlock[] {
+    // Sort order: dice_bonus, active, passive, stat_bonus
+    const typeOrder = { 'dice_bonus': 0, 'active': 1, 'passive': 2, 'stat_bonus': 3 };
+    return [...this.sheet.skills].sort((a, b) => {
+      const orderA = typeOrder[a.type] ?? 4;
+      const orderB = typeOrder[b.type] ?? 4;
+      return orderA - orderB;
+    });
+  }
+
   openCreateDialog() {
     this.showCreateDialog = true;
   }

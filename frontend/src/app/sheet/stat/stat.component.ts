@@ -29,8 +29,97 @@ export class StatComponent {
 
   constructor(private cd: ChangeDetectorRef) {}
 
+  // Map stat names to StatModifier stat keys
+  private getStatKey(): 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill' | 'mana' | 'life' | 'energy' | null {
+    const nameMap: Record<string, 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill' | 'mana' | 'life' | 'energy'> = {
+      'Stärke': 'strength',
+      'Geschicklichkeit': 'dexterity',
+      'Geschwindigkeit': 'speed',
+      'Intelligenz': 'intelligence',
+      'Konstitution': 'constitution',
+      'Chill': 'chill'
+    };
+    return nameMap[this.stat.name] || null;
+  }
+
+  get effectBonus(): number {
+    const statKey = this.getStatKey();
+    if (!statKey) return 0;
+
+    let total = 0;
+
+    // Add bonuses from skills
+    if (this.sheet.skills) {
+      for (const skill of this.sheet.skills) {
+        if (skill.statModifiers) {
+          for (const modifier of skill.statModifiers) {
+            if (modifier.stat === statKey) {
+              const multiplier = skill.level || 1;
+              total += modifier.amount * multiplier;
+            }
+          }
+        }
+      }
+    }
+
+    // Add bonuses from equipped items
+    if (this.sheet.equipment) {
+      for (const item of this.sheet.equipment) {
+        if (item.statModifiers) {
+          for (const modifier of item.statModifiers) {
+            if (modifier.stat === statKey) {
+              total += modifier.amount;
+            }
+          }
+        }
+      }
+    }
+
+    return total;
+  }
+
+  get effectSources(): string[] {
+    const statKey = this.getStatKey();
+    if (!statKey) return [];
+
+    const sources: string[] = [];
+
+    // Collect sources from skills
+    if (this.sheet.skills) {
+      for (const skill of this.sheet.skills) {
+        if (skill.statModifiers) {
+          for (const modifier of skill.statModifiers) {
+            if (modifier.stat === statKey) {
+              const multiplier = skill.level || 1;
+              const amount = modifier.amount * multiplier;
+              const sign = amount >= 0 ? '+' : '';
+              sources.push(`${skill.name}: ${sign}${amount}`);
+            }
+          }
+        }
+      }
+    }
+
+    // Collect sources from equipment
+    if (this.sheet.equipment) {
+      for (const item of this.sheet.equipment) {
+        if (item.statModifiers) {
+          for (const modifier of item.statModifiers) {
+            if (modifier.stat === statKey) {
+              const sign = modifier.amount >= 0 ? '+' : '';
+              sources.push(`${item.name}: ${sign}${modifier.amount}`);
+            }
+          }
+        }
+      }
+    }
+
+    return sources;
+  }
+
   get total(): number {
-    this.stat.current = (this.stat.base + this.stat.bonus + this.sheet.level / this.stat.gain) | 0;
+    const effectBonus = this.effectBonus;
+    this.stat.current = (this.stat.base + this.stat.bonus + effectBonus + this.sheet.level / this.stat.gain) | 0;
     return this.stat.current;
   }
 

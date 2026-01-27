@@ -9,7 +9,7 @@
   border-radius: 6px;
   padding: 1rem;
   transition: all 0.2s;
-  border-left: 3px solid #4a90e2;
+  border-left: 3px solid #4a90e2; /* Default active */
   cursor: grab;
   width: 100%;
   box-sizing: border-box;
@@ -24,7 +24,17 @@
 }
 
 .skill-card.passive {
-  border-left: 3px solid #9b59b6;
+  border-left: 3px solid #9b59b6; /* Purple */
+}
+
+.skill-card.dice-bonus {
+  border-left: 3px solid #ff9800; /* Orange */
+  background: linear-gradient(135deg, var(--card) 0%, rgba(255, 152, 0, 0.05) 100%);
+}
+
+.skill-card.stat-bonus {
+  border-left: 3px solid #4caf50; /* Green */
+  background: linear-gradient(135deg, var(--card) 0%, rgba(76, 175, 80, 0.05) 100%);
 }
 
 .skill-card.disabled {
@@ -111,6 +121,18 @@
   background: rgba(123, 31, 162, 0.2);
   color: #ba68c8;
   border: 1px solid rgba(123, 31, 162, 0.4);
+}
+
+.skill-type.dice-bonus {
+  background: rgba(255, 152, 0, 0.2);
+  color: #ffa726;
+  border: 1px solid rgba(255, 152, 0, 0.4);
+}
+
+.skill-type.stat-bonus {
+  background: rgba(76, 175, 80, 0.2);
+  color: #81c784;
+  border: 1px solid rgba(76, 175, 80, 0.4);
 }
 
 .skill-class {
