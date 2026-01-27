@@ -46,6 +46,24 @@
             </div>
           </div>
         }
+
+        <!-- Resource Changes Display -->
+        @if (resourceChanges().length > 0) {
+          <div class="resource-changes-section">
+            <h4>📊 Ressourcen-Änderungen</h4>
+            <div class="resource-changes-list">
+              @for (change of resourceChanges(); track change.resource) {
+                <div class="resource-change-item" 
+                     [class.animate]="change.isNew"
+                     [class.negative]="change.amount < 0"
+                     [class.positive]="change.amount > 0">
+                  <span class="change-resource">{{ change.resource }}</span>
+                  <span class="change-amount">{{ change.amount > 0 ? '+' : '' }}{{ change.amount }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
       </div>
 
       <!-- Center Panel: Action List or Editor -->
@@ -206,13 +224,43 @@
                       </select>
 
                       @if (consequence.type === 'dice_roll') {
-                        <input type="number" [(ngModel)]="consequence.diceCount" min="1" max="20" class="small-input" />
-                        <span class="d-label">d</span>
-                        <select [(ngModel)]="consequence.diceType">
-                          @for (dice of diceTypes; track dice) {
-                            <option [value]="dice">{{ dice }}</option>
+                        <!-- Option to use saved dice config or manual -->
+                        @if (savedDiceConfigs().length > 0) {
+                          <select [(ngModel)]="consequence.savedDiceConfigId" class="config-select">
+                            <option value="">Manuelle Würfel</option>
+                            @for (config of savedDiceConfigs(); track config.id) {
+                              <option [value]="config.id">{{ config.name }} ({{ config.diceCount }}d{{ config.diceType }})</option>
+                            }
+                          </select>
+                        }
+                        @if (!consequence.savedDiceConfigId) {
+                          <input type="number" [(ngModel)]="consequence.diceCount" min="1" max="20" class="small-input" />
+                          <span class="d-label">d</span>
+                          <select [(ngModel)]="consequence.diceType">
+                            @for (dice of diceTypes; track dice) {
+                              <option [value]="dice">{{ dice }}</option>
+                            }
+                          </select>
+                        }
+                      } @else if (consequence.type === 'spend_resource') {
+                        <!-- Option to use dice for amount or fixed -->
+                        <select [(ngModel)]="consequence.resource">
+                          @for (res of resourceTypes; track res) {
+                            <option [value]="res">{{ res }}</option>
                           }
                         </select>
+                        <span class="d-label">Kosten:</span>
+                        @if (savedDiceConfigs().length > 0) {
+                          <select [(ngModel)]="consequence.savedDiceConfigId" class="config-select">
+                            <option value="">Fester Wert</option>
+                            @for (config of savedDiceConfigs(); track config.id) {
+                              <option [value]="config.id">{{ config.name }} ({{ config.diceCount }}d{{ config.diceType }})</option>
+                            }
+                          </select>
+                        }
+                        @if (!consequence.savedDiceConfigId) {
+                          <input type="number" [(ngModel)]="consequence.amount" class="small-input" />
+                        }
                       } @else {
                         <input type="number" [(ngModel)]="consequence.amount" class="small-input" />
                         <select [(ngModel)]="consequence.resource">

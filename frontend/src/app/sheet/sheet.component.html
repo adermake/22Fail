@@ -163,7 +163,9 @@
   <app-action-macros 
     [sheet]="sheet" 
     (close)="closeActionMacros()"
-    (executeMacro)="handleMacroExecution($event)">
+    (executeMacro)="handleMacroExecution($event)"
+    (resourceChanged)="handleResourceChange($event)"
+    (rollPerformed)="handleActionRoll($event)">
   </app-action-macros>
 }
 

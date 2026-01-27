@@ -216,6 +216,7 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     this.loadRollHistory();
     this.loadSavedConfigs();
     this.initRollSound();
+    this.loadSyncedActionRolls();
     
     // Listen for rolls from other players in the world
     if (this.sheet.worldName) {
@@ -228,6 +229,38 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
           }
         }
       });
+    }
+  }
+
+  // Load synced roll results from action macros
+  private loadSyncedActionRolls() {
+    const stored = localStorage.getItem('action-roll-results');
+    if (stored) {
+      try {
+        const results = JSON.parse(stored);
+        if (results && results.length > 0) {
+          // Convert action roll results to our history format
+          results.forEach((result: any) => {
+            const roll: DiceRoll = {
+              id: result.id,
+              characterName: this.sheet.name,
+              diceType: parseInt(result.formula.split('d')[1]) || 20,
+              diceCount: parseInt(result.formula.split('d')[0]) || 1,
+              bonuses: [],
+              result: result.total,
+              rolls: result.rolls,
+              timestamp: new Date()
+            };
+            this.rollHistory.update(h => ({
+              rolls: [roll, ...h.rolls.slice(0, 9)]
+            }));
+          });
+          // Clear after reading to avoid duplicates
+          localStorage.removeItem('action-roll-results');
+        }
+      } catch (e) {
+        console.error('Failed to load synced action rolls:', e);
+      }
     }
   }
 

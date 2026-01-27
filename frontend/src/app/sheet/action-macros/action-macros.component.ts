@@ -23,6 +23,21 @@ export interface RollResult {
   isNew: boolean;
 }
 
+export interface ResourceChange {
+  resource: string;
+  amount: number;
+  isNew: boolean;
+}
+
+export interface SavedDiceConfig {
+  id: string;
+  name: string;
+  diceType: number;
+  diceCount: number;
+  bonusNames: string[];
+  manualBonus: number;
+}
+
 @Component({
   selector: 'app-action-macros',
   standalone: true,
@@ -34,6 +49,8 @@ export class ActionMacrosComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() close = new EventEmitter<void>();
   @Output() executeMacro = new EventEmitter<ActionMacro>();
+  @Output() rollPerformed = new EventEmitter<RollResult[]>(); // Sync with dice roller
+  @Output() resourceChanged = new EventEmitter<{resource: string, amount: number}>(); // For applying changes
 
   // State
   macros = signal<ActionMacro[]>([]);
@@ -41,6 +58,10 @@ export class ActionMacrosComponent {
   editingMacro = signal<ActionMacro | null>(null);
   isNewMacro = signal<boolean>(false);
   lastRollResults = signal<RollResult[]>([]);
+  resourceChanges = signal<ResourceChange[]>([]);
+  
+  // Saved dice configs from dice roller (synced)
+  savedDiceConfigs = signal<SavedDiceConfig[]>([]);
 
   // Available options
   resourceTypes = ['health', 'energy', 'mana', 'fokus'] as const;
@@ -59,6 +80,20 @@ export class ActionMacrosComponent {
 
   ngOnInit() {
     this.loadMacros();
+    this.loadSavedDiceConfigs();
+  }
+
+  loadSavedDiceConfigs() {
+    // Load saved dice configs from localStorage (same key as dice roller)
+    const key = `dice-configs-${this.sheet.name}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try {
+        this.savedDiceConfigs.set(JSON.parse(stored));
+      } catch (e) {
+        console.error('Failed to load dice configs:', e);
+      }
+    }
   }
 
   loadMacros() {
@@ -341,12 +376,22 @@ export class ActionMacrosComponent {
     
     // Collect dice roll results
     const results: RollResult[] = [];
+    const changes: ResourceChange[] = [];
     
     for (const consequence of macro.consequences) {
       if (consequence.type === 'dice_roll') {
-        const rolls: number[] = [];
-        const count = consequence.diceCount || 1;
-        const type = consequence.diceType || 6;
+        let rolls: number[] = [];
+        let count = consequence.diceCount || 1;
+        let type = consequence.diceType || 6;
+        
+        // Check if using a saved dice config
+        if (consequence.savedDiceConfigId) {
+          const config = this.savedDiceConfigs().find(c => c.id === consequence.savedDiceConfigId);
+          if (config) {
+            count = config.diceCount;
+            type = config.diceType;
+          }
+        }
         
         for (let i = 0; i < count; i++) {
           rolls.push(Math.floor(Math.random() * type) + 1);
@@ -361,18 +406,73 @@ export class ActionMacrosComponent {
           total,
           isNew: true
         });
+      } else if (consequence.type === 'spend_resource') {
+        // Calculate amount - could be from a dice roll or fixed
+        let amount = consequence.amount || 0;
+        
+        // If using a saved dice config for the amount
+        if (consequence.savedDiceConfigId) {
+          const config = this.savedDiceConfigs().find(c => c.id === consequence.savedDiceConfigId);
+          if (config) {
+            // Roll the dice to determine how much to spend
+            let total = 0;
+            const rolls: number[] = [];
+            for (let i = 0; i < config.diceCount; i++) {
+              const roll = Math.floor(Math.random() * config.diceType) + 1;
+              rolls.push(roll);
+              total += roll;
+            }
+            amount = total;
+            
+            // Also add this roll to results
+            results.push({
+              id: crypto.randomUUID(),
+              formula: `${config.diceCount}d${config.diceType} (${consequence.resource})`,
+              rolls,
+              total,
+              isNew: true
+            });
+          }
+        }
+        
+        changes.push({
+          resource: consequence.resource || '',
+          amount: -amount,
+          isNew: true
+        });
+        
+        // Emit resource change for the parent to apply
+        this.resourceChanged.emit({ resource: consequence.resource || '', amount: -amount });
+        
+      } else if (consequence.type === 'gain_resource') {
+        const amount = consequence.amount || 0;
+        changes.push({
+          resource: consequence.resource || '',
+          amount: amount,
+          isNew: true
+        });
+        
+        // Emit resource change for the parent to apply
+        this.resourceChanged.emit({ resource: consequence.resource || '', amount: amount });
       }
     }
     
     // Update last roll results
     this.lastRollResults.set(results);
+    this.resourceChanges.set(changes);
+    
+    // Emit roll results for syncing with dice roller
+    if (results.length > 0) {
+      this.rollPerformed.emit(results);
+    }
     
     // Mark as not new after animation
     setTimeout(() => {
       this.lastRollResults.update(r => r.map(roll => ({ ...roll, isNew: false })));
+      this.resourceChanges.update(r => r.map(change => ({ ...change, isNew: false })));
     }, 500);
     
-    // Emit for resource changes
+    // Emit for other processing
     this.executeMacro.emit(macro);
   }
 

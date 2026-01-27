@@ -31,7 +31,7 @@ import { BackstoryComponent } from './backstory/backstory.component';
 import { FormulaType } from '../model/formula-type.enum';
 import { StatusBlock } from '../model/status-block.model';
 import { DiceRollerComponent } from './dice-roller/dice-roller.component';
-import { ActionMacrosComponent } from './action-macros/action-macros.component';
+import { ActionMacrosComponent, RollResult } from './action-macros/action-macros.component';
 import { ActionMacro } from '../model/action-macro.model';
 
 @Component({
@@ -456,6 +456,42 @@ export class SheetComponent implements OnInit {
       }
     }
     
+    this.cdr.markForCheck();
+  }
+
+  // Handle resource changes from action macros (immediate update with animation)
+  handleResourceChange(event: { resource: string, amount: number }) {
+    const sheet = this.store.sheetValue;
+    if (!sheet || !sheet.statuses) return;
+
+    const resourceType = event.resource as 'health' | 'energy' | 'mana';
+    const status = sheet.statuses.find((s: StatusBlock) => {
+      if (resourceType === 'health') return s.formulaType === FormulaType.LIFE;
+      if (resourceType === 'energy') return s.formulaType === FormulaType.ENERGY;
+      if (resourceType === 'mana') return s.formulaType === FormulaType.MANA;
+      return false;
+    });
+
+    if (status) {
+      if (event.amount < 0) {
+        // Spending
+        status.statusCurrent = Math.max(0, status.statusCurrent + event.amount);
+      } else {
+        // Gaining - don't exceed max
+        const max = status.statusBase + (status.statusEffectBonus || 0);
+        status.statusCurrent = Math.min(max, status.statusCurrent + event.amount);
+      }
+      this.store.applyPatch({ path: '/statuses', value: sheet.statuses });
+    }
+    
+    this.cdr.markForCheck();
+  }
+
+  // Handle rolls from action macros - sync with dice roller history
+  handleActionRoll(results: RollResult[]) {
+    // Store the roll results for syncing with dice roller
+    // The dice roller can read these when opened
+    localStorage.setItem('action-roll-results', JSON.stringify(results));
     this.cdr.markForCheck();
   }
 

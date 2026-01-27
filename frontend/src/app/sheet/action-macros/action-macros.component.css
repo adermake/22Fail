@@ -227,6 +227,73 @@
   margin-left: auto;
 }
 
+/* Resource Changes */
+.resource-changes-section {
+  padding: 16px;
+  border-top: 1px solid #333;
+}
+
+.resource-changes-section h4 {
+  margin: 0 0 12px 0;
+  color: #60a5fa;
+  font-size: 0.95rem;
+}
+
+.resource-changes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resource-change-item {
+  background: #252525;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #333;
+}
+
+.resource-change-item.animate {
+  animation: resourcePulse 0.5s ease;
+}
+
+.resource-change-item.negative {
+  border-color: #ef4444;
+  background: #2a1f1f;
+}
+
+.resource-change-item.positive {
+  border-color: #22c55e;
+  background: #1f2a1f;
+}
+
+@keyframes resourcePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+.change-resource {
+  color: #ccc;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+}
+
+.change-amount {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.resource-change-item.negative .change-amount {
+  color: #ef4444;
+}
+
+.resource-change-item.positive .change-amount {
+  color: #22c55e;
+}
+
 /* Main Panel */
 .main-panel {
   flex: 1;
@@ -686,6 +753,20 @@
 .consequence-row span {
   color: #888;
   font-size: 0.9rem;
+}
+
+.d-label {
+  font-weight: 500;
+}
+
+.config-select {
+  min-width: 150px;
+  background: #f59e0b20;
+  border-color: #f59e0b;
+}
+
+.small-input {
+  width: 70px;
 }
 
 /* Editor Actions */

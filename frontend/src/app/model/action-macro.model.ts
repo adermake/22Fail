@@ -41,6 +41,9 @@ export interface ActionConsequence {
   diceCount?: number;
   bonuses?: string[]; // References to stat/skill bonuses by name
   
+  // Reference to a saved dice configuration from the dice roller
+  savedDiceConfigId?: string;
+  
   // For resource changes
   resource?: ResourceType;
   amount?: number;
