@@ -16,7 +16,7 @@ type DragMode = 'free' | 'enforced';
 })
 export class BattlemapToolbarComponent {
   @Input() currentTool: ToolType = 'cursor';
-  @Input() brushColor = '#ef4444';
+  @Input() brushColor = '#000000';
   @Input() penBrushSize = 4;
   @Input() eraserBrushSize = 12;
   @Input() drawWithWalls = false;

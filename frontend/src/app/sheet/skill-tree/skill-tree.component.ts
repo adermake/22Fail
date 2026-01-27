@@ -724,11 +724,24 @@ Nekromant:`;
   }
 
   canLearnSkill(skill: SkillDefinition): boolean {
-    if (this.isSkillLearned(skill.id)) return false;
-    if (this.getAvailableTalentPoints() <= 0) return false;
+    // For infinite level skills, check if we already have it at max level
+    if (skill.infiniteLevel) {
+      // Can always learn if we have talent points
+      if (this.getAvailableTalentPoints() <= 0) return false;
+    } else {
+      // For normal skills, can't learn if already learned
+      if (this.isSkillLearned(skill.id)) return false;
+      if (this.getAvailableTalentPoints() <= 0) return false;
+    }
 
-    if (skill.requiresSkill && !this.isSkillLearned(skill.requiresSkill)) {
-      return false;
+    // Check requiresSkill (can be string or array)
+    if (skill.requiresSkill) {
+      const requiredSkills = Array.isArray(skill.requiresSkill) ? skill.requiresSkill : [skill.requiresSkill];
+      for (const requiredSkillId of requiredSkills) {
+        if (!this.isSkillLearned(requiredSkillId)) {
+          return false;
+        }
+      }
     }
 
     if (!this.canLearnFromClass(skill.class)) {
@@ -741,43 +754,146 @@ Nekromant:`;
   learnSkill(skill: SkillDefinition) {
     if (!this.canLearnSkill(skill)) return;
 
-    const newLearnedIds = [...(this.sheet.learnedSkillIds || []), skill.id];
-    this.patch.emit({
-      path: 'learnedSkillIds',
-      value: newLearnedIds
-    });
+    // Handle infinite level skills differently
+    if (skill.infiniteLevel) {
+      // Find existing skill block for this skill
+      const existingSkillIndex = (this.sheet.skills || []).findIndex(
+        s => s.skillId === skill.id
+      );
 
-    const newSkillBlock: SkillBlock = {
-      name: skill.name,
-      class: skill.class,
-      description: skill.description,
-      type: skill.type === 'active' ? 'active' : 'passive',
-      enlightened: skill.enlightened ?? false
-    };
+      if (existingSkillIndex >= 0) {
+        // Increment level of existing skill
+        const existingSkill = this.sheet.skills![existingSkillIndex];
+        const newLevel = (existingSkill.level || 1) + 1;
+        
+        this.patch.emit({
+          path: `skills.${existingSkillIndex}.level`,
+          value: newLevel
+        });
 
-    const newSkills = [...(this.sheet.skills || []), newSkillBlock];
-    this.patch.emit({
-      path: 'skills',
-      value: newSkills
-    });
+        // Update description to show level
+        const updatedDescription = this.getInfiniteLevelDescription(skill, newLevel);
+        this.patch.emit({
+          path: `skills.${existingSkillIndex}.description`,
+          value: updatedDescription
+        });
+      } else {
+        // First time learning this skill
+        const newSkillBlock: SkillBlock = {
+          name: skill.name,
+          class: skill.class,
+          description: this.getInfiniteLevelDescription(skill, 1),
+          type: skill.type === 'active' ? 'active' : 'passive',
+          enlightened: skill.enlightened ?? false,
+          level: 1,
+          skillId: skill.id
+        };
+
+        const newSkills = [...(this.sheet.skills || []), newSkillBlock];
+        this.patch.emit({
+          path: 'skills',
+          value: newSkills
+        });
+      }
+
+      // Add to learned IDs (can be multiple times for infinite skills)
+      const newLearnedIds = [...(this.sheet.learnedSkillIds || []), skill.id];
+      this.patch.emit({
+        path: 'learnedSkillIds',
+        value: newLearnedIds
+      });
+    } else {
+      // Normal skill learning
+      const newLearnedIds = [...(this.sheet.learnedSkillIds || []), skill.id];
+      this.patch.emit({
+        path: 'learnedSkillIds',
+        value: newLearnedIds
+      });
+
+      const newSkillBlock: SkillBlock = {
+        name: skill.name,
+        class: skill.class,
+        description: skill.description,
+        type: skill.type === 'active' ? 'active' : 'passive',
+        enlightened: skill.enlightened ?? false,
+        skillId: skill.id
+      };
+
+      const newSkills = [...(this.sheet.skills || []), newSkillBlock];
+      this.patch.emit({
+        path: 'skills',
+        value: newSkills
+      });
+    }
+  }
+
+  getInfiniteLevelDescription(skill: SkillDefinition, level: number): string {
+    return `${skill.description} [Stufe ${level}]`;
   }
 
   unlearnSkill(skill: SkillDefinition) {
     if (!this.isSkillLearned(skill.id)) return;
 
-    const newLearnedIds = (this.sheet.learnedSkillIds || []).filter(id => id !== skill.id);
-    this.patch.emit({
-      path: 'learnedSkillIds',
-      value: newLearnedIds
-    });
+    if (skill.infiniteLevel) {
+      // Find existing skill block
+      const existingSkillIndex = (this.sheet.skills || []).findIndex(
+        s => s.skillId === skill.id
+      );
 
-    const newSkills = (this.sheet.skills || []).filter(
-      s => !(s.name === skill.name && s.class === skill.class)
-    );
-    this.patch.emit({
-      path: 'skills',
-      value: newSkills
-    });
+      if (existingSkillIndex >= 0) {
+        const existingSkill = this.sheet.skills![existingSkillIndex];
+        const currentLevel = existingSkill.level || 1;
+
+        if (currentLevel > 1) {
+          // Decrease level
+          const newLevel = currentLevel - 1;
+          this.patch.emit({
+            path: `skills.${existingSkillIndex}.level`,
+            value: newLevel
+          });
+
+          // Update description
+          const updatedDescription = this.getInfiniteLevelDescription(skill, newLevel);
+          this.patch.emit({
+            path: `skills.${existingSkillIndex}.description`,
+            value: updatedDescription
+          });
+        } else {
+          // Remove skill completely if at level 1
+          const newSkills = (this.sheet.skills || []).filter((_, i) => i !== existingSkillIndex);
+          this.patch.emit({
+            path: 'skills',
+            value: newSkills
+          });
+        }
+      }
+
+      // Remove one instance from learned IDs
+      const learnedIds = [...(this.sheet.learnedSkillIds || [])];
+      const lastIndex = learnedIds.lastIndexOf(skill.id);
+      if (lastIndex >= 0) {
+        learnedIds.splice(lastIndex, 1);
+        this.patch.emit({
+          path: 'learnedSkillIds',
+          value: learnedIds
+        });
+      }
+    } else {
+      // Normal skill unlearning
+      const newLearnedIds = (this.sheet.learnedSkillIds || []).filter(id => id !== skill.id);
+      this.patch.emit({
+        path: 'learnedSkillIds',
+        value: newLearnedIds
+      });
+
+      const newSkills = (this.sheet.skills || []).filter(
+        s => s.skillId !== skill.id
+      );
+      this.patch.emit({
+        path: 'skills',
+        value: newSkills
+      });
+    }
   }
 
   isClassAccessible(className: string): boolean {

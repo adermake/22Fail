@@ -22,7 +22,9 @@ export interface SkillDefinition {
   bonusAction?: boolean;         // Is it a bonus action?
 
   // Special flags
-  requiresSkill?: string;        // Requires another skill (e.g., "+Verinnerlichen" requires "Verinnerlichen")
+  requiresSkill?: string | string[];  // Requires another skill or array of skills (e.g., "+Verinnerlichen" requires "Verinnerlichen")
+  infiniteLevel?: boolean;            // Can be learned multiple times (e.g., stat bonuses marked with ∞)
+  maxLevel?: number;                  // Maximum times this skill can be learned (default: 1, Infinity if infiniteLevel)
 }
 
 // Helper to get skills for a specific class

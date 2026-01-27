@@ -512,6 +512,12 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   // ==================== Helpers ====================
 
+  openCharacterSheet(characterId: string) {
+    // Open character sheet in a new tab
+    const url = `/characters/${characterId}`;
+    window.open(url, '_blank');
+  }
+
   private applyJsonPatch(target: any, patch: JsonPatch) {
     const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');
     let current = target;

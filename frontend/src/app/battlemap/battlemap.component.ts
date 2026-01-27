@@ -57,7 +57,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   // Current tool state
   currentTool = signal<ToolType>('cursor');
-  brushColor = signal<string>('#ef4444');
+  brushColor = signal<string>('#000000');
   penBrushSize = signal<number>(4);
   eraserBrushSize = signal<number>(12);
   drawWithWalls = signal<boolean>(false);

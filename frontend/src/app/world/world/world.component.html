@@ -61,7 +61,8 @@
           @for (member of getPartyCharacterArray(); track member.id) {
             <div class="character-card drop-zone"
                  (dragover)="onDragOver($event)"
-                 (drop)="onDropOnCharacter($event, member.id)">
+                 (drop)="onDropOnCharacter($event, member.id)"
+                 (dblclick)="openCharacterSheet(member.id)">
               <div class="character-header">
                 @if (member.sheet.portrait) {
                   <div class="character-portrait">
