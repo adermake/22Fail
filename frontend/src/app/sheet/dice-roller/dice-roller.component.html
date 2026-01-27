@@ -1,0 +1,146 @@
+<div class="dice-roller-overlay" (click)="onClose()">
+  <div class="dice-roller-dialog" (click)="$event.stopPropagation()">
+    <div class="dialog-header">
+      <h2>Würfel Werfen</h2>
+      <button class="close-btn" (click)="onClose()">&times;</button>
+    </div>
+
+    <div class="dialog-content">
+      <!-- Stat Bonuses (Top Priority) -->
+      <div class="section stat-bonuses">
+        <h3>Attributsboni</h3>
+        <div class="bonus-grid">
+          @for (stat of statBonuses(); track stat.name) {
+            <button 
+              class="bonus-btn stat-bonus"
+              [class.selected]="isBonusSelected(stat.name)"
+              (click)="toggleBonus(stat.name)">
+              <span class="bonus-name">{{stat.name}}</span>
+              <span class="bonus-value" [class.negative]="stat.value < 0">
+                {{stat.value > 0 ? '+' : ''}}{{stat.value}}
+              </span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Dice Selection -->
+      <div class="section dice-selection">
+        <h3>Würfeltyp</h3>
+        <div class="dice-type-grid">
+          @for (type of diceTypes; track type) {
+            <button 
+              class="dice-btn"
+              [class.selected]="selectedDiceType() === type"
+              (click)="selectedDiceType.set(type)">
+              d{{type}}
+            </button>
+          }
+        </div>
+        
+        <div class="dice-count-control">
+          <label>Anzahl:</label>
+          <input 
+            type="number" 
+            min="1" 
+            max="20" 
+            [value]="diceCount()"
+            (input)="diceCount.set(+$any($event.target).value)" />
+        </div>
+      </div>
+
+      <!-- Dice Bonuses from Skills -->
+      @if (availableDiceBonuses().length > 0) {
+        <div class="section skill-bonuses">
+          <h3>Würfelboni (Skills)</h3>
+          <div class="bonus-grid">
+            @for (bonus of availableDiceBonuses(); track bonus.name) {
+              <button 
+                class="bonus-btn skill-bonus"
+                [class.selected]="isBonusSelected(bonus.name)"
+                (click)="toggleBonus(bonus.name)">
+                <span class="bonus-name">{{bonus.name}}</span>
+                <span class="bonus-value">+{{bonus.value}}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Manual Bonus -->
+      <div class="section manual-bonus">
+        <label>Manueller Bonus/Malus:</label>
+        <input 
+          type="number" 
+          [value]="manualBonus()"
+          (input)="manualBonus.set(+$any($event.target).value)"
+          placeholder="±0" />
+      </div>
+
+      <!-- Roll Summary -->
+      <div class="roll-summary">
+        <div class="summary-formula">
+          {{diceCount()}}d{{selectedDiceType()}}
+          @if (totalBonus() !== 0) {
+            <span [class.negative]="totalBonus() < 0">
+              {{totalBonus() > 0 ? '+' : ''}}{{totalBonus()}}
+            </span>
+          }
+        </div>
+      </div>
+
+      <!-- Roll Button -->
+      <button 
+        class="roll-btn"
+        [class.rolling]="isRolling()"
+        [disabled]="isRolling()"
+        (click)="roll()">
+        <span class="roll-text">{{isRolling() ? 'Würfelt...' : 'Würfeln'}}</span>
+      </button>
+
+      <!-- Last Roll Result -->
+      @if (lastRoll(); as roll) {
+        <div class="last-roll" [@rollAnimation]>
+          <div class="roll-header">
+            <span class="roll-character">{{roll.characterName}}</span>
+            <span class="roll-time">{{getTimeAgo(roll.timestamp)}}</span>
+          </div>
+          <div class="roll-formula">
+            {{roll.diceCount}}d{{roll.diceType}}
+            @if (roll.bonuses.length > 0) {
+              @for (bonus of roll.bonuses; track bonus.name) {
+                <span class="bonus-chip" [class.negative]="bonus.value < 0">
+                  {{bonus.value > 0 ? '+' : ''}}{{bonus.value}} {{bonus.name}}
+                </span>
+              }
+            }
+          </div>
+          <div class="roll-details">
+            <span class="individual-rolls">
+              [{{roll.rolls.join(', ')}}]
+            </span>
+          </div>
+          <div class="roll-result">
+            Ergebnis: <span class="result-value">{{roll.result}}</span>
+          </div>
+        </div>
+      }
+
+      <!-- Roll History -->
+      @if (rollHistory().rolls.length > 0) {
+        <div class="section roll-history">
+          <h3>Letzte Würfe</h3>
+          <div class="history-list">
+            @for (roll of rollHistory().rolls; track roll.id) {
+              <button class="history-item" (click)="repeatRoll(roll)">
+                <span class="history-label">{{getRollLabel(roll)}}</span>
+                <span class="history-result">= {{roll.result}}</span>
+                <span class="history-time">{{getTimeAgo(roll.timestamp)}}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

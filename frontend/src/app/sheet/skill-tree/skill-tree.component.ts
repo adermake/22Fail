@@ -4,7 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { SkillDefinition } from '../../model/skill-definition.model';
-import { SKILL_DEFINITIONS, getSkillById, getSkillsForClass } from '../../data/skill-definitions';
+import { SKILL_DEFINITIONS, getSkillById, getSkillsForClass, CLASS_DEFINITIONS } from '../../data/skill-definitions';
 import { ClassNodeComponent } from './class-node/class-node.component';
 import { SkillDetailComponent } from './skill-detail/skill-detail.component';
 import { SkillBlock } from '../../model/skill-block.model';
@@ -88,21 +88,11 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
   }
 
   loadClassDefinitions() {
-    this.http.get('class-definitions.txt', { responseType: 'text' }).subscribe({
-      next: (content) => {
-        this.parseClassDefinitions(content);
-        this.loadSavedAngles(); // Load saved angles from localStorage
-        this.buildLayout();
-        setTimeout(() => this.centerView(), 0);
-      },
-      error: (err) => {
-        console.error('Failed to load class-definitions.txt', err);
-        // Fallback to hardcoded definitions
-        this.parseClassDefinitions(this.getFallbackDefinitions());
-        this.loadSavedAngles();
-        this.buildLayout();
-      }
-    });
+    // Use CLASS_DEFINITIONS from skill-definitions.ts
+    this.parseClassDefinitions();
+    this.loadSavedAngles(); // Load saved angles from localStorage
+    this.buildLayout();
+    setTimeout(() => this.centerView(), 0);
   }
 
   // Load saved angles from localStorage
@@ -139,188 +129,33 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
     }
   }
 
-  getFallbackDefinitions(): string {
-    return `# Tier 1
-Magier: Kampfzauberer, Heiler
-Kämpfer: Krieger, Barbar
-Techniker: Schütze, Dieb
-
-# Tier 2
-Kampfzauberer: Arkanist, Hämonant
-Heiler: Seelenmagier, Paladin
-Schütze: Jäger, Schnellschütze
-Dieb: Kampfakrobat, Assassine
-Krieger: Ritter, Mönch
-Barbar: Berserker, Plünderer
-
-# Tier 3
-Arkanist: Formationsmagier, Phantom, Runenkünstler
-Hämonant: Nekromant
-Seelenmagier: Gestaltenwandler, Mentalist
-Jäger: Attentäter
-Kampfakrobat: Klingentänzer, Duellant
-Ritter: Erzritter, Paladin, Wächter
-Berserker: Kriegsherr, Omen
-Plünderer: General
-Mönch: Templer
-
-# Tier 4
-Formationsmagier: Manalord, Artificer
-Runenkünstler: Manalord, Dunkler Ritter
-Mentalist: Orakel, Nekromant
-Assassine: Attentäter
-Klingentänzer: Waffenmeister
-Erzritter: Wächter
-General: Kriegsherr
-Paladin: Dunkler Ritter
-Templer: Koloss, Omen
-
-# Tier 5
-Manalord:
-Artificer:
-Attentäter:
-Duellant:
-Waffenmeister:
-Kriegsherr:
-Omen:
-Koloss:
-Wächter:
-Dunkler Ritter:
-Orakel:
-Nekromant:`;
-  }
-
-  parseClassDefinitions(content: string) {
+  parseClassDefinitions() {
     this.classHierarchy.clear();
     this.classParents.clear();
     this.classTiers.clear();
     this.classManualAngles.clear();
 
-    let currentTier = 0;
-    const lines = content.split('\n');
-
-    // Helper to parse class name with optional angle: "ClassName@45" or "ClassName"
-    const parseClassWithAngle = (str: string): { name: string; angle?: number } => {
-      const angleMatch = str.match(/^(.+?)@(-?\d+(?:\.\d+)?)$/);
-      if (angleMatch) {
-        return { name: angleMatch[1].trim(), angle: parseFloat(angleMatch[2]) };
-      }
-      return { name: str.trim() };
-    };
-
-    // Track explicitly defined tiers (from # Tier X sections)
-    const explicitTiers: Map<string, number> = new Map();
-
-    // First pass: collect all explicitly defined tiers (classes that appear as parents under # Tier X)
-    let firstPassTier = 0;
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-
-      const tierMatch = trimmed.match(/^#\s*Tier\s*(\d+)/i);
-      if (tierMatch) {
-        firstPassTier = parseInt(tierMatch[1], 10);
-        continue;
-      }
-
-      if (trimmed.startsWith('#')) continue;
-
-      const match = trimmed.match(/^(.+?):\s*(.*)$/);
-      if (match) {
-        const parentPart = match[1].trim();
-        const parentStrings = parentPart.split('+').map(p => p.trim());
-
-        parentStrings.forEach(pStr => {
-          const parsed = parseClassWithAngle(pStr);
-          // This class is explicitly defined at this tier
-          explicitTiers.set(parsed.name, firstPassTier);
-        });
-      }
-    }
-
-    // Second pass: build hierarchy and assign tiers
-    for (const line of lines) {
-      const trimmed = line.trim();
-
-      // Skip empty lines
-      if (!trimmed) continue;
-
-      // Check for tier marker
-      const tierMatch = trimmed.match(/^#\s*Tier\s*(\d+)/i);
-      if (tierMatch) {
-        currentTier = parseInt(tierMatch[1], 10);
-        continue;
-      }
-
-      // Skip other comments
-      if (trimmed.startsWith('#')) continue;
-
-      // Parse class definition: "Parent@angle: Child1@angle, Child2"
-      const match = trimmed.match(/^(.+?):\s*(.*)$/);
-      if (match) {
-        const parentPart = match[1].trim();
-        const childrenPart = match[2].trim();
-
-        // Handle multi-parent classes (e.g., "Ritter + Heiler")
-        const parentStrings = parentPart.split('+').map(p => p.trim());
-        const parents: string[] = [];
-
-        parentStrings.forEach(pStr => {
-          const parsed = parseClassWithAngle(pStr);
-          parents.push(parsed.name);
-
-          // Store manual angle if provided
-          if (parsed.angle !== undefined) {
-            this.classManualAngles.set(parsed.name, parsed.angle);
-          }
-
-          // Use explicit tier (already set in first pass)
-          this.classTiers.set(parsed.name, currentTier);
-        });
-
-        // Parse children (may be empty for leaf nodes)
-        if (childrenPart) {
-          const childStrings = childrenPart.split(',').map(c => c.trim()).filter(c => c);
-
-          childStrings.forEach(cStr => {
-            const parsed = parseClassWithAngle(cStr);
-            const child = parsed.name;
-
-            // Store manual angle if provided
-            if (parsed.angle !== undefined) {
-              this.classManualAngles.set(child, parsed.angle);
-            }
-
-            // Store children for each parent
-            parents.forEach(parent => {
-              if (!this.classHierarchy.has(parent)) {
-                this.classHierarchy.set(parent, []);
-              }
-              const existing = this.classHierarchy.get(parent)!;
-              if (!existing.includes(child)) {
-                existing.push(child);
-              }
-            });
-
-            // Store parents for each child
-            if (!this.classParents.has(child)) {
-              this.classParents.set(child, []);
-            }
-            const existingParents = this.classParents.get(child)!;
-            parents.forEach(p => {
-              if (!existingParents.includes(p)) {
-                existingParents.push(p);
-              }
-            });
-
-            // Only set child tier if it doesn't have an explicit tier defined
-            // (i.e., the child doesn't appear as a parent under any # Tier X section)
-            if (!explicitTiers.has(child) && !this.classTiers.has(child)) {
-              this.classTiers.set(child, currentTier + 1);
-            }
-          });
-        }
-      }
+    // Build from CLASS_DEFINITIONS
+    for (const [className, classInfo] of Object.entries(CLASS_DEFINITIONS)) {
+      // Set tier
+      this.classTiers.set(className, classInfo.tier);
+      
+      // Set angle
+      this.classManualAngles.set(className, classInfo.angle);
+      
+      // Store children
+      const childNames = classInfo.children.map(child => child.className);
+      this.classHierarchy.set(className, childNames);
+      
+      // Store child angles
+      classInfo.children.forEach(child => {
+        this.classManualAngles.set(child.className, child.angle);
+        
+        // Register parent relationship
+        let parents = this.classParents.get(child.className) || [];
+        parents.push(className);
+        this.classParents.set(child.className, parents);
+      });
     }
   }
 
@@ -592,17 +427,10 @@ Nekromant:`;
   resetLayout() {
     localStorage.removeItem('skill-tree-layout'); // Clear saved layout
     // Reload class definitions to get angles from file
-    this.http.get('class-definitions.txt', { responseType: 'text' }).subscribe({
-      next: (content) => {
-        this.parseClassDefinitions(content);
-        // Don't call loadSavedAngles() - we want file defaults only
-        this.buildLayout();
-      },
-      error: () => {
-        this.parseClassDefinitions(this.getFallbackDefinitions());
-        this.buildLayout();
-      }
-    });
+    // Use CLASS_DEFINITIONS from skill-definitions.ts
+    this.parseClassDefinitions();
+    // Don't call loadSavedAngles() - we want file defaults only
+    this.buildLayout();
   }
 
   // Export layout as class-definitions.txt format

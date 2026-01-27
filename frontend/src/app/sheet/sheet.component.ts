@@ -29,6 +29,7 @@ import { CharacterTabsComponent } from './character-tabs/character-tabs';
 import { SkillTreeComponent } from './skill-tree/skill-tree.component';
 import { BackstoryComponent } from './backstory/backstory.component';
 import { FormulaType } from '../model/formula-type.enum';
+import { DiceRollerComponent } from './dice-roller/dice-roller.component';
 
 @Component({
   selector: 'app-sheet',
@@ -44,7 +45,8 @@ import { FormulaType } from '../model/formula-type.enum';
     LootPopupComponent,
     CharacterTabsComponent,
     SkillTreeComponent,
-    BackstoryComponent
+    BackstoryComponent,
+    DiceRollerComponent
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
@@ -68,6 +70,7 @@ export class SheetComponent implements OnInit {
   currentWorldName = '';
   isCurrentTurn = false;
   isGroupTurn = false;
+  showDiceRoller = false;
 
   // Editing states
   editingRunes = new Set<number>();
@@ -77,13 +80,11 @@ export class SheetComponent implements OnInit {
   async ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id')!;
     
-    // Load class definitions and character data in parallel
-    const classDefinitionsPromise = fetch('class-definitions.txt').then((r) => r.text());
-    const characterLoadPromise = this.store.load(id);
+    // Initialize class tree (auto-initializes from CLASS_DEFINITIONS)
+    ClassTree.initialize();
     
-    // Initialize class tree (can run in parallel with character load)
-    const classDefinitions = await classDefinitionsPromise;
-    await ClassTree.initialize(classDefinitions);
+    // Load character data
+    await this.store.load(id);
     
     // Connect to world socket for battle loot notifications and turn tracking
     this.worldSocket.connect();
@@ -302,6 +303,14 @@ export class SheetComponent implements OnInit {
   resourceType: 'health' | 'energy' | 'mana' = 'health';
   resourceAmount = 0;
   recentSpendings: Array<{ type: 'health' | 'energy' | 'mana', amount: number }> = [];
+
+  openDiceRoller() {
+    this.showDiceRoller = true;
+  }
+
+  closeDiceRoller() {
+    this.showDiceRoller = false;
+  }
 
   openUseResource() {
     this.loadRecentSpendings();

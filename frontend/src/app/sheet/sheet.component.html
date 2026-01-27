@@ -50,10 +50,23 @@
   </app-skill-tree>
 }
 
-<!-- Sticky Use Resource Button -->
-<button class="use-resource-btn" (click)="openUseResource()">
-  Use Resource
-</button>
+<!-- Sticky Action Buttons -->
+<div class="sticky-actions">
+  <button class="action-btn dice-roller-btn" (click)="openDiceRoller()">
+    🎲 Würfeln
+  </button>
+  <button class="action-btn use-resource-btn" (click)="openUseResource()">
+    Use Resource
+  </button>
+</div>
+
+<!-- Dice Roller Dialog -->
+@if (showDiceRoller) {
+  <app-dice-roller
+    [sheet]="sheet"
+    (close)="closeDiceRoller()">
+  </app-dice-roller>
+}
 
 <!-- Use Resource Dialog -->
 @if (showUseResource) {

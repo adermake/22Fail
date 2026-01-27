@@ -1,3 +1,5 @@
+import { CLASS_DEFINITIONS, ClassHierarchy } from '../data/skill-definitions';
+
 export interface ClassNode {
   name: string;
   parents: string[];
@@ -6,64 +8,51 @@ export interface ClassNode {
 export class ClassTree {
   private static classes: Map<string, ClassNode> = new Map();
   private static initialized = false;
-  private static initPromise: Promise<void> | null = null;
 
   /**
-   * Initialize the class tree from a text definition
-   * Format: "ParentClass: Child1, Child2" or "Parent1 + Parent2: Child"
-   * Caches the result - subsequent calls return immediately
+   * Initialize the class tree from CLASS_DEFINITIONS
+   * Auto-initializes on first use if not already initialized
    */
-  static async initialize(classDefinitions: string) {
-    // Return immediately if already initialized
+  static initialize() {
     if (this.initialized) {
       return;
     }
     
-    // Return existing promise if initialization is in progress
-    if (this.initPromise) {
-      return this.initPromise;
-    }
-    
-    this.initPromise = this.doInitialize(classDefinitions);
-    return this.initPromise;
-  }
-  
-  private static async doInitialize(classDefinitions: string) {
     this.classes.clear();
-    const lines = classDefinitions.split('\n');
     
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue; // Skip empty lines and comments
+    // Build parent-child relationships from CLASS_DEFINITIONS
+    const parentMap = new Map<string, string[]>();
+    
+    // First pass: collect all parent-child relationships
+    for (const [className, classInfo] of Object.entries(CLASS_DEFINITIONS)) {
+      const normalized = this.normalize(className);
       
-      const [parents, children] = trimmed.split(':').map(s => s.trim());
-      if (!parents || !children) continue;
-      
-      // Parse parents (could be "Warrior" or "Warrior + Mage")
-      const parentClasses = parents.split('+').map(p => this.normalize(p));
-      
-      // Parse children
-      const childClasses = children.split(',').map(c => this.normalize(c));
-      
-      // Register each parent as a class if not exists
-      for (const parent of parentClasses) {
-        if (!this.classes.has(parent)) {
-          this.classes.set(parent, { name: this.toDisplayName(parent), parents: [] });
-        }
+      // Register this class if not exists
+      if (!this.classes.has(normalized)) {
+        this.classes.set(normalized, { name: className, parents: [] });
       }
       
-      // Register each child with its parents
-      for (const child of childClasses) {
-        if (this.classes.has(child)) {
-          // Add parents to existing class
-          const existing = this.classes.get(child)!;
-          existing.parents.push(...parentClasses);
-        } else {
-          this.classes.set(child, {
-            name: this.toDisplayName(child),
-            parents: parentClasses,
-          });
+      // Register each child with this class as parent
+      for (const child of classInfo.children) {
+        const childNormalized = this.normalize(child.className);
+        
+        if (!parentMap.has(childNormalized)) {
+          parentMap.set(childNormalized, []);
         }
+        parentMap.get(childNormalized)!.push(normalized);
+        
+        // Register child class if not exists
+        if (!this.classes.has(childNormalized)) {
+          this.classes.set(childNormalized, { name: child.className, parents: [] });
+        }
+      }
+    }
+    
+    // Second pass: assign parents to each class
+    for (const [className, parents] of parentMap.entries()) {
+      const classNode = this.classes.get(className);
+      if (classNode) {
+        classNode.parents = parents;
       }
     }
     
@@ -71,7 +60,8 @@ export class ClassTree {
   }
 
   private static normalize(className: string): string {
-    return className.toLowerCase().trim();
+    // Remove @angle notation if present
+    return className.split('@')[0].toLowerCase().trim();
   }
 
   private static toDisplayName(normalized: string): string {
@@ -83,12 +73,18 @@ export class ClassTree {
 
   /**
    * Check if a skill's class is enabled based on character's classes
+   * Auto-initializes if needed
    */
   static isClassEnabled(
     skillClass: string,
     primaryClass: string,
     secondaryClass: string
   ): boolean {
+    // Auto-initialize on first use
+    if (!this.initialized) {
+      this.initialize();
+    }
+    
     if (!skillClass) return true;
     
     const normalizedSkillClass = this.normalize(skillClass);

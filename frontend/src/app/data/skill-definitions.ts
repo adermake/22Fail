@@ -1,5 +1,68 @@
 import { SkillDefinition } from '../model/skill-definition.model';
 
+// Class hierarchy definition (replaces class-definitions.txt)
+export interface ClassHierarchy {
+  [className: string]: {
+    tier: number;
+    angle: number;
+    children: Array<{ className: string; angle: number }>;
+  };
+}
+
+export const CLASS_DEFINITIONS: ClassHierarchy = {
+  // Tier 1
+  'Magier': { tier: 1, angle: 90, children: [{ className: 'Kampfzauberer', angle: 114 }, { className: 'Heiler', angle: 67 }] },
+  'Kämpfer': { tier: 1, angle: -41, children: [{ className: 'Krieger', angle: -14 }, { className: 'Barbar', angle: -58 }] },
+  'Techniker': { tier: 1, angle: -147, children: [{ className: 'Schütze', angle: -165 }, { className: 'Dieb', angle: -125 }] },
+  
+  // Tier 2
+  'Kampfzauberer': { tier: 2, angle: 114, children: [{ className: 'Arkanist', angle: 123 }, { className: 'Hämonant', angle: 90 }] },
+  'Heiler': { tier: 2, angle: 67, children: [{ className: 'Seelenmagier', angle: 65 }, { className: 'Paladin', angle: 26 }] },
+  'Schütze': { tier: 2, angle: -165, children: [{ className: 'Jäger', angle: -160 }, { className: 'Schnellschütze', angle: -179 }] },
+  'Dieb': { tier: 2, angle: -125, children: [{ className: 'Kampfakrobat', angle: -131 }, { className: 'Assassine', angle: -151 }] },
+  'Krieger': { tier: 2, angle: -14, children: [{ className: 'Ritter', angle: -1 }, { className: 'Mönch', angle: -35 }] },
+  'Barbar': { tier: 2, angle: -58, children: [{ className: 'Berserker', angle: -68 }, { className: 'Plünderer', angle: -96 }] },
+  
+  // Tier 3
+  'Arkanist': { tier: 3, angle: 123, children: [{ className: 'Formationsmagier', angle: 127 }, { className: 'Phantom', angle: -174 }, { className: 'Runenkünstler', angle: 104 }] },
+  'Hämonant': { tier: 3, angle: 90, children: [{ className: 'Nekromant', angle: 83 }] },
+  'Seelenmagier': { tier: 3, angle: 65, children: [{ className: 'Gestaltenwandler', angle: 55 }, { className: 'Mentalist', angle: 71 }] },
+  'Jäger': { tier: 3, angle: -160, children: [{ className: 'Attentäter', angle: -155 }] },
+  'Kampfakrobat': { tier: 3, angle: -131, children: [{ className: 'Klingentänzer', angle: -136 }, { className: 'Duellant', angle: -116 }, { className: 'Phantom', angle: -174 }] },
+  'Ritter': { tier: 3, angle: -1, children: [{ className: 'Erzritter', angle: 14 }, { className: 'Paladin', angle: 26 }, { className: 'Wächter', angle: -1 }] },
+  'Berserker': { tier: 3, angle: -68, children: [{ className: 'Kriegsherr', angle: -92 }, { className: 'Omen', angle: -51 }] },
+  'Plünderer': { tier: 3, angle: -96, children: [{ className: 'General', angle: -94 }] },
+  'Mönch': { tier: 3, angle: -35, children: [{ className: 'Templer', angle: -42 }] },
+  'Schnellschütze': { tier: 3, angle: -179, children: [{ className: 'Artificer', angle: 157 }] },
+  
+  // Tier 4
+  'Phantom': { tier: 4, angle: -174, children: [] },
+  'Gestaltenwandler': { tier: 4, angle: 55, children: [] },
+  'Formationsmagier': { tier: 4, angle: 127, children: [{ className: 'Manalord', angle: 118 }, { className: 'Artificer', angle: 157 }] },
+  'Runenkünstler': { tier: 4, angle: 104, children: [{ className: 'Manalord', angle: 118 }, { className: 'Dunkler Ritter', angle: 24 }] },
+  'Mentalist': { tier: 4, angle: 71, children: [{ className: 'Orakel', angle: 67 }, { className: 'Nekromant', angle: 83 }] },
+  'Assassine': { tier: 4, angle: -151, children: [{ className: 'Attentäter', angle: -155 }] },
+  'Klingentänzer': { tier: 4, angle: -136, children: [{ className: 'Waffenmeister', angle: -138 }] },
+  'Erzritter': { tier: 4, angle: 14, children: [{ className: 'Wächter', angle: -1 }, { className: 'Dunkler Ritter', angle: 24 }] },
+  'General': { tier: 4, angle: -94, children: [{ className: 'Kriegsherr', angle: -92 }] },
+  'Paladin': { tier: 4, angle: 26, children: [] },
+  'Templer': { tier: 4, angle: -42, children: [{ className: 'Koloss', angle: -30 }, { className: 'Omen', angle: -51 }] },
+  
+  // Tier 5
+  'Manalord': { tier: 5, angle: 118, children: [] },
+  'Artificer': { tier: 5, angle: 157, children: [] },
+  'Attentäter': { tier: 5, angle: -155, children: [] },
+  'Duellant': { tier: 5, angle: -116, children: [] },
+  'Waffenmeister': { tier: 5, angle: -138, children: [] },
+  'Kriegsherr': { tier: 5, angle: -92, children: [] },
+  'Omen': { tier: 5, angle: -51, children: [] },
+  'Koloss': { tier: 5, angle: -30, children: [] },
+  'Wächter': { tier: 5, angle: -1, children: [] },
+  'Dunkler Ritter': { tier: 5, angle: 24, children: [] },
+  'Orakel': { tier: 5, angle: 67, children: [] },
+  'Nekromant': { tier: 5, angle: 83, children: [] }
+};
+
 export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // ==================== MAGIER ====================
   // Based on original: Intelligenz+1, Mana+15, Fokus+1, (p) Exzellenz, (p) Zauberlehrling
@@ -35,7 +98,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'magier_exzellenz',
     name: 'Exzellenz',
     class: 'Magier',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 auf Zauber mit voller Mana',
     enlightened: false
   },
@@ -64,7 +127,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'kampfzauberer_zauberladung',
     name: 'Zauberladung',
     class: 'Kampfzauberer',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 beim Würfeln für Zaubercasts',
     enlightened: false
   },
@@ -120,7 +183,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'heiler_gesundheitscheck',
     name: 'Gesundheitscheck',
     class: 'Heiler',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+4 auf Untersuchung von Gesundheit',
     enlightened: false
   },
@@ -128,7 +191,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'heiler_notarzt',
     name: 'Notarzt',
     class: 'Heiler',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+3 auf alle Heilungswürfe, wenn Ziel im kritischen Zustand ist',
     enlightened: false
   },
@@ -136,7 +199,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'heiler_alchemist',
     name: 'Alchemist',
     class: 'Heiler',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 beim Brauen von Tränken mit positivem Effekt',
     enlightened: false
   },
@@ -255,7 +318,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'haemonant_kaltbluetig',
     name: 'Kaltblütig',
     class: 'Hämonant',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 im Kampf gegen Gegner mit offenen Wunden',
     enlightened: false
   },
@@ -313,7 +376,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'seelenmagier_runenkonvergenz',
     name: 'Runenkonvergenz',
     class: 'Seelenmagier',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 auf Nutzung von Zaubern die eine Elementarrune beinhalten, die für eine aktive Beschwörung benutzt wurde.',
     enlightened: false
   },
@@ -413,7 +476,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'formationsmagier_vorbereiten',
     name: 'Vorbereiten',
     class: 'Formationsmagier',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+5 beim Würfeln für Zaubercasts, deren Maximum bei 50 oder höher liegt',
     enlightened: false
   },
@@ -450,7 +513,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'kaempfer_schwere_waffen_werfen',
     name: 'Schwere Waffen werfen+1',
     class: 'Kämpfer',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 auf Schwere Waffen werfen',
     enlightened: false
   },
@@ -503,7 +566,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'techniker_springen',
     name: 'Springen+2',
     class: 'Techniker',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Springen',
     enlightened: false
   },
@@ -511,7 +574,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'techniker_leichte_waffen_werfen',
     name: 'Leichte Waffen werfen+1',
     class: 'Techniker',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 auf Leichte Waffen werfen',
     enlightened: false
   },
@@ -538,7 +601,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'krieger_harter_bursche',
     name: 'Harter Bursche',
     class: 'Krieger',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1, um aus Bewusstlosigkeit zu erwachen',
     enlightened: false
   },
@@ -592,7 +655,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'barbar_blutlust',
     name: 'Blutlust',
     class: 'Barbar',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 auf Angriffe für jeden getöten Gegner, hält für den Rest des Kampfes, maximal +3',
     enlightened: false
   },
@@ -600,7 +663,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'barbar_muskelprotz',
     name: 'Muskelprotz',
     class: 'Barbar',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 auf Angriffe mit schweren Waffen',
     enlightened: true
   },
@@ -638,7 +701,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'dieb_stehlen',
     name: 'Stehlen+2',
     class: 'Dieb',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Stehlen',
     enlightened: false
   },
@@ -646,7 +709,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'dieb_fliehen',
     name: 'Fliehen+2',
     class: 'Dieb',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Fliehen',
     enlightened: false
   },
@@ -654,7 +717,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'dieb_schloesser_knacken',
     name: 'Schlösser knacken+2',
     class: 'Dieb',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Schlösser knacken',
     enlightened: false
   },
@@ -662,7 +725,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'dieb_feinmotoriker',
     name: 'Feinmotoriker',
     class: 'Dieb',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 auf Angriffe mit leichten Waffen',
     enlightened: true
   },
@@ -678,7 +741,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'dieb_auge_der_gier',
     name: 'Auge der Gier',
     class: 'Dieb',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Wert abschätzen',
     enlightened: true
   },
@@ -722,7 +785,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'schuetze_adlerauge',
     name: 'Adlerauge',
     class: 'Schütze',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 im Fernkampf',
     enlightened: false
   },
@@ -730,7 +793,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'schuetze_geschaerfte_sinne',
     name: 'Geschärfte Sinne',
     class: 'Schütze',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf alle Aktionen außerhalb von Kämpfen, die gute Sehkraft vorraussetzen',
     enlightened: true
   },
@@ -768,7 +831,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'ritter_reiten',
     name: 'Reiten+2',
     class: 'Ritter',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Reiten',
     enlightened: false
   },
@@ -776,7 +839,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'ritter_parieren',
     name: 'Parieren+1',
     class: 'Ritter',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 auf Parieren',
     enlightened: false
   },
@@ -792,7 +855,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'ritter_tierfreund',
     name: 'Tierfreund',
     class: 'Ritter',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 im Umgang mit Tieren',
     enlightened: true
   },
@@ -800,7 +863,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'ritter_ritterschwur',
     name: 'Ritterschwur',
     class: 'Ritter',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Reaktionen, die gegnerische Angriffe auf Verbündete blocken',
     enlightened: true
   },
@@ -854,7 +917,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'moench_fokussierte_schlaege',
     name: 'Fokussierte Schläge',
     class: 'Mönch',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+3 bei Angriffen auf Gegenstände',
     enlightened: false
   },
@@ -862,7 +925,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'moench_waffenloser_kampf',
     name: 'Waffenloser Kampf',
     class: 'Mönch',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 im Kampf ohne Waffen (außer Handschuhe)',
     enlightened: false
   },
@@ -907,7 +970,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'berserker_notfallstaerke',
     name: 'Notfallstärke',
     class: 'Berserker',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 im Kampf je 40 fehlende Leben, maximal +5',
     enlightened: true
   },
@@ -1001,7 +1064,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'pluenderer_raeuerbande',
     name: 'Räuberbande',
     class: 'Plünderer',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 im Kampf, wenn deine Gruppe in Überzahl ist',
     enlightened: true
   },
@@ -1029,7 +1092,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'jaeger_klettern',
     name: 'Klettern+2',
     class: 'Jäger',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Klettern',
     enlightened: false
   },
@@ -1037,7 +1100,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'jaeger_verstecken',
     name: 'Verstecken+2',
     class: 'Jäger',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Verstecken',
     enlightened: false
   },
@@ -1045,7 +1108,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'jaeger_fallen_stellen',
     name: 'Fallen stellen+2',
     class: 'Jäger',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Fallen stellen',
     enlightened: false
   },
@@ -1104,7 +1167,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'erzritter_rittmeister',
     name: 'Rittmeister',
     class: 'Erzritter',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Angriffe wenn auf einem Reittier',
     enlightened: false
   },
@@ -1238,7 +1301,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'klingentaenzer_waffen_werfen',
     name: 'Waffen werfen+2',
     class: 'Klingentänzer',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Waffen werfen',
     enlightened: false
   },
@@ -1307,7 +1370,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'assassine_gnadenstoss',
     name: 'Gnadenstoß',
     class: 'Assassine',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Angriffe gegen vergiftete Gegner',
     enlightened: true
   },
@@ -1315,7 +1378,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'assassine_exitus',
     name: 'Exitus',
     class: 'Assassine',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 auf Angriffe mit Absicht zu töten',
     enlightened: false
   },
@@ -1323,7 +1386,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'assassine_hinterhalt',
     name: 'Hinterhalt',
     class: 'Assassine',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2, wenn Gegner von hinten angegriffen wird',
     enlightened: false
   },
@@ -1339,7 +1402,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'assassine_gift_mischen',
     name: 'Gift mischen',
     class: 'Assassine',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 beim Brauen auf Tränke mit schädlichem Effekt',
     enlightened: true
   },
@@ -1438,7 +1501,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'waffenmeister_wandelndes_arsenal',
     name: 'Wandelndes Arsenal',
     class: 'Waffenmeister',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf jeden Angriff nach Waffenwechsel',
     enlightened: true
   },
@@ -1492,7 +1555,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'duellant_duell',
     name: 'Duell',
     class: 'Duellant',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 in einem Duell',
     enlightened: false
   },
@@ -1500,7 +1563,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'duellant_perfektion',
     name: 'Perfektion',
     class: 'Duellant',
-    type: 'passive',
+    type: 'dice_bonus',
     description: 'Wenn Leben voll, +2 im Kampf',
     enlightened: false
   },
@@ -1508,7 +1571,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'duellant_furie',
     name: 'Furie',
     class: 'Duellant',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+1 auf diesen Gegner mit jedem kontinuierlichen Treffer, maximal +5',
     enlightened: true
   },
@@ -1670,7 +1733,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'kampfakrobat_sprungdistanz',
     name: '+ Sprungdistanz',
     class: 'Kampfakrobat',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Sprungdistanz',
     enlightened: false
   },
@@ -1686,7 +1749,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'kampfakrobat_sprungangriff',
     name: 'Sprungangriff',
     class: 'Kampfakrobat',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Angriffe in der Luft',
     enlightened: false
   },
@@ -1768,7 +1831,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'general_leibwaechter',
     name: 'Leibwächter',
     class: 'General',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Reaktionen von Verbündeten, um dich zu schützen',
     enlightened: false
   },
@@ -1902,7 +1965,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'waechter_schildmeister',
     name: 'Schildmeister',
     class: 'Wächter',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '+2 auf Angriffe und Blocks mit Schild',
     enlightened: false
   },
