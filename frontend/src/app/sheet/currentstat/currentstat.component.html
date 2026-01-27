@@ -32,5 +32,10 @@
       <label>Bonus</label>
       <input type="number"  [(ngModel)]="bonus"(ngModelChange)="updateBonus('statusBonus', $event)"/>
     </div>
+
+    <div class="stat-input-group">
+      <label class="effect-label" [title]="effectSources.join('\n')">Effekt</label>
+      <div class="effect-value" [title]="effectSources.join('\n')">{{ effectBonus }}</div>
+    </div>
   </div>
 </div>

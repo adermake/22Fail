@@ -1,9 +1,9 @@
 <div class="skill-card" 
      [class.editing]="isEditing" 
-     [class.passive]="skill.type === 'passive'" 
-     [class.active]="skill.type === 'active'" 
-     [class.dice-bonus]="skill.type === 'dice_bonus'" 
-     [class.stat-bonus]="skill.type === 'stat_bonus'" 
+     [class.passive]="effectiveType === 'passive'" 
+     [class.active]="effectiveType === 'active'" 
+     [class.dice-bonus]="effectiveType === 'dice_bonus'" 
+     [class.stat-bonus]="effectiveType === 'stat_bonus'" 
      [class.disabled]="isDisabled"
      (dblclick)="!isEditing && toggleEdit()">
   @if (!isEditing) {
@@ -12,11 +12,11 @@
         <h4>{{ skill.name }}</h4>
         <div class="skill-badges">
           <span class="skill-type" 
-                [class.active]="skill.type === 'active'" 
-                [class.passive]="skill.type === 'passive'"
-                [class.dice-bonus]="skill.type === 'dice_bonus'"
-                [class.stat-bonus]="skill.type === 'stat_bonus'">
-            {{ getTypeLabel(skill.type) }}
+                [class.active]="effectiveType === 'active'" 
+                [class.passive]="effectiveType === 'passive'"
+                [class.dice-bonus]="effectiveType === 'dice_bonus'"
+                [class.stat-bonus]="effectiveType === 'stat_bonus'">
+            {{ getTypeLabel(effectiveType) }}
           </span>
           <span class="skill-class" [class.disabled]="isDisabled">
             {{ skill.class }}

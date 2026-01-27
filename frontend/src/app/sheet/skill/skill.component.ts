@@ -7,6 +7,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { ClassTree } from '../class-tree-model';
 import { KeywordEnhancer } from '../keyword-enhancer';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 
 @Component({
   selector: 'app-skill',
@@ -27,6 +28,17 @@ export class SkillComponent {
     private cd: ChangeDetectorRef,
     private sanitizer: DomSanitizer
   ) {}
+
+  // Get the effective type from SKILL_DEFINITIONS (source of truth)
+  get effectiveType(): 'active' | 'passive' | 'dice_bonus' | 'stat_bonus' {
+    // Find the definition by name
+    const definition = SKILL_DEFINITIONS.find(s => s.name === this.skill.name);
+    if (definition) {
+      return definition.type;
+    }
+    // Fallback to stored type
+    return this.skill.type;
+  }
 
   get isDisabled(): boolean {
     if (this.skill.enlightened) {

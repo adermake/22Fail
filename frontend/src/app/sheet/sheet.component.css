@@ -86,29 +86,78 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
-/* Sticky Action Buttons */
+/* Sticky Action Buttons - Horizontal Layout */
 .sticky-actions {
   position: fixed;
   bottom: 1.5rem;
   right: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
   z-index: 100;
 }
 
+.sticky-actions.horizontal {
+  flex-direction: row;
+  gap: 0.5rem;
+}
+
 .action-btn {
-  padding: 1rem 1.5rem;
+  width: 48px;
+  height: 48px;
+  padding: 0;
   color: white;
-  border: none;
-  border-radius: 50px;
-  font-size: 1rem;
-  font-weight: 600;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  font-size: 1.5rem;
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+.action-btn.dice-btn {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+}
+
+.action-btn.dice-btn:hover,
+.action-btn.dice-btn.active {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.5);
+  border-color: white;
+}
+
+.action-btn.resource-btn {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+}
+
+.action-btn.resource-btn:hover,
+.action-btn.resource-btn.active {
+  background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%);
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+  border-color: white;
+}
+
+.action-btn.action-macro-btn {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+}
+
+.action-btn.action-macro-btn:hover,
+.action-btn.action-macro-btn.active {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+  border-color: white;
+}
+
+/* Legacy button styles for backward compatibility */
 .dice-roller-btn {
   background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
@@ -129,6 +178,65 @@
   background: var(--accentdark);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+}
+
+/* Action Macros Dialog */
+.action-macros-dialog {
+  max-width: 500px;
+  min-width: 400px;
+}
+
+.action-macros-dialog .dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.action-macros-dialog h2 {
+  margin: 0;
+  color: #f59e0b;
+}
+
+.action-macros-dialog .close-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.action-macros-dialog .close-btn:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.action-macros-content {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.placeholder-text {
+  color: var(--muted);
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.placeholder-subtext {
+  color: var(--muted);
+  font-size: 0.875rem;
+  opacity: 0.7;
+  margin: 0;
 }
 
 /* Use Resource Dialog */

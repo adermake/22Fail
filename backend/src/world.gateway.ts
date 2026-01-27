@@ -173,4 +173,35 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
       value: newBattleLoot
     });
   }
+
+  // Handle dice roll events - broadcast to all players in the world
+  @SubscribeMessage('diceRoll')
+  handleDiceRoll(
+    @MessageBody() roll: {
+      id: string;
+      worldName: string;
+      characterName: string;
+      characterId: string;
+      diceType: number;
+      diceCount: number;
+      bonuses: { name: string; value: number; source: string }[];
+      result: number;
+      rolls: number[];
+      timestamp: Date;
+      isSecret: boolean;
+    },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { worldName, isSecret, characterName } = roll;
+    console.log(`[DICE ROLL] ${characterName} rolled in ${worldName}, isSecret: ${isSecret}`);
+
+    if (isSecret) {
+      // Secret roll - only send to the GM (world room with "gm-" prefix or just send to world for now)
+      // For now, broadcast with isSecret flag so clients can filter based on GM status
+      this.server.to(worldName).emit('diceRolled', roll);
+    } else {
+      // Normal roll - broadcast to everyone in the world
+      this.server.to(worldName).emit('diceRolled', roll);
+    }
+  }
 }

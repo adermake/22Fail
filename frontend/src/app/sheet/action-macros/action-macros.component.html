@@ -1,0 +1,196 @@
+<div class="action-macros-overlay" (click)="onClose()">
+  <div class="action-macros-dialog" (click)="$event.stopPropagation()">
+    <div class="dialog-header">
+      <h2>⚡ Aktionen</h2>
+      <div class="header-controls">
+        <button class="add-btn" (click)="createNewMacro()">+ Neue Aktion</button>
+        <button class="close-btn" (click)="onClose()">&times;</button>
+      </div>
+    </div>
+
+    <div class="dialog-content">
+      @if (!showEditor()) {
+        <!-- Macro List -->
+        @if (macros().length === 0) {
+          <div class="empty-state">
+            <span class="empty-icon">⚡</span>
+            <p>Keine Aktionen konfiguriert</p>
+            <p class="empty-hint">Erstelle eine Aktion, um komplexe Würfe zu automatisieren</p>
+            <button class="create-first-btn" (click)="createNewMacro()">Erste Aktion erstellen</button>
+          </div>
+        } @else {
+          <div class="macro-list">
+            @for (macro of macros(); track macro.id) {
+              <div class="macro-card" 
+                   [class.invalid]="!macro.isValid"
+                   [class.disabled]="!areConditionsMet(macro)"
+                   [style.border-left-color]="macro.color">
+                
+                <div class="macro-header">
+                  <span class="macro-icon">{{ macro.icon || '⚡' }}</span>
+                  <span class="macro-name">{{ macro.name }}</span>
+                  @if (!macro.isValid) {
+                    <span class="invalid-badge" [title]="'Fehlende Skills: ' + getMissingSkills(macro).join(', ')">⚠️ Ungültig</span>
+                  }
+                </div>
+
+                @if (macro.description) {
+                  <p class="macro-description">{{ macro.description }}</p>
+                }
+
+                <div class="macro-summary">
+                  @if (macro.conditions.length > 0) {
+                    <div class="summary-section">
+                      <span class="summary-label">Wenn:</span>
+                      @for (cond of macro.conditions; track cond.id) {
+                        <span class="condition-tag">{{ getConditionLabel(cond) }}</span>
+                      }
+                    </div>
+                  }
+                  @if (macro.consequences.length > 0) {
+                    <div class="summary-section">
+                      <span class="summary-label">Dann:</span>
+                      @for (cons of macro.consequences; track cons.id) {
+                        <span class="consequence-tag">{{ getConsequenceLabel(cons) }}</span>
+                      }
+                    </div>
+                  }
+                </div>
+
+                <div class="macro-actions">
+                  <button class="run-btn" 
+                          [disabled]="!areConditionsMet(macro)"
+                          (click)="runMacro(macro)">
+                    ▶ Ausführen
+                  </button>
+                  <button class="edit-btn" (click)="editMacro(macro)">✏️</button>
+                  <button class="delete-btn" (click)="deleteMacro(macro.id)">🗑️</button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      } @else {
+        <!-- Macro Editor -->
+        @if (editingMacro(); as macro) {
+          <div class="macro-editor">
+            <div class="editor-section">
+              <h3>Grundeinstellungen</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Name</label>
+                  <input type="text" [(ngModel)]="macro.name" placeholder="Aktionsname" />
+                </div>
+                <div class="form-group small">
+                  <label>Icon</label>
+                  <input type="text" [(ngModel)]="macro.icon" placeholder="⚡" maxlength="2" />
+                </div>
+                <div class="form-group small">
+                  <label>Farbe</label>
+                  <input type="color" [(ngModel)]="macro.color" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Beschreibung</label>
+                <textarea [(ngModel)]="macro.description" rows="2" placeholder="Optionale Beschreibung"></textarea>
+              </div>
+            </div>
+
+            <!-- Conditions -->
+            <div class="editor-section">
+              <div class="section-header">
+                <h3>Bedingungen (Wenn...)</h3>
+                <button class="add-small-btn" (click)="addCondition()">+ Bedingung</button>
+              </div>
+              @if (macro.conditions.length === 0) {
+                <p class="section-empty">Keine Bedingungen - Aktion ist immer verfügbar</p>
+              } @else {
+                @for (condition of macro.conditions; track condition.id; let i = $index) {
+                  <div class="condition-row">
+                    <select [(ngModel)]="condition.type">
+                      <option value="resource">Ressource</option>
+                      <option value="stat">Attribut</option>
+                      <option value="skill">Skill</option>
+                    </select>
+
+                    @if (condition.type === 'resource') {
+                      <select [(ngModel)]="condition.resource">
+                        @for (res of resourceTypes; track res) {
+                          <option [value]="res">{{ res }}</option>
+                        }
+                      </select>
+                    } @else if (condition.type === 'stat') {
+                      <select [(ngModel)]="condition.stat">
+                        @for (stat of statTypes; track stat) {
+                          <option [value]="stat">{{ stat }}</option>
+                        }
+                      </select>
+                    } @else {
+                      <input type="text" [(ngModel)]="condition.skillName" placeholder="Skill-Name" />
+                    }
+
+                    @if (condition.type !== 'skill') {
+                      <select [(ngModel)]="condition.operator">
+                        @for (op of operators; track op) {
+                          <option [value]="op">{{ op }}</option>
+                        }
+                      </select>
+                      <input type="number" [(ngModel)]="condition.value" />
+                    }
+
+                    <button class="remove-btn" (click)="removeCondition(i)">×</button>
+                  </div>
+                }
+              }
+            </div>
+
+            <!-- Consequences -->
+            <div class="editor-section">
+              <div class="section-header">
+                <h3>Aktionen (Dann...)</h3>
+                <button class="add-small-btn" (click)="addConsequence()">+ Aktion</button>
+              </div>
+              @if (macro.consequences.length === 0) {
+                <p class="section-empty">Keine Aktionen definiert</p>
+              } @else {
+                @for (consequence of macro.consequences; track consequence.id; let i = $index) {
+                  <div class="consequence-row">
+                    <select [(ngModel)]="consequence.type">
+                      <option value="dice_roll">Würfeln</option>
+                      <option value="spend_resource">Ressource ausgeben</option>
+                      <option value="gain_resource">Ressource erhalten</option>
+                    </select>
+
+                    @if (consequence.type === 'dice_roll') {
+                      <input type="number" [(ngModel)]="consequence.diceCount" min="1" max="20" style="width: 60px" />
+                      <span>d</span>
+                      <select [(ngModel)]="consequence.diceType">
+                        @for (dice of diceTypes; track dice) {
+                          <option [value]="dice">{{ dice }}</option>
+                        }
+                      </select>
+                    } @else {
+                      <input type="number" [(ngModel)]="consequence.amount" style="width: 80px" />
+                      <select [(ngModel)]="consequence.resource">
+                        @for (res of resourceTypes; track res) {
+                          <option [value]="res">{{ res }}</option>
+                        }
+                      </select>
+                    }
+
+                    <button class="remove-btn" (click)="removeConsequence(i)">×</button>
+                  </div>
+                }
+              }
+            </div>
+
+            <div class="editor-actions">
+              <button class="cancel-btn" (click)="closeEditor()">Abbrechen</button>
+              <button class="save-btn" (click)="saveMacro()">Speichern</button>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>

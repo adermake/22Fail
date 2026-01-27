@@ -8,4 +8,5 @@ export class StatusBlock {
   statusBase!: number;
   statusCurrent!: number;
   formulaType!: FormulaType;
+  statusEffectBonus?: number; // Auto-calculated from skills/items (like stat effectBonus)
 }

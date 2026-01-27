@@ -3,6 +3,20 @@ import { Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 import { JsonPatch } from '../model/json-patch.model';
 
+export interface DiceRollEvent {
+  id: string;
+  worldName: string;
+  characterName: string;
+  characterId: string;
+  diceType: number;
+  diceCount: number;
+  bonuses: { name: string; value: number; source: string }[];
+  result: number;
+  rolls: number[];
+  timestamp: Date;
+  isSecret: boolean; // If true, only GM sees the result
+}
+
 @Injectable({ providedIn: 'root' })
 export class WorldSocketService {
   private socket?: Socket;
@@ -10,12 +24,14 @@ export class WorldSocketService {
   private lootReceivedSubject = new Subject<any>();
   private battleLootReceivedSubject = new Subject<any>();
   private connectionReadySubject = new Subject<void>();
+  private diceRollSubject = new Subject<DiceRollEvent>();
   private isConnected = false;
 
   patches$ = this.patchSubject.asObservable();
   lootReceived$ = this.lootReceivedSubject.asObservable();
   battleLootReceived$ = this.battleLootReceivedSubject.asObservable();
   connectionReady$ = this.connectionReadySubject.asObservable();
+  diceRoll$ = this.diceRollSubject.asObservable();
 
   connect() {
     if (this.socket) {
@@ -62,6 +78,11 @@ export class WorldSocketService {
     this.socket.on('battleLootReceived', (loot: any) => {
       this.battleLootReceivedSubject.next(loot);
     });
+
+    this.socket.on('diceRolled', (roll: DiceRollEvent) => {
+      console.log('[WORLD SOCKET] Received diceRolled:', roll);
+      this.diceRollSubject.next(roll);
+    });
   }
 
   async joinWorld(worldName: string): Promise<void> {
@@ -97,5 +118,10 @@ export class WorldSocketService {
   sendDirectLoot(characterId: string, loot: any) {
     console.log('Sending direct loot to:', characterId, loot);
     this.socket?.emit('sendDirectLoot', { characterId, loot });
+  }
+
+  sendDiceRoll(roll: DiceRollEvent) {
+    console.log('[WORLD SOCKET] Sending dice roll:', roll);
+    this.socket?.emit('diceRoll', roll);
   }
 }

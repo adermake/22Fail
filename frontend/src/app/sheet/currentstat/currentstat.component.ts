@@ -21,8 +21,98 @@ export class CurrentstatComponent {
   @Input() bonus!: number;
   @Input() formula!: FormulaType;
   constructor(private cd: ChangeDetectorRef) {}
+
+  // Map formula types to stat keys for skill modifiers
+  private getStatusKey(): 'mana' | 'life' | 'energy' | null {
+    switch (this.formula) {
+      case FormulaType.LIFE:
+        return 'life';
+      case FormulaType.ENERGY:
+        return 'energy';
+      case FormulaType.MANA:
+        return 'mana';
+      default:
+        return null;
+    }
+  }
+
+  get effectBonus(): number {
+    const statusKey = this.getStatusKey();
+    if (!statusKey) return 0;
+
+    let total = 0;
+
+    // Add bonuses from skills
+    if (this.sheet.skills) {
+      for (const skill of this.sheet.skills) {
+        if (skill.statModifiers) {
+          for (const modifier of skill.statModifiers) {
+            if (modifier.stat === statusKey) {
+              const multiplier = skill.level || 1;
+              total += modifier.amount * multiplier;
+            }
+          }
+        }
+      }
+    }
+
+    // Add bonuses from equipped items
+    if (this.sheet.equipment) {
+      for (const item of this.sheet.equipment) {
+        if (item.statModifiers) {
+          for (const modifier of item.statModifiers) {
+            if (modifier.stat === statusKey) {
+              total += modifier.amount;
+            }
+          }
+        }
+      }
+    }
+
+    return total;
+  }
+
+  get effectSources(): string[] {
+    const statusKey = this.getStatusKey();
+    if (!statusKey) return [];
+
+    const sources: string[] = [];
+
+    // Collect sources from skills
+    if (this.sheet.skills) {
+      for (const skill of this.sheet.skills) {
+        if (skill.statModifiers) {
+          for (const modifier of skill.statModifiers) {
+            if (modifier.stat === statusKey) {
+              const multiplier = skill.level || 1;
+              const amount = modifier.amount * multiplier;
+              const sign = amount >= 0 ? '+' : '';
+              sources.push(`${skill.name}: ${sign}${amount}`);
+            }
+          }
+        }
+      }
+    }
+
+    // Collect sources from equipment
+    if (this.sheet.equipment) {
+      for (const item of this.sheet.equipment) {
+        if (item.statModifiers) {
+          for (const modifier of item.statModifiers) {
+            if (modifier.stat === statusKey) {
+              const sign = modifier.amount >= 0 ? '+' : '';
+              sources.push(`${item.name}: ${sign}${modifier.amount}`);
+            }
+          }
+        }
+      }
+    }
+
+    return sources;
+  }
+
   get statusMax(): number {
-    var value = this.base + this.bonus;
+    var value = this.base + this.bonus + this.effectBonus;
     switch (this.formula) {
       case FormulaType.LIFE:
         return value + this.sheet.constitution.current * 5;

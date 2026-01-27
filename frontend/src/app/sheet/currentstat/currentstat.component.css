@@ -96,3 +96,24 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(107, 70, 193, 0.15);
 }
+
+.effect-label {
+  cursor: help;
+  text-decoration: underline dotted;
+}
+
+.effect-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: help;
+}

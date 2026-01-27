@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, inject, OnInit, NgZone, ChangeDetectionStrategy } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit, NgZone, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { StatsComponent } from './stats/stats.component';
 import { CharacterComponent } from './character/character.component';
 import { LevelclassComponent } from './levelclass/levelclass.component';
@@ -30,6 +30,8 @@ import { SkillTreeComponent } from './skill-tree/skill-tree.component';
 import { BackstoryComponent } from './backstory/backstory.component';
 import { FormulaType } from '../model/formula-type.enum';
 import { DiceRollerComponent } from './dice-roller/dice-roller.component';
+import { ActionMacrosComponent } from './action-macros/action-macros.component';
+import { ActionMacro } from '../model/action-macro.model';
 
 @Component({
   selector: 'app-sheet',
@@ -46,7 +48,8 @@ import { DiceRollerComponent } from './dice-roller/dice-roller.component';
     CharacterTabsComponent,
     SkillTreeComponent,
     BackstoryComponent,
-    DiceRollerComponent
+    DiceRollerComponent,
+    ActionMacrosComponent
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
@@ -71,11 +74,53 @@ export class SheetComponent implements OnInit {
   isCurrentTurn = false;
   isGroupTurn = false;
   showDiceRoller = false;
+  showResourcePanel = false;
+  showActionMacros = false;
 
   // Editing states
   editingRunes = new Set<number>();
   editingSpells = new Set<number>();
   editingSkills = new Set<number>();
+
+  // Keyboard shortcuts for D/R/A (dice, resources, actions)
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardShortcuts(event: KeyboardEvent) {
+    // Don't trigger if user is typing in an input field
+    const target = event.target as HTMLElement;
+    const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
+    
+    if (isInputField) return;
+
+    const key = event.key.toLowerCase();
+
+    switch (key) {
+      case 'd':
+        this.showDiceRoller = !this.showDiceRoller;
+        this.cdr.detectChanges();
+        event.preventDefault();
+        break;
+      case 'r':
+        this.showResourcePanel = !this.showResourcePanel;
+        this.cdr.detectChanges();
+        event.preventDefault();
+        break;
+      case 'a':
+        this.showActionMacros = !this.showActionMacros;
+        this.cdr.detectChanges();
+        event.preventDefault();
+        break;
+      case 'escape':
+        // Close all panels
+        if (this.showDiceRoller || this.showResourcePanel || this.showActionMacros) {
+          this.showDiceRoller = false;
+          this.showResourcePanel = false;
+          this.showActionMacros = false;
+          this.cdr.detectChanges();
+          event.preventDefault();
+        }
+        break;
+    }
+  }
 
   async ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id')!;
@@ -299,10 +344,30 @@ export class SheetComponent implements OnInit {
   }
 
   // Use Resource
-  showUseResource = false;
   resourceType: 'health' | 'energy' | 'mana' = 'health';
   resourceAmount = 0;
   recentSpendings: Array<{ type: 'health' | 'energy' | 'mana', amount: number }> = [];
+
+  // Toggle methods for keyboard shortcuts and buttons
+  toggleDiceRoller() {
+    this.showDiceRoller = !this.showDiceRoller;
+    this.cdr.detectChanges();
+  }
+
+  toggleResourcePanel() {
+    if (!this.showResourcePanel) {
+      this.loadRecentSpendings();
+      this.resourceType = 'health';
+      this.resourceAmount = 0;
+    }
+    this.showResourcePanel = !this.showResourcePanel;
+    this.cdr.detectChanges();
+  }
+
+  toggleActionMacros() {
+    this.showActionMacros = !this.showActionMacros;
+    this.cdr.detectChanges();
+  }
 
   openDiceRoller() {
     this.showDiceRoller = true;
@@ -312,15 +377,73 @@ export class SheetComponent implements OnInit {
     this.showDiceRoller = false;
   }
 
+  closeResourcePanel() {
+    this.showResourcePanel = false;
+  }
+
+  closeActionMacros() {
+    this.showActionMacros = false;
+  }
+
+  handleMacroExecution(macro: ActionMacro) {
+    // Execute each consequence in order
+    for (const consequence of macro.consequences) {
+      switch (consequence.type) {
+        case 'dice_roll':
+          // Open dice roller with preset
+          this.showDiceRoller = true;
+          // The dice roller will handle the actual roll
+          break;
+          
+        case 'spend_resource':
+          if (consequence.resource && consequence.amount) {
+            const resourceType = consequence.resource as 'health' | 'energy' | 'mana';
+            const status = this.sheet.statuses?.find(s => {
+              if (resourceType === 'health') return s.formulaType === FormulaType.LIFE;
+              if (resourceType === 'energy') return s.formulaType === FormulaType.ENERGY;
+              if (resourceType === 'mana') return s.formulaType === FormulaType.MANA;
+              return false;
+            });
+            if (status) {
+              status.statusCurrent = Math.max(0, status.statusCurrent - consequence.amount);
+              this.store.applyChange(['statuses']);
+            }
+          }
+          break;
+          
+        case 'gain_resource':
+          if (consequence.resource && consequence.amount) {
+            const resourceType = consequence.resource as 'health' | 'energy' | 'mana';
+            const status = this.sheet.statuses?.find(s => {
+              if (resourceType === 'health') return s.formulaType === FormulaType.LIFE;
+              if (resourceType === 'energy') return s.formulaType === FormulaType.ENERGY;
+              if (resourceType === 'mana') return s.formulaType === FormulaType.MANA;
+              return false;
+            });
+            if (status) {
+              // Gain but don't exceed max
+              const max = status.statusBase + (status.statusEffectBonus || 0);
+              status.statusCurrent = Math.min(max, status.statusCurrent + consequence.amount);
+              this.store.applyChange(['statuses']);
+            }
+          }
+          break;
+      }
+    }
+    
+    this.cdr.markForCheck();
+  }
+
+  // Keep old names for backward compatibility
   openUseResource() {
     this.loadRecentSpendings();
-    this.showUseResource = true;
+    this.showResourcePanel = true;
     this.resourceType = 'health';
     this.resourceAmount = 0;
   }
 
   closeUseResource() {
-    this.showUseResource = false;
+    this.showResourcePanel = false;
   }
 
   getResourceCurrent(type: 'health' | 'energy' | 'mana'): number {

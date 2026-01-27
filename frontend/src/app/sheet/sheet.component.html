@@ -50,13 +50,16 @@
   </app-skill-tree>
 }
 
-<!-- Sticky Action Buttons -->
-<div class="sticky-actions">
-  <button class="action-btn dice-roller-btn" (click)="openDiceRoller()">
-    🎲 Würfeln
+<!-- Sticky Action Buttons - Horizontal Layout -->
+<div class="sticky-actions horizontal">
+  <button class="action-btn dice-btn" [class.active]="showDiceRoller" (click)="toggleDiceRoller()" title="Würfeln (D)">
+    🎲
   </button>
-  <button class="action-btn use-resource-btn" (click)="openUseResource()">
-    Use Resource
+  <button class="action-btn resource-btn" [class.active]="showResourcePanel" (click)="toggleResourcePanel()" title="Ressourcen (R)">
+    💎
+  </button>
+  <button class="action-btn action-macro-btn" [class.active]="showActionMacros" (click)="toggleActionMacros()" title="Aktionen (A)">
+    ⚡
   </button>
 </div>
 
@@ -68,9 +71,9 @@
   </app-dice-roller>
 }
 
-<!-- Use Resource Dialog -->
-@if (showUseResource) {
-  <div class="dialog-overlay" (click)="closeUseResource()">
+<!-- Resource Panel -->
+@if (showResourcePanel) {
+  <div class="dialog-overlay" (click)="closeResourcePanel()">
     <div class="dialog-content use-resource-dialog" (click)="$event.stopPropagation()">
       <h2>Manage Resource</h2>
 
@@ -149,10 +152,19 @@
             <span>Change {{ resourceType | titlecase }}</span>
           }
         </button>
-        <button class="cancel-btn" (click)="closeUseResource()">Cancel</button>
+        <button class="cancel-btn" (click)="closeResourcePanel()">Cancel</button>
       </div>
     </div>
   </div>
+}
+
+<!-- Action Macros Dialog -->
+@if (showActionMacros) {
+  <app-action-macros 
+    [sheet]="sheet" 
+    (close)="closeActionMacros()"
+    (executeMacro)="handleMacroExecution($event)">
+  </app-action-macros>
 }
 
 <!-- Trash Dialog -->
