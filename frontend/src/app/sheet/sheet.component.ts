@@ -96,17 +96,38 @@ export class SheetComponent implements OnInit {
 
     switch (key) {
       case 'd':
-        this.showDiceRoller = !this.showDiceRoller;
+        // Toggle dice roller, close others
+        if (!this.showDiceRoller) {
+          this.showResourcePanel = false;
+          this.showActionMacros = false;
+          this.showDiceRoller = true;
+        } else {
+          this.showDiceRoller = false;
+        }
         this.cdr.detectChanges();
         event.preventDefault();
         break;
       case 'r':
-        this.showResourcePanel = !this.showResourcePanel;
+        // Toggle resources, close others
+        if (!this.showResourcePanel) {
+          this.showDiceRoller = false;
+          this.showActionMacros = false;
+          this.showResourcePanel = true;
+        } else {
+          this.showResourcePanel = false;
+        }
         this.cdr.detectChanges();
         event.preventDefault();
         break;
       case 'a':
-        this.showActionMacros = !this.showActionMacros;
+        // Toggle action macros, close others
+        if (!this.showActionMacros) {
+          this.showDiceRoller = false;
+          this.showResourcePanel = false;
+          this.showActionMacros = true;
+        } else {
+          this.showActionMacros = false;
+        }
         this.cdr.detectChanges();
         event.preventDefault();
         break;

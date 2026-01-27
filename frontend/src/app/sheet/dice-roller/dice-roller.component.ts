@@ -22,6 +22,16 @@ export interface DiceBonus {
   name: string;
   value: number;
   source: string; // 'skill', 'stat', 'manual'
+  context?: string; // e.g., "auf Zauber mit voller Mana"
+}
+
+export interface DiceConfig {
+  id: string;
+  name: string;
+  diceType: number;
+  diceCount: number;
+  bonusNames: string[];
+  manualBonus: number;
 }
 
 export interface RollHistory {
@@ -51,6 +61,7 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
   
   // Animation state
   isRolling = signal<boolean>(false);
+  isAnimating = signal<boolean>(false);
   lastRoll = signal<DiceRoll | null>(null);
   
   // Received rolls from other players
@@ -58,9 +69,32 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
   
   // Roll history (last 10 unique roll configurations)
   rollHistory = signal<RollHistory>({ rolls: [] });
+  
+  // Saved configurations
+  savedConfigs = signal<DiceConfig[]>([]);
+  showSavedList = signal<boolean>(true);
+  newConfigName = '';
+  
+  // Expose Math for template
+  Math = Math;
+  
+  // Audio for dice roll
+  private rollSound: HTMLAudioElement | null = null;
 
   // Available options
   diceTypes = [4, 6, 8, 10, 12, 20, 100];
+
+  // Computed dice formula string (e.g., "2d20+5")
+  diceFormula = computed(() => {
+    const count = this.diceCount();
+    const type = this.selectedDiceType();
+    const bonus = this.totalBonus();
+    let formula = `${count}d${type}`;
+    if (bonus !== 0) {
+      formula += bonus > 0 ? `+${bonus}` : `${bonus}`;
+    }
+    return formula;
+  });
 
   // Computed values
   availableDiceBonuses = computed(() => {
@@ -78,10 +112,13 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
         // Extract bonus value from description (e.g., "+2 beim Würfeln")
         const match = definition.description.match(/\+(\d+)/);
         if (match) {
+          // Extract context from description (everything after the number)
+          const contextMatch = definition.description.match(/\+\d+\s*(.+)/);
           bonuses.push({
             name: definition.name,
             value: parseInt(match[1]) * (skill.level || 1), // Multiply by skill level
-            source: 'skill'
+            source: 'skill',
+            context: contextMatch ? contextMatch[1] : undefined
           });
         }
       }
@@ -125,13 +162,15 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
   }
 
   // Calculate stat total (base + bonus + level bonus + effect)
+  // Matches stat.component.ts: (base + bonus + effectBonus + level/gain) | 0
   private calculateStatCurrent(stat: any, statKey: string): number {
     if (!stat) return 0;
     const base = stat.base || 0;
     const bonus = stat.bonus || 0;
     const gain = stat.gain || 1;
     const effectBonus = this.calculateStatEffectBonus(statKey as any);
-    const levelBonus = Math.floor(this.sheet.level / gain);
+    // Level bonus = level / gain (how many times level fits into gain)
+    const levelBonus = (this.sheet.level / gain) | 0;
     return base + bonus + effectBonus + levelBonus;
   }
 
@@ -175,6 +214,8 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.loadRollHistory();
+    this.loadSavedConfigs();
+    this.initRollSound();
     
     // Listen for rolls from other players in the world
     if (this.sheet.worldName) {
@@ -192,6 +233,91 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.diceRollSub?.unsubscribe();
+  }
+
+  // Initialize dice roll sound
+  private initRollSound() {
+    // Create a simple dice roll sound using Web Audio API
+    this.rollSound = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleVQIj6PLwZ14MQ+E1uvl0pZlAQBfnNPq7LqBT+7uubvV8ei/Nx1u0fbuqXkmAKzw//+rZTofrdnt/5Z3LyKWy+/+tX0vH4fG7f/Hi0osaMjq/7eYPyZYsuT/1aNREV657/z/l2wdB1qf2er9qnwyDl+XyvKvhT4UUInB7rKKRxVGbJ/Xx5dOICdOXoO2s2orCBYrVHOhsGszCgAJGEBniqhiOwobJy9EYoOUZEoqKjQaHSw+VGmBbkguNjwsGRQhNERZbmtSQUxNQy0eDRQjN05mZU5DSkI9Ly0hERUiMEhebVZAPz02Li8oIiMiLDZIVk1BP0E8NjM0Li4sJiorNEFMRDs+QDs3NDUyNDEvMjY8Q0M9PD8+Ozg3NjY2NzQ4PEA+Ozw+Pjo5ODg5ODk6Ozw8Ozs8PDw7Ozs7PDw8PD08PD09PT4+Pj4+Pz8/Pz9AQEBAQEBAQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB');
+  }
+
+  // Play the dice roll sound
+  private playRollSound() {
+    if (this.rollSound) {
+      this.rollSound.currentTime = 0;
+      this.rollSound.volume = 0.3;
+      this.rollSound.play().catch(() => {}); // Ignore autoplay restrictions
+    }
+  }
+
+  // Parse dice formula like "2d6+3" or "1d20-5"
+  parseDiceFormula(formula: string) {
+    const match = formula.match(/^(\d+)?d(\d+)([+-]\d+)?$/i);
+    if (match) {
+      const count = match[1] ? parseInt(match[1]) : 1;
+      const type = parseInt(match[2]);
+      const bonus = match[3] ? parseInt(match[3]) : 0;
+      
+      if (this.diceTypes.includes(type) || type > 0) {
+        this.diceCount.set(Math.min(20, Math.max(1, count)));
+        this.selectedDiceType.set(type);
+        this.manualBonus.set(bonus);
+      }
+    }
+  }
+
+  // Select a dice type
+  selectDice(type: number) {
+    this.selectedDiceType.set(type);
+  }
+
+  // Save/Load configurations
+  saveConfiguration() {
+    if (!this.newConfigName.trim()) return;
+    
+    const config: DiceConfig = {
+      id: `config-${Date.now()}`,
+      name: this.newConfigName.trim(),
+      diceType: this.selectedDiceType(),
+      diceCount: this.diceCount(),
+      bonusNames: Array.from(this.selectedBonuses()),
+      manualBonus: this.manualBonus()
+    };
+    
+    this.savedConfigs.update(configs => [...configs, config]);
+    this.saveSavedConfigs();
+    this.newConfigName = '';
+  }
+
+  loadConfiguration(config: DiceConfig) {
+    this.selectedDiceType.set(config.diceType);
+    this.diceCount.set(config.diceCount);
+    this.manualBonus.set(config.manualBonus);
+    this.selectedBonuses.set(new Set(config.bonusNames));
+  }
+
+  deleteConfiguration(id: string) {
+    this.savedConfigs.update(configs => configs.filter(c => c.id !== id));
+    this.saveSavedConfigs();
+  }
+
+  private loadSavedConfigs() {
+    try {
+      const saved = localStorage.getItem(`dice-configs-${this.sheet.name}`);
+      if (saved) {
+        this.savedConfigs.set(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error('Failed to load saved configs', e);
+    }
+  }
+
+  private saveSavedConfigs() {
+    try {
+      localStorage.setItem(`dice-configs-${this.sheet.name}`, JSON.stringify(this.savedConfigs()));
+    } catch (e) {
+      console.error('Failed to save configs', e);
+    }
   }
 
   toggleBonus(bonusName: string) {
@@ -212,6 +338,10 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     if (this.isRolling()) return;
     
     this.isRolling.set(true);
+    this.isAnimating.set(false);
+    
+    // Play sound
+    this.playRollSound();
     
     // Animate rolling
     await this.animateRoll();
@@ -261,6 +391,10 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     
     this.lastRoll.set(roll);
     this.isRolling.set(false);
+    
+    // Trigger animation
+    this.isAnimating.set(true);
+    setTimeout(() => this.isAnimating.set(false), 600);
     
     // Add to history
     this.addToHistory(roll);

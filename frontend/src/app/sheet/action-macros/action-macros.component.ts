@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { 
   ActionMacro, 
@@ -12,11 +13,20 @@ import {
   validateActionMacro
 } from '../../model/action-macro.model';
 import { FormulaType } from '../../model/formula-type.enum';
+import { StatusBlock } from '../../model/status-block.model';
+
+export interface RollResult {
+  id: string;
+  formula: string;
+  rolls: number[];
+  total: number;
+  isNew: boolean;
+}
 
 @Component({
   selector: 'app-action-macros',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DragDropModule],
   templateUrl: './action-macros.component.html',
   styleUrls: ['./action-macros.component.css']
 })
@@ -30,12 +40,16 @@ export class ActionMacrosComponent {
   showEditor = signal<boolean>(false);
   editingMacro = signal<ActionMacro | null>(null);
   isNewMacro = signal<boolean>(false);
+  lastRollResults = signal<RollResult[]>([]);
 
   // Available options
   resourceTypes = ['health', 'energy', 'mana', 'fokus'] as const;
   statTypes = ['strength', 'dexterity', 'speed', 'intelligence', 'constitution', 'chill'] as const;
   operators = ['>', '<', '>=', '<=', '==', '!='] as const;
   diceTypes = [4, 6, 8, 10, 12, 20, 100];
+  
+  // Available icons for actions
+  availableIcons = ['⚡', '⚔️', '🛡️', '🔥', '❄️', '💫', '🌟', '💥', '🎯', '🗡️', '🏹', '✨', '💀', '❤️', '🔮', '📖'];
 
   // Computed: character skill names for validation
   characterSkillNames = computed(() => {
@@ -276,6 +290,90 @@ export class ActionMacrosComponent {
       default:
         return 'Unbekannt';
     }
+  }
+
+  // Resource bar methods for the UI
+  getStatuses(): StatusBlock[] {
+    return this.sheet?.statuses || [];
+  }
+
+  getResourceIcon(formulaType: FormulaType): string {
+    switch (formulaType) {
+      case FormulaType.LIFE: return '❤️';
+      case FormulaType.ENERGY: return '⚡';
+      case FormulaType.MANA: return '🔮';
+      default: return '📊';
+    }
+  }
+
+  getResourcePercent(status: StatusBlock): number {
+    const max = this.getResourceMax(status);
+    if (max === 0) return 0;
+    return Math.min(100, Math.max(0, (status.statusCurrent / max) * 100));
+  }
+
+  getResourceMax(status: StatusBlock): number {
+    return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
+  }
+
+  getResourceName(status: StatusBlock): string {
+    switch (status.formulaType) {
+      case FormulaType.LIFE: return 'Leben';
+      case FormulaType.ENERGY: return 'Energie';
+      case FormulaType.MANA: return 'Mana';
+      default: return 'Ressource';
+    }
+  }
+
+  // Drag and drop for macro reordering
+  dropMacro(event: CdkDragDrop<ActionMacro[]>) {
+    const currentMacros = [...this.macros()];
+    moveItemInArray(currentMacros, event.previousIndex, event.currentIndex);
+    // Update order property
+    currentMacros.forEach((m, i) => m.order = i);
+    this.macros.set(currentMacros);
+    this.saveMacros();
+  }
+
+  // Execute macro with roll results
+  runMacroWithResults(macro: ActionMacro) {
+    if (!this.areConditionsMet(macro)) return;
+    
+    // Collect dice roll results
+    const results: RollResult[] = [];
+    
+    for (const consequence of macro.consequences) {
+      if (consequence.type === 'dice_roll') {
+        const rolls: number[] = [];
+        const count = consequence.diceCount || 1;
+        const type = consequence.diceType || 6;
+        
+        for (let i = 0; i < count; i++) {
+          rolls.push(Math.floor(Math.random() * type) + 1);
+        }
+        
+        const total = rolls.reduce((a, b) => a + b, 0);
+        
+        results.push({
+          id: crypto.randomUUID(),
+          formula: `${count}d${type}`,
+          rolls,
+          total,
+          isNew: true
+        });
+      }
+    }
+    
+    // Update last roll results
+    this.lastRollResults.set(results);
+    
+    // Mark as not new after animation
+    setTimeout(() => {
+      this.lastRollResults.update(r => r.map(roll => ({ ...roll, isNew: false })));
+    }, 500);
+    
+    // Emit for resource changes
+    this.executeMacro.emit(macro);
   }
 
   onClose() {

@@ -1,5 +1,6 @@
-<div class="dice-roller-overlay" (click)="onClose()">
-  <div class="dice-roller-dialog" [class.secret-mode]="isSecretRoll()" (click)="$event.stopPropagation()">
+<div class="dice-roller-overlay">
+  <div class="dice-roller-fullscreen" [class.secret-mode]="isSecretRoll()">
+    <!-- Header -->
     <div class="dialog-header">
       <h2>🎲 Würfel Werfen</h2>
       <div class="header-controls">
@@ -11,88 +12,111 @@
       </div>
     </div>
 
-    <div class="dialog-content horizontal-layout">
-      <!-- Left Column: Dice Selection & Roll -->
-      <div class="column dice-column">
-        <!-- Dice Type Selection -->
-        <div class="dice-type-row">
+    <div class="dialog-body">
+      <!-- Left Panel: Rolling Area -->
+      <div class="panel roll-panel">
+        <div class="panel-header">
+          <h3>Würfeln</h3>
+        </div>
+
+        <!-- Custom Dice Input -->
+        <div class="dice-input-section">
+          <input 
+            type="text" 
+            class="dice-formula-input"
+            [value]="diceFormula()"
+            (input)="parseDiceFormula($any($event.target).value)"
+            placeholder="z.B. 2d6+3 oder 1d20"
+          />
+        </div>
+
+        <!-- Dice Type Buttons -->
+        <div class="dice-type-grid">
           @for (type of diceTypes; track type) {
             <button 
-              class="dice-btn"
+              class="dice-type-btn"
               [class.selected]="selectedDiceType() === type"
-              (click)="selectedDiceType.set(type)">
+              (click)="selectDice(type)">
               d{{type}}
             </button>
           }
         </div>
         
-        <!-- Dice Count & Manual Bonus Row -->
-        <div class="dice-controls-row">
+        <!-- Dice Count & Bonus -->
+        <div class="dice-controls">
           <div class="control-group">
             <label>Anzahl</label>
-            <input 
-              type="number" 
-              min="1" 
-              max="20" 
-              [value]="diceCount()"
-              (input)="diceCount.set(+$any($event.target).value)" />
+            <div class="number-control">
+              <button (click)="diceCount.set(Math.max(1, diceCount() - 1))">-</button>
+              <input type="number" min="1" max="20" [value]="diceCount()" (input)="diceCount.set(+$any($event.target).value)" />
+              <button (click)="diceCount.set(Math.min(20, diceCount() + 1))">+</button>
+            </div>
           </div>
           <div class="control-group">
             <label>±Bonus</label>
-            <input 
-              type="number" 
-              [value]="manualBonus()"
-              (input)="manualBonus.set(+$any($event.target).value)"
-              placeholder="0" />
+            <input type="number" class="bonus-input" [value]="manualBonus()" (input)="manualBonus.set(+$any($event.target).value)" />
           </div>
         </div>
 
-        <!-- Roll Summary & Button -->
-        <div class="roll-area">
-          <div class="roll-summary">
-            <span class="formula">
-              {{diceCount()}}d{{selectedDiceType()}}
-              @if (totalBonus() !== 0) {
-                <span [class.negative]="totalBonus() < 0">
-                  {{totalBonus() > 0 ? '+' : ''}}{{totalBonus()}}
+        <!-- Roll Summary -->
+        <div class="roll-summary">
+          <span class="formula-display">
+            {{diceCount()}}d{{selectedDiceType()}}
+            @if (totalBonus() !== 0) {
+              <span [class.negative]="totalBonus() < 0">
+                {{totalBonus() > 0 ? '+' : ''}}{{totalBonus()}}
+              </span>
+            }
+          </span>
+        </div>
+
+        <!-- Roll Button -->
+        <button 
+          class="roll-btn"
+          [class.rolling]="isRolling()"
+          [class.secret]="isSecretRoll()"
+          [disabled]="isRolling()"
+          (click)="roll()">
+          <span class="roll-text">{{isRolling() ? '🎲...' : '🎲 Würfeln'}}</span>
+        </button>
+
+        <!-- Result Display -->
+        @if (lastRoll(); as rollResult) {
+          <div class="result-display" [class.secret]="rollResult.isSecret" [class.animate]="isAnimating()">
+            <div class="result-number">{{rollResult.result}}</div>
+            <div class="result-breakdown">
+              <span class="dice-rolls">[{{rollResult.rolls.join('+')}}]</span>
+              @for (bonus of rollResult.bonuses; track bonus.name) {
+                <span class="bonus-pill" [class.negative]="bonus.value < 0">
+                  {{bonus.name}}: {{bonus.value > 0 ? '+' : ''}}{{bonus.value}}
                 </span>
-              }
-            </span>
-          </div>
-          <button 
-            class="roll-btn"
-            [class.rolling]="isRolling()"
-            [class.secret]="isSecretRoll()"
-            [disabled]="isRolling()"
-            (click)="roll()">
-            <span class="roll-text">{{isRolling() ? '🎲...' : '🎲 Würfeln'}}</span>
-          </button>
-        </div>
-
-        <!-- Last Roll Result -->
-        @if (lastRoll(); as roll) {
-          <div class="last-roll" [class.secret]="roll.isSecret">
-            <div class="roll-result-big">{{roll.result}}</div>
-            <div class="roll-breakdown">
-              <span class="dice-sum">[{{roll.rolls.join('+')}}]</span>
-              @if (roll.bonuses.length > 0) {
-                @for (bonus of roll.bonuses; track bonus.name) {
-                  <span class="bonus-tag" [class.negative]="bonus.value < 0">
-                    {{bonus.value > 0 ? '+' : ''}}{{bonus.value}}
-                  </span>
-                }
               }
             </div>
           </div>
         }
+
+        <!-- Save Configuration -->
+        <div class="save-config-section">
+          <input 
+            type="text" 
+            class="config-name-input"
+            [(ngModel)]="newConfigName"
+            placeholder="Konfiguration speichern..." 
+          />
+          <button class="save-config-btn" (click)="saveConfiguration()" [disabled]="!newConfigName">💾</button>
+        </div>
       </div>
 
-      <!-- Right Column: Bonuses -->
-      <div class="column bonus-column">
+      <!-- Middle Panel: Bonuses -->
+      <div class="panel bonus-panel">
+        <div class="panel-header">
+          <h3>Boni</h3>
+        </div>
+
         <!-- Stat Bonuses -->
         <div class="bonus-section">
           <h4>Attribute</h4>
-          <div class="bonus-chips">
+          <div class="bonus-grid">
             @for (stat of statBonuses(); track stat.name) {
               <button 
                 class="bonus-chip stat"
@@ -107,55 +131,94 @@
           </div>
         </div>
 
-        <!-- Skill Dice Bonuses -->
+        <!-- Dice Skill Bonuses -->
         @if (availableDiceBonuses().length > 0) {
           <div class="bonus-section">
-            <h4>Würfelboni</h4>
-            <div class="bonus-chips scrollable">
+            <h4>Würfelboni (Skills)</h4>
+            <div class="bonus-grid scrollable">
               @for (bonus of availableDiceBonuses(); track bonus.name) {
                 <button 
                   class="bonus-chip skill"
                   [class.selected]="isBonusSelected(bonus.name)"
-                  (click)="toggleBonus(bonus.name)">
+                  (click)="toggleBonus(bonus.name)"
+                  [title]="bonus.context || ''">
                   <span class="chip-name">{{bonus.name}}</span>
                   <span class="chip-value">+{{bonus.value}}</span>
+                  @if (bonus.context) {
+                    <span class="chip-context">{{bonus.context}}</span>
+                  }
                 </button>
               }
             </div>
           </div>
         }
 
+        <!-- Selected Bonuses Summary -->
+        @if (selectedBonuses().size > 0) {
+          <div class="selected-summary">
+            <span class="summary-label">Ausgewählt:</span>
+            <span class="summary-value">{{totalBonus() > 0 ? '+' : ''}}{{totalBonus()}}</span>
+          </div>
+        }
+      </div>
+
+      <!-- Right Panel: Saved Configs & History -->
+      <div class="panel config-panel">
+        <div class="panel-header">
+          <h3>Gespeichert</h3>
+          <button class="toggle-list-btn" (click)="showSavedList.set(!showSavedList())">
+            {{showSavedList() ? '▼' : '▶'}}
+          </button>
+        </div>
+
+        @if (showSavedList()) {
+          <div class="saved-configs">
+            @if (savedConfigs().length === 0) {
+              <p class="empty-hint">Keine gespeicherten Konfigurationen</p>
+            } @else {
+              @for (config of savedConfigs(); track config.id) {
+                <div class="config-item">
+                  <button class="config-btn" (click)="loadConfiguration(config)">
+                    <span class="config-name">{{config.name}}</span>
+                    <span class="config-formula">{{config.diceCount}}d{{config.diceType}}</span>
+                  </button>
+                  <button class="config-delete" (click)="deleteConfiguration(config.id)">×</button>
+                </div>
+              }
+            }
+          </div>
+        }
+
         <!-- Roll History -->
-        @if (rollHistory().rolls.length > 0) {
-          <div class="bonus-section history-section">
-            <h4>Letzte Würfe</h4>
-            <div class="history-chips">
-              @for (roll of rollHistory().rolls.slice(0, 5); track roll.id) {
-                <button class="history-chip" (click)="repeatRoll(roll)" [title]="getRollLabel(roll)">
-                  <span class="history-formula">{{roll.diceCount}}d{{roll.diceType}}</span>
-                  <span class="history-result">= {{roll.result}}</span>
-                </button>
+        <div class="history-section">
+          <h4>Verlauf</h4>
+          <div class="history-list">
+            @for (roll of rollHistory().rolls.slice(0, 8); track roll.id) {
+              <button class="history-item" (click)="repeatRoll(roll)">
+                <span class="history-formula">{{roll.diceCount}}d{{roll.diceType}}</span>
+                <span class="history-result">= {{roll.result}}</span>
+                <span class="history-time">{{getTimeAgo(roll.timestamp)}}</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Received Rolls -->
+        @if (receivedRolls().length > 0) {
+          <div class="received-section">
+            <h4>🎲 Andere Würfe</h4>
+            <div class="received-list">
+              @for (roll of receivedRolls(); track roll.id) {
+                <div class="received-item">
+                  <span class="player-name">{{roll.characterName}}</span>
+                  <span class="roll-info">{{roll.diceCount}}d{{roll.diceType}} = </span>
+                  <span class="roll-result">{{roll.result}}</span>
+                </div>
               }
             </div>
           </div>
         }
       </div>
     </div>
-
-    <!-- Received Rolls from Other Players -->
-    @if (receivedRolls().length > 0) {
-      <div class="received-rolls">
-        <h4>🎲 Andere Würfe</h4>
-        <div class="received-list">
-          @for (roll of receivedRolls(); track roll.id) {
-            <div class="received-roll">
-              <span class="player-name">{{roll.characterName}}</span>
-              <span class="roll-info">{{roll.diceCount}}d{{roll.diceType}} = </span>
-              <span class="roll-total">{{roll.result}}</span>
-            </div>
-          }
-        </div>
-      </div>
-    }
   </div>
 </div>
