@@ -227,6 +227,22 @@
   transition: all 0.2s;
 }
 
+.use-btn.gain-btn {
+  background: #22c55e;
+}
+
+.use-btn.gain-btn:hover:not(.disabled) {
+  background: #16a34a;
+}
+
+.use-btn.loss-btn {
+  background: #ef4444;
+}
+
+.use-btn.loss-btn:hover:not(.disabled) {
+  background: #dc2626;
+}
+
 .use-btn:hover:not(.disabled) {
   background: var(--accentdark);
 }

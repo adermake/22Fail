@@ -125,9 +125,10 @@ export class SkillDetailComponent {
 
   getTypeLabel(type: string): string {
     switch (type) {
-      case 'stat_bonus': return 'Bonus';
-      case 'passive': return 'Passiv';
+      case 'dice_bonus': return 'Dice';
       case 'active': return 'Aktiv';
+      case 'passive': return 'Passiv';
+      case 'stat_bonus': return 'Bonus';
       default: return type;
     }
   }

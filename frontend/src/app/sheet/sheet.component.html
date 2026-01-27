@@ -122,14 +122,16 @@
 
       <div class="dialog-actions">
         <button
-          class="use-btn gain-btn"
+          class="use-btn"
+          [class.gain-btn]="resourceAmount > 0"
+          [class.loss-btn]="resourceAmount < 0"
           [class.disabled]="resourceAmount === 0"
           [disabled]="resourceAmount === 0"
           (click)="changeResource()">
           @if (resourceAmount > 0) {
-            <span>➕ Gain {{ resourceAmount }} {{ resourceType | titlecase }}</span>
+            <span>Gain {{ resourceAmount }} {{ resourceType | titlecase }}</span>
           } @else if (resourceAmount < 0) {
-            <span>➖ Spend {{ Math.abs(resourceAmount) }} {{ resourceType | titlecase }}</span>
+            <span>Spend {{ Math.abs(resourceAmount) }} {{ resourceType | titlecase }}</span>
           } @else {
             <span>Change {{ resourceType | titlecase }}</span>
           }

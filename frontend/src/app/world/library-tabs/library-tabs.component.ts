@@ -122,6 +122,17 @@ export class LibraryTabsComponent implements OnChanges {
     }
 
     return [...filtered].sort((a, b) => {
+      // Skills have special type-based sorting
+      if (a.type && b.type) {
+        const typeOrder: Record<string, number> = { 'dice_bonus': 0, 'active': 1, 'passive': 2, 'stat_bonus': 3 };
+        const orderA = typeOrder[a.type] ?? 4;
+        const orderB = typeOrder[b.type] ?? 4;
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+      }
+      
+      // Then sort by name
       const nameA = (a.name || '').toLowerCase();
       const nameB = (b.name || '').toLowerCase();
       return nameA.localeCompare(nameB);

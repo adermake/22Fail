@@ -72,15 +72,38 @@
   border-radius: 6px;
   padding: 0.6rem;
   transition: all 0.2s;
+  border-left: 4px solid var(--border);
+}
+
+.skill-item.type-dice-bonus {
+  border-left-color: #22c55e;
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.08) 0%, var(--bg) 100%);
+}
+
+.skill-item.type-active {
+  border-left-color: #eab308;
+  background: linear-gradient(90deg, rgba(234, 179, 8, 0.08) 0%, var(--bg) 100%);
+}
+
+.skill-item.type-passive {
+  border-left-color: #9b59b6;
+  background: linear-gradient(90deg, rgba(155, 89, 182, 0.08) 0%, var(--bg) 100%);
+}
+
+.skill-item.type-stat-bonus {
+  border-left-color: #3b82f6;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.08) 0%, var(--bg) 100%);
 }
 
 .skill-item:hover {
   border-color: var(--accent);
+  transform: translateX(2px);
 }
 
 .skill-item.learned {
   border-color: #22c55e;
-  background: rgba(34, 197, 94, 0.1);
+  border-width: 2px;
+  background: rgba(34, 197, 94, 0.15);
 }
 
 .skill-item.can-learn {
@@ -126,25 +149,30 @@
 }
 
 .skill-type {
-  font-size: 0.6rem;
-  padding: 2px 5px;
+  font-size: 0.7rem;
+  padding: 3px 7px;
   border-radius: 3px;
   text-transform: uppercase;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.skill-type.type-stat-bonus {
-  background: #3b82f6;
-  color: white;
-}
-
-.skill-type.type-passive {
-  background: #8b5cf6;
+.skill-type.type-dice-bonus {
+  background: #22c55e;
   color: white;
 }
 
 .skill-type.type-active {
-  background: #f59e0b;
+  background: #eab308;
+  color: white;
+}
+
+.skill-type.type-passive {
+  background: #9b59b6;
+  color: white;
+}
+
+.skill-type.type-stat-bonus {
+  background: #3b82f6;
   color: white;
 }
 

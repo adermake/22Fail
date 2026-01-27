@@ -9,7 +9,7 @@
   border-radius: 6px;
   padding: 1rem;
   transition: all 0.2s;
-  border-left: 3px solid #4a90e2; /* Default active */
+  border-left: 5px solid #eab308; /* Default active - yellow */
   cursor: grab;
   width: 100%;
   box-sizing: border-box;
@@ -23,18 +23,24 @@
   cursor: default;
 }
 
+.skill-card.active {
+  border-left: 5px solid #eab308; /* Yellow */
+  background: linear-gradient(135deg, var(--card) 0%, rgba(234, 179, 8, 0.1) 100%);
+}
+
 .skill-card.passive {
-  border-left: 3px solid #9b59b6; /* Purple */
+  border-left: 5px solid #9b59b6; /* Purple */
+  background: linear-gradient(135deg, var(--card) 0%, rgba(155, 89, 182, 0.1) 100%);
 }
 
 .skill-card.dice-bonus {
-  border-left: 3px solid #ff9800; /* Orange */
-  background: linear-gradient(135deg, var(--card) 0%, rgba(255, 152, 0, 0.05) 100%);
+  border-left: 5px solid #22c55e; /* Green */
+  background: linear-gradient(135deg, var(--card) 0%, rgba(34, 197, 94, 0.1) 100%);
 }
 
 .skill-card.stat-bonus {
-  border-left: 3px solid #4caf50; /* Green */
-  background: linear-gradient(135deg, var(--card) 0%, rgba(76, 175, 80, 0.05) 100%);
+  border-left: 5px solid #3b82f6; /* Blue */
+  background: linear-gradient(135deg, var(--card) 0%, rgba(59, 130, 246, 0.1) 100%);
 }
 
 .skill-card.disabled {
@@ -107,32 +113,32 @@
   padding: 0.25rem 0.5rem;
   border-radius: 3px;
   font-size: 0.8rem;
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .skill-type.active {
-  background: rgba(25, 118, 210, 0.2);
-  color: #64b5f6;
-  border: 1px solid rgba(25, 118, 210, 0.4);
+  background: #eab308;
+  color: white;
+  border: 1px solid #ca8a04;
 }
 
 .skill-type.passive {
-  background: rgba(123, 31, 162, 0.2);
-  color: #ba68c8;
-  border: 1px solid rgba(123, 31, 162, 0.4);
+  background: #9b59b6;
+  color: white;
+  border: 1px solid #7d3c98;
 }
 
 .skill-type.dice-bonus {
-  background: rgba(255, 152, 0, 0.2);
-  color: #ffa726;
-  border: 1px solid rgba(255, 152, 0, 0.4);
+  background: #22c55e;
+  color: white;
+  border: 1px solid #16a34a;
 }
 
 .skill-type.stat-bonus {
-  background: rgba(76, 175, 80, 0.2);
-  color: #81c784;
-  border: 1px solid rgba(76, 175, 80, 0.4);
+  background: #3b82f6;
+  color: white;
+  border: 1px solid #2563eb;
 }
 
 .skill-class {
