@@ -11,7 +11,14 @@ import { SkillDefinition } from '../../../model/skill-definition.model';
 })
 export class SkillDetailComponent {
   @Input() className: string = '';
-  @Input() skills: SkillDefinition[] = [];
+  @Input() set skills(value: SkillDefinition[]) {
+    this._skills = this.sortSkills(value);
+  }
+  get skills(): SkillDefinition[] {
+    return this._skills;
+  }
+  private _skills: SkillDefinition[] = [];
+
   @Input() learnedSkillIds: string[] = [];
   @Input() availablePoints: number = 0;
   @Input() canLearnFromClass: boolean = true;  // Has 3 skills from parent class
@@ -24,6 +31,16 @@ export class SkillDetailComponent {
   @Output() close = new EventEmitter<void>();
   @Output() setPrimary = new EventEmitter<void>();
   @Output() setSecondary = new EventEmitter<void>();
+
+  private sortSkills(skills: SkillDefinition[]): SkillDefinition[] {
+    // Sort order: stat_bonus, passive, active
+    const typeOrder = { 'stat_bonus': 0, 'passive': 1, 'active': 2 };
+    return [...skills].sort((a, b) => {
+      const orderA = typeOrder[a.type] ?? 3;
+      const orderB = typeOrder[b.type] ?? 3;
+      return orderA - orderB;
+    });
+  }
 
   onSetPrimary() {
     // Check if at least one skill is learned from this class
@@ -49,7 +66,30 @@ export class SkillDetailComponent {
     return this.learnedSkillIds.includes(skill.id);
   }
 
+  getSkillLevel(skill: SkillDefinition): number {
+    return this.learnedSkillIds.filter(id => id === skill.id).length;
+  }
+
   canLearn(skill: SkillDefinition): boolean {
+    // For infinite level skills, always allow if we have talent points
+    if (skill.infiniteLevel) {
+      if (this.availablePoints <= 0) return false;
+      if (!this.canLearnFromClass) return false;
+      
+      // Check required skill(s)
+      if (skill.requiresSkill) {
+        const requiredSkills = Array.isArray(skill.requiresSkill) ? skill.requiresSkill : [skill.requiresSkill];
+        for (const requiredSkillId of requiredSkills) {
+          if (!this.learnedSkillIds.includes(requiredSkillId)) {
+            return false;
+          }
+        }
+      }
+      
+      return true;
+    }
+    
+    // For normal skills, can't learn if already learned
     if (this.isLearned(skill)) return false;
     if (this.availablePoints <= 0) return false;
     if (!this.canLearnFromClass) return false;

@@ -56,6 +56,93 @@
     ></textarea>
   </div>
 
+  <div class="requirements-section">
+    <label>Stat Modifiers (Boni/Mali)</label>
+    <div class="requirements-grid">
+      <div class="req-field">
+        <label>STR</label>
+        <input
+          type="number"
+          [(ngModel)]="tempModifiers['strength']"
+          name="modStrength"
+          placeholder="0"
+        />
+      </div>
+      <div class="req-field">
+        <label>DEX</label>
+        <input
+          type="number"
+          [(ngModel)]="tempModifiers['dexterity']"
+          name="modDexterity"
+          placeholder="0"
+        />
+      </div>
+      <div class="req-field">
+        <label>SPD</label>
+        <input
+          type="number"
+          [(ngModel)]="tempModifiers['speed']"
+          name="modSpeed"
+          placeholder="0"
+        />
+      </div>
+      <div class="req-field">
+        <label>INT</label>
+        <input
+          type="number"
+          [(ngModel)]="tempModifiers['intelligence']"
+          name="modIntelligence"
+          placeholder="0"
+        />
+      </div>
+      <div class="req-field">
+        <label>CON</label>
+        <input
+          type="number"
+          [(ngModel)]="tempModifiers['constitution']"
+          name="modConstitution"
+          placeholder="0"
+        />
+      </div>
+      <div class="req-field">
+        <label>CHL</label>
+        <input
+          type="number"
+          [(ngModel)]="tempModifiers['chill']"
+          name="modChill"
+          placeholder="0"
+        />
+      </div>
+      <div class="req-field">
+        <label>MANA</label>
+        <input
+          type="number"
+          [(ngModel)]="tempModifiers['mana']"
+          name="modMana"
+          placeholder="0"
+        />
+      </div>
+      <div class="req-field">
+        <label>LEBEN</label>
+        <input
+          type="number"
+          [(ngModel)]="tempModifiers['life']"
+          name="modLife"
+          placeholder="0"
+        />
+      </div>
+      <div class="req-field">
+        <label>AUSD</label>
+        <input
+          type="number"
+          [(ngModel)]="tempModifiers['energy']"
+          name="modEnergy"
+          placeholder="0"
+        />
+      </div>
+    </div>
+  </div>
+
   <div class="button-group">
     <button type="submit" class="create-btn">Create</button>
     <button type="button" class="cancel-btn" (click)="cancelCreate()">Cancel</button>

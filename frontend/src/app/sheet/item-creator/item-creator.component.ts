@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ItemBlock } from '../../model/item-block.model';
+import { ItemBlock, StatModifier } from '../../model/item-block.model';
 
 @Component({
   selector: 'app-item-creator',
@@ -20,6 +20,20 @@ export class ItemCreatorComponent {
     weight: 0,
     lost: false,
     requirements: {},
+    statModifiers: []
+  };
+
+  // Track stat modifiers being edited
+  tempModifiers: {[key: string]: number} = {
+    strength: 0,
+    dexterity: 0,
+    speed: 0,
+    intelligence: 0,
+    constitution: 0,
+    chill: 0,
+    mana: 0,
+    life: 0,
+    energy: 0
   };
 
   createItem() {
@@ -28,7 +42,23 @@ export class ItemCreatorComponent {
       return;
     }
 
-    this.create.emit({ ...this.newItem });
+    // Build stat modifiers array from temp values
+    const statModifiers: StatModifier[] = [];
+    Object.entries(this.tempModifiers).forEach(([stat, amount]) => {
+      if (amount !== 0) {
+        statModifiers.push({
+          stat: stat as any,
+          amount
+        });
+      }
+    });
+
+    const itemToCreate = {
+      ...this.newItem,
+      statModifiers: statModifiers.length > 0 ? statModifiers : undefined
+    };
+
+    this.create.emit(itemToCreate);
     
     // Reset form
     this.newItem = {
@@ -37,6 +67,18 @@ export class ItemCreatorComponent {
       description: '',
       weight: 0,
       requirements: {},
+      statModifiers: []
+    };
+    this.tempModifiers = {
+      strength: 0,
+      dexterity: 0,
+      speed: 0,
+      intelligence: 0,
+      constitution: 0,
+      chill: 0,
+      mana: 0,
+      life: 0,
+      energy: 0
     };
   }
 

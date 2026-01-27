@@ -777,8 +777,25 @@ Nekromant:`;
           path: `skills.${existingSkillIndex}.description`,
           value: updatedDescription
         });
+
+        // Update stat modifiers if this is a stat bonus skill
+        if (skill.statBonus) {
+          const statModifiers = [{
+            stat: skill.statBonus.stat as any,
+            amount: skill.statBonus.amount * newLevel
+          }];
+          this.patch.emit({
+            path: `skills.${existingSkillIndex}.statModifiers`,
+            value: statModifiers
+          });
+        }
       } else {
         // First time learning this skill
+        const statModifiers = skill.statBonus ? [{
+          stat: skill.statBonus.stat as any,
+          amount: skill.statBonus.amount
+        }] : undefined;
+
         const newSkillBlock: SkillBlock = {
           name: skill.name,
           class: skill.class,
@@ -786,7 +803,8 @@ Nekromant:`;
           type: skill.type === 'active' ? 'active' : 'passive',
           enlightened: skill.enlightened ?? false,
           level: 1,
-          skillId: skill.id
+          skillId: skill.id,
+          statModifiers
         };
 
         const newSkills = [...(this.sheet.skills || []), newSkillBlock];
@@ -810,13 +828,19 @@ Nekromant:`;
         value: newLearnedIds
       });
 
+      const statModifiers = skill.statBonus ? [{
+        stat: skill.statBonus.stat as any,
+        amount: skill.statBonus.amount
+      }] : undefined;
+
       const newSkillBlock: SkillBlock = {
         name: skill.name,
         class: skill.class,
         description: skill.description,
         type: skill.type === 'active' ? 'active' : 'passive',
         enlightened: skill.enlightened ?? false,
-        skillId: skill.id
+        skillId: skill.id,
+        statModifiers
       };
 
       const newSkills = [...(this.sheet.skills || []), newSkillBlock];
@@ -858,6 +882,18 @@ Nekromant:`;
             path: `skills.${existingSkillIndex}.description`,
             value: updatedDescription
           });
+
+          // Update stat modifiers if this is a stat bonus skill
+          if (skill.statBonus) {
+            const statModifiers = [{
+              stat: skill.statBonus.stat as any,
+              amount: skill.statBonus.amount * newLevel
+            }];
+            this.patch.emit({
+              path: `skills.${existingSkillIndex}.statModifiers`,
+              value: statModifiers
+            });
+          }
         } else {
           // Remove skill completely if at level 1
           const newSkills = (this.sheet.skills || []).filter((_, i) => i !== existingSkillIndex);

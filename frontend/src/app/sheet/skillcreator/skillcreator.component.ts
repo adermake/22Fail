@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SkillBlock } from '../../model/skill-block.model';
+import { SkillBlock, StatModifier } from '../../model/skill-block.model';
 
 @Component({
   selector: 'app-skill-creator',
@@ -19,6 +19,20 @@ export class SkillCreatorComponent {
     description: '',
     type: 'active', // Default to active
     enlightened: false, // Default to not enlightened
+    statModifiers: []
+  };
+
+  // Track stat modifiers being edited
+  tempModifiers: {[key: string]: number} = {
+    strength: 0,
+    dexterity: 0,
+    speed: 0,
+    intelligence: 0,
+    constitution: 0,
+    chill: 0,
+    mana: 0,
+    life: 0,
+    energy: 0
   };
 
   createSkill() {
@@ -27,7 +41,23 @@ export class SkillCreatorComponent {
       return;
     }
 
-    this.create.emit({ ...this.newSkill });
+    // Build stat modifiers array from temp values
+    const statModifiers: StatModifier[] = [];
+    Object.entries(this.tempModifiers).forEach(([stat, amount]) => {
+      if (amount !== 0) {
+        statModifiers.push({
+          stat: stat as any,
+          amount
+        });
+      }
+    });
+
+    const skillToCreate = {
+      ...this.newSkill,
+      statModifiers: statModifiers.length > 0 ? statModifiers : undefined
+    };
+
+    this.create.emit(skillToCreate);
 
     // Reset form
     this.newSkill = {
@@ -36,6 +66,18 @@ export class SkillCreatorComponent {
       description: '',
       type: 'active',
       enlightened: false,
+      statModifiers: []
+    };
+    this.tempModifiers = {
+      strength: 0,
+      dexterity: 0,
+      speed: 0,
+      intelligence: 0,
+      constitution: 0,
+      chill: 0,
+      mana: 0,
+      life: 0,
+      energy: 0
     };
   }
   cancelCreate() {
