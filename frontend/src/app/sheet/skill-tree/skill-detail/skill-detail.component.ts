@@ -54,9 +54,14 @@ export class SkillDetailComponent {
     if (this.availablePoints <= 0) return false;
     if (!this.canLearnFromClass) return false;
 
-    // Check required skill
-    if (skill.requiresSkill && !this.learnedSkillIds.includes(skill.requiresSkill)) {
-      return false;
+    // Check required skill(s)
+    if (skill.requiresSkill) {
+      const requiredSkills = Array.isArray(skill.requiresSkill) ? skill.requiresSkill : [skill.requiresSkill];
+      for (const requiredSkillId of requiredSkills) {
+        if (!this.learnedSkillIds.includes(requiredSkillId)) {
+          return false;
+        }
+      }
     }
 
     return true;
