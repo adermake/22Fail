@@ -29,6 +29,7 @@ import { CharacterTabsComponent } from './character-tabs/character-tabs';
 import { SkillTreeComponent } from './skill-tree/skill-tree.component';
 import { BackstoryComponent } from './backstory/backstory.component';
 import { FormulaType } from '../model/formula-type.enum';
+import { StatusBlock } from '../model/status-block.model';
 import { DiceRollerComponent } from './dice-roller/dice-roller.component';
 import { ActionMacrosComponent } from './action-macros/action-macros.component';
 import { ActionMacro } from '../model/action-macro.model';
@@ -386,6 +387,9 @@ export class SheetComponent implements OnInit {
   }
 
   handleMacroExecution(macro: ActionMacro) {
+    const sheet = this.store.sheetValue;
+    if (!sheet) return;
+
     // Execute each consequence in order
     for (const consequence of macro.consequences) {
       switch (consequence.type) {
@@ -398,7 +402,7 @@ export class SheetComponent implements OnInit {
         case 'spend_resource':
           if (consequence.resource && consequence.amount) {
             const resourceType = consequence.resource as 'health' | 'energy' | 'mana';
-            const status = this.sheet.statuses?.find(s => {
+            const status = sheet.statuses?.find((s: StatusBlock) => {
               if (resourceType === 'health') return s.formulaType === FormulaType.LIFE;
               if (resourceType === 'energy') return s.formulaType === FormulaType.ENERGY;
               if (resourceType === 'mana') return s.formulaType === FormulaType.MANA;
@@ -406,7 +410,7 @@ export class SheetComponent implements OnInit {
             });
             if (status) {
               status.statusCurrent = Math.max(0, status.statusCurrent - consequence.amount);
-              this.store.applyChange(['statuses']);
+              this.store.applyPatch({ path: '/statuses', value: sheet.statuses });
             }
           }
           break;
@@ -414,7 +418,7 @@ export class SheetComponent implements OnInit {
         case 'gain_resource':
           if (consequence.resource && consequence.amount) {
             const resourceType = consequence.resource as 'health' | 'energy' | 'mana';
-            const status = this.sheet.statuses?.find(s => {
+            const status = sheet.statuses?.find((s: StatusBlock) => {
               if (resourceType === 'health') return s.formulaType === FormulaType.LIFE;
               if (resourceType === 'energy') return s.formulaType === FormulaType.ENERGY;
               if (resourceType === 'mana') return s.formulaType === FormulaType.MANA;
@@ -424,7 +428,7 @@ export class SheetComponent implements OnInit {
               // Gain but don't exceed max
               const max = status.statusBase + (status.statusEffectBonus || 0);
               status.statusCurrent = Math.min(max, status.statusCurrent + consequence.amount);
-              this.store.applyChange(['statuses']);
+              this.store.applyPatch({ path: '/statuses', value: sheet.statuses });
             }
           }
           break;
