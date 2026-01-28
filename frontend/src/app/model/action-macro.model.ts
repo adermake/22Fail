@@ -8,6 +8,7 @@
 export type ConditionOperator = '>' | '<' | '>=' | '<=' | '==' | '!=';
 export type ResourceType = 'health' | 'energy' | 'mana' | 'fokus';
 export type StatType = 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill';
+export type ComparisonValueType = 'fixed' | 'currentResource' | 'maxResource' | 'stat';
 
 /**
  * A single condition that must be met to execute the action
@@ -27,6 +28,12 @@ export interface ActionCondition {
   
   operator: ConditionOperator;
   value: number;
+  
+  // NEW: For dynamic value comparisons
+  // e.g., "health < maxHealth" or "intelligence > strength"
+  valueType: ComparisonValueType;
+  compareToResource?: ResourceType; // For comparing to current or max resource
+  compareToStat?: StatType; // For comparing to another stat
 }
 
 /**
@@ -43,6 +50,10 @@ export interface ActionConsequence {
   
   // Reference to a saved dice configuration from the dice roller
   savedDiceConfigId?: string;
+  
+  // NEW: For naming and coloring dice rolls
+  rollName?: string; // Custom name for this dice roll
+  rollColor?: string; // Hex color for displaying this roll
   
   // For resource changes
   resource?: ResourceType;
@@ -113,7 +124,8 @@ export function createEmptyCondition(): ActionCondition {
     type: 'resource',
     resource: 'health',
     operator: '>',
-    value: 0
+    value: 0,
+    valueType: 'fixed'
   };
 }
 

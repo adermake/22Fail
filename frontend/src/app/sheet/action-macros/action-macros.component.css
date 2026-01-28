@@ -17,10 +17,9 @@
   background: #1a1a1a;
   border-radius: 16px;
   border: 1px solid #333;
-  width: 95vw;
-  max-width: 1200px;
-  height: 85vh;
-  max-height: 800px;
+  width: 96vw;
+  max-width: 1600px;
+  height: 94vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
@@ -32,7 +31,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
+  padding: 16px 24px;
   border-bottom: 1px solid #333;
   background: linear-gradient(180deg, #252525, #1e1e1e);
 }
@@ -40,7 +39,7 @@
 .dialog-header h2 {
   margin: 0;
   color: #f59e0b;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   font-weight: 600;
 }
 
@@ -54,11 +53,11 @@
   background: #f59e0b;
   color: #000;
   border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: 10px 20px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   transition: all 0.2s;
 }
 
@@ -71,15 +70,17 @@
   background: rgba(255, 255, 255, 0.1);
   border: none;
   color: #888;
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   cursor: pointer;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  line-height: 1;
+  padding: 0;
 }
 
 .close-btn:hover {
@@ -150,19 +151,36 @@
 }
 
 .resource-bar {
-  height: 20px;
-  background: #2a2a2a;
-  border-radius: 10px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
   position: relative;
   overflow: hidden;
-  border: 1px solid #444;
+  border: 1px solid rgba(0, 0, 0, 0.4);
 }
 
 .resource-fill {
   height: 100%;
-  background: var(--bar-color, #f59e0b);
-  border-radius: 10px;
+  border-radius: 12px;
   transition: width 0.3s ease;
+}
+
+.resource-fill.health {
+  background: #ef4444;
+  box-shadow: 0 0 30px #ef4444, 0 0 60px #ef4444, 0 0 90px #ef4444, inset 0 0 15px #ef4444;
+  filter: brightness(1.3);
+}
+
+.resource-fill.energy {
+  background: #22c55e;
+  box-shadow: 0 0 30px #22c55e, 0 0 60px #22c55e, 0 0 90px #22c55e, inset 0 0 15px #22c55e;
+  filter: brightness(1.3);
+}
+
+.resource-fill.mana {
+  background: #3b82f6;
+  box-shadow: 0 0 30px #3b82f6, 0 0 60px #3b82f6, 0 0 90px #3b82f6, inset 0 0 15px #3b82f6;
+  filter: brightness(1.3);
 }
 
 .resource-text {
@@ -199,8 +217,8 @@
   border-radius: 8px;
   padding: 10px 12px;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
   border: 1px solid #333;
 }
 
@@ -214,6 +232,12 @@
   100% { transform: scale(1); background: #252525; }
 }
 
+.roll-name {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 2px;
+}
+
 .roll-formula {
   color: #888;
   font-size: 0.85rem;
@@ -223,12 +247,13 @@
   color: #f59e0b;
   font-size: 1.3rem;
   font-weight: 700;
+  align-self: center;
 }
 
 .roll-detail {
   color: #666;
   font-size: 0.75rem;
-  margin-left: auto;
+  text-align: center;
 }
 
 /* Resource Changes */
@@ -351,22 +376,23 @@
 /* Macro Grid */
 .macro-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-  padding: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  padding: 20px;
   overflow-y: auto;
   flex: 1;
 }
 
 .macro-card {
   background: #252525;
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: 12px;
+  padding: 14px;
   border-left: 4px solid #f59e0b;
   transition: all 0.2s;
   cursor: grab;
   display: flex;
   flex-direction: column;
+  min-height: fit-content;
 }
 
 .macro-card:hover {
@@ -399,15 +425,15 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .macro-icon {
-  font-size: 1.6rem;
+  font-size: 1.4rem;
 }
 
 .macro-name {
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: #fff;
   flex: 1;
@@ -416,16 +442,17 @@
 .invalid-badge {
   background: #ef4444;
   color: #fff;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
 }
 
 .drag-handle {
   color: #555;
   cursor: grab;
-  font-size: 1.2rem;
-  padding: 4px;
+  font-size: 1.1rem;
+  padding: 2px;
 }
 
 .drag-handle:hover {
@@ -434,25 +461,32 @@
 
 .macro-description {
   color: #888;
-  font-size: 0.85rem;
-  margin: 0 0 12px 0;
-  line-height: 1.4;
+  font-size: 0.8rem;
+  margin: 0 0 10px 0;
+  line-height: 1.3;
+  max-height: 2.6em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .macro-summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 14px;
+  gap: 5px;
+  margin-bottom: 10px;
   flex: 1;
 }
 
 .consequence-tag {
   background: #1e3a1e;
   color: #22c55e;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 .consequence-tag.dice_roll {
@@ -478,7 +512,7 @@
 .macro-actions {
   display: flex;
   gap: 8px;
-  margin-top: auto;
+  margin-top: 8px;
 }
 
 .run-btn {
@@ -486,12 +520,13 @@
   background: linear-gradient(135deg, #22c55e, #16a34a);
   color: #fff;
   border: none;
-  padding: 10px 18px;
+  padding: 8px 16px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .run-btn:hover:not(:disabled) {
@@ -508,11 +543,12 @@
 .edit-btn, .delete-btn {
   background: #333;
   border: none;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.95rem;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .edit-btn:hover {
@@ -700,10 +736,10 @@
 .condition-row, .consequence-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 8px;
+  margin-top: 10px;
   flex-wrap: wrap;
-  padding: 12px;
+  padding: 10px;
   background: #1e1e1e;
   border-radius: 8px;
 }
@@ -716,37 +752,56 @@
   border: 1px solid #444;
   border-radius: 6px;
   color: #fff;
-  padding: 8px 10px;
-  font-size: 0.9rem;
+  padding: 6px 8px;
+  font-size: 0.85rem;
 }
 
 .condition-row select {
-  min-width: 110px;
+  min-width: 100px;
+}
+
+.condition-row .value-type-select {
+  min-width: 140px;
 }
 
 .condition-row input[type="text"] {
   flex: 1;
-  min-width: 130px;
+  min-width: 120px;
 }
 
 .condition-row input[type="number"],
 .consequence-row input[type="number"] {
-  width: 80px;
+  width: 70px;
+}
+
+.consequence-row .roll-name-input {
+  flex: 1;
+  min-width: 120px;
+}
+
+.consequence-row .color-input {
+  width: 40px;
+  height: 32px;
+  padding: 2px;
+  cursor: pointer;
 }
 
 .remove-btn {
   background: #ef4444;
   color: #fff;
   border: none;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  flex-shrink: 0;
+  line-height: 1;
+  padding: 0;
 }
 
 .remove-btn:hover {
@@ -756,7 +811,7 @@
 
 .consequence-row span {
   color: #888;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .d-label {

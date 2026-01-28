@@ -21,6 +21,8 @@ export interface RollResult {
   rolls: number[];
   total: number;
   isNew: boolean;
+  name?: string;
+  color?: string;
 }
 
 export interface ResourceChange {
@@ -80,7 +82,13 @@ export class ActionMacrosComponent {
   resourceTypes = ['health', 'energy', 'mana', 'fokus'] as const;
   statTypes = ['strength', 'dexterity', 'speed', 'intelligence', 'constitution', 'chill'] as const;
   operators = ['>', '<', '>=', '<=', '==', '!='] as const;
+  valueTypes = ['fixed', 'currentResource', 'maxResource', 'stat'] as const;
   diceTypes = [4, 6, 8, 10, 12, 20, 100];
+  
+  // FormulaType enum values for template
+  formulaTypeLife = FormulaType.LIFE;
+  formulaTypeEnergy = FormulaType.ENERGY;
+  formulaTypeMana = FormulaType.MANA;
   
   // Available icons for actions
   availableIcons = ['⚡', '⚔️', '🛡️', '🔥', '❄️', '💫', '🌟', '💥', '🎯', '🗡️', '🏹', '✨', '💀', '❤️', '🔮', '📖'];
@@ -147,7 +155,9 @@ export class ActionMacrosComponent {
 
   evaluateCondition(condition: ActionCondition): boolean {
     let currentValue = 0;
+    let comparisonValue = condition.value;
 
+    // Get the left side value (what we're checking)
     if (condition.type === 'resource' && condition.resource) {
       currentValue = this.getResourceValue(condition.resource);
     } else if (condition.type === 'stat' && condition.stat) {
@@ -158,13 +168,24 @@ export class ActionMacrosComponent {
       return hasSkill ? true : false;
     }
 
+    // Get the right side value (what we're comparing to)
+    if (condition.valueType === 'fixed') {
+      comparisonValue = condition.value;
+    } else if (condition.valueType === 'currentResource' && condition.compareToResource) {
+      comparisonValue = this.getResourceValue(condition.compareToResource);
+    } else if (condition.valueType === 'maxResource' && condition.compareToResource) {
+      comparisonValue = this.getResourceMax(condition.compareToResource);
+    } else if (condition.valueType === 'stat' && condition.compareToStat) {
+      comparisonValue = this.getStatValue(condition.compareToStat);
+    }
+
     switch (condition.operator) {
-      case '>': return currentValue > condition.value;
-      case '<': return currentValue < condition.value;
-      case '>=': return currentValue >= condition.value;
-      case '<=': return currentValue <= condition.value;
-      case '==': return currentValue === condition.value;
-      case '!=': return currentValue !== condition.value;
+      case '>': return currentValue > comparisonValue;
+      case '<': return currentValue < comparisonValue;
+      case '>=': return currentValue >= comparisonValue;
+      case '<=': return currentValue <= comparisonValue;
+      case '==': return currentValue === comparisonValue;
+      case '!=': return currentValue !== comparisonValue;
       default: return false;
     }
   }
@@ -182,6 +203,26 @@ export class ActionMacrosComponent {
     if (formulaType !== undefined) {
       const status = this.sheet.statuses.find(s => s.formulaType === formulaType);
       return status?.statusCurrent || 0;
+    }
+    
+    return 0;
+  }
+
+  getResourceMax(resource: string): number {
+    if (!this.sheet?.statuses) return 0;
+    
+    const formulaTypeMap: Record<string, FormulaType> = {
+      'health': FormulaType.LIFE,
+      'energy': FormulaType.ENERGY,
+      'mana': FormulaType.MANA
+    };
+    
+    const formulaType = formulaTypeMap[resource];
+    if (formulaType !== undefined) {
+      const status = this.sheet.statuses.find(s => s.formulaType === formulaType);
+      if (status) {
+        return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
+      }
     }
     
     return 0;
@@ -322,7 +363,19 @@ export class ActionMacrosComponent {
     }
     
     const target = condition.resource || condition.stat || '';
-    return `${target} ${condition.operator} ${condition.value}`;
+    let comparisonValue = '';
+    
+    if (condition.valueType === 'fixed') {
+      comparisonValue = condition.value.toString();
+    } else if (condition.valueType === 'currentResource') {
+      comparisonValue = `aktuelle ${condition.compareToResource}`;
+    } else if (condition.valueType === 'maxResource') {
+      comparisonValue = `max ${condition.compareToResource}`;
+    } else if (condition.valueType === 'stat') {
+      comparisonValue = condition.compareToStat || '';
+    }
+    
+    return `${target} ${condition.operator} ${comparisonValue}`;
   }
 
   getConsequenceLabel(consequence: ActionConsequence): string {
@@ -355,12 +408,12 @@ export class ActionMacrosComponent {
   }
 
   getResourcePercent(status: StatusBlock): number {
-    const max = this.getResourceMax(status);
+    const max = this.getStatusMax(status);
     if (max === 0) return 0;
     return Math.min(100, Math.max(0, (status.statusCurrent / max) * 100));
   }
 
-  getResourceMax(status: StatusBlock): number {
+  getStatusMax(status: StatusBlock): number {
     return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
   }
 
@@ -417,7 +470,9 @@ export class ActionMacrosComponent {
           formula: `${count}d${type}`,
           rolls,
           total,
-          isNew: true
+          isNew: true,
+          name: consequence.rollName,
+          color: consequence.rollColor
         });
       } else if (consequence.type === 'spend_resource') {
         // Calculate amount - could be from a dice roll or fixed
@@ -443,7 +498,9 @@ export class ActionMacrosComponent {
               formula: `${config.diceCount}d${config.diceType} (${consequence.resource})`,
               rolls,
               total,
-              isNew: true
+              isNew: true,
+              name: consequence.rollName,
+              color: consequence.rollColor
             });
           }
         }
@@ -454,9 +511,6 @@ export class ActionMacrosComponent {
           isNew: true
         });
         
-        // Emit resource change for the parent to apply
-        this.resourceChanged.emit({ resource: consequence.resource || '', amount: -amount });
-        
       } else if (consequence.type === 'gain_resource') {
         const amount = consequence.amount || 0;
         changes.push({
@@ -464,15 +518,17 @@ export class ActionMacrosComponent {
           amount: amount,
           isNew: true
         });
-        
-        // Emit resource change for the parent to apply
-        this.resourceChanged.emit({ resource: consequence.resource || '', amount: amount });
       }
     }
     
     // Update last roll results
     this.lastRollResults.set(results);
     this.resourceChanges.set(changes);
+    
+    // Emit resource changes ONCE for all consequences
+    for (const change of changes) {
+      this.resourceChanged.emit({ resource: change.resource, amount: change.amount });
+    }
     
     // Emit roll results for syncing with dice roller
     if (results.length > 0) {

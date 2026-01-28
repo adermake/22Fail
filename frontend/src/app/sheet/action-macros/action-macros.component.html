@@ -23,9 +23,13 @@
                 <span class="resource-icon">{{ getResourceIcon(status.formulaType) }}</span>
                 <span>{{ status.statusName }}</span>
               </div>
-              <div class="resource-bar" [style.--bar-color]="status.statusColor">
-                <div class="resource-fill" [style.width.%]="getResourcePercent(status)"></div>
-                <span class="resource-text">{{ status.statusCurrent }} / {{ getResourceMax(status) }}</span>
+              <div class="resource-bar">
+                <div class="resource-fill" 
+                     [class.health]="status.formulaType === formulaTypeLife"
+                     [class.energy]="status.formulaType === formulaTypeEnergy"
+                     [class.mana]="status.formulaType === formulaTypeMana"
+                     [style.width.%]="getResourcePercent(status)"></div>
+                <span class="resource-text">{{ status.statusCurrent }} / {{ getStatusMax(status) }}</span>
               </div>
             </div>
           }
@@ -37,7 +41,12 @@
             <h4>🎲 Würfelergebnisse</h4>
             <div class="roll-results-list">
               @for (result of lastRollResults(); track result.id) {
-                <div class="roll-result-item" [class.animate]="result.isNew">
+                <div class="roll-result-item" 
+                     [class.animate]="result.isNew"
+                     [style.border-left]="result.color ? '3px solid ' + result.color : ''">
+                  @if (result.name) {
+                    <span class="roll-name" [style.color]="result.color || '#f59e0b'">{{ result.name }}</span>
+                  }
                   <span class="roll-formula">{{ result.formula }}</span>
                   <span class="roll-value">{{ result.total }}</span>
                   <span class="roll-detail">[{{ result.rolls.join('+') }}]</span>
@@ -197,7 +206,31 @@
                             <option [value]="op">{{ op }}</option>
                           }
                         </select>
-                        <input type="number" [(ngModel)]="condition.value" />
+                        
+                        <!-- Comparison type selector -->
+                        <select [(ngModel)]="condition.valueType" class="value-type-select">
+                          <option value="fixed">Fester Wert</option>
+                          <option value="currentResource">Aktuelle Ressource</option>
+                          <option value="maxResource">Max Ressource</option>
+                          <option value="stat">Attribut</option>
+                        </select>
+                        
+                        <!-- Show appropriate input based on valueType -->
+                        @if (condition.valueType === 'fixed') {
+                          <input type="number" [(ngModel)]="condition.value" placeholder="Wert" />
+                        } @else if (condition.valueType === 'currentResource' || condition.valueType === 'maxResource') {
+                          <select [(ngModel)]="condition.compareToResource">
+                            @for (res of resourceTypes; track res) {
+                              <option [value]="res">{{ res }}</option>
+                            }
+                          </select>
+                        } @else if (condition.valueType === 'stat') {
+                          <select [(ngModel)]="condition.compareToStat">
+                            @for (stat of statTypes; track stat) {
+                              <option [value]="stat">{{ stat }}</option>
+                            }
+                          </select>
+                        }
                       }
 
                       <button class="remove-btn" (click)="removeCondition(i)">×</button>
@@ -224,6 +257,10 @@
                       </select>
 
                       @if (consequence.type === 'dice_roll') {
+                        <!-- Dice roll name and color -->
+                        <input type="text" [(ngModel)]="consequence.rollName" placeholder="Name (optional)" class="roll-name-input" />
+                        <input type="color" [(ngModel)]="consequence.rollColor" class="color-input" title="Würfelfarbe" />
+                        
                         <!-- Option to use saved dice config or manual -->
                         @if (savedDiceConfigs().length > 0) {
                           <select [(ngModel)]="consequence.savedDiceConfigId" class="config-select">
