@@ -51,6 +51,9 @@ export interface ActionConsequence {
   // Reference to a saved dice configuration from the dice roller
   savedDiceConfigId?: string;
   
+  // NEW: Dice formula (e.g., "1d20+3", "2d6+5")
+  diceFormula?: string;
+  
   // NEW: For naming and coloring dice rolls
   rollName?: string; // Custom name for this dice roll
   rollColor?: string; // Hex color for displaying this roll

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -60,7 +60,7 @@ function generateUUID(): string {
   templateUrl: './action-macros.component.html',
   styleUrls: ['./action-macros.component.css']
 })
-export class ActionMacrosComponent {
+export class ActionMacrosComponent implements OnInit, OnDestroy {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() close = new EventEmitter<void>();
   @Output() executeMacro = new EventEmitter<ActionMacro>();
@@ -102,6 +102,13 @@ export class ActionMacrosComponent {
   ngOnInit() {
     this.loadMacros();
     this.loadSavedDiceConfigs();
+    // Prevent background scrolling
+    document.body.style.overflow = 'hidden';
+  }
+
+  ngOnDestroy() {
+    // Restore background scrolling
+    document.body.style.overflow = '';
   }
 
   loadSavedDiceConfigs() {
@@ -436,6 +443,70 @@ export class ActionMacrosComponent {
     this.saveMacros();
   }
 
+  // Formula parsing (e.g., "1d20+3", "2d6+5", "10")
+  parseAndValidateFormula(consequence: ActionConsequence) {
+    if (!consequence.diceFormula) return;
+    
+    const formula = consequence.diceFormula.trim();
+    if (!formula) return;
+    
+    // Try to parse as simple number first
+    const simpleNum = parseInt(formula);
+    if (!isNaN(simpleNum)) {
+      consequence.amount = simpleNum;
+      consequence.diceCount = undefined;
+      consequence.diceType = undefined;
+      return;
+    }
+    
+    // Parse dice formula: XdY+Z or XdY-Z or XdY
+    const match = formula.match(/^(\d+)d(\d+)([+-]\d+)?$/i);
+    if (match) {
+      consequence.diceCount = parseInt(match[1]);
+      consequence.diceType = parseInt(match[2]);
+      consequence.amount = match[3] ? parseInt(match[3]) : 0;
+    } else {
+      console.warn('Invalid formula:', formula);
+    }
+  }
+
+  clearFormula(consequence: ActionConsequence) {
+    if (consequence.savedDiceConfigId) {
+      consequence.diceFormula = '';
+      consequence.diceCount = undefined;
+      consequence.diceType = undefined;
+      consequence.amount = undefined;
+    }
+  }
+
+  // Roll dice from formula
+  rollDiceFromFormula(consequence: ActionConsequence): { rolls: number[], total: number, formula: string } {
+    let rolls: number[] = [];
+    let total = 0;
+    let formula = '';
+    
+    // Check if using formula
+    if (consequence.diceFormula && consequence.diceCount && consequence.diceType) {
+      const count = consequence.diceCount;
+      const type = consequence.diceType;
+      const bonus = consequence.amount || 0;
+      
+      for (let i = 0; i < count; i++) {
+        const roll = Math.floor(Math.random() * type) + 1;
+        rolls.push(roll);
+        total += roll;
+      }
+      total += bonus;
+      formula = bonus !== 0 ? `${count}d${type}${bonus >= 0 ? '+' : ''}${bonus}` : `${count}d${type}`;
+    } else if (consequence.amount !== undefined) {
+      // Fixed amount
+      total = consequence.amount;
+      formula = `${total}`;
+    }
+    
+    return { rolls, total, formula };
+  }
+
   // Execute macro with roll results
   runMacroWithResults(macro: ActionMacro) {
     if (!this.areConditionsMet(macro)) return;
@@ -446,76 +517,87 @@ export class ActionMacrosComponent {
     
     for (const consequence of macro.consequences) {
       if (consequence.type === 'dice_roll') {
-        let rolls: number[] = [];
-        let count = consequence.diceCount || 1;
-        let type = consequence.diceType || 6;
-        
-        // Check if using a saved dice config
-        if (consequence.savedDiceConfigId) {
+        // Use new formula system if available
+        if (consequence.diceFormula || consequence.diceCount) {
+          const result = this.rollDiceFromFormula(consequence);
+          results.push({
+            id: generateUUID(),
+            formula: result.formula,
+            rolls: result.rolls,
+            total: result.total,
+            isNew: true,
+            name: consequence.rollName,
+            color: consequence.rollColor
+          });
+        } else if (consequence.savedDiceConfigId) {
+          // Fallback to saved config
           const config = this.savedDiceConfigs().find(c => c.id === consequence.savedDiceConfigId);
           if (config) {
-            count = config.diceCount;
-            type = config.diceType;
-          }
-        }
-        
-        for (let i = 0; i < count; i++) {
-          rolls.push(Math.floor(Math.random() * type) + 1);
-        }
-        
-        const total = rolls.reduce((a, b) => a + b, 0);
-        
-        results.push({
-          id: generateUUID(),
-          formula: `${count}d${type}`,
-          rolls,
-          total,
-          isNew: true,
-          name: consequence.rollName,
-          color: consequence.rollColor
-        });
-      } else if (consequence.type === 'spend_resource') {
-        // Calculate amount - could be from a dice roll or fixed
-        let amount = consequence.amount || 0;
-        
-        // If using a saved dice config for the amount
-        if (consequence.savedDiceConfigId) {
-          const config = this.savedDiceConfigs().find(c => c.id === consequence.savedDiceConfigId);
-          if (config) {
-            // Roll the dice to determine how much to spend
-            let total = 0;
             const rolls: number[] = [];
             for (let i = 0; i < config.diceCount; i++) {
-              const roll = Math.floor(Math.random() * config.diceType) + 1;
-              rolls.push(roll);
-              total += roll;
+              rolls.push(Math.floor(Math.random() * config.diceType) + 1);
             }
-            amount = total;
+            const total = rolls.reduce((a, b) => a + b, 0);
             
-            // Also add this roll to results
             results.push({
               id: generateUUID(),
-              formula: `${config.diceCount}d${config.diceType} (${consequence.resource})`,
+              formula: `${config.diceCount}d${config.diceType}`,
               rolls,
               total,
+              isNew: true,
+              name: consequence.rollName || config.name,
+              color: consequence.rollColor
+            });
+          }
+        }
+      } else if (consequence.type === 'spend_resource' || consequence.type === 'gain_resource') {
+        let amount = 0;
+        let rollResult = null;
+        
+        // Check if using formula or saved config
+        if (consequence.diceFormula || consequence.diceCount) {
+          rollResult = this.rollDiceFromFormula(consequence);
+          amount = rollResult.total;
+          
+          // Add roll result if it's a dice roll
+          if (rollResult.rolls.length > 0) {
+            results.push({
+              id: generateUUID(),
+              formula: `${rollResult.formula} (${consequence.resource})`,
+              rolls: rollResult.rolls,
+              total: rollResult.total,
               isNew: true,
               name: consequence.rollName,
               color: consequence.rollColor
             });
           }
+        } else if (consequence.savedDiceConfigId) {
+          const config = this.savedDiceConfigs().find(c => c.id === consequence.savedDiceConfigId);
+          if (config) {
+            const rolls: number[] = [];
+            for (let i = 0; i < config.diceCount; i++) {
+              rolls.push(Math.floor(Math.random() * config.diceType) + 1);
+            }
+            amount = rolls.reduce((a, b) => a + b, 0);
+            
+            results.push({
+              id: generateUUID(),
+              formula: `${config.diceCount}d${config.diceType} (${consequence.resource})`,
+              rolls,
+              total: amount,
+              isNew: true,
+              name: consequence.rollName || config.name,
+              color: consequence.rollColor
+            });
+          }
+        } else {
+          amount = consequence.amount || 0;
         }
         
+        const finalAmount = consequence.type === 'spend_resource' ? -amount : amount;
         changes.push({
           resource: consequence.resource || '',
-          amount: -amount,
-          isNew: true
-        });
-        
-      } else if (consequence.type === 'gain_resource') {
-        const amount = consequence.amount || 0;
-        changes.push({
-          resource: consequence.resource || '',
-          amount: amount,
+          amount: finalAmount,
           isNew: true
         });
       }

@@ -81,6 +81,8 @@
   transition: all 0.2s;
   line-height: 1;
   padding: 0;
+  margin: 0;
+  font-family: Arial, sans-serif;
 }
 
 .close-btn:hover {
@@ -377,10 +379,12 @@
 .macro-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-auto-rows: min-content;
   gap: 14px;
   padding: 20px;
   overflow-y: auto;
   flex: 1;
+  align-content: start;
 }
 
 .macro-card {
@@ -392,7 +396,8 @@
   cursor: grab;
   display: flex;
   flex-direction: column;
-  min-height: fit-content;
+  height: fit-content;
+  max-height: 280px;
 }
 
 .macro-card:hover {
@@ -786,6 +791,20 @@
   cursor: pointer;
 }
 
+.consequence-row .formula-input {
+  flex: 1;
+  min-width: 140px;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+.or-label {
+  color: #666;
+  font-size: 0.8rem;
+  font-style: italic;
+  padding: 0 4px;
+}
+
 .remove-btn {
   background: #ef4444;
   color: #fff;
@@ -802,6 +821,8 @@
   flex-shrink: 0;
   line-height: 1;
   padding: 0;
+  margin: 0;
+  font-family: Arial, sans-serif;
 }
 
 .remove-btn:hover {

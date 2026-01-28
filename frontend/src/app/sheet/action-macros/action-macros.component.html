@@ -261,50 +261,61 @@
                         <input type="text" [(ngModel)]="consequence.rollName" placeholder="Name (optional)" class="roll-name-input" />
                         <input type="color" [(ngModel)]="consequence.rollColor" class="color-input" title="Würfelfarbe" />
                         
-                        <!-- Option to use saved dice config or manual -->
+                        <!-- Formula input (e.g., "1d20+3") -->
+                        <input type="text" 
+                               [(ngModel)]="consequence.diceFormula" 
+                               placeholder="z.B. 1d20+3" 
+                               class="formula-input"
+                               (blur)="parseAndValidateFormula(consequence)" />
+                        
+                        <span class="or-label">oder</span>
+                        
+                        <!-- Option to use saved dice config -->
                         @if (savedDiceConfigs().length > 0) {
-                          <select [(ngModel)]="consequence.savedDiceConfigId" class="config-select">
-                            <option value="">Manuelle Würfel</option>
+                          <select [(ngModel)]="consequence.savedDiceConfigId" 
+                                  (change)="clearFormula(consequence)"
+                                  class="config-select">
+                            <option value="">Gespeicherte Würfel</option>
                             @for (config of savedDiceConfigs(); track config.id) {
                               <option [value]="config.id">{{ config.name }} ({{ config.diceCount }}d{{ config.diceType }})</option>
                             }
                           </select>
                         }
-                        @if (!consequence.savedDiceConfigId) {
-                          <input type="number" [(ngModel)]="consequence.diceCount" min="1" max="20" class="small-input" />
-                          <span class="d-label">d</span>
-                          <select [(ngModel)]="consequence.diceType">
-                            @for (dice of diceTypes; track dice) {
-                              <option [value]="dice">{{ dice }}</option>
-                            }
-                          </select>
-                        }
-                      } @else if (consequence.type === 'spend_resource') {
-                        <!-- Option to use dice for amount or fixed -->
+                      } @else if (consequence.type === 'spend_resource' || consequence.type === 'gain_resource') {
+                        <!-- Resource type -->
                         <select [(ngModel)]="consequence.resource">
                           @for (res of resourceTypes; track res) {
                             <option [value]="res">{{ res }}</option>
                           }
                         </select>
-                        <span class="d-label">Kosten:</span>
+                        
+                        <!-- Amount configuration with dice support -->
+                        <span class="d-label">{{ consequence.type === 'spend_resource' ? 'Kosten:' : 'Menge:' }}</span>
+                        
+                        <!-- Name and color for dice-based resource changes -->
+                        <input type="text" [(ngModel)]="consequence.rollName" placeholder="Name (optional)" class="roll-name-input" />
+                        <input type="color" [(ngModel)]="consequence.rollColor" class="color-input" title="Würfelfarbe" />
+                        
+                        <!-- Manual dice formula -->
+                        <input type="text" 
+                               [(ngModel)]="consequence.diceFormula" 
+                               placeholder="1d6+2 oder fester Wert" 
+                               class="formula-input"
+                               (blur)="parseAndValidateFormula(consequence)" />
+                        
+                        <span class="or-label">oder</span>
+                        
+                        <!-- Saved config option -->
                         @if (savedDiceConfigs().length > 0) {
-                          <select [(ngModel)]="consequence.savedDiceConfigId" class="config-select">
-                            <option value="">Fester Wert</option>
+                          <select [(ngModel)]="consequence.savedDiceConfigId" 
+                                  (change)="clearFormula(consequence)"
+                                  class="config-select">
+                            <option value="">Gespeicherte Würfel</option>
                             @for (config of savedDiceConfigs(); track config.id) {
                               <option [value]="config.id">{{ config.name }} ({{ config.diceCount }}d{{ config.diceType }})</option>
                             }
                           </select>
                         }
-                        @if (!consequence.savedDiceConfigId) {
-                          <input type="number" [(ngModel)]="consequence.amount" class="small-input" />
-                        }
-                      } @else {
-                        <input type="number" [(ngModel)]="consequence.amount" class="small-input" />
-                        <select [(ngModel)]="consequence.resource">
-                          @for (res of resourceTypes; track res) {
-                            <option [value]="res">{{ res }}</option>
-                          }
-                        </select>
                       }
 
                       <button class="remove-btn" (click)="removeConsequence(i)">×</button>
