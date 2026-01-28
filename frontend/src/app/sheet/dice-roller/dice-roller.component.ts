@@ -75,6 +75,9 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
   showSavedList = signal<boolean>(true);
   newConfigName = '';
   
+  // Skill filter for searching
+  skillFilter = signal<string>('');
+  
   // Expose Math for template
   Math = Math;
   
@@ -127,6 +130,23 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     return bonuses;
   });
 
+  // Filtered and sorted dice bonuses based on search filter
+  filteredDiceBonuses = computed(() => {
+    const filter = this.skillFilter().toLowerCase().trim();
+    let bonuses = this.availableDiceBonuses();
+    
+    // Filter by search term
+    if (filter) {
+      bonuses = bonuses.filter(b => 
+        b.name.toLowerCase().includes(filter) || 
+        (b.context && b.context.toLowerCase().includes(filter))
+      );
+    }
+    
+    // Sort by name
+    return bonuses.sort((a, b) => a.name.localeCompare(b.name));
+  });
+
   // Calculate stat effectBonus the same way as stat.component does
   private calculateStatEffectBonus(statKey: 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill'): number {
     let total = 0;
@@ -167,11 +187,10 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     if (!stat) return 0;
     const base = stat.base || 0;
     const bonus = stat.bonus || 0;
-    const gain = stat.gain || 1;
+    const gain = stat.gain || 1; // Fallback to 1 to prevent divide by zero
     const effectBonus = this.calculateStatEffectBonus(statKey as any);
-    // Level bonus = level / gain (how many times level fits into gain)
-    const levelBonus = (this.sheet.level / gain) | 0;
-    return base + bonus + effectBonus + levelBonus;
+    // Match exact formula from stat.component.ts
+    return (base + bonus + effectBonus + this.sheet.level / gain) | 0;
   }
 
   // Calculate the dice modifier from stat (the purple/red number shown on sheet)

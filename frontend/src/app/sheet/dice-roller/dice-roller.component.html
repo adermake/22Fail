@@ -134,9 +134,18 @@
         <!-- Dice Skill Bonuses -->
         @if (availableDiceBonuses().length > 0) {
           <div class="bonus-section">
-            <h4>Würfelboni (Skills)</h4>
+            <div class="section-header-row">
+              <h4>Würfelboni (Skills)</h4>
+              @if (availableDiceBonuses().length > 4) {
+                <input type="text" 
+                       class="skill-filter-input"
+                       placeholder="Filter..."
+                       [value]="skillFilter()"
+                       (input)="skillFilter.set($any($event.target).value)" />
+              }
+            </div>
             <div class="bonus-grid scrollable">
-              @for (bonus of availableDiceBonuses(); track bonus.name) {
+              @for (bonus of filteredDiceBonuses(); track bonus.name) {
                 <button 
                   class="bonus-chip skill"
                   [class.selected]="isBonusSelected(bonus.name)"

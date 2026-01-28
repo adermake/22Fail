@@ -38,6 +38,19 @@ export interface SavedDiceConfig {
   manualBonus: number;
 }
 
+// Helper function to generate UUID (fallback for browsers without crypto.randomUUID)
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers or insecure contexts
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 @Component({
   selector: 'app-action-macros',
   standalone: true,
@@ -400,7 +413,7 @@ export class ActionMacrosComponent {
         const total = rolls.reduce((a, b) => a + b, 0);
         
         results.push({
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           formula: `${count}d${type}`,
           rolls,
           total,
@@ -426,7 +439,7 @@ export class ActionMacrosComponent {
             
             // Also add this roll to results
             results.push({
-              id: crypto.randomUUID(),
+              id: generateUUID(),
               formula: `${config.diceCount}d${config.diceType} (${consequence.resource})`,
               rolls,
               total,

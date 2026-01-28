@@ -10,6 +10,7 @@
   justify-content: center;
   align-items: center;
   z-index: 2001;
+  overflow: hidden;
 }
 
 .action-macros-fullscreen {
@@ -17,8 +18,9 @@
   border-radius: 16px;
   border: 1px solid #333;
   width: 95vw;
-  max-width: 1400px;
-  height: 90vh;
+  max-width: 1200px;
+  height: 85vh;
+  max-height: 800px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
@@ -30,7 +32,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 12px 20px;
   border-bottom: 1px solid #333;
   background: linear-gradient(180deg, #252525, #1e1e1e);
 }
@@ -38,7 +40,7 @@
 .dialog-header h2 {
   margin: 0;
   color: #f59e0b;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   font-weight: 600;
 }
 
@@ -52,11 +54,11 @@
   background: #f59e0b;
   color: #000;
   border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 8px 16px;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   transition: all 0.2s;
 }
 
@@ -115,17 +117,18 @@
 
 /* Resource Panel (Left) */
 .resource-panel {
-  width: 280px;
+  width: 240px;
   flex-shrink: 0;
   border-right: 1px solid #333;
   background: #1e1e1e;
+  overflow-y: auto;
 }
 
 .resource-bars {
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .resource-bar-container {
@@ -147,17 +150,18 @@
 }
 
 .resource-bar {
-  height: 24px;
-  background: #333;
-  border-radius: 12px;
+  height: 20px;
+  background: #2a2a2a;
+  border-radius: 10px;
   position: relative;
   overflow: hidden;
+  border: 1px solid #444;
 }
 
 .resource-fill {
   height: 100%;
-  background: var(--bar-color, #22c55e);
-  border-radius: 12px;
+  background: var(--bar-color, #f59e0b);
+  border-radius: 10px;
   transition: width 0.3s ease;
 }
 
@@ -167,9 +171,9 @@
   left: 50%;
   transform: translate(-50%, -50%);
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 /* Roll Results */
@@ -347,17 +351,17 @@
 /* Macro Grid */
 .macro-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  padding: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 16px;
   overflow-y: auto;
   flex: 1;
 }
 
 .macro-card {
   background: #252525;
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 10px;
+  padding: 12px;
   border-left: 4px solid #f59e0b;
   transition: all 0.2s;
   cursor: grab;
