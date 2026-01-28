@@ -43,29 +43,28 @@ export interface ActionConsequence {
   id: string;
   type: 'dice_roll' | 'spend_resource' | 'gain_resource' | 'apply_bonus';
   
-  // For dice rolls
+  // Unified dice configuration (used for all consequence types)
+  // Can be either a formula OR a saved config reference
+  diceFormula?: string; // e.g., "1d20+3", "2d6*2+5", "10" (fixed value)
+  savedDiceConfigId?: string; // Reference to saved dice config (alternative to formula)
+  
+  // Display properties for dice rolls (applies to all rolls)
+  rollName?: string; // Custom name for this roll (e.g., "Attack", "Damage")
+  rollColor?: string; // Hex color for visual identification
+  
+  // For resource changes (spend/gain)
+  resource?: ResourceType;
+  
+  // DEPRECATED: These are now derived from diceFormula parsing
   diceType?: number;
   diceCount?: number;
-  bonuses?: string[]; // References to stat/skill bonuses by name
-  
-  // Reference to a saved dice configuration from the dice roller
-  savedDiceConfigId?: string;
-  
-  // NEW: Dice formula (e.g., "1d20+3", "2d6+5")
-  diceFormula?: string;
-  
-  // NEW: For naming and coloring dice rolls
-  rollName?: string; // Custom name for this dice roll
-  rollColor?: string; // Hex color for displaying this roll
-  
-  // For resource changes
-  resource?: ResourceType;
   amount?: number;
+  bonuses?: string[];
   
-  // For applying bonuses
+  // For applying bonuses (future feature)
   bonusName?: string;
   bonusValue?: number;
-  bonusDuration?: number; // In rounds
+  bonusDuration?: number;
 }
 
 /**

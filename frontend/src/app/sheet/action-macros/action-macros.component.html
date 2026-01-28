@@ -36,38 +36,44 @@
         </div>
 
         <!-- Roll Results Display -->
-        @if (lastRollResults().length > 0) {
-          <div class="roll-results-section">
-            <h4>🎲 Würfelergebnisse</h4>
-            <div class="roll-results-list">
+        @if (lastRollResults().length > 0 || resourceChanges().length > 0) {
+          <div class="combined-results-section">
+            <h4>🎲 Aktionsergebnisse</h4>
+            
+            <!-- Group results by action execution -->
+            <div class="results-list">
+              <!-- Dice Roll Results -->
               @for (result of lastRollResults(); track result.id) {
-                <div class="roll-result-item" 
+                <div class="result-item roll-result" 
                      [class.animate]="result.isNew"
-                     [style.border-left]="result.color ? '3px solid ' + result.color : ''">
-                  @if (result.name) {
-                    <span class="roll-name" [style.color]="result.color || '#f59e0b'">{{ result.name }}</span>
+                     [style.border-left]="result.color ? '4px solid ' + result.color : '4px solid #f59e0b'">
+                  <div class="result-header">
+                    <span class="result-icon">🎲</span>
+                    @if (result.name) {
+                      <span class="result-name" [style.color]="result.color || '#f59e0b'">{{ result.name }}</span>
+                    }
+                    <span class="result-formula">{{ result.formula }}</span>
+                  </div>
+                  <div class="result-value">{{ result.total }}</div>
+                  @if (result.rolls.length > 0) {
+                    <div class="result-detail">[{{ result.rolls.join(' + ') }}]</div>
                   }
-                  <span class="roll-formula">{{ result.formula }}</span>
-                  <span class="roll-value">{{ result.total }}</span>
-                  <span class="roll-detail">[{{ result.rolls.join('+') }}]</span>
                 </div>
               }
-            </div>
-          </div>
-        }
-
-        <!-- Resource Changes Display -->
-        @if (resourceChanges().length > 0) {
-          <div class="resource-changes-section">
-            <h4>📊 Ressourcen-Änderungen</h4>
-            <div class="resource-changes-list">
+              
+              <!-- Resource Changes -->
               @for (change of resourceChanges(); track change.resource) {
-                <div class="resource-change-item" 
+                <div class="result-item resource-result" 
                      [class.animate]="change.isNew"
                      [class.negative]="change.amount < 0"
                      [class.positive]="change.amount > 0">
-                  <span class="change-resource">{{ change.resource }}</span>
-                  <span class="change-amount">{{ change.amount > 0 ? '+' : '' }}{{ change.amount }}</span>
+                  <div class="result-header">
+                    <span class="result-icon">{{ change.amount > 0 ? '📈' : '📉' }}</span>
+                    <span class="result-name">{{ change.resource }}</span>
+                  </div>
+                  <div class="result-value" [class.negative]="change.amount < 0" [class.positive]="change.amount > 0">
+                    {{ change.amount > 0 ? '+' : '' }}{{ change.amount }}
+                  </div>
                 </div>
               }
             </div>
@@ -140,37 +146,51 @@
             <div class="macro-editor">
               <!-- Basic Settings -->
               <div class="editor-section">
+                <h3>⚙️ Grundeinstellungen</h3>
                 <div class="form-row">
                   <div class="form-group flex-1">
-                    <label>Name</label>
-                    <input type="text" [(ngModel)]="macro.name" placeholder="Aktionsname" />
-                  </div>
-                  <div class="form-group icon-group">
-                    <label>Icon</label>
-                    <div class="icon-selector">
-                      @for (icon of availableIcons; track icon) {
-                        <button class="icon-btn" [class.selected]="macro.icon === icon" 
-                                (click)="macro.icon = icon">
-                          {{ icon }}
-                        </button>
-                      }
-                    </div>
+                    <label>
+                      <span class="label-icon">✏️</span>
+                      Name
+                    </label>
+                    <input type="text" [(ngModel)]="macro.name" placeholder="z.B. Feuerball, Heilzauber" />
                   </div>
                   <div class="form-group color-group">
-                    <label>Farbe</label>
+                    <label>
+                      <span class="label-icon">🎨</span>
+                      Farbe
+                    </label>
                     <input type="color" [(ngModel)]="macro.color" />
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>Beschreibung</label>
-                  <input type="text" [(ngModel)]="macro.description" placeholder="Optionale Beschreibung" />
+                  <label>
+                    <span class="label-icon">📝</span>
+                    Beschreibung
+                    <span class="label-hint">Optional: Was macht diese Aktion?</span>
+                  </label>
+                  <input type="text" [(ngModel)]="macro.description" placeholder="z.B. Wirft einen mächtigen Feuerball" />
+                </div>
+                <div class="form-group">
+                  <label>
+                    <span class="label-icon">🎭</span>
+                    Icon
+                  </label>
+                  <div class="icon-selector">
+                    @for (icon of availableIcons; track icon) {
+                      <button class="icon-btn" [class.selected]="macro.icon === icon" 
+                              (click)="macro.icon = icon">
+                        {{ icon }}
+                      </button>
+                    }
+                  </div>
                 </div>
               </div>
 
               <!-- Conditions -->
               <div class="editor-section">
                 <div class="section-header">
-                  <h4>Bedingungen (Wenn...)</h4>
+                  <h4>❓ Bedingungen (Wenn...)</h4>
                   <button class="add-small-btn" (click)="addCondition()">+ Bedingung</button>
                 </div>
                 @if (macro.conditions.length === 0) {
@@ -242,83 +262,126 @@
               <!-- Consequences -->
               <div class="editor-section">
                 <div class="section-header">
-                  <h4>Aktionen (Dann...)</h4>
+                  <h4>⚡ Aktionen (Dann...)</h4>
                   <button class="add-small-btn" (click)="addConsequence()">+ Aktion</button>
                 </div>
                 @if (macro.consequences.length === 0) {
                   <p class="section-empty">Keine Aktionen definiert</p>
                 } @else {
                   @for (consequence of macro.consequences; track consequence.id; let i = $index) {
-                    <div class="consequence-row">
-                      <select [(ngModel)]="consequence.type">
-                        <option value="dice_roll">Würfeln</option>
-                        <option value="spend_resource">Ressource ausgeben</option>
-                        <option value="gain_resource">Ressource erhalten</option>
-                      </select>
+                    <div class="consequence-card">
+                      <!-- Action Type Selector -->
+                      <div class="consequence-header">
+                        <div class="form-group flex-1">
+                          <label>Aktionstyp</label>
+                          <select [(ngModel)]="consequence.type" class="action-type-select">
+                            <option value="dice_roll">🎲 Würfeln</option>
+                            <option value="spend_resource">📉 Ressource ausgeben</option>
+                            <option value="gain_resource">📈 Ressource erhalten</option>
+                          </select>
+                        </div>
+                        <button class="remove-card-btn" (click)="removeConsequence(i)" title="Aktion entfernen">
+                          <span>×</span>
+                        </button>
+                      </div>
 
-                      @if (consequence.type === 'dice_roll') {
-                        <!-- Dice roll name and color -->
-                        <input type="text" [(ngModel)]="consequence.rollName" placeholder="Name (optional)" class="roll-name-input" />
-                        <input type="color" [(ngModel)]="consequence.rollColor" class="color-input" title="Würfelfarbe" />
-                        
-                        <!-- Formula input (e.g., "1d20+3") -->
-                        <input type="text" 
-                               [(ngModel)]="consequence.diceFormula" 
-                               placeholder="z.B. 1d20+3" 
-                               class="formula-input"
-                               (blur)="parseAndValidateFormula(consequence)" />
-                        
-                        <span class="or-label">oder</span>
-                        
-                        <!-- Option to use saved dice config -->
-                        @if (savedDiceConfigs().length > 0) {
-                          <select [(ngModel)]="consequence.savedDiceConfigId" 
-                                  (change)="clearFormula(consequence)"
-                                  class="config-select">
-                            <option value="">Gespeicherte Würfel</option>
-                            @for (config of savedDiceConfigs(); track config.id) {
-                              <option [value]="config.id">{{ config.name }} ({{ config.diceCount }}d{{ config.diceType }})</option>
+                      <!-- Resource Selection (for spend/gain) -->
+                      @if (consequence.type === 'spend_resource' || consequence.type === 'gain_resource') {
+                        <div class="form-group">
+                          <label>Ressource</label>
+                          <select [(ngModel)]="consequence.resource" class="resource-select">
+                            @for (res of resourceTypes; track res) {
+                              <option [value]="res">{{ res }}</option>
                             }
                           </select>
-                        }
-                      } @else if (consequence.type === 'spend_resource' || consequence.type === 'gain_resource') {
-                        <!-- Resource type -->
-                        <select [(ngModel)]="consequence.resource">
-                          @for (res of resourceTypes; track res) {
-                            <option [value]="res">{{ res }}</option>
-                          }
-                        </select>
-                        
-                        <!-- Amount configuration with dice support -->
-                        <span class="d-label">{{ consequence.type === 'spend_resource' ? 'Kosten:' : 'Menge:' }}</span>
-                        
-                        <!-- Name and color for dice-based resource changes -->
-                        <input type="text" [(ngModel)]="consequence.rollName" placeholder="Name (optional)" class="roll-name-input" />
-                        <input type="color" [(ngModel)]="consequence.rollColor" class="color-input" title="Würfelfarbe" />
-                        
-                        <!-- Manual dice formula -->
-                        <input type="text" 
-                               [(ngModel)]="consequence.diceFormula" 
-                               placeholder="1d6+2 oder fester Wert" 
-                               class="formula-input"
-                               (blur)="parseAndValidateFormula(consequence)" />
-                        
-                        <span class="or-label">oder</span>
-                        
-                        <!-- Saved config option -->
-                        @if (savedDiceConfigs().length > 0) {
-                          <select [(ngModel)]="consequence.savedDiceConfigId" 
-                                  (change)="clearFormula(consequence)"
-                                  class="config-select">
-                            <option value="">Gespeicherte Würfel</option>
-                            @for (config of savedDiceConfigs(); track config.id) {
-                              <option [value]="config.id">{{ config.name }} ({{ config.diceCount }}d{{ config.diceType }})</option>
-                            }
-                          </select>
-                        }
+                        </div>
                       }
 
-                      <button class="remove-btn" (click)="removeConsequence(i)">×</button>
+                      <!-- Unified Dice Configuration Section -->
+                      <div class="dice-config-section">
+                        <!-- Roll Name and Color -->
+                        <div class="form-row">
+                          <div class="form-group flex-1">
+                            <label>
+                              <span class="label-icon">🏷️</span>
+                              Anzeigename (optional)
+                            </label>
+                            <input 
+                              type="text" 
+                              [(ngModel)]="consequence.rollName" 
+                              placeholder="z.B. Angriff, Schaden, Heilung"
+                              class="roll-name-input" />
+                          </div>
+                          <div class="form-group color-picker-group">
+                            <label>
+                              <span class="label-icon">🎨</span>
+                              Farbe
+                            </label>
+                            <input 
+                              type="color" 
+                              [(ngModel)]="consequence.rollColor" 
+                              class="color-picker"
+                              title="Farbe für die Anzeige" />
+                          </div>
+                        </div>
+
+                        <!-- Formula Input with Validation -->
+                        <div class="form-group">
+                          <label>
+                            <span class="label-icon">🎲</span>
+                            Würfelformel oder fester Wert
+                            <span class="label-hint">Beispiele: 1d20+3, 2d6*2, 3d10+5-2, oder einfach 10</span>
+                          </label>
+                          <div class="formula-input-wrapper">
+                            <input 
+                              type="text" 
+                              [(ngModel)]="consequence.diceFormula" 
+                              (ngModelChange)="onFormulaChange(consequence)"
+                              placeholder="z.B. 2d6+3"
+                              class="formula-input"
+                              [class.valid]="isFormulaValid(consequence.diceFormula)"
+                              [class.invalid]="consequence.diceFormula && !isFormulaValid(consequence.diceFormula)" />
+                            @if (consequence.diceFormula && isFormulaValid(consequence.diceFormula)) {
+                              <span class="validation-icon valid" title="Formel ist gültig">✓</span>
+                            }
+                            @if (consequence.diceFormula && !isFormulaValid(consequence.diceFormula)) {
+                              <span class="validation-icon invalid" title="{{ getFormulaError(consequence.diceFormula) }}">✗</span>
+                            }
+                          </div>
+                          @if (consequence.diceFormula && !isFormulaValid(consequence.diceFormula)) {
+                            <div class="error-message">
+                              {{ getFormulaError(consequence.diceFormula) }}
+                            </div>
+                          }
+                        </div>
+
+                        <!-- OR Divider -->
+                        @if (savedDiceConfigs().length > 0) {
+                          <div class="or-divider">
+                            <span>ODER</span>
+                          </div>
+
+                          <!-- Saved Dice Config Dropdown -->
+                          <div class="form-group">
+                            <label>
+                              <span class="label-icon">💾</span>
+                              Gespeicherte Würfelkonfiguration
+                              <span class="label-hint">Wähle eine vorher gespeicherte Konfiguration</span>
+                            </label>
+                            <select 
+                              [(ngModel)]="consequence.savedDiceConfigId" 
+                              (change)="onSavedConfigSelected(consequence)"
+                              class="saved-config-select">
+                              <option value="">-- Keine gespeicherte Konfiguration --</option>
+                              @for (config of savedDiceConfigs(); track config.id) {
+                                <option [value]="config.id">
+                                  {{ config.name }} ({{ config.diceCount }}d{{ config.diceType }})
+                                </option>
+                              }
+                            </select>
+                          </div>
+                        }
+                      </div>
                     </div>
                   }
                 }

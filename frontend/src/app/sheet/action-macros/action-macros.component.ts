@@ -53,6 +53,157 @@ function generateUUID(): string {
   });
 }
 
+/**
+ * Parsed dice formula structure
+ */
+interface ParsedDiceFormula {
+  isValid: boolean;
+  diceCount?: number;
+  diceType?: number;
+  operations: Array<{type: 'add' | 'subtract' | 'multiply' | 'divide', value: number}>;
+  displayFormula: string;
+  error?: string;
+}
+
+/**
+ * Parse and validate dice formulas
+ * Supports: XdY, XdY+Z, XdY-Z, XdY*Z, XdY/Z, plain numbers, complex: 2d6+3*2
+ */
+function parseDiceFormula(formula: string): ParsedDiceFormula {
+  if (!formula || !formula.trim()) {
+    return { isValid: false, operations: [], displayFormula: '', error: 'Empty formula' };
+  }
+
+  const cleaned = formula.trim().replace(/\s+/g, '');
+  
+  // Check for simple fixed number first
+  const simpleNum = parseFloat(cleaned);
+  if (!isNaN(simpleNum) && /^-?\d+(\.\d+)?$/.test(cleaned)) {
+    return {
+      isValid: true,
+      operations: [{type: 'add', value: simpleNum}],
+      displayFormula: simpleNum.toString()
+    };
+  }
+  
+  // Parse dice notation with operations: XdY[operations]
+  // Supports: 2d6+3, 3d10*2, 1d20+5-2, etc.
+  const diceMatch = cleaned.match(/^(\d+)d(\d+)(.*)$/i);
+  
+  if (!diceMatch) {
+    return { isValid: false, operations: [], displayFormula: cleaned, error: 'Invalid dice format. Use format: XdY or XdY+Z' };
+  }
+  
+  const diceCount = parseInt(diceMatch[1]);
+  const diceType = parseInt(diceMatch[2]);
+  const operationsStr = diceMatch[3] || '';
+  
+  // Validate dice values
+  if (diceCount < 1 || diceCount > 100) {
+    return { isValid: false, operations: [], displayFormula: cleaned, error: 'Dice count must be 1-100' };
+  }
+  if (diceType < 2 || diceType > 1000) {
+    return { isValid: false, operations: [], displayFormula: cleaned, error: 'Dice type must be 2-1000' };
+  }
+  
+  // Parse operations
+  const operations: Array<{type: 'add' | 'subtract' | 'multiply' | 'divide', value: number}> = [];
+  
+  if (operationsStr) {
+    // Match all operations: +5, -3, *2, /2
+    const opMatches = operationsStr.matchAll(/([+\-*/])(\d+(\.\d+)?)/g);
+    
+    for (const match of opMatches) {
+      const op = match[1];
+      const value = parseFloat(match[2]);
+      
+      if (isNaN(value)) {
+        return { isValid: false, operations: [], displayFormula: cleaned, error: 'Invalid operation value' };
+      }
+      
+      switch (op) {
+        case '+':
+          operations.push({ type: 'add', value });
+          break;
+        case '-':
+          operations.push({ type: 'subtract', value });
+          break;
+        case '*':
+          operations.push({ type: 'multiply', value });
+          break;
+        case '/':
+          if (value === 0) {
+            return { isValid: false, operations: [], displayFormula: cleaned, error: 'Cannot divide by zero' };
+          }
+          operations.push({ type: 'divide', value });
+          break;
+      }
+    }
+    
+    // Verify we parsed the entire operations string
+    const reconstructed = operations.map(op => {
+      const symbol = op.type === 'add' ? '+' : op.type === 'subtract' ? '-' : op.type === 'multiply' ? '*' : '/';
+      return symbol + op.value;
+    }).join('');
+    
+    if (reconstructed !== operationsStr) {
+      return { isValid: false, operations: [], displayFormula: cleaned, error: 'Invalid formula syntax' };
+    }
+  }
+  
+  return {
+    isValid: true,
+    diceCount,
+    diceType,
+    operations,
+    displayFormula: cleaned
+  };
+}
+
+/**
+ * Roll dice based on parsed formula
+ */
+function rollDiceFromParsedFormula(parsed: ParsedDiceFormula): { rolls: number[], total: number, formula: string } {
+  if (!parsed.isValid) {
+    return { rolls: [], total: 0, formula: '' };
+  }
+  
+  let rolls: number[] = [];
+  let total = 0;
+  
+  // Roll dice if applicable
+  if (parsed.diceCount && parsed.diceType) {
+    for (let i = 0; i < parsed.diceCount; i++) {
+      const roll = Math.floor(Math.random() * parsed.diceType) + 1;
+      rolls.push(roll);
+      total += roll;
+    }
+  }
+  
+  // Apply operations in order
+  for (const op of parsed.operations) {
+    switch (op.type) {
+      case 'add':
+        total += op.value;
+        break;
+      case 'subtract':
+        total -= op.value;
+        break;
+      case 'multiply':
+        total *= op.value;
+        break;
+      case 'divide':
+        total /= op.value;
+        break;
+    }
+  }
+  
+  // Round to 2 decimal places if needed
+  total = Math.round(total * 100) / 100;
+  
+  return { rolls, total, formula: parsed.displayFormula };
+}
+
 @Component({
   selector: 'app-action-macros',
   standalone: true,
@@ -443,171 +594,142 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     this.saveMacros();
   }
 
-  // Formula parsing (e.g., "1d20+3", "2d6+5", "10")
-  parseAndValidateFormula(consequence: ActionConsequence) {
-    if (!consequence.diceFormula) return;
-    
-    const formula = consequence.diceFormula.trim();
-    if (!formula) return;
-    
-    // Try to parse as simple number first
-    const simpleNum = parseInt(formula);
-    if (!isNaN(simpleNum)) {
-      consequence.amount = simpleNum;
-      consequence.diceCount = undefined;
-      consequence.diceType = undefined;
-      return;
-    }
-    
-    // Parse dice formula: XdY+Z or XdY-Z or XdY
-    const match = formula.match(/^(\d+)d(\d+)([+-]\d+)?$/i);
-    if (match) {
-      consequence.diceCount = parseInt(match[1]);
-      consequence.diceType = parseInt(match[2]);
-      consequence.amount = match[3] ? parseInt(match[3]) : 0;
-    } else {
-      console.warn('Invalid formula:', formula);
-    }
+  // Formula parsing with validation - supports complex formulas
+  parseAndValidateFormula(consequence: ActionConsequence): ParsedDiceFormula {
+    const formula = consequence.diceFormula?.trim() || '';
+    return parseDiceFormula(formula);
+  }
+  
+  // Check if a formula is valid (for visual feedback)
+  isFormulaValid(formula: string | undefined): boolean {
+    if (!formula || !formula.trim()) return false;
+    const parsed = parseDiceFormula(formula);
+    return parsed.isValid;
+  }
+  
+  // Get formula error message
+  getFormulaError(formula: string | undefined): string {
+    if (!formula || !formula.trim()) return '';
+    const parsed = parseDiceFormula(formula);
+    return parsed.error || '';
   }
 
   clearFormula(consequence: ActionConsequence) {
     if (consequence.savedDiceConfigId) {
       consequence.diceFormula = '';
-      consequence.diceCount = undefined;
-      consequence.diceType = undefined;
-      consequence.amount = undefined;
+    }
+  }
+  
+  // Handle formula change event
+  onFormulaChange(consequence: ActionConsequence) {
+    // Clear saved config if user is typing a formula
+    if (consequence.diceFormula && consequence.savedDiceConfigId) {
+      consequence.savedDiceConfigId = '';
+    }
+  }
+  
+  // Handle saved config selection
+  onSavedConfigSelected(consequence: ActionConsequence) {
+    // Clear formula if user selected a saved config
+    if (consequence.savedDiceConfigId) {
+      consequence.diceFormula = '';
     }
   }
 
-  // Roll dice from formula
+  // Roll dice from formula - uses new parser
   rollDiceFromFormula(consequence: ActionConsequence): { rolls: number[], total: number, formula: string } {
-    let rolls: number[] = [];
-    let total = 0;
-    let formula = '';
-    
-    // Check if using formula
-    if (consequence.diceFormula && consequence.diceCount && consequence.diceType) {
-      const count = consequence.diceCount;
-      const type = consequence.diceType;
-      const bonus = consequence.amount || 0;
-      
-      for (let i = 0; i < count; i++) {
-        const roll = Math.floor(Math.random() * type) + 1;
-        rolls.push(roll);
-        total += roll;
+    // Use formula if available
+    if (consequence.diceFormula) {
+      const parsed = parseDiceFormula(consequence.diceFormula);
+      if (parsed.isValid) {
+        return rollDiceFromParsedFormula(parsed);
       }
-      total += bonus;
-      formula = bonus !== 0 ? `${count}d${type}${bonus >= 0 ? '+' : ''}${bonus}` : `${count}d${type}`;
-    } else if (consequence.amount !== undefined) {
-      // Fixed amount
-      total = consequence.amount;
-      formula = `${total}`;
     }
     
-    return { rolls, total, formula };
+    // Fallback to empty result
+    return { rolls: [], total: 0, formula: '' };
   }
 
-  // Execute macro with roll results
+  // Execute macro with roll results - improved version
   runMacroWithResults(macro: ActionMacro) {
     if (!this.areConditionsMet(macro)) return;
     
-    // Collect dice roll results
     const results: RollResult[] = [];
     const changes: ResourceChange[] = [];
     
     for (const consequence of macro.consequences) {
+      let rollResult: { rolls: number[], total: number, formula: string } | null = null;
+      
+      // Determine how to get the value (formula or saved config)
+      if (consequence.diceFormula) {
+        // Use formula
+        const parsed = parseDiceFormula(consequence.diceFormula);
+        if (parsed.isValid) {
+          rollResult = rollDiceFromParsedFormula(parsed);
+        }
+      } else if (consequence.savedDiceConfigId) {
+        // Use saved config
+        const config = this.savedDiceConfigs().find(c => c.id === consequence.savedDiceConfigId);
+        if (config) {
+          const rolls: number[] = [];
+          for (let i = 0; i < config.diceCount; i++) {
+            rolls.push(Math.floor(Math.random() * config.diceType) + 1);
+          }
+          const total = rolls.reduce((a, b) => a + b, 0) + config.manualBonus;
+          rollResult = {
+            rolls,
+            total,
+            formula: `${config.diceCount}d${config.diceType}${config.manualBonus > 0 ? '+' + config.manualBonus : ''}`
+          };
+        }
+      }
+      
+      // Process based on consequence type
       if (consequence.type === 'dice_roll') {
-        // Use new formula system if available
-        if (consequence.diceFormula || consequence.diceCount) {
-          const result = this.rollDiceFromFormula(consequence);
+        // Pure dice roll - just show the result
+        if (rollResult) {
           results.push({
             id: generateUUID(),
-            formula: result.formula,
-            rolls: result.rolls,
-            total: result.total,
+            formula: rollResult.formula,
+            rolls: rollResult.rolls,
+            total: rollResult.total,
             isNew: true,
-            name: consequence.rollName,
-            color: consequence.rollColor
+            name: consequence.rollName || 'Wurf',
+            color: consequence.rollColor || '#f59e0b'
           });
-        } else if (consequence.savedDiceConfigId) {
-          // Fallback to saved config
-          const config = this.savedDiceConfigs().find(c => c.id === consequence.savedDiceConfigId);
-          if (config) {
-            const rolls: number[] = [];
-            for (let i = 0; i < config.diceCount; i++) {
-              rolls.push(Math.floor(Math.random() * config.diceType) + 1);
-            }
-            const total = rolls.reduce((a, b) => a + b, 0);
-            
-            results.push({
-              id: generateUUID(),
-              formula: `${config.diceCount}d${config.diceType}`,
-              rolls,
-              total,
-              isNew: true,
-              name: consequence.rollName || config.name,
-              color: consequence.rollColor
-            });
-          }
         }
       } else if (consequence.type === 'spend_resource' || consequence.type === 'gain_resource') {
-        let amount = 0;
-        let rollResult = null;
-        
-        // Check if using formula or saved config
-        if (consequence.diceFormula || consequence.diceCount) {
-          rollResult = this.rollDiceFromFormula(consequence);
-          amount = rollResult.total;
-          
-          // Add roll result if it's a dice roll
-          if (rollResult.rolls.length > 0) {
-            results.push({
-              id: generateUUID(),
-              formula: `${rollResult.formula} (${consequence.resource})`,
-              rolls: rollResult.rolls,
-              total: rollResult.total,
-              isNew: true,
-              name: consequence.rollName,
-              color: consequence.rollColor
-            });
-          }
-        } else if (consequence.savedDiceConfigId) {
-          const config = this.savedDiceConfigs().find(c => c.id === consequence.savedDiceConfigId);
-          if (config) {
-            const rolls: number[] = [];
-            for (let i = 0; i < config.diceCount; i++) {
-              rolls.push(Math.floor(Math.random() * config.diceType) + 1);
-            }
-            amount = rolls.reduce((a, b) => a + b, 0);
-            
-            results.push({
-              id: generateUUID(),
-              formula: `${config.diceCount}d${config.diceType} (${consequence.resource})`,
-              rolls,
-              total: amount,
-              isNew: true,
-              name: consequence.rollName || config.name,
-              color: consequence.rollColor
-            });
-          }
-        } else {
-          amount = consequence.amount || 0;
-        }
-        
+        // Resource change - can be dice-based or fixed
+        const amount = rollResult ? rollResult.total : 0;
         const finalAmount = consequence.type === 'spend_resource' ? -amount : amount;
+        
+        // Add to resource changes
         changes.push({
-          resource: consequence.resource || '',
+          resource: consequence.resource || 'unknown',
           amount: finalAmount,
           isNew: true
         });
+        
+        // If it was a dice roll, also show the roll result
+        if (rollResult && rollResult.rolls.length > 0) {
+          results.push({
+            id: generateUUID(),
+            formula: rollResult.formula,
+            rolls: rollResult.rolls,
+            total: rollResult.total,
+            isNew: true,
+            name: consequence.rollName || (consequence.type === 'spend_resource' ? 'Kosten' : 'Gewinn'),
+            color: consequence.rollColor || (consequence.type === 'spend_resource' ? '#ef4444' : '#22c55e')
+          });
+        }
       }
     }
     
-    // Update last roll results
+    // Update displays
     this.lastRollResults.set(results);
     this.resourceChanges.set(changes);
     
-    // Emit resource changes ONCE for all consequences
+    // Apply resource changes to character
     for (const change of changes) {
       this.resourceChanged.emit({ resource: change.resource, amount: change.amount });
     }
@@ -617,13 +739,13 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
       this.rollPerformed.emit(results);
     }
     
-    // Mark as not new after animation
+    // Animate out after delay
     setTimeout(() => {
       this.lastRollResults.update(r => r.map(roll => ({ ...roll, isNew: false })));
       this.resourceChanges.update(r => r.map(change => ({ ...change, isNew: false })));
     }, 500);
     
-    // Emit for other processing
+    // Emit macro execution
     this.executeMacro.emit(macro);
   }
 
