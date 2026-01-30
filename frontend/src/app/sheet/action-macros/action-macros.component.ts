@@ -845,9 +845,11 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     const gridStyles = window.getComputedStyle(gridElement);
     const gap = parseFloat(gridStyles.gap) || 14;
     
-    // Calculate actual cell dimensions including gap
-    const cellWidth = (rect.width + gap) / this.gridColumns;
-    const cellHeight = 120 + gap; // Card height + gap
+    // Calculate actual cell dimensions
+    // Grid has (n-1) gaps between n columns
+    const totalGapWidth = gap * (this.gridColumns - 1);
+    const cellWidth = (rect.width - totalGapWidth) / this.gridColumns;
+    const cellHeight = 120; // Card height (gap is handled separately)
     
     // Get drop position relative to grid (accounting for scroll)
     const containerRect = event.container.element.nativeElement.getBoundingClientRect();
@@ -856,9 +858,20 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     const relativeX = event.dropPoint.x - rect.left;
     const relativeY = event.dropPoint.y - rect.top + scrollTop;
     
-    // Calculate grid cell (snap to grid)
-    const gridX = Math.max(0, Math.min(Math.floor(relativeX / cellWidth), this.gridColumns - 1));
-    const gridY = Math.max(0, Math.floor(relativeY / cellHeight));
+    // Calculate grid cell - account for cumulative gaps
+    let gridX = 0;
+    let accumulatedWidth = 0;
+    for (let col = 0; col < this.gridColumns; col++) {
+      const colEnd = accumulatedWidth + cellWidth;
+      if (relativeX < colEnd || col === this.gridColumns - 1) {
+        gridX = col;
+        break;
+      }
+      accumulatedWidth = colEnd + gap;
+    }
+    
+    // For Y, calculate similarly with row height + gap
+    const gridY = Math.max(0, Math.floor(relativeY / (cellHeight + gap)));
     
     // Check if target cell is occupied by a different macro
     const targetOccupied = this.macros().find(m => 
