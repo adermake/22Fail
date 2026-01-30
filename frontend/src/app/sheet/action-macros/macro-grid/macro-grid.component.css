@@ -52,6 +52,25 @@
   position: relative;
 }
 
+.drop-preview {
+  background: rgba(245, 158, 11, 0.2);
+  border: 2px dashed #f59e0b;
+  border-radius: 12px;
+  height: 120px;
+  pointer-events: none;
+  z-index: 1;
+  animation: pulse-preview 1s ease-in-out infinite;
+}
+
+@keyframes pulse-preview {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .macro-card {
   background: #252525;
   border-radius: 12px;

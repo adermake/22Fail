@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { ActionMacro, ActionConsequence } from '../../../model/action-macro.model';
@@ -14,6 +14,7 @@ import { CharacterSheet } from '../../../model/character-sheet-model';
 export class MacroGridComponent {
   @Input() macros: ActionMacro[] = [];
   @Input() sheet!: CharacterSheet;
+  @Input() gridColumns: number = 4;
   @Output() runMacro = new EventEmitter<ActionMacro>();
   @Output() editMacro = new EventEmitter<ActionMacro>();
   @Output() deleteMacro = new EventEmitter<string>();
@@ -31,6 +32,11 @@ export class MacroGridComponent {
   lastMouseY = 0;
   isDraggingMacro = false;
 
+  // Drop preview state
+  showDropPreview = false;
+  previewGridX = 0;
+  previewGridY = 0;
+
   get transformStyle(): string {
     return `translate(${this.panX}px, ${this.panY}px)`;
   }
@@ -38,13 +44,54 @@ export class MacroGridComponent {
   onDragStart(macro: ActionMacro): void {
     this.draggedMacro = macro;
     this.isDraggingMacro = true;
+    this.showDropPreview = true;
     this.dragStart.emit(macro);
   }
 
   onDragEnd(): void {
     this.draggedMacro = null;
     this.isDraggingMacro = false;
+    this.showDropPreview = false;
     this.dragEnd.emit();
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onDocumentMouseMove(event: MouseEvent): void {
+    if (!this.isDraggingMacro || !this.showDropPreview) return;
+
+    const gridElement = document.querySelector('.macro-grid') as HTMLElement;
+    if (!gridElement) return;
+
+    const rect = gridElement.getBoundingClientRect();
+    const gridStyles = window.getComputedStyle(gridElement);
+    const gap = parseFloat(gridStyles.gap) || 14;
+
+    // Calculate cell dimensions
+    const totalGapWidth = gap * (this.gridColumns - 1);
+    const cellWidth = (rect.width - totalGapWidth) / this.gridColumns;
+    const cellHeight = 120;
+
+    // Get mouse position relative to grid
+    const relativeX = event.clientX - rect.left;
+    const relativeY = event.clientY - rect.top;
+
+    // Calculate grid cell position
+    let gridX = 0;
+    let accumulatedWidth = 0;
+    for (let col = 0; col < this.gridColumns; col++) {
+      const colEnd = accumulatedWidth + cellWidth;
+      if (relativeX < colEnd || col === this.gridColumns - 1) {
+        gridX = col;
+        break;
+      }
+      accumulatedWidth = colEnd + gap;
+    }
+
+    const gridY = Math.max(0, Math.floor(relativeY / (cellHeight + gap)));
+
+    // Update preview position
+    this.previewGridX = gridX;
+    this.previewGridY = gridY;
   }
 
   onMouseDown(event: MouseEvent): void {

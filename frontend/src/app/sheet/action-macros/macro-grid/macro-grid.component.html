@@ -16,6 +16,14 @@
        (mouseleave)="onMouseLeave()">
     <div class="macro-grid-wrapper" [style.transform]="transformStyle">
       <div class="macro-grid">
+        <!-- Drop preview placeholder -->
+        @if (showDropPreview && draggedMacro) {
+          <div class="drop-preview"
+               [style.grid-column]="previewGridX + 1"
+               [style.grid-row]="previewGridY + 1">
+          </div>
+        }
+        
         @for (macro of macros; track macro.id) {
         <div class="macro-card" 
              cdkDrag
