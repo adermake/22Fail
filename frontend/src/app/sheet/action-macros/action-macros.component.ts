@@ -599,16 +599,6 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Drag and drop for macro reordering
-  dropMacro(event: CdkDragDrop<ActionMacro[]>) {
-    const currentMacros = [...this.macros()];
-    moveItemInArray(currentMacros, event.previousIndex, event.currentIndex);
-    // Update order property
-    currentMacros.forEach((m, i) => m.order = i);
-    this.macros.set(currentMacros);
-    this.saveMacros();
-  }
-
   // Formula parsing with validation - supports complex formulas
   parseAndValidateFormula(consequence: ActionConsequence): ParsedDiceFormula {
     const formula = consequence.diceFormula?.trim() || '';
