@@ -1,6 +1,5 @@
-import { Component, Input, Output, EventEmitter, ViewChild, ElementRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
@@ -9,89 +8,69 @@ import { CardComponent } from '../../shared/card/card.component';
 @Component({
   selector: 'app-backstory',
   standalone: true,
-  imports: [CommonModule, FormsModule, CardComponent],
+  imports: [CommonModule, CardComponent],
   templateUrl: './backstory.component.html',
   styleUrl: './backstory.component.css',
 })
-export class BackstoryComponent {
+export class BackstoryComponent implements AfterViewInit {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
-  @ViewChild('textArea') textArea!: ElementRef<HTMLTextAreaElement>;
-
-  isEditing = false;
+  @ViewChild('editor') editorElement!: ElementRef<HTMLDivElement>;
 
   constructor(private sanitizer: DomSanitizer) {}
 
-  get renderedBackstory(): SafeHtml {
-    const text = this.sheet.backstory || '';
-    if (!text) return this.sanitizer.bypassSecurityTrustHtml('<p class="placeholder">Start typing to see your formatted text here...</p>');
-
-    // Simple markdown-like rendering
-    const html = this.parseSimpleMarkdown(text);
-    return this.sanitizer.bypassSecurityTrustHtml(html);
+  ngAfterViewInit() {
+    if (this.editorElement && !this.sheet.backstory) {
+      this.editorElement.nativeElement.innerHTML = '<p><br></p>';
+    }
   }
 
-  private parseSimpleMarkdown(text: string): string {
-    // Escape HTML first
-    let html = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    // Parse headers (# Title, ## Subtitle, ### Subheader)
-    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-
-    // Parse horizontal rules (---)
-    html = html.replace(/^---$/gm, '<hr>');
-
-    // Parse bold (**text** or __text__) - more greedy to handle multiline
-    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-
-    // Parse italic (*text* or _text_)
-    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
-
-    // Parse line breaks - convert double newlines to paragraphs
-    const paragraphs = html.split(/\n\n+/);
-    html = paragraphs
-      .map(p => {
-        // Don't wrap headers or hr in p tags
-        if (p.match(/^<h[1-3]>/) || p.startsWith('<hr>')) return p;
-        // Wrap in paragraph and preserve single line breaks
-        const content = p.trim();
-        if (!content) return '';
-        return `<p>${content.replace(/\n/g, '<br>')}</p>`;
-      })
-      .filter(p => p)
-      .join('\n');
-
-    return html;
+  get safeContent(): SafeHtml {
+    const content = this.sheet.backstory || '<p><br></p>';
+    return this.sanitizer.bypassSecurityTrustHtml(content);
   }
 
-  updateBackstory(value: string) {
-    this.patch.emit({ path: 'backstory', value });
+  formatText(command: string) {
+    const editor = this.editorElement?.nativeElement;
+    if (!editor) return;
+
+    editor.focus();
+    const selection = window.getSelection();
+    
+    if (command === 'bold') {
+      document.execCommand('bold', false);
+    } else if (command === 'italic') {
+      document.execCommand('italic', false);
+    } else if (command === 'h1' || command === 'h2' || command === 'h3' || command === 'p') {
+      document.execCommand('formatBlock', false, command);
+    }
+    
+    this.saveContent();
   }
 
-  insertMarkdown(prefix: string, suffix: string) {
-    if (!this.textArea) return;
+  insertHR() {
+    const editor = this.editorElement?.nativeElement;
+    if (!editor) return;
     
-    const textarea = this.textArea.nativeElement;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = this.sheet.backstory || '';
-    const selectedText = text.substring(start, end);
+    editor.focus();
+    document.execCommand('insertHTML', false, '<hr>');
+    this.saveContent();
+  }
+
+  onContentChange(event: Event) {
+    this.saveContent();
+  }
+
+  private saveContent() {
+    const editor = this.editorElement?.nativeElement;
+    if (!editor) return;
     
-    const newText = text.substring(0, start) + prefix + selectedText + suffix + text.substring(end);
-    this.updateBackstory(newText);
+    let content = editor.innerHTML;
+    // Clean up empty paragraphs
+    if (content === '<p><br></p>' || content === '<br>' || content === '') {
+      content = '';
+    }
     
-    // Restore cursor position
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = start + prefix.length + selectedText.length + suffix.length;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
+    this.patch.emit({ path: 'backstory', value: content });
   }
 }

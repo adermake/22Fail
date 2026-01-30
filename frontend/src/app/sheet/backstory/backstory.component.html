@@ -3,48 +3,44 @@
     <h2>Hintergrundgeschichte</h2>
   </div>
 
-  <div class="editor-container">
-    <div class="editor-side">
-      <div class="editor-toolbar">
-        <div class="toolbar-section">
-          <button class="toolbar-btn" (click)="insertMarkdown('# ', '')" title="Heading 1">
-            H1
-          </button>
-          <button class="toolbar-btn" (click)="insertMarkdown('## ', '')" title="Heading 2">
-            H2
-          </button>
-          <button class="toolbar-btn" (click)="insertMarkdown('### ', '')" title="Heading 3">
-            H3
-          </button>
-        </div>
-        <div class="toolbar-divider"></div>
-        <div class="toolbar-section">
-          <button class="toolbar-btn" (click)="insertMarkdown('**', '**')" title="Bold">
-            <strong>B</strong>
-          </button>
-          <button class="toolbar-btn" (click)="insertMarkdown('*', '*')" title="Italic">
-            <em>I</em>
-          </button>
-        </div>
-        <div class="toolbar-divider"></div>
-        <div class="toolbar-section">
-          <button class="toolbar-btn" (click)="insertMarkdown('\n---\n', '')" title="Horizontal Line">
-            ―
-          </button>
-        </div>
-      </div>
-      <textarea
-        #textArea
-        [ngModel]="sheet.backstory"
-        (ngModelChange)="updateBackstory($event)"
-        placeholder="Write your character's backstory here...\n\nTip: Use the toolbar above to format your text!"
-        rows="20">
-      </textarea>
+  <div class="editor-toolbar">
+    <div class="toolbar-section">
+      <button class="toolbar-btn" (click)="formatText('h1')" title="Heading 1">
+        H1
+      </button>
+      <button class="toolbar-btn" (click)="formatText('h2')" title="Heading 2">
+        H2
+      </button>
+      <button class="toolbar-btn" (click)="formatText('h3')" title="Heading 3">
+        H3
+      </button>
+      <button class="toolbar-btn" (click)="formatText('p')" title="Normal Text">
+        P
+      </button>
     </div>
-    
-    <div class="preview-side">
-      <div class="preview-header">Preview</div>
-      <div class="backstory-content" [innerHTML]="renderedBackstory"></div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-section">
+      <button class="toolbar-btn" (click)="formatText('bold')" title="Bold">
+        <strong>B</strong>
+      </button>
+      <button class="toolbar-btn" (click)="formatText('italic')" title="Italic">
+        <em>I</em>
+      </button>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-section">
+      <button class="toolbar-btn" (click)="insertHR()" title="Horizontal Line">
+        ―
+      </button>
     </div>
   </div>
+  
+  <div
+    #editor
+    class="rich-text-editor"
+    contenteditable="true"
+    [innerHTML]="safeContent"
+    (input)="onContentChange($event)"
+    (blur)="onContentChange($event)"
+    placeholder="Write your character's backstory here..."></div>
 </app-card>
