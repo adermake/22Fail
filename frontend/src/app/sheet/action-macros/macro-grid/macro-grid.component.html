@@ -7,15 +7,15 @@
 } @else {
   <div class="macro-grid-container"
        [class.panning]="isPanning"
+       cdkDropList
+       [cdkDropListSortingDisabled]="true"
+       (cdkDropListDropped)="dropMacro.emit($event)"
        (mousedown)="onMouseDown($event)"
        (mousemove)="onMouseMove($event)"
        (mouseup)="onMouseUp()"
        (mouseleave)="onMouseLeave()">
     <div class="macro-grid-wrapper" [style.transform]="transformStyle">
-      <div class="macro-grid"
-           cdkDropList
-           [cdkDropListSortingDisabled]="true"
-           (cdkDropListDropped)="dropMacro.emit($event)">
+      <div class="macro-grid">
         @for (macro of macros; track macro.id) {
         <div class="macro-card" 
              cdkDrag
