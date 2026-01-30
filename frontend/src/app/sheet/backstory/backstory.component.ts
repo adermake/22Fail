@@ -68,7 +68,8 @@ export class BackstoryComponent implements AfterViewInit {
     if (!editor) return;
     
     editor.focus();
-    document.execCommand('insertHTML', false, '<hr>');
+    const grayColor = getComputedStyle(editor).getPropertyValue('--text-muted').trim() || '#999999';
+    document.execCommand('insertHTML', false, `<hr style="border: none; border-top: 2px solid ${grayColor}; margin: 1.5rem 0;">`);
   }
 
   onPaste(event: ClipboardEvent) {
