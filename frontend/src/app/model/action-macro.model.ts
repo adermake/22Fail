@@ -77,6 +77,10 @@ export interface ActionMacro {
   icon?: string; // Emoji or icon identifier
   color?: string; // Hex color for the button
   
+  // Grid positioning
+  gridX?: number;
+  gridY?: number;
+  
   // Conditions that must all be met
   conditions: ActionCondition[];
   

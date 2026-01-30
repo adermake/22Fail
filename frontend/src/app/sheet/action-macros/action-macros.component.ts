@@ -253,6 +253,11 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
   
   // Available icons for actions
   availableIcons = ['⚡', '⚔️', '🛡️', '🔥', '❄️', '💫', '🌟', '💥', '🎯', '🗡️', '🏹', '✨', '💀', '❤️', '🔮', '📖'];
+  
+  // Grid configuration
+  gridColumns = 4;
+  gridRows = 6;
+  draggedMacro: ActionMacro | null = null;
 
   // Computed: character skill names for validation
   characterSkillNames = computed(() => {
@@ -772,6 +777,113 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     
     // Emit macro execution
     this.executeMacro.emit(macro);
+  }
+
+  // Grid system methods
+  getGridPosition(macro: ActionMacro): { x: number, y: number } {
+    if (macro.gridX !== undefined && macro.gridY !== undefined) {
+      return { x: macro.gridX, y: macro.gridY };
+    }
+    // Auto-assign position if not set
+    const position = this.findNextEmptyGridCell();
+    macro.gridX = position.x;
+    macro.gridY = position.y;
+    return position;
+  }
+  
+  findNextEmptyGridCell(): { x: number, y: number } {
+    const occupied = new Set<string>();
+    for (const macro of this.macros()) {
+      if (macro.gridX !== undefined && macro.gridY !== undefined) {
+        occupied.add(`${macro.gridX},${macro.gridY}`);
+      }
+    }
+    
+    for (let y = 0; y < this.gridRows; y++) {
+      for (let x = 0; x < this.gridColumns; x++) {
+        if (!occupied.has(`${x},${y}`)) {
+          return { x, y };
+        }
+      }
+    }
+    // If grid is full, place at end
+    return { x: 0, y: this.gridRows };
+  }
+  
+  isGridCellOccupied(x: number, y: number): boolean {
+    return this.macros().some(m => m.gridX === x && m.gridY === y);
+  }
+  
+  onDragStart(macro: ActionMacro) {
+    this.draggedMacro = macro;
+  }
+  
+  onDragEnd() {
+    this.draggedMacro = null;
+  }
+  
+  onCellClick(x: number, y: number) {
+    if (!this.draggedMacro) return;
+    
+    // Check if cell is occupied
+    if (this.isGridCellOccupied(x, y)) return;
+    
+    // Move macro to this cell
+    this.macros.update(macros => {
+      return macros.map(m => {
+        if (m.id === this.draggedMacro!.id) {
+          return { ...m, gridX: x, gridY: y };
+        }
+        return m;
+      });
+    });
+    
+    this.saveMacros();
+    this.draggedMacro = null;
+  }
+  
+  dropMacro(event: CdkDragDrop<ActionMacro[]>) {
+    // Get mouse position relative to grid
+    const gridElement = event.container.element.nativeElement;
+    const rect = gridElement.getBoundingClientRect();
+    const cellWidth = rect.width / this.gridColumns;
+    const cellHeight = 120; // Approximate card height + gap
+    
+    const x = Math.floor((event.dropPoint.x - rect.left) / cellWidth);
+    const y = Math.floor((event.dropPoint.y - rect.top + gridElement.scrollTop) / cellHeight);
+    
+    // Clamp to grid bounds
+    const gridX = Math.max(0, Math.min(x, this.gridColumns - 1));
+    const gridY = Math.max(0, Math.min(y, this.gridRows + 2)); // Allow extending grid
+    
+    // Check if target cell is occupied
+    const targetOccupied = this.macros().find(m => m.gridX === gridX && m.gridY === gridY && m.id !== event.item.data.id);
+    
+    if (targetOccupied) {
+      // Swap positions
+      this.macros.update(macros => {
+        return macros.map(m => {
+          if (m.id === event.item.data.id) {
+            return { ...m, gridX, gridY };
+          } else if (m.id === targetOccupied.id) {
+            return { ...m, gridX: event.item.data.gridX, gridY: event.item.data.gridY };
+          }
+          return m;
+        });
+      });
+    } else {
+      // Move to empty cell
+      this.macros.update(macros => {
+        return macros.map(m => {
+          if (m.id === event.item.data.id) {
+            return { ...m, gridX, gridY };
+          }
+          return m;
+        });
+      });
+    }
+    
+    this.saveMacros();
   }
 
   onClose() {

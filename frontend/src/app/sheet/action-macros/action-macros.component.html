@@ -94,44 +94,52 @@
               <button class="create-first-btn" (click)="createNewMacro()">Erste Aktion erstellen</button>
             </div>
           } @else {
-            <div class="macro-grid" cdkDropList (cdkDropListDropped)="dropMacro($event)">
-              @for (macro of macros(); track macro.id) {
-                <div class="macro-card" 
-                     cdkDrag
-                     [class.invalid]="!macro.isValid"
-                     [class.disabled]="!areConditionsMet(macro)"
-                     [style.border-left-color]="macro.color">
-                  
-                  <div class="macro-header">
-                    <span class="macro-icon">{{ macro.icon || '⚡' }}</span>
-                    <span class="macro-name">{{ macro.name }}</span>
-                    @if (!macro.isValid) {
-                      <span class="invalid-badge" [title]="'Fehlende Skills: ' + getMissingSkills(macro).join(', ')">⚠️</span>
+            <div class="macro-grid-container" cdkDropList (cdkDropListDropped)="dropMacro($event)">
+              <div class="macro-grid">
+                @for (macro of macros(); track macro.id) {
+                  <div class="macro-card" 
+                       cdkDrag
+                       [cdkDragData]="macro"
+                       (cdkDragStarted)="onDragStart(macro)"
+                       (cdkDragEnded)="onDragEnd()"
+                       [class.invalid]="!macro.isValid"
+                       [class.disabled]="!areConditionsMet(macro)"
+                       [class.dragging]="draggedMacro?.id === macro.id"
+                       [style.border-left-color]="macro.color"
+                       [style.grid-column]="getGridPosition(macro).x + 1"
+                       [style.grid-row]="getGridPosition(macro).y + 1">
+                    
+                    <div class="macro-header">
+                      <span class="macro-icon">{{ macro.icon || '⚡' }}</span>
+                      <span class="macro-name">{{ macro.name }}</span>
+                      @if (!macro.isValid) {
+                        <span class="invalid-badge" [title]="'Fehlende Skills: ' + getMissingSkills(macro).join(', ')">⚠️</span>
+                      }
+                      <span class="drag-handle" cdkDragHandle>⋮⋮</span>
+                    </div>
+
+                    @if (macro.description) {
+                      <p class="macro-description">{{ macro.description }}</p>
                     }
-                    <span class="drag-handle" cdkDragHandle>⋮⋮</span>
-                  </div>
 
-                  @if (macro.description) {
-                    <p class="macro-description">{{ macro.description }}</p>
-                  }
+                    <div class="macro-summary">
+                      @for (cons of macro.consequences; track cons.id) {
+                        <span class="consequence-tag" [class]="cons.type">{{ getConsequenceLabel(cons) }}</span>
+                      }
+                    </div>
 
-                  <div class="macro-summary">
-                    @for (cons of macro.consequences; track cons.id) {
-                      <span class="consequence-tag" [class]="cons.type">{{ getConsequenceLabel(cons) }}</span>
-                    }
+                    <div class="macro-actions">
+                      <button class="run-btn" 
+                              [disabled]="!areConditionsMet(macro)"
+                              (click)="runMacroWithResults(macro)">
+                        ▶ Ausführen
+                      </button>
+                      <button class="edit-btn" (click)="editMacro(macro)">✏️</button>
+                      <button class="delete-btn" (click)="deleteMacro(macro.id)">🗑️</button>
+                    </div>
                   </div>
-
-                  <div class="macro-actions">
-                    <button class="run-btn" 
-                            [disabled]="!areConditionsMet(macro)"
-                            (click)="runMacroWithResults(macro)">
-                      ▶ Ausführen
-                    </button>
-                    <button class="edit-btn" (click)="editMacro(macro)">✏️</button>
-                    <button class="delete-btn" (click)="deleteMacro(macro.id)">🗑️</button>
-                  </div>
-                </div>
-              }
+                }
+              </div>
             </div>
           }
         } @else {
