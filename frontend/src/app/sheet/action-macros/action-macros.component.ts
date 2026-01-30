@@ -31,6 +31,17 @@ export interface ResourceChange {
   isNew: boolean;
 }
 
+export interface ActionExecution {
+  id: string;
+  actionName: string;
+  actionIcon: string;
+  actionColor: string;
+  timestamp: Date;
+  rolls: RollResult[];
+  resourceChanges: ResourceChange[];
+  isNew: boolean;
+}
+
 export interface SavedDiceConfig {
   id: string;
   name: string;
@@ -223,8 +234,7 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
   showEditor = signal<boolean>(false);
   editingMacro = signal<ActionMacro | null>(null);
   isNewMacro = signal<boolean>(false);
-  lastRollResults = signal<RollResult[]>([]);
-  resourceChanges = signal<ResourceChange[]>([]);
+  actionHistory = signal<ActionExecution[]>([]);
   
   // Saved dice configs from dice roller (synced)
   savedDiceConfigs = signal<SavedDiceConfig[]>([]);
@@ -650,7 +660,7 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     return { rolls: [], total: 0, formula: '' };
   }
 
-  // Execute macro with roll results - improved version
+  // Execute macro with roll results - grouped by action
   runMacroWithResults(macro: ActionMacro) {
     if (!this.areConditionsMet(macro)) return;
     
@@ -725,9 +735,23 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
       }
     }
     
-    // Update displays
-    this.lastRollResults.set(results);
-    this.resourceChanges.set(changes);
+    // Create action execution record
+    const execution: ActionExecution = {
+      id: generateUUID(),
+      actionName: macro.name,
+      actionIcon: macro.icon || '⚡',
+      actionColor: macro.color || '#f59e0b',
+      timestamp: new Date(),
+      rolls: results,
+      resourceChanges: changes,
+      isNew: true
+    };
+    
+    // Add to history (keep last 10 executions)
+    this.actionHistory.update(history => {
+      const updated = [execution, ...history];
+      return updated.slice(0, 10);
+    });
     
     // Apply resource changes to character
     for (const change of changes) {
@@ -741,9 +765,10 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     
     // Animate out after delay
     setTimeout(() => {
-      this.lastRollResults.update(r => r.map(roll => ({ ...roll, isNew: false })));
-      this.resourceChanges.update(r => r.map(change => ({ ...change, isNew: false })));
-    }, 500);
+      this.actionHistory.update(history => 
+        history.map(exec => exec.id === execution.id ? { ...exec, isNew: false } : exec)
+      );
+    }, 600);
     
     // Emit macro execution
     this.executeMacro.emit(macro);

@@ -35,45 +35,43 @@
           }
         </div>
 
-        <!-- Roll Results Display -->
-        @if (lastRollResults().length > 0 || resourceChanges().length > 0) {
-          <div class="combined-results-section">
-            <h4>🎲 Aktionsergebnisse</h4>
+        <!-- Action Execution History -->
+        @if (actionHistory().length > 0) {
+          <div class="action-history-section">
+            <h4>🎲 Aktionsverlauf</h4>
             
-            <!-- Group results by action execution -->
-            <div class="results-list">
-              <!-- Dice Roll Results -->
-              @for (result of lastRollResults(); track result.id) {
-                <div class="result-item roll-result" 
-                     [class.animate]="result.isNew"
-                     [style.border-left]="result.color ? '4px solid ' + result.color : '4px solid #f59e0b'">
-                  <div class="result-header">
-                    <span class="result-icon">🎲</span>
-                    @if (result.name) {
-                      <span class="result-name" [style.color]="result.color || '#f59e0b'">{{ result.name }}</span>
-                    }
-                    <span class="result-formula">{{ result.formula }}</span>
+            <div class="execution-list">
+              @for (execution of actionHistory(); track execution.id) {
+                <div class="execution-group" 
+                     [class.animate]="execution.isNew"
+                     [style.border-left-color]="execution.actionColor">
+                  <div class="execution-header">
+                    <span class="execution-icon">{{ execution.actionIcon }}</span>
+                    <span class="execution-name" [style.color]="execution.actionColor">{{ execution.actionName }}</span>
                   </div>
-                  <div class="result-value">{{ result.total }}</div>
-                  @if (result.rolls.length > 0) {
-                    <div class="result-detail">[{{ result.rolls.join(' + ') }}]</div>
+                  
+                  <!-- Rolls in this execution -->
+                  @for (roll of execution.rolls; track roll.id) {
+                    <div class="compact-result roll">
+                      <span class="compact-label" [style.color]="roll.color">{{ roll.name }}</span>
+                      <span class="compact-formula">{{ roll.formula }}</span>
+                      <span class="compact-value" [style.color]="roll.color">{{ roll.total }}</span>
+                    </div>
                   }
-                </div>
-              }
-              
-              <!-- Resource Changes -->
-              @for (change of resourceChanges(); track change.resource) {
-                <div class="result-item resource-result" 
-                     [class.animate]="change.isNew"
-                     [class.negative]="change.amount < 0"
-                     [class.positive]="change.amount > 0">
-                  <div class="result-header">
-                    <span class="result-icon">{{ change.amount > 0 ? '📈' : '📉' }}</span>
-                    <span class="result-name">{{ change.resource }}</span>
-                  </div>
-                  <div class="result-value" [class.negative]="change.amount < 0" [class.positive]="change.amount > 0">
-                    {{ change.amount > 0 ? '+' : '' }}{{ change.amount }}
-                  </div>
+                  
+                  <!-- Resource changes in this execution -->
+                  @for (change of execution.resourceChanges; track change.resource) {
+                    <div class="compact-result resource" 
+                         [class.negative]="change.amount < 0"
+                         [class.positive]="change.amount > 0">
+                      <span class="compact-label">{{ change.resource }}</span>
+                      <span class="compact-value" 
+                            [class.negative]="change.amount < 0" 
+                            [class.positive]="change.amount > 0">
+                        {{ change.amount > 0 ? '+' : '' }}{{ change.amount }}
+                      </span>
+                    </div>
+                  }
                 </div>
               }
             </div>
