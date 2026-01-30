@@ -51,8 +51,8 @@ app-card {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 1300px;
-  max-height: 1300px;
+    min-height: 910px;
+    max-height: 910px;
   overflow-y: auto;
   flex: 1;
   padding: 0.5rem;
