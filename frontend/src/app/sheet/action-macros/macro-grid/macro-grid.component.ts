@@ -20,7 +20,7 @@ export class MacroGridComponent {
   @Output() deleteMacro = new EventEmitter<string>();
 
   constructor(private elementRef: ElementRef) {}
-  @Output() dropMacro = new EventEmitter<CdkDragDrop<ActionMacro[]>>();
+  @Output() dropMacro = new EventEmitter<{event: CdkDragDrop<ActionMacro[]>, zoom: number, panX: number, panY: number}>();
   @Output() dragStart = new EventEmitter<ActionMacro>();
   @Output() dragEnd = new EventEmitter<void>();
 
@@ -42,6 +42,15 @@ export class MacroGridComponent {
 
   get transformStyle(): string {
     return `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+  }
+
+  onDrop(event: CdkDragDrop<ActionMacro[]>): void {
+    this.dropMacro.emit({
+      event,
+      zoom: this.zoom,
+      panX: this.panX,
+      panY: this.panY
+    });
   }
 
   onDragStart(macro: ActionMacro): void {

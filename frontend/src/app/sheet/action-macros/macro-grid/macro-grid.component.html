@@ -9,7 +9,7 @@
        [class.panning]="isPanning"
        cdkDropList
        [cdkDropListSortingDisabled]="true"
-       (cdkDropListDropped)="dropMacro.emit($event)"
+       (cdkDropListDropped)="onDrop($event)"
        (mousedown)="onMouseDown($event)"
        (mousemove)="onMouseMove($event)"
        (mouseup)="onMouseUp()"

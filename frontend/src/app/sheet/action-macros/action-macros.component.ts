@@ -834,7 +834,8 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     this.draggedMacro = null;
   }
   
-  dropMacro(event: CdkDragDrop<ActionMacro[]>) {
+  dropMacro(data: {event: CdkDragDrop<ActionMacro[]>, zoom: number, panX: number, panY: number}) {
+    const event = data.event;
     const draggedMacro = event.item.data;
     
     // Get the actual grid element and compute real cell dimensions
@@ -851,27 +852,27 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     const cellWidth = (rect.width - totalGapWidth) / this.gridColumns;
     const cellHeight = 120; // Card height (gap is handled separately)
     
-    // Get drop position relative to grid (accounting for scroll)
-    const containerRect = event.container.element.nativeElement.getBoundingClientRect();
-    const scrollTop = event.container.element.nativeElement.scrollTop;
-    
-    const relativeX = event.dropPoint.x - rect.left;
-    const relativeY = event.dropPoint.y - rect.top + scrollTop;
+    // Account for zoom and pan transforms
+    const relativeX = (event.dropPoint.x - rect.left) / data.zoom;
+    const relativeY = (event.dropPoint.y - rect.top) / data.zoom;
     
     // Calculate grid cell - account for cumulative gaps
     let gridX = 0;
     let accumulatedWidth = 0;
+    const scaledCellWidth = cellWidth / data.zoom;
+    const scaledGap = gap / data.zoom;
+    
     for (let col = 0; col < this.gridColumns; col++) {
-      const colEnd = accumulatedWidth + cellWidth;
+      const colEnd = accumulatedWidth + scaledCellWidth;
       if (relativeX < colEnd || col === this.gridColumns - 1) {
         gridX = col;
         break;
       }
-      accumulatedWidth = colEnd + gap;
+      accumulatedWidth = colEnd + scaledGap;
     }
     
     // For Y, calculate similarly with row height + gap
-    const gridY = Math.max(0, Math.floor(relativeY / (cellHeight + gap)));
+    const gridY = Math.max(0, Math.floor(relativeY / ((cellHeight + gap) / data.zoom)));
     
     // Check if target cell is occupied by a different macro
     const targetOccupied = this.macros().find(m => 
