@@ -1,3 +1,13 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+app-card {
+  display: block;
+  height: 100%;
+}
+
 .equipment-header {
   display: flex;
   justify-content: space-between;
@@ -41,7 +51,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 150px;
+  min-height: 500px;
+  flex: 1;
   padding: 0.5rem;
   border: 2px dashed var(--border);
   border-radius: 6px;
