@@ -2,29 +2,45 @@
   <div class="backstory-header">
     <h2>Hintergrundgeschichte</h2>
     <button class="edit-btn" (click)="toggleEdit()">
-      {{ isEditing ? 'Preview' : 'Edit' }}
+      {{ isEditing ? '👁️ Preview' : '✏️ Edit' }}
     </button>
   </div>
 
   @if (isEditing) {
     <div class="editor">
-      <div class="editor-help">
-        <span>Markdown: # Title, ## Subtitle, **bold**, *italic*, --- for line</span>
+      <div class="editor-toolbar">
+        <div class="toolbar-section">
+          <button class="toolbar-btn" (click)="insertMarkdown('# ', '')" title="Heading 1">
+            H1
+          </button>
+          <button class="toolbar-btn" (click)="insertMarkdown('## ', '')" title="Heading 2">
+            H2
+          </button>
+          <button class="toolbar-btn" (click)="insertMarkdown('### ', '')" title="Heading 3">
+            H3
+          </button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-section">
+          <button class="toolbar-btn" (click)="insertMarkdown('**', '**')" title="Bold">
+            <strong>B</strong>
+          </button>
+          <button class="toolbar-btn" (click)="insertMarkdown('*', '*')" title="Italic">
+            <em>I</em>
+          </button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-section">
+          <button class="toolbar-btn" (click)="insertMarkdown('\n---\n', '')" title="Horizontal Line">
+            ―
+          </button>
+        </div>
       </div>
       <textarea
+        #textArea
         [ngModel]="sheet.backstory"
         (ngModelChange)="updateBackstory($event)"
-        placeholder="Write your character's backstory here...
-
-# Early Life
-Born in a small village...
-
-## The Turning Point
-Everything changed when...
-
----
-
-**Important:** Use # for titles and **bold** for emphasis."
+        placeholder="Write your character's backstory here...\n\nTip: Use the toolbar above to format your text!"
         rows="20">
       </textarea>
     </div>
