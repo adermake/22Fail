@@ -1,0 +1,55 @@
+@if (macros.length === 0) {
+  <div class="empty-state">
+    <span class="empty-icon">⚡</span>
+    <p>Keine Aktionen konfiguriert</p>
+    <p class="empty-hint">Erstelle eine Aktion, um komplexe Würfe zu automatisieren</p>
+  </div>
+} @else {
+  <div class="macro-grid-container" cdkDropList (cdkDropListDropped)="dropMacro.emit($event)">
+    <div class="macro-grid">
+      @for (macro of macros; track macro.id) {
+        <div class="macro-card" 
+             cdkDrag
+             [cdkDragData]="macro"
+             (cdkDragStarted)="onDragStart(macro)"
+             (cdkDragEnded)="onDragEnd()"
+             [class.invalid]="!macro.isValid"
+             [class.disabled]="!areConditionsMet(macro)"
+             [class.dragging]="draggedMacro?.id === macro.id"
+             [style.border-left-color]="macro.color"
+             [style.grid-column]="getGridPosition(macro).x + 1"
+             [style.grid-row]="getGridPosition(macro).y + 1">
+          
+          <div class="macro-header">
+            <span class="macro-icon">{{ macro.icon || '⚡' }}</span>
+            <span class="macro-name">{{ macro.name }}</span>
+            @if (!macro.isValid) {
+              <span class="invalid-badge" [title]="'Fehlende Skills: ' + getMissingSkills(macro).join(', ')">⚠️</span>
+            }
+            <span class="drag-handle" cdkDragHandle>⋮⋮</span>
+          </div>
+
+          @if (macro.description) {
+            <p class="macro-description">{{ macro.description }}</p>
+          }
+
+          <div class="macro-summary">
+            @for (cons of macro.consequences; track cons.id) {
+              <span class="consequence-tag" [class]="cons.type">{{ getConsequenceLabel(cons) }}</span>
+            }
+          </div>
+
+          <div class="macro-actions">
+            <button class="run-btn" 
+                    [disabled]="!areConditionsMet(macro)"
+                    (click)="runMacro.emit(macro)">
+              ▶ Ausführen
+            </button>
+            <button class="edit-btn" (click)="editMacro.emit(macro)">✏️</button>
+            <button class="delete-btn" (click)="deleteMacro.emit(macro.id)">🗑️</button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}

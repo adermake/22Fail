@@ -10,74 +10,11 @@
     </div>
 
     <div class="dialog-body">
-      <!-- Left Panel: Resource Bars -->
-      <div class="panel resource-panel">
-        <div class="panel-header">
-          <h3>Ressourcen</h3>
-        </div>
-        
-        <div class="resource-bars">
-          @for (status of getStatuses(); track status.formulaType) {
-            <div class="resource-bar-container">
-              <div class="resource-label">
-                <span class="resource-icon">{{ getResourceIcon(status.formulaType) }}</span>
-                <span>{{ status.statusName }}</span>
-              </div>
-              <div class="resource-bar">
-                <div class="resource-fill" 
-                     [class.health]="status.formulaType === formulaTypeLife"
-                     [class.energy]="status.formulaType === formulaTypeEnergy"
-                     [class.mana]="status.formulaType === formulaTypeMana"
-                     [style.width.%]="getResourcePercent(status)"></div>
-                <span class="resource-text">{{ status.statusCurrent }} / {{ getStatusMax(status) }}</span>
-              </div>
-            </div>
-          }
-        </div>
-
-        <!-- Action Execution History -->
-        @if (actionHistory().length > 0) {
-          <div class="action-history-section">
-            <h4>🎲 Aktionsverlauf</h4>
-            
-            <div class="execution-list">
-              @for (execution of actionHistory(); track execution.id) {
-                <div class="execution-group" 
-                     [class.animate]="execution.isNew"
-                     [style.border-left-color]="execution.actionColor">
-                  <div class="execution-header">
-                    <span class="execution-icon">{{ execution.actionIcon }}</span>
-                    <span class="execution-name" [style.color]="execution.actionColor">{{ execution.actionName }}</span>
-                  </div>
-                  
-                  <!-- Rolls in this execution -->
-                  @for (roll of execution.rolls; track roll.id) {
-                    <div class="compact-result roll">
-                      <span class="compact-label" [style.color]="roll.color">{{ roll.name }}</span>
-                      <span class="compact-formula">{{ roll.formula }}</span>
-                      <span class="compact-value" [style.color]="roll.color">{{ roll.total }}</span>
-                    </div>
-                  }
-                  
-                  <!-- Resource changes in this execution -->
-                  @for (change of execution.resourceChanges; track change.resource) {
-                    <div class="compact-result resource" 
-                         [class.negative]="change.amount < 0"
-                         [class.positive]="change.amount > 0">
-                      <span class="compact-label">{{ change.resource }}</span>
-                      <span class="compact-value" 
-                            [class.negative]="change.amount < 0" 
-                            [class.positive]="change.amount > 0">
-                        {{ change.amount > 0 ? '+' : '' }}{{ change.amount }}
-                      </span>
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-          </div>
-        }
-      </div>
+      <!-- Left Panel: Resource Bars & History -->
+      <app-resource-panel 
+        [sheet]="sheet"
+        [actionHistory]="actionHistory()">
+      </app-resource-panel>
 
       <!-- Center Panel: Action List or Editor -->
       <div class="panel main-panel">
@@ -86,62 +23,15 @@
             <h3>Verfügbare Aktionen</h3>
           </div>
 
-          @if (macros().length === 0) {
-            <div class="empty-state">
-              <span class="empty-icon">⚡</span>
-              <p>Keine Aktionen konfiguriert</p>
-              <p class="empty-hint">Erstelle eine Aktion, um komplexe Würfe zu automatisieren</p>
-              <button class="create-first-btn" (click)="createNewMacro()">Erste Aktion erstellen</button>
-            </div>
-          } @else {
-            <div class="macro-grid-container" cdkDropList (cdkDropListDropped)="dropMacro($event)">
-              <div class="macro-grid">
-                @for (macro of macros(); track macro.id) {
-                  <div class="macro-card" 
-                       cdkDrag
-                       [cdkDragData]="macro"
-                       (cdkDragStarted)="onDragStart(macro)"
-                       (cdkDragEnded)="onDragEnd()"
-                       [class.invalid]="!macro.isValid"
-                       [class.disabled]="!areConditionsMet(macro)"
-                       [class.dragging]="draggedMacro?.id === macro.id"
-                       [style.border-left-color]="macro.color"
-                       [style.grid-column]="getGridPosition(macro).x + 1"
-                       [style.grid-row]="getGridPosition(macro).y + 1">
-                    
-                    <div class="macro-header">
-                      <span class="macro-icon">{{ macro.icon || '⚡' }}</span>
-                      <span class="macro-name">{{ macro.name }}</span>
-                      @if (!macro.isValid) {
-                        <span class="invalid-badge" [title]="'Fehlende Skills: ' + getMissingSkills(macro).join(', ')">⚠️</span>
-                      }
-                      <span class="drag-handle" cdkDragHandle>⋮⋮</span>
-                    </div>
-
-                    @if (macro.description) {
-                      <p class="macro-description">{{ macro.description }}</p>
-                    }
-
-                    <div class="macro-summary">
-                      @for (cons of macro.consequences; track cons.id) {
-                        <span class="consequence-tag" [class]="cons.type">{{ getConsequenceLabel(cons) }}</span>
-                      }
-                    </div>
-
-                    <div class="macro-actions">
-                      <button class="run-btn" 
-                              [disabled]="!areConditionsMet(macro)"
-                              (click)="runMacroWithResults(macro)">
-                        ▶ Ausführen
-                      </button>
-                      <button class="edit-btn" (click)="editMacro(macro)">✏️</button>
-                      <button class="delete-btn" (click)="deleteMacro(macro.id)">🗑️</button>
-                    </div>
-                  </div>
-                }
-              </div>
-            </div>
-          }
+          <app-macro-grid 
+            [macros]="macros()"
+            (runMacro)="runMacroWithResults($event)"
+            (editMacro)="editMacro($event)"
+            (deleteMacro)="deleteMacro($event)"
+            (dropMacro)="dropMacro($event)"
+            (dragStart)="onDragStart($event)"
+            (dragEnd)="onDragEnd()">
+          </app-macro-grid>
         } @else {
           <!-- Macro Editor -->
           @if (editingMacro(); as macro) {

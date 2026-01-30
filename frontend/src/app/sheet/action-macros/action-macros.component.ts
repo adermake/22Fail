@@ -14,6 +14,8 @@ import {
 } from '../../model/action-macro.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { StatusBlock } from '../../model/status-block.model';
+import { ResourcePanelComponent } from './resource-panel/resource-panel.component';
+import { MacroGridComponent } from './macro-grid/macro-grid.component';
 
 export interface RollResult {
   id: string;
@@ -218,7 +220,7 @@ function rollDiceFromParsedFormula(parsed: ParsedDiceFormula): { rolls: number[]
 @Component({
   selector: 'app-action-macros',
   standalone: true,
-  imports: [CommonModule, FormsModule, DragDropModule],
+  imports: [CommonModule, FormsModule, DragDropModule, ResourcePanelComponent, MacroGridComponent],
   templateUrl: './action-macros.component.html',
   styleUrls: ['./action-macros.component.css']
 })

@@ -1,0 +1,69 @@
+<div class="resource-panel">
+  <div class="panel-header">
+    <h3>Ressourcen</h3>
+  </div>
+  
+  <div class="resource-bars">
+    @for (status of sheet.statuses; track status.formulaType) {
+      @if (status.formulaType === 'LIFE' || status.formulaType === 'ENERGY' || status.formulaType === 'MANA') {
+        <div class="resource-bar-container">
+          <div class="resource-label">
+            <span class="resource-icon">{{ getResourceIcon(status.formulaType) }}</span>
+            <span>{{ status.statusName }}</span>
+          </div>
+          <div class="resource-bar">
+            <div class="resource-fill" 
+                 [class.health]="status.formulaType === 'LIFE'"
+                 [class.energy]="status.formulaType === 'ENERGY'"
+                 [class.mana]="status.formulaType === 'MANA'"
+                 [style.width.%]="getResourcePercent(status)"></div>
+            <span class="resource-text">{{ status.statusCurrent }} / {{ getStatusMax(status) }}</span>
+          </div>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Action Execution History -->
+  @if (actionHistory.length > 0) {
+    <div class="action-history-section">
+      <h4>🎲 Aktionsverlauf</h4>
+      
+      <div class="execution-list">
+        @for (execution of actionHistory; track execution.id) {
+          <div class="execution-group" 
+               [class.animate]="execution.isNew"
+               [style.border-left-color]="execution.actionColor">
+            <div class="execution-header">
+              <span class="execution-icon">{{ execution.actionIcon }}</span>
+              <span class="execution-name" [style.color]="execution.actionColor">{{ execution.actionName }}</span>
+            </div>
+            
+            <!-- Rolls in this execution -->
+            @for (roll of execution.rolls; track roll.id) {
+              <div class="compact-result roll">
+                <span class="compact-label" [style.color]="roll.color">{{ roll.name }}</span>
+                <span class="compact-formula">{{ roll.formula }}</span>
+                <span class="compact-value" [style.color]="roll.color">{{ roll.total }}</span>
+              </div>
+            }
+            
+            <!-- Resource changes in this execution -->
+            @for (change of execution.resourceChanges; track change.resource) {
+              <div class="compact-result resource" 
+                   [class.negative]="change.amount < 0"
+                   [class.positive]="change.amount > 0">
+                <span class="compact-label">{{ change.resource }}</span>
+                <span class="compact-value" 
+                      [class.negative]="change.amount < 0" 
+                      [class.positive]="change.amount > 0">
+                  {{ change.amount > 0 ? '+' : '' }}{{ change.amount }}
+                </span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>
