@@ -1,6 +1,6 @@
 ﻿@if (macros.length === 0) {
   <div class="empty-state">
-    <span class="empty-icon"></span>
+    <span class="empty-icon">⚡</span>
     <p>Keine Aktionen konfiguriert</p>
     <p class="empty-hint">Erstelle eine Aktion, um komplexe Würfe zu automatisieren</p>
   </div>
@@ -24,12 +24,12 @@
              [style.grid-row]="getGridPosition(macro).y + 1">
           
           <div class="macro-header">
-            <span class="macro-icon">{{ macro.icon || '' }}</span>
+            <span class="macro-icon">{{ macro.icon || '⚡' }}</span>
             <span class="macro-name">{{ macro.name }}</span>
             @if (!macro.isValid) {
-              <span class="invalid-badge" [title]="'Fehlende Skills: ' + getMissingSkills(macro).join(', ')"></span>
+              <span class="invalid-badge" [title]="'Fehlende Skills: ' + getMissingSkills(macro).join(', ')">⚠️</span>
             }
-            <span class="drag-handle" cdkDragHandle></span>
+            <span class="drag-handle" cdkDragHandle>⋮⋮</span>
           </div>
 
           @if (macro.description) {
@@ -46,10 +46,10 @@
             <button class="run-btn" 
                     [disabled]="!areConditionsMet(macro)"
                     (click)="runMacro.emit(macro)">
-               Ausführen
+              ▶ Ausführen
             </button>
-            <button class="edit-btn" (click)="editMacro.emit(macro)"></button>
-            <button class="delete-btn" (click)="deleteMacro.emit(macro.id)"></button>
+            <button class="edit-btn" (click)="editMacro.emit(macro)">✏️</button>
+            <button class="delete-btn" (click)="deleteMacro.emit(macro.id)">🗑️</button>
           </div>
         </div>
       }

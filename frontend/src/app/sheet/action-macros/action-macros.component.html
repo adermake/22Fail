@@ -25,6 +25,7 @@
 
           <app-macro-grid 
             [macros]="macros()"
+            [sheet]="sheet"
             (runMacro)="runMacroWithResults($event)"
             (editMacro)="editMacro($event)"
             (deleteMacro)="deleteMacro($event)"
