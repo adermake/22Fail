@@ -24,7 +24,7 @@ export class BackstoryComponent {
 
   get renderedBackstory(): SafeHtml {
     const text = this.sheet.backstory || '';
-    if (!text) return this.sanitizer.bypassSecurityTrustHtml('<p class="placeholder">No backstory yet. Click Edit to add your character\'s background.</p>');
+    if (!text) return this.sanitizer.bypassSecurityTrustHtml('<p class="placeholder">Start typing to see your formatted text here...</p>');
 
     // Simple markdown-like rendering
     const html = this.parseSimpleMarkdown(text);
@@ -69,10 +69,6 @@ export class BackstoryComponent {
       .join('\n');
 
     return html;
-  }
-
-  toggleEdit() {
-    this.isEditing = !this.isEditing;
   }
 
   updateBackstory(value: string) {

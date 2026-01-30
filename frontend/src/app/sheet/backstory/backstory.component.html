@@ -1,13 +1,10 @@
 <app-card>
   <div class="backstory-header">
     <h2>Hintergrundgeschichte</h2>
-    <button class="edit-btn" (click)="toggleEdit()">
-      {{ isEditing ? '👁️ Preview' : '✏️ Edit' }}
-    </button>
   </div>
 
-  @if (isEditing) {
-    <div class="editor">
+  <div class="editor-container">
+    <div class="editor-side">
       <div class="editor-toolbar">
         <div class="toolbar-section">
           <button class="toolbar-btn" (click)="insertMarkdown('# ', '')" title="Heading 1">
@@ -44,7 +41,10 @@
         rows="20">
       </textarea>
     </div>
-  } @else {
-    <div class="backstory-content" [innerHTML]="renderedBackstory"></div>
-  }
+    
+    <div class="preview-side">
+      <div class="preview-header">Preview</div>
+      <div class="backstory-content" [innerHTML]="renderedBackstory"></div>
+    </div>
+  </div>
 </app-card>
