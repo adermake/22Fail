@@ -1,3 +1,8 @@
+:host {
+  display: block;
+  padding: 1rem;
+}
+
 .spells-header {
   display: flex;
   justify-content: space-between;

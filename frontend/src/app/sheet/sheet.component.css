@@ -1,9 +1,18 @@
 .character-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: minmax(300px, 380px) minmax(400px, 1fr) minmax(300px, 380px);
+  grid-template-areas:
+    "character stats stats"
+    "levelclass stats stats"
+    "currentstats currentstats currentstats"
+    "equipment equipment equipment"
+    "tabs tabs tabs"
+    "backstory backstory backstory";
   gap: 0.75rem;
   padding: 0.75rem;
   width: 100%;
+  max-width: 1800px;
+  margin: 0 auto;
   box-sizing: border-box;
   transition: all 0.3s ease;
   align-items: start;
@@ -43,22 +52,47 @@
 
 
 
-/* For larger screens, you might want specific layouts */
-@media (min-width: 1200px) {
+/* Grid area assignments */
+.grid-character { grid-area: character; }
+.grid-stats { grid-area: stats; }
+.grid-levelclass { grid-area: levelclass; }
+.grid-currentstats { grid-area: currentstats; }
+.grid-equipment { grid-area: equipment; }
+.grid-tabs { grid-area: tabs; }
+.grid-backstory { grid-area: backstory; }
+
+/* For medium screens, stack more items */
+@media (max-width: 1200px) {
   .character-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "character stats"
+      "levelclass currentstats"
+      "equipment equipment"
+      "tabs tabs"
+      "backstory backstory";
   }
 }
 
-@media (min-width: 1600px) {
+/* For small screens, single column */
+@media (max-width: 768px) {
   .character-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "character"
+      "stats"
+      "levelclass"
+      "currentstats"
+      "equipment"
+      "tabs"
+      "backstory";
   }
 }
 
 /* Remove forced height - let content determine size */
 .character-grid > * {
   min-height: auto;
+  height: fit-content;
 }
 
 /* Dialog styles */

@@ -8,7 +8,7 @@
 .backstory-header h2 {
   margin: 0;
   color: #fff;
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
 }
 
@@ -43,7 +43,7 @@
 
 .editor textarea {
   width: 100%;
-  min-height: 400px;
+  min-height: 300px;
   padding: 1rem;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -71,11 +71,11 @@
 
 :host ::ng-deep .backstory-content h1 {
   color: #fff !important;
-  margin: 1.5rem 0 0.75rem 0;
-  font-size: 2.5rem;
+  margin: 1.25rem 0 0.5rem 0;
+  font-size: 1.75rem;
   font-weight: 700;
   border-bottom: 2px solid var(--border);
-  padding-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
 }
 
 .backstory-content h1:first-child {
@@ -84,11 +84,11 @@
 
 .backstory-content h2 {
   color: #fff;
-  margin: 1.5rem 0 0.75rem 0;
-  font-size: 1.8rem;
+  margin: 1rem 0 0.5rem 0;
+  font-size: 1.4rem;
   font-weight: 700;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.4rem;
 }
 
 .backstory-content h2:first-child {
@@ -97,8 +97,8 @@
 
 .backstory-content h3 {
   color: #fff;
-  margin: 1.25rem 0 0.5rem 0;
-  font-size: 1.5rem;
+  margin: 0.875rem 0 0.4rem 0;
+  font-size: 1.2rem;
   font-weight: 600;
 }
 

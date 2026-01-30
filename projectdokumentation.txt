@@ -32,6 +32,7 @@ Frontend: Angular 21 (standalone, signals) | Backend: NestJS 11 | Real-time: Soc
 - Battle turn tracker with visual indicators
 - Loot popup system (receives items during battle)
 - Portrait upload (base64)
+- Action Macro System (visual action scripting)
 
 ## WORLD VIEW (GM Features)
 - Character library CRUD
@@ -96,6 +97,53 @@ PATCH /api/worlds/:name - Apply patch
 5. Simple custom JSON patch (dot-path, not RFC 6902)
 6. World-scoped libraries (items/runes/spells/skills)
 7. Battle system: turn order, teams, loot distribution
+
+## ACTION MACRO SYSTEM
+Visual scripting system for creating complex character actions without coding.
+
+### FEATURES
+- Condition-based execution (check resources, stats, skills)
+- Multiple consequence types: dice rolls, resource changes
+- Unified dice configuration across all action types
+- Advanced formula parser: supports XdY±Z, XdY*Z, XdY/Z, complex combinations
+- Visual validation: formulas glow green/red based on syntax correctness
+- Custom naming and color-coding for each roll
+- Saved dice configurations can be referenced
+- Results display merged (rolls + resource changes in one section)
+
+### ARCHITECTURE
+- Model: action-macro.model.ts (ActionMacro, ActionCondition, ActionConsequence)
+- Component: action-macros.component.ts
+- Template: action-macros.component.html (fullscreen overlay editor)
+- Styling: action-macros.component.css (dark theme, card-based UI)
+
+### CONDITION TYPES
+- resource: Compare current resource (health/energy/mana) to value/resource/stat
+- stat: Compare stat (strength/dexterity/etc) to value/resource/stat
+- skill: Check if character has specific skill
+
+### CONSEQUENCE TYPES
+- dice_roll: Roll dice with formula (displays result)
+- spend_resource: Deduct resource (can use dice formula for variable cost)
+- gain_resource: Add resource (can use dice formula for variable gain)
+
+### FORMULA SYNTAX
+Supports: 1d20+5, 2d6+3, 3d10*2, 1d8+2-1, 10 (fixed value)
+Parser validates: dice count (1-100), dice type (2-1000), division by zero
+Operations: +, -, *, / with proper precedence
+
+### UI COMPONENTS
+- Card-based consequence editor with unified dice config
+- Real-time formula validation with visual feedback
+- Color picker and name fields for roll identification
+- Merged results display (rolls + resource changes)
+- Drag-and-drop macro reordering
+- Icon and color customization for actions
+
+### STORAGE
+- Stored in localStorage: actionMacros-{characterId}
+- Auto-validates against character skill list
+- Invalid macros (missing skills) are marked but preserved
 
 
 

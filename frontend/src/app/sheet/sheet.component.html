@@ -1,35 +1,52 @@
 @if (store.sheet$ | async; as sheet) {
 <div class="character-grid" [class.current-turn]="isCurrentTurn" [class.group-turn]="isGroupTurn">
-  <app-character
-    [sheet]="sheet"
-    [characterId]="store.characterId"
-    (patch)="store.applyPatch($any($event))"
-  ></app-character>
-  <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>
-  <app-levelclass [sheet]="sheet" (patch)="store.applyPatch($any($event))" (openSkillTree)="showSkillTree = true"></app-levelclass>
-  <app-currentstats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-currentstats>
+  <div class="grid-character">
+    <app-character
+      [sheet]="sheet"
+      [characterId]="store.characterId"
+      (patch)="store.applyPatch($any($event))"
+    ></app-character>
+  </div>
+  
+  <div class="grid-stats">
+    <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>
+  </div>
+  
+  <div class="grid-levelclass">
+    <app-levelclass [sheet]="sheet" (patch)="store.applyPatch($any($event))" (openSkillTree)="showSkillTree = true"></app-levelclass>
+  </div>
+  
+  <div class="grid-currentstats">
+    <app-currentstats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-currentstats>
+  </div>
 
   <!-- Equipment - Separate so you can drag items from inventory -->
-  <app-equipment [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-equipment>
+  <div class="grid-equipment">
+    <app-equipment [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-equipment>
+  </div>
 
   <!-- Tabbed Component for Inventory, Spells, Runes, Skills -->
-  <app-character-tabs
-    [sheet]="sheet"
-    [editingRunes]="editingRunes"
-    [editingSpells]="editingSpells"
-    [editingSkills]="editingSkills"
-    (patch)="store.applyPatch($any($event))"
-    (runeEditingChange)="onRuneEditingChange($any($event).index, $any($event).isEditing)"
-    (spellEditingChange)="onSpellEditingChange($any($event).index, $any($event).isEditing)"
-    (skillEditingChange)="onSkillEditingChange($any($event).index, $any($event).isEditing)"
-    (openTrash)="openTrash()">
-  </app-character-tabs>
+  <div class="grid-tabs">
+    <app-character-tabs
+      [sheet]="sheet"
+      [editingRunes]="editingRunes"
+      [editingSpells]="editingSpells"
+      [editingSkills]="editingSkills"
+      (patch)="store.applyPatch($any($event))"
+      (runeEditingChange)="onRuneEditingChange($any($event).index, $any($event).isEditing)"
+      (spellEditingChange)="onSpellEditingChange($any($event).index, $any($event).isEditing)"
+      (skillEditingChange)="onSkillEditingChange($any($event).index, $any($event).isEditing)"
+      (openTrash)="openTrash()">
+    </app-character-tabs>
+  </div>
 
   <!-- Backstory - Standalone Section -->
-  <app-backstory
-    [sheet]="sheet"
-    (patch)="store.applyPatch($any($event))">
-  </app-backstory>
+  <div class="grid-backstory">
+    <app-backstory
+      [sheet]="sheet"
+      (patch)="store.applyPatch($any($event))">
+    </app-backstory>
+  </div>
 </div>
 
 @if (showLootPopup) {
