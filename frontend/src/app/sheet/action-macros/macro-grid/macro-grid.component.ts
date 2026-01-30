@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, HostListener } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { ActionMacro, ActionConsequence } from '../../../model/action-macro.model';
@@ -18,6 +18,8 @@ export class MacroGridComponent {
   @Output() runMacro = new EventEmitter<ActionMacro>();
   @Output() editMacro = new EventEmitter<ActionMacro>();
   @Output() deleteMacro = new EventEmitter<string>();
+
+  constructor(private elementRef: ElementRef) {}
   @Output() dropMacro = new EventEmitter<CdkDragDrop<ActionMacro[]>>();
   @Output() dragStart = new EventEmitter<ActionMacro>();
   @Output() dragEnd = new EventEmitter<void>();
@@ -30,6 +32,7 @@ export class MacroGridComponent {
   panY = 0;
   lastMouseX = 0;
   lastMouseY = 0;
+  zoom = 1;
   isDraggingMacro = false;
 
   // Drop preview state
@@ -38,7 +41,7 @@ export class MacroGridComponent {
   previewGridY = 0;
 
   get transformStyle(): string {
-    return `translate(${this.panX}px, ${this.panY}px)`;
+    return `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
   }
 
   onDragStart(macro: ActionMacro): void {
@@ -92,6 +95,30 @@ export class MacroGridComponent {
     // Update preview position
     this.previewGridX = gridX;
     this.previewGridY = gridY;
+  }
+
+  @HostListener('wheel', ['$event'])
+  onWheel(event: WheelEvent) {
+    event.preventDefault();
+    
+    const delta = event.deltaY * -0.001;
+    const newZoom = Math.min(Math.max(0.1, this.zoom + delta), 3);
+    
+    // Zoom towards cursor position
+    const rect = this.elementRef.nativeElement.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    
+    // Calculate the point under the cursor before zoom
+    const pointX = (mouseX - this.panX) / this.zoom;
+    const pointY = (mouseY - this.panY) / this.zoom;
+    
+    // Update zoom
+    this.zoom = newZoom;
+    
+    // Adjust pan to keep the same point under the cursor
+    this.panX = mouseX - pointX * this.zoom;
+    this.panY = mouseY - pointY * this.zoom;
   }
 
   onMouseDown(event: MouseEvent): void {
