@@ -51,9 +51,11 @@ export class BackstoryComponent implements AfterViewInit {
     if (color === 'white') {
       colorValue = '#ffffff';
     } else if (color === 'purple') {
-      colorValue = 'var(--accent)';
+      // Get computed accent color from CSS variable
+      colorValue = getComputedStyle(editor).getPropertyValue('--accent').trim() || '#a259ff';
     } else if (color === 'gray') {
-      colorValue = 'var(--text-muted)';
+      // Get computed text-muted color from CSS variable
+      colorValue = getComputedStyle(editor).getPropertyValue('--text-muted').trim() || '#999999';
     } else {
       return;
     }

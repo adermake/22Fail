@@ -134,7 +134,7 @@
 
 .rich-text-editor hr {
   border: none;
-  border-top: 2px solid var(--border);
+  border-top: 2px solid var(--text-muted);
   margin: 1.5rem 0;
 }
 
