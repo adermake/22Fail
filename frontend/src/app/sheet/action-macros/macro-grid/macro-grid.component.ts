@@ -22,15 +22,61 @@ export class MacroGridComponent {
   @Output() dragEnd = new EventEmitter<void>();
 
   draggedMacro: ActionMacro | null = null;
+  
+  // Panning state
+  isPanning = false;
+  panX = 0;
+  panY = 0;
+  lastMouseX = 0;
+  lastMouseY = 0;
+  isDraggingMacro = false;
+
+  get transformStyle(): string {
+    return `translate(${this.panX}px, ${this.panY}px)`;
+  }
 
   onDragStart(macro: ActionMacro): void {
     this.draggedMacro = macro;
+    this.isDraggingMacro = true;
     this.dragStart.emit(macro);
   }
 
   onDragEnd(): void {
     this.draggedMacro = null;
+    this.isDraggingMacro = false;
     this.dragEnd.emit();
+  }
+
+  onMouseDown(event: MouseEvent): void {
+    // Don't start panning if clicking on a macro card or dragging a macro
+    const target = event.target as HTMLElement;
+    if (this.isDraggingMacro || target.closest('.macro-card')) {
+      return;
+    }
+    
+    this.isPanning = true;
+    this.lastMouseX = event.clientX;
+    this.lastMouseY = event.clientY;
+    event.preventDefault();
+  }
+
+  onMouseMove(event: MouseEvent): void {
+    if (this.isPanning) {
+      const deltaX = event.clientX - this.lastMouseX;
+      const deltaY = event.clientY - this.lastMouseY;
+      this.panX += deltaX;
+      this.panY += deltaY;
+      this.lastMouseX = event.clientX;
+      this.lastMouseY = event.clientY;
+    }
+  }
+
+  onMouseUp(): void {
+    this.isPanning = false;
+  }
+
+  onMouseLeave(): void {
+    this.isPanning = false;
   }
 
   getGridPosition(macro: ActionMacro): { x: number, y: number } {

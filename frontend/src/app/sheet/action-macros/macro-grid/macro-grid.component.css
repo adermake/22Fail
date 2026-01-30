@@ -23,12 +23,24 @@
 
 .macro-grid-container {
   padding: 20px;
-  overflow-y: auto;
+  overflow: hidden;
   flex: 1;
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+  position: relative;
+  cursor: grab;
+}
+
+.macro-grid-container.panning {
+  cursor: grabbing;
+}
+
+.macro-grid-wrapper {
+  position: relative;
+  will-change: transform;
+  transition: none;
 }
 
 .macro-grid {
@@ -111,24 +123,7 @@
 }
 
 .macro-grid-container.cdk-drop-list-dragging {
-  background-image: 
-    repeating-linear-gradient(
-      0deg, 
-      transparent, 
-      transparent calc((100% - 5 * 14px) / 6), 
-      rgba(245, 158, 11, 0.15) calc((100% - 5 * 14px) / 6), 
-      rgba(245, 158, 11, 0.15) calc((100% - 5 * 14px) / 6 + 2px),
-      transparent calc((100% - 5 * 14px) / 6 + 2px)
-    ),
-    repeating-linear-gradient(
-      90deg, 
-      transparent, 
-      transparent calc(25% - 14px / 4), 
-      rgba(245, 158, 11, 0.15) calc(25% - 14px / 4), 
-      rgba(245, 158, 11, 0.15) calc(25% - 14px / 4 + 2px),
-      transparent calc(25% - 14px / 4 + 2px)
-    );
-  background-size: 100% 100%;
+  /* Grid overlay removed for cleaner look */
 }
 
 .macro-header {

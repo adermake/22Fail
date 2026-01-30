@@ -5,12 +5,18 @@
     <p class="empty-hint">Erstelle eine Aktion, um komplexe Würfe zu automatisieren</p>
   </div>
 } @else {
-  <div class="macro-grid-container" 
-       cdkDropList 
-       [cdkDropListSortingDisabled]="true"
-       (cdkDropListDropped)="dropMacro.emit($event)">
-    <div class="macro-grid">
-      @for (macro of macros; track macro.id) {
+  <div class="macro-grid-container"
+       [class.panning]="isPanning"
+       (mousedown)="onMouseDown($event)"
+       (mousemove)="onMouseMove($event)"
+       (mouseup)="onMouseUp()"
+       (mouseleave)="onMouseLeave()">
+    <div class="macro-grid-wrapper" [style.transform]="transformStyle">
+      <div class="macro-grid"
+           cdkDropList
+           [cdkDropListSortingDisabled]="true"
+           (cdkDropListDropped)="dropMacro.emit($event)">
+        @for (macro of macros; track macro.id) {
         <div class="macro-card" 
              cdkDrag
              [cdkDragData]="macro"
@@ -53,6 +59,7 @@
           </div>
         </div>
       }
+      </div>
     </div>
   </div>
 }
