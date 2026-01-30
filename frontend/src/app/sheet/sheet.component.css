@@ -1,11 +1,11 @@
 .character-grid {
   display: grid;
-  grid-template-columns: minmax(450px, 570px) minmax(350px, 1fr) minmax(350px, 1fr);
+  grid-template-columns: minmax(450px, 570px) minmax(400px, 1fr) minmax(350px, 1fr);
   grid-template-areas:
-    "character stats stats"
+    "character currentstats currentstats"
     "levelclass stats stats"
-    "tabs currentstats equipment"
-    "tabs currentstats equipment"
+    "tabs tabs equipment"
+    "tabs tabs equipment"
     "backstory backstory backstory";
   gap: 0.75rem;
   padding: 0.75rem;
