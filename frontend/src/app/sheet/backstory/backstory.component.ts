@@ -32,13 +32,60 @@ export class BackstoryComponent implements AfterViewInit {
 
     editor.focus();
     
-    if (command === 'bold') {
+    // For block formatting (headings and paragraphs), handle specially
+    if (command === 'h1' || command === 'h2' || command === 'h3' || command === 'p') {
+      this.setBlockFormat(command);
+    } else if (command === 'bold') {
       document.execCommand('bold', false);
     } else if (command === 'italic') {
       document.execCommand('italic', false);
-    } else if (command === 'h1' || command === 'h2' || command === 'h3' || command === 'p') {
-      document.execCommand('formatBlock', false, command);
     }
+    
+    // Clean up after formatting
+    this.cleanupFormatting();
+  }
+
+  private setBlockFormat(tag: string) {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    // Get the block element containing the selection
+    let node = selection.anchorNode;
+    if (!node) return;
+    
+    // Find the closest block element
+    let blockElement: HTMLElement | null = null;
+    if (node.nodeType === Node.TEXT_NODE) {
+      blockElement = (node.parentElement as HTMLElement);
+    } else {
+      blockElement = node as HTMLElement;
+    }
+
+    // Find the actual block element (p, h1, h2, h3)
+    while (blockElement && !['P', 'H1', 'H2', 'H3', 'DIV'].includes(blockElement.tagName)) {
+      blockElement = blockElement.parentElement;
+    }
+
+    if (!blockElement || !this.editorElement.nativeElement.contains(blockElement)) return;
+
+    // Create new element with the desired tag
+    const newElement = document.createElement(tag);
+    newElement.innerHTML = blockElement.innerHTML;
+    
+    // Copy only text content without styles
+    const textContent = blockElement.textContent || '';
+    newElement.textContent = textContent;
+    
+    // Replace the old element
+    blockElement.parentNode?.replaceChild(newElement, blockElement);
+    
+    // Restore cursor position
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(newElement);
+    range.collapse(false);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
   }
 
   setTextColor(color: string) {
@@ -46,21 +93,35 @@ export class BackstoryComponent implements AfterViewInit {
     if (!editor) return;
 
     editor.focus();
-    
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
     let colorValue: string;
     if (color === 'white') {
       colorValue = '#ffffff';
     } else if (color === 'purple') {
-      // Get computed accent color from CSS variable
       colorValue = getComputedStyle(editor).getPropertyValue('--accent').trim() || '#a259ff';
     } else if (color === 'gray') {
-      // Get computed text-muted color from CSS variable
       colorValue = getComputedStyle(editor).getPropertyValue('--text-muted').trim() || '#999999';
     } else {
       return;
     }
+
+    // Apply color to selection
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) return; // Don't apply if nothing selected
     
-    document.execCommand('foreColor', false, colorValue);
+    const span = document.createElement('span');
+    span.style.color = colorValue;
+    
+    try {
+      range.surroundContents(span);
+    } catch (e) {
+      // If surroundContents fails, use execCommand
+      document.execCommand('foreColor', false, colorValue);
+    }
+    
+    this.cleanupFormatting();
   }
 
   insertHR() {
@@ -69,7 +130,8 @@ export class BackstoryComponent implements AfterViewInit {
     
     editor.focus();
     const grayColor = getComputedStyle(editor).getPropertyValue('--text-muted').trim() || '#999999';
-    document.execCommand('insertHTML', false, `<hr style="border: none; border-top: 2px solid ${grayColor}; margin: 1.5rem 0;">`);
+    document.execCommand('insertHTML', false, `<hr style="border: none; border-top: 2px solid ${grayColor}; margin: 1.5rem 0;"><p><br></p>`);
+    this.cleanupFormatting();
   }
 
   onPaste(event: ClipboardEvent) {
@@ -88,12 +150,45 @@ export class BackstoryComponent implements AfterViewInit {
     this.saveContent();
   }
 
+  private cleanupFormatting() {
+    const editor = this.editorElement?.nativeElement;
+    if (!editor) return;
+
+    // Remove empty spans
+    const emptySpans = editor.querySelectorAll('span:empty');
+    emptySpans.forEach(span => span.remove());
+
+    // Remove spans with no styling
+    const spans = editor.querySelectorAll('span');
+    spans.forEach(span => {
+      if (!span.hasAttribute('style') || !span.style.cssText) {
+        const parent = span.parentNode;
+        while (span.firstChild) {
+          parent?.insertBefore(span.firstChild, span);
+        }
+        span.remove();
+      }
+    });
+
+    // Ensure every text node is wrapped in a block element
+    const childNodes = Array.from(editor.childNodes);
+    childNodes.forEach(node => {
+      if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+        const p = document.createElement('p');
+        p.textContent = node.textContent;
+        node.parentNode?.replaceChild(p, node);
+      }
+    });
+  }
+
   private saveContent() {
     const editor = this.editorElement?.nativeElement;
     if (!editor) return;
     
+    this.cleanupFormatting();
+    
     let content = editor.innerHTML;
-    // Clean up empty paragraphs
+    // Clean up empty paragraphs at start
     if (content === '<p><br></p>' || content === '<br>' || content === '') {
       content = '';
     }
