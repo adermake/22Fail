@@ -1,17 +1,16 @@
 .character-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 380px) minmax(400px, 1fr) minmax(300px, 380px);
+  grid-template-columns: minmax(450px, 570px) minmax(350px, 1fr) minmax(350px, 1fr);
   grid-template-areas:
     "character stats stats"
     "levelclass stats stats"
-    "currentstats currentstats currentstats"
-    "equipment equipment equipment"
-    "tabs tabs tabs"
+    "tabs currentstats equipment"
+    "tabs currentstats equipment"
     "backstory backstory backstory";
   gap: 0.75rem;
   padding: 0.75rem;
   width: 100%;
-  max-width: 1800px;
+  max-width: 1900px;
   margin: 0 auto;
   box-sizing: border-box;
   transition: all 0.3s ease;
@@ -62,13 +61,13 @@
 .grid-backstory { grid-area: backstory; }
 
 /* For medium screens, stack more items */
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   .character-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(400px, 1fr) minmax(400px, 1fr);
     grid-template-areas:
       "character stats"
-      "levelclass currentstats"
-      "equipment equipment"
+      "levelclass stats"
+      "currentstats equipment"
       "tabs tabs"
       "backstory backstory";
   }
