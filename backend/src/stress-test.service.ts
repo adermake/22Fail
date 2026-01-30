@@ -125,7 +125,8 @@ export class StressTestService {
         const imageId = this.imageService.storeImage(base64Image);
         imageIds.push(imageId);
       } catch (error) {
-        console.warn(`[STRESS TEST] Failed to store sample image: ${error.message}`);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.warn(`[STRESS TEST] Failed to store sample image: ${errorMsg}`);
         // Continue with other images
       }
     }

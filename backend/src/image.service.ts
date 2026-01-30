@@ -37,13 +37,6 @@ export class ImageService {
       throw new Error('Invalid base64 image data: base64 content is empty');
     }
 
-    // Validate base64 content
-    try {
-      Buffer.from(base64Content, 'base64');
-    } catch (error) {
-      throw new Error(`Invalid base64 image data: could not decode base64 content - ${error.message}`);
-    }
-
     // Generate hash of the image content (deduplication)
     const hash = crypto.createHash('sha256').update(base64Content).digest('hex');
     const imageId = `${hash}.${extension}`;
