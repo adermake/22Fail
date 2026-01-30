@@ -29,6 +29,18 @@
     </div>
     <div class="toolbar-divider"></div>
     <div class="toolbar-section">
+      <button class="toolbar-btn color-white" (click)="setTextColor('white')" title="White Text">
+        <span style="color: white;">●</span>
+      </button>
+      <button class="toolbar-btn color-purple" (click)="setTextColor('purple')" title="Purple Text">
+        <span style="color: var(--accent);">●</span>
+      </button>
+      <button class="toolbar-btn color-gray" (click)="setTextColor('gray')" title="Gray Text">
+        <span style="color: var(--text-muted);">●</span>
+      </button>
+    </div>
+    <div class="toolbar-divider"></div>
+    <div class="toolbar-section">
       <button class="toolbar-btn" (click)="insertHR()" title="Horizontal Line">
         ―
       </button>
@@ -39,8 +51,8 @@
     #editor
     class="rich-text-editor"
     contenteditable="true"
-    [innerHTML]="safeContent"
-    (input)="onContentChange($event)"
-    (blur)="onContentChange($event)"
+    (input)="onContentChange()"
+    (blur)="onBlur()"
+    (paste)="onPaste($event)"
     placeholder="Write your character's backstory here..."></div>
 </app-card>

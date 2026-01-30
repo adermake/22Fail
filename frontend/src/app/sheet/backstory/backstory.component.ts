@@ -1,6 +1,5 @@
 import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CardComponent } from '../../shared/card/card.component';
@@ -17,17 +16,14 @@ export class BackstoryComponent implements AfterViewInit {
   @Output() patch = new EventEmitter<JsonPatch>();
   @ViewChild('editor') editorElement!: ElementRef<HTMLDivElement>;
 
-  constructor(private sanitizer: DomSanitizer) {}
+  private isInitialized = false;
 
   ngAfterViewInit() {
-    if (this.editorElement && !this.sheet.backstory) {
-      this.editorElement.nativeElement.innerHTML = '<p><br></p>';
+    if (this.editorElement) {
+      const content = this.sheet.backstory || '<p><br></p>';
+      this.editorElement.nativeElement.innerHTML = content;
+      this.isInitialized = true;
     }
-  }
-
-  get safeContent(): SafeHtml {
-    const content = this.sheet.backstory || '<p><br></p>';
-    return this.sanitizer.bypassSecurityTrustHtml(content);
   }
 
   formatText(command: string) {
@@ -35,7 +31,6 @@ export class BackstoryComponent implements AfterViewInit {
     if (!editor) return;
 
     editor.focus();
-    const selection = window.getSelection();
     
     if (command === 'bold') {
       document.execCommand('bold', false);
@@ -44,8 +39,26 @@ export class BackstoryComponent implements AfterViewInit {
     } else if (command === 'h1' || command === 'h2' || command === 'h3' || command === 'p') {
       document.execCommand('formatBlock', false, command);
     }
+  }
+
+  setTextColor(color: string) {
+    const editor = this.editorElement?.nativeElement;
+    if (!editor) return;
+
+    editor.focus();
     
-    this.saveContent();
+    let colorValue: string;
+    if (color === 'white') {
+      colorValue = '#ffffff';
+    } else if (color === 'purple') {
+      colorValue = 'var(--accent)';
+    } else if (color === 'gray') {
+      colorValue = 'var(--text-muted)';
+    } else {
+      return;
+    }
+    
+    document.execCommand('foreColor', false, colorValue);
   }
 
   insertHR() {
@@ -54,10 +67,21 @@ export class BackstoryComponent implements AfterViewInit {
     
     editor.focus();
     document.execCommand('insertHTML', false, '<hr>');
+  }
+
+  onPaste(event: ClipboardEvent) {
+    event.preventDefault();
+    const text = event.clipboardData?.getData('text/plain') || '';
+    document.execCommand('insertText', false, text);
+  }
+
+  onContentChange() {
+    if (!this.isInitialized) return;
     this.saveContent();
   }
 
-  onContentChange(event: Event) {
+  onBlur() {
+    if (!this.isInitialized) return;
     this.saveContent();
   }
 
