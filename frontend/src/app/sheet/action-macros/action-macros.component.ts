@@ -835,45 +835,49 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
   }
   
   dropMacro(event: CdkDragDrop<ActionMacro[]>) {
-    // Get mouse position relative to grid
-    const gridElement = event.container.element.nativeElement;
+    const draggedMacro = event.item.data;
+    
+    // Get the actual grid element and compute real cell dimensions
+    const gridElement = event.container.element.nativeElement.querySelector('.macro-grid');
+    if (!gridElement) return;
+    
     const rect = gridElement.getBoundingClientRect();
-    const cellWidth = rect.width / this.gridColumns;
-    const cellHeight = 120; // Approximate card height + gap
+    const gridStyles = window.getComputedStyle(gridElement);
+    const gap = parseFloat(gridStyles.gap) || 14;
     
-    const x = Math.floor((event.dropPoint.x - rect.left) / cellWidth);
-    const y = Math.floor((event.dropPoint.y - rect.top + gridElement.scrollTop) / cellHeight);
+    // Calculate actual cell dimensions including gap
+    const cellWidth = (rect.width + gap) / this.gridColumns;
+    const cellHeight = 120 + gap; // Card height + gap
     
-    // Clamp to grid bounds
-    const gridX = Math.max(0, Math.min(x, this.gridColumns - 1));
-    const gridY = Math.max(0, Math.min(y, this.gridRows + 2)); // Allow extending grid
+    // Get drop position relative to grid (accounting for scroll)
+    const containerRect = event.container.element.nativeElement.getBoundingClientRect();
+    const scrollTop = event.container.element.nativeElement.scrollTop;
     
-    // Check if target cell is occupied
-    const targetOccupied = this.macros().find(m => m.gridX === gridX && m.gridY === gridY && m.id !== event.item.data.id);
+    const relativeX = event.dropPoint.x - rect.left;
+    const relativeY = event.dropPoint.y - rect.top + scrollTop;
     
-    if (targetOccupied) {
-      // Swap positions
-      this.macros.update(macros => {
-        return macros.map(m => {
-          if (m.id === event.item.data.id) {
-            return { ...m, gridX, gridY };
-          } else if (m.id === targetOccupied.id) {
-            return { ...m, gridX: event.item.data.gridX, gridY: event.item.data.gridY };
-          }
-          return m;
-        });
+    // Calculate grid cell (snap to grid)
+    const gridX = Math.max(0, Math.min(Math.floor(relativeX / cellWidth), this.gridColumns - 1));
+    const gridY = Math.max(0, Math.floor(relativeY / cellHeight));
+    
+    // Check if target cell is occupied by a different macro
+    const targetOccupied = this.macros().find(m => 
+      m.gridX === gridX && m.gridY === gridY && m.id !== draggedMacro.id
+    );
+    
+    // Update macro positions immediately (no animation)
+    this.macros.update(macros => {
+      return macros.map(m => {
+        if (m.id === draggedMacro.id) {
+          // Move dragged macro to new position
+          return { ...m, gridX, gridY };
+        } else if (targetOccupied && m.id === targetOccupied.id) {
+          // Swap with occupied macro
+          return { ...m, gridX: draggedMacro.gridX, gridY: draggedMacro.gridY };
+        }
+        return m;
       });
-    } else {
-      // Move to empty cell
-      this.macros.update(macros => {
-        return macros.map(m => {
-          if (m.id === event.item.data.id) {
-            return { ...m, gridX, gridY };
-          }
-          return m;
-        });
-      });
-    }
+    });
     
     this.saveMacros();
   }
