@@ -548,7 +548,9 @@
   gap: 20px;
   padding: 20px;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
+  max-width: 100%;
 }
 
 .editor-section {
@@ -556,6 +558,8 @@
   border-radius: 12px;
   padding: 20px;
   border: 1px solid #333;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 .editor-section h3,
@@ -605,6 +609,8 @@
   display: flex;
   gap: 16px;
   align-items: flex-start;
+  flex-wrap: wrap;
+  max-width: 100%;
 }
 
 .form-group {
@@ -638,6 +644,8 @@
   padding: 10px 14px;
   font-size: 0.95rem;
   transition: border-color 0.2s;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .form-group input:focus,
@@ -732,6 +740,8 @@
   margin-top: 12px;
   border: 2px solid #333;
   transition: all 0.2s;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .consequence-card:hover {
@@ -871,6 +881,8 @@
   font-weight: 600;
   transition: all 0.3s ease;
   flex: 1;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .formula-input::placeholder {
@@ -990,6 +1002,8 @@
   background: #1e1e1e;
   border-radius: 8px;
   border: 1px solid #333;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .condition-row select,
@@ -1001,6 +1015,7 @@
   padding: 8px 10px;
   font-size: 0.9rem;
   transition: all 0.2s;
+  box-sizing: border-box;
 }
 
 .condition-row select:focus,
