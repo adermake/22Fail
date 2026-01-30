@@ -121,9 +121,21 @@ export class StressTestService {
   private async storeSampleImages(): Promise<string[]> {
     const imageIds: string[] = [];
     for (const base64Image of this.sampleImages) {
-      const imageId = this.imageService.storeImage(base64Image);
-      imageIds.push(imageId);
+      try {
+        const imageId = this.imageService.storeImage(base64Image);
+        imageIds.push(imageId);
+      } catch (error) {
+        console.warn(`[STRESS TEST] Failed to store sample image: ${error.message}`);
+        // Continue with other images
+      }
     }
+    
+    // If no images were stored successfully, return empty array
+    // The generateCharacter method will handle missing images
+    if (imageIds.length === 0) {
+      console.warn('[STRESS TEST] No sample images could be stored. Characters will be created without portraits.');
+    }
+    
     return imageIds;
   }
 
@@ -139,7 +151,7 @@ export class StressTestService {
       alignment: this.randomFrom(this.alignments),
       size: this.randomFrom(['Small', 'Medium', 'Large']),
       extrainfo: `Generated stress test character #${id}`,
-      portrait: this.randomFrom(availableImages),
+      portrait: availableImages.length > 0 ? this.randomFrom(availableImages) : '',
       worldName: '',
       primary_class: this.randomFrom(this.classes),
       secondary_class: this.randomFrom(this.classes),

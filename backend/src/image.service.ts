@@ -20,14 +20,29 @@ export class ImageService {
    * @returns The unique image ID (hash)
    */
   storeImage(base64Data: string): string {
+    if (!base64Data || typeof base64Data !== 'string') {
+      throw new Error('Invalid base64 image data: empty or not a string');
+    }
+
     // Extract the actual base64 content (remove "data:image/png;base64," prefix)
     const matches = base64Data.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/);
     if (!matches) {
-      throw new Error('Invalid base64 image data');
+      throw new Error(`Invalid base64 image data: format must be "data:image/TYPE;base64,CONTENT" (got: ${base64Data.substring(0, 50)}...)`);
     }
 
     const extension = matches[1]; // png, jpeg, etc
     const base64Content = matches[2];
+    
+    if (!base64Content || base64Content.trim().length === 0) {
+      throw new Error('Invalid base64 image data: base64 content is empty');
+    }
+
+    // Validate base64 content
+    try {
+      Buffer.from(base64Content, 'base64');
+    } catch (error) {
+      throw new Error(`Invalid base64 image data: could not decode base64 content - ${error.message}`);
+    }
 
     // Generate hash of the image content (deduplication)
     const hash = crypto.createHash('sha256').update(base64Content).digest('hex');
