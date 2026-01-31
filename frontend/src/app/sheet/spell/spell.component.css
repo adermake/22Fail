@@ -660,6 +660,7 @@ canvas {
   position: relative;
   display: inline-block;
   margin: 0 auto;
+  padding: 25px;
 }
 
 .expand-btn {
