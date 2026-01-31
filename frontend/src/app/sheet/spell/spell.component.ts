@@ -501,7 +501,14 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
     }, 0);
   }
 
-  closeFullscreenDrawing() {
+  async closeFullscreenDrawing() {
+    // Save drawing before closing
+    if (this.hasDrawing && this.canvasRef) {
+      const canvas = this.canvasRef.nativeElement;
+      const dataUrl = canvas.toDataURL('image/png');
+      const imageId = await this.imageService.uploadImage(dataUrl);
+      this.updateField('drawing', imageId);
+    }
     this.isFullscreenDrawing.set(false);
   }
 
