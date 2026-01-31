@@ -43,7 +43,6 @@
             @if (!macro.isValid) {
               <span class="invalid-badge" [title]="'Fehlende Skills: ' + getMissingSkills(macro).join(', ')">⚠️</span>
             }
-            <span class="drag-handle" cdkDragHandle>⋮⋮</span>
           </div>
 
           @if (macro.description) {
@@ -59,11 +58,19 @@
           <div class="macro-actions">
             <button class="run-btn" 
                     [disabled]="!areConditionsMet(macro)"
-                    (click)="runMacro.emit(macro)">
+                    (click)="runMacro.emit(macro)"
+                    (mousedown)="$event.stopPropagation()"
+                    (touchstart)="$event.stopPropagation()">
               ▶ Ausführen
             </button>
-            <button class="edit-btn" (click)="editMacro.emit(macro)">✏️</button>
-            <button class="delete-btn" (click)="deleteMacro.emit(macro.id)">🗑️</button>
+            <button class="edit-btn" 
+                    (click)="editMacro.emit(macro)"
+                    (mousedown)="$event.stopPropagation()"
+                    (touchstart)="$event.stopPropagation()">✏️</button>
+            <button class="delete-btn" 
+                    (click)="deleteMacro.emit(macro.id)"
+                    (mousedown)="$event.stopPropagation()"
+                    (touchstart)="$event.stopPropagation()">🗑️</button>
           </div>
         </div>
       }

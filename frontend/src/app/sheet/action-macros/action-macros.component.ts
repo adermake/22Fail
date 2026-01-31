@@ -842,8 +842,8 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     const container = event.container.element.nativeElement;
     const containerRect = container.getBoundingClientRect();
     
-    // Fixed cell dimensions matching CSS: minmax(180px, 1fr) and minmax(120px, auto)
-    const cellWidth = 180;
+    // Fixed cell dimensions matching CSS: 240px x 120px
+    const cellWidth = 240;
     const cellHeight = 120;
     const gap = 14;
     

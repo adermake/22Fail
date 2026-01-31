@@ -52,9 +52,9 @@
 
 .macro-grid {
   display: grid;
-  /* Use fixed 180px columns for infinite grid - matches TypeScript calculation */
-  grid-template-columns: repeat(auto-fill, 180px);
-  grid-auto-columns: 180px;
+  /* Use fixed 240px columns for infinite grid - matches TypeScript calculation */
+  grid-template-columns: repeat(auto-fill, 240px);
+  grid-auto-columns: 240px;
   /* Use fixed 120px rows for consistent drop calculations */
   grid-template-rows: repeat(auto-fill, 120px);
   grid-auto-rows: 120px;
@@ -190,17 +190,6 @@
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 600;
-}
-
-.drag-handle {
-  color: #555;
-  cursor: grab;
-  font-size: 1.1rem;
-  padding: 2px;
-}
-
-.drag-handle:hover {
-  color: #888;
 }
 
 .macro-description {
