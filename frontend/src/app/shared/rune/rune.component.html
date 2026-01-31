@@ -51,22 +51,109 @@
       @if (hasDrawing) {
         <div class="field">
           <label>Draw Rune Symbol</label>
-          <div class="canvas-wrapper">
-            <div class="canvas-container" [style.box-shadow]="'0 0 15px ' + strokeColor + '40'">
-              <canvas
+          
+          <!-- Drawing Toolbar -->
+          <div class="drawing-toolbar">
+            <!-- Tool Selector -->
+            <div class="toolbar-section tools">
+              <button 
+                type="button"
+                class="toolbar-btn"
+                [class.active]="!isErasing()"
+                title="Draw Mode"
+                (click)="setDrawMode()"
+              >
+                <span class="btn-icon">✏️</span>
+              </button>
+              <button 
+                type="button"
+                class="toolbar-btn"
+                [class.active]="isErasing()"
+                title="Eraser Mode"
+                (click)="toggleEraser()"
+              >
+                <span class="btn-icon">🧹</span>
+              </button>
+            </div>
+
+            <!-- Draw Tool Settings -->
+            @if (!isErasing()) {
+              <div class="toolbar-section brush-settings">
+                <!-- Color picker -->
+                <div class="color-picker">
+                  @for (color of presetColors; track color) {
+                    <button 
+                      type="button"
+                      class="color-swatch"
+                      [class.active]="strokeColor === color"
+                      [style.background]="color"
+                      [style.border-color]="color === '#ffffff' ? '#666' : color"
+                      [title]="color"
+                      (click)="selectColor(color)"
+                    ></button>
+                  }
+                  <label class="custom-color" title="Custom Color">
+                    <input 
+                      type="color" 
+                      [value]="strokeColor"
+                      (input)="onColorInput($event)"
+                    />
+                    <span class="custom-color-preview" [style.background]="strokeColor"></span>
+                  </label>
+                </div>
+              </div>
+            }
+
+            <!-- Eraser Settings -->
+            @if (isErasing()) {
+              <div class="toolbar-section brush-settings">
+                <span class="setting-label">Eraser Size:</span>
+                <div class="size-picker">
+                  @for (size of eraserSizes; track size) {
+                    <button 
+                      type="button"
+                      class="size-btn"
+                      [class.active]="eraserSize === size"
+                      [title]="size + 'px'"
+                      (click)="selectEraserSize(size)"
+                    >
+                      <span class="size-dot" [style.width.px]="Math.min(size, 24)" [style.height.px]="Math.min(size, 24)"></span>
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Actions -->
+            <div class="toolbar-section actions">
+              <button type="button" class="action-btn" (click)="undo()" title="Undo (Ctrl+Z)">
+                <span class="btn-icon">↶</span> Undo
+              </button>
+              <button type="button" class="action-btn clear" (click)="clearCanvas()" title="Clear Drawing">
+                <span class="btn-icon">🗑️</span> Clear
+              </button>
+            </div>
+          </div>
+
+          <!-- Canvas with border expansion buttons -->
+          <div class="canvas-area">
+            <button type="button" class="expand-btn expand-top" (click)="expandTop()" title="Expand Top">▲</button>
+            <button type="button" class="expand-btn expand-left" (click)="expandLeft()" title="Expand Left">◄</button>
+            <button type="button" class="expand-btn expand-right" (click)="expandRight()" title="Expand Right">►</button>
+            <button type="button" class="expand-btn expand-bottom" (click)="expandBottom()" title="Expand Bottom">▼</button>
+            
+            <div class="canvas-container" [class.panning]="isPanning()" [style.box-shadow]="'0 0 15px ' + strokeColor + '40'">
+              <canvas 
                 #canvas
-                width="300"
-                height="300"
-                (mousedown)="startDrawing($event)"
-                (mousemove)="draw($event)"
-                (mouseup)="stopDrawing()"
-                (mouseleave)="stopDrawing()"
-                (touchstart)="handleTouch($event)"
-                (touchmove)="handleTouchMove($event)"
-                (touchend)="stopDrawing()"
+                [attr.width]="canvasWidth()"
+                [attr.height]="canvasHeight()"
+                (pointerdown)="startDrawing($event)"
+                (pointermove)="draw($event)"
+                (pointerup)="stopDrawing()"
+                (pointerleave)="stopDrawing()"
+                (pointercancel)="stopDrawing()"
               ></canvas>
             </div>
-            <button type="button" class="clear-btn" (click)="clearCanvas()">Clear Drawing</button>
           </div>
         </div>
       }
