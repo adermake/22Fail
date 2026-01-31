@@ -41,6 +41,45 @@
     <p class="spell-description" [innerHTML]="enhancedDescription"></p>
   </div>
   } @else {
+  <!-- Fullscreen Drawing Modal -->
+  @if (hasDrawing && isFullscreenDrawing()) {
+    <div class="fullscreen-overlay">
+      <div class="fullscreen-header">
+        <h3>Edit Spell Drawing</h3>
+        <button type="button" class="close-fullscreen-btn" (click)="closeFullscreenDrawing()">✕ Close</button>
+      </div>
+      <div class="fullscreen-content">
+        <div class="fullscreen-controls">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button type="button" class="expand-btn" (click)="expandLeft()" title="Expand Left">◄</button>
+            <button type="button" class="expand-btn" (click)="expandTop()" title="Expand Top">▲</button>
+            <button type="button" class="expand-btn" (click)="expandBottom()" title="Expand Bottom">▼</button>
+            <button type="button" class="expand-btn" (click)="expandRight()" title="Expand Right">►</button>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="button" class="clear-btn" (click)="toggleEraser()">
+              {{ isErasing() ? 'Draw Mode' : 'Eraser' }}
+            </button>
+            <button type="button" class="clear-btn" (click)="undo()">Undo (Ctrl+Z)</button>
+            <button type="button" class="clear-btn" (click)="clearCanvas()">Clear Drawing</button>
+          </div>
+        </div>
+        <div class="fullscreen-canvas-wrapper" [class.panning]="isPanning()">
+          <canvas 
+            #canvas
+            [attr.width]="canvasWidth()"
+            [attr.height]="canvasHeight()"
+            (pointerdown)="startDrawing($event)"
+            (pointermove)="draw($event)"
+            (pointerup)="stopDrawing()"
+            (pointerleave)="stopDrawing()"
+            (pointercancel)="stopDrawing()"
+          ></canvas>
+        </div>
+      </div>
+    </div>
+  }
+  
   <div class="spell-edit" (click)="$event.stopPropagation()">
     <div class="field">
       <label>Name</label>
@@ -78,33 +117,16 @@
   </div>
   <div class="field">
     <label>Draw Spell Symbol</label>
-    <div class="canvas-wrapper">
-      <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-        <button type="button" class="expand-btn" (click)="expandLeft()" title="Expand Left">◄</button>
-        <button type="button" class="expand-btn" (click)="expandTop()" title="Expand Top">▲</button>
-        <button type="button" class="expand-btn" (click)="expandBottom()" title="Expand Bottom">▼</button>
-        <button type="button" class="expand-btn" (click)="expandRight()" title="Expand Right">►</button>
-      </div>
-      <div class="canvas-container" [class.panning]="isPanning()" [style.box-shadow]="'0 0 15px ' + strokeColor + '40'">
-        <canvas 
-          #canvas
-          [attr.width]="canvasWidth()"
-          [attr.height]="canvasHeight()"
-          (pointerdown)="startDrawing($event)"
-          (pointermove)="draw($event)"
-          (pointerup)="stopDrawing()"
-          (pointerleave)="stopDrawing()"
-          (pointercancel)="stopDrawing()"
-        ></canvas>
-      </div>
-      <div style="display: flex; gap: 0.5rem;">
-        <button type="button" class="clear-btn" (click)="toggleEraser()">
-          {{ isErasing() ? 'Draw Mode' : 'Eraser' }}
-        </button>
-        <button type="button" class="clear-btn" (click)="undo()">Undo (Ctrl+Z)</button>
-        <button type="button" class="clear-btn" (click)="clearCanvas()">Clear Drawing</button>
-      </div>
-    </div>
+    @if (hasDrawing) {
+      @if (spell.drawing) {
+        <div class="drawing-preview">
+          <img [src]="spell.drawing | imageUrl" alt="Spell drawing" />
+        </div>
+      }
+      <button type="button" class="edit-drawing-btn" (click)="openFullscreenDrawing()">
+        📝 Edit Drawing in Fullscreen
+      </button>
+    }
   </div>
 }
     <div class="field">

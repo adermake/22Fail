@@ -44,6 +44,7 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   canvasHeight = signal(300);
   isErasing = signal(false);
   isPanning = signal(false);
+  isFullscreenDrawing = signal(false);
 
   private ctx?: CanvasRenderingContext2D;
   private isDrawing= false;
@@ -452,6 +453,22 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
 
   toggleEraser() {
     this.isErasing.set(!this.isErasing());
+  }
+
+  openFullscreenDrawing() {
+    this.isFullscreenDrawing.set(true);
+    // Reinitialize canvas in fullscreen mode
+    setTimeout(() => {
+      if (this.canvasRef) {
+        this.canvasInitialized = false;
+        this.initCanvas();
+        this.canvasInitialized = true;
+      }
+    }, 0);
+  }
+
+  closeFullscreenDrawing() {
+    this.isFullscreenDrawing.set(false);
   }
 
   private saveToHistory() {
