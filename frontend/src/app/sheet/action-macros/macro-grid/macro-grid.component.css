@@ -45,14 +45,22 @@
   will-change: transform;
   transition: none;
   transform-origin: 0 0;
+  /* Allow the wrapper to grow beyond container for infinite grid */
+  min-width: 100%;
+  width: max-content;
 }
 
 .macro-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(auto-fill, minmax(120px, auto));
+  /* Use fixed 180px columns for infinite grid - matches TypeScript calculation */
+  grid-template-columns: repeat(auto-fill, 180px);
+  grid-auto-columns: 180px;
+  /* Use fixed 120px rows for consistent drop calculations */
+  grid-template-rows: repeat(auto-fill, 120px);
+  grid-auto-rows: 120px;
   gap: 14px;
   min-height: 600px;
+  min-width: 100%;
   position: relative;
   cursor: grab;
 }
@@ -88,8 +96,11 @@
   cursor: default;
   display: flex;
   flex-direction: column;
-  height: fit-content;
-  max-height: 280px;
+  /* Fixed height to match grid row size */
+  height: 120px;
+  min-height: 120px;
+  max-height: 120px;
+  overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;

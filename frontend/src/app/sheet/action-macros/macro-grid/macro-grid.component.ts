@@ -75,8 +75,11 @@ export class MacroGridComponent {
     if (!container) return;
     
     const containerRect = container.getBoundingClientRect();
-    const gap = 14;
+    
+    // Fixed cell dimensions matching CSS: minmax(180px, 1fr) and minmax(120px, auto)
+    const cellWidth = 180;
     const cellHeight = 120;
+    const gap = 14;
     
     // Get container padding (the wrapper starts at the padding offset)
     const containerStyles = window.getComputedStyle(container);
@@ -89,30 +92,16 @@ export class MacroGridComponent {
     
     // Step 2: Subtract padding to get position relative to the wrapper/grid origin
     // Then reverse pan and zoom to get position in untransformed grid space
-    // The transform is: screenPos = padding + panOffset + gridPos * zoom
-    // So: gridPos = (screenPos - padding - panOffset) / zoom
     const gridX_pos = (containerX - paddingLeft - this.panX) / this.zoom;
     const gridY_pos = (containerY - paddingTop - this.panY) / this.zoom;
     
-    // Step 3: The grid width in untransformed space is the container content width
-    const gridWidth = containerRect.width - paddingLeft - parseFloat(containerStyles.paddingRight || '0');
+    // Step 3: Calculate grid cell from position using fixed cell size + gap
+    const cellTotalWidth = cellWidth + gap;
+    const cellTotalHeight = cellHeight + gap;
     
-    // Calculate cell dimensions in untransformed space
-    const cellWidthPx = (gridWidth - gap * (this.gridColumns - 1)) / this.gridColumns;
-
-    // Calculate grid cell position
-    let gridX = 0;
-    let accumulatedWidth = 0;
-    for (let col = 0; col < this.gridColumns; col++) {
-      const colEnd = accumulatedWidth + cellWidthPx;
-      if (gridX_pos < colEnd || col === this.gridColumns - 1) {
-        gridX = col;
-        break;
-      }
-      accumulatedWidth = colEnd + gap;
-    }
-
-    const gridY = Math.max(0, Math.floor(gridY_pos / (cellHeight + gap)));
+    // Allow infinite grid - just clamp negative to 0
+    const gridX = Math.max(0, Math.floor(gridX_pos / cellTotalWidth));
+    const gridY = Math.max(0, Math.floor(gridY_pos / cellTotalHeight));
 
     // Update preview position
     this.previewGridX = gridX;
@@ -126,21 +115,32 @@ export class MacroGridComponent {
     const delta = event.deltaY * -0.001;
     const newZoom = Math.min(Math.max(0.1, this.zoom + delta), 3);
     
-    // Zoom towards cursor position
-    const rect = this.elementRef.nativeElement.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
+    // Get container and its padding
+    const container = this.elementRef.nativeElement.querySelector('.macro-grid-container');
+    if (!container) return;
     
-    // Calculate the point under the cursor before zoom
-    const pointX = (mouseX - this.panX) / this.zoom;
-    const pointY = (mouseY - this.panY) / this.zoom;
+    const containerRect = container.getBoundingClientRect();
+    const containerStyles = window.getComputedStyle(container);
+    const paddingLeft = parseFloat(containerStyles.paddingLeft) || 0;
+    const paddingTop = parseFloat(containerStyles.paddingTop) || 0;
+    
+    // Mouse position relative to container
+    const mouseX = event.clientX - containerRect.left;
+    const mouseY = event.clientY - containerRect.top;
+    
+    // Calculate the grid point under the cursor before zoom
+    // The wrapper starts at (paddingLeft, paddingTop), so subtract that first
+    const pointX = (mouseX - paddingLeft - this.panX) / this.zoom;
+    const pointY = (mouseY - paddingTop - this.panY) / this.zoom;
     
     // Update zoom
     this.zoom = newZoom;
     
-    // Adjust pan to keep the same point under the cursor
-    this.panX = mouseX - pointX * this.zoom;
-    this.panY = mouseY - pointY * this.zoom;
+    // Adjust pan to keep the same grid point under the cursor
+    // Reverse the formula: mousePos - padding = panOffset + gridPos * zoom
+    // So: panOffset = mousePos - padding - gridPos * zoom
+    this.panX = (mouseX - paddingLeft) - pointX * this.zoom;
+    this.panY = (mouseY - paddingTop) - pointY * this.zoom;
   }
 
   onMouseDown(event: MouseEvent): void {

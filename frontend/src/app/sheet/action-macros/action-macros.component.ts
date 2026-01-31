@@ -842,19 +842,15 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     const container = event.container.element.nativeElement;
     const containerRect = container.getBoundingClientRect();
     
-    // Get the grid element for styling info
-    const gridElement = container.querySelector('.macro-grid');
-    if (!gridElement) return;
-    
-    const gridStyles = window.getComputedStyle(gridElement);
-    const gap = parseFloat(gridStyles.gap) || 14;
+    // Fixed cell dimensions matching CSS: minmax(180px, 1fr) and minmax(120px, auto)
+    const cellWidth = 180;
+    const cellHeight = 120;
+    const gap = 14;
     
     // Get container padding (the wrapper starts at the padding offset)
     const containerStyles = window.getComputedStyle(container);
     const paddingLeft = parseFloat(containerStyles.paddingLeft) || 0;
     const paddingTop = parseFloat(containerStyles.paddingTop) || 0;
-    
-    const cellHeight = 120; // Card height
     
     // Step 1: Convert drop point from screen space to container-relative space
     const containerX = event.dropPoint.x - containerRect.left;
@@ -862,30 +858,16 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     
     // Step 2: Subtract padding to get position relative to the wrapper/grid origin
     // Then reverse pan and zoom to get position in untransformed grid space
-    // The transform is: screenPos = padding + panOffset + gridPos * zoom
-    // So: gridPos = (screenPos - padding - panOffset) / zoom
     const gridX_pos = (containerX - paddingLeft - data.panX) / data.zoom;
     const gridY_pos = (containerY - paddingTop - data.panY) / data.zoom;
     
-    // Step 3: The grid width in untransformed space is the container content width
-    const gridWidth = containerRect.width - paddingLeft - parseFloat(containerStyles.paddingRight || '0');
+    // Step 3: Calculate grid cell from position using fixed cell size + gap
+    const cellTotalWidth = cellWidth + gap;
+    const cellTotalHeight = cellHeight + gap;
     
-    // Calculate grid cell - account for cumulative gaps
-    let gridX = 0;
-    let accumulatedWidth = 0;
-    const cellWidthPx = (gridWidth - gap * (this.gridColumns - 1)) / this.gridColumns;
-    
-    for (let col = 0; col < this.gridColumns; col++) {
-      const colEnd = accumulatedWidth + cellWidthPx;
-      if (gridX_pos < colEnd || col === this.gridColumns - 1) {
-        gridX = col;
-        break;
-      }
-      accumulatedWidth = colEnd + gap;
-    }
-    
-    // For Y, calculate similarly with row height + gap
-    const gridY = Math.max(0, Math.floor(gridY_pos / (cellHeight + gap)));
+    // Allow infinite grid - just clamp negative to 0
+    const gridX = Math.max(0, Math.floor(gridX_pos / cellTotalWidth));
+    const gridY = Math.max(0, Math.floor(gridY_pos / cellTotalHeight));
     
     // Check if target cell is occupied by a different macro
     const targetOccupied = this.macros().find(m => 
