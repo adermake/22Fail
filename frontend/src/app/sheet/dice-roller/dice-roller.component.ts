@@ -110,17 +110,23 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     const characterSkills = this.sheet.skills || [];
     
     characterSkills.forEach(skill => {
-      // Match by skill name since skillId may not be set on character skills
-      const definition = SKILL_DEFINITIONS.find(s => s.name === skill.name);
-      if (definition && definition.type === 'dice_bonus' && (skill.level || 0) > 0) {
+      // Check if this skill is a dice_bonus type (either from the skill itself or the definition)
+      const isDiceBonus = skill.type === 'dice_bonus';
+      
+      if (isDiceBonus) {
+        // Match by skill name to get description for parsing bonus value
+        const definition = SKILL_DEFINITIONS.find(s => s.name === skill.name);
+        const description = definition?.description || skill.description || '';
+        
         // Extract bonus value from description (e.g., "+2 beim Würfeln")
-        const match = definition.description.match(/\+(\d+)/);
+        const match = description.match(/\+(\d+)/);
         if (match) {
           // Extract context from description (everything after the number)
-          const contextMatch = definition.description.match(/\+\d+\s*(.+)/);
+          const contextMatch = description.match(/\+\d+\s*(.+)/);
+          const skillLevel = skill.level || 1; // Default to 1 if not set
           bonuses.push({
-            name: definition.name,
-            value: parseInt(match[1]) * (skill.level || 1), // Multiply by skill level
+            name: skill.name,
+            value: parseInt(match[1]) * skillLevel, // Multiply by skill level
             source: 'skill',
             context: contextMatch ? contextMatch[1] : undefined
           });

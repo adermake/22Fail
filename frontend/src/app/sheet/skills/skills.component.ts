@@ -123,4 +123,8 @@ export class SkillsComponent {
   isSkillEditing(index: number): boolean {
     return this.editingSkills.has(index);
   }
+
+  getOriginalIndex(skill: SkillBlock): number {
+    return this.sheet.skills.indexOf(skill);
+  }
 }

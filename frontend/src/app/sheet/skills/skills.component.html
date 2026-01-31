@@ -5,16 +5,16 @@
   </div>
 
   <div class="skills-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
-    @for (skill of sortedSkills; track i; let i = $index) {
-      <div cdkDrag [cdkDragDisabled]="isSkillEditing(i)" (cdkDragStarted)="onDragStarted($event)">
+    @for (skill of sortedSkills; track skill.name + skill.class; let i = $index) {
+      <div cdkDrag [cdkDragDisabled]="isSkillEditing(getOriginalIndex(skill))" (cdkDragStarted)="onDragStarted($event)">
         <app-skill
           [skill]="skill"
           [sheet]="sheet"
-          [index]="i"
-          [isEditing]="isSkillEditing(i)"
-          (patch)="updateSkill(i, $event)"
-          (delete)="deleteSkill(i)"
-          (editingChange)="onEditingChange(i, $event)"
+          [index]="getOriginalIndex(skill)"
+          [isEditing]="isSkillEditing(getOriginalIndex(skill))"
+          (patch)="updateSkill(getOriginalIndex(skill), $event)"
+          (delete)="deleteSkill(getOriginalIndex(skill))"
+          (editingChange)="onEditingChange(getOriginalIndex(skill), $event)"
         ></app-skill>
         <div 
           class="drag-placeholder-wrapper" 

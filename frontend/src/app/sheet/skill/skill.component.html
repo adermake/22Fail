@@ -4,10 +4,9 @@
      [class.active]="effectiveType === 'active'" 
      [class.dice-bonus]="effectiveType === 'dice_bonus'" 
      [class.stat-bonus]="effectiveType === 'stat_bonus'" 
-     [class.disabled]="isDisabled"
-     (dblclick)="!isEditing && toggleEdit()">
+     [class.disabled]="isDisabled">
   @if (!isEditing) {
-    <div class="skill-view">
+    <div class="skill-view" (dblclick)="!isEditing && toggleEdit()">
       <div class="skill-header">
         <h4>{{ skill.name }}</h4>
         <div class="skill-badges">
@@ -24,7 +23,10 @@
           @if (skill.enlightened) {
             <span class="skill-enlightened">Enlightened</span>
           }
-          <button class="delete-btn-compact" (click)="deleteSkill(); $event.stopPropagation()" title="Delete">🗑️</button>
+          <button class="delete-btn-compact" 
+                  (click)="deleteSkill(); $event.stopPropagation()" 
+                  (dblclick)="$event.stopPropagation()" 
+                  title="Delete">🗑️</button>
         </div>
       </div>
       <p class="skill-description" [innerHTML]="enhancedDescription"></p>
