@@ -26,8 +26,8 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
   tagOptions = RUNE_TAG_OPTIONS;
   glowColors = RUNE_GLOW_COLORS;
   hasDrawing = false;
-  canvasWidth = signal(600);
-  canvasHeight = signal(300);
+  canvasWidth = signal(400);
+  canvasHeight = signal(400);
   isErasing = signal(false);
   isPanning = signal(false);
   
@@ -267,8 +267,8 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
     if (!this.canvasRef || !this.ctx) return;
 
     // Reset to initial size
-    this.canvasWidth.set(600);
-    this.canvasHeight.set(300);
+    this.canvasWidth.set(400);
+    this.canvasHeight.set(400);
     
     requestAnimationFrame(() => {
       if (this.ctx && this.canvasRef) {
