@@ -628,7 +628,7 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
           name: skill.name,
           class: skill.class,
           description: this.getInfiniteLevelDescription(skill, 1),
-          type: skill.type === 'active' ? 'active' : 'passive',
+          type: skill.type,  // Preserve the actual type: active, passive, dice_bonus, stat_bonus
           enlightened: skill.enlightened ?? false,
           level: 1,
           skillId: skill.id,
@@ -665,7 +665,7 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
         name: skill.name,
         class: skill.class,
         description: skill.description,
-        type: skill.type === 'active' ? 'active' : 'passive',
+        type: skill.type,  // Preserve the actual type: active, passive, dice_bonus, stat_bonus
         enlightened: skill.enlightened ?? false,
         skillId: skill.id,
         statModifiers

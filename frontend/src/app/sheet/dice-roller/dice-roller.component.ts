@@ -73,6 +73,7 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
   // Saved configurations
   savedConfigs = signal<DiceConfig[]>([]);
   showSavedList = signal<boolean>(true);
+  showHistoryList = signal<boolean>(true);
   newConfigName = '';
   
   // Skill filter for searching
@@ -237,6 +238,9 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     this.initRollSound();
     this.loadSyncedActionRolls();
     
+    // Prevent background scrolling
+    document.body.style.overflow = 'hidden';
+    
     // Listen for rolls from other players in the world
     if (this.sheet.worldName) {
       this.diceRollSub = this.worldSocket.diceRoll$.subscribe(roll => {
@@ -285,6 +289,8 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.diceRollSub?.unsubscribe();
+    // Restore background scrolling
+    document.body.style.overflow = '';
   }
 
   // Initialize dice roll sound

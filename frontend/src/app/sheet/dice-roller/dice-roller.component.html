@@ -200,16 +200,23 @@
 
         <!-- Roll History -->
         <div class="history-section">
-          <h4>Verlauf</h4>
-          <div class="history-list">
-            @for (roll of rollHistory().rolls.slice(0, 8); track roll.id) {
-              <button class="history-item" (click)="repeatRoll(roll)">
-                <span class="history-formula">{{roll.diceCount}}d{{roll.diceType}}</span>
-                <span class="history-result">= {{roll.result}}</span>
-                <span class="history-time">{{getTimeAgo(roll.timestamp)}}</span>
-              </button>
-            }
+          <div class="panel-header">
+            <h4>Verlauf</h4>
+            <button class="toggle-list-btn" (click)="showHistoryList.set(!showHistoryList())">
+              {{showHistoryList() ? '▼' : '▶'}}
+            </button>
           </div>
+          @if (showHistoryList()) {
+            <div class="history-list">
+              @for (roll of rollHistory().rolls.slice(0, 8); track roll.id) {
+                <button class="history-item" (click)="repeatRoll(roll)">
+                  <span class="history-formula">{{roll.diceCount}}d{{roll.diceType}}</span>
+                  <span class="history-result">= {{roll.result}}</span>
+                  <span class="history-time">{{getTimeAgo(roll.timestamp)}}</span>
+                </button>
+              }
+            </div>
+          }
         </div>
 
         <!-- Received Rolls -->
