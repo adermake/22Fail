@@ -71,35 +71,40 @@ export class MacroGridComponent {
   onDocumentMouseMove(event: MouseEvent): void {
     if (!this.isDraggingMacro || !this.showDropPreview) return;
 
-    const gridElement = document.querySelector('.macro-grid') as HTMLElement;
-    if (!gridElement) return;
-
-    const rect = gridElement.getBoundingClientRect();
-    const gridStyles = window.getComputedStyle(gridElement);
-    const gap = parseFloat(gridStyles.gap) || 14;
-
-    // Calculate cell dimensions
-    const totalGapWidth = gap * (this.gridColumns - 1);
-    const cellWidth = (rect.width - totalGapWidth) / this.gridColumns;
+    const container = this.elementRef.nativeElement.querySelector('.macro-grid-container');
+    if (!container) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    const gap = 14;
     const cellHeight = 120;
 
-    // Get mouse position relative to grid
-    const relativeX = event.clientX - rect.left;
-    const relativeY = event.clientY - rect.top;
+    // Reverse the transforms: subtract container position, account for pan and zoom
+    const containerX = event.clientX - containerRect.left;
+    const containerY = event.clientY - containerRect.top;
+    
+    // Reverse pan and zoom to get position in untransformed grid space
+    const gridX_pos = (containerX - this.panX) / this.zoom;
+    const gridY_pos = (containerY - this.panY) / this.zoom;
+    
+    // Get the actual grid width in untransformed space
+    const gridWidth = containerRect.width / this.zoom;
+    
+    // Calculate cell dimensions in untransformed space
+    const cellWidthPx = (gridWidth - gap * (this.gridColumns - 1)) / this.gridColumns;
 
     // Calculate grid cell position
     let gridX = 0;
     let accumulatedWidth = 0;
     for (let col = 0; col < this.gridColumns; col++) {
-      const colEnd = accumulatedWidth + cellWidth;
-      if (relativeX < colEnd || col === this.gridColumns - 1) {
+      const colEnd = accumulatedWidth + cellWidthPx;
+      if (gridX_pos < colEnd || col === this.gridColumns - 1) {
         gridX = col;
         break;
       }
       accumulatedWidth = colEnd + gap;
     }
 
-    const gridY = Math.max(0, Math.floor(relativeY / (cellHeight + gap)));
+    const gridY = Math.max(0, Math.floor(gridY_pos / (cellHeight + gap)));
 
     // Update preview position
     this.previewGridX = gridX;

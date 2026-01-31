@@ -838,41 +838,48 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     const event = data.event;
     const draggedMacro = event.item.data;
     
-    // Get the actual grid element and compute real cell dimensions
-    const gridElement = event.container.element.nativeElement.querySelector('.macro-grid');
+    // Get the container to find untransformed position
+    const container = event.container.element.nativeElement;
+    const containerRect = container.getBoundingClientRect();
+    
+    // Get the grid element for styling info
+    const gridElement = container.querySelector('.macro-grid');
     if (!gridElement) return;
     
-    const rect = gridElement.getBoundingClientRect();
     const gridStyles = window.getComputedStyle(gridElement);
     const gap = parseFloat(gridStyles.gap) || 14;
     
-    // Calculate actual cell dimensions
-    // Grid has (n-1) gaps between n columns
-    const totalGapWidth = gap * (this.gridColumns - 1);
-    const cellWidth = (rect.width - totalGapWidth) / this.gridColumns;
-    const cellHeight = 120; // Card height (gap is handled separately)
+    // Calculate cell dimensions in untransformed space
+    const cellWidth = 1 / this.gridColumns; // Fraction of grid width
+    const cellHeight = 120; // Card height
     
-    // Account for zoom and pan transforms
-    const relativeX = (event.dropPoint.x - rect.left) / data.zoom;
-    const relativeY = (event.dropPoint.y - rect.top) / data.zoom;
+    // Reverse the transforms: subtract container position, account for pan and zoom
+    const containerX = event.dropPoint.x - containerRect.left;
+    const containerY = event.dropPoint.y - containerRect.top;
+    
+    // Reverse pan and zoom to get position in untransformed grid space
+    const gridX_pos = (containerX - data.panX) / data.zoom;
+    const gridY_pos = (containerY - data.panY) / data.zoom;
+    
+    // Get the actual grid width in untransformed space
+    const gridWidth = containerRect.width / data.zoom;
     
     // Calculate grid cell - account for cumulative gaps
     let gridX = 0;
     let accumulatedWidth = 0;
-    const scaledCellWidth = cellWidth / data.zoom;
-    const scaledGap = gap / data.zoom;
+    const cellWidthPx = (gridWidth - gap * (this.gridColumns - 1)) / this.gridColumns;
     
     for (let col = 0; col < this.gridColumns; col++) {
-      const colEnd = accumulatedWidth + scaledCellWidth;
-      if (relativeX < colEnd || col === this.gridColumns - 1) {
+      const colEnd = accumulatedWidth + cellWidthPx;
+      if (gridX_pos < colEnd || col === this.gridColumns - 1) {
         gridX = col;
         break;
       }
-      accumulatedWidth = colEnd + scaledGap;
+      accumulatedWidth = colEnd + gap;
     }
     
     // For Y, calculate similarly with row height + gap
-    const gridY = Math.max(0, Math.floor(relativeY / ((cellHeight + gap) / data.zoom)));
+    const gridY = Math.max(0, Math.floor(gridY_pos / (cellHeight + gap)));
     
     // Check if target cell is occupied by a different macro
     const targetOccupied = this.macros().find(m => 
