@@ -41,23 +41,14 @@
         ></textarea>
       </div>
 
-      <div class="field">
-        <label>
+      <div class="field checkbox-field">
+        <label class="checkbox-label">
           <input type="checkbox" [checked]="hasDrawing" (change)="toggleDrawing()" />
-          Draw Rune Symbol
+          <span>Draw Rune Symbol</span>
         </label>
       </div>
 
       @if (hasDrawing) {
-        <div class="field">
-          <label>Glow Color</label>
-          <input
-            type="color"
-            [ngModel]="strokeColor"
-            (ngModelChange)="updateStrokeColor($event)"
-            class="color-picker"
-          />
-        </div>
         <div class="field">
           <label>Draw Rune Symbol</label>
           <div class="canvas-wrapper">

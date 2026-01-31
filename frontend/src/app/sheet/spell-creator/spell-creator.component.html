@@ -11,28 +11,18 @@
     />
   </div>
 
-<div class="field">
+<div class="field checkbox-field">
   <label class="checkbox-label">
     <input 
       type="checkbox" 
       [(ngModel)]="hasDrawing"
       name="hasDrawing"
     />
-    Add spell symbol drawing
+    <span>Add spell symbol drawing</span>
   </label>
 </div>
 
 @if (hasDrawing) {
-  <div class="field">
-    <label>Glow Color</label>
-    <input
-      type="color"
-      [(ngModel)]="strokeColor"
-      (ngModelChange)="updateStrokeColor($event)"
-      name="strokeColor"
-      class="color-picker"
-    />
-  </div>
   <div class="field">
     <label>Draw Spell Symbol</label>
     
