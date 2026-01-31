@@ -382,19 +382,12 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
 
   handleTouchMove(event: TouchEvent) {
     event.preventDefault(); // Prevent scrolling
-    if (!this.isDrawing || !this.ctx || !this.canvasRef) return; // Use isDrawingMode for spell.component
+    if (!this.isDrawing || !this.ctx || !this.canvasRef) return;
 
     const touch = event.touches[0];
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    let x = touch.clientX - rect.left;
-    let y = touch.clientY - rect.top;
-
-    // Check if we need to expand the canvas
-    const offset = this.checkAndExpandCanvas(x, y);
-    x += offset.x;
-    y += offset.y;
-    this.lastX += offset.x;
-    this.lastY += offset.y;
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
 
     this.ctx.beginPath();
     this.ctx.moveTo(this.lastX, this.lastY);
