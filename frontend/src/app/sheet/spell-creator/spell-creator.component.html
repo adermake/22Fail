@@ -36,18 +36,22 @@
   <div class="field">
     <label>Draw Spell Symbol</label>
     <div class="canvas-wrapper">
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <button type="button" class="expand-btn" (click)="expandLeft()" title="Expand Left">◄</button>
+        <button type="button" class="expand-btn" (click)="expandTop()" title="Expand Top">▲</button>
+        <button type="button" class="expand-btn" (click)="expandBottom()" title="Expand Bottom">▼</button>
+        <button type="button" class="expand-btn" (click)="expandRight()" title="Expand Right">►</button>
+      </div>
       <div class="canvas-container" [style.box-shadow]="'0 0 15px ' + strokeColor + '40'">
         <canvas 
           #canvas
           [attr.width]="canvasWidth()"
           [attr.height]="canvasHeight()"
-          (mousedown)="startDrawing($event)"
-          (mousemove)="draw($event)"
-          (mouseup)="stopDrawing()"
-          (mouseleave)="stopDrawing()"
-          (touchstart)="handleTouch($event)"
-          (touchmove)="handleTouchMove($event)"
-          (touchend)="stopDrawing()"
+          (pointerdown)="startDrawing($event)"
+          (pointermove)="draw($event)"
+          (pointerup)="stopDrawing()"
+          (pointerleave)="stopDrawing()"
+          (pointercancel)="stopDrawing()"
         ></canvas>
       </div>
       <div style="display: flex; gap: 0.5rem;">

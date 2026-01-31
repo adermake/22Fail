@@ -48,10 +48,7 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   private isDrawing= false;
   private lastX = 0;
   private lastY = 0;
-  private expandThreshold = 50; // Distance from edge to trigger expansion
   private expandAmount = 200; // Pixels to add when expanding
-  private canvasOffsetX = 0; // Track content offset when expanding left
-  private canvasOffsetY = 0; // Track content offset when expanding top
   private undoHistory: ImageData[] = []; // Undo history
   private maxUndoSteps = 20;
 
@@ -194,15 +191,8 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
     if (!this.isDrawing || !this.ctx || !this.canvasRef) return;
 
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    let x = event.clientX - rect.left;
-    let y = event.clientY - rect.top;
-
-    // Check if we need to expand the canvas
-    const offset = this.checkAndExpandCanvas(x, y);
-    x += offset.x;
-    y += offset.y;
-    this.lastX += offset.x;
-    this.lastY += offset.y;
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
 
     if (this.isErasing()) {
       // Eraser mode - draw with black to match background
@@ -318,8 +308,6 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
     // Reset canvas to initial size
     this.canvasWidth.set(600);
     this.canvasHeight.set(300);
-    this.canvasOffsetX = 0;
-    this.canvasOffsetY = 0;
     this.undoHistory = [];
 
     // Wait for size update, then clear
