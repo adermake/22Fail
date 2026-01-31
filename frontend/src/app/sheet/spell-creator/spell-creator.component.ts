@@ -169,87 +169,91 @@ export class SpellCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
     this.lastY = y;
   }
 
-  private checkAndExpandCanvas(x: number, y: number): { x: number; y: number } {
-    const canvas = this.canvasRef?.nativeElement;
-    if (!canvas || !this.ctx) return { x: 0, y: 0 };
+  stopDrawing() {
+    this.isDrawing = false;
+  }
 
-    let needsExpansion = false;
+  expandLeft() {
+    this.expandCanvas('left');
+  }
+
+  expandRight() {
+    this.expandCanvas('right');
+  }
+
+  expandTop() {
+    this.expandCanvas('top');
+  }
+
+  expandBottom() {
+    this.expandCanvas('bottom');
+  }
+
+  private expandCanvas(direction: 'left' | 'right' | 'top' | 'bottom') {
+    const canvas = this.canvasRef?.nativeElement;
+    if (!canvas || !this.ctx) return;
+
+    // Create temporary canvas to hold current content
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    if (!tempCtx) return;
+
+    // Copy current canvas to temp
+    tempCtx.drawImage(canvas, 0, 0);
+    
     let newWidth = this.canvasWidth();
     let newHeight = this.canvasHeight();
     let offsetX = 0;
     let offsetY = 0;
 
-    // Check if approaching left edge
-    if (x < this.expandThreshold) {
-      newWidth += this.expandAmount;
-      offsetX = this.expandAmount;
-      this.canvasOffsetX += this.expandAmount;
-      needsExpansion = true;
+    // Calculate new size and offset based on direction
+    switch (direction) {
+      case 'left':
+        newWidth += this.expandAmount;
+        offsetX = this.expandAmount;
+        break;
+      case 'right':
+        newWidth += this.expandAmount;
+        break;
+      case 'top':
+        newHeight += this.expandAmount;
+        offsetY = this.expandAmount;
+        break;
+      case 'bottom':
+        newHeight += this.expandAmount;
+        break;
     }
 
-    // Check if approaching top edge
-    if (y < this.expandThreshold) {
-      newHeight += this.expandAmount;
-      offsetY = this.expandAmount;
-      this.canvasOffsetY += this.expandAmount;
-      needsExpansion = true;
-    }
-
-    // Check if approaching right edge
-    if (x > newWidth - this.expandThreshold) {
-      newWidth += this.expandAmount;
-      needsExpansion = true;
-    }
-
-    // Check if approaching bottom edge
-    if (y > newHeight - this.expandThreshold) {
-      newHeight += this.expandAmount;
-      needsExpansion = true;
-    }
-
-    if (needsExpansion) {
-      // Create temporary canvas to hold current content
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
-      const tempCtx = tempCanvas.getContext('2d');
-      
-      if (tempCtx) {
-        // Copy current canvas to temp
-        tempCtx.drawImage(canvas, 0, 0);
+    // Update canvas size
+    this.canvasWidth.set(newWidth);
+    this.canvasHeight.set(newHeight);
+    
+    // Use requestAnimationFrame to ensure DOM has updated
+    requestAnimationFrame(() => {
+      if (this.ctx && canvas) {
+        // Fill with black background
+        this.ctx.fillStyle = '#000';
+        this.ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Update main canvas size
-        this.canvasWidth.set(newWidth);
-        this.canvasHeight.set(newHeight);
+        // Draw temp canvas content at offset position
+        this.ctx.drawImage(tempCanvas, offsetX, offsetY);
         
-        // Use requestAnimationFrame to ensure DOM has updated
-        requestAnimationFrame(() => {
-          if (this.ctx && canvas) {
-            // Fill with black background
-            this.ctx.fillStyle = '#000';
-            this.ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw temp canvas content at offset position
-            this.ctx.drawImage(tempCanvas, offsetX, offsetY);
-            
-            // Restore context settings
-            this.ctx.lineWidth = 2;
-            this.ctx.lineCap = 'round';
-            this.ctx.lineJoin = 'round';
-            this.ctx.strokeStyle = this.strokeColor;
-            this.ctx.shadowColor = this.strokeColor;
-            this.ctx.shadowBlur = 20;
-            this.ctx.globalCompositeOperation = this.isErasing() ? 'destination-out' : 'source-over';
-          }
-        });
+        // Restore context settings
+        this.ctx.lineWidth = 2;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.strokeStyle = this.strokeColor;
+        this.ctx.shadowColor = this.strokeColor;
+        this.ctx.shadowBlur = 20;
+        this.ctx.globalCompositeOperation = this.isErasing() ? 'destination-out' : 'source-over';
+        
+        // Save to history after expansion
+        this.saveToHistory();
       }
-    }
-
-    return { x: offsetX, y: offsetY };
-  }
-
-  stopDrawing() {
-    this.isDrawing = false;
+    });
   }
 
   clearCanvas() {
