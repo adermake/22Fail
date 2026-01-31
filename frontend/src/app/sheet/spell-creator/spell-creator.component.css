@@ -50,13 +50,22 @@
 .canvas-container {
   border: 2px solid var(--border);
   border-radius: 8px;
-  display: inline-block;
-  background: var(--card);
+  display: block;
+  background: #000;
   cursor: crosshair;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   touch-action: none;
-  /* REMOVED padding */
-  overflow: hidden; /* Important for no offset */
+  overflow: auto;
+  max-width: 100%;
+  max-height: 600px;
+}
+
+.canvas-container.panning {
+  cursor: grab;
+}
+
+.canvas-container.panning:active {
+  cursor: grabbing;
 }
 
 canvas {

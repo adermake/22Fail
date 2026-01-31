@@ -315,10 +315,21 @@
 .canvas-container {
   border: 2px solid var(--border);
   border-radius: 4px;
-  display: inline-block;
+  display: block;
   background: #000;
   cursor: crosshair;
-  overflow: hidden;
+  overflow: auto;
+  max-width: 100%;
+  max-height: 600px;
+  touch-action: none;
+}
+
+.canvas-container.panning {
+  cursor: grab;
+}
+
+.canvas-container.panning:active {
+  cursor: grabbing;
 }
 
 canvas {

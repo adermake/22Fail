@@ -44,6 +44,7 @@ export class SpellCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
   canvasWidth = signal(600);
   canvasHeight = signal(300);
   isErasing = signal(false);
+  isPanning = signal(false);
   private ctx?: CanvasRenderingContext2D;
   private isDrawing = false;
   private lastX = 0;
@@ -51,6 +52,8 @@ export class SpellCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
   private expandAmount = 200; // Pixels to add when expanding
   private undoHistory: ImageData[] = []; // Undo history
   private maxUndoSteps = 20;
+  private panStartX = 0;
+  private panStartY = 0;
 
   constructor(private cd: ChangeDetectorRef, private imageService: ImageService) {}
 
@@ -130,15 +133,43 @@ export class SpellCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
   startDrawing(event: MouseEvent) {
     if (!this.canvasRef) return;
 
-    this.isDrawing = true;
-    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    this.lastX = event.clientX - rect.left;
-    this.lastY = event.clientY - rect.top;
-    this.saveToHistory(); // Save state before drawing
+    // Middle mouse button for panning
+    if (event.button === 1) {
+      event.preventDefault();
+      this.isPanning.set(true);
+      const container = this.canvasRef.nativeElement.parentElement;
+      if (container) {
+        this.panStartX = event.clientX + container.scrollLeft;
+        this.panStartY = event.clientY + container.scrollTop;
+      }
+      return;
+    }
+
+    // Left mouse button for drawing
+    if (event.button === 0) {
+      this.isDrawing = true;
+      const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+      this.lastX = event.clientX - rect.left;
+      this.lastY = event.clientY - rect.top;
+      this.saveToHistory(); // Save state before drawing
+    }
   }
 
   draw(event: MouseEvent) {
-    if (!this.isDrawing || !this.ctx || !this.canvasRef) return;
+    if (!this.canvasRef) return;
+
+    // Handle panning
+    if (this.isPanning()) {
+      const container = this.canvasRef.nativeElement.parentElement;
+      if (container) {
+        container.scrollLeft = this.panStartX - event.clientX;
+        container.scrollTop = this.panStartY - event.clientY;
+      }
+      return;
+    }
+
+    // Handle drawing
+    if (!this.isDrawing || !this.ctx) return;
 
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -171,6 +202,7 @@ export class SpellCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
 
   stopDrawing() {
     this.isDrawing = false;
+    this.isPanning.set(false);
   }
 
   expandLeft() {

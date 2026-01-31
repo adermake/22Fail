@@ -85,7 +85,7 @@
         <button type="button" class="expand-btn" (click)="expandBottom()" title="Expand Bottom">▼</button>
         <button type="button" class="expand-btn" (click)="expandRight()" title="Expand Right">►</button>
       </div>
-      <div class="canvas-container" [style.box-shadow]="'0 0 15px ' + strokeColor + '40'">
+      <div class="canvas-container" [class.panning]="isPanning()" [style.box-shadow]="'0 0 15px ' + strokeColor + '40'">
         <canvas 
           #canvas
           [attr.width]="canvasWidth()"
