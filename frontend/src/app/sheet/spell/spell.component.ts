@@ -45,6 +45,19 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   isErasing = signal(false);
   isPanning = signal(false);
   isFullscreenDrawing = signal(false);
+  
+  // Preset colors for color picker
+  presetColors = [
+    '#ff0000', '#ff6600', '#ffcc00', '#00ff00', '#00ffff', 
+    '#0066ff', '#6600ff', '#ff00ff', '#ffffff', '#000000'
+  ];
+  
+  // Eraser sizes
+  eraserSizes = [10, 20, 30, 40];
+  eraserSize = 20;
+  
+  // Make Math available in template
+  Math = Math;
 
   private ctx?: CanvasRenderingContext2D;
   private isDrawing= false;
@@ -249,7 +262,7 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
     if (this.isErasing()) {
       // Eraser mode - draw with black to match background
       this.ctx.globalCompositeOperation = 'destination-out';
-      this.ctx.lineWidth = 20;
+      this.ctx.lineWidth = this.eraserSize;
       this.ctx.shadowBlur = 0;
     } else {
       // Drawing mode
@@ -453,6 +466,27 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
 
   toggleEraser() {
     this.isErasing.set(!this.isErasing());
+  }
+
+  setDrawMode() {
+    this.isErasing.set(false);
+  }
+
+  selectColor(color: string) {
+    this.updateField('strokeColor', color);
+    if (this.ctx) {
+      this.ctx.strokeStyle = color;
+      this.ctx.shadowColor = color;
+    }
+  }
+
+  onColorInput(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.selectColor(input.value);
+  }
+
+  selectEraserSize(size: number) {
+    this.eraserSize = size;
   }
 
   openFullscreenDrawing() {

@@ -461,17 +461,264 @@ canvas {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   padding: 2rem;
   overflow: auto;
+  width: 100%;
 }
 
-.fullscreen-controls {
+/* Drawing Toolbar - Battlemap style */
+.drawing-toolbar {
   display: flex;
-  gap: 2rem;
-  margin-bottom: 1rem;
   align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.toolbar-section.tools {
+  background: var(--bg);
+  padding: 0.25rem;
+  border-radius: 8px;
+}
+
+.toolbar-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.toolbar-btn:hover {
+  background: var(--border);
+}
+
+.toolbar-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+}
+
+.btn-icon {
+  font-size: 1.4rem;
+}
+
+/* Brush settings */
+.brush-settings {
+  background: var(--bg);
+  padding: 0.5rem;
+  border-radius: 8px;
+  gap: 1rem;
+}
+
+.setting-label {
+  font-size: 0.85rem;
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* Color picker */
+.color-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.color-swatch.active {
+  border-color: white;
+  box-shadow: 0 0 0 2px var(--accent);
+  transform: scale(1.1);
+}
+
+.custom-color {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.custom-color input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.custom-color-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px dashed var(--border);
+  background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+}
+
+/* Size picker */
+.size-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.size-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.size-btn:hover {
+  background: var(--border);
+}
+
+.size-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.size-dot {
+  border-radius: 50%;
+  background: var(--text);
+  max-width: 24px;
+  max-height: 24px;
+}
+
+.size-btn.active .size-dot {
+  background: white;
+}
+
+/* Action buttons */
+.toolbar-section.actions {
+  margin-left: auto;
+}
+
+.action-btn {
+  padding: 0.5rem 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.action-btn:hover {
+  background: var(--border);
+}
+
+.action-btn.clear:hover {
+  background: #ff4444;
+  color: white;
+  border-color: #ff4444;
+}
+
+/* Canvas Area with border expansion buttons */
+.canvas-area {
+  position: relative;
+  display: inline-block;
+  margin: 0 auto;
+}
+
+.expand-btn {
+  position: absolute;
+  background: var(--card);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+  color: white;
+  z-index: 10;
+  padding: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.expand-btn:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.5);
+}
+
+.expand-btn.expand-top {
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.expand-btn.expand-bottom {
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.expand-btn.expand-left {
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.expand-btn.expand-right {
+  right: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.expand-btn.expand-top:hover,
+.expand-btn.expand-bottom:hover {
+  transform: translateX(-50%) scale(1.1);
+}
+
+.expand-btn.expand-left:hover,
+.expand-btn.expand-right:hover {
+  transform: translateY(-50%) scale(1.1);
 }
 
 .fullscreen-canvas-wrapper {
@@ -539,7 +786,7 @@ canvas {
   font-weight: normal !important;
 }
 
-.color-picker {
+.field .color-picker {
   width: 100%;
   height: 48px;
   border: 2px solid var(--border);
@@ -549,7 +796,7 @@ canvas {
   transition: all 0.2s;
 }
 
-.color-picker:hover {
+.field .color-picker:hover {
   border-color: var(--accent);
   box-shadow: 0 0 15px currentColor;
 }
