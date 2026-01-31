@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, EventEmitter, Output, ViewChild, signal, OnInit, OnDestroy } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Output, ViewChild, signal, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RuneBlock, RUNE_TAG_OPTIONS } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
+import { ImageUrlPipe } from '../image-url.pipe';
 
 @Component({
   selector: 'app-rune-creator',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ImageUrlPipe],
   templateUrl: './runecreator.component.html',
   styleUrl: './runecreator.component.css',
 })
@@ -25,10 +26,12 @@ export class RuneCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
 
   strokeColor = '#8b5cf6';
   tagOptions = RUNE_TAG_OPTIONS;
+  hasDrawing = false;
   canvasWidth = signal(400);
   canvasHeight = signal(400);
   isErasing = signal(false);
   isPanning = signal(false);
+  isFullscreenDrawing = signal(false);
   
   presetColors = [
     '#ff0000', '#ff6600', '#ffcc00', '#00ff00', '#00ffff', 
@@ -49,7 +52,7 @@ export class RuneCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
   private panStartX = 0;
   private panStartY = 0;
 
-  constructor(private imageService: ImageService) {}
+  constructor(private imageService: ImageService, private cd: ChangeDetectorRef) {}
 
   ngOnInit() {
     document.addEventListener('keydown', this.handleKeyDown.bind(this));
@@ -66,7 +69,80 @@ export class RuneCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
     }
   }
 
+  private canvasInitialized = false;
+
   ngAfterViewInit() {
+    this.tryInitCanvas();
+  }
+
+  ngAfterViewChecked() {
+    this.tryInitCanvas();
+  }
+
+  private tryInitCanvas() {
+    if (this.hasDrawing && this.canvasRef && !this.canvasInitialized) {
+      this.initCanvas();
+      this.canvasInitialized = true;
+    } else if (!this.hasDrawing) {
+      this.canvasInitialized = false;
+    }
+  }
+
+  toggleDrawing() {
+    this.hasDrawing = !this.hasDrawing;
+    this.canvasInitialized = false;
+    if (!this.hasDrawing) {
+      this.newRune.drawing = undefined;
+    } else {
+      // Open fullscreen when toggling drawing on
+      setTimeout(() => this.openFullscreenDrawing(), 0);
+    }
+  }
+
+  openFullscreenDrawing() {
+    if (!this.hasDrawing) return;
+    this.isFullscreenDrawing.set(true);
+    this.canvasInitialized = false;
+    this.cd.detectChanges();
+    setTimeout(() => {
+      if (this.canvasRef) {
+        this.initCanvas();
+        // Load existing drawing if available
+        if (this.newRune.drawing) {
+          this.loadDrawing(this.newRune.drawing);
+        }
+        this.cd.detectChanges();
+      }
+    }, 0);
+  }
+
+  async closeFullscreenDrawing() {
+    // Save drawing when closing
+    if (this.hasDrawing && this.canvasRef) {
+      const canvas = this.canvasRef.nativeElement;
+      const dataUrl = canvas.toDataURL('image/png');
+      const imageId = await this.imageService.uploadImage(dataUrl);
+      this.newRune.drawing = imageId;
+    } else if (!this.hasDrawing) {
+      this.newRune.drawing = undefined;
+    }
+    this.isFullscreenDrawing.set(false);
+  }
+
+  private loadDrawing(imageId: string) {
+    if (!this.ctx) return;
+    const img = new Image();
+    img.onload = () => {
+      if (this.ctx) {
+        this.ctx.clearRect(0, 0, this.canvasWidth(), this.canvasHeight());
+        this.ctx.drawImage(img, 0, 0);
+      }
+    };
+    img.src = this.imageService.getImageUrl(imageId);
+  }
+
+  initCanvas() {
+    if (!this.canvasRef) return;
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d')!;
     this.ctx.lineWidth = 2;

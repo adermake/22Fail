@@ -30,6 +30,7 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
   canvasHeight = signal(400);
   isErasing = signal(false);
   isPanning = signal(false);
+  isFullscreenDrawing = signal(false);
   
   // Preset colors for color picker
   presetColors = [
@@ -105,15 +106,11 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
 
     if (newEditingState) {
       this.hasDrawing = !!this.rune.drawing;
-      setTimeout(() => {
-        if (this.hasDrawing && this.canvasRef) {
-          this.initCanvas();
-        }
-        this.cd.detectChanges();
-      }, 0);
     } else {
-      // Save drawing when closing edit
-      if (this.hasDrawing && this.canvasRef) {
+      // Save drawing when closing edit (if not already saved by fullscreen close)
+      if (this.hasDrawing && this.canvasRef && this.isFullscreenDrawing()) {
+        // Already saved by closeFullscreenDrawing
+      } else if (this.hasDrawing && this.canvasRef) {
         const canvas = this.canvasRef.nativeElement;
         const dataUrl = canvas.toDataURL('image/png');
         const imageId = await this.imageService.uploadImage(dataUrl);
@@ -129,7 +126,52 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
     this.canvasInitialized = false;
     if (!this.hasDrawing) {
       this.updateField('drawing', undefined);
+    } else {
+      // Open fullscreen when toggling drawing on
+      setTimeout(() => this.openFullscreenDrawing(), 0);
     }
+  }
+
+  openFullscreenDrawing() {
+    if (!this.hasDrawing) return;
+    this.isFullscreenDrawing.set(true);
+    this.canvasInitialized = false;
+    this.cd.detectChanges();
+    setTimeout(() => {
+      if (this.canvasRef) {
+        this.initCanvas();
+        // Load existing drawing if available
+        if (this.rune.drawing) {
+          this.loadDrawing(this.rune.drawing);
+        }
+        this.cd.detectChanges();
+      }
+    }, 0);
+  }
+
+  async closeFullscreenDrawing() {
+    // Save drawing when closing
+    if (this.hasDrawing && this.canvasRef) {
+      const canvas = this.canvasRef.nativeElement;
+      const dataUrl = canvas.toDataURL('image/png');
+      const imageId = await this.imageService.uploadImage(dataUrl);
+      this.updateField('drawing', imageId);
+    } else if (!this.hasDrawing) {
+      this.updateField('drawing', undefined);
+    }
+    this.isFullscreenDrawing.set(false);
+  }
+
+  private loadDrawing(imageId: string) {
+    if (!this.ctx) return;
+    const img = new Image();
+    img.onload = () => {
+      if (this.ctx) {
+        this.ctx.clearRect(0, 0, this.canvasWidth(), this.canvasHeight());
+        this.ctx.drawImage(img, 0, 0);
+      }
+    };
+    img.src = this.imageService.getImageUrl(imageId);
   }
 
   get strokeColor(): string {

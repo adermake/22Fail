@@ -16,10 +16,11 @@ import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SPELL_TAG_OPTIONS, SpellBlock } from '../../model/spell-block-model';
 import { ImageService } from '../../services/image.service';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 @Component({
   selector: 'app-spell-creator',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ImageUrlPipe],
   templateUrl: './spell-creator.component.html',
   styleUrl: './spell-creator.component.css',
 })
@@ -45,6 +46,7 @@ export class SpellCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
   canvasHeight = signal(300);
   isErasing = signal(false);
   isPanning = signal(false);
+  isFullscreenDrawing = signal(false);
   
   // Preset colors for color picker
   presetColors = [
@@ -111,7 +113,52 @@ export class SpellCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
     this.canvasInitialized = false;
     if (!this.hasDrawing) {
       this.newSpell.drawing = undefined;
+    } else {
+      // Open fullscreen when toggling drawing on
+      setTimeout(() => this.openFullscreenDrawing(), 0);
     }
+  }
+
+  openFullscreenDrawing() {
+    if (!this.hasDrawing) return;
+    this.isFullscreenDrawing.set(true);
+    this.canvasInitialized = false;
+    this.cd.detectChanges();
+    setTimeout(() => {
+      if (this.canvasRef) {
+        this.initCanvas();
+        // Load existing drawing if available
+        if (this.newSpell.drawing) {
+          this.loadDrawing(this.newSpell.drawing);
+        }
+        this.cd.detectChanges();
+      }
+    }, 0);
+  }
+
+  async closeFullscreenDrawing() {
+    // Save drawing when closing
+    if (this.hasDrawing && this.canvasRef) {
+      const canvas = this.canvasRef.nativeElement;
+      const dataUrl = canvas.toDataURL('image/png');
+      const imageId = await this.imageService.uploadImage(dataUrl);
+      this.newSpell.drawing = imageId;
+    } else if (!this.hasDrawing) {
+      this.newSpell.drawing = undefined;
+    }
+    this.isFullscreenDrawing.set(false);
+  }
+
+  private loadDrawing(imageId: string) {
+    if (!this.ctx) return;
+    const img = new Image();
+    img.onload = () => {
+      if (this.ctx) {
+        this.ctx.clearRect(0, 0, this.canvasWidth(), this.canvasHeight());
+        this.ctx.drawImage(img, 0, 0);
+      }
+    };
+    img.src = this.imageService.getImageUrl(imageId);
   }
   initCanvas() {
     if (!this.canvasRef) return;
