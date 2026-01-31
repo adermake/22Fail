@@ -50,7 +50,13 @@
           (touchend)="stopDrawing()"
         ></canvas>
       </div>
-      <button type="button" class="clear-btn" (click)="clearCanvas()">Clear Drawing</button>
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="button" class="clear-btn" (click)="toggleEraser()">
+          {{ isErasing() ? 'Draw Mode' : 'Eraser' }}
+        </button>
+        <button type="button" class="clear-btn" (click)="undo()">Undo (Ctrl+Z)</button>
+        <button type="button" class="clear-btn" (click)="clearCanvas()">Clear Drawing</button>
+      </div>
     </div>
   </div>
 }

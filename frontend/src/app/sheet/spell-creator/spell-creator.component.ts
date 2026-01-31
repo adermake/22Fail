@@ -8,6 +8,8 @@ import {
   AfterViewInit,
   ChangeDetectorRef,
   signal,
+  OnInit,
+  OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -21,7 +23,7 @@ import { ImageService } from '../../services/image.service';
   templateUrl: './spell-creator.component.html',
   styleUrl: './spell-creator.component.css',
 })
-export class SpellCreatorComponent implements AfterViewInit {
+export class SpellCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
   @ViewChild('canvas', { static: false }) canvasRef?: ElementRef<HTMLCanvasElement>;
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() create = new EventEmitter<SpellBlock>();
@@ -41,14 +43,35 @@ export class SpellCreatorComponent implements AfterViewInit {
   hasDrawing = false;
   canvasWidth = signal(600);
   canvasHeight = signal(300);
+  isErasing = signal(false);
   private ctx?: CanvasRenderingContext2D;
   private isDrawing = false;
   private lastX = 0;
   private lastY = 0;
   private expandThreshold = 50; // Distance from edge to trigger expansion
   private expandAmount = 200; // Pixels to add when expanding
+  private canvasOffsetX = 0; // Track content offset when expanding left
+  private canvasOffsetY = 0; // Track content offset when expanding top
+  private undoHistory: ImageData[] = []; // Undo history
+  private maxUndoSteps = 20;
 
   constructor(private cd: ChangeDetectorRef, private imageService: ImageService) {}
+
+  ngOnInit() {
+    // Add keyboard listener for undo
+    document.addEventListener('keydown', this.handleKeyDown.bind(this));
+  }
+
+  ngOnDestroy() {
+    document.removeEventListener('keydown', this.handleKeyDown.bind(this));
+  }
+
+  private handleKeyDown(event: KeyboardEvent) {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'z' && this.hasDrawing && this.isDrawing === false) {
+      event.preventDefault();
+      this.undo();
+    }
+  }
 
   private canvasInitialized = false;
 
@@ -89,6 +112,7 @@ export class SpellCreatorComponent implements AfterViewInit {
     this.ctx.shadowBlur = 20;
 
     this.clearCanvas();
+    this.saveToHistory(); // Save initial state
   }
 
   updateStrokeColor(color: string) {
@@ -113,20 +137,36 @@ export class SpellCreatorComponent implements AfterViewInit {
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     this.lastX = event.clientX - rect.left;
     this.lastY = event.clientY - rect.top;
+    this.saveToHistory(); // Save state before drawing
   }
 
   draw(event: MouseEvent) {
     if (!this.isDrawing || !this.ctx || !this.canvasRef) return;
 
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    let x = event.clientX - rect.left;
+    let y = event.clientY - rect.top;
 
     // Check if we need to expand the canvas
-    this.checkAndExpandCanvas(x, y);
+    const offset = this.checkAndExpandCanvas(x, y);
+    x += offset.x;
+    y += offset.y;
+    this.lastX += offset.x;
+    this.lastY += offset.y;
+
+    if (this.isErasing()) {
+      // Eraser mode - draw with black to match background
+      this.ctx.globalCompositeOperation = 'destination-out';
+      this.ctx.lineWidth = 20;
+      this.ctx.shadowBlur = 0;
+    } else {
+      // Drawing mode
+      this.ctx.globalCompositeOperation = 'source-over';
+      this.ctx.lineWidth = 2;
+    }
 
     // Draw multiple passes with different blur levels for stronger glow
-    const blurLevels = [30, 20, 10, 5];
+    const blurLevels = this.isErasing() ? [0] : [30, 20, 10, 5];
     blurLevels.forEach(blur => {
       this.ctx!.shadowBlur = blur;
       this.ctx!.beginPath();
@@ -139,13 +179,31 @@ export class SpellCreatorComponent implements AfterViewInit {
     this.lastY = y;
   }
 
-  private checkAndExpandCanvas(x: number, y: number) {
+  private checkAndExpandCanvas(x: number, y: number): { x: number; y: number } {
     const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) return;
+    if (!canvas) return { x: 0, y: 0 };
 
     let needsExpansion = false;
     let newWidth = this.canvasWidth();
     let newHeight = this.canvasHeight();
+    let offsetX = 0;
+    let offsetY = 0;
+
+    // Check if approaching left edge
+    if (x < this.expandThreshold) {
+      newWidth += this.expandAmount;
+      offsetX = this.expandAmount;
+      this.canvasOffsetX += this.expandAmount;
+      needsExpansion = true;
+    }
+
+    // Check if approaching top edge
+    if (y < this.expandThreshold) {
+      newHeight += this.expandAmount;
+      offsetY = this.expandAmount;
+      this.canvasOffsetY += this.expandAmount;
+      needsExpansion = true;
+    }
 
     // Check if approaching right edge
     if (x > newWidth - this.expandThreshold) {
@@ -169,8 +227,12 @@ export class SpellCreatorComponent implements AfterViewInit {
       
       // Wait for the DOM to update, then restore content
       setTimeout(() => {
-        // Restore context settings
-        if (this.ctx) {
+        if (this.ctx && canvas) {
+          // Fill with black background first
+          this.ctx.fillStyle = '#000';
+          this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // Restore context settings
           this.ctx.lineWidth = 2;
           this.ctx.lineCap = 'round';
           this.ctx.lineJoin = 'round';
@@ -178,13 +240,15 @@ export class SpellCreatorComponent implements AfterViewInit {
           this.ctx.shadowColor = this.strokeColor;
           this.ctx.shadowBlur = 20;
           
-          // Restore previous drawing
+          // Restore previous drawing at offset position
           if (imageData) {
-            this.ctx.putImageData(imageData, 0, 0);
+            this.ctx.putImageData(imageData, offsetX, offsetY);
           }
         }
       }, 0);
     }
+
+    return { x: offsetX, y: offsetY };
   }
 
   stopDrawing() {
@@ -272,11 +336,15 @@ export class SpellCreatorComponent implements AfterViewInit {
 
     const touch = event.touches[0];
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
+    let x = touch.clientX - rect.left;
+    let y = touch.clientY - rect.top;
 
     // Check if we need to expand the canvas
-    this.checkAndExpandCanvas(x, y);
+    const offset = this.checkAndExpandCanvas(x, y);
+    x += offset.x;
+    y += offset.y;
+    this.lastX += offset.x;
+    this.lastY += offset.y;
 
     this.ctx.beginPath();
     this.ctx.moveTo(this.lastX, this.lastY);
@@ -285,5 +353,49 @@ export class SpellCreatorComponent implements AfterViewInit {
 
     this.lastX = x;
     this.lastY = y;
+  }
+
+  toggleEraser() {
+    this.isErasing.set(!this.isErasing());
+  }
+
+  private saveToHistory() {
+    if (!this.canvasRef || !this.ctx) return;
+    
+    const canvas = this.canvasRef.nativeElement;
+    const imageData = this.ctx.getImageData(0, 0, canvas.width, canvas.height);
+    
+    this.undoHistory.push(imageData);
+    
+    // Limit history size
+    if (this.undoHistory.length > this.maxUndoSteps) {
+      this.undoHistory.shift();
+    }
+  }
+
+  undo() {
+    if (!this.canvasRef || !this.ctx || this.undoHistory.length < 2) return;
+    
+    // Remove current state
+    this.undoHistory.pop();
+    
+    // Get previous state
+    const previousState = this.undoHistory[this.undoHistory.length - 1];
+    
+    if (previousState) {
+      const canvas = this.canvasRef.nativeElement;
+      // Clear and restore
+      this.ctx.fillStyle = '#000';
+      this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+      this.ctx.putImageData(previousState, 0, 0);
+      
+      // Restore context settings
+      this.ctx.strokeStyle = this.strokeColor;
+      this.ctx.shadowColor = this.strokeColor;
+      this.ctx.shadowBlur = 20;
+      this.ctx.lineWidth = 2;
+      this.ctx.lineCap = 'round';
+      this.ctx.lineJoin = 'round';
+    }
   }
 }
