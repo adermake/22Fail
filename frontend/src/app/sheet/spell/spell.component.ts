@@ -231,7 +231,7 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
 
   private checkAndExpandCanvas(x: number, y: number): { x: number; y: number } {
     const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) return { x: 0, y: 0 };
+    if (!canvas || !this.ctx) return { x: 0, y: 0 };
 
     let needsExpansion = false;
     let newWidth = this.canvasWidth();
@@ -268,34 +268,41 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
     }
 
     if (needsExpansion) {
-      // Save current canvas content
-      const imageData = this.ctx?.getImageData(0, 0, canvas.width, canvas.height);
+      // Create temporary canvas to hold current content
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
       
-      // Update canvas size
-      this.canvasWidth.set(newWidth);
-      this.canvasHeight.set(newHeight);
-      
-      // Wait for the DOM to update, then restore content
-      setTimeout(() => {
-        if (this.ctx && canvas) {
-          // Fill with black background first
-          this.ctx.fillStyle = '#000';
-          this.ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
-          // Restore context settings
-          this.ctx.lineWidth = 2;
-          this.ctx.lineCap = 'round';
-          this.ctx.lineJoin = 'round';
-          this.ctx.strokeStyle = this.strokeColor;
-          this.ctx.shadowColor = this.strokeColor;
-          this.ctx.shadowBlur = 20;
-          
-          // Restore previous drawing at offset position
-          if (imageData) {
-            this.ctx.putImageData(imageData, offsetX, offsetY);
+      if (tempCtx) {
+        // Copy current canvas to temp
+        tempCtx.drawImage(canvas, 0, 0);
+        
+        // Update main canvas size
+        this.canvasWidth.set(newWidth);
+        this.canvasHeight.set(newHeight);
+        
+        // Use requestAnimationFrame to ensure DOM has updated
+        requestAnimationFrame(() => {
+          if (this.ctx && canvas) {
+            // Fill with black background
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw temp canvas content at offset position
+            this.ctx.drawImage(tempCanvas, offsetX, offsetY);
+            
+            // Restore context settings
+            this.ctx.lineWidth = 2;
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+            this.ctx.strokeStyle = this.strokeColor;
+            this.ctx.shadowColor = this.strokeColor;
+            this.ctx.shadowBlur = 20;
+            this.ctx.globalCompositeOperation = this.isErasing() ? 'destination-out' : 'source-over';
           }
-        }
-      }, 0);
+        });
+      }
     }
 
     return { x: offsetX, y: offsetY };
@@ -308,13 +315,28 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   clearCanvas() {
     if (!this.canvasRef || !this.ctx) return;
 
-    const canvas = this.canvasRef.nativeElement;
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // Restore stroke settings after clearing
-    this.ctx.strokeStyle = this.strokeColor;
-    this.ctx.shadowColor = this.strokeColor;
-    this.ctx.shadowBlur = 20;
+    // Reset canvas to initial size
+    this.canvasWidth.set(600);
+    this.canvasHeight.set(300);
+    this.canvasOffsetX = 0;
+    this.canvasOffsetY = 0;
+    this.undoHistory = [];
+
+    // Wait for size update, then clear
+    setTimeout(() => {
+      if (!this.ctx || !this.canvasRef) return;
+      const canvas = this.canvasRef.nativeElement;
+      this.ctx.fillStyle = '#000';
+      this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Restore stroke settings after clearing
+      this.ctx.strokeStyle = this.strokeColor;
+      this.ctx.shadowColor = this.strokeColor;
+      this.ctx.shadowBlur = 20;
+      this.ctx.lineWidth = 2;
+      this.ctx.lineCap = 'round';
+      this.ctx.lineJoin = 'round';
+      this.saveToHistory();
+    }, 0);
   }
 
   updateField(field: string, value: any) {
