@@ -120,8 +120,28 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
     if (this.spell.drawing) {
       const img = new Image();
       img.onload = () => {
-        this.ctx?.drawImage(img, 0, 0);
-        this.saveToHistory(); // Save after loading
+        // Resize canvas to match image dimensions
+        this.canvasWidth.set(img.width);
+        this.canvasHeight.set(img.height);
+        
+        // Wait for canvas to resize, then draw image
+        requestAnimationFrame(() => {
+          if (this.ctx) {
+            // Fill black background first
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Draw the image
+            this.ctx.drawImage(img, 0, 0);
+            // Restore settings
+            this.ctx.strokeStyle = this.strokeColor;
+            this.ctx.shadowColor = this.strokeColor;
+            this.ctx.shadowBlur = 20;
+            this.ctx.lineWidth = 2;
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+            this.saveToHistory(); // Save after loading
+          }
+        });
       };
       img.src = this.imageService.getImageUrl(this.spell.drawing) || '';
     } else {

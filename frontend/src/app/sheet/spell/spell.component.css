@@ -315,12 +315,12 @@
 .canvas-container {
   border: 2px solid var(--border);
   border-radius: 4px;
-  display: block;
+  display: inline-block;
   background: #000;
   cursor: crosshair;
   overflow: auto;
   max-width: 100%;
-  max-height: 600px;
+  max-height: 70vh;
   touch-action: none;
 }
 
