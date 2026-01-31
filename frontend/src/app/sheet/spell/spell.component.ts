@@ -7,6 +7,7 @@ import {
   Output,
   ViewChild,
   AfterViewInit,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -37,11 +38,15 @@ export class SpellComponent implements AfterViewInit {
   tagOptions = SPELL_TAG_OPTIONS;
   glowColors = SPELL_GLOW_COLORS;
   hasDrawing = false;
+  canvasWidth = signal(600);
+  canvasHeight = signal(300);
 
   private ctx?: CanvasRenderingContext2D;
   private isDrawing= false;
   private lastX = 0;
   private lastY = 0;
+  private expandThreshold = 50; // Distance from edge to trigger expansion
+  private expandAmount = 200; // Pixels to add when expanding
 
   constructor(private cd: ChangeDetectorRef, private sanitizer: DomSanitizer, private imageService: ImageService) {}
 
@@ -166,6 +171,9 @@ export class SpellComponent implements AfterViewInit {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
+    // Check if we need to expand the canvas
+    this.checkAndExpandCanvas(x, y);
+
     // Draw multiple passes with different blur levels for stronger glow
     const blurLevels = [30, 20, 10, 5];
     blurLevels.forEach(blur => {
@@ -178,6 +186,54 @@ export class SpellComponent implements AfterViewInit {
 
     this.lastX = x;
     this.lastY = y;
+  }
+
+  private checkAndExpandCanvas(x: number, y: number) {
+    const canvas = this.canvasRef?.nativeElement;
+    if (!canvas) return;
+
+    let needsExpansion = false;
+    let newWidth = this.canvasWidth();
+    let newHeight = this.canvasHeight();
+
+    // Check if approaching right edge
+    if (x > newWidth - this.expandThreshold) {
+      newWidth += this.expandAmount;
+      needsExpansion = true;
+    }
+
+    // Check if approaching bottom edge
+    if (y > newHeight - this.expandThreshold) {
+      newHeight += this.expandAmount;
+      needsExpansion = true;
+    }
+
+    if (needsExpansion) {
+      // Save current canvas content
+      const imageData = this.ctx?.getImageData(0, 0, canvas.width, canvas.height);
+      
+      // Update canvas size
+      this.canvasWidth.set(newWidth);
+      this.canvasHeight.set(newHeight);
+      
+      // Wait for the DOM to update, then restore content
+      setTimeout(() => {
+        // Restore context settings
+        if (this.ctx) {
+          this.ctx.lineWidth = 2;
+          this.ctx.lineCap = 'round';
+          this.ctx.lineJoin = 'round';
+          this.ctx.strokeStyle = this.strokeColor;
+          this.ctx.shadowColor = this.strokeColor;
+          this.ctx.shadowBlur = 20;
+          
+          // Restore previous drawing
+          if (imageData) {
+            this.ctx.putImageData(imageData, 0, 0);
+          }
+        }
+      }, 0);
+    }
   }
 
   stopDrawing() {
@@ -253,6 +309,9 @@ export class SpellComponent implements AfterViewInit {
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     const x = touch.clientX - rect.left;
     const y = touch.clientY - rect.top;
+
+    // Check if we need to expand the canvas
+    this.checkAndExpandCanvas(x, y);
 
     this.ctx.beginPath();
     this.ctx.moveTo(this.lastX, this.lastY);

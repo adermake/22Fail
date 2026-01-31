@@ -39,8 +39,8 @@
       <div class="canvas-container" [style.box-shadow]="'0 0 15px ' + strokeColor + '40'">
         <canvas 
           #canvas
-          width="400"
-          height="150"
+          [attr.width]="canvasWidth()"
+          [attr.height]="canvasHeight()"
           (mousedown)="startDrawing($event)"
           (mousemove)="draw($event)"
           (mouseup)="stopDrawing()"
