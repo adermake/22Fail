@@ -182,15 +182,15 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
   }
 
   // Calculate stat total (base + bonus + level bonus + effect)
-  // Matches stat.component.ts: (base + bonus + effectBonus + level/gain) | 0
+  // Matches stat.component.ts: (base + bonus + effectBonus + gain*level) | 0
   private calculateStatCurrent(stat: any, statKey: string): number {
     if (!stat) return 0;
     const base = stat.base || 0;
     const bonus = stat.bonus || 0;
-    const gain = stat.gain || 1; // Fallback to 1 to prevent divide by zero
+    const gain = stat.gain || 0;
     const effectBonus = this.calculateStatEffectBonus(statKey as any);
     // Match exact formula from stat.component.ts
-    return (base + bonus + effectBonus + this.sheet.level / gain) | 0;
+    return (base + bonus + effectBonus + gain * this.sheet.level) | 0;
   }
 
   // Calculate the dice modifier from stat (the purple/red number shown on sheet)

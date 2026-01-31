@@ -34,7 +34,7 @@ export class BattleService {
   calculateSpeed(character: CharacterSheet): number {
     const speedStat = character.speed;
     if (!speedStat) return 10;
-    const calculated = speedStat.base + speedStat.bonus + (character.level / (speedStat.gain || 1));
+    const calculated = speedStat.base + speedStat.bonus + (speedStat.gain * character.level);
     return Math.floor(calculated) || 10;
   }
 

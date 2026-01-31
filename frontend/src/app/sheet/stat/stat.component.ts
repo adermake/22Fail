@@ -119,7 +119,7 @@ export class StatComponent {
 
   get total(): number {
     const effectBonus = this.effectBonus;
-    this.stat.current = (this.stat.base + this.stat.bonus + effectBonus + this.sheet.level / this.stat.gain) | 0;
+    this.stat.current = (this.stat.base + this.stat.bonus + effectBonus + this.stat.gain * this.sheet.level) | 0;
     return this.stat.current;
   }
 
