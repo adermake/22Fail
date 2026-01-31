@@ -849,20 +849,26 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     const gridStyles = window.getComputedStyle(gridElement);
     const gap = parseFloat(gridStyles.gap) || 14;
     
-    // Calculate cell dimensions in untransformed space
-    const cellWidth = 1 / this.gridColumns; // Fraction of grid width
+    // Get container padding (the wrapper starts at the padding offset)
+    const containerStyles = window.getComputedStyle(container);
+    const paddingLeft = parseFloat(containerStyles.paddingLeft) || 0;
+    const paddingTop = parseFloat(containerStyles.paddingTop) || 0;
+    
     const cellHeight = 120; // Card height
     
-    // Reverse the transforms: subtract container position, account for pan and zoom
+    // Step 1: Convert drop point from screen space to container-relative space
     const containerX = event.dropPoint.x - containerRect.left;
     const containerY = event.dropPoint.y - containerRect.top;
     
-    // Reverse pan and zoom to get position in untransformed grid space
-    const gridX_pos = (containerX - data.panX) / data.zoom;
-    const gridY_pos = (containerY - data.panY) / data.zoom;
+    // Step 2: Subtract padding to get position relative to the wrapper/grid origin
+    // Then reverse pan and zoom to get position in untransformed grid space
+    // The transform is: screenPos = padding + panOffset + gridPos * zoom
+    // So: gridPos = (screenPos - padding - panOffset) / zoom
+    const gridX_pos = (containerX - paddingLeft - data.panX) / data.zoom;
+    const gridY_pos = (containerY - paddingTop - data.panY) / data.zoom;
     
-    // Get the actual grid width in untransformed space
-    const gridWidth = containerRect.width / data.zoom;
+    // Step 3: The grid width in untransformed space is the container content width
+    const gridWidth = containerRect.width - paddingLeft - parseFloat(containerStyles.paddingRight || '0');
     
     // Calculate grid cell - account for cumulative gaps
     let gridX = 0;

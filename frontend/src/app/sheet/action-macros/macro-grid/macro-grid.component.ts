@@ -77,17 +77,25 @@ export class MacroGridComponent {
     const containerRect = container.getBoundingClientRect();
     const gap = 14;
     const cellHeight = 120;
+    
+    // Get container padding (the wrapper starts at the padding offset)
+    const containerStyles = window.getComputedStyle(container);
+    const paddingLeft = parseFloat(containerStyles.paddingLeft) || 0;
+    const paddingTop = parseFloat(containerStyles.paddingTop) || 0;
 
-    // Reverse the transforms: subtract container position, account for pan and zoom
+    // Step 1: Convert mouse position from screen space to container-relative space
     const containerX = event.clientX - containerRect.left;
     const containerY = event.clientY - containerRect.top;
     
-    // Reverse pan and zoom to get position in untransformed grid space
-    const gridX_pos = (containerX - this.panX) / this.zoom;
-    const gridY_pos = (containerY - this.panY) / this.zoom;
+    // Step 2: Subtract padding to get position relative to the wrapper/grid origin
+    // Then reverse pan and zoom to get position in untransformed grid space
+    // The transform is: screenPos = padding + panOffset + gridPos * zoom
+    // So: gridPos = (screenPos - padding - panOffset) / zoom
+    const gridX_pos = (containerX - paddingLeft - this.panX) / this.zoom;
+    const gridY_pos = (containerY - paddingTop - this.panY) / this.zoom;
     
-    // Get the actual grid width in untransformed space
-    const gridWidth = containerRect.width / this.zoom;
+    // Step 3: The grid width in untransformed space is the container content width
+    const gridWidth = containerRect.width - paddingLeft - parseFloat(containerStyles.paddingRight || '0');
     
     // Calculate cell dimensions in untransformed space
     const cellWidthPx = (gridWidth - gap * (this.gridColumns - 1)) / this.gridColumns;
