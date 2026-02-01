@@ -1,6 +1,5 @@
-<form (ngSubmit)="createRune()" class="creator-form">
-  <!-- Fullscreen Drawing Modal -->
-  @if (hasDrawing && isFullscreenDrawing()) {
+<!-- Fullscreen Drawing Modal -->
+@if (hasDrawing && isFullscreenDrawing()) {
     <div class="fullscreen-overlay">
       <div class="fullscreen-header">
         <h3>✨ {{ newRune.drawing ? 'Edit' : 'Create' }} Rune Drawing</h3>
@@ -113,7 +112,8 @@
       </div>
     </div>
   }
-  
+
+<form (ngSubmit)="createRune()" class="creator-form">
   <div class="field">
     <label for="name">Rune Name *</label>
     <input

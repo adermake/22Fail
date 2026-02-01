@@ -1,6 +1,5 @@
-<form (ngSubmit)="createSpell()" class="creator-form">
-  <!-- Fullscreen Drawing Modal -->
-  @if (hasDrawing && isFullscreenDrawing()) {
+<!-- Fullscreen Drawing Modal -->
+@if (hasDrawing && isFullscreenDrawing()) {
     <div class="fullscreen-overlay">
       <div class="fullscreen-header">
         <h3>✨ {{ newSpell.drawing ? 'Edit' : 'Create' }} Spell Drawing</h3>
@@ -113,7 +112,8 @@
       </div>
     </div>
   }
-  
+
+<form (ngSubmit)="createSpell()" class="creator-form">
   <div class="field">
     <label for="name">Spell Name *</label>
     <input
