@@ -171,7 +171,10 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
         this.ctx.drawImage(img, 0, 0);
       }
     };
-    img.src = this.imageService.getImageUrl(imageId);
+    const imageUrl = this.imageService.getImageUrl(imageId);
+    if (imageUrl) {
+      img.src = imageUrl;
+    }
   }
 
   get strokeColor(): string {

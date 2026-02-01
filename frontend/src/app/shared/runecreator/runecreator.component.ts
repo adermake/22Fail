@@ -92,7 +92,7 @@ export class RuneCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
     this.hasDrawing = !this.hasDrawing;
     this.canvasInitialized = false;
     if (!this.hasDrawing) {
-      this.newRune.drawing = undefined;
+      this.newRune.drawing = '';
     } else {
       // Open fullscreen when toggling drawing on
       setTimeout(() => this.openFullscreenDrawing(), 0);
@@ -124,7 +124,7 @@ export class RuneCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
       const imageId = await this.imageService.uploadImage(dataUrl);
       this.newRune.drawing = imageId;
     } else if (!this.hasDrawing) {
-      this.newRune.drawing = undefined;
+      this.newRune.drawing = '';
     }
     this.isFullscreenDrawing.set(false);
   }
@@ -138,7 +138,10 @@ export class RuneCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
         this.ctx.drawImage(img, 0, 0);
       }
     };
-    img.src = this.imageService.getImageUrl(imageId);
+    const imageUrl = this.imageService.getImageUrl(imageId);
+    if (imageUrl) {
+      img.src = imageUrl;
+    }
   }
 
   initCanvas() {
