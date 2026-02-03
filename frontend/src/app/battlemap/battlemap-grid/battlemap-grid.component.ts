@@ -308,24 +308,26 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     
     // Render visible hexes (or a simplified grid when zoomed out)
     if (shouldSimplify) {
-      // Simplified rendering: just draw a simple grid background
-      ctx.strokeStyle = 'rgba(71, 85, 105, 0.3)';
+      // Simplified rendering: draw hexagons at lower density
+      ctx.strokeStyle = 'rgba(71, 85, 105, 0.5)';
       ctx.lineWidth = 1;
-      const step = HexMath.WIDTH * 1.5;
-      const startX = Math.floor(topLeft.x / step) * step;
-      const startY = Math.floor(topLeft.y / step) * step;
       
-      for (let x = startX; x < bottomRight.x; x += step) {
-        ctx.beginPath();
-        ctx.moveTo(x, topLeft.y);
-        ctx.lineTo(x, bottomRight.y);
-        ctx.stroke();
-      }
-      for (let y = startY; y < bottomRight.y; y += step) {
-        ctx.beginPath();
-        ctx.moveTo(topLeft.x, y);
-        ctx.lineTo(bottomRight.x, y);
-        ctx.stroke();
+      // Draw every 3rd hex for performance
+      const step = 3;
+      for (let q = bounds.minQ; q <= bounds.maxQ; q += step) {
+        for (let r = bounds.minR; r <= bounds.maxR; r += step) {
+          const hex = { q, r };
+          const center = HexMath.hexToPixel(hex);
+          const corners = HexMath.getHexCorners(center);
+          
+          ctx.beginPath();
+          ctx.moveTo(corners[0].x, corners[0].y);
+          for (let i = 1; i < corners.length; i++) {
+            ctx.lineTo(corners[i].x, corners[i].y);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }
       }
     } else {
       // Full hex rendering when zoomed in
@@ -421,7 +423,10 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   private renderImages() {
-    if (!this.imageCtx || !this.battleMap) return;
+    if (!this.imageCtx || !this.battleMap) {
+      console.log('[LOBBY GRID] renderImages skip - imageCtx:', !!this.imageCtx, 'battleMap:', !!this.battleMap);
+      return;
+    }
 
     const canvas = this.imageCanvas.nativeElement;
     const ctx = this.imageCtx;
@@ -434,6 +439,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
 
     // Sort images by zIndex
     const images = [...(this.battleMap.images || [])].sort((a, b) => a.zIndex - b.zIndex);
+    console.log('[LOBBY GRID] Rendering images:', images.length);
 
     for (const img of images) {
       this.renderImage(ctx, img);

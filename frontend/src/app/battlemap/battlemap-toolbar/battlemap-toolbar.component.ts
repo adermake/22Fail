@@ -127,8 +127,10 @@ export class BattlemapToolbarComponent {
   }
 
   async createQuickToken() {
+    console.log('[TOOLBAR] createQuickToken called');
     const name = this.quickTokenName();
     const imageUrl = this.quickTokenImageUrl();
+    console.log('[TOOLBAR] name:', name, 'imageUrl:', imageUrl);
     
     if (!name.trim()) {
       alert('Please enter a token name');
@@ -140,6 +142,7 @@ export class BattlemapToolbarComponent {
     // If there's an image URL, download it to the server
     if (imageUrl && imageUrl.trim()) {
       try {
+        console.log('[TOOLBAR] Downloading image from URL');
         const response = await fetch('/api/images/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -147,6 +150,7 @@ export class BattlemapToolbarComponent {
         });
         if (response.ok) {
           const result = await response.json();
+          console.log('[TOOLBAR] Download result:', result);
           if (result.success && result.imageId) {
             portrait = result.imageId;
           }
@@ -156,6 +160,7 @@ export class BattlemapToolbarComponent {
       }
     }
 
+    console.log('[TOOLBAR] Emitting quickTokenCreate with portrait:', portrait);
     // Emit the quick token with position (0,0) - will be placed at center
     this.quickTokenCreate.emit({
       name: name,

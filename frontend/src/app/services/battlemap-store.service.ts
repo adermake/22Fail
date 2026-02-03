@@ -225,6 +225,7 @@ export class BattleMapStoreService {
   // Image operations
   addImage(image: Omit<MapImage, 'id'>) {
     const battleMap = this.battleMapValue;
+    console.log('[LOBBY STORE] addImage called, battleMap exists:', !!battleMap, 'current images:', battleMap?.images?.length);
     if (!battleMap) return;
 
     const newImage: MapImage = {
@@ -233,6 +234,7 @@ export class BattleMapStoreService {
     };
 
     const images = [...(battleMap.images || []), newImage];
+    console.log('[LOBBY STORE] Applying patch with images:', images.length);
     this.applyPatch({ path: 'images', value: images });
   }
 

@@ -243,6 +243,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   private async loadWorldCharacters() {
     const world = this.worldStore.worldValue;
+    console.log('[LOBBY] loadWorldCharacters - world:', world?.name, 'characterIds:', world?.characterIds?.length);
     if (!world) return;
 
     const characters: { id: string; sheet: CharacterSheet }[] = [];
@@ -258,6 +259,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
       }
     }
 
+    console.log('[LOBBY] Loaded characters:', characters.length);
     this.worldCharacters.set(characters);
   }
 
@@ -429,7 +431,11 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   // Image Layer Methods
   async onAddImage(src: string) {
-    if (!this.isGM()) return;
+    console.log('[LOBBY] onAddImage called, isGM:', this.isGM(), 'src length:', src?.length);
+    if (!this.isGM()) {
+      console.warn('[LOBBY] Not GM, cannot add image');
+      return;
+    }
     
     const newImage: Omit<MapImage, 'id'> = {
       src,
@@ -441,7 +447,9 @@ export class BattlemapComponent implements OnInit, OnDestroy {
       zIndex: 0,
     };
 
+    console.log('[LOBBY] Adding image to store:', newImage);
     await this.store.addImage(newImage);
+    console.log('[LOBBY] Image added, current battleMap:', this.battleMap());
   }
 
   async onSelectImage(id: string | null) {
