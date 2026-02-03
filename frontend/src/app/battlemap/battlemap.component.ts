@@ -562,9 +562,12 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   }
 
   async onLibraryImageDrop(data: { src: string; x: number; y: number; width: number; height: number }) {
-    if (!this.isGM()) return;
+    if (!this.isGM()) {
+      console.warn('[LOBBY] Image drop blocked - not GM');
+      return;
+    }
     
-    console.log('[LOBBY] Dropping library image at:', data.x, data.y);
+    console.log('[LOBBY] Dropping library image:', data);
     const newImage: Omit<MapImage, 'id'> = {
       src: data.src,
       x: data.x,
@@ -575,7 +578,9 @@ export class BattlemapComponent implements OnInit, OnDestroy {
       zIndex: 0,
     };
 
+    console.log('[LOBBY] Calling store.addImage with:', newImage);
     await this.store.addImage(newImage);
+    console.log('[LOBBY] Image added, current battleMap:', this.battleMap());
   }
 
   // Handle paste events for images

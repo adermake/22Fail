@@ -108,6 +108,15 @@
   cursor: crosshair;
 }
 
+.grid-container.tool-image {
+  cursor: default;
+}
+
+/* Cursor when hovering over images in image tool */
+.grid-container.tool-image:hover {
+  cursor: move;
+}
+
 /* Context menu */
 .grid-context-menu {
   position: absolute;

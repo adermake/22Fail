@@ -349,29 +349,26 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     }
     ctx.closePath();
 
-    // Fill with appropriate color
+    // Only fill for hover, path, or wall - otherwise transparent
     if (isHover) {
-      ctx.fillStyle = 'rgba(96, 165, 250, 0.4)';
+      ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
       ctx.fill();
       ctx.strokeStyle = 'rgba(96, 165, 250, 1)';
       ctx.lineWidth = 3;
     } else if (isInPath) {
       // Path hexes are highlighted green
-      ctx.fillStyle = 'rgba(34, 197, 94, 0.3)';
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.2)';
       ctx.fill();
       ctx.strokeStyle = 'rgba(34, 197, 94, 0.8)';
       ctx.lineWidth = 2;
     } else if (isWall) {
-      // Wall hexes are subtly darker with a border pattern
-      ctx.fillStyle = 'rgba(60, 60, 60, 0.3)';
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(80, 80, 80, 0.6)';
+      ctx.strokeStyle = 'rgba(239, 68, 68, 1)';
       ctx.lineWidth = 2;
-      ctx.setLineDash([4, 2]);
     } else {
-      ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(71, 85, 105, 0.6)';
+      // Normal hex - transparent with subtle outline only
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
       ctx.lineWidth = 1;
     }
     ctx.stroke();
@@ -1632,7 +1629,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   // Detect which transform handle was clicked
   private getClickedHandle(worldX: number, worldY: number, image: MapImage): 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null {
     const handleSize = 10 / this.scale; // Match renderImageHandles
-    const threshold = handleSize * 1.5; // Larger click area for easier interaction
+    const threshold = handleSize * 2; // Very generous click area for easier interaction
     
     // Transform click point relative to image rotation
     const dx = worldX - image.x;
@@ -1643,12 +1640,15 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     const localX = dx * cos - dy * sin;
     const localY = dx * sin + dy * cos;
     
-    // Check rotation handle (green circle)
+    console.log('[GRID] getClickedHandle - localX:', localX.toFixed(1), 'localY:', localY.toFixed(1));
+    
+    // Check rotation handle (green circle) - very generous area
     const rotateHandleY = -image.height / 2 - 25 / this.scale; // Match renderImageHandles
     const rotateHandleRadius = 6 / this.scale;
     const distToRotateHandle = Math.sqrt(localX * localX + (localY - rotateHandleY) ** 2);
-    if (distToRotateHandle < rotateHandleRadius * 2) { // Generous click area
-      console.log('[GRID] Clicked rotate handle');
+    console.log('[GRID] Rotate handle - Y:', rotateHandleY.toFixed(1), 'dist:', distToRotateHandle.toFixed(1), 'threshold:', (rotateHandleRadius * 3).toFixed(1));
+    if (distToRotateHandle < rotateHandleRadius * 3) { // Extra generous click area
+      console.log('[GRID] ✓ Clicked rotate handle');
       return 'rotate';
     }
     
@@ -1728,8 +1728,9 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   private getImageAtPoint(worldX: number, worldY: number): any | null {
     if (!this.battleMap?.images) return null;
     
-    // Check images in reverse order (top to bottom) so we select the topmost one
+    // Check images in reverse z-index order (highest/topmost first)
     const sortedImages = [...this.battleMap.images].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
+    console.log('[GRID] getImageAtPoint - checking', sortedImages.length, 'images, z-indices:', sortedImages.map(i => i.zIndex));
     
     for (const img of sortedImages) {
       // Transform point to image local space
@@ -1748,10 +1749,12 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       const halfHeight = img.height / 2;
       
       if (Math.abs(localX) <= halfWidth && Math.abs(localY) <= halfHeight) {
+        console.log('[GRID] Found image at point:', img.id, 'z-index:', img.zIndex);
         return img;
       }
     }
     
+    console.log('[GRID] No image found at point');
     return null;
   }
 
