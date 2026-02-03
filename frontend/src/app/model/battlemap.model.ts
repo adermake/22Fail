@@ -1,8 +1,8 @@
 /**
- * Battlemap Model
+ * Lobby and Map Model
  * 
- * Defines the data structures for the hexagonal battlemap system.
- * Hexagons use axial coordinates (q, r) for efficient calculations.
+ * Defines the data structures for the hexagonal map system.
+ * Maps are organized within lobbies. Hexagons use axial coordinates (q, r) for efficient calculations.
  */
 
 // Axial coordinate for hexagon positioning
@@ -28,7 +28,7 @@ export interface MeasurementLine {
   createdBy: string; // Client identifier
 }
 
-// A character token on the battlemap
+// A character token on the map
 export interface BattlemapToken {
   id: string;
   characterId: string;
@@ -58,7 +58,7 @@ export interface MapImage {
   zIndex: number; // layering order
 }
 
-// Individual map data (formerly BattlemapData)
+// Individual map data within a lobby (formerly BattlemapData)
 export interface MapData {
   id: string;
   name: string;
@@ -83,7 +83,7 @@ export interface MapData {
   updatedAt: number;
 }
 
-// Lobby containing multiple maps (formerly a single battlemap)
+// Lobby containing multiple maps (replaces the old single-battlemap concept)
 export interface LobbyData {
   id: string; // Same as worldName for linking
   worldName: string;

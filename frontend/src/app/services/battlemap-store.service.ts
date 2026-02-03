@@ -52,16 +52,16 @@ export class BattleMapStoreService {
   async loadLobby(worldName: string) {
     this.worldName = worldName;
     
-    console.log('[BATTLEMAP STORE] Loading lobby for world:', worldName);
+    console.log('[LOBBY STORE] Loading lobby for world:', worldName);
     let lobby = await this.api.loadLobby(worldName);
 
     if (!lobby) {
-      console.log('[BATTLEMAP STORE] Creating new lobby');
-      lobby = createEmptyLobby(worldName, worldName);
+      console.log('[LOBBY STORE] Creating new lobby');
+      lobby = createEmptyLobby(worldName);
       this.lobbySubject.next(lobby);
       await this.api.createLobby(worldName);
     } else {
-      console.log('[BATTLEMAP STORE] Loaded existing lobby');
+      console.log('[LOBBY STORE] Loaded existing lobby');
       this.lobbySubject.next(lobby);
     }
 

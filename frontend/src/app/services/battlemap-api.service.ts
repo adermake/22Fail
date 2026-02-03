@@ -14,7 +14,7 @@ export class BattleMapApiService {
       const result = await firstValueFrom(this.http.get<LobbyData>(url));
       return result;
     } catch (err) {
-      console.error(`[BATTLEMAP API] Failed to load lobby for world ${worldName}:`, err);
+      console.error(`[LOBBY API] Failed to load lobby for world ${worldName}:`, err);
       return null;
     }
   }
@@ -24,18 +24,18 @@ export class BattleMapApiService {
     try {
       await firstValueFrom(this.http.post(url, lobby));
     } catch (err) {
-      console.error(`[BATTLEMAP API] Failed to save lobby:`, err);
+      console.error(`[LOBBY API] Failed to save lobby:`, err);
       throw err;
     }
   }
 
   async createLobby(worldName: string): Promise<LobbyData | null> {
     const url = `/api/worlds/${worldName}/lobby`;
-    const newLobby = createEmptyLobby(worldName, worldName);
+    const newLobby = createEmptyLobby(worldName);
     try {
       return await firstValueFrom(this.http.post<LobbyData>(url, newLobby));
     } catch (err) {
-      console.error(`[BATTLEMAP API] Failed to create lobby for world ${worldName}:`, err);
+      console.error(`[LOBBY API] Failed to create lobby for world ${worldName}:`, err);
       return null;
     }
   }
@@ -47,7 +47,7 @@ export class BattleMapApiService {
       const result = await firstValueFrom(this.http.get<MapData>(url));
       return result;
     } catch (err) {
-      console.error(`[BATTLEMAP API] Failed to load map ${mapId}:`, err);
+      console.error(`[LOBBY API] Failed to load map ${mapId}:`, err);
       return null;
     }
   }
@@ -57,7 +57,7 @@ export class BattleMapApiService {
     try {
       await firstValueFrom(this.http.post(url, map));
     } catch (err) {
-      console.error(`[BATTLEMAP API] Failed to save map:`, err);
+      console.error(`[LOBBY API] Failed to save map:`, err);
       throw err;
     }
   }
