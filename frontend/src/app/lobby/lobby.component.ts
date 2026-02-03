@@ -79,6 +79,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // UI state
   showSidebar = signal(true);
   sidebarTab = signal<'characters' | 'images'>('characters');
+  showMapSettingsModal = signal(false);
 
   // Computed: current map
   currentMap = computed(() => {
@@ -133,6 +134,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
         // Load world for characters
         await this.worldStore.load(worldName);
+        console.log('[Lobby] World loaded, characterIds:', this.worldStore.worldValue?.characterIds);
         await this.loadWorldCharacters();
       })
     );
@@ -161,21 +163,30 @@ export class LobbyComponent implements OnInit, OnDestroy {
       return;
     }
 
-    console.log('[Lobby] Loading characters:', world.characterIds?.length);
+    console.log('[Lobby] World data:', { 
+      name: world.name, 
+      characterIds: world.characterIds,
+      hasCharacters: !!world.characterIds?.length 
+    });
+    
     const characters: { id: string; sheet: CharacterSheet }[] = [];
 
     for (const charId of world.characterIds || []) {
       try {
+        console.log('[Lobby] Loading character:', charId);
         const sheet = await this.characterApi.loadCharacter(charId);
         if (sheet) {
+          console.log('[Lobby] Character loaded:', charId, sheet.name);
           characters.push({ id: charId, sheet });
+        } else {
+          console.warn('[Lobby] Character sheet is null for:', charId);
         }
       } catch (e) {
         console.error('[Lobby] Failed to load character:', charId, e);
       }
     }
 
-    console.log('[Lobby] Loaded characters:', characters.length);
+    console.log('[Lobby] Loaded characters:', characters.length, characters.map(c => c.sheet.name));
     this.worldCharacters.set(characters);
     this.cdr.markForCheck();
   }
@@ -392,5 +403,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   toggleSidebar(): void {
     this.showSidebar.set(!this.showSidebar());
+  }
+
+  showMapSettings(): void {
+    console.log('[Lobby] Opening map settings...');
+    this.showMapSettingsModal.set(true);
   }
 }

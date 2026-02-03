@@ -68,9 +68,34 @@
   <div class="map-badge">
     <span class="map-name">{{ currentMap()?.name || 'No Map' }}</span>
     @if (isGM()) {
-      <button class="map-switch-btn" title="Switch Map">
+      <button class="map-switch-btn" title="Switch Map" (click)="showMapSettings()">
         ⚙️
       </button>
     }
   </div>
 </div>
+
+<!-- Map Settings Modal -->
+@if (showMapSettingsModal()) {
+  <div class="modal-backdrop" (click)="showMapSettingsModal.set(false)">
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Map Settings</h3>
+        <button class="modal-close" (click)="showMapSettingsModal.set(false)">&times;</button>
+      </div>
+      <div class="modal-content">
+        <p>Maps: {{ mapList().length }}</p>
+        <div class="map-list">
+          @for (map of mapList(); track map.id) {
+            <div class="map-item" [class.active]="currentMapId() === map.id">
+              <span class="map-name">{{ map.name }}</span>
+              @if (currentMapId() === map.id) {
+                <span class="current-badge">Current</span>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}

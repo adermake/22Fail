@@ -997,11 +997,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const initialHeight = this.initialImageTransform.height || 200;
       const aspectRatio = initialWidth / initialHeight;
       
-      // Use the larger of dx/dy for uniform scaling
-      const scaleDelta = Math.max(dx, dy);
-      const scale = 1 + scaleDelta / 200;
-      const newWidth = Math.max(50, initialWidth * scale);
-      const newHeight = Math.max(50, newWidth / aspectRatio);
+      // Use diagonal distance for uniform scaling
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const scale = Math.max(0.1, 1 + distance / 100 * Math.sign(dx + dy));
+      const newWidth = Math.max(20, Math.round(initialWidth * scale));
+      const newHeight = Math.max(20, Math.round(newWidth / aspectRatio));
       
       this.imageTransform.emit({
         id: this.transformingImageId,
