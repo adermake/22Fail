@@ -473,7 +473,8 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   // Handle paste events for images
   @HostListener('window:paste', ['$event'])
   async handlePaste(event: ClipboardEvent) {
-    if (!this.isGM()) return;
+    // Only allow paste when image tool is active and user is GM
+    if (this.currentTool() !== 'image' || !this.isGM()) return;
 
     // Ignore if user is typing in an input field
     const target = event.target as HTMLElement;
@@ -496,6 +497,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
         reader.onload = async (e) => {
           const dataUrl = e.target?.result as string;
           if (dataUrl) {
+            console.log('[LOBBY] Pasting image, size:', dataUrl.length);
             await this.onAddImage(dataUrl);
           }
         };

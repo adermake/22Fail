@@ -301,15 +301,43 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     const fullPath = this.dragFullPath();
     const pathSet = new Set(fullPath.map(p => `${p.q},${p.r}`));
     
-    // Render visible hexes
-    for (let q = bounds.minQ; q <= bounds.maxQ; q++) {
-      for (let r = bounds.minR; r <= bounds.maxR; r++) {
-        const hex = { q, r };
-        const isHover = hoverHex && hoverHex.q === q && hoverHex.r === r;
-        const hexKey = `${q},${r}`;
-        const isWall = wallSet.has(hexKey);
-        const isInPath = pathSet.has(hexKey);
-        this.drawHexagon(ctx, hex, isHover || false, isWall, isInPath);
+    // Performance optimization: limit hex count when zoomed out
+    const hexCount = (bounds.maxQ - bounds.minQ + 1) * (bounds.maxR - bounds.minR + 1);
+    const maxHexes = 2000; // Maximum hexes to render for performance
+    const shouldSimplify = hexCount > maxHexes || this.scale < 0.3;
+    
+    // Render visible hexes (or a simplified grid when zoomed out)
+    if (shouldSimplify) {
+      // Simplified rendering: just draw a simple grid background
+      ctx.strokeStyle = 'rgba(71, 85, 105, 0.3)';
+      ctx.lineWidth = 1;
+      const step = HexMath.WIDTH * 1.5;
+      const startX = Math.floor(topLeft.x / step) * step;
+      const startY = Math.floor(topLeft.y / step) * step;
+      
+      for (let x = startX; x < bottomRight.x; x += step) {
+        ctx.beginPath();
+        ctx.moveTo(x, topLeft.y);
+        ctx.lineTo(x, bottomRight.y);
+        ctx.stroke();
+      }
+      for (let y = startY; y < bottomRight.y; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(topLeft.x, y);
+        ctx.lineTo(bottomRight.x, y);
+        ctx.stroke();
+      }
+    } else {
+      // Full hex rendering when zoomed in
+      for (let q = bounds.minQ; q <= bounds.maxQ; q++) {
+        for (let r = bounds.minR; r <= bounds.maxR; r++) {
+          const hex = { q, r };
+          const isHover = hoverHex && hoverHex.q === q && hoverHex.r === r;
+          const hexKey = `${q},${r}`;
+          const isWall = wallSet.has(hexKey);
+          const isInPath = pathSet.has(hexKey);
+          this.drawHexagon(ctx, hex, isHover || false, isWall, isInPath);
+        }
       }
     }
 
@@ -475,11 +503,11 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     
     const dpr = window.devicePixelRatio || 1;
     
-    // Clear overlay canvas
+    // Clear overlay canvas using physical pixels
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     ctx.save();
-    ctx.scale(dpr, dpr);
+    // Don't scale by DPR here - worldToScreen already accounts for it
     
     // Render measurement ruler
     this.renderMeasurementOnOverlay(ctx);

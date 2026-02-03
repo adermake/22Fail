@@ -1,7 +1,7 @@
 .toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 0.5rem 1rem;
   background: var(--card);
   border-bottom: 1px solid var(--border);
@@ -9,18 +9,28 @@
   height: 76px;
   min-height: 76px;
   max-height: 76px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .toolbar-section {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .toolbar-section.tools {
   background: var(--bg);
   padding: 0.25rem;
   border-radius: 8px;
+}
+
+/* Tool settings sections use flex-grow to fill space and prevent jumping */
+.toolbar-section.brush-settings,
+.toolbar-section.drag-mode-settings {
+  flex-grow: 1;
+  justify-content: flex-start;
 }
 
 .toolbar-btn {
@@ -213,6 +223,42 @@
 .mode-btn.active {
   background: var(--accent);
   border-color: var(--accent);
+  color: white;
+}
+
+/* Action buttons (Clear Walls, Delete Image, etc.) */
+.action-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.action-btn:hover {
+  background: var(--border);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.action-btn:active {
+  transform: translateY(0);
+}
+
+.action-btn.danger {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.action-btn.danger:hover {
+  background: #dc2626;
   color: white;
 }
 

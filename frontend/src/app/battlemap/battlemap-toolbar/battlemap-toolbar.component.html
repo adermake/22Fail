@@ -127,13 +127,13 @@
   <!-- Image tool settings -->
   @if (currentTool === 'image') {
     <div class="toolbar-section brush-settings">
-      <span class="mode-label">Paste image or click map to add</span>
+      <span class="mode-label">Paste image (Ctrl+V) - Click to select/move</span>
       <button 
-        class="action-btn"
+        class="action-btn danger"
         title="Delete selected image"
         (click)="deleteSelectedImage.emit()"
       >
-        🗑️ Delete Selected
+        🗑️ Delete
       </button>
     </div>
   }
@@ -160,6 +160,9 @@
       </button>
     </div>
   }
+
+  <!-- Spacer to push right section to the end -->
+  <div style="flex-grow: 1;"></div>
 
   <!-- Right: Panel toggles -->
   <div class="toolbar-section">
