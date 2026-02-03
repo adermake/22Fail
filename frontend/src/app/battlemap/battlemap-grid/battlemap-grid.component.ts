@@ -8,8 +8,8 @@ import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, HexMath, Wall
 import { BattleMapStoreService } from '../../services/battlemap-store.service';
 import { BattlemapTokenComponent } from '../battlemap-token/battlemap-token.component';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
+import { ToolType } from '../battlemap.component';
 
-type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
 type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -22,6 +22,7 @@ type DragMode = 'free' | 'enforced';
 })
 export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('gridCanvas') gridCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('imageCanvas') imageCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('drawCanvas') drawCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('container') container!: ElementRef<HTMLDivElement>;
@@ -45,20 +46,33 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   @Input() currentTurnCharacterId: string | null = null;
   @Input() battleParticipants: { characterId: string; team?: string }[] = [];
   @Input() drawLayerVisible = true;
+  @Input() imageLayerVisible = true;
+  @Input() selectedImageId: string | null = null;
 
   @Output() tokenDrop = new EventEmitter<{ characterId: string; position: HexCoord }>();
   @Output() tokenMove = new EventEmitter<{ tokenId: string; position: HexCoord }>();
   @Output() tokenRemove = new EventEmitter<string>();
   @Output() quickTokenDrop = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
   @Output() brushSizeChange = new EventEmitter<number>(); // For shift+drag brush resize
+  @Output() imageAdd = new EventEmitter<string>();
+  @Output() imageSelect = new EventEmitter<string | null>();
+  @Output() imageTransform = new EventEmitter<{ id: string; transform: Partial<{ x: number; y: number; width: number; height: number; rotation: number }> }>();
+  @Output() imageDelete = new EventEmitter<string>();
 
   private store = inject(BattleMapStoreService);
   private cdr = inject(ChangeDetectorRef);
 
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
+  private imageCtx: CanvasRenderingContext2D | null = null;
   private drawCtx: CanvasRenderingContext2D | null = null;
   private overlayCtx: CanvasRenderingContext2D | null = null;
+
+  // Image handling
+  private imageCache = new Map<string, HTMLImageElement>();
+  private transformingImageId: string | null = null;
+  private transformAnchor: { x: number; y: number } | null = null;
+  private initialImageTransform: { x: number; y: number; width: number; height: number; rotation: number } | null = null;
 
   // Render optimization - use requestAnimationFrame batching
   private renderPending = false;
@@ -147,16 +161,24 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     if (this.drawCanvas?.nativeElement) {
       this.drawCanvas.nativeElement.style.opacity = this.drawLayerVisible ? '1' : '0';
     }
+    if (this.imageCanvas?.nativeElement) {
+      this.imageCanvas.nativeElement.style.opacity = this.imageLayerVisible ? '1' : '0';
+    }
   }
 
   private initCanvases() {
     const gridEl = this.gridCanvas?.nativeElement;
+    const imageEl = this.imageCanvas?.nativeElement;
     const drawEl = this.drawCanvas?.nativeElement;
     const overlayEl = this.overlayCanvas?.nativeElement;
     
     if (gridEl) {
       this.gridCtx = gridEl.getContext('2d');
       this.resizeCanvas(gridEl);
+    }
+    if (imageEl) {
+      this.imageCtx = imageEl.getContext('2d');
+      this.resizeCanvas(imageEl);
     }
     if (drawEl) {
       this.drawCtx = drawEl.getContext('2d');
@@ -191,9 +213,11 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
 
     this.resizeObserver = new ResizeObserver(() => {
       const gridEl = this.gridCanvas?.nativeElement;
+      const imageEl = this.imageCanvas?.nativeElement;
       const drawEl = this.drawCanvas?.nativeElement;
       const overlayEl = this.overlayCanvas?.nativeElement;
       if (gridEl) this.resizeCanvas(gridEl);
+      if (imageEl) this.resizeCanvas(imageEl);
       if (drawEl) this.resizeCanvas(drawEl);
       if (overlayEl) this.resizeCanvas(overlayEl);
       this.scheduleRender();
@@ -239,6 +263,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   // Main render function - call scheduleRender() instead of this directly for batched updates
   render() {
     this.renderGrid();
+    this.renderImages();
     this.renderStrokes();
     this.renderOverlay();
   }
@@ -364,6 +389,80 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     }
 
     ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+  }
+
+  private renderImages() {
+    if (!this.imageCtx || !this.battleMap) return;
+
+    const canvas = this.imageCanvas.nativeElement;
+    const ctx = this.imageCtx;
+    const dpr = window.devicePixelRatio || 1;
+    
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    ctx.save();
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.scale, this.scale);
+
+    // Sort images by zIndex
+    const images = [...(this.battleMap.images || [])].sort((a, b) => a.zIndex - b.zIndex);
+
+    for (const img of images) {
+      this.renderImage(ctx, img);
+    }
+
+    ctx.restore();
+  }
+
+  private renderImage(ctx: CanvasRenderingContext2D, imgData: any) {
+    // Try to get cached image
+    let image = this.imageCache.get(imgData.src);
+    
+    if (!image) {
+      // Create and cache new image
+      image = new Image();
+      image.crossOrigin = 'anonymous';
+      image.src = imgData.src;
+      this.imageCache.set(imgData.src, image);
+      
+      // Re-render when image loads
+      image.onload = () => {
+        this.scheduleRender();
+      };
+      
+      // Skip rendering if not loaded yet
+      if (!image.complete) return;
+    }
+
+    ctx.save();
+    ctx.translate(imgData.x, imgData.y);
+    ctx.rotate((imgData.rotation * Math.PI) / 180);
+    
+    // Draw image centered on the transform point
+    ctx.drawImage(image, -imgData.width / 2, -imgData.height / 2, imgData.width, imgData.height);
+    
+    // Draw selection border if this image is selected
+    if (this.selectedImageId === imgData.id) {
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 3 / this.scale;
+      ctx.setLineDash([10 / this.scale, 5 / this.scale]);
+      ctx.strokeRect(-imgData.width / 2, -imgData.height / 2, imgData.width, imgData.height);
+      ctx.setLineDash([]);
+      
+      // Draw corner handles
+      const handleSize = 10 / this.scale;
+      ctx.fillStyle = '#3b82f6';
+      const corners = [
+        { x: -imgData.width / 2, y: -imgData.height / 2 },
+        { x: imgData.width / 2, y: -imgData.height / 2 },
+        { x: imgData.width / 2, y: imgData.height / 2 },
+        { x: -imgData.width / 2, y: imgData.height / 2 },
+      ];
+      for (const corner of corners) {
+        ctx.fillRect(corner.x - handleSize / 2, corner.y - handleSize / 2, handleSize, handleSize);
+      }
+    }
+    
     ctx.restore();
   }
 
@@ -686,6 +785,28 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
         this.measureEnd.set(startSnapped);
         break;
       }
+
+      case 'image': {
+        // Check if clicking on an existing image
+        const clickedImage = this.getImageAtPoint(world.x, world.y);
+        if (clickedImage) {
+          // Select and start transforming
+          this.imageSelect.emit(clickedImage.id);
+          this.transformingImageId = clickedImage.id;
+          this.transformAnchor = { x: event.clientX, y: event.clientY };
+          this.initialImageTransform = {
+            x: clickedImage.x,
+            y: clickedImage.y,
+            width: clickedImage.width,
+            height: clickedImage.height,
+            rotation: clickedImage.rotation
+          };
+        } else {
+          // Deselect
+          this.imageSelect.emit(null);
+        }
+        break;
+      }
     }
   }
 
@@ -826,6 +947,25 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       this.renderLiveStroke();
       return;
     }
+
+    // Handle image transformation
+    if (this.transformingImageId && this.transformAnchor && this.initialImageTransform) {
+      const dx = event.clientX - this.transformAnchor.x;
+      const dy = event.clientY - this.transformAnchor.y;
+      
+      // For now, just move the image (drag)
+      const worldDx = dx / this.scale;
+      const worldDy = dy / this.scale;
+      
+      this.imageTransform.emit({
+        id: this.transformingImageId,
+        transform: {
+          x: this.initialImageTransform.x + worldDx,
+          y: this.initialImageTransform.y + worldDy
+        }
+      });
+      return;
+    }
     
     // Walls tool - continuous painting of walls while dragging
     if (this.isWallDrawing && this.currentTool === 'walls') {
@@ -927,6 +1067,9 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     this.isPanning = false;
     this.isDrawing = false;
     this.currentStrokePoints = [];
+    this.transformingImageId = null;
+    this.transformAnchor = null;
+    this.initialImageTransform = null;
 
     // Clear ruler on mouse release
     if (this.currentTool === 'measure') {
@@ -1363,5 +1506,36 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       case 'purple': return '#a855f7';
       default: return '#60a5fa';
     }
+  }
+
+  // Image helper methods
+  private getImageAtPoint(worldX: number, worldY: number): any | null {
+    if (!this.battleMap?.images) return null;
+    
+    // Check images in reverse order (top to bottom) so we select the topmost one
+    const sortedImages = [...this.battleMap.images].sort((a, b) => b.zIndex - a.zIndex);
+    
+    for (const img of sortedImages) {
+      // Transform point to image local space
+      const dx = worldX - img.x;
+      const dy = worldY - img.y;
+      
+      // Apply reverse rotation
+      const angle = (-img.rotation * Math.PI) / 180;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const localX = dx * cos - dy * sin;
+      const localY = dx * sin + dy * cos;
+      
+      // Check if point is within image bounds
+      const halfWidth = img.width / 2;
+      const halfHeight = img.height / 2;
+      
+      if (Math.abs(localX) <= halfWidth && Math.abs(localY) <= halfHeight) {
+        return img;
+      }
+    }
+    
+    return null;
   }
 }

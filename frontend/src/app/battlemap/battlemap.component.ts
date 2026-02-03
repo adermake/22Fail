@@ -15,7 +15,7 @@ import { BattlemapCharacterListComponent } from './battlemap-character-list/batt
 import { BattlemapBattleTrackerComponent } from './battlemap-battle-tracker/battlemap-battle-tracker.component';
 
 
-export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
+export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image';
 export type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -223,6 +223,11 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
       case 'w':
         this.currentTool.set('walls');
+        event.preventDefault();
+        break;
+
+      case 'i':
+        this.currentTool.set('image');
         event.preventDefault();
         break;
 
@@ -455,6 +460,13 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     if (this.selectedImageId() === id) {
       this.selectedImageId.set(null);
       this.isTransformMode.set(false);
+    }
+  }
+
+  onDeleteSelectedImage() {
+    const id = this.selectedImageId();
+    if (id) {
+      this.onDeleteImage(id);
     }
   }
 

@@ -10,6 +10,7 @@
 }
 
 .grid-canvas,
+.image-canvas,
 .draw-canvas,
 .overlay-canvas {
   position: absolute;
@@ -21,6 +22,11 @@
 }
 
 .draw-canvas {
+  z-index: 2;
+  transition: opacity 0.2s ease;
+}
+
+.image-canvas {
   z-index: 1;
   transition: opacity 0.2s ease;
 }

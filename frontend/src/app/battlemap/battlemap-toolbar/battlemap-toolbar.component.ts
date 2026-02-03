@@ -2,8 +2,8 @@ import { Component, Input, Output, EventEmitter, signal, ChangeDetectionStrategy
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HexCoord } from '../../model/battlemap.model';
+import { ToolType } from '../battlemap.component';
 
-type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
 type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -35,6 +35,7 @@ export class BattlemapToolbarComponent {
   @Output() clearDrawings = new EventEmitter<void>();
   @Output() clearWalls = new EventEmitter<void>();
   @Output() quickTokenCreate = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
+  @Output() deleteSelectedImage = new EventEmitter<void>();
 
   tools: { id: ToolType; icon: string; label: string }[] = [
     { id: 'cursor', icon: '↖️', label: 'Move Tokens (Middle-click to pan)' },
@@ -42,6 +43,7 @@ export class BattlemapToolbarComponent {
     { id: 'erase', icon: '🧹', label: 'Erase' },
     { id: 'walls', icon: '🧱', label: 'Walls' },
     { id: 'measure', icon: '📏', label: 'Measure Distance' },
+    { id: 'image', icon: '🖼️', label: 'Add/Transform Images' },
   ];
 
   penBrushSizes = [2, 4, 8, 12, 20];

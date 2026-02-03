@@ -124,6 +124,20 @@
     </div>
   }
 
+  <!-- Image tool settings -->
+  @if (currentTool === 'image') {
+    <div class="toolbar-section brush-settings">
+      <span class="mode-label">Paste image or click map to add</span>
+      <button 
+        class="action-btn"
+        title="Delete selected image"
+        (click)="deleteSelectedImage.emit()"
+      >
+        🗑️ Delete Selected
+      </button>
+    </div>
+  }
+
   <!-- Cursor tool settings (drag mode) -->
   @if (currentTool === 'cursor') {
     <div class="toolbar-section drag-mode-settings">

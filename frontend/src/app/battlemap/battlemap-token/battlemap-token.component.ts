@@ -2,8 +2,7 @@ import { Component, Input, Output, EventEmitter, HostListener, ElementRef, injec
 import { CommonModule } from '@angular/common';
 import { BattlemapToken, HexMath } from '../../model/battlemap.model';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
-
-type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure';
+import { ToolType } from '../battlemap.component';
 
 @Component({
   selector: 'app-battlemap-token',

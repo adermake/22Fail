@@ -6,6 +6,7 @@
   [class.tool-erase]="currentTool === 'erase'"
   [class.tool-walls]="currentTool === 'walls'"
   [class.tool-measure]="currentTool === 'measure'"
+  [class.tool-image]="currentTool === 'image'"
   [class.external-drag-active]="isExternalDragActive"
   (pointerdown)="onPointerDown($event)"
   (pointermove)="onPointerMove($event)"
@@ -21,6 +22,9 @@
 >
   <!-- Grid canvas (hexagons) -->
   <canvas #gridCanvas class="grid-canvas"></canvas>
+  
+  <!-- Image canvas (background images) - below drawing layer -->
+  <canvas #imageCanvas class="image-canvas"></canvas>
   
   <!-- Drawing canvas (strokes) -->
   <canvas #drawCanvas class="draw-canvas"></canvas>

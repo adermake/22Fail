@@ -19,6 +19,7 @@
     (toggleBattleTracker)="toggleBattleTracker()"
     (clearWalls)="onClearWalls()"
     (quickTokenCreate)="onQuickTokenDrop($event)"
+    (deleteSelectedImage)="onDeleteSelectedImage()"
   />
 
   <!-- GM Controls (only visible if isGM) -->
@@ -91,11 +92,17 @@
         [currentTurnCharacterId]="currentTurnCharacterId()"
         [battleParticipants]="battleParticipants()"
         [drawLayerVisible]="drawLayerVisible()"
+        [imageLayerVisible]="imageLayerVisible()"
+        [selectedImageId]="selectedImageId()"
         (tokenDrop)="onTokenDrop($event)"
         (tokenMove)="onTokenMove($event)"
         (tokenRemove)="onTokenRemove($event)"
         (quickTokenDrop)="onQuickTokenDrop($event)"
         (brushSizeChange)="onBrushSizeChange($event)"
+        (imageAdd)="onAddImage($event)"
+        (imageSelect)="onSelectImage($event)"
+        (imageTransform)="onTransformImage($event.id, $event.transform)"
+        (imageDelete)="onDeleteImage($event)"
       />
     </div>
 
