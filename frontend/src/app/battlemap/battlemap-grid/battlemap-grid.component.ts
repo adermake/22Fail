@@ -4,7 +4,7 @@ import {
   ChangeDetectionStrategy, ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, HexMath, WallHex, MeasurementLine, generateId } from '../../model/battlemap.model';
+import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, HexMath, WallHex, MeasurementLine, generateId, MapImage } from '../../model/battlemap.model';
 import { BattleMapStoreService } from '../../services/battlemap-store.service';
 import { ImageService } from '../../services/image.service';
 import { BattlemapTokenComponent } from '../battlemap-token/battlemap-token.component';
