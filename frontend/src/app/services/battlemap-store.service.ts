@@ -2,16 +2,19 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { BattleMapApiService } from './battlemap-api.service';
 import { BattleMapSocketService } from './battlemap-socket.service';
-import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, WallHex, createEmptyBattlemap, generateId } from '../model/battlemap.model';
+import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, WallHex, LobbyData, MapData, MapImage, createEmptyBattlemap, createEmptyLobby, createEmptyMap, generateId } from '../model/battlemap.model';
 import { JsonPatch } from '../model/json-patch.model';
 
 @Injectable({ providedIn: 'root' })
 export class BattleMapStoreService {
   private battleMapSubject = new BehaviorSubject<BattlemapData | null>(null);
+  private lobbySubject = new BehaviorSubject<LobbyData | null>(null);
+  
   battleMap$ = this.battleMapSubject.asObservable();
+  lobby$ = this.lobbySubject.asObservable();
 
   worldName!: string;
-  battleMapId!: string;
+  currentMapId!: string;
   private pendingPatchPaths = new Set<string>();
   
   // Undo history for strokes
@@ -23,6 +26,10 @@ export class BattleMapStoreService {
 
   get battleMapValue(): BattlemapData | null {
     return this.battleMapSubject.value;
+  }
+
+  get lobbyValue(): LobbyData | null {
+    return this.lobbySubject.value;
   }
 
   constructor() {
@@ -41,9 +48,37 @@ export class BattleMapStoreService {
     });
   }
 
+  // Lobby loading
+  async loadLobby(worldName: string) {
+    this.worldName = worldName;
+    
+    console.log('[BATTLEMAP STORE] Loading lobby for world:', worldName);
+    let lobby = await this.api.loadLobby(worldName);
+
+    if (!lobby) {
+      console.log('[BATTLEMAP STORE] Creating new lobby');
+      lobby = createEmptyLobby(worldName, worldName);
+      this.lobbySubject.next(lobby);
+      await this.api.createLobby(worldName);
+    } else {
+      console.log('[BATTLEMAP STORE] Loaded existing lobby');
+      this.lobbySubject.next(lobby);
+    }
+
+    // Load the active map or the first map
+    const activeMapId = lobby.activeMapId || Object.keys(lobby.maps)[0];
+    if (activeMapId) {
+      await this.switchMap(activeMapId);
+    }
+
+    this.socket.connect();
+    await this.socket.joinLobby(worldName);
+  }
+
+  // Legacy load method for backward compatibility
   async load(worldName: string, battleMapId: string) {
     this.worldName = worldName;
-    this.battleMapId = battleMapId;
+    this.currentMapId = battleMapId;
     
     console.log('[BATTLEMAP STORE] Loading battle map:', battleMapId, 'from world:', worldName);
     let battleMap = await this.api.loadBattleMap(worldName, battleMapId);
@@ -78,7 +113,78 @@ export class BattleMapStoreService {
     if (!battleMap.walls) {
       battleMap.walls = [];
     }
+    if (!battleMap.images) {
+      battleMap.images = [];
+    }
     return battleMap as BattlemapData;
+  }
+
+  // Map operations
+  async switchMap(mapId: string) {
+    const lobby = this.lobbyValue;
+    if (!lobby || !lobby.maps[mapId]) {
+      console.error('[BATTLEMAP STORE] Map not found:', mapId);
+      return;
+    }
+
+    this.currentMapId = mapId;
+    
+    // Update lobby's active map
+    lobby.activeMapId = mapId;
+    lobby.updatedAt = Date.now();
+    this.lobbySubject.next({ ...lobby });
+
+    // Load the map data
+    const mapData = lobby.maps[mapId];
+    
+    // Create a BattlemapData from MapData for backward compatibility
+    const battleMap: BattlemapData = {
+      ...mapData,
+      worldName: this.worldName,
+    };
+
+    this.battleMapSubject.next(battleMap);
+
+    // Join the socket room for this map
+    await this.socket.joinMap(this.worldName, mapId);
+  }
+
+  async createMap(name: string) {
+    const lobby = this.lobbyValue;
+    if (!lobby) return;
+
+    const newMap = createEmptyMap(generateId(), name);
+    lobby.maps[newMap.id] = newMap;
+    lobby.updatedAt = Date.now();
+    this.lobbySubject.next({ ...lobby });
+
+    // Save lobby to backend
+    await this.api.saveLobby(this.worldName, lobby);
+  }
+
+  async deleteMap(mapId: string) {
+    const lobby = this.lobbyValue;
+    if (!lobby || !lobby.maps[mapId]) return;
+
+    // Don't delete the last map
+    if (Object.keys(lobby.maps).length <= 1) {
+      console.warn('[BATTLEMAP STORE] Cannot delete the last map');
+      return;
+    }
+
+    delete lobby.maps[mapId];
+    
+    // If we deleted the active map, switch to another
+    if (lobby.activeMapId === mapId) {
+      const newActiveMapId = Object.keys(lobby.maps)[0];
+      await this.switchMap(newActiveMapId);
+    }
+
+    lobby.updatedAt = Date.now();
+    this.lobbySubject.next({ ...lobby });
+
+    // Save lobby to backend
+    await this.api.saveLobby(this.worldName, lobby);
   }
 
   applyPatch(patch: JsonPatch) {
@@ -88,8 +194,66 @@ export class BattleMapStoreService {
       this.applyJsonPatch(battleMap, patch);
       battleMap.updatedAt = Date.now();
       this.battleMapSubject.next({ ...battleMap });
+      
+      // Also update the lobby's map data
+      this.updateLobbyMap(battleMap);
     }
-    this.socket.sendPatch(this.worldName, this.battleMapId, patch);
+    this.socket.sendPatch(this.worldName, this.currentMapId, patch);
+  }
+
+  private updateLobbyMap(battleMap: BattlemapData) {
+    const lobby = this.lobbyValue;
+    if (!lobby || !lobby.maps[this.currentMapId]) return;
+
+    // Update the map data in the lobby
+    lobby.maps[this.currentMapId] = {
+      id: battleMap.id,
+      name: battleMap.name,
+      tokens: battleMap.tokens,
+      strokes: battleMap.strokes,
+      walls: battleMap.walls,
+      measurementLines: battleMap.measurementLines,
+      images: battleMap.images,
+      createdAt: battleMap.createdAt,
+      updatedAt: battleMap.updatedAt,
+    };
+    
+    lobby.updatedAt = Date.now();
+    this.lobbySubject.next({ ...lobby });
+  }
+
+  // Image operations
+  addImage(image: Omit<MapImage, 'id'>) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const newImage: MapImage = {
+      ...image,
+      id: generateId(),
+    };
+
+    const images = [...(battleMap.images || []), newImage];
+    this.applyPatch({ path: 'images', value: images });
+  }
+
+  updateImage(imageId: string, updates: Partial<Omit<MapImage, 'id'>>) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const imageIndex = (battleMap.images || []).findIndex(img => img.id === imageId);
+    if (imageIndex === -1) return;
+
+    const images = [...(battleMap.images || [])];
+    images[imageIndex] = { ...images[imageIndex], ...updates };
+    this.applyPatch({ path: 'images', value: images });
+  }
+
+  removeImage(imageId: string) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const images = (battleMap.images || []).filter(img => img.id !== imageId);
+    this.applyPatch({ path: 'images', value: images });
   }
 
   // Token operations

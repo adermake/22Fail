@@ -5,7 +5,7 @@ import { Subscription } from 'rxjs';
 
 import { BattleMapStoreService } from '../services/battlemap-store.service';
 import { WorldStoreService } from '../services/world-store.service';
-import { BattlemapData, BattlemapToken, HexCoord, HexMath } from '../model/battlemap.model';
+import { BattlemapData, BattlemapToken, HexCoord, HexMath, LobbyData, MapData, MapImage, createEmptyMap } from '../model/battlemap.model';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { CharacterApiService } from '../services/character-api.service';
 
@@ -44,10 +44,16 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   // Route params
   worldName = signal<string>('');
-  battleMapId = signal<string>('');
+  isGM = signal<boolean>(false);
 
-  // Battlemap data
+  // Lobby & Map data
+  lobby = signal<LobbyData | null>(null);
+  currentMapId = signal<string>('default');
   battleMap = signal<BattlemapData | null>(null);
+  
+  // Map management UI
+  showMapManager = signal<boolean>(false);
+  mapSearchQuery = signal<string>('');
 
   // World data signal for reactive updates
   world = signal<any>(null);
@@ -65,6 +71,11 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
   // Layer visibility
   drawLayerVisible = signal<boolean>(true);
+  imageLayerVisible = signal<boolean>(true);
+  
+  // Image layer management
+  selectedImageId = signal<string | null>(null);
+  isTransformMode = signal<boolean>(false);
 
   // Computed: current turn character from world battle tracker
   currentTurnCharacterId = computed(() => {
@@ -113,17 +124,19 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   showBattleTracker = signal(true);
 
   ngOnInit() {
-    // Subscribe to route params
+    // Subscribe to route params and query params
     this.subscriptions.push(
       this.route.paramMap.subscribe(async (params) => {
         const worldName = params.get('worldName') || 'default';
-        const mapId = params.get('mapId') || 'default';
-        
         this.worldName.set(worldName);
-        this.battleMapId.set(mapId);
 
-        // Load the battlemap
-        await this.store.load(worldName, mapId);
+        // Check query params for GM mode
+        this.route.queryParamMap.subscribe((queryParams) => {
+          this.isGM.set(queryParams.get('gm') === 'true');
+        });
+
+        // Load lobby for this world
+        await this.loadLobby(worldName);
         
         // Also load world data for characters and battle tracker
         await this.worldStore.load(worldName);
@@ -133,10 +146,21 @@ export class BattlemapComponent implements OnInit, OnDestroy {
       })
     );
 
-    // Subscribe to battlemap changes
+    // Subscribe to battlemap changes from store
     this.subscriptions.push(
       this.store.battleMap$.subscribe((map) => {
         this.battleMap.set(map);
+      })
+    );
+
+    // Subscribe to lobby changes from store
+    this.subscriptions.push(
+      this.store.lobby$.subscribe((lobby) => {
+        this.lobby.set(lobby);
+        // Update current map ID when lobby changes
+        if (lobby && lobby.activeMapId) {
+          this.currentMapId.set(lobby.activeMapId);
+        }
       })
     );
 
@@ -147,6 +171,11 @@ export class BattlemapComponent implements OnInit, OnDestroy {
         this.world.set(world);
       })
     );
+  }
+
+  private async loadLobby(worldName: string) {
+    // Load or create lobby through the store
+    await this.store.loadLobby(worldName);
   }
 
   ngOnDestroy() {
@@ -329,5 +358,138 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   // Layer visibility toggles
   onDrawLayerVisibleChange(visible: boolean) {
     this.drawLayerVisible.set(visible);
+  }
+
+  onImageLayerVisibleChange(visible: boolean) {
+    this.imageLayerVisible.set(visible);
+  }
+
+  // Map Management Methods (GM only)
+  onShowMapManager() {
+    if (!this.isGM()) return;
+    this.showMapManager.set(true);
+  }
+
+  onHideMapManager() {
+    this.showMapManager.set(false);
+    this.mapSearchQuery.set('');
+  }
+
+  onMapSearchChange(query: string) {
+    this.mapSearchQuery.set(query);
+  }
+
+  async onCreateMap(name: string) {
+    if (!this.isGM()) return;
+    const worldName = this.worldName();
+    if (!worldName) return;
+    
+    await this.store.createMap(name);
+  }
+
+  async onDeleteMap(mapId: string) {
+    if (!this.isGM()) return;
+    const lobby = this.lobby();
+    if (!lobby) return;
+
+    // Don't delete if it's the only map or the currently active map
+    const mapCount = Object.keys(lobby.maps).length;
+    if (mapCount <= 1 || mapId === lobby.activeMapId) {
+      console.warn('Cannot delete the only map or currently active map');
+      return;
+    }
+
+    await this.store.deleteMap(mapId);
+  }
+
+  async onSwitchMap(mapId: string) {
+    const lobby = this.lobby();
+    if (!lobby || !lobby.maps[mapId]) return;
+
+    await this.store.switchMap(mapId);
+    this.currentMapId.set(mapId);
+  }
+
+  // Get filtered maps for the map manager
+  getFilteredMaps(): { id: string; name: string; data: MapData }[] {
+    const lobby = this.lobby();
+    const query = this.mapSearchQuery().toLowerCase();
+    
+    if (!lobby) return [];
+
+    return Object.entries(lobby.maps)
+      .map(([id, data]) => ({ id, name: data.name, data }))
+      .filter(({ name }) => name.toLowerCase().includes(query));
+  }
+
+  // Image Layer Methods
+  async onAddImage(src: string) {
+    if (!this.isGM()) return;
+    
+    const newImage: Omit<MapImage, 'id'> = {
+      src,
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+      rotation: 0,
+      zIndex: 0,
+    };
+
+    await this.store.addImage(newImage);
+  }
+
+  async onSelectImage(id: string | null) {
+    this.selectedImageId.set(id);
+    this.isTransformMode.set(id !== null);
+  }
+
+  async onTransformImage(id: string, transform: { x?: number; y?: number; width?: number; height?: number; rotation?: number }) {
+    if (!this.isGM()) return;
+    await this.store.updateImage(id, transform);
+  }
+
+  async onDeleteImage(id: string) {
+    if (!this.isGM()) return;
+    await this.store.removeImage(id);
+    if (this.selectedImageId() === id) {
+      this.selectedImageId.set(null);
+      this.isTransformMode.set(false);
+    }
+  }
+
+  // Handle paste events for images
+  @HostListener('window:paste', ['$event'])
+  async handlePaste(event: ClipboardEvent) {
+    if (!this.isGM()) return;
+
+    // Ignore if user is typing in an input field
+    const target = event.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+      return;
+    }
+
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        event.preventDefault();
+        const blob = item.getAsFile();
+        if (!blob) continue;
+
+        // Convert blob to base64 data URL
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const dataUrl = e.target?.result as string;
+          if (dataUrl) {
+            await this.onAddImage(dataUrl);
+          }
+        };
+        reader.readAsDataURL(blob);
+        break;
+      }
+    }
   }
 }

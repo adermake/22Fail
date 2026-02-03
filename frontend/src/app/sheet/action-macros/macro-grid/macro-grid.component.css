@@ -52,17 +52,18 @@
 
 .macro-grid {
   display: grid;
-  /* Use fixed 240px columns for infinite grid - matches TypeScript calculation */
-  grid-template-columns: repeat(auto-fill, 240px);
+  /* Use explicit grid sizing to prevent overlap */
+  grid-template-columns: repeat(auto-fit, minmax(240px, 240px));
   grid-auto-columns: 240px;
   /* Use fixed 120px rows for consistent drop calculations */
-  grid-template-rows: repeat(auto-fill, 120px);
+  grid-template-rows: repeat(auto-fit, minmax(120px, 120px));
   grid-auto-rows: 120px;
   gap: 14px;
   min-height: 600px;
   min-width: 100%;
   position: relative;
   cursor: grab;
+  align-content: start;
 }
 
 .macro-grid:active:not(:has(.macro-card:hover)) {

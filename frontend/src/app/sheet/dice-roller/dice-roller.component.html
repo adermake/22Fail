@@ -219,21 +219,7 @@
           }
         </div>
 
-        <!-- Received Rolls -->
-        @if (receivedRolls().length > 0) {
-          <div class="received-section">
-            <h4>🎲 Andere Würfe</h4>
-            <div class="received-list">
-              @for (roll of receivedRolls(); track roll.id) {
-                <div class="received-item">
-                  <span class="player-name">{{roll.characterName}}</span>
-                  <span class="roll-info">{{roll.diceCount}}d{{roll.diceType}} = </span>
-                  <span class="roll-result">{{roll.result}}</span>
-                </div>
-              }
-            </div>
-          </div>
-        }
+        <!-- Received Rolls section removed -->
       </div>
     </div>
   </div>

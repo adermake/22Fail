@@ -291,6 +291,112 @@ export class DataService {
       return updatedWorldJson;
     }
 
+  // Lobby operations for new multi-map system
+  getLobby(worldName: string): any | null {
+    const worldJson = this.getWorld(worldName);
+    if (!worldJson) {
+      return null;
+    }
+    const world = JSON.parse(worldJson);
+    return world.lobby || null;
+  }
+
+  saveLobby(worldName: string, lobby: any): any {
+    const worlds = this.readWorlds();
+    let worldJson = this.getWorld(worldName);
+    
+    if (!worldJson) {
+      // Create world if it doesn't exist
+      const newWorld = this.createEmptyWorld(worldName);
+      newWorld.lobby = lobby;
+      this.saveWorld(worldName, JSON.stringify(newWorld, null, 2));
+      return lobby;
+    }
+
+    const world = JSON.parse(worldJson);
+    world.lobby = lobby;
+    
+    const updatedWorldJson = JSON.stringify(world, null, 2);
+    worlds[worldName] = updatedWorldJson;
+    this.writeWorlds(worlds);
+    
+    return lobby;
+  }
+
+  getMap(worldName: string, mapId: string): any | null {
+    const lobby = this.getLobby(worldName);
+    if (!lobby || !lobby.maps) {
+      return null;
+    }
+    return lobby.maps[mapId] || null;
+  }
+
+  saveMap(worldName: string, mapId: string, mapData: any): any {
+    const worlds = this.readWorlds();
+    const worldJson = this.getWorld(worldName);
+    
+    if (!worldJson) {
+      console.error(`World ${worldName} not found`);
+      return null;
+    }
+
+    const world = JSON.parse(worldJson);
+    
+    if (!world.lobby) {
+      world.lobby = {
+        id: worldName,
+        worldName: worldName,
+        maps: {},
+        activeMapId: mapId,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+    }
+
+    if (!world.lobby.maps) {
+      world.lobby.maps = {};
+    }
+
+    world.lobby.maps[mapId] = mapData;
+    world.lobby.updatedAt = Date.now();
+
+    const updatedWorldJson = JSON.stringify(world, null, 2);
+    worlds[worldName] = updatedWorldJson;
+    this.writeWorlds(worlds);
+
+    return mapData;
+  }
+
+  applyPatchToMap(worldName: string, mapId: string, patch: JsonPatch): string | null {
+    const worlds = this.readWorlds();
+    if (!worlds[worldName]) {
+      console.error(`World ${worldName} not found`);
+      return null;
+    }
+
+    const world = JSON.parse(worlds[worldName]);
+    
+    if (!world.lobby || !world.lobby.maps || !world.lobby.maps[mapId]) {
+      console.error(`Map ${mapId} not found in lobby for world ${worldName}`);
+      // Try legacy battlemap approach as fallback
+      return this.applyPatchToBattleMap(worldName, mapId, patch);
+    }
+
+    const lobbyPatch: JsonPatch = {
+      path: `lobby.maps.${mapId}.${patch.path}`,
+      value: patch.value
+    };
+
+    this.applyJsonPatch(world, lobbyPatch);
+    world.lobby.updatedAt = Date.now();
+
+    const updatedWorldJson = JSON.stringify(world, null, 2);
+    worlds[worldName] = updatedWorldJson;
+    this.writeWorlds(worlds);
+
+    return updatedWorldJson;
+  }
+
   // Race data methods - globally shared across all characters
   private readRaces(): any[] {
     try {

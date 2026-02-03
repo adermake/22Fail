@@ -19,7 +19,7 @@ export const routes: Routes = [
         loadComponent: () => import('./world/world/world.component').then(m => m.WorldComponent)
     },
     { 
-        path: 'battlemap/:worldName/:mapId', 
+        path: 'lobby/:worldName', 
         loadComponent: () => import('./battlemap/battlemap.component').then(m => m.BattlemapComponent)
     },
     { 

@@ -46,8 +46,96 @@ export interface WallHex {
   r: number;
 }
 
-// The main battlemap data structure
-export interface BattlemapData {
+// An image placed on the map (new layer below drawings)
+export interface MapImage {
+  id: string;
+  src: string; // Base64 or URL
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number; // degrees
+  zIndex: number; // layering order
+}
+
+// Individual map data (formerly BattlemapData)
+export interface MapData {
+  id: string;
+  name: string;
+  
+  // Tokens on the map
+  tokens: BattlemapToken[];
+  
+  // Drawing strokes
+  strokes: BattlemapStroke[];
+  
+  // Wall hexes that block movement
+  walls: WallHex[];
+  
+  // Active measurement lines (synced in real-time)
+  measurementLines: MeasurementLine[];
+  
+  // Background images layer
+  images: MapImage[];
+  
+  // Metadata
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Lobby containing multiple maps (formerly a single battlemap)
+export interface LobbyData {
+  id: string; // Same as worldName for linking
+  worldName: string;
+  
+  // Multiple maps in this lobby
+  maps: { [mapId: string]: MapData };
+  
+  // Currently active map ID
+  activeMapId?: string;
+  
+  // Metadata
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Legacy alias for backwards compatibility
+export interface BattlemapData extends MapData {
+  worldName: string;
+}
+
+// Helper function to create an empty map
+export function createEmptyMap(id: string, name: string): MapData {
+  return {
+    id,
+    name,
+    tokens: [],
+    strokes: [],
+    walls: [],
+    measurementLines: [],
+    images: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+}
+
+// Helper function to create an empty lobby
+export function createEmptyLobby(worldName: string): LobbyData {
+  const defaultMap = createEmptyMap('default', 'Main Map');
+  return {
+    id: worldName,
+    worldName,
+    maps: {
+      'default': defaultMap
+    },
+    activeMapId: 'default',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+}
+
+// The main battlemap data structure (legacy - now part of MapData)
+export interface OldBattlemapData {
   id: string;
   name: string;
   worldName: string;
@@ -69,7 +157,7 @@ export interface BattlemapData {
   updatedAt: number;
 }
 
-// Helper function to create an empty battlemap
+// Helper function to create an empty battlemap (legacy - creates a lobby now)
 export function createEmptyBattlemap(id: string, name: string, worldName: string): BattlemapData {
   return {
     id,
@@ -79,6 +167,7 @@ export function createEmptyBattlemap(id: string, name: string, worldName: string
     strokes: [],
     walls: [],
     measurementLines: [],
+    images: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };

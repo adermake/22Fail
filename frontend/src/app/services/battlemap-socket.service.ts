@@ -56,6 +56,34 @@ export class BattleMapSocketService {
     });
   }
 
+  async joinLobby(worldName: string): Promise<void> {
+    if (!this.isConnected) {
+      console.log('[BATTLEMAP SOCKET] Waiting for connection...');
+      await new Promise<void>((resolve) => {
+        const sub = this.connectionReady$.subscribe(() => {
+          sub.unsubscribe();
+          resolve();
+        });
+      });
+    }
+    console.log('[BATTLEMAP SOCKET] Joining lobby for world:', worldName);
+    this.socket?.emit('joinLobby', { worldName });
+  }
+
+  async joinMap(worldName: string, mapId: string): Promise<void> {
+    if (!this.isConnected) {
+      console.log('[BATTLEMAP SOCKET] Waiting for connection...');
+      await new Promise<void>((resolve) => {
+        const sub = this.connectionReady$.subscribe(() => {
+          sub.unsubscribe();
+          resolve();
+        });
+      });
+    }
+    console.log('[BATTLEMAP SOCKET] Joining map:', mapId);
+    this.socket?.emit('joinMap', { worldName, mapId });
+  }
+
   async joinBattleMap(worldName: string, battleMapId: string): Promise<void> {
     if (!this.isConnected) {
       console.log('[BATTLEMAP SOCKET] Waiting for connection...');

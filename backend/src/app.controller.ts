@@ -345,7 +345,7 @@ export class AppController {
     };
   }
 
-  // Battle Map Endpoints
+  // Battle Map Endpoints (legacy)
   @Get('worlds/:worldName/battlemaps/:battleMapId')
   getBattleMap(@Param('worldName') worldName: string, @Param('battleMapId') battleMapId: string): any {
     const battleMap = this.dataService.getBattleMap(worldName, battleMapId);
@@ -359,6 +359,38 @@ export class AppController {
   addBattleMap(@Param('worldName') worldName: string, @Body() body: any): any {
     const newBattleMap = this.dataService.addBattleMap(worldName, body);
     return { success: true, battleMap: newBattleMap };
+  }
+
+  // Lobby Endpoints (new multi-map system)
+  @Get('worlds/:worldName/lobby')
+  getLobby(@Param('worldName') worldName: string): any {
+    const lobby = this.dataService.getLobby(worldName);
+    if (!lobby) {
+      // Return null if lobby doesn't exist yet - frontend will create one
+      return null;
+    }
+    return lobby;
+  }
+
+  @Post('worlds/:worldName/lobby')
+  saveLobby(@Param('worldName') worldName: string, @Body() body: any): any {
+    const lobby = this.dataService.saveLobby(worldName, body);
+    return lobby;
+  }
+
+  @Get('worlds/:worldName/lobby/maps/:mapId')
+  getMap(@Param('worldName') worldName: string, @Param('mapId') mapId: string): any {
+    const map = this.dataService.getMap(worldName, mapId);
+    if (!map) {
+      return null;
+    }
+    return map;
+  }
+
+  @Post('worlds/:worldName/lobby/maps/:mapId')
+  saveMap(@Param('worldName') worldName: string, @Param('mapId') mapId: string, @Body() body: any): any {
+    const map = this.dataService.saveMap(worldName, mapId, body);
+    return map;
   }
 
   // ==================== Migration Utilities ====================
