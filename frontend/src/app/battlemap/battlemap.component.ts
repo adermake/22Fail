@@ -8,12 +8,14 @@ import { WorldStoreService } from '../services/world-store.service';
 import { BattlemapData, BattlemapToken, HexCoord, HexMath, LobbyData, MapData, MapImage, LibraryImage, createEmptyMap } from '../model/battlemap.model';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { CharacterApiService } from '../services/character-api.service';
+import { ImageService } from '../services/image.service';
 
 import { BattlemapGridComponent } from './battlemap-grid/battlemap-grid.component';
 import { BattlemapToolbarComponent } from './battlemap-toolbar/battlemap-toolbar.component';
 import { BattlemapCharacterListComponent } from './battlemap-character-list/battlemap-character-list.component';
 import { BattlemapBattleTrackerComponent } from './battlemap-battle-tracker/battlemap-battle-tracker.component';
 import { BattlemapImageLibraryComponent } from './battlemap-image-library/battlemap-image-library.component';
+import { BattlemapSidebarComponent } from './battlemap-sidebar/battlemap-sidebar.component';
 
 
 export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image';
@@ -26,9 +28,8 @@ export type DragMode = 'free' | 'enforced';
     CommonModule,
     BattlemapGridComponent,
     BattlemapToolbarComponent,
-    BattlemapCharacterListComponent,
     BattlemapBattleTrackerComponent,
-    BattlemapImageLibraryComponent,
+    BattlemapSidebarComponent,
   ],
   templateUrl: './battlemap.component.html',
   styleUrl: './battlemap.component.css',
@@ -41,6 +42,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   private store = inject(BattleMapStoreService);
   private worldStore = inject(WorldStoreService);
   private characterApi = inject(CharacterApiService);
+  private imageService = inject(ImageService);
   
   private subscriptions: Subscription[] = [];
 
@@ -252,17 +254,24 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   }
 
   private async loadWorldCharacters() {
+    console.log('[LOBBY] loadWorldCharacters CALLED');
     const world = this.worldStore.worldValue;
     console.log('[LOBBY] loadWorldCharacters - world:', world?.name, 'characterIds:', world?.characterIds?.length);
-    if (!world) return;
+    if (!world) {
+      console.warn('[LOBBY] No world loaded, cannot load characters');
+      return;
+    }
 
     const characters: { id: string; sheet: CharacterSheet }[] = [];
     
     for (const charId of world.characterIds || []) {
       try {
+        console.log('[LOBBY] Loading character:', charId);
         const sheet = await this.characterApi.loadCharacter(charId);
         if (sheet) {
           characters.push({ id: charId, sheet });
+        } else {
+          console.warn('[LOBBY] Failed to load character sheet for:', charId);
         }
       } catch (e) {
         console.error(`Failed to load character ${charId}:`, e);
@@ -271,6 +280,7 @@ export class BattlemapComponent implements OnInit, OnDestroy {
 
     console.log('[LOBBY] Loaded characters:', characters.length);
     this.worldCharacters.set(characters);
+    console.log('[LOBBY] worldCharacters signal updated, current value:', this.worldCharacters());
   }
 
   // Tool handlers
@@ -502,16 +512,30 @@ export class BattlemapComponent implements OnInit, OnDestroy {
       reader.onload = async (e) => {
         const dataUrl = e.target?.result as string;
         if (dataUrl) {
-          // Create library image
-          const libraryImage: Omit<LibraryImage, 'id' | 'createdAt'> = {
-            name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
-            src: dataUrl,
-            width: 200,
-            height: 200,
-          };
-          
-          console.log('[LOBBY] Adding image to library:', libraryImage.name);
-          await this.store.addLibraryImage(libraryImage);
+          try {
+            // Upload image to server and get imageId
+            console.log('[LOBBY] Uploading image:', file.name);
+            const imageId = await this.imageService.uploadImage(dataUrl);
+            const imageSrc = this.imageService.getImageUrl(imageId);
+            
+            if (!imageSrc) {
+              console.error('[LOBBY] Failed to get image URL for:', imageId);
+              return;
+            }
+            
+            // Create library image with server URL
+            const libraryImage: Omit<LibraryImage, 'id' | 'createdAt'> = {
+              name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+              src: imageSrc,
+              width: 200,
+              height: 200,
+            };
+            
+            console.log('[LOBBY] Adding image to library:', libraryImage.name, 'src:', imageSrc);
+            await this.store.addLibraryImage(libraryImage);
+          } catch (error) {
+            console.error('[LOBBY] Failed to upload image:', file.name, error);
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -531,6 +555,10 @@ export class BattlemapComponent implements OnInit, OnDestroy {
   onLibraryImageDragStart(image: LibraryImage) {
     // Store the dragged library image for drop handling
     console.log('[LOBBY] Dragging library image:', image.name);
+    // Auto-switch to image tool
+    if (this.currentTool() !== 'image') {
+      this.currentTool.set('image');
+    }
   }
 
   async onLibraryImageDrop(data: { src: string; x: number; y: number; width: number; height: number }) {
@@ -583,17 +611,30 @@ export class BattlemapComponent implements OnInit, OnDestroy {
           if (dataUrl) {
             console.log('[LOBBY] Pasting image, size:', dataUrl.length);
             
-            // Add to library
-            const libraryImage: Omit<LibraryImage, 'id' | 'createdAt'> = {
-              name: `Pasted Image ${Date.now()}`,
-              src: dataUrl,
-              width: 200,
-              height: 200,
-            };
-            await this.store.addLibraryImage(libraryImage);
-            
-            // Also paste onto map
-            await this.onAddImage(dataUrl);
+            try {
+              // Upload image to server
+              const imageId = await this.imageService.uploadImage(dataUrl);
+              const imageSrc = this.imageService.getImageUrl(imageId);
+              
+              if (!imageSrc) {
+                console.error('[LOBBY] Failed to get image URL for pasted image');
+                return;
+              }
+              
+              // Add to library
+              const libraryImage: Omit<LibraryImage, 'id' | 'createdAt'> = {
+                name: `Pasted Image ${Date.now()}`,
+                src: imageSrc,
+                width: 200,
+                height: 200,
+              };
+              await this.store.addLibraryImage(libraryImage);
+              
+              // Also paste onto map
+              await this.onAddImage(imageSrc);
+            } catch (error) {
+              console.error('[LOBBY] Failed to upload pasted image:', error);
+            }
           }
         };
         reader.readAsDataURL(blob);

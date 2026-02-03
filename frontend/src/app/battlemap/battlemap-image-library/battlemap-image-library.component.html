@@ -26,6 +26,8 @@
             (keydown.enter)="saveRename(image.id)"
             (keydown.escape)="cancelRename()"
             (click)="$event.stopPropagation()"
+            (mousedown)="$event.stopPropagation()"
+            (dragstart)="$event.preventDefault()"
             autofocus
           />
         } @else {

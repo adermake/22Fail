@@ -72,17 +72,11 @@
 
   <div class="battlemap-main">
     <div class="battlemap-content">
-      <!-- Left Panel: Character List -->
+      <!-- Sidebar with Characters and Images tabs -->
       @if (showCharacterList()) {
-        <app-battlemap-character-list
+        <app-battlemap-sidebar
           [characters]="worldCharacters()"
           [tokensOnMap]="battleMap()?.tokens || []"
-        />
-      }
-
-      <!-- Image Library (only for GM) -->
-      @if (isGM()) {
-        <app-battlemap-image-library
           [images]="imageLibrary()"
           [isGM]="isGM()"
           (loadImages)="onLoadImages($event)"

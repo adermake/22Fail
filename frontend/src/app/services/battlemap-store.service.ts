@@ -195,13 +195,13 @@ export class BattleMapStoreService {
       battleMap.updatedAt = Date.now();
       this.battleMapSubject.next({ ...battleMap });
       
-      // Also update the lobby's map data
-      this.updateLobbyMap(battleMap);
+      // Also update the lobby's map data and save to server
+      this.updateLobbyMapAndSave(battleMap);
     }
     this.socket.sendPatch(this.worldName, this.currentMapId, patch);
   }
 
-  private updateLobbyMap(battleMap: BattlemapData) {
+  private async updateLobbyMapAndSave(battleMap: BattlemapData) {
     const lobby = this.lobbyValue;
     if (!lobby || !lobby.maps[this.currentMapId]) return;
 
@@ -220,6 +220,9 @@ export class BattleMapStoreService {
     
     lobby.updatedAt = Date.now();
     this.lobbySubject.next({ ...lobby });
+    
+    // Save to server
+    await this.api.saveLobby(this.worldName, lobby);
   }
 
   // Image operations

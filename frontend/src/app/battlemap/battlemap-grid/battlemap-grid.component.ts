@@ -6,6 +6,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, HexMath, WallHex, MeasurementLine, generateId } from '../../model/battlemap.model';
 import { BattleMapStoreService } from '../../services/battlemap-store.service';
+import { ImageService } from '../../services/image.service';
 import { BattlemapTokenComponent } from '../battlemap-token/battlemap-token.component';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 import { ToolType } from '../battlemap.component';
@@ -62,6 +63,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
 
   private store = inject(BattleMapStoreService);
   private cdr = inject(ChangeDetectorRef);
+  private imageService = inject(ImageService);
 
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
@@ -73,6 +75,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   private imageCache = new Map<string, HTMLImageElement>();
   private transformingImageId: string | null = null;
   private transformAnchor: { x: number; y: number } | null = null;
+  private transformMode: 'move' | 'scale' | 'rotate' = 'move';
+  private transformHandle: 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null = null;
   private initialImageTransform: { x: number; y: number; width: number; height: number; rotation: number } | null = null;
 
   // Render optimization - use requestAnimationFrame batching
@@ -432,15 +436,22 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   private renderImage(ctx: CanvasRenderingContext2D, imgData: any) {
+    // Get proper image URL using ImageService
+    const imageUrl = this.imageService.getImageUrl(imgData.src);
+    if (!imageUrl) {
+      console.warn('[LOBBY GRID] No URL for image:', imgData.id);
+      return;
+    }
+    
     // Try to get cached image
-    let image = this.imageCache.get(imgData.src);
+    let image = this.imageCache.get(imageUrl);
     
     if (!image) {
       // Create and cache new image
       image = new Image();
       image.crossOrigin = 'anonymous';
-      image.src = imgData.src;
-      this.imageCache.set(imgData.src, image);
+      image.src = imageUrl;
+      this.imageCache.set(imageUrl, image);
       
       // Re-render when image loads
       image.onload = () => {
@@ -458,7 +469,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     // Draw image centered on the transform point
     ctx.drawImage(image, -imgData.width / 2, -imgData.height / 2, imgData.width, imgData.height);
     
-    // Draw selection border if this image is selected
+    // Draw selection border and handles if this image is selected
     if (this.selectedImageId === imgData.id) {
       ctx.strokeStyle = '#3b82f6';
       ctx.lineWidth = 3 / this.scale;
@@ -466,18 +477,35 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       ctx.strokeRect(-imgData.width / 2, -imgData.height / 2, imgData.width, imgData.height);
       ctx.setLineDash([]);
       
-      // Draw corner handles
-      const handleSize = 10 / this.scale;
+      // Draw corner handles for scaling
+      const handleSize = 12 / this.scale;
       ctx.fillStyle = '#3b82f6';
       const corners = [
-        { x: -imgData.width / 2, y: -imgData.height / 2 },
-        { x: imgData.width / 2, y: -imgData.height / 2 },
-        { x: imgData.width / 2, y: imgData.height / 2 },
-        { x: -imgData.width / 2, y: imgData.height / 2 },
+        { x: -imgData.width / 2, y: -imgData.height / 2 }, // TL
+        { x: imgData.width / 2, y: -imgData.height / 2 },  // TR
+        { x: imgData.width / 2, y: imgData.height / 2 },   // BR
+        { x: -imgData.width / 2, y: imgData.height / 2 },  // BL
       ];
       for (const corner of corners) {
         ctx.fillRect(corner.x - handleSize / 2, corner.y - handleSize / 2, handleSize, handleSize);
       }
+      
+      // Draw rotation handle above the image
+      const rotateHandleY = -imgData.height / 2 - 30 / this.scale;
+      ctx.beginPath();
+      ctx.moveTo(0, -imgData.height / 2);
+      ctx.lineTo(0, rotateHandleY);
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2 / this.scale;
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.arc(0, rotateHandleY, 8 / this.scale, 0, Math.PI * 2);
+      ctx.fillStyle = '#22c55e';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2 / this.scale;
+      ctx.stroke();
     }
     
     ctx.restore();
@@ -807,7 +835,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
         // Check if clicking on an existing image
         const clickedImage = this.getImageAtPoint(world.x, world.y);
         if (clickedImage) {
-          // Select and start transforming
+          // Select and determine which handle was clicked
           this.imageSelect.emit(clickedImage.id);
           this.transformingImageId = clickedImage.id;
           this.transformAnchor = { x: event.clientX, y: event.clientY };
@@ -818,6 +846,16 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
             height: clickedImage.height,
             rotation: clickedImage.rotation
           };
+          
+          // Detect which handle was clicked
+          this.transformHandle = this.getClickedHandle(world.x, world.y, clickedImage);
+          if (this.transformHandle === 'rotate') {
+            this.transformMode = 'rotate';
+          } else if (this.transformHandle) {
+            this.transformMode = 'scale';
+          } else {
+            this.transformMode = 'move';
+          }
         } else {
           // Deselect
           this.imageSelect.emit(null);
@@ -969,20 +1007,23 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     if (this.transformingImageId && this.transformAnchor && this.initialImageTransform) {
       const dx = event.clientX - this.transformAnchor.x;
       const dy = event.clientY - this.transformAnchor.y;
-      
-      // For now, just move the image (drag)
       const worldDx = dx / this.scale;
       const worldDy = dy / this.scale;
       
-      this.imageTransform.emit({
-        id: this.transformingImageId,
-        transform: {
-          x: this.initialImageTransform.x + worldDx,
-          y: this.initialImageTransform.y + worldDy
-        }
-      });
-      return;
-    }
+      if (this.transformMode === 'move') {
+        // Move the image
+        this.imageTransform.emit({
+          id: this.transformingImageId,
+          transform: {
+            x: this.initialImageTransform.x + worldDx,
+            y: this.initialImageTransform.y + worldDy
+          }
+        });
+      } else if (this.transformMode === 'rotate') {
+        // Rotate around center
+        const centerX = this.initialImageTransform.x;
+        const centerY = this.initialImageTransform.y;
+        const initialAngle = Math.atan2(\n          this.transformAnchor.y / this.scale - centerY,\n          this.transformAnchor.x / this.scale - centerX\n        );\n        const currentAngle = Math.atan2(\n          (this.transformAnchor.y + dy) / this.scale - centerY,\n          (this.transformAnchor.x + dx) / this.scale - centerX\n        );\n        const deltaAngle = (currentAngle - initialAngle) * 180 / Math.PI;\n        const newRotation = (this.initialImageTransform.rotation + deltaAngle) % 360;\n        \n        this.imageTransform.emit({\n          id: this.transformingImageId,\n          transform: {\n            rotation: newRotation\n          }\n        });\n      } else if (this.transformMode === 'scale' && this.transformHandle) {\n        // Scale from opposite corner\n        const scaleFactorX = 1 + (worldDx * 2) / this.initialImageTransform.width;\n        const scaleFactorY = 1 + (worldDy * 2) / this.initialImageTransform.height;\n        \n        // Use average scale factor to maintain aspect ratio\n        const scaleFactor = (Math.abs(scaleFactorX) + Math.abs(scaleFactorY)) / 2;\n        const newWidth = Math.max(20, this.initialImageTransform.width * scaleFactor);\n        const newHeight = Math.max(20, this.initialImageTransform.height * scaleFactor);\n        \n        this.imageTransform.emit({\n          id: this.transformingImageId,\n          transform: {\n            width: newWidth,\n            height: newHeight\n          }\n        });\n      }\n      return;\n    }
     
     // Walls tool - continuous painting of walls while dragging
     if (this.isWallDrawing && this.currentTool === 'walls') {
@@ -1087,6 +1128,8 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     this.transformingImageId = null;
     this.transformAnchor = null;
     this.initialImageTransform = null;
+    this.transformMode = 'move';
+    this.transformHandle = null;
 
     // Clear ruler on mouse release
     if (this.currentTool === 'measure') {
@@ -1500,6 +1543,43 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
 
     ctx.globalCompositeOperation = 'source-over';
     ctx.restore();
+  }
+
+  // Detect which transform handle was clicked
+  private getClickedHandle(worldX: number, worldY: number, image: MapImage): 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null {
+    const handleSize = 12 / this.scale;
+    const threshold = handleSize;
+    
+    // Transform click point relative to image rotation
+    const dx = worldX - image.x;
+    const dy = worldY - image.y;
+    const angle = -image.rotation * Math.PI / 180;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const localX = dx * cos - dy * sin;
+    const localY = dx * sin + dy * cos;
+    
+    // Check rotation handle
+    const rotateHandleY = -image.height / 2 - 30 / this.scale;
+    if (Math.abs(localX) < threshold && Math.abs(localY - rotateHandleY) < threshold) {
+      return 'rotate';
+    }
+    
+    // Check corner handles
+    const corners = [
+      { name: 'tl' as const, x: -image.width / 2, y: -image.height / 2 },
+      { name: 'tr' as const, x: image.width / 2, y: -image.height / 2 },
+      { name: 'br' as const, x: image.width / 2, y: image.height / 2 },
+      { name: 'bl' as const, x: -image.width / 2, y: image.height / 2 },
+    ];
+    
+    for (const corner of corners) {
+      if (Math.abs(localX - corner.x) < threshold && Math.abs(localY - corner.y) < threshold) {
+        return corner.name;
+      }
+    }
+    
+    return null;
   }
 
   // Get token screen position for rendering (returns world position, transform applied via CSS)
