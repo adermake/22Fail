@@ -55,6 +55,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   @Output() quickTokenDrop = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
   @Output() brushSizeChange = new EventEmitter<number>(); // For shift+drag brush resize
   @Output() imageAdd = new EventEmitter<string>();
+  @Output() libraryImageDrop = new EventEmitter<{ src: string; x: number; y: number; width: number; height: number }>();
   @Output() imageSelect = new EventEmitter<string | null>();
   @Output() imageTransform = new EventEmitter<{ id: string; transform: Partial<{ x: number; y: number; width: number; height: number; rotation: number }> }>();
   @Output() imageDelete = new EventEmitter<string>();
@@ -306,29 +307,11 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     const maxHexes = 2000; // Maximum hexes to render for performance
     const shouldSimplify = hexCount > maxHexes || this.scale < 0.3;
     
-    // Render visible hexes (or a simplified grid when zoomed out)
+    // Render visible hexes (or a simplified gray background when zoomed out)
     if (shouldSimplify) {
-      // Simplified rendering: draw hexagons at lower density
-      ctx.strokeStyle = 'rgba(71, 85, 105, 0.5)';
-      ctx.lineWidth = 1;
-      
-      // Draw every 3rd hex for performance
-      const step = 3;
-      for (let q = bounds.minQ; q <= bounds.maxQ; q += step) {
-        for (let r = bounds.minR; r <= bounds.maxR; r += step) {
-          const hex = { q, r };
-          const center = HexMath.hexToPixel(hex);
-          const corners = HexMath.getHexCorners(center);
-          
-          ctx.beginPath();
-          ctx.moveTo(corners[0].x, corners[0].y);
-          for (let i = 1; i < corners.length; i++) {
-            ctx.lineTo(corners[i].x, corners[i].y);
-          }
-          ctx.closePath();
-          ctx.stroke();
-        }
-      }
+      // Simplified rendering: just show gray background
+      ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
+      ctx.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
     } else {
       // Full hex rendering when zoomed in
       for (let q = bounds.minQ; q <= bounds.maxQ; q++) {
@@ -1408,6 +1391,37 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     
     // Reset external drag state
     this.isExternalDragActive = false;
+    
+    // Check if it's a library image being dropped
+    try {
+      const jsonData = event.dataTransfer?.getData('application/json');
+      if (jsonData) {
+        const libraryImage = JSON.parse(jsonData);
+        if (libraryImage && libraryImage.src) {
+          console.log('[BATTLEMAP GRID] Dropping library image:', libraryImage.name);
+          
+          const rect = this.container.nativeElement.getBoundingClientRect();
+          const x = event.clientX - rect.left;
+          const y = event.clientY - rect.top;
+          const world = this.screenToWorld(x, y);
+          
+          // Emit library image drop with position
+          this.libraryImageDrop.emit({
+            src: libraryImage.src,
+            x: world.x,
+            y: world.y,
+            width: libraryImage.width || 200,
+            height: libraryImage.height || 200,
+          });
+          
+          this.dragOverHex = null;
+          this.scheduleRender();
+          return;
+        }
+      }
+    } catch (e) {
+      // Not a library image, continue with character drop
+    }
     
     // Get character ID from text/plain (for new tokens from character list)
     const characterId = event.dataTransfer?.getData('text/plain');

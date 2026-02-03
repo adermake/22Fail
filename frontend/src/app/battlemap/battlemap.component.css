@@ -42,6 +42,15 @@ app-battlemap-character-list {
   overflow-y: auto;
 }
 
+app-battlemap-image-library {
+  width: 300px;
+  min-width: 300px;
+  border-right: 1px solid var(--border);
+  background: var(--card);
+  overflow: hidden;
+  display: flex;
+}
+
 /* Battle tracker at bottom - horizontal layout */
 app-battlemap-battle-tracker {
   width: 100%;

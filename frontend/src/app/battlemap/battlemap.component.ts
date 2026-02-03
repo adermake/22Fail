@@ -5,7 +5,7 @@ import { Subscription } from 'rxjs';
 
 import { BattleMapStoreService } from '../services/battlemap-store.service';
 import { WorldStoreService } from '../services/world-store.service';
-import { BattlemapData, BattlemapToken, HexCoord, HexMath, LobbyData, MapData, MapImage, createEmptyMap } from '../model/battlemap.model';
+import { BattlemapData, BattlemapToken, HexCoord, HexMath, LobbyData, MapData, MapImage, LibraryImage, createEmptyMap } from '../model/battlemap.model';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { CharacterApiService } from '../services/character-api.service';
 
@@ -13,6 +13,7 @@ import { BattlemapGridComponent } from './battlemap-grid/battlemap-grid.componen
 import { BattlemapToolbarComponent } from './battlemap-toolbar/battlemap-toolbar.component';
 import { BattlemapCharacterListComponent } from './battlemap-character-list/battlemap-character-list.component';
 import { BattlemapBattleTrackerComponent } from './battlemap-battle-tracker/battlemap-battle-tracker.component';
+import { BattlemapImageLibraryComponent } from './battlemap-image-library/battlemap-image-library.component';
 
 
 export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image';
@@ -27,6 +28,7 @@ export type DragMode = 'free' | 'enforced';
     BattlemapToolbarComponent,
     BattlemapCharacterListComponent,
     BattlemapBattleTrackerComponent,
+    BattlemapImageLibraryComponent,
   ],
   templateUrl: './battlemap.component.html',
   styleUrl: './battlemap.component.css',
@@ -119,6 +121,12 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     };
   });
 
+  // Image library from lobby
+  imageLibrary = computed(() => {
+    const lobby = this.lobby();
+    return lobby?.imageLibrary || [];
+  });
+
   // Panel visibility
   showCharacterList = signal(true);
   showBattleTracker = signal(true);
@@ -139,7 +147,9 @@ export class BattlemapComponent implements OnInit, OnDestroy {
         await this.loadLobby(worldName);
         
         // Also load world data for characters and battle tracker
+        console.log('[LOBBY] Loading world:', worldName);
         await this.worldStore.load(worldName);
+        console.log('[LOBBY] World loaded, world value:', this.worldStore.worldValue);
         
         // Load characters from the world
         await this.loadWorldCharacters();
@@ -478,11 +488,77 @@ export class BattlemapComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Image Library Methods
+  async onLoadImages(files: FileList) {
+    if (!this.isGM()) return;
+    
+    console.log('[LOBBY] Loading', files.length, 'images to library');
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.type.startsWith('image/')) continue;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const dataUrl = e.target?.result as string;
+        if (dataUrl) {
+          // Create library image
+          const libraryImage: Omit<LibraryImage, 'id' | 'createdAt'> = {
+            name: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+            src: dataUrl,
+            width: 200,
+            height: 200,
+          };
+          
+          console.log('[LOBBY] Adding image to library:', libraryImage.name);
+          await this.store.addLibraryImage(libraryImage);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  async onRenameLibraryImage(data: { id: string; name: string }) {
+    if (!this.isGM()) return;
+    await this.store.updateLibraryImage(data.id, { name: data.name });
+  }
+
+  async onDeleteLibraryImage(id: string) {
+    if (!this.isGM()) return;
+    await this.store.removeLibraryImage(id);
+  }
+
+  onLibraryImageDragStart(image: LibraryImage) {
+    // Store the dragged library image for drop handling
+    console.log('[LOBBY] Dragging library image:', image.name);
+  }
+
+  async onLibraryImageDrop(data: { src: string; x: number; y: number; width: number; height: number }) {
+    if (!this.isGM()) return;
+    
+    console.log('[LOBBY] Dropping library image at:', data.x, data.y);
+    const newImage: Omit<MapImage, 'id'> = {
+      src: data.src,
+      x: data.x,
+      y: data.y,
+      width: data.width,
+      height: data.height,
+      rotation: 0,
+      zIndex: 0,
+    };
+
+    await this.store.addImage(newImage);
+  }
+
   // Handle paste events for images
   @HostListener('window:paste', ['$event'])
   async handlePaste(event: ClipboardEvent) {
+    console.log('[LOBBY] Paste event detected! currentTool:', this.currentTool(), 'isGM:', this.isGM());
     // Only allow paste when image tool is active and user is GM
-    if (this.currentTool() !== 'image' || !this.isGM()) return;
+    if (this.currentTool() !== 'image' || !this.isGM()) {
+      console.log('[LOBBY] Paste blocked - wrong tool or not GM');
+      return;
+    }
 
     // Ignore if user is typing in an input field
     const target = event.target as HTMLElement;
@@ -506,6 +582,17 @@ export class BattlemapComponent implements OnInit, OnDestroy {
           const dataUrl = e.target?.result as string;
           if (dataUrl) {
             console.log('[LOBBY] Pasting image, size:', dataUrl.length);
+            
+            // Add to library
+            const libraryImage: Omit<LibraryImage, 'id' | 'createdAt'> = {
+              name: `Pasted Image ${Date.now()}`,
+              src: dataUrl,
+              width: 200,
+              height: 200,
+            };
+            await this.store.addLibraryImage(libraryImage);
+            
+            // Also paste onto map
             await this.onAddImage(dataUrl);
           }
         };

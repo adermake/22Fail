@@ -80,6 +80,18 @@
         />
       }
 
+      <!-- Image Library (only for GM) -->
+      @if (isGM()) {
+        <app-battlemap-image-library
+          [images]="imageLibrary()"
+          [isGM]="isGM()"
+          (loadImages)="onLoadImages($event)"
+          (deleteImage)="onDeleteLibraryImage($event)"
+          (renameImage)="onRenameLibraryImage($event)"
+          (dragStart)="onLibraryImageDragStart($event)"
+        />
+      }
+
       <!-- Main Grid Area -->
       <app-battlemap-grid
         [battleMap]="enrichedBattleMap()"
@@ -100,6 +112,7 @@
         (quickTokenDrop)="onQuickTokenDrop($event)"
         (brushSizeChange)="onBrushSizeChange($event)"
         (imageAdd)="onAddImage($event)"
+        (libraryImageDrop)="onLibraryImageDrop($event)"
         (imageSelect)="onSelectImage($event)"
         (imageTransform)="onTransformImage($event.id, $event.transform)"
         (imageDelete)="onDeleteImage($event)"

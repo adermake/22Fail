@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { BattleMapApiService } from './battlemap-api.service';
 import { BattleMapSocketService } from './battlemap-socket.service';
-import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, WallHex, LobbyData, MapData, MapImage, createEmptyBattlemap, createEmptyLobby, createEmptyMap, generateId } from '../model/battlemap.model';
+import { BattlemapData, BattlemapToken, BattlemapStroke, HexCoord, WallHex, LobbyData, MapData, MapImage, LibraryImage, createEmptyBattlemap, createEmptyLobby, createEmptyMap, generateId } from '../model/battlemap.model';
 import { JsonPatch } from '../model/json-patch.model';
 
 @Injectable({ providedIn: 'root' })
@@ -256,6 +256,54 @@ export class BattleMapStoreService {
 
     const images = (battleMap.images || []).filter(img => img.id !== imageId);
     this.applyPatch({ path: 'images', value: images });
+  }
+
+  // Library Image operations (on lobby level)
+  async addLibraryImage(image: Omit<LibraryImage, 'id' | 'createdAt'>) {
+    const lobby = this.lobbyValue;
+    if (!lobby) return;
+
+    const newImage: LibraryImage = {
+      ...image,
+      id: generateId(),
+      createdAt: Date.now(),
+    };
+
+    const imageLibrary = [...(lobby.imageLibrary || []), newImage];
+    const updatedLobby = { ...lobby, imageLibrary, updatedAt: Date.now() };
+    this.lobbySubject.next(updatedLobby);
+    
+    // Save to server
+    await this.api.saveLobby(this.worldName, updatedLobby);
+  }
+
+  async updateLibraryImage(imageId: string, updates: Partial<Pick<LibraryImage, 'name'>>) {
+    const lobby = this.lobbyValue;
+    if (!lobby) return;
+
+    const imageIndex = (lobby.imageLibrary || []).findIndex(img => img.id === imageId);
+    if (imageIndex === -1) return;
+
+    const imageLibrary = [...(lobby.imageLibrary || [])];
+    imageLibrary[imageIndex] = { ...imageLibrary[imageIndex], ...updates };
+    
+    const updatedLobby = { ...lobby, imageLibrary, updatedAt: Date.now() };
+    this.lobbySubject.next(updatedLobby);
+    
+    // Save to server
+    await this.api.saveLobby(this.worldName, updatedLobby);
+  }
+
+  async removeLibraryImage(imageId: string) {
+    const lobby = this.lobbyValue;
+    if (!lobby) return;
+
+    const imageLibrary = (lobby.imageLibrary || []).filter(img => img.id !== imageId);
+    const updatedLobby = { ...lobby, imageLibrary, updatedAt: Date.now() };
+    this.lobbySubject.next(updatedLobby);
+    
+    // Save to server
+    await this.api.saveLobby(this.worldName, updatedLobby);
   }
 
   // Token operations

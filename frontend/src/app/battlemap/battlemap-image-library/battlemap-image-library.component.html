@@ -1,0 +1,56 @@
+<div class="image-library">
+  <div class="library-header">
+    <h3>Image Library</h3>
+    @if (isGM()) {
+      <label class="load-btn">
+        <input type="file" accept="image/*" multiple (change)="onFileSelect($event)" hidden />
+        + Load Images
+      </label>
+    }
+  </div>
+
+  <div class="library-grid">
+    @for (image of images(); track image.id) {
+      <div 
+        class="library-item" 
+        draggable="true"
+        (dragstart)="onDragStart($event, image)"
+      >
+        <img [src]="image.src" [alt]="image.name" />
+        
+        @if (renamingId === image.id) {
+          <input 
+            class="rename-input"
+            type="text" 
+            [(ngModel)]="renamingValue"
+            (keydown.enter)="saveRename(image.id)"
+            (keydown.escape)="cancelRename()"
+            (click)="$event.stopPropagation()"
+            autofocus
+          />
+        } @else {
+          <div class="item-name">{{ image.name }}</div>
+        }
+
+        @if (isGM()) {
+          <div class="item-actions">
+            @if (renamingId === image.id) {
+              <button class="action-btn save-btn" (click)="saveRename(image.id)">✓</button>
+              <button class="action-btn cancel-btn" (click)="cancelRename()">✗</button>
+            } @else {
+              <button class="action-btn" (click)="startRename(image, $event)">✏️</button>
+              <button class="action-btn delete-btn" (click)="onDelete(image.id, $event)">🗑️</button>
+            }
+          </div>
+        }
+      </div>
+    } @empty {
+      <div class="empty-state">
+        <p>No images in library</p>
+        @if (isGM()) {
+          <p class="hint">Click "+ Load Images" to add some</p>
+        }
+      </div>
+    }
+  </div>
+</div>

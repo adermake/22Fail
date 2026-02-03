@@ -58,6 +58,17 @@ export interface MapImage {
   zIndex: number; // layering order
 }
 
+// An image in the library (reusable across maps)
+export interface LibraryImage {
+  id: string;
+  name: string;
+  src: string; // Base64 or URL
+  thumbnailSrc?: string; // Optional smaller version for library display
+  width: number; // Default width when placed
+  height: number; // Default height when placed
+  createdAt: number;
+}
+
 // Individual map data within a lobby (formerly BattlemapData)
 export interface MapData {
   id: string;
@@ -94,6 +105,9 @@ export interface LobbyData {
   // Currently active map ID
   activeMapId?: string;
   
+  // Image library (shared across all maps in this lobby)
+  imageLibrary: LibraryImage[];
+  
   // Metadata
   createdAt: number;
   updatedAt: number;
@@ -129,6 +143,7 @@ export function createEmptyLobby(worldName: string): LobbyData {
       'default': defaultMap
     },
     activeMapId: 'default',
+    imageLibrary: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
