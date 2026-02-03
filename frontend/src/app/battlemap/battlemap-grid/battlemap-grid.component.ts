@@ -1669,9 +1669,6 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     
     return null;
   }
-    
-    return null;
-  }
 
   // Get token screen position for rendering (returns world position, transform applied via CSS)
   getTokenScreenPosition(token: BattlemapToken): { x: number; y: number } {
