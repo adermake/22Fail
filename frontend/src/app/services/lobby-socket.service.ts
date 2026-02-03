@@ -46,13 +46,13 @@ export class LobbySocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('[LobbySocket] Connected:', this.socket?.id);
+      console.log('[LobbySocket] ✅ Connected successfully:', this.socket?.id);
       this.isConnected = true;
       this.connectionReadySubject.next();
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('[LobbySocket] Disconnected:', reason);
+      console.log('[LobbySocket] ❌ Disconnected:', reason);
       this.isConnected = false;
       // Auto-reconnect after short delay
       if (reason === 'io server disconnect') {
@@ -61,13 +61,26 @@ export class LobbySocketService {
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('[LobbySocket] Connection error:', error);
+      console.error('[LobbySocket] ❌ Connection error:', error);
       this.isConnected = false;
     });
 
     this.socket.on('reconnect', () => {
-      console.log('[LobbySocket] Reconnected successfully');
+      console.log('[LobbySocket] ✅ Reconnected successfully');
+      this.isConnected = true;
+      this.connectionReadySubject.next();
     });
+
+    // Periodically sync our flag with the actual socket state
+    setInterval(() => {
+      if (this.socket && this.socket.connected !== this.isConnected) {
+        console.log('[LobbySocket] 🔄 Syncing connection state - socket.connected:', this.socket.connected, 'isConnected:', this.isConnected);
+        this.isConnected = this.socket.connected;
+        if (this.isConnected) {
+          this.connectionReadySubject.next();
+        }
+      }
+    }, 1000);
 
     // Listen for lobby patches
     this.socket.on('lobbyPatched', (patch: JsonPatch) => {
@@ -134,13 +147,18 @@ export class LobbySocketService {
    * Send a patch to be broadcast to other clients.
    */
   sendPatch(worldName: string, mapId: string, patch: JsonPatch): void {
-    if (!this.isConnected) {
-      console.warn('[LobbySocket] Not connected, patch not sent:', patch.path);
+    if (!this.socket) {
+      console.warn('[LobbySocket] ❌ No socket instance, patch not sent:', patch.path);
       return;
     }
-    console.log('[LobbySocket] Sending patch:', patch.path);
+    if (!this.isConnected) {
+      console.warn('[LobbySocket] ❌ Not connected (isConnected=false), patch not sent:', patch.path);
+      console.log('[LobbySocket] Socket state - connected:', this.socket.connected, 'id:', this.socket.id);
+      return;
+    }
+    console.log('[LobbySocket] ✅ Sending patch:', patch.path);
     // Use battlemap gateway since there's no lobby gateway
-    this.socket?.emit('patchBattleMap', { worldName, battleMapId: mapId, patch });
+    this.socket.emit('patchBattleMap', { worldName, battleMapId: mapId, patch });
   }
 
   /**

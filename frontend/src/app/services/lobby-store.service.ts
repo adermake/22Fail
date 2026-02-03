@@ -121,9 +121,15 @@ export class LobbyStoreService {
     const activeMapId = lobby.activeMapId || Object.keys(lobby.maps)[0] || 'default';
     await this.switchMap(activeMapId);
 
-    // Connect socket
+    // Connect socket and wait for connection
+    console.log('[LobbyStore] Connecting to socket...');
     this.socket.connect();
+    
+    // Give the socket a moment to establish connection before joining rooms
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     await this.socket.joinLobby(worldName);
+    console.log('[LobbyStore] ✅ Socket connection and room join complete');
 
     return lobby;
   }
