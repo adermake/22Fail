@@ -1023,7 +1023,43 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
         // Rotate around center
         const centerX = this.initialImageTransform.x;
         const centerY = this.initialImageTransform.y;
-        const initialAngle = Math.atan2(\n          this.transformAnchor.y / this.scale - centerY,\n          this.transformAnchor.x / this.scale - centerX\n        );\n        const currentAngle = Math.atan2(\n          (this.transformAnchor.y + dy) / this.scale - centerY,\n          (this.transformAnchor.x + dx) / this.scale - centerX\n        );\n        const deltaAngle = (currentAngle - initialAngle) * 180 / Math.PI;\n        const newRotation = (this.initialImageTransform.rotation + deltaAngle) % 360;\n        \n        this.imageTransform.emit({\n          id: this.transformingImageId,\n          transform: {\n            rotation: newRotation\n          }\n        });\n      } else if (this.transformMode === 'scale' && this.transformHandle) {\n        // Scale from opposite corner\n        const scaleFactorX = 1 + (worldDx * 2) / this.initialImageTransform.width;\n        const scaleFactorY = 1 + (worldDy * 2) / this.initialImageTransform.height;\n        \n        // Use average scale factor to maintain aspect ratio\n        const scaleFactor = (Math.abs(scaleFactorX) + Math.abs(scaleFactorY)) / 2;\n        const newWidth = Math.max(20, this.initialImageTransform.width * scaleFactor);\n        const newHeight = Math.max(20, this.initialImageTransform.height * scaleFactor);\n        \n        this.imageTransform.emit({\n          id: this.transformingImageId,\n          transform: {\n            width: newWidth,\n            height: newHeight\n          }\n        });\n      }\n      return;\n    }
+        const initialAngle = Math.atan2(
+this.transformAnchor.y / this.scale - centerY,
+this.transformAnchor.x / this.scale - centerX
+);
+const currentAngle = Math.atan2(
+(this.transformAnchor.y + dy) / this.scale - centerY,
+(this.transformAnchor.x + dx) / this.scale - centerX
+);
+const deltaAngle = (currentAngle - initialAngle) * 180 / Math.PI;
+const newRotation = (this.initialImageTransform.rotation + deltaAngle) % 360;
+
+this.imageTransform.emit({
+id: this.transformingImageId,
+transform: {
+rotation: newRotation
+}
+});
+} else if (this.transformMode === 'scale' && this.transformHandle) {
+// Scale from opposite corner
+const scaleFactorX = 1 + (worldDx * 2) / this.initialImageTransform.width;
+const scaleFactorY = 1 + (worldDy * 2) / this.initialImageTransform.height;
+
+// Use average scale factor to maintain aspect ratio
+const scaleFactor = (Math.abs(scaleFactorX) + Math.abs(scaleFactorY)) / 2;
+const newWidth = Math.max(20, this.initialImageTransform.width * scaleFactor);
+const newHeight = Math.max(20, this.initialImageTransform.height * scaleFactor);
+
+this.imageTransform.emit({
+id: this.transformingImageId,
+transform: {
+width: newWidth,
+height: newHeight
+}
+});
+}
+return;
+}
     
     // Walls tool - continuous painting of walls while dragging
     if (this.isWallDrawing && this.currentTool === 'walls') {
@@ -1177,6 +1213,7 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   }
 
   // Pointer event handlers (for tablet/pen/touch support)
+  // Event handlers for grid interaction
   onPointerDown(event: PointerEvent) {
     // Capture pointer to receive events even if pointer leaves element
     (event.target as HTMLElement).setPointerCapture(event.pointerId);
