@@ -1,0 +1,59 @@
+<div 
+  class="grid-container" 
+  #container
+  (mousedown)="onMouseDown($event)"
+  (mousemove)="onMouseMove($event)"
+  (mouseup)="onMouseUp($event)"
+  (mouseleave)="onMouseUp($event)"
+  (wheel)="onWheel($event)"
+  (contextmenu)="onContextMenu($event)"
+  (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave($event)"
+  (drop)="onDrop($event)"
+>
+  <!-- Canvas layers (bottom to top) -->
+  <canvas #imageCanvas class="canvas-layer image-layer"></canvas>
+  <canvas #gridCanvas class="canvas-layer grid-layer"></canvas>
+  <canvas #drawCanvas class="canvas-layer draw-layer"></canvas>
+  <canvas #overlayCanvas class="canvas-layer overlay-layer"></canvas>
+
+  <!-- Token layer -->
+  <div class="token-layer">
+    @for (token of tokens; track token.id) {
+      <app-lobby-token
+        [token]="token"
+        [position]="getTokenScreenPosition(token)"
+        [scale]="scale"
+        [isCurrentTurn]="false"
+        (dragStart)="onTokenDragStart(token, $event)"
+        (contextMenu)="onTokenContextMenu(token, $event)"
+      />
+    }
+  </div>
+
+  <!-- Drag ghost -->
+  @if (dragGhostPosition()) {
+    <div 
+      class="drag-ghost"
+      [style.left.px]="worldToScreen(dragGhostPosition()!.x, dragGhostPosition()!.y).x"
+      [style.top.px]="worldToScreen(dragGhostPosition()!.x, dragGhostPosition()!.y).y"
+    ></div>
+  }
+
+  <!-- Context menu for images -->
+  @if (showContextMenu()) {
+    <div 
+      class="context-menu"
+      [style.left.px]="contextMenuPosition().x"
+      [style.top.px]="contextMenuPosition().y"
+      (click)="$event.stopPropagation()"
+    >
+      <button (click)="onMoveImageToFront()">Bring to Front</button>
+      <button (click)="onMoveImageForward()">Bring Forward</button>
+      <button (click)="onMoveImageBackward()">Send Backward</button>
+      <button (click)="onMoveImageToBack()">Send to Back</button>
+      <div class="menu-divider"></div>
+      <button class="danger" (click)="onDeleteSelectedImage()">Delete</button>
+    </div>
+  }
+</div>

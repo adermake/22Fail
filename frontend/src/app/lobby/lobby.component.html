@@ -1,0 +1,76 @@
+<div class="lobby-container">
+  <!-- Toolbar at the top -->
+  <app-lobby-toolbar
+    [currentTool]="currentTool()"
+    [brushColor]="brushColor()"
+    [penBrushSize]="penBrushSize()"
+    [eraserBrushSize]="eraserBrushSize()"
+    [drawWithWalls]="drawWithWalls()"
+    [dragMode]="dragMode()"
+    [drawLayerVisible]="drawLayerVisible()"
+    [isGM]="isGM()"
+    (toolChange)="onToolChange($event)"
+    (brushColorChange)="onBrushColorChange($event)"
+    (penBrushSizeChange)="onPenBrushSizeChange($event)"
+    (eraserBrushSizeChange)="onEraserBrushSizeChange($event)"
+    (drawWithWallsChange)="onDrawWithWallsChange($event)"
+    (dragModeChange)="onDragModeChange($event)"
+    (drawLayerVisibleChange)="onDrawLayerVisibleChange($event)"
+    (clearDrawings)="store.clearStrokes()"
+    (clearWalls)="store.clearWalls()"
+    (toggleSidebar)="toggleSidebar()"
+  />
+
+  <!-- Main content area -->
+  <div class="lobby-main">
+    <!-- Sidebar -->
+    @if (showSidebar()) {
+      <app-lobby-sidebar
+        class="lobby-sidebar"
+        [characters]="worldCharacters()"
+        [tokensOnMap]="enrichedTokens()"
+        [images]="imageLibrary()"
+        [isGM]="isGM()"
+        (loadImages)="onLoadImages($event)"
+        (deleteImage)="onDeleteLibraryImage($event)"
+        (renameImage)="onRenameLibraryImage($event)"
+      />
+    }
+
+    <!-- Grid canvas area -->
+    <div class="lobby-grid-wrapper">
+      <app-lobby-grid
+        [map]="currentMap()"
+        [tokens]="enrichedTokens()"
+        [currentTool]="currentTool()"
+        [brushColor]="brushColor()"
+        [penBrushSize]="penBrushSize()"
+        [eraserBrushSize]="eraserBrushSize()"
+        [drawWithWalls]="drawWithWalls()"
+        [dragMode]="dragMode()"
+        [drawLayerVisible]="drawLayerVisible()"
+        [imageLayerVisible]="imageLayerVisible()"
+        [selectedImageId]="selectedImageId()"
+        [isGM]="isGM()"
+        (tokenDrop)="onTokenDrop($event)"
+        (tokenMove)="onTokenMove($event)"
+        (tokenRemove)="onTokenRemove($event)"
+        (quickTokenDrop)="onQuickTokenDrop($event)"
+        (imageSelect)="onSelectImage($event)"
+        (imageTransform)="onTransformImage($event)"
+        (imageDelete)="onDeleteImage($event)"
+        (placeImage)="onPlaceImage($event)"
+      />
+    </div>
+  </div>
+
+  <!-- Map name badge -->
+  <div class="map-badge">
+    <span class="map-name">{{ currentMap()?.name || 'No Map' }}</span>
+    @if (isGM()) {
+      <button class="map-switch-btn" title="Switch Map">
+        ⚙️
+      </button>
+    }
+  </div>
+</div>

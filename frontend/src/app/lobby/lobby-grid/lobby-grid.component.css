@@ -1,0 +1,103 @@
+/* Grid container */
+.grid-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: crosshair;
+  background: #1a1a2e;
+}
+
+/* Canvas layers */
+.canvas-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.image-layer {
+  z-index: 1;
+}
+
+.grid-layer {
+  z-index: 2;
+}
+
+.draw-layer {
+  z-index: 3;
+}
+
+.overlay-layer {
+  z-index: 4;
+}
+
+/* Token layer */
+.token-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Drag ghost */
+.drag-ghost {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  margin-left: -20px;
+  margin-top: -20px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.5);
+  border: 2px solid #3b82f6;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Context menu */
+.context-menu {
+  position: fixed;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 4px 0;
+  min-width: 160px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.context-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  color: #e2e8f0;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.context-menu button:hover {
+  background: #334155;
+}
+
+.context-menu button.danger {
+  color: #ef4444;
+}
+
+.context-menu button.danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.menu-divider {
+  height: 1px;
+  background: #334155;
+  margin: 4px 0;
+}

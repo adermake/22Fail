@@ -1,0 +1,158 @@
+<div class="sidebar">
+  <!-- Tab headers -->
+  <div class="tab-header">
+    <button 
+      class="tab-btn" 
+      [class.active]="activeTab() === 'characters'"
+      (click)="switchTab('characters')"
+    >
+      👤 Characters
+    </button>
+    <button 
+      class="tab-btn" 
+      [class.active]="activeTab() === 'images'"
+      (click)="switchTab('images')"
+    >
+      🖼️ Images
+    </button>
+  </div>
+
+  <!-- Search bar -->
+  <div class="search-bar">
+    <input 
+      type="text" 
+      placeholder="Search..."
+      [value]="searchQuery()"
+      (input)="searchQuery.set($any($event.target).value)"
+    />
+  </div>
+
+  <!-- Tab content -->
+  <div class="tab-content">
+    <!-- Characters Tab -->
+    @if (activeTab() === 'characters') {
+      <div class="character-list">
+        @for (char of filteredCharacters; track char.id) {
+          <div 
+            class="character-item"
+            [class.on-map]="isTokenOnMap(char.id)"
+            draggable="true"
+            (dragstart)="onCharacterDragStart($event, char.id)"
+          >
+            <div class="char-portrait">
+              @if (char.sheet.portrait) {
+                <img [src]="char.sheet.portrait | imageUrl" alt="" />
+              } @else {
+                <div class="char-placeholder">{{ (char.sheet.name || char.id).charAt(0) }}</div>
+              }
+            </div>
+            <div class="char-info">
+              <div class="char-name">{{ char.sheet.name || char.id }}</div>
+              <div class="char-meta">
+                @if (char.sheet.race) {
+                  <span>{{ char.sheet.race }}</span>
+                }
+              </div>
+            </div>
+            @if (isTokenOnMap(char.id)) {
+              <span class="on-map-badge" title="Token on map">🎯</span>
+            }
+          </div>
+        }
+
+        @if (filteredCharacters.length === 0) {
+          <div class="empty-state">
+            @if (searchQuery()) {
+              <p>No characters match "{{ searchQuery() }}"</p>
+            } @else {
+              <p>No characters in this world</p>
+              <p class="hint">Add characters in the World view</p>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Images Tab -->
+    @if (activeTab() === 'images') {
+      <div class="image-library">
+        <!-- Upload button (GM only) -->
+        @if (isGM) {
+          <label class="upload-btn">
+            <input 
+              type="file" 
+              accept="image/*" 
+              multiple 
+              (change)="onFileSelect($event)"
+              hidden
+            />
+            <span>📁 Upload Images</span>
+          </label>
+        }
+
+        <!-- Image grid -->
+        <div class="image-grid">
+          @for (image of filteredImages; track image.id) {
+            <div 
+              class="image-item"
+              draggable="true"
+              (dragstart)="onImageDragStart($event, image)"
+            >
+              <div class="image-preview">
+                <img [src]="'/api/images/' + image.imageId" alt="" />
+              </div>
+              
+              @if (editingImageId() === image.id) {
+                <input 
+                  type="text"
+                  class="rename-input"
+                  [value]="editingName()"
+                  (input)="editingName.set($any($event.target).value)"
+                  (keydown)="onRenameKeydown($event)"
+                  (blur)="saveRename()"
+                  autofocus
+                />
+              } @else {
+                <div class="image-name" (dblclick)="startRename(image, $event)">
+                  {{ image.name }}
+                </div>
+              }
+
+              @if (isGM) {
+                <div class="image-actions">
+                  <button 
+                    class="action-btn" 
+                    (click)="startRename(image, $event)"
+                    title="Rename"
+                  >
+                    ✏️
+                  </button>
+                  <button 
+                    class="action-btn danger" 
+                    (click)="confirmDelete(image.id, image.name)"
+                    title="Delete"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        @if (filteredImages.length === 0) {
+          <div class="empty-state">
+            @if (searchQuery()) {
+              <p>No images match "{{ searchQuery() }}"</p>
+            } @else {
+              <p>No images in library</p>
+              @if (isGM) {
+                <p class="hint">Upload images to use as backgrounds</p>
+              }
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

@@ -20,7 +20,7 @@ export const routes: Routes = [
     },
     { 
         path: 'lobby/:worldName', 
-        loadComponent: () => import('./battlemap/battlemap.component').then(m => m.BattlemapComponent)
+        loadComponent: () => import('./lobby/lobby.component').then(m => m.LobbyComponent)
     },
     { 
         path: 'stress-test', 

@@ -20,6 +20,7 @@ Frontend: Angular 21 (standalone, signals) | Backend: NestJS 11 | Real-time: Soc
 ## ROUTING
 /characters/:id → SheetComponent (player view) - auto-creates if missing
 /world/:worldName → WorldComponent (GM dashboard) - auto-creates if missing
+/lobby/:worldName → LobbyComponent (tactical map) - linked to world
 /game/:id → SessionComponent (placeholder)
 
 ## SHEET VIEW (Player Features)
@@ -66,11 +67,15 @@ Frontend Services:
 - world-socket.service.ts: Socket.IO for worlds
 - world-store.service.ts: World state + migrations
 - world-api.service.ts: World HTTP endpoints
+- lobby-socket.service.ts: Socket.IO for lobby real-time sync
+- lobby-store.service.ts: Lobby state management
+- lobby-api.service.ts: Lobby HTTP endpoints
 - weapon-generator.service.ts: Procedural generation
 
 Frontend Models:
 - character-sheet-model.ts: CharacterSheet interface
 - world.model.ts: WorldData, LootItem, BattleParticipant
+- lobby.model.ts: LobbyData, LobbyMap, MapToken, MapImage, MapStroke, HexMath
 - stat-block.model.ts: StatBlock (base/gain/bonus/current)
 - json-patch.model.ts: {path, value}
 - item-block, spell-block, rune-block, skill-block models
@@ -78,6 +83,7 @@ Frontend Models:
 Frontend Components:
 - sheet.component.ts: Player view
 - world/world.component.ts: GM view
+- lobby/lobby.component.ts: Tactical map view
 - session.component.ts: Empty placeholder
 
 ## API ROUTES
@@ -88,6 +94,10 @@ POST /api/characters/:id/portrait - Upload portrait
 GET /api/worlds/:name - Load world
 POST /api/worlds/:name - Save world
 PATCH /api/worlds/:name - Apply patch
+GET /api/lobby/:worldName - Load lobby for world
+POST /api/lobby/:worldName - Save lobby for world
+GET /api/images/:id - Get image data
+POST /api/images - Upload image
 
 ## DESIGN PRINCIPLES
 1. URL creates objects on-the-fly (convenience-first)
@@ -167,6 +177,99 @@ When tiles move to a new place they should just slide left or right depending on
 If a new tile appears it should fade in from the top
 If a tile is removed it should fade out on the bottom.
 This means that pressing next everything should just slide to the left visually. 
+
+
+## LOBBY SYSTEM (Tactical Map)
+The Lobby is the tactical hex-grid map system for running encounters. Renamed from "battlemap" for clarity.
+
+### ARCHITECTURE
+Clean separation of concerns:
+- lobby.model.ts: All type definitions, HexMath utility class
+- lobby-store.service.ts: BehaviorSubject state management
+- lobby-api.service.ts: HTTP persistence
+- lobby-socket.service.ts: Real-time WebSocket sync
+
+### DATA MODEL
+LobbyData: Top-level container for a world's tactical maps
+- worldName: string (links to WorldData)
+- maps: LobbyMap[] (multiple maps per world)
+- activeMapId: string
+
+LobbyMap: Individual tactical map
+- id, name, gridType ('hex' | 'square')
+- tokens: MapToken[] (character tokens on grid)
+- images: MapImage[] (background images)
+- strokes: MapStroke[] (drawings)
+- walls: HexCoord[][] (blocked paths)
+- fogOfWar: HexCoord[] (hidden hexes)
+
+MapToken: Character token on grid
+- id, characterId, position (HexCoord)
+- size (1-4 hexes), team ('party' | 'enemy' | 'neutral')
+
+MapImage: Background image layer
+- id, imageId (references /api/images/:id)
+- position (x, y pixels), scale, rotation, zIndex
+
+MapStroke: Freehand drawing
+- id, points[], color, width
+
+### HexMath UTILITY CLASS
+Static methods for hexagon calculations (pointy-top hexagons):
+- hexToPixel(hex, size): Convert hex coord to pixel center
+- pixelToHex(x, y, size): Convert pixel to nearest hex
+- getHexCorners(center, size): Get 6 corner points for drawing
+- hexDistance(a, b): Manhattan distance in hex space
+- hexNeighbors(hex): Get 6 adjacent hexes
+- findPath(start, goal, isBlocked): A* pathfinding
+
+### CANVAS RENDERING
+Four-layer canvas system for performance:
+1. gridCanvas: Hex grid lines (static, only redraws on pan/zoom)
+2. imageCanvas: Background images (sorted by zIndex)
+3. drawCanvas: Freehand strokes
+4. overlayCanvas: Tokens, selection, UI elements
+
+Performance optimizations:
+- requestAnimationFrame batching
+- Simplified rendering when zoomed out
+- Layer separation (only redraw affected layer)
+- Image caching to prevent reload flicker
+
+### COMPONENTS
+- lobby.component.ts: Main container, route handling, tool state
+- lobby-grid.component.ts: Canvas rendering, mouse/touch interactions
+- lobby-toolbar.component.ts: Tool selection (cursor, draw, erase, walls, measure, image)
+- lobby-sidebar.component.ts: Tabbed panel (Characters | Images)
+- lobby-token.component.ts: Individual token display with drag events
+
+### TOOLS
+- cursor: Select/move tokens, select/transform images
+- draw: Freehand drawing on draw layer
+- erase: Remove strokes
+- walls: Toggle wall segments between hexes
+- measure: Distance calculation between hexes
+- image: Add images from library to map
+
+### IMAGE HANDLING
+Images stored server-side via ImageService:
+- POST /api/images: Upload new image, returns imageId
+- GET /api/images/:id: Retrieve image data
+- Images referenced by ID in MapImage (prevents large data in socket messages)
+
+Image transforms:
+- Scale: Drag corner handles
+- Rotate: Drag rotation handle
+- Position: Drag image body
+- Z-Index: Right-click context menu (to front/back, forward/backward)
+
+### WEBSOCKET EVENTS
+joinLobby, leaveLobby
+patchLobby, lobbyPatched
+addToken, moveToken, removeToken
+addImage, updateImage, removeImage
+addStroke, removeStroke
+toggleWall, updateFog
 
 
 

@@ -1,0 +1,170 @@
+/* Toolbar container */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #16213e;
+  border-bottom: 1px solid #0f3460;
+  min-height: 52px;
+}
+
+/* Tool groups */
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Divider */
+.toolbar-divider {
+  width: 1px;
+  height: 32px;
+  background: #0f3460;
+  margin: 0 8px;
+}
+
+/* Spacer */
+.spacer {
+  flex: 1;
+}
+
+/* Tool button */
+.tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tool-btn:hover {
+  background: #0f3460;
+  border-color: #3b82f6;
+}
+
+.tool-btn.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.tool-btn.inactive {
+  opacity: 0.5;
+}
+
+.tool-btn.danger:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.sidebar-toggle {
+  font-size: 20px;
+}
+
+/* Color picker */
+.color-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.color-input {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.color-btn {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #0f3460;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.color-btn:hover {
+  transform: scale(1.1);
+}
+
+.color-btn.active {
+  border-color: #3b82f6;
+  transform: scale(1.1);
+}
+
+/* Brush sizes */
+.brush-sizes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.size-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  background: #1a1a2e;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.size-btn:hover {
+  border-color: #3b82f6;
+}
+
+.size-btn.active {
+  background: #0f3460;
+  border-color: #3b82f6;
+}
+
+.size-dot {
+  border-radius: 50%;
+  background: #e0e0e0;
+}
+
+.size-dot.eraser-dot {
+  background: #94a3b8;
+  border: 1px dashed #64748b;
+}
+
+/* Checkbox label */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #a0a0a0;
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: 12px;
+}
+
+.checkbox-label input {
+  cursor: pointer;
+}
+
+/* Drawing options */
+.drawing-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Layer toggles */
+.layer-toggles {
+  gap: 8px;
+}

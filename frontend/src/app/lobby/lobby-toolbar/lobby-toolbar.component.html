@@ -1,0 +1,167 @@
+<div class="toolbar">
+  <!-- Sidebar toggle -->
+  <button 
+    class="tool-btn sidebar-toggle" 
+    (click)="toggleSidebar.emit()"
+    title="Toggle Sidebar"
+  >
+    ☰
+  </button>
+
+  <div class="toolbar-divider"></div>
+
+  <!-- Tool buttons -->
+  <div class="tool-group">
+    @for (tool of tools; track tool.id) {
+      <button
+        class="tool-btn"
+        [class.active]="currentTool === tool.id"
+        (click)="selectTool(tool.id)"
+        [title]="tool.label + ' (' + tool.shortcut + ')'"
+      >
+        {{ tool.icon }}
+      </button>
+    }
+  </div>
+
+  <div class="toolbar-divider"></div>
+
+  <!-- Drawing options (visible when draw or erase tool selected) -->
+  @if (currentTool === 'draw' || currentTool === 'erase') {
+    <div class="tool-group drawing-options">
+      @if (currentTool === 'draw') {
+        <!-- Color picker -->
+        <div class="color-picker">
+          <input 
+            type="color" 
+            [value]="brushColor"
+            (input)="onColorInput($event)"
+            class="color-input"
+          />
+          @for (color of presetColors; track color) {
+            <button
+              class="color-btn"
+              [style.background]="color"
+              [class.active]="brushColor === color"
+              (click)="selectColor(color)"
+            ></button>
+          }
+        </div>
+
+        <!-- Pen brush sizes -->
+        <div class="brush-sizes">
+          @for (size of penBrushSizes; track size) {
+            <button
+              class="size-btn"
+              [class.active]="penBrushSize === size"
+              (click)="selectPenSize(size)"
+              [title]="size + 'px'"
+            >
+              <span 
+                class="size-dot" 
+                [style.width.px]="clampSize(size)" 
+                [style.height.px]="clampSize(size)"
+                [style.background]="brushColor"
+              ></span>
+            </button>
+          }
+        </div>
+      }
+
+      @if (currentTool === 'erase') {
+        <!-- Eraser sizes -->
+        <div class="brush-sizes">
+          @for (size of eraserBrushSizes; track size) {
+            <button
+              class="size-btn"
+              [class.active]="eraserBrushSize === size"
+              (click)="selectEraserSize(size)"
+              [title]="size + 'px'"
+            >
+              <span 
+                class="size-dot eraser-dot" 
+                [style.width.px]="clampSize(size)" 
+                [style.height.px]="clampSize(size)"
+              ></span>
+            </button>
+          }
+        </div>
+      }
+
+      <!-- Draw with walls checkbox -->
+      @if (isGM) {
+        <label class="checkbox-label">
+          <input 
+            type="checkbox" 
+            [checked]="drawWithWalls"
+            (change)="toggleDrawWithWalls()"
+          />
+          <span>+ Walls</span>
+        </label>
+      }
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Clear buttons -->
+    <div class="tool-group">
+      <button 
+        class="tool-btn danger" 
+        (click)="clearDrawings.emit()"
+        title="Clear All Drawings"
+      >
+        🗑️
+      </button>
+    </div>
+  }
+
+  <!-- Cursor mode options -->
+  @if (currentTool === 'cursor') {
+    <div class="tool-group">
+      <button 
+        class="tool-btn" 
+        [class.active]="dragMode === 'free'"
+        (click)="setDragMode('free')"
+        title="Free Movement"
+      >
+        🆓
+      </button>
+      <button 
+        class="tool-btn" 
+        [class.active]="dragMode === 'snap'"
+        (click)="setDragMode('snap')"
+        title="Snap to Grid"
+      >
+        🧲
+      </button>
+    </div>
+  }
+
+  <!-- Walls options -->
+  @if (currentTool === 'walls' && isGM) {
+    <div class="tool-group">
+      <button 
+        class="tool-btn danger" 
+        (click)="clearWalls.emit()"
+        title="Clear All Walls"
+      >
+        🗑️ Walls
+      </button>
+    </div>
+  }
+
+  <!-- Spacer to push layer toggles to the right -->
+  <div class="spacer"></div>
+
+  <!-- Layer visibility toggles -->
+  <div class="tool-group layer-toggles">
+    <button 
+      class="tool-btn" 
+      [class.inactive]="!drawLayerVisible"
+      (click)="drawLayerVisibleChange.emit(!drawLayerVisible)"
+      title="Toggle Drawing Layer"
+    >
+      ✏️ {{ drawLayerVisible ? '👁️' : '👁️‍🗨️' }}
+    </button>
+  </div>
+</div>
