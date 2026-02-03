@@ -85,6 +85,29 @@
     </div>
   }
 
+  <!-- Context menu for image operations -->
+  @if (showImageContextMenu()) {
+    <div 
+      class="grid-context-menu"
+      [style.left.px]="imageContextMenuPosition().x"
+      [style.top.px]="imageContextMenuPosition().y"
+      (click)="$event.stopPropagation()"
+    >
+      <button class="context-menu-item" (click)="onImageMoveToFront()">
+        <span>⬆️</span> Bring to Front
+      </button>
+      <button class="context-menu-item" (click)="onImageMoveForward()">
+        <span>🔼</span> Bring Forward
+      </button>
+      <button class="context-menu-item" (click)="onImageMoveBackward()">
+        <span>🔽</span> Send Backward
+      </button>
+      <button class="context-menu-item" (click)="onImageMoveToBack()">
+        <span>⬇️</span> Send to Back
+      </button>
+    </div>
+  }
+
   <!-- Brush resize preview (shown when shift+dragging) -->
   @if (brushResizePreview()) {
     <div 

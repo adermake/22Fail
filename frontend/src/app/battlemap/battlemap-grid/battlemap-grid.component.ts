@@ -78,6 +78,11 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
   private transformMode: 'move' | 'scale' | 'rotate' = 'move';
   private transformHandle: 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null = null;
   private initialImageTransform: { x: number; y: number; width: number; height: number; rotation: number } | null = null;
+  
+  // Image context menu
+  showImageContextMenu = signal<boolean>(false);
+  imageContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+  imageContextMenuImageId = signal<string | null>(null);
 
   // Render optimization - use requestAnimationFrame batching
   private renderPending = false;
@@ -455,11 +460,18 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
       
       // Re-render when image loads
       image.onload = () => {
+        console.log('[LOBBY GRID] Image loaded:', imgData.id);
         this.scheduleRender();
+      };
+      image.onerror = (e) => {
+        console.error('[LOBBY GRID] Image load error:', imgData.id, e);
       };
       
       // Skip rendering if not loaded yet
-      if (!image.complete) return;
+      if (!image.complete) {
+        console.log('[LOBBY GRID] Image not yet loaded:', imgData.id);
+        return;
+      }
     }
 
     ctx.save();
@@ -469,44 +481,66 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
     // Draw image centered on the transform point
     ctx.drawImage(image, -imgData.width / 2, -imgData.height / 2, imgData.width, imgData.height);
     
-    // Draw selection border and handles if this image is selected
+    ctx.restore();
+    
+    // Draw selection border and handles in SCREEN SPACE for crisp rendering
     if (this.selectedImageId === imgData.id) {
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 3 / this.scale;
-      ctx.setLineDash([10 / this.scale, 5 / this.scale]);
-      ctx.strokeRect(-imgData.width / 2, -imgData.height / 2, imgData.width, imgData.height);
-      ctx.setLineDash([]);
-      
-      // Draw corner handles for scaling
-      const handleSize = 12 / this.scale;
-      ctx.fillStyle = '#3b82f6';
-      const corners = [
-        { x: -imgData.width / 2, y: -imgData.height / 2 }, // TL
-        { x: imgData.width / 2, y: -imgData.height / 2 },  // TR
-        { x: imgData.width / 2, y: imgData.height / 2 },   // BR
-        { x: -imgData.width / 2, y: imgData.height / 2 },  // BL
-      ];
-      for (const corner of corners) {
-        ctx.fillRect(corner.x - handleSize / 2, corner.y - handleSize / 2, handleSize, handleSize);
-      }
-      
-      // Draw rotation handle above the image
-      const rotateHandleY = -imgData.height / 2 - 30 / this.scale;
-      ctx.beginPath();
-      ctx.moveTo(0, -imgData.height / 2);
-      ctx.lineTo(0, rotateHandleY);
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 2 / this.scale;
-      ctx.stroke();
-      
-      ctx.beginPath();
-      ctx.arc(0, rotateHandleY, 8 / this.scale, 0, Math.PI * 2);
-      ctx.fillStyle = '#22c55e';
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2 / this.scale;
-      ctx.stroke();
+      this.renderImageHandles(ctx, imgData);
     }
+  }
+  
+  private renderImageHandles(ctx: CanvasRenderingContext2D, imgData: any) {
+    ctx.save();
+    
+    // Transform to image space
+    ctx.translate(imgData.x, imgData.y);
+    ctx.rotate((imgData.rotation * Math.PI) / 180);
+    
+    // Draw selection border
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2 / this.scale;
+    ctx.setLineDash([8 / this.scale, 4 / this.scale]);
+    ctx.strokeRect(-imgData.width / 2, -imgData.height / 2, imgData.width, imgData.height);
+    ctx.setLineDash([]);
+    
+    // Draw corner handles for scaling (larger, easier to grab)
+    const handleSize = 10 / this.scale;
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2 / this.scale;
+    
+    const corners = [
+      { x: -imgData.width / 2, y: -imgData.height / 2 }, // TL
+      { x: imgData.width / 2, y: -imgData.height / 2 },  // TR
+      { x: imgData.width / 2, y: imgData.height / 2 },   // BR
+      { x: -imgData.width / 2, y: imgData.height / 2 },  // BL
+    ];
+    
+    for (const corner of corners) {
+      ctx.fillRect(corner.x - handleSize / 2, corner.y - handleSize / 2, handleSize, handleSize);
+      ctx.strokeRect(corner.x - handleSize / 2, corner.y - handleSize / 2, handleSize, handleSize);
+    }
+    
+    // Draw rotation handle above the image
+    const rotateHandleY = -imgData.height / 2 - 25 / this.scale;
+    const rotateHandleRadius = 6 / this.scale;
+    
+    // Line connecting to rotate handle
+    ctx.beginPath();
+    ctx.moveTo(0, -imgData.height / 2);
+    ctx.lineTo(0, rotateHandleY);
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2 / this.scale;
+    ctx.stroke();
+    
+    // Rotate handle circle
+    ctx.beginPath();
+    ctx.arc(0, rotateHandleY, rotateHandleRadius, 0, Math.PI * 2);
+    ctx.fillStyle = '#22c55e';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2 / this.scale;
+    ctx.stroke();
     
     ctx.restore();
   }
@@ -1024,42 +1058,42 @@ export class BattlemapGridComponent implements AfterViewInit, OnChanges, OnDestr
         const centerX = this.initialImageTransform.x;
         const centerY = this.initialImageTransform.y;
         const initialAngle = Math.atan2(
-this.transformAnchor.y / this.scale - centerY,
-this.transformAnchor.x / this.scale - centerX
-);
-const currentAngle = Math.atan2(
-(this.transformAnchor.y + dy) / this.scale - centerY,
-(this.transformAnchor.x + dx) / this.scale - centerX
-);
-const deltaAngle = (currentAngle - initialAngle) * 180 / Math.PI;
-const newRotation = (this.initialImageTransform.rotation + deltaAngle) % 360;
-
-this.imageTransform.emit({
-id: this.transformingImageId,
-transform: {
-rotation: newRotation
-}
-});
-} else if (this.transformMode === 'scale' && this.transformHandle) {
-// Scale from opposite corner
-const scaleFactorX = 1 + (worldDx * 2) / this.initialImageTransform.width;
-const scaleFactorY = 1 + (worldDy * 2) / this.initialImageTransform.height;
-
-// Use average scale factor to maintain aspect ratio
-const scaleFactor = (Math.abs(scaleFactorX) + Math.abs(scaleFactorY)) / 2;
-const newWidth = Math.max(20, this.initialImageTransform.width * scaleFactor);
-const newHeight = Math.max(20, this.initialImageTransform.height * scaleFactor);
-
-this.imageTransform.emit({
-id: this.transformingImageId,
-transform: {
-width: newWidth,
-height: newHeight
-}
-});
-}
-return;
-}
+          this.transformAnchor.y / this.scale - centerY,
+          this.transformAnchor.x / this.scale - centerX
+        );
+        const currentAngle = Math.atan2(
+          (this.transformAnchor.y + dy) / this.scale - centerY,
+          (this.transformAnchor.x + dx) / this.scale - centerX
+        );
+        const deltaAngle = (currentAngle - initialAngle) * 180 / Math.PI;
+        const newRotation = (this.initialImageTransform.rotation + deltaAngle) % 360;
+        
+        this.imageTransform.emit({
+          id: this.transformingImageId,
+          transform: {
+            rotation: newRotation
+          }
+        });
+      } else if (this.transformMode === 'scale' && this.transformHandle) {
+        // Scale from opposite corner
+        const scaleFactorX = 1 + (worldDx * 2) / this.initialImageTransform.width;
+        const scaleFactorY = 1 + (worldDy * 2) / this.initialImageTransform.height;
+        
+        // Use average scale factor to maintain aspect ratio
+        const scaleFactor = (Math.abs(scaleFactorX) + Math.abs(scaleFactorY)) / 2;
+        const newWidth = Math.max(20, this.initialImageTransform.width * scaleFactor);
+        const newHeight = Math.max(20, this.initialImageTransform.height * scaleFactor);
+        
+        this.imageTransform.emit({
+          id: this.transformingImageId,
+          transform: {
+            width: newWidth,
+            height: newHeight
+          }
+        });
+      }
+      return;
+    }
     
     // Walls tool - continuous painting of walls while dragging
     if (this.isWallDrawing && this.currentTool === 'walls') {
@@ -1358,20 +1392,32 @@ return;
       }
       return;
     }
+
+    const rect = this.container.nativeElement.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const world = this.screenToWorld(x, y);
+    
+    // Check if right-clicking on an image (image tool only)
+    if (this.currentTool === 'image') {
+      const clickedImage = this.getImageAtPoint(world.x, world.y);
+      if (clickedImage) {
+        this.imageContextMenuPosition.set({ x, y });
+        this.imageContextMenuImageId.set(clickedImage.id);
+        this.showImageContextMenu.set(true);
+        return;
+      }
+    }
     
     // Show context menu on empty space (cursor tool only)
     if (this.currentTool === 'cursor' && !this.draggingToken) {
-      const rect = this.container.nativeElement.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      const world = this.screenToWorld(x, y);
       const hex = HexMath.pixelToHex(world.x, world.y);
       
       // Check if there's a token at this hex
       const hasToken = this.battleMap?.tokens.some(t => t.position.q === hex.q && t.position.r === hex.r);
       
       if (!hasToken) {
-        this.contextMenuPosition.set({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+        this.contextMenuPosition.set({ x, y });
         this.contextMenuHex.set(hex);
         this.showContextMenu.set(true);
       }
@@ -1381,6 +1427,7 @@ return;
   closeContextMenu() {
     this.showContextMenu.set(false);
     this.contextMenuHex.set(null);
+    this.closeImageContextMenu();
   }
 
   onCreateQuickToken() {
@@ -1584,8 +1631,8 @@ return;
 
   // Detect which transform handle was clicked
   private getClickedHandle(worldX: number, worldY: number, image: MapImage): 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null {
-    const handleSize = 12 / this.scale;
-    const threshold = handleSize;
+    const handleSize = 10 / this.scale; // Match renderImageHandles
+    const threshold = handleSize * 1.5; // Larger click area for easier interaction
     
     // Transform click point relative to image rotation
     const dx = worldX - image.x;
@@ -1596,13 +1643,16 @@ return;
     const localX = dx * cos - dy * sin;
     const localY = dx * sin + dy * cos;
     
-    // Check rotation handle
-    const rotateHandleY = -image.height / 2 - 30 / this.scale;
-    if (Math.abs(localX) < threshold && Math.abs(localY - rotateHandleY) < threshold) {
+    // Check rotation handle (green circle)
+    const rotateHandleY = -image.height / 2 - 25 / this.scale; // Match renderImageHandles
+    const rotateHandleRadius = 6 / this.scale;
+    const distToRotateHandle = Math.sqrt(localX * localX + (localY - rotateHandleY) ** 2);
+    if (distToRotateHandle < rotateHandleRadius * 2) { // Generous click area
+      console.log('[GRID] Clicked rotate handle');
       return 'rotate';
     }
     
-    // Check corner handles
+    // Check corner handles for scaling
     const corners = [
       { name: 'tl' as const, x: -image.width / 2, y: -image.height / 2 },
       { name: 'tr' as const, x: image.width / 2, y: -image.height / 2 },
@@ -1612,9 +1662,13 @@ return;
     
     for (const corner of corners) {
       if (Math.abs(localX - corner.x) < threshold && Math.abs(localY - corner.y) < threshold) {
+        console.log('[GRID] Clicked scale handle:', corner.name);
         return corner.name;
       }
     }
+    
+    return null;
+  }
     
     return null;
   }
@@ -1678,7 +1732,7 @@ return;
     if (!this.battleMap?.images) return null;
     
     // Check images in reverse order (top to bottom) so we select the topmost one
-    const sortedImages = [...this.battleMap.images].sort((a, b) => b.zIndex - a.zIndex);
+    const sortedImages = [...this.battleMap.images].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
     
     for (const img of sortedImages) {
       // Transform point to image local space
@@ -1702,5 +1756,43 @@ return;
     }
     
     return null;
+  }
+
+  // Image context menu methods
+  closeImageContextMenu() {
+    this.showImageContextMenu.set(false);
+    this.imageContextMenuImageId.set(null);
+  }
+
+  onImageMoveForward() {
+    const imageId = this.imageContextMenuImageId();
+    if (imageId) {
+      this.store.moveImageForward(imageId);
+    }
+    this.closeImageContextMenu();
+  }
+
+  onImageMoveBackward() {
+    const imageId = this.imageContextMenuImageId();
+    if (imageId) {
+      this.store.moveImageBackward(imageId);
+    }
+    this.closeImageContextMenu();
+  }
+
+  onImageMoveToFront() {
+    const imageId = this.imageContextMenuImageId();
+    if (imageId) {
+      this.store.moveImageToFront(imageId);
+    }
+    this.closeImageContextMenu();
+  }
+
+  onImageMoveToBack() {
+    const imageId = this.imageContextMenuImageId();
+    if (imageId) {
+      this.store.moveImageToBack(imageId);
+    }
+    this.closeImageContextMenu();
   }
 }

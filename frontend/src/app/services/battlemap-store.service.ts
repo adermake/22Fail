@@ -261,6 +261,88 @@ export class BattleMapStoreService {
     this.applyPatch({ path: 'images', value: images });
   }
 
+  // Z-index management for images
+  moveImageForward(imageId: string) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const images = [...(battleMap.images || [])];
+    const imageIndex = images.findIndex(img => img.id === imageId);
+    if (imageIndex === -1) return;
+
+    const currentImage = images[imageIndex];
+    const maxZIndex = Math.max(0, ...images.map(img => img.zIndex || 0));
+    
+    // Find next higher z-index
+    const higherImages = images.filter(img => (img.zIndex || 0) > (currentImage.zIndex || 0));
+    if (higherImages.length === 0) return; // Already at top
+
+    const nextZIndex = Math.min(...higherImages.map(img => img.zIndex || 0));
+    images[imageIndex] = { ...currentImage, zIndex: nextZIndex + 0.5 };
+    
+    // Normalize z-indices to integers
+    this.normalizeZIndices(images);
+    this.applyPatch({ path: 'images', value: images });
+  }
+
+  moveImageBackward(imageId: string) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const images = [...(battleMap.images || [])];
+    const imageIndex = images.findIndex(img => img.id === imageId);
+    if (imageIndex === -1) return;
+
+    const currentImage = images[imageIndex];
+    const minZIndex = Math.min(0, ...images.map(img => img.zIndex || 0));
+    
+    // Find next lower z-index
+    const lowerImages = images.filter(img => (img.zIndex || 0) < (currentImage.zIndex || 0));
+    if (lowerImages.length === 0) return; // Already at bottom
+
+    const prevZIndex = Math.max(...lowerImages.map(img => img.zIndex || 0));
+    images[imageIndex] = { ...currentImage, zIndex: prevZIndex - 0.5 };
+    
+    // Normalize z-indices to integers
+    this.normalizeZIndices(images);
+    this.applyPatch({ path: 'images', value: images });
+  }
+
+  moveImageToFront(imageId: string) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const images = [...(battleMap.images || [])];
+    const imageIndex = images.findIndex(img => img.id === imageId);
+    if (imageIndex === -1) return;
+
+    const maxZIndex = Math.max(0, ...images.map(img => img.zIndex || 0));
+    images[imageIndex] = { ...images[imageIndex], zIndex: maxZIndex + 1 };
+    this.applyPatch({ path: 'images', value: images });
+  }
+
+  moveImageToBack(imageId: string) {
+    const battleMap = this.battleMapValue;
+    if (!battleMap) return;
+
+    const images = [...(battleMap.images || [])];
+    const imageIndex = images.findIndex(img => img.id === imageId);
+    if (imageIndex === -1) return;
+
+    const minZIndex = Math.min(0, ...images.map(img => img.zIndex || 0));
+    images[imageIndex] = { ...images[imageIndex], zIndex: minZIndex - 1 };
+    this.applyPatch({ path: 'images', value: images });
+  }
+
+  private normalizeZIndices(images: MapImage[]) {
+    // Sort by z-index and reassign sequential integers
+    const sorted = [...images].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+    sorted.forEach((img, index) => {
+      const originalIndex = images.findIndex(i => i.id === img.id);
+      images[originalIndex] = { ...images[originalIndex], zIndex: index };
+    });
+  }
+
   // Library Image operations (on lobby level)
   async addLibraryImage(image: Omit<LibraryImage, 'id' | 'createdAt'>) {
     const lobby = this.lobbyValue;
