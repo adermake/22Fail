@@ -426,14 +426,25 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       image.src = imageUrl;
       this.imageCache.set(imageUrl, image);
 
-      image.onload = () => this.scheduleRender();
-      image.onerror = (e) => console.error('[LobbyGrid] Image load error:', imgData.id, e);
+      image.onload = () => {
+        console.log('[LobbyGrid] Image loaded successfully:', imgData.imageId);
+        this.scheduleRender();
+      };
+      
+      image.onerror = (e) => {
+        console.warn('[LobbyGrid] Image load failed, removing from map:', imgData.imageId, e);
+        // Remove broken image to prevent repeated errors
+        this.store.deleteImage(imgData.id);
+        return;
+      };
 
       if (!image.complete) return;
     }
 
     // Check for broken image
     if (!image.naturalWidth || !image.naturalHeight) {
+      console.warn('[LobbyGrid] Image has no dimensions, removing:', imgData.imageId);
+      this.store.deleteImage(imgData.id);
       return;
     }
 

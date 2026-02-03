@@ -331,6 +331,14 @@ export class LobbyStoreService {
   }
 
   /**
+   * Delete an image from the current map.
+   */
+  deleteImage(imageId: string): void {
+    const images = this.images.filter(img => img.id !== imageId);
+    this.applyPatch({ path: 'images', value: images });
+  }
+
+  /**
    * Clear all strokes.
    */
   clearStrokes(): void {
@@ -552,6 +560,33 @@ export class LobbyStoreService {
    */
   clearWalls(): void {
     this.applyPatch({ path: 'walls', value: [] });
+  }
+
+  /**
+   * Clean up orphaned images on the server and refresh the lobby.
+   */
+  async cleanupOrphanedImages(): Promise<void> {
+    try {
+      console.log('[LobbyStore] Starting image cleanup...');
+      const response = await fetch('http://localhost:3000/api/images/cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('[LobbyStore] Cleanup result:', result);
+        
+        // Refresh the lobby after cleanup
+        if (this.worldName) {
+          await this.loadLobby(this.worldName);
+        }
+      } else {
+        console.error('[LobbyStore] Cleanup failed:', response.statusText);
+      }
+    } catch (error) {
+      console.error('[LobbyStore] Error during cleanup:', error);
+    }
   }
 
   // ============================================

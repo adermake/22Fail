@@ -153,7 +153,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   private async loadLobby(worldName: string): Promise<void> {
     console.log('[Lobby] Loading lobby for:', worldName);
-    await this.store.loadLobby(worldName);
+    try {
+      await this.store.loadLobby(worldName);
+      console.log('[Lobby] Lobby loaded successfully');
+    } catch (error) {
+      console.error('[Lobby] Failed to load lobby:', error);
+      // Continue anyway with empty lobby
+    }
   }
 
   private async loadWorldCharacters(): Promise<void> {
@@ -408,5 +414,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
   showMapSettings(): void {
     console.log('[Lobby] Opening map settings...');
     this.showMapSettingsModal.set(true);
+  }
+
+  async cleanupImages(): Promise<void> {
+    console.log('[Lobby] Starting image cleanup...');
+    await this.store.cleanupOrphanedImages();
   }
 }

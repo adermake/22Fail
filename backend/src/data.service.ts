@@ -163,6 +163,11 @@ export class DataService {
     this.writeWorlds(data);
   }
 
+  getAllWorldNames(): string[] {
+    const data = this.readWorlds();
+    return Object.keys(data);
+  }
+
   private truncateImageData(obj: any): any {
     if (typeof obj === 'string' && obj.startsWith('data:image') && obj.length > 100) {
       return obj.substring(0, 50) + '...[TRUNCATED ' + obj.length + ' chars]';

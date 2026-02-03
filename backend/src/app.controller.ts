@@ -308,6 +308,76 @@ export class AppController {
     return { images };
   }
 
+  // Clean up orphaned images (admin endpoint)
+  @Post('images/cleanup')
+  cleanupOrphanedImages(): any {
+    console.log('[CLEANUP] Starting image cleanup...');
+    
+    // Get all stored images
+    const allImages = this.imageService.listImages();
+    console.log(`[CLEANUP] Found ${allImages.length} stored images`);
+    
+    // Get all worlds to check for image references
+    const worlds = this.dataService.getAllWorldNames();
+    const referencedImages = new Set<string>();
+    
+    for (const worldName of worlds) {
+      try {
+        const worldData = this.dataService.getWorld(worldName);
+        if (worldData) {
+          const world = JSON.parse(worldData);
+          
+          // Check lobby maps for image references
+          if (world.lobby && world.lobby.maps) {
+            for (const map of world.lobby.maps) {
+              if (map.images) {
+                for (const [imageId] of Object.entries(map.images)) {
+                  referencedImages.add(imageId);
+                }
+              }
+            }
+          }
+          
+          // Check characters for portrait images
+          if (world.characters) {
+            for (const character of world.characters) {
+              if (character.portrait && character.portrait.startsWith('http://localhost:3000/api/images/')) {
+                const imageId = character.portrait.replace('http://localhost:3000/api/images/', '');
+                referencedImages.add(imageId);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`[CLEANUP] Error checking world ${worldName}:`, error);
+      }
+    }
+    
+    console.log(`[CLEANUP] Found ${referencedImages.size} referenced images`);
+    
+    // Find orphaned images
+    const orphanedImages = allImages.filter(imageId => !referencedImages.has(imageId));
+    console.log(`[CLEANUP] Found ${orphanedImages.length} orphaned images:`, orphanedImages);
+    
+    // Delete orphaned images
+    let deletedCount = 0;
+    for (const imageId of orphanedImages) {
+      if (this.imageService.deleteImage(imageId)) {
+        deletedCount++;
+      }
+    }
+    
+    console.log(`[CLEANUP] Deleted ${deletedCount} orphaned images`);
+    return { 
+      success: true, 
+      totalImages: allImages.length,
+      referencedImages: referencedImages.size,
+      orphanedImages: orphanedImages.length,
+      deletedImages: deletedCount,
+      orphanedImageIds: orphanedImages
+    };
+  }
+
   // World endpoints
   @Get('worlds/:name')
   getWorld(@Param('name') name: string): any {

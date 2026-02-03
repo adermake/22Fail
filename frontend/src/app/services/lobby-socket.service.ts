@@ -38,10 +38,11 @@ export class LobbySocketService {
     
     this.socket = io(window.location.origin, {
       path: '/socket.io',
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'], // Add polling fallback
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
+      timeout: 10000,
     });
 
     this.socket.on('connect', () => {
@@ -53,21 +54,30 @@ export class LobbySocketService {
     this.socket.on('disconnect', (reason) => {
       console.log('[LobbySocket] Disconnected:', reason);
       this.isConnected = false;
+      // Auto-reconnect after short delay
+      if (reason === 'io server disconnect') {
+        setTimeout(() => this.connect(), 2000);
+      }
     });
 
     this.socket.on('connect_error', (error) => {
       console.error('[LobbySocket] Connection error:', error);
+      this.isConnected = false;
+    });
+
+    this.socket.on('reconnect', () => {
+      console.log('[LobbySocket] Reconnected successfully');
     });
 
     // Listen for lobby patches
     this.socket.on('lobbyPatched', (patch: JsonPatch) => {
-      console.log('[LobbySocket] Received patch:', patch.path);
+      console.log('[LobbySocket] Received lobby patch:', patch.path);
       this.patchSubject.next(patch);
     });
 
-    // Legacy event for backward compatibility
+    // Legacy event for backward compatibility (MAIN EVENT FOR NOW)
     this.socket.on('battleMapPatched', (patch: JsonPatch) => {
-      console.log('[LobbySocket] Received battleMap patch:', patch.path);
+      console.log('[LobbySocket] Received battleMap patch (using as lobby):', patch.path);
       this.patchSubject.next(patch);
     });
 
@@ -125,12 +135,11 @@ export class LobbySocketService {
    */
   sendPatch(worldName: string, mapId: string, patch: JsonPatch): void {
     if (!this.isConnected) {
-      console.warn('[LobbySocket] Not connected, patch not sent');
+      console.warn('[LobbySocket] Not connected, patch not sent:', patch.path);
       return;
     }
     console.log('[LobbySocket] Sending patch:', patch.path);
-    this.socket?.emit('patchLobby', { worldName, mapId, patch });
-    // Also emit legacy event for backward compatibility
+    // Use battlemap gateway since there's no lobby gateway
     this.socket?.emit('patchBattleMap', { worldName, battleMapId: mapId, patch });
   }
 
