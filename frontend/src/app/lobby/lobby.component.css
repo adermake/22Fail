@@ -5,7 +5,7 @@
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background: #1a1a2e;
+  background: var(--bg);
 }
 
 /* Main content area */
@@ -19,8 +19,8 @@
 .lobby-sidebar {
   width: 280px;
   min-width: 280px;
-  background: #16213e;
-  border-right: 1px solid #0f3460;
+  background: var(--card);
+  border-right: 1px solid var(--border);
   overflow-y: auto;
 }
 
@@ -40,16 +40,16 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(22, 33, 62, 0.9);
+  background: rgba(31, 41, 55, 0.95);
   padding: 8px 16px;
   border-radius: 8px;
-  border: 1px solid #0f3460;
+  border: 1px solid var(--border);
   backdrop-filter: blur(4px);
   z-index: 100;
 }
 
 .map-name {
-  color: #e0e0e0;
+  color: var(--text);
   font-size: 14px;
   font-weight: 500;
 }

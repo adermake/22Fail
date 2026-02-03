@@ -40,7 +40,7 @@
     ></div>
   }
 
-  <!-- Context menu for images -->
+  <!-- Context menu for images and quick token -->
   @if (showContextMenu()) {
     <div 
       class="context-menu"
@@ -48,12 +48,18 @@
       [style.top.px]="contextMenuPosition().y"
       (click)="$event.stopPropagation()"
     >
-      <button (click)="onMoveImageToFront()">Bring to Front</button>
-      <button (click)="onMoveImageForward()">Bring Forward</button>
-      <button (click)="onMoveImageBackward()">Send Backward</button>
-      <button (click)="onMoveImageToBack()">Send to Back</button>
-      <div class="menu-divider"></div>
-      <button class="danger" (click)="onDeleteSelectedImage()">Delete</button>
+      @if (contextMenuImageId()) {
+        <!-- Image context menu -->
+        <button (click)="onMoveImageToFront()">Bring to Front</button>
+        <button (click)="onMoveImageForward()">Bring Forward</button>
+        <button (click)="onMoveImageBackward()">Send Backward</button>
+        <button (click)="onMoveImageToBack()">Send to Back</button>
+        <div class="menu-divider"></div>
+        <button class="danger" (click)="onDeleteSelectedImage()">Delete Image</button>
+      } @else if (contextMenuHex()) {
+        <!-- Quick token creation menu -->
+        <button (click)="onCreateQuickToken()">➕ Create Quick Token</button>
+      }
     </div>
   }
 </div>

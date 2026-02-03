@@ -156,12 +156,13 @@
   <!-- Layer visibility toggles -->
   <div class="tool-group layer-toggles">
     <button 
-      class="tool-btn" 
-      [class.inactive]="!drawLayerVisible"
+      class="tool-btn layer-toggle" 
+      [class.layer-hidden]="!drawLayerVisible"
       (click)="drawLayerVisibleChange.emit(!drawLayerVisible)"
-      title="Toggle Drawing Layer"
+      [title]="drawLayerVisible ? 'Hide Drawing Layer' : 'Show Drawing Layer'"
     >
-      ✏️ {{ drawLayerVisible ? '👁️' : '👁️‍🗨️' }}
+      <span class="layer-icon">{{ drawLayerVisible ? '👁️' : '🚫' }}</span>
+      <span class="layer-label">Draw</span>
     </button>
   </div>
 </div>

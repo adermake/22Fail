@@ -151,6 +151,12 @@ export class LobbyStoreService {
       if (!map.walls) map.walls = [];
       if (!map.images) map.images = [];
       if (!map.measurementLines) map.measurementLines = [];
+      
+      // Filter out broken images with undefined imageId
+      map.images = map.images.filter(img => img.imageId);
+      
+      // Filter out broken library images
+      lobby.imageLibrary = lobby.imageLibrary.filter(img => img.imageId);
     }
 
     return lobby;

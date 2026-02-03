@@ -131,6 +131,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   showContextMenu = signal(false);
   contextMenuPosition = signal<Point>({ x: 0, y: 0 });
   contextMenuImageId = signal<string | null>(null);
+  contextMenuHex = signal<HexCoord | null>(null);
 
   // Ctrl+Z for undo
   @HostListener('document:keydown', ['$event'])
@@ -295,15 +296,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
 
-    // Calculate visible area
-    const topLeft = this.screenToWorld(0, 0);
-    const bottomRight = this.screenToWorld(canvas.width / dpr, canvas.height / dpr);
+    // Calculate visible area with extra padding for edge hexes
+    const topLeft = this.screenToWorld(-50, -50);
+    const bottomRight = this.screenToWorld(canvas.width / dpr + 50, canvas.height / dpr + 50);
 
-    // Calculate hex bounds
-    const minQ = Math.floor(topLeft.x / (HexMath.hexWidth * 0.75)) - 2;
-    const maxQ = Math.ceil(bottomRight.x / (HexMath.hexWidth * 0.75)) + 2;
-    const minR = Math.floor(topLeft.y / HexMath.hexHeight) - 2;
-    const maxR = Math.ceil(bottomRight.y / HexMath.hexHeight) + 2;
+    // Calculate hex bounds with extra margin
+    const minQ = Math.floor(topLeft.x / (HexMath.hexWidth * 0.75)) - 3;
+    const maxQ = Math.ceil(bottomRight.x / (HexMath.hexWidth * 0.75)) + 3;
+    const minR = Math.floor(topLeft.y / HexMath.hexHeight) - 3;
+    const maxR = Math.ceil(bottomRight.y / HexMath.hexHeight) + 3;
 
     // Build lookup sets
     const walls = this.map?.walls || [];
@@ -311,13 +312,32 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const pathSet = new Set(this.dragPath().map(p => `${p.q},${p.r}`));
     const hoverHex = this.dragHoverHex();
 
-    // Performance: limit hex count when zoomed out
+    // Performance: limit hex count when zoomed out - but don't change background
     const hexCount = (maxQ - minQ + 1) * (maxR - minR + 1);
-    const shouldSimplify = hexCount > 2000 || this.scale < 0.3;
+    const shouldSimplify = hexCount > 2500 || this.scale < 0.2;
 
     if (shouldSimplify) {
-      ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
-      ctx.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+      // Draw simplified grid lines instead of individual hexes
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
+      ctx.lineWidth = 1;
+      
+      // Draw vertical lines
+      for (let q = minQ; q <= maxQ; q += 4) {
+        const x = q * HexMath.hexWidth * 0.75;
+        ctx.beginPath();
+        ctx.moveTo(x, topLeft.y);
+        ctx.lineTo(x, bottomRight.y);
+        ctx.stroke();
+      }
+      
+      // Draw horizontal lines
+      for (let r = minR; r <= maxR; r += 4) {
+        const y = r * HexMath.hexHeight;
+        ctx.beginPath();
+        ctx.moveTo(topLeft.x, y);
+        ctx.lineTo(bottomRight.x, y);
+        ctx.stroke();
+      }
     } else {
       for (let q = minQ; q <= maxQ; q++) {
         for (let r = minR; r <= maxR; r++) {
@@ -391,6 +411,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private renderImage(ctx: CanvasRenderingContext2D, imgData: MapImage): void {
+    // Skip if imageId is missing or undefined
+    if (!imgData.imageId) {
+      console.warn('[LobbyGrid] Skipping image with missing imageId:', imgData.id);
+      return;
+    }
+    
     const imageUrl = `/api/images/${imgData.imageId}`;
     let image = this.imageCache.get(imageUrl);
 
@@ -685,6 +711,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       case 'walls':
         this.handleWallUp(event);
         break;
+      case 'measure':
+        this.handleMeasureUp(event);
+        break;
       case 'image':
         this.handleImageUp(event, world);
         break;
@@ -715,9 +744,28 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   onContextMenu(event: MouseEvent): void {
     event.preventDefault();
     
-    if (this.currentTool === 'image' && this.selectedImageId) {
+    const rect = this.container.nativeElement.getBoundingClientRect();
+    const screenX = event.clientX - rect.left;
+    const screenY = event.clientY - rect.top;
+    const world = this.screenToWorld(screenX, screenY);
+    const hex = HexMath.pixelToHex(world);
+    
+    // Check if right-clicking on an image
+    const clickedImage = this.getImageAtPoint(world);
+    if (clickedImage) {
+      this.imageSelect.emit(clickedImage.id);
       this.contextMenuPosition.set({ x: event.clientX, y: event.clientY });
-      this.contextMenuImageId.set(this.selectedImageId);
+      this.contextMenuImageId.set(clickedImage.id);
+      this.contextMenuHex.set(null);
+      this.showContextMenu.set(true);
+      return;
+    }
+    
+    // Right-click on empty space - show create token menu
+    if (this.currentTool === 'cursor' || this.currentTool === 'image') {
+      this.contextMenuPosition.set({ x: event.clientX, y: event.clientY });
+      this.contextMenuImageId.set(null);
+      this.contextMenuHex.set(hex);
       this.showContextMenu.set(true);
     }
   }
@@ -727,14 +775,56 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // ============================================
 
   private handleCursorDown(event: MouseEvent, world: Point, hex: HexCoord): void {
-    // Check if clicking on a token (handled by token component)
-    // For now, just deselect images
-    if (this.selectedImageId) {
-      this.imageSelect.emit(null);
+    // Check if clicking on an image first (cursor can also select/move images)
+    const clickedImage = this.getImageAtPoint(world);
+    
+    if (clickedImage) {
+      this.imageSelect.emit(clickedImage.id);
+      
+      // Check if clicking on a handle
+      const handle = this.getClickedHandle(world, clickedImage);
+      if (handle) {
+        this.transformingImageId = clickedImage.id;
+        this.transformHandle = handle;
+        this.transformMode = handle === 'rotate' ? 'rotate' : 'scale';
+        this.transformAnchor = world;
+        this.initialImageTransform = {
+          x: clickedImage.x,
+          y: clickedImage.y,
+          width: clickedImage.width,
+          height: clickedImage.height,
+          rotation: clickedImage.rotation,
+        };
+        return;
+      } else {
+        // Start move
+        this.transformingImageId = clickedImage.id;
+        this.transformMode = 'move';
+        this.transformAnchor = world;
+        this.initialImageTransform = {
+          x: clickedImage.x,
+          y: clickedImage.y,
+          width: clickedImage.width,
+          height: clickedImage.height,
+          rotation: clickedImage.rotation,
+        };
+        return;
+      }
+    } else {
+      // Deselect image if clicking on empty space
+      if (this.selectedImageId) {
+        this.imageSelect.emit(null);
+      }
     }
   }
 
   private handleCursorMove(event: MouseEvent, world: Point, hex: HexCoord): void {
+    // Handle image transform in cursor mode
+    if (this.transformingImageId && this.transformAnchor && this.initialImageTransform) {
+      this.performImageTransform(world);
+      return;
+    }
+    
     if (this.draggingToken) {
       this.dragGhostPosition.set(world);
       this.dragHoverHex.set(hex);
@@ -743,6 +833,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private handleCursorUp(event: MouseEvent, world: Point, hex: HexCoord): void {
+    // End image transform
+    if (this.transformingImageId) {
+      this.transformingImageId = null;
+      this.transformAnchor = null;
+      this.transformHandle = null;
+      this.initialImageTransform = null;
+      return;
+    }
+    
     if (this.draggingToken) {
       this.tokenMove.emit({ tokenId: this.draggingToken.id, position: hex });
       this.draggingToken = null;
@@ -843,8 +942,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // ============================================
 
   private handleMeasureDown(event: MouseEvent, world: Point, hex: HexCoord): void {
-    this.measureStart.set(world);
-    this.measureEnd.set(world);
+    // Snap to hex center
+    const hexCenter = HexMath.hexToPixel(hex);
+    this.measureStart.set(hexCenter);
+    this.measureEnd.set(hexCenter);
     this.measureDistance.set(0);
     this.dragStartHex.set(hex);
   }
@@ -852,11 +953,78 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private handleMeasureMove(event: MouseEvent, world: Point, hex: HexCoord): void {
     if (!this.measureStart()) return;
     
-    this.measureEnd.set(world);
+    // Snap to hex center
+    const hexCenter = HexMath.hexToPixel(hex);
+    this.measureEnd.set(hexCenter);
+    
     const startHex = this.dragStartHex();
     if (startHex) {
       this.measureDistance.set(HexMath.hexDistance(startHex, hex));
     }
+    this.scheduleRender();
+  }
+
+  private handleMeasureUp(event: MouseEvent): void {
+    // Clear measurement on mouse up
+    this.measureStart.set(null);
+    this.measureEnd.set(null);
+    this.measureDistance.set(0);
+    this.dragStartHex.set(null);
+    this.scheduleRender();
+  }
+
+  // ============================================
+  // Image Transform Helper
+  // ============================================
+
+  private performImageTransform(world: Point): void {
+    if (!this.transformingImageId || !this.transformAnchor || !this.initialImageTransform) return;
+
+    const dx = world.x - this.transformAnchor.x;
+    const dy = world.y - this.transformAnchor.y;
+
+    if (this.transformMode === 'move') {
+      this.imageTransform.emit({
+        id: this.transformingImageId,
+        transform: {
+          x: (this.initialImageTransform.x || 0) + dx,
+          y: (this.initialImageTransform.y || 0) + dy,
+        },
+      });
+    } else if (this.transformMode === 'scale' && this.transformHandle) {
+      // Keep aspect ratio while scaling
+      const initialWidth = this.initialImageTransform.width || 200;
+      const initialHeight = this.initialImageTransform.height || 200;
+      const aspectRatio = initialWidth / initialHeight;
+      
+      // Use the larger of dx/dy for uniform scaling
+      const scaleDelta = Math.max(dx, dy);
+      const scale = 1 + scaleDelta / 200;
+      const newWidth = Math.max(50, initialWidth * scale);
+      const newHeight = Math.max(50, newWidth / aspectRatio);
+      
+      this.imageTransform.emit({
+        id: this.transformingImageId,
+        transform: {
+          width: newWidth,
+          height: newHeight,
+        },
+      });
+    } else if (this.transformMode === 'rotate') {
+      const centerX = this.initialImageTransform.x || 0;
+      const centerY = this.initialImageTransform.y || 0;
+      const startAngle = Math.atan2(this.transformAnchor.y - centerY, this.transformAnchor.x - centerX);
+      const currentAngle = Math.atan2(world.y - centerY, world.x - centerX);
+      const deltaAngle = (currentAngle - startAngle) * (180 / Math.PI);
+      
+      this.imageTransform.emit({
+        id: this.transformingImageId,
+        transform: {
+          rotation: (this.initialImageTransform.rotation || 0) + deltaAngle,
+        },
+      });
+    }
+
     this.scheduleRender();
   }
 
@@ -905,48 +1073,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private handleImageMove(event: MouseEvent, world: Point): void {
-    if (!this.transformingImageId || !this.transformAnchor || !this.initialImageTransform) return;
-
-    const img = (this.map?.images || []).find(i => i.id === this.transformingImageId);
-    if (!img) return;
-
-    const dx = world.x - this.transformAnchor.x;
-    const dy = world.y - this.transformAnchor.y;
-
-    if (this.transformMode === 'move') {
-      this.imageTransform.emit({
-        id: this.transformingImageId,
-        transform: {
-          x: (this.initialImageTransform.x || 0) + dx,
-          y: (this.initialImageTransform.y || 0) + dy,
-        },
-      });
-    } else if (this.transformMode === 'scale' && this.transformHandle) {
-      // Simple scaling based on drag distance
-      const scale = 1 + (dx + dy) / 200;
-      this.imageTransform.emit({
-        id: this.transformingImageId,
-        transform: {
-          width: Math.max(50, (this.initialImageTransform.width || 200) * scale),
-          height: Math.max(50, (this.initialImageTransform.height || 200) * scale),
-        },
-      });
-    } else if (this.transformMode === 'rotate') {
-      const centerX = this.initialImageTransform.x || 0;
-      const centerY = this.initialImageTransform.y || 0;
-      const startAngle = Math.atan2(this.transformAnchor.y - centerY, this.transformAnchor.x - centerX);
-      const currentAngle = Math.atan2(world.y - centerY, world.x - centerX);
-      const deltaAngle = (currentAngle - startAngle) * (180 / Math.PI);
-      
-      this.imageTransform.emit({
-        id: this.transformingImageId,
-        transform: {
-          rotation: (this.initialImageTransform.rotation || 0) + deltaAngle,
-        },
-      });
-    }
-
-    this.scheduleRender();
+    this.performImageTransform(world);
   }
 
   private handleImageUp(event: MouseEvent, world: Point): void {
@@ -1070,6 +1197,18 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   closeContextMenu(): void {
     this.showContextMenu.set(false);
     this.contextMenuImageId.set(null);
+    this.contextMenuHex.set(null);
+  }
+
+  onCreateQuickToken(): void {
+    const hex = this.contextMenuHex();
+    if (hex) {
+      const name = prompt('Token name:');
+      if (name) {
+        this.quickTokenDrop.emit({ name, portrait: '', position: hex });
+      }
+    }
+    this.closeContextMenu();
   }
 
   onMoveImageForward(): void {

@@ -4,8 +4,8 @@
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: #16213e;
-  border-bottom: 1px solid #0f3460;
+  background: var(--card, #1f2937);
+  border-bottom: 1px solid var(--border, #374151);
   min-height: 52px;
 }
 
@@ -20,7 +20,7 @@
 .toolbar-divider {
   width: 1px;
   height: 32px;
-  background: #0f3460;
+  background: var(--border, #374151);
   margin: 0 8px;
 }
 
@@ -36,23 +36,23 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  border: 1px solid #0f3460;
+  border: 1px solid var(--border, #374151);
   border-radius: 8px;
-  background: #1a1a2e;
-  color: #e0e0e0;
+  background: var(--bg, #111827);
+  color: var(--text, #e5e7eb);
   font-size: 18px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .tool-btn:hover {
-  background: #0f3460;
-  border-color: #3b82f6;
+  background: var(--card, #1f2937);
+  border-color: var(--accent, #3b82f6);
 }
 
 .tool-btn.active {
-  background: #3b82f6;
-  border-color: #3b82f6;
+  background: var(--accent, #3b82f6);
+  border-color: var(--accent, #3b82f6);
 }
 
 .tool-btn.inactive {
@@ -167,4 +167,32 @@
 /* Layer toggles */
 .layer-toggles {
   gap: 8px;
+}
+/* Layer toggle button */
+.layer-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  padding: 4px 12px;
+  gap: 2px;
+}
+
+.layer-toggle .layer-icon {
+  font-size: 16px;
+}
+
+.layer-toggle .layer-label {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.layer-toggle.layer-hidden {
+  opacity: 0.4;
+  background: #0f0f1a;
+}
+
+.layer-toggle.layer-hidden:hover {
+  opacity: 0.6;
 }
