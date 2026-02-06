@@ -118,6 +118,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // Token dragging
   draggingToken: Token | null = null;
   dragGhostPosition = signal<Point | null>(null);
+  dragCurrentPosition = signal<Point | null>(null); // Current position of dragged token in world coords
   dragHoverHex = signal<HexCoord | null>(null);
   dragStartHex = signal<HexCoord | null>(null);
   dragPath = signal<HexCoord[]>([]);
@@ -375,9 +376,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.strokeStyle = 'rgba(30, 41, 59, 0.6)'; // Dark gray wall border
       ctx.lineWidth = 1;
     } else {
-      // Transparent with subtle outline
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
-      ctx.lineWidth = 0.5;
+      // More prominent grid outline
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+      ctx.lineWidth = 1;
     }
     ctx.stroke();
   }
@@ -806,26 +807,27 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private handleCursorDown(event: MouseEvent, world: Point, hex: HexCoord): void {
     if (event.button !== 0) return; // Only left click
 
-    // Check for image transform handles first
-    if (this.selectedImageId) {
-      const selectedImage = this.map?.images?.find(img => img.id === this.selectedImageId);
-      if (selectedImage) {
-        const handle = this.getTransformHandle(world, selectedImage);
-        if (handle) {
-          this.startImageTransform(selectedImage, handle, world);
-          return;
-        }
+    // Check for image selection FIRST (before checking transform handles)
+    const clickedImage = this.findImageAtPoint(world);
+    
+    // Check for image transform handles if we have a selected image
+    if (this.selectedImageId && clickedImage && clickedImage.id === this.selectedImageId) {
+      const handle = this.getTransformHandle(world, clickedImage);
+      if (handle) {
+        this.startImageTransform(clickedImage, handle, world);
+        return;
       }
+      // Click on selected image without handle = start drag (future feature)
+      return;
     }
 
-    // Check for image selection
-    const clickedImage = this.findImageAtPoint(world);
+    // New image clicked - select it
     if (clickedImage) {
       this.imageSelect.emit(clickedImage.id);
       return;
     }
 
-    // Check for token
+    // Check for token (only if no image clicked)
     const token = this.findTokenAtHex(hex);
     if (token) {
       this.startTokenDrag(token, hex);
@@ -880,10 +882,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.currentStrokePoints.push(world);
     
-    // For eraser, perform real-time erasing
-    if (this.currentTool === 'erase') {
-      this.performRealTimeErase(world);
-    } else {
+    // For eraser, just store points - we'll erase on mouse up
+    if (this.currentTool !== 'erase') {
       // Preview the current stroke for drawing
       this.renderCurrentStroke(world);
     }
@@ -894,14 +894,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.isDrawing = false;
     
-    // Only create stroke for pen tool, not eraser (eraser happens in real-time)
-    if (this.currentTool !== 'erase' && this.currentStrokePoints.length > 1) {
+    // Create stroke (for both pen and eraser)
+    if (this.currentStrokePoints.length > 1) {
       const stroke: Stroke = {
         id: generateId(),
         points: [...this.currentStrokePoints],
-        color: this.brushColor,
-        lineWidth: this.penBrushSize,
-        isEraser: false,
+        color: this.currentTool === 'erase' ? '#FFFFFF' : this.brushColor,
+        lineWidth: this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize,
+        isEraser: this.currentTool === 'erase',
       };
       
       this.store.addStroke(stroke);
@@ -931,6 +931,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   private handleWallUp(event: MouseEvent, hex: HexCoord): void {
     this.isWallDrawing = false;
+    this.lastWallPaintHex = null;
   }
 
   private handleMeasureDown(event: MouseEvent, world: Point, hex: HexCoord): void {
@@ -1151,6 +1152,71 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     container.style.cursor = cursor;
   }
 
+  private findPath(start: HexCoord, end: HexCoord): HexCoord[] {
+    // A* pathfinding that avoids walls
+    const walls = this.map?.walls || [];
+    const wallSet = new Set(walls.map(w => `${w.q},${w.r}`));
+    
+    const getKey = (hex: HexCoord) => `${hex.q},${hex.r}`;
+    const getNeighbors = (hex: HexCoord): HexCoord[] => [
+      { q: hex.q + 1, r: hex.r },
+      { q: hex.q - 1, r: hex.r },
+      { q: hex.q, r: hex.r + 1 },
+      { q: hex.q, r: hex.r - 1 },
+      { q: hex.q + 1, r: hex.r - 1 },
+      { q: hex.q - 1, r: hex.r + 1 },
+    ].filter(h => !wallSet.has(getKey(h)));
+    
+    const heuristic = (a: HexCoord, b: HexCoord): number => {
+      return Math.abs(a.q - b.q) + Math.abs(a.r - b.r) + Math.abs((a.q + a.r) - (b.q + b.r));
+    };
+    
+    const openSet = [start];
+    const cameFrom = new Map<string, HexCoord>();
+    const gScore = new Map<string, number>();
+    const fScore = new Map<string, number>();
+    
+    gScore.set(getKey(start), 0);
+    fScore.set(getKey(start), heuristic(start, end));
+    
+    while (openSet.length > 0) {
+      // Get node with lowest fScore
+      openSet.sort((a, b) => (fScore.get(getKey(a)) || Infinity) - (fScore.get(getKey(b)) || Infinity));
+      const current = openSet.shift()!;
+      
+      if (current.q === end.q && current.r === end.r) {
+        // Reconstruct path
+        const path: HexCoord[] = [current];
+        let temp = current;
+        while (cameFrom.has(getKey(temp))) {
+          temp = cameFrom.get(getKey(temp))!;
+          path.unshift(temp);
+        }
+        return path;
+      }
+      
+      for (const neighbor of getNeighbors(current)) {
+        const tentativeGScore = (gScore.get(getKey(current)) || 0) + 1;
+        
+        if (!gScore.has(getKey(neighbor)) || tentativeGScore < gScore.get(getKey(neighbor))!) {
+          cameFrom.set(getKey(neighbor), current);
+          gScore.set(getKey(neighbor), tentativeGScore);
+          fScore.set(getKey(neighbor), tentativeGScore + heuristic(neighbor, end));
+          
+          if (!openSet.some(h => h.q === neighbor.q && h.r === neighbor.r)) {
+            openSet.push(neighbor);
+          }
+        }
+      }
+      
+      // Limit search to prevent infinite loops
+      if (openSet.length > 500) break;
+    }
+    
+    // No path found - return straight line to target
+    return [start, end];
+  }
+
   private startTokenDrag(token: Token, hex: HexCoord): void {
     this.draggingToken = token;
     this.dragStartHex.set(hex);
@@ -1162,8 +1228,34 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!this.draggingToken) return;
 
     this.dragHoverHex.set(hex);
-    // Free movement - no pathfinding, no path visualization
-    this.dragPath.set([]);
+    
+    // Update the current drag position to follow the cursor
+    const hexCenter = HexMath.hexToPixel(hex);
+    this.dragCurrentPosition.set(hexCenter);
+    
+    // In enforced mode, calculate path with walls and speed limits
+    if (this.dragMode === 'enforced') {
+      const startHex = this.dragStartHex();
+      if (startHex) {
+        const path = this.findPath(startHex, hex);
+        // TODO: Get character speed from token data, for now use default of 6 hexes
+        const maxDistance = 6;
+        const limitedPath = path.slice(0, maxDistance + 1);
+        this.dragPath.set(limitedPath);
+        
+        // Snap hover to last valid hex in path
+        if (limitedPath.length > 0) {
+          const lastHex = limitedPath[limitedPath.length - 1];
+          this.dragHoverHex.set(lastHex);
+          // Also update current position to the valid end point
+          const validCenter = HexMath.hexToPixel(lastHex);
+          this.dragCurrentPosition.set(validCenter);
+        }
+      }
+    } else {
+      // Free movement - no pathfinding, no restrictions
+      this.dragPath.set([]);
+    }
 
     this.scheduleRender();
   }
@@ -1172,10 +1264,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!this.draggingToken) return;
 
     const startHex = this.dragStartHex();
-    if (startHex && (startHex.q !== hex.q || startHex.r !== hex.r)) {
+    const targetHex = this.dragHoverHex(); // Use hover hex which respects enforced mode limits
+    
+    if (startHex && targetHex && (startHex.q !== targetHex.q || startHex.r !== targetHex.r)) {
       this.tokenMove.emit({
         tokenId: this.draggingToken.id,
-        position: hex,
+        position: targetHex,
       });
     }
 
@@ -1183,6 +1277,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.dragStartHex.set(null);
     this.dragHoverHex.set(null);
     this.dragPath.set([]);
+    this.dragGhostPosition.set(null);
+    this.dragCurrentPosition.set(null);
     this.scheduleRender();
   }
 
@@ -1249,7 +1345,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.initialImageTransform = null;
   }
 
+  private lastWallPaintHex: string | null = null;
+
   private paintWall(hex: HexCoord): void {
+    const hexKey = `${hex.q},${hex.r}`;
+    
+    // Skip if we just painted this hex (prevent duplicate updates)
+    if (this.lastWallPaintHex === hexKey) return;
+    this.lastWallPaintHex = hexKey;
+    
     const walls = this.map?.walls || [];
     const hasWall = walls.some(w => w.q === hex.q && w.r === hex.r);
 
@@ -1258,81 +1362,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     } else if (this.wallPaintMode === 'remove' && hasWall) {
       this.store.removeWall(hex);
     }
-    // Note: scheduleRender is called by store updates, no need to call here
   }
 
-  private performRealTimeErase(eraserPoint: Point): void {
-    if (!this.map) return;
-    
-    const eraserRadius = this.eraserBrushSize / 2;
-    const strokesChanged: {id: string, newSegments: Point[][]}[] = [];
-    
-    // Check each stroke to see if it should be split
-    for (const stroke of this.map.strokes) {
-      // Skip if already processed in this drag
-      if (this.erasedStrokeIds.has(stroke.id)) continue;
-      
-      // Find all intersection points
-      const segments: Point[][] = [];
-      let currentSegment: Point[] = [];
-      
-      for (let i = 0; i < stroke.points.length; i++) {
-        const point = stroke.points[i];
-        const dx = point.x - eraserPoint.x;
-        const dy = point.y - eraserPoint.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < eraserRadius) {
-          // Point is within eraser - end current segment
-          if (currentSegment.length > 1) {
-            segments.push([...currentSegment]);
-          }
-          currentSegment = [];
-          this.erasedStrokeIds.add(stroke.id);
-        } else {
-          // Point is outside eraser - continue segment
-          currentSegment.push(point);
-        }
-      }
-      
-      // Add final segment
-      if (currentSegment.length > 1) {
-        segments.push([...currentSegment]);
-      }
-      
-      // If stroke was split, record the changes
-      if (segments.length > 0 && segments.length < stroke.points.length) {
-        strokesChanged.push({ id: stroke.id, newSegments: segments });
-      } else if (segments.length === 0) {
-        // Entire stroke was erased
-        strokesChanged.push({ id: stroke.id, newSegments: [] });
-      }
-    }
-    
-    // Apply changes
-    if (strokesChanged.length > 0) {
-      for (const change of strokesChanged) {
-        // Remove the original stroke
-        this.store.removeStroke(change.id);
-        
-        // Add new segment strokes
-        for (const segmentPoints of change.newSegments) {
-          const originalStroke = this.map.strokes.find(s => s.id === change.id);
-          if (originalStroke && segmentPoints.length > 1) {
-            const newStroke: Stroke = {
-              id: generateId(),
-              points: segmentPoints,
-              color: originalStroke.color,
-              lineWidth: originalStroke.lineWidth,
-              isEraser: false,
-            };
-            this.store.addStroke(newStroke);
-          }
-        }
-      }
-      this.scheduleRender();
-    }
-  }
+
 
   private renderCurrentStroke(currentPoint: Point): void {
     if (!this.overlayCtx || this.currentStrokePoints.length === 0) return;
@@ -1472,8 +1504,18 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   getTokenScreenPosition(token: Token): Point {
+    // If this token is being dragged, use the current drag position
+    if (this.draggingToken && this.draggingToken.id === token.id && this.dragCurrentPosition()) {
+      return this.worldToScreen(this.dragCurrentPosition()!.x, this.dragCurrentPosition()!.y);
+    }
+    // Otherwise use the token's actual position
     const center = HexMath.hexToPixel(token.position);
     return this.worldToScreen(center.x, center.y);
+  }
+
+  getGhostPortraitUrl(): string {
+    if (!this.draggingToken?.portrait) return '';
+    return this.imageService.getImageUrl(this.draggingToken.portrait) || '';
   }
 
   onTokenDragStart(token: Token, event: MouseEvent): void {
@@ -1483,9 +1525,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
     this.draggingToken = token;
     this.dragStartHex.set(token.position);
-    const rect = this.container.nativeElement.getBoundingClientRect();
-    const world = this.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
-    this.dragGhostPosition.set(world);
+    
+    // Set ghost at the token's start position
+    const startCenter = HexMath.hexToPixel(token.position);
+    this.dragGhostPosition.set(startCenter);
+    
+    // Set current drag position to start
+    this.dragCurrentPosition.set(startCenter);
   }
 
   onTokenContextMenu(token: Token, event: MouseEvent): void {

@@ -34,6 +34,7 @@ interface AnimationState {
 })
 export class BattleTracker implements OnInit, OnDestroy {
   @Input() engine!: BattleTrackerEngine;
+  @Input() readOnly = false; // View-only mode for lobby
   @ViewChild('timelineContainer') timelineRef!: ElementRef<HTMLElement>;
 
   private cdr = inject(ChangeDetectorRef);

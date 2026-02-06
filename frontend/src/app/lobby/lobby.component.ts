@@ -28,7 +28,7 @@ import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engi
 
 // Tool types
 export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image';
-export type DragMode = 'free' | 'snap';
+export type DragMode = 'free' | 'enforced';
 
 @Component({
   selector: 'app-lobby',
@@ -220,6 +220,15 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     console.log('[Lobby] Loaded characters:', characters.length, characters.map(c => c.sheet.name));
     this.worldCharacters.set(characters);
+    
+    // Update battle engine with character data for portraits
+    this.battleEngine.setAvailableCharacters(characters.map(c => ({
+      id: c.id,
+      name: c.sheet.name,
+      portrait: c.sheet.portrait,
+      speed: 10 // Default, will be overridden by battle participants data
+    })));
+    
     this.cdr.markForCheck();
   }
 

@@ -122,17 +122,17 @@
         class="tool-btn" 
         [class.active]="dragMode === 'free'"
         (click)="setDragMode('free')"
-        title="Free Movement"
+        title="Free Movement (no restrictions)"
       >
         🆓
       </button>
       <button 
         class="tool-btn" 
-        [class.active]="dragMode === 'snap'"
-        (click)="setDragMode('snap')"
-        title="Snap to Grid"
+        [class.active]="dragMode === 'enforced'"
+        (click)="setDragMode('enforced')"
+        title="Enforced Movement (pathfinding + speed limits)"
       >
-        🧲
+        🛡️
       </button>
     </div>
   }

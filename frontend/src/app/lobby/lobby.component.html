@@ -69,7 +69,7 @@
   <!-- Battle Tracker Section -->
   @if (isGM()) {
     <div class="battle-tracker-section">
-      <app-battle-tracker [engine]="battleEngine"></app-battle-tracker>
+      <app-battle-tracker [engine]="battleEngine" [readOnly]="true"></app-battle-tracker>
     </div>
   }
 

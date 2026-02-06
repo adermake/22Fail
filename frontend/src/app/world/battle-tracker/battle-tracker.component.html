@@ -16,7 +16,8 @@
   }
 
   <!-- Character List -->
-  <div class="characters-section">
+  @if (!readOnly) {
+    <div class="characters-section">
     <h3>Characters</h3>
     @if (characters().length > 0) {
       <div class="character-list">
@@ -57,7 +58,8 @@
     } @else {
       <p class="no-chars">No characters available</p>
     }
-  </div>
+    </div>
+  }
 
   <!-- Timeline -->
   <div class="timeline-section">
@@ -131,7 +133,8 @@
     <button 
       class="next-turn-btn"
       (click)="onNextTurn()" 
-      [disabled]="timeline().length === 0"
+      [disabled]="readOnly || timeline().length === 0"
+      [title]="readOnly ? 'View only - use World view to control' : 'Next Turn'"
     >
       Next Turn
     </button>

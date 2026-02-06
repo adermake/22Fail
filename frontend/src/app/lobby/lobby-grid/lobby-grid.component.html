@@ -26,20 +26,33 @@
         [scale]="scale"
         [isCurrentTurn]="false"
         [isInteractive]="currentTool === 'cursor'"
+        [isDragging]="draggingToken?.id === token.id"
         (dragStart)="onTokenDragStart(token, $event)"
         (contextMenu)="onTokenContextMenu(token, $event)"
       />
     }
+    
+    <!-- Ghost token at start position -->
+    @if (draggingToken && dragGhostPosition()) {
+      <div 
+        class="drag-ghost-token"
+        [style.left.px]="worldToScreen(dragGhostPosition()!.x, dragGhostPosition()!.y).x"
+        [style.top.px]="worldToScreen(dragGhostPosition()!.x, dragGhostPosition()!.y).y"
+      >
+        @if (draggingToken.portrait) {
+          <img 
+            class="token-portrait" 
+            [src]="getGhostPortraitUrl()"
+            alt=""
+          />
+        } @else {
+          <div class="token-placeholder">
+            {{ draggingToken.name.charAt(0).toUpperCase() }}
+          </div>
+        }
+      </div>
+    }
   </div>
-
-  <!-- Drag ghost -->
-  @if (dragGhostPosition()) {
-    <div 
-      class="drag-ghost"
-      [style.left.px]="worldToScreen(dragGhostPosition()!.x, dragGhostPosition()!.y).x"
-      [style.top.px]="worldToScreen(dragGhostPosition()!.x, dragGhostPosition()!.y).y"
-    ></div>
-  }
 
   <!-- Context menu for images and quick token -->
   @if (showContextMenu()) {

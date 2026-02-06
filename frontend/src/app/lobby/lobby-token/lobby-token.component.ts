@@ -22,8 +22,7 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       [class.non-interactive]="!isInteractive"
       [style.left.px]="position.x"
       [style.top.px]="position.y"
-      [style.transform]="'scale(' + scale + ')'"
-      [style.border]="getTokenBorder()"
+      [style.box-shadow]="getTokenBorder()"
       [style.cursor]="isInteractive ? 'grab' : 'default'"
       [style.pointer-events]="isInteractive ? 'auto' : 'none'"
       (mousedown)="onMouseDown($event)"
@@ -42,10 +41,6 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
         </div>
       }
       
-      @if (token.team) {
-        <div class="team-indicator" [style.background]="getTeamColor(token.team)"></div>
-      }
-      
       <div class="token-name">{{ token.name }}</div>
     </div>
   `,
@@ -57,35 +52,34 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       margin-left: -28px;
       margin-top: -28px;
       pointer-events: auto;
-      transition: transform 0.1s, box-shadow 0.1s;
       z-index: 1;
-      /* Hexagonal shape - flat-top */
-      background: #1e293b;
-      -webkit-clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-      clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+      background: transparent;
+      border-radius: 0;
+      /* Flat-top hexagonal clipping */
+      clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
+      -webkit-clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
     }
 
     .token:hover:not(.non-interactive) {
       z-index: 2;
+      filter: brightness(1.1);
     }
 
     .token:active,
     .token.dragging {
       cursor: grabbing;
       z-index: 10;
+      opacity: 0.7;
     }
 
     .token.current-turn {
-      box-shadow: 0 0 16px rgba(34, 197, 94, 0.6);
+      filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.8));
     }
 
     .token-portrait {
       width: 100%;
       height: 100%;
       object-fit: cover;
-      /* Same hexagonal clipping for portrait - flat-top */
-      -webkit-clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-      clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
     }
 
     .token-placeholder {
@@ -97,18 +91,7 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       font-size: 20px;
       font-weight: 600;
       color: #94a3b8;
-      background: transparent;
-    }
-
-    .team-indicator {
-      position: absolute;
-      bottom: -2px;
-      right: -2px;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      border: 2px solid #1e293b;
-      z-index: 2;
+      background: #1e293b;
     }
 
     .token-name {
@@ -123,6 +106,7 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       padding: 2px 6px;
       border-radius: 4px;
       pointer-events: none;
+      z-index: 100;
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -133,11 +117,10 @@ export class LobbyTokenComponent {
   @Input() scale = 1;
   @Input() isCurrentTurn = false;
   @Input() isInteractive = true;
+  @Input() isDragging = false;
 
   @Output() dragStart = new EventEmitter<MouseEvent>();
   @Output() contextMenu = new EventEmitter<MouseEvent>();
-
-  isDragging = false;
 
   // Team colors
   private teamColors: Record<string, string> = {
@@ -154,17 +137,15 @@ export class LobbyTokenComponent {
   }
 
   getTokenBorder(): string {
-    if (this.token.team) {
-      return `3px solid ${this.getTeamColor(this.token.team)}`;
-    }
-    return '3px solid #475569';
+    // Use box-shadow for hexagonal border effect
+    const color = this.token.team ? this.getTeamColor(this.token.team) : '#475569';
+    return `0 0 0 3px ${color}`;
   }
 
   onMouseDown(event: MouseEvent): void {
     if (event.button === 0) {
       event.preventDefault();
       event.stopPropagation();
-      this.isDragging = true;
       this.dragStart.emit(event);
     }
   }
