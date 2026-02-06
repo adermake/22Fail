@@ -456,9 +456,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   onToolAutoSelect(tool: string): void {
-    if (tool === 'image') {
-      this.currentTool.set('image');
-    }
+    // Switch to any tool - used to auto-switch back to cursor after placing image
+    this.currentTool.set(tool as ToolType);
   }
 
   // ============================================

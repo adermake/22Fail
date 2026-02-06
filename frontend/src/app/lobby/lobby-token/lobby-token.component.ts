@@ -28,6 +28,7 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       [style.pointer-events]="isInteractive ? 'auto' : 'none'"
       (mousedown)="onMouseDown($event)"
       (contextmenu)="onContextMenu($event)"
+      (dragstart)="onDragStart($event)"
     >
       <!-- Border layer: slightly larger hex with team color fill, NOT clipped by outer -->
       <div class="token-border"></div>
@@ -170,6 +171,11 @@ export class LobbyTokenComponent {
       event.stopPropagation();
       this.dragStart.emit(event);
     }
+  }
+
+  onDragStart(event: DragEvent): void {
+    // Prevent native browser drag when right-clicking
+    event.preventDefault();
   }
 
   onContextMenu(event: MouseEvent): void {

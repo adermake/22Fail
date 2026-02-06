@@ -190,6 +190,7 @@ export class BattleTrackerEngine {
     // If we have a full timeline saved, use it faithfully
     const timeline = world.battleTimeline;
     if (timeline && timeline.length > 0) {
+      console.log('[BattleEngine] Loading from saved timeline:', timeline.length, 'tiles');
       this.tiles = [];
       for (const entry of timeline) {
         const participant = this.participants.get(entry.characterId);
@@ -208,6 +209,7 @@ export class BattleTrackerEngine {
         }
       }
     } else {
+      console.log('[BattleEngine] No timeline found, using fallback reconstruction');
       // Fallback: first round respects saved order (nextTurnAt is the order)
       const orderedBySaved = [...saved].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
       
@@ -272,6 +274,7 @@ export class BattleTrackerEngine {
     // If we have a full timeline saved, reconstruct it faithfully
     const timeline = world.battleTimeline;
     if (timeline && timeline.length > 0) {
+      console.log('[BattleEngine] Syncing from saved timeline:', timeline.length, 'tiles');
       this.tiles = [];
       for (const entry of timeline) {
         const participant = this.participants.get(entry.characterId);
@@ -291,11 +294,13 @@ export class BattleTrackerEngine {
       }
       // Cap scripted count
       this.scriptedCount = Math.min(this.scriptedCount, this.tiles.length);
+      console.log('[BattleEngine] Synced', this.tiles.length, 'tiles, scripted:', this.scriptedCount);
       this.notifyChange();
       return;
     }
 
     // Fallback: rebuild from participants (old format without battleTimeline)
+    console.log('[BattleEngine] No timeline found, using fallback reconstruction');
     const orderedBySaved = [...saved].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
     
     this.tiles = [];
@@ -357,17 +362,23 @@ export class BattleTrackerEngine {
       isScripted: index < this.scriptedCount,
     }));
 
+    // Apply both updates atomically to avoid race conditions
     this.worldStore.applyPatch({
       path: 'battleParticipants',
       value: battleParticipants,
     });
 
-    this.worldStore.applyPatch({
-      path: 'battleTimeline',
-      value: battleTimeline,
-    });
+    // Small delay to ensure first patch is processed before second
+    setTimeout(() => {
+      if (this.worldStore) {
+        this.worldStore.applyPatch({
+          path: 'battleTimeline',
+          value: battleTimeline,
+        });
+      }
+    }, 10);
 
-    setTimeout(() => { this.isSaving = false; }, 100);
+    setTimeout(() => { this.isSaving = false; }, 200);
   }
 
   // ============================================

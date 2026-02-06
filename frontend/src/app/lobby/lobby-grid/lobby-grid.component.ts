@@ -110,6 +110,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private currentStrokePoints: Point[] = [];
   private lastMousePos: Point = { x: 0, y: 0 };
   private erasedStrokeIds = new Set<string>(); // Track strokes erased during current drag
+  private isAdjustingBrushSize = false; // Shift+drag to adjust brush size
+  private brushSizeAdjustStart: { x: number; y: number; initialSize: number } | null = null;
 
   // Measurement
   measureStart = signal<Point | null>(null);
@@ -971,6 +973,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private handleDrawDown(event: MouseEvent, world: Point): void {
     if (event.button !== 0) return;
 
+    // Shift+drag = adjust brush size
+    if (event.shiftKey) {
+      this.isAdjustingBrushSize = true;
+      const initialSize = this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize;
+      this.brushSizeAdjustStart = { x: event.clientX, y: event.clientY, initialSize };
+      return;
+    }
+
     this.isDrawing = true;
     this.currentStrokePoints = [world];
     
@@ -981,6 +991,19 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private handleDrawMove(event: MouseEvent, world: Point): void {
+    // Shift+drag = adjust brush size
+    if (this.isAdjustingBrushSize && this.brushSizeAdjustStart) {
+      const dx = event.clientX - this.brushSizeAdjustStart.x;
+      const newSize = Math.max(1, Math.min(50, this.brushSizeAdjustStart.initialSize + dx * 0.2));
+      
+      if (this.currentTool === 'erase') {
+        this.eraserBrushSize = Math.round(newSize);
+      } else {
+        this.penBrushSize = Math.round(newSize);
+      }
+      return;
+    }
+
     if (!this.isDrawing) return;
 
     this.currentStrokePoints.push(world);
@@ -990,6 +1013,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private handleDrawUp(event: MouseEvent, world: Point): void {
+    // End brush size adjustment
+    if (this.isAdjustingBrushSize) {
+      this.isAdjustingBrushSize = false;
+      this.brushSizeAdjustStart = null;
+      return;
+    }
+
     if (!this.isDrawing) return;
 
     this.isDrawing = false;
@@ -1080,13 +1110,48 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Auto-place image when in image tool mode
     const pendingImageId = this.getPendingImageId();
     if (pendingImageId) {
-      this.placeImage.emit({
-        imageId: pendingImageId,
-        x: world.x,
-        y: world.y,
-        width: 100,
-        height: 100,
-      });
+      // Load the actual image to get its dimensions and preserve aspect ratio
+      const imageUrl = `/api/images/${pendingImageId}`;
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        // Preserve aspect ratio, scale to max 200px on longest side
+        const maxSize = 200;
+        const aspectRatio = img.naturalWidth / img.naturalHeight;
+        let width = img.naturalWidth;
+        let height = img.naturalHeight;
+        
+        if (width > height) {
+          if (width > maxSize) {
+            width = maxSize;
+            height = maxSize / aspectRatio;
+          }
+        } else {
+          if (height > maxSize) {
+            height = maxSize;
+            width = maxSize * aspectRatio;
+          }
+        }
+        
+        this.placeImage.emit({
+          imageId: pendingImageId,
+          x: world.x,
+          y: world.y,
+          width: Math.round(width),
+          height: Math.round(height),
+        });
+      };
+      img.onerror = () => {
+        // Fallback to square if image fails to load
+        this.placeImage.emit({
+          imageId: pendingImageId,
+          x: world.x,
+          y: world.y,
+          width: 100,
+          height: 100,
+        });
+      };
+      img.src = imageUrl;
       
       // Auto-select cursor tool after placing image
       this.toolAutoSelect.emit('cursor');
@@ -1635,14 +1700,48 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         }
         
         if (data.type === 'library-image') {
-          // Library image drop
-          this.placeImage.emit({
-            imageId: data.imageId,
-            x: world.x,
-            y: world.y,
-            width: data.width || 100,
-            height: data.height || 100
-          });
+          // Library image drop - load actual dimensions
+          const imageUrl = `/api/images/${data.imageId}`;
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            // Preserve aspect ratio, scale to max 200px on longest side
+            const maxSize = 200;
+            const aspectRatio = img.naturalWidth / img.naturalHeight;
+            let width = img.naturalWidth;
+            let height = img.naturalHeight;
+            
+            if (width > height) {
+              if (width > maxSize) {
+                width = maxSize;
+                height = maxSize / aspectRatio;
+              }
+            } else {
+              if (height > maxSize) {
+                height = maxSize;
+                width = maxSize * aspectRatio;
+              }
+            }
+            
+            this.placeImage.emit({
+              imageId: data.imageId,
+              x: world.x,
+              y: world.y,
+              width: Math.round(width),
+              height: Math.round(height)
+            });
+          };
+          img.onerror = () => {
+            // Fallback
+            this.placeImage.emit({
+              imageId: data.imageId,
+              x: world.x,
+              y: world.y,
+              width: data.width || 100,
+              height: data.height || 100
+            });
+          };
+          img.src = imageUrl;
           
           // Auto-select image tool
           this.toolAutoSelect.emit();
