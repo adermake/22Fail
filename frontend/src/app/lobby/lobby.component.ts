@@ -22,6 +22,8 @@ import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage } from '../model/lob
 import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
 import { LobbyToolbarComponent } from './lobby-toolbar/lobby-toolbar.component';
 import { LobbySidebarComponent } from './lobby-sidebar/lobby-sidebar.component';
+import { BattleTracker } from '../world/battle-tracker/battle-tracker.component';
+import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engine';
 
 // Tool types
 export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image';
@@ -35,6 +37,7 @@ export type DragMode = 'free' | 'snap';
     LobbyGridComponent,
     LobbyToolbarComponent,
     LobbySidebarComponent,
+    BattleTracker,
   ],
   templateUrl: './lobby.component.html',
   styleUrls: ['./lobby.component.css'],
@@ -115,6 +118,16 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const l = this.lobby();
     if (!l) return [];
     return Object.entries(l.maps).map(([id, map]) => ({ id, name: map.name }));
+  });
+
+  // Computed: battle tracker engine for read-only display
+  battleTrackerEngine = computed(() => {
+    const engine = new BattleTrackerEngine();
+    // Initialize with world characters if available
+    const characters = this.worldCharacters();
+    // The engine would need to be set up with these characters
+    // For now, return the empty engine
+    return engine;
   });
 
   ngOnInit(): void {
@@ -419,5 +432,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
   async cleanupImages(): Promise<void> {
     console.log('[Lobby] Starting image cleanup...');
     await this.store.cleanupOrphanedImages();
+  }
+
+  onToolAutoSelect(tool: string): void {
+    if (tool === 'image') {
+      this.currentTool.set('image');
+    }
   }
 }

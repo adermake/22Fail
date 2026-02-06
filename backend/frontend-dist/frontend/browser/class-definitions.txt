@@ -1,0 +1,51 @@
+# Tier 1
+Magier@90: Kampfzauberer@114, Heiler@67
+Kämpfer@-41: Krieger@-14, Barbar@-58
+Techniker@-147: Schütze@-165, Dieb@-125
+
+# Tier 2
+Kampfzauberer@114: Arkanist@123, Hämonant@90
+Heiler@67: Seelenmagier@65, Paladin@26
+Schütze@-165: Jäger@-160, Schnellschütze@-179
+Dieb@-125: Kampfakrobat@-131, Assassine@-151
+Krieger@-14: Ritter@-1, Mönch@-35
+Barbar@-58: Berserker@-68, Plünderer@-96
+
+# Tier 3
+Arkanist@123: Formationsmagier@127, Phantom@-174, Runenkünstler@104
+Hämonant@90: Nekromant@83
+Seelenmagier@65: Gestaltenwandler@55, Mentalist@71
+Jäger@-160: Attentäter@-155
+Kampfakrobat@-131: Klingentänzer@-136, Duellant@-116, Phantom@-174
+Ritter@-1: Erzritter@14, Paladin@26, Wächter@-1
+Berserker@-68: Kriegsherr@-92, Omen@-51
+Plünderer@-96: General@-94
+Mönch@-35: Templer@-42
+Schnellschütze@-179: Artificer@157
+
+# Tier 4
+Phantom@-174:
+Gestaltenwandler@55:
+Formationsmagier@127: Manalord@118, Artificer@157
+Runenkünstler@104: Manalord@118, Dunkler Ritter@24
+Mentalist@71: Orakel@67, Nekromant@83
+Assassine@-151: Attentäter@-155
+Klingentänzer@-136: Waffenmeister@-138
+Erzritter@14: Wächter@-1, Dunkler Ritter@24
+General@-94: Kriegsherr@-92
+Paladin@26:
+Templer@-42: Koloss@-30, Omen@-51
+
+# Tier 5
+Manalord@118:
+Artificer@157:
+Attentäter@-155:
+Duellant@-116:
+Waffenmeister@-138:
+Kriegsherr@-92:
+Omen@-51:
+Koloss@-30:
+Wächter@-1:
+Dunkler Ritter@24:
+Orakel@67:
+Nekromant@83:

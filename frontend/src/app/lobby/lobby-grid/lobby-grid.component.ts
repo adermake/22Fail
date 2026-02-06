@@ -76,6 +76,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Output() imageTransform = new EventEmitter<{ id: string; transform: Partial<MapImage> }>();
   @Output() imageDelete = new EventEmitter<string>();
   @Output() placeImage = new EventEmitter<{ imageId: string; x: number; y: number; width: number; height: number }>();
+  @Output() toolAutoSelect = new EventEmitter<string>();
 
   // Services
   private store = inject(LobbyStoreService);
@@ -291,7 +292,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const ctx = this.gridCtx;
     const dpr = window.devicePixelRatio || 1;
 
-    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    // Set bright background
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
     ctx.save();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
@@ -300,11 +304,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const topLeft = this.screenToWorld(-50, -50);
     const bottomRight = this.screenToWorld(canvas.width / dpr + 50, canvas.height / dpr + 50);
 
-    // Calculate hex bounds with extra margin
-    const minQ = Math.floor(topLeft.x / (HexMath.hexWidth * 0.75)) - 3;
-    const maxQ = Math.ceil(bottomRight.x / (HexMath.hexWidth * 0.75)) + 3;
-    const minR = Math.floor(topLeft.y / HexMath.hexHeight) - 3;
-    const maxR = Math.ceil(bottomRight.y / HexMath.hexHeight) + 3;
+    // Calculate hex bounds with much larger margin to ensure complete coverage
+    const margin = Math.max(5, Math.ceil(10 / this.scale)); // More margin when zoomed out
+    const minQ = Math.floor(topLeft.x / (HexMath.hexWidth * 0.75)) - margin;
+    const maxQ = Math.ceil(bottomRight.x / (HexMath.hexWidth * 0.75)) + margin;
+    const minR = Math.floor(topLeft.y / HexMath.hexHeight) - margin;
+    const maxR = Math.ceil(bottomRight.y / HexMath.hexHeight) + margin;
 
     // Build lookup sets
     const walls = this.map?.walls || [];
@@ -312,7 +317,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const pathSet = new Set(this.dragPath().map(p => `${p.q},${p.r}`));
     const hoverHex = this.dragHoverHex();
 
-    // Performance: limit hex count when zoomed out - but don't change background
+    // Performance: limit hex count when zoomed out
     const hexCount = (maxQ - minQ + 1) * (maxR - minR + 1);
     const shouldSimplify = hexCount > 2500 || this.scale < 0.2;
 
@@ -376,14 +381,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.strokeStyle = 'rgba(34, 197, 94, 0.8)';
       ctx.lineWidth = 2;
     } else if (isWall) {
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.15)'; // Subtle wall fill
       ctx.fill();
-      ctx.strokeStyle = 'rgba(239, 68, 68, 1)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)'; // Subtle wall border
+      ctx.lineWidth = 1;
     } else {
       // Transparent with subtle outline
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+      ctx.lineWidth = 0.5;
     }
     ctx.stroke();
   }
@@ -413,8 +418,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private renderImage(ctx: CanvasRenderingContext2D, imgData: MapImage): void {
     // Skip if imageId is missing or undefined
     if (!imgData.imageId) {
-      console.warn('[LobbyGrid] Skipping image with missing imageId:', imgData.id);
-      return;
+      return; // Silent skip
     }
     
     const imageUrl = `/api/images/${imgData.imageId}`;
@@ -427,12 +431,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.imageCache.set(imageUrl, image);
 
       image.onload = () => {
-        console.log('[LobbyGrid] Image loaded successfully:', imgData.imageId);
+        // Image loaded successfully - silent
         this.scheduleRender();
       };
       
-      image.onerror = (e) => {
-        console.warn('[LobbyGrid] Image load failed, removing from map:', imgData.imageId, e);
+      image.onerror = () => {
         // Remove broken image to prevent repeated errors
         this.store.deleteImage(imgData.id);
         return;
@@ -443,7 +446,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     // Check for broken image
     if (!image.naturalWidth || !image.naturalHeight) {
-      console.warn('[LobbyGrid] Image has no dimensions, removing:', imgData.imageId);
       this.store.deleteImage(imgData.id);
       return;
     }
@@ -557,7 +559,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!canvas) return;
 
     const ctx = this.overlayCtx;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const dpr = window.devicePixelRatio || 1;
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
     this.renderMeasurement(ctx);
     this.renderDragPath(ctx);
@@ -599,26 +602,29 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.fillStyle = '#fbbf24';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`${distance} hex`, midX, midY - 8);
+    ctx.fillText(`${distance.toFixed(1)} ft`, midX, midY - 5);
   }
 
   private renderDragPath(ctx: CanvasRenderingContext2D): void {
     const path = this.dragPath();
     if (path.length < 2) return;
 
-    ctx.beginPath();
-    for (let i = 0; i < path.length; i++) {
-      const center = HexMath.hexToPixel(path[i]);
-      const screen = this.worldToScreen(center.x, center.y);
-      if (i === 0) {
-        ctx.moveTo(screen.x, screen.y);
-      } else {
-        ctx.lineTo(screen.x, screen.y);
-      }
-    }
-    ctx.strokeStyle = 'rgba(34, 197, 94, 0.8)';
+    ctx.strokeStyle = '#22c55e';
     ctx.lineWidth = 3;
-    ctx.stroke();
+    ctx.setLineDash([5, 5]);
+
+    for (let i = 0; i < path.length - 1; i++) {
+      const start = HexMath.hexToPixel(path[i]);
+      const end = HexMath.hexToPixel(path[i + 1]);
+      const startScreen = this.worldToScreen(start.x, start.y);
+      const endScreen = this.worldToScreen(end.x, end.y);
+
+      ctx.beginPath();
+      ctx.moveTo(startScreen.x, startScreen.y);
+      ctx.lineTo(endScreen.x, endScreen.y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
   }
 
   // ============================================
@@ -695,8 +701,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         this.handleImageMove(event, world);
         break;
     }
-
-    this.lastMousePos = { x: event.clientX, y: event.clientY };
   }
 
   onMouseUp(event: MouseEvent): void {
@@ -717,13 +721,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         break;
       case 'draw':
       case 'erase':
-        this.handleDrawUp(event);
+        this.handleDrawUp(event, world);
         break;
       case 'walls':
-        this.handleWallUp(event);
+        this.handleWallUp(event, hex);
         break;
       case 'measure':
-        this.handleMeasureUp(event);
+        this.handleMeasureUp(event, world, hex);
         break;
       case 'image':
         this.handleImageUp(event, world);
@@ -760,466 +764,539 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const screenY = event.clientY - rect.top;
     const world = this.screenToWorld(screenX, screenY);
     const hex = HexMath.pixelToHex(world);
+
+    // Check if we right-clicked on an image
+    const clickedImage = this.findImageAtPoint(world);
     
-    // Check if right-clicking on an image
-    const clickedImage = this.getImageAtPoint(world);
-    if (clickedImage) {
-      this.imageSelect.emit(clickedImage.id);
-      this.contextMenuPosition.set({ x: event.clientX, y: event.clientY });
-      this.contextMenuImageId.set(clickedImage.id);
-      this.contextMenuHex.set(null);
-      this.showContextMenu.set(true);
-      return;
-    }
-    
-    // Right-click on empty space - show create token menu
-    if (this.currentTool === 'cursor' || this.currentTool === 'image') {
-      this.contextMenuPosition.set({ x: event.clientX, y: event.clientY });
-      this.contextMenuImageId.set(null);
-      this.contextMenuHex.set(hex);
-      this.showContextMenu.set(true);
-    }
+    this.showContextMenu.set(true);
+    this.contextMenuPosition.set({ x: event.clientX, y: event.clientY });
+    this.contextMenuImageId.set(clickedImage?.id || null);
+    this.contextMenuHex.set(hex);
   }
 
   // ============================================
-  // Tool Handlers - Cursor
+  // Tool-specific handlers
   // ============================================
 
   private handleCursorDown(event: MouseEvent, world: Point, hex: HexCoord): void {
-    // Check if clicking on an image first (cursor can also select/move images)
-    const clickedImage = this.getImageAtPoint(world);
-    
-    if (clickedImage) {
-      this.imageSelect.emit(clickedImage.id);
-      
-      // Check if clicking on a handle
-      const handle = this.getClickedHandle(world, clickedImage);
-      if (handle) {
-        this.transformingImageId = clickedImage.id;
-        this.transformHandle = handle;
-        this.transformMode = handle === 'rotate' ? 'rotate' : 'scale';
-        this.transformAnchor = world;
-        this.initialImageTransform = {
-          x: clickedImage.x,
-          y: clickedImage.y,
-          width: clickedImage.width,
-          height: clickedImage.height,
-          rotation: clickedImage.rotation,
-        };
-        return;
-      } else {
-        // Start move
-        this.transformingImageId = clickedImage.id;
-        this.transformMode = 'move';
-        this.transformAnchor = world;
-        this.initialImageTransform = {
-          x: clickedImage.x,
-          y: clickedImage.y,
-          width: clickedImage.width,
-          height: clickedImage.height,
-          rotation: clickedImage.rotation,
-        };
-        return;
-      }
-    } else {
-      // Deselect image if clicking on empty space
-      if (this.selectedImageId) {
-        this.imageSelect.emit(null);
+    if (event.button !== 0) return; // Only left click
+
+    // Check for image transform handles first
+    if (this.selectedImageId) {
+      const selectedImage = this.map?.images?.find(img => img.id === this.selectedImageId);
+      if (selectedImage) {
+        const handle = this.getTransformHandle(world, selectedImage);
+        if (handle) {
+          this.startImageTransform(selectedImage, handle, world);
+          return;
+        }
       }
     }
+
+    // Check for image selection
+    const clickedImage = this.findImageAtPoint(world);
+    if (clickedImage) {
+      this.imageSelect.emit(clickedImage.id);
+      return;
+    }
+
+    // Check for token
+    const token = this.findTokenAtHex(hex);
+    if (token) {
+      this.startTokenDrag(token, hex);
+      return;
+    }
+
+    // Clear selection
+    this.imageSelect.emit(null);
   }
 
   private handleCursorMove(event: MouseEvent, world: Point, hex: HexCoord): void {
-    // Handle image transform in cursor mode
-    if (this.transformingImageId && this.transformAnchor && this.initialImageTransform) {
-      this.performImageTransform(world);
+    // Update cursor style based on what's under the mouse
+    this.updateCursor(world);
+
+    if (this.transformingImageId && this.transformHandle) {
+      this.updateImageTransform(world);
       return;
     }
-    
+
     if (this.draggingToken) {
-      this.dragGhostPosition.set(world);
-      this.dragHoverHex.set(hex);
-      this.scheduleRender();
+      this.updateTokenDrag(hex);
+      return;
     }
   }
 
   private handleCursorUp(event: MouseEvent, world: Point, hex: HexCoord): void {
-    // End image transform
     if (this.transformingImageId) {
-      this.transformingImageId = null;
-      this.transformAnchor = null;
-      this.transformHandle = null;
-      this.initialImageTransform = null;
+      this.finishImageTransform();
       return;
     }
-    
+
     if (this.draggingToken) {
-      this.tokenMove.emit({ tokenId: this.draggingToken.id, position: hex });
-      this.draggingToken = null;
-      this.dragGhostPosition.set(null);
-      this.dragHoverHex.set(null);
-      this.dragPath.set([]);
-      this.scheduleRender();
+      this.finishTokenDrag(hex);
+      return;
     }
   }
 
-  // ============================================
-  // Tool Handlers - Draw
-  // ============================================
-
   private handleDrawDown(event: MouseEvent, world: Point): void {
     if (event.button !== 0) return;
+
     this.isDrawing = true;
     this.currentStrokePoints = [world];
   }
 
   private handleDrawMove(event: MouseEvent, world: Point): void {
     if (!this.isDrawing) return;
+
     this.currentStrokePoints.push(world);
-    this.renderCurrentStroke();
+    
+    // Preview the current stroke
+    this.renderCurrentStroke(world);
   }
 
-  private handleDrawUp(event: MouseEvent): void {
+  private handleDrawUp(event: MouseEvent, world: Point): void {
     if (!this.isDrawing) return;
-    this.isDrawing = false;
 
-    if (this.currentStrokePoints.length >= 2) {
-      this.store.addStroke({
-        points: this.currentStrokePoints,
+    this.isDrawing = false;
+    
+    if (this.currentStrokePoints.length > 1) {
+      const stroke: Stroke = {
+        id: generateId(),
+        points: [...this.currentStrokePoints],
         color: this.brushColor,
         lineWidth: this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize,
         isEraser: this.currentTool === 'erase',
-      });
+      };
+      
+      this.store.addStroke(stroke);
     }
 
     this.currentStrokePoints = [];
     this.scheduleRender();
   }
 
-  private renderCurrentStroke(): void {
-    if (!this.drawCtx || this.currentStrokePoints.length < 2) return;
-
-    const ctx = this.drawCtx;
-    ctx.save();
-    ctx.translate(this.panX, this.panY);
-    ctx.scale(this.scale, this.scale);
-
-    ctx.beginPath();
-    ctx.moveTo(this.currentStrokePoints[0].x, this.currentStrokePoints[0].y);
-    for (let i = 1; i < this.currentStrokePoints.length; i++) {
-      ctx.lineTo(this.currentStrokePoints[i].x, this.currentStrokePoints[i].y);
-    }
-
-    ctx.strokeStyle = this.currentTool === 'erase' ? 'rgba(128,128,128,0.5)' : this.brushColor;
-    ctx.lineWidth = this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
-  // ============================================
-  // Tool Handlers - Walls
-  // ============================================
-
   private handleWallDown(event: MouseEvent, hex: HexCoord): void {
-    if (!this.isGM || event.button !== 0) return;
-    
+    if (event.button !== 0) return;
+
     this.isWallDrawing = true;
-    const exists = (this.map?.walls || []).some(w => w.q === hex.q && w.r === hex.r);
-    this.wallPaintMode = exists ? 'remove' : 'add';
+    const walls = this.map?.walls || [];
+    const hexKey = `${hex.q},${hex.r}`;
+    const hasWall = walls.some(w => w.q === hex.q && w.r === hex.r);
     
-    this.store.toggleWall(hex);
+    this.wallPaintMode = hasWall ? 'remove' : 'add';
+    this.paintWall(hex);
   }
 
   private handleWallMove(event: MouseEvent, hex: HexCoord): void {
     if (!this.isWallDrawing) return;
-
-    const exists = (this.map?.walls || []).some(w => w.q === hex.q && w.r === hex.r);
-    if (this.wallPaintMode === 'add' && !exists) {
-      this.store.addWall(hex);
-    } else if (this.wallPaintMode === 'remove' && exists) {
-      this.store.removeWall(hex);
-    }
+    this.paintWall(hex);
   }
 
-  private handleWallUp(event: MouseEvent): void {
+  private handleWallUp(event: MouseEvent, hex: HexCoord): void {
     this.isWallDrawing = false;
   }
 
-  // ============================================
-  // Tool Handlers - Measure
-  // ============================================
-
   private handleMeasureDown(event: MouseEvent, world: Point, hex: HexCoord): void {
-    // Snap to hex center
-    const hexCenter = HexMath.hexToPixel(hex);
-    this.measureStart.set(hexCenter);
-    this.measureEnd.set(hexCenter);
+    if (event.button !== 0) return;
+
+    this.measureStart.set(world);
+    this.measureEnd.set(world);
     this.measureDistance.set(0);
-    this.dragStartHex.set(hex);
   }
 
   private handleMeasureMove(event: MouseEvent, world: Point, hex: HexCoord): void {
     if (!this.measureStart()) return;
-    
-    // Snap to hex center
-    const hexCenter = HexMath.hexToPixel(hex);
-    this.measureEnd.set(hexCenter);
-    
-    const startHex = this.dragStartHex();
-    if (startHex) {
-      this.measureDistance.set(HexMath.hexDistance(startHex, hex));
-    }
+
+    this.measureEnd.set(world);
+    const start = this.measureStart()!;
+    const distance = Math.sqrt(Math.pow(world.x - start.x, 2) + Math.pow(world.y - start.y, 2));
+    this.measureDistance.set(distance);
     this.scheduleRender();
   }
 
-  private handleMeasureUp(event: MouseEvent): void {
-    // Clear measurement on mouse up
-    this.measureStart.set(null);
-    this.measureEnd.set(null);
-    this.measureDistance.set(0);
-    this.dragStartHex.set(null);
-    this.scheduleRender();
+  private handleMeasureUp(event: MouseEvent, world: Point, hex: HexCoord): void {
+    // Keep measurement visible
   }
-
-  // ============================================
-  // Image Transform Helper
-  // ============================================
-
-  private performImageTransform(world: Point): void {
-    if (!this.transformingImageId || !this.transformAnchor || !this.initialImageTransform) return;
-
-    const dx = world.x - this.transformAnchor.x;
-    const dy = world.y - this.transformAnchor.y;
-
-    if (this.transformMode === 'move') {
-      this.imageTransform.emit({
-        id: this.transformingImageId,
-        transform: {
-          x: (this.initialImageTransform.x || 0) + dx,
-          y: (this.initialImageTransform.y || 0) + dy,
-        },
-      });
-    } else if (this.transformMode === 'scale' && this.transformHandle) {
-      // Keep aspect ratio while scaling
-      const initialWidth = this.initialImageTransform.width || 200;
-      const initialHeight = this.initialImageTransform.height || 200;
-      const aspectRatio = initialWidth / initialHeight;
-      
-      // Use diagonal distance for uniform scaling
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const scale = Math.max(0.1, 1 + distance / 100 * Math.sign(dx + dy));
-      const newWidth = Math.max(20, Math.round(initialWidth * scale));
-      const newHeight = Math.max(20, Math.round(newWidth / aspectRatio));
-      
-      this.imageTransform.emit({
-        id: this.transformingImageId,
-        transform: {
-          width: newWidth,
-          height: newHeight,
-        },
-      });
-    } else if (this.transformMode === 'rotate') {
-      const centerX = this.initialImageTransform.x || 0;
-      const centerY = this.initialImageTransform.y || 0;
-      const startAngle = Math.atan2(this.transformAnchor.y - centerY, this.transformAnchor.x - centerX);
-      const currentAngle = Math.atan2(world.y - centerY, world.x - centerX);
-      const deltaAngle = (currentAngle - startAngle) * (180 / Math.PI);
-      
-      this.imageTransform.emit({
-        id: this.transformingImageId,
-        transform: {
-          rotation: (this.initialImageTransform.rotation || 0) + deltaAngle,
-        },
-      });
-    }
-
-    this.scheduleRender();
-  }
-
-  // ============================================
-  // Tool Handlers - Image
-  // ============================================
 
   private handleImageDown(event: MouseEvent, world: Point): void {
-    // Check if clicking on an image
-    const clickedImage = this.getImageAtPoint(world);
-    
-    if (clickedImage) {
-      this.imageSelect.emit(clickedImage.id);
+    if (event.button !== 0) return;
+
+    // Auto-place image when in image tool mode
+    const pendingImageId = this.getPendingImageId();
+    if (pendingImageId) {
+      this.placeImage.emit({
+        imageId: pendingImageId,
+        x: world.x,
+        y: world.y,
+        width: 100,
+        height: 100,
+      });
       
-      // Check if clicking on a handle
-      const handle = this.getClickedHandle(world, clickedImage);
-      if (handle) {
-        this.transformingImageId = clickedImage.id;
-        this.transformHandle = handle;
-        this.transformMode = handle === 'rotate' ? 'rotate' : 'scale';
-        this.transformAnchor = world;
-        this.initialImageTransform = {
-          x: clickedImage.x,
-          y: clickedImage.y,
-          width: clickedImage.width,
-          height: clickedImage.height,
-          rotation: clickedImage.rotation,
-        };
-      } else {
-        // Start move
-        this.transformingImageId = clickedImage.id;
-        this.transformMode = 'move';
-        this.transformAnchor = world;
-        this.initialImageTransform = {
-          x: clickedImage.x,
-          y: clickedImage.y,
-          width: clickedImage.width,
-          height: clickedImage.height,
-          rotation: clickedImage.rotation,
-        };
-      }
-    } else {
-      // Deselect
-      this.imageSelect.emit(null);
+      // Auto-select cursor tool after placing image
+      this.toolAutoSelect.emit('cursor');
     }
   }
 
   private handleImageMove(event: MouseEvent, world: Point): void {
-    this.performImageTransform(world);
+    // Update cursor to show image placement
   }
 
   private handleImageUp(event: MouseEvent, world: Point): void {
-    this.transformingImageId = null;
-    this.transformAnchor = null;
-    this.transformHandle = null;
-    this.initialImageTransform = null;
+    // No action needed
   }
 
-  private getImageAtPoint(world: Point): MapImage | null {
-    const images = [...(this.map?.images || [])].sort((a, b) => b.zIndex - a.zIndex);
+  // ============================================
+  // Helper Methods
+  // ============================================
+
+  private findImageAtPoint(point: Point): MapImage | null {
+    if (!this.map?.images) return null;
+
+    // Check in reverse order (top to bottom)
+    const images = [...this.map.images].sort((a, b) => b.zIndex - a.zIndex);
     
     for (const img of images) {
-      // Transform point to image space
-      const dx = world.x - img.x;
-      const dy = world.y - img.y;
-      const rad = -(img.rotation * Math.PI) / 180;
-      const localX = dx * Math.cos(rad) - dy * Math.sin(rad);
-      const localY = dx * Math.sin(rad) + dy * Math.cos(rad);
-
-      const hw = img.width / 2;
-      const hh = img.height / 2;
-
-      if (localX >= -hw && localX <= hw && localY >= -hh && localY <= hh) {
+      if (this.isPointInImage(point, img)) {
         return img;
       }
     }
+    
     return null;
   }
 
-  private getClickedHandle(world: Point, img: MapImage): 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null {
-    const dx = world.x - img.x;
-    const dy = world.y - img.y;
-    const rad = -(img.rotation * Math.PI) / 180;
-    const localX = dx * Math.cos(rad) - dy * Math.sin(rad);
-    const localY = dx * Math.sin(rad) + dy * Math.cos(rad);
+  private isPointInImage(point: Point, img: MapImage): boolean {
+    // Transform point to image-local coordinates
+    const dx = point.x - img.x;
+    const dy = point.y - img.y;
+    
+    // Rotate point around image center
+    const cos = Math.cos(-img.rotation * Math.PI / 180);
+    const sin = Math.sin(-img.rotation * Math.PI / 180);
+    const localX = dx * cos - dy * sin;
+    const localY = dx * sin + dy * cos;
+    
+    // Check if point is within image bounds
+    return Math.abs(localX) <= img.width / 2 && Math.abs(localY) <= img.height / 2;
+  }
 
+  private findTokenAtHex(hex: HexCoord): Token | null {
+    return this.tokens.find(token => token.position.q === hex.q && token.position.r === hex.r) || null;
+  }
+
+  private getTransformHandle(point: Point, img: MapImage): 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null {
+    const handleSize = 10 / this.scale;
     const hw = img.width / 2;
     const hh = img.height / 2;
-    const handleSize = 15 / this.scale;
+
+    // Transform point to image-local coordinates
+    const dx = point.x - img.x;
+    const dy = point.y - img.y;
+    const cos = Math.cos(-img.rotation * Math.PI / 180);
+    const sin = Math.sin(-img.rotation * Math.PI / 180);
+    const localX = dx * cos - dy * sin;
+    const localY = dx * sin + dy * cos;
 
     // Check rotation handle
     const rotY = -hh - 25 / this.scale;
-    if (Math.abs(localX) < handleSize && Math.abs(localY - rotY) < handleSize) {
+    if (Math.abs(localX) < 6 / this.scale && Math.abs(localY - rotY) < 6 / this.scale) {
       return 'rotate';
     }
 
     // Check corner handles
-    const corners: { handle: 'tl' | 'tr' | 'bl' | 'br'; x: number; y: number }[] = [
-      { handle: 'tl', x: -hw, y: -hh },
-      { handle: 'tr', x: hw, y: -hh },
-      { handle: 'br', x: hw, y: hh },
-      { handle: 'bl', x: -hw, y: hh },
+    const corners = [
+      { x: -hw, y: -hh, handle: 'tl' as const },
+      { x: hw, y: -hh, handle: 'tr' as const },
+      { x: hw, y: hh, handle: 'br' as const },
+      { x: -hw, y: hh, handle: 'bl' as const },
     ];
 
-    for (const c of corners) {
-      if (Math.abs(localX - c.x) < handleSize && Math.abs(localY - c.y) < handleSize) {
-        return c.handle;
+    for (const corner of corners) {
+      if (Math.abs(localX - corner.x) < handleSize / 2 && Math.abs(localY - corner.y) < handleSize / 2) {
+        return corner.handle;
       }
     }
 
     return null;
   }
 
+  private updateCursor(point: Point): void {
+    const container = this.container?.nativeElement;
+    if (!container) return;
+
+    let cursor = 'default';
+
+    if (this.selectedImageId) {
+      const selectedImage = this.map?.images?.find(img => img.id === this.selectedImageId);
+      if (selectedImage) {
+        const handle = this.getTransformHandle(point, selectedImage);
+        if (handle === 'rotate') {
+          cursor = 'crosshair';
+        } else if (handle === 'tl' || handle === 'br') {
+          cursor = 'nw-resize';
+        } else if (handle === 'tr' || handle === 'bl') {
+          cursor = 'ne-resize';
+        } else if (this.isPointInImage(point, selectedImage)) {
+          cursor = 'move';
+        }
+      }
+    }
+
+    if (!this.selectedImageId) {
+      const imageAtPoint = this.findImageAtPoint(point);
+      if (imageAtPoint) {
+        cursor = 'pointer';
+      }
+    }
+
+    container.style.cursor = cursor;
+  }
+
+  private startTokenDrag(token: Token, hex: HexCoord): void {
+    this.draggingToken = token;
+    this.dragStartHex.set(hex);
+    this.dragHoverHex.set(hex);
+    this.dragPath.set([hex]);
+  }
+
+  private updateTokenDrag(hex: HexCoord): void {
+    if (!this.draggingToken) return;
+
+    this.dragHoverHex.set(hex);
+    
+    // Calculate path from start to current hex
+    const startHex = this.dragStartHex();
+    if (startHex) {
+      const path = this.findPath(startHex, hex);
+      this.dragPath.set(path);
+    }
+
+    this.scheduleRender();
+  }
+
+  private finishTokenDrag(hex: HexCoord): void {
+    if (!this.draggingToken) return;
+
+    const startHex = this.dragStartHex();
+    if (startHex && (startHex.q !== hex.q || startHex.r !== hex.r)) {
+      this.tokenMove.emit({
+        tokenId: this.draggingToken.id,
+        position: hex,
+      });
+    }
+
+    this.draggingToken = null;
+    this.dragStartHex.set(null);
+    this.dragHoverHex.set(null);
+    this.dragPath.set([]);
+    this.scheduleRender();
+  }
+
+  private startImageTransform(img: MapImage, handle: string, point: Point): void {
+    this.transformingImageId = img.id;
+    this.transformHandle = handle as any;
+    this.transformAnchor = point;
+    this.initialImageTransform = {
+      x: img.x,
+      y: img.y,
+      width: img.width,
+      height: img.height,
+      rotation: img.rotation,
+    };
+  }
+
+  private updateImageTransform(point: Point): void {
+    if (!this.transformingImageId || !this.transformHandle || !this.transformAnchor || !this.initialImageTransform) {
+      return;
+    }
+
+    const img = this.map?.images?.find(i => i.id === this.transformingImageId);
+    if (!img) return;
+
+    const dx = point.x - this.transformAnchor.x;
+    const dy = point.y - this.transformAnchor.y;
+
+    let transform: Partial<MapImage> = {};
+
+    switch (this.transformHandle) {
+      case 'rotate':
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        transform.rotation = this.initialImageTransform.rotation! + angle;
+        break;
+      case 'tl':
+      case 'tr':
+      case 'bl':
+      case 'br':
+        // Scale based on corner dragging
+        const scale = Math.max(0.1, 1 + (Math.abs(dx) + Math.abs(dy)) / 100);
+        transform.width = this.initialImageTransform.width! * scale;
+        transform.height = this.initialImageTransform.height! * scale;
+        break;
+    }
+
+    this.imageTransform.emit({ id: this.transformingImageId, transform });
+  }
+
+  private finishImageTransform(): void {
+    this.transformingImageId = null;
+    this.transformHandle = null;
+    this.transformAnchor = null;
+    this.initialImageTransform = null;
+  }
+
+  private paintWall(hex: HexCoord): void {
+    const walls = this.map?.walls || [];
+    const hasWall = walls.some(w => w.q === hex.q && w.r === hex.r);
+
+    if (this.wallPaintMode === 'add' && !hasWall) {
+      this.store.addWall(hex);
+    } else if (this.wallPaintMode === 'remove' && hasWall) {
+      this.store.removeWall(hex);
+    }
+
+    this.scheduleRender();
+  }
+
+  private renderCurrentStroke(currentPoint: Point): void {
+    if (!this.overlayCtx || this.currentStrokePoints.length === 0) return;
+
+    const canvas = this.overlayCanvas.nativeElement;
+    const ctx = this.overlayCtx;
+    const dpr = window.devicePixelRatio || 1;
+
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    ctx.save();
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.scale, this.scale);
+
+    // Draw current stroke preview
+    if (this.currentStrokePoints.length > 0) {
+      ctx.beginPath();
+      ctx.moveTo(this.currentStrokePoints[0].x, this.currentStrokePoints[0].y);
+      
+      for (let i = 1; i < this.currentStrokePoints.length; i++) {
+        ctx.lineTo(this.currentStrokePoints[i].x, this.currentStrokePoints[i].y);
+      }
+      
+      ctx.lineTo(currentPoint.x, currentPoint.y);
+      
+      ctx.strokeStyle = this.currentTool === 'erase' ? 'rgba(255, 0, 0, 0.5)' : this.brushColor;
+      ctx.lineWidth = this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  private findPath(start: HexCoord, end: HexCoord): HexCoord[] {
+    // Simple line pathfinding for now
+    // In a real implementation, you'd use A* or similar
+    const path: HexCoord[] = [start];
+    
+    let current = start;
+    while (current.q !== end.q || current.r !== end.r) {
+      const neighbors = this.getHexNeighbors(current);
+      
+      // Find neighbor closest to target
+      let best = neighbors[0];
+      let bestDistance = HexMath.hexDistance(best, end);
+      
+      for (const neighbor of neighbors) {
+        const distance = HexMath.hexDistance(neighbor, end);
+        if (distance < bestDistance) {
+          best = neighbor;
+          bestDistance = distance;
+        }
+      }
+      
+      current = best;
+      path.push(current);
+      
+      // Prevent infinite loops
+      if (path.length > 50) break;
+    }
+    
+    return path;
+  }
+
+  private getPendingImageId(): string | null {
+    // This would typically come from a service or parent component
+    // For now, return null to indicate no pending image
+    return null;
+  }
+
   // ============================================
-  // Drag and Drop (External - from sidebar)
+  // Token Dropping
   // ============================================
+
+  onTokenDrop(event: DragEvent): void {
+    event.preventDefault();
+    
+    const rect = this.container.nativeElement.getBoundingClientRect();
+    const screenX = event.clientX - rect.left;
+    const screenY = event.clientY - rect.top;
+    const world = this.screenToWorld(screenX, screenY);
+    const hex = HexMath.pixelToHex(world);
+
+    const data = event.dataTransfer?.getData('application/json');
+    if (data) {
+      const dropData = JSON.parse(data);
+      
+      if (dropData.type === 'character') {
+        this.tokenDrop.emit({
+          characterId: dropData.characterId,
+          position: hex,
+        });
+      } else if (dropData.type === 'quickToken') {
+        this.quickTokenDrop.emit({
+          name: dropData.name,
+          portrait: dropData.portrait,
+          position: hex,
+        });
+      }
+    }
+  }
 
   onDragOver(event: DragEvent): void {
     event.preventDefault();
     event.dataTransfer!.dropEffect = 'copy';
-
-    const rect = this.container.nativeElement.getBoundingClientRect();
-    const world = this.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
-    const hex = HexMath.pixelToHex(world);
-    this.dragHoverHex.set(hex);
-    this.scheduleRender();
   }
 
   onDragLeave(event: DragEvent): void {
-    this.dragHoverHex.set(null);
-    this.scheduleRender();
+    // Handle drag leave if needed
   }
 
   onDrop(event: DragEvent): void {
     event.preventDefault();
-    
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith('image/')) {
+        // Handle file drop if needed
+        this.toolAutoSelect.emit();
+      }
+    }
+  }
+
+  getTokenScreenPosition(token: Token): Point {
+    const center = HexMath.hexToPixel(token.position);
+    return this.worldToScreen(center.x, center.y);
+  }
+
+  onTokenDragStart(token: Token, event: MouseEvent): void {
+    this.draggingToken = token;
+    this.dragStartHex.set(token.position);
     const rect = this.container.nativeElement.getBoundingClientRect();
     const world = this.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
-    const hex = HexMath.pixelToHex(world);
-
-    const data = event.dataTransfer?.getData('text/plain');
-    if (!data) return;
-
-    try {
-      const parsed = JSON.parse(data);
-      
-      if (parsed.type === 'character') {
-        this.tokenDrop.emit({ characterId: parsed.characterId, position: hex });
-      } else if (parsed.type === 'library-image') {
-        this.placeImage.emit({
-          imageId: parsed.imageId,
-          x: world.x,
-          y: world.y,
-          width: parsed.width || 200,
-          height: parsed.height || 200,
-        });
-      }
-    } catch (e) {
-      console.error('[LobbyGrid] Invalid drop data:', e);
-    }
-
-    this.dragHoverHex.set(null);
-    this.scheduleRender();
+    this.dragGhostPosition.set(world);
   }
 
-  // ============================================
-  // Context Menu Actions
-  // ============================================
-
-  closeContextMenu(): void {
-    this.showContextMenu.set(false);
-    this.contextMenuImageId.set(null);
-    this.contextMenuHex.set(null);
-  }
-
-  onCreateQuickToken(): void {
-    const hex = this.contextMenuHex();
-    if (hex) {
-      const name = prompt('Token name:');
-      if (name) {
-        this.quickTokenDrop.emit({ name, portrait: '', position: hex });
-      }
+  onTokenContextMenu(token: Token, event: MouseEvent): void {
+    event.preventDefault();
+    if (confirm(`Remove ${token.name} from the map?`)) {
+      this.tokenRemove.emit(token.id);
     }
-    this.closeContextMenu();
   }
 
   onMoveImageForward(): void {
@@ -1262,31 +1339,41 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.closeContextMenu();
   }
 
-  // ============================================
-  // Token Events (from child component)
-  // ============================================
-
-  onTokenDragStart(token: Token, event: MouseEvent): void {
-    this.draggingToken = token;
-    this.dragStartHex.set(token.position);
-    const rect = this.container.nativeElement.getBoundingClientRect();
-    const world = this.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
-    this.dragGhostPosition.set(world);
-  }
-
-  onTokenContextMenu(token: Token, event: MouseEvent): void {
-    event.preventDefault();
-    if (confirm(`Remove ${token.name} from the map?`)) {
-      this.tokenRemove.emit(token.id);
+  onCreateQuickToken(): void {
+    // Implementation for quick token creation
+    const rect = this.contextMenuPos();
+    if (rect) {
+      const world = this.screenToWorld(rect.x, rect.y);
+      const hex = HexMath.pixelToHex(world);
+      // Emit event to create token at this hex position
+      // This would need to be wired up to the parent component
     }
+    this.closeContextMenu();
   }
 
-  // ============================================
-  // Token Positioning Helper
-  // ============================================
+  private getHexNeighbors(hex: HexCoord): HexCoord[] {
+    const directions = [
+      { q: 1, r: 0 },
+      { q: 1, r: -1 },
+      { q: 0, r: -1 },
+      { q: -1, r: 0 },
+      { q: -1, r: 1 },
+      { q: 0, r: 1 }
+    ];
+    return directions.map(dir => ({
+      q: hex.q + dir.q,
+      r: hex.r + dir.r
+    }));
+  }
 
-  getTokenScreenPosition(token: Token): Point {
-    const center = HexMath.hexToPixel(token.position);
-    return this.worldToScreen(center.x, center.y);
+  private closeContextMenu(): void {
+    // Close the context menu by resetting the position
+    this.contextMenuPosition.set({ x: 0, y: 0 });
+    this.contextMenuImageId.set(null);
+  }
+
+  private contextMenuPos(): Point | null {
+    const pos = this.contextMenuPosition();
+    return pos.x === 0 && pos.y === 0 ? null : pos;
   }
 }

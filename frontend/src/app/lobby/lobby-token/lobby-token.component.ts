@@ -22,6 +22,7 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       [style.left.px]="position.x"
       [style.top.px]="position.y"
       [style.transform]="'scale(' + scale + ')'"
+      [style.border]="getTokenBorder()"
       (mousedown)="onMouseDown($event)"
       (contextmenu)="onContextMenu($event)"
     >
@@ -52,18 +53,19 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       height: 48px;
       margin-left: -24px;
       margin-top: -24px;
-      border-radius: 50%;
-      border: 3px solid #475569;
-      background: #1e293b;
       cursor: grab;
       pointer-events: auto;
       transition: transform 0.1s, box-shadow 0.1s;
       z-index: 1;
+      
+      /* Hexagonal shape */
+      background: #1e293b;
+      -webkit-clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
+      clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
     }
 
     .token:hover {
       box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
-      border-color: #3b82f6;
       z-index: 2;
     }
 
@@ -74,15 +76,16 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
     }
 
     .token.current-turn {
-      border-color: #22c55e;
       box-shadow: 0 0 16px rgba(34, 197, 94, 0.6);
     }
 
     .token-portrait {
       width: 100%;
       height: 100%;
-      border-radius: 50%;
       object-fit: cover;
+      /* Same hexagonal clipping for portrait */
+      -webkit-clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
+      clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
     }
 
     .token-placeholder {
@@ -94,8 +97,7 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       font-size: 20px;
       font-weight: 600;
       color: #94a3b8;
-      background: #334155;
-      border-radius: 50%;
+      background: transparent;
     }
 
     .team-indicator {
@@ -106,6 +108,7 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       height: 14px;
       border-radius: 50%;
       border: 2px solid #1e293b;
+      z-index: 2;
     }
 
     .token-name {
@@ -115,8 +118,8 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       transform: translateX(-50%);
       white-space: nowrap;
       font-size: 10px;
-      color: #e2e8f0;
-      background: rgba(30, 41, 59, 0.9);
+      color: #1f2937;
+      background: rgba(255, 255, 255, 0.9);
       padding: 2px 6px;
       border-radius: 4px;
       pointer-events: none;
@@ -147,6 +150,13 @@ export class LobbyTokenComponent {
 
   getTeamColor(team: string): string {
     return this.teamColors[team] || '#6b7280';
+  }
+
+  getTokenBorder(): string {
+    if (this.token.team) {
+      return `3px solid ${this.getTeamColor(this.token.team)}`;
+    }
+    return '3px solid #475569';
   }
 
   onMouseDown(event: MouseEvent): void {

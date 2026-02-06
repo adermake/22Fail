@@ -5,7 +5,7 @@
   height: 100%;
   overflow: hidden;
   cursor: crosshair;
-  background: var(--bg);
+  background: #f8fafc; /* Much brighter background */
 }
 
 /* Canvas layers */

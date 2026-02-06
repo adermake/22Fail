@@ -67,8 +67,19 @@
         (imageTransform)="onTransformImage($event)"
         (imageDelete)="onDeleteImage($event)"
         (placeImage)="onPlaceImage($event)"
+        (toolAutoSelect)="onToolAutoSelect($event)"
       />
     </div>
+    
+    <!-- Battle Tracker (view-only) -->
+    @if (isGM()) {
+      <div class="battle-tracker-panel">
+        <app-battle-tracker 
+          [engine]="battleTrackerEngine()"
+          class="read-only"
+        />
+      </div>
+    }
   </div>
 
   <!-- Map name badge -->
