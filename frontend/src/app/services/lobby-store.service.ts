@@ -214,11 +214,12 @@ export class LobbyStoreService {
   /**
    * Create a new map within the lobby.
    */
-  async createMap(name: string): Promise<string> {
+  async createMap(name: string, mapId?: string): Promise<string> {
     const lobby = this.lobby;
     if (!lobby) throw new Error('No lobby loaded');
 
-    const newMap = createEmptyMap(generateId(), name);
+    const id = mapId || generateId();
+    const newMap = createEmptyMap(id, name);
     lobby.maps[newMap.id] = newMap;
     lobby.updatedAt = Date.now();
     
@@ -267,6 +268,28 @@ export class LobbyStoreService {
 
     this.lobbySubject.next({ ...lobby });
     await this.api.saveLobby(this.worldName, lobby);
+  }
+
+  /**
+   * Update map background color.
+   */
+  async updateMapBackground(mapId: string, color: string): Promise<void> {
+    const lobby = this.lobby;
+    if (!lobby || !lobby.maps[mapId]) return;
+
+    lobby.maps[mapId].backgroundColor = color;
+    lobby.maps[mapId].updatedAt = Date.now();
+    lobby.updatedAt = Date.now();
+
+    this.lobbySubject.next({ ...lobby });
+    await this.api.saveLobby(this.worldName, lobby);
+  }
+
+  /**
+   * Alias for switchMap for consistency.
+   */
+  async setActiveMap(mapId: string): Promise<void> {
+    await this.switchMap(mapId);
   }
 
   // ============================================

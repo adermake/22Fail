@@ -9,6 +9,7 @@
 
 import { Component, OnInit, OnDestroy, HostListener, inject, signal, computed, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 
@@ -34,6 +35,7 @@ export type DragMode = 'free' | 'snap';
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     LobbyGridComponent,
     LobbyToolbarComponent,
     LobbySidebarComponent,
@@ -83,6 +85,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   showSidebar = signal(true);
   sidebarTab = signal<'characters' | 'images'>('characters');
   showMapSettingsModal = signal(false);
+  newMapName = ''; // For creating new maps
 
   // Computed: current map
   currentMap = computed(() => {
@@ -126,6 +129,18 @@ export class LobbyComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // Connect battle engine to world store for persistence (mirrors world view)
     this.battleEngine.setWorldStore(this.worldStore);
+    
+    // Subscribe to world changes to keep battle tracker in sync
+    this.subscriptions.push(
+      this.worldStore.world$.subscribe((world) => {
+        if (world) {
+          // Sync battle tracker when world changes (e.g., participants updated from other client)
+          this.battleEngine.syncFromWorldStore();
+          this.cdr.markForCheck();
+        }
+      })
+    );
+    
     // Subscribe to route
     this.subscriptions.push(
       this.route.paramMap.subscribe(async (params) => {
@@ -144,6 +159,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
         await this.worldStore.load(worldName);
         console.log('[Lobby] World loaded, characterIds:', this.worldStore.worldValue?.characterIds);
         await this.loadWorldCharacters();
+        
+        // Initial load of battle tracker
+        this.battleEngine.loadFromWorldStore();
       })
     );
 
@@ -433,5 +451,61 @@ export class LobbyComponent implements OnInit, OnDestroy {
     if (tool === 'image') {
       this.currentTool.set('image');
     }
+  }
+
+  // ============================================
+  // Map Management
+  // ============================================
+
+  onCreateMap(): void {
+    if (!this.newMapName.trim()) {
+      console.warn('[Lobby] Map name cannot be empty');
+      return;
+    }
+    
+    const mapId = `map-${Date.now()}`;
+    this.store.createMap(mapId, this.newMapName.trim());
+    this.newMapName = '';
+    this.cdr.markForCheck();
+  }
+
+  onSwitchMap(mapId: string): void {
+    this.store.setActiveMap(mapId);
+    this.currentMapId.set(mapId);
+    this.cdr.markForCheck();
+  }
+
+  onDeleteMap(mapId: string): void {
+    if (this.mapList().length <= 1) {
+      console.warn('[Lobby] Cannot delete the last map');
+      return;
+    }
+    
+    if (!confirm('Delete this map? This cannot be undone.')) {
+      return;
+    }
+    
+    // If deleting current map, switch to another one first
+    if (this.currentMapId() === mapId) {
+      const otherMap = this.mapList().find(m => m.id !== mapId);
+      if (otherMap) {
+        this.onSwitchMap(otherMap.id);
+      }
+    }
+    
+    this.store.deleteMap(mapId);
+    this.cdr.markForCheck();
+  }
+
+  onMapBackgroundChange(mapId: string, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const color = input.value;
+    this.store.updateMapBackground(mapId, color);
+    this.cdr.markForCheck();
+  }
+
+  getMapBackground(mapId: string): string {
+    const lobby = this.lobby();
+    return lobby?.maps[mapId]?.backgroundColor || '#e5e7eb';
   }
 }

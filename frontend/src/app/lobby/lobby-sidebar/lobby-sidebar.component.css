@@ -80,6 +80,8 @@
   border-radius: 8px;
   cursor: grab;
   transition: all 0.2s;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .character-item:hover {
@@ -189,6 +191,8 @@
   overflow: hidden;
   cursor: grab;
   transition: all 0.2s;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .image-item:hover {

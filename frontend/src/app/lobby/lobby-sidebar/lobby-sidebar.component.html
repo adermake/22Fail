@@ -38,7 +38,6 @@
             [class.on-map]="isTokenOnMap(char.id)"
             draggable="true"
             (dragstart)="onCharacterDragStart($event, char.id)"
-            (mousedown)="$event.preventDefault()"
           >
             <div class="char-portrait">
               @if (char.sheet.portrait) {
@@ -98,7 +97,6 @@
               class="image-item"
               draggable="true"
               (dragstart)="onImageDragStart($event, image)"
-              (mousedown)="$event.preventDefault()"
             >
               <div class="image-preview">
                 <img [src]="'/api/images/' + image.imageId" alt="" />

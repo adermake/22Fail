@@ -93,16 +93,58 @@
         <button class="modal-close" (click)="showMapSettingsModal.set(false)">&times;</button>
       </div>
       <div class="modal-content">
-        <p>Maps: {{ mapList().length }}</p>
-        <div class="map-list">
-          @for (map of mapList(); track map.id) {
-            <div class="map-item" [class.active]="currentMapId() === map.id">
-              <span class="map-name">{{ map.name }}</span>
-              @if (currentMapId() === map.id) {
-                <span class="current-badge">Current</span>
-              }
-            </div>
-          }
+        <!-- Create New Map -->
+        <div class="create-map-section">
+          <h4>Create New Map</h4>
+          <input 
+            type="text" 
+            [(ngModel)]="newMapName" 
+            placeholder="Map Name" 
+            class="map-name-input"
+            (keydown.enter)="onCreateMap()"
+          />
+          <button class="btn-primary" (click)="onCreateMap()">Create Map</button>
+        </div>
+
+        <hr class="modal-divider" />
+
+        <!-- Existing Maps -->
+        <div class="maps-section">
+          <h4>Maps ({{ mapList().length }})</h4>
+          <div class="map-list">
+            @for (map of mapList(); track map.id) {
+              <div class="map-item" [class.active]="currentMapId() === map.id">
+                <div class="map-item-header">
+                  <span class="map-name">{{ map.name }}</span>
+                  @if (currentMapId() === map.id) {
+                    <span class="current-badge">✓ Active</span>
+                  }
+                </div>
+                
+                <!-- Background Color -->
+                <div class="map-settings-row">
+                  <label>Background:</label>
+                  <input 
+                    type="color" 
+                    [value]="getMapBackground(map.id)" 
+                    (change)="onMapBackgroundChange(map.id, $event)"
+                    class="color-picker"
+                  />
+                  <span class="color-value">{{ getMapBackground(map.id) }}</span>
+                </div>
+
+                <!-- Actions -->
+                <div class="map-actions">
+                  @if (currentMapId() !== map.id) {
+                    <button class="btn-switch" (click)="onSwitchMap(map.id)">Switch To</button>
+                  }
+                  @if (mapList().length > 1) {
+                    <button class="btn-delete" (click)="onDeleteMap(map.id)">Delete</button>
+                  }
+                </div>
+              </div>
+            }
+          </div>
         </div>
       </div>
     </div>

@@ -1214,21 +1214,32 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     switch (this.transformHandle) {
       case 'rotate':
-        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-        transform.rotation = this.initialImageTransform.rotation! + angle;
+        // Calculate angle from center to current point
+        const centerToCurrent = Math.atan2(point.y - this.initialImageTransform.y!, point.x - this.initialImageTransform.x!) * 180 / Math.PI;
+        const centerToAnchor = Math.atan2(this.transformAnchor.y - this.initialImageTransform.y!, this.transformAnchor.x - this.initialImageTransform.x!) * 180 / Math.PI;
+        transform.rotation = this.initialImageTransform.rotation! + (centerToCurrent - centerToAnchor);
         break;
       case 'tl':
       case 'tr':
       case 'bl':
       case 'br':
-        // Scale based on corner dragging
-        const scale = Math.max(0.1, 1 + (Math.abs(dx) + Math.abs(dy)) / 100);
+        // Calculate scale based on distance change from center
+        const initialDist = Math.sqrt(
+          Math.pow(this.transformAnchor.x - this.initialImageTransform.x!, 2) + 
+          Math.pow(this.transformAnchor.y - this.initialImageTransform.y!, 2)
+        );
+        const currentDist = Math.sqrt(
+          Math.pow(point.x - this.initialImageTransform.x!, 2) + 
+          Math.pow(point.y - this.initialImageTransform.y!, 2)
+        );
+        const scale = Math.max(0.1, currentDist / initialDist);
         transform.width = this.initialImageTransform.width! * scale;
         transform.height = this.initialImageTransform.height! * scale;
         break;
     }
 
     this.imageTransform.emit({ id: this.transformingImageId, transform });
+    this.scheduleRender();
   }
 
   private finishImageTransform(): void {
@@ -1247,39 +1258,77 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     } else if (this.wallPaintMode === 'remove' && hasWall) {
       this.store.removeWall(hex);
     }
-
-    this.scheduleRender();
+    // Note: scheduleRender is called by store updates, no need to call here
   }
 
   private performRealTimeErase(eraserPoint: Point): void {
     if (!this.map) return;
     
     const eraserRadius = this.eraserBrushSize / 2;
-    const strokesToRemove: string[] = [];
+    const strokesChanged: {id: string, newSegments: Point[][]}[] = [];
     
-    // Check each stroke to see if it intersects with the eraser
+    // Check each stroke to see if it should be split
     for (const stroke of this.map.strokes) {
-      // Skip if already erased in this drag
+      // Skip if already processed in this drag
       if (this.erasedStrokeIds.has(stroke.id)) continue;
       
-      // Check if any point in the stroke is within eraser radius
-      for (const point of stroke.points) {
+      // Find all intersection points
+      const segments: Point[][] = [];
+      let currentSegment: Point[] = [];
+      
+      for (let i = 0; i < stroke.points.length; i++) {
+        const point = stroke.points[i];
         const dx = point.x - eraserPoint.x;
         const dy = point.y - eraserPoint.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         if (distance < eraserRadius) {
-          strokesToRemove.push(stroke.id);
+          // Point is within eraser - end current segment
+          if (currentSegment.length > 1) {
+            segments.push([...currentSegment]);
+          }
+          currentSegment = [];
           this.erasedStrokeIds.add(stroke.id);
-          break;
+        } else {
+          // Point is outside eraser - continue segment
+          currentSegment.push(point);
         }
+      }
+      
+      // Add final segment
+      if (currentSegment.length > 1) {
+        segments.push([...currentSegment]);
+      }
+      
+      // If stroke was split, record the changes
+      if (segments.length > 0 && segments.length < stroke.points.length) {
+        strokesChanged.push({ id: stroke.id, newSegments: segments });
+      } else if (segments.length === 0) {
+        // Entire stroke was erased
+        strokesChanged.push({ id: stroke.id, newSegments: [] });
       }
     }
     
-    // Remove strokes from the map
-    if (strokesToRemove.length > 0) {
-      for (const strokeId of strokesToRemove) {
-        this.store.removeStroke(strokeId);
+    // Apply changes
+    if (strokesChanged.length > 0) {
+      for (const change of strokesChanged) {
+        // Remove the original stroke
+        this.store.removeStroke(change.id);
+        
+        // Add new segment strokes
+        for (const segmentPoints of change.newSegments) {
+          const originalStroke = this.map.strokes.find(s => s.id === change.id);
+          if (originalStroke && segmentPoints.length > 1) {
+            const newStroke: Stroke = {
+              id: generateId(),
+              points: segmentPoints,
+              color: originalStroke.color,
+              lineWidth: originalStroke.lineWidth,
+              isEraser: false,
+            };
+            this.store.addStroke(newStroke);
+          }
+        }
       }
       this.scheduleRender();
     }

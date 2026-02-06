@@ -208,6 +208,65 @@ export class BattleTrackerEngine {
     this.notifyChange();
   }
 
+  /**
+   * Sync from world store without animations.
+   * Used when changes come from other clients via websocket.
+   */
+  syncFromWorldStore(): void {
+    // Skip if currently saving (to avoid feedback loop)
+    if (this.isSaving || !this.worldStore) return;
+
+    const world = this.worldStore.worldValue;
+    if (!world) return;
+
+    const saved = world.battleParticipants || [];
+    if (saved.length === 0) {
+      this.participants.clear();
+      this.tiles = [];
+      this.scriptedCount = 0;
+      this.notifyChange();
+      return;
+    }
+
+    // Extract scripted count from first entry
+    const first = saved[0];
+    this.scriptedCount = first.turnFrequency >= 10000 ? first.turnFrequency - 10000 : 0;
+
+    // Rebuild participants
+    this.participants.clear();
+    for (const bp of saved) {
+      const char = this.allCharacters.get(bp.characterId);
+      this.participants.set(bp.characterId, {
+        characterId: bp.characterId,
+        name: char?.name || bp.name,
+        portrait: char?.portrait,
+        speed: char?.speed || bp.speed,
+        team: bp.team || 'blue',
+        currentTurn: bp.currentTurn || 1,
+      });
+    }
+
+    // Rebuild timeline
+    const orderedBySaved = [...saved].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+    
+    this.tiles = [];
+    for (const bp of orderedBySaved) {
+      const participant = this.participants.get(bp.characterId);
+      if (participant) {
+        this.tiles.push(this.createTile(participant, 1, this.tiles.length));
+        participant.currentTurn = 2;
+      }
+    }
+
+    // Fill remaining slots
+    this.fillCalculatedTiles();
+
+    // Cap scripted count
+    this.scriptedCount = Math.min(this.scriptedCount, this.tiles.length);
+
+    this.notifyChange();
+  }
+
   private saveToWorldStore(): void {
     if (!this.worldStore) return;
 

@@ -198,3 +198,124 @@
   font-size: 12px;
   font-weight: 500;
 }
+/* Create Map Section */
+.create-map-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.create-map-section h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.map-name-input {
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.map-name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modal-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+
+.maps-section h4 {
+  margin: 0 0 12px 0;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.map-item {
+  flex-direction: column !important;
+  gap: 12px !important;
+  padding: 16px !important;
+}
+
+.map-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.map-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.map-settings-row label {
+  color: var(--text);
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.color-picker {
+  width: 50px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.color-value {
+  color: var(--text);
+  font-size: 12px;
+  opacity: 0.6;
+  font-family: monospace;
+}
+
+.map-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-primary,
+.btn-switch,
+.btn-delete {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-switch {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-switch:hover {
+  opacity: 0.9;
+}
+
+.btn-delete {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-delete:hover {
+  background: #dc2626;
+}
