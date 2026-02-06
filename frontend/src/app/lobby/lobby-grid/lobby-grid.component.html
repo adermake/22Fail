@@ -70,6 +70,9 @@
         <button (click)="onMoveImageToBack()">Send to Back</button>
         <div class="menu-divider"></div>
         <button class="danger" (click)="onDeleteSelectedImage()">Delete Image</button>
+      } @else if (contextMenuTokenId()) {
+        <!-- Token context menu -->
+        <button class="danger" (click)="onRemoveToken()">🗑️ Remove Token</button>
       } @else if (contextMenuHex()) {
         <!-- Quick token creation menu -->
         <button (click)="onCreateQuickToken()">➕ Create Quick Token</button>

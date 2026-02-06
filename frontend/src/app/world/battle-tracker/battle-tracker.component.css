@@ -7,6 +7,38 @@
   border-radius: 8px;
 }
 
+/* Compact mode for read-only (lobby view) */
+.battle-tracker-container.read-only {
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+.battle-tracker-container.read-only .battle-header h2 {
+  font-size: 1rem;
+}
+
+.battle-tracker-container.read-only .current-turn-display {
+  padding: 0.375rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.battle-tracker-container.read-only .timeline {
+  gap: 4px;
+}
+
+.battle-tracker-container.read-only .tile {
+  width: 48px;
+  height: 48px;
+}
+
+.battle-tracker-container.read-only .tile-name {
+  font-size: 9px;
+}
+
+.battle-tracker-container.read-only .turn-number {
+  font-size: 9px;
+}
+
 /* ============================================
    Header
    ============================================ */

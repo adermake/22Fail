@@ -22,7 +22,8 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       [class.non-interactive]="!isInteractive"
       [style.left.px]="position.x"
       [style.top.px]="position.y"
-      [style.box-shadow]="getTokenBorder()"
+      [style.--team-color]="getTeamColor(token.team || 'default')"
+      [style.--token-scale]="1 / scale"
       [style.cursor]="isInteractive ? 'grab' : 'default'"
       [style.pointer-events]="isInteractive ? 'auto' : 'none'"
       (mousedown)="onMouseDown($event)"
@@ -58,6 +59,11 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       /* Flat-top hexagonal clipping */
       clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
       -webkit-clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
+      /* Hexagonal border via filter drop-shadow */
+      filter: drop-shadow(0 0 0 var(--team-color, #475569));
+      /* Scale inversely with zoom to maintain constant world size */
+      transform: scale(var(--token-scale, 1));
+      transform-origin: center center;
     }
 
     .token:hover:not(.non-interactive) {
@@ -133,13 +139,8 @@ export class LobbyTokenComponent {
   };
 
   getTeamColor(team: string): string {
-    return this.teamColors[team] || '#6b7280';
-  }
-
-  getTokenBorder(): string {
-    // Use box-shadow for hexagonal border effect
-    const color = this.token.team ? this.getTeamColor(this.token.team) : '#475569';
-    return `0 0 0 3px ${color}`;
+    if (team === 'default' || !team) return '#475569';
+    return this.teamColors[team] || '#475569';
   }
 
   onMouseDown(event: MouseEvent): void {

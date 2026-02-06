@@ -122,6 +122,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   dragHoverHex = signal<HexCoord | null>(null);
   dragStartHex = signal<HexCoord | null>(null);
   dragPath = signal<HexCoord[]>([]);
+  dragWaypoints = signal<HexCoord[]>([]); // Waypoints for enforced mode
+  dragPathExceedsSpeed = signal<boolean>(false); // Is the path too long?
+  private pathfindingCache = new Map<string, HexCoord[]>(); // Cache for pathfinding results
 
   // Image transform state
   private transformingImageId: string | null = null;
@@ -129,6 +132,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private transformHandle: 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null = null;
   private transformAnchor: Point | null = null;
   private initialImageTransform: Partial<MapImage> | null = null;
+  private draggingImageId: string | null = null; // For image dragging
+  private imageDragStart: Point | null = null;
 
   // Image selection
   selectedImages = signal<string[]>([]);
@@ -140,6 +145,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   showContextMenu = signal(false);
   contextMenuPosition = signal<Point>({ x: 0, y: 0 });
   contextMenuImageId = signal<string | null>(null);
+  contextMenuTokenId = signal<string | null>(null);
   contextMenuHex = signal<HexCoord | null>(null);
 
   // Ctrl+Z for undo
@@ -311,8 +317,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const topLeft = this.screenToWorld(-50, -50);
     const bottomRight = this.screenToWorld(canvas.width / dpr + 50, canvas.height / dpr + 50);
 
-    // Calculate hex bounds with much larger margin to ensure complete coverage for both grid and walls
-    const margin = Math.max(10, Math.ceil(20 / this.scale)); // Larger margin for walls and grid
+    // Calculate hex bounds with consistent margin regardless of zoom
+    const margin = 15; // Fixed margin that works at all zoom levels
     const minQ = Math.floor(topLeft.x / (HexMath.hexWidth * 0.75)) - margin;
     const maxQ = Math.ceil(bottomRight.x / (HexMath.hexWidth * 0.75)) + margin;
     const minR = Math.floor(topLeft.y / HexMath.hexHeight) - margin;
@@ -324,9 +330,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const pathSet = new Set(this.dragPath().map(p => `${p.q},${p.r}`));
     const hoverHex = this.dragHoverHex();
 
-    // Performance: skip grid lines when zoomed out but always render walls
+    // Performance: skip grid lines when zoomed way out but always render walls
     const hexCount = (maxQ - minQ + 1) * (maxR - minR + 1);
-    const shouldSkipGrid = hexCount > 2500 || this.scale < 0.3;
+    const shouldSkipGrid = hexCount > 3000 || this.scale < 0.2; // Made grid visible from further (was 0.3)
 
     // Always render all hexes (grid or walls)
     for (let q = minQ; q <= maxQ; q++) {
@@ -374,11 +380,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.fillStyle = 'rgba(30, 41, 59, 0.3)'; // Dark gray wall fill
       ctx.fill();
       ctx.strokeStyle = 'rgba(30, 41, 59, 0.6)'; // Dark gray wall border
-      ctx.lineWidth = 1;
+      ctx.lineWidth = Math.max(0.8, 1 / this.scale); // Scale wall lines with zoom
     } else {
-      // More prominent grid outline
+      // More prominent grid outline - scale with zoom
       ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = Math.max(0.5, 1 / this.scale); // Scale grid lines inversely with zoom
     }
     ctx.stroke();
   }
@@ -604,7 +610,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const path = this.dragPath();
     if (path.length < 2) return;
 
-    ctx.strokeStyle = '#22c55e';
+    // Red if exceeds speed, green otherwise
+    ctx.strokeStyle = this.dragPathExceedsSpeed() ? '#ef4444' : '#22c55e';
     ctx.lineWidth = 3;
     ctx.setLineDash([5, 5]);
 
@@ -620,6 +627,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.stroke();
     }
     ctx.setLineDash([]);
+    
+    // Draw waypoint markers
+    const waypoints = this.dragWaypoints();
+    ctx.fillStyle = '#3b82f6';
+    for (const wp of waypoints) {
+      const center = HexMath.hexToPixel(wp);
+      const screen = this.worldToScreen(center.x, center.y);
+      ctx.beginPath();
+      ctx.arc(screen.x, screen.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   private renderSelectionBox(ctx: CanvasRenderingContext2D): void {
@@ -664,6 +682,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.showContextMenu.set(false);
       this.contextMenuPosition.set({ x: 0, y: 0 });
       this.contextMenuImageId.set(null);
+      this.contextMenuTokenId.set(null);
     }
 
     const rect = this.container.nativeElement.getBoundingClientRect();
@@ -791,13 +810,35 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const world = this.screenToWorld(screenX, screenY);
     const hex = HexMath.pixelToHex(world);
 
+    // If dragging in enforced mode, add waypoint
+    if (this.draggingToken && this.dragMode === 'enforced') {
+      const currentWaypoints = this.dragWaypoints();
+      this.dragWaypoints.set([...currentWaypoints, hex]);
+      this.updateTokenDrag(world); // Recalculate path from new waypoint
+      return;
+    }
+
+    // Check if we right-clicked on a token (not during drag)
+    if (!this.draggingToken && this.currentTool === 'cursor') {
+      const token = this.findTokenAtHex(hex);
+      if (token) {
+        this.showContextMenu.set(true);
+        this.contextMenuPosition.set({ x: event.clientX, y: event.clientY });
+        this.contextMenuImageId.set(null);
+        this.contextMenuTokenId.set(token.id);
+        this.contextMenuHex.set(null);
+        return;
+      }
+    }
+
     // Check if we right-clicked on an image
     const clickedImage = this.findImageAtPoint(world);
     
     this.showContextMenu.set(true);
     this.contextMenuPosition.set({ x: event.clientX, y: event.clientY });
     this.contextMenuImageId.set(clickedImage?.id || null);
-    this.contextMenuHex.set(hex);
+    this.contextMenuTokenId.set(null);
+    this.contextMenuHex.set(clickedImage ? null : hex);
   }
 
   // ============================================
@@ -817,7 +858,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         this.startImageTransform(clickedImage, handle, world);
         return;
       }
-      // Click on selected image without handle = start drag (future feature)
+      // Click on selected image without handle = start image drag
+      this.startImageDrag(clickedImage, world);
       return;
     }
 
@@ -847,8 +889,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
 
+    if (this.draggingImageId) {
+      this.updateImageDrag(world);
+      return;
+    }
+
     if (this.draggingToken) {
-      this.updateTokenDrag(hex);
+      this.updateTokenDrag(world);
       return;
     }
   }
@@ -856,6 +903,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private handleCursorUp(event: MouseEvent, world: Point, hex: HexCoord): void {
     if (this.transformingImageId) {
       this.finishImageTransform();
+      return;
+    }
+
+    if (this.draggingImageId) {
+      this.finishImageDrag();
       return;
     }
 
@@ -882,11 +934,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.currentStrokePoints.push(world);
     
-    // For eraser, just store points - we'll erase on mouse up
-    if (this.currentTool !== 'erase') {
-      // Preview the current stroke for drawing
-      this.renderCurrentStroke(world);
-    }
+    // For both pen and eraser, preview the current stroke immediately
+    this.scheduleRender();
   }
 
   private handleDrawUp(event: MouseEvent, world: Point): void {
@@ -1153,6 +1202,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private findPath(start: HexCoord, end: HexCoord): HexCoord[] {
+    // Check cache first
+    const cacheKey = `${start.q},${start.r}->${end.q},${end.r}`;
+    if (this.pathfindingCache.has(cacheKey)) {
+      return this.pathfindingCache.get(cacheKey)!;
+    }
+    
     // A* pathfinding that avoids walls
     const walls = this.map?.walls || [];
     const wallSet = new Set(walls.map(w => `${w.q},${w.r}`));
@@ -1168,7 +1223,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ].filter(h => !wallSet.has(getKey(h)));
     
     const heuristic = (a: HexCoord, b: HexCoord): number => {
-      return Math.abs(a.q - b.q) + Math.abs(a.r - b.r) + Math.abs((a.q + a.r) - (b.q + b.r));
+      // Use Euclidean distance to prefer straighter paths
+      const aPixel = HexMath.hexToPixel(a);
+      const bPixel = HexMath.hexToPixel(b);
+      const dx = bPixel.x - aPixel.x;
+      const dy = bPixel.y - aPixel.y;
+      return Math.sqrt(dx * dx + dy * dy) / 50; // Normalize to roughly match step cost
     };
     
     const openSet = [start];
@@ -1179,7 +1239,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     gScore.set(getKey(start), 0);
     fScore.set(getKey(start), heuristic(start, end));
     
-    while (openSet.length > 0) {
+    let iterations = 0;
+    const maxIterations = 300; // Reduced from 500 for better performance
+    
+    while (openSet.length > 0 && iterations < maxIterations) {
+      iterations++;
+      
       // Get node with lowest fScore
       openSet.sort((a, b) => (fScore.get(getKey(a)) || Infinity) - (fScore.get(getKey(b)) || Infinity));
       const current = openSet.shift()!;
@@ -1192,6 +1257,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
           temp = cameFrom.get(getKey(temp))!;
           path.unshift(temp);
         }
+        this.pathfindingCache.set(cacheKey, path); // Cache result
         return path;
       }
       
@@ -1208,13 +1274,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
           }
         }
       }
-      
-      // Limit search to prevent infinite loops
-      if (openSet.length > 500) break;
     }
     
     // No path found - return straight line to target
-    return [start, end];
+    const fallback = [start, end];
+    this.pathfindingCache.set(cacheKey, fallback);
+    return fallback;
   }
 
   private startTokenDrag(token: Token, hex: HexCoord): void {
@@ -1222,39 +1287,44 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.dragStartHex.set(hex);
     this.dragHoverHex.set(hex);
     this.dragPath.set([]); // No path visualization for free movement
+    this.dragWaypoints.set([]);
+    this.pathfindingCache.clear(); // Clear pathfinding cache for new drag
   }
 
-  private updateTokenDrag(hex: HexCoord): void {
+  private updateTokenDrag(world: Point): void {
     if (!this.draggingToken) return;
 
-    this.dragHoverHex.set(hex);
+    // Always follow cursor position smoothly
+    this.dragCurrentPosition.set(world);
     
-    // Update the current drag position to follow the cursor
-    const hexCenter = HexMath.hexToPixel(hex);
-    this.dragCurrentPosition.set(hexCenter);
+    const hex = HexMath.pixelToHex(world);
+    this.dragHoverHex.set(hex);
     
     // In enforced mode, calculate path with walls and speed limits
     if (this.dragMode === 'enforced') {
-      const startHex = this.dragStartHex();
+      const waypoints = this.dragWaypoints();
+      const startHex = waypoints.length > 0 ? waypoints[waypoints.length - 1] : this.dragStartHex();
+      
       if (startHex) {
         const path = this.findPath(startHex, hex);
         // TODO: Get character speed from token data, for now use default of 6 hexes
         const maxDistance = 6;
-        const limitedPath = path.slice(0, maxDistance + 1);
-        this.dragPath.set(limitedPath);
         
-        // Snap hover to last valid hex in path
-        if (limitedPath.length > 0) {
-          const lastHex = limitedPath[limitedPath.length - 1];
-          this.dragHoverHex.set(lastHex);
-          // Also update current position to the valid end point
-          const validCenter = HexMath.hexToPixel(lastHex);
-          this.dragCurrentPosition.set(validCenter);
+        // Calculate total path length including waypoints
+        let totalPath = [...waypoints];
+        if (totalPath.length === 0 && this.dragStartHex()) {
+          totalPath.push(this.dragStartHex()!);
         }
+        totalPath.push(...path.slice(1)); // Skip first point to avoid duplication
+        
+        const pathLength = totalPath.length - 1; // Number of steps
+        this.dragPathExceedsSpeed.set(pathLength > maxDistance);
+        this.dragPath.set(totalPath);
       }
     } else {
       // Free movement - no pathfinding, no restrictions
       this.dragPath.set([]);
+      this.dragPathExceedsSpeed.set(false);
     }
 
     this.scheduleRender();
@@ -1264,7 +1334,23 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!this.draggingToken) return;
 
     const startHex = this.dragStartHex();
-    const targetHex = this.dragHoverHex(); // Use hover hex which respects enforced mode limits
+    
+    // In enforced mode, if path exceeds speed, snap back to start
+    if (this.dragMode === 'enforced' && this.dragPathExceedsSpeed()) {
+      // Don't move - just cancel
+      this.draggingToken = null;
+      this.dragStartHex.set(null);
+      this.dragHoverHex.set(null);
+      this.dragPath.set([]);
+      this.dragWaypoints.set([]);
+      this.dragPathExceedsSpeed.set(false);
+      this.dragGhostPosition.set(null);
+      this.dragCurrentPosition.set(null);
+      this.scheduleRender();
+      return;
+    }
+    
+    const targetHex = hex;
     
     if (startHex && targetHex && (startHex.q !== targetHex.q || startHex.r !== targetHex.r)) {
       this.tokenMove.emit({
@@ -1277,9 +1363,43 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.dragStartHex.set(null);
     this.dragHoverHex.set(null);
     this.dragPath.set([]);
+    this.dragWaypoints.set([]);
+    this.dragPathExceedsSpeed.set(false);
     this.dragGhostPosition.set(null);
     this.dragCurrentPosition.set(null);
     this.scheduleRender();
+  }
+
+  private startImageDrag(img: MapImage, point: Point): void {
+    this.draggingImageId = img.id;
+    this.imageDragStart = point;
+    this.initialImageTransform = {
+      x: img.x,
+      y: img.y,
+    };
+  }
+
+  private updateImageDrag(point: Point): void {
+    if (!this.draggingImageId || !this.imageDragStart || !this.initialImageTransform) {
+      return;
+    }
+
+    const dx = point.x - this.imageDragStart.x;
+    const dy = point.y - this.imageDragStart.y;
+
+    const transform: Partial<MapImage> = {
+      x: this.initialImageTransform.x! + dx,
+      y: this.initialImageTransform.y! + dy,
+    };
+
+    this.imageTransform.emit({ id: this.draggingImageId, transform });
+    this.scheduleRender();
+  }
+
+  private finishImageDrag(): void {
+    this.draggingImageId = null;
+    this.imageDragStart = null;
+    this.initialImageTransform = null;
   }
 
   private startImageTransform(img: MapImage, handle: string, point: Point): void {
@@ -1535,10 +1655,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   onTokenContextMenu(token: Token, event: MouseEvent): void {
-    event.preventDefault();
-    if (confirm(`Remove ${token.name} from the map?`)) {
-      this.tokenRemove.emit(token.id);
+    // Context menu is now handled in onContextMenu handler
+    // This is just a passthrough
+  }
+
+  onRemoveToken(): void {
+    const tokenId = this.contextMenuTokenId();
+    if (tokenId && confirm('Remove this token from the map?')) {
+      this.tokenRemove.emit(tokenId);
     }
+    this.showContextMenu.set(false);
   }
 
   onMoveImageForward(): void {

@@ -1,10 +1,12 @@
-<div class="battle-tracker-container">
+<div class="battle-tracker-container" [class.read-only]="readOnly">
   <!-- Header -->
   <div class="battle-header">
     <h2>Battle Tracker</h2>
-    <button class="reset-button" (click)="onResetBattle()" title="Reset battle">
-      Reset
-    </button>
+    @if (!readOnly) {
+      <button class="reset-button" (click)="onResetBattle()" title="Reset battle">
+        Reset
+      </button>
+    }
   </div>
 
   <!-- Current Turn Display -->
@@ -129,14 +131,16 @@
   </div>
 
   <!-- Controls -->
-  <div class="controls">
-    <button 
-      class="next-turn-btn"
-      (click)="onNextTurn()" 
-      [disabled]="readOnly || timeline().length === 0"
-      [title]="readOnly ? 'View only - use World view to control' : 'Next Turn'"
-    >
-      Next Turn
-    </button>
-  </div>
+  @if (!readOnly) {
+    <div class="controls">
+      <button 
+        class="next-turn-btn"
+        (click)="onNextTurn()" 
+        [disabled]="timeline().length === 0"
+        title="Next Turn"
+      >
+        Next Turn
+      </button>
+    </div>
+  }
 </div>
