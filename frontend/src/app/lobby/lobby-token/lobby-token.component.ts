@@ -121,21 +121,6 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       color: #94a3b8;
       background: #1e293b;
     }
-
-    .token-name {
-      position: absolute;
-      bottom: -18px;
-      left: 50%;
-      transform: translateX(-50%);
-      white-space: nowrap;
-      font-size: 10px;
-      color: #1f2937;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 2px 6px;
-      border-radius: 4px;
-      pointer-events: none;
-      z-index: 100;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

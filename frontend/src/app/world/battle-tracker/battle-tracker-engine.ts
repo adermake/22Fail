@@ -238,8 +238,9 @@ export class BattleTrackerEngine {
    * If a full battleTimeline is saved, reconstruct it faithfully.
    */
   syncFromWorldStore(): void {
-    // Skip if currently saving (to avoid feedback loop)
-    if (this.isSaving || !this.worldStore) return;
+    // Skip if no world store
+    if (!this.worldStore) return;
+    // Don't skip on isSaving - we need to sync from external changes
 
     const world = this.worldStore.worldValue;
     if (!world) return;

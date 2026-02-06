@@ -412,8 +412,9 @@ export class LobbyStoreService {
   /**
    * Add an image to the map.
    * @param imageId - The image ID from ImageService (not base64!)
+   * @returns The generated MapImage ID
    */
-  addImage(imageId: string, x: number, y: number, width: number, height: number): void {
+  addImage(imageId: string, x: number, y: number, width: number, height: number): string {
     const newImage: MapImage = {
       id: generateId(),
       imageId,
@@ -427,6 +428,7 @@ export class LobbyStoreService {
 
     const images = [...this.images, newImage];
     this.applyPatch({ path: 'images', value: images });
+    return newImage.id;
   }
 
   /**

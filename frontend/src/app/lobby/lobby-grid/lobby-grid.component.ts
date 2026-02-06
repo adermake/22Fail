@@ -118,6 +118,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   measureEnd = signal<Point | null>(null);
   measureDistance = signal(0);
 
+  // Brush size adjustment visual
+  brushSizeCircle = signal<{ pos: Point; size: number } | null>(null);
+
   // Token dragging
   draggingToken: Token | null = null;
   dragGhostPosition = signal<Point | null>(null);
@@ -592,6 +595,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.renderMeasurement(ctx);
     this.renderDragPath(ctx);
     this.renderSelectionBox(ctx);
+    this.renderBrushSizeCircle(ctx);
   }
 
   private renderMeasurement(ctx: CanvasRenderingContext2D): void {
@@ -689,6 +693,28 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.setLineDash([8, 4]);
     ctx.strokeRect(x, y, width, height);
     ctx.setLineDash([]);
+  }
+
+  private renderBrushSizeCircle(ctx: CanvasRenderingContext2D): void {
+    const circle = this.brushSizeCircle();
+    if (!circle) return;
+
+    const screen = this.worldToScreen(circle.pos.x, circle.pos.y);
+    const radius = circle.size / 2;
+
+    // Circle outline
+    ctx.beginPath();
+    ctx.arc(screen.x, screen.y, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Size label
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillStyle = '#3b82f6';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${circle.size}px`, screen.x, screen.y);
   }
 
   // ============================================
@@ -896,19 +922,27 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private handleCursorDown(event: MouseEvent, world: Point, hex: HexCoord): void {
     if (event.button !== 0) return; // Only left click
 
+    console.log('[CURSOR] Click at', world, 'selectedImageId:', this.selectedImageId);
+
     // Check for transform handles on selected image FIRST
     // Handles extend outside image bounds (rotation handle is above, corners overshoot)
     // so we must check them independently of findImageAtPoint
     if (this.selectedImageId) {
       const selectedImage = this.map?.images?.find(img => img.id === this.selectedImageId);
+      console.log('[CURSOR] Found selected image:', selectedImage?.id);
       if (selectedImage) {
         const handle = this.getTransformHandle(world, selectedImage);
+        console.log('[CURSOR] Handle check:', handle);
         if (handle) {
+          console.log('[CURSOR] Starting transform with handle:', handle);
           this.startImageTransform(selectedImage, handle, world);
           return;
         }
         // Click on selected image body = start drag
-        if (this.isPointInImage(world, selectedImage)) {
+        const inImage = this.isPointInImage(world, selectedImage);
+        console.log('[CURSOR] Point in image:', inImage);
+        if (inImage) {
+          console.log('[CURSOR] Starting image drag');
           this.startImageDrag(selectedImage, world);
           return;
         }
@@ -917,7 +951,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     // Check if clicking on any other image
     const clickedImage = this.findImageAtPoint(world);
+    console.log('[CURSOR] Clicked on image:', clickedImage?.id);
     if (clickedImage) {
+      console.log('[CURSOR] Selecting image:', clickedImage.id);
       this.imageSelect.emit(clickedImage.id);
       return;
     }
@@ -994,13 +1030,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Shift+drag = adjust brush size
     if (this.isAdjustingBrushSize && this.brushSizeAdjustStart) {
       const dx = event.clientX - this.brushSizeAdjustStart.x;
-      const newSize = Math.max(1, Math.min(50, this.brushSizeAdjustStart.initialSize + dx * 0.2));
+      const newSize = Math.max(1, Math.min(100, this.brushSizeAdjustStart.initialSize + dx * 0.3));
       
       if (this.currentTool === 'erase') {
         this.eraserBrushSize = Math.round(newSize);
       } else {
         this.penBrushSize = Math.round(newSize);
       }
+      
+      // Show visual circle at cursor position
+      this.brushSizeCircle.set({ pos: world, size: Math.round(newSize) });
+      this.scheduleRender();
       return;
     }
 
@@ -1017,6 +1057,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (this.isAdjustingBrushSize) {
       this.isAdjustingBrushSize = false;
       this.brushSizeAdjustStart = null;
+      this.brushSizeCircle.set(null);
+      this.scheduleRender();
       return;
     }
 

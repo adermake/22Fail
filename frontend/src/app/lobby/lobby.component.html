@@ -76,12 +76,10 @@
     
   </div>
 
-  <!-- Battle Tracker Section -->
-  @if (isGM()) {
-    <div class="battle-tracker-section">
-      <app-battle-tracker [engine]="battleEngine" [readOnly]="true"></app-battle-tracker>
-    </div>
-  }
+  <!-- Battle Tracker Section (always show in lobby for coordination) -->
+  <div class="battle-tracker-section">
+    <app-battle-tracker [engine]="battleEngine" [readOnly]="true"></app-battle-tracker>
+  </div>
 
 </div>
 

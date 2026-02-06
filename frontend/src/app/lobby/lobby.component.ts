@@ -407,7 +407,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   onPlaceImage(data: { imageId: string; x: number; y: number; width: number; height: number }): void {
-    this.store.addImage(data.imageId, data.x, data.y, data.width, data.height);
+    const newImageId = this.store.addImage(data.imageId, data.x, data.y, data.width, data.height);
+    // Auto-select the newly placed image so user can immediately transform it
+    this.selectedImageId.set(newImageId);
   }
 
   onSelectImage(id: string | null): void {
