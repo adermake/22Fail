@@ -31,6 +31,12 @@
   overflow: hidden;
 }
 
+/* Battle tracker at bottom of lobby */
+.battle-tracker-section {
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
 /* Battle tracker panel */
 .battle-tracker-panel {
   position: absolute;
@@ -55,9 +61,8 @@
 /* Map badge */
 .map-badge {
   position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 16px;
+  right: 16px;
   display: flex;
   align-items: center;
   gap: 8px;

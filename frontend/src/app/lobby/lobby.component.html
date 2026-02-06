@@ -62,6 +62,16 @@
         (placeImage)="onPlaceImage($event)"
         (toolAutoSelect)="onToolAutoSelect($event)"
       />
+
+      <!-- Map name badge (top right) -->
+      <div class="map-badge">
+        <span class="map-name">{{ currentMap()?.name || 'No Map' }}</span>
+        @if (isGM()) {
+          <button class="map-switch-btn" title="Switch Map" (click)="showMapSettings()">
+            ⚙️
+          </button>
+        }
+      </div>
     </div>
     
   </div>
@@ -73,15 +83,6 @@
     </div>
   }
 
-  <!-- Map name badge -->
-  <div class="map-badge">
-    <span class="map-name">{{ currentMap()?.name || 'No Map' }}</span>
-    @if (isGM()) {
-      <button class="map-switch-btn" title="Switch Map" (click)="showMapSettings()">
-        ⚙️
-      </button>
-    }
-  </div>
 </div>
 
 <!-- Map Settings Modal -->

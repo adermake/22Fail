@@ -100,6 +100,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     if (!map) return [];
 
     const chars = this.worldCharacters();
+    const teams = this.battleTeams();
     const portraitMap = new Map<string, string>();
     chars.forEach(c => {
       if (c.sheet.portrait) {
@@ -109,7 +110,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     return map.tokens.map(token => ({
       ...token,
-      portrait: token.isQuickToken ? token.portrait : (portraitMap.get(token.characterId) || token.portrait)
+      portrait: token.isQuickToken ? token.portrait : (portraitMap.get(token.characterId) || token.portrait),
+      team: teams.get(token.characterId) || token.team || 'blue',
     }));
   });
 
@@ -126,6 +128,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // Battle Engine (same as world component)
   battleEngine = new BattleTrackerEngine();
 
+  // Team assignments from battle tracker (reactive for token rendering)
+  battleTeams = signal<Map<string, string>>(new Map());
+
   ngOnInit(): void {
     // Connect battle engine to world store for persistence (mirrors world view)
     this.battleEngine.setWorldStore(this.worldStore);
@@ -136,6 +141,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
         if (world) {
           // Sync battle tracker when world changes (e.g., participants updated from other client)
           this.battleEngine.syncFromWorldStore();
+
+          // Update team assignments for token rendering
+          const chars = this.battleEngine.getCharacters();
+          const teamMap = new Map<string, string>();
+          chars.forEach(c => {
+            if (c.isInBattle) {
+              teamMap.set(c.id, c.team);
+            }
+          });
+          this.battleTeams.set(teamMap);
+
           this.cdr.markForCheck();
         }
       })

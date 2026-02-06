@@ -169,7 +169,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['map'] || changes['tokens']) {
+    if (changes['map'] || changes['tokens'] || changes['selectedImageId']) {
       this.scheduleRender();
     }
     if (changes['drawLayerVisible']) {
@@ -754,6 +754,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
 
+    // Don't finish token drag on right-click (used for waypoints in enforced mode)
+    if (event.button === 2 && this.draggingToken) {
+      return;
+    }
+
     const rect = this.container.nativeElement.getBoundingClientRect();
     const screenX = event.clientX - rect.left;
     const screenY = event.clientY - rect.top;
@@ -848,22 +853,27 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private handleCursorDown(event: MouseEvent, world: Point, hex: HexCoord): void {
     if (event.button !== 0) return; // Only left click
 
-    // Check for image selection FIRST (before checking transform handles)
-    const clickedImage = this.findImageAtPoint(world);
-    
-    // Check for image transform handles if we have a selected image
-    if (this.selectedImageId && clickedImage && clickedImage.id === this.selectedImageId) {
-      const handle = this.getTransformHandle(world, clickedImage);
-      if (handle) {
-        this.startImageTransform(clickedImage, handle, world);
-        return;
+    // Check for transform handles on selected image FIRST
+    // Handles extend outside image bounds (rotation handle is above, corners overshoot)
+    // so we must check them independently of findImageAtPoint
+    if (this.selectedImageId) {
+      const selectedImage = this.map?.images?.find(img => img.id === this.selectedImageId);
+      if (selectedImage) {
+        const handle = this.getTransformHandle(world, selectedImage);
+        if (handle) {
+          this.startImageTransform(selectedImage, handle, world);
+          return;
+        }
+        // Click on selected image body = start drag
+        if (this.isPointInImage(world, selectedImage)) {
+          this.startImageDrag(selectedImage, world);
+          return;
+        }
       }
-      // Click on selected image without handle = start image drag
-      this.startImageDrag(clickedImage, world);
-      return;
     }
 
-    // New image clicked - select it
+    // Check if clicking on any other image
+    const clickedImage = this.findImageAtPoint(world);
     if (clickedImage) {
       this.imageSelect.emit(clickedImage.id);
       return;
@@ -1134,7 +1144,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private getTransformHandle(point: Point, img: MapImage): 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null {
-    const handleSize = 10 / this.scale;
+    const handleHitSize = 20 / this.scale; // Generous hit area for easier grabbing
     const hw = img.width / 2;
     const hh = img.height / 2;
 
@@ -1146,9 +1156,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const localX = dx * cos - dy * sin;
     const localY = dx * sin + dy * cos;
 
-    // Check rotation handle
+    // Check rotation handle (above the image)
     const rotY = -hh - 25 / this.scale;
-    if (Math.abs(localX) < 6 / this.scale && Math.abs(localY - rotY) < 6 / this.scale) {
+    if (Math.abs(localX) < 12 / this.scale && Math.abs(localY - rotY) < 12 / this.scale) {
       return 'rotate';
     }
 
@@ -1161,7 +1171,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ];
 
     for (const corner of corners) {
-      if (Math.abs(localX - corner.x) < handleSize / 2 && Math.abs(localY - corner.y) < handleSize / 2) {
+      if (Math.abs(localX - corner.x) < handleHitSize && Math.abs(localY - corner.y) < handleHitSize) {
         return corner.handle;
       }
     }
@@ -1302,24 +1312,29 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     
     // In enforced mode, calculate path with walls and speed limits
     if (this.dragMode === 'enforced') {
+      const startHex = this.dragStartHex();
       const waypoints = this.dragWaypoints();
-      const startHex = waypoints.length > 0 ? waypoints[waypoints.length - 1] : this.dragStartHex();
       
       if (startHex) {
-        const path = this.findPath(startHex, hex);
-        // TODO: Get character speed from token data, for now use default of 6 hexes
-        const maxDistance = 6;
+        // Build full path: start → wp1 → wp2 → ... → current hex
+        let fullPath: HexCoord[] = [startHex];
+        let from = startHex;
         
-        // Calculate total path length including waypoints
-        let totalPath = [...waypoints];
-        if (totalPath.length === 0 && this.dragStartHex()) {
-          totalPath.push(this.dragStartHex()!);
+        // Add path segments through each waypoint
+        for (const wp of waypoints) {
+          const segment = this.findPath(from, wp);
+          fullPath.push(...segment.slice(1)); // Skip first (already in path)
+          from = wp;
         }
-        totalPath.push(...path.slice(1)); // Skip first point to avoid duplication
         
-        const pathLength = totalPath.length - 1; // Number of steps
+        // Add final segment from last waypoint (or start) to current hex
+        const finalSegment = this.findPath(from, hex);
+        fullPath.push(...finalSegment.slice(1));
+        
+        const maxDistance = this.draggingToken?.movementSpeed || 6;
+        const pathLength = fullPath.length - 1; // Number of steps
         this.dragPathExceedsSpeed.set(pathLength > maxDistance);
-        this.dragPath.set(totalPath);
+        this.dragPath.set(fullPath);
       }
     } else {
       // Free movement - no pathfinding, no restrictions
@@ -1631,6 +1646,20 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Otherwise use the token's actual position
     const center = HexMath.hexToPixel(token.position);
     return this.worldToScreen(center.x, center.y);
+  }
+
+  getDragDistance(): number {
+    if (!this.draggingToken) return 0;
+    const start = this.dragStartHex();
+    const hover = this.dragHoverHex();
+    if (!start || !hover) return 0;
+    if (start.q === hover.q && start.r === hover.r) return 0;
+    
+    if (this.dragMode === 'enforced') {
+      const path = this.dragPath();
+      return Math.max(0, path.length - 1);
+    }
+    return HexMath.hexDistance(start, hover);
   }
 
   getGhostPortraitUrl(): string {

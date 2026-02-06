@@ -23,7 +23,7 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       [style.left.px]="position.x"
       [style.top.px]="position.y"
       [style.--team-color]="getTeamColor(token.team || 'default')"
-      [style.--token-scale]="1 / scale"
+      [style.--token-scale]="scale"
       [style.cursor]="isInteractive ? 'grab' : 'default'"
       [style.pointer-events]="isInteractive ? 'auto' : 'none'"
       (mousedown)="onMouseDown($event)"
@@ -59,9 +59,9 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       /* Flat-top hexagonal clipping */
       clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
       -webkit-clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
-      /* Hexagonal border via filter drop-shadow */
-      filter: drop-shadow(0 0 0 var(--team-color, #475569));
-      /* Scale inversely with zoom to maintain constant world size */
+      /* Hexagonal border via drop-shadow on clip-path shape */
+      filter: drop-shadow(0 0 2px var(--team-color, #475569)) drop-shadow(0 0 2px var(--team-color, #475569));
+      /* Scale with zoom to match hex grid size */
       transform: scale(var(--token-scale, 1));
       transform-origin: center center;
     }

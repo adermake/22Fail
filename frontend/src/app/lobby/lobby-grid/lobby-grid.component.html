@@ -38,6 +38,7 @@
         class="drag-ghost-token"
         [style.left.px]="worldToScreen(dragGhostPosition()!.x, dragGhostPosition()!.y).x"
         [style.top.px]="worldToScreen(dragGhostPosition()!.x, dragGhostPosition()!.y).y"
+        [style.transform]="'scale(' + scale + ')'"
       >
         @if (draggingToken.portrait) {
           <img 
@@ -50,6 +51,18 @@
             {{ draggingToken.name.charAt(0).toUpperCase() }}
           </div>
         }
+      </div>
+    }
+
+    <!-- Distance indicator when dragging -->
+    @if (draggingToken && getDragDistance() > 0) {
+      <div 
+        class="drag-distance-label"
+        [style.left.px]="getTokenScreenPosition(draggingToken).x"
+        [style.top.px]="getTokenScreenPosition(draggingToken).y + 35"
+        [class.exceeds-speed]="dragPathExceedsSpeed()"
+      >
+        {{ getDragDistance() }}
       </div>
     }
   </div>

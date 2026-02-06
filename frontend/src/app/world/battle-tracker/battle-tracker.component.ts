@@ -82,6 +82,10 @@ export class BattleTracker implements OnInit, OnDestroy {
   private onEngineChange(): void {
     console.log('[ANIM] onEngineChange called, isAnimating:', this.animState.isAnimating);
     
+    // Record positions BEFORE refresh for FLIP animations
+    // Critical for lobby sync where changes come externally via websocket
+    this.recordPositions();
+    
     // Set animation lock
     this.animState.isAnimating = true;
     
