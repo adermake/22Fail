@@ -121,6 +121,7 @@ export interface LobbyMap {
   walls: WallHex[];
   measurementLines: MeasurementLine[];
   images: MapImage[];
+  backgroundColor?: string; // Background color (default: #e5e7eb)
   createdAt: number;
   updatedAt: number;
 }

@@ -108,6 +108,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private wallPaintMode: 'add' | 'remove' = 'add';
   private currentStrokePoints: Point[] = [];
   private lastMousePos: Point = { x: 0, y: 0 };
+  private erasedStrokeIds = new Set<string>(); // Track strokes erased during current drag
 
   // Measurement
   measureStart = signal<Point | null>(null);
@@ -298,9 +299,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const ctx = this.gridCtx;
     const dpr = window.devicePixelRatio || 1;
 
-    // Set configurable gray background
-    ctx.fillStyle = '#e5e7eb';
-    ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    // Clear grid canvas (background is now on image layer)
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
     ctx.save();
     ctx.translate(this.panX, this.panY);
@@ -310,8 +310,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const topLeft = this.screenToWorld(-50, -50);
     const bottomRight = this.screenToWorld(canvas.width / dpr + 50, canvas.height / dpr + 50);
 
-    // Calculate hex bounds with much larger margin to ensure complete coverage
-    const margin = Math.max(5, Math.ceil(10 / this.scale)); // More margin when zoomed out
+    // Calculate hex bounds with much larger margin to ensure complete coverage for both grid and walls
+    const margin = Math.max(10, Math.ceil(20 / this.scale)); // Larger margin for walls and grid
     const minQ = Math.floor(topLeft.x / (HexMath.hexWidth * 0.75)) - margin;
     const maxQ = Math.ceil(bottomRight.x / (HexMath.hexWidth * 0.75)) + margin;
     const minR = Math.floor(topLeft.y / HexMath.hexHeight) - margin;
@@ -323,41 +323,24 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const pathSet = new Set(this.dragPath().map(p => `${p.q},${p.r}`));
     const hoverHex = this.dragHoverHex();
 
-    // Performance: limit hex count when zoomed out
+    // Performance: skip grid lines when zoomed out but always render walls
     const hexCount = (maxQ - minQ + 1) * (maxR - minR + 1);
-    const shouldSimplify = hexCount > 2500 || this.scale < 0.2;
+    const shouldSkipGrid = hexCount > 2500 || this.scale < 0.3;
 
-    if (shouldSimplify) {
-      // Draw simplified grid lines instead of individual hexes
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
-      ctx.lineWidth = 1;
-      
-      // Draw vertical lines
-      for (let q = minQ; q <= maxQ; q += 4) {
-        const x = q * HexMath.hexWidth * 0.75;
-        ctx.beginPath();
-        ctx.moveTo(x, topLeft.y);
-        ctx.lineTo(x, bottomRight.y);
-        ctx.stroke();
-      }
-      
-      // Draw horizontal lines
-      for (let r = minR; r <= maxR; r += 4) {
-        const y = r * HexMath.hexHeight;
-        ctx.beginPath();
-        ctx.moveTo(topLeft.x, y);
-        ctx.lineTo(bottomRight.x, y);
-        ctx.stroke();
-      }
-    } else {
-      for (let q = minQ; q <= maxQ; q++) {
-        for (let r = minR; r <= maxR; r++) {
-          const hexKey = `${q},${r}`;
-          const isHover = hoverHex && hoverHex.q === q && hoverHex.r === r;
-          const isWall = wallSet.has(hexKey);
-          const isInPath = pathSet.has(hexKey);
-          this.drawHexagon(ctx, { q, r }, isHover || false, isWall, isInPath);
+    // Always render all hexes (grid or walls)
+    for (let q = minQ; q <= maxQ; q++) {
+      for (let r = minR; r <= maxR; r++) {
+        const hexKey = `${q},${r}`;
+        const isHover = hoverHex && hoverHex.q === q && hoverHex.r === r;
+        const isWall = wallSet.has(hexKey);
+        const isInPath = pathSet.has(hexKey);
+        
+        // Skip non-wall hexes when zoomed out (but always show walls, hover, and path)
+        if (shouldSkipGrid && !isWall && !isHover && !isInPath) {
+          continue;
         }
+        
+        this.drawHexagon(ctx, { q, r }, isHover || false, isWall, isInPath);
       }
     }
 
@@ -406,7 +389,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const ctx = this.imageCtx;
     const dpr = window.devicePixelRatio || 1;
 
-    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    // Render background color first
+    ctx.fillStyle = this.map?.backgroundColor || '#e5e7eb';
+    ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
     ctx.save();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
@@ -882,6 +868,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.isDrawing = true;
     this.currentStrokePoints = [world];
+    
+    // Reset erased strokes tracking when starting new eraser stroke
+    if (this.currentTool === 'erase') {
+      this.erasedStrokeIds.clear();
+    }
   }
 
   private handleDrawMove(event: MouseEvent, world: Point): void {
@@ -889,8 +880,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.currentStrokePoints.push(world);
     
-    // Preview the current stroke
-    this.renderCurrentStroke(world);
+    // For eraser, perform real-time erasing
+    if (this.currentTool === 'erase') {
+      this.performRealTimeErase(world);
+    } else {
+      // Preview the current stroke for drawing
+      this.renderCurrentStroke(world);
+    }
   }
 
   private handleDrawUp(event: MouseEvent, world: Point): void {
@@ -898,19 +894,21 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.isDrawing = false;
     
-    if (this.currentStrokePoints.length > 1) {
+    // Only create stroke for pen tool, not eraser (eraser happens in real-time)
+    if (this.currentTool !== 'erase' && this.currentStrokePoints.length > 1) {
       const stroke: Stroke = {
         id: generateId(),
         points: [...this.currentStrokePoints],
         color: this.brushColor,
-        lineWidth: this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize,
-        isEraser: this.currentTool === 'erase',
+        lineWidth: this.penBrushSize,
+        isEraser: false,
       };
       
       this.store.addStroke(stroke);
     }
 
     this.currentStrokePoints = [];
+    this.erasedStrokeIds.clear();
     this.scheduleRender();
   }
 
@@ -1253,6 +1251,40 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.scheduleRender();
   }
 
+  private performRealTimeErase(eraserPoint: Point): void {
+    if (!this.map) return;
+    
+    const eraserRadius = this.eraserBrushSize / 2;
+    const strokesToRemove: string[] = [];
+    
+    // Check each stroke to see if it intersects with the eraser
+    for (const stroke of this.map.strokes) {
+      // Skip if already erased in this drag
+      if (this.erasedStrokeIds.has(stroke.id)) continue;
+      
+      // Check if any point in the stroke is within eraser radius
+      for (const point of stroke.points) {
+        const dx = point.x - eraserPoint.x;
+        const dy = point.y - eraserPoint.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < eraserRadius) {
+          strokesToRemove.push(stroke.id);
+          this.erasedStrokeIds.add(stroke.id);
+          break;
+        }
+      }
+    }
+    
+    // Remove strokes from the map
+    if (strokesToRemove.length > 0) {
+      for (const strokeId of strokesToRemove) {
+        this.store.removeStroke(strokeId);
+      }
+      this.scheduleRender();
+    }
+  }
+
   private renderCurrentStroke(currentPoint: Point): void {
     if (!this.overlayCtx || this.currentStrokePoints.length === 0) return;
 
@@ -1265,8 +1297,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
 
-    // Draw current stroke preview (skip preview for eraser)
-    if (this.currentStrokePoints.length > 0 && this.currentTool !== 'erase') {
+    // Draw current stroke preview
+    if (this.currentStrokePoints.length > 0) {
       ctx.beginPath();
       ctx.moveTo(this.currentStrokePoints[0].x, this.currentStrokePoints[0].y);
       
@@ -1338,19 +1370,30 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   onDrop(event: DragEvent): void {
     event.preventDefault();
     
-    // Handle library image drop
+    // Get drop position
+    const rect = this.container.nativeElement.getBoundingClientRect();
+    const screenX = event.clientX - rect.left;
+    const screenY = event.clientY - rect.top;
+    const world = this.screenToWorld(screenX, screenY);
+    const hex = HexMath.pixelToHex(world);
+    
+    // Handle character or library image drop
     const dataString = event.dataTransfer?.getData('text/plain');
     if (dataString) {
       try {
         const data = JSON.parse(dataString);
+        
+        if (data.type === 'character') {
+          // Character token drop
+          this.tokenDrop.emit({
+            characterId: data.characterId,
+            position: hex
+          });
+          return;
+        }
+        
         if (data.type === 'library-image') {
-          // Get drop position
-          const rect = this.container.nativeElement.getBoundingClientRect();
-          const screenX = event.clientX - rect.left;
-          const screenY = event.clientY - rect.top;
-          const world = this.screenToWorld(screenX, screenY);
-          
-          // Emit image placement event
+          // Library image drop
           this.placeImage.emit({
             imageId: data.imageId,
             x: world.x,

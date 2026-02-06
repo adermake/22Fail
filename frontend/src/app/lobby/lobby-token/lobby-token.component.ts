@@ -52,10 +52,10 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
   styles: [`
     .token {
       position: absolute;
-      width: 48px;
-      height: 48px;
-      margin-left: -24px;
-      margin-top: -24px;
+      width: 56px;
+      height: 56px;
+      margin-left: -28px;
+      margin-top: -28px;
       pointer-events: auto;
       transition: transform 0.1s, box-shadow 0.1s;
       z-index: 1;

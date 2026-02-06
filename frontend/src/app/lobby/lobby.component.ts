@@ -124,6 +124,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   battleEngine = new BattleTrackerEngine();
 
   ngOnInit(): void {
+    // Connect battle engine to world store for persistence (mirrors world view)
+    this.battleEngine.setWorldStore(this.worldStore);
     // Subscribe to route
     this.subscriptions.push(
       this.route.paramMap.subscribe(async (params) => {

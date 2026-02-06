@@ -342,6 +342,14 @@ export class LobbyStoreService {
   }
 
   /**
+   * Remove a specific stroke by ID (for eraser).
+   */
+  removeStroke(strokeId: string): void {
+    const strokes = this.strokes.filter(s => s.id !== strokeId);
+    this.applyPatch({ path: 'strokes', value: strokes });
+  }
+
+  /**
    * Undo the last stroke.
    */
   undoStroke(): boolean {
