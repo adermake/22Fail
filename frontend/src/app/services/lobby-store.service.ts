@@ -125,8 +125,24 @@ export class LobbyStoreService {
     console.log('[LobbyStore] Connecting to socket...');
     this.socket.connect();
     
-    // Give the socket a moment to establish connection before joining rooms
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Wait for socket connection to establish
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      if (this.socket.connected) {
+        break;
+      }
+      attempts++;
+      console.log(`[LobbyStore] Waiting for socket connection... attempt ${attempts}/${maxAttempts}`);
+    }
+    
+    if (attempts >= maxAttempts) {
+      console.warn('[LobbyStore] Socket connection timeout, continuing without real-time sync');
+    } else {
+      console.log('[LobbyStore] ✅ Socket connected successfully');
+    }
     
     await this.socket.joinLobby(worldName);
     console.log('[LobbyStore] ✅ Socket connection and room join complete');
