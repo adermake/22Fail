@@ -18,7 +18,7 @@
  * - "Next turn" consumes the entire first group
  */
 
-import { BattleParticipant } from '../../model/world.model';
+import { BattleParticipant, BattleTimelineEntry } from '../../model/world.model';
 import { WorldStoreService } from '../../services/world-store.service';
 
 // ============================================
@@ -187,20 +187,42 @@ export class BattleTrackerEngine {
     }
 
     // Rebuild timeline
-    // First round respects saved order (nextTurnAt is the order)
-    const orderedBySaved = [...saved].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-    
-    this.tiles = [];
-    for (const bp of orderedBySaved) {
-      const participant = this.participants.get(bp.characterId);
-      if (participant) {
-        this.tiles.push(this.createTile(participant, 1, this.tiles.length));
-        participant.currentTurn = 2;
+    // If we have a full timeline saved, use it faithfully
+    const timeline = world.battleTimeline;
+    if (timeline && timeline.length > 0) {
+      this.tiles = [];
+      for (const entry of timeline) {
+        const participant = this.participants.get(entry.characterId);
+        if (participant) {
+          this.tiles.push({
+            id: entry.id,
+            characterId: entry.characterId,
+            name: participant.name,
+            portrait: participant.portrait,
+            team: participant.team,
+            speed: participant.speed,
+            turnNumber: entry.turnNumber,
+            timing: entry.timing,
+            isScripted: entry.isScripted,
+          });
+        }
       }
-    }
+    } else {
+      // Fallback: first round respects saved order (nextTurnAt is the order)
+      const orderedBySaved = [...saved].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
+      
+      this.tiles = [];
+      for (const bp of orderedBySaved) {
+        const participant = this.participants.get(bp.characterId);
+        if (participant) {
+          this.tiles.push(this.createTile(participant, 1, this.tiles.length));
+          participant.currentTurn = 2;
+        }
+      }
 
-    // Fill remaining slots with calculated tiles
-    this.fillCalculatedTiles();
+      // Fill remaining slots with calculated tiles
+      this.fillCalculatedTiles();
+    }
 
     // Cap scripted count
     this.scriptedCount = Math.min(this.scriptedCount, this.tiles.length);
@@ -211,6 +233,7 @@ export class BattleTrackerEngine {
   /**
    * Sync from world store without animations.
    * Used when changes come from other clients via websocket.
+   * If a full battleTimeline is saved, reconstruct it faithfully.
    */
   syncFromWorldStore(): void {
     // Skip if currently saving (to avoid feedback loop)
@@ -246,7 +269,33 @@ export class BattleTrackerEngine {
       });
     }
 
-    // Rebuild timeline
+    // If we have a full timeline saved, reconstruct it faithfully
+    const timeline = world.battleTimeline;
+    if (timeline && timeline.length > 0) {
+      this.tiles = [];
+      for (const entry of timeline) {
+        const participant = this.participants.get(entry.characterId);
+        if (participant) {
+          this.tiles.push({
+            id: entry.id,
+            characterId: entry.characterId,
+            name: participant.name,
+            portrait: participant.portrait,
+            team: participant.team,
+            speed: participant.speed,
+            turnNumber: entry.turnNumber,
+            timing: entry.timing,
+            isScripted: entry.isScripted,
+          });
+        }
+      }
+      // Cap scripted count
+      this.scriptedCount = Math.min(this.scriptedCount, this.tiles.length);
+      this.notifyChange();
+      return;
+    }
+
+    // Fallback: rebuild from participants (old format without battleTimeline)
     const orderedBySaved = [...saved].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
     
     this.tiles = [];
@@ -298,9 +347,24 @@ export class BattleTrackerEngine {
       });
     }
 
+    // Save full timeline for faithful lobby sync
+    const battleTimeline: BattleTimelineEntry[] = this.tiles.map((tile, index) => ({
+      id: tile.id,
+      characterId: tile.characterId,
+      team: tile.team,
+      turnNumber: tile.turnNumber,
+      timing: tile.timing,
+      isScripted: index < this.scriptedCount,
+    }));
+
     this.worldStore.applyPatch({
       path: 'battleParticipants',
       value: battleParticipants,
+    });
+
+    this.worldStore.applyPatch({
+      path: 'battleTimeline',
+      value: battleTimeline,
     });
 
     setTimeout(() => { this.isSaving = false; }, 100);

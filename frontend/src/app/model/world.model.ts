@@ -40,9 +40,20 @@ export interface WorldData {
   lootBundles: LootBundle[];
   battleLoot: LootItem[];
   battleParticipants: BattleParticipant[];
+  battleTimeline?: BattleTimelineEntry[]; // Full tile order for lobby sync
   currentTurnIndex: number;
   trash: TrashItem[]; // Recycle bin for deleted items
   battleMaps: BattleMap[];
+}
+
+/** Serialized tile for faithful lobby sync */
+export interface BattleTimelineEntry {
+  id: string;
+  characterId: string;
+  team: string;
+  turnNumber: number;
+  timing: number;
+  isScripted: boolean;
 }
 
 export interface LootItem {

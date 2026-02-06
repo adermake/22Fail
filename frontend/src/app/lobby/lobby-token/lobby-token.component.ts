@@ -16,7 +16,7 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
   imports: [CommonModule, ImageUrlPipe],
   template: `
     <div 
-      class="token"
+      class="token-wrapper"
       [class.current-turn]="isCurrentTurn"
       [class.dragging]="isDragging"
       [class.non-interactive]="!isInteractive"
@@ -29,57 +29,78 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       (mousedown)="onMouseDown($event)"
       (contextmenu)="onContextMenu($event)"
     >
-      @if (token.portrait) {
-        <img 
-          class="token-portrait" 
-          [src]="token.portrait | imageUrl" 
-          alt=""
-          (error)="onImageError($event)"
-        />
-      } @else {
-        <div class="token-placeholder">
-          {{ token.name.charAt(0).toUpperCase() }}
-        </div>
-      }
+      <!-- Border layer: slightly larger hex with team color fill, NOT clipped by outer -->
+      <div class="token-border"></div>
+      <!-- Content layer: clipped hex with image/placeholder -->
+      <div class="token-content">
+        @if (token.portrait) {
+          <img 
+            class="token-portrait" 
+            [src]="token.portrait | imageUrl" 
+            alt=""
+            (error)="onImageError($event)"
+          />
+        } @else {
+          <div class="token-placeholder">
+            {{ token.name.charAt(0).toUpperCase() }}
+          </div>
+        }
+      </div>
       
       <div class="token-name">{{ token.name }}</div>
     </div>
   `,
   styles: [`
-    .token {
+    .token-wrapper {
       position: absolute;
-      width: 56px;
-      height: 56px;
-      margin-left: -28px;
-      margin-top: -28px;
+      width: 60px;
+      height: 60px;
+      margin-left: -30px;
+      margin-top: -30px;
       pointer-events: auto;
       z-index: 1;
-      background: transparent;
-      border-radius: 0;
-      /* Flat-top hexagonal clipping */
-      clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
-      -webkit-clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
-      /* Hexagonal border via drop-shadow on clip-path shape */
-      filter: drop-shadow(0 0 2px var(--team-color, #475569)) drop-shadow(0 0 2px var(--team-color, #475569));
       /* Scale with zoom to match hex grid size */
       transform: scale(var(--token-scale, 1));
       transform-origin: center center;
     }
 
-    .token:hover:not(.non-interactive) {
+    .token-border {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 60px;
+      height: 60px;
+      background: var(--team-color, #475569);
+      clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
+      -webkit-clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
+    }
+
+    .token-content {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 54px;
+      height: 54px;
+      clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
+      -webkit-clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
+      overflow: hidden;
+    }
+
+    .token-wrapper:hover:not(.non-interactive) {
       z-index: 2;
       filter: brightness(1.1);
     }
 
-    .token:active,
-    .token.dragging {
+    .token-wrapper:active,
+    .token-wrapper.dragging {
       cursor: grabbing;
       z-index: 10;
       opacity: 0.7;
     }
 
-    .token.current-turn {
-      filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.8));
+    .token-wrapper.current-turn .token-border {
+      background: #22c55e;
+      filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.8));
     }
 
     .token-portrait {
@@ -102,7 +123,7 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
     .token-name {
       position: absolute;
-      bottom: -20px;
+      bottom: -18px;
       left: 50%;
       transform: translateX(-50%);
       white-space: nowrap;
@@ -153,7 +174,8 @@ export class LobbyTokenComponent {
 
   onContextMenu(event: MouseEvent): void {
     event.preventDefault();
-    event.stopPropagation();
+    // Don't stopPropagation - let the grid container handle this event
+    // for both waypoint placement (during drag) and context menu display
     this.contextMenu.emit(event);
   }
 

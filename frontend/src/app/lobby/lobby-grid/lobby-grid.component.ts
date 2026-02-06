@@ -106,6 +106,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private isDrawing = false;
   private isWallDrawing = false;
   private wallPaintMode: 'add' | 'remove' = 'add';
+  private pendingWallChanges: { hex: HexCoord; action: 'add' | 'remove' }[] = []; // Batch wall changes
   private currentStrokePoints: Point[] = [];
   private lastMousePos: Point = { x: 0, y: 0 };
   private erasedStrokeIds = new Set<string>(); // Track strokes erased during current drag
@@ -317,12 +318,18 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const topLeft = this.screenToWorld(-50, -50);
     const bottomRight = this.screenToWorld(canvas.width / dpr + 50, canvas.height / dpr + 50);
 
-    // Calculate hex bounds with consistent margin regardless of zoom
-    const margin = 15; // Fixed margin that works at all zoom levels
-    const minQ = Math.floor(topLeft.x / (HexMath.hexWidth * 0.75)) - margin;
-    const maxQ = Math.ceil(bottomRight.x / (HexMath.hexWidth * 0.75)) + margin;
-    const minR = Math.floor(topLeft.y / HexMath.hexHeight) - margin;
-    const maxR = Math.ceil(bottomRight.y / HexMath.hexHeight) + margin;
+    // Use proper pixelToHex conversion for bounds (accounts for axial coordinate skew)
+    const hexTL = HexMath.pixelToHex(topLeft);
+    const hexBR = HexMath.pixelToHex(bottomRight);
+    const hexTR = HexMath.pixelToHex({ x: bottomRight.x, y: topLeft.y });
+    const hexBL = HexMath.pixelToHex({ x: topLeft.x, y: bottomRight.y });
+
+    // Find the actual bounds across all four corners (axial coords are skewed)
+    const margin = 3;
+    const minQ = Math.min(hexTL.q, hexBR.q, hexTR.q, hexBL.q) - margin;
+    const maxQ = Math.max(hexTL.q, hexBR.q, hexTR.q, hexBL.q) + margin;
+    const minR = Math.min(hexTL.r, hexBR.r, hexTR.r, hexBL.r) - margin;
+    const maxR = Math.max(hexTL.r, hexBR.r, hexTR.r, hexBL.r) + margin;
 
     // Build lookup sets
     const walls = this.map?.walls || [];
@@ -543,6 +550,24 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
       ctx.strokeStyle = stroke.isEraser ? 'rgba(0,0,0,1)' : stroke.color;
       ctx.lineWidth = stroke.lineWidth;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+
+    // Render current in-progress stroke for live preview
+    if (this.isDrawing && this.currentStrokePoints.length > 1) {
+      const isEraser = this.currentTool === 'erase';
+      ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
+      ctx.beginPath();
+      ctx.moveTo(this.currentStrokePoints[0].x, this.currentStrokePoints[0].y);
+
+      for (let i = 1; i < this.currentStrokePoints.length; i++) {
+        ctx.lineTo(this.currentStrokePoints[i].x, this.currentStrokePoints[i].y);
+      }
+
+      ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : this.brushColor;
+      ctx.lineWidth = isEraser ? this.eraserBrushSize : this.penBrushSize;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.stroke();
@@ -846,6 +871,22 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.contextMenuHex.set(clickedImage ? null : hex);
   }
 
+  onMouseLeave(event: MouseEvent): void {
+    // Stop panning and drawing/wall operations when leaving the container
+    if (this.isPanning) {
+      this.isPanning = false;
+    }
+    if (this.isDrawing) {
+      // Commit the current stroke
+      this.handleDrawUp(event, this.screenToWorld(event.clientX, event.clientY));
+    }
+    if (this.isWallDrawing) {
+      this.isWallDrawing = false;
+      this.lastWallPaintHex = null;
+    }
+    // Do NOT cancel token drags or image transforms - user may return
+  }
+
   // ============================================
   // Tool-specific handlers
   // ============================================
@@ -975,8 +1016,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (event.button !== 0) return;
 
     this.isWallDrawing = true;
+    this.pendingWallChanges = [];
     const walls = this.map?.walls || [];
-    const hexKey = `${hex.q},${hex.r}`;
     const hasWall = walls.some(w => w.q === hex.q && w.r === hex.r);
     
     this.wallPaintMode = hasWall ? 'remove' : 'add';
@@ -989,6 +1030,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private handleWallUp(event: MouseEvent, hex: HexCoord): void {
+    if (this.isWallDrawing && this.pendingWallChanges.length > 0) {
+      // Commit all batched wall changes at once
+      this.store.applyWallBatch(this.pendingWallChanges);
+      this.pendingWallChanges = [];
+    }
     this.isWallDrawing = false;
     this.lastWallPaintHex = null;
   }
@@ -1435,8 +1481,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
 
-    const img = this.map?.images?.find(i => i.id === this.transformingImageId);
-    if (!img) return;
+    // Use initialImageTransform for all calculations to avoid stale data from OnPush
+    const initial = this.initialImageTransform;
 
     const dx = point.x - this.transformAnchor.x;
     const dy = point.y - this.transformAnchor.y;
@@ -1446,9 +1492,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     switch (this.transformHandle) {
       case 'rotate':
         // Calculate angle from center to current point
-        const centerToCurrent = Math.atan2(point.y - this.initialImageTransform.y!, point.x - this.initialImageTransform.x!) * 180 / Math.PI;
-        const centerToAnchor = Math.atan2(this.transformAnchor.y - this.initialImageTransform.y!, this.transformAnchor.x - this.initialImageTransform.x!) * 180 / Math.PI;
-        transform.rotation = this.initialImageTransform.rotation! + (centerToCurrent - centerToAnchor);
+        const centerToCurrent = Math.atan2(point.y - initial.y!, point.x - initial.x!) * 180 / Math.PI;
+        const centerToAnchor = Math.atan2(this.transformAnchor.y - initial.y!, this.transformAnchor.x - initial.x!) * 180 / Math.PI;
+        transform.rotation = initial.rotation! + (centerToCurrent - centerToAnchor);
         break;
       case 'tl':
       case 'tr':
@@ -1456,16 +1502,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       case 'br':
         // Calculate scale based on distance change from center
         const initialDist = Math.sqrt(
-          Math.pow(this.transformAnchor.x - this.initialImageTransform.x!, 2) + 
-          Math.pow(this.transformAnchor.y - this.initialImageTransform.y!, 2)
+          Math.pow(this.transformAnchor.x - initial.x!, 2) + 
+          Math.pow(this.transformAnchor.y - initial.y!, 2)
         );
         const currentDist = Math.sqrt(
-          Math.pow(point.x - this.initialImageTransform.x!, 2) + 
-          Math.pow(point.y - this.initialImageTransform.y!, 2)
+          Math.pow(point.x - initial.x!, 2) + 
+          Math.pow(point.y - initial.y!, 2)
         );
         const scale = Math.max(0.1, currentDist / initialDist);
-        transform.width = this.initialImageTransform.width! * scale;
-        transform.height = this.initialImageTransform.height! * scale;
+        transform.width = initial.width! * scale;
+        transform.height = initial.height! * scale;
         break;
     }
 
@@ -1489,52 +1535,32 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (this.lastWallPaintHex === hexKey) return;
     this.lastWallPaintHex = hexKey;
     
+    // Check if this hex already has a pending change
+    const alreadyPending = this.pendingWallChanges.some(
+      c => c.hex.q === hex.q && c.hex.r === hex.r
+    );
+    if (alreadyPending) return;
+    
     const walls = this.map?.walls || [];
     const hasWall = walls.some(w => w.q === hex.q && w.r === hex.r);
 
     if (this.wallPaintMode === 'add' && !hasWall) {
-      this.store.addWall(hex);
-    } else if (this.wallPaintMode === 'remove' && hasWall) {
-      this.store.removeWall(hex);
-    }
-  }
-
-
-
-  private renderCurrentStroke(currentPoint: Point): void {
-    if (!this.overlayCtx || this.currentStrokePoints.length === 0) return;
-
-    const canvas = this.overlayCanvas.nativeElement;
-    const ctx = this.overlayCtx;
-    const dpr = window.devicePixelRatio || 1;
-
-    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-    ctx.save();
-    ctx.translate(this.panX, this.panY);
-    ctx.scale(this.scale, this.scale);
-
-    // Draw current stroke preview
-    if (this.currentStrokePoints.length > 0) {
-      ctx.beginPath();
-      ctx.moveTo(this.currentStrokePoints[0].x, this.currentStrokePoints[0].y);
-      
-      for (let i = 1; i < this.currentStrokePoints.length; i++) {
-        ctx.lineTo(this.currentStrokePoints[i].x, this.currentStrokePoints[i].y);
+      this.pendingWallChanges.push({ hex: { q: hex.q, r: hex.r }, action: 'add' });
+      // Optimistically add to local map for immediate visual feedback
+      if (this.map) {
+        this.map.walls = [...(this.map.walls || []), { q: hex.q, r: hex.r }];
       }
-      
-      ctx.lineTo(currentPoint.x, currentPoint.y);
-      
-      ctx.strokeStyle = this.brushColor;
-      ctx.lineWidth = this.penBrushSize;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
+    } else if (this.wallPaintMode === 'remove' && hasWall) {
+      this.pendingWallChanges.push({ hex: { q: hex.q, r: hex.r }, action: 'remove' });
+      // Optimistically remove from local map for immediate visual feedback
+      if (this.map) {
+        this.map.walls = (this.map.walls || []).filter(w => !(w.q === hex.q && w.r === hex.r));
+      }
     }
-
-    ctx.restore();
+    
+    // Re-render grid immediately for visual feedback (no server call)
+    this.scheduleRender();
   }
-
-
 
   private getPendingImageId(): string | null {
     // This would typically come from a service or parent component

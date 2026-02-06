@@ -616,6 +616,27 @@ export class LobbyStoreService {
   }
 
   /**
+   * Apply a batch of wall changes at once (add/remove multiple walls in one save).
+   * This prevents flickering and server overload from per-hex saves.
+   */
+  applyWallBatch(changes: { hex: HexCoord; action: 'add' | 'remove' }[]): void {
+    let walls = [...this.walls];
+    
+    for (const change of changes) {
+      if (change.action === 'add') {
+        const exists = walls.some(w => w.q === change.hex.q && w.r === change.hex.r);
+        if (!exists) {
+          walls.push({ q: change.hex.q, r: change.hex.r });
+        }
+      } else {
+        walls = walls.filter(w => !(w.q === change.hex.q && w.r === change.hex.r));
+      }
+    }
+    
+    this.applyPatch({ path: 'walls', value: walls });
+  }
+
+  /**
    * Clean up orphaned images on the server and refresh the lobby.
    */
   async cleanupOrphanedImages(): Promise<void> {
