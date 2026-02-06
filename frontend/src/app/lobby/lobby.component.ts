@@ -401,23 +401,6 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   // ============================================
-  // Map Management
-  // ============================================
-
-  async onCreateMap(name: string): Promise<void> {
-    await this.store.createMap(name);
-  }
-
-  async onDeleteMap(mapId: string): Promise<void> {
-    await this.store.deleteMap(mapId);
-  }
-
-  async onSwitchMap(mapId: string): Promise<void> {
-    await this.store.switchMap(mapId);
-    this.currentMapId.set(mapId);
-  }
-
-  // ============================================
   // Layer Visibility
   // ============================================
 
