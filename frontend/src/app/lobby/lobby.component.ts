@@ -120,15 +120,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
     return Object.entries(l.maps).map(([id, map]) => ({ id, name: map.name }));
   });
 
-  // Computed: battle tracker engine for read-only display
-  battleTrackerEngine = computed(() => {
-    const engine = new BattleTrackerEngine();
-    // Initialize with world characters if available
-    const characters = this.worldCharacters();
-    // The engine would need to be set up with these characters
-    // For now, return the empty engine
-    return engine;
-  });
+  // Battle Engine (same as world component)
+  battleEngine = new BattleTrackerEngine();
 
   ngOnInit(): void {
     // Subscribe to route

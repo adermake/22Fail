@@ -19,10 +19,13 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       class="token"
       [class.current-turn]="isCurrentTurn"
       [class.dragging]="isDragging"
+      [class.non-interactive]="!isInteractive"
       [style.left.px]="position.x"
       [style.top.px]="position.y"
       [style.transform]="'scale(' + scale + ')'"
       [style.border]="getTokenBorder()"
+      [style.cursor]="isInteractive ? 'grab' : 'default'"
+      [style.pointer-events]="isInteractive ? 'auto' : 'none'"
       (mousedown)="onMouseDown($event)"
       (contextmenu)="onContextMenu($event)"
     >
@@ -53,19 +56,16 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       height: 48px;
       margin-left: -24px;
       margin-top: -24px;
-      cursor: grab;
       pointer-events: auto;
       transition: transform 0.1s, box-shadow 0.1s;
       z-index: 1;
-      
-      /* Hexagonal shape */
+      /* Hexagonal shape - flat-top */
       background: #1e293b;
-      -webkit-clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
-      clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
+      -webkit-clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+      clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
     }
 
-    .token:hover {
-      box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
+    .token:hover:not(.non-interactive) {
       z-index: 2;
     }
 
@@ -83,9 +83,9 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       width: 100%;
       height: 100%;
       object-fit: cover;
-      /* Same hexagonal clipping for portrait */
-      -webkit-clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
-      clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
+      /* Same hexagonal clipping for portrait - flat-top */
+      -webkit-clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+      clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
     }
 
     .token-placeholder {
@@ -132,6 +132,7 @@ export class LobbyTokenComponent {
   @Input() position: Point = { x: 0, y: 0 };
   @Input() scale = 1;
   @Input() isCurrentTurn = false;
+  @Input() isInteractive = true;
 
   @Output() dragStart = new EventEmitter<MouseEvent>();
   @Output() contextMenu = new EventEmitter<MouseEvent>();

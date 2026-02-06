@@ -128,6 +128,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private transformAnchor: Point | null = null;
   private initialImageTransform: Partial<MapImage> | null = null;
 
+  // Image selection
+  selectedImages = signal<string[]>([]);
+  private selectionBox = signal<{ start: Point; end: Point } | null>(null);
+  private isBoxSelecting = false;
+  private boxSelectionStart: Point | null = null;
+
   // Context menu
   showContextMenu = signal(false);
   contextMenuPosition = signal<Point>({ x: 0, y: 0 });
@@ -292,8 +298,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const ctx = this.gridCtx;
     const dpr = window.devicePixelRatio || 1;
 
-    // Set bright background
-    ctx.fillStyle = '#f8fafc';
+    // Set configurable gray background
+    ctx.fillStyle = '#e5e7eb';
     ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
     ctx.save();
@@ -381,9 +387,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.strokeStyle = 'rgba(34, 197, 94, 0.8)';
       ctx.lineWidth = 2;
     } else if (isWall) {
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.15)'; // Subtle wall fill
+      ctx.fillStyle = 'rgba(30, 41, 59, 0.3)'; // Dark gray wall fill
       ctx.fill();
-      ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)'; // Subtle wall border
+      ctx.strokeStyle = 'rgba(30, 41, 59, 0.6)'; // Dark gray wall border
       ctx.lineWidth = 1;
     } else {
       // Transparent with subtle outline
@@ -459,8 +465,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     ctx.restore();
 
-    // Draw selection handles
-    if (this.selectedImageId === imgData.id) {
+    // Draw selection handles (for single selected or multiple selected images)
+    const selectedIds = this.selectedImages();
+    if (this.selectedImageId === imgData.id || selectedIds.includes(imgData.id)) {
       this.renderImageHandles(ctx, imgData);
     }
   }
@@ -564,6 +571,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.renderMeasurement(ctx);
     this.renderDragPath(ctx);
+    this.renderSelectionBox(ctx);
   }
 
   private renderMeasurement(ctx: CanvasRenderingContext2D): void {
@@ -602,7 +610,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.fillStyle = '#fbbf24';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`${distance.toFixed(1)} ft`, midX, midY - 5);
+    ctx.fillText(`${distance.toFixed(1)}m`, midX, midY - 5);
   }
 
   private renderDragPath(ctx: CanvasRenderingContext2D): void {
@@ -627,6 +635,30 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.setLineDash([]);
   }
 
+  private renderSelectionBox(ctx: CanvasRenderingContext2D): void {
+    const box = this.selectionBox();
+    if (!box) return;
+
+    const startScreen = this.worldToScreen(box.start.x, box.start.y);
+    const endScreen = this.worldToScreen(box.end.x, box.end.y);
+
+    const x = Math.min(startScreen.x, endScreen.x);
+    const y = Math.min(startScreen.y, endScreen.y);
+    const width = Math.abs(endScreen.x - startScreen.x);
+    const height = Math.abs(endScreen.y - startScreen.y);
+
+    // Selection box fill
+    ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+    ctx.fillRect(x, y, width, height);
+
+    // Selection box border
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+    ctx.strokeRect(x, y, width, height);
+    ctx.setLineDash([]);
+  }
+
   // ============================================
   // Mouse Event Handlers
   // ============================================
@@ -638,6 +670,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.isPanning = true;
       this.lastMousePos = { x: event.clientX, y: event.clientY };
       return;
+    }
+
+    // Left-click closes context menu
+    if (event.button === 0) {
+      this.showContextMenu.set(false);
+      this.contextMenuPosition.set({ x: 0, y: 0 });
+      this.contextMenuImageId.set(null);
     }
 
     const rect = this.container.nativeElement.getBoundingClientRect();
@@ -899,23 +938,36 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private handleMeasureDown(event: MouseEvent, world: Point, hex: HexCoord): void {
     if (event.button !== 0) return;
 
-    this.measureStart.set(world);
-    this.measureEnd.set(world);
+    // Snap to hex center
+    const hexCenter = HexMath.hexToPixel(hex);
+    this.measureStart.set(hexCenter);
+    this.measureEnd.set(hexCenter);
     this.measureDistance.set(0);
   }
 
   private handleMeasureMove(event: MouseEvent, world: Point, hex: HexCoord): void {
     if (!this.measureStart()) return;
 
-    this.measureEnd.set(world);
+    // Snap to hex center
+    const hexCenter = HexMath.hexToPixel(hex);
+    this.measureEnd.set(hexCenter);
     const start = this.measureStart()!;
-    const distance = Math.sqrt(Math.pow(world.x - start.x, 2) + Math.pow(world.y - start.y, 2));
-    this.measureDistance.set(distance);
+    
+    // Calculate hex distance and convert to meters (1.5m per hex)
+    const startHex = HexMath.pixelToHex(start);
+    const endHex = HexMath.pixelToHex(hexCenter);
+    const hexDistance = HexMath.hexDistance(startHex, endHex);
+    const meters = hexDistance * 1.5;
+    this.measureDistance.set(meters);
     this.scheduleRender();
   }
 
   private handleMeasureUp(event: MouseEvent, world: Point, hex: HexCoord): void {
-    // Keep measurement visible
+    // Clear measurement on mouse up
+    this.measureStart.set(null);
+    this.measureEnd.set(null);
+    this.measureDistance.set(0);
+    this.scheduleRender();
   }
 
   private handleImageDown(event: MouseEvent, world: Point): void {
@@ -934,15 +986,65 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       
       // Auto-select cursor tool after placing image
       this.toolAutoSelect.emit('cursor');
+      return;
     }
+
+    // Check if clicking on an existing image
+    const clickedImage = this.findImageAtPoint(world);
+    if (clickedImage) {
+      // If clicking on already selected image, don't start box selection
+      if (this.selectedImages().includes(clickedImage.id)) {
+        return;
+      }
+      // Select single image
+      this.selectedImages.set([clickedImage.id]);
+      this.imageSelect.emit(clickedImage.id);
+      return;
+    }
+
+    // Start box selection
+    this.isBoxSelecting = true;
+    this.boxSelectionStart = world;
+    this.selectionBox.set({ start: world, end: world });
   }
 
   private handleImageMove(event: MouseEvent, world: Point): void {
-    // Update cursor to show image placement
+    if (this.isBoxSelecting && this.boxSelectionStart) {
+      // Update selection box
+      this.selectionBox.set({ start: this.boxSelectionStart, end: world });
+      this.scheduleRender();
+    }
   }
 
   private handleImageUp(event: MouseEvent, world: Point): void {
-    // No action needed
+    if (this.isBoxSelecting && this.boxSelectionStart) {
+      // Finalize box selection
+      const box = this.selectionBox();
+      if (box) {
+        const selectedIds = this.findImagesInBox(box.start, box.end);
+        
+        if (selectedIds.length === 0) {
+          // No images in box - clear selection
+          this.selectedImages.set([]);
+          this.imageSelect.emit(null);
+        } else if (selectedIds.length === 1) {
+          // Single image - use normal selection
+          this.selectedImages.set([selectedIds[0]]);
+          this.imageSelect.emit(selectedIds[0]);
+        } else {
+          // Multiple images selected
+          this.selectedImages.set(selectedIds);
+          // Emit first image as primary selection
+          this.imageSelect.emit(selectedIds[0]);
+        }
+      }
+      
+      // Reset box selection state
+      this.isBoxSelecting = false;
+      this.boxSelectionStart = null;
+      this.selectionBox.set(null);
+      this.scheduleRender();
+    }
   }
 
   // ============================================
@@ -1055,20 +1157,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.draggingToken = token;
     this.dragStartHex.set(hex);
     this.dragHoverHex.set(hex);
-    this.dragPath.set([hex]);
+    this.dragPath.set([]); // No path visualization for free movement
   }
 
   private updateTokenDrag(hex: HexCoord): void {
     if (!this.draggingToken) return;
 
     this.dragHoverHex.set(hex);
-    
-    // Calculate path from start to current hex
-    const startHex = this.dragStartHex();
-    if (startHex) {
-      const path = this.findPath(startHex, hex);
-      this.dragPath.set(path);
-    }
+    // Free movement - no pathfinding, no path visualization
+    this.dragPath.set([]);
 
     this.scheduleRender();
   }
@@ -1168,8 +1265,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
 
-    // Draw current stroke preview
-    if (this.currentStrokePoints.length > 0) {
+    // Draw current stroke preview (skip preview for eraser)
+    if (this.currentStrokePoints.length > 0 && this.currentTool !== 'erase') {
       ctx.beginPath();
       ctx.moveTo(this.currentStrokePoints[0].x, this.currentStrokePoints[0].y);
       
@@ -1179,8 +1276,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       
       ctx.lineTo(currentPoint.x, currentPoint.y);
       
-      ctx.strokeStyle = this.currentTool === 'erase' ? 'rgba(255, 0, 0, 0.5)' : this.brushColor;
-      ctx.lineWidth = this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize;
+      ctx.strokeStyle = this.brushColor;
+      ctx.lineWidth = this.penBrushSize;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.stroke();
@@ -1189,36 +1286,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.restore();
   }
 
-  private findPath(start: HexCoord, end: HexCoord): HexCoord[] {
-    // Simple line pathfinding for now
-    // In a real implementation, you'd use A* or similar
-    const path: HexCoord[] = [start];
-    
-    let current = start;
-    while (current.q !== end.q || current.r !== end.r) {
-      const neighbors = this.getHexNeighbors(current);
-      
-      // Find neighbor closest to target
-      let best = neighbors[0];
-      let bestDistance = HexMath.hexDistance(best, end);
-      
-      for (const neighbor of neighbors) {
-        const distance = HexMath.hexDistance(neighbor, end);
-        if (distance < bestDistance) {
-          best = neighbor;
-          bestDistance = distance;
-        }
-      }
-      
-      current = best;
-      path.push(current);
-      
-      // Prevent infinite loops
-      if (path.length > 50) break;
-    }
-    
-    return path;
-  }
+
 
   private getPendingImageId(): string | null {
     // This would typically come from a service or parent component
@@ -1269,6 +1337,38 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   onDrop(event: DragEvent): void {
     event.preventDefault();
+    
+    // Handle library image drop
+    const dataString = event.dataTransfer?.getData('text/plain');
+    if (dataString) {
+      try {
+        const data = JSON.parse(dataString);
+        if (data.type === 'library-image') {
+          // Get drop position
+          const rect = this.container.nativeElement.getBoundingClientRect();
+          const screenX = event.clientX - rect.left;
+          const screenY = event.clientY - rect.top;
+          const world = this.screenToWorld(screenX, screenY);
+          
+          // Emit image placement event
+          this.placeImage.emit({
+            imageId: data.imageId,
+            x: world.x,
+            y: world.y,
+            width: data.width || 100,
+            height: data.height || 100
+          });
+          
+          // Auto-select image tool
+          this.toolAutoSelect.emit();
+          return;
+        }
+      } catch (e) {
+        // Not JSON data, continue to file handling
+      }
+    }
+    
+    // Handle file drop
     const files = event.dataTransfer?.files;
     if (files && files.length > 0) {
       const file = files[0];
@@ -1285,6 +1385,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   onTokenDragStart(token: Token, event: MouseEvent): void {
+    // Only allow token interaction when cursor tool is active
+    if (this.currentTool !== 'cursor') {
+      return;
+    }
     this.draggingToken = token;
     this.dragStartHex.set(token.position);
     const rect = this.container.nativeElement.getBoundingClientRect();
@@ -1375,5 +1479,25 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private contextMenuPos(): Point | null {
     const pos = this.contextMenuPosition();
     return pos.x === 0 && pos.y === 0 ? null : pos;
+  }
+
+  private findImagesInBox(start: Point, end: Point): string[] {
+    if (!this.map?.images) return [];
+
+    const minX = Math.min(start.x, end.x);
+    const maxX = Math.max(start.x, end.x);
+    const minY = Math.min(start.y, end.y);
+    const maxY = Math.max(start.y, end.y);
+
+    const selectedIds: string[] = [];
+
+    for (const img of this.map.images) {
+      // Check if image center is within box
+      if (img.x >= minX && img.x <= maxX && img.y >= minY && img.y <= maxY) {
+        selectedIds.push(img.id);
+      }
+    }
+
+    return selectedIds;
   }
 }

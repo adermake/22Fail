@@ -25,6 +25,7 @@
         [position]="getTokenScreenPosition(token)"
         [scale]="scale"
         [isCurrentTurn]="false"
+        [isInteractive]="currentTool === 'cursor'"
         (dragStart)="onTokenDragStart(token, $event)"
         (contextMenu)="onTokenContextMenu(token, $event)"
       />

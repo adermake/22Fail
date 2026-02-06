@@ -71,16 +71,14 @@
       />
     </div>
     
-    <!-- Battle Tracker (view-only) -->
-    @if (isGM()) {
-      <div class="battle-tracker-panel">
-        <app-battle-tracker 
-          [engine]="battleTrackerEngine()"
-          class="read-only"
-        />
-      </div>
-    }
   </div>
+
+  <!-- Battle Tracker Section -->
+  @if (isGM()) {
+    <div class="battle-tracker-section">
+      <app-battle-tracker [engine]="battleEngine"></app-battle-tracker>
+    </div>
+  }
 
   <!-- Map name badge -->
   <div class="map-badge">
