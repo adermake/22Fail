@@ -949,12 +949,21 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
 
-    // Render current in-progress stroke from stroke canvas (live preview, use fixed origin)
+    // Render current in-progress stroke from stroke canvas (live preview)
+    // strokeOrigin is fixed render position, canvas content is relative to strokeBounds.min
     if ((this.isDrawingTexture || this.isErasingTexture) && this.strokeCanvas) {
+      const offsetX = this.strokeBounds.minX - this.strokeOrigin.x;
+      const offsetY = this.strokeBounds.minY - this.strokeOrigin.y;
+      const width = Math.ceil(this.strokeBounds.maxX - this.strokeBounds.minX);
+      const height = Math.ceil(this.strokeBounds.maxY - this.strokeBounds.minY);
+      
       ctx.drawImage(
         this.strokeCanvas,
-        this.strokeOrigin.x,
-        this.strokeOrigin.y
+        -offsetX, -offsetY, // source x, y (area of canvas to draw)
+        width, height, // source width, height
+        this.strokeOrigin.x, // destination x (fixed)
+        this.strokeOrigin.y, // destination y (fixed)
+        width, height // destination width, height
       );
     }
 
@@ -1191,9 +1200,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private drawToStrokeCanvas(prevPoint: Point, currentPoint: Point): void {
     const radius = this.textureBrushSize / 2;
     
-    // Store old origin and bounds for resize offset calculation
-    const oldOriginX = this.strokeOrigin.x;
-    const oldOriginY = this.strokeOrigin.y;
+    // Store old bounds for resize offset calculation
+    const oldMinX = this.strokeBounds.minX;
+    const oldMinY = this.strokeBounds.minY;
     
     // Expand bounds
     this.strokeBounds.minX = Math.min(this.strokeBounds.minX, prevPoint.x - radius, currentPoint.x - radius);
@@ -1201,9 +1210,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.strokeBounds.maxX = Math.max(this.strokeBounds.maxX, prevPoint.x + radius, currentPoint.x + radius);
     this.strokeBounds.maxY = Math.max(this.strokeBounds.maxY, prevPoint.y + radius, currentPoint.y + radius);
     
-    // Always keep origin synced with bounds minimum
-    this.strokeOrigin.x = this.strokeBounds.minX;
-    this.strokeOrigin.y = this.strokeBounds.minY;
+    // strokeOrigin stays FIXED - never changes after init!
+    // Canvas content coordinates are relative to strokeBounds.min
+    // Render position is strokeOrigin (fixed), content has internal offset
     
     const width = Math.ceil(this.strokeBounds.maxX - this.strokeBounds.minX);
     const height = Math.ceil(this.strokeBounds.maxY - this.strokeBounds.minY);
@@ -1215,10 +1224,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       newCanvas.height = height + 100;
       const newCtx = newCanvas.getContext('2d', { willReadFrequently: false })!;
       
-      // Copy existing content with offset when origin shifted
+      // Copy existing content with offset when bounds shifted
       if (this.strokeCanvas && this.strokeCtx) {
-        const offsetX = oldOriginX - this.strokeOrigin.x;
-        const offsetY = oldOriginY - this.strokeOrigin.y;
+        const offsetX = oldMinX - this.strokeBounds.minX;
+        const offsetY = oldMinY - this.strokeBounds.minY;
         newCtx.drawImage(this.strokeCanvas, offsetX, offsetY);
       }
       
@@ -1254,9 +1263,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const worldX = startPoint.x + dx * t;
       const worldY = startPoint.y + dy * t;
       
-      // Convert to stroke-canvas-local coordinates
-      const x = worldX - this.strokeOrigin.x;
-      const y = worldY - this.strokeOrigin.y;
+      // Convert to canvas-local coordinates (relative to strokeBounds.min, not strokeOrigin)
+      const x = worldX - this.strokeBounds.minX;
+      const y = worldY - this.strokeBounds.minY;
       
       if (this.isErasingTexture) {
         // Eraser mode
