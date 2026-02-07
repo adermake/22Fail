@@ -1220,6 +1220,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       
       this.strokeCanvas = newCanvas;
       this.strokeCtx = newCtx;
+      
+      // Update origin to match new bounds minimum
+      this.strokeOrigin.x = this.strokeBounds.minX;
+      this.strokeOrigin.y = this.strokeBounds.minY;
     }
     
     if (!this.strokeCtx || !this.cachedProcessedTexture) return;
