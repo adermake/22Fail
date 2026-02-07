@@ -390,6 +390,13 @@ export class LobbyStoreService {
   }
 
   /**
+   * Clear all texture strokes.
+   */
+  clearAllTextures(): void {
+    this.applyPatch({ path: 'textureStrokes', value: [] });
+  }
+
+  /**
    * Remove a specific stroke by ID (for eraser).
    */
   removeStroke(strokeId: string): void {

@@ -23,6 +23,9 @@ export class LobbyToolbarComponent {
   @Input() brushColor = '#000000';
   @Input() penBrushSize = 4;
   @Input() eraserBrushSize = 12;
+  @Input() textureBrushSize = 30;
+  @Input() textureScale = 0.1;
+  @Input() isEraserMode = false;
   @Input() drawWithWalls = false;
   @Input() dragMode: DragMode = 'free';
   @Input() drawLayerVisible = true;
@@ -33,18 +36,20 @@ export class LobbyToolbarComponent {
   @Output() brushColorChange = new EventEmitter<string>();
   @Output() penBrushSizeChange = new EventEmitter<number>();
   @Output() eraserBrushSizeChange = new EventEmitter<number>();
+  @Output() textureBrushSizeChange = new EventEmitter<number>();
+  @Output() textureScaleChange = new EventEmitter<number>();
   @Output() drawWithWallsChange = new EventEmitter<boolean>();
   @Output() dragModeChange = new EventEmitter<DragMode>();
   @Output() drawLayerVisibleChange = new EventEmitter<boolean>();
   @Output() clearDrawings = new EventEmitter<void>();
   @Output() clearWalls = new EventEmitter<void>();
+  @Output() clearTextures = new EventEmitter<void>();
   @Output() toggleSidebar = new EventEmitter<void>();
 
   // Tool definitions
   tools: { id: ToolType; icon: string; label: string; shortcut: string }[] = [
     { id: 'cursor', icon: '↖️', label: 'Select/Move', shortcut: 'F' },
     { id: 'draw', icon: '✏️', label: 'Draw', shortcut: 'B' },
-    { id: 'erase', icon: '🧹', label: 'Erase', shortcut: 'E' },
     { id: 'walls', icon: '🧱', label: 'Walls', shortcut: 'W' },
     { id: 'measure', icon: '📏', label: 'Measure', shortcut: 'R' },
     { id: 'image', icon: '🖼️', label: 'Images', shortcut: 'I' },
@@ -54,6 +59,8 @@ export class LobbyToolbarComponent {
   // Brush sizes
   penBrushSizes = [2, 4, 8, 12, 20];
   eraserBrushSizes = [8, 12, 20, 32, 48];
+  textureBrushSizes = [10, 20, 30, 50, 80, 120];
+  textureScales = [0.05, 0.1, 0.2, 0.5, 1.0];
 
   // Preset colors
   presetColors = [
@@ -96,6 +103,14 @@ export class LobbyToolbarComponent {
 
   setDragMode(mode: DragMode): void {
     this.dragModeChange.emit(mode);
+  }
+
+  selectTextureSize(size: number): void {
+    this.textureBrushSizeChange.emit(size);
+  }
+
+  selectTextureScale(scale: number): void {
+    this.textureScaleChange.emit(scale);
   }
 
   clampSize(size: number): number {

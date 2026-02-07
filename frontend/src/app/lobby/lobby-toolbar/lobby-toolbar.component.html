@@ -26,67 +26,55 @@
 
   <div class="toolbar-divider"></div>
 
-  <!-- Drawing options (visible when draw or erase tool selected) -->
-  @if (currentTool === 'draw' || currentTool === 'erase') {
+  <!-- Eraser mode indicator (E key toggles) -->
+  @if (isEraserMode && (currentTool === 'draw' || currentTool === 'texture')) {
+    <div class="tool-group eraser-mode-indicator">
+      <span class="eraser-badge" title="Eraser Mode Active (Press E to toggle)">
+        🧹 ERASE MODE
+      </span>
+    </div>
+    <div class="toolbar-divider"></div>
+  }
+
+  <!-- Drawing options (visible when draw tool selected) -->
+  @if (currentTool === 'draw') {
     <div class="tool-group drawing-options">
-      @if (currentTool === 'draw') {
-        <!-- Color picker -->
-        <div class="color-picker">
-          <input 
-            type="color" 
-            [value]="brushColor"
-            (input)="onColorInput($event)"
-            class="color-input"
-          />
-          @for (color of presetColors; track color) {
-            <button
-              class="color-btn"
-              [style.background]="color"
-              [class.active]="brushColor === color"
-              (click)="selectColor(color)"
-            ></button>
-          }
-        </div>
+      <!-- Color picker -->
+      <div class="color-picker">
+        <input 
+          type="color" 
+          [value]="brushColor"
+          (input)="onColorInput($event)"
+          class="color-input"
+        />
+        @for (color of presetColors; track color) {
+          <button
+            class="color-btn"
+            [style.background]="color"
+            [class.active]="brushColor === color"
+            (click)="selectColor(color)"
+          ></button>
+        }
+      </div>
 
-        <!-- Pen brush sizes -->
-        <div class="brush-sizes">
-          @for (size of penBrushSizes; track size) {
-            <button
-              class="size-btn"
-              [class.active]="penBrushSize === size"
-              (click)="selectPenSize(size)"
-              [title]="size + 'px'"
-            >
-              <span 
-                class="size-dot" 
-                [style.width.px]="clampSize(size)" 
-                [style.height.px]="clampSize(size)"
-                [style.background]="brushColor"
-              ></span>
-            </button>
-          }
-        </div>
-      }
-
-      @if (currentTool === 'erase') {
-        <!-- Eraser sizes -->
-        <div class="brush-sizes">
-          @for (size of eraserBrushSizes; track size) {
-            <button
-              class="size-btn"
-              [class.active]="eraserBrushSize === size"
-              (click)="selectEraserSize(size)"
-              [title]="size + 'px'"
-            >
-              <span 
-                class="size-dot eraser-dot" 
-                [style.width.px]="clampSize(size)" 
-                [style.height.px]="clampSize(size)"
-              ></span>
-            </button>
-          }
-        </div>
-      }
+      <!-- Pen brush sizes -->
+      <div class="brush-sizes">
+        @for (size of penBrushSizes; track size) {
+          <button
+            class="size-btn"
+            [class.active]="penBrushSize === size"
+            (click)="selectPenSize(size)"
+            [title]="size + 'px'"
+          >
+            <span 
+              class="size-dot" 
+              [style.width.px]="clampSize(size)" 
+              [style.height.px]="clampSize(size)"
+              [style.background]="brushColor"
+            ></span>
+          </button>
+        }
+      </div>
 
       <!-- Draw with walls checkbox -->
       @if (isGM) {
@@ -113,6 +101,56 @@
         🗑️
       </button>
     </div>
+  }
+
+  <!-- Texture tool options -->
+  @if (currentTool === 'texture') {
+    <div class="tool-group texture-options">
+      <!-- Texture brush sizes -->
+      <div class="brush-sizes">
+        <span class="option-label">Brush:</span>
+        @for (size of textureBrushSizes; track size) {
+          <button
+            class="size-btn"
+            [class.active]="textureBrushSize === size"
+            (click)="selectTextureSize(size)"
+            [title]="size + 'px'"
+          >
+            {{ size }}
+          </button>
+        }
+      </div>
+
+      <!-- Texture scale -->
+      <div class="texture-scales">
+        <span class="option-label">Scale:</span>
+        @for (scale of textureScales; track scale) {
+          <button
+            class="scale-btn"
+            [class.active]="textureScale === scale"
+            (click)="selectTextureScale(scale)"
+            [title]="'Tile scale: ' + scale + 'x'"
+          >
+            {{ scale }}x
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Clear textures button -->
+    @if (isGM) {
+      <div class="tool-group">
+        <button 
+          class="tool-btn danger" 
+          (click)="clearTextures.emit()"
+          title="Clear All Textures"
+        >
+          🗑️ Textures
+        </button>
+      </div>
+    }
   }
 
   <!-- Cursor mode options -->

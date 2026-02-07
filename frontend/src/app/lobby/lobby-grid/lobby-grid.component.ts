@@ -62,6 +62,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() penBrushSize = 4;
   @Input() eraserBrushSize = 12;
   @Input() textureBrushSize = 30;
+  @Input() textureScale = 1.0; // Tiling scale for textures
   @Input() drawWithWalls = false;
   @Input() dragMode: DragMode = 'free';
   @Input() drawLayerVisible = true;
@@ -69,6 +70,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() selectedImageId: string | null = null;
   @Input() selectedTextureId: string | null = null;
   @Input() isGM = false;
+  @Input() isEraserMode = false; // E key toggles this
 
   // Outputs
   @Output() tokenDrop = new EventEmitter<{ characterId: string; position: HexCoord }>();
@@ -110,6 +112,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private isPanning = false;
   private isDrawing = false;
   private isDrawingTexture = false; // For texture brush
+  private isErasingTexture = false; // For texture eraser
   private isWallDrawing = false;
   private wallPaintMode: 'add' | 'remove' = 'add';
   private pendingWallChanges: { hex: HexCoord; action: 'add' | 'remove' }[] = []; // Batch wall changes
@@ -325,8 +328,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private render(): void {
     this.renderGrid();
     this.renderImages();
+    this.renderTextureStrokes(); // Textures below strokes
     this.renderStrokes();
-    this.renderTextureStrokes();
     this.renderOverlay();
   }
 
@@ -370,7 +373,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     // Performance: skip grid lines when zoomed way out but always render walls
     const hexCount = (maxQ - minQ + 1) * (maxR - minR + 1);
-    const shouldSkipGrid = hexCount > 3000 || this.scale < 0.2; // Made grid visible from further (was 0.3)
+    const shouldSkipGrid = hexCount > 10000 || this.scale < 0.15; // Raised limit for better visibility
 
     // Always render all hexes (grid or walls)
     for (let q = minQ; q <= maxQ; q++) {
@@ -606,7 +609,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     // Render current in-progress stroke for live preview
     if (this.isDrawing && this.currentStrokePoints.length > 1) {
-      const isEraser = this.currentTool === 'erase';
+      const isEraser = this.isEraserMode;
       ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
       ctx.beginPath();
       ctx.moveTo(this.currentStrokePoints[0].x, this.currentStrokePoints[0].y);
@@ -638,50 +641,76 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     // Render saved texture strokes
     for (const textureStroke of this.map.textureStrokes || []) {
-      await this.renderSingleTextureStroke(ctx, textureStroke.points, textureStroke.textureId, textureStroke.brushSize);
+      await this.renderSingleTextureStroke(
+        ctx, 
+        textureStroke.points, 
+        textureStroke.textureId, 
+        textureStroke.brushSize,
+        textureStroke.textureScale ?? 0.1, // Default 10x smaller
+        textureStroke.isEraser ?? false
+      );
     }
 
     // Render current in-progress texture stroke for live preview
     if (this.isDrawingTexture && this.currentTexturePoints.length > 1 && this.selectedTextureId) {
-      await this.renderSingleTextureStroke(ctx, this.currentTexturePoints, this.selectedTextureId, this.textureBrushSize);
+      await this.renderSingleTextureStroke(
+        ctx, 
+        this.currentTexturePoints, 
+        this.selectedTextureId, 
+        this.textureBrushSize,
+        this.textureScale,
+        false
+      );
+    }
+
+    // Render current in-progress texture eraser for live preview
+    if (this.isErasingTexture && this.currentTexturePoints.length > 1) {
+      await this.renderSingleTextureStroke(
+        ctx, 
+        this.currentTexturePoints, 
+        '', // No texture needed for eraser
+        this.textureBrushSize,
+        1.0,
+        true
+      );
     }
 
     ctx.restore();
   }
 
-  private async renderSingleTextureStroke(ctx: CanvasRenderingContext2D, points: Point[], textureId: string, brushSize: number): Promise<void> {
+  private async renderSingleTextureStroke(
+    ctx: CanvasRenderingContext2D, 
+    points: Point[], 
+    textureId: string, 
+    brushSize: number,
+    textureScale: number = 0.1,
+    isEraser: boolean = false
+  ): Promise<void> {
     if (points.length < 2) return;
 
-    // Load texture image
-    let textureImg = this.textureCache.get(textureId);
+    // For eraser mode, use destination-out composite
+    ctx.save();
     
-    if (!textureImg) {
-      const textureUrl = this.textureService.getTextureUrl(textureId);
-      if (!textureUrl) return;
-
-      textureImg = new Image();
-      textureImg.src = textureUrl;
-      
-      // Wait for texture to load
-      if (!textureImg.complete) {
-        await new Promise<void>((resolve, reject) => {
-          textureImg!.onload = () => resolve();
-          textureImg!.onerror = () => reject();
-        }).catch(() => {
-          console.error('Failed to load texture:', textureId);
-          return;
-        });
-      }
-      
-      this.textureCache.set(textureId, textureImg);
+    if (isEraser) {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(0,0,0,1)'; // Full opacity eraser
     }
 
     // Create clipping path from stroke with circular brush
-    ctx.save();
     ctx.beginPath();
 
+    // Create soft-edged circles with gradient for airbrush effect
     for (let i = 0; i < points.length; i++) {
       const point = points[i];
+      
+      if (!isEraser) {
+        // Soft gradient edge for airbrushy blend
+        const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, brushSize / 2);
+        gradient.addColorStop(0, 'rgba(0,0,0,1)');
+        gradient.addColorStop(0.8, 'rgba(0,0,0,0.8)');
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+      }
+      
       ctx.moveTo(point.x + brushSize / 2, point.y);
       ctx.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
     }
@@ -705,24 +734,70 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
 
-    ctx.clip();
+    if (isEraser) {
+      // For eraser, just fill the clipped region
+      ctx.fill();
+    } else {
+      // For texture, clip and fill with pattern
+      ctx.clip();
 
-    // Create repeating pattern and fill clipped region
-    try {
-      const pattern = ctx.createPattern(textureImg, 'repeat');
-      if (pattern) {
-        ctx.fillStyle = pattern;
+      // Load texture image
+      let textureImg = this.textureCache.get(textureId);
+      
+      if (!textureImg) {
+        const textureUrl = this.textureService.getTextureUrl(textureId);
+        if (!textureUrl) {
+          ctx.restore();
+          return;
+        }
+
+        textureImg = new Image();
+        textureImg.src = textureUrl;
         
-        // Fill a large area that covers the stroke
-        const minX = Math.min(...points.map(p => p.x)) - brushSize;
-        const minY = Math.min(...points.map(p => p.y)) - brushSize;
-        const maxX = Math.max(...points.map(p => p.x)) + brushSize;
-        const maxY = Math.max(...points.map(p => p.y)) + brushSize;
+        // Wait for texture to load
+        if (!textureImg.complete) {
+          await new Promise<void>((resolve, reject) => {
+            textureImg!.onload = () => resolve();
+            textureImg!.onerror = () => reject();
+          }).catch(() => {
+            console.error('Failed to load texture:', textureId);
+            ctx.restore();
+            return;
+          });
+        }
         
-        ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+        this.textureCache.set(textureId, textureImg);
       }
-    } catch (error) {
-      console.error('Failed to create texture pattern:', error);
+
+      // Create repeating pattern with scale and fill clipped region
+      try {
+        // Create a temporary canvas for scaling the pattern
+        const patternCanvas = document.createElement('canvas');
+        const scaledWidth = textureImg.width * textureScale;
+        const scaledHeight = textureImg.height * textureScale;
+        patternCanvas.width = scaledWidth;
+        patternCanvas.height = scaledHeight;
+        const patternCtx = patternCanvas.getContext('2d');
+        
+        if (patternCtx) {
+          patternCtx.drawImage(textureImg, 0, 0, scaledWidth, scaledHeight);
+          
+          const pattern = ctx.createPattern(patternCanvas, 'repeat');
+          if (pattern) {
+            ctx.fillStyle = pattern;
+            
+            // Fill a large area that covers the stroke
+            const minX = Math.min(...points.map(p => p.x)) - brushSize;
+            const minY = Math.min(...points.map(p => p.y)) - brushSize;
+            const maxX = Math.max(...points.map(p => p.x)) + brushSize;
+            const maxY = Math.max(...points.map(p => p.y)) + brushSize;
+            
+            ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to create texture pattern:', error);
+      }
     }
 
     ctx.restore();
@@ -1105,7 +1180,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Shift+drag = adjust brush size
     if (event.shiftKey) {
       this.isAdjustingBrushSize = true;
-      const initialSize = this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize;
+      const initialSize = this.isEraserMode ? this.eraserBrushSize : this.penBrushSize;
       this.brushSizeAdjustStart = { x: event.clientX, y: event.clientY, initialSize };
       return;
     }
@@ -1114,7 +1189,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.currentStrokePoints = [world];
     
     // Reset erased strokes tracking when starting new eraser stroke
-    if (this.currentTool === 'erase') {
+    if (this.isEraserMode) {
       this.erasedStrokeIds.clear();
     }
   }
@@ -1125,7 +1200,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const dx = event.clientX - this.brushSizeAdjustStart.x;
       const newSize = Math.max(1, Math.min(300, this.brushSizeAdjustStart.initialSize + dx * 0.3));
       
-      if (this.currentTool === 'erase') {
+      if (this.isEraserMode) {
         this.eraserBrushSize = Math.round(newSize);
       } else {
         this.penBrushSize = Math.round(newSize);
@@ -1164,9 +1239,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const stroke: Stroke = {
         id: generateId(),
         points: [...this.currentStrokePoints],
-        color: this.currentTool === 'erase' ? '#FFFFFF' : this.brushColor,
-        lineWidth: this.currentTool === 'erase' ? this.eraserBrushSize : this.penBrushSize,
-        isEraser: this.currentTool === 'erase',
+        color: this.isEraserMode ? '#FFFFFF' : this.brushColor,
+        lineWidth: this.isEraserMode ? this.eraserBrushSize : this.penBrushSize,
+        isEraser: this.isEraserMode,
       };
       
       this.store.addStroke(stroke);
@@ -1179,31 +1254,44 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   private handleTextureDown(event: MouseEvent, world: Point): void {
     if (event.button !== 0) return;
-    if (!this.selectedTextureId) return;
+    
+    // Allow eraser without texture selected
+    if (!this.isEraserMode && !this.selectedTextureId) return;
 
-    this.isDrawingTexture = true;
+    if (this.isEraserMode) {
+      this.isErasingTexture = true;
+      this.isDrawingTexture = false;
+    } else {
+      this.isDrawingTexture = true;
+      this.isErasingTexture = false;
+    }
+    
     this.currentTexturePoints = [world];
   }
 
   private handleTextureMove(event: MouseEvent, world: Point): void {
-    if (!this.isDrawingTexture || !this.selectedTextureId) return;
+    if (!this.isDrawingTexture && !this.isErasingTexture) return;
 
     this.currentTexturePoints.push(world);
     this.scheduleRender();
   }
 
   private handleTextureUp(event: MouseEvent, world: Point): void {
-    if (!this.isDrawingTexture || !this.selectedTextureId) return;
+    if (!this.isDrawingTexture && !this.isErasingTexture) return;
 
+    const wasErasing = this.isErasingTexture;
     this.isDrawingTexture = false;
+    this.isErasingTexture = false;
     
     // Create texture stroke
     if (this.currentTexturePoints.length > 1) {
       const textureStroke: TextureStroke = {
         id: generateId(),
         points: [...this.currentTexturePoints],
-        textureId: this.selectedTextureId,
+        textureId: wasErasing ? '' : this.selectedTextureId!,
         brushSize: this.textureBrushSize,
+        textureScale: this.textureScale,
+        isEraser: wasErasing,
       };
       
       this.store.addTextureStroke(textureStroke);

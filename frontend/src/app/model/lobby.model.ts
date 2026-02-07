@@ -50,6 +50,8 @@ export interface TextureStroke {
   points: Point[];
   textureId: string;
   brushSize: number;
+  textureScale?: number; // Tiling scale (default 1.0, 0.1 = 10x smaller tiles)
+  isEraser?: boolean; // True if this stroke erases textures
 }
 
 // ============================================

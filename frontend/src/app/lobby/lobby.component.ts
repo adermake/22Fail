@@ -74,6 +74,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   penBrushSize = signal(4);
   eraserBrushSize = signal(12);
   textureBrushSize = signal(30);
+  textureScale = signal(0.1); // Default 10x smaller tiles
+  isEraserMode = signal(false); // E key toggles this
   drawWithWalls = signal(false);
   dragMode = signal<DragMode>('free');
 
@@ -87,7 +89,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   // UI state
   showSidebar = signal(true);
-  sidebarTab = signal<'characters' | 'images'>('characters');
+  sidebarTab = signal<'characters' | 'images' | 'textures'>('characters');
   showMapSettingsModal = signal(false);
   newMapName = ''; // For creating new maps
 
@@ -280,27 +282,40 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     switch (key) {
       case 'e':
-        this.currentTool.set(this.currentTool() === 'erase' ? 'draw' : 'erase');
+        // Toggle eraser mode in current tool context
+        this.isEraserMode.set(!this.isEraserMode());
         event.preventDefault();
         break;
       case 'b':
         this.currentTool.set('draw');
+        this.isEraserMode.set(false); // Reset eraser when switching tools
+        event.preventDefault();
+        break;
+      case 't':
+        this.currentTool.set('texture');
+        this.isEraserMode.set(false); // Reset eraser when switching tools
+        // Auto-switch to textures tab
+        this.sidebarTab.set('textures' as any);
         event.preventDefault();
         break;
       case 'f':
         this.currentTool.set('cursor');
+        this.isEraserMode.set(false);
         event.preventDefault();
         break;
       case 'r':
         this.currentTool.set('measure');
+        this.isEraserMode.set(false);
         event.preventDefault();
         break;
       case 'w':
         this.currentTool.set('walls');
+        this.isEraserMode.set(false);
         event.preventDefault();
         break;
       case 'i':
         this.currentTool.set('image');
+        this.isEraserMode.set(false);
         event.preventDefault();
         break;
       case 'z':
@@ -318,6 +333,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   onToolChange(tool: ToolType): void {
     this.currentTool.set(tool);
+    this.isEraserMode.set(false); // Reset eraser when tool changes
+    
+    // Auto-switch to texture tab when texture tool selected
+    if (tool === 'texture') {
+      this.sidebarTab.set('textures' as any);
+    }
   }
 
   onBrushColorChange(color: string): void {
@@ -330,6 +351,20 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   onEraserBrushSizeChange(size: number): void {
     this.eraserBrushSize.set(size);
+  }
+
+  onTextureBrushSizeChange(size: number): void {
+    this.textureBrushSize.set(size);
+  }
+
+  onTextureScaleChange(scale: number): void {
+    this.textureScale.set(scale);
+  }
+
+  onClearAllTextures(): void {
+    if (confirm('Clear all texture strokes? This cannot be undone.')) {
+      this.store.clearAllTextures();
+    }
   }
 
   onDragModeChange(mode: DragMode): void {
