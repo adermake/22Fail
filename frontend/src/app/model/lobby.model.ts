@@ -88,6 +88,7 @@ export interface MapImage {
   height: number;
   rotation: number; // degrees
   zIndex: number; // layering order (higher = on top)
+  layer?: 'background' | 'foreground'; // Super layer (default: background)
 }
 
 /** An image in the reusable library */

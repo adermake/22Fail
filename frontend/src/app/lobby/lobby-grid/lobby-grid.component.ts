@@ -51,6 +51,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('gridCanvas') gridCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('imageCanvas') imageCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('textureCanvas') textureCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('foregroundCanvas') foregroundCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('drawCanvas') drawCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('texturePreviewCanvas') texturePreviewCanvas?: ElementRef<HTMLCanvasElement>;
@@ -104,10 +105,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private textureCacheCtx: CanvasRenderingContext2D | null = null;
   private textureCacheDirty = true;
   private lastTextureStrokeCount = 0;
+  private cacheRebuildScheduled = false;
+  private previewUpdateScheduled = false;
 
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
   private imageCtx: CanvasRenderingContext2D | null = null;
+  private foregroundCtx: CanvasRenderingContext2D | null = null;
   private textureCtx: CanvasRenderingContext2D | null = null;
   private drawCtx: CanvasRenderingContext2D | null = null;
   private overlayCtx: CanvasRenderingContext2D | null = null;
@@ -234,6 +238,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }, 100); // Small delay to ensure canvas is ready
   }
 
+  private schedulePreviewUpdate(): void {
+    if (this.previewUpdateScheduled) return;
+    this.previewUpdateScheduled = true;
+    requestAnimationFrame(() => {
+      this.previewUpdateScheduled = false;
+      this.renderTexturePreview();
+    });
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['map'] || changes['tokens'] || changes['selectedImageId']) {
       this.scheduleRender();
@@ -246,11 +259,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
     // Invalidate texture cache when map changes
     if (changes['map']) {
-      this.textureCacheDirty = true;
-    }
-    // Update texture preview when texture settings change
-    if (changes['selectedTextureId'] || changes['textureColorBlend'] || changes['textureHue'] || changes['textureBlendColor']) {
-      this.renderTexturePreview();
+      this.scheduleCacheRebuild();
     }
   }
 
@@ -269,6 +278,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const canvases = [
       { el: this.gridCanvas?.nativeElement, name: 'grid' },
       { el: this.imageCanvas?.nativeElement, name: 'image' },
+      { el: this.foregroundCanvas?.nativeElement, name: 'foreground' },
       { el: this.textureCanvas?.nativeElement, name: 'texture' },
       { el: this.drawCanvas?.nativeElement, name: 'draw' },
       { el: this.overlayCanvas?.nativeElement, name: 'overlay' },
@@ -279,6 +289,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         const ctx = el.getContext('2d');
         if (name === 'grid') this.gridCtx = ctx;
         if (name === 'image') this.imageCtx = ctx;
+        if (name === 'foreground') this.foregroundCtx = ctx;
         if (name === 'texture') this.textureCtx = ctx;
         if (name === 'draw') this.drawCtx = ctx;
         if (name === 'overlay') this.overlayCtx = ctx;
@@ -371,9 +382,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private render(): void {
-    this.renderImages();       // Background + images
-    this.renderTextureStrokes(); // Textures above images
-    this.renderGrid();          // Grid above textures
+    this.renderImages();       // Background images
+    this.renderTextureStrokes(); // Textures above background images
+    this.renderForegroundImages(); // Foreground images above textures
+    this.renderGrid();          // Grid above foreground images
     this.renderOverlay();       // Tokens + overlays above grid
     this.renderStrokes();       // Normal drawing on top
   }
@@ -523,17 +535,63 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
 
-    // Sort by zIndex
-    const images = [...(this.map.images || [])].sort((a, b) => a.zIndex - b.zIndex);
+    // Filter and sort background layer images only (default layer is background)
+    const backgroundImages = [...(this.map.images || [])]
+      .filter(img => !img.layer || img.layer === 'background')
+      .sort((a, b) => a.zIndex - b.zIndex);
 
-    for (const img of images) {
+    for (const img of backgroundImages) {
       this.renderImage(ctx, img);
     }
 
-    // Render group bounding box if multiple images are selected
+    // Render group bounding box if multiple images are selected (only for background layer)
     const selectedIds = this.selectedImages();
     if (selectedIds.length > 1) {
-      this.renderGroupBoundingBox(ctx, selectedIds);
+      const allBackground = selectedIds.every(id => {
+        const img = this.map?.images.find(i => i.id === id);
+        return !img?.layer || img.layer === 'background';
+      });
+      if (allBackground) {
+        this.renderGroupBoundingBox(ctx, selectedIds);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  private renderForegroundImages(): void {
+    if (!this.foregroundCtx || !this.map) return;
+
+    const canvas = this.foregroundCanvas.nativeElement;
+    const ctx = this.foregroundCtx;
+    const dpr = window.devicePixelRatio || 1;
+
+    // Clear foreground canvas
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
+    ctx.save();
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.scale, this.scale);
+
+    // Filter and sort foreground layer images only
+    const foregroundImages = [...(this.map.images || [])]
+      .filter(img => img.layer === 'foreground')
+      .sort((a, b) => a.zIndex - b.zIndex);
+
+    for (const img of foregroundImages) {
+      this.renderImage(ctx, img);
+    }
+
+    // Render group bounding box if multiple foreground images are selected
+    const selectedIds = this.selectedImages();
+    if (selectedIds.length > 1) {
+      const allForeground = selectedIds.every(id => {
+        const img = this.map?.images.find(i => i.id === id);
+        return img?.layer === 'foreground';
+      });
+      if (allForeground) {
+        this.renderGroupBoundingBox(ctx, selectedIds);
+      }
     }
 
     ctx.restore();
@@ -849,6 +907,25 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     ctx.restore();
+  }
+
+  private scheduleCacheRebuild(): void {
+    this.textureCacheDirty = true;
+    if (this.cacheRebuildScheduled) return;
+    this.cacheRebuildScheduled = true;
+    
+    // Use requestIdleCallback for non-blocking rebuild, fallback to setTimeout
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        this.cacheRebuildScheduled = false;
+        this.rebuildTextureCache().then(() => this.scheduleRender());
+      }, { timeout: 100 });
+    } else {
+      setTimeout(() => {
+        this.cacheRebuildScheduled = false;
+        this.rebuildTextureCache().then(() => this.scheduleRender());
+      }, 0);
+    }
   }
 
   private async rebuildTextureCache(): Promise<void> {
@@ -1872,7 +1949,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       };
       
       this.store.addTextureStroke(textureStroke);
-      this.textureCacheDirty = true; // Invalidate cache for next render
+      this.scheduleCacheRebuild(); // Defer cache rebuild to avoid blocking
     }
 
     this.currentTexturePoints = [];
@@ -3138,6 +3215,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
     this.closeContextMenu();
+  }
+
+  onToggleImageLayer(): void {
+    const id = this.contextMenuImageId();
+    if (id) {
+      this.store.toggleImageLayer(id);
+    }
+    this.closeContextMenu();
+  }
+
+  getImageLayerLabel(): string {
+    const id = this.contextMenuImageId();
+    if (!id) return 'Toggle Layer';
+    
+    const image = this.map?.images.find(img => img.id === id);
+    const currentLayer = image?.layer || 'background';
+    
+    return currentLayer === 'background' 
+      ? '↑ Move to Foreground' 
+      : '↓ Move to Background';
   }
 
   onCreateQuickToken(): void {

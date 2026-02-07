@@ -11,9 +11,10 @@
   (dragleave)="onDragLeave($event)"
   (drop)="onDrop($event)"
 >
-  <!-- Canvas layers (bottom to top: images → textures → grid → overlays → drawing) -->
+  <!-- Canvas layers (bottom to top: images → textures → foreground images → grid → overlays → drawing) -->
   <canvas #imageCanvas class="canvas-layer image-layer"></canvas>
   <canvas #textureCanvas class="canvas-layer texture-layer"></canvas>
+  <canvas #foregroundCanvas class="canvas-layer foreground-layer"></canvas>
   <canvas #gridCanvas class="canvas-layer grid-layer"></canvas>
   <canvas #overlayCanvas class="canvas-layer overlay-layer"></canvas>
   <canvas #drawCanvas class="canvas-layer draw-layer"></canvas>
@@ -85,6 +86,8 @@
     >
       @if (contextMenuImageId()) {
         <!-- Image context menu -->
+        <button (click)="onToggleImageLayer()">{{ getImageLayerLabel() }}</button>
+        <div class="menu-divider"></div>
         <button (click)="onMoveImageToFront()">Bring to Front</button>
         <button (click)="onMoveImageForward()">Bring Forward</button>
         <button (click)="onMoveImageBackward()">Send Backward</button>

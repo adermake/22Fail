@@ -26,16 +26,20 @@
   z-index: 2;
 }
 
-.grid-layer {
+.foreground-layer {
   z-index: 3;
 }
 
-.overlay-layer {
+.grid-layer {
   z-index: 4;
 }
 
-.draw-layer {
+.overlay-layer {
   z-index: 5;
+}
+
+.draw-layer {
+  z-index: 6;
 }
 
 /* Token layer */

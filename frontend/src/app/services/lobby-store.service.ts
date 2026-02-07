@@ -519,7 +519,14 @@ export class LobbyStoreService {
     const index = images.findIndex(i => i.id === id);
     if (index === -1) return;
 
-    const maxZ = Math.max(0, ...images.map(i => i.zIndex));
+    const targetImage = images[index];
+    const targetLayer = targetImage.layer || 'background';
+
+    // Find max zIndex within the same layer
+    const maxZ = Math.max(0, ...images
+      .filter(i => (i.layer || 'background') === targetLayer)
+      .map(i => i.zIndex));
+    
     images[index] = { ...images[index], zIndex: maxZ + 1 };
     this.applyPatch({ path: 'images', value: images });
   }
@@ -529,8 +536,27 @@ export class LobbyStoreService {
     const index = images.findIndex(i => i.id === id);
     if (index === -1) return;
 
-    const minZ = Math.min(0, ...images.map(i => i.zIndex));
+    const targetImage = images[index];
+    const targetLayer = targetImage.layer || 'background';
+
+    // Find min zIndex within the same layer
+    const minZ = Math.min(0, ...images
+      .filter(i => (i.layer || 'background') === targetLayer)
+      .map(i => i.zIndex));
+    
     images[index] = { ...images[index], zIndex: minZ - 1 };
+    this.applyPatch({ path: 'images', value: images });
+  }
+
+  toggleImageLayer(id: string): void {
+    const images = [...this.images];
+    const index = images.findIndex(i => i.id === id);
+    if (index === -1) return;
+
+    const currentLayer = images[index].layer || 'background';
+    const newLayer = currentLayer === 'foreground' ? 'background' : 'foreground';
+    
+    images[index] = { ...images[index], layer: newLayer };
     this.applyPatch({ path: 'images', value: images });
   }
 
