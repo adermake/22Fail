@@ -169,6 +169,9 @@ export class LobbyStoreService {
     if (!lobby.imageLibrary) {
       lobby.imageLibrary = [];
     }
+    if (!lobby.textureLibrary) {
+      lobby.textureLibrary = [];
+    }
     if (!lobby.activeMapId) {
       lobby.activeMapId = Object.keys(lobby.maps)[0] || 'default';
     }
@@ -178,6 +181,7 @@ export class LobbyStoreService {
       const map = lobby.maps[mapId];
       if (!map.tokens) map.tokens = [];
       if (!map.strokes) map.strokes = [];
+      if (!map.textureStrokes) map.textureStrokes = [];
       if (!map.walls) map.walls = [];
       if (!map.images) map.images = [];
       if (!map.measurementLines) map.measurementLines = [];

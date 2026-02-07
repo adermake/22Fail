@@ -366,7 +366,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const wallSet = new Set(walls.map(w => `${w.q},${w.r}`));
     const pathSet = new Set(this.dragPath().map(p => `${p.q},${p.r}`));
     const hoverHex = this.dragHoverHex();
-    const pathIsBlocked = this.dragPathIsBlocked(); // Check if path is blocked
+    const pathIsInvalid = this.dragPathIsBlocked() || this.dragPathExceedsSpeed(); // Check if path is blocked OR too long
 
     // Performance: skip grid lines when zoomed way out but always render walls
     const hexCount = (maxQ - minQ + 1) * (maxR - minR + 1);
@@ -385,14 +385,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
           continue;
         }
         
-        this.drawHexagon(ctx, { q, r }, isHover || false, isWall, isInPath, pathIsBlocked);
+        this.drawHexagon(ctx, { q, r }, isHover || false, isWall, isInPath, pathIsInvalid);
       }
     }
 
     ctx.restore();
   }
 
-  private drawHexagon(ctx: CanvasRenderingContext2D, hex: HexCoord, isHover: boolean, isWall: boolean, isInPath: boolean, pathIsBlocked: boolean): void {
+  private drawHexagon(ctx: CanvasRenderingContext2D, hex: HexCoord, isHover: boolean, isWall: boolean, isInPath: boolean, pathIsInvalid: boolean): void {
     const center = HexMath.hexToPixel(hex);
     const corners = HexMath.getHexCorners(center);
 
@@ -410,8 +410,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.strokeStyle = 'rgba(96, 165, 250, 1)';
       ctx.lineWidth = 3;
     } else if (isInPath) {
-      // Red if path is blocked, green otherwise
-      if (pathIsBlocked) {
+      // Red if path is invalid (blocked OR exceeds speed), green otherwise
+      if (pathIsInvalid) {
         ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
         ctx.fill();
         ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
@@ -1366,6 +1366,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private handleImageMove(event: MouseEvent, world: Point): void {
+    // Update cursor based on position
+    this.updateCursor(world);
+
     // Handle image transform/drag
     if (this.transformingImageId && this.transformHandle) {
       this.updateImageTransform(world);
@@ -2111,7 +2114,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   onDeleteSelectedImage(): void {
     const id = this.contextMenuImageId();
     if (id) {
-      this.imageDelete.emit(id);
+      this.store.removeImage(id);
+      // Also clear selection if this was the selected image
+      if (this.selectedImageId === id) {
+        this.imageSelect.emit(null);
+      }
     }
     this.closeContextMenu();
   }

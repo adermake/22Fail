@@ -48,6 +48,7 @@ export class LobbyToolbarComponent {
     { id: 'walls', icon: '🧱', label: 'Walls', shortcut: 'W' },
     { id: 'measure', icon: '📏', label: 'Measure', shortcut: 'R' },
     { id: 'image', icon: '🖼️', label: 'Images', shortcut: 'I' },
+    { id: 'texture', icon: '🎨', label: 'Texture Brush', shortcut: 'T' },
   ];
 
   // Brush sizes

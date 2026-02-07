@@ -476,6 +476,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
     }
   }
 
+  onImageDragStart(image: LibraryImage): void {
+    // Auto-switch to image tool when dragging from library
+    this.currentTool.set('image');
+  }
+
   // ============================================
   // Layer Visibility
   // ============================================
