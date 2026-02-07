@@ -31,7 +31,7 @@ import {
   ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke } from '../../model/lobby.model';
+import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke, LibraryTexture } from '../../model/lobby.model';
 import { LobbyStoreService } from '../../services/lobby-store.service';
 import { ImageService } from '../../services/image.service';
 import { TextureService } from '../../services/texture.service';
@@ -100,15 +100,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private documentMouseMoveListener: ((e: MouseEvent) => void) | null = null;
   private documentMouseUpListener: ((e: MouseEvent) => void) | null = null;
 
-  // Texture rendering cache for performance
-  private textureCacheCanvas: HTMLCanvasElement | null = null;
-  private textureCacheCtx: CanvasRenderingContext2D | null = null;
-  private textureCacheDirty = true;
-  private lastTextureStrokeCount = 0;
-  private cacheRebuildScheduled = false;
+  // Tile-based texture rendering system
+  private textureTiles = new Map<string, HTMLCanvasElement>(); // Key: "x,y"
+  private textureTileSize = 512; // pixels per tile
+  private dirtyTiles = new Set<string>(); // Tiles that need to be persisted
   private previewUpdateScheduled = false;
   private lastRenderTime = 0;
   private renderThrottleMs = 16; // ~60fps
+  private currentDrawingTiles = new Set<string>(); // Tiles being drawn to in current stroke
 
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
@@ -259,9 +258,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (changes['imageLayerVisible']) {
       this.updateLayerVisibility();
     }
-    // Invalidate texture cache when map changes
+    // Load texture tiles when map changes
     if (changes['map']) {
-      this.scheduleCacheRebuild();
+      this.loadTextureTiles();
     }
   }
 
@@ -857,210 +856,480 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Clear texture canvas
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
-    // Only rebuild cache if explicitly dirty (map changes), not on every stroke
-    if (this.textureCacheDirty) {
-      await this.rebuildTextureCache();
-      this.textureCacheDirty = false;
-      this.lastTextureStrokeCount = (this.map.textureStrokes || []).length;
-    }
-
     ctx.save();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
 
-    // Draw the cached textures
-    if (this.textureCacheCanvas) {
-      const offsetX = (this.textureCacheCanvas as any).offsetX || 0;
-      const offsetY = (this.textureCacheCanvas as any).offsetY || 0;
-      ctx.drawImage(this.textureCacheCanvas, offsetX, offsetY);
+    // Calculate visible tile range
+    const topLeft = this.screenToWorld(0, 0);
+    const bottomRight = this.screenToWorld(canvas.width / dpr, canvas.height / dpr);
+
+    const minTileX = Math.floor(topLeft.x / this.textureTileSize);
+    const maxTileX = Math.ceil(bottomRight.x / this.textureTileSize);
+    const minTileY = Math.floor(topLeft.y / this.textureTileSize);
+    const maxTileY = Math.ceil(bottomRight.y / this.textureTileSize);
+
+    // Render only visible tiles
+    for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
+      for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
+        const tileKey = `${tileX},${tileY}`;
+        const tile = this.textureTiles.get(tileKey);
+        
+        if (tile) {
+          const worldX = tileX * this.textureTileSize;
+          const worldY = tileY * this.textureTileSize;
+          ctx.drawImage(tile, worldX, worldY);
+        }
+      }
     }
 
-    // Render current in-progress texture stroke for live preview (not cached)
+    // Render current in-progress texture stroke for live preview
     if (this.isDrawingTexture && this.currentTexturePoints.length > 1 && this.selectedTextureId) {
-      await this.renderSingleTextureStroke(
-        ctx, 
-        this.currentTexturePoints, 
-        this.selectedTextureId, 
-        this.textureBrushSize,
-        this.textureScale,
-        false,
-        this.textureBrushType,
-        this.textureColorBlend,
-        this.textureBlendColor,
-        this.textureHue
-      );
+      await this.renderLiveTexturePreview(ctx);
     }
 
-    // Render current in-progress texture eraser for live preview (not cached)
+    // Render current in-progress texture eraser for live preview
     if (this.isErasingTexture && this.currentTexturePoints.length > 1) {
-      await this.renderSingleTextureStroke(
-        ctx, 
-        this.currentTexturePoints, 
-        '', // No texture needed for eraser
-        this.textureBrushSize,
-        1.0,
-        true,
-        'hard',
-        0,
-        '#ffffff',
-        0
-      );
+      await this.renderLiveEraserPreview(ctx);
     }
 
     ctx.restore();
   }
 
-  private scheduleCacheRebuild(): void {
-    this.textureCacheDirty = true;
-    if (this.cacheRebuildScheduled) return;
-    this.cacheRebuildScheduled = true;
+  // ============================================
+  // Tile-Based Texture System
+  // ============================================
+
+  private getTileKey(tileX: number, tileY: number): string {
+    return `${tileX},${tileY}`;
+  }
+
+  private worldToTile(worldX: number, worldY: number): { tileX: number; tileY: number } {
+    return {
+      tileX: Math.floor(worldX / this.textureTileSize),
+      tileY: Math.floor(worldY / this.textureTileSize)
+    };
+  }
+
+  private getTileAtWorld(worldX: number, worldY: number): HTMLCanvasElement | null {
+    const { tileX, tileY } = this.worldToTile(worldX, worldY);
+    return this.textureTiles.get(this.getTileKey(tileX, tileY)) || null;
+  }
+
+  private getOrCreateTile(tileX: number, tileY: number): HTMLCanvasElement {
+    const key = this.getTileKey(tileX, tileY);
+    let tile = this.textureTiles.get(key);
     
-    // Use requestIdleCallback for non-blocking rebuild, fallback to setTimeout
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => {
-        this.cacheRebuildScheduled = false;
-        this.rebuildTextureCache().then(() => this.scheduleRender());
-      }, { timeout: 100 });
-    } else {
-      setTimeout(() => {
-        this.cacheRebuildScheduled = false;
-        this.rebuildTextureCache().then(() => this.scheduleRender());
-      }, 0);
+    if (!tile) {
+      tile = document.createElement('canvas');
+      tile.width = this.textureTileSize;
+      tile.height = this.textureTileSize;
+      this.textureTiles.set(key, tile);
+    }
+    
+    return tile;
+  }
+
+  private loadTextureTiles(): void {
+    // Clear existing tiles
+    this.textureTiles.clear();
+    this.dirtyTiles.clear();
+
+    if (!this.map?.textureTiles) return;
+
+    // Load tiles from saved data
+    for (const tileData of this.map.textureTiles) {
+      const tile = document.createElement('canvas');
+      tile.width = this.textureTileSize;
+      tile.height = this.textureTileSize;
+      
+      const img = new Image();
+      img.onload = () => {
+        const ctx = tile.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const key = this.getTileKey(tileData.x, tileData.y);
+          this.textureTiles.set(key, tile);
+          this.scheduleRender();
+        }
+      };
+      img.src = tileData.data;
     }
   }
 
-  private async rebuildTextureCache(): Promise<void> {
-    if (!this.map) return;
+  private async saveDirtyTiles(): Promise<void> {
+    if (this.dirtyTiles.size === 0 || !this.map) return;
 
-    // Create cache canvas if it doesn't exist
-    if (!this.textureCacheCanvas) {
-      this.textureCacheCanvas = document.createElement('canvas');
-      this.textureCacheCtx = this.textureCacheCanvas.getContext('2d');
-    }
+    const tilesToSave: any[] = [];
 
-    if (!this.textureCacheCtx) return;
-
-    // Calculate bounds for all texture strokes to optimize cache size
-    const strokes = this.map.textureStrokes || [];
-    if (strokes.length === 0) {
-      // No strokes - use small canvas
-      this.textureCacheCanvas.width = 100;
-      this.textureCacheCanvas.height = 100;
-      return;
-    }
-
-    // Calculate bounding box of all strokes
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const stroke of strokes) {
-      for (const point of stroke.points) {
-        const radius = stroke.brushSize / 2;
-        minX = Math.min(minX, point.x - radius);
-        minY = Math.min(minY, point.y - radius);
-        maxX = Math.max(maxX, point.x + radius);
-        maxY = Math.max(maxY, point.y + radius);
+    for (const key of this.dirtyTiles) {
+      const [x, y] = key.split(',').map(Number);
+      const tile = this.textureTiles.get(key);
+      
+      if (tile) {
+        try {
+          const dataUrl = tile.toDataURL('image/png');
+          tilesToSave.push({ x, y, data: dataUrl });
+        } catch (e) {
+          console.error('Failed to save tile:', key, e);
+        }
       }
     }
 
-    // Add padding
-    const padding = 100;
-    minX -= padding;
-    minY -= padding;
-    maxX += padding;
-    maxY += padding;
-
-    const width = Math.max(100, Math.ceil(maxX - minX));
-    const height = Math.max(100, Math.ceil(maxY - minY));
-
-    // Resize cache canvas
-    this.textureCacheCanvas.width = width;
-    this.textureCacheCanvas.height = height;
-
-    const ctx = this.textureCacheCtx;
-    ctx.clearRect(0, 0, width, height);
-
-    // Translate to account for bounds offset
-    ctx.save();
-    ctx.translate(-minX, -minY);
-
-    // Render all saved texture strokes to cache
-    for (const textureStroke of strokes) {
-      await this.renderSingleTextureStroke(
-        ctx, 
-        textureStroke.points, 
-        textureStroke.textureId, 
-        textureStroke.brushSize,
-        textureStroke.textureScale ?? 0.1,
-        textureStroke.isEraser ?? false,
-        textureStroke.brushType ?? 'hard',
-        textureStroke.colorBlend ?? 0,
-        textureStroke.blendColor ?? '#ffffff',
-        textureStroke.hueShift ?? 0
-      );
+    // Update map with new tile data
+    const existingTiles = this.map.textureTiles || [];
+    const tileMap = new Map(existingTiles.map(t => [`${t.x},${t.y}`, t]));
+    
+    for (const tile of tilesToSave) {
+      tileMap.set(`${tile.x},${tile.y}`, tile);
     }
 
-    ctx.restore();
+    this.map.textureTiles = Array.from(tileMap.values());
+    this.dirtyTiles.clear();
 
-    // Store offset for rendering
-    (this.textureCacheCanvas as any).offsetX = minX;
-    (this.textureCacheCanvas as any).offsetY = minY;
+    // Trigger save through store
+    this.store.updateMapTiles(this.map.textureTiles);
   }
 
-  private async addStrokeToCache(stroke: TextureStroke): Promise<void> {
-    // Incremental cache update - just add the new stroke without rebuilding everything
-    if (!this.textureCacheCanvas || !this.textureCacheCtx) {
-      // No cache exists yet, create it
-      await this.rebuildTextureCache();
-      return;
-    }
-
-    const ctx = this.textureCacheCtx;
-    const offsetX = (this.textureCacheCanvas as any).offsetX || 0;
-    const offsetY = (this.textureCacheCanvas as any).offsetY || 0;
-
-    // Check if stroke fits in current cache bounds
-    let needsResize = false;
-    for (const point of stroke.points) {
-      const radius = stroke.brushSize / 2;
-      if (point.x - radius < offsetX || 
-          point.y - radius < offsetY ||
-          point.x + radius > offsetX + this.textureCacheCanvas.width ||
-          point.y + radius > offsetY + this.textureCacheCanvas.height) {
-        needsResize = true;
-        break;
-      }
-    }
-
-    if (needsResize) {
-      // Stroke exceeds cache bounds, need full rebuild
-      await this.rebuildTextureCache();
-      return;
-    }
-
-    // Stroke fits - render just this stroke to existing cache
-    ctx.save();
-    ctx.translate(-offsetX, -offsetY);
+  private async renderLiveTexturePreview(ctx: CanvasRenderingContext2D): Promise<void> {
+    if (!this.selectedTextureId || this.currentTexturePoints.length < 2) return;
 
     await this.renderSingleTextureStroke(
-      ctx,
-      stroke.points,
-      stroke.textureId,
-      stroke.brushSize,
-      stroke.textureScale ?? 0.1,
-      stroke.isEraser ?? false,
-      stroke.brushType ?? 'hard',
-      stroke.colorBlend ?? 0,
-      stroke.blendColor ?? '#ffffff',
-      stroke.hueShift ?? 0
+      ctx, 
+      this.currentTexturePoints, 
+      this.selectedTextureId, 
+      this.textureBrushSize,
+      this.textureScale,
+      false,
+      this.textureBrushType,
+      this.textureColorBlend,
+      this.textureBlendColor,
+      this.textureHue
     );
-
-    ctx.restore();
-    
-    // Update stroke count
-    this.lastTextureStrokeCount = (this.map?.textureStrokes || []).length;
-    
-    // Trigger a render to show the updated cache
-    this.scheduleRender();
   }
+
+  private async renderLiveEraserPreview(ctx: CanvasRenderingContext2D): Promise<void> {
+    if (this.currentTexturePoints.length < 2) return;
+
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+
+    for (const point of this.currentTexturePoints) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, this.textureBrushSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Connect points
+    if (this.currentTexturePoints.length > 1) {
+      for (let i = 0; i < this.currentTexturePoints.length - 1; i++) {
+        const p1 = this.currentTexturePoints[i];
+        const p2 = this.currentTexturePoints[i + 1];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        
+        ctx.save();
+        ctx.translate(p1.x, p1.y);
+        ctx.rotate(angle);
+        ctx.fillRect(0, -this.textureBrushSize / 2, distance, this.textureBrushSize);
+        ctx.restore();
+      }
+    }
+
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /**
+   * Draw texture between two points directly to tiles
+   * Implements soft brush/airbrush for better blending
+   */
+  private async drawTextureToTiles(prevPoint: Point, currentPoint: Point): Promise<void> {
+    const radius = this.textureBrushSize / 2;
+    
+    // Calculate which tiles are affected by this stroke segment
+    const minX = Math.min(prevPoint.x, currentPoint.x) - radius;
+    const maxX = Math.max(prevPoint.x, currentPoint.x) + radius;
+    const minY = Math.min(prevPoint.y, currentPoint.y) - radius;
+    const maxY = Math.max(prevPoint.y, currentPoint.y) + radius;
+    
+    const minTile = this.worldToTile(minX, minY);
+    const maxTile = this.worldToTile(maxX, maxY);
+    
+    // Process each affected tile
+    for (let tileY = minTile.tileY; tileY <= maxTile.tileY; tileY++) {
+      for (let tileX = minTile.tileX; tileX <= maxTile.tileX; tileX++) {
+        const tile = this.getOrCreateTile(tileX, tileY);
+        const ctx = tile.getContext('2d')!;
+        const tileKey = this.getTileKey(tileX, tileY);
+        
+        // Mark tile as dirty for later save
+        this.dirtyTiles.add(tileKey);
+        this.currentDrawingTiles.add(tileKey);
+        
+        // Calculate tile-local coordinates
+        const tileWorldX = tileX * this.textureTileSize;
+        const tileWorldY = tileY * this.textureTileSize;
+        
+        // Draw depending on mode
+        if (this.isErasingTexture) {
+          // Eraser mode
+          this.drawEraserToTile(ctx, prevPoint, currentPoint, tileWorldX, tileWorldY);
+        } else {
+          // Texture drawing mode
+          await this.drawTextureToTile(ctx, prevPoint, currentPoint, tileWorldX, tileWorldY);
+        }
+      }
+    }
+  }
+
+  /**
+   * Draw eraser stroke segment to a single tile
+   */
+  private drawEraserToTile(
+    ctx: CanvasRenderingContext2D,
+    prevPoint: Point,
+    currentPoint: Point,
+    tileWorldX: number,
+    tileWorldY: number
+  ): void {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    
+    // Convert to tile-local coordinates
+    const prevLocal = { x: prevPoint.x - tileWorldX, y: prevPoint.y - tileWorldY };
+    const currentLocal = { x: currentPoint.x - tileWorldX, y: currentPoint.y - tileWorldY };
+    
+    // Draw circle at current point
+    ctx.beginPath();
+    ctx.arc(currentLocal.x, currentLocal.y, this.textureBrushSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Connect previous point to current point
+    const dx = currentLocal.x - prevLocal.x;
+    const dy = currentLocal.y - prevLocal.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance > 0) {
+      const angle = Math.atan2(dy, dx);
+      ctx.save();
+      ctx.translate(prevLocal.x, prevLocal.y);
+      ctx.rotate(angle);
+      ctx.fillRect(0, -this.textureBrushSize / 2, distance, this.textureBrushSize);
+      ctx.restore();
+    }
+    
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /**
+   * Draw textured brush stroke segment to a single tile
+   * Supports soft brush with alpha gradient for better blending
+   */
+  private async drawTextureToTile(
+    ctx: CanvasRenderingContext2D,
+    prevPoint: Point,
+    currentPoint: Point,
+    tileWorldX: number,
+    tileWorldY: number
+  ): Promise<void> {
+    if (!this.selectedTextureId) return;
+    
+    const textureUrl = this.getTextureUrl(this.selectedTextureId);
+    if (!textureUrl) return;
+    
+    // Load texture image
+    const img = await this.loadImage(textureUrl);
+    const scaledSize = img.width * this.textureScale;
+    
+    // Apply hue shift and color blend
+    const processedTexture = this.processTexture(img, scaledSize);
+    
+    // Convert to tile-local coordinates
+    const prevLocal = { x: prevPoint.x - tileWorldX, y: prevPoint.y - tileWorldY };
+    const currentLocal = { x: currentPoint.x - tileWorldX, y: currentPoint.y - tileWorldY };
+    
+    // Interpolate points for smooth brush
+    const dx = currentLocal.x - prevLocal.x;
+    const dy = currentLocal.y - prevLocal.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const steps = Math.max(1, Math.ceil(distance / 5)); // Paint every 5 pixels
+    
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const x = prevLocal.x + dx * t;
+      const y = prevLocal.y + dy * t;
+      
+      if (this.textureBrushType === 'soft') {
+        // Soft brush with radial gradient for better blending
+        this.drawSoftBrush(ctx, processedTexture, x, y, scaledSize);
+      } else {
+        // Hard brush
+        this.drawHardBrush(ctx, processedTexture, x, y, scaledSize);
+      }
+    }
+  }
+
+  /**
+   * Draw soft brush with alpha gradient - "better airbrush for blending"
+   */
+  private drawSoftBrush(
+    ctx: CanvasRenderingContext2D,
+    texture: HTMLCanvasElement,
+    x: number,
+    y: number,
+    scaledSize: number
+  ): void {
+    const radius = this.textureBrushSize / 2;
+    
+    // Create circular clip with soft gradient
+    ctx.save();
+    
+    // Create radial gradient mask
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    gradient.addColorStop(0, 'rgba(0,0,0,1)');
+    gradient.addColorStop(0.7, 'rgba(0,0,0,0.8)');
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+    
+    // Use gradient as global alpha mask
+    ctx.globalCompositeOperation = 'source-over';
+    
+    // Draw texture within brush radius
+    const pattern = ctx.createPattern(texture, 'repeat')!;
+    ctx.fillStyle = pattern;
+    
+    // Clip to circular area
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.clip();
+    
+    // Apply gradient alpha
+    ctx.globalAlpha = 0.3; // Softer application for airbrush effect
+    const offset = Math.floor(x % scaledSize);
+    const offsetY = Math.floor(y % scaledSize);
+    ctx.translate(x - offset, y - offsetY);
+    ctx.fillRect(-radius, -radius, radius * 2 + scaledSize, radius * 2 + scaledSize);
+    
+    ctx.restore();
+  }
+
+  /**
+   * Draw hard brush with sharp edges
+   */
+  private drawHardBrush(
+    ctx: CanvasRenderingContext2D,
+    texture: HTMLCanvasElement,
+    x: number,
+    y: number,
+    scaledSize: number
+  ): void {
+    const radius = this.textureBrushSize / 2;
+    
+    ctx.save();
+    
+    // Circular clip
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.clip();
+    
+    // Draw texture pattern
+    const pattern = ctx.createPattern(texture, 'repeat')!;
+    ctx.fillStyle = pattern;
+    const offset = Math.floor(x % scaledSize);
+    const offsetY = Math.floor(y % scaledSize);
+    ctx.translate(x - offset, y - offsetY);
+    ctx.fillRect(-radius, -radius, radius * 2 + scaledSize, radius * 2 + scaledSize);
+    
+    ctx.restore();
+  }
+
+  /**
+   * Process texture: apply hue shift and color blend
+   */
+  private processTexture(img: HTMLImageElement, scaledSize: number): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = scaledSize;
+    canvas.height = scaledSize;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Draw scaled texture
+    ctx.drawImage(img, 0, 0, scaledSize, scaledSize);
+    
+    // Apply hue shift if needed
+    if (this.textureHue !== 0) {
+      const imageData = ctx.getImageData(0, 0, scaledSize, scaledSize);
+      const data = imageData.data;
+      
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        
+        // Convert to HSL
+        const max = Math.max(r, g, b) / 255;
+        const min = Math.min(r, g, b) / 255;
+        const l = (max + min) / 2;
+        
+        let h = 0;
+        let s = 0;
+        
+        if (max !== min) {
+          const d = max - min;
+          s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+          
+          if (max === r / 255) h = ((g / 255 - b / 255) / d + (g < b ? 6 : 0)) / 6;
+          else if (max === g / 255) h = ((b / 255 - r / 255) / d + 2) / 6;
+          else h = ((r / 255 - g / 255) / d + 4) / 6;
+        }
+        
+        // Apply hue shift
+        h = (h + this.textureHue / 360) % 1;
+        
+        // Convert back to RGB
+        const hue2rgb = (p: number, q: number, t: number) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1/6) return p + (q - p) * 6 * t;
+          if (t < 1/2) return q;
+          if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+          return p;
+        };
+        
+        let nr, ng, nb;
+        if (s === 0) {
+          nr = ng = nb = l;
+        } else {
+          const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+          const p = 2 * l - q;
+          nr = hue2rgb(p, q, h + 1/3);
+          ng = hue2rgb(p, q, h);
+          nb = hue2rgb(p, q, h - 1/3);
+        }
+        
+        data[i] = nr * 255;
+        data[i + 1] = ng * 255;
+        data[i + 2] = nb * 255;
+      }
+      
+      ctx.putImageData(imageData, 0, 0);
+    }
+    
+    // Apply color blend if needed
+    if (this.textureColorBlend > 0) {
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalAlpha = this.textureColorBlend;
+      ctx.fillStyle = this.textureBlendColor;
+      ctx.fillRect(0, 0, scaledSize, scaledSize);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
+    
+    return canvas;
+  }
+
+  // Note: scheduleCacheRebuild(), rebuildTextureCache(), and addStrokeToCache() methods
+  // were removed in favor of the tile-based texture rendering system.
 
   private async renderSingleTextureStroke(
     ctx: CanvasRenderingContext2D, 
@@ -1335,6 +1604,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
     
     return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+  }
+
+  /**
+   * Get texture URL by ID
+   */
+  private getTextureUrl(textureId: string): string | null {
+    return this.textureService.getTextureUrl(textureId);
+  }
+
+  /**
+   * Load image from URL and return promise
+   */
+  private async loadImage(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+      img.src = url;
+    });
   }
 
   private async renderTexturePreview(): Promise<void> {
@@ -1962,6 +2251,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
     
     this.currentTexturePoints = [world];
+    this.currentDrawingTiles.clear();
+    
+    // Start drawing immediately on mouse down
+    this.drawTextureToTiles(world, world);
   }
 
   private handleTextureMove(event: MouseEvent, world: Point): void {
@@ -1977,7 +2270,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     
     if (!this.isDrawingTexture && !this.isErasingTexture) return;
 
+    const prevPoint = this.currentTexturePoints[this.currentTexturePoints.length - 1];
     this.currentTexturePoints.push(world);
+    
+    // Draw to tiles immediately
+    this.drawTextureToTiles(prevPoint, world);
     
     // Throttle render calls during drawing - only render every 16ms (60fps)
     const now = performance.now();
@@ -1987,7 +2284,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
-  private handleTextureUp(event: MouseEvent, world: Point): void {
+  private async handleTextureUp(event: MouseEvent, world: Point): Promise<void> {
     // End brush size adjustment
     if (this.isAdjustingTextureBrushSize) {
       this.isAdjustingTextureBrushSize = false;
@@ -1998,32 +2295,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     
     if (!this.isDrawingTexture && !this.isErasingTexture) return;
 
-    const wasErasing = this.isErasingTexture;
     this.isDrawingTexture = false;
     this.isErasingTexture = false;
     
-    // Create texture stroke
-    if (this.currentTexturePoints.length > 1) {
-      const textureStroke: TextureStroke = {
-        id: generateId(),
-        points: [...this.currentTexturePoints],
-        textureId: wasErasing ? '' : this.selectedTextureId!,
-        brushSize: this.textureBrushSize,
-        textureScale: this.textureScale,
-        isEraser: wasErasing,
-        brushType: this.textureBrushType,
-        colorBlend: this.textureColorBlend,
-        blendColor: this.textureBlendColor,
-        hueShift: this.textureHue,
-      };
-      
-      this.store.addTextureStroke(textureStroke);
-      
-      // Incremental cache update - just add this stroke to existing cache
-      this.addStrokeToCache(textureStroke);
+    // Save modified tiles to map
+    if (this.dirtyTiles.size > 0) {
+      await this.saveDirtyTiles();
     }
 
     this.currentTexturePoints = [];
+    this.currentDrawingTiles.clear();
     this.lastRenderTime = 0; // Reset throttle
     this.scheduleRender();
   }

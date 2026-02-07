@@ -24,6 +24,7 @@ import {
   MeasurementLine,
   HexCoord,
   TextureStroke,
+  TextureTile,
   generateId,
   createEmptyLobby,
   createEmptyMap,
@@ -394,6 +395,13 @@ export class LobbyStoreService {
    */
   clearAllTextures(): void {
     this.applyPatch({ path: 'textureStrokes', value: [] });
+  }
+
+  /**
+   * Update texture tiles (tile-based texture system).
+   */
+  updateMapTiles(tiles: TextureTile[]): void {
+    this.applyPatch({ path: 'textureTiles', value: tiles });
   }
 
   /**

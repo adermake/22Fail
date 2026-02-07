@@ -44,7 +44,7 @@ export interface Stroke {
   isEraser: boolean;
 }
 
-/** A texture stamp/brush stroke */
+/** A texture stamp/brush stroke (legacy - kept for backward compatibility) */
 export interface TextureStroke {
   id: string;
   points: Point[];
@@ -57,6 +57,16 @@ export interface TextureStroke {
   blendColor?: string; // Color to blend with texture
   hueShift?: number; // -180 to 180 degrees hue rotation
 }
+
+/** Texture tile data for tile-based rendering */
+export interface TextureTile {
+  x: number; // Tile grid x coordinate
+  y: number; // Tile grid y coordinate
+  data: string; // Base64 encoded PNG image data
+}
+
+// Texture tile configuration
+export const TEXTURE_TILE_SIZE = 512; // pixels per tile
 
 // ============================================
 // Tokens
@@ -142,7 +152,8 @@ export interface LobbyMap {
   name: string;
   tokens: Token[];
   strokes: Stroke[];
-  textureStrokes: TextureStroke[];
+  textureStrokes: TextureStroke[]; // Legacy - for backward compatibility
+  textureTiles?: TextureTile[]; // New tile-based texture storage
   walls: WallHex[];
   measurementLines: MeasurementLine[];
   images: MapImage[];
