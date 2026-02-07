@@ -95,6 +95,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private textureService = inject(TextureService);
   private cdr = inject(ChangeDetectorRef);
 
+  // Document-level listeners for continuous tracking outside container
+  private documentMouseMoveListener: ((e: MouseEvent) => void) | null = null;
+  private documentMouseUpListener: ((e: MouseEvent) => void) | null = null;
+
+  // Texture rendering cache for performance
+  private textureCacheCanvas: HTMLCanvasElement | null = null;
+  private textureCacheCtx: CanvasRenderingContext2D | null = null;
+  private textureCacheDirty = true;
+  private lastTextureStrokeCount = 0;
+
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
   private imageCtx: CanvasRenderingContext2D | null = null;
@@ -229,6 +239,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (changes['imageLayerVisible']) {
       this.updateLayerVisibility();
     }
+    // Invalidate texture cache when map changes
+    if (changes['map']) {
+      this.textureCacheDirty = true;
+    }
     // Update texture preview when texture settings change
     if (changes['selectedTextureId'] || changes['textureColorBlend'] || changes['textureHue'] || changes['textureBlendColor']) {
       this.renderTexturePreview();
@@ -239,6 +253,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
+    this.removeDocumentListeners();
   }
 
   // ============================================
@@ -751,27 +766,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Clear texture canvas
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
+    // Check if we need to rebuild the cache
+    const currentStrokeCount = (this.map.textureStrokes || []).length;
+    if (this.textureCacheDirty || currentStrokeCount !== this.lastTextureStrokeCount) {
+      await this.rebuildTextureCache();
+      this.textureCacheDirty = false;
+      this.lastTextureStrokeCount = currentStrokeCount;
+    }
+
     ctx.save();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
 
-    // Render saved texture strokes
-    for (const textureStroke of this.map.textureStrokes || []) {
-      await this.renderSingleTextureStroke(
-        ctx, 
-        textureStroke.points, 
-        textureStroke.textureId, 
-        textureStroke.brushSize,
-        textureStroke.textureScale ?? 0.1,
-        textureStroke.isEraser ?? false,
-        textureStroke.brushType ?? 'hard',
-        textureStroke.colorBlend ?? 0,
-        textureStroke.blendColor ?? '#ffffff',
-        textureStroke.hueShift ?? 0
-      );
+    // Draw the cached textures
+    if (this.textureCacheCanvas) {
+      const offsetX = (this.textureCacheCanvas as any).offsetX || 0;
+      const offsetY = (this.textureCacheCanvas as any).offsetY || 0;
+      ctx.drawImage(this.textureCacheCanvas, offsetX, offsetY);
     }
 
-    // Render current in-progress texture stroke for live preview
+    // Render current in-progress texture stroke for live preview (not cached)
     if (this.isDrawingTexture && this.currentTexturePoints.length > 1 && this.selectedTextureId) {
       await this.renderSingleTextureStroke(
         ctx, 
@@ -787,7 +801,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       );
     }
 
-    // Render current in-progress texture eraser for live preview
+    // Render current in-progress texture eraser for live preview (not cached)
     if (this.isErasingTexture && this.currentTexturePoints.length > 1) {
       await this.renderSingleTextureStroke(
         ctx, 
@@ -804,6 +818,82 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     ctx.restore();
+  }
+
+  private async rebuildTextureCache(): Promise<void> {
+    if (!this.map) return;
+
+    // Create cache canvas if it doesn't exist
+    if (!this.textureCacheCanvas) {
+      this.textureCacheCanvas = document.createElement('canvas');
+      this.textureCacheCtx = this.textureCacheCanvas.getContext('2d');
+    }
+
+    if (!this.textureCacheCtx) return;
+
+    // Calculate bounds for all texture strokes to optimize cache size
+    const strokes = this.map.textureStrokes || [];
+    if (strokes.length === 0) {
+      // No strokes - use small canvas
+      this.textureCacheCanvas.width = 100;
+      this.textureCacheCanvas.height = 100;
+      return;
+    }
+
+    // Calculate bounding box of all strokes
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const stroke of strokes) {
+      for (const point of stroke.points) {
+        const radius = stroke.brushSize / 2;
+        minX = Math.min(minX, point.x - radius);
+        minY = Math.min(minY, point.y - radius);
+        maxX = Math.max(maxX, point.x + radius);
+        maxY = Math.max(maxY, point.y + radius);
+      }
+    }
+
+    // Add padding
+    const padding = 100;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+
+    const width = Math.max(100, Math.ceil(maxX - minX));
+    const height = Math.max(100, Math.ceil(maxY - minY));
+
+    // Resize cache canvas
+    this.textureCacheCanvas.width = width;
+    this.textureCacheCanvas.height = height;
+
+    const ctx = this.textureCacheCtx;
+    ctx.clearRect(0, 0, width, height);
+
+    // Translate to account for bounds offset
+    ctx.save();
+    ctx.translate(-minX, -minY);
+
+    // Render all saved texture strokes to cache
+    for (const textureStroke of strokes) {
+      await this.renderSingleTextureStroke(
+        ctx, 
+        textureStroke.points, 
+        textureStroke.textureId, 
+        textureStroke.brushSize,
+        textureStroke.textureScale ?? 0.1,
+        textureStroke.isEraser ?? false,
+        textureStroke.brushType ?? 'hard',
+        textureStroke.colorBlend ?? 0,
+        textureStroke.blendColor ?? '#ffffff',
+        textureStroke.hueShift ?? 0
+      );
+    }
+
+    ctx.restore();
+
+    // Store offset for rendering
+    (this.textureCacheCanvas as any).offsetX = minX;
+    (this.textureCacheCanvas as any).offsetY = minY;
   }
 
   private async renderSingleTextureStroke(
@@ -1295,6 +1385,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       event.preventDefault();
       this.isPanning = true;
       this.lastMousePos = { x: event.clientX, y: event.clientY };
+      this.addDocumentListeners();
       return;
     }
 
@@ -1304,6 +1395,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.contextMenuPosition.set({ x: 0, y: 0 });
       this.contextMenuImageId.set(null);
       this.contextMenuTokenId.set(null);
+      this.addDocumentListeners(); // Track all mouse movements for transforms
     }
 
     const rect = this.container.nativeElement.getBoundingClientRect();
@@ -1503,6 +1595,53 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   // ============================================
+  // Document-level event tracking (for continuous tracking outside container)
+  // ============================================
+
+  private addDocumentListeners(): void {
+    if (this.documentMouseMoveListener) return; // Already added
+
+    this.documentMouseMoveListener = (e: MouseEvent) => {
+      this.onDocumentMouseMove(e);
+    };
+    this.documentMouseUpListener = (e: MouseEvent) => {
+      this.onDocumentMouseUp(e);
+    };
+
+    document.addEventListener('mousemove', this.documentMouseMoveListener);
+    document.addEventListener('mouseup', this.documentMouseUpListener);
+  }
+
+  private removeDocumentListeners(): void {
+    if (this.documentMouseMoveListener) {
+      document.removeEventListener('mousemove', this.documentMouseMoveListener);
+      this.documentMouseMoveListener = null;
+    }
+    if (this.documentMouseUpListener) {
+      document.removeEventListener('mouseup', this.documentMouseUpListener);
+      this.documentMouseUpListener = null;
+    }
+  }
+
+  private onDocumentMouseMove(event: MouseEvent): void {
+    // Continue tracking for active operations even when cursor leaves container
+    const rect = this.container.nativeElement.getBoundingClientRect();
+    const screenX = event.clientX - rect.left;
+    const screenY = event.clientY - rect.top;
+    
+    // Let the normal onMouseMove handler process it
+    this.onMouseMove(event);
+  }
+
+  private onDocumentMouseUp(event: MouseEvent): void {
+    // Clean up document listeners when mouse released
+    this.removeDocumentListeners();
+    
+    // Let the normal onMouseUp handler process it
+    this.onMouseUp(event);
+  }
+
+  // ============================================
   // Tool-specific handlers
   // ============================================
 
@@ -1681,6 +1820,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       };
       
       this.store.addTextureStroke(textureStroke);
+      this.textureCacheDirty = true; // Invalidate cache for next render
     }
 
     this.currentTexturePoints = [];
