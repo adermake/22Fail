@@ -22,16 +22,20 @@
   z-index: 1;
 }
 
-.grid-layer {
+.texture-layer {
   z-index: 2;
 }
 
-.draw-layer {
+.grid-layer {
   z-index: 3;
 }
 
 .overlay-layer {
   z-index: 4;
+}
+
+.draw-layer {
+  z-index: 5;
 }
 
 /* Token layer */

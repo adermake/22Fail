@@ -227,6 +227,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.centerView();
     this.scheduleRender();
     this.setupResizeObserver();
+    
+    // Initial texture preview render
+    setTimeout(() => {
+      this.renderTexturePreview();
+    }, 100); // Small delay to ensure canvas is ready
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -470,11 +475,37 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.strokeStyle = 'rgba(30, 41, 59, 0.6)';
       ctx.lineWidth = Math.max(1, 1.5 / this.scale); // More visible wall lines
     } else {
-      // More prominent grid outline - better visibility at all zoom levels
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)'; // Increased opacity from 0.3
+      // Smart grid color based on background luminance
+      const gridColor = this.getContrastingGridColor();
+      ctx.strokeStyle = gridColor;
       ctx.lineWidth = Math.max(0.8, 1.5 / this.scale); // Thicker lines
     }
     ctx.stroke();
+  }
+
+  private getContrastingGridColor(): string {
+    const bgColor = this.map?.backgroundColor || '#e5e7eb';
+    
+    // Parse hex color
+    const hex = bgColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    
+    // Calculate luminance (0-255)
+    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+    
+    // If background is dark (luminance < 128), use lighter grid
+    // If background is light (luminance >= 128), use darker grid
+    if (luminance < 128) {
+      // Dark background: use light grid with good contrast
+      const lightness = Math.min(255, luminance + 120);
+      return `rgba(${lightness}, ${lightness}, ${lightness}, 0.4)`;
+    } else {
+      // Light background: use dark grid with good contrast
+      const darkness = Math.max(0, luminance - 120);
+      return `rgba(${darkness}, ${darkness}, ${darkness}, 0.4)`;
+    }
   }
 
   private renderImages(): void {
@@ -1264,7 +1295,22 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const startScreen = this.worldToScreen(start.x, start.y);
     const endScreen = this.worldToScreen(end.x, end.y);
 
-    // Line
+    // Draw line with glow effect
+    ctx.save();
+    
+    // Glow layer (draw first, underneath)
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#fbbf24';
+    ctx.beginPath();
+    ctx.moveTo(startScreen.x, startScreen.y);
+    ctx.lineTo(endScreen.x, endScreen.y);
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 5;
+    ctx.setLineDash([10, 5]);
+    ctx.stroke();
+    
+    // Solid line (draw second, on top)
+    ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.moveTo(startScreen.x, startScreen.y);
     ctx.lineTo(endScreen.x, endScreen.y);
@@ -1273,8 +1319,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.setLineDash([10, 5]);
     ctx.stroke();
     ctx.setLineDash([]);
+    
+    ctx.restore();
 
-    // Endpoints
+    // Endpoints with glow
+    ctx.save();
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = '#fbbf24';
     ctx.fillStyle = '#fbbf24';
     ctx.beginPath();
     ctx.arc(startScreen.x, startScreen.y, 6, 0, Math.PI * 2);
@@ -1282,6 +1333,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.beginPath();
     ctx.arc(endScreen.x, endScreen.y, 6, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
 
     // Distance label
     const midX = (startScreen.x + endScreen.x) / 2;
