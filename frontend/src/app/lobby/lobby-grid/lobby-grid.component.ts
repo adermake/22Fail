@@ -65,6 +65,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() penBrushSize = 4;
   @Input() eraserBrushSize = 12;
   @Input() textureBrushSize = 30;
+  @Input() textureBrushStrength = 1.0; // 0-1
   @Input() textureScale = 1.0; // Tiling scale for textures
   @Input() textureBrushType: 'hard' | 'soft' = 'hard';
   @Input() textureColorBlend = 0; // 0-100: 0 = pure texture, 100 = pure color
@@ -102,6 +103,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // Tile-based texture rendering system
   private textureTiles = new Map<string, HTMLCanvasElement>(); // Key: "x,y"
+  private tileDataVersions = new Map<string, string>(); // Track tile data to prevent unnecessary reloads
   private textureTileSize = 512; // pixels per tile
   private dirtyTiles = new Set<string>(); // Tiles that need to be persisted
   private previewUpdateScheduled = false;
@@ -1173,6 +1175,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   /**
    * Draw soft brush with alpha gradient - "better airbrush for blending"
+   * 100% opacity in center, fading to 0% at edges
    */
   private drawSoftBrush(
     ctx: CanvasRenderingContext2D,
@@ -1183,35 +1186,33 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   ): void {
     const radius = this.textureBrushSize / 2;
     
-    // Create circular clip with soft gradient
-    ctx.save();
+    // Create temporary canvas for gradient mask
+    const tempCanvas = document.createElement('canvas');
+    const diameter = Math.ceil(radius * 2);
+    tempCanvas.width = diameter;
+    tempCanvas.height = diameter;
+    const tempCtx = tempCanvas.getContext('2d')!;
     
-    // Create radial gradient mask
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, 'rgba(0,0,0,1)');
-    gradient.addColorStop(0.7, 'rgba(0,0,0,0.8)');
-    gradient.addColorStop(1, 'rgba(0,0,0,0)');
-    
-    // Use gradient as global alpha mask
-    ctx.globalCompositeOperation = 'source-over';
-    
-    // Draw texture within brush radius
-    const pattern = ctx.createPattern(texture, 'repeat')!;
-    ctx.fillStyle = pattern;
-    
-    // Clip to circular area
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.clip();
-    
-    // Apply gradient alpha
-    ctx.globalAlpha = 0.3; // Softer application for airbrush effect
+    // Draw texture pattern
+    const pattern = tempCtx.createPattern(texture, 'repeat')!;
+    tempCtx.fillStyle = pattern;
     const offset = Math.floor(x % scaledSize);
     const offsetY = Math.floor(y % scaledSize);
-    ctx.translate(x - offset, y - offsetY);
-    ctx.fillRect(-radius, -radius, radius * 2 + scaledSize, radius * 2 + scaledSize);
+    tempCtx.translate(-offset, -offsetY);
+    tempCtx.fillRect(offset, offsetY, diameter, diameter);
+    tempCtx.setTransform(1, 0, 0, 1, 0, 0);
     
-    ctx.restore();
+    // Apply radial gradient mask - 100% center to 0% edge
+    tempCtx.globalCompositeOperation = 'destination-in';
+    const gradient = tempCtx.createRadialGradient(radius, radius, 0, radius, radius, radius);
+    gradient.addColorStop(0, `rgba(0,0,0,${this.textureBrushStrength})`); // 100% in center (scaled by strength)
+    gradient.addColorStop(0.7, `rgba(0,0,0,${this.textureBrushStrength * 0.5})`); // 50% at 70%
+    gradient.addColorStop(1, 'rgba(0,0,0,0)'); // 0% at edge
+    tempCtx.fillStyle = gradient;
+    tempCtx.fillRect(0, 0, diameter, diameter);
+    
+    // Draw masked texture to main canvas
+    ctx.drawImage(tempCanvas, x - radius, y - radius);
   }
 
   /**
@@ -1232,6 +1233,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.clip();
+    
+    // Apply brush strength
+    ctx.globalAlpha = this.textureBrushStrength;
     
     // Draw texture pattern
     const pattern = ctx.createPattern(texture, 'repeat')!;

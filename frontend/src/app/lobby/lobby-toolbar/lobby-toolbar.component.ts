@@ -24,6 +24,7 @@ export class LobbyToolbarComponent {
   @Input() penBrushSize = 4;
   @Input() eraserBrushSize = 12;
   @Input() textureBrushSize = 30;
+  @Input() textureBrushStrength = 1.0; // 0-1
   @Input() textureScale = 0.1;
   @Input() textureBrushType: 'hard' | 'soft' = 'hard';
   @Input() textureColorBlend = 0;
@@ -41,6 +42,7 @@ export class LobbyToolbarComponent {
   @Output() penBrushSizeChange = new EventEmitter<number>();
   @Output() eraserBrushSizeChange = new EventEmitter<number>();
   @Output() textureBrushSizeChange = new EventEmitter<number>();
+  @Output() textureBrushStrengthChange = new EventEmitter<number>();
   @Output() textureScaleChange = new EventEmitter<number>();
   @Output() textureBrushTypeChange = new EventEmitter<'hard' | 'soft'>();
   @Output() textureColorBlendChange = new EventEmitter<number>();
@@ -138,6 +140,11 @@ export class LobbyToolbarComponent {
   onTextureHueInput(event: Event): void {
     const target = event.target as HTMLInputElement;
     this.textureHueChange.emit(Number(target.value));
+  }
+
+  onTextureBrushStrengthInput(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.textureBrushStrengthChange.emit(Number(target.value) / 100);
   }
 
   clampSize(size: number): number {

@@ -196,6 +196,20 @@
         />
         <span class="slider-value">{{ textureHue }}°</span>
       </div>
+
+      <div class="slider-control">
+        <span class="option-label">Strength:</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          [value]="textureBrushStrength * 100"
+          (input)="onTextureBrushStrengthInput($event)"
+          class="strength-slider"
+          title="Brush strength (0% = transparent, 100% = opaque)"
+        />
+        <span class="slider-value">{{ (textureBrushStrength * 100).toFixed(0) }}%</span>
+      </div>
     </div>
 
     <div class="toolbar-divider"></div>

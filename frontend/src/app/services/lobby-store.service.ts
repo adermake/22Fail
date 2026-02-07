@@ -391,10 +391,11 @@ export class LobbyStoreService {
   }
 
   /**
-   * Clear all texture strokes.
+   * Clear all texture strokes and tiles.
    */
   clearAllTextures(): void {
     this.applyPatch({ path: 'textureStrokes', value: [] });
+    this.applyPatch({ path: 'textureTiles', value: [] });
   }
 
   /**

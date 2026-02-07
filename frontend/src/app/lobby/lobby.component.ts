@@ -74,6 +74,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   penBrushSize = signal(4);
   eraserBrushSize = signal(12);
   textureBrushSize = signal(30);
+  textureBrushStrength = signal(1.0); // 0-1
   textureScale = signal(0.1); // Default 10x smaller tiles
   textureBrushType = signal<'hard' | 'soft'>('hard');
   textureColorBlend = signal(0); // 0-100%
@@ -361,6 +362,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   onTextureBrushSizeChange(size: number): void {
     this.textureBrushSize.set(size);
+  }
+
+  onTextureBrushStrengthChange(strength: number): void {
+    this.textureBrushStrength.set(strength);
   }
 
   onTextureScaleChange(scale: number): void {
