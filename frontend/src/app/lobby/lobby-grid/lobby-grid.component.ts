@@ -130,6 +130,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   dragPath = signal<HexCoord[]>([]);
   dragWaypoints = signal<HexCoord[]>([]); // Waypoints for enforced mode
   dragPathExceedsSpeed = signal<boolean>(false); // Is the path too long?
+  dragPathIsBlocked = signal<boolean>(false); // Is the destination blocked by walls?
   private pathfindingCache = new Map<string, HexCoord[]>(); // Cache for pathfinding results
 
   // Image transform state
@@ -138,8 +139,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private transformHandle: 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null = null;
   private transformAnchor: Point | null = null;
   private initialImageTransform: Partial<MapImage> | null = null;
+  private previewImageTransform = signal<{ id: string; transform: Partial<MapImage> } | null>(null); // Preview during transform
   private draggingImageId: string | null = null; // For image dragging
   private imageDragStart: Point | null = null;
+  private previewImageDrag = signal<{ id: string; position: Point } | null>(null); // Preview during drag
 
   // Image selection
   selectedImages = signal<string[]>([]);
@@ -432,6 +435,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       return; // Silent skip
     }
     
+    // Apply preview transformations if this image is being transformed or dragged
+    let effectiveImgData = imgData;
+    const previewTransform = this.previewImageTransform();
+    const previewDrag = this.previewImageDrag();
+    
+    if (previewTransform && previewTransform.id === imgData.id) {
+      effectiveImgData = { ...imgData, ...previewTransform.transform };
+    } else if (previewDrag && previewDrag.id === imgData.id) {
+      effectiveImgData = { ...imgData, x: previewDrag.position.x, y: previewDrag.position.y };
+    }
+    
     const imageUrl = `/api/images/${imgData.imageId}`;
     let image = this.imageCache.get(imageUrl);
 
@@ -462,18 +476,18 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     ctx.save();
-    ctx.translate(imgData.x, imgData.y);
-    ctx.rotate((imgData.rotation * Math.PI) / 180);
+    ctx.translate(effectiveImgData.x, effectiveImgData.y);
+    ctx.rotate((effectiveImgData.rotation * Math.PI) / 180);
 
     // Draw image centered
-    ctx.drawImage(image, -imgData.width / 2, -imgData.height / 2, imgData.width, imgData.height);
+    ctx.drawImage(image, -effectiveImgData.width / 2, -effectiveImgData.height / 2, effectiveImgData.width, effectiveImgData.height);
 
     ctx.restore();
 
     // Draw selection handles (for single selected or multiple selected images)
     const selectedIds = this.selectedImages();
     if (this.selectedImageId === imgData.id || selectedIds.includes(imgData.id)) {
-      this.renderImageHandles(ctx, imgData);
+      this.renderImageHandles(ctx, effectiveImgData);
     }
   }
 
@@ -641,8 +655,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const path = this.dragPath();
     if (path.length < 2) return;
 
-    // Red if exceeds speed, green otherwise
-    ctx.strokeStyle = this.dragPathExceedsSpeed() ? '#ef4444' : '#22c55e';
+    // Red if exceeds speed OR blocked by walls, green otherwise
+    ctx.strokeStyle = (this.dragPathExceedsSpeed() || this.dragPathIsBlocked()) ? '#ef4444' : '#22c55e';
     ctx.lineWidth = 3;
     ctx.setLineDash([5, 5]);
 
@@ -1030,7 +1044,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Shift+drag = adjust brush size
     if (this.isAdjustingBrushSize && this.brushSizeAdjustStart) {
       const dx = event.clientX - this.brushSizeAdjustStart.x;
-      const newSize = Math.max(1, Math.min(100, this.brushSizeAdjustStart.initialSize + dx * 0.3));
+      const newSize = Math.max(1, Math.min(300, this.brushSizeAdjustStart.initialSize + dx * 0.3));
       
       if (this.currentTool === 'erase') {
         this.eraserBrushSize = Math.round(newSize);
@@ -1439,7 +1453,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
     
-    // No path found - return straight line to target
+    // No path found - check if destination is blocked
+    const endKey = getKey(end);
+    if (wallSet.has(endKey)) {
+      // Destination itself is a wall - return empty to indicate blocked
+      const blocked: HexCoord[] = [];
+      this.pathfindingCache.set(cacheKey, blocked);
+      return blocked;
+    }
+    
+    // Return straight line but caller should check if this passes through walls
     const fallback = [start, end];
     this.pathfindingCache.set(cacheKey, fallback);
     return fallback;
@@ -1451,6 +1474,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.dragHoverHex.set(hex);
     this.dragPath.set([]); // No path visualization for free movement
     this.dragWaypoints.set([]);
+    this.dragPathExceedsSpeed.set(false);
+    this.dragPathIsBlocked.set(false);
     this.pathfindingCache.clear(); // Clear pathfinding cache for new drag
   }
 
@@ -1484,6 +1509,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         const finalSegment = this.findPath(from, hex);
         fullPath.push(...finalSegment.slice(1));
         
+        // Check if path is blocked
+        const isBlocked = finalSegment.length === 0 || waypoints.some(wp => {
+          const segment = this.findPath(from, wp);
+          return segment.length === 0;
+        });
+        this.dragPathIsBlocked.set(isBlocked);
+        
         const maxDistance = this.draggingToken?.movementSpeed || 6;
         const pathLength = fullPath.length - 1; // Number of steps
         this.dragPathExceedsSpeed.set(pathLength > maxDistance);
@@ -1503,8 +1535,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     const startHex = this.dragStartHex();
     
-    // In enforced mode, if path exceeds speed, snap back to start
-    if (this.dragMode === 'enforced' && this.dragPathExceedsSpeed()) {
+    // In enforced mode, if path exceeds speed OR is blocked, snap back to start
+    if (this.dragMode === 'enforced' && (this.dragPathExceedsSpeed() || this.dragPathIsBlocked())) {
       // Don't move - just cancel
       this.draggingToken = null;
       this.dragStartHex.set(null);
@@ -1512,6 +1544,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.dragPath.set([]);
       this.dragWaypoints.set([]);
       this.dragPathExceedsSpeed.set(false);
+      this.dragPathIsBlocked.set(false);
       this.dragGhostPosition.set(null);
       this.dragCurrentPosition.set(null);
       this.scheduleRender();
@@ -1533,6 +1566,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.dragPath.set([]);
     this.dragWaypoints.set([]);
     this.dragPathExceedsSpeed.set(false);
+    this.dragPathIsBlocked.set(false);
     this.dragGhostPosition.set(null);
     this.dragCurrentPosition.set(null);
     this.scheduleRender();
@@ -1560,14 +1594,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       y: this.initialImageTransform.y! + dy,
     };
 
-    this.imageTransform.emit({ id: this.draggingImageId, transform });
+    // Store preview locally instead of emitting - reduces backend round-trips and flickering
+    this.previewImageDrag.set({ id: this.draggingImageId, position: { x: transform.x!, y: transform.y! } });
     this.scheduleRender();
   }
 
   private finishImageDrag(): void {
+    // Emit the final transform to save to backend
+    const preview = this.previewImageDrag();
+    if (preview && this.initialImageTransform) {
+      const transform = {
+        x: preview.position.x,
+        y: preview.position.y,
+      };
+      this.imageTransform.emit({ id: preview.id, transform });
+    }
+    
     this.draggingImageId = null;
     this.imageDragStart = null;
     this.initialImageTransform = null;
+    this.previewImageDrag.set(null);
   }
 
   private startImageTransform(img: MapImage, handle: string, point: Point): void {
@@ -1622,15 +1668,23 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         break;
     }
 
-    this.imageTransform.emit({ id: this.transformingImageId, transform });
+    // Store preview locally instead of emitting - reduces backend round-trips and flickering
+    this.previewImageTransform.set({ id: this.transformingImageId, transform });
     this.scheduleRender();
   }
 
   private finishImageTransform(): void {
+    // Emit the final transform to save to backend
+    const preview = this.previewImageTransform();
+    if (preview) {
+      this.imageTransform.emit(preview);
+    }
+    
     this.transformingImageId = null;
     this.transformHandle = null;
     this.transformAnchor = null;
     this.initialImageTransform = null;
+    this.previewImageTransform.set(null);
   }
 
   private lastWallPaintHex: string | null = null;
@@ -1785,8 +1839,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
           };
           img.src = imageUrl;
           
-          // Auto-select image tool
-          this.toolAutoSelect.emit();
+          // Auto-select cursor tool after dropping image
+          this.toolAutoSelect.emit('cursor');
           return;
         }
       } catch (e) {
@@ -1881,16 +1935,20 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   onMoveImageToFront(): void {
     const id = this.contextMenuImageId();
+    console.log('[CONTEXT_MENU] Move to front:', id);
     if (id) {
       this.store.moveImageToFront(id);
+      console.log('[CONTEXT_MENU] Called moveImageToFront on store');
     }
     this.closeContextMenu();
   }
 
   onMoveImageToBack(): void {
     const id = this.contextMenuImageId();
+    console.log('[CONTEXT_MENU] Move to back:', id);
     if (id) {
       this.store.moveImageToBack(id);
+      console.log('[CONTEXT_MENU] Called moveImageToBack on store');
     }
     this.closeContextMenu();
   }

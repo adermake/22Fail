@@ -47,8 +47,6 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
           </div>
         }
       </div>
-      
-      <div class="token-name">{{ token.name }}</div>
     </div>
   `,
   styles: [`

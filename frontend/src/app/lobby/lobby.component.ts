@@ -178,6 +178,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
         
         // Initial load of battle tracker
         this.battleEngine.loadFromWorldStore();
+        
+        // Force change detection after all initial data is loaded
+        // Using setTimeout to ensure data propagates through all child components
+        setTimeout(() => {
+          this.cdr.detectChanges();
+        }, 0);
       })
     );
 
@@ -245,7 +251,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
       speed: 10 // Default, will be overridden by battle participants data
     })));
     
-    this.cdr.markForCheck();
+    // Force change detection after character library loads
+    setTimeout(() => {
+      this.cdr.detectChanges();
+    }, 0);
   }
 
   ngOnDestroy(): void {
