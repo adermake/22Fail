@@ -75,6 +75,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
   eraserBrushSize = signal(12);
   textureBrushSize = signal(30);
   textureScale = signal(0.1); // Default 10x smaller tiles
+  textureBrushType = signal<'hard' | 'soft'>('hard');
+  textureColorBlend = signal(0); // 0-100%
+  textureBlendColor = signal('#ffffff');
+  textureHue = signal(0); // -180 to 180 degrees
   isEraserMode = signal(false); // E key toggles this
   drawWithWalls = signal(false);
   dragMode = signal<DragMode>('free');
@@ -359,6 +363,22 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   onTextureScaleChange(scale: number): void {
     this.textureScale.set(scale);
+  }
+
+  onTextureBrushTypeChange(type: 'hard' | 'soft'): void {
+    this.textureBrushType.set(type);
+  }
+
+  onTextureColorBlendChange(blend: number): void {
+    this.textureColorBlend.set(blend);
+  }
+
+  onTextureBlendColorChange(color: string): void {
+    this.textureBlendColor.set(color);
+  }
+
+  onTextureHueChange(hue: number): void {
+    this.textureHue.set(hue);
   }
 
   onClearAllTextures(): void {

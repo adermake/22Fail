@@ -63,6 +63,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() eraserBrushSize = 12;
   @Input() textureBrushSize = 30;
   @Input() textureScale = 1.0; // Tiling scale for textures
+  @Input() textureBrushType: 'hard' | 'soft' = 'hard';
+  @Input() textureColorBlend = 0; // 0-100: 0 = pure texture, 100 = pure color
+  @Input() textureHue = 0; // -180 to 180 degrees hue shift
+  @Input() textureBlendColor = '#ffffff'; // Color to blend with texture
   @Input() drawWithWalls = false;
   @Input() dragMode: DragMode = 'free';
   @Input() drawLayerVisible = true;
@@ -114,6 +118,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private isDrawingTexture = false; // For texture brush
   private isErasingTexture = false; // For texture eraser
   private isWallDrawing = false;
+  private isAdjustingTextureBrushSize = false; // Shift+drag for texture brush size
   private wallPaintMode: 'add' | 'remove' = 'add';
   private pendingWallChanges: { hex: HexCoord; action: 'add' | 'remove' }[] = []; // Batch wall changes
   private currentStrokePoints: Point[] = [];
@@ -637,7 +642,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const dpr = window.devicePixelRatio || 1;
 
     // Clear the entire draw canvas once (textures + strokes share this canvas)
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
     ctx.save();
     ctx.translate(this.panX, this.panY);
@@ -650,8 +655,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         textureStroke.points, 
         textureStroke.textureId, 
         textureStroke.brushSize,
-        textureStroke.textureScale ?? 0.1, // Default 10x smaller
-        textureStroke.isEraser ?? false
+        textureStroke.textureScale ?? 0.1,
+        textureStroke.isEraser ?? false,
+        textureStroke.brushType ?? 'hard',
+        textureStroke.colorBlend ?? 0,
+        textureStroke.blendColor ?? '#ffffff',
+        textureStroke.hueShift ?? 0
       );
     }
 
@@ -663,7 +672,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         this.selectedTextureId, 
         this.textureBrushSize,
         this.textureScale,
-        false
+        false,
+        this.textureBrushType,
+        this.textureColorBlend,
+        this.textureBlendColor,
+        this.textureHue
       );
     }
 
@@ -675,7 +688,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         '', // No texture needed for eraser
         this.textureBrushSize,
         1.0,
-        true
+        true,
+        'hard',
+        0,
+        '#ffffff',
+        0
       );
     }
 
@@ -688,7 +705,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     textureId: string, 
     brushSize: number,
     textureScale: number = 0.1,
-    isEraser: boolean = false
+    isEraser: boolean = false,
+    brushType: 'hard' | 'soft' = 'hard',
+    colorBlend: number = 0,
+    blendColor: string = '#ffffff',
+    hueShift: number = 0
   ): Promise<void> {
     if (points.length < 2) return;
 
@@ -698,107 +719,259 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (isEraser) {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = 'rgba(0,0,0,1)'; // Full opacity eraser
-    } else {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = 0.9; // Slight transparency for airbrushy blend
-    }
-
-    // Create clipping path from stroke with circular brush
-    ctx.beginPath();
-
-    // Add circular brush stamps at each point
-    for (let i = 0; i < points.length; i++) {
-      const point = points[i];
-      ctx.moveTo(point.x + brushSize / 2, point.y);
-      ctx.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
-    }
-
-    // Connect consecutive points with rectangles
-    if (points.length > 1) {
-      for (let i = 0; i < points.length - 1; i++) {
-        const p1 = points[i];
-        const p2 = points[i + 1];
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx);
-
-        // Draw connecting rectangles
-        ctx.save();
-        ctx.translate(p1.x, p1.y);
-        ctx.rotate(angle);
-        ctx.rect(0, -brushSize / 2, distance, brushSize);
-        ctx.restore();
-      }
-    }
-
-    if (isEraser) {
-      // For eraser, just fill the clipped region
-      ctx.fill();
-    } else {
-      // For texture, clip and fill with pattern
-      ctx.clip();
-
-      // Load texture image
-      let textureImg = this.textureCache.get(textureId);
       
-      if (!textureImg) {
-        const textureUrl = this.textureService.getTextureUrl(textureId);
-        if (!textureUrl) {
+      // Hard edge for eraser
+      ctx.beginPath();
+      for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+        ctx.moveTo(point.x + brushSize / 2, point.y);
+        ctx.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
+      }
+      
+      // Connect points
+      if (points.length > 1) {
+        for (let i = 0; i < points.length - 1; i++) {
+          const p1 = points[i];
+          const p2 = points[i + 1];
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx);
+          ctx.save();
+          ctx.translate(p1.x, p1.y);
+          ctx.rotate(angle);
+          ctx.rect(0, -brushSize / 2, distance, brushSize);
+          ctx.restore();
+        }
+      }
+      
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
+    // Non-eraser texture rendering
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Load texture image
+    let textureImg = this.textureCache.get(textureId);
+    
+    if (!textureImg) {
+      const textureUrl = this.textureService.getTextureUrl(textureId);
+      if (!textureUrl) {
+        ctx.restore();
+        return;
+      }
+
+      textureImg = new Image();
+      textureImg.src = textureUrl;
+      
+      if (!textureImg.complete) {
+        await new Promise<void>((resolve, reject) => {
+          textureImg!.onload = () => resolve();
+          textureImg!.onerror = () => reject();
+        }).catch(() => {
+          console.error('Failed to load texture:', textureId);
           ctx.restore();
           return;
-        }
-
-        textureImg = new Image();
-        textureImg.src = textureUrl;
-        
-        // Wait for texture to load
-        if (!textureImg.complete) {
-          await new Promise<void>((resolve, reject) => {
-            textureImg!.onload = () => resolve();
-            textureImg!.onerror = () => reject();
-          }).catch(() => {
-            console.error('Failed to load texture:', textureId);
-            ctx.restore();
-            return;
-          });
-        }
-        
-        this.textureCache.set(textureId, textureImg);
+        });
       }
+      
+      this.textureCache.set(textureId, textureImg);
+    }
 
-      // Create repeating pattern with scale and fill clipped region
-      try {
-        // Create a temporary canvas for scaling the pattern
-        const patternCanvas = document.createElement('canvas');
-        const scaledWidth = textureImg.width * textureScale;
-        const scaledHeight = textureImg.height * textureScale;
-        patternCanvas.width = scaledWidth;
-        patternCanvas.height = scaledHeight;
-        const patternCtx = patternCanvas.getContext('2d');
+    // Create pattern canvas with effects applied
+    const patternCanvas = document.createElement('canvas');
+    const scaledWidth = textureImg.width * textureScale;
+    const scaledHeight = textureImg.height * textureScale;
+    patternCanvas.width = scaledWidth;
+    patternCanvas.height = scaledHeight;
+    const patternCtx = patternCanvas.getContext('2d', { willReadFrequently: true });
+    
+    if (!patternCtx) {
+      ctx.restore();
+      return;
+    }
+
+    // Draw scaled texture
+    patternCtx.drawImage(textureImg, 0, 0, scaledWidth, scaledHeight);
+
+    // Apply hue shift if needed
+    if (hueShift !== 0) {
+      const imageData = patternCtx.getImageData(0, 0, scaledWidth, scaledHeight);
+      const data = imageData.data;
+      
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
         
-        if (patternCtx) {
-          patternCtx.drawImage(textureImg, 0, 0, scaledWidth, scaledHeight);
+        // Convert to HSL
+        const [h, s, l] = this.rgbToHsl(r, g, b);
+        
+        // Shift hue
+        const newH = (h + hueShift / 360) % 1;
+        
+        // Convert back to RGB
+        const [newR, newG, newB] = this.hslToRgb(newH, s, l);
+        
+        data[i] = newR;
+        data[i + 1] = newG;
+        data[i + 2] = newB;
+      }
+      
+      patternCtx.putImageData(imageData, 0, 0);
+    }
+
+    // Apply color blend if needed
+    if (colorBlend > 0) {
+      patternCtx.globalCompositeOperation = 'source-atop';
+      patternCtx.globalAlpha = colorBlend / 100;
+      patternCtx.fillStyle = blendColor;
+      patternCtx.fillRect(0, 0, scaledWidth, scaledHeight);
+      patternCtx.globalCompositeOperation = 'source-over';
+      patternCtx.globalAlpha = 1;
+    }
+
+    // Create pattern
+    const pattern = ctx.createPattern(patternCanvas, 'repeat');
+    if (!pattern) {
+      ctx.restore();
+      return;
+    }
+
+    // Calculate stroke bounds
+    const minX = Math.min(...points.map(p => p.x)) - brushSize;
+    const minY = Math.min(...points.map(p => p.y)) - brushSize;
+    const maxX = Math.max(...points.map(p => p.x)) + brushSize;
+    const maxY = Math.max(...points.map(p => p.y)) + brushSize;
+
+    if (brushType === 'soft') {
+      // Soft brush: use radial gradients for each point
+      ctx.fillStyle = pattern;
+      
+      for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
+        ctx.clip();
+        
+        // Create radial gradient mask
+        const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, brushSize / 2);
+        gradient.addColorStop(0, 'rgba(0,0,0,1)');
+        gradient.addColorStop(0.7, 'rgba(0,0,0,0.8)');
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 0.15; // Build up gradually for soft effect
+        ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+        ctx.restore();
+      }
+      
+      // Connect points with soft rectangles
+      if (points.length > 1) {
+        for (let i = 0; i < points.length - 1; i++) {
+          const p1 = points[i];
+          const p2 = points[i + 1];
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx);
           
-          const pattern = ctx.createPattern(patternCanvas, 'repeat');
-          if (pattern) {
-            ctx.fillStyle = pattern;
-            
-            // Fill a large area that covers the stroke
-            const minX = Math.min(...points.map(p => p.x)) - brushSize;
-            const minY = Math.min(...points.map(p => p.y)) - brushSize;
-            const maxX = Math.max(...points.map(p => p.x)) + brushSize;
-            const maxY = Math.max(...points.map(p => p.y)) + brushSize;
-            
-            ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
-          }
+          ctx.save();
+          ctx.translate(p1.x, p1.y);
+          ctx.rotate(angle);
+          ctx.globalAlpha = 0.15;
+          ctx.fillRect(0, -brushSize / 2, distance, brushSize);
+          ctx.restore();
         }
-      } catch (error) {
-        console.error('Failed to create texture pattern:', error);
       }
+    } else {
+      // Hard brush: use clipping path
+      ctx.beginPath();
+      
+      for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+        ctx.moveTo(point.x + brushSize / 2, point.y);
+        ctx.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
+      }
+      
+      // Connect consecutive points
+      if (points.length > 1) {
+        for (let i = 0; i < points.length - 1; i++) {
+          const p1 = points[i];
+          const p2 = points[i + 1];
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx);
+          
+          ctx.save();
+          ctx.translate(p1.x, p1.y);
+          ctx.rotate(angle);
+          ctx.rect(0, -brushSize / 2, distance, brushSize);
+          ctx.restore();
+        }
+      }
+      
+      ctx.clip();
+      ctx.fillStyle = pattern;
+      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
     }
 
     ctx.restore();
+  }
+
+  // Helper functions for HSL conversion
+  private rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+    
+    return [h, s, l];
+  }
+
+  private hslToRgb(h: number, s: number, l: number): [number, number, number] {
+    let r, g, b;
+    
+    if (s === 0) {
+      r = g = b = l;
+    } else {
+      const hue2rgb = (p: number, q: number, t: number) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1/6) return p + (q - p) * 6 * t;
+        if (t < 1/2) return q;
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+      };
+      
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      
+      r = hue2rgb(p, q, h + 1/3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1/3);
+    }
+    
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
   }
 
   private renderOverlay(): void {
@@ -983,6 +1156,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       case 'texture':
         this.handleTextureDown(event, world);
         break;
+    }
+  }
+
+  private handleTextureBrushSizeAdjust(event: MouseEvent, world: Point): void {
+    if (this.isAdjustingTextureBrushSize && this.brushSizeAdjustStart) {
+      const dx = event.clientX - this.brushSizeAdjustStart.x;
+      const newSize = Math.max(10, Math.min(200, this.brushSizeAdjustStart.initialSize + dx * 0.3));
+      this.textureBrushSize = Math.round(newSize);
+      this.brushSizeCircle.set({ pos: world, size: Math.round(newSize) });
+      this.scheduleRender();
     }
   }
 
@@ -1253,6 +1436,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private handleTextureDown(event: MouseEvent, world: Point): void {
     if (event.button !== 0) return;
     
+    // Shift+drag = adjust brush size
+    if (event.shiftKey) {
+      this.isAdjustingTextureBrushSize = true;
+      this.brushSizeAdjustStart = { x: event.clientX, y: event.clientY, initialSize: this.textureBrushSize };
+      return;
+    }
+    
     // Allow eraser without texture selected
     if (!this.isEraserMode && !this.selectedTextureId) return;
 
@@ -1268,6 +1458,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private handleTextureMove(event: MouseEvent, world: Point): void {
+    // Shift+drag = adjust brush size
+    if (this.isAdjustingTextureBrushSize && this.brushSizeAdjustStart) {
+      const dx = event.clientX - this.brushSizeAdjustStart.x;
+      const newSize = Math.max(10, Math.min(200, this.brushSizeAdjustStart.initialSize + dx * 0.3));
+      this.textureBrushSize = Math.round(newSize);
+      this.brushSizeCircle.set({ pos: world, size: Math.round(newSize) });
+      this.scheduleRender();
+      return;
+    }
+    
     if (!this.isDrawingTexture && !this.isErasingTexture) return;
 
     this.currentTexturePoints.push(world);
@@ -1275,6 +1475,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private handleTextureUp(event: MouseEvent, world: Point): void {
+    // End brush size adjustment
+    if (this.isAdjustingTextureBrushSize) {
+      this.isAdjustingTextureBrushSize = false;
+      this.brushSizeAdjustStart = null;
+      this.brushSizeCircle.set(null);
+      return;
+    }
+    
     if (!this.isDrawingTexture && !this.isErasingTexture) return;
 
     const wasErasing = this.isErasingTexture;
@@ -1290,6 +1498,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         brushSize: this.textureBrushSize,
         textureScale: this.textureScale,
         isEraser: wasErasing,
+        brushType: this.textureBrushType,
+        colorBlend: this.textureColorBlend,
+        blendColor: this.textureBlendColor,
+        hueShift: this.textureHue,
       };
       
       this.store.addTextureStroke(textureStroke);

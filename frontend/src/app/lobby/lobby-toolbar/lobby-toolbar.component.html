@@ -106,15 +106,35 @@
   <!-- Texture tool options -->
   @if (currentTool === 'texture') {
     <div class="tool-group texture-options">
+      <!-- Brush type selector -->
+      <div class="brush-type-selector">
+        <button
+          class="type-btn"
+          [class.active]="textureBrushType === 'hard'"
+          (click)="selectTextureBrushType('hard')"
+          title="Hard Brush"
+        >
+          ⬤
+        </button>
+        <button
+          class="type-btn"
+          [class.active]="textureBrushType === 'soft'"
+          (click)="selectTextureBrushType('soft')"
+          title="Soft/Airbrush"
+        >
+          ◉
+        </button>
+      </div>
+
       <!-- Texture brush sizes -->
       <div class="brush-sizes">
-        <span class="option-label">Brush:</span>
+        <span class="option-label">Size:</span>
         @for (size of textureBrushSizes; track size) {
           <button
             class="size-btn"
             [class.active]="textureBrushSize === size"
             (click)="selectTextureSize(size)"
-            [title]="size + 'px'"
+            [title]="size + 'px (or Shift+drag)'"
           >
             {{ size }}
           </button>
@@ -134,6 +154,47 @@
             {{ scale }}x
           </button>
         }
+      </div>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <!-- Color blend controls -->
+    <div class="tool-group texture-color-controls">
+      <div class="slider-control">
+        <span class="option-label">Color Blend:</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          [value]="textureColorBlend"
+          (input)="onTextureColorBlendInput($event)"
+          class="blend-slider"
+          title="0% = pure texture, 100% = solid color"
+        />
+        <span class="slider-value">{{ textureColorBlend }}%</span>
+      </div>
+
+      <input
+        type="color"
+        [value]="textureBlendColor"
+        (input)="onTextureBlendColorInput($event)"
+        class="color-input"
+        title="Blend Color"
+      />
+
+      <div class="slider-control">
+        <span class="option-label">Hue:</span>
+        <input
+          type="range"
+          min="-180"
+          max="180"
+          [value]="textureHue"
+          (input)="onTextureHueInput($event)"
+          class="hue-slider"
+          title="Shift hue (-180° to +180°)"
+        />
+        <span class="slider-value">{{ textureHue }}°</span>
       </div>
     </div>
 

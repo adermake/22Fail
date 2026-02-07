@@ -25,6 +25,10 @@ export class LobbyToolbarComponent {
   @Input() eraserBrushSize = 12;
   @Input() textureBrushSize = 30;
   @Input() textureScale = 0.1;
+  @Input() textureBrushType: 'hard' | 'soft' = 'hard';
+  @Input() textureColorBlend = 0;
+  @Input() textureBlendColor = '#ffffff';
+  @Input() textureHue = 0;
   @Input() isEraserMode = false;
   @Input() drawWithWalls = false;
   @Input() dragMode: DragMode = 'free';
@@ -38,6 +42,10 @@ export class LobbyToolbarComponent {
   @Output() eraserBrushSizeChange = new EventEmitter<number>();
   @Output() textureBrushSizeChange = new EventEmitter<number>();
   @Output() textureScaleChange = new EventEmitter<number>();
+  @Output() textureBrushTypeChange = new EventEmitter<'hard' | 'soft'>();
+  @Output() textureColorBlendChange = new EventEmitter<number>();
+  @Output() textureBlendColorChange = new EventEmitter<string>();
+  @Output() textureHueChange = new EventEmitter<number>();
   @Output() drawWithWallsChange = new EventEmitter<boolean>();
   @Output() dragModeChange = new EventEmitter<DragMode>();
   @Output() drawLayerVisibleChange = new EventEmitter<boolean>();
@@ -111,6 +119,25 @@ export class LobbyToolbarComponent {
 
   selectTextureScale(scale: number): void {
     this.textureScaleChange.emit(scale);
+  }
+
+  selectTextureBrushType(type: 'hard' | 'soft'): void {
+    this.textureBrushTypeChange.emit(type);
+  }
+
+  onTextureColorBlendInput(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.textureColorBlendChange.emit(Number(target.value));
+  }
+
+  onTextureBlendColorInput(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.textureBlendColorChange.emit(target.value);
+  }
+
+  onTextureHueInput(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.textureHueChange.emit(Number(target.value));
   }
 
   clampSize(size: number): number {

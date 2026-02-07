@@ -52,6 +52,10 @@ export interface TextureStroke {
   brushSize: number;
   textureScale?: number; // Tiling scale (default 1.0, 0.1 = 10x smaller tiles)
   isEraser?: boolean; // True if this stroke erases textures
+  brushType?: 'hard' | 'soft'; // Hard edge or soft/airbrush edge
+  colorBlend?: number; // 0-100: blend between texture and solid color
+  blendColor?: string; // Color to blend with texture
+  hueShift?: number; // -180 to 180 degrees hue rotation
 }
 
 // ============================================
