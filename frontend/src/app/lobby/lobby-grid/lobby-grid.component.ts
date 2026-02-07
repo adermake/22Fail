@@ -116,6 +116,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private strokeCtx: CanvasRenderingContext2D | null = null;
   private strokeBounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
   private strokeOrigin = { x: 0, y: 0 }; // Fixed render position (prevents movement during draw)
+  private lastPaintedPoint: Point | null = null; // Track last drawn position for spacing
   
   // Cache processed texture during stroke to prevent lag
   private cachedProcessedTexture: HTMLCanvasElement | null = null;
@@ -1175,6 +1176,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       y: this.strokeBounds.minY
     };
     
+    // Reset last painted point for new stroke
+    this.lastPaintedPoint = null;
+    
     // Don't create canvas yet - we'll expand bounds as needed
     this.strokeCanvas = null;
     this.strokeCtx = null;
@@ -1186,6 +1190,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
    */
   private drawToStrokeCanvas(prevPoint: Point, currentPoint: Point): void {
     const radius = this.textureBrushSize / 2;
+    
+    // Store old bounds for resize offset calculation
+    const oldMinX = this.strokeBounds.minX;
+    const oldMinY = this.strokeBounds.minY;
     
     // Expand bounds
     this.strokeBounds.minX = Math.min(this.strokeBounds.minX, prevPoint.x - radius, currentPoint.x - radius);
@@ -1203,9 +1211,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       newCanvas.height = height + 100;
       const newCtx = newCanvas.getContext('2d', { willReadFrequently: false })!;
       
-      // Copy existing content if any
+      // Copy existing content with offset when bounds shifted
       if (this.strokeCanvas && this.strokeCtx) {
-        newCtx.drawImage(this.strokeCanvas, 0, 0);
+        const offsetX = oldMinX - this.strokeBounds.minX;
+        const offsetY = oldMinY - this.strokeBounds.minY;
+        newCtx.drawImage(this.strokeCanvas, offsetX, offsetY);
       }
       
       this.strokeCanvas = newCanvas;
@@ -1217,22 +1227,32 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const ctx = this.strokeCtx;
     const scaledSize = this.cachedProcessedTexture.width;
     
-    // Convert to stroke-canvas-local coordinates (relative to fixed origin)
-    const localPrevX = prevPoint.x - this.strokeOrigin.x;
-    const localPrevY = prevPoint.y - this.strokeOrigin.y;
-    const localCurrX = currentPoint.x - this.strokeOrigin.x;
-    const localCurrY = currentPoint.y - this.strokeOrigin.y;
+    // Brush spacing: distance between stamps (% of brush size)
+    // Smaller spacing = smoother but heavier, larger = faster but gaps
+    const spacing = this.textureBrushSize * 0.25; // 25% of brush size
     
-    // Interpolate for smooth stroke
-    const dx = localCurrX - localPrevX;
-    const dy = localCurrY - localPrevY;
+    // Use world coordinates for distance calculation
+    const startPoint = this.lastPaintedPoint || prevPoint;
+    const dx = currentPoint.x - startPoint.x;
+    const dy = currentPoint.y - startPoint.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    const steps = Math.max(1, Math.ceil(distance / 5));
     
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const x = localPrevX + dx * t;
-      const y = localPrevY + dy * t;
+    // Only draw if we've moved enough distance
+    if (distance < spacing && this.lastPaintedPoint !== null) {
+      return; // Not enough movement to warrant new stamp
+    }
+    
+    // Calculate how many stamps to place along the path
+    const stamps = Math.max(1, Math.floor(distance / spacing));
+    
+    for (let i = 0; i <= stamps; i++) {
+      const t = i / Math.max(1, stamps);
+      const worldX = startPoint.x + dx * t;
+      const worldY = startPoint.y + dy * t;
+      
+      // Convert to stroke-canvas-local coordinates
+      const x = worldX - this.strokeOrigin.x;
+      const y = worldY - this.strokeOrigin.y;
       
       if (this.isErasingTexture) {
         // Eraser mode
@@ -1251,6 +1271,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         }
       }
     }
+    
+    // Update last painted point to current position
+    this.lastPaintedPoint = { x: currentPoint.x, y: currentPoint.y };
   }
 
   /**
