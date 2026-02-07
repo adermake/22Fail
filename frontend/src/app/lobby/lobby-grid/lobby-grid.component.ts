@@ -871,6 +871,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const minTileY = Math.floor(topLeft.y / this.textureTileSize);
     const maxTileY = Math.ceil(bottomRight.y / this.textureTileSize);
 
+    // Enable image smoothing to eliminate tile seams
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
     // Render only visible tiles
     for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
       for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
@@ -933,14 +937,32 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private loadTextureTiles(): void {
-    // Clear existing tiles
-    this.textureTiles.clear();
-    this.dirtyTiles.clear();
+    if (!this.map?.textureTiles) {
+      // Clear tiles if map has no tiles
+      this.textureTiles.clear();
+      this.tileDataVersions.clear();
+      this.dirtyTiles.clear();
+      return;
+    }
 
-    if (!this.map?.textureTiles) return;
+    // Track which tiles exist in new data
+    const newTileKeys = new Set<string>();
 
-    // Load tiles from saved data
+    // Load tiles from saved data - only reload if data changed
     for (const tileData of this.map.textureTiles) {
+      const key = this.getTileKey(tileData.x, tileData.y);
+      newTileKeys.add(key);
+      
+      const existingVersion = this.tileDataVersions.get(key);
+      
+      // Skip reload if tile data hasn't changed (prevents flickering)
+      if (existingVersion === tileData.data && this.textureTiles.has(key)) {
+        continue;
+      }
+      
+      // Update version tracking
+      this.tileDataVersions.set(key, tileData.data);
+      
       const tile = document.createElement('canvas');
       tile.width = this.textureTileSize;
       tile.height = this.textureTileSize;
@@ -950,12 +972,22 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         const ctx = tile.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0);
-          const key = this.getTileKey(tileData.x, tileData.y);
           this.textureTiles.set(key, tile);
           this.scheduleRender();
         }
       };
+      img.onerror = () => {
+        console.error('[Tiles] Failed to load tile:', key);
+      };
       img.src = tileData.data;
+    }
+
+    // Remove tiles that no longer exist
+    for (const key of this.textureTiles.keys()) {
+      if (!newTileKeys.has(key)) {
+        this.textureTiles.delete(key);
+        this.tileDataVersions.delete(key);
+      }
     }
   }
 
@@ -972,6 +1004,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         try {
           const dataUrl = tile.toDataURL('image/png');
           tilesToSave.push({ x, y, data: dataUrl });
+          // Update version tracking to prevent reload
+          this.tileDataVersions.set(key, dataUrl);
         } catch (e) {
           console.error('Failed to save tile:', key, e);
         }
@@ -996,18 +1030,39 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private async renderLiveTexturePreview(ctx: CanvasRenderingContext2D): Promise<void> {
     if (!this.selectedTextureId || this.currentTexturePoints.length < 2) return;
 
-    await this.renderSingleTextureStroke(
-      ctx, 
-      this.currentTexturePoints, 
-      this.selectedTextureId, 
-      this.textureBrushSize,
-      this.textureScale,
-      false,
-      this.textureBrushType,
-      this.textureColorBlend,
-      this.textureBlendColor,
-      this.textureHue
-    );
+    const textureUrl = this.getTextureUrl(this.selectedTextureId);
+    if (!textureUrl) return;
+
+    // Load texture
+    const img = await this.loadImage(textureUrl);
+    const scaledSize = img.width * this.textureScale;
+    
+    // Process texture with effects
+    const processedTexture = this.processTexture(img, scaledSize);
+
+    // Draw stroke segments
+    for (let i = 0; i < this.currentTexturePoints.length - 1; i++) {
+      const prevPoint = this.currentTexturePoints[i];
+      const currentPoint = this.currentTexturePoints[i + 1];
+      
+      // Interpolate for smooth preview
+      const dx = currentPoint.x - prevPoint.x;
+      const dy = currentPoint.y - prevPoint.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const steps = Math.max(1, Math.ceil(distance / 5));
+      
+      for (let j = 0; j <= steps; j++) {
+        const t = j / steps;
+        const x = prevPoint.x + dx * t;
+        const y = prevPoint.y + dy * t;
+        
+        if (this.textureBrushType === 'soft') {
+          this.drawSoftBrush(ctx, processedTexture, x, y, scaledSize);
+        } else {
+          this.drawHardBrush(ctx, processedTexture, x, y, scaledSize);
+        }
+      }
+    }
   }
 
   private async renderLiveEraserPreview(ctx: CanvasRenderingContext2D): Promise<void> {
@@ -1641,8 +1696,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     canvas.width = 120;
     canvas.height = 120;
 
-    // Load texture
-    const textureUrl = `/api/images/${this.selectedTextureId}`;
+    // Load texture using proper URL
+    const textureUrl = this.getTextureUrl(this.selectedTextureId);
+    if (!textureUrl) return;
+
     const img = new Image();
     img.crossOrigin = 'anonymous';
     
