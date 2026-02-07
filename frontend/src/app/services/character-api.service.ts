@@ -11,6 +11,11 @@ export class CharacterApiService {
     return await firstValueFrom(observable);
   }
 
+  async getAllCharacterIds(): Promise<string[]> {
+    const observable = this.http.get<string[]>(`/api/characters`);
+    return await firstValueFrom(observable);
+  }
+
   async saveCharacter(id: string, sheet: any): Promise<any> {
     const observable = this.http.post(`/api/characters/${id}`, sheet);
     return await firstValueFrom(observable);

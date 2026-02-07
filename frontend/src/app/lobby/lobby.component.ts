@@ -27,7 +27,7 @@ import { BattleTracker } from '../world/battle-tracker/battle-tracker.component'
 import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engine';
 
 // Tool types
-export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image';
+export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image' | 'texture';
 export type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -211,33 +211,32 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   private async loadWorldCharacters(): Promise<void> {
-    const world = this.worldStore.worldValue;
-    if (!world) {
-      console.warn('[Lobby] No world loaded');
-      return;
-    }
-
-    console.log('[Lobby] World data:', { 
-      name: world.name, 
-      characterIds: world.characterIds,
-      hasCharacters: !!world.characterIds?.length 
-    });
+    // Load ALL characters from the system, not just world.characterIds
+    // This allows players to access any character they need
+    console.log('[Lobby] Loading all characters from system');
     
     const characters: { id: string; sheet: CharacterSheet }[] = [];
 
-    for (const charId of world.characterIds || []) {
-      try {
-        console.log('[Lobby] Loading character:', charId);
-        const sheet = await this.characterApi.loadCharacter(charId);
-        if (sheet) {
-          console.log('[Lobby] Character loaded:', charId, sheet.name);
-          characters.push({ id: charId, sheet });
-        } else {
-          console.warn('[Lobby] Character sheet is null for:', charId);
+    try {
+      const allCharacterIds = await this.characterApi.getAllCharacterIds();
+      console.log('[Lobby] Found total characters:', allCharacterIds.length);
+      
+      for (const charId of allCharacterIds) {
+        try {
+          console.log('[Lobby] Loading character:', charId);
+          const sheet = await this.characterApi.loadCharacter(charId);
+          if (sheet) {
+            console.log('[Lobby] Character loaded:', charId, sheet.name);
+            characters.push({ id: charId, sheet });
+          } else {
+            console.warn('[Lobby] Character sheet is null for:', charId);
+          }
+        } catch (e) {
+          console.error('[Lobby] Failed to load character:', charId, e);
         }
-      } catch (e) {
-        console.error('[Lobby] Failed to load character:', charId, e);
       }
+    } catch (e) {
+      console.error('[Lobby] Failed to get character IDs:', e);
     }
 
     console.log('[Lobby] Loaded characters:', characters.length, characters.map(c => c.sheet.name));

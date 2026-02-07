@@ -134,15 +134,21 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private pathfindingCache = new Map<string, HexCoord[]>(); // Cache for pathfinding results
 
   // Image transform state
+  private transformingImageIds: string[] = []; // For group transforms
   private transformingImageId: string | null = null;
   private transformMode: 'move' | 'scale' | 'rotate' = 'move';
   private transformHandle: 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null = null;
   private transformAnchor: Point | null = null;
   private initialImageTransform: Partial<MapImage> | null = null;
+  private initialGroupTransforms: Map<string, Partial<MapImage>> = new Map(); // For group transforms
+  private groupBoundingBox: { x: number; y: number; width: number; height: number; rotation: number } | null = null;
   private previewImageTransform = signal<{ id: string; transform: Partial<MapImage> } | null>(null); // Preview during transform
+  private previewGroupTransforms = signal<Map<string, Partial<MapImage>> | null>(null); // Preview for group transforms
   private draggingImageId: string | null = null; // For image dragging
+  private draggingImageIds: string[] = []; // For group dragging
   private imageDragStart: Point | null = null;
   private previewImageDrag = signal<{ id: string; position: Point } | null>(null); // Preview during drag
+  private previewGroupDrags = signal<Map<string, Point> | null>(null); // Preview for group drags
 
   // Image selection
   selectedImages = signal<string[]>([]);
@@ -157,12 +163,20 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   contextMenuTokenId = signal<string | null>(null);
   contextMenuHex = signal<HexCoord | null>(null);
 
-  // Ctrl+Z for undo
+  // Keyboard shortcuts
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
+    // Ctrl+Z for undo
     if (event.ctrlKey && event.key === 'z') {
       event.preventDefault();
       this.store.undoStroke();
+    }
+    
+    // Delete key to delete selected images
+    if (event.key === 'Delete' && this.selectedImageId) {
+      event.preventDefault();
+      this.imageDelete.emit(this.selectedImageId);
+      this.imageSelect.emit(null);
     }
   }
 
@@ -344,6 +358,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const wallSet = new Set(walls.map(w => `${w.q},${w.r}`));
     const pathSet = new Set(this.dragPath().map(p => `${p.q},${p.r}`));
     const hoverHex = this.dragHoverHex();
+    const pathIsBlocked = this.dragPathIsBlocked(); // Check if path is blocked
 
     // Performance: skip grid lines when zoomed way out but always render walls
     const hexCount = (maxQ - minQ + 1) * (maxR - minR + 1);
@@ -362,14 +377,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
           continue;
         }
         
-        this.drawHexagon(ctx, { q, r }, isHover || false, isWall, isInPath);
+        this.drawHexagon(ctx, { q, r }, isHover || false, isWall, isInPath, pathIsBlocked);
       }
     }
 
     ctx.restore();
   }
 
-  private drawHexagon(ctx: CanvasRenderingContext2D, hex: HexCoord, isHover: boolean, isWall: boolean, isInPath: boolean): void {
+  private drawHexagon(ctx: CanvasRenderingContext2D, hex: HexCoord, isHover: boolean, isWall: boolean, isInPath: boolean, pathIsBlocked: boolean): void {
     const center = HexMath.hexToPixel(hex);
     const corners = HexMath.getHexCorners(center);
 
@@ -387,19 +402,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.strokeStyle = 'rgba(96, 165, 250, 1)';
       ctx.lineWidth = 3;
     } else if (isInPath) {
-      ctx.fillStyle = 'rgba(34, 197, 94, 0.2)';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.8)';
+      // Red if path is blocked, green otherwise
+      if (pathIsBlocked) {
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+      } else {
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.2)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(34, 197, 94, 0.8)';
+      }
       ctx.lineWidth = 2;
     } else if (isWall) {
-      ctx.fillStyle = 'rgba(30, 41, 59, 0.3)'; // Dark gray wall fill
+      ctx.fillStyle = 'rgba(30, 41, 59, 0.3)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(30, 41, 59, 0.6)'; // Dark gray wall border
-      ctx.lineWidth = Math.max(0.8, 1 / this.scale); // Scale wall lines with zoom
+      ctx.strokeStyle = 'rgba(30, 41, 59, 0.6)';
+      ctx.lineWidth = Math.max(1, 1.5 / this.scale); // More visible wall lines
     } else {
-      // More prominent grid outline - scale with zoom
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
-      ctx.lineWidth = Math.max(0.5, 1 / this.scale); // Scale grid lines inversely with zoom
+      // More prominent grid outline - better visibility at all zoom levels
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)'; // Increased opacity from 0.3
+      ctx.lineWidth = Math.max(0.8, 1.5 / this.scale); // Thicker lines
     }
     ctx.stroke();
   }
@@ -936,67 +958,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private handleCursorDown(event: MouseEvent, world: Point, hex: HexCoord): void {
     if (event.button !== 0) return; // Only left click
 
-    console.log('[CURSOR] Click at', world, 'selectedImageId:', this.selectedImageId);
-
-    // Check for transform handles on selected image FIRST
-    // Handles extend outside image bounds (rotation handle is above, corners overshoot)
-    // so we must check them independently of findImageAtPoint
-    if (this.selectedImageId) {
-      const selectedImage = this.map?.images?.find(img => img.id === this.selectedImageId);
-      console.log('[CURSOR] Found selected image:', selectedImage?.id);
-      if (selectedImage) {
-        const handle = this.getTransformHandle(world, selectedImage);
-        console.log('[CURSOR] Handle check:', handle);
-        if (handle) {
-          console.log('[CURSOR] Starting transform with handle:', handle);
-          this.startImageTransform(selectedImage, handle, world);
-          return;
-        }
-        // Click on selected image body = start drag
-        const inImage = this.isPointInImage(world, selectedImage);
-        console.log('[CURSOR] Point in image:', inImage);
-        if (inImage) {
-          console.log('[CURSOR] Starting image drag');
-          this.startImageDrag(selectedImage, world);
-          return;
-        }
-      }
-    }
-
-    // Check if clicking on any other image
-    const clickedImage = this.findImageAtPoint(world);
-    console.log('[CURSOR] Clicked on image:', clickedImage?.id);
-    if (clickedImage) {
-      console.log('[CURSOR] Selecting image:', clickedImage.id);
-      this.imageSelect.emit(clickedImage.id);
-      return;
-    }
-
-    // Check for token (only if no image clicked)
+    // Cursor tool is ONLY for tokens - no image interaction
     const token = this.findTokenAtHex(hex);
     if (token) {
       this.startTokenDrag(token, hex);
       return;
     }
-
-    // Clear selection
-    this.imageSelect.emit(null);
   }
 
   private handleCursorMove(event: MouseEvent, world: Point, hex: HexCoord): void {
-    // Update cursor style based on what's under the mouse
-    this.updateCursor(world);
-
-    if (this.transformingImageId && this.transformHandle) {
-      this.updateImageTransform(world);
-      return;
-    }
-
-    if (this.draggingImageId) {
-      this.updateImageDrag(world);
-      return;
-    }
-
     if (this.draggingToken) {
       this.updateTokenDrag(world);
       return;
@@ -1004,16 +974,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private handleCursorUp(event: MouseEvent, world: Point, hex: HexCoord): void {
-    if (this.transformingImageId) {
-      this.finishImageTransform();
-      return;
-    }
-
-    if (this.draggingImageId) {
-      this.finishImageDrag();
-      return;
-    }
-
     if (this.draggingToken) {
       this.finishTokenDrag(hex);
       return;
@@ -1163,7 +1123,24 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private handleImageDown(event: MouseEvent, world: Point): void {
     if (event.button !== 0) return;
 
-    // Auto-place image when in image tool mode
+    // Check for transform handles on selected image FIRST
+    if (this.selectedImageId) {
+      const selectedImage = this.map?.images?.find(img => img.id === this.selectedImageId);
+      if (selectedImage) {
+        const handle = this.getTransformHandle(world, selectedImage);
+        if (handle) {
+          this.startImageTransform(selectedImage, handle, world);
+          return;
+        }
+        // Click on selected image body = start drag
+        if (this.isPointInImage(world, selectedImage)) {
+          this.startImageDrag(selectedImage, world);
+          return;
+        }
+      }
+    }
+
+    // Auto-place image when in image tool mode with pending image from sidebar
     const pendingImageId = this.getPendingImageId();
     if (pendingImageId) {
       // Load the actual image to get its dimensions and preserve aspect ratio
@@ -1234,14 +1211,37 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private handleImageMove(event: MouseEvent, world: Point): void {
+    // Handle image transform/drag
+    if (this.transformingImageId && this.transformHandle) {
+      this.updateImageTransform(world);
+      return;
+    }
+
+    if (this.draggingImageId) {
+      this.updateImageDrag(world);
+      return;
+    }
+
+    // Handle box selection
     if (this.isBoxSelecting && this.boxSelectionStart) {
-      // Update selection box
       this.selectionBox.set({ start: this.boxSelectionStart, end: world });
       this.scheduleRender();
     }
   }
 
   private handleImageUp(event: MouseEvent, world: Point): void {
+    // Finish image transform/drag
+    if (this.transformingImageId) {
+      this.finishImageTransform();
+      return;
+    }
+
+    if (this.draggingImageId) {
+      this.finishImageDrag();
+      return;
+    }
+
+    // Finish box selection
     if (this.isBoxSelecting && this.boxSelectionStart) {
       // Finalize box selection
       const box = this.selectionBox();

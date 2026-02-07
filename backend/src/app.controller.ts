@@ -211,6 +211,11 @@ export class AppController {
     return JSON.parse(sheetJson); // existing character
   }
 
+  @Get('characters')
+  getAllCharacterIds(): string[] {
+    return this.dataService.getAllCharacterIds();
+  }
+
   // POST /characters/:id
   @Post('characters/:id')
   saveCharacter(@Param('id') id:string, @Body() body: any): any {

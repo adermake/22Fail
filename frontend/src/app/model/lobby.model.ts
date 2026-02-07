@@ -44,6 +44,14 @@ export interface Stroke {
   isEraser: boolean;
 }
 
+/** A texture stamp/brush stroke */
+export interface TextureStroke {
+  id: string;
+  points: Point[];
+  textureId: string;
+  brushSize: number;
+}
+
 // ============================================
 // Tokens
 // ============================================
@@ -86,6 +94,15 @@ export interface LibraryImage {
   createdAt: number;
 }
 
+/** A tileable texture in the library (globally shared across all lobbies) */
+export interface LibraryTexture {
+  id: string;
+  name: string;
+  textureId: string; // Reference to texture image ID
+  tileSize: number; // Size of one tile in pixels
+  createdAt: number;
+}
+
 // ============================================
 // Walls
 // ============================================
@@ -118,6 +135,7 @@ export interface LobbyMap {
   name: string;
   tokens: Token[];
   strokes: Stroke[];
+  textureStrokes: TextureStroke[];
   walls: WallHex[];
   measurementLines: MeasurementLine[];
   images: MapImage[];
@@ -137,6 +155,7 @@ export interface LobbyData {
   maps: { [mapId: string]: LobbyMap };
   activeMapId: string;
   imageLibrary: LibraryImage[];
+  textureLibrary: LibraryTexture[]; // Global texture library
   createdAt: number;
   updatedAt: number;
 }
@@ -157,6 +176,7 @@ export function createEmptyMap(id: string, name: string): LobbyMap {
     name,
     tokens: [],
     strokes: [],
+    textureStrokes: [],
     walls: [],
     measurementLines: [],
     images: [],
@@ -174,6 +194,7 @@ export function createEmptyLobby(worldName: string): LobbyData {
     maps: { default: defaultMap },
     activeMapId: 'default',
     imageLibrary: [],
+    textureLibrary: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
