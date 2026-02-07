@@ -152,11 +152,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private transformingImageIds: string[] = []; // For group transforms
   private transformingImageId: string | null = null;
   private transformMode: 'move' | 'scale' | 'rotate' = 'move';
-  private transformHandle: 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | null = null;
+  private transformHandle: 'tl' | 'tr' | 'bl' | 'br' | 't' | 'b' | 'l' | 'r' | 'rotate' | null = null;
   private transformAnchor: Point | null = null;
   private initialImageTransform: Partial<MapImage> | null = null;
   private initialGroupTransforms: Map<string, Partial<MapImage>> = new Map(); // For group transforms
-  private groupBoundingBox: { x: number; y: number; width: number; height: number; rotation: number } | null = null;
+  private groupBoundingBox: { minX: number; minY: number; maxX: number; maxY: number; centerX: number; centerY: number } | null = null;
   private previewImageTransform = signal<{ id: string; transform: Partial<MapImage> } | null>(null); // Preview during transform
   private previewGroupTransforms = signal<Map<string, Partial<MapImage>> | null>(null); // Preview for group transforms
   private draggingImageId: string | null = null; // For image dragging
@@ -187,11 +187,21 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.store.undoStroke();
     }
     
-    // Delete key to delete selected images
-    if (event.key === 'Delete' && this.selectedImageId) {
-      event.preventDefault();
-      this.imageDelete.emit(this.selectedImageId);
-      this.imageSelect.emit(null);
+    // Delete key to delete selected images (supports multi-select)
+    if (event.key === 'Delete') {
+      const selected = this.selectedImages();
+      if (selected.length > 0) {
+        event.preventDefault();
+        for (const imageId of selected) {
+          this.imageDelete.emit(imageId);
+        }
+        this.selectedImages.set([]);
+        this.imageSelect.emit(null);
+      } else if (this.selectedImageId) {
+        event.preventDefault();
+        this.imageDelete.emit(this.selectedImageId);
+        this.imageSelect.emit(null);
+      }
     }
   }
 
@@ -464,6 +474,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.renderImage(ctx, img);
     }
 
+    // Render group bounding box if multiple images are selected
+    const selectedIds = this.selectedImages();
+    if (selectedIds.length > 1) {
+      this.renderGroupBoundingBox(ctx, selectedIds);
+    }
+
     ctx.restore();
   }
 
@@ -475,13 +491,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     
     // Apply preview transformations if this image is being transformed or dragged
     let effectiveImgData = imgData;
-    const previewTransform = this.previewImageTransform();
-    const previewDrag = this.previewImageDrag();
     
-    if (previewTransform && previewTransform.id === imgData.id) {
-      effectiveImgData = { ...imgData, ...previewTransform.transform };
-    } else if (previewDrag && previewDrag.id === imgData.id) {
-      effectiveImgData = { ...imgData, x: previewDrag.position.x, y: previewDrag.position.y };
+    // Check for group transforms/drags first
+    const groupTransforms = this.previewGroupTransforms();
+    const groupDrags = this.previewGroupDrags();
+    
+    if (groupTransforms && groupTransforms.has(imgData.id)) {
+      effectiveImgData = { ...imgData, ...groupTransforms.get(imgData.id)! };
+    } else if (groupDrags && groupDrags.has(imgData.id)) {
+      const pos = groupDrags.get(imgData.id)!;
+      effectiveImgData = { ...imgData, x: pos.x, y: pos.y };
+    } else {
+      // Fallback to single image preview
+      const previewTransform = this.previewImageTransform();
+      const previewDrag = this.previewImageDrag();
+      
+      if (previewTransform && previewTransform.id === imgData.id) {
+        effectiveImgData = { ...imgData, ...previewTransform.transform };
+      } else if (previewDrag && previewDrag.id === imgData.id) {
+        effectiveImgData = { ...imgData, x: previewDrag.position.x, y: previewDrag.position.y };
+      }
     }
     
     const imageUrl = `/api/images/${imgData.imageId}`;
@@ -522,9 +551,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     ctx.restore();
 
-    // Draw selection handles (for single selected or multiple selected images)
+    // Draw selection handles (only for individual images in single selection mode)
     const selectedIds = this.selectedImages();
-    if (this.selectedImageId === imgData.id || selectedIds.includes(imgData.id)) {
+    if (selectedIds.length === 1 && selectedIds.includes(imgData.id)) {
+      this.renderImageHandles(ctx, effectiveImgData);
+    } else if (this.selectedImageId === imgData.id && selectedIds.length === 0) {
       this.renderImageHandles(ctx, effectiveImgData);
     }
   }
@@ -580,6 +611,70 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.stroke();
 
     ctx.restore();
+  }
+
+  private renderGroupBoundingBox(ctx: CanvasRenderingContext2D, imageIds: string[]): void {
+    // Calculate bounding box with potential preview transforms applied
+    const box = this.calculateGroupBoundingBox(imageIds);
+    if (!box) return;
+
+    const handleSize = 10 / this.scale;
+
+    // Selection border (dotted)
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 3 / this.scale;
+    ctx.setLineDash([12 / this.scale, 6 / this.scale]);
+    ctx.strokeRect(box.minX, box.minY, box.maxX - box.minX, box.maxY - box.minY);
+    ctx.setLineDash([]);
+
+    // Corner handles
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2 / this.scale;
+
+    const corners = [
+      { x: box.minX, y: box.minY },
+      { x: box.maxX, y: box.minY },
+      { x: box.maxX, y: box.maxY },
+      { x: box.minX, y: box.maxY },
+    ];
+
+    for (const c of corners) {
+      ctx.fillRect(c.x - handleSize / 2, c.y - handleSize / 2, handleSize, handleSize);
+      ctx.strokeRect(c.x - handleSize / 2, c.y - handleSize / 2, handleSize, handleSize);
+    }
+
+    // Edge handles (midpoints)
+    const edges = [
+      { x: box.centerX, y: box.minY },
+      { x: box.centerX, y: box.maxY },
+      { x: box.minX, y: box.centerY },
+      { x: box.maxX, y: box.centerY },
+    ];
+
+    for (const e of edges) {
+      ctx.fillRect(e.x - handleSize / 2, e.y - handleSize / 2, handleSize, handleSize);
+      ctx.strokeRect(e.x - handleSize / 2, e.y - handleSize / 2, handleSize, handleSize);
+    }
+
+    // Rotation handle (above the box)
+    const rotY = box.minY - 25 / this.scale;
+    const rotR = 6 / this.scale;
+
+    ctx.beginPath();
+    ctx.moveTo(box.centerX, box.minY);
+    ctx.lineTo(box.centerX, rotY);
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2 / this.scale;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(box.centerX, rotY, rotR, 0, Math.PI * 2);
+    ctx.fillStyle = '#22c55e';
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2 / this.scale;
+    ctx.stroke();
   }
 
   private renderStrokes(): void {
@@ -1576,8 +1671,28 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private handleImageDown(event: MouseEvent, world: Point): void {
     if (event.button !== 0) return;
 
-    // Check for transform handles on selected image FIRST
-    if (this.selectedImageId) {
+    const selected = this.selectedImages();
+    
+    // Check for transform handles on selected images (group or single)
+    if (selected.length > 0) {
+      const groupBox = this.calculateGroupBoundingBox(selected);
+      if (groupBox) {
+        const handle = this.getGroupTransformHandle(world, groupBox);
+        if (handle) {
+          this.startGroupTransform(selected, handle, world, groupBox);
+          return;
+        }
+        // Click inside any selected image = start group drag
+        for (const imageId of selected) {
+          const img = this.map?.images?.find(i => i.id === imageId);
+          if (img && this.isPointInImage(world, img)) {
+            this.startGroupDrag(selected, world);
+            return;
+          }
+        }
+      }
+    } else if (this.selectedImageId) {
+      // Fallback to single image selection
       const selectedImage = this.map?.images?.find(img => img.id === this.selectedImageId);
       if (selectedImage) {
         const handle = this.getTransformHandle(world, selectedImage);
@@ -1585,7 +1700,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
           this.startImageTransform(selectedImage, handle, world);
           return;
         }
-        // Click on selected image body = start drag
         if (this.isPointInImage(world, selectedImage)) {
           this.startImageDrag(selectedImage, world);
           return;
@@ -1647,11 +1761,23 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Check if clicking on an existing image
     const clickedImage = this.findImageAtPoint(world);
     if (clickedImage) {
-      // If clicking on already selected image, don't start box selection
-      if (this.selectedImages().includes(clickedImage.id)) {
+      // Ctrl/Shift click = toggle selection (multi-select)
+      if (event.ctrlKey || event.shiftKey) {
+        const selected = this.selectedImages();
+        if (selected.includes(clickedImage.id)) {
+          // Deselect
+          this.selectedImages.set(selected.filter(id => id !== clickedImage.id));
+        } else {
+          // Add to selection
+          this.selectedImages.set([...selected, clickedImage.id]);
+        }
         return;
       }
-      // Select single image
+      
+      // Normal click = select single image
+      if (this.selectedImages().includes(clickedImage.id)) {
+        return; // Already selected
+      }
       this.selectedImages.set([clickedImage.id]);
       this.imageSelect.emit(clickedImage.id);
       return;
@@ -1667,7 +1793,19 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Update cursor based on position
     this.updateCursor(world);
 
-    // Handle image transform/drag
+    // Handle group transform
+    if (this.transformingImageIds.length > 0 && this.transformHandle) {
+      this.updateGroupTransform(world);
+      return;
+    }
+
+    // Handle group drag
+    if (this.draggingImageIds.length > 0) {
+      this.updateGroupDrag(world);
+      return;
+    }
+
+    // Handle image transform/drag (single)
     if (this.transformingImageId && this.transformHandle) {
       this.updateImageTransform(world);
       return;
@@ -1686,7 +1824,19 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private handleImageUp(event: MouseEvent, world: Point): void {
-    // Finish image transform/drag
+    // Finish group transform
+    if (this.transformingImageIds.length > 0) {
+      this.finishGroupTransform();
+      return;
+    }
+
+    // Finish group drag
+    if (this.draggingImageIds.length > 0) {
+      this.finishGroupDrag();
+      return;
+    }
+
+    // Finish image transform/drag (single)
     if (this.transformingImageId) {
       this.finishImageTransform();
       return;
@@ -1808,7 +1958,34 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     let cursor = 'default';
 
-    if (this.selectedImageId) {
+    // Check group selection first
+    const selectedIds = this.selectedImages();
+    if (selectedIds.length > 1) {
+      const groupBox = this.calculateGroupBoundingBox(selectedIds);
+      if (groupBox) {
+        const handle = this.getGroupTransformHandle(point, groupBox);
+        if (handle === 'rotate') {
+          cursor = 'crosshair';
+        } else if (handle === 'tl' || handle === 'br') {
+          cursor = 'nw-resize';
+        } else if (handle === 'tr' || handle === 'bl') {
+          cursor = 'ne-resize';
+        } else if (handle === 't' || handle === 'b') {
+          cursor = 'ns-resize';
+        } else if (handle === 'l' || handle === 'r') {
+          cursor = 'ew-resize';
+        } else {
+          // Check if inside any selected image
+          for (const imageId of selectedIds) {
+            const img = this.map?.images?.find(i => i.id === imageId);
+            if (img && this.isPointInImage(point, img)) {
+              cursor = 'move';
+              break;
+            }
+          }
+        }
+      }
+    } else if (this.selectedImageId) {
       const selectedImage = this.map?.images?.find(img => img.id === this.selectedImageId);
       if (selectedImage) {
         const handle = this.getTransformHandle(point, selectedImage);
@@ -1824,7 +2001,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
 
-    if (!this.selectedImageId) {
+    if (!this.selectedImageId && selectedIds.length === 0) {
       const imageAtPoint = this.findImageAtPoint(point);
       if (imageAtPoint) {
         cursor = 'pointer';
@@ -2141,6 +2318,275 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.transformAnchor = null;
     this.initialImageTransform = null;
     this.previewImageTransform.set(null);
+  }
+
+  // ============================================
+  // Group Transform Methods
+  // ============================================
+
+  private calculateGroupBoundingBox(imageIds: string[]): { minX: number, minY: number, maxX: number, maxY: number, centerX: number, centerY: number } | null {
+    if (!this.map?.images || imageIds.length === 0) return null;
+
+    const images = this.map.images.filter(img => imageIds.includes(img.id));
+    if (images.length === 0) return null;
+
+    // Check for preview transforms
+    const groupTransforms = this.previewGroupTransforms();
+    const groupDrags = this.previewGroupDrags();
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    for (const img of images) {
+      // Apply preview transforms if available
+      let effectiveImg = img;
+      if (groupTransforms && groupTransforms.has(img.id)) {
+        effectiveImg = { ...img, ...groupTransforms.get(img.id)! };
+      } else if (groupDrags && groupDrags.has(img.id)) {
+        const pos = groupDrags.get(img.id)!;
+        effectiveImg = { ...img, x: pos.x, y: pos.y };
+      }
+
+      // Calculate rotated bounding box corners
+      const hw = effectiveImg.width / 2;
+      const hh = effectiveImg.height / 2;
+      const cos = Math.cos(effectiveImg.rotation * Math.PI / 180);
+      const sin = Math.sin(effectiveImg.rotation * Math.PI / 180);
+
+      const corners = [
+        { x: -hw, y: -hh },
+        { x: hw, y: -hh },
+        { x: hw, y: hh },
+        { x: -hw, y: hh },
+      ];
+
+      for (const corner of corners) {
+        const worldX = effectiveImg.x + corner.x * cos - corner.y * sin;
+        const worldY = effectiveImg.y + corner.x * sin + corner.y * cos;
+        minX = Math.min(minX, worldX);
+        minY = Math.min(minY, worldY);
+        maxX = Math.max(maxX, worldX);
+        maxY = Math.max(maxY, worldY);
+      }
+    }
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    return { minX, minY, maxX, maxY, centerX, centerY };
+  }
+
+  private getGroupTransformHandle(point: Point, box: { minX: number, minY: number, maxX: number, maxY: number, centerX: number, centerY: number }): 'tl' | 'tr' | 'bl' | 'br' | 't' | 'b' | 'l' | 'r' | 'rotate' | null {
+    const handleHitSize = 20 / this.scale;
+    
+    // Check rotation handle (above the bounding box)
+    const rotY = box.minY - 25 / this.scale;
+    if (Math.abs(point.x - box.centerX) < 12 / this.scale && Math.abs(point.y - rotY) < 12 / this.scale) {
+      return 'rotate';
+    }
+
+    // Check corner handles
+    const corners = [
+      { x: box.minX, y: box.minY, handle: 'tl' as const },
+      { x: box.maxX, y: box.minY, handle: 'tr' as const },
+      { x: box.maxX, y: box.maxY, handle: 'br' as const },
+      { x: box.minX, y: box.maxY, handle: 'bl' as const },
+    ];
+
+    for (const corner of corners) {
+      if (Math.abs(point.x - corner.x) < handleHitSize && Math.abs(point.y - corner.y) < handleHitSize) {
+        return corner.handle;
+      }
+    }
+
+    // Check edge handles
+    const edges = [
+      { x: box.centerX, y: box.minY, handle: 't' as const },
+      { x: box.centerX, y: box.maxY, handle: 'b' as const },
+      { x: box.minX, y: box.centerY, handle: 'l' as const },
+      { x: box.maxX, y: box.centerY, handle: 'r' as const },
+    ];
+
+    for (const edge of edges) {
+      if (Math.abs(point.x - edge.x) < handleHitSize && Math.abs(point.y - edge.y) < handleHitSize) {
+        return edge.handle;
+      }
+    }
+
+    return null;
+  }
+
+  private startGroupTransform(imageIds: string[], handle: string, point: Point, box: { minX: number, minY: number, maxX: number, maxY: number, centerX: number, centerY: number }): void {
+    this.transformingImageIds = imageIds;
+    this.transformHandle = handle as any;
+    this.transformAnchor = point;
+    this.groupBoundingBox = box;
+    
+    // Store initial state for all images
+    this.initialGroupTransforms.clear();
+    if (this.map?.images) {
+      for (const imageId of imageIds) {
+        const img = this.map.images.find(i => i.id === imageId);
+        if (img) {
+          this.initialGroupTransforms.set(imageId, {
+            x: img.x,
+            y: img.y,
+            width: img.width,
+            height: img.height,
+            rotation: img.rotation,
+          });
+        }
+      }
+    }
+  }
+
+  private updateGroupTransform(point: Point): void {
+    if (this.transformingImageIds.length === 0 || !this.transformHandle || !this.transformAnchor || !this.groupBoundingBox) {
+      return;
+    }
+
+    const box = this.groupBoundingBox;
+    const centerX = box.centerX;
+    const centerY = box.centerY;
+
+    const transforms = new Map<string, Partial<MapImage>>();
+
+    switch (this.transformHandle) {
+      case 'rotate':
+        // Rotate entire group around center
+        const centerToCurrent = Math.atan2(point.y - centerY, point.x - centerX) * 180 / Math.PI;
+        const centerToAnchor = Math.atan2(this.transformAnchor.y - centerY, this.transformAnchor.x - centerX) * 180 / Math.PI;
+        const rotationDelta = centerToCurrent - centerToAnchor;
+
+        for (const [imageId, initial] of this.initialGroupTransforms) {
+          // Rotate image position around group center
+          const dx = initial.x! - centerX;
+          const dy = initial.y! - centerY;
+          const rad = rotationDelta * Math.PI / 180;
+          const cos = Math.cos(rad);
+          const sin = Math.sin(rad);
+          const newX = centerX + dx * cos - dy * sin;
+          const newY = centerY + dx * sin + dy * cos;
+
+          transforms.set(imageId, {
+            x: newX,
+            y: newY,
+            rotation: initial.rotation! + rotationDelta,
+          });
+        }
+        break;
+
+      case 'tl':
+      case 'tr':
+      case 'bl':
+      case 'br':
+      case 't':
+      case 'b':
+      case 'l':
+      case 'r':
+        // Scale group from center
+        const initialDist = Math.sqrt(
+          Math.pow(this.transformAnchor.x - centerX, 2) + 
+          Math.pow(this.transformAnchor.y - centerY, 2)
+        );
+        const currentDist = Math.sqrt(
+          Math.pow(point.x - centerX, 2) + 
+          Math.pow(point.y - centerY, 2)
+        );
+        const scaleFactor = Math.max(0.1, currentDist / initialDist);
+
+        for (const [imageId, initial] of this.initialGroupTransforms) {
+          // Scale position relative to group center
+          const dx = initial.x! - centerX;
+          const dy = initial.y! - centerY;
+          const newX = centerX + dx * scaleFactor;
+          const newY = centerY + dy * scaleFactor;
+
+          transforms.set(imageId, {
+            x: newX,
+            y: newY,
+            width: initial.width! * scaleFactor,
+            height: initial.height! * scaleFactor,
+          });
+        }
+        break;
+    }
+
+    this.previewGroupTransforms.set(transforms);
+    this.scheduleRender();
+  }
+
+  private finishGroupTransform(): void {
+    // Emit all transforms to backend
+    const transforms = this.previewGroupTransforms();
+    if (transforms) {
+      for (const [imageId, transform] of transforms) {
+        this.imageTransform.emit({ id: imageId, transform });
+      }
+    }
+
+    this.transformingImageIds = [];
+    this.transformHandle = null;
+    this.transformAnchor = null;
+    this.groupBoundingBox = null;
+    this.initialGroupTransforms.clear();
+    this.previewGroupTransforms.set(null);
+  }
+
+  private startGroupDrag(imageIds: string[], point: Point): void {
+    this.draggingImageIds = imageIds;
+    this.imageDragStart = point;
+
+    // Store initial positions
+    this.initialGroupTransforms.clear();
+    if (this.map?.images) {
+      for (const imageId of imageIds) {
+        const img = this.map.images.find(i => i.id === imageId);
+        if (img) {
+          this.initialGroupTransforms.set(imageId, {
+            x: img.x,
+            y: img.y,
+          });
+        }
+      }
+    }
+  }
+
+  private updateGroupDrag(point: Point): void {
+    if (this.draggingImageIds.length === 0 || !this.imageDragStart) {
+      return;
+    }
+
+    const dx = point.x - this.imageDragStart.x;
+    const dy = point.y - this.imageDragStart.y;
+
+    const drags = new Map<string, { x: number, y: number }>();
+    for (const [imageId, initial] of this.initialGroupTransforms) {
+      drags.set(imageId, {
+        x: initial.x! + dx,
+        y: initial.y! + dy,
+      });
+    }
+
+    this.previewGroupDrags.set(drags);
+    this.scheduleRender();
+  }
+
+  private finishGroupDrag(): void {
+    // Emit all position updates
+    const drags = this.previewGroupDrags();
+    if (drags) {
+      for (const [imageId, position] of drags) {
+        this.imageTransform.emit({
+          id: imageId,
+          transform: { x: position.x, y: position.y },
+        });
+      }
+    }
+
+    this.draggingImageIds = [];
+    this.imageDragStart = null;
+    this.initialGroupTransforms.clear();
+    this.previewGroupDrags.set(null);
   }
 
   private lastWallPaintHex: string | null = null;
