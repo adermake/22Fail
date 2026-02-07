@@ -115,6 +115,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private strokeCanvas: HTMLCanvasElement | null = null;
   private strokeCtx: CanvasRenderingContext2D | null = null;
   private strokeBounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  private strokeOrigin = { x: 0, y: 0 }; // Fixed render position (prevents movement during draw)
   
   // Cache processed texture during stroke to prevent lag
   private cachedProcessedTexture: HTMLCanvasElement | null = null;
@@ -250,16 +251,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }, 100); // Small delay to ensure canvas is ready
   }
 
-  private schedulePreviewUpdate(): void {
-    if (this.previewUpdateScheduled) return;
-    this.previewUpdateScheduled = true;
-    requestAnimationFrame(() => {
-      this.previewUpdateScheduled = false;
-      this.renderTexturePreview();
-    });
-  }
-
   ngOnChanges(changes: SimpleChanges): void {
+    // Update texture preview when relevant inputs change
+    if (changes['selectedTextureId'] || changes['textureColorBlend'] || changes['textureHue']) {
+      this.schedulePreviewUpdate();
+    }
+    
     if (changes['map'] || changes['tokens'] || changes['selectedImageId']) {
       this.scheduleRender();
     }
@@ -275,11 +272,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
+  private schedulePreviewUpdate(): void {
+    if (this.previewUpdateScheduled) return;
+    this.previewUpdateScheduled = true;
+    requestAnimationFrame(() => {
+      this.renderTexturePreview();
+      this.previewUpdateScheduled = false;
+    });
+  }
+
   ngOnDestroy(): void {
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-    }
+    // Clean up resources
+    this.resizeObserver?.disconnect();
     this.removeDocumentListeners();
+    this.textureTiles.clear();
+    this.tileDataVersions.clear();
+    this.dirtyTiles.clear();
+    this.currentDrawingTiles.clear();
+    this.strokeCanvas = null;
+    this.strokeCtx = null;
+    this.cachedProcessedTexture = null;
   }
 
   // ============================================
@@ -494,9 +506,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
       ctx.lineWidth = 2;
     } else if (isWall) {
-      ctx.fillStyle = 'rgba(30, 41, 59, 0.3)';
+      // Use adaptive color for walls too
+      const wallColor = this.getContrastingWallColor();
+      ctx.fillStyle = wallColor.fill;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(30, 41, 59, 0.6)';
+      ctx.strokeStyle = wallColor.stroke;
       ctx.lineWidth = Math.max(1, 1.5 / this.scale); // More visible wall lines
     } else {
       // Smart grid color based on background luminance
@@ -529,6 +543,36 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       // Light background: use dark grid with good contrast
       const darkness = Math.max(0, luminance - 120);
       return `rgba(${darkness}, ${darkness}, ${darkness}, 0.4)`;
+    }
+  }
+
+  private getContrastingWallColor(): { fill: string; stroke: string } {
+    const bgColor = this.map?.backgroundColor || '#e5e7eb';
+    
+    // Parse hex color
+    const hex = bgColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    
+    // Calculate luminance (0-255)
+    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+    
+    // Walls should be more prominent than grid but still adaptive
+    if (luminance < 128) {
+      // Dark background: use lighter walls
+      const lightness = Math.min(255, luminance + 100);
+      return {
+        fill: `rgba(${lightness}, ${lightness}, ${lightness}, 0.3)`,
+        stroke: `rgba(${lightness}, ${lightness}, ${lightness}, 0.6)`
+      };
+    } else {
+      // Light background: use darker walls
+      const darkness = Math.max(0, luminance - 100);
+      return {
+        fill: `rgba(${darkness}, ${darkness}, ${darkness}, 0.3)`,
+        stroke: `rgba(${darkness}, ${darkness}, ${darkness}, 0.6)`
+      };
     }
   }
 
@@ -904,12 +948,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
 
-    // Render current in-progress stroke from stroke canvas (live preview)
+    // Render current in-progress stroke from stroke canvas (live preview, use fixed origin)
     if ((this.isDrawingTexture || this.isErasingTexture) && this.strokeCanvas) {
       ctx.drawImage(
         this.strokeCanvas,
-        this.strokeBounds.minX,
-        this.strokeBounds.minY
+        this.strokeOrigin.x,
+        this.strokeOrigin.y
       );
     }
 
@@ -1125,6 +1169,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       maxY: startPoint.y + radius
     };
     
+    // Store fixed origin for rendering (prevents movement during draw)
+    this.strokeOrigin = {
+      x: this.strokeBounds.minX,
+      y: this.strokeBounds.minY
+    };
+    
     // Don't create canvas yet - we'll expand bounds as needed
     this.strokeCanvas = null;
     this.strokeCtx = null;
@@ -1167,11 +1217,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const ctx = this.strokeCtx;
     const scaledSize = this.cachedProcessedTexture.width;
     
-    // Convert to stroke-canvas-local coordinates
-    const localPrevX = prevPoint.x - this.strokeBounds.minX;
-    const localPrevY = prevPoint.y - this.strokeBounds.minY;
-    const localCurrX = currentPoint.x - this.strokeBounds.minX;
-    const localCurrY = currentPoint.y - this.strokeBounds.minY;
+    // Convert to stroke-canvas-local coordinates (relative to fixed origin)
+    const localPrevX = prevPoint.x - this.strokeOrigin.x;
+    const localPrevY = prevPoint.y - this.strokeOrigin.y;
+    const localCurrX = currentPoint.x - this.strokeOrigin.x;
+    const localCurrY = currentPoint.y - this.strokeOrigin.y;
     
     // Interpolate for smooth stroke
     const dx = localCurrX - localPrevX;
