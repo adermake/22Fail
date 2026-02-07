@@ -31,9 +31,10 @@ import {
   ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId } from '../../model/lobby.model';
+import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke } from '../../model/lobby.model';
 import { LobbyStoreService } from '../../services/lobby-store.service';
 import { ImageService } from '../../services/image.service';
+import { TextureService } from '../../services/texture.service';
 import { LobbyTokenComponent } from '../lobby-token/lobby-token.component';
 import { ToolType, DragMode } from '../lobby.component';
 
@@ -60,11 +61,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() brushColor = '#000000';
   @Input() penBrushSize = 4;
   @Input() eraserBrushSize = 12;
+  @Input() textureBrushSize = 30;
   @Input() drawWithWalls = false;
   @Input() dragMode: DragMode = 'free';
   @Input() drawLayerVisible = true;
   @Input() imageLayerVisible = true;
   @Input() selectedImageId: string | null = null;
+  @Input() selectedTextureId: string | null = null;
   @Input() isGM = false;
 
   // Outputs
@@ -81,6 +84,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // Services
   private store = inject(LobbyStoreService);
   private imageService = inject(ImageService);
+  private textureService = inject(TextureService);
   private cdr = inject(ChangeDetectorRef);
 
   // Canvas contexts
@@ -91,6 +95,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // Image cache
   private imageCache = new Map<string, HTMLImageElement>();
+  private textureCache = new Map<string, HTMLImageElement>();
 
   // Render optimization
   private renderPending = false;
@@ -104,10 +109,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // Interaction state
   private isPanning = false;
   private isDrawing = false;
+  private isDrawingTexture = false; // For texture brush
   private isWallDrawing = false;
   private wallPaintMode: 'add' | 'remove' = 'add';
   private pendingWallChanges: { hex: HexCoord; action: 'add' | 'remove' }[] = []; // Batch wall changes
   private currentStrokePoints: Point[] = [];
+  private currentTexturePoints: Point[] = []; // For texture brush
   private lastMousePos: Point = { x: 0, y: 0 };
   private erasedStrokeIds = new Set<string>(); // Track strokes erased during current drag
   private isAdjustingBrushSize = false; // Shift+drag to adjust brush size
@@ -319,6 +326,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.renderGrid();
     this.renderImages();
     this.renderStrokes();
+    this.renderTextureStrokes();
     this.renderOverlay();
   }
 
@@ -618,6 +626,108 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.restore();
   }
 
+  private async renderTextureStrokes(): Promise<void> {
+    if (!this.drawCtx || !this.map) return;
+
+    const ctx = this.drawCtx;
+    const dpr = window.devicePixelRatio || 1;
+
+    ctx.save();
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.scale, this.scale);
+
+    // Render saved texture strokes
+    for (const textureStroke of this.map.textureStrokes || []) {
+      await this.renderSingleTextureStroke(ctx, textureStroke.points, textureStroke.textureId, textureStroke.brushSize);
+    }
+
+    // Render current in-progress texture stroke for live preview
+    if (this.isDrawingTexture && this.currentTexturePoints.length > 1 && this.selectedTextureId) {
+      await this.renderSingleTextureStroke(ctx, this.currentTexturePoints, this.selectedTextureId, this.textureBrushSize);
+    }
+
+    ctx.restore();
+  }
+
+  private async renderSingleTextureStroke(ctx: CanvasRenderingContext2D, points: Point[], textureId: string, brushSize: number): Promise<void> {
+    if (points.length < 2) return;
+
+    // Load texture image
+    let textureImg = this.textureCache.get(textureId);
+    
+    if (!textureImg) {
+      const textureUrl = this.textureService.getTextureUrl(textureId);
+      if (!textureUrl) return;
+
+      textureImg = new Image();
+      textureImg.src = textureUrl;
+      
+      // Wait for texture to load
+      if (!textureImg.complete) {
+        await new Promise<void>((resolve, reject) => {
+          textureImg!.onload = () => resolve();
+          textureImg!.onerror = () => reject();
+        }).catch(() => {
+          console.error('Failed to load texture:', textureId);
+          return;
+        });
+      }
+      
+      this.textureCache.set(textureId, textureImg);
+    }
+
+    // Create clipping path from stroke with circular brush
+    ctx.save();
+    ctx.beginPath();
+
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i];
+      ctx.moveTo(point.x + brushSize / 2, point.y);
+      ctx.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
+    }
+
+    // Connect consecutive points with lines
+    if (points.length > 1) {
+      for (let i = 0; i < points.length - 1; i++) {
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+
+        // Draw connecting rectangles
+        ctx.save();
+        ctx.translate(p1.x, p1.y);
+        ctx.rotate(angle);
+        ctx.rect(0, -brushSize / 2, distance, brushSize);
+        ctx.restore();
+      }
+    }
+
+    ctx.clip();
+
+    // Create repeating pattern and fill clipped region
+    try {
+      const pattern = ctx.createPattern(textureImg, 'repeat');
+      if (pattern) {
+        ctx.fillStyle = pattern;
+        
+        // Fill a large area that covers the stroke
+        const minX = Math.min(...points.map(p => p.x)) - brushSize;
+        const minY = Math.min(...points.map(p => p.y)) - brushSize;
+        const maxX = Math.max(...points.map(p => p.x)) + brushSize;
+        const maxY = Math.max(...points.map(p => p.y)) + brushSize;
+        
+        ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+      }
+    } catch (error) {
+      console.error('Failed to create texture pattern:', error);
+    }
+
+    ctx.restore();
+  }
+
   private renderOverlay(): void {
     if (!this.overlayCtx) return;
 
@@ -797,6 +907,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       case 'image':
         this.handleImageDown(event, world);
         break;
+      case 'texture':
+        this.handleTextureDown(event, world);
+        break;
     }
   }
 
@@ -834,6 +947,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       case 'image':
         this.handleImageMove(event, world);
         break;
+      case 'texture':
+        this.handleTextureMove(event, world);
+        break;
     }
   }
 
@@ -870,6 +986,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         break;
       case 'image':
         this.handleImageUp(event, world);
+        break;
+      case 'texture':
+        this.handleTextureUp(event, world);
         break;
     }
   }
@@ -1055,6 +1174,42 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.currentStrokePoints = [];
     this.erasedStrokeIds.clear();
+    this.scheduleRender();
+  }
+
+  private handleTextureDown(event: MouseEvent, world: Point): void {
+    if (event.button !== 0) return;
+    if (!this.selectedTextureId) return;
+
+    this.isDrawingTexture = true;
+    this.currentTexturePoints = [world];
+  }
+
+  private handleTextureMove(event: MouseEvent, world: Point): void {
+    if (!this.isDrawingTexture || !this.selectedTextureId) return;
+
+    this.currentTexturePoints.push(world);
+    this.scheduleRender();
+  }
+
+  private handleTextureUp(event: MouseEvent, world: Point): void {
+    if (!this.isDrawingTexture || !this.selectedTextureId) return;
+
+    this.isDrawingTexture = false;
+    
+    // Create texture stroke
+    if (this.currentTexturePoints.length > 1) {
+      const textureStroke: TextureStroke = {
+        id: generateId(),
+        points: [...this.currentTexturePoints],
+        textureId: this.selectedTextureId,
+        brushSize: this.textureBrushSize,
+      };
+      
+      this.store.addTextureStroke(textureStroke);
+    }
+
+    this.currentTexturePoints = [];
     this.scheduleRender();
   }
 

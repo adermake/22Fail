@@ -30,10 +30,14 @@
         [characters]="worldCharacters()"
         [tokensOnMap]="enrichedTokens()"
         [images]="imageLibrary()"
+        [textures]="textureLibrary()"
+        [selectedTextureId]="selectedTextureId()"
         [isGM]="isGM()"
         (loadImages)="onLoadImages($event)"
         (deleteImage)="onDeleteLibraryImage($event)"
         (renameImage)="onRenameLibraryImage($event)"
+        (loadTextures)="onLoadTextures($event)"
+        (selectTexture)="onSelectTexture($event)"
       />
     }
 
@@ -46,6 +50,8 @@
         [brushColor]="brushColor()"
         [penBrushSize]="penBrushSize()"
         [eraserBrushSize]="eraserBrushSize()"
+        [textureBrushSize]="textureBrushSize()"
+        [selectedTextureId]="selectedTextureId()"
         [drawWithWalls]="drawWithWalls()"
         [dragMode]="dragMode()"
         [drawLayerVisible]="drawLayerVisible()"

@@ -10,7 +10,7 @@ import { Component, Input, Output, EventEmitter, signal, ChangeDetectionStrategy
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
-import { Token, LibraryImage } from '../../model/lobby.model';
+import { Token, LibraryImage, LibraryTexture } from '../../model/lobby.model';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 @Component({
@@ -26,22 +26,26 @@ export class LobbySidebarComponent {
   @Input() characters: { id: string; sheet: CharacterSheet }[] = [];
   @Input() tokensOnMap: Token[] = [];
   @Input() images: LibraryImage[] = [];
+  @Input() textures: LibraryTexture[] = [];
   @Input() isGM = false;
+  @Input() selectedTextureId: string | null = null;
 
   // Outputs
   @Output() loadImages = new EventEmitter<FileList>();
   @Output() deleteImage = new EventEmitter<string>();
   @Output() renameImage = new EventEmitter<{ id: string; name: string }>();
   @Output() dragStart = new EventEmitter<LibraryImage>();
+  @Output() loadTextures = new EventEmitter<FileList>();
+  @Output() selectTexture = new EventEmitter<string | null>();
 
   // Local state
-  activeTab = signal<'characters' | 'images'>('characters');
+  activeTab = signal<'characters' | 'images' | 'textures'>('characters');
   editingImageId = signal<string | null>(null);
   editingName = signal('');
   searchQuery = signal('');
 
   // Methods
-  switchTab(tab: 'characters' | 'images'): void {
+  switchTab(tab: 'characters' | 'images' | 'textures'): void {
     this.activeTab.set(tab);
   }
 
@@ -124,6 +128,31 @@ export class LobbySidebarComponent {
     if (!query) return this.images;
     return this.images.filter(img => 
       img.name.toLowerCase().includes(query)
+    );
+  }
+
+  // Texture methods
+  onTextureFileSelect(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      this.loadTextures.emit(input.files);
+      input.value = ''; // Reset for future uploads
+    }
+  }
+
+  onTextureSelect(textureId: string): void {
+    if (this.selectedTextureId === textureId) {
+      this.selectTexture.emit(null); // Deselect
+    } else {
+      this.selectTexture.emit(textureId);
+    }
+  }
+
+  get filteredTextures() {
+    const query = this.searchQuery().toLowerCase();
+    if (!query) return this.textures;
+    return this.textures.filter(tex => 
+      tex.name.toLowerCase().includes(query)
     );
   }
 }

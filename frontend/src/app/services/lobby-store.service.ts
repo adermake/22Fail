@@ -11,6 +11,7 @@ import { BehaviorSubject } from 'rxjs';
 import { LobbyApiService } from './lobby-api.service';
 import { LobbySocketService } from './lobby-socket.service';
 import { ImageService } from './image.service';
+import { TextureService } from './texture.service';
 import {
   LobbyData,
   LobbyMap,
@@ -18,9 +19,11 @@ import {
   Stroke,
   MapImage,
   LibraryImage,
+  LibraryTexture,
   WallHex,
   MeasurementLine,
   HexCoord,
+  TextureStroke,
   generateId,
   createEmptyLobby,
   createEmptyMap,
@@ -32,6 +35,7 @@ export class LobbyStoreService {
   private api = inject(LobbyApiService);
   private socket = inject(LobbySocketService);
   private imageService = inject(ImageService);
+  private textureService = inject(TextureService);
 
   // Core state
   private lobbySubject = new BehaviorSubject<LobbyData | null>(null);
@@ -68,6 +72,10 @@ export class LobbyStoreService {
 
   get strokes(): Stroke[] {
     return this.currentMap?.strokes || [];
+  }
+
+  get textureStrokes(): TextureStroke[] {
+    return this.currentMap?.textureStrokes || [];
   }
 
   get images(): MapImage[] {
@@ -365,6 +373,19 @@ export class LobbyStoreService {
   }
 
   /**
+   * Add a texture stroke.
+   */
+  addTextureStroke(textureStroke: Omit<TextureStroke, 'id'>): void {
+    const newTextureStroke: TextureStroke = {
+      ...textureStroke,
+      id: generateId(),
+    };
+
+    const textureStrokes = [...this.textureStrokes, newTextureStroke];
+    this.applyPatch({ path: 'textureStrokes', value: textureStrokes });
+  }
+
+  /**
    * Remove a specific stroke by ID (for eraser).
    */
   removeStroke(strokeId: string): void {
@@ -573,6 +594,34 @@ export class LobbyStoreService {
 
     this.lobbySubject.next({ ...lobby });
     await this.api.saveLobby(this.worldName, lobby);
+  }
+
+  /**
+   * Add a texture to the reusable library.
+   * Uploads the texture to the server first.
+   */
+  async addLibraryTexture(base64Data: string, name: string, tileSize: number = 100): Promise<LibraryTexture> {
+    // Upload to server
+    const textureId = await this.textureService.uploadTexture(base64Data);
+    
+    const newTexture: LibraryTexture = {
+      id: generateId(),
+      name,
+      textureId,
+      tileSize,
+      createdAt: Date.now(),
+    };
+
+    const lobby = this.lobby;
+    if (!lobby) throw new Error('No lobby loaded');
+
+    lobby.textureLibrary = [...lobby.textureLibrary, newTexture];
+    lobby.updatedAt = Date.now();
+
+    this.lobbySubject.next({ ...lobby });
+    await this.api.saveLobby(this.worldName, lobby);
+
+    return newTexture;
   }
 
   // ============================================

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { DataService } from './data.service';
 import { ImageService } from './image.service';
+import { TextureService } from './texture.service';
 import { StressTestService } from './stress-test.service';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -17,6 +18,6 @@ import { BattleMapGateway } from './battlemap.gateway';
     }),
   ],
   controllers: [AppController],
-  providers: [CharacterGateway, WorldGateway, BattleMapGateway, DataService, ImageService, StressTestService],
+  providers: [CharacterGateway, WorldGateway, BattleMapGateway, DataService, ImageService, TextureService, StressTestService],
 })
 export class AppModule {}

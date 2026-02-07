@@ -199,6 +199,12 @@
   border-color: var(--accent, #3b82f6);
 }
 
+.image-item.selected {
+  border-color: var(--accent, #3b82f6);
+  border-width: 2px;
+  background: rgba(59, 130, 246, 0.1);
+}
+
 .image-item:active {
   cursor: grabbing;
 }

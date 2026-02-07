@@ -16,6 +16,7 @@ import {
 import type { Response } from 'express';
 import { DataService } from './data.service';
 import { ImageService } from './image.service';
+import { TextureService } from './texture.service';
 import { StressTestService } from './stress-test.service';
 import type { JsonPatch } from './data.service';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -30,6 +31,7 @@ export class AppController {
   constructor(
     private readonly dataService: DataService,
     private readonly imageService: ImageService,
+    private readonly textureService: TextureService,
     private readonly stressTestService: StressTestService,
     private readonly characterGateway: CharacterGateway, // Add this
   ) {}
@@ -311,6 +313,44 @@ export class AppController {
   listImages(): any {
     const images = this.imageService.listImages();
     return { images };
+  }
+
+  // ==================== Texture Management ====================
+
+  @Post('textures')
+  uploadTexture(@Body('data') base64Data: string): any {
+    if (!base64Data) {
+      throw new BadRequestException('No texture data provided');
+    }
+
+    const textureId = this.textureService.storeTexture(base64Data);
+    return { textureId };
+  }
+
+  @Get('textures/:id')
+  getTexture(@Param('id') id: string, @Res() res: Response): void {
+    const textureData = this.textureService.getTextureBuffer(id);
+    
+    if (!textureData) {
+      res.status(404).send('Texture not found');
+      return;
+    }
+
+    res.setHeader('Content-Type', textureData.mimeType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // Cache for 1 year
+    res.send(textureData.buffer);
+  }
+
+  @Delete('textures/:id')
+  deleteTexture(@Param('id') id: string): any {
+    const deleted = this.textureService.deleteTexture(id);
+    return { success: deleted };
+  }
+
+  @Get('textures')
+  listTextures(): any {
+    const textures = this.textureService.listTextures();
+    return { textures };
   }
 
   // Clean up orphaned images (admin endpoint)

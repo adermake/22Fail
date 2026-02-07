@@ -17,8 +17,9 @@ import { LobbyStoreService } from '../services/lobby-store.service';
 import { WorldStoreService } from '../services/world-store.service';
 import { CharacterApiService } from '../services/character-api.service';
 import { ImageService } from '../services/image.service';
+import { TextureService } from '../services/texture.service';
 import { CharacterSheet } from '../model/character-sheet-model';
-import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage } from '../model/lobby.model';
+import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture } from '../model/lobby.model';
 
 import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
 import { LobbyToolbarComponent } from './lobby-toolbar/lobby-toolbar.component';
@@ -51,6 +52,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   private worldStore = inject(WorldStoreService);
   private characterApi = inject(CharacterApiService);
   private imageService = inject(ImageService);
+  private textureService = inject(TextureService);
   private cdr = inject(ChangeDetectorRef);
 
   private subscriptions: Subscription[] = [];
@@ -71,6 +73,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   brushColor = signal('#000000');
   penBrushSize = signal(4);
   eraserBrushSize = signal(12);
+  textureBrushSize = signal(30);
   drawWithWalls = signal(false);
   dragMode = signal<DragMode>('free');
 
@@ -80,6 +83,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   // Selection state
   selectedImageId = signal<string | null>(null);
+  selectedTextureId = signal<string | null>(null);
 
   // UI state
   showSidebar = signal(true);
@@ -117,6 +121,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   // Computed: image library
   imageLibrary = computed(() => this.lobby()?.imageLibrary || []);
+  textureLibrary = computed(() => this.lobby()?.textureLibrary || []);
 
   // Computed: map list for management
   mapList = computed(() => {
@@ -432,6 +437,42 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.store.removeImage(id);
     if (this.selectedImageId() === id) {
       this.selectedImageId.set(null);
+    }
+  }
+
+  // ============================================
+  // Texture Handlers
+  // ============================================
+
+  async onLoadTextures(files: FileList): Promise<void> {
+    if (!this.isGM()) return;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.type.startsWith('image/')) continue;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const dataUrl = e.target?.result as string;
+        if (dataUrl) {
+          try {
+            const name = file.name.replace(/\.[^/.]+$/, '');
+            await this.store.addLibraryTexture(dataUrl, name);
+            this.cdr.markForCheck();
+          } catch (error) {
+            console.error('[Lobby] Failed to upload texture:', error);
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  onSelectTexture(textureId: string | null): void {
+    this.selectedTextureId.set(textureId);
+    // Auto-switch to texture tool when selecting a texture
+    if (textureId) {
+      this.currentTool.set('texture');
     }
   }
 
