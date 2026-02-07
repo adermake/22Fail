@@ -107,6 +107,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private lastTextureStrokeCount = 0;
   private cacheRebuildScheduled = false;
   private previewUpdateScheduled = false;
+  private lastRenderTime = 0;
+  private renderThrottleMs = 16; // ~60fps
 
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
@@ -855,12 +857,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Clear texture canvas
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
-    // Check if we need to rebuild the cache
-    const currentStrokeCount = (this.map.textureStrokes || []).length;
-    if (this.textureCacheDirty || currentStrokeCount !== this.lastTextureStrokeCount) {
+    // Only rebuild cache if explicitly dirty (map changes), not on every stroke
+    if (this.textureCacheDirty) {
       await this.rebuildTextureCache();
       this.textureCacheDirty = false;
-      this.lastTextureStrokeCount = currentStrokeCount;
+      this.lastTextureStrokeCount = (this.map.textureStrokes || []).length;
     }
 
     ctx.save();
@@ -1002,6 +1003,63 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Store offset for rendering
     (this.textureCacheCanvas as any).offsetX = minX;
     (this.textureCacheCanvas as any).offsetY = minY;
+  }
+
+  private async addStrokeToCache(stroke: TextureStroke): Promise<void> {
+    // Incremental cache update - just add the new stroke without rebuilding everything
+    if (!this.textureCacheCanvas || !this.textureCacheCtx) {
+      // No cache exists yet, create it
+      await this.rebuildTextureCache();
+      return;
+    }
+
+    const ctx = this.textureCacheCtx;
+    const offsetX = (this.textureCacheCanvas as any).offsetX || 0;
+    const offsetY = (this.textureCacheCanvas as any).offsetY || 0;
+
+    // Check if stroke fits in current cache bounds
+    let needsResize = false;
+    for (const point of stroke.points) {
+      const radius = stroke.brushSize / 2;
+      if (point.x - radius < offsetX || 
+          point.y - radius < offsetY ||
+          point.x + radius > offsetX + this.textureCacheCanvas.width ||
+          point.y + radius > offsetY + this.textureCacheCanvas.height) {
+        needsResize = true;
+        break;
+      }
+    }
+
+    if (needsResize) {
+      // Stroke exceeds cache bounds, need full rebuild
+      await this.rebuildTextureCache();
+      return;
+    }
+
+    // Stroke fits - render just this stroke to existing cache
+    ctx.save();
+    ctx.translate(-offsetX, -offsetY);
+
+    await this.renderSingleTextureStroke(
+      ctx,
+      stroke.points,
+      stroke.textureId,
+      stroke.brushSize,
+      stroke.textureScale ?? 0.1,
+      stroke.isEraser ?? false,
+      stroke.brushType ?? 'hard',
+      stroke.colorBlend ?? 0,
+      stroke.blendColor ?? '#ffffff',
+      stroke.hueShift ?? 0
+    );
+
+    ctx.restore();
+    
+    // Update stroke count
+    this.lastTextureStrokeCount = (this.map?.textureStrokes || []).length;
+    
+    // Trigger a render to show the updated cache
+    this.scheduleRender();
   }
 
   private async renderSingleTextureStroke(
@@ -1841,8 +1899,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.currentStrokePoints.push(world);
     
-    // For both pen and eraser, preview the current stroke immediately
-    this.scheduleRender();
+    // Throttle render calls during drawing - only render every 16ms (60fps)
+    const now = performance.now();
+    if (now - this.lastRenderTime >= this.renderThrottleMs) {
+      this.lastRenderTime = now;
+      this.scheduleRender();
+    }
   }
 
   private handleDrawUp(event: MouseEvent, world: Point): void {
@@ -1874,6 +1936,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.currentStrokePoints = [];
     this.erasedStrokeIds.clear();
+    this.lastRenderTime = 0; // Reset throttle
     this.scheduleRender();
   }
 
@@ -1915,7 +1978,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!this.isDrawingTexture && !this.isErasingTexture) return;
 
     this.currentTexturePoints.push(world);
-    this.scheduleRender();
+    
+    // Throttle render calls during drawing - only render every 16ms (60fps)
+    const now = performance.now();
+    if (now - this.lastRenderTime >= this.renderThrottleMs) {
+      this.lastRenderTime = now;
+      this.scheduleRender();
+    }
   }
 
   private handleTextureUp(event: MouseEvent, world: Point): void {
@@ -1949,10 +2018,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       };
       
       this.store.addTextureStroke(textureStroke);
-      this.scheduleCacheRebuild(); // Defer cache rebuild to avoid blocking
+      
+      // Incremental cache update - just add this stroke to existing cache
+      this.addStrokeToCache(textureStroke);
     }
 
     this.currentTexturePoints = [];
+    this.lastRenderTime = 0; // Reset throttle
     this.scheduleRender();
   }
 
