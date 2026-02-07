@@ -320,6 +320,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
       case 'i':
         this.currentTool.set('image');
         this.isEraserMode.set(false);
+        // Auto-switch to textures tab for image tool
+        this.sidebarTab.set('textures' as any);
         event.preventDefault();
         break;
       case 'z':
@@ -339,8 +341,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.currentTool.set(tool);
     this.isEraserMode.set(false); // Reset eraser when tool changes
     
-    // Auto-switch to texture tab when texture tool selected
-    if (tool === 'texture') {
+    // Auto-switch to texture tab when texture or image tool selected
+    if (tool === 'texture' || tool === 'image') {
       this.sidebarTab.set('textures' as any);
     }
   }
@@ -416,6 +418,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
       isQuickToken: false,
       movementSpeed,
     });
+    
+    // Switch to cursor tool after dropping token
+    this.currentTool.set('cursor');
   }
 
   onQuickTokenDrop(data: { name: string; portrait: string; position: HexCoord }): void {
@@ -428,6 +433,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
       team: 'red',
       isQuickToken: true,
     });
+    
+    // Switch to cursor tool after dropping token
+    this.currentTool.set('cursor');
   }
 
   onTokenMove(data: { tokenId: string; position: HexCoord }): void {
@@ -474,10 +482,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.store.removeLibraryImage(id);
   }
 
-  onPlaceImage(data: { imageId: string; x: number; y: number; width: number; height: number }): void {
+ onPlaceImage(data: { imageId: string; x: number; y: number; width: number; height: number }): void {
     const newImageId = this.store.addImage(data.imageId, data.x, data.y, data.width, data.height);
     // Auto-select the newly placed image so user can immediately transform it
     this.selectedImageId.set(newImageId);
+    // Switch to image tool after placing
+    this.currentTool.set('image');
   }
 
   onSelectImage(id: string | null): void {

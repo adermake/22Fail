@@ -50,8 +50,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // Canvas elements
   @ViewChild('gridCanvas') gridCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('imageCanvas') imageCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('textureCanvas') textureCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('drawCanvas') drawCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('texturePreviewCanvas') texturePreviewCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('container') container!: ElementRef<HTMLDivElement>;
 
   // Inputs
@@ -96,6 +98,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
   private imageCtx: CanvasRenderingContext2D | null = null;
+  private textureCtx: CanvasRenderingContext2D | null = null;
   private drawCtx: CanvasRenderingContext2D | null = null;
   private overlayCtx: CanvasRenderingContext2D | null = null;
 
@@ -226,6 +229,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (changes['imageLayerVisible']) {
       this.updateLayerVisibility();
     }
+    // Update texture preview when texture settings change
+    if (changes['selectedTextureId'] || changes['textureColorBlend'] || changes['textureHue'] || changes['textureBlendColor']) {
+      this.renderTexturePreview();
+    }
   }
 
   ngOnDestroy(): void {
@@ -242,6 +249,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const canvases = [
       { el: this.gridCanvas?.nativeElement, name: 'grid' },
       { el: this.imageCanvas?.nativeElement, name: 'image' },
+      { el: this.textureCanvas?.nativeElement, name: 'texture' },
       { el: this.drawCanvas?.nativeElement, name: 'draw' },
       { el: this.overlayCanvas?.nativeElement, name: 'overlay' },
     ];
@@ -251,6 +259,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         const ctx = el.getContext('2d');
         if (name === 'grid') this.gridCtx = ctx;
         if (name === 'image') this.imageCtx = ctx;
+        if (name === 'texture') this.textureCtx = ctx;
         if (name === 'draw') this.drawCtx = ctx;
         if (name === 'overlay') this.overlayCtx = ctx;
         this.resizeCanvas(el);
@@ -281,7 +290,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!container) return;
 
     this.resizeObserver = new ResizeObserver(() => {
-      [this.gridCanvas, this.imageCanvas, this.drawCanvas, this.overlayCanvas].forEach(ref => {
+      [this.gridCanvas, this.imageCanvas, this.textureCanvas, this.drawCanvas, this.overlayCanvas].forEach(ref => {
         if (ref?.nativeElement) {
           this.resizeCanvas(ref.nativeElement);
         }
@@ -301,6 +310,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private updateLayerVisibility(): void {
+    // Draw eye only controls normal drawing strokes, not textures
     if (this.drawCanvas?.nativeElement) {
       this.drawCanvas.nativeElement.style.opacity = this.drawLayerVisible ? '1' : '0';
     }
@@ -341,11 +351,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private render(): void {
-    this.renderGrid();
-    this.renderImages();
-    this.renderTextureStrokes(); // Textures below strokes
-    this.renderStrokes();
-    this.renderOverlay();
+    this.renderImages();       // Background + images
+    this.renderTextureStrokes(); // Textures above images
+    this.renderGrid();          // Grid above textures
+    this.renderOverlay();       // Tokens + overlays above grid
+    this.renderStrokes();       // Normal drawing on top
   }
 
   private renderGrid(): void {
@@ -684,7 +694,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const ctx = this.drawCtx;
     const dpr = window.devicePixelRatio || 1;
 
-    // Canvas already cleared by renderTextureStrokes()
+    // Clear draw canvas (normal strokes only)
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
     ctx.save();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
@@ -730,13 +742,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private async renderTextureStrokes(): Promise<void> {
-    if (!this.drawCtx || !this.map) return;
+    if (!this.textureCtx || !this.map) return;
 
-    const canvas = this.drawCanvas.nativeElement;
-    const ctx = this.drawCtx;
+    const canvas = this.textureCanvas.nativeElement;
+    const ctx = this.textureCtx;
     const dpr = window.devicePixelRatio || 1;
 
-    // Clear the entire draw canvas once (textures + strokes share this canvas)
+    // Clear texture canvas
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
     ctx.save();
@@ -1067,6 +1079,75 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
     
     return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+  }
+
+  private async renderTexturePreview(): Promise<void> {
+    if (!this.texturePreviewCanvas || !this.selectedTextureId) return;
+
+    const canvas = this.texturePreviewCanvas.nativeElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size
+    canvas.width = 120;
+    canvas.height = 120;
+
+    // Load texture
+    const textureUrl = `/api/images/${this.selectedTextureId}`;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    try {
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = textureUrl;
+      });
+
+      // Draw texture at base scale
+      const pattern = ctx.createPattern(img, 'repeat');
+      if (!pattern) return;
+
+      ctx.fillStyle = pattern;
+      ctx.fillRect(0, 0, 120, 120);
+
+      // Apply hue shift if needed
+      if (this.textureHue !== 0) {
+        const imageData = ctx.getImageData(0, 0, 120, 120);
+        const data = imageData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const a = data[i + 3];
+
+          if (a > 0) {
+            const hsl = this.rgbToHsl(r, g, b);
+            hsl[0] = (hsl[0] + this.textureHue / 360) % 1;
+            if (hsl[0] < 0) hsl[0] += 1;
+            const [nr, ng, nb] = this.hslToRgb(hsl[0], hsl[1], hsl[2]);
+            data[i] = nr;
+            data[i + 1] = ng;
+            data[i + 2] = nb;
+          }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+      }
+
+      // Apply color blend if needed
+      if (this.textureColorBlend > 0) {
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.globalAlpha = this.textureColorBlend / 100;
+        ctx.fillStyle = this.textureBlendColor;
+        ctx.fillRect(0, 0, 120, 120);
+        ctx.globalAlpha = 1.0;
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    } catch (error) {
+      console.error('[LobbyGrid] Failed to load texture preview:', error);
+    }
   }
 
   private renderOverlay(): void {
