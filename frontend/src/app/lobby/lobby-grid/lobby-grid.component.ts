@@ -110,6 +110,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private lastRenderTime = 0;
   private renderThrottleMs = 16; // ~60fps
   private currentDrawingTiles = new Set<string>(); // Tiles being drawn to in current stroke
+  
+  // Stroke canvas for single-pass drawing (prevents accumulation/pulsing)
+  private strokeCanvas: HTMLCanvasElement | null = null;
+  private strokeCtx: CanvasRenderingContext2D | null = null;
+  private strokeBounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  
+  // Cache processed texture during stroke to prevent lag
+  private cachedProcessedTexture: HTMLCanvasElement | null = null;
+  private cachedTextureId: string | null = null;
 
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
@@ -875,7 +884,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    // Render only visible tiles
+    // Render only visible tiles with 1px overlap to eliminate seams
     for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
       for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
         const tileKey = `${tileX},${tileY}`;
@@ -884,19 +893,24 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         if (tile) {
           const worldX = tileX * this.textureTileSize;
           const worldY = tileY * this.textureTileSize;
-          ctx.drawImage(tile, worldX, worldY);
+          
+          // Draw with slight overlap on all edges to eliminate seams
+          ctx.drawImage(
+            tile,
+            0, 0, this.textureTileSize, this.textureTileSize, // Source
+            worldX - 0.5, worldY - 0.5, this.textureTileSize + 1, this.textureTileSize + 1 // Dest with overlap
+          );
         }
       }
     }
 
-    // Render current in-progress texture stroke for live preview
-    if (this.isDrawingTexture && this.currentTexturePoints.length > 1 && this.selectedTextureId) {
-      await this.renderLiveTexturePreview(ctx);
-    }
-
-    // Render current in-progress texture eraser for live preview
-    if (this.isErasingTexture && this.currentTexturePoints.length > 1) {
-      await this.renderLiveEraserPreview(ctx);
+    // Render current in-progress stroke from stroke canvas (live preview)
+    if ((this.isDrawingTexture || this.isErasingTexture) && this.strokeCanvas) {
+      ctx.drawImage(
+        this.strokeCanvas,
+        this.strokeBounds.minX,
+        this.strokeBounds.minY
+      );
     }
 
     ctx.restore();
@@ -1098,6 +1112,234 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.globalCompositeOperation = 'source-over';
   }
 
+  /**
+   * Initialize stroke canvas for single-pass drawing
+   * Prevents texture accumulation/pulsing
+   */
+  private initStrokeCanvas(startPoint: Point): void {
+    const radius = this.textureBrushSize / 2;
+    this.strokeBounds = {
+      minX: startPoint.x - radius,
+      minY: startPoint.y - radius,
+      maxX: startPoint.x + radius,
+      maxY: startPoint.y + radius
+    };
+    
+    // Don't create canvas yet - we'll expand bounds as needed
+    this.strokeCanvas = null;
+    this.strokeCtx = null;
+  }
+
+  /**
+   * Draw to stroke canvas (non-blocking, single-pass)
+   * Pixels can only be modified once per stroke
+   */
+  private drawToStrokeCanvas(prevPoint: Point, currentPoint: Point): void {
+    const radius = this.textureBrushSize / 2;
+    
+    // Expand bounds
+    this.strokeBounds.minX = Math.min(this.strokeBounds.minX, prevPoint.x - radius, currentPoint.x - radius);
+    this.strokeBounds.minY = Math.min(this.strokeBounds.minY, prevPoint.y - radius, currentPoint.y - radius);
+    this.strokeBounds.maxX = Math.max(this.strokeBounds.maxX, prevPoint.x + radius, currentPoint.x + radius);
+    this.strokeBounds.maxY = Math.max(this.strokeBounds.maxY, prevPoint.y + radius, currentPoint.y + radius);
+    
+    const width = Math.ceil(this.strokeBounds.maxX - this.strokeBounds.minX);
+    const height = Math.ceil(this.strokeBounds.maxY - this.strokeBounds.minY);
+    
+    // Create or resize stroke canvas if needed
+    if (!this.strokeCanvas || this.strokeCanvas.width < width || this.strokeCanvas.height < height) {
+      const newCanvas = document.createElement('canvas');
+      newCanvas.width = width + 100; // Add padding for growth
+      newCanvas.height = height + 100;
+      const newCtx = newCanvas.getContext('2d', { willReadFrequently: false })!;
+      
+      // Copy existing content if any
+      if (this.strokeCanvas && this.strokeCtx) {
+        newCtx.drawImage(this.strokeCanvas, 0, 0);
+      }
+      
+      this.strokeCanvas = newCanvas;
+      this.strokeCtx = newCtx;
+    }
+    
+    if (!this.strokeCtx || !this.cachedProcessedTexture) return;
+    
+    const ctx = this.strokeCtx;
+    const scaledSize = this.cachedProcessedTexture.width;
+    
+    // Convert to stroke-canvas-local coordinates
+    const localPrevX = prevPoint.x - this.strokeBounds.minX;
+    const localPrevY = prevPoint.y - this.strokeBounds.minY;
+    const localCurrX = currentPoint.x - this.strokeBounds.minX;
+    const localCurrY = currentPoint.y - this.strokeBounds.minY;
+    
+    // Interpolate for smooth stroke
+    const dx = localCurrX - localPrevX;
+    const dy = localCurrY - localPrevY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const steps = Math.max(1, Math.ceil(distance / 5));
+    
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const x = localPrevX + dx * t;
+      const y = localPrevY + dy * t;
+      
+      if (this.isErasingTexture) {
+        // Eraser mode
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = 'rgba(0,0,0,1)';
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      } else {
+        // Texture drawing mode
+        if (this.textureBrushType === 'soft') {
+          this.drawSoftBrushToCanvas(ctx, this.cachedProcessedTexture, x, y, scaledSize);
+        } else {
+          this.drawHardBrushToCanvas(ctx, this.cachedProcessedTexture, x, y, scaledSize);
+        }
+      }
+    }
+  }
+
+  /**
+   * Cache processed texture to prevent lag during drawing
+   */
+  private async cacheProcessedTexture(): Promise<void> {
+    if (!this.selectedTextureId) return;
+    
+    // Check if already cached
+    if (this.cachedTextureId === this.selectedTextureId && this.cachedProcessedTexture) {
+      return;
+    }
+    
+    const textureUrl = this.getTextureUrl(this.selectedTextureId);
+    if (!textureUrl) return;
+    
+    try {
+      const img = await this.loadImage(textureUrl);
+      const scaledSize = img.width * this.textureScale;
+      this.cachedProcessedTexture = this.processTexture(img, scaledSize);
+      this.cachedTextureId = this.selectedTextureId;
+    } catch (e) {
+      console.error('[Texture] Failed to cache texture:', e);
+    }
+  }
+
+  /**
+   * Commit stroke canvas to tiles (single-pass)
+   */
+  private async commitStrokeToTiles(): Promise<void> {
+    if (!this.strokeCanvas || !this.strokeCtx) return;
+    
+    const radius = this.textureBrushSize / 2;
+    const minTile = this.worldToTile(this.strokeBounds.minX, this.strokeBounds.minY);
+    const maxTile = this.worldToTile(this.strokeBounds.maxX, this.strokeBounds.maxY);
+    
+    // Copy stroke canvas to affected tiles
+    for (let tileY = minTile.tileY; tileY <= maxTile.tileY; tileY++) {
+      for (let tileX = minTile.tileX; tileX <= maxTile.tileX; tileX++) {
+        const tile = this.getOrCreateTile(tileX, tileY);
+        const ctx = tile.getContext('2d')!;
+        const tileKey = this.getTileKey(tileX, tileY);
+        
+        // Mark tile as dirty
+        this.dirtyTiles.add(tileKey);
+        this.currentDrawingTiles.add(tileKey);
+        
+        // Calculate coordinates
+        const tileWorldX = tileX * this.textureTileSize;
+        const tileWorldY = tileY * this.textureTileSize;
+        
+        // Calculate what part of stroke canvas to copy
+        const srcX = tileWorldX - this.strokeBounds.minX;
+        const srcY = tileWorldY - this.strokeBounds.minY;
+        
+        // Copy from stroke canvas to tile
+        ctx.drawImage(
+          this.strokeCanvas,
+          srcX, srcY, this.textureTileSize, this.textureTileSize, // Source
+          0, 0, this.textureTileSize, this.textureTileSize // Dest
+        );
+      }
+    }
+    
+    // Clear stroke canvas
+    this.strokeCanvas = null;
+    this.strokeCtx = null;
+  }
+
+  /**
+   * Draw soft brush to canvas (for stroke canvas)
+   */
+  private drawSoftBrushToCanvas(
+    ctx: CanvasRenderingContext2D,
+    texture: HTMLCanvasElement,
+    x: number,
+    y: number,
+    scaledSize: number
+  ): void {
+    const radius = this.textureBrushSize / 2;
+    
+    // Create temporary canvas for gradient mask
+    const tempCanvas = document.createElement('canvas');
+    const diameter = Math.ceil(radius * 2);
+    tempCanvas.width = diameter;
+    tempCanvas.height = diameter;
+    const tempCtx = tempCanvas.getContext('2d')!;
+    
+    // Draw texture pattern
+    const pattern = tempCtx.createPattern(texture, 'repeat')!;
+    tempCtx.fillStyle = pattern;
+    const offset = Math.floor(x % scaledSize);
+    const offsetY = Math.floor(y % scaledSize);
+    tempCtx.translate(-offset, -offsetY);
+    tempCtx.fillRect(offset, offsetY, diameter, diameter);
+    tempCtx.setTransform(1, 0, 0, 1, 0, 0);
+    
+    // Apply radial gradient mask
+    tempCtx.globalCompositeOperation = 'destination-in';
+    const gradient = tempCtx.createRadialGradient(radius, radius, 0, radius, radius, radius);
+    gradient.addColorStop(0, `rgba(0,0,0,${this.textureBrushStrength})`);
+    gradient.addColorStop(0.7, `rgba(0,0,0,${this.textureBrushStrength * 0.5})`);
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+    tempCtx.fillStyle = gradient;
+    tempCtx.fillRect(0, 0, diameter, diameter);
+    
+    // Draw to canvas
+    ctx.drawImage(tempCanvas, x - radius, y - radius);
+  }
+
+  /**
+   * Draw hard brush to canvas (for stroke canvas)
+   */
+  private drawHardBrushToCanvas(
+    ctx: CanvasRenderingContext2D,
+    texture: HTMLCanvasElement,
+    x: number,
+    y: number,
+    scaledSize: number
+  ): void {
+    const radius = this.textureBrushSize / 2;
+    
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.clip();
+    
+    ctx.globalAlpha = this.textureBrushStrength;
+    const pattern = ctx.createPattern(texture, 'repeat')!;
+    ctx.fillStyle = pattern;
+    const offset = Math.floor(x % scaledSize);
+    const offsetY = Math.floor(y % scaledSize);
+    ctx.translate(x - offset, y - offsetY);
+    ctx.fillRect(-radius, -radius, radius * 2 + scaledSize, radius * 2 + scaledSize);
+    
+    ctx.restore();
+  }
+
+  // Old tile-based drawing (now unused, kept for reference)
   /**
    * Draw texture between two points directly to tiles
    * Implements soft brush/airbrush for better blending
@@ -2314,8 +2556,21 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.currentTexturePoints = [world];
     this.currentDrawingTiles.clear();
     
-    // Start drawing immediately on mouse down
-    this.drawTextureToTiles(world, world);
+    // Initialize stroke canvas for single-pass drawing
+    this.initStrokeCanvas(world);
+    
+    // Cache processed texture to prevent lag (only for texture mode)
+    if (this.isDrawingTexture && this.selectedTextureId) {
+      this.cacheProcessedTexture();
+    } else if (this.isErasingTexture) {
+      // For eraser, create a dummy black texture
+      this.cachedProcessedTexture = document.createElement('canvas');
+      this.cachedProcessedTexture.width = 1;
+      this.cachedProcessedTexture.height = 1;
+    }
+    
+    // Start drawing to stroke canvas
+    this.drawToStrokeCanvas(world, world);
   }
 
   private handleTextureMove(event: MouseEvent, world: Point): void {
@@ -2334,8 +2589,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const prevPoint = this.currentTexturePoints[this.currentTexturePoints.length - 1];
     this.currentTexturePoints.push(world);
     
-    // Draw to tiles immediately
-    this.drawTextureToTiles(prevPoint, world);
+    // Draw to stroke canvas (non-blocking, single-pass)
+    this.drawToStrokeCanvas(prevPoint, world);
     
     // Throttle render calls during drawing - only render every 16ms (60fps)
     const now = performance.now();
@@ -2358,6 +2613,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.isDrawingTexture = false;
     this.isErasingTexture = false;
+    
+    // Copy stroke canvas to tiles (single commit)
+    await this.commitStrokeToTiles();
+    
+    // Clear cache
+    this.cachedProcessedTexture = null;
+    this.cachedTextureId = null;
     
     // Save modified tiles to map
     if (this.dirtyTiles.size > 0) {
