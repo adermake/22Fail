@@ -1191,15 +1191,19 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private drawToStrokeCanvas(prevPoint: Point, currentPoint: Point): void {
     const radius = this.textureBrushSize / 2;
     
-    // Store old bounds for resize offset calculation
-    const oldMinX = this.strokeBounds.minX;
-    const oldMinY = this.strokeBounds.minY;
+    // Store old origin and bounds for resize offset calculation
+    const oldOriginX = this.strokeOrigin.x;
+    const oldOriginY = this.strokeOrigin.y;
     
     // Expand bounds
     this.strokeBounds.minX = Math.min(this.strokeBounds.minX, prevPoint.x - radius, currentPoint.x - radius);
     this.strokeBounds.minY = Math.min(this.strokeBounds.minY, prevPoint.y - radius, currentPoint.y - radius);
     this.strokeBounds.maxX = Math.max(this.strokeBounds.maxX, prevPoint.x + radius, currentPoint.x + radius);
     this.strokeBounds.maxY = Math.max(this.strokeBounds.maxY, prevPoint.y + radius, currentPoint.y + radius);
+    
+    // Always keep origin synced with bounds minimum
+    this.strokeOrigin.x = this.strokeBounds.minX;
+    this.strokeOrigin.y = this.strokeBounds.minY;
     
     const width = Math.ceil(this.strokeBounds.maxX - this.strokeBounds.minX);
     const height = Math.ceil(this.strokeBounds.maxY - this.strokeBounds.minY);
@@ -1211,19 +1215,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       newCanvas.height = height + 100;
       const newCtx = newCanvas.getContext('2d', { willReadFrequently: false })!;
       
-      // Copy existing content with offset when bounds shifted
+      // Copy existing content with offset when origin shifted
       if (this.strokeCanvas && this.strokeCtx) {
-        const offsetX = oldMinX - this.strokeBounds.minX;
-        const offsetY = oldMinY - this.strokeBounds.minY;
+        const offsetX = oldOriginX - this.strokeOrigin.x;
+        const offsetY = oldOriginY - this.strokeOrigin.y;
         newCtx.drawImage(this.strokeCanvas, offsetX, offsetY);
       }
       
       this.strokeCanvas = newCanvas;
       this.strokeCtx = newCtx;
-      
-      // Update origin to match new bounds minimum
-      this.strokeOrigin.x = this.strokeBounds.minX;
-      this.strokeOrigin.y = this.strokeBounds.minY;
     }
     
     if (!this.strokeCtx || !this.cachedProcessedTexture) return;
