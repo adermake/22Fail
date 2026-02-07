@@ -584,7 +584,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const ctx = this.drawCtx;
     const dpr = window.devicePixelRatio || 1;
 
-    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    // Canvas already cleared by renderTextureStrokes()
     ctx.save();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
@@ -632,8 +632,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private async renderTextureStrokes(): Promise<void> {
     if (!this.drawCtx || !this.map) return;
 
+    const canvas = this.drawCanvas.nativeElement;
     const ctx = this.drawCtx;
     const dpr = window.devicePixelRatio || 1;
+
+    // Clear the entire draw canvas once (textures + strokes share this canvas)
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
     ctx.translate(this.panX, this.panY);
@@ -694,28 +698,22 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (isEraser) {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = 'rgba(0,0,0,1)'; // Full opacity eraser
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.9; // Slight transparency for airbrushy blend
     }
 
     // Create clipping path from stroke with circular brush
     ctx.beginPath();
 
-    // Create soft-edged circles with gradient for airbrush effect
+    // Add circular brush stamps at each point
     for (let i = 0; i < points.length; i++) {
       const point = points[i];
-      
-      if (!isEraser) {
-        // Soft gradient edge for airbrushy blend
-        const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, brushSize / 2);
-        gradient.addColorStop(0, 'rgba(0,0,0,1)');
-        gradient.addColorStop(0.8, 'rgba(0,0,0,0.8)');
-        gradient.addColorStop(1, 'rgba(0,0,0,0)');
-      }
-      
       ctx.moveTo(point.x + brushSize / 2, point.y);
       ctx.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
     }
 
-    // Connect consecutive points with lines
+    // Connect consecutive points with rectangles
     if (points.length > 1) {
       for (let i = 0; i < points.length - 1; i++) {
         const p1 = points[i];
