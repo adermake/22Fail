@@ -106,6 +106,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private tileDataVersions = new Map<string, string>(); // Track tile data to prevent unnecessary reloads
   private textureTileSize = 512; // pixels per tile
   private dirtyTiles = new Set<string>(); // Tiles that need to be persisted
+  private tileSaveTimeout: any = null; // Debounce timer for tile saves
   private previewUpdateScheduled = false;
   private lastRenderTime = 0;
   private renderThrottleMs = 16; // ~60fps
@@ -275,6 +276,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
     // Load texture tiles when map changes
     if (changes['map']) {
+      // Save any pending tiles from previous map before switching
+      if (this.tileSaveTimeout) {
+        clearTimeout(this.tileSaveTimeout);
+        this.tileSaveTimeout = null;
+      }
+      if (this.dirtyTiles.size > 0) {
+        this.saveDirtyTiles();
+      }
       this.loadTextureTiles();
     }
   }
@@ -289,6 +298,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // Save any pending tiles immediately before cleanup
+    if (this.tileSaveTimeout) {
+      clearTimeout(this.tileSaveTimeout);
+      this.tileSaveTimeout = null;
+    }
+    if (this.dirtyTiles.size > 0) {
+      // Synchronous save before cleanup
+      this.saveDirtyTiles();
+    }
+    
     // Clean up resources
     this.resizeObserver?.disconnect();
     this.removeDocumentListeners();
@@ -1060,6 +1079,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private async saveDirtyTiles(): Promise<void> {
     if (this.dirtyTiles.size === 0 || !this.map) return;
 
+    console.log(`[Texture] Saving ${this.dirtyTiles.size} dirty tiles...`);
     const tilesToSave: any[] = [];
 
     for (const key of this.dirtyTiles) {
@@ -1091,6 +1111,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     // Trigger save through store
     this.store.updateMapTiles(this.map.textureTiles);
+    console.log(`[Texture] ✅ Saved ${tilesToSave.length} tiles`);
+  }
+
+  /**
+   * Schedule a debounced tile save to prevent overwhelming WebSocket.
+   * Batches tile saves and sends after 2 seconds of inactivity.
+   */
+  private scheduleTileSave(): void {
+    // Clear existing timeout
+    if (this.tileSaveTimeout) {
+      clearTimeout(this.tileSaveTimeout);
+    }
+
+    // Schedule new save after delay
+    this.tileSaveTimeout = setTimeout(async () => {
+      if (this.dirtyTiles.size > 0) {
+        await this.saveDirtyTiles();
+      }
+      this.tileSaveTimeout = null;
+    }, 2000); // 2 second debounce
   }
 
   private async renderLiveTexturePreview(ctx: CanvasRenderingContext2D): Promise<void> {
@@ -2795,9 +2835,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.cachedProcessedTexture = null;
     this.cachedTextureId = null;
     
-    // Save modified tiles to map
+    // Schedule debounced save instead of immediate save
     if (this.dirtyTiles.size > 0) {
-      await this.saveDirtyTiles();
+      this.scheduleTileSave();
     }
 
     this.currentTexturePoints = [];
