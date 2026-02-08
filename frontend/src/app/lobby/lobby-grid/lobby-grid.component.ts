@@ -2118,7 +2118,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   /**
    * Get texture URL by ID
    */
-  private getTextureUrl(textureId: string): string | null {
+  getTextureUrl(textureId: string): string | null {
     return this.textureService.getTextureUrl(textureId);
   }
 
