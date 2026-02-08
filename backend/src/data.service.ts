@@ -8,6 +8,7 @@ export class DataService {
   private filePath = path.join(__dirname, '../../../data.json');
   private worldsFilePath = path.join(__dirname, '../../../worlds.json');
   private racesFilePath = path.join(__dirname, '../../../races.json');
+  private globalTexturesFilePath = path.join(__dirname, '../../../textures.json');
 
   private createEmptyWorld(name: string): any {
     return {
@@ -166,6 +167,46 @@ export class DataService {
   getAllWorldNames(): string[] {
     const data = this.readWorlds();
     return Object.keys(data);
+  }
+
+  // Global texture library methods
+  private readGlobalTextures(): any[] {
+    try {
+      if (!fs.existsSync(this.globalTexturesFilePath)) {
+        return [];
+      }
+      const json = fs.readFileSync(this.globalTexturesFilePath, 'utf-8');
+      return JSON.parse(json) as any[];
+    } catch (error) {
+      console.error('Error reading global textures file:', error);
+      return [];
+    }
+  }
+
+  private writeGlobalTextures(textures: any[]): void {
+    fs.writeFileSync(this.globalTexturesFilePath, JSON.stringify(textures, null, 2), 'utf-8');
+  }
+
+  getGlobalTextures(): any[] {
+    return this.readGlobalTextures();
+  }
+
+  addGlobalTexture(texture: { id: string; name: string; textureId: string; tileSize: number }): void {
+    const textures = this.readGlobalTextures();
+    textures.push({ ...texture, createdAt: Date.now() });
+    this.writeGlobalTextures(textures);
+    console.log('[DATA SERVICE] Added global texture:', texture.id);
+  }
+
+  deleteGlobalTexture(id: string): boolean {
+    const textures = this.readGlobalTextures();
+    const filtered = textures.filter(t => t.id !== id);
+    if (filtered.length === textures.length) {
+      return false; // Not found
+    }
+    this.writeGlobalTextures(filtered);
+    console.log('[DATA SERVICE] Deleted global texture:', id);
+    return true;
   }
 
   private truncateImageData(obj: any): any {

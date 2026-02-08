@@ -353,6 +353,39 @@ export class AppController {
     return { textures };
   }
 
+  // ==================== Global Texture Library ====================
+
+  @Get('texture-library')
+  getTextureLibrary(): any {
+    const textures = this.dataService.getGlobalTextures();
+    return { textures };
+  }
+
+  @Post('texture-library')
+  addToTextureLibrary(@Body() body: { name: string; textureId: string; tileSize: number }): any {
+    const { name, textureId, tileSize } = body;
+
+    if (!name || !textureId || !tileSize) {
+      throw new BadRequestException('Missing required fields: name, textureId, tileSize');
+    }
+
+    const texture = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      textureId,
+      tileSize,
+    };
+
+    this.dataService.addGlobalTexture(texture);
+    return { success: true, texture };
+  }
+
+  @Delete('texture-library/:id')
+  deleteFromTextureLibrary(@Param('id') id: string): any {
+    const deleted = this.dataService.deleteGlobalTexture(id);
+    return { success: deleted };
+  }
+
   // Clean up orphaned images (admin endpoint)
   @Post('images/cleanup')
   cleanupOrphanedImages(): any {

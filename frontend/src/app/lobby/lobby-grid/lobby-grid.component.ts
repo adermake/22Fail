@@ -145,6 +145,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // Interaction state
   private isPanning = false;
+  private isZooming = false; // CTRL+middle-mouse zoom
   private isDrawing = false;
   private isDrawingTexture = false; // For texture brush
   private isErasingTexture = false; // For texture eraser
@@ -1288,11 +1289,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         ctx.fill();
         ctx.globalCompositeOperation = 'source-over';
       } else {
-        // Texture drawing mode
+        // Texture drawing mode - pass both canvas and world coords for proper tiling
         if (this.textureBrushType === 'soft') {
-          this.drawSoftBrushToCanvas(ctx, this.cachedProcessedTexture, x, y, scaledSize);
+          this.drawSoftBrushToCanvas(ctx, this.cachedProcessedTexture, x, y, worldX, worldY, scaledSize);
         } else {
-          this.drawHardBrushToCanvas(ctx, this.cachedProcessedTexture, x, y, scaledSize);
+          this.drawHardBrushToCanvas(ctx, this.cachedProcessedTexture, x, y, worldX, worldY, scaledSize);
         }
       }
     }
@@ -1376,6 +1377,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     texture: HTMLCanvasElement,
     x: number,
     y: number,
+    worldX: number,
+    worldY: number,
     scaledSize: number
   ): void {
     const radius = this.textureBrushSize / 2;
@@ -1387,11 +1390,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     tempCanvas.height = diameter;
     const tempCtx = tempCanvas.getContext('2d')!;
     
-    // Draw texture pattern
+    // Draw texture pattern aligned to world coordinates for proper tiling
     const pattern = tempCtx.createPattern(texture, 'repeat')!;
     tempCtx.fillStyle = pattern;
-    const offset = Math.floor(x % scaledSize);
-    const offsetY = Math.floor(y % scaledSize);
+    // Use world coordinates for UV calculation to maintain consistent tiling
+    const offset = Math.floor(worldX % scaledSize);
+    const offsetY = Math.floor(worldY % scaledSize);
     tempCtx.translate(-offset, -offsetY);
     tempCtx.fillRect(offset, offsetY, diameter, diameter);
     tempCtx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1417,6 +1421,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     texture: HTMLCanvasElement,
     x: number,
     y: number,
+    worldX: number,
+    worldY: number,
     scaledSize: number
   ): void {
     const radius = this.textureBrushSize / 2;
@@ -1429,9 +1435,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.globalAlpha = this.textureBrushStrength;
     const pattern = ctx.createPattern(texture, 'repeat')!;
     ctx.fillStyle = pattern;
-    const offset = Math.floor(x % scaledSize);
-    const offsetY = Math.floor(y % scaledSize);
-    ctx.translate(x - offset, y - offsetY);
+    // Use world coordinates for UV calculation to maintain consistent tiling
+    const offset = Math.floor(worldX % scaledSize);
+    const offsetY = Math.floor(worldY % scaledSize);
+    // Position pattern based on canvas coords but aligned to world grid
+    ctx.translate(x - (worldX - Math.floor(worldX / scaledSize) * scaledSize), y - (worldY - Math.floor(worldY / scaledSize) * scaledSize));
     ctx.fillRect(-radius, -radius, radius * 2 + scaledSize, radius * 2 + scaledSize);
     
     ctx.restore();
@@ -2258,9 +2266,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   onMouseDown(event: MouseEvent): void {
     if (event.button === 1) {
-      // Middle mouse - pan
+      // Middle mouse - zoom if CTRL, otherwise pan
       event.preventDefault();
-      this.isPanning = true;
+      if (event.ctrlKey) {
+        this.isZooming = true;
+      } else {
+        this.isPanning = true;
+      }
       this.lastMousePos = { x: event.clientX, y: event.clientY };
       this.addDocumentListeners();
       return;
@@ -2321,6 +2333,28 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const world = this.screenToWorld(screenX, screenY);
     const hex = HexMath.pixelToHex(world);
 
+    if (this.isZooming) {
+      // CTRL+middle-mouse drag to zoom
+      const dy = event.clientY - this.lastMousePos.y;
+      const zoomFactor = dy > 0 ? 0.99 : 1.01; // Smooth zoom based on vertical movement
+      const newScale = Math.max(0.1, Math.min(5, this.scale * zoomFactor));
+      
+      // Zoom towards center of screen
+      const rect = this.container.nativeElement.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const worldBefore = this.screenToWorld(centerX, centerY);
+      this.scale = newScale;
+      const worldAfter = this.screenToWorld(centerX, centerY);
+      
+      this.panX += (worldAfter.x - worldBefore.x) * this.scale;
+      this.panY += (worldAfter.y - worldBefore.y) * this.scale;
+      
+      this.lastMousePos = { x: event.clientX, y: event.clientY };
+      this.scheduleRender();
+      return;
+    }
+    
     if (this.isPanning) {
       const dx = event.clientX - this.lastMousePos.x;
       const dy = event.clientY - this.lastMousePos.y;
@@ -2355,6 +2389,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   onMouseUp(event: MouseEvent): void {
+    if (this.isZooming) {
+      this.isZooming = false;
+      return;
+    }
+    
     if (this.isPanning) {
       this.isPanning = false;
       return;
@@ -2511,6 +2550,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private onDocumentMouseUp(event: MouseEvent): void {
+    // Clean up zoom/pan state
+    if (this.isZooming) {
+      this.isZooming = false;
+    }
+    if (this.isPanning) {
+      this.isPanning = false;
+    }
+    
     // Clean up document listeners when mouse released
     this.removeDocumentListeners();
     

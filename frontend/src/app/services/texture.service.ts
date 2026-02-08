@@ -83,4 +83,51 @@ export class TextureService {
     );
     return response.textures;
   }
+
+  // ==================== Global Texture Library ====================
+
+  /**
+   * Get all global library textures
+   * @returns Array of library textures with metadata
+   */
+  async getTextureLibrary(): Promise<any[]> {
+    const response = await firstValueFrom(
+      this.http.get<{ textures: any[] }>('/api/texture-library')
+    );
+    return response.textures;
+  }
+
+  /**
+   * Add a texture to the global library
+   * @param base64Data The texture image data
+   * @param name The texture name
+   * @param tileSize The default tile size
+   * @returns The created library texture
+   */
+  async addToTextureLibrary(base64Data: string, name: string, tileSize: number = 100): Promise<any> {
+    // First upload the texture file
+    const textureId = await this.uploadTexture(base64Data);
+
+    // Then add to library
+    const response = await firstValueFrom(
+      this.http.post<{ success: boolean; texture: any }>('/api/texture-library', {
+        name,
+        textureId,
+        tileSize,
+      })
+    );
+    return response.texture;
+  }
+
+  /**
+   * Delete a texture from the global library
+   * @param id The library texture ID
+   * @returns Success status
+   */
+  async deleteFromTextureLibrary(id: string): Promise<boolean> {
+    const response = await firstValueFrom(
+      this.http.delete<{ success: boolean }>(`/api/texture-library/${id}`)
+    );
+    return response.success;
+  }
 }

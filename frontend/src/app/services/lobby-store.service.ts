@@ -42,6 +42,10 @@ export class LobbyStoreService {
   private lobbySubject = new BehaviorSubject<LobbyData | null>(null);
   lobby$ = this.lobbySubject.asObservable();
 
+  // Global texture library (shared across all lobbies)
+  private textureLibrarySubject = new BehaviorSubject<LibraryTexture[]>([]);
+  textureLibrary$ = this.textureLibrarySubject.asObservable();
+
   // Current world and map
   worldName = '';
   currentMapId = '';
@@ -91,6 +95,10 @@ export class LobbyStoreService {
     return this.lobby?.imageLibrary || [];
   }
 
+  get textureLibrary(): LibraryTexture[] {
+    return this.textureLibrarySubject.value;
+  }
+
   // ============================================
   // Initialization
   // ============================================
@@ -126,6 +134,9 @@ export class LobbyStoreService {
     
     this.lobbySubject.next(lobby);
 
+    // Load global texture library
+    await this.loadTextureLibrary();
+
     // Set active map
     const activeMapId = lobby.activeMapId || Object.keys(lobby.maps)[0] || 'default';
     await this.switchMap(activeMapId);
@@ -157,6 +168,20 @@ export class LobbyStoreService {
     console.log('[LobbyStore] ✅ Socket connection and room join complete');
 
     return lobby;
+  }
+
+  /**
+   * Load the global texture library.
+   */
+  async loadTextureLibrary(): Promise<void> {
+    try {
+      const textures = await this.textureService.getTextureLibrary();
+      this.textureLibrarySubject.next(textures);
+      console.log('[LobbyStore] Loaded global texture library:', textures.length, 'textures');
+    } catch (err) {
+      console.error('[LobbyStore] Failed to load texture library:', err);
+      this.textureLibrarySubject.next([]);
+    }
   }
 
   /**
@@ -643,29 +668,16 @@ export class LobbyStoreService {
   }
 
   /**
-   * Add a texture to the reusable library.
+   * Add a texture to the global texture library.
    * Uploads the texture to the server first.
    */
   async addLibraryTexture(base64Data: string, name: string, tileSize: number = 100): Promise<LibraryTexture> {
-    // Upload to server
-    const textureId = await this.textureService.uploadTexture(base64Data);
+    // Upload to global library (uploads file and adds metadata)
+    const newTexture = await this.textureService.addToTextureLibrary(base64Data, name, tileSize);
     
-    const newTexture: LibraryTexture = {
-      id: generateId(),
-      name,
-      textureId,
-      tileSize,
-      createdAt: Date.now(),
-    };
-
-    const lobby = this.lobby;
-    if (!lobby) throw new Error('No lobby loaded');
-
-    lobby.textureLibrary = [...lobby.textureLibrary, newTexture];
-    lobby.updatedAt = Date.now();
-
-    this.lobbySubject.next({ ...lobby });
-    await this.api.saveLobby(this.worldName, lobby);
+    // Update local state
+    const currentLibrary = this.textureLibrarySubject.value;
+    this.textureLibrarySubject.next([...currentLibrary, newTexture]);
 
     return newTexture;
   }
