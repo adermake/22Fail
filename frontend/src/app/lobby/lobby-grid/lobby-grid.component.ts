@@ -1202,35 +1202,46 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.strokeBounds.maxX = Math.max(this.strokeBounds.maxX, prevPoint.x + radius, currentPoint.x + radius);
     this.strokeBounds.maxY = Math.max(this.strokeBounds.maxY, prevPoint.y + radius, currentPoint.y + radius);
     
-    // Canvas dimensions needed to contain bounds relative to canvas origin
-    const neededWidth = Math.ceil(this.strokeBounds.maxX - this.strokeCanvasOrigin.x);
-    const neededHeight = Math.ceil(this.strokeBounds.maxY - this.strokeCanvasOrigin.y);
+    // Check if we need to expand left/up (negative direction from current origin)
+    const needsLeftExpand = this.strokeBounds.minX < this.strokeCanvasOrigin.x;
+    const needsUpExpand = this.strokeBounds.minY < this.strokeCanvasOrigin.y;
     
-    // Need to expand canvas left/up? Update canvas origin
-    if (this.strokeBounds.minX < this.strokeCanvasOrigin.x || this.strokeBounds.minY < this.strokeCanvasOrigin.y) {
-      this.strokeCanvasOrigin.x = this.strokeBounds.minX;
-      this.strokeCanvasOrigin.y = this.strokeBounds.minY;
-    }
-    
-    // Recalculate dimensions after potential origin change
+    // Calculate required canvas size from CURRENT origin
     const canvasWidth = Math.ceil(this.strokeBounds.maxX - this.strokeCanvasOrigin.x);
     const canvasHeight = Math.ceil(this.strokeBounds.maxY - this.strokeCanvasOrigin.y);
     
-    // Create or resize stroke canvas if needed
-    if (!this.strokeCanvas || this.strokeCanvas.width < canvasWidth || this.strokeCanvas.height < canvasHeight) {
+    // Need resize if: expanding left/up OR canvas too small for right/down expansion
+    const needsResize = needsLeftExpand || needsUpExpand || 
+      !this.strokeCanvas || 
+      this.strokeCanvas.width < canvasWidth || 
+      this.strokeCanvas.height < canvasHeight;
+    
+    if (needsResize) {
+      // Calculate new origin (only update when actually resizing)
+      const newOriginX = needsLeftExpand ? this.strokeBounds.minX : this.strokeCanvasOrigin.x;
+      const newOriginY = needsUpExpand ? this.strokeBounds.minY : this.strokeCanvasOrigin.y;
+      
+      // Recalculate dimensions with new origin
+      const newWidth = Math.ceil(this.strokeBounds.maxX - newOriginX);
+      const newHeight = Math.ceil(this.strokeBounds.maxY - newOriginY);
+      
       const newCanvas = document.createElement('canvas');
-      newCanvas.width = canvasWidth + 100; // Add padding for growth
-      newCanvas.height = canvasHeight + 100;
+      newCanvas.width = newWidth + 100; // Add padding for growth
+      newCanvas.height = newHeight + 100;
       const newCtx = newCanvas.getContext('2d', { willReadFrequently: false })!;
       
       // Copy existing content with offset
       // Old canvas (0,0) was at world (oldCanvasOriginX, oldCanvasOriginY)
-      // New canvas (0,0) is at world (strokeCanvasOrigin.x, strokeCanvasOrigin.y)
+      // New canvas (0,0) is at world (newOriginX, newOriginY)
       if (this.strokeCanvas && this.strokeCtx) {
-        const offsetX = oldCanvasOriginX - this.strokeCanvasOrigin.x;
-        const offsetY = oldCanvasOriginY - this.strokeCanvasOrigin.y;
+        const offsetX = oldCanvasOriginX - newOriginX;
+        const offsetY = oldCanvasOriginY - newOriginY;
         newCtx.drawImage(this.strokeCanvas, offsetX, offsetY);
       }
+      
+      // Update origin ONLY when resizing (keeping it in sync with actual canvas content)
+      this.strokeCanvasOrigin.x = newOriginX;
+      this.strokeCanvasOrigin.y = newOriginY;
       
       this.strokeCanvas = newCanvas;
       this.strokeCtx = newCtx;
