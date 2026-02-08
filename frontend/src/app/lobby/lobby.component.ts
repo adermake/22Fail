@@ -80,6 +80,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   textureColorBlend = signal(0); // 0-100%
   textureBlendColor = signal('#ffffff');
   textureHue = signal(0); // -180 to 180 degrees
+  textureLayer = signal<'background' | 'foreground'>('background');
   isEraserMode = signal(false); // E key toggles this
   drawWithWalls = signal(false);
   dragMode = signal<DragMode>('free');

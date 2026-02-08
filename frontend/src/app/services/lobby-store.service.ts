@@ -56,6 +56,11 @@ export class LobbyStoreService {
   // Pending patches to filter echoes
   private pendingPatchPaths = new Set<string>();
 
+  // Debounced image update system to prevent WebSocket disconnection
+  private pendingImageUpdates = new Map<string, Partial<Omit<MapImage, 'id' | 'imageId'>>>();
+  private imageUpdateTimeout: any = null;
+  private readonly IMAGE_UPDATE_DEBOUNCE_MS = 100; // Debounce image transforms during drag
+
   // ============================================
   // Getters
   // ============================================
@@ -496,15 +501,80 @@ export class LobbyStoreService {
   }
 
   /**
-   * Update an image's transform properties.
+   * Update an image's transform properties with debouncing.
+   * Prevents WebSocket disconnection during rapid updates (dragging/transforming).
    */
   updateImage(id: string, updates: Partial<Omit<MapImage, 'id' | 'imageId'>>): void {
+    // Update local state immediately for responsive UI
     const images = [...this.images];
     const index = images.findIndex(i => i.id === id);
     if (index === -1) return;
 
     images[index] = { ...images[index], ...updates };
-    this.applyPatch({ path: 'images', value: images });
+    this.updateLocalImages(images);
+
+    // Queue the update for debounced sending
+    const currentPending = this.pendingImageUpdates.get(id) || {};
+    this.pendingImageUpdates.set(id, { ...currentPending, ...updates });
+    this.scheduleImageUpdate();
+  }
+
+  /**
+   * Schedule a debounced image update to prevent overwhelming WebSocket.
+   */
+  private scheduleImageUpdate(): void {
+    if (this.imageUpdateTimeout) {
+      clearTimeout(this.imageUpdateTimeout);
+    }
+
+    this.imageUpdateTimeout = setTimeout(() => {
+      this.flushPendingImageUpdates();
+      this.imageUpdateTimeout = null;
+    }, this.IMAGE_UPDATE_DEBOUNCE_MS);
+  }
+
+  /**
+   * Flush all pending image updates to WebSocket.
+   */
+  private flushPendingImageUpdates(): void {
+    if (this.pendingImageUpdates.size === 0) return;
+
+    const images = [...this.images];
+    let hasChanges = false;
+
+    for (const [id, updates] of this.pendingImageUpdates.entries()) {
+      const index = images.findIndex(i => i.id === id);
+      if (index !== -1) {
+        images[index] = { ...images[index], ...updates };
+        hasChanges = true;
+      }
+    }
+
+    if (hasChanges) {
+      this.applyPatch({ path: 'images', value: images });
+    }
+
+    this.pendingImageUpdates.clear();
+  }
+
+  /**
+   * Update local images state without sending to server.
+   * Used for optimistic UI updates during debounce period.
+   */
+  private updateLocalImages(images: MapImage[]): void {
+    const lobby = this.lobby;
+    if (!lobby || !this.currentMapId) return;
+
+    const map = lobby.maps[this.currentMapId];
+    if (!map) return;
+
+    const updatedMap: LobbyMap = { ...map, images };
+    const updatedLobby: LobbyData = {
+      ...lobby,
+      maps: { ...lobby.maps, [this.currentMapId]: updatedMap },
+    };
+
+    this.lobbySubject.next(updatedLobby);
   }
 
   /**

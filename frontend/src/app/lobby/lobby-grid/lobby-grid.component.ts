@@ -42,13 +42,13 @@ import { ToolType, DragMode } from '../lobby.component';
 interface TexturePaletteEntry {
   textureId: string;
   name: string;
-  brushSize: number;
   brushStrength: number;
   brushType: 'hard' | 'soft';
   textureScale: number;
   textureHue: number;
   textureColorBlend: number;
   textureBlendColor: string;
+  layer: 'background' | 'foreground';
   previewUrl?: string; // Cached colored preview
 }
 
@@ -93,6 +93,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() selectedTextureId: string | null = null;
   @Input() isGM = false;
   @Input() isEraserMode = false; // E key toggles this
+  @Input() textureLayer: 'background' | 'foreground' = 'background';
 
   // Outputs
   @Output() tokenDrop = new EventEmitter<{ characterId: string; position: HexCoord }>();
@@ -112,6 +113,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Output() textureColorBlendChange = new EventEmitter<number>();
   @Output() textureBlendColorChange = new EventEmitter<string>();
   @Output() selectedTextureIdChange = new EventEmitter<string>();
+  @Output() textureLayerChange = new EventEmitter<'background' | 'foreground'>();
 
   // Services
   private store = inject(LobbyStoreService);
@@ -2259,15 +2261,25 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const entry = this.texturePalette()[index];
     if (!entry) return;
 
-    // Apply all settings from palette entry and emit changes to parent
+    // Apply all settings locally AND emit changes to parent
+    this.selectedTextureId = entry.textureId;
+    this.textureBrushStrength = entry.brushStrength;
+    this.textureBrushType = entry.brushType;
+    this.textureScale = entry.textureScale;
+    this.textureHue = entry.textureHue;
+    this.textureColorBlend = entry.textureColorBlend;
+    this.textureBlendColor = entry.textureBlendColor;
+    this.textureLayer = entry.layer;
+
+    // Emit to parent component
     this.selectedTextureIdChange.emit(entry.textureId);
-    this.textureBrushSizeChange.emit(entry.brushSize);
     this.textureBrushStrengthChange.emit(entry.brushStrength);
     this.textureBrushTypeChange.emit(entry.brushType);
     this.textureScaleChange.emit(entry.textureScale);
     this.textureHueChange.emit(entry.textureHue);
     this.textureColorBlendChange.emit(entry.textureColorBlend);
     this.textureBlendColorChange.emit(entry.textureBlendColor);
+    this.textureLayerChange.emit(entry.layer);
 
     // Auto-switch to texture tool
     this.toolAutoSelect.emit('texture');
@@ -2291,35 +2303,36 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     
     if (!textureId || !textureName) return;
 
-    // Save current brush settings to palette
+    // Save current brush settings to palette (NO brushSize)
     const entry: TexturePaletteEntry = {
       textureId,
       name: textureName,
-      brushSize: this.textureBrushSize,
       brushStrength: this.textureBrushStrength,
       brushType: this.textureBrushType,
       textureScale: this.textureScale,
       textureHue: this.textureHue,
       textureColorBlend: this.textureColorBlend,
       textureBlendColor: this.textureBlendColor,
+      layer: this.textureLayer,
     };
 
-    const palette = [...this.texturePalette()];
-    palette[index] = entry;
-    this.texturePalette.set(palette);
-    this.savePalette();
-    console.log('[Palette] Saved to slot', index, entry.name);
-
-    // Generate colored preview asynchronously
+    // Generate colored preview immediately
     this.generateTexturePreview(entry).then(previewUrl => {
-      if (previewUrl) {
-        entry.previewUrl = previewUrl;
-        const updatedPalette = [...this.texturePalette()];
-        updatedPalette[index] = entry;
-        this.texturePalette.set(updatedPalette);
-        this.savePalette();
-        this.cdr.markForCheck();
-      }
+      entry.previewUrl = previewUrl;
+      const palette = [...this.texturePalette()];
+      palette[index] = entry;
+      this.texturePalette.set(palette);
+      this.savePalette();
+      this.cdr.markForCheck();
+      console.log('[Palette] Saved to slot', index, entry.name, 'with preview');
+    }).catch(err => {
+      console.error('[Palette] Preview generation failed:', err);
+      // Still save the entry even if preview fails
+      const palette = [...this.texturePalette()];
+      palette[index] = entry;
+      this.texturePalette.set(palette);
+      this.savePalette();
+      this.cdr.markForCheck();
     });
   }
 
@@ -4412,9 +4425,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private closeContextMenu(): void {
-    // Close the context menu by resetting the position
+    // Close the context menu by resetting all state
+    this.showContextMenu.set(false);
     this.contextMenuPosition.set({ x: 0, y: 0 });
     this.contextMenuImageId.set(null);
+    this.contextMenuTokenId.set(null);
+    this.contextMenuHex.set(null);
   }
 
   private contextMenuPos(): Point | null {

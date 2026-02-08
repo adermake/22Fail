@@ -74,6 +74,7 @@
         [textureColorBlend]="textureColorBlend()"
         [textureBlendColor]="textureBlendColor()"
         [textureHue]="textureHue()"
+        [textureLayer]="textureLayer()"
         [isEraserMode]="isEraserMode()"
         [selectedTextureId]="selectedTextureId()"
         [drawWithWalls]="drawWithWalls()"
@@ -98,6 +99,7 @@
         (textureHueChange)="onTextureHueChange($event)"
         (textureColorBlendChange)="onTextureColorBlendChange($event)"
         (textureBlendColorChange)="onTextureBlendColorChange($event)"
+        (textureLayerChange)="textureLayer.set($event)"
         (selectedTextureIdChange)="onSelectTexture($event)"
       />
 
