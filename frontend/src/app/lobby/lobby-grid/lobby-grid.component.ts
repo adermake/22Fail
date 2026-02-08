@@ -1252,11 +1252,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.strokeCanvas = newCanvas;
       this.strokeCtx = newCtx;
     }
-    
-    if (!this.strokeCtx || !this.cachedProcessedTexture) return;
+
+    if (!this.strokeCtx) return;
     
     const ctx = this.strokeCtx;
-    const scaledSize = this.cachedProcessedTexture.width;
+    const scaledSize = this.cachedProcessedTexture?.width || 100;
     
     // Brush spacing: distance between stamps (% of brush size)
     // Smaller spacing = smoother but heavier, larger = faster but gaps
@@ -1295,10 +1295,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         ctx.globalCompositeOperation = 'source-over';
       } else {
         // Texture drawing mode - pass both canvas and world coords for proper tiling
-        // Skip if texture not yet loaded
+        // Skip this stamp if texture not yet loaded (but continue processing remaining stamps)
         if (!this.cachedProcessedTexture) {
-          console.warn('[Texture] Texture not yet cached, skipping draw');
-          return;
+          continue; // Skip this stamp, but don't abort the whole operation
         }
         if (this.textureBrushType === 'soft') {
           this.drawSoftBrushToCanvas(ctx, this.cachedProcessedTexture, x, y, worldX, worldY, scaledSize);
@@ -2747,6 +2746,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     
     // Start drawing to stroke canvas
     this.drawToStrokeCanvas(world, world);
+    
+    // Immediately render to show stroke start
+    this.scheduleRender();
   }
 
   private handleTextureMove(event: MouseEvent, world: Point): void {
@@ -2768,12 +2770,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Draw to stroke canvas (non-blocking, single-pass)
     this.drawToStrokeCanvas(prevPoint, world);
     
-    // Throttle render calls during drawing - only render every 16ms (60fps)
-    const now = performance.now();
-    if (now - this.lastRenderTime >= this.renderThrottleMs) {
-      this.lastRenderTime = now;
-      this.scheduleRender();
-    }
+    // Always render immediately during texture drawing for smooth feedback
+    this.scheduleRender();
   }
 
   private async handleTextureUp(event: MouseEvent, world: Point): Promise<void> {
