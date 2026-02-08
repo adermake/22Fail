@@ -43,8 +43,7 @@ export class LobbyStoreService {
   lobby$ = this.lobbySubject.asObservable();
 
   // Global texture library (shared across all lobbies)
-  private textureLibrarySubject = new BehaviorSubject<LibraryTexture[]>([]);
-  textureLibrary$ = this.textureLibrarySubject.asObservable();
+  private textureLibrarySignal = signal<LibraryTexture[]>([]);
 
   // Current world and map
   worldName = '';
@@ -95,9 +94,7 @@ export class LobbyStoreService {
     return this.lobby?.imageLibrary || [];
   }
 
-  get textureLibrary(): LibraryTexture[] {
-    return this.textureLibrarySubject.value;
-  }
+  textureLibrary = this.textureLibrarySignal.asReadonly();
 
   // ============================================
   // Initialization
@@ -176,11 +173,11 @@ export class LobbyStoreService {
   async loadTextureLibrary(): Promise<void> {
     try {
       const textures = await this.textureService.getTextureLibrary();
-      this.textureLibrarySubject.next(textures);
+      this.textureLibrarySignal.set(textures);
       console.log('[LobbyStore] Loaded global texture library:', textures.length, 'textures');
     } catch (err) {
       console.error('[LobbyStore] Failed to load texture library:', err);
-      this.textureLibrarySubject.next([]);
+      this.textureLibrarySignal.set([]);
     }
   }
 
@@ -676,8 +673,8 @@ export class LobbyStoreService {
     const newTexture = await this.textureService.addToTextureLibrary(base64Data, name, tileSize);
     
     // Update local state
-    const currentLibrary = this.textureLibrarySubject.value;
-    this.textureLibrarySubject.next([...currentLibrary, newTexture]);
+    const currentLibrary = this.textureLibrarySignal();
+    this.textureLibrarySignal.set([...currentLibrary, newTexture]);
 
     return newTexture;
   }
