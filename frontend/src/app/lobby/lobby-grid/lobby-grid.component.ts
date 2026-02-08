@@ -121,6 +121,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // Cache processed texture during stroke to prevent lag
   private cachedProcessedTexture: HTMLCanvasElement | null = null;
   private cachedTextureId: string | null = null;
+  private isLoadingTexture = false; // Prevent concurrent texture loads
 
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
@@ -257,6 +258,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Update texture preview when relevant inputs change
     if (changes['selectedTextureId'] || changes['textureColorBlend'] || changes['textureHue']) {
       this.schedulePreviewUpdate();
+      // Preload texture when selected to prevent lag when drawing starts
+      if (changes['selectedTextureId']) {
+        this.cacheProcessedTexture();
+      }
     }
     
     if (changes['map'] || changes['tokens'] || changes['selectedImageId']) {
@@ -1290,6 +1295,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         ctx.globalCompositeOperation = 'source-over';
       } else {
         // Texture drawing mode - pass both canvas and world coords for proper tiling
+        // Skip if texture not yet loaded
+        if (!this.cachedProcessedTexture) {
+          console.warn('[Texture] Texture not yet cached, skipping draw');
+          return;
+        }
         if (this.textureBrushType === 'soft') {
           this.drawSoftBrushToCanvas(ctx, this.cachedProcessedTexture, x, y, worldX, worldY, scaledSize);
         } else {
@@ -1313,8 +1323,21 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
     
+    // Wait if another load is in progress for the same texture
+    if (this.isLoadingTexture && this.cachedTextureId === this.selectedTextureId) {
+      // Wait for the current load to complete
+      while (this.isLoadingTexture) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      return;
+    }
+    
+    this.isLoadingTexture = true;
     const textureUrl = this.getTextureUrl(this.selectedTextureId);
-    if (!textureUrl) return;
+    if (!textureUrl) {
+      this.isLoadingTexture = false;
+      return;
+    }
     
     try {
       const img = await this.loadImage(textureUrl);
@@ -1323,6 +1346,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.cachedTextureId = this.selectedTextureId;
     } catch (e) {
       console.error('[Texture] Failed to cache texture:', e);
+    } finally {
+      this.isLoadingTexture = false;
     }
   }
 
@@ -2677,7 +2702,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.scheduleRender();
   }
 
-  private handleTextureDown(event: MouseEvent, world: Point): void {
+  private async handleTextureDown(event: MouseEvent, world: Point): Promise<void> {
     if (event.button !== 0) return;
     
     // Shift+drag = adjust brush size
@@ -2706,7 +2731,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     
     // Cache processed texture to prevent lag (only for texture mode)
     if (this.isDrawingTexture && this.selectedTextureId) {
-      this.cacheProcessedTexture();
+      await this.cacheProcessedTexture();
+      // If texture still not loaded, abort drawing
+      if (!this.cachedProcessedTexture) {
+        console.warn('[Texture] Failed to load texture, aborting draw');
+        this.isDrawingTexture = false;
+        return;
+      }
     } else if (this.isErasingTexture) {
       // For eraser, create a dummy black texture
       this.cachedProcessedTexture = document.createElement('canvas');
