@@ -215,6 +215,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // Keyboard shortcuts
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
+    // Ignore shortcuts when typing in inputs
+    const target = event.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      return;
+    }
+
+    // D key for Draw tool
+    if (event.key === 'd' || event.key === 'D') {
+      event.preventDefault();
+      this.toolAutoSelect.emit('draw');
+      return;
+    }
+
+    // B key for Texture Brush tool
+    if (event.key === 'b' || event.key === 'B') {
+      event.preventDefault();
+      this.toolAutoSelect.emit('texture');
+      return;
+    }
+
     // Ctrl+Z for undo
     if (event.ctrlKey && event.key === 'z') {
       event.preventDefault();
@@ -1130,7 +1150,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         await this.saveDirtyTiles();
       }
       this.tileSaveTimeout = null;
-    }, 2000); // 2 second debounce
+    }, 5000); // 5 second debounce to prevent disconnects
   }
 
   private async renderLiveTexturePreview(ctx: CanvasRenderingContext2D): Promise<void> {
@@ -1786,10 +1806,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.putImageData(imageData, 0, 0);
     }
     
-    // Apply color blend if needed
+    // Apply color blend if needed  
     if (this.textureColorBlend > 0) {
-      ctx.globalCompositeOperation = 'multiply';
-      ctx.globalAlpha = this.textureColorBlend;
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.globalAlpha = this.textureColorBlend / 100;
       ctx.fillStyle = this.textureBlendColor;
       ctx.fillRect(0, 0, scaledSize, scaledSize);
       ctx.globalCompositeOperation = 'source-over';
@@ -2383,7 +2403,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private handleTextureBrushSizeAdjust(event: MouseEvent, world: Point): void {
     if (this.isAdjustingTextureBrushSize && this.brushSizeAdjustStart) {
       const dx = event.clientX - this.brushSizeAdjustStart.x;
-      const newSize = Math.max(10, Math.min(200, this.brushSizeAdjustStart.initialSize + dx * 0.3));
+      const newSize = Math.max(10, Math.min(600, this.brushSizeAdjustStart.initialSize + dx * 0.3));
       this.textureBrushSize = Math.round(newSize);
       this.brushSizeCircle.set({ pos: world, size: Math.round(newSize) });
       this.scheduleRender();
@@ -2398,9 +2418,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const hex = HexMath.pixelToHex(world);
 
     if (this.isZooming) {
-      // CTRL+middle-mouse drag to zoom
+      // CTRL+middle-mouse drag to zoom (both horizontal and vertical movement)
+      const dx = event.clientX - this.lastMousePos.x;
       const dy = event.clientY - this.lastMousePos.y;
-      const zoomFactor = dy > 0 ? 0.99 : 1.01; // Smooth zoom based on vertical movement
+      const delta = dx - dy; // Combined movement (right/up = zoom in, left/down = zoom out)
+      const zoomFactor = delta > 0 ? 1.01 : 0.99;
       const newScale = Math.max(0.1, Math.min(5, this.scale * zoomFactor));
       
       // Zoom towards center of screen
@@ -2795,7 +2817,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Shift+drag = adjust brush size
     if (this.isAdjustingTextureBrushSize && this.brushSizeAdjustStart) {
       const dx = event.clientX - this.brushSizeAdjustStart.x;
-      const newSize = Math.max(10, Math.min(200, this.brushSizeAdjustStart.initialSize + dx * 0.3));
+      const newSize = Math.max(10, Math.min(600, this.brushSizeAdjustStart.initialSize + dx * 0.3));
       this.textureBrushSize = Math.round(newSize);
       this.brushSizeCircle.set({ pos: world, size: Math.round(newSize) });
       this.scheduleRender();

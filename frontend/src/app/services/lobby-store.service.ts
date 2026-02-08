@@ -487,6 +487,7 @@ export class LobbyStoreService {
       height,
       rotation: 0,
       zIndex: Math.max(0, ...this.images.map(i => i.zIndex)) + 1,
+      layer: 'foreground', // Default to foreground (above textures)
     };
 
     const images = [...this.images, newImage];
