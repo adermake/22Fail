@@ -11,6 +11,32 @@
   (dragleave)="onDragLeave($event)"
   (drop)="onDrop($event)"
 >
+  <!-- Texture Palette Bar (top, below toolbar) -->
+  <div class="texture-palette-bar">
+    @for (entry of texturePalette(); track $index) {
+      <div 
+        class="palette-slot"
+        [class.filled]="entry !== null"
+        (click)="onPaletteSlotClick($index)"
+        (contextmenu)="onPaletteSlotRightClick($event, $index)"
+        (drop)="onPaletteSlotDrop($event, $index)"
+        (dragover)="onPaletteSlotDragOver($event)"
+        [title]="entry ? entry.name : 'Empty slot (drag texture here)'"
+      >
+        @if (entry) {
+          <img 
+            [src]="getTextureUrl(entry.textureId)" 
+            alt="" 
+            class="palette-preview"
+          />
+          <div class="palette-number">{{ $index + 1 }}</div>
+        } @else {
+          <div class="palette-empty">{{ $index + 1 }}</div>
+        }
+      </div>
+    }
+  </div>
+
   <!-- Canvas layers (bottom to top: images → textures → foreground images → grid → overlays → drawing) -->
   <canvas #imageCanvas class="canvas-layer image-layer"></canvas>
   <canvas #textureCanvas class="canvas-layer texture-layer"></canvas>

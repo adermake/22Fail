@@ -38,6 +38,19 @@ import { TextureService } from '../../services/texture.service';
 import { LobbyTokenComponent } from '../lobby-token/lobby-token.component';
 import { ToolType, DragMode } from '../lobby.component';
 
+// Texture palette entry interface
+interface TexturePaletteEntry {
+  textureId: string;
+  name: string;
+  brushSize: number;
+  brushStrength: number;
+  brushType: 'hard' | 'soft';
+  textureScale: number;
+  textureHue: number;
+  textureColorBlend: number;
+  textureBlendColor: string;
+}
+
 @Component({
   selector: 'app-lobby-grid',
   standalone: true,
@@ -212,6 +225,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   contextMenuTokenId = signal<string | null>(null);
   contextMenuHex = signal<HexCoord | null>(null);
 
+  // Texture Palette (15 slots, stored locally)
+  texturePalette = signal<(TexturePaletteEntry | null)[]>(Array(15).fill(null));
+  private readonly PALETTE_STORAGE_KEY = 'lobby-texture-palette';
+
   // Keyboard shortcuts
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
@@ -268,6 +285,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.centerView();
     this.scheduleRender();
     this.setupResizeObserver();
+    this.loadPalette(); // Load saved palette from localStorage
     
     // Initial texture preview render
     setTimeout(() => {
@@ -2188,6 +2206,93 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
+  // ============================================
+  // Texture Palette Management
+  // ============================================
+
+  private loadPalette(): void {
+    try {
+      const saved = localStorage.getItem(this.PALETTE_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        this.texturePalette.set(parsed);
+        console.log('[Palette] Loaded', parsed.filter((e: any) => e !== null).length, 'entries');
+      }
+    } catch (e) {
+      console.error('[Palette] Failed to load:', e);
+    }
+  }
+
+  private savePalette(): void {
+    try {
+      localStorage.setItem(this.PALETTE_STORAGE_KEY, JSON.stringify(this.texturePalette()));
+      console.log('[Palette] Saved', this.texturePalette().filter(e => e !== null).length, 'entries');
+    } catch (e) {
+      console.error('[Palette] Failed to save:', e);
+    }
+  }
+
+  onPaletteSlotClick(index: number): void {
+    const entry = this.texturePalette()[index];
+    if (!entry) return;
+
+    // Apply all settings from palette entry
+    this.selectedTextureId = entry.textureId;
+    this.textureBrushSize = entry.brushSize;
+    this.textureBrushStrength = entry.brushStrength;
+    this.textureBrushType = entry.brushType;
+    this.textureScale = entry.textureScale;
+    this.textureHue = entry.textureHue;
+    this.textureColorBlend = entry.textureColorBlend;
+    this.textureBlendColor = entry.textureBlendColor;
+
+    // Auto-switch to texture tool
+    this.toolAutoSelect.emit('texture');
+    this.cdr.markForCheck();
+    console.log('[Palette] Applied slot', index, entry.name);
+  }
+
+  onPaletteSlotRightClick(event: MouseEvent, index: number): void {
+    event.preventDefault();
+    const palette = [...this.texturePalette()];
+    palette[index] = null;
+    this.texturePalette.set(palette);
+    this.savePalette();
+    console.log('[Palette] Cleared slot', index);
+  }
+
+  onPaletteSlotDrop(event: DragEvent, index: number): void {
+    event.preventDefault();
+    const textureId = event.dataTransfer?.getData('textureId');
+    const textureName = event.dataTransfer?.getData('textureName');
+    
+    if (!textureId || !textureName) return;
+
+    // Save current brush settings to palette
+    const entry: TexturePaletteEntry = {
+      textureId,
+      name: textureName,
+      brushSize: this.textureBrushSize,
+      brushStrength: this.textureBrushStrength,
+      brushType: this.textureBrushType,
+      textureScale: this.textureScale,
+      textureHue: this.textureHue,
+      textureColorBlend: this.textureColorBlend,
+      textureBlendColor: this.textureBlendColor,
+    };
+
+    const palette = [...this.texturePalette()];
+    palette[index] = entry;
+    this.texturePalette.set(palette);
+    this.savePalette();
+    console.log('[Palette] Saved to slot', index, entry.name);
+  }
+
+  onPaletteSlotDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = 'copy';
+  }
+
   private renderOverlay(): void {
     if (!this.overlayCtx) return;
 
@@ -2421,9 +2526,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       // CTRL+middle-mouse drag to zoom (both horizontal and vertical movement)
       const dx = event.clientX - this.lastMousePos.x;
       const dy = event.clientY - this.lastMousePos.y;
-      const delta = dx - dy; // Combined movement (right/up = zoom in, left/down = zoom out)
-      const zoomFactor = delta > 0 ? 1.01 : 0.99;
-      const newScale = Math.max(0.1, Math.min(5, this.scale * zoomFactor));
+      // Up/Right = zoom in, Down/Left = zoom out
+      // dy is negative when moving up, so -dy makes up contribute positively
+      const zoomAmount = (dx - dy) * 0.01;
+      const newScale = Math.max(0.1, Math.min(5, this.scale * (1 + zoomAmount)));
       
       // Zoom towards center of screen
       const rect = this.container.nativeElement.getBoundingClientRect();

@@ -186,6 +186,8 @@
               class="image-item"
               [class.selected]="selectedTextureId === texture.textureId"
               (click)="onTextureSelect(texture.textureId)"
+              draggable="true"
+              (dragstart)="onTextureDragStart($event, texture)"
             >
               <div class="image-preview">
                 <img [src]="'/api/textures/' + texture.textureId" alt="" />

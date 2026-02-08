@@ -188,3 +188,75 @@
   color: #ef4444;
   border-color: rgba(239, 68, 68, 0.4);
 }
+
+/* Texture Palette Bar */
+.texture-palette-bar {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 6px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: all;
+}
+
+.palette-slot {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.palette-slot:hover {
+  border-color: rgba(96, 165, 250, 0.8);
+  background: rgba(96, 165, 250, 0.2);
+  transform: scale(1.05);
+}
+
+.palette-slot.filled {
+  border-color: rgba(34, 197, 94, 0.6);
+}
+
+.palette-slot.filled:hover {
+  border-color: rgba(34, 197, 94, 1);
+}
+
+.palette-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.palette-number {
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 1px 3px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.palette-empty {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.3);
+}

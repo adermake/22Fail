@@ -148,6 +148,13 @@ export class LobbySidebarComponent {
     }
   }
 
+  onTextureDragStart(event: DragEvent, texture: any): void {
+    event.dataTransfer!.effectAllowed = 'copy';
+    event.dataTransfer!.setData('textureId', texture.textureId);
+    event.dataTransfer!.setData('textureName', texture.name);
+    console.log('[Sidebar] Dragging texture:', texture.name);
+  }
+
   get filteredTextures() {
     const query = this.searchQuery().toLowerCase();
     if (!query) return this.textures;
