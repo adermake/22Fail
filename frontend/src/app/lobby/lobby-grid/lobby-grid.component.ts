@@ -115,7 +115,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private strokeCanvas: HTMLCanvasElement | null = null;
   private strokeCtx: CanvasRenderingContext2D | null = null;
   private strokeBounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
-  private strokeInitialOrigin = { x: 0, y: 0 }; // Fixed world position where canvas (0,0) is drawn
+  private strokeCanvasOrigin = { x: 0, y: 0 }; // What world position canvas (0,0) represents
   private lastPaintedPoint: Point | null = null; // Track last drawn position for spacing
   
   // Cache processed texture during stroke to prevent lag
@@ -950,23 +950,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     // Render current in-progress stroke from stroke canvas
-    // strokeInitialOrigin = fixed render position (never changes)  
-    // Canvas (0,0) = world (strokeBounds.minX, strokeBounds.minY)
+    // strokeCanvasOrigin = what world position canvas (0,0) represents (updated when canvas resizes)
     if ((this.isDrawingTexture || this.isErasingTexture) && this.strokeCanvas) {
-      // Calculate where the old origin is on the canvas now
-      const canvasOffsetX = this.strokeInitialOrigin.x - this.strokeBounds.minX;
-      const canvasOffsetY = this.strokeInitialOrigin.y - this.strokeBounds.minY;
-      
-      // Content dimensions (actual bounds, not canvas size with padding)
-      const contentWidth = Math.ceil(this.strokeBounds.maxX - this.strokeBounds.minX);
-      const contentHeight = Math.ceil(this.strokeBounds.maxY - this.strokeBounds.minY);
-      
       ctx.drawImage(
         this.strokeCanvas,
-        canvasOffsetX, canvasOffsetY, // Source: where initialOrigin is on canvas
-        contentWidth, contentHeight, // Source size: actual content
-        this.strokeInitialOrigin.x, this.strokeInitialOrigin.y, // Dest: fixed position
-        contentWidth, contentHeight // Dest size
+        this.strokeCanvasOrigin.x,
+        this.strokeCanvasOrigin.y
       );
     }
 
@@ -1182,8 +1171,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       maxY: startPoint.y + radius
     };
     
-    // Store FIXED origin - canvas (0,0) will always be rendered at this world position
-    this.strokeInitialOrigin = {
+    // Canvas (0,0) will represent world (strokeBounds.min)
+    this.strokeCanvasOrigin = {
       x: this.strokeBounds.minX,
       y: this.strokeBounds.minY
     };
@@ -1203,19 +1192,29 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private drawToStrokeCanvas(prevPoint: Point, currentPoint: Point): void {
     const radius = this.textureBrushSize / 2;
     
-    // Store old bounds for resize offset calculation
-    const oldMinX = this.strokeBounds.minX;
-    const oldMinY = this.strokeBounds.minY;
+    // Store old canvas origin
+    const oldCanvasOriginX = this.strokeCanvasOrigin.x;
+    const oldCanvasOriginY = this.strokeCanvasOrigin.y;
     
-    // Expand bounds (minX/minY can become less than initialOrigin)
+    // Expand bounds (minX/minY can become less than canvas origin)
     this.strokeBounds.minX = Math.min(this.strokeBounds.minX, prevPoint.x - radius, currentPoint.x - radius);
     this.strokeBounds.minY = Math.min(this.strokeBounds.minY, prevPoint.y - radius, currentPoint.y - radius);
     this.strokeBounds.maxX = Math.max(this.strokeBounds.maxX, prevPoint.x + radius, currentPoint.x + radius);
     this.strokeBounds.maxY = Math.max(this.strokeBounds.maxY, prevPoint.y + radius, currentPoint.y + radius);
     
-    // Canvas dimensions must contain all strokes
-    const canvasWidth = Math.ceil(this.strokeBounds.maxX - this.strokeBounds.minX);
-    const canvasHeight = Math.ceil(this.strokeBounds.maxY - this.strokeBounds.minY);
+    // Canvas dimensions needed to contain bounds relative to canvas origin
+    const neededWidth = Math.ceil(this.strokeBounds.maxX - this.strokeCanvasOrigin.x);
+    const neededHeight = Math.ceil(this.strokeBounds.maxY - this.strokeCanvasOrigin.y);
+    
+    // Need to expand canvas left/up? Update canvas origin
+    if (this.strokeBounds.minX < this.strokeCanvasOrigin.x || this.strokeBounds.minY < this.strokeCanvasOrigin.y) {
+      this.strokeCanvasOrigin.x = this.strokeBounds.minX;
+      this.strokeCanvasOrigin.y = this.strokeBounds.minY;
+    }
+    
+    // Recalculate dimensions after potential origin change
+    const canvasWidth = Math.ceil(this.strokeBounds.maxX - this.strokeCanvasOrigin.x);
+    const canvasHeight = Math.ceil(this.strokeBounds.maxY - this.strokeCanvasOrigin.y);
     
     // Create or resize stroke canvas if needed
     if (!this.strokeCanvas || this.strokeCanvas.width < canvasWidth || this.strokeCanvas.height < canvasHeight) {
@@ -1224,12 +1223,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       newCanvas.height = canvasHeight + 100;
       const newCtx = newCanvas.getContext('2d', { willReadFrequently: false })!;
       
-      // Copy existing content with offset when bounds expanded left/up
-      // Old canvas (0,0) was at world (oldMinX, oldMinY)
-      // New canvas (0,0) is at world (strokeBounds.minX, strokeBounds.minY)
+      // Copy existing content with offset
+      // Old canvas (0,0) was at world (oldCanvasOriginX, oldCanvasOriginY)
+      // New canvas (0,0) is at world (strokeCanvasOrigin.x, strokeCanvasOrigin.y)
       if (this.strokeCanvas && this.strokeCtx) {
-        const offsetX = oldMinX - this.strokeBounds.minX;
-        const offsetY = oldMinY - this.strokeBounds.minY;
+        const offsetX = oldCanvasOriginX - this.strokeCanvasOrigin.x;
+        const offsetY = oldCanvasOriginY - this.strokeCanvasOrigin.y;
         newCtx.drawImage(this.strokeCanvas, offsetX, offsetY);
       }
       
@@ -1265,10 +1264,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const worldX = startPoint.x + dx * t;
       const worldY = startPoint.y + dy * t;
       
-      // Convert to canvas coordinates
-      // Canvas (0,0) = world (strokeBounds.minX, strokeBounds.minY)
-      const x = worldX - this.strokeBounds.minX;
-      const y = worldY - this.strokeBounds.minY;
+      // Convert to canvas coordinates (relative to strokeCanvasOrigin)
+      const x = worldX - this.strokeCanvasOrigin.x;
+      const y = worldY - this.strokeCanvasOrigin.y;
       
       if (this.isErasingTexture) {
         // Eraser mode
