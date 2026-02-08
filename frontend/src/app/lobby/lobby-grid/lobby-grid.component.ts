@@ -49,6 +49,7 @@ interface TexturePaletteEntry {
   textureHue: number;
   textureColorBlend: number;
   textureBlendColor: string;
+  previewUrl?: string; // Cached colored preview
 }
 
 @Component({
@@ -103,6 +104,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Output() imageDelete = new EventEmitter<string>();
   @Output() placeImage = new EventEmitter<{ imageId: string; x: number; y: number; width: number; height: number }>();
   @Output() toolAutoSelect = new EventEmitter<string>();
+  @Output() textureBrushSizeChange = new EventEmitter<number>();
+  @Output() textureBrushStrengthChange = new EventEmitter<number>();
+  @Output() textureBrushTypeChange = new EventEmitter<'hard' | 'soft'>();
+  @Output() textureScaleChange = new EventEmitter<number>();
+  @Output() textureHueChange = new EventEmitter<number>();
+  @Output() textureColorBlendChange = new EventEmitter<number>();
+  @Output() textureBlendColorChange = new EventEmitter<string>();
+  @Output() selectedTextureIdChange = new EventEmitter<string>();
 
   // Services
   private store = inject(LobbyStoreService);
@@ -157,6 +166,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   panX = 0;
   panY = 0;
   scale = 1;
+  private zoomStartPoint: { x: number; y: number } | null = null; // Track where CTRL+zoom started
 
   // Interaction state
   private isPanning = false;
@@ -2217,6 +2227,19 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         const parsed = JSON.parse(saved);
         this.texturePalette.set(parsed);
         console.log('[Palette] Loaded', parsed.filter((e: any) => e !== null).length, 'entries');
+        
+        // Regenerate previews for all entries
+        parsed.forEach(async (entry: TexturePaletteEntry | null, index: number) => {
+          if (entry) {
+            const previewUrl = await this.generateTexturePreview(entry);
+            if (previewUrl) {
+              const palette = [...this.texturePalette()];
+              palette[index] = { ...entry, previewUrl };
+              this.texturePalette.set(palette);
+              this.cdr.markForCheck();
+            }
+          }
+        });
       }
     } catch (e) {
       console.error('[Palette] Failed to load:', e);
@@ -2236,15 +2259,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const entry = this.texturePalette()[index];
     if (!entry) return;
 
-    // Apply all settings from palette entry
-    this.selectedTextureId = entry.textureId;
-    this.textureBrushSize = entry.brushSize;
-    this.textureBrushStrength = entry.brushStrength;
-    this.textureBrushType = entry.brushType;
-    this.textureScale = entry.textureScale;
-    this.textureHue = entry.textureHue;
-    this.textureColorBlend = entry.textureColorBlend;
-    this.textureBlendColor = entry.textureBlendColor;
+    // Apply all settings from palette entry and emit changes to parent
+    this.selectedTextureIdChange.emit(entry.textureId);
+    this.textureBrushSizeChange.emit(entry.brushSize);
+    this.textureBrushStrengthChange.emit(entry.brushStrength);
+    this.textureBrushTypeChange.emit(entry.brushType);
+    this.textureScaleChange.emit(entry.textureScale);
+    this.textureHueChange.emit(entry.textureHue);
+    this.textureColorBlendChange.emit(entry.textureColorBlend);
+    this.textureBlendColorChange.emit(entry.textureBlendColor);
 
     // Auto-switch to texture tool
     this.toolAutoSelect.emit('texture');
@@ -2286,11 +2309,112 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.texturePalette.set(palette);
     this.savePalette();
     console.log('[Palette] Saved to slot', index, entry.name);
+
+    // Generate colored preview asynchronously
+    this.generateTexturePreview(entry).then(previewUrl => {
+      if (previewUrl) {
+        entry.previewUrl = previewUrl;
+        const updatedPalette = [...this.texturePalette()];
+        updatedPalette[index] = entry;
+        this.texturePalette.set(updatedPalette);
+        this.savePalette();
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   onPaletteSlotDragOver(event: DragEvent): void {
     event.preventDefault();
     event.dataTransfer!.dropEffect = 'copy';
+  }
+
+  /**
+   * Generate a colored preview of a texture with effects applied
+   */
+  private async generateTexturePreview(entry: TexturePaletteEntry): Promise<string> {
+    const textureUrl = this.getTextureUrl(entry.textureId);
+    if (!textureUrl) return '';
+
+    try {
+      const img = await this.loadImage(textureUrl);
+      const size = 48; // Preview size
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+
+      // Draw texture scaled to preview size
+      ctx.drawImage(img, 0, 0, size, size);
+
+      // Apply hue shift if needed
+      if (entry.textureHue !== 0) {
+        const imageData = ctx.getImageData(0, 0, size, size);
+        const data = imageData.data;
+        const hueShift = entry.textureHue;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+
+          // Convert RGB to HSL
+          const max = Math.max(r, g, b) / 255;
+          const min = Math.min(r, g, b) / 255;
+          const l = (max + min) / 2;
+          let h = 0;
+          let s = 0;
+
+          if (max !== min) {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+            if (max === r / 255) h = ((g / 255 - b / 255) / d + (g < b ? 6 : 0)) / 6;
+            else if (max === g / 255) h = ((b / 255 - r / 255) / d + 2) / 6;
+            else h = ((r / 255 - g / 255) / d + 4) / 6;
+          }
+
+          // Shift hue
+          h = (h + hueShift / 360 + 1) % 1;
+
+          // Convert back to RGB
+          const hue2rgb = (p: number, q: number, t: number) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1/6) return p + (q - p) * 6 * t;
+            if (t < 1/2) return q;
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+          };
+
+          if (s === 0) {
+            data[i] = data[i + 1] = data[i + 2] = l * 255;
+          } else {
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            data[i] = hue2rgb(p, q, h + 1/3) * 255;
+            data[i + 1] = hue2rgb(p, q, h) * 255;
+            data[i + 2] = hue2rgb(p, q, h - 1/3) * 255;
+          }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+      }
+
+      // Apply color blend if needed
+      if (entry.textureColorBlend > 0) {
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.globalAlpha = entry.textureColorBlend / 100;
+        ctx.fillStyle = entry.textureBlendColor;
+        ctx.fillRect(0, 0, size, size);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+      }
+
+      return canvas.toDataURL();
+    } catch (error) {
+      console.error('[Palette] Failed to generate preview:', error);
+      return '';
+    }
   }
 
   private renderOverlay(): void {
@@ -2459,6 +2583,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       event.preventDefault();
       if (event.ctrlKey) {
         this.isZooming = true;
+        // Store zoom start point (screen coordinates)
+        const rect = this.container.nativeElement.getBoundingClientRect();
+        this.zoomStartPoint = {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top
+        };
       } else {
         this.isPanning = true;
       }
@@ -2528,16 +2658,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const dy = event.clientY - this.lastMousePos.y;
       // Up/Right = zoom in, Down/Left = zoom out
       // dy is negative when moving up, so -dy makes up contribute positively
-      const zoomAmount = (dx - dy) * 0.01;
+      const zoomAmount = (dx - dy) * 0.005; // Half speed (was 0.01)
       const newScale = Math.max(0.1, Math.min(5, this.scale * (1 + zoomAmount)));
       
-      // Zoom towards center of screen
-      const rect = this.container.nativeElement.getBoundingClientRect();
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
-      const worldBefore = this.screenToWorld(centerX, centerY);
+      // Zoom towards starting point (where CTRL was first pressed)
+      const zoomPoint = this.zoomStartPoint || { x: 0, y: 0 };
+      const worldBefore = this.screenToWorld(zoomPoint.x, zoomPoint.y);
       this.scale = newScale;
-      const worldAfter = this.screenToWorld(centerX, centerY);
+      const worldAfter = this.screenToWorld(zoomPoint.x, zoomPoint.y);
       
       this.panX += (worldAfter.x - worldBefore.x) * this.scale;
       this.panY += (worldAfter.y - worldBefore.y) * this.scale;
@@ -2583,6 +2711,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   onMouseUp(event: MouseEvent): void {
     if (this.isZooming) {
       this.isZooming = false;
+      this.zoomStartPoint = null;
       return;
     }
     

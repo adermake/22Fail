@@ -126,22 +126,7 @@
         </button>
       </div>
 
-      <!-- Texture brush sizes -->
-      <div class="brush-sizes">
-        <span class="option-label">Size:</span>
-        @for (size of textureBrushSizes; track size) {
-          <button
-            class="size-btn"
-            [class.active]="textureBrushSize === size"
-            (click)="selectTextureSize(size)"
-            [title]="size + 'px (or Shift+drag)'"
-          >
-            {{ size }}
-          </button>
-        }
-      </div>
-
-      <!-- Texture scale -->
+      <!-- Texture scale (brush size adjustable via Shift+drag) -->
       <div class="texture-scales">
         <span class="option-label">Scale:</span>
         @for (scale of textureScales; track scale) {
