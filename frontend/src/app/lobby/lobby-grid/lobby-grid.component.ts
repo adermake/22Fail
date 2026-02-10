@@ -582,72 +582,126 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
       ctx.lineWidth = 2;
     } else if (isWall) {
-      // Use adaptive color for walls too
-      const wallColor = this.getContrastingWallColor();
+      // Use adaptive color for walls based on pixel under hex center
+      const wallColor = this.getComplementaryWallColor(center);
       ctx.fillStyle = wallColor.fill;
       ctx.fill();
       ctx.strokeStyle = wallColor.stroke;
       ctx.lineWidth = Math.max(1, 1.5 / this.scale); // More visible wall lines
     } else {
-      // Smart grid color based on background luminance
-      const gridColor = this.getContrastingGridColor();
+      // Smart grid color based on pixel under hex center
+      const gridColor = this.getComplementaryGridColor(center);
       ctx.strokeStyle = gridColor;
       ctx.lineWidth = Math.max(0.8, 1.5 / this.scale); // Thicker lines
     }
     ctx.stroke();
   }
 
-  private getContrastingGridColor(): string {
-    const bgColor = this.map?.backgroundColor || '#e5e7eb';
+  /**
+   * Sample the pixel color under a hex center from rendered layers
+   * Returns RGB array [r, g, b]
+   */
+  private samplePixelColor(worldPos: Point): [number, number, number] {
+    // Convert world position to screen position
+    const screenPos = this.worldToScreen(worldPos.x, worldPos.y);
     
-    // Parse hex color
-    const hex = bgColor.replace('#', '');
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
+    // Sample from texture canvas first (has actual texture content), fallback to image canvas
+    const textureCanvas = this.textureCanvas?.nativeElement;
+    const imageCanvas = this.imageCanvas?.nativeElement;
     
-    // Calculate luminance (0-255)
+    if (!textureCanvas || !imageCanvas) {
+      // Fallback to map background color if canvases not available
+      return this.parseHexColor(this.map?.backgroundColor || '#e5e7eb');
+    }
+
+    const dpr = window.devicePixelRatio || 1;
+    const x = Math.floor(screenPos.x * dpr);
+    const y = Math.floor(screenPos.y * dpr);
+
+    // Try texture canvas first
+    try {
+      const textureCtx = textureCanvas.getContext('2d', { willReadFrequently: true });
+      if (textureCtx) {
+        const pixel = textureCtx.getImageData(x, y, 1, 1).data;
+        // If texture pixel has content (not fully transparent), use it
+        if (pixel[3] > 10) {
+          return [pixel[0], pixel[1], pixel[2]];
+        }
+      }
+    } catch (e) {
+      // Ignore errors from cross-origin canvas access
+    }
+
+    // Fallback to image canvas (background color)
+    try {
+      const imageCtx = imageCanvas.getContext('2d', { willReadFrequently: true });
+      if (imageCtx) {
+        const pixel = imageCtx.getImageData(x, y, 1, 1).data;
+        return [pixel[0], pixel[1], pixel[2]];
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+
+    // Final fallback to background color
+    return this.parseHexColor(this.map?.backgroundColor || '#e5e7eb');
+  }
+
+  /**
+   * Parse hex color string to RGB array
+   */
+  private parseHexColor(hex: string): [number, number, number] {
+    const clean = hex.replace('#', '');
+    const r = parseInt(clean.substring(0, 2), 16);
+    const g = parseInt(clean.substring(2, 4), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    return [r, g, b];
+  }
+
+  /**
+   * Calculate complementary color for grid lines based on sampled pixel
+   */
+  private getComplementaryGridColor(worldPos: Point): string {
+    const [r, g, b] = this.samplePixelColor(worldPos);
+    
+    // Calculate luminance
     const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
     
-    // If background is dark (luminance < 128), use lighter grid
-    // If background is light (luminance >= 128), use darker grid
+    // Use high contrast: if dark background use light grid, if light background use dark grid
     if (luminance < 128) {
-      // Dark background: use light grid with good contrast
-      const lightness = Math.min(255, luminance + 120);
-      return `rgba(${lightness}, ${lightness}, ${lightness}, 0.4)`;
+      // Dark background: light grid
+      const lightness = Math.min(255, luminance + 140);
+      return `rgba(${lightness}, ${lightness}, ${lightness}, 0.35)`;
     } else {
-      // Light background: use dark grid with good contrast
-      const darkness = Math.max(0, luminance - 120);
-      return `rgba(${darkness}, ${darkness}, ${darkness}, 0.4)`;
+      // Light background: dark grid
+      const darkness = Math.max(0, luminance - 140);
+      return `rgba(${darkness}, ${darkness}, ${darkness}, 0.35)`;
     }
   }
 
-  private getContrastingWallColor(): { fill: string; stroke: string } {
-    const bgColor = this.map?.backgroundColor || '#e5e7eb';
+  /**
+   * Calculate complementary color for walls based on sampled pixel
+   */
+  private getComplementaryWallColor(worldPos: Point): { fill: string; stroke: string } {
+    const [r, g, b] = this.samplePixelColor(worldPos);
     
-    // Parse hex color
-    const hex = bgColor.replace('#', '');
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    
-    // Calculate luminance (0-255)
+    // Calculate luminance
     const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
     
-    // Walls should be more prominent than grid but still adaptive
+    // Walls should be more prominent than grid
     if (luminance < 128) {
-      // Dark background: use lighter walls
-      const lightness = Math.min(255, luminance + 100);
+      // Dark background: lighter walls with more opacity
+      const lightness = Math.min(255, luminance + 120);
       return {
-        fill: `rgba(${lightness}, ${lightness}, ${lightness}, 0.3)`,
-        stroke: `rgba(${lightness}, ${lightness}, ${lightness}, 0.6)`
+        fill: `rgba(${lightness}, ${lightness}, ${lightness}, 0.4)`,
+        stroke: `rgba(${lightness}, ${lightness}, ${lightness}, 0.7)`
       };
     } else {
-      // Light background: use darker walls
-      const darkness = Math.max(0, luminance - 100);
+      // Light background: darker walls
+      const darkness = Math.max(0, luminance - 120);
       return {
-        fill: `rgba(${darkness}, ${darkness}, ${darkness}, 0.3)`,
-        stroke: `rgba(${darkness}, ${darkness}, ${darkness}, 0.6)`
+        fill: `rgba(${darkness}, ${darkness}, ${darkness}, 0.4)`,
+        stroke: `rgba(${darkness}, ${darkness}, ${darkness}, 0.7)`
       };
     }
   }
@@ -1180,7 +1234,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         await this.saveDirtyTiles();
       }
       this.tileSaveTimeout = null;
-    }, 5000); // 5 second debounce to prevent disconnects
+    }, 10000); // 10 second debounce to prevent disconnects (increased from 5s)
   }
 
   private async renderLiveTexturePreview(ctx: CanvasRenderingContext2D): Promise<void> {
@@ -2257,6 +2311,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
+  /**
+   * Prevent palette slot mousedown from triggering texture drawing
+   */
+  onPaletteSlotMouseDown(event: MouseEvent): void {
+    event.stopPropagation();
+  }
+
   onPaletteSlotClick(index: number): void {
     const entry = this.texturePalette()[index];
     if (!entry) return;
@@ -2339,6 +2400,41 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   onPaletteSlotDragOver(event: DragEvent): void {
     event.preventDefault();
     event.dataTransfer!.dropEffect = 'copy';
+  }
+
+  /**
+   * Update the preview for a specific palette slot with current settings
+   */
+  async updateCurrentPalettePreview(index: number): Promise<void> {
+    const palette = this.texturePalette();
+    const entry = palette[index];
+    if (!entry) return;
+
+    // Create updated entry with current settings
+    const updatedEntry: TexturePaletteEntry = {
+      ...entry,
+      brushStrength: this.textureBrushStrength,
+      brushType: this.textureBrushType,
+      textureScale: this.textureScale,
+      textureHue: this.textureHue,
+      textureColorBlend: this.textureColorBlend,
+      textureBlendColor: this.textureBlendColor,
+      layer: this.textureLayer,
+    };
+
+    // Regenerate preview
+    try {
+      const previewUrl = await this.generateTexturePreview(updatedEntry);
+      updatedEntry.previewUrl = previewUrl;
+      const newPalette = [...palette];
+      newPalette[index] = updatedEntry;
+      this.texturePalette.set(newPalette);
+      this.savePalette();
+      this.cdr.markForCheck();
+      console.log('[Palette] Updated slot', index, 'with new preview');
+    } catch (err) {
+      console.error('[Palette] Preview update failed:', err);
+    }
   }
 
   /**

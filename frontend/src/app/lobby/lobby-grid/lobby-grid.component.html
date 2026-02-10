@@ -18,6 +18,7 @@
         <div 
           class="palette-slot"
           [class.filled]="entry !== null"
+          (mousedown)="onPaletteSlotMouseDown($event)"
           (click)="onPaletteSlotClick($index)"
           (contextmenu)="onPaletteSlotRightClick($event, $index)"
           (drop)="onPaletteSlotDrop($event, $index)"
