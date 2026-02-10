@@ -846,6 +846,7 @@ export class LobbyStoreService {
 
   /**
    * Apply a patch locally and send to server.
+   * Ensures socket is connected before broadcasting.
    */
   private applyPatch(patch: JsonPatch): void {
     const map = this.currentMap;
@@ -871,8 +872,12 @@ export class LobbyStoreService {
       });
     }
 
-    // Broadcast to other clients
-    this.socket.sendPatch(this.worldName, this.currentMapId, patch);
+    // Ensure socket is connected before broadcasting (async, don't block)
+    this.socket.ensureConnected().then(() => {
+      this.socket.sendPatch(this.worldName, this.currentMapId, patch);
+    }).catch(err => {
+      console.error('[LobbyStore] Socket not ready, patch not broadcast:', patch.path);
+    });
   }
 
   /**

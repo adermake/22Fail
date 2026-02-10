@@ -146,7 +146,7 @@ export class LobbySocketService {
   /**
    * Wait for connection to be ready.
    */
-  private async ensureConnected(): Promise<void> {
+  async ensureConnected(): Promise<void> {
     if (this.isConnected) return;
     
     return new Promise((resolve) => {

@@ -1251,8 +1251,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const totalToSave = this.tileSaveQueue.length;
     console.log(`[Texture] 💾 Uploading ${totalToSave} tiles to backend...`);
 
-    // Process all tiles (upload to backend)
-    const allTilesToSave: any[] = [];
+    // Collect all upload promises (parallel uploads for speed!)
+    const uploadPromises: Promise<{ x: number; y: number; imageId: string; key: string }>[] = [];
+
     while (this.tileSaveQueue.length > 0) {
       const key = this.tileSaveQueue.shift()!;
       this.savingTiles.add(key);
@@ -1261,25 +1262,42 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const tile = this.textureTiles.get(key);
       
       if (tile) {
-        try {
-          // Convert to PNG data URL (lossless quality)
-          const dataUrl = tile.toDataURL('image/png');
-          
-          // Upload to backend via ImageService (same as character images!)
-          const imageId = await this.imageService.uploadImage(dataUrl);
-          
-          allTilesToSave.push({ x, y, imageId });
-          
-          // Update version tracking to prevent reload
-          this.tileDataVersions.set(key, imageId);
-          
-          console.log(`[Texture] ✅ Uploaded tile ${key} → ${imageId}`);
-        } catch (e) {
-          console.error('[Tiles] Failed to upload tile:', key, e);
-        }
+        // Upload in parallel, don't await here
+        const uploadPromise = (async () => {
+          try {
+            // Convert to PNG data URL (lossless quality)
+            const dataUrl = tile.toDataURL('image/png');
+            
+            // Upload to backend via ImageService (same as character images!)
+            const imageId = await this.imageService.uploadImage(dataUrl);
+            
+            console.log(`[Texture] ✅ Uploaded tile ${key} → ${imageId}`);
+            return { x, y, imageId, key };
+          } catch (e) {
+            console.error('[Tiles] Failed to upload tile:', key, e);
+            throw e;
+          } finally {
+            this.savingTiles.delete(key);
+          }
+        })();
+        
+        uploadPromises.push(uploadPromise);
+      } else {
+        this.savingTiles.delete(key);
       }
-      
-      this.savingTiles.delete(key);
+    }
+
+    // Wait for all uploads to complete in parallel
+    const uploadResults = await Promise.allSettled(uploadPromises);
+    const allTilesToSave: any[] = [];
+
+    for (const result of uploadResults) {
+      if (result.status === 'fulfilled') {
+        const { x, y, imageId, key } = result.value;
+        allTilesToSave.push({ x, y, imageId });
+        // Update version tracking to prevent reload
+        this.tileDataVersions.set(key, imageId);
+      }
     }
 
     if (allTilesToSave.length > 0 && this.map) {
@@ -1302,7 +1320,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       console.log(`[Texture] 📤 Sending ${allTilesToSave.length} tile refs (${totalMapSize} total, ~${estimatedSizeKB}KB)...`);
       
       this.store.updateMapTiles(currentMap.textureTiles);
-      console.log('[Texture] ✅ All tile references sent - NO MORE SOCKET DISCONNECT! 🎉');
+      console.log('[Texture] ✅ All tile references sent!');
     }
 
     this.isSavingBatch = false;
