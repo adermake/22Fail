@@ -70,7 +70,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('foregroundCanvas') foregroundCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('drawCanvas') drawCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('texturePreviewCanvas') texturePreviewCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('container') container!: ElementRef<HTMLDivElement>;
 
   // Inputs
@@ -136,7 +135,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private tileSaveTimeout: any = null; // Debounce timer for tile saves (NO LONGER USED - saves immediately now)
   private tileSaveQueue: string[] = []; // Queue of tiles waiting to be saved
   private isSavingBatch = false; // Flag to prevent concurrent batch saves
-  private previewUpdateScheduled = false;
   private lastRenderTime = 0;
   private renderThrottleMs = 16; // ~60fps
   private currentDrawingTiles = new Set<string>(); // Tiles being drawn to in current stroke
@@ -309,17 +307,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.scheduleRender();
     this.setupResizeObserver();
     this.loadPalette(); // Load saved palette from localStorage
-    
-    // Initial texture preview render
-    setTimeout(() => {
-      this.renderTexturePreview();
-    }, 100); // Small delay to ensure canvas is ready
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Update texture preview when relevant inputs change
+    // Preload texture when inputs change
     if (changes['selectedTextureId'] || changes['textureColorBlend'] || changes['textureHue']) {
-      this.schedulePreviewUpdate();
       // Preload texture when selected to prevent lag when drawing starts
       if (changes['selectedTextureId']) {
         this.cacheProcessedTexture();
@@ -384,15 +376,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
       this.loadTextureTiles();
     }
-  }
-
-  private schedulePreviewUpdate(): void {
-    if (this.previewUpdateScheduled) return;
-    this.previewUpdateScheduled = true;
-    requestAnimationFrame(() => {
-      this.renderTexturePreview();
-      this.previewUpdateScheduled = false;
-    });
   }
 
   ngOnDestroy(): void {
@@ -777,9 +760,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
 
+    // Calculate visible viewport bounds in world coordinates for culling
+    const viewportBounds = {
+      minX: this.screenToWorld(0, 0).x - 500, // Extra padding
+      minY: this.screenToWorld(0, 0).y - 500,
+      maxX: this.screenToWorld(canvas.width / dpr, canvas.height / dpr).x + 500,
+      maxY: this.screenToWorld(canvas.width / dpr, canvas.height / dpr).y + 500
+    };
+
     // Filter and sort background layer images only (default layer is background)
     const backgroundImages = [...(this.map.images || [])]
       .filter(img => !img.layer || img.layer === 'background')
+      .filter(img => {
+        // Viewport culling: skip images outside visible area
+        const halfW = img.width / 2;
+        const halfH = img.height / 2;
+        return !(img.x + halfW < viewportBounds.minX || 
+                 img.x - halfW > viewportBounds.maxX ||
+                 img.y + halfH < viewportBounds.minY ||
+                 img.y - halfH > viewportBounds.maxY);
+      })
       .sort((a, b) => a.zIndex - b.zIndex);
 
     for (const img of backgroundImages) {
@@ -815,9 +815,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
 
+    // Calculate visible viewport bounds in world coordinates for culling
+    const viewportBounds = {
+      minX: this.screenToWorld(0, 0).x - 500,
+      minY: this.screenToWorld(0, 0).y - 500,
+      maxX: this.screenToWorld(canvas.width / dpr, canvas.height / dpr).x + 500,
+      maxY: this.screenToWorld(canvas.width / dpr, canvas.height / dpr).y + 500
+    };
+
     // Filter and sort foreground layer images only
     const foregroundImages = [...(this.map.images || [])]
       .filter(img => img.layer === 'foreground')
+      .filter(img => {
+        // Viewport culling: skip images outside visible area
+        const halfW = img.width / 2;
+        const halfH = img.height / 2;
+        return !(img.x + halfW < viewportBounds.minX || 
+                 img.x - halfW > viewportBounds.maxX ||
+                 img.y + halfH < viewportBounds.minY ||
+                 img.y - halfH > viewportBounds.maxY);
+      })
       .sort((a, b) => a.zIndex - b.zIndex);
 
     for (const img of foregroundImages) {
@@ -2332,77 +2349,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
       img.src = url;
     });
-  }
-
-  private async renderTexturePreview(): Promise<void> {
-    if (!this.texturePreviewCanvas || !this.selectedTextureId) return;
-
-    const canvas = this.texturePreviewCanvas.nativeElement;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return;
-
-    // Set canvas size
-    canvas.width = 120;
-    canvas.height = 120;
-
-    // Load texture using proper URL
-    const textureUrl = this.getTextureUrl(this.selectedTextureId);
-    if (!textureUrl) return;
-
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    
-    try {
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = reject;
-        img.src = textureUrl;
-      });
-
-      // Draw texture at base scale
-      const pattern = ctx.createPattern(img, 'repeat');
-      if (!pattern) return;
-
-      ctx.fillStyle = pattern;
-      ctx.fillRect(0, 0, 120, 120);
-
-      // Apply hue shift if needed
-      if (this.textureHue !== 0) {
-        const imageData = ctx.getImageData(0, 0, 120, 120);
-        const data = imageData.data;
-
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          const a = data[i + 3];
-
-          if (a > 0) {
-            const hsl = this.rgbToHsl(r, g, b);
-            hsl[0] = (hsl[0] + this.textureHue / 360) % 1;
-            if (hsl[0] < 0) hsl[0] += 1;
-            const [nr, ng, nb] = this.hslToRgb(hsl[0], hsl[1], hsl[2]);
-            data[i] = nr;
-            data[i + 1] = ng;
-            data[i + 2] = nb;
-          }
-        }
-
-        ctx.putImageData(imageData, 0, 0);
-      }
-
-      // Apply color blend if needed
-      if (this.textureColorBlend > 0) {
-        ctx.globalCompositeOperation = 'source-atop';
-        ctx.globalAlpha = this.textureColorBlend / 100;
-        ctx.fillStyle = this.textureBlendColor;
-        ctx.fillRect(0, 0, 120, 120);
-        ctx.globalAlpha = 1.0;
-        ctx.globalCompositeOperation = 'source-over';
-      }
-    } catch (error) {
-      console.error('[LobbyGrid] Failed to load texture preview:', error);
-    }
   }
 
   // ============================================

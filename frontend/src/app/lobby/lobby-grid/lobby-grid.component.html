@@ -99,13 +99,6 @@
     }
   </div>
 
-  <!-- Texture preview (bottom right) -->
-  @if (selectedTextureId && currentTool === 'texture') {
-    <div class="texture-preview">
-      <canvas #texturePreviewCanvas class="texture-preview-canvas"></canvas>
-    </div>
-  }
-
   <!-- Context menu for images and quick token -->
   @if (showContextMenu()) {
     <div 

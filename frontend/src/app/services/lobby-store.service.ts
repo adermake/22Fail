@@ -108,11 +108,9 @@ export class LobbyStoreService {
   constructor() {
     // Listen for incoming patches from other clients
     this.socket.patches$.subscribe((patch) => {
-      // Skip echoes of our own patches
-      if (this.pendingPatchPaths.has(patch.path)) {
-        this.pendingPatchPaths.delete(patch.path);
-        return;
-      }
+      // REMOVED echo filtering - it was causing merge conflicts!
+      // The applyRemotePatch now handles merging intelligently with ID-based deduplication
+      // so applying the same patch multiple times is safe
       this.applyRemotePatch(patch);
     });
   }
@@ -896,8 +894,47 @@ export class LobbyStoreService {
       return;
     }
 
-    console.log('[LobbyStore] 📥 Applying remote patch:', patch.path);
-    this.applyJsonPatch(map, patch);
+    console.log('[LobbyStore] 📥 Applying remote patch:', patch.path, 'value type:', typeof patch.value);
+    
+    // Special handling for array patches to prevent merge conflicts
+    if (patch.path === 'strokes' && Array.isArray(patch.value)) {
+      // Merge strokes by ID instead of replacing
+      const incomingStrokes = patch.value as any[];
+      const currentStrokes = map.strokes || [];
+      const existingIds = new Set(currentStrokes.map((s: any) => s.id));
+      
+      // Only add strokes that don't exist locally
+      const newStrokes = incomingStrokes.filter((s: any) => !existingIds.has(s.id));
+      
+      if (newStrokes.length > 0) {
+        console.log('[LobbyStore] 🔀 Merging', newStrokes.length, 'new strokes (had', currentStrokes.length, 'total:', incomingStrokes.length, ')');
+        map.strokes = [...currentStrokes, ...newStrokes];
+      } else {
+        console.log('[LobbyStore] ⏭️ Skipping stroke patch - all strokes already exist');
+      }
+    } else if (patch.path === 'tokens' && Array.isArray(patch.value)) {
+      // Merge tokens by ID
+      const incomingTokens = patch.value as any[];
+      const tokenMap = new Map((map.tokens || []).map((t: any) => [t.id, t]));
+      
+      // Update or add tokens
+      incomingTokens.forEach((t: any) => tokenMap.set(t.id, t));
+      map.tokens = Array.from(tokenMap.values());
+      console.log('[LobbyStore] 🔀 Merged tokens, total:', map.tokens.length);
+    } else if (patch.path === 'images' && Array.isArray(patch.value)) {
+      // Merge images by ID
+      const incomingImages = patch.value as any[];
+      const imageMap = new Map((map.images || []).map((i: any) => [i.id, i]));
+      
+      // Update or add images
+      incomingImages.forEach((i: any) => imageMap.set(i.id, i));
+      map.images = Array.from(imageMap.values());
+      console.log('[LobbyStore] 🔀 Merged images, total:', map.images.length);
+    } else {
+      // Apply normally for non-array patches
+      this.applyJsonPatch(map, patch);
+    }
+    
     map.updatedAt = Date.now();
 
     const lobby = this.lobby;
