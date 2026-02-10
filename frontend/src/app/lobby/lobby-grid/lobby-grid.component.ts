@@ -130,9 +130,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // Tile-based texture rendering system
   private textureTiles = new Map<string, HTMLCanvasElement>(); // Key: "x,y"
   private tileDataVersions = new Map<string, string>(); // Track tile data to prevent unnecessary reloads
-  private textureTileSize = 512; // pixels per tile
+  private textureTileSize = 256; // pixels per tile (reduced from 512 to prevent socket disconnect)
   private dirtyTiles = new Set<string>(); // Tiles that need to be persisted
+  private savingTiles = new Set<string>(); // Tiles currently being saved (to avoid duplicate saves)
   private tileSaveTimeout: any = null; // Debounce timer for tile saves (NO LONGER USED - saves immediately now)
+  private tileSaveQueue: string[] = []; // Queue of tiles waiting to be saved
+  private isSavingBatch = false; // Flag to prevent concurrent batch saves
   private previewUpdateScheduled = false;
   private lastRenderTime = 0;
   private renderThrottleMs = 16; // ~60fps
@@ -1216,39 +1219,89 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private async saveDirtyTiles(): Promise<void> {
     if (this.dirtyTiles.size === 0 || !this.map) return;
 
-    console.log(`[Texture] Saving ${this.dirtyTiles.size} dirty tiles...`);
-    const tilesToSave: any[] = [];
-
+    // Add dirty tiles to queue (avoiding duplicates)
     for (const key of this.dirtyTiles) {
+      if (!this.savingTiles.has(key) && !this.tileSaveQueue.includes(key)) {
+        this.tileSaveQueue.push(key);
+      }
+    }
+    this.dirtyTiles.clear();
+
+    // Start batch processing if not already running
+    if (!this.isSavingBatch) {
+      this.processTileSaveQueue();
+    }
+  }
+
+  /**
+   * Process tile save queue in small batches to prevent socket disconnect.
+   * Accumulates all tiles then sends once at the end.
+   */
+  private async processTileSaveQueue(): Promise<void> {
+    if (this.isSavingBatch || this.tileSaveQueue.length === 0) return;
+    
+    this.isSavingBatch = true;
+    const totalToSave = this.tileSaveQueue.length;
+    console.log(`[Texture] 💾 Processing ${totalToSave} tiles...`);
+
+    // Process all tiles (convert to data URLs)
+    const allTilesToSave: any[] = [];
+    while (this.tileSaveQueue.length > 0) {
+      const key = this.tileSaveQueue.shift()!;
+      this.savingTiles.add(key);
+
       const [x, y] = key.split(',').map(Number);
       const tile = this.textureTiles.get(key);
       
       if (tile) {
         try {
-          const dataUrl = tile.toDataURL('image/png');
-          tilesToSave.push({ x, y, data: dataUrl });
+          // Use JPEG with quality 0.85 for better compression (4-5x smaller than PNG)
+          const dataUrl = tile.toDataURL('image/jpeg', 0.85);
+          allTilesToSave.push({ x, y, data: dataUrl });
           // Update version tracking to prevent reload
           this.tileDataVersions.set(key, dataUrl);
         } catch (e) {
-          console.error('Failed to save tile:', key, e);
+          console.error('[Tiles] Failed to save tile:', key, e);
         }
       }
+      
+      this.savingTiles.delete(key);
     }
 
-    // Update map with new tile data
-    const existingTiles = this.map.textureTiles || [];
-    const tileMap = new Map(existingTiles.map(t => [`${t.x},${t.y}`, t]));
-    
-    for (const tile of tilesToSave) {
-      tileMap.set(`${tile.x},${tile.y}`, tile);
+    if (allTilesToSave.length > 0 && this.map) {
+      // Safety check: if too many tiles changed at once, warn user
+      if (allTilesToSave.length > 20) {
+        console.warn(`[Texture] ⚠️ Large save: ${allTilesToSave.length} tiles. This may take a moment...`);
+      }
+
+      // Use local variable to satisfy TypeScript
+      const currentMap = this.map;
+
+      // Update map with new tile data
+      const existingTiles = currentMap.textureTiles || [];
+      const tileMap = new Map(existingTiles.map(t => [`${t.x},${t.y}`, t]));
+      
+      for (const tile of allTilesToSave) {
+        tileMap.set(`${tile.x},${tile.y}`, tile);
+      }
+
+      currentMap.textureTiles = Array.from(tileMap.values());
+
+      // Send ONCE after all conversions complete
+      const totalMapSize = currentMap.textureTiles.length;
+      const estimatedSizeKB = Math.round((totalMapSize * 15)); // ~15KB per tile (JPEG compressed)
+      console.log(`[Texture] 📤 Sending ${allTilesToSave.length} tiles to server (${totalMapSize} total, ~${estimatedSizeKB}KB)...`);
+      
+      // Warn if payload is very large
+      if (estimatedSizeKB > 2000) {
+        console.warn(`[Texture] ⚠️ Very large payload (~${estimatedSizeKB}KB). Map has ${totalMapSize} tiles. Consider clearing old tiles.`);
+      }
+      
+      this.store.updateMapTiles(currentMap.textureTiles);
+      console.log('[Texture] ✅ All tiles sent');
     }
 
-    this.map.textureTiles = Array.from(tileMap.values());
-    this.dirtyTiles.clear();
-
-    // Trigger save through store
-    this.store.updateMapTiles(this.map.textureTiles);
-    console.log(`[Texture] ✅ Saved ${tilesToSave.length} tiles`);
+    this.isSavingBatch = false;
   }
 
   /**
