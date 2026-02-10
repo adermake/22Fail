@@ -26,6 +26,8 @@ import {
   SimpleChanges,
   inject,
   signal,
+  effect,
+  untracked,
   HostListener,
   ChangeDetectionStrategy,
   ChangeDetectorRef
@@ -130,7 +132,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private tileDataVersions = new Map<string, string>(); // Track tile data to prevent unnecessary reloads
   private textureTileSize = 512; // pixels per tile
   private dirtyTiles = new Set<string>(); // Tiles that need to be persisted
-  private tileSaveTimeout: any = null; // Debounce timer for tile saves
+  private tileSaveTimeout: any = null; // Debounce timer for tile saves (NO LONGER USED - saves immediately now)
   private previewUpdateScheduled = false;
   private lastRenderTime = 0;
   private renderThrottleMs = 16; // ~60fps
@@ -239,7 +241,30 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // Texture Palette (15 slots, stored locally)
   texturePalette = signal<(TexturePaletteEntry | null)[]>(Array(15).fill(null));
+  currentPaletteSlot = signal<number | null>(null); // Track which slot is currently active
   private readonly PALETTE_STORAGE_KEY = 'lobby-texture-palette';
+  private paletteUpdateTimeout: any = null; // Debounce palette updates
+
+  constructor() {
+    // Watch for texture setting changes and update active palette slot
+    effect(() => {
+      const hue = this.textureHue;
+      const blend = this.textureColorBlend;
+      const scale = this.textureScale;
+      const blendColor = this.textureBlendColor;
+      const currentSlot = this.currentPaletteSlot();
+      
+      if (currentSlot !== null) {
+        // Debounce rapid changes (e.g., slider dragging)
+        untracked(() => {
+          if (this.paletteUpdateTimeout) clearTimeout(this.paletteUpdateTimeout);
+          this.paletteUpdateTimeout = setTimeout(() => {
+            this.updateCurrentPaletteSlot(currentSlot, hue, blend, scale, blendColor);
+          }, 300);
+        });
+      }
+    });
+  }
 
   // Keyboard shortcuts
   @HostListener('document:keydown', ['$event'])
@@ -614,9 +639,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       return this.parseHexColor(this.map?.backgroundColor || '#e5e7eb');
     }
 
-    const dpr = window.devicePixelRatio || 1;
-    const x = Math.floor(screenPos.x * dpr);
-    const y = Math.floor(screenPos.y * dpr);
+    // Canvas coordinates are in logical pixels (already DPR-scaled by context.scale() in resizeCanvas)
+    const x = Math.floor(screenPos.x);
+    const y = Math.floor(screenPos.y);
+
+    // Check bounds to avoid errors
+    if (x < 0 || y < 0 || x >= textureCanvas.width || y >= textureCanvas.height) {
+      return this.parseHexColor(this.map?.backgroundColor || '#e5e7eb');
+    }
 
     // Try texture canvas first
     try {
@@ -632,12 +662,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       // Ignore errors from cross-origin canvas access
     }
 
-    // Fallback to image canvas (background color)
+    // Fallback to image canvas (background)
     try {
       const imageCtx = imageCanvas.getContext('2d', { willReadFrequently: true });
       if (imageCtx) {
         const pixel = imageCtx.getImageData(x, y, 1, 1).data;
-        return [pixel[0], pixel[1], pixel[2]];
+        // Check if we got actual pixel data (not transparent background)
+        if (pixel[3] > 0) {
+          return [pixel[0], pixel[1], pixel[2]];
+        }
       }
     } catch (e) {
       // Ignore errors
@@ -2205,7 +2238,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!this.texturePreviewCanvas || !this.selectedTextureId) return;
 
     const canvas = this.texturePreviewCanvas.nativeElement;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
     // Set canvas size
@@ -2332,8 +2365,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.textureBlendColor = entry.textureBlendColor;
     this.textureLayer = entry.layer;
 
-    // Emit to parent component
-    this.selectedTextureIdChange.emit(entry.textureId);
+    // Set current palette slot (for tracking changes)
+    this.currentPaletteSlot.set(index);
+
+    // Emit to parent component (but NOT selectedTextureIdChange to avoid sidebar selection)
     this.textureBrushStrengthChange.emit(entry.brushStrength);
     this.textureBrushTypeChange.emit(entry.brushType);
     this.textureScaleChange.emit(entry.textureScale);
@@ -2438,6 +2473,32 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   /**
+   * Update the current active palette slot with new settings and regenerate preview
+   */
+  private async updateCurrentPaletteSlot(slotIndex: number, hue: number, blend: number, scale: number, blendColor: string): Promise<void> {
+    const palette = [...this.texturePalette()];
+    const entry = palette[slotIndex];
+    if (!entry) return;
+
+    // Update settings
+    entry.textureHue = hue;
+    entry.textureColorBlend = blend;
+    entry.textureScale = scale;
+    entry.textureBlendColor = blendColor;
+
+    // Regenerate preview with new settings
+    try {
+      entry.previewUrl = await this.generateTexturePreview(entry);
+      palette[slotIndex] = entry;
+      this.texturePalette.set(palette);
+      this.savePalette();
+      console.log('[Palette] Updated slot', slotIndex, 'with new settings');
+    } catch (err) {
+      console.error('[Palette] Failed to update preview:', err);
+    }
+  }
+
+  /**
    * Generate a colored preview of a texture with effects applied
    */
   private async generateTexturePreview(entry: TexturePaletteEntry): Promise<string> {
@@ -2450,7 +2511,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
-      const ctx = canvas.getContext('2d')!;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
 
       // Draw texture scaled to preview size
       ctx.drawImage(img, 0, 0, size, size);
@@ -3201,9 +3262,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.cachedProcessedTexture = null;
     this.cachedTextureId = null;
     
-    // Schedule debounced save instead of immediate save
+    // Save immediately after stroke ends (no debounce - prevents socket disconnect)
     if (this.dirtyTiles.size > 0) {
-      this.scheduleTileSave();
+      await this.saveDirtyTiles();
     }
 
     this.currentTexturePoints = [];
