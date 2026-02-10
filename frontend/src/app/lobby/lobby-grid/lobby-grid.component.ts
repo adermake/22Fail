@@ -249,24 +249,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private paletteUpdateTimeout: any = null; // Debounce palette updates
 
   constructor() {
-    // Watch for texture setting changes and update active palette slot
-    effect(() => {
-      const hue = this.textureHue;
-      const blend = this.textureColorBlend;
-      const scale = this.textureScale;
-      const blendColor = this.textureBlendColor;
-      const currentSlot = this.currentPaletteSlot();
-      
-      if (currentSlot !== null) {
-        // Debounce rapid changes (e.g., slider dragging)
-        untracked(() => {
-          if (this.paletteUpdateTimeout) clearTimeout(this.paletteUpdateTimeout);
-          this.paletteUpdateTimeout = setTimeout(() => {
-            this.updateCurrentPaletteSlot(currentSlot, hue, blend, scale, blendColor);
-          }, 300);
-        });
-      }
-    });
+    // Note: Effect removed - palette updates now handled in ngOnChanges
   }
 
   // Keyboard shortcuts
@@ -340,6 +323,18 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       // Preload texture when selected to prevent lag when drawing starts
       if (changes['selectedTextureId']) {
         this.cacheProcessedTexture();
+        
+        // Mutual exclusion: clear palette selection when library texture is selected
+        const newTextureId = changes['selectedTextureId'].currentValue;
+        const currentSlot = this.currentPaletteSlot();
+        if (currentSlot !== null && newTextureId) {
+          const paletteEntry = this.texturePalette()[currentSlot];
+          // Clear palette slot if selected texture doesn't match the active palette entry
+          if (!paletteEntry || paletteEntry.textureId !== newTextureId) {
+            console.log('[Palette] Clearing slot - library texture selected');
+            this.currentPaletteSlot.set(null);
+          }
+        }
       }
     }
     
@@ -359,6 +354,31 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         clearTimeout(this.tileSaveTimeout);
         this.tileSaveTimeout = null;
       }
+
+    // Update active palette slot when texture settings change
+    const currentSlot = this.currentPaletteSlot();
+    if (currentSlot !== null && (
+      changes['textureHue'] || 
+      changes['textureColorBlend'] || 
+      changes['textureScale'] || 
+      changes['textureBlendColor'] ||
+      changes['textureBrushStrength'] ||
+      changes['textureBrushType']
+    )) {
+      // Debounce rapid changes (e.g., slider dragging)
+      if (this.paletteUpdateTimeout) clearTimeout(this.paletteUpdateTimeout);
+      this.paletteUpdateTimeout = setTimeout(() => {
+        this.updateCurrentPaletteSlot(
+          currentSlot, 
+          this.textureHue, 
+          this.textureColorBlend, 
+          this.textureScale, 
+          this.textureBlendColor,
+          this.textureBrushStrength,
+          this.textureBrushType
+        );
+      }, 300);
+    }
       if (this.dirtyTiles.size > 0) {
         this.saveDirtyTiles();
       }
@@ -2550,16 +2570,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   /**
    * Update the current active palette slot with new settings and regenerate preview
    */
-  private async updateCurrentPaletteSlot(slotIndex: number, hue: number, blend: number, scale: number, blendColor: string): Promise<void> {
+  private async updateCurrentPaletteSlot(
+    slotIndex: number, 
+    hue: number, 
+    blend: number, 
+    scale: number, 
+    blendColor: string,
+    brushStrength?: number,
+    brushType?: 'hard' | 'soft'
+  ): Promise<void> {
     const palette = [...this.texturePalette()];
     const entry = palette[slotIndex];
     if (!entry) return;
 
-    // Update settings
+    // Update all settings
     entry.textureHue = hue;
     entry.textureColorBlend = blend;
     entry.textureScale = scale;
     entry.textureBlendColor = blendColor;
+    if (brushStrength !== undefined) entry.brushStrength = brushStrength;
+    if (brushType !== undefined) entry.brushType = brushType;
 
     // Regenerate preview with new settings
     try {
@@ -3327,8 +3357,27 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     
     if (!this.isDrawingTexture && !this.isErasingTexture) return;
 
+    const wasDrawing = this.isDrawingTexture;
+    const wasErasing = this.isErasingTexture;
+    
     this.isDrawingTexture = false;
     this.isErasingTexture = false;
+    
+    // Broadcast texture stroke for real-time sync (if we have points and a texture)
+    if (this.currentTexturePoints.length > 1 && this.selectedTextureId) {
+      const textureStroke: Omit<TextureStroke, 'id'> = {
+        points: [...this.currentTexturePoints],
+        textureId: this.selectedTextureId,
+        brushSize: this.textureBrushSize,
+        textureScale: this.textureScale,
+        isEraser: wasErasing,
+        brushType: this.textureBrushType,
+        colorBlend: this.textureColorBlend,
+        blendColor: this.textureBlendColor,
+        hueShift: this.textureHue,
+      };
+      this.store.addTextureStroke(textureStroke);
+    }
     
     // Copy stroke canvas to tiles (single commit)
     await this.commitStrokeToTiles();
