@@ -171,8 +171,11 @@ export class LobbySocketService {
    */
   async joinMap(worldName: string, mapId: string): Promise<void> {
     await this.ensureConnected();
-    console.log('[LobbySocket] Joining map:', mapId);
+    console.log('[LobbySocket] 🚪 Joining map room:', mapId, 'for world:', worldName);
     this.socket?.emit('joinMap', { worldName, mapId });
+    // Give the server a moment to process the join
+    await new Promise(resolve => setTimeout(resolve, 100));
+    console.log('[LobbySocket] ✅ Join map request sent');
   }
 
   /**
@@ -206,11 +209,12 @@ export class LobbySocketService {
       }
     }
 
-    console.log('[LobbySocket] ✅ Sending patch:', patch.path);
+    console.log('[LobbySocket] 📤 Sending patch to server:', patch.path, 'for map:', mapId);
     try {
       this.socket.emit('patchBattleMap', { worldName, battleMapId: mapId, patch });
+      console.log('[LobbySocket] ✅ Patch emitted successfully');
     } catch (error) {
-      console.error('[LobbySocket] Error sending patch:', error);
+      console.error('[LobbySocket] ❌ Error sending patch:', error);
       // Reset connection on error
       this.isConnected = false;
     }

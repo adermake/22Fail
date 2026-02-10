@@ -401,6 +401,7 @@ export class LobbyStoreService {
     };
 
     const strokes = [...this.strokes, newStroke];
+    console.log('[LobbyStore] 🖊️ Adding stroke, total strokes:', strokes.length, 'stroke ID:', newStroke.id);
     this.applyPatch({ path: 'strokes', value: strokes });
   }
 
@@ -850,10 +851,14 @@ export class LobbyStoreService {
    */
   private applyPatch(patch: JsonPatch): void {
     const map = this.currentMap;
-    if (!map) return;
+    if (!map) {
+      console.warn('[LobbyStore] ⚠️ Cannot apply patch - no current map');
+      return;
+    }
 
     // Track pending to filter echo
     this.pendingPatchPaths.add(patch.path);
+    console.log('[LobbyStore] 📤 Applying patch locally and broadcasting:', patch.path);
 
     // Apply locally
     this.applyJsonPatch(map, patch);
@@ -874,9 +879,10 @@ export class LobbyStoreService {
 
     // Ensure socket is connected before broadcasting (async, don't block)
     this.socket.ensureConnected().then(() => {
+      console.log('[LobbyStore] ✅ Socket ready, sending patch:', patch.path, 'to map:', this.currentMapId);
       this.socket.sendPatch(this.worldName, this.currentMapId, patch);
     }).catch(err => {
-      console.error('[LobbyStore] Socket not ready, patch not broadcast:', patch.path);
+      console.error('[LobbyStore] ❌ Socket not ready, patch not broadcast:', patch.path);
     });
   }
 
@@ -885,8 +891,12 @@ export class LobbyStoreService {
    */
   private applyRemotePatch(patch: JsonPatch): void {
     const map = this.currentMap;
-    if (!map) return;
+    if (!map) {
+      console.warn('[LobbyStore] ⚠️ Cannot apply remote patch - no current map');
+      return;
+    }
 
+    console.log('[LobbyStore] 📥 Applying remote patch:', patch.path);
     this.applyJsonPatch(map, patch);
     map.updatedAt = Date.now();
 

@@ -1229,7 +1229,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         }
       };
       img.onerror = () => {
-        console.error('[Tiles] Failed to load tile:', key, imageUrl);
+        console.error('[Tiles] ❌ Failed to load tile:', key, 'imageId:', tileData.imageId);
+        console.error('[Tiles] URL:', imageUrl);
+        console.error('[Tiles] This usually means the image file is missing from backend/images/');
+        console.error('[Tiles] You may need to clear texture tiles to remove broken references');
+        // Create an empty tile so we don't keep trying to load it
+        this.textureTiles.set(key, tile);
       };
       img.src = imageUrl;
     }
