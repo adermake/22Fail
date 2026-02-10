@@ -150,6 +150,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private cachedProcessedTexture: HTMLCanvasElement | null = null;
   private cachedTextureId: string | null = null;
   private isLoadingTexture = false; // Prevent concurrent texture loads
+  
+  // Reusable temp canvases for soft brush (prevents GC pressure)
+  private softBrushTempCanvas: HTMLCanvasElement | null = null;
+  private softBrushTempCtx: CanvasRenderingContext2D | null = null;
+  private lastSoftBrushSize = 0; // Track size to know when to resize
 
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
@@ -1284,88 +1289,81 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   /**
    * Process tile save queue - uploads tiles to backend and stores imageIds.
-   * This uses the same system as character images - reliable and efficient!
+   * OPTIMIZED: Uses JPEG for 10x smaller files, streams updates progressively
    */
   private async processTileSaveQueue(): Promise<void> {
     if (this.isSavingBatch || this.tileSaveQueue.length === 0) return;
     
     this.isSavingBatch = true;
     const totalToSave = this.tileSaveQueue.length;
-    console.log(`[Texture] 💾 Uploading ${totalToSave} tiles to backend...`);
+    console.log(`[Texture] 💾 Uploading ${totalToSave} tiles (JPEG)...`);
 
-    // Collect all upload promises (parallel uploads for speed!)
-    const uploadPromises: Promise<{ x: number; y: number; imageId: string; key: string }>[] = [];
+    // Process tiles in small batches for faster visual feedback
+    const BATCH_SIZE = 3; // Upload 3 at a time for progress
+    const allUploaded: { x: number; y: number; imageId: string; key: string }[] = [];
 
     while (this.tileSaveQueue.length > 0) {
-      const key = this.tileSaveQueue.shift()!;
-      this.savingTiles.add(key);
-
-      const [x, y] = key.split(',').map(Number);
-      const tile = this.textureTiles.get(key);
+      const batch = this.tileSaveQueue.splice(0, BATCH_SIZE);
       
-      if (tile) {
-        // Upload in parallel, don't await here
-        const uploadPromise = (async () => {
-          try {
-            // Convert to PNG data URL (lossless quality)
-            const dataUrl = tile.toDataURL('image/png');
-            
-            // Upload to backend via ImageService (same as character images!)
-            const imageId = await this.imageService.uploadImage(dataUrl);
-            
-            console.log(`[Texture] ✅ Uploaded tile ${key} → ${imageId}`);
-            return { x, y, imageId, key };
-          } catch (e) {
-            console.error('[Tiles] Failed to upload tile:', key, e);
-            throw e;
-          } finally {
-            this.savingTiles.delete(key);
-          }
-        })();
+      const batchPromises = batch.map(async (key) => {
+        this.savingTiles.add(key);
+        const [x, y] = key.split(',').map(Number);
+        const tile = this.textureTiles.get(key);
         
-        uploadPromises.push(uploadPromise);
-      } else {
-        this.savingTiles.delete(key);
-      }
-    }
+        if (!tile) {
+          this.savingTiles.delete(key);
+          return null;
+        }
+        
+        try {
+          // Use JPEG with 85% quality - 10x smaller than PNG, minimal quality loss
+          const dataUrl = tile.toDataURL('image/jpeg', 0.85);
+          const imageId = await this.imageService.uploadImage(dataUrl);
+          this.savingTiles.delete(key);
+          this.tileDataVersions.set(key, imageId);
+          return { x, y, imageId, key };
+        } catch (e) {
+          console.error('[Tiles] Failed to upload tile:', key, e);
+          this.savingTiles.delete(key);
+          return null;
+        }
+      });
 
-    // Wait for all uploads to complete in parallel
-    const uploadResults = await Promise.allSettled(uploadPromises);
-    const allTilesToSave: any[] = [];
-
-    for (const result of uploadResults) {
-      if (result.status === 'fulfilled') {
-        const { x, y, imageId, key } = result.value;
-        allTilesToSave.push({ x, y, imageId });
-        // Update version tracking to prevent reload
-        this.tileDataVersions.set(key, imageId);
-      }
-    }
-
-    if (allTilesToSave.length > 0 && this.map) {
-      // Use local variable to satisfy TypeScript
-      const currentMap = this.map;
-
-      // Update map with new tile data (imageIds only!)
-      const existingTiles = currentMap.textureTiles || [];
-      const tileMap = new Map(existingTiles.map(t => [`${t.x},${t.y}`, t]));
+      const batchResults = await Promise.all(batchPromises);
       
-      for (const tile of allTilesToSave) {
-        tileMap.set(`${tile.x},${tile.y}`, tile);
+      // Add successful uploads and send progressive update
+      for (const result of batchResults) {
+        if (result) {
+          allUploaded.push(result);
+        }
       }
-
-      currentMap.textureTiles = Array.from(tileMap.values());
-
-      // Send ONCE - only imageIds, tiny payload!
-      const totalMapSize = currentMap.textureTiles.length;
-      const estimatedSizeKB = Math.round(totalMapSize * 0.1); // ~100 bytes per tile (just x,y,imageId)
-      console.log(`[Texture] 📤 Sending ${allTilesToSave.length} tile refs (${totalMapSize} total, ~${estimatedSizeKB}KB)...`);
       
-      this.store.updateMapTiles(currentMap.textureTiles);
-      console.log('[Texture] ✅ All tile references sent!');
+      // Progressive update: sync tiles as they complete
+      if (allUploaded.length > 0 && this.map) {
+        this.sendTileUpdate(allUploaded);
+      }
     }
 
+    console.log(`[Texture] ✅ Uploaded ${allUploaded.length}/${totalToSave} tiles`);
     this.isSavingBatch = false;
+  }
+
+  /**
+   * Send tile update to store (called progressively during upload)
+   */
+  private sendTileUpdate(uploadedTiles: { x: number; y: number; imageId: string }[]): void {
+    if (!this.map) return;
+    
+    const currentMap = this.map;
+    const existingTiles = currentMap.textureTiles || [];
+    const tileMap = new Map(existingTiles.map(t => [`${t.x},${t.y}`, t]));
+    
+    for (const tile of uploadedTiles) {
+      tileMap.set(`${tile.x},${tile.y}`, { x: tile.x, y: tile.y, imageId: tile.imageId });
+    }
+
+    currentMap.textureTiles = Array.from(tileMap.values());
+    this.store.updateMapTiles(currentMap.textureTiles);
   }
 
   /**
@@ -1650,7 +1648,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private async commitStrokeToTiles(): Promise<void> {
     if (!this.strokeCanvas || !this.strokeCtx) return;
     
-    const radius = this.textureBrushSize / 2;
     const minTile = this.worldToTile(this.strokeBounds.minX, this.strokeBounds.minY);
     const maxTile = this.worldToTile(this.strokeBounds.maxX, this.strokeBounds.maxY);
     
@@ -1669,9 +1666,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         const tileWorldX = tileX * this.textureTileSize;
         const tileWorldY = tileY * this.textureTileSize;
         
-        // Calculate what part of stroke canvas to copy
-        const srcX = tileWorldX - this.strokeBounds.minX;
-        const srcY = tileWorldY - this.strokeBounds.minY;
+        // FIX: Use strokeCanvasOrigin (what canvas 0,0 represents in world space)
+        // NOT strokeBounds.minX which can differ after canvas expansion
+        const srcX = tileWorldX - this.strokeCanvasOrigin.x;
+        const srcY = tileWorldY - this.strokeCanvasOrigin.y;
         
         // Copy from stroke canvas to tile
         ctx.drawImage(
@@ -1689,6 +1687,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   /**
    * Draw soft brush to canvas (for stroke canvas)
+   * OPTIMIZED: Reuses temp canvas to prevent GC pressure
    */
   private drawSoftBrushToCanvas(
     ctx: CanvasRenderingContext2D,
@@ -1700,13 +1699,21 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     scaledSize: number
   ): void {
     const radius = this.textureBrushSize / 2;
-    
-    // Create temporary canvas for gradient mask
-    const tempCanvas = document.createElement('canvas');
     const diameter = Math.ceil(radius * 2);
-    tempCanvas.width = diameter;
-    tempCanvas.height = diameter;
-    const tempCtx = tempCanvas.getContext('2d')!;
+    
+    // Reuse temp canvas if size matches, otherwise create/resize
+    if (!this.softBrushTempCanvas || this.lastSoftBrushSize !== diameter) {
+      this.softBrushTempCanvas = document.createElement('canvas');
+      this.softBrushTempCanvas.width = diameter;
+      this.softBrushTempCanvas.height = diameter;
+      this.softBrushTempCtx = this.softBrushTempCanvas.getContext('2d')!;
+      this.lastSoftBrushSize = diameter;
+    }
+    
+    const tempCtx = this.softBrushTempCtx!;
+    
+    // Clear previous content
+    tempCtx.clearRect(0, 0, diameter, diameter);
     
     // Draw texture pattern aligned to world coordinates for proper tiling
     const pattern = tempCtx.createPattern(texture, 'repeat')!;
@@ -1714,9 +1721,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Use world coordinates for UV calculation to maintain consistent tiling
     const offset = Math.floor(worldX % scaledSize);
     const offsetY = Math.floor(worldY % scaledSize);
+    tempCtx.save();
     tempCtx.translate(-offset, -offsetY);
     tempCtx.fillRect(offset, offsetY, diameter, diameter);
-    tempCtx.setTransform(1, 0, 0, 1, 0, 0);
+    tempCtx.restore();
     
     // Apply radial gradient mask
     tempCtx.globalCompositeOperation = 'destination-in';
@@ -1726,9 +1734,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     gradient.addColorStop(1, 'rgba(0,0,0,0)');
     tempCtx.fillStyle = gradient;
     tempCtx.fillRect(0, 0, diameter, diameter);
+    tempCtx.globalCompositeOperation = 'source-over';
     
     // Draw to canvas
-    ctx.drawImage(tempCanvas, x - radius, y - radius);
+    ctx.drawImage(this.softBrushTempCanvas, x - radius, y - radius);
   }
 
   /**
@@ -3314,21 +3323,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.isDrawingTexture = false;
     this.isErasingTexture = false;
     
-    // Broadcast texture stroke for real-time sync (if we have points and a texture)
-    if (this.currentTexturePoints.length > 1 && this.selectedTextureId) {
-      const textureStroke: Omit<TextureStroke, 'id'> = {
-        points: [...this.currentTexturePoints],
-        textureId: this.selectedTextureId,
-        brushSize: this.textureBrushSize,
-        textureScale: this.textureScale,
-        isEraser: wasErasing,
-        brushType: this.textureBrushType,
-        colorBlend: this.textureColorBlend,
-        blendColor: this.textureBlendColor,
-        hueShift: this.textureHue,
-      };
-      this.store.addTextureStroke(textureStroke);
-    }
+    // NOTE: Removed textureStroke sync - tiles are the source of truth
+    // Syncing stroke data was redundant (tiles already sync via updateMapTiles)
+    // and added significant bandwidth overhead for no benefit
     
     // Copy stroke canvas to tiles (single commit)
     await this.commitStrokeToTiles();
