@@ -129,8 +129,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // Tile-based texture rendering system
   private textureTiles = new Map<string, HTMLCanvasElement>(); // Key: "x,y"
-  private tileDataVersions = new Map<string, string>(); // Track tile data to prevent unnecessary reloads
-  private textureTileSize = 256; // pixels per tile (reduced from 512 to prevent socket disconnect)
+  private tileDataVersions = new Map<string, string>(); // Track tile imageId to prevent unnecessary reloads
+  private textureTileSize = 512; // pixels per tile
   private dirtyTiles = new Set<string>(); // Tiles that need to be persisted
   private savingTiles = new Set<string>(); // Tiles currently being saved (to avoid duplicate saves)
   private tileSaveTimeout: any = null; // Debounce timer for tile saves (NO LONGER USED - saves immediately now)
@@ -1173,25 +1173,32 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Track which tiles exist in new data
     const newTileKeys = new Set<string>();
 
-    // Load tiles from saved data - only reload if data changed
+    // Load tiles from saved data - only reload if imageId changed
     for (const tileData of this.map.textureTiles) {
       const key = this.getTileKey(tileData.x, tileData.y);
       newTileKeys.add(key);
       
       const existingVersion = this.tileDataVersions.get(key);
       
-      // Skip reload if tile data hasn't changed (prevents flickering)
-      if (existingVersion === tileData.data && this.textureTiles.has(key)) {
+      // Skip reload if tile imageId hasn't changed (prevents flickering)
+      if (existingVersion === tileData.imageId && this.textureTiles.has(key)) {
         continue;
       }
       
       // Update version tracking
-      this.tileDataVersions.set(key, tileData.data);
+      this.tileDataVersions.set(key, tileData.imageId);
       
       const tile = document.createElement('canvas');
       tile.width = this.textureTileSize;
       tile.height = this.textureTileSize;
       
+      // Fetch tile from backend
+      const imageUrl = this.imageService.getImageUrl(tileData.imageId);
+      if (!imageUrl) {
+        console.error('[Tiles] No URL for tile:', key, tileData.imageId);
+        continue;
+      }
+
       const img = new Image();
       img.onload = () => {
         const ctx = tile.getContext('2d');
@@ -1202,9 +1209,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         }
       };
       img.onerror = () => {
-        console.error('[Tiles] Failed to load tile:', key);
+        console.error('[Tiles] Failed to load tile:', key, imageUrl);
       };
-      img.src = tileData.data;
+      img.src = imageUrl;
     }
 
     // Remove tiles that no longer exist
@@ -1234,17 +1241,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   /**
-   * Process tile save queue in small batches to prevent socket disconnect.
-   * Accumulates all tiles then sends once at the end.
+   * Process tile save queue - uploads tiles to backend and stores imageIds.
+   * This uses the same system as character images - reliable and efficient!
    */
   private async processTileSaveQueue(): Promise<void> {
     if (this.isSavingBatch || this.tileSaveQueue.length === 0) return;
     
     this.isSavingBatch = true;
     const totalToSave = this.tileSaveQueue.length;
-    console.log(`[Texture] 💾 Processing ${totalToSave} tiles...`);
+    console.log(`[Texture] 💾 Uploading ${totalToSave} tiles to backend...`);
 
-    // Process all tiles (convert to data URLs)
+    // Process all tiles (upload to backend)
     const allTilesToSave: any[] = [];
     while (this.tileSaveQueue.length > 0) {
       const key = this.tileSaveQueue.shift()!;
@@ -1255,13 +1262,20 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       
       if (tile) {
         try {
-          // Use JPEG with quality 0.85 for better compression (4-5x smaller than PNG)
-          const dataUrl = tile.toDataURL('image/jpeg', 0.85);
-          allTilesToSave.push({ x, y, data: dataUrl });
+          // Convert to PNG data URL (lossless quality)
+          const dataUrl = tile.toDataURL('image/png');
+          
+          // Upload to backend via ImageService (same as character images!)
+          const imageId = await this.imageService.uploadImage(dataUrl);
+          
+          allTilesToSave.push({ x, y, imageId });
+          
           // Update version tracking to prevent reload
-          this.tileDataVersions.set(key, dataUrl);
+          this.tileDataVersions.set(key, imageId);
+          
+          console.log(`[Texture] ✅ Uploaded tile ${key} → ${imageId}`);
         } catch (e) {
-          console.error('[Tiles] Failed to save tile:', key, e);
+          console.error('[Tiles] Failed to upload tile:', key, e);
         }
       }
       
@@ -1269,15 +1283,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     if (allTilesToSave.length > 0 && this.map) {
-      // Safety check: if too many tiles changed at once, warn user
-      if (allTilesToSave.length > 20) {
-        console.warn(`[Texture] ⚠️ Large save: ${allTilesToSave.length} tiles. This may take a moment...`);
-      }
-
       // Use local variable to satisfy TypeScript
       const currentMap = this.map;
 
-      // Update map with new tile data
+      // Update map with new tile data (imageIds only!)
       const existingTiles = currentMap.textureTiles || [];
       const tileMap = new Map(existingTiles.map(t => [`${t.x},${t.y}`, t]));
       
@@ -1287,18 +1296,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
       currentMap.textureTiles = Array.from(tileMap.values());
 
-      // Send ONCE after all conversions complete
+      // Send ONCE - only imageIds, tiny payload!
       const totalMapSize = currentMap.textureTiles.length;
-      const estimatedSizeKB = Math.round((totalMapSize * 15)); // ~15KB per tile (JPEG compressed)
-      console.log(`[Texture] 📤 Sending ${allTilesToSave.length} tiles to server (${totalMapSize} total, ~${estimatedSizeKB}KB)...`);
-      
-      // Warn if payload is very large
-      if (estimatedSizeKB > 2000) {
-        console.warn(`[Texture] ⚠️ Very large payload (~${estimatedSizeKB}KB). Map has ${totalMapSize} tiles. Consider clearing old tiles.`);
-      }
+      const estimatedSizeKB = Math.round(totalMapSize * 0.1); // ~100 bytes per tile (just x,y,imageId)
+      console.log(`[Texture] 📤 Sending ${allTilesToSave.length} tile refs (${totalMapSize} total, ~${estimatedSizeKB}KB)...`);
       
       this.store.updateMapTiles(currentMap.textureTiles);
-      console.log('[Texture] ✅ All tiles sent');
+      console.log('[Texture] ✅ All tile references sent - NO MORE SOCKET DISCONNECT! 🎉');
     }
 
     this.isSavingBatch = false;

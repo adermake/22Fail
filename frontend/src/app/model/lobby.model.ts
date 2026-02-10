@@ -62,7 +62,7 @@ export interface TextureStroke {
 export interface TextureTile {
   x: number; // Tile grid x coordinate
   y: number; // Tile grid y coordinate
-  data: string; // Base64 encoded PNG image data
+  imageId: string; // Image ID from backend (NOT base64 data)
 }
 
 // Texture tile configuration
