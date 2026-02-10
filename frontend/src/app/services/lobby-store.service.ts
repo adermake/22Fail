@@ -53,8 +53,8 @@ export class LobbyStoreService {
   private strokeUndoHistory: Stroke[][] = [];
   private readonly MAX_UNDO = 50;
 
-  // Pending patches to filter echoes
-  private pendingPatchPaths = new Set<string>();
+  // Store hashes of recently sent patches for echo detection (with timestamp)
+  private pendingPatchHashes = new Set<string>();
 
   // Debounced image update system to prevent WebSocket disconnection
   private pendingImageUpdates = new Map<string, Partial<Omit<MapImage, 'id' | 'imageId'>>>();
@@ -108,11 +108,29 @@ export class LobbyStoreService {
   constructor() {
     // Listen for incoming patches from other clients
     this.socket.patches$.subscribe((patch) => {
-      // REMOVED echo filtering - it was causing merge conflicts!
-      // The applyRemotePatch now handles merging intelligently with ID-based deduplication
-      // so applying the same patch multiple times is safe
+      // Check if this is an echo of our own patch
+      const patchHash = this.hashPatch(patch);
+      
+      if (this.pendingPatchHashes.has(patchHash)) {
+        console.log('[LobbyStore] ⏭️ Skipping echo of our own patch:', patch.path, 'hash:', patchHash.substring(0, 30));
+        this.pendingPatchHashes.delete(patchHash);
+        return;
+      }
+      
       this.applyRemotePatch(patch);
     });
+  }
+
+  /**
+   * Create a hash of a complete patch (path + value) for echo detection
+   */
+  private hashPatch(patch: JsonPatch): string {
+    if (Array.isArray(patch.value)) {
+      // For arrays, hash path + IDs + length
+      const ids = patch.value.map((item: any) => item.id || '').sort().join(',');
+      return `${patch.path}:arr:${patch.value.length}:${ids}`;
+    }
+    return `${patch.path}:${JSON.stringify(patch.value)}`;
   }
 
   /**
@@ -137,11 +155,7 @@ export class LobbyStoreService {
     // Load global texture library
     await this.loadTextureLibrary();
 
-    // Set active map
-    const activeMapId = lobby.activeMapId || Object.keys(lobby.maps)[0] || 'default';
-    await this.switchMap(activeMapId);
-
-    // Connect socket and wait for connection
+    // Connect socket FIRST before joining rooms
     console.log('[LobbyStore] Connecting to socket...');
     this.socket.connect();
     
@@ -164,8 +178,18 @@ export class LobbyStoreService {
       console.log('[LobbyStore] ✅ Socket connected successfully');
     }
     
+    // NOW join the lobby room
     await this.socket.joinLobby(worldName);
-    console.log('[LobbyStore] ✅ Socket connection and room join complete');
+    console.log('[LobbyStore] ✅ Joined lobby room');
+
+    // Set active map and join its room
+    const activeMapId = lobby.activeMapId || Object.keys(lobby.maps)[0] || 'default';
+    this.currentMapId = activeMapId;
+    lobby.activeMapId = activeMapId;
+    
+    // Join the map's socket room
+    await this.socket.joinMap(worldName, activeMapId);
+    console.log('[LobbyStore] ✅ Joined map room:', activeMapId);
 
     return lobby;
   }
@@ -854,9 +878,14 @@ export class LobbyStoreService {
       return;
     }
 
-    // Track pending to filter echo
-    this.pendingPatchPaths.add(patch.path);
-    console.log('[LobbyStore] 📤 Applying patch locally and broadcasting:', patch.path);
+    // Track pending patch hash for echo filtering (store multiple hashes for rapid operations)
+    const patchHash = this.hashPatch(patch);
+    this.pendingPatchHashes.add(patchHash);
+    
+    // Auto-cleanup after 10 seconds to prevent memory leak
+    setTimeout(() => this.pendingPatchHashes.delete(patchHash), 10000);
+    
+    console.log('[LobbyStore] 📤 Applying patch locally and broadcasting:', patch.path, 'hash:', patchHash.substring(0, 30));
 
     // Apply locally
     this.applyJsonPatch(map, patch);
@@ -894,47 +923,11 @@ export class LobbyStoreService {
       return;
     }
 
-    console.log('[LobbyStore] 📥 Applying remote patch:', patch.path, 'value type:', typeof patch.value);
+    console.log('[LobbyStore] 📥 Applying remote patch:', patch.path, Array.isArray(patch.value) ? `array[${patch.value.length}]` : typeof patch.value);
     
-    // Special handling for array patches to prevent merge conflicts
-    if (patch.path === 'strokes' && Array.isArray(patch.value)) {
-      // Merge strokes by ID instead of replacing
-      const incomingStrokes = patch.value as any[];
-      const currentStrokes = map.strokes || [];
-      const existingIds = new Set(currentStrokes.map((s: any) => s.id));
-      
-      // Only add strokes that don't exist locally
-      const newStrokes = incomingStrokes.filter((s: any) => !existingIds.has(s.id));
-      
-      if (newStrokes.length > 0) {
-        console.log('[LobbyStore] 🔀 Merging', newStrokes.length, 'new strokes (had', currentStrokes.length, 'total:', incomingStrokes.length, ')');
-        map.strokes = [...currentStrokes, ...newStrokes];
-      } else {
-        console.log('[LobbyStore] ⏭️ Skipping stroke patch - all strokes already exist');
-      }
-    } else if (patch.path === 'tokens' && Array.isArray(patch.value)) {
-      // Merge tokens by ID
-      const incomingTokens = patch.value as any[];
-      const tokenMap = new Map((map.tokens || []).map((t: any) => [t.id, t]));
-      
-      // Update or add tokens
-      incomingTokens.forEach((t: any) => tokenMap.set(t.id, t));
-      map.tokens = Array.from(tokenMap.values());
-      console.log('[LobbyStore] 🔀 Merged tokens, total:', map.tokens.length);
-    } else if (patch.path === 'images' && Array.isArray(patch.value)) {
-      // Merge images by ID
-      const incomingImages = patch.value as any[];
-      const imageMap = new Map((map.images || []).map((i: any) => [i.id, i]));
-      
-      // Update or add images
-      incomingImages.forEach((i: any) => imageMap.set(i.id, i));
-      map.images = Array.from(imageMap.values());
-      console.log('[LobbyStore] 🔀 Merged images, total:', map.images.length);
-    } else {
-      // Apply normally for non-array patches
-      this.applyJsonPatch(map, patch);
-    }
-    
+    // Trust the remote patch as source of truth (last write wins)
+    // Echo detection ensures we don't overwrite our own changes
+    this.applyJsonPatch(map, patch);
     map.updatedAt = Date.now();
 
     const lobby = this.lobby;
