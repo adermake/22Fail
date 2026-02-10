@@ -1220,6 +1220,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const key = this.getTileKey(tileData.x, tileData.y);
       newTileKeys.add(key);
       
+      // CRITICAL: Skip tiles that are dirty or being saved (prevents overwriting local changes)
+      if (this.dirtyTiles.has(key) || this.savingTiles.has(key)) {
+        console.log('[Tiles] Skipping reload of', key, '(dirty or saving)');
+        continue;
+      }
+      
       const existingVersion = this.tileDataVersions.get(key);
       
       // Skip reload if tile imageId hasn't changed (prevents flickering)
@@ -1243,6 +1249,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
       const img = new Image();
       img.onload = () => {
+        // Double-check tile isn't now dirty (race condition protection)
+        if (this.dirtyTiles.has(key) || this.savingTiles.has(key)) {
+          console.log('[Tiles] Tile became dirty during load, discarding:', key);
+          return;
+        }
+        
         const ctx = tile.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0);
@@ -1261,9 +1273,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       img.src = imageUrl;
     }
 
-    // Remove tiles that no longer exist
+    // Remove tiles that no longer exist (but preserve dirty/saving tiles)
     for (const key of this.textureTiles.keys()) {
-      if (!newTileKeys.has(key)) {
+      if (!newTileKeys.has(key) && !this.dirtyTiles.has(key) && !this.savingTiles.has(key)) {
         this.textureTiles.delete(key);
         this.tileDataVersions.delete(key);
       }
@@ -1289,81 +1301,64 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   /**
    * Process tile save queue - uploads tiles to backend and stores imageIds.
-   * OPTIMIZED: Uses JPEG for 10x smaller files, streams updates progressively
+   * OPTIMIZED: PNG with transparency support, batch sending to prevent race conditions
    */
   private async processTileSaveQueue(): Promise<void> {
     if (this.isSavingBatch || this.tileSaveQueue.length === 0) return;
     
     this.isSavingBatch = true;
     const totalToSave = this.tileSaveQueue.length;
-    console.log(`[Texture] 💾 Uploading ${totalToSave} tiles (JPEG)...`);
+    console.log(`[Texture] 💾 Uploading ${totalToSave} tiles...`);
 
-    // Process tiles in small batches for faster visual feedback
-    const BATCH_SIZE = 3; // Upload 3 at a time for progress
-    const allUploaded: { x: number; y: number; imageId: string; key: string }[] = [];
-
-    while (this.tileSaveQueue.length > 0) {
-      const batch = this.tileSaveQueue.splice(0, BATCH_SIZE);
+    // Upload all tiles in parallel (fast), but send update ONCE at end (prevents race conditions)
+    const uploadPromises = this.tileSaveQueue.map(async (key) => {
+      this.savingTiles.add(key);
+      const [x, y] = key.split(',').map(Number);
+      const tile = this.textureTiles.get(key);
       
-      const batchPromises = batch.map(async (key) => {
-        this.savingTiles.add(key);
-        const [x, y] = key.split(',').map(Number);
-        const tile = this.textureTiles.get(key);
-        
-        if (!tile) {
-          this.savingTiles.delete(key);
-          return null;
-        }
-        
-        try {
-          // Use JPEG with 85% quality - 10x smaller than PNG, minimal quality loss
-          const dataUrl = tile.toDataURL('image/jpeg', 0.85);
-          const imageId = await this.imageService.uploadImage(dataUrl);
-          this.savingTiles.delete(key);
-          this.tileDataVersions.set(key, imageId);
-          return { x, y, imageId, key };
-        } catch (e) {
-          console.error('[Tiles] Failed to upload tile:', key, e);
-          this.savingTiles.delete(key);
-          return null;
-        }
-      });
-
-      const batchResults = await Promise.all(batchPromises);
-      
-      // Add successful uploads and send progressive update
-      for (const result of batchResults) {
-        if (result) {
-          allUploaded.push(result);
-        }
+      if (!tile) {
+        this.savingTiles.delete(key);
+        return null;
       }
       
-      // Progressive update: sync tiles as they complete
-      if (allUploaded.length > 0 && this.map) {
-        this.sendTileUpdate(allUploaded);
+      try {
+        // PNG required for transparency (eraser needs alpha channel)
+        const dataUrl = tile.toDataURL('image/png');
+        const imageId = await this.imageService.uploadImage(dataUrl);
+        this.savingTiles.delete(key);
+        this.tileDataVersions.set(key, imageId);
+        console.log(`[Texture] ✅ Uploaded tile ${key}`);
+        return { x, y, imageId, key };
+      } catch (e) {
+        console.error('[Tiles] Failed to upload tile:', key, e);
+        this.savingTiles.delete(key);
+        return null;
       }
+    });
+
+    // Clear queue immediately (tiles are now being uploaded)
+    this.tileSaveQueue = [];
+
+    // Wait for ALL uploads
+    const results = await Promise.all(uploadPromises);
+    const uploaded = results.filter(r => r !== null) as { x: number; y: number; imageId: string }[];
+
+    // Send single update with all tiles
+    if (uploaded.length > 0 && this.map) {
+      const currentMap = this.map;
+      const existingTiles = currentMap.textureTiles || [];
+      const tileMap = new Map(existingTiles.map(t => [`${t.x},${t.y}`, t]));
+      
+      for (const tile of uploaded) {
+        tileMap.set(`${tile.x},${tile.y}`, { x: tile.x, y: tile.y, imageId: tile.imageId });
+      }
+
+      currentMap.textureTiles = Array.from(tileMap.values());
+      this.store.updateMapTiles(currentMap.textureTiles);
+      console.log(`[Texture] 📤 Synced ${uploaded.length}/${totalToSave} tiles`);
     }
 
-    console.log(`[Texture] ✅ Uploaded ${allUploaded.length}/${totalToSave} tiles`);
     this.isSavingBatch = false;
-  }
-
-  /**
-   * Send tile update to store (called progressively during upload)
-   */
-  private sendTileUpdate(uploadedTiles: { x: number; y: number; imageId: string }[]): void {
-    if (!this.map) return;
-    
-    const currentMap = this.map;
-    const existingTiles = currentMap.textureTiles || [];
-    const tileMap = new Map(existingTiles.map(t => [`${t.x},${t.y}`, t]));
-    
-    for (const tile of uploadedTiles) {
-      tileMap.set(`${tile.x},${tile.y}`, { x: tile.x, y: tile.y, imageId: tile.imageId });
-    }
-
-    currentMap.textureTiles = Array.from(tileMap.values());
-    this.store.updateMapTiles(currentMap.textureTiles);
   }
 
   /**
@@ -1474,6 +1469,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       x: this.strokeBounds.minX,
       y: this.strokeBounds.minY
     };
+    
+    console.log('[Texture] Init stroke canvas:', {
+      startPoint,
+      origin: this.strokeCanvasOrigin,
+      bounds: this.strokeBounds
+    });
     
     // Reset last painted point for new stroke
     this.lastPaintedPoint = null;
@@ -1651,6 +1652,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const minTile = this.worldToTile(this.strokeBounds.minX, this.strokeBounds.minY);
     const maxTile = this.worldToTile(this.strokeBounds.maxX, this.strokeBounds.maxY);
     
+    console.log('[Texture] Committing stroke to tiles:', {
+      strokeOrigin: this.strokeCanvasOrigin,
+      strokeBounds: this.strokeBounds,
+      canvasSize: { w: this.strokeCanvas.width, h: this.strokeCanvas.height },
+      tileRange: { minTile, maxTile }
+    });
+    
     // Copy stroke canvas to affected tiles
     for (let tileY = minTile.tileY; tileY <= maxTile.tileY; tileY++) {
       for (let tileX = minTile.tileX; tileX <= maxTile.tileX; tileX++) {
@@ -1666,19 +1674,39 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         const tileWorldX = tileX * this.textureTileSize;
         const tileWorldY = tileY * this.textureTileSize;
         
-        // FIX: Use strokeCanvasOrigin (what canvas 0,0 represents in world space)
-        // NOT strokeBounds.minX which can differ after canvas expansion
+        // Calculate source position in stroke canvas
         const srcX = tileWorldX - this.strokeCanvasOrigin.x;
         const srcY = tileWorldY - this.strokeCanvasOrigin.y;
         
+        // Bounds check - skip if completely outside canvas
+        if (srcX + this.textureTileSize < 0 || srcY + this.textureTileSize < 0 ||
+            srcX >= this.strokeCanvas.width || srcY >= this.strokeCanvas.height) {
+          console.warn('[Texture] Tile outside stroke canvas bounds, skipping:', tileKey);
+          continue;
+        }
+        
+        // Calculate actual copy region (handle partial overlaps)
+        const copyX = Math.max(0, srcX);
+        const copyY = Math.max(0, srcY);
+        const copyW = Math.min(this.textureTileSize, this.strokeCanvas.width - srcX);
+        const copyH = Math.min(this.textureTileSize, this.strokeCanvas.height - srcY);
+        
+        // Destination offset if source was clipped
+        const destX = Math.max(0, -srcX);
+        const destY = Math.max(0, -srcY);
+        
         // Copy from stroke canvas to tile
-        ctx.drawImage(
-          this.strokeCanvas,
-          srcX, srcY, this.textureTileSize, this.textureTileSize, // Source
-          0, 0, this.textureTileSize, this.textureTileSize // Dest
-        );
+        if (copyW > 0 && copyH > 0) {
+          ctx.drawImage(
+            this.strokeCanvas,
+            copyX, copyY, copyW, copyH, // Source
+            destX, destY, copyW, copyH  // Dest
+          );
+        }
       }
     }
+    
+    console.log('[Texture] Committed to', this.dirtyTiles.size, 'tiles');
     
     // Clear stroke canvas
     this.strokeCanvas = null;
