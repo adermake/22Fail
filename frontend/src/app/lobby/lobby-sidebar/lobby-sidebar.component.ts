@@ -37,7 +37,6 @@ export class LobbySidebarComponent {
   @Output() dragStart = new EventEmitter<LibraryImage>();
   @Output() loadTextures = new EventEmitter<FileList>();
   @Output() selectTexture = new EventEmitter<string | null>();
-  @Output() clearAllTextures = new EventEmitter<void>();
 
   // Local state
   activeTab = signal<'characters' | 'images' | 'textures'>('characters');
@@ -154,20 +153,6 @@ export class LobbySidebarComponent {
     event.dataTransfer!.setData('textureId', texture.textureId);
     event.dataTransfer!.setData('textureName', texture.name);
     console.log('[Sidebar] Dragging texture:', texture.name);
-  }
-
-  onTextureLoadError(event: Event, texture: LibraryTexture): void {
-    console.error('[Sidebar] Failed to load texture:', texture.name, texture.textureId);
-    // Show broken image icon
-    const img = event.target as HTMLImageElement;
-    img.style.opacity = '0.3';
-    img.alt = '❌ Missing';
-  }
-
-  clearBrokenTextures(): void {
-    if (confirm('This will remove all textures from the library. Continue?')) {
-      this.clearAllTextures.emit();
-    }
   }
 
   get filteredTextures() {

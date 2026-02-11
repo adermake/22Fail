@@ -188,7 +188,26 @@ export class DataService {
   }
 
   getGlobalTextures(): any[] {
-    return this.readGlobalTextures();
+    const textures = this.readGlobalTextures();
+    const texturesDir = path.join(__dirname, '../../textures');
+    
+    // Filter out textures where the actual file doesn't exist
+    const validTextures = textures.filter(texture => {
+      const filePath = path.join(texturesDir, texture.textureId);
+      const exists = fs.existsSync(filePath);
+      if (!exists) {
+        console.log(`[DATA SERVICE] Filtering out missing texture: ${texture.textureId}`);
+      }
+      return exists;
+    });
+    
+    // If we filtered any out, update the file to remove stale references
+    if (validTextures.length !== textures.length) {
+      console.log(`[DATA SERVICE] Removed ${textures.length - validTextures.length} stale texture references`);
+      this.writeGlobalTextures(validTextures);
+    }
+    
+    return validTextures;
   }
 
   addGlobalTexture(texture: { id: string; name: string; textureId: string; tileSize: number }): void {
