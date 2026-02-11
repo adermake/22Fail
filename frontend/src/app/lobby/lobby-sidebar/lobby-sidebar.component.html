@@ -167,16 +167,30 @@
       <div class="texture-library">
         <!-- Upload button (GM only) -->
         @if (isGM) {
-          <label class="upload-btn">
-            <input 
-              type="file" 
-              accept="image/*" 
-              multiple 
-              (change)="onTextureFileSelect($event)"
-              hidden
-            />
-            <span>📁 Upload Textures</span>
-          </label>
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <label class="upload-btn" style="flex: 1;">
+              <input 
+                type="file" 
+                accept="image/*" 
+                multiple 
+                (change)="onTextureFileSelect($event)"
+                hidden
+              />
+              <span>📁 Upload Textures</span>
+            </label>
+            
+            <!-- Clear broken textures button -->
+            @if (filteredTextures.length > 0) {
+              <button 
+                class="upload-btn" 
+                style="background: #dc3545; flex: 0 0 auto;"
+                (click)="clearBrokenTextures()"
+                title="Remove all textures from library (does not delete files)"
+              >
+                🗑️ Clear All
+              </button>
+            }
+          </div>
         }
 
         <!-- Texture grid -->
@@ -190,7 +204,12 @@
               (dragstart)="onTextureDragStart($event, texture)"
             >
               <div class="image-preview">
-                <img [src]="'/api/textures/' + texture.textureId" alt="" />
+                <img 
+                  [src]="'/api/textures/' + texture.textureId" 
+                  alt=""
+                  (error)="onTextureLoadError($event, texture)"
+                  style="object-fit: cover; width: 100%; height: 100%;"
+                />
               </div>
               <div class="image-name">
                 {{ texture.name }}

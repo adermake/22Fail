@@ -547,6 +547,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
     }
   }
 
+  onClearTextureLibrary(): void {
+    if (!this.isGM()) return;
+    this.store.clearTextureLibrary();
+  }
+
   onImageDragStart(image: LibraryImage): void {
     // Auto-switch to image tool when dragging from library
     this.currentTool.set('image');

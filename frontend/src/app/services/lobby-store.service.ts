@@ -773,6 +773,15 @@ export class LobbyStoreService {
     return newTexture;
   }
 
+  /**
+   * Clear all textures from the library.
+   * Clears local state only - does not delete files from server.
+   */
+  clearTextureLibrary(): void {
+    this.textureLibrarySignal.set([]);
+    console.log('[LobbyStore] Texture library cleared');
+  }
+
   // ============================================
   // Wall Operations
   // ============================================
