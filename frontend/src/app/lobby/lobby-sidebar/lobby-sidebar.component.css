@@ -157,6 +157,13 @@
   gap: 8px;
 }
 
+/* Texture library */
+.texture-library {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .upload-btn {
   display: flex;
   align-items: center;

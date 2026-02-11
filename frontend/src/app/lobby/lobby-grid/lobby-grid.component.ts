@@ -155,6 +155,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private softBrushTempCanvas: HTMLCanvasElement | null = null;
   private softBrushTempCtx: CanvasRenderingContext2D | null = null;
   private lastSoftBrushSize = 0; // Track size to know when to resize
+  
+  // Mouse event throttling to prevent lag
+  private isProcessingMouseMove = false;
 
   // Canvas contexts
   private gridCtx: CanvasRenderingContext2D | null = null;
@@ -1285,10 +1288,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private async saveDirtyTiles(): Promise<void> {
     if (this.dirtyTiles.size === 0 || !this.map) return;
 
-    // Add dirty tiles to queue (avoiding duplicates)
+    // Add dirty tiles to queue (avoiding duplicates) and mark as saving IMMEDIATELY
     for (const key of this.dirtyTiles) {
       if (!this.savingTiles.has(key) && !this.tileSaveQueue.includes(key)) {
         this.tileSaveQueue.push(key);
+        // CRITICAL: Add to savingTiles NOW to prevent race condition
+        // If we don't do this, loadTextureTiles can reload the tile between
+        // clearing dirtyTiles and processTileSaveQueue adding it to savingTiles
+        this.savingTiles.add(key);
       }
     }
     this.dirtyTiles.clear();
@@ -3324,14 +3331,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     
     if (!this.isDrawingTexture && !this.isErasingTexture) return;
 
-    const prevPoint = this.currentTexturePoints[this.currentTexturePoints.length - 1];
-    this.currentTexturePoints.push(world);
+    // THROTTLE: Skip if still processing previous mouse event (prevents lag and catch-up)
+    if (this.isProcessingMouseMove) {
+      return;
+    }
     
-    // Draw to stroke canvas (non-blocking, single-pass)
-    this.drawToStrokeCanvas(prevPoint, world);
+    this.isProcessingMouseMove = true;
     
-    // Always render immediately during texture drawing for smooth feedback
-    this.scheduleRender();
+    try {
+      const prevPoint = this.currentTexturePoints[this.currentTexturePoints.length - 1];
+      this.currentTexturePoints.push(world);
+      
+      // Draw to stroke canvas (non-blocking, single-pass)
+      this.drawToStrokeCanvas(prevPoint, world);
+      
+      // Always render immediately during texture drawing for smooth feedback
+      this.scheduleRender();
+    } finally {
+      // Reset flag immediately (synchronous processing)
+      this.isProcessingMouseMove = false;
+    }
   }
 
   private async handleTextureUp(event: MouseEvent, world: Point): Promise<void> {
