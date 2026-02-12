@@ -11,6 +11,9 @@ export class ImageService {
     // Ensure images directory exists
     if (!fs.existsSync(this.imagesDir)) {
       fs.mkdirSync(this.imagesDir, { recursive: true });
+      console.log('[IMAGE SERVICE] Created images directory:', this.imagesDir);
+    } else {
+      console.log('[IMAGE SERVICE] Using images directory:', this.imagesDir);
     }
   }
 

@@ -11,6 +11,9 @@ export class TextureService {
     // Ensure textures directory exists
     if (!fs.existsSync(this.texturesDir)) {
       fs.mkdirSync(this.texturesDir, { recursive: true });
+      console.log('[TEXTURE SERVICE] Created textures directory:', this.texturesDir);
+    } else {
+      console.log('[TEXTURE SERVICE] Using textures directory:', this.texturesDir);
     }
   }
 

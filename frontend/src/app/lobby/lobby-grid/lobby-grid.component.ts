@@ -1135,9 +1135,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const minTileY = Math.floor(topLeft.y / this.textureTileSize);
     const maxTileY = Math.ceil(bottomRight.y / this.textureTileSize);
 
-    // Enable image smoothing to eliminate tile seams
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
+    // CRITICAL: Disable image smoothing for crisp texture rendering
+    // Image smoothing causes blurriness - textures should be pixel-perfect
+    ctx.imageSmoothingEnabled = false;
 
     // Render only visible tiles with 1px overlap to eliminate seams
     for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
