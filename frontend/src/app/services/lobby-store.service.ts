@@ -243,6 +243,31 @@ export class LobbyStoreService {
       
       // Filter out broken library images
       lobby.imageLibrary = lobby.imageLibrary.filter(img => img.imageId);
+      
+      // LAYER MIGRATION: Create default layers if none exist
+      if (!map.layers || map.layers.length === 0) {
+        const defaultImageLayer: Layer = {
+          id: generateId(),
+          name: 'Images',
+          type: 'image',
+          visible: true,
+          locked: false,
+          zIndex: 1,
+          createdAt: Date.now(),
+        };
+        const defaultTextureLayer: Layer = {
+          id: generateId(),
+          name: 'Textures',
+          type: 'texture',
+          visible: true,
+          locked: false,
+          zIndex: 0,
+          createdAt: Date.now(),
+        };
+        map.layers = [defaultImageLayer, defaultTextureLayer];
+        map.activeLayerId = defaultImageLayer.id;
+        console.log('[LobbyStore] Migrated map', mapId, 'to layer system');
+      }
     }
 
     return lobby;
@@ -726,44 +751,13 @@ export class LobbyStoreService {
   // ============================================
 
   /**
-   * Get layers for current map with migration support.
-   * Creates default layers if none exist and SAVES them.
+   * Get layers for current map.
+   * Layers are created during migration in migrateLobby().
    */
   get layers(): Layer[] {
     const map = this.currentMap;
     if (!map) return [];
-
-    // Migrate old maps to layer system - create AND SAVE default layers
-    if (!map.layers || map.layers.length === 0) {
-      const defaultImageLayer: Layer = {
-        id: generateId(),
-        name: 'Images',
-        type: 'image',
-        visible: true,
-        locked: false,
-        zIndex: 1,
-        createdAt: Date.now(),
-      };
-      const defaultTextureLayer: Layer = {
-        id: generateId(),
-        name: 'Textures',
-        type: 'texture',
-        visible: true,
-        locked: false,
-        zIndex: 0,
-        createdAt: Date.now(),
-      };
-      const defaultLayers = [defaultImageLayer, defaultTextureLayer];
-      
-      // CRITICAL: Actually save the default layers to the map!
-      this.applyPatch({ path: 'layers', value: defaultLayers });
-      this.applyPatch({ path: 'activeLayerId', value: defaultImageLayer.id });
-      
-      console.log('[LobbyStore] Created default layers for map:', map.id);
-      return defaultLayers;
-    }
-
-    return map.layers;
+    return map.layers || [];
   }
 
   /**

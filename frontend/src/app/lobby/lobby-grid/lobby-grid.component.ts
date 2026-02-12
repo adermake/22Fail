@@ -390,6 +390,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       changes['textureBrushStrength'] ||
       changes['textureBrushType']
     )) {
+      console.log('[Palette] Settings changed, will update slot', currentSlot, 'after 300ms debounce');
       // Debounce rapid changes (e.g., slider dragging)
       if (this.paletteUpdateTimeout) clearTimeout(this.paletteUpdateTimeout);
       this.paletteUpdateTimeout = setTimeout(() => {
@@ -2696,6 +2697,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       layer: this.textureLayer,
     };
 
+    // CRITICAL: Set current palette slot so adjustments will update this slot
+    this.currentPaletteSlot.set(index);
+    console.log('[Palette] Set active slot to', index, '- future adjustments will update this slot');
+
     // Generate colored preview immediately
     this.generateTexturePreview(entry).then(previewUrl => {
       entry.previewUrl = previewUrl;
@@ -2770,7 +2775,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   ): Promise<void> {
     const palette = [...this.texturePalette()];
     const entry = palette[slotIndex];
-    if (!entry) return;
+    if (!entry) {
+      console.warn('[Palette] Cannot update slot', slotIndex, '- slot is empty');
+      return;
+    }
+
+    console.log('[Palette] Updating slot', slotIndex, 'with new settings:', {
+      hue, blend, scale, brushStrength, brushType
+    });
 
     // Update all settings
     entry.textureHue = hue;

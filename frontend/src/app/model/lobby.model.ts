@@ -211,6 +211,26 @@ export function generateId(): string {
 
 /** Create an empty map */
 export function createEmptyMap(id: string, name: string): LobbyMap {
+  // Create default layers for new maps
+  const defaultImageLayer: Layer = {
+    id: generateId(),
+    name: 'Images',
+    type: 'image',
+    visible: true,
+    locked: false,
+    zIndex: 1,
+    createdAt: Date.now(),
+  };
+  const defaultTextureLayer: Layer = {
+    id: generateId(),
+    name: 'Textures',
+    type: 'texture',
+    visible: true,
+    locked: false,
+    zIndex: 0,
+    createdAt: Date.now(),
+  };
+
   return {
     id,
     name,
@@ -220,6 +240,8 @@ export function createEmptyMap(id: string, name: string): LobbyMap {
     walls: [],
     measurementLines: [],
     images: [],
+    layers: [defaultImageLayer, defaultTextureLayer],
+    activeLayerId: defaultImageLayer.id,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
