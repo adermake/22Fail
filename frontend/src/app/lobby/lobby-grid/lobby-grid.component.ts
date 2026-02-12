@@ -566,18 +566,28 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     // Check if map has layers defined
     if (map.layers && map.layers.length > 0) {
-      // New layer system: render layers in zIndex order
+      // New layer system: render ALL layers to imageCanvas in zIndex order
+      // This allows proper layering where textures can be above/below images
       const sortedLayers = [...map.layers].sort((a, b) => a.zIndex - b.zIndex);
+      
+      const ctx = this.imageCtx;
+      if (!ctx) return;
+      
+      ctx.save();
+      ctx.translate(this.panX, this.panY);
+      ctx.scale(this.scale, this.scale);
       
       for (const layer of sortedLayers) {
         if (!layer.visible) continue; // Skip hidden layers
         
         if (layer.type === 'image') {
-          this.renderLayerImages(layer.id);
+          this.renderLayerImagesOnCanvas(ctx, layer.id);
         } else if (layer.type === 'texture') {
-          this.renderLayerTextures(layer.id);
+          this.renderLayerTexturesOnCanvas(ctx, layer.id);
         }
       }
+      
+      ctx.restore();
     } else {
       // Legacy rendering for maps without layers
       this.renderImages();       // Background images
@@ -642,15 +652,21 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private renderLayerImages(layerId: string): void {
+    // Legacy method - redirects to new canvas-based rendering
     if (!this.imageCtx || !this.map) return;
-
-    const canvas = this.imageCanvas.nativeElement;
     const ctx = this.imageCtx;
-    const dpr = window.devicePixelRatio || 1;
-
     ctx.save();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
+    this.renderLayerImagesOnCanvas(ctx, layerId);
+    ctx.restore();
+  }
+
+  private renderLayerImagesOnCanvas(ctx: CanvasRenderingContext2D, layerId: string): void {
+    if (!this.map) return;
+
+    const canvas = this.imageCanvas.nativeElement;
+    const dpr = window.devicePixelRatio || 1;
 
     // Calculate visible viewport bounds
     const viewportBounds = {
@@ -689,20 +705,24 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         this.renderGroupBoundingBox(ctx, layerSelectedIds);
       }
     }
-
-    ctx.restore();
   }
 
   private renderLayerTextures(layerId: string): void {
+    // Legacy method - redirects to new canvas-based rendering
     if (!this.textureCtx || !this.map) return;
-
-    const canvas = this.textureCanvas.nativeElement;
     const ctx = this.textureCtx;
-    const dpr = window.devicePixelRatio || 1;
-
     ctx.save();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
+    this.renderLayerTexturesOnCanvas(ctx, layerId);
+    ctx.restore();
+  }
+
+  private renderLayerTexturesOnCanvas(ctx: CanvasRenderingContext2D, layerId: string): void {
+    if (!this.map) return;
+
+    const canvas = this.imageCanvas.nativeElement;
+    const dpr = window.devicePixelRatio || 1;
 
     // Calculate visible tile range
     const topLeft = this.screenToWorld(0, 0);
@@ -714,6 +734,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const maxTileY = Math.ceil(bottomRight.y / this.textureTileSize);
 
     // Disable image smoothing for crisp textures
+    const wasSmoothing = ctx.imageSmoothingEnabled;
     ctx.imageSmoothingEnabled = false;
 
     // Render only tiles for this layer
@@ -753,7 +774,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       );
     }
 
-    ctx.restore();
+    // Restore smoothing setting
+    ctx.imageSmoothingEnabled = wasSmoothing;
   }
 
   private renderGrid(): void {
@@ -2692,7 +2714,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Set current palette slot (for tracking changes)
     this.currentPaletteSlot.set(index);
 
-    // Emit to parent component (but NOT selectedTextureIdChange to avoid sidebar selection)
+    // Emit ALL settings to parent, including texture ID (palette works independently)
+    this.selectedTextureIdChange.emit(entry.textureId);
     this.textureBrushStrengthChange.emit(entry.brushStrength);
     this.textureBrushTypeChange.emit(entry.brushType);
     this.textureScaleChange.emit(entry.textureScale);
