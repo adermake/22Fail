@@ -371,13 +371,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (changes['imageLayerVisible']) {
       this.updateLayerVisibility();
     }
-    // Load texture tiles when map changes
-    if (changes['map']) {
-      // Save any pending tiles from previous map before switching
-      if (this.tileSaveTimeout) {
-        clearTimeout(this.tileSaveTimeout);
-        this.tileSaveTimeout = null;
-      }
 
     // Update active palette slot when texture settings change
     // BUT skip if we're loading FROM a palette slot (prevent circular update)
@@ -405,6 +398,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         );
       }, 300);
     }
+
+    // Load texture tiles when map changes
+    if (changes['map']) {
+      // Save any pending tiles from previous map before switching
+      if (this.tileSaveTimeout) {
+        clearTimeout(this.tileSaveTimeout);
+        this.tileSaveTimeout = null;
+      }
       if (this.dirtyTiles.size > 0) {
         this.saveDirtyTiles();
       }

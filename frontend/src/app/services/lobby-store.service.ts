@@ -756,8 +756,13 @@ export class LobbyStoreService {
    */
   get layers(): Layer[] {
     const map = this.currentMap;
-    if (!map) return [];
-    return map.layers || [];
+    if (!map) {
+      console.log('[LobbyStore] layers getter: no current map');
+      return [];
+    }
+    const layers = map.layers || [];
+    console.log('[LobbyStore] layers getter: returning', layers.length, 'layers for map', map.id, ':', layers.map(l => l.name));
+    return layers;
   }
 
   /**

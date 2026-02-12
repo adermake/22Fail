@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -12,7 +12,7 @@ import { Layer, LayerType } from '../../model/lobby.model';
   styleUrls: ['./lobby-layer-panel.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LobbyLayerPanelComponent {
+export class LobbyLayerPanelComponent implements OnChanges {
   @Input() layers: Layer[] = [];
   @Input() activeLayerId: string | null = null;
   @Input() isGM = false;
@@ -27,6 +27,10 @@ export class LobbyLayerPanelComponent {
 
   editingLayerId: string | null = null;
   editingName = '';
+
+  ngOnChanges(): void {
+    console.log('[LayerPanel] ngOnChanges - Received', this.layers.length, 'layers:', this.layers.map(l => l.name));
+  }
 
   get sortedLayers(): Layer[] {
     // Sort by zIndex descending (top layer first)
