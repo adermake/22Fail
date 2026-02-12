@@ -46,6 +46,8 @@ export class LobbyStoreService {
 
   // Global texture library (shared across all lobbies)
   private textureLibrarySignal = signal<LibraryTexture[]>([]);
+  // Global image library (shared across all lobbies - like textures)
+  private imageLibrarySignal = signal<LibraryImage[]>([]);
 
   // Current world and map
   worldName = '';
@@ -98,8 +100,10 @@ export class LobbyStoreService {
   }
 
   get imageLibrary(): LibraryImage[] {
-    return this.lobby?.imageLibrary || [];
+    return this.imageLibrarySignal();
   }
+
+  imageLibraryReadonly = this.imageLibrarySignal.asReadonly();
 
   textureLibrary = this.textureLibrarySignal.asReadonly();
 
@@ -156,6 +160,8 @@ export class LobbyStoreService {
 
     // Load global texture library
     await this.loadTextureLibrary();
+    // Load global image library (NEW: shared across all lobbies)
+    await this.loadImageLibrary();
 
     // Connect socket FIRST before joining rooms
     console.log('[LobbyStore] Connecting to socket...');
@@ -207,6 +213,38 @@ export class LobbyStoreService {
     } catch (err) {
       console.error('[LobbyStore] Failed to load texture library:', err);
       this.textureLibrarySignal.set([]);
+    }
+  }
+
+  /**
+   * Load the global image library (NEW: same as textures, shared across all lobbies).
+   */
+  async loadImageLibrary(): Promise<void> {
+    try {
+      // For now, use localStorage until backend endpoint is created
+      const stored = localStorage.getItem('global-image-library');
+      if (stored) {
+        const images: LibraryImage[] = JSON.parse(stored);
+        this.imageLibrarySignal.set(images);
+        console.log('[LobbyStore] Loaded global image library:', images.length, 'images');
+      } else {
+        this.imageLibrarySignal.set([]);
+      }
+    } catch (err) {
+      console.error('[LobbyStore] Failed to load image library:', err);
+      this.imageLibrarySignal.set([]);
+    }
+  }
+
+  /**
+   * Save the global image library.
+   */
+  private saveImageLibrary(): void {
+    try {
+      localStorage.setItem('global-image-library', JSON.stringify(this.imageLibrarySignal()));
+      console.log('[LobbyStore] Saved global image library:', this.imageLibrarySignal().length, 'images');
+    } catch (err) {
+      console.error('[LobbyStore] Failed to save image library:', err);
     }
   }
 
@@ -922,7 +960,7 @@ export class LobbyStoreService {
   // ============================================
 
   /**
-   * Add an image to the reusable library.
+   * Add an image to the GLOBAL reusable library (NEW: shared across all lobbies).
    * Uploads the image to the server first.
    */
   async addLibraryImage(base64Data: string, name: string): Promise<LibraryImage> {
@@ -938,48 +976,38 @@ export class LobbyStoreService {
       createdAt: Date.now(),
     };
 
-    const lobby = this.lobby;
-    if (!lobby) throw new Error('No lobby loaded');
+    // Add to GLOBAL library (signal)
+    const current = this.imageLibrarySignal();
+    this.imageLibrarySignal.set([...current, newImage]);
+    this.saveImageLibrary(); // Persist to localStorage
 
-    lobby.imageLibrary = [...lobby.imageLibrary, newImage];
-    lobby.updatedAt = Date.now();
-
-    this.lobbySubject.next({ ...lobby });
-    await this.api.saveLobby(this.worldName, lobby);
-
+    console.log('[LobbyStore] Added image to GLOBAL library:', name);
     return newImage;
   }
 
   /**
-   * Update a library image's name.
+   * Update a library image's name (NEW: updates GLOBAL library).
    */
   async updateLibraryImage(id: string, name: string): Promise<void> {
-    const lobby = this.lobby;
-    if (!lobby) return;
-
-    const index = lobby.imageLibrary.findIndex(i => i.id === id);
+    const current = this.imageLibrarySignal();
+    const index = current.findIndex(i => i.id === id);
     if (index === -1) return;
 
-    lobby.imageLibrary = [...lobby.imageLibrary];
-    lobby.imageLibrary[index] = { ...lobby.imageLibrary[index], name };
-    lobby.updatedAt = Date.now();
-
-    this.lobbySubject.next({ ...lobby });
-    await this.api.saveLobby(this.worldName, lobby);
+    const updated = [...current];
+    updated[index] = { ...updated[index], name };
+    this.imageLibrarySignal.set(updated);
+    this.saveImageLibrary(); // Persist to localStorage
+    console.log('[LobbyStore] Updated image in GLOBAL library:', name);
   }
 
   /**
-   * Remove an image from the library.
+   * Remove an image from the library (NEW: removes from GLOBAL library).
    */
   async removeLibraryImage(id: string): Promise<void> {
-    const lobby = this.lobby;
-    if (!lobby) return;
-
-    lobby.imageLibrary = lobby.imageLibrary.filter(i => i.id !== id);
-    lobby.updatedAt = Date.now();
-
-    this.lobbySubject.next({ ...lobby });
-    await this.api.saveLobby(this.worldName, lobby);
+    const current = this.imageLibrarySignal();
+    this.imageLibrarySignal.set(current.filter(i => i.id !== id));
+    this.saveImageLibrary(); // Persist to localStorage
+    console.log('[LobbyStore] Removed image from GLOBAL library');
   }
 
   /**

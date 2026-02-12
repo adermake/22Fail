@@ -875,12 +875,32 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.fillStyle = wallColor.fill;
       ctx.fill();
       ctx.strokeStyle = wallColor.stroke;
-      ctx.lineWidth = Math.max(1, 1.5 / this.scale); // More visible wall lines
+      ctx.lineWidth = Math.max(1.5, 2 / this.scale); // More visible wall lines
+      ctx.stroke();
+      
+      // Add 3 diagonal lines inside wall hexagon for clarity
+      ctx.strokeStyle = wallColor.stroke;
+      ctx.lineWidth = Math.max(1, 1.5 / this.scale);
+      const hexWidth = HexMath.hexWidth;
+      const hexHeight = HexMath.hexHeight;
+      const radius = Math.min(hexWidth, hexHeight) * 0.4; // Use smaller dimension
+      ctx.beginPath();
+      // Line 1: top-left to bottom-right
+      ctx.moveTo(center.x - radius, center.y - radius);
+      ctx.lineTo(center.x + radius, center.y + radius);
+      // Line 2: top-right to bottom-left
+      ctx.moveTo(center.x + radius, center.y - radius);
+      ctx.lineTo(center.x - radius, center.y + radius);
+      // Line 3: horizontal through center
+      ctx.moveTo(center.x - radius, center.y);
+      ctx.lineTo(center.x + radius, center.y);
+      ctx.stroke();
+      return; // Skip normal stroke (already drawn)
     } else {
-      // Smart grid color based on pixel under hex center
+      // Smart grid color based on pixel under hex center (30% more visible)
       const gridColor = this.getComplementaryGridColor(center);
       ctx.strokeStyle = gridColor;
-      ctx.lineWidth = Math.max(0.8, 1.5 / this.scale); // Thicker lines
+      ctx.lineWidth = Math.max(1, 1.5 / this.scale); // Thicker lines
     }
     ctx.stroke();
   }
@@ -963,11 +983,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Calculate luminance
     const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
     
-    // SUBTLE: Very low opacity for unobtrusive grid
+    // IMPROVED VISIBILITY: 30% more visible grid (0.15 → 0.2 opacity)
     // Slightly darker than background (if light) or slightly lighter (if dark)
-    const adjustment = luminance < 128 ? 25 : -25;
+    const adjustment = luminance < 128 ? 30 : -30;
     const newLuminance = Math.max(0, Math.min(255, luminance + adjustment));
-    return `rgba(${newLuminance}, ${newLuminance}, ${newLuminance}, 0.15)`; // Very subtle
+    return `rgba(${newLuminance}, ${newLuminance}, ${newLuminance}, 0.2)`; // 30% more visible
   }
 
   /**
@@ -979,20 +999,20 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Calculate luminance
     const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
     
-    // Walls should be more prominent than grid
+    // Walls should be VERY prominent - much more visible than grid
     if (luminance < 128) {
-      // Dark background: lighter walls with more opacity
-      const lightness = Math.min(255, luminance + 120);
+      // Dark background: lighter walls with high opacity
+      const lightness = Math.min(255, luminance + 140);
       return {
-        fill: `rgba(${lightness}, ${lightness}, ${lightness}, 0.4)`,
-        stroke: `rgba(${lightness}, ${lightness}, ${lightness}, 0.7)`
+        fill: `rgba(${lightness}, ${lightness}, ${lightness}, 0.6)`,
+        stroke: `rgba(${lightness}, ${lightness}, ${lightness}, 0.9)`
       };
     } else {
-      // Light background: darker walls
-      const darkness = Math.max(0, luminance - 120);
+      // Light background: darker walls with high opacity
+      const darkness = Math.max(0, luminance - 140);
       return {
-        fill: `rgba(${darkness}, ${darkness}, ${darkness}, 0.4)`,
-        stroke: `rgba(${darkness}, ${darkness}, ${darkness}, 0.7)`
+        fill: `rgba(${darkness}, ${darkness}, ${darkness}, 0.6)`,
+        stroke: `rgba(${darkness}, ${darkness}, ${darkness}, 0.9)`
       };
     }
   }
