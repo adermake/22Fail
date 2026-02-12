@@ -727,13 +727,13 @@ export class LobbyStoreService {
 
   /**
    * Get layers for current map with migration support.
-   * Creates default layers if none exist.
+   * Creates default layers if none exist and SAVES them.
    */
   get layers(): Layer[] {
     const map = this.currentMap;
     if (!map) return [];
 
-    // Migrate old maps to layer system
+    // Migrate old maps to layer system - create AND SAVE default layers
     if (!map.layers || map.layers.length === 0) {
       const defaultImageLayer: Layer = {
         id: generateId(),
@@ -753,7 +753,14 @@ export class LobbyStoreService {
         zIndex: 0,
         createdAt: Date.now(),
       };
-      return [defaultImageLayer, defaultTextureLayer];
+      const defaultLayers = [defaultImageLayer, defaultTextureLayer];
+      
+      // CRITICAL: Actually save the default layers to the map!
+      this.applyPatch({ path: 'layers', value: defaultLayers });
+      this.applyPatch({ path: 'activeLayerId', value: defaultImageLayer.id });
+      
+      console.log('[LobbyStore] Created default layers for map:', map.id);
+      return defaultLayers;
     }
 
     return map.layers;

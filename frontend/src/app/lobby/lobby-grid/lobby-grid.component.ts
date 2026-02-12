@@ -253,6 +253,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   currentPaletteSlot = signal<number | null>(null); // Track which slot is currently active
   private readonly PALETTE_STORAGE_KEY = 'lobby-texture-palette';
   private paletteUpdateTimeout: any = null; // Debounce palette updates
+  private isLoadingFromPalette = false; // Flag to prevent circular updates when clicking slots
 
   constructor() {
     // Note: Effect removed - palette updates now handled in ngOnChanges
@@ -379,8 +380,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
 
     // Update active palette slot when texture settings change
+    // BUT skip if we're loading FROM a palette slot (prevent circular update)
     const currentSlot = this.currentPaletteSlot();
-    if (currentSlot !== null && (
+    if (currentSlot !== null && !this.isLoadingFromPalette && (
       changes['textureHue'] || 
       changes['textureColorBlend'] || 
       changes['textureScale'] || 
@@ -2628,6 +2630,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const entry = this.texturePalette()[index];
     if (!entry) return;
 
+    // CRITICAL: Set flag to prevent ngOnChanges from updating the palette
+    // This prevents the circular logic: click slot → emit → ngOnChanges → update wrong slot
+    this.isLoadingFromPalette = true;
+
     // Apply all settings locally AND emit changes to parent
     this.selectedTextureId = entry.textureId;
     this.textureBrushStrength = entry.brushStrength;
@@ -2649,6 +2655,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.textureColorBlendChange.emit(entry.textureColorBlend);
     this.textureBlendColorChange.emit(entry.textureBlendColor);
     this.textureLayerChange.emit(entry.layer);
+
+    // Clear flag after a microtask (after ngOnChanges completes)
+    setTimeout(() => {
+      this.isLoadingFromPalette = false;
+    }, 0);
 
     // Auto-switch to texture tool
     this.toolAutoSelect.emit('texture');
