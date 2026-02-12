@@ -55,6 +55,8 @@ export class LobbyStoreService {
 
   // Undo history for strokes
   private strokeUndoHistory: Stroke[][] = [];
+  // Undo history for texture tiles (NEW)
+  private textureTileUndoHistory: TextureTile[][] = [];
   private readonly MAX_UNDO = 50;
 
   // Store hashes of recently sent patches for echo detection (with timestamp)
@@ -551,6 +553,34 @@ export class LobbyStoreService {
 
     const previousStrokes = this.strokeUndoHistory.pop()!;
     this.applyPatch({ path: 'strokes', value: previousStrokes });
+    return true;
+  }
+
+  /**
+   * Capture current texture tiles for undo (NEW).
+   * Call this BEFORE starting a texture stroke.
+   */
+  captureTextureTileSnapshot(): void {
+    const currentTiles = this.currentMap?.textureTiles || [];
+    // Deep copy the tiles array
+    const snapshot = JSON.parse(JSON.stringify(currentTiles));
+    this.textureTileUndoHistory.push(snapshot);
+    
+    // Limit history size
+    if (this.textureTileUndoHistory.length > this.MAX_UNDO) {
+      this.textureTileUndoHistory.shift();
+    }
+  }
+
+  /**
+   * Undo the last texture tile changes (NEW).
+   */
+  undoTextureTiles(): boolean {
+    if (this.textureTileUndoHistory.length === 0) return false;
+
+    const previousTiles = this.textureTileUndoHistory.pop()!;
+    // Apply without adding to undo history (direct patch)
+    this.applyPatch({ path: 'textureTiles', value: previousTiles });
     return true;
   }
 

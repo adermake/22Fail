@@ -115,6 +115,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Output() textureBlendColorChange = new EventEmitter<string>();
   @Output() selectedTextureIdChange = new EventEmitter<string>();
   @Output() textureLayerChange = new EventEmitter<'background' | 'foreground'>();
+  // NEW: Palette preset events
+  @Output() palettePresetSaved = new EventEmitter<string>(); // Emits preset name when saved
+  @Output() palettePresetLoaded = new EventEmitter<string>(); // Emits preset name when loaded
 
   // Services
   private store = inject(LobbyStoreService);
@@ -252,6 +255,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   texturePalette = signal<(TexturePaletteEntry | null)[]>(Array(15).fill(null));
   currentPaletteSlot = signal<number | null>(null); // Track which slot is currently active
   private readonly PALETTE_STORAGE_KEY = 'lobby-texture-palette';
+  private readonly PALETTE_PRESETS_KEY = 'lobby-texture-palette-presets';
   private paletteUpdateTimeout: any = null; // Debounce palette updates
   private isLoadingFromPalette = false; // Flag to prevent circular updates when clicking slots
 
@@ -282,10 +286,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
 
-    // Ctrl+Z for undo
+    // Ctrl+Z for undo (works for both draw tool and texture tool)
     if (event.ctrlKey && event.key === 'z') {
       event.preventDefault();
-      this.store.undoStroke();
+      // Try texture undo first (more recent), then stroke undo
+      if (!this.store.undoTextureTiles()) {
+        this.store.undoStroke();
+      }
+      this.scheduleRender();
     }
     
     // Number keys 1-9 for palette slots (0 = slot 10)
@@ -2707,6 +2715,102 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   /**
+   * Save current palette as a named preset (NEW).
+   */
+  savePalettePreset(presetName: string): void {
+    try {
+      // Get existing presets
+      const presetsStr = localStorage.getItem(this.PALETTE_PRESETS_KEY);
+      const presets: { [name: string]: (TexturePaletteEntry | null)[] } = presetsStr ? JSON.parse(presetsStr) : {};
+      
+      // Save current palette under the given name
+      presets[presetName] = this.texturePalette();
+      
+      localStorage.setItem(this.PALETTE_PRESETS_KEY, JSON.stringify(presets));
+      console.log('[Palette] Saved preset:', presetName);
+      this.palettePresetSaved.emit(presetName);
+    } catch (e) {
+      console.error('[Palette] Failed to save preset:', e);
+    }
+  }
+
+  /**
+   * Load a named palette preset (NEW).
+   */
+  async loadPalettePreset(presetName: string): Promise<void> {
+    try {
+      const presetsStr = localStorage.getItem(this.PALETTE_PRESETS_KEY);
+      if (!presetsStr) return;
+      
+      const presets: { [name: string]: (TexturePaletteEntry | null)[] } = JSON.parse(presetsStr);
+      const preset = presets[presetName];
+      
+      if (!preset) {
+        console.warn('[Palette] Preset not found:', presetName);
+        return;
+      }
+      
+      // Load the preset
+      this.texturePalette.set(preset);
+      
+      // Regenerate previews for all entries
+      for (let i = 0; i < preset.length; i++) {
+        const entry = preset[i];
+        if (entry) {
+          const previewUrl = await this.generateTexturePreview(entry);
+          if (previewUrl) {
+            const palette = [...this.texturePalette()];
+            palette[i] = { ...entry, previewUrl };
+            this.texturePalette.set(palette);
+          }
+        }
+      }
+      
+      // Save as current palette
+      this.savePalette();
+      console.log('[Palette] Loaded preset:', presetName);
+      this.palettePresetLoaded.emit(presetName);
+      this.cdr.markForCheck();
+    } catch (e) {
+      console.error('[Palette] Failed to load preset:', e);
+    }
+  }
+
+  /**
+   * Get list of available preset names (NEW).
+   */
+  getPalettePresetNames(): string[] {
+    try {
+      const presetsStr = localStorage.getItem(this.PALETTE_PRESETS_KEY);
+      if (!presetsStr) return [];
+      
+      const presets: { [name: string]: (TexturePaletteEntry | null)[] } = JSON.parse(presetsStr);
+      return Object.keys(presets).sort();
+    } catch (e) {
+      console.error('[Palette] Failed to get preset names:', e);
+      return [];
+    }
+  }
+
+  /**
+   * Delete a palette preset (NEW).
+   */
+  deletePalettePreset(presetName: string): void {
+    try {
+      const presetsStr = localStorage.getItem(this.PALETTE_PRESETS_KEY);
+      if (!presetsStr) return;
+      
+      const presets: { [name: string]: (TexturePaletteEntry | null)[] } = JSON.parse(presetsStr);
+      delete presets[presetName];
+      
+      localStorage.setItem(this.PALETTE_PRESETS_KEY, JSON.stringify(presets));
+      console.log('[Palette] Deleted preset:', presetName);
+    } catch (e) {
+      console.error('[Palette] Failed to delete preset:', e);
+    }
+  }
+
+  /**
    * Prevent palette slot mousedown from triggering texture drawing
    */
   onPaletteSlotMouseDown(event: MouseEvent): void {
@@ -3584,6 +3688,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     
     this.currentTexturePoints = [world];
     this.currentDrawingTiles.clear();
+    
+    // Capture snapshot for undo BEFORE any modifications
+    this.store.captureTextureTileSnapshot();
     
     // Initialize stroke canvas for single-pass drawing
     this.initStrokeCanvas(world);
