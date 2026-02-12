@@ -650,11 +650,20 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // ============================================
 
   layers = computed(() => {
-    const layers = this.store.layers;
+    const map = this.currentMap();
+    if (!map) {
+      console.log('[Lobby] Computed layers: no map');
+      return [];
+    }
+    const layers = map.layers || [];
     console.log('[Lobby] Computed layers:', layers.length, 'layers:', layers.map(l => l.name));
     return layers;
   });
-  activeLayerId = computed(() => this.store.activeLayerId);
+  
+  activeLayerId = computed(() => {
+    const map = this.currentMap();
+    return map?.activeLayerId || null;
+  });
 
   onLayerSelect(layerId: string): void {
     this.store.setActiveLayer(layerId);
