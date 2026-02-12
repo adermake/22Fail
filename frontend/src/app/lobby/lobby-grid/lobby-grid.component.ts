@@ -558,6 +558,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const map = this.map;
     if (!map) return;
 
+    // Clear all canvases first
+    this.clearAllCanvases();
+
     // Start with background color
     this.renderBackground();
 
@@ -585,6 +588,46 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.renderGrid();          // Grid above all layers
     this.renderOverlay();       // Tokens + overlays above grid
     this.renderStrokes();       // Drawing strokes always on top
+  }
+
+  private clearAllCanvases(): void {
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Clear image canvas
+    if (this.imageCtx && this.imageCanvas) {
+      const canvas = this.imageCanvas.nativeElement;
+      this.imageCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    }
+    
+    // Clear texture canvas
+    if (this.textureCtx && this.textureCanvas) {
+      const canvas = this.textureCanvas.nativeElement;
+      this.textureCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    }
+    
+    // Clear foreground canvas
+    if (this.foregroundCtx && this.foregroundCanvas) {
+      const canvas = this.foregroundCanvas.nativeElement;
+      this.foregroundCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    }
+    
+    // Clear grid canvas
+    if (this.gridCtx && this.gridCanvas) {
+      const canvas = this.gridCanvas.nativeElement;
+      this.gridCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    }
+    
+    // Clear overlay canvas
+    if (this.overlayCtx && this.overlayCanvas) {
+      const canvas = this.overlayCanvas.nativeElement;
+      this.overlayCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    }
+    
+    // Clear draw canvas
+    if (this.drawCtx && this.drawCanvas) {
+      const canvas = this.drawCanvas.nativeElement;
+      this.drawCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    }
   }
 
   private renderBackground(): void {

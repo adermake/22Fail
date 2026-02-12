@@ -266,6 +266,21 @@ export class LobbyStoreService {
         };
         map.layers = [defaultImageLayer, defaultTextureLayer];
         map.activeLayerId = defaultImageLayer.id;
+        
+        // Migrate existing images and texture tiles to default layers
+        if (map.images && map.images.length > 0) {
+          map.images = map.images.map(img => ({
+            ...img,
+            layerId: img.layerId || defaultImageLayer.id,
+          }));
+        }
+        if (map.textureTiles && map.textureTiles.length > 0) {
+          map.textureTiles = map.textureTiles.map(tile => ({
+            ...tile,
+            layerId: tile.layerId || defaultTextureLayer.id,
+          }));
+        }
+        
         console.log('[LobbyStore] Migrated map', mapId, 'to layer system');
       }
     }
