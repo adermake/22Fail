@@ -24,6 +24,7 @@ import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture } fr
 import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
 import { LobbyToolbarComponent } from './lobby-toolbar/lobby-toolbar.component';
 import { LobbySidebarComponent } from './lobby-sidebar/lobby-sidebar.component';
+import { LobbyLayerPanelComponent } from './lobby-layer-panel/lobby-layer-panel.component';
 import { BattleTracker } from '../world/battle-tracker/battle-tracker.component';
 import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engine';
 
@@ -40,6 +41,7 @@ export type DragMode = 'free' | 'enforced';
     LobbyGridComponent,
     LobbyToolbarComponent,
     LobbySidebarComponent,
+    LobbyLayerPanelComponent,
     BattleTracker,
   ],
   templateUrl: './lobby.component.html',
@@ -642,4 +644,47 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const lobby = this.lobby();
     return lobby?.maps[mapId]?.backgroundColor || '#e5e7eb';
   }
+
+  // ============================================
+  // Layer Management
+  // ============================================
+
+  layers = computed(() => this.store.layers);
+  activeLayerId = computed(() => this.store.activeLayerId);
+
+  onLayerSelect(layerId: string): void {
+    this.store.setActiveLayer(layerId);
+    this.cdr.markForCheck();
+  }
+
+  onLayerToggleVisible(layerId: string): void {
+    this.store.toggleLayerVisibility(layerId);
+    this.cdr.markForCheck();
+  }
+
+  onLayerToggleLock(layerId: string): void {
+    this.store.toggleLayerLock(layerId);
+    this.cdr.markForCheck();
+  }
+
+  onLayerDelete(layerId: string): void {
+    this.store.deleteLayer(layerId);
+    this.cdr.markForCheck();
+  }
+
+  onLayerRename(event: { id: string; name: string }): void {
+    this.store.renameLayer(event.id, event.name);
+    this.cdr.markForCheck();
+  }
+
+  onLayerReorder(layers: any[]): void {
+    this.store.reorderLayers(layers);
+    this.cdr.markForCheck();
+  }
+
+  onLayerAdd(type: 'image' | 'texture'): void {
+    this.store.addLayer(type);
+    this.cdr.markForCheck();
+  }
 }
+

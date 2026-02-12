@@ -113,6 +113,20 @@
         }
       </div>
     </div>
+
+    <!-- Layer Panel (right side) -->
+    <app-lobby-layer-panel
+      [layers]="layers()"
+      [activeLayerId]="activeLayerId()"
+      [isGM]="isGM()"
+      (layerSelect)="onLayerSelect($event)"
+      (layerToggleVisible)="onLayerToggleVisible($event)"
+      (layerToggleLock)="onLayerToggleLock($event)"
+      (layerDelete)="onLayerDelete($event)"
+      (layerRename)="onLayerRename($event)"
+      (layerReorder)="onLayerReorder($event)"
+      (layerAdd)="onLayerAdd($event)"
+    />
     
   </div>
 

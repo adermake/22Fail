@@ -25,6 +25,8 @@ import {
   HexCoord,
   TextureStroke,
   TextureTile,
+  Layer,
+  LayerType,
   generateId,
   createEmptyLobby,
   createEmptyMap,
@@ -506,6 +508,31 @@ export class LobbyStoreService {
    * @returns The generated MapImage ID
    */
   addImage(imageId: string, x: number, y: number, width: number, height: number): string {
+    const map = this.currentMap;
+    if (!map) throw new Error('No current map');
+
+    // Use active layer, or find first image layer, or create one
+    let targetLayerId = map.activeLayerId;
+    
+    if (!targetLayerId || !map.layers || map.layers.length === 0) {
+      // Create default layers if none exist
+      const imageLayerId = this.addLayer('image', 'Images');
+      targetLayerId = imageLayerId;
+    } else {
+      // Verify active layer is an image layer
+      const activeLayer = map.layers.find(l => l.id === targetLayerId);
+      if (!activeLayer || activeLayer.type !== 'image') {
+        // Find first image layer
+        const imageLayer = map.layers.find(l => l.type === 'image');
+        if (imageLayer) {
+          targetLayerId = imageLayer.id;
+        } else {
+          // Create image layer
+          targetLayerId = this.addLayer('image', 'Images');
+        }
+      }
+    }
+
     const newImage: MapImage = {
       id: generateId(),
       imageId,
@@ -515,7 +542,8 @@ export class LobbyStoreService {
       height,
       rotation: 0,
       zIndex: Math.max(0, ...this.images.map(i => i.zIndex)) + 1,
-      layer: 'foreground', // Default to foreground (above textures)
+      layer: 'foreground', // Legacy property (DEPRECATED)
+      layerId: targetLayerId,
     };
 
     const images = [...this.images, newImage];
@@ -691,6 +719,181 @@ export class LobbyStoreService {
       const original = images.find(i => i.id === img.id);
       if (original) original.zIndex = idx;
     });
+  }
+
+  // ============================================
+  // Layer Management
+  // ============================================
+
+  /**
+   * Get layers for current map with migration support.
+   * Creates default layers if none exist.
+   */
+  get layers(): Layer[] {
+    const map = this.currentMap;
+    if (!map) return [];
+
+    // Migrate old maps to layer system
+    if (!map.layers || map.layers.length === 0) {
+      const defaultImageLayer: Layer = {
+        id: generateId(),
+        name: 'Images',
+        type: 'image',
+        visible: true,
+        locked: false,
+        zIndex: 1,
+        createdAt: Date.now(),
+      };
+      const defaultTextureLayer: Layer = {
+        id: generateId(),
+        name: 'Textures',
+        type: 'texture',
+        visible: true,
+        locked: false,
+        zIndex: 0,
+        createdAt: Date.now(),
+      };
+      return [defaultImageLayer, defaultTextureLayer];
+    }
+
+    return map.layers;
+  }
+
+  /**
+   * Get active layer ID for current map.
+   */
+  get activeLayerId(): string | null {
+    return this.currentMap?.activeLayerId || null;
+  }
+
+  /**
+   * Add a new layer to the current map.
+   */
+  addLayer(type: LayerType, name?: string): string {
+    const map = this.currentMap;
+    if (!map) throw new Error('No current map');
+
+    // Initialize layers if needed
+    if (!map.layers) {
+      map.layers = [];
+      map.activeLayerId = undefined;
+    }
+
+    const maxZIndex = map.layers.length > 0 
+      ? Math.max(...map.layers.map(l => l.zIndex)) 
+      : -1;
+
+    const newLayer: Layer = {
+      id: generateId(),
+      name: name || `${type === 'image' ? 'Images' : 'Textures'} ${map.layers.length + 1}`,
+      type,
+      visible: true,
+      locked: false,
+      zIndex: maxZIndex + 1,
+      createdAt: Date.now(),
+    };
+
+    const layers = [...map.layers, newLayer];
+    this.applyPatch({ path: 'layers', value: layers });
+
+    // Set as active if no active layer
+    if (!map.activeLayerId) {
+      this.applyPatch({ path: 'activeLayerId', value: newLayer.id });
+    }
+
+    return newLayer.id;
+  }
+
+  /**
+   * Delete a layer and all its content.
+   */
+  deleteLayer(layerId: string): void {
+    const map = this.currentMap;
+    if (!map || !map.layers) return;
+
+    // Don't allow deleting the last layer
+    if (map.layers.length <= 1) {
+      console.warn('[LobbyStore] Cannot delete the only layer');
+      return;
+    }
+
+    const layers = map.layers.filter(l => l.id !== layerId);
+    this.applyPatch({ path: 'layers', value: layers });
+
+    // Remove all images and tiles on this layer
+    const images = this.images.filter(img => img.layerId !== layerId);
+    if (images.length !== this.images.length) {
+      this.applyPatch({ path: 'images', value: images });
+    }
+
+    const tiles = (map.textureTiles || []).filter(tile => tile.layerId !== layerId);
+    if (tiles.length !== (map.textureTiles || []).length) {
+      this.applyPatch({ path: 'textureTiles', value: tiles });
+    }
+
+    // Switch active layer if needed
+    if (map.activeLayerId === layerId) {
+      this.applyPatch({ path: 'activeLayerId', value: layers[0]?.id || null });
+    }
+  }
+
+  /**
+   * Rename a layer.
+   */
+  renameLayer(layerId: string, name: string): void {
+    const map = this.currentMap;
+    if (!map || !map.layers) return;
+
+    const layers = [...map.layers];
+    const index = layers.findIndex(l => l.id === layerId);
+    if (index === -1) return;
+
+    layers[index] = { ...layers[index], name };
+    this.applyPatch({ path: 'layers', value: layers });
+  }
+
+  /**
+   * Toggle layer visibility.
+   */
+  toggleLayerVisibility(layerId: string): void {
+    const map = this.currentMap;
+    if (!map || !map.layers) return;
+
+    const layers = [...map.layers];
+    const index = layers.findIndex(l => l.id === layerId);
+    if (index === -1) return;
+
+    layers[index] = { ...layers[index], visible: !layers[index].visible };
+    this.applyPatch({ path: 'layers', value: layers });
+  }
+
+  /**
+   * Toggle layer lock state.
+   */
+  toggleLayerLock(layerId: string): void {
+    const map = this.currentMap;
+    if (!map || !map.layers) return;
+
+    const layers = [...map.layers];
+    const index = layers.findIndex(l => l.id === layerId);
+    if (index === -1) return;
+
+    layers[index] = { ...layers[index], locked: !layers[index].locked };
+    this.applyPatch({ path: 'layers', value: layers });
+  }
+
+  /**
+   * Set the active layer for new content.
+   */
+  setActiveLayer(layerId: string): void {
+    this.applyPatch({ path: 'activeLayerId', value: layerId });
+  }
+
+  /**
+   * Reorder layers (update all zIndex values).
+   */
+  reorderLayers(reorderedLayers: Layer[]): void {
+    this.applyPatch({ path: 'layers', value: reorderedLayers });
   }
 
   // ============================================

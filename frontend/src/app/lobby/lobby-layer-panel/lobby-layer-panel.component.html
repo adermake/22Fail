@@ -1,0 +1,101 @@
+<div class="layer-panel">
+  <div class="layer-header">
+    <span class="layer-title">Layers</span>
+    @if (isGM) {
+      <div class="layer-actions">
+        <button 
+          class="add-layer-btn" 
+          (click)="onAddImageLayer()"
+          title="Add Image Layer">
+          🖼️
+        </button>
+        <button 
+          class="add-layer-btn" 
+          (click)="onAddTextureLayer()"
+          title="Add Texture Layer">
+          🎨
+        </button>
+      </div>
+    }
+  </div>
+
+  <div 
+    class="layer-list" 
+    cdkDropList 
+    (cdkDropListDropped)="onDrop($event)">
+    
+    <!-- Draw Layer (always on top, not draggable) -->
+    <div class="layer-item draw-layer">
+      <div class="layer-icon">✏️</div>
+      <div class="layer-name">Draw Layer</div>
+      <div class="layer-info">(always on top)</div>
+    </div>
+
+    <!-- User-created layers -->
+    @for (layer of sortedLayers; track layer.id) {
+      <div 
+        class="layer-item"
+        [class.active]="layer.id === activeLayerId"
+        [class.locked]="layer.locked"
+        (click)="onLayerClick(layer.id)"
+        cdkDrag>
+        
+        <div class="layer-drag-handle" cdkDragHandle>⋮⋮</div>
+        
+        <div class="layer-icon">{{ getLayerIcon(layer.type) }}</div>
+        
+        @if (editingLayerId === layer.id) {
+          <input 
+            class="layer-name-input"
+            [(ngModel)]="editingName"
+            (keydown)="onRenameKeydown($event)"
+            (blur)="onSaveRename()"
+            [autofocus]="true"
+          />
+        } @else {
+          <div 
+            class="layer-name"
+            (dblclick)="onStartRename($event, layer)">
+            {{ layer.name }}
+          </div>
+        }
+        
+        <div class="layer-controls">
+          <button 
+            class="layer-control-btn"
+            [class.active]="layer.visible"
+            (click)="onToggleVisible($event, layer.id)"
+            title="Toggle Visibility">
+            {{ layer.visible ? '👁️' : '👁️‍🗨️' }}
+          </button>
+          
+          <button 
+            class="layer-control-btn"
+            [class.active]="layer.locked"
+            (click)="onToggleLock($event, layer.id)"
+            title="Toggle Lock">
+            {{ layer.locked ? '🔒' : '🔓' }}
+          </button>
+          
+          @if (isGM) {
+            <button 
+              class="layer-control-btn delete"
+              (click)="onDeleteLayer($event, layer.id)"
+              title="Delete Layer">
+              🗑️
+            </button>
+          }
+        </div>
+      </div>
+    }
+    
+    @if (sortedLayers.length === 0) {
+      <div class="empty-state">
+        <p>No layers yet</p>
+        @if (isGM) {
+          <p class="hint">Click 🖼️ or 🎨 to add a layer</p>
+        }
+      </div>
+    }
+  </div>
+</div>

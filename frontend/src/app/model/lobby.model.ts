@@ -63,6 +63,7 @@ export interface TextureTile {
   x: number; // Tile grid x coordinate
   y: number; // Tile grid y coordinate
   imageId: string; // Image ID from backend (NOT base64 data)
+  layerId?: string; // Reference to Layer.id (if null, uses default layer)
 }
 
 // Texture tile configuration
@@ -85,6 +86,24 @@ export interface Token {
 }
 
 // ============================================
+// Layers
+// ============================================
+
+/** Layer types supported */
+export type LayerType = 'image' | 'texture';
+
+/** A layer for organizing content */
+export interface Layer {
+  id: string;
+  name: string;
+  type: LayerType;
+  visible: boolean;
+  locked: boolean;
+  zIndex: number; // Order in layer stack (higher = on top)
+  createdAt: number;
+}
+
+// ============================================
 // Images
 // ============================================
 
@@ -97,8 +116,9 @@ export interface MapImage {
   width: number;
   height: number;
   rotation: number; // degrees
-  zIndex: number; // layering order (higher = on top)
-  layer?: 'background' | 'foreground'; // Super layer (default: background)
+  zIndex: number; // layering order within the layer (higher = on top)
+  layer?: 'background' | 'foreground'; // Super layer (default: background) - DEPRECATED, use layerId
+  layerId?: string; // Reference to Layer.id (if null, uses default layer)
 }
 
 /** An image in the reusable library */
@@ -156,6 +176,8 @@ export interface LobbyMap {
   textureTiles?: TextureTile[]; // New tile-based texture storage
   walls: WallHex[];
   measurementLines: MeasurementLine[];
+  layers?: Layer[]; // Layer system for organizing images and textures
+  activeLayerId?: string; // Currently selected layer for new content
   images: MapImage[];
   backgroundColor?: string; // Background color (default: #e5e7eb)
   createdAt: number;

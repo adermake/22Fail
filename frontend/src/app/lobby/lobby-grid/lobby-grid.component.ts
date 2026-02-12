@@ -82,7 +82,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() textureBrushSize = 30;
   @Input() textureBrushStrength = 1.0; // 0-1
   @Input() textureScale = 1.0; // Tiling scale for textures
-  @Input() textureBrushType: 'hard' | 'soft' = 'hard';
+  @Input() textureBrushType: 'hard' | 'soft' = 'soft'; // Default to soft brush
   @Input() textureColorBlend = 0; // 0-100: 0 = pure texture, 100 = pure color
   @Input() textureHue = 0; // -180 to 180 degrees hue shift
   @Input() textureBlendColor = '#ffffff'; // Color to blend with texture
@@ -285,6 +285,29 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (event.ctrlKey && event.key === 'z') {
       event.preventDefault();
       this.store.undoStroke();
+    }
+    
+    // Number keys 1-9 for palette slots (0 = slot 10)
+    if (!event.ctrlKey && !event.shiftKey && !event.altKey) {
+      const key = event.key;
+      if (key >= '1' && key <= '9') {
+        event.preventDefault();
+        const slotIndex = parseInt(key) - 1; // 1 -> slot 0, 9 -> slot 8
+        const entry = this.texturePalette()[slotIndex];
+        if (entry) {
+          this.onPaletteSlotClick(slotIndex);
+        }
+        return;
+      }
+      if (key === '0') {
+        event.preventDefault();
+        const slotIndex = 9; // 0 -> slot 9
+        const entry = this.texturePalette()[slotIndex];
+        if (entry) {
+          this.onPaletteSlotClick(slotIndex);
+        }
+        return;
+      }
     }
     
     // Delete key to delete selected images (supports multi-select)
@@ -521,12 +544,169 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private render(): void {
-    this.renderImages();       // Background images
-    this.renderTextureStrokes(); // Textures above background images
-    this.renderForegroundImages(); // Foreground images above textures
-    this.renderGrid();          // Grid above foreground images
+    // New layer-based rendering system
+    // 1. Render background color on image layer
+    // 2. Render layers in zIndex order (lowest = bottom, highest = top)
+    // 3. Render grid
+    // 4. Render overlay (tokens, etc.)
+    // 5. Render strokes (drawing layer - always on top)
+
+    const map = this.map;
+    if (!map) return;
+
+    // Start with background color
+    this.renderBackground();
+
+    // Check if map has layers defined
+    if (map.layers && map.layers.length > 0) {
+      // New layer system: render layers in zIndex order
+      const sortedLayers = [...map.layers].sort((a, b) => a.zIndex - b.zIndex);
+      
+      for (const layer of sortedLayers) {
+        if (!layer.visible) continue; // Skip hidden layers
+        
+        if (layer.type === 'image') {
+          this.renderLayerImages(layer.id);
+        } else if (layer.type === 'texture') {
+          this.renderLayerTextures(layer.id);
+        }
+      }
+    } else {
+      // Legacy rendering for maps without layers
+      this.renderImages();       // Background images
+      this.renderTextureStrokes(); // Textures above background images
+      this.renderForegroundImages(); // Foreground images above textures
+    }
+
+    this.renderGrid();          // Grid above all layers
     this.renderOverlay();       // Tokens + overlays above grid
-    this.renderStrokes();       // Normal drawing on top
+    this.renderStrokes();       // Drawing strokes always on top
+  }
+
+  private renderBackground(): void {
+    if (!this.imageCtx || !this.map) return;
+
+    const canvas = this.imageCanvas.nativeElement;
+    const ctx = this.imageCtx;
+    const dpr = window.devicePixelRatio || 1;
+
+    ctx.fillStyle = this.map?.backgroundColor || '#e5e7eb';
+    ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+  }
+
+  private renderLayerImages(layerId: string): void {
+    if (!this.imageCtx || !this.map) return;
+
+    const canvas = this.imageCanvas.nativeElement;
+    const ctx = this.imageCtx;
+    const dpr = window.devicePixelRatio || 1;
+
+    ctx.save();
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.scale, this.scale);
+
+    // Calculate visible viewport bounds
+    const viewportBounds = {
+      minX: this.screenToWorld(0, 0).x - 500,
+      minY: this.screenToWorld(0, 0).y - 500,
+      maxX: this.screenToWorld(canvas.width / dpr, canvas.height / dpr).x + 500,
+      maxY: this.screenToWorld(canvas.width / dpr, canvas.height / dpr).y + 500
+    };
+
+    // Filter and sort images for this layer
+    const layerImages = [...(this.map.images || [])]
+      .filter(img => img.layerId === layerId)
+      .filter(img => {
+        // Viewport culling
+        const halfW = img.width / 2;
+        const halfH = img.height / 2;
+        return !(img.x + halfW < viewportBounds.minX || 
+                 img.x - halfW > viewportBounds.maxX ||
+                 img.y + halfH < viewportBounds.minY ||
+                 img.y - halfH > viewportBounds.maxY);
+      })
+      .sort((a, b) => a.zIndex - b.zIndex);
+
+    for (const img of layerImages) {
+      this.renderImage(ctx, img);
+    }
+
+    // Render selection box if images on this layer are selected
+    const selectedIds = this.selectedImages();
+    if (selectedIds.length > 0) {
+      const layerSelectedIds = selectedIds.filter(id => {
+        const img = this.map?.images.find(i => i.id === id);
+        return img?.layerId === layerId;
+      });
+      if (layerSelectedIds.length > 1) {
+        this.renderGroupBoundingBox(ctx, layerSelectedIds);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  private renderLayerTextures(layerId: string): void {
+    if (!this.textureCtx || !this.map) return;
+
+    const canvas = this.textureCanvas.nativeElement;
+    const ctx = this.textureCtx;
+    const dpr = window.devicePixelRatio || 1;
+
+    ctx.save();
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.scale, this.scale);
+
+    // Calculate visible tile range
+    const topLeft = this.screenToWorld(0, 0);
+    const bottomRight = this.screenToWorld(canvas.width / dpr, canvas.height / dpr);
+
+    const minTileX = Math.floor(topLeft.x / this.textureTileSize);
+    const maxTileX = Math.ceil(bottomRight.x / this.textureTileSize);
+    const minTileY = Math.floor(topLeft.y / this.textureTileSize);
+    const maxTileY = Math.ceil(bottomRight.y / this.textureTileSize);
+
+    // Disable image smoothing for crisp textures
+    ctx.imageSmoothingEnabled = false;
+
+    // Render only tiles for this layer
+    const tiles = this.map.textureTiles || [];
+    const layerTileKeys = new Set(
+      tiles.filter(t => t.layerId === layerId).map(t => `${t.x},${t.y}`)
+    );
+
+    for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
+      for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
+        const tileKey = `${tileX},${tileY}`;
+        
+        if (layerTileKeys.has(tileKey)) {
+          const tile = this.textureTiles.get(tileKey);
+          
+          if (tile) {
+            const worldX = tileX * this.textureTileSize;
+            const worldY = tileY * this.textureTileSize;
+            
+            ctx.drawImage(
+              tile,
+              0, 0, this.textureTileSize, this.textureTileSize,
+              worldX - 0.5, worldY - 0.5, this.textureTileSize + 1, this.textureTileSize + 1
+            );
+          }
+        }
+      }
+    }
+
+    // Render current in-progress stroke if on active texture layer
+    const activeLayerId = this.map.activeLayerId;
+    if (activeLayerId === layerId && (this.isDrawingTexture || this.isErasingTexture) && this.strokeCanvas) {
+      ctx.drawImage(
+        this.strokeCanvas,
+        this.strokeCanvasOrigin.x,
+        this.strokeCanvasOrigin.y
+      );
+    }
+
+    ctx.restore();
   }
 
   private renderGrid(): void {
@@ -714,16 +894,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Calculate luminance
     const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
     
-    // Use high contrast: if dark background use light grid, if light background use dark grid
-    if (luminance < 128) {
-      // Dark background: light grid
-      const lightness = Math.min(255, luminance + 140);
-      return `rgba(${lightness}, ${lightness}, ${lightness}, 0.35)`;
-    } else {
-      // Light background: dark grid
-      const darkness = Math.max(0, luminance - 140);
-      return `rgba(${darkness}, ${darkness}, ${darkness}, 0.35)`;
-    }
+    // SUBTLE: Very low opacity for unobtrusive grid
+    // Slightly darker than background (if light) or slightly lighter (if dark)
+    const adjustment = luminance < 128 ? 25 : -25;
+    const newLuminance = Math.max(0, Math.min(255, luminance + adjustment));
+    return `rgba(${newLuminance}, ${newLuminance}, ${newLuminance}, 0.15)`; // Very subtle
   }
 
   /**
@@ -1266,11 +1441,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         }
       };
       img.onerror = () => {
-        console.error('[Tiles] ❌ Failed to load tile:', key, 'imageId:', tileData.imageId);
-        console.error('[Tiles] URL:', imageUrl);
-        console.error('[Tiles] This usually means the image file is missing from backend/images/');
-        console.error('[Tiles] You may need to clear texture tiles to remove broken references');
-        // Create an empty tile so we don't keep trying to load it
+        // Suppress console spam for old/missing tiles - just create empty tile
         this.textureTiles.set(key, tile);
       };
       img.src = imageUrl;
@@ -1356,8 +1527,20 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const existingTiles = currentMap.textureTiles || [];
       const tileMap = new Map(existingTiles.map(t => [`${t.x},${t.y}`, t]));
       
+      // Get active layer ID for new tiles (find first texture layer if not set)
+      let activeLayerId = currentMap.activeLayerId;
+      if (!activeLayerId && currentMap.layers && currentMap.layers.length > 0) {
+        const textureLayer = currentMap.layers.find(l => l.type === 'texture');
+        activeLayerId = textureLayer?.id;
+      }
+      
       for (const tile of uploaded) {
-        tileMap.set(`${tile.x},${tile.y}`, { x: tile.x, y: tile.y, imageId: tile.imageId });
+        tileMap.set(`${tile.x},${tile.y}`, { 
+          x: tile.x, 
+          y: tile.y, 
+          imageId: tile.imageId,
+          layerId: activeLayerId || undefined
+        });
       }
 
       currentMap.textureTiles = Array.from(tileMap.values());
