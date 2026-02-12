@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class TextureService {
-  private texturesDir = path.join(__dirname, '../../textures');
+  private texturesDir = path.join(__dirname, '../../../textures');
 
   constructor() {
     // Ensure textures directory exists

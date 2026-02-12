@@ -189,7 +189,7 @@ export class DataService {
 
   getGlobalTextures(): any[] {
     const textures = this.readGlobalTextures();
-    const texturesDir = path.join(__dirname, '../../textures');
+    const texturesDir = path.join(__dirname, '../../../textures');
     
     // Filter out textures where the actual file doesn't exist
     const validTextures = textures.filter(texture => {

@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class ImageService {
-  private imagesDir = path.join(__dirname, '../../images');
+  private imagesDir = path.join(__dirname, '../../../images');
 
   constructor() {
     // Ensure images directory exists
