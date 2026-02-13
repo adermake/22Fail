@@ -693,7 +693,7 @@ export class AppController {
 
     for (const charId of stressCharIds) {
       // Delete character file (now just id.json)
-      const charactersDir = path.join(__dirname, '../../../characters');
+      const charactersDir = path.join(__dirname, '../../../data/characters');
       const filePath = path.join(charactersDir, `${charId}.json`);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
@@ -704,7 +704,7 @@ export class AppController {
     const worldNames = this.dataService.getAllWorldNames();
     const stressWorldNames = worldNames.filter(name => name.startsWith('StressWorld_'));
 
-    const worldsDir = path.join(__dirname, '../../../worlds');
+    const worldsDir = path.join(__dirname, '../../../data/worlds');
     for (const worldName of stressWorldNames) {
       // Sanitize world name to match directory name
       const safeName = worldName

@@ -23,31 +23,34 @@ Frontend: Angular 21 (standalone, signals) | Backend: NestJS 11 | Real-time: Soc
 
 ### Storage Layout
 ```
-characters/
-  {characterId}.json           # e.g., abc123.json, def456.json
-  
-worlds/
-  {worldName}/                 # e.g., test/, testWorld/
-    world.json                 # Core world data (name, characterIds, partyIds, battleLoot, etc.)
-    lobby.json                 # Lobby configuration  
-    items/
-      {itemId}.json            # Individual item files
-    spells/
-      {spellId}.json           # Individual spell files
-    runes/
-      {runeId}.json            # Individual rune files
-    skills/
-      {skillId}.json           # Individual skill files
-    loot-bundles/
-      {bundleId}.json          # Individual loot bundle files
-    maps/
-      {mapId}/                 # Each map gets its own folder
-        map.json               # Map data (tokens, images, strokes, etc.)
-        
-races/
-  {raceId}.json                # e.g., race_123.json, race_456.json
+data/
+  characters/
+    {characterId}.json           # e.g., abc123.json, def456.json
+    
+  worlds/
+    {worldName}/                 # e.g., test/, testWorld/
+      world.json                 # Core world data (name, characterIds, partyIds, battleLoot, etc.)
+      lobby.json                 # Lobby configuration  
+      items/
+        {itemId}.json            # Individual item files
+      spells/
+        {spellId}.json           # Individual spell files
+      runes/
+        {runeId}.json            # Individual rune files
+      skills/
+        {skillId}.json           # Individual skill files
+      loot-bundles/
+        {bundleId}.json          # Individual loot bundle files
+      maps/
+        {mapId}/                 # Each map gets its own folder
+          map.json               # Map data (tokens, images, strokes, etc.)
+          
+  races/
+    {raceId}.json                # e.g., race_123.json, race_456.json
 
-textures.json                  # Global texture library (root level)
+  textures.json                  # Global texture library
+  textures/                      # Texture image files
+  images/                        # Character/entity images
 ```
 
 ### Key Principles

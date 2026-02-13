@@ -2,9 +2,14 @@
 
 ## What Was Changed
 
+### 0. All Data Moved to `data/` Folder
+- **ALL data storage is now consolidated under a single `data/` directory**
+- This includes: characters, worlds, races, images, textures, and textures.json
+- Makes backup and organization much simpler
+
 ### 1. Character Storage
 - **Old**: `characters/CharacterName-id123.json`
-- **New**: `characters/id123.json`
+- **New**: `data/characters/id123.json`
 - Filename now uses ONLY the character ID from the URL
 - No dependency on the character name field inside the JSON
 
@@ -12,7 +17,7 @@
 - **Old**: Single file `worlds/WorldName.json` with all data
 - **New**: Directory structure per world:
   ```
-  worlds/{worldName}/
+  data/worlds/{worldName}/
     world.json                 # Core world data
     lobby.json                 # Lobby configuration
     items/{itemId}.json
@@ -25,12 +30,17 @@
 
 ### 3. Race Storage
 - **Old**: `races/RaceName-id123.json`
-- **New**: `races/id123.json`
+- **New**: `data/races/id123.json`
 - Filename now uses ONLY the race ID
 
 ### 4. Map Storage
 - **Old**: Maps embedded in lobby object within world.json
-- **New**: Each map gets its own folder: `worlds/{worldName}/maps/{mapId}/map.json`
+- **New**: Each map gets its own folder: `data/worlds/{worldName}/maps/{mapId}/map.json`
+
+### 5. Images & Textures
+- **Old**: `images/` and `textures/` at root level
+- **New**: `data/images/` and `data/textures/`
+- Global texture library: `data/textures.json`
 
 ## Files Modified
 

@@ -5,13 +5,15 @@ type JsonObject = Record<string, any>;
 
 @Injectable()
 export class DataService {
-  private charactersDir = path.join(__dirname, '../../../characters');
-  private worldsDir = path.join(__dirname, '../../../worlds');
-  private racesDir = path.join(__dirname, '../../../races');
-  private globalTexturesFilePath = path.join(__dirname, '../../../textures.json');
+  private dataDir = path.join(__dirname, '../../../data');
+  private charactersDir = path.join(this.dataDir, 'characters');
+  private worldsDir = path.join(this.dataDir, 'worlds');
+  private racesDir = path.join(this.dataDir, 'races');
+  private globalTexturesFilePath = path.join(this.dataDir, 'textures.json');
 
   constructor() {
-    // Ensure directories exist
+    // Ensure data directory and subdirectories exist
+    this.ensureDirectory(this.dataDir);
     this.ensureDirectory(this.charactersDir);
     this.ensureDirectory(this.worldsDir);
     this.ensureDirectory(this.racesDir);
@@ -453,7 +455,7 @@ export class DataService {
 
   getGlobalTextures(): any[] {
     const textures = this.readGlobalTextures();
-    const texturesDir = path.join(__dirname, '../../../textures');
+    const texturesDir = path.join(__dirname, '../../../data/textures');
     
     // Filter out textures where the actual file doesn't exist
     const validTextures = textures.filter(texture => {

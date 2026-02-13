@@ -1,5 +1,14 @@
 # Migration Guide: To Directory-Based Storage
 
+## IMPORTANT NOTE
+**All data is now stored under a `data/` folder at the root level.**
+
+This migration guide shows the structure changes. When migrating on your server:
+1. Create a `data/` directory at the root
+2. Move/migrate characters, worlds, races into `data/characters/`, `data/worlds/`, `data/races/`
+3. Move images and textures into `data/images/` and `data/textures/`
+4. Update the migration script paths below to use `./data/...` instead of `./...`
+
 ## Overview
 This guide helps migrate from the old file structure to the new directory-based structure.
 
@@ -7,18 +16,18 @@ This guide helps migrate from the old file structure to the new directory-based 
 
 ### Characters
 **Old**: `characters/CharacterName-id123.json`  
-**New**: `characters/id123.json`
+**New**: `data/characters/id123.json`
 
 - Filename is now ONLY the character ID from the URL
 - No character name in filename
-- If you visit `/characters/mychar`, the file is `characters/mychar.json`
+- If you visit `/characters/mychar`, the file is `data/characters/mychar.json`
 
 ### Worlds
 **Old**: `worlds/WorldName.json` (single file with everything)  
-**New**: `worlds/WorldName/` (directory structure)
+**New**: `data/worlds/WorldName/` (directory structure)
 
 ```
-worlds/{worldName}/
+data/worlds/{worldName}/
   world.json              # Core data only
   lobby.json              # Lobby configuration
   items/{itemId}.json     # Individual item files
@@ -31,9 +40,13 @@ worlds/{worldName}/
 
 ### Races
 **Old**: `races/RaceName-id123.json`  
-**New**: `races/id123.json`
+**New**: `data/races/id123.json`
 
 - Filename is now ONLY the race ID
+
+### Images & Textures
+**Old**: `images/` and `textures/` at root  
+**New**: `data/images/` and `data/textures/`
 
 ## Migration Steps
 
@@ -41,9 +54,12 @@ worlds/{worldName}/
 
 1. **Backup everything first!**
    ```bash
-   cp -r characters/ characters_backup/
-   cp -r worlds/ worlds_backup/
-   cp -r races/ races_backup/
+   cp -r data/ data_backup/
+   # Or if you don't have a data/ folder yet:
+   mkdir -p data
+   cp -r characters/ data_backup_characters/ 2>/dev/null || true
+   cp -r worlds/ data_backup_worlds/ 2>/dev/null || true
+   cp -r races/ data_backup_races/ 2>/dev/null || true
    ```
 
 2. **Migration script** (create as `migrate-to-dirs.js`):
