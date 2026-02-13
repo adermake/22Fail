@@ -1493,7 +1493,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     // Load tiles from saved data - only reload if imageId changed
     for (const tileData of this.map.textureTiles) {
-      const key = this.getTileKey(tileData.x, tileData.y);
+      const key = this.getTileKey(tileData.x, tileData.y, tileData.layerId);
       newTileKeys.add(key);
       
       // CRITICAL: Skip tiles that are dirty or being saved (prevents overwriting local changes)
@@ -2928,6 +2928,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   onPaletteSlotDragOver(event: DragEvent): void {
     event.preventDefault();
+    event.stopPropagation();
     event.dataTransfer!.dropEffect = 'copy';
   }
 
