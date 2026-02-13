@@ -687,25 +687,38 @@ export class AppController {
   async cleanupStressTestData() {
     console.log('[STRESS TEST] Cleaning up test data');
 
-    // Delete characters
+    // Delete characters - delete the actual files
     const allCharIds = this.dataService.getAllCharacterIds();
     const stressCharIds = allCharIds.filter(id => id.startsWith('stress_char_'));
 
     for (const charId of stressCharIds) {
-      const data = this.dataService['readData']();
-      delete data[charId];
-      this.dataService['writeData'](data);
+      // We need to delete the files directly
+      const charactersDir = path.join(__dirname, '../../../characters');
+      const files = fs.readdirSync(charactersDir);
+      const matchingFiles = files.filter(file => 
+        file.endsWith(`-${charId}.json`) || file === `${charId}.json`
+      );
+      
+      for (const file of matchingFiles) {
+        const filePath = path.join(charactersDir, file);
+        fs.unlinkSync(filePath);
+      }
     }
 
-    // Delete worlds
-    const worldsData = this.dataService['readWorlds']();
-    const worldNames = Object.keys(worldsData);
+    // Delete worlds - delete the actual files
+    const worldNames = this.dataService.getAllWorldNames();
     const stressWorldNames = worldNames.filter(name => name.startsWith('StressWorld_'));
 
+    const worldsDir = path.join(__dirname, '../../../worlds');
     for (const worldName of stressWorldNames) {
-      delete worldsData[worldName];
+      const files = fs.readdirSync(worldsDir);
+      const matchingFiles = files.filter(file => file.includes(worldName));
+      
+      for (const file of matchingFiles) {
+        const filePath = path.join(worldsDir, file);
+        fs.unlinkSync(filePath);
+      }
     }
-    this.dataService['writeWorlds'](worldsData);
 
     console.log(`[STRESS TEST] Deleted ${stressCharIds.length} characters, ${stressWorldNames.length} worlds`);
 

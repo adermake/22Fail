@@ -5,10 +5,79 @@ type JsonObject = Record<string, any>;
 
 @Injectable()
 export class DataService {
-  private filePath = path.join(__dirname, '../../../data.json');
-  private worldsFilePath = path.join(__dirname, '../../../worlds.json');
-  private racesFilePath = path.join(__dirname, '../../../races.json');
+  private charactersDir = path.join(__dirname, '../../../characters');
+  private worldsDir = path.join(__dirname, '../../../worlds');
+  private racesDir = path.join(__dirname, '../../../races');
   private globalTexturesFilePath = path.join(__dirname, '../../../textures.json');
+
+  constructor() {
+    // Ensure directories exist
+    this.ensureDirectory(this.charactersDir);
+    this.ensureDirectory(this.worldsDir);
+    this.ensureDirectory(this.racesDir);
+  }
+
+  private ensureDirectory(dirPath: string): void {
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+  }
+
+  private sanitizeFileName(name: string): string {
+    // Remove or replace characters that are invalid in file names
+    return name
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_') // Replace invalid chars with underscore
+      .replace(/\s+/g, '_') // Replace spaces with underscore
+      .replace(/\.+/g, '_') // Replace dots with underscore (except the extension)
+      .substring(0, 200); // Limit length
+  }
+
+  private getCharacterFileName(characterId: string, characterName?: string): string {
+    // Generate filename with character name for readability
+    if (characterName) {
+      const safeName = this.sanitizeFileName(characterName);
+      return `${safeName}-${characterId}.json`;
+    }
+    return `${characterId}.json`;
+  }
+
+  private getWorldFileName(worldName: string): string {
+    const safeName = this.sanitizeFileName(worldName);
+    return `${safeName}.json`;
+  }
+
+  private getRaceFileName(raceId: string, raceName?: string): string {
+    if (raceName) {
+      const safeName = this.sanitizeFileName(raceName);
+      return `${safeName}-${raceId}.json`;
+    }
+    return `${raceId}.json`;
+  }
+
+  private findCharacterFile(characterId: string): string | null {
+    // Find a character file that contains the character ID
+    const files = fs.readdirSync(this.charactersDir);
+    const matchingFile = files.find(file => {
+      return file.endsWith(`-${characterId}.json`) || file === `${characterId}.json`;
+    });
+    return matchingFile ? path.join(this.charactersDir, matchingFile) : null;
+  }
+
+  private findWorldFile(worldName: string): string | null {
+    // Find a world file by world name
+    const expectedFile = this.getWorldFileName(worldName);
+    const fullPath = path.join(this.worldsDir, expectedFile);
+    return fs.existsSync(fullPath) ? fullPath : null;
+  }
+
+  private findRaceFile(raceId: string): string | null {
+    // Find a race file that contains the race ID
+    const files = fs.readdirSync(this.racesDir);
+    const matchingFile = files.find(file => {
+      return file.endsWith(`-${raceId}.json`) || file === `${raceId}.json`;
+    });
+    return matchingFile ? path.join(this.racesDir, matchingFile) : null;
+  }
 
   private createEmptyWorld(name: string): any {
     return {
@@ -73,54 +142,81 @@ export class DataService {
     }
   }
 
-  private readData(): Record<string, string> {
-    try {
-      const json = fs.readFileSync(this.filePath, 'utf-8');
-      return JSON.parse(json) as Record<string, string>;
-    } catch (error) {
-      console.error('Error reading JSON file:', error);
-      return {};
-    }
-  }
-
-  private writeData(data: Record<string, string>): void {
-    fs.writeFileSync(this.filePath, JSON.stringify(data, null, 2), 'utf-8');
-  }
+  // ==================== CHARACTER METHODS ====================
 
   getCharacter(id: string): string | null {
-    const data = this.readData();
-    if (!data[id]) {
-      // Character does not exist yet
+    const filePath = this.findCharacterFile(id);
+    if (!filePath) {
       return null;
     }
-    return data[id];
+
+    try {
+      const json = fs.readFileSync(filePath, 'utf-8');
+      return json;
+    } catch (error) {
+      console.error(`Error reading character file for ${id}:`, error);
+      return null;
+    }
   }
 
   getAllCharacterIds(): string[] {
-    const data = this.readData();
-    return Object.keys(data);
+    try {
+      const files = fs.readdirSync(this.charactersDir);
+      const characterIds: string[] = [];
+
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue;
+
+        // Extract character ID from filename
+        // Format: name-id.json or id.json
+        const baseName = file.replace('.json', '');
+        const parts = baseName.split('-');
+        const id = parts[parts.length - 1]; // Last part is always the ID
+        characterIds.push(id);
+      }
+
+      return characterIds;
+    } catch (error) {
+      console.error('Error reading characters directory:', error);
+      return [];
+    }
   }
 
   saveCharacter(id: string, sheetJson: string): void {
-    const data = this.readData();
-    data[id] = sheetJson;
-    console.log('SAVE CHARACTER CALLED for:', id);
-    this.writeData(data);
+    try {
+      const sheet = JSON.parse(sheetJson);
+      const characterName = sheet.name || 'unnamed';
+      
+      // Delete old file if exists (in case name changed)
+      const oldFile = this.findCharacterFile(id);
+      const newFileName = this.getCharacterFileName(id, characterName);
+      const newFilePath = path.join(this.charactersDir, newFileName);
+      
+      if (oldFile && oldFile !== newFilePath) {
+        fs.unlinkSync(oldFile);
+      }
+
+      fs.writeFileSync(newFilePath, sheetJson, 'utf-8');
+      console.log('SAVE CHARACTER CALLED for:', id, 'as', newFileName);
+    } catch (error) {
+      console.error(`Error saving character ${id}:`, error);
+      throw error;
+    }
   }
 
   applyPatchToCharacter(id: string, patch: JsonPatch): string | null {
-    const data = this.readData();
     const logPatch = this.truncateImageData(patch);
     console.log('APPLY PATCH CHARACTER CALLED for:', id, 'Patch:', logPatch);
-    if (!data[id]) {
+    
+    const filePath = this.findCharacterFile(id);
+    if (!filePath) {
       return null; // character does not exist
     }
 
     let sheet: any;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      sheet = JSON.parse(data[id]);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const json = fs.readFileSync(filePath, 'utf-8');
+      sheet = JSON.parse(json);
     } catch (e) {
       throw new Error(`Invalid JSON for character ${id}`);
     }
@@ -128,45 +224,76 @@ export class DataService {
     this.applyJsonPatch(sheet, patch);
 
     const updatedJson = JSON.stringify(sheet, null, 2);
-    data[id] = updatedJson;
-    this.writeData(data);
+    
+    // Save with updated name if name was changed
+    const characterName = sheet.name || 'unnamed';
+    const newFileName = this.getCharacterFileName(id, characterName);
+    const newFilePath = path.join(this.charactersDir, newFileName);
+    
+    if (filePath !== newFilePath) {
+      fs.unlinkSync(filePath);
+    }
+    
+    fs.writeFileSync(newFilePath, updatedJson, 'utf-8');
 
     return updatedJson;
   }
 
-  // World data methods
-  private readWorlds(): Record<string, string> {
-    try {
-      const json = fs.readFileSync(this.worldsFilePath, 'utf-8');
-      return JSON.parse(json) as Record<string, string>;
-    } catch (error) {
-      console.error('Error reading worlds file:', error);
-      return {};
-    }
-  }
-
-  private writeWorlds(data: Record<string, string>): void {
-    fs.writeFileSync(this.worldsFilePath, JSON.stringify(data, null, 2), 'utf-8');
-  }
+  // ==================== WORLD METHODS ====================
 
   getWorld(name: string): string | null {
-    const data = this.readWorlds();
-    if (!data[name]) {
+    const filePath = this.findWorldFile(name);
+    if (!filePath) {
       return null;
     }
-    return data[name];
+
+    try {
+      const json = fs.readFileSync(filePath, 'utf-8');
+      return json;
+    } catch (error) {
+      console.error(`Error reading world file for ${name}:`, error);
+      return null;
+    }
   }
 
   saveWorld(name: string, worldJson: string): void {
-    const data = this.readWorlds();
-    data[name] = worldJson;
-    console.log('SAVE WORLD CALLED for:', name);
-    this.writeWorlds(data);
+    try {
+      const fileName = this.getWorldFileName(name);
+      const filePath = path.join(this.worldsDir, fileName);
+      fs.writeFileSync(filePath, worldJson, 'utf-8');
+      console.log('SAVE WORLD CALLED for:', name, 'as', fileName);
+    } catch (error) {
+      console.error(`Error saving world ${name}:`, error);
+      throw error;
+    }
   }
 
   getAllWorldNames(): string[] {
-    const data = this.readWorlds();
-    return Object.keys(data);
+    try {
+      const files = fs.readdirSync(this.worldsDir);
+      const worldNames: string[] = [];
+
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue;
+
+        // Read the file to get the actual world name
+        const filePath = path.join(this.worldsDir, file);
+        try {
+          const json = fs.readFileSync(filePath, 'utf-8');
+          const world = JSON.parse(json);
+          if (world.name) {
+            worldNames.push(world.name);
+          }
+        } catch (err) {
+          console.error(`Error reading world file ${file}:`, err);
+        }
+      }
+
+      return worldNames;
+    } catch (error) {
+      console.error('Error reading worlds directory:', error);
+      return [];
+    }
   }
 
   // Global texture library methods
@@ -246,17 +373,17 @@ export class DataService {
   }
 
   applyPatchToWorld(name: string, patch: JsonPatch): string | null {
-    const data = this.readWorlds();
     console.log('APPLY PATCH WORLD CALLED for:', name);
-    console.log('Available worlds:', Object.keys(data));
+    console.log('Available worlds:', this.getAllWorldNames());
 
     // Truncate all image data in logs to keep console readable
     const logPatch = this.truncateImageData(patch);
     console.log('Patch:', logPatch);
 
     let world: any;
+    const filePath = this.findWorldFile(name);
 
-    if (!data[name]) {
+    if (!filePath) {
       console.warn(`World "${name}" does not exist in backend! Creating it now...`);
       // Create a minimal world structure
       world = {
@@ -272,12 +399,11 @@ export class DataService {
         lootBundles: [],
         battleLoot: []
       };
-      data[name] = JSON.stringify(world, null, 2);
+      this.saveWorld(name, JSON.stringify(world, null, 2));
     } else {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        world = JSON.parse(data[name]);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const json = fs.readFileSync(filePath, 'utf-8');
+        world = JSON.parse(json);
       } catch (e) {
         throw new Error(`Invalid JSON for world ${name}`);
       }
@@ -286,8 +412,7 @@ export class DataService {
     this.applyJsonPatch(world, patch);
 
     const updatedJson = JSON.stringify(world, null, 2);
-    data[name] = updatedJson;
-    this.writeWorlds(data);
+    this.saveWorld(name, updatedJson);
 
     return updatedJson;
   }
@@ -306,7 +431,6 @@ export class DataService {
   }
 
   addBattleMap(worldName: string, battleMap: any): any {
-      const worlds = this.readWorlds();
       let worldJson = this.getWorld(worldName);
       if (!worldJson) {
         // if world does not exist, create it.
@@ -322,19 +446,18 @@ export class DataService {
       world.battleMaps.push(battleMap);
       
       const updatedWorldJson = JSON.stringify(world, null, 2);
-      worlds[worldName] = updatedWorldJson;
-      this.writeWorlds(worlds);
+      this.saveWorld(worldName, updatedWorldJson);
       return battleMap;
   }
 
   applyPatchToBattleMap(worldName: string, battleMapId: string, patch: JsonPatch): string | null {
-      const worlds = this.readWorlds();
-      if (!worlds[worldName]) {
+      const worldJson = this.getWorld(worldName);
+      if (!worldJson) {
         console.error(`World ${worldName} not found`);
         return null;
       }
 
-      const world = JSON.parse(worlds[worldName]);
+      const world = JSON.parse(worldJson);
       const battleMapIndex = world.battleMaps.findIndex((bm: any) => bm.id === battleMapId);
 
       if (battleMapIndex === -1) {
@@ -350,8 +473,7 @@ export class DataService {
       this.applyJsonPatch(world, worldPatch);
 
       const updatedWorldJson = JSON.stringify(world, null, 2);
-      worlds[worldName] = updatedWorldJson;
-      this.writeWorlds(worlds);
+      this.saveWorld(worldName, updatedWorldJson);
 
       return updatedWorldJson;
     }
@@ -367,7 +489,6 @@ export class DataService {
   }
 
   saveLobby(worldName: string, lobby: any): any {
-    const worlds = this.readWorlds();
     let worldJson = this.getWorld(worldName);
     
     if (!worldJson) {
@@ -382,8 +503,7 @@ export class DataService {
     world.lobby = lobby;
     
     const updatedWorldJson = JSON.stringify(world, null, 2);
-    worlds[worldName] = updatedWorldJson;
-    this.writeWorlds(worlds);
+    this.saveWorld(worldName, updatedWorldJson);
     
     return lobby;
   }
@@ -397,7 +517,6 @@ export class DataService {
   }
 
   saveMap(worldName: string, mapId: string, mapData: any): any {
-    const worlds = this.readWorlds();
     const worldJson = this.getWorld(worldName);
     
     if (!worldJson) {
@@ -426,20 +545,19 @@ export class DataService {
     world.lobby.updatedAt = Date.now();
 
     const updatedWorldJson = JSON.stringify(world, null, 2);
-    worlds[worldName] = updatedWorldJson;
-    this.writeWorlds(worlds);
+    this.saveWorld(worldName, updatedWorldJson);
 
     return mapData;
   }
 
   applyPatchToMap(worldName: string, mapId: string, patch: JsonPatch): string | null {
-    const worlds = this.readWorlds();
-    if (!worlds[worldName]) {
+    const worldJson = this.getWorld(worldName);
+    if (!worldJson) {
       console.error(`World ${worldName} not found`);
       return null;
     }
 
-    const world = JSON.parse(worlds[worldName]);
+    const world = JSON.parse(worldJson);
     
     if (!world.lobby || !world.lobby.maps || !world.lobby.maps[mapId]) {
       console.error(`Map ${mapId} not found in lobby for world ${worldName}`);
@@ -456,68 +574,91 @@ export class DataService {
     world.lobby.updatedAt = Date.now();
 
     const updatedWorldJson = JSON.stringify(world, null, 2);
-    worlds[worldName] = updatedWorldJson;
-    this.writeWorlds(worlds);
+    this.saveWorld(worldName, updatedWorldJson);
 
     return updatedWorldJson;
   }
 
-  // Race data methods - globally shared across all characters
-  private readRaces(): any[] {
+  // ==================== RACE METHODS ====================
+
+  getAllRaces(): any[] {
     try {
-      if (!fs.existsSync(this.racesFilePath)) {
-        return [];
+      const files = fs.readdirSync(this.racesDir);
+      const races: any[] = [];
+
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue;
+
+        const filePath = path.join(this.racesDir, file);
+        try {
+          const json = fs.readFileSync(filePath, 'utf-8');
+          const race = JSON.parse(json);
+          races.push(race);
+        } catch (err) {
+          console.error(`Error reading race file ${file}:`, err);
+        }
       }
-      const json = fs.readFileSync(this.racesFilePath, 'utf-8');
-      return JSON.parse(json) as any[];
+
+      return races;
     } catch (error) {
-      console.error('Error reading races file:', error);
+      console.error('Error reading races directory:', error);
       return [];
     }
   }
 
-  private writeRaces(races: any[]): void {
-    fs.writeFileSync(this.racesFilePath, JSON.stringify(races, null, 2), 'utf-8');
-  }
-
-  getAllRaces(): any[] {
-    return this.readRaces();
-  }
-
   getRace(id: string): any | null {
-    const races = this.readRaces();
-    return races.find((r: any) => r.id === id) || null;
+    const filePath = this.findRaceFile(id);
+    if (!filePath) {
+      return null;
+    }
+
+    try {
+      const json = fs.readFileSync(filePath, 'utf-8');
+      return JSON.parse(json);
+    } catch (error) {
+      console.error(`Error reading race file for ${id}:`, error);
+      return null;
+    }
   }
 
   saveRace(race: any): any {
-    const races = this.readRaces();
-    const existingIndex = races.findIndex((r: any) => r.id === race.id);
+    try {
+      const raceName = race.name || 'unnamed';
+      const raceId = race.id;
 
-    if (existingIndex >= 0) {
-      // Update existing race
-      races[existingIndex] = race;
-      console.log('UPDATED RACE:', race.id);
-    } else {
-      // Add new race
-      races.push(race);
-      console.log('ADDED NEW RACE:', race.id);
+      // Delete old file if exists (in case name changed)
+      const oldFile = this.findRaceFile(raceId);
+      const newFileName = this.getRaceFileName(raceId, raceName);
+      const newFilePath = path.join(this.racesDir, newFileName);
+
+      if (oldFile && oldFile !== newFilePath) {
+        fs.unlinkSync(oldFile);
+      }
+
+      fs.writeFileSync(newFilePath, JSON.stringify(race, null, 2), 'utf-8');
+      console.log('SAVED RACE:', raceId, 'as', newFileName);
+
+      return race;
+    } catch (error) {
+      console.error(`Error saving race ${race.id}:`, error);
+      throw error;
     }
-
-    this.writeRaces(races);
-    return race;
   }
 
   deleteRace(id: string): boolean {
-    const races = this.readRaces();
-    const index = races.findIndex((r: any) => r.id === id);
+    const filePath = this.findRaceFile(id);
+    if (!filePath) {
+      return false;
+    }
 
-    if (index >= 0) {
-      races.splice(index, 1);
-      this.writeRaces(races);
+    try {
+      fs.unlinkSync(filePath);
       console.log('DELETED RACE:', id);
       return true;
+    } catch (error) {
+      console.error(`Error deleting race ${id}:`, error);
+      return false;
     }
-    return false;
   }
 }
 
