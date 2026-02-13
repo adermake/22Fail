@@ -32,51 +32,145 @@ export class DataService {
       .substring(0, 200); // Limit length
   }
 
-  private getCharacterFileName(characterId: string, characterName?: string): string {
-    // Generate filename with character name for readability
-    if (characterName) {
-      const safeName = this.sanitizeFileName(characterName);
-      return `${safeName}-${characterId}.json`;
-    }
-    return `${characterId}.json`;
+  private getCharacterFileName(characterId: string): string {
+    // Filename is just the character ID
+    const safeId = this.sanitizeFileName(characterId);
+    return `${safeId}.json`;
   }
 
-  private getWorldFileName(worldName: string): string {
+  private getCharacterFilePath(characterId: string): string {
+    const fileName = this.getCharacterFileName(characterId);
+    return path.join(this.charactersDir, fileName);
+  }
+
+  private getWorldDir(worldName: string): string {
     const safeName = this.sanitizeFileName(worldName);
-    return `${safeName}.json`;
+    return path.join(this.worldsDir, safeName);
   }
 
-  private getRaceFileName(raceId: string, raceName?: string): string {
-    if (raceName) {
-      const safeName = this.sanitizeFileName(raceName);
-      return `${safeName}-${raceId}.json`;
+  private getWorldFilePath(worldName: string): string {
+    return path.join(this.getWorldDir(worldName), 'world.json');
+  }
+
+  private getWorldItemsDir(worldName: string): string {
+    return path.join(this.getWorldDir(worldName), 'items');
+  }
+
+  private getWorldSpellsDir(worldName: string): string {
+    return path.join(this.getWorldDir(worldName), 'spells');
+  }
+
+  private getWorldRunesDir(worldName: string): string {
+    return path.join(this.getWorldDir(worldName), 'runes');
+  }
+
+  private getWorldSkillsDir(worldName: string): string {
+    return path.join(this.getWorldDir(worldName), 'skills');
+  }
+
+  private getWorldLootBundlesDir(worldName: string): string {
+    return path.join(this.getWorldDir(worldName), 'loot-bundles');
+  }
+
+  private getWorldLobbyFilePath(worldName: string): string {
+    return path.join(this.getWorldDir(worldName), 'lobby.json');
+  }
+
+  private getWorldMapsDir(worldName: string): string {
+    return path.join(this.getWorldDir(worldName), 'maps');
+  }
+
+  private getWorldMapDir(worldName: string, mapId: string): string {
+    const safeMapId = this.sanitizeFileName(mapId);
+    return path.join(this.getWorldMapsDir(worldName), safeMapId);
+  }
+
+  private getWorldMapFilePath(worldName: string, mapId: string): string {
+    return path.join(this.getWorldMapDir(worldName, mapId), 'map.json');
+  }
+
+  private getRaceFileName(raceId: string): string {
+    const safeId = this.sanitizeFileName(raceId);
+    return `${safeId}.json`;
+  }
+
+  private getRaceFilePath(raceId: string): string {
+    const fileName = this.getRaceFileName(raceId);
+    return path.join(this.racesDir, fileName);
+  }
+
+  // Helper methods for reading/writing entity collections in world directories
+  private readEntityCollection(dirPath: string): any[] {
+    try {
+      if (!fs.existsSync(dirPath)) {
+        return [];
+      }
+      const files = fs.readdirSync(dirPath);
+      const entities: any[] = [];
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue;
+        const filePath = path.join(dirPath, file);
+        try {
+          const json = fs.readFileSync(filePath, 'utf-8');
+          entities.push(JSON.parse(json));
+        } catch (err) {
+          console.error(`Error reading entity file ${file}:`, err);
+        }
+      }
+      return entities;
+    } catch (error) {
+      console.error(`Error reading entity collection from ${dirPath}:`, error);
+      return [];
     }
-    return `${raceId}.json`;
   }
 
-  private findCharacterFile(characterId: string): string | null {
-    // Find a character file that contains the character ID
-    const files = fs.readdirSync(this.charactersDir);
-    const matchingFile = files.find(file => {
-      return file.endsWith(`-${characterId}.json`) || file === `${characterId}.json`;
-    });
-    return matchingFile ? path.join(this.charactersDir, matchingFile) : null;
+  private writeEntity(dirPath: string, entityId: string, entity: any): void {
+    this.ensureDirectory(dirPath);
+    const safeId = this.sanitizeFileName(entityId);
+    const filePath = path.join(dirPath, `${safeId}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(entity, null, 2), 'utf-8');
   }
 
-  private findWorldFile(worldName: string): string | null {
-    // Find a world file by world name
-    const expectedFile = this.getWorldFileName(worldName);
-    const fullPath = path.join(this.worldsDir, expectedFile);
-    return fs.existsSync(fullPath) ? fullPath : null;
+  private deleteEntity(dirPath: string, entityId: string): boolean {
+    const safeId = this.sanitizeFileName(entityId);
+    const filePath = path.join(dirPath, `${safeId}.json`);
+    if (!fs.existsSync(filePath)) {
+      return false;
+    }
+    try {
+      fs.unlinkSync(filePath);
+      return true;
+    } catch (error) {
+      console.error(`Error deleting entity ${entityId} from ${dirPath}:`, error);
+      return false;
+    }
   }
 
-  private findRaceFile(raceId: string): string | null {
-    // Find a race file that contains the race ID
-    const files = fs.readdirSync(this.racesDir);
-    const matchingFile = files.find(file => {
-      return file.endsWith(`-${raceId}.json`) || file === `${raceId}.json`;
-    });
-    return matchingFile ? path.join(this.racesDir, matchingFile) : null;
+  private readEntity(dirPath: string, entityId: string): any | null {
+    const safeId = this.sanitizeFileName(entityId);
+    const filePath = path.join(dirPath, `${safeId}.json`);
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+    try {
+      const json = fs.readFileSync(filePath, 'utf-8');
+      return JSON.parse(json);
+    } catch (error) {
+      console.error(`Error reading entity ${entityId} from ${dirPath}:`, error);
+      return null;
+    }
+  }
+
+  // Ensure all world subdirectories exist
+  private ensureWorldDirectories(worldName: string): void {
+    const worldDir = this.getWorldDir(worldName);
+    this.ensureDirectory(worldDir);
+    this.ensureDirectory(this.getWorldItemsDir(worldName));
+    this.ensureDirectory(this.getWorldSpellsDir(worldName));
+    this.ensureDirectory(this.getWorldRunesDir(worldName));
+    this.ensureDirectory(this.getWorldSkillsDir(worldName));
+    this.ensureDirectory(this.getWorldLootBundlesDir(worldName));
+    this.ensureDirectory(this.getWorldMapsDir(worldName));
   }
 
   private createEmptyWorld(name: string): any {
@@ -84,16 +178,11 @@ export class DataService {
       name,
       characterIds: [],
       partyIds: [],
-      itemLibrary: [],
-      runeLibrary: [],
-      spellLibrary: [],
-      skillLibrary: [],
-      lootBundles: [],
       battleLoot: [],
       battleParticipants: [],
       currentTurnIndex: 0,
       trash: [],
-      battleMaps: [],
+      battleMaps: [], // Legacy, keeping for compatibility
     };
   }
 
@@ -145,8 +234,8 @@ export class DataService {
   // ==================== CHARACTER METHODS ====================
 
   getCharacter(id: string): string | null {
-    const filePath = this.findCharacterFile(id);
-    if (!filePath) {
+    const filePath = this.getCharacterFilePath(id);
+    if (!fs.existsSync(filePath)) {
       return null;
     }
 
@@ -167,11 +256,8 @@ export class DataService {
       for (const file of files) {
         if (!file.endsWith('.json')) continue;
 
-        // Extract character ID from filename
-        // Format: name-id.json or id.json
-        const baseName = file.replace('.json', '');
-        const parts = baseName.split('-');
-        const id = parts[parts.length - 1]; // Last part is always the ID
+        // Extract character ID from filename (just remove .json)
+        const id = file.replace('.json', '');
         characterIds.push(id);
       }
 
@@ -184,20 +270,9 @@ export class DataService {
 
   saveCharacter(id: string, sheetJson: string): void {
     try {
-      const sheet = JSON.parse(sheetJson);
-      const characterName = sheet.name || 'unnamed';
-      
-      // Delete old file if exists (in case name changed)
-      const oldFile = this.findCharacterFile(id);
-      const newFileName = this.getCharacterFileName(id, characterName);
-      const newFilePath = path.join(this.charactersDir, newFileName);
-      
-      if (oldFile && oldFile !== newFilePath) {
-        fs.unlinkSync(oldFile);
-      }
-
-      fs.writeFileSync(newFilePath, sheetJson, 'utf-8');
-      console.log('SAVE CHARACTER CALLED for:', id, 'as', newFileName);
+      const filePath = this.getCharacterFilePath(id);
+      fs.writeFileSync(filePath, sheetJson, 'utf-8');
+      console.log('SAVE CHARACTER CALLED for:', id);
     } catch (error) {
       console.error(`Error saving character ${id}:`, error);
       throw error;
@@ -208,8 +283,8 @@ export class DataService {
     const logPatch = this.truncateImageData(patch);
     console.log('APPLY PATCH CHARACTER CALLED for:', id, 'Patch:', logPatch);
     
-    const filePath = this.findCharacterFile(id);
-    if (!filePath) {
+    const filePath = this.getCharacterFilePath(id);
+    if (!fs.existsSync(filePath)) {
       return null; // character does not exist
     }
 
@@ -224,17 +299,7 @@ export class DataService {
     this.applyJsonPatch(sheet, patch);
 
     const updatedJson = JSON.stringify(sheet, null, 2);
-    
-    // Save with updated name if name was changed
-    const characterName = sheet.name || 'unnamed';
-    const newFileName = this.getCharacterFileName(id, characterName);
-    const newFilePath = path.join(this.charactersDir, newFileName);
-    
-    if (filePath !== newFilePath) {
-      fs.unlinkSync(filePath);
-    }
-    
-    fs.writeFileSync(newFilePath, updatedJson, 'utf-8');
+    fs.writeFileSync(filePath, updatedJson, 'utf-8');
 
     return updatedJson;
   }
@@ -242,26 +307,96 @@ export class DataService {
   // ==================== WORLD METHODS ====================
 
   getWorld(name: string): string | null {
-    const filePath = this.findWorldFile(name);
-    if (!filePath) {
+    const filePath = this.getWorldFilePath(name);
+    if (!fs.existsSync(filePath)) {
       return null;
     }
 
     try {
-      const json = fs.readFileSync(filePath, 'utf-8');
-      return json;
+      // Read the core world.json
+      const worldJson = fs.readFileSync(filePath, 'utf-8');
+      const world = JSON.parse(worldJson);
+
+      // Load entity collections from their respective directories
+      world.itemLibrary = this.readEntityCollection(this.getWorldItemsDir(name));
+      world.spellLibrary = this.readEntityCollection(this.getWorldSpellsDir(name));
+      world.runeLibrary = this.readEntityCollection(this.getWorldRunesDir(name));
+      world.skillLibrary = this.readEntityCollection(this.getWorldSkillsDir(name));
+      world.lootBundles = this.readEntityCollection(this.getWorldLootBundlesDir(name));
+
+      // Load lobby if exists
+      const lobbyPath = this.getWorldLobbyFilePath(name);
+      if (fs.existsSync(lobbyPath)) {
+        const lobbyJson = fs.readFileSync(lobbyPath, 'utf-8');
+        world.lobby = JSON.parse(lobbyJson);
+      }
+
+      return JSON.stringify(world, null, 2);
     } catch (error) {
-      console.error(`Error reading world file for ${name}:`, error);
+      console.error(`Error reading world ${name}:`, error);
       return null;
     }
   }
 
   saveWorld(name: string, worldJson: string): void {
     try {
-      const fileName = this.getWorldFileName(name);
-      const filePath = path.join(this.worldsDir, fileName);
-      fs.writeFileSync(filePath, worldJson, 'utf-8');
-      console.log('SAVE WORLD CALLED for:', name, 'as', fileName);
+      const world = JSON.parse(worldJson);
+      this.ensureWorldDirectories(name);
+
+      // Extract and save entity collections to their respective directories
+      const itemLibrary = world.itemLibrary || [];
+      const spellLibrary = world.spellLibrary || [];
+      const runeLibrary = world.runeLibrary || [];
+      const skillLibrary = world.skillLibrary || [];
+      const lootBundles = world.lootBundles || [];
+
+      // Clear existing entity files
+      const itemsDir = this.getWorldItemsDir(name);
+      const spellsDir = this.getWorldSpellsDir(name);
+      const runesDir = this.getWorldRunesDir(name);
+      const skillsDir = this.getWorldSkillsDir(name);
+      const lootBundlesDir = this.getWorldLootBundlesDir(name);
+
+      // Write each entity to its own file
+      for (const item of itemLibrary) {
+        this.writeEntity(itemsDir, item.id, item);
+      }
+      for (const spell of spellLibrary) {
+        this.writeEntity(spellsDir, spell.id, spell);
+      }
+      for (const rune of runeLibrary) {
+        this.writeEntity(runesDir, rune.id, rune);
+      }
+      for (const skill of skillLibrary) {
+        this.writeEntity(skillsDir, skill.id, skill);
+      }
+      for (const bundle of lootBundles) {
+        this.writeEntity(lootBundlesDir, bundle.id, bundle);
+      }
+
+      // Save lobby separately if present
+      if (world.lobby) {
+        const lobbyPath = this.getWorldLobbyFilePath(name);
+        fs.writeFileSync(lobbyPath, JSON.stringify(world.lobby, null, 2), 'utf-8');
+      }
+
+      // Save core world data (without the entity collections and lobby)
+      const coreWorld = {
+        name: world.name,
+        characterIds: world.characterIds || [],
+        partyIds: world.partyIds || [],
+        battleLoot: world.battleLoot || [],
+        battleParticipants: world.battleParticipants || [],
+        currentTurnIndex: world.currentTurnIndex || 0,
+        trash: world.trash || [],
+        battleMaps: world.battleMaps || [],
+        battleTimeline: world.battleTimeline,
+      };
+
+      const worldFilePath = this.getWorldFilePath(name);
+      fs.writeFileSync(worldFilePath, JSON.stringify(coreWorld, null, 2), 'utf-8');
+      
+      console.log('SAVE WORLD CALLED for:', name);
     } catch (error) {
       console.error(`Error saving world ${name}:`, error);
       throw error;
@@ -270,22 +405,24 @@ export class DataService {
 
   getAllWorldNames(): string[] {
     try {
-      const files = fs.readdirSync(this.worldsDir);
+      const dirs = fs.readdirSync(this.worldsDir);
       const worldNames: string[] = [];
 
-      for (const file of files) {
-        if (!file.endsWith('.json')) continue;
+      for (const dir of dirs) {
+        const dirPath = path.join(this.worldsDir, dir);
+        if (!fs.statSync(dirPath).isDirectory()) continue;
 
-        // Read the file to get the actual world name
-        const filePath = path.join(this.worldsDir, file);
+        const worldFilePath = path.join(dirPath, 'world.json');
+        if (!fs.existsSync(worldFilePath)) continue;
+
         try {
-          const json = fs.readFileSync(filePath, 'utf-8');
+          const json = fs.readFileSync(worldFilePath, 'utf-8');
           const world = JSON.parse(json);
           if (world.name) {
             worldNames.push(world.name);
           }
         } catch (err) {
-          console.error(`Error reading world file ${file}:`, err);
+          console.error(`Error reading world file in ${dir}:`, err);
         }
       }
 
@@ -380,35 +517,17 @@ export class DataService {
     const logPatch = this.truncateImageData(patch);
     console.log('Patch:', logPatch);
 
-    let world: any;
-    const filePath = this.findWorldFile(name);
+    let worldJson = this.getWorld(name);
 
-    if (!filePath) {
+    if (!worldJson) {
       console.warn(`World "${name}" does not exist in backend! Creating it now...`);
       // Create a minimal world structure
-      world = {
-        name: name,
-        characterIds: [],
-        partyIds: [],
-        itemLibrary: [],
-        runeLibrary: [],
-        spellLibrary: [],
-        skillLibrary: [],
-        battleParticipants: [],
-        currentTurnIndex: 0,
-        lootBundles: [],
-        battleLoot: []
-      };
+      const world = this.createEmptyWorld(name);
       this.saveWorld(name, JSON.stringify(world, null, 2));
-    } else {
-      try {
-        const json = fs.readFileSync(filePath, 'utf-8');
-        world = JSON.parse(json);
-      } catch (e) {
-        throw new Error(`Invalid JSON for world ${name}`);
-      }
+      worldJson = this.getWorld(name);
     }
 
+    const world = JSON.parse(worldJson!);
     this.applyJsonPatch(world, patch);
 
     const updatedJson = JSON.stringify(world, null, 2);
@@ -480,103 +599,116 @@ export class DataService {
 
   // Lobby operations for new multi-map system
   getLobby(worldName: string): any | null {
-    const worldJson = this.getWorld(worldName);
-    if (!worldJson) {
+    const lobbyPath = this.getWorldLobbyFilePath(worldName);
+    if (!fs.existsSync(lobbyPath)) {
       return null;
     }
-    const world = JSON.parse(worldJson);
-    return world.lobby || null;
+
+    try {
+      const json = fs.readFileSync(lobbyPath, 'utf-8');
+      const lobby = JSON.parse(json);
+
+      // Load all maps from maps directory
+      const mapsDir = this.getWorldMapsDir(worldName);
+      if (fs.existsSync(mapsDir)) {
+        lobby.maps = {};
+        const mapDirs = fs.readdirSync(mapsDir);
+        for (const mapDir of mapDirs) {
+          const mapDirPath = path.join(mapsDir, mapDir);
+          if (!fs.statSync(mapDirPath).isDirectory()) continue;
+
+          const mapFilePath = path.join(mapDirPath, 'map.json');
+          if (fs.existsSync(mapFilePath)) {
+            try {
+              const mapJson = fs.readFileSync(mapFilePath, 'utf-8');
+              const mapData = JSON.parse(mapJson);
+              lobby.maps[mapData.id] = mapData;
+            } catch (err) {
+              console.error(`Error reading map ${mapDir}:`, err);
+            }
+          }
+        }
+      }
+
+      return lobby;
+    } catch (error) {
+      console.error(`Error reading lobby for ${worldName}:`, error);
+      return null;
+    }
   }
 
   saveLobby(worldName: string, lobby: any): any {
-    let worldJson = this.getWorld(worldName);
-    
-    if (!worldJson) {
-      // Create world if it doesn't exist
-      const newWorld = this.createEmptyWorld(worldName);
-      newWorld.lobby = lobby;
-      this.saveWorld(worldName, JSON.stringify(newWorld, null, 2));
-      return lobby;
-    }
+    try {
+      this.ensureWorldDirectories(worldName);
 
-    const world = JSON.parse(worldJson);
-    world.lobby = lobby;
-    
-    const updatedWorldJson = JSON.stringify(world, null, 2);
-    this.saveWorld(worldName, updatedWorldJson);
-    
-    return lobby;
+      // Extract maps to save separately
+      const maps = lobby.maps || {};
+      const lobbyWithoutMaps = { ...lobby };
+      delete lobbyWithoutMaps.maps;
+
+      // Save lobby.json (without maps)
+      const lobbyPath = this.getWorldLobbyFilePath(worldName);
+      fs.writeFileSync(lobbyPath, JSON.stringify(lobbyWithoutMaps, null, 2), 'utf-8');
+
+      // Save each map to its own directory
+      for (const mapId in maps) {
+        const mapData = maps[mapId];
+        this.saveMap(worldName, mapId, mapData);
+      }
+
+      console.log('SAVED LOBBY for world:', worldName);
+      return lobby;
+    } catch (error) {
+      console.error(`Error saving lobby for ${worldName}:`, error);
+      throw error;
+    }
   }
 
   getMap(worldName: string, mapId: string): any | null {
-    const lobby = this.getLobby(worldName);
-    if (!lobby || !lobby.maps) {
+    const mapFilePath = this.getWorldMapFilePath(worldName, mapId);
+    if (!fs.existsSync(mapFilePath)) {
       return null;
     }
-    return lobby.maps[mapId] || null;
+
+    try {
+      const json = fs.readFileSync(mapFilePath, 'utf-8');
+      return JSON.parse(json);
+    } catch (error) {
+      console.error(`Error reading map ${mapId} for world ${worldName}:`, error);
+      return null;
+    }
   }
 
   saveMap(worldName: string, mapId: string, mapData: any): any {
-    const worldJson = this.getWorld(worldName);
-    
-    if (!worldJson) {
-      console.error(`World ${worldName} not found`);
-      return null;
+    try {
+      this.ensureWorldDirectories(worldName);
+      const mapDir = this.getWorldMapDir(worldName, mapId);
+      this.ensureDirectory(mapDir);
+
+      const mapFilePath = this.getWorldMapFilePath(worldName, mapId);
+      fs.writeFileSync(mapFilePath, JSON.stringify(mapData, null, 2), 'utf-8');
+
+      console.log('SAVED MAP:', mapId, 'for world:', worldName);
+      return mapData;
+    } catch (error) {
+      console.error(`Error saving map ${mapId} for world ${worldName}:`, error);
+      throw error;
     }
-
-    const world = JSON.parse(worldJson);
-    
-    if (!world.lobby) {
-      world.lobby = {
-        id: worldName,
-        worldName: worldName,
-        maps: {},
-        activeMapId: mapId,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-    }
-
-    if (!world.lobby.maps) {
-      world.lobby.maps = {};
-    }
-
-    world.lobby.maps[mapId] = mapData;
-    world.lobby.updatedAt = Date.now();
-
-    const updatedWorldJson = JSON.stringify(world, null, 2);
-    this.saveWorld(worldName, updatedWorldJson);
-
-    return mapData;
   }
 
   applyPatchToMap(worldName: string, mapId: string, patch: JsonPatch): string | null {
-    const worldJson = this.getWorld(worldName);
-    if (!worldJson) {
-      console.error(`World ${worldName} not found`);
-      return null;
-    }
-
-    const world = JSON.parse(worldJson);
-    
-    if (!world.lobby || !world.lobby.maps || !world.lobby.maps[mapId]) {
-      console.error(`Map ${mapId} not found in lobby for world ${worldName}`);
+    const mapData = this.getMap(worldName, mapId);
+    if (!mapData) {
+      console.error(`Map ${mapId} not found for world ${worldName}`);
       // Try legacy battlemap approach as fallback
       return this.applyPatchToBattleMap(worldName, mapId, patch);
     }
 
-    const lobbyPatch: JsonPatch = {
-      path: `lobby.maps.${mapId}.${patch.path}`,
-      value: patch.value
-    };
+    this.applyJsonPatch(mapData, patch);
+    this.saveMap(worldName, mapId, mapData);
 
-    this.applyJsonPatch(world, lobbyPatch);
-    world.lobby.updatedAt = Date.now();
-
-    const updatedWorldJson = JSON.stringify(world, null, 2);
-    this.saveWorld(worldName, updatedWorldJson);
-
-    return updatedWorldJson;
+    // Return the full world JSON for compatibility
+    return this.getWorld(worldName);
   }
 
   // ==================== RACE METHODS ====================
@@ -607,8 +739,8 @@ export class DataService {
   }
 
   getRace(id: string): any | null {
-    const filePath = this.findRaceFile(id);
-    if (!filePath) {
+    const filePath = this.getRaceFilePath(id);
+    if (!fs.existsSync(filePath)) {
       return null;
     }
 
@@ -623,21 +755,10 @@ export class DataService {
 
   saveRace(race: any): any {
     try {
-      const raceName = race.name || 'unnamed';
       const raceId = race.id;
-
-      // Delete old file if exists (in case name changed)
-      const oldFile = this.findRaceFile(raceId);
-      const newFileName = this.getRaceFileName(raceId, raceName);
-      const newFilePath = path.join(this.racesDir, newFileName);
-
-      if (oldFile && oldFile !== newFilePath) {
-        fs.unlinkSync(oldFile);
-      }
-
-      fs.writeFileSync(newFilePath, JSON.stringify(race, null, 2), 'utf-8');
-      console.log('SAVED RACE:', raceId, 'as', newFileName);
-
+      const filePath = this.getRaceFilePath(raceId);
+      fs.writeFileSync(filePath, JSON.stringify(race, null, 2), 'utf-8');
+      console.log('SAVED RACE:', raceId);
       return race;
     } catch (error) {
       console.error(`Error saving race ${race.id}:`, error);
@@ -646,8 +767,8 @@ export class DataService {
   }
 
   deleteRace(id: string): boolean {
-    const filePath = this.findRaceFile(id);
-    if (!filePath) {
+    const filePath = this.getRaceFilePath(id);
+    if (!fs.existsSync(filePath)) {
       return false;
     }
 

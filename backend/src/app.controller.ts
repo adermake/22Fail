@@ -692,31 +692,31 @@ export class AppController {
     const stressCharIds = allCharIds.filter(id => id.startsWith('stress_char_'));
 
     for (const charId of stressCharIds) {
-      // We need to delete the files directly
+      // Delete character file (now just id.json)
       const charactersDir = path.join(__dirname, '../../../characters');
-      const files = fs.readdirSync(charactersDir);
-      const matchingFiles = files.filter(file => 
-        file.endsWith(`-${charId}.json`) || file === `${charId}.json`
-      );
-      
-      for (const file of matchingFiles) {
-        const filePath = path.join(charactersDir, file);
+      const filePath = path.join(charactersDir, `${charId}.json`);
+      if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
     }
 
-    // Delete worlds - delete the actual files
+    // Delete worlds - delete the entire world directories
     const worldNames = this.dataService.getAllWorldNames();
     const stressWorldNames = worldNames.filter(name => name.startsWith('StressWorld_'));
 
     const worldsDir = path.join(__dirname, '../../../worlds');
     for (const worldName of stressWorldNames) {
-      const files = fs.readdirSync(worldsDir);
-      const matchingFiles = files.filter(file => file.includes(worldName));
+      // Sanitize world name to match directory name
+      const safeName = worldName
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+        .replace(/\s+/g, '_')
+        .replace(/\.+/g, '_')
+        .substring(0, 200);
       
-      for (const file of matchingFiles) {
-        const filePath = path.join(worldsDir, file);
-        fs.unlinkSync(filePath);
+      const worldDirPath = path.join(worldsDir, safeName);
+      if (fs.existsSync(worldDirPath)) {
+        // Delete the entire world directory recursively
+        fs.rmSync(worldDirPath, { recursive: true, force: true });
       }
     }
 

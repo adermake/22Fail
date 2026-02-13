@@ -13,13 +13,49 @@ Frontend: Angular 21 (standalone, signals) | Backend: NestJS 11 | Real-time: Soc
 - Path uses dot notation, supports array indexing
 
 ## DATA STORAGE
-**NEW STRUCTURE (Feb 2026):**
-- characters/ folder: Individual JSON files per character (CharacterName-characterId.json)
-- worlds/ folder: Individual JSON files per world (WorldName.json)
-- races/ folder: Individual JSON files per race (RaceName-raceId.json)
-- All folders are outside backend/, at root level
-- Files are named with readable names for easy identification
-- Atomic file writes, no database
+**NEW DIRECTORY-BASED STRUCTURE (Feb 2026):**
+
+### Philosophy
+- Entity-based file organization: Each logical entity gets its own file
+- Human-readable structure: Easy to inspect, backup, and manage
+- URL-driven identity: File names based on URL identifiers, not internal data
+- No monolithic JSON: No large files with nested arrays
+
+### Storage Layout
+```
+characters/
+  {characterId}.json           # e.g., abc123.json, def456.json
+  
+worlds/
+  {worldName}/                 # e.g., test/, testWorld/
+    world.json                 # Core world data (name, characterIds, partyIds, battleLoot, etc.)
+    lobby.json                 # Lobby configuration  
+    items/
+      {itemId}.json            # Individual item files
+    spells/
+      {spellId}.json           # Individual spell files
+    runes/
+      {runeId}.json            # Individual rune files
+    skills/
+      {skillId}.json           # Individual skill files
+    loot-bundles/
+      {bundleId}.json          # Individual loot bundle files
+    maps/
+      {mapId}/                 # Each map gets its own folder
+        map.json               # Map data (tokens, images, strokes, etc.)
+        
+races/
+  {raceId}.json                # e.g., race_123.json, race_456.json
+
+textures.json                  # Global texture library (root level)
+```
+
+### Key Principles
+1. **Characters are global**: Not tied to a specific world, can be in multiple worlds
+2. **URL determines filename**: /characters/abc → abc.json, /world/testWorld → worlds/testWorld/
+3. **Name field irrelevant**: Character/world name inside JSON doesn't affect filename
+4. **Atomic file operations**: Each entity saved independently
+5. **Easy backup/delete**: Copy/remove individual files or entire world folders
 
 **IMPORTANT - LOCAL vs SERVER DATA:**
 - Local repository data is for DEVELOPMENT/TESTING only
