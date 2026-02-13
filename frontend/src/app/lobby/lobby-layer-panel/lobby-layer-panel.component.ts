@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -28,8 +28,11 @@ export class LobbyLayerPanelComponent implements OnChanges {
   editingLayerId: string | null = null;
   editingName = '';
 
-  ngOnChanges(): void {
-    console.log('[LayerPanel] ngOnChanges - Received', this.layers.length, 'layers:', this.layers.map(l => l.name));
+  ngOnChanges(changes: SimpleChanges): void {
+    // Only log when layers changed to avoid spamming during drag operations
+    if (changes['layers']) {
+      console.log('[LayerPanel] ngOnChanges - Received', this.layers.length, 'layers:', this.layers.map(l => l.name));
+    }
   }
 
   get sortedLayers(): Layer[] {

@@ -12,6 +12,7 @@ import { LobbyApiService } from './lobby-api.service';
 import { LobbySocketService } from './lobby-socket.service';
 import { ImageService } from './image.service';
 import { TextureService } from './texture.service';
+import { MapStorageService } from './map-storage.service';
 import {
   LobbyData,
   LobbyMap,
@@ -39,6 +40,7 @@ export class LobbyStoreService {
   private socket = inject(LobbySocketService);
   private imageService = inject(ImageService);
   private textureService = inject(TextureService);
+  private mapStorage = inject(MapStorageService);
 
   // Core state
   private lobbySubject = new BehaviorSubject<LobbyData | null>(null);
@@ -66,6 +68,10 @@ export class LobbyStoreService {
   private pendingImageUpdates = new Map<string, Partial<Omit<MapImage, 'id' | 'imageId'>>>();
   private imageUpdateTimeout: any = null;
   private readonly IMAGE_UPDATE_DEBOUNCE_MS = 100; // Debounce image transforms during drag
+
+  // Auto-save to filesystem
+  private autoSaveTimeout: any = null;
+  private readonly AUTO_SAVE_DELAY = 5000; // 5 seconds after last change
 
   // ============================================
   // Getters
@@ -1184,6 +1190,9 @@ export class LobbyStoreService {
       this.api.saveLobby(this.worldName, lobby).catch(err => {
         console.error('[LobbyStore] Failed to save:', err);
       });
+      
+      // Schedule filesystem auto-save (debounced)
+      this.scheduleAutoSave();
     }
 
     // Ensure socket is connected before broadcasting (async, don't block)
@@ -1250,5 +1259,86 @@ export class LobbyStoreService {
     } else {
       current[finalKey] = patch.value;
     }
+  }
+
+  // ============================================
+  // Filesystem Auto-Save (NEW)
+  // ============================================
+
+  /**
+   * Schedule an auto-save of the current map to filesystem.
+   * Debounced to avoid overwhelming the filesystem with writes.
+   */
+  private scheduleAutoSave(): void {
+    if (this.autoSaveTimeout) {
+      clearTimeout(this.autoSaveTimeout);
+    }
+
+    this.autoSaveTimeout = setTimeout(() => {
+      this.performAutoSave();
+      this.autoSaveTimeout = null;
+    }, this.AUTO_SAVE_DELAY);
+  }
+
+  /**
+   * Perform the actual filesystem save.
+   */
+  private async performAutoSave(): Promise<void> {
+    const map = this.currentMap;
+    if (!map || !this.worldName) {
+      return;
+    }
+
+    try {
+      const success = await this.mapStorage.saveMap(this.worldName, map.name, map);
+      if (success) {
+        console.log('[LobbyStore] 💾 Map auto-saved to filesystem:', this.worldName, '/', map.name);
+      } else {
+        console.warn('[LobbyStore] ⚠️ Auto-save failed');
+      }
+    } catch (error) {
+      console.error('[LobbyStore] ❌ Auto-save error:', error);
+    }
+  }
+
+  /**
+   * Manually save the current map to filesystem (for user-triggered saves).
+   */
+  async manualSave(): Promise<boolean> {
+    const map = this.currentMap;
+    if (!map || !this.worldName) {
+      return false;
+    }
+
+    // Cancel any pending auto-save
+    if (this.autoSaveTimeout) {
+      clearTimeout(this.autoSaveTimeout);
+      this.autoSaveTimeout = null;
+    }
+
+    return await this.mapStorage.saveMap(this.worldName, map.name, map);
+  }
+
+  /**
+   * Create a backup of the current map.
+   */
+  async createBackup(): Promise<boolean> {
+    const map = this.currentMap;
+    if (!map || !this.worldName) {
+      return false;
+    }
+
+    // Save current state first
+    await this.manualSave();
+
+    // Then create backup
+    return await this.mapStorage.backupMap(this.worldName, map.name);
+  }
+
+  /**
+   * Load a map from filesystem (fallback if WebSocket/API fails).
+   */
+  async loadFromFilesystem(worldName: string, mapName: string): Promise<LobbyMap | null> {
+    return await this.mapStorage.loadMap(worldName, mapName);
   }
 }

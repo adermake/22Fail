@@ -753,9 +753,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
       for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
-        const tileKey = `${tileX},${tileY}`;
+        const tileKey = this.getTileKey(tileX, tileY, layerId);
+        const coordKey = `${tileX},${tileY}`;
         
-        if (layerTileKeys.has(tileKey)) {
+        if (layerTileKeys.has(coordKey)) {
           const tile = this.textureTiles.get(tileKey);
           
           if (tile) {
@@ -1448,8 +1449,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // Tile-Based Texture System
   // ============================================
 
-  private getTileKey(tileX: number, tileY: number): string {
-    return `${tileX},${tileY}`;
+  private getTileKey(tileX: number, tileY: number, layerId?: string): string {
+    return layerId ? `${layerId}:${tileX},${tileY}` : `${tileX},${tileY}`;
   }
 
   private worldToTile(worldX: number, worldY: number): { tileX: number; tileY: number } {
@@ -1459,13 +1460,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     };
   }
 
-  private getTileAtWorld(worldX: number, worldY: number): HTMLCanvasElement | null {
+  private getTileAtWorld(worldX: number, worldY: number, layerId?: string): HTMLCanvasElement | null {
     const { tileX, tileY } = this.worldToTile(worldX, worldY);
-    return this.textureTiles.get(this.getTileKey(tileX, tileY)) || null;
+    return this.textureTiles.get(this.getTileKey(tileX, tileY, layerId)) || null;
   }
 
-  private getOrCreateTile(tileX: number, tileY: number): HTMLCanvasElement {
-    const key = this.getTileKey(tileX, tileY);
+  private getOrCreateTile(tileX: number, tileY: number, layerId?: string): HTMLCanvasElement {
+    const key = this.getTileKey(tileX, tileY, layerId);
     let tile = this.textureTiles.get(key);
     
     if (!tile) {
@@ -1588,7 +1589,19 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Upload all tiles in parallel (fast), but send update ONCE at end (prevents race conditions)
     const uploadPromises = this.tileSaveQueue.map(async (key) => {
       this.savingTiles.add(key);
-      const [x, y] = key.split(',').map(Number);
+      
+      // Parse key: format is either "x,y" or "layerId:x,y"
+      let layerId: string | undefined;
+      let x: number, y: number;
+      
+      if (key.includes(':')) {
+        const [layerPart, coords] = key.split(':');
+        layerId = layerPart;
+        [x, y] = coords.split(',').map(Number);
+      } else {
+        [x, y] = key.split(',').map(Number);
+      }
+      
       const tile = this.textureTiles.get(key);
       
       if (!tile) {
@@ -1603,7 +1616,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         this.savingTiles.delete(key);
         this.tileDataVersions.set(key, imageId);
         console.log(`[Texture] ✅ Uploaded tile ${key}`);
-        return { x, y, imageId, key };
+        return { x, y, imageId, key, layerId };
       } catch (e) {
         console.error('[Tiles] Failed to upload tile:', key, e);
         this.savingTiles.delete(key);
@@ -1616,27 +1629,22 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     // Wait for ALL uploads
     const results = await Promise.all(uploadPromises);
-    const uploaded = results.filter(r => r !== null) as { x: number; y: number; imageId: string }[];
+    const uploaded = results.filter(r => r !== null) as { x: number; y: number; imageId: string; layerId?: string }[];
 
     // Send single update with all tiles
     if (uploaded.length > 0 && this.map) {
       const currentMap = this.map;
       const existingTiles = currentMap.textureTiles || [];
-      const tileMap = new Map(existingTiles.map(t => [`${t.x},${t.y}`, t]));
-      
-      // Get active layer ID for new tiles (find first texture layer if not set)
-      let activeLayerId = currentMap.activeLayerId;
-      if (!activeLayerId && currentMap.layers && currentMap.layers.length > 0) {
-        const textureLayer = currentMap.layers.find(l => l.type === 'texture');
-        activeLayerId = textureLayer?.id;
-      }
+      // Build map with layerId included in key to support multiple layers at same x,y
+      const tileMap = new Map(existingTiles.map(t => [`${t.layerId || 'default'}:${t.x},${t.y}`, t]));
       
       for (const tile of uploaded) {
-        tileMap.set(`${tile.x},${tile.y}`, { 
+        const layerKey = `${tile.layerId || 'default'}:${tile.x},${tile.y}`;
+        tileMap.set(layerKey, { 
           x: tile.x, 
           y: tile.y, 
           imageId: tile.imageId,
-          layerId: activeLayerId || undefined
+          layerId: tile.layerId || undefined
         });
       }
 
@@ -1946,12 +1954,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       tileRange: { minTile, maxTile }
     });
     
+    // Get active layer for these tiles
+    const activeLayerId = this.map?.activeLayerId;
+    
     // Copy stroke canvas to affected tiles
     for (let tileY = minTile.tileY; tileY <= maxTile.tileY; tileY++) {
       for (let tileX = minTile.tileX; tileX <= maxTile.tileX; tileX++) {
-        const tile = this.getOrCreateTile(tileX, tileY);
+        const tile = this.getOrCreateTile(tileX, tileY, activeLayerId);
         const ctx = tile.getContext('2d')!;
-        const tileKey = this.getTileKey(tileX, tileY);
+        const tileKey = this.getTileKey(tileX, tileY, activeLayerId);
         
         // Mark tile as dirty
         this.dirtyTiles.add(tileKey);
@@ -2104,12 +2115,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const minTile = this.worldToTile(minX, minY);
     const maxTile = this.worldToTile(maxX, maxY);
     
+    // Get active layer for drawing
+    const activeLayerId = this.map?.activeLayerId;
+    
     // Process each affected tile
     for (let tileY = minTile.tileY; tileY <= maxTile.tileY; tileY++) {
       for (let tileX = minTile.tileX; tileX <= maxTile.tileX; tileX++) {
-        const tile = this.getOrCreateTile(tileX, tileY);
+        const tile = this.getOrCreateTile(tileX, tileY, activeLayerId);
         const ctx = tile.getContext('2d')!;
-        const tileKey = this.getTileKey(tileX, tileY);
+        const tileKey = this.getTileKey(tileX, tileY, activeLayerId);
         
         // Mark tile as dirty for later save
         this.dirtyTiles.add(tileKey);
@@ -2915,6 +2929,57 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   onPaletteSlotDragOver(event: DragEvent): void {
     event.preventDefault();
     event.dataTransfer!.dropEffect = 'copy';
+  }
+
+  /**
+   * UI handler for saving current palette as a preset
+   */
+  onSavePalettePreset(): void {
+    const presetName = prompt('Enter preset name:');
+    if (presetName && presetName.trim()) {
+      this.savePalettePreset(presetName.trim());
+      alert(`Preset "${presetName}" saved!`);
+    }
+  }
+
+  /**
+   * UI handler for loading a palette preset
+   */
+  async onLoadPalettePreset(): Promise<void> {
+    const presets = this.getPalettePresetNames();
+    if (presets.length === 0) {
+      alert('No saved presets found');
+      return;
+    }
+
+    // Build selection message
+    let message = 'Select preset to load:\n\n';
+    presets.forEach((name, index) => {
+      message += `${index + 1}. ${name}\n`;
+    });
+    message += `\nEnter number (1-${presets.length}), or type name:`;
+
+    const selection = prompt(message);
+    if (!selection) return;
+
+    // Try to parse as number first
+    const num = parseInt(selection);
+    let presetName: string;
+    
+    if (!isNaN(num) && num >= 1 && num <= presets.length) {
+      presetName = presets[num - 1];
+    } else {
+      presetName = selection.trim();
+    }
+
+    // Verify preset exists
+    if (!presets.includes(presetName)) {
+      alert(`Preset "${presetName}" not found`);
+      return;
+    }
+
+    await this.loadPalettePreset(presetName);
+    alert(`Loaded preset "${presetName}"`);
   }
 
   /**

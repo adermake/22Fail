@@ -38,6 +38,23 @@
           }
         </div>
       }
+      
+      <!-- Palette Preset Controls -->
+      <div class="palette-preset-controls">
+        <button 
+          class="palette-preset-btn"
+          (click)="onSavePalettePreset()"
+          title="Save current palette as preset">
+          💾
+        </button>
+        <button 
+          class="palette-preset-btn"
+          (click)="onLoadPalettePreset()"
+          title="Load saved palette preset"
+          [disabled]="getPalettePresetNames().length === 0">
+          📂
+        </button>
+      </div>
     </div>
   }
 
