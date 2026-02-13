@@ -13,9 +13,19 @@ Frontend: Angular 21 (standalone, signals) | Backend: NestJS 11 | Real-time: Soc
 - Path uses dot notation, supports array indexing
 
 ## DATA STORAGE
-- backend/data.json: {characterId: JSON.stringify(CharacterSheet)}
-- backend/worlds.json: {worldName: JSON.stringify(WorldData)}
+**NEW STRUCTURE (Feb 2026):**
+- characters/ folder: Individual JSON files per character (CharacterName-characterId.json)
+- worlds/ folder: Individual JSON files per world (WorldName.json)
+- races/ folder: Individual JSON files per race (RaceName-raceId.json)
+- All folders are outside backend/, at root level
+- Files are named with readable names for easy identification
 - Atomic file writes, no database
+
+**IMPORTANT - LOCAL vs SERVER DATA:**
+- Local repository data is for DEVELOPMENT/TESTING only
+- Real production data lives ONLY on the deployed server
+- Local characters/, worlds/, races/ folders should be kept empty in git
+- Do not confuse local test data with actual server data
 
 ## ROUTING
 /characters/:id → SheetComponent (player view) - auto-creates if missing

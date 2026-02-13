@@ -18,3 +18,9 @@ build/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Data folders - keep empty in git
+characters/
+worlds/
+races/
+
