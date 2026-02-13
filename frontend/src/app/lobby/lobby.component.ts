@@ -129,8 +129,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
     }));
   });
 
-  // Computed: image library
-  imageLibrary = computed(() => this.lobby()?.imageLibrary || []);
+  // Computed: image library (NOW FROM GLOBAL STORE, NOT LOBBY DATA)
+  imageLibrary = this.store.imageLibraryReadonly;
   textureLibrary = this.store.textureLibrary;
 
   // Computed: map list for management

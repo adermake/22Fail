@@ -286,11 +286,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
 
-    // Ctrl+Z for undo (works for both draw tool and texture tool)
+    // Ctrl+Z for undo (tool-specific to prevent interference)
     if (event.ctrlKey && event.key === 'z') {
       event.preventDefault();
-      // Try texture undo first (more recent), then stroke undo
-      if (!this.store.undoTextureTiles()) {
+      // Only undo for current tool to prevent strokes from disappearing
+      if (this.currentTool === 'texture') {
+        this.store.undoTextureTiles();
+      } else if (this.currentTool === 'draw') {
         this.store.undoStroke();
       }
       this.scheduleRender();
@@ -879,30 +881,29 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
       ctx.lineWidth = 2;
     } else if (isWall) {
-      // Use adaptive color for walls based on pixel under hex center
+      // Use adaptive color for walls - more subtle with red tint
       const wallColor = this.getComplementaryWallColor(center);
       ctx.fillStyle = wallColor.fill;
       ctx.fill();
       ctx.strokeStyle = wallColor.stroke;
-      ctx.lineWidth = Math.max(1.5, 2 / this.scale); // More visible wall lines
+      ctx.lineWidth = Math.max(1.5, 2 / this.scale);
       ctx.stroke();
       
-      // Add 3 diagonal lines inside wall hexagon for clarity
-      ctx.strokeStyle = wallColor.stroke;
-      ctx.lineWidth = Math.max(1, 1.5 / this.scale);
-      const hexWidth = HexMath.hexWidth;
-      const hexHeight = HexMath.hexHeight;
-      const radius = Math.min(hexWidth, hexHeight) * 0.4; // Use smaller dimension
+      // Draw inner hexagon instead of diagonal lines (clearer and more elegant)
+      const innerRadius = 0.7; // 70% of outer hexagon size
+      const innerCorners = HexMath.getHexCorners(center).map(corner => ({
+        x: center.x + (corner.x - center.x) * innerRadius,
+        y: center.y + (corner.y - center.y) * innerRadius
+      }));
+      
       ctx.beginPath();
-      // Line 1: top-left to bottom-right
-      ctx.moveTo(center.x - radius, center.y - radius);
-      ctx.lineTo(center.x + radius, center.y + radius);
-      // Line 2: top-right to bottom-left
-      ctx.moveTo(center.x + radius, center.y - radius);
-      ctx.lineTo(center.x - radius, center.y + radius);
-      // Line 3: horizontal through center
-      ctx.moveTo(center.x - radius, center.y);
-      ctx.lineTo(center.x + radius, center.y);
+      ctx.moveTo(innerCorners[0].x, innerCorners[0].y);
+      for (let i = 1; i < innerCorners.length; i++) {
+        ctx.lineTo(innerCorners[i].x, innerCorners[i].y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = wallColor.stroke;
+      ctx.lineWidth = Math.max(1, 1.2 / this.scale);
       ctx.stroke();
       return; // Skip normal stroke (already drawn)
     } else {
@@ -1008,20 +1009,22 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Calculate luminance
     const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
     
-    // Walls should be VERY prominent - much more visible than grid
+    // Walls: more subtle with red tint
     if (luminance < 128) {
-      // Dark background: lighter walls with high opacity
-      const lightness = Math.min(255, luminance + 140);
+      // Dark background: lighter walls with red tint
+      const lightness = Math.min(255, luminance + 100);
+      const red = Math.min(255, lightness + 40); // Add red tint
       return {
-        fill: `rgba(${lightness}, ${lightness}, ${lightness}, 0.6)`,
-        stroke: `rgba(${lightness}, ${lightness}, ${lightness}, 0.9)`
+        fill: `rgba(${red}, ${lightness * 0.85}, ${lightness * 0.85}, 0.35)`,
+        stroke: `rgba(${red}, ${lightness * 0.85}, ${lightness * 0.85}, 0.65)`
       };
     } else {
-      // Light background: darker walls with high opacity
-      const darkness = Math.max(0, luminance - 140);
+      // Light background: darker walls with red tint
+      const darkness = Math.max(0, luminance - 100);
+      const red = Math.min(255, darkness + 60); // Add red tint
       return {
-        fill: `rgba(${darkness}, ${darkness}, ${darkness}, 0.6)`,
-        stroke: `rgba(${darkness}, ${darkness}, ${darkness}, 0.9)`
+        fill: `rgba(${red}, ${darkness * 0.85}, ${darkness * 0.85}, 0.35)`,
+        stroke: `rgba(${red}, ${darkness * 0.85}, ${darkness * 0.85}, 0.65)`
       };
     }
   }
@@ -2884,6 +2887,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   onPaletteSlotDrop(event: DragEvent, index: number): void {
     event.preventDefault();
+    event.stopPropagation(); // Prevent event from bubbling up
     const textureId = event.dataTransfer?.getData('textureId');
     const textureName = event.dataTransfer?.getData('textureName');
     
@@ -5140,13 +5144,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   onCreateQuickToken(): void {
-    // Implementation for quick token creation
     const rect = this.contextMenuPos();
     if (rect) {
       const world = this.screenToWorld(rect.x, rect.y);
       const hex = HexMath.pixelToHex(world);
-      // Emit event to create token at this hex position
-      // This would need to be wired up to the parent component
+      
+      // Emit event to create quick token at this hex position
+      this.quickTokenDrop.emit({
+        name: 'Quick Token',
+        portrait: '',
+        position: hex
+      });
     }
     this.closeContextMenu();
   }
