@@ -76,9 +76,16 @@
         [isCurrentTurn]="false"
         [isInteractive]="currentTool === 'cursor'"
         [isDragging]="draggingToken?.id === token.id"
+        [resources]="getTokenResources(token.characterId)"
+        [showResources]="isPartyMember(token.characterId)"
         (dragStart)="onTokenDragStart(token, $event)"
         (contextMenu)="onTokenContextMenu(token, $event)"
       />
+    }
+    
+    <!-- Dice Roll Popup -->
+    @if (activeRollPopup) {
+      <app-dice-roll-popup [popup]="activeRollPopup" />
     }
     
     <!-- Ghost token at start position -->

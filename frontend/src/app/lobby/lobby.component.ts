@@ -7,7 +7,7 @@
  * URL: /lobby/:worldName
  */
 
-import { Component, OnInit, OnDestroy, HostListener, inject, signal, computed, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ViewChild, inject, signal, computed, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -15,6 +15,7 @@ import { Subscription } from 'rxjs';
 
 import { LobbyStoreService } from '../services/lobby-store.service';
 import { WorldStoreService } from '../services/world-store.service';
+import { WorldSocketService, DiceRollEvent } from '../services/world-socket.service';
 import { CharacterApiService } from '../services/character-api.service';
 import { ImageService } from '../services/image.service';
 import { TextureService } from '../services/texture.service';
@@ -25,6 +26,7 @@ import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
 import { LobbyToolbarComponent } from './lobby-toolbar/lobby-toolbar.component';
 import { LobbySidebarComponent } from './lobby-sidebar/lobby-sidebar.component';
 import { LobbyLayerPanelComponent } from './lobby-layer-panel/lobby-layer-panel.component';
+import { RollTimelineComponent } from './roll-timeline/roll-timeline.component';
 import { BattleTracker } from '../world/battle-tracker/battle-tracker.component';
 import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engine';
 
@@ -42,6 +44,7 @@ export type DragMode = 'free' | 'enforced';
     LobbyToolbarComponent,
     LobbySidebarComponent,
     LobbyLayerPanelComponent,
+    RollTimelineComponent,
     BattleTracker,
   ],
   templateUrl: './lobby.component.html',
@@ -52,10 +55,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   store = inject(LobbyStoreService);
   private worldStore = inject(WorldStoreService);
+  private worldSocket = inject(WorldSocketService);
   private characterApi = inject(CharacterApiService);
   private imageService = inject(ImageService);
   private textureService = inject(TextureService);
   private cdr = inject(ChangeDetectorRef);
+
+  @ViewChild(LobbyGridComponent) gridComponent?: LobbyGridComponent;
 
   private subscriptions: Subscription[] = [];
 
@@ -69,6 +75,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   // World state
   worldCharacters = signal<{ id: string; sheet: CharacterSheet }[]>([]);
+
+  // Dice roll history
+  rollHistory = signal<DiceRollEvent[]>([]);
 
   // Tool state
   currentTool = signal<ToolType>('cursor');
@@ -209,6 +218,34 @@ export class LobbyComponent implements OnInit, OnDestroy {
         if (lobby?.activeMapId) {
           this.currentMapId.set(lobby.activeMapId);
         }
+        this.cdr.markForCheck();
+      })
+    );
+
+    // Subscribe to dice roll events
+    this.subscriptions.push(
+      this.worldSocket.diceRoll$.subscribe((roll) => {
+        console.log('[Lobby] Received dice roll:', roll);
+        
+        // Add to history (keep last 20 rolls)
+        this.rollHistory.update(history => {
+          const updated = [roll, ...history];
+          return updated.slice(0, 20);
+        });
+
+        // Show popup over token if visible on current map
+        if (this.gridComponent) {
+          this.gridComponent.showDiceRollPopup(roll.characterId, {
+            id: roll.id,
+            characterName: roll.characterName,
+            diceType: roll.diceType,
+            diceCount: roll.diceCount,
+            rolls: roll.rolls,
+            total: roll.result,
+            bonuses: roll.bonuses
+          });
+        }
+
         this.cdr.markForCheck();
       })
     );

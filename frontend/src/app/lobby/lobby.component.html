@@ -63,6 +63,7 @@
       <app-lobby-grid
         [map]="currentMap()"
         [tokens]="enrichedTokens()"
+        [worldCharacters]="worldCharacters()"
         [currentTool]="currentTool()"
         [brushColor]="brushColor()"
         [penBrushSize]="penBrushSize()"
@@ -203,3 +204,6 @@
     </div>
   </div>
 }
+
+<!-- Roll Timeline -->
+<app-roll-timeline [rolls]="rollHistory()" />

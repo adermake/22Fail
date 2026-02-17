@@ -37,7 +37,9 @@ import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId
 import { LobbyStoreService } from '../../services/lobby-store.service';
 import { ImageService } from '../../services/image.service';
 import { TextureService } from '../../services/texture.service';
-import { LobbyTokenComponent } from '../lobby-token/lobby-token.component';
+import { LobbyTokenComponent, TokenResources } from '../lobby-token/lobby-token.component';
+import { DiceRollPopupComponent, DiceRollPopup } from '../dice-roll-popup/dice-roll-popup.component';
+import { CharacterSheet } from '../../model/character-sheet-model';
 import { ToolType, DragMode } from '../lobby.component';
 
 // Texture palette entry interface
@@ -57,7 +59,7 @@ interface TexturePaletteEntry {
 @Component({
   selector: 'app-lobby-grid',
   standalone: true,
-  imports: [CommonModule, LobbyTokenComponent],
+  imports: [CommonModule, LobbyTokenComponent, DiceRollPopupComponent],
   templateUrl: './lobby-grid.component.html',
   styleUrls: ['./lobby-grid.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -75,6 +77,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // Inputs
   @Input() map: LobbyMap | null = null;
   @Input() tokens: Token[] = [];
+  @Input() worldCharacters: { id: string; sheet: CharacterSheet }[] = []; // For resources
   @Input() currentTool: ToolType = 'cursor';
   @Input() brushColor = '#000000';
   @Input() penBrushSize = 4;
@@ -98,6 +101,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // Outputs
   @Output() tokenDrop = new EventEmitter<{ characterId: string; position: HexCoord }>();
+  
+  // Dice roll popup state
+  activeRollPopup: DiceRollPopup | null = null;
+  private rollPopupTimeout?: any;
   @Output() tokenMove = new EventEmitter<{ tokenId: string; position: HexCoord }>();
   @Output() tokenRemove = new EventEmitter<string>();
   @Output() quickTokenDrop = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
@@ -5202,6 +5209,144 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       // Check if image center is within box
       if (img.x >= minX && img.x <= maxX && img.y >= minY && img.y <= maxY) {
         selectedIds.push(img.id);
+      }
+    }
+
+    return selectedIds;
+  }
+
+  // ===================================================================
+  // RESOURCE TRACKING & DICE ROLL POPUPS
+  // ===================================================================
+
+  /**
+   * Get character resources for a token
+   */
+  getTokenResources(characterId: string): TokenResources | null {
+    const character = this.worldCharacters.find(c => c.id === characterId);
+    if (!character) return null;
+
+    const sheet = character.sheet;
+    return {
+      health: {
+        current: sheet.currentHealth || 0,
+        max: this.calculateMaxHealth(sheet)
+      },
+      mana: {
+        current: sheet.currentMana || 0,
+        max: this.calculateMaxMana(sheet)
+      },
+      energy: {
+        current: sheet.currentEnergy || 0,
+        max: this.calculateMaxEnergy(sheet)
+      }
+    };
+  }
+
+  /**
+   * Check if a character is a party member (player character)
+   */
+  isPartyMember(characterId: string): boolean {
+    // For now, consider all characters with sheets as party members
+    // You might want to add a field to CharacterSheet to explicitly mark NPCs
+    const character = this.worldCharacters.find(c => c.id === characterId);
+    return character !== null;
+  }
+
+  /**
+   * Calculate max health from character sheet
+   */
+  private calculateMaxHealth(sheet: CharacterSheet): number {
+    const base = sheet.health?.base || 0;
+    const bonus = sheet.health?.bonus || 0;
+    return base + bonus;
+  }
+
+  /**
+   * Calculate max mana from character sheet
+   */
+  private calculateMaxMana(sheet: CharacterSheet): number {
+    const base = sheet.mana?.base || 0;
+    const bonus = sheet.mana?.bonus || 0;
+    return base + bonus;
+  }
+
+  /**
+   * Calculate max energy from character sheet
+   */
+  private calculateMaxEnergy(sheet: CharacterSheet): number {
+    const base = sheet.energy?.base || 0;
+    const bonus = sheet.energy?.bonus || 0;
+    return base + bonus;
+  }
+
+  /**
+   * Show a dice roll popup over a token
+   * This should be called from the parent lobby component when a roll event is received
+   */
+  showDiceRollPopup(
+    characterId: string,
+    roll: {
+      id: string;
+      characterName: string;
+      diceType: number;
+      diceCount: number;
+      rolls: number[];
+      total: number;
+      bonuses: { name: string; value: number }[];
+      formula?: string;
+      actionName?: string;
+      actionColor?: string;
+    }
+  ): void {
+    // Find the token for this character
+    const token = this.tokens.find(t => t.characterId === characterId);
+    if (!token) return;
+
+    // Get token screen position
+    const screenPos = this.getTokenScreenPosition(token);
+
+    // Create popup
+    this.activeRollPopup = {
+      id: roll.id,
+      characterName: roll.characterName,
+      characterId: characterId,
+      diceType: roll.diceType,
+      diceCount: roll.diceCount,
+      rolls: roll.rolls,
+      total: roll.total,
+      bonuses: roll.bonuses,
+      position: screenPos,
+      formula: roll.formula,
+      actionName: roll.actionName,
+      actionColor: roll.actionColor,
+      timestamp: new Date()
+    };
+
+    // Clear existing timeout
+    if (this.rollPopupTimeout) {
+      clearTimeout(this.rollPopupTimeout);
+    }
+
+    // Auto-hide after 4 seconds
+    this.rollPopupTimeout = setTimeout(() => {
+      this.activeRollPopup = null;
+      this.cdr.detectChanges();
+    }, 4000);
+
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Clear the active roll popup
+   */
+  clearRollPopup(): void {
+    this.activeRollPopup = null;
+    if (this.rollPopupTimeout) {
+      clearTimeout(this.rollPopupTimeout);
+      this.rollPopupTimeout = undefined;
+    }
+    this.cdr.detectChanges;
       }
     }
 

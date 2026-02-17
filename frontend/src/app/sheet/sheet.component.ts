@@ -487,11 +487,37 @@ export class SheetComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  // Handle rolls from action macros - sync with dice roller history
+  // Handle rolls from action macros - sync with dice roller history and broadcast to world
   handleActionRoll(results: RollResult[]) {
     // Store the roll results for syncing with dice roller
     // The dice roller can read these when opened
     localStorage.setItem('action-roll-results', JSON.stringify(results));
+
+    // Broadcast each roll to the world via socket
+    const sheet = this.store.sheetValue;
+    if (sheet && sheet.worldName) {
+      for (const roll of results) {
+        // Parse the formula to extract dice info
+        const formulaParts = roll.formula.match(/(\d+)d(\d+)/i);
+        const diceCount = formulaParts ? parseInt(formulaParts[1]) : 1;
+        const diceType = formulaParts ? parseInt(formulaParts[2]) : 20;
+
+        this.worldSocketService.sendDiceRoll({
+          id: roll.id,
+          worldName: sheet.worldName,
+          characterName: sheet.name,
+          characterId: sheet.id || '',
+          diceType,
+          diceCount,
+          bonuses: [], // Action macros pre-calculate the result
+          result: roll.total,
+          rolls: roll.rolls,
+          timestamp: new Date(),
+          isSecret: false
+        });
+      }
+    }
+
     this.cdr.markForCheck();
   }
 

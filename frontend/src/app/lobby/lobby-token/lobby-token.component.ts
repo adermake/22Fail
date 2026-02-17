@@ -10,6 +10,12 @@ import { CommonModule } from '@angular/common';
 import { Token, Point } from '../../model/lobby.model';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
+export interface TokenResources {
+  health: { current: number; max: number };
+  mana: { current: number; max: number };
+  energy: { current: number; max: number };
+}
+
 @Component({
   selector: 'app-lobby-token',
   standalone: true,
@@ -20,6 +26,7 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       [class.current-turn]="isCurrentTurn"
       [class.dragging]="isDragging"
       [class.non-interactive]="!isInteractive"
+      [class.show-resources]="showResources"
       [style.left.px]="position.x"
       [style.top.px]="position.y"
       [style.--team-color]="getTeamColor(token.team || 'default')"
@@ -47,6 +54,24 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
           </div>
         }
       </div>
+      
+      <!-- Resource Bars (only for party members) -->
+      @if (resources && showResources) {
+        <!-- Health Bar (bottom) -->
+        <div class="resource-bar health-bar" [style.--bar-percentage]="getPercentage(resources.health)">
+          <div class="bar-fill health-fill"></div>
+        </div>
+        
+        <!-- Energy Bar (bottom-left diagonal) -->
+        <div class="resource-bar energy-bar" [style.--bar-percentage]="getPercentage(resources.energy)">
+          <div class="bar-fill energy-fill"></div>
+        </div>
+        
+        <!-- Mana Bar (bottom-right diagonal) -->
+        <div class="resource-bar mana-bar" [style.--bar-percentage]="getPercentage(resources.mana)">
+          <div class="bar-fill mana-fill"></div>
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -119,6 +144,69 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
       color: #94a3b8;
       background: #1e293b;
     }
+
+    /* Resource Bars */
+    .resource-bar {
+      position: absolute;
+      height: 4px;
+      background: rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+      backdrop-filter: blur(2px);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .token-wrapper.show-resources .resource-bar {
+      opacity: 1;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: calc(var(--bar-percentage, 0) * 1%);
+      transition: width 0.3s ease-out;
+      box-shadow: 0 0 4px currentColor;
+    }
+
+    /* Health Bar - Bottom edge */
+    .health-bar {
+      bottom: 4px;
+      left: 15px;
+      right: 15px;
+      transform: skewX(-30deg);
+    }
+
+    .health-fill {
+      background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+      box-shadow: 0 0 6px #ef4444;
+    }
+
+    /* Mana Bar - Bottom-right diagonal */
+    .mana-bar {
+      bottom: 15px;
+      right: 3px;
+      width: 22px;
+      transform: rotate(60deg);
+      transform-origin: right center;
+    }
+
+    .mana-fill {
+      background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+      box-shadow: 0 0 6px #3b82f6;
+    }
+
+    /* Energy Bar - Bottom-left diagonal */
+    .energy-bar {
+      bottom: 15px;
+      left: 3px;
+      width: 22px;
+      transform: rotate(-60deg);
+      transform-origin: left center;
+    }
+
+    .energy-fill {
+      background: linear-gradient(90deg, #16a34a 0%, #22c55e 100%);
+      box-shadow: 0 0 6px #22c55e;
+    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -129,6 +217,8 @@ export class LobbyTokenComponent {
   @Input() isCurrentTurn = false;
   @Input() isInteractive = true;
   @Input() isDragging = false;
+  @Input() resources: TokenResources | null = null; // Character resources
+  @Input() showResources = false; // Only show for party members
 
   @Output() dragStart = new EventEmitter<MouseEvent>();
   @Output() contextMenu = new EventEmitter<MouseEvent>();
@@ -146,6 +236,11 @@ export class LobbyTokenComponent {
   getTeamColor(team: string): string {
     if (team === 'default' || !team) return '#475569';
     return this.teamColors[team] || '#475569';
+  }
+
+  getPercentage(resource: { current: number; max: number }): number {
+    if (resource.max === 0) return 0;
+    return Math.max(0, Math.min(100, (resource.current / resource.max) * 100));
   }
 
   onMouseDown(event: MouseEvent): void {
