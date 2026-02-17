@@ -542,7 +542,8 @@ export class SheetComponent implements OnInit {
 
     this.cdr.markForCheck();
   }
-Handle full action execution from action macros - broadcast to world
+
+  // Handle full action execution from action macros - broadcast to world
   handleActionExecution(execution: ActionExecution) {
     const sheet = this.store.sheetValue;
     if (!sheet || !sheet.worldName) return;

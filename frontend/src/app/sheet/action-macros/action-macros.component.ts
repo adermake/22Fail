@@ -230,6 +230,7 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
   @Output() executeMacro = new EventEmitter<ActionMacro>();
   @Output() rollPerformed = new EventEmitter<RollResult[]>(); // Sync with dice roller
   @Output() resourceChanged = new EventEmitter<{resource: string, amount: number}>(); // For applying changes
+  @Output() actionExecuted = new EventEmitter<ActionExecution>(); // Full action execution with resource changes
 
   // State
   macros = signal<ActionMacro[]>([]);
