@@ -88,6 +88,19 @@
       <app-dice-roll-popup [popup]="activeRollPopup" />
     }
     
+    <!-- Simple Floating Roll Number -->
+    @if (activeRollPopup) {
+      <div 
+        class="floating-roll-number"
+        [style.left.px]="activeRollPopup.position.x"
+        [style.top.px]="activeRollPopup.position.y"
+        [class.crit-success]="isCritSuccess(activeRollPopup)"
+        [class.crit-fail]="isCritFail(activeRollPopup)"
+      >
+        {{ activeRollPopup.total }}
+      </div>
+    }
+    
     <!-- Ghost token at start position -->
     @if (draggingToken && dragGhostPosition()) {
       <div 

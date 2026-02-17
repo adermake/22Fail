@@ -25,8 +25,7 @@ import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture } fr
 import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
 import { LobbyToolbarComponent } from './lobby-toolbar/lobby-toolbar.component';
 import { LobbySidebarComponent } from './lobby-sidebar/lobby-sidebar.component';
-import { LobbyLayerPanelComponent } from './lobby-layer-panel/lobby-layer-panel.component';
-import { RollTimelineComponent } from './roll-timeline/roll-timeline.component';
+import { LobbySidePanelComponent } from './lobby-side-panel/lobby-side-panel.component';
 import { BattleTracker } from '../world/battle-tracker/battle-tracker.component';
 import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engine';
 
@@ -43,8 +42,7 @@ export type DragMode = 'free' | 'enforced';
     LobbyGridComponent,
     LobbyToolbarComponent,
     LobbySidebarComponent,
-    LobbyLayerPanelComponent,
-    RollTimelineComponent,
+    LobbySidePanelComponent,
     BattleTracker,
   ],
   templateUrl: './lobby.component.html',
@@ -247,6 +245,15 @@ export class LobbyComponent implements OnInit, OnDestroy {
         }
 
         this.cdr.markForCheck();
+      })
+    );
+
+    // Subscribe to world patches to refresh character data when sheets are updated
+    this.subscriptions.push(
+      this.worldSocket.patches$.subscribe(async (patch) => {
+        console.log('[Lobby] Received world patch, refreshing character data');
+        // Refresh character data to sync resource bars
+        await this.loadWorldCharacters();
       })
     );
   }

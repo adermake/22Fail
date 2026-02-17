@@ -115,11 +115,12 @@
       </div>
     </div>
 
-    <!-- Layer Panel (right side) -->
-    <app-lobby-layer-panel
+    <!-- Side Panel (right side) - Layers for GM, Roll History for all -->
+    <app-lobby-side-panel
+      [isGM]="isGM()"
+      [rolls]="rollHistory()"
       [layers]="layers()"
       [activeLayerId]="activeLayerId()"
-      [isGM]="isGM()"
       (layerSelect)="onLayerSelect($event)"
       (layerToggleVisible)="onLayerToggleVisible($event)"
       (layerToggleLock)="onLayerToggleLock($event)"
@@ -204,6 +205,3 @@
     </div>
   </div>
 }
-
-<!-- Roll Timeline -->
-<app-roll-timeline [rolls]="rollHistory()" />

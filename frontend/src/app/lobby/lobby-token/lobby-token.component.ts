@@ -154,6 +154,7 @@ export interface TokenResources {
       backdrop-filter: blur(2px);
       opacity: 0;
       transition: opacity 0.3s;
+      border-radius: 2px;
     }
 
     .token-wrapper.show-resources .resource-bar {
@@ -165,14 +166,14 @@ export interface TokenResources {
       width: calc(var(--bar-percentage, 0) * 1%);
       transition: width 0.3s ease-out;
       box-shadow: 0 0 4px currentColor;
+      border-radius: 2px;
     }
 
-    /* Health Bar - Bottom edge */
+    /* Health Bar - Bottom edge (flat, no skew) */
     .health-bar {
-      bottom: 4px;
-      left: 15px;
-      right: 15px;
-      transform: skewX(-30deg);
+      bottom: 8px;
+      left: 18px;
+      right: 18px;
     }
 
     .health-fill {
@@ -180,12 +181,12 @@ export interface TokenResources {
       box-shadow: 0 0 6px #ef4444;
     }
 
-    /* Mana Bar - Bottom-right diagonal */
+    /* Mana Bar - Bottom-right diagonal aligned to hex wall */
     .mana-bar {
-      bottom: 15px;
-      right: 3px;
-      width: 22px;
-      transform: rotate(60deg);
+      bottom: 14px;
+      right: 8px;
+      width: 24px;
+      transform: rotate(-60deg);
       transform-origin: right center;
     }
 
@@ -194,12 +195,12 @@ export interface TokenResources {
       box-shadow: 0 0 6px #3b82f6;
     }
 
-    /* Energy Bar - Bottom-left diagonal */
+    /* Energy Bar - Bottom-left diagonal aligned to hex wall */
     .energy-bar {
-      bottom: 15px;
-      left: 3px;
-      width: 22px;
-      transform: rotate(-60deg);
+      bottom: 14px;
+      left: 8px;
+      width: 24px;
+      transform: rotate(60deg);
       transform-origin: left center;
     }
 

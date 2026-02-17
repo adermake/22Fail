@@ -502,6 +502,27 @@ export class SheetComponent implements OnInit {
         const diceCount = formulaParts ? parseInt(formulaParts[1]) : 1;
         const diceType = formulaParts ? parseInt(formulaParts[2]) : 20;
 
+        // Calculate bonuses from formula (total - dice rolls = bonuses)
+        const diceSum = roll.rolls.reduce((sum, die) => sum + die, 0);
+        const bonusValue = roll.total - diceSum;
+
+        // Create bonuses array with the action name as source
+        const bonuses: { name: string; value: number; source: string }[] = [];
+        if (bonusValue !== 0) {
+          bonuses.push({
+            name: 'Bonus',
+            value: bonusValue,
+            source: roll.name || 'Action'
+          });
+        } else if (roll.name) {
+          // Even if no numeric bonus, include the action name
+          bonuses.push({
+            name: roll.name,
+            value: 0,
+            source: roll.name
+          });
+        }
+
         this.worldSocket.sendDiceRoll({
           id: roll.id,
           worldName: sheet.worldName,
@@ -509,7 +530,7 @@ export class SheetComponent implements OnInit {
           characterId: sheet.id || '',
           diceType,
           diceCount,
-          bonuses: [], // Action macros pre-calculate the result
+          bonuses,
           result: roll.total,
           rolls: roll.rolls,
           timestamp: new Date(),
