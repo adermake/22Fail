@@ -15,6 +15,11 @@ export interface DiceRollEvent {
   rolls: number[];
   timestamp: Date;
   isSecret: boolean; // If true, only GM sees the result
+  // Action macro details (optional)
+  actionName?: string;
+  actionIcon?: string;
+  actionColor?: string;
+  resourceChanges?: { resource: string; amount: number }[];
 }
 
 @Injectable({ providedIn: 'root' })

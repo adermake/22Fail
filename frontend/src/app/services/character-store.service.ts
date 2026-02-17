@@ -52,9 +52,11 @@ export class CharacterStoreService {
 
     if (!sheet) {
       sheet = createEmptySheet();
+      sheet.id = id; // Set the ID on new sheets
       this.sheetSubject.next(sheet);
       this.save();
     } else {
+      sheet.id = id; // Ensure loaded sheets have ID property set
       this.sheetSubject.next(sheet);
     }
 

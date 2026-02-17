@@ -55,6 +55,7 @@ export class LobbyToolbarComponent {
   @Output() clearWalls = new EventEmitter<void>();
   @Output() clearTextures = new EventEmitter<void>();
   @Output() toggleSidebar = new EventEmitter<void>();
+  @Output() mapSettingsClicked = new EventEmitter<void>();
 
   // Tool definitions
   tools: { id: ToolType; icon: string; label: string; shortcut: string }[] = [

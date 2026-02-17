@@ -35,6 +35,7 @@
     (clearWalls)="store.clearWalls()"
     (clearTextures)="onClearAllTextures()"
     (toggleSidebar)="toggleSidebar()"
+    (mapSettingsClicked)="showMapSettings()"
   />
 
   <!-- Main content area -->
@@ -104,15 +105,6 @@
         (selectedTextureIdChange)="onSelectTexture($event)"
       />
 
-      <!-- Map name badge (top right) -->
-      <div class="map-badge">
-        <span class="map-name">{{ currentMap()?.name || 'No Map' }}</span>
-        @if (isGM()) {
-          <button class="map-switch-btn" title="Switch Map" (click)="showMapSettings()">
-            ⚙️
-          </button>
-        }
-      </div>
     </div>
 
     <!-- Side Panel (right side) - Layers for GM, Roll History for all -->

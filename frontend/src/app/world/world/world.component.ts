@@ -13,6 +13,8 @@ import { TrashService } from '../../services/trash.service';
 import { ItemBlock } from '../../model/item-block.model';
 import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
+import { FormulaType } from '../../model/formula-type.enum';
+import { StatusBlock } from '../../model/status-block.model';
 import { Subscription } from 'rxjs';
 import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.component';
 import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
@@ -131,6 +133,8 @@ export class WorldComponent implements OnInit, OnDestroy {
         try {
           const sheet = await this.characterApi.loadCharacter(characterId);
           if (sheet) {
+            // Ensure sheet has the ID property set
+            sheet.id = characterId;
             if (!sheet.currency) {
               sheet.currency = { copper: 0, silver: 0, gold: 0, platinum: 0 };
             }
@@ -517,6 +521,35 @@ export class WorldComponent implements OnInit, OnDestroy {
     const url = `/characters/${characterId}`;
     window.open(url, '_blank');
   }
+
+  // Get resource status block by formula type
+  getResourceStatus(sheet: CharacterSheet, type: FormulaType): StatusBlock | undefined {
+    return sheet.statuses?.find(s => s.formulaType === type);
+  }
+
+  // Get current resource value
+  getResourceCurrent(sheet: CharacterSheet, type: FormulaType): number {
+    const status = this.getResourceStatus(sheet, type);
+    return status?.statusCurrent || 0;
+  }
+
+  // Get max resource value (base + bonus + effectBonus)
+  getResourceMax(sheet: CharacterSheet, type: FormulaType): number {
+    const status = this.getResourceStatus(sheet, type);
+    if (!status) return 0;
+    return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
+  }
+
+  // Get resource percentage
+  getResourcePercentage(sheet: CharacterSheet, type: FormulaType): number {
+    const max = this.getResourceMax(sheet, type);
+    if (max === 0) return 0;
+    const current = this.getResourceCurrent(sheet, type);
+    return (current / max) * 100;
+  }
+
+  // Expose FormulaType enum to template
+  FormulaType = FormulaType;
 
   private applyJsonPatch(target: any, patch: JsonPatch) {
     const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');

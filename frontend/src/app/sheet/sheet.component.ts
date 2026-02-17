@@ -33,6 +33,7 @@ import { StatusBlock } from '../model/status-block.model';
 import { DiceRollerComponent } from './dice-roller/dice-roller.component';
 import { ActionMacrosComponent, RollResult } from './action-macros/action-macros.component';
 import { ActionMacro } from '../model/action-macro.model';
+import { ActionExecution } from './action-macros/action-macros.component';
 
 @Component({
   selector: 'app-sheet',
@@ -541,7 +542,49 @@ export class SheetComponent implements OnInit {
 
     this.cdr.markForCheck();
   }
+Handle full action execution from action macros - broadcast to world
+  handleActionExecution(execution: ActionExecution) {
+    const sheet = this.store.sheetValue;
+    if (!sheet || !sheet.worldName) return;
 
+    // Group rolls by action - send one event per action execution
+    const allRolls = execution.rolls.map(roll => roll.rolls).flat();
+    const totalResult = execution.rolls.reduce((sum, roll) => sum + roll.total, 0);
+    
+    // Use first roll for dice type/count or defaults
+    const firstRoll = execution.rolls[0];
+    const formulaParts = firstRoll?.formula?.match(/(\d+)d(\d+)/i);
+    const diceCount = formulaParts ? parseInt(formulaParts[1]) : 1;
+    const diceType = formulaParts ? parseInt(formulaParts[2]) : 20;
+
+    // Create resource changes array
+    const resourceChanges = execution.resourceChanges.map(change => ({
+      resource: change.resource,
+      amount: change.amount
+    }));
+
+    this.worldSocket.sendDiceRoll({
+      id: execution.id,
+      worldName: sheet.worldName,
+      characterName: sheet.name,
+      characterId: sheet.id || '',
+      diceType,
+      diceCount,
+      bonuses: [], // Bonuses already calculated in totals
+      result: totalResult,
+      rolls: allRolls,
+      timestamp: execution.timestamp,
+      isSecret: false,
+      actionName: execution.actionName,
+      actionIcon: execution.actionIcon,
+      actionColor: execution.actionColor,
+      resourceChanges
+    });
+
+    this.cdr.markForCheck();
+  }
+
+  // 
   // Keep old names for backward compatibility
   openUseResource() {
     this.loadRecentSpendings();

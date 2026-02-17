@@ -285,6 +285,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
           console.log('[Lobby] Loading character:', charId);
           const sheet = await this.characterApi.loadCharacter(charId);
           if (sheet) {
+            sheet.id = charId; // Ensure sheet has ID property
             console.log('[Lobby] Character loaded:', charId, sheet.name);
             characters.push({ id: charId, sheet });
           } else {

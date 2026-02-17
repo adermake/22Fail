@@ -79,27 +79,27 @@
                   <span class="stat-label">Health</span>
                   <div class="stat-bar-wrapper">
                     <div class="stat-bar-fill health"
-                         [style.width.%]="((member.sheet.statuses[0]?.statusCurrent || 0) / (member.sheet.statuses[0]?.statusBase || 1) * 100)">
+                         [style.width.%]="getResourcePercentage(member.sheet, FormulaType.LIFE)">
                     </div>
-                    <span class="stat-value">{{ member.sheet.statuses[0]?.statusCurrent || 0 }} / {{ member.sheet.statuses[0]?.statusBase || 0 }}</span>
+                    <span class="stat-value">{{ getResourceCurrent(member.sheet, FormulaType.LIFE) }} / {{ getResourceMax(member.sheet, FormulaType.LIFE) }}</span>
                   </div>
                 </div>
                 <div class="stat-row">
                   <span class="stat-label">Energy</span>
                   <div class="stat-bar-wrapper">
                     <div class="stat-bar-fill energy"
-                         [style.width.%]="((member.sheet.statuses[1]?.statusCurrent || 0) / (member.sheet.statuses[1]?.statusBase || 1) * 100)">
+                         [style.width.%]="getResourcePercentage(member.sheet, FormulaType.ENERGY)">
                     </div>
-                    <span class="stat-value">{{ member.sheet.statuses[1]?.statusCurrent || 0 }} / {{ member.sheet.statuses[1]?.statusBase || 0 }}</span>
+                    <span class="stat-value">{{ getResourceCurrent(member.sheet, FormulaType.ENERGY) }} / {{ getResourceMax(member.sheet, FormulaType.ENERGY) }}</span>
                   </div>
                 </div>
                 <div class="stat-row">
                   <span class="stat-label">Mana</span>
                   <div class="stat-bar-wrapper">
                     <div class="stat-bar-fill mana"
-                         [style.width.%]="((member.sheet.statuses[2]?.statusCurrent || 0) / (member.sheet.statuses[2]?.statusBase || 1) * 100)">
+                         [style.width.%]="getResourcePercentage(member.sheet, FormulaType.MANA)">
                     </div>
-                    <span class="stat-value">{{ member.sheet.statuses[2]?.statusCurrent || 0 }} / {{ member.sheet.statuses[2]?.statusBase || 0 }}</span>
+                    <span class="stat-value">{{ getResourceCurrent(member.sheet, FormulaType.MANA) }} / {{ getResourceMax(member.sheet, FormulaType.MANA) }}</span>
                   </div>
                 </div>
                 <div class="stat-row money">

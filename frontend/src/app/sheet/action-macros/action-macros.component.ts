@@ -759,6 +759,9 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     if (results.length > 0) {
       this.rollPerformed.emit(results);
     }
+
+    // Emit full action execution for broadcasting to world
+    this.actionExecuted.emit(execution);
     
     // Animate out after delay
     setTimeout(() => {

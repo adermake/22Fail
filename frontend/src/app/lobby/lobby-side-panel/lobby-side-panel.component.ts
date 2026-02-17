@@ -78,7 +78,12 @@ type PanelTab = 'layers' | 'rolls';
                       <span class="roll-time">{{ formatTime(roll.timestamp) }}</span>
                     </div>
                     <div class="roll-body">
-                      @if (roll.bonuses.length > 0 && roll.bonuses[0].source) {
+                      @if (roll.actionName) {
+                        <div class="action-header" [style.color]="roll.actionColor || '#f59e0b'">
+                          {{ roll.actionIcon || '⚡' }} {{ roll.actionName }}
+                        </div>
+                      }
+                      @if (roll.bonuses.length > 0 && roll.bonuses[0].source && !roll.actionName) {
                         <div class="roll-name">{{ roll.bonuses[0].source }}</div>
                       }
                       <div class="roll-formula">
@@ -98,6 +103,7 @@ type PanelTab = 'layers' | 'rolls';
                                 class="die-value"
                                 [class.crit-success]="die === roll.diceType && roll.diceType === 20"
                                 [class.crit-fail]="die === 1 && roll.diceType === 20"
+                                [style.border-color]="roll.actionColor || '#f59e0b'"
                               >
                                 {{ die }}
                               </span>
@@ -114,8 +120,22 @@ type PanelTab = 'layers' | 'rolls';
                             }
                           </div>
                         }
+                        <!-- Resource Changes -->
+                        @if (roll.resourceChanges && roll.resourceChanges.length > 0) {
+                          <div class="resource-changes">
+                            @for (change of roll.resourceChanges; track $index) {
+                              <span 
+                                class="resource-chip"
+                                [class.gain]="change.amount > 0"
+                                [class.spend]="change.amount < 0"
+                              >
+                                {{ getResourceIcon(change.resource) }} {{ change.amount > 0 ? '+' : '' }}{{ change.amount }} {{ getResourceName(change.resource) }}
+                              </span>
+                            }
+                          </div>
+                        }
                       </div>
-                      <div class="roll-result">
+                      <div class="roll-result" [style.color]="roll.actionColor || '#f59e0b'">
                         Total: <strong>{{ roll.result }}</strong>
                       </div>
                     </div>
@@ -136,14 +156,14 @@ type PanelTab = 'layers' | 'rolls';
       position: fixed;
       top: 80px;
       right: 20px;
-      width: 280px;
+      width: 320px;
       max-height: calc(100vh - 120px);
       background: rgba(15, 23, 42, 0.95);
       border: 2px solid #334155;
       border-radius: 12px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(10px);
-      z-index: 100;
+      z-index: 50;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -322,6 +342,13 @@ type PanelTab = 'layers' | 'rolls';
       font-style: italic;
     }
 
+    .action-header {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
     .roll-formula {
       font-size: 12px;
       font-weight: 600;
@@ -382,7 +409,35 @@ type PanelTab = 'layers' | 'rolls';
       display: inline-block;
       padding: 2px 6px;
       background: rgba(100, 116, 139, 0.3);
-      border: 1px solid #475569;
+      esource-changes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      margin-top: 4px;
+    }
+
+    .resource-chip {
+      display: inline-block;
+      padding: 2px 6px;
+      border: 1px solid;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .resource-chip.gain {
+      background: rgba(34, 197, 94, 0.2);
+      border-color: #22c55e;
+      color: #86efac;
+    }
+
+    .resource-chip.spend {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: #ef4444;
+      color: #fca5a5;
+    }
+
+    .rborder: 1px solid #475569;
       border-radius: 4px;
       font-size: 10px;
       font-weight: 600;
@@ -450,5 +505,23 @@ export class LobbySidePanelComponent {
 
   getTotalBonus(roll: DiceRollEvent): number {
     return roll.bonuses.reduce((sum, bonus) => sum + bonus.value, 0);
+  }
+
+  getResourceIcon(resource: string): string {
+    const icons: Record<string, string> = {
+      'health': '❤️',
+      'energy': '⚡',
+      'mana': '🔮'
+    };
+    return icons[resource] || '📊';
+  }
+
+  getResourceName(resource: string): string {
+    const names: Record<string, string> = {
+      'health': 'Leben',
+      'energy': 'Energie',
+      'mana': 'Mana'
+    };
+    return names[resource] || resource;
   }
 }

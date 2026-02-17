@@ -182,7 +182,8 @@
     (close)="closeActionMacros()"
     (executeMacro)="handleMacroExecution($event)"
     (resourceChanged)="handleResourceChange($event)"
-    (rollPerformed)="handleActionRoll($event)">
+    (rollPerformed)="handleActionRoll($event)"
+    (actionExecuted)="handleActionExecution($event)">
   </app-action-macros>
 }
 

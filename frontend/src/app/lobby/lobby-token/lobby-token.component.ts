@@ -169,9 +169,9 @@ export interface TokenResources {
       border-radius: 2px;
     }
 
-    /* Health Bar - Bottom edge (flat, no skew) */
+    /* Health Bar - Bottom edge (flat, no skew) - Below token */
     .health-bar {
-      bottom: 8px;
+      bottom: -8px;
       left: 18px;
       right: 18px;
     }
@@ -183,11 +183,11 @@ export interface TokenResources {
 
     /* Mana Bar - Bottom-right diagonal aligned to hex wall */
     .mana-bar {
-      bottom: 14px;
-      right: 8px;
+      bottom: 8px;
+      right: 5px;
       width: 24px;
       transform: rotate(-60deg);
-      transform-origin: right center;
+      transform-origin: bottom right;
     }
 
     .mana-fill {
@@ -197,11 +197,11 @@ export interface TokenResources {
 
     /* Energy Bar - Bottom-left diagonal aligned to hex wall */
     .energy-bar {
-      bottom: 14px;
-      left: 8px;
+      bottom: 8px;
+      left: 5px;
       width: 24px;
       transform: rotate(60deg);
-      transform-origin: left center;
+      transform-origin: bottom left;
     }
 
     .energy-fill {

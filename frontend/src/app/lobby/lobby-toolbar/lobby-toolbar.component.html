@@ -262,5 +262,17 @@
       <span class="layer-icon">{{ drawLayerVisible ? '👁️' : '🚫' }}</span>
       <span class="layer-label">Draw</span>
     </button>
+
+    <!-- Map Settings Button (GM only) -->
+    @if (isGM) {
+      <button
+        class="tool-btn"
+        (click)="mapSettingsClicked.emit()"
+        title="Map Settings"
+      >
+        <span class="layer-icon">⚙️</span>
+        <span class="layer-label">Maps</span>
+      </button>
+    }
   </div>
 </div>
