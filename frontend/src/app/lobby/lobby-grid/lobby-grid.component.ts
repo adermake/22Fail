@@ -40,6 +40,8 @@ import { TextureService } from '../../services/texture.service';
 import { LobbyTokenComponent, TokenResources } from '../lobby-token/lobby-token.component';
 import { DiceRollPopupComponent, DiceRollPopup } from '../dice-roll-popup/dice-roll-popup.component';
 import { CharacterSheet } from '../../model/character-sheet-model';
+import { StatusBlock } from '../../model/status-block.model';
+import { FormulaType } from '../../model/formula-type.enum';
 import { ToolType, DragMode } from '../lobby.component';
 
 // Texture palette entry interface
@@ -5224,21 +5226,25 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
    */
   getTokenResources(characterId: string): TokenResources | null {
     const character = this.worldCharacters.find(c => c.id === characterId);
-    if (!character) return null;
+    if (!character?.sheet) return null;
 
     const sheet = character.sheet;
+    const lifeStatus = sheet.statuses.find(s => s.formulaType === FormulaType.LIFE);
+    const energyStatus = sheet.statuses.find(s => s.formulaType === FormulaType.ENERGY);
+    const manaStatus = sheet.statuses.find(s => s.formulaType === FormulaType.MANA);
+
     return {
       health: {
-        current: sheet.currentHealth || 0,
-        max: this.calculateMaxHealth(sheet)
-      },
-      mana: {
-        current: sheet.currentMana || 0,
-        max: this.calculateMaxMana(sheet)
+        current: lifeStatus?.statusCurrent || 0,
+        max: this.calculateMaxHealth(lifeStatus)
       },
       energy: {
-        current: sheet.currentEnergy || 0,
-        max: this.calculateMaxEnergy(sheet)
+        current: energyStatus?.statusCurrent || 0,
+        max: this.calculateMaxEnergy(energyStatus)
+      },
+      mana: {
+        current: manaStatus?.statusCurrent || 0,
+        max: this.calculateMaxMana(manaStatus)
       }
     };
   }
@@ -5254,30 +5260,27 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   /**
-   * Calculate max health from character sheet
+   * Calculate max health from status block
    */
-  private calculateMaxHealth(sheet: CharacterSheet): number {
-    const base = sheet.health?.base || 0;
-    const bonus = sheet.health?.bonus || 0;
-    return base + bonus;
+  private calculateMaxHealth(status: StatusBlock | undefined): number {
+    if (!status) return 0;
+    return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
   }
 
   /**
-   * Calculate max mana from character sheet
+   * Calculate max mana from status block
    */
-  private calculateMaxMana(sheet: CharacterSheet): number {
-    const base = sheet.mana?.base || 0;
-    const bonus = sheet.mana?.bonus || 0;
-    return base + bonus;
+  private calculateMaxMana(status: StatusBlock | undefined): number {
+    if (!status) return 0;
+    return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
   }
 
   /**
-   * Calculate max energy from character sheet
+   * Calculate max energy from status block
    */
-  private calculateMaxEnergy(sheet: CharacterSheet): number {
-    const base = sheet.energy?.base || 0;
-    const bonus = sheet.energy?.bonus || 0;
-    return base + bonus;
+  private calculateMaxEnergy(status: StatusBlock | undefined): number {
+    if (!status) return 0;
+    return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
   }
 
   /**
@@ -5346,10 +5349,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       clearTimeout(this.rollPopupTimeout);
       this.rollPopupTimeout = undefined;
     }
-    this.cdr.detectChanges;
-      }
-    }
-
-    return selectedIds;
+    this.cdr.detectChanges();
   }
 }

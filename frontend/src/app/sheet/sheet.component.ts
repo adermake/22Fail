@@ -502,7 +502,7 @@ export class SheetComponent implements OnInit {
         const diceCount = formulaParts ? parseInt(formulaParts[1]) : 1;
         const diceType = formulaParts ? parseInt(formulaParts[2]) : 20;
 
-        this.worldSocketService.sendDiceRoll({
+        this.worldSocket.sendDiceRoll({
           id: roll.id,
           worldName: sheet.worldName,
           characterName: sheet.name,
