@@ -6,17 +6,13 @@ import { CLASS_DEFINITIONS, SKILL_DEFINITIONS, getSkillsForClass, getSkillById }
 import { SkillDefinition } from '../../model/skill-definition.model';
 import { HttpClient } from '@angular/common/http';
 import { FormulaType } from '../../model/formula-type.enum';
-
-interface CompassDirection {
-  name: string;
-  angle: number;
-  icon: string;
-}
+import { CompassSelectorComponent } from './compass-selector.component';
+import { SpiderChartComponent, StatDistribution } from './spider-chart.component';
 
 @Component({
   selector: 'app-character-generator',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CompassSelectorComponent, SpiderChartComponent],
   templateUrl: './character-generator.component.html',
   styleUrl: './character-generator.component.css'
 })
@@ -29,7 +25,8 @@ export class CharacterGeneratorComponent implements OnInit {
   // Generation parameters
   level: number = 1;
   richness: number = 50; // 0-100 scale
-  selectedDirection: CompassDirection | null = null;
+  compassAngle: number = 90; // For compass selector
+  characterName: string = '';
   
   // Available races from backend
   races: any[] = [];
@@ -38,9 +35,8 @@ export class CharacterGeneratorComponent implements OnInit {
   // Generated character
   generatedCharacter: CharacterSheet | null = null;
   
-  // Stat distribution (6D hexagon) - points to distribute
-  statPoints: number = 0;
-  hexStats = {
+  // Stat distribution (spider chart)
+  statDistribution: StatDistribution = {
     strength: 0,
     dexterity: 0,
     speed: 0,
@@ -48,53 +44,50 @@ export class CharacterGeneratorComponent implements OnInit {
     chill: 0,
     constitution: 0
   };
-  
-  // Compass directions for talent tree traversal
-  directions: CompassDirection[] = [
-    { name: 'North', angle: 90, icon: '⬆️' },
-    { name: 'Northeast', angle: 67, icon: '⬈' },
-    { name: 'East', angle: 0, icon: '➡️' },
-    { name: 'Southeast', angle: -30, icon: '⬊' },
-    { name: 'South', angle: -90, icon: '⬇️' },
-    { name: 'Southwest', angle: -147, icon: '⬋' },
-    { name: 'West', angle: 180, icon: '⬅️' },
-    { name: 'Northwest', angle: 135, icon: '⬉' }
-  ];
 
   ngOnInit() {
     this.loadRaces();
-    this.updateStatPoints();
+    this.generateRandomName();
+  }
+
+  get statPoints(): number {
+    // 1 stat point per 3 levels
+    return Math.floor(this.level / 3);
   }
 
   loadRaces() {
     this.http.get<any[]>('/api/races').subscribe({
       next: (races) => {
         this.races = races;
+        // Select first race by default
+        if (races.length > 0 && !this.selectedRaceId) {
+          this.selectedRaceId = races[0].id;
+        }
       },
       error: (err) => {
         console.error('Failed to load races:', err);
         // Fallback to basic races if API fails
         this.races = [
-          { id: 'human', name: 'Human' },
-          { id: 'elf', name: 'Elf' },
-          { id: 'dwarf', name: 'Dwarf' },
-          { id: 'orc', name: 'Orc' }
+          { id: 'human', name: 'Human', stats: { strength: 10, dexterity: 10, speed: 10, intelligence: 10, chill: 10, constitution: 10 } }
         ];
+        this.selectedRaceId = 'human';
       }
     });
   }
 
-  updateStatPoints() {
-    // Base stat points scale with level (e.g., 6 + level)
-    this.statPoints = 6 + this.level;
+  onAngleChange(angle: number) {
+    this.compassAngle = angle;
+  }
+
+  onDistributionChange(distribution: StatDistribution) {
+    this.statDistribution = distribution;
   }
 
   onLevelChange() {
-    this.updateStatPoints();
-  }
-
-  selectDirection(direction: CompassDirection) {
-    this.selectedDirection = direction;
+    // Regenerate if already generated
+    if (this.generatedCharacter) {
+      this.generateCharacter();
+    }
   }
 
   randomizeRace() {
@@ -104,42 +97,58 @@ export class CharacterGeneratorComponent implements OnInit {
     }
   }
 
-  // Calculate remaining stat points
-  get remainingStatPoints(): number {
-    const spent = this.hexStats.strength + this.hexStats.dexterity + 
-                  this.hexStats.speed + this.hexStats.intelligence + 
-                  this.hexStats.chill + this.hexStats.constitution;
-    return this.statPoints - spent;
-  }
-
-  // Hexagon stat adjustment
-  incrementStat(stat: keyof typeof this.hexStats) {
-    if (this.remainingStatPoints > 0) {
-      this.hexStats[stat]++;
-    }
-  }
-
-  decrementStat(stat: keyof typeof this.hexStats) {
-    if (this.hexStats[stat] > 0) {
-      this.hexStats[stat]--;
-    }
+  generateRandomName() {
+    this.characterName = this.generateName();
   }
 
   // Main generation function
   generateCharacter() {
     const character = createEmptySheet();
     
-    // Generate name
-    character.name = this.generateName();
+    // Use provided name or generate one
+    character.name = this.characterName || this.generateName();
     
-    // Set race
+    // Set race and get base stats
     const selectedRace = this.races.find(r => r.id === this.selectedRaceId);
     if (selectedRace) {
       character.race = selectedRace.name;
       character.raceId = selectedRace.id;
+      
+      // Apply race base stats
+      if (selectedRace.stats) {
+        character.strength.base = selectedRace.stats.strength || 10;
+        character.dexterity.base = selectedRace.stats.dexterity || 10;
+        character.speed.base = selectedRace.stats.speed || 10;
+        character.intelligence.base = selectedRace.stats.intelligence || 10;
+        character.chill.base = selectedRace.stats.chill || 10;
+        character.constitution.base = selectedRace.stats.constitution || 10;
+      }
     } else {
+      // Default to human with base 10 stats
       character.race = 'Human';
       character.raceId = 'human';
+      character.strength.base = 10;
+      character.dexterity.base = 10;
+      character.speed.base = 10;
+      character.intelligence.base = 10;
+      character.chill.base = 10;
+      character.constitution.base = 10;
+    }
+    
+    // Apply stat distribution from spider chart (level-based points)
+    const levelStatPoints = this.statPoints;
+    if (levelStatPoints > 0) {
+      const totalDistribution = Object.values(this.statDistribution).reduce((a, b) => a + b, 0);
+      if (totalDistribution > 0) {
+        // Distribute points proportionally
+        const factor = levelStatPoints / totalDistribution;
+        character.strength.base += Math.floor(this.statDistribution.strength * factor);
+        character.dexterity.base += Math.floor(this.statDistribution.dexterity * factor);
+        character.speed.base += Math.floor(this.statDistribution.speed * factor);
+        character.intelligence.base += Math.floor(this.statDistribution.intelligence * factor);
+        character.chill.base += Math.floor(this.statDistribution.chill * factor);
+        character.constitution.base += Math.floor(this.statDistribution.constitution * factor);
+      }
     }
     
     // Randomize age, height, alignment
@@ -150,18 +159,10 @@ export class CharacterGeneratorComponent implements OnInit {
     // Set level
     character.level = this.level;
     
-    // Apply stat distribution
-    character.strength.base = 10 + this.hexStats.strength;
-    character.dexterity.base = 10 + this.hexStats.dexterity;
-    character.speed.base = 10 + this.hexStats.speed;
-    character.intelligence.base = 10 + this.hexStats.intelligence;
-    character.chill.base = 10 + this.hexStats.chill;
-    character.constitution.base = 10 + this.hexStats.constitution;
-    
     // Calculate talent points based on level
     character.talentPoints = this.level - 1; // Level 1 = 0 points, Level 2 = 1 point, etc.
     
-    // Traverse talent tree and learn skills
+    // Traverse talent tree and learn skills (with 50% progression rule)
     const learnedSkills = this.traverseTalentTree(character.talentPoints);
     character.learnedSkillIds = learnedSkills;
     
@@ -180,7 +181,7 @@ export class CharacterGeneratorComponent implements OnInit {
     this.generatedCharacter = character;
   }
 
-  // Talent tree traversal with directional preference
+  // Talent tree traversal with directional preference and 50% progression rule
   private traverseTalentTree(talentPoints: number): string[] {
     const learnedSkillIds: string[] = [];
     
@@ -193,16 +194,21 @@ export class CharacterGeneratorComponent implements OnInit {
       .filter(([_, info]) => info.tier === 1)
       .map(([name, _]) => name);
     
-    // Choose starting class based on direction preference
-    let currentClass = this.chooseClassByDirection(tier1Classes);
+    // Choose starting class based on compass angle
+    let currentClass = this.chooseClassByAngle(tier1Classes);
+    
+    // Track skills learned per class
+    const classProgress = new Map<string, number>();
     
     // Traverse the tree, learning skills
     let remainingPoints = talentPoints;
-    const visitedClasses = new Set<string>();
+    let lastClass = '';
+    let stuckCount = 0;
     
-    while (remainingPoints > 0) {
+    while (remainingPoints > 0 && stuckCount < 100) {
       // Get skills for current class
       const classSkills = getSkillsForClass(currentClass);
+      const learnedInClass = classProgress.get(currentClass) || 0;
       
       if (classSkills.length > 0 && remainingPoints > 0) {
         // Learn a random skill from this class
@@ -210,64 +216,83 @@ export class CharacterGeneratorComponent implements OnInit {
         if (unlearnedSkills.length > 0) {
           const randomSkill = unlearnedSkills[Math.floor(Math.random() * unlearnedSkills.length)];
           learnedSkillIds.push(randomSkill.id);
+          classProgress.set(currentClass, learnedInClass + 1);
           remainingPoints--;
+          stuckCount = 0; // Reset stuck counter on progress
+          continue; // Continue learning from this class if possible
         }
       }
       
-      visitedClasses.add(currentClass);
-      
-      // Move to child class based on direction preference
+      // Check if we can progress to children (need 50% of skills learned)
       const classInfo = CLASS_DEFINITIONS[currentClass];
-      if (classInfo && classInfo.children.length > 0) {
-        const nextClass = this.chooseClassByDirection(
-          classInfo.children.map(c => c.className)
-        );
+      const learned = classProgress.get(currentClass) || 0;
+      const totalSkills = getSkillsForClass(currentClass).length;
+      const progressionThreshold = Math.ceil(totalSkills / 2);
+      
+      if (learned >= progressionThreshold && classInfo && classInfo.children.length > 0) {
+        // Can progress to child class
+        const eligibleChildren = classInfo.children
+          .map(c => c.className)
+          .filter(childClass => {
+            // Check if child has unlearned skills
+            const childSkills = getSkillsForClass(childClass);
+            return childSkills.some(s => !learnedSkillIds.includes(s.id));
+          });
         
-        // Avoid infinite loops
-        if (visitedClasses.has(nextClass)) {
-          // Pick a random unvisited class
-          const unvisitedChildren = classInfo.children
-            .map(c => c.className)
-            .filter(c => !visitedClasses.has(c));
-          
-          if (unvisitedChildren.length > 0) {
-            currentClass = unvisitedChildren[Math.floor(Math.random() * unvisitedChildren.length)];
-          } else {
-            // No more children, pick any class with skills
-            const allClasses = Object.keys(CLASS_DEFINITIONS);
-            const classesWithSkills = allClasses.filter(c => getSkillsForClass(c).length > 0);
-            currentClass = classesWithSkills[Math.floor(Math.random() * classesWithSkills.length)];
-          }
-        } else {
-          currentClass = nextClass;
+        if (eligibleChildren.length > 0) {
+          currentClass = this.chooseClassByAngle(eligibleChildren);
+          continue;
         }
-      } else {
-        // No children, pick a random class with available skills
-        const allClasses = Object.keys(CLASS_DEFINITIONS);
-        const classesWithSkills = allClasses.filter(c => {
-          const skills = getSkillsForClass(c);
-          return skills.some(s => !learnedSkillIds.includes(s.id));
+      }
+      
+      // Can't progress or no children available, find another class with available skills
+      const allClasses = Object.keys(CLASS_DEFINITIONS);
+      const availableClasses = allClasses.filter(c => {
+        const skills = getSkillsForClass(c);
+        return skills.some(s => !learnedSkillIds.includes(s.id));
+      });
+      
+      if (availableClasses.length > 0) {
+        // Choose a class we haven't fully explored yet
+        const unexploredClasses = availableClasses.filter(c => {
+          const total = getSkillsForClass(c).length;
+          const learned = classProgress.get(c) || 0;
+          return learned < Math.ceil(total / 2);
         });
         
-        if (classesWithSkills.length > 0) {
-          currentClass = classesWithSkills[Math.floor(Math.random() * classesWithSkills.length)];
+        if (unexploredClasses.length > 0) {
+          currentClass = this.chooseClassByAngle(unexploredClasses);
         } else {
-          // No more skills to learn
-          break;
+          currentClass = availableClasses[Math.floor(Math.random() * availableClasses.length)];
         }
+      } else {
+        // No more skills to learn
+        break;
       }
+      
+      // Detect infinite loop
+      if (currentClass === lastClass) {
+        stuckCount++;
+      } else {
+        stuckCount = 0;
+      }
+      lastClass = currentClass;
     }
     
     return learnedSkillIds;
   }
 
-  // Choose class closest to preferred direction
-  private chooseClassByDirection(classNames: string[]): string {
-    if (!this.selectedDirection || classNames.length === 0) {
-      return classNames[Math.floor(Math.random() * classNames.length)];
+  // Choose class closest to compass angle
+  private chooseClassByAngle(classNames: string[]): string {
+    if (classNames.length === 0) {
+      return 'Magier'; // Fallback
     }
     
-    const targetAngle = this.selectedDirection.angle;
+    if (classNames.length === 1) {
+      return classNames[0];
+    }
+    
+    const targetAngle = this.compassAngle;
     
     // Find class with angle closest to target
     let bestClass = classNames[0];

@@ -10,6 +10,22 @@
       <div class="parameters-panel">
         <h3>Generation Parameters</h3>
 
+        <!-- Character Name -->
+        <div class="param-group">
+          <label>Character Name</label>
+          <div class="name-input-group">
+            <input 
+              type="text" 
+              [(ngModel)]="characterName" 
+              placeholder="Enter name..."
+              class="name-input"
+            />
+            <button (click)="generateRandomName()" class="random-btn" title="Random Name">
+              🎲
+            </button>
+          </div>
+        </div>
+
         <!-- Level Input -->
         <div class="param-group">
           <label>Level</label>
@@ -21,7 +37,7 @@
             max="100"
             class="level-input"
           />
-          <span class="param-info">Talent Points: {{ level - 1 }}</span>
+          <span class="param-info">Talent Points: {{ level - 1 }} | Stat Points: {{ statPoints }}</span>
         </div>
 
         <!-- Richness Slider -->
@@ -53,70 +69,27 @@
 
         <!-- Compass Direction Selector -->
         <div class="param-group">
-          <label>Talent Tree Direction</label>
-          <div class="compass-grid">
-            @for (direction of directions; track direction.name) {
-              <button
-                class="direction-btn"
-                [class.selected]="selectedDirection === direction"
-                (click)="selectDirection(direction)"
-                [title]="direction.name"
-              >
-                {{ direction.icon }}
-              </button>
-            }
+          <label>Class Preference Direction</label>
+          <div class="compass-wrapper">
+            <app-compass-selector
+              [angle]="compassAngle"
+              (angleChange)="onAngleChange($event)"
+            />
           </div>
-          <span class="param-info">
-            @if (selectedDirection) {
-              {{ selectedDirection.name }} ({{ selectedDirection.angle }}°)
-            } @else {
-              Random
-            }
-          </span>
+          <span class="param-info">Guides your advancement through the skill tree</span>
         </div>
 
-        <!-- Stat Distribution (6D Hexagon) -->
+        <!-- Stat Distribution Spider Chart -->
         <div class="param-group">
           <label>Stat Distribution</label>
-          <div class="stat-hexagon">
-            <div class="stat-row">
-              <span class="stat-label">STR</span>
-              <button (click)="decrementStat('strength')" [disabled]="hexStats.strength === 0">-</button>
-              <span class="stat-value">{{ hexStats.strength }}</span>
-              <button (click)="incrementStat('strength')" [disabled]="remainingStatPoints === 0">+</button>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">DEX</span>
-              <button (click)="decrementStat('dexterity')" [disabled]="hexStats.dexterity === 0">-</button>
-              <span class="stat-value">{{ hexStats.dexterity }}</span>
-              <button (click)="incrementStat('dexterity')" [disabled]="remainingStatPoints === 0">+</button>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">SPD</span>
-              <button (click)="decrementStat('speed')" [disabled]="hexStats.speed === 0">-</button>
-              <span class="stat-value">{{ hexStats.speed }}</span>
-              <button (click)="incrementStat('speed')" [disabled]="remainingStatPoints === 0">+</button>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">INT</span>
-              <button (click)="decrementStat('intelligence')" [disabled]="hexStats.intelligence === 0">-</button>
-              <span class="stat-value">{{ hexStats.intelligence }}</span>
-              <button (click)="incrementStat('intelligence')" [disabled]="remainingStatPoints === 0">+</button>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">CHL</span>
-              <button (click)="decrementStat('chill')" [disabled]="hexStats.chill === 0">-</button>
-              <span class="stat-value">{{ hexStats.chill }}</span>
-              <button (click)="incrementStat('chill')" [disabled]="remainingStatPoints === 0">+</button>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">CON</span>
-              <button (click)="decrementStat('constitution')" [disabled]="hexStats.constitution === 0">-</button>
-              <span class="stat-value">{{ hexStats.constitution }}</span>
-              <button (click)="incrementStat('constitution')" [disabled]="remainingStatPoints === 0">+</button>
-            </div>
+          <div class="spider-wrapper">
+            <app-spider-chart
+              [distribution]="statDistribution"
+              [maxPoints]="10"
+              (distributionChange)="onDistributionChange($event)"
+            />
           </div>
-          <span class="param-info">Remaining Points: {{ remainingStatPoints }}</span>
+          <span class="param-info">Drag points to shape your character's strengths</span>
         </div>
 
         <!-- Generate Button -->

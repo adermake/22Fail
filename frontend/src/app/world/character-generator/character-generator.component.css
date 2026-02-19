@@ -103,6 +103,22 @@
   font-style: italic;
 }
 
+.name-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.name-input {
+  flex: 1;
+  padding: 8px 12px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+}
+
 .level-input {
   width: 100%;
   padding: 8px 12px;
@@ -181,86 +197,18 @@
   background: #4f5db8;
 }
 
-/* Compass Direction Grid */
-.compass-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.direction-btn {
-  padding: 12px;
-  background: #2a2a2a;
-  border: 2px solid #444;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 24px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.direction-btn:hover {
-  background: #333;
-  border-color: #666;
-}
-
-.direction-btn.selected {
-  background: #4CAF50;
-  border-color: #4CAF50;
-  box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
-}
-
-/* Stat Hexagon (simplified as list) */
-.stat-hexagon {
+.compass-wrapper,
+.spider-wrapper {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: #2a2a2a;
-  padding: 16px;
-  border-radius: 4px;
-}
-
-.stat-row {
-  display: grid;
-  grid-template-columns: 60px 40px 40px 40px;
+  justify-content: center;
   align-items: center;
-  gap: 8px;
+  padding: 12px;
+  background: #0f0f0f;
+  border-radius: 8px;
+  border: 1px solid #333;
 }
 
-.stat-label {
-  font-weight: 600;
-  color: #aaa;
-  font-size: 14px;
-}
-
-.stat-value {
-  text-align: center;
-  font-size: 16px;
-  font-weight: 600;
-  color: #4CAF50;
-}
-
-.stat-row button {
-  padding: 4px;
-  background: #333;
-  border: 1px solid #555;
-  border-radius: 4px;
-  color: #fff;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: bold;
-  transition: all 0.2s;
-}
-
-.stat-row button:hover:not(:disabled) {
-  background: #444;
-  border-color: #666;
-}
-
-.stat-row button:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
+/* Remove old compass grid styles */
 
 .generate-btn {
   padding: 14px 24px;

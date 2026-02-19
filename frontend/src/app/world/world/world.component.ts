@@ -292,8 +292,13 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   async onCharacterGenerated(character: CharacterSheet) {
     try {
-      // Generate unique ID for the character
-      const characterId = `char_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      // Use character name as ID (sanitized for filesystem)
+      const sanitizedName = character.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+      
+      const characterId = `${sanitizedName}_${Date.now()}`;
       
       // Save character to backend
       await this.characterApi.saveCharacter(characterId, character);
