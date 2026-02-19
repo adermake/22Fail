@@ -257,6 +257,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
         // Refresh character data to sync resource bars
         await this.loadWorldCharacters();
       })
+    );
 
     // Subscribe to character patches for real-time resource bar updates
     this.characterSocket.connect();
