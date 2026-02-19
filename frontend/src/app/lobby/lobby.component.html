@@ -59,12 +59,14 @@
       />
     }
 
-    <!-- Grid canvas area -->
-    <div class="lobby-grid-wrapper">
-      <app-lobby-grid
-        [map]="currentMap()"
-        [tokens]="enrichedTokens()"
-        [worldCharacters]="worldCharacters()"
+    <!-- Grid and side panel container -->
+    <div class="lobby-content-wrapper">
+      <!-- Grid canvas area -->
+      <div class="lobby-grid-wrapper">
+        <app-lobby-grid
+          [map]="currentMap()"
+          [tokens]="enrichedTokens()"
+          [worldCharacters]="worldCharacters()"
         [currentTool]="currentTool()"
         [brushColor]="brushColor()"
         [penBrushSize]="penBrushSize()"
@@ -103,32 +105,31 @@
         (textureBlendColorChange)="onTextureBlendColorChange($event)"
         (textureLayerChange)="textureLayer.set($event)"
         (selectedTextureIdChange)="onSelectTexture($event)"
-      />
+        />
+      </div>
 
+      <!-- Side Panel (right side) - Layers for GM, Roll History for all -->
+      <app-lobby-side-panel
+        class="lobby-side-panel"
+        [isGM]="isGM()"
+        [rolls]="rollHistory()"
+        [layers]="layers()"
+        [activeLayerId]="activeLayerId()"
+        (layerSelect)="onLayerSelect($event)"
+        (layerToggleVisible)="onLayerToggleVisible($event)"
+        (layerToggleLock)="onLayerToggleLock($event)"
+        (layerDelete)="onLayerDelete($event)"
+        (layerRename)="onLayerRename($event)"
+        (layerReorder)="onLayerReorder($event)"
+        (layerAdd)="onLayerAdd($event)"
+      />
     </div>
 
-    <!-- Side Panel (right side) - Layers for GM, Roll History for all -->
-    <app-lobby-side-panel
-      [isGM]="isGM()"
-      [rolls]="rollHistory()"
-      [layers]="layers()"
-      [activeLayerId]="activeLayerId()"
-      (layerSelect)="onLayerSelect($event)"
-      (layerToggleVisible)="onLayerToggleVisible($event)"
-      (layerToggleLock)="onLayerToggleLock($event)"
-      (layerDelete)="onLayerDelete($event)"
-      (layerRename)="onLayerRename($event)"
-      (layerReorder)="onLayerReorder($event)"
-      (layerAdd)="onLayerAdd($event)"
-    />
-    
+    <!-- Battle Tracker Section (always show in lobby for coordination) -->
+    <div class="battle-tracker-section">
+      <app-battle-tracker [engine]="battleEngine" [readOnly]="true"></app-battle-tracker>
+    </div>
   </div>
-
-  <!-- Battle Tracker Section (always show in lobby for coordination) -->
-  <div class="battle-tracker-section">
-    <app-battle-tracker [engine]="battleEngine" [readOnly]="true"></app-battle-tracker>
-  </div>
-
 </div>
 
 <!-- Map Settings Modal -->

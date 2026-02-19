@@ -16,6 +16,7 @@ import { Subscription } from 'rxjs';
 import { LobbyStoreService } from '../services/lobby-store.service';
 import { WorldStoreService } from '../services/world-store.service';
 import { WorldSocketService, DiceRollEvent } from '../services/world-socket.service';
+import { CharacterSocketService, CharacterPatchEvent } from '../services/character-socket.service';
 import { CharacterApiService } from '../services/character-api.service';
 import { ImageService } from '../services/image.service';
 import { TextureService } from '../services/texture.service';
@@ -54,6 +55,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   store = inject(LobbyStoreService);
   private worldStore = inject(WorldStoreService);
   private worldSocket = inject(WorldSocketService);
+  private characterSocket = inject(CharacterSocketService);
   private characterApi = inject(CharacterApiService);
   private imageService = inject(ImageService);
   private textureService = inject(TextureService);
@@ -255,6 +257,22 @@ export class LobbyComponent implements OnInit, OnDestroy {
         // Refresh character data to sync resource bars
         await this.loadWorldCharacters();
       })
+
+    // Subscribe to character patches for real-time resource bar updates
+    this.characterSocket.connect();
+    this.subscriptions.push(
+      this.characterSocket.patches$.subscribe((data: CharacterPatchEvent) => {
+        const characterIndex = this.worldCharacters().findIndex(c => c.id === data.characterId);
+        if (characterIndex >= 0) {
+          const characters = this.worldCharacters();
+          const sheet = characters[characterIndex].sheet;
+          this.applyJsonPatch(sheet, data.patch);
+          
+          // Update signal with modified array
+          this.worldCharacters.set([...characters]);
+          this.cdr.markForCheck();
+        }
+      })
     );
   }
 
@@ -288,6 +306,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
             sheet.id = charId; // Ensure sheet has ID property
             console.log('[Lobby] Character loaded:', charId, sheet.name);
             characters.push({ id: charId, sheet });
+            // Join character room for real-time updates
+            this.characterSocket.joinCharacter(charId);
           } else {
             console.warn('[Lobby] Character sheet is null for:', charId);
           }
@@ -743,6 +763,32 @@ export class LobbyComponent implements OnInit, OnDestroy {
   onLayerAdd(type: 'image' | 'texture'): void {
     this.store.addLayer(type);
     this.cdr.markForCheck();
+  }
+
+  // JSON Patch helper
+  private applyJsonPatch(target: any, patch: any) {
+    const keys = patch.path.split('.');
+    let current = target;
+
+    for (let i = 0; i < keys.length - 1; i++) {
+      const key = keys[i];
+      const index = parseInt(key, 10);
+
+      if (!isNaN(index) && Array.isArray(current)) {
+        current = current[index];
+      } else {
+        current = current[key] ??= {};
+      }
+    }
+
+    const finalKey = keys[keys.length - 1];
+    const finalIndex = parseInt(finalKey, 10);
+
+    if (!isNaN(finalIndex) && Array.isArray(current)) {
+      current[finalIndex] = patch.value;
+    } else {
+      current[finalKey] = patch.value;
+    }
   }
 }
 

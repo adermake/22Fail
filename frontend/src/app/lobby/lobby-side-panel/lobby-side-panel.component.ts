@@ -153,17 +153,9 @@ type PanelTab = 'layers' | 'rolls';
   `,
   styles: [`
     .side-panel-container {
-      position: fixed;
-      top: 80px;
-      right: 20px;
-      width: 320px;
-      max-height: calc(100vh - 120px);
-      background: rgba(15, 23, 42, 0.95);
-      border: 2px solid #334155;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(10px);
-      z-index: 50;
+      height: 100%;
+      width: 100%;
+      background: rgba(17, 24, 39, 0.98);
       display: flex;
       flex-direction: column;
       overflow: hidden;

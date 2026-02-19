@@ -13,15 +13,26 @@
   display: flex;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
 /* Sidebar */
 .lobby-sidebar {
   width: 280px;
   min-width: 280px;
+  max-width: 280px;
   background: var(--card);
   border-right: 1px solid var(--border);
   overflow-y: auto;
+  flex-shrink: 0;
+}
+
+/* Content wrapper for grid and side panel */
+.lobby-content-wrapper {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
 }
 
 /* Grid wrapper */
@@ -29,6 +40,18 @@
   flex: 1;
   position: relative;
   overflow: hidden;
+  min-width: 0;
+}
+
+/* Side panel on right */
+.lobby-side-panel {
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
+  background: var(--card);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 /* Battle tracker at bottom of lobby */

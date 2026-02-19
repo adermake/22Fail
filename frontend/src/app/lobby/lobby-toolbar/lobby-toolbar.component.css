@@ -197,6 +197,13 @@
   opacity: 0.6;
 }
 
+/* Map settings button */
+.map-settings-btn {
+  font-size: 16px;
+  min-width: 40px;
+  padding: 8px;
+}
+
 /* Eraser mode indicator */
 .eraser-mode-indicator {
   background: #7c2d12;
