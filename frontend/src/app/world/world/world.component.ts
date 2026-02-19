@@ -22,6 +22,7 @@ import { BattleTracker } from '../battle-tracker/battle-tracker.component';
 import { LootManagerComponent, LootBundle } from '../loot-manager/loot-manager.component';
 import { BattleTrackerEngine } from '../battle-tracker/battle-tracker-engine';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
+import { CharacterGeneratorComponent } from '../character-generator/character-generator.component';
 
 // Re-export types for template usage
 export type { SimulatedTurn, BattleGroup };
@@ -29,7 +30,7 @@ export type { SimulatedTurn, BattleGroup };
 @Component({
   selector: 'app-world',
   standalone: true,
-  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent, ImageUrlPipe],
+  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent, ImageUrlPipe, CharacterGeneratorComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,6 +62,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   dummySheet: CharacterSheet = createEmptySheet();
   showItemCreator = false;
   showTrash = false;
+  showCharacterGenerator = false;
   editingItems = new Set<number>();
   editingRunes = new Set<number>();
   editingSpells = new Set<number>();
@@ -276,6 +278,47 @@ export class WorldComponent implements OnInit, OnDestroy {
       });
     }
   }
+
+  // Character Generator methods
+  openCharacterGenerator() {
+    this.showCharacterGenerator = true;
+    this.cdr.markForCheck();
+  }
+
+  closeCharacterGenerator() {
+    this.showCharacterGenerator = false;
+    this.cdr.markForCheck();
+  }
+
+  async onCharacterGenerated(character: CharacterSheet) {
+    try {
+      // Generate unique ID for the character
+      const characterId = `char_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      
+      // Save character to backend
+      await this.characterApi.saveCharacter(characterId, character);
+      
+      // Add character to world
+      const world = this.store.worldValue;
+      if (world) {
+        this.store.applyPatch({
+          path: 'characterIds',
+          value: [...world.characterIds, characterId]
+        });
+      }
+      
+      // Close the generator
+      this.closeCharacterGenerator();
+      
+      console.log(`Character "${character.name}" created with ID: ${characterId}`);
+      
+      this.cdr.markForCheck();
+    } catch (error) {
+      console.error('Failed to save generated character:', error);
+      alert('Failed to save character. Please try again.');
+    }
+  }
+
 
   // ==================== Library Management ====================
 

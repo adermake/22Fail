@@ -115,6 +115,18 @@
   background: var(--accentdark);
 }
 
+.generate-character-btn {
+  background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+  transition: all 0.2s !important;
+}
+
+.generate-character-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
 /* Party Dashboard Styles */
 .dashboard-grid {
   display: grid;

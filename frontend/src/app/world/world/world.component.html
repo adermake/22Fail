@@ -24,6 +24,9 @@
           placeholder="Character ID"
         />
         <button (click)="addCharacter()">Add Character</button>
+        <button (click)="openCharacterGenerator()" class="generate-character-btn">
+          ⚔️ Generate Character
+        </button>
       </div>
     </app-card>
 
@@ -247,4 +250,12 @@
     </div>
   </div>
 }
+}
+
+<!-- Character Generator Modal -->
+@if (showCharacterGenerator) {
+  <app-character-generator
+    (close)="closeCharacterGenerator()"
+    (characterGenerated)="onCharacterGenerated($event)"
+  />
 }

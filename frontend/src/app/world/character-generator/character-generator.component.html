@@ -1,0 +1,249 @@
+<div class="generator-overlay" (click)="closeModal()">
+  <div class="generator-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>⚔️ Character Generator</h2>
+      <button class="close-btn" (click)="closeModal()">✕</button>
+    </div>
+
+    <div class="modal-content">
+      <!-- Left Panel: Generation Parameters -->
+      <div class="parameters-panel">
+        <h3>Generation Parameters</h3>
+
+        <!-- Level Input -->
+        <div class="param-group">
+          <label>Level</label>
+          <input 
+            type="number" 
+            [(ngModel)]="level" 
+            (ngModelChange)="onLevelChange()"
+            min="1" 
+            max="100"
+            class="level-input"
+          />
+          <span class="param-info">Talent Points: {{ level - 1 }}</span>
+        </div>
+
+        <!-- Richness Slider -->
+        <div class="param-group">
+          <label>Richness</label>
+          <input 
+            type="range" 
+            [(ngModel)]="richness" 
+            min="0" 
+            max="100"
+            class="richness-slider"
+          />
+          <span class="param-info">{{ richness }}%</span>
+        </div>
+
+        <!-- Race Selection -->
+        <div class="param-group">
+          <label>Race</label>
+          <div class="race-selector">
+            <select [(ngModel)]="selectedRaceId" class="race-dropdown">
+              <option value="">Select Race...</option>
+              @for (race of races; track race.id) {
+                <option [value]="race.id">{{ race.name }}</option>
+              }
+            </select>
+            <button (click)="randomizeRace()" class="random-btn">🎲</button>
+          </div>
+        </div>
+
+        <!-- Compass Direction Selector -->
+        <div class="param-group">
+          <label>Talent Tree Direction</label>
+          <div class="compass-grid">
+            @for (direction of directions; track direction.name) {
+              <button
+                class="direction-btn"
+                [class.selected]="selectedDirection === direction"
+                (click)="selectDirection(direction)"
+                [title]="direction.name"
+              >
+                {{ direction.icon }}
+              </button>
+            }
+          </div>
+          <span class="param-info">
+            @if (selectedDirection) {
+              {{ selectedDirection.name }} ({{ selectedDirection.angle }}°)
+            } @else {
+              Random
+            }
+          </span>
+        </div>
+
+        <!-- Stat Distribution (6D Hexagon) -->
+        <div class="param-group">
+          <label>Stat Distribution</label>
+          <div class="stat-hexagon">
+            <div class="stat-row">
+              <span class="stat-label">STR</span>
+              <button (click)="decrementStat('strength')" [disabled]="hexStats.strength === 0">-</button>
+              <span class="stat-value">{{ hexStats.strength }}</span>
+              <button (click)="incrementStat('strength')" [disabled]="remainingStatPoints === 0">+</button>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">DEX</span>
+              <button (click)="decrementStat('dexterity')" [disabled]="hexStats.dexterity === 0">-</button>
+              <span class="stat-value">{{ hexStats.dexterity }}</span>
+              <button (click)="incrementStat('dexterity')" [disabled]="remainingStatPoints === 0">+</button>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">SPD</span>
+              <button (click)="decrementStat('speed')" [disabled]="hexStats.speed === 0">-</button>
+              <span class="stat-value">{{ hexStats.speed }}</span>
+              <button (click)="incrementStat('speed')" [disabled]="remainingStatPoints === 0">+</button>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">INT</span>
+              <button (click)="decrementStat('intelligence')" [disabled]="hexStats.intelligence === 0">-</button>
+              <span class="stat-value">{{ hexStats.intelligence }}</span>
+              <button (click)="incrementStat('intelligence')" [disabled]="remainingStatPoints === 0">+</button>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">CHL</span>
+              <button (click)="decrementStat('chill')" [disabled]="hexStats.chill === 0">-</button>
+              <span class="stat-value">{{ hexStats.chill }}</span>
+              <button (click)="incrementStat('chill')" [disabled]="remainingStatPoints === 0">+</button>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">CON</span>
+              <button (click)="decrementStat('constitution')" [disabled]="hexStats.constitution === 0">-</button>
+              <span class="stat-value">{{ hexStats.constitution }}</span>
+              <button (click)="incrementStat('constitution')" [disabled]="remainingStatPoints === 0">+</button>
+            </div>
+          </div>
+          <span class="param-info">Remaining Points: {{ remainingStatPoints }}</span>
+        </div>
+
+        <!-- Generate Button -->
+        <button (click)="generateCharacter()" class="generate-btn">
+          🎲 Generate Character
+        </button>
+      </div>
+
+      <!-- Right Panel: Preview -->
+      <div class="preview-panel">
+        @if (generatedCharacter) {
+          <h3>Generated Character</h3>
+          
+          <div class="character-preview">
+            <div class="preview-section">
+              <h4>Basic Info</h4>
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-label">Name:</span>
+                  <span class="info-value">{{ generatedCharacter.name }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Race:</span>
+                  <span class="info-value">{{ generatedCharacter.race }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Level:</span>
+                  <span class="info-value">{{ generatedCharacter.level }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Age:</span>
+                  <span class="info-value">{{ generatedCharacter.age }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Height:</span>
+                  <span class="info-value">{{ generatedCharacter.size }}cm</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Alignment:</span>
+                  <span class="info-value">{{ generatedCharacter.alignment }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="preview-section">
+              <h4>Classes</h4>
+              <div class="info-item">
+                <span class="info-label">Primary:</span>
+                <span class="info-value">{{ generatedCharacter.primary_class }}</span>
+              </div>
+              @if (generatedCharacter.secondary_class) {
+                <div class="info-item">
+                  <span class="info-label">Secondary:</span>
+                  <span class="info-value">{{ generatedCharacter.secondary_class }}</span>
+                </div>
+              }
+            </div>
+
+            <div class="preview-section">
+              <h4>Stats</h4>
+              <div class="stats-grid">
+                <div class="stat-preview">STR: {{ generatedCharacter.strength.base }}</div>
+                <div class="stat-preview">DEX: {{ generatedCharacter.dexterity.base }}</div>
+                <div class="stat-preview">SPD: {{ generatedCharacter.speed.base }}</div>
+                <div class="stat-preview">INT: {{ generatedCharacter.intelligence.base }}</div>
+                <div class="stat-preview">CHL: {{ generatedCharacter.chill.base }}</div>
+                <div class="stat-preview">CON: {{ generatedCharacter.constitution.base }}</div>
+              </div>
+            </div>
+
+            <div class="preview-section">
+              <h4>Resources</h4>
+              <div class="info-item">
+                <span class="info-label">Health:</span>
+                <span class="info-value">{{ getStatusValue(generatedCharacter, FormulaType.LIFE) }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Mana:</span>
+                <span class="info-value">{{ getStatusValue(generatedCharacter, FormulaType.MANA) }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Energy:</span>
+                <span class="info-value">{{ getStatusValue(generatedCharacter, FormulaType.ENERGY) }}</span>
+              </div>
+            </div>
+
+            <div class="preview-section">
+              <h4>Wealth</h4>
+              <div class="currency-display">
+                @if (generatedCharacter.currency.platinum > 0) {
+                  <span class="currency-item">{{ generatedCharacter.currency.platinum }}pp</span>
+                }
+                @if (generatedCharacter.currency.gold > 0) {
+                  <span class="currency-item">{{ generatedCharacter.currency.gold }}gp</span>
+                }
+                @if (generatedCharacter.currency.silver > 0) {
+                  <span class="currency-item">{{ generatedCharacter.currency.silver }}sp</span>
+                }
+                @if (generatedCharacter.currency.copper > 0) {
+                  <span class="currency-item">{{ generatedCharacter.currency.copper }}cp</span>
+                }
+              </div>
+            </div>
+
+            <div class="preview-section">
+              <h4>Learned Skills</h4>
+              <div class="skills-summary">
+                {{ generatedCharacter.learnedSkillIds.length }} skills learned
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="action-buttons">
+            <button (click)="rerollAll()" class="reroll-btn">
+              🔄 Reroll All
+            </button>
+            <button (click)="saveCharacter()" class="save-btn">
+              💾 Save Character
+            </button>
+          </div>
+        } @else {
+          <div class="no-preview">
+            <p>👆 Configure parameters and click "Generate Character" to preview</p>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
