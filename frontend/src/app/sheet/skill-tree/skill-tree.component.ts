@@ -951,6 +951,11 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
     return this.classTiers.get(className) === 1;
   }
 
+  // Get the tier number for a class
+  getClassTier(className: string): number {
+    return this.classTiers.get(className) || 1;
+  }
+
   getTierColor(tier: number): string {
     return TIER_COLORS[tier] || TIER_COLORS[5];
   }

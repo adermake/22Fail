@@ -401,7 +401,13 @@ type PanelTab = 'layers' | 'rolls';
       display: inline-block;
       padding: 2px 6px;
       background: rgba(100, 116, 139, 0.3);
-      esource-changes {
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+
+    .resource-changes {
       display: flex;
       flex-wrap: wrap;
       gap: 3px;
@@ -427,13 +433,6 @@ type PanelTab = 'layers' | 'rolls';
       background: rgba(239, 68, 68, 0.2);
       border-color: #ef4444;
       color: #fca5a5;
-    }
-
-    .rborder: 1px solid #475569;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: 600;
-      color: #cbd5e1;
     }
 
     .roll-result {

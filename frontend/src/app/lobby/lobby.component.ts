@@ -157,6 +157,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // Team assignments from battle tracker (reactive for token rendering)
   battleTeams = signal<Map<string, string>>(new Map());
 
+  // Battle tracker visibility
+  showBattleTracker = signal(true);
+
   ngOnInit(): void {
     // Connect battle engine to world store for persistence (mirrors world view)
     this.battleEngine.setWorldStore(this.worldStore);
@@ -325,12 +328,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
     console.log('[Lobby] Loaded characters:', characters.length, characters.map(c => c.sheet.name));
     this.worldCharacters.set(characters);
     
-    // Update battle engine with character data for portraits
+    // Update battle engine with character data including proper speeds
     this.battleEngine.setAvailableCharacters(characters.map(c => ({
       id: c.id,
       name: c.sheet.name,
       portrait: c.sheet.portrait,
-      speed: 10 // Default, will be overridden by battle participants data
+      speed: this.trueStats.calculateSpeed(c.sheet) // Use TrueStatsService for correct speed
     })));
     
     // Force change detection after character library loads

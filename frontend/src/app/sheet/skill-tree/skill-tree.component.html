@@ -115,6 +115,7 @@
           [isPrimaryClass]="isPrimaryClass(selectedClass)"
           [isSecondaryClass]="isSecondaryClass(selectedClass)"
           [isTier1Class]="isClassTier1(selectedClass)"
+          [classTier]="getClassTier(selectedClass)"
           (learnSkill)="learnSkill($event)"
           (unlearnSkill)="unlearnSkill($event)"
           (setPrimary)="setPrimaryClass(selectedClass)"

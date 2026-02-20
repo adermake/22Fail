@@ -342,6 +342,81 @@ addStroke, removeStroke
 toggleWall, updateFog
 
 
+## STAT CALCULATION (IMPORTANT)
+Centralized stat calculation service ensures consistency across all features.
+
+### THE CORRECT FORMULA
+```
+current = (base + bonus + effectBonus + (gain * level)) | 0
+```
+
+Where:
+- base: Character's base stat value
+- bonus: Manual bonus added by user
+- gain: Per-level stat increase (from race)
+- level: Character's current level  
+- effectBonus: Sum of bonuses from skills (multiplied by skill level) and equipped items
+
+### TrueStatsService
+File: `frontend/src/app/services/true-stats.service.ts`
+
+This service is the **single source of truth** for stat calculations. Use it whenever you need the actual calculated stat value programmatically.
+
+Key methods:
+- `calculateSpeed(sheet)`: Get calculated speed for battle/movement
+- `calculateStat(sheet, stat, statKey)`: Calculate any stat
+- `getAllStats(sheet)`: Get all six stats calculated
+- `calculateEffectBonus(sheet, statKey)`: Get bonus from skills/equipment
+- `calculateStatDetails(sheet, stat, statKey)`: Get full breakdown
+
+### IMPORTANT WARNINGS
+1. **DO NOT use `.current` property directly** - It's only updated when stat.component.ts renders on screen
+2. **DO NOT use raw stat properties** (e.g., `sheet.speed`) - These are StatBlock objects, not numbers
+3. **ALWAYS use TrueStatsService** for programmatic stat access
+
+### Usage Examples
+```typescript
+// Correct: Using TrueStatsService
+const speed = this.trueStats.calculateSpeed(character.sheet);
+
+// Wrong: Using .current (may be stale)
+const speed = character.sheet.speed.current; // DON'T DO THIS
+
+// Wrong: Using raw property (StatBlock object, not number)
+const speed = character.sheet.speed; // DON'T DO THIS
+```
+
+### Components Already Using TrueStatsService
+- battle.service.ts: `calculateSpeed()` delegates to TrueStatsService
+- lobby.component.ts: Movement speed, battle tracker sync
+- world.component.ts: Battle participant speed
+
+
+## TALENT POINTS (TP) SYSTEM
+Talent points are used to learn skills from the skill tree.
+
+### TP EARNED FORMULA
+```
+Total TP = sum of (1 + floor((l-1)/10)) for l = 1 to level
+```
+
+Example calculations:
+- Level 1: 1 TP
+- Level 10: 10 TP
+- Level 11: 12 TP (levels 1-10 give 1 each, level 11 gives 2)
+- Level 25: 45 TP
+
+### TP COST BY TIER
+Skills cost different TP based on their class tier:
+- Tier 1-2: 1 TP per skill
+- Tier 3-4: 2 TP per skill
+- Tier 5: 3 TP per skill
+
+### Key Files
+- levelclass.component.ts: TP calculation and display
+- skill-detail.component.ts: Learn button shows tier-based cost
+- skill-tree.component.ts: Skill tree visualization
+
 
 
 

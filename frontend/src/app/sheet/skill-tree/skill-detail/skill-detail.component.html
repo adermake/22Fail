@@ -95,7 +95,7 @@
                 </div>
               } @else if (canLearn(skill)) {
                 <button class="learn-btn" (click)="onLearn(skill)">
-                  Lernen (1 Punkt)
+                  Lernen ({{ getSkillTPCost() }} {{ getSkillTPCost() === 1 ? 'Punkt' : 'Punkte' }})
                 </button>
               } @else {
                 <span class="locked-badge">

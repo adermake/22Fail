@@ -38,10 +38,13 @@
               class="character-tile"
               draggable="true"
               (dragstart)="onCharDragStart($event, char)"
-              (click)="onAddCharacter(char.id)"
-              title="Click or drag to add to battle"
+              title="Drag to add to battle"
             >
-              <img [src]="char.portrait | imageUrl" class="tile-portrait-small" alt="">
+              @if (char.portrait) {
+                <img [src]="char.portrait | imageUrl" class="tile-portrait-small" alt="">
+              } @else {
+                <span class="tile-portrait-small tile-initial">{{ char.name?.charAt(0) || '?' }}</span>
+              }
               <span class="tile-char-name">{{ char.name }}</span>
             </div>
           }
@@ -65,21 +68,14 @@
               [ngClass]="'team-' + char.team"
               draggable="true"
               (dragstart)="onCharDragStart($event, char)"
-              (click)="onRemoveCharacter(char.id)"
-              title="Click to remove from battle"
+              title="Drag to remove from battle"
             >
-              <img [src]="char.portrait | imageUrl" class="tile-portrait-small" alt="">
+              @if (char.portrait) {
+                <img [src]="char.portrait | imageUrl" class="tile-portrait-small" alt="">
+              } @else {
+                <span class="tile-portrait-small tile-initial">{{ char.name?.charAt(0) || '?' }}</span>
+              }
               <span class="tile-char-name">{{ char.name }}</span>
-              <select 
-                class="mini-team-selector"
-                [ngModel]="char.team"
-                (ngModelChange)="onTeamChange(char.id, $event)"
-                (click)="$event.stopPropagation()"
-              >
-                @for (team of teams; track team) {
-                  <option [value]="team">{{ team }}</option>
-                }
-              </select>
             </div>
           }
           @if (inBattleCharacters().length === 0) {
@@ -152,13 +148,17 @@
                 [attr.data-tile-id]="tile.id"
                 [class.animating]="isAnimating(tile.id)"
                 [ngClass]="'team-' + tile.team"
-              (click)="onTileClick($event, tile)"
+                (click)="onTileClick($event, tile)"
             >
-                <img 
-                  [src]="tile.portrait | imageUrl" 
-                  [alt]="tile.name"
-                  class="tile-portrait"
-                >
+                @if (tile.portrait) {
+                  <img 
+                    [src]="tile.portrait | imageUrl" 
+                    [alt]="tile.name"
+                    class="tile-portrait"
+                  >
+                } @else {
+                  <span class="tile-portrait tile-initial">{{ tile.name?.charAt(0) || '?' }}</span>
+                }
                 <span class="tile-name">{{ tile.name }}</span>
                 <span class="tile-speed">{{ tile.speed - 10 }}</span>
               </div>
@@ -178,20 +178,18 @@
   @if (radialMenuOpen()) {
     <div class="radial-menu-backdrop" (click)="closeRadialMenu()"></div>
     <div class="radial-menu" [style.left.px]="radialMenuPosition().x" [style.top.px]="radialMenuPosition().y">
-      @for (team of teams; track team) {
+      @for (team of teams; track team; let i = $index) {
         <button 
           class="radial-team-btn" 
           [ngClass]="'team-' + team"
           [class.selected]="getRadialMenuChar()?.team === team"
           (click)="onRadialTeamSelect(team)"
           [title]="team"
+          [style.--angle]="(i * 60 - 90) + 'deg'"
         >
           <span class="radial-color-circle"></span>
         </button>
       }
-      <button class="radial-remove-btn" (click)="onRadialRemove()" title="Remove from battle">
-        ✕
-      </button>
     </div>
   }
 

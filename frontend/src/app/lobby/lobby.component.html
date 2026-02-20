@@ -126,9 +126,15 @@
     </div>
   </div>
 
-  <!-- Battle Tracker Section (always show at bottom of lobby) -->
-  <div class="battle-tracker-section">
-    <app-battle-tracker [engine]="battleEngine" [readOnly]="true"></app-battle-tracker>
+  <!-- Battle Tracker Section (collapsible) -->
+  <div class="battle-tracker-section" [class.collapsed]="!showBattleTracker()">
+    <button class="battle-tracker-toggle" (click)="showBattleTracker.set(!showBattleTracker())" title="Toggle Battle Tracker">
+      <span class="toggle-icon">{{ showBattleTracker() ? '▼' : '▲' }}</span>
+      <span class="toggle-label">Battle Tracker</span>
+    </button>
+    @if (showBattleTracker()) {
+      <app-battle-tracker [engine]="battleEngine" [readOnly]="true"></app-battle-tracker>
+    }
   </div>
 </div>
 

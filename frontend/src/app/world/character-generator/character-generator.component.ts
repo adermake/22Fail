@@ -330,7 +330,7 @@ export class CharacterGeneratorComponent implements OnInit {
    * Calculate total talent points earned at a given level.
    * Formula: 1 TP per level + 1 additional per 10 levels
    */
-  private calculateTotalTalentPoints(level: number): number {
+  calculateTotalTalentPoints(level: number): number {
     let total = 0;
     for (let l = 1; l <= level; l++) {
       total += 1 + Math.floor((l - 1) / 10);

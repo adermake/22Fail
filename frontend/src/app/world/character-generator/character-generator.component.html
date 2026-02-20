@@ -37,7 +37,7 @@
             max="100"
             class="level-input"
           />
-          <span class="param-info">Talent Points: {{ level - 1 }} | Stat Points: {{ statPoints }}</span>
+          <span class="param-info">Talent Points: {{ calculateTotalTalentPoints(level) }} | Stat Points: {{ statPoints }}</span>
         </div>
 
         <!-- Richness Slider -->

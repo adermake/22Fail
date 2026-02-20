@@ -25,6 +25,7 @@ export class SkillDetailComponent {
   @Input() isPrimaryClass: boolean = false;
   @Input() isSecondaryClass: boolean = false;
   @Input() isTier1Class: boolean = false;  // Only tier 1 classes can be selected as primary/secondary
+  @Input() classTier: number = 1;  // Tier of the class for TP cost calculation
 
   @Output() learnSkill = new EventEmitter<SkillDefinition>();
   @Output() unlearnSkill = new EventEmitter<SkillDefinition>();
@@ -71,9 +72,11 @@ export class SkillDetailComponent {
   }
 
   canLearn(skill: SkillDefinition): boolean {
-    // For infinite level skills, always allow if we have talent points
+    const cost = this.getSkillTPCost();
+    
+    // For infinite level skills, always allow if we have enough talent points
     if (skill.infiniteLevel) {
-      if (this.availablePoints <= 0) return false;
+      if (this.availablePoints < cost) return false;
       if (!this.canLearnFromClass) return false;
       
       // Check required skill(s)
@@ -91,7 +94,7 @@ export class SkillDetailComponent {
     
     // For normal skills, can't learn if already learned
     if (this.isLearned(skill)) return false;
-    if (this.availablePoints <= 0) return false;
+    if (this.availablePoints < cost) return false;
     if (!this.canLearnFromClass) return false;
 
     // Check required skill(s)
@@ -185,5 +188,12 @@ export class SkillDetailComponent {
       return 'Benötigt 3 Skills von einer Vorgängerklasse';
     }
     return '';
+  }
+
+  // Get TP cost based on class tier: tier 1-2 = 1 TP, tier 3-4 = 2 TP, tier 5 = 3 TP
+  getSkillTPCost(): number {
+    if (this.classTier <= 2) return 1;
+    if (this.classTier <= 4) return 2;
+    return 3;
   }
 }

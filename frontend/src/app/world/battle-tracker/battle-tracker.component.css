@@ -10,8 +10,9 @@
 }
 
 .battle-tracker-container.read-only {
-  padding: 0.75rem;
+  padding: 0.5rem;
   min-height: auto;
+  gap: 0.5rem;
 }
 
 /* Header */
@@ -584,25 +585,15 @@
 .radial-menu {
   position: fixed;
   z-index: 1000;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  background: rgba(26, 26, 46, 0.95);
-  padding: 12px;
-  border-radius: 50%;
-  width: 140px;
-  height: 140px;
+  width: 0;
+  height: 0;
   transform: translate(-50%, -50%);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  border: 2px solid #333;
-  justify-content: center;
-  align-items: center;
-  align-content: center;
 }
 
 .radial-team-btn {
-  width: 36px;
-  height: 36px;
+  position: absolute;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: 3px solid transparent;
   cursor: pointer;
@@ -611,21 +602,24 @@
   align-items: center;
   justify-content: center;
   transition: transform 0.15s, border-color 0.15s;
-  background: transparent;
+  background: rgba(26, 26, 46, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  /* Position radially using CSS custom property */
+  transform: rotate(var(--angle)) translateY(-50px) rotate(calc(-1 * var(--angle)));
 }
 
 .radial-team-btn:hover {
-  transform: scale(1.15);
+  transform: rotate(var(--angle)) translateY(-50px) rotate(calc(-1 * var(--angle))) scale(1.2);
 }
 
 .radial-team-btn.selected {
   border-color: #fff;
-  transform: scale(1.2);
+  transform: rotate(var(--angle)) translateY(-50px) rotate(calc(-1 * var(--angle))) scale(1.25);
 }
 
 .radial-color-circle {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
@@ -637,21 +631,21 @@
 .radial-team-btn.team-purple .radial-color-circle { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
 .radial-team-btn.team-orange .radial-color-circle { background: linear-gradient(135deg, #e67e22, #d35400); }
 
-.radial-remove-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: linear-gradient(135deg, #444, #333);
-  color: #e74c3c;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: transform 0.15s, background 0.15s;
+/* First letter initial for missing portraits */
+.tile-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: white;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
-.radial-remove-btn:hover {
-  transform: scale(1.15);
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-  color: #fff;
+.tile-portrait-small.tile-initial {
+  font-size: 14px;
+}
+
+.tile-portrait.tile-initial {
+  font-size: 20px;
 }

@@ -59,27 +59,71 @@
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   background: #1a1a2e;
-  max-height: 160px;
-  min-height: 80px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  max-height: 140px;
+  overflow: hidden;
 }
 
-.battle-tracker-section::-webkit-scrollbar {
-  width: 6px;
+.battle-tracker-section.collapsed {
+  max-height: 32px;
 }
 
-.battle-tracker-section::-webkit-scrollbar-track {
-  background: #1a1a2e;
+.battle-tracker-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  background: #252540;
+  border: none;
+  border-bottom: 1px solid #333;
+  color: #ccc;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
-.battle-tracker-section::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 3px;
+.battle-tracker-toggle:hover {
+  background: #303050;
 }
 
-.battle-tracker-section::-webkit-scrollbar-thumb:hover {
-  background: #444;
+.toggle-icon {
+  font-size: 10px;
+}
+
+.toggle-label {
+  font-weight: 600;
+}
+
+.battle-tracker-section :deep(.battle-tracker-container) {
+  padding: 0.5rem;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.battle-tracker-section :deep(.battle-header) {
+  display: none;
+}
+
+.battle-tracker-section :deep(.timeline-section) {
+  padding: 0;
+}
+
+.battle-tracker-section :deep(.timeline) {
+  padding: 4px 0;
+  gap: 4px;
+}
+
+.battle-tracker-section :deep(.tile) {
+  padding: 4px;
+}
+
+.battle-tracker-section :deep(.tile-portrait) {
+  width: 28px;
+  height: 28px;
+}
+
+.battle-tracker-section :deep(.tile-name) {
+  font-size: 9px;
 }
 
 /* Map badge */
