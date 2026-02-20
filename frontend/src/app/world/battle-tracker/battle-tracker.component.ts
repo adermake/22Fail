@@ -44,6 +44,15 @@ export class BattleTracker implements OnInit, OnDestroy {
   allCharacters = signal<BattleCharacter[]>([]);
   currentTurnDisplay = signal<string | null>(null);
 
+  // Computed: characters NOT in battle (for available column)
+  availableCharacters = computed(() => this.allCharacters().filter(c => !c.isInBattle));
+  
+  // Computed: characters IN battle (for battle column)
+  inBattleCharacters = computed(() => this.allCharacters().filter(c => c.isInBattle));
+
+  // Drag state for character tiles
+  private draggedCharId: string | null = null;
+
   // Available teams
   readonly teams = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
   
@@ -218,6 +227,54 @@ export class BattleTracker implements OnInit, OnDestroy {
     if (this.readOnly) return;
     this.recordPositions();
     this.engine.setTeam(characterId, team);
+  }
+
+  // ============================================
+  // Character Drag & Drop
+  // ============================================
+
+  onCharDragStart(event: DragEvent, char: BattleCharacter): void {
+    this.draggedCharId = char.id;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', char.id);
+    }
+  }
+
+  onBattleColumnDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  onBattleColumnDrop(event: DragEvent): void {
+    event.preventDefault();
+    if (this.draggedCharId) {
+      const char = this.allCharacters().find(c => c.id === this.draggedCharId);
+      if (char && !char.isInBattle) {
+        this.onAddCharacter(this.draggedCharId);
+      }
+    }
+    this.draggedCharId = null;
+  }
+
+  onAvailableColumnDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  onAvailableColumnDrop(event: DragEvent): void {
+    event.preventDefault();
+    if (this.draggedCharId) {
+      const char = this.allCharacters().find(c => c.id === this.draggedCharId);
+      if (char && char.isInBattle) {
+        this.onRemoveCharacter(this.draggedCharId);
+      }
+    }
+    this.draggedCharId = null;
   }
 
   // ============================================

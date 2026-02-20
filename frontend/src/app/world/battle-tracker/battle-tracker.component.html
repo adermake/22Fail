@@ -22,76 +22,107 @@
     </div>
   }
 
-  <!-- Character List with Turn Meters (World View Only) -->
+  <!-- Character Grid (World View Only) - Two columns: Available | In Battle -->
   @if (!readOnly) {
-    <div class="characters-section">
-      <h3>Characters</h3>
-      @if (allCharacters().length > 0) {
-        <div class="character-list">
-          @for (char of allCharacters(); track trackChar($index, char)) {
-            <div class="character-option" [class.in-battle]="char.isInBattle">
-              <div class="character-info">
-                <img 
-                  [src]="char.portrait | imageUrl" 
-                  class="portrait-small" 
-                  alt=""
-                >
-                <div class="details">
-                  <span class="name">{{ char.name }}</span>
-                  <span class="speed">Speed: {{ char.speed }}</span>
-                </div>
-                
-                <!-- Team Selector (only when in battle) -->
-                @if (char.isInBattle) {
-                  <select 
-                    class="team-selector"
-                    [ngModel]="char.team"
-                    (ngModelChange)="onTeamChange(char.id, $event)"
-                  >
-                    @for (team of teams; track team) {
-                      <option [value]="team">{{ team }}</option>
-                    }
-                  </select>
-                }
-              </div>
+    <div class="characters-grid-section">
+      <!-- Available Characters (Left) -->
+      <div 
+        class="character-column available-column"
+        (dragover)="onAvailableColumnDragOver($event)"
+        (drop)="onAvailableColumnDrop($event)"
+      >
+        <div class="column-header">Available</div>
+        <div class="character-tiles">
+          @for (char of availableCharacters(); track trackChar($index, char)) {
+            <div 
+              class="character-tile"
+              draggable="true"
+              (dragstart)="onCharDragStart($event, char)"
+              (click)="onAddCharacter(char.id)"
+              title="Click or drag to add to battle"
+            >
+              <img [src]="char.portrait | imageUrl" class="tile-portrait-small" alt="">
+              <span class="tile-char-name">{{ char.name }}</span>
+            </div>
+          }
+          @if (availableCharacters().length === 0) {
+            <div class="empty-column">All in battle</div>
+          }
+        </div>
+      </div>
 
-              <!-- Turn Meter Slider (only when in battle) -->
-              @if (char.isInBattle) {
-                <div class="turn-meter-section">
-                  <div class="turn-meter-bar">
+      <!-- In Battle Characters (Right) -->
+      <div 
+        class="character-column battle-column"
+        (dragover)="onBattleColumnDragOver($event)"
+        (drop)="onBattleColumnDrop($event)"
+      >
+        <div class="column-header">In Battle</div>
+        <div class="character-tiles">
+          @for (char of inBattleCharacters(); track trackChar($index, char)) {
+            <div 
+              class="character-tile in-battle"
+              [ngClass]="'team-' + char.team"
+              draggable="true"
+              (dragstart)="onCharDragStart($event, char)"
+              (click)="onRemoveCharacter(char.id)"
+              title="Click to remove from battle"
+            >
+              <img [src]="char.portrait | imageUrl" class="tile-portrait-small" alt="">
+              <span class="tile-char-name">{{ char.name }}</span>
+              <select 
+                class="mini-team-selector"
+                [ngModel]="char.team"
+                (ngModelChange)="onTeamChange(char.id, $event)"
+                (click)="$event.stopPropagation()"
+              >
+                @for (team of teams; track team) {
+                  <option [value]="team">{{ team }}</option>
+                }
+              </select>
+            </div>
+          }
+          @if (inBattleCharacters().length === 0) {
+            <div class="empty-column drop-zone">Drag characters here</div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn Meters for In-Battle Characters -->
+    @if (inBattleCharacters().length > 0) {
+      <div class="turn-meters-section">
+        <div class="meters-header">Turn Meters</div>
+        <div class="meters-list">
+          @for (char of inBattleCharacters(); track trackChar($index, char)) {
+            <div class="meter-row" [ngClass]="'team-' + char.team">
+                <span class="meter-name">{{ char.name }}</span>
+                <div class="meter-slider-wrapper">
+                  <div class="meter-track">
                     <div 
-                      class="turn-meter-fill" 
+                      class="meter-fill"
                       [style.width.%]="getTurnMeterPercent(char)"
-                      [ngClass]="'team-' + char.team"
+                    ></div>
+                    <div 
+                      class="meter-thumb"
+                      [style.left.%]="getTurnMeterPercent(char)"
                     ></div>
                   </div>
                   <input 
                     type="range" 
-                    class="turn-meter-slider"
+                    class="meter-input"
                     [min]="0" 
                     [max]="TURN_METER_MAX - 1" 
                     [value]="char.turnMeter"
                     (input)="onTurnMeterChange(char.id, $event)"
                   >
-                  <span class="turn-meter-value">{{ char.turnMeter }}</span>
                 </div>
-              }
-
-              <!-- Add/Remove Button -->
-              <button 
-                class="toggle-btn" 
-                [class.remove]="char.isInBattle"
-                (click)="char.isInBattle ? onRemoveCharacter(char.id) : onAddCharacter(char.id)"
-              >
-                {{ char.isInBattle ? 'Remove' : 'Add' }}
-              </button>
-            </div>
+                <span class="meter-value">{{ char.turnMeter }}</span>
+              </div>
           }
         </div>
-      } @else {
-        <p class="no-chars">No characters available</p>
-      }
-    </div>
+      </div>
+    }
   }
 
   <!-- Timeline -->

@@ -54,31 +54,13 @@
   flex-shrink: 0;
 }
 
-/* Battle tracker at bottom of lobby */
+/* Battle tracker at bottom of lobby - compact view */
 .battle-tracker-section {
   border-top: 1px solid var(--border);
   flex-shrink: 0;
-}
-
-/* Battle tracker panel */
-.battle-tracker-panel {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 300px;
-  max-height: 60vh;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(8px);
-  z-index: 50;
+  background: #1a1a2e;
+  max-height: 140px;
   overflow: hidden;
-}
-
-.battle-tracker-panel .read-only {
-  pointer-events: none;
-  opacity: 0.8;
 }
 
 /* Map badge */

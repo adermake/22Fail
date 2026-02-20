@@ -89,6 +89,8 @@ interface SimState {
 
 const TURN_METER_MAX = 1000;
 const TIMELINE_LENGTH = 15;
+/** Base speed added to all characters to reduce speed variance impact */
+const BASE_SPEED = 10;
 
 // ============================================
 // Engine
@@ -205,6 +207,8 @@ export class BattleTrackerEngine {
     }
 
     // Rebuild participants
+    // IMPORTANT: Prioritize saved speed (bp.speed) over allCharacters speed
+    // because lobby sets allCharacters speed to 10 as default
     this.participants.clear();
     for (const bp of saved) {
       const char = this.allCharacters.get(bp.characterId);
@@ -212,7 +216,7 @@ export class BattleTrackerEngine {
         characterId: bp.characterId,
         name: char?.name || bp.name,
         portrait: char?.portrait,
-        speed: char?.speed || bp.speed,
+        speed: bp.speed || char?.speed || 10,
         team: bp.team || 'blue',
         turnMeter: bp.turnFrequency ?? 0,
       });
@@ -262,13 +266,14 @@ export class BattleTrackerEngine {
     if (this.participants.size === 0) return [];
 
     // Initialize simulation state from current participants
+    // Add BASE_SPEED to all speeds to reduce variance impact
     const simStates: SimState[] = [];
     for (const [id, p] of this.participants) {
       simStates.push({
         characterId: p.characterId,
         name: p.name,
         portrait: p.portrait,
-        speed: p.speed,
+        speed: p.speed + BASE_SPEED,
         team: p.team,
         meter: p.turnMeter,
         turnsTaken: 0,
@@ -341,16 +346,19 @@ export class BattleTrackerEngine {
     if (groups.length === 0) return;
 
     const firstGroup = groups[0];
-    const targetTick = firstGroup.tiles[0].simulationTick;
+    // Use the LAST tile's simulationTick in the group to advance past the entire group
+    const targetTick = firstGroup.tiles[firstGroup.tiles.length - 1].simulationTick;
 
     // Simulate forward until we reach the target tick
+    // Use BASE_SPEED adjusted speed for consistency with simulation
     for (const [id, p] of this.participants) {
       let meter = p.turnMeter;
+      const effectiveSpeed = p.speed + BASE_SPEED;
       
       for (let tick = 1; tick <= targetTick; tick++) {
-        meter += p.speed;
+        meter += effectiveSpeed;
         
-        // Check if this character triggered in this tick
+        // Check if this character triggered in this tick (from any tile in the group)
         const triggeredInTick = firstGroup.tiles.some(
           t => t.characterId === id && t.simulationTick === tick
         );
