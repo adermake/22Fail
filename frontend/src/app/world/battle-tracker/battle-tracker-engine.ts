@@ -1,41 +1,43 @@
 /**
- * Battle Tracker Engine
+ * Battle Tracker Engine - Turn Meter Simulation System
  * 
- * Core concepts:
- * - Characters participate in battle with a speed stat
- * - Higher speed = more turns in the same time period
- * - Timeline shows upcoming turns as tiles
- * - Tiles can be grouped when consecutive tiles are same team (but not same character)
+ * Core Concept:
+ * - Each character has a turn meter from 0 to 1000
+ * - Every simulation tick, we add the character's speed to their turn meter
+ * - When a character reaches >= 1000, they get a turn tile and their meter resets to (meter - 1000)
+ * - If multiple characters reach 1000 in the same tick, the one with higher speed goes first
+ * - We simulate until we have 15 tiles in the timeline
  * 
- * Scripted vs Calculated:
- * - When you drag a tile, everything to the LEFT of drop position becomes "scripted"
- * - Scripted tiles are locked in order - speed doesn't affect them
- * - Everything to the RIGHT is calculated based on speed
+ * Key Properties:
+ * - Timeline is purely calculated from current turn meters + speeds
+ * - "Next Turn" advances the actual turn meters to the next state
+ * - No manual dragging - everything is deterministic based on stats
  * 
  * Grouping:
- * - Adjacent tiles of the same team are grouped into one turn
- * - A character cannot be grouped with themselves
- * - "Next turn" consumes the entire first group
+ * - Adjacent tiles of the same team (but different characters) are grouped together
  */
 
-import { BattleParticipant, BattleTimelineEntry } from '../../model/world.model';
+import { BattleParticipant } from '../../model/world.model';
 import { WorldStoreService } from '../../services/world-store.service';
 
 // ============================================
 // Types
 // ============================================
 
-/** A single turn slot in the timeline */
+/** A single turn tile in the timeline */
 export interface TurnTile {
-  id: string;           // Unique tile ID (characterId_turnNumber)
+  id: string;           // Unique ID: characterId_simulationTick
   characterId: string;
   name: string;
   portrait?: string;
   team: string;
   speed: number;
-  turnNumber: number;   // Which turn this is for this character (1st, 2nd, etc.)
-  timing: number;       // Calculated timing value (lower = sooner)
-  isScripted?: boolean; // Is this tile in the scripted (locked) portion?
+  /** Which turn # this is for this character in the current simulation */
+  turnNumber: number;
+  /** The simulation tick when this turn was generated */
+  simulationTick: number;
+  /** The turn meter value when this tile was created (for display purposes) */
+  meterAtTurn: number;
 }
 
 /** A group of consecutive tiles (same team, different characters) */
@@ -43,10 +45,9 @@ export interface TurnGroup {
   id: string;
   tiles: TurnTile[];
   team: string;
-  isScripted: boolean;  // Is this group in the scripted portion?
 }
 
-/** A character that can participate in battle */
+/** A character participating in battle */
 export interface BattleCharacter {
   id: string;
   name: string;
@@ -54,7 +55,40 @@ export interface BattleCharacter {
   speed: number;
   team: string;
   isInBattle: boolean;
+  /** Current turn meter value (0-999) */
+  turnMeter: number;
 }
+
+/** Internal participant state */
+interface Participant {
+  characterId: string;
+  name: string;
+  portrait?: string;
+  speed: number;
+  team: string;
+  /** Current turn meter (0-999), persisted state */
+  turnMeter: number;
+}
+
+/** Simulation state for a character during timeline calculation */
+interface SimState {
+  characterId: string;
+  name: string;
+  portrait?: string;
+  speed: number;
+  team: string;
+  /** Simulated turn meter (can exceed 1000 during calculation) */
+  meter: number;
+  /** How many turns this character has taken in this simulation */
+  turnsTaken: number;
+}
+
+// ============================================
+// Constants
+// ============================================
+
+const TURN_METER_MAX = 1000;
+const TIMELINE_LENGTH = 15;
 
 // ============================================
 // Engine
@@ -67,32 +101,15 @@ export class BattleTrackerEngine {
   // World store for persistence
   private worldStore: WorldStoreService | null = null;
   private isSaving = false;
-  private isInitialized = false; // Track if we've done initial load
+  private isInitialized = false;
 
-  // All characters available to add to battle
+  // All characters available to add to battle (with their current stats)
   private allCharacters: Map<string, { id: string; name: string; portrait?: string; speed: number }> = new Map();
 
-  // Characters currently in battle
-  private participants: Map<string, { 
-    characterId: string; 
-    name: string; 
-    portrait?: string; 
-    speed: number; 
-    team: string;
-    currentTurn: number; // The next turn number to generate for this character
-  }> = new Map();
+  // Characters currently in battle with their turn meter state
+  private participants: Map<string, Participant> = new Map();
 
-  // The timeline of tiles
-  // Index 0 is the current turn
-  private tiles: TurnTile[] = [];
-
-  // How many tiles from the start are "scripted" (locked order)
-  private scriptedCount = 0;
-
-  // How many tiles to show in the timeline
-  private readonly TIMELINE_LENGTH = 12;
-
-  // Teams available
+  // Available teams
   readonly TEAMS = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
 
   // ============================================
@@ -118,23 +135,13 @@ export class BattleTrackerEngine {
       });
     }
 
-    // Update existing participants with fresh data
+    // Update existing participants with fresh character data
     for (const [id, participant] of this.participants) {
       const char = this.allCharacters.get(id);
       if (char) {
         participant.name = char.name;
         participant.portrait = char.portrait;
         participant.speed = char.speed;
-      }
-    }
-
-    // Update tiles with fresh data
-    for (const tile of this.tiles) {
-      const char = this.allCharacters.get(tile.characterId);
-      if (char) {
-        tile.name = char.name;
-        tile.portrait = char.portrait;
-        tile.speed = char.speed;
       }
     }
 
@@ -147,32 +154,23 @@ export class BattleTrackerEngine {
 
   /**
    * Load state from world store. Only loads on first call (initialization).
-   * Subsequent calls are ignored to prevent animations from breaking.
    */
   loadFromWorldStore(): void {
-    // Skip if already initialized or currently saving
     if (this.isInitialized || this.isSaving || !this.worldStore) return;
 
     const world = this.worldStore.worldValue;
     if (!world) return;
 
-    // Mark as initialized - we won't reload again
     this.isInitialized = true;
 
     const saved = world.battleParticipants || [];
     if (saved.length === 0) {
       this.participants.clear();
-      this.tiles = [];
-      this.scriptedCount = 0;
       this.notifyChange();
       return;
     }
 
-    // Extract scripted count from first entry (stored as turnFrequency >= 10000)
-    const first = saved[0];
-    this.scriptedCount = first.turnFrequency >= 10000 ? first.turnFrequency - 10000 : 0;
-
-    // Rebuild participants
+    // Rebuild participants from saved data
     this.participants.clear();
     for (const bp of saved) {
       const char = this.allCharacters.get(bp.characterId);
@@ -182,65 +180,19 @@ export class BattleTrackerEngine {
         portrait: char?.portrait,
         speed: char?.speed || bp.speed,
         team: bp.team || 'blue',
-        currentTurn: bp.currentTurn || 1,
+        // Load turn meter from saved data (stored in turnFrequency for compatibility)
+        turnMeter: bp.turnFrequency ?? 0,
       });
     }
-
-    // Rebuild timeline
-    // If we have a full timeline saved, use it faithfully
-    const timeline = world.battleTimeline;
-    if (timeline && timeline.length > 0) {
-      console.log('[BattleEngine] Loading from saved timeline:', timeline.length, 'tiles');
-      this.tiles = [];
-      for (const entry of timeline) {
-        const participant = this.participants.get(entry.characterId);
-        if (participant) {
-          this.tiles.push({
-            id: entry.id,
-            characterId: entry.characterId,
-            name: participant.name,
-            portrait: participant.portrait,
-            team: participant.team,
-            speed: participant.speed,
-            turnNumber: entry.turnNumber,
-            timing: entry.timing,
-            isScripted: entry.isScripted,
-          });
-        }
-      }
-    } else {
-      console.log('[BattleEngine] No timeline found, using fallback reconstruction');
-      // Fallback: first round respects saved order (nextTurnAt is the order)
-      const orderedBySaved = [...saved].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-      
-      this.tiles = [];
-      for (const bp of orderedBySaved) {
-        const participant = this.participants.get(bp.characterId);
-        if (participant) {
-          this.tiles.push(this.createTile(participant, 1, this.tiles.length));
-          participant.currentTurn = 2;
-        }
-      }
-
-      // Fill remaining slots with calculated tiles
-      this.fillCalculatedTiles();
-    }
-
-    // Cap scripted count
-    this.scriptedCount = Math.min(this.scriptedCount, this.tiles.length);
 
     this.notifyChange();
   }
 
   /**
-   * Sync from world store without animations.
-   * Used when changes come from other clients via websocket.
-   * If a full battleTimeline is saved, reconstruct it faithfully.
+   * Sync from world store (for external updates via websocket).
    */
   syncFromWorldStore(): void {
-    // Skip if no world store
     if (!this.worldStore) return;
-    // Don't skip on isSaving - we need to sync from external changes
 
     const world = this.worldStore.worldValue;
     if (!world) return;
@@ -248,15 +200,9 @@ export class BattleTrackerEngine {
     const saved = world.battleParticipants || [];
     if (saved.length === 0) {
       this.participants.clear();
-      this.tiles = [];
-      this.scriptedCount = 0;
       this.notifyChange();
       return;
     }
-
-    // Extract scripted count from first entry
-    const first = saved[0];
-    this.scriptedCount = first.turnFrequency >= 10000 ? first.turnFrequency - 10000 : 0;
 
     // Rebuild participants
     this.participants.clear();
@@ -268,56 +214,9 @@ export class BattleTrackerEngine {
         portrait: char?.portrait,
         speed: char?.speed || bp.speed,
         team: bp.team || 'blue',
-        currentTurn: bp.currentTurn || 1,
+        turnMeter: bp.turnFrequency ?? 0,
       });
     }
-
-    // If we have a full timeline saved, reconstruct it faithfully
-    const timeline = world.battleTimeline;
-    if (timeline && timeline.length > 0) {
-      console.log('[BattleEngine] Syncing from saved timeline:', timeline.length, 'tiles');
-      this.tiles = [];
-      for (const entry of timeline) {
-        const participant = this.participants.get(entry.characterId);
-        if (participant) {
-          this.tiles.push({
-            id: entry.id,
-            characterId: entry.characterId,
-            name: participant.name,
-            portrait: participant.portrait,
-            team: participant.team,
-            speed: participant.speed,
-            turnNumber: entry.turnNumber,
-            timing: entry.timing,
-            isScripted: entry.isScripted,
-          });
-        }
-      }
-      // Cap scripted count
-      this.scriptedCount = Math.min(this.scriptedCount, this.tiles.length);
-      console.log('[BattleEngine] Synced', this.tiles.length, 'tiles, scripted:', this.scriptedCount);
-      this.notifyChange();
-      return;
-    }
-
-    // Fallback: rebuild from participants (old format without battleTimeline)
-    console.log('[BattleEngine] No timeline found, using fallback reconstruction');
-    const orderedBySaved = [...saved].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
-    
-    this.tiles = [];
-    for (const bp of orderedBySaved) {
-      const participant = this.participants.get(bp.characterId);
-      if (participant) {
-        this.tiles.push(this.createTile(participant, 1, this.tiles.length));
-        participant.currentTurn = 2;
-      }
-    }
-
-    // Fill remaining slots
-    this.fillCalculatedTiles();
-
-    // Cap scripted count
-    this.scriptedCount = Math.min(this.scriptedCount, this.tiles.length);
 
     this.notifyChange();
   }
@@ -327,182 +226,157 @@ export class BattleTrackerEngine {
 
     this.isSaving = true;
 
-    // Build participants in timeline order (first occurrence of each character)
+    // Build participants array
     const battleParticipants: BattleParticipant[] = [];
-    const seen = new Set<string>();
-
-    for (const tile of this.tiles) {
-      if (seen.has(tile.characterId)) continue;
-      seen.add(tile.characterId);
-
-      const participant = this.participants.get(tile.characterId);
-      if (!participant) continue;
-
-      const orderIndex = battleParticipants.length;
+    
+    for (const [id, p] of this.participants) {
       battleParticipants.push({
-        characterId: participant.characterId,
-        name: participant.name,
-        // NOTE: Do NOT save portrait here - it's a huge base64 string that crashes websockets
-        // Portrait is retrieved at runtime from allCharacters
-        team: participant.team,
-        speed: participant.speed,
-        currentTurn: participant.currentTurn,
-        // Store scripted count in first entry
-        turnFrequency: orderIndex === 0 ? 10000 + this.scriptedCount : participant.speed,
-        nextTurnAt: orderIndex,
+        characterId: p.characterId,
+        name: p.name,
+        team: p.team,
+        speed: p.speed,
+        // Store turn meter in turnFrequency field for compatibility
+        turnFrequency: p.turnMeter,
+        nextTurnAt: 0, // Not used in new system
+        currentTurn: 0, // Not used in new system
       });
     }
 
-    // Save full timeline for faithful lobby sync
-    const battleTimeline: BattleTimelineEntry[] = this.tiles.map((tile, index) => ({
-      id: tile.id,
-      characterId: tile.characterId,
-      team: tile.team,
-      turnNumber: tile.turnNumber,
-      timing: tile.timing,
-      isScripted: index < this.scriptedCount,
-    }));
-
-    // Apply both updates atomically to avoid race conditions
     this.worldStore.applyPatch({
       path: 'battleParticipants',
       value: battleParticipants,
     });
 
-    // Small delay to ensure first patch is processed before second
-    setTimeout(() => {
-      if (this.worldStore) {
-        this.worldStore.applyPatch({
-          path: 'battleTimeline',
-          value: battleTimeline,
-        });
-      }
-    }, 10);
-
     setTimeout(() => { this.isSaving = false; }, 200);
   }
 
   // ============================================
-  // Core Logic
+  // Core Simulation Logic
   // ============================================
 
-  /** Calculate timing for a turn: lower = sooner. Formula: (turn * 1000) / speed */
-  private calculateTiming(turnNumber: number, speed: number): number {
-    return (turnNumber * 1000) / Math.max(speed, 1);
+  /**
+   * Simulate the timeline from current turn meter states.
+   * Returns an array of TurnTiles representing the upcoming turns.
+   */
+  private simulateTimeline(): TurnTile[] {
+    if (this.participants.size === 0) return [];
+
+    // Initialize simulation state from current participants
+    const simStates: SimState[] = [];
+    for (const [id, p] of this.participants) {
+      simStates.push({
+        characterId: p.characterId,
+        name: p.name,
+        portrait: p.portrait,
+        speed: p.speed,
+        team: p.team,
+        meter: p.turnMeter,
+        turnsTaken: 0,
+      });
+    }
+
+    const tiles: TurnTile[] = [];
+    let tick = 0;
+    const maxTicks = 10000; // Safety limit
+
+    while (tiles.length < TIMELINE_LENGTH && tick < maxTicks) {
+      tick++;
+
+      // Add speed to all meters
+      for (const state of simStates) {
+        state.meter += state.speed;
+      }
+
+      // Find all characters who reached or exceeded TURN_METER_MAX
+      const triggered = simStates.filter(s => s.meter >= TURN_METER_MAX);
+
+      if (triggered.length === 0) continue;
+
+      // Sort by speed (higher first), then by current meter (higher first) for ties
+      triggered.sort((a, b) => {
+        if (b.speed !== a.speed) return b.speed - a.speed;
+        return b.meter - a.meter;
+      });
+
+      // Generate tiles for each triggered character
+      for (const state of triggered) {
+        state.turnsTaken++;
+        
+        tiles.push({
+          id: `${state.characterId}_tick${tick}_turn${state.turnsTaken}`,
+          characterId: state.characterId,
+          name: state.name,
+          portrait: state.portrait,
+          team: state.team,
+          speed: state.speed,
+          turnNumber: state.turnsTaken,
+          simulationTick: tick,
+          meterAtTurn: state.meter,
+        });
+
+        // Reset meter (keeping overshoot)
+        state.meter -= TURN_METER_MAX;
+
+        // Stop if we have enough tiles
+        if (tiles.length >= TIMELINE_LENGTH) break;
+      }
+    }
+
+    return tiles;
   }
 
-  /** Create a tile for a participant - ID is based on character and turn number */
-  private createTile(
-    participant: { characterId: string; name: string; portrait?: string; speed: number; team: string },
-    turnNumber: number,
-    positionHint: number
-  ): TurnTile {
-    return {
-      // Content-based ID: follows the tile regardless of position
-      // This allows FLIP animations to track tiles as they move
-      id: `${participant.characterId}_t${turnNumber}`,
-      characterId: participant.characterId,
-      name: participant.name,
-      portrait: participant.portrait,
-      team: participant.team,
-      speed: participant.speed,
-      turnNumber,
-      timing: this.calculateTiming(turnNumber, participant.speed),
-    };
-  }
-
-  /** Fill timeline to TIMELINE_LENGTH with calculated tiles */
-  private fillCalculatedTiles(): void {
+  /**
+   * Calculate the next turn meter state after the first turn (or group) completes.
+   * This advances the actual turn meters to the state where the next turn would happen.
+   */
+  private advanceToNextTurn(): void {
     if (this.participants.size === 0) return;
 
-    // Trim to max length first to prevent unbounded growth
-    if (this.tiles.length > this.TIMELINE_LENGTH) {
-      this.tiles = this.tiles.slice(0, this.TIMELINE_LENGTH);
-    }
+    // Get current timeline
+    const timeline = this.simulateTimeline();
+    if (timeline.length === 0) return;
 
-    // Track what turn numbers are already in use per character
-    const usedTurns = new Map<string, Set<number>>();
-    for (const tile of this.tiles) {
-      if (!usedTurns.has(tile.characterId)) {
-        usedTurns.set(tile.characterId, new Set());
-      }
-      usedTurns.get(tile.characterId)!.add(tile.turnNumber);
-    }
+    // Get the first group of tiles
+    const groups = this.groupTiles(timeline);
+    if (groups.length === 0) return;
 
-    // Track next turn number to generate for each participant
-    const nextTurnNumbers = new Map<string, number>();
+    const firstGroup = groups[0];
+    const targetTick = firstGroup.tiles[0].simulationTick;
+
+    // Simulate forward until we reach the target tick
     for (const [id, p] of this.participants) {
-      // Start from currentTurn and find the next unused turn number
-      let turn = p.currentTurn;
-      const used = usedTurns.get(id) || new Set();
-      while (used.has(turn)) {
-        turn++;
-      }
-      nextTurnNumbers.set(id, turn);
-    }
-
-    // Generate tiles until full (with safety limit to prevent infinite loop)
-    const maxIterations = this.TIMELINE_LENGTH * 2;
-    let iterations = 0;
-    
-    while (this.tiles.length < this.TIMELINE_LENGTH && iterations < maxIterations) {
-      iterations++;
+      let meter = p.turnMeter;
       
-      // Find participant with lowest timing for their next turn
-      let best: { characterId: string; turn: number; timing: number } | null = null;
-
-      for (const [id, p] of this.participants) {
-        const turn = nextTurnNumbers.get(id) || 1;
-        const timing = this.calculateTiming(turn, p.speed);
-        if (!best || timing < best.timing) {
-          best = { characterId: id, turn, timing };
+      for (let tick = 1; tick <= targetTick; tick++) {
+        meter += p.speed;
+        
+        // Check if this character triggered in this tick
+        const triggeredInTick = firstGroup.tiles.some(
+          t => t.characterId === id && t.simulationTick === tick
+        );
+        
+        if (triggeredInTick) {
+          meter -= TURN_METER_MAX;
         }
       }
-
-      if (!best) break;
-
-      const participant = this.participants.get(best.characterId)!;
-      this.tiles.push(this.createTile(participant, best.turn, this.tiles.length));
-      nextTurnNumbers.set(best.characterId, best.turn + 1);
+      
+      // Clamp to valid range
+      p.turnMeter = Math.max(0, Math.min(meter, TURN_METER_MAX - 1));
     }
-
-    // Sort only the calculated portion (after scripted)
-    const scripted = this.tiles.slice(0, this.scriptedCount);
-    const calculated = this.tiles.slice(this.scriptedCount);
-    calculated.sort((a, b) => a.timing - b.timing);
-    this.tiles = [...scripted, ...calculated];
   }
 
-  /** Rebuild the entire timeline from scratch */
-  private rebuildTimeline(): void {
-    this.tiles = [];
-    this.scriptedCount = 0;
-
-    // Reset all participants to turn 1
-    for (const p of this.participants.values()) {
-      p.currentTurn = 1;
-    }
-
-    this.fillCalculatedTiles();
-  }
-
-  // ============================================
-  // Public API - Queries
-  // ============================================
-
-  /** Get the timeline as groups for display */
-  getTimeline(): TurnGroup[] {
-    if (this.tiles.length === 0) return [];
+  /**
+   * Group tiles by team (adjacent tiles of same team, but different characters).
+   */
+  private groupTiles(tiles: TurnTile[]): TurnGroup[] {
+    if (tiles.length === 0) return [];
 
     const groups: TurnGroup[] = [];
     let currentTiles: TurnTile[] = [];
     let currentTeam: string | null = null;
     let currentChars = new Set<string>();
-    let tileIndex = 0;
 
-    for (const tile of this.tiles) {
-      const isScripted = tileIndex < this.scriptedCount;
-      
+    for (const tile of tiles) {
       // Should we start a new group?
       const needNewGroup = 
         currentTeam === null ||
@@ -510,12 +384,10 @@ export class BattleTrackerEngine {
         currentChars.has(tile.characterId);
 
       if (needNewGroup && currentTiles.length > 0) {
-        const groupStartIdx = tileIndex - currentTiles.length;
         groups.push({
           id: `group_${groups.length}`,
-          tiles: currentTiles,
+          tiles: [...currentTiles],
           team: currentTeam!,
-          isScripted: groupStartIdx < this.scriptedCount,
         });
         currentTiles = [];
         currentChars.clear();
@@ -525,24 +397,35 @@ export class BattleTrackerEngine {
         currentTeam = tile.team;
       }
 
-      // Add tile with isScripted flag
-      currentTiles.push({ ...tile, isScripted });
+      currentTiles.push(tile);
       currentChars.add(tile.characterId);
-      tileIndex++;
     }
 
     // Last group
     if (currentTiles.length > 0) {
-      const startIndex = this.tiles.length - currentTiles.length;
       groups.push({
         id: `group_${groups.length}`,
-        tiles: currentTiles,
+        tiles: [...currentTiles],
         team: currentTeam!,
-        isScripted: startIndex < this.scriptedCount,
       });
     }
 
     return groups;
+  }
+
+  // ============================================
+  // Public API - Queries
+  // ============================================
+
+  /** Get the timeline as groups for display */
+  getTimeline(): TurnGroup[] {
+    const tiles = this.simulateTimeline();
+    return this.groupTiles(tiles);
+  }
+
+  /** Get flat tile list (for animations) */
+  getTiles(): TurnTile[] {
+    return this.simulateTimeline();
   }
 
   /** Get characters for the character list */
@@ -558,10 +441,16 @@ export class BattleTrackerEngine {
         speed: char.speed,
         team: participant?.team || 'blue',
         isInBattle: !!participant,
+        turnMeter: participant?.turnMeter ?? 0,
       });
     }
 
     return result;
+  }
+
+  /** Get participants only (characters in battle) */
+  getParticipants(): BattleCharacter[] {
+    return this.getCharacters().filter(c => c.isInBattle);
   }
 
   /** Get current turn display text */
@@ -573,15 +462,30 @@ export class BattleTrackerEngine {
     return firstGroup.tiles.map(t => t.name).join(' & ');
   }
 
-  /** Check if there are any tiles */
-  hasTiles(): boolean {
-    return this.tiles.length > 0;
+  /** Check if there are any participants */
+  hasParticipants(): boolean {
+    return this.participants.size > 0;
+  }
+
+  /** Get turn meter value for a character (0-999) */
+  getTurnMeter(characterId: string): number {
+    return this.participants.get(characterId)?.turnMeter ?? 0;
+  }
+
+  /** Get all turn meters as a map */
+  getTurnMeters(): Map<string, number> {
+    const result = new Map<string, number>();
+    for (const [id, p] of this.participants) {
+      result.set(id, p.turnMeter);
+    }
+    return result;
   }
 
   // ============================================
   // Public API - Actions
   // ============================================
 
+  /** Add a character to battle */
   addCharacter(characterId: string): void {
     const char = this.allCharacters.get(characterId);
     if (!char || this.participants.has(characterId)) return;
@@ -592,140 +496,63 @@ export class BattleTrackerEngine {
       portrait: char.portrait,
       speed: char.speed,
       team: 'blue',
-      currentTurn: 1,
+      turnMeter: 0, // Start at 0
     });
 
-    this.rebuildTimeline();
     this.notifyChange();
     this.saveToWorldStore();
   }
 
+  /** Remove a character from battle */
   removeCharacter(characterId: string): void {
     this.participants.delete(characterId);
-    
-    // Remove all tiles for this character
-    const oldTiles = this.tiles;
-    this.tiles = this.tiles.filter(t => t.characterId !== characterId);
-    
-    // Adjust scripted count
-    const removed = oldTiles.length - this.tiles.length;
-    const removedBeforeScripted = oldTiles
-      .slice(0, this.scriptedCount)
-      .filter(t => t.characterId === characterId).length;
-    this.scriptedCount = Math.max(0, this.scriptedCount - removedBeforeScripted);
-
-    this.fillCalculatedTiles();
     this.notifyChange();
     this.saveToWorldStore();
   }
 
+  /** Set a character's team */
   setTeam(characterId: string, team: string): void {
     const participant = this.participants.get(characterId);
     if (!participant) return;
 
     participant.team = team;
-
-    // Update all tiles
-    for (const tile of this.tiles) {
-      if (tile.characterId === characterId) {
-        tile.team = team;
-      }
-    }
-
     this.notifyChange();
     this.saveToWorldStore();
   }
 
-  /** Advance to next turn - consumes the entire first group */
+  /** Set a character's turn meter directly (0-999) */
+  setTurnMeter(characterId: string, value: number): void {
+    const participant = this.participants.get(characterId);
+    if (!participant) return;
+
+    // Clamp to valid range
+    participant.turnMeter = Math.max(0, Math.min(value, TURN_METER_MAX - 1));
+    this.notifyChange();
+    this.saveToWorldStore();
+  }
+
+  /** Advance to the next turn - consumes the first group */
   nextTurn(): void {
-    if (this.tiles.length === 0) return;
+    if (this.participants.size === 0) return;
 
-    // Get the first group
-    const groups = this.getTimeline();
-    if (groups.length === 0) return;
-
-    const firstGroup = groups[0];
-    const tilesToRemove = firstGroup.tiles.length;
-
-    // Update currentTurn for each character whose tile we're removing
-    // This represents the next turn they should get
-    for (const tile of firstGroup.tiles) {
-      const participant = this.participants.get(tile.characterId);
-      if (participant) {
-        // Set currentTurn to the next turn after the one being consumed
-        participant.currentTurn = tile.turnNumber + 1;
-      }
-    }
-
-    // Remove the first group's tiles
-    this.tiles = this.tiles.slice(tilesToRemove);
-
-    // Adjust scripted count
-    this.scriptedCount = Math.max(0, this.scriptedCount - tilesToRemove);
-
-    // Cap tiles to max length before refilling
-    if (this.tiles.length > this.TIMELINE_LENGTH) {
-      this.tiles = this.tiles.slice(0, this.TIMELINE_LENGTH);
-    }
-
-    // Refill with new tiles at the end
-    this.fillCalculatedTiles();
+    this.advanceToNextTurn();
     this.notifyChange();
     this.saveToWorldStore();
   }
 
-  /** Reset the battle - also allows reloading from world store */
+  /** Reset battle - clear all participants and their turn meters */
   resetBattle(): void {
     this.participants.clear();
-    this.tiles = [];
-    this.scriptedCount = 0;
-    this.isInitialized = false; // Allow reload after reset
+    this.isInitialized = false;
     this.notifyChange();
     this.saveToWorldStore();
   }
 
-  /** 
-   * Handle tile drop
-   * Simply moves the dragged tile to the new position.
-   * Everything from position 0 to the new position becomes scripted.
-   */
-  dropTile(tileId: string, targetGroupIndex: number, position: 'before' | 'after'): void {
-    // Find the dragged tile
-    const tileIndex = this.tiles.findIndex(t => t.id === tileId);
-    if (tileIndex === -1) return;
-
-    const draggedTile = this.tiles[tileIndex];
-    const groups = this.getTimeline();
-
-    // Calculate target tile index from group index
-    let targetTileIndex = 0;
-    for (let i = 0; i < targetGroupIndex; i++) {
-      targetTileIndex += groups[i]?.tiles.length || 0;
+  /** Reset just the turn meters (keep participants) */
+  resetTurnMeters(): void {
+    for (const p of this.participants.values()) {
+      p.turnMeter = 0;
     }
-    if (position === 'after') {
-      targetTileIndex += groups[targetGroupIndex]?.tiles.length || 0;
-    }
-
-    // If dragging to same position or earlier, ignore
-    if (targetTileIndex <= tileIndex) {
-      return;
-    }
-
-    // Simple reorder: remove tile from old position, insert at new position
-    const newTiles = [...this.tiles];
-    newTiles.splice(tileIndex, 1); // Remove from old position
-    
-    // Adjust target index since we removed an element
-    const adjustedTargetIndex = targetTileIndex - 1;
-    
-    // Insert at new position  
-    newTiles.splice(adjustedTargetIndex, 0, draggedTile);
-
-    this.tiles = newTiles;
-
-    // Everything up to and including the dropped tile is now scripted
-    this.scriptedCount = adjustedTargetIndex + 1;
-
     this.notifyChange();
     this.saveToWorldStore();
   }

@@ -3,9 +3,14 @@
   <div class="battle-header">
     <h2>Battle Tracker</h2>
     @if (!readOnly) {
-      <button class="reset-button" (click)="onResetBattle()" title="Reset battle">
-        Reset
-      </button>
+      <div class="header-buttons">
+        <button class="reset-meters-btn" (click)="onResetTurnMeters()" title="Reset all turn meters to 0">
+          Reset Meters
+        </button>
+        <button class="reset-button" (click)="onResetBattle()" title="Clear all participants">
+          Reset Battle
+        </button>
+      </div>
     }
   </div>
 
@@ -17,23 +22,26 @@
     </div>
   }
 
-  <!-- Character List -->
+  <!-- Character List with Turn Meters (World View Only) -->
   @if (!readOnly) {
     <div class="characters-section">
-    <h3>Characters</h3>
-    @if (characters().length > 0) {
-      <div class="character-list">
-        @for (char of characters(); track trackChar($index, char)) {
-          <div class="character-option" [class.in-battle]="char.isInBattle">
-            <div class="character-info">
-              <img 
-                [src]="char.portrait | imageUrl" 
-                class="portrait-small" 
-                alt=""
-              >
-              <div class="details">
-                <span class="name">{{ char.name }}</span>
-                <span class="speed">Speed: {{ char.speed }}</span>
+      <h3>Characters</h3>
+      @if (allCharacters().length > 0) {
+        <div class="character-list">
+          @for (char of allCharacters(); track trackChar($index, char)) {
+            <div class="character-option" [class.in-battle]="char.isInBattle">
+              <div class="character-info">
+                <img 
+                  [src]="char.portrait | imageUrl" 
+                  class="portrait-small" 
+                  alt=""
+                >
+                <div class="details">
+                  <span class="name">{{ char.name }}</span>
+                  <span class="speed">Speed: {{ char.speed }}</span>
+                </div>
+                
+                <!-- Team Selector (only when in battle) -->
                 @if (char.isInBattle) {
                   <select 
                     class="team-selector"
@@ -46,20 +54,43 @@
                   </select>
                 }
               </div>
+
+              <!-- Turn Meter Slider (only when in battle) -->
+              @if (char.isInBattle) {
+                <div class="turn-meter-section">
+                  <div class="turn-meter-bar">
+                    <div 
+                      class="turn-meter-fill" 
+                      [style.width.%]="getTurnMeterPercent(char)"
+                      [ngClass]="'team-' + char.team"
+                    ></div>
+                  </div>
+                  <input 
+                    type="range" 
+                    class="turn-meter-slider"
+                    [min]="0" 
+                    [max]="TURN_METER_MAX - 1" 
+                    [value]="char.turnMeter"
+                    (input)="onTurnMeterChange(char.id, $event)"
+                  >
+                  <span class="turn-meter-value">{{ char.turnMeter }}</span>
+                </div>
+              }
+
+              <!-- Add/Remove Button -->
+              <button 
+                class="toggle-btn" 
+                [class.remove]="char.isInBattle"
+                (click)="char.isInBattle ? onRemoveCharacter(char.id) : onAddCharacter(char.id)"
+              >
+                {{ char.isInBattle ? 'Remove' : 'Add' }}
+              </button>
             </div>
-            <button 
-              class="toggle-btn" 
-              [class.remove]="char.isInBattle"
-              (click)="char.isInBattle ? onRemoveCharacter(char.id) : onAddCharacter(char.id)"
-            >
-              {{ char.isInBattle ? 'Remove' : 'Add' }}
-            </button>
-          </div>
-        }
-      </div>
-    } @else {
-      <p class="no-chars">No characters available</p>
-    }
+          }
+        </div>
+      } @else {
+        <p class="no-chars">No characters available</p>
+      }
     </div>
   }
 
@@ -68,10 +99,6 @@
     <div 
       class="timeline" 
       #timelineContainer
-      [class.dragging]="!!draggedTileId"
-      (dragover)="onDragOver($event)"
-      (dragleave)="onDragLeave($event)"
-      (drop)="onDrop($event)"
     >
       @if (timeline().length === 0) {
         <div class="empty-timeline">
@@ -82,28 +109,16 @@
           <div 
             class="turn-group"
             [attr.data-group-id]="group.id"
-            [class.scripted]="group.isScripted"
-            [class.calculated]="!group.isScripted"
             [ngClass]="'team-' + group.team"
+            [class.first-group]="gIdx === 0"
           >
-            <!-- Drop indicator before -->
-            @if (dragOverGroupIndex === gIdx && dropPosition === 'before') {
-              <div class="drop-indicator before"></div>
-            }
-
             <!-- Tiles -->
             @for (tile of group.tiles; track trackTile($index, tile)) {
               <div 
                 class="tile"
                 [attr.data-tile-id]="tile.id"
-                [class.dragged]="isDragged(tile.id)"
                 [class.animating]="isAnimating(tile.id)"
-                [class.scripted]="tile.isScripted"
-                [class.calculated]="!tile.isScripted"
                 [ngClass]="'team-' + tile.team"
-                draggable="true"
-                (dragstart)="onDragStart($event, tile)"
-                (dragend)="onDragEnd()"
               >
                 <img 
                   [src]="tile.portrait | imageUrl" 
@@ -115,14 +130,9 @@
               </div>
             }
 
-            <!-- Group indicator line (below tiles) -->
+            <!-- Group indicator line (when multiple tiles in group) -->
             @if (group.tiles.length > 1) {
               <div class="group-line"></div>
-            }
-
-            <!-- Drop indicator after -->
-            @if (dragOverGroupIndex === gIdx && dropPosition === 'after') {
-              <div class="drop-indicator after"></div>
             }
           </div>
         }
@@ -137,7 +147,7 @@
         class="next-turn-btn"
         (click)="onNextTurn()" 
         [disabled]="timeline().length === 0"
-        title="Next Turn"
+        title="Advance to next turn"
       >
         Next Turn
       </button>

@@ -206,26 +206,47 @@ Operations: +, -, *, / with proper precedence
 
 
 
-The Battletracker is basically a queue of tiles that indicate the next turn of a character in combat.
+## BATTLE TRACKER (Turn Meter Simulation System)
+The Battle Tracker manages turn order in combat using a turn meter simulation system.
 
-The Battletracker should.
-Calculate the turn order places of all tiles using speed of the characters the tiles belong to. More speed = more turns!
-When a tile is dragged, everything to the left of it (including it) will turn into a scripted "area" where speed no longer matters. 
-The turnorder is fixed at that part. 
-The rightside of the scripted turns is still calculated based on the speed of the characters.
-If nothing is dragged everything is based on speed.
+### CORE CONCEPT
+- Each character has a turn meter ranging from 0 to 1000
+- Every simulation tick, each character's speed is added to their turn meter
+- When a character reaches >= 1000, they get a turn tile and their meter resets to (meter - 1000), keeping overshoot
+- If multiple characters reach 1000 in the same tick, the one with higher speed goes first
+- The system simulates until it has 15 tiles in the timeline
 
-Pressing next turn should consume a tile or "grouped turn" having everything move from left to right. 
+### KEY PROPERTIES
+- Timeline is purely calculated from current turn meters + speeds
+- No manual dragging - everything is deterministic based on stats
+- "Next Turn" advances the actual turn meters to the next state where a different tile would be first
 
-Group turns. When two teammates are next to eachother they should be grouped into a single turn. 
-A character cannot be grouped with himself.
+### TURN METER CONTROLS (World View Only)
+- Slider for each character in battle showing their current turn meter (0-999)
+- GM can adjust turn meters directly to manipulate turn order
+- "Reset Meters" button sets all turn meters to 0
 
-Animations:
+### GROUPING
+- Adjacent tiles of the same team (but different characters) are grouped together
+- Groups are visually connected and treated as a single turn
+- A character cannot be grouped with themselves
 
-When tiles move to a new place they should just slide left or right depending on where they go.
-If a new tile appears it should fade in from the top
-If a tile is removed it should fade out on the bottom.
-This means that pressing next everything should just slide to the left visually. 
+### ANIMATIONS
+- FLIP animations for smooth tile movement
+- New tiles slide in from the top
+- Tiles slide left/right to new positions smoothly
+
+### ARCHITECTURE
+- battle-tracker-engine.ts: Core simulation engine with turn meter logic
+- battle-tracker.component.ts: UI component with animations
+- World view: Full controls including turn meter sliders
+- Lobby view: Read-only view that syncs via WebSocket
+
+### DATA PERSISTENCE
+Turn meter state is stored in world.battleParticipants:
+- turnFrequency field stores the current turn meter value (0-999)
+- team field stores the team color
+- speed field stores the character's speed stat 
 
 
 ## LOBBY SYSTEM (Tactical Map)
