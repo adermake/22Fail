@@ -336,6 +336,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
       speed: this.trueStats.calculateSpeed(c.sheet) // Use TrueStatsService for correct speed
     })));
     
+    // Skip FLIP animations in battle tracker when loading characters
+    this.cdr.detectChanges();
+    
     // Force change detection after character library loads
     setTimeout(() => {
       this.cdr.detectChanges();

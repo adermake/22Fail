@@ -23,8 +23,10 @@
   max-width: 280px;
   background: var(--card);
   border-right: 1px solid var(--border);
-  overflow-y: auto;
+  overflow: hidden;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Content wrapper for grid and side panel */
@@ -59,12 +61,14 @@
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   background: #1a1a2e;
-  max-height: 140px;
+  height: 200px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .battle-tracker-section.collapsed {
-  max-height: 32px;
+  height: 32px;
 }
 
 .battle-tracker-toggle {
@@ -98,6 +102,8 @@
   padding: 0.5rem;
   gap: 0.5rem;
   min-height: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .battle-tracker-section :deep(.battle-header) {
@@ -106,6 +112,9 @@
 
 .battle-tracker-section :deep(.timeline-section) {
   padding: 0;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .battle-tracker-section :deep(.timeline) {

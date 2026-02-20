@@ -108,8 +108,8 @@ export class BattleTracker implements OnInit, OnDestroy {
   // ============================================
 
   private onEngineChange(): void {
-    // Skip FLIP animations if we're dragging the meter
-    if (this.isDraggingMeter()) {
+    // Skip FLIP animations if we're dragging the meter OR in readOnly mode (lobby)
+    if (this.isDraggingMeter() || this.readOnly) {
       this.refresh();
       return;
     }
