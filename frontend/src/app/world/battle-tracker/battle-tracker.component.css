@@ -292,7 +292,7 @@
 .meter-fill {
   height: 100%;
   border-radius: 3px;
-  transition: width 0.15s ease-out;
+  transition: width 0.1s ease-out;
 }
 
 .meter-thumb {
@@ -304,7 +304,13 @@
   transform: translate(-50%, -50%);
   box-shadow: 0 1px 4px rgba(0,0,0,0.4);
   pointer-events: none;
-  transition: left 0.15s ease-out;
+  transition: left 0.1s ease-out;
+}
+
+/* Disable transitions during active drag for smooth slider */
+.meter-slider-wrapper.dragging .meter-fill,
+.meter-slider-wrapper.dragging .meter-thumb {
+  transition: none !important;
 }
 
 .meter-input {
@@ -460,6 +466,22 @@
   max-width: 45px;
 }
 
+.tile-speed {
+  font-size: 0.65rem;
+  color: #aaa;
+  font-weight: 500;
+}
+
+.tile-speed::before {
+  content: "⚡";
+  margin-right: 2px;
+  font-size: 0.55rem;
+}
+
+.battle-tracker-container.read-only .tile-speed {
+  font-size: 0.55rem;
+}
+
 .turn-number {
   font-size: 0.65rem;
   color: #777;
@@ -547,4 +569,89 @@
 
 .characters-section::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* Radial Team Color Menu */
+.radial-menu-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+}
+
+.radial-menu {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: rgba(26, 26, 46, 0.95);
+  padding: 12px;
+  border-radius: 50%;
+  width: 140px;
+  height: 140px;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border: 2px solid #333;
+  justify-content: center;
+  align-items: center;
+  align-content: center;
+}
+
+.radial-team-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, border-color 0.15s;
+  background: transparent;
+}
+
+.radial-team-btn:hover {
+  transform: scale(1.15);
+}
+
+.radial-team-btn.selected {
+  border-color: #fff;
+  transform: scale(1.2);
+}
+
+.radial-color-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.radial-team-btn.team-blue .radial-color-circle { background: linear-gradient(135deg, #3498db, #2980b9); }
+.radial-team-btn.team-red .radial-color-circle { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+.radial-team-btn.team-green .radial-color-circle { background: linear-gradient(135deg, #27ae60, #219a52); }
+.radial-team-btn.team-yellow .radial-color-circle { background: linear-gradient(135deg, #f1c40f, #d4a300); }
+.radial-team-btn.team-purple .radial-color-circle { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+.radial-team-btn.team-orange .radial-color-circle { background: linear-gradient(135deg, #e67e22, #d35400); }
+
+.radial-remove-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #444, #333);
+  color: #e74c3c;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.radial-remove-btn:hover {
+  transform: scale(1.15);
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
 }

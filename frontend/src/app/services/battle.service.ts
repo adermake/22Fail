@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { WorldStoreService } from './world-store.service';
 import { BattleParticipant } from '../model/world.model';
 import { CharacterSheet } from '../model/character-sheet-model';
+import { TrueStatsService } from './true-stats.service';
 
 export interface SimulatedTurn {
   characterId: string;
@@ -23,6 +24,7 @@ export interface BattleGroup {
 })
 export class BattleService {
   private store = inject(WorldStoreService);
+  private trueStats = inject(TrueStatsService);
 
   // Reference to party characters - set by WorldComponent
   private partyCharacters: Map<string, CharacterSheet> = new Map();
@@ -31,11 +33,12 @@ export class BattleService {
     this.partyCharacters = characters;
   }
 
+  /**
+   * Calculate the true speed for a character.
+   * Uses TrueStatsService for correct calculation including all bonuses.
+   */
   calculateSpeed(character: CharacterSheet): number {
-    const speedStat = character.speed;
-    if (!speedStat) return 10;
-    const calculated = speedStat.base + speedStat.bonus + (speedStat.gain * character.level);
-    return Math.floor(calculated) || 10;
+    return this.trueStats.calculateSpeed(character);
   }
 
   getHealth(character: CharacterSheet): { current: number; max: number } {

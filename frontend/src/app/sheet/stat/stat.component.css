@@ -28,6 +28,16 @@ input[type='number'] {
   background: var(--bg);
   color: var(--text);
   box-sizing: border-box;
+  /* Remove spin buttons/arrows */
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Hide spin buttons in Chrome, Safari, Edge */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .right-values {

@@ -133,6 +133,12 @@ export class LobbyStoreService {
       
       this.applyRemotePatch(patch);
     });
+
+    // Listen for main view changes (DM broadcasts map switch)
+    this.socket.mainViewChanged$.subscribe(({ mapId }) => {
+      console.log('[LobbyStore] 🔄 Main view changed by DM, switching to:', mapId);
+      this.handleMainViewChange(mapId);
+    });
   }
 
   /**
@@ -359,6 +365,39 @@ export class LobbyStoreService {
 
     // Join the map's socket room
     await this.socket.joinMap(this.worldName, mapId);
+  }
+
+  /**
+   * Switch the main view for ALL connected viewers (DM action).
+   * This broadcasts the map change to everyone in the lobby.
+   */
+  async switchMainViewForAll(mapId: string): Promise<void> {
+    const lobby = this.lobby;
+    if (!lobby) return;
+
+    if (!lobby.maps[mapId]) {
+      console.error('[LobbyStore] Map not found:', mapId);
+      return;
+    }
+
+    // First switch locally
+    await this.switchMap(mapId);
+    
+    // Then broadcast to all other clients
+    this.socket.switchMainView(this.worldName, mapId);
+  }
+
+  /**
+   * Handle incoming main view change from another client (DM).
+   */
+  private async handleMainViewChange(mapId: string): Promise<void> {
+    const lobby = this.lobby;
+    if (!lobby) return;
+
+    // Only switch if the map exists and we're not already on it
+    if (lobby.maps[mapId] && this.currentMapId !== mapId) {
+      await this.switchMap(mapId);
+    }
   }
 
   /**

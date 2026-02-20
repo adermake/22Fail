@@ -69,3 +69,35 @@ input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(107, 70, 193, 0.2);
 }
+
+.world-link {
+  margin-top: 0.5rem;
+}
+
+.world-button {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 0.9rem;
+  background: var(--bg);
+  color: var(--accent);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.world-button:hover {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.world-button:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(107, 70, 193, 0.2);
+}

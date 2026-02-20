@@ -35,4 +35,10 @@ export class CharacterComponent {
   onRacePatch(patch: JsonPatch) {
     this.patch.emit(patch);
   }
+
+  openWorldLobby() {
+    if (this.sheet.worldName) {
+      window.open(`/lobby/${this.sheet.worldName}`, '_blank');
+    }
+  }
 }

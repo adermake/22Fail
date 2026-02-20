@@ -59,8 +59,27 @@
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   background: #1a1a2e;
-  max-height: 140px;
-  overflow: hidden;
+  max-height: 160px;
+  min-height: 80px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.battle-tracker-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+.battle-tracker-section::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+
+.battle-tracker-section::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+.battle-tracker-section::-webkit-scrollbar-thumb:hover {
+  background: #444;
 }
 
 /* Map badge */
@@ -181,8 +200,8 @@
 
 .map-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: stretch;
+  gap: 16px;
   padding: 12px;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -193,6 +212,62 @@
 .map-item.active {
   border-color: var(--accent);
   background: rgba(59, 130, 246, 0.1);
+}
+
+.map-preview {
+  width: 60px;
+  height: 60px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.preview-badge {
+  background: #22c55e;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
+.map-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.map-name-editable {
+  flex: 1;
+}
+
+.map-name-inline {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.map-name-inline:hover {
+  border-color: var(--border);
+}
+
+.map-name-inline:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
 }
 
 .map-name {
@@ -293,6 +368,7 @@
 
 .btn-primary,
 .btn-switch,
+.btn-broadcast,
 .btn-delete {
   padding: 8px 16px;
   border: none;
@@ -321,9 +397,19 @@
   opacity: 0.9;
 }
 
+.btn-broadcast {
+  background: #22c55e;
+  color: white;
+}
+
+.btn-broadcast:hover {
+  background: #16a34a;
+}
+
 .btn-delete {
   background: #ef4444;
   color: white;
+  padding: 8px 10px;
 }
 
 .btn-delete:hover {

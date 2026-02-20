@@ -8,12 +8,18 @@ import {
   ChangeDetectorRef,
   inject,
   signal,
-  computed
+  computed,
+  HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BattleTrackerEngine, TurnGroup, TurnTile, BattleCharacter } from './battle-tracker-engine';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
+
+interface RadialMenuPosition {
+  x: number;
+  y: number;
+}
 
 /**
  * Animation tracking for FLIP animations
@@ -53,6 +59,15 @@ export class BattleTracker implements OnInit, OnDestroy {
   // Drag state for character tiles
   private draggedCharId: string | null = null;
 
+  // Radial menu state
+  radialMenuOpen = signal(false);
+  radialMenuPosition = signal<RadialMenuPosition>({ x: 0, y: 0 });
+  private radialMenuCharId: string | null = null;
+
+  // Slider drag state (to disable animations while dragging)
+  isDraggingMeter = signal(false);
+  private meterUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
+
   // Available teams
   readonly teams = ['blue', 'red', 'green', 'yellow', 'purple', 'orange'];
   
@@ -77,6 +92,15 @@ export class BattleTracker implements OnInit, OnDestroy {
     if (this.engine) {
       this.engine.setChangeCallback(() => {});
     }
+    if (this.meterUpdateTimeout) {
+      clearTimeout(this.meterUpdateTimeout);
+    }
+  }
+
+  // Close radial menu when clicking outside
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    this.closeRadialMenu();
   }
 
   // ============================================
@@ -281,6 +305,35 @@ export class BattleTracker implements OnInit, OnDestroy {
   // Turn Meter Controls (World View Only)
   // ============================================
 
+  onMeterDragStart(): void {
+    this.isDraggingMeter.set(true);
+  }
+
+  onMeterDragEnd(): void {
+    // Delay turning off dragging to allow final update
+    setTimeout(() => {
+      this.isDraggingMeter.set(false);
+    }, 50);
+  }
+
+  onTurnMeterInput(characterId: string, event: Event): void {
+    if (this.readOnly) return;
+    const value = parseInt((event.target as HTMLInputElement).value, 10);
+    
+    // Debounce the engine update for smoother dragging
+    if (this.meterUpdateTimeout) {
+      clearTimeout(this.meterUpdateTimeout);
+    }
+    
+    // Update immediately for responsiveness (no position recording during drag)
+    this.engine.setTurnMeterImmediate(characterId, value);
+    
+    // Debounce the full save
+    this.meterUpdateTimeout = setTimeout(() => {
+      this.engine.saveTurnMeter(characterId, value);
+    }, 100);
+  }
+
   onTurnMeterChange(characterId: string, event: Event): void {
     if (this.readOnly) return;
     const value = parseInt((event.target as HTMLInputElement).value, 10);
@@ -292,6 +345,50 @@ export class BattleTracker implements OnInit, OnDestroy {
     if (this.readOnly) return;
     this.recordPositions();
     this.engine.resetTurnMeters();
+  }
+
+  // ============================================
+  // Radial Team Menu
+  // ============================================
+
+  onTileClick(event: MouseEvent, tile: TurnTile): void {
+    if (this.readOnly) return;
+    event.stopPropagation();
+    
+    // Find the character for this tile
+    const char = this.inBattleCharacters().find(c => c.id === tile.characterId);
+    if (!char) return;
+
+    // Position the radial menu at click location
+    this.radialMenuCharId = tile.characterId;
+    this.radialMenuPosition.set({ x: event.clientX, y: event.clientY });
+    this.radialMenuOpen.set(true);
+  }
+
+  closeRadialMenu(): void {
+    this.radialMenuOpen.set(false);
+    this.radialMenuCharId = null;
+  }
+
+  getRadialMenuChar(): BattleCharacter | null {
+    if (!this.radialMenuCharId) return null;
+    return this.inBattleCharacters().find(c => c.id === this.radialMenuCharId) || null;
+  }
+
+  onRadialTeamSelect(team: string): void {
+    if (this.radialMenuCharId) {
+      this.recordPositions();
+      this.engine.setTeam(this.radialMenuCharId, team);
+    }
+    this.closeRadialMenu();
+  }
+
+  onRadialRemove(): void {
+    if (this.radialMenuCharId) {
+      this.recordPositions();
+      this.engine.removeCharacter(this.radialMenuCharId);
+    }
+    this.closeRadialMenu();
   }
 
   // ============================================

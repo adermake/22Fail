@@ -20,6 +20,7 @@ import { CharacterSocketService, CharacterPatchEvent } from '../services/charact
 import { CharacterApiService } from '../services/character-api.service';
 import { ImageService } from '../services/image.service';
 import { TextureService } from '../services/texture.service';
+import { TrueStatsService } from '../services/true-stats.service';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture } from '../model/lobby.model';
 
@@ -59,6 +60,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   private characterApi = inject(CharacterApiService);
   private imageService = inject(ImageService);
   private textureService = inject(TextureService);
+  private trueStats = inject(TrueStatsService);
   private cdr = inject(ChangeDetectorRef);
 
   @ViewChild(LobbyGridComponent) gridComponent?: LobbyGridComponent;
@@ -480,8 +482,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const character = this.worldCharacters().find(c => c.id === data.characterId);
     if (!character) return;
 
-    const speedStat = character.sheet.speed;
-    const movementSpeed = speedStat ? (speedStat.base + (speedStat.bonus || 0)) : 6;
+    // Use TrueStatsService for correct speed calculation including all bonuses
+    const movementSpeed = this.trueStats.calculateSpeed(character.sheet);
 
     this.store.addToken({
       characterId: data.characterId,
@@ -677,6 +679,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  onBroadcastMapToAll(mapId: string): void {
+    // Switch locally and broadcast to all connected viewers
+    this.store.switchMainViewForAll(mapId);
+    this.currentMapId.set(mapId);
+    this.cdr.markForCheck();
+  }
+
   onDeleteMap(mapId: string): void {
     if (this.mapList().length <= 1) {
       console.warn('[Lobby] Cannot delete the last map');
@@ -704,6 +713,15 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const color = input.value;
     this.store.updateMapBackground(mapId, color);
     this.cdr.markForCheck();
+  }
+
+  onRenameMap(mapId: string, event: FocusEvent): void {
+    const input = event.target as HTMLInputElement;
+    const newName = input.value.trim();
+    if (newName) {
+      this.store.renameMap(mapId, newName);
+      this.cdr.markForCheck();
+    }
   }
 
   getMapBackground(mapId: string): string {

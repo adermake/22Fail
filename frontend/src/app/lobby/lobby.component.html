@@ -162,33 +162,51 @@
           <div class="map-list">
             @for (map of mapList(); track map.id) {
               <div class="map-item" [class.active]="currentMapId() === map.id">
-                <div class="map-item-header">
-                  <span class="map-name">{{ map.name }}</span>
+                <!-- Map Preview Thumbnail -->
+                <div class="map-preview" [style.background]="getMapBackground(map.id)">
                   @if (currentMapId() === map.id) {
-                    <span class="current-badge">✓ Active</span>
+                    <span class="preview-badge">LIVE</span>
                   }
                 </div>
                 
-                <!-- Background Color -->
-                <div class="map-settings-row">
-                  <label>Background:</label>
-                  <input 
-                    type="color" 
-                    [value]="getMapBackground(map.id)" 
-                    (change)="onMapBackgroundChange(map.id, $event)"
-                    class="color-picker"
-                  />
-                  <span class="color-value">{{ getMapBackground(map.id) }}</span>
-                </div>
+                <div class="map-content">
+                  <div class="map-item-header">
+                    <div class="map-name-editable">
+                      <input 
+                        type="text" 
+                        [value]="map.name" 
+                        (blur)="onRenameMap(map.id, $event)"
+                        (keydown.enter)="$any($event.target).blur()"
+                        class="map-name-inline"
+                      />
+                    </div>
+                  </div>
+                  
+                  <!-- Background Color -->
+                  <div class="map-settings-row">
+                    <label>Background:</label>
+                    <input 
+                      type="color" 
+                      [value]="getMapBackground(map.id)" 
+                      (change)="onMapBackgroundChange(map.id, $event)"
+                      class="color-picker"
+                    />
+                  </div>
 
-                <!-- Actions -->
-                <div class="map-actions">
-                  @if (currentMapId() !== map.id) {
-                    <button class="btn-switch" (click)="onSwitchMap(map.id)">Switch To</button>
-                  }
-                  @if (mapList().length > 1) {
-                    <button class="btn-delete" (click)="onDeleteMap(map.id)">Delete</button>
-                  }
+                  <!-- Actions -->
+                  <div class="map-actions">
+                    @if (currentMapId() !== map.id) {
+                      <button class="btn-switch" (click)="onSwitchMap(map.id)" title="Switch only this view">
+                        👁 View
+                      </button>
+                    }
+                    <button class="btn-broadcast" (click)="onBroadcastMapToAll(map.id)" title="Switch all viewers to this map">
+                      📡 Send to All
+                    </button>
+                    @if (mapList().length > 1) {
+                      <button class="btn-delete" (click)="onDeleteMap(map.id)" title="Delete map">🗑</button>
+                    }
+                  </div>
                 </div>
               </div>
             }

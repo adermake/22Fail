@@ -90,4 +90,20 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
       this.server.to(room).emit('battleMapPatched', patch);
     }
   }
+
+  // Switch all viewers to a specific map (DM broadcast)
+  @SubscribeMessage('switchMainView')
+  handleSwitchMainView(
+    @MessageBody() data: { worldName: string; mapId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { worldName, mapId } = data;
+    console.log(`[BATTLEMAP GATEWAY] DM switching main view for ${worldName} to map ${mapId}`);
+    
+    // Broadcast to all clients in the lobby room
+    const room = `lobby-${worldName}`;
+    this.server.to(room).emit('mainViewChanged', { mapId });
+    
+    console.log(`[BATTLEMAP GATEWAY] Broadcasted mainViewChanged to ${room}`);
+  }
 }

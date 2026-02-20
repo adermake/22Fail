@@ -97,7 +97,7 @@
           @for (char of inBattleCharacters(); track trackChar($index, char)) {
             <div class="meter-row" [ngClass]="'team-' + char.team">
                 <span class="meter-name">{{ char.name }}</span>
-                <div class="meter-slider-wrapper">
+                <div class="meter-slider-wrapper" [class.dragging]="isDraggingMeter()">
                   <div class="meter-track">
                     <div 
                       class="meter-fill"
@@ -114,7 +114,9 @@
                     [min]="0" 
                     [max]="TURN_METER_MAX - 1" 
                     [value]="char.turnMeter"
-                    (input)="onTurnMeterChange(char.id, $event)"
+                    (mousedown)="onMeterDragStart()"
+                    (mouseup)="onMeterDragEnd()"
+                    (input)="onTurnMeterInput(char.id, $event)"
                   >
                 </div>
                 <span class="meter-value">{{ char.turnMeter }}</span>
@@ -150,14 +152,15 @@
                 [attr.data-tile-id]="tile.id"
                 [class.animating]="isAnimating(tile.id)"
                 [ngClass]="'team-' + tile.team"
-              >
+              (click)="onTileClick($event, tile)"
+            >
                 <img 
                   [src]="tile.portrait | imageUrl" 
                   [alt]="tile.name"
                   class="tile-portrait"
                 >
                 <span class="tile-name">{{ tile.name }}</span>
-                <span class="turn-number">T{{ tile.turnNumber }}</span>
+                <span class="tile-speed">{{ tile.speed - 10 }}</span>
               </div>
             }
 
@@ -170,6 +173,27 @@
       }
     </div>
   </div>
+
+  <!-- Radial Team Menu -->
+  @if (radialMenuOpen()) {
+    <div class="radial-menu-backdrop" (click)="closeRadialMenu()"></div>
+    <div class="radial-menu" [style.left.px]="radialMenuPosition().x" [style.top.px]="radialMenuPosition().y">
+      @for (team of teams; track team) {
+        <button 
+          class="radial-team-btn" 
+          [ngClass]="'team-' + team"
+          [class.selected]="getRadialMenuChar()?.team === team"
+          (click)="onRadialTeamSelect(team)"
+          [title]="team"
+        >
+          <span class="radial-color-circle"></span>
+        </button>
+      }
+      <button class="radial-remove-btn" (click)="onRadialRemove()" title="Remove from battle">
+        ✕
+      </button>
+    </div>
+  }
 
   <!-- Controls -->
   @if (!readOnly) {

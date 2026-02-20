@@ -539,6 +539,26 @@ export class BattleTrackerEngine {
     this.saveToWorldStore();
   }
 
+  /** Set turn meter immediately without triggering animations (for drag) */
+  setTurnMeterImmediate(characterId: string, value: number): void {
+    const participant = this.participants.get(characterId);
+    if (!participant) return;
+
+    // Clamp to valid range
+    participant.turnMeter = Math.max(0, Math.min(value, TURN_METER_MAX - 1));
+    // Only update local state, no save - that's handled by saveTurnMeter
+    this.notifyChange();
+  }
+
+  /** Save turn meter to world store (debounced call from UI) */
+  saveTurnMeter(characterId: string, value: number): void {
+    const participant = this.participants.get(characterId);
+    if (!participant) return;
+
+    participant.turnMeter = Math.max(0, Math.min(value, TURN_METER_MAX - 1));
+    this.saveToWorldStore();
+  }
+
   /** Advance to the next turn - consumes the first group */
   nextTurn(): void {
     if (this.participants.size === 0) return;

@@ -20,11 +20,13 @@ export class LobbySocketService {
   private patchSubject = new Subject<JsonPatch>();
   private measurementSubject = new Subject<MeasurementLine[]>();
   private connectionReadySubject = new Subject<void>();
+  private mainViewChangedSubject = new Subject<{ mapId: string }>();
 
   // Public observables
   patches$ = this.patchSubject.asObservable();
   measurements$ = this.measurementSubject.asObservable();
   connectionReady$ = this.connectionReadySubject.asObservable();
+  mainViewChanged$ = this.mainViewChangedSubject.asObservable();
 
   /**
    * Connect to the WebSocket server.
@@ -122,6 +124,12 @@ export class LobbySocketService {
     // Measurement updates
     this.socket.on('measurementUpdate', (measurements: MeasurementLine[]) => {
       this.measurementSubject.next(measurements);
+    });
+
+    // Main view sync (DM broadcasts map change to all viewers)
+    this.socket.on('mainViewChanged', (data: { mapId: string }) => {
+      console.log('[LobbySocket] Main view changed to:', data.mapId);
+      this.mainViewChangedSubject.next(data);
     });
   }
 
@@ -232,5 +240,17 @@ export class LobbySocketService {
    */
   leaveLobby(worldName: string): void {
     this.socket?.emit('leaveLobby', { worldName });
+  }
+
+  /**
+   * Switch the main view for all connected clients (DM action).
+   */
+  switchMainView(worldName: string, mapId: string): void {
+    if (!this.socket?.connected) {
+      console.warn('[LobbySocket] Cannot switch main view - not connected');
+      return;
+    }
+    console.log('[LobbySocket] 📡 Broadcasting main view change to:', mapId);
+    this.socket.emit('switchMainView', { worldName, mapId });
   }
 }

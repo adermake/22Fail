@@ -65,6 +65,14 @@
         (ngModelChange)="patch.emit({ path: 'extrainfo', value: $event })"
       />
     </div>
+    @if (sheet.worldName) {
+      <div class="field world-link">
+        <label>Welt</label>
+        <button class="world-button" (click)="openWorldLobby()" title="Lobby in neuem Tab öffnen">
+          🌍 {{ sheet.worldName }}
+        </button>
+      </div>
+    }
   </app-card>
 </div>
 

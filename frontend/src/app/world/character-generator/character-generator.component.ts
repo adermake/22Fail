@@ -159,8 +159,9 @@ export class CharacterGeneratorComponent implements OnInit {
     // Set level
     character.level = this.level;
     
-    // Calculate talent points based on level
-    character.talentPoints = this.level - 1; // Level 1 = 0 points, Level 2 = 1 point, etc.
+    // Calculate talent points based on level using new formula:
+    // 1 TP per level + 1 additional per 10 levels
+    character.talentPoints = this.calculateTotalTalentPoints(this.level);
     
     // Traverse talent tree and learn skills (with 50% progression rule)
     const learnedSkills = this.traverseTalentTree(character.talentPoints);
@@ -211,13 +212,19 @@ export class CharacterGeneratorComponent implements OnInit {
       const learnedInClass = classProgress.get(currentClass) || 0;
       
       if (classSkills.length > 0 && remainingPoints > 0) {
-        // Learn a random skill from this class
-        const unlearnedSkills = classSkills.filter(s => !learnedSkillIds.includes(s.id));
-        if (unlearnedSkills.length > 0) {
-          const randomSkill = unlearnedSkills[Math.floor(Math.random() * unlearnedSkills.length)];
+        // Learn a random skill from this class that we can afford
+        const affordableUnlearnedSkills = classSkills.filter(s => {
+          if (learnedSkillIds.includes(s.id)) return false;
+          const cost = this.getSkillTPCost(s);
+          return remainingPoints >= cost;
+        });
+        
+        if (affordableUnlearnedSkills.length > 0) {
+          const randomSkill = affordableUnlearnedSkills[Math.floor(Math.random() * affordableUnlearnedSkills.length)];
+          const cost = this.getSkillTPCost(randomSkill);
           learnedSkillIds.push(randomSkill.id);
           classProgress.set(currentClass, learnedInClass + 1);
-          remainingPoints--;
+          remainingPoints -= cost;
           stuckCount = 0; // Reset stuck counter on progress
           continue; // Continue learning from this class if possible
         }
@@ -317,6 +324,32 @@ export class CharacterGeneratorComponent implements OnInit {
     while (angle > 180) angle -= 360;
     while (angle < -180) angle += 360;
     return angle;
+  }
+
+  /**
+   * Calculate total talent points earned at a given level.
+   * Formula: 1 TP per level + 1 additional per 10 levels
+   */
+  private calculateTotalTalentPoints(level: number): number {
+    let total = 0;
+    for (let l = 1; l <= level; l++) {
+      total += 1 + Math.floor((l - 1) / 10);
+    }
+    return total;
+  }
+
+  /**
+   * Get the talent point cost to learn a skill based on its class tier.
+   * Tier 1-2: 1 TP, Tier 3-4: 2 TP, Tier 5: 3 TP
+   */
+  private getSkillTPCost(skill: SkillDefinition): number {
+    const classInfo = CLASS_DEFINITIONS[skill.class];
+    if (!classInfo) return 1;
+    
+    const tier = classInfo.tier;
+    if (tier <= 2) return 1;
+    if (tier <= 4) return 2;
+    return 3; // Tier 5
   }
 
   // Determine top 2 classes based on learned skills

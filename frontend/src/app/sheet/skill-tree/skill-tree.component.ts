@@ -530,11 +530,66 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
     return getSkillsForClass(className).length;
   }
 
+  /**
+   * Calculate total talent points earned at current level.
+   * Formula: 1 TP per level + 1 additional per 10 levels
+   * Level 1-10: 1 per level, Level 11-20: 2 per level, etc.
+   */
+  getTotalTalentPointsEarned(): number {
+    const level = this.sheet.level || 1;
+    // 1 TP per level, plus fractional bonus for every 10 levels
+    // At level 1: 1 + floor(1/10) = 1
+    // At level 10: 10 + floor(10/10) = 11
+    // At level 11: 11 + floor(11/10) = 12, but we want different scaling
+    // Correct: level + floor((level - 1) / 10) for the bonus
+    // Level 1-10: earn 1/level = 10 points by level 10
+    // Level 11-20: earn 2/level = 20 more points by level 20
+    // Total at level 20 = 10 + 20 = 30
+    let total = 0;
+    for (let l = 1; l <= level; l++) {
+      total += 1 + Math.floor((l - 1) / 10);
+    }
+    return total;
+  }
+
+  /**
+   * Get the talent point cost to learn a skill based on its class tier.
+   * Tier 1-2: 1 TP, Tier 3-4: 2 TP, Tier 5: 3 TP
+   */
+  getSkillTPCost(skill: SkillDefinition): number {
+    const classInfo = CLASS_DEFINITIONS[skill.class];
+    if (!classInfo) return 1;
+    
+    const tier = classInfo.tier;
+    if (tier <= 2) return 1;
+    if (tier <= 4) return 2;
+    return 3; // Tier 5
+  }
+
+  /**
+   * Calculate total spent talent points accounting for tier-based costs.
+   */
+  getSpentTalentPoints(): number {
+    let spent = 0;
+    const learnedIds = this.sheet.learnedSkillIds || [];
+    
+    for (const skillId of learnedIds) {
+      const skill = getSkillById(skillId);
+      if (skill) {
+        spent += this.getSkillTPCost(skill);
+      } else {
+        spent += 1; // Fallback
+      }
+    }
+    
+    return spent;
+  }
+
   getAvailableTalentPoints(): number {
-    const basePoints = this.sheet.level || 1;
+    const earned = this.getTotalTalentPointsEarned();
     const bonusPoints = this.sheet.talentPointsBonus || 0;
-    const spentPoints = (this.sheet.learnedSkillIds || []).length;
-    return basePoints + bonusPoints - spentPoints;
+    const spent = this.getSpentTalentPoints();
+    return earned + bonusPoints - spent;
   }
 
   canLearnFromClass(className: string): boolean {
@@ -544,22 +599,31 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
     const parents = this.classParents.get(className) || [];
     for (const parent of parents) {
       const parentLearnedCount = this.getLearnedCountForClass(parent);
-      if (parentLearnedCount >= 3) {
+      const parentTotalSkills = this.getTotalSkillsForClass(parent);
+      const required = Math.ceil(parentTotalSkills / 2);
+      if (parentLearnedCount >= required) {
         return true;
       }
     }
     return false;
   }
 
+  /**
+   * Check if the player has enough TP to learn a skill
+   */
+  hasEnoughTPForSkill(skill: SkillDefinition): boolean {
+    const cost = this.getSkillTPCost(skill);
+    return this.getAvailableTalentPoints() >= cost;
+  }
+
   canLearnSkill(skill: SkillDefinition): boolean {
-    // For infinite level skills, check if we already have it at max level
+    // For infinite level skills, check if we have enough TP
     if (skill.infiniteLevel) {
-      // Can always learn if we have talent points
-      if (this.getAvailableTalentPoints() <= 0) return false;
+      if (!this.hasEnoughTPForSkill(skill)) return false;
     } else {
       // For normal skills, can't learn if already learned
       if (this.isSkillLearned(skill.id)) return false;
-      if (this.getAvailableTalentPoints() <= 0) return false;
+      if (!this.hasEnoughTPForSkill(skill)) return false;
     }
 
     // Check requiresSkill (can be string or array)
