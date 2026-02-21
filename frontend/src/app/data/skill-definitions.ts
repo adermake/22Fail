@@ -627,12 +627,12 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // ==================== GESTALTENWANDLER ====================
   {
     id: 'gestaltenwandler_charisma_3',
-    name: 'Charisma+3',
+    name: 'Chill+3',
     class: 'Gestaltenwandler',
     type: 'stat_bonus',
-    description: '+3 Charisma',
+    description: '+3 Chill',
     enlightened: false,
-    statBonus: { stat: 'charisma', amount: 3 }
+    statBonus: { stat: 'chill', amount: 3 }
   },
   {
     id: 'gestaltenwandler_botschafter',
