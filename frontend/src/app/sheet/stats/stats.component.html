@@ -33,5 +33,16 @@
         (patch)="updateField('chill',$event)"
       ></app-stat>
     </div>
+    
+    <div class="field">
+      <label for="speedPenaltyNegation">Speed Penalty Negation</label>
+      <input
+        id="speedPenaltyNegation"
+        type="number"
+        placeholder="0"
+        [ngModel]="sheet.speedPenaltyNegation"
+        (ngModelChange)="patch.emit({ path: 'speedPenaltyNegation', value: $event })"
+      />
+    </div>
   </app-card>
 </div>

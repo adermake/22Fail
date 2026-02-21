@@ -211,9 +211,11 @@ export class TrueStatsService {
   /**
    * Calculate speed for battle/movement purposes.
    * This is the most commonly needed stat calculation.
+   * IMPORTANT: This returns base speed WITHOUT penalties.
+   * For actual movement speed, use calculateEffectiveSpeed()
    * 
    * @param sheet The character sheet
-   * @returns The calculated speed value
+   * @returns The calculated base speed value
    */
   calculateSpeed(sheet: CharacterSheet): number {
     return this.calculateStat(sheet, sheet.speed, 'speed');
@@ -274,16 +276,114 @@ export class TrueStatsService {
   }
 
   /**
-   * Calculate effective speed after armor debuff.
-   * Takes into account the cumulative armor debuff from equipped items.
+   * Calculate effective speed after all penalties.
+   * Takes into account:
+   * - Armor debuff from equipped items
+   * - Encumbrance penalty from inventory weight
+   * - Speed penalty negation (reduces both penalties)
+   * 
+   * Rules:
+   * - Armor: Each equipped item may have armorDebuff field
+   * - Encumbrance: 80-99% = half speed, 100%+ = speed becomes 0
+   * - Negation: speedPenaltyNegation reduces total penalty (but can't make speed higher than base)
    * 
    * @param sheet The character sheet
-   * @returns Speed after armor penalties
+   * @returns Speed after all penalties
    */
   calculateEffectiveSpeed(sheet: CharacterSheet): number {
     const baseSpeed = this.calculateSpeed(sheet);
+    
+    // Armor penalty
     const armorDebuff = this.calculateTotalArmorDebuff(sheet);
-    return Math.max(0, baseSpeed - armorDebuff);
+    
+    // Encumbrance penalty
+    const encumbrancePenalty = this.calculateEncumbrancePenalty(sheet, baseSpeed);
+    
+    // Total penalty before negation
+    const totalPenalty = armorDebuff + encumbrancePenalty;
+    
+    // Apply speed penalty negation (can reduce penalty but not create bonus speed)
+    const negation = sheet.speedPenaltyNegation || 0;
+    const finalPenalty = Math.max(0, totalPenalty - negation);
+    
+    // Apply penalty to base speed
+    return Math.max(0, baseSpeed - finalPenalty);
+  }
+
+  /**
+   * Calculate encumbrance penalty from inventory weight.
+   * 
+   * Rules:
+   * - < 80% capacity: No penalty
+   * - 80-99% capacity: Half of current speed
+   * - >= 100% capacity: All speed (becomes 0)
+   * 
+   * @param sheet The character sheet
+   * @param currentSpeed The current base speed (before encumbrance)
+   * @returns Speed penalty from being over-encumbered
+   */
+  private calculateEncumbrancePenalty(sheet: CharacterSheet, currentSpeed: number): number {
+    const percentage = this.getEncumbrancePercentage(sheet);
+    
+    if (percentage < 80) {
+      return 0; // No penalty
+    } else if (percentage < 100) {
+      return Math.floor(currentSpeed / 2); // Half speed penalty
+    } else {
+      return currentSpeed; // All speed (becomes 0)
+    }
+  }
+
+  /**
+   * Calculate encumbrance percentage.
+   * 
+   * @param sheet The character sheet
+   * @returns Percentage of max capacity being used (0-100+)
+   */
+  getEncumbrancePercentage(sheet: CharacterSheet): number {
+    const totalWeight = this.getTotalWeight(sheet);
+    const maxCapacity = this.getMaxCapacity(sheet);
+    
+    if (maxCapacity === 0) return 100; // Avoid division by zero
+    return (totalWeight / maxCapacity) * 100;
+  }
+
+  /**
+   * Calculate total inventory weight including currency.
+   * 
+   * @param sheet The character sheet
+   * @returns Total weight in pounds/kg
+   */
+  getTotalWeight(sheet: CharacterSheet): number {
+    // Item weight
+    const itemWeight = sheet.inventory?.reduce((sum, item) => sum + (item.weight || 0), 0) || 0;
+    
+    // Currency weight (using COIN_WEIGHT constant)
+    const COIN_WEIGHT = 0.02; // 50 coins per pound
+    const currencyWeight = sheet.currency ? (
+      (sheet.currency.copper || 0) +
+      (sheet.currency.silver || 0) +
+      (sheet.currency.gold || 0) +
+      (sheet.currency.platinum || 0)
+    ) * COIN_WEIGHT : 0;
+    
+    return Math.floor(itemWeight + currencyWeight);
+  }
+
+  /**
+   * Calculate maximum carry capacity.
+   * Formula: (strength * 8) * multiplier + bonus
+   * 
+   * @param sheet The character sheet
+   * @returns Maximum carry capacity
+   */
+  getMaxCapacity(sheet: CharacterSheet): number {
+    const strength = this.calculateStrength(sheet);
+    const baseCapacity = strength * 8;
+    const multiplier = sheet.carryCapacityMultiplier || 1;
+    const bonus = sheet.carryCapacityBonus || 0;
+    
+    return Math.floor(baseCapacity * multiplier + bonus);
   }
 
   /**

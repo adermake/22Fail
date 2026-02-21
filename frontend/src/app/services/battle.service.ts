@@ -34,11 +34,12 @@ export class BattleService {
   }
 
   /**
-   * Calculate the true speed for a character.
-   * Uses TrueStatsService for correct calculation including all bonuses.
+   * Calculate the effective speed for a character in battle.
+   * Uses TrueStatsService for correct calculation including all bonuses, penalties, encumbrance, and armor debuffs.
+   * This is the speed used for battle turn order and movement.
    */
   calculateSpeed(character: CharacterSheet): number {
-    return this.trueStats.calculateSpeed(character);
+    return this.trueStats.calculateEffectiveSpeed(character);
   }
 
   getHealth(character: CharacterSheet): { current: number; max: number } {

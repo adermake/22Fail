@@ -6,6 +6,11 @@
   width: 100vw;
   overflow: hidden;
   background: var(--bg);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 /* Main content area */

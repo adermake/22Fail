@@ -45,6 +45,7 @@ export interface CharacterSheet {
   equipment: ItemBlock[];
   carryCapacityMultiplier: number;
   carryCapacityBonus: number;
+  speedPenaltyNegation?: number; // Reduces speed penalties from armor/encumbrance
   spells: SpellBlock[];
   currency: Currency;
   trash: SheetTrashItem[]; // Recycle bin for deleted items
@@ -79,6 +80,7 @@ export function createEmptySheet(): CharacterSheet {
     equipment: [],
     carryCapacityMultiplier: 1,
     carryCapacityBonus: 0,
+    speedPenaltyNegation: 0,
     statuses: createBasicStatuses(),
     runes: [],
     spells: [],

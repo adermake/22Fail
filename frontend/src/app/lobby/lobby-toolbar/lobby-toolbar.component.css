@@ -7,6 +7,7 @@
   background: var(--card, #1f2937);
   border-bottom: 1px solid var(--border, #374151);
   min-height: 52px;
+  flex-shrink: 0;
 }
 
 /* Tool groups */

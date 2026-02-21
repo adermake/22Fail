@@ -90,7 +90,7 @@ interface SimState {
 const TURN_METER_MAX = 1000;
 const TIMELINE_LENGTH = 15;
 /** Base speed added to all characters to reduce speed variance impact */
-const BASE_SPEED = 10;
+const BASE_SPEED = 25;
 
 // ============================================
 // Engine
