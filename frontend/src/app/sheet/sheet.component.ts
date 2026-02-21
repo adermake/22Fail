@@ -34,6 +34,7 @@ import { DiceRollerComponent } from './dice-roller/dice-roller.component';
 import { ActionMacrosComponent, RollResult } from './action-macros/action-macros.component';
 import { ActionMacro } from '../model/action-macro.model';
 import { ActionExecution } from './action-macros/action-macros.component';
+import { GameInfoComponent } from '../shared/game-info/game-info.component';
 
 @Component({
   selector: 'app-sheet',
@@ -51,7 +52,8 @@ import { ActionExecution } from './action-macros/action-macros.component';
     SkillTreeComponent,
     BackstoryComponent,
     DiceRollerComponent,
-    ActionMacrosComponent
+    ActionMacrosComponent,
+    GameInfoComponent
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
@@ -78,6 +80,7 @@ export class SheetComponent implements OnInit {
   showDiceRoller = false;
   showResourcePanel = false;
   showActionMacros = false;
+  showGameInfo = false;
 
   // Editing states
   editingRunes = new Set<number>();
@@ -132,12 +135,19 @@ export class SheetComponent implements OnInit {
         this.cdr.detectChanges();
         event.preventDefault();
         break;
+      case 'h':
+        // Toggle game info help
+        this.showGameInfo = !this.showGameInfo;
+        this.cdr.detectChanges();
+        event.preventDefault();
+        break;
       case 'escape':
         // Close all panels
-        if (this.showDiceRoller || this.showResourcePanel || this.showActionMacros) {
+        if (this.showDiceRoller || this.showResourcePanel || this.showActionMacros || this.showGameInfo) {
           this.showDiceRoller = false;
           this.showResourcePanel = false;
           this.showActionMacros = false;
+          this.showGameInfo = false;
           this.cdr.detectChanges();
           event.preventDefault();
         }
@@ -389,6 +399,16 @@ export class SheetComponent implements OnInit {
 
   toggleActionMacros() {
     this.showActionMacros = !this.showActionMacros;
+    this.cdr.detectChanges();
+  }
+
+  toggleGameInfo() {
+    this.showGameInfo = !this.showGameInfo;
+    this.cdr.detectChanges();
+  }
+
+  closeGameInfo() {
+    this.showGameInfo = false;
     this.cdr.detectChanges();
   }
 

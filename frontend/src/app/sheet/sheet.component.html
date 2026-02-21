@@ -78,7 +78,17 @@
   <button class="action-btn action-macro-btn" [class.active]="showActionMacros" (click)="toggleActionMacros()" title="Aktionen (A)">
     ⚡
   </button>
+  <button class="action-btn info-btn" [class.active]="showGameInfo" (click)="toggleGameInfo()" title="Game Guide (H)">
+    📚
+  </button>
 </div>
+
+<!-- Game Info Dialog -->
+@if (showGameInfo) {
+  <app-game-info
+    (close)="closeGameInfo()">
+  </app-game-info>
+}
 
 <!-- Dice Roller Dialog -->
 @if (showDiceRoller) {

@@ -1,0 +1,421 @@
+<div class="info-overlay" (click)="onClose()">
+  <div class="info-content" (click)="$event.stopPropagation()">
+    <app-card>
+      <div class="info-header">
+        <h1>📚 Game Guide & Information</h1>
+        <button class="close-btn" (click)="onClose()">×</button>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="tab-nav">
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab() === 'overview'"
+          (click)="setTab('overview')">
+          🎮 Overview
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab() === 'stats'"
+          (click)="setTab('stats')">
+          📊 Stats & Mechanics
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab() === 'combat'"
+          (click)="setTab('combat')">
+          ⚔️ Combat
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab() === 'macros'"
+          (click)="setTab('macros')">
+          ⚡ Action Macros
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab() === 'lobby'"
+          (click)="setTab('lobby')">
+          🗺️ Tactical Map
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab() === 'talents'"
+          (click)="setTab('talents')">
+          ⭐ Talent Points
+        </button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="tab-content">
+        <!-- OVERVIEW TAB -->
+        @if (activeTab() === 'overview') {
+          <div class="section">
+            <h2>Game Overview</h2>
+            <p class="intro">Welcome to the D&D GM Assist Tool! This is a custom ruleset D&D-like system with real-time collaboration.</p>
+            
+            <div class="feature-grid">
+              <div class="feature-card">
+                <h3>🎭 Character Sheets</h3>
+                <p>Full character management with stats, inventory, skills, spells, and equipment. Your character is globally available across all worlds.</p>
+              </div>
+              
+              <div class="feature-card">
+                <h3>🌍 Worlds</h3>
+                <p>GM-controlled worlds where parties adventure together. Each world has its own item libraries, battle tracker, and tactical maps.</p>
+              </div>
+              
+              <div class="feature-card">
+                <h3>🗺️ Tactical Maps</h3>
+                <p>Hex-based combat maps with tokens, fog of war, drawings, and pathfinding. Perfect for visualizing encounters.</p>
+              </div>
+              
+              <div class="feature-card">
+                <h3>⚡ Real-Time Sync</h3>
+                <p>Everything updates instantly across all connected players and GMs via WebSocket technology.</p>
+              </div>
+            </div>
+
+            <div class="info-box">
+              <h3>Quick Links</h3>
+              <ul>
+                <li><strong>/characters/:id</strong> - Your character sheet (creates if missing)</li>
+                <li><strong>/world/:worldName</strong> - GM dashboard (creates if missing)</li>
+                <li><strong>/lobby/:worldName</strong> - Tactical combat map</li>
+              </ul>
+            </div>
+          </div>
+        }
+
+        <!-- STATS TAB -->
+        @if (activeTab() === 'stats') {
+          <div class="section">
+            <h2>Stats & Mechanics</h2>
+            
+            <div class="subsection">
+              <h3>Core Stats</h3>
+              <p>Your character has six primary stats that affect everything you do:</p>
+              <ul>
+                <li><strong>Stärke (Strength)</strong> - Physical power, melee damage, carry capacity</li>
+                <li><strong>Geschicklichkeit (Dexterity)</strong> - Agility, accuracy, reflexes</li>
+                <li><strong>Geschwindigkeit (Speed)</strong> - Movement rate, turn order in combat</li>
+                <li><strong>Intelligenz (Intelligence)</strong> - Spell power, problem solving</li>
+                <li><strong>Konstitution (Constitution)</strong> - Health, resilience, stamina</li>
+                <li><strong>Chill</strong> - Composure, social skills, mental fortitude</li>
+              </ul>
+            </div>
+
+            <div class="formula-box">
+              <h3>Stat Calculation Formula</h3>
+              <code>Current = (Base + Bonus + EffectBonus + (Gain × Level))</code>
+              <ul>
+                <li><strong>Base:</strong> Your character's base stat value</li>
+                <li><strong>Bonus:</strong> Manual bonus you add</li>
+                <li><strong>Gain:</strong> Per-level increase from your race</li>
+                <li><strong>Level:</strong> Your character's current level</li>
+                <li><strong>EffectBonus:</strong> Bonuses from skills and equipment</li>
+              </ul>
+            </div>
+
+            <div class="subsection">
+              <h3>Resources</h3>
+              <ul>
+                <li><strong>Leben (Life/HP)</strong> - Your health points</li>
+                <li><strong>Ausdauer (Stamina/Energy)</strong> - Used for physical actions</li>
+                <li><strong>Mana</strong> - Used for casting spells</li>
+                <li><strong>Fokus (Focus)</strong> - Required for summoning and complex magic</li>
+              </ul>
+            </div>
+
+            <div class="warning-box">
+              <h3>⚠️ Speed Penalties</h3>
+              <p>Your actual speed in combat accounts for:</p>
+              <ul>
+                <li><strong>Encumbrance:</strong> Carrying too much slows you down (< 80% = no penalty, 80-99% = half speed, 100%+ = speed 0)</li>
+                <li><strong>Armor Debuff:</strong> Heavy armor reduces speed</li>
+                <li><strong>Speed Penalty Negation:</strong> A stat that can reduce these penalties</li>
+              </ul>
+            </div>
+          </div>
+        }
+
+        <!-- COMBAT TAB -->
+        @if (activeTab() === 'combat') {
+          <div class="section">
+            <h2>Combat & Battle Tracker</h2>
+            
+            <div class="subsection">
+              <h3>Turn Order System</h3>
+              <p>The battle tracker uses a <strong>turn meter simulation</strong> to determine who acts when:</p>
+              <ul>
+                <li>Each character has a turn meter from 0 to 1000</li>
+                <li>Every tick, your speed is added to your turn meter</li>
+                <li>When you reach 1000, you get a turn and the meter resets</li>
+                <li>Higher speed = more frequent turns</li>
+                <li>BASE_SPEED for turn calculation is <strong>25</strong></li>
+              </ul>
+            </div>
+
+            <div class="info-box">
+              <h3>Turn Grouping</h3>
+              <p>When multiple characters on the same team reach 1000 at the same time, they're grouped together for simultaneous actions. This creates tactical opportunities for coordination!</p>
+            </div>
+
+            <div class="subsection">
+              <h3>Teams</h3>
+              <p>Characters are organized into colored teams:</p>
+              <ul>
+                <li><strong>Blue:</strong> Typically the player party</li>
+                <li><strong>Red:</strong> Enemies and hostiles</li>
+                <li><strong>Green:</strong> Allies or neutral NPCs</li>
+              </ul>
+            </div>
+
+            <div class="subsection">
+              <h3>Battle Actions</h3>
+              <ul>
+                <li><strong>Action:</strong> Your main action (attack, cast spell, etc.)</li>
+                <li><strong>Bonusaktion (Bonus Action):</strong> Quick secondary action</li>
+                <li><strong>Reaction:</strong> Out-of-turn response to events</li>
+                <li><strong>Movement:</strong> Based on your effective speed stat</li>
+              </ul>
+            </div>
+
+            <div class="subsection">
+              <h3>Loot Distribution</h3>
+              <p>After battles, the GM can distribute loot:</p>
+              <ul>
+                <li>Individual items to specific players</li>
+                <li>Battle loot that all party members can claim</li>
+                <li>Currency rewards</li>
+                <li>Items, runes, spells, and skills</li>
+              </ul>
+            </div>
+          </div>
+        }
+
+        <!-- MACROS TAB -->
+        @if (activeTab() === 'macros') {
+          <div class="section">
+            <h2>Action Macros</h2>
+            <p class="intro">Create complex actions without coding! Action Macros let you combine conditions, dice rolls, and resource management into reusable abilities.</p>
+            
+            <div class="subsection">
+              <h3>Building a Macro</h3>
+              <ol>
+                <li>Name your action and pick an icon/color</li>
+                <li>Add conditions (optional) - when should this action be available?</li>
+                <li>Add consequences - what happens when you use it?</li>
+                <li>Save and use from your action panel</li>
+              </ol>
+            </div>
+
+            <div class="subsection">
+              <h3>Condition Types</h3>
+              <ul>
+                <li><strong>Resource Check:</strong> Do you have enough health/energy/mana?</li>
+                <li><strong>Stat Check:</strong> Is your stat high enough?</li>
+                <li><strong>Skill Check:</strong> Do you have a specific skill?</li>
+              </ul>
+              <p class="note">All conditions must pass for the action to be available.</p>
+            </div>
+
+            <div class="subsection">
+              <h3>Consequence Types</h3>
+              <ul>
+                <li><strong>Dice Roll:</strong> Roll dice and display results (e.g., 2d6+3 for attack)</li>
+                <li><strong>Spend Resource:</strong> Consume health/energy/mana (can use dice formulas)</li>
+                <li><strong>Gain Resource:</strong> Restore health/energy/mana (can use dice formulas)</li>
+              </ul>
+            </div>
+
+            <div class="formula-box">
+              <h3>Dice Formula Syntax</h3>
+              <p>Use these patterns in your rolls and resource changes:</p>
+              <ul>
+                <li><code>1d20+5</code> - Roll 1d20 and add 5</li>
+                <li><code>2d6+3</code> - Roll 2d6 and add 3</li>
+                <li><code>3d10*2</code> - Roll 3d10 and multiply by 2</li>
+                <li><code>1d8+2-1</code> - Roll 1d8, add 2, subtract 1</li>
+                <li><code>10</code> - Fixed value (no dice)</li>
+              </ul>
+              <p class="note">Formulas turn green when valid, red when invalid. Supports +, -, *, / operations.</p>
+            </div>
+
+            <div class="info-box">
+              <h3>💡 Example: Fireball Attack</h3>
+              <ul>
+                <li><strong>Name:</strong> Fireball 🔥</li>
+                <li><strong>Condition:</strong> Mana >= 10</li>
+                <li><strong>Consequences:</strong>
+                  <ul>
+                    <li>Roll: 3d6+5 (Attack damage)</li>
+                    <li>Spend: 10 mana</li>
+                  </ul>
+                </li>
+              </ul>
+            </div>
+          </div>
+        }
+
+        <!-- LOBBY TAB -->
+        @if (activeTab() === 'lobby') {
+          <div class="section">
+            <h2>Tactical Map (Lobby)</h2>
+            <p class="intro">The tactical map is your hex-based combat arena for visualizing encounters and managing positioning.</p>
+            
+            <div class="subsection">
+              <h3>Map Tools</h3>
+              <ul>
+                <li><strong>🖱️ Cursor:</strong> Select and move tokens, transform images</li>
+                <li><strong>✏️ Draw:</strong> Freehand drawing with custom colors</li>
+                <li><strong>🧹 Erase:</strong> Remove drawings</li>
+                <li><strong>🧱 Walls:</strong> Toggle wall segments to block movement</li>
+                <li><strong>📏 Measure:</strong> Calculate distance between hexes</li>
+                <li><strong>🖼️ Image:</strong> Place background images from library</li>
+              </ul>
+            </div>
+
+            <div class="subsection">
+              <h3>Tokens</h3>
+              <p>Character tokens represent combatants on the map:</p>
+              <ul>
+                <li><strong>Size:</strong> 1-4 hexes (larger creatures occupy more space)</li>
+                <li><strong>Team Color:</strong> Blue (party), Red (enemies), Green (allies)</li>
+                <li><strong>Movement:</strong> Drag to move, respects walls and pathfinding</li>
+                <li><strong>Portrait:</strong> Shows character portrait or initial</li>
+              </ul>
+            </div>
+
+            <div class="subsection">
+              <h3>Hex Grid Math</h3>
+              <ul>
+                <li>Pointy-top hexagons for tactical positioning</li>
+                <li>Distance measured in hex steps (Manhattan distance)</li>
+                <li>A* pathfinding around walls</li>
+                <li>Each hex = 5 feet / 1.5 meters</li>
+              </ul>
+            </div>
+
+            <div class="info-box">
+              <h3>Performance Tips</h3>
+              <ul>
+                <li>Rendering is optimized with 4-layer canvas system</li>
+                <li>Grid and images only redraw when necessary</li>
+                <li>Use image library to avoid re-uploading</li>
+                <li>Zoom out for simplified rendering</li>
+              </ul>
+            </div>
+
+            <div class="subsection">
+              <h3>GM Controls</h3>
+              <p>As a GM, you can:</p>
+              <ul>
+                <li>Create and manage multiple maps per world</li>
+                <li>Upload images to the library</li>
+                <li>Toggle fog of war to hide/reveal areas</li>
+                <li>Add enemy tokens directly</li>
+                <li>Control all aspects of the tactical environment</li>
+              </ul>
+            </div>
+          </div>
+        }
+
+        <!-- TALENTS TAB -->
+        @if (activeTab() === 'talents') {
+          <div class="section">
+            <h2>Talent Points (TP) System</h2>
+            <p class="intro">Talent Points are earned as you level up and spent to learn skills from your class skill tree.</p>
+            
+            <div class="formula-box">
+              <h3>TP Earned per Level</h3>
+              <code>TP = 1 + floor((level - 1) / 10)</code>
+              <p>You earn 1 TP per level, plus an additional TP every 10 levels:</p>
+              <ul>
+                <li>Levels 1-10: <strong>1 TP each</strong> = 10 total</li>
+                <li>Levels 11-20: <strong>2 TP each</strong> = 20 more</li>
+                <li>Levels 21-30: <strong>3 TP each</strong> = 30 more</li>
+                <li>And so on...</li>
+              </ul>
+            </div>
+
+            <div class="subsection">
+              <h3>Skill Costs by Tier</h3>
+              <p>Skills cost different amounts of TP based on their class tier:</p>
+              <ul>
+                <li><strong>Tier 1-2:</strong> 1 TP per skill</li>
+                <li><strong>Tier 3-4:</strong> 2 TP per skill</li>
+                <li><strong>Tier 5:</strong> 3 TP per skill</li>
+              </ul>
+            </div>
+
+            <div class="info-box">
+              <h3>Example Progression</h3>
+              <table class="stats-table">
+                <thead>
+                  <tr>
+                    <th>Level</th>
+                    <th>TP This Level</th>
+                    <th>Total TP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td>1</td>
+                    <td>1</td>
+                  </tr>
+                  <tr>
+                    <td>10</td>
+                    <td>1</td>
+                    <td>10</td>
+                  </tr>
+                  <tr>
+                    <td>11</td>
+                    <td>2</td>
+                    <td>12</td>
+                  </tr>
+                  <tr>
+                    <td>20</td>
+                    <td>2</td>
+                    <td>30</td>
+                  </tr>
+                  <tr>
+                    <td>25</td>
+                    <td>3</td>
+                    <td>45</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="subsection">
+              <h3>Class Tree Navigation</h3>
+              <p>Access the skill tree from your character sheet to:</p>
+              <ul>
+                <li>View your class paths (Tier 1 → Tier 2 → Tier 3 → etc.)</li>
+                <li>See skill requirements and costs</li>
+                <li>Learn new skills by spending TP</li>
+                <li>Track enlightened skills (marked with !)</li>
+              </ul>
+            </div>
+
+            <div class="warning-box">
+              <h3>⚠️ Important Notes</h3>
+              <ul>
+                <li>Skills are permanent - choose wisely!</li>
+                <li>Some skills require prerequisites (previous skills)</li>
+                <li>Enlightened skills (!) are typically more powerful</li>
+                <li>You must have the prerequisite class tier to access higher-tier skills</li>
+              </ul>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="info-footer">
+        <button class="close-footer-btn" (click)="onClose()">Close</button>
+      </div>
+    </app-card>
+  </div>
+</div>

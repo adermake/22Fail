@@ -1,0 +1,1283 @@
+<div class="info-overlay" (click)="onClose()">
+  <div class="info-content" (click)="$event.stopPropagation()">
+    <app-card>
+      <div class="info-header">
+        <h1>📚 20-to-fail Regelwerk</h1>
+        <button class="close-btn" (click)="onClose()">×</button>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="tab-nav">
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab() === 'grundlagen'"
+          (click)="setTab('grundlagen')">
+          🎲 Grundlagen
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab() === 'stats'"
+          (click)="setTab('stats')">
+          📊 Stats
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab() === 'ausruestung'"
+          (click)="setTab('ausruestung')">
+          ⚔️ Ausrüstung
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab() === 'schmieden'"
+          (click)="setTab('schmieden')">
+          🔨 Schmieden
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab() === 'materialien'"
+          (click)="setTab('materialien')">
+          ⚒️ Materialien
+        </button>
+        <button 
+          class="tab-btn" 
+          [class.active]="activeTab() === 'traenke'"
+          (click)="setTab('traenke')">
+          🧪 Tränke
+        </button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="tab-content">
+        
+        <!-- GRUNDLAGEN TAB -->
+        @if (activeTab() === 'grundlagen') {
+          <div class="content-section">
+            <h2>🎲 Willkommen in der Welt von 20-to-fail!</h2>
+            
+            <div class="info-box">
+              <p>In dieser wundersamen Fantasiewelt wird alles durch eine allmächtige Entität entschieden: <strong>den Würfel!</strong></p>
+            </div>
+
+            <div class="rule-section">
+              <h3>Würfelsystem</h3>
+              <p>Jede wichtige Entscheidung wird durch den Wurf eines Würfels besiegelt. Das Resultat unterscheidet sich je nach Würfelergebnis:</p>
+              <ul>
+                <li><strong>Je niedriger die Zahl, desto besser</strong> - Ein niedriger Wurf sorgt für Erfolg</li>
+                <li><strong>D20 ist die Norm</strong> - Der 20-seitige Würfel wird standardmäßig verwendet</li>
+                <li><strong>Andere Würfel</strong> - In bestimmten Situationen können auch andere Würfel verwendet werden</li>
+                <li><strong>Die 1 ist optimal</strong> - Außer es wird für bestimmte Zahlen gewürfelt</li>
+              </ul>
+            </div>
+
+            <div class="rule-section">
+              <h3>✨ Würfelboni und -mali</h3>
+              <div class="formula-box">
+                <p>Aktionen können Würfelboni oder -mali erhalten durch:</p>
+                <ul>
+                  <li>Bestimmte Fähigkeiten</li>
+                  <li>Situationsabhängige Umstände</li>
+                  <li>Kreative Problemlösungen (Bonus vom Spielleiter)</li>
+                </ul>
+                <div class="warning-box">
+                  <strong>Wichtig:</strong> Unter normalen Umständen kann dieser Wert nicht <span class="highlight">+8/-8</span> über- oder unterschreiten.
+                </div>
+              </div>
+            </div>
+
+            <div class="rule-section">
+              <h3>🎭 Charaktere & Rollenspiel</h3>
+              <p>Jeder Spieler wird von einem <strong>Charakter</strong> in dieser Welt repräsentiert, den er selbst kreieren kann. Alle Aktionen und Entscheidungen des Spielers werden durch ihn umgesetzt.</p>
+              
+              <p>Der <strong>Spielleiter</strong> kümmert sich um alle anderen Charaktere und kontrolliert, welche Auswirkungen ihre Aktionen sowie die Aktionen der Spieler-Charaktere auf ihr Umfeld haben.</p>
+
+              <div class="info-box">
+                <p>Obwohl es nicht erforderlich ist, dass Spieler versuchen, ihre Aktionen der Persönlichkeit und den Verhaltensweisen des Charakters anzupassen, ist es erwünscht, dies so gut wie möglich umzusetzen, damit alle Interaktionen so realistisch wie möglich dargestellt werden können.</p>
+              </div>
+            </div>
+
+            <div class="rule-section">
+              <h3>🎯 Spielziel</h3>
+              <p>Das Ziel des Spiels kann sich unterscheiden, je nachdem, was sich der Spielleiter (und die Spieler zu gewissem Grad) wünschen. Der Fortschritt kann demnach unterschiedlich schnell voranschreiten.</p>
+              
+              <p><strong>Nebenmissionen</strong> oder persönliche Ziele sind ein wichtiger Teil des Spiels. Es liegt im Interesse aller Spieler, das Spielerlebnis aller im Hinterkopf zu behalten, damit jede Session unvergesslich wird.</p>
+            </div>
+          </div>
+        }
+
+        <!-- STATS TAB -->
+        @if (activeTab() === 'stats') {
+          <div class="content-section">
+            <h2>📊 Character Stats</h2>
+            
+            <div class="info-box">
+              <p>Jeder Charakter besitzt Stats, die über ihre Stärken in allen möglichen Bereichen des Lebens entscheiden.</p>
+              <p><strong>Kategorien:</strong> Grundstats, Konditionsstats, Modifikatoren, Extrastats</p>
+            </div>
+
+            <h3>💪 Grundstats</h3>
+            
+            <div class="stat-grid">
+              <div class="stat-card">
+                <h4>⚔️ Stärke</h4>
+                <div class="formula-box">
+                  <div><strong>Kraft:</strong> Stärke / 5</div>
+                  <div><strong>Inventar:</strong> 50 + Stärke×2 + Konstitution×3</div>
+                </div>
+                <p>Viele schwere und leichte Waffen setzen einen bestimmten Stärkewert voraus.</p>
+              </div>
+
+              <div class="stat-card">
+                <h4>❤️ Konstitution</h4>
+                <div class="formula-box">
+                  <div><strong>Leben:</strong> 50 + 5 × Konstitution</div>
+                  <div><strong>Inventar:</strong> 50 + Stärke×2 + Konstitution×3</div>
+                </div>
+                <p>Hohe Konstitution erhöht die Resistenz gegen Statuseffekte.</p>
+              </div>
+
+              <div class="stat-card">
+                <h4>🎯 Geschicklichkeit</h4>
+                <div class="formula-box">
+                  <div><strong>Ausdauer:</strong> 50 + 5 × Geschicklichkeit</div>
+                  <div><strong>Technik:</strong> Geschicklichkeit / 10</div>
+                </div>
+                <p>Viele leichte und Fernkampfwaffen setzen Geschicklichkeit voraus.</p>
+              </div>
+
+              <div class="stat-card">
+                <h4>🧠 Intelligenz</h4>
+                <div class="formula-box">
+                  <div><strong>Mana:</strong> 50 + 5 × Intelligenz</div>
+                  <div><strong>Fokus:</strong> 5 + Intelligenz / 2</div>
+                </div>
+                <p>Viele magische Waffen setzen Intelligenz voraus.</p>
+              </div>
+
+              <div class="stat-card">
+                <h4>⚡ Geschwindigkeit</h4>
+                <div class="formula-box">
+                  <div><strong>Bewegung:</strong> 5 + Geschwindigkeit / 2</div>
+                </div>
+                <p>Hohe Geschwindigkeit führt zu erhöhter Priorität von Aktionen.</p>
+              </div>
+
+              <div class="stat-card">
+                <h4>✨ Charisma</h4>
+                <div class="formula-box">
+                  <div><strong>Charme:</strong> Charisma / 5</div>
+                </div>
+                <p>Beeinflusst soziale Interaktionen und Manipulation.</p>
+              </div>
+            </div>
+
+            <h3>🔋 Konditionsstats</h3>
+            <div class="info-box">
+              <p>Konditionsstats messen die momentane Verfassung. Sie werden hauptsächlich durch <strong>Schlaf</strong> wiederhergestellt. Vor dem Schlafen etwas zu essen erhöht den wiederhergestellten Wert.</p>
+              <p class="warning-box"><strong>NPCs besitzen im Normalfall keine Konditionsstats.</strong></p>
+            </div>
+
+            <div class="condition-grid">
+              <div class="condition-card">
+                <h4>❤️ Leben</h4>
+                <p>Bestimmt die körperliche Gesundheit. Wird durch Verletzungen und negative Statuseffekte reduziert.</p>
+                <div class="warning-box">
+                  <div><strong>Leben = 0:</strong> Kritischer Zustand, Bewusstlosigkeit</div>
+                  <div><strong>5 Züge kritisch:</strong> Tod</div>
+                  <div><strong>Rettung:</strong> Heilungsmagie oder Heilitems</div>
+                </div>
+              </div>
+
+              <div class="condition-card">
+                <h4>⚡ Ausdauer</h4>
+                <p>Bestimmt das Durchhaltevermögen. Wird durch körperlich anstrengende Aktionen reduziert.</p>
+                <div class="warning-box">
+                  <div><strong>Ausdauer = 0:</strong> Bewusstlosigkeit</div>
+                  <div><strong>Aufwachen:</strong> Jeden Zug D10 würfeln</div>
+                  <div>Bei ≥20% des Maximums: Bewusstsein zurück</div>
+                </div>
+              </div>
+
+              <div class="condition-card">
+                <h4>🔮 Mana</h4>
+                <p>Bestimmt die mentale Kapazität für Magie. Wird durch Zauber reduziert.</p>
+                <div class="warning-box">
+                  <div><strong>Mana = 0:</strong> Mental erschöpft</div>
+                  <div>Keine Zauber mehr möglich</div>
+                  <div><strong>Malus:</strong> -3 auf Wahrnehmung bis zum Schlafen</div>
+                </div>
+              </div>
+            </div>
+
+            <h3>📊 Modifikatoren</h3>
+            <p>Modifikatoren setzen Grundstats als Würfelboni um:</p>
+
+            <div class="modifier-grid">
+              <div class="modifier-card">
+                <h4>🏃 Bewegung</h4>
+                <p>Felder pro Runde. <strong>Keine Obergrenze.</strong></p>
+                <p class="small">Nur bei Kämpfen, Dungeons, Reisen</p>
+              </div>
+
+              <div class="modifier-card">
+                <h4>💪 Kraft</h4>
+                <p>Bonus für körperlich beanspruchende Aktionen. <strong>Max: 4</strong></p>
+                <p class="small">Nur außerhalb von Kämpfen</p>
+              </div>
+
+              <div class="modifier-card">
+                <h4>🔧 Technik</h4>
+                <p>Feinfingergefühl für komplizierte Aufgaben. <strong>Max: 4</strong></p>
+                <p class="small">Nur außerhalb von Kämpfen</p>
+              </div>
+
+              <div class="modifier-card">
+                <h4>💫 Charme</h4>
+                <p>Zwischenmenschliche Beziehungen, Überredung. <strong>Max: 4</strong></p>
+                <p class="small">Nur außerhalb von Kämpfen</p>
+              </div>
+            </div>
+
+            <h3>📈 Level System</h3>
+            <div class="info-box">
+              <p>Level sind ein wichtiger Indikator der Stärke. Startlevel: <strong>1</strong></p>
+            </div>
+
+            <div class="level-benefits">
+              <div class="benefit-card">
+                <h4>⭐ Fähigkeitspunkte (FP)</h4>
+                <div class="formula-box">
+                  <div><strong>Start:</strong> 2 FP pro Level</div>
+                  <div><strong>Alle 10 Level:</strong> +1 FP</div>
+                  <div>(z.B. Level 23→24: 2+2=4 FP)</div>
+                  <div><strong>Level 1 Bonus:</strong> 2 zusätzliche FP</div>
+                </div>
+              </div>
+
+              <div class="benefit-card">
+                <h4>📊 Grundstat-Erhöhungen</h4>
+                <p>Stats erhöhen sich unterschiedlich schnell (alle 2-6 Level)</p>
+                <p><strong>Alle 3 Level:</strong> 1 freier Stat</p>
+              </div>
+
+              <div class="benefit-card">
+                <h4>🎁 Rassenfähigkeiten</h4>
+                <p>3 Fähigkeiten pro Rasse</p>
+                <p>Freigeschaltet zwischen Level 1-30</p>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- AUSRÜSTUNG TAB -->
+        @if (activeTab() === 'ausruestung') {
+          <div class="content-section">
+            <h2>⚔️ Ausrüstung</h2>
+            
+            <div class="info-box">
+              <p>Eine ordentliche Ausrüstung kann der Unterschied zwischen Leben und Tod sein.</p>
+            </div>
+
+            <h3>🛡️ Rüstung</h3>
+            <div class="armor-parts">
+              <span class="part">Helm</span>
+              <span class="part">Brustpanzer</span>
+              <span class="part">Armschienen</span>
+              <span class="part">Beinschienen</span>
+              <span class="part">Stiefel</span>
+            </div>
+            <p class="small">Pro Typ kann nur ein Rüstungsteil gleichzeitig ausgerüstet werden.</p>
+
+            <h4>📋 Rüstungswerte</h4>
+            
+            <div class="value-card">
+              <h5>1. 🔨 Haltbarkeit</h5>
+              <p>Wie viele Schlachten die Rüstung übersteht.</p>
+              <div class="formula-box">
+                <div><strong>Haltbarkeit &lt; 100:</strong> Kann zerstört werden</div>
+                <div><strong>Zerstörungsbonus:</strong> +5 - ((100 - Haltbarkeit) / 10)</div>
+                <div><strong>Haltbarkeit = 0:</strong> Rüstungsmalus +5</div>
+              </div>
+            </div>
+
+            <div class="value-card">
+              <h5>2. ⚖️ Rüstungsmalus</h5>
+              <p>Reduziert die Bewegung des Trägers.</p>
+              <div class="formula-box">
+                <div><strong>Leichte Rüstung:</strong> Malus 1-5</div>
+                <div><strong>Schwere Rüstung:</strong> Malus ≥6</div>
+                <div><strong>Rüstungsnegation:</strong> Hebt Malus auf (min. 0)</div>
+                <div><strong>Gesamtmalus:</strong> Summe aller Teile / 5</div>
+              </div>
+            </div>
+
+            <div class="value-card">
+              <h5>3. 🛡️ Stabilität</h5>
+              <p>Defensive Eigenschaften. Je höher, desto besser der Schutz.</p>
+              <div class="formula-box">
+                <div><strong>Bereich:</strong> 1-100 (normalerweise)</div>
+                <div><strong>Durchschnitt:</strong> 10</div>
+              </div>
+            </div>
+
+            <h3>⚔️ Waffen</h3>
+            <p>5 Grundwerte für alle Waffen:</p>
+
+            <div class="value-card">
+              <h5>1. 🔨 Haltbarkeit</h5>
+              <p>Wie viele Schlachten die Waffe übersteht.</p>
+              <div class="formula-box">
+                <div><strong>Haltbarkeit &lt; 100:</strong> Kann zerstört werden</div>
+                <div><strong>Zerstörungsbonus:</strong> +5 - ((100 - Haltbarkeit) / 10)</div>
+                <div><strong>Haltbarkeit = 0:</strong> -2 Würfelmalus</div>
+              </div>
+            </div>
+
+            <div class="value-card">
+              <h5>2. ⚔️ Effizienz</h5>
+              <p>Offensive Stärke. Je höher, desto stärker im Kampf.</p>
+              <div class="formula-box">
+                <div><strong>Bereich:</strong> 1-100 (normalerweise)</div>
+                <div><strong>Durchschnitt:</strong> 10</div>
+              </div>
+            </div>
+
+            <div class="value-card">
+              <h5>3. 📊 Waffenvoraussetzung</h5>
+              <p>Benötigte Stats, um eine Waffe zu führen.</p>
+              <div class="formula-box">
+                <div><strong>Formel:</strong> 5 + Haltbarkeit/20 + Effizienz/2</div>
+                <div><strong>Fernkampf:</strong> Geschicklichkeit</div>
+                <div><strong>Schwere Waffen:</strong> Stärke</div>
+                <div><strong>Leichte Waffen:</strong> Geschicklichkeit oder Stärke</div>
+              </div>
+            </div>
+
+            <div class="value-card">
+              <h5>4. 📏 Reichweite</h5>
+              <p>Aus welcher Distanz ein Charakter angreifen kann.</p>
+            </div>
+
+            <div class="value-card">
+              <h5>5. 🗡️ Waffentyp</h5>
+              <p><strong>Art:</strong> Leicht / Schwer / Fernkampf</p>
+              <p><strong>Schadensart:</strong> Schnitt / Stich / Wucht</p>
+            </div>
+
+            <h3>📜 Waffenliste</h3>
+            
+            <div class="weapon-category">
+              <h4>⚡ Leichte Waffen</h4>
+              <div class="weapon-grid">
+                <div class="weapon-item">Messer (Schnitt, 0,5m)</div>
+                <div class="weapon-item">Sichel (Schnitt, 0,5m)</div>
+                <div class="weapon-item">Kurzschwert (Schnitt, 1m)</div>
+                <div class="weapon-item">Peitsche (Schnitt, 3m)</div>
+                <div class="weapon-item">Dolch (Stich, 0,5m)</div>
+                <div class="weapon-item">Rapier (Stich, 1,5m)</div>
+                <div class="weapon-item">Handschuhe (Wucht, 0,5m)</div>
+                <div class="weapon-item">Nunchaku (Wucht, 0,5m)</div>
+                <div class="weapon-item">Stab (Wucht, 1m)</div>
+              </div>
+            </div>
+
+            <div class="weapon-category">
+              <h4>🏹 Fernkampfwaffen</h4>
+              <div class="weapon-grid">
+                <div class="weapon-item">Wurfbeil (Schnitt, 10m)</div>
+                <div class="weapon-item">Wurfmesser (Schnitt, 20m)</div>
+                <div class="weapon-item">Wurfspeer (Stich, 50m)</div>
+                <div class="weapon-item">Kurzbogen (Stich, 50m)</div>
+                <div class="weapon-item">Armbrust (Stich, 100m)</div>
+                <div class="weapon-item">Langbogen (Stich, 100m)</div>
+                <div class="weapon-item">Bola (Wucht, 20m)</div>
+                <div class="weapon-item">Bumerang (Wucht, 30m)</div>
+                <div class="weapon-item">Schleuder (Wucht, 50m)</div>
+              </div>
+            </div>
+
+            <div class="weapon-category">
+              <h4>⚔️ Schwere Waffen</h4>
+              <div class="weapon-grid">
+                <div class="weapon-item">Axt (Schnitt, 1,5m)</div>
+                <div class="weapon-item">Säbel (Schnitt, 1,5m)</div>
+                <div class="weapon-item">Sense (Schnitt, 1,5m)</div>
+                <div class="weapon-item">Kriegsaxt (Schnitt, 2m)</div>
+                <div class="weapon-item">Langschwert (Schnitt, 2m)</div>
+                <div class="weapon-item">Gleve (Schnitt, 2,5m)</div>
+                <div class="weapon-item">Großschwert (Schnitt, 2,5m)</div>
+                <div class="weapon-item">Hellebarde (Schnitt, 3m)</div>
+                <div class="weapon-item">Hacke (Stich, 1m)</div>
+                <div class="weapon-item">Dreizack (Stich, 2m)</div>
+                <div class="weapon-item">Langspeer (Stich, 3m)</div>
+                <div class="weapon-item">Lanze (Stich, 3m)</div>
+                <div class="weapon-item">Schild (Wucht, 0,5m)</div>
+                <div class="weapon-item">Hammer (Wucht, 1m)</div>
+                <div class="weapon-item">Keule (Wucht, 2m)</div>
+                <div class="weapon-item">Kriegshammer (Wucht, 2m)</div>
+                <div class="weapon-item">Morgenstern (Wucht, 2,5m)</div>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- SCHMIEDEN TAB -->
+        @if (activeTab() === 'schmieden') {
+          <div class="content-section">
+            <h2>🔨 Schmieden</h2>
+            
+            <div class="info-box">
+              <p>Stelle eigene Waffen und Rüstungen her! Dies ist nur in einer <strong>Schmiede</strong> möglich.</p>
+            </div>
+
+            <h3>🧱 Komponenten</h3>
+            <p>Für jeden Schmiedeprozess werden <strong>3 Materialien</strong> benötigt:</p>
+            
+            <div class="component-grid">
+              <div class="component-card primary">
+                <h4>1️⃣ Primärkomponente</h4>
+                <ul>
+                  <li>Grundwerte: <strong>100%</strong></li>
+                  <li>Zusatzeffekt: ✅</li>
+                  <li>Modifikator: ✅</li>
+                </ul>
+              </div>
+
+              <div class="component-card secondary">
+                <h4>2️⃣ Sekundärkomponente</h4>
+                <ul>
+                  <li>Grundwerte: <strong>50%</strong></li>
+                  <li>Zusatzeffekt: ✅</li>
+                  <li>Modifikator: ✅</li>
+                </ul>
+              </div>
+
+              <div class="component-card tertiary">
+                <h4>3️⃣ Zusatzkomponente</h4>
+                <ul>
+                  <li>Grundwerte: ❌</li>
+                  <li>Zusatzeffekt: ✅</li>
+                  <li>Modifikator: ❌</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="warning-box">
+              <p><strong>Wichtig:</strong> Zusatzeffekte gelten maximal einmal pro Waffe/Rüstungsteil. Mehrere Teile mit gleichem Effekt kombinieren ihren Effekt.</p>
+            </div>
+
+            <h3>⭐ Schmiedepunkte (SP)</h3>
+            <div class="formula-box">
+              <p><strong>Erhaltene SP:</strong> 10 + D20</p>
+              <p>Mit SP kannst du Extrastats verleihen!</p>
+              <p><strong>Pro Erhöhung:</strong> +1 Effizienz/Stabilität oder +10 Haltbarkeit</p>
+            </div>
+
+            <h3>⚔️ Zusatzboni (Waffen)</h3>
+            <div class="bonus-grid">
+              <div class="bonus-item">
+                <strong>Werfen (1-3):</strong> 2 / 5 / 10 SP
+              </div>
+              <div class="bonus-item">
+                <strong>Entwaffnen (1-3):</strong> 2 / 5 / 10 SP
+              </div>
+              <div class="bonus-item">
+                <strong>Zerstören (1-3):</strong> 1 / 2 / 5 SP
+              </div>
+              <div class="bonus-item">
+                <strong>Voraussetzung -1 (∞):</strong> 2 SP
+              </div>
+              <div class="bonus-item">
+                <strong>Reichweite ×2:</strong> 10 SP (20 Fernkampf)
+              </div>
+              <div class="bonus-item">
+                <strong>Unzerbrechlich:</strong> 10 SP
+              </div>
+            </div>
+
+            <h3>🛡️ Zusatzboni (Rüstung)</h3>
+            <div class="bonus-grid">
+              <div class="bonus-item">
+                <strong>Rückstoßresistenz (1-3):</strong> 2 / 5 / 10 SP
+              </div>
+              <div class="bonus-item">
+                <strong>Rüstungsmalus- (1-3):</strong> 3 / 7 / 15 SP
+              </div>
+              <div class="bonus-item">
+                <strong>Leben +1 (∞):</strong> 2 SP
+              </div>
+              <div class="bonus-item">
+                <strong>Stacheln:</strong> 5 SP
+              </div>
+              <div class="bonus-item">
+                <strong>Unzerbrechlich:</strong> 10 SP
+              </div>
+            </div>
+
+            <h3>🔧 Reparatur</h3>
+            <div class="info-box">
+              <p>Reparatur mit Material der <strong>Primärkomponente</strong> stellt Haltbarkeit wieder her.</p>
+              <p>Änderung von Effizienz/Stabilität ändert <strong>nicht</strong> die Voraussetzung.</p>
+            </div>
+
+            <h3>🏹 Munition</h3>
+            <p>Fernkampfwaffen benötigen oft Munition. Selbstherstellung möglich aus Naturmaterialien.</p>
+            
+            <div class="formula-box">
+              <h4>Selbstherstellung (D20)</h4>
+              <div><strong>16-20:</strong> Fehlgeschlagen</div>
+              <div><strong>6-15:</strong> Rang 3 (niedrige Qualität)</div>
+              <div><strong>1-5:</strong> Rang 2 (mittlere Qualität)</div>
+            </div>
+          </div>
+        }
+
+        <!-- MATERIALIEN TAB -->
+        @if (activeTab() === 'materialien') {
+          <div class="content-section">
+            <h2>⚒️ Materialien</h2>
+            
+            <h3>⚔️ Waffenmaterialien</h3>
+            
+            <div class="material-list">
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🔩 Eisen</h4>
+                  <div class="material-tags">
+                    <span class="weight">schwer</span>
+                    <span class="rarity common">häufig, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 80 (+3)</span>
+                  <span>Eff.: 7 (+3)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Mit jeder Reparatur +10 Haltbarkeit (dauerhaft)
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🪵 Holz</h4>
+                  <div class="material-tags">
+                    <span class="weight">leicht</span>
+                    <span class="rarity common">sehr häufig, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 50 (+5)</span>
+                  <span>Eff.: 4 (+3)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Voraussetzung-1(∞) reduziert um 2 statt 1
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🌳 Ahnenholz</h4>
+                  <div class="material-tags">
+                    <span class="weight">sehr leicht</span>
+                    <span class="rarity uncommon">häufig, magische Wälder</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 70 (+4)</span>
+                  <span>Eff.: 5 (+3)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> +2 beim Würfeln für Zaubercasts
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🪨 Stein</h4>
+                  <div class="material-tags">
+                    <span class="weight">sehr schwer</span>
+                    <span class="rarity common">sehr häufig, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 60 (+3)</span>
+                  <span>Eff.: 5 (+4)</span>
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🥈 Silber</h4>
+                  <div class="material-tags">
+                    <span class="weight">mittel</span>
+                    <span class="rarity rare">selten, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 70 (+3)</span>
+                  <span>Eff.: 10 (+2)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> +2 gegen Monster/Untote
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🥇 Gold</h4>
+                  <div class="material-tags">
+                    <span class="weight">schwer</span>
+                    <span class="rarity rare">selten, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 50 (+5)</span>
+                  <span>Eff.: 6 (+3)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> +1 Charismamodifikator
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>💎 Platin</h4>
+                  <div class="material-tags">
+                    <span class="weight">schwer</span>
+                    <span class="rarity epic">sehr selten, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 100 (+4)</span>
+                  <span>Eff.: 12 (+4)</span>
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>⚙️ Adamantit</h4>
+                  <div class="material-tags">
+                    <span class="weight">sehr schwer</span>
+                    <span class="rarity rare">selten, tief unter der Erde</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 150 (+6)</span>
+                  <span>Eff.: 9 (+6)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> +5 Würfelbonus gegen Zerstörung
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>☄️ Meteoritenerz</h4>
+                  <div class="material-tags">
+                    <span class="weight">?</span>
+                    <span class="rarity legendary">???</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 120 (+2)</span>
+                  <span>Eff.: 12 (+2)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Effekt variiert
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>✨ Asremit</h4>
+                  <div class="material-tags">
+                    <span class="weight">sehr leicht</span>
+                    <span class="rarity uncommon">häufig, Überwelt</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 40 (+5)</span>
+                  <span>Eff.: 15 (+2)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Werfen+1 (unabhängig vom Bonus)
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>💎 Blutrubin</h4>
+                  <div class="material-tags">
+                    <span class="weight">leicht</span>
+                    <span class="rarity rare">selten, Vulkangebiet</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 80 (+4)</span>
+                  <span>Eff.: 8 (+2)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Speichert bis zu 50 Leben zur Heilung
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>💠 Äthersaphir</h4>
+                  <div class="material-tags">
+                    <span class="weight">leicht</span>
+                    <span class="rarity rare">selten, im Meer</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 80 (+4)</span>
+                  <span>Eff.: 8 (+2)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Speichert bis zu 50 Mana
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>💚 Natursmaragd</h4>
+                  <div class="material-tags">
+                    <span class="weight">leicht</span>
+                    <span class="rarity rare">selten, Urwälder</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 80 (+4)</span>
+                  <span>Eff.: 8 (+2)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Speichert bis zu 50 Ausdauer
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🔮 Elementarkristall</h4>
+                  <div class="material-tags">
+                    <span class="weight">leicht</span>
+                    <span class="rarity epic">sehr selten, hohe Mana</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 60 (+3)</span>
+                  <span>Eff.: 7 (+3)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Speichert Spells (Komplexität ≤ Eff./2)
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>✝️ Seraphit</h4>
+                  <div class="material-tags">
+                    <span class="weight">schwer</span>
+                    <span class="rarity rare">selten, Überwelt</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 80 (+3)</span>
+                  <span>Eff.: 6 (+4)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Verstärkt Heilzauber um 50%
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🔥 Vulkanit</h4>
+                  <div class="material-tags">
+                    <span class="weight">leicht</span>
+                    <span class="rarity uncommon">häufig, in Lava</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 90 (+4)</span>
+                  <span>Eff.: 8 (+5)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Leuchtet im Dunkeln
+                </div>
+              </div>
+            </div>
+
+            <h3>🛡️ Rüstungsmaterialien</h3>
+            
+            <div class="material-list">
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🧵 Stoff</h4>
+                  <div class="material-tags">
+                    <span class="weight">sehr leicht</span>
+                    <span class="rarity common">sehr häufig, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 50 (+5)</span>
+                  <span>Stabil.: 5 (+5)</span>
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🌙 Mondseide</h4>
+                  <div class="material-tags">
+                    <span class="weight">sehr leicht</span>
+                    <span class="rarity epic">sehr selten, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 80 (+3)</span>
+                  <span>Stabil.: 5 (+4)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> 10% Schaden → Mana
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🦌 Leder</h4>
+                  <div class="material-tags">
+                    <span class="weight">leicht</span>
+                    <span class="rarity common">sehr häufig, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 70 (+3)</span>
+                  <span>Stabil.: 6 (+4)</span>
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🔩 Eisen</h4>
+                  <div class="material-tags">
+                    <span class="weight">schwer</span>
+                    <span class="rarity common">häufig, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 80 (+3)</span>
+                  <span>Stabil.: 8 (+2)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Mit jeder Reparatur +10 Haltbarkeit
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🥈 Silber</h4>
+                  <div class="material-tags">
+                    <span class="weight">schwer</span>
+                    <span class="rarity rare">selten, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 80 (+2)</span>
+                  <span>Stabil.: 11 (+2)</span>
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🥇 Gold</h4>
+                  <div class="material-tags">
+                    <span class="weight">schwer</span>
+                    <span class="rarity rare">selten, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 50 (+5)</span>
+                  <span>Stabil.: 9 (+3)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> +1 Charismamodifikator
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>💎 Platin</h4>
+                  <div class="material-tags">
+                    <span class="weight">schwer</span>
+                    <span class="rarity epic">sehr selten, überall</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 100 (+4)</span>
+                  <span>Stabil.: 12 (+4)</span>
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>⚙️ Adamantit</h4>
+                  <div class="material-tags">
+                    <span class="weight">sehr schwer</span>
+                    <span class="rarity rare">selten, tief unter der Erde</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 150 (+6)</span>
+                  <span>Stabil.: 12 (+6)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> +5 Würfelbonus gegen Zerstörung
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>☄️ Meteoritenerz</h4>
+                  <div class="material-tags">
+                    <span class="weight">?</span>
+                    <span class="rarity legendary">???</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 150 (+2)</span>
+                  <span>Stabil.: 10 (+2)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Effekt variiert
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>✨ Asremit</h4>
+                  <div class="material-tags">
+                    <span class="weight">sehr leicht</span>
+                    <span class="rarity uncommon">häufig, Überwelt</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 40 (+5)</span>
+                  <span>Stabil.: 7 (+3)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> -2 Rüstungsmalus
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🔮 Elementarkristall</h4>
+                  <div class="material-tags">
+                    <span class="weight">leicht</span>
+                    <span class="rarity epic">sehr selten, hohe Mana</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 50 (+4)</span>
+                  <span>Stabil.: 6 (+4)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Speichert Spells (Komplexität ≤ Eff./4)
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>✝️ Seraphit</h4>
+                  <div class="material-tags">
+                    <span class="weight">schwer</span>
+                    <span class="rarity rare">selten, Überwelt</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 80 (+3)</span>
+                  <span>Stabil.: 12 (+2)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Verstärkt Heilung auf Träger um 50%
+                </div>
+              </div>
+
+              <div class="material-card">
+                <div class="material-header">
+                  <h4>🔥 Vulkanit</h4>
+                  <div class="material-tags">
+                    <span class="weight">leicht</span>
+                    <span class="rarity uncommon">häufig, in Lava</span>
+                  </div>
+                </div>
+                <div class="material-stats">
+                  <span>Haltb.: 70 (+4)</span>
+                  <span>Stabil.: 8 (+3)</span>
+                </div>
+                <div class="material-effect">
+                  <strong>Zusatz:</strong> Leuchtet im Dunkeln
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- TRÄNKE TAB -->
+        @if (activeTab() === 'traenke') {
+          <div class="content-section">
+            <h2>🧪 Tränke</h2>
+            
+            <div class="info-box">
+              <p>Jeder Charakter kann eigene Tränke brauen! Von Heilmitteln über Staterhöhungen bis zu gefährlichen Giften.</p>
+            </div>
+
+            <h3>🌿 Trankherstellung</h3>
+            <p>Benötigt werden:</p>
+            <ul>
+              <li><strong>1 Wirkstoff</strong> - Pflanze mit gewünschten Effekten</li>
+              <li><strong>1 Extraktor</strong> - Bestimmt, welcher Effekt extrahiert wird</li>
+            </ul>
+
+            <div class="warning-box">
+              <p><strong>Wichtig:</strong> Nur in einer <strong>Brauerei</strong> möglich!</p>
+            </div>
+
+            <h3>⚗️ Extraktoren</h3>
+            <p>Jeder Wirkstoff besitzt <strong>3 Effekte</strong>:</p>
+
+            <div class="extractor-grid">
+              <div class="extractor-card primary">
+                <h4>1️⃣ Primärextraktor</h4>
+                <p><strong>Effekt:</strong> Primäreffekt (1.)</p>
+                <p><strong>Effizienz:</strong> Hoch</p>
+              </div>
+
+              <div class="extractor-card secondary">
+                <h4>2️⃣ Sekundärextraktor</h4>
+                <p><strong>Effekt:</strong> Sekundäreffekt (2.)</p>
+                <p><strong>Effizienz:</strong> Mittel</p>
+              </div>
+
+              <div class="extractor-card tertiary">
+                <h4>3️⃣ Tertiärextraktor</h4>
+                <p><strong>Effekt:</strong> Tertiäreffekt (3.)</p>
+                <p><strong>Effizienz:</strong> Niedrig</p>
+              </div>
+            </div>
+
+            <div class="formula-box">
+              <h4>Brauvorgang</h4>
+              <p>Würfle <strong>D20</strong> für die genaue Effizienz des Tranks.</p>
+            </div>
+
+            <h3>💊 Trankeinnahme</h3>
+            <div class="info-box">
+              <p><strong>Alle Trankeffekte</strong> wirken bei Einnahme.</p>
+              <p><strong>Zusätzlich bei Körperkontakt:</strong> Heilung, Flammbar, Verbrennung, Vereisung, Ätzend</p>
+            </div>
+
+            <div class="warning-box">
+              <p>Jeder Trank = genau <strong>1 Dosierung</strong>. Mehrere Portionen können gemischt werden!</p>
+            </div>
+
+            <h3>🌱 Zutaten - Primärextraktoren</h3>
+            <div class="ingredient-list">
+              <div class="ingredient-card">
+                <h4>🍃 Seelenkraut</h4>
+                <div class="location">Häufig in Sumpfgebieten</div>
+                <div class="effects">
+                  <span class="effect primary">1. Schwindel</span>
+                  <span class="effect">2. Gift</span>
+                  <span class="effect">3. Bewusstlosigkeit</span>
+                </div>
+                <p>Süßes Aroma entspannt, zu lange Exposition führt zu Schwindelanfällen.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>🌲 Traumrinde</h4>
+                <div class="location">Häufig in dichten Wäldern</div>
+                <div class="effects">
+                  <span class="effect primary">1. Halluzination</span>
+                  <span class="effect">2. Schlaf</span>
+                  <span class="effect">3. Gift</span>
+                </div>
+                <p>Unheilvoll leuchtend. Gase verursachen Halluzinationen.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>🌾 Dörrfarn</h4>
+                <div class="location">Sehr häufig in trockenen Gebieten</div>
+                <div class="effects">
+                  <span class="effect primary">1. Benommen</span>
+                  <span class="effect">2. Heilung</span>
+                  <span class="effect">3. Flammbar</span>
+                </div>
+                <p>Sieht aus wie Gras, trocknet bei Verzehr den Körper aus.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>🥀 Teufelstrauch</h4>
+                <div class="location">Selten überall</div>
+                <div class="effects">
+                  <span class="effect primary">1. Gift</span>
+                  <span class="effect">2. Heilung</span>
+                  <span class="effect">3. Schwindel</span>
+                </div>
+                <p>Name warnt vor tödlichem Effekt. Berührung kann lebensbedrohlich sein.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>💙 Blauer Segen</h4>
+                <div class="location">Häufig bei hoher Manakonzentration</div>
+                <div class="effects">
+                  <span class="effect primary">1. Benommen</span>
+                  <span class="effect">2. Mana+</span>
+                  <span class="effect">3. Ges.+</span>
+                </div>
+                <p>Blätter wie betende Figur. Religiöses Dankbarkeitsgeschenk.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>🧚 Feenflügel</h4>
+                <div class="location">Eine der seltensten Zutaten</div>
+                <div class="effects">
+                  <span class="effect primary">1. Schwindel</span>
+                  <span class="effect">2. Fliegen</span>
+                  <span class="effect">3. Manaheilung</span>
+                </div>
+                <p>Von lebenden Feen extrahiert. Feen werden in Gefangenschaft gezüchtet.</p>
+              </div>
+            </div>
+
+            <h3>🌿 Zutaten - Sekundärextraktoren</h3>
+            <div class="ingredient-list">
+              <div class="ingredient-card">
+                <h4>🖤 Schwarzmoos</h4>
+                <div class="location">Selten in feuchten Gebieten</div>
+                <div class="effects">
+                  <span class="effect">1. Schwindel</span>
+                  <span class="effect secondary">2. Rage</span>
+                  <span class="effect">3. Gedächtnisverlust</span>
+                </div>
+                <p>Wächst wo Personen starben. Zieht ins Reich der Toten.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>🌳 Klageweide</h4>
+                <div class="location">Häufig in Gebirgen</div>
+                <div class="effects">
+                  <span class="effect">1. Schlaf</span>
+                  <span class="effect secondary">2. Leben-</span>
+                  <span class="effect">3. Ätzend</span>
+                </div>
+                <p>Pollen schläfern ein. Ernährt sich von Alpträumen.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>🌵 Stachelbohne</h4>
+                <div class="location">Häufig in steinigen Gebieten</div>
+                <div class="effects">
+                  <span class="effect">1. Heilung</span>
+                  <span class="effect secondary">2. Leben-</span>
+                  <span class="effect">3. Ausdauer+</span>
+                </div>
+                <p>Heilende Samen, aber unzerstörbare Hülse.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>☀️ Himmelssucher</h4>
+                <div class="location">Selten in sonnigen Gebieten</div>
+                <div class="effects">
+                  <span class="effect">1. Schwindel</span>
+                  <span class="effect secondary">2. Gewicht-</span>
+                  <span class="effect">3. Ges.+</span>
+                </div>
+                <p>Blätter strahlen nachts. Sehr begehrt, schwer zu züchten.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>🍀 Glücksbeere</h4>
+                <div class="location">Sehr selten überall</div>
+                <div class="effects">
+                  <span class="effect">1. Gift</span>
+                  <span class="effect secondary">2. Glück+</span>
+                  <span class="effect">3. Ausdauer-</span>
+                </div>
+                <p>Verspricht ewiges Glück. Falsch zubereitet: Durchfall.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>🌶️ Lodernuss</h4>
+                <div class="location">Häufig in heißen Gebieten</div>
+                <div class="effects">
+                  <span class="effect">1. Verbrennung</span>
+                  <span class="effect secondary">2. Ausdauerheilung</span>
+                  <span class="effect">3. Schwindel</span>
+                </div>
+                <p>Berüchtigt für absurde Schärfe. Mutprobe mit fatalen Folgen.</p>
+              </div>
+            </div>
+
+            <h3>🌿 Zutaten - Tertiärextraktoren</h3>
+            <div class="ingredient-list">
+              <div class="ingredient-card">
+                <h4>❄️ Hagelnuss</h4>
+                <div class="location">Häufig in kalten Gebieten</div>
+                <div class="effects">
+                  <span class="effect">1. Vereist</span>
+                  <span class="effect">2. Manaheilung</span>
+                  <span class="effect tertiary">3. Ges.-</span>
+                </div>
+                <p>Eisige Delikatesse. Verfault schnell ohne kalte Lagerung.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>🍎 Riesenfrucht</h4>
+                <div class="location">Selten in der Ebene</div>
+                <div class="effects">
+                  <span class="effect">1. Heilung</span>
+                  <span class="effect">2. Leben+</span>
+                  <span class="effect tertiary">3. Benommen</span>
+                </div>
+                <p>Bis zu 5m Durchmesser. Ernährt Familie wochenlang.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>🌹 Siegelrose</h4>
+                <div class="location">Selten überall, Schlossgärten</div>
+                <div class="effects">
+                  <span class="effect">1. Gift</span>
+                  <span class="effect">2. Mana-</span>
+                  <span class="effect tertiary">3. Unterdrückung</span>
+                </div>
+                <p>Blaue Schönheit. Dornen zersetzen Mana im Körper.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>⛓️ Kettenranke</h4>
+                <div class="location">Häufig in Gebirgen</div>
+                <div class="effects">
+                  <span class="effect">1. Gewicht+</span>
+                  <span class="effect">2. Ges.-</span>
+                  <span class="effect tertiary">3. Flammbar</span>
+                </div>
+                <p>Aussehen wie Ketten. Unglaubliche Stabilität als Seilmaterial.</p>
+              </div>
+
+              <div class="ingredient-card">
+                <h4>💨 Rauchpalme</h4>
+                <div class="location">Selten in Sumpfgebieten</div>
+                <div class="effects">
+                  <span class="effect">1. Blindheit</span>
+                  <span class="effect">2. Charisma-</span>
+                  <span class="effect tertiary">3. Ätzend</span>
+                </div>
+                <p>Pollen als dichter Rauch, schädlich für Augen. Stärkste bei Sonnenaufgang.</p>
+              </div>
+            </div>
+          </div>
+        }
+
+      </div>
+    </app-card>
+  </div>
+</div>

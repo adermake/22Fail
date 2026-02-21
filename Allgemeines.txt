@@ -1,0 +1,432 @@
+Begriffserklärung:
+Grundlagen
+Willkommen in der Welt von 20-to-fail! In dieser wundersamen Fantasiewelt wird alles durch eine 
+allmächtige Entität entschieden: den Würfel!
+Jede wichtige Entscheidung wird durch den Wurf eines Würfels besiegelt, das Resultat dieser Entscheidung 
+unterscheidet sich je nach Würfelergebnis. Je niedriger die Zahl, desto wahrscheinlicher wird eine Aktion 
+gelingen. Obwohl ein 20er-Würfel (D20) die Norm ist, können auch andere Würfel in bestimmten 
+Situationen zur Hilfe gezogen werden, die niedrigste Würfelzahl bleibt jedoch immer das Optimum (außer 
+es wird für bestimmte Zahlen gewürfelt). Alle Aktionen können allerdings auf verschiedenen Wegen 
+Würfelboni oder -mali erhalten (z.B. durch bestimmte Fähigkeiten, situationsabhängige Umstände, oder 
+als Bonus wenn ein Problem auf besonders kreative Weise gelöst wird). Unter normalen Umständen kann 
+dieser Wert nicht +8/-8 über- oder unterschreiten.
+Jeder Spieler wird von einem Charakter in dieser Welt repräsentiert, den er selbst kreieren kann. Alle 
+Aktionen und Entscheidungen des Spielers werden durch ihn umgesetzt. Der Spielleiter kümmert sich 
+währenddessen um alle anderen Charaktere und kontrolliert, welche Auswirkungen ihre Aktionen sowie 
+die Aktionen der Spieler-Charaktere auf ihr Umfeld haben. Obwohl es nicht erfordert ist, dass Spieler 
+versuchen, ihre Aktionen der Persönlichkeit und den Verhaltensweisen des Charakters anzupassen, ist es 
+erwünscht, dies so gut wie möglich umzusetzen, damit alle Interaktionen so realistisch wie möglich in 
+dieser Welt dargestellt werden können.
+Das Ziel des Spiels kann sich unterscheiden, je nachdem, was sich der Spielleiter (und die Spieler zu 
+gewissem Grad) wünschen. Demnach kann der Fortschritt des Spiels unterschiedlich schnell 
+voranschreiten. Nebenmissionen oder persönliche Ziele sind jedoch auch ein wichtiger Teil des Spiels und 
+es liegt im Interesse aller Spieler, dies anzuerkennen und anzustreben, das Spielerlebnis aller Spieler im 
+Hinterkopf zu behalten, damit jede Session unvergesslich wird.
+Begriffserklärung:
+Grundstats
+Jeder Charakter besitzt Stats, die über ihre Stärken in allen möglichen Bereichen des Lebens entscheiden. 
+Diese Stats werden unterteilt in Grundstats, Konditionsstats, Modifikatoren und Extrastats.
+Grundstats werden nochmal unterteilt in Stärke, Konstitution, Geschicklichkeit, Intelligenz, 
+Geschwindigkeit und Charisma.
+Stärke beeinflusst die Kraft [Stärke/5] und Inventarkapazität [50 + Stärke*2 + Konstitution*3]. Außerdem 
+setzen viele schwere und leichte Waffen einen bestimmten Stärkewert voraus, um sie effizient führen zu 
+können.
+Konstitution beeinflusst die Leben [50 + 5* Konstitution] und Inventarkapazität. Hohe Konstitution erhöht 
+außerdem die Resistenz gegen Statuseffekte.
+Geschicklichkeit beeinflusst die Ausdauer [50 + 5* Geschicklichkeit] und Technik [Geschicklichkeit/10]. 
+Außerdem setzen viele leichte und Fernkampfwaffen einen bestimmten Geschicklichkeitswert voraus, um 
+sie effizient führen zu können.
+Intelligenz beeinflusst die Mana [50 + 5* Intelligenz] und den Fokus [5+ Intelligenz/2]. Außerdem setzen 
+viele magische Waffen einen bestimmten Intelligenzwert voraus, um sie effizient führen zu können.
+Geschwindigkeit beeinflusst die Bewegung [5 + Geschwindigkeit/2]. Desweiteren führt eine hohe 
+Geschwindigkeit zu einer erhöhten Priorität von Aktionen, wenn viele Charaktere glechzeitig agieren.
+Charisma beeinflusst den Charme [Charisma/5]. 
+Begriffserklärung:
+Konditionsstats
+Spieler-Charaktere besitzen Konditionsstats, die ihre momentane Verfassung messen. Sie werden auf 
+unterschiedliche Weisen verbraucht, werden aber alle hauptsächlich durch Schlaf wiederhergestellt
+(Statuseffekt Schlaf zählt hierbei nicht). Wird vor dem Schlafen etwas gegessen, erhöht sich der 
+wiederhergestellte Wert, je nach Art des Essens, andernfalls darf je nach Vorliebe des Spielers für jeden 
+Stat einzeln oder für alle zusammen mit einem D100 gewürfelt werden. NPCs besitzen im Normalfall keine 
+Konditionsstats.
+Es existieren 3 Konditionsstats: Leben, Ausdauer und Mana.
+Leben bestimmen die körperliche Gesundheit des Charakters und werden durch Verletzungen und negative 
+Statuseffekte reduziert. Fallen die Leben auf 0, ist der Charakter im kritischen Zustand und verliert das 
+Bewusstsein. Falls er für 5 Züge in diesem Zustand bleibt, stirbt er. Durch Heilungsmagie oder Heilitems 
+kann er in dieser Zeit gerettet werden.
+Ausdauer bestimmt das Durchhaltevermögen des Charakters und wird durch körperlich anstrengende 
+Aktionen und Fähigkeiten reduziert. Fällt die Ausdauer auf 0, verliert der Charakter das Bewusstsein. Der 
+Spieler kann dann jeden Zug würfeln (D10), um Ausdauer zu gewinnen. Sobald dieser Wert 20% der 
+maximalen Ausdauer übersteigt, kommt er wieder zu Bewusstsein.
+Mana bestimmt die mentale Kapazität des Charakters für Magie und wird durch Zauber reduziert. Fällt der 
+Manawert auf 0, wird der Charakter mental erschöpft und kann keine Zauber mehr benutzen und erhält 
+ein -3 Würfelmalus auf alle Wahrnehmungsaktionen, bis der Charakter schlafen geht und sein Mana 
+wiederherstellt.
+Begriffserklärung:
+Modifikatoren&Extrastats
+Modifikatoren stellen eien Erweiterung der Grundstats dar, die jene Grundstats als Würfelboni umsetzen.
+Die 4 Modifikatoren umfassen Bewegung, Kraft, Technik und Charme.
+Bewegung stellt dar, wie viele Felder sich ein Charakter pro Runde bewegen kann. Dieser Wert 
+funktioniert nicht als Würfelbonus, sondern erhöht strikt die Bewegungsdistanz des Charakters. Dies greift 
+allerdings nur in Situationen, wo hohe Geschwindigkeit oder genaue Bewegungen benötigt werden (z.B. in 
+Kämpfen, in Dungeons oder auf langen Reisen). Dieser Wert hat keine Obergrenze.
+Kraft stellt dar, wie gut ein Charakter körperlich beanspruchende Aktionen vollführt(z.B. schwere Objekte 
+tragen, werfen). Dieser Wert greift nur außerhalb von Kämpfen. Die Obergrenze für diesen Wert beträgt 4.
+Technik stellt das Feinfingergefühl und das Geschick eines Charakters dar, komplizierte Aufgaben zu lösen
+(z.B. komplexe Geräte reparieren oder Schlösser knacken). Dieser Wert greift nur außerhalb von Kämpfen. 
+Die Obergrenze für diesen Wert beträgt 4.
+Charme stellt die Fähigkeit eines Charakters dar, zwischenmenschliche Beziehungen aufzubauen, andere 
+Personen zu etwas zu überreden und sie zu manipulieren. Dieser Wert greift nur außerhalb von Kämpfen. 
+Die Obergrenze für diesen Wert beträgt 4.
+Stats, die in keine dieser Kategorien passen, werden Extrastats genannt. Ihre Effekte haben meist nur 
+kleine Ausiwrkungen auf das Spielgeschehen.
+Inventarkapazität zeigt in kg, wie viel Gepäck ein Charakter mit sich tragen kann. Sollte das Gewicht im 
+Inventar das Limit überschreiten, wird die Bewegung des Charakters halbiert und Ausdauerkosten verdoppelt.
+Fokus (s. Begriffserklärung: Magie für mehr Informationen) 
+Rüstungsnegation (s. Begriffserklärung: Ausrüstung: Rüstung für mehr Informationen)
+Waffenvorraussetzung (s. Begriffserklärung: Ausrüstung: Waffen für mehr Informationen)
+Zauberradius (s. Begriffserklärung: Magie, Mana und Zauber für mehr Informationen)
+Begriffserklärung:
+Level
+Level sind ein wichtiger Indikator der Stärke eines Charakters. Jeder Spieler-Charakter besitzt ein Level, 
+das zu Beginn des Spiels auf 1 gesetzt wird. Im Verlauf des Spiels steigt dieses Level an und erhöht die 
+Stärke des Charakters auf mehrere Wege:
+Fähigkeitspunkte (FP) werden benötigt, um neue Fähigkeiten für Klassen freizuschalten. Die FP pro Level 
+starten bei 2 und erhöhen sich danach alle 10 Level um 1 (z.B. Level Up 23->24 gibt 2+2=4 FP). Auf Level 
+1 erhält jeder Charakter außerdem 2 FP.
+Je nach Charakter erhöhen sich verschiedene Grundstats pro Level unterschiedlich schnell. Diese Werte 
+schwanken üblicherweise zwischen einer Staterhöhung alle 2 bis 6 Level. Außerdem wird im Normalfall 
+alle 3 Level ein freier Stat vergeben, der einen beliebigen Grundstat um 1 erhöhen kann.
+Bestimmte Fähigkeiten können nur durch Level freigeschaltet werden. Diese variieren je nach Rasse des 
+Charakters, es existieren jedoch immer genau 3 Fähigkeiten pro Rasse, die im Normalfall zwischen Level 1 
+und 30 freigeschalten werden.
+Begriffserklärung:
+Ausrüstung: Rüstung
+Jeder wahre Abenteurer benötigt eine passende Ausstattung. Sowohl eine Rüstung, die vor Angriffen 
+schützt, als auch eine Waffe, um jeden Gegner zu bezwingen. Eine ordentliche Ausrüstung kann der 
+Unterschied zwischen Leben und Tod sein. Die eigene Rüstung und Waffen in gutem Zusatnd zu halten 
+und immer weiter zu optimieren ist ein wichtiger Schritt, um auf jede Situation vorbereitet zu sein.
+Die Rüstung eines Charakters ist in 5 Rüstungsteile unterteilt: Helm, Brustpanzer, Armschienen, 
+Beinschienen und Stiefel. Es kann nur jeweils eines dieser Rüstungsteile auf einmal ausgerüstet werden. 
+Jedes dieser Rüstungsteile besitzt 3 Grundwerte:
+1. Haltbarkeit bestimmt, wie viele Schlachten die Rüstung übersteht. Nach jeder Schlacht wird die 
+Haltbarkeit jedes einzelnen Rüstungsteil per Würfel reduziert. Hierbei entscheidet die Länge und Intensität 
+der Schlacht darüber, mit welchem Würfel der Rüstungsschaden gewürfelt wird. Sollte die Haltbarkeit 
+eines Rüstungsteils unter 100 fallen, kann sie von starken Schlägen zerstört werden. Je weiter die 
+Haltbarkeit unter 100 fällt, desto höher ist der Würfelbonus für die Zerstörung der Rüstung [Würfelbonus: 
++5 - ((100 - Rüstungshaltbarkeit)/10)]. Sollte die Haltbarkeit der Rüstung auf 0 fallen, wird der 
+Rüstungsmalus um 5 erhöht. Dieser Effekt wirkt für jedes Rüstungsteil einzeln.
+2. Rüstungsmalus reduziert die Bewegung des Trägers. Leichte Rüstung besitzt einen Rüstungsmalus von 
+1-5, während der Rüstungsmalus von schwerer Rüstung bei 6 oder darüber liegt. Diesem Malus kann 
+allerdings mithilfe der Rüstungsnegation entgegengewirkt werden. Jeder Punkt an Rüstungsnegation hebt 
+einen Punkt an Rüstungsmalus auf (dieser Wert kann 0 nicht unterschreiten). Jedes einzelne Rüstungsteil 
+besitzt einen eigenen Rüstungsmalus. Der tatsächliche Wert, um den die Bewegung reduziert wird, wird aus 
+der Summe aller Rüstungsteile durch 5 errechnet.
+3. Stabilität bezeichnet die defensiven Eigenschaften einer Rüstung. Je höher dieser Wert, desto besser 
+kann die Rüstung Schaden abwehren. Dieser Wert liegt im Normalfall zwischen 1 und 100, wobei 10 die 
+Qualität einer durchschnittlichen Rüstung beschreibt.
+Begriffserklärung:
+Ausrüstung: Waffen
+Es existieren zahllose verschiedene Waffen. Diese besitzen allerdings die selben 5 Grundwerte:
+1. Die Haltbarkeit bestimmt, wie viele Schlachten die Waffe übersteht. Nach jeder Schlacht wird die 
+Haltbarkeit jeder benutzten Waffe per Würfel reduziert. Hierbei entscheidet die Länge und Intensität der 
+Schlacht darüber, mit welchem Würfel der Waffenschaden gewürfelt wird. Sollte die Haltbarkeit einer 
+Waffe unter 100 fallen, kann sie von starken Schlägen zerstört werden. Je weiter die Haltbarkeit unter 100 
+fällt, desto höher ist der Würfelbonus für die Zerstörung der Waffe (Würfelbonus: +5 - ((100 - 
+Waffenhaltbarkeit)/10)). Sollte die Haltbarkeit der Waffe auf 0 fallen, erhält jeder Angriff einen -2 
+Würfelmalus.
+2. Effizienz bezeichnet die offensive Stärke einer Waffe. Je höher dieser Wert, desto stärker ist die Waffe im 
+Kampf. Dieser Wert liegt im Normalfall zwischen 1 und 100, wobei 10 die Qualität einer durchschnittlichen 
+Waffe beschreibt.
+3. Waffenvorraussetzung beschreibt, welche Stats in welcher Höhe benötigt werden, um eine Waffe zu 
+führen. Fernkampfwaffen benötigen normalerweise Geschicklichkeit, schwere Waffen Stärke und Leichte 
+Waffen entweder Geschicklichkeit oder Stärke, können allerdings in besonderen Fällen auch andere Stats 
+wie Charisma vorraussetzen. Die Waffenvorraussetzung errechnet sich im Normalfall aus der Haltbarkeit 
+und Effizienz. [5+Haltbarkeit/20+Effizienz/2]
+4. Die Reichweite bestimmt, aus welcher Distanz ein Charakter angreifen kann. Obwohl die Waffenart 
+einen großen Einfluss auf die Reichweite hat, kann sie sich je nach spezifischer Waffe unterscheiden.
+5. Der Waffentyp bestimmt die Art der Waffe (Leichte Waffe, Schwere Waffe, Fernkampfwaffe) und welche 
+der 3 Schadensarten diese Waffe verursacht (Schnitt, Stich, Wucht). Dieser Wert wird normalerweise von 
+der Waffenart bestimmt.
+Waffenliste
+Hier aufgelistet sind alle bekannten Waffen und ihre Eigenschaften. Diese Werte können je nach genauer 
+Waffe allerdings leicht variieren. Es existieren außerdem weitere Waffen, die nicht auf dieser Liste 
+aufgeführt sind, da sie zu obskur und unbekannt, aber dennoch verwendbar sind.
+Leicht:
+Messer - Schnitt, Rw: 0,5m
+Sichel - Schnitt, Rw: 0,5m
+Kurzschwert - Schnitt, Rw: 1m
+Peitsche - Schnitt, Rw: 3m
+Dolch - Stich, Rw: 0,5m
+Rapier - Stich, Rw: 1,5m
+Handschuhe - Wucht, Rw: 0,5m
+Nunchaku - Wucht, Rw: 0,5m
+Stab - Wucht, Rw: 1m
+Fernkampf:
+Wurfbeil - Schnitt, Rw: 10m
+Wurfmesser - Schnitt, Rw: 20m
+Wurfspeer - Stich, Rw: 50m
+Kurzbogen - Stich, Rw: 50m
+Armbrust - Stich, Rw: 100m
+Langbogen - Stich, Rw: 100m
+Bola - Wucht, Rw: 20m
+Bumerang - Wucht, Rw: 30m
+Schleuder - Wucht, Rw: 50m
+Schwer:
+Axt - Schnitt, Rw: 1,5m
+Säbel - Schnitt, Rw: 1,5m
+Sense - Schnitt, Rw: 1,5m
+Kriegsaxt - Schnitt, Rw: 2m
+Langschwert - Schnitt, Rw: 2m
+Gleve - Schnitt, Rw: 2,5m
+Großschwert - Schnitt, Rw: 2,5m
+Hellebarde - Schnitt, Rw: 3m
+Hacke - Stich, Rw: 1m
+Dreizack - Stich, Rw: 2m
+Langspeer - Stich, Rw: 3m
+Lanze - Stich, Rw: 3m
+Schild - Wucht, Rw: 0,5m
+Hammer - Wucht, Rw: 1m
+Keule - Wucht, Rw: 2m
+Kriegshammer - Wucht, Rw: 2m
+Morgenstern - Wucht, Rw: 2,5m
+Begriffserklärung:
+Schmieden 1
+Falls gekaufte oder gefundene Waffen für den Spieler nicht genug sind, kann er eigene Waffen herstellen. 
+Dies ist nur in einer Schmiede möglich.
+Für jeden Schmiedeprozess werden 3 Materialien benötigt: eine Primär-, Sekundär- und Zusatzkomponente.
+Die genaue Menge des Materials ist hierbei unwichtig und zählt immer als eine Einheit des Materials.
+Jedes Material besitzt unterschiedliche Grundwerte für Effizienz (nur Waffen), Stabilität (nur Rüstung) 
+und Haltbarkeit. Beim Schmieden erhält der Schmied außerdem 10+D20 Punkte, mit denen er der 
+Ausrüstung Extrastats verleihen kann. Wie viele Schmiedepunkte (SP) für eine Erhöhung dieser Stats 
+benötigt werden variiert je nach Material(bekannt als Modifikator), allerdings gibt es bestimmte Boni, die 
+für jedes Material gleich viel kosten. Bestimmte Materialien können außerdem spezielle, einzigartige 
+Zusatzeffekte besitzen.
+Die Stats der fertigen Ausrüstung ergeben sich folgendermaßen aus den 3 Materialien:
+Die Grundwerte und der Zusatzeffekt der Primärkomponente werden zu 100% in das fertige Produkt 
+übernommen. Der Modifikator kann zur Staterhöhung verwendet werden.
+Die Grundwerte und der Zusatzeffekt der Sekundärkomponente werden übernommen, die Grundwerte 
+werden allerdings halbiert. Der Modifikator kann zur Staterhöhung verwendet werden.
+Der Zusatzeffekt der Zusatzkomponente wird übernommen, die Grundwerte und der Modifikator fallen weg.
+Zusatzeffekte gelten maximal einmal pro Waffe oder Rüstungsteil, mehrere Waffen oder Rüstungsteile mit
+gleichem Effekt kombinieren ihren Effekt aber, wenn sie gleichzeitig ausgerüstet sind.
+Waffen und Rüstungen können repariert werden, indem das der Primärkomponente ensprechende Material 
+verbraucht wird. Die Haltbarkeit wird damit wiederhergestellt. Sollte sich die Effizienz oder Haltbarkeit 
+dabei verändern, bleibt die Vorrausetzung gleich.
+Begriffserklärung:
+Schmieden 2
+Die SP-Kosten, die für eine Staterhöhung benötigt werden, variiert je nach Material, geben jedoch alle 
+jeweils 1 Effizienz (für Waffen), 1 Stabilität(für Rüstung) oder 10 Haltbarkeit pro Erhöhung.
+Zusatzboni(Waffen):
+Werfen(1-3): 2, 5, 10 SP 
+Entwaffnen(1-3): 2, 5, 10 SP
+Zerstören*(1-3): 1, 2, 5 SP
+Vorraussetzung-1(∞): 2 SP
+Reichweite x2: 10(20 für Fernkampfwaffen) SP
+Unzerbrechlich**: 10 SP
+*Würfelbonus, wenn ein Angriff mit dieser Waffe eine Waffe/Rüstung potenziell zerstört.
+**Verhindert, dass die Waffe zerstört werden kann (Haltbarkeit kann immer noch auf 0 sinken).
+Zusatzboni(Rüstung):
+Rückstoßresistenz(1-3): 2, 5, 10 SP
+Rüstungsmalus-(1-3): 3, 7, 15 SP
+Leben+1(∞): 2 SP
+Stacheln*: 5 SP
+Unzerbrechlich: 10 SP
+*Fügt Gegnern bei Kontakt mit Rüstung Schaden zu.
+In der Materialliste werden Grundstats, Modifikatoren und Zusatzeffekte aufgelistet. Zusätzlich dazu 
+werden Orte gelistet, an denen diese Materialien am häufigsten aufgefunden werden. Das heißt allerdings 
+nicht, dass dieses Material nur an diesem Ort gefunden werden kann. Desweiteren existieren weitere 
+Materialien, die nicht aufgeführt werden, weil sie noch nicht als Schmiedematerial entdeckt wurden. 
+Einige Fernkampfwaffen benötigen Munition, die entweder gekauft oder selbst aus Naturmaterialien 
+(Holz, Blätter, Steine, etc.) hergestellt werden kann. Munition wird in drei Ränge aufgeteilt. Rang 1 ist 
+dabei die qualitativ hochwertigste Munition, während Rang 3 die schlechteste darstellt. Die Qualitat 
+selbstgemachter Munition wird durch den Würfel auf folgende Weise entschieden: 
+16-20: Herstellung fehlgeschlagen, 6-15: Rang 3 Munition, 1-5: Rang 2 Munition. 
+Waffenmaterialien 1
+Eisen (schwer): , häufig, überall
+Haltb.: 80 Haltb.+: 3 Eff.: 7 Eff.+: 3
+Zusatz: Mit jeder Reparatur wird die Haltbarkeit der Waffe dauerhaft um 10 erhöht.
+Holz (leicht): , sehr häufig, überall
+Haltb.: 50 Haltb.+: 5 Eff.: 4 Eff.+: 3
+Zusatz: Vorraussetzung-1(∞) reduziert Vorraussetzung um 2 statt 1.
+Ahnenholz (sehr leicht): , häufig, in magischen Wäldern
+Haltb.: 70 Haltb.+: 4 Eff.: 5 Eff.+: 3
+Zusatz: +2 beim Würfeln für Zaubercasts
+Stein (sehr schwer): , sehr häufig, überall
+Haltb.: 60 Haltb.+: 3 Eff.: 5 Eff.+: 4
+Silber (mittel): , selten, überall
+Haltb.: 70 Haltb.+: 3 Eff.: 10 Eff.+: 2
+Zusatz: +2 im Kampf gegen Monster/Untote
+Gold (schwer): , selten, überall
+Haltb.: 50 Haltb.+: 5 Eff.: 6 Eff.+: 3
+Zusatz: +1 Charismamodifikator
+Platin (schwer): , sehr selten, überall
+Haltb.: 100 Haltb.+: 4 Eff.: 12 Eff.+: 4
+Adamantit (sehr schwer): , selten, tief unter der Erde
+Haltb.: 150 Haltb.+: 6 Eff.: 9 Eff.+: 6
+Zusatz: +5 Würfelbonus, wenn die Waffe zerstört wird
+Meteoritenerz (?): , ???
+Haltb.: 120 Haltb.+: 2 Eff.: 12 Eff.+: 2
+Zusatz: Effekt variiert
+Waffenmaterialien 2
+Asremit (sehr leicht): , häufig, in der Überwelt
+Haltb.: 40 Haltb.+: 5 Eff.: 15 Eff.+: 2
+Zusatz: Werfen+1, unabhängig vom Waffenbonus
+Blutrubin (leicht): , selten, Vulkangebiet
+Haltb.: 80 Haltb.+: 4 Eff.: 8 Eff.+: 2
+Zusatz: Kann bis zu 50 Leben speichern, die ihm freiwillig vom Träger oder vom Gegner durch Kontakt mit tiefen 
+Wunden gegeben werden kann. Diese Leben können dem Träger zurückgegeben werden, um ihn um diesen Betrag zu 
+heilen.
+Äthersaphir (leicht): , selten, im Meer
+Haltb.: 80 Haltb.+: 4 Eff.: 8 Eff.+: 2
+Zusatz: Kann bis zu 50 Mana speichern, die ihm vom Träger gegeben wird. Diese Mana kann dem Träger 
+zurückgegeben werden, um die Mana um diesen Betrag wiederherzustellen.
+Natursmaragd (leicht): , selten, in Urwäldern
+Haltb.: 80 Haltb.+: 4 Eff.: 8 Eff.+: 2
+Zusatz: Kann bis zu 50 Ausdauer speichern, die ihm vom Träger gegeben wird. Diese Ausdauer kann dem Träger 
+zurückgegeben werden, um die Ausdauer um diesen Betrag wiederherzustellen.
+Elementarkristall (leicht): , sehr selten, an Orten mit hoher Manakonzentration
+Haltb.: 60 Haltb.+: 3 Eff.: 7 Eff.+: 3
+Zusatz: Kann Spells speichern und später ausführen. Komplexität der gespeicherten Spells kann nicht Eff./2 
+überschreiten.
+Seraphit (schwer): , selten, in der Überwelt
+Haltb.: 80 Haltb.+: 3 Eff.: 6 Eff.+: 4
+Zusatz: Verstärkt Heilzauber um 50%
+Vulkanit (leicht): , häufig, in Lava
+Haltb.: 90 Haltb.+: 4 Eff.: 8 Eff.+: 5
+Zusatz: Leuchtet im Dunkeln
+Rüstungsmaterialien 1
+Stoff (sehr leicht): , sehr häufig, überall
+Haltb.: 50 Haltb.+:5 Stabil.: 5 Stabil.+:5
+Mondseide (sehr leicht): , sehr selten, überall
+Haltb.: 80 Haltb.+:3 Stabil.: 5 Stabil.+:4
+Zusatz: 10% des erlittenen Schadens werden zu Mana konvertiert
+Leder (leicht): , sehr häufig, überall
+Haltb.: 70 Haltb.+:3 Stabil.: 6 Stabil.+:4
+Eisen (schwer): , häufig, überall
+Haltb.: 80 Haltb.+:3 Stabil.: 8 Stabil.+:2
+Zusatz: Mit jeder Reparatur wird die Haltbarkeit der Waffe dauerhaft um 10 erhöht.
+Silber (schwer): , selten, überall
+Haltb.: 80 Haltb.+:2 Stabil.: 11 Stabil.+:2
+Gold (schwer): , selten, überall
+Haltb.: 50 Haltb.+:5 Stabil.: 9 Stabil.+:3
+Zusatz: +1 Charismamodifikator
+Platin (schwer): , sehr selten, überall
+Haltb.: 100 Haltb.+:4 Stabil.: 12 Stabil.+:4
+Adamantit (sehr schwer): , selten, tief unter der Erde
+Haltb.: 150 Haltb.+:6 Stabil.: 12 Stabil.+:6
+Zusatz: +5 beim Wurf, wenn die Rüstung zerstört wird
+Meteoritenerz (?): , ???
+Haltb.: 150 Haltb.+: 2 Stabil.: 10 Stabil.+: 2
+Zusatz: Effekt variiert
+Rüstungsmaterialien 2
+Asremit (sehr leicht): , häufig, in der Überwelt
+Haltb.: 40 Haltb.+: 5 Stabil.: 7 Stabil.+: 3
+Zusatz: -2 Rüstungsmalus, unabhängig vom Rüstungsbonus
+Elementarkristall (leicht): , sehr selten, an der Oberfläche an Orten mit hoher Manakonzentration
+Haltb.: 50 Haltb.+: 4 Stabil.: 6 Stabil.+: 4
+Zusatz: Kann Spells speichern und später ausführen. Komplexität der gespeicherten Spells darf nicht Eff./4 
+überschreiten.
+Seraphit (schwer): , selten, in der Überwelt
+Haltb.: 80 Haltb.+: 3 Stabil.: 12 Stabil.+: 2
+Zusatz: Verstärkt Heilung auf Träger um 50%
+Vulkanit (leicht): , häufig, in Lava
+Haltb.: 70 Haltb.+: 4 Stabil.: 8 Stabil.+: 3
+Zusatz: Leuchtet im Dunkeln
+Begriffserklärung:
+Tränke
+Jeder Charakter ist in der Lage, eigene Tränke zu brauen. Die Effekte dieser Tränke reichen von 
+hilfreichen Heilmitteln, die Stats zeitweilig erhöhen oder Statuseffekte heilen bis zu gefährlichen Giften, 
+die Feinde ganz plötzlich ausschalten können.
+Die meisten Tränke werden aus pflanzlichen Zutaten hergestellt. Um aus Pflanzen Tränke herzustellen, 
+wird ein Wirkstoff und ein Extraktor benötigt. Jeder Wirkstoff besitzt 3 Effekte, die von den jeweiligen 
+Extraktoren gewonnen werden können. Die Stärke des Trankeffekts ist abhängig von der Reihenfolge, in 
+der die Effekte gelistet sind. Primäreffekte können ausgelöst werden, wenn die Pflanze unverarbeitet 
+gegessen wird, falls sie blau hervorgehoben werden. Wirkstoffe können zu 3 Extraktorarten verarbeitet 
+werden. Die Extraktorart hängt von der Pflanze ab:
+Primärextraktoren extrahieren den Primäreffekt der Trankzutat mit hoher Effizienz.
+Sekundärextraktoren extrahieren den Sekundäreffekt der Trankzutat mit mittelmäßiger Effizienz.
+Tertiärextraktoren extrahieren den Tertiäreffekt der Trankzutat mit niedriger Effizienz.
+Die Stärke der Extraktoren bestimmt die Stärke und Dauer des Effekts, allerdings wird trotzdem für jede 
+Brauung ein Würfel (D20) benötigt, die letztendlich über die genaue Effizienz des Tranks entscheidet. 
+Alle Trankeffekte wirken bei Einnahme. Heilung, Flammbar, Verbrennung, Vereisung und Ätzend wirken 
+außerdem bei Körperkontakt. Jeder Trank enthält genau eine Dosierung für den erzielten Effekt. Sollte 
+nicht die gesamte Menge eines Tranks getrunken werden, tritt der Effekt nicht in Kraft. Allerdings können 
+mehrere Portionen eines Tranks mit dem selben Effekt gemischt werden, um mehrere Dosierungen auf 
+einmal zu tragen. Sowohl die Extraktor- als auch die Trankherstellung sind nur in einer Brauerei möglich.
+Trankzutaten 1
+Zutaten für Primärextraktoren:
+Seelenkraut: 1. Schwindel, 2. Gift, 3. Bewusstlosigkeit
+Wird häufig in Sumpfgebieten aufgefunden. Das süße Aroma entspannt die
+Seele und wird deshalb oft als Lufterfrischer benutzt. Falls jemand zu lange
+diesem Duft ausgesetzt ist, kann es allerdings leicht zu Schwindelanfällen führen.
+Traumrinde: 1. Halluzination, 2. Schlaf, 3. Gift
+Wird häufig in dichten Wäldern aufgefunden. Die Traumrinde ist die unheilvoll 
+leuchtende Rinde des Traumbaums. Ihren Namen erhielten sie aufgrund der Gase, 
+die sie produzieren, welche beim Einatmen Halluzinationen hervorrufen.
+Dörrfarn: 1. Benommen, 2. Heilung, 3. Flammbar
+Wird sehr häufig in trockenen Gebieten aufgefunden. Der Dörrfarn sieht für das 
+untrainierte Auge aus wie vertrocknetes Gras, kann allerdings bei Verzehr tödlich 
+enden, da es extrem schnell den gesamten Körper austrocknen kann.
+Teufelstrauch: 1. Gift, 2. Heilung, 3. Schwindel
+Kann selten überall aufgefunden werden. Sowohl der Name als auch das Aussehen 
+warnt direkt vor seinem tödlichen Effekt. Das Gift des Teufelstrauchs ist so 
+gefährlich, eine simple Berührung kann lebensbedrohlich sein.
+Blauer Segen: 1. Benommen, 2. Mana+, 3. Ges.+
+Wird häufig an Orten mit hoher Manakonzentration aufgefunden. Die Blätter des 
+Blauen Segens sehen in den Augen vieler aus wie eine betende Figur und wird 
+deshalb in vielen religiösen Geminschaften als Zeichen der Dankbarkeit verschenkt.
+Feenflügel: 1. Schwindel, 2. Fliegen, 3. Manaheilung
+Die Flügel einer Fee sind eine der seltensten und wertvollsten Trankzutaten der 
+Welt, da sie nur von lebendigen Feen gewaltvoll extrahiert werden können. Da sie 
+außerdem nur für kurze Zeit halten, werden Feen oft in Gefangenschaft gezüchtet 
+und werden erst kurz vor der Trankherstellung geschlachtet.
+Trankzutaten 2
+Zutaten für Sekundärextraktoren:
+Schwarzmoos: 1. Schwindel, 2. Rage, 3. Gedächtnisverlust
+Wird selten in feuchten Gebieten aufgefunden. Über dieses pechschwarze 
+Moos wird erzählt, dass es an Stellen wachse, wo früher eine Person 
+gestorben ist. Wer es berührt, wird angeblich ins Reich der Toten gezogen.
+Klageweide: 1. Schlaf, 2. Leben-, 3. Ätzend
+Wird häufig in Gebirgen aufgefunden. Ein Baum, dessen Pollen Personen in der 
+Nähe einschläfern. Sie ernährt sich von den Alpträumen der Schlafenden, weshalb 
+viele Opfer der Klageweide selbst lange nach ihrem Effekt unter Insomnie leiden.
+Stachelbohne: 1. Heilung, 2. Leben-, 3. Ausdauer+
+Wird häufig in steinigen Gebieten aufgefunden. Die Samen der Stachelbohne 
+haben starke heilende Effekte, die Hülse ist allerdings unter normalen 
+Umständen unzerstörbar. Viele Gelehrte sind sich sicher, dass ein effizientes
+Verfahren, die Hülse zu brechen, fast alle Krankheiten auf der Welt heilen kann.
+Himmelssucher: 1. Schwindel, 2. Gewicht-, 3. Ges.+
+Wird selten in sonnigen Gebieten aufgefunden. Die Blätter dieser Pflanze strahlen 
+selbst in der Nacht. Deshalb ist diese Pflanze sehr begehrt, kann aber nur sehr 
+selten gezüchtet werden, da sie extrem spezifische Ansprüche hat, um zu gedeihen.
+Glücksbeere: 1. Gift, 2. Glück+, 3. Ausdauer Kann sehr selten überall aufgefunden werden. Das Gerücht geht umher, dass der 
+Verzehr einer Glücksbeere ewiges Glück verspricht. Allerdings muss die Glücksbeere 
+dafür richtig zubereitet werden, sonst sorgt sie lediglich für starken Durchfall.
+Lodernuss: 1. Verbrennung, 2. Ausdauerheilung, 3. Schwindel
+Wird häufig in heißen Gebieten aufgefunden. Sie ist berüchtigt für ihre 
+absurde Schärfe. In Gebieten, wo diese Pflanze häufig auftritt, wird der Verzehr 
+von Lodernüssen gerne als Mutprobe verwendet, oft mit fatalen Folgen.
+Trankzutaten 3
+Zutaten für Tertiärextraktoren:
+Hagelnuss: 1. Vereist, 2. Manaheilung, 3. Ges Wird häufig in kalten Gebieten aufgefunden. Diese eisig schimmernde Nussfrucht
+ist eine seht beliebte Delikatesse rund um die Welt, kann allerdings nur schwer 
+zubereitet werden, da sie schnell verfault, wenn sie nicht eiskalt gelagert wird.
+Riesenfrucht: 1. Heilung, 2. Leben+, 3. Benommen , selten, Ebene
+Wird selten in der Ebene aufgefunden. Die Frucht des Riesenbaums, die in reifer 
+Form bis zu 5m Durchmesser erreicht. Jeder Baum produziert eine einzelne Frucht 
+pro Jahr, diese kann allerdings eine Kleinfamilie über mehrere Wochen ernähren.
+Siegelrose: 1. Gift, 2. Mana-, 3. Unterdrückung
+Kann selten überall aufgefunden werden. Ist allerdings auch häufig in Schlossgärten 
+zu finden, da diese blaue Schönheit als Zeichen des Wohlstands gilt. Ihre Dornen sind 
+allerdings sehr gefährlich, da sie ein Gift enthalten, das Mana im Körper zersetzt.
+Kettenranke: 1. Gewicht+, 2. Ges.-, 3. Flammbar
+Wird häufig in Gebirgen augefunden. Die Stängel dieser Pflanze haben ihren 
+Namen nicht nur ihrem Aussehen zu verdanken, dass an Stahlketten erinnert, 
+sondern auch ihrer unglaublichen Stabilität, was sie zu beliebtem Material für 
+Seile macht.
+Rauchpalme: 1. Blindheit, 2. Charisma-, 3. Ätzend
+Wird selten in Sumpfgebieten aufgefunden. Die Poren der Rauchpalme verbreiten 
+Pollen in Form eines dichten Rauchs, der sehr schädlich für die Augen ist. Dieser 
+Rauch ist bei Sonnenaufgang am stärksten, verfliegt aber aufgrund der tagsüber 
+schnell rotierenden Palmenblätter über den Lauf des Tages.
