@@ -77,13 +77,13 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     statBonus: { stat: 'intelligence', amount: 1 }
   },
   {
-    id: 'magier_mana_15',
-    name: 'Mana+15',
+    id: 'magier_mana_10',
+    name: 'Mana+10',
     class: 'Magier',
     type: 'stat_bonus',
-    description: '+15 Mana',
+    description: '+10 Mana',
     enlightened: false,
-    statBonus: { stat: 'mana', amount: 15 }
+    statBonus: { stat: 'mana', amount: 10 }
   },
   {
     id: 'magier_fokus_1',
@@ -124,6 +124,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     statBonus: { stat: 'intelligence', amount: 2 }
   },
   {
+    id: 'kampfzauberer_runenlehre',
+    name: 'Runenlehre',
+    class: 'Kampfzauberer',
+    type: 'dice_bonus',
+    description: '+3 auf Analyse von unbekannten Runen',
+    enlightened: false
+  },
+  {
     id: 'kampfzauberer_zauberladung',
     name: 'Zauberladung',
     class: 'Kampfzauberer',
@@ -137,7 +145,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Kampfzauberer',
     type: 'passive',
     description: 'Lerne einen Zauber auswendig, damit du ihn ohne Medium benutzen kannst. Zauber können jederzeit gewechselt werden, brauchen aber mehrere Stunden.',
-    enlightened: false
+    enlightened: true
   },
   {
     id: 'kampfzauberer_freies_wirken',
@@ -145,7 +153,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Kampfzauberer',
     type: 'passive',
     description: 'Kann sich während eines Zaubercasts bewegen',
-    enlightened: true  // Marked with ! in original
+    enlightened: false
   },
   {
     id: 'kampfzauberer_manatransfer',
@@ -153,7 +161,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Kampfzauberer',
     type: 'active',
     description: 'Konvertiert 1x Ausdauer zu 0,8x Mana (wird gerundet)',
-    enlightened: false,
+    enlightened: true,
     cost: { type: 'energy', amount: 0 }
   },
   {
@@ -162,7 +170,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Kampfzauberer',
     type: 'active',
     description: 'Reduziere den Castwert des Spells eines Gegners in 20m Umfeld um eine gewürfelte Anzahl. Boni für Zaubercasts werden hier auch angewandt.',
-    enlightened: false,
+    enlightened: true,
     cost: { type: 'mana', amount: 5 },
     bonusAction: true
   },
@@ -171,13 +179,13 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // Based on original: Mana+30, (p) Gesundheitscheck, (p) Notarzt, (p) Alchemist, !(p) Regenbogen, !(p) Einfachheit, (a) Gruppencast
   // "Regenbogen" and "Einfachheit" are enlightened
   {
-    id: 'heiler_mana_30',
-    name: 'Mana+30',
+    id: 'heiler_mana_20',
+    name: 'Mana+20',
     class: 'Heiler',
     type: 'stat_bonus',
-    description: '+30 Mana',
+    description: '+20 Mana',
     enlightened: false,
-    statBonus: { stat: 'mana', amount: 30 }
+    statBonus: { stat: 'mana', amount: 20 }
   },
   {
     id: 'heiler_gesundheitscheck',
@@ -193,7 +201,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Heiler',
     type: 'dice_bonus',
     description: '+3 auf alle Heilungswürfe, wenn Ziel im kritischen Zustand ist',
-    enlightened: false
+    enlightened: true
   },
   {
     id: 'heiler_alchemist',
@@ -201,7 +209,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Heiler',
     type: 'dice_bonus',
     description: '+2 beim Brauen von Tränken mit positivem Effekt',
-    enlightened: false
+    enlightened: true
   },
   {
     id: 'heiler_regenbogen',
@@ -233,13 +241,13 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // Based on original: Mana+40, Zauberradius+1m, (p) Managespür, (p) +Verinnerlichen, !(p) Schmagied, (a) Zauberbrecher, (a) Überladen
   // "Schmagied" is enlightened
   {
-    id: 'arkanist_mana_40',
-    name: 'Mana+40',
+    id: 'arkanist_mana_30',
+    name: 'Mana+30',
     class: 'Arkanist',
     type: 'stat_bonus',
-    description: '+40 Mana',
+    description: '+30 Mana',
     enlightened: false,
-    statBonus: { stat: 'mana', amount: 40 }
+    statBonus: { stat: 'mana', amount: 30 }
   },
   {
     id: 'arkanist_zauberradius',
@@ -247,7 +255,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Arkanist',
     type: 'stat_bonus',
     description: '+1m Zauberradius',
-    enlightened: false,
+    enlightened: true,
     statBonus: { stat: 'spellRadius', amount: 1 }
   },
   {
@@ -256,15 +264,15 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Arkanist',
     type: 'passive',
     description: 'Kann pures Mana spüren',
-    enlightened: false
+    enlightened: true
   },
   {
     id: 'arkanist_verinnerlichen_plus',
     name: '+Verinnerlichen',
     class: 'Arkanist',
     type: 'passive',
-    description: 'Besetze je 5 Fokus, um einen zusätzlichen Zauber auswendig zu lernen.',
-    enlightened: false,
+    description: 'Besetze je 5 Fokus, um einen zusätzlichen Zauber auswendig zu lernen. Benötigt Verinnerlichen(p)',
+    enlightened: true,
     requiresSkill: 'kampfzauberer_verinnerlichen'
   },
   {
@@ -298,13 +306,13 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // Based on original: Leben+40, (p) Magisches Blut, (p) Kaltblütig, (a) Transfusion (Bonusaktion), (a) Blutecho, !(a) Hypertonie, !(a) Aderlass
   // "Hypertonie" and "Aderlass" are enlightened
   {
-    id: 'haemonant_leben_40',
-    name: 'Leben+40',
+    id: 'haemonant_leben_30',
+    name: 'Leben+30',
     class: 'Hämonant',
     type: 'stat_bonus',
-    description: '+40 Leben',
+    description: '+30 Leben',
     enlightened: false,
-    statBonus: { stat: 'life', amount: 40 }
+    statBonus: { stat: 'life', amount: 30 }
   },
   {
     id: 'haemonant_magisches_blut',
@@ -320,7 +328,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Hämonant',
     type: 'dice_bonus',
     description: '+1 im Kampf gegen Gegner mit offenen Wunden',
-    enlightened: false
+    enlightened: true
   },
   {
     id: 'haemonant_transfusion',
@@ -445,7 +453,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Formationsmagier',
     type: 'stat_bonus',
     description: '+200 Maximaler Castwert',
-    enlightened: false,
+    enlightened: true,
     statBonus: { stat: 'maxCastValue', amount: 200 }
   },
   {
@@ -453,7 +461,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Zauberarchitekt',
     class: 'Formationsmagier',
     type: 'passive',
-    description: 'Halbiert Fokuskosten von Zaubern mit einer Voraussetzung von über 100.',
+    description: 'Halbiert Fokuskosten von Zaubern mit einer Effizienz von über 100.',
     enlightened: false
   },
   {
@@ -469,8 +477,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Arkane Resonanz',
     class: 'Formationsmagier',
     type: 'passive',
-    description: 'Muss bei Formationen (großen Spells) keine zusätzlichen Manakosten zahlen.',
-    enlightened: true  // Marked with ! in original
+    description: 'Muss bei Formationen(großen Spells) nur 10% der zusätzlichen Manakosten zahlen.',
+    enlightened: false
   },
   {
     id: 'formationsmagier_vorbereiten',
@@ -488,6 +496,646 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     description: '+10 auf den nächsten Zauber, danach kann einen Tag keine Magie mehr benutzt werden, ignoriert Würfelbonuslimit',
     enlightened: false,
     cost: { type: 'mana', amount: 10 }
+  },
+
+  // ==================== RUNENKÜNSTLER ====================
+  {
+    id: 'runenkunstler_mana_40',
+    name: 'Mana+40',
+    class: 'Runenkünstler',
+    type: 'stat_bonus',
+    description: '+40 Mana',
+    enlightened: false,
+    statBonus: { stat: 'mana', amount: 40 }
+  },
+  {
+    id: 'runenkunstler_verinnerlichen_plus',
+    name: '+Verinnerlichen',
+    class: 'Runenkünstler',
+    type: 'passive',
+    description: 'Kann unendlich viele Zauber sofort auswendig lernen.',
+    enlightened: true,
+    requiresSkill: 'kampfzauberer_verinnerlichen'
+  },
+  {
+    id: 'runenkunstler_zauberecho',
+    name: 'Zauberecho',
+    class: 'Runenkünstler',
+    type: 'passive',
+    description: 'Kann den in dieser Aktion genutzten Zauber nochmal benutzen.',
+    enlightened: false,
+    cost: { type: 'mana', amount: 20 },
+    bonusAction: true
+  },
+  {
+    id: 'runenkunstler_runenmeister',
+    name: 'Runenmeister',
+    class: 'Runenkünstler',
+    type: 'passive',
+    description: 'Vorteil auf Analyse von unbekannten Runen',
+    enlightened: true
+  },
+  {
+    id: 'runenkunstler_zauberhast',
+    name: 'Zauberhast',
+    class: 'Runenkünstler',
+    type: 'passive',
+    description: '+10m Bewegung, wenn du in dieser Runde einen Gegner kampfunfähig gemacht hast. Pro Gegner einmal möglich.',
+    enlightened: false
+  },
+  {
+    id: 'runenkunstler_runenblick',
+    name: 'Runenblick',
+    class: 'Runenkünstler',
+    type: 'active',
+    description: 'Analysiert die Struktur eines unbekannten Spells im Sichtfeld und lernt dessen Struktur auswendig',
+    enlightened: false,
+    cost: { type: 'mana', amount: 0 }  // Manakosten des Zaubers/4
+  },
+  {
+    id: 'runenkunstler_brennender_fokus',
+    name: 'Brennender Fokus',
+    class: 'Runenkünstler',
+    type: 'active',
+    description: 'Halbiert Fokus solange aktiv und erhöht Effektivität von allen Zaubern um 50%.',
+    enlightened: false,
+    cost: { type: 'mana', amount: 5, perRound: true },
+    bonusAction: true
+  },
+
+  // ==================== MENTALIST ====================
+  {
+    id: 'mentalist_int_4',
+    name: 'Intelligenz+4',
+    class: 'Mentalist',
+    type: 'stat_bonus',
+    description: '+4 Intelligenz',
+    enlightened: false,
+    statBonus: { stat: 'intelligence', amount: 4 }
+  },
+  {
+    id: 'mentalist_traumcaster',
+    name: 'Traumcaster',
+    class: 'Mentalist',
+    type: 'passive',
+    description: 'Kann Zauber bei Bewusstlosigkeit casten',
+    enlightened: false
+  },
+  {
+    id: 'mentalist_aluhut',
+    name: 'Aluhut',
+    class: 'Mentalist',
+    type: 'passive',
+    description: 'Gegner, die deine Gedanken beeinflussen wollen, erhalten einen Nachteil',
+    enlightened: true
+  },
+  {
+    id: 'mentalist_telepathie',
+    name: 'Telepathie',
+    class: 'Mentalist',
+    type: 'passive',
+    description: 'Kann mit Verbündeten in [Intelligenz*5]m Entfernung telepathisch kommunizieren (mit deren Einverständnis)',
+    enlightened: true
+  },
+  {
+    id: 'mentalist_manipulator',
+    name: 'Manipulator',
+    class: 'Mentalist',
+    type: 'passive',
+    description: 'Verdoppelt Effizienz von Runen, die den Verstand des Ziels beeinflussen.',
+    enlightened: false
+  },
+  {
+    id: 'mentalist_invasion',
+    name: 'Invasion',
+    class: 'Mentalist',
+    type: 'active',
+    description: 'Übernimmt Kontrolle über Kreatur',
+    enlightened: false,
+    cost: { type: 'mana', amount: 0, perRound: true }  // Gegnerintelligenz*2 pro Runde, min. 10
+  },
+  {
+    id: 'mentalist_abbild',
+    name: 'Abbild',
+    class: 'Mentalist',
+    type: 'active',
+    description: 'Kopiere den aktiven Skill einer Person und übertrage ihn zu einer anderen Person, der Skill kann einmalig verwendet werden und ist auf 1 pro Person limitiert',
+    enlightened: false,
+    cost: { type: 'mana', amount: 20 }
+  },
+
+  // ==================== GESTALTENWANDLER ====================
+  {
+    id: 'gestaltenwandler_charisma_3',
+    name: 'Charisma+3',
+    class: 'Gestaltenwandler',
+    type: 'stat_bonus',
+    description: '+3 Charisma',
+    enlightened: false,
+    statBonus: { stat: 'charisma', amount: 3 }
+  },
+  {
+    id: 'gestaltenwandler_botschafter',
+    name: 'Botschafter',
+    class: 'Gestaltenwandler',
+    type: 'passive',
+    description: 'Charme+2 bei Kommunikation mit Personen derselben Rasse',
+    enlightened: true
+  },
+  {
+    id: 'gestaltenwandler_formwechsel',
+    name: 'Formwechsel',
+    class: 'Gestaltenwandler',
+    type: 'passive',
+    description: 'Kann bei Körperkontakt Objekte in Beschwörungen verwandeln, das Objekt bleibt in der Beschwörung, solange diese besteht',
+    enlightened: true
+  },
+  {
+    id: 'gestaltenwandler_transformieren',
+    name: 'Transformieren',
+    class: 'Gestaltenwandler',
+    type: 'active',
+    description: 'Verwandelt sich in ein Lebewesen, dessen Seelenrune sich im Besitz des Anwenders befindet. Jede Verwandlung hat einen eigenen Lebensbalken und verschwindet wenn dieser aufgebraucht ist',
+    enlightened: false,
+    cost: { type: 'mana', amount: 30 }
+  },
+  {
+    id: 'gestaltenwandler_imitation',
+    name: 'Imitation',
+    class: 'Gestaltenwandler',
+    type: 'active',
+    description: 'Verwandelt sich in ein anderes Lebewesen, wenn Körperkontakt besteht. Übernimmt keine Skills oder Stats',
+    enlightened: true,
+    cost: { type: 'mana', amount: 20 }
+  },
+  {
+    id: 'gestaltenwandler_doppelgaenger',
+    name: 'Doppelgänger',
+    class: 'Gestaltenwandler',
+    type: 'active',
+    description: 'Beschwört einen Doppelgänger mit identischem Aussehen und teilt Leben, Mana, Ausdauer und Fokus zwischen beiden auf. Stirbt das Original, lebt der Doppelgänger mit halbierten Stats weiter, auf einen gleichzeitig begrenzt',
+    enlightened: false,
+    cost: { type: 'mana', amount: 50 }
+  },
+  {
+    id: 'gestaltenwandler_seelenmeister',
+    name: 'Seelenmeister',
+    class: 'Gestaltenwandler',
+    type: 'active',
+    description: 'Erweitert Seelenwacht auf menschliche Ziele. Kopiert deren Skills.',
+    enlightened: false,
+    cost: { type: 'mana', amount: 0 },
+    requiresSkill: 'seelenmagier_seelenwacht'
+  },
+
+  // ==================== PHANTOM ====================
+  {
+    id: 'phantom_ausdauer_30',
+    name: 'Ausdauer+30',
+    class: 'Phantom',
+    type: 'stat_bonus',
+    description: '+30 Ausdauer',
+    enlightened: false,
+    statBonus: { stat: 'energy', amount: 30 }
+  },
+  {
+    id: 'phantom_nachternte',
+    name: 'Nachternte',
+    class: 'Phantom',
+    type: 'passive',
+    description: 'Stellt 2 D20 Mana her, wenn Gegner getötet wird',
+    enlightened: false
+  },
+  {
+    id: 'phantom_hoehenvorteil',
+    name: 'Höhenvorteil',
+    class: 'Phantom',
+    type: 'dice_bonus',
+    description: '+2 auf Angriffe, die aus mindestens 10m Höhe über dem Gegner ausgeführt werden',
+    enlightened: true
+  },
+  {
+    id: 'phantom_spiegelversteck',
+    name: 'Spiegelversteck',
+    class: 'Phantom',
+    type: 'active',
+    description: 'Kann sich in der Reflektion eines Spiegels verbergen. Kann von Spiegel zu Spiegel in Sichtfeld springen. Wird beendet, wenn dieser zerstört oder unklar wird.',
+    enlightened: true,
+    cost: { type: 'mana', amount: 5, perRound: true }
+  },
+  {
+    id: 'phantom_schattenform',
+    name: 'Schattenform',
+    class: 'Phantom',
+    type: 'active',
+    description: 'Mache deinen Körper durchlässig und schwebend, wodurch du dich durch Objekte bewegen kannst und nicht von nichtmagischen Angriffen getroffen werden kannst, aber auch nur mit Magie angreifen kannst',
+    enlightened: false,
+    cost: { type: 'mana', amount: 20, perRound: true }
+  },
+  {
+    id: 'phantom_schrei_todesfee',
+    name: 'Schrei der Todesfee',
+    class: 'Phantom',
+    type: 'active',
+    description: 'Wähle einen Skill aus, der für alle Gegner in Hörreichweite blockiert wird',
+    enlightened: false,
+    cost: { type: 'mana', amount: 0 }  // Kostet 10x die Rundendauer
+  },
+  {
+    id: 'phantom_dunkler_begleiter',
+    name: 'Dunkler Begleiter',
+    class: 'Phantom',
+    type: 'active',
+    description: 'Verschwinde im Körper eines Verbündeten. In diesem Zustand können alle Skills des Verbündeten verwendet werden (auf eigene Kosten). Bei Angriffen erhalten beide Schaden',
+    enlightened: false,
+    cost: { type: 'mana', amount: 10, perRound: true }
+  },
+
+  // ==================== PALADIN ====================
+  {
+    id: 'paladin_konstitution_charisma_2',
+    name: 'Konstitution&Charisma+2',
+    class: 'Paladin',
+    type: 'stat_bonus',
+    description: '+2 Konstitution und +2 Charisma',
+    enlightened: false,
+    statBonus: { stat: 'constitution', amount: 2 }  // Also adds charisma but this system doesn't support dual bonuses
+  },
+  {
+    id: 'paladin_fixer_fixer',
+    name: 'Fixer Fixer',
+    class: 'Paladin',
+    type: 'passive',
+    description: 'Kann pure Unterstützungszauber als Bonusaktion verwenden',
+    enlightened: false
+  },
+  {
+    id: 'paladin_schnelle_hilfe',
+    name: 'Schnelle Hilfe',
+    class: 'Paladin',
+    type: 'passive',
+    description: 'Verbündete, die von einem puren Unterstützungszauber getroffen werden, erhalten in ihrem nächsten Zug eine zusätzliche Bonusaktion',
+    enlightened: false
+  },
+  {
+    id: 'paladin_inspiration',
+    name: 'Inspiration',
+    class: 'Paladin',
+    type: 'passive',
+    description: 'Nach einem guten Wurf (1-8nat) kann ein Verbündeter ausgewählt werden, der +1 auf seinen nächsten Wurf erhält',
+    enlightened: true
+  },
+  {
+    id: 'paladin_gleissendes_licht',
+    name: 'Gleißendes Licht',
+    class: 'Paladin',
+    type: 'passive',
+    description: 'Halbiert Manakosten von Lichtrunen',
+    enlightened: true
+  },
+  {
+    id: 'paladin_heroischer_auftritt',
+    name: 'Heroischer Auftritt',
+    class: 'Paladin',
+    type: 'passive',
+    description: 'Wenn ein Verbündeter in kritischem Zustand ist, erhalte Vorteil auf alle Aktionen, um diesen Verbündeten zu beschützen oder zu heilen.',
+    enlightened: false
+  },
+  {
+    id: 'paladin_erneuerung',
+    name: 'Erneuerung',
+    class: 'Paladin',
+    type: 'active',
+    description: 'Repariert einen ausgewählten Gegenstand in der Nähe um 3 D20 Haltbarkeit',
+    enlightened: true,
+    cost: { type: 'mana', amount: 20 }
+  },
+  {
+    id: 'paladin_heiliger_sprint',
+    name: 'Heiliger Sprint',
+    class: 'Paladin',
+    type: 'active',
+    description: 'Erhalte x4 Bewegung auf Verbündete im kritischen Zustand',
+    enlightened: true,
+    cost: { type: 'mana', amount: 10 }
+  },
+
+  // ==================== MANALORD ====================
+  {
+    id: 'manalord_mana_40',
+    name: 'Mana+40',
+    class: 'Manalord',
+    type: 'stat_bonus',
+    description: '+40 Mana',
+    enlightened: false,
+    statBonus: { stat: 'mana', amount: 40 }
+  },
+  {
+    id: 'manalord_zauberradius_5m',
+    name: 'Zauberradius+5m',
+    class: 'Manalord',
+    type: 'stat_bonus',
+    description: '+5m Zauberradius',
+    enlightened: true,
+    statBonus: { stat: 'spellRadius', amount: 5 }
+  },
+  {
+    id: 'manalord_runenschmied',
+    name: 'Runenschmied',
+    class: 'Manalord',
+    type: 'passive',
+    description: 'Verwende einen Talentpunkt, um die Effizienz einer Rune in deinem Besitz dauerhaft um 1 D10 zu erhöhen',
+    enlightened: true
+  },
+  {
+    id: 'manalord_energiewandler',
+    name: 'Energiewandler',
+    class: 'Manalord',
+    type: 'passive',
+    description: '10% der verwendeten Mana werden in latente Energie umgewandelt, die entweder zu Leben, Ausdauer oder Mana für einen Verbündeten konvertiert werden kann',
+    enlightened: true
+  },
+  {
+    id: 'manalord_arkaner_speicher',
+    name: 'Arkaner Speicher',
+    class: 'Manalord',
+    type: 'passive',
+    description: 'Kann einen Zaubercast speichern, um ihn später zu benutzen, solange das Medium für die Benutzung in der Nähe ist',
+    enlightened: false
+  },
+  {
+    id: 'manalord_magieherrschaft',
+    name: 'Magieherrschaft',
+    class: 'Manalord',
+    type: 'passive',
+    description: 'Gegner im Zauberradius erhalten den Malus für Zauber zusätzlich auf ihre Fähigkeiten',
+    enlightened: false
+  },
+  {
+    id: 'manalord_zauberauthoritaet',
+    name: 'Zauberauthorität',
+    class: 'Manalord',
+    type: 'active',
+    description: 'Erweitert "Zauberbrecher", sodass schwache Zauber absorbiert werden und deine Mana um die Hälfte der Manakosten aufgefüllt wird. Halbiert zusätzlich Ausdauerkosten',
+    enlightened: false,
+    cost: { type: 'energy', amount: 0 },
+    requiresSkill: 'arkanist_zauberbrecher'
+  },
+  {
+    id: 'manalord_herrschaftsgebiet',
+    name: 'Herrschaftsgebiet',
+    class: 'Manalord',
+    type: 'active',
+    description: 'Verdreifacht Zauberradius.',
+    enlightened: false,
+    cost: { type: 'mana', amount: 30, perRound: true },
+    bonusAction: true
+  },
+
+  // ==================== NEKROMANT ====================
+  {
+    id: 'nekromant_fokus_5',
+    name: 'Fokus+5',
+    class: 'Nekromant',
+    type: 'stat_bonus',
+    description: '+5 Fokus',
+    enlightened: false,
+    statBonus: { stat: 'focus', amount: 5 }
+  },
+  {
+    id: 'nekromant_totenbeschwoerer',
+    name: 'Totenbeschwörer',
+    class: 'Nekromant',
+    type: 'passive',
+    description: 'Tote Gegner hinterlassen Seelenrunen, die einmalig beschworen werden können. Fähigkeiten, Zauber und 50% der Leben, Ausdauer und Mana der Seele entsprechen denen des Opfers',
+    enlightened: false
+  },
+  {
+    id: 'nekromant_seelenverbindung',
+    name: 'Seelenverbindung',
+    class: 'Nekromant',
+    type: 'passive',
+    description: 'Kann beschworene Kreaturen in 50m Radius als Startpunkt für Zauber benutzen, kann über mehrere beschworene Kreaturen verkettet werden, um Reichweite zu erhöhen',
+    enlightened: true
+  },
+  {
+    id: 'nekromant_seelenfusion',
+    name: 'Seelenfusion',
+    class: 'Nekromant',
+    type: 'passive',
+    description: 'Entfernt Nachteil und +5 bei Infusion einer Seele in einen lebendigen Körper.',
+    enlightened: false
+  },
+  {
+    id: 'nekromant_gestohlene_macht',
+    name: 'Gestohlene Macht',
+    class: 'Nekromant',
+    type: 'passive',
+    description: 'Solange eine Leiche beschworen ist, wird die Hälfte ihres Fokus dem Anwender gutgeschrieben (kann maximal den Fokuskosten der Seelenrune entsprechen)',
+    enlightened: false
+  },
+  {
+    id: 'nekromant_maertyrer',
+    name: 'Märtyrer',
+    class: 'Nekromant',
+    type: 'active',
+    description: 'Solange die Fähigkeit aktiv ist, werden Verletzungen auf beschworene Leichenseelen in bis zu 10m Entfernung transferiert',
+    enlightened: false,
+    cost: { type: 'mana', amount: 30, perRound: true }
+  },
+
+  // ==================== ORAKEL ====================
+  {
+    id: 'orakel_int_4',
+    name: 'Intelligenz+4',
+    class: 'Orakel',
+    type: 'stat_bonus',
+    description: '+4 Intelligenz',
+    enlightened: false,
+    statBonus: { stat: 'intelligence', amount: 4 }
+  },
+  {
+    id: 'orakel_adaptiver_geist',
+    name: 'Adaptiver Geist',
+    class: 'Orakel',
+    type: 'passive',
+    description: 'Kann Fähigkeiten mit Mana anstatt Ausdauer auslösen, kostet 20% mehr',
+    enlightened: true
+  },
+  {
+    id: 'orakel_ueberreaktion',
+    name: 'Überreaktion',
+    class: 'Orakel',
+    type: 'dice_bonus',
+    description: '+2 bei Reaktionen',
+    enlightened: true
+  },
+  {
+    id: 'orakel_vorschuss',
+    name: 'Vorschuss',
+    class: 'Orakel',
+    type: 'passive',
+    description: 'Kann Zauber mit Castzeit sofort ausführen, muss den Cast aber nach Abschluss des Zaubers abarbeiten und kann bis dahin keine weiteren Zauber verwenden',
+    enlightened: false
+  },
+  {
+    id: 'orakel_identifizieren',
+    name: 'Identifizieren',
+    class: 'Orakel',
+    type: 'passive',
+    description: 'Kann alle Stats von Items sofort erkennen und erhält manchmal Visionen aus deren Vergangenheit',
+    enlightened: true
+  },
+  {
+    id: 'orakel_gluecksstraehne',
+    name: 'Glückssträhne',
+    class: 'Orakel',
+    type: 'active',
+    description: 'Wähle eine Zahl zwischen 1 und 20. Wenn du im Verlauf diesen Kampfes dieses Zahl würfelst(ohne Boni), erhalte Vorteil für die nächsten Runden, abhängig davon wie viel du gesetzt hast',
+    enlightened: false,
+    cost: { type: 'mana', amount: 20, perRound: true }
+  },
+  {
+    id: 'orakel_schicksal',
+    name: 'Schicksal',
+    class: 'Orakel',
+    type: 'active',
+    description: 'Kann ein Würfelergebnis für Verbündete zurücksetzen und neu würfeln lassen oder das eigene Würfelergebnis zurücksetzen und den Zug neu starten',
+    enlightened: false,
+    cost: { type: 'mana', amount: 20 }
+  },
+  {
+    id: 'orakel_prophezeiung',
+    name: 'Prophezeiung',
+    class: 'Orakel',
+    type: 'active',
+    description: 'Sieh einen zufälligen Moment in bis zu einem Tag in der Zukunft. Nur einmal pro Tag',
+    enlightened: false,
+    cost: { type: 'mana', amount: 0 }
+  },
+
+  // ==================== ARTIFICER (TÜFTLER) ====================
+  {
+    id: 'artificer_int_geschick_2',
+    name: 'Intelligenz&Geschicklichkeit+2',
+    class: 'Artificer',
+    type: 'stat_bonus',
+    description: '+2 Intelligenz und +2 Geschicklichkeit',
+    enlightened: false,
+    statBonus: { stat: 'intelligence', amount: 2 }
+  },
+  {
+    id: 'artificer_mechaniker',
+    name: 'Mechaniker',
+    class: 'Artificer',
+    type: 'dice_bonus',
+    description: '+3 auf Bauen&Verständnis von Mechanik',
+    enlightened: true
+  },
+  {
+    id: 'artificer_kalibrierte_geschosse',
+    name: 'Kalibrierte Geschosse',
+    class: 'Artificer',
+    type: 'passive',
+    description: 'Verdoppelt Effizienz von selbst hergestellter Munition, inklusive Zauber',
+    enlightened: false
+  },
+  {
+    id: 'artificer_runenchirurg',
+    name: 'Runenchirurg',
+    class: 'Artificer',
+    type: 'passive',
+    description: 'Verkleinerte Zauber verlieren nur halb so viel Effizienz',
+    enlightened: false
+  },
+  {
+    id: 'artificer_raffiniert',
+    name: 'Raffiniert',
+    class: 'Artificer',
+    type: 'passive',
+    description: 'Vorteil auf Zerstörungswurf von eigener Ausrüstung und Zauber und setzt Haltbarkeit nach Kämpfen auf 100 (Ausrüstung) und 10 (Zauber) zurück, wenn es im Kampf unter diesen Wert gefallen ist',
+    enlightened: true
+  },
+  {
+    id: 'artificer_zweiter_atem',
+    name: 'Zweiter Atem',
+    class: 'Artificer',
+    type: 'active',
+    description: 'Erhält eine zweite Bonusaktion für diese Runde. Keine Aktion',
+    enlightened: true,
+    cost: { type: 'mana', amount: 10 }
+  },
+  {
+    id: 'artificer_zauberschmiede',
+    name: 'Zauberschmiede',
+    class: 'Artificer',
+    type: 'active',
+    description: 'Verarbeite Materialien in eine gewünschte Form',
+    enlightened: false,
+    cost: { type: 'mana', amount: 10, perRound: true }
+  },
+
+  // ==================== DUNKLER RITTER ====================
+  {
+    id: 'dunkler_ritter_staerke_int_2',
+    name: 'Stärke&Intelligenz+2',
+    class: 'Dunkler Ritter',
+    type: 'stat_bonus',
+    description: '+2 Stärke und +2 Intelligenz',
+    enlightened: false,
+    statBonus: { stat: 'strength', amount: 2 }
+  },
+  {
+    id: 'dunkler_ritter_absolute_dunkelheit',
+    name: 'Absolute Dunkelheit',
+    class: 'Dunkler Ritter',
+    type: 'passive',
+    description: 'Halbiert Manakosten von Schattenrunen',
+    enlightened: true
+  },
+  {
+    id: 'dunkler_ritter_nachtaktiv',
+    name: 'Nachtaktiv',
+    class: 'Dunkler Ritter',
+    type: 'dice_bonus',
+    description: '+2, wenn es dunkel ist',
+    enlightened: true
+  },
+  {
+    id: 'dunkler_ritter_arkane_ausstattung',
+    name: 'Arkane Ausstattung',
+    class: 'Dunkler Ritter',
+    type: 'passive',
+    description: 'Effizienz x2 auf Zauber, die über Ausrüstung oder Waffen als Medium genutzt werden',
+    enlightened: false
+  },
+  {
+    id: 'dunkler_ritter_schattenruestung',
+    name: 'Schattenrüstung',
+    class: 'Dunkler Ritter',
+    type: 'active',
+    description: 'Alle Geschwindigkeitsmali von Rüstungen werden aufgehoben, addiert die Hälfte des Geschwindigkeitsmalus auf den Geschwindigkeitswert',
+    enlightened: false,
+    cost: { type: 'mana', amount: 15, perRound: true }
+  },
+  {
+    id: 'dunkler_ritter_dunkler_schnitt',
+    name: 'Dunkler Schnitt',
+    class: 'Dunkler Ritter',
+    type: 'active',
+    description: 'Schnitt, der fast alle Waffen und Rüstungen ignoriert, verbraucht 50 Waffenhaltbarkeit',
+    enlightened: true,
+    cost: { type: 'energy', amount: 0 }
+  },
+  {
+    id: 'dunkler_ritter_tiefer_fokus',
+    name: 'Tiefer Fokus',
+    class: 'Dunkler Ritter',
+    type: 'active',
+    description: 'Verdoppelt Fokus.',
+    enlightened: false,
+    cost: { type: 'life', amount: 20, perRound: true },
+    bonusAction: true
   },
 
   // ==================== KÄMPFER ====================
