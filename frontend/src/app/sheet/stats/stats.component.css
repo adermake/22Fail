@@ -9,6 +9,22 @@
   border-radius: 8px;
   padding: 0.75rem;
   margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.free-stat-info.has-points {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(139, 92, 246, 0.3);
+    border-color: var(--accent);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.6), 0 0 30px rgba(139, 92, 246, 0.3);
+    border-color: var(--accent);
+  }
 }
 
 .free-stat-row {
@@ -52,6 +68,67 @@
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--accent);
+}
+
+/* Fokus Info Section */
+.fokus-info {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.fokus-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.fokus-label {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.fokus-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.fokus-inputs {
+  display: flex;
+  gap: 1rem;
+}
+
+.fokus-input-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.fokus-input-group label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.fokus-input-group input {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.fokus-input-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(107, 70, 193, 0.2);
 }
 
 .statgrid {

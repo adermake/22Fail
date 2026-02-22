@@ -57,7 +57,7 @@
         </button>
       </div>
 
-      <div class="talent-info">
+      <div class="talent-info" [class.has-points]="availableTalentPoints > 0">
         <div class="talent-stat">
           <span class="talent-label">Verfügbar:</span>
           <span class="talent-value available">{{ availableTalentPoints }}</span>

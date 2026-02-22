@@ -147,6 +147,19 @@ export class StatComponent {
     return this.trueStats.calculateAvailableFreeStatPoints(this.sheet);
   }
 
+  get isSpeedStat(): boolean {
+    return this.stat.name === 'Geschwindigkeit';
+  }
+
+  get effectiveSpeed(): number {
+    if (!this.isSpeedStat) return this.total;
+    return this.trueStats.calculateEffectiveSpeed(this.sheet);
+  }
+
+  get hasSpeedPenalty(): boolean {
+    return this.isSpeedStat && this.effectiveSpeed < this.total;
+  }
+
   incrementFreeStat() {
     if (this.availableFreeStatPoints > 0) {
       const newValue = (this.stat.free || 0) + 1;

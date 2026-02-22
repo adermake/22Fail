@@ -3,7 +3,7 @@
     <h2>Stats</h2>
     
     <!-- Free Stat Points Info -->
-    <div class="free-stat-info">
+    <div class="free-stat-info" [class.has-points]="availableFreeStatPoints > 0">
       <div class="free-stat-row">
         <span class="label">Freie Stat Punkte:</span>
         <span class="value">
@@ -14,6 +14,35 @@
       @if (trueStats.hasNaturtalent(sheet)) {
         <div class="talent-badge">🌟 Naturtalent: +1 Stat Punkt alle 2 Level</div>
       }
+    </div>
+    
+    <!-- Spell Fokus Info -->
+    <div class="fokus-info">
+      <div class="fokus-display">
+        <span class="fokus-label">Spell Fokus:</span>
+        <span class="fokus-value">{{ fokusValue }}</span>
+      </div>
+      <div class="fokus-inputs">
+        <div class="fokus-input-group">
+          <label>Bonus (+)</label>
+          <input
+            type="number"
+            step="1"
+            [ngModel]="sheet.fokusBonus"
+            (ngModelChange)="updateFokusSetting('fokusBonus', $event)"
+          />
+        </div>
+        <div class="fokus-input-group">
+          <label>Multiplikator (×)</label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            [ngModel]="sheet.fokusMultiplier"
+            (ngModelChange)="updateFokusSetting('fokusMultiplier', $event)"
+          />
+        </div>
+      </div>
     </div>
     
     <div class="statgrid">

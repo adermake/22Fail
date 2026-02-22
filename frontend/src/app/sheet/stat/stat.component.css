@@ -44,7 +44,7 @@ input[type='number']::-webkit-inner-spin-button {
 .free-stat-control {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   height: 28px;
 }
 
@@ -53,19 +53,19 @@ input[type='number']::-webkit-inner-spin-button {
   text-align: center;
   font-weight: 600;
   color: var(--accent);
-  font-size: 14px;
-  min-width: 0;
+  font-size: 15px;
+  min-width: 28px;
 }
 
 .free-stat-btn {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg);
   color: var(--accent);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.2s;
@@ -73,6 +73,7 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .free-stat-btn:hover:not(:disabled) {
@@ -95,6 +96,21 @@ input[type='number']::-webkit-inner-spin-button {
   gap: 6px;
   font-weight: 600;
   font-size: 0.95rem;
+}
+
+.value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.effective-speed {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #f59e0b;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .bonus {

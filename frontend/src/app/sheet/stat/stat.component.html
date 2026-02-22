@@ -14,7 +14,7 @@
       </div>
 
       <div class="column">
-        <label class="text">Freier Stat</label>
+        <label class="text">Frei</label>
         <div class="free-stat-control">
           <button class="free-stat-btn minus" (click)="decrementFreeStat(); $event.stopPropagation()" [disabled]="(stat.free || 0) === 0" title="Freien Stat Punkt entfernen">−</button>
           <div class="free-stat-value">{{ stat.free || 0 }}</div>
@@ -34,6 +34,11 @@
 
       <div class="right-values">
         <div class="value">{{ total }}</div>
+        @if (hasSpeedPenalty) {
+          <div class="effective-speed" title="Geschwindigkeit nach Rüstung & Beladung">
+            ➤ {{ effectiveSpeed }}
+          </div>
+        }
         <div class="value bonus" [ngClass]="bonusClass">{{ bonusValue }}</div>
       </div>
     </div>

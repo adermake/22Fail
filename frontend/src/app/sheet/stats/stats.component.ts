@@ -32,6 +32,24 @@ export class StatsComponent {
     return this.trueStats.calculateSpentFreeStatPoints(this.sheet);
   }
 
+  get fokusValue(): number {
+    const intelligence = this.sheet.intelligence?.current || 10;
+    return Math.floor((intelligence + (this.sheet.fokusBonus || 0)) * (this.sheet.fokusMultiplier || 1));
+  }
+
+  ngOnInit() {
+    if (this.sheet.fokusMultiplier === undefined) {
+      this.sheet.fokusMultiplier = 1;
+    }
+    if (this.sheet.fokusBonus === undefined) {
+      this.sheet.fokusBonus = 0;
+    }
+  }
+
+  updateFokusSetting(field: 'fokusBonus' | 'fokusMultiplier', value: any) {
+    this.patch.emit({ path: field, value: value });
+  }
+
   updateField(prefix: string, patch: JsonPatch) {
     patch.path = prefix + '.' + patch.path;
     this.patch.emit(patch);

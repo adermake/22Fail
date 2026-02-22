@@ -1,4 +1,4 @@
-<form (ngSubmit)="createItem()" class="creator-form">
+<form (ngSubmit)="createItem()" class="creator-form" (click)="$event.stopPropagation()">
   <div class="field">
     <label for="name">Item Name *</label>
     <input

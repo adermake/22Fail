@@ -31,16 +31,6 @@ export class SpellsComponent {
     if (!this.sheet.spells) {
       this.sheet.spells = [];
     }
-    if (this.sheet.fokusMultiplier === undefined) {
-      this.sheet.fokusMultiplier = 1;
-    }
-    if (this.sheet.fokusBonus === undefined) {
-      this.sheet.fokusBonus = 0;
-    }
-  }
-   get fokusValue(): number {
-    const intelligence = this.sheet.intelligence?.current || 10;
-    return Math.floor((intelligence + this.sheet.fokusBonus) * this.sheet.fokusMultiplier);
   }
 
   openCreateDialog() {
@@ -51,17 +41,6 @@ export class SpellsComponent {
     this.showCreateDialog = false;
   }
 
-
-
-
-  updateFokusSetting(field: string, value: any) {
-    // Update locally first for immediate feedback
-    (this.sheet as any)[field] = Number(value);
-    this.cd.detectChanges();
-    
-    // Then emit patch
-    this.patch.emit({ path: field, value: Number(value) });
-  }
   createSpell(spell: SpellBlock) {
     this.sheet.spells = [...this.sheet.spells, spell];
     this.patch.emit({

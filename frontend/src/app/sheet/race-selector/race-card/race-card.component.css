@@ -6,6 +6,9 @@
   cursor: pointer;
   display: flex;
   gap: 2rem;
+  transform: scale(0.9);
+  transform-origin: center;
+  margin: -2rem 0;
 }
 .race-card:hover, .race-card.selected { border-color: var(--accent, #4a9eff); }
 .race-card.selected { background: rgba(74, 158, 255, 0.1); }
