@@ -32,7 +32,12 @@ export class EquipmentComponent {
   }
 
   get totalArmorDebuff(): number {
-    return this.sheet.equipment?.reduce((sum, item) => sum + (item.armorDebuff || 0), 0) || 0;
+    // Sum of all individual armor debuffs divided by 5, then subtract negation
+    const sumOfArmorDebuffs = this.sheet.equipment?.reduce((sum, item) => sum + (item.armorDebuff || 0), 0) || 0;
+    const armorPenalty = sumOfArmorDebuffs / 5;
+    const negation = this.sheet.speedPenaltyNegation || 0;
+    
+    return Math.max(0, armorPenalty - negation);
   }
 
   get effectiveSpeed(): number {

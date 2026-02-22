@@ -151,7 +151,7 @@ export class TrueStatsService {
 
   /**
    * Calculate a single stat's true value.
-   * Formula: (base + bonus + effectBonus + (gain * level)) | 0
+   * Formula: (base + bonus + free + effectBonus + (gain * level)) | 0
    * 
    * @param sheet The character sheet
    * @param stat The stat block to calculate
@@ -163,11 +163,12 @@ export class TrueStatsService {
     
     const base = stat.base || 0;
     const bonus = stat.bonus || 0;
+    const free = stat.free || 0;
     const gain = stat.gain || 0;
     const level = sheet.level || 1;
     const effectBonus = this.calculateEffectBonus(sheet, statKey);
     
-    return (base + bonus + effectBonus + (gain * level)) | 0;
+    return (base + bonus + free + effectBonus + (gain * level)) | 0;
   }
 
   /**
@@ -182,11 +183,12 @@ export class TrueStatsService {
   calculateStatDetails(sheet: CharacterSheet, stat: StatBlock | undefined, statKey: StatKey): CalculatedStatDetails {
     const base = stat?.base || 0;
     const bonus = stat?.bonus || 0;
+    const free = stat?.free || 0;
     const gain = stat?.gain || 0;
     const level = sheet.level || 1;
     const levelBonus = gain * level;
     const effectBonus = this.calculateEffectBonus(sheet, statKey);
-    const total = (base + bonus + effectBonus + levelBonus) | 0;
+    const total = (base + bonus + free + effectBonus + levelBonus) | 0;
     
     return { base, bonus, gain, level, levelBonus, effectBonus, total };
   }
@@ -388,13 +390,19 @@ export class TrueStatsService {
 
   /**
    * Calculate total armor debuff from equipped items.
+   * Formula: (sum of all armor debuffs / 5) - speedPenaltyNegation
    * 
    * @param sheet The character sheet
-   * @returns Total speed penalty from armor
+   * @returns Total speed penalty from armor after negation
    */
   calculateTotalArmorDebuff(sheet: CharacterSheet): number {
     if (!sheet.equipment) return 0;
-    return sheet.equipment.reduce((sum, item) => sum + (item.armorDebuff || 0), 0);
+    
+    const sumOfArmorDebuffs = sheet.equipment.reduce((sum, item) => sum + (item.armorDebuff || 0), 0);
+    const armorPenalty = sumOfArmorDebuffs / 5;
+    const negation = sheet.speedPenaltyNegation || 0;
+    
+    return Math.max(0, armorPenalty - negation);
   }
 
   /**
@@ -435,5 +443,69 @@ export class TrueStatsService {
     if (sheet.intelligence) sheet.intelligence.current = stats.intelligence;
     if (sheet.constitution) sheet.constitution.current = stats.constitution;
     if (sheet.chill) sheet.chill.current = stats.chill;
+  }
+
+  /**
+   * Check if the character has the Naturtalent skill (Human racial skill).
+   * Naturtalent grants a free stat point every 2 levels instead of every 3.
+   * 
+   * @param sheet The character sheet
+   * @returns True if the character has Naturtalent
+   */
+  hasNaturtalent(sheet: CharacterSheet): boolean {
+    // Check if the character has learned the Naturtalent skill
+    // This is a racial skill for humans at level 0
+    return sheet.learnedSkillIds?.includes('race_menschen_naturtalent') || 
+           sheet.skills?.some(skill => skill.name === 'Naturtalent') ||
+           (sheet.race?.toLowerCase() === 'menschen' || sheet.race?.toLowerCase() === 'human');
+  }
+
+  /**
+   * Calculate total free stat points earned at a given level.
+   * Formula: 1 point every 3 levels (or every 2 levels with Naturtalent)
+   * 
+   * @param sheet The character sheet
+   * @returns Total free stat points earned
+   */
+  calculateTotalFreeStatPoints(sheet: CharacterSheet): number {
+    const level = sheet.level || 1;
+    const hasNaturtalent = this.hasNaturtalent(sheet);
+    const interval = hasNaturtalent ? 2 : 3;
+    
+    return Math.floor(level / interval);
+  }
+
+  /**
+   * Calculate total free stat points spent.
+   * 
+   * @param sheet The character sheet
+   * @returns Total free stat points allocated to stats
+   */
+  calculateSpentFreeStatPoints(sheet: CharacterSheet): number {
+    const stats: StatBlock[] = [
+      sheet.strength,
+      sheet.dexterity,
+      sheet.speed,
+      sheet.intelligence,
+      sheet.constitution,
+      sheet.chill
+    ];
+    
+    return stats.reduce((sum, stat) => sum + (stat?.free || 0), 0);
+  }
+
+  /**
+   * Calculate available free stat points.
+   * 
+   * @param sheet The character sheet
+   * @returns Available free stat points to spend
+   */
+  calculateAvailableFreeStatPoints(sheet: CharacterSheet): number {
+    const total = this.calculateTotalFreeStatPoints(sheet);
+    const spent = this.calculateSpentFreeStatPoints(sheet);
+    const stored = sheet.freeStatPoints || 0;
+    
+    // Available = (Total - Spent) + Stored
+    return (total - spent) + stored;
   }
 }

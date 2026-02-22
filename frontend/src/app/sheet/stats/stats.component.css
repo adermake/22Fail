@@ -2,6 +2,58 @@
   padding: 0;
   font-family: sans-serif;
 }
+
+.free-stat-info {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.free-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.free-stat-row .label {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.free-stat-row .value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.free-stat-row .available {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.free-stat-row .total-info {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.talent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(124, 58, 237, 0.2) 100%);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
 .statgrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

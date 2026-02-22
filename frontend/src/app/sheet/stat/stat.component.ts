@@ -6,6 +6,7 @@ import {
   Input,
   NgZone,
   Output,
+  inject,
 } from '@angular/core';
 import { CardComponent } from '../../shared/card/card.component';
 import { required } from '@angular/forms/signals';
@@ -15,6 +16,7 @@ import { CommonModule } from '@angular/common';
 import { StatBlock } from '../../model/stat-block.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
+import { TrueStatsService } from '../../services/true-stats.service';
 
 @Component({
   selector: 'app-stat',
@@ -25,6 +27,9 @@ import { JsonPatch } from '../../model/json-patch.model';
 export class StatComponent {
   @Input({ required: true }) stat!: StatBlock;
   @Input({ required: true }) sheet!: CharacterSheet;
+  @Output() patch = new EventEmitter<JsonPatch>();
+  
+  private trueStats = inject(TrueStatsService);
   isPopupVisible = false;
 
   constructor(private cd: ChangeDetectorRef) {}
@@ -119,7 +124,8 @@ export class StatComponent {
 
   get total(): number {
     const effectBonus = this.effectBonus;
-    this.stat.current = (this.stat.base + this.stat.bonus + effectBonus + this.stat.gain * this.sheet.level) | 0;
+    const freePoints = this.stat.free || 0;
+    this.stat.current = (this.stat.base + this.stat.bonus + freePoints + effectBonus + this.stat.gain * this.sheet.level) | 0;
     return this.stat.current;
   }
 
@@ -136,6 +142,25 @@ export class StatComponent {
     }
     return '0';
   }
+
+  get availableFreeStatPoints(): number {
+    return this.trueStats.calculateAvailableFreeStatPoints(this.sheet);
+  }
+
+  incrementFreeStat() {
+    if (this.availableFreeStatPoints > 0) {
+      const newValue = (this.stat.free || 0) + 1;
+      this.patch.emit({ path: 'free', value: newValue });
+    }
+  }
+
+  decrementFreeStat() {
+    if ((this.stat.free || 0) > 0) {
+      const newValue = this.stat.free - 1;
+      this.patch.emit({ path: 'free', value: newValue });
+    }
+  }
+
   pressed() {
     this.isPopupVisible = true;
     setTimeout(() => {
@@ -156,10 +181,11 @@ export class StatComponent {
     if (!this.isPopupVisible) return '';
     return '';
   }
+  
   ngOnChanges() {
     this.cd.markForCheck(); // Trigger detection when inputs change
   }
-  @Output() patch = new EventEmitter<JsonPatch>();
+  
   updateField(path: string, value: any) {
     (this.stat as any)[path] = Number(value);
     this.patch.emit({ path, value });

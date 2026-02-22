@@ -14,6 +14,15 @@
       </div>
 
       <div class="column">
+        <label class="text">Freier Stat</label>
+        <div class="free-stat-control">
+          <button class="free-stat-btn minus" (click)="decrementFreeStat(); $event.stopPropagation()" [disabled]="(stat.free || 0) === 0" title="Freien Stat Punkt entfernen">−</button>
+          <div class="free-stat-value">{{ stat.free || 0 }}</div>
+          <button class="free-stat-btn plus" (click)="incrementFreeStat(); $event.stopPropagation()" [disabled]="availableFreeStatPoints === 0" title="Freien Stat Punkt hinzufügen ({{ availableFreeStatPoints }} verfügbar)">+</button>
+        </div>
+      </div>
+
+      <div class="column">
         <label class="text">Bonus</label>
         <input type="number" min="1" max="99" [ngModel]="stat.bonus" (ngModelChange)="updateField('bonus',$event)"/>
       </div>

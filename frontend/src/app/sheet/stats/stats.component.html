@@ -1,6 +1,21 @@
 <div class="stats">
   <app-card>
     <h2>Stats</h2>
+    
+    <!-- Free Stat Points Info -->
+    <div class="free-stat-info">
+      <div class="free-stat-row">
+        <span class="label">Freie Stat Punkte:</span>
+        <span class="value">
+          <span class="available">{{ availableFreeStatPoints }}</span>
+          <span class="total-info"> / {{ totalFreeStatPoints }} ({{ spentFreeStatPoints }} verwendet)</span>
+        </span>
+      </div>
+      @if (trueStats.hasNaturtalent(sheet)) {
+        <div class="talent-badge">🌟 Naturtalent: +1 Stat Punkt alle 2 Level</div>
+      }
+    </div>
+    
     <div class="statgrid">
       <app-stat
         [stat]="sheet.strength"
