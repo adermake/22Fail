@@ -1,0 +1,1 @@
+import{Jb as i,Va as o,qb as s,rb as t}from"./chunk-UIZU27RO.js";var p=class n{static \u0275fac=function(e){return new(e||n)};static \u0275cmp=o({type:n,selectors:[["app-session"]],decls:2,vars:0,template:function(e,a){e&1&&(s(0,"p"),i(1,"session works!"),t())},encapsulation:2})};export{p as SessionComponent};
