@@ -115,14 +115,12 @@ export class CharacterGeneratorComponent implements OnInit {
       character.raceId = selectedRace.id;
       
       // Apply race base stats
-      if (selectedRace.stats) {
-        character.strength.base = selectedRace.stats.strength || 10;
-        character.dexterity.base = selectedRace.stats.dexterity || 10;
-        character.speed.base = selectedRace.stats.speed || 10;
-        character.intelligence.base = selectedRace.stats.intelligence || 10;
-        character.chill.base = selectedRace.stats.chill || 10;
-        character.constitution.base = selectedRace.stats.constitution || 10;
-      }
+      character.strength.base = selectedRace.baseStrength || 10;
+      character.dexterity.base = selectedRace.baseDexterity || 10;
+      character.speed.base = selectedRace.baseSpeed || 10;
+      character.intelligence.base = selectedRace.baseIntelligence || 10;
+      character.chill.base = selectedRace.baseChill || 10;
+      character.constitution.base = selectedRace.baseConstitution || 10;
     } else {
       // Default to human with base 10 stats
       character.race = 'Human';
@@ -210,8 +208,13 @@ export class CharacterGeneratorComponent implements OnInit {
       // Get skills for current class
       const classSkills = getSkillsForClass(currentClass);
       const learnedInClass = classProgress.get(currentClass) || 0;
+      const totalSkills = classSkills.length;
+      const progressionThreshold = Math.ceil(totalSkills / 2);
       
-      if (classSkills.length > 0 && remainingPoints > 0) {
+      // Check if we've learned 50% or more - if so, try to progress to children
+      const shouldTryProgress = learnedInClass >= progressionThreshold;
+      
+      if (classSkills.length > 0 && remainingPoints > 0 && !shouldTryProgress) {
         // Learn a random skill from this class that we can afford
         const affordableUnlearnedSkills = classSkills.filter(s => {
           if (learnedSkillIds.includes(s.id)) return false;
@@ -230,13 +233,10 @@ export class CharacterGeneratorComponent implements OnInit {
         }
       }
       
-      // Check if we can progress to children (need 50% of skills learned)
+      // Try to progress to children (need 50% of skills learned)
       const classInfo = CLASS_DEFINITIONS[currentClass];
-      const learned = classProgress.get(currentClass) || 0;
-      const totalSkills = getSkillsForClass(currentClass).length;
-      const progressionThreshold = Math.ceil(totalSkills / 2);
       
-      if (learned >= progressionThreshold && classInfo && classInfo.children.length > 0) {
+      if (shouldTryProgress && classInfo && classInfo.children.length > 0) {
         // Can progress to child class
         const eligibleChildren = classInfo.children
           .map(c => c.className)

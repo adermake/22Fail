@@ -1,0 +1,56 @@
+{
+  "id": "race_elfen",
+  "name": "Elfen",
+  "ageRange": "200-250",
+  "lore": "Elfen leben in kleinen Gemeinden in Wäldern, wo sie ihr Leben in Harmonie mit der Natur verbringen. Obwohl Elfen aus Respekt vor allen Lebewesen selten Tiere jagen und sich hautsächlich pflanzlich ernähren, besitzen sie ein feines Gespür und können sich gegen Eindringlinge aller Art verteidigen. Sie fühlen sich als Rasse überlegen, verhalten sich aber freundlich anderen Rassen gegenüber, solange diese ihre Freundlichkeit erwidern. Die Elfen sind allgemein eine sehr friedfertige Rasse, da sie sich nicht auf das Niveau der anderen \"barbarischen\" Rassen herablassen wollen, wenn ihnen aber Unrecht getan wird, kennen sie keine Gnade.",
+  "baseHealth": 40,
+  "baseEnergy": 70,
+  "baseMana": 40,
+  "baseStrength": 7,
+  "baseDexterity": 12,
+  "baseSpeed": 12,
+  "baseIntelligence": 11,
+  "baseConstitution": 8,
+  "baseChill": 11,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.2,
+  "dexterityPerLevel": 0.4,
+  "speedPerLevel": 0.3,
+  "intelligencePerLevel": 0.4,
+  "constitutionPerLevel": 0.2,
+  "chillPerLevel": 0.2,
+  "skills": [
+    {
+      "levelRequired": 5,
+      "skill": {
+        "name": "Fernkampf+1",
+        "class": "",
+        "description": "Fernkampf+1",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 15,
+      "skill": {
+        "name": "Agilität",
+        "class": "",
+        "description": "+2 auf nächste Mobilitätsaktion, 10",
+        "type": "active",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 20,
+      "skill": {
+        "name": "Schnelllader",
+        "class": "",
+        "description": "+2 beim Würfeln für Zaubercasts",
+        "type": "passive",
+        "enlightened": false
+      }
+    }
+  ]
+}

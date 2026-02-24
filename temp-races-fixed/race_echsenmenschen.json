@@ -1,0 +1,56 @@
+{
+  "id": "race_echsenmenschen",
+  "name": "Echsenmenschen",
+  "ageRange": "50-60",
+  "lore": "Echsenmenschen leben in kleinen Dörfern in feuchten Gebieten und ernähren sich hauptsächlich vom Fischfang. Sie interagieren ungern mit anderen Spezies und gelten deshalb allgemein als aggressiv und rücksichtslos. Trotz diesen Vorurteilen sind Echsenmenschen jedoch meistens friedlich gesinnt, verlieren aber schnell die Beherrschung und werden deshalb hauptsächlich von anderen Rassen gemieden. Wenn sich jemand nämlich einen Echsenmenschen zum Feind macht, verfolgen diese ihre Opfer gnadenlos durch jedes Terrain und nutzen jede Schwachstelle des Gegners aus, um diese schnell und effizient niederzustrecken. Den Echsenmenschen ist das nur recht, denn sie leben am liebsten unter sich.",
+  "baseHealth": 60,
+  "baseEnergy": 50,
+  "baseMana": 40,
+  "baseStrength": 12,
+  "baseDexterity": 12,
+  "baseSpeed": 11,
+  "baseIntelligence": 8,
+  "baseConstitution": 12,
+  "baseChill": 8,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.4,
+  "dexterityPerLevel": 0.3,
+  "speedPerLevel": 0.3,
+  "intelligencePerLevel": 0.2,
+  "constitutionPerLevel": 0.4,
+  "chillPerLevel": 0.2,
+  "skills": [
+    {
+      "levelRequired": 5,
+      "skill": {
+        "name": "VdW-Kräfte",
+        "class": "",
+        "description": "Kann an Wänden und Decken entlangklettern, 10 pro Runde",
+        "type": "active",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 15,
+      "skill": {
+        "name": "Echsenhaut",
+        "class": "",
+        "description": "50% Schadensresistenz gegen Wuchtangriffe",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 20,
+      "skill": {
+        "name": "Häutung",
+        "class": "",
+        "description": "Regeneriert 50% der maximalen Leben, 60",
+        "type": "active",
+        "enlightened": false
+      }
+    }
+  ]
+}

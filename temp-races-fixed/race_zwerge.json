@@ -1,0 +1,56 @@
+{
+  "id": "race_zwerge",
+  "name": "Zwerge",
+  "ageRange": "100-120",
+  "lore": "Zwerge leben in Höhlen mit hunderten oder sogar tausenden von Einwohnern. Zwerge sind Meisterschmiede und haben oft komplexe Minensysteme um ihre Städte konstruiert, in denen sie wertvolle Erze und Steine bergen, die sie zum Waffenschmieden verwenden. Sie sind sehr stolz auf ihre Schmiedekunst, weshalb sie bei vielen Rassen beliebt sind, allerdings weigern sie sich, ihre Waffen Kriegstreibern zu liefern, da ihre Kunst nicht für den Krieg gemacht ist. Deshalb geraten sie auch oft in Konflikte mit kriegerischen Rassen, was sie oft zur Zielscheibe von großen Stämmen und Königreichen macht. Da sie allerdings auch sehr kompetente Architekten sind, sind ihre Städte vor allen Angriffen sicher.",
+  "baseHealth": 60,
+  "baseEnergy": 50,
+  "baseMana": 40,
+  "baseStrength": 12,
+  "baseDexterity": 9,
+  "baseSpeed": 9,
+  "baseIntelligence": 10,
+  "baseConstitution": 12,
+  "baseChill": 9,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.4,
+  "dexterityPerLevel": 0.2,
+  "speedPerLevel": 0.2,
+  "intelligencePerLevel": 0.2,
+  "constitutionPerLevel": 0.4,
+  "chillPerLevel": 0.2,
+  "skills": [
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Schmiedekunst",
+        "class": "",
+        "description": "+20 Schmiedepunkte",
+        "type": "active",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 10,
+      "skill": {
+        "name": "Geschäftspartner",
+        "class": "",
+        "description": "50% mehr Gold durch Verkäufe",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 20,
+      "skill": {
+        "name": "Zwergenstärke",
+        "class": "",
+        "description": "+2 auf Waffenangriffe mit selbstgemachten Waffen",
+        "type": "passive",
+        "enlightened": false
+      }
+    }
+  ]
+}

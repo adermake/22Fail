@@ -1,0 +1,56 @@
+{
+  "id": "race_engel",
+  "name": "Engel",
+  "ageRange": "~300",
+  "lore": "Engel leben in der Überwelt, weit oben in den Wolken, abgelegen von allen anderen Zivilisationen. Da sie ohne Kontakt zum Sonnenlicht ihre Kraft verlieren, können sie nur bei Sonnenschein auf die Erde kommen. Da das der einzige Weg für sie ist, mit anderen Spezies Kontakt aufzunehmen, werden sie allerdings sehr selten gesichtet. Ihre Anwesenheit wird dafür allseits genossen und von manchen sogar als gutes Omen gesehen. In der Vergangenheit waren sie jedoch nicht an den Himmel gebunden. Vor vielen Generationen waren Engel auf der ganzen Welt vertreten und waren allen Rassen technologisch überlegen. Nach dem Großen Krieg machten die Dämonen die Erde für die Engel unbewohnbar, was ihren technologischen Fortschritt abrupt stoppte. Obwohl Engel heutzutage nur noch ein Schatten ihrer vergangenen Tage sind, sehnen sie sich danach, wieder zu ihrem früheren Glanz zurückzukehren.",
+  "baseHealth": 35,
+  "baseEnergy": 45,
+  "baseMana": 80,
+  "baseStrength": 10,
+  "baseDexterity": 10,
+  "baseSpeed": 12,
+  "baseIntelligence": 13,
+  "baseConstitution": 8,
+  "baseChill": 12,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.3,
+  "dexterityPerLevel": 0.3,
+  "speedPerLevel": 0.3,
+  "intelligencePerLevel": 0.4,
+  "constitutionPerLevel": 0.2,
+  "chillPerLevel": 0.3,
+  "skills": [
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Fliegen",
+        "class": "",
+        "description": "Kann mit 1,5-facher Geschwindigkeit fliegen, 20 pro Runde",
+        "type": "active",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 15,
+      "skill": {
+        "name": "Segen",
+        "class": "",
+        "description": "+2 auf Heilzauber",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 25,
+      "skill": {
+        "name": "Deus ex machina",
+        "class": "",
+        "description": "Kosten von Dauerfähigkeiten und -zaubern, werden halbiert",
+        "type": "passive",
+        "enlightened": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "id": "race_vampire",
+  "name": "Vampire",
+  "ageRange": ">1000",
+  "lore": "Vampire werden auch als Hüter des Wissens bezeichnet, da sie durch ihre hohe Lebensspanne und Intelligenz eine große Ansammlung an Informationen und Dokumenten aus aller Welt besitzen und diese in ihrem Unterschlupf aufbewahren. Sie hüten dieses Wissen wie einen Schatz und lassen nur selten andere an diesem Wissen teilhaben. Da sie in diesem Sinne sehr egoistische Wesen sind, leben sie meist isoliert von anderen, selbst anderen Vampiren, um ihr Wissen zu beschützen. Trotz dessen sind die Vampirunterschlüpfe sehr groß, elegant und modern, da in ihren Augen die Präsentation fast so wichtig ist wie der Inhalt selbst. Vampire leben an Orten, wo sie von der Sonne unversehrt bleiben, weshalb man sie meistens in dichten Wäldern, Höhlen und in der Unterwelt findet. Reisende, die ihre Behausung betreten wollen, werden festlich empfangen, kehren jedoch selten lebend zurück.",
+  "baseHealth": 50,
+  "baseEnergy": 40,
+  "baseMana": 60,
+  "baseStrength": 10,
+  "baseDexterity": 11,
+  "baseSpeed": 10,
+  "baseIntelligence": 12,
+  "baseConstitution": 10,
+  "baseChill": 11,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.2,
+  "dexterityPerLevel": 0.3,
+  "speedPerLevel": 0.3,
+  "intelligencePerLevel": 0.4,
+  "constitutionPerLevel": 0.2,
+  "chillPerLevel": 0.3,
+  "skills": [
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Dunkle Seele",
+        "class": "",
+        "description": "Erhält Fledermausseele, Zauber mit Fledermausseele kosten 50% weniger Mana",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 10,
+      "skill": {
+        "name": "Blut saugen",
+        "class": "",
+        "description": "Saugt lebendigen Gegner Blut aus, heilt 2xD20, fügt ihm Schaden zu, 20",
+        "type": "active",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 25,
+      "skill": {
+        "name": "Opfergabe",
+        "class": "",
+        "description": "Kann Fähigkeiten mit Leben anstatt Ausdauer auslösen, kostet 50% weniger",
+        "type": "passive",
+        "enlightened": false
+      }
+    }
+  ]
+}
