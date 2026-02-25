@@ -50,7 +50,8 @@
               [isEditing]="isItemEditing(getOriginalIndex(item, 'items'))"
               (patch)="onItemUpdate(getOriginalIndex(item, 'items'), $event)"
               (delete)="removeItem.emit(getOriginalIndex(item, 'items'))"
-              (editingChange)="onItemEditingChange(getOriginalIndex(item, 'items'), $event)">
+              (editingChange)="onItemEditingChange(getOriginalIndex(item, 'items'), $event)"
+              (openEditor)="openItemEditor.emit(getOriginalIndex(item, 'items'))">
             </app-item>
           </div>
         }
@@ -72,7 +73,8 @@
               [isEditing]="isRuneEditing(getOriginalIndex(rune, 'runes'))"
               (patch)="onRuneUpdate(getOriginalIndex(rune, 'runes'), $event)"
               (delete)="removeRune.emit(getOriginalIndex(rune, 'runes'))"
-              (editingChange)="onRuneEditingChange(getOriginalIndex(rune, 'runes'), $event)">
+              (editingChange)="onRuneEditingChange(getOriginalIndex(rune, 'runes'), $event)"
+              (openEditor)="openRuneEditor.emit(getOriginalIndex(rune, 'runes'))">
             </app-rune>
           </div>
         }
@@ -95,7 +97,8 @@
               [isEditing]="isSpellEditing(getOriginalIndex(spell, 'spells'))"
               (patch)="onSpellUpdate(getOriginalIndex(spell, 'spells'), $event)"
               (delete)="removeSpell.emit(getOriginalIndex(spell, 'spells'))"
-              (editingChange)="onSpellEditingChange(getOriginalIndex(spell, 'spells'), $event)">
+              (editingChange)="onSpellEditingChange(getOriginalIndex(spell, 'spells'), $event)"
+              (openEditor)="openSpellEditor.emit(getOriginalIndex(spell, 'spells'))">
             </app-spell>
           </div>
         }
@@ -118,7 +121,8 @@
               [isEditing]="isSkillEditing(getOriginalIndex(skill, 'skills'))"
               (patch)="onSkillUpdate(getOriginalIndex(skill, 'skills'), $event)"
               (delete)="removeSkill.emit(getOriginalIndex(skill, 'skills'))"
-              (editingChange)="onSkillEditingChange(getOriginalIndex(skill, 'skills'), $event)">
+              (editingChange)="onSkillEditingChange(getOriginalIndex(skill, 'skills'), $event)"
+              (openEditor)="openSkillEditor.emit(getOriginalIndex(skill, 'skills'))">
             </app-skill>
           </div>
         }

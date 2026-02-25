@@ -1,5 +1,5 @@
-<div class="item-editor-overlay" (click)="cancelEdit()">
-  <div class="item-editor-modal" (click)="$event.stopPropagation()">
+<div class="item-editor-overlay">
+  <div class="item-editor-modal">
     <!-- Header -->
     <div class="editor-header">
       <h2>{{ isNewItem ? 'Neuen Gegenstand erstellen' : 'Gegenstand bearbeiten' }}</h2>
@@ -16,7 +16,11 @@
           
           <div class="form-group">
             <label>Name *</label>
-            <input type="text" [(ngModel)]="editItem.name" placeholder="Gegenstandsname" required>
+            <input type="text" 
+                   [(ngModel)]="editItem.name" 
+                   placeholder="Gegenstandsname" 
+                   required
+                   [class.name-empty]="!editItem.name || editItem.name.trim() === ''">
           </div>
 
           <div class="form-row">
@@ -93,17 +97,22 @@
           </div>
 
           <div *ngIf="editItem.hasDurability" class="durability-options">
-            <div class="form-row">
-              <div class="form-group">
-                <label>Aktuell</label>
-                <input type="number" [(ngModel)]="editItem.durability" 
-                       [max]="editItem.maxDurability || 100" 
-                       min="0">
-              </div>
-              <div class="form-group">
-                <label>Maximum</label>
-                <input type="number" [(ngModel)]="editItem.maxDurability" min="1">
-              </div>
+            <div class="form-group">
+              <label>Maximum</label>
+              <input type="number" [(ngModel)]="editItem.maxDurability" min="1">
+            </div>
+
+            <div class="slider-row">
+              <span class="slider-label">Aktuell</span>
+              <input type="number" 
+                     [(ngModel)]="editItem.durability" 
+                     [max]="editItem.maxDurability || 100" 
+                     min="0">
+              <input type="range" 
+                     [(ngModel)]="editItem.durability" 
+                     [max]="editItem.maxDurability || 100" 
+                     min="0">
+              <span class="slider-label">/ {{ editItem.maxDurability || 100 }}</span>
             </div>
 
             <div class="durability-info">
@@ -211,12 +220,20 @@
         <section class="editor-section">
           <h3>Eigene Zähler</h3>
           
-          <!-- Existing Counters -->
+          <!-- Existing Counters - Editable with Sliders -->
           <div class="counter-list" *ngIf="editItem.counters && editItem.counters.length > 0">
-            <div class="counter-item" *ngFor="let counter of editItem.counters; let i = index">
+            <div class="counter-item-editable" *ngFor="let counter of editItem.counters; let i = index">
               <div class="counter-color" [style.backgroundColor]="counter.color"></div>
               <span class="counter-name">{{ counter.name }}</span>
-              <span class="counter-range">{{ counter.current }} / {{ counter.max }}</span>
+              <input type="number" 
+                     [(ngModel)]="counter.current" 
+                     [min]="counter.min" 
+                     [max]="counter.max">
+              <input type="range" 
+                     [(ngModel)]="counter.current" 
+                     [min]="counter.min" 
+                     [max]="counter.max">
+              <span class="counter-max-label">/ {{ counter.max }}</span>
               <button class="remove-btn" (click)="removeCounter(i)">×</button>
             </div>
           </div>
@@ -291,62 +308,92 @@
           </div>
         </section>
 
-        <!-- Attached Skills Section -->
+        <!-- Embedded Skills Section -->
         <section class="editor-section">
-          <h3>Angehängte Fähigkeiten</h3>
+          <h3>Fähigkeiten</h3>
           
-          <!-- Existing Skills -->
-          <div class="attached-list" *ngIf="editItem.attachedSkills && editItem.attachedSkills.length > 0">
-            <div class="attached-item" *ngFor="let skill of editItem.attachedSkills; let i = index">
-              <span>{{ skill.skillName }}</span>
-              <button class="remove-btn" (click)="removeAttachedSkill(i)">×</button>
+          <!-- Existing Embedded Skills -->
+          @if (editItem.embeddedSkills && editItem.embeddedSkills.length > 0) {
+            <div class="attached-list">
+              @for (skill of editItem.embeddedSkills; track $index; let i = $index) {
+                <div class="attached-item" (contextmenu)="$event.preventDefault(); openSkillEditor(i)">
+                  <div class="attached-item-info">
+                    <span class="attached-name">{{ skill.name }}</span>
+                    <span class="attached-type">{{ skill.type }}</span>
+                  </div>
+                  <div class="attached-actions">
+                    <button class="edit-btn" (click)="openSkillEditor(i)" title="Bearbeiten">✎</button>
+                    <button class="remove-btn" (click)="deleteEmbeddedSkill(i)" title="Entfernen">×</button>
+                  </div>
+                </div>
+              }
             </div>
-          </div>
+          }
 
-          <!-- Add Skill -->
-          <div class="add-attached-form" *ngIf="availableSkills.length > 0">
-            <select [(ngModel)]="selectedSkillId">
-              <option value="">Fähigkeit auswählen...</option>
-              <option *ngFor="let skill of availableSkills" [value]="skill.id">
-                {{ skill.name }}
-              </option>
-            </select>
-            <button class="add-btn" (click)="attachSkill()" [disabled]="!selectedSkillId">
-              + Anhängen
+          <!-- Add Actions -->
+          <div class="add-actions-row">
+            <button class="add-btn" (click)="openSkillEditor(null)">
+              + Neue Fähigkeit
             </button>
+            @if (showLibraryImport && librarySkills.length > 0) {
+              <div class="library-import">
+                <select #skillSelect>
+                  <option value="">Aus Bibliothek...</option>
+                  @for (skill of librarySkills; track $index) {
+                    <option [value]="$index">{{ skill.name }}</option>
+                  }
+                </select>
+                <button class="import-btn" (click)="skillSelect.value && importSkillFromLibrary(librarySkills[+skillSelect.value]); skillSelect.value = ''" [disabled]="!skillSelect.value">
+                  Importieren
+                </button>
+              </div>
+            }
           </div>
-          <p *ngIf="availableSkills.length === 0" class="no-items-hint">
-            Keine Fähigkeiten verfügbar
-          </p>
         </section>
 
-        <!-- Attached Spells Section -->
+        <!-- Embedded Spells Section -->
         <section class="editor-section">
-          <h3>Angehängte Zauber</h3>
+          <h3>Zauber</h3>
           
-          <!-- Existing Spells -->
-          <div class="attached-list" *ngIf="editItem.attachedSpells && editItem.attachedSpells.length > 0">
-            <div class="attached-item" *ngFor="let spell of editItem.attachedSpells; let i = index">
-              <span>{{ spell.spellName }}</span>
-              <button class="remove-btn" (click)="removeAttachedSpell(i)">×</button>
+          <!-- Existing Embedded Spells -->
+          @if (editItem.embeddedSpells && editItem.embeddedSpells.length > 0) {
+            <div class="attached-list">
+              @for (spell of editItem.embeddedSpells; track $index; let i = $index) {
+                <div class="attached-item" (contextmenu)="$event.preventDefault(); openSpellEditor(i)">
+                  <div class="attached-item-info">
+                    <span class="attached-name">{{ spell.name }}</span>
+                    @if (spell.tags && spell.tags.length > 0) {
+                      <span class="attached-tags">{{ spell.tags.join(', ') }}</span>
+                    }
+                  </div>
+                  <div class="attached-actions">
+                    <button class="edit-btn" (click)="openSpellEditor(i)" title="Bearbeiten">✎</button>
+                    <button class="remove-btn" (click)="deleteEmbeddedSpell(i)" title="Entfernen">×</button>
+                  </div>
+                </div>
+              }
             </div>
-          </div>
+          }
 
-          <!-- Add Spell -->
-          <div class="add-attached-form" *ngIf="availableSpells.length > 0">
-            <select [(ngModel)]="selectedSpellId">
-              <option value="">Zauber auswählen...</option>
-              <option *ngFor="let spell of availableSpells" [value]="spell.id">
-                {{ spell.name }}
-              </option>
-            </select>
-            <button class="add-btn" (click)="attachSpell()" [disabled]="!selectedSpellId">
-              + Anhängen
+          <!-- Add Actions -->
+          <div class="add-actions-row">
+            <button class="add-btn" (click)="openSpellEditor(null)">
+              + Neuer Zauber
             </button>
+            @if (showLibraryImport && librarySpells.length > 0) {
+              <div class="library-import">
+                <select #spellSelect>
+                  <option value="">Aus Bibliothek...</option>
+                  @for (spell of librarySpells; track $index) {
+                    <option [value]="$index">{{ spell.name }}</option>
+                  }
+                </select>
+                <button class="import-btn" (click)="spellSelect.value && importSpellFromLibrary(librarySpells[+spellSelect.value]); spellSelect.value = ''" [disabled]="!spellSelect.value">
+                  Importieren
+                </button>
+              </div>
+            }
           </div>
-          <p *ngIf="availableSpells.length === 0" class="no-items-hint">
-            Keine Zauber verfügbar
-          </p>
         </section>
       </div>
     </div>
@@ -360,9 +407,31 @@
         </label>
       </div>
       <div class="footer-buttons">
+        @if (!isNewItem) {
+          <button class="delete-btn" (click)="deleteItem()">Löschen</button>
+        }
         <button class="cancel-btn" (click)="cancelEdit()">Abbrechen</button>
         <button class="save-btn" (click)="saveItem()">{{ isNewItem ? 'Erstellen' : 'Speichern' }}</button>
       </div>
     </div>
   </div>
 </div>
+<!-- Sub-Editor: Skill Editor -->
+@if (showSkillEditor) {
+  <app-skill-editor
+    [skill]="editingSkill"
+    (save)="saveSkill($event)"
+    (cancel)="closeSkillEditor()"
+    (delete)="editingSkillIndex !== null ? deleteEmbeddedSkill(editingSkillIndex) : null; closeSkillEditor()">
+  </app-skill-editor>
+}
+
+<!-- Sub-Editor: Spell Editor -->
+@if (showSpellEditor) {
+  <app-spell-editor
+    [spell]="editingSpell"
+    (save)="saveSpell($event)"
+    (cancel)="closeSpellEditor()"
+    (delete)="editingSpellIndex !== null ? deleteEmbeddedSpell(editingSpellIndex) : null; closeSpellEditor()">
+  </app-spell-editor>
+}

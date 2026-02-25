@@ -115,7 +115,7 @@
 
 <div class="rune-card" 
      [class.editing]="isEditing"
-     (dblclick)="!isEditing && toggleEdit()">
+     (contextmenu)="onRightClick($event)">
   
   @if (!isEditing) {
     <div class="rune-view">

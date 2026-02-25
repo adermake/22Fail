@@ -33,6 +33,10 @@ export class LibraryTabsComponent implements OnChanges {
   @Output() addRune = new EventEmitter<void>();
   @Output() addSpell = new EventEmitter<void>();
   @Output() addSkill = new EventEmitter<void>();
+  @Output() openItemEditor = new EventEmitter<number>();
+  @Output() openRuneEditor = new EventEmitter<number>();
+  @Output() openSpellEditor = new EventEmitter<number>();
+  @Output() openSkillEditor = new EventEmitter<number>();
   @Output() updateItem = new EventEmitter<{ index: number; patch: JsonPatch }>();
   @Output() updateRune = new EventEmitter<{ index: number; patch: JsonPatch }>();
   @Output() updateSpell = new EventEmitter<{ index: number; patch: JsonPatch }>();

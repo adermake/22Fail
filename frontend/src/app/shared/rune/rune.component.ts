@@ -22,6 +22,7 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
+  @Output() openEditor = new EventEmitter<void>();
 
   tagOptions = RUNE_TAG_OPTIONS;
   glowColors = RUNE_GLOW_COLORS;
@@ -98,6 +99,13 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
     const original = this.rune.description || 'No description';
     const enhanced = KeywordEnhancer.enhance(original);
     return this.sanitizer.bypassSecurityTrustHtml(enhanced);
+  }
+
+  onRightClick(event: MouseEvent) {
+    event.preventDefault();
+    if (!this.isEditing) {
+      this.openEditor.emit();
+    }
   }
 
   async toggleEdit() {

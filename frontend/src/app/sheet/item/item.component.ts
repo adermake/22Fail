@@ -86,6 +86,11 @@ export class ItemComponent {
     this.openEditor.emit();
   }
 
+  onRightClick(event: MouseEvent) {
+    event.preventDefault();
+    this.openEditor.emit();
+  }
+
   updateField(field: string, value: any) {
     this.patch.emit({ path: field, value });
     this.cd.detectChanges();

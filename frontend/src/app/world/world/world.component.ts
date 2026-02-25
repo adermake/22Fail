@@ -17,6 +17,10 @@ import { FormulaType } from '../../model/formula-type.enum';
 import { StatusBlock } from '../../model/status-block.model';
 import { Subscription } from 'rxjs';
 import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.component';
+import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
+import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
+import { SpellEditorComponent } from '../../shared/spell-editor/spell-editor.component';
+import { RuneEditorComponent } from '../../shared/rune-editor/rune-editor.component';
 import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
 import { BattleTracker } from '../battle-tracker/battle-tracker.component';
 import { LootManagerComponent, LootBundle } from '../loot-manager/loot-manager.component';
@@ -30,7 +34,7 @@ export type { SimulatedTurn, BattleGroup };
 @Component({
   selector: 'app-world',
   standalone: true,
-  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent, ImageUrlPipe, CharacterGeneratorComponent],
+  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, ItemEditorComponent, SkillEditorComponent, SpellEditorComponent, RuneEditorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent, ImageUrlPipe, CharacterGeneratorComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -63,6 +67,10 @@ export class WorldComponent implements OnInit, OnDestroy {
   showItemCreator = false;
   showTrash = false;
   showCharacterGenerator = false;
+  editingItemIndex: number | null = null;
+  editingRuneIndex: number | null = null;
+  editingSpellIndex: number | null = null;
+  editingSkillIndex: number | null = null;
   editingItems = new Set<number>();
   editingRunes = new Set<number>();
   editingSpells = new Set<number>();
@@ -329,6 +337,18 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   openItemCreator() { this.showItemCreator = true; }
   closeItemCreator() { this.showItemCreator = false; }
+
+  openItemEditor(index: number) { this.editingItemIndex = index; }
+  closeItemEditor() { this.editingItemIndex = null; }
+
+  openRuneEditorDialog(index: number) { this.editingRuneIndex = index; }
+  closeRuneEditor() { this.editingRuneIndex = null; }
+
+  openSpellEditorDialog(index: number) { this.editingSpellIndex = index; }
+  closeSpellEditorDialog() { this.editingSpellIndex = null; }
+
+  openSkillEditorDialog(index: number) { this.editingSkillIndex = index; }
+  closeSkillEditorDialog() { this.editingSkillIndex = null; }
 
   createItem(item: ItemBlock) {
     this.libraryService.createItem(item);

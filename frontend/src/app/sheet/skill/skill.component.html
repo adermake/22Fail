@@ -4,9 +4,10 @@
      [class.active]="effectiveType === 'active'" 
      [class.dice-bonus]="effectiveType === 'dice_bonus'" 
      [class.stat-bonus]="effectiveType === 'stat_bonus'" 
-     [class.disabled]="isDisabled">
+     [class.disabled]="isDisabled"
+     (contextmenu)="onRightClick($event)">
   @if (!isEditing) {
-    <div class="skill-view" (dblclick)="!isEditing && toggleEdit()">
+    <div class="skill-view">
       <div class="skill-header">
         <h4>{{ skill.name }}</h4>
         <div class="skill-badges">

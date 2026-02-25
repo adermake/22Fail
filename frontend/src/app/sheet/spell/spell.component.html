@@ -2,7 +2,7 @@
   class="spell-card"
   [class.editing]="isEditing"
   [class.disabled]="isDisabled"
-  (dblclick)="!isEditing && toggleEdit()"
+  (contextmenu)="onRightClick($event)"
 >
   @if (!isEditing) {
   <div class="spell-view">

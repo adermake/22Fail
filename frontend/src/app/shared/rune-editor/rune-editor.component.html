@@ -1,0 +1,83 @@
+<div class="rune-editor-overlay">
+  <div class="rune-editor-container">
+    <!-- Header -->
+    <div class="editor-header">
+      <h2>{{ isNewRune ? 'Neue Rune' : 'Rune bearbeiten' }}</h2>
+      <button class="close-btn" (click)="cancelEdit()">×</button>
+    </div>
+
+    <!-- Content -->
+    <div class="editor-content">
+      <!-- Name -->
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" [(ngModel)]="editRune.name" 
+               [class.input-empty]="!editRune.name?.trim()"
+               placeholder="Runenname...">
+      </div>
+
+      <!-- Description -->
+      <div class="form-group">
+        <label>Beschreibung</label>
+        <textarea [(ngModel)]="editRune.description" rows="4" placeholder="Beschreibung der Rune..."></textarea>
+      </div>
+
+      <!-- Stroke Color -->
+      <div class="form-group">
+        <label>Runenfarbe</label>
+        <div class="color-picker">
+          @for (color of glowColors; track color.value) {
+            <button 
+              class="color-option" 
+              [style.background]="color.value"
+              [class.selected]="editRune.strokeColor === color.value"
+              (click)="editRune.strokeColor = color.value"
+              [title]="color.name">
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Tags -->
+      <div class="form-group">
+        <label>Tags</label>
+        <div class="tag-chips">
+          @for (tag of editRune.tags; track $index; let i = $index) {
+            <span class="tag-chip">
+              {{ tag }}
+              <button class="tag-remove" (click)="removeTag(i)">×</button>
+            </span>
+          }
+        </div>
+        <div class="tag-input-row">
+          <input type="text" [(ngModel)]="newTag" placeholder="Neuer Tag..." 
+                 (keydown.enter)="addTag(); $event.preventDefault()">
+          <button class="add-tag-btn" (click)="addTag()" [disabled]="!newTag.trim()">+</button>
+        </div>
+        <div class="preset-tags">
+          @for (tag of tagOptions; track tag) {
+            <button 
+              class="preset-tag" 
+              [class.selected]="isTagSelected(tag)"
+              (click)="addExistingTag(tag)">
+              {{ tag }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="editor-footer">
+      <div class="footer-buttons">
+        @if (!isNewRune) {
+          <button class="delete-btn" (click)="deleteRune()">Löschen</button>
+        }
+        <button class="cancel-btn" (click)="cancelEdit()">Abbrechen</button>
+        <button class="save-btn" (click)="saveRune()" [disabled]="!editRune.name?.trim()">
+          {{ isNewRune ? 'Erstellen' : 'Speichern' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

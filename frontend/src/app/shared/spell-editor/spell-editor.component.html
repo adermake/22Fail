@@ -1,0 +1,83 @@
+<div class="spell-editor-overlay">
+  <div class="spell-editor-container">
+    <!-- Header -->
+    <div class="editor-header">
+      <h2>{{ isNewSpell ? 'Neuer Zauber' : 'Zauber bearbeiten' }}</h2>
+      <button class="close-btn" (click)="cancelEdit()">×</button>
+    </div>
+
+    <!-- Content -->
+    <div class="editor-content">
+      <!-- Name -->
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" [(ngModel)]="editSpell.name" 
+               [class.input-empty]="!editSpell.name?.trim()"
+               placeholder="Zaubername...">
+      </div>
+
+      <!-- Description -->
+      <div class="form-group">
+        <label>Beschreibung</label>
+        <textarea [(ngModel)]="editSpell.description" rows="4" placeholder="Beschreibung des Zaubers..."></textarea>
+      </div>
+
+      <!-- Stroke Color -->
+      <div class="form-group">
+        <label>Zauberfarbe</label>
+        <div class="color-picker">
+          @for (color of glowColors; track color.value) {
+            <button 
+              class="color-option" 
+              [style.background]="color.value"
+              [class.selected]="editSpell.strokeColor === color.value"
+              (click)="editSpell.strokeColor = color.value"
+              [title]="color.name">
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Tags -->
+      <div class="form-group">
+        <label>Tags</label>
+        <div class="tag-chips">
+          @for (tag of editSpell.tags; track $index; let i = $index) {
+            <span class="tag-chip">
+              {{ tag }}
+              <button class="tag-remove" (click)="removeTag(i)">×</button>
+            </span>
+          }
+        </div>
+        <div class="tag-input-row">
+          <input type="text" [(ngModel)]="newTag" placeholder="Neuer Tag..." 
+                 (keydown.enter)="addTag(); $event.preventDefault()">
+          <button class="add-tag-btn" (click)="addTag()" [disabled]="!newTag.trim()">+</button>
+        </div>
+        <div class="preset-tags">
+          @for (tag of tagOptions; track tag) {
+            <button 
+              class="preset-tag" 
+              [class.selected]="isTagSelected(tag)"
+              (click)="addExistingTag(tag)">
+              {{ tag }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="editor-footer">
+      <div class="footer-buttons">
+        @if (!isNewSpell) {
+          <button class="delete-btn" (click)="deleteSpell()">Löschen</button>
+        }
+        <button class="cancel-btn" (click)="cancelEdit()">Abbrechen</button>
+        <button class="save-btn" (click)="saveSpell()" [disabled]="!editSpell.name?.trim()">
+          {{ isNewSpell ? 'Erstellen' : 'Speichern' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

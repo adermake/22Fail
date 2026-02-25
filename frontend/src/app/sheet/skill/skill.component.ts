@@ -23,11 +23,19 @@ export class SkillComponent {
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
+  @Output() openEditor = new EventEmitter<void>();
 
   constructor(
     private cd: ChangeDetectorRef,
     private sanitizer: DomSanitizer
   ) {}
+
+  onRightClick(event: MouseEvent) {
+    event.preventDefault();
+    if (!this.isEditing) {
+      this.openEditor.emit();
+    }
+  }
 
   // Get the effective type from SKILL_DEFINITIONS (source of truth)
   get effectiveType(): 'active' | 'passive' | 'dice_bonus' | 'stat_bonus' {

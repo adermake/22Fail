@@ -1,0 +1,93 @@
+<div class="skill-editor-overlay">
+  <div class="skill-editor-container">
+    <!-- Header -->
+    <div class="editor-header">
+      <h2>{{ isNewSkill ? 'Neue Fähigkeit' : 'Fähigkeit bearbeiten' }}</h2>
+      <button class="close-btn" (click)="cancelEdit()">×</button>
+    </div>
+
+    <!-- Content -->
+    <div class="editor-content">
+      <!-- Name -->
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" [(ngModel)]="editSkill.name" 
+               [class.input-empty]="!editSkill.name?.trim()"
+               placeholder="Fähigkeitsname...">
+      </div>
+
+      <!-- Class -->
+      <div class="form-group">
+        <label>Klasse</label>
+        <input type="text" [(ngModel)]="editSkill.class" placeholder="z.B. Krieger, Magier...">
+      </div>
+
+      <!-- Type -->
+      <div class="form-group">
+        <label>Typ</label>
+        <select [(ngModel)]="editSkill.type">
+          <option *ngFor="let t of skillTypes" [value]="t.value">{{ t.label }}</option>
+        </select>
+      </div>
+
+      <!-- Description -->
+      <div class="form-group">
+        <label>Beschreibung</label>
+        <textarea [(ngModel)]="editSkill.description" rows="4" placeholder="Beschreibung der Fähigkeit..."></textarea>
+      </div>
+
+      <!-- Stat Modifiers (for stat_bonus type) -->
+      @if (editSkill.type === 'stat_bonus') {
+        <div class="form-group">
+          <label>Stat-Boni</label>
+          <div class="stat-modifiers-grid">
+            @for (stat of ['strength', 'dexterity', 'speed', 'intelligence', 'constitution', 'chill']; track stat) {
+              <div class="stat-modifier-item">
+                <span class="stat-label">{{ getStatLabel(stat) }}</span>
+                <div class="stat-controls">
+                  <button class="stat-btn" (click)="decrementStat(stat)">−</button>
+                  <span class="stat-value" [class.positive]="statModifiers[stat] > 0" [class.negative]="statModifiers[stat] < 0">
+                    {{ statModifiers[stat] > 0 ? '+' : '' }}{{ statModifiers[stat] }}
+                  </span>
+                  <button class="stat-btn" (click)="incrementStat(stat)">+</button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Resource Modifiers (mana, life, energy) for any type -->
+      <div class="form-group">
+        <label>Ressourcen-Boni</label>
+        <div class="stat-modifiers-grid">
+          @for (stat of ['mana', 'life', 'energy']; track stat) {
+            <div class="stat-modifier-item">
+              <span class="stat-label">{{ getStatLabel(stat) }}</span>
+              <div class="stat-controls">
+                <button class="stat-btn" (click)="decrementStat(stat)">−</button>
+                <span class="stat-value" [class.positive]="statModifiers[stat] > 0" [class.negative]="statModifiers[stat] < 0">
+                  {{ statModifiers[stat] > 0 ? '+' : '' }}{{ statModifiers[stat] }}
+                </span>
+                <button class="stat-btn" (click)="incrementStat(stat)">+</button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="editor-footer">
+      <div class="footer-buttons">
+        @if (!isNewSkill) {
+          <button class="delete-btn" (click)="deleteSkill()">Löschen</button>
+        }
+        <button class="cancel-btn" (click)="cancelEdit()">Abbrechen</button>
+        <button class="save-btn" (click)="saveSkill()" [disabled]="!editSkill.name?.trim()">
+          {{ isNewSkill ? 'Erstellen' : 'Speichern' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

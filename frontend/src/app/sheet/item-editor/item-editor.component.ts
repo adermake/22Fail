@@ -11,11 +11,15 @@ import {
   AttachedSpell 
 } from '../../model/item-block.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
+import { SkillBlock } from '../../model/skill-block.model';
+import { SpellBlock } from '../../model/spell-block-model';
+import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
+import { SpellEditorComponent } from '../../shared/spell-editor/spell-editor.component';
 
 @Component({
   selector: 'app-item-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SkillEditorComponent, SpellEditorComponent],
   templateUrl: './item-editor.component.html',
   styleUrl: './item-editor.component.css',
 })
@@ -24,8 +28,12 @@ export class ItemEditorComponent implements OnInit {
   @Input() sheet?: CharacterSheet;
   @Input() availableSkills: { id: string; name: string }[] = [];
   @Input() availableSpells: { id: string; name: string }[] = [];
+  @Input() librarySkills: SkillBlock[] = []; // Full library skills for world view
+  @Input() librarySpells: SpellBlock[] = []; // Full library spells for world view
+  @Input() showLibraryImport = false; // Whether to show library import options
   @Output() save = new EventEmitter<ItemBlock>();
   @Output() cancel = new EventEmitter<void>();
+  @Output() delete = new EventEmitter<void>();
 
   // Working copy of the item
   editItem!: ItemBlock;
@@ -63,6 +71,15 @@ export class ItemEditorComponent implements OnInit {
   // Skill/Spell selection
   selectedSkillId = '';
   selectedSpellId = '';
+
+  // Sub-editor state for embedded skills/spells
+  showSkillEditor = false;
+  editingSkillIndex: number | null = null;
+  editingSkill: SkillBlock | null = null;
+
+  showSpellEditor = false;
+  editingSpellIndex: number | null = null;
+  editingSpell: SpellBlock | null = null;
 
   // Available colors for counters
   counterColors = [
@@ -232,6 +249,105 @@ export class ItemEditorComponent implements OnInit {
     this.editItem.attachedSpells!.splice(index, 1);
   }
 
+  // === Embedded Skill Methods ===
+  openSkillEditor(index: number | null = null) {
+    if (index !== null && this.editItem.embeddedSkills && this.editItem.embeddedSkills[index]) {
+      this.editingSkillIndex = index;
+      this.editingSkill = this.editItem.embeddedSkills[index];
+    } else {
+      this.editingSkillIndex = null;
+      this.editingSkill = null;
+    }
+    this.showSkillEditor = true;
+  }
+
+  closeSkillEditor() {
+    this.showSkillEditor = false;
+    this.editingSkillIndex = null;
+    this.editingSkill = null;
+  }
+
+  saveSkill(skill: SkillBlock) {
+    if (!this.editItem.embeddedSkills) {
+      this.editItem.embeddedSkills = [];
+    }
+    if (this.editingSkillIndex !== null) {
+      // Editing existing
+      this.editItem.embeddedSkills[this.editingSkillIndex] = skill;
+    } else {
+      // Adding new
+      this.editItem.embeddedSkills.push(skill);
+    }
+    this.closeSkillEditor();
+  }
+
+  deleteEmbeddedSkill(index: number) {
+    if (this.editItem.embeddedSkills) {
+      this.editItem.embeddedSkills.splice(index, 1);
+    }
+  }
+
+  // === Embedded Spell Methods ===
+  openSpellEditor(index: number | null = null) {
+    if (index !== null && this.editItem.embeddedSpells && this.editItem.embeddedSpells[index]) {
+      this.editingSpellIndex = index;
+      this.editingSpell = this.editItem.embeddedSpells[index];
+    } else {
+      this.editingSpellIndex = null;
+      this.editingSpell = null;
+    }
+    this.showSpellEditor = true;
+  }
+
+  closeSpellEditor() {
+    this.showSpellEditor = false;
+    this.editingSpellIndex = null;
+    this.editingSpell = null;
+  }
+
+  saveSpell(spell: SpellBlock) {
+    if (!this.editItem.embeddedSpells) {
+      this.editItem.embeddedSpells = [];
+    }
+    if (this.editingSpellIndex !== null) {
+      // Editing existing
+      this.editItem.embeddedSpells[this.editingSpellIndex] = spell;
+    } else {
+      // Adding new
+      this.editItem.embeddedSpells.push(spell);
+    }
+    this.closeSpellEditor();
+  }
+
+  deleteEmbeddedSpell(index: number) {
+    if (this.editItem.embeddedSpells) {
+      this.editItem.embeddedSpells.splice(index, 1);
+    }
+  }
+
+  // === Library Import Methods ===
+  importSkillFromLibrary(librarySkill: SkillBlock) {
+    if (!this.editItem.embeddedSkills) {
+      this.editItem.embeddedSkills = [];
+    }
+    // Deep clone to avoid reference issues
+    const imported = JSON.parse(JSON.stringify(librarySkill));
+    // Mark as enlightened (always usable from item)
+    imported.enlightened = true;
+    this.editItem.embeddedSkills.push(imported);
+  }
+
+  importSpellFromLibrary(librarySpell: SpellBlock) {
+    if (!this.editItem.embeddedSpells) {
+      this.editItem.embeddedSpells = [];
+    }
+    // Deep clone to avoid reference issues
+    const imported = JSON.parse(JSON.stringify(librarySpell));
+    // Set binding to item
+    imported.binding = { type: 'item', itemName: this.editItem.name };
+    this.editItem.embeddedSpells.push(imported);
+  }
+
   // === Stat Requirements Helpers ===
   hasRequirements(): boolean {
     if (!this.editItem.requirements) return false;
@@ -277,6 +393,12 @@ export class ItemEditorComponent implements OnInit {
 
   cancelEdit() {
     this.cancel.emit();
+  }
+
+  deleteItem() {
+    if (confirm('Item wirklich löschen?')) {
+      this.delete.emit();
+    }
   }
 
   // === Helpers ===

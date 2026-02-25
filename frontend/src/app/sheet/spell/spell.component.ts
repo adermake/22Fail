@@ -36,6 +36,7 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
+  @Output() openEditor = new EventEmitter<void>();
 
   tagOptions = SPELL_TAG_OPTIONS;
   glowColors = SPELL_GLOW_COLORS;
@@ -186,6 +187,13 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   get availableItems(): string[] {
     const allItems = [...(this.sheet.inventory || []), ...(this.sheet.equipment || [])];
     return allItems.map((item) => item.name);
+  }
+
+  onRightClick(event: MouseEvent) {
+    event.preventDefault();
+    if (!this.isEditing) {
+      this.openEditor.emit();
+    }
   }
 
   async toggleEdit() {

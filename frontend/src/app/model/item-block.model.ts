@@ -1,3 +1,6 @@
+import { SkillBlock } from './skill-block.model';
+import { SpellBlock } from './spell-block-model';
+
 export interface ItemRequirements {
   strength?: number;
   dexterity?: number;
@@ -28,13 +31,13 @@ export interface ItemDiceBonus {
   value: number; // Positive = bad (adds to roll), Negative = good (subtracts from roll)
 }
 
-// Attached skill reference
+// Attached skill reference (deprecated, kept for backwards compatibility)
 export interface AttachedSkill {
   skillId: string;
   skillName: string;
 }
 
-// Attached spell reference
+// Attached spell reference (deprecated, kept for backwards compatibility)
 export interface AttachedSpell {
   spellId: string;
   spellName: string;
@@ -80,9 +83,13 @@ export class ItemBlock {
   // Dice bonuses
   diceBonuses?: ItemDiceBonus[];
   
-  // Attached skills and spells
+  // Attached skills and spells (deprecated reference-based)
   attachedSkills?: AttachedSkill[];
   attachedSpells?: AttachedSpell[];
+  
+  // Embedded skills and spells (full data)
+  embeddedSkills?: SkillBlock[];
+  embeddedSpells?: SpellBlock[];
   
   // Source tracking (for display purposes)
   isItemBased?: boolean; // Flag for skills/spells from this item

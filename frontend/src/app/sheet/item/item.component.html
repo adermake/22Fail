@@ -4,7 +4,7 @@
      [class.lost]="item.lost"
      [class.weapon]="item.itemType === 'weapon'"
      [class.armor]="item.itemType === 'armor'"
-     (dblclick)="toggleEdit()">
+     (contextmenu)="onRightClick($event)">
   <div class="item-view">
     <div class="item-header">
       <div class="item-title-row">

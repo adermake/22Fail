@@ -152,7 +152,7 @@
         <button (click)="generateRandomWeapon()" style="width: 100%; background: var(--accent); color: white; padding: 8px;">Zufällige Waffe schmieden</button>
         <button (click)="generateRandomArmor()" style="width: 100%; background: var(--accent); color: white; padding: 8px;">Zufällige Rüstung schmieden</button>
       </div>
-      <p class="drag-hint">Drag items onto characters or battle loot. Double-click to edit.</p>
+      <p class="drag-hint">Drag items onto characters or battle loot. Right-click to edit.</p>
       <app-library-tabs
         [items]="world.itemLibrary"
         [runes]="world.runeLibrary"
@@ -167,6 +167,10 @@
         (addRune)="addRune()"
         (addSpell)="addSpell()"
         (addSkill)="addSkill()"
+        (openItemEditor)="openItemEditor($event)"
+        (openRuneEditor)="openRuneEditorDialog($event)"
+        (openSpellEditor)="openSpellEditorDialog($event)"
+        (openSkillEditor)="openSkillEditorDialog($event)"
         (updateItem)="updateItem($event.index, $event.patch)"
         (updateRune)="updateRune($event.index, $event.patch)"
         (updateSpell)="updateSpell($event.index, $event.patch)"
@@ -195,6 +199,50 @@
       </app-item-creator>
     </div>
   </div>
+}
+
+<!-- Item Editor Dialog -->
+@if (editingItemIndex !== null && world.itemLibrary[editingItemIndex]) {
+  <app-item-editor
+    [item]="world.itemLibrary[editingItemIndex]"
+    [sheet]="dummySheet"
+    [librarySkills]="world.skillLibrary"
+    [librarySpells]="world.spellLibrary"
+    [showLibraryImport]="true"
+    (save)="updateItem(editingItemIndex, { path: '', value: $event }); closeItemEditor()"
+    (cancel)="closeItemEditor()"
+    (delete)="removeItem(editingItemIndex); closeItemEditor()">
+  </app-item-editor>
+}
+
+<!-- Rune Editor Dialog -->
+@if (editingRuneIndex !== null && world.runeLibrary[editingRuneIndex]) {
+  <app-rune-editor
+    [rune]="world.runeLibrary[editingRuneIndex]"
+    (save)="updateRune(editingRuneIndex, { path: '', value: $event }); closeRuneEditor()"
+    (cancel)="closeRuneEditor()"
+    (delete)="removeRune(editingRuneIndex); closeRuneEditor()">
+  </app-rune-editor>
+}
+
+<!-- Spell Editor Dialog -->
+@if (editingSpellIndex !== null && world.spellLibrary[editingSpellIndex]) {
+  <app-spell-editor
+    [spell]="world.spellLibrary[editingSpellIndex]"
+    (save)="updateSpell(editingSpellIndex, { path: '', value: $event }); closeSpellEditorDialog()"
+    (cancel)="closeSpellEditorDialog()"
+    (delete)="removeSpell(editingSpellIndex); closeSpellEditorDialog()">
+  </app-spell-editor>
+}
+
+<!-- Skill Editor Dialog -->
+@if (editingSkillIndex !== null && world.skillLibrary[editingSkillIndex]) {
+  <app-skill-editor
+    [skill]="world.skillLibrary[editingSkillIndex]"
+    (save)="updateSkill(editingSkillIndex, { path: '', value: $event }); closeSkillEditorDialog()"
+    (cancel)="closeSkillEditorDialog()"
+    (delete)="removeSkill(editingSkillIndex); closeSkillEditorDialog()">
+  </app-skill-editor>
 }
 
 <!-- Trash Dialog -->
