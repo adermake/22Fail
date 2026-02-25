@@ -6,7 +6,7 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { ItemComponent } from '../item/item.component';
 import { ItemEditorComponent } from '../item-editor/item-editor.component';
 import { CardComponent } from '../../shared/card/card.component';
-import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, CdkDragStart, DragDropModule } from '@angular/cdk/drag-drop';
 import { WorldSocketService } from '../../services/world-socket.service';
 import { NotificationService } from '../../services/notification.service';
 
@@ -146,9 +146,30 @@ export class EquipmentComponent {
       if (targetSlot !== 'extra') {
         return; // Single-item slots: don't allow reordering
       }
-      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+      // For extra slot, allow reordering within the slot
+      const item = event.previousContainer.data[event.previousIndex];
+      
+      // Remove and re-add to equipment in new position
+      const equipmentIndex = this.sheet.equipment.indexOf(item);
+      this.sheet.equipment.splice(equipmentIndex, 1);
+      
+      // Find new position among extra items
+      const extraItems = this.getArmorSlot('extra');
+      const beforeItem = extraItems[event.currentIndex];
+      if (beforeItem) {
+        const beforeIndex = this.sheet.equipment.indexOf(beforeItem);
+        this.sheet.equipment.splice(beforeIndex, 0, item);
+      } else {
+        this.sheet.equipment.push(item);
+      }
+      
+      this.patch.emit({
+        path: 'equipment',
+        value: this.sheet.equipment,
+      });
     } else {
       const item = event.previousContainer.data[event.previousIndex];
+      const isFromInventory = event.previousContainer.id === 'inventoryList';
       
       // Validate: check if item type matches slot (except for extra slot)
       if (targetSlot !== 'extra') {
@@ -166,41 +187,42 @@ export class EquipmentComponent {
         }
       }
       
-      // Set the armor type if moving from inventory
-      if (!item.armorType) {
+      // Set the armor type if moving from inventory or if not set
+      if (!item.armorType || item.armorType === 'extra') {
         item.armorType = targetSlot as any;
       }
       
-      // Transfer item
-      transferArrayItem(
-        event.previousContainer.data,
-        event.container.data,
-        event.previousIndex,
-        event.currentIndex
-      );
+      if (isFromInventory) {
+        // Remove from inventory
+        this.sheet.inventory = this.sheet.inventory.filter((_, i) => i !== event.previousIndex);
+        
+        // Add to equipment
+        this.sheet.equipment.push(item);
+        
+        // Emit both patches
+        this.patch.emit({
+          path: 'inventory',
+          value: this.sheet.inventory,
+        });
+        this.patch.emit({
+          path: 'equipment',
+          value: this.sheet.equipment,
+        });
+      } else {
+        // Moving between equipment slots
+        // Item is already in equipment, just update its armorType
+        const equipmentIndex = this.sheet.equipment.indexOf(item);
+        if (equipmentIndex !== -1) {
+          this.sheet.equipment[equipmentIndex].armorType = targetSlot as any;
+          this.sheet.equipment = [...this.sheet.equipment];
+          
+          this.patch.emit({
+            path: 'equipment',
+            value: this.sheet.equipment,
+          });
+        }
+      }
     }
-    
-    // Rebuild equipment array from all slots
-    this.rebuildEquipmentArray();
-  }
-
-  // Rebuild equipment array from all slots
-  private rebuildEquipmentArray() {
-    const newEquipment: ItemBlock[] = [
-      ...this.getArmorSlot('helmet'),
-      ...this.getArmorSlot('chestplate'),
-      ...this.getArmorSlot('armschienen'),
-      ...this.getArmorSlot('leggings'),
-      ...this.getArmorSlot('boots'),
-      ...this.getArmorSlot('extra')
-    ];
-    
-    this.sheet.equipment = newEquipment;
-    
-    this.patch.emit({
-      path: 'equipment',
-      value: newEquipment,
-    });
   }
 
   onEditingChange(index: number, isEditing: boolean) {

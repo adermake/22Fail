@@ -47,10 +47,10 @@ app-card {
   margin-left: 0.25rem;
 }
 
-/* Armor Slots Grid */
+/* Armor Slots - Vertical Stack */
 .armor-slots {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
   padding: 0.5rem;
   max-height: 910px;
@@ -61,10 +61,6 @@ app-card {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-
-.armor-slot.extra {
-  grid-column: 1 / -1; /* Span both columns */
 }
 
 .slot-label {
