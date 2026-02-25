@@ -98,7 +98,8 @@ export class WeaponGeneratorService {
     const armor = new Armor();
 
     // 1. Select armor type
-    const baseType = armorType || this.getRandomElement(Object.values(ArmorType));
+    const armorTypes: ArmorType[] = ['helmet', 'chestplate', 'armschienen', 'leggings', 'boots', 'extra'];
+    const baseType: ArmorType = armorType || this.getRandomElement(armorTypes);
     armor.armorType = baseType;
     armor.weight = this.getWeightFromType(baseType);
 
