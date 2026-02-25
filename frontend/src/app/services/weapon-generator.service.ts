@@ -6,7 +6,8 @@ import {
   BaseWeaponType,
   DamageType,
 } from '../model/weapon.model';
-import { Armor, ArmorType } from '../model/armor.model';
+import { Armor } from '../model/armor.model';
+import { ArmorType } from '../model/item-block.model';
 import { WEAPON_MATERIALS } from '../data/materials.data';
 import { ARMOR_MATERIALS } from '../data/armor-materials.data';
 import { BASE_WEAPON_TYPES } from '../data/weapons.data';
@@ -186,11 +187,13 @@ export class WeaponGeneratorService {
           case WeaponType.LEICHT: return this.rollDie(5) + 2; // 3-7
           case WeaponType.SCHWER: return this.rollDie(10) + 10; // 11-20
           case WeaponType.FERNKAMPF: return this.rollDie(6) + 4; // 5-10
-          case ArmorType.HELMET: return this.rollDie(4) + 1; // 2-5
-          case ArmorType.CHEST: return this.rollDie(10) + 8; // 9-18
-          case ArmorType.LEGGINGS: return this.rollDie(6) + 6; // 7-12
-          case ArmorType.BOOTS: return this.rollDie(3) + 1; // 2-4
-          case ArmorType.GAUNTLETS: return this.rollDie(2) + 1; // 2-3
+          case 'helmet': return this.rollDie(4) + 1; // 2-5
+          case 'chestplate': return this.rollDie(10) + 8; // 9-18
+          case 'leggings': return this.rollDie(6) + 6; // 7-12
+          case 'boots': return this.rollDie(3) + 1; // 2-4
+          case 'armschienen': return this.rollDie(3) + 2; // 3-5
+          case 'extra': return this.rollDie(5) + 3; // 4-8
+          default: return 5; // Default weight
       }
   }
 
