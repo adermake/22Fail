@@ -8,6 +8,7 @@ import { ItemEditorComponent } from '../item-editor/item-editor.component';
 import { CardComponent } from '../../shared/card/card.component';
 import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { WorldSocketService } from '../../services/world-socket.service';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-equipment',
@@ -20,6 +21,7 @@ export class EquipmentComponent {
   @Output() patch = new EventEmitter<JsonPatch>();
   
   private worldSocket = inject(WorldSocketService);
+  private notification = inject(NotificationService);
 
   private editingItems = new Set<number>();
   placeholderHeight = '90px';
@@ -126,18 +128,72 @@ export class EquipmentComponent {
     this.placeholderWidth = `${rect.width}px`;
   }
 
-  onDrop(event: CdkDragDrop<ItemBlock[]>) {
-  if (event.previousContainer === event.container) {
-    // Reorder within equipment
-    const previousIndex = event.previousIndex;
-    const currentIndex = event.currentIndex;
-    
-    if (previousIndex === currentIndex) {
-      return;
-    }
+  // Get items for a specific armor slot
+  getArmorSlot(slotType: 'helmet' | 'chestplate' | 'armschienen' | 'leggings' | 'boots' | 'extra'): ItemBlock[] {
+    if (!this.sheet.equipment) return [];
+    return this.sheet.equipment.filter(item => (item.armorType || 'extra') === slotType);
+  }
 
-    const newEquipment = [...this.sheet.equipment];
-    moveItemInArray(newEquipment, previousIndex, currentIndex);
+  // Get the global equipment index for an item
+  getItemIndex(item: ItemBlock): number {
+    return this.sheet.equipment?.indexOf(item) ?? -1;
+  }
+
+  // Handle drop into armor slots with validation
+  onSlotDrop(event: CdkDragDrop<ItemBlock[]>, targetSlot: string) {
+    if (event.previousContainer === event.container) {
+      // Same slot - ignore for all slots except extra
+      if (targetSlot !== 'extra') {
+        return; // Single-item slots: don't allow reordering
+      }
+      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+    } else {
+      const item = event.previousContainer.data[event.previousIndex];
+      
+      // Validate: check if item type matches slot (except for extra slot)
+      if (targetSlot !== 'extra') {
+        const itemType = item.armorType || 'extra';
+        if (itemType !== targetSlot && itemType !== 'extra') {
+          this.notification.warning(`${item.name} passt nicht in diesen Slot!`, 3000);
+          return;
+        }
+        
+        // Check if slot is already occupied (single-item slots)
+        const currentSlotItems = this.getArmorSlot(targetSlot as any);
+        if (currentSlotItems.length > 0) {
+          this.notification.warning(`Dieser Slot ist bereits belegt!`, 3000);
+          return;
+        }
+      }
+      
+      // Set the armor type if moving from inventory
+      if (!item.armorType) {
+        item.armorType = targetSlot as any;
+      }
+      
+      // Transfer item
+      transferArrayItem(
+        event.previousContainer.data,
+        event.container.data,
+        event.previousIndex,
+        event.currentIndex
+      );
+    }
+    
+    // Rebuild equipment array from all slots
+    this.rebuildEquipmentArray();
+  }
+
+  // Rebuild equipment array from all slots
+  private rebuildEquipmentArray() {
+    const newEquipment: ItemBlock[] = [
+      ...this.getArmorSlot('helmet'),
+      ...this.getArmorSlot('chestplate'),
+      ...this.getArmorSlot('armschienen'),
+      ...this.getArmorSlot('leggings'),
+      ...this.getArmorSlot('boots'),
+      ...this.getArmorSlot('extra')
+    ];
     
     this.sheet.equipment = newEquipment;
     
@@ -145,29 +201,7 @@ export class EquipmentComponent {
       path: 'equipment',
       value: newEquipment,
     });
-  } else {
-    // Transfer from inventory to equipment
-    const item = event.previousContainer.data[event.previousIndex];
-    
-    // Remove from inventory
-    this.sheet.inventory = this.sheet.inventory.filter((_, i) => i !== event.previousIndex);
-    
-    // Add to equipment
-    const newEquipment = [...this.sheet.equipment];
-    newEquipment.splice(event.currentIndex, 0, item);
-    this.sheet.equipment = newEquipment;
-    
-    // Emit both changes
-    this.patch.emit({
-      path: 'inventory',
-      value: this.sheet.inventory,
-    });
-    this.patch.emit({
-      path: 'equipment',
-      value: this.sheet.equipment,
-    });
   }
-}
 
   onEditingChange(index: number, isEditing: boolean) {
     if (isEditing) {
@@ -250,10 +284,12 @@ export class EquipmentComponent {
       });
     }
     
-    // Show result message
-    setTimeout(() => {
-      alert(`Bruchtest für ${item.name}: ${roll} + ${modifier} = ${total}\\n${item.name} ${resultText}!`);
-    }, 100);
+    const message = `Bruchtest für ${item.name}: ${roll} ${modifier !== 0 ? (modifier > 0 ? '+' : '') + modifier : ''} = ${total}\n${item.name} ${resultText}!`;
+    if (survived) {
+      this.notification.success(message, 5000);
+    } else {
+      this.notification.error(message, 5000);
+    }
   }
 
   // Get available skills from sheet for item editor

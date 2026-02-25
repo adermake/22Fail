@@ -722,3 +722,46 @@
   font-size: 0.75rem;
   color: #d8b4fe;
 }
+
+/* Effects Section */
+.effects-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.effect-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.effect-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.effect-item.primary .effect-label {
+  color: #60a5fa;
+}
+
+.effect-item.secondary .effect-label {
+  color: #a78bfa;
+}
+
+.effect-item.special .effect-label {
+  color: #fbbf24;
+}
+
+.effect-text {
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}

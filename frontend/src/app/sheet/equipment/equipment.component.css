@@ -47,31 +47,59 @@ app-card {
   margin-left: 0.25rem;
 }
 
-.equipment-list {
+/* Armor Slots Grid */
+.armor-slots {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  padding: 0.5rem;
+  max-height: 910px;
+  overflow-y: auto;
+}
+
+.armor-slot {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-    min-height: 910px;
-    max-height: 910px;
-  overflow-y: auto;
-  flex: 1;
+}
+
+.armor-slot.extra {
+  grid-column: 1 / -1; /* Span both columns */
+}
+
+.slot-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text);
+  padding: 0.25rem 0.5rem;
+  background: var(--card);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.slot-content {
+  min-height: 100px;
   padding: 0.5rem;
   border: 2px dashed var(--border);
   border-radius: 6px;
   background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.equipment-list.cdk-drop-list-dragging {
+.slot-content.cdk-drop-list-dragging {
   background: var(--card);
   border-color: var(--accent);
 }
 
-.empty-message {
+.empty-slot {
   text-align: center;
   color: var(--muted);
   padding: 2rem;
   font-style: italic;
-  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.6;
 }
 
 /* Drag and Drop Styles */

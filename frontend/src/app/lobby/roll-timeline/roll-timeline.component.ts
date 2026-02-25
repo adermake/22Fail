@@ -16,10 +16,7 @@ import { DiceRollEvent } from '../../services/world-socket.service';
     <div class="timeline-container" [class.collapsed]="collapsed">
       <div class="timeline-header" (click)="collapsed = !collapsed">
         <span class="header-title">
-          🎲 Roll History
-          @if (rolls.length > 0) {
-            <span class="roll-count">({{ rolls.length }})</span>
-          }
+          📜 Historie
         </span>
         <span class="collapse-icon">{{ collapsed ? '▲' : '▼' }}</span>
       </div>
@@ -28,8 +25,8 @@ import { DiceRollEvent } from '../../services/world-socket.service';
         <div class="timeline-content">
           @if (rolls.length === 0) {
             <div class="empty-state">
-              <div class="empty-icon">🎲</div>
-              <div class="empty-text">No rolls yet</div>
+              <div class="empty-icon">📜</div>
+              <div class="empty-text">Noch keine Ereignisse</div>
             </div>
           } @else {
             <div class="roll-list">

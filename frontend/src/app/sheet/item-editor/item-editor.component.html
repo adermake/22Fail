@@ -38,6 +38,21 @@
             <label>Beschreibung</label>
             <textarea [(ngModel)]="editItem.description" rows="4" placeholder="Beschreibung..."></textarea>
           </div>
+
+          <div class="form-group">
+            <label>Primärer Effekt</label>
+            <textarea [(ngModel)]="editItem.primaryEffect" rows="2" placeholder="Haupteffekt des Gegenstandes..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Sekundärer Effekt</label>
+            <textarea [(ngModel)]="editItem.secondaryEffect" rows="2" placeholder="Zusätzlicher Effekt..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Spezialeffekt</label>
+            <textarea [(ngModel)]="editItem.specialEffect" rows="2" placeholder="Besondere Eigenschaft..."></textarea>
+          </div>
         </section>
 
         <!-- Item Type Section -->
@@ -72,6 +87,17 @@
 
           <!-- Armor-specific options -->
           <div *ngIf="editItem.itemType === 'armor'" class="type-options">
+            <div class="form-group">
+              <label>Rüstungsteil</label>
+              <select [(ngModel)]="editItem.armorType" class="armor-type-select">
+                <option [ngValue]="'helmet'">Helm</option>
+                <option [ngValue]="'chestplate'">Brustpanzer</option>
+                <option [ngValue]="'armschienen'">Armschienen</option>
+                <option [ngValue]="'leggings'">Beinschienen</option>
+                <option [ngValue]="'boots'">Stiefel</option>
+                <option [ngValue]="'extra'">Extra</option>
+              </select>
+            </div>
             <div class="form-row">
               <div class="form-group">
                 <label>Stabilität (Schutzwert)</label>

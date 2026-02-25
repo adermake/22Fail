@@ -46,14 +46,21 @@ export interface AttachedSpell {
 // Item type enumeration
 export type ItemType = 'weapon' | 'armor' | 'other';
 
+// Armor type enumeration
+export type ArmorType = 'helmet' | 'chestplate' | 'armschienen' | 'leggings' | 'boots' | 'extra';
+
 export class ItemBlock {
   // Basic properties
   id?: string; // Unique identifier
   name!: string;
   description!: string;
+  primaryEffect?: string; // Main effect description
+  secondaryEffect?: string; // Secondary effect description
+  specialEffect?: string; // Special/unique effect description
   weight!: number;
   value?: number; // Gold value
   itemType: ItemType = 'other';
+  armorType?: ArmorType; // For armor items
   
   // Status flags
   lost!: boolean;

@@ -11,6 +11,7 @@ import { ItemEditorComponent } from '../item-editor/item-editor.component';
 import { FormsModule } from '@angular/forms';
 import { COIN_WEIGHT } from '../../model/currency-model';
 import { WorldSocketService } from '../../services/world-socket.service';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-inventory',
@@ -32,6 +33,7 @@ export class InventoryComponent {
   @Output() patch = new EventEmitter<JsonPatch>();
   
   private worldSocket = inject(WorldSocketService);
+  private notification = inject(NotificationService);
 
   Math = Math; // Expose Math to template
 
@@ -361,10 +363,12 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
       });
     }
     
-    // Show result message
-    setTimeout(() => {
-      alert(`Bruchtest für ${item.name}: ${roll} + ${modifier} = ${total}\\n${item.name} ${resultText}!`);
-    }, 100);
+    const message = `Bruchtest für ${item.name}: ${roll} ${modifier !== 0 ? (modifier > 0 ? '+' : '') + modifier : ''} = ${total}\n${item.name} ${resultText}!`;
+    if (survived) {
+      this.notification.success(message, 5000);
+    } else {
+      this.notification.error(message, 5000);
+    }
   }
 
   // Get available skills from sheet for item editor

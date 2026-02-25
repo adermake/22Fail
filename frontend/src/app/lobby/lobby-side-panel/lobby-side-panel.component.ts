@@ -34,12 +34,12 @@ type PanelTab = 'layers' | 'rolls';
             [class.active]="activeTab() === 'rolls'"
             (click)="activeTab.set('rolls')"
           >
-            🎲 Rolls <span class="roll-badge" *ngIf="rolls.length > 0">{{ rolls.length }}</span>
+            🎲 Rolls
           </button>
         </div>
       } @else {
         <div class="tab-header">
-          <div class="tab-title">🎲 Roll History</div>
+          <div class="tab-title">📜 Historie</div>
         </div>
       }
 

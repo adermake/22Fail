@@ -14,37 +14,205 @@
     </div>
   </div>
 
-  <div
-    class="equipment-list"
-    cdkDropList
-    id="equipmentList"
-    [cdkDropListData]="sheet.equipment"
-    [cdkDropListConnectedTo]="['inventoryList']"
-    (cdkDropListDropped)="onDrop($event)"
-  >
-    @for (item of (sheet.equipment || []); track item.name; let i = $index) {
-    <div cdkDrag [cdkDragDisabled]="isItemEditing(i)" (cdkDragStarted)="onDragStarted($event)">
-      <app-item
-        [item]="item"
-        [sheet]="sheet"
-        [index]="i"
-        [isEditing]="isItemEditing(i)"
-        (patch)="updateItem(i, $event)"
-        (delete)="deleteItem(i)"
-        (editingChange)="onEditingChange(i, $event)"
-        (openEditor)="openItemEditor(i)"
-        (breakTest)="performBreakTest(i)"
-      ></app-item>
-      <div
-        class="drag-placeholder-wrapper"
-        *cdkDragPlaceholder
-        [style.height]="placeholderHeight"
-        [style.width]="placeholderWidth"
-      ></div>
+  <!-- Armor Slots -->
+  <div class="armor-slots">
+    <!-- Helmet Slot -->
+    <div class="armor-slot">
+      <div class="slot-label">🪖 Helm</div>
+      <div 
+        class="slot-content"
+        cdkDropList
+        [cdkDropListData]="getArmorSlot('helmet')"
+        [cdkDropListConnectedTo]="['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienen Slot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+        [id]="'helmetSlot'"
+        (cdkDropListDropped)="onSlotDrop($event, 'helmet')"
+      >
+        @if (getArmorSlot('helmet').length > 0) {
+          @for (item of getArmorSlot('helmet'); track item.name; let i = $index) {
+            <div cdkDrag [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+              <app-item
+                [item]="item"
+                [sheet]="sheet"
+                [index]="getItemIndex(item)"
+                [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)"
+                (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)"
+                (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))"
+              ></app-item>
+            </div>
+          }
+        } @else {
+          <div class="empty-slot">Leer</div>
+        }
+      </div>
     </div>
-    } @if ((sheet.equipment || []).length === 0) {
-    <p class="empty-message">Keine Ausrüstung. Ziehe Gegenstände aus dem Inventar hierher.</p>
-    }
+
+    <!-- Chestplate Slot -->
+    <div class="armor-slot">
+      <div class="slot-label">🛡️ Brustpanzer</div>
+      <div 
+        class="slot-content"
+        cdkDropList
+        [cdkDropListData]="getArmorSlot('chestplate')"
+        [cdkDropListConnectedTo]="['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienen Slot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+        [id]="'chestplateSlot'"
+        (cdkDropListDropped)="onSlotDrop($event, 'chestplate')"
+      >
+        @if (getArmorSlot('chestplate').length > 0) {
+          @for (item of getArmorSlot('chestplate'); track item.name; let i = $index) {
+            <div cdkDrag [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+              <app-item
+                [item]="item"
+                [sheet]="sheet"
+                [index]="getItemIndex(item)"
+                [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)"
+                (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)"
+                (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))"
+              ></app-item>
+            </div>
+          }
+        } @else {
+          <div class="empty-slot">Leer</div>
+        }
+      </div>
+    </div>
+
+    <!-- Armschienen Slot -->
+    <div class="armor-slot">
+      <div class="slot-label">🤺 Armschienen</div>
+      <div 
+        class="slot-content"
+        cdkDropList
+        [cdkDropListData]="getArmorSlot('armschienen')"
+        [cdkDropListConnectedTo]="['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+        [id]="'armschienenSlot'"
+        (cdkDropListDropped)="onSlotDrop($event, 'armschienen')"
+      >
+        @if (getArmorSlot('armschienen').length > 0) {
+          @for (item of getArmorSlot('armschienen'); track item.name; let i = $index) {
+            <div cdkDrag [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+              <app-item
+                [item]="item"
+                [sheet]="sheet"
+                [index]="getItemIndex(item)"
+                [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)"
+                (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)"
+                (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))"
+              ></app-item>
+            </div>
+          }
+        } @else {
+          <div class="empty-slot">Leer</div>
+        }
+      </div>
+    </div>
+
+    <!-- Leggings Slot -->
+    <div class="armor-slot">
+      <div class="slot-label">🦵 Beinschienen</div>
+      <div 
+        class="slot-content"
+        cdkDropList
+        [cdkDropListData]="getArmorSlot('leggings')"
+        [cdkDropListConnectedTo]="['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+        [id]="'leggingsSlot'"
+        (cdkDropListDropped)="onSlotDrop($event, 'leggings')"
+      >
+        @if (getArmorSlot('leggings').length > 0) {
+          @for (item of getArmorSlot('leggings'); track item.name; let i = $index) {
+            <div cdkDrag [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+              <app-item
+                [item]="item"
+                [sheet]="sheet"
+                [index]="getItemIndex(item)"
+                [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)"
+                (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)"
+                (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))"
+              ></app-item>
+            </div>
+          }
+        } @else {
+          <div class="empty-slot">Leer</div>
+        }
+      </div>
+    </div>
+
+    <!-- Boots Slot -->
+    <div class="armor-slot">
+      <div class="slot-label">👢 Stiefel</div>
+      <div 
+        class="slot-content"
+        cdkDropList
+        [cdkDropListData]="getArmorSlot('boots')"
+        [cdkDropListConnectedTo]="['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+        [id]="'bootsSlot'"
+        (cdkDropListDropped)="onSlotDrop($event, 'boots')"
+      >
+        @if (getArmorSlot('boots').length > 0) {
+          @for (item of getArmorSlot('boots'); track item.name; let i = $index) {
+            <div cdkDrag [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+              <app-item
+                [item]="item"
+                [sheet]="sheet"
+                [index]="getItemIndex(item)"
+                [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)"
+                (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)"
+                (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))"
+              ></app-item>
+            </div>
+          }
+        } @else {
+          <div class="empty-slot">Leer</div>
+        }
+      </div>
+    </div>
+
+    <!-- Extra Slot (for non-armor items and extra armor pieces) -->
+    <div class="armor-slot extra">
+      <div class="slot-label">📦 Extra</div>
+      <div 
+        class="slot-content"
+        cdkDropList
+        [cdkDropListData]="getArmorSlot('extra')"
+        [cdkDropListConnectedTo]="['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+        [id]="'extraSlot'"
+        (cdkDropListDropped)="onSlotDrop($event, 'extra')"
+      >
+        @if (getArmorSlot('extra').length > 0) {
+          @for (item of getArmorSlot('extra'); track item.name; let i = $index) {
+            <div cdkDrag [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+              <app-item
+                [item]="item"
+                [sheet]="sheet"
+                [index]="getItemIndex(item)"
+                [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)"
+                (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)"
+                (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))"
+              ></app-item>
+            </div>
+          }
+        } @else {
+          <div class="empty-slot">Leer</div>
+        }
+      </div>
+    </div>
   </div>
 
   <!-- Item Editor Modal -->
