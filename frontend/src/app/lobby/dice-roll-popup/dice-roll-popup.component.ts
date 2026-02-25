@@ -57,8 +57,8 @@ export interface DiceRollPopup {
               @for (roll of popup.rolls; track $index) {
                 <span 
                   class="roll-die"
-                  [class.crit-success]="roll === popup.diceType && popup.diceType === 20"
-                  [class.crit-fail]="roll === 1 && popup.diceType === 20"
+                  [class.crit-success]="roll === 1 && popup.diceType === 20"
+                  [class.crit-fail]="roll === popup.diceType && popup.diceType === 20"
                 >
                   {{ roll }}
                 </span>

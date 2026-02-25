@@ -10,8 +10,7 @@ export enum ArmorType {
 }
 
 export class Armor extends ItemBlock {
-  durability!: number;
-  stability!: number;
+  // durability and stability are now inherited from ItemBlock
   armorType!: ArmorType;
 
   // For crafting

@@ -33,9 +33,7 @@ export interface WeaponBonus {
 }
 
 export class Weapon extends ItemBlock {
-  // From base game rules
-  durability!: number;
-  efficiency!: number;
+  // durability and efficiency are now inherited from ItemBlock
   range!: number;
   weaponType!: WeaponType;
   damageType!: DamageType;

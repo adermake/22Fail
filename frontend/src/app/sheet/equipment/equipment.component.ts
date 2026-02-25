@@ -4,22 +4,29 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { ItemComponent } from '../item/item.component';
+import { ItemEditorComponent } from '../item-editor/item-editor.component';
 import { CardComponent } from '../../shared/card/card.component';
 import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 
 @Component({
   selector: 'app-equipment',
-  imports: [CommonModule, ItemComponent, CardComponent, DragDropModule],
+  imports: [CommonModule, ItemComponent, ItemEditorComponent, CardComponent, DragDropModule],
   templateUrl: './equipment.component.html',
   styleUrl: './equipment.component.css',
 })
 export class EquipmentComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
+  @Output() rollDice = new EventEmitter<{ type: number; modifier: number; reason: string; callback?: (result: number) => void }>();
 
   private editingItems = new Set<number>();
   placeholderHeight = '90px';
   placeholderWidth = '100%';
+  
+  // Item editor state
+  showItemEditor = false;
+  editingItemIndex: number | null = null;
+  editingItem: ItemBlock | null = null;
 
   ngOnInit() {
     if (!this.sheet.equipment) {
@@ -33,11 +40,23 @@ export class EquipmentComponent {
 
   get totalArmorDebuff(): number {
     // Sum of all individual armor debuffs divided by 5, then subtract negation
-    const sumOfArmorDebuffs = this.sheet.equipment?.reduce((sum, item) => sum + (item.armorDebuff || 0), 0) || 0;
+    // Also add +5 penalty for each broken armor piece
+    let sumOfArmorDebuffs = 0;
+    let brokenArmorPenalty = 0;
+    
+    for (const item of (this.sheet.equipment || [])) {
+      sumOfArmorDebuffs += item.armorDebuff || 0;
+      
+      // Broken armor gives +5 penalty
+      if (item.broken && item.itemType === 'armor') {
+        brokenArmorPenalty += 5;
+      }
+    }
+    
     const armorPenalty = sumOfArmorDebuffs / 5;
     const negation = this.sheet.speedPenaltyNegation || 0;
     
-    return Math.max(0, armorPenalty - negation);
+    return Math.max(0, armorPenalty + brokenArmorPenalty - negation);
   }
 
   get effectiveSpeed(): number {
@@ -158,5 +177,70 @@ export class EquipmentComponent {
 
   isItemEditing(index: number): boolean {
     return this.editingItems.has(index);
+  }
+
+  // Open full-screen item editor
+  openItemEditor(index: number) {
+    this.editingItemIndex = index;
+    this.editingItem = this.sheet.equipment[index];
+    this.showItemEditor = true;
+  }
+
+  closeItemEditor() {
+    this.showItemEditor = false;
+    this.editingItemIndex = null;
+    this.editingItem = null;
+  }
+
+  saveItemFromEditor(item: ItemBlock) {
+    if (this.editingItemIndex !== null) {
+      // Update existing item
+      this.sheet.equipment[this.editingItemIndex] = item;
+      this.sheet.equipment = [...this.sheet.equipment];
+      this.patch.emit({
+        path: `equipment.${this.editingItemIndex}`,
+        value: item,
+      });
+    }
+    this.closeItemEditor();
+  }
+
+  // Break test for equipment items
+  performBreakTest(index: number) {
+    const item = this.sheet.equipment[index];
+    if (!item || item.broken) return;
+
+    // Calculate break test modifier
+    const durability = item.durability || 0;
+    const modifier = Math.floor(-5 + (100 - durability) / 10);
+
+    // Emit dice roll request with callback
+    this.rollDice.emit({
+      type: 20,
+      modifier: modifier,
+      reason: `Bruchtest: ${item.name}`,
+      callback: (result: number) => {
+        const total = result + modifier;
+        if (total > 10) {
+          // Item breaks
+          this.sheet.equipment[index].broken = true;
+          this.sheet.equipment = [...this.sheet.equipment];
+          this.patch.emit({
+            path: `equipment.${index}.broken`,
+            value: true,
+          });
+        }
+      }
+    });
+  }
+
+  // Get available skills from sheet for item editor
+  getAvailableSkills(): { id: string; name: string }[] {
+    return (this.sheet.skills || []).map(s => ({ id: s.name, name: s.name }));
+  }
+
+  // Get available spells from sheet for item editor
+  getAvailableSpells(): { id: string; name: string }[] {
+    return (this.sheet.spells || []).map(s => ({ id: s.name, name: s.name }));
   }
 }

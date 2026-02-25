@@ -1,179 +1,162 @@
 <div class="item-card"
-     [class.editing]="isEditing"
      [class.unusable]="!canUseItem"
-     (dblclick)="!isEditing && toggleEdit()">
-  @if (!isEditing) {
-    <div class="item-view">
-      <div class="item-header">
+     [class.broken]="item.broken"
+     [class.lost]="item.lost"
+     [class.weapon]="item.itemType === 'weapon'"
+     [class.armor]="item.itemType === 'armor'"
+     (dblclick)="toggleEdit()">
+  <div class="item-view">
+    <div class="item-header">
+      <div class="item-title-row">
+        @if (item.itemType) {
+          <span class="item-type-icon">{{ itemTypeIcon }}</span>
+        }
         <h4>{{ item.name }}</h4>
-        <div class="item-badges">
-          <span class="item-weight">{{ item.weight }} kg</span>
-          @if (item.armorDebuff) {
-            <span class="item-armor-debuff">-{{ item.armorDebuff }} SPD</span>
-          }
-          @if (!canUseItem) {
-            <span class="item-unusable-badge">Cannot Use</span>
-          }
-          <button class="delete-btn-compact" (click)="deleteItem(); $event.stopPropagation()" title="Delete">🗑️</button>
-        </div>
+        @if (item.broken) {
+          <span class="broken-badge">⚠ Zerbrochen</span>
+        }
+        @if (item.lost) {
+          <span class="lost-badge">Verloren</span>
+        }
       </div>
-      <p class="item-description" [innerHTML]="enhancedDescription"></p>
-      
-      @if (item.requirements && (item.requirements.strength || item.requirements.dexterity || item.requirements.speed || item.requirements.intelligence || item.requirements.constitution || item.requirements.chill)) {
-        <div class="item-requirements">
-          <span class="req-label">Requires:</span>
-          @if (item.requirements.strength) {
-            <span class="req-stat" [class.unmet]="sheet.strength.current < item.requirements.strength">
-              STR {{ item.requirements.strength }}
-            </span>
-          }
-          @if (item.requirements.dexterity) {
-            <span class="req-stat" [class.unmet]="sheet.dexterity.current < item.requirements.dexterity">
-              DEX {{ item.requirements.dexterity }}
-            </span>
-          }
-          @if (item.requirements.speed) {
-            <span class="req-stat" [class.unmet]="sheet.speed.current < item.requirements.speed">
-              SPD {{ item.requirements.speed }}
-            </span>
-          }
-          @if (item.requirements.intelligence) {
-            <span class="req-stat" [class.unmet]="sheet.intelligence.current < item.requirements.intelligence">
-              INT {{ item.requirements.intelligence }}
-            </span>
-          }
-          @if (item.requirements.constitution) {
-            <span class="req-stat" [class.unmet]="sheet.constitution.current < item.requirements.constitution">
-              CON {{ item.requirements.constitution }}
-            </span>
-          }
-          @if (item.requirements.chill) {
-            <span class="req-stat" [class.unmet]="sheet.chill.current < item.requirements.chill">
-              CHL {{ item.requirements.chill }}
-            </span>
-          }
-        </div>
-      }
-    </div>
-  } @else {
-    <div class="item-edit" (click)="$event.stopPropagation()">
-      <div class="field">
-        <label>Name</label>
-        <input
-          type="text"
-          [ngModel]="item.name"
-          (ngModelChange)="updateField('name', $event)"
-        />
-      </div>
-
-      <div class="field-row">
-        <div class="field">
-          <label>Weight (kg)</label>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            [ngModel]="item.weight"
-            (ngModelChange)="updateField('weight', +$event)"
-          />
-        </div>
-        <div class="field">
-          <label>Armor Debuff (Speed -)</label>
-          <input
-            type="number"
-            min="0"
-            [ngModel]="item.armorDebuff || 0"
-            (ngModelChange)="updateField('armorDebuff', +$event)"
-            placeholder="0"
-          />
-        </div>
-      </div>
-     <div class="field checkbox-field">
-        <label>Verloren</label>
-        <input
-          type="checkbox"
-          [ngModel]="item.lost"
-          (ngModelChange)="updateField('lost', +$event)"
-        />
-      </div>
-      <div class="field">
-        <label>Description</label>
-        <textarea
-          [ngModel]="item.description"
-          (ngModelChange)="updateField('description', $event)"
-          rows="3"
-        ></textarea>
-      </div>
-
-      <div class="requirements-section">
-        <label>Requirements</label>
-        <div class="requirements-grid">
-          <div class="req-field">
-            <label>STR</label>
-            <input
-              type="number"
-              min="0"
-              [ngModel]="item.requirements?.strength || ''"
-              (ngModelChange)="updateField('requirements.strength', $event ? +$event : undefined)"
-              placeholder="-"
-            />
-          </div>
-          <div class="req-field">
-            <label>DEX</label>
-            <input
-              type="number"
-              min="0"
-              [ngModel]="item.requirements?.dexterity || ''"
-              (ngModelChange)="updateField('requirements.dexterity', $event ? +$event : undefined)"
-              placeholder="-"
-            />
-          </div>
-          <div class="req-field">
-            <label>SPD</label>
-            <input
-              type="number"
-              min="0"
-              [ngModel]="item.requirements?.speed || ''"
-              (ngModelChange)="updateField('requirements.speed', $event ? +$event : undefined)"
-              placeholder="-"
-            />
-          </div>
-          <div class="req-field">
-            <label>INT</label>
-            <input
-              type="number"
-              min="0"
-              [ngModel]="item.requirements?.intelligence || ''"
-              (ngModelChange)="updateField('requirements.intelligence', $event ? +$event : undefined)"
-              placeholder="-"
-            />
-          </div>
-          <div class="req-field">
-            <label>CON</label>
-            <input
-              type="number"
-              min="0"
-              [ngModel]="item.requirements?.constitution || ''"
-              (ngModelChange)="updateField('requirements.constitution', $event ? +$event : undefined)"
-              placeholder="-"
-            />
-          </div>
-          <div class="req-field">
-            <label>CHL</label>
-            <input
-              type="number"
-              min="0"
-              [ngModel]="item.requirements?.chill || ''"
-              (ngModelChange)="updateField('requirements.chill', $event ? +$event : undefined)"
-              placeholder="-"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div class="item-actions">
-        <button class="save-btn" (click)="toggleEdit()">Done</button>
+      <div class="item-badges">
+        <span class="item-weight">{{ item.weight }} kg</span>
+        @if (item.itemType === 'weapon' && item.efficiency) {
+          <span class="item-efficiency">⚔ {{ item.efficiency }}</span>
+        }
+        @if (item.itemType === 'armor' && item.stability) {
+          <span class="item-stability">🛡 {{ item.stability }}</span>
+        }
+        @if (item.armorDebuff) {
+          <span class="item-armor-debuff">-{{ item.armorDebuff }} SPD</span>
+        }
+        @if (!canUseItem && !item.broken && !item.lost) {
+          <span class="item-unusable-badge">Unbrauchbar</span>
+        }
+        <button class="action-btn lost-btn" 
+                [class.active]="item.lost"
+                (click)="toggleLost(); $event.stopPropagation()" 
+                title="Verloren markieren">
+          👁
+        </button>
+        <button class="delete-btn-compact" (click)="deleteItem(); $event.stopPropagation()" title="Löschen">🗑️</button>
       </div>
     </div>
-  }
+
+    <!-- Durability Bar -->
+    @if (item.hasDurability && item.maxDurability) {
+      <div class="durability-section">
+        <div class="durability-header">
+          <span class="durability-label">Haltbarkeit</span>
+          <span class="durability-value">{{ item.durability || 0 }} / {{ item.maxDurability }}</span>
+        </div>
+        <div class="durability-bar">
+          <div class="durability-fill" 
+               [class]="durabilityClass"
+               [style.width.%]="durabilityPercent">
+          </div>
+        </div>
+        <div class="durability-controls">
+          <button class="dur-btn" (click)="reduceDurability(1); $event.stopPropagation()">-1</button>
+          <button class="dur-btn" (click)="reduceDurability(5); $event.stopPropagation()">-5</button>
+          <button class="dur-btn" (click)="reduceDurability(10); $event.stopPropagation()">-10</button>
+          @if (!item.broken && (item.durability || 0) === 0) {
+            <button class="break-test-btn" (click)="requestBreakTest(); $event.stopPropagation()">
+              🎲 Bruchtest
+            </button>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Custom Counters -->
+    @if (item.counters && item.counters.length > 0) {
+      <div class="counters-section">
+        @for (counter of item.counters; track counter.id) {
+          <div class="counter-row">
+            <span class="counter-color-dot" [style.backgroundColor]="counter.color"></span>
+            <span class="counter-name">{{ counter.name }}</span>
+            <div class="counter-controls">
+              <button class="counter-btn" (click)="updateCounter(counter, counter.current - 1); $event.stopPropagation()">-</button>
+              <span class="counter-value">{{ counter.current }}</span>
+              <button class="counter-btn" (click)="updateCounter(counter, counter.current + 1); $event.stopPropagation()">+</button>
+            </div>
+            <span class="counter-max">/ {{ counter.max }}</span>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Dice Bonuses -->
+    @if (item.diceBonuses && item.diceBonuses.length > 0) {
+      <div class="dice-bonuses-section">
+        @for (bonus of item.diceBonuses; track bonus.name) {
+          <span class="dice-bonus" [class.good]="bonus.value < 0" [class.bad]="bonus.value > 0">
+            {{ bonus.name }}: {{ bonus.value > 0 ? '+' : '' }}{{ bonus.value }}
+          </span>
+        }
+      </div>
+    }
+
+    <p class="item-description" [innerHTML]="enhancedDescription"></p>
+    
+    <!-- Requirements -->
+    @if (item.requirements && (item.requirements.strength || item.requirements.dexterity || item.requirements.speed || item.requirements.intelligence || item.requirements.constitution || item.requirements.chill)) {
+      <div class="item-requirements">
+        <span class="req-label">Anforderungen:</span>
+        @if (item.requirements.strength) {
+          <span class="req-stat" [class.unmet]="sheet.strength.current < item.requirements.strength">
+            STR {{ item.requirements.strength }}
+          </span>
+        }
+        @if (item.requirements.dexterity) {
+          <span class="req-stat" [class.unmet]="sheet.dexterity.current < item.requirements.dexterity">
+            DEX {{ item.requirements.dexterity }}
+          </span>
+        }
+        @if (item.requirements.speed) {
+          <span class="req-stat" [class.unmet]="sheet.speed.current < item.requirements.speed">
+            SPD {{ item.requirements.speed }}
+          </span>
+        }
+        @if (item.requirements.intelligence) {
+          <span class="req-stat" [class.unmet]="sheet.intelligence.current < item.requirements.intelligence">
+            INT {{ item.requirements.intelligence }}
+          </span>
+        }
+        @if (item.requirements.constitution) {
+          <span class="req-stat" [class.unmet]="sheet.constitution.current < item.requirements.constitution">
+            CON {{ item.requirements.constitution }}
+          </span>
+        }
+        @if (item.requirements.chill) {
+          <span class="req-stat" [class.unmet]="sheet.chill.current < item.requirements.chill">
+            CHL {{ item.requirements.chill }}
+          </span>
+        }
+      </div>
+    }
+
+    <!-- Attached Skills/Spells -->
+    @if ((item.attachedSkills && item.attachedSkills.length > 0) || (item.attachedSpells && item.attachedSpells.length > 0)) {
+      <div class="attached-section">
+        @if (item.attachedSkills && item.attachedSkills.length > 0) {
+          <div class="attached-row">
+            <span class="attached-label">Fähigkeiten:</span>
+            @for (skill of item.attachedSkills; track skill.skillId) {
+              <span class="attached-skill">{{ skill.skillName }}</span>
+            }
+          </div>
+        }
+        @if (item.attachedSpells && item.attachedSpells.length > 0) {
+          <div class="attached-row">
+            <span class="attached-label">Zauber:</span>
+            @for (spell of item.attachedSpells; track spell.spellId) {
+              <span class="attached-spell">{{ spell.spellName }}</span>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
 </div>

@@ -1,7 +1,7 @@
 <app-card>
   <div class="inventory-header">
     <div>
-      <h2>Inventory</h2>
+      <h2>Inventar</h2>
       <div class="weight-info">
         <div class="weight-row">
           <span class="weight-display" [class]="encumbranceClass" [style.color]="encumbranceColor">
@@ -12,7 +12,7 @@
           }
         </div>
         <span class="currency-weight-label"
-          >Currency: {{ getCurrencyWeight() | number : '1.2-2' }} kg</span
+          >Währung: {{ getCurrencyWeight() | number : '1.2-2' }} kg</span
         >
         <div class="weight-bar" [class]="encumbranceClass">
           <div
@@ -25,10 +25,10 @@
       </div>
     </div>
     <div class="header-buttons">
-      <button class="settings-btn" (click)="openSettingsDialog()" title="Carry Capacity Settings">
+      <button class="settings-btn" (click)="openSettingsDialog()" title="Tragkraft-Einstellungen">
         ⚙️
       </button>
-      <button class="add-btn" (click)="openCreateDialog()">+ Add Item</button>
+      <button class="add-btn" (click)="openNewItemEditor()">+ Gegenstand</button>
     </div>
   </div>
 
@@ -50,6 +50,8 @@
         (patch)="updateItem(i, $event)"
         (delete)="deleteItem(i)"
         (editingChange)="onEditingChange(i, $event)"
+        (openEditor)="openItemEditor(i)"
+        (breakTest)="performBreakTest(i)"
       ></app-item>
       <div
         class="drag-placeholder-wrapper"
@@ -59,15 +61,15 @@
       ></div>
     </div>
     } @if ((sheet.inventory || []).length === 0) {
-    <p class="empty-message">No items yet. Click + to add one.</p>
+    <p class="empty-message">Keine Gegenstände. Klicke + um einen hinzuzufügen.</p>
     }
   </div>
   <!-- Currency Section at Bottom -->
   <div class="currency-section">
-    <h3>Currency</h3>
+    <h3>Währung</h3>
     <div class="currency-grid">
       <div class="coin-input copper">
-        <label for="copper">Copper</label>
+        <label for="copper">Kupfer</label>
         <input
           id="copper"
           type="number"
@@ -78,7 +80,7 @@
         />
       </div>
       <div class="coin-input silver">
-        <label for="silver">Silver</label>
+        <label for="silver">Silber</label>
         <input
           id="silver"
           type="number"
@@ -100,7 +102,7 @@
         />
       </div>
       <div class="coin-input platinum">
-        <label for="platinum">Platinum</label>
+        <label for="platinum">Platin</label>
         <input
           id="platinum"
           type="number"
@@ -112,14 +114,14 @@
       </div>
     </div>
     <div class="currency-total">
-      Total: {{ getCurrencyTotalValue() | number:'1.2-2' }} gp
+      Gesamt: {{ getCurrencyTotalValue() | number:'1.2-2' }} Gold
     </div>
   </div>
   <!-- Create Dialog -->
   @if (showCreateDialog) {
   <div class="dialog-overlay" (click)="closeCreateDialog()">
     <div class="dialog-content" (click)="$event.stopPropagation()">
-      <h3>Add New Item</h3>
+      <h3>Neuen Gegenstand hinzufügen</h3>
       <app-item-creator
         (create)="createItem($event)"
         (cancel)="closeCreateDialog()"
@@ -132,13 +134,13 @@
   @if (showSettingsDialog) {
   <div class="dialog-overlay">
     <div class="dialog-content" (click)="$event.stopPropagation()">
-      <h3>Carry Capacity Settings</h3>
+      <h3>Tragkraft-Einstellungen</h3>
       <div class="settings-form">
         <div class="field">
-          <label>Formula: (Strength × Multiplier) + Bonus</label>
+          <label>Formel: (Stärke × Multiplikator) + Bonus</label>
         </div>
         <div class="field">
-          <label for="multiplier">Multiplier</label>
+          <label for="multiplier">Multiplikator</label>
           <input
             id="multiplier"
             type="number"
@@ -159,12 +161,24 @@
           />
         </div>
         <div class="field preview">
-          <label>Current Capacity:</label>
+          <label>Aktuelle Kapazität:</label>
           <span class="capacity-preview">{{ maxCapacity }} kg</span>
         </div>
-        <button class="close-btn" (click)="closeSettingsDialog()">Close</button>
+        <button class="close-btn" (click)="closeSettingsDialog()">Schließen</button>
       </div>
     </div>
   </div>
+  }
+
+  <!-- Item Editor Modal -->
+  @if (showItemEditor) {
+    <app-item-editor
+      [item]="editingItem"
+      [sheet]="sheet"
+      [availableSkills]="getAvailableSkills()"
+      [availableSpells]="getAvailableSpells()"
+      (save)="saveItemFromEditor($event)"
+      (cancel)="closeItemEditor()"
+    ></app-item-editor>
   }
 </app-card>

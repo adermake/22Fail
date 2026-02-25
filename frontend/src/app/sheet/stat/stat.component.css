@@ -126,11 +126,11 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 .value.bonus.negative {
-  color: #ff4d6d;
+  color: #22c55e; /* GREEN - negative is GOOD (helps roll lower) */
 }
 
 .value.bonus.positive {
-  color: #a259ff;
+  color: #ef4444; /* RED - positive is BAD (makes roll higher) */
 }
 
 .effect-label {

@@ -2,7 +2,7 @@ import { ChangeDetectorRef, Component, EventEmitter, Input, Output } from '@angu
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { ItemBlock } from '../../model/item-block.model';
+import { ItemBlock, ItemCounter } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { KeywordEnhancer } from '../keyword-enhancer';
@@ -22,6 +22,8 @@ export class ItemComponent {
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
+  @Output() openEditor = new EventEmitter<void>();
+  @Output() breakTest = new EventEmitter<void>();
 
   constructor(
     private cd: ChangeDetectorRef,
@@ -47,16 +49,74 @@ export class ItemComponent {
     if (reqs.constitution && stats.constitution.current < reqs.constitution) return false;
     if (reqs.chill && stats.chill.current < reqs.chill) return false;
     if (this.item.lost) return false;
+    if (this.item.broken) return false;
     return true;
   }
 
+  get durabilityPercent(): number {
+    if (!this.item.hasDurability || !this.item.maxDurability) return 100;
+    return Math.round((this.item.durability || 0) / this.item.maxDurability * 100);
+  }
+
+  get durabilityClass(): string {
+    const pct = this.durabilityPercent;
+    if (pct > 66) return 'durability-high';
+    if (pct > 33) return 'durability-medium';
+    return 'durability-low';
+  }
+
+  get itemTypeIcon(): string {
+    switch (this.item.itemType) {
+      case 'weapon': return '⚔';
+      case 'armor': return '🛡';
+      default: return '📦';
+    }
+  }
+
+  get itemTypeLabel(): string {
+    switch (this.item.itemType) {
+      case 'weapon': return 'Waffe';
+      case 'armor': return 'Rüstung';
+      default: return 'Gegenstand';
+    }
+  }
+
   toggleEdit() {
-    this.editingChange.emit(!this.isEditing);
+    // Open full-screen editor instead of inline editing
+    this.openEditor.emit();
   }
 
   updateField(field: string, value: any) {
     this.patch.emit({ path: field, value });
     this.cd.detectChanges();
+  }
+
+  updateCounter(counter: ItemCounter, value: number) {
+    // Clamp value to min/max
+    const newValue = Math.max(counter.min, Math.min(counter.max, value));
+    const counterIndex = this.item.counters?.indexOf(counter) ?? -1;
+    if (counterIndex >= 0) {
+      this.patch.emit({ path: `counters.${counterIndex}.current`, value: newValue });
+    }
+  }
+
+  reduceDurability(amount: number) {
+    if (!this.item.hasDurability) return;
+    const newDurability = Math.max(0, (this.item.durability || 0) - amount);
+    this.patch.emit({ path: 'durability', value: newDurability });
+    
+    // If durability reaches 0, trigger break test
+    if (newDurability === 0 && !this.item.broken) {
+      this.breakTest.emit();
+    }
+  }
+
+  requestBreakTest() {
+    this.breakTest.emit();
+  }
+
+  toggleLost() {
+    this.patch.emit({ path: 'lost', value: !this.item.lost });
   }
 
   deleteItem() {

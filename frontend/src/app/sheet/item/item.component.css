@@ -307,3 +307,338 @@
   background: rgba(244, 67, 54, 0.1);
   transform: scale(1.1);
 }
+
+/* Item Type Styling */
+.item-card.weapon {
+  border-left-color: #f59e0b; /* Orange for weapons */
+}
+
+.item-card.armor {
+  border-left-color: #6366f1; /* Purple for armor */
+}
+
+.item-card.broken {
+  border-left-color: #ef4444;
+  opacity: 0.65;
+  background: linear-gradient(135deg, var(--card) 0%, #2d1f1f 100%);
+}
+
+.item-card.lost {
+  opacity: 0.4;
+  filter: grayscale(0.5);
+}
+
+/* Title Row */
+.item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.item-type-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.broken-badge {
+  background: #7f1d1d;
+  color: #fecaca;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid #ef4444;
+}
+
+.lost-badge {
+  background: #374151;
+  color: #9ca3af;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid #6b7280;
+}
+
+/* Action Buttons */
+.action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.25rem 0.4rem;
+  opacity: 0.5;
+  transition: all 0.2s;
+  border-radius: 4px;
+}
+
+.action-btn:hover {
+  opacity: 1;
+}
+
+.action-btn.active {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+.lost-btn.active {
+  background: rgba(107, 114, 128, 0.2);
+}
+
+/* Efficiency and Stability Badges */
+.item-efficiency {
+  background: #451a03;
+  color: #f59e0b;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  border: 1px solid #f59e0b;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.item-stability {
+  background: #1e1b4b;
+  color: #a5b4fc;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  border: 1px solid #6366f1;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* Durability Section */
+.durability-section {
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+  border: 1px solid var(--border);
+}
+
+.durability-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.durability-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.durability-value {
+  font-size: 0.8rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.durability-bar {
+  height: 8px;
+  background: #1f2937;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.durability-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s, background-color 0.3s;
+}
+
+.durability-fill.durability-high {
+  background: linear-gradient(to right, #22c55e, #4ade80);
+}
+
+.durability-fill.durability-medium {
+  background: linear-gradient(to right, #f59e0b, #fbbf24);
+}
+
+.durability-fill.durability-low {
+  background: linear-gradient(to right, #ef4444, #f87171);
+}
+
+.durability-controls {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.dur-btn {
+  padding: 0.25rem 0.5rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dur-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.break-test-btn {
+  padding: 0.25rem 0.6rem;
+  background: #7f1d1d;
+  border: 1px solid #ef4444;
+  border-radius: 4px;
+  color: #fecaca;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.break-test-btn:hover {
+  background: #991b1b;
+}
+
+/* Counters Section */
+.counters-section {
+  margin: 0.5rem 0;
+}
+
+.counter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  background: var(--bg);
+  border-radius: 4px;
+  margin-bottom: 0.3rem;
+  border: 1px solid var(--border);
+}
+
+.counter-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.counter-name {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.counter-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.counter-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.counter-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.counter-value {
+  min-width: 28px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.counter-max {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Dice Bonuses Section */
+.dice-bonuses-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.dice-bonus {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.dice-bonus.good {
+  background: #052e16;
+  border-color: #22c55e;
+  color: #86efac;
+}
+
+.dice-bonus.bad {
+  background: #450a0a;
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+
+/* Attached Skills/Spells Section */
+.attached-section {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.attached-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin-bottom: 0.3rem;
+}
+
+.attached-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.attached-skill {
+  padding: 0.15rem 0.4rem;
+  background: #1e3a5f;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #93c5fd;
+}
+
+.attached-spell {
+  padding: 0.15rem 0.4rem;
+  background: #3b0764;
+  border: 1px solid #a855f7;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #d8b4fe;
+}

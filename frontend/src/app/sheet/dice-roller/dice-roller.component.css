@@ -290,7 +290,11 @@
 }
 
 .formula-display .negative {
-  color: #ef4444;
+  color: #22c55e; /* GREEN - negative is GOOD (helps roll lower) */
+}
+
+.formula-display .positive {
+  color: #ef4444; /* RED - positive is BAD (makes roll higher) */
 }
 
 .roll-btn {
@@ -377,14 +381,14 @@
 
 .bonus-pill {
   background: #333;
-  color: #22c55e;
+  color: #ef4444; /* RED by default - positive is BAD */
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
 }
 
 .bonus-pill.negative {
-  color: #ef4444;
+  color: #22c55e; /* GREEN - negative is GOOD */
 }
 
 /* Save Configuration */
@@ -542,13 +546,13 @@
 }
 
 .chip-value {
-  color: #22c55e;
+  color: #ef4444; /* RED by default - positive is BAD */
   font-size: 16px;
   font-weight: bold;
 }
 
 .chip-value.negative {
-  color: #ef4444;
+  color: #22c55e; /* GREEN - negative is GOOD */
 }
 
 .chip-context {

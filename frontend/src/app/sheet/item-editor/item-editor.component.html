@@ -1,0 +1,368 @@
+<div class="item-editor-overlay" (click)="cancelEdit()">
+  <div class="item-editor-modal" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="editor-header">
+      <h2>{{ isNewItem ? 'Neuen Gegenstand erstellen' : 'Gegenstand bearbeiten' }}</h2>
+      <button class="close-btn" (click)="cancelEdit()">×</button>
+    </div>
+
+    <!-- Content -->
+    <div class="editor-content">
+      <!-- Left Column: Basic Info & Type -->
+      <div class="editor-column">
+        <!-- Basic Info Section -->
+        <section class="editor-section">
+          <h3>Grundlegendes</h3>
+          
+          <div class="form-group">
+            <label>Name *</label>
+            <input type="text" [(ngModel)]="editItem.name" placeholder="Gegenstandsname" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Gewicht (kg)</label>
+              <input type="number" [(ngModel)]="editItem.weight" min="0" step="0.1">
+            </div>
+            <div class="form-group">
+              <label>Wert (Gold)</label>
+              <input type="number" [(ngModel)]="editItem.value" min="0">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Beschreibung</label>
+            <textarea [(ngModel)]="editItem.description" rows="4" placeholder="Beschreibung..."></textarea>
+          </div>
+        </section>
+
+        <!-- Item Type Section -->
+        <section class="editor-section">
+          <h3>Gegenstandstyp</h3>
+          
+          <div class="type-selector">
+            <button 
+              [class.active]="editItem.itemType === 'weapon'"
+              (click)="setItemType('weapon')">
+              ⚔ Waffe
+            </button>
+            <button 
+              [class.active]="editItem.itemType === 'armor'"
+              (click)="setItemType('armor')">
+              🛡 Rüstung
+            </button>
+            <button 
+              [class.active]="editItem.itemType === 'other'"
+              (click)="setItemType('other')">
+              📦 Sonstiges
+            </button>
+          </div>
+
+          <!-- Weapon-specific options -->
+          <div *ngIf="editItem.itemType === 'weapon'" class="type-options">
+            <div class="form-group">
+              <label>Effizienz (Schadenswert)</label>
+              <input type="number" [(ngModel)]="editItem.efficiency" min="1" max="100">
+            </div>
+          </div>
+
+          <!-- Armor-specific options -->
+          <div *ngIf="editItem.itemType === 'armor'" class="type-options">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Stabilität (Schutzwert)</label>
+                <input type="number" [(ngModel)]="editItem.stability" min="0" max="100">
+              </div>
+              <div class="form-group">
+                <label>Rüstungsmalus</label>
+                <input type="number" [(ngModel)]="editItem.armorDebuff" min="0">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Durability Section -->
+        <section class="editor-section">
+          <h3>Haltbarkeit</h3>
+          
+          <div class="toggle-row">
+            <label class="toggle-label">
+              <input type="checkbox" [checked]="editItem.hasDurability" (change)="toggleDurability()">
+              <span>Haltbarkeit aktivieren</span>
+            </label>
+          </div>
+
+          <div *ngIf="editItem.hasDurability" class="durability-options">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Aktuell</label>
+                <input type="number" [(ngModel)]="editItem.durability" 
+                       [max]="editItem.maxDurability || 100" 
+                       min="0">
+              </div>
+              <div class="form-group">
+                <label>Maximum</label>
+                <input type="number" [(ngModel)]="editItem.maxDurability" min="1">
+              </div>
+            </div>
+
+            <div class="durability-info">
+              <p>
+                <strong>Bruchtest:</strong> Wenn Haltbarkeit auf 0 fällt, wird W20 gewürfelt.
+                Modifikator: -5 + (100-Haltbarkeit)/10
+              </p>
+              <p>
+                <strong>Bei Bruch:</strong>
+                <span *ngIf="editItem.itemType === 'weapon'">Waffe gibt -2 Würfelmalus</span>
+                <span *ngIf="editItem.itemType === 'armor'">Rüstung gibt +5 Rüstungsmalus</span>
+                <span *ngIf="editItem.itemType === 'other'">Gegenstand unbrauchbar</span>
+              </p>
+            </div>
+
+            <div class="toggle-row" *ngIf="editItem.hasDurability">
+              <label class="toggle-label broken-toggle">
+                <input type="checkbox" [(ngModel)]="editItem.broken">
+                <span>Zerbrochen</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Requirements Section -->
+        <section class="editor-section">
+          <h3>Anforderungen</h3>
+          
+          <div class="requirements-grid">
+            <div class="req-item">
+              <label>STR</label>
+              <input type="number" [(ngModel)]="editItem.requirements!.strength" min="0">
+            </div>
+            <div class="req-item">
+              <label>DEX</label>
+              <input type="number" [(ngModel)]="editItem.requirements!.dexterity" min="0">
+            </div>
+            <div class="req-item">
+              <label>SPD</label>
+              <input type="number" [(ngModel)]="editItem.requirements!.speed" min="0">
+            </div>
+            <div class="req-item">
+              <label>INT</label>
+              <input type="number" [(ngModel)]="editItem.requirements!.intelligence" min="0">
+            </div>
+            <div class="req-item">
+              <label>CON</label>
+              <input type="number" [(ngModel)]="editItem.requirements!.constitution" min="0">
+            </div>
+            <div class="req-item">
+              <label>CHL</label>
+              <input type="number" [(ngModel)]="editItem.requirements!.chill" min="0">
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right Column: Advanced Features -->
+      <div class="editor-column">
+        <!-- Stat Modifiers Section -->
+        <section class="editor-section">
+          <h3>Attributmodifikatoren</h3>
+          
+          <div class="stat-modifiers-grid">
+            <div class="stat-mod-item">
+              <label>Stärke</label>
+              <input type="number" [(ngModel)]="statModifiers['strength']">
+            </div>
+            <div class="stat-mod-item">
+              <label>Geschick</label>
+              <input type="number" [(ngModel)]="statModifiers['dexterity']">
+            </div>
+            <div class="stat-mod-item">
+              <label>Tempo</label>
+              <input type="number" [(ngModel)]="statModifiers['speed']">
+            </div>
+            <div class="stat-mod-item">
+              <label>Intelligenz</label>
+              <input type="number" [(ngModel)]="statModifiers['intelligence']">
+            </div>
+            <div class="stat-mod-item">
+              <label>Kondition</label>
+              <input type="number" [(ngModel)]="statModifiers['constitution']">
+            </div>
+            <div class="stat-mod-item">
+              <label>Ausstrahlung</label>
+              <input type="number" [(ngModel)]="statModifiers['chill']">
+            </div>
+            <div class="stat-mod-item">
+              <label>Mana</label>
+              <input type="number" [(ngModel)]="statModifiers['mana']">
+            </div>
+            <div class="stat-mod-item">
+              <label>Leben</label>
+              <input type="number" [(ngModel)]="statModifiers['life']">
+            </div>
+            <div class="stat-mod-item">
+              <label>Energie</label>
+              <input type="number" [(ngModel)]="statModifiers['energy']">
+            </div>
+          </div>
+        </section>
+
+        <!-- Custom Counters Section -->
+        <section class="editor-section">
+          <h3>Eigene Zähler</h3>
+          
+          <!-- Existing Counters -->
+          <div class="counter-list" *ngIf="editItem.counters && editItem.counters.length > 0">
+            <div class="counter-item" *ngFor="let counter of editItem.counters; let i = index">
+              <div class="counter-color" [style.backgroundColor]="counter.color"></div>
+              <span class="counter-name">{{ counter.name }}</span>
+              <span class="counter-range">{{ counter.current }} / {{ counter.max }}</span>
+              <button class="remove-btn" (click)="removeCounter(i)">×</button>
+            </div>
+          </div>
+
+          <!-- Add Counter Form -->
+          <div class="add-counter-form">
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label>Name</label>
+                <input type="text" [(ngModel)]="newCounter.name" placeholder="z.B. Ladungen">
+              </div>
+              <div class="form-group">
+                <label>Farbe</label>
+                <select [(ngModel)]="newCounter.color">
+                  <option *ngFor="let color of counterColors" [value]="color" [style.backgroundColor]="color">
+                    ●
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Min</label>
+                <input type="number" [(ngModel)]="newCounter.min">
+              </div>
+              <div class="form-group">
+                <label>Max</label>
+                <input type="number" [(ngModel)]="newCounter.max">
+              </div>
+              <div class="form-group">
+                <label>Start</label>
+                <input type="number" [(ngModel)]="newCounter.current">
+              </div>
+            </div>
+            <button class="add-btn" (click)="addCounter()" [disabled]="!newCounter.name.trim()">
+              + Zähler hinzufügen
+            </button>
+          </div>
+        </section>
+
+        <!-- Dice Bonuses Section -->
+        <section class="editor-section">
+          <h3>Würfelboni</h3>
+          <p class="section-info">Negativ = gut (hilft niedriger zu würfeln)</p>
+          
+          <!-- Existing Bonuses -->
+          <div class="bonus-list" *ngIf="editItem.diceBonuses && editItem.diceBonuses.length > 0">
+            <div class="bonus-item" *ngFor="let bonus of editItem.diceBonuses; let i = index">
+              <span class="bonus-name">{{ bonus.name }}</span>
+              <span class="bonus-value" [class]="getDiceBonusClass(bonus.value)">
+                {{ formatDiceBonusValue(bonus.value) }}
+              </span>
+              <button class="remove-btn" (click)="removeDiceBonus(i)">×</button>
+            </div>
+          </div>
+
+          <!-- Add Bonus Form -->
+          <div class="add-bonus-form">
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label>Bonus Name</label>
+                <input type="text" [(ngModel)]="newDiceBonus.name" placeholder="z.B. Angriff mit dieser Waffe">
+              </div>
+              <div class="form-group">
+                <label>Wert</label>
+                <input type="number" [(ngModel)]="newDiceBonus.value">
+              </div>
+            </div>
+            <button class="add-btn" (click)="addDiceBonus()" [disabled]="!newDiceBonus.name.trim()">
+              + Würfelbonus hinzufügen
+            </button>
+          </div>
+        </section>
+
+        <!-- Attached Skills Section -->
+        <section class="editor-section">
+          <h3>Angehängte Fähigkeiten</h3>
+          
+          <!-- Existing Skills -->
+          <div class="attached-list" *ngIf="editItem.attachedSkills && editItem.attachedSkills.length > 0">
+            <div class="attached-item" *ngFor="let skill of editItem.attachedSkills; let i = index">
+              <span>{{ skill.skillName }}</span>
+              <button class="remove-btn" (click)="removeAttachedSkill(i)">×</button>
+            </div>
+          </div>
+
+          <!-- Add Skill -->
+          <div class="add-attached-form" *ngIf="availableSkills.length > 0">
+            <select [(ngModel)]="selectedSkillId">
+              <option value="">Fähigkeit auswählen...</option>
+              <option *ngFor="let skill of availableSkills" [value]="skill.id">
+                {{ skill.name }}
+              </option>
+            </select>
+            <button class="add-btn" (click)="attachSkill()" [disabled]="!selectedSkillId">
+              + Anhängen
+            </button>
+          </div>
+          <p *ngIf="availableSkills.length === 0" class="no-items-hint">
+            Keine Fähigkeiten verfügbar
+          </p>
+        </section>
+
+        <!-- Attached Spells Section -->
+        <section class="editor-section">
+          <h3>Angehängte Zauber</h3>
+          
+          <!-- Existing Spells -->
+          <div class="attached-list" *ngIf="editItem.attachedSpells && editItem.attachedSpells.length > 0">
+            <div class="attached-item" *ngFor="let spell of editItem.attachedSpells; let i = index">
+              <span>{{ spell.spellName }}</span>
+              <button class="remove-btn" (click)="removeAttachedSpell(i)">×</button>
+            </div>
+          </div>
+
+          <!-- Add Spell -->
+          <div class="add-attached-form" *ngIf="availableSpells.length > 0">
+            <select [(ngModel)]="selectedSpellId">
+              <option value="">Zauber auswählen...</option>
+              <option *ngFor="let spell of availableSpells" [value]="spell.id">
+                {{ spell.name }}
+              </option>
+            </select>
+            <button class="add-btn" (click)="attachSpell()" [disabled]="!selectedSpellId">
+              + Anhängen
+            </button>
+          </div>
+          <p *ngIf="availableSpells.length === 0" class="no-items-hint">
+            Keine Zauber verfügbar
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="editor-footer">
+      <div class="toggle-row">
+        <label class="toggle-label">
+          <input type="checkbox" [(ngModel)]="editItem.lost">
+          <span>Verloren</span>
+        </label>
+      </div>
+      <div class="footer-buttons">
+        <button class="cancel-btn" (click)="cancelEdit()">Abbrechen</button>
+        <button class="save-btn" (click)="saveItem()">{{ isNewItem ? 'Erstellen' : 'Speichern' }}</button>
+      </div>
+    </div>
+  </div>
+</div>

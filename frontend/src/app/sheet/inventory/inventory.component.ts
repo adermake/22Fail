@@ -7,6 +7,7 @@ import { CardComponent } from '../../shared/card/card.component';
 import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ItemComponent } from '../item/item.component';
 import { ItemCreatorComponent } from '../item-creator/item-creator.component';
+import { ItemEditorComponent } from '../item-editor/item-editor.component';
 import { FormsModule } from '@angular/forms';
 import { COIN_WEIGHT } from '../../model/currency-model';
 
@@ -18,6 +19,7 @@ import { COIN_WEIGHT } from '../../model/currency-model';
     ItemComponent,
     CardComponent,
     ItemCreatorComponent,
+    ItemEditorComponent,
     DragDropModule,
     FormsModule,
   ],
@@ -27,11 +29,15 @@ import { COIN_WEIGHT } from '../../model/currency-model';
 export class InventoryComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
+  @Output() rollDice = new EventEmitter<{ type: number; modifier: number; reason: string; callback?: (result: number) => void }>();
 
   Math = Math; // Expose Math to template
 
   showCreateDialog = false;
   showSettingsDialog = false;
+  showItemEditor = false;
+  editingItemIndex: number | null = null;
+  editingItem: ItemBlock | null = null;
   private editingItems = new Set<number>();
   placeholderHeight = '90px';
   placeholderWidth = '100%';
@@ -263,6 +269,92 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
 
   isItemEditing(index: number): boolean {
     return this.editingItems.has(index);
+  }
+
+  // Open full-screen item editor
+  openItemEditor(index: number) {
+    this.editingItemIndex = index;
+    this.editingItem = this.sheet.inventory[index];
+    this.showItemEditor = true;
+  }
+
+  // Create new item via full-screen editor
+  openNewItemEditor() {
+    this.editingItemIndex = null;
+    this.editingItem = null;
+    this.showItemEditor = true;
+  }
+
+  closeItemEditor() {
+    this.showItemEditor = false;
+    this.editingItemIndex = null;
+    this.editingItem = null;
+  }
+
+  saveItemFromEditor(item: ItemBlock) {
+    if (this.editingItemIndex !== null) {
+      // Update existing item
+      this.sheet.inventory[this.editingItemIndex] = item;
+      this.sheet.inventory = [...this.sheet.inventory];
+      this.patch.emit({
+        path: `inventory.${this.editingItemIndex}`,
+        value: item,
+      });
+    } else {
+      // Create new item
+      this.sheet.inventory = [...this.sheet.inventory, item];
+      this.patch.emit({
+        path: 'inventory',
+        value: this.sheet.inventory,
+      });
+    }
+    this.closeItemEditor();
+  }
+
+  // Break test: Roll d20, need to roll <= 10 to survive
+  // Modifier: -5 + (100 - durability) / 10
+  performBreakTest(index: number) {
+    const item = this.sheet.inventory[index];
+    if (!item || item.broken) return;
+
+    // Calculate break test modifier
+    // As durability gets lower, modifier gets higher (harder to survive)
+    // At 0 durability: -5 + 100/10 = -5 + 10 = +5
+    // At 50 durability: -5 + 50/10 = -5 + 5 = 0
+    // At 100 durability: -5 + 0/10 = -5
+    const durability = item.durability || 0;
+    const modifier = Math.floor(-5 + (100 - durability) / 10);
+
+    // Emit dice roll request with callback
+    this.rollDice.emit({
+      type: 20,
+      modifier: modifier,
+      reason: `Bruchtest: ${item.name}`,
+      callback: (result: number) => {
+        // In our new system, low is good. Result + modifier must be <= 10 to survive
+        const total = result + modifier;
+        if (total > 10) {
+          // Item breaks
+          this.sheet.inventory[index].broken = true;
+          this.sheet.inventory = [...this.sheet.inventory];
+          this.patch.emit({
+            path: `inventory.${index}.broken`,
+            value: true,
+          });
+        }
+        // If total <= 10, item survives (no change needed)
+      }
+    });
+  }
+
+  // Get available skills from sheet for item editor
+  getAvailableSkills(): { id: string; name: string }[] {
+    return (this.sheet.skills || []).map(s => ({ id: s.name, name: s.name }));
+  }
+
+  // Get available spells from sheet for item editor
+  getAvailableSpells(): { id: string; name: string }[] {
+    return (this.sheet.spells || []).map(s => ({ id: s.name, name: s.name }));
   }
 }
 

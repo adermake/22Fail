@@ -1,13 +1,13 @@
 <app-card>
   <div class="equipment-header">
     <div>
-      <h2>Equipment / Armor</h2>
+      <h2>Ausrüstung / Rüstung</h2>
       <div class="equipment-stats">
-        <span class="armor-weight">Weight: {{ armorWeight }} kg</span>
+        <span class="armor-weight">Gewicht: {{ armorWeight }} kg</span>
         <span class="armor-debuff" [class.has-debuff]="totalArmorDebuff > 0">
-          Speed Penalty: -{{ totalArmorDebuff }}
+          Tempomalus: -{{ totalArmorDebuff }}
           @if (totalArmorDebuff > 0) {
-            <span class="effective-speed">(Effective: {{ effectiveSpeed }})</span>
+            <span class="effective-speed">(Effektiv: {{ effectiveSpeed }})</span>
           }
         </span>
       </div>
@@ -32,6 +32,8 @@
         (patch)="updateItem(i, $event)"
         (delete)="deleteItem(i)"
         (editingChange)="onEditingChange(i, $event)"
+        (openEditor)="openItemEditor(i)"
+        (breakTest)="performBreakTest(i)"
       ></app-item>
       <div
         class="drag-placeholder-wrapper"
@@ -41,7 +43,19 @@
       ></div>
     </div>
     } @if ((sheet.equipment || []).length === 0) {
-    <p class="empty-message">No equipment. Drag items from inventory here.</p>
+    <p class="empty-message">Keine Ausrüstung. Ziehe Gegenstände aus dem Inventar hierher.</p>
     }
   </div>
+
+  <!-- Item Editor Modal -->
+  @if (showItemEditor) {
+    <app-item-editor
+      [item]="editingItem"
+      [sheet]="sheet"
+      [availableSkills]="getAvailableSkills()"
+      [availableSpells]="getAvailableSpells()"
+      (save)="saveItemFromEditor($event)"
+      (cancel)="closeItemEditor()"
+    ></app-item-editor>
+  }
 </app-card>

@@ -18,7 +18,10 @@ export class ItemCreatorComponent {
     name: '',
     description: '',
     weight: 0,
+    itemType: 'other',
     lost: false,
+    broken: false,
+    hasDurability: false,
     requirements: {},
     statModifiers: []
   };
@@ -66,6 +69,9 @@ export class ItemCreatorComponent {
       lost: false,
       description: '',
       weight: 0,
+      itemType: 'other',
+      broken: false,
+      hasDurability: false,
       requirements: {},
       statModifiers: []
     };

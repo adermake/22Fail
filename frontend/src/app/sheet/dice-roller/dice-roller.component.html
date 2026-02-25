@@ -63,7 +63,7 @@
           <span class="formula-display">
             {{diceCount()}}d{{selectedDiceType()}}
             @if (totalBonus() !== 0) {
-              <span [class.negative]="totalBonus() < 0">
+              <span [class.negative]="totalBonus() < 0" [class.positive]="totalBonus() > 0">
                 {{totalBonus() > 0 ? '+' : ''}}{{totalBonus()}}
               </span>
             }

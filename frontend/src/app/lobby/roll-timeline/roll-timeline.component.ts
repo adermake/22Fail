@@ -55,8 +55,8 @@ import { DiceRollEvent } from '../../services/world-socket.service';
                           @for (die of roll.rolls; track $index) {
                             <span 
                               class="die-value"
-                              [class.crit-success]="die === roll.diceType && roll.diceType === 20"
-                              [class.crit-fail]="die === 1 && roll.diceType === 20"
+                              [class.crit-success]="die === 1 && roll.diceType === 20"
+                              [class.crit-fail]="die === roll.diceType && roll.diceType === 20"
                             >
                               {{ die }}
                             </span>

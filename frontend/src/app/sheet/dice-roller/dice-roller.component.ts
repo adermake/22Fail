@@ -201,11 +201,12 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
   }
 
   // Calculate the dice modifier from stat (the purple/red number shown on sheet)
-  // Uses the formula: (-5 + total / 2) | 0 (D&D-style modifier)
+  // Inverted formula: high stat gives negative modifier (helps roll lower)
+  // Lower is better in this system!
   private calculateStatDiceBonus(stat: any, statKey: string): number {
     const current = this.calculateStatCurrent(stat, statKey);
-    // The dice bonus formula used in stat.component: (-5 + total / 2) | 0
-    return (-5 + current / 2) | 0;
+    // Inverted formula: (5 - total / 2) | 0
+    return (5 - current / 2) | 0;
   }
 
   statBonuses = computed(() => {

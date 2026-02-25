@@ -5353,16 +5353,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   /**
-   * Check if roll is a critical success (nat 20 on d20)
+   * Check if roll is a critical success (nat 1 on d20 - lower is better!)
    */
   isCritSuccess(popup: DiceRollPopup): boolean {
-    return popup.diceType === 20 && popup.rolls.some(r => r === 20);
+    return popup.diceType === 20 && popup.rolls.some(r => r === 1);
   }
 
   /**
-   * Check if roll is a critical failure (nat 1 on d20)
+   * Check if roll is a critical failure (nat 20 on d20 - lower is better!)
    */
   isCritFail(popup: DiceRollPopup): boolean {
-    return popup.diceType === 20 && popup.rolls.some(r => r === 1);
+    return popup.diceType === 20 && popup.rolls.some(r => r === 20);
   }
 }
