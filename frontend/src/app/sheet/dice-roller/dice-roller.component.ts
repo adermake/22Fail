@@ -134,6 +134,22 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
       }
     });
     
+    // Add dice bonuses from equipped items
+    if (this.sheet.equipment) {
+      this.sheet.equipment.forEach(item => {
+        if (item.diceBonuses && item.diceBonuses.length > 0) {
+          item.diceBonuses.forEach(diceBonus => {
+            bonuses.push({
+              name: `${item.name}: ${diceBonus.name}`,
+              value: diceBonus.value,
+              source: 'item',
+              context: `von ${item.name}`
+            });
+          });
+        }
+      });
+    }
+    
     return bonuses;
   });
 

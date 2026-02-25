@@ -56,10 +56,22 @@
                [style.width.%]="durabilityPercent">
           </div>
         </div>
-        <div class="durability-controls">
-          <button class="dur-btn" (click)="reduceDurability(1); $event.stopPropagation()">-1</button>
-          <button class="dur-btn" (click)="reduceDurability(5); $event.stopPropagation()">-5</button>
-          <button class="dur-btn" (click)="reduceDurability(10); $event.stopPropagation()">-10</button>
+        <div class="durability-slider-row">
+          <input 
+            type="range" 
+            class="durability-slider"
+            [min]="0" 
+            [max]="item.maxDurability" 
+            [value]="item.durability || 0"
+            (input)="updateDurability(+$any($event.target).value); $event.stopPropagation()" />
+          <input 
+            type="number" 
+            class="durability-input"
+            [min]="0" 
+            [max]="item.maxDurability" 
+            [value]="item.durability || 0"
+            (input)="updateDurability(+$any($event.target).value); $event.stopPropagation()" 
+            (click)="$event.stopPropagation()" />
           @if (!item.broken && (item.durability || 0) === 0) {
             <button class="break-test-btn" (click)="requestBreakTest(); $event.stopPropagation()">
               🎲 Bruchtest
@@ -76,13 +88,36 @@
           <div class="counter-row">
             <span class="counter-color-dot" [style.backgroundColor]="counter.color"></span>
             <span class="counter-name">{{ counter.name }}</span>
-            <div class="counter-controls">
-              <button class="counter-btn" (click)="updateCounter(counter, counter.current - 1); $event.stopPropagation()">-</button>
-              <span class="counter-value">{{ counter.current }}</span>
-              <button class="counter-btn" (click)="updateCounter(counter, counter.current + 1); $event.stopPropagation()">+</button>
+            <div class="counter-slider-controls">
+              <input 
+                type="range" 
+                class="counter-slider"
+                [min]="counter.min" 
+                [max]="counter.max" 
+                [value]="counter.current"
+                (input)="updateCounter(counter, +$any($event.target).value); $event.stopPropagation()" />
+              <input 
+                type="number" 
+                class="counter-input"
+                [min]="counter.min" 
+                [max]="counter.max" 
+                [value]="counter.current"
+                (input)="updateCounter(counter, +$any($event.target).value); $event.stopPropagation()" 
+                (click)="$event.stopPropagation()" />
+              <span class="counter-max">/ {{ counter.max }}</span>
             </div>
-            <span class="counter-max">/ {{ counter.max }}</span>
           </div>
+        }
+      </div>
+    }
+
+    <!-- Stat Modifiers -->
+    @if (item.statModifiers && item.statModifiers.length > 0) {
+      <div class="stat-modifiers-section">
+        @for (modifier of item.statModifiers; track modifier.stat) {
+          <span class="stat-modifier" [class.positive]="modifier.amount > 0" [class.negative]="modifier.amount < 0">
+            {{ getStatLabel(modifier.stat) }}: {{ modifier.amount > 0 ? '+' : '' }}{{ modifier.amount }}
+          </span>
         }
       </div>
     }

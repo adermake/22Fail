@@ -105,6 +105,17 @@ export class ItemComponent {
     }
   }
 
+  updateDurability(value: number) {
+    if (!this.item.hasDurability) return;
+    const newDurability = Math.max(0, Math.min(this.item.maxDurability || 100, value));
+    this.patch.emit({ path: 'durability', value: newDurability });
+    
+    // If durability reaches 0, trigger break test
+    if (newDurability === 0 && !this.item.broken) {
+      this.breakTest.emit();
+    }
+  }
+
   reduceDurability(amount: number) {
     if (!this.item.hasDurability) return;
     const newDurability = Math.max(0, (this.item.durability || 0) - amount);
@@ -114,6 +125,21 @@ export class ItemComponent {
     if (newDurability === 0 && !this.item.broken) {
       this.breakTest.emit();
     }
+  }
+
+  getStatLabel(stat: string): string {
+    const labels: { [key: string]: string } = {
+      'strength': 'STR',
+      'dexterity': 'DEX',
+      'speed': 'SPD',
+      'intelligence': 'INT',
+      'constitution': 'CON',
+      'chill': 'CHL',
+      'mana': 'Mana',
+      'life': 'Leben',
+      'energy': 'Energie'
+    };
+    return labels[stat] || stat;
   }
 
   requestBreakTest() {

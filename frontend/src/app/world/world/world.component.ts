@@ -16,7 +16,6 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { StatusBlock } from '../../model/status-block.model';
 import { Subscription } from 'rxjs';
-import { ItemCreatorComponent } from '../../sheet/item-creator/item-creator.component';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
 import { SpellEditorComponent } from '../../shared/spell-editor/spell-editor.component';
@@ -34,7 +33,7 @@ export type { SimulatedTurn, BattleGroup };
 @Component({
   selector: 'app-world',
   standalone: true,
-  imports: [CommonModule, CardComponent, FormsModule, ItemCreatorComponent, ItemEditorComponent, SkillEditorComponent, SpellEditorComponent, RuneEditorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent, ImageUrlPipe, CharacterGeneratorComponent],
+  imports: [CommonModule, CardComponent, FormsModule, ItemEditorComponent, SkillEditorComponent, SpellEditorComponent, RuneEditorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent, ImageUrlPipe, CharacterGeneratorComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -191,14 +191,15 @@
 
 <!-- Item Creator Dialog -->
 @if (showItemCreator) {
-  <div class="dialog-overlay" (mousedown)="closeItemCreator()">
-    <div class="dialog-content" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
-      <app-item-creator
-        (create)="createItem($event)"
-        (cancel)="closeItemCreator()">
-      </app-item-creator>
-    </div>
-  </div>
+  <app-item-editor
+    [item]="null"
+    [sheet]="dummySheet"
+    [librarySkills]="world.skillLibrary"
+    [librarySpells]="world.spellLibrary"
+    [showLibraryImport]="true"
+    (save)="createItem($event)"
+    (cancel)="closeItemCreator()">
+  </app-item-editor>
 }
 
 <!-- Item Editor Dialog -->

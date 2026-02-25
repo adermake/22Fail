@@ -391,12 +391,12 @@
 
 /* Efficiency and Stability Badges */
 .item-efficiency {
-  background: #451a03;
-  color: #f59e0b;
+  background: #1e1b4b;
+  color: #a5b4fc;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   font-size: 0.8rem;
-  border: 1px solid #f59e0b;
+  border: 1px solid #6366f1;
   white-space: nowrap;
   font-weight: 600;
 }
@@ -466,25 +466,56 @@
   background: linear-gradient(to right, #ef4444, #f87171);
 }
 
-.durability-controls {
+.durability-slider-row {
   display: flex;
-  gap: 0.3rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
 }
 
-.dur-btn {
-  padding: 0.25rem 0.5rem;
+.durability-slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.durability-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--card);
+}
+
+.durability-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--card);
+}
+
+.durability-input {
+  width: 50px;
+  padding: 0.25rem 0.4rem;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
   font-size: 0.75rem;
-  cursor: pointer;
-  transition: all 0.2s;
+  text-align: center;
 }
 
-.dur-btn:hover {
-  background: var(--accent);
+.durability-input:focus {
+  outline: none;
   border-color: var(--accent);
 }
 
@@ -534,44 +565,93 @@
   color: var(--text);
 }
 
-.counter-controls {
+.counter-slider-controls {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.5rem;
+  flex: 1;
 }
 
-.counter-btn {
-  width: 22px;
-  height: 22px;
-  padding: 0;
+.counter-slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.counter-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--card);
+}
+
+.counter-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--card);
+}
+
+.counter-input {
+  width: 45px;
+  padding: 0.2rem 0.3rem;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
-  font-size: 0.9rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.counter-btn:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.counter-value {
-  min-width: 28px;
+  font-size: 0.75rem;
   text-align: center;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text);
+}
+
+.counter-input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .counter-max {
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+/* Stat Modifiers Section */
+.stat-modifiers-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.stat-modifier {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.stat-modifier.positive {
+  background: #052e16;
+  border-color: #22c55e;
+  color: #86efac;
+}
+
+.stat-modifier.negative {
+  background: #450a0a;
+  border-color: #ef4444;
+  color: #fca5a5;
 }
 
 /* Dice Bonuses Section */

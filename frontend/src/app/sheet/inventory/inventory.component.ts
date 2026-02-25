@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
@@ -10,6 +10,7 @@ import { ItemCreatorComponent } from '../item-creator/item-creator.component';
 import { ItemEditorComponent } from '../item-editor/item-editor.component';
 import { FormsModule } from '@angular/forms';
 import { COIN_WEIGHT } from '../../model/currency-model';
+import { WorldSocketService } from '../../services/world-socket.service';
 
 @Component({
   selector: 'app-inventory',
@@ -29,7 +30,8 @@ import { COIN_WEIGHT } from '../../model/currency-model';
 export class InventoryComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
-  @Output() rollDice = new EventEmitter<{ type: number; modifier: number; reason: string; callback?: (result: number) => void }>();
+  
+  private worldSocket = inject(WorldSocketService);
 
   Math = Math; // Expose Math to template
 
@@ -313,7 +315,7 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
 
   // Break test: Roll d20, need to roll <= 10 to survive
   // Modifier: -5 + (100 - durability) / 10
-  performBreakTest(index: number) {
+  async performBreakTest(index: number) {
     const item = this.sheet.inventory[index];
     if (!item || item.broken) return;
 
@@ -325,26 +327,44 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
     const durability = item.durability || 0;
     const modifier = Math.floor(-5 + (100 - durability) / 10);
 
-    // Emit dice roll request with callback
-    this.rollDice.emit({
-      type: 20,
-      modifier: modifier,
-      reason: `Bruchtest: ${item.name}`,
-      callback: (result: number) => {
-        // In our new system, low is good. Result + modifier must be <= 10 to survive
-        const total = result + modifier;
-        if (total > 10) {
-          // Item breaks
-          this.sheet.inventory[index].broken = true;
-          this.sheet.inventory = [...this.sheet.inventory];
-          this.patch.emit({
-            path: `inventory.${index}.broken`,
-            value: true,
-          });
-        }
-        // If total <= 10, item survives (no change needed)
-      }
-    });
+    // Roll d20
+    const roll = Math.floor(Math.random() * 20) + 1;
+    const total = roll + modifier;
+    
+    const survived = total <= 10;
+    const resultText = survived ? 'überlebt' : 'zerbrochen';
+    
+    // Send roll to lobby
+    if (this.sheet.worldName) {
+      this.worldSocket.sendDiceRoll({
+        id: `${Date.now()}-${Math.random()}`,
+        worldName: this.sheet.worldName,
+        characterName: this.sheet.name,
+        characterId: this.sheet.id || '',
+        diceType: 20,
+        diceCount: 1,
+        bonuses: modifier !== 0 ? [{ name: 'Bruchtest-Modifier', value: modifier, source: 'item' }] : [],
+        result: total,
+        rolls: [roll],
+        timestamp: new Date(),
+        isSecret: false
+      });
+    }
+
+    // Update item state
+    if (!survived) {
+      this.sheet.inventory[index].broken = true;
+      this.sheet.inventory = [...this.sheet.inventory];
+      this.patch.emit({
+        path: `inventory.${index}.broken`,
+        value: true,
+      });
+    }
+    
+    // Show result message
+    setTimeout(() => {
+      alert(`Bruchtest für ${item.name}: ${roll} + ${modifier} = ${total}\\n${item.name} ${resultText}!`);
+    }, 100);
   }
 
   // Get available skills from sheet for item editor
