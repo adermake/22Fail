@@ -140,6 +140,8 @@
   flex-direction: column;
   gap: 0.5rem;
   min-height: 100px;
+  overflow: visible;
+  position: relative;
 }
 
 .empty-message {
@@ -240,23 +242,27 @@
 /* Drag and Drop Styles */
 .cdk-drag-preview {
   box-sizing: border-box;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-  opacity: 0.9;
-  /* Make drag preview more compact */
-  transform: scale(0.7);
-  transform-origin: top left;
-  max-width: 300px;
-  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  opacity: 0.95;
+  max-width: 400px;
+  z-index: 10000 !important;
+  position: fixed !important;
 }
 
 .cdk-drag-preview .item-card {
-  /* Force folded state for drag preview */
-  padding: 0.5rem 1rem;
   border: 2px solid var(--accent);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  animation: none !important;
+  overflow: visible;
+  max-height: none;
 }
 
-/* Hide details in drag preview */
+.cdk-drag-placeholder {
+  opacity: 0.4;
+  z-index: 1;
+}
+
+/* Simplified drag preview - only show header */
 .cdk-drag-preview .durability-section,
 .cdk-drag-preview .counters-section,
 .cdk-drag-preview .stat-modifiers-section,
@@ -270,17 +276,31 @@
 
 .drag-placeholder-wrapper {
   background: var(--bg);
-  border: 2px dashed var(--border);
+  border: 2px dashed var(--accent);
   border-radius: 6px;
   box-sizing: border-box;
+  opacity: 0.5;
 }
 
 .cdk-drag-animating {
   transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
 }
 
-.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+.inventory-list.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
   transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* Ensure Z-index for dragging elements */
+.cdk-drag {
+  z-index: auto;
+}
+
+.cdk-drag-preview {
+  z-index: 10000 !important;
+}
+
+.cdk-drag-placeholder {
+  z-index: 1;
 }
 
 .currency-weight-label {

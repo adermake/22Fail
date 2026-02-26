@@ -22,7 +22,9 @@
       </div>
       <div class="item-badges">
         <button class="fold-btn" 
-                (click)="toggleFold(); $event.stopPropagation()" 
+                (click)="toggleFold(); $event.stopPropagation()"
+                (mousedown)="$event.stopPropagation()"
+                (touchstart)="$event.stopPropagation()"
                 [title]="isFolded ? 'Ausklappen' : 'Einklappen'">
           {{ isFolded ? '▼' : '▲' }}
         </button>
@@ -41,11 +43,17 @@
         }
         <button class="action-btn lost-btn" 
                 [class.active]="item.lost"
-                (click)="toggleLost(); $event.stopPropagation()" 
+                (click)="toggleLost(); $event.stopPropagation()"
+                (mousedown)="$event.stopPropagation()"
+                (touchstart)="$event.stopPropagation()"
                 title="Verloren markieren">
           👁
         </button>
-        <button class="delete-btn-compact" (click)="deleteItem(); $event.stopPropagation()" title="Löschen">🗑️</button>
+        <button class="delete-btn-compact" 
+                (click)="deleteItem(); $event.stopPropagation()"
+                (mousedown)="$event.stopPropagation()"
+                (touchstart)="$event.stopPropagation()"
+                title="Löschen">🗑️</button>
       </div>
     </div>
 
@@ -98,13 +106,7 @@
               <span class="counter-name">{{ counter.name }}</span>
               <span class="counter-value">{{ counter.current }} / {{ counter.max }}</span>
             </div>
-            <div class="counter-bar">
-              <div class="counter-fill" 
-                   [style.width.%]="getCounterPercent(counter)"
-                   [style.backgroundColor]="counter.color">
-              </div>
-            </div>
-            <div class="counter-slider-controls" (mousedown)="$event.stopPropagation()">
+            <div class="counter-slider-wrapper" (mousedown)="$event.stopPropagation()">
               <input 
                 type="range" 
                 class="counter-slider"
@@ -112,15 +114,12 @@
                 [max]="counter.max" 
                 [value]="counter.current"
                 [style.setProperty]="'--counter-color:' + counter.color"
-                (input)="updateCounter(counter, +$any($event.target).value); $event.stopPropagation()" />
-              <input 
-                type="number" 
-                class="counter-input"
-                [min]="counter.min" 
-                [max]="counter.max" 
-                [value]="counter.current"
                 (input)="updateCounter(counter, +$any($event.target).value); $event.stopPropagation()" 
                 (click)="$event.stopPropagation()" />
+              <div class="counter-fill-bg" 
+                   [style.width.%]="getCounterPercent(counter)"
+                   [style.backgroundColor]="counter.color">
+              </div>
             </div>
           </div>
         }
