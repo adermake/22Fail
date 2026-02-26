@@ -89,6 +89,12 @@ app-card {
   border-color: var(--accent);
 }
 
+.slot-content.cdk-drop-list-receiving {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: var(--accent);
+  border-style: solid;
+}
+
 .empty-slot {
   text-align: center;
   color: var(--muted);
@@ -102,7 +108,31 @@ app-card {
 .cdk-drag-preview {
   box-sizing: border-box;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-  opacity: 0.8;
+  opacity: 0.9;
+  /* Make drag preview more compact */
+  transform: scale(0.7);
+  transform-origin: top left;
+  max-width: 300px;
+  border-radius: 8px;
+}
+
+.cdk-drag-preview .item-card {
+  /* Force folded state for drag preview */
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Hide details in drag preview */
+.cdk-drag-preview .durability-section,
+.cdk-drag-preview .counters-section,
+.cdk-drag-preview .stat-modifiers-section,
+.cdk-drag-preview .dice-bonuses-section,
+.cdk-drag-preview .effects-section,
+.cdk-drag-preview .item-description,
+.cdk-drag-preview .item-requirements,
+.cdk-drag-preview .attached-section {
+  display: none !important;
 }
 
 .drag-placeholder-wrapper {

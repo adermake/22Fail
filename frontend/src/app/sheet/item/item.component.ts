@@ -25,6 +25,8 @@ export class ItemComponent {
   @Output() openEditor = new EventEmitter<void>();
   @Output() breakTest = new EventEmitter<void>();
 
+  isFolded = true; // Start items as folded to save space
+
   constructor(
     private cd: ChangeDetectorRef,
     private sanitizer: DomSanitizer
@@ -105,6 +107,13 @@ export class ItemComponent {
     }
   }
 
+  getCounterPercent(counter: ItemCounter): number {
+    const range = counter.max - counter.min;
+    if (range === 0) return 100;
+    const current = counter.current - counter.min;
+    return Math.round((current / range) * 100);
+  }
+
   updateDurability(value: number) {
     if (!this.item.hasDurability) return;
     const newDurability = Math.max(0, Math.min(this.item.maxDurability || 100, value));
@@ -148,6 +157,10 @@ export class ItemComponent {
 
   toggleLost() {
     this.patch.emit({ path: 'lost', value: !this.item.lost });
+  }
+
+  toggleFold() {
+    this.isFolded = !this.isFolded;
   }
 
   deleteItem() {

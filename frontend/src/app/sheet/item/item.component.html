@@ -2,6 +2,7 @@
      [class.unusable]="!canUseItem"
      [class.broken]="item.broken"
      [class.lost]="item.lost"
+     [class.folded]="isFolded"
      [class.weapon]="item.itemType === 'weapon'"
      [class.armor]="item.itemType === 'armor'"
      (contextmenu)="onRightClick($event)">
@@ -20,6 +21,11 @@
         }
       </div>
       <div class="item-badges">
+        <button class="fold-btn" 
+                (click)="toggleFold(); $event.stopPropagation()" 
+                [title]="isFolded ? 'Ausklappen' : 'Einklappen'">
+          {{ isFolded ? '▼' : '▲' }}
+        </button>
         <span class="item-weight">{{ item.weight }} kg</span>
         @if (item.itemType === 'weapon' && item.efficiency) {
           <span class="item-efficiency">⚔ {{ item.efficiency }}</span>
@@ -42,6 +48,8 @@
         <button class="delete-btn-compact" (click)="deleteItem(); $event.stopPropagation()" title="Löschen">🗑️</button>
       </div>
     </div>
+
+    @if (!isFolded) {
 
     <!-- Durability Bar -->
     @if (item.hasDurability && item.maxDurability) {
@@ -86,8 +94,16 @@
       <div class="counters-section">
         @for (counter of item.counters; track counter.id) {
           <div class="counter-row">
-            <span class="counter-color-dot" [style.backgroundColor]="counter.color"></span>
-            <span class="counter-name">{{ counter.name }}</span>
+            <div class="counter-header">
+              <span class="counter-name">{{ counter.name }}</span>
+              <span class="counter-value">{{ counter.current }} / {{ counter.max }}</span>
+            </div>
+            <div class="counter-bar">
+              <div class="counter-fill" 
+                   [style.width.%]="getCounterPercent(counter)"
+                   [style.backgroundColor]="counter.color">
+              </div>
+            </div>
             <div class="counter-slider-controls" (mousedown)="$event.stopPropagation()">
               <input 
                 type="range" 
@@ -95,6 +111,7 @@
                 [min]="counter.min" 
                 [max]="counter.max" 
                 [value]="counter.current"
+                [style.setProperty]="'--counter-color:' + counter.color"
                 (input)="updateCounter(counter, +$any($event.target).value); $event.stopPropagation()" />
               <input 
                 type="number" 
@@ -104,7 +121,6 @@
                 [value]="counter.current"
                 (input)="updateCounter(counter, +$any($event.target).value); $event.stopPropagation()" 
                 (click)="$event.stopPropagation()" />
-              <span class="counter-max">/ {{ counter.max }}</span>
             </div>
           </div>
         }
@@ -217,5 +233,6 @@
         }
       </div>
     }
+    } <!-- End of folded section -->
   </div>
 </div>

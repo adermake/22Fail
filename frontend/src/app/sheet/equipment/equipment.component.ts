@@ -171,21 +171,7 @@ export class EquipmentComponent {
       const item = event.previousContainer.data[event.previousIndex];
       const isFromInventory = event.previousContainer.id === 'inventoryList';
       
-      // Validate: check if item type matches slot (except for extra slot)
-      if (targetSlot !== 'extra') {
-        const itemType = item.armorType || 'extra';
-        if (itemType !== targetSlot && itemType !== 'extra') {
-          this.notification.warning(`${item.name} passt nicht in diesen Slot!`, 3000);
-          return;
-        }
-        
-        // Check if slot is already occupied (single-item slots)
-        const currentSlotItems = this.getArmorSlot(targetSlot as any);
-        if (currentSlotItems.length > 0) {
-          this.notification.warning(`Dieser Slot ist bereits belegt!`, 3000);
-          return;
-        }
-      }
+      // Note: Validation is now handled by enter predicates, so we don't need to check here
       
       // Set the armor type if moving from inventory or if not set
       if (!item.armorType || item.armorType === 'extra') {
@@ -322,5 +308,57 @@ export class EquipmentComponent {
   // Get available spells from sheet for item editor
   getAvailableSpells(): { id: string; name: string }[] {
     return (this.sheet.spells || []).map(s => ({ id: s.name, name: s.name }));
+  }
+
+  // Predicate functions to prevent invalid drops
+  canDropInHelmet = (drag: any, drop: any) => {
+    const item = drag.data as ItemBlock;
+    return this.canDropInSlot(item, 'helmet');
+  };
+
+  canDropInChestplate = (drag: any, drop: any) => {
+    const item = drag.data as ItemBlock;
+    return this.canDropInSlot(item, 'chestplate');
+  };
+
+  canDropInArmschienen = (drag: any, drop: any) => {
+    const item = drag.data as ItemBlock;
+    return this.canDropInSlot(item, 'armschienen');
+  };
+
+  canDropInLeggings = (drag: any, drop: any) => {
+    const item = drag.data as ItemBlock;
+    return this.canDropInSlot(item, 'leggings');
+  };
+
+  canDropInBoots = (drag: any, drop: any) => {
+    const item = drag.data as ItemBlock;
+    return this.canDropInSlot(item, 'boots');
+  };
+
+  canDropInExtra = (drag: any, drop: any) => {
+    // Extra slot accepts anything
+    return true;
+  };
+
+  private canDropInSlot(item: ItemBlock, targetSlot: string): boolean {
+    // Extra slot accepts everything
+    if (targetSlot === 'extra') return true;
+    
+    // Check if item type matches slot
+    const itemType = item.armorType || 'extra';
+    
+    // Item must match the slot or have no specific slot (extra)
+    if (itemType !== targetSlot && itemType !== 'extra') {
+      return false;
+    }
+    
+    // Check if slot is already occupied (single-item slots)
+    const currentSlotItems = this.getArmorSlot(targetSlot as any);
+    if (currentSlotItems.length > 0 && !currentSlotItems.includes(item)) {
+      return false;
+    }
+    
+    return true;
   }
 }
