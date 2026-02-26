@@ -75,3 +75,27 @@ label {
   font-weight: 700;
 }
   h2{margin:0 0 8px 0;font-size:20px;color:var(--accent)}
+
+/* Global CDK Drag & Drop Styles - Ensure drag preview is always visible */
+.cdk-drag-preview {
+  z-index: 999999 !important;
+  position: fixed !important;
+  pointer-events: none !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* Prevent text selection during drag globally */
+.cdk-drag-dragging {
+  cursor: grabbing !important;
+}
+
+.cdk-drag-animating {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1) !important;
+}
+
+/* Ensure drag placeholder is visible */
+.cdk-drag-placeholder {
+  display: block !important;
+  opacity: 0.4 !important;
+}

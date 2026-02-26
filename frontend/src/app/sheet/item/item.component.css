@@ -15,11 +15,16 @@
   border-radius: 6px;
   padding: 1rem;
   transition: all 0.2s;
-  border-left: 3px solid var(--accent); /* Use accent color for the border */
+  border-left: 3px solid var(--accent);
   cursor: grab;
   width: 100%;
   box-sizing: border-box;
   position: relative;
+  /* Prevent text selection during drag */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .item-card.folded {
@@ -58,7 +63,6 @@
   align-items: center;
   margin-bottom: 0.5rem;
   gap: 1rem;
-  pointer-events: none;
 }
 
 .item-header h4 {
@@ -68,7 +72,8 @@
   word-break: break-word;
   flex: 1;
   min-width: 0;
-  font-weight: 600; /* Bolder title */
+  font-weight: 600;
+  cursor: inherit;
 }
 
 .item-badges {
@@ -77,11 +82,10 @@
   align-items: center;
   flex-wrap: wrap;
   flex-shrink: 0;
-  pointer-events: auto;
 }
 
-.item-badges > * {
-  pointer-events: auto;
+.item-badges button {
+  cursor: pointer;
 }
 
 .item-weight {
@@ -317,7 +321,6 @@
   transition: all 0.2s;
   border-radius: 4px;
   flex-shrink: 0;
-  z-index: 10;
   position: relative;
 }
 
@@ -358,8 +361,6 @@
   gap: 0.5rem;
   flex: 1;
   min-width: 0;
-  cursor: grab;
-  pointer-events: auto;
 }
 
 .item-type-icon {
@@ -400,7 +401,6 @@
   transition: all 0.2s;
   border-radius: 4px;
   flex-shrink: 0;
-  z-index: 10;
   position: relative;
 }
 
@@ -432,7 +432,6 @@
   border-radius: 4px;
   color: var(--text);
   flex-shrink: 0;
-  z-index: 10;
   position: relative;
 }
 

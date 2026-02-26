@@ -8,6 +8,14 @@ app-card {
   height: 100%;
 }
 
+/* Ensure equipment container doesn't clip drag preview */
+app-card,
+app-card > *,
+.armor-slots,
+.slot-content {
+  overflow: visible !important;
+}
+
 .equipment-header {
   display: flex;
   justify-content: space-between;
@@ -55,6 +63,8 @@ app-card {
   padding: 0.5rem;
   max-height: 910px;
   overflow-y: auto;
+  /* But allow horizontal overflow for drag preview */
+  overflow-x: visible;
 }
 
 .armor-slot {
@@ -82,7 +92,6 @@ app-card {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  overflow: visible;
   position: relative;
 }
 
@@ -107,37 +116,45 @@ app-card {
 }
 
 /* Drag and Drop Styles */
-.cdk-drag-preview {
-  box-sizing: border-box;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-  opacity: 0.95;
-  max-width: 400px;
-  z-index: 10000 !important;
+:host ::ng-deep .cdk-drag-preview {
+  box-sizing: border-box !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6) !important;
+  opacity: 0.95 !important;
+  max-width: 400px !important;
+  /* Critical: Force highest z-index and proper positioning */
+  z-index: 999999 !important;
   position: fixed !important;
+  pointer-events: none !important;
+  /* Ensure visibility */
+  display: block !important;
+  visibility: visible !important;
 }
 
-.cdk-drag-preview .item-card {
-  border: 2px solid var(--accent);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+:host ::ng-deep .cdk-drag-preview .item-card {
+  border: 3px solid var(--accent) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5) !important;
   animation: none !important;
-  overflow: visible;
-  max-height: none;
+  overflow: visible !important;
+  max-height: none !important;
+  background: var(--card) !important;
 }
 
 .cdk-drag-placeholder {
   opacity: 0.4;
-  z-index: 1;
+  background: var(--bg) !important;
+  border: 2px dashed var(--accent) !important;
+  border-radius: 6px;
 }
 
 /* Simplified drag preview - only show header */
-.cdk-drag-preview .durability-section,
-.cdk-drag-preview .counters-section,
-.cdk-drag-preview .stat-modifiers-section,
-.cdk-drag-preview .dice-bonuses-section,
-.cdk-drag-preview .effects-section,
-.cdk-drag-preview .item-description,
-.cdk-drag-preview .item-requirements,
-.cdk-drag-preview .attached-section {
+:host ::ng-deep .cdk-drag-preview .durability-section,
+:host ::ng-deep .cdk-drag-preview .counters-section,
+:host ::ng-deep .cdk-drag-preview .stat-modifiers-section,
+:host ::ng-deep .cdk-drag-preview .dice-bonuses-section,
+:host ::ng-deep .cdk-drag-preview .effects-section,
+:host ::ng-deep .cdk-drag-preview .item-description,
+:host ::ng-deep .cdk-drag-preview .item-requirements,
+:host ::ng-deep .cdk-drag-preview .attached-section {
   display: none !important;
 }
 
@@ -155,17 +172,4 @@ app-card {
 
 .armor-slots.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
   transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-}
-
-/* Ensure Z-index for dragging elements */
-.cdk-drag {
-  z-index: auto;
-}
-
-.cdk-drag-preview {
-  z-index: 10000 !important;
-}
-
-.cdk-drag-placeholder {
-  z-index: 1;
 }
