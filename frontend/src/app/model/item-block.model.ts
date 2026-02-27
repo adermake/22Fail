@@ -98,6 +98,9 @@ export class ItemBlock {
   embeddedSkills?: SkillBlock[];
   embeddedSpells?: SpellBlock[];
   
+  // Library origin tracking
+  libraryOrigin?: string; // Library ID if this item came from a library (undefined for custom items)
+  
   // Source tracking (for display purposes)
   isItemBased?: boolean; // Flag for skills/spells from this item
 }

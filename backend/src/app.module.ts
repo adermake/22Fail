@@ -6,6 +6,8 @@ import { TextureService } from './texture.service';
 import { StressTestService } from './stress-test.service';
 import { MapStorageService } from './map-storage.service';
 import { MapStorageController } from './map-storage.controller';
+import { LibraryController } from './library.controller';
+import { LibraryService } from './library.service';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { CharacterGateway } from './character.gateway';
@@ -19,7 +21,7 @@ import { BattleMapGateway } from './battlemap.gateway';
       exclude: ['api/*path'],
     }),
   ],
-  controllers: [AppController, MapStorageController],
-  providers: [CharacterGateway, WorldGateway, BattleMapGateway, DataService, ImageService, TextureService, StressTestService, MapStorageService],
+  controllers: [AppController, MapStorageController, LibraryController],
+  providers: [CharacterGateway, WorldGateway, BattleMapGateway, DataService, ImageService, TextureService, StressTestService, MapStorageService, LibraryService],
 })
 export class AppModule {}

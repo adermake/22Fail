@@ -33,10 +33,16 @@ export interface WorldData {
   name: string;
   characterIds: string[]; // All characters in this world
   partyIds: string[]; // Characters currently in the active party
+  
+  // Library system - new approach
+  linkedLibraries?: string[]; // IDs of linked library files
+  
+  // Deprecated: Direct library arrays (kept for backwards compatibility)
   itemLibrary: ItemBlock[];
   runeLibrary: RuneBlock[];
   spellLibrary: SpellBlock[];
   skillLibrary: SkillBlock[];
+  
   lootBundles: LootBundle[];
   battleLoot: LootItem[];
   battleParticipants: BattleParticipant[];
@@ -97,6 +103,7 @@ export function createEmptyWorld(name: string): WorldData {
     name,
     characterIds: [],
     partyIds: [],
+    linkedLibraries: [],
     itemLibrary: [],
     runeLibrary: [],
     spellLibrary: [],

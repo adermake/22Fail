@@ -6,6 +6,7 @@ import { SpellBlock } from './spell-block-model';
 import { StatBlock } from './stat-block.model';
 import { StatusBlock } from './status-block.model';
 import { RuneBlock } from './rune-block.model';
+import { ActiveStatusEffect } from './status-effect.model';
 
 export interface SheetTrashItem {
   type: 'item' | 'equipment' | 'rune' | 'spell' | 'skill';
@@ -49,6 +50,7 @@ export interface CharacterSheet {
   spells: SpellBlock[];
   currency: Currency;
   trash: SheetTrashItem[]; // Recycle bin for deleted items
+  activeStatusEffects: ActiveStatusEffect[]; // Status effects currently applied to this character
   // Talent System
   talentPoints: number;           // Available talent points to spend
   talentPointsBonus: number;      // GM-assigned bonus talent points
@@ -95,6 +97,7 @@ export function createEmptySheet(): CharacterSheet {
       platinum: 0,
     },
     trash: [],
+    activeStatusEffects: [],
     talentPoints: 2,
     talentPointsBonus: 0,
     learnedSkillIds: [],

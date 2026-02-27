@@ -65,7 +65,8 @@
             <div class="character-card drop-zone"
                  (dragover)="onDragOver($event)"
                  (drop)="onDropOnCharacter($event, member.id)"
-                 (dblclick)="openCharacterSheet(member.id)">
+                 (dblclick)="openCharacterSheet(member.id)"
+                 (contextmenu)="handleCharacterRightClick($event, member.id)">
               <div class="character-header">
                 @if (member.sheet.portrait) {
                   <div class="character-portrait">
@@ -144,9 +145,14 @@
     <app-card class="library-card">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <h2>Library</h2>
-        <button (click)="openTrash()" style="background: #666; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;" title="Open Trash">
-          🗑️ Trash ({{ (world.trash || []).length }})
-        </button>
+        <div style="display: flex; gap: 0.5rem;">
+          <button (click)="openLibrarySelector()" style="background: #4CAF50; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;" title="Manage Linked Libraries">
+            📚 Manage Libraries
+          </button>
+          <button (click)="openTrash()" style="background: #666; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;" title="Open Trash">
+            🗑️ Trash ({{ (world.trash || []).length }})
+          </button>
+        </div>
       </div>
       <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
         <button (click)="generateRandomWeapon()" style="width: 100%; background: var(--accent); color: white; padding: 8px;">Zufällige Waffe schmieden</button>
@@ -308,3 +314,14 @@
     (characterGenerated)="onCharacterGenerated($event)"
   />
 }
+
+<!-- Library Selector Modal -->
+@if (showLibrarySelector) {
+  <app-library-selector
+    (librariesChanged)="handleLibrariesChanged($event)"
+    (close)="showLibrarySelector = false"
+  />
+}
+
+<!-- Context Menu for Character Interactions -->
+<app-context-menu />

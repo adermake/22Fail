@@ -25,6 +25,12 @@
       Skills ({{ (sheet.skills || []).length }})
     </button>
     <button
+      class="tab-button"
+      [class.active]="activeTab === 'status-effects'"
+      (click)="setActiveTab('status-effects')">
+      💫 Status Effects ({{ (sheet.activeStatusEffects || []).length }})
+    </button>
+    <button
       class="trash-button"
       (click)="openTrash.emit()"
       title="Open Trash"
@@ -67,6 +73,13 @@
         (patch)="onPatch($event)"
         (editingChange)="onSkillEditingChange($event)">
       </app-skills>
+    }
+
+    <!-- Status Effects Tab -->
+    @if (activeTab === 'status-effects') {
+      <app-status-effects-tab
+        [sheet]="sheet">
+      </app-status-effects-tab>
     }
   </div>
 </div>

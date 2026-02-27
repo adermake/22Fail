@@ -23,6 +23,10 @@ export const routes: Routes = [
         loadComponent: () => import('./lobby/lobby.component').then(m => m.LobbyComponent)
     },
     { 
+        path: 'library/:libraryId', 
+        loadComponent: () => import('./library/library.component').then(m => m.LibraryComponent)
+    },
+    { 
         path: 'stress-test', 
         loadComponent: () => import('./stress-test/stress-test.component').then(m => m.StressTestComponent)
     },

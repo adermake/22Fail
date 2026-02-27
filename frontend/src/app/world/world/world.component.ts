@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -9,6 +9,7 @@ import { CharacterApiService } from '../../services/character-api.service';
 import { CharacterSocketService, CharacterPatchEvent } from '../../services/character-socket.service';
 import { BattleService, SimulatedTurn, BattleGroup } from '../../services/battle.service';
 import { LibraryService } from '../../services/library.service';
+import { LibraryStoreService } from '../../services/library-store.service';
 import { TrashService } from '../../services/trash.service';
 import { ItemBlock } from '../../model/item-block.model';
 import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
@@ -21,6 +22,8 @@ import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.com
 import { SpellEditorComponent } from '../../shared/spell-editor/spell-editor.component';
 import { RuneEditorComponent } from '../../shared/rune-editor/rune-editor.component';
 import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
+import { LibrarySelectorComponent } from '../../shared/library-selector/library-selector.component';
+import { ContextMenuComponent, ContextMenuItem } from '../../shared/context-menu/context-menu.component';
 import { BattleTracker } from '../battle-tracker/battle-tracker.component';
 import { LootManagerComponent, LootBundle } from '../loot-manager/loot-manager.component';
 import { BattleTrackerEngine } from '../battle-tracker/battle-tracker-engine';
@@ -33,13 +36,16 @@ export type { SimulatedTurn, BattleGroup };
 @Component({
   selector: 'app-world',
   standalone: true,
-  imports: [CommonModule, CardComponent, FormsModule, ItemEditorComponent, SkillEditorComponent, SpellEditorComponent, RuneEditorComponent, LibraryTabsComponent, BattleTracker, LootManagerComponent, ImageUrlPipe, CharacterGeneratorComponent],
+  imports: [CommonModule, CardComponent, FormsModule, ItemEditorComponent, SkillEditorComponent, SpellEditorComponent, RuneEditorComponent, LibraryTabsComponent, LibrarySelectorComponent, ContextMenuComponent, BattleTracker, LootManagerComponent, ImageUrlPipe, CharacterGeneratorComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorldComponent implements OnInit, OnDestroy {
   worldName: string = '';
+
+  @ViewChild(ContextMenuComponent) contextMenu?: ContextMenuComponent;
+  @ViewChild(LibrarySelectorComponent) librarySelector?: LibrarySelectorComponent;
 
   // Services
   store = inject(WorldStoreService);
@@ -48,6 +54,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   characterSocket = inject(CharacterSocketService);
   battleService = inject(BattleService);
   libraryService = inject(LibraryService);
+  libraryStoreService = inject(LibraryStoreService);
   trashService = inject(TrashService);
   cdr = inject(ChangeDetectorRef);
 
@@ -66,6 +73,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   showItemCreator = false;
   showTrash = false;
   showCharacterGenerator = false;
+  showLibrarySelector = false;
   editingItemIndex: number | null = null;
   editingRuneIndex: number | null = null;
   editingSpellIndex: number | null = null;
@@ -78,6 +86,9 @@ export class WorldComponent implements OnInit, OnDestroy {
   // Drag state
   private dragScrollInterval?: number;
   private isDragging = false;
+
+  // Context menu state
+  private selectedCharacterForContextMenu: string = '';
 
   constructor(private route: ActivatedRoute) {}
 
@@ -617,6 +628,119 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   // Expose FormulaType enum to template
   FormulaType = FormulaType;
+
+  // Library management
+  openLibrarySelector() {
+    this.showLibrarySelector = true;
+    this.cdr.markForCheck();
+    
+    // Set selected libraries after the component is rendered
+    setTimeout(() => {
+      const world = this.store.worldValue;
+      if (this.librarySelector && world?.linkedLibraries) {
+        this.librarySelector.setSelectedLibraries(world.linkedLibraries);
+      }
+    }, 0);
+  }
+
+  handleLibrariesChanged(libraryIds: string[]) {
+    const world = this.store.worldValue;
+    if (world) {
+      world.linkedLibraries = libraryIds;
+      this.store.save();
+    }
+    this.showLibrarySelector = false;
+    this.cdr.markForCheck();
+  }
+
+  // Context menu for character interactions
+  handleCharacterRightClick(event: MouseEvent, characterId: string) {
+    event.preventDefault();
+    this.selectedCharacterForContextMenu = characterId;
+
+    // Load all status effects from linked libraries
+    const world = this.store.worldValue;
+    const linkedLibraries = world?.linkedLibraries || [];
+    
+    const menuItems: ContextMenuItem[] = [];
+    
+    // Load each library and add its status effects to the menu
+    if (linkedLibraries.length > 0) {
+      // For now, we'll need to load libraries synchronously or use cached data
+      // This is a simplified version - in production you'd want to preload libraries
+      linkedLibraries.forEach(libraryId => {
+        this.libraryStoreService.loadLibrary(libraryId).subscribe(library => {
+          if (library && library.statusEffects.length > 0) {
+            library.statusEffects.forEach(statusEffect => {
+              menuItems.push({
+                icon: '✨',
+                label: `${statusEffect.name} (${library.name})`,
+                action: () => this.applyStatusEffectToCharacter(characterId, statusEffect.id, libraryId)
+              });
+            });
+          }
+        });
+      });
+      
+      // Small delay to allow async loading
+      setTimeout(() => {
+        if (menuItems.length === 0) {
+          menuItems.push({
+            icon: 'ℹ️',
+            label: 'No status effects available',
+            action: () => {}
+          });
+        }
+        this.contextMenu?.show(event.clientX, event.clientY, menuItems);
+      }, 100);
+    } else {
+      menuItems.push({
+        icon: 'ℹ️',
+        label: 'No libraries linked',
+        action: () => {}
+      });
+      this.contextMenu?.show(event.clientX, event.clientY, menuItems);
+    }
+  }
+
+  applyStatusEffectToCharacter(characterId: string, statusEffectId: string, libraryId: string) {
+    const character = this.partyCharacters.get(characterId);
+    if (!character) return;
+
+    // Check if status effect is already applied
+    const alreadyApplied = character.activeStatusEffects?.some(
+      effect => effect.statusEffectId === statusEffectId && effect.libraryId === libraryId
+    );
+
+    if (alreadyApplied) {
+      console.log('Status effect already applied to character');
+      return;
+    }
+
+    // Create active status effect
+    const activeEffect = {
+      statusEffectId,
+      libraryId,
+      appliedAt: Date.now(),
+      duration: null // Infinite duration by default
+    };
+
+    // Add to character's active status effects
+    if (!character.activeStatusEffects) {
+      character.activeStatusEffects = [];
+    }
+    character.activeStatusEffects.push(activeEffect);
+
+    // Emit patch to update character
+    const patch: JsonPatch = {
+      op: 'replace',
+      path: '/activeStatusEffects',
+      value: character.activeStatusEffects
+    };
+
+    this.characterSocket.emitPatch(characterId, patch);
+    this.cdr.markForCheck();
+  }
 
   private applyJsonPatch(target: any, patch: JsonPatch) {
     const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');
