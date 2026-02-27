@@ -27,6 +27,10 @@ export const routes: Routes = [
         loadComponent: () => import('./library/library.component').then(m => m.LibraryComponent)
     },
     { 
+        path: 'assets/:libraryId', 
+        loadComponent: () => import('./asset-browser/asset-browser.component').then(m => m.AssetBrowserComponent)
+    },
+    { 
         path: 'stress-test', 
         loadComponent: () => import('./stress-test/stress-test.component').then(m => m.StressTestComponent)
     },

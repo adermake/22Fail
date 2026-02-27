@@ -1,0 +1,360 @@
+<div class="asset-browser" (click)="closeContextMenu()" (contextmenu)="onContextMenu($event, 'background')">
+  <!-- Header -->
+  <header class="browser-header">
+    <div class="header-left">
+      <button class="back-btn" (click)="goBack()">← Back</button>
+      <h1>{{ library()?.name || 'Asset Browser' }}</h1>
+    </div>
+    <div class="header-right">
+      <div class="search-box">
+        <input
+          type="text"
+          placeholder="Search assets..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+          (keyup.enter)="search()"
+        />
+        @if (searchQuery()) {
+          <button class="clear-search" (click)="clearSearch()">✕</button>
+        }
+        <button class="search-btn" (click)="search()">🔍</button>
+      </div>
+      <div class="view-toggle">
+        <button
+          [class.active]="viewMode() === 'grid'"
+          (click)="setViewMode('grid')"
+          title="Grid View"
+        >
+          ▦
+        </button>
+        <button
+          [class.active]="viewMode() === 'list'"
+          (click)="setViewMode('list')"
+          title="List View"
+        >
+          ☰
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="browser-body">
+    <!-- Sidebar: Folder Tree -->
+    <aside class="folder-tree">
+      <div class="tree-header">
+        <span>Folders</span>
+      </div>
+      <div class="tree-content">
+        @for (folder of getRootFolders(); track folder.id) {
+          <ng-container *ngTemplateOutlet="folderNode; context: { folder: folder, depth: 0 }"></ng-container>
+        }
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="content-area">
+      <!-- Toolbar -->
+      <div class="content-toolbar">
+        <div class="toolbar-left">
+          <!-- Breadcrumbs -->
+          <nav class="breadcrumbs">
+            @for (crumb of breadcrumbs(); track crumb.id; let last = $last) {
+              <button
+                class="crumb"
+                [class.current]="last"
+                (click)="navigateToFolder(crumb.id)"
+              >
+                {{ crumb.name }}
+              </button>
+              @if (!last) {
+                <span class="separator">/</span>
+              }
+            }
+          </nav>
+        </div>
+        <div class="toolbar-right">
+          <!-- Create Button -->
+          <div class="create-dropdown">
+            <button class="create-btn" (click)="toggleCreateMenu(); $event.stopPropagation()">
+              + Create
+            </button>
+            @if (showCreateMenu()) {
+              <div class="create-menu" (click)="$event.stopPropagation()">
+                <button (click)="createFolder()">📁 New Folder</button>
+                <hr />
+                <button (click)="createFile('item')">📦 New Item</button>
+                <button (click)="createFile('spell')">✨ New Spell</button>
+                <button (click)="createFile('rune')">🔮 New Rune</button>
+                <button (click)="createFile('skill')">⚔️ New Skill</button>
+                <button (click)="createFile('status-effect')">🎭 New Status Effect</button>
+                <button (click)="createFile('macro')">⚡ New Macro</button>
+              </div>
+            }
+          </div>
+
+          <!-- Clipboard Info -->
+          @if (clipboard.hasData()) {
+            <span class="clipboard-info">{{ clipboard.getInfo() }}</span>
+          }
+
+          <!-- Sort Dropdown -->
+          <select class="sort-select" (change)="setSortField($any($event.target).value)">
+            <option value="name">Sort by Name</option>
+            <option value="type">Sort by Type</option>
+            <option value="createdAt">Sort by Created</option>
+            <option value="updatedAt">Sort by Modified</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Loading Indicator -->
+      @if (isLoading()) {
+        <div class="loading-overlay">
+          <div class="spinner"></div>
+        </div>
+      }
+
+      <!-- Search Results -->
+      @if (searchResults()) {
+        <div class="search-results">
+          <div class="results-header">
+            <span>Search Results ({{ searchResults()!.length }})</span>
+            <button (click)="clearSearch()">Clear</button>
+          </div>
+          <div class="files-grid">
+            @for (file of searchResults(); track file.id) {
+              <div
+                class="file-item"
+                [class.selected]="isSelected(file.id)"
+                (click)="selectItem(file.id, false, $event)"
+                (dblclick)="onDoubleClick(file.id, false, $event)"
+                (contextmenu)="onContextMenu($event, 'file', file.id)"
+              >
+                <div class="file-icon">{{ file.icon || getAssetIcon(file.type) }}</div>
+                <div class="file-name">{{ file.name }}</div>
+                <div class="file-path">{{ file.path }}</div>
+              </div>
+            } @empty {
+              <div class="empty-message">No results found</div>
+            }
+          </div>
+        </div>
+      } @else {
+        <!-- Normal Folder Contents -->
+        <div class="folder-contents" [class.list-view]="viewMode() === 'list'">
+          <!-- Folders -->
+          @if (subfolders().length > 0) {
+            <div class="section-header">Folders</div>
+            <div class="folders-grid" [class.list-mode]="viewMode() === 'list'">
+              @for (folder of subfolders(); track folder.id) {
+                <div
+                  class="folder-item"
+                  [class.selected]="isSelected(folder.id)"
+                  [class.cut]="isCutItem(folder.id)"
+                  (click)="selectItem(folder.id, true, $event)"
+                  (dblclick)="onDoubleClick(folder.id, true, $event)"
+                  (contextmenu)="onContextMenu($event, 'folder', folder.id)"
+                >
+                  <div class="folder-icon">📁</div>
+                  @if (isRenaming() === folder.id) {
+                    <input
+                      type="text"
+                      class="rename-input"
+                      [ngModel]="renameValue()"
+                      (ngModelChange)="renameValue.set($event)"
+                      (keyup.enter)="confirmRename()"
+                      (keyup.escape)="cancelRename()"
+                      (blur)="confirmRename()"
+                      (click)="$event.stopPropagation()"
+                      autofocus
+                    />
+                  } @else {
+                    <div class="folder-name">{{ folder.name }}</div>
+                  }
+                  @if (viewMode() === 'list') {
+                    <div class="item-date">{{ formatDate(folder.updatedAt) }}</div>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Files -->
+          @if (files().length > 0) {
+            <div class="section-header">Files</div>
+            <div class="files-grid" [class.list-mode]="viewMode() === 'list'">
+              @for (file of files(); track file.id) {
+                <div
+                  class="file-item"
+                  [class.selected]="isSelected(file.id)"
+                  [class.cut]="isCutItem(file.id)"
+                  (click)="selectItem(file.id, false, $event)"
+                  (dblclick)="onDoubleClick(file.id, false, $event)"
+                  (contextmenu)="onContextMenu($event, 'file', file.id)"
+                >
+                  <div class="file-icon">{{ file.icon || getAssetIcon(file.type) }}</div>
+                  @if (isRenaming() === file.id) {
+                    <input
+                      type="text"
+                      class="rename-input"
+                      [ngModel]="renameValue()"
+                      (ngModelChange)="renameValue.set($event)"
+                      (keyup.enter)="confirmRename()"
+                      (keyup.escape)="cancelRename()"
+                      (blur)="confirmRename()"
+                      (click)="$event.stopPropagation()"
+                      autofocus
+                    />
+                  } @else {
+                    <div class="file-name">{{ file.name }}</div>
+                  }
+                  <div class="file-type">{{ getAssetTypeName(file.type) }}</div>
+                  @if (viewMode() === 'list') {
+                    <div class="item-date">{{ formatDate(file.updatedAt) }}</div>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Empty State -->
+          @if (subfolders().length === 0 && files().length === 0) {
+            <div class="empty-state">
+              <div class="empty-icon">📂</div>
+              <div class="empty-text">This folder is empty</div>
+              <div class="empty-hint">Click "Create" to add new content</div>
+            </div>
+          }
+        </div>
+      }
+    </main>
+  </div>
+
+  <!-- Context Menu -->
+  @if (contextMenuPosition()) {
+    <div
+      class="context-menu"
+      [style.left.px]="contextMenuPosition()!.x"
+      [style.top.px]="contextMenuPosition()!.y"
+      (click)="$event.stopPropagation()"
+    >
+      @if (contextMenuTarget()) {
+        <button (click)="openItem(contextMenuTarget()!.id); closeContextMenu()">
+          {{ contextMenuTarget()!.type === 'folder' ? '📂 Open' : '✏️ Edit' }}
+        </button>
+        <button (click)="startRename(contextMenuTarget()!.id); closeContextMenu()">📝 Rename</button>
+        <hr />
+        <button (click)="copySelected(); closeContextMenu()">📋 Copy (Ctrl+C)</button>
+        <button (click)="cutSelected(); closeContextMenu()">✂️ Cut (Ctrl+X)</button>
+        @if (clipboard.canPaste()) {
+          <button (click)="paste(); closeContextMenu()">📥 Paste (Ctrl+V)</button>
+        }
+        <hr />
+        <button class="danger" (click)="deleteSelected(); closeContextMenu()">🗑️ Delete</button>
+      } @else {
+        <button (click)="createFolder(); closeContextMenu()">📁 New Folder</button>
+        <hr />
+        <button (click)="createFile('item'); closeContextMenu()">📦 New Item</button>
+        <button (click)="createFile('spell'); closeContextMenu()">✨ New Spell</button>
+        <button (click)="createFile('rune'); closeContextMenu()">🔮 New Rune</button>
+        <button (click)="createFile('skill'); closeContextMenu()">⚔️ New Skill</button>
+        <button (click)="createFile('status-effect'); closeContextMenu()">🎭 New Status Effect</button>
+        <button (click)="createFile('macro'); closeContextMenu()">⚡ New Macro</button>
+        @if (clipboard.canPaste()) {
+          <hr />
+          <button (click)="paste(); closeContextMenu()">📥 Paste (Ctrl+V)</button>
+        }
+      }
+    </div>
+  }
+
+  <!-- Editor Modals -->
+  @if (editingFile() && editingType()) {
+    <div class="editor-overlay" (click)="closeEditor()">
+      <div class="editor-modal" (click)="$event.stopPropagation()">
+        <div class="editor-header">
+          <span>{{ getAssetIcon(editingType()!) }} Edit {{ getAssetTypeName(editingType()!) }}</span>
+          <button class="close-btn" (click)="closeEditor()">✕</button>
+        </div>
+        <div class="editor-content">
+          @switch (editingType()) {
+            @case ('item') {
+              <app-item-editor
+                [item]="editingFile()!.data"
+                [sheet]="dummySheet"
+                (save)="saveEditor($event)"
+                (cancel)="closeEditor()"
+              />
+            }
+            @case ('rune') {
+              <app-rune-editor
+                [rune]="editingFile()!.data"
+                (save)="saveEditor($event)"
+                (cancel)="closeEditor()"
+              />
+            }
+            @case ('spell') {
+              <app-spell-editor
+                [spell]="editingFile()!.data"
+                (save)="saveEditor($event)"
+                (cancel)="closeEditor()"
+              />
+            }
+            @case ('skill') {
+              <app-skill-editor
+                [skill]="editingFile()!.data"
+                (save)="saveEditor($event)"
+                (cancel)="closeEditor()"
+              />
+            }
+            @case ('status-effect') {
+              <app-status-effect-editor
+                [statusEffect]="editingFile()!.data"
+                (save)="saveEditor($event)"
+                (cancel)="closeEditor()"
+              />
+            }
+            @case ('macro') {
+              <!-- TODO: Macro editor -->
+              <div class="placeholder-editor">
+                <p>Macro editor coming soon</p>
+                <pre>{{ editingFile()!.data | json }}</pre>
+                <button (click)="closeEditor()">Close</button>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Folder Tree Node Template -->
+<ng-template #folderNode let-folder="folder" let-depth="depth">
+  <div
+    class="tree-node"
+    [style.paddingLeft.px]="depth * 16 + 8"
+    [class.selected]="currentFolderId() === folder.id"
+  >
+    <button
+      class="expand-btn"
+      [class.expanded]="isFolderExpanded(folder.id)"
+      [class.hidden]="getChildFolders(folder.id).length === 0"
+      (click)="toggleFolderExpand(folder.id); $event.stopPropagation()"
+    >
+      ▶
+    </button>
+    <span class="node-icon">📁</span>
+    <span
+      class="node-name"
+      (click)="navigateToFolder(folder.id)"
+    >
+      {{ folder.name }}
+    </span>
+  </div>
+  @if (isFolderExpanded(folder.id)) {
+    @for (child of getChildFolders(folder.id); track child.id) {
+      <ng-container *ngTemplateOutlet="folderNode; context: { folder: child, depth: depth + 1 }"></ng-container>
+    }
+  }
+</ng-template>

@@ -1,0 +1,190 @@
+<div class="editor-container">
+  <!-- Header -->
+  <div class="editor-header">
+    <div class="header-left">
+      <span class="effect-icon" [style.color]="editEffect.color">{{ editEffect.icon }}</span>
+      <h2>{{ isNew ? 'Neuen Status-Effekt erstellen' : 'Status-Effekt bearbeiten' }}</h2>
+    </div>
+    <div class="header-actions">
+      @if (!isNew) {
+        <button class="delete-btn" (click)="deleteEffect()">🗑️ Löschen</button>
+      }
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="editor-content">
+    <!-- Basic Info -->
+    <section class="section">
+      <h3>Allgemein</h3>
+      
+      <div class="form-row">
+        <label>Name</label>
+        <input type="text" [(ngModel)]="editEffect.name" placeholder="Name des Effekts">
+      </div>
+
+      <div class="form-row">
+        <label>Beschreibung</label>
+        <textarea [(ngModel)]="editEffect.description" rows="3" placeholder="Beschreibung des Effekts"></textarea>
+      </div>
+
+      <div class="form-row">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="editEffect.isDebuff">
+          <span>Ist Debuff (negative Wirkung)</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Visual -->
+    <section class="section">
+      <h3>Aussehen</h3>
+      
+      <div class="form-row">
+        <label>Icon</label>
+        <div class="icon-grid">
+          @for (icon of iconPresets; track icon) {
+            <button 
+              class="icon-btn" 
+              [class.selected]="editEffect.icon === icon"
+              (click)="selectIcon(icon)">
+              {{ icon }}
+            </button>
+          }
+        </div>
+        <input type="text" [(ngModel)]="editEffect.icon" placeholder="Oder eigenes Emoji eingeben" class="icon-input">
+      </div>
+
+      <div class="form-row">
+        <label>Farbe</label>
+        <div class="color-grid">
+          @for (color of colorPresets; track color) {
+            <button 
+              class="color-btn" 
+              [style.background]="color"
+              [class.selected]="isColorSelected(color)"
+              (click)="selectColor(color)">
+            </button>
+          }
+        </div>
+        <div class="custom-color">
+          <input type="color" [(ngModel)]="editEffect.color" class="color-picker">
+          <input type="text" [(ngModel)]="editEffect.color" placeholder="#8b5cf6" class="color-text">
+        </div>
+      </div>
+    </section>
+
+    <!-- Duration & Stacking -->
+    <section class="section">
+      <h3>Dauer & Stapeln</h3>
+      
+      <div class="form-row-inline">
+        <div class="inline-field">
+          <label>Standard-Dauer</label>
+          <div class="input-with-suffix">
+            <input type="number" [(ngModel)]="editEffect.defaultDuration" min="0" placeholder="∞">
+            <span class="suffix">Runden</span>
+          </div>
+          <span class="hint">Leer = unbegrenzt</span>
+        </div>
+
+        <div class="inline-field">
+          <label>Max. Stapel</label>
+          <input type="number" [(ngModel)]="editEffect.maxStacks" min="1" max="99" placeholder="1">
+          <span class="hint">Wie oft stapelbar</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dice Bonuses -->
+    <section class="section">
+      <h3>Würfel-Boni</h3>
+      <p class="section-hint">Bonus/Malus auf Würfelwürfe</p>
+      
+      @if (editEffect.diceBonuses && editEffect.diceBonuses.length > 0) {
+        <div class="bonus-list">
+          @for (bonus of editEffect.diceBonuses; track $index) {
+            <div class="bonus-row">
+              <input type="text" [(ngModel)]="bonus.name" placeholder="Name">
+              <input type="number" [(ngModel)]="bonus.value" class="value-input">
+              <input type="text" [(ngModel)]="bonus.context" placeholder="Kontext (optional)">
+              <button class="remove-btn" (click)="removeDiceBonus($index)">✕</button>
+            </div>
+          }
+        </div>
+      }
+      
+      <button class="add-btn" (click)="addDiceBonus()">+ Würfel-Bonus hinzufügen</button>
+    </section>
+
+    <!-- Stat Modifiers -->
+    <section class="section">
+      <h3>Attributs-Modifikatoren</h3>
+      <p class="section-hint">Direkte Änderungen an Attributen</p>
+      
+      @if (editEffect.statModifiers && editEffect.statModifiers.length > 0) {
+        <div class="modifier-list">
+          @for (mod of editEffect.statModifiers; track $index) {
+            <div class="modifier-row">
+              <select [(ngModel)]="mod.stat">
+                @for (stat of stats; track stat) {
+                  <option [value]="stat">{{ statLabels[stat] }}</option>
+                }
+              </select>
+              <input type="number" [(ngModel)]="mod.amount" class="value-input">
+              <label class="checkbox-label small">
+                <input type="checkbox" [(ngModel)]="mod.isPercentage">
+                <span>%</span>
+              </label>
+              <button class="remove-btn" (click)="removeStatModifier($index)">✕</button>
+            </div>
+          }
+        </div>
+      }
+      
+      <button class="add-btn" (click)="addStatModifier()">+ Modifikator hinzufügen</button>
+    </section>
+
+    <!-- Tags -->
+    <section class="section">
+      <h3>Tags</h3>
+      
+      @if (editEffect.tags && editEffect.tags.length > 0) {
+        <div class="tags-list">
+          @for (tag of editEffect.tags; track $index) {
+            <span class="tag">
+              {{ tag }}
+              <button (click)="removeTag($index)">✕</button>
+            </span>
+          }
+        </div>
+      }
+      
+      <div class="add-tag-row">
+        <input 
+          type="text" 
+          [(ngModel)]="newTag" 
+          placeholder="Neuer Tag" 
+          (keydown.enter)="addTag()">
+        <button class="add-btn small" (click)="addTag()">+ Tag</button>
+      </div>
+    </section>
+
+    <!-- Macro Action (placeholder) -->
+    <section class="section">
+      <h3>Makro-Aktion</h3>
+      
+      <div class="form-row">
+        <label>Makro-ID (optional)</label>
+        <input type="text" [(ngModel)]="editEffect.macroActionId" placeholder="ID der auszuführenden Makro-Aktion">
+        <span class="hint">Wird ausgeführt wenn der Effekt angeklickt wird</span>
+      </div>
+    </section>
+  </div>
+
+  <!-- Footer -->
+  <div class="editor-footer">
+    <button class="cancel-btn" (click)="cancelEdit()">Abbrechen</button>
+    <button class="save-btn" (click)="saveEffect()">Speichern</button>
+  </div>
+</div>
