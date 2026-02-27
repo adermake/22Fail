@@ -2,14 +2,14 @@
   <!-- Header -->
   <header class="browser-header">
     <div class="header-left">
-      <button class="back-btn" (click)="goBack()">← Back</button>
-      <h1>{{ library()?.name || 'Asset Browser' }}</h1>
+      <button class="back-btn" (click)="goBack()">← Zurück</button>
+      <h1>{{ library()?.name || 'Bibliothek' }}</h1>
     </div>
     <div class="header-right">
       <div class="search-box">
         <input
           type="text"
-          placeholder="Search assets..."
+          placeholder="Suche..."
           [ngModel]="searchQuery()"
           (ngModelChange)="searchQuery.set($event)"
           (keyup.enter)="search()"
@@ -42,7 +42,7 @@
     <!-- Sidebar: Folder Tree -->
     <aside class="folder-tree">
       <div class="tree-header">
-        <span>Folders</span>
+        <span>Ordner</span>
       </div>
       <div class="tree-content">
         @for (folder of getRootFolders(); track folder.id) {
@@ -76,18 +76,18 @@
           <!-- Create Button -->
           <div class="create-dropdown">
             <button class="create-btn" (click)="toggleCreateMenu(); $event.stopPropagation()">
-              + Create
+              + Neu
             </button>
             @if (showCreateMenu()) {
               <div class="create-menu" (click)="$event.stopPropagation()">
-                <button (click)="createFolder()">📁 New Folder</button>
+                <button (click)="createFolder()">📁 Neuer Ordner</button>
                 <hr />
-                <button (click)="createFile('item')">📦 New Item</button>
-                <button (click)="createFile('spell')">✨ New Spell</button>
-                <button (click)="createFile('rune')">🔮 New Rune</button>
-                <button (click)="createFile('skill')">⚔️ New Skill</button>
-                <button (click)="createFile('status-effect')">🎭 New Status Effect</button>
-                <button (click)="createFile('macro')">⚡ New Macro</button>
+                <button (click)="createFile('item')">📦 Neues Item</button>
+                <button (click)="createFile('spell')">✨ Neuer Zauber</button>
+                <button (click)="createFile('rune')">🔮 Neue Rune</button>
+                <button (click)="createFile('skill')">⚔️ Neuer Skill</button>
+                <button (click)="createFile('status-effect')">🎭 Neuer Status-Effekt</button>
+                <button (click)="createFile('macro')">⚡ Neues Makro</button>
               </div>
             }
           </div>
@@ -99,10 +99,10 @@
 
           <!-- Sort Dropdown -->
           <select class="sort-select" (change)="setSortField($any($event.target).value)">
-            <option value="name">Sort by Name</option>
-            <option value="type">Sort by Type</option>
-            <option value="createdAt">Sort by Created</option>
-            <option value="updatedAt">Sort by Modified</option>
+            <option value="name">Nach Name</option>
+            <option value="type">Nach Typ</option>
+            <option value="createdAt">Nach Erstellt</option>
+            <option value="updatedAt">Nach Geändert</option>
           </select>
         </div>
       </div>
@@ -118,8 +118,8 @@
       @if (searchResults()) {
         <div class="search-results">
           <div class="results-header">
-            <span>Search Results ({{ searchResults()!.length }})</span>
-            <button (click)="clearSearch()">Clear</button>
+            <span>Suchergebnisse ({{ searchResults()!.length }})</span>
+            <button (click)="clearSearch()">Zurücksetzen</button>
           </div>
           <div class="files-grid">
             @for (file of searchResults(); track file.id) {
@@ -135,7 +135,7 @@
                 <div class="file-path">{{ file.path }}</div>
               </div>
             } @empty {
-              <div class="empty-message">No results found</div>
+              <div class="empty-message">Keine Ergebnisse gefunden</div>
             }
           </div>
         </div>
@@ -144,7 +144,7 @@
         <div class="folder-contents" [class.list-view]="viewMode() === 'list'">
           <!-- Folders -->
           @if (subfolders().length > 0) {
-            <div class="section-header">Folders</div>
+            <div class="section-header">Ordner</div>
             <div class="folders-grid" [class.list-mode]="viewMode() === 'list'">
               @for (folder of subfolders(); track folder.id) {
                 <div
@@ -181,7 +181,7 @@
 
           <!-- Files -->
           @if (files().length > 0) {
-            <div class="section-header">Files</div>
+            <div class="section-header">Dateien</div>
             <div class="files-grid" [class.list-mode]="viewMode() === 'list'">
               @for (file of files(); track file.id) {
                 <div
@@ -221,8 +221,8 @@
           @if (subfolders().length === 0 && files().length === 0) {
             <div class="empty-state">
               <div class="empty-icon">📂</div>
-              <div class="empty-text">This folder is empty</div>
-              <div class="empty-hint">Click "Create" to add new content</div>
+              <div class="empty-text">Dieser Ordner ist leer</div>
+              <div class="empty-hint">Klicke "Neu" um Inhalte hinzuzufügen</div>
             </div>
           }
         </div>
@@ -240,29 +240,29 @@
     >
       @if (contextMenuTarget()) {
         <button (click)="openItem(contextMenuTarget()!.id); closeContextMenu()">
-          {{ contextMenuTarget()!.type === 'folder' ? '📂 Open' : '✏️ Edit' }}
+          {{ contextMenuTarget()!.type === 'folder' ? '📂 Öffnen' : '✏️ Bearbeiten' }}
         </button>
-        <button (click)="startRename(contextMenuTarget()!.id); closeContextMenu()">📝 Rename</button>
+        <button (click)="startRename(contextMenuTarget()!.id); closeContextMenu()">📝 Umbenennen</button>
         <hr />
-        <button (click)="copySelected(); closeContextMenu()">📋 Copy (Ctrl+C)</button>
-        <button (click)="cutSelected(); closeContextMenu()">✂️ Cut (Ctrl+X)</button>
+        <button (click)="copySelected(); closeContextMenu()">📋 Kopieren (Strg+C)</button>
+        <button (click)="cutSelected(); closeContextMenu()">✂️ Ausschneiden (Strg+X)</button>
         @if (clipboard.canPaste()) {
-          <button (click)="paste(); closeContextMenu()">📥 Paste (Ctrl+V)</button>
+          <button (click)="paste(); closeContextMenu()">📥 Einfügen (Strg+V)</button>
         }
         <hr />
-        <button class="danger" (click)="deleteSelected(); closeContextMenu()">🗑️ Delete</button>
+        <button class="danger" (click)="deleteSelected(); closeContextMenu()">🗑️ Löschen</button>
       } @else {
-        <button (click)="createFolder(); closeContextMenu()">📁 New Folder</button>
+        <button (click)="createFolder(); closeContextMenu()">📁 Neuer Ordner</button>
         <hr />
-        <button (click)="createFile('item'); closeContextMenu()">📦 New Item</button>
-        <button (click)="createFile('spell'); closeContextMenu()">✨ New Spell</button>
-        <button (click)="createFile('rune'); closeContextMenu()">🔮 New Rune</button>
-        <button (click)="createFile('skill'); closeContextMenu()">⚔️ New Skill</button>
-        <button (click)="createFile('status-effect'); closeContextMenu()">🎭 New Status Effect</button>
-        <button (click)="createFile('macro'); closeContextMenu()">⚡ New Macro</button>
+        <button (click)="createFile('item'); closeContextMenu()">📦 Neues Item</button>
+        <button (click)="createFile('spell'); closeContextMenu()">✨ Neuer Zauber</button>
+        <button (click)="createFile('rune'); closeContextMenu()">🔮 Neue Rune</button>
+        <button (click)="createFile('skill'); closeContextMenu()">⚔️ Neuer Skill</button>
+        <button (click)="createFile('status-effect'); closeContextMenu()">🎭 Neuer Status-Effekt</button>
+        <button (click)="createFile('macro'); closeContextMenu()">⚡ Neues Makro</button>
         @if (clipboard.canPaste()) {
           <hr />
-          <button (click)="paste(); closeContextMenu()">📥 Paste (Ctrl+V)</button>
+          <button (click)="paste(); closeContextMenu()">📥 Einfügen (Strg+V)</button>
         }
       }
     </div>
@@ -273,7 +273,7 @@
     <div class="editor-overlay" (click)="closeEditor()">
       <div class="editor-modal" (click)="$event.stopPropagation()">
         <div class="editor-header">
-          <span>{{ getAssetIcon(editingType()!) }} Edit {{ getAssetTypeName(editingType()!) }}</span>
+          <span>{{ getAssetIcon(editingType()!) }} {{ getAssetTypeName(editingType()!) }} bearbeiten</span>
           <button class="close-btn" (click)="closeEditor()">✕</button>
         </div>
         <div class="editor-content">
@@ -317,9 +317,9 @@
             @case ('macro') {
               <!-- TODO: Macro editor -->
               <div class="placeholder-editor">
-                <p>Macro editor coming soon</p>
+                <p>Makro-Editor kommt bald</p>
                 <pre>{{ editingFile()!.data | json }}</pre>
-                <button (click)="closeEditor()">Close</button>
+                <button (click)="closeEditor()">Schließen</button>
               </div>
             }
           }

@@ -75,13 +75,13 @@ export class AssetClipboardService {
     const parts: string[] = [];
 
     if (folderCount > 0) {
-      parts.push(`${folderCount} folder${folderCount > 1 ? 's' : ''}`);
+      parts.push(`${folderCount} Ordner`);
     }
     if (fileCount > 0) {
-      parts.push(`${fileCount} file${fileCount > 1 ? 's' : ''}`);
+      parts.push(`${fileCount} Datei${fileCount > 1 ? 'en' : ''}`);
     }
 
-    const operation = data.operation === 'cut' ? 'Cut' : 'Copied';
+    const operation = data.operation === 'cut' ? 'Ausgeschnitten' : 'Kopiert';
     return `${operation}: ${parts.join(', ')}`;
   }
 

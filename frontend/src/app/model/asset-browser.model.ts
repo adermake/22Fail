@@ -105,12 +105,12 @@ export function getAssetTypeIcon(type: AssetType): string {
 export function getAssetTypeName(type: AssetType): string {
   switch (type) {
     case 'item': return 'Item';
-    case 'spell': return 'Spell';
+    case 'spell': return 'Zauber';
     case 'rune': return 'Rune';
     case 'skill': return 'Skill';
-    case 'macro': return 'Macro';
-    case 'status-effect': return 'Status Effect';
-    default: return 'Unknown';
+    case 'macro': return 'Makro';
+    case 'status-effect': return 'Status-Effekt';
+    default: return 'Unbekannt';
   }
 }
 
