@@ -77,10 +77,14 @@
                   [item]="item"
                   [sheet]="dummySheet"
                   [index]="i"
-                  [isEditing]="false"
-                  (startEdit)="openItemEditor(i)"
+                  [isEditing]="isItemEditing(i)"
+                  (patch)="handleItemPatch(i, $event)"
+                  (openEditor)="toggleItemEditing(i)"
                 />
-                <button class="remove-btn" (click)="removeItem(i)">🗑️</button>
+                <div class="item-actions">
+                  <button class="edit-btn" (click)="openItemEditor(i)">✏️ Edit Details</button>
+                  <button class="remove-btn" (click)="removeItem(i)">🗑️</button>
+                </div>
               }
             </div>
           }
@@ -105,10 +109,14 @@
                 <app-rune
                   [rune]="rune"
                   [index]="i"
-                  [isEditing]="false"
-                  (startEdit)="openRuneEditor(i)"
+                  [isEditing]="isRuneEditing(i)"
+                  (patch)="handleRunePatch(i, $event)"
+                  (openEditor)="toggleRuneEditing(i)"
                 />
-                <button class="remove-btn" (click)="removeRune(i)">🗑️</button>
+                <div class="rune-actions">
+                  <button class="edit-btn" (click)="openRuneEditor(i)">✏️ Edit Details</button>
+                  <button class="remove-btn" (click)="removeRune(i)">🗑️</button>
+                </div>
               }
             </div>
           }
@@ -134,10 +142,14 @@
                   [spell]="spell"
                   [sheet]="dummySheet"
                   [index]="i"
-                  [isEditing]="false"
-                  (startEdit)="openSpellEditor(i)"
+                  [isEditing]="isSpellEditing(i)"
+                  (patch)="handleSpellPatch(i, $event)"
+                  (openEditor)="toggleSpellEditing(i)"
                 />
-                <button class="remove-btn" (click)="removeSpell(i)">🗑️</button>
+                <div class="spell-actions">
+                  <button class="edit-btn" (click)="openSpellEditor(i)">✏️ Edit Details</button>
+                  <button class="remove-btn" (click)="removeSpell(i)">🗑️</button>
+                </div>
               }
             </div>
           }
@@ -163,10 +175,14 @@
                   [skill]="skill"
                   [sheet]="dummySheet"
                   [index]="i"
-                  [isEditing]="false"
-                  (startEdit)="openSkillEditor(i)"
+                  [isEditing]="isSkillEditing(i)"
+                  (patch)="handleSkillPatch(i, $event)"
+                  (openEditor)="toggleSkillEditing(i)"
                 />
-                <button class="remove-btn" (click)="removeSkill(i)">🗑️</button>
+                <div class="skill-actions">
+                  <button class="edit-btn" (click)="openSkillEditor(i)">✏️ Edit Details</button>
+                  <button class="remove-btn" (click)="removeSkill(i)">🗑️</button>
+                </div>
               }
             </div>
           }

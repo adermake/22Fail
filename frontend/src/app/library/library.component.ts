@@ -11,6 +11,7 @@ import { SpellBlock } from '../model/spell-block-model';
 import { SkillBlock } from '../model/skill-block.model';
 import { StatusEffect, createEmptyStatusEffect } from '../model/status-effect.model';
 import { MacroAction, createEmptyMacroAction } from '../model/macro-action.model';
+import { JsonPatch } from '../model/json-patch.model';
 import { CardComponent } from '../shared/card/card.component';
 import { ItemEditorComponent } from '../sheet/item-editor/item-editor.component';
 import { ItemComponent } from '../sheet/item/item.component';
@@ -50,13 +51,19 @@ export class LibraryComponent implements OnInit, OnDestroy {
   activeTab = signal<'items' | 'runes' | 'spells' | 'skills' | 'status-effects' | 'macros'>('items');
   searchTerm = signal<string>('');
   
-  // Editing state
+  // Editing state - for modal editors
   editingItemIndex = signal<number | null>(null);
   editingRuneIndex = signal<number | null>(null);
   editingSpellIndex = signal<number | null>(null);
   editingSkillIndex = signal<number | null>(null);
   editingStatusEffectIndex = signal<number | null>(null);
   editingMacroIndex = signal<number | null>(null);
+  
+  // Editing sets - for inline editing with drawing
+  editingItems = signal<Set<number>>(new Set());
+  editingRunes = signal<Set<number>>(new Set());
+  editingSpells = signal<Set<number>>(new Set());
+  editingSkills = signal<Set<number>>(new Set());
   
   // Dummy sheet for item rendering
   dummySheet: CharacterSheet = createEmptySheet();
@@ -185,6 +192,20 @@ export class LibraryComponent implements OnInit, OnDestroy {
   closeItemEditor() {
     this.editingItemIndex.set(null);
   }
+  
+  toggleItemEditing(index: number) {
+    const editing = this.editingItems();
+    if (editing.has(index)) {
+      editing.delete(index);
+    } else {
+      editing.add(index);
+    }
+    this.editingItems.set(new Set(editing));
+  }
+  
+  isItemEditing(index: number): boolean {
+    return this.editingItems().has(index);
+  }
 
   updateItem(index: number, updates: Partial<ItemBlock>) {
     const lib = this.library();
@@ -192,6 +213,19 @@ export class LibraryComponent implements OnInit, OnDestroy {
     const item = lib.items[index];
     if (item && item.id) {
       this.store.updateItem(item.id, updates);
+      this.saveLibrary();
+    }
+  }
+
+  handleItemPatch(index: number, patch: JsonPatch) {
+    const lib = this.library();
+    if (!lib) return;
+    const item = lib.items[index];
+    if (item) {
+      this.applyPatch(item, patch);
+      if (item.id) {
+        this.store.updateItem(item.id, { [patch.path]: patch.value } as Partial<ItemBlock>);
+      }
       this.saveLibrary();
     }
   }
@@ -224,6 +258,20 @@ export class LibraryComponent implements OnInit, OnDestroy {
   closeRuneEditor() {
     this.editingRuneIndex.set(null);
   }
+  
+  toggleRuneEditing(index: number) {
+    const editing = this.editingRunes();
+    if (editing.has(index)) {
+      editing.delete(index);
+    } else {
+      editing.add(index);
+    }
+    this.editingRunes.set(new Set(editing));
+  }
+  
+  isRuneEditing(index: number): boolean {
+    return this.editingRunes().has(index);
+  }
 
   updateRune(index: number, updates: Partial<RuneBlock>) {
     const lib = this.library();
@@ -231,6 +279,16 @@ export class LibraryComponent implements OnInit, OnDestroy {
     const rune = lib.runes[index];
     if (rune) {
       Object.assign(rune, updates);
+      this.saveLibrary();
+    }
+  }
+
+  handleRunePatch(index: number, patch: JsonPatch) {
+    const lib = this.library();
+    if (!lib) return;
+    const rune = lib.runes[index];
+    if (rune) {
+      this.applyPatch(rune, patch);
       this.saveLibrary();
     }
   }
@@ -263,6 +321,20 @@ export class LibraryComponent implements OnInit, OnDestroy {
   closeSpellEditor() {
     this.editingSpellIndex.set(null);
   }
+  
+  toggleSpellEditing(index: number) {
+    const editing = this.editingSpells();
+    if (editing.has(index)) {
+      editing.delete(index);
+    } else {
+      editing.add(index);
+    }
+    this.editingSpells.set(new Set(editing));
+  }
+  
+  isSpellEditing(index: number): boolean {
+    return this.editingSpells().has(index);
+  }
 
   updateSpell(index: number, updates: Partial<SpellBlock>) {
     const lib = this.library();
@@ -270,6 +342,16 @@ export class LibraryComponent implements OnInit, OnDestroy {
     const spell = lib.spells[index];
     if (spell) {
       Object.assign(spell, updates);
+      this.saveLibrary();
+    }
+  }
+
+  handleSpellPatch(index: number, patch: JsonPatch) {
+    const lib = this.library();
+    if (!lib) return;
+    const spell = lib.spells[index];
+    if (spell) {
+      this.applyPatch(spell, patch);
       this.saveLibrary();
     }
   }
@@ -303,6 +385,20 @@ export class LibraryComponent implements OnInit, OnDestroy {
   closeSkillEditor() {
     this.editingSkillIndex.set(null);
   }
+  
+  toggleSkillEditing(index: number) {
+    const editing = this.editingSkills();
+    if (editing.has(index)) {
+      editing.delete(index);
+    } else {
+      editing.add(index);
+    }
+    this.editingSkills.set(new Set(editing));
+  }
+  
+  isSkillEditing(index: number): boolean {
+    return this.editingSkills().has(index);
+  }
 
   updateSkill(index: number, updates: Partial<SkillBlock>) {
     const lib = this.library();
@@ -310,6 +406,16 @@ export class LibraryComponent implements OnInit, OnDestroy {
     const skill = lib.skills[index];
     if (skill) {
       Object.assign(skill, updates);
+      this.saveLibrary();
+    }
+  }
+
+  handleSkillPatch(index: number, patch: JsonPatch) {
+    const lib = this.library();
+    if (!lib) return;
+    const skill = lib.skills[index];
+    if (skill) {
+      this.applyPatch(skill, patch);
       this.saveLibrary();
     }
   }
@@ -365,5 +471,23 @@ export class LibraryComponent implements OnInit, OnDestroy {
 
   back() {
     this.router.navigate(['/']);
+  }
+
+  // Helper method to apply JSON patches
+  private applyPatch(target: any, patch: JsonPatch) {
+    const pathParts = patch.path.split('.');
+    let current = target;
+    
+    // Navigate to the parent of the target property
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      if (!current[pathParts[i]]) {
+        current[pathParts[i]] = {};
+      }
+      current = current[pathParts[i]];
+    }
+    
+    // Set the final property
+    const finalKey = pathParts[pathParts.length - 1];
+    current[finalKey] = patch.value;
   }
 }
