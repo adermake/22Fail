@@ -66,13 +66,10 @@
           <span class="durability-label">Haltbarkeit</span>
           <span class="durability-value">{{ item.durability || 0 }} / {{ item.maxDurability }}</span>
         </div>
-        <div class="durability-bar">
-          <div class="durability-fill" 
-               [class]="durabilityClass"
-               [style.width.%]="durabilityPercent">
-          </div>
-        </div>
         <div class="durability-slider-row" (mousedown)="$event.stopPropagation()">
+          <div class="durability-bar" [style.width.%]="durabilityPercent">
+            <div class="durability-fill" [class]="durabilityClass"></div>
+          </div>
           <input 
             type="range" 
             class="durability-slider"
@@ -80,6 +77,8 @@
             [max]="item.maxDurability" 
             [value]="item.durability || 0"
             (input)="updateDurability(+$any($event.target).value); $event.stopPropagation()" />
+        </div>
+        <div class="durability-controls">
           <input 
             type="number" 
             class="durability-input"

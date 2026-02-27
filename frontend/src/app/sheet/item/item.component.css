@@ -13,7 +13,7 @@
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 1rem;
+  padding: 0.6rem 0.8rem;
   transition: all 0.2s;
   border-left: 3px solid var(--accent);
   cursor: grab;
@@ -28,7 +28,7 @@
 }
 
 .item-card.folded {
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.6rem;
 }
 
 .item-card:active {
@@ -61,13 +61,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
-  gap: 1rem;
+  margin-bottom: 0.4rem;
+  gap: 0.6rem;
 }
 
 .item-header h4 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   color: var(--text);
   word-break: break-word;
   flex: 1;
@@ -78,7 +78,7 @@
 
 .item-badges {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.3rem;
   align-items: center;
   flex-wrap: wrap;
   flex-shrink: 0;
@@ -91,29 +91,29 @@
 .item-weight {
   background: var(--bg);
   color: var(--text-muted);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
   border: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .item-unusable-badge {
-  background: #4d1c21; /* Dark red background */
-  color: #ffcdd2; /* Light red text */
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  border: 1px solid #e57373; /* Red border */
+  background: #4d1c21;
+  color: #ffcdd2;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  border: 1px solid #e57373;
   white-space: nowrap;
 }
 
 .item-armor-debuff {
   background: #4a2c00;
   color: #f97316;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
   border: 1px solid #f97316;
   white-space: nowrap;
   font-weight: 600;
@@ -315,11 +315,11 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 1.2rem;
-  padding: 0.25rem 0.5rem;
+  font-size: 1rem;
+  padding: 0.2rem 0.4rem;
   opacity: 0.6;
   transition: all 0.2s;
-  border-radius: 4px;
+  border-radius: 3px;
   flex-shrink: 0;
   position: relative;
 }
@@ -395,11 +395,11 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 1rem;
-  padding: 0.25rem 0.4rem;
+  font-size: 0.9rem;
+  padding: 0.2rem 0.35rem;
   opacity: 0.5;
   transition: all 0.2s;
-  border-radius: 4px;
+  border-radius: 3px;
   flex-shrink: 0;
   position: relative;
 }
@@ -425,11 +425,11 @@
   background: transparent;
   border: 1px solid var(--border);
   cursor: pointer;
-  font-size: 0.8rem;
-  padding: 0.2rem 0.4rem;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.35rem;
   opacity: 0.7;
   transition: all 0.2s;
-  border-radius: 4px;
+  border-radius: 3px;
   color: var(--text);
   flex-shrink: 0;
   position: relative;
@@ -449,9 +449,9 @@
 .item-efficiency {
   background: #1e1b4b;
   color: #a5b4fc;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
   border: 1px solid #6366f1;
   white-space: nowrap;
   font-weight: 600;
@@ -460,20 +460,20 @@
 .item-stability {
   background: #1e1b4b;
   color: #a5b4fc;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
   border: 1px solid #6366f1;
   white-space: nowrap;
   font-weight: 600;
 }
 
-/* Durability Section */
+/* Durability Section - styled like custom counter */
 .durability-section {
   background: var(--bg);
   border-radius: 6px;
-  padding: 0.5rem;
-  margin: 0.5rem 0;
+  padding: 0.4rem;
+  margin: 0.4rem 0;
   border: 1px solid var(--border);
 }
 
@@ -481,92 +481,122 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.3rem;
 }
 
 .durability-label {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   font-weight: 500;
 }
 
 .durability-value {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text);
   font-weight: 600;
 }
 
-.durability-bar {
-  height: 8px;
+/* Durability bar styled like custom counter bar */
+.durability-slider-row {
+  position: relative;
+  height: 14px;
   background: #1f2937;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
+  border-radius: 7px;
+  overflow: visible;
+  margin-bottom: 0.3rem;
+}
+
+.durability-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 7px;
+  pointer-events: none;
+  z-index: 1;
+  transition: width 0.3s;
 }
 
 .durability-fill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: 7px;
   transition: width 0.3s, background-color 0.3s;
 }
 
 .durability-fill.durability-high {
-  background: linear-gradient(to right, #22c55e, #4ade80);
+  background: #22c55e;
 }
 
 .durability-fill.durability-medium {
-  background: linear-gradient(to right, #f59e0b, #fbbf24);
+  background: #f59e0b;
 }
 
 .durability-fill.durability-low {
-  background: linear-gradient(to right, #ef4444, #f87171);
-}
-
-.durability-slider-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
+  background: #ef4444;
 }
 
 .durability-slider {
-  flex: 1;
-  height: 6px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   -webkit-appearance: none;
   appearance: none;
-  background: var(--border);
-  border-radius: 3px;
+  background: transparent;
   outline: none;
   cursor: pointer;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
 }
 
 .durability-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
-  background: var(--accent);
+  width: 14px;
+  height: 14px;
+  background: white;
   border-radius: 50%;
   cursor: pointer;
-  border: 2px solid var(--card);
+  border: 2px solid var(--accent);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s;
+}
+
+.durability-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
 }
 
 .durability-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  background: var(--accent);
+  width: 14px;
+  height: 14px;
+  background: white;
   border-radius: 50%;
   cursor: pointer;
-  border: 2px solid var(--card);
+  border: 2px solid var(--accent);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s;
+}
+
+.durability-slider::-moz-range-thumb:hover {
+  transform: scale(1.1);
+}
+
+.durability-controls {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
 }
 
 .durability-input {
-  width: 50px;
-  padding: 0.25rem 0.4rem;
+  width: 45px;
+  padding: 0.2rem 0.3rem;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   text-align: center;
 }
 
@@ -594,17 +624,17 @@
 
 /* Counters Section */
 .counters-section {
-  margin: 0.5rem 0;
+  margin: 0.4rem 0;
 }
 
 .counter-row {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.5rem;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
+  padding: 0.4rem;
   background: var(--bg);
   border-radius: 4px;
-  margin-bottom: 0.5rem;
   border: 1px solid var(--border);
 }
 
@@ -615,22 +645,22 @@
 }
 
 .counter-name {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--text);
   font-weight: 500;
 }
 
 .counter-value {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text);
   font-weight: 600;
 }
 
 .counter-slider-wrapper {
   position: relative;
-  height: 20px;
+  height: 14px;
   background: #1f2937;
-  border-radius: 10px;
+  border-radius: 7px;
   overflow: visible;
 }
 
@@ -639,7 +669,7 @@
   top: 0;
   left: 0;
   height: 100%;
-  border-radius: 10px;
+  border-radius: 7px;
   transition: width 0.3s;
   pointer-events: none;
   z-index: 1;
@@ -664,8 +694,8 @@
 .counter-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   background: white;
   border-radius: 50%;
   cursor: pointer;
@@ -679,8 +709,8 @@
 }
 
 .counter-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   background: white;
   border-radius: 50%;
   cursor: pointer;
@@ -697,7 +727,9 @@
 .stat-modifiers-section {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.3rem;
+  margin: 0.4rem 0;
+}
   margin: 0.5rem 0;
 }
 
@@ -727,7 +759,9 @@
 .dice-bonuses-section {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.3rem;
+  margin: 0.4rem 0;
+}
   margin: 0.5rem 0;
 }
 
@@ -794,9 +828,11 @@
 
 /* Effects Section */
 .effects-section {
+  margin: 0.4rem 0;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+}
   margin: 0.5rem 0;
   padding: 0.5rem;
   background: rgba(0, 0, 0, 0.2);

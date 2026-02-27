@@ -59,8 +59,8 @@ app-card > *,
 .armor-slots {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.5rem;
+  gap: 0.4rem;
+  padding: 0.3rem;
   max-height: 910px;
   overflow-y: auto;
   /* But allow horizontal overflow for drag preview */
@@ -70,28 +70,28 @@ app-card > *,
 .armor-slot {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .slot-label {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--text);
-  padding: 0.25rem 0.5rem;
+  padding: 0.2rem 0.4rem;
   background: var(--card);
   border-radius: 4px;
   text-align: center;
 }
 
 .slot-content {
-  min-height: 100px;
-  padding: 0.5rem;
+  min-height: 60px;
+  padding: 0.4rem;
   border: 2px dashed var(--border);
   border-radius: 6px;
   background: var(--bg);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
   position: relative;
 }
 
@@ -109,9 +109,9 @@ app-card > *,
 .empty-slot {
   text-align: center;
   color: var(--muted);
-  padding: 2rem;
+  padding: 0.8rem;
   font-style: italic;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   opacity: 0.6;
 }
 
@@ -146,7 +146,28 @@ app-card > *,
   border-radius: 6px;
 }
 
-/* Simplified drag preview - only show header */
+/* Simplified drag preview - only show icon + name */
+:host ::ng-deep .cdk-drag-preview .item-card {
+  max-width: 200px !important;
+  padding: 0.4rem 0.6rem !important;
+  min-height: auto !important;
+}
+
+:host ::ng-deep .cdk-drag-preview .item-header {
+  margin-bottom: 0 !important;
+}
+
+:host ::ng-deep .cdk-drag-preview .item-badges,
+:host ::ng-deep .cdk-drag-preview .fold-btn,
+:host ::ng-deep .cdk-drag-preview .item-weight,
+:host ::ng-deep .cdk-drag-preview .item-efficiency,
+:host ::ng-deep .cdk-drag-preview .item-stability,
+:host ::ng-deep .cdk-drag-preview .item-armor-debuff,
+:host ::ng-deep .cdk-drag-preview .item-unusable-badge,
+:host ::ng-deep .cdk-drag-preview .action-btn,
+:host ::ng-deep .cdk-drag-preview .delete-btn-compact,
+:host ::ng-deep .cdk-drag-preview .broken-badge,
+:host ::ng-deep .cdk-drag-preview .lost-badge,
 :host ::ng-deep .cdk-drag-preview .durability-section,
 :host ::ng-deep .cdk-drag-preview .counters-section,
 :host ::ng-deep .cdk-drag-preview .stat-modifiers-section,
@@ -156,6 +177,21 @@ app-card > *,
 :host ::ng-deep .cdk-drag-preview .item-requirements,
 :host ::ng-deep .cdk-drag-preview .attached-section {
   display: none !important;
+}
+
+:host ::ng-deep .cdk-drag-preview .item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+:host ::ng-deep .cdk-drag-preview .item-type-icon {
+  font-size: 1.2rem !important;
+}
+
+:host ::ng-deep .cdk-drag-preview h4 {
+  font-size: 0.95rem !important;
+  margin: 0 !important;
 }
 
 .drag-placeholder-wrapper {

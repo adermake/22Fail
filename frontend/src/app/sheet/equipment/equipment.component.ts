@@ -361,6 +361,11 @@ export class EquipmentComponent {
     // Extra slot accepts everything
     if (targetSlot === 'extra') return true;
     
+    // All other slots only accept armor type items
+    if (item.itemType !== 'armor') {
+      return false;
+    }
+    
     // Check if item type matches slot
     const itemType = item.armorType || 'extra';
     
@@ -369,10 +374,10 @@ export class EquipmentComponent {
       return false;
     }
     
-    // Check if slot is already occupied (single-item slots)
+    // Check if slot is already occupied (single-item slots, except extra)
     const currentSlotItems = this.getArmorSlot(targetSlot as any);
     if (currentSlotItems.length > 0 && !currentSlotItems.includes(item)) {
-      return false;
+      return false; // Slot already has an item
     }
     
     return true;
