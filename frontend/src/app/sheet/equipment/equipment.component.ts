@@ -321,27 +321,32 @@ export class EquipmentComponent {
 
   // Predicate functions to prevent invalid drops
   canDropInHelmet = (drag: any, drop: any) => {
-    const item = drag.data as ItemBlock;
+    const item = drag?.data as ItemBlock;
+    if (!item) return false;
     return this.canDropInSlot(item, 'helmet');
   };
 
   canDropInChestplate = (drag: any, drop: any) => {
-    const item = drag.data as ItemBlock;
+    const item = drag?.data as ItemBlock;
+    if (!item) return false;
     return this.canDropInSlot(item, 'chestplate');
   };
 
   canDropInArmschienen = (drag: any, drop: any) => {
-    const item = drag.data as ItemBlock;
+    const item = drag?.data as ItemBlock;
+    if (!item) return false;
     return this.canDropInSlot(item, 'armschienen');
   };
 
   canDropInLeggings = (drag: any, drop: any) => {
-    const item = drag.data as ItemBlock;
+    const item = drag?.data as ItemBlock;
+    if (!item) return false;
     return this.canDropInSlot(item, 'leggings');
   };
 
   canDropInBoots = (drag: any, drop: any) => {
-    const item = drag.data as ItemBlock;
+    const item = drag?.data as ItemBlock;
+    if (!item) return false;
     return this.canDropInSlot(item, 'boots');
   };
 
@@ -351,6 +356,8 @@ export class EquipmentComponent {
   };
 
   private canDropInSlot(item: ItemBlock, targetSlot: string): boolean {
+    if (!item) return false;
+    
     // Extra slot accepts everything
     if (targetSlot === 'extra') return true;
     

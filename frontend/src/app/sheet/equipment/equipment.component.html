@@ -30,7 +30,7 @@
       >
         @if (getArmorSlot('helmet').length > 0) {
           @for (item of getArmorSlot('helmet'); track item.name; let i = $index) {
-            <div cdkDrag [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+            <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
               <app-item
                 [item]="item"
                 [sheet]="sheet"
@@ -64,7 +64,7 @@
       >
         @if (getArmorSlot('chestplate').length > 0) {
           @for (item of getArmorSlot('chestplate'); track item.name; let i = $index) {
-            <div cdkDrag [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+            <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
               <app-item
                 [item]="item"
                 [sheet]="sheet"
@@ -98,7 +98,7 @@
       >
         @if (getArmorSlot('armschienen').length > 0) {
           @for (item of getArmorSlot('armschienen'); track item.name; let i = $index) {
-            <div cdkDrag [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+            <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
               <app-item
                 [item]="item"
                 [sheet]="sheet"
@@ -132,7 +132,7 @@
       >
         @if (getArmorSlot('leggings').length > 0) {
           @for (item of getArmorSlot('leggings'); track item.name; let i = $index) {
-            <div cdkDrag [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+            <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
               <app-item
                 [item]="item"
                 [sheet]="sheet"
@@ -166,7 +166,7 @@
       >
         @if (getArmorSlot('boots').length > 0) {
           @for (item of getArmorSlot('boots'); track item.name; let i = $index) {
-            <div cdkDrag [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+            <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
               <app-item
                 [item]="item"
                 [sheet]="sheet"
@@ -200,7 +200,7 @@
       >
         @if (getArmorSlot('extra').length > 0) {
           @for (item of getArmorSlot('extra'); track item.name; let i = $index) {
-            <div cdkDrag [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+            <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
               <app-item
                 [item]="item"
                 [sheet]="sheet"

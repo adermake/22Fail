@@ -41,7 +41,7 @@
     (cdkDropListDropped)="onDrop($event)"
   >
     @for (item of (sheet.inventory || []); track i; let i = $index) {
-    <div cdkDrag [cdkDragDisabled]="isItemEditing(i)" (cdkDragStarted)="onDragStarted($event)">
+    <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(i)" (cdkDragStarted)="onDragStarted($event)">
       <app-item
         [item]="item"
         [sheet]="sheet"
