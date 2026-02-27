@@ -43,7 +43,7 @@
               @if (char.portrait) {
                 <img [src]="char.portrait | imageUrl" class="tile-portrait-small" alt="">
               } @else {
-                <span class="tile-portrait-small tile-initial">{{ char.name?.charAt(0) || '?' }}</span>
+                <span class="tile-portrait-small tile-initial">{{ char.name.charAt(0) || '?' }}</span>
               }
               <span class="tile-char-name">{{ char.name }}</span>
             </div>
@@ -73,7 +73,7 @@
               @if (char.portrait) {
                 <img [src]="char.portrait | imageUrl" class="tile-portrait-small" alt="">
               } @else {
-                <span class="tile-portrait-small tile-initial">{{ char.name?.charAt(0) || '?' }}</span>
+                <span class="tile-portrait-small tile-initial">{{ char.name.charAt(0) || '?' }}</span>
               }
               <span class="tile-char-name">{{ char.name }}</span>
             </div>
@@ -157,7 +157,7 @@
                     class="tile-portrait"
                   >
                 } @else {
-                  <span class="tile-portrait tile-initial">{{ tile.name?.charAt(0) || '?' }}</span>
+                  <span class="tile-portrait tile-initial">{{ tile.name.charAt(0) || '?' }}</span>
                 }
                 <span class="tile-name">{{ tile.name }}</span>
                 <span class="tile-speed">{{ tile.speed - 10 }}</span>

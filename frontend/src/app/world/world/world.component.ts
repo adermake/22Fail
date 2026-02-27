@@ -110,6 +110,9 @@ export class WorldComponent implements OnInit, OnDestroy {
     // Connect battle engine to world store for persistence
     this.battleEngine.setWorldStore(this.store);
     
+    // Load all libraries for context menu usage
+    this.libraryStoreService.loadAllLibraries();
+    
     this.route.params.subscribe(params => {
       this.worldName = params['worldName'];
       this.store.load(this.worldName);
@@ -664,42 +667,39 @@ export class WorldComponent implements OnInit, OnDestroy {
     
     const menuItems: ContextMenuItem[] = [];
     
-    // Load each library and add its status effects to the menu
-    if (linkedLibraries.length > 0) {
-      // For now, we'll need to load libraries synchronously or use cached data
-      // This is a simplified version - in production you'd want to preload libraries
-      linkedLibraries.forEach(libraryId => {
-        this.libraryStoreService.loadLibrary(libraryId).subscribe(library => {
-          if (library && library.statusEffects.length > 0) {
-            library.statusEffects.forEach(statusEffect => {
-              menuItems.push({
-                icon: '✨',
-                label: `${statusEffect.name} (${library.name})`,
-                action: () => this.applyStatusEffectToCharacter(characterId, statusEffect.id, libraryId)
-              });
-            });
-          }
-        });
-      });
-      
-      // Small delay to allow async loading
-      setTimeout(() => {
-        if (menuItems.length === 0) {
+    // Get all loaded libraries and filter for linked ones
+    const allLibraries = this.libraryStoreService.allLibraries;
+    
+    linkedLibraries.forEach(libraryId => {
+      const library = allLibraries.find(lib => lib.id === libraryId);
+      if (library && library.statusEffects.length > 0) {
+        library.statusEffects.forEach(statusEffect => {
           menuItems.push({
-            icon: 'ℹ️',
-            label: 'No status effects available',
-            action: () => {}
+            icon: '✨',
+            label: `${statusEffect.name} (${library.name})`,
+            action: `apply_status_${statusEffect.id}_${libraryId}`
           });
-        }
-        this.contextMenu?.show(event.clientX, event.clientY, menuItems);
-      }, 100);
-    } else {
+        });
+      }
+    });
+    
+    if (menuItems.length === 0) {
       menuItems.push({
         icon: 'ℹ️',
-        label: 'No libraries linked',
-        action: () => {}
+        label: linkedLibraries.length > 0 ? 'No status effects available' : 'No libraries linked',
+        action: 'none'
       });
-      this.contextMenu?.show(event.clientX, event.clientY, menuItems);
+    }
+    
+    this.contextMenu?.show(event.clientX, event.clientY, menuItems);
+  }
+
+  handleContextMenuAction(action: string) {
+    if (action.startsWith('apply_status_')) {
+      const parts = action.split('_');
+      const statusEffectId = parts[2];
+      const libraryId = parts[3];
+      this.applyStatusEffectToCharacter(this.selectedCharacterForContextMenu, statusEffectId, libraryId);
     }
   }
 
@@ -709,7 +709,7 @@ export class WorldComponent implements OnInit, OnDestroy {
 
     // Check if status effect is already applied
     const alreadyApplied = character.activeStatusEffects?.some(
-      effect => effect.statusEffectId === statusEffectId && effect.libraryId === libraryId
+      effect => effect.statusEffectId === statusEffectId && effect.sourceLibraryId === libraryId
     );
 
     if (alreadyApplied) {
@@ -720,9 +720,10 @@ export class WorldComponent implements OnInit, OnDestroy {
     // Create active status effect
     const activeEffect = {
       statusEffectId,
-      libraryId,
+      sourceLibraryId: libraryId,
       appliedAt: Date.now(),
-      duration: null // Infinite duration by default
+      duration: undefined,
+      stacks: 1
     };
 
     // Add to character's active status effects
@@ -733,12 +734,11 @@ export class WorldComponent implements OnInit, OnDestroy {
 
     // Emit patch to update character
     const patch: JsonPatch = {
-      op: 'replace',
       path: '/activeStatusEffects',
       value: character.activeStatusEffects
     };
 
-    this.characterSocket.emitPatch(characterId, patch);
+    this.characterSocket.sendPatch(characterId, patch);
     this.cdr.markForCheck();
   }
 

@@ -75,7 +75,7 @@
           type="number"
           min="0"
           step="1"
-          [ngModel]="sheet.currency?.copper || 0"
+          [ngModel]="sheet.currency.copper || 0"
           (ngModelChange)="updateCurrency('copper', $event)"
         />
       </div>
@@ -86,7 +86,7 @@
           type="number"
           min="0"
           step="1"
-          [ngModel]="sheet.currency?.silver || 0"
+          [ngModel]="sheet.currency.silver || 0"
           (ngModelChange)="updateCurrency('silver', $event)"
         />
       </div>
@@ -97,7 +97,7 @@
           type="number"
           min="0"
           step="1"
-          [ngModel]="sheet.currency?.gold || 0"
+          [ngModel]="sheet.currency.gold || 0"
           (ngModelChange)="updateCurrency('gold', $event)"
         />
       </div>
@@ -108,7 +108,7 @@
           type="number"
           min="0"
           step="1"
-          [ngModel]="sheet.currency?.platinum || 0"
+          [ngModel]="sheet.currency.platinum || 0"
           (ngModelChange)="updateCurrency('platinum', $event)"
         />
       </div>

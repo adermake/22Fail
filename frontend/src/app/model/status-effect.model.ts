@@ -1,5 +1,6 @@
 import { DiceBonus } from './dice-bonus.model';
 
+
 /**
  * Status Effect - A condition that can be applied to characters
  * Can affect stats, provide bonuses/penalties, and trigger macro actions
