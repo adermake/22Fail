@@ -34,10 +34,10 @@
   </div>
 
   <div class="tab-content">
-    <!-- Inventory Tab -->
-    @if (activeTab === 'inventory') {
+    <!-- Inventory Tab - Always rendered but hidden when not active for CDK drag-drop -->
+    <div [style.display]="activeTab === 'inventory' ? 'block' : 'none'">
       <app-inventory [sheet]="sheet" (patch)="onPatch($event)"></app-inventory>
-    }
+    </div>
 
     <!-- Spells Tab -->
     @if (activeTab === 'spells') {

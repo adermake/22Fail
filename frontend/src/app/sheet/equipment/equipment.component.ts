@@ -32,6 +32,15 @@ export class EquipmentComponent {
   editingItemIndex: number | null = null;
   editingItem: ItemBlock | null = null;
 
+  // Connected drop lists - safely connect to inventory and other slots
+  get connectedDropLists(): string[] {
+    try {
+      return ['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot'];
+    } catch {
+      return [];
+    }
+  }
+
   ngOnInit() {
     if (!this.sheet.equipment) {
       this.sheet.equipment = [];

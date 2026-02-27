@@ -23,7 +23,7 @@
         class="slot-content"
         cdkDropList
         [cdkDropListData]="getArmorSlot('helmet')"
-        [cdkDropListConnectedTo]="['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+        [cdkDropListConnectedTo]="connectedDropLists"
         [cdkDropListEnterPredicate]="canDropInHelmet"
         [id]="'helmetSlot'"
         (cdkDropListDropped)="onSlotDrop($event, 'helmet')"
@@ -57,7 +57,7 @@
         class="slot-content"
         cdkDropList
         [cdkDropListData]="getArmorSlot('chestplate')"
-        [cdkDropListConnectedTo]="['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+        [cdkDropListConnectedTo]="connectedDropLists"
         [cdkDropListEnterPredicate]="canDropInChestplate"
         [id]="'chestplateSlot'"
         (cdkDropListDropped)="onSlotDrop($event, 'chestplate')"
@@ -91,7 +91,7 @@
         class="slot-content"
         cdkDropList
         [cdkDropListData]="getArmorSlot('armschienen')"
-        [cdkDropListConnectedTo]="['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+        [cdkDropListConnectedTo]="connectedDropLists"
         [cdkDropListEnterPredicate]="canDropInArmschienen"
         [id]="'armschienenSlot'"
         (cdkDropListDropped)="onSlotDrop($event, 'armschienen')"
@@ -125,7 +125,7 @@
         class="slot-content"
         cdkDropList
         [cdkDropListData]="getArmorSlot('leggings')"
-        [cdkDropListConnectedTo]="['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+        [cdkDropListConnectedTo]="connectedDropLists"
         [cdkDropListEnterPredicate]="canDropInLeggings"
         [id]="'leggingsSlot'"
         (cdkDropListDropped)="onSlotDrop($event, 'leggings')"
@@ -159,7 +159,7 @@
         class="slot-content"
         cdkDropList
         [cdkDropListData]="getArmorSlot('boots')"
-        [cdkDropListConnectedTo]="['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+        [cdkDropListConnectedTo]="connectedDropLists"
         [cdkDropListEnterPredicate]="canDropInBoots"
         [id]="'bootsSlot'"
         (cdkDropListDropped)="onSlotDrop($event, 'boots')"
@@ -193,7 +193,7 @@
         class="slot-content"
         cdkDropList
         [cdkDropListData]="getArmorSlot('extra')"
-        [cdkDropListConnectedTo]="['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+        [cdkDropListConnectedTo]="connectedDropLists"
         [cdkDropListEnterPredicate]="canDropInExtra"
         [id]="'extraSlot'"
         (cdkDropListDropped)="onSlotDrop($event, 'extra')"

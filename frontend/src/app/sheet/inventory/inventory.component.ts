@@ -46,6 +46,16 @@ export class InventoryComponent {
   placeholderHeight = '90px';
   placeholderWidth = '100%';
 
+  // Connected drop lists - only connect to equipment if it exists
+  get connectedDropLists(): string[] {
+    // Try to connect to equipment slots, but handle if they don't exist
+    try {
+      return ['helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot'];
+    } catch {
+      return [];
+    }
+  }
+
   ngOnInit() {
     if (!this.sheet.inventory) {
       this.sheet.inventory = [];

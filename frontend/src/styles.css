@@ -83,11 +83,25 @@ label {
   pointer-events: none !important;
   display: block !important;
   visibility: visible !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
 }
 
 /* Prevent text selection during drag globally */
 .cdk-drag-dragging {
   cursor: grabbing !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Prevent text selection on entire document during any drag */
+.cdk-drop-list-dragging,
+.cdk-drop-list-dragging * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
 }
 
 .cdk-drag-animating {

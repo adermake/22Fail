@@ -37,7 +37,7 @@
     cdkDropList
     id="inventoryList"
     [cdkDropListData]="sheet.inventory"
-    [cdkDropListConnectedTo]="['helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot']"
+    [cdkDropListConnectedTo]="connectedDropLists"
     (cdkDropListDropped)="onDrop($event)"
   >
     @for (item of (sheet.inventory || []); track i; let i = $index) {
