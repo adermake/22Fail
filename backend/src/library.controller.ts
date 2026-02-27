@@ -13,7 +13,7 @@ import {
 import * as LibraryServiceModule from './library.service';
 import type { Library } from './library.service';
 
-@Controller('library')
+@Controller('api/library')
 export class LibraryController {
   constructor(private readonly libraryService: LibraryServiceModule.LibraryService) {}
 
