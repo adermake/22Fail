@@ -731,3 +731,40 @@
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   }
 }
+
+/* ==================== DRAG AND DROP ==================== */
+.folder-item.drag-over,
+.file-item.drag-over {
+  background: rgba(0, 120, 212, 0.3);
+  border: 2px dashed #0078d4;
+  box-shadow: 0 0 8px rgba(0, 120, 212, 0.5);
+}
+
+.folder-item.dragging,
+.file-item.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+}
+
+.folder-item[draggable="true"],
+.file-item[draggable="true"] {
+  cursor: grab;
+}
+
+.folder-item[draggable="true"]:active,
+.file-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* ==================== MARQUEE SELECTION ==================== */
+.folder-contents {
+  position: relative;
+}
+
+.marquee-selection {
+  position: absolute;
+  background: rgba(0, 120, 212, 0.2);
+  border: 1px solid #0078d4;
+  pointer-events: none;
+  z-index: 10;
+}

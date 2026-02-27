@@ -141,7 +141,11 @@
         </div>
       } @else {
         <!-- Normal Folder Contents -->
-        <div class="folder-contents" [class.list-view]="viewMode() === 'list'">
+        <div class="folder-contents" [class.list-view]="viewMode() === 'list'" (mousedown)="onContentAreaMouseDown($event)">
+          <!-- Marquee Selection Overlay -->
+          @if (isMarqueeSelecting() && marqueeRect()) {
+            <div class="marquee-selection" [style.left.px]="marqueeRect()!.left" [style.top.px]="marqueeRect()!.top" [style.width.px]="marqueeRect()!.width" [style.height.px]="marqueeRect()!.height"></div>
+          }
           <!-- Folders -->
           @if (subfolders().length > 0) {
             <div class="section-header">Ordner</div>
@@ -149,8 +153,18 @@
               @for (folder of subfolders(); track folder.id) {
                 <div
                   class="folder-item"
+                  [attr.data-id]="folder.id"
+                  [attr.data-type]="'folder'"
                   [class.selected]="isSelected(folder.id)"
                   [class.cut]="isCutItem(folder.id)"
+                  [class.drag-over]="dragOverFolderId() === folder.id"
+                  [class.dragging]="draggedIds().has(folder.id)"
+                  draggable="true"
+                  (dragstart)="onDragStart($event, folder.id, true)"
+                  (dragend)="onDragEnd($event)"
+                  (dragover)="onDragOver($event, folder.id)"
+                  (dragleave)="onDragLeave($event)"
+                  (drop)="onDrop($event, folder.id)"
                   (click)="selectItem(folder.id, true, $event)"
                   (dblclick)="onDoubleClick(folder.id, true, $event)"
                   (contextmenu)="onContextMenu($event, 'folder', folder.id)"
@@ -186,8 +200,14 @@
               @for (file of files(); track file.id) {
                 <div
                   class="file-item"
+                  [attr.data-id]="file.id"
+                  [attr.data-type]="'file'"
                   [class.selected]="isSelected(file.id)"
                   [class.cut]="isCutItem(file.id)"
+                  [class.dragging]="draggedIds().has(file.id)"
+                  draggable="true"
+                  (dragstart)="onDragStart($event, file.id, false)"
+                  (dragend)="onDragEnd($event)"
                   (click)="selectItem(file.id, false, $event)"
                   (dblclick)="onDoubleClick(file.id, false, $event)"
                   (contextmenu)="onContextMenu($event, 'file', file.id)"

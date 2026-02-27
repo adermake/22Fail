@@ -102,6 +102,39 @@ export class LibraryService {
     }
   }
 
+  /**
+   * Read assets from the new asset browser format (assets/ folder)
+   * and filter by asset type
+   */
+  private readAssetsOfType(libraryId: string, assetType: string): any[] {
+    const assetsDir = path.join(this.getLibraryDir(libraryId), 'assets');
+    try {
+      if (!fs.existsSync(assetsDir)) {
+        return [];
+      }
+      const files = fs.readdirSync(assetsDir);
+      const entities: any[] = [];
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue;
+        const filePath = path.join(assetsDir, file);
+        try {
+          const json = fs.readFileSync(filePath, 'utf-8');
+          const assetFile = JSON.parse(json);
+          // Asset browser files have a 'type' field and store actual data in 'data'
+          if (assetFile.type === assetType && assetFile.data) {
+            entities.push(assetFile.data);
+          }
+        } catch (err) {
+          console.error(`Error reading asset file ${file}:`, err);
+        }
+      }
+      return entities;
+    } catch (error) {
+      console.error(`Error reading assets of type ${assetType}:`, error);
+      return [];
+    }
+  }
+
   private writeEntity(dirPath: string, entityId: string, entity: any): void {
     this.ensureDirectory(dirPath);
     const safeId = this.sanitizeFileName(entityId);
@@ -280,15 +313,42 @@ export class LibraryService {
     const content = fs.readFileSync(metadataFilePath, 'utf-8');
     const metadata = JSON.parse(content);
     
-    // Load all entity collections
+    // Load all entity collections from old format
+    const oldItems = this.readEntityCollection(this.getLibraryItemsDir(libraryId));
+    const oldRunes = this.readEntityCollection(this.getLibraryRunesDir(libraryId));
+    const oldSpells = this.readEntityCollection(this.getLibrarySpellsDir(libraryId));
+    const oldSkills = this.readEntityCollection(this.getLibrarySkillsDir(libraryId));
+    const oldStatusEffects = this.readEntityCollection(this.getLibraryStatusEffectsDir(libraryId));
+    const oldMacroActions = this.readEntityCollection(this.getLibraryMacroActionsDir(libraryId));
+    
+    // Load assets from new asset browser format
+    const newItems = this.readAssetsOfType(libraryId, 'item');
+    const newRunes = this.readAssetsOfType(libraryId, 'rune');
+    const newSpells = this.readAssetsOfType(libraryId, 'spell');
+    const newSkills = this.readAssetsOfType(libraryId, 'skill');
+    const newStatusEffects = this.readAssetsOfType(libraryId, 'status-effect');
+    const newMacroActions = this.readAssetsOfType(libraryId, 'macro');
+    
+    // Merge and deduplicate by ID
+    const mergeById = (oldArr: any[], newArr: any[]): any[] => {
+      const map = new Map<string, any>();
+      for (const item of oldArr) {
+        if (item.id) map.set(item.id, item);
+      }
+      for (const item of newArr) {
+        if (item.id) map.set(item.id, item);
+      }
+      return Array.from(map.values());
+    };
+    
     const library: Library = {
       ...metadata,
-      items: this.readEntityCollection(this.getLibraryItemsDir(libraryId)),
-      runes: this.readEntityCollection(this.getLibraryRunesDir(libraryId)),
-      spells: this.readEntityCollection(this.getLibrarySpellsDir(libraryId)),
-      skills: this.readEntityCollection(this.getLibrarySkillsDir(libraryId)),
-      statusEffects: this.readEntityCollection(this.getLibraryStatusEffectsDir(libraryId)),
-      macroActions: this.readEntityCollection(this.getLibraryMacroActionsDir(libraryId))
+      items: mergeById(oldItems, newItems),
+      runes: mergeById(oldRunes, newRunes),
+      spells: mergeById(oldSpells, newSpells),
+      skills: mergeById(oldSkills, newSkills),
+      statusEffects: mergeById(oldStatusEffects, newStatusEffects),
+      macroActions: mergeById(oldMacroActions, newMacroActions)
     };
 
     return library;

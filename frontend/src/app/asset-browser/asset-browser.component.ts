@@ -110,6 +110,17 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
   editingFile = signal<AssetFile | null>(null);
   editingType = signal<AssetType | null>(null);
 
+  // Drag and drop state
+  isDragging = signal(false);
+  draggedIds = signal<Set<string>>(new Set());
+  dragOverFolderId = signal<string | null>(null);
+
+  // Marquee selection state
+  isMarqueeSelecting = signal(false);
+  marqueeStart = signal<{ x: number; y: number } | null>(null);
+  marqueeEnd = signal<{ x: number; y: number } | null>(null);
+  marqueeRect = signal<{ left: number; top: number; width: number; height: number } | null>(null);
+
   // Dummy sheet for item rendering
   dummySheet: CharacterSheet = createEmptySheet();
 
@@ -731,6 +742,215 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
 
   setViewMode(mode: ViewMode): void {
     this.viewMode.set(mode);
+  }
+
+  // ==================== DRAG AND DROP ====================
+
+  onDragStart(event: DragEvent, id: string, isFolder: boolean): void {
+    // If the item isn't selected, select only this item
+    if (!this.selectedIds().has(id)) {
+      this.selectedIds.set(new Set([id]));
+      this.isSelectionFolder.set(isFolder);
+    }
+
+    // Set dragged items
+    this.isDragging.set(true);
+    this.draggedIds.set(new Set(this.selectedIds()));
+
+    // Set drag data
+    const dragData = {
+      ids: Array.from(this.selectedIds()),
+      isFolder,
+      libraryId: this.libraryId()
+    };
+    event.dataTransfer!.setData('application/json', JSON.stringify(dragData));
+    event.dataTransfer!.effectAllowed = 'move';
+
+    // Custom drag image with count
+    if (this.selectedIds().size > 1) {
+      const dragGhost = document.createElement('div');
+      dragGhost.className = 'drag-ghost';
+      dragGhost.textContent = `${this.selectedIds().size} Elemente`;
+      dragGhost.style.cssText = 'position: absolute; top: -1000px; padding: 8px 16px; background: #0078d4; color: white; border-radius: 4px; font-size: 14px;';
+      document.body.appendChild(dragGhost);
+      event.dataTransfer!.setDragImage(dragGhost, 0, 0);
+      setTimeout(() => dragGhost.remove(), 0);
+    }
+  }
+
+  onDragEnd(event: DragEvent): void {
+    this.isDragging.set(false);
+    this.draggedIds.set(new Set());
+    this.dragOverFolderId.set(null);
+  }
+
+  onDragOver(event: DragEvent, folderId: string): void {
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = 'move';
+    
+    // Don't allow dropping on itself
+    if (!this.draggedIds().has(folderId)) {
+      this.dragOverFolderId.set(folderId);
+    }
+  }
+
+  onDragLeave(event: DragEvent): void {
+    this.dragOverFolderId.set(null);
+  }
+
+  async onDrop(event: DragEvent, targetFolderId: string): Promise<void> {
+    event.preventDefault();
+    this.dragOverFolderId.set(null);
+    this.isDragging.set(false);
+
+    const data = event.dataTransfer?.getData('application/json');
+    if (!data) return;
+
+    try {
+      const dragData = JSON.parse(data);
+      const ids: string[] = dragData.ids;
+      
+      // Don't drop on itself
+      if (ids.includes(targetFolderId)) return;
+
+      // Get folder and file IDs
+      const folderIds = ids.filter(id => 
+        this.subfolders().some(f => f.id === id) || 
+        this.allFolders().some(f => f.id === id)
+      );
+      const fileIds = ids.filter(id => 
+        this.files().some(f => f.id === id) ||
+        this.searchResults()?.some(f => f.id === id)
+      );
+
+      // Move items
+      if (folderIds.length > 0 || fileIds.length > 0) {
+        this.isLoading.set(true);
+        try {
+          await firstValueFrom(
+            this.api.bulkMove(this.libraryId(), folderIds, fileIds, targetFolderId)
+          );
+          await this.loadFolderContents();
+          await this.loadAllFolders();
+          this.clearSelection();
+        } catch (error) {
+          console.error('Failed to move items:', error);
+        } finally {
+          this.isLoading.set(false);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to parse drag data:', error);
+    }
+  }
+
+  // Handle drop on breadcrumb
+  async onBreadcrumbDrop(event: DragEvent, folderId: string): Promise<void> {
+    await this.onDrop(event, folderId);
+  }
+
+  // Handle drop on tree node
+  async onTreeNodeDrop(event: DragEvent, folderId: string): Promise<void> {
+    await this.onDrop(event, folderId);
+  }
+
+  // ==================== MARQUEE SELECTION ====================
+
+  onContentAreaMouseDown(event: MouseEvent): void {
+    // Only start marquee on left click in empty area
+    if (event.button !== 0) return;
+    if ((event.target as HTMLElement).closest('.folder-item, .file-item')) return;
+    if ((event.target as HTMLElement).closest('.folder-tree')) return;
+    if ((event.target as HTMLElement).closest('.content-toolbar')) return;
+
+    const contentArea = (event.target as HTMLElement).closest('.folder-contents');
+    if (!contentArea) return;
+
+    const rect = contentArea.getBoundingClientRect();
+    const x = event.clientX - rect.left + contentArea.scrollLeft;
+    const y = event.clientY - rect.top + contentArea.scrollTop;
+
+    this.isMarqueeSelecting.set(true);
+    this.marqueeStart.set({ x, y });
+    this.marqueeEnd.set({ x, y });
+
+    // Clear selection unless holding Ctrl
+    if (!event.ctrlKey && !event.metaKey) {
+      this.clearSelection();
+    }
+  }
+
+  @HostListener('window:mousemove', ['$event'])
+  onMouseMove(event: MouseEvent): void {
+    if (!this.isMarqueeSelecting()) return;
+
+    const contentArea = document.querySelector('.folder-contents');
+    if (!contentArea) return;
+
+    const rect = contentArea.getBoundingClientRect();
+    const x = Math.max(0, event.clientX - rect.left + contentArea.scrollLeft);
+    const y = Math.max(0, event.clientY - rect.top + contentArea.scrollTop);
+
+    this.marqueeEnd.set({ x, y });
+
+    // Calculate marquee rectangle
+    const start = this.marqueeStart()!;
+    const left = Math.min(start.x, x);
+    const top = Math.min(start.y, y);
+    const width = Math.abs(x - start.x);
+    const height = Math.abs(y - start.y);
+
+    this.marqueeRect.set({ left, top, width, height });
+
+    // Find items within the marquee
+    this.updateMarqueeSelection(rect);
+  }
+
+  @HostListener('window:mouseup', ['$event'])
+  onMouseUp(event: MouseEvent): void {
+    if (this.isMarqueeSelecting()) {
+      this.isMarqueeSelecting.set(false);
+      this.marqueeRect.set(null);
+    }
+  }
+
+  private updateMarqueeSelection(contentRect: DOMRect): void {
+    const rect = this.marqueeRect();
+    if (!rect || (rect.width < 5 && rect.height < 5)) return;
+
+    const contentArea = document.querySelector('.folder-contents');
+    if (!contentArea) return;
+
+    const selected = new Set<string>();
+
+    // Check all items (folders and files)
+    const items = contentArea.querySelectorAll('[data-id]');
+    items.forEach((el) => {
+      const id = el.getAttribute('data-id');
+      if (id && this.isElementInMarquee(el as HTMLElement, contentArea as HTMLElement, rect)) {
+        selected.add(id);
+      }
+    });
+
+    this.selectedIds.set(selected);
+  }
+
+  private isElementInMarquee(el: HTMLElement, container: HTMLElement, rect: { left: number; top: number; width: number; height: number }): boolean {
+    const elRect = el.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    
+    // Element position relative to container
+    const elLeft = elRect.left - containerRect.left + container.scrollLeft;
+    const elTop = elRect.top - containerRect.top + container.scrollTop;
+    const elRight = elLeft + elRect.width;
+    const elBottom = elTop + elRect.height;
+
+    // Marquee bounds
+    const mRight = rect.left + rect.width;
+    const mBottom = rect.top + rect.height;
+
+    // Check intersection
+    return !(elRight < rect.left || elLeft > mRight || elBottom < rect.top || elTop > mBottom);
   }
 
   // ==================== HELPERS ====================
