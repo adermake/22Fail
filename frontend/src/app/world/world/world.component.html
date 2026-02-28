@@ -160,10 +160,10 @@
       </div>
       <p class="drag-hint">Drag items onto characters or battle loot. Right-click to edit.</p>
       <app-library-tabs
-        [items]="world.itemLibrary"
-        [runes]="world.runeLibrary"
-        [spells]="world.spellLibrary"
-        [skills]="world.skillLibrary"
+        [items]="mergedItems()"
+        [runes]="mergedRunes()"
+        [spells]="mergedSpells()"
+        [skills]="mergedSkills()"
         [dummySheet]="dummySheet"
         [editingItems]="editingItems"
         [editingRunes]="editingRunes"

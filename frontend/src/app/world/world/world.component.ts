@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -105,6 +105,75 @@ export class WorldComponent implements OnInit, OnDestroy {
   get availableCharactersForBattle() {
     return this.battleService.getAvailableCharactersForBattle(this.getPartyCharacterArray());
   }
+
+  // Merged libraries (world's own + linked libraries)  
+  mergedItems = computed(() => {
+    const world = this.store.worldValue;
+    if (!world) return [];
+    
+    const items = [...(world.itemLibrary || [])];
+    const linkedLibs = world.linkedLibraries || [];
+    
+    linkedLibs.forEach(libId => {
+      const lib = this.libraryStoreService.allLibraries.find(l => l.id === libId);
+      if (lib?.items) {
+        items.push(...lib.items);
+      }
+    });
+    
+    return items;
+  });
+
+  mergedRunes = computed(() => {
+    const world = this.store.worldValue;
+    if (!world) return [];
+    
+    const runes = [...(world.runeLibrary || [])];
+    const linkedLibs = world.linkedLibraries || [];
+    
+    linkedLibs.forEach(libId => {
+      const lib = this.libraryStoreService.allLibraries.find(l => l.id === libId);
+      if (lib?.runes) {
+        runes.push(...lib.runes);
+      }
+    });
+    
+    return runes;
+  });
+
+  mergedSpells = computed(() => {
+    const world = this.store.worldValue;
+    if (!world) return [];
+    
+    const spells = [...(world.spellLibrary || [])];
+    const linkedLibs = world.linkedLibraries || [];
+    
+    linkedLibs.forEach(libId => {
+      const lib = this.libraryStoreService.allLibraries.find(l => l.id === libId);
+      if (lib?.spells) {
+        spells.push(...lib.spells);
+      }
+    });
+    
+    return spells;
+  });
+
+  mergedSkills = computed(() => {
+    const world = this.store.worldValue;
+    if (!world) return [];
+    
+    const skills = [...(world.skillLibrary || [])];
+    const linkedLibs = world.linkedLibraries || [];
+    
+    linkedLibs.forEach(libId => {
+      const lib = this.libraryStoreService.allLibraries.find(l => l.id === libId);
+      if (lib?.skills) {
+        skills.push(...lib.skills);
+      }
+    });
+    
+    return skills;
+  });
 
   ngOnInit() {
     // Connect battle engine to world store for persistence

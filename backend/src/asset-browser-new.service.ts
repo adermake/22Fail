@@ -109,27 +109,6 @@ export class AssetBrowserService {
     return path.join(this.getLibraryDir(libraryName), '.meta.json');
   }
 
-  /**
-   * Resolve library identifier (ID or name) to directory name
-   */
-  private resolveLibraryName(identifier: string): string {
-    // Try as name first - check if directory exists
-    const byName = this.sanitizeFileName(identifier);
-    if (fs.existsSync(this.getLibraryDir(identifier))) {
-      return identifier;
-    }
-
-    // Try finding by ID in all libraries
-    const allLibs = this.getAllLibraries();
-    const byId = allLibs.find(l => l.id === identifier);
-    if (byId) {
-      return byId.name;
-    }
-
-    // Default to treating it as a name (might not exist yet)
-    return identifier;
-  }
-
   // ==================== METADATA OPERATIONS ====================
 
   private loadMeta(libraryName: string): LibraryMeta {
@@ -255,29 +234,6 @@ export class AssetBrowserService {
     this.saveMeta(sanitizedName, meta);
 
     return library;
-  }
-
-  /**
-   * Update library metadata
-   */
-  updateLibrary(libraryIdentifier: string, updates: Partial<AssetLibrary>): AssetLibrary {
-    const library = this.getLibrary(libraryIdentifier);
-    const libraryName = library.name;
-    
-    const updated: AssetLibrary = {
-      ...library,
-      ...updates,
-      id: library.id, // Ensure ID doesn't change
-      updatedAt: Date.now()
-    };
-
-    fs.writeFileSync(
-      this.getLibraryMetadataPath(libraryName),
-      JSON.stringify(updated, null, 2),
-      'utf-8'
-    );
-
-    return updated;
   }
 
   /**
@@ -717,29 +673,6 @@ export class AssetBrowserService {
   }
 
   // ==================== BUL K OPERATIONS ====================
-
-  copyMultiple(
-    libraryName: string,
-    folderIds: string[],
-    fileIds: string[],
-    targetFolderId: string
-  ): { folders: AssetFolder[]; files: AssetFile[] } {
-    const copiedFolders: AssetFolder[] = [];
-    const copiedFiles: AssetFile[] = [];
-
-    for (const fileId of fileIds) {
-      const copied = this.copyFile(libraryName, fileId, targetFolderId);
-      copiedFiles.push(copied);
-    }
-
-    // Note: folder copying not implemented yet - would need recursive copy
-    // for (const folderId of folderIds) {
-    //   const copied = this.copyFolder(libraryName, folderId, targetFolderId);
-    //   copiedFolders.push(copied);
-    // }
-
-    return { folders: copiedFolders, files: copiedFiles };
-  }
 
   moveMultiple(
     libraryName: string,
