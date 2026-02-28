@@ -103,6 +103,9 @@ export class LibraryStoreService {
             skills: [],
             statusEffects: [],
             macroActions: [],
+            shops: [],
+            lootBundles: [],
+            dependencies: [],
             tags: created.tags || [],
             isPublic: created.isPublic || false
           };

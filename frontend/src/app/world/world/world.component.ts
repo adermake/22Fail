@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild, computed, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { CardComponent } from '../../shared/card/card.component';
 import { WorldStoreService } from '../../services/world-store.service';
 import { WorldSocketService } from '../../services/world-socket.service';
@@ -17,6 +17,8 @@ import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-mo
 import { JsonPatch } from '../../model/json-patch.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { StatusBlock } from '../../model/status-block.model';
+import { StatusEffect } from '../../model/status-effect.model';
+import { CurrentEvent } from '../../model/current-events.model';
 import { Subscription } from 'rxjs';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
@@ -26,7 +28,8 @@ import { LibraryTabsComponent } from '../library-tabs/library-tabs.component';
 import { LibrarySelectorComponent } from '../../shared/library-selector/library-selector.component';
 import { ContextMenuComponent, ContextMenuItem } from '../../shared/context-menu/context-menu.component';
 import { BattleTracker } from '../battle-tracker/battle-tracker.component';
-import { LootManagerComponent, LootBundle } from '../loot-manager/loot-manager.component';
+import { LootBundle } from '../loot-manager/loot-manager.component';
+import { CurrentEventsManagerComponent } from '../current-events-manager/current-events-manager.component';
 import { BattleTrackerEngine } from '../battle-tracker/battle-tracker-engine';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 import { CharacterGeneratorComponent } from '../character-generator/character-generator.component';
@@ -37,7 +40,7 @@ export type { SimulatedTurn, BattleGroup };
 @Component({
   selector: 'app-world',
   standalone: true,
-  imports: [CommonModule, CardComponent, FormsModule, ItemEditorComponent, SkillEditorComponent, SpellEditorComponent, RuneEditorComponent, LibraryTabsComponent, LibrarySelectorComponent, ContextMenuComponent, BattleTracker, LootManagerComponent, ImageUrlPipe, CharacterGeneratorComponent],
+  imports: [CommonModule, CardComponent, FormsModule, ItemEditorComponent, SkillEditorComponent, SpellEditorComponent, RuneEditorComponent, LibraryTabsComponent, LibrarySelectorComponent, ContextMenuComponent, BattleTracker, CurrentEventsManagerComponent, ImageUrlPipe, CharacterGeneratorComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -58,6 +61,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   libraryStoreService = inject(LibraryStoreService);
   trashService = inject(TrashService);
   cdr = inject(ChangeDetectorRef);
+  router = inject(Router);
 
   // Character/party state
   newCharacterId: string = '';
@@ -79,10 +83,12 @@ export class WorldComponent implements OnInit, OnDestroy {
   editingRuneIndex: number | null = null;
   editingSpellIndex: number | null = null;
   editingSkillIndex: number | null = null;
+  editingStatusEffectIndex: number | null = null;
   editingItems = new Set<number>();
   editingRunes = new Set<number>();
   editingSpells = new Set<number>();
   editingSkills = new Set<number>();
+  editingStatusEffects = new Set<number>();
 
   // Drag state
   private dragScrollInterval?: number;
@@ -90,6 +96,8 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   // Context menu state
   private selectedCharacterForContextMenu: string = '';
+  private selectedLibraryItemType: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | null = null;
+  private selectedLibraryItemIndex: number = -1;
 
   // Loaded libraries signal for reactivity
   loadedLibraries = signal<Library[]>([]);
@@ -198,6 +206,53 @@ export class WorldComponent implements OnInit, OnDestroy {
     
     return skills;
   });
+
+  mergedStatusEffects = computed(() => {
+    const world = this.store.worldValue;
+    if (!world) return [];
+    
+    const statusEffects: StatusEffect[] = [];
+    const linkedLibs = world.linkedLibraries || [];
+    const loadedLibs = this.loadedLibraries();
+    
+    linkedLibs.forEach(libId => {
+      const lib = loadedLibs.find(l => l.id === libId);
+      if (lib?.statusEffects) {
+        statusEffects.push(...lib.statusEffects);
+      }
+    });
+    
+    return statusEffects;
+  });
+
+  // Current Events helpers
+  get currentEvents(): CurrentEvent[] {
+    return this.store.worldValue?.currentEvents || [];
+  }
+
+  onEventAdded(event: CurrentEvent) {
+    const world = this.store.worldValue;
+    if (!world) return;
+    
+    const events = [...(world.currentEvents || []), event];
+    this.store.applyPatch({ path: 'currentEvents', value: events });
+  }
+
+  onEventRemoved(eventId: string) {
+    const world = this.store.worldValue;
+    if (!world) return;
+    
+    const events = (world.currentEvents || []).filter(e => e.id !== eventId);
+    this.store.applyPatch({ path: 'currentEvents', value: events });
+  }
+
+  onEventUpdated(event: CurrentEvent) {
+    const world = this.store.worldValue;
+    if (!world) return;
+    
+    const events = (world.currentEvents || []).map(e => e.id === event.id ? event : e);
+    this.store.applyPatch({ path: 'currentEvents', value: events });
+  }
 
   ngOnInit() {
     // Connect battle engine to world store for persistence
@@ -488,6 +543,48 @@ export class WorldComponent implements OnInit, OnDestroy {
   updateSkill(index: number, patch: JsonPatch) { this.libraryService.updateSkill(index, patch); }
   removeSkill(index: number) { this.libraryService.removeSkill(index); }
 
+  // Status Effect CRUD (store in world.statusEffectLibrary)
+  addStatusEffect() {
+    const newEffect: StatusEffect = {
+      id: `effect_${Date.now()}`,
+      name: 'Neuer Effekt',
+      description: '',
+      icon: '✨',
+      defaultDuration: undefined
+    };
+    const world = this.store.worldValue;
+    if (!world) return;
+    const effects = [...(world.statusEffectLibrary || []), newEffect];
+    this.store.applyPatch({ path: '/statusEffectLibrary', value: effects });
+  }
+
+  updateStatusEffect(index: number, patch: JsonPatch) {
+    const world = this.store.worldValue;
+    if (!world) return;
+    const effects = [...(world.statusEffectLibrary || [])];
+    if (effects[index]) {
+      const key = patch.path.split('/').pop() || '';
+      (effects[index] as any)[key] = patch.value;
+      this.store.applyPatch({ path: '/statusEffectLibrary', value: effects });
+    }
+  }
+
+  removeStatusEffect(index: number) {
+    const world = this.store.worldValue;
+    if (!world) return;
+    const effects = [...(world.statusEffectLibrary || [])];
+    effects.splice(index, 1);
+    this.store.applyPatch({ path: '/statusEffectLibrary', value: effects });
+    this.editingStatusEffects = this.shiftEditingSet(this.editingStatusEffects, index);
+  }
+
+  openStatusEffectEditorDialog(index: number) {
+    // For now, just mark as editing - a full editor dialog could be added later
+    this.editingStatusEffectIndex = index;
+    console.log('Open status effect editor:', index);
+    // TODO: Implement a proper status effect editor dialog
+  }
+
   // Editing state handlers
   onItemEditingChange({ index, isEditing }: { index: number; isEditing: boolean }) {
     this.editingItems = this.updateEditingSet(this.editingItems, index, isEditing);
@@ -503,6 +600,10 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   onSkillEditingChange({ index, isEditing }: { index: number; isEditing: boolean }) {
     this.editingSkills = this.updateEditingSet(this.editingSkills, index, isEditing);
+  }
+
+  onStatusEffectEditingChange({ index, isEditing }: { index: number; isEditing: boolean }) {
+    this.editingStatusEffects = this.updateEditingSet(this.editingStatusEffects, index, isEditing);
   }
 
   isItemEditing(index: number): boolean { return this.editingItems.has(index); }
@@ -546,7 +647,7 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   // ==================== Drag and Drop ====================
 
-  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'bundle', index: number) {
+  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'bundle' | 'status-effect', index: number) {
     event.dataTransfer!.effectAllowed = 'copy';
     event.dataTransfer!.setData('lootType', type);
     event.dataTransfer!.setData('lootIndex', index.toString());
@@ -607,12 +708,13 @@ export class WorldComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Use merged arrays to get the correct item (includes linked library items)
     let lootData: any;
     switch (type) {
-      case 'item': lootData = world.itemLibrary[index]; break;
-      case 'rune': lootData = world.runeLibrary[index]; break;
-      case 'spell': lootData = world.spellLibrary[index]; break;
-      case 'skill': lootData = world.skillLibrary[index]; break;
+      case 'item': lootData = this.mergedItems()[index]; break;
+      case 'rune': lootData = this.mergedRunes()[index]; break;
+      case 'spell': lootData = this.mergedSpells()[index]; break;
+      case 'skill': lootData = this.mergedSkills()[index]; break;
     }
 
     if (lootData) {
@@ -794,12 +896,126 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.contextMenu?.show(event.clientX, event.clientY, menuItems);
   }
 
+  // Context menu for library items (send to player, edit)
+  onLibraryItemContextMenu(eventData: { event: MouseEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'; index: number }) {
+    const { event, type, index } = eventData;
+    event.preventDefault();
+    
+    this.selectedLibraryItemType = type;
+    this.selectedLibraryItemIndex = index;
+
+    const menuItems: ContextMenuItem[] = [];
+    
+    // Add "Send to player..." submenu - list all party characters
+    this.partyCharacters.forEach((character, characterId) => {
+      const charName = character.name || 'Unknown';
+      menuItems.push({
+        icon: '📤',
+        label: `An ${charName} senden`,
+        action: `send_to_${characterId}`
+      });
+    });
+
+    if (this.partyCharacters.size === 0) {
+      menuItems.push({
+        icon: 'ℹ️',
+        label: 'Keine Charaktere in der Party',
+        action: 'none'
+      });
+    }
+
+    // Add divider and edit option
+    menuItems.push({ label: '', action: '', divider: true });
+    menuItems.push({
+      icon: '✏️',
+      label: 'Bearbeiten',
+      action: `edit_${type}`
+    });
+
+    this.contextMenu?.show(event.clientX, event.clientY, menuItems);
+  }
+
   handleContextMenuAction(action: string) {
     if (action.startsWith('apply_status_')) {
       const parts = action.split('_');
       const statusEffectId = parts[2];
       const libraryId = parts[3];
       this.applyStatusEffectToCharacter(this.selectedCharacterForContextMenu, statusEffectId, libraryId);
+    } else if (action.startsWith('send_to_')) {
+      const characterId = action.replace('send_to_', '');
+      this.sendItemToCharacter(characterId);
+    } else if (action.startsWith('edit_')) {
+      this.editSelectedLibraryItem();
+    }
+  }
+
+  // Send the selected library item to a character
+  private sendItemToCharacter(characterId: string) {
+    if (!this.selectedLibraryItemType || this.selectedLibraryItemIndex < 0) return;
+    
+    const character = this.partyCharacters.get(characterId);
+    if (!character) {
+      console.warn('Character not found:', characterId);
+      return;
+    }
+
+    // Get the item data based on type
+    let itemData: any;
+    let patchPath: string;
+    
+    switch (this.selectedLibraryItemType) {
+      case 'item':
+        itemData = this.mergedItems()[this.selectedLibraryItemIndex];
+        patchPath = '/inventory/-';
+        break;
+      case 'rune':
+        itemData = this.mergedRunes()[this.selectedLibraryItemIndex];
+        patchPath = '/runes/-';
+        break;
+      case 'spell':
+        itemData = this.mergedSpells()[this.selectedLibraryItemIndex];
+        patchPath = '/spells/-';
+        break;
+      case 'skill':
+        itemData = this.mergedSkills()[this.selectedLibraryItemIndex];
+        patchPath = '/skills/-';
+        break;
+      default:
+        return;
+    }
+
+    if (!itemData) {
+      console.warn('Item not found at index:', this.selectedLibraryItemIndex);
+      return;
+    }
+
+    // Send item to character via socket
+    const patch: JsonPatch = {
+      path: patchPath,
+      value: { ...itemData } // Clone to avoid reference issues
+    };
+    
+    this.characterSocket.sendPatch(characterId, patch);
+    console.log(`Sent ${this.selectedLibraryItemType} to character:`, character.name);
+  }
+
+  // Open editor for the selected library item
+  private editSelectedLibraryItem() {
+    if (!this.selectedLibraryItemType || this.selectedLibraryItemIndex < 0) return;
+
+    switch (this.selectedLibraryItemType) {
+      case 'item':
+        this.openItemEditor(this.selectedLibraryItemIndex);
+        break;
+      case 'rune':
+        this.openRuneEditorDialog(this.selectedLibraryItemIndex);
+        break;
+      case 'spell':
+        this.openSpellEditorDialog(this.selectedLibraryItemIndex);
+        break;
+      case 'skill':
+        this.openSkillEditorDialog(this.selectedLibraryItemIndex);
+        break;
     }
   }
 

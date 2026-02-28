@@ -2,6 +2,8 @@ import { ItemBlock } from "./item-block.model";
 import { RuneBlock } from "./rune-block.model";
 import { SpellBlock } from "./spell-block-model";
 import { SkillBlock } from "./skill-block.model";
+import { StatusEffect } from "./status-effect.model";
+import { CurrentEvent } from "./current-events.model";
 
 export interface Drawing {
   path: string;
@@ -42,9 +44,15 @@ export interface WorldData {
   runeLibrary: RuneBlock[];
   spellLibrary: SpellBlock[];
   skillLibrary: SkillBlock[];
+  statusEffectLibrary: StatusEffect[];
   
+  // Current Events system - replaces battle loot
+  currentEvents: CurrentEvent[];
+  
+  // Deprecated: Old loot system (kept for backwards compatibility)
   lootBundles: LootBundle[];
   battleLoot: LootItem[];
+  
   battleParticipants: BattleParticipant[];
   battleTimeline?: BattleTimelineEntry[]; // Full tile order for lobby sync
   currentTurnIndex: number;
@@ -108,6 +116,8 @@ export function createEmptyWorld(name: string): WorldData {
     runeLibrary: [],
     spellLibrary: [],
     skillLibrary: [],
+    statusEffectLibrary: [],
+    currentEvents: [],
     lootBundles: [],
     battleLoot: [],
     battleParticipants: [],

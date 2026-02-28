@@ -30,6 +30,7 @@ import { SkillTreeComponent } from './skill-tree/skill-tree.component';
 import { BackstoryComponent } from './backstory/backstory.component';
 import { FormulaType } from '../model/formula-type.enum';
 import { StatusBlock } from '../model/status-block.model';
+import { CurrentEvent, LootBundleEvent } from '../model/current-events.model';
 import { DiceRollerComponent } from './dice-roller/dice-roller.component';
 import { ActionMacrosComponent, RollResult } from './action-macros/action-macros.component';
 import { ActionMacro } from '../model/action-macro.model';
@@ -81,6 +82,7 @@ export class SheetComponent implements OnInit {
   showResourcePanel = false;
   showActionMacros = false;
   showGameInfo = false;
+  currentEvents: CurrentEvent[] = [];
 
   // Editing states
   editingRunes = new Set<number>();
@@ -178,6 +180,9 @@ export class SheetComponent implements OnInit {
         // Check initial turn state
         try {
           const world = await this.worldApi.loadWorld(sheet.worldName);
+          
+          // Load current events from world
+          this.currentEvents = world?.currentEvents || [];
 
           if (world && world.battleParticipants && world.battleParticipants.length > 0) {
             const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
@@ -267,6 +272,12 @@ export class SheetComponent implements OnInit {
             this.isGroupTurn = false;
             this.cdr.detectChanges();
           }
+        }
+
+        // Check if current events were updated
+        if (patch.path === 'currentEvents') {
+          this.currentEvents = patch.value as CurrentEvent[] || [];
+          this.cdr.detectChanges();
         }
       });
     });
@@ -358,6 +369,105 @@ export class SheetComponent implements OnInit {
     if (this.isBattleLoot && this.currentWorldName) {
       this.worldSocket.claimBattleLoot(this.currentWorldName, lootItem.id);
     }
+  }
+
+  /**
+   * Handle buy from shop in current events
+   */
+  onBuyFromShop(event: { eventId: string; dealIndex: number; quantity: number; totalCostCopper: number }) {
+    // Update the world's current events to reflect the purchase
+    // The item has already been added to inventory and money deducted by the component
+    // We need to update the shop's soldQuantity
+    const updatedEvents = this.currentEvents.map(e => {
+      if (e.id === event.eventId && e.type === 'shop') {
+        const shop = { ...e } as any;
+        shop.deals = shop.deals.map((d: any, i: number) => {
+          if (i === event.dealIndex) {
+            return { ...d, soldQuantity: (d.soldQuantity || 0) + event.quantity };
+          }
+          return d;
+        });
+        return shop;
+      }
+      return e;
+    });
+
+    // Emit patch to update world's current events
+    this.worldSocket.sendPatch(this.currentWorldName, {
+      path: '/currentEvents',
+      value: updatedEvents
+    });
+  }
+
+  /**
+   * Handle claim loot from current events (loot bundles)
+   */
+  onClaimEventLoot(event: { eventId: string; itemIndex: number; characterId: string; characterName: string }) {
+    const sheet = this.store.sheetValue;
+    if (!sheet) return;
+
+    // Find the loot bundle and item
+    const lootBundle = this.currentEvents.find(e => e.id === event.eventId && e.type === 'loot') as LootBundleEvent | undefined;
+    if (!lootBundle || !lootBundle.items[event.itemIndex]) return;
+
+    const item = lootBundle.items[event.itemIndex];
+
+    // Check if already claimed
+    if (item.claimedBy) {
+      console.warn('Item already claimed');
+      return;
+    }
+
+    // Add item to character's inventory based on type
+    switch (item.type) {
+      case 'item':
+        this.store.applyPatch({
+          path: '/inventory/-',
+          value: item.data
+        });
+        break;
+      case 'rune':
+        this.store.applyPatch({
+          path: '/runes/-',
+          value: item.data
+        });
+        break;
+      case 'spell':
+        this.store.applyPatch({
+          path: '/spells/-',
+          value: item.data
+        });
+        break;
+      case 'skill':
+        this.store.applyPatch({
+          path: '/skills/-',
+          value: item.data
+        });
+        break;
+    }
+
+    // Update the world's current events to mark item as claimed
+    const updatedEvents = this.currentEvents.map(e => {
+      if (e.id === event.eventId && e.type === 'loot') {
+        const bundle = e as LootBundleEvent;
+        return {
+          ...bundle,
+          items: bundle.items.map((i, idx) => {
+            if (idx === event.itemIndex) {
+              return { ...i, claimedBy: event.characterId };
+            }
+            return i;
+          })
+        };
+      }
+      return e;
+    });
+
+    // Emit patch to update world's current events
+    this.worldSocket.sendPatch(this.currentWorldName, {
+      path: '/currentEvents',
+      value: updatedEvents
+    });
   }
 
   onCloseLootPopup() {

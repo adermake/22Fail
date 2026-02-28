@@ -28,6 +28,10 @@ export class LootManagerComponent {
 
   @Input() bundles: LootBundle[] = [];
   @Input() partyMembers: { id: string; name: string }[] = [];
+  @Input() mergedItems: ItemBlock[] = [];
+  @Input() mergedRunes: RuneBlock[] = [];
+  @Input() mergedSpells: SpellBlock[] = [];
+  @Input() mergedSkills: SkillBlock[] = [];
   @Output() bundleCreated = new EventEmitter<LootBundle>();
   @Output() bundleDeleted = new EventEmitter<number>();
 
@@ -191,20 +195,21 @@ export class LootManagerComponent {
 
       this.store.applyPatch({ path: 'battleLoot', value: [...world.battleLoot, ...newItems] });
     } else {
-      // Handle dropping items from library
+      // Handle dropping items from library - use parent's merged arrays
+      // We emit the type and index, let parent handle the actual data lookup
       let lootData: any;
       switch (type) {
         case 'item':
-          lootData = world.itemLibrary[index];
+          lootData = this.mergedItems?.[index];
           break;
         case 'rune':
-          lootData = world.runeLibrary[index];
+          lootData = this.mergedRunes?.[index];
           break;
         case 'spell':
-          lootData = world.spellLibrary[index];
+          lootData = this.mergedSpells?.[index];
           break;
         case 'skill':
-          lootData = world.skillLibrary[index];
+          lootData = this.mergedSkills?.[index];
           break;
       }
 

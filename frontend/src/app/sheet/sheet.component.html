@@ -32,11 +32,15 @@
       [editingRunes]="editingRunes"
       [editingSpells]="editingSpells"
       [editingSkills]="editingSkills"
+      [currentEvents]="currentEvents"
+      [characterId]="store.characterId"
       (patch)="store.applyPatch($any($event))"
       (runeEditingChange)="onRuneEditingChange($any($event).index, $any($event).isEditing)"
       (spellEditingChange)="onSpellEditingChange($any($event).index, $any($event).isEditing)"
       (skillEditingChange)="onSkillEditingChange($any($event).index, $any($event).isEditing)"
-      (openTrash)="openTrash()">
+      (openTrash)="openTrash()"
+      (buyFromShop)="onBuyFromShop($event)"
+      (claimLoot)="onClaimEventLoot($event)">
     </app-character-tabs>
   </div>
 

@@ -128,17 +128,22 @@
     <app-battle-tracker [engine]="battleEngine"></app-battle-tracker>
   </div>
 
-  <!-- Bottom Section: Battle Loot + Library -->
+  <!-- Bottom Section: Current Events + Library -->
   <div class="content-grid">
-    <!-- Battle Loot Section (Left) -->
+    <!-- Current Events Section (Left) -->
     <app-card class="battle-loot-card">
-      <h2>Battle Loot</h2>
-      <app-loot-manager 
-        [bundles]="lootBundleLibrary" 
-        [partyMembers]="partyMembersForLoot"
-        (bundleCreated)="onBundleCreated($event)"
-        (bundleDeleted)="onBundleDeleted($event)">
-      </app-loot-manager>
+      <app-current-events-manager
+        [events]="currentEvents"
+        [libraries]="loadedLibraries()"
+        [mergedItems]="mergedItems()"
+        [mergedRunes]="mergedRunes()"
+        [mergedSpells]="mergedSpells()"
+        [mergedSkills]="mergedSkills()"
+        [mergedStatusEffects]="mergedStatusEffects()"
+        (eventAdded)="onEventAdded($event)"
+        (eventRemoved)="onEventRemoved($event)"
+        (eventUpdated)="onEventUpdated($event)">
+      </app-current-events-manager>
     </app-card>
 
     <!-- Library Tabs Section (Right) -->
@@ -158,38 +163,37 @@
         <button (click)="generateRandomWeapon()" style="width: 100%; background: var(--accent); color: white; padding: 8px;">Zufällige Waffe schmieden</button>
         <button (click)="generateRandomArmor()" style="width: 100%; background: var(--accent); color: white; padding: 8px;">Zufällige Rüstung schmieden</button>
       </div>
-      <p class="drag-hint">Drag items onto characters or battle loot. Right-click to edit.</p>
+      <p class="drag-hint">Drag items onto characters or battle loot. Right-click for options.</p>
       <app-library-tabs
         [items]="mergedItems()"
         [runes]="mergedRunes()"
         [spells]="mergedSpells()"
         [skills]="mergedSkills()"
+        [statusEffects]="mergedStatusEffects()"
         [dummySheet]="dummySheet"
         [editingItems]="editingItems"
         [editingRunes]="editingRunes"
         [editingSpells]="editingSpells"
         [editingSkills]="editingSkills"
-        (addItem)="openItemCreator()"
-        (addRune)="addRune()"
-        (addSpell)="addSpell()"
-        (addSkill)="addSkill()"
+        [editingStatusEffects]="editingStatusEffects"
+        [readonly]="true"
         (openItemEditor)="openItemEditor($event)"
         (openRuneEditor)="openRuneEditorDialog($event)"
         (openSpellEditor)="openSpellEditorDialog($event)"
         (openSkillEditor)="openSkillEditorDialog($event)"
+        (openStatusEffectEditor)="openStatusEffectEditorDialog($event)"
         (updateItem)="updateItem($event.index, $event.patch)"
         (updateRune)="updateRune($event.index, $event.patch)"
         (updateSpell)="updateSpell($event.index, $event.patch)"
         (updateSkill)="updateSkill($event.index, $event.patch)"
-        (removeItem)="removeItem($event)"
-        (removeRune)="removeRune($event)"
-        (removeSpell)="removeSpell($event)"
-        (removeSkill)="removeSkill($event)"
+        (updateStatusEffect)="updateStatusEffect($event.index, $event.patch)"
         (itemEditingChange)="onItemEditingChange($event)"
         (runeEditingChange)="onRuneEditingChange($event)"
         (spellEditingChange)="onSpellEditingChange($event)"
         (skillEditingChange)="onSkillEditingChange($event)"
-        (dragStart)="onDragStart($event.event, $event.type, $event.index)">
+        (statusEffectEditingChange)="onStatusEffectEditingChange($event)"
+        (dragStart)="onDragStart($event.event, $event.type, $event.index)"
+        (contextMenuRequest)="onLibraryItemContextMenu($event)">
       </app-library-tabs>
     </app-card>
   </div>

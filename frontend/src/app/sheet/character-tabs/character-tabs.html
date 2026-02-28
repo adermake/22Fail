@@ -30,6 +30,14 @@
       (click)="setActiveTab('status-effects')">
       💫 Status Effects ({{ (sheet.activeStatusEffects || []).length }})
     </button>
+    @if (currentEvents.length > 0) {
+      <button
+        class="tab-button events-tab"
+        [class.active]="activeTab === 'events'"
+        (click)="setActiveTab('events')">
+        🏪 Events ({{ currentEvents.length }})
+      </button>
+    }
     <button
       class="trash-button"
       (click)="openTrash.emit()"
@@ -80,6 +88,18 @@
       <app-status-effects-tab
         [sheet]="sheet">
       </app-status-effects-tab>
+    }
+
+    <!-- Current Events Tab -->
+    @if (activeTab === 'events') {
+      <app-current-events-view
+        [events]="currentEvents"
+        [sheet]="sheet"
+        [characterId]="characterId"
+        (buyRequest)="onBuyFromShop($event)"
+        (claimRequest)="onClaimLoot($event)"
+        (patch)="onPatch($event)">
+      </app-current-events-view>
     }
   </div>
 </div>

@@ -5,6 +5,7 @@ import { ItemBlock } from '../../model/item-block.model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
 import { SkillBlock } from '../../model/skill-block.model';
+import { StatusEffect } from '../../model/status-effect.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { ItemComponent } from '../../sheet/item/item.component';
@@ -23,47 +24,58 @@ export class LibraryTabsComponent implements OnChanges {
   @Input({ required: true }) runes: RuneBlock[] = [];
   @Input({ required: true }) spells: SpellBlock[] = [];
   @Input({ required: true }) skills: SkillBlock[] = [];
+  @Input() statusEffects: StatusEffect[] = [];
   @Input({ required: true }) dummySheet!: CharacterSheet;
   @Input({ required: true }) editingItems!: Set<number>;
   @Input({ required: true }) editingRunes!: Set<number>;
   @Input({ required: true }) editingSpells!: Set<number>;
   @Input({ required: true }) editingSkills!: Set<number>;
+  @Input() editingStatusEffects: Set<number> = new Set();
+  @Input() readonly: boolean = false; // When true, hides add/delete buttons
 
   @Output() addItem = new EventEmitter<void>();
   @Output() addRune = new EventEmitter<void>();
   @Output() addSpell = new EventEmitter<void>();
   @Output() addSkill = new EventEmitter<void>();
+  @Output() addStatusEffect = new EventEmitter<void>();
   @Output() openItemEditor = new EventEmitter<number>();
   @Output() openRuneEditor = new EventEmitter<number>();
   @Output() openSpellEditor = new EventEmitter<number>();
   @Output() openSkillEditor = new EventEmitter<number>();
+  @Output() openStatusEffectEditor = new EventEmitter<number>();
   @Output() updateItem = new EventEmitter<{ index: number; patch: JsonPatch }>();
   @Output() updateRune = new EventEmitter<{ index: number; patch: JsonPatch }>();
   @Output() updateSpell = new EventEmitter<{ index: number; patch: JsonPatch }>();
   @Output() updateSkill = new EventEmitter<{ index: number; patch: JsonPatch }>();
+  @Output() updateStatusEffect = new EventEmitter<{ index: number; patch: JsonPatch }>();
   @Output() removeItem = new EventEmitter<number>();
   @Output() removeRune = new EventEmitter<number>();
   @Output() removeSpell = new EventEmitter<number>();
   @Output() removeSkill = new EventEmitter<number>();
+  @Output() removeStatusEffect = new EventEmitter<number>();
   @Output() itemEditingChange = new EventEmitter<{ index: number; isEditing: boolean }>();
   @Output() runeEditingChange = new EventEmitter<{ index: number; isEditing: boolean }>();
   @Output() spellEditingChange = new EventEmitter<{ index: number; isEditing: boolean }>();
   @Output() skillEditingChange = new EventEmitter<{ index: number; isEditing: boolean }>();
-  @Output() dragStart = new EventEmitter<{ event: DragEvent; type: 'item' | 'rune' | 'spell' | 'skill'; index: number }>();
+  @Output() statusEffectEditingChange = new EventEmitter<{ index: number; isEditing: boolean }>();
+  @Output() dragStart = new EventEmitter<{ event: DragEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'; index: number }>();
+  @Output() contextMenuRequest = new EventEmitter<{ event: MouseEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'; index: number }>();
 
-  activeTab: 'items' | 'runes' | 'spells' | 'skills' = 'items';
+  activeTab: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects' = 'items';
   private _searchTerm: string = '';
 
   filteredItems: any[] = [];
   filteredRunes: any[] = [];
   filteredSpells: any[] = [];
   filteredSkills: any[] = [];
+  filteredStatusEffects: any[] = [];
 
   // Track previous array lengths to detect add/remove vs patch
   private prevItemsLength = 0;
   private prevRunesLength = 0;
   private prevSpellsLength = 0;
   private prevSkillsLength = 0;
+  private prevStatusEffectsLength = 0;
 
   get searchTerm(): string {
     return this._searchTerm;
@@ -95,10 +107,15 @@ export class LibraryTabsComponent implements OnChanges {
       this.prevSkillsLength = this.skills.length;
       shouldUpdate = true;
     }
+    if (changes['statusEffects'] && this.statusEffects.length !== this.prevStatusEffectsLength) {
+      this.prevStatusEffectsLength = this.statusEffects.length;
+      shouldUpdate = true;
+    }
 
     // Always update on first change
     if (changes['items']?.firstChange || changes['runes']?.firstChange ||
-        changes['spells']?.firstChange || changes['skills']?.firstChange) {
+        changes['spells']?.firstChange || changes['skills']?.firstChange ||
+        changes['statusEffects']?.firstChange) {
       shouldUpdate = true;
     }
 
@@ -112,6 +129,7 @@ export class LibraryTabsComponent implements OnChanges {
     this.filteredRunes = this.filterAndSort(this.runes, this._searchTerm);
     this.filteredSpells = this.filterAndSort(this.spells, this._searchTerm);
     this.filteredSkills = this.filterAndSort(this.skills, this._searchTerm);
+    this.filteredStatusEffects = this.filterAndSort(this.statusEffects || [], this._searchTerm);
   }
 
   private filterAndSort(array: any[], searchTerm: string) {
@@ -143,20 +161,26 @@ export class LibraryTabsComponent implements OnChanges {
     });
   }
 
-  getOriginalIndex(item: any, type: 'items' | 'runes' | 'spells' | 'skills'): number {
+  getOriginalIndex(item: any, type: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects'): number {
     const originalArray = type === 'items' ? this.items :
                           type === 'runes' ? this.runes :
-                          type === 'spells' ? this.spells : this.skills;
+                          type === 'spells' ? this.spells : 
+                          type === 'skills' ? this.skills : this.statusEffects;
     return originalArray.indexOf(item);
   }
 
 
-  setActiveTab(tab: 'items' | 'runes' | 'spells' | 'skills') {
+  setActiveTab(tab: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects') {
     this.activeTab = tab;
   }
 
-  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill', index: number) {
+  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect', index: number) {
     this.dragStart.emit({ event, type, index });
+  }
+
+  onContextMenu(event: MouseEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect', index: number) {
+    event.preventDefault();
+    this.contextMenuRequest.emit({ event, type, index });
   }
 
   isItemEditing(index: number): boolean {
@@ -175,6 +199,10 @@ export class LibraryTabsComponent implements OnChanges {
     return this.editingSkills.has(index);
   }
 
+  isStatusEffectEditing(index: number): boolean {
+    return this.editingStatusEffects.has(index);
+  }
+
   onItemUpdate(index: number, patch: JsonPatch) {
     this.updateItem.emit({ index, patch });
   }
@@ -191,6 +219,10 @@ export class LibraryTabsComponent implements OnChanges {
     this.updateSkill.emit({ index, patch });
   }
 
+  onStatusEffectUpdate(index: number, patch: JsonPatch) {
+    this.updateStatusEffect.emit({ index, patch });
+  }
+
   onItemEditingChange(index: number, isEditing: boolean) {
     this.itemEditingChange.emit({ index, isEditing });
   }
@@ -205,5 +237,9 @@ export class LibraryTabsComponent implements OnChanges {
 
   onSkillEditingChange(index: number, isEditing: boolean) {
     this.skillEditingChange.emit({ index, isEditing });
+  }
+
+  onStatusEffectEditingChange(index: number, isEditing: boolean) {
+    this.statusEffectEditingChange.emit({ index, isEditing });
   }
 }

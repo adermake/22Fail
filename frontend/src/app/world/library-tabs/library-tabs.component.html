@@ -24,6 +24,12 @@
       (click)="setActiveTab('skills')">
       Skills ({{ skills.length }})
     </button>
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'status-effects'"
+      (click)="setActiveTab('status-effects')">
+      💫 Effects ({{ statusEffects?.length || 0 }})
+    </button>
   </div>
 
   <div class="search-container">
@@ -42,7 +48,8 @@
           <div class="library-item-wrapper"
                [class.draggable]="!isItemEditing(getOriginalIndex(item, 'items'))"
                [attr.draggable]="!isItemEditing(getOriginalIndex(item, 'items'))"
-               (dragstart)="onDragStart($event, 'item', getOriginalIndex(item, 'items'))">
+               (dragstart)="onDragStart($event, 'item', getOriginalIndex(item, 'items'))"
+               (contextmenu)="onContextMenu($event, 'item', getOriginalIndex(item, 'items'))">
             <app-item
               [item]="item"
               [sheet]="dummySheet"
@@ -55,7 +62,9 @@
             </app-item>
           </div>
         }
-        <button class="add-button" (click)="addItem.emit()">+ Add Item</button>
+        @if (!readonly) {
+          <button class="add-button" (click)="addItem.emit()">+ Add Item</button>
+        }
       </div>
     }
 
@@ -66,7 +75,8 @@
           <div class="library-item-wrapper"
                [class.draggable]="!isRuneEditing(getOriginalIndex(rune, 'runes'))"
                [attr.draggable]="!isRuneEditing(getOriginalIndex(rune, 'runes'))"
-               (dragstart)="onDragStart($event, 'rune', getOriginalIndex(rune, 'runes'))">
+               (dragstart)="onDragStart($event, 'rune', getOriginalIndex(rune, 'runes'))"
+               (contextmenu)="onContextMenu($event, 'rune', getOriginalIndex(rune, 'runes'))">
             <app-rune
               [rune]="rune"
               [index]="getOriginalIndex(rune, 'runes')"
@@ -78,7 +88,9 @@
             </app-rune>
           </div>
         }
-        <button class="add-button" (click)="addRune.emit()">+ Add Rune</button>
+        @if (!readonly) {
+          <button class="add-button" (click)="addRune.emit()">+ Add Rune</button>
+        }
       </div>
     }
 
@@ -89,7 +101,8 @@
           <div class="library-item-wrapper"
                [class.draggable]="!isSpellEditing(getOriginalIndex(spell, 'spells'))"
                [attr.draggable]="!isSpellEditing(getOriginalIndex(spell, 'spells'))"
-               (dragstart)="onDragStart($event, 'spell', getOriginalIndex(spell, 'spells'))">
+               (dragstart)="onDragStart($event, 'spell', getOriginalIndex(spell, 'spells'))"
+               (contextmenu)="onContextMenu($event, 'spell', getOriginalIndex(spell, 'spells'))">
             <app-spell
               [spell]="spell"
               [sheet]="dummySheet"
@@ -102,7 +115,9 @@
             </app-spell>
           </div>
         }
-        <button class="add-button" (click)="addSpell.emit()">+ Add Spell</button>
+        @if (!readonly) {
+          <button class="add-button" (click)="addSpell.emit()">+ Add Spell</button>
+        }
       </div>
     }
 
@@ -113,7 +128,8 @@
           <div class="library-item-wrapper"
                [class.draggable]="!isSkillEditing(getOriginalIndex(skill, 'skills'))"
                [attr.draggable]="!isSkillEditing(getOriginalIndex(skill, 'skills'))"
-               (dragstart)="onDragStart($event, 'skill', getOriginalIndex(skill, 'skills'))">
+               (dragstart)="onDragStart($event, 'skill', getOriginalIndex(skill, 'skills'))"
+               (contextmenu)="onContextMenu($event, 'skill', getOriginalIndex(skill, 'skills'))">
             <app-skill
               [skill]="skill"
               [sheet]="dummySheet"
@@ -126,7 +142,44 @@
             </app-skill>
           </div>
         }
-        <button class="add-button" (click)="addSkill.emit()">+ Add Skill</button>
+        @if (!readonly) {
+          <button class="add-button" (click)="addSkill.emit()">+ Add Skill</button>
+        }
+      </div>
+    }
+
+    <!-- Status Effects Tab -->
+    @if (activeTab === 'status-effects') {
+      <div class="library-list">
+        @for (effect of filteredStatusEffects; track getOriginalIndex(effect, 'status-effects'); let i = $index) {
+          <div class="library-item-wrapper status-effect-item"
+               [class.draggable]="true"
+               draggable="true"
+               (dragstart)="onDragStart($event, 'status-effect', getOriginalIndex(effect, 'status-effects'))"
+               (contextmenu)="onContextMenu($event, 'status-effect', getOriginalIndex(effect, 'status-effects'))">
+            <div class="status-effect-card">
+              <div class="effect-header">
+                <span class="effect-icon">{{ effect.icon || '✨' }}</span>
+                <span class="effect-name">{{ effect.name }}</span>
+                @if (effect.defaultDuration) {
+                  <span class="effect-duration">{{ effect.defaultDuration }} Runden</span>
+                }
+              </div>
+              @if (effect.description) {
+                <p class="effect-description">{{ effect.description }}</p>
+              }
+              @if (!readonly) {
+                <div class="effect-actions">
+                  <button class="edit-btn" (click)="openStatusEffectEditor.emit(getOriginalIndex(effect, 'status-effects'))">✏️</button>
+                  <button class="delete-btn" (click)="removeStatusEffect.emit(getOriginalIndex(effect, 'status-effects'))">🗑️</button>
+                </div>
+              }
+            </div>
+          </div>
+        }
+        @if (!readonly) {
+          <button class="add-button" (click)="addStatusEffect.emit()">+ Add Status Effect</button>
+        }
       </div>
     }
   </div>
