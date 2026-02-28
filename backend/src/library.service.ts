@@ -14,6 +14,8 @@ export interface Library {
   skills: any[];
   statusEffects: any[];
   macroActions: any[];
+  shops: any[];
+  lootBundles: any[];
   tags?: string[];
   isPublic?: boolean;
   author?: string;
@@ -111,6 +113,14 @@ export class LibraryService {
 
   private getLibraryMacroActionsDir(libraryId: string): string {
     return path.join(this.getLibraryDir(libraryId), 'macro-actions');
+  }
+
+  private getLibraryShopsDir(libraryId: string): string {
+    return path.join(this.getLibraryDir(libraryId), 'shops');
+  }
+
+  private getLibraryLootBundlesDir(libraryId: string): string {
+    return path.join(this.getLibraryDir(libraryId), 'loot-bundles');
   }
 
   // Helper methods for reading/writing entity collections
@@ -302,6 +312,20 @@ export class LibraryService {
                 });
               }
               
+              if (library.shops && library.shops.length > 0) {
+                const shopsDir = this.getLibraryShopsDir(library.id);
+                library.shops.forEach((shop: any) => {
+                  this.writeEntity(shopsDir, shop.id || shop.name, shop);
+                });
+              }
+              
+              if (library.lootBundles && library.lootBundles.length > 0) {
+                const lootBundlesDir = this.getLibraryLootBundlesDir(library.id);
+                library.lootBundles.forEach((bundle: any) => {
+                  this.writeEntity(lootBundlesDir, bundle.id || bundle.name, bundle);
+                });
+              }
+              
               // Create backup of old file and delete it
               const backupDir = path.join(this.librariesDir, 'backup-old-format');
               this.ensureDirectory(backupDir);
@@ -380,6 +404,8 @@ export class LibraryService {
     const oldSkills = this.readEntityCollection(path.join(libraryDir, 'skills'));
     const oldStatusEffects = this.readEntityCollection(path.join(libraryDir, 'status-effects'));
     const oldMacroActions = this.readEntityCollection(path.join(libraryDir, 'macro-actions'));
+    const oldShops = this.readEntityCollection(path.join(libraryDir, 'shops'));
+    const oldLootBundles = this.readEntityCollection(path.join(libraryDir, 'loot-bundles'));
     
     console.log(`[LIBRARY] Old format - Items: ${oldItems.length}, Runes: ${oldRunes.length}, Spells: ${oldSpells.length}, Skills: ${oldSkills.length}`);
     
@@ -412,7 +438,9 @@ export class LibraryService {
       spells: mergeById(oldSpells, newSpells),
       skills: mergeById(oldSkills, newSkills),
       statusEffects: mergeById(oldStatusEffects, newStatusEffects),
-      macroActions: mergeById(oldMacroActions, newMacroActions)
+      macroActions: mergeById(oldMacroActions, newMacroActions),
+      shops: oldShops,
+      lootBundles: oldLootBundles
     };
 
     console.log(`[LIBRARY] Final counts - Items: ${library.items.length}, Runes: ${library.runes.length}, Spells: ${library.spells.length}, Skills: ${library.skills.length}`);
@@ -499,6 +527,20 @@ export class LibraryService {
       const macrosDir = this.getLibraryMacroActionsDir(library.id);
       library.macroActions.forEach(macro => {
         this.writeEntity(macrosDir, macro.id || macro.name, macro);
+      });
+    }
+
+    if (library.shops && library.shops.length > 0) {
+      const shopsDir = this.getLibraryShopsDir(library.id);
+      library.shops.forEach(shop => {
+        this.writeEntity(shopsDir, shop.id || shop.name, shop);
+      });
+    }
+
+    if (library.lootBundles && library.lootBundles.length > 0) {
+      const lootBundlesDir = this.getLibraryLootBundlesDir(library.id);
+      library.lootBundles.forEach(bundle => {
+        this.writeEntity(lootBundlesDir, bundle.id || bundle.name, bundle);
       });
     }
 
@@ -619,6 +661,34 @@ export class LibraryService {
       if (updates.macroActions.length > 0) {
         updates.macroActions.forEach(macro => {
           this.writeEntity(macrosDir, macro.id || macro.name, macro);
+        });
+      }
+    }
+
+    if (updates.shops !== undefined) {
+      const shopsDir = this.getLibraryShopsDir(libraryId);
+      
+      if (fs.existsSync(shopsDir)) {
+        fs.rmSync(shopsDir, { recursive: true, force: true });
+      }
+      
+      if (updates.shops.length > 0) {
+        updates.shops.forEach(shop => {
+          this.writeEntity(shopsDir, shop.id || shop.name, shop);
+        });
+      }
+    }
+
+    if (updates.lootBundles !== undefined) {
+      const lootBundlesDir = this.getLibraryLootBundlesDir(libraryId);
+      
+      if (fs.existsSync(lootBundlesDir)) {
+        fs.rmSync(lootBundlesDir, { recursive: true, force: true });
+      }
+      
+      if (updates.lootBundles.length > 0) {
+        updates.lootBundles.forEach(bundle => {
+          this.writeEntity(lootBundlesDir, bundle.id || bundle.name, bundle);
         });
       }
     }

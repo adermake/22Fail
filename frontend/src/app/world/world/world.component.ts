@@ -254,6 +254,16 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.store.applyPatch({ path: 'currentEvents', value: events });
   }
 
+  navigateToLibrary(data: { libraryId: string; tab: 'shops' | 'loot-bundles'; itemId: string }) {
+    // Navigate to library with query parameters to highlight the item
+    this.router.navigate(['/library', data.libraryId], {
+      queryParams: {
+        tab: data.tab,
+        highlightId: data.itemId
+      }
+    });
+  }
+
   ngOnInit() {
     // Connect battle engine to world store for persistence
     this.battleEngine.setWorldStore(this.store);

@@ -323,6 +323,42 @@ export class LibraryStoreService {
     this.librarySubject.next({ ...library });
   }
 
+  addShop(shop: any): void {
+    const library = this.librarySubject.value;
+    if (!library) return;
+
+    library.shops.push(shop);
+    library.updatedAt = Date.now();
+    this.librarySubject.next({ ...library });
+  }
+
+  removeShop(shopId: string): void {
+    const library = this.librarySubject.value;
+    if (!library) return;
+
+    library.shops = library.shops.filter(s => s.id !== shopId);
+    library.updatedAt = Date.now();
+    this.librarySubject.next({ ...library });
+  }
+
+  addLootBundle(bundle: any): void {
+    const library = this.librarySubject.value;
+    if (!library) return;
+
+    library.lootBundles.push(bundle);
+    library.updatedAt = Date.now();
+    this.librarySubject.next({ ...library });
+  }
+
+  removeLootBundle(bundleId: string): void {
+    const library = this.librarySubject.value;
+    if (!library) return;
+
+    library.lootBundles = library.lootBundles.filter(b => b.id !== bundleId);
+    library.updatedAt = Date.now();
+    this.librarySubject.next({ ...library });
+  }
+
   /**
    * Clear current library
    */

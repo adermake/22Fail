@@ -19,8 +19,8 @@ export interface Currency {
  */
 export interface LibraryItemRef {
   libraryId: string;
-  itemId: string;
-  type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect';
+  libraryName: string;
+  itemId?: string;
 }
 
 /**
@@ -68,6 +68,9 @@ export interface ShopEvent {
   // Track who's interacted
   claimedDeals: { [dealId: string]: string[] }; // dealId -> characterIds who bought
   
+  // Reference to source library (for editing)
+  sourceRef?: LibraryItemRef;
+  
   createdAt: number;
 }
 
@@ -96,6 +99,9 @@ export interface LootBundleEvent {
   description?: string;
   
   items: LootItem[];
+  
+  // Reference to source library (for editing)
+  sourceRef?: LibraryItemRef;
   
   createdAt: number;
 }

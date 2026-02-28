@@ -54,6 +54,12 @@
     <button [class.active]="activeTab() === 'macros'" (click)="activeTab.set('macros')">
       ⚡ Macros ({{ lib.macroActions.length }})
     </button>
+    <button [class.active]="activeTab() === 'shops'" (click)="activeTab.set('shops')">
+      🏪 Shops ({{ lib.shops.length }})
+    </button>
+    <button [class.active]="activeTab() === 'loot-bundles'" (click)="activeTab.set('loot-bundles')">
+      📦 Loot Bundles ({{ lib.lootBundles.length }})
+    </button>
   </div>
 
   <!-- Tab Content -->
@@ -243,6 +249,50 @@
                 @if (macro.parameters.message) {
                   <div class="param">💬 {{ macro.parameters.message }}</div>
                 }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Shops Tab -->
+    @if (activeTab() === 'shops') {
+      <div class="content-section">
+        <button class="add-btn" (click)="addShop()">+ Add Shop</button>
+        <div class="shops-grid">
+          @for (shop of filteredShops(); track shop.id; let i = $index) {
+            <div class="shop-card">
+              <div class="shop-header">
+                <span class="shop-icon">🏪</span>
+                <h3>{{ shop.name }}</h3>
+                <button class="remove-btn" (click)="removeShop(i)">🗑️</button>
+              </div>
+              <p class="shop-description">{{ shop.description }}</p>
+              <div class="shop-stats">
+                <div class="stat">📋 {{ shop.deals?.length || 0 }} deals</div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Loot Bundles Tab -->
+    @if (activeTab() === 'loot-bundles') {
+      <div class="content-section">
+        <button class="add-btn" (click)="addLootBundle()">+ Add Loot Bundle</button>
+        <div class="loot-bundles-grid">
+          @for (bundle of filteredLootBundles(); track bundle.id; let i = $index) {
+            <div class="loot-bundle-card">
+              <div class="bundle-header">
+                <span class="bundle-icon">📦</span>
+                <h3>{{ bundle.name }}</h3>
+                <button class="remove-btn" (click)="removeLootBundle(i)">🗑️</button>
+              </div>
+              <p class="bundle-description">{{ bundle.description }}</p>
+              <div class="bundle-stats">
+                <div class="stat">🎁 {{ bundle.items?.length || 0 }} items</div>
               </div>
             </div>
           }

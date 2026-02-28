@@ -48,7 +48,7 @@ export class LibraryComponent implements OnInit, OnDestroy {
 
   libraryId = signal<string>('');
   library = signal<Library | null>(null);
-  activeTab = signal<'items' | 'runes' | 'spells' | 'skills' | 'status-effects' | 'macros'>('items');
+  activeTab = signal<'items' | 'runes' | 'spells' | 'skills' | 'status-effects' | 'macros' | 'shops' | 'loot-bundles'>('items');
   searchTerm = signal<string>('');
   
   // Editing state - for modal editors
@@ -136,7 +136,27 @@ export class LibraryComponent implements OnInit, OnDestroy {
       macro.description?.toLowerCase().includes(term)
     );
   });
+  filteredShops = computed(() => {
+    const lib = this.library();
+    if (!lib) return [];
+    const term = this.searchTerm().toLowerCase();
+    if (!term) return lib.shops;
+    return lib.shops.filter(shop => 
+      shop.name.toLowerCase().includes(term) ||
+      shop.description?.toLowerCase().includes(term)
+    );
+  });
 
+  filteredLootBundles = computed(() => {
+    const lib = this.library();
+    if (!lib) return [];
+    const term = this.searchTerm().toLowerCase();
+    if (!term) return lib.lootBundles;
+    return lib.lootBundles.filter(bundle => 
+      bundle.name.toLowerCase().includes(term) ||
+      bundle.description?.toLowerCase().includes(term)
+    );
+  });
   ngOnInit() {
     // Get library ID from route
     this.route.params.subscribe(params => {
@@ -144,6 +164,18 @@ export class LibraryComponent implements OnInit, OnDestroy {
       if (id) {
         this.libraryId.set(id);
         this.loadLibrary(id);
+      }
+    });
+
+    // Handle query parameters for tab and highlight
+    this.route.queryParams.subscribe(params => {
+      if (params['tab']) {
+        this.activeTab.set(params['tab'] as any);
+      }
+      if (params['highlightId']) {
+        // TODO: Scroll to and highlight the item with this ID
+        // This could be implemented with ViewChild and scrollIntoView
+        console.log('Highlighting item:', params['highlightId']);
       }
     });
 
@@ -461,6 +493,52 @@ export class LibraryComponent implements OnInit, OnDestroy {
     const macro = lib.macroActions[index];
     if (macro) {
       this.store.removeMacroAction(macro.id);
+      this.saveLibrary();
+    }
+  }
+
+  // Shops
+  addShop() {
+    const newShop: any = {
+      id: `shop_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: 'shop',
+      name: 'New Shop',
+      description: '',
+      deals: []
+    };
+    this.store.addShop(newShop);
+    this.saveLibrary();
+  }
+
+  removeShop(index: number) {
+    const lib = this.library();
+    if (!lib) return;
+    const shop = lib.shops[index];
+    if (shop) {
+      this.store.removeShop(shop.id);
+      this.saveLibrary();
+    }
+  }
+
+  // Loot Bundles
+  addLootBundle() {
+    const newBundle: any = {
+      id: `loot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: 'loot',
+      name: 'New Loot Bundle',
+      description: '',
+      items: []
+    };
+    this.store.addLootBundle(newBundle);
+    this.saveLibrary();
+  }
+
+  removeLootBundle(index: number) {
+    const lib = this.library();
+    if (!lib) return;
+    const bundle = lib.lootBundles[index];
+    if (bundle) {
+      this.store.removeLootBundle(bundle.id);
       this.saveLibrary();
     }
   }
