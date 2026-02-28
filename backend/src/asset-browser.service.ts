@@ -96,6 +96,28 @@ export class AssetBrowserService {
     return `${sanitized}_${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   }
 
+  /**
+   * Resolve library identifier (ID or name) to the actual folder name
+   * This allows methods to accept either the UUID ID or the library name
+   */
+  private resolveLibraryName(identifier: string): string {
+    // If it's already a valid folder name, return it
+    const directPath = path.join(this.librariesDir, this.sanitizeFileName(identifier));
+    if (fs.existsSync(directPath)) {
+      return this.sanitizeFileName(identifier);
+    }
+
+    // Try finding by ID
+    const allLibs = this.getAllLibraries();
+    const byId = allLibs.find(l => l.id === identifier);
+    if (byId) {
+      return this.sanitizeFileName(byId.name);
+    }
+
+    // If nothing found, return sanitized identifier (will fail later with proper error)
+    return this.sanitizeFileName(identifier);
+  }
+
   // Library directory structure (name-based)
   private getLibraryDir(libraryName: string): string {
     return path.join(this.librariesDir, this.sanitizeFileName(libraryName));
@@ -107,27 +129,6 @@ export class AssetBrowserService {
 
   private getMetaPath(libraryName: string): string {
     return path.join(this.getLibraryDir(libraryName), '.meta.json');
-  }
-
-  /**
-   * Resolve library identifier (ID or name) to directory name
-   */
-  private resolveLibraryName(identifier: string): string {
-    // Try as name first - check if directory exists
-    const byName = this.sanitizeFileName(identifier);
-    if (fs.existsSync(this.getLibraryDir(identifier))) {
-      return identifier;
-    }
-
-    // Try finding by ID in all libraries
-    const allLibs = this.getAllLibraries();
-    const byId = allLibs.find(l => l.id === identifier);
-    if (byId) {
-      return byId.name;
-    }
-
-    // Default to treating it as a name (might not exist yet)
-    return identifier;
   }
 
   // ==================== METADATA OPERATIONS ====================
@@ -305,6 +306,7 @@ export class AssetBrowserService {
    * Get folder by ID
    */
   getFolder(libraryName: string, folderId: string): AssetFolder {
+    libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const folder = meta.folders.get(folderId);
     if (!folder) {
@@ -317,6 +319,7 @@ export class AssetBrowserService {
    * Get folder contents
    */
   getFolderContents(libraryName: string, folderId: string): FolderContents {
+    libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const folder = meta.folders.get(folderId);
     
@@ -353,6 +356,7 @@ export class AssetBrowserService {
    * Create a new folder
    */
   createFolder(libraryName: string, name: string, parentId: string): AssetFolder {
+    libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const parent = meta.folders.get(parentId);
     
@@ -390,6 +394,7 @@ export class AssetBrowserService {
    * Delete a folder and all its contents
    */
   deleteFolder(libraryName: string, folderId: string): void {
+    libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const folder = meta.folders.get(folderId);
     
@@ -434,6 +439,7 @@ export class AssetBrowserService {
    * Rename a folder
    */
   renameFolder(libraryName: string, folderId: string, newName: string): AssetFolder {
+    libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const folder = meta.folders.get(folderId);
     
@@ -472,6 +478,7 @@ export class AssetBrowserService {
    * Move a folder
    */
   moveFolder(libraryName: string, folderId: string, newParentId: string): AssetFolder {
+    libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const folder = meta.folders.get(folderId);
     
@@ -552,6 +559,7 @@ export class AssetBrowserService {
    * Get a single file by ID
    */
   getFile(libraryName: string, fileId: string): AssetFile {
+    libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const relativePath = meta.idToPath.get(fileId);
     
@@ -571,6 +579,7 @@ export class AssetBrowserService {
    * Create a new file
    */
   createFile(libraryName: string, name: string, type: AssetType, folderId: string, data: any): AssetFile {
+    libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const folder = meta.folders.get(folderId) || meta.folders.get('root')!;
     
@@ -611,6 +620,7 @@ export class AssetBrowserService {
    * Update a file
    */
   updateFile(libraryName: string, fileId: string, updates: Partial<AssetFile>): AssetFile {
+    libraryName = this.resolveLibraryName(libraryName);
     const file = this.getFile(libraryName, fileId);
     const meta = this.loadMeta(libraryName);
     
@@ -647,7 +657,7 @@ export class AssetBrowserService {
   /**
    * Move a file
    */
-  moveFile(libraryName: string, fileId: string, newFolderId: string): AssetFile {
+  moveFile(libraryName: string, fileId: string, newFolderId: string): AssetFile {    libraryName = this.resolveLibraryName(libraryName);    libraryName = this.resolveLibraryName(libraryName);
     const file = this.getFile(libraryName, fileId);
     const meta = this.loadMeta(libraryName);
     
@@ -699,6 +709,7 @@ export class AssetBrowserService {
    * Delete a file
    */
   deleteFile(libraryName: string, fileId: string): void {
+    libraryName = this.resolveLibraryName(libraryName);
     const meta = this.loadMeta(libraryName);
     const relativePath = meta.idToPath.get(fileId);
     

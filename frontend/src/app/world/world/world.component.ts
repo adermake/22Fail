@@ -750,9 +750,9 @@ export class WorldComponent implements OnInit, OnDestroy {
     if (world) {
       world.linkedLibraries = libraryIds;
       this.store.save();
-      console.log('[WORLD] Saved linked libraries:', libraryIds);
+      console.log('[WORLD] Updated linked libraries:', libraryIds);
     }
-    this.showLibrarySelector = false;
+    // Don't close the modal - changes are applied instantly
     this.cdr.markForCheck();
   }
 
