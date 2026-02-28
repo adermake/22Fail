@@ -393,6 +393,7 @@ export class DataService {
         trash: world.trash || [],
         battleMaps: world.battleMaps || [],
         battleTimeline: world.battleTimeline,
+        linkedLibraries: world.linkedLibraries || [],
       };
 
       const worldFilePath = this.getWorldFilePath(name);
