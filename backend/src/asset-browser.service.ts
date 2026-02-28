@@ -639,7 +639,13 @@ export class AssetBrowserService {
       const folder = meta.folders.get(file.folderId)!;
       const newDiskPath = this.getFileDiskPath(libraryName, folder.path, updates.name);
       
-      fs.renameSync(oldDiskPath, newDiskPath);
+      // Write updated content to new path
+      fs.writeFileSync(newDiskPath, JSON.stringify(updated, null, 2), 'utf-8');
+      
+      // Delete old file
+      if (fs.existsSync(oldDiskPath)) {
+        fs.unlinkSync(oldDiskPath);
+      }
       
       const newRelativePath = folder.path ? `${folder.path}/${this.sanitizeFileName(updates.name)}.json` : `${this.sanitizeFileName(updates.name)}.json`;
       meta.idToPath.set(fileId, newRelativePath);
@@ -657,7 +663,8 @@ export class AssetBrowserService {
   /**
    * Move a file
    */
-  moveFile(libraryName: string, fileId: string, newFolderId: string): AssetFile {    libraryName = this.resolveLibraryName(libraryName);    libraryName = this.resolveLibraryName(libraryName);
+  moveFile(libraryName: string, fileId: string, newFolderId: string): AssetFile {
+    libraryName = this.resolveLibraryName(libraryName);
     const file = this.getFile(libraryName, fileId);
     const meta = this.loadMeta(libraryName);
     
