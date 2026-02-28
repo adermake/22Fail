@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild, computed, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -10,6 +10,7 @@ import { CharacterSocketService, CharacterPatchEvent } from '../../services/char
 import { BattleService, SimulatedTurn, BattleGroup } from '../../services/battle.service';
 import { LibraryService } from '../../services/library.service';
 import { LibraryStoreService } from '../../services/library-store.service';
+import { Library } from '../../model/library.model';
 import { TrashService } from '../../services/trash.service';
 import { ItemBlock } from '../../model/item-block.model';
 import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
@@ -90,7 +91,20 @@ export class WorldComponent implements OnInit, OnDestroy {
   // Context menu state
   private selectedCharacterForContextMenu: string = '';
 
-  constructor(private route: ActivatedRoute) {}
+  // Loaded libraries signal for reactivity
+  loadedLibraries = signal<Library[]>([]);
+
+  constructor(private route: ActivatedRoute) {
+    // Subscribe to loaded libraries and update signal
+    this.libraryStoreService.allLibraries$.subscribe(libs => {
+      console.log('[WORLD] Libraries loaded:', libs.length, 'libraries');
+      libs.forEach(lib => {
+        console.log(`  - ${lib.name}: ${lib.items?.length || 0} items, ${lib.spells?.length || 0} spells, ${lib.runes?.length || 0} runes, ${lib.skills?.length || 0} skills`);
+      });
+      this.loadedLibraries.set(libs);
+      this.cdr.markForCheck();
+    });
+  }
 
   // Loot Bundles getter
   get lootBundleLibrary(): LootBundle[] {
@@ -113,14 +127,21 @@ export class WorldComponent implements OnInit, OnDestroy {
     
     const items = [...(world.itemLibrary || [])];
     const linkedLibs = world.linkedLibraries || [];
+    const loadedLibs = this.loadedLibraries(); // Read from signal for reactivity
+    
+    console.log('[WORLD] Merging items - World items:', items.length, 'Linked libs:', linkedLibs.length, 'Loaded libs:', loadedLibs.length);
     
     linkedLibs.forEach(libId => {
-      const lib = this.libraryStoreService.allLibraries.find(l => l.id === libId);
+      const lib = loadedLibs.find(l => l.id === libId);
       if (lib?.items) {
+        console.log(`  - Adding ${lib.items.length} items from library "${lib.name}"`);
         items.push(...lib.items);
+      } else {
+        console.log(`  - Library ${libId} not found or has no items`);
       }
     });
     
+    console.log('[WORLD] Total merged items:', items.length);
     return items;
   });
 
@@ -130,9 +151,10 @@ export class WorldComponent implements OnInit, OnDestroy {
     
     const runes = [...(world.runeLibrary || [])];
     const linkedLibs = world.linkedLibraries || [];
+    const loadedLibs = this.loadedLibraries();
     
     linkedLibs.forEach(libId => {
-      const lib = this.libraryStoreService.allLibraries.find(l => l.id === libId);
+      const lib = loadedLibs.find(l => l.id === libId);
       if (lib?.runes) {
         runes.push(...lib.runes);
       }
@@ -147,9 +169,10 @@ export class WorldComponent implements OnInit, OnDestroy {
     
     const spells = [...(world.spellLibrary || [])];
     const linkedLibs = world.linkedLibraries || [];
+    const loadedLibs = this.loadedLibraries();
     
     linkedLibs.forEach(libId => {
-      const lib = this.libraryStoreService.allLibraries.find(l => l.id === libId);
+      const lib = loadedLibs.find(l => l.id === libId);
       if (lib?.spells) {
         spells.push(...lib.spells);
       }
@@ -164,9 +187,10 @@ export class WorldComponent implements OnInit, OnDestroy {
     
     const skills = [...(world.skillLibrary || [])];
     const linkedLibs = world.linkedLibraries || [];
+    const loadedLibs = this.loadedLibraries();
     
     linkedLibs.forEach(libId => {
-      const lib = this.libraryStoreService.allLibraries.find(l => l.id === libId);
+      const lib = loadedLibs.find(l => l.id === libId);
       if (lib?.skills) {
         skills.push(...lib.skills);
       }
@@ -704,15 +728,21 @@ export class WorldComponent implements OnInit, OnDestroy {
   // Library management
   openLibrarySelector() {
     this.showLibrarySelector = true;
-    this.cdr.markForCheck();
+    const world = this.store.worldValue;
     
-    // Set selected libraries after the component is rendered
+    // Set selected libraries immediately
+    if (this.librarySelector && world) {
+      this.librarySelector.setSelectedLibraries(world.linkedLibraries || []);
+    }
+    
+    // Also set after render in case the component wasn't ready
     setTimeout(() => {
-      const world = this.store.worldValue;
-      if (this.librarySelector && world?.linkedLibraries) {
-        this.librarySelector.setSelectedLibraries(world.linkedLibraries);
+      if (this.librarySelector && world) {
+        this.librarySelector.setSelectedLibraries(world.linkedLibraries || []);
       }
     }, 0);
+    
+    this.cdr.markForCheck();
   }
 
   handleLibrariesChanged(libraryIds: string[]) {
@@ -720,6 +750,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     if (world) {
       world.linkedLibraries = libraryIds;
       this.store.save();
+      console.log('[WORLD] Saved linked libraries:', libraryIds);
     }
     this.showLibrarySelector = false;
     this.cdr.markForCheck();
