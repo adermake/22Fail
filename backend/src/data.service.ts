@@ -180,6 +180,7 @@ export class DataService {
       name,
       characterIds: [],
       partyIds: [],
+      currentEvents: [],
       battleLoot: [],
       battleParticipants: [],
       currentTurnIndex: 0,
@@ -189,7 +190,14 @@ export class DataService {
   }
 
   private applyJsonPatch(target: unknown, patch: JsonPatch): void {
-    const keys = patch.path.split('.');
+    // Normalize path: remove leading slash, replace slashes with dots
+    let normalizedPath = patch.path.trim();
+    if (normalizedPath.startsWith('/')) {
+      normalizedPath = normalizedPath.substring(1);
+    }
+    normalizedPath = normalizedPath.replace(/\//g, '.');
+    
+    const keys = normalizedPath.split('.');
 
     // Special case: if path has only one key and value is an array, replace entire array
     if (keys.length === 1 && Array.isArray(patch.value)) {
@@ -218,6 +226,13 @@ export class DataService {
     }
 
     const finalKey = keys[keys.length - 1];
+    
+    // Handle array append operation: '-' means append to array
+    if (finalKey === '-' && Array.isArray(current)) {
+      current.push(patch.value);
+      return;
+    }
+    
     const finalIndex = parseInt(finalKey, 10);
 
     if (!isNaN(finalIndex) && Array.isArray(current)) {

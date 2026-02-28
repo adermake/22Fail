@@ -231,8 +231,11 @@ export class SheetComponent implements OnInit {
     // Listen for world patches to update battle loot when someone else claims
     this.worldSocket.patches$.subscribe((patch) => {
       this.ngZone.run(() => {
+        // Normalize path: remove leading slash for comparison
+        const normalizedPath = patch.path.startsWith('/') ? patch.path.substring(1) : patch.path;
+        
         // If battle loot was updated and we're showing the popup
-        if (patch.path === 'battleLoot' && this.showLootPopup && this.isBattleLoot) {
+        if (normalizedPath === 'battleLoot' && this.showLootPopup && this.isBattleLoot) {
           const updatedBattleLoot = patch.value as any[];
 
           // Filter our current loot to only show items that still exist
@@ -248,7 +251,7 @@ export class SheetComponent implements OnInit {
         }
 
         // Check if battle participants were updated to determine current turn
-        if (patch.path === 'battleParticipants') {
+        if (normalizedPath === 'battleParticipants') {
           const participants = patch.value as any[];
           if (participants && participants.length > 0) {
             // Find who has the current turn (lowest nextTurnAt)
@@ -275,7 +278,7 @@ export class SheetComponent implements OnInit {
         }
 
         // Check if current events were updated
-        if (patch.path === 'currentEvents') {
+        if (normalizedPath === 'currentEvents') {
           this.currentEvents = patch.value as CurrentEvent[] || [];
           this.cdr.detectChanges();
         }
