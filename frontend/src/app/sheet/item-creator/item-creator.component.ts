@@ -23,7 +23,8 @@ export class ItemCreatorComponent {
     broken: false,
     hasDurability: false,
     requirements: {},
-    statModifiers: []
+    statModifiers: [],
+    isIdentified: true
   };
 
   // Track stat modifiers being edited
@@ -73,7 +74,8 @@ export class ItemCreatorComponent {
       broken: false,
       hasDurability: false,
       requirements: {},
-      statModifiers: []
+      statModifiers: [],
+      isIdentified: true
     };
     this.tempModifiers = {
       strength: 0,
