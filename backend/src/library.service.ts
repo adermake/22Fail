@@ -49,6 +49,42 @@ export class LibraryService {
     return path.join(this.librariesDir, safeId);
   }
 
+  /**
+   * Resolve library identifier (ID or name) to the actual directory name
+   * Checks both by sanitized identifier and by looking up ID in metadata
+   */
+  private resolveLibraryDir(identifier: string): string | null {
+    // Try direct lookup first (identifier might be the name)
+    const directPath = this.getLibraryDir(identifier);
+    if (fs.existsSync(directPath)) {
+      return directPath;
+    }
+
+    // Search all library directories by ID
+    if (!fs.existsSync(this.librariesDir)) {
+      return null;
+    }
+
+    const entries = fs.readdirSync(this.librariesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        try {
+          const metadataPath = path.join(this.librariesDir, entry.name, 'library.json');
+          if (fs.existsSync(metadataPath)) {
+            const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+            if (metadata.id === identifier) {
+              return path.join(this.librariesDir, entry.name);
+            }
+          }
+        } catch (err) {
+          // Skip invalid directories
+        }
+      }
+    }
+
+    return null;
+  }
+
   private getLibraryMetadataFilePath(libraryId: string): string {
     return path.join(this.getLibraryDir(libraryId), 'library.json');
   }
@@ -103,34 +139,49 @@ export class LibraryService {
   }
 
   /**
-   * Read assets from the new asset browser format (assets/ folder)
-   * and filter by asset type
+   * Read assets from the new asset browser format (name-based filesystem structure)
+   * Uses .meta.json to find all files of a given type
    */
-  private readAssetsOfType(libraryId: string, assetType: string): any[] {
-    const assetsDir = path.join(this.getLibraryDir(libraryId), 'assets');
+  private readAssetsFromDir(libraryDir: string, assetType: string): any[] {
     try {
-      if (!fs.existsSync(assetsDir)) {
+      const metaPath = path.join(libraryDir, '.meta.json');
+      
+      // Check if new format exists
+      if (!fs.existsSync(metaPath)) {
+        console.log(`[LIBRARY] No .meta.json found in ${libraryDir}`);
         return [];
       }
-      const files = fs.readdirSync(assetsDir);
+      
+      const metaContent = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+      const idToPath = metaContent.idToPath || {};
       const entities: any[] = [];
-      for (const file of files) {
-        if (!file.endsWith('.json')) continue;
-        const filePath = path.join(assetsDir, file);
+      
+      console.log(`[LIBRARY] Reading ${Object.keys(idToPath).length} tracked files for type ${assetType}`);
+      
+      // Iterate through all tracked files
+      for (const [assetId, relativePath] of Object.entries(idToPath)) {
         try {
-          const json = fs.readFileSync(filePath, 'utf-8');
-          const assetFile = JSON.parse(json);
-          // Asset browser files have a 'type' field and store actual data in 'data'
-          if (assetFile.type === assetType && assetFile.data) {
-            entities.push(assetFile.data);
+          const fullPath = path.join(libraryDir, relativePath as string);
+          if (!fs.existsSync(fullPath)) {
+            console.log(`[LIBRARY] File not found: ${fullPath}`);
+            continue;
+          }
+          
+          const fileContent = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+          
+          // Check if this file is of the requested type
+          if (fileContent.type === assetType && fileContent.data) {
+            entities.push(fileContent.data);
           }
         } catch (err) {
-          console.error(`Error reading asset file ${file}:`, err);
+          console.error(`[LIBRARY] Error reading file for asset ${assetId}:`, err);
         }
       }
+      
+      console.log(`[LIBRARY] Found ${entities.length} entities of type ${assetType}`);
       return entities;
     } catch (error) {
-      console.error(`Error reading assets of type ${assetType}:`, error);
+      console.error(`[LIBRARY] Error reading assets of type ${assetType}:`, error);
       return [];
     }
   }
@@ -304,30 +355,43 @@ export class LibraryService {
    * Get a single library by ID
    */
   getLibrary(libraryId: string): Library {
-    const metadataFilePath = this.getLibraryMetadataFilePath(libraryId);
+    const libraryDir = this.resolveLibraryDir(libraryId);
+    
+    if (!libraryDir) {
+      console.error(`[LIBRARY] Library "${libraryId}" not found`);
+      throw new NotFoundException(`Library with ID "${libraryId}" not found`);
+    }
 
+    const metadataFilePath = path.join(libraryDir, 'library.json');
     if (!fs.existsSync(metadataFilePath)) {
+      console.error(`[LIBRARY] Metadata file not found for library "${libraryId}"`);
       throw new NotFoundException(`Library with ID "${libraryId}" not found`);
     }
 
     const content = fs.readFileSync(metadataFilePath, 'utf-8');
     const metadata = JSON.parse(content);
     
+    console.log(`[LIBRARY] Loading library "${metadata.name}" (${metadata.id})`);
+    
     // Load all entity collections from old format
-    const oldItems = this.readEntityCollection(this.getLibraryItemsDir(libraryId));
-    const oldRunes = this.readEntityCollection(this.getLibraryRunesDir(libraryId));
-    const oldSpells = this.readEntityCollection(this.getLibrarySpellsDir(libraryId));
-    const oldSkills = this.readEntityCollection(this.getLibrarySkillsDir(libraryId));
-    const oldStatusEffects = this.readEntityCollection(this.getLibraryStatusEffectsDir(libraryId));
-    const oldMacroActions = this.readEntityCollection(this.getLibraryMacroActionsDir(libraryId));
+    const oldItems = this.readEntityCollection(path.join(libraryDir, 'items'));
+    const oldRunes = this.readEntityCollection(path.join(libraryDir, 'runes'));
+    const oldSpells = this.readEntityCollection(path.join(libraryDir, 'spells'));
+    const oldSkills = this.readEntityCollection(path.join(libraryDir, 'skills'));
+    const oldStatusEffects = this.readEntityCollection(path.join(libraryDir, 'status-effects'));
+    const oldMacroActions = this.readEntityCollection(path.join(libraryDir, 'macro-actions'));
+    
+    console.log(`[LIBRARY] Old format - Items: ${oldItems.length}, Runes: ${oldRunes.length}, Spells: ${oldSpells.length}, Skills: ${oldSkills.length}`);
     
     // Load assets from new asset browser format
-    const newItems = this.readAssetsOfType(libraryId, 'item');
-    const newRunes = this.readAssetsOfType(libraryId, 'rune');
-    const newSpells = this.readAssetsOfType(libraryId, 'spell');
-    const newSkills = this.readAssetsOfType(libraryId, 'skill');
-    const newStatusEffects = this.readAssetsOfType(libraryId, 'status-effect');
-    const newMacroActions = this.readAssetsOfType(libraryId, 'macro');
+    const newItems = this.readAssetsFromDir(libraryDir, 'item');
+    const newRunes = this.readAssetsFromDir(libraryDir, 'rune');
+    const newSpells = this.readAssetsFromDir(libraryDir, 'spell');
+    const newSkills = this.readAssetsFromDir(libraryDir, 'skill');
+    const newStatusEffects = this.readAssetsFromDir(libraryDir, 'status-effect');
+    const newMacroActions = this.readAssetsFromDir(libraryDir, 'macro');
+    
+    console.log(`[LIBRARY] New format - Items: ${newItems.length}, Runes: ${newRunes.length}, Spells: ${newSpells.length}, Skills: ${newSkills.length}`);
     
     // Merge and deduplicate by ID
     const mergeById = (oldArr: any[], newArr: any[]): any[] => {
@@ -351,6 +415,8 @@ export class LibraryService {
       macroActions: mergeById(oldMacroActions, newMacroActions)
     };
 
+    console.log(`[LIBRARY] Final counts - Items: ${library.items.length}, Runes: ${library.runes.length}, Spells: ${library.spells.length}, Skills: ${library.skills.length}`);
+    
     return library;
   }
 
