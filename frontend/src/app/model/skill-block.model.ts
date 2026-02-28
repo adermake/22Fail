@@ -15,4 +15,5 @@ export class SkillBlock {
   skillId?: string;  // Reference to the skill definition ID
   statModifiers?: StatModifier[]; // Stat bonuses from this skill
   libraryOrigin?: string; // Library ID if this skill came from a library (undefined for custom skills)
+  libraryOriginName?: string; // Human-readable library name
 }

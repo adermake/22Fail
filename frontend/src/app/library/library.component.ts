@@ -176,11 +176,12 @@ export class LibraryComponent implements OnInit, OnDestroy {
   addItem() {
     const newItem = new ItemBlock();
     newItem.id = `item_${Date.now()}`;
-    newItem.name = 'New Item';
+    newItem.name = 'Neues Item';
     newItem.description = '';
     newItem.weight = 1;
     newItem.requirements = {};
     newItem.lost = false;
+    newItem.isIdentified = false; // New items default to unidentified
     this.store.addItem(newItem);
     this.saveLibrary();
   }

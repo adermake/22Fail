@@ -65,6 +65,7 @@ export class ItemBlock {
   // Status flags
   lost!: boolean;
   broken: boolean = false;
+  isIdentified: boolean = true; // Whether the item has been identified (false = shows as "Unidentifiziertes Item")
   
   // Requirements
   requirements!: ItemRequirements;
@@ -100,7 +101,8 @@ export class ItemBlock {
   
   // Library origin tracking
   libraryOrigin?: string; // Library ID if this item came from a library (undefined for custom items)
-  
+  libraryOriginName?: string; // Human-readable library name
+
   // Source tracking (for display purposes)
   isItemBased?: boolean; // Flag for skills/spells from this item
 }

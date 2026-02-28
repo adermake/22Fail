@@ -166,4 +166,19 @@ export class ItemComponent {
   deleteItem() {
     this.delete.emit();
   }
+
+  get displayName(): string {
+    return this.item.isIdentified === false ? 'Unidentifiziertes Item' : this.item.name;
+  }
+
+  get showDetails(): boolean {
+    return this.item.isIdentified !== false;
+  }
+
+  requestIdentify() {
+    // Show confirmation dialog
+    if (confirm('Möchtest du dieses Item identifizieren?')) {
+      this.patch.emit({ path: 'isIdentified', value: true });
+    }
+  }
 }

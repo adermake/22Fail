@@ -5,6 +5,7 @@ export class RuneBlock {
   tags!: string[];
   strokeColor?: string; // Color for the rune drawing stroke (default: #8b5cf6)
   libraryOrigin?: string; // Library ID if this rune came from a library (undefined for custom runes)
+  libraryOriginName?: string; // Human-readable library name
 }
 
 export const RUNE_GLOW_COLORS = [

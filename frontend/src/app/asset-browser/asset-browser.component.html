@@ -335,12 +335,11 @@
               />
             }
             @case ('macro') {
-              <!-- TODO: Macro editor -->
-              <div class="placeholder-editor">
-                <p>Makro-Editor kommt bald</p>
-                <pre>{{ editingFile()!.data | json }}</pre>
-                <button (click)="closeEditor()">Schließen</button>
-              </div>
+              <app-macro-editor
+                [macro]="editingFile()!.data"
+                (save)="saveEditor($event)"
+                (cancel)="closeEditor()"
+              />
             }
           }
         </div>

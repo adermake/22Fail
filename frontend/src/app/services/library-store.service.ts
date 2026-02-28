@@ -176,6 +176,7 @@ export class LibraryStoreService {
     if (!library) return;
 
     item.libraryOrigin = library.id;
+    item.libraryOriginName = library.name;
     library.items.push(item);
     library.updatedAt = Date.now();
     this.librarySubject.next({ ...library });
@@ -215,6 +216,7 @@ export class LibraryStoreService {
     if (!library) return;
     
     rune.libraryOrigin = library.id;
+    rune.libraryOriginName = library.name;
     library.runes.push(rune);
     library.updatedAt = Date.now();
     this.librarySubject.next({ ...library });
@@ -234,6 +236,7 @@ export class LibraryStoreService {
     if (!library) return;
 
     spell.libraryOrigin = library.id;
+    spell.libraryOriginName = library.name;
     library.spells.push(spell);
     library.updatedAt = Date.now();
     this.librarySubject.next({ ...library });
@@ -253,6 +256,7 @@ export class LibraryStoreService {
     if (!library) return;
 
     skill.libraryOrigin = library.id;
+    skill.libraryOriginName = library.name;
     library.skills.push(skill);
     library.updatedAt = Date.now();
     this.librarySubject.next({ ...library });

@@ -390,6 +390,58 @@
   border: 1px solid #6b7280;
 }
 
+.library-origin-badge {
+  background: #1e3a5f;
+  color: #93c5fd;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid #3b82f6;
+  cursor: pointer;
+}
+
+.library-origin-badge:hover {
+  background: #1e4075;
+  border-color: #60a5fa;
+}
+
+.unidentified-badge {
+  background: #4a4a4a;
+  color: #d1d5db;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid #6b7280;
+}
+
+.identify-btn {
+  background: #4f46e5;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid #6366f1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.identify-btn:hover {
+  background: #5b52e8;
+  border-color: #818cf8;
+  transform: scale(1.02);
+}
+
+.item-card.unidentified {
+  border-left-color: #6b7280;
+  background: linear-gradient(135deg, var(--card) 0%, #2a2a35 100%);
+}
+
 /* Action Buttons */
 .action-btn {
   background: transparent;

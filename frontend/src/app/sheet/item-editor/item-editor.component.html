@@ -34,6 +34,14 @@
             </div>
           </div>
 
+          <div class="form-group toggle-group">
+            <label class="toggle-label">
+              <input type="checkbox" [(ngModel)]="editItem.isIdentified">
+              <span class="toggle-text">Identifiziert</span>
+              <span class="toggle-hint">{{ editItem.isIdentified ? 'Item ist identifiziert' : 'Item erscheint als "Unidentifiziertes Item"' }}</span>
+            </label>
+          </div>
+
           <div class="form-group">
             <label>Beschreibung</label>
             <textarea [(ngModel)]="editItem.description" rows="4" placeholder="Beschreibung..."></textarea>

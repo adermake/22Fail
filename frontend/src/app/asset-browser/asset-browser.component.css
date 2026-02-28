@@ -380,7 +380,9 @@
   border-bottom: 1px solid #3d3d3d;
 }
 
-.section-header:not(:first-child) {
+/* Add margin-top for subsequent sections */
+.folders-grid + .section-header,
+.files-grid + .section-header {
   margin-top: 24px;
 }
 

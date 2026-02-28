@@ -128,6 +128,7 @@ export class ItemEditorComponent implements OnInit {
       itemType: 'other',
       lost: false,
       broken: false,
+      isIdentified: false, // New items default to unidentified
       requirements: {},
       hasDurability: false,
       counters: [],

@@ -13,6 +13,7 @@ export class SpellBlock {
   binding!: SpellBinding;
   strokeColor?: string; // Color for the spell drawing stroke (default: #673ab7)
   libraryOrigin?: string; // Library ID if this spell came from a library (undefined for custom spells)
+  libraryOriginName?: string; // Human-readable library name
 }
 
 export const SPELL_GLOW_COLORS = [

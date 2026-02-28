@@ -9,7 +9,7 @@ import {
   ElementRef,
   ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -42,6 +42,7 @@ import { RuneEditorComponent } from '../shared/rune-editor/rune-editor.component
 import { SpellEditorComponent } from '../shared/spell-editor/spell-editor.component';
 import { SkillEditorComponent } from '../shared/skill-editor/skill-editor.component';
 import { StatusEffectEditorComponent } from '../shared/status-effect-editor/status-effect-editor.component';
+import { MacroEditorComponent } from '../shared/macro-editor/macro-editor.component';
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 
 @Component({
@@ -55,6 +56,7 @@ import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model
     SpellEditorComponent,
     SkillEditorComponent,
     StatusEffectEditorComponent,
+    MacroEditorComponent,
   ],
   templateUrl: './asset-browser.component.html',
   styleUrl: './asset-browser.component.css',
@@ -286,8 +288,10 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
     }
   }
 
+  private location = inject(Location);
+  
   goBack(): void {
-    this.router.navigate(['/']);
+    this.location.back();
   }
 
   // ==================== SELECTION ====================
@@ -420,18 +424,22 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
   // ==================== CREATE OPERATIONS ====================
 
   async createFolder(): Promise<void> {
-    const name = prompt('Enter folder name:', 'New Folder');
-    if (!name) return;
+    const defaultName = 'Neuer Ordner';
 
     try {
       this.isLoading.set(true);
-      await firstValueFrom(
-        this.api.createFolder(this.libraryId(), name, this.currentFolderId())
+      const folder = await firstValueFrom(
+        this.api.createFolder(this.libraryId(), defaultName, this.currentFolderId())
       );
       await this.loadFolderContents();
       await this.loadAllFolders();
-    } catch (error) {
+      
+      // Auto-start rename mode for new folder so user can immediately type new name
+      this.startRename(folder.id);
+    } catch (error: any) {
       console.error('Failed to create folder:', error);
+      const message = error?.error?.message || error?.message || 'Ordner erstellen fehlgeschlagen';
+      alert(message);
     } finally {
       this.isLoading.set(false);
       this.showCreateMenu.set(false);
@@ -439,23 +447,23 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
   }
 
   async createFile(type: AssetType): Promise<void> {
-    const defaultName = `New ${getAssetTypeName(type)}`;
-    const name = prompt(`Enter ${getAssetTypeName(type).toLowerCase()} name:`, defaultName);
-    if (!name) return;
+    const defaultName = `Neu ${getAssetTypeName(type)}`;
 
-    const data = this.getEmptyDataForType(type, name);
+    const data = this.getEmptyDataForType(type, defaultName);
 
     try {
       this.isLoading.set(true);
       const file = await firstValueFrom(
-        this.api.createFile(this.libraryId(), name, type, this.currentFolderId(), data)
+        this.api.createFile(this.libraryId(), defaultName, type, this.currentFolderId(), data)
       );
       await this.loadFolderContents();
       
-      // Open the editor for the new file
-      this.openEditor(file);
-    } catch (error) {
+      // Auto-start rename mode for new file so user can immediately type new name
+      this.startRename(file.id);
+    } catch (error: any) {
       console.error('Failed to create file:', error);
+      const message = error?.error?.message || error?.message || 'Datei erstellen fehlgeschlagen';
+      alert(message);
     } finally {
       this.isLoading.set(false);
       this.showCreateMenu.set(false);
@@ -508,6 +516,15 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
 
     this.isRenaming.set(id);
     this.renameValue.set(name);
+    
+    // Focus and select the input after Angular renders it
+    setTimeout(() => {
+      const input = document.querySelector('.rename-input') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 0);
   }
 
   cancelRename(): void {
@@ -536,8 +553,12 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
       }
 
       await this.loadFolderContents();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Rename failed:', error);
+      // Show user-friendly error for conflict
+      const message = error?.error?.message || error?.message || 'Umbenennen fehlgeschlagen';
+      alert(message);
+      return; // Don't cancel rename so user can try a different name
     } finally {
       this.isLoading.set(false);
       this.cancelRename();

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -321,6 +321,14 @@ export class AssetBrowserService {
     const sanitizedName = this.sanitizeFileName(name);
     const newPath = parentFolder.path ? `${parentFolder.path}/${sanitizedName}` : sanitizedName;
 
+    // Check if folder already exists
+    const diskPath = this.getFolderDiskPath(libraryName, newPath);
+    if (fs.existsSync(diskPath)) {
+      throw new ConflictException(
+        `Ein Ordner mit dem Namen "${name}" existiert bereits.`
+      );
+    }
+
     const folder: AssetFolder = {
       id: this.generateId(libraryName, 'folder'),
       name,
@@ -331,7 +339,6 @@ export class AssetBrowserService {
     };
 
     // Create physical directory
-    const diskPath = this.getFolderDiskPath(libraryName, newPath);
     this.ensureDirectory(diskPath);
 
     // Update meta
@@ -404,6 +411,13 @@ export class AssetBrowserService {
     const sanitizedName = this.sanitizeFileName(newName);
     const newPath = parent?.path ? `${parent.path}/${sanitizedName}` : sanitizedName;
     const newDiskPath = this.getFolderDiskPath(libraryName, newPath);
+
+    // Check if a folder with the same name already exists at the same level
+    if (oldDiskPath !== newDiskPath && fs.existsSync(newDiskPath)) {
+      throw new ConflictException(
+        `Ein Ordner mit dem Namen "${newName}" existiert bereits.`
+      );
+    }
 
     // Rename physical folder
     if (fs.existsSync(oldDiskPath)) {
@@ -530,6 +544,14 @@ export class AssetBrowserService {
     const meta = this.loadMeta(libraryName);
     const folder = meta.folders.get(folderId) || meta.folders.get('root')!;
     
+    // Check if a file with the same name already exists in this folder
+    const diskPath = this.getFileDiskPath(libraryName, folder.path, name);
+    if (fs.existsSync(diskPath)) {
+      throw new ConflictException(
+        `Eine Datei mit dem Namen "${name}" existiert bereits in diesem Ordner.`
+      );
+    }
+    
     const now = Date.now();
     const fileId = this.generateId(libraryName, type);
 
@@ -550,7 +572,6 @@ export class AssetBrowserService {
     };
 
     // Write to disk
-    const diskPath = this.getFileDiskPath(libraryName, folder.path, name);
     this.ensureDirectory(path.dirname(diskPath));
     fs.writeFileSync(diskPath, JSON.stringify(file, null, 2), 'utf-8');
 
@@ -584,6 +605,13 @@ export class AssetBrowserService {
     if (updates.name && updates.name !== file.name) {
       const folder = meta.folders.get(file.folderId)!;
       const newDiskPath = this.getFileDiskPath(libraryName, folder.path, updates.name);
+      
+      // Check if a file with the same name already exists in this folder
+      if (fs.existsSync(newDiskPath)) {
+        throw new ConflictException(
+          `Eine Datei mit dem Namen "${updates.name}" existiert bereits in diesem Ordner.`
+        );
+      }
       
       fs.renameSync(oldDiskPath, newDiskPath);
       

@@ -3,20 +3,36 @@
      [class.broken]="item.broken"
      [class.lost]="item.lost"
      [class.folded]="isFolded"
+     [class.unidentified]="!showDetails"
      [class.weapon]="item.itemType === 'weapon'"
      [class.armor]="item.itemType === 'armor'"
      (contextmenu)="onRightClick($event)">
   <div class="item-view">
     <div class="item-header">
       <div class="item-title-row">
-        @if (item.itemType) {
+        @if (showDetails && item.itemType) {
           <span class="item-type-icon">{{ itemTypeIcon }}</span>
         }
-        <h4>{{ item.name }}</h4>
-        @if (item.broken) {
+        @if (!showDetails) {
+          <span class="item-type-icon">❓</span>
+        }
+        <h4>{{ displayName }}</h4>
+        @if (!showDetails) {
+          <span class="unidentified-badge">Unidentifiziert</span>
+          <button class="identify-btn" 
+                  (click)="requestIdentify(); $event.stopPropagation()"
+                  (mousedown)="$event.stopPropagation()"
+                  title="Item identifizieren">
+            🔍 Identifizieren
+          </button>
+        }
+        @if (showDetails && item.libraryOriginName) {
+          <span class="library-origin-badge" [title]="'From library: ' + item.libraryOriginName">📚 {{ item.libraryOriginName }}</span>
+        }
+        @if (showDetails && item.broken) {
           <span class="broken-badge">⚠ Zerbrochen</span>
         }
-        @if (item.lost) {
+        @if (showDetails && item.lost) {
           <span class="lost-badge">Verloren</span>
         }
       </div>
@@ -28,27 +44,31 @@
                 [title]="isFolded ? 'Ausklappen' : 'Einklappen'">
           {{ isFolded ? '▼' : '▲' }}
         </button>
-        <span class="item-weight">{{ item.weight }} kg</span>
-        @if (item.itemType === 'weapon' && item.efficiency) {
+        @if (showDetails) {
+          <span class="item-weight">{{ item.weight }} kg</span>
+        }
+        @if (showDetails && item.itemType === 'weapon' && item.efficiency) {
           <span class="item-efficiency">⚔ {{ item.efficiency }}</span>
         }
-        @if (item.itemType === 'armor' && item.stability) {
+        @if (showDetails && item.itemType === 'armor' && item.stability) {
           <span class="item-stability">🛡 {{ item.stability }}</span>
         }
-        @if (item.armorDebuff) {
+        @if (showDetails && item.armorDebuff) {
           <span class="item-armor-debuff">-{{ item.armorDebuff }} SPD</span>
         }
-        @if (!canUseItem && !item.broken && !item.lost) {
+        @if (showDetails && !canUseItem && !item.broken && !item.lost) {
           <span class="item-unusable-badge">Unbrauchbar</span>
         }
-        <button class="action-btn lost-btn" 
-                [class.active]="item.lost"
-                (click)="toggleLost(); $event.stopPropagation()"
-                (mousedown)="$event.stopPropagation()"
-                (touchstart)="$event.stopPropagation()"
-                title="Verloren markieren">
-          👁
-        </button>
+        @if (showDetails) {
+          <button class="action-btn lost-btn" 
+                  [class.active]="item.lost"
+                  (click)="toggleLost(); $event.stopPropagation()"
+                  (mousedown)="$event.stopPropagation()"
+                  (touchstart)="$event.stopPropagation()"
+                  title="Verloren markieren">
+            👁
+          </button>
+        }
         <button class="delete-btn-compact" 
                 (click)="deleteItem(); $event.stopPropagation()"
                 (mousedown)="$event.stopPropagation()"
@@ -57,7 +77,7 @@
       </div>
     </div>
 
-    @if (!isFolded) {
+    @if (!isFolded && showDetails) {
 
     <!-- Durability Bar -->
     @if (item.hasDurability && item.maxDurability) {
