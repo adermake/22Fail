@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { LibraryApiService } from './library-api.service';
+import { AssetBrowserApiService } from './asset-browser-api.service';
 import { Library, createEmptyLibrary } from '../model/library.model';
 import { ItemBlock } from '../model/item-block.model';
 import { RuneBlock } from '../model/rune-block.model';
@@ -16,6 +17,7 @@ import { MacroAction } from '../model/macro-action.model';
 @Injectable({ providedIn: 'root' })
 export class LibraryStoreService {
   private api = inject(LibraryApiService);
+  private assetBrowserApi = inject(AssetBrowserApiService);
 
   // Current library being edited
   private librarySubject = new BehaviorSubject<Library | null>(null);
@@ -86,20 +88,31 @@ export class LibraryStoreService {
   }
 
   /**
-   * Create a new library
+   * Create a new library (using asset-browser API for consistency)
    */
   async createLibrary(name: string): Promise<Library> {
-    const library = createEmptyLibrary(name);
-    
     return new Promise((resolve, reject) => {
-      this.api.createLibrary(library).subscribe({
+      this.assetBrowserApi.createLibrary(name).subscribe({
         next: (created) => {
-          this.librarySubject.next(created);
+          // Convert AssetLibrary to Library format for compatibility
+          const library: Library = {
+            ...created,
+            items: [],
+            runes: [],
+            spells: [],
+            skills: [],
+            statusEffects: [],
+            macroActions: [],
+            tags: created.tags || [],
+            isPublic: created.isPublic || false
+          };
+          
+          this.librarySubject.next(library);
           // Add to all libraries list
           const all = this.allLibrariesSubject.value;
-          this.allLibrariesSubject.next([...all, created]);
-          console.log('[LIBRARY STORE] Created library:', created.name);
-          resolve(created);
+          this.allLibrariesSubject.next([...all, library]);
+          console.log('[LIBRARY STORE] Created library:', library.name);
+          resolve(library);
         },
         error: (err) => {
           console.error('[LIBRARY STORE] Failed to create library:', err);
