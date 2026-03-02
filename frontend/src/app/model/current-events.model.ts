@@ -44,6 +44,7 @@ export interface ShopDeal {
   // Pricing
   price?: Currency; // undefined = "Verhandelbar" (negotiable)
   isNegotiable: boolean;
+  discount?: number; // Percentage discount (0-100) applied in world
   
   // Stock management
   quantity?: number; // undefined = unlimited

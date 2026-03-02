@@ -106,63 +106,39 @@ import { Library } from '../../model/library.model';
           
           <div class="deals-section">
             <div class="deals-header">
-              <h4>Angebote</h4>
-              <button class="add-deal-btn" (click)="addDealToShop(shop)">+ Deal</button>
+              <h4>Angebote ({{ shop.deals.length }})</h4>
             </div>
             
             @for (deal of shop.deals; track deal.id; let dealIdx = $index) {
-              <div class="deal-card" [class.editing]="editingDealId === deal.id" [class.reverse]="deal.isReverseDeal" [class.sold-out]="deal.quantity !== undefined && deal.sold >= deal.quantity">
-                @if (editingDealId === deal.id) {
-                  <!-- Deal Editor -->
-                  <div class="deal-editor">
-                    <div class="editor-row">
-                      <label>Name:</label>
-                      <input type="text" [(ngModel)]="deal.name" placeholder="Artikelname">
-                    </div>
-                    <div class="editor-row">
-                      <label>Preis:</label>
-                      <div class="currency-inputs">
-                        <input type="number" [(ngModel)]="deal.price.platinum" min="0" placeholder="P" class="currency-input" title="Platin">
-                        <input type="number" [(ngModel)]="deal.price.gold" min="0" placeholder="G" class="currency-input" title="Gold">
-                        <input type="number" [(ngModel)]="deal.price.silver" min="0" placeholder="S" class="currency-input" title="Silber">
-                        <input type="number" [(ngModel)]="deal.price.copper" min="0" placeholder="C" class="currency-input" title="Kupfer">
-                      </div>
-                    </div>
-                    <div class="editor-row">
-                      <label><input type="checkbox" [(ngModel)]="deal.isNegotiable"> Verhandelbar</label>
-                      <label><input type="checkbox" [(ngModel)]="deal.isReverseDeal"> Ankauf (Shop kauft von Spieler)</label>
-                    </div>
-                    <div class="editor-row">
-                      <label>Menge:</label>
-                      <input type="number" [(ngModel)]="deal.quantity" min="1" placeholder="Unbegrenzt">
-                      <small>(leer = unbegrenzt)</small>
-                    </div>
-                    <div class="editor-actions">
-                      <button class="save-btn" (click)="saveDealEdit(shop)">💾 Speichern</button>
-                      <button class="cancel-btn" (click)="cancelDealEdit()">✕ Abbrechen</button>
-                    </div>
-                  </div>
-                } @else {
-                  <!-- Deal Display -->
-                  <div class="deal-info">
-                    <span class="deal-name">{{ deal.name }}</span>
-                    @if (deal.isNegotiable) {
-                      <span class="deal-price negotiable">Verhandelbar</span>
-                    } @else if (deal.price) {
-                      <span class="deal-price">{{ formatCurrency(deal.price) }}</span>
-                    }
-                    @if (deal.quantity !== undefined) {
-                      <span class="deal-stock">{{ deal.quantity - deal.sold }}/{{ deal.quantity }}</span>
-                    }
-                    @if (deal.isReverseDeal) {
-                      <span class="deal-type reverse">⬅ Ankauf</span>
-                    }
-                  </div>
-                  <div class="deal-actions">
-                    <button class="icon-btn" (click)="editDeal(shop.id, deal)" title="Bearbeiten">✏️</button>
-                    <button class="icon-btn delete" (click)="removeDeal(shop.id, deal.id)" title="Entfernen">✕</button>
-                  </div>
-                }
+              <div class="deal-card" [class.reverse]="deal.isReverseDeal" [class.sold-out]="deal.quantity !== undefined && deal.sold >= deal.quantity">
+                <div class="deal-info">
+                  <span class="deal-name">{{ deal.name }}</span>
+                  @if (deal.isNegotiable) {
+                    <span class="deal-price negotiable">Verhandelbar</span>
+                  } @else if (deal.price) {
+                    <span class="deal-price">{{ formatCurrency(deal.price) }}</span>
+                  }
+                  @if (deal.quantity !== undefined) {
+                    <span class="deal-stock">{{ deal.quantity - deal.sold }}/{{ deal.quantity }}</span>
+                  }
+                  @if (deal.isReverseDeal) {
+                    <span class="deal-type reverse">⬅ Ankauf</span>
+                  }
+                </div>
+                <div class="deal-quick-actions">
+                  <input 
+                    type="number" 
+                    [(ngModel)]="deal.discount" 
+                    (change)="updateDealDiscount(shop.id, deal.id)"
+                    min="0" 
+                    max="100" 
+                    placeholder="0"
+                    class="discount-input"
+                    title="Discount %"
+                  />
+                  <span class="discount-label">% Off</span>
+                  <button class="icon-btn delete" (click)="removeDeal(shop.id, deal.id)" title="Entfernen">✕</button>
+                </div>
               </div>
             }
           </div>
@@ -183,30 +159,6 @@ import { Library } from '../../model/library.model';
                   <span class="claimed-by">Beansprucht</span>
                 }
                 <button class="icon-btn delete" (click)="removeLootItem(loot.id, item.id)" title="Entfernen">✕</button>
-              </div>
-            }
-            
-            <div class="add-loot-zone" 
-                 (dragover)="onDragOver($event)" 
-                 (drop)="onDropToLoot($event, loot.id)">
-              Hierher ziehen oder 
-              <button class="add-loot-btn" (click)="showAddLootMenu(loot.id)">+ Item</button>
-              <button class="add-loot-btn" (click)="addCurrencyToLoot(loot.id)">+ Geld</button>
-            </div>
-            
-            @if (addingLootToEventId === loot.id) {
-              <div class="currency-loot-editor">
-                <h5>Geld hinzufügen</h5>
-                <div class="currency-inputs">
-                  <label>Platin: <input type="number" [(ngModel)]="tempCurrency.platinum" min="0"></label>
-                  <label>Gold: <input type="number" [(ngModel)]="tempCurrency.gold" min="0"></label>
-                  <label>Silber: <input type="number" [(ngModel)]="tempCurrency.silver" min="0"></label>
-                  <label>Kupfer: <input type="number" [(ngModel)]="tempCurrency.copper" min="0"></label>
-                </div>
-                <div class="editor-actions">
-                  <button class="save-btn" (click)="saveCurrencyToLoot(loot.id)">💾 Hinzufügen</button>
-                  <button class="cancel-btn" (click)="addingLootToEventId = null">✕ Abbrechen</button>
-                </div>
               </div>
             }
           </div>
@@ -445,6 +397,27 @@ import { Library } from '../../model/library.model';
       font-size: 0.75rem;
     }
 
+    .deal-quick-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .discount-input {
+      width: 50px;
+      padding: 0.25rem;
+      background: var(--bg-darker);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      text-align: center;
+    }
+
+    .discount-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
     .loot-items {
       display: flex;
       flex-direction: column;
@@ -598,9 +571,6 @@ export class CurrentEventsManagerComponent {
   showAddMenu = false;
   expandedEvents = new Set<string>();
   editingEventId: string | null = null;
-  editingDealId: string | null = null;
-  addingLootToEventId: string | null = null;
-  tempCurrency: Currency = { copper: 0, silver: 0, gold: 0, platinum: 0 };
 
   // Get shops and loot bundles from linked libraries
   get libraryShops(): ShopEvent[] {
@@ -705,27 +675,11 @@ export class CurrentEventsManagerComponent {
     return event as LootBundleEvent;
   }
 
-  addDealToShop(shop: ShopEvent) {
-    const deal = createEmptyShopDeal();
-    shop.deals.push(deal);
-    this.eventUpdated.emit(shop);
-  }
-
-  editDeal(shopId: string, deal: ShopDeal) {
-    // Initialize price if it doesn't exist
-    if (!deal.price) {
-      deal.price = { copper: 0, silver: 0, gold: 0, platinum: 0 };
+  updateDealDiscount(shopId: string, dealId: string) {
+    const shop = this.events.find(e => e.id === shopId) as ShopEvent;
+    if (shop) {
+      this.eventUpdated.emit(shop);
     }
-    this.editingDealId = deal.id;
-  }
-
-  saveDealEdit(shop: ShopEvent) {
-    this.editingDealId = null;
-    this.eventUpdated.emit(shop);
-  }
-
-  cancelDealEdit() {
-    this.editingDealId = null;
   }
 
   removeDeal(shopId: string, dealId: string) {
@@ -763,29 +717,6 @@ export class CurrentEventsManagerComponent {
     }
   }
 
-  showAddLootMenu(eventId: string) {
-    this.addingLootToEventId = eventId;
-    // TODO: Open item picker dialog
-  }
-
-  addCurrencyToLoot(eventId: string) {
-    this.addingLootToEventId = eventId;
-    this.tempCurrency = { copper: 0, silver: 0, gold: 0, platinum: 0 };
-  }
-
-  saveCurrencyToLoot(eventId: string) {
-    const loot = this.events.find(e => e.id === eventId) as LootBundleEvent;
-    if (!loot) return;
-
-    const currencyItem: LootItem = {
-      id: `loot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-      type: 'currency',
-      data: { ...this.tempCurrency }
-    };
-    loot.items.push(currencyItem);
-    this.addingLootToEventId = null;
-    this.eventUpdated.emit(loot);
-  }
   editInLibrary(event: CurrentEvent) {
     if (!event.sourceRef) return;
     

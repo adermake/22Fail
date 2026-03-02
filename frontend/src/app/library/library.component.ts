@@ -676,57 +676,102 @@ export class LibraryComponent implements OnInit, OnDestroy {
 
   // Shop editing
   editingShopId: string | null = null;
-  editingDealId: string | null = null;
+  addingDealToShop: string | null = null;
+  selectedDealItemType: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' = 'item';
+  editingDealData: any = null;
 
   updateShop(shopId: string, field: string, value: any) {
     this.store.updateShop(shopId, field, value);
     this.saveLibrary();
   }
 
-  addDealToShop(shopId: string) {
-    const deal: any = {
-      id: `deal_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-      name: 'New Deal',
-      price: { copper: 0, silver: 0, gold: 0, platinum: 0 },
-      quantity: undefined,
-      sold: 0,
-      isNegotiable: false,
-      isReverseDeal: false
-    };
-    this.store.addDealToShop(shopId, deal);
-    this.saveLibrary();
+  startAddingDealToShop(shopId: string) {
+    this.addingDealToShop = shopId;
+    this.selectedDealItemType = 'item';
+    this.editingDealData = null;
   }
 
-  editDeal(dealId: string) {
-    // Find the deal and ensure price is initialized
+  cancelAddingDeal() {
+    this.addingDealToShop = null;
+    this.editingDealData = null;
+  }
+
+  selectItemForDeal(type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect', index: number) {
     const lib = this.library();
-    if (lib) {
-      for (const shop of lib.shops) {
-        const deal = shop.deals?.find((d: any) => d.id === dealId);
-        if (deal) {
-          if (!deal.price) {
-            deal.price = { copper: 0, silver: 0, gold: 0, platinum: 0 };
-          }
-          break;
-        }
-      }
+    if (!lib) return;
+
+    // Get merged items from library + dependencies
+    let sourceData: any;
+    let sourceItems: any[] = [];
+    
+    switch (type) {
+      case 'item':
+        sourceItems = this.filteredItems();
+        sourceData = sourceItems[index];
+        break;
+      case 'rune':
+        sourceItems = this.filteredRunes();
+        sourceData = sourceItems[index];
+        break;
+      case 'spell':
+        sourceItems = this.filteredSpells();
+        sourceData = sourceItems[index];
+        break;
+      case 'skill':
+        sourceItems = this.filteredSkills();
+        sourceData = sourceItems[index];
+        break;
+      case 'status-effect':
+        sourceItems = this.filteredStatusEffects();
+        sourceData = sourceItems[index];
+        break;
     }
-    this.editingDealId = dealId;
+
+    if (!sourceData) return;
+
+    // Create deal with item data
+    this.editingDealData = {
+      id: `deal_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      name: sourceData.name,
+      description: sourceData.description,
+      [type]: { ...sourceData },
+      price: { copper: 0, silver: 0, gold: 1, platinum: 0 },
+      isNegotiable: false,
+      isReverseDeal: false,
+      quantity: undefined,
+      sold: 0
+    };
   }
 
-  saveDealEdit() {
-    this.editingDealId = null;
+  saveDealToShop() {
+    if (!this.addingDealToShop || !this.editingDealData) return;
+    this.store.addDealToShop(this.addingDealToShop, this.editingDealData);
     this.saveLibrary();
-  }
-
-  cancelDealEdit() {
-    this.editingDealId = null;
-    // Could reload to revert changes if needed
+    this.addingDealToShop = null;
+    this.editingDealData = null;
   }
 
   removeDealFromShop(shopId: string, dealId: string) {
     this.store.removeDealFromShop(shopId, dealId);
     this.saveLibrary();
+  }
+
+  getDealItemName(deal: any): string {
+    if (deal.item) return deal.item.name;
+    if (deal.rune) return deal.rune.name;
+    if (deal.spell) return deal.spell.name;
+    if (deal.skill) return deal.skill.name;
+    if (deal.statusEffect) return deal.statusEffect.name;
+    return deal.name || 'Unknown';
+  }
+
+  getDealItemIcon(deal: any): string {
+    if (deal.item) return '📦';
+    if (deal.rune) return '🔮';
+    if (deal.spell) return '✨';
+    if (deal.skill) return '⚔️';
+    if (deal.statusEffect) return '💫';
+    return '❓';
   }
 
   // Loot Bundle editing

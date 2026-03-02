@@ -315,62 +315,145 @@
               <div class="deals-section">
                 <div class="deals-header">
                   <h4>Deals ({{ shop.deals.length || 0 }})</h4>
-                  <button class="add-deal-btn" (click)="addDealToShop(shop.id)">+ Deal</button>
+                  <button class="add-deal-btn" (click)="startAddingDealToShop(shop.id)">+ Deal</button>
                 </div>
                 
-                @for (deal of shop.deals; track deal.id; let dealIdx = $index) {
-                  <div class="deal-card" [class.editing]="editingDealId === deal.id">
-                    @if (editingDealId === deal.id && deal.price) {
-                      <!-- Deal Editor -->
-                      <div class="deal-editor">
-                        <div class="editor-row">
-                          <label>Name:</label>
-                          <input type="text" [(ngModel)]="deal.name" placeholder="Item name">
+                @if (addingDealToShop === shop.id) {
+                  <div class="deal-creator">
+                    @if (!editingDealData) {
+                      <!-- Step 1: Select Item Type -->
+                      <div class="creator-header">
+                        <h5>Select Item Type</h5>
+                        <button class="cancel-btn" (click)="cancelAddingDeal()">✕</button>
+                      </div>
+                      <div class="type-selector">
+                        <button [class.active]="selectedDealItemType === 'item'" (click)="selectedDealItemType = 'item'">📦 Item</button>
+                        <button [class.active]="selectedDealItemType === 'rune'" (click)="selectedDealItemType = 'rune'">🔮 Rune</button>
+                        <button [class.active]="selectedDealItemType === 'spell'" (click)="selectedDealItemType = 'spell'">✨ Spell</button>
+                        <button [class.active]="selectedDealItemType === 'skill'" (click)="selectedDealItemType = 'skill'">⚔️ Skill</button>
+                        <button [class.active]="selectedDealItemType === 'status-effect'" (click)="selectedDealItemType = 'status-effect'">💫 Status</button>
+                      </div>
+                      
+                      <!-- Step 2: Select Item from Library -->
+                      <div class="item-list">
+                        @switch (selectedDealItemType) {
+                          @case ('item') {
+                            @for (item of filteredItems(); track item.id; let idx = $index) {
+                              <div class="selectable-item" (click)="selectItemForDeal('item', idx)">
+                                <span class="item-icon">📦</span>
+                                <div class="item-details">
+                                  <div class="item-name">{{ item.name }}</div>
+                                  <div class="item-desc">{{ item.description }}</div>
+                                </div>
+                              </div>
+                            }
+                          }
+                          @case ('rune') {
+                            @for (rune of filteredRunes(); track rune.name; let idx = $index) {
+                              <div class="selectable-item" (click)="selectItemForDeal('rune', idx)">
+                                <span class="item-icon">🔮</span>
+                                <div class="item-details">
+                                  <div class="item-name">{{ rune.name }}</div>
+                                  <div class="item-desc">{{ rune.description }}</div>
+                                </div>
+                              </div>
+                            }
+                          }
+                          @case ('spell') {
+                            @for (spell of filteredSpells(); track spell.name; let idx = $index) {
+                              <div class="selectable-item" (click)="selectItemForDeal('spell', idx)">
+                                <span class="item-icon">✨</span>
+                                <div class="item-details">
+                                  <div class="item-name">{{ spell.name }}</div>
+                                  <div class="item-desc">{{ spell.description }}</div>
+                                </div>
+                              </div>
+                            }
+                          }
+                          @case ('skill') {
+                            @for (skill of filteredSkills(); track skill.name; let idx = $index) {
+                              <div class="selectable-item" (click)="selectItemForDeal('skill', idx)">
+                                <span class="item-icon">⚔️</span>
+                                <div class="item-details">
+                                  <div class="item-name">{{ skill.name }}</div>
+                                  <div class="item-desc">{{ skill.description }}</div>
+                                </div>
+                              </div>
+                            }
+                          }
+                          @case ('status-effect') {
+                            @for (effect of filteredStatusEffects(); track effect.id; let idx = $index) {
+                              <div class="selectable-item" (click)="selectItemForDeal('status-effect', idx)">
+                                <span class="item-icon">💫</span>
+                                <div class="item-details">
+                                  <div class="item-name">{{ effect.name }}</div>
+                                  <div class="item-desc">{{ effect.description }}</div>
+                                </div>
+                              </div>
+                            }
+                          }
+                        }
+                      </div>
+                    } @else {
+                      <!-- Step 3: Configure Deal Pricing -->
+                      <div class="deal-config">
+                        <div class="config-header">
+                          <div class="selected-item-display">
+                            <span class="item-icon">{{ getDealItemIcon(editingDealData) }}</span>
+                            <span class="item-name">{{ getDealItemName(editingDealData) }}</span>
+                          </div>
+                          <button class="cancel-btn" (click)="cancelAddingDeal()">✕</button>
                         </div>
+                        
                         <div class="editor-row">
                           <label>Price:</label>
                           <div class="currency-inputs">
-                            <input type="number" [(ngModel)]="deal.price.platinum" min="0" placeholder="P" class="currency-input" title="Platinum">
-                            <input type="number" [(ngModel)]="deal.price.gold" min="0" placeholder="G" class="currency-input" title="Gold">
-                            <input type="number" [(ngModel)]="deal.price.silver" min="0" placeholder="S" class="currency-input" title="Silver">
-                            <input type="number" [(ngModel)]="deal.price.copper" min="0" placeholder="C" class="currency-input" title="Copper">
+                            <input type="number" [(ngModel)]="editingDealData.price.platinum" min="0" placeholder="P" class="currency-input" title="Platinum">
+                            <input type="number" [(ngModel)]="editingDealData.price.gold" min="0" placeholder="G" class="currency-input" title="Gold">
+                            <input type="number" [(ngModel)]="editingDealData.price.silver" min="0" placeholder="S" class="currency-input" title="Silver">
+                            <input type="number" [(ngModel)]="editingDealData.price.copper" min="0" placeholder="C" class="currency-input" title="Copper">
                           </div>
                         </div>
                         <div class="editor-row">
-                          <label><input type="checkbox" [(ngModel)]="deal.isNegotiable"> Negotiable</label>
-                          <label><input type="checkbox" [(ngModel)]="deal.isReverseDeal"> Buyback (Shop buys from player)</label>
+                          <label><input type="checkbox" [(ngModel)]="editingDealData.isNegotiable"> Negotiable</label>
+                          <label><input type="checkbox" [(ngModel)]="editingDealData.isReverseDeal"> Buyback (Shop buys from player)</label>
                         </div>
                         <div class="editor-row">
-                          <label>Quantity:</label>
-                          <input type="number" [(ngModel)]="deal.quantity" min="1" placeholder="Unlimited">
+                          <label>Stock Quantity:</label>
+                          <input type="number" [(ngModel)]="editingDealData.quantity" min="1" placeholder="Unlimited">
                           <small>(empty = unlimited)</small>
                         </div>
                         <div class="editor-actions">
-                          <button class="save-btn" (click)="saveDealEdit()">💾 Save</button>
-                          <button class="cancel-btn" (click)="cancelDealEdit()">✕ Cancel</button>
+                          <button class="save-btn" (click)="saveDealToShop()">💾 Save Deal</button>
+                          <button class="cancel-btn" (click)="cancelAddingDeal()">✕ Cancel</button>
                         </div>
                       </div>
-                    } @else {
-                      <!-- Deal Display -->
-                      <div class="deal-info">
-                        <span class="deal-name">{{ deal.name }}</span>
-                        @if (deal.isNegotiable) {
-                          <span class="deal-badge negotiable">Negotiable</span>
-                        } @else if (deal.price) {
-                          <span class="deal-price">{{ formatCurrency(deal.price) }}</span>
-                        }
-                        @if (deal.quantity !== undefined) {
-                          <span class="deal-stock">{{ deal.quantity - (deal.sold || 0) }}/{{ deal.quantity }}</span>
-                        }
-                        @if (deal.isReverseDeal) {
-                          <span class="deal-badge reverse">⬅ Buyback</span>
-                        }
-                      </div>
-                      <div class="deal-actions">
-                        <button class="icon-btn" (click)="editDeal(deal.id)" title="Edit">✏️</button>
-                        <button class="icon-btn delete" (click)="removeDealFromShop(shop.id, deal.id)" title="Remove">✕</button>
-                      </div>
                     }
+                  </div>
+                }
+                
+                @for (deal of shop.deals; track deal.id; let dealIdx = $index) {
+                  <div class="deal-card">
+                    <div class="deal-info">
+                      <span class="deal-icon">{{ getDealItemIcon(deal) }}</span>
+                      <div class="deal-details">
+                        <span class="deal-name">{{ getDealItemName(deal) }}</span>
+                        <div class="deal-meta">
+                          @if (deal.isNegotiable) {
+                            <span class="deal-badge negotiable">💬 Negotiable</span>
+                          } @else if (deal.price) {
+                            <span class="deal-price">{{ formatCurrency(deal.price) }}</span>
+                          }
+                          @if (deal.quantity !== undefined) {
+                            <span class="deal-stock">📦 {{ deal.quantity - (deal.sold || 0) }}/{{ deal.quantity }}</span>
+                          }
+                          @if (deal.isReverseDeal) {
+                            <span class="deal-badge reverse">⬅ Buyback</span>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                    <button class="icon-btn delete" (click)="removeDealFromShop(shop.id, deal.id)" title="Remove">✕</button>
                   </div>
                 }
               </div>

@@ -860,12 +860,46 @@ export class WorldComponent implements OnInit, OnDestroy {
   handleLibrariesChanged(libraryIds: string[]) {
     const world = this.store.worldValue;
     if (world) {
-      world.linkedLibraries = libraryIds;
+      // Auto-include dependencies
+      const withDependencies = this.resolveLibraryDependencies(libraryIds);
+      world.linkedLibraries = withDependencies;
       this.store.save();
-      console.log('[WORLD] Updated linked libraries:', libraryIds);
+      console.log('[WORLD] Updated linked libraries (with dependencies):', withDependencies);
     }
     // Don't close the modal - changes are applied instantly
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Resolve all library dependencies recursively
+   * Returns array with libraries + all their dependencies (flattened, deduplicated)
+   */
+  private resolveLibraryDependencies(libraryIds: string[], visited = new Set<string>()): string[] {
+    const result: string[] = [];
+    const allLibs = this.loadedLibraries();
+    
+    for (const id of libraryIds) {
+      if (visited.has(id)) continue; // Circular dependency protection
+      visited.add(id);
+      
+      // Add this library
+      if (!result.includes(id)) {
+        result.push(id);
+      }
+      
+      // Find and add dependencies
+      const lib = allLibs.find(l => l.id === id);
+      if (lib?.dependencies && lib.dependencies.length > 0) {
+        const deps = this.resolveLibraryDependencies(lib.dependencies, visited);
+        deps.forEach(depId => {
+          if (!result.includes(depId)) {
+            result.push(depId);
+          }
+        });
+      }
+    }
+    
+    return result;
   }
 
   // Context menu for character interactions
