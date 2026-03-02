@@ -5,6 +5,18 @@ import { LibraryStoreService } from '../../services/library-store.service';
 import { Library } from '../../model/library.model';
 import { Router } from '@angular/router';
 
+/**
+ * Library Selector Component
+ * 
+ * Modal dialog for managing which libraries are linked to a world.
+ * Opened from World's "Asset Browser" section via "📚 Manage Libraries" button.
+ * 
+ * Features:
+ * - Add/remove libraries from world
+ * - Search libraries
+ * - Create new libraries
+ * - Edit library button (✏️) opens the Library Editor (LibraryEditorComponent)
+ */
 @Component({
   selector: 'app-library-selector',
   standalone: true,

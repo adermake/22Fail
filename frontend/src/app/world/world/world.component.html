@@ -165,7 +165,7 @@
         <button (click)="generateRandomArmor()" style="width: 100%; background: var(--accent); color: white; padding: 8px;">Zufällige Rüstung schmieden</button>
       </div>
       <p class="drag-hint">Drag items onto characters or battle loot. Right-click for options.</p>
-      <app-library-tabs
+      <app-asset-browser
         [items]="mergedItems()"
         [runes]="mergedRunes()"
         [spells]="mergedSpells()"
@@ -195,7 +195,7 @@
         (statusEffectEditingChange)="onStatusEffectEditingChange($event)"
         (dragStart)="onDragStart($event.event, $event.type, $event.index)"
         (contextMenuRequest)="onLibraryItemContextMenu($event)">
-      </app-library-tabs>
+      </app-asset-browser>
     </app-card>
   </div>
 </div>

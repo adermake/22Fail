@@ -1,0 +1,339 @@
+/* Shop & Loot Bundle Editor Styles */
+/* Split from main asset-browser.component.css to reduce file size */
+
+.shop-editor,
+.loot-bundle-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.shop-editor .form-group,
+.loot-bundle-editor .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.shop-editor .form-group label,
+.loot-bundle-editor .form-group label {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.shop-editor .form-group input,
+.shop-editor .form-group textarea,
+.loot-bundle-editor .form-group input,
+.loot-bundle-editor .form-group textarea {
+  padding: 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.shop-editor .form-group input:focus,
+.shop-editor .form-group textarea:focus,
+.loot-bundle-editor .form-group input:focus,
+.loot-bundle-editor .form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Deals Section */
+.deals-section,
+.loot-items-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--border);
+}
+
+.section-header h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
+.add-btn {
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-btn:hover:not(:disabled) {
+  background: #0056b3;
+  transform: scale(1.05);
+}
+
+.add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Deal/Loot Creator */
+.deal-creator,
+.loot-creator {
+  padding: 1rem;
+  background: var(--card);
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.creator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.creator-header h5 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.creator-header .cancel-btn {
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.creator-header .cancel-btn:hover {
+  background: rgba(255, 0, 0, 0.1);
+  border-color: #ff4444;
+  color: #ff4444;
+}
+
+/* Type Selector */
+.type-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.type-btn {
+  flex: 1;
+  min-width: 120px;
+  padding: 1rem;
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.type-btn:hover {
+  background: var(--bg);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.type-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* Item Selector Dropdown */
+.item-selector {
+  padding: 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.item-selector:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Currency Inputs */
+.currency-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.currency-inputs input {
+  width: 80px;
+  padding: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  text-align: center;
+}
+
+.currency-inputs span {
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+/* Checkboxes */
+.checkboxes {
+  display: flex;
+  gap: 1rem;
+  flex-direction: row !important;
+}
+
+.checkboxes label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Deals/Loot Items List */
+.deals-list,
+.loot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.deal-card,
+.loot-item-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.deal-card:hover,
+.loot-item-card:hover {
+  background: var(--bg);
+  border-color: var(--accent);
+}
+
+.deal-card.reverse {
+  border-left: 4px solid #ff9800;
+}
+
+.deal-info,
+.loot-item-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.deal-icon,
+.loot-icon {
+  font-size: 1.5rem;
+}
+
+.deal-details,
+.loot-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.deal-name,
+.loot-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.loot-type {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.deal-meta {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.deal-price {
+  color: #ffd700;
+  font-weight: 600;
+}
+
+.deal-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.deal-badge.negotiable {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.deal-badge.reverse {
+  background: rgba(255, 152, 0, 0.2);
+  color: #ff9800;
+}
+
+.deal-stock {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.icon-btn.delete {
+  padding: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-btn.delete:hover {
+  background: rgba(255, 0, 0, 0.1);
+  border-color: #ff4444;
+  color: #ff4444;
+}
+
+.empty-hint {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-dim);
+  font-style: italic;
+}

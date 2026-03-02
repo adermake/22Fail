@@ -13,13 +13,21 @@ import { RuneComponent } from '../../shared/rune/rune.component';
 import { SpellComponent } from '../../sheet/spell/spell.component';
 import { SkillComponent } from '../../sheet/skill/skill.component';
 
+/**
+ * Asset Browser Component (World View)
+ * 
+ * This is the READ-ONLY tabbed view in World that shows aggregated content from all linked libraries.
+ * Players/DM can drag items from here to send to characters.
+ * 
+ * To EDIT a library, click the ✏️ button in Library Selector → opens Library Editor (LibraryEditorComponent)
+ */
 @Component({
-  selector: 'app-library-tabs',
+  selector: 'app-asset-browser',
   imports: [CommonModule, FormsModule, ItemComponent, RuneComponent, SpellComponent, SkillComponent],
-  templateUrl: './library-tabs.component.html',
-  styleUrl: './library-tabs.component.css'
+  templateUrl: './asset-browser.component.html',
+  styleUrl: './asset-browser.component.css'
 })
-export class LibraryTabsComponent implements OnChanges {
+export class AssetBrowserComponent implements OnChanges {
   @Input({ required: true }) items: ItemBlock[] = [];
   @Input({ required: true }) runes: RuneBlock[] = [];
   @Input({ required: true }) spells: SpellBlock[] = [];

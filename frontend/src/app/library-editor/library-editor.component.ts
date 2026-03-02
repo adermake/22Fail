@@ -49,8 +49,21 @@ import { StatusEffectEditorComponent } from '../shared/status-effect-editor/stat
 import { MacroEditorComponent } from '../shared/macro-editor/macro-editor.component';
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 
+/**
+ * Library Editor Component
+ * 
+ * This is the folder-tree file explorer where you EDIT libraries.
+ * Unity-like asset browser interface with:
+ * - Folder tree navigation
+ * - File browser (grid/list views)
+ * - Professional editors for all asset types (items, spells, shops, bundles, etc.)
+ * - Item selection from library dependencies
+ * - Library settings panel with dependency management
+ * 
+ * Accessed from World's "Asset Browser" → click ✏️ Edit button on a library
+ */
 @Component({
-  selector: 'app-asset-browser',
+  selector: 'app-library-editor',
   standalone: true,
   imports: [
     CommonModule,
@@ -62,10 +75,10 @@ import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model
     StatusEffectEditorComponent,
     MacroEditorComponent,
   ],
-  templateUrl: './asset-browser.component.html',
-  styleUrl: './asset-browser.component.css',
+  templateUrl: './library-editor.component.html',
+  styleUrls: ['./library-editor.component.css', './library-editor-shop-bundle-editors.css'],
 })
-export class AssetBrowserComponent implements OnInit, OnDestroy {
+export class LibraryEditorComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private api = inject(AssetBrowserApiService);

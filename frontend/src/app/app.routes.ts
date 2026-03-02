@@ -24,7 +24,7 @@ export const routes: Routes = [
     },
     { 
         path: 'library/:libraryId', 
-        loadComponent: () => import('./asset-browser/asset-browser.component').then(m => m.AssetBrowserComponent)
+        loadComponent: () => import('./library-editor/library-editor.component').then(m => m.LibraryEditorComponent)
     },
     { 
         path: 'stress-test', 
