@@ -24,6 +24,10 @@ export const routes: Routes = [
     },
     { 
         path: 'library/:libraryId', 
+        loadComponent: () => import('./library/library.component').then(m => m.LibraryComponent)
+    },
+    { 
+        path: 'assets/:libraryId', 
         loadComponent: () => import('./asset-browser/asset-browser.component').then(m => m.AssetBrowserComponent)
     },
     { 
