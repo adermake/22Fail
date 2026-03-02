@@ -1,0 +1,233 @@
+.events-view-container {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.no-events {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.no-events-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.no-events p {
+  margin: 8px 0;
+}
+
+.no-events .hint {
+  font-size: 12px;
+  color: #666;
+}
+
+.event-card {
+  background: #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.event-card.shop {
+  border-left: 3px solid #4CAF50;
+}
+
+.event-card.loot {
+  border-left: 3px solid #FFC107;
+}
+
+.event-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.05);
+}
+
+.event-header:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.event-icon {
+  font-size: 20px;
+}
+
+.event-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.expand-icon {
+  color: #888;
+  font-size: 12px;
+}
+
+.event-description {
+  padding: 8px 12px;
+  color: #aaa;
+  font-size: 13px;
+  border-bottom: 1px solid #333;
+  margin: 0;
+}
+
+.shop-content, .loot-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.empty-hint {
+  color: #777;
+  font-style: italic;
+  text-align: center;
+  margin: 12px 0;
+}
+
+.deal-card {
+  background: #1e1e1e;
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.deal-card.sold-out {
+  opacity: 0.5;
+}
+
+.deal-info {
+  flex: 1;
+  min-width: 150px;
+}
+
+.deal-name {
+  font-weight: 500;
+  color: #fff;
+}
+
+.deal-stock {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.deal-price {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.price {
+  color: #FFD700;
+  font-weight: 500;
+}
+
+.negotiable-text {
+  color: #aaa;
+  font-style: italic;
+}
+
+.negotiable-badge {
+  cursor: help;
+}
+
+.deal-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.quantity-input {
+  width: 60px;
+  padding: 6px 8px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #333;
+  color: #fff;
+  text-align: center;
+}
+
+.buy-btn {
+  padding: 6px 12px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.buy-btn:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.buy-btn:disabled {
+  background: #555;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.not-enough-gold {
+  width: 100%;
+  color: #f44336;
+  font-size: 12px;
+  text-align: right;
+}
+
+.loot-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1e1e1e;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.loot-item.claimed {
+  opacity: 0.6;
+}
+
+.loot-info {
+  flex: 1;
+}
+
+.loot-name {
+  font-weight: 500;
+  color: #fff;
+}
+
+.loot-type {
+  color: #888;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.claimed-by {
+  color: #888;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.claim-btn {
+  padding: 6px 12px;
+  background: #FFC107;
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.claim-btn:hover {
+  background: #ffb300;
+}

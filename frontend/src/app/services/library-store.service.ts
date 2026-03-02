@@ -359,6 +359,80 @@ export class LibraryStoreService {
     this.librarySubject.next({ ...library });
   }
 
+  updateShop(shopId: string, field: string, value: any): void {
+    const library = this.librarySubject.value;
+    if (!library) return;
+
+    const shop = library.shops.find(s => s.id === shopId);
+    if (shop) {
+      (shop as any)[field] = value;
+      library.updatedAt = Date.now();
+      this.librarySubject.next({ ...library });
+    }
+  }
+
+  addDealToShop(shopId: string, deal: any): void {
+    const library = this.librarySubject.value;
+    if (!library) return;
+
+    const shop = library.shops.find(s => s.id === shopId);
+    if (shop) {
+      if (!shop.deals) shop.deals = [];
+      shop.deals.push(deal);
+      library.updatedAt = Date.now();
+      this.librarySubject.next({ ...library });
+    }
+  }
+
+  removeDealFromShop(shopId: string, dealId: string): void {
+    const library = this.librarySubject.value;
+    if (!library) return;
+
+    const shop = library.shops.find(s => s.id === shopId);
+    if (shop && shop.deals) {
+      shop.deals = shop.deals.filter(d => d.id !== dealId);
+      library.updatedAt = Date.now();
+      this.librarySubject.next({ ...library });
+    }
+  }
+
+  updateLootBundle(bundleId: string, field: string, value: any): void {
+    const library = this.librarySubject.value;
+    if (!library) return;
+
+    const bundle = library.lootBundles.find(b => b.id === bundleId);
+    if (bundle) {
+      (bundle as any)[field] = value;
+      library.updatedAt = Date.now();
+      this.librarySubject.next({ ...library });
+    }
+  }
+
+  addLootItemToBundle(bundleId: string, item: any): void {
+    const library = this.librarySubject.value;
+    if (!library) return;
+
+    const bundle = library.lootBundles.find(b => b.id === bundleId);
+    if (bundle) {
+      if (!bundle.items) bundle.items = [];
+      bundle.items.push(item);
+      library.updatedAt = Date.now();
+      this.librarySubject.next({ ...library });
+    }
+  }
+
+  removeLootItemFromBundle(bundleId: string, itemId: string): void {
+    const library = this.librarySubject.value;
+    if (!library) return;
+
+    const bundle = library.lootBundles.find(b => b.id === bundleId);
+    if (bundle && bundle.items) {
+      bundle.items = bundle.items.filter(i => i.id !== itemId);
+      library.updatedAt = Date.now();
+      this.librarySubject.next({ ...library });
+    }
+  }
+
   /**
    * Clear current library
    */

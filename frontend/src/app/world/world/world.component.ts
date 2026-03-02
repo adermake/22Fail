@@ -1080,6 +1080,13 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
 
     const finalKey = keys[keys.length - 1];
+    
+    // Handle array append operation: '-' means append to array
+    if (finalKey === '-' && Array.isArray(current)) {
+      current.push(patch.value);
+      return;
+    }
+    
     const finalIndex = parseInt(finalKey, 10);
     if (!isNaN(finalIndex) && Array.isArray(current)) current[finalIndex] = patch.value;
     else current[finalKey] = patch.value;

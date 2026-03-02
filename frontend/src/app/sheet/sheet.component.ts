@@ -166,6 +166,10 @@ export class SheetComponent implements OnInit {
     // Load character data
     await this.store.load(id);
     
+    // Connect to character socket for patches and loot
+    this.socket.connect();
+    this.socket.joinCharacter(id);
+    
     // Connect to world socket for battle loot notifications and turn tracking
     this.worldSocket.connect();
 
@@ -280,6 +284,18 @@ export class SheetComponent implements OnInit {
         // Check if current events were updated
         if (normalizedPath === 'currentEvents') {
           this.currentEvents = patch.value as CurrentEvent[] || [];
+          this.cdr.detectChanges();
+        }
+      });
+    });
+
+    // Listen for character patches from DM (items, skills, etc.)
+    this.socket.patches$.subscribe((data) => {
+      this.ngZone.run(() => {
+        const sheet = this.store.sheet();
+        if (sheet && data.characterId === id) {
+          // Apply patch to local sheet
+          this.applyJsonPatch(sheet, data.patch);
           this.cdr.detectChanges();
         }
       });
@@ -919,5 +935,29 @@ export class SheetComponent implements OnInit {
       path: 'trash',
       value: []
     });
+  }
+
+  private applyJsonPatch(target: any, patch: JsonPatch) {
+    const keys = patch.path.startsWith('/') ? patch.path.substring(1).split('/') : patch.path.split('.');
+    let current = target;
+
+    for (let i = 0; i < keys.length - 1; i++) {
+      const key = keys[i];
+      const index = parseInt(key, 10);
+      if (!isNaN(index) && Array.isArray(current)) current = current[index];
+      else current = current[key] ??= {};
+    }
+
+    const finalKey = keys[keys.length - 1];
+    
+    // Handle array append operation: '-' means append to array
+    if (finalKey === '-' && Array.isArray(current)) {
+      current.push(patch.value);
+      return;
+    }
+    
+    const finalIndex = parseInt(finalKey, 10);
+    if (!isNaN(finalIndex) && Array.isArray(current)) current[finalIndex] = patch.value;
+    else current[finalKey] = patch.value;
   }
 }

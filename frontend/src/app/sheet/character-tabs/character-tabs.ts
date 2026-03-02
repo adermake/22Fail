@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -9,12 +9,23 @@ import { SpellsComponent } from '../spells/spells.component';
 import { RunesComponent } from '../../shared/runes/runes.component';
 import { SkillsComponent } from '../skills/skills.component';
 import { StatusEffectsTabComponent } from '../status-effects-tab/status-effects-tab.component';
-import { CurrentEventsViewComponent, BuyItemEvent, ClaimLootEvent } from '../current-events-view/current-events-view.component';
+import { CurrentEventsViewComponent } from '../current-events-view';
+import type { BuyItemEvent, ClaimLootEvent } from '../current-events-view';
 
 @Component({
   selector: 'app-character-tabs',
   standalone: true,
-  imports: [CommonModule, FormsModule, InventoryComponent, SpellsComponent, RunesComponent, SkillsComponent, StatusEffectsTabComponent, CurrentEventsViewComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    InventoryComponent,
+    SpellsComponent,
+    RunesComponent,
+    SkillsComponent,
+    StatusEffectsTabComponent,
+    CurrentEventsViewComponent
+  ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './character-tabs.html',
   styleUrl: './character-tabs.css',
 })

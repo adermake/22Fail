@@ -94,6 +94,62 @@
   cursor: pointer;
 }
 
+.dependencies-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dependencies-select {
+  padding: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.9rem;
+  min-height: 120px;
+}
+
+.dependencies-select option {
+  padding: 0.5rem;
+  background: var(--card);
+  color: var(--text);
+}
+
+.dependencies-select option:checked {
+  background: var(--accent);
+  color: white;
+}
+
+.dependencies-help {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.resolved-dependencies {
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.resolved-header {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dependency-item {
+  color: var(--text);
+  font-size: 0.85rem;
+  padding: 0.25rem 0;
+}
+
 .search-bar {
   margin-bottom: 1rem;
 }
@@ -422,6 +478,18 @@
   margin: 0;
   color: var(--text);
   font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.shop-name-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0.375rem;
+  color: var(--text);
+  font-size: 1.1rem;
+  font-weight: 600;
 }
 
 .shop-description {
@@ -429,6 +497,216 @@
   font-size: 0.9rem;
   margin: 0.5rem 0;
   line-height: 1.4;
+  cursor: pointer;
+}
+
+.shop-description-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0.5rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  resize: vertical;
+  margin: 0.5rem 0;
+}
+
+.deals-section {
+  margin-top: 1rem;
+}
+
+.deals-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.deals-header h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.add-deal-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.add-deal-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.deal-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: var(--bg);
+  border-radius: 4px;
+  margin-bottom: 0.25rem;
+  border: 1px solid var(--border);
+}
+
+.deal-card.editing {
+  flex-direction: column;
+  align-items: stretch;
+  border-color: var(--accent);
+}
+
+.deal-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.deal-name {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.deal-price {
+  color: #fbbf24;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.deal-badge {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.deal-badge.negotiable {
+  background: #fbbf2420;
+  color: #fbbf24;
+  border: 1px solid #fbbf2440;
+}
+
+.deal-badge.reverse {
+  background: #9C27B020;
+  color: #ce93d8;
+  border: 1px solid #9C27B040;
+}
+
+.deal-stock {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.deal-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  color: var(--text);
+}
+
+.icon-btn:hover {
+  background: var(--bg-hover);
+}
+
+.icon-btn.delete:hover {
+  background: #f44336;
+  color: white;
+}
+
+.deal-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.editor-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.editor-row label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  min-width: 80px;
+}
+
+.editor-row input[type="text"],
+.editor-row input[type="number"] {
+  flex: 1;
+  background: var(--bg-darker);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.375rem;
+  color: var(--text);
+}
+
+.currency-inputs {
+  display: flex;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.currency-input {
+  width: 60px;
+  background: var(--bg-darker);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.375rem;
+  color: var(--text);
+  text-align: center;
+}
+
+.editor-row small {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.editor-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.save-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.save-btn:hover {
+  opacity: 0.9;
+}
+
+.cancel-btn {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cancel-btn:hover {
+  background: var(--bg-hover);
 }
 
 .shop-stats {
@@ -506,6 +784,207 @@
   color: #f59e0b;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+/* Loot Bundle Editor Styles */
+.bundle-name-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0.5rem;
+  color: var(--text);
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.bundle-name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.bundle-header h3 {
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.bundle-header h3:hover {
+  color: var(--accent);
+}
+
+.bundle-description {
+  cursor: pointer;
+  transition: color 0.2s;
+  min-height: 1.4em;
+}
+
+.bundle-description:hover {
+  color: var(--text);
+}
+
+.bundle-description-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0.5rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 0.5rem;
+}
+
+.bundle-description-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.loot-items-section {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.items-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.items-header h4 {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.add-item-btn {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-item-btn:hover {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.loot-item-selector {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.selector-header h5 {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.type-selector {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.type-selector button {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.type-selector button:hover {
+  border-color: var(--accent);
+  background: var(--accent)20;
+}
+
+.type-selector button.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.currency-editor h5 {
+  margin: 0 0 0.5rem 0;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.item-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.selectable-item {
+  padding: 0.5rem 0.75rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.selectable-item:hover {
+  border-color: var(--accent);
+  background: var(--accent)20;
+}
+
+.loot-item-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 0.25rem;
+}
+
+.loot-item-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.loot-type-icon {
+  font-size: 1rem;
+}
+
+.loot-item-name {
+  color: var(--text);
+  font-size: 0.9rem;
 }
 
 @media (max-width: 768px) {

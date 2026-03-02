@@ -11,6 +11,7 @@ import { SpellBlock } from '../model/spell-block-model';
 import { SkillBlock } from '../model/skill-block.model';
 import { StatusEffect, createEmptyStatusEffect } from '../model/status-effect.model';
 import { MacroAction, createEmptyMacroAction } from '../model/macro-action.model';
+import { formatCurrency } from '../model/current-events.model';
 import { JsonPatch } from '../model/json-patch.model';
 import { CardComponent } from '../shared/card/card.component';
 import { ItemEditorComponent } from '../sheet/item-editor/item-editor.component';
@@ -68,15 +69,26 @@ export class LibraryComponent implements OnInit, OnDestroy {
   // Dummy sheet for item rendering
   dummySheet: CharacterSheet = createEmptySheet();
   
+  // Utility functions
+  formatCurrency = formatCurrency;
+  
   private subscription?: Subscription;
 
   // Computed filtered arrays
   filteredItems = computed(() => {
     const lib = this.library();
     if (!lib) return [];
+    
+    // Merge items from current library and dependencies
+    const items = [...lib.items];
+    const deps = this.dependencyLibraries();
+    deps.forEach(depLib => {
+      items.push(...depLib.items);
+    });
+    
     const term = this.searchTerm().toLowerCase();
-    if (!term) return lib.items;
-    return lib.items.filter(item => 
+    if (!term) return items;
+    return items.filter(item => 
       item.name.toLowerCase().includes(term) ||
       item.description?.toLowerCase().includes(term)
     );
@@ -85,9 +97,17 @@ export class LibraryComponent implements OnInit, OnDestroy {
   filteredRunes = computed(() => {
     const lib = this.library();
     if (!lib) return [];
+    
+    // Merge runes from current library and dependencies
+    const runes = [...lib.runes];
+    const deps = this.dependencyLibraries();
+    deps.forEach(depLib => {
+      runes.push(...depLib.runes);
+    });
+    
     const term = this.searchTerm().toLowerCase();
-    if (!term) return lib.runes;
-    return lib.runes.filter(rune => 
+    if (!term) return runes;
+    return runes.filter(rune => 
       rune.name.toLowerCase().includes(term) ||
       rune.description?.toLowerCase().includes(term)
     );
@@ -96,9 +116,17 @@ export class LibraryComponent implements OnInit, OnDestroy {
   filteredSpells = computed(() => {
     const lib = this.library();
     if (!lib) return [];
+    
+    // Merge spells from current library and dependencies
+    const spells = [...lib.spells];
+    const deps = this.dependencyLibraries();
+    deps.forEach(depLib => {
+      spells.push(...depLib.spells);
+    });
+    
     const term = this.searchTerm().toLowerCase();
-    if (!term) return lib.spells;
-    return lib.spells.filter(spell => 
+    if (!term) return spells;
+    return spells.filter(spell => 
       spell.name.toLowerCase().includes(term) ||
       spell.description?.toLowerCase().includes(term)
     );
@@ -107,9 +135,17 @@ export class LibraryComponent implements OnInit, OnDestroy {
   filteredSkills = computed(() => {
     const lib = this.library();
     if (!lib) return [];
+    
+    // Merge skills from current library and dependencies
+    const skills = [...lib.skills];
+    const deps = this.dependencyLibraries();
+    deps.forEach(depLib => {
+      skills.push(...depLib.skills);
+    });
+    
     const term = this.searchTerm().toLowerCase();
-    if (!term) return lib.skills;
-    return lib.skills.filter(skill => 
+    if (!term) return skills;
+    return skills.filter(skill => 
       skill.name.toLowerCase().includes(term) ||
       skill.description?.toLowerCase().includes(term)
     );
@@ -118,20 +154,36 @@ export class LibraryComponent implements OnInit, OnDestroy {
   filteredStatusEffects = computed(() => {
     const lib = this.library();
     if (!lib) return [];
+    
+    // Merge status effects from current library and dependencies
+    const effects = [...lib.statusEffects];
+    const deps = this.dependencyLibraries();
+    deps.forEach(depLib => {
+      effects.push(...depLib.statusEffects);
+    });
+    
     const term = this.searchTerm().toLowerCase();
-    if (!term) return lib.statusEffects;
-    return lib.statusEffects.filter(se => 
-      se.name.toLowerCase().includes(term) ||
-      se.description?.toLowerCase().includes(term)
+    if (!term) return effects;
+    return effects.filter(effect => 
+      effect.name.toLowerCase().includes(term) ||
+      effect.description?.toLowerCase().includes(term)
     );
   });
 
   filteredMacros = computed(() => {
     const lib = this.library();
     if (!lib) return [];
+    
+    // Merge macros from current library and dependencies
+    const macros = [...lib.macroActions];
+    const deps = this.dependencyLibraries();
+    deps.forEach(depLib => {
+      macros.push(...depLib.macroActions);
+    });
+    
     const term = this.searchTerm().toLowerCase();
-    if (!term) return lib.macroActions;
-    return lib.macroActions.filter(macro => 
+    if (!term) return macros;
+    return macros.filter(macro => 
       macro.name.toLowerCase().includes(term) ||
       macro.description?.toLowerCase().includes(term)
     );
@@ -139,9 +191,17 @@ export class LibraryComponent implements OnInit, OnDestroy {
   filteredShops = computed(() => {
     const lib = this.library();
     if (!lib) return [];
+    
+    // Merge shops from current library and dependencies
+    const shops = [...lib.shops];
+    const deps = this.dependencyLibraries();
+    deps.forEach(depLib => {
+      shops.push(...depLib.shops);
+    });
+    
     const term = this.searchTerm().toLowerCase();
-    if (!term) return lib.shops;
-    return lib.shops.filter(shop => 
+    if (!term) return shops;
+    return shops.filter(shop => 
       shop.name.toLowerCase().includes(term) ||
       shop.description?.toLowerCase().includes(term)
     );
@@ -150,14 +210,85 @@ export class LibraryComponent implements OnInit, OnDestroy {
   filteredLootBundles = computed(() => {
     const lib = this.library();
     if (!lib) return [];
+    
+    // Merge loot bundles from current library and dependencies
+    const bundles = [...lib.lootBundles];
+    const deps = this.dependencyLibraries();
+    deps.forEach(depLib => {
+      bundles.push(...depLib.lootBundles);
+    });
+    
     const term = this.searchTerm().toLowerCase();
-    if (!term) return lib.lootBundles;
-    return lib.lootBundles.filter(bundle => 
+    if (!term) return bundles;
+    return bundles.filter(bundle => 
       bundle.name.toLowerCase().includes(term) ||
       bundle.description?.toLowerCase().includes(term)
     );
   });
+
+  availableLibrariesForDependencies = computed(() => {
+    const currentLib = this.library();
+    const allLibs = this.store.allLibraries;
+    if (!currentLib) return allLibs;
+    // Filter out the current library (can't depend on itself)
+    return allLibs.filter(lib => lib.id !== currentLib.id);
+  });
+
+  /**
+   * Recursively resolve all dependencies for a given library
+   * Returns an array of library IDs in dependency order (deepest first)
+   * Includes circular dependency detection
+   */
+  private resolveDependencies(libraryId: string, visited = new Set<string>()): string[] {
+    if (visited.has(libraryId)) {
+      console.warn('[LIBRARY] Circular dependency detected:', libraryId);
+      return [];
+    }
+    
+    visited.add(libraryId);
+    const allLibs = this.store.allLibraries;
+    const lib = allLibs.find(l => l.id === libraryId);
+    
+    if (!lib || !lib.dependencies || lib.dependencies.length === 0) {
+      return [];
+    }
+    
+    const resolved: string[] = [];
+    for (const depId of lib.dependencies) {
+      // Recursively resolve transitive dependencies first
+      const transitive = this.resolveDependencies(depId, new Set(visited));
+      transitive.forEach(id => {
+        if (!resolved.includes(id)) {
+          resolved.push(id);
+        }
+      });
+      
+      // Then add this dependency
+      if (!resolved.includes(depId)) {
+        resolved.push(depId);
+      }
+    }
+    
+    return resolved;
+  }
+
+  /**
+   * Get all dependency libraries for the current library (flattened, with circular detection)
+   */
+  dependencyLibraries = computed(() => {
+    const currentLib = this.library();
+    if (!currentLib) return [];
+    
+    const depIds = this.resolveDependencies(currentLib.id);
+    const allLibs = this.store.allLibraries;
+    
+    return depIds.map(id => allLibs.find(l => l.id === id)).filter(lib => lib !== undefined) as Library[];
+  });
+
   ngOnInit() {
+    // Load all libraries for dependency selection
+    this.store.loadAllLibraries();
+    
     // Get library ID from route
     this.route.params.subscribe(params => {
       const id = params['libraryId'];
@@ -541,6 +672,148 @@ export class LibraryComponent implements OnInit, OnDestroy {
       this.store.removeLootBundle(bundle.id);
       this.saveLibrary();
     }
+  }
+
+  // Shop editing
+  editingShopId: string | null = null;
+  editingDealId: string | null = null;
+
+  updateShop(shopId: string, field: string, value: any) {
+    this.store.updateShop(shopId, field, value);
+    this.saveLibrary();
+  }
+
+  addDealToShop(shopId: string) {
+    const deal: any = {
+      id: `deal_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      name: 'New Deal',
+      price: { copper: 0, silver: 0, gold: 0, platinum: 0 },
+      quantity: undefined,
+      sold: 0,
+      isNegotiable: false,
+      isReverseDeal: false
+    };
+    this.store.addDealToShop(shopId, deal);
+    this.saveLibrary();
+  }
+
+  editDeal(dealId: string) {
+    // Find the deal and ensure price is initialized
+    const lib = this.library();
+    if (lib) {
+      for (const shop of lib.shops) {
+        const deal = shop.deals?.find((d: any) => d.id === dealId);
+        if (deal) {
+          if (!deal.price) {
+            deal.price = { copper: 0, silver: 0, gold: 0, platinum: 0 };
+          }
+          break;
+        }
+      }
+    }
+    this.editingDealId = dealId;
+  }
+
+  saveDealEdit() {
+    this.editingDealId = null;
+    this.saveLibrary();
+  }
+
+  cancelDealEdit() {
+    this.editingDealId = null;
+    // Could reload to revert changes if needed
+  }
+
+  removeDealFromShop(shopId: string, dealId: string) {
+    this.store.removeDealFromShop(shopId, dealId);
+    this.saveLibrary();
+  }
+
+  // Loot Bundle editing
+  editingBundleId: string | null = null;
+  addingLootToBundle: string | null = null;
+  selectedLootType: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'currency' = 'item';
+  tempCurrency: any = { copper: 0, silver: 0, gold: 0, platinum: 0 };
+
+  updateLootBundle(bundleId: string, field: string, value: any) {
+    this.store.updateLootBundle(bundleId, field, value);
+    this.saveLibrary();
+  }
+
+  startAddingLootToBundle(bundleId: string) {
+    this.addingLootToBundle = bundleId;
+    this.selectedLootType = 'item';
+    this.tempCurrency = { copper: 0, silver: 0, gold: 0, platinum: 0 };
+  }
+
+  cancelAddingLootToBundle() {
+    this.addingLootToBundle = null;
+  }
+
+  addLootItemToBundle(bundleId: string, type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'currency', index?: number) {
+    const lootItem: any = {
+      id: `loot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type
+    };
+
+    if (type === 'currency') {
+      lootItem.data = { ...this.tempCurrency };
+    } else if (index !== undefined) {
+      // Get the actual data from the library
+      let sourceData: any;
+      const lib = this.library();
+      if (!lib) return;
+
+      switch (type) {
+        case 'item':
+          sourceData = lib.items[index];
+          break;
+        case 'rune':
+          sourceData = lib.runes[index];
+          break;
+        case 'spell':
+          sourceData = lib.spells[index];
+          break;
+        case 'skill':
+          sourceData = lib.skills[index];
+          break;
+        case 'status-effect':
+          sourceData = lib.statusEffects[index];
+          break;
+      }
+
+      if (sourceData) {
+        lootItem.data = { ...sourceData };
+      }
+    }
+
+    this.store.addLootItemToBundle(bundleId, lootItem);
+    this.saveLibrary();
+    this.addingLootToBundle = null;
+  }
+
+  removeLootItemFromBundle(bundleId: string, itemId: string) {
+    this.store.removeLootItemFromBundle(bundleId, itemId);
+    this.saveLibrary();
+  }
+
+  getLootTypeIcon(type: string): string {
+    switch (type) {
+      case 'item': return '📦';
+      case 'rune': return '🔮';
+      case 'spell': return '✨';
+      case 'skill': return '⚔️';
+      case 'status-effect': return '💫';
+      case 'currency': return '💰';
+      default: return '❓';
+    }
+  }
+
+  getLootItemName(lootItem: any): string {
+    if (lootItem.type === 'currency') {
+      return this.formatCurrency(lootItem.data);
+    }
+    return lootItem.data?.name || 'Unknown Item';
   }
 
   // Navigation

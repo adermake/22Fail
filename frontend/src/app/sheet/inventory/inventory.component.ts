@@ -12,6 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { COIN_WEIGHT } from '../../model/currency-model';
 import { WorldSocketService } from '../../services/world-socket.service';
 import { NotificationService } from '../../services/notification.service';
+import { CurrentEvent, ShopEvent, LootBundleEvent, formatCurrency } from '../../model/current-events.model';
 
 @Component({
   selector: 'app-inventory',
@@ -30,12 +31,16 @@ import { NotificationService } from '../../services/notification.service';
 })
 export class InventoryComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
+  @Input() currentEvents: CurrentEvent[] = [];
   @Output() patch = new EventEmitter<JsonPatch>();
+  @Output() buyFromShop = new EventEmitter<any>();
+  @Output() claimLoot = new EventEmitter<any>();
   
   private worldSocket = inject(WorldSocketService);
   private notification = inject(NotificationService);
 
   Math = Math; // Expose Math to template
+  formatCurrency = formatCurrency;
 
   showCreateDialog = false;
   showSettingsDialog = false;

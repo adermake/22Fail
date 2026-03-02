@@ -21,6 +21,25 @@
              (change)="updateTags($any($event.target).value); saveLibrary()" 
              placeholder="tag1, tag2, tag3" />
     </div>
+    <div class="info-group">
+      <label>Dependencies:</label>
+      <div class="dependencies-selector">
+        <select multiple [(ngModel)]="lib.dependencies" (change)="saveLibrary()" size="5" class="dependencies-select">
+          @for (otherLib of availableLibrariesForDependencies(); track otherLib.id) {
+            <option [value]="otherLib.id">{{ otherLib.name }}</option>
+          }
+        </select>
+        <div class="dependencies-help">Hold Ctrl to select multiple libraries</div>
+        @if (lib.dependencies && lib.dependencies.length > 0) {
+          <div class="resolved-dependencies">
+            <div class="resolved-header">Dependency Tree:</div>
+            @for (depLib of dependencyLibraries(); track depLib.id) {
+              <div class="dependency-item">→ {{ depLib.name }}</div>
+            }
+          </div>
+        }
+      </div>
+    </div>
     <div class="info-group checkbox">
       <label>
         <input type="checkbox" [(ngModel)]="lib.isPublic" (change)="saveLibrary()" />
@@ -265,12 +284,95 @@
             <div class="shop-card">
               <div class="shop-header">
                 <span class="shop-icon">🏪</span>
-                <h3>{{ shop.name }}</h3>
+                @if (editingShopId === shop.id) {
+                  <input 
+                    type="text" 
+                    [value]="shop.name"
+                    (input)="updateShop(shop.id, 'name', $any($event.target).value)"
+                    (blur)="editingShopId = null"
+                    class="shop-name-input"
+                  />
+                } @else {
+                  <h3 (click)="editingShopId = shop.id">{{ shop.name }}</h3>
+                }
                 <button class="remove-btn" (click)="removeShop(i)">🗑️</button>
               </div>
-              <p class="shop-description">{{ shop.description }}</p>
-              <div class="shop-stats">
-                <div class="stat">📋 {{ shop.deals?.length || 0 }} deals</div>
+              
+              @if (editingShopId === shop.id) {
+                <textarea
+                  [value]="shop.description"
+                  (input)="updateShop(shop.id, 'description', $any($event.target).value)"
+                  placeholder="Shop description..."
+                  class="shop-description-input"
+                  rows="2"
+                ></textarea>
+              } @else {
+                <p class="shop-description" (click)="editingShopId = shop.id">
+                  {{ shop.description || 'Click to add description' }}
+                </p>
+              }
+              
+              <div class="deals-section">
+                <div class="deals-header">
+                  <h4>Deals ({{ shop.deals.length || 0 }})</h4>
+                  <button class="add-deal-btn" (click)="addDealToShop(shop.id)">+ Deal</button>
+                </div>
+                
+                @for (deal of shop.deals; track deal.id; let dealIdx = $index) {
+                  <div class="deal-card" [class.editing]="editingDealId === deal.id">
+                    @if (editingDealId === deal.id && deal.price) {
+                      <!-- Deal Editor -->
+                      <div class="deal-editor">
+                        <div class="editor-row">
+                          <label>Name:</label>
+                          <input type="text" [(ngModel)]="deal.name" placeholder="Item name">
+                        </div>
+                        <div class="editor-row">
+                          <label>Price:</label>
+                          <div class="currency-inputs">
+                            <input type="number" [(ngModel)]="deal.price.platinum" min="0" placeholder="P" class="currency-input" title="Platinum">
+                            <input type="number" [(ngModel)]="deal.price.gold" min="0" placeholder="G" class="currency-input" title="Gold">
+                            <input type="number" [(ngModel)]="deal.price.silver" min="0" placeholder="S" class="currency-input" title="Silver">
+                            <input type="number" [(ngModel)]="deal.price.copper" min="0" placeholder="C" class="currency-input" title="Copper">
+                          </div>
+                        </div>
+                        <div class="editor-row">
+                          <label><input type="checkbox" [(ngModel)]="deal.isNegotiable"> Negotiable</label>
+                          <label><input type="checkbox" [(ngModel)]="deal.isReverseDeal"> Buyback (Shop buys from player)</label>
+                        </div>
+                        <div class="editor-row">
+                          <label>Quantity:</label>
+                          <input type="number" [(ngModel)]="deal.quantity" min="1" placeholder="Unlimited">
+                          <small>(empty = unlimited)</small>
+                        </div>
+                        <div class="editor-actions">
+                          <button class="save-btn" (click)="saveDealEdit()">💾 Save</button>
+                          <button class="cancel-btn" (click)="cancelDealEdit()">✕ Cancel</button>
+                        </div>
+                      </div>
+                    } @else {
+                      <!-- Deal Display -->
+                      <div class="deal-info">
+                        <span class="deal-name">{{ deal.name }}</span>
+                        @if (deal.isNegotiable) {
+                          <span class="deal-badge negotiable">Negotiable</span>
+                        } @else if (deal.price) {
+                          <span class="deal-price">{{ formatCurrency(deal.price) }}</span>
+                        }
+                        @if (deal.quantity !== undefined) {
+                          <span class="deal-stock">{{ deal.quantity - (deal.sold || 0) }}/{{ deal.quantity }}</span>
+                        }
+                        @if (deal.isReverseDeal) {
+                          <span class="deal-badge reverse">⬅ Buyback</span>
+                        }
+                      </div>
+                      <div class="deal-actions">
+                        <button class="icon-btn" (click)="editDeal(deal.id)" title="Edit">✏️</button>
+                        <button class="icon-btn delete" (click)="removeDealFromShop(shop.id, deal.id)" title="Remove">✕</button>
+                      </div>
+                    }
+                  </div>
+                }
               </div>
             </div>
           }
@@ -287,12 +389,119 @@
             <div class="loot-bundle-card">
               <div class="bundle-header">
                 <span class="bundle-icon">📦</span>
-                <h3>{{ bundle.name }}</h3>
+                @if (editingBundleId === bundle.id) {
+                  <input 
+                    type="text" 
+                    [value]="bundle.name"
+                    (input)="updateLootBundle(bundle.id, 'name', $any($event.target).value)"
+                    (blur)="editingBundleId = null"
+                    class="bundle-name-input"
+                  />
+                } @else {
+                  <h3 (click)="editingBundleId = bundle.id">{{ bundle.name }}</h3>
+                }
                 <button class="remove-btn" (click)="removeLootBundle(i)">🗑️</button>
               </div>
-              <p class="bundle-description">{{ bundle.description }}</p>
-              <div class="bundle-stats">
-                <div class="stat">🎁 {{ bundle.items?.length || 0 }} items</div>
+              
+              @if (editingBundleId === bundle.id) {
+                <textarea
+                  [value]="bundle.description"
+                  (input)="updateLootBundle(bundle.id, 'description', $any($event.target).value)"
+                  placeholder="Bundle description..."
+                  class="bundle-description-input"
+                  rows="2"
+                ></textarea>
+              } @else {
+                <p class="bundle-description" (click)="editingBundleId = bundle.id">
+                  {{ bundle.description || 'Click to add description' }}
+                </p>
+              }
+              
+              <div class="loot-items-section">
+                <div class="items-header">
+                  <h4>Items ({{ bundle.items.length || 0 }})</h4>
+                  <button class="add-item-btn" (click)="startAddingLootToBundle(bundle.id)">+ Item</button>
+                </div>
+                
+                @if (addingLootToBundle === bundle.id) {
+                  <div class="loot-item-selector">
+                    <div class="selector-header">
+                      <h5>Select Item Type</h5>
+                      <button class="cancel-btn" (click)="cancelAddingLootToBundle()">✕</button>
+                    </div>
+                    <div class="type-selector">
+                      <button [class.active]="selectedLootType === 'item'" (click)="selectedLootType = 'item'">📦 Item</button>
+                      <button [class.active]="selectedLootType === 'rune'" (click)="selectedLootType = 'rune'">🔮 Rune</button>
+                      <button [class.active]="selectedLootType === 'spell'" (click)="selectedLootType = 'spell'">✨ Spell</button>
+                      <button [class.active]="selectedLootType === 'skill'" (click)="selectedLootType = 'skill'">⚔️ Skill</button>
+                      <button [class.active]="selectedLootType === 'status-effect'" (click)="selectedLootType = 'status-effect'">💫 Status</button>
+                      <button [class.active]="selectedLootType === 'currency'" (click)="selectedLootType = 'currency'">💰 Currency</button>
+                    </div>
+                    
+                    @if (selectedLootType === 'currency') {
+                      <div class="currency-editor">
+                        <h5>Currency Amount</h5>
+                        <div class="currency-inputs">
+                          <input type="number" [(ngModel)]="tempCurrency.platinum" min="0" placeholder="P" class="currency-input" title="Platinum">
+                          <input type="number" [(ngModel)]="tempCurrency.gold" min="0" placeholder="G" class="currency-input" title="Gold">
+                          <input type="number" [(ngModel)]="tempCurrency.silver" min="0" placeholder="S" class="currency-input" title="Silver">
+                          <input type="number" [(ngModel)]="tempCurrency.copper" min="0" placeholder="C" class="currency-input" title="Copper">
+                        </div>
+                        <button class="save-btn" (click)="addLootItemToBundle(bundle.id, 'currency')">Add Currency</button>
+                      </div>
+                    } @else {
+                      <div class="item-list">
+                        @switch (selectedLootType) {
+                          @case ('item') {
+                            @for (item of library()?.items || []; track item.id; let idx = $index) {
+                              <div class="selectable-item" (click)="addLootItemToBundle(bundle.id, 'item', idx)">
+                                📦 {{ item.name }}
+                              </div>
+                            }
+                          }
+                          @case ('rune') {
+                            @for (rune of library()?.runes || []; track rune.name; let idx = $index) {
+                              <div class="selectable-item" (click)="addLootItemToBundle(bundle.id, 'rune', idx)">
+                                🔮 {{ rune.name }}
+                              </div>
+                            }
+                          }
+                          @case ('spell') {
+                            @for (spell of library()?.spells || []; track spell.name; let idx = $index) {
+                              <div class="selectable-item" (click)="addLootItemToBundle(bundle.id, 'spell', idx)">
+                                ✨ {{ spell.name }}
+                              </div>
+                            }
+                          }
+                          @case ('skill') {
+                            @for (skill of library()?.skills || []; track skill.name; let idx = $index) {
+                              <div class="selectable-item" (click)="addLootItemToBundle(bundle.id, 'skill', idx)">
+                                ⚔️ {{ skill.name }}
+                              </div>
+                            }
+                          }
+                          @case ('status-effect') {
+                            @for (effect of library()?.statusEffects || []; track effect.id; let idx = $index) {
+                              <div class="selectable-item" (click)="addLootItemToBundle(bundle.id, 'status-effect', idx)">
+                                💫 {{ effect.name }}
+                              </div>
+                            }
+                          }
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+                
+                @for (item of bundle.items; track item.id; let itemIdx = $index) {
+                  <div class="loot-item-card">
+                    <div class="loot-item-info">
+                      <span class="loot-type-icon">{{ getLootTypeIcon(item.type) }}</span>
+                      <span class="loot-item-name">{{ getLootItemName(item) }}</span>
+                    </div>
+                    <button class="icon-btn delete" (click)="removeLootItemFromBundle(bundle.id, item.id)" title="Remove">✕</button>
+                  </div>
+                }
               </div>
             </div>
           }
