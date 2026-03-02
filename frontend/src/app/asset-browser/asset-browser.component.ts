@@ -112,6 +112,10 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
   editingFile = signal<AssetFile | null>(null);
   editingType = signal<AssetType | null>(null);
 
+  // Library settings state
+  showLibrarySettings = signal(false);
+  allLibraries = signal<AssetLibrary[]>([]);
+
   // Drag and drop state
   isDragging = signal(false);
   draggedIds = signal<Set<string>>(new Set());
@@ -131,6 +135,9 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
   allFolders = signal<AssetFolder[]>([]);
 
   ngOnInit(): void {
+    // Load all libraries for dependency selection
+    this.loadAllLibraries();
+    
     // Load library ID from route
     this.route.params.subscribe(async (params) => {
       const id = params['libraryId'];
@@ -221,10 +228,53 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
   async loadLibrary(): Promise<void> {
     try {
       const library = await firstValueFrom(this.api.getLibrary(this.libraryId()));
+      // Initialize dependencies array if not present
+      if (!library.dependencies) {
+        library.dependencies = [];
+      }
       this.library.set(library);
     } catch (error) {
       console.error('Failed to load library:', error);
     }
+  }
+
+  async loadAllLibraries(): Promise<void> {
+    try {
+      const libraries = await firstValueFrom(this.api.getAllLibraries());
+      this.allLibraries.set(libraries);
+    } catch (error) {
+      console.error('Failed to load all libraries:', error);
+    }
+  }
+
+  toggleLibrarySettings(): void {
+    this.showLibrarySettings.set(!this.showLibrarySettings());
+  }
+
+  async saveLibrarySettings(): Promise<void> {
+    const lib = this.library();
+    if (!lib) return;
+
+    try {
+      const updated = await firstValueFrom(this.api.updateLibrary(lib.id, {
+        name: lib.name,
+        description: lib.description,
+        tags: lib.tags,
+        isPublic: lib.isPublic,
+        dependencies: lib.dependencies
+      }));
+      this.library.set(updated);
+      console.log('Library settings saved successfully');
+    } catch (error) {
+      console.error('Failed to save library settings:', error);
+      alert('Fehler beim Speichern der Bibliothekseinstellungen');
+    }
+  }
+
+  updateLibraryTags(value: string): void {
+    const lib = this.library();
+    if (!lib) return;
+    lib.tags = value.split(',').map(t => t.trim()).filter(t => t.length > 0);
   }
 
   async loadFolderContents(): Promise<void> {
@@ -498,6 +548,25 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
         return { ...createEmptyStatusEffect(), name };
       case 'macro':
         return { ...createEmptyMacroAction(), name };
+      case 'shop':
+        return {
+          id: `shop_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          type: 'shop',
+          name,
+          description: '',
+          deals: [],
+          claimedDeals: {},
+          createdAt: Date.now()
+        };
+      case 'loot-bundle':
+        return {
+          id: `loot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          type: 'loot',
+          name,
+          description: '',
+          items: [],
+          createdAt: Date.now()
+        };
       default:
         return { name };
     }

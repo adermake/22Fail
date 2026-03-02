@@ -20,6 +20,7 @@ export interface AssetLibrary {
   tags?: string[];
   isPublic?: boolean;
   author?: string;
+  dependencies?: string[]; // IDs of other libraries this library depends on
 }
 
 /**

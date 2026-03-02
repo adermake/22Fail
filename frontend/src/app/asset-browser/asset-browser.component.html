@@ -4,6 +4,7 @@
     <div class="header-left">
       <button class="back-btn" (click)="goBack()">← Zurück</button>
       <h1>{{ library()?.name || 'Bibliothek' }}</h1>
+      <button class="settings-btn" (click)="toggleLibrarySettings()">⚙️ Bibliothekseinstellungen</button>
     </div>
     <div class="header-right">
       <div class="search-box">
@@ -37,6 +38,55 @@
       </div>
     </div>
   </header>
+
+  <!-- Library Settings Panel -->
+  @if (showLibrarySettings() && library(); as lib) {
+    <div class="library-settings-panel">
+      <div class="settings-content">
+        <div class="settings-row">
+          <div class="settings-group">
+            <label>Beschreibung:</label>
+            <input type="text" [(ngModel)]="lib.description" placeholder="Bibliotheksbeschreibung..." />
+          </div>
+          <div class="settings-group">
+            <label>Tags:</label>
+            <input 
+              type="text" 
+              [value]="lib.tags?.join(', ') || ''" 
+              (change)="updateLibraryTags($any($event.target).value)" 
+              placeholder="tag1, tag2, tag3" 
+            />
+          </div>
+        </div>
+        
+        <div class="settings-row">
+          <div class="settings-group">
+            <label>🔗 Abhängigkeiten (Dependencies):</label>
+            <select multiple [(ngModel)]="lib.dependencies" size="4" class="dependencies-select">
+              @for (otherLib of allLibraries(); track otherLib.id) {
+                @if (otherLib.id !== lib.id) {
+                  <option [value]="otherLib.id">{{ otherLib.name }}</option>
+                }
+              }
+            </select>
+            <div class="dependencies-help">Halte Strg/Cmd um mehrere Bibliotheken auszuwählen. Diese Bibliothek kann Items von ausgewählten Bibliotheken verwenden.</div>
+          </div>
+          
+          <div class="settings-group checkbox-group">
+            <label>
+              <input type="checkbox" [(ngModel)]="lib.isPublic" />
+              Öffentliche Bibliothek
+            </label>
+          </div>
+        </div>
+        
+        <div class="settings-actions">
+          <button class="save-btn" (click)="saveLibrarySettings(); toggleLibrarySettings()">✓ Speichern</button>
+          <button class="cancel-btn" (click)="toggleLibrarySettings()">✕ Abbrechen</button>
+        </div>
+      </div>
+    </div>
+  }
 
   <div class="browser-body">
     <!-- Sidebar: Folder Tree -->
@@ -280,6 +330,8 @@
         <button (click)="createFile('skill'); closeContextMenu()">⚔️ Neuer Skill</button>
         <button (click)="createFile('status-effect'); closeContextMenu()">🎭 Neuer Status-Effekt</button>
         <button (click)="createFile('macro'); closeContextMenu()">⚡ Neues Makro</button>
+        <button (click)="createFile('shop'); closeContextMenu()">🏪 Neuer Shop</button>
+        <button (click)="createFile('loot-bundle'); closeContextMenu()">🎁 Neues Loot Bundle</button>
         @if (clipboard.canPaste()) {
           <hr />
           <button (click)="paste(); closeContextMenu()">📥 Einfügen (Strg+V)</button>
@@ -340,6 +392,44 @@
                 (save)="saveEditor($event)"
                 (cancel)="closeEditor()"
               />
+            }
+            @case ('shop') {
+              <div class="simple-editor">
+                <div class="form-group">
+                  <label>Name:</label>
+                  <input type="text" [(ngModel)]="editingFile()!.data.name" />
+                </div>
+                <div class="form-group">
+                  <label>Beschreibung:</label>
+                  <textarea [(ngModel)]="editingFile()!.data.description" rows="3"></textarea>
+                </div>
+                <div class="editor-note">
+                  ℹ️ Öffne die Bibliotheksansicht um Deals hinzuzufügen und Items auszuwählen.
+                </div>
+                <div class="editor-actions">
+                  <button class="save-btn" (click)="saveEditor(editingFile()!.data)">✓ Speichern</button>
+                  <button class="cancel-btn" (click)="closeEditor()">✕ Abbrechen</button>
+                </div>
+              </div>
+            }
+            @case ('loot-bundle') {
+              <div class="simple-editor">
+                <div class="form-group">
+                  <label>Name:</label>
+                  <input type="text" [(ngModel)]="editingFile()!.data.name" />
+                </div>
+                <div class="form-group">
+                  <label>Beschreibung:</label>
+                  <textarea [(ngModel)]="editingFile()!.data.description" rows="3"></textarea>
+                </div>
+                <div class="editor-note">
+                  ℹ️ Öffne die Bibliotheksansicht um Loot Items hinzuzufügen.
+                </div>
+                <div class="editor-actions">
+                  <button class="save-btn" (click)="saveEditor(editingFile()!.data)">✓ Speichern</button>
+                  <button class="cancel-btn" (click)="closeEditor()">✕ Abbrechen</button>
+                </div>
+              </div>
             }
           }
         </div>
