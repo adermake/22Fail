@@ -394,18 +394,152 @@
               />
             }
             @case ('shop') {
-              <div class="simple-editor">
+              <div class="shop-editor">
                 <div class="form-group">
-                  <label>Name:</label>
-                  <input type="text" [(ngModel)]="editingFile()!.data.name" />
+                  <label>Shop Name:</label>
+                  <input type="text" [(ngModel)]="editingFile()!.data.name" placeholder="z.B. Händler des Vertrauens" />
                 </div>
                 <div class="form-group">
                   <label>Beschreibung:</label>
-                  <textarea [(ngModel)]="editingFile()!.data.description" rows="3"></textarea>
+                  <textarea [(ngModel)]="editingFile()!.data.description" rows="3" placeholder="Beschreibe den Shop..."></textarea>
                 </div>
-                <div class="editor-note">
-                  ℹ️ Öffne die Bibliotheksansicht um Deals hinzuzufügen und Items auszuwählen.
+
+                <!-- Deals Section -->
+                <div class="deals-section">
+                  <div class="section-header">
+                    <h4>Deals ({{ editingFile()!.data.deals?.length || 0 }})</h4>
+                    <button class="add-btn" (click)="startAddingDealToShop()" [disabled]="addingDealToShop()">+ Deal</button>
+                  </div>
+
+                  <!-- Add Deal UI -->
+                  @if (addingDealToShop()) {
+                    <div class="deal-creator">
+                      @if (!editingDealData()) {
+                        <!-- Step 1: Select Item Type -->
+                        <div class="creator-header">
+                          <h5>Wähle Item-Typ</h5>
+                          <button class="cancel-btn" (click)="cancelAddingDeal()">✕</button>
+                        </div>
+                        <div class="type-selector">
+                          <button class="type-btn" (click)="selectDealItemType('item')">📦 Item</button>
+                          <button class="type-btn" (click)="selectDealItemType('rune')">🔮 Rune</button>
+                          <button class="type-btn" (click)="selectDealItemType('spell')">✨ Spell</button>
+                          <button class="type-btn" (click)="selectDealItemType('skill')">⚔️ Skill</button>
+                          <button class="type-btn" (click)="selectDealItemType('status-effect')">💫 Status</button>
+                        </div>
+                      } @else {
+                        <!-- Step 2: Select Item & Configure Deal -->
+                        <div class="creator-header">
+                          <h5>Deal konfigurieren</h5>
+                          <button class="cancel-btn" (click)="cancelAddingDeal()">✕</button>
+                        </div>
+
+                        <!-- Item Selection -->
+                        <div class="form-group">
+                          <label>{{ selectedDealItemType() === 'item' ? 'Item' : selectedDealItemType() === 'rune' ? 'Rune' : selectedDealItemType() === 'spell' ? 'Zauber' : selectedDealItemType() === 'skill' ? 'Fertigkeit' : 'Status-Effekt' }} auswählen:</label>
+                          <select class="item-selector" (change)="onDealItemSelected($event)">
+                            <option value="">-- Auswählen --</option>
+                            @if (selectedDealItemType() === 'item') {
+                              @for (item of availableItems(); track item.id) {
+                                <option [selected]="selectedDealItemId() === item.id">{{ item.name }}</option>
+                              }
+                            }
+                            @if (selectedDealItemType() === 'rune') {
+                              @for (rune of availableRunes(); track rune.id) {
+                                <option [selected]="selectedDealItemId() === rune.id">{{ rune.name }}</option>
+                              }
+                            }
+                            @if (selectedDealItemType() === 'spell') {
+                              @for (spell of availableSpells(); track spell.id) {
+                                <option [selected]="selectedDealItemId() === spell.id">{{ spell.name }}</option>
+                              }
+                            }
+                            @if (selectedDealItemType() === 'skill') {
+                              @for (skill of availableSkills(); track skill.id) {
+                                <option [selected]="selectedDealItemId() === skill.id">{{ skill.name }}</option>
+                              }
+                            }
+                            @if (selectedDealItemType() === 'status-effect') {
+                              @for (status of availableStatusEffects(); track status.id) {
+                                <option [selected]="selectedDealItemId() === status.id">{{ status.name }}</option>
+                              }
+                            }
+                          </select>
+                        </div>
+
+                        @if (selectedDealItemId()) {
+                          <!-- Deal Configuration -->
+                          <div class="form-group">
+                            <label>Deal Name:</label>
+                            <input type="text" [(ngModel)]="editingDealData()!.name" placeholder="z.B. Schwert +1" />
+                          </div>
+
+                          <div class="form-group">
+                            <label>Preis:</label>
+                            <div class="currency-inputs">
+                              <input type="number" [(ngModel)]="editingDealData()!.price!.platinum" min="0" placeholder="0" />
+                              <span>p</span>
+                              <input type="number" [(ngModel)]="editingDealData()!.price!.gold" min="0" placeholder="0" />
+                              <span>g</span>
+                              <input type="number" [(ngModel)]="editingDealData()!.price!.silver" min="0" placeholder="0" />
+                              <span>s</span>
+                              <input type="number" [(ngModel)]="editingDealData()!.price!.copper" min="0" placeholder="0" />
+                              <span>c</span>
+                            </div>
+                          </div>
+
+                          <div class="form-group checkboxes">
+                            <label><input type="checkbox" [(ngModel)]="editingDealData()!.isNegotiable" /> Verhandelbar</label>
+                            <label><input type="checkbox" [(ngModel)]="editingDealData()!.isReverseDeal" /> Ankauf (Shop kauft vom Spieler)</label>
+                          </div>
+
+                          <div class="form-group">
+                            <label>Bestand (leer = unbegrenzt):</label>
+                            <input type="number" [(ngModel)]="editingDealData()!.quantity" min="1" placeholder="Unbegrenzt" />
+                          </div>
+
+                          <div class="editor-actions">
+                            <button class="save-btn" (click)="saveDealToShop()">💾 Deal speichern</button>
+                            <button class="cancel-btn" (click)="cancelAddingDeal()">✕ Abbrechen</button>
+                          </div>
+                        }
+                      }
+                    </div>
+                  }
+
+                  <!-- Existing Deals List -->
+                  @if (editingFile()!.data.deals && editingFile()!.data.deals.length > 0) {
+                    <div class="deals-list">
+                      @for (deal of editingFile()!.data.deals; track deal.id) {
+                        <div class="deal-card" [class.reverse]="deal.isReverseDeal">
+                          <div class="deal-info">
+                            <span class="deal-icon">{{ getDealItemIcon(deal) }}</span>
+                            <div class="deal-details">
+                              <span class="deal-name">{{ getDealItemName(deal) }}</span>
+                              <div class="deal-meta">
+                                @if (deal.isNegotiable) {
+                                  <span class="deal-badge negotiable">💬 Verhandelbar</span>
+                                } @else if (deal.price) {
+                                  <span class="deal-price">{{ formatCurrency(deal.price) }}</span>
+                                }
+                                @if (deal.quantity !== undefined) {
+                                  <span class="deal-stock">📦 {{ deal.quantity }}</span>
+                                }
+                                @if (deal.isReverseDeal) {
+                                  <span class="deal-badge reverse">⬅ Ankauf</span>
+                                }
+                              </div>
+                            </div>
+                          </div>
+                          <button class="icon-btn delete" (click)="removeDealFromShop(deal.id)" title="Entfernen">✕</button>
+                        </div>
+                      }
+                    </div>
+                  } @else if (!addingDealToShop()) {
+                    <p class="empty-hint">Keine Deals vorhanden. Klicke auf "+ Deal" um einen hinzuzufügen.</p>
+                  }
                 </div>
+
                 <div class="editor-actions">
                   <button class="save-btn" (click)="saveEditor(editingFile()!.data)">✓ Speichern</button>
                   <button class="cancel-btn" (click)="closeEditor()">✕ Abbrechen</button>
@@ -413,18 +547,133 @@
               </div>
             }
             @case ('loot-bundle') {
-              <div class="simple-editor">
+              <div class="loot-bundle-editor">
                 <div class="form-group">
-                  <label>Name:</label>
-                  <input type="text" [(ngModel)]="editingFile()!.data.name" />
+                  <label>Bundle Name:</label>
+                  <input type="text" [(ngModel)]="editingFile()!.data.name" placeholder="z.B. Schatztruhe des Drachen" />
                 </div>
                 <div class="form-group">
                   <label>Beschreibung:</label>
-                  <textarea [(ngModel)]="editingFile()!.data.description" rows="3"></textarea>
+                  <textarea [(ngModel)]="editingFile()!.data.description" rows="3" placeholder="Beschreibe das Loot-Bündel..."></textarea>
                 </div>
-                <div class="editor-note">
-                  ℹ️ Öffne die Bibliotheksansicht um Loot Items hinzuzufügen.
+
+                <!-- Loot Items Section -->
+                <div class="loot-items-section">
+                  <div class="section-header">
+                    <h4>Loot Items ({{ editingFile()!.data.items?.length || 0 }})</h4>
+                    <button class="add-btn" (click)="startAddingLootToBundle()" [disabled]="addingLootToBundle()">+ Item</button>
+                  </div>
+
+                  <!-- Add Loot Item UI -->
+                  @if (addingLootToBundle()) {
+                    <div class="loot-creator">
+                      @if (!editingLootItemData()) {
+                        <!-- Step 1: Select Item Type -->
+                        <div class="creator-header">
+                          <h5>Wähle Item-Typ</h5>
+                          <button class="cancel-btn" (click)="cancelAddingLootItem()">✕</button>
+                        </div>
+                        <div class="type-selector">
+                          <button class="type-btn" (click)="selectLootItemType('item')">📦 Item</button>
+                          <button class="type-btn" (click)="selectLootItemType('rune')">🔮 Rune</button>
+                          <button class="type-btn" (click)="selectLootItemType('spell')">✨ Spell</button>
+                          <button class="type-btn" (click)="selectLootItemType('skill')">⚔️ Skill</button>
+                          <button class="type-btn" (click)="selectLootItemType('status-effect')">💫 Status</button>
+                          <button class="type-btn" (click)="selectLootItemType('currency')">💰 Währung</button>
+                        </div>
+                      } @else {
+                        <!-- Step 2: Select Item or Configure Currency -->
+                        <div class="creator-header">
+                          <h5>Loot Item konfigurieren</h5>
+                          <button class="cancel-btn" (click)="cancelAddingLootItem()">✕</button>
+                        </div>
+
+                        @if (selectedLootItemType() === 'currency') {
+                          <!-- Currency Configuration -->
+                          <div class="form-group">
+                            <label>Währung:</label>
+                            <div class="currency-inputs">
+                              <input type="number" [(ngModel)]="$any(editingLootItemData()!.data).platinum" min="0" placeholder="0" />
+                              <span>p</span>
+                              <input type="number" [(ngModel)]="$any(editingLootItemData()!.data).gold" min="0" placeholder="0" />
+                              <span>g</span>
+                              <input type="number" [(ngModel)]="$any(editingLootItemData()!.data).silver" min="0" placeholder="0" />
+                              <span>s</span>
+                              <input type="number" [(ngModel)]="$any(editingLootItemData()!.data).copper" min="0" placeholder="0" />
+                              <span>c</span>
+                            </div>
+                          </div>
+
+                          <div class="editor-actions">
+                            <button class="save-btn" (click)="saveLootItemToBundle()">💾 Item hinzufügen</button>
+                            <button class="cancel-btn" (click)="cancelAddingLootItem()">✕ Abbrechen</button>
+                          </div>
+                        } @else {
+                          <!-- Item Selection -->
+                          <div class="form-group">
+                            <label>{{ selectedLootItemType() === 'item' ? 'Item' : selectedLootItemType() === 'rune' ? 'Rune' : selectedLootItemType() === 'spell' ? 'Zauber' : selectedLootItemType() === 'skill' ? 'Fertigkeit' : 'Status-Effekt' }} auswählen:</label>
+                            <select class="item-selector" (change)="onLootItemSelected($event)">
+                              <option value="">-- Auswählen --</option>
+                              @if (selectedLootItemType() === 'item') {
+                                @for (item of availableItems(); track item.id) {
+                                  <option [selected]="selectedLootItemId() === item.id">{{ item.name }}</option>
+                                }
+                              }
+                              @if (selectedLootItemType() === 'rune') {
+                                @for (rune of availableRunes(); track rune.id) {
+                                  <option [selected]="selectedLootItemId() === rune.id">{{ rune.name }}</option>
+                                }
+                              }
+                              @if (selectedLootItemType() === 'spell') {
+                                @for (spell of availableSpells(); track spell.id) {
+                                  <option [selected]="selectedLootItemId() === spell.id">{{ spell.name }}</option>
+                                }
+                              }
+                              @if (selectedLootItemType() === 'skill') {
+                                @for (skill of availableSkills(); track skill.id) {
+                                  <option [selected]="selectedLootItemId() === skill.id">{{ skill.name }}</option>
+                                }
+                              }
+                              @if (selectedLootItemType() === 'status-effect') {
+                                @for (status of availableStatusEffects(); track status.id) {
+                                  <option [selected]="selectedLootItemId() === status.id">{{ status.name }}</option>
+                                }
+                              }
+                            </select>
+                          </div>
+
+                          @if (selectedLootItemId()) {
+                            <div class="editor-actions">
+                              <button class="save-btn" (click)="saveLootItemToBundle()">💾 Item hinzufügen</button>
+                              <button class="cancel-btn" (click)="cancelAddingLootItem()">✕ Abbrechen</button>
+                            </div>
+                          }
+                        }
+                      }
+                    </div>
+                  }
+
+                  <!-- Existing Loot Items List -->
+                  @if (editingFile()!.data.items && editingFile()!.data.items.length > 0) {
+                    <div class="loot-list">
+                      @for (lootItem of editingFile()!.data.items; track lootItem.id) {
+                        <div class="loot-item-card">
+                          <div class="loot-item-info">
+                            <span class="loot-icon">{{ getLootItemIcon(lootItem) }}</span>
+                            <div class="loot-details">
+                              <span class="loot-name">{{ getLootItemName(lootItem) }}</span>
+                              <span class="loot-type">{{ lootItem.type }}</span>
+                            </div>
+                          </div>
+                          <button class="icon-btn delete" (click)="removeLootItemFromBundle(lootItem.id)" title="Entfernen">✕</button>
+                        </div>
+                      }
+                    </div>
+                  } @else if (!addingLootToBundle()) {
+                    <p class="empty-hint">Keine Items vorhanden. Klicke auf "+ Item" um eines hinzuzufügen.</p>
+                  }
                 </div>
+
                 <div class="editor-actions">
                   <button class="save-btn" (click)="saveEditor(editingFile()!.data)">✓ Speichern</button>
                   <button class="cancel-btn" (click)="closeEditor()">✕ Abbrechen</button>

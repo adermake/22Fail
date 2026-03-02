@@ -35,6 +35,10 @@ import { SpellBlock } from '../model/spell-block-model';
 import { SkillBlock } from '../model/skill-block.model';
 import { StatusEffect, createEmptyStatusEffect } from '../model/status-effect.model';
 import { MacroAction, createEmptyMacroAction } from '../model/macro-action.model';
+import { 
+  ShopEvent, ShopDeal, LootBundleEvent, LootItem, 
+  createEmptyShopDeal, Currency 
+} from '../model/current-events.model';
 
 // Editor Components
 import { ItemEditorComponent } from '../sheet/item-editor/item-editor.component';
@@ -116,6 +120,18 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
   showLibrarySettings = signal(false);
   allLibraries = signal<AssetLibrary[]>([]);
 
+  // Shop/Deal editing state
+  addingDealToShop = signal<string | null>(null); // shopId currently adding deal to
+  editingDealData = signal<Partial<ShopDeal> | null>(null);
+  selectedDealItemType = signal<'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | null>(null);
+  selectedDealItemId = signal<string | null>(null);
+
+  // Loot Bundle editing state
+  addingLootToBundle = signal<string | null>(null); // bundleId currently adding loot to
+  editingLootItemData = signal<Partial<LootItem> | null>(null);
+  selectedLootItemType = signal<'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'currency' | null>(null);
+  selectedLootItemId = signal<string | null>(null);
+
   // Drag and drop state
   isDragging = signal(false);
   draggedIds = signal<Set<string>>(new Set());
@@ -144,6 +160,7 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
       if (id) {
         this.libraryId.set(id);
         await this.loadLibrary();
+        await this.loadDependencyItems(); // Load items from dependencies
         await this.loadFolderContents();
         await this.loadAllFolders();
       }
@@ -264,6 +281,7 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
         dependencies: lib.dependencies
       }));
       this.library.set(updated);
+      await this.loadDependencyItems(); // Reload items when dependencies change
       console.log('Library settings saved successfully');
     } catch (error) {
       console.error('Failed to save library settings:', error);
@@ -275,6 +293,61 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
     const lib = this.library();
     if (!lib) return;
     lib.tags = value.split(',').map(t => t.trim()).filter(t => t.length > 0);
+  }
+
+  // ==================== DEPENDENCY ITEM LOADING ====================
+
+  dependencyLibraries = computed(() => {
+    const lib = this.library();
+    const allLibs = this.allLibraries();
+    if (!lib || !lib.dependencies || lib.dependencies.length === 0) return [];
+    return allLibs.filter(l => lib.dependencies!.includes(l.id));
+  });
+
+  availableItems = signal<AssetFile[]>([]);
+  availableRunes = signal<AssetFile[]>([]);
+  availableSpells = signal<AssetFile[]>([]);
+  availableSkills = signal<AssetFile[]>([]);
+  availableStatusEffects = signal<AssetFile[]>([]);
+
+  async loadDependencyItems(): Promise<void> {
+    const lib = this.library();
+    if (!lib) return;
+
+    try {
+      // Get items from current library and all dependencies
+      const libraryIds = [lib.id, ...(lib.dependencies || [])];
+      
+      // Load all item types in parallel
+      const [items, runes, spells, skills, statusEffects] = await Promise.all([
+        this.loadItemsByType(libraryIds, 'item'),
+        this.loadItemsByType(libraryIds, 'rune'),
+        this.loadItemsByType(libraryIds, 'spell'),
+        this.loadItemsByType(libraryIds, 'skill'),
+        this.loadItemsByType(libraryIds, 'status-effect')
+      ]);
+
+      this.availableItems.set(items);
+      this.availableRunes.set(runes);
+      this.availableSpells.set(spells);
+      this.availableSkills.set(skills);
+      this.availableStatusEffects.set(statusEffects);
+    } catch (error) {
+      console.error('Failed to load dependency items:', error);
+    }
+  }
+
+  private async loadItemsByType(libraryIds: string[], type: AssetType): Promise<AssetFile[]> {
+    const results: AssetFile[] = [];
+    for (const libId of libraryIds) {
+      try {
+        const files = await firstValueFrom(this.api.searchFiles(libId, '', [type]));
+        results.push(...files);
+      } catch (error) {
+        console.error(`Failed to load ${type} from library ${libId}:`, error);
+      }
+    }
+    return results;
   }
 
   async loadFolderContents(): Promise<void> {
@@ -712,6 +785,275 @@ export class AssetBrowserComponent implements OnInit, OnDestroy {
       this.closeEditor();
     } catch (error) {
       console.error('Save failed:', error);
+    }
+  }
+
+  // ==================== SHOP DEAL MANAGEMENT ====================
+
+  startAddingDealToShop(): void {
+    const file = this.editingFile();
+    if (!file || file.type !== 'shop') return;
+    
+    this.addingDealToShop.set(file.id);
+    this.editingDealData.set(null);
+    this.selectedDealItemType.set(null);
+    this.selectedDealItemId.set(null);
+  }
+
+  selectDealItemType(type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'): void {
+    this.selectedDealItemType.set(type);
+    this.selectedDealItemId.set(null);
+    
+    // Initialize deal data with empty price
+    this.editingDealData.set({
+      ...createEmptyShopDeal(),
+      name: 'Neuer Deal',
+      price: { copper: 0, silver: 0, gold: 0, platinum: 0 }
+    });
+  }
+
+  selectDealItem(itemFile: AssetFile): void {
+    this.selectedDealItemId.set(itemFile.id);
+    const deal = this.editingDealData();
+    if (!deal) return;
+
+    // Set item data based on type
+    const type = this.selectedDealItemType();
+    switch (type) {
+      case 'item':
+        deal.item = itemFile.data;
+        deal.name = itemFile.data.name || itemFile.name;
+        break;
+      case 'rune':
+        deal.rune = itemFile.data;
+        deal.name = itemFile.data.name || itemFile.name;
+        break;
+      case 'spell':
+        deal.spell = itemFile.data;
+        deal.name = itemFile.data.name || itemFile.name;
+        break;
+      case 'skill':
+        deal.skill = itemFile.data;
+        deal.name = itemFile.data.name || itemFile.name;
+        break;
+      case 'status-effect':
+        deal.statusEffect = itemFile.data;
+        deal.name = itemFile.data.name || itemFile.name;
+        break;
+    }
+    this.editingDealData.set({ ...deal });
+  }
+
+  onDealItemSelected(event: Event): void {
+    const selectElement = event.target as HTMLSelectElement;
+    const selectedIndex = selectElement.selectedIndex - 1; // -1 for placeholder option
+    if (selectedIndex < 0) return;
+
+    const type = this.selectedDealItemType();
+    let itemFile: AssetFile | undefined;
+    
+    switch (type) {
+      case 'item':
+        itemFile = this.availableItems()[selectedIndex];
+        break;
+      case 'rune':
+        itemFile = this.availableRunes()[selectedIndex];
+        break;
+      case 'spell':
+        itemFile = this.availableSpells()[selectedIndex];
+        break;
+      case 'skill':
+        itemFile = this.availableSkills()[selectedIndex];
+        break;
+      case 'status-effect':
+        itemFile = this.availableStatusEffects()[selectedIndex];
+        break;
+    }
+
+    if (itemFile) {
+      this.selectDealItem(itemFile);
+    }
+  }
+
+  async saveDealToShop(): Promise<void> {
+    const file = this.editingFile();
+    const deal = this.editingDealData();
+    if (!file || !deal || file.type !== 'shop') return;
+
+    const shopData = file.data as ShopEvent;
+    if (!shopData.deals) shopData.deals = [];
+    
+    // Add final ID if missing
+    if (!deal.id) {
+      deal.id = `deal_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    }
+    
+    shopData.deals.push(deal as ShopDeal);
+    
+    // Save to backend
+    await this.saveEditor(shopData);
+    
+    // Reset state
+    this.cancelAddingDeal();
+  }
+
+  removeDealFromShop(dealId: string): void {
+    const file = this.editingFile();
+    if (!file || file.type !== 'shop') return;
+
+    const shopData = file.data as ShopEvent;
+    shopData.deals = shopData.deals.filter(d => d.id !== dealId);
+  }
+
+  cancelAddingDeal(): void {
+    this.addingDealToShop.set(null);
+    this.editingDealData.set(null);
+    this.selectedDealItemType.set(null);
+    this.selectedDealItemId.set(null);
+  }
+
+  getDealItemName(deal: ShopDeal): string {
+    return deal.item?.name || deal.rune?.name || deal.spell?.name || 
+           deal.skill?.name || deal.statusEffect?.name || deal.name;
+  }
+
+  getDealItemIcon(deal: ShopDeal): string {
+    if (deal.item) return getAssetTypeIcon('item');
+    if (deal.rune) return getAssetTypeIcon('rune');
+    if (deal.spell) return getAssetTypeIcon('spell');
+    if (deal.skill) return getAssetTypeIcon('skill');
+    if (deal.statusEffect) return getAssetTypeIcon('status-effect');
+    return '💼';
+  }
+
+  formatCurrency(currency: Currency): string {
+    const parts: string[] = [];
+    if (currency.platinum > 0) parts.push(`${currency.platinum}p`);
+    if (currency.gold > 0) parts.push(`${currency.gold}g`);
+    if (currency.silver > 0) parts.push(`${currency.silver}s`);
+    if (currency.copper > 0) parts.push(`${currency.copper}c`);
+    return parts.length > 0 ? parts.join(' ') : '0c';
+  }
+
+  // ==================== LOOT BUNDLE MANAGEMENT ====================
+
+  startAddingLootToBundle(): void {
+    const file = this.editingFile();
+    if (!file || file.type !== 'loot-bundle') return;
+    
+    this.addingLootToBundle.set(file.id);
+    this.editingLootItemData.set(null);
+    this.selectedLootItemType.set(null);
+    this.selectedLootItemId.set(null);
+  }
+
+  selectLootItemType(type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'currency'): void {
+    this.selectedLootItemType.set(type);
+    this.selectedLootItemId.set(null);
+    
+    if (type === 'currency') {
+      // Initialize with empty currency
+      this.editingLootItemData.set({
+        id: `loot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        type: 'currency',
+        data: { copper: 0, silver: 0, gold: 0, platinum: 0 }
+      });
+    } else {
+      this.editingLootItemData.set({
+        id: `loot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        type: type
+      });
+    }
+  }
+
+  selectLootItem(itemFile: AssetFile): void {
+    this.selectedLootItemId.set(itemFile.id);
+    const lootItem = this.editingLootItemData();
+    if (!lootItem) return;
+
+    lootItem.data = itemFile.data;
+    this.editingLootItemData.set({ ...lootItem });
+  }
+
+  onLootItemSelected(event: Event): void {
+    const selectElement = event.target as HTMLSelectElement;
+    const selectedIndex = selectElement.selectedIndex - 1; // -1 for placeholder option
+    if (selectedIndex < 0) return;
+
+    const type = this.selectedLootItemType();
+    let itemFile: AssetFile | undefined;
+    
+    switch (type) {
+      case 'item':
+        itemFile = this.availableItems()[selectedIndex];
+        break;
+      case 'rune':
+        itemFile = this.availableRunes()[selectedIndex];
+        break;
+      case 'spell':
+        itemFile = this.availableSpells()[selectedIndex];
+        break;
+      case 'skill':
+        itemFile = this.availableSkills()[selectedIndex];
+        break;
+      case 'status-effect':
+        itemFile = this.availableStatusEffects()[selectedIndex];
+        break;
+    }
+
+    if (itemFile) {
+      this.selectLootItem(itemFile);
+    }
+  }
+
+  async saveLootItemToBundle(): Promise<void> {
+    const file = this.editingFile();
+    const lootItem = this.editingLootItemData();
+    if (!file || !lootItem || file.type !== 'loot-bundle') return;
+
+    const bundleData = file.data as LootBundleEvent;
+    if (!bundleData.items) bundleData.items = [];
+    
+    bundleData.items.push(lootItem as LootItem);
+    
+    // Save to backend
+    await this.saveEditor(bundleData);
+    
+    // Reset state
+    this.cancelAddingLootItem();
+  }
+
+  removeLootItemFromBundle(lootItemId: string): void {
+    const file = this.editingFile();
+    if (!file || file.type !== 'loot-bundle') return;
+
+    const bundleData = file.data as LootBundleEvent;
+    bundleData.items = bundleData.items.filter(i => i.id !== lootItemId);
+  }
+
+  cancelAddingLootItem(): void {
+    this.addingLootToBundle.set(null);
+    this.editingLootItemData.set(null);
+    this.selectedLootItemType.set(null);
+    this.selectedLootItemId.set(null);
+  }
+
+  getLootItemName(lootItem: LootItem): string {
+    if (lootItem.type === 'currency') {
+      return this.formatCurrency(lootItem.data as Currency);
+    }
+    return (lootItem.data as any)?.name || 'Unnamed';
+  }
+
+  getLootItemIcon(lootItem: LootItem): string {
+    switch (lootItem.type) {
+      case 'item': return getAssetTypeIcon('item');
+      case 'rune': return getAssetTypeIcon('rune');
+      case 'spell': return getAssetTypeIcon('spell');
+      case 'skill': return getAssetTypeIcon('skill');
+      case 'status-effect': return getAssetTypeIcon('status-effect');
+      case 'currency': return '💰';
+      default: return '❓';
     }
   }
 
