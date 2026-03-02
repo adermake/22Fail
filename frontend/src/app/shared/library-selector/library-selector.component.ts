@@ -75,7 +75,7 @@ import { Router } from '@angular/router';
                       </div>
                     </div>
                     <div class="library-buttons">
-                      <button class="icon-btn edit-btn" (click)="editLibrary(library.name)" title="Edit Library">
+                      <button class="icon-btn edit-btn" (click)="editLibrary(library.id)" title="Edit Library">
                         ✏️
                       </button>
                       <button class="icon-btn remove-btn" (click)="remove(library.id)" title="Unlink Library">
@@ -119,7 +119,7 @@ import { Router } from '@angular/router';
                       </div>
                     </div>
                     <div class="library-buttons">
-                      <button class="icon-btn edit-btn" (click)="editLibrary(library.name)" title="Edit Library">
+                      <button class="icon-btn edit-btn" (click)="editLibrary(library.id)" title="Edit Library">
                         ✏️
                       </button>
                       <button class="icon-btn add-btn" (click)="add(library.id)" title="Link Library">
@@ -566,8 +566,8 @@ export class LibrarySelectorComponent implements OnInit {
     }
   }
 
-  editLibrary(libraryName: string) {
-    this.router.navigate(['/library', libraryName]);
+  editLibrary(libraryId: string) {
+    this.router.navigate(['/library', libraryId]);
     this.closeModal();
   }
 
