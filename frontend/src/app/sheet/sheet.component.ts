@@ -28,6 +28,7 @@ import { CardComponent } from '../shared/card/card.component';
 import { CharacterTabsComponent } from './character-tabs/character-tabs';
 import { SkillTreeComponent } from './skill-tree/skill-tree.component';
 import { BackstoryComponent } from './backstory/backstory.component';
+import { JsonPatch } from '../model/json-patch.model';
 import { FormulaType } from '../model/formula-type.enum';
 import { StatusBlock } from '../model/status-block.model';
 import { CurrentEvent, LootBundleEvent } from '../model/current-events.model';
@@ -292,7 +293,7 @@ export class SheetComponent implements OnInit {
     // Listen for character patches from DM (items, skills, etc.)
     this.socket.patches$.subscribe((data) => {
       this.ngZone.run(() => {
-        const sheet = this.store.sheet();
+        const sheet = this.store.sheetValue;
         if (sheet && data.characterId === id) {
           // Apply patch to local sheet
           this.applyJsonPatch(sheet, data.patch);
