@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -22,6 +22,7 @@ import { SpellComponent } from '../sheet/spell/spell.component';
 import { SpellEditorComponent } from '../shared/spell-editor/spell-editor.component';
 import { SkillComponent } from '../sheet/skill/skill.component';
 import { SkillEditorComponent } from '../shared/skill-editor/skill-editor.component';
+import { ContextMenuComponent, ContextMenuItem } from '../shared/context-menu/context-menu.component';
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 
 @Component({
@@ -37,7 +38,8 @@ import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model
     SpellComponent,
     SpellEditorComponent,
     SkillComponent,
-    SkillEditorComponent
+    SkillEditorComponent,
+    ContextMenuComponent
   ],
   templateUrl: './library.component.html',
   styleUrl: './library.component.css'
@@ -46,6 +48,8 @@ export class LibraryComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   store = inject(LibraryStoreService);
+
+  @ViewChild(ContextMenuComponent) contextMenu?: ContextMenuComponent;
 
   libraryId = signal<string>('');
   library = signal<Library | null>(null);
@@ -65,6 +69,10 @@ export class LibraryComponent implements OnInit, OnDestroy {
   editingRunes = signal<Set<number>>(new Set());
   editingSpells = signal<Set<number>>(new Set());
   editingSkills = signal<Set<number>>(new Set());
+  
+  // Context menu state
+  private contextMenuType: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'macro' | 'shop' | 'loot-bundle' | null = null;
+  private contextMenuIndex: number = -1;
   
   // Dummy sheet for item rendering
   dummySheet: CharacterSheet = createEmptySheet();
@@ -859,6 +867,240 @@ export class LibraryComponent implements OnInit, OnDestroy {
       return this.formatCurrency(lootItem.data);
     }
     return lootItem.data?.name || 'Unknown Item';
+  }
+
+  // Context Menu
+  onContextMenu(event: MouseEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'macro' | 'shop' | 'loot-bundle', index: number) {
+    event.preventDefault();
+    this.contextMenuType = type;
+    this.contextMenuIndex = index;
+
+    const menuItems: ContextMenuItem[] = [];
+
+    // Edit option
+    menuItems.push({
+      icon: '✏️',
+      label: 'Edit',
+      action: 'edit'
+    });
+
+    // Duplicate option
+    menuItems.push({
+      icon: '📋',
+      label: 'Duplicate',
+      action: 'duplicate'
+    });
+
+    // Divider
+    menuItems.push({ label: '', action: '', divider: true });
+
+    // Delete option
+    menuItems.push({
+      icon: '🗑️',
+      label: 'Delete',
+      action: 'delete'
+    });
+
+    this.contextMenu?.show(event.clientX, event.clientY, menuItems);
+  }
+
+  handleContextMenuAction(action: string) {
+    if (!this.contextMenuType || this.contextMenuIndex < 0) return;
+
+    const lib = this.library();
+    if (!lib) return;
+
+    const type = this.contextMenuType;
+    const index = this.contextMenuIndex;
+
+    switch (action) {
+      case 'edit':
+        this.editItem(type, index);
+        break;
+      case 'duplicate':
+        this.duplicateItem(type, index);
+        break;
+      case 'delete':
+        this.deleteItem(type, index);
+        break;
+    }
+  }
+
+  private editItem(type: string, index: number) {
+    switch (type) {
+      case 'item':
+        this.editingItemIndex.set(index);
+        break;
+      case 'rune':
+        this.editingRuneIndex.set(index);
+        break;
+      case 'spell':
+        this.editingSpellIndex.set(index);
+        break;
+      case 'skill':
+        this.editingSkillIndex.set(index);
+        break;
+      case 'status-effect':
+        this.editingStatusEffectIndex.set(index);
+        break;
+      case 'macro':
+        this.editingMacroIndex.set(index);
+        break;
+      case 'shop':
+        // For shops, set the editing index (you may need to add editingShopIndex if not present)
+        // Shops have inline editors already
+        break;
+      case 'loot-bundle':
+        // Similar for loot bundles
+        break;
+    }
+  }
+
+  private duplicateItem(type: string, index: number) {
+    const lib = this.library();
+    if (!lib) return;
+
+    switch (type) {
+      case 'item': {
+        const original = lib.items[index];
+        if (!original) return;
+        const copy: ItemBlock = JSON.parse(JSON.stringify(original));
+        copy.id = `item_${Date.now()}`;
+        copy.name = `${copy.name} (Copy)`;
+        this.store.addItem(copy);
+        break;
+      }
+      case 'rune': {
+        const original = lib.runes[index];
+        if (!original) return;
+        const copy: RuneBlock = JSON.parse(JSON.stringify(original));
+        copy.name = `${copy.name} (Copy)`;
+        this.store.addRune(copy);
+        break;
+      }
+      case 'spell': {
+        const original = lib.spells[index];
+        if (!original) return;
+        const copy: SpellBlock = JSON.parse(JSON.stringify(original));
+        copy.name = `${copy.name} (Copy)`;
+        this.store.addSpell(copy);
+        break;
+      }
+      case 'skill': {
+        const original = lib.skills[index];
+        if (!original) return;
+        const copy: SkillBlock = JSON.parse(JSON.stringify(original));
+        copy.name = `${copy.name} (Copy)`;
+        this.store.addSkill(copy);
+        break;
+      }
+      case 'status-effect': {
+        const original = lib.statusEffects[index];
+        if (!original) return;
+        const copy: StatusEffect = JSON.parse(JSON.stringify(original));
+        copy.id = `status_${Date.now()}`;
+        copy.name = `${copy.name} (Copy)`;
+        this.store.addStatusEffect(copy);
+        break;
+      }
+      case 'macro': {
+        const original = lib.macroActions[index];
+        if (!original) return;
+        const copy: MacroAction = JSON.parse(JSON.stringify(original));
+        copy.id = `macro_${Date.now()}`;
+        copy.name = `${copy.name} (Copy)`;
+        this.store.addMacroAction(copy);
+        break;
+      }
+      case 'shop': {
+        const original = lib.shops[index];
+        if (!original) return;
+        const copy = JSON.parse(JSON.stringify(original));
+        copy.id = `shop_${Date.now()}`;
+        copy.name = `${copy.name} (Copy)`;
+        lib.shops.push(copy);
+        lib.updatedAt = Date.now();
+        this.library.set({ ...lib });
+        break;
+      }
+      case 'loot-bundle': {
+        const original = lib.lootBundles[index];
+        if (!original) return;
+        const copy = JSON.parse(JSON.stringify(original));
+        copy.id = `loot_${Date.now()}`;
+        copy.name = `${copy.name} (Copy)`;
+        lib.lootBundles.push(copy);
+        lib.updatedAt = Date.now();
+        this.library.set({ ...lib });
+        break;
+      }
+    }
+    this.saveLibrary();
+  }
+
+  private deleteItem(type: string, index: number) {
+    const lib = this.library();
+    if (!lib) return;
+
+    switch (type) {
+      case 'item': {
+        const item = lib.items[index];
+        if (item?.id) {
+          this.store.removeItem(item.id);
+        }
+        break;
+      }
+      case 'rune': {
+        const rune = lib.runes[index];
+        if (rune) {
+          this.store.removeRune(rune.name);
+        }
+        break;
+      }
+      case 'spell': {
+        const spell = lib.spells[index];
+        if (spell) {
+          this.store.removeSpell(spell.name);
+        }
+        break;
+      }
+      case 'skill': {
+        const skill = lib.skills[index];
+        if (skill) {
+          this.store.removeSkill(skill.name);
+        }
+        break;
+      }
+      case 'status-effect': {
+        const statusEffect = lib.statusEffects[index];
+        if (statusEffect?.id) {
+          this.store.removeStatusEffect(statusEffect.id);
+        }
+        break;
+      }
+      case 'macro': {
+        const macro = lib.macroActions[index];
+        if (macro?.id) {
+          this.store.removeMacroAction(macro.id);
+        }
+        break;
+      }
+      case 'shop': {
+        const shop = lib.shops[index];
+        if (shop?.id) {
+          this.store.removeShop(shop.id);
+        }
+        break;
+      }
+      case 'loot-bundle': {
+        const bundle = lib.lootBundles[index];
+        if (bundle?.id) {
+          this.store.removeLootBundle(bundle.id);
+        }
+        break;
+      }
+    }
+    this.saveLibrary();
   }
 
   // Navigation

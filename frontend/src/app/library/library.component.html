@@ -22,14 +22,14 @@
              placeholder="tag1, tag2, tag3" />
     </div>
     <div class="info-group">
-      <label>Dependencies:</label>
+      <label>🔗 Library Dependencies:</label>
       <div class="dependencies-selector">
         <select multiple [(ngModel)]="lib.dependencies" (change)="saveLibrary()" size="5" class="dependencies-select">
           @for (otherLib of availableLibrariesForDependencies(); track otherLib.id) {
             <option [value]="otherLib.id">{{ otherLib.name }}</option>
           }
         </select>
-        <div class="dependencies-help">Hold Ctrl to select multiple libraries</div>
+        <div class="dependencies-help">Hold Ctrl/Cmd to select multiple libraries. This library can access items from selected libraries.</div>
         @if (lib.dependencies && lib.dependencies.length > 0) {
           <div class="resolved-dependencies">
             <div class="resolved-header">Dependency Tree:</div>
@@ -89,7 +89,7 @@
         <button class="add-btn" (click)="addItem()">+ Add Item</button>
         <div class="items-grid">
           @for (item of filteredItems(); track item.id; let i = $index) {
-            <div class="item-wrapper">
+            <div class="item-wrapper" (contextmenu)="onContextMenu($event, 'item', i)">
               @if (editingItemIndex() === i) {
                 <app-item-editor
                   [item]="item"
@@ -123,7 +123,7 @@
         <button class="add-btn" (click)="addRune()">+ Add Rune</button>
         <div class="runes-grid">
           @for (rune of filteredRunes(); track rune.name; let i = $index) {
-            <div class="rune-wrapper">
+            <div class="rune-wrapper" (contextmenu)="onContextMenu($event, 'rune', i)">
               @if (editingRuneIndex() === i) {
                 <app-rune-editor
                   [rune]="rune"
@@ -155,7 +155,7 @@
         <button class="add-btn" (click)="addSpell()">+ Add Spell</button>
         <div class="spells-grid">
           @for (spell of filteredSpells(); track spell.name; let i = $index) {
-            <div class="spell-wrapper">
+            <div class="spell-wrapper" (contextmenu)="onContextMenu($event, 'spell', i)">
               @if (editingSpellIndex() === i) {
                 <app-spell-editor
                   [spell]="spell"
@@ -188,7 +188,7 @@
         <button class="add-btn" (click)="addSkill()">+ Add Skill</button>
         <div class="skills-grid">
           @for (skill of filteredSkills(); track skill.name; let i = $index) {
-            <div class="skill-wrapper">
+            <div class="skill-wrapper" (contextmenu)="onContextMenu($event, 'skill', i)">
               @if (editingSkillIndex() === i) {
                 <app-skill-editor
                   [skill]="skill"
@@ -221,7 +221,7 @@
         <button class="add-btn" (click)="addStatusEffect()">+ Add Status Effect</button>
         <div class="status-effects-grid">
           @for (statusEffect of filteredStatusEffects(); track statusEffect.id; let i = $index) {
-            <div class="status-effect-card">
+            <div class="status-effect-card" (contextmenu)="onContextMenu($event, 'status-effect', i)">
               <div class="status-effect-header">
                 <span class="status-icon">{{ statusEffect.icon || '💫' }}</span>
                 <h3>{{ statusEffect.name }}</h3>
@@ -253,7 +253,7 @@
         <button class="add-btn" (click)="addMacroAction()">+ Add Macro Action</button>
         <div class="macros-grid">
           @for (macro of filteredMacros(); track macro.id; let i = $index) {
-            <div class="macro-card">
+            <div class="macro-card" (contextmenu)="onContextMenu($event, 'macro', i)">
               <div class="macro-header">
                 <span class="macro-icon">{{ macro.icon || '⚡' }}</span>
                 <h3>{{ macro.name }}</h3>
@@ -281,7 +281,7 @@
         <button class="add-btn" (click)="addShop()">+ Add Shop</button>
         <div class="shops-grid">
           @for (shop of filteredShops(); track shop.id; let i = $index) {
-            <div class="shop-card">
+            <div class="shop-card" (contextmenu)="onContextMenu($event, 'shop', i)">
               <div class="shop-header">
                 <span class="shop-icon">🏪</span>
                 @if (editingShopId === shop.id) {
@@ -469,7 +469,7 @@
         <button class="add-btn" (click)="addLootBundle()">+ Add Loot Bundle</button>
         <div class="loot-bundles-grid">
           @for (bundle of filteredLootBundles(); track bundle.id; let i = $index) {
-            <div class="loot-bundle-card">
+            <div class="loot-bundle-card" (contextmenu)="onContextMenu($event, 'loot-bundle', i)">
               <div class="bundle-header">
                 <span class="bundle-icon">📦</span>
                 @if (editingBundleId === bundle.id) {
@@ -592,6 +592,9 @@
       </div>
     }
   </div>
+
+  <!-- Context Menu -->
+  <app-context-menu (itemSelected)="handleContextMenuAction($event)" />
 </div>
 } @else {
   <div class="loading">Loading library...</div>
