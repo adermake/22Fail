@@ -300,6 +300,15 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
+.bar-slider::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.bar-slider::-moz-range-track {
+  background: transparent;
+  height: 14px;
+  border-radius: 7px;
+}
+
 .counter-fill-bg, .durability-bar-fill, .bar-fill {
   position: absolute; top: 0; left: 0;
   height: 100%; border-radius: 7px;

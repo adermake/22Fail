@@ -144,16 +144,29 @@ app/
 - **Ausgeklappte Reihenfolge**: Beschreibung → Effekte → Stat-Boni → Würfelboni → Counter → Haltbarkeit → Anforderungen → Fähigkeiten
 
 ## Inventar-Komponente (`sheet/inventory/`)
-- **Grid-Layout**: CSS Grid, 4 Spalten (`grid-template-columns: repeat(4, 1fr)`). Feste Zellen — keine Verschiebung beim Draggen.
-- **Vorgefülltes Slot-Raster**: `get paddedSlots()` gibt immer `max(8, ceil((N+4)/4)*4)` Slots zurück. Items stehen vorne, leere Felder werden als `null` aufgefüllt. Neue Reihe erscheint automatisch, wenn die unterste Reihe belegt ist.
-- **Explizite Platzierung**: Jedes Slot-Div bekommt `[style.grid-column]="(i%4)+1"` und `[style.grid-row]="getItemGridRow(i)"`. Expansion-Rows `[style.grid-row]="getExpansionGridRow(i)"`.
-- **`getItemGridRow(i)`**: 1-basierte CSS-Reihe: `visualRow + Anzahl-Expansion-Rows-davor + 1`.
-- **Drag ohne Jitter**: `[cdkDropListSortingDisabled]="true"` — CDK verschiebt niemals Items während dem Drag. Placeholder bleibt unsichtbar.
-- **Exaktes Swap-Ziel via Pointer-Tracking**: `onDragMoved` nutzt `document.elementsFromPoint(x,y)` um das Element mit `[attr.data-slot-idx]` unter dem Zeiger zu finden. `dropTargetSlotIdx` wird laufend aktualisiert. `onDrop` liest `dragSourceSlotIdx` / `dropTargetSlotIdx` für präzisen Tausch in `paddedSlots`-Raum, dann Compaction (filter null).
-- **Fold-Tracking by Reference**: Nach Compact wird `unfoldedItems` via Item-Referenz-Vergleich neu gemappt (nicht Index).
-- **Drag-Target-Highlight**: `.drag-target` (Akzent-Ring + Lila-Tint) auf dem aktuell gehov­erten Slot (wenn nicht Quell-Slot).
-- **Unfolded-Item**: `.item-slot` zeigt `origin-chip` (Icon + Name + ▲-Button, dblclick = Einklappen). Expansion-Row (`grid-column: 1/-1`, `margin-top: -0.4rem`) darunter visuell verbunden. Expansion-`app-item` bekommt `[hideFoldControls]="true"`.
-- **item.component**: `@Input() hideFoldControls = false` — versteckt Fold-Button und blockiert `dblclick`. `@Input() set startUnfolded` — startet ausgeklappt.
+- **Grid-Layout**: CSS Grid, 4 Spalten. Dunkle Slot-Kacheln immer sichtbar — auch wenn ein Item drin liegt (Slot-Hintergrund zeigt durch).
+- **Inventar-Panel**: Dunkles `rgba(0,0,0,0.28)` Hintergrund + `inset`-Schatten für tiefen Inventar-Look. Jede Slot-Kachel: `rgba(0,0,0,0.32)` + `inset`-Schatten (sunken-box-Effekt).
+- **Vorgefülltes Slot-Raster**: `get paddedSlots()` gibt immer `max(8, ceil((N+4)/4)*4)` Slots zurück. Items stehen vorne, Leerstellen sind `null`. Neue Reihe erscheint wenn unterste Reihe voll.
+- **Explizite Platzierung**: `[style.grid-column]="(i%4)+1"` + `[style.grid-row]="getItemGridRow(i)"`. `getItemGridRow(i)` zählt Expansion-Rows davor (pro Row max. 1).
+- **Drag ohne Jitter**: `[cdkDropListSortingDisabled]="true"` — CDK verschiebt Items nie während Drag. Invisible placeholder hält Zelle stabil.
+- **Snap-back Fix**: Gleiche-Container-Swaps werden über `(cdkDragEnded)="onDragEnded($event)"` verarbeitet, NICHT über `cdkDropListDropped`. `onDragEnded` liest gespeicherte `dragSourceSlotIdx` / `dropTargetSlotIdx`, tauscht in `paddedSlots-Raum`, kompaktiert zu `sheet.inventory`.
+- **Cross-Container**: Equipment→Inventory läuft weiterhin via `onDrop`, setzt `crossContainerDropHandled=true` damit `onDragEnded` überspringt.
+- **Pointer-Tracking**: `onDragMoved` nutzt `document.elementsFromPoint` + `[attr.data-slot-idx]` für visuellen Drag-Target-Highlight.
+- **Tab-System für gleiche Reihe**: Mehrere ausgeklappte Items in derselben Grid-Row konkurrieren nicht — nur ein Expansion-Row pro Row, mit Tab-Leiste oben (`exp-tab`/`exp-tab.active`). `activeTabPerRow: Map<number,number>`. Klick auf Tab-Chip wechselt aktives Item.
+- **`get expansionRows()`**: Liefert `{row, activeIdx, unfolded[]}` pro Row mit mind. 1 unfolded Item. HTML iteriert dieses Getter für Expansion-Rows.
+- **Fold via Doppelklick**: Kein Dreieck-Button mehr. Doppelklick auf `origin-chip` klappt ein.
+- **`onFoldChange`**: Verwaltet `unfoldedItems` und `activeTabPerRow` synchron — beim Öffnen: aktiver Tab; beim Schließen: Tab zu anderem in gleicher Row switchen oder Row entfernen.
+- **item.component Extras**: `hideFoldControls=true` auf Expansion-App-Item. `startUnfolded=true` für direktes Anzeigen.
+
+## Equipment-Komponente (`sheet/equipment/`)
+- **Layout**: Vertikales Flex-Stack. Slot-Labels als CSS-Pill-Badges (HELM, BRUST, ARME, BEINE, STIEFEL, EXTRA).
+- **Drag-Placeholder**: `style="height:52px"` inline.
+
+## Item-Komponente (`sheet/item/`)
+- **Bars (Haltbarkeit + Counter)**: `.bar-track` → `.bar-fill` (absolut, z-index 1) + `.bar-slider` (range input, absolut, z-index 2, `background:transparent`). `bar-slider::-webkit-slider-runnable-track { background: transparent }` verhindert doppelten Browser-Track.
+- **Fold via Doppelklick**: `onCardDblClick` → `toggleFold()` (wenn `!hideFoldControls`).
+- **Slot-Tag**: `.tag-slot` für Rüstungsslot/Waffe.
+- **Kontextmenü**: Rechtsklick → Bearbeiten / Verloren / Löschen.
 
 ## Equipment-Komponente (`sheet/equipment/`)
 - **Layout**: Vertikales Flex-Stack (nicht 2-Spalten-Grid) — Items brauchen die volle Breite für Text

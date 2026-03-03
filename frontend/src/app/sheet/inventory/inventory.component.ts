@@ -4,7 +4,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CardComponent } from '../../shared/card/card.component';
-import { CdkDragDrop, CdkDragMove, CdkDragRelease, CdkDragStart, DragDropModule } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, CdkDragEnd, CdkDragMove, CdkDragStart, DragDropModule } from '@angular/cdk/drag-drop';
 import { ItemComponent } from '../item/item.component';
 import { ItemCreatorComponent } from '../item-creator/item-creator.component';
 import { ItemEditorComponent } from '../item-editor/item-editor.component';
@@ -49,13 +49,15 @@ export class InventoryComponent {
   editingItem: ItemBlock | null = null;
   private editingItems = new Set<number>();
   private unfoldedItems = new Set<number>();
-  placeholderHeight = '90px';
-  placeholderWidth = '100%';
-  /** Slot index of the item currently being dragged (for compact ghost) */
+  /** Which item index is the active tab per visual row (row = Math.floor(i/4)) */
+  private activeTabPerRow = new Map<number, number>();
+  /** Set when a cross-container drop was handled by onDrop, so onDragEnded skips same-container swap */
+  private crossContainerDropHandled = false;
+  /** Index of the item currently being dragged (for compact ghost rendering) */
   draggedIndex: number | null = null;
-  /** Slot index the user is currently dragging FROM */
+  /** Padded slot index the drag began from */
   dragSourceSlotIdx: number | null = null;
-  /** Slot index the pointer is currently hovering over */
+  /** Padded slot index the pointer is currently hovering over */
   dropTargetSlotIdx: number | null = null;
 
   /**
@@ -68,6 +70,26 @@ export class InventoryComponent {
     const result: (ItemBlock | null)[] = new Array(slotCount).fill(null);
     inv.forEach((item, i) => { result[i] = item; });
     return result;
+  }
+
+  /**
+   * One entry per visual row that has at least one unfolded item.
+   * Used to render a single expansion-row per grid row (with tabs when multiple).
+   */
+  get expansionRows(): { row: number; activeIdx: number; unfolded: number[] }[] {
+    const rowMap = new Map<number, number[]>();
+    for (const idx of this.unfoldedItems) {
+      const row = Math.floor(idx / 4);
+      if (!rowMap.has(row)) rowMap.set(row, []);
+      rowMap.get(row)!.push(idx);
+    }
+    return [...rowMap.entries()]
+      .map(([row, unfolded]) => ({
+        row,
+        activeIdx: this.activeTabPerRow.get(row) ?? unfolded[0],
+        unfolded: [...unfolded].sort((a, b) => a - b),
+      }))
+      .sort((a, b) => a.row - b.row);
   }
 
   // Connected drop lists - only connect to equipment if it exists
@@ -260,7 +282,7 @@ getCurrencyWeight(): number {
   }
 
   onDragMoved(event: CdkDragMove) {
-    // Find which slot cell the pointer is currently over
+    // Track which slot is currently under the pointer for visual highlight + drop target
     const els = document.elementsFromPoint(
       event.pointerPosition.x,
       event.pointerPosition.y
@@ -276,90 +298,90 @@ getCurrencyWeight(): number {
     }
   }
 
-  onDragReleased(event: CdkDragRelease) {
-    // Clear state — onDrop fires before this when dropped on a valid target.
-    // If released outside any slot, reset.
+  /**
+   * Fires when the drag ends (pointer released).
+   * Handles same-container swaps. Cross-container drops are handled by onDrop.
+   */
+  onDragEnded(event: CdkDragEnd) {
+    const src = this.dragSourceSlotIdx;
+    const tgt = this.dropTargetSlotIdx;
     this.draggedIndex = null;
     this.dragSourceSlotIdx = null;
     this.dropTargetSlotIdx = null;
-  }
 
-onDrop(event: CdkDragDrop<ItemBlock[]>) {
-  // Save and clear tracking state before any mutations
-  const savedSrc = this.dragSourceSlotIdx;
-  const savedTgt = this.dropTargetSlotIdx;
-  this.draggedIndex = null;
-  this.dragSourceSlotIdx = null;
-  this.dropTargetSlotIdx = null;
+    if (this.crossContainerDropHandled) {
+      this.crossContainerDropHandled = false;
+      return;
+    }
 
-  if (event.previousContainer === event.container) {
-    // Intra-inventory swap
-    const src = savedSrc ?? event.previousIndex;
-    const tgt = savedTgt ?? event.currentIndex;
-    if (src === tgt) return;
+    if (src === null || tgt === null || src === tgt) return;
 
-    // Work in padded slot space so empty slots participate in swaps
-    const padded = this.paddedSlots; // fresh copy
-    const srcItem = padded[src];
-    const tgtItem = padded[tgt];
-    // Swap
-    padded[src] = tgtItem;
-    padded[tgt] = srcItem;
-
-    // Track which item REFERENCES were unfolded before the swap
+    // Swap in padded slot space, then compact to inventory
+    const padded = this.paddedSlots;
     const unfoldedRefs = new Set(
-      [...this.unfoldedItems]
-        .map(idx => this.sheet.inventory[idx])
-        .filter(Boolean)
+      [...this.unfoldedItems].map(i => this.sheet.inventory[i]).filter(Boolean)
     );
-
-    // Compact: remove nulls — items pack to front
+    [padded[src], padded[tgt]] = [padded[tgt], padded[src]];
     const newInv = padded.filter((x): x is ItemBlock => x !== null);
     this.sheet.inventory = newInv;
 
-    // Re-map unfolded indices by item reference
     const newUnfolded = new Set<number>();
     newInv.forEach((item, idx) => {
       if (unfoldedRefs.has(item)) newUnfolded.add(idx);
     });
     this.unfoldedItems = newUnfolded;
 
+    // Rebuild activeTabPerRow from new indices
+    const newTabPerRow = new Map<number, number>();
+    this.activeTabPerRow.forEach((oldActiveIdx, row) => {
+      const newActiveItem = this.sheet.inventory.find(
+        (_, ni) => unfoldedRefs.has(newInv[ni]) && Math.floor(ni / 4) === row
+      );
+      const newActiveIdx = newInv.indexOf(newActiveItem!);
+      if (newActiveIdx !== -1) newTabPerRow.set(row, newActiveIdx);
+    });
+    this.activeTabPerRow = newTabPerRow;
+
     this.patch.emit({ path: 'inventory', value: newInv });
-
-  } else {
-    // Equipment → inventory drop
-    const item = event.previousContainer.data[event.previousIndex];
-    const tgtSlot = savedTgt ?? event.currentIndex;
-
-    const padded = this.paddedSlots;
-    const existingItem = padded[tgtSlot] ?? null;
-
-    if (existingItem) {
-      // Swap: existing inventory item goes back to the equipment slot
-      const newEquipment = [...(this.sheet.equipment || [])];
-      const equipSrcIdx = newEquipment.indexOf(item);
-      if (equipSrcIdx !== -1) {
-        newEquipment[equipSrcIdx] = existingItem;
-      } else {
-        newEquipment.push(existingItem);
-      }
-      padded[tgtSlot] = item;
-      // Compact: remove nulls and the displaced item (now in equipment)
-      const compacted: ItemBlock[] = padded
-        .filter((x): x is ItemBlock => x !== null && x !== existingItem);
-      this.sheet.inventory = compacted;
-      this.sheet.equipment = newEquipment;
-      this.patch.emit({ path: 'equipment', value: newEquipment });
-    } else {
-      // Empty target slot: just append to inventory
-      const newInv = [...(this.sheet.inventory || []), item];
-      this.sheet.inventory = newInv;
-      this.sheet.equipment = (this.sheet.equipment || []).filter(e => e !== item);
-      this.patch.emit({ path: 'equipment', value: this.sheet.equipment });
-    }
-    this.unfoldedItems.clear();
-    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
   }
+
+onDrop(event: CdkDragDrop<ItemBlock[]>) {
+  // Same-container drops are handled by onDragEnded — skip here
+  if (event.previousContainer === event.container) return;
+
+  this.crossContainerDropHandled = true;
+
+  // Equipment → inventory cross-container drop
+  const item = event.previousContainer.data[event.previousIndex];
+  const tgtSlot = this.dropTargetSlotIdx ?? event.currentIndex;
+
+  const padded = this.paddedSlots;
+  const existingItem = tgtSlot < padded.length ? (padded[tgtSlot] ?? null) : null;
+
+  if (existingItem) {
+    // Swap: existing inventory item returns to the source equipment slot
+    const newEquipment = [...(this.sheet.equipment || [])];
+    const equipSrcIdx = newEquipment.indexOf(item);
+    if (equipSrcIdx !== -1) {
+      newEquipment[equipSrcIdx] = existingItem;
+    } else {
+      newEquipment.push(existingItem);
+    }
+    padded[tgtSlot] = item;
+    const compacted = padded.filter((x): x is ItemBlock => x !== null && x !== existingItem);
+    this.sheet.inventory = compacted;
+    this.sheet.equipment = newEquipment;
+    this.patch.emit({ path: 'equipment', value: newEquipment });
+  } else {
+    // Empty target slot: append to inventory
+    const newInv = [...(this.sheet.inventory || []), item];
+    this.sheet.inventory = newInv;
+    this.sheet.equipment = (this.sheet.equipment || []).filter(e => e !== item);
+    this.patch.emit({ path: 'equipment', value: this.sheet.equipment });
+  }
+  this.unfoldedItems.clear();
+  this.activeTabPerRow.clear();
+  this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
 }
 
   onEditingChange(index: number, isEditing: boolean) {
@@ -403,12 +425,32 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
     return this.getItemGridRow(i) + 1;
   }
 
+  /** CSS grid-row for the expansion row belonging to a given visual row index. */
+  getExpansionGridRowForVisualRow(visualRow: number): number {
+    return this.getItemGridRow(visualRow * 4) + 1;
+  }
+
   onFoldChange(index: number, isFolded: boolean) {
+    const row = Math.floor(index / 4);
     if (isFolded) {
       this.unfoldedItems.delete(index);
+      // If this was the active tab, switch to another in the same row
+      if (this.activeTabPerRow.get(row) === index) {
+        const others = [...this.unfoldedItems].filter(j => Math.floor(j / 4) === row);
+        if (others.length > 0) {
+          this.activeTabPerRow.set(row, others[0]);
+        } else {
+          this.activeTabPerRow.delete(row);
+        }
+      }
     } else {
       this.unfoldedItems.add(index);
+      this.activeTabPerRow.set(row, index); // newly opened becomes the active tab
     }
+  }
+
+  setActiveTab(row: number, idx: number) {
+    this.activeTabPerRow.set(row, idx);
   }
 
   // Open full-screen item editor

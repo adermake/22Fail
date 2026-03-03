@@ -55,18 +55,14 @@
              [cdkDragDisabled]="isItemEditing(i)"
              (cdkDragStarted)="onDragStarted($event, i)"
              (cdkDragMoved)="onDragMoved($event)"
-             (cdkDragReleased)="onDragReleased($event)">
+             (cdkDragEnded)="onDragEnded($event)">
 
           @if (isItemUnfolded(i)) {
-            <!-- Origin chip: home marker + fold-up button; dblclick closes tab -->
+            <!-- Origin chip: double-click to fold -->
             <div class="origin-chip"
                  (dblclick)="onFoldChange(i, true); $event.stopPropagation()">
               <span class="origin-chip-icon">{{ slot.itemType === 'weapon' ? '⚔' : slot.itemType === 'armor' ? '🛡' : '📦' }}</span>
               <span class="origin-chip-name">{{ slot.name }}</span>
-              <button class="origin-fold-btn"
-                      (click)="onFoldChange(i, true); $event.stopPropagation()"
-                      (mousedown)="$event.stopPropagation()"
-                      title="Einklappen">▲</button>
             </div>
           } @else {
             <app-item
@@ -84,7 +80,7 @@
             ></app-item>
           }
 
-          <!-- Custom drag preview chip (snaps to cursor) -->
+          <!-- Custom drag preview chip -->
           <ng-template cdkDragPreview>
             <div class="drag-chip">
               <span class="drag-chip-icon">{{ slot.itemType === 'weapon' ? '⚔' : slot.itemType === 'armor' ? '🛡' : '📦' }}</span>
@@ -95,30 +91,8 @@
           <!-- Invisible placeholder keeps grid cell stable -->
           <div class="drag-placeholder-wrapper" *cdkDragPlaceholder></div>
         </div>
-
-        <!-- Expansion row: full-width, placed directly below chip-row -->
-        @if (isItemUnfolded(i)) {
-          <div class="expansion-row"
-               [style.grid-row]="getExpansionGridRow(i)"
-               [style.--chip-col]="i % 4">
-            <app-item
-              [item]="slot"
-              [sheet]="sheet"
-              [index]="i"
-              [isEditing]="isItemEditing(i)"
-              [startUnfolded]="true"
-              [hideFoldControls]="true"
-              (patch)="updateItem(i, $event)"
-              (delete)="deleteItem(i)"
-              (editingChange)="onEditingChange(i, $event)"
-              (openEditor)="openItemEditor(i)"
-              (breakTest)="performBreakTest(i)"
-              (foldChange)="onFoldChange(i, $event)"
-            ></app-item>
-          </div>
-        }
       } @else {
-        <!-- Empty slot: dashed box, captures pointer position for drop targeting -->
+        <!-- Empty slot: always visible as a slot background -->
         <div class="item-slot item-slot-empty"
              [class.drag-target]="dropTargetSlotIdx === i && dragSourceSlotIdx !== i"
              [attr.data-slot-idx]="i"
@@ -126,6 +100,42 @@
              [style.grid-row]="getItemGridRow(i)">
         </div>
       }
+    }
+
+    <!-- Expansion rows: one per visual row that has unfolded items -->
+    @for (exp of expansionRows; track exp.row) {
+      <div class="expansion-row"
+           [style.grid-row]="getExpansionGridRowForVisualRow(exp.row)"
+           [style.--chip-col]="exp.activeIdx % 4">
+
+        <!-- Tab bar: shown only when multiple items in this row are unfolded -->
+        @if (exp.unfolded.length > 1) {
+          <div class="expansion-tabs">
+            @for (tabIdx of exp.unfolded; track tabIdx) {
+              <button class="exp-tab"
+                      [class.active]="tabIdx === exp.activeIdx"
+                      (click)="setActiveTab(exp.row, tabIdx); $event.stopPropagation()">
+                {{ paddedSlots[tabIdx]?.name }}
+              </button>
+            }
+          </div>
+        }
+
+        <app-item
+          [item]="paddedSlots[exp.activeIdx]!"
+          [sheet]="sheet"
+          [index]="exp.activeIdx"
+          [isEditing]="isItemEditing(exp.activeIdx)"
+          [startUnfolded]="true"
+          [hideFoldControls]="true"
+          (patch)="updateItem(exp.activeIdx, $event)"
+          (delete)="deleteItem(exp.activeIdx)"
+          (editingChange)="onEditingChange(exp.activeIdx, $event)"
+          (openEditor)="openItemEditor(exp.activeIdx)"
+          (breakTest)="performBreakTest(exp.activeIdx)"
+          (foldChange)="onFoldChange(exp.activeIdx, $event)"
+        ></app-item>
+      </div>
     }
   </div>
   <!-- Currency Section at Bottom -->
