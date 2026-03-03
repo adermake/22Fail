@@ -8,103 +8,19 @@
   }
 
   @for (event of events; track event.id) {
-    <div class="event-card" [class.shop]="event.type === 'shop'" [class.loot]="event.type === 'loot'">
-      <div class="event-header" (click)="toggleExpanded(event.id)">
-        <span class="event-icon">{{ event.type === 'shop' ? '🏪' : '💰' }}</span>
-        <span class="event-name">{{ event.name }}</span>
-        <span class="expand-icon">{{ expandedEvents.has(event.id) ? '▼' : '▶' }}</span>
-      </div>
-
-      @if (expandedEvents.has(event.id)) {
-        @if (event.description) {
-          <p class="event-description">{{ event.description }}</p>
-        }
-
-        @if (event.type === 'shop') {
-          <div class="shop-content">
-            @if (asShop(event).deals.length === 0) {
-              <p class="empty-hint">Dieser Shop hat keine Angebote</p>
-            }
-            @for (deal of asShop(event).deals; track deal.id; let i = $index) {
-              <div class="deal-card" 
-                   [class.sold-out]="deal.quantity !== undefined && deal.sold >= deal.quantity"
-                   [class.reverse-deal]="deal.isReverseDeal">
-                <div class="deal-info">
-                  <span class="deal-name">
-                    @if (deal.isReverseDeal) {
-                      <span class="reverse-icon" title="Shop kauft an">⬅️</span>
-                    }
-                    {{ deal.name }}
-                  </span>
-                  @if (deal.quantity !== undefined) {
-                    <span class="deal-stock">
-                      Bestand: {{ deal.quantity - deal.sold }}/{{ deal.quantity }}
-                    </span>
-                  }
-                  @if (deal.isReverseDeal && deal.description) {
-                    <span class="deal-description">{{ deal.description }}</span>
-                  }
-                </div>
-                <div class="deal-price">
-                  @if (deal.price) {
-                    <span class="price">{{ formatCurrency(deal.price) }}</span>
-                  } @else {
-                    <span class="price negotiable-text">Verhandelbar</span>
-                  }
-                  @if (deal.isNegotiable && deal.price) {
-                    <span class="negotiable-badge" title="Verhandelbar">🤝</span>
-                  }
-                </div>
-                <div class="deal-actions">
-                  <input type="number" 
-                         [value]="getBuyQuantity(event.id, i)"
-                         (input)="setBuyQuantity(event.id, i, $any($event.target).valueAsNumber)"
-                         min="1" 
-                         [max]="getMaxBuyable(deal)" 
-                         class="quantity-input">
-                  <button class="buy-btn" 
-                          (click)="buyItem(event.id, i, deal)"
-                          [disabled]="!deal.price || !canAfford(deal, getBuyQuantity(event.id, i)) || (deal.quantity !== undefined && deal.sold >= deal.quantity)">
-                    @if (deal.price) {
-                      Kaufen ({{ formatTotalCost(deal, getBuyQuantity(event.id, i)) }})
-                    } @else {
-                      Verhandeln
-                    }
-                  </button>
-                </div>
-                @if (deal.price && !canAfford(deal, getBuyQuantity(event.id, i))) {
-                  <div class="not-enough-gold">Nicht genug Gold!</div>
-                }
-              </div>
-            }
-          </div>
-        }
-
-        @if (event.type === 'loot') {
-          <div class="loot-content">
-            @if (asLootBundle(event).items.length === 0) {
-              <p class="empty-hint">Dieses Bündel ist leer</p>
-            }
-            @for (item of asLootBundle(event).items; track item.id; let i = $index) {
-              <div class="loot-item" [class.claimed]="item.claimedBy">
-                <div class="loot-info">
-                  <span class="loot-name">{{ getItemName(item) }}</span>
-                  <span class="loot-type">({{ item.type }})</span>
-                </div>
-                @if (item.claimedBy) {
-                  <div class="claimed-by">
-                    <span>Beansprucht</span>
-                  </div>
-                } @else {
-                  <button class="claim-btn" (click)="claimItem(event.id, i)">
-                    Beanspruchen
-                  </button>
-                }
-              </div>
-            }
-          </div>
-        }
+    <div class="event-card-portal" 
+         [class.shop]="event.type === 'shop'" 
+         [class.loot]="event.type === 'loot'"
+         (click)="openPortal(event.id)">
+      <div class="portal-icon-large">{{ event.type === 'shop' ? '🏪' : '💰' }}</div>
+      <h3 class="portal-event-name">{{ event.name }}</h3>
+      @if (event.description) {
+        <p class="portal-event-description">{{ event.description }}</p>
       }
+      <button class="enter-portal-btn" (click)="openPortal(event.id); $event.stopPropagation()">
+        <span>🌀</span>
+        <span>Portal betreten</span>
+      </button>
     </div>
   }
 </div>

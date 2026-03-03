@@ -38,7 +38,9 @@ app/
   │   └── world.component.ts          # Haupt-DM-Controller
   ├── sheet/          # Spieler-Ansicht
   │   ├── character-tabs/             # Tab-Navigation (Stats, Inventar, Ereignisse)
-  │   ├── current-events-view/        # Player event UI (shops, loot)
+  │   ├── current-events-view/        # Player event UI (portal-cards, not inline)
+  │   ├── event-portal/               # Fullscreen portal modal für Shop/Bundle (NEW)
+  │   ├── transaction-popup/          # Animated Transaction-Feedback (NEW)
   │   └── sheet.component.ts          # Haupt-Charakter-Controller
   ├── model/          # Datenmodelle (Character, Item, Shop, etc.)
   ├── services/       # WebSocket-Clients, State-Management
@@ -69,8 +71,18 @@ app/
 
 ## Sync-Mechanismen
 
+### JsonPatch-System
+- **Path Format**: Slash-basiert (`/inventory/-`, `/currency`) wird zu Dot-basiert (`inventory.-`, `currency`) normalisiert
+- **Array-Append**: `-` als finaler Key appendet zu Array (z.B. `/inventory/-` fügt Item hinzu)
+- **Optimistic Updates**: Frontend wendet Patches lokal an, dann WebSocket-Broadcast
+- **Konsistenz**: Alle applyJsonPatch-Implementierungen (character-store, world-store, lobby-store, components) müssen:
+  1. Path normalisieren (Slashes → Dots)
+  2. `-` für Array-Append unterstützen
+  3. Array-Indices korrekt behandeln
+
 ### Current Events (Shop/Bundle State)
 - **Zentraler State**: `world.currentEvents[]` im Backend
+- **Persistierung**: Wird in `world.json` gespeichert (data.service.ts saveWorld)
 - **Echtzeit-Sync**: Änderungen (Kauf, Claim) triggern sofortige broadcasts
 - **Party-Scope**: Nur aktive Party-Mitglieder sehen Events
 - **Inventory Mechanics**: 
@@ -81,7 +93,16 @@ app/
 ### UI-Komponenten-Interaktionen
 - **Drag Source**: asset-browser.component (Library-Ansicht)
 - **Drop Target**: current-events-manager.component (World-Ansicht)
-- **Player View**: current-events-view.component (Sheet-Ansicht)
+- **Player View**: current-events-view.component (Sheet-Ansicht - zeigt Portal-Karten)
+- **Portal UI**: event-portal.component (Fullscreen-Modal, animiert)
+  - Shop-Theme: Braun/Gold Gradient mit Kerzenlicht-Feeling
+  - Loot-Theme: Dunkelblau/Lila Gradient mit Goldpartikel
+  - CSS Animations: `portalOpen` (scale + rotate), `float`, `sparkle`
+  - Schließen via ✕ Button
+- **Transaction Popup**: transaction-popup.component 
+  - Slide-In von rechts, fade-out nach 2.5s+0.5s
+  - Typ-Icons: 🛒 Kaufen (rot), 💰 Verkaufen (grün), 🎁 Beanspruchen (blau)
+  - Zeigt Item-Name, Menge, Geldbetrag
 - **Visual Feedback**: 
   - isDraggingOverList property
   - `.drag-over` CSS class (dashed border)

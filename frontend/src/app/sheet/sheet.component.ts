@@ -31,7 +31,7 @@ import { BackstoryComponent } from './backstory/backstory.component';
 import { JsonPatch } from '../model/json-patch.model';
 import { FormulaType } from '../model/formula-type.enum';
 import { StatusBlock } from '../model/status-block.model';
-import { CurrentEvent, LootBundleEvent } from '../model/current-events.model';
+import { CurrentEvent, LootBundleEvent, convertToCopper, copperToCurrency } from '../model/current-events.model';
 import { DiceRollerComponent } from './dice-roller/dice-roller.component';
 import { ActionMacrosComponent, RollResult } from './action-macros/action-macros.component';
 import { ActionMacro } from '../model/action-macro.model';
@@ -39,6 +39,8 @@ import { ActionExecution } from './action-macros/action-macros.component';
 import { GameInfoComponent } from '../shared/game-info/game-info.component';
 import { CurrentEventsViewComponent } from './current-events-view';
 import type { BuyItemEvent, ClaimLootEvent } from './current-events-view';
+import { TransactionPopupComponent, Transaction } from './transaction-popup/transaction-popup.component';
+import { EventPortalComponent } from './event-portal/event-portal.component';
 
 @Component({
   selector: 'app-sheet',
@@ -58,7 +60,9 @@ import type { BuyItemEvent, ClaimLootEvent } from './current-events-view';
     DiceRollerComponent,
     ActionMacrosComponent,
     GameInfoComponent,
-    CurrentEventsViewComponent
+    CurrentEventsViewComponent,
+    TransactionPopupComponent,
+    EventPortalComponent
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
@@ -87,6 +91,8 @@ export class SheetComponent implements OnInit {
   showActionMacros = false;
   showGameInfo = false;
   currentEvents: CurrentEvent[] = [];
+  transactions: Transaction[] = [];
+  openPortalEventId: string | null = null;
 
   // Editing states
   editingRunes = new Set<number>();
@@ -191,6 +197,7 @@ export class SheetComponent implements OnInit {
           
           // Load current events from world
           this.currentEvents = world?.currentEvents || [];
+          this.cdr.detectChanges();
 
           if (world && world.battleParticipants && world.battleParticipants.length > 0) {
             const sorted = [...world.battleParticipants].sort((a, b) => a.nextTurnAt - b.nextTurnAt);
@@ -398,6 +405,23 @@ export class SheetComponent implements OnInit {
    * Handle buy from shop in current events
    */
   onBuyFromShop(event: { eventId: string; dealIndex: number; quantity: number; totalCostCopper: number }) {
+    // Find the shop event and deal to get item name
+    const shopEvent = this.currentEvents.find(e => e.id === event.eventId && e.type === 'shop') as any;
+    const deal = shopEvent?.deals[event.dealIndex];
+    
+    // Create transaction popup
+    if (deal) {
+      const isReverse = deal.isReverseDeal;
+      this.addTransaction({
+        type: isReverse ? 'sell' : 'buy',
+        itemName: deal.item.name || 'Item',
+        quantity: event.quantity,
+        ...(isReverse 
+          ? { moneyGained: copperToCurrency(event.totalCostCopper) }
+          : { moneyLost: copperToCurrency(event.totalCostCopper) })
+      });
+    }
+    
     // Update the world's current events to reflect the purchase
     // The item has already been added to inventory and money deducted by the component
     // We need to update the shop's sold counter
@@ -448,11 +472,21 @@ export class SheetComponent implements OnInit {
           path: '/inventory/-',
           value: item.data
         });
+        this.addTransaction({
+          type: 'claim',
+          itemName: (item.data as any)?.name || 'Item',
+          quantity: 1
+        });
         break;
       case 'rune':
         this.store.applyPatch({
           path: '/runes/-',
           value: item.data
+        });
+        this.addTransaction({
+          type: 'claim',
+          itemName: (item.data as any)?.name || 'Rune',
+          quantity: 1
         });
         break;
       case 'spell':
@@ -460,11 +494,42 @@ export class SheetComponent implements OnInit {
           path: '/spells/-',
           value: item.data
         });
+        this.addTransaction({
+          type: 'claim',
+          itemName: (item.data as any)?.name || 'Zauber',
+          quantity: 1
+        });
         break;
       case 'skill':
         this.store.applyPatch({
           path: '/skills/-',
           value: item.data
+        });
+        this.addTransaction({
+          type: 'claim',
+          itemName: (item.data as any)?.name || 'Fähigkeit',
+          quantity: 1
+        });
+        break;
+      case 'currency':
+        // Add currency to player's currency
+        const currency = item.data as any;
+        const currentCurrency = sheet.currency || { copper: 0, silver: 0, gold: 0, platinum: 0 };
+        this.store.applyPatch({
+          path: '/currency',
+          value: {
+            copper: (currentCurrency.copper || 0) + (currency.copper || 0),
+            silver: (currentCurrency.silver || 0) + (currency.silver || 0),
+            gold: (currentCurrency.gold || 0) + (currency.gold || 0),
+            platinum: (currentCurrency.platinum || 0) + (currency.platinum || 0)
+          }
+        });
+        // Create transaction popup for gained currency
+        this.addTransaction({
+          type: 'claim',
+          itemName: 'Währung',
+          quantity: 1,
+          moneyGained: currency
         });
         break;
     }
@@ -496,6 +561,42 @@ export class SheetComponent implements OnInit {
   onCloseLootPopup() {
     this.showLootPopup = false;
     this.receivedLoot = [];
+  }
+
+  /**
+   * Add a transaction to the popup queue
+   */
+  addTransaction(transaction: Omit<Transaction, 'timestamp' | 'id'>) {
+    const fullTransaction: Transaction = {
+      ...transaction,
+      id: `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now()
+    };
+    this.transactions.push(fullTransaction);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+      const index = this.transactions.indexOf(fullTransaction);
+      if (index > -1) {
+        this.transactions.splice(index, 1);
+      }
+    }, 3000);
+  }
+
+  // Event Portal
+  onOpenPortal(eventId: string) {
+    this.openPortalEventId = eventId;
+    this.cdr.detectChanges();
+  }
+
+  onClosePortal() {
+    this.openPortalEventId = null;
+    this.cdr.detectChanges();
+  }
+
+  getPortalEvent(): CurrentEvent | null {
+    if (!this.openPortalEventId) return null;
+    return this.currentEvents.find(e => e.id === this.openPortalEventId) || null;
   }
 
   // Skill Tree

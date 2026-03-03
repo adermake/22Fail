@@ -55,6 +55,7 @@
         [characterId]="store.characterId"
         (buyRequest)="onBuyFromShop($event)"
         (claimRequest)="onClaimEventLoot($event)"
+        (openPortalEvent)="onOpenPortal($event)"
         (patch)="store.applyPatch($any($event))">
       </app-current-events-view>
     </div>
@@ -270,4 +271,18 @@
     </div>
   </div>
 }
+}
+
+<!-- Transaction Popup -->
+<app-transaction-popup [transactions]="transactions"></app-transaction-popup>
+
+<!-- Event Portal Fullscreen -->
+@if (openPortalEventId && getPortalEvent()) {
+  <app-event-portal
+    [event]="getPortalEvent()"
+    [sheet]="store.sheetValue!"
+    (close)="onClosePortal()"
+    (buyRequest)="onBuyFromShop($event)"
+    (claimRequest)="onClaimEventLoot($event)">
+  </app-event-portal>
 }

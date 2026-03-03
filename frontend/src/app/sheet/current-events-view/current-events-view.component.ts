@@ -38,6 +38,7 @@ export class CurrentEventsViewComponent {
   @Output() buyRequest = new EventEmitter<BuyItemEvent>();
   @Output() claimRequest = new EventEmitter<ClaimLootEvent>();
   @Output() patch = new EventEmitter<JsonPatch>();
+  @Output() openPortalEvent = new EventEmitter<string>();
 
   expandedEvents = new Set<string>();
   buyQuantities: Map<string, number> = new Map(); // key: eventId-dealIndex
@@ -50,6 +51,10 @@ export class CurrentEventsViewComponent {
     } else {
       this.expandedEvents.add(eventId);
     }
+  }
+
+  openPortal(eventId: string) {
+    this.openPortalEvent.emit(eventId);
   }
 
   asShop(event: CurrentEvent): ShopEvent {
@@ -114,8 +119,16 @@ export class CurrentEventsViewComponent {
     const quantity = this.getBuyQuantity(eventId, dealIndex);
     const totalCostCopper = convertToCopper(deal.price) * quantity;
 
-    // Deduct money from player
-    this.deductMoney(totalCostCopper);
+    if (deal.isReverseDeal) {
+      // Reverse deal: Player sells TO shop, gets money
+      this.addMoney(totalCostCopper);
+      // TODO: Remove item from player inventory (requires item selection UI)
+    } else {
+      // Normal deal: Player buys FROM shop, pays money
+      this.deductMoney(totalCostCopper);
+      // Add item to inventory based on what the deal provides
+      this.addItemToInventory(deal, quantity);
+    }
 
     // Emit buy request for backend to handle
     this.buyRequest.emit({
@@ -124,9 +137,6 @@ export class CurrentEventsViewComponent {
       quantity,
       totalCostCopper
     });
-
-    // Add item to inventory based on what the deal provides
-    this.addItemToInventory(deal, quantity);
 
     // Reset quantity
     this.buyQuantities.delete(`${eventId}-${dealIndex}`);
@@ -154,6 +164,26 @@ export class CurrentEventsViewComponent {
     
     totalCopper -= copperAmount;
     if (totalCopper < 0) totalCopper = 0;
+
+    // Convert back
+    const newCurrency = copperToCurrency(totalCopper);
+
+    this.patch.emit({
+      path: '/currency',
+      value: newCurrency
+    } as any);
+  }
+
+  private addMoney(copperAmount: number) {
+    const currency = { ...(this.sheet.currency || { copper: 0, silver: 0, gold: 0, platinum: 0 }) };
+
+    // Convert all to copper for simplicity
+    let totalCopper = (currency.copper || 0) + 
+                      (currency.silver || 0) * 10 + 
+                      (currency.gold || 0) * 100 + 
+                      (currency.platinum || 0) * 1000;
+    
+    totalCopper += copperAmount;
 
     // Convert back
     const newCurrency = copperToCurrency(totalCopper);
