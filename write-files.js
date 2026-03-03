@@ -1,4 +1,6 @@
-<div class="item-card"
+const fs = require('fs');
+
+const html = `<div class="item-card"
      [class.unusable]="!canUseItem"
      [class.broken]="item.broken"
      [class.lost]="item.lost"
@@ -15,8 +17,8 @@
     <div class="context-menu" [style.top.px]="contextMenuY" [style.left.px]="contextMenuX" (click)="$event.stopPropagation()">
       <button class="ctx-item" (click)="openEditorFromMenu()">✏️ Bearbeiten</button>
       @if (showDetails) {
-        <button class="ctx-item ctx-lost" (click)="toggleLostFromMenu()">
-          {{ item.lost ? '✓ Nicht verloren' : '✕ Verloren markieren' }}
+        <button class="ctx-item" (click)="toggleLostFromMenu()">
+          {{ item.lost ? '✓ Als vorhanden markieren' : '✕ Als verloren markieren' }}
         </button>
       }
       <button class="ctx-item ctx-delete" (click)="deleteFromContextMenu()">🗑 Löschen</button>
@@ -135,14 +137,14 @@
         </div>
       }
 
-      <!-- 5. Custom Counters -->
+      <!-- 5. Custom Counters (same structure as durability) -->
       @if (item.counters && item.counters.length > 0) {
         <div class="counters-section">
           @for (counter of item.counters; track counter.id) {
             <div class="bar-row" (mousedown)="$event.stopPropagation()">
               <span class="bar-label">{{ counter.name }}</span>
               <div class="bar-with-input">
-                <div class="bar-track">
+                <div class="bar-track" [style.--bar-color]="counter.color">
                   <div class="bar-fill"
                        [style.width.%]="getCounterPercent(counter)"
                        [style.backgroundColor]="counter.color">
@@ -177,7 +179,7 @@
           <span class="bar-label">Haltbarkeit</span>
           <div class="bar-with-input">
             <div class="bar-track">
-              <div class="bar-fill" [class]="durabilityClass" [style.width.%]="durabilityPercent"></div>
+              <div class="bar-fill" [class]="'dur-' + durabilityClass" [style.width.%]="durabilityPercent"></div>
               <input
                 type="range"
                 class="bar-slider"
@@ -263,3 +265,7 @@
     }
   </div>
 </div>
+`;
+
+fs.writeFileSync('C:/Users/adermake/Documents/22FailApp/frontend/src/app/sheet/item/item.component.html', html, 'utf8');
+console.log('item.component.html - ' + html.split('\n').length + ' lines');

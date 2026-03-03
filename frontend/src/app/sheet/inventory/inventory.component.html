@@ -41,7 +41,13 @@
     (cdkDropListDropped)="onDrop($event)"
   >
     @for (item of (sheet.inventory || []); track i; let i = $index) {
-    <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(i)" (cdkDragStarted)="onDragStarted($event)" (cdkDragReleased)="onDragReleased($event)">
+    <div cdkDrag
+         class="item-drag-wrapper"
+         [class.item-unfolded]="isItemUnfolded(i)"
+         [cdkDragData]="item"
+         [cdkDragDisabled]="isItemEditing(i) || isItemUnfolded(i)"
+         (cdkDragStarted)="onDragStarted($event)"
+         (cdkDragReleased)="onDragReleased($event)">
       <app-item
         [item]="item"
         [sheet]="sheet"
@@ -53,7 +59,14 @@
         (editingChange)="onEditingChange(i, $event)"
         (openEditor)="openItemEditor(i)"
         (breakTest)="performBreakTest(i)"
+        (foldChange)="onFoldChange(i, $event)"
       ></app-item>
+      <ng-template cdkDragPreview>
+        <div class="drag-chip">
+          <span class="drag-chip-icon">{{ item.itemType === 'weapon' ? '⚔' : item.itemType === 'armor' ? '🛡' : '📦' }}</span>
+          <span class="drag-chip-name">{{ item.name }}</span>
+        </div>
+      </ng-template>
       <div
         class="drag-placeholder-wrapper"
         *cdkDragPlaceholder

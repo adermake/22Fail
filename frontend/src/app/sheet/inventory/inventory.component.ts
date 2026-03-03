@@ -48,6 +48,7 @@ export class InventoryComponent {
   editingItemIndex: number | null = null;
   editingItem: ItemBlock | null = null;
   private editingItems = new Set<number>();
+  private unfoldedItems = new Set<number>();
   placeholderHeight = '90px';
   placeholderWidth = '100%';
   /** Index of the item currently being dragged (for compact ghost) */
@@ -198,6 +199,14 @@ getCurrencyWeight(): number {
     });
     this.editingItems = newSet;
 
+    // Same for unfolded items
+    const newUnfolded = new Set<number>();
+    this.unfoldedItems.forEach(i => {
+      if (i < index) newUnfolded.add(i);
+      else if (i > index) newUnfolded.add(i - 1);
+    });
+    this.unfoldedItems = newUnfolded;
+
     this.patch.emit({
       path: 'inventory',
       value: this.sheet.inventory,
@@ -243,6 +252,7 @@ getCurrencyWeight(): number {
 
 onDrop(event: CdkDragDrop<ItemBlock[]>) {
   this.draggedIndex = null; // reset compact state
+  this.unfoldedItems.clear(); // reset fold tracking after reorder
   if (event.previousContainer === event.container) {
     // Reorder within inventory
     const previousIndex = event.previousIndex;
@@ -297,6 +307,18 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
 
   isItemEditing(index: number): boolean {
     return this.editingItems.has(index);
+  }
+
+  isItemUnfolded(index: number): boolean {
+    return this.unfoldedItems.has(index);
+  }
+
+  onFoldChange(index: number, isFolded: boolean) {
+    if (isFolded) {
+      this.unfoldedItems.delete(index);
+    } else {
+      this.unfoldedItems.add(index);
+    }
   }
 
   // Open full-screen item editor

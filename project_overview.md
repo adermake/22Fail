@@ -128,16 +128,26 @@ app/
 - **Gradienten**: linear-gradient für Buttons, Karten-Hintergründe
 
 ## Item-Komponente (`sheet/item/`)
-- **Default-Zustand**: Eingeklappt (`isFolded = true`) — zeigt Icon + Name + Tags-Reihe (Gewicht, Effizienz, Stabilität)
-- **Fold-Button**: Groß (min-width 36px), rechts neben Item-Controls
-- **Kein Löschen-Button**: Löschen nur via Kontextmenü (Rechtsklick → "Bearbeiten" / "Löschen")
+- **Default-Zustand**: Eingeklappt (`isFolded = true`) — zeigt Icon + Name + Tags-Reihe
+- **Doppelklick**: Klappt Item ein/aus (`(dblclick)="toggleFold()"`)
+- **Slot-Tag**: `.tag-slot` zeigt Rüstungsslot (HELM/BRUST/ARME/BEINE/STIEFEL/EXTRA) oder WAFFE — via `get slotLabel()` Getter, mit `armorType`-Mapping
+- **Tag-Größe**: Gewicht/Effizienz/Stabilität-Tags mit `[class.tag-big]="!isFolded"` — größer wenn ausgeklappt
+- **Fold-Button**: Kubisch (`aspect-ratio: 1`, min 34×34px), rechts in Item-Controls, kein Lost-Button mehr
+- **Kontextmenü**: Rechtsklick → "Bearbeiten" / "Verloren markieren|↩ Nicht verloren" (via `toggleLostFromMenu()`) / "Löschen"
   - `showContextMenu`, `contextMenuX/Y`, `@HostListener('document:click')` zum Schließen
-- **Ausgeklappte Reihenfolge**: Beschreibung → Effekte → Stat-Boni → Würfelboni → Counter → Haltbarkeit → Anforderungen → Fähigkeiten
-- **Horizontale Bars**: `.bar-with-input` Layout: `[label] [bar-track (flex:1)] [number-input/value]`
-  - Haltbarkeit: Zahl-Input rechts neben Bar
-  - Custom Counter: Wert-Text rechts neben Bar
+- **Fold-Output**: `@Output() foldChange = new EventEmitter<boolean>()` — Parent trackt Faltzustand
+- **Bar-Layout** (Haltbarkeit + Custom Counter, identisch): `.bar-row` → label + `.bar-with-input` → `.bar-track` (overflow:hidden) + number-input
+  - Fill-Element: `.bar-fill` mit `durabilityClass` resp. Inline-Farbe
+  - Slider-Klasse: `.bar-slider` (einheitlich für beide)
+  - Kein dunkler Wrapper-Hintergrund mehr
 - **Drag Compact**: `[compact]="draggedIndex === i"` blendet Tags-Reihe während Drag aus
-- **Drag Placeholder**: Feste Höhe 52px in inventory + equipment (kein Phantom-Overflow)
+- **Ausgeklappte Reihenfolge**: Beschreibung → Effekte → Stat-Boni → Würfelboni → Counter → Haltbarkeit → Anforderungen → Fähigkeiten
+
+## Inventar-Komponente (`sheet/inventory/`)
+- **Grid-Layout**: 4 Items pro Reihe (`.item-drag-wrapper { width: calc(25% - 0.3rem) }`), ausgeklappt 100% Breite (`.item-drag-wrapper.item-unfolded { width: 100% }`)
+- **Fold-Tracking**: `unfoldedItems = new Set<number>()`, `onFoldChange(i, isFolded)`, `isItemUnfolded(i)` — aus `(foldChange)` von app-item
+- **Drag deaktiviert wenn ausgeklappt**: `[cdkDragDisabled]="isItemEditing(i) || isItemUnfolded(i)"`
+- **Custom Drag-Preview-Chip**: `<ng-template cdkDragPreview>` → kleines Chip-Element (Icon + Name), snappt an Cursor — kein Klon des ganzen Items
 
 ## Equipment-Komponente (`sheet/equipment/`)
 - **Layout**: Vertikales Flex-Stack (nicht 2-Spalten-Grid) — Items brauchen die volle Breite für Text

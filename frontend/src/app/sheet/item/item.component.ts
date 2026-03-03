@@ -33,6 +33,21 @@ export class ItemComponent implements OnChanges {
   contextMenuX = 0;
   contextMenuY = 0;
 
+  @Output() foldChange = new EventEmitter<boolean>();
+
+  /** Maps armorType/itemType to short slot label */
+  get slotLabel(): string | null {
+    if (this.item.itemType === 'weapon') return 'WAFFE';
+    if (this.item.itemType === 'armor' && this.item.armorType) {
+      const map: Record<string, string> = {
+        helmet: 'HELM', chestplate: 'BRUST', armschienen: 'ARME',
+        leggings: 'BEINE', boots: 'STIEFEL', extra: 'EXTRA',
+      };
+      return map[this.item.armorType] ?? null;
+    }
+    return null;
+  }
+
   @HostListener('document:click')
   onDocumentClick() {
     this.showContextMenu = false;
@@ -118,6 +133,11 @@ export class ItemComponent implements OnChanges {
     this.openEditor.emit();
   }
 
+  toggleLostFromMenu() {
+    this.showContextMenu = false;
+    this.patch.emit({ path: 'lost', value: !this.item.lost });
+  }
+
   deleteFromContextMenu() {
     this.showContextMenu = false;
     this.delete.emit();
@@ -191,6 +211,7 @@ export class ItemComponent implements OnChanges {
 
   toggleFold() {
     this.isFolded = !this.isFolded;
+    this.foldChange.emit(this.isFolded);
   }
 
   deleteItem() {

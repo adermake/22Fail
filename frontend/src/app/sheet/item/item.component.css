@@ -125,6 +125,14 @@
 .tag-unusable{ background: #4d1c21; border-color: #e57373; color: #ffcdd2; }
 .tag-lib     { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; cursor: pointer; }
 .tag-lib:hover { background: #1e4075; }
+.tag-slot    { background: var(--accent); border-color: transparent; color: white; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* Tags grow when item is unfolded */
+.item-card:not(.folded) .tag-big {
+  font-size: 0.82rem;
+  padding: 0.2rem 0.5rem;
+  font-weight: 700;
+}
 
 /* Controls area (eye + fold button) */
 .item-controls {
@@ -135,20 +143,24 @@
   margin-top: 0.05rem;
 }
 
-/* Fold button - bigger and more clickable */
+/* Fold button - cubic, fills the controls area */
 .fold-btn {
   background: transparent;
   border: 1px solid var(--border);
   cursor: pointer;
-  font-size: 0.8rem;
-  padding: 0.3rem 0.7rem;
+  font-size: 0.9rem;
+  padding: 0.45rem;
   opacity: 0.75;
   transition: all 0.2s;
-  border-radius: 4px;
+  border-radius: 5px;
   color: var(--text);
   flex-shrink: 0;
-  min-width: 36px;
-  text-align: center;
+  min-width: 34px;
+  min-height: 34px;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .fold-btn:hover { opacity: 1; background: var(--bg); border-color: var(--accent); }
 .fold-btn:active { transform: scale(0.95); }
@@ -253,12 +265,13 @@
 .bar-track {
   flex: 1; position: relative;
   height: 14px; background: #1f2937;
-  border-radius: 7px; overflow: visible;
+  border-radius: 7px; overflow: hidden;
 }
 
 /* Slider sits on top of track */
 .durability-slider,
-.counter-slider {
+.counter-slider,
+.bar-slider {
   position: absolute; top: 0; left: 0;
   width: 100%; height: 100%;
   -webkit-appearance: none; appearance: none;
@@ -266,7 +279,8 @@
   cursor: pointer; z-index: 2; margin: 0; padding: 0;
 }
 .durability-slider::-webkit-slider-thumb,
-.counter-slider::-webkit-slider-thumb {
+.counter-slider::-webkit-slider-thumb,
+.bar-slider::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 14px; height: 14px;
   background: white; border-radius: 50%;
@@ -275,25 +289,30 @@
   transition: transform 0.1s;
 }
 .durability-slider::-webkit-slider-thumb:hover,
-.counter-slider::-webkit-slider-thumb:hover { transform: scale(1.1); }
+.counter-slider::-webkit-slider-thumb:hover,
+.bar-slider::-webkit-slider-thumb:hover { transform: scale(1.1); }
 .durability-slider::-moz-range-thumb,
-.counter-slider::-moz-range-thumb {
+.counter-slider::-moz-range-thumb,
+.bar-slider::-moz-range-thumb {
   width: 14px; height: 14px;
   background: white; border-radius: 50%;
   cursor: pointer; border: 2px solid var(--accent);
   box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
-.counter-fill-bg, .durability-bar-fill {
+.counter-fill-bg, .durability-bar-fill, .bar-fill {
   position: absolute; top: 0; left: 0;
   height: 100%; border-radius: 7px;
   pointer-events: none; z-index: 1;
   transition: width 0.3s;
 }
 .counter-fill-bg { /* color set via inline style */ }
-.durability-bar-fill.durability-high   { background: #22c55e; }
-.durability-bar-fill.durability-medium { background: #f59e0b; }
-.durability-bar-fill.durability-low    { background: #ef4444; }
+.durability-bar-fill.durability-high,
+.bar-fill.durability-high   { background: #22c55e; }
+.durability-bar-fill.durability-medium,
+.bar-fill.durability-medium { background: #f59e0b; }
+.durability-bar-fill.durability-low,
+.bar-fill.durability-low    { background: #ef4444; }
 
 /* Number input beside bar */
 .bar-number-input {
@@ -312,12 +331,21 @@
   min-width: 32px; text-align: right;
 }
 
-/* ── Durability section ──────────────────────────────────── */
+/* ── Bar row (shared durability + counter layout) ─────────── */
+.bar-row {
+  display: flex; align-items: center; gap: 0.4rem;
+  margin: 0.25rem 0;
+}
+.bar-label {
+  font-size: 0.72rem; color: var(--text-muted);
+  font-weight: 500; white-space: nowrap; flex-shrink: 0;
+  min-width: 60px;
+}
+
+/* ── Durability section (legacy still used in some places) ── */
 .durability-section {
   display: flex; align-items: center; gap: 0.4rem;
-  margin: 0.3rem 0; padding: 0.35rem 0.45rem;
-  background: var(--bg); border-radius: 5px;
-  border: 1px solid var(--border);
+  margin: 0.3rem 0;
 }
 .durability-label {
   font-size: 0.72rem; color: var(--text-muted);
@@ -339,9 +367,6 @@
 
 .counter-row {
   display: flex; align-items: center; gap: 0.4rem;
-  padding: 0.3rem 0.45rem;
-  background: var(--bg); border-radius: 5px;
-  border: 1px solid var(--border);
 }
 .counter-name {
   font-size: 0.72rem; color: var(--text); font-weight: 500;
@@ -422,6 +447,8 @@
 .ctx-item:hover { background: var(--bg); }
 .ctx-item.ctx-delete { color: #f87171; }
 .ctx-item.ctx-delete:hover { background: rgba(239, 68, 68, 0.12); }
+.ctx-item.ctx-lost { color: #9ca3af; }
+.ctx-item.ctx-lost:hover { background: rgba(156, 163, 175, 0.12); }
 
 /* ── Editing/form styles (kept minimal) ──────────────────── */
 .field { margin-bottom: 0.8rem; }
