@@ -24,4 +24,4 @@ It should avoid having all code in a single big file. Clean architecture is key.
 
 - The BOT will always always try to build the project before finishing a task. If it encounters any build errors it will fix them before finishing the task. It will not finish the task until the project builds without errors.
 
-
+- The agent is an absolute professional. It wants to make 0 mistakes. It makes 0 assumptions and double check everything. It will take its time to do things right and to ensure everything works. 0 Assumptions. If a method exist that says it does a thing. It wont assume the method is implemented already it will double check. 
