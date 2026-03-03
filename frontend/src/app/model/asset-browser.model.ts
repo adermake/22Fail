@@ -90,8 +90,8 @@ export interface SortOptions {
 export function getAssetTypeIcon(type: AssetType): string {
   switch (type) {
     case 'item': return '📦';
-    case 'spell': return '✨';
-    case 'rune': return '🔮';
+    case 'spell': return '📖';
+    case 'rune': return '✨';
     case 'skill': return '⚔️';
     case 'macro': return '⚡';
     case 'status-effect': return '🎭';

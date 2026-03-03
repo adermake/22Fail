@@ -18,7 +18,7 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { StatusBlock } from '../../model/status-block.model';
 import { StatusEffect } from '../../model/status-effect.model';
-import { CurrentEvent } from '../../model/current-events.model';
+import { CurrentEvent, ShopEvent, LootBundleEvent } from '../../model/current-events.model';
 import { Subscription } from 'rxjs';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';

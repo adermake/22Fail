@@ -6,7 +6,7 @@ import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { StatusEffect } from '../../model/status-effect.model';
-import { ShopEvent, LootBundleEvent } from '../../model/current-events.model';
+import { ShopEvent, LootBundleEvent, Currency, LootItem } from '../../model/current-events.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { ItemComponent } from '../../sheet/item/item.component';
