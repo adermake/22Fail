@@ -107,7 +107,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.libraryStoreService.allLibraries$.subscribe(libs => {
       console.log('[WORLD] Libraries loaded:', libs.length, 'libraries');
       libs.forEach(lib => {
-        console.log(`  - ${lib.name}: ${lib.items?.length || 0} items, ${lib.spells?.length || 0} spells, ${lib.runes?.length || 0} runes, ${lib.skills?.length || 0} skills`);
+        console.log(`  - ${lib.name}: ${lib.items?.length || 0} items, ${lib.spells?.length || 0} spells, ${lib.runes?.length || 0} runes, ${lib.skills?.length || 0} skills, ${lib.shops?.length || 0} shops, ${lib.lootBundles?.length || 0} bundles`);
       });
       this.loadedLibraries.set(libs);
       this.cdr.markForCheck();
@@ -233,14 +233,12 @@ export class WorldComponent implements OnInit, OnDestroy {
     const linkedLibs = world.linkedLibraries || [];
     const loadedLibs = this.loadedLibraries();
     
+    console.log('[WORLD] Merging shops - Linked libs:', linkedLibs.length, 'Loaded libs:', loadedLibs.length);
+    
     linkedLibs.forEach(libId => {
       const lib = loadedLibs.find(l => l.id === libId);
       if (lib?.shops) {
-        shops.push(...lib.shops);
-      }
-    });
-    
-    return shops;
+        console.log(`  - Adding ${lib.shops.length} shops from library "${lib.name}"`);\n        shops.push(...lib.shops);\n      } else {\n        console.log(`  - Library ${libId} not found or has no shops`);\n      }\n    });\n    \n    console.log('[WORLD] Total merged shops:', shops.length);\n    return shops;
   });
 
   mergedBundles = computed(() => {
@@ -251,14 +249,12 @@ export class WorldComponent implements OnInit, OnDestroy {
     const linkedLibs = world.linkedLibraries || [];
     const loadedLibs = this.loadedLibraries();
     
+    console.log('[WORLD] Merging bundles - Linked libs:', linkedLibs.length, 'Loaded libs:', loadedLibs.length);
+    
     linkedLibs.forEach(libId => {
       const lib = loadedLibs.find(l => l.id === libId);
       if (lib?.lootBundles) {
-        bundles.push(...lib.lootBundles);
-      }
-    });
-    
-    return bundles;
+        console.log(`  - Adding ${lib.lootBundles.length} bundles from library "${lib.name}"`);\n        bundles.push(...lib.lootBundles);\n      } else {\n        console.log(`  - Library ${libId} not found or has no bundles`);\n      }\n    });\n    \n    console.log('[WORLD] Total merged bundles:', bundles.length);\n    return bundles;
   });
 
   // Current Events helpers

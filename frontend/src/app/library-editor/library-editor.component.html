@@ -135,7 +135,7 @@
                 <button (click)="createFile('item')">📦 Neues Item</button>
                 <button (click)="createFile('spell')">📖 Neuer Zauber</button>
                 <button (click)="createFile('rune')">✨ Neue Rune</button>
-                <button (click)="createFile('skill')">⚔️ Neuer Skill</button>
+                <button (click)="createFile('skill')">⚔️ Neues Talent</button>
                 <button (click)="createFile('status-effect')">🎭 Neuer Status-Effekt</button>
                 <button (click)="createFile('macro')">⚡ Neues Makro</button>
               </div>
@@ -327,11 +327,11 @@
         <button (click)="createFile('item'); closeContextMenu()">📦 Neues Item</button>
         <button (click)="createFile('spell'); closeContextMenu()">📖 Neuer Zauber</button>
         <button (click)="createFile('rune'); closeContextMenu()">✨ Neue Rune</button>
-        <button (click)="createFile('skill'); closeContextMenu()">⚔️ Neuer Skill</button>
+        <button (click)="createFile('skill'); closeContextMenu()">⚔️ Neues Talent</button>
         <button (click)="createFile('status-effect'); closeContextMenu()">🎭 Neuer Status-Effekt</button>
         <button (click)="createFile('macro'); closeContextMenu()">⚡ Neues Makro</button>
-        <button (click)="createFile('shop'); closeContextMenu()">🏪 Neuer Shop</button>
-        <button (click)="createFile('loot-bundle'); closeContextMenu()">🎁 Neues Loot Bundle</button>
+        <button (click)="createFile('shop'); closeContextMenu()">🏪 Neuer Handel</button>
+        <button (click)="createFile('loot-bundle'); closeContextMenu()">🎁 Neue Beute</button>
         @if (clipboard.canPaste()) {
           <hr />
           <button (click)="paste(); closeContextMenu()">📥 Einfügen (Strg+V)</button>
@@ -423,13 +423,13 @@
                         <div class="mode-selector">
                           <button class="mode-btn sell" (click)="selectDealMode('sell')">
                             <span class="mode-icon">🛍️</span>
-                            <span class="mode-title">Shop Verkauft</span>
-                            <span class="mode-desc">Spieler kauft vom Shop</span>
+                            <span class="mode-title">Handel Verkauft</span>
+                            <span class="mode-desc">Spieler kauft vom Handel</span>
                           </button>
                           <button class="mode-btn buy" (click)="selectDealMode('buy')">
                             <span class="mode-icon">💰</span>
-                            <span class="mode-title">Shop Kauft An</span>
-                            <span class="mode-desc">Spieler verkauft an Shop</span>
+                            <span class="mode-title">Handel Kauft An</span>
+                            <span class="mode-desc">Spieler verkauft an Handel</span>
                           </button>
                         </div>
                       } @else if (dealMode() === 'sell' && !editingDealData()) {
@@ -441,9 +441,9 @@
                         <div class="type-selector">
                           <button class="type-btn" (click)="selectDealItemType('item')">📦 Item</button>
                           <button class="type-btn" (click)="selectDealItemType('rune')">✨ Rune</button>
-                          <button class="type-btn" (click)="selectDealItemType('spell')">📖 Spell</button>
-                          <button class="type-btn" (click)="selectDealItemType('skill')">⚔️ Skill</button>
-                          <button class="type-btn" (click)="selectDealItemType('status-effect')">💫 Status</button>
+                          <button class="type-btn" (click)="selectDealItemType('spell')">📖 Zauber</button>
+                          <button class="type-btn" (click)="selectDealItemType('skill')">⚔️ Talent</button>
+                          <button class="type-btn" (click)="selectDealItemType('status-effect')">🎭 Status</button>
                         </div>
                       } @else if (dealMode() === 'sell' && editingDealData()) {
                         <!-- Step 2: Select Item & Configure Deal (sell mode) -->
@@ -637,9 +637,9 @@
                         <div class="type-selector">
                           <button class="type-btn" (click)="selectLootItemType('item')">📦 Item</button>
                           <button class="type-btn" (click)="selectLootItemType('rune')">✨ Rune</button>
-                          <button class="type-btn" (click)="selectLootItemType('spell')">📖 Spell</button>
-                          <button class="type-btn" (click)="selectLootItemType('skill')">⚔️ Skill</button>
-                          <button class="type-btn" (click)="selectLootItemType('status-effect')">💫 Status</button>
+                          <button class="type-btn" (click)="selectLootItemType('spell')">📖 Zauber</button>
+                          <button class="type-btn" (click)="selectLootItemType('skill')">⚔️ Talent</button>
+                          <button class="type-btn" (click)="selectLootItemType('status-effect')">🎭 Status</button>
                           <button class="type-btn" (click)="selectLootItemType('currency')">💰 Währung</button>
                         </div>
                       } @else {

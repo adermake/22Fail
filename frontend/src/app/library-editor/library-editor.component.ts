@@ -588,7 +588,8 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   }
 
   async createFile(type: AssetType): Promise<void> {
-    const defaultName = `Neu ${getAssetTypeName(type)}`;
+    const baseName = `Neu ${getAssetTypeName(type)}`;
+    const defaultName = this.generateUniqueName(baseName);
 
     const data = this.getEmptyDataForType(type, defaultName);
 
@@ -609,6 +610,27 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
       this.isLoading.set(false);
       this.showCreateMenu.set(false);
     }
+  }
+
+  /**
+   * Generate unique name by appending number if name already exists
+   */
+  private generateUniqueName(baseName: string): string {
+    const existingFiles = this.files();
+    const existingNames = new Set(existingFiles.map(f => f.name.toLowerCase()));
+    
+    if (!existingNames.has(baseName.toLowerCase())) {
+      return baseName;
+    }
+    
+    let counter = 2;
+    let uniqueName = `${baseName} ${counter}`;
+    while (existingNames.has(uniqueName.toLowerCase())) {
+      counter++;
+      uniqueName = `${baseName} ${counter}`;
+    }
+    
+    return uniqueName;
   }
 
   private getEmptyDataForType(type: AssetType, name: string): any {

@@ -416,8 +416,10 @@ export class LibraryService {
     const newSkills = this.readAssetsFromDir(libraryDir, 'skill');
     const newStatusEffects = this.readAssetsFromDir(libraryDir, 'status-effect');
     const newMacroActions = this.readAssetsFromDir(libraryDir, 'macro');
+    const newShops = this.readAssetsFromDir(libraryDir, 'shop');
+    const newLootBundles = this.readAssetsFromDir(libraryDir, 'loot-bundle');
     
-    console.log(`[LIBRARY] New format - Items: ${newItems.length}, Runes: ${newRunes.length}, Spells: ${newSpells.length}, Skills: ${newSkills.length}`);
+    console.log(`[LIBRARY] New format - Items: ${newItems.length}, Runes: ${newRunes.length}, Spells: ${newSpells.length}, Skills: ${newSkills.length}, Shops: ${newShops.length}, Loot Bundles: ${newLootBundles.length}`);
     
     // Merge and deduplicate by ID
     const mergeById = (oldArr: any[], newArr: any[]): any[] => {
@@ -439,11 +441,11 @@ export class LibraryService {
       skills: mergeById(oldSkills, newSkills),
       statusEffects: mergeById(oldStatusEffects, newStatusEffects),
       macroActions: mergeById(oldMacroActions, newMacroActions),
-      shops: oldShops,
-      lootBundles: oldLootBundles
+      shops: mergeById(oldShops, newShops),
+      lootBundles: mergeById(oldLootBundles, newLootBundles)
     };
 
-    console.log(`[LIBRARY] Final counts - Items: ${library.items.length}, Runes: ${library.runes.length}, Spells: ${library.spells.length}, Skills: ${library.skills.length}`);
+    console.log(`[LIBRARY] Final counts - Items: ${library.items.length}, Runes: ${library.runes.length}, Spells: ${library.spells.length}, Skills: ${library.skills.length}, Shops: ${library.shops.length}, Loot Bundles: ${library.lootBundles.length}`);
     
     return library;
   }

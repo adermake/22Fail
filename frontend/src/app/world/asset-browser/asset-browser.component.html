@@ -22,7 +22,7 @@
       class="tab-button"
       [class.active]="activeTab === 'skills'"
       (click)="setActiveTab('skills')">
-      Skills ({{ skills.length }})
+      Talente ({{ skills.length }})
     </button>
     <button
       class="tab-button"
@@ -34,13 +34,13 @@
       class="tab-button"
       [class.active]="activeTab === 'shops'"
       (click)="setActiveTab('shops')">
-      🏪 Shops ({{ shops.length || 0 }})
+      🏪 Handel ({{ shops.length || 0 }})
     </button>
     <button
       class="tab-button"
       [class.active]="activeTab === 'loot-bundles'"
       (click)="setActiveTab('loot-bundles')">
-      📦 Loot ({{ lootBundles.length || 0 }})
+      🎁 Beute ({{ lootBundles.length || 0 }})
     </button>
   </div>
 

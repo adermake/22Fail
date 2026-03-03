@@ -109,11 +109,11 @@ export function getAssetTypeName(type: AssetType): string {
     case 'item': return 'Item';
     case 'spell': return 'Zauber';
     case 'rune': return 'Rune';
-    case 'skill': return 'Skill';
+    case 'skill': return 'Talent';
     case 'macro': return 'Makro';
     case 'status-effect': return 'Status-Effekt';
-    case 'shop': return 'Shop';
-    case 'loot-bundle': return 'Loot Bundle';
+    case 'shop': return 'Handel';
+    case 'loot-bundle': return 'Beute';
     default: return 'Unbekannt';
   }
 }
