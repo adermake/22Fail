@@ -322,6 +322,29 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
     return this.unfoldedItems.has(index);
   }
 
+  /**
+   * Returns the 1-based CSS grid-row for inventory item[i],
+   * accounting for expansion rows inserted after visual rows with unfolded items.
+   */
+  getItemGridRow(i: number): number {
+    const inventoryLen = this.sheet.inventory?.length || 0;
+    const visualRow = Math.floor(i / 4);
+    let extra = 0;
+    for (let r = 0; r < visualRow; r++) {
+      const start = r * 4;
+      const end = Math.min(start + 4, inventoryLen);
+      for (let j = start; j < end; j++) {
+        if (this.unfoldedItems.has(j)) { extra++; break; }
+      }
+    }
+    return visualRow + extra + 1;
+  }
+
+  /** Returns the 1-based CSS grid-row for the expansion row of item[i]. */
+  getExpansionGridRow(i: number): number {
+    return this.getItemGridRow(i) + 1;
+  }
+
   onFoldChange(index: number, isFolded: boolean) {
     if (isFolded) {
       this.unfoldedItems.delete(index);

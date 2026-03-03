@@ -8,7 +8,7 @@
      [class.weapon]="item.itemType === 'weapon'"
      [class.armor]="item.itemType === 'armor'"
      (contextmenu)="onRightClick($event)"
-     (dblclick)="toggleFold(); $event.stopPropagation()">
+     (dblclick)="onCardDblClick($event)">
 
   <!-- Context menu -->
   @if (showContextMenu) {
@@ -72,13 +72,15 @@
       </div>
 
       <div class="item-controls">
-        <button class="fold-btn"
-                (click)="toggleFold(); $event.stopPropagation()"
-                (mousedown)="$event.stopPropagation()"
-                (touchstart)="$event.stopPropagation()"
-                [title]="isFolded ? 'Ausklappen' : 'Einklappen'">
-          {{ isFolded ? '▼' : '▲' }}
-        </button>
+        @if (!hideFoldControls) {
+          <button class="fold-btn"
+                  (click)="toggleFold(); $event.stopPropagation()"
+                  (mousedown)="$event.stopPropagation()"
+                  (touchstart)="$event.stopPropagation()"
+                  [title]="isFolded ? 'Ausklappen' : 'Einklappen'">
+            {{ isFolded ? '▼' : '▲' }}
+          </button>
+        }
       </div>
     </div>
 

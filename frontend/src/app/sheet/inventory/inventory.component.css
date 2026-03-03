@@ -161,38 +161,54 @@ app-card > *,
 .expansion-row {
   grid-column: 1 / -1;
   width: 100%;
+  margin-top: -0.4rem;   /* close the row-gap to merge with chip above */
+  position: relative;
 }
 
-/* Glow on origin chip cell to signal non-draggable-as-card */
+/* Accent connector line: appears only under the chip's column */
+.expansion-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(var(--chip-col, 0) * 25%);
+  width: 25%;
+  height: 2px;
+  background: var(--accent);
+  z-index: 2;
+}
+
+/* Expansion item card: flat top on the chip side */
+.expansion-row ::ng-deep .item-card {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-left-color: var(--accent);
+}
+
+/* Glow + border on origin slot cell */
 .item-slot.is-origin {
-  border-radius: 6px;
-  box-shadow: 0 0 0 2px var(--accent), 0 0 12px rgba(107, 70, 193, 0.45);
+  border-radius: 6px 6px 0 0;
 }
 
-/* Origin chip: small marker inside the grid cell */
+/* Origin chip: flat bottom, accent border – visually connects to expansion row */
 .origin-chip {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
+  justify-content: space-between;
+  gap: 0.2rem;
   background: var(--card);
-  border: 1px dashed var(--accent);
-  border-radius: 5px;
-  padding: 0.4rem 0.25rem;
+  border: 2px solid var(--accent);
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  padding: 0.4rem 0.25rem 0.3rem;
   min-height: 52px;
-  cursor: pointer;
-  text-align: center;
+  box-sizing: border-box;
+  cursor: grab;
   user-select: none;
-  transition: background 0.15s, box-shadow 0.15s;
-}
-.origin-chip:hover {
-  background: var(--bg);
-  box-shadow: 0 0 8px rgba(107, 70, 193, 0.4);
+  box-shadow: -2px -2px 8px rgba(107, 70, 193, 0.2), 2px -2px 8px rgba(107, 70, 193, 0.2);
 }
 .origin-chip-icon {
   font-size: 1.1rem;
-  filter: opacity(0.6);
 }
 .origin-chip-name {
   font-size: 0.6rem;
@@ -204,6 +220,22 @@ app-card > *,
   width: 100%;
   text-align: center;
   padding: 0 0.1rem;
+}
+.origin-fold-btn {
+  background: rgba(107, 70, 193, 0.15);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  opacity: 0.85;
+  transition: opacity 0.15s, background 0.15s;
+  width: 90%;
+}
+.origin-fold-btn:hover {
+  opacity: 1;
+  background: rgba(107, 70, 193, 0.3);
 }
 
 .empty-message {

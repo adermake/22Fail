@@ -25,6 +25,8 @@ export class ItemComponent implements OnChanges {
   @Input() set startUnfolded(v: boolean) {
     if (v) this.isFolded = false;
   }
+  /** When true, hides the fold button and disables dblclick-to-fold (expansion row) */
+  @Input() hideFoldControls = false;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
@@ -216,6 +218,13 @@ export class ItemComponent implements OnChanges {
   toggleFold() {
     this.isFolded = !this.isFolded;
     this.foldChange.emit(this.isFolded);
+  }
+
+  onCardDblClick(e: Event) {
+    if (!this.hideFoldControls) {
+      this.toggleFold();
+    }
+    e.stopPropagation();
   }
 
   deleteItem() {

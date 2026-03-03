@@ -145,12 +145,12 @@ app/
 
 ## Inventar-Komponente (`sheet/inventory/`)
 - **Grid-Layout**: CSS Grid, 4 Spalten (`grid-template-columns: repeat(4, 1fr)`). Feste Zellen — keine Verschiebung beim Draggen.
-- **Swap-Semantik**: `onDrop` macht immer Tausch (kein `moveItemInArray`). Indizes werden swap-aktuell in `unfoldedItems` nachgeführt.
+- **Explizite Platzierung**: Jede `.item-slot` bekommt `[style.grid-column]="(i%4)+1"` und `[style.grid-row]="getItemGridRow(i)"`. Expansion-Rows bekommen `[style.grid-row]="getExpansionGridRow(i)"`. So bleiben Items in der gleichen visuellen Reihe auch wenn Expansion-Rows eingefügt werden.
+- **`getItemGridRow(i)`**: Berechnet 1-basierte CSS-Grid-Reihe: `visualRow + Anzahl Expansion-Rows davor + 1`.
+- **Swap-Semantik**: `onDrop` macht immer Tausch. Indizes werden swap-aktuell in `unfoldedItems` nachgeführt.
 - **Placeholder unsichtbar**: `.drag-placeholder-wrapper { visibility: hidden }` → andere Items springen nie.
-- **Unfolded-Item in Grid**: Slot-Zelle zeigt `origin-chip` (Icon + Name, gestrichelte Umrandung + Glow). Vollinhalts-Row erscheint als `expansion-row` (`grid-column: 1 / -1`) direkt danach. CDK ignoriert diese Zeile (kein `cdkDrag`). Doppelklick auf Origin-Chip → klappt ein.
-- **Drag von Origin-Chip**: erlaubt (Chip ist draggable, kein `isItemUnfolded`-Disable mehr). Custom `<ng-template cdkDragPreview>` zeigt Chip.
-- **item.component.ts**: `@Input() set startUnfolded(v)` → wenn `true`, startet Item ausgeklappt (für Expansion-Row).
-- **Equipment-Swap**: `onSlotDrop` in `equipment.component.ts` tauscht wenn Ziel besetzt: bisheriges Equipment-Item kommt in Inventar-Quellslot zurück.
+- **Unfolded-Item**: `.item-slot` zeigt `origin-chip` (Icon + Name + ▲-Einklapp-Button). Expansion-Row (`grid-column: 1/-1`, `margin-top: -0.4rem`) darunter visuell verbunden. CSS `::before` zeichnet Akzentlinie direkt unter Chip-Spalte (`--chip-col`). Expansion-`app-item` bekommt `[hideFoldControls]="true"`.
+- **item.component**: `@Input() hideFoldControls = false` — versteckt Fold-Button und blockiert `dblclick` (via `onCardDblClick`). `@Input() set startUnfolded` — startet eingeklappt.
 
 ## Equipment-Komponente (`sheet/equipment/`)
 - **Layout**: Vertikales Flex-Stack (nicht 2-Spalten-Grid) — Items brauchen die volle Breite für Text
