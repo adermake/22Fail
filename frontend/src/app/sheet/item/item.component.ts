@@ -21,6 +21,10 @@ export class ItemComponent implements OnChanges {
   @Input() isEditing = false;
   /** When true, forces item to folded compact state (e.g. during drag) */
   @Input() compact: boolean = false;
+  /** When true, item starts in unfolded state (used for expansion row in inventory grid) */
+  @Input() set startUnfolded(v: boolean) {
+    if (v) this.isFolded = false;
+  }
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();

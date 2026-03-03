@@ -6,7 +6,7 @@
 /* Ensure inventory container doesn't clip drag preview */
 app-card,
 app-card > *,
-.inventory-list {
+.inventory-grid {
   overflow: visible !important;
 }
 
@@ -142,25 +142,68 @@ app-card > *,
   background-color: var(--accentdark);
 }
 
-.inventory-list {
-  display: flex;
-  flex-wrap: wrap;
+/* ─── Fixed 4-column Minecraft-style grid ─────────────── */
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.4rem;
   min-height: 100px;
-  position: relative;
-  align-items: flex-start;
+  align-items: start;
 }
 
-/* Grid items – 4 per row when folded */
-.item-drag-wrapper {
-  width: calc(25% - 0.3rem);
+/* Each grid cell – always 1 column wide */
+.item-slot {
   min-width: 0;
   box-sizing: border-box;
 }
 
-/* Take full row when unfolded */
-.item-drag-wrapper.item-unfolded {
+/* Full-width expansion row (CDK ignores this element) */
+.expansion-row {
+  grid-column: 1 / -1;
   width: 100%;
+}
+
+/* Glow on origin chip cell to signal non-draggable-as-card */
+.item-slot.is-origin {
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 12px rgba(107, 70, 193, 0.45);
+}
+
+/* Origin chip: small marker inside the grid cell */
+.origin-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  background: var(--card);
+  border: 1px dashed var(--accent);
+  border-radius: 5px;
+  padding: 0.4rem 0.25rem;
+  min-height: 52px;
+  cursor: pointer;
+  text-align: center;
+  user-select: none;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.origin-chip:hover {
+  background: var(--bg);
+  box-shadow: 0 0 8px rgba(107, 70, 193, 0.4);
+}
+.origin-chip-icon {
+  font-size: 1.1rem;
+  filter: opacity(0.6);
+}
+.origin-chip-name {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  text-align: center;
+  padding: 0 0.1rem;
 }
 
 .empty-message {
@@ -278,11 +321,9 @@ app-card > *,
   background: var(--card) !important;
 }
 
+/* Hide .cdk-drag-placeholder natively – our .drag-placeholder-wrapper handles it */
 .cdk-drag-placeholder {
-  opacity: 0.4;
-  background: var(--bg) !important;
-  border: 2px dashed var(--accent) !important;
-  border-radius: 6px;
+  opacity: 0;
 }
 
 /* Simplified drag preview - only show header */
@@ -297,13 +338,13 @@ app-card > *,
   display: none !important;
 }
 
+/* Placeholder: invisible, keeps grid cell stable – items never jump */
 .drag-placeholder-wrapper {
-  background: var(--bg);
-  border: 2px dashed var(--accent);
-  border-radius: 6px;
+  visibility: hidden;
+  min-height: 52px;
+  width: 100%;
   box-sizing: border-box;
-  opacity: 0.5;
-  width: calc(25% - 0.3rem);
+  pointer-events: none;
 }
 
 /* Custom drag chip (replaces cloned item preview) */
@@ -330,8 +371,8 @@ app-card > *,
   transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
 }
 
-.inventory-list.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
-  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+.inventory-grid.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+  transition: none; /* Fixed grid: no transition shifts */
 }
 
 .currency-weight-label {

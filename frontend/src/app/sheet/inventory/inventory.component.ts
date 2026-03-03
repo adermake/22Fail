@@ -4,7 +4,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CardComponent } from '../../shared/card/card.component';
-import { CdkDragDrop, CdkDragRelease, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, CdkDragRelease, CdkDragStart, DragDropModule } from '@angular/cdk/drag-drop';
 import { ItemComponent } from '../item/item.component';
 import { ItemCreatorComponent } from '../item-creator/item-creator.component';
 import { ItemEditorComponent } from '../item-editor/item-editor.component';
@@ -251,47 +251,56 @@ getCurrencyWeight(): number {
   }
 
 onDrop(event: CdkDragDrop<ItemBlock[]>) {
-  this.draggedIndex = null; // reset compact state
-  this.unfoldedItems.clear(); // reset fold tracking after reorder
+  this.draggedIndex = null;
+
   if (event.previousContainer === event.container) {
-    // Reorder within inventory
-    const previousIndex = event.previousIndex;
-    const currentIndex = event.currentIndex;
-    
-    if (previousIndex === currentIndex) {
-      return;
-    }
+    const prev = event.previousIndex;
+    const curr = event.currentIndex;
+    if (prev === curr) return;
+
+    // Swap the two items (Minecraft-style fixed grid)
+    const newInventory = [...this.sheet.inventory];
+    [newInventory[prev], newInventory[curr]] = [newInventory[curr], newInventory[prev]];
+    this.sheet.inventory = newInventory;
+
+    // Swap fold-tracking to follow the items
+    const prevWasUnfolded = this.unfoldedItems.has(prev);
+    const currWasUnfolded = this.unfoldedItems.has(curr);
+    if (prevWasUnfolded) this.unfoldedItems.add(curr); else this.unfoldedItems.delete(curr);
+    if (currWasUnfolded) this.unfoldedItems.add(prev); else this.unfoldedItems.delete(prev);
+
+    this.patch.emit({ path: 'inventory', value: newInventory });
+  } else {
+    // Transfer from equipment to inventory — try swap if occupied slot, else place
+    const item = event.previousContainer.data[event.previousIndex];
+    const targetIndex = event.currentIndex;
+    const existingItem = this.sheet.inventory[targetIndex];
 
     const newInventory = [...this.sheet.inventory];
-    moveItemInArray(newInventory, previousIndex, currentIndex);
-    
-    this.sheet.inventory = newInventory;
-    
-    this.patch.emit({
-      path: 'inventory',
-      value: newInventory,
-    });
-  } else {
-    // Transfer from equipment to inventory
-    const item = event.previousContainer.data[event.previousIndex];
-    
-    // Remove from equipment
-    this.sheet.equipment = this.sheet.equipment.filter((_, i) => i !== event.previousIndex);
-    
-    // Add to inventory
-    const newInventory = [...this.sheet.inventory];
-    newInventory.splice(event.currentIndex, 0, item);
-    this.sheet.inventory = newInventory;
-    
-    // Emit both changes
-    this.patch.emit({
-      path: 'equipment',
-      value: this.sheet.equipment,
-    });
-    this.patch.emit({
-      path: 'inventory',
-      value: this.sheet.inventory,
-    });
+
+    if (existingItem) {
+      // Swap: put inventory item back to equipment source position
+      const newEquipment = [...(this.sheet.equipment || [])];
+      const equipSrcIdx = newEquipment.indexOf(item);
+      if (equipSrcIdx !== -1) {
+        newEquipment[equipSrcIdx] = existingItem;
+        existingItem.armorType = item.armorType; // inherit slot type
+      } else {
+        newEquipment.push(existingItem);
+      }
+      newInventory[targetIndex] = item;
+      this.sheet.equipment = newEquipment;
+      this.sheet.inventory = newInventory;
+      this.patch.emit({ path: 'equipment', value: newEquipment });
+    } else {
+      // Empty slot – just place
+      newInventory.splice(targetIndex, 0, item);
+      this.sheet.equipment = (this.sheet.equipment || []).filter((_, i) => i !== event.previousIndex);
+      this.sheet.inventory = newInventory;
+      this.patch.emit({ path: 'equipment', value: this.sheet.equipment });
+    }
+    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+    this.unfoldedItems.clear();
   }
 }
 

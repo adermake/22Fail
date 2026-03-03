@@ -33,49 +33,80 @@
   </div>
 
   <div
-    class="inventory-list"
+    class="inventory-grid"
     cdkDropList
     id="inventoryList"
     [cdkDropListData]="sheet.inventory"
     [cdkDropListConnectedTo]="connectedDropLists"
     (cdkDropListDropped)="onDrop($event)"
   >
-    @for (item of (sheet.inventory || []); track i; let i = $index) {
-    <div cdkDrag
-         class="item-drag-wrapper"
-         [class.item-unfolded]="isItemUnfolded(i)"
-         [cdkDragData]="item"
-         [cdkDragDisabled]="isItemEditing(i) || isItemUnfolded(i)"
-         (cdkDragStarted)="onDragStarted($event)"
-         (cdkDragReleased)="onDragReleased($event)">
-      <app-item
-        [item]="item"
-        [sheet]="sheet"
-        [index]="i"
-        [isEditing]="isItemEditing(i)"
-        [compact]="draggedIndex === i"
-        (patch)="updateItem(i, $event)"
-        (delete)="deleteItem(i)"
-        (editingChange)="onEditingChange(i, $event)"
-        (openEditor)="openItemEditor(i)"
-        (breakTest)="performBreakTest(i)"
-        (foldChange)="onFoldChange(i, $event)"
-      ></app-item>
-      <ng-template cdkDragPreview>
-        <div class="drag-chip">
-          <span class="drag-chip-icon">{{ item.itemType === 'weapon' ? '⚔' : item.itemType === 'armor' ? '🛡' : '📦' }}</span>
-          <span class="drag-chip-name">{{ item.name }}</span>
+    @for (item of (sheet.inventory || []); track item; let i = $index) {
+      <!-- Fixed grid cell: always 1 column wide -->
+      <div cdkDrag
+           class="item-slot"
+           [class.is-origin]="isItemUnfolded(i)"
+           [cdkDragData]="item"
+           [cdkDragDisabled]="isItemEditing(i)"
+           (cdkDragStarted)="onDragStarted($event)"
+           (cdkDragReleased)="onDragReleased($event)">
+
+        @if (isItemUnfolded(i)) {
+          <!-- Origin chip: stays in grid cell, marks the item's home slot -->
+          <div class="origin-chip"
+               (dblclick)="onFoldChange(i, true); $event.stopPropagation()"
+               [title]="'Doppelklick zum Einklappen: ' + item.name">
+            <span class="origin-chip-icon">{{ item.itemType === 'weapon' ? '⚔' : item.itemType === 'armor' ? '🛡' : '📦' }}</span>
+            <span class="origin-chip-name">{{ item.name }}</span>
+          </div>
+        } @else {
+          <app-item
+            [item]="item"
+            [sheet]="sheet"
+            [index]="i"
+            [isEditing]="isItemEditing(i)"
+            [compact]="draggedIndex === i"
+            (patch)="updateItem(i, $event)"
+            (delete)="deleteItem(i)"
+            (editingChange)="onEditingChange(i, $event)"
+            (openEditor)="openItemEditor(i)"
+            (breakTest)="performBreakTest(i)"
+            (foldChange)="onFoldChange(i, $event)"
+          ></app-item>
+        }
+
+        <!-- Custom drag preview chip (snaps to cursor) -->
+        <ng-template cdkDragPreview>
+          <div class="drag-chip">
+            <span class="drag-chip-icon">{{ item.itemType === 'weapon' ? '⚔' : item.itemType === 'armor' ? '🛡' : '📦' }}</span>
+            <span class="drag-chip-name">{{ item.name }}</span>
+          </div>
+        </ng-template>
+
+        <!-- Invisible placeholder keeps grid stable -->
+        <div class="drag-placeholder-wrapper" *cdkDragPlaceholder></div>
+      </div>
+
+      <!-- Expansion row: full grid width, CDK-ignored, contains the unfolded item -->
+      @if (isItemUnfolded(i)) {
+        <div class="expansion-row">
+          <app-item
+            [item]="item"
+            [sheet]="sheet"
+            [index]="i"
+            [isEditing]="isItemEditing(i)"
+            [startUnfolded]="true"
+            (patch)="updateItem(i, $event)"
+            (delete)="deleteItem(i)"
+            (editingChange)="onEditingChange(i, $event)"
+            (openEditor)="openItemEditor(i)"
+            (breakTest)="performBreakTest(i)"
+            (foldChange)="onFoldChange(i, $event)"
+          ></app-item>
         </div>
-      </ng-template>
-      <div
-        class="drag-placeholder-wrapper"
-        *cdkDragPlaceholder
-        [style.height]="placeholderHeight"
-        [style.width]="placeholderWidth"
-      ></div>
-    </div>
-    } @if ((sheet.inventory || []).length === 0) {
-    <p class="empty-message">Keine Gegenstände. Klicke + um einen hinzuzufügen.</p>
+      }
+    }
+    @if ((sheet.inventory || []).length === 0) {
+      <p class="empty-message">Keine Gegenstände. Klicke + um einen hinzuzufügen.</p>
     }
   </div>
   <!-- Currency Section at Bottom -->

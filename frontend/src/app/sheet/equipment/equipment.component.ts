@@ -188,21 +188,32 @@ export class EquipmentComponent {
       }
       
       if (isFromInventory) {
-        // Remove from inventory
-        this.sheet.inventory = this.sheet.inventory.filter((_, i) => i !== event.previousIndex);
-        
-        // Add to equipment
-        this.sheet.equipment.push(item);
-        
-        // Emit both patches
-        this.patch.emit({
-          path: 'inventory',
-          value: this.sheet.inventory,
-        });
-        this.patch.emit({
-          path: 'equipment',
-          value: this.sheet.equipment,
-        });
+        // Check if target slot already has an item → swap
+        const existingInSlot = this.getArmorSlot(targetSlot as any);
+        const existingItem = existingInSlot.length > 0 && targetSlot !== 'extra' ? existingInSlot[0] : null;
+
+        if (existingItem) {
+          // SWAP: put existing equipment item back into inventory at source index
+          const newInventory = [...(this.sheet.inventory || [])];
+          newInventory[event.previousIndex] = existingItem;
+          this.sheet.inventory = newInventory;
+
+          // Replace in equipment array
+          const equipIdx = this.sheet.equipment.indexOf(existingItem);
+          if (equipIdx !== -1) {
+            this.sheet.equipment[equipIdx] = item;
+          } else {
+            this.sheet.equipment.push(item);
+          }
+          this.sheet.equipment = [...this.sheet.equipment];
+        } else {
+          // Empty slot: remove from inventory, add to equipment
+          this.sheet.inventory = this.sheet.inventory.filter((_, i) => i !== event.previousIndex);
+          this.sheet.equipment.push(item);
+        }
+
+        this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+        this.patch.emit({ path: 'equipment', value: this.sheet.equipment });
       } else {
         // Moving between equipment slots
         // Item is already in equipment, just update its armorType

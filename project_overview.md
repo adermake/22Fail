@@ -144,10 +144,13 @@ app/
 - **Ausgeklappte Reihenfolge**: Beschreibung → Effekte → Stat-Boni → Würfelboni → Counter → Haltbarkeit → Anforderungen → Fähigkeiten
 
 ## Inventar-Komponente (`sheet/inventory/`)
-- **Grid-Layout**: 4 Items pro Reihe (`.item-drag-wrapper { width: calc(25% - 0.3rem) }`), ausgeklappt 100% Breite (`.item-drag-wrapper.item-unfolded { width: 100% }`)
-- **Fold-Tracking**: `unfoldedItems = new Set<number>()`, `onFoldChange(i, isFolded)`, `isItemUnfolded(i)` — aus `(foldChange)` von app-item
-- **Drag deaktiviert wenn ausgeklappt**: `[cdkDragDisabled]="isItemEditing(i) || isItemUnfolded(i)"`
-- **Custom Drag-Preview-Chip**: `<ng-template cdkDragPreview>` → kleines Chip-Element (Icon + Name), snappt an Cursor — kein Klon des ganzen Items
+- **Grid-Layout**: CSS Grid, 4 Spalten (`grid-template-columns: repeat(4, 1fr)`). Feste Zellen — keine Verschiebung beim Draggen.
+- **Swap-Semantik**: `onDrop` macht immer Tausch (kein `moveItemInArray`). Indizes werden swap-aktuell in `unfoldedItems` nachgeführt.
+- **Placeholder unsichtbar**: `.drag-placeholder-wrapper { visibility: hidden }` → andere Items springen nie.
+- **Unfolded-Item in Grid**: Slot-Zelle zeigt `origin-chip` (Icon + Name, gestrichelte Umrandung + Glow). Vollinhalts-Row erscheint als `expansion-row` (`grid-column: 1 / -1`) direkt danach. CDK ignoriert diese Zeile (kein `cdkDrag`). Doppelklick auf Origin-Chip → klappt ein.
+- **Drag von Origin-Chip**: erlaubt (Chip ist draggable, kein `isItemUnfolded`-Disable mehr). Custom `<ng-template cdkDragPreview>` zeigt Chip.
+- **item.component.ts**: `@Input() set startUnfolded(v)` → wenn `true`, startet Item ausgeklappt (für Expansion-Row).
+- **Equipment-Swap**: `onSlotDrop` in `equipment.component.ts` tauscht wenn Ziel besetzt: bisheriges Equipment-Item kommt in Inventar-Quellslot zurück.
 
 ## Equipment-Komponente (`sheet/equipment/`)
 - **Layout**: Vertikales Flex-Stack (nicht 2-Spalten-Grid) — Items brauchen die volle Breite für Text
