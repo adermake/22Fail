@@ -358,7 +358,7 @@ export class TrueStatsService {
    */
   getTotalWeight(sheet: CharacterSheet): number {
     // Item weight
-    const itemWeight = sheet.inventory?.reduce((sum, item) => sum + (item.weight || 0), 0) || 0;
+    const itemWeight = sheet.inventory?.reduce((sum, item) => sum + (item ? (item.weight || 0) : 0), 0) || 0;
     
     // Currency weight (using COIN_WEIGHT constant)
     const COIN_WEIGHT = 0.02; // 50 coins per pound

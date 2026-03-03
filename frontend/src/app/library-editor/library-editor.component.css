@@ -281,6 +281,21 @@
   background: #4d4d4d;
 }
 
+.settings-actions .reload-deps-btn {
+  padding: 0.75rem 1.25rem;
+  background: rgba(107, 70, 193, 0.18);
+  border: 1px solid rgba(107, 70, 193, 0.45);
+  border-radius: 4px;
+  color: #c4b5fd;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-actions .reload-deps-btn:hover {
+  background: rgba(107, 70, 193, 0.35);
+}
+
 /* ==================== BODY LAYOUT ==================== */
 .browser-body {
   display: flex;

@@ -207,8 +207,11 @@ export class EquipmentComponent {
           }
           this.sheet.equipment = [...this.sheet.equipment];
         } else {
-          // Empty slot: remove from inventory, add to equipment
-          this.sheet.inventory = this.sheet.inventory.filter((_, i) => i !== event.previousIndex);
+          // Empty slot: null out the position (preserve other item slots), add to equipment
+          const invCopy = [...this.sheet.inventory] as (typeof this.sheet.inventory[0] | null)[];
+          invCopy[event.previousIndex] = null;
+          while (invCopy.length > 0 && invCopy[invCopy.length - 1] === null) invCopy.pop();
+          this.sheet.inventory = invCopy as typeof this.sheet.inventory;
           this.sheet.equipment.push(item);
         }
 

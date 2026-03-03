@@ -42,7 +42,7 @@ export interface CharacterSheet {
   constitution: StatBlock;
   skills: SkillBlock[];
   statuses: StatusBlock[];
-  inventory: ItemBlock[];
+  inventory: (ItemBlock | null)[];
   equipment: ItemBlock[];
   carryCapacityMultiplier: number;
   carryCapacityBonus: number;

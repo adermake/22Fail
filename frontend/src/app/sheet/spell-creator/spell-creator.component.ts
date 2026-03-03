@@ -189,7 +189,7 @@ export class SpellCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   get availableItems(): string[] {
-    const allItems = [...(this.sheet.inventory || []), ...(this.sheet.equipment || [])];
+    const allItems = [...(this.sheet.inventory || []), ...(this.sheet.equipment || [])].filter((x): x is NonNullable<typeof x> => x !== null && x !== undefined);
     return allItems.map((item) => item.name);
   }
 

@@ -131,7 +131,7 @@ export class InventoryComponent {
   }
 
  get totalWeight(): number {
-  const itemWeight = this.sheet.inventory?.reduce((sum, item) => sum + (item.weight || 0), 0) || 0;
+  const itemWeight = this.sheet.inventory?.reduce((sum, item) => sum + (item ? (item.weight || 0) : 0), 0) || 0;
   const currencyWeight = this.getCurrencyWeight();
   return Math.floor(itemWeight + currencyWeight);
 }
@@ -205,66 +205,62 @@ getCurrencyWeight(): number {
   }
 
   createItem(item: ItemBlock) {
-    this.sheet.inventory = [...this.sheet.inventory, item];
-    this.patch.emit({
-      path: 'inventory',
-      value: this.sheet.inventory,
-    });
+    const newInv = [...this.sheet.inventory] as (ItemBlock | null)[];
+    const emptySlot = newInv.indexOf(null);
+    if (emptySlot !== -1) {
+      newInv[emptySlot] = item;
+    } else {
+      newInv.push(item);
+    }
+    this.sheet.inventory = newInv;
+    this.patch.emit({ path: 'inventory', value: newInv });
     this.closeCreateDialog();
   }
 
   deleteItem(index: number) {
     const item = this.sheet.inventory[index];
-    this.sheet.inventory = this.sheet.inventory.filter((_, i) => i !== index);
+    if (!item) return;
+
+    // Null out slot (preserves positions of all other items)
+    const newInv = [...this.sheet.inventory] as (ItemBlock | null)[];
+    newInv[index] = null;
+    // Trim trailing nulls for compact storage
+    while (newInv.length > 0 && newInv[newInv.length - 1] === null) newInv.pop();
+    this.sheet.inventory = newInv;
 
     // Add to trash
     const trash = this.sheet.trash || [];
-    trash.push({
-      type: 'item',
-      data: item,
-      deletedAt: Date.now()
-    });
+    trash.push({ type: 'item', data: item, deletedAt: Date.now() });
 
-    // Update editing state: remove the deleted item and shift indices
-    const newSet = new Set<number>();
-    this.editingItems.forEach(i => {
-      if (i < index) {
-        newSet.add(i);
-      } else if (i > index) {
-        newSet.add(i - 1);
+    // Remove from UI state sets — no index shifting needed
+    this.editingItems.delete(index);
+    this.unfoldedItems.delete(index);
+    const row = Math.floor(index / 4);
+    if (this.activeTabPerRow.get(row) === index) {
+      const rowEntry = this.expansionRows.find(e => e.row === row);
+      if (rowEntry && rowEntry.unfolded.length > 0) {
+        this.activeTabPerRow.set(row, rowEntry.unfolded[0]);
+      } else {
+        this.activeTabPerRow.delete(row);
       }
-      // Skip i === index (the deleted item)
-    });
-    this.editingItems = newSet;
+    }
 
-    // Same for unfolded items
-    const newUnfolded = new Set<number>();
-    this.unfoldedItems.forEach(i => {
-      if (i < index) newUnfolded.add(i);
-      else if (i > index) newUnfolded.add(i - 1);
-    });
-    this.unfoldedItems = newUnfolded;
-
-    this.patch.emit({
-      path: 'inventory',
-      value: this.sheet.inventory,
-    });
-    this.patch.emit({
-      path: 'trash',
-      value: trash,
-    });
+    this.patch.emit({ path: 'inventory', value: newInv });
+    this.patch.emit({ path: 'trash', value: trash });
   }
 
   updateItem(index: number, patch: JsonPatch) {
+    const item = this.sheet.inventory[index];
+    if (!item) return;
     const pathParts = patch.path.split('.');
 
     if (pathParts.length === 1) {
-      (this.sheet.inventory[index] as any)[patch.path] = patch.value;
+      (item as any)[patch.path] = patch.value;
     } else if (pathParts[0] === 'requirements') {
-      if (!this.sheet.inventory[index].requirements) {
-        this.sheet.inventory[index].requirements = {};
+      if (!item.requirements) {
+        item.requirements = {};
       }
-      (this.sheet.inventory[index].requirements as any)[pathParts[1]] = patch.value;
+      (item.requirements as any)[pathParts[1]] = patch.value;
     }
 
     this.sheet.inventory = [...this.sheet.inventory];
@@ -316,43 +312,41 @@ getCurrencyWeight(): number {
 
     if (src === null || tgt === null || src === tgt) return;
 
-    // Swap in padded slot space, then compact to inventory
-    const padded = this.paddedSlots;
-    const unfoldedRefs = new Set(
-      [...this.unfoldedItems].map(i => this.sheet.inventory[i]).filter(Boolean)
-    );
+    // Sparse swap: swap directly at their slot positions, no compaction
+    const padded = [...this.paddedSlots];
     [padded[src], padded[tgt]] = [padded[tgt], padded[src]];
-    const newInv = padded.filter((x): x is ItemBlock => x !== null);
+
+    // Directly swap unfoldedItems indices (no reference tracking needed)
+    const srcWasUnfolded = this.unfoldedItems.has(src);
+    const tgtWasUnfolded = this.unfoldedItems.has(tgt);
+    if (srcWasUnfolded) this.unfoldedItems.add(tgt); else this.unfoldedItems.delete(tgt);
+    if (tgtWasUnfolded) this.unfoldedItems.add(src); else this.unfoldedItems.delete(src);
+
+    // Swap activeTabPerRow references if they pointed to swapped indices
+    const srcRow = Math.floor(src / 4);
+    const tgtRow = Math.floor(tgt / 4);
+    if (srcRow !== tgtRow) {
+      if (this.activeTabPerRow.get(srcRow) === src) this.activeTabPerRow.set(srcRow, tgt);
+      if (this.activeTabPerRow.get(tgtRow) === tgt) this.activeTabPerRow.set(tgtRow, src);
+    }
+
+    // Trim trailing nulls for compact storage, preserve all non-trailing positions
+    const newInv = [...padded] as (ItemBlock | null)[];
+    while (newInv.length > 0 && newInv[newInv.length - 1] === null) newInv.pop();
     this.sheet.inventory = newInv;
-
-    const newUnfolded = new Set<number>();
-    newInv.forEach((item, idx) => {
-      if (unfoldedRefs.has(item)) newUnfolded.add(idx);
-    });
-    this.unfoldedItems = newUnfolded;
-
-    // Rebuild activeTabPerRow from new indices
-    const newTabPerRow = new Map<number, number>();
-    this.activeTabPerRow.forEach((oldActiveIdx, row) => {
-      const newActiveItem = this.sheet.inventory.find(
-        (_, ni) => unfoldedRefs.has(newInv[ni]) && Math.floor(ni / 4) === row
-      );
-      const newActiveIdx = newInv.indexOf(newActiveItem!);
-      if (newActiveIdx !== -1) newTabPerRow.set(row, newActiveIdx);
-    });
-    this.activeTabPerRow = newTabPerRow;
-
     this.patch.emit({ path: 'inventory', value: newInv });
   }
 
-onDrop(event: CdkDragDrop<ItemBlock[]>) {
+onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
   // Same-container drops are handled by onDragEnded — skip here
   if (event.previousContainer === event.container) return;
 
   this.crossContainerDropHandled = true;
 
   // Equipment → inventory cross-container drop
-  const item = event.previousContainer.data[event.previousIndex];
+  const rawItem = event.previousContainer.data[event.previousIndex];
+  if (!rawItem) return; // null-safe guard (equipment data should never be null)
+  const item = rawItem as ItemBlock;
   const tgtSlot = this.dropTargetSlotIdx ?? event.currentIndex;
 
   const padded = this.paddedSlots;
@@ -367,14 +361,19 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
     } else {
       newEquipment.push(existingItem);
     }
-    padded[tgtSlot] = item;
-    const compacted = padded.filter((x): x is ItemBlock => x !== null && x !== existingItem);
-    this.sheet.inventory = compacted;
+    // Place the incoming item at the target slot (sparse — preserve all other positions)
+    const newInv = [...padded] as (ItemBlock | null)[];
+    newInv[tgtSlot] = item;
+    while (newInv.length > 0 && newInv[newInv.length - 1] === null) newInv.pop();
+    this.sheet.inventory = newInv;
     this.sheet.equipment = newEquipment;
     this.patch.emit({ path: 'equipment', value: newEquipment });
   } else {
-    // Empty target slot: append to inventory
-    const newInv = [...(this.sheet.inventory || []), item];
+    // Empty target slot: place item at that position (or extend array as needed)
+    const newInv = [...(this.sheet.inventory || [])] as (ItemBlock | null)[];
+    while (newInv.length <= tgtSlot) newInv.push(null);
+    newInv[tgtSlot] = item;
+    while (newInv.length > 0 && newInv[newInv.length - 1] === null) newInv.pop();
     this.sheet.inventory = newInv;
     this.sheet.equipment = (this.sheet.equipment || []).filter(e => e !== item);
     this.patch.emit({ path: 'equipment', value: this.sheet.equipment });
@@ -407,12 +406,12 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
    * accounting for expansion rows inserted after visual rows with unfolded items.
    */
   getItemGridRow(i: number): number {
-    const inventoryLen = this.sheet.inventory?.length || 0;
+    const padded = this.paddedSlots;
     const visualRow = Math.floor(i / 4);
     let extra = 0;
     for (let r = 0; r < visualRow; r++) {
       const start = r * 4;
-      const end = Math.min(start + 4, inventoryLen);
+      const end = Math.min(start + 4, padded.length);
       for (let j = start; j < end; j++) {
         if (this.unfoldedItems.has(j)) { extra++; break; }
       }
@@ -451,6 +450,18 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
 
   setActiveTab(row: number, idx: number) {
     this.activeTabPerRow.set(row, idx);
+  }
+
+  /** Returns the visual 0-based row for a padded slot index */
+  getVisualRow(i: number): number {
+    return Math.floor(i / 4);
+  }
+
+  /** Returns true if this chip is the currently active expansion tab for its row */
+  isActiveTab(i: number): boolean {
+    const row = this.getVisualRow(i);
+    const active = this.activeTabPerRow.get(row);
+    return active === i || (active === undefined && this.expansionRows.find(e => e.row === row)?.unfolded[0] === i);
   }
 
   // Open full-screen item editor
@@ -533,7 +544,8 @@ onDrop(event: CdkDragDrop<ItemBlock[]>) {
 
     // Update item state
     if (!survived) {
-      this.sheet.inventory[index].broken = true;
+      const invItem = this.sheet.inventory[index];
+      if (invItem) invItem.broken = true;
       this.sheet.inventory = [...this.sheet.inventory];
       this.patch.emit({
         path: `inventory.${index}.broken`,

@@ -15,6 +15,9 @@ import { KeywordEnhancer } from '../keyword-enhancer';
   styleUrl: './item.component.css',
 })
 export class ItemComponent implements OnChanges {
+  /** Tracks the last opened context menu instance so others can close themselves */
+  private static activeContextMenu: ItemComponent | null = null;
+
   @Input({ required: true }) item!: ItemBlock;
   @Input({ required: true }) sheet!: CharacterSheet;
   @Input({ required: true }) index!: number;
@@ -57,6 +60,13 @@ export class ItemComponent implements OnChanges {
   @HostListener('document:click')
   onDocumentClick() {
     this.showContextMenu = false;
+    if (ItemComponent.activeContextMenu === this) ItemComponent.activeContextMenu = null;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    this.showContextMenu = false;
+    if (ItemComponent.activeContextMenu === this) ItemComponent.activeContextMenu = null;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -129,6 +139,11 @@ export class ItemComponent implements OnChanges {
   onRightClick(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
+    // Close any other open context menu
+    if (ItemComponent.activeContextMenu && ItemComponent.activeContextMenu !== this) {
+      ItemComponent.activeContextMenu.showContextMenu = false;
+    }
+    ItemComponent.activeContextMenu = this;
     this.contextMenuX = event.clientX;
     this.contextMenuY = event.clientY;
     this.showContextMenu = true;

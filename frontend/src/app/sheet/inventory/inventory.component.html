@@ -58,9 +58,12 @@
              (cdkDragEnded)="onDragEnded($event)">
 
           @if (isItemUnfolded(i)) {
-            <!-- Origin chip: double-click to fold -->
+            <!-- Origin chip: click = switch expansion tab; double-click = fold -->
             <div class="origin-chip"
+                 [class.active-tab]="isActiveTab(i)"
+                 (click)="setActiveTab(getVisualRow(i), i); $event.stopPropagation()"
                  (dblclick)="onFoldChange(i, true); $event.stopPropagation()">
+              <button class="chip-fold-btn" (click)="onFoldChange(i, true); $event.stopPropagation()" title="Einklappen">▲</button>
               <span class="origin-chip-icon">{{ slot.itemType === 'weapon' ? '⚔' : slot.itemType === 'armor' ? '🛡' : '📦' }}</span>
               <span class="origin-chip-name">{{ slot.name }}</span>
             </div>
@@ -110,13 +113,9 @@
 
         <!-- Tab bar: shown only when multiple items in this row are unfolded -->
         @if (exp.unfolded.length > 1) {
-          <div class="expansion-tabs">
+          <div class="expansion-tab-indicator">
             @for (tabIdx of exp.unfolded; track tabIdx) {
-              <button class="exp-tab"
-                      [class.active]="tabIdx === exp.activeIdx"
-                      (click)="setActiveTab(exp.row, tabIdx); $event.stopPropagation()">
-                {{ paddedSlots[tabIdx]?.name }}
-              </button>
+              <div class="exp-dot" [class.active]="tabIdx === exp.activeIdx"></div>
             }
           </div>
         }

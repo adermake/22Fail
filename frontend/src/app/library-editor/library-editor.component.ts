@@ -264,6 +264,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
         library.dependencies = [];
       }
       this.library.set(library);
+      document.title = library.name;
     } catch (error) {
       console.error('Failed to load library:', error);
     }

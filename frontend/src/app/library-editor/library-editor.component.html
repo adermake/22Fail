@@ -69,7 +69,7 @@
                 }
               }
             </select>
-            <div class="dependencies-help">Halte Strg/Cmd um mehrere Bibliotheken auszuwählen. Diese Bibliothek kann Items von ausgewählten Bibliotheken verwenden.</div>
+            <div class="dependencies-help">Halte Strg/Cmd um mehrere Bibliotheken auszuwählen. Diese Bibliothek kann Items von ausgewählten Bibliotheken verwenden. Geladene Items: {{ availableItems().length + availableRunes().length + availableSpells().length + availableSkills().length + availableStatusEffects().length }}</div>
           </div>
           
           <div class="settings-group checkbox-group">
@@ -82,6 +82,7 @@
         
         <div class="settings-actions">
           <button class="save-btn" (click)="saveLibrarySettings(); toggleLibrarySettings()">✓ Speichern</button>
+          <button class="reload-deps-btn" (click)="loadDependencyItems()" title="Abhängigkeiten neu laden">↺ Abhängigkeiten neu laden</button>
           <button class="cancel-btn" (click)="toggleLibrarySettings()">✕ Abbrechen</button>
         </div>
       </div>

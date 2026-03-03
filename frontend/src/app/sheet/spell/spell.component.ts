@@ -179,13 +179,13 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
     const itemName = this.spell.binding.itemName?.toLowerCase().trim();
     if (!itemName) return true;
 
-    const allItems = [...(this.sheet.inventory || []), ...(this.sheet.equipment || [])];
+    const allItems = [...(this.sheet.inventory || []), ...(this.sheet.equipment || [])].filter((x): x is NonNullable<typeof x> => x !== null && x !== undefined);
 
     return !allItems.some((item) => item.name.toLowerCase().trim() === itemName);
   }
 
   get availableItems(): string[] {
-    const allItems = [...(this.sheet.inventory || []), ...(this.sheet.equipment || [])];
+    const allItems = [...(this.sheet.inventory || []), ...(this.sheet.equipment || [])].filter((x): x is NonNullable<typeof x> => x !== null && x !== undefined);
     return allItems.map((item) => item.name);
   }
 

@@ -185,6 +185,9 @@ export class SheetComponent implements OnInit {
 
     // Join world room when character sheet loads (if character has a world)
     this.store.sheet$.subscribe(async (sheet) => {
+      if (sheet && sheet.name) {
+        document.title = sheet.name;
+      }
       if (sheet && sheet.worldName) {
         this.currentWorldName = sheet.worldName;
 

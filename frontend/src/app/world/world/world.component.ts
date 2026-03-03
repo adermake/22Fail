@@ -323,6 +323,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     
     this.route.params.subscribe(params => {
       this.worldName = params['worldName'];
+      document.title = this.worldName;
       this.store.load(this.worldName);
     });
 

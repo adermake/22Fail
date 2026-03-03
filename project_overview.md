@@ -147,16 +147,18 @@ app/
 - **Grid-Layout**: CSS Grid, 4 Spalten. Dunkle Slot-Kacheln immer sichtbar — auch wenn ein Item drin liegt (Slot-Hintergrund zeigt durch).
 - **Inventar-Panel**: Dunkles `rgba(0,0,0,0.28)` Hintergrund + `inset`-Schatten für tiefen Inventar-Look. Jede Slot-Kachel: `rgba(0,0,0,0.32)` + `inset`-Schatten (sunken-box-Effekt).
 - **Vorgefülltes Slot-Raster**: `get paddedSlots()` gibt immer `max(8, ceil((N+4)/4)*4)` Slots zurück. Items stehen vorne, Leerstellen sind `null`. Neue Reihe erscheint wenn unterste Reihe voll.
+- **Sparse Inventory**: `inventory: (ItemBlock | null)[]` — Items behalten ihre Position. Drag legt Items direkt auf Ziel-Slot ab ohne Kompaktierung. `deleteItem` nullt Slot aus statt zu filtern. Trailing nulls werden getrimmt.
 - **Explizite Platzierung**: `[style.grid-column]="(i%4)+1"` + `[style.grid-row]="getItemGridRow(i)"`. `getItemGridRow(i)` zählt Expansion-Rows davor (pro Row max. 1).
 - **Drag ohne Jitter**: `[cdkDropListSortingDisabled]="true"` — CDK verschiebt Items nie während Drag. Invisible placeholder hält Zelle stabil.
-- **Snap-back Fix**: Gleiche-Container-Swaps werden über `(cdkDragEnded)="onDragEnded($event)"` verarbeitet, NICHT über `cdkDropListDropped`. `onDragEnded` liest gespeicherte `dragSourceSlotIdx` / `dropTargetSlotIdx`, tauscht in `paddedSlots-Raum`, kompaktiert zu `sheet.inventory`.
+- **Snap-back Fix**: Gleiche-Container-Swaps werden über `(cdkDragEnded)="onDragEnded($event)"` verarbeitet, NICHT über `cdkDropListDropped`. `onDragEnded` tauscht direkt in `paddedSlots-Raum` (sparse), kein filter().
 - **Cross-Container**: Equipment→Inventory läuft weiterhin via `onDrop`, setzt `crossContainerDropHandled=true` damit `onDragEnded` überspringt.
 - **Pointer-Tracking**: `onDragMoved` nutzt `document.elementsFromPoint` + `[attr.data-slot-idx]` für visuellen Drag-Target-Highlight.
-- **Tab-System für gleiche Reihe**: Mehrere ausgeklappte Items in derselben Grid-Row konkurrieren nicht — nur ein Expansion-Row pro Row, mit Tab-Leiste oben (`exp-tab`/`exp-tab.active`). `activeTabPerRow: Map<number,number>`. Klick auf Tab-Chip wechselt aktives Item.
+- **Tab-System für gleiche Reihe**: Chips sind die Tabs — Klick auf Origin-Chip (`(click)="setActiveTab(getVisualRow(i), i)"`) wechselt aktives Item. Keine extra Tab-Buttons. Dot-Indikatoren (`.exp-dot`) zeigen Anzahl unfolded Items. `activeTabPerRow: Map<number,number>`.
 - **`get expansionRows()`**: Liefert `{row, activeIdx, unfolded[]}` pro Row mit mind. 1 unfolded Item. HTML iteriert dieses Getter für Expansion-Rows.
-- **Fold via Doppelklick**: Kein Dreieck-Button mehr. Doppelklick auf `origin-chip` klappt ein.
-- **`onFoldChange`**: Verwaltet `unfoldedItems` und `activeTabPerRow` synchron — beim Öffnen: aktiver Tab; beim Schließen: Tab zu anderem in gleicher Row switchen oder Row entfernen.
-- **item.component Extras**: `hideFoldControls=true` auf Expansion-App-Item. `startUnfolded=true` für direktes Anzeigen.
+- **Verbundene Form**: `.item-slot.is-origin` hat Accent-Border oben/seitlich (Boden transparent). `.expansion-row` hat Accent-Border unten/seitlich (Oben none). Erscheinen als eine verbundene Form.
+- **Fold-Button**: Kleiner `▲` Button oben-rechts im Chip (`.chip-fold-btn`), sehr unauffällig (`rgba(255,255,255,0.18)`).
+- **`isActiveTab(i)`**: Gibt true zurück, wenn dieser Chip-Index der aktive Tab für seine Row ist. Steuert `.active-tab` CSS-Klasse auf Origin-Chip.
+- **`onFoldChange`**: Verwaltet `unfoldedItems` und `activeTabPerRow` synchron.
 
 ## Equipment-Komponente (`sheet/equipment/`)
 - **Layout**: Vertikales Flex-Stack. Slot-Labels als CSS-Pill-Badges (HELM, BRUST, ARME, BEINE, STIEFEL, EXTRA).
@@ -166,7 +168,8 @@ app/
 - **Bars (Haltbarkeit + Counter)**: `.bar-track` → `.bar-fill` (absolut, z-index 1) + `.bar-slider` (range input, absolut, z-index 2, `background:transparent`). `bar-slider::-webkit-slider-runnable-track { background: transparent }` verhindert doppelten Browser-Track.
 - **Fold via Doppelklick**: `onCardDblClick` → `toggleFold()` (wenn `!hideFoldControls`).
 - **Slot-Tag**: `.tag-slot` für Rüstungsslot/Waffe.
-- **Kontextmenü**: Rechtsklick → Bearbeiten / Verloren / Löschen.
+- **Kontextmenü**: Rechtsklick → Bearbeiten / Verloren / Löschen. `ItemComponent.activeContextMenu` (static) tracked das offene Menü — beim Öffnen wird das vorherige automatisch geschlossen. `@HostListener('document:click')` + `@HostListener('document:keydown.escape')` schließen das Menü.
+- **Lost-Styling**: `.item-card.lost { opacity: 0.4 }` — KEIN `filter: grayscale()` (würde `position:fixed` für Kontextmenü korrumpieren, da filter einen neuen Stacking-Context erzeugt).
 
 ## Equipment-Komponente (`sheet/equipment/`)
 - **Layout**: Vertikales Flex-Stack (nicht 2-Spalten-Grid) — Items brauchen die volle Breite für Text
@@ -185,6 +188,17 @@ app/
 - Keine Datenbank: JSON-Files für Persistierung
 - Keine User-Auth: Session-basiertes system
 - File-basierte Assets: Alle Libraries/Characters als JSON-Files
+
+## Library-Editor (`library-editor/`)
+- **Dependency-Items**: `loadDependencyItems()` lädt Items von eigener Library und allen Dependencies. Wird auf `ngOnInit` + nach `saveLibrarySettings()` aufgerufen.
+- **Dependency-Reload-Button**: "↺ Abhängigkeiten neu laden" in Settings-Panel — erlaubt manuelles Reload. Zeigt Anzahl geladener Elemente.
+- **Shop Deal Editor**: `availableItems/Runes/Spells/Skills/StatusEffects` Signals — gefüllt von `loadDependencyItems`. Select-Dropdown zeigt alle verfügbaren Items aus Dependencies.
+
+## Page Titles
+- `document.title` wird gesetzt in:
+  - `sheet.component.ts`: `sheet.name` (Charaktername) bei sheet$ subscription
+  - `world.component.ts`: `worldName` bei route params load  
+  - `library-editor.component.ts`: `library.name` nach `loadLibrary()`
 
 ## Konventionen
 - **Sprache**: UI vollständig auf Deutsch
