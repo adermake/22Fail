@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -28,6 +28,15 @@ export class ItemComponent implements OnChanges {
   @Output() breakTest = new EventEmitter<void>();
 
   isFolded = true; // Start items as folded to save space
+
+  showContextMenu = false;
+  contextMenuX = 0;
+  contextMenuY = 0;
+
+  @HostListener('document:click')
+  onDocumentClick() {
+    this.showContextMenu = false;
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['compact'] && changes['compact'].currentValue === true) {
@@ -98,7 +107,20 @@ export class ItemComponent implements OnChanges {
 
   onRightClick(event: MouseEvent) {
     event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuX = event.clientX;
+    this.contextMenuY = event.clientY;
+    this.showContextMenu = true;
+  }
+
+  openEditorFromMenu() {
+    this.showContextMenu = false;
     this.openEditor.emit();
+  }
+
+  deleteFromContextMenu() {
+    this.showContextMenu = false;
+    this.delete.emit();
   }
 
   updateField(field: string, value: any) {

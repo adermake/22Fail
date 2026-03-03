@@ -127,6 +127,31 @@ app/
 - **Hover-Effects**: translateY(-2px), box-shadow depth
 - **Gradienten**: linear-gradient für Buttons, Karten-Hintergründe
 
+## Item-Komponente (`sheet/item/`)
+- **Default-Zustand**: Eingeklappt (`isFolded = true`) — zeigt Icon + Name + Tags-Reihe (Gewicht, Effizienz, Stabilität)
+- **Fold-Button**: Groß (min-width 36px), rechts neben Item-Controls
+- **Kein Löschen-Button**: Löschen nur via Kontextmenü (Rechtsklick → "Bearbeiten" / "Löschen")
+  - `showContextMenu`, `contextMenuX/Y`, `@HostListener('document:click')` zum Schließen
+- **Ausgeklappte Reihenfolge**: Beschreibung → Effekte → Stat-Boni → Würfelboni → Counter → Haltbarkeit → Anforderungen → Fähigkeiten
+- **Horizontale Bars**: `.bar-with-input` Layout: `[label] [bar-track (flex:1)] [number-input/value]`
+  - Haltbarkeit: Zahl-Input rechts neben Bar
+  - Custom Counter: Wert-Text rechts neben Bar
+- **Drag Compact**: `[compact]="draggedIndex === i"` blendet Tags-Reihe während Drag aus
+- **Drag Placeholder**: Feste Höhe 52px in inventory + equipment (kein Phantom-Overflow)
+
+## Equipment-Komponente (`sheet/equipment/`)
+- **Layout**: Vertikales Flex-Stack (nicht 2-Spalten-Grid) — Items brauchen die volle Breite für Text
+- **Slot-Labels**: Text-Abkürzungen als CSS-Pill-Badges (`.slot-abbr`): HELM, BRUST, ARME, BEINE, STIEFEL, EXTRA
+  - Kein Emoji → professionelleres Aussehen
+- **Drag-Placeholder**: `style="height:52px"` inline, immer kompakt
+
+## Event-Portal Währungsanzeige
+- **Position**: Fixierte Überlagerung unten-rechts (`position: fixed; bottom: 2rem; right: 2.5rem; z-index: 20500`)
+- **Größe**: Groß und gut lesbar (`.coin-amount-lg` 1.3rem)
+- **Münz-Icons**: CSS-gestylte Kreise (`.coin-icon`) mit `inset box-shadow` für 3D-Coin-Look
+  - Farben: Kupfer #b87333, Silber #c0c0c0, Gold #ffd700, Platin #6ab2e5
+- **Preistoggle**: Nur noch Umschalter im Header, kein Wallet dort mehr
+
 ## Bekannte Limitierungen
 - Keine Datenbank: JSON-Files für Persistierung
 - Keine User-Auth: Session-basiertes system

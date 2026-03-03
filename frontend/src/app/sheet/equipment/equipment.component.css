@@ -8,7 +8,7 @@ app-card {
   height: 100%;
 }
 
-/* Ensure equipment container doesn't clip drag preview */
+/* Allow drag previews to escape overflow */
 app-card,
 app-card > *,
 .armor-slots,
@@ -16,22 +16,24 @@ app-card > *,
   overflow: visible !important;
 }
 
+/* ── Header ─────────────────────────────────────────────── */
 .equipment-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .equipment-header h2 {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.1rem;
+  margin: 0;
+  font-size: 1.05rem;
 }
 
 .equipment-stats {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
   align-items: center;
 }
@@ -43,28 +45,28 @@ app-card > *,
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 20px;
-  padding: 0.2rem 0.65rem;
-  font-size: 0.8rem;
+  padding: 0.18rem 0.6rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-muted);
 }
-
 .stat-pill.warning {
   border-color: #f97316;
   color: #f97316;
   background: rgba(249,115,22,0.08);
 }
-
-.stat-pill .pill-icon {
-  font-size: 0.85rem;
+.pill-label {
+  font-size: 0.68rem;
+  opacity: 0.65;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
-/* Armor Slots - 2-column grid */
+/* ── Slots - vertical stack ──────────────────────────────── */
 .armor-slots {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.6rem;
-  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
   overflow-x: visible;
   overflow-y: auto;
   max-height: 900px;
@@ -73,36 +75,39 @@ app-card > *,
 .armor-slot {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  min-width: 0;
-}
-
-/* Extra slot spans both columns */
-.armor-slot.extra {
-  grid-column: 1 / -1;
+  gap: 0.2rem;
 }
 
 .slot-label {
   font-weight: 600;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
-  padding: 0.15rem 0.4rem;
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.35rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
-.slot-icon {
-  font-size: 0.9rem;
+/* Clean text abbreviation badge */
+.slot-abbr {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.08rem 0.35rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
 }
 
 .slot-content {
-  min-height: 52px;
-  padding: 0.35rem;
+  min-height: 48px;
+  padding: 0.3rem;
   border: 2px dashed var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--bg);
   display: flex;
   flex-direction: column;
@@ -117,102 +122,31 @@ app-card > *,
 }
 
 .slot-content.cdk-drop-list-receiving {
-  background: rgba(76, 175, 80, 0.1);
+  background: rgba(76, 175, 80, 0.08);
   border-color: var(--accent);
   border-style: solid;
-  box-shadow: 0 0 0 3px rgba(76,175,80,0.18);
+  box-shadow: 0 0 0 3px rgba(76,175,80,0.15);
 }
 
 .empty-slot {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  padding: 0.6rem;
+  padding: 0.5rem;
   color: var(--text-muted);
   font-style: italic;
-  font-size: 0.78rem;
-  opacity: 0.55;
+  font-size: 0.75rem;
+  opacity: 0.5;
   user-select: none;
 }
 
-.empty-slot-icon {
-  font-size: 1rem;
-  opacity: 0.5;
-}
-
-/* Drag and Drop Styles */
-:host ::ng-deep .cdk-drag-preview {
-  box-sizing: border-box !important;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6) !important;
-  opacity: 0.95 !important;
-  max-width: 400px !important;
-  z-index: 999999 !important;
-  position: fixed !important;
-  pointer-events: none !important;
-  display: block !important;
-  visibility: visible !important;
-}
-
-:host ::ng-deep .cdk-drag-preview .item-card {
-  border: 3px solid var(--accent) !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5) !important;
-  animation: none !important;
-  overflow: visible !important;
-  max-height: none !important;
-  background: var(--card) !important;
-  max-width: 200px !important;
-  padding: 0.4rem 0.6rem !important;
-  min-height: auto !important;
-}
-
-:host ::ng-deep .cdk-drag-preview .item-header {
-  margin-bottom: 0 !important;
-}
-
-:host ::ng-deep .cdk-drag-preview .item-badges,
-:host ::ng-deep .cdk-drag-preview .fold-btn,
-:host ::ng-deep .cdk-drag-preview .item-weight,
-:host ::ng-deep .cdk-drag-preview .item-efficiency,
-:host ::ng-deep .cdk-drag-preview .item-stability,
-:host ::ng-deep .cdk-drag-preview .item-armor-debuff,
-:host ::ng-deep .cdk-drag-preview .item-unusable-badge,
-:host ::ng-deep .cdk-drag-preview .action-btn,
-:host ::ng-deep .cdk-drag-preview .delete-btn-compact,
-:host ::ng-deep .cdk-drag-preview .broken-badge,
-:host ::ng-deep .cdk-drag-preview .lost-badge,
-:host ::ng-deep .cdk-drag-preview .durability-section,
-:host ::ng-deep .cdk-drag-preview .counters-section,
-:host ::ng-deep .cdk-drag-preview .stat-modifiers-section,
-:host ::ng-deep .cdk-drag-preview .dice-bonuses-section,
-:host ::ng-deep .cdk-drag-preview .effects-section,
-:host ::ng-deep .cdk-drag-preview .item-description,
-:host ::ng-deep .cdk-drag-preview .item-requirements,
-:host ::ng-deep .cdk-drag-preview .attached-section {
-  display: none !important;
-}
-
-:host ::ng-deep .cdk-drag-preview .item-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-:host ::ng-deep .cdk-drag-preview .item-type-icon {
-  font-size: 1.2rem !important;
-}
-
-:host ::ng-deep .cdk-drag-preview h4 {
-  font-size: 0.95rem !important;
-  margin: 0 !important;
-}
-
+/* ── Drag and Drop ───────────────────────────────────────── */
 .drag-placeholder-wrapper {
   background: var(--bg);
   border: 2px dashed var(--accent);
   border-radius: 6px;
   box-sizing: border-box;
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .cdk-drag-animating {
@@ -221,63 +155,6 @@ app-card > *,
 
 .armor-slots.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
   transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-}
-
-
-.slot-content {
-  min-height: 60px;
-  padding: 0.4rem;
-  border: 2px dashed var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  position: relative;
-}
-
-.slot-content.cdk-drop-list-dragging {
-  background: var(--card);
-  border-color: var(--accent);
-}
-
-.slot-content.cdk-drop-list-receiving {
-  background: rgba(76, 175, 80, 0.1);
-  border-color: var(--accent);
-  border-style: solid;
-}
-
-.empty-slot {
-  text-align: center;
-  color: var(--muted);
-  padding: 0.8rem;
-  font-style: italic;
-  font-size: 0.8rem;
-  opacity: 0.6;
-}
-
-/* Drag and Drop Styles */
-:host ::ng-deep .cdk-drag-preview {
-  box-sizing: border-box !important;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6) !important;
-  opacity: 0.95 !important;
-  max-width: 400px !important;
-  /* Critical: Force highest z-index and proper positioning */
-  z-index: 999999 !important;
-  position: fixed !important;
-  pointer-events: none !important;
-  /* Ensure visibility */
-  display: block !important;
-  visibility: visible !important;
-}
-
-:host ::ng-deep .cdk-drag-preview .item-card {
-  border: 3px solid var(--accent) !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5) !important;
-  animation: none !important;
-  overflow: visible !important;
-  max-height: none !important;
-  background: var(--card) !important;
 }
 
 .cdk-drag-placeholder {
@@ -287,66 +164,34 @@ app-card > *,
   border-radius: 6px;
 }
 
-/* Simplified drag preview - only show icon + name */
+/* Constrain the drag preview */
+:host ::ng-deep .cdk-drag-preview {
+  box-sizing: border-box !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6) !important;
+  opacity: 0.95 !important;
+  max-width: 400px !important;
+  z-index: 999999 !important;
+  position: fixed !important;
+  pointer-events: none !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
 :host ::ng-deep .cdk-drag-preview .item-card {
-  max-width: 200px !important;
+  border: 2px solid var(--accent) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5) !important;
+  background: var(--card) !important;
+  max-width: 260px !important;
   padding: 0.4rem 0.6rem !important;
   min-height: auto !important;
 }
 
-:host ::ng-deep .cdk-drag-preview .item-header {
-  margin-bottom: 0 !important;
-}
+:host ::ng-deep .cdk-drag-preview .item-header { margin-bottom: 0 !important; }
 
-:host ::ng-deep .cdk-drag-preview .item-badges,
-:host ::ng-deep .cdk-drag-preview .fold-btn,
-:host ::ng-deep .cdk-drag-preview .item-weight,
-:host ::ng-deep .cdk-drag-preview .item-efficiency,
-:host ::ng-deep .cdk-drag-preview .item-stability,
-:host ::ng-deep .cdk-drag-preview .item-armor-debuff,
-:host ::ng-deep .cdk-drag-preview .item-unusable-badge,
-:host ::ng-deep .cdk-drag-preview .action-btn,
-:host ::ng-deep .cdk-drag-preview .delete-btn-compact,
-:host ::ng-deep .cdk-drag-preview .broken-badge,
-:host ::ng-deep .cdk-drag-preview .lost-badge,
-:host ::ng-deep .cdk-drag-preview .durability-section,
-:host ::ng-deep .cdk-drag-preview .counters-section,
-:host ::ng-deep .cdk-drag-preview .stat-modifiers-section,
-:host ::ng-deep .cdk-drag-preview .dice-bonuses-section,
-:host ::ng-deep .cdk-drag-preview .effects-section,
-:host ::ng-deep .cdk-drag-preview .item-description,
-:host ::ng-deep .cdk-drag-preview .item-requirements,
-:host ::ng-deep .cdk-drag-preview .attached-section {
-  display: none !important;
-}
-
-:host ::ng-deep .cdk-drag-preview .item-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-:host ::ng-deep .cdk-drag-preview .item-type-icon {
-  font-size: 1.2rem !important;
-}
+:host ::ng-deep .cdk-drag-preview .item-tags-row,
+:host ::ng-deep .cdk-drag-preview .item-controls { display: none !important; }
 
 :host ::ng-deep .cdk-drag-preview h4 {
-  font-size: 0.95rem !important;
+  font-size: 0.9rem !important;
   margin: 0 !important;
-}
-
-.drag-placeholder-wrapper {
-  background: var(--bg);
-  border: 2px dashed var(--accent);
-  border-radius: 6px;
-  box-sizing: border-box;
-  opacity: 0.5;
-}
-
-.cdk-drag-animating {
-  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-}
-
-.armor-slots.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
-  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
 }

@@ -1,30 +1,28 @@
 <app-card>
   <div class="equipment-header">
-    <div>
-      <h2>Ausrüstung</h2>
-      <div class="equipment-stats">
-        <span class="stat-pill">
-          <span class="pill-icon">⚖️</span>
-          {{ armorWeight }} kg
-        </span>
-        <span class="stat-pill" [class.warning]="totalArmorDebuff > 0">
-          <span class="pill-icon">🏃</span>
-          @if (totalArmorDebuff > 0) {
-            -{{ totalArmorDebuff }} SPD (Eff: {{ effectiveSpeed }})
-          } @else {
-            Kein Tempomalus
-          }
-        </span>
-      </div>
+    <h2>Ausrüstung</h2>
+    <div class="equipment-stats">
+      <span class="stat-pill">
+        <span class="pill-label">Gewicht</span>
+        {{ armorWeight }} kg
+      </span>
+      <span class="stat-pill" [class.warning]="totalArmorDebuff > 0">
+        <span class="pill-label">Tempo</span>
+        @if (totalArmorDebuff > 0) {
+          -{{ totalArmorDebuff }} (Eff: {{ effectiveSpeed }})
+        } @else {
+          Kein Malus
+        }
+      </span>
     </div>
   </div>
 
-  <!-- Armor Slots - 2-column grid -->
+  <!-- Armor Slots - vertical stack -->
   <div class="armor-slots">
 
-    <!-- Helm Slot -->
+    <!-- Helm -->
     <div class="armor-slot">
-      <div class="slot-label"><span class="slot-icon">🪖</span> Helm</div>
+      <div class="slot-label"><span class="slot-abbr">HELM</span> Helm</div>
       <div
         class="slot-content"
         cdkDropList
@@ -41,17 +39,18 @@
                 (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
                 (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
                 (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
+              <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
             </div>
           }
         } @else {
-          <div class="empty-slot"><span class="empty-slot-icon">🪖</span> Leer</div>
+          <div class="empty-slot">Leer – ziehe einen Helm herein</div>
         }
       </div>
     </div>
 
-    <!-- Brustpanzer Slot -->
+    <!-- Brustpanzer -->
     <div class="armor-slot">
-      <div class="slot-label"><span class="slot-icon">🛡️</span> Brustpanzer</div>
+      <div class="slot-label"><span class="slot-abbr">BRUST</span> Brustpanzer</div>
       <div
         class="slot-content"
         cdkDropList
@@ -68,17 +67,18 @@
                 (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
                 (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
                 (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
+              <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
             </div>
           }
         } @else {
-          <div class="empty-slot"><span class="empty-slot-icon">🛡️</span> Leer</div>
+          <div class="empty-slot">Leer – ziehe einen Panzer herein</div>
         }
       </div>
     </div>
 
-    <!-- Armschienen Slot -->
+    <!-- Armschienen -->
     <div class="armor-slot">
-      <div class="slot-label"><span class="slot-icon">🤺</span> Armschienen</div>
+      <div class="slot-label"><span class="slot-abbr">ARME</span> Armschienen</div>
       <div
         class="slot-content"
         cdkDropList
@@ -95,17 +95,18 @@
                 (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
                 (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
                 (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
+              <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
             </div>
           }
         } @else {
-          <div class="empty-slot"><span class="empty-slot-icon">🤺</span> Leer</div>
+          <div class="empty-slot">Leer</div>
         }
       </div>
     </div>
 
-    <!-- Beinschienen Slot -->
+    <!-- Beinschienen -->
     <div class="armor-slot">
-      <div class="slot-label"><span class="slot-icon">🦵</span> Beinschienen</div>
+      <div class="slot-label"><span class="slot-abbr">BEINE</span> Beinschienen</div>
       <div
         class="slot-content"
         cdkDropList
@@ -122,17 +123,18 @@
                 (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
                 (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
                 (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
+              <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
             </div>
           }
         } @else {
-          <div class="empty-slot"><span class="empty-slot-icon">🦵</span> Leer</div>
+          <div class="empty-slot">Leer</div>
         }
       </div>
     </div>
 
-    <!-- Stiefel Slot -->
+    <!-- Stiefel -->
     <div class="armor-slot">
-      <div class="slot-label"><span class="slot-icon">👢</span> Stiefel</div>
+      <div class="slot-label"><span class="slot-abbr">STIEFEL</span> Stiefel</div>
       <div
         class="slot-content"
         cdkDropList
@@ -149,17 +151,18 @@
                 (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
                 (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
                 (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
+              <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
             </div>
           }
         } @else {
-          <div class="empty-slot"><span class="empty-slot-icon">👢</span> Leer</div>
+          <div class="empty-slot">Leer</div>
         }
       </div>
     </div>
 
-    <!-- Extra / Waffen Slot -->
-    <div class="armor-slot extra">
-      <div class="slot-label"><span class="slot-icon">📦</span> Extra / Waffen</div>
+    <!-- Extra / Waffen -->
+    <div class="armor-slot">
+      <div class="slot-label"><span class="slot-abbr">EXTRA</span> Extra / Waffen</div>
       <div
         class="slot-content"
         cdkDropList
@@ -176,10 +179,11 @@
                 (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
                 (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
                 (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
+              <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
             </div>
           }
         } @else {
-          <div class="empty-slot"><span class="empty-slot-icon">📦</span> Leer — ziehe Gegenstände hierher</div>
+          <div class="empty-slot">Leer — ziehe Gegenstände hierher</div>
         }
       </div>
     </div>

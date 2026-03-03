@@ -229,10 +229,9 @@ getCurrencyWeight(): number {
   }
 
   onDragStarted(event: CdkDragStart) {
-    const element = event.source.element.nativeElement;
-    const rect = element.getBoundingClientRect();
-    this.placeholderHeight = `${rect.height}px`;
-    this.placeholderWidth = `${rect.width}px`;
+    // Always use compact fixed height for placeholder - item collapses during drag
+    this.placeholderHeight = '52px';
+    this.placeholderWidth = '100%';
     // Track which item is being dragged so we can force-collapse it
     const draggedItem = event.source.data as ItemBlock;
     this.draggedIndex = this.sheet.inventory.indexOf(draggedItem);

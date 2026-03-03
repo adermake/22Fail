@@ -31,15 +31,6 @@ type PriceMode = 'highest-units' | 'total-gold';
                   <button class="mode-toggle-btn" (click)="togglePriceMode()" [title]="priceMode === 'highest-units' ? 'Zu Gesamtgold wechseln' : 'Zu Einheiten wechseln'">
                     @if (priceMode === 'highest-units') { 3S 2K } @else { 0.32g }
                   </button>
-                  <div class="player-currency-bar">
-                    @for (coin of getPlayerCoinParts(); track coin.type) {
-                      <span class="coin-amount" [style.color]="coin.color">
-                        <span class="coin-dot" [style.color]="coin.color">●</span>
-                        {{ coin.amount }}
-                      </span>
-                    }
-                    <span class="currency-gold-ref">({{ getPlayerTotalAsGold() }}g)</span>
-                  </div>
                 </div>
               }
             </div>
@@ -169,6 +160,19 @@ type PriceMode = 'highest-units' | 'total-gold';
               </div>
             }
           </div>
+          <!-- Currency overlay – fixed bottom-right of portal -->
+          @if (event.type === 'shop') {
+            <div class="currency-overlay">
+              <span class="currency-label">Dein Geld</span>
+              @for (coin of getPlayerCoinParts(); track coin.type) {
+                <span class="coin-amount-lg" [style.color]="coin.color">
+                  <span class="coin-icon" [style.background-color]="coin.color"></span>
+                  {{ coin.amount }}
+                </span>
+              }
+              <span class="currency-gold-total">= {{ getPlayerTotalAsGold() }}g</span>
+            </div>
+          }
         </div>
       </div>
 
@@ -373,16 +377,49 @@ type PriceMode = 'highest-units' | 'total-gold';
       transition: all 0.2s;
     }
     .mode-toggle-btn:hover { background: rgba(255,255,255,0.2); }
-    .player-currency-bar {
-      display: flex; align-items: center; gap: 0.5rem;
-      background: rgba(0,0,0,0.3);
-      padding: 0.4rem 0.9rem;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.15);
+    /* Currency overlay - fixed bottom-right */
+    .currency-overlay {
+      position: fixed;
+      bottom: 2rem;
+      right: 2.5rem;
+      z-index: 20500;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      background: rgba(5, 5, 15, 0.82);
+      backdrop-filter: blur(10px);
+      padding: 0.7rem 1.3rem;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: 0 6px 28px rgba(0,0,0,0.6);
     }
-    .coin-amount { display:flex; align-items:center; gap:0.25rem; font-weight:bold; font-size:0.95rem; }
-    .coin-dot { font-size:0.65rem; line-height:1; }
-    .currency-gold-ref { color:rgba(255,255,255,0.45); font-size:0.8rem; margin-left:0.2rem; }
+    .currency-label {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.45);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-right: 0.2rem;
+    }
+    .coin-amount-lg {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 1.3rem; font-weight: bold;
+    }
+    .coin-icon {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      display: inline-block; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.25);
+      box-shadow: inset 0 -2px 4px rgba(0,0,0,0.5),
+                  inset 2px 3px 5px rgba(255,255,255,0.25),
+                  0 2px 6px rgba(0,0,0,0.4);
+    }
+    .currency-gold-total {
+      color: rgba(255,255,255,0.5);
+      font-size: 0.9rem;
+      margin-left: 0.2rem;
+      border-left: 1px solid rgba(255,255,255,0.15);
+      padding-left: 0.8rem;
+    }
 
     .portal-description {
       text-align: center;
@@ -458,7 +495,13 @@ type PriceMode = 'highest-units' | 'total-gold';
       font-size: 0.9rem;
       font-weight: bold;
     }
-    .coin-circle { width:10px; height:10px; border-radius:50%; display:inline-block; }
+    .coin-circle {
+      width: 13px; height: 13px;
+      border-radius: 50%; display: inline-block; flex-shrink: 0;
+      border: 1.5px solid rgba(255,255,255,0.2);
+      box-shadow: inset 0 -1px 3px rgba(0,0,0,0.5),
+                  inset 1px 2px 3px rgba(255,255,255,0.2);
+    }
     .coin-val { color:white; }
     .price-gold-ref { color:rgba(255,255,255,0.5); font-size:0.8rem; }
     .price-negotiable { color:#4caf50; font-style:italic; font-size:0.9rem; }
