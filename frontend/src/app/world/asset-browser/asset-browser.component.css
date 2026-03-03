@@ -197,6 +197,16 @@
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
+.shop-card[draggable="true"],
+.bundle-card[draggable="true"] {
+  cursor: grab;
+}
+
+.shop-card[draggable="true"]:active,
+.bundle-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
 .shop-card:hover,
 .bundle-card:hover {
   transform: translateY(-2px);

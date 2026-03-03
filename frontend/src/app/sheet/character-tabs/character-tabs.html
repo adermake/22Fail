@@ -30,14 +30,12 @@
       (click)="setActiveTab('status-effects')">
       💫 Status Effects ({{ (sheet.activeStatusEffects || []).length }})
     </button>
-    @if (currentEvents.length > 0) {
-      <button
-        class="tab-button events-tab"
-        [class.active]="activeTab === 'events'"
-        (click)="setActiveTab('events')">
-        🏪 Events ({{ currentEvents.length }})
-      </button>
-    }
+    <button
+      class="tab-button events-tab"
+      [class.active]="activeTab === 'events'"
+      (click)="setActiveTab('events')">
+      🎪 Ereignisse ({{ currentEvents.length }})
+    </button>
     <button
       class="trash-button"
       (click)="openTrash.emit()"

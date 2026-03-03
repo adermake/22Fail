@@ -69,7 +69,7 @@ export class AssetBrowserComponent implements OnChanges {
   @Output() spellEditingChange = new EventEmitter<{ index: number; isEditing: boolean }>();
   @Output() skillEditingChange = new EventEmitter<{ index: number; isEditing: boolean }>();
   @Output() statusEffectEditingChange = new EventEmitter<{ index: number; isEditing: boolean }>();
-  @Output() dragStart = new EventEmitter<{ event: DragEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'; index: number }>();
+  @Output() dragStart = new EventEmitter<{ event: DragEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'shop' | 'loot-bundle'; index: number }>();
   @Output() contextMenuRequest = new EventEmitter<{ event: MouseEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'; index: number }>();
 
   activeTab: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects' | 'shops' | 'loot-bundles' = 'items';
@@ -200,7 +200,7 @@ export class AssetBrowserComponent implements OnChanges {
     this.activeTab = tab;
   }
 
-  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect', index: number) {
+  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'shop' | 'loot-bundle', index: number) {
     this.dragStart.emit({ event, type, index });
   }
 

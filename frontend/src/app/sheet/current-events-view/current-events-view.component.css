@@ -1,106 +1,172 @@
 .events-view-container {
-  padding: 12px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+  background: linear-gradient(to bottom, rgba(107, 70, 193, 0.03), transparent);
 }
 
 .no-events {
   text-align: center;
-  padding: 40px 20px;
+  padding: 60px 20px;
   color: #999;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .no-events-icon {
-  font-size: 48px;
+  font-size: 64px;
   display: block;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+  opacity: 0.6;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 
 .no-events p {
-  margin: 8px 0;
+  margin: 12px 0;
+  font-size: 16px;
 }
 
 .no-events .hint {
-  font-size: 12px;
+  font-size: 13px;
   color: #666;
+  margin-top: 16px;
 }
 
 .event-card {
-  background: #2a2a2a;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #2a2a2a 0%, #252525 100%);
+  border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  transition: all 0.3s ease;
+  animation: slideIn 0.4s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.event-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
 .event-card.shop {
-  border-left: 3px solid #4CAF50;
+  border-left: 4px solid #4CAF50;
 }
 
 .event-card.loot {
-  border-left: 3px solid #FFC107;
+  border-left: 4px solid #FFC107;
 }
 
 .event-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px;
+  gap: 12px;
+  padding: 16px;
   cursor: pointer;
-  background: rgba(255,255,255,0.05);
+  background: linear-gradient(90deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+  transition: all 0.2s ease;
 }
 
 .event-header:hover {
-  background: rgba(255,255,255,0.1);
+  background: linear-gradient(90deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%);
 }
 
 .event-icon {
-  font-size: 20px;
+  font-size: 28px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
 }
 
 .event-name {
   flex: 1;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 16px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
 .expand-icon {
   color: #888;
-  font-size: 12px;
+  font-size: 14px;
+  transition: transform 0.2s ease;
 }
 
 .event-description {
-  padding: 8px 12px;
-  color: #aaa;
-  font-size: 13px;
-  border-bottom: 1px solid #333;
+  padding: 12px 16px;
+  color: #ccc;
+  font-size: 14px;
+  line-height: 1.5;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
   margin: 0;
+  background: rgba(0,0,0,0.2);
 }
 
 .shop-content, .loot-content {
-  padding: 12px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .empty-hint {
   color: #777;
   font-style: italic;
   text-align: center;
-  margin: 12px 0;
+  margin: 20px 0;
+  padding: 16px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 6px;
 }
 
 .deal-card {
-  background: #1e1e1e;
-  border-radius: 6px;
-  padding: 12px;
+  background: linear-gradient(135deg, #1e1e1e 0%, #1a1a1a 100%);
+  border-radius: 8px;
+  padding: 14px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
+  border: 1px solid rgba(255,255,255,0.05);
+  transition: all 0.3s ease;
+}
+
+.deal-card:hover {
+  border-color: rgba(255,255,255,0.1);
+  background: linear-gradient(135deg, #252525 0%, #202020 100%);
+  transform: translateX(4px);
 }
 
 .deal-card.sold-out {
   opacity: 0.5;
+  filter: grayscale(0.5);
+}
+
+.deal-card.reverse-deal {
+  border: 2px solid rgba(33, 150, 243, 0.3);
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, #1a1a1a 100%);
+}
+
+.reverse-icon {
+  margin-right: 4px;
+}
+
+.deal-description {
+  display: block;
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 4px;
+  font-style: italic;
 }
 
 .deal-info {
@@ -109,125 +175,180 @@
 }
 
 .deal-name {
-  font-weight: 500;
+  font-weight: 600;
   color: #fff;
+  font-size: 15px;
+  margin-bottom: 4px;
 }
 
 .deal-stock {
   display: block;
-  font-size: 11px;
-  color: #888;
-  margin-top: 2px;
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
 }
 
 .deal-price {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .price {
   color: #FFD700;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 15px;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
 }
 
 .negotiable-text {
-  color: #aaa;
+  color: #FFC107;
   font-style: italic;
+  font-weight: 500;
 }
 
 .negotiable-badge {
   cursor: help;
+  filter: drop-shadow(0 0 4px rgba(255, 193, 7, 0.5));
 }
 
 .deal-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
 }
 
 .quantity-input {
-  width: 60px;
-  padding: 6px 8px;
-  border: 1px solid #444;
-  border-radius: 4px;
-  background: #333;
+  width: 70px;
+  padding: 8px 10px;
+  border: 2px solid rgba(76, 175, 80, 0.3);
+  border-radius: 6px;
+  background: #1a1a1a;
   color: #fff;
   text-align: center;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.quantity-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
 }
 
 .buy-btn {
-  padding: 6px 12px;
-  background: #4CAF50;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+  transition: all 0.2s ease;
 }
 
 .buy-btn:hover:not(:disabled) {
-  background: #45a049;
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.buy-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .buy-btn:disabled {
-  background: #555;
+  background: linear-gradient(135deg, #555 0%, #444 100%);
   color: #888;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .not-enough-gold {
   width: 100%;
   color: #f44336;
-  font-size: 12px;
+  font-size: 13px;
   text-align: right;
+  font-weight: 500;
+  animation: shake 0.5s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
 }
 
 .loot-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #1e1e1e;
-  border-radius: 6px;
-  padding: 10px 12px;
+  background: linear-gradient(135deg, #1e1e1e 0%, #1a1a1a 100%);
+  border-radius: 8px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,0.05);
+  transition: all 0.3s ease;
+}
+
+.loot-item:hover:not(.claimed) {
+  border-color: #FFC107;
+  background: linear-gradient(135deg, #252525 0%, #202020 100%);
+  transform: translateX(4px);
 }
 
 .loot-item.claimed {
   opacity: 0.6;
+  filter: grayscale(0.5);
 }
 
 .loot-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .loot-name {
-  font-weight: 500;
+  font-weight: 600;
   color: #fff;
+  font-size: 15px;
 }
 
 .loot-type {
-  color: #888;
+  color: #999;
   font-size: 12px;
-  margin-left: 4px;
+  margin-top: 2px;
 }
 
 .claimed-by {
-  color: #888;
-  font-size: 12px;
+  color: #999;
+  font-size: 13px;
   font-style: italic;
+  padding: 6px 12px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
 }
 
 .claim-btn {
-  padding: 6px 12px;
-  background: #FFC107;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #FFC107 0%, #ffb300 100%);
   color: #000;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-weight: 500;
-  font-size: 13px;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+  transition: all 0.2s ease;
 }
 
 .claim-btn:hover {
-  background: #ffb300;
+  background: linear-gradient(135deg, #ffb300 0%, #ff9800 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.4);
+}
+
+.claim-btn:active {
+  transform: translateY(0);
 }

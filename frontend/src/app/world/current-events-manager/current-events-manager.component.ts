@@ -57,7 +57,11 @@ import { Library } from '../../model/library.model';
         <p class="empty-state">Keine aktiven Events. Events werden für alle Spieler in der Party sichtbar.</p>
       }
 
-      <div class="events-list">
+      <div class="events-list" 
+           [class.drag-over]="isDraggingOverList"
+           (dragover)="onDragOverEvents($event)"
+           (dragleave)="onDragLeaveEvents($event)"
+           (drop)="onDropEvent($event)">
         @for (event of events; track event.id) {
           <div class="event-card" [class.shop]="event.type === 'shop'" [class.loot]="event.type === 'loot'">
             <div class="event-header">
@@ -246,6 +250,16 @@ import { Library } from '../../model/library.model';
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
+      min-height: 100px;
+      padding: 0.5rem;
+      border: 2px dashed transparent;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .events-list.drag-over {
+      border-color: var(--accent);
+      background: rgba(107, 70, 193, 0.05);
     }
 
     .event-card {
@@ -571,6 +585,7 @@ export class CurrentEventsManagerComponent {
   showAddMenu = false;
   expandedEvents = new Set<string>();
   editingEventId: string | null = null;
+  isDraggingOverList = false;
 
   // Get shops and loot bundles from linked libraries
   get libraryShops(): ShopEvent[] {
@@ -730,6 +745,44 @@ export class CurrentEventsManagerComponent {
   onDragOver(event: DragEvent) {
     event.preventDefault();
     event.dataTransfer!.dropEffect = 'copy';
+  }
+
+  onDragOverEvents(event: DragEvent) {
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = 'copy';
+    const type = event.dataTransfer!.types.includes('loottype');
+    if (type) {
+      this.isDraggingOverList = true;
+    }
+  }
+
+  onDragLeaveEvents(event: DragEvent) {
+    // Only reset if leaving the events-list itself (not child elements)
+    const target = event.target as HTMLElement;
+    const currentTarget = event.currentTarget as HTMLElement;
+    if (target === currentTarget) {
+      this.isDraggingOverList = false;
+    }
+  }
+
+  onDropEvent(event: DragEvent) {
+    event.preventDefault();
+    this.isDraggingOverList = false;
+    
+    const type = event.dataTransfer!.getData('lootType') as 'shop' | 'loot-bundle';
+    const index = parseInt(event.dataTransfer!.getData('lootIndex'));
+    
+    if (type === 'shop') {
+      const shop = this.libraryShops[index];
+      if (shop) {
+        this.addShopFromLibrary(shop);
+      }
+    } else if (type === 'loot-bundle') {
+      const bundle = this.libraryLootBundles[index];
+      if (bundle) {
+        this.addLootBundleFromLibrary(bundle);
+      }
+    }
   }
 
   onDropToLoot(event: DragEvent, eventId: string) {

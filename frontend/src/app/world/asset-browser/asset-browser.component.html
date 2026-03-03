@@ -199,7 +199,10 @@
     @if (activeTab === 'shops') {
       <div class="library-list">
         @for (shop of filteredShops; track $index) {
-          <div class="shop-card">
+          <div class="shop-card"
+               [class.draggable]="true"
+               [attr.draggable]="true"
+               (dragstart)="onDragStart($event, 'shop', $index)">
             <div class="shop-header">
               <span class="shop-icon">🏪</span>
               <span class="shop-name">{{ shop.name }}</span>
@@ -241,7 +244,10 @@
     @if (activeTab === 'loot-bundles') {
       <div class="library-list">
         @for (bundle of filteredBundles; track $index) {
-          <div class="bundle-card">
+          <div class="bundle-card"
+               [class.draggable]="true"
+               [attr.draggable]="true"
+               (dragstart)="onDragStart($event, 'loot-bundle', $index)">
             <div class="bundle-header">
               <span class="bundle-icon">🎁</span>
               <span class="bundle-name">{{ bundle.name }}</span>

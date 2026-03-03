@@ -26,13 +26,23 @@
               <p class="empty-hint">Dieser Shop hat keine Angebote</p>
             }
             @for (deal of asShop(event).deals; track deal.id; let i = $index) {
-              <div class="deal-card" [class.sold-out]="deal.quantity !== undefined && deal.sold >= deal.quantity">
+              <div class="deal-card" 
+                   [class.sold-out]="deal.quantity !== undefined && deal.sold >= deal.quantity"
+                   [class.reverse-deal]="deal.isReverseDeal">
                 <div class="deal-info">
-                  <span class="deal-name">{{ deal.name }}</span>
+                  <span class="deal-name">
+                    @if (deal.isReverseDeal) {
+                      <span class="reverse-icon" title="Shop kauft an">⬅️</span>
+                    }
+                    {{ deal.name }}
+                  </span>
                   @if (deal.quantity !== undefined) {
                     <span class="deal-stock">
                       Bestand: {{ deal.quantity - deal.sold }}/{{ deal.quantity }}
                     </span>
+                  }
+                  @if (deal.isReverseDeal && deal.description) {
+                    <span class="deal-description">{{ deal.description }}</span>
                   }
                 </div>
                 <div class="deal-price">

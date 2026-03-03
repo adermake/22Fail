@@ -5,7 +5,7 @@ import * as path from 'path';
 /**
  * Asset types supported by the browser
  */
-export type AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect';
+export type AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle';
 
 /**
  * Folder structure
@@ -918,11 +918,13 @@ export class AssetBrowserService {
   private getTypeIcon(type: AssetType): string {
     switch (type) {
       case 'item': return '📦';
-      case 'spell': return '✨';
-      case 'rune': return '🔮';
+      case 'spell': return '📖';
+      case 'rune': return '✨';
       case 'skill': return '⚔️';
       case 'macro': return '⚡';
       case 'status-effect': return '🎭';
+      case 'shop': return '🏪';
+      case 'loot-bundle': return '🎁';
       default: return '📄';
     }
   }

@@ -397,13 +397,13 @@ export class SheetComponent implements OnInit {
   onBuyFromShop(event: { eventId: string; dealIndex: number; quantity: number; totalCostCopper: number }) {
     // Update the world's current events to reflect the purchase
     // The item has already been added to inventory and money deducted by the component
-    // We need to update the shop's soldQuantity
+    // We need to update the shop's sold counter
     const updatedEvents = this.currentEvents.map(e => {
       if (e.id === event.eventId && e.type === 'shop') {
         const shop = { ...e } as any;
         shop.deals = shop.deals.map((d: any, i: number) => {
           if (i === event.dealIndex) {
-            return { ...d, soldQuantity: (d.soldQuantity || 0) + event.quantity };
+            return { ...d, sold: (d.sold || 0) + event.quantity };
           }
           return d;
         });

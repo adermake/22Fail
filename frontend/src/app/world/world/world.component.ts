@@ -705,7 +705,7 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   // ==================== Drag and Drop ====================
 
-  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'bundle' | 'status-effect', index: number) {
+  onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'bundle' | 'status-effect' | 'shop' | 'loot-bundle', index: number) {
     event.dataTransfer!.effectAllowed = 'copy';
     event.dataTransfer!.setData('lootType', type);
     event.dataTransfer!.setData('lootIndex', index.toString());
