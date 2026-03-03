@@ -342,8 +342,8 @@
 
   <!-- Editor Modals -->
   @if (editingFile() && editingType()) {
-    <div class="editor-overlay" (click)="closeEditor()">
-      <div class="editor-modal" (click)="$event.stopPropagation()">
+    <div class="editor-overlay">
+      <div class="editor-modal">
         <div class="editor-header">
           <span>{{ getAssetIcon(editingType()!) }} {{ getAssetTypeName(editingType()!) }} bearbeiten</span>
           <button class="close-btn" (click)="closeEditor()">✕</button>

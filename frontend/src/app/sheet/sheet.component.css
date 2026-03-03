@@ -7,6 +7,7 @@
     "tabs tabs equipment"
     "tabs tabs equipment"
     "tabs tabs equipment"
+    "events events events"
     "backstory backstory backstory";
   gap: 0.75rem;
   padding: 0.75rem;
@@ -59,6 +60,7 @@
 .grid-currentstats { grid-area: currentstats; }
 .grid-equipment { grid-area: equipment; }
 .grid-tabs { grid-area: tabs; }
+.grid-events { grid-area: events; }
 .grid-backstory { grid-area: backstory; }
 
 /* For medium screens, stack more items */
@@ -69,6 +71,7 @@
       "character stats"
       "levelclass stats"
       "currentstats equipment"
+      "events events"
       "tabs tabs"
       "backstory backstory";
   }
@@ -83,6 +86,7 @@
       "stats"
       "levelclass"
       "currentstats"
+      "events"
       "equipment"
       "tabs"
       "backstory";
@@ -93,6 +97,40 @@
 .character-grid > * {
   min-height: auto;
   height: fit-content;
+}
+
+/* Events Container Styling */
+.events-container {
+  background: var(--card-bg, #2d2d2d);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.events-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, rgba(107, 70, 193, 0.15), rgba(107, 70, 193, 0.05));
+  border-bottom: 2px solid rgba(107, 70, 193, 0.3);
+}
+
+.events-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text, #fff);
+}
+
+.events-count {
+  background: rgba(107, 70, 193, 0.4);
+  color: #fff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 /* Dialog styles */

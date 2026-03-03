@@ -130,6 +130,11 @@ export class WorldStoreService {
         world.trash = [];
         needsSave = true;
       }
+      if (!world.currentEvents) {
+        console.log('[WORLD STORE] Migrating: adding currentEvents');
+        world.currentEvents = [];
+        needsSave = true;
+      }
 
       console.log('[WORLD STORE] Setting loaded world with', world.battleParticipants?.length || 0, 'battle participants');
       this.worldSubject.next(world);

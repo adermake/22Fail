@@ -731,7 +731,19 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
         await firstValueFrom(this.api.renameFolder(this.libraryId(), id, newName));
         await this.loadAllFolders();
       } else {
-        await firstValueFrom(this.api.updateFile(this.libraryId(), id, { name: newName }));
+        // Find the file to update its internal name too
+        const file = this.files().find((f) => f.id === id);
+        if (file) {
+          // Update both filename and internal data.name to keep them in sync
+          const updatedData = { ...file.data, name: newName };
+          await firstValueFrom(this.api.updateFile(this.libraryId(), id, { 
+            name: newName,
+            data: updatedData 
+          }));
+        } else {
+          // Fallback if file not found in current folder
+          await firstValueFrom(this.api.updateFile(this.libraryId(), id, { name: newName }));
+        }
       }
 
       await this.loadFolderContents();
@@ -810,7 +822,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
     this.editingType.set(null);
   }
 
-  async saveEditor(data: any): Promise<void> {
+  async saveEditor(data: any, closeAfterSave: boolean = true): Promise<void> {
     const file = this.editingFile();
     if (!file) return;
 
@@ -822,7 +834,9 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
         })
       );
       await this.loadFolderContents();
-      this.closeEditor();
+      if (closeAfterSave) {
+        this.closeEditor();
+      }
     } catch (error) {
       console.error('Save failed:', error);
     }
@@ -975,19 +989,22 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
     
     shopData.deals.push(deal as ShopDeal);
     
-    // Save to backend
-    await this.saveEditor(shopData);
+    // Save to backend without closing editor
+    await this.saveEditor(shopData, false);
     
     // Reset state
     this.cancelAddingDeal();
   }
 
-  removeDealFromShop(dealId: string): void {
+  async removeDealFromShop(dealId: string): Promise<void> {
     const file = this.editingFile();
     if (!file || file.type !== 'shop') return;
 
     const shopData = file.data as ShopEvent;
     shopData.deals = shopData.deals.filter(d => d.id !== dealId);
+    
+    // Save to backend without closing editor
+    await this.saveEditor(shopData, false);
   }
 
   cancelAddingDeal(): void {
@@ -1112,19 +1129,22 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
     
     bundleData.items.push(lootItem as LootItem);
     
-    // Save to backend
-    await this.saveEditor(bundleData);
+    // Save to backend without closing editor
+    await this.saveEditor(bundleData, false);
     
     // Reset state
     this.cancelAddingLootItem();
   }
 
-  removeLootItemFromBundle(lootItemId: string): void {
+  async removeLootItemFromBundle(lootItemId: string): Promise<void> {
     const file = this.editingFile();
     if (!file || file.type !== 'loot-bundle') return;
 
     const bundleData = file.data as LootBundleEvent;
     bundleData.items = bundleData.items.filter(i => i.id !== lootItemId);
+    
+    // Save to backend without closing editor
+    await this.saveEditor(bundleData, false);
   }
 
   cancelAddingLootItem(): void {

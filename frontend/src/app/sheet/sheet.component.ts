@@ -37,6 +37,8 @@ import { ActionMacrosComponent, RollResult } from './action-macros/action-macros
 import { ActionMacro } from '../model/action-macro.model';
 import { ActionExecution } from './action-macros/action-macros.component';
 import { GameInfoComponent } from '../shared/game-info/game-info.component';
+import { CurrentEventsViewComponent } from './current-events-view';
+import type { BuyItemEvent, ClaimLootEvent } from './current-events-view';
 
 @Component({
   selector: 'app-sheet',
@@ -55,7 +57,8 @@ import { GameInfoComponent } from '../shared/game-info/game-info.component';
     BackstoryComponent,
     DiceRollerComponent,
     ActionMacrosComponent,
-    GameInfoComponent
+    GameInfoComponent,
+    CurrentEventsViewComponent
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',

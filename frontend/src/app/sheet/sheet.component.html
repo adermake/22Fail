@@ -32,16 +32,32 @@
       [editingRunes]="editingRunes"
       [editingSpells]="editingSpells"
       [editingSkills]="editingSkills"
-      [currentEvents]="currentEvents"
-      [characterId]="store.characterId"
       (patch)="store.applyPatch($any($event))"
       (runeEditingChange)="onRuneEditingChange($any($event).index, $any($event).isEditing)"
       (spellEditingChange)="onSpellEditingChange($any($event).index, $any($event).isEditing)"
       (skillEditingChange)="onSkillEditingChange($any($event).index, $any($event).isEditing)"
-      (openTrash)="openTrash()"
-      (buyFromShop)="onBuyFromShop($event)"
-      (claimLoot)="onClaimEventLoot($event)">
+      (openTrash)="openTrash()">
     </app-character-tabs>
+  </div>
+
+  <!-- Events - Separate Section -->
+  <div class="grid-events">
+    <div class="events-container">
+      <div class="events-header">
+        <h2>🎪 Ereignisse</h2>
+        @if (currentEvents.length > 0) {
+          <span class="events-count">{{ currentEvents.length }}</span>
+        }
+      </div>
+      <app-current-events-view
+        [events]="currentEvents"
+        [sheet]="sheet"
+        [characterId]="store.characterId"
+        (buyRequest)="onBuyFromShop($event)"
+        (claimRequest)="onClaimEventLoot($event)"
+        (patch)="store.applyPatch($any($event))">
+      </app-current-events-view>
+    </div>
   </div>
 
   <!-- Backstory - Standalone Section -->
