@@ -1271,7 +1271,14 @@ export class LobbyStoreService {
    * Apply a JSON patch to a target object.
    */
   private applyJsonPatch(target: any, patch: JsonPatch): void {
-    const keys = patch.path.split('.');
+    // Normalize path: remove leading slash, replace slashes with dots
+    let normalizedPath = patch.path.trim();
+    if (normalizedPath.startsWith('/')) {
+      normalizedPath = normalizedPath.substring(1);
+    }
+    normalizedPath = normalizedPath.replace(/\//g, '.');
+    
+    const keys = normalizedPath.split('.');
     
     if (keys.length === 1) {
       target[keys[0]] = patch.value;
@@ -1291,6 +1298,13 @@ export class LobbyStoreService {
     }
 
     const finalKey = keys[keys.length - 1];
+    
+    // Handle array append operation: '-' means append to array
+    if (finalKey === '-' && Array.isArray(current)) {
+      current.push(patch.value);
+      return;
+    }
+    
     const finalIndex = parseInt(finalKey, 10);
 
     if (!isNaN(finalIndex) && Array.isArray(current)) {

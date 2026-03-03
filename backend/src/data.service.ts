@@ -409,6 +409,7 @@ export class DataService {
         battleMaps: world.battleMaps || [],
         battleTimeline: world.battleTimeline,
         linkedLibraries: world.linkedLibraries || [],
+        currentEvents: world.currentEvents || [],
       };
 
       const worldFilePath = this.getWorldFilePath(name);

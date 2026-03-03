@@ -171,7 +171,14 @@ export class WorldStoreService {
   }
 
   private applyJsonPatch(target: any, patch: JsonPatch) {
-    const keys = patch.path.split('.');
+    // Normalize path: remove leading slash, replace slashes with dots
+    let normalizedPath = patch.path.trim();
+    if (normalizedPath.startsWith('/')) {
+      normalizedPath = normalizedPath.substring(1);
+    }
+    normalizedPath = normalizedPath.replace(/\//g, '.');
+    
+    const keys = normalizedPath.split('.');
     let current = target;
 
     for (let i = 0; i < keys.length - 1; i++) {
@@ -187,6 +194,13 @@ export class WorldStoreService {
     }
 
     const finalKey = keys[keys.length - 1];
+    
+    // Handle array append operation: '-' means append to array
+    if (finalKey === '-' && Array.isArray(current)) {
+      current.push(patch.value);
+      return;
+    }
+    
     const finalIndex = parseInt(finalKey, 10);
 
     // Handle final key - could also be an array index
