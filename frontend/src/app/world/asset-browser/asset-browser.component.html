@@ -40,7 +40,7 @@
       class="tab-button"
       [class.active]="activeTab === 'loot-bundles'"
       (click)="setActiveTab('loot-bundles')">
-      🎁 Beute ({{ lootBundles.length || 0 }})
+      💰 Beute ({{ lootBundles.length || 0 }})
     </button>
   </div>
 
@@ -249,7 +249,7 @@
                [attr.draggable]="true"
                (dragstart)="onDragStart($event, 'loot-bundle', $index)">
             <div class="bundle-header">
-              <span class="bundle-icon">🎁</span>
+              <span class="bundle-icon">💰</span>
               <span class="bundle-name">{{ bundle.name }}</span>
             </div>
             @if (bundle.description) {

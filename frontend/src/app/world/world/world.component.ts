@@ -12,6 +12,7 @@ import { LibraryService } from '../../services/library.service';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { Library } from '../../model/library.model';
 import { TrashService } from '../../services/trash.service';
+import { NotificationService } from '../../services/notification.service';
 import { ItemBlock } from '../../model/item-block.model';
 import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
@@ -60,6 +61,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   libraryService = inject(LibraryService);
   libraryStoreService = inject(LibraryStoreService);
   trashService = inject(TrashService);
+  notification = inject(NotificationService);
   cdr = inject(ChangeDetectorRef);
   router = inject(Router);
 
@@ -1088,6 +1090,12 @@ export class WorldComponent implements OnInit, OnDestroy {
     };
     
     this.characterSocket.sendPatch(characterId, patch);
+    const typeName = this.selectedLibraryItemType === 'item' ? 'Gegenstand'
+      : this.selectedLibraryItemType === 'rune' ? 'Rune'
+      : this.selectedLibraryItemType === 'spell' ? 'Zauber'
+      : 'Fähigkeit';
+    this.notification.success(`${typeName} "${itemData.name}" wurde an ${character.name} gesendet.`, 2500);
+    this.cdr.detectChanges();
     console.log(`Sent ${this.selectedLibraryItemType} to character:`, character.name);
   }
 

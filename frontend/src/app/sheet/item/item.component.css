@@ -31,6 +31,39 @@
   padding: 0.4rem 0.6rem;
 }
 
+/* Hide bulky stat badges when folded so the card is compact */
+.item-card.folded .item-weight,
+.item-card.folded .item-efficiency,
+.item-card.folded .item-stability,
+.item-card.folded .item-armor-debuff,
+.item-card.folded .item-unusable-badge,
+.item-card.folded .action-btn.lost-btn,
+.item-card.folded .library-origin-badge,
+.item-card.folded .broken-badge,
+.item-card.folded .lost-badge {
+  display: none;
+}
+
+/* Compact drag ghost - constrain width and clip */
+:host-context(.cdk-drag-preview) .item-card {
+  max-width: 320px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  transform: rotate(2deg);
+}
+
+/* Compact class (forced during drag from parent) */
+.item-card.compact .item-weight,
+.item-card.compact .item-efficiency,
+.item-card.compact .item-stability,
+.item-card.compact .item-armor-debuff,
+.item-card.compact .item-unusable-badge,
+.item-card.compact .action-btn.lost-btn,
+.item-card.compact .library-origin-badge,
+.item-card.compact .broken-badge,
+.item-card.compact .lost-badge {
+  display: none;
+}
+
 .item-card:active {
   cursor: grabbing;
 }
@@ -782,8 +815,6 @@
   gap: 0.3rem;
   margin: 0.4rem 0;
 }
-  margin: 0.5rem 0;
-}
 
 .stat-modifier {
   padding: 0.2rem 0.5rem;
@@ -813,8 +844,6 @@
   flex-wrap: wrap;
   gap: 0.3rem;
   margin: 0.4rem 0;
-}
-  margin: 0.5rem 0;
 }
 
 .dice-bonus {
@@ -880,15 +909,13 @@
 
 /* Effects Section */
 .effects-section {
-  margin: 0.4rem 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
   margin: 0.5rem 0;
   padding: 0.5rem;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .effect-item {

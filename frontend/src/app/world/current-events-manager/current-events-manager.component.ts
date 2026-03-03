@@ -34,7 +34,7 @@ import { Library } from '../../model/library.model';
           </button>
           @if (showAddMenu) {
             <div class="add-menu">
-              <button (click)="createNewLootBundle()">🎁 Neues Loot-Bündel</button>
+              <button (click)="createNewLootBundle()">💰 Neues Loot-Bündel</button>
               <button (click)="createNewShop()">🏪 Neuer Shop</button>
               @if (libraryShops.length > 0) {
                 <hr>
@@ -45,7 +45,7 @@ import { Library } from '../../model/library.model';
               }
               @if (libraryLootBundles.length > 0) {
                 @for (bundle of libraryLootBundles; track bundle.id) {
-                  <button (click)="addLootBundleFromLibrary(bundle)">🎁 {{ bundle.name }}</button>
+                  <button (click)="addLootBundleFromLibrary(bundle)">💰 {{ bundle.name }}</button>
                 }
               }
             </div>
@@ -65,7 +65,7 @@ import { Library } from '../../model/library.model';
         @for (event of events; track event.id) {
           <div class="event-card" [class.shop]="event.type === 'shop'" [class.loot]="event.type === 'loot'">
             <div class="event-header">
-              <span class="event-icon">{{ event.type === 'shop' ? '🏪' : '🎁' }}</span>
+              <span class="event-icon">{{ event.type === 'shop' ? '🏪' : '💰' }}</span>
               @if (editingEventId === event.id) {
                 <input 
                   type="text" 
@@ -655,9 +655,7 @@ export class CurrentEventsManagerComponent {
   }
 
   removeEvent(eventId: string) {
-    if (confirm('Event wirklich entfernen?')) {
-      this.eventRemoved.emit(eventId);
-    }
+    this.eventRemoved.emit(eventId);
   }
 
   toggleEventExpanded(eventId: string) {

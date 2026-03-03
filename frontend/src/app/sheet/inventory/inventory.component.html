@@ -41,12 +41,13 @@
     (cdkDropListDropped)="onDrop($event)"
   >
     @for (item of (sheet.inventory || []); track i; let i = $index) {
-    <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(i)" (cdkDragStarted)="onDragStarted($event)">
+    <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(i)" (cdkDragStarted)="onDragStarted($event)" (cdkDragReleased)="onDragReleased($event)">
       <app-item
         [item]="item"
         [sheet]="sheet"
         [index]="i"
         [isEditing]="isItemEditing(i)"
+        [compact]="draggedIndex === i"
         (patch)="updateItem(i, $event)"
         (delete)="deleteItem(i)"
         (editingChange)="onEditingChange(i, $event)"

@@ -14,7 +14,7 @@ type PriceMode = 'highest-units' | 'total-gold';
     @if (event) {
       <div class="portal-overlay">
         <!-- Close button OUTSIDE portal-background so it is never clipped -->
-        <button class="portal-close-fixed" (click)="close.emit()" title="Portal verlassen">âœ•</button>
+        <button class="portal-close-fixed" (click)="close.emit()" title="Portal verlassen">✕</button>
 
         <div class="portal-background" [class.shop-theme]="event.type === 'shop'" [class.loot-theme]="event.type === 'loot'">
           <div class="portal-content">
@@ -22,7 +22,7 @@ type PriceMode = 'highest-units' | 'total-gold';
             <!-- Portal Header -->
             <div class="portal-header">
               <div class="portal-title">
-                <span class="portal-icon">{{ event.type === 'shop' ? 'ðŸª' : 'ðŸ’°' }}</span>
+                <span class="portal-icon">{{ event.type === 'shop' ? '🏪' : '💰' }}</span>
                 <h1>{{ event.name }}</h1>
               </div>
 
@@ -34,7 +34,7 @@ type PriceMode = 'highest-units' | 'total-gold';
                   <div class="player-currency-bar">
                     @for (coin of getPlayerCoinParts(); track coin.type) {
                       <span class="coin-amount" [style.color]="coin.color">
-                        <span class="coin-dot" [style.color]="coin.color">â—</span>
+                        <span class="coin-dot" [style.color]="coin.color">●</span>
                         {{ coin.amount }}
                       </span>
                     }
@@ -53,7 +53,7 @@ type PriceMode = 'highest-units' | 'total-gold';
               <div class="shop-portal-content">
                 @if (asShop(event).deals.length === 0) {
                   <div class="empty-portal">
-                    <span class="empty-icon">ðŸšï¸</span>
+                    <span class="empty-icon">🏚️</span>
                     <p>Dieser Shop hat momentan keine Angebote</p>
                   </div>
                 } @else {
@@ -66,7 +66,7 @@ type PriceMode = 'highest-units' | 'total-gold';
                         <div class="deal-header-portal">
                           <h3>
                             @if (deal.isReverseDeal) {
-                              <span class="reverse-icon" title="Shop kauft an">â¬…ï¸</span>
+                              <span class="reverse-icon" title="Shop kauft an">⬅️</span>
                             }
                             {{ deal.name }}
                           </h3>
@@ -86,7 +86,7 @@ type PriceMode = 'highest-units' | 'total-gold';
                         }
 
                         @if (deal.item || deal.rune || deal.spell || deal.skill) {
-                          <button class="inspect-btn" (click)="inspectDeal(deal)">ðŸ” Details ansehen</button>
+                          <button class="inspect-btn" (click)="inspectDeal(deal)">🔍 Details ansehen</button>
                         }
 
                         <div class="deal-footer">
@@ -104,7 +104,7 @@ type PriceMode = 'highest-units' | 'total-gold';
                                 <span class="price-gold-ref">({{ formatAsGold(deal.price) }})</span>
                               }
                               @if (deal.isNegotiable) {
-                                <span class="negotiable-badge" title="Verhandelbar">ðŸ¤</span>
+                                <span class="negotiable-badge" title="Verhandelbar">🤝</span>
                               }
                             } @else {
                               <span class="price-negotiable">Verhandelbar</span>
@@ -130,7 +130,7 @@ type PriceMode = 'highest-units' | 'total-gold';
                           </div>
 
                           @if (deal.price && !deal.isReverseDeal && !canAfford(deal, getBuyQuantity(event.id, i))) {
-                            <div class="not-enough-gold-portal">âš ï¸ Nicht genug Geld!</div>
+                            <div class="not-enough-gold-portal">⚠️ Nicht genug Geld!</div>
                           }
                         </div>
                       </div>
@@ -145,8 +145,8 @@ type PriceMode = 'highest-units' | 'total-gold';
               <div class="loot-portal-content">
                 @if (asLootBundle(event).items.length === 0) {
                   <div class="empty-portal">
-                    <span class="empty-icon">ðŸ“¦</span>
-                    <p>Dieses BÃ¼ndel wurde geleert</p>
+                    <span class="empty-icon">📦</span>
+                    <p>Dieses Bündel wurde geleert</p>
                   </div>
                 } @else {
                   <div class="loot-grid">
@@ -156,7 +156,7 @@ type PriceMode = 'highest-units' | 'total-gold';
                         <h3 class="loot-item-name">{{ getItemName(item) }}</h3>
 
                         @if (item.claimedBy) {
-                          <div class="claimed-badge">âœ“ Beansprucht</div>
+                          <div class="claimed-badge">✓ Beansprucht</div>
                         } @else {
                           <button class="claim-btn-portal" (click)="claimItem(event.id, i)">
                             Beanspruchen
@@ -178,12 +178,12 @@ type PriceMode = 'highest-units' | 'total-gold';
           <div class="inspect-modal" (click)="$event.stopPropagation()">
             <div class="inspect-header">
               <h2>{{ inspectedDeal.name }}</h2>
-              <button class="inspect-close" (click)="closeInspect()">âœ•</button>
+              <button class="inspect-close" (click)="closeInspect()">✕</button>
             </div>
             <div class="inspect-body">
               @if (inspectedDeal.identified === false) {
                 <div class="unknown-item-info">
-                  <span class="unknown-icon">â“</span>
+                  <span class="unknown-icon">❓</span>
                   <p>Dieser Gegenstand ist nicht identifiziert.</p>
                   <p class="unknown-sub">Eigenschaften und Effekte sind unbekannt.</p>
                 </div>
@@ -515,10 +515,10 @@ type PriceMode = 'highest-units' | 'total-gold';
     .loot-portal-card:hover:not(.claimed) { transform:translateY(-5px) scale(1.02); border-color:rgba(255,215,0,0.8); box-shadow:0 8px 25px rgba(255,215,0,0.3); }
     .loot-portal-card.claimed { opacity:0.6; filter:grayscale(0.5); border-color:rgba(100,100,100,0.4); }
     .loot-portal-card::before {
-      content:'âœ¨'; position:absolute; top:10px; right:10px;
+      content:'✨'; position:absolute; top:10px; right:10px;
       font-size:1.8rem; animation: twinkle 2s infinite;
     }
-    .loot-portal-card.claimed::before { content:'âœ“'; color:#4caf50; animation:none; }
+    .loot-portal-card.claimed::before { content:'✓'; color:#4caf50; animation:none; }
     @keyframes twinkle { 0%,100%{opacity:0.3;transform:scale(1);}50%{opacity:1;transform:scale(1.2);} }
     .loot-item-type { background:rgba(138,43,226,0.6); color:white; padding:0.35rem 0.9rem; border-radius:18px; font-size:0.85rem; text-transform:uppercase; letter-spacing:1px; }
     .loot-item-name { margin:0; font-size:1.4rem; color:#fff; text-align:center; }
@@ -608,11 +608,11 @@ export class EventPortalComponent implements OnInit {
     if (!this.sheet?.currency) return [];
     const c = this.sheet.currency;
     const parts: CoinPart[] = [];
-    if (c.platinum > 0) parts.push({ amount: c.platinum, type: 'platinum', color: '#6ab2e5', symbol: 'â—' });
-    if (c.gold > 0) parts.push({ amount: c.gold, type: 'gold', color: '#ffd700', symbol: 'â—' });
-    if (c.silver > 0) parts.push({ amount: c.silver, type: 'silver', color: '#c0c0c0', symbol: 'â—' });
-    if (c.copper > 0) parts.push({ amount: c.copper, type: 'copper', color: '#b87333', symbol: 'â—' });
-    if (parts.length === 0) parts.push({ amount: 0, type: 'copper', color: '#b87333', symbol: 'â—' });
+    if (c.platinum > 0) parts.push({ amount: c.platinum, type: 'platinum', color: '#6ab2e5', symbol: '●' });
+    if (c.gold > 0) parts.push({ amount: c.gold, type: 'gold', color: '#ffd700', symbol: '●' });
+    if (c.silver > 0) parts.push({ amount: c.silver, type: 'silver', color: '#c0c0c0', symbol: '●' });
+    if (c.copper > 0) parts.push({ amount: c.copper, type: 'copper', color: '#b87333', symbol: '●' });
+    if (parts.length === 0) parts.push({ amount: 0, type: 'copper', color: '#b87333', symbol: '●' });
     return parts;
   }
 

@@ -4,7 +4,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CardComponent } from '../../shared/card/card.component';
-import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, CdkDragRelease, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ItemComponent } from '../item/item.component';
 import { ItemCreatorComponent } from '../item-creator/item-creator.component';
 import { ItemEditorComponent } from '../item-editor/item-editor.component';
@@ -50,6 +50,8 @@ export class InventoryComponent {
   private editingItems = new Set<number>();
   placeholderHeight = '90px';
   placeholderWidth = '100%';
+  /** Index of the item currently being dragged (for compact ghost) */
+  draggedIndex: number | null = null;
 
   // Connected drop lists - only connect to equipment if it exists
   get connectedDropLists(): string[] {
@@ -231,9 +233,17 @@ getCurrencyWeight(): number {
     const rect = element.getBoundingClientRect();
     this.placeholderHeight = `${rect.height}px`;
     this.placeholderWidth = `${rect.width}px`;
+    // Track which item is being dragged so we can force-collapse it
+    const draggedItem = event.source.data as ItemBlock;
+    this.draggedIndex = this.sheet.inventory.indexOf(draggedItem);
+  }
+
+  onDragReleased(event: CdkDragRelease) {
+    this.draggedIndex = null;
   }
 
 onDrop(event: CdkDragDrop<ItemBlock[]>) {
+  this.draggedIndex = null; // reset compact state
   if (event.previousContainer === event.container) {
     // Reorder within inventory
     const previousIndex = event.previousIndex;

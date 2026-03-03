@@ -19,69 +19,210 @@ app-card > *,
 .equipment-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 1rem;
+  gap: 0.75rem;
 }
 
 .equipment-header h2 {
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
 }
 
 .equipment-stats {
   display: flex;
-  gap: 1.5rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
+  align-items: center;
 }
 
-.armor-weight {
-  color: var(--muted);
-  font-size: 0.9rem;
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.8rem;
   font-weight: 600;
-}
-
-.armor-debuff {
-  color: var(--muted);
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.armor-debuff.has-debuff {
-  color: #f97316;
-}
-
-.effective-speed {
   color: var(--text-muted);
-  font-size: 0.85rem;
-  margin-left: 0.25rem;
 }
 
-/* Armor Slots - Vertical Stack */
+.stat-pill.warning {
+  border-color: #f97316;
+  color: #f97316;
+  background: rgba(249,115,22,0.08);
+}
+
+.stat-pill .pill-icon {
+  font-size: 0.85rem;
+}
+
+/* Armor Slots - 2-column grid */
 .armor-slots {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
   padding: 0.3rem;
-  max-height: 910px;
-  overflow-y: auto;
-  /* But allow horizontal overflow for drag preview */
   overflow-x: visible;
+  overflow-y: auto;
+  max-height: 900px;
 }
 
 .armor-slot {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  min-width: 0;
+}
+
+/* Extra slot spans both columns */
+.armor-slot.extra {
+  grid-column: 1 / -1;
 }
 
 .slot-label {
   font-weight: 600;
-  font-size: 0.8rem;
-  color: var(--text);
-  padding: 0.2rem 0.4rem;
-  background: var(--card);
-  border-radius: 4px;
-  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding: 0.15rem 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
+
+.slot-icon {
+  font-size: 0.9rem;
+}
+
+.slot-content {
+  min-height: 52px;
+  padding: 0.35rem;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  position: relative;
+  transition: border-color 0.18s, background 0.18s;
+}
+
+.slot-content.cdk-drop-list-dragging {
+  background: var(--card);
+  border-color: var(--accent);
+}
+
+.slot-content.cdk-drop-list-receiving {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: var(--accent);
+  border-style: solid;
+  box-shadow: 0 0 0 3px rgba(76,175,80,0.18);
+}
+
+.empty-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.78rem;
+  opacity: 0.55;
+  user-select: none;
+}
+
+.empty-slot-icon {
+  font-size: 1rem;
+  opacity: 0.5;
+}
+
+/* Drag and Drop Styles */
+:host ::ng-deep .cdk-drag-preview {
+  box-sizing: border-box !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6) !important;
+  opacity: 0.95 !important;
+  max-width: 400px !important;
+  z-index: 999999 !important;
+  position: fixed !important;
+  pointer-events: none !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+:host ::ng-deep .cdk-drag-preview .item-card {
+  border: 3px solid var(--accent) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5) !important;
+  animation: none !important;
+  overflow: visible !important;
+  max-height: none !important;
+  background: var(--card) !important;
+  max-width: 200px !important;
+  padding: 0.4rem 0.6rem !important;
+  min-height: auto !important;
+}
+
+:host ::ng-deep .cdk-drag-preview .item-header {
+  margin-bottom: 0 !important;
+}
+
+:host ::ng-deep .cdk-drag-preview .item-badges,
+:host ::ng-deep .cdk-drag-preview .fold-btn,
+:host ::ng-deep .cdk-drag-preview .item-weight,
+:host ::ng-deep .cdk-drag-preview .item-efficiency,
+:host ::ng-deep .cdk-drag-preview .item-stability,
+:host ::ng-deep .cdk-drag-preview .item-armor-debuff,
+:host ::ng-deep .cdk-drag-preview .item-unusable-badge,
+:host ::ng-deep .cdk-drag-preview .action-btn,
+:host ::ng-deep .cdk-drag-preview .delete-btn-compact,
+:host ::ng-deep .cdk-drag-preview .broken-badge,
+:host ::ng-deep .cdk-drag-preview .lost-badge,
+:host ::ng-deep .cdk-drag-preview .durability-section,
+:host ::ng-deep .cdk-drag-preview .counters-section,
+:host ::ng-deep .cdk-drag-preview .stat-modifiers-section,
+:host ::ng-deep .cdk-drag-preview .dice-bonuses-section,
+:host ::ng-deep .cdk-drag-preview .effects-section,
+:host ::ng-deep .cdk-drag-preview .item-description,
+:host ::ng-deep .cdk-drag-preview .item-requirements,
+:host ::ng-deep .cdk-drag-preview .attached-section {
+  display: none !important;
+}
+
+:host ::ng-deep .cdk-drag-preview .item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+:host ::ng-deep .cdk-drag-preview .item-type-icon {
+  font-size: 1.2rem !important;
+}
+
+:host ::ng-deep .cdk-drag-preview h4 {
+  font-size: 0.95rem !important;
+  margin: 0 !important;
+}
+
+.drag-placeholder-wrapper {
+  background: var(--bg);
+  border: 2px dashed var(--accent);
+  border-radius: 6px;
+  box-sizing: border-box;
+  opacity: 0.5;
+}
+
+.cdk-drag-animating {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.armor-slots.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
 
 .slot-content {
   min-height: 60px;

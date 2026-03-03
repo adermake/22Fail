@@ -96,7 +96,7 @@ export function getAssetTypeIcon(type: AssetType): string {
     case 'macro': return '⚡';
     case 'status-effect': return '🎭';
     case 'shop': return '🏪';
-    case 'loot-bundle': return '🎁';
+    case 'loot-bundle': return '💰';
     default: return '📄';
   }
 }

@@ -301,12 +301,11 @@ export class SheetComponent implements OnInit {
     });
 
     // Listen for character patches from DM (items, skills, etc.)
+    // NOTE: patch application is handled by CharacterStoreService.
+    // Here we only trigger change detection so the OnPush template updates.
     this.socket.patches$.subscribe((data) => {
       this.ngZone.run(() => {
-        const sheet = this.store.sheetValue;
-        if (sheet && data.characterId === id) {
-          // Apply patch to local sheet
-          this.applyJsonPatch(sheet, data.patch);
+        if (data.characterId === id) {
           this.cdr.detectChanges();
         }
       });

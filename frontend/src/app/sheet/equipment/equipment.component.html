@@ -1,25 +1,31 @@
 <app-card>
   <div class="equipment-header">
     <div>
-      <h2>Ausrüstung / Rüstung</h2>
+      <h2>Ausrüstung</h2>
       <div class="equipment-stats">
-        <span class="armor-weight">Gewicht: {{ armorWeight }} kg</span>
-        <span class="armor-debuff" [class.has-debuff]="totalArmorDebuff > 0">
-          Tempomalus: -{{ totalArmorDebuff }}
+        <span class="stat-pill">
+          <span class="pill-icon">⚖️</span>
+          {{ armorWeight }} kg
+        </span>
+        <span class="stat-pill" [class.warning]="totalArmorDebuff > 0">
+          <span class="pill-icon">🏃</span>
           @if (totalArmorDebuff > 0) {
-            <span class="effective-speed">(Effektiv: {{ effectiveSpeed }})</span>
+            -{{ totalArmorDebuff }} SPD (Eff: {{ effectiveSpeed }})
+          } @else {
+            Kein Tempomalus
           }
         </span>
       </div>
     </div>
   </div>
 
-  <!-- Armor Slots -->
+  <!-- Armor Slots - 2-column grid -->
   <div class="armor-slots">
-    <!-- Helmet Slot -->
+
+    <!-- Helm Slot -->
     <div class="armor-slot">
-      <div class="slot-label">🪖 Helm</div>
-      <div 
+      <div class="slot-label"><span class="slot-icon">🪖</span> Helm</div>
+      <div
         class="slot-content"
         cdkDropList
         [cdkDropListData]="getArmorSlot('helmet')"
@@ -31,29 +37,22 @@
         @if (getArmorSlot('helmet').length > 0) {
           @for (item of getArmorSlot('helmet'); track item.name; let i = $index) {
             <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
-              <app-item
-                [item]="item"
-                [sheet]="sheet"
-                [index]="getItemIndex(item)"
-                [isEditing]="isItemEditing(getItemIndex(item))"
-                (patch)="updateItem(getItemIndex(item), $event)"
-                (delete)="deleteItem(getItemIndex(item))"
-                (editingChange)="onEditingChange(getItemIndex(item), $event)"
-                (openEditor)="openItemEditor(getItemIndex(item))"
-                (breakTest)="performBreakTest(getItemIndex(item))"
-              ></app-item>
+              <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
             </div>
           }
         } @else {
-          <div class="empty-slot">Leer</div>
+          <div class="empty-slot"><span class="empty-slot-icon">🪖</span> Leer</div>
         }
       </div>
     </div>
 
-    <!-- Chestplate Slot -->
+    <!-- Brustpanzer Slot -->
     <div class="armor-slot">
-      <div class="slot-label">🛡️ Brustpanzer</div>
-      <div 
+      <div class="slot-label"><span class="slot-icon">🛡️</span> Brustpanzer</div>
+      <div
         class="slot-content"
         cdkDropList
         [cdkDropListData]="getArmorSlot('chestplate')"
@@ -65,29 +64,22 @@
         @if (getArmorSlot('chestplate').length > 0) {
           @for (item of getArmorSlot('chestplate'); track item.name; let i = $index) {
             <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
-              <app-item
-                [item]="item"
-                [sheet]="sheet"
-                [index]="getItemIndex(item)"
-                [isEditing]="isItemEditing(getItemIndex(item))"
-                (patch)="updateItem(getItemIndex(item), $event)"
-                (delete)="deleteItem(getItemIndex(item))"
-                (editingChange)="onEditingChange(getItemIndex(item), $event)"
-                (openEditor)="openItemEditor(getItemIndex(item))"
-                (breakTest)="performBreakTest(getItemIndex(item))"
-              ></app-item>
+              <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
             </div>
           }
         } @else {
-          <div class="empty-slot">Leer</div>
+          <div class="empty-slot"><span class="empty-slot-icon">🛡️</span> Leer</div>
         }
       </div>
     </div>
 
     <!-- Armschienen Slot -->
     <div class="armor-slot">
-      <div class="slot-label">🤺 Armschienen</div>
-      <div 
+      <div class="slot-label"><span class="slot-icon">🤺</span> Armschienen</div>
+      <div
         class="slot-content"
         cdkDropList
         [cdkDropListData]="getArmorSlot('armschienen')"
@@ -99,29 +91,22 @@
         @if (getArmorSlot('armschienen').length > 0) {
           @for (item of getArmorSlot('armschienen'); track item.name; let i = $index) {
             <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
-              <app-item
-                [item]="item"
-                [sheet]="sheet"
-                [index]="getItemIndex(item)"
-                [isEditing]="isItemEditing(getItemIndex(item))"
-                (patch)="updateItem(getItemIndex(item), $event)"
-                (delete)="deleteItem(getItemIndex(item))"
-                (editingChange)="onEditingChange(getItemIndex(item), $event)"
-                (openEditor)="openItemEditor(getItemIndex(item))"
-                (breakTest)="performBreakTest(getItemIndex(item))"
-              ></app-item>
+              <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
             </div>
           }
         } @else {
-          <div class="empty-slot">Leer</div>
+          <div class="empty-slot"><span class="empty-slot-icon">🤺</span> Leer</div>
         }
       </div>
     </div>
 
-    <!-- Leggings Slot -->
+    <!-- Beinschienen Slot -->
     <div class="armor-slot">
-      <div class="slot-label">🦵 Beinschienen</div>
-      <div 
+      <div class="slot-label"><span class="slot-icon">🦵</span> Beinschienen</div>
+      <div
         class="slot-content"
         cdkDropList
         [cdkDropListData]="getArmorSlot('leggings')"
@@ -133,29 +118,22 @@
         @if (getArmorSlot('leggings').length > 0) {
           @for (item of getArmorSlot('leggings'); track item.name; let i = $index) {
             <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
-              <app-item
-                [item]="item"
-                [sheet]="sheet"
-                [index]="getItemIndex(item)"
-                [isEditing]="isItemEditing(getItemIndex(item))"
-                (patch)="updateItem(getItemIndex(item), $event)"
-                (delete)="deleteItem(getItemIndex(item))"
-                (editingChange)="onEditingChange(getItemIndex(item), $event)"
-                (openEditor)="openItemEditor(getItemIndex(item))"
-                (breakTest)="performBreakTest(getItemIndex(item))"
-              ></app-item>
+              <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
             </div>
           }
         } @else {
-          <div class="empty-slot">Leer</div>
+          <div class="empty-slot"><span class="empty-slot-icon">🦵</span> Leer</div>
         }
       </div>
     </div>
 
-    <!-- Boots Slot -->
+    <!-- Stiefel Slot -->
     <div class="armor-slot">
-      <div class="slot-label">👢 Stiefel</div>
-      <div 
+      <div class="slot-label"><span class="slot-icon">👢</span> Stiefel</div>
+      <div
         class="slot-content"
         cdkDropList
         [cdkDropListData]="getArmorSlot('boots')"
@@ -167,29 +145,22 @@
         @if (getArmorSlot('boots').length > 0) {
           @for (item of getArmorSlot('boots'); track item.name; let i = $index) {
             <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
-              <app-item
-                [item]="item"
-                [sheet]="sheet"
-                [index]="getItemIndex(item)"
-                [isEditing]="isItemEditing(getItemIndex(item))"
-                (patch)="updateItem(getItemIndex(item), $event)"
-                (delete)="deleteItem(getItemIndex(item))"
-                (editingChange)="onEditingChange(getItemIndex(item), $event)"
-                (openEditor)="openItemEditor(getItemIndex(item))"
-                (breakTest)="performBreakTest(getItemIndex(item))"
-              ></app-item>
+              <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
             </div>
           }
         } @else {
-          <div class="empty-slot">Leer</div>
+          <div class="empty-slot"><span class="empty-slot-icon">👢</span> Leer</div>
         }
       </div>
     </div>
 
-    <!-- Extra Slot (for non-armor items and extra armor pieces) -->
+    <!-- Extra / Waffen Slot -->
     <div class="armor-slot extra">
-      <div class="slot-label">📦 Extra</div>
-      <div 
+      <div class="slot-label"><span class="slot-icon">📦</span> Extra / Waffen</div>
+      <div
         class="slot-content"
         cdkDropList
         [cdkDropListData]="getArmorSlot('extra')"
@@ -201,21 +172,14 @@
         @if (getArmorSlot('extra').length > 0) {
           @for (item of getArmorSlot('extra'); track item.name; let i = $index) {
             <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
-              <app-item
-                [item]="item"
-                [sheet]="sheet"
-                [index]="getItemIndex(item)"
-                [isEditing]="isItemEditing(getItemIndex(item))"
-                (patch)="updateItem(getItemIndex(item), $event)"
-                (delete)="deleteItem(getItemIndex(item))"
-                (editingChange)="onEditingChange(getItemIndex(item), $event)"
-                (openEditor)="openItemEditor(getItemIndex(item))"
-                (breakTest)="performBreakTest(getItemIndex(item))"
-              ></app-item>
+              <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
             </div>
           }
         } @else {
-          <div class="empty-slot">Leer</div>
+          <div class="empty-slot"><span class="empty-slot-icon">📦</span> Leer — ziehe Gegenstände hierher</div>
         }
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -14,11 +14,13 @@ import { KeywordEnhancer } from '../keyword-enhancer';
   templateUrl: './item.component.html',
   styleUrl: './item.component.css',
 })
-export class ItemComponent {
+export class ItemComponent implements OnChanges {
   @Input({ required: true }) item!: ItemBlock;
   @Input({ required: true }) sheet!: CharacterSheet;
   @Input({ required: true }) index!: number;
   @Input() isEditing = false;
+  /** When true, forces item to folded compact state (e.g. during drag) */
+  @Input() compact: boolean = false;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
@@ -26,6 +28,12 @@ export class ItemComponent {
   @Output() breakTest = new EventEmitter<void>();
 
   isFolded = true; // Start items as folded to save space
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['compact'] && changes['compact'].currentValue === true) {
+      this.isFolded = true;
+    }
+  }
 
   constructor(
     private cd: ChangeDetectorRef,
