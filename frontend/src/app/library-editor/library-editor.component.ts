@@ -330,6 +330,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
     try {
       // Get items from current library and all dependencies
       const libraryIds = [lib.id, ...(lib.dependencies || [])];
+      console.log('Loading items from library IDs:', libraryIds);
       
       // Load all item types in parallel
       const [items, runes, spells, skills, statusEffects] = await Promise.all([
@@ -339,6 +340,9 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
         this.loadItemsByType(libraryIds, 'skill'),
         this.loadItemsByType(libraryIds, 'status-effect')
       ]);
+
+      console.log('Loaded items:', items.length, 'runes:', runes.length, 'spells:', spells.length, 'skills:', skills.length, 'status effects:', statusEffects.length);
+      console.log('Available items sample:', items.slice(0, 3).map(i => ({ id: i.id, name: i.name, data: i.data })));
 
       this.availableItems.set(items);
       this.availableRunes.set(runes);
@@ -817,6 +821,27 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
     this.selectedDealItemType.set(type);
     this.selectedDealItemId.set(null);
     
+    // Debug: Check what items are available
+    console.log(`Selected type: ${type}`, {
+      items: this.availableItems().length,
+      runes: this.availableRunes().length,
+      spells: this.availableSpells().length,
+      skills: this.availableSkills().length,
+      statusEffects: this.availableStatusEffects().length
+    });
+    
+    switch(type) {
+      case 'item':
+        console.log('Available items:', this.availableItems().map(i => ({ id: i.id, name: i.name })));
+        break;
+      case 'spell':
+        console.log('Available spells:', this.availableSpells().map(s => ({ id: s.id, name: s.name })));
+        break;
+      case 'skill':
+        console.log('Available skills:', this.availableSkills().map(s => ({ id: s.id, name: s.name })));
+        break;
+    }
+    
     // Initialize deal data with empty price
     this.editingDealData.set({
       ...createEmptyShopDeal(),
@@ -963,6 +988,15 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   selectLootItemType(type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'currency'): void {
     this.selectedLootItemType.set(type);
     this.selectedLootItemId.set(null);
+    
+    // Debug: Check what items are available
+    console.log(`Selected loot type: ${type}`, {
+      items: this.availableItems().length,
+      runes: this.availableRunes().length,
+      spells: this.availableSpells().length,
+      skills: this.availableSkills().length,
+      statusEffects: this.availableStatusEffects().length
+    });
     
     if (type === 'currency') {
       // Initialize with empty currency

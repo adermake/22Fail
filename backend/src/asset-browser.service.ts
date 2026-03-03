@@ -826,13 +826,14 @@ export class AssetBrowserService {
   // ==================== SEARCH ====================
 
   searchFiles(libraryName: string, query: string, types?: AssetType[]): AssetFile[] {
-    const meta = this.loadMeta(libraryName);
+    const resolvedName = this.resolveLibraryName(libraryName);
+    const meta = this.loadMeta(resolvedName);
     const files: AssetFile[] = [];
     const lowerQuery = query.toLowerCase();
 
     for (const [fileId, relativePath] of meta.idToPath.entries()) {
       try {
-        const file = this.getFile(libraryName, fileId);
+        const file = this.getFile(resolvedName, fileId);
         
         if (types && types.length > 0 && !types.includes(file.type)) {
           continue;
