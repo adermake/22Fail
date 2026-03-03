@@ -414,8 +414,26 @@
                   <!-- Add Deal UI -->
                   @if (addingDealToShop()) {
                     <div class="deal-creator">
-                      @if (!editingDealData()) {
-                        <!-- Step 1: Select Item Type -->
+                      @if (!dealMode()) {
+                        <!-- Step 0: Select Deal Mode -->
+                        <div class="creator-header">
+                          <h5>Wähle Deal-Modus</h5>
+                          <button class="cancel-btn" (click)="cancelAddingDeal()">✕</button>
+                        </div>
+                        <div class="mode-selector">
+                          <button class="mode-btn sell" (click)="selectDealMode('sell')">
+                            <span class="mode-icon">🛍️</span>
+                            <span class="mode-title">Shop Verkauft</span>
+                            <span class="mode-desc">Spieler kauft vom Shop</span>
+                          </button>
+                          <button class="mode-btn buy" (click)="selectDealMode('buy')">
+                            <span class="mode-icon">💰</span>
+                            <span class="mode-title">Shop Kauft An</span>
+                            <span class="mode-desc">Spieler verkauft an Shop</span>
+                          </button>
+                        </div>
+                      } @else if (dealMode() === 'sell' && !editingDealData()) {
+                        <!-- Step 1: Select Item Type (for sell mode) -->
                         <div class="creator-header">
                           <h5>Wähle Item-Typ</h5>
                           <button class="cancel-btn" (click)="cancelAddingDeal()">✕</button>
@@ -427,10 +445,10 @@
                           <button class="type-btn" (click)="selectDealItemType('skill')">⚔️ Skill</button>
                           <button class="type-btn" (click)="selectDealItemType('status-effect')">💫 Status</button>
                         </div>
-                      } @else {
-                        <!-- Step 2: Select Item & Configure Deal -->
+                      } @else if (dealMode() === 'sell' && editingDealData()) {
+                        <!-- Step 2: Select Item & Configure Deal (sell mode) -->
                         <div class="creator-header">
-                          <h5>Deal konfigurieren</h5>
+                          <h5>Deal konfigurieren (Verkauf)</h5>
                           <button class="cancel-btn" (click)="cancelAddingDeal()">✕</button>
                         </div>
 
@@ -490,7 +508,6 @@
 
                           <div class="form-group checkboxes">
                             <label><input type="checkbox" [(ngModel)]="editingDealData()!.isNegotiable" /> Verhandelbar</label>
-                            <label><input type="checkbox" [(ngModel)]="editingDealData()!.isReverseDeal" /> Ankauf (Shop kauft vom Spieler)</label>
                           </div>
 
                           <div class="form-group">
@@ -503,6 +520,50 @@
                             <button class="cancel-btn" (click)="cancelAddingDeal()">✕ Abbrechen</button>
                           </div>
                         }
+                      } @else if (dealMode() === 'buy') {
+                        <!-- Step 2: Configure Reverse Deal (buy mode) -->
+                        <div class="creator-header">
+                          <h5>Ankauf konfigurieren</h5>
+                          <button class="cancel-btn" (click)="cancelAddingDeal()">✕</button>
+                        </div>
+
+                        <div class="form-group">
+                          <label>Ankauf-Titel:</label>
+                          <input type="text" [(ngModel)]="editingDealData()!.name" placeholder="z.B. Schwerter verschiedener Art" />
+                        </div>
+
+                        <div class="form-group">
+                          <label>Beschreibung (was der Shop ankauft):</label>
+                          <textarea 
+                            [(ngModel)]="editingDealData()!.reverseDescription" 
+                            rows="3" 
+                            placeholder="z.B. Beliebige Schwerter, egal welcher Qualität. Auch verzauberte Klingen."></textarea>
+                          <small class="hint">Diese Beschreibung sehen Spieler. Sei vage oder spezifisch nach Bedarf.</small>
+                        </div>
+
+                        <div class="form-group">
+                          <label>Ankaufspreis:</label>
+                          <div class="currency-inputs">
+                            <input type="number" [(ngModel)]="editingDealData()!.price!.platinum" min="0" placeholder="0" />
+                            <span>p</span>
+                            <input type="number" [(ngModel)]="editingDealData()!.price!.gold" min="0" placeholder="0" />
+                            <span>g</span>
+                            <input type="number" [(ngModel)]="editingDealData()!.price!.silver" min="0" placeholder="0" />
+                            <span>s</span>
+                            <input type="number" [(ngModel)]="editingDealData()!.price!.copper" min="0" placeholder="0" />
+                            <span>c</span>
+                          </div>
+                          <small class="hint">Preis, den der Shop pro Stück zahlt.</small>
+                        </div>
+
+                        <div class="form-group checkboxes">
+                          <label><input type="checkbox" [(ngModel)]="editingDealData()!.isNegotiable" /> Verhandelbar</label>
+                        </div>
+
+                        <div class="editor-actions">
+                          <button class="save-btn" (click)="saveDealToShop()">💾 Ankauf speichern</button>
+                          <button class="cancel-btn" (click)="cancelAddingDeal()">✕ Abbrechen</button>
+                        </div>
                       }
                     </div>
                   }

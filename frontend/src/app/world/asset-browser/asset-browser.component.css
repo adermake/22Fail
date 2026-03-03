@@ -186,3 +186,119 @@
 .effect-actions .delete-btn:hover {
   background: rgba(255, 100, 100, 0.2);
 }
+/* Shop/Bundle Cards */
+.shop-card,
+.bundle-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.shop-card:hover,
+.bundle-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.shop-header,
+.bundle-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.shop-icon,
+.bundle-icon {
+  font-size: 24px;
+}
+
+.shop-name,
+.bundle-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.shop-description,
+.bundle-description {
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.deals-summary,
+.loot-summary {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.deals-summary strong,
+.loot-summary strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--accent);
+  font-size: 14px;
+}
+
+.deals-preview,
+.loot-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deal-preview-item,
+.loot-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.deal-preview-item.reverse {
+  background: rgba(100, 150, 255, 0.1);
+  border-left: 3px solid #6496ff;
+}
+
+.deal-name,
+.loot-name {
+  flex: 1;
+  color: var(--text);
+}
+
+.deal-price {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.reverse-badge {
+  color: #6496ff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.negotiable {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.loot-type {
+  font-size: 16px;
+}
+
+.more-items {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+  padding: 4px 8px;
+}

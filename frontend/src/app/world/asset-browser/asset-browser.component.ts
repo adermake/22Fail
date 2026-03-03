@@ -6,6 +6,7 @@ import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { StatusEffect } from '../../model/status-effect.model';
+import { ShopEvent, LootBundleEvent } from '../../model/current-events.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { ItemComponent } from '../../sheet/item/item.component';
@@ -33,6 +34,8 @@ export class AssetBrowserComponent implements OnChanges {
   @Input({ required: true }) spells: SpellBlock[] = [];
   @Input({ required: true }) skills: SkillBlock[] = [];
   @Input() statusEffects: StatusEffect[] = [];
+  @Input() shops: ShopEvent[] = [];
+  @Input() lootBundles: LootBundleEvent[] = [];
   @Input({ required: true }) dummySheet!: CharacterSheet;
   @Input({ required: true }) editingItems!: Set<number>;
   @Input({ required: true }) editingRunes!: Set<number>;
@@ -69,7 +72,7 @@ export class AssetBrowserComponent implements OnChanges {
   @Output() dragStart = new EventEmitter<{ event: DragEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'; index: number }>();
   @Output() contextMenuRequest = new EventEmitter<{ event: MouseEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'; index: number }>();
 
-  activeTab: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects' = 'items';
+  activeTab: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects' | 'shops' | 'loot-bundles' = 'items';
   private _searchTerm: string = '';
 
   filteredItems: any[] = [];
@@ -77,6 +80,8 @@ export class AssetBrowserComponent implements OnChanges {
   filteredSpells: any[] = [];
   filteredSkills: any[] = [];
   filteredStatusEffects: any[] = [];
+  filteredShops: any[] = [];
+  filteredBundles: any[] = [];
 
   // Track previous array lengths to detect add/remove vs patch
   private prevItemsLength = 0;
@@ -84,6 +89,8 @@ export class AssetBrowserComponent implements OnChanges {
   private prevSpellsLength = 0;
   private prevSkillsLength = 0;
   private prevStatusEffectsLength = 0;
+  private prevShopsLength = 0;
+  private prevBundlesLength = 0;
 
   get searchTerm(): string {
     return this._searchTerm;
@@ -119,11 +126,20 @@ export class AssetBrowserComponent implements OnChanges {
       this.prevStatusEffectsLength = this.statusEffects.length;
       shouldUpdate = true;
     }
+    if (changes['shops'] && this.shops.length !== this.prevShopsLength) {
+      this.prevShopsLength = this.shops.length;
+      shouldUpdate = true;
+    }
+    if (changes['lootBundles'] && this.lootBundles.length !== this.prevBundlesLength) {
+      this.prevBundlesLength = this.lootBundles.length;
+      shouldUpdate = true;
+    }
 
     // Always update on first change
     if (changes['items']?.firstChange || changes['runes']?.firstChange ||
         changes['spells']?.firstChange || changes['skills']?.firstChange ||
-        changes['statusEffects']?.firstChange) {
+        changes['statusEffects']?.firstChange || changes['shops']?.firstChange ||
+        changes['lootBundles']?.firstChange) {
       shouldUpdate = true;
     }
 
@@ -138,6 +154,8 @@ export class AssetBrowserComponent implements OnChanges {
     this.filteredSpells = this.filterAndSort(this.spells, this._searchTerm);
     this.filteredSkills = this.filterAndSort(this.skills, this._searchTerm);
     this.filteredStatusEffects = this.filterAndSort(this.statusEffects || [], this._searchTerm);
+    this.filteredShops = this.filterAndSort(this.shops || [], this._searchTerm);
+    this.filteredBundles = this.filterAndSort(this.lootBundles || [], this._searchTerm);
   }
 
   private filterAndSort(array: any[], searchTerm: string) {
@@ -178,7 +196,7 @@ export class AssetBrowserComponent implements OnChanges {
   }
 
 
-  setActiveTab(tab: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects') {
+  setActiveTab(tab: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects' | 'shops' | 'loot-bundles') {
     this.activeTab = tab;
   }
 
@@ -249,5 +267,35 @@ export class AssetBrowserComponent implements OnChanges {
 
   onStatusEffectEditingChange(index: number, isEditing: boolean) {
     this.statusEffectEditingChange.emit({ index, isEditing });
+  }
+
+  // ==================== SHOP/BUNDLE HELPERS ====================
+
+  formatCurrency(currency: Currency): string {
+    const parts: string[] = [];
+    if (currency.platinum > 0) parts.push(`${currency.platinum}p`);
+    if (currency.gold > 0) parts.push(`${currency.gold}g`);
+    if (currency.silver > 0) parts.push(`${currency.silver}s`);
+    if (currency.copper > 0) parts.push(`${currency.copper}c`);
+    return parts.length > 0 ? parts.join(' ') : '0c';
+  }
+
+  getLootTypeIcon(type: string): string {
+    switch (type) {
+      case 'item': return '⚔️';
+      case 'rune': return '🔮';
+      case 'spell': return '✨';
+      case 'skill': return '🎯';
+      case 'status-effect': return '💫';
+      case 'currency': return '💰';
+      default: return '❓';
+    }
+  }
+
+  getLootItemName(lootItem: LootItem): string {
+    if (lootItem.type === 'currency') {
+      return this.formatCurrency(lootItem.data as Currency);
+    }
+    return (lootItem.data as any)?.name || 'Unnamed';
   }
 }

@@ -135,6 +135,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
 
   // Shop/Deal editing state
   addingDealToShop = signal<string | null>(null); // shopId currently adding deal to
+  dealMode = signal<'sell' | 'buy' | null>(null); // 'sell' = shop sells to player, 'buy' = shop buys from player
   editingDealData = signal<Partial<ShopDeal> | null>(null);
   selectedDealItemType = signal<'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | null>(null);
   selectedDealItemId = signal<string | null>(null);
@@ -812,9 +813,32 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
     if (!file || file.type !== 'shop') return;
     
     this.addingDealToShop.set(file.id);
+    this.dealMode.set(null);
     this.editingDealData.set(null);
     this.selectedDealItemType.set(null);
     this.selectedDealItemId.set(null);
+  }
+
+  selectDealMode(mode: 'sell' | 'buy'): void {
+    this.dealMode.set(mode);
+    
+    if (mode === 'buy') {
+      // For reverse deals, initialize with empty data
+      this.editingDealData.set({
+        ...createEmptyShopDeal(),
+        isReverseDeal: true,
+        name: '',
+        reverseDescription: '',
+        price: { copper: 0, silver: 0, gold: 0, platinum: 0 }
+      });
+      this.selectedDealItemType.set(null);
+      this.selectedDealItemId.set(null);
+    } else {
+      // For normal deals, reset to type selection
+      this.editingDealData.set(null);
+      this.selectedDealItemType.set(null);
+      this.selectedDealItemId.set(null);
+    }
   }
 
   selectDealItemType(type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'): void {
@@ -842,9 +866,10 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
         break;
     }
     
-    // Initialize deal data with empty price
+    // Initialize deal data with empty price (normal sell deal)
     this.editingDealData.set({
       ...createEmptyShopDeal(),
+      isReverseDeal: false,
       name: 'Neuer Deal',
       price: { copper: 0, silver: 0, gold: 0, platinum: 0 }
     });
@@ -945,6 +970,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
 
   cancelAddingDeal(): void {
     this.addingDealToShop.set(null);
+    this.dealMode.set(null);
     this.editingDealData.set(null);
     this.selectedDealItemType.set(null);
     this.selectedDealItemId.set(null);
@@ -956,6 +982,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   }
 
   getDealItemIcon(deal: ShopDeal): string {
+    if (deal.isReverseDeal) return '💰';
     if (deal.item) return getAssetTypeIcon('item');
     if (deal.rune) return getAssetTypeIcon('rune');
     if (deal.spell) return getAssetTypeIcon('spell');

@@ -225,6 +225,42 @@ export class WorldComponent implements OnInit, OnDestroy {
     return statusEffects;
   });
 
+  mergedShops = computed(() => {
+    const world = this.store.worldValue;
+    if (!world) return [];
+    
+    const shops: ShopEvent[] = [];
+    const linkedLibs = world.linkedLibraries || [];
+    const loadedLibs = this.loadedLibraries();
+    
+    linkedLibs.forEach(libId => {
+      const lib = loadedLibs.find(l => l.id === libId);
+      if (lib?.shops) {
+        shops.push(...lib.shops);
+      }
+    });
+    
+    return shops;
+  });
+
+  mergedBundles = computed(() => {
+    const world = this.store.worldValue;
+    if (!world) return [];
+    
+    const bundles: LootBundleEvent[] = [];
+    const linkedLibs = world.linkedLibraries || [];
+    const loadedLibs = this.loadedLibraries();
+    
+    linkedLibs.forEach(libId => {
+      const lib = loadedLibs.find(l => l.id === libId);
+      if (lib?.lootBundles) {
+        bundles.push(...lib.lootBundles);
+      }
+    });
+    
+    return bundles;
+  });
+
   // Current Events helpers
   get currentEvents(): CurrentEvent[] {
     return this.store.worldValue?.currentEvents || [];

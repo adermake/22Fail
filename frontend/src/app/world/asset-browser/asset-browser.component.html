@@ -30,6 +30,18 @@
       (click)="setActiveTab('status-effects')">
       💫 Effects ({{ statusEffects.length || 0 }})
     </button>
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'shops'"
+      (click)="setActiveTab('shops')">
+      🏪 Shops ({{ shops.length || 0 }})
+    </button>
+    <button
+      class="tab-button"
+      [class.active]="activeTab === 'loot-bundles'"
+      (click)="setActiveTab('loot-bundles')">
+      📦 Loot ({{ lootBundles.length || 0 }})
+    </button>
   </div>
 
   <div class="search-container">
@@ -182,5 +194,81 @@
         }
       </div>
     }
-  </div>
-</div>
+
+    <!-- Shops Tab -->
+    @if (activeTab === 'shops') {
+      <div class="library-list">
+        @for (shop of filteredShops; track $index) {
+          <div class="shop-card">
+            <div class="shop-header">
+              <span class="shop-icon">🏪</span>
+              <span class="shop-name">{{ shop.name }}</span>
+            </div>
+            @if (shop.description) {
+              <p class="shop-description">{{ shop.description }}</p>
+            }
+            <div class="deals-summary">
+              <strong>{{ shop.deals?.length || 0 }} Deals</strong>
+              @if (shop.deals && shop.deals.length > 0) {
+                <div class="deals-preview">
+                  @for (deal of shop.deals.slice(0, 3); track deal.id) {
+                    <div class="deal-preview-item" [class.reverse]="deal.isReverseDeal">
+                      <span class="deal-name">{{ deal.name }}</span>
+                      @if (deal.isReverseDeal) {
+                        <span class="reverse-badge">⬅ Ankauf</span>
+                      } @else if (deal.price) {
+                        <span class="deal-price">{{ formatCurrency(deal.price) }}</span>
+                      } @else if (deal.isNegotiable) {
+                        <span class="negotiable">💬</span>
+                      }
+                    </div>
+                  }
+                  @if (shop.deals.length > 3) {
+                    <span class="more-items">+{{ shop.deals.length - 3 }} more</span>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+        @if (filteredShops.length === 0) {
+          <p class="empty-hint">No shops available in linked libraries.</p>
+        }
+      </div>
+    }
+
+    <!-- Loot Bundles Tab -->
+    @if (activeTab === 'loot-bundles') {
+      <div class="library-list">
+        @for (bundle of filteredBundles; track $index) {
+          <div class="bundle-card">
+            <div class="bundle-header">
+              <span class="bundle-icon">📦</span>
+              <span class="bundle-name">{{ bundle.name }}</span>
+            </div>
+            @if (bundle.description) {
+              <p class="bundle-description">{{ bundle.description }}</p>
+            }
+            <div class="loot-summary">
+              <strong>{{ bundle.items?.length || 0 }} Items</strong>
+              @if (bundle.items && bundle.items.length > 0) {
+                <div class="loot-preview">
+                  @for (item of bundle.items.slice(0, 3); track item.id) {
+                    <div class="loot-preview-item">
+                      <span class="loot-type">{{ getLootTypeIcon(item.type) }}</span>
+                      <span class="loot-name">{{ getLootItemName(item) }}</span>
+                    </div>
+                  }
+                  @if (bundle.items.length > 3) {
+                    <span class="more-items">+{{ bundle.items.length - 3 }} more</span>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+        @if (filteredBundles.length === 0) {
+          <p class="empty-hint">No loot bundles available in linked libraries.</p>
+        }
+      </div>
+    }
