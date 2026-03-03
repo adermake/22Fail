@@ -4,7 +4,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CardComponent } from '../../shared/card/card.component';
-import { CdkDragDrop, CdkDragRelease, CdkDragStart, DragDropModule } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, CdkDragMove, CdkDragRelease, CdkDragStart, DragDropModule } from '@angular/cdk/drag-drop';
 import { ItemComponent } from '../item/item.component';
 import { ItemCreatorComponent } from '../item-creator/item-creator.component';
 import { ItemEditorComponent } from '../item-editor/item-editor.component';
@@ -51,8 +51,24 @@ export class InventoryComponent {
   private unfoldedItems = new Set<number>();
   placeholderHeight = '90px';
   placeholderWidth = '100%';
-  /** Index of the item currently being dragged (for compact ghost) */
+  /** Slot index of the item currently being dragged (for compact ghost) */
   draggedIndex: number | null = null;
+  /** Slot index the user is currently dragging FROM */
+  dragSourceSlotIdx: number | null = null;
+  /** Slot index the pointer is currently hovering over */
+  dropTargetSlotIdx: number | null = null;
+
+  /**
+   * Fixed-size slot array: inventory items packed to front, nulls fill the rest.
+   * Always has at least 8 slots and expands in rows of 4 as items are added.
+   */
+  get paddedSlots(): (ItemBlock | null)[] {
+    const inv = this.sheet.inventory || [];
+    const slotCount = Math.max(8, Math.ceil((inv.length + 4) / 4) * 4);
+    const result: (ItemBlock | null)[] = new Array(slotCount).fill(null);
+    inv.forEach((item, i) => { result[i] = item; });
+    return result;
+  }
 
   // Connected drop lists - only connect to equipment if it exists
   get connectedDropLists(): string[] {
@@ -237,70 +253,112 @@ getCurrencyWeight(): number {
     });
   }
 
-  onDragStarted(event: CdkDragStart) {
-    // Always use compact fixed height for placeholder - item collapses during drag
-    this.placeholderHeight = '52px';
-    this.placeholderWidth = '100%';
-    // Track which item is being dragged so we can force-collapse it
-    const draggedItem = event.source.data as ItemBlock;
-    this.draggedIndex = this.sheet.inventory.indexOf(draggedItem);
+  onDragStarted(event: CdkDragStart, slotIdx: number) {
+    this.draggedIndex = slotIdx;
+    this.dragSourceSlotIdx = slotIdx;
+    this.dropTargetSlotIdx = slotIdx; // start at self
+  }
+
+  onDragMoved(event: CdkDragMove) {
+    // Find which slot cell the pointer is currently over
+    const els = document.elementsFromPoint(
+      event.pointerPosition.x,
+      event.pointerPosition.y
+    );
+    const slotEl = els.find(
+      el => (el as HTMLElement).hasAttribute && (el as HTMLElement).hasAttribute('data-slot-idx')
+    ) as HTMLElement | undefined;
+    if (slotEl) {
+      const idx = parseInt(slotEl.getAttribute('data-slot-idx')!);
+      this.dropTargetSlotIdx = isNaN(idx) ? null : idx;
+    } else {
+      this.dropTargetSlotIdx = null;
+    }
   }
 
   onDragReleased(event: CdkDragRelease) {
+    // Clear state — onDrop fires before this when dropped on a valid target.
+    // If released outside any slot, reset.
     this.draggedIndex = null;
+    this.dragSourceSlotIdx = null;
+    this.dropTargetSlotIdx = null;
   }
 
 onDrop(event: CdkDragDrop<ItemBlock[]>) {
+  // Save and clear tracking state before any mutations
+  const savedSrc = this.dragSourceSlotIdx;
+  const savedTgt = this.dropTargetSlotIdx;
   this.draggedIndex = null;
+  this.dragSourceSlotIdx = null;
+  this.dropTargetSlotIdx = null;
 
   if (event.previousContainer === event.container) {
-    const prev = event.previousIndex;
-    const curr = event.currentIndex;
-    if (prev === curr) return;
+    // Intra-inventory swap
+    const src = savedSrc ?? event.previousIndex;
+    const tgt = savedTgt ?? event.currentIndex;
+    if (src === tgt) return;
 
-    // Swap the two items (Minecraft-style fixed grid)
-    const newInventory = [...this.sheet.inventory];
-    [newInventory[prev], newInventory[curr]] = [newInventory[curr], newInventory[prev]];
-    this.sheet.inventory = newInventory;
+    // Work in padded slot space so empty slots participate in swaps
+    const padded = this.paddedSlots; // fresh copy
+    const srcItem = padded[src];
+    const tgtItem = padded[tgt];
+    // Swap
+    padded[src] = tgtItem;
+    padded[tgt] = srcItem;
 
-    // Swap fold-tracking to follow the items
-    const prevWasUnfolded = this.unfoldedItems.has(prev);
-    const currWasUnfolded = this.unfoldedItems.has(curr);
-    if (prevWasUnfolded) this.unfoldedItems.add(curr); else this.unfoldedItems.delete(curr);
-    if (currWasUnfolded) this.unfoldedItems.add(prev); else this.unfoldedItems.delete(prev);
+    // Track which item REFERENCES were unfolded before the swap
+    const unfoldedRefs = new Set(
+      [...this.unfoldedItems]
+        .map(idx => this.sheet.inventory[idx])
+        .filter(Boolean)
+    );
 
-    this.patch.emit({ path: 'inventory', value: newInventory });
+    // Compact: remove nulls — items pack to front
+    const newInv = padded.filter((x): x is ItemBlock => x !== null);
+    this.sheet.inventory = newInv;
+
+    // Re-map unfolded indices by item reference
+    const newUnfolded = new Set<number>();
+    newInv.forEach((item, idx) => {
+      if (unfoldedRefs.has(item)) newUnfolded.add(idx);
+    });
+    this.unfoldedItems = newUnfolded;
+
+    this.patch.emit({ path: 'inventory', value: newInv });
+
   } else {
-    // Transfer from equipment to inventory — try swap if occupied slot, else place
+    // Equipment → inventory drop
     const item = event.previousContainer.data[event.previousIndex];
-    const targetIndex = event.currentIndex;
-    const existingItem = this.sheet.inventory[targetIndex];
+    const tgtSlot = savedTgt ?? event.currentIndex;
 
-    const newInventory = [...this.sheet.inventory];
+    const padded = this.paddedSlots;
+    const existingItem = padded[tgtSlot] ?? null;
 
     if (existingItem) {
-      // Swap: put inventory item back to equipment source position
+      // Swap: existing inventory item goes back to the equipment slot
       const newEquipment = [...(this.sheet.equipment || [])];
       const equipSrcIdx = newEquipment.indexOf(item);
       if (equipSrcIdx !== -1) {
         newEquipment[equipSrcIdx] = existingItem;
-        existingItem.armorType = item.armorType; // inherit slot type
       } else {
         newEquipment.push(existingItem);
       }
-      newInventory[targetIndex] = item;
+      padded[tgtSlot] = item;
+      // Compact: remove nulls and the displaced item (now in equipment)
+      const compacted: ItemBlock[] = padded
+        .filter((x): x is ItemBlock => x !== null && x !== existingItem);
+      this.sheet.inventory = compacted;
       this.sheet.equipment = newEquipment;
-      this.sheet.inventory = newInventory;
       this.patch.emit({ path: 'equipment', value: newEquipment });
     } else {
-      // Empty slot – just place
-      newInventory.splice(targetIndex, 0, item);
-      this.sheet.equipment = (this.sheet.equipment || []).filter((_, i) => i !== event.previousIndex);
-      this.sheet.inventory = newInventory;
+      // Empty target slot: just append to inventory
+      const newInv = [...(this.sheet.inventory || []), item];
+      this.sheet.inventory = newInv;
+      this.sheet.equipment = (this.sheet.equipment || []).filter(e => e !== item);
       this.patch.emit({ path: 'equipment', value: this.sheet.equipment });
     }
-    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
     this.unfoldedItems.clear();
+    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
   }
 }
 

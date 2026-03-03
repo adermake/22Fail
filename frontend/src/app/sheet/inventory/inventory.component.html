@@ -38,82 +38,94 @@
     id="inventoryList"
     [cdkDropListData]="sheet.inventory"
     [cdkDropListConnectedTo]="connectedDropLists"
+    [cdkDropListSortingDisabled]="true"
     (cdkDropListDropped)="onDrop($event)"
   >
-    @for (item of (sheet.inventory || []); track item; let i = $index) {
-      <!-- Fixed grid cell: explicit column+row so other items never shift -->
-      <div cdkDrag
-           class="item-slot"
-           [class.is-origin]="isItemUnfolded(i)"
-           [style.grid-column]="(i % 4) + 1"
-           [style.grid-row]="getItemGridRow(i)"
-           [cdkDragData]="item"
-           [cdkDragDisabled]="isItemEditing(i)"
-           (cdkDragStarted)="onDragStarted($event)"
-           (cdkDragReleased)="onDragReleased($event)">
+    @for (slot of paddedSlots; track $index; let i = $index) {
+      @if (slot !== null) {
+        <!-- Occupied slot: draggable item cell -->
+        <div cdkDrag
+             class="item-slot"
+             [class.is-origin]="isItemUnfolded(i)"
+             [class.drag-target]="dropTargetSlotIdx === i && dragSourceSlotIdx !== i"
+             [attr.data-slot-idx]="i"
+             [style.grid-column]="(i % 4) + 1"
+             [style.grid-row]="getItemGridRow(i)"
+             [cdkDragData]="slot"
+             [cdkDragDisabled]="isItemEditing(i)"
+             (cdkDragStarted)="onDragStarted($event, i)"
+             (cdkDragMoved)="onDragMoved($event)"
+             (cdkDragReleased)="onDragReleased($event)">
 
+          @if (isItemUnfolded(i)) {
+            <!-- Origin chip: home marker + fold-up button; dblclick closes tab -->
+            <div class="origin-chip"
+                 (dblclick)="onFoldChange(i, true); $event.stopPropagation()">
+              <span class="origin-chip-icon">{{ slot.itemType === 'weapon' ? '⚔' : slot.itemType === 'armor' ? '🛡' : '📦' }}</span>
+              <span class="origin-chip-name">{{ slot.name }}</span>
+              <button class="origin-fold-btn"
+                      (click)="onFoldChange(i, true); $event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()"
+                      title="Einklappen">▲</button>
+            </div>
+          } @else {
+            <app-item
+              [item]="slot"
+              [sheet]="sheet"
+              [index]="i"
+              [isEditing]="isItemEditing(i)"
+              [compact]="draggedIndex === i"
+              (patch)="updateItem(i, $event)"
+              (delete)="deleteItem(i)"
+              (editingChange)="onEditingChange(i, $event)"
+              (openEditor)="openItemEditor(i)"
+              (breakTest)="performBreakTest(i)"
+              (foldChange)="onFoldChange(i, $event)"
+            ></app-item>
+          }
+
+          <!-- Custom drag preview chip (snaps to cursor) -->
+          <ng-template cdkDragPreview>
+            <div class="drag-chip">
+              <span class="drag-chip-icon">{{ slot.itemType === 'weapon' ? '⚔' : slot.itemType === 'armor' ? '🛡' : '📦' }}</span>
+              <span class="drag-chip-name">{{ slot.name }}</span>
+            </div>
+          </ng-template>
+
+          <!-- Invisible placeholder keeps grid cell stable -->
+          <div class="drag-placeholder-wrapper" *cdkDragPlaceholder></div>
+        </div>
+
+        <!-- Expansion row: full-width, placed directly below chip-row -->
         @if (isItemUnfolded(i)) {
-          <!-- Origin chip: home marker + fold-up button -->
-          <div class="origin-chip">
-            <span class="origin-chip-icon">{{ item.itemType === 'weapon' ? '⚔' : item.itemType === 'armor' ? '🛡' : '📦' }}</span>
-            <span class="origin-chip-name">{{ item.name }}</span>
-            <button class="origin-fold-btn"
-                    (click)="onFoldChange(i, true); $event.stopPropagation()"
-                    (mousedown)="$event.stopPropagation()"
-                    title="Einklappen">▲</button>
+          <div class="expansion-row"
+               [style.grid-row]="getExpansionGridRow(i)"
+               [style.--chip-col]="i % 4">
+            <app-item
+              [item]="slot"
+              [sheet]="sheet"
+              [index]="i"
+              [isEditing]="isItemEditing(i)"
+              [startUnfolded]="true"
+              [hideFoldControls]="true"
+              (patch)="updateItem(i, $event)"
+              (delete)="deleteItem(i)"
+              (editingChange)="onEditingChange(i, $event)"
+              (openEditor)="openItemEditor(i)"
+              (breakTest)="performBreakTest(i)"
+              (foldChange)="onFoldChange(i, $event)"
+            ></app-item>
           </div>
-        } @else {
-          <app-item
-            [item]="item"
-            [sheet]="sheet"
-            [index]="i"
-            [isEditing]="isItemEditing(i)"
-            [compact]="draggedIndex === i"
-            (patch)="updateItem(i, $event)"
-            (delete)="deleteItem(i)"
-            (editingChange)="onEditingChange(i, $event)"
-            (openEditor)="openItemEditor(i)"
-            (breakTest)="performBreakTest(i)"
-            (foldChange)="onFoldChange(i, $event)"
-          ></app-item>
         }
-
-        <!-- Custom drag preview chip (snaps to cursor) -->
-        <ng-template cdkDragPreview>
-          <div class="drag-chip">
-            <span class="drag-chip-icon">{{ item.itemType === 'weapon' ? '⚔' : item.itemType === 'armor' ? '🛡' : '📦' }}</span>
-            <span class="drag-chip-name">{{ item.name }}</span>
-          </div>
-        </ng-template>
-
-        <!-- Invisible placeholder keeps grid cell stable -->
-        <div class="drag-placeholder-wrapper" *cdkDragPlaceholder></div>
-      </div>
-
-      <!-- Expansion row: spans all 4 columns, placed on row immediately after chip's row -->
-      @if (isItemUnfolded(i)) {
-        <div class="expansion-row"
-             [style.grid-row]="getExpansionGridRow(i)"
-             [style.--chip-col]="i % 4">
-          <app-item
-            [item]="item"
-            [sheet]="sheet"
-            [index]="i"
-            [isEditing]="isItemEditing(i)"
-            [startUnfolded]="true"
-            [hideFoldControls]="true"
-            (patch)="updateItem(i, $event)"
-            (delete)="deleteItem(i)"
-            (editingChange)="onEditingChange(i, $event)"
-            (openEditor)="openItemEditor(i)"
-            (breakTest)="performBreakTest(i)"
-            (foldChange)="onFoldChange(i, $event)"
-          ></app-item>
+      } @else {
+        <!-- Empty slot: dashed box, captures pointer position for drop targeting -->
+        <div class="item-slot item-slot-empty"
+             [class.drag-target]="dropTargetSlotIdx === i && dragSourceSlotIdx !== i"
+             [attr.data-slot-idx]="i"
+             [style.grid-column]="(i % 4) + 1"
+             [style.grid-row]="getItemGridRow(i)">
         </div>
       }
-    }
-    @if ((sheet.inventory || []).length === 0) {
-      <p class="empty-message">Keine Gegenstände. Klicke + um einen hinzuzufügen.</p>
     }
   </div>
   <!-- Currency Section at Bottom -->

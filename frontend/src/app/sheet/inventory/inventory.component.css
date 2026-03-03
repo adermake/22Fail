@@ -157,6 +157,23 @@ app-card > *,
   box-sizing: border-box;
 }
 
+/* Empty pre-filled slot: shown as a dashed placeholder */
+.item-slot-empty {
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  min-height: 52px;
+  box-sizing: border-box;
+  pointer-events: auto; /* allow pointer events so elementsFromPoint picks it up */
+}
+
+/* Drop-target highlight: ring + tint on the hovered slot */
+.drag-target {
+  box-shadow: 0 0 0 2px var(--accent);
+  background: rgba(107, 70, 193, 0.1);
+  border-radius: 5px;
+}
+
 /* Full-width expansion row (CDK ignores this element) */
 .expansion-row {
   grid-column: 1 / -1;

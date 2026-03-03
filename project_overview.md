@@ -145,12 +145,15 @@ app/
 
 ## Inventar-Komponente (`sheet/inventory/`)
 - **Grid-Layout**: CSS Grid, 4 Spalten (`grid-template-columns: repeat(4, 1fr)`). Feste Zellen — keine Verschiebung beim Draggen.
-- **Explizite Platzierung**: Jede `.item-slot` bekommt `[style.grid-column]="(i%4)+1"` und `[style.grid-row]="getItemGridRow(i)"`. Expansion-Rows bekommen `[style.grid-row]="getExpansionGridRow(i)"`. So bleiben Items in der gleichen visuellen Reihe auch wenn Expansion-Rows eingefügt werden.
-- **`getItemGridRow(i)`**: Berechnet 1-basierte CSS-Grid-Reihe: `visualRow + Anzahl Expansion-Rows davor + 1`.
-- **Swap-Semantik**: `onDrop` macht immer Tausch. Indizes werden swap-aktuell in `unfoldedItems` nachgeführt.
-- **Placeholder unsichtbar**: `.drag-placeholder-wrapper { visibility: hidden }` → andere Items springen nie.
-- **Unfolded-Item**: `.item-slot` zeigt `origin-chip` (Icon + Name + ▲-Einklapp-Button). Expansion-Row (`grid-column: 1/-1`, `margin-top: -0.4rem`) darunter visuell verbunden. CSS `::before` zeichnet Akzentlinie direkt unter Chip-Spalte (`--chip-col`). Expansion-`app-item` bekommt `[hideFoldControls]="true"`.
-- **item.component**: `@Input() hideFoldControls = false` — versteckt Fold-Button und blockiert `dblclick` (via `onCardDblClick`). `@Input() set startUnfolded` — startet eingeklappt.
+- **Vorgefülltes Slot-Raster**: `get paddedSlots()` gibt immer `max(8, ceil((N+4)/4)*4)` Slots zurück. Items stehen vorne, leere Felder werden als `null` aufgefüllt. Neue Reihe erscheint automatisch, wenn die unterste Reihe belegt ist.
+- **Explizite Platzierung**: Jedes Slot-Div bekommt `[style.grid-column]="(i%4)+1"` und `[style.grid-row]="getItemGridRow(i)"`. Expansion-Rows `[style.grid-row]="getExpansionGridRow(i)"`.
+- **`getItemGridRow(i)`**: 1-basierte CSS-Reihe: `visualRow + Anzahl-Expansion-Rows-davor + 1`.
+- **Drag ohne Jitter**: `[cdkDropListSortingDisabled]="true"` — CDK verschiebt niemals Items während dem Drag. Placeholder bleibt unsichtbar.
+- **Exaktes Swap-Ziel via Pointer-Tracking**: `onDragMoved` nutzt `document.elementsFromPoint(x,y)` um das Element mit `[attr.data-slot-idx]` unter dem Zeiger zu finden. `dropTargetSlotIdx` wird laufend aktualisiert. `onDrop` liest `dragSourceSlotIdx` / `dropTargetSlotIdx` für präzisen Tausch in `paddedSlots`-Raum, dann Compaction (filter null).
+- **Fold-Tracking by Reference**: Nach Compact wird `unfoldedItems` via Item-Referenz-Vergleich neu gemappt (nicht Index).
+- **Drag-Target-Highlight**: `.drag-target` (Akzent-Ring + Lila-Tint) auf dem aktuell gehov­erten Slot (wenn nicht Quell-Slot).
+- **Unfolded-Item**: `.item-slot` zeigt `origin-chip` (Icon + Name + ▲-Button, dblclick = Einklappen). Expansion-Row (`grid-column: 1/-1`, `margin-top: -0.4rem`) darunter visuell verbunden. Expansion-`app-item` bekommt `[hideFoldControls]="true"`.
+- **item.component**: `@Input() hideFoldControls = false` — versteckt Fold-Button und blockiert `dblclick`. `@Input() set startUnfolded` — startet ausgeklappt.
 
 ## Equipment-Komponente (`sheet/equipment/`)
 - **Layout**: Vertikales Flex-Stack (nicht 2-Spalten-Grid) — Items brauchen die volle Breite für Text
