@@ -238,7 +238,15 @@ export class WorldComponent implements OnInit, OnDestroy {
     linkedLibs.forEach(libId => {
       const lib = loadedLibs.find(l => l.id === libId);
       if (lib?.shops) {
-        console.log(`  - Adding ${lib.shops.length} shops from library "${lib.name}"`);\n        shops.push(...lib.shops);\n      } else {\n        console.log(`  - Library ${libId} not found or has no shops`);\n      }\n    });\n    \n    console.log('[WORLD] Total merged shops:', shops.length);\n    return shops;
+        console.log(`  - Adding ${lib.shops.length} shops from library "${lib.name}"`);
+        shops.push(...lib.shops);
+      } else {
+        console.log(`  - Library ${libId} not found or has no shops`);
+      }
+    });
+    
+    console.log('[WORLD] Total merged shops:', shops.length);
+    return shops;
   });
 
   mergedBundles = computed(() => {
@@ -254,7 +262,15 @@ export class WorldComponent implements OnInit, OnDestroy {
     linkedLibs.forEach(libId => {
       const lib = loadedLibs.find(l => l.id === libId);
       if (lib?.lootBundles) {
-        console.log(`  - Adding ${lib.lootBundles.length} bundles from library "${lib.name}"`);\n        bundles.push(...lib.lootBundles);\n      } else {\n        console.log(`  - Library ${libId} not found or has no bundles`);\n      }\n    });\n    \n    console.log('[WORLD] Total merged bundles:', bundles.length);\n    return bundles;
+        console.log(`  - Adding ${lib.lootBundles.length} bundles from library "${lib.name}"`);
+        bundles.push(...lib.lootBundles);
+      } else {
+        console.log(`  - Library ${libId} not found or has no bundles`);
+      }
+    });
+    
+    console.log('[WORLD] Total merged bundles:', bundles.length);
+    return bundles;
   });
 
   // Current Events helpers
