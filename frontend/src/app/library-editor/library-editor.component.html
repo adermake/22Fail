@@ -508,6 +508,7 @@
 
                           <div class="form-group checkboxes">
                             <label><input type="checkbox" [(ngModel)]="editingDealData()!.isNegotiable" /> Verhandelbar</label>
+                            <label><input type="checkbox" [checked]="editingDealData()!.identified !== false" (change)="editingDealData()!.identified = $any($event.target).checked" /> Identifiziert (Spieler sehen Details)</label>
                           </div>
 
                           <div class="form-group">
@@ -570,6 +571,15 @@
 
                   <!-- Existing Deals List -->
                   @if (editingFile()!.data.deals && editingFile()!.data.deals.length > 0) {
+                    <div class="deals-list-header">
+                      <span class="deals-count">{{ editingFile()!.data.deals.length }} Deal(s)</span>
+                      <label class="identify-all-label">
+                        <input type="checkbox"
+                               [checked]="allDealsIdentified()"
+                               (change)="setAllDealsIdentified($any($event.target).checked)" />
+                        Alle identifiziert
+                      </label>
+                    </div>
                     <div class="deals-list">
                       @for (deal of editingFile()!.data.deals; track deal.id) {
                         <div class="deal-card" [class.reverse]="deal.isReverseDeal">

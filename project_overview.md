@@ -67,7 +67,17 @@ app/
 - **Status Effects**: Buffs/Debuffs für Charaktere
 - **Shops**: Verkaufsveranstaltungen mit Deals (normal/reverse)
   - `isReverseDeal: true` → Shop kauft Items von Spielern
+  - `identified?: boolean` → `false` = Spieler sehen "Unbekannter Effekt" statt Item-Details
+  - Library Editor: Einzelne identified-Checkbox pro Deal + "Alle identifiziert" Bulk-Toggle
 - **Loot Bundles**: Beutepakete mit claimable Items
+
+## Währungs-System
+- **10:1 Ratios**: 10 Kupfer = 1 Silber, 10 Silber = 1 Gold, 10 Gold = 1 Platin
+- `convertToCopper(Currency): number` / `copperToCurrency(number): Currency`
+- `formatCurrency(Currency): string` → "3g 2s 5c"
+- `formatCurrencyAsGold(Currency): string` → "0.32g"
+- `formatCurrencyAsUnits(Currency): string` → "3 Silber 2 Kupfer"
+- `getCoinParts(Currency): CoinPart[]` → farbige Coin-Darstellung
 
 ## Sync-Mechanismen
 
@@ -93,16 +103,18 @@ app/
 ### UI-Komponenten-Interaktionen
 - **Drag Source**: asset-browser.component (Library-Ansicht)
 - **Drop Target**: current-events-manager.component (World-Ansicht)
-- **Player View**: current-events-view.component (Sheet-Ansicht - zeigt Portal-Karten)
+- **Player View**: current-events-view.component (Sheet-Ansicht - kompakte Kacheln-Grid, 160px min-width)
 - **Portal UI**: event-portal.component (Fullscreen-Modal, animiert)
-  - Shop-Theme: Braun/Gold Gradient mit Kerzenlicht-Feeling
-  - Loot-Theme: Dunkelblau/Lila Gradient mit Goldpartikel
-  - CSS Animations: `portalOpen` (scale + rotate), `float`, `sparkle`
-  - Schließen via ✕ Button
-- **Transaction Popup**: transaction-popup.component 
-  - Slide-In von rechts, fade-out nach 2.5s+0.5s
-  - Typ-Icons: 🛒 Kaufen (rot), 💰 Verkaufen (grün), 🎁 Beanspruchen (blau)
-  - Zeigt Item-Name, Menge, Geldbetrag
+  - Shop-Theme: Braun/Gold Gradient; Loot-Theme: Dunkelblau/Lila
+  - Close-Button: `position: fixed`, außerhalb des `overflow: hidden` Portals → nie geclippt
+  - Münzanzeige: farbige Coin-Pills (Kupfer=#b87333, Silber=#c0c0c0, Gold=#ffd700, Platin=#6ab2e5)
+  - Preisanzeige-Toggle: `localStorage('priceDisplayMode')` = `'highest-units'` | `'total-gold'`
+  - Spieler-Geldanzeige: Alle Münzwerte + Gesamt-Gold im Shop-Header
+  - Item-Inspektion: Klick auf "Details ansehen" → Inspektions-Modal
+    - `identified !== false`: zeigt Beschreibung/Stats; `identified === false`: "Unbekannter Effekt"
+  - Kauf-Logik: `deductMoney()`, `addMoney()`, `addItemToInventory()` senden Patches via `@Output() patch`
+  - `@Output() patch` → verdrahtet mit `store.applyPatch()` in sheet.component.html
+- **Transaction Popup**: transaction-popup.component (Slide-In, fade-out)
 - **Visual Feedback**: 
   - isDraggingOverList property
   - `.drag-over` CSS class (dashed border)

@@ -1007,6 +1007,22 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
     await this.saveEditor(shopData, false);
   }
 
+  setAllDealsIdentified(identified: boolean): void {
+    const file = this.editingFile();
+    if (!file || file.type !== 'shop') return;
+    const shopData = file.data as ShopEvent;
+    if (!shopData.deals) return;
+    shopData.deals.forEach(d => d.identified = identified);
+  }
+
+  allDealsIdentified(): boolean {
+    const file = this.editingFile();
+    if (!file || file.type !== 'shop') return true;
+    const shopData = file.data as ShopEvent;
+    if (!shopData.deals || shopData.deals.length === 0) return true;
+    return shopData.deals.every(d => d.identified !== false);
+  }
+
   cancelAddingDeal(): void {
     this.addingDealToShop.set(null);
     this.dealMode.set(null);

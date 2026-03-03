@@ -414,7 +414,7 @@ export class SheetComponent implements OnInit {
       const isReverse = deal.isReverseDeal;
       this.addTransaction({
         type: isReverse ? 'sell' : 'buy',
-        itemName: deal.item.name || 'Item',
+        itemName: deal.name || 'Item',
         quantity: event.quantity,
         ...(isReverse 
           ? { moneyGained: copperToCurrency(event.totalCostCopper) }

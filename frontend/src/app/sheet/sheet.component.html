@@ -282,6 +282,7 @@
     [event]="getPortalEvent()"
     [sheet]="store.sheetValue!"
     (close)="onClosePortal()"
+    (patch)="store.applyPatch($any($event))"
     (buyRequest)="onBuyFromShop($event)"
     (claimRequest)="onClaimEventLoot($event)">
   </app-event-portal>

@@ -53,6 +53,10 @@ export interface ShopDeal {
   // Reverse deal: player sells item for this price
   isReverseDeal: boolean;
   reverseDescription?: string; // e.g., "~5 Gold" rough description
+
+  // Whether the item details are revealed to players
+  // If false, players see "Unbekannter Effekt" for description
+  identified?: boolean;
 }
 
 /**
@@ -186,7 +190,7 @@ export function copperToCurrency(copper: number): Currency {
 }
 
 /**
- * Format currency for display
+ * Format currency for display as text labels
  */
 export function formatCurrency(currency: Currency): string {
   const parts: string[] = [];
@@ -195,4 +199,45 @@ export function formatCurrency(currency: Currency): string {
   if (currency.silver > 0) parts.push(`${currency.silver}s`);
   if (currency.copper > 0) parts.push(`${currency.copper}c`);
   return parts.length > 0 ? parts.join(' ') : '0c';
+}
+
+/**
+ * Format currency as total gold with decimals e.g. 3.25g
+ */
+export function formatCurrencyAsGold(currency: Currency): string {
+  const totalCopper = convertToCopper(currency);
+  const gold = totalCopper / 100;
+  return gold % 1 === 0 ? `${gold}g` : `${gold.toFixed(2)}g`;
+}
+
+/**
+ * Format currency using highest denomination units
+ * e.g. "3 Silber 2 Kupfer"
+ */
+export function formatCurrencyAsUnits(currency: Currency): string {
+  const parts: string[] = [];
+  if (currency.platinum > 0) parts.push(`${currency.platinum} Platin`);
+  if (currency.gold > 0) parts.push(`${currency.gold} Gold`);
+  if (currency.silver > 0) parts.push(`${currency.silver} Silber`);
+  if (currency.copper > 0) parts.push(`${currency.copper} Kupfer`);
+  return parts.length > 0 ? parts.join(' ') : '0 Kupfer';
+}
+
+/**
+ * Coin display parts for colored rendering
+ */
+export interface CoinPart {
+  amount: number;
+  type: 'copper' | 'silver' | 'gold' | 'platinum';
+  color: string;
+  symbol: string;
+}
+
+export function getCoinParts(currency: Currency): CoinPart[] {
+  const parts: CoinPart[] = [];
+  if (currency.platinum > 0) parts.push({ amount: currency.platinum, type: 'platinum', color: '#6ab2e5', symbol: '⬡' });
+  if (currency.gold > 0) parts.push({ amount: currency.gold, type: 'gold', color: '#ffd700', symbol: '⬡' });
+  if (currency.silver > 0) parts.push({ amount: currency.silver, type: 'silver', color: '#c0c0c0', symbol: '⬡' });
+  if (currency.copper > 0) parts.push({ amount: currency.copper, type: 'copper', color: '#b87333', symbol: '⬡' });
+  return parts.length > 0 ? parts : [{ amount: 0, type: 'copper', color: '#b87333', symbol: '⬡' }];
 }
