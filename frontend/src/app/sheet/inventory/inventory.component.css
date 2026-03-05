@@ -216,7 +216,7 @@ app-card > *,
   position: relative;
   border: 2px solid var(--accent);
   border-top: none;
-  border-radius: 0 0 6px 6px;
+  border-radius: 6px;
   background: rgba(107, 70, 193, 0.06);
   /* overflow: visible so the ::before top-border line can extend above */
   overflow: visible;
@@ -232,13 +232,13 @@ app-card > *,
   left: -2px;
   right: -2px;
   height: 2px;
-  /* Gap-corrected column positions: each column center shifts by col * gap/4 */
+  border-radius: 6px 6px 0 0;
   background: linear-gradient(
     to right,
-    var(--accent) calc(var(--chip-col, 0) * 25% + var(--chip-col, 0) * 0.09rem),
-    transparent calc(var(--chip-col, 0) * 25% + var(--chip-col, 0) * 0.09rem),
-    transparent calc((var(--chip-col, 0) + 1) * 25% + var(--chip-col, 0) * 0.09rem),
-    var(--accent) calc((var(--chip-col, 0) + 1) * 25% + var(--chip-col, 0) * 0.09rem)
+    var(--accent) calc(var(--chip-col, 0) * 25%),
+    transparent calc(var(--chip-col, 0) * 25%),
+    transparent calc((var(--chip-col, 0) + 1) * 25%),
+    var(--accent) calc((var(--chip-col, 0) + 1) * 25%)
   );
   pointer-events: none;
   z-index: 2;
@@ -269,6 +269,7 @@ app-card > *,
   border: none;
   border-radius: 0 0 4px 4px;
   background: transparent;
+  overflow: hidden;
   cursor: default !important;
 }
 .expansion-row ::ng-deep .item-card * {
@@ -300,7 +301,7 @@ app-card > *,
   align-items: center;
   justify-content: center;
   gap: 0.2rem;
-  background: rgba(107, 70, 193, 0.12);
+  background: rgba(107, 70, 193, 0.26);
   border: none;
   border-radius: 4px;
   padding: 0.4rem 0.25rem 0.25rem;
@@ -314,11 +315,11 @@ app-card > *,
   transition: background 0.15s;
 }
 .origin-chip:hover {
-  background: rgba(107, 70, 193, 0.2);
+  background: rgba(107, 70, 193, 0.36);
 }
 /* Active tab chip: highlight to show it is the displayed one */
 .origin-chip.active-tab {
-  background: rgba(107, 70, 193, 0.28);
+  background: rgba(107, 70, 193, 0.46);
 }
 /* Subtle triangle fold button — top-right of chip */
 .chip-fold-btn {
