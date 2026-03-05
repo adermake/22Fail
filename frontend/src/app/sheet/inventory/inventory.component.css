@@ -223,21 +223,23 @@ app-card > *,
 }
 
 /* Top border with a transparent hole exactly under the active chip column.
-   left:0/right:0 aligns with inner border edges so 25% steps match grid quarter widths. */
+   left/right: -2px spans the outer border edges (= full track width),
+   so 25% aligns with grid track boundaries. The precise formula accounts
+   for the 0.35rem gap: col_start = c*(25% + gap/4), col_width = 25% - 3*gap/4. */
 .expansion-row::before {
   content: '';
   display: block;
   position: absolute;
   top: -2px;
-  left: 0;
-  right: 0;
+  left: -2px;
+  right: -2px;
   height: 2px;
   background: linear-gradient(
     to right,
-    var(--accent) calc(var(--chip-col, 0) * 25%),
-    transparent calc(var(--chip-col, 0) * 25%),
-    transparent calc((var(--chip-col, 0) + 1) * 25%),
-    var(--accent) calc((var(--chip-col, 0) + 1) * 25%)
+    var(--accent) calc(var(--chip-col, 0) * (25% + 0.0875rem)),
+    transparent   calc(var(--chip-col, 0) * (25% + 0.0875rem)),
+    transparent   calc(var(--chip-col, 0) * (25% + 0.0875rem) + 25% - 0.2625rem),
+    var(--accent) calc(var(--chip-col, 0) * (25% + 0.0875rem) + 25% - 0.2625rem)
   );
   pointer-events: none;
   z-index: 2;
@@ -261,9 +263,11 @@ app-card > *,
   cursor: pointer !important;
 }
 
-/* Origin slot: all unfolded chips get rounded top + flat bottom (shape only) */
+/* Origin slot: all unfolded chips stretch to fill row height so bottom edge
+   always aligns with the expansion-row top regardless of other items' heights */
 .item-slot.is-origin {
   border-radius: 6px 6px 0 0;
+  align-self: stretch;
 }
 
 /* Active origin slot: accent border only on the currently active tab chip */
