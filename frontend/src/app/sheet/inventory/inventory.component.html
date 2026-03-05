@@ -40,6 +40,7 @@
     [cdkDropListConnectedTo]="connectedDropLists"
     [cdkDropListSortingDisabled]="true"
     (cdkDropListDropped)="onDrop($event)"
+    [style.--drag-item-height.px]="dragItemHeight"
   >
     @for (slot of paddedSlots; track $index; let i = $index) {
       @if (slot !== null) {
@@ -47,6 +48,7 @@
         <div cdkDrag
              class="item-slot"
              [class.is-origin]="isItemUnfolded(i)"
+             [class.is-active-origin]="isItemUnfolded(i) && isActiveTab(i)"
              [class.drag-target]="dropTargetSlotIdx === i && dragSourceSlotIdx !== i"
              [attr.data-slot-idx]="i"
              [style.grid-column]="(i % 4) + 1"

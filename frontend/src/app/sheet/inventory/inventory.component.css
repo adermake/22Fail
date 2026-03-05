@@ -195,9 +195,10 @@ app-card > *,
   overflow: hidden;
 }
 
-/* Drag placeholder: show the slot background so it looks like an empty slot is always there */
+/* Drag placeholder: matches the dragged item height to prevent row height collapse */
 .drag-placeholder-wrapper {
-  min-height: 52px;
+  height: var(--drag-item-height, 52px);
+  min-height: var(--drag-item-height, 52px);
   width: 100%;
   border-radius: 6px;
   border: 1px dashed rgba(255, 255, 255, 0.18);
@@ -215,7 +216,7 @@ app-card > *,
   position: relative;
   border: 2px solid var(--accent);
   border-top: none;
-  border-radius: 0 6px 6px 6px;
+  border-radius: 0 0 6px 6px;
   background: rgba(107, 70, 193, 0.06);
   /* overflow: visible so the ::before top-border line can extend above */
   overflow: visible;
@@ -231,12 +232,13 @@ app-card > *,
   left: -2px;
   right: -2px;
   height: 2px;
+  /* Gap-corrected column positions: each column center shifts by col * gap/4 */
   background: linear-gradient(
     to right,
-    var(--accent) calc(var(--chip-col, 0) * 25%),
-    transparent calc(var(--chip-col, 0) * 25%),
-    transparent calc((var(--chip-col, 0) + 1) * 25%),
-    var(--accent) calc((var(--chip-col, 0) + 1) * 25%)
+    var(--accent) calc(var(--chip-col, 0) * 25% + var(--chip-col, 0) * 0.09rem),
+    transparent calc(var(--chip-col, 0) * 25% + var(--chip-col, 0) * 0.09rem),
+    transparent calc((var(--chip-col, 0) + 1) * 25% + var(--chip-col, 0) * 0.09rem),
+    var(--accent) calc((var(--chip-col, 0) + 1) * 25% + var(--chip-col, 0) * 0.09rem)
   );
   pointer-events: none;
   z-index: 2;
@@ -279,10 +281,14 @@ app-card > *,
   cursor: pointer !important;
 }
 
-/* Origin slot cell: has accent border, open bottom to merge with expansion row */
+/* Origin slot: all unfolded chips get rounded top + flat bottom (shape only) */
 .item-slot.is-origin {
-  border: 2px solid var(--accent);
   border-radius: 6px 6px 0 0;
+}
+
+/* Active origin slot: accent border only on the currently active tab chip */
+.item-slot.is-active-origin {
+  border: 2px solid var(--accent);
   border-bottom-color: transparent;
   z-index: 1;
 }

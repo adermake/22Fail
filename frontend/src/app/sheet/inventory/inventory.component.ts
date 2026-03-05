@@ -55,6 +55,8 @@ export class InventoryComponent {
   private crossContainerDropHandled = false;
   /** Index of the item currently being dragged (for compact ghost rendering) */
   draggedIndex: number | null = null;
+  /** Height in px of the item element at drag start, used to size the placeholder */
+  dragItemHeight: number = 52;
   /** Padded slot index the drag began from */
   dragSourceSlotIdx: number | null = null;
   /** Padded slot index the pointer is currently hovering over */
@@ -276,6 +278,7 @@ getCurrencyWeight(): number {
     if (this.unfoldedItems.has(slotIdx)) {
       this.onFoldChange(slotIdx, true);
     }
+    this.dragItemHeight = (event.source.element.nativeElement as HTMLElement).offsetHeight;
     this.draggedIndex = slotIdx;
     this.dragSourceSlotIdx = slotIdx;
     this.dropTargetSlotIdx = slotIdx; // start at self
