@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
@@ -38,6 +38,7 @@ export class InventoryComponent {
   
   private worldSocket = inject(WorldSocketService);
   private notification = inject(NotificationService);
+  private elRef = inject(ElementRef);
 
   Math = Math; // Expose Math to template
   formatCurrency = formatCurrency;
@@ -452,11 +453,41 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
     } else {
       this.unfoldedItems.add(index);
       this.activeTabPerRow.set(row, index); // newly opened becomes the active tab
+      this.updateExpansionRowMaxHeights();
     }
   }
 
   setActiveTab(row: number, idx: number) {
     this.activeTabPerRow.set(row, idx);
+    this.updateExpansionRowMaxHeights();
+  }
+
+  /** Tracks the tallest expansion-row height seen per visual row, to prevent height jumps on tab switch */
+  private expansionRowMaxHeights = new Map<number, number>();
+
+  /** Returns the corner radius CSS value for an expansion row based on the active chip column */
+  getExpansionBorderRadius(chipCol: number): string {
+    if (chipCol === 0) return '0 6px 6px 6px';
+    if (chipCol === 3) return '6px 0 6px 6px';
+    return '6px';
+  }
+
+  /** Returns the reserved min-height for this expansion row (max ever seen) */
+  getExpansionMinHeight(row: number): number | null {
+    return this.expansionRowMaxHeights.get(row) ?? null;
+  }
+
+  /** Measures all currently rendered expansion rows and updates the max-height map */
+  private updateExpansionRowMaxHeights() {
+    setTimeout(() => {
+      const rows = (this.elRef.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-exp-row]');
+      rows.forEach(el => {
+        const rowIdx = parseInt(el.getAttribute('data-exp-row')!, 10);
+        const h = el.offsetHeight;
+        const prev = this.expansionRowMaxHeights.get(rowIdx) ?? 0;
+        if (h > prev) this.expansionRowMaxHeights.set(rowIdx, h);
+      });
+    });
   }
 
   /** Returns the visual 0-based row for a padded slot index */

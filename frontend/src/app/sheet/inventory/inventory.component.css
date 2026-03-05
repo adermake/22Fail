@@ -216,23 +216,22 @@ app-card > *,
   position: relative;
   border: 2px solid var(--accent);
   border-top: none;
-  border-radius: 6px;
+  /* border-radius is set dynamically in template based on active chip column */
   background: rgba(107, 70, 193, 0.06);
   /* overflow: visible so the ::before top-border line can extend above */
   overflow: visible;
 }
 
 /* Top border with a transparent hole exactly under the active chip column.
-   The chip slot (z-index:1) sits on top and the transparent gap shows through it. */
+   left:0/right:0 aligns with inner border edges so 25% steps match grid quarter widths. */
 .expansion-row::before {
   content: '';
   display: block;
   position: absolute;
   top: -2px;
-  left: -2px;
-  right: -2px;
+  left: 0;
+  right: 0;
   height: 2px;
-  border-radius: 6px 6px 0 0;
   background: linear-gradient(
     to right,
     var(--accent) calc(var(--chip-col, 0) * 25%),
@@ -242,26 +241,6 @@ app-card > *,
   );
   pointer-events: none;
   z-index: 2;
-}
-
-/* Expansion indicator dots (replaces tab buttons) */
-.expansion-tab-indicator {
-  display: flex;
-  gap: 0.25rem;
-  padding: 0.15rem 0.5rem 0;
-  justify-content: flex-start;
-}
-.exp-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(107, 70, 193, 0.3);
-  border: 1px solid rgba(107, 70, 193, 0.4);
-  transition: background 0.15s;
-}
-.exp-dot.active {
-  background: var(--accent);
-  border-color: var(--accent);
 }
 
 /* Expansion item card: no outer border, expansion-row provides the border; no grab cursor */

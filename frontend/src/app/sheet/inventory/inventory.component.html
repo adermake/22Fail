@@ -111,17 +111,11 @@
     <!-- Expansion rows: one per visual row that has unfolded items -->
     @for (exp of expansionRows; track exp.row) {
       <div class="expansion-row"
+           [attr.data-exp-row]="exp.row"
            [style.grid-row]="getExpansionGridRowForVisualRow(exp.row)"
-           [style.--chip-col]="exp.activeIdx % 4">
-
-        <!-- Tab bar: shown only when multiple items in this row are unfolded -->
-        @if (exp.unfolded.length > 1) {
-          <div class="expansion-tab-indicator">
-            @for (tabIdx of exp.unfolded; track tabIdx) {
-              <div class="exp-dot" [class.active]="tabIdx === exp.activeIdx"></div>
-            }
-          </div>
-        }
+           [style.--chip-col]="exp.activeIdx % 4"
+           [style.border-radius]="getExpansionBorderRadius(exp.activeIdx % 4)"
+           [style.min-height.px]="getExpansionMinHeight(exp.row)">
 
         <app-item
           [item]="paddedSlots[exp.activeIdx]!"
