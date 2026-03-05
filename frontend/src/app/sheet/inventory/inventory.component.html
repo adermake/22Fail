@@ -58,8 +58,9 @@
              (cdkDragEnded)="onDragEnded($event)">
 
           @if (isItemUnfolded(i)) {
-            <!-- Origin chip: click = switch expansion tab; double-click = fold -->
+            <!-- Origin chip: click = switch expansion tab; double-click = fold; cdkDragHandle = only drag from chip -->
             <div class="origin-chip"
+                 cdkDragHandle
                  [class.active-tab]="isActiveTab(i)"
                  (click)="setActiveTab(getVisualRow(i), i); $event.stopPropagation()"
                  (dblclick)="onFoldChange(i, true); $event.stopPropagation()">

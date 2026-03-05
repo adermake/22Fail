@@ -142,6 +142,11 @@ app-card > *,
   background-color: var(--accentdark);
 }
 
+/* Kill CDK snap-back animation — items teleport directly to new position */
+::ng-deep .cdk-drag-animating {
+  transition: none !important;
+}
+
 /* ─── Fixed 4-column Inventory Grid ──────────────────────── */
 .inventory-grid {
   display: grid;
@@ -190,22 +195,51 @@ app-card > *,
   overflow: hidden;
 }
 
-/* Full-width expansion row (CDK ignores this element) */
+/* Drag placeholder: show the slot background so it looks like an empty slot is always there */
+.drag-placeholder-wrapper {
+  min-height: 52px;
+  width: 100%;
+  border-radius: 6px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.18);
+  box-sizing: border-box;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.35);
+}
+
+/* Full-width expansion row — connects visually to the chip slot above */
 .expansion-row {
   grid-column: 1 / -1;
   width: 100%;
-  margin-top: -2px;
+  /* pull up by exactly the grid gap to touch the chip slot's bottom border */
+  margin-top: calc(-0.35rem);
   position: relative;
   border: 2px solid var(--accent);
   border-top: none;
   border-radius: 0 6px 6px 6px;
   background: rgba(107, 70, 193, 0.06);
-  overflow: hidden;
+  /* overflow: visible so the ::before top-border line can extend above */
+  overflow: visible;
 }
 
-/* Remove old connector pseudo-element — border handles the shape */
+/* Top border with a transparent hole exactly under the active chip column.
+   The chip slot (z-index:1) sits on top and the transparent gap shows through it. */
 .expansion-row::before {
-  display: none;
+  content: '';
+  display: block;
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    var(--accent) calc(var(--chip-col, 0) * 25%),
+    transparent calc(var(--chip-col, 0) * 25%),
+    transparent calc((var(--chip-col, 0) + 1) * 25%),
+    var(--accent) calc((var(--chip-col, 0) + 1) * 25%)
+  );
+  pointer-events: none;
+  z-index: 2;
 }
 
 /* Expansion indicator dots (replaces tab buttons) */
@@ -228,11 +262,21 @@ app-card > *,
   border-color: var(--accent);
 }
 
-/* Expansion item card: no outer border, expansion-row provides the border */
+/* Expansion item card: no outer border, expansion-row provides the border; no grab cursor */
 .expansion-row ::ng-deep .item-card {
   border: none;
-  border-radius: 0;
+  border-radius: 0 0 4px 4px;
   background: transparent;
+  cursor: default !important;
+}
+.expansion-row ::ng-deep .item-card * {
+  cursor: default;
+}
+.expansion-row ::ng-deep .item-card button,
+.expansion-row ::ng-deep .item-card input,
+.expansion-row ::ng-deep .item-card select,
+.expansion-row ::ng-deep .item-card textarea {
+  cursor: pointer !important;
 }
 
 /* Origin slot cell: has accent border, open bottom to merge with expansion row */
@@ -243,7 +287,7 @@ app-card > *,
   z-index: 1;
 }
 
-/* Origin chip: compact draggable card inside slot */
+/* Origin chip: compact draggable card inside slot — cdkDragHandle is on this element */
 .origin-chip {
   display: flex;
   flex-direction: column;
@@ -256,7 +300,7 @@ app-card > *,
   padding: 0.4rem 0.25rem 0.25rem;
   min-height: 52px;
   box-sizing: border-box;
-  cursor: pointer;
+  cursor: grab;
   user-select: none;
   width: 100%;
   height: 100%;
@@ -417,10 +461,7 @@ app-card > *,
   background: var(--card) !important;
 }
 
-/* Hide .cdk-drag-placeholder natively – our .drag-placeholder-wrapper handles it */
-.cdk-drag-placeholder {
-  opacity: 0;
-}
+/* .cdk-drag-placeholder is our custom *cdkDragPlaceholder template — keep it visible */
 
 /* Simplified drag preview - only show header */
 :host ::ng-deep .cdk-drag-preview .durability-section,
@@ -432,15 +473,6 @@ app-card > *,
 :host ::ng-deep .cdk-drag-preview .item-requirements,
 :host ::ng-deep .cdk-drag-preview .attached-section {
   display: none !important;
-}
-
-/* Placeholder: invisible, keeps grid cell stable – items never jump */
-.drag-placeholder-wrapper {
-  visibility: hidden;
-  min-height: 52px;
-  width: 100%;
-  box-sizing: border-box;
-  pointer-events: none;
 }
 
 /* Custom drag chip (replaces cloned item preview) */
@@ -463,12 +495,9 @@ app-card > *,
 .drag-chip-icon { font-size: 1rem; }
 .drag-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
 
-.cdk-drag-animating {
-  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
-}
-
+/* Fixed grid: no transition shifts during active drag */
 .inventory-grid.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
-  transition: none; /* Fixed grid: no transition shifts */
+  transition: none;
 }
 
 .currency-weight-label {

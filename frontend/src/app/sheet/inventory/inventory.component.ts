@@ -272,6 +272,10 @@ getCurrencyWeight(): number {
   }
 
   onDragStarted(event: CdkDragStart, slotIdx: number) {
+    // If the item is currently unfolded, fold it before dragging
+    if (this.unfoldedItems.has(slotIdx)) {
+      this.onFoldChange(slotIdx, true);
+    }
     this.draggedIndex = slotIdx;
     this.dragSourceSlotIdx = slotIdx;
     this.dropTargetSlotIdx = slotIdx; // start at self

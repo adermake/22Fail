@@ -155,10 +155,12 @@ app/
 - **Pointer-Tracking**: `onDragMoved` nutzt `document.elementsFromPoint` + `[attr.data-slot-idx]` für visuellen Drag-Target-Highlight.
 - **Tab-System für gleiche Reihe**: Chips sind die Tabs — Klick auf Origin-Chip (`(click)="setActiveTab(getVisualRow(i), i)"`) wechselt aktives Item. Keine extra Tab-Buttons. Dot-Indikatoren (`.exp-dot`) zeigen Anzahl unfolded Items. `activeTabPerRow: Map<number,number>`.
 - **`get expansionRows()`**: Liefert `{row, activeIdx, unfolded[]}` pro Row mit mind. 1 unfolded Item. HTML iteriert dieses Getter für Expansion-Rows.
-- **Verbundene Form**: `.item-slot.is-origin` hat Accent-Border oben/seitlich (Boden transparent). `.expansion-row` hat Accent-Border unten/seitlich (Oben none). Erscheinen als eine verbundene Form.
+- **Verbundene Form**: `.item-slot.is-origin` hat Accent-Border oben/seitlich (Boden transparent), `z-index:1`. `.expansion-row` hat Accent-Border seitlich/unten (Oben none), `margin-top: calc(-0.35rem)` damit es direkt an den Chip-Slot anschließt. `::before` Pseudo-Element zeichnet eine Gradient-Linie quer über den Expansion-Row-Rand mit einem transparenten Loch bei `calc(var(--chip-col)*25%)` bis `calc((var(--chip-col)+1)*25%)`. Chip-Slot (z-index:1) sitzt darüber, schließt visuell als eine Form.
 - **Fold-Button**: Kleiner `▲` Button oben-rechts im Chip (`.chip-fold-btn`), sehr unauffällig (`rgba(255,255,255,0.18)`).
-- **`isActiveTab(i)`**: Gibt true zurück, wenn dieser Chip-Index der aktive Tab für seine Row ist. Steuert `.active-tab` CSS-Klasse auf Origin-Chip.
-- **`onFoldChange`**: Verwaltet `unfoldedItems` und `activeTabPerRow` synchron.
+- **cdkDragHandle auf Chip**: `cdkDragHandle` Direktive nur auf `.origin-chip` — wenn Item ausgeklappt ist, kann nur der Chip gezogen werden. Cursor `grab` nur auf dem Chip.  `.expansion-row ::ng-deep .item-card { cursor: default }` verhindert Grab-Cursor auf Expansion-Item.
+- **Fold bei Drag-Start**: `onDragStarted` klappt ausgeklappte Items automatisch ein bevor der Drag beginnt.
+- **Kein Snap-Back**: `::ng-deep .cdk-drag-animating { transition: none !important }` deaktiviert CDK-Slide-Back-Animation. Items wechseln direkt zur neuen Position.
+- **Sichtbarer Placeholder**: `.drag-placeholder-wrapper` zeigt einen sichtbaren Slot (dashed border + leerer Hintergrund) statt unsichtbar zu sein. `.cdk-drag-placeholder { opacity: 0 }` Regel entfernt, damit custom Placeholder sichtbar bleibt.
 
 ## Equipment-Komponente (`sheet/equipment/`)
 - **Layout**: Vertikales Flex-Stack. Slot-Labels als CSS-Pill-Badges (HELM, BRUST, ARME, BEINE, STIEFEL, EXTRA).
