@@ -13,8 +13,11 @@
   <!-- Context menu -->
   @if (showContextMenu) {
     <div class="context-menu" [style.top.px]="contextMenuY" [style.left.px]="contextMenuX" (click)="$event.stopPropagation()">
-      <button class="ctx-item" (click)="openEditorFromMenu()">✏️ Bearbeiten</button>
+      @if (!showDetails) {
+        <button class="ctx-item ctx-identify" (click)="identifyFromMenu()">🔍 Identifizieren</button>
+      }
       @if (showDetails) {
+        <button class="ctx-item" (click)="openEditorFromMenu()">✏️ Bearbeiten</button>
         <button class="ctx-item ctx-lost" (click)="toggleLostFromMenu()">
           {{ item.lost ? '✓ Nicht verloren' : '✕ Verloren markieren' }}
         </button>

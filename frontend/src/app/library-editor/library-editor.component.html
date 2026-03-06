@@ -181,7 +181,13 @@
                 (dblclick)="onDoubleClick(file.id, false, $event)"
                 (contextmenu)="onContextMenu($event, 'file', file.id)"
               >
-                <div class="file-icon">{{ file.icon || getAssetIcon(file.type) }}</div>
+                <div class="file-icon">
+                  @if (file.type === 'rune' && file.data?.drawing) {
+                    <img [src]="file.data.drawing | imageUrl" class="rune-file-icon-img" alt="">
+                  } @else {
+                    {{ file.icon || getAssetIcon(file.type) }}
+                  }
+                </div>
                 <div class="file-name">{{ file.name }}</div>
                 <div class="file-path">{{ file.path }}</div>
               </div>
@@ -263,7 +269,13 @@
                   (dblclick)="onDoubleClick(file.id, false, $event)"
                   (contextmenu)="onContextMenu($event, 'file', file.id)"
                 >
-                  <div class="file-icon">{{ file.icon || getAssetIcon(file.type) }}</div>
+                  <div class="file-icon">
+                    @if (file.type === 'rune' && file.data?.drawing) {
+                      <img [src]="file.data.drawing | imageUrl" class="rune-file-icon-img" alt="">
+                    } @else {
+                      {{ file.icon || getAssetIcon(file.type) }}
+                    }
+                  </div>
                   @if (isRenaming() === file.id) {
                     <input
                       type="text"

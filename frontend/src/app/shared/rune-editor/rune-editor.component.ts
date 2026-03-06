@@ -69,7 +69,7 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     } else {
       this.editRune = {
         name: '', description: '', drawing: '', tags: [],
-        glowColor: '#8b5cf6', fokus: 0, fokusMult: 1,
+        glowColor: '#06b6d4', fokus: 0, fokusMult: 1,
         mana: 0, manaMult: 1, effektivitaet: 0,
         statRequirements: {}, identified: true, learned: false,
       };
@@ -114,15 +114,15 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.editRune.drawing) {
       this.loadDrawingFromId(this.editRune.drawing);
     } else {
-      this.fillBlack();
+      this.ctx.clearRect(0, 0, this.canvasRef.nativeElement.width, this.canvasRef.nativeElement.height);
       this.saveHistory();
     }
     this.canvasReady = true;
   }
 
   private applyCtxSettings() {
-    const color = this.editRune.glowColor || '#8b5cf6';
-    this.ctx.lineWidth = 2;
+    const color = this.editRune.glowColor || '#06b6d4';
+    this.ctx.lineWidth = 6;
     this.ctx.lineCap   = 'round';
     this.ctx.lineJoin  = 'round';
     this.ctx.strokeStyle = color;
@@ -145,7 +145,6 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
       if (this.ctx) {
         const c = this.canvasRef.nativeElement;
         this.ctx.clearRect(0, 0, c.width, c.height);
-        this.fillBlack();
         this.ctx.drawImage(img, 0, 0, c.width, c.height);
         this.saveHistory();
       }
@@ -184,26 +183,37 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   private stroke(x: number, y: number) {
     if (this.isErasing()) {
       this.ctx.globalCompositeOperation = 'destination-out';
-      this.ctx.lineWidth = 24;
+      this.ctx.lineWidth = 32;
       this.ctx.shadowBlur = 0;
       this.ctx.beginPath();
       this.ctx.moveTo(this.lastX, this.lastY);
       this.ctx.lineTo(x, y);
       this.ctx.stroke();
       this.ctx.globalCompositeOperation = 'source-over';
-      this.ctx.lineWidth = 2;
+      this.ctx.lineWidth = 6;
     } else {
-      // Multi-pass glow
-      const color = this.editRune.glowColor || '#8b5cf6';
+      // Multi-pass glow — wide outer glow passes
+      const color = this.editRune.glowColor || '#06b6d4';
+      this.ctx.globalCompositeOperation = 'source-over';
       this.ctx.strokeStyle = color;
       this.ctx.shadowColor = color;
-      for (const blur of [30, 15, 6, 2]) {
+      for (const [blur, width] of [[40, 9], [20, 7], [10, 6], [4, 6]] as [number, number][]) {
         this.ctx.shadowBlur = blur;
+        this.ctx.lineWidth = width;
         this.ctx.beginPath();
         this.ctx.moveTo(this.lastX, this.lastY);
         this.ctx.lineTo(x, y);
         this.ctx.stroke();
       }
+      // White inner core
+      this.ctx.lineWidth = 1.5;
+      this.ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      this.ctx.shadowColor = 'rgba(255,255,255,0.5)';
+      this.ctx.shadowBlur = 3;
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.lastX, this.lastY);
+      this.ctx.lineTo(x, y);
+      this.ctx.stroke();
     }
   }
 
@@ -219,7 +229,6 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.ctx) return;
     const c = this.canvasRef.nativeElement;
     this.ctx.clearRect(0, 0, c.width, c.height);
-    this.fillBlack();
     this.applyCtxSettings();
     this.undoHistory = [];
     this.saveHistory();

@@ -48,6 +48,7 @@ import { SkillEditorComponent } from '../shared/skill-editor/skill-editor.compon
 import { StatusEffectEditorComponent } from '../shared/status-effect-editor/status-effect-editor.component';
 import { MacroEditorComponent } from '../shared/macro-editor/macro-editor.component';
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
+import { ImageUrlPipe } from '../shared/image-url.pipe';
 
 /**
  * Library Editor Component
@@ -68,6 +69,7 @@ import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model
   imports: [
     CommonModule,
     FormsModule,
+    ImageUrlPipe,
     ItemEditorComponent,
     RuneEditorComponent,
     SpellEditorComponent,

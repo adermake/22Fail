@@ -458,6 +458,8 @@
 .ctx-item.ctx-delete:hover { background: rgba(239, 68, 68, 0.12); }
 .ctx-item.ctx-lost { color: #9ca3af; }
 .ctx-item.ctx-lost:hover { background: rgba(156, 163, 175, 0.12); }
+.ctx-item.ctx-identify { color: #eab308; }
+.ctx-item.ctx-identify:hover { background: rgba(234, 179, 8, 0.12); }
 
 /* ── Editing/form styles (kept minimal) ──────────────────── */
 .field { margin-bottom: 0.8rem; }

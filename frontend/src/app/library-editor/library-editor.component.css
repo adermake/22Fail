@@ -611,6 +611,19 @@
 .file-icon {
   font-size: 48px;
   margin-bottom: 8px;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rune-file-icon-img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #0a0d14;
 }
 
 .folder-name,

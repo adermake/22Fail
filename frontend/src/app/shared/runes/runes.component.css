@@ -5,9 +5,17 @@
   overflow: visible;
 }
 
-/* Keep overflow visible so CDK drag previews are never clipped by this component */
 :host, :host > * {
   overflow: visible;
+}
+
+/* ─── CDK Drag Preview override — must be global to reach portaled preview ── */
+:host ::ng-deep .cdk-drag-preview {
+  overflow: visible !important;
+  z-index: 99999 !important;
+  opacity: 0.97 !important;
+  display: block !important;
+  visibility: visible !important;
 }
 
 .runes-container {
@@ -18,7 +26,7 @@
   gap: 0;
   background: var(--card, #1f2937);
   border-radius: 10px;
-  overflow: visible; /* no hidden — child panels have own border-radius */
+  overflow: visible;
 }
 
 /* ─── Left panel ────────────────────────────────────────────────────────────── */
@@ -64,12 +72,12 @@
 }
 .add-rune-btn:hover { background: #7c3aed; }
 
-/* ─── Rune Grid (matches inventory-grid visual) ────────────────────────────── */
+/* ─── Rune Grid (5 columns, matches inventory-grid visual) ─────────────────── */
 .rune-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 0.3rem;
-  padding: 0.55rem;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.35rem;
+  padding: 0.6rem;
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 0 0 0 8px;
@@ -120,8 +128,16 @@
   border-style: dashed;
   border-color: rgba(255,255,255,0.1);
   background: rgba(0,0,0,0.18);
-  pointer-events: none;
+  pointer-events: auto; /* must accept drops for the slot swap */
   cursor: default;
+}
+
+/* Drop-target highlight */
+.rune-slot.drop-target,
+.rune-slot-empty.drop-target {
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.5), 0 0 0 2px var(--accent, #8b5cf6) !important;
+  background: rgba(139,92,246,0.15) !important;
+  border-color: var(--accent, #8b5cf6) !important;
 }
 
 /* ─── Slot stat tags row ──────────────────────────────────────────────────── */
@@ -136,9 +152,9 @@
 }
 
 .r-tag {
-  padding: 0 2px;
-  border-radius: 2px;
-  font-size: 0.46rem;
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-size: 0.58rem;
   font-weight: 700;
   white-space: nowrap;
   border: 1px solid;
@@ -167,7 +183,7 @@
   border-radius: 3px;
   display: block;
 }
-.rune-slot-img.rune-blurred { filter: blur(4px) brightness(0.5); }
+.rune-slot-img.rune-softblur { filter: blur(2px) brightness(0.6); }
 
 .rune-slot-glyph {
   font-size: 1.2rem;
@@ -182,9 +198,19 @@
   line-height: 1;
 }
 
+.rune-unident-indicator {
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: rgba(234,179,8,0.8);
+  line-height: 1;
+}
+
 /* ─── Slot name ──────────────────────────────────────────────────────────── */
 .rune-slot-name {
-  font-size: 0.49rem;
+  font-size: 0.55rem;
   color: var(--text-muted, #9ca3af);
   text-align: center;
   overflow: hidden;
@@ -213,6 +239,11 @@
 /* ─── CDK Drag ───────────────────────────────────────────────────────────── */
 ::ng-deep .cdk-drag-animating {
   transition: none !important;
+}
+
+/* Prevent CDK from collapsing its sorting animation */
+.rune-grid.cdk-drop-list-dragging .rune-slot:not(.cdk-drag-placeholder) {
+  transition: none;
 }
 
 /* Zero-size root: CDK positions this element at cursor, chip is absolutely offset for centering */
@@ -266,6 +297,8 @@
   flex-direction: column;
   overflow-y: auto;
   border-radius: 0 10px 10px 0;
+  background: rgba(0,0,0,0.35);
+  border-left: 1px solid rgba(255,255,255,0.06);
 }
 
 .detail-empty {
@@ -286,6 +319,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 1;
 }
 
 /* ─── Detail header ──────────────────────────────────────────────────────── */
@@ -393,21 +427,25 @@
 .tag-mana    { background: #0c1a2e; border-color: #3b82f6; color: #93c5fd; }
 .tag-mult    { font-size: 0.65rem; opacity: 0.75; }
 
-/* ─── Detail image ───────────────────────────────────────────────────────── */
+/* ─── Detail image — always square ─────────────────────────────────────── */
 .rune-detail-img-wrap {
   position: relative;
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
-  border: 1px solid var(--border, #374151);
-  background: #000;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.4);
+  aspect-ratio: 1;
+  align-self: center;
+  width: 80%;
+  max-width: 200px;
 }
 .rune-detail-img {
   display: block;
   width: 100%;
-  max-height: 160px;
+  height: 100%;
   object-fit: contain;
 }
-.rune-blurred { filter: blur(8px) brightness(0.5); }
+.rune-softblur { filter: blur(3px) brightness(0.55); }
 
 .rune-unident-overlay {
   position: absolute;
@@ -471,3 +509,55 @@
   line-height: 1.5;
 }
 .rune-unident-body p { margin: 0; }
+
+/* ─── Identify button ────────────────────────────────────────────────────── */
+.identify-btn {
+  padding: 4px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(234,179,8,0.4);
+  background: rgba(234,179,8,0.06);
+  color: #eab308;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.identify-btn:hover { background: rgba(234,179,8,0.15); border-color: #eab308; }
+
+/* ─── Context Menu ───────────────────────────────────────────────────────── */
+.rune-context-menu {
+  position: fixed;
+  z-index: 10000;
+  background: var(--card, #1f2937);
+  border: 1px solid var(--border, #374151);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.05);
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--text, #e5e7eb);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.ctx-item:hover { background: rgba(255,255,255,0.07); }
+.ctx-identify { color: #eab308; }
+.ctx-identify:hover { background: rgba(234,179,8,0.1); }
+.ctx-learned { color: #a78bfa; }
+.ctx-learned:hover { background: rgba(139,92,246,0.1); }
+.ctx-delete { color: #ef4444; }
+.ctx-delete:hover { background: rgba(239,68,68,0.1); }

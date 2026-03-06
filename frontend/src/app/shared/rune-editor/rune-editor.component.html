@@ -54,7 +54,7 @@
         </section>
 
         <!-- Drawing / Image ─────────────────────────────────────────── -->
-        <section class="ed-section">
+        <section class="ed-section draw-section">
           <div class="section-title-row">
             <h3 class="section-title">Runenbild</h3>
             <div class="image-action-btns">
@@ -98,6 +98,11 @@
                           [title]="c.name">
                   </button>
                 }
+                <input type="color"
+                       [value]="editRune.glowColor || '#06b6d4'"
+                       (input)="setGlowColor($any($event.target).value)"
+                       title="Benutzerdefinierte Farbe"
+                       class="color-input-native">
               </div>
               <div class="tool-group">
                 <button class="tool-btn" [class.active]="!isErasing()" (click)="setDraw()" title="Zeichnen">✏</button>

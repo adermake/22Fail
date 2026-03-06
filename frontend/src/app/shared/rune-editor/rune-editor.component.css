@@ -12,13 +12,14 @@
 
 .rune-editor-modal {
   background: var(--card, #1e293b);
-  border-radius: 14px;
-  width: 92vw;
-  max-width: 1100px;
-  max-height: 92vh;
+  border-radius: 0;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(139,92,246,0.15);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -75,6 +76,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 0;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -82,8 +84,13 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 18px 20px;
+}
+
+.editor-col:last-child {
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .editor-col:first-child {
@@ -100,6 +107,14 @@
   border-bottom: none;
   margin-bottom: 0;
   padding-bottom: 0;
+}
+
+/* Drawing section fills remaining vertical space in left col */
+.ed-section.draw-section {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
 }
 
 .section-title {
@@ -284,6 +299,19 @@
 .color-dot:hover { transform: scale(1.15); }
 .color-dot.active-color { border-color: #fff; }
 
+.color-input-native {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border, #374151);
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  flex-shrink: 0;
+}
+.color-input-native::-webkit-color-swatch-wrapper { padding: 2px; }
+.color-input-native::-webkit-color-swatch { border: none; border-radius: 4px; }
+
 .tool-btn {
   padding: 4px 8px;
   background: transparent;
@@ -313,16 +341,19 @@
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--border, #374151);
-  background: #000;
+  background: #0a0d14;
+  height: min(55vh, 480px);
+  min-height: 200px;
 }
 
 .rune-canvas {
   display: block;
   width: 100%;
-  max-width: 320px;
-  height: auto;
+  max-width: none;
+  height: 100%;
   cursor: crosshair;
   touch-action: none;
+  object-fit: contain;
 }
 .rune-canvas.eraser-cursor { cursor: cell; }
 

@@ -164,6 +164,11 @@ export class ItemComponent implements OnChanges {
     this.delete.emit();
   }
 
+  identifyFromMenu() {
+    this.showContextMenu = false;
+    this.patch.emit({ path: 'identified', value: true });
+  }
+
   updateField(field: string, value: any) {
     this.patch.emit({ path: field, value });
     this.cd.detectChanges();

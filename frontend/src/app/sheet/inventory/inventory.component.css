@@ -434,6 +434,7 @@ app-card > *,
 /* Drag and Drop Styles */
 :host ::ng-deep .cdk-drag-preview {
   box-sizing: border-box !important;
+  overflow: visible !important;
   opacity: 0.95 !important;
   z-index: 999999 !important;
   position: fixed !important;

@@ -10,17 +10,23 @@
     <div class="rune-grid"
          cdkDropList
          [cdkDropListData]="runes"
+         [cdkDropListSortingDisabled]="true"
          (cdkDropListDropped)="onDrop($event)">
       @for (slot of paddedSlots; track $index; let i = $index) {
         @if (slot !== null) {
           <!-- Occupied slot: draggable -->
           <div cdkDrag
                class="rune-slot"
+               [attr.data-slot-idx]="i"
                [class.rune-selected]="selectedIndex === i"
                [class.rune-learned]="slot.learned"
+               [class.drop-target]="dropTargetSlotIdx === i && dragSourceSlotIdx !== i"
                [cdkDragData]="slot"
                (cdkDragStarted)="onDragStarted($event, i)"
-               (click)="selectRune(i)">
+               (cdkDragMoved)="onDragMoved($event)"
+               (cdkDragEnded)="onDragEnded($event)"
+               (click)="selectRune(i)"
+               (contextmenu)="onRuneRightClick($event, i)">
 
             <!-- Top: stat tags -->
             <div class="rune-slot-stats">
@@ -40,39 +46,44 @@
               @if (slot.drawing) {
                 <img [src]="slot.drawing | imageUrl"
                      class="rune-slot-img"
-                     [class.rune-blurred]="!slot.identified"
+                     [class.rune-softblur]="!slot.identified"
                      alt>
               } @else {
                 <span class="rune-slot-glyph"
-                      [style.color]="slot.glowColor || '#8b5cf6'"
-                      [style.text-shadow]="'0 0 10px ' + (slot.glowColor || '#8b5cf6')">᚛</span>
+                      [style.color]="slot.glowColor || '#06b6d4'"
+                      [style.text-shadow]="'0 0 12px ' + (slot.glowColor || '#06b6d4')">᚛</span>
               }
               @if (slot.learned) {
                 <span class="rune-star">⭐</span>
+              }
+              @if (!slot.identified) {
+                <span class="rune-unident-indicator">?</span>
               }
             </div>
 
             <!-- Bottom: name -->
             <span class="rune-slot-name">{{ slot.identified ? slot.name : '???' }}</span>
 
-            <!-- Drag preview chip (horizontal, inventory-style) -->
+            <!-- Drag preview chip -->
             <ng-template cdkDragPreview>
               <div class="drag-preview-root">
                 <div class="rune-drag-chip"
                      [style.left.px]="dragPreviewOffsetX"
                      [style.top.px]="dragPreviewOffsetY">
-                  <span class="rdc-glyph" [style.color]="slot.glowColor || '#8b5cf6'">᚛</span>
+                  <span class="rdc-glyph" [style.color]="slot.glowColor || '#06b6d4'">᚛</span>
                   <span class="rdc-name">{{ slot.identified ? slot.name : '???' }}</span>
                 </div>
               </div>
             </ng-template>
 
-            <!-- Drag placeholder keeps slot stable during drag -->
             <div *cdkDragPlaceholder class="rune-drag-placeholder"></div>
           </div>
         } @else {
-          <!-- Empty slot (visual only) -->
-          <div class="rune-slot rune-slot-empty"></div>
+          <!-- Empty slot (accepts drops) -->
+          <div class="rune-slot rune-slot-empty"
+               [attr.data-slot-idx]="i"
+               [class.drop-target]="dropTargetSlotIdx === i && dragSourceSlotIdx !== i">
+          </div>
         }
       }
 
@@ -109,17 +120,21 @@
                       (click)="toggleLearned()">
                 {{ selectedRune.learned ? '⭐ Gelernt' : '☆ Lernen' }}
               </button>
+              <button class="edit-btn" (click)="openEditDialog()" title="Bearbeiten">✎</button>
+            } @else {
+              <button class="identify-btn" (click)="identifyRune(selectedIndex!)">
+                🔍 Identifizieren
+              </button>
             }
-            <button class="edit-btn" (click)="openEditDialog()">✎</button>
           </div>
         </div>
 
-        <!-- Rune image -->
+        <!-- Rune image — always shown even when unidentified -->
         @if (selectedRune.drawing) {
           <div class="rune-detail-img-wrap">
             <img [src]="selectedRune.drawing | imageUrl"
                  class="rune-detail-img"
-                 [class.rune-blurred]="!selectedRune.identified"
+                 [class.rune-softblur]="!selectedRune.identified"
                  alt>
             @if (!selectedRune.identified) {
               <div class="rune-unident-overlay">Unidentifiziert</div>
@@ -129,7 +144,7 @@
 
         @if (selectedRune.identified) {
 
-          <!-- Tags row: type tags + stat tags (same style as item.component) -->
+          <!-- Tags row -->
           <div class="rune-tags-row">
             @for (tag of selectedRune.tags; track tag) {
               <span class="tag tag-generic">{{ tag }}</span>
@@ -153,12 +168,10 @@
             }
           </div>
 
-          <!-- Effect description -->
           @if (selectedRune.description) {
             <p class="rune-desc">{{ selectedRune.description }}</p>
           }
 
-          <!-- Stat requirements (matches item-requirements style) -->
           @if (hasStatRequirements(selectedRune)) {
             <div class="rune-reqs">
               <span class="req-label">Anforderungen</span>
@@ -200,10 +213,26 @@
 
 </div>
 
+<!-- Context Menu -->
+@if (showContextMenu && ctxRune !== null) {
+  <div class="rune-context-menu"
+       [style.left.px]="contextMenuX"
+       [style.top.px]="contextMenuY"
+       (click)="$event.stopPropagation()">
+    @if (!ctxRune.identified) {
+      <button class="ctx-item ctx-identify" (click)="ctxIdentify()">🔍 Identifizieren</button>
+    }
+    <button class="ctx-item ctx-learned" (click)="ctxToggleLearned()">
+      {{ ctxRune.learned ? '☆ Nicht gelernt' : '⭐ Als gelernt markieren' }}
+    </button>
+    <button class="ctx-item ctx-delete" (click)="ctxDelete()">🗑 Löschen</button>
+  </div>
+}
+
 <!-- Rune Editor Overlay -->
 @if (showEditor) {
   <app-rune-editor
-    [rune]="editingIndex !== null ? runes[editingIndex] : null"
+    [rune]="editingIndex !== null ? (runes[editingIndex] ?? null) : null"
     [showLearnedToggle]="true"
     (save)="onEditorSave($event)"
     (cancel)="onEditorCancel()"
