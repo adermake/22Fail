@@ -28,18 +28,8 @@
                (click)="selectRune(i)"
                (contextmenu)="onRuneRightClick($event, i)">
 
-            <!-- Top: stat tags -->
-            <div class="rune-slot-stats">
-              @if (slot.effektivitaet) {
-                <span class="r-tag r-eff">⚡{{ slot.effektivitaet }}</span>
-              }
-              @if (slot.fokus) {
-                <span class="r-tag r-fokus">◆{{ slot.fokus }}</span>
-              }
-              @if (slot.mana) {
-                <span class="r-tag r-mana">💧{{ slot.mana }}</span>
-              }
-            </div>
+            <!-- Top: name -->
+            <span class="rune-slot-name">{{ slot.identified ? slot.name : '???' }}</span>
 
             <!-- Middle: image or glyph -->
             <div class="rune-slot-media">
@@ -61,8 +51,18 @@
               }
             </div>
 
-            <!-- Bottom: name -->
-            <span class="rune-slot-name">{{ slot.identified ? slot.name : '???' }}</span>
+            <!-- Bottom: stat tags -->
+            <div class="rune-slot-stats">
+              @if (slot.effektivitaet) {
+                <span class="r-tag r-eff">⚡{{ slot.effektivitaet }}</span>
+              }
+              @if (slot.fokus) {
+                <span class="r-tag r-fokus">◆{{ slot.fokus }}</span>
+              }
+              @if (slot.mana) {
+                <span class="r-tag r-mana">💧{{ slot.mana }}</span>
+              }
+            </div>
 
             <!-- Drag preview chip -->
             <ng-template cdkDragPreview>

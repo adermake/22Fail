@@ -81,6 +81,7 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.editRune.outputs) this.editRune.outputs = [];
     if (this.editRune.drawing) this.showDrawPanel.set(true);
     document.addEventListener('keydown', this.keyHandler);
+    document.body.style.overflow = 'hidden';
   }
 
   ngAfterViewInit() {
@@ -91,6 +92,7 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     document.removeEventListener('keydown', this.keyHandler);
+    document.body.style.overflow = '';
   }
 
   private onKeyDown(e: KeyboardEvent) {
@@ -159,22 +161,20 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     if (e.button !== 0) return;
     this.drawing = true;
     const canvas = this.canvasRef.nativeElement;
-    const r = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / r.width;
-    const scaleY = canvas.height / r.height;
-    this.lastX = (e.clientX - r.left) * scaleX;
-    this.lastY = (e.clientY - r.top) * scaleY;
+    const scaleX = canvas.width / canvas.offsetWidth;
+    const scaleY = canvas.height / canvas.offsetHeight;
+    this.lastX = e.offsetX * scaleX;
+    this.lastY = e.offsetY * scaleY;
     this.saveHistory();
   }
 
   onCanvasMouseMove(e: MouseEvent) {
     if (!this.drawing) return;
     const canvas = this.canvasRef.nativeElement;
-    const r = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / r.width;
-    const scaleY = canvas.height / r.height;
-    const x = (e.clientX - r.left) * scaleX;
-    const y = (e.clientY - r.top) * scaleY;
+    const scaleX = canvas.width / canvas.offsetWidth;
+    const scaleY = canvas.height / canvas.offsetHeight;
+    const x = e.offsetX * scaleX;
+    const y = e.offsetY * scaleY;
     this.stroke(x, y);
     this.lastX = x;
     this.lastY = y;
@@ -185,12 +185,14 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private stroke(x: number, y: number) {
     this.ctx.setLineDash([]);
+    this.ctx.lineDashOffset = 0;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
     if (this.isErasing()) {
       this.ctx.globalCompositeOperation = 'destination-out';
       this.ctx.lineWidth = 32;
       this.ctx.shadowBlur = 0;
+      this.ctx.shadowColor = 'transparent';
       this.ctx.beginPath();
       this.ctx.moveTo(this.lastX, this.lastY);
       this.ctx.lineTo(x, y);
@@ -201,11 +203,13 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
       // Multi-pass glow — wide outer glow passes
       const color = this.editRune.glowColor || '#06b6d4';
       this.ctx.globalCompositeOperation = 'source-over';
-      this.ctx.strokeStyle = color;
-      this.ctx.shadowColor = color;
       for (const [blur, width] of [[40, 9], [20, 7], [10, 6], [4, 6]] as [number, number][]) {
+        this.ctx.strokeStyle = color;
+        this.ctx.shadowColor = color;
         this.ctx.shadowBlur = blur;
         this.ctx.lineWidth = width;
+        this.ctx.setLineDash([]);
+        this.ctx.lineDashOffset = 0;
         this.ctx.beginPath();
         this.ctx.moveTo(this.lastX, this.lastY);
         this.ctx.lineTo(x, y);
@@ -216,10 +220,15 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
       this.ctx.strokeStyle = 'rgba(255,255,255,0.9)';
       this.ctx.shadowColor = 'rgba(255,255,255,0.6)';
       this.ctx.shadowBlur = 3;
+      this.ctx.setLineDash([]);
+      this.ctx.lineDashOffset = 0;
       this.ctx.beginPath();
       this.ctx.moveTo(this.lastX, this.lastY);
       this.ctx.lineTo(x, y);
       this.ctx.stroke();
+      // Reset shadow to avoid bleeding into next draw
+      this.ctx.shadowBlur = 0;
+      this.ctx.shadowColor = 'transparent';
     }
   }
 
