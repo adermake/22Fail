@@ -60,11 +60,11 @@
             <div class="image-action-btns">
               @if (!showDrawPanel()) {
                 <button class="sm-btn" (click)="openDrawPanel()">✏ Zeichnen</button>
-                <button class="sm-btn" (click)="triggerFileUpload()">⬆ Hochladen</button>
+                <label class="sm-btn" for="runeFileInput">⬆ Hochladen</label>
               } @else {
                 <button class="sm-btn danger" (click)="removeImage()">✕ Entfernen</button>
               }
-              <input #fileInput type="file" accept="image/*" style="display:none"
+              <input id="runeFileInput" #fileInput type="file" accept="image/*" style="display:none"
                      (change)="onFileSelected($event)">
             </div>
           </div>

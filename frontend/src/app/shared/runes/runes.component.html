@@ -30,6 +30,17 @@
 
           <span class="rune-cell-name">{{ rune.identified ? rune.name : '???' }}</span>
 
+          <!-- Card-game stat badges -->
+          @if (rune.mana) {
+            <span class="stat-badge stat-mana">{{ rune.mana }}</span>
+          }
+          @if (rune.fokus) {
+            <span class="stat-badge stat-fokus">{{ rune.fokus }}</span>
+          }
+          @if (rune.effektivitaet) {
+            <span class="stat-badge stat-eff">{{ rune.effektivitaet }}</span>
+          }
+
           @if (rune.learned) {
             <span class="learned-badge" title="Gelernt">⭐</span>
           }
@@ -116,46 +127,43 @@
             </div>
           }
 
-          <!-- Effect description -->
-          @if (selectedRune.description) {
-            <div class="detail-block">
-              <span class="detail-block-label">Effekt</span>
-              <p class="detail-desc">{{ selectedRune.description }}</p>
-            </div>
-          }
-
           <!-- Costs row -->
           @if (selectedRune.mana || selectedRune.fokus || selectedRune.effektivitaet) {
             <div class="detail-costs">
               @if (selectedRune.mana) {
                 <div class="cost-pill mana-pill">
-                  <span class="cost-icon">💧</span>
-                  <span class="cost-val">{{ selectedRune.mana }}
+                  <span class="cost-name mana-text">Mana</span>
+                  <span class="cost-val mana-text">{{ selectedRune.mana }}
                     @if (selectedRune.manaMult && selectedRune.manaMult !== 1) {
                       <span class="cost-mult">×{{ selectedRune.manaMult }}</span>
                     }
                   </span>
-                  <span class="cost-name">Mana</span>
                 </div>
               }
               @if (selectedRune.fokus) {
                 <div class="cost-pill fokus-pill">
-                  <span class="cost-icon">🔥</span>
-                  <span class="cost-val">{{ selectedRune.fokus }}
+                  <span class="cost-name fokus-text">Fokus</span>
+                  <span class="cost-val fokus-text">{{ selectedRune.fokus }}
                     @if (selectedRune.fokusMult && selectedRune.fokusMult !== 1) {
                       <span class="cost-mult">×{{ selectedRune.fokusMult }}</span>
                     }
                   </span>
-                  <span class="cost-name">Fokus</span>
                 </div>
               }
               @if (selectedRune.effektivitaet) {
                 <div class="cost-pill eff-pill">
-                  <span class="cost-icon">⚡</span>
-                  <span class="cost-val">{{ selectedRune.effektivitaet }}</span>
-                  <span class="cost-name">Effektivität</span>
+                  <span class="cost-name eff-text">Effektivität</span>
+                  <span class="cost-val eff-text">{{ selectedRune.effektivitaet }}</span>
                 </div>
               }
+            </div>
+          }
+
+          <!-- Effect description -->
+          @if (selectedRune.description) {
+            <div class="detail-desc-block">
+              <span class="detail-block-label">Effekt</span>
+              <p class="detail-desc">{{ selectedRune.description }}</p>
             </div>
           }
 

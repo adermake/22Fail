@@ -60,9 +60,9 @@
 /* ─── Rune Grid ─────────────────────────────────────────────────────────────── */
 .rune-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  padding: 10px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  padding: 8px;
   overflow-y: auto;
   align-content: start;
   flex: 1;
@@ -117,12 +117,12 @@
 }
 
 .rune-cell-glyph {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   line-height: 1;
 }
 
 .rune-cell-name {
-  font-size: 0.6rem;
+  font-size: 0.52rem;
   color: var(--text-muted, #9ca3af);
   text-align: center;
   overflow: hidden;
@@ -132,11 +132,34 @@
   line-height: 1.2;
 }
 
+/* Card-game stat badges */
+.stat-badge {
+  position: absolute;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 8px;
+  font-size: 0.5rem;
+  font-weight: 800;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2px;
+  border: 1px solid rgba(0,0,0,0.4);
+  line-height: 1;
+  z-index: 2;
+  pointer-events: none;
+  letter-spacing: 0;
+}
+.stat-mana  { top: 2px; left: 2px;   background: #3b82f6; box-shadow: 0 0 5px rgba(59,130,246,0.6); }
+.stat-fokus { top: 2px; right: 2px;  background: #f97316; box-shadow: 0 0 5px rgba(249,115,22,0.6); }
+.stat-eff   { bottom: 14px; right: 2px; background: #22c55e; box-shadow: 0 0 5px rgba(34,197,94,0.6); }
+
 .learned-badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  font-size: 0.6rem;
+  bottom: 2px;
+  left: 2px;
+  font-size: 0.55rem;
   line-height: 1;
 }
 
@@ -370,14 +393,26 @@
   font-weight: 700;
 }
 
-.detail-desc {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--text, #e2e8f0);
-  line-height: 1.55;
+/* Description block — distinct card-text style */
+.detail-desc-block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
-/* Costs */
+.detail-desc {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #cbd5e1;
+  line-height: 1.6;
+  background: rgba(0,0,0,0.25);
+  border-left: 3px solid var(--accent, #8b5cf6);
+  padding: 8px 11px;
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+}
+
+/* Costs — no emojis, colored text labels */
 .detail-costs {
   display: flex;
   gap: 6px;
@@ -386,23 +421,25 @@
 
 .cost-pill {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: 7px;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
   border: 1px solid;
-  min-width: 56px;
-  gap: 1px;
 }
 
-.cost-icon { font-size: 0.85rem; }
-.cost-val { font-size: 0.88rem; font-weight: 700; color: var(--text, #e2e8f0); line-height: 1.2; }
-.cost-mult { font-size: 0.7rem; color: var(--text-muted, #9ca3af); margin-left: 1px; }
-.cost-name { font-size: 0.65rem; color: var(--text-muted, #9ca3af); text-transform: uppercase; letter-spacing: 0.05em; }
+.cost-val  { font-size: 0.9rem; font-weight: 700; line-height: 1.2; }
+.cost-mult { font-size: 0.72rem; font-weight: 400; margin-left: 1px; opacity: 0.75; }
+.cost-name { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
 
-.mana-pill  { border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.05); }
-.fokus-pill { border-color: rgba(249,115,22,0.3); background: rgba(249,115,22,0.05); }
-.eff-pill   { border-color: rgba(34,197,94,0.3);  background: rgba(34,197,94,0.05);  }
+.mana-pill  { border-color: rgba(59,130,246,0.3);  background: rgba(59,130,246,0.07); }
+.fokus-pill { border-color: rgba(249,115,22,0.3);  background: rgba(249,115,22,0.07); }
+.eff-pill   { border-color: rgba(34,197,94,0.3);   background: rgba(34,197,94,0.07);  }
+
+.mana-text  { color: #60a5fa; }
+.fokus-text { color: #fb923c; }
+.eff-text   { color: #4ade80; }
 
 /* Reqs */
 .detail-reqs {

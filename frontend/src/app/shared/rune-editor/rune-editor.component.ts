@@ -155,17 +155,23 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   onCanvasMouseDown(e: MouseEvent) {
     if (e.button !== 0) return;
     this.drawing = true;
-    const r = this.canvasRef.nativeElement.getBoundingClientRect();
-    this.lastX = e.clientX - r.left;
-    this.lastY = e.clientY - r.top;
+    const canvas = this.canvasRef.nativeElement;
+    const r = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / r.width;
+    const scaleY = canvas.height / r.height;
+    this.lastX = (e.clientX - r.left) * scaleX;
+    this.lastY = (e.clientY - r.top) * scaleY;
     this.saveHistory();
   }
 
   onCanvasMouseMove(e: MouseEvent) {
     if (!this.drawing) return;
-    const r = this.canvasRef.nativeElement.getBoundingClientRect();
-    const x = e.clientX - r.left;
-    const y = e.clientY - r.top;
+    const canvas = this.canvasRef.nativeElement;
+    const r = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / r.width;
+    const scaleY = canvas.height / r.height;
+    const x = (e.clientX - r.left) * scaleX;
+    const y = (e.clientY - r.top) * scaleY;
     this.stroke(x, y);
     this.lastX = x;
     this.lastY = y;

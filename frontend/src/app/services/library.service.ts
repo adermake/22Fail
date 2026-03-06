@@ -50,11 +50,8 @@ export class LibraryService {
   updateItem(index: number, patch: JsonPatch) {
     let subPath = patch.path.replace(/\//g, '.');
     if (subPath.startsWith('.')) subPath = subPath.substring(1);
-
-    this.store.applyPatch({
-      path: `itemLibrary.${index}.${subPath}`,
-      value: patch.value
-    });
+    const path = subPath ? `itemLibrary.${index}.${subPath}` : `itemLibrary.${index}`;
+    this.store.applyPatch({ path, value: patch.value });
   }
 
   removeItem(index: number): Set<number> {
@@ -96,11 +93,8 @@ export class LibraryService {
   updateRune(index: number, patch: JsonPatch) {
     let subPath = patch.path.replace(/\//g, '.');
     if (subPath.startsWith('.')) subPath = subPath.substring(1);
-
-    this.store.applyPatch({
-      path: `runeLibrary.${index}.${subPath}`,
-      value: patch.value
-    });
+    const path = subPath ? `runeLibrary.${index}.${subPath}` : `runeLibrary.${index}`;
+    this.store.applyPatch({ path, value: patch.value });
   }
 
   removeRune(index: number): Set<number> {
@@ -142,11 +136,8 @@ export class LibraryService {
   updateSpell(index: number, patch: JsonPatch) {
     let subPath = patch.path.replace(/\//g, '.');
     if (subPath.startsWith('.')) subPath = subPath.substring(1);
-
-    this.store.applyPatch({
-      path: `spellLibrary.${index}.${subPath}`,
-      value: patch.value
-    });
+    const path = subPath ? `spellLibrary.${index}.${subPath}` : `spellLibrary.${index}`;
+    this.store.applyPatch({ path, value: patch.value });
   }
 
   removeSpell(index: number): Set<number> {
@@ -187,11 +178,8 @@ export class LibraryService {
   updateSkill(index: number, patch: JsonPatch) {
     let subPath = patch.path.replace(/\//g, '.');
     if (subPath.startsWith('.')) subPath = subPath.substring(1);
-
-    this.store.applyPatch({
-      path: `skillLibrary.${index}.${subPath}`,
-      value: patch.value
-    });
+    const path = subPath ? `skillLibrary.${index}.${subPath}` : `skillLibrary.${index}`;
+    this.store.applyPatch({ path, value: patch.value });
   }
 
   removeSkill(index: number): Set<number> {
