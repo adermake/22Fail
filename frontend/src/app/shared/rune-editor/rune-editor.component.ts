@@ -4,7 +4,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RuneBlock, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS } from '../../model/rune-block.model';
+import { RuneBlock, RuneDataLine, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../image-url.pipe';
 
@@ -69,13 +69,16 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     } else {
       this.editRune = {
         name: '', description: '', drawing: '', tags: [],
-        glowColor: '#06b6d4', fokus: 0, fokusMult: 1,
-        mana: 0, manaMult: 1, effektivitaet: 0,
-        statRequirements: {}, identified: true, learned: false,
+        glowColor: '#06b6d4', fokus: 0, fokusMult: 0,
+        mana: 0, manaMult: 0, effektivitaet: 0,
+        statRequirements: { strength: 0, dexterity: 0, speed: 0, intelligence: 0, constitution: 0, chill: 0 },
+        identified: true, learned: false,
       };
     }
     if (!this.editRune.statRequirements) this.editRune.statRequirements = {};
     if (!this.editRune.tags) this.editRune.tags = [];
+    if (!this.editRune.inputs) this.editRune.inputs = [];
+    if (!this.editRune.outputs) this.editRune.outputs = [];
     if (this.editRune.drawing) this.showDrawPanel.set(true);
     document.addEventListener('keydown', this.keyHandler);
   }
@@ -181,6 +184,9 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   onCanvasMouseLeave(){ this.drawing = false; }
 
   private stroke(x: number, y: number) {
+    this.ctx.setLineDash([]);
+    this.ctx.lineCap = 'round';
+    this.ctx.lineJoin = 'round';
     if (this.isErasing()) {
       this.ctx.globalCompositeOperation = 'destination-out';
       this.ctx.lineWidth = 32;
@@ -206,9 +212,9 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
         this.ctx.stroke();
       }
       // White inner core
-      this.ctx.lineWidth = 1.5;
-      this.ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-      this.ctx.shadowColor = 'rgba(255,255,255,0.5)';
+      this.ctx.lineWidth = 2.5;
+      this.ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      this.ctx.shadowColor = 'rgba(255,255,255,0.6)';
       this.ctx.shadowBlur = 3;
       this.ctx.beginPath();
       this.ctx.moveTo(this.lastX, this.lastY);
@@ -325,6 +331,34 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   isTagActive(tag: string) { return (this.editRune.tags ?? []).includes(tag); }
+
+  // ─── Datalines ────────────────────────────────────────────────────────────
+
+  addDataLine(dir: 'inputs' | 'outputs') {
+    const list = (this.editRune[dir] ?? []).slice();
+    list.push({ name: '', color: '#06b6d4', types: [] });
+    this.editRune[dir] = list;
+  }
+
+  removeDataLine(dir: 'inputs' | 'outputs', index: number) {
+    const list = (this.editRune[dir] ?? []).slice();
+    list.splice(index, 1);
+    this.editRune[dir] = list;
+  }
+
+  addType(line: RuneDataLine, event: Event) {
+    const input = event.target as HTMLInputElement;
+    const val = input.value.trim();
+    (event as KeyboardEvent).preventDefault();
+    if (val && !line.types.includes(val)) {
+      line.types = [...line.types, val];
+    }
+    input.value = '';
+  }
+
+  removeType(line: RuneDataLine, index: number) {
+    line.types = line.types.filter((_, i) => i !== index);
+  }
 
   // ─── Save / Cancel ────────────────────────────────────────────────────────
 

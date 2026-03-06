@@ -1,3 +1,9 @@
+export interface RuneDataLine {
+  name: string;
+  color: string;
+  types: string[]; // Multiple entries = mixed/union port (accepts any listed type)
+}
+
 export interface RuneStatRequirements {
   strength?: number;
   dexterity?: number;
@@ -23,6 +29,8 @@ export class RuneBlock {
   learned?: boolean;          // character sheet: has the character learned this rune
   libraryOrigin?: string;
   libraryOriginName?: string;
+  inputs?: RuneDataLine[];
+  outputs?: RuneDataLine[];
 }
 
 export const RUNE_GLOW_COLORS = [

@@ -63,11 +63,18 @@ app/
 - **Items**: Waffen, Rüstung, Verbrauchsgüter (drag-drop fähig)
 - **Spells**: Zauber mit Range/Duration/Cost
 - **Runes**: Magische Runen — komplett überarbeitet:
-  - `RuneBlock` Model: `name, description, drawing, tags, glowColor, fokus, fokusMult, mana, manaMult, effektivitaet, statRequirements, identified, learned, libraryOrigin`
+  - `RuneDataLine` Model: `{ name, color, types[] }` — `types.length > 1` = Mixed-Port (akzeptiert einen der Typen)
+  - `RuneBlock` Model: `name, description, drawing, tags, glowColor, fokus, fokusMult, mana, manaMult, effektivitaet, statRequirements, identified, learned, libraryOrigin, inputs[], outputs[]`
+  - Datenlinien: Eingänge + Ausgänge, jede Linie hat Name, Farbe, Typ-Tags. Mixed-Port = ein Slot mit mehreren akzeptierten Typen.
   - `app-runes`: 2-Spalten-Layout (Grid links 50%, Detail rechts 50%) — kein app-card
-  - `app-rune-editor`: Vollbild-Overlay, 2 Spalten (Bild/Tags links, Kosten/Requirements rechts)
-    - Canvas-Zeichnen mit Multi-Pass-Glow, Radierer, Ctrl+Z, Bildupload (512×512)
-    - `glowColor` ersetzt `strokeColor` überall in rune.component / runecreator.component
+  - Sparse Slots: `(RuneBlock | null)[]`, 5 Spalten, freie Platzierung
+  - `app-rune-editor`: Vollbild-Overlay, 2 Spalten (Bild/Tags links, Kosten/Datenlinien rechts)
+    - Canvas: transparent (kein schwarzer Hintergrund), `aspect-ratio: 1/1`, `max-width: min(calc(100vh-500px), 400px)` — passt immer ins Layout
+    - Multi-Pass-Glow (4 Passes: 40/20/10/4px blur, Breite 9/7/6/6px) + weißer Innenkern (2.5px)
+    - Standardfarbe: `#06b6d4` (Cyan)
+    - Farbwähler: Preset-Dots + `<input type="color">` für benutzerdefinierte Farben
+    - Kosten kompakt: Inline-Grid (4 Spalten: Label, Basis, ×, Multiplikator), keine großen Blöcke
+    - Anforderungen kompakt: Flex-Wrap mit kleinen Inline-Inputs
   - `identified = false` → Nur Bild im Detail-Panel; `learned` = Goldener Rahmen in Grid
 - **Skills**: Fähigkeiten/Talente
 - **Status Effects**: Buffs/Debuffs für Charaktere

@@ -186,80 +186,85 @@
         <!-- Costs & Values -->
         <section class="ed-section">
           <h3 class="section-title">Kosten &amp; Werte</h3>
+          <div class="cost-compact">
+            <span class="cc-lbl mana-label">Mana</span>
+            <input type="number" [(ngModel)]="editRune.mana" min="0" class="cc-input" placeholder="0">
+            <span class="cc-mult">&times;</span>
+            <input type="number" [(ngModel)]="editRune.manaMult" min="0" step="0.1" class="cc-input" placeholder="0">
 
-          <div class="cost-grid">
-            <!-- Mana -->
-            <div class="cost-block mana-block">
-              <span class="cost-label mana-label">Manakost</span>
-              <div class="cost-inputs">
-                <div class="form-group">
-                  <label>Basis</label>
-                  <input type="number" [(ngModel)]="editRune.mana" min="0">
-                </div>
-                <div class="form-group">
-                  <label>Multiplikator</label>
-                  <input type="number" [(ngModel)]="editRune.manaMult" min="0" step="0.1">
-                </div>
-              </div>
-            </div>
+            <span class="cc-lbl fokus-label">Fokus</span>
+            <input type="number" [(ngModel)]="editRune.fokus" min="0" class="cc-input" placeholder="0">
+            <span class="cc-mult">&times;</span>
+            <input type="number" [(ngModel)]="editRune.fokusMult" min="0" step="0.1" class="cc-input" placeholder="0">
 
-            <!-- Fokus -->
-            <div class="cost-block fokus-block">
-              <span class="cost-label fokus-label">Fokuskosten</span>
-              <div class="cost-inputs">
-                <div class="form-group">
-                  <label>Basis</label>
-                  <input type="number" [(ngModel)]="editRune.fokus" min="0">
-                </div>
-                <div class="form-group">
-                  <label>Multiplikator</label>
-                  <input type="number" [(ngModel)]="editRune.fokusMult" min="0" step="0.1">
-                </div>
-              </div>
-            </div>
-
-            <!-- Effektivität -->
-            <div class="cost-block eff-block">
-              <span class="cost-label eff-label">Effektivität</span>
-              <div class="cost-inputs single">
-                <div class="form-group">
-                  <label>Wert</label>
-                  <input type="number" [(ngModel)]="editRune.effektivitaet" min="0">
-                </div>
-              </div>
-            </div>
+            <span class="cc-lbl eff-label">Effekt.</span>
+            <input type="number" [(ngModel)]="editRune.effektivitaet" min="0" class="cc-input" placeholder="0">
+            <span></span><span></span>
           </div>
         </section>
 
         <!-- Stat Requirements -->
         <section class="ed-section">
           <h3 class="section-title">Attributanforderungen</h3>
-          <div class="requirements-grid">
-            <div class="req-item">
-              <label>STR</label>
-              <input type="number" [(ngModel)]="editRune.statRequirements!.strength" min="0" placeholder="—">
-            </div>
-            <div class="req-item">
-              <label>GES</label>
-              <input type="number" [(ngModel)]="editRune.statRequirements!.dexterity" min="0" placeholder="—">
-            </div>
-            <div class="req-item">
-              <label>SPD</label>
-              <input type="number" [(ngModel)]="editRune.statRequirements!.speed" min="0" placeholder="—">
-            </div>
-            <div class="req-item">
-              <label>INT</label>
-              <input type="number" [(ngModel)]="editRune.statRequirements!.intelligence" min="0" placeholder="—">
-            </div>
-            <div class="req-item">
-              <label>KON</label>
-              <input type="number" [(ngModel)]="editRune.statRequirements!.constitution" min="0" placeholder="—">
-            </div>
-            <div class="req-item">
-              <label>CHR</label>
-              <input type="number" [(ngModel)]="editRune.statRequirements!.chill" min="0" placeholder="—">
-            </div>
+          <div class="req-compact">
+            <div class="req-ci"><span class="req-lbl">STR</span><input type="number" [(ngModel)]="editRune.statRequirements!.strength" min="0" placeholder="0" class="req-tiny"></div>
+            <div class="req-ci"><span class="req-lbl">GES</span><input type="number" [(ngModel)]="editRune.statRequirements!.dexterity" min="0" placeholder="0" class="req-tiny"></div>
+            <div class="req-ci"><span class="req-lbl">SPD</span><input type="number" [(ngModel)]="editRune.statRequirements!.speed" min="0" placeholder="0" class="req-tiny"></div>
+            <div class="req-ci"><span class="req-lbl">INT</span><input type="number" [(ngModel)]="editRune.statRequirements!.intelligence" min="0" placeholder="0" class="req-tiny"></div>
+            <div class="req-ci"><span class="req-lbl">KON</span><input type="number" [(ngModel)]="editRune.statRequirements!.constitution" min="0" placeholder="0" class="req-tiny"></div>
+            <div class="req-ci"><span class="req-lbl">CHR</span><input type="number" [(ngModel)]="editRune.statRequirements!.chill" min="0" placeholder="0" class="req-tiny"></div>
           </div>
+        </section>
+
+        <!-- Datenlinien -->
+        <section class="ed-section">
+          <h3 class="section-title">Datenlinien</h3>
+
+          <div class="dl-subheader">
+            <span class="dl-dir-label dl-in">↓ Eingänge</span>
+            <button class="dl-add-btn" (click)="addDataLine('inputs')">+ Eingang</button>
+          </div>
+          @for (line of editRune.inputs; track $index; let i = $index) {
+            <div class="dl-row">
+              <input type="color" [value]="line.color"
+                     (input)="line.color = $any($event.target).value"
+                     class="dl-color-pick">
+              <input type="text" [(ngModel)]="line.name" placeholder="Name…" class="dl-name-input">
+              <div class="dl-types">
+                @for (t of line.types; track $index; let ti = $index) {
+                  <span class="dl-type-tag" [style.border-color]="line.color">
+                    {{ t }}<button class="dl-type-rm" (click)="removeType(line, ti)">×</button>
+                  </span>
+                }
+                <input type="text" placeholder="Typ…" class="dl-type-add-input"
+                       (keydown.enter)="addType(line, $event)">
+              </div>
+              <button class="dl-rm-btn" (click)="removeDataLine('inputs', i)">×</button>
+            </div>
+          }
+
+          <div class="dl-subheader">
+            <span class="dl-dir-label dl-out">↑ Ausgänge</span>
+            <button class="dl-add-btn" (click)="addDataLine('outputs')">+ Ausgang</button>
+          </div>
+          @for (line of editRune.outputs; track $index; let i = $index) {
+            <div class="dl-row">
+              <input type="color" [value]="line.color"
+                     (input)="line.color = $any($event.target).value"
+                     class="dl-color-pick">
+              <input type="text" [(ngModel)]="line.name" placeholder="Name…" class="dl-name-input">
+              <div class="dl-types">
+                @for (t of line.types; track $index; let ti = $index) {
+                  <span class="dl-type-tag" [style.border-color]="line.color">
+                    {{ t }}<button class="dl-type-rm" (click)="removeType(line, ti)">×</button>
+                  </span>
+                }
+                <input type="text" placeholder="Typ…" class="dl-type-add-input"
+                       (keydown.enter)="addType(line, $event)">
+              </div>
+              <button class="dl-rm-btn" (click)="removeDataLine('outputs', i)">×</button>
+            </div>
+          }
         </section>
 
       </div><!-- /right col -->
