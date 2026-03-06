@@ -24,14 +24,23 @@ export class RunesComponent implements OnChanges {
   // Drag centering for rune chip preview
   dragPreviewOffsetX = 0;
   dragPreviewOffsetY = 0;
-  private readonly CHIP_HALF_W = 30; // ~60px wide chip
-  private readonly CHIP_HALF_H = 30; // ~60px tall chip
+  private readonly CHIP_HALF_W = 90;  // horizontal chip ~180px wide
+  private readonly CHIP_HALF_H = 20;  // horizontal chip ~40px tall
 
   ngOnChanges() {
     if (!this.sheet.runes) this.sheet.runes = [];
   }
 
   get runes(): RuneBlock[] { return this.sheet.runes || []; }
+
+  /** Padded slot array: runes packed to front, null fills the rest (at least 2 rows of 6). */
+  get paddedSlots(): (RuneBlock | null)[] {
+    const runes = this.runes;
+    const slotCount = Math.max(12, Math.ceil((runes.length + 6) / 6) * 6);
+    const result: (RuneBlock | null)[] = new Array(slotCount).fill(null);
+    runes.forEach((rune, i) => { result[i] = rune; });
+    return result;
+  }
 
   get selectedRune(): RuneBlock | null {
     return this.selectedIndex !== null ? this.runes[this.selectedIndex] : null;
@@ -108,11 +117,20 @@ export class RunesComponent implements OnChanges {
     if (event.previousIndex === event.currentIndex) return;
     const newRunes = [...this.runes];
     moveItemInArray(newRunes, event.previousIndex, event.currentIndex);
+    // Adjust selectedIndex after reorder
+    if (this.selectedIndex !== null) {
+      const s = this.selectedIndex;
+      const f = event.previousIndex;
+      const t = event.currentIndex;
+      if (s === f) {
+        this.selectedIndex = t;
+      } else if (f < t && s > f && s <= t) {
+        this.selectedIndex--;
+      } else if (f > t && s >= t && s < f) {
+        this.selectedIndex++;
+      }
+    }
     this.sheet.runes = newRunes;
     this.patch.emit({ path: 'runes', value: newRunes });
-    // Update selected index after reorder
-    if (this.selectedIndex === event.previousIndex) {
-      this.selectedIndex = event.currentIndex;
-    }
   }
 }

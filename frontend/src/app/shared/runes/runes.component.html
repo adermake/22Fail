@@ -1,68 +1,79 @@
 <div class="runes-container">
 
-  <!-- ── Left: Grid ────────────────────────────────────────────── -->
+  <!-- ── Left: Slot Grid ─────────────────────────────────────── -->
   <div class="runes-left">
     <div class="runes-panel-header">
       <span class="panel-title">Runen</span>
       <button class="add-rune-btn" (click)="openAddDialog()" title="Rune hinzufügen">+</button>
     </div>
 
-    <div class="rune-grid" cdkDropList (cdkDropListDropped)="onDrop($event)">
-      @for (rune of runes; track i; let i = $index) {
-        <div class="rune-cell"
-             cdkDrag
-             [class.selected]="selectedIndex === i"
-             [class.learned]="rune.learned"
-             (cdkDragStarted)="onDragStarted($event, i)"
-             (click)="selectRune(i)">
+    <div class="rune-grid"
+         cdkDropList
+         [cdkDropListData]="runes"
+         (cdkDropListDropped)="onDrop($event)">
+      @for (slot of paddedSlots; track $index; let i = $index) {
+        @if (slot !== null) {
+          <!-- Occupied slot: draggable -->
+          <div cdkDrag
+               class="rune-slot"
+               [class.rune-selected]="selectedIndex === i"
+               [class.rune-learned]="slot.learned"
+               [cdkDragData]="slot"
+               (cdkDragStarted)="onDragStarted($event, i)"
+               (click)="selectRune(i)">
 
-          @if (rune.drawing) {
-            <img [src]="rune.drawing | imageUrl" class="rune-cell-img"
-                 [class.unidentified-img]="!rune.identified"
-                 alt>
-          } @else {
-            <span class="rune-cell-glyph"
-                  [style.color]="rune.glowColor || '#8b5cf6'"
-                  [style.text-shadow]="'0 0 12px ' + (rune.glowColor || '#8b5cf6')">
-              ᚛
-            </span>
-          }
-
-          <span class="rune-cell-name">{{ rune.identified ? rune.name : '???' }}</span>
-
-          <!-- Card-game stat badges -->
-          @if (rune.mana) {
-            <span class="stat-badge stat-mana">{{ rune.mana }}</span>
-          }
-          @if (rune.fokus) {
-            <span class="stat-badge stat-fokus">{{ rune.fokus }}</span>
-          }
-          @if (rune.effektivitaet) {
-            <span class="stat-badge stat-eff">{{ rune.effektivitaet }}</span>
-          }
-
-          @if (rune.learned) {
-            <span class="learned-badge" title="Gelernt">⭐</span>
-          }
-
-          <!-- Centered drag chip preview -->
-          <ng-template cdkDragPreview>
-            <div class="drag-preview-root">
-              <div class="rune-drag-chip"
-                   [style.left.px]="dragPreviewOffsetX"
-                   [style.top.px]="dragPreviewOffsetY">
-                @if (rune.drawing) {
-                  <img [src]="rune.drawing | imageUrl" class="drag-chip-img" alt>
-                } @else {
-                  <span class="drag-chip-glyph" [style.color]="rune.glowColor || '#8b5cf6'">᚛</span>
-                }
-                <span class="drag-chip-name">{{ rune.identified ? rune.name : '???' }}</span>
-              </div>
+            <!-- Top: stat tags -->
+            <div class="rune-slot-stats">
+              @if (slot.effektivitaet) {
+                <span class="r-tag r-eff">⚡{{ slot.effektivitaet }}</span>
+              }
+              @if (slot.fokus) {
+                <span class="r-tag r-fokus">◆{{ slot.fokus }}</span>
+              }
+              @if (slot.mana) {
+                <span class="r-tag r-mana">💧{{ slot.mana }}</span>
+              }
             </div>
-          </ng-template>
 
-          <div class="rune-placeholder" *cdkDragPlaceholder></div>
-        </div>
+            <!-- Middle: image or glyph -->
+            <div class="rune-slot-media">
+              @if (slot.drawing) {
+                <img [src]="slot.drawing | imageUrl"
+                     class="rune-slot-img"
+                     [class.rune-blurred]="!slot.identified"
+                     alt>
+              } @else {
+                <span class="rune-slot-glyph"
+                      [style.color]="slot.glowColor || '#8b5cf6'"
+                      [style.text-shadow]="'0 0 10px ' + (slot.glowColor || '#8b5cf6')">᚛</span>
+              }
+              @if (slot.learned) {
+                <span class="rune-star">⭐</span>
+              }
+            </div>
+
+            <!-- Bottom: name -->
+            <span class="rune-slot-name">{{ slot.identified ? slot.name : '???' }}</span>
+
+            <!-- Drag preview chip (horizontal, inventory-style) -->
+            <ng-template cdkDragPreview>
+              <div class="drag-preview-root">
+                <div class="rune-drag-chip"
+                     [style.left.px]="dragPreviewOffsetX"
+                     [style.top.px]="dragPreviewOffsetY">
+                  <span class="rdc-glyph" [style.color]="slot.glowColor || '#8b5cf6'">᚛</span>
+                  <span class="rdc-name">{{ slot.identified ? slot.name : '???' }}</span>
+                </div>
+              </div>
+            </ng-template>
+
+            <!-- Drag placeholder keeps slot stable during drag -->
+            <div *cdkDragPlaceholder class="rune-drag-placeholder"></div>
+          </div>
+        } @else {
+          <!-- Empty slot (visual only) -->
+          <div class="rune-slot rune-slot-empty"></div>
+        }
       }
 
       @if (runes.length === 0) {
@@ -74,128 +85,106 @@
     </div>
   </div>
 
-  <!-- ── Right: Detail ─────────────────────────────────────────── -->
+  <!-- ── Right: Detail panel ─────────────────────────────────── -->
   <div class="runes-right">
     @if (selectedRune !== null) {
       <div class="rune-detail">
 
-        <!-- Detail header -->
-        <div class="detail-header">
-          <div class="detail-title-area">
+        <!-- Header -->
+        <div class="rune-detail-header">
+          <div class="rune-title-block">
             @if (selectedRune.identified) {
-              <h3 class="detail-name">{{ selectedRune.name }}</h3>
+              <h3 class="rune-name">{{ selectedRune.name }}</h3>
             } @else {
-              <h3 class="detail-name unidentified-name">
-                <span class="unidentified-badge">?</span>
+              <h3 class="rune-name rune-unident-name">
+                <span class="unident-badge">?</span>
                 Unbekannte Rune
               </h3>
             }
           </div>
-          <div class="detail-actions">
+          <div class="rune-actions">
             @if (selectedRune.identified) {
-              <button class="learned-toggle-btn"
+              <button class="learned-btn"
                       [class.is-learned]="selectedRune.learned"
                       (click)="toggleLearned()">
-                {{ selectedRune.learned ? '⭐ Gelernt' : '☆ Nicht gelernt' }}
+                {{ selectedRune.learned ? '⭐ Gelernt' : '☆ Lernen' }}
               </button>
             }
-            <button class="edit-rune-btn" (click)="openEditDialog()">✎</button>
+            <button class="edit-btn" (click)="openEditDialog()">✎</button>
           </div>
         </div>
 
         <!-- Rune image -->
         @if (selectedRune.drawing) {
-          <div class="detail-image-wrap">
+          <div class="rune-detail-img-wrap">
             <img [src]="selectedRune.drawing | imageUrl"
-                 class="detail-rune-img"
-                 [class.detail-img-blurred]="!selectedRune.identified"
+                 class="rune-detail-img"
+                 [class.rune-blurred]="!selectedRune.identified"
                  alt>
             @if (!selectedRune.identified) {
-              <div class="unidentified-overlay">Unidentifiziert</div>
+              <div class="rune-unident-overlay">Unidentifiziert</div>
             }
           </div>
         }
 
         @if (selectedRune.identified) {
 
-          <!-- Tags -->
-          @if (selectedRune.tags?.length) {
-            <div class="detail-tags">
-              @for (tag of selectedRune.tags; track tag) {
-                <span class="detail-tag">{{ tag }}</span>
-              }
-            </div>
-          }
-
-          <!-- Costs row -->
-          @if (selectedRune.mana || selectedRune.fokus || selectedRune.effektivitaet) {
-            <div class="detail-costs">
-              @if (selectedRune.mana) {
-                <div class="cost-pill mana-pill">
-                  <span class="cost-name mana-text">Mana</span>
-                  <span class="cost-val mana-text">{{ selectedRune.mana }}
-                    @if (selectedRune.manaMult && selectedRune.manaMult !== 1) {
-                      <span class="cost-mult">×{{ selectedRune.manaMult }}</span>
-                    }
-                  </span>
-                </div>
-              }
-              @if (selectedRune.fokus) {
-                <div class="cost-pill fokus-pill">
-                  <span class="cost-name fokus-text">Fokus</span>
-                  <span class="cost-val fokus-text">{{ selectedRune.fokus }}
-                    @if (selectedRune.fokusMult && selectedRune.fokusMult !== 1) {
-                      <span class="cost-mult">×{{ selectedRune.fokusMult }}</span>
-                    }
-                  </span>
-                </div>
-              }
-              @if (selectedRune.effektivitaet) {
-                <div class="cost-pill eff-pill">
-                  <span class="cost-name eff-text">Effektivität</span>
-                  <span class="cost-val eff-text">{{ selectedRune.effektivitaet }}</span>
-                </div>
-              }
-            </div>
-          }
+          <!-- Tags row: type tags + stat tags (same style as item.component) -->
+          <div class="rune-tags-row">
+            @for (tag of selectedRune.tags; track tag) {
+              <span class="tag tag-generic">{{ tag }}</span>
+            }
+            @if (selectedRune.effektivitaet) {
+              <span class="tag tag-eff">⚡ {{ selectedRune.effektivitaet }}</span>
+            }
+            @if (selectedRune.fokus) {
+              <span class="tag tag-fokus">◆ {{ selectedRune.fokus }}
+                @if (selectedRune.fokusMult && selectedRune.fokusMult !== 1) {
+                  <span class="tag-mult">×{{ selectedRune.fokusMult }}</span>
+                }
+              </span>
+            }
+            @if (selectedRune.mana) {
+              <span class="tag tag-mana">💧 {{ selectedRune.mana }}
+                @if (selectedRune.manaMult && selectedRune.manaMult !== 1) {
+                  <span class="tag-mult">×{{ selectedRune.manaMult }}</span>
+                }
+              </span>
+            }
+          </div>
 
           <!-- Effect description -->
           @if (selectedRune.description) {
-            <div class="detail-desc-block">
-              <span class="detail-block-label">Effekt</span>
-              <p class="detail-desc">{{ selectedRune.description }}</p>
-            </div>
+            <p class="rune-desc">{{ selectedRune.description }}</p>
           }
 
-          <!-- Stat requirements -->
+          <!-- Stat requirements (matches item-requirements style) -->
           @if (hasStatRequirements(selectedRune)) {
-            <div class="detail-block">
-              <span class="detail-block-label">Attributanforderungen</span>
-              <div class="detail-reqs">
-                @if (selectedRune.statRequirements?.strength) {
-                  <span class="req-badge">STR {{ selectedRune.statRequirements!.strength }}</span>
-                }
-                @if (selectedRune.statRequirements?.dexterity) {
-                  <span class="req-badge">GES {{ selectedRune.statRequirements!.dexterity }}</span>
-                }
-                @if (selectedRune.statRequirements?.speed) {
-                  <span class="req-badge">SPD {{ selectedRune.statRequirements!.speed }}</span>
-                }
-                @if (selectedRune.statRequirements?.intelligence) {
-                  <span class="req-badge">INT {{ selectedRune.statRequirements!.intelligence }}</span>
-                }
-                @if (selectedRune.statRequirements?.constitution) {
-                  <span class="req-badge">KON {{ selectedRune.statRequirements!.constitution }}</span>
-                }
-                @if (selectedRune.statRequirements?.chill) {
-                  <span class="req-badge">CHR {{ selectedRune.statRequirements!.chill }}</span>
-                }
-              </div>
+            <div class="rune-reqs">
+              <span class="req-label">Anforderungen</span>
+              @if (selectedRune.statRequirements?.strength) {
+                <span class="req-stat">STR {{ selectedRune.statRequirements!.strength }}</span>
+              }
+              @if (selectedRune.statRequirements?.dexterity) {
+                <span class="req-stat">GES {{ selectedRune.statRequirements!.dexterity }}</span>
+              }
+              @if (selectedRune.statRequirements?.speed) {
+                <span class="req-stat">SPD {{ selectedRune.statRequirements!.speed }}</span>
+              }
+              @if (selectedRune.statRequirements?.intelligence) {
+                <span class="req-stat">INT {{ selectedRune.statRequirements!.intelligence }}</span>
+              }
+              @if (selectedRune.statRequirements?.constitution) {
+                <span class="req-stat">KON {{ selectedRune.statRequirements!.constitution }}</span>
+              }
+              @if (selectedRune.statRequirements?.chill) {
+                <span class="req-stat">CHR {{ selectedRune.statRequirements!.chill }}</span>
+              }
             </div>
           }
 
         } @else {
-          <div class="unidentified-body">
+          <div class="rune-unident-body">
             <p>Diese Rune wurde noch nicht identifiziert. Ihre Eigenschaften sind unbekannt.</p>
           </div>
         }

@@ -75,6 +75,7 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
       };
     }
     if (!this.editRune.statRequirements) this.editRune.statRequirements = {};
+    if (!this.editRune.tags) this.editRune.tags = [];
     if (this.editRune.drawing) this.showDrawPanel.set(true);
     document.addEventListener('keydown', this.keyHandler);
   }
@@ -314,7 +315,7 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     this.editRune.tags = this.editRune.tags.filter((_, idx) => idx !== i);
   }
 
-  isTagActive(tag: string) { return this.editRune.tags.includes(tag); }
+  isTagActive(tag: string) { return (this.editRune.tags ?? []).includes(tag); }
 
   // ─── Save / Cancel ────────────────────────────────────────────────────────
 
