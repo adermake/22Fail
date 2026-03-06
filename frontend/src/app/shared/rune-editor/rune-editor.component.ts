@@ -215,18 +215,7 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
         this.ctx.lineTo(x, y);
         this.ctx.stroke();
       }
-      // White inner core
-      this.ctx.lineWidth = 2.5;
-      this.ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-      this.ctx.shadowColor = 'rgba(255,255,255,0.6)';
-      this.ctx.shadowBlur = 3;
-      this.ctx.setLineDash([]);
-      this.ctx.lineDashOffset = 0;
-      this.ctx.beginPath();
-      this.ctx.moveTo(this.lastX, this.lastY);
-      this.ctx.lineTo(x, y);
-      this.ctx.stroke();
-      // Reset shadow to avoid bleeding into next draw
+      // Reset shadow
       this.ctx.shadowBlur = 0;
       this.ctx.shadowColor = 'transparent';
     }
