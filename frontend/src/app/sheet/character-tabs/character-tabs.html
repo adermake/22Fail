@@ -59,9 +59,7 @@
     @if (activeTab === 'runes') {
       <app-runes
         [sheet]="sheet"
-        [editingRunes]="editingRunes"
-        (patch)="onPatch($event)"
-        (editingChange)="onRuneEditingChange($event)">
+        (patch)="onPatch($event)">
       </app-runes>
     }
 

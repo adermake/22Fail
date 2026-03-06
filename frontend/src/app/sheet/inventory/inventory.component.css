@@ -465,8 +465,18 @@ app-card > *,
   display: none !important;
 }
 
+/* Zero-size drag preview positioner: CDK positions this, chip inside is centered on cursor */
+.drag-preview-root {
+  position: relative;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
 /* Custom drag chip (replaces cloned item preview) */
 .drag-chip {
+  position: absolute;
   display: flex;
   align-items: center;
   gap: 0.5rem;

@@ -21,7 +21,7 @@ export class RuneCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
     description: '',
     drawing: '',
     tags: [],
-    strokeColor: '#8b5cf6',
+    glowColor: '#8b5cf6',
   };
 
   strokeColor = '#8b5cf6';
@@ -162,7 +162,7 @@ export class RuneCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
 
   updateStrokeColor(color: string) {
     this.strokeColor = color;
-    this.newRune.strokeColor = color;
+    this.newRune.glowColor = color;
     if (this.ctx) {
       this.ctx.strokeStyle = color;
       this.ctx.shadowColor = color;
@@ -265,7 +265,7 @@ export class RuneCreatorComponent implements AfterViewInit, OnInit, OnDestroy {
 
   selectColor(color: string) {
     this.strokeColor = color;
-    this.newRune.strokeColor = color;
+    this.newRune.glowColor = color;
     if (this.ctx) {
       this.ctx.strokeStyle = color;
       this.ctx.shadowColor = color;

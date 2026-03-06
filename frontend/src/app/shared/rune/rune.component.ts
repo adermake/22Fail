@@ -186,7 +186,7 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   get strokeColor(): string {
-    return this.rune.strokeColor || '#8b5cf6';
+    return this.rune.glowColor || '#8b5cf6';
   }
 
   initCanvas() {
@@ -236,7 +236,7 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   updateStrokeColor(color: string) {
-    this.updateField('strokeColor', color);
+    this.updateField('glowColor', color);
     if (this.ctx) {
       this.ctx.strokeStyle = color;
       this.ctx.shadowColor = color;
@@ -347,7 +347,7 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   selectColor(color: string) {
-    this.updateField('strokeColor', color);
+    this.updateField('glowColor', color);
     if (this.ctx) {
       this.ctx.strokeStyle = color;
       this.ctx.shadowColor = color;

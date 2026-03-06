@@ -62,7 +62,13 @@ app/
 ### Asset-Typen
 - **Items**: Waffen, Rüstung, Verbrauchsgüter (drag-drop fähig)
 - **Spells**: Zauber mit Range/Duration/Cost
-- **Runes**: Magische Runen für Equipment
+- **Runes**: Magische Runen — komplett überarbeitet:
+  - `RuneBlock` Model: `name, description, drawing, tags, glowColor, fokus, fokusMult, mana, manaMult, effektivitaet, statRequirements, identified, learned, libraryOrigin`
+  - `app-runes`: 2-Spalten-Layout (Grid links 50%, Detail rechts 50%) — kein app-card
+  - `app-rune-editor`: Vollbild-Overlay, 2 Spalten (Bild/Tags links, Kosten/Requirements rechts)
+    - Canvas-Zeichnen mit Multi-Pass-Glow, Radierer, Ctrl+Z, Bildupload (512×512)
+    - `glowColor` ersetzt `strokeColor` überall in rune.component / runecreator.component
+  - `identified = false` → Nur Bild im Detail-Panel; `learned` = Goldener Rahmen in Grid
 - **Skills**: Fähigkeiten/Talente
 - **Status Effects**: Buffs/Debuffs für Charaktere
 - **Shops**: Verkaufsveranstaltungen mit Deals (normal/reverse)
@@ -119,6 +125,10 @@ app/
   - isDraggingOverList property
   - `.drag-over` CSS class (dashed border)
   - `cursor: grab/grabbing` für draggable Items
+- **Drag-Chip Zentrierung** (Inventory + Runes):
+  - `cdkDragStarted`: `event.event as MouseEvent` → `grabX/Y = clientX - rect.left/top`
+  - Preview-Template: `.drag-preview-root` (width:0, height:0, overflow:visible) + `.drag-chip` (position:absolute, left=grabX-halfW, top=grabY-halfH)
+  - Ergebnis: Drag-Chip ist immer zentriert auf den Cursor
 
 ## Styling-System
 - **Variablen**: CSS custom properties (--bg, --border, --accent, --text)

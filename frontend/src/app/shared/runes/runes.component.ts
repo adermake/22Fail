@@ -1,105 +1,118 @@
 import { DragDropModule, CdkDragStart, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output } from '@angular/core';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
-import { RuneBlock } from '../../model/rune-block.model';
-import { CardComponent } from '../card/card.component';
-import { RuneComponent } from '../rune/rune.component';
-import { RuneCreatorComponent } from '../runecreator/runecreator.component';
+import { RuneBlock, RuneStatRequirements } from '../../model/rune-block.model';
+import { RuneEditorComponent } from '../rune-editor/rune-editor.component';
+import { ImageUrlPipe } from '../image-url.pipe';
 
 @Component({
   selector: 'app-runes',
-  imports: [CommonModule, RuneComponent, CardComponent, RuneCreatorComponent, DragDropModule],
+  imports: [CommonModule, DragDropModule, RuneEditorComponent, ImageUrlPipe],
   templateUrl: './runes.component.html',
   styleUrl: './runes.component.css',
 })
-export class RunesComponent {
+export class RunesComponent implements OnChanges {
   @Input({ required: true }) sheet!: CharacterSheet;
-  @Input() editingRunes!: Set<number>;
   @Output() patch = new EventEmitter<JsonPatch>();
-  @Output() editingChange = new EventEmitter<{index: number, isEditing: boolean}>();
 
-  showCreateDialog = false;
-  placeholderHeight = '90px';
-  placeholderWidth = '100%';
+  selectedIndex: number | null = null;
+  showEditor = false;
+  editingIndex: number | null = null;
 
-  ngOnInit() {
-    if (!this.sheet.runes) {
-      this.sheet.runes = [];
+  // Drag centering for rune chip preview
+  dragPreviewOffsetX = 0;
+  dragPreviewOffsetY = 0;
+  private readonly CHIP_HALF_W = 30; // ~60px wide chip
+  private readonly CHIP_HALF_H = 30; // ~60px tall chip
+
+  ngOnChanges() {
+    if (!this.sheet.runes) this.sheet.runes = [];
+  }
+
+  get runes(): RuneBlock[] { return this.sheet.runes || []; }
+
+  get selectedRune(): RuneBlock | null {
+    return this.selectedIndex !== null ? this.runes[this.selectedIndex] : null;
+  }
+
+  selectRune(index: number) {
+    this.selectedIndex = this.selectedIndex === index ? null : index;
+  }
+
+  openAddDialog() {
+    this.editingIndex = null;
+    this.showEditor = true;
+  }
+
+  openEditDialog() {
+    if (this.selectedIndex !== null) {
+      this.editingIndex = this.selectedIndex;
+      this.showEditor = true;
     }
   }
 
-  openCreateDialog() {
-    this.showCreateDialog = true;
+  onEditorSave(rune: RuneBlock) {
+    const newRunes = [...this.runes];
+    if (this.editingIndex !== null) {
+      newRunes[this.editingIndex] = rune;
+    } else {
+      newRunes.push(rune);
+      this.selectedIndex = newRunes.length - 1;
+    }
+    this.sheet.runes = newRunes;
+    this.patch.emit({ path: 'runes', value: newRunes });
+    this.showEditor = false;
   }
 
-  closeCreateDialog() {
-    this.showCreateDialog = false;
+  onEditorCancel() { this.showEditor = false; }
+
+  onEditorDelete() {
+    if (this.editingIndex !== null) {
+      const newRunes = this.runes.filter((_, i) => i !== this.editingIndex);
+      this.sheet.runes = newRunes;
+      this.patch.emit({ path: 'runes', value: newRunes });
+      if (this.selectedIndex === this.editingIndex) this.selectedIndex = null;
+      else if (this.selectedIndex !== null && this.editingIndex !== null && this.selectedIndex > this.editingIndex) {
+        this.selectedIndex--;
+      }
+    }
+    this.showEditor = false;
   }
 
-  createRune(rune: RuneBlock) {
-    this.sheet.runes = [...this.sheet.runes, rune];
-    this.patch.emit({
-      path: 'runes',
-      value: this.sheet.runes,
-    });
-    this.closeCreateDialog();
+  toggleLearned() {
+    if (this.selectedIndex === null) return;
+    const newRunes = [...this.runes];
+    newRunes[this.selectedIndex] = { ...newRunes[this.selectedIndex], learned: !newRunes[this.selectedIndex].learned };
+    this.sheet.runes = newRunes;
+    this.patch.emit({ path: 'runes', value: newRunes });
   }
 
-  deleteRune(index: number) {
-    this.sheet.runes = this.sheet.runes.filter((_: any, i: number) => i !== index);
-    this.patch.emit({
-      path: 'runes',
-      value: this.sheet.runes,
-    });
+  hasStatRequirements(rune: RuneBlock): boolean {
+    const r = rune.statRequirements;
+    if (!r) return false;
+    return !!(r.strength || r.dexterity || r.speed || r.intelligence || r.constitution || r.chill);
   }
 
-  updateRune(index: number, patch: JsonPatch) {
-    const field = patch.path as keyof RuneBlock;
-    (this.sheet.runes[index] as any)[field] = patch.value;
-    this.sheet.runes = [...this.sheet.runes];
-    
-    this.patch.emit({
-      path: `runes.${index}.${patch.path}`,
-      value: patch.value,
-    });
-  }
-
-  onDragStarted(event: CdkDragStart) {
-    const element = event.source.element.nativeElement;
-    const rect = element.getBoundingClientRect();
-    this.placeholderHeight = `${rect.height}px`;
-    this.placeholderWidth = `${rect.width}px`;
+  onDragStarted(event: CdkDragStart, _idx: number) {
+    const nativeEvent = event.event as MouseEvent;
+    const rect = (event.source.element.nativeElement as HTMLElement).getBoundingClientRect();
+    const grabX = nativeEvent.clientX - rect.left;
+    const grabY = nativeEvent.clientY - rect.top;
+    this.dragPreviewOffsetX = grabX - this.CHIP_HALF_W;
+    this.dragPreviewOffsetY = grabY - this.CHIP_HALF_H;
   }
 
   onDrop(event: CdkDragDrop<RuneBlock[]>) {
-    const previousIndex = event.previousIndex;
-    const currentIndex = event.currentIndex;
-    
-    if (previousIndex === currentIndex) {
-      return;
-    }
-
-    const newRunes = [...this.sheet.runes];
-    moveItemInArray(newRunes, previousIndex, currentIndex);
-    
+    if (event.previousIndex === event.currentIndex) return;
+    const newRunes = [...this.runes];
+    moveItemInArray(newRunes, event.previousIndex, event.currentIndex);
     this.sheet.runes = newRunes;
-    
-    this.patch.emit({
-      path: 'runes',
-      value: newRunes,
-    });
-  }
-
-  onEditingChange(index: number, isEditing: boolean) {
-    this.editingChange.emit({index, isEditing});
-  }
-
-  isRuneEditing(index: number): boolean {
-    if (!this.editingRunes) {
-      return false;
+    this.patch.emit({ path: 'runes', value: newRunes });
+    // Update selected index after reorder
+    if (this.selectedIndex === event.previousIndex) {
+      this.selectedIndex = event.currentIndex;
     }
-    return this.editingRunes.has(index);
   }
 }

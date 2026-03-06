@@ -1,30 +1,66 @@
-import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+import {
+  AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter,
+  Input, OnDestroy, OnInit, Output, ViewChild, inject, signal
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RuneBlock, RUNE_GLOW_COLORS, RUNE_TAG_OPTIONS } from '../../model/rune-block.model';
+import { RuneBlock, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS } from '../../model/rune-block.model';
+import { ImageService } from '../../services/image.service';
+import { ImageUrlPipe } from '../image-url.pipe';
 
 @Component({
   selector: 'app-rune-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ImageUrlPipe],
   templateUrl: './rune-editor.component.html',
   styleUrl: './rune-editor.component.css',
 })
-export class RuneEditorComponent implements OnInit {
-  @Input() rune: RuneBlock | null = null; // null = creating new rune
-  @Output() save = new EventEmitter<RuneBlock>();
+export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
+  @Input() rune: RuneBlock | null = null;
+  @Input() showLearnedToggle = false; // only shown in character sheet context
+  @Output() save   = new EventEmitter<RuneBlock>();
   @Output() cancel = new EventEmitter<void>();
   @Output() delete = new EventEmitter<void>();
 
-  // Working copy
+  @ViewChild('drawCanvas', { static: false }) canvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('fileInput',  { static: false }) fileInputRef!: ElementRef<HTMLInputElement>;
+
+  private imageService = inject(ImageService);
+  private cd = inject(ChangeDetectorRef);
+
   editRune!: RuneBlock;
   isNewRune = true;
 
-  glowColors = RUNE_GLOW_COLORS;
-  tagOptions = RUNE_TAG_OPTIONS;
-
-  // Tag input
+  glowColors   = RUNE_GLOW_COLORS;
+  defaultTags  = RUNE_DEFAULT_TAGS;
+  allTagOptions = RUNE_TAG_OPTIONS;
   newTag = '';
+
+  // Drawing state
+  isDrawing = signal(false);
+  isErasing = signal(false);
+  isSavingCanvas = signal(false);
+  showDrawPanel = signal(false);
+  canvasWidth  = signal(512);
+  canvasHeight = signal(512);
+
+  private ctx!: CanvasRenderingContext2D;
+  private drawing = false;
+  private lastX = 0;
+  private lastY = 0;
+  private undoHistory: ImageData[] = [];
+  private readonly MAX_UNDO = 25;
+  private canvasReady = false;
+  private keyHandler = this.onKeyDown.bind(this);
+
+  statKeys: Array<{ key: keyof RuneStatRequirements; label: string }> = [
+    { key: 'strength',     label: 'STR' },
+    { key: 'dexterity',    label: 'GES' },
+    { key: 'speed',        label: 'GES' },
+    { key: 'intelligence', label: 'INT' },
+    { key: 'constitution', label: 'KON' },
+    { key: 'chill',        label: 'CHR' },
+  ];
 
   ngOnInit() {
     if (this.rune) {
@@ -32,48 +68,261 @@ export class RuneEditorComponent implements OnInit {
       this.isNewRune = false;
     } else {
       this.editRune = {
-        name: '',
-        description: '',
-        drawing: '',
-        tags: [],
-        strokeColor: '#8b5cf6'
+        name: '', description: '', drawing: '', tags: [],
+        glowColor: '#8b5cf6', fokus: 0, fokusMult: 1,
+        mana: 0, manaMult: 1, effektivitaet: 0,
+        statRequirements: {}, identified: true, learned: false,
       };
+    }
+    if (!this.editRune.statRequirements) this.editRune.statRequirements = {};
+    if (this.editRune.drawing) this.showDrawPanel.set(true);
+    document.addEventListener('keydown', this.keyHandler);
+  }
+
+  ngAfterViewInit() {
+    if (this.showDrawPanel() && this.canvasRef) {
+      this.initCanvas();
     }
   }
 
-  saveRune() {
+  ngOnDestroy() {
+    document.removeEventListener('keydown', this.keyHandler);
+  }
+
+  private onKeyDown(e: KeyboardEvent) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !this.drawing) {
+      e.preventDefault();
+      this.undo();
+    }
+  }
+
+  // ─── Canvas ──────────────────────────────────────────────────────────────
+
+  openDrawPanel() {
+    this.showDrawPanel.set(true);
+    this.canvasReady = false;
+    this.cd.detectChanges();
+    setTimeout(() => this.initCanvas(), 0);
+  }
+
+  private initCanvas() {
+    if (!this.canvasRef) return;
+    const canvas = this.canvasRef.nativeElement;
+    this.ctx = canvas.getContext('2d')!;
+    this.applyCtxSettings();
+    if (this.editRune.drawing) {
+      this.loadDrawingFromId(this.editRune.drawing);
+    } else {
+      this.fillBlack();
+      this.saveHistory();
+    }
+    this.canvasReady = true;
+  }
+
+  private applyCtxSettings() {
+    const color = this.editRune.glowColor || '#8b5cf6';
+    this.ctx.lineWidth = 2;
+    this.ctx.lineCap   = 'round';
+    this.ctx.lineJoin  = 'round';
+    this.ctx.strokeStyle = color;
+    this.ctx.shadowColor = color;
+    this.ctx.shadowBlur  = 20;
+  }
+
+  private fillBlack() {
+    const c = this.canvasRef.nativeElement;
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0, 0, c.width, c.height);
+  }
+
+  private loadDrawingFromId(imageId: string) {
+    const url = this.imageService.getImageUrl(imageId);
+    if (!url) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (this.ctx) {
+        const c = this.canvasRef.nativeElement;
+        this.ctx.clearRect(0, 0, c.width, c.height);
+        this.fillBlack();
+        this.ctx.drawImage(img, 0, 0, c.width, c.height);
+        this.saveHistory();
+      }
+    };
+    img.src = url;
+  }
+
+  onCanvasMouseDown(e: MouseEvent) {
+    if (e.button !== 0) return;
+    this.drawing = true;
+    const r = this.canvasRef.nativeElement.getBoundingClientRect();
+    this.lastX = e.clientX - r.left;
+    this.lastY = e.clientY - r.top;
+    this.saveHistory();
+  }
+
+  onCanvasMouseMove(e: MouseEvent) {
+    if (!this.drawing) return;
+    const r = this.canvasRef.nativeElement.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    this.stroke(x, y);
+    this.lastX = x;
+    this.lastY = y;
+  }
+
+  onCanvasMouseUp()   { this.drawing = false; }
+  onCanvasMouseLeave(){ this.drawing = false; }
+
+  private stroke(x: number, y: number) {
+    if (this.isErasing()) {
+      this.ctx.globalCompositeOperation = 'destination-out';
+      this.ctx.lineWidth = 24;
+      this.ctx.shadowBlur = 0;
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.lastX, this.lastY);
+      this.ctx.lineTo(x, y);
+      this.ctx.stroke();
+      this.ctx.globalCompositeOperation = 'source-over';
+      this.ctx.lineWidth = 2;
+    } else {
+      // Multi-pass glow
+      const color = this.editRune.glowColor || '#8b5cf6';
+      this.ctx.strokeStyle = color;
+      this.ctx.shadowColor = color;
+      for (const blur of [30, 15, 6, 2]) {
+        this.ctx.shadowBlur = blur;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.lastX, this.lastY);
+        this.ctx.lineTo(x, y);
+        this.ctx.stroke();
+      }
+    }
+  }
+
+  setGlowColor(c: string) {
+    this.editRune.glowColor = c;
+    this.applyCtxSettings();
+  }
+
+  toggleEraser() { this.isErasing.set(!this.isErasing()); }
+  setDraw()      { this.isErasing.set(false); }
+
+  clearCanvas() {
+    if (!this.ctx) return;
+    const c = this.canvasRef.nativeElement;
+    this.ctx.clearRect(0, 0, c.width, c.height);
+    this.fillBlack();
+    this.applyCtxSettings();
+    this.undoHistory = [];
+    this.saveHistory();
+  }
+
+  undo() {
+    if (this.undoHistory.length <= 1) return;
+    this.undoHistory.pop();
+    const img = this.undoHistory[this.undoHistory.length - 1];
+    if (this.ctx) this.ctx.putImageData(img, 0, 0);
+  }
+
+  private saveHistory() {
+    if (!this.ctx) return;
+    const c = this.canvasRef.nativeElement;
+    const snap = this.ctx.getImageData(0, 0, c.width, c.height);
+    this.undoHistory.push(snap);
+    if (this.undoHistory.length > this.MAX_UNDO) this.undoHistory.shift();
+  }
+
+  async uploadCanvasAsImage() {
+    if (!this.canvasRef) return;
+    this.isSavingCanvas.set(true);
+    try {
+      const canvas = this.canvasRef.nativeElement;
+      const dataUrl = canvas.toDataURL('image/png');
+      const id = await this.imageService.uploadImage(dataUrl);
+      this.editRune.drawing = id;
+    } finally {
+      this.isSavingCanvas.set(false);
+    }
+  }
+
+  // ─── File upload ─────────────────────────────────────────────────────────
+
+  triggerFileUpload() { this.fileInputRef.nativeElement.click(); }
+
+  async onFileSelected(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file  = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      // Resize to 512×512 via offscreen canvas
+      const img = new Image();
+      img.onload = async () => {
+        const tmp = document.createElement('canvas');
+        tmp.width = tmp.height = 512;
+        const tc = tmp.getContext('2d')!;
+        tc.drawImage(img, 0, 0, 512, 512);
+        const resized = tmp.toDataURL('image/png');
+        const id = await this.imageService.uploadImage(resized);
+        this.editRune.drawing = id;
+        // Show draw panel with the uploaded image so user can annotate
+        this.showDrawPanel.set(true);
+        this.canvasReady = false;
+        this.cd.detectChanges();
+        setTimeout(() => this.initCanvas(), 0);
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+    input.value = '';
+  }
+
+  removeImage() {
+    this.editRune.drawing = '';
+    this.showDrawPanel.set(false);
+    this.undoHistory = [];
+    this.canvasReady = false;
+  }
+
+  // ─── Tags ─────────────────────────────────────────────────────────────────
+
+  addTag() {
+    const t = this.newTag.trim();
+    if (t && !this.editRune.tags.includes(t)) {
+      this.editRune.tags = [...this.editRune.tags, t];
+    }
+    this.newTag = '';
+  }
+
+  toggleTag(tag: string) {
+    if (this.editRune.tags.includes(tag)) {
+      this.editRune.tags = this.editRune.tags.filter(t => t !== tag);
+    } else {
+      this.editRune.tags = [...this.editRune.tags, tag];
+    }
+  }
+
+  removeTag(i: number) {
+    this.editRune.tags = this.editRune.tags.filter((_, idx) => idx !== i);
+  }
+
+  isTagActive(tag: string) { return this.editRune.tags.includes(tag); }
+
+  // ─── Save / Cancel ────────────────────────────────────────────────────────
+
+  async saveRune() {
+    // If draw panel is open, flush canvas to image before saving
+    if (this.showDrawPanel() && this.ctx) {
+      await this.uploadCanvasAsImage();
+    }
     this.save.emit(this.editRune);
   }
 
-  cancelEdit() {
-    this.cancel.emit();
-  }
+  cancelEdit() { this.cancel.emit(); }
 
   deleteRune() {
-    if (confirm('Rune wirklich löschen?')) {
-      this.delete.emit();
-    }
-  }
-
-  addTag() {
-    const tag = this.newTag.trim();
-    if (tag && !this.editRune.tags.includes(tag)) {
-      this.editRune.tags = [...this.editRune.tags, tag];
-      this.newTag = '';
-    }
-  }
-
-  addExistingTag(tag: string) {
-    if (!this.editRune.tags.includes(tag)) {
-      this.editRune.tags = [...this.editRune.tags, tag];
-    }
-  }
-
-  removeTag(index: number) {
-    this.editRune.tags = this.editRune.tags.filter((_, i) => i !== index);
-  }
-
-  isTagSelected(tag: string): boolean {
-    return this.editRune.tags.includes(tag);
+    if (confirm('Rune wirklich löschen?')) this.delete.emit();
   }
 }
