@@ -1,6 +1,6 @@
 import {
   Component, Input, Output, EventEmitter, OnInit, OnDestroy,
-  ElementRef, ViewChild, HostListener,
+  ElementRef, ViewChild, HostListener, ChangeDetectorRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -96,7 +96,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // ── Animation ─────────────────────────────────────────────────────────────
   private animFrame = 0;
 
-  constructor() {}
+  constructor(private cdr: ChangeDetectorRef) {}
 
   // ────────────────────────────────────────────────────────────────────────────
   ngOnInit() {
@@ -297,6 +297,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (this.isPanning) {
       this.panX = this.panStartPanX + (e.clientX - this.panStartX);
       this.panY = this.panStartPanY + (e.clientY - this.panStartY);
+      this.cdr.detectChanges();
       return;
     }
     if (this.draggingNodeId) {
@@ -307,6 +308,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
         node.y = world.y - this.dragOffsetY;
         this.nodeStates.get(node.id)!.node = node;
       }
+      this.cdr.detectChanges();
       return;
     }
     if (this.pending) {
@@ -314,20 +316,22 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       this.pending = { ...this.pending, toX: world.x, toY: world.y };
       // hover detection
       this.hoveredPort = this.findPortAt(world.x, world.y, 14);
+      this.cdr.detectChanges();
       return;
     }
     if (this.isDraggingStartNode) {
       const world = this.clientToWorld(e.clientX, e.clientY);
       this.graph.startNode.x = world.x - this.startNodeDragOffX;
       this.graph.startNode.y = world.y - this.startNodeDragOffY;
+      this.cdr.detectChanges();
     }
   }
 
   @HostListener('document:mouseup', ['$event'])
   onMouseUp(e: MouseEvent) {
-    if (this.isPanning) { this.isPanning = false; return; }
-    if (this.isDraggingStartNode) { this.isDraggingStartNode = false; return; }
-    if (this.draggingNodeId) { this.draggingNodeId = null; return; }
+    if (this.isPanning) { this.isPanning = false; this.cdr.detectChanges(); return; }
+    if (this.isDraggingStartNode) { this.isDraggingStartNode = false; this.cdr.detectChanges(); return; }
+    if (this.draggingNodeId) { this.draggingNodeId = null; this.cdr.detectChanges(); return; }
     if (this.pending) {
       const world = this.clientToWorld(e.clientX, e.clientY);
       const target = this.findPortAt(world.x, world.y, 14);
@@ -336,6 +340,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       }
       this.pending = null;
       this.hoveredPort = null;
+      this.cdr.detectChanges();
     }
   }
 
@@ -387,6 +392,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       types: port.types,
       kind: port.kind,
     };
+    this.cdr.detectChanges();
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -477,6 +483,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   onCanvasDrop(e: DragEvent) {
     e.preventDefault();
+    e.stopPropagation();
     const runeName = e.dataTransfer!.getData('runeName');
     if (!runeName) return;
     const world = this.clientToWorld(e.clientX, e.clientY);
