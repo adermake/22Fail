@@ -1,3 +1,5 @@
+import { SpellGraph } from '../shared/spell-node-editor/spell-node.model';
+
 export interface SpellBinding {
   type: 'learned' | 'item';
   itemName?: string; // Only for item-bound spells
@@ -14,6 +16,7 @@ export class SpellBlock {
   strokeColor?: string; // Color for the spell drawing stroke (default: #673ab7)
   libraryOrigin?: string; // Library ID if this spell came from a library (undefined for custom spells)
   libraryOriginName?: string; // Human-readable library name
+  graph?: SpellGraph; // Node-based spell construction graph
 }
 
 export const SPELL_GLOW_COLORS = [

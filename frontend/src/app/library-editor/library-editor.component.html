@@ -379,8 +379,9 @@
               />
             }
             @case ('spell') {
-              <app-spell-editor
+              <app-spell-node-editor
                 [spell]="editingFile()!.data"
+                [availableRunes]="availableRunesAsBlocks"
                 (save)="saveEditor($event)"
                 (cancel)="closeEditor()"
               />

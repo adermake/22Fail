@@ -1,7 +1,7 @@
 <app-card>
   <div class="spells-header">
-    <h2>Spells</h2>
-    <button class="add-btn" (click)="openCreateDialog()">+ Add Spell</button>
+    <h2>Zauber</h2>
+    <button class="add-btn" (click)="openNodeEditor(null)">+ Neuer Zauber</button>
   </div>
 
   <div class="spells-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
@@ -15,6 +15,7 @@
         (patch)="updateSpell(i, $event)"
         (delete)="deleteSpell(i)"
         (editingChange)="onEditingChange(i, $event)"
+        (openEditor)="openNodeEditor(i)"
       ></app-spell>
       <div
         class="drag-placeholder-wrapper"
@@ -24,21 +25,18 @@
       ></div>
     </div>
     } @if ((sheet.spells || []).length === 0) {
-    <p class="empty-message">No spells yet. Click + to add one.</p>
+    <p class="empty-message">Noch keine Zauber. Klicke + um einen zu erstellen.</p>
     }
   </div>
-
-  <!-- Create Dialog -->
-  @if (showCreateDialog) {
-  <div class="dialog-overlay" (click)="closeCreateDialog()">
-    <div class="dialog-content" (click)="$event.stopPropagation()">
-      <h3>Create New Spell</h3>
-      <app-spell-creator
-        [sheet]="sheet"
-        (create)="createSpell($event)"
-        (cancel)="closeCreateDialog()"
-      ></app-spell-creator>
-    </div>
-  </div>
-  }
 </app-card>
+
+<!-- Spell Node Editor (fullscreen) -->
+@if (showNodeEditor) {
+  <app-spell-node-editor
+    [spell]="nodeEditorSpell"
+    [availableRunes]="learnedRunes"
+    (save)="saveFromNodeEditor($event)"
+    (cancel)="closeNodeEditor()"
+    (deleteSpell)="deleteSpell(nodeEditorSpellIndex!); closeNodeEditor()">
+  </app-spell-node-editor>
+}

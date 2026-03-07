@@ -5,13 +5,14 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { SpellComponent } from '../spell/spell.component';
 import { CardComponent } from '../../shared/card/card.component';
-import { SpellCreatorComponent } from '../spell-creator/spell-creator.component';
 import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { SpellBlock } from '../../model/spell-block-model';
+import { RuneBlock } from '../../model/rune-block.model';
+import { SpellNodeEditorComponent } from '../../shared/spell-node-editor/spell-node-editor.component';
 
 @Component({
   selector: 'app-spells',
-  imports: [CommonModule, SpellComponent, CardComponent, SpellCreatorComponent, DragDropModule, FormsModule],
+  imports: [CommonModule, SpellComponent, CardComponent, DragDropModule, FormsModule, SpellNodeEditorComponent],
   templateUrl: './spells.component.html',
   styleUrl: './spells.component.css',
 })
@@ -24,6 +25,17 @@ export class SpellsComponent {
   showCreateDialog = false;
   placeholderHeight = '90px';
   placeholderWidth = '100%';
+
+  // Node editor state
+  showNodeEditor = false;
+  nodeEditorSpellIndex: number | null = null;
+  get nodeEditorSpell(): SpellBlock | null {
+    if (this.nodeEditorSpellIndex === null) return null;
+    return this.sheet.spells[this.nodeEditorSpellIndex] ?? null;
+  }
+  get learnedRunes(): RuneBlock[] {
+    return ((this.sheet.runes || []).filter(r => r !== null)) as RuneBlock[];
+  }
 
   constructor(private cd: ChangeDetectorRef) {}
 
@@ -39,6 +51,30 @@ export class SpellsComponent {
 
   closeCreateDialog() {
     this.showCreateDialog = false;
+  }
+
+  // Node editor
+  openNodeEditor(index: number | null) {
+    this.nodeEditorSpellIndex = index;
+    this.showNodeEditor = true;
+  }
+
+  closeNodeEditor() {
+    this.showNodeEditor = false;
+    this.nodeEditorSpellIndex = null;
+  }
+
+  saveFromNodeEditor(spell: SpellBlock) {
+    if (this.nodeEditorSpellIndex === null) {
+      // new spell
+      this.sheet.spells = [...this.sheet.spells, spell];
+    } else {
+      const spells = [...this.sheet.spells];
+      spells[this.nodeEditorSpellIndex] = spell;
+      this.sheet.spells = spells;
+    }
+    this.patch.emit({ path: 'spells', value: this.sheet.spells });
+    this.closeNodeEditor();
   }
 
   createSpell(spell: SpellBlock) {

@@ -239,14 +239,15 @@
   </app-rune-editor>
 }
 
-<!-- Spell Editor Dialog -->
+<!-- Spell Node Editor Dialog -->
 @if (editingSpellIndex !== null && world.spellLibrary[editingSpellIndex]) {
-  <app-spell-editor
+  <app-spell-node-editor
     [spell]="world.spellLibrary[editingSpellIndex]"
+    [availableRunes]="mergedRunes()"
     (save)="updateSpell(editingSpellIndex, { path: '', value: $event }); closeSpellEditorDialog()"
     (cancel)="closeSpellEditorDialog()"
-    (delete)="removeSpell(editingSpellIndex); closeSpellEditorDialog()">
-  </app-spell-editor>
+    (deleteSpell)="removeSpell(editingSpellIndex); closeSpellEditorDialog()">
+  </app-spell-node-editor>
 }
 
 <!-- Skill Editor Dialog -->

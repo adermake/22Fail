@@ -1,0 +1,233 @@
+<div class="sne-overlay">
+  <div class="sne-layout">
+
+    <!-- ── LEFT PALETTE ─────────────────────────────────────────── -->
+    <aside class="rune-palette">
+      <div class="palette-header">
+        <span class="palette-title">Runen</span>
+      </div>
+      <div class="palette-search-wrap">
+        <input class="palette-search" type="text" [(ngModel)]="paletteSearch"
+               placeholder="Suchen…" autocomplete="off"/>
+      </div>
+      <div class="palette-list">
+        @for (rune of filteredPaletteRunes; track trackByName($index, rune)) {
+          <div class="palette-rune"
+               draggable="true"
+               (dragstart)="onPaletteDragStart($event, rune)"
+               [style.--glow]="rune.glowColor || '#8b5cf6'">
+            <div class="palette-rune-glyph">
+              @if (rune.drawing) {
+                <img [src]="rune.drawing | imageUrl" class="palette-rune-img" [alt]="rune.name"/>
+              } @else {
+                <span class="palette-rune-icon">✦</span>
+              }
+            </div>
+            <div class="palette-rune-info">
+              <div class="palette-rune-name">{{ rune.name }}</div>
+              @if (rune.tags?.length) {
+                <div class="palette-rune-tags">{{ rune.tags!.join(' · ') }}</div>
+              }
+            </div>
+          </div>
+        }
+        @if (filteredPaletteRunes.length === 0) {
+          <div class="palette-empty">Keine Runen gefunden</div>
+        }
+      </div>
+    </aside>
+
+    <!-- ── MAIN AREA ─────────────────────────────────────────────── -->
+    <div class="sne-main">
+
+      <!-- Top bar -->
+      <div class="sne-topbar">
+        <div class="sne-topbar-left">
+          <input class="spell-name-input" type="text" [(ngModel)]="spellName"
+                 placeholder="Zaubername…"/>
+          <input class="spell-desc-input" type="text" [(ngModel)]="spellDescription"
+                 placeholder="Beschreibung…"/>
+        </div>
+        <div class="sne-topbar-right">
+          @if (!isNewSpell) {
+            <button class="tb-btn tb-delete" (click)="onDelete()">Löschen</button>
+          }
+          <button class="tb-btn tb-cancel" (click)="onCancel()">Abbrechen</button>
+          <button class="tb-btn tb-save" (click)="onSave()">Zauber speichern</button>
+        </div>
+      </div>
+
+      <!-- Canvas -->
+      <div class="canvas-wrap"
+           #canvasWrap
+           (wheel)="onWheel($event)"
+           (mousedown)="onCanvasMouseDown($event)"
+           (drop)="onCanvasDrop($event)"
+           (dragover)="onCanvasDragOver($event)">
+
+        <!-- Grid bg (visual only) -->
+        <svg class="canvas-grid-svg" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="smallGrid" [attr.width]="20*zoom" [attr.height]="20*zoom"
+                     [attr.x]="panX % (20*zoom)" [attr.y]="panY % (20*zoom)"
+                     patternUnits="userSpaceOnUse">
+              <path [attr.d]="'M '+(20*zoom)+' 0 L 0 0 0 '+(20*zoom)"
+                    fill="none" stroke="rgba(139,92,246,0.07)" stroke-width="0.5"/>
+            </pattern>
+            <pattern id="bigGrid" [attr.width]="100*zoom" [attr.height]="100*zoom"
+                     [attr.x]="panX % (100*zoom)" [attr.y]="panY % (100*zoom)"
+                     patternUnits="userSpaceOnUse">
+              <rect [attr.width]="100*zoom" [attr.height]="100*zoom"
+                    fill="url(#smallGrid)"/>
+              <path [attr.d]="'M '+(100*zoom)+' 0 L 0 0 0 '+(100*zoom)"
+                    fill="none" stroke="rgba(139,92,246,0.14)" stroke-width="1"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#bigGrid)" class="svg-bg"/>
+        </svg>
+
+        <!-- World (zoom+pan transform) -->
+        <div class="canvas-world" [style.transform]="transformStyle">
+
+          <!-- SVG connection layer -->
+          <svg class="conn-svg" xmlns="http://www.w3.org/2000/svg"
+               #svgLayer
+               overflow="visible">
+
+            <!-- Existing connections -->
+            @for (c of graph.connections; track trackById($index, c)) {
+              <g class="conn-group" (click)="selectConnection(c.id, $event)">
+                <!-- Outer glow -->
+                <path class="conn-path-glow"
+                      [attr.d]="connectionPath(c)"
+                      [attr.stroke]="connectionColor(c)"
+                      [class.conn-selected]="isConnectionSelected(c.id)"
+                      [class.conn-loop]="c.isLoop"/>
+                <!-- Main line -->
+                <path class="conn-path"
+                      [attr.d]="connectionPath(c)"
+                      [attr.stroke]="connectionColor(c)"
+                      [class.conn-selected]="isConnectionSelected(c.id)"
+                      [class.conn-loop]="c.isLoop"/>
+
+                <!-- Loop badge -->
+                @if (c.isLoop) {
+                  <g [attr.transform]="'translate('+loopMidPoint(c).x+','+loopMidPoint(c).y+')'">
+                    <circle r="14" class="loop-badge-bg"/>
+                    <text class="loop-badge-count" text-anchor="middle" dominant-baseline="central">
+                      {{ c.loopCount ?? 1 }}
+                    </text>
+                  </g>
+                }
+
+                <!-- Delete hit area (only when selected) -->
+                @if (isConnectionSelected(c.id)) {
+                  <g [attr.transform]="'translate('+loopMidPoint(c).x+','+loopMidPoint(c).y+')'">
+                    <circle r="11" class="conn-delete-btn" (click)="removeConnection(c.id); $event.stopPropagation()"/>
+                    <text class="conn-delete-x" text-anchor="middle" dominant-baseline="central"
+                          (click)="removeConnection(c.id); $event.stopPropagation()">×</text>
+                  </g>
+                }
+              </g>
+            }
+
+            <!-- Pending connection being drawn -->
+            @if (pending) {
+              <path class="conn-path-pending"
+                    [attr.d]="pendingPath()"
+                    [attr.stroke]="pending.color"/>
+            }
+          </svg>
+
+          <!-- ── START NODE ──────────────────────────────────────────── -->
+          <div class="start-node"
+               [style.left.px]="graph.startNode.x - 34"
+               [style.top.px]="graph.startNode.y - 34"
+               (mousedown)="onStartNodeMouseDown($event)">
+            <div class="start-node-ring"></div>
+            <div class="start-node-core">
+              <span class="start-node-label">START</span>
+            </div>
+            <!-- Flow-out port -->
+            <div class="port-circle port-out port-flow start-port-out"
+                 [class.port-hovered]="isPortHovered('start','flow-out-0')"
+                 [style.--port-color]="'#ffffff'"
+                 (mousedown)="onPortMouseDown($event, 'start', 'flow-out-0')">
+            </div>
+          </div>
+
+          <!-- ── RUNE NODES ──────────────────────────────────────────── -->
+          @for (node of graph.nodes; track trackById($index, node); let ni = $index) {
+            @let rune = getNodeRune(node.id);
+            <div class="spell-node"
+                 [class.spell-node-drag]="draggingNodeId === node.id"
+                 [style.left.px]="node.x"
+                 [style.top.px]="node.y + nodeFloatY(ni)"
+                 [style.--glow]="nodeGlowColor(node.id)"
+                 [style.width.px]="NODE_W"
+                 (mousedown)="onNodeMouseDown($event, node.id)">
+
+              <!-- Node header -->
+              <div class="node-header">
+                @if (rune?.drawing) {
+                  <img class="node-thumb" [src]="rune!.drawing | imageUrl" [alt]="rune!.name"/>
+                } @else {
+                  <span class="node-thumb-placeholder">✦</span>
+                }
+                <span class="node-name">{{ rune?.name ?? node.runeId }}</span>
+                <button class="node-delete-btn" (click)="removeNode(node.id)">×</button>
+              </div>
+
+              <!-- Port rows -->
+              <div class="node-ports">
+                <div class="node-ports-col node-ports-left">
+                  @for (p of inputPorts(node.id); track p.id; let i = $index) {
+                    <div class="port-row">
+                      <div class="port-circle port-in"
+                           [class.port-flow]="p.types.length === 0"
+                           [class.port-hovered]="isPortHovered(node.id, p.id)"
+                           [style.--port-color]="p.color"
+                           (mousedown)="$event.stopPropagation()">
+                      </div>
+                      <span class="port-label port-label-in">{{ p.name }}</span>
+                    </div>
+                  }
+                </div>
+                <div class="node-ports-col node-ports-right">
+                  @for (p of outputPorts(node.id); track p.id; let i = $index) {
+                    <div class="port-row port-row-right">
+                      <span class="port-label port-label-out">{{ p.name }}</span>
+                      <div class="port-circle port-out"
+                           [class.port-flow]="p.types.length === 0"
+                           [class.port-hovered]="isPortHovered(node.id, p.id)"
+                           [style.--port-color]="p.color"
+                           (mousedown)="onPortMouseDown($event, node.id, p.id)">
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+
+            </div>
+          }
+
+        </div><!-- /canvas-world -->
+
+        <!-- Zoom controls -->
+        <div class="zoom-controls">
+          <button class="zoom-btn" (click)="zoomIn()"    title="Vergrößern">+</button>
+          <span   class="zoom-label">{{ (zoom * 100) | number:'1.0-0' }}%</span>
+          <button class="zoom-btn" (click)="zoomOut()"   title="Verkleinern">−</button>
+          <button class="zoom-btn" (click)="zoomReset()" title="Zurücksetzen">⌂</button>
+        </div>
+
+        <!-- Hint bar -->
+        <div class="canvas-hint">
+          Drag Rune aus Palette · Mausrad = Zoom · Klick+Ziehen = Schwenken · Port ziehen = Verbinden · Entf = Verbindung löschen
+        </div>
+
+      </div><!-- /canvas-wrap -->
+
+    </div><!-- /sne-main -->
+  </div><!-- /sne-layout -->
+</div><!-- /sne-overlay -->

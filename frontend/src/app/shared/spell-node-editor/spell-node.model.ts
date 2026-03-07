@@ -1,0 +1,96 @@
+/** Unique port kinds */
+export type PortKind = 'flow-in' | 'flow-out' | 'data-in' | 'data-out';
+
+/** A port on a node */
+export interface SpellPort {
+  id: string;          // unique within node: 'flow-in' | 'flow-out' | 'in-0' | 'out-1' etc.
+  kind: PortKind;
+  name: string;
+  color: string;       // hex color — white for flow
+  types: string[];     // empty = flow; otherwise data types
+}
+
+/** One rune node placed in the canvas */
+export interface SpellNode {
+  id: string;          // unique in graph
+  runeId: string;      // reference to RuneBlock (by name — since runes have no DB id)
+  x: number;
+  y: number;
+}
+
+/** A connection between two ports */
+export interface SpellConnection {
+  id: string;
+  fromNodeId: string;
+  fromPortId: string;
+  toNodeId: string;
+  toPortId: string;
+  isLoop?: boolean;
+  loopCount?: number;  // how many iterations when looped
+}
+
+/** The start node (special, not a rune) */
+export interface SpellStartNode {
+  x: number;
+  y: number;
+}
+
+/** The complete spell node graph */
+export interface SpellGraph {
+  startNode: SpellStartNode;
+  nodes: SpellNode[];
+  connections: SpellConnection[];
+}
+
+/** Computed port positions — calculated each render frame */
+export interface PortPosition {
+  nodeId: string;       // 'start' for the start circle
+  portId: string;
+  x: number;           // canvas world coordinates
+  y: number;
+  kind: PortKind;
+  color: string;
+  types: string[];
+}
+
+/** State of an in-progress connection drag */
+export interface PendingConnection {
+  fromNodeId: string;
+  fromPortId: string;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  color: string;
+  types: string[];      // empty = flow
+  kind: PortKind;       // kind of the source port
+}
+
+export const FLOW_COLOR = '#ffffff';
+export const FLOW_TYPE: string[] = [];
+
+/** Build ports list for a rune */
+export function buildRunePorts(rune: { inputs?: { name: string, color: string, types: string[] }[], outputs?: { name: string, color: string, types: string[] }[] }): SpellPort[] {
+  const ports: SpellPort[] = [];
+  ports.push({ id: 'flow-in',  kind: 'flow-in',  name: 'Fluss', color: FLOW_COLOR, types: FLOW_TYPE });
+  ports.push({ id: 'flow-out', kind: 'flow-out', name: 'Fluss', color: FLOW_COLOR, types: FLOW_TYPE });
+
+  (rune.inputs || []).forEach((dl, i) => {
+    ports.push({ id: `in-${i}`, kind: 'data-in', name: dl.name, color: dl.color, types: dl.types });
+  });
+  (rune.outputs || []).forEach((dl, i) => {
+    ports.push({ id: `out-${i}`, kind: 'data-out', name: dl.name, color: dl.color, types: dl.types });
+  });
+  return ports;
+}
+
+/** Can two ports be connected? */
+export function portsCompatible(from: SpellPort | PortPosition, to: SpellPort | PortPosition): boolean {
+  // flow → flow only
+  const fromIsFlow = from.types.length === 0;
+  const toIsFlow   = to.types.length === 0;
+  if (fromIsFlow !== toIsFlow) return false;
+  if (fromIsFlow && toIsFlow) return true;
+  // data: at least one type in common
+  return from.types.some(t => to.types.includes(t));
+}

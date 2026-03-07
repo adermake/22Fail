@@ -43,7 +43,7 @@ import {
 // Editor Components
 import { ItemEditorComponent } from '../sheet/item-editor/item-editor.component';
 import { RuneEditorComponent } from '../shared/rune-editor/rune-editor.component';
-import { SpellEditorComponent } from '../shared/spell-editor/spell-editor.component';
+import { SpellNodeEditorComponent } from '../shared/spell-node-editor/spell-node-editor.component';
 import { SkillEditorComponent } from '../shared/skill-editor/skill-editor.component';
 import { StatusEffectEditorComponent } from '../shared/status-effect-editor/status-effect-editor.component';
 import { MacroEditorComponent } from '../shared/macro-editor/macro-editor.component';
@@ -72,7 +72,7 @@ import { ImageUrlPipe } from '../shared/image-url.pipe';
     ImageUrlPipe,
     ItemEditorComponent,
     RuneEditorComponent,
-    SpellEditorComponent,
+    SpellNodeEditorComponent,
     SkillEditorComponent,
     StatusEffectEditorComponent,
     MacroEditorComponent,
@@ -326,6 +326,11 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   availableSpells = signal<AssetFile[]>([]);
   availableSkills = signal<AssetFile[]>([]);
   availableStatusEffects = signal<AssetFile[]>([]);
+
+  /** Computed RuneBlock array for the spell-node-editor */
+  get availableRunesAsBlocks(): import('../model/rune-block.model').RuneBlock[] {
+    return this.availableRunes().map(f => f.data as import('../model/rune-block.model').RuneBlock);
+  }
 
   async loadDependencyItems(): Promise<void> {
     const lib = this.library();
