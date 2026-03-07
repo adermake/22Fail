@@ -214,14 +214,20 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     // Rune nodes — ports centered vertically around the image center
     for (const ns of this.nodeStates.values()) {
       const n = ns.node;
+      const isNeutral = n.runeId === NEUTRAL_RUNE_ID;
       const ins  = ns.ports.filter(p => p.kind === 'flow-in'  || p.kind === 'data-in');
       const outs = ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out');
       const imgCY = n.y + this.NODE_IMG / 2;
 
+      // Neutral nodes inherit color/types from their connected input
+      const neutralInfo = isNeutral ? this.getNeutralPortInfo(n.id) : null;
+
       // Left edge (x = node.x), ports centered around image midpoint
       ins.forEach((p, i) => {
         result.push({
-          nodeId: n.id, portId: p.id, kind: p.kind, color: p.color, types: p.types,
+          nodeId: n.id, portId: p.id, kind: p.kind,
+          color: neutralInfo ? neutralInfo.color : p.color,
+          types: neutralInfo ? neutralInfo.types : p.types,
           x: n.x,
           y: imgCY - ((ins.length - 1) * this.PORT_GAP / 2) + i * this.PORT_GAP,
         });
@@ -230,13 +236,27 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       // Right edge (x = node.x + NODE_IMG)
       outs.forEach((p, i) => {
         result.push({
-          nodeId: n.id, portId: p.id, kind: p.kind, color: p.color, types: p.types,
+          nodeId: n.id, portId: p.id, kind: p.kind,
+          color: neutralInfo ? neutralInfo.color : p.color,
+          types: neutralInfo ? neutralInfo.types : p.types,
           x: n.x + this.NODE_IMG,
           y: imgCY - ((outs.length - 1) * this.PORT_GAP / 2) + i * this.PORT_GAP,
         });
       });
     }
     return result;
+  }
+
+  /** Returns the color+types flowing through a neutral node (derived from its single input connection). */
+  private getNeutralPortInfo(nodeId: string): { color: string; types: string[] } {
+    const inConn = this.graph.connections.find(c => c.toNodeId === nodeId && c.toPortId === 'neutral-in');
+    if (!inConn) return { color: '#6b7280', types: FLOW_TYPE };
+    if (inConn.fromNodeId === 'start') return { color: FLOW_COLOR, types: FLOW_TYPE };
+    const srcNs = this.nodeStates.get(inConn.fromNodeId);
+    if (!srcNs) return { color: '#6b7280', types: FLOW_TYPE };
+    const srcPort = srcNs.ports.find(p => p.id === inConn.fromPortId);
+    if (!srcPort) return { color: '#6b7280', types: FLOW_TYPE };
+    return { color: srcPort.color, types: srcPort.types };
   }
 
   private startNodeFlowOuts(): PortPosition[] {
@@ -300,18 +320,17 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return `M ${x1} ${y1} C ${x1 + force} ${y1} ${x2 - force} ${y2} ${x2} ${y2}`;
   }
 
-  // Loop connections arc upward with two extra control points to avoid going back through nodes
+  // Loop connections arc upward — clean parabolic arch directly above both endpoints
   private loopBezierPathScreen(c: SpellConnection): string {
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
     if (!from || !to) return '';
     const sf = this.worldToCanvasLocal(from.x, from.y);
     const st = this.worldToCanvasLocal(to.x,   to.y);
-    const midX = (sf.x + st.x) / 2;
     const rise = Math.max(80, Math.abs(sf.y - st.y) * 0.8 + 80) * this.zoom;
     const topY = Math.min(sf.y, st.y) - rise;
-    // Cubic bezier arcing well above both endpoints
-    return `M ${sf.x} ${sf.y} C ${sf.x + 60 * this.zoom} ${topY} ${st.x - 60 * this.zoom} ${topY} ${st.x} ${st.y}`;
+    // Control points sit directly above each endpoint → clean symmetric arch
+    return `M ${sf.x} ${sf.y} C ${sf.x} ${topY} ${st.x} ${topY} ${st.x} ${st.y}`;
   }
 
   private resolvePortWorldPos(nodeId: string, portId: string): { x: number; y: number } | null {
@@ -608,31 +627,26 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   canConnect(pending: PendingConnection, target: PortPosition): boolean {
-    // Neutral nodes accept any port type on either side
-    const pendingNodeIsNeutral = pending.fromNodeId !== 'start' &&
-      this.graph.nodes.find(n => n.id === pending.fromNodeId)?.runeId === NEUTRAL_RUNE_ID;
     const targetNodeIsNeutral = target.nodeId !== 'start' &&
       this.graph.nodes.find(n => n.id === target.nodeId)?.runeId === NEUTRAL_RUNE_ID;
     const pendingIsOutput = pending.kind === 'flow-out' || pending.kind === 'data-out';
-    // Target must be the opposite side
-    if (!targetNodeIsNeutral) {
-      if (pendingIsOutput) {
-        if (target.kind !== 'flow-in' && target.kind !== 'data-in') return false;
-      } else {
-        if (target.kind !== 'flow-out' && target.kind !== 'data-out') return false;
-      }
+    // Direction check: target must be the opposite side
+    if (pendingIsOutput) {
+      if (target.kind !== 'flow-in' && target.kind !== 'data-in') return false;
+    } else {
+      if (target.kind !== 'flow-out' && target.kind !== 'data-out') return false;
     }
     // Same node not allowed
     if (pending.fromNodeId === target.nodeId) return false;
-    // Type compatibility: neutral skips type check
-    if (!pendingNodeIsNeutral && !targetNodeIsNeutral) {
-      const fromTypes = pending.types;
-      const toTypes   = target.types;
-      const fromFlow  = fromTypes.length === 0;
-      const toFlow    = toTypes.length   === 0;
-      if (fromFlow !== toFlow) return false;
-      if (!fromFlow && !toFlow && !fromTypes.some(t => toTypes.includes(t))) return false;
-    }
+    // neutral-in accepts any type — bypass type check only when connecting INTO it
+    if (targetNodeIsNeutral && target.portId === 'neutral-in') return true;
+    // Normal type compatibility
+    const fromTypes = pending.types;
+    const toTypes   = target.types;
+    const fromFlow  = fromTypes.length === 0;
+    const toFlow    = toTypes.length   === 0;
+    if (fromFlow !== toFlow) return false;
+    if (!fromFlow && !toFlow && !fromTypes.some(t => toTypes.includes(t))) return false;
     return true;
   }
 
@@ -653,9 +667,10 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     );
     if (duplicate) return;
 
-    // data-in ports only allow one incoming connection — remove the old one
+    // data-in ports and neutral-in only allow one incoming connection — remove the old one
     const targetPortKind = target.kind;
-    if (targetPortKind === 'data-in') {
+    const isNeutralIn = toPortId === 'neutral-in';
+    if (targetPortKind === 'data-in' || isNeutralIn) {
       const old = this.graph.connections.find(
         c => c.toNodeId === toNodeId && c.toPortId === toPortId
       );
@@ -818,16 +833,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   neutralNodeColor(nodeId: string): string {
-    const conn = this.graph.connections.find(
-      c => c.fromNodeId === nodeId || c.toNodeId === nodeId
-    );
-    if (conn) {
-      const srcPort = this.allPortPositions().find(
-        p => p.nodeId === conn.fromNodeId && p.portId === conn.fromPortId
-      );
-      if (srcPort && srcPort.color !== FLOW_COLOR) return srcPort.color;
-    }
-    return '#6b7280';
+    return this.getNeutralPortInfo(nodeId).color;
   }
 
   nodeIndexForFloat(nodeId: string): number {
@@ -886,8 +892,14 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       const st = this.worldToCanvasLocal(to.x,   to.y);
       const rise = Math.max(80, Math.abs(sf.y - st.y) * 0.8 + 80) * this.zoom;
       const topY = Math.min(sf.y, st.y) - rise;
-      // Badge sits at the apex of the arc (horizontal midpoint)
-      return { x: (sf.x + st.x) / 2, y: topY };
+      // Exact t=0.5 on M sf C sf,topY st,topY st:
+      // B(0.5) = (1/8)*P0 + (3/8)*P1 + (3/8)*P2 + (1/8)*P3
+      // bx = (4*sf.x + 4*st.x)/8 = (sf.x+st.x)/2
+      // by = (sf.y + 3*topY + 3*topY + st.y)/8 = (sf.y + st.y + 6*topY) / 8
+      return {
+        x: (sf.x + st.x) / 2,
+        y: (sf.y + st.y + 6 * topY) / 8,
+      };
     }
     const mp = this.loopMidPoint(c);
     return this.worldToCanvasLocal(mp.x, mp.y);

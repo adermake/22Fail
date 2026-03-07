@@ -690,44 +690,60 @@
   justify-content: center;
 }
 
+/* Rotating hollow circle with glowing border and vertical divider line */
 .neutral-node-body {
-  display: flex;
-  flex-direction: row;
-  width: 60px;
-  height: 36px;
-  overflow: hidden;
-  border-radius: 18px;
-  box-shadow: 0 0 14px color-mix(in srgb, var(--nc, #6b7280) 40%, transparent);
-  transition: box-shadow 0.3s;
-}
-.neutral-half {
-  flex: 1;
-  height: 100%;
-}
-.neutral-half-in {
-  background: color-mix(in srgb, var(--nc, #6b7280) 30%, #07090f);
-  border-right: 1px solid color-mix(in srgb, var(--nc, #6b7280) 50%, transparent);
-  border-radius: 18px 0 0 18px;
-}
-.neutral-half-out {
-  background: color-mix(in srgb, var(--nc, #6b7280) 55%, #07090f);
-  border-radius: 0 18px 18px 0;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid var(--nc, #6b7280);
+  box-shadow:
+    0 0 10px 3px color-mix(in srgb, var(--nc, #6b7280) 55%, transparent),
+    inset 0 0 8px color-mix(in srgb, var(--nc, #6b7280) 15%, transparent);
+  position: relative;
+  animation: neutral-spin 5s linear infinite;
+  flex-shrink: 0;
 }
 
-/* Palette preview for neutral */
+.neutral-node-body::after {
+  content: '';
+  position: absolute;
+  top: 12%;
+  bottom: 12%;
+  left: calc(50% - 1px);
+  width: 2px;
+  border-radius: 1px;
+  background: var(--nc, #6b7280);
+  box-shadow: 0 0 5px 1px color-mix(in srgb, var(--nc, #6b7280) 70%, transparent);
+}
+
+@keyframes neutral-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Palette preview for neutral — small rotating circle */
 .palette-neutral-icon {
-  display: flex;
-  width: 30px;
-  height: 18px;
-  border-radius: 9px;
-  overflow: hidden;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid var(--glow, #6b7280);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--glow, #6b7280) 55%, transparent);
+  position: relative;
+  animation: neutral-spin 5s linear infinite;
+  flex-shrink: 0;
 }
-.pni-half {
-  flex: 1;
-  height: 100%;
+
+.palette-neutral-icon::after {
+  content: '';
+  position: absolute;
+  top: 15%;
+  bottom: 15%;
+  left: calc(50% - 0.75px);
+  width: 1.5px;
+  border-radius: 1px;
+  background: var(--glow, #6b7280);
 }
-.pni-left  { background: rgba(107,114,128,0.4); border-right: 1px solid rgba(107,114,128,0.6); border-radius: 9px 0 0 9px; }
-.pni-right { background: rgba(107,114,128,0.7); border-radius: 0 9px 9px 0; }
 
 .palette-rune-neutral { border-color: rgba(107,114,128,0.25) !important; }
 

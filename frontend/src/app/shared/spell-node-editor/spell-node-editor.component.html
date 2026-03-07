@@ -19,10 +19,7 @@
                [style.--glow]="rune.name === NEUTRAL_RUNE_ID ? '#6b7280' : (rune.glowColor || '#8b5cf6')">
             <div class="palette-rune-glyph">
               @if (rune.name === NEUTRAL_RUNE_ID) {
-                <div class="palette-neutral-icon">
-                  <div class="pni-half pni-left"></div>
-                  <div class="pni-half pni-right"></div>
-                </div>
+                <div class="palette-neutral-icon"></div>
               } @else if (rune.drawing) {
                 <img [src]="rune.drawing | imageUrl" class="palette-rune-img" [alt]="rune.name"/>
               } @else {
@@ -162,10 +159,7 @@
               <!-- Rune image / placeholder. Neutral node uses half-circle design -->
               @if (isNeutral) {
                 <div class="neutral-node-wrap">
-                  <div class="neutral-node-body" [style.--nc]="neutralNodeColor(node.id)">
-                    <div class="neutral-half neutral-half-in"></div>
-                    <div class="neutral-half neutral-half-out"></div>
-                  </div>
+                  <div class="neutral-node-body" [style.--nc]="neutralNodeColor(node.id)"></div>
                 </div>
               } @else if (rune?.drawing) {
                 <img class="rune-node-img" [src]="rune!.drawing | imageUrl" [alt]="rune!.name"/>
