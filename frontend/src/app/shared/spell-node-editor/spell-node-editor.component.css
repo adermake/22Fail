@@ -307,6 +307,19 @@
   pointer-events: none;
 }
 
+/* Full-size screen-space SVG overlay for existing connections.
+   Lives in canvas-wrap (not canvas-world) — avoids zero-size SVG viewport issues. */
+.conn-overlay-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 5;
+}
+.conn-overlay-svg .conn-group { pointer-events: all; cursor: pointer; }
+
 /* Full-size screen-space SVG overlay for the pending (in-progress) connection line.
    Lives directly in canvas-wrap, not inside canvas-world, so no coordinate transform
    is needed. Signals drive its reactivity in Angular 21 zoneless mode. */

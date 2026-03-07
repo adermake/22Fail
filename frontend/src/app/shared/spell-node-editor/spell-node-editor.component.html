@@ -89,52 +89,6 @@
         <!-- World (zoom+pan transform) -->
         <div class="canvas-world" [style.transform]="transformStyle">
 
-          <!-- SVG connection layer -->
-          <svg class="conn-svg" xmlns="http://www.w3.org/2000/svg"
-               #svgLayer
-               overflow="visible">
-
-            <!-- Existing connections -->
-            @for (c of graphConnectionsSig(); track trackById($index, c)) {
-              <g class="conn-group" (click)="selectConnection(c.id, $event)">
-                <!-- Outer glow -->
-                <path class="conn-path-glow"
-                      [attr.d]="connectionPath(c)"
-                      [attr.stroke]="connectionColor(c)"
-                      [class.conn-selected]="isConnectionSelected(c.id)"
-                      [class.conn-loop]="c.isLoop"/>
-                <!-- Main line -->
-                <path class="conn-path"
-                      [attr.d]="connectionPath(c)"
-                      [attr.stroke]="connectionColor(c)"
-                      [class.conn-selected]="isConnectionSelected(c.id)"
-                      [class.conn-loop]="c.isLoop"/>
-
-                <!-- Loop badge -->
-                @if (c.isLoop) {
-                  <g [attr.transform]="'translate('+loopMidPoint(c).x+','+loopMidPoint(c).y+')'">
-                    <circle r="14" class="loop-badge-bg"/>
-                    <text class="loop-badge-count" text-anchor="middle" dominant-baseline="central">
-                      {{ c.loopCount ?? 1 }}
-                    </text>
-                  </g>
-                }
-
-                <!-- Delete hit area (only when selected) -->
-                @if (isConnectionSelected(c.id)) {
-                  <g [attr.transform]="'translate('+loopMidPoint(c).x+','+loopMidPoint(c).y+')'">
-                    <circle r="11" class="conn-delete-btn" (click)="removeConnection(c.id); $event.stopPropagation()"/>
-                    <text class="conn-delete-x" text-anchor="middle" dominant-baseline="central"
-                          (click)="removeConnection(c.id); $event.stopPropagation()">×</text>
-                  </g>
-                }
-              </g>
-            }
-
-            <!-- Pending connection being drawn -->
-            <!-- NOTE: pending line is rendered in the screen-space overlay SVG below -->
-          </svg>
-
           <!-- ── START NODE ──────────────────────────────────────────── -->
           <div class="start-node"
                [style.left.px]="graph.startNode.x - 34"
@@ -217,9 +171,44 @@
 
         </div><!-- /canvas-world -->
 
-        <!-- Pending connection overlay — in canvas-wrap space, not canvas-world.
-             Uses screen-space coordinates (worldToCanvasLocal) so it renders reliably
-             regardless of the canvas-world transform. Signal-driven: auto-updates. -->
+        <!-- Connection overlay — same canvas-wrap-local space as pending overlay.
+             Moved outside canvas-world to avoid zero-viewport SVG rendering issues.
+             Uses worldToCanvasLocal() to convert world coords → screen-space coords. -->
+        <svg class="conn-overlay-svg" xmlns="http://www.w3.org/2000/svg">
+          @for (c of graphConnectionsSig(); track trackById($index, c)) {
+            <g class="conn-group" (click)="selectConnection(c.id, $event)">
+              <path class="conn-path-glow"
+                    [attr.d]="connectionPathScreen(c)"
+                    [attr.stroke]="connectionColor(c)"
+                    [class.conn-selected]="isConnectionSelected(c.id)"
+                    [class.conn-loop]="c.isLoop"/>
+              <path class="conn-path"
+                    [attr.d]="connectionPathScreen(c)"
+                    [attr.stroke]="connectionColor(c)"
+                    [class.conn-selected]="isConnectionSelected(c.id)"
+                    [class.conn-loop]="c.isLoop"/>
+
+              @if (c.isLoop) {
+                <g [attr.transform]="'translate('+loopMidPointScreen(c).x+','+loopMidPointScreen(c).y+')'">
+                  <circle r="14" class="loop-badge-bg"/>
+                  <text class="loop-badge-count" text-anchor="middle" dominant-baseline="central">
+                    {{ c.loopCount ?? 1 }}
+                  </text>
+                </g>
+              }
+
+              @if (isConnectionSelected(c.id)) {
+                <g [attr.transform]="'translate('+loopMidPointScreen(c).x+','+loopMidPointScreen(c).y+')'">
+                  <circle r="11" class="conn-delete-btn" (click)="removeConnection(c.id); $event.stopPropagation()"/>
+                  <text class="conn-delete-x" text-anchor="middle" dominant-baseline="central"
+                        (click)="removeConnection(c.id); $event.stopPropagation()">×</text>
+                </g>
+              }
+            </g>
+          }
+        </svg>
+
+        <!-- Pending connection overlay -->
         @if (pending()) {
           <svg class="pending-overlay-svg" xmlns="http://www.w3.org/2000/svg">
             <path class="conn-path-pending"

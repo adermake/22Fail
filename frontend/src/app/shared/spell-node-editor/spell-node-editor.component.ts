@@ -639,6 +639,22 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
   }
 
+  // Screen-space (canvas-wrap-local) variants — used by the conn-svg overlay
+  // which lives outside canvas-world to avoid zero-size SVG viewport issues.
+  connectionPathScreen(c: SpellConnection): string {
+    const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
+    const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
+    if (!from || !to) return '';
+    const sf = this.worldToCanvasLocal(from.x, from.y);
+    const st = this.worldToCanvasLocal(to.x,   to.y);
+    return this.bezierPath(sf.x, sf.y, st.x, st.y);
+  }
+
+  loopMidPointScreen(c: SpellConnection): { x: number; y: number } {
+    const mp = this.loopMidPoint(c);
+    return this.worldToCanvasLocal(mp.x, mp.y);
+  }
+
   // Port's CSS top offset within the node div (world y → node-local px)
   portNodeTop(nodeId: string, portId: string): number {
     const pp   = this.portPortPos(nodeId, portId);
