@@ -535,6 +535,36 @@
   box-shadow: 0 0 20px var(--pc, #ffffff), 0 0 6px rgba(255,255,255,0.5);
 }
 
+/* ── Port state during an active connection drag ──────────────────────────── */
+
+/* Valid target: green glow, pulses to invite drop */
+.rune-port.rune-port-valid {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 14px #22c55e, 0 0 28px rgba(34,197,94,0.45) !important;
+  transform: scale(1.3);
+  animation: port-valid-pulse 0.85s ease-in-out infinite alternate;
+  background: rgba(34,197,94,0.15);
+  transition: none;
+}
+.rune-port.rune-port-valid.rune-port-hovered {
+  transform: scale(1.65) !important;
+  box-shadow: 0 0 24px #22c55e, 0 0 48px rgba(34,197,94,0.75) !important;
+  background: #22c55e !important;
+}
+
+@keyframes port-valid-pulse {
+  from { box-shadow: 0 0 10px #22c55e, 0 0 20px rgba(34,197,94,0.35); }
+  to   { box-shadow: 0 0 22px #22c55e, 0 0 44px rgba(34,197,94,0.65); }
+}
+
+/* Invalid target during drag: dimmed, pointer ignored */
+.rune-port.rune-port-invalid {
+  opacity: 0.25;
+  transform: scale(0.85);
+  pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
 /* Port label tooltip */
 .rune-port-tip {
   position: absolute;

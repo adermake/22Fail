@@ -353,7 +353,9 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (cur) {
       const world = this.clientToWorld(e.clientX, e.clientY);
       this.pending.set({ ...cur, toX: world.x, toY: world.y });
-      this.hoveredPort.set(this.findPortAt(world.x, world.y, 14));
+      // Only highlight ports that are VALID connection targets (input + compatible type)
+      const near = this.findPortAt(world.x, world.y, 22);
+      this.hoveredPort.set((near && this.canConnect(cur, near)) ? near : null);
       return;
     }
     if (this.isDraggingStartNode) {
@@ -369,9 +371,15 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (this.draggingNodeId)     { this.draggingNodeId = null; return; }
     const cur = this.pending();
     if (cur) {
-      const world = this.clientToWorld(e.clientX, e.clientY);
-      const target = this.findPortAt(world.x, world.y, 14);
-      if (target && this.canConnect(cur, target)) {
+      // Primary: use the hovered port already identified by the last mousemove.
+      // Fallback: scan a wider radius in case the cursor moved slightly on release.
+      const hovered = this.hoveredPort();
+      const world   = this.clientToWorld(e.clientX, e.clientY);
+      const scanned = this.findPortAt(world.x, world.y, 28);
+      const target  = (hovered && this.canConnect(cur, hovered)) ? hovered
+                    : (scanned && this.canConnect(cur, scanned)) ? scanned
+                    : null;
+      if (target) {
         this.createConnection(cur, target);
       }
       this.pending.set(null);
@@ -577,6 +585,20 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   isPortHovered(nodeId: string, portId: string): boolean {
     const h = this.hoveredPort();
     return h?.nodeId === nodeId && h?.portId === portId;
+  }
+
+  // True when a drag is active AND this port is a valid connection target
+  isPendingValidTarget(nodeId: string, portId: string): boolean {
+    const p = this.pending();
+    if (!p) return false;
+    const port = this.allPortPositions().find(pp => pp.nodeId === nodeId && pp.portId === portId);
+    return !!port && this.canConnect(p, port);
+  }
+
+  // True when a drag is active AND this port is NOT a valid target (dim it)
+  isPendingInvalidTarget(nodeId: string, portId: string): boolean {
+    if (!this.pending()) return false;
+    return !this.isPendingValidTarget(nodeId, portId);
   }
 
   isConnectionSelected(connId: string): boolean {
