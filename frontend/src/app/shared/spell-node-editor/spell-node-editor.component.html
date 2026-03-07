@@ -95,7 +95,7 @@
                overflow="visible">
 
             <!-- Existing connections -->
-            @for (c of graph.connections; track trackById($index, c)) {
+            @for (c of graphConnectionsSig(); track trackById($index, c)) {
               <g class="conn-group" (click)="selectConnection(c.id, $event)">
                 <!-- Outer glow -->
                 <path class="conn-path-glow"
@@ -153,7 +153,7 @@
           </div>
 
           <!-- ── RUNE NODES ──────────────────────────────────────────── -->
-          @for (node of graph.nodes; track trackById($index, node)) {
+          @for (node of graphNodesSig(); track trackById($index, node)) {
             @let rune = getNodeRune(node.id);
             <div class="rune-node"
                  [class.rune-node-drag]="draggingNodeId === node.id"
@@ -168,11 +168,10 @@
                      [class.rune-port-flow]="p.types.length === 0"
                      [class.rune-port-hovered]="isPortHovered(node.id, p.id)"
                      [class.rune-port-valid]="isPendingValidTarget(node.id, p.id)"
-                     [class.rune-port-invalid]="isPendingInvalidTarget(node.id, p.id)"
                      [style.--pc]="p.color"
                      [style.left.px]="-PORT_R"
                      [style.top.px]="portNodeTop(node.id, p.id)"
-                     (mousedown)="$event.stopPropagation()">
+                     (mousedown)="onPortMouseDown($event, node.id, p.id)">
                   <span class="rune-port-tip rune-port-tip-in">{{ p.name }}</span>
                 </div>
               }
@@ -182,7 +181,7 @@
                 <div class="rune-port rune-port-out"
                      [class.rune-port-flow]="p.types.length === 0"
                      [class.rune-port-hovered]="isPortHovered(node.id, p.id)"
-                     [class.rune-port-invalid]="isPendingInvalidTarget(node.id, p.id)"
+                     [class.rune-port-valid]="isPendingValidTarget(node.id, p.id)"
                      [style.--pc]="p.color"
                      [style.left.px]="NODE_IMG - PORT_R"
                      [style.top.px]="portNodeTop(node.id, p.id)"

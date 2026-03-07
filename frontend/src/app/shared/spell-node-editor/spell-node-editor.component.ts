@@ -87,8 +87,10 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   private dragOffsetY = 0;
 
   // Signals — drive template reactivity in Angular 21 zoneless
-  pending    = signal<PendingConnection | null>(null);
-  hoveredPort = signal<PortPosition | null>(null);
+  pending             = signal<PendingConnection | null>(null);
+  hoveredPort         = signal<PortPosition | null>(null);
+  graphNodesSig       = signal<SpellNode[]>([]);
+  graphConnectionsSig = signal<SpellConnection[]>([]);
   selectedConnectionId: string | null = null;
 
   // ── Start node flow-out drag counter ──────────────────────────────────────
@@ -114,6 +116,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       }
     }
     this.rebuildNodeStates();
+    this.graphNodesSig.set(this.graph.nodes);
+    this.graphConnectionsSig.set(this.graph.connections);
 
     // Register document-level mouse listeners manually so they always fire
     // and are not subject to zone/CD timing issues.
@@ -346,6 +350,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
         node.x = world.x - this.dragOffsetX;
         node.y = world.y - this.dragOffsetY;
         this.nodeStates.get(node.id)!.node = node;
+        this.graphNodesSig.set([...this.graph.nodes]); // new array ref triggers signal
       }
       return;
     }
@@ -366,25 +371,23 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   private handleMouseUp(e: MouseEvent) {
-    if (this.isPanning)          { this.isPanning = false; return; }
-    if (this.isDraggingStartNode){ this.isDraggingStartNode = false; return; }
-    if (this.draggingNodeId)     { this.draggingNodeId = null; return; }
+    // Check pending FIRST — a connection drag must never be eaten by panning/node-drag state
     const cur = this.pending();
     if (cur) {
-      // Primary: use the hovered port already identified by the last mousemove.
-      // Fallback: scan a wider radius in case the cursor moved slightly on release.
       const hovered = this.hoveredPort();
       const world   = this.clientToWorld(e.clientX, e.clientY);
       const scanned = this.findPortAt(world.x, world.y, 28);
       const target  = (hovered && this.canConnect(cur, hovered)) ? hovered
                     : (scanned && this.canConnect(cur, scanned)) ? scanned
                     : null;
-      if (target) {
-        this.createConnection(cur, target);
-      }
+      if (target) this.createConnection(cur, target);
       this.pending.set(null);
       this.hoveredPort.set(null);
+      return;
     }
+    if (this.isPanning)          { this.isPanning = false; return; }
+    if (this.isDraggingStartNode){ this.isDraggingStartNode = false; return; }
+    if (this.draggingNodeId)     { this.draggingNodeId = null; return; }
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -415,15 +418,13 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Port drag (start connection)
+  // Port drag (start connection) — any port kind allowed (bidirectional)
   onPortMouseDown(e: MouseEvent, nodeId: string, portId: string) {
     e.stopPropagation();
     e.preventDefault();
     const all = this.allPortPositions();
     const port = all.find(p => p.nodeId === nodeId && p.portId === portId);
     if (!port) return;
-    // Only start connections from outputs
-    if (port.kind !== 'flow-out' && port.kind !== 'data-out') return;
     this.pending.set({
       fromNodeId: nodeId,
       fromPortId: portId,
@@ -450,11 +451,16 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   canConnect(pending: PendingConnection, target: PortPosition): boolean {
-    // must be going to an input
-    if (target.kind !== 'flow-in' && target.kind !== 'data-in') return false;
-    // same node not allowed
+    const pendingIsOutput = pending.kind === 'flow-out' || pending.kind === 'data-out';
+    // Target must be the opposite side
+    if (pendingIsOutput) {
+      if (target.kind !== 'flow-in' && target.kind !== 'data-in') return false;
+    } else {
+      if (target.kind !== 'flow-out' && target.kind !== 'data-out') return false;
+    }
+    // Same node not allowed
     if (pending.fromNodeId === target.nodeId) return false;
-    // type compatibility
+    // Type compatibility
     const fromTypes = pending.types;
     const toTypes   = target.types;
     const fromFlow  = fromTypes.length === 0;
@@ -467,19 +473,22 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // ────────────────────────────────────────────────────────────────────────────
   // Connection creation + loop detection
   createConnection(pending: PendingConnection, target: PortPosition) {
+    // Normalize direction: fromPort is always the output side, toPort the input side
+    const pendingIsOutput = pending.kind === 'flow-out' || pending.kind === 'data-out';
     const conn: SpellConnection = {
       id: `conn-${this.nextId++}`,
-      fromNodeId: pending.fromNodeId,
-      fromPortId: pending.fromPortId,
-      toNodeId:   target.nodeId,
-      toPortId:   target.portId,
+      fromNodeId: pendingIsOutput ? pending.fromNodeId : target.nodeId,
+      fromPortId: pendingIsOutput ? pending.fromPortId : target.portId,
+      toNodeId:   pendingIsOutput ? target.nodeId      : pending.fromNodeId,
+      toPortId:   pendingIsOutput ? target.portId      : pending.fromPortId,
     };
-    // Check for cycle (only for flow connections)
+    // Check for cycle
     if (this.createsCycle(conn)) {
       conn.isLoop = true;
       conn.loopCount = 1;
     }
     this.graph.connections = [...this.graph.connections, conn];
+    this.graphConnectionsSig.set(this.graph.connections);
   }
 
   private createsCycle(newConn: SpellConnection): boolean {
@@ -509,6 +518,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   removeConnection(id: string) {
     this.graph.connections = this.graph.connections.filter(c => c.id !== id);
     if (this.selectedConnectionId === id) this.selectedConnectionId = null;
+    this.graphConnectionsSig.set(this.graph.connections);
   }
 
   selectConnection(id: string, e: MouseEvent) {
@@ -539,12 +549,15 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const node: SpellNode = { id, runeId: runeName, x, y };
     this.graph.nodes = [...this.graph.nodes, node];
     this.rebuildNodeStates();
+    this.graphNodesSig.set(this.graph.nodes);
   }
 
   removeNode(nodeId: string) {
     this.graph.nodes       = this.graph.nodes.filter(n => n.id !== nodeId);
     this.graph.connections = this.graph.connections.filter(c => c.fromNodeId !== nodeId && c.toNodeId !== nodeId);
     this.nodeStates.delete(nodeId);
+    this.graphNodesSig.set(this.graph.nodes);
+    this.graphConnectionsSig.set(this.graph.connections);
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -593,12 +606,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (!p) return false;
     const port = this.allPortPositions().find(pp => pp.nodeId === nodeId && pp.portId === portId);
     return !!port && this.canConnect(p, port);
-  }
-
-  // True when a drag is active AND this port is NOT a valid target (dim it)
-  isPendingInvalidTarget(nodeId: string, portId: string): boolean {
-    if (!this.pending()) return false;
-    return !this.isPendingValidTarget(nodeId, portId);
   }
 
   isConnectionSelected(connId: string): boolean {
