@@ -13,19 +13,25 @@
       <div class="palette-list">
         @for (rune of filteredPaletteRunes; track trackByName($index, rune)) {
           <div class="palette-rune"
+               [class.palette-rune-neutral]="rune.name === NEUTRAL_RUNE_ID"
                draggable="true"
                (dragstart)="onPaletteDragStart($event, rune)"
-               [style.--glow]="rune.glowColor || '#8b5cf6'">
+               [style.--glow]="rune.name === NEUTRAL_RUNE_ID ? '#6b7280' : (rune.glowColor || '#8b5cf6')">
             <div class="palette-rune-glyph">
-              @if (rune.drawing) {
+              @if (rune.name === NEUTRAL_RUNE_ID) {
+                <div class="palette-neutral-icon">
+                  <div class="pni-half pni-left"></div>
+                  <div class="pni-half pni-right"></div>
+                </div>
+              } @else if (rune.drawing) {
                 <img [src]="rune.drawing | imageUrl" class="palette-rune-img" [alt]="rune.name"/>
               } @else {
                 <span class="palette-rune-icon">✦</span>
               }
             </div>
             <div class="palette-rune-info">
-              <div class="palette-rune-name">{{ rune.name }}</div>
-              @if (rune.tags?.length) {
+              <div class="palette-rune-name">{{ rune.name === NEUTRAL_RUNE_ID ? 'Neutral' : rune.name }}</div>
+              @if (rune.name !== NEUTRAL_RUNE_ID && rune.tags?.length) {
                 <div class="palette-rune-tags">{{ rune.tags!.join(' · ') }}</div>
               }
             </div>
@@ -112,8 +118,10 @@
           <!-- ── RUNE NODES ──────────────────────────────────────────── -->
           @for (node of graphNodesSig(); track trackById($index, node)) {
             @let rune = getNodeRune(node.id);
+            @let isNeutral = node.runeId === NEUTRAL_RUNE_ID;
             <div class="rune-node"
                  [class.rune-node-drag]="draggingNodeId === node.id"
+                 [class.rune-node-selected]="isNodeSelected(node.id)"
                  [style.left.px]="node.x"
                  [style.top.px]="node.y"
                  [style.--glow]="nodeGlowColor(node.id)"
@@ -151,8 +159,13 @@
                 </div>
               }
 
-              <!-- Rune image / placeholder -->
-              @if (rune?.drawing) {
+              <!-- Rune image / placeholder. Neutral node uses half-circle design -->
+              @if (isNeutral) {
+                <div class="neutral-node-body" [style.--nc]="neutralNodeColor(node.id)">
+                  <div class="neutral-half neutral-half-in"></div>
+                  <div class="neutral-half neutral-half-out"></div>
+                </div>
+              } @else if (rune?.drawing) {
                 <img class="rune-node-img" [src]="rune!.drawing | imageUrl" [alt]="rune!.name"/>
               } @else {
                 <div class="rune-node-placeholder">
@@ -160,53 +173,90 @@
                 </div>
               }
 
-              <!-- Name label -->
-              <div class="rune-node-name">{{ rune?.name ?? node.runeId }}</div>
-
-              <!-- Delete button -->
-              <button class="rune-node-del" (click)="removeNode(node.id); $event.stopPropagation()">×</button>
+              <!-- Name label (hidden for neutral) -->
+              @if (!isNeutral) {
+                <div class="rune-node-name">{{ rune?.name ?? node.runeId }}</div>
+              }
 
             </div>
           }
 
         </div><!-- /canvas-world -->
 
-        <!-- Connection overlay — same canvas-wrap-local space as pending overlay.
-             Moved outside canvas-world to avoid zero-viewport SVG rendering issues.
-             Uses worldToCanvasLocal() to convert world coords → screen-space coords. -->
+        <!-- Connection overlay -->
         <svg class="conn-overlay-svg" xmlns="http://www.w3.org/2000/svg">
           @for (c of graphConnectionsSig(); track trackById($index, c)) {
-            <g class="conn-group" (click)="selectConnection(c.id, $event)">
+            <g class="conn-group"
+               (click)="selectConnection(c.id, $event)"
+               (contextmenu)="onConnectionRightClick(c, $event)">
               <path class="conn-path-glow"
                     [attr.d]="connectionPathScreen(c)"
                     [attr.stroke]="connectionColor(c)"
                     [class.conn-selected]="isConnectionSelected(c.id)"
-                    [class.conn-loop]="c.isLoop"/>
+                    [class.conn-loop]="c.isLoop"
+                    [class.conn-branch]="c.isBranch"/>
               <path class="conn-path"
                     [attr.d]="connectionPathScreen(c)"
                     [attr.stroke]="connectionColor(c)"
                     [class.conn-selected]="isConnectionSelected(c.id)"
-                    [class.conn-loop]="c.isLoop"/>
+                    [class.conn-loop]="c.isLoop"
+                    [class.conn-branch]="c.isBranch"/>
 
+              <!-- Loop badge: shows loopCount and lets user edit it -->
               @if (c.isLoop) {
                 <g [attr.transform]="'translate('+loopMidPointScreen(c).x+','+loopMidPointScreen(c).y+')'">
-                  <circle r="14" class="loop-badge-bg"/>
-                  <text class="loop-badge-count" text-anchor="middle" dominant-baseline="central">
-                    {{ c.loopCount ?? 1 }}
-                  </text>
+                  <circle r="16" class="loop-badge-bg"/>
+                  @if (editingConnId === c.id) {
+                    <foreignObject x="-14" y="-12" width="28" height="24">
+                      <input xmlns="http://www.w3.org/1999/xhtml"
+                             class="badge-input badge-input-number"
+                             type="number" min="1"
+                             [value]="c.loopCount ?? 1"
+                             (change)="setLoopCount(c.id, +$any($event.target).value)"
+                             (blur)="stopConnBadgeEdit($event)"
+                             (click)="$event.stopPropagation()"/>
+                    </foreignObject>
+                  } @else {
+                    <text class="loop-badge-count" text-anchor="middle" dominant-baseline="central"
+                          (click)="startConnBadgeEdit(c.id, $event)">{{ c.loopCount ?? 1 }}×</text>
+                  }
                 </g>
               }
 
-              @if (isConnectionSelected(c.id)) {
-                <g [attr.transform]="'translate('+loopMidPointScreen(c).x+','+loopMidPointScreen(c).y+')'">
-                  <circle r="11" class="conn-delete-btn" (click)="removeConnection(c.id); $event.stopPropagation()"/>
-                  <text class="conn-delete-x" text-anchor="middle" dominant-baseline="central"
-                        (click)="removeConnection(c.id); $event.stopPropagation()">×</text>
+              <!-- Branch label badge -->
+              @if (c.isBranch) {
+                <g [attr.transform]="'translate('+branchMidPointScreen(c).x+','+branchMidPointScreen(c).y+')'">
+                  <rect x="-30" y="-12" width="60" height="24" rx="6" class="branch-badge-bg"/>
+                  @if (editingConnId === c.id) {
+                    <foreignObject x="-28" y="-11" width="56" height="22">
+                      <input xmlns="http://www.w3.org/1999/xhtml"
+                             class="badge-input badge-input-text"
+                             type="text"
+                             [value]="c.branchLabel ?? ''"
+                             (input)="setBranchLabel(c.id, $any($event.target).value)"
+                             (blur)="stopConnBadgeEdit($event)"
+                             (click)="$event.stopPropagation()"
+                             placeholder="Label…"/>
+                    </foreignObject>
+                  } @else {
+                    <text class="branch-badge-label" text-anchor="middle" dominant-baseline="central"
+                          (click)="startConnBadgeEdit(c.id, $event)">{{ c.branchLabel || '?' }}</text>
+                  }
                 </g>
               }
             </g>
           }
         </svg>
+
+        <!-- Marquee selection overlay -->
+        @if (marqueeActive && (marqueeRect.w > 4 || marqueeRect.h > 4)) {
+          <div class="marquee-box"
+               [style.left.px]="marqueeRect.x"
+               [style.top.px]="marqueeRect.y"
+               [style.width.px]="marqueeRect.w"
+               [style.height.px]="marqueeRect.h">
+          </div>
+        }
 
         <!-- Pending connection overlay -->
         @if (pending()) {

@@ -8,7 +8,7 @@ import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
 import {
   SpellGraph, SpellNode, SpellConnection, SpellPort, PendingConnection, PortPosition,
-  buildRunePorts, portsCompatible, FLOW_COLOR, FLOW_TYPE,
+  buildRunePorts, portsCompatible, FLOW_COLOR, FLOW_TYPE, NEUTRAL_RUNE_ID,
 } from './spell-node.model';
 import { ImageUrlPipe } from '../image-url.pipe';
 
@@ -47,10 +47,21 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   paletteSearch = '';
   get filteredPaletteRunes(): RuneBlock[] {
     const q = this.paletteSearch.toLowerCase();
-    return this.availableRunes.filter(r =>
+    const filtered = this.availableRunes.filter(r =>
       r.name.toLowerCase().includes(q) ||
       (r.tags || []).some(t => t.toLowerCase().includes(q))
     );
+    // Neutral node is always pinned at the top; matches search on 'neutral' / empty query
+    const neutralMatches = !q || 'neutral'.includes(q);
+    if (neutralMatches) {
+      const neutralRune: RuneBlock = {
+        name: NEUTRAL_RUNE_ID,
+        glowColor: '#6b7280',
+        tags: ['neutral'],
+      } as RuneBlock;
+      return [neutralRune, ...filtered];
+    }
+    return filtered;
   }
 
   // ── Graph state ────────────────────────────────────────────────────────────
@@ -92,6 +103,22 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   graphNodesSig       = signal<SpellNode[]>([]);
   graphConnectionsSig = signal<SpellConnection[]>([]);
   selectedConnectionId: string | null = null;
+
+  // Multi-select
+  selectedNodeIds = new Set<string>();
+
+  // Marquee (selection box) state
+  marqueeActive = false;
+  marqueeStartX = 0;
+  marqueeStartY = 0;
+  marqueeEndX   = 0;
+  marqueeEndY   = 0;
+
+  // Inline editing state for connection badges
+  editingConnId: string | null = null;
+
+  // Expose for template
+  readonly NEUTRAL_RUNE_ID = NEUTRAL_RUNE_ID;
 
   // ── Start node flow-out drag counter ──────────────────────────────────────
   private nextId = 1;
@@ -155,13 +182,12 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const newMap = new Map<string, NodeState>();
     for (const node of this.graph.nodes) {
       const existing = this.nodeStates.get(node.id);
-      const rune = this.availableRunes.find(r => r.name === node.runeId);
-      const ports = rune ? buildRunePorts(rune) : [
+      const isNeutral = node.runeId === NEUTRAL_RUNE_ID;
+      const rune = isNeutral ? { name: NEUTRAL_RUNE_ID } : this.availableRunes.find(r => r.name === node.runeId);
+      const ports = rune ? buildRunePorts(rune as any) : [
         { id: 'flow-in',  kind: 'flow-in'  as const, name: 'Fluss', color: FLOW_COLOR, types: FLOW_TYPE },
         { id: 'flow-out', kind: 'flow-out' as const, name: 'Fluss', color: FLOW_COLOR, types: FLOW_TYPE },
       ];
-      const inputPorts  = ports.filter(p => p.kind === 'flow-in'  || p.kind === 'data-in');
-      const outputPorts = ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out');
       const h = this.NODE_IMG;
       newMap.set(node.id, {
         node,
@@ -274,15 +300,26 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return `M ${x1} ${y1} C ${x1 + force} ${y1} ${x2 - force} ${y2} ${x2} ${y2}`;
   }
 
+  // Loop connections arc upward with two extra control points to avoid going back through nodes
+  private loopBezierPathScreen(c: SpellConnection): string {
+    const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
+    const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
+    if (!from || !to) return '';
+    const sf = this.worldToCanvasLocal(from.x, from.y);
+    const st = this.worldToCanvasLocal(to.x,   to.y);
+    const midX = (sf.x + st.x) / 2;
+    const rise = Math.max(80, Math.abs(sf.y - st.y) * 0.8 + 80) * this.zoom;
+    const topY = Math.min(sf.y, st.y) - rise;
+    // Cubic bezier arcing well above both endpoints
+    return `M ${sf.x} ${sf.y} C ${sf.x + 60 * this.zoom} ${topY} ${st.x - 60 * this.zoom} ${topY} ${st.x} ${st.y}`;
+  }
+
   private resolvePortWorldPos(nodeId: string, portId: string): { x: number; y: number } | null {
     const all = this.allPortPositions();
     return all.find(p => p.nodeId === nodeId && p.portId === portId) ?? null;
   }
 
-  connectionColor(c: SpellConnection): string {
-    const from = this.allPortPositions().find(p => p.nodeId === c.fromNodeId && p.portId === c.fromPortId);
-    return from?.color ?? FLOW_COLOR;
-  }
+
 
   // ────────────────────────────────────────────────────────────────────────────
   // Coordinate helpers
@@ -332,9 +369,21 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Canvas mouse events (pan)
+  // Canvas mouse events (pan + marquee selection)
   onCanvasMouseDown(e: MouseEvent) {
-    if (e.target !== this.canvasEl() && !(e.target as Element).classList.contains('svg-bg')) return;
+    const isCanvas = e.target === this.canvasEl() || (e.target as Element).classList.contains('svg-bg');
+    if (!isCanvas) return;
+    // Clear single-node selection on canvas click, start marquee
+    if (e.button === 0) {
+      this.selectedConnectionId = null;
+      this.selectedNodeIds = new Set();
+      const rect = this.canvasEl().getBoundingClientRect();
+      this.marqueeActive = true;
+      this.marqueeStartX = e.clientX - rect.left;
+      this.marqueeStartY = e.clientY - rect.top;
+      this.marqueeEndX   = this.marqueeStartX;
+      this.marqueeEndY   = this.marqueeStartY;
+    }
     this.isPanning   = true;
     this.panStartX    = e.clientX;
     this.panStartY    = e.clientY;
@@ -344,6 +393,11 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // Document-level mouse handlers (registered manually in ngOnInit)
   private handleMouseMove(e: MouseEvent) {
+    if (this.marqueeActive) {
+      const rect = this.canvasEl().getBoundingClientRect();
+      this.marqueeEndX = e.clientX - rect.left;
+      this.marqueeEndY = e.clientY - rect.top;
+    }
     if (this.isPanning) {
       this.panX = this.panStartPanX + (e.clientX - this.panStartX);
       this.panY = this.panStartPanY + (e.clientY - this.panStartY);
@@ -351,12 +405,21 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     }
     if (this.draggingNodeId) {
       const world = this.clientToWorld(e.clientX, e.clientY);
-      const node = this.graph.nodes.find(n => n.id === this.draggingNodeId);
-      if (node) {
-        node.x = world.x - this.dragOffsetX;
-        node.y = world.y - this.dragOffsetY;
-        this.nodeStates.get(node.id)!.node = node;
-        this.graphNodesSig.set([...this.graph.nodes]); // new array ref triggers signal
+      const primaryNode = this.graph.nodes.find(n => n.id === this.draggingNodeId);
+      if (primaryNode) {
+        const newX = world.x - this.dragOffsetX;
+        const newY = world.y - this.dragOffsetY;
+        const dx = newX - primaryNode.x;
+        const dy = newY - primaryNode.y;
+        // Move all selected nodes by the same delta
+        for (const node of this.graph.nodes) {
+          if (this.selectedNodeIds.has(node.id)) {
+            node.x += dx;
+            node.y += dy;
+            this.nodeStates.get(node.id)!.node = node;
+          }
+        }
+        this.graphNodesSig.set([...this.graph.nodes]);
       }
       return;
     }
@@ -401,16 +464,58 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       this.hoveredPort.set(null);
       return;
     }
+    if (this.marqueeActive) {
+      this.marqueeActive = false;
+      this.finishMarqueeSelection();
+    }
     if (this.isPanning)          { this.isPanning = false; return; }
     if (this.isDraggingStartNode){ this.isDraggingStartNode = false; return; }
     if (this.draggingNodeId)     { this.draggingNodeId = null; return; }
   }
 
+  // Compute marquee rect in world space and select contained nodes
+  private finishMarqueeSelection() {
+    const ax = Math.min(this.marqueeStartX, this.marqueeEndX);
+    const ay = Math.min(this.marqueeStartY, this.marqueeEndY);
+    const bx = Math.max(this.marqueeStartX, this.marqueeEndX);
+    const by = Math.max(this.marqueeStartY, this.marqueeEndY);
+    const threshold = 6; // ignore tiny drags (clicks)
+    if ((bx - ax) < threshold && (by - ay) < threshold) return;
+    // Convert to world coords
+    const wa = { x: (ax - this.panX) / this.zoom, y: (ay - this.panY) / this.zoom };
+    const wb = { x: (bx - this.panX) / this.zoom, y: (by - this.panY) / this.zoom };
+    const selected = new Set<string>();
+    for (const node of this.graph.nodes) {
+      const nx = node.x, ny = node.y, nw = this.NODE_IMG, nh = this.NODE_IMG;
+      if (nx + nw >= wa.x && nx <= wb.x && ny + nh >= wa.y && ny <= wb.y) {
+        selected.add(node.id);
+      }
+    }
+    this.selectedNodeIds = selected;
+  }
+
+  get marqueeRect(): { x: number; y: number; w: number; h: number } {
+    return {
+      x: Math.min(this.marqueeStartX, this.marqueeEndX),
+      y: Math.min(this.marqueeStartY, this.marqueeEndY),
+      w: Math.abs(this.marqueeEndX - this.marqueeStartX),
+      h: Math.abs(this.marqueeEndY - this.marqueeStartY),
+    };
+  }
+
+  isNodeSelected(nodeId: string): boolean {
+    return this.selectedNodeIds.has(nodeId);
+  }
+
   // ────────────────────────────────────────────────────────────────────────────
-  // Node drag
+  // Node drag — if part of selection, move all selected nodes together
   onNodeMouseDown(e: MouseEvent, nodeId: string) {
     e.stopPropagation();
     if ((e.target as Element).closest('.rune-port')) return;
+    // If clicking a selected node, ensure it stays selected (don't clear)
+    if (!this.selectedNodeIds.has(nodeId)) {
+      this.selectedNodeIds = new Set([nodeId]);
+    }
     const node = this.graph.nodes.find(n => n.id === nodeId)!;
     const world = this.clientToWorld(e.clientX, e.clientY);
     this.draggingNodeId = nodeId;
@@ -435,12 +540,43 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // ────────────────────────────────────────────────────────────────────────────
   // Port drag (start connection) — any port kind allowed (bidirectional)
+  // If clicking an INPUT port that already has a connection:
+  //   - data-in (single): picks up the existing connection (removes it, starts dragging from source)
+  //   - flow-in (multi): always creates a new connection
   onPortMouseDown(e: MouseEvent, nodeId: string, portId: string) {
     e.stopPropagation();
     e.preventDefault();
     const all = this.allPortPositions();
     const port = all.find(p => p.nodeId === nodeId && p.portId === portId);
     if (!port) return;
+
+    // Pick up existing connection from a data-in port
+    if (port.kind === 'data-in') {
+      const existing = this.graph.connections.find(
+        c => c.toNodeId === nodeId && c.toPortId === portId
+      );
+      if (existing) {
+        // Remove the connection and start dragging it from its source port
+        const srcPort = all.find(p => p.nodeId === existing.fromNodeId && p.portId === existing.fromPortId);
+        this.removeConnection(existing.id);
+        if (srcPort) {
+          this.pending.set({
+            fromNodeId: srcPort.nodeId,
+            fromPortId: srcPort.portId,
+            fromX: srcPort.x,
+            fromY: srcPort.y,
+            toX: port.x,
+            toY: port.y,
+            color: srcPort.color,
+            types: srcPort.types,
+            kind: srcPort.kind,
+          });
+          return;
+        }
+        return; // source port not found — just deleted the connection
+      }
+    }
+
     this.pending.set({
       fromNodeId: nodeId,
       fromPortId: portId,
@@ -467,22 +603,31 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   canConnect(pending: PendingConnection, target: PortPosition): boolean {
+    // Neutral nodes accept any port type on either side
+    const pendingNodeIsNeutral = pending.fromNodeId !== 'start' &&
+      this.graph.nodes.find(n => n.id === pending.fromNodeId)?.runeId === NEUTRAL_RUNE_ID;
+    const targetNodeIsNeutral = target.nodeId !== 'start' &&
+      this.graph.nodes.find(n => n.id === target.nodeId)?.runeId === NEUTRAL_RUNE_ID;
     const pendingIsOutput = pending.kind === 'flow-out' || pending.kind === 'data-out';
     // Target must be the opposite side
-    if (pendingIsOutput) {
-      if (target.kind !== 'flow-in' && target.kind !== 'data-in') return false;
-    } else {
-      if (target.kind !== 'flow-out' && target.kind !== 'data-out') return false;
+    if (!targetNodeIsNeutral) {
+      if (pendingIsOutput) {
+        if (target.kind !== 'flow-in' && target.kind !== 'data-in') return false;
+      } else {
+        if (target.kind !== 'flow-out' && target.kind !== 'data-out') return false;
+      }
     }
     // Same node not allowed
     if (pending.fromNodeId === target.nodeId) return false;
-    // Type compatibility
-    const fromTypes = pending.types;
-    const toTypes   = target.types;
-    const fromFlow  = fromTypes.length === 0;
-    const toFlow    = toTypes.length   === 0;
-    if (fromFlow !== toFlow) return false;
-    if (!fromFlow && !toFlow && !fromTypes.some(t => toTypes.includes(t))) return false;
+    // Type compatibility: neutral skips type check
+    if (!pendingNodeIsNeutral && !targetNodeIsNeutral) {
+      const fromTypes = pending.types;
+      const toTypes   = target.types;
+      const fromFlow  = fromTypes.length === 0;
+      const toFlow    = toTypes.length   === 0;
+      if (fromFlow !== toFlow) return false;
+      if (!fromFlow && !toFlow && !fromTypes.some(t => toTypes.includes(t))) return false;
+    }
     return true;
   }
 
@@ -491,13 +636,28 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   createConnection(pending: PendingConnection, target: PortPosition) {
     // Normalize direction: fromPort is always the output side, toPort the input side
     const pendingIsOutput = pending.kind === 'flow-out' || pending.kind === 'data-out';
-    const conn: SpellConnection = {
-      id: `conn-${this.nextId++}`,
-      fromNodeId: pendingIsOutput ? pending.fromNodeId : target.nodeId,
-      fromPortId: pendingIsOutput ? pending.fromPortId : target.portId,
-      toNodeId:   pendingIsOutput ? target.nodeId      : pending.fromNodeId,
-      toPortId:   pendingIsOutput ? target.portId      : pending.fromPortId,
-    };
+    const fromNodeId = pendingIsOutput ? pending.fromNodeId : target.nodeId;
+    const fromPortId = pendingIsOutput ? pending.fromPortId : target.portId;
+    const toNodeId   = pendingIsOutput ? target.nodeId      : pending.fromNodeId;
+    const toPortId   = pendingIsOutput ? target.portId      : pending.fromPortId;
+
+    // Prevent exact duplicate connections (same source + destination)
+    const duplicate = this.graph.connections.find(
+      c => c.fromNodeId === fromNodeId && c.fromPortId === fromPortId &&
+           c.toNodeId   === toNodeId   && c.toPortId   === toPortId
+    );
+    if (duplicate) return;
+
+    // data-in ports only allow one incoming connection — remove the old one
+    const targetPortKind = target.kind;
+    if (targetPortKind === 'data-in') {
+      const old = this.graph.connections.find(
+        c => c.toNodeId === toNodeId && c.toPortId === toPortId
+      );
+      if (old) this.removeConnection(old.id);
+    }
+
+    const conn: SpellConnection = { id: `conn-${this.nextId++}`, fromNodeId, fromPortId, toNodeId, toPortId };
     // Check for cycle
     if (this.createsCycle(conn)) {
       conn.isLoop = true;
@@ -540,6 +700,49 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   selectConnection(id: string, e: MouseEvent) {
     e.stopPropagation();
     this.selectedConnectionId = this.selectedConnectionId === id ? null : id;
+    this.selectedNodeIds = new Set(); // deselect nodes when selecting a connection
+  }
+
+  // Right-click on a connection — toggle branch/normal (only when source has multiple outs)
+  onConnectionRightClick(c: SpellConnection, e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only toggle if the source node has more than one outgoing flow connection
+    const siblingsCount = this.graph.connections.filter(
+      x => x.fromNodeId === c.fromNodeId && x.fromPortId === c.fromPortId
+    ).length;
+    if (siblingsCount < 2) return;
+    const updated = this.graph.connections.map(x =>
+      x.id === c.id ? { ...x, isBranch: !x.isBranch, branchLabel: x.branchLabel ?? '' } : x
+    );
+    this.graph.connections = updated;
+    this.graphConnectionsSig.set(updated);
+  }
+
+  setBranchLabel(connId: string, label: string) {
+    const updated = this.graph.connections.map(c =>
+      c.id === connId ? { ...c, branchLabel: label } : c
+    );
+    this.graph.connections = updated;
+    this.graphConnectionsSig.set(updated);
+  }
+
+  setLoopCount(connId: string, value: number) {
+    const updated = this.graph.connections.map(c =>
+      c.id === connId ? { ...c, loopCount: Math.max(1, value) } : c
+    );
+    this.graph.connections = updated;
+    this.graphConnectionsSig.set(updated);
+  }
+
+  startConnBadgeEdit(connId: string, e: Event) {
+    e.stopPropagation();
+    this.editingConnId = connId;
+  }
+
+  stopConnBadgeEdit(e: Event) {
+    e.stopPropagation();
+    this.editingConnId = null;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -581,6 +784,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   getNodeRune(nodeId: string): RuneBlock | undefined {
     const ns = this.nodeStates.get(nodeId);
     if (!ns) return undefined;
+    if (ns.node.runeId === NEUTRAL_RUNE_ID) return undefined; // neutral has its own template
     return this.availableRunes.find(r => r.name === ns.node.runeId);
   }
 
@@ -598,9 +802,27 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return ns ? ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out') : [];
   }
 
+  // For neutral nodes: pick glow from the first connected line's color
   nodeGlowColor(nodeId: string): string {
+    const node = this.graph.nodes.find(n => n.id === nodeId);
+    if (node?.runeId === NEUTRAL_RUNE_ID) {
+      return this.neutralNodeColor(nodeId);
+    }
     const rune = this.getNodeRune(nodeId);
     return rune?.glowColor || '#8b5cf6';
+  }
+
+  neutralNodeColor(nodeId: string): string {
+    const conn = this.graph.connections.find(
+      c => c.fromNodeId === nodeId || c.toNodeId === nodeId
+    );
+    if (conn) {
+      const srcPort = this.allPortPositions().find(
+        p => p.nodeId === conn.fromNodeId && p.portId === conn.fromPortId
+      );
+      if (srcPort && srcPort.color !== FLOW_COLOR) return srcPort.color;
+    }
+    return '#6b7280';
   }
 
   nodeIndexForFloat(nodeId: string): number {
@@ -640,8 +862,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   // Screen-space (canvas-wrap-local) variants — used by the conn-svg overlay
-  // which lives outside canvas-world to avoid zero-size SVG viewport issues.
   connectionPathScreen(c: SpellConnection): string {
+    if (c.isLoop) return this.loopBezierPathScreen(c);
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
     if (!from || !to) return '';
@@ -651,8 +873,35 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   loopMidPointScreen(c: SpellConnection): { x: number; y: number } {
+    if (c.isLoop) {
+      const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
+      const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
+      if (!from || !to) return { x: 0, y: 0 };
+      const sf = this.worldToCanvasLocal(from.x, from.y);
+      const st = this.worldToCanvasLocal(to.x,   to.y);
+      const rise = Math.max(80, Math.abs(sf.y - st.y) * 0.8 + 80) * this.zoom;
+      const topY = Math.min(sf.y, st.y) - rise;
+      // Badge sits at the apex of the arc (horizontal midpoint)
+      return { x: (sf.x + st.x) / 2, y: topY };
+    }
     const mp = this.loopMidPoint(c);
     return this.worldToCanvasLocal(mp.x, mp.y);
+  }
+
+  // Midpoint for branch label badge (sits on the line midpoint)
+  branchMidPointScreen(c: SpellConnection): { x: number; y: number } {
+    const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
+    const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
+    if (!from || !to) return { x: 0, y: 0 };
+    const sf = this.worldToCanvasLocal(from.x, from.y);
+    const st = this.worldToCanvasLocal(to.x,   to.y);
+    return { x: (sf.x + st.x) / 2, y: (sf.y + st.y) / 2 };
+  }
+
+  connectionColor(c: SpellConnection): string {
+    if (c.isBranch) return '#f59e0b'; // amber for branch
+    const from = this.allPortPositions().find(p => p.nodeId === c.fromNodeId && p.portId === c.fromPortId);
+    return from?.color ?? FLOW_COLOR;
   }
 
   // Port's CSS top offset within the node div (world y → node-local px)
@@ -667,13 +916,27 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   trackByName(_: number, item: { name: string }) { return item.name; }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Keyboard: delete selected connection
+  // Keyboard: delete selected connection or selected nodes
   @HostListener('document:keydown', ['$event'])
   onKeyDown(e: KeyboardEvent) {
-    if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedConnectionId) {
-      if ((e.target as HTMLElement).tagName !== 'INPUT' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (this.selectedConnectionId) {
         this.removeConnection(this.selectedConnectionId);
       }
+      if (this.selectedNodeIds.size > 0) {
+        for (const id of [...this.selectedNodeIds]) {
+          this.removeNode(id);
+        }
+        this.selectedNodeIds = new Set();
+      }
+    }
+    if (e.key === 'Escape') {
+      this.selectedConnectionId = null;
+      this.selectedNodeIds = new Set();
+      this.pending.set(null);
+      this.hoveredPort.set(null);
     }
   }
 

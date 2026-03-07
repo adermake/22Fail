@@ -337,13 +337,15 @@
 .loop-badge-bg {
   fill: rgba(15,23,42,0.92);
   stroke: rgba(255,255,255,0.3);
-  stroke-width: 1;
+  stroke-width: 1.5;
+  cursor: pointer;
 }
 .loop-badge-count {
   fill: #f8fafc;
   font-size: 11px;
   font-weight: 700;
   font-family: monospace;
+  cursor: pointer;
 }
 
 /* Connection delete button */
@@ -501,30 +503,16 @@
   pointer-events: none;
 }
 
-/* ── Delete button ───────────────────────────────────────────────────────── */
-.rune-node-del {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: rgba(8, 10, 22, 0.94);
-  border: 1px solid rgba(239,68,68,0.35);
-  color: rgba(239,68,68,0.65);
-  font-size: 0.88rem;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.15s, border-color 0.15s, color 0.15s, background 0.15s;
-  z-index: 20;
+/* Node selected highlight (marquee / click-select) */
+.rune-node.rune-node-selected {
+  outline: 2px solid rgba(139,92,246,0.8);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 3px rgba(139,92,246,0.25),
+    0 8px 32px rgba(0,0,0,0.6);
 }
-.rune-node:hover .rune-node-del { opacity: 1; }
-.rune-node-del:hover { background: rgba(239,68,68,0.18); border-color: #ef4444; color: #ef4444; }
+
+/* ── Delete button — REMOVED (delete via Del key or pickup from input port) ── */
 
 /* ══════════════════════════════════════════════════════════════════════════
    PORT CIRCLES — rune nodes (absolutely positioned, CSS top/left set inline)
@@ -681,3 +669,97 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.55); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   NEUTRAL NODE
+   ══════════════════════════════════════════════════════════════════════════ */
+.neutral-node-body {
+  display: flex;
+  flex-direction: row;
+  width: 60px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--nc, #6b7280) 40%, transparent);
+  transition: box-shadow 0.3s;
+}
+.neutral-half {
+  flex: 1;
+  height: 100%;
+}
+.neutral-half-in {
+  background: color-mix(in srgb, var(--nc, #6b7280) 30%, #07090f);
+  border-right: 1px solid color-mix(in srgb, var(--nc, #6b7280) 50%, transparent);
+  border-radius: 18px 0 0 18px;
+}
+.neutral-half-out {
+  background: color-mix(in srgb, var(--nc, #6b7280) 55%, #07090f);
+  border-radius: 0 18px 18px 0;
+}
+
+/* Palette preview for neutral */
+.palette-neutral-icon {
+  display: flex;
+  width: 30px;
+  height: 18px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+.pni-half {
+  flex: 1;
+  height: 100%;
+}
+.pni-left  { background: rgba(107,114,128,0.4); border-right: 1px solid rgba(107,114,128,0.6); border-radius: 9px 0 0 9px; }
+.pni-right { background: rgba(107,114,128,0.7); border-radius: 0 9px 9px 0; }
+
+.palette-rune-neutral { border-color: rgba(107,114,128,0.25) !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BRANCH BADGE
+   ══════════════════════════════════════════════════════════════════════════ */
+.branch-badge-bg {
+  fill: rgba(245,158,11,0.15);
+  stroke: #f59e0b;
+  stroke-width: 1.5;
+}
+.branch-badge-label {
+  fill: #fcd34d;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+  cursor: pointer;
+}
+
+/* Branch connection style */
+.conn-path-glow.conn-branch { opacity: 0.22; stroke-dasharray: none; }
+.conn-path.conn-branch { stroke-dasharray: 10 4; }
+
+/* Inline badge inputs (loop count / branch label) */
+.badge-input {
+  width: 100%;
+  height: 100%;
+  background: rgba(9,11,24,0.95);
+  border: 1px solid rgba(139,92,246,0.5);
+  border-radius: 4px;
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  padding: 0 2px;
+  outline: none;
+}
+.badge-input-number { font-family: monospace; }
+.badge-input-text   { font-family: monospace; }
+.badge-input:focus { border-color: #8b5cf6; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MARQUEE SELECTION BOX
+   ══════════════════════════════════════════════════════════════════════════ */
+.marquee-box {
+  position: absolute;
+  border: 1.5px dashed rgba(139,92,246,0.7);
+  background: rgba(139,92,246,0.08);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 50;
+}

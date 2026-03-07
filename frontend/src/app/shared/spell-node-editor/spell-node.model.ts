@@ -27,7 +27,12 @@ export interface SpellConnection {
   toPortId: string;
   isLoop?: boolean;
   loopCount?: number;  // how many iterations when looped
+  isBranch?: boolean;  // branch flow: exclusive choice among siblings
+  branchLabel?: string; // user-visible label for the branch
 }
+
+/** Neutral pass-through node — hardcoded, no rune reference */
+export const NEUTRAL_RUNE_ID = '__neutral__';
 
 /** The start node (special, not a rune) */
 export interface SpellStartNode {
@@ -70,7 +75,14 @@ export const FLOW_COLOR = '#ffffff';
 export const FLOW_TYPE: string[] = [];
 
 /** Build ports list for a rune */
-export function buildRunePorts(rune: { inputs?: { name: string, color: string, types: string[] }[], outputs?: { name: string, color: string, types: string[] }[] }): SpellPort[] {
+export function buildRunePorts(rune: { inputs?: { name: string, color: string, types: string[] }[], outputs?: { name: string, color: string, types: string[] }[], name?: string }): SpellPort[] {
+  // Neutral node: one any-type in and one any-type out — ports colored dynamically by attached connections
+  if (rune.name === NEUTRAL_RUNE_ID) {
+    return [
+      { id: 'neutral-in',  kind: 'flow-in',  name: 'Eingang', color: FLOW_COLOR, types: FLOW_TYPE },
+      { id: 'neutral-out', kind: 'flow-out', name: 'Ausgang', color: FLOW_COLOR, types: FLOW_TYPE },
+    ];
+  }
   const ports: SpellPort[] = [];
   ports.push({ id: 'flow-in',  kind: 'flow-in',  name: 'Fluss', color: FLOW_COLOR, types: FLOW_TYPE });
   ports.push({ id: 'flow-out', kind: 'flow-out', name: 'Fluss', color: FLOW_COLOR, types: FLOW_TYPE });
