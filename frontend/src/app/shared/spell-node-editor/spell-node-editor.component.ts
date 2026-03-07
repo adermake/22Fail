@@ -255,7 +255,13 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (!p) return '';
     const from = this.worldToCanvasLocal(p.fromX, p.fromY);
     const to   = this.worldToCanvasLocal(p.toX,   p.toY);
-    return this.bezierPath(from.x, from.y, to.x, to.y);
+    // When dragging FROM an input port (left side), swap from/to so the bezier
+    // control handles point in the correct direction (output side curves right,
+    // input side curves left), matching the stored-connection path convention.
+    const isInput = p.kind === 'flow-in' || p.kind === 'data-in';
+    return isInput
+      ? this.bezierPath(to.x, to.y, from.x, from.y)
+      : this.bezierPath(from.x, from.y, to.x, to.y);
   }
 
   pendingColor(): string {
@@ -373,27 +379,23 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   private handleMouseUp(e: MouseEvent) {
     // Check pending FIRST
     const cur = this.pending();
-    console.log('[SNE] mouseup — pending:', cur ? `${cur.fromNodeId}:${cur.fromPortId}` : 'null', 'target el:', (e.target as Element).tagName, (e.target as Element).className);
     if (cur) {
       // DOM-based target detection: find the port element directly under the cursor.
+      // Far more reliable than coordinate math under arbitrary zoom/pan transforms.
       const portEl = (e.target as Element).closest('[data-port-id]') as HTMLElement | null;
       const nodeId = portEl?.dataset['nodeId'];
       const portId = portEl?.dataset['portId'];
-      console.log('[SNE] DOM detection — portEl:', portEl?.className, 'nodeId:', nodeId, 'portId:', portId);
       let target: PortPosition | null = null;
       if (nodeId && portId) {
         const pp = this.allPortPositions().find(p => p.nodeId === nodeId && p.portId === portId);
-        console.log('[SNE] found pp:', pp, 'canConnect:', pp ? this.canConnect(cur, pp) : 'n/a');
         if (pp && this.canConnect(cur, pp)) target = pp;
       }
       // Fallback: coordinate scan with generous radius (handles fast mouse movement)
       if (!target) {
         const world = this.clientToWorld(e.clientX, e.clientY);
         const near  = this.findPortAt(world.x, world.y, 40);
-        console.log('[SNE] fallback scan — world:', world, 'near:', near ? `${near.nodeId}:${near.portId}` : 'null');
         if (near && this.canConnect(cur, near)) target = near;
       }
-      console.log('[SNE] final target:', target ? `${target.nodeId}:${target.portId}` : 'null');
       if (target) this.createConnection(cur, target);
       this.pending.set(null);
       this.hoveredPort.set(null);
@@ -436,10 +438,9 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   onPortMouseDown(e: MouseEvent, nodeId: string, portId: string) {
     e.stopPropagation();
     e.preventDefault();
-    console.log('[SNE] portMouseDown:', nodeId, portId);
     const all = this.allPortPositions();
     const port = all.find(p => p.nodeId === nodeId && p.portId === portId);
-    if (!port) { console.warn('[SNE] port not found in allPortPositions!'); return; }
+    if (!port) return;
     this.pending.set({
       fromNodeId: nodeId,
       fromPortId: portId,
@@ -488,7 +489,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // ────────────────────────────────────────────────────────────────────────────
   // Connection creation + loop detection
   createConnection(pending: PendingConnection, target: PortPosition) {
-    console.log('[SNE] createConnection:', pending.fromNodeId, '->', target.nodeId);
     // Normalize direction: fromPort is always the output side, toPort the input side
     const pendingIsOutput = pending.kind === 'flow-out' || pending.kind === 'data-out';
     const conn: SpellConnection = {
