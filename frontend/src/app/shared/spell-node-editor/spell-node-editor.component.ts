@@ -373,8 +373,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   onCanvasMouseDown(e: MouseEvent) {
     const isCanvas = e.target === this.canvasEl() || (e.target as Element).classList.contains('svg-bg');
     if (!isCanvas) return;
-    // Clear single-node selection on canvas click, start marquee
     if (e.button === 0) {
+      // Left click: marquee selection only — NO panning
       this.selectedConnectionId = null;
       this.selectedNodeIds = new Set();
       const rect = this.canvasEl().getBoundingClientRect();
@@ -383,12 +383,15 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       this.marqueeStartY = e.clientY - rect.top;
       this.marqueeEndX   = this.marqueeStartX;
       this.marqueeEndY   = this.marqueeStartY;
+    } else if (e.button === 1) {
+      // Middle mouse button: pan
+      e.preventDefault();
+      this.isPanning    = true;
+      this.panStartX    = e.clientX;
+      this.panStartY    = e.clientY;
+      this.panStartPanX = this.panX;
+      this.panStartPanY = this.panY;
     }
-    this.isPanning   = true;
-    this.panStartX    = e.clientX;
-    this.panStartY    = e.clientY;
-    this.panStartPanX = this.panX;
-    this.panStartPanY = this.panY;
   }
 
   // Document-level mouse handlers (registered manually in ngOnInit)
@@ -550,13 +553,16 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const port = all.find(p => p.nodeId === nodeId && p.portId === portId);
     if (!port) return;
 
-    // Pick up existing connection from a data-in port
-    if (port.kind === 'data-in') {
-      const existing = this.graph.connections.find(
+    // Pick up existing connection from ANY input port that has incoming connections.
+    // (Output ports always create a new connection.)
+    const isInput = port.kind === 'flow-in' || port.kind === 'data-in';
+    if (isInput) {
+      const incoming = this.graph.connections.filter(
         c => c.toNodeId === nodeId && c.toPortId === portId
       );
-      if (existing) {
-        // Remove the connection and start dragging it from its source port
+      if (incoming.length > 0) {
+        // Pick up the last incoming connection — remove it and drag from its source
+        const existing = incoming[incoming.length - 1];
         const srcPort = all.find(p => p.nodeId === existing.fromNodeId && p.portId === existing.fromPortId);
         this.removeConnection(existing.id);
         if (srcPort) {
@@ -571,9 +577,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
             types: srcPort.types,
             kind: srcPort.kind,
           });
-          return;
         }
-        return; // source port not found — just deleted the connection
+        return;
       }
     }
 

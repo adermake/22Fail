@@ -291,8 +291,8 @@
   opacity: 0.85;
   transition: stroke-width 0.15s, opacity 0.15s;
 }
-.conn-group:hover .conn-path { stroke-width: 3; opacity: 1; }
-.conn-group:hover .conn-path-glow { opacity: 0.32; }
+.conn-group:has(.conn-hit:hover) .conn-path { stroke-width: 3; opacity: 1; }
+.conn-group:has(.conn-hit:hover) .conn-path-glow { opacity: 0.32; }
 .conn-path.conn-selected { stroke-width: 3; opacity: 1; }
 .conn-path-glow.conn-selected { opacity: 0.4; }
 .conn-path.conn-loop { stroke-dasharray: 8 5; }
@@ -318,7 +318,15 @@
   overflow: visible;
   z-index: 5;
 }
-.conn-overlay-svg .conn-group { pointer-events: all; cursor: pointer; }
+.conn-overlay-svg .conn-group { pointer-events: none; }
+/* Wide invisible stroke path used as the click/hover target (proper hitbox) */
+.conn-hit {
+  fill: none;
+  stroke: rgba(0,0,0,0.01);
+  stroke-width: 16;
+  pointer-events: stroke;
+  cursor: pointer;
+}
 
 /* Full-size screen-space SVG overlay for the pending (in-progress) connection line.
    Lives directly in canvas-wrap, not inside canvas-world, so no coordinate transform
@@ -673,6 +681,15 @@
 /* ══════════════════════════════════════════════════════════════════════════
    NEUTRAL NODE
    ══════════════════════════════════════════════════════════════════════════ */
+/* Fixed-size wrapper so port positions (computed for 110px node height) align with the visual  */
+.neutral-node-wrap {
+  width: 110px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .neutral-node-body {
   display: flex;
   flex-direction: row;
