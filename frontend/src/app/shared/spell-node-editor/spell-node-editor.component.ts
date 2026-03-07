@@ -72,11 +72,10 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   readonly MAX_ZOOM = 2.5;
 
   // Node size constants
-  readonly NODE_W     = 180;
-  readonly NODE_H_BASE = 56;   // header only
-  readonly PORT_RADIUS = 7;
-  readonly PORT_SPACING = 22;
-  readonly PORT_INSET  = -7;   // how far ports stick out
+  readonly NODE_IMG  = 110;  // rune image size (square)
+  readonly NODE_W    = 110;  // alias kept for drop centering
+  readonly PORT_R    = 8;    // port circle radius
+  readonly PORT_GAP  = 28;   // vertical spacing between stacked ports
 
   // ── Interaction state ──────────────────────────────────────────────────────
   private isPanning    = false;
@@ -151,8 +150,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       ];
       const inputPorts  = ports.filter(p => p.kind === 'flow-in'  || p.kind === 'data-in');
       const outputPorts = ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out');
-      const rows = Math.max(inputPorts.length, outputPorts.length);
-      const h = this.NODE_H_BASE + rows * this.PORT_SPACING + 14;
+      const h = this.NODE_IMG;
       newMap.set(node.id, {
         node,
         ports,
@@ -164,34 +162,39 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Port world positions
+  // Port world positions — MUST exactly match the CSS absolute positioning in the template
   allPortPositions(): PortPosition[] {
     const result: PortPosition[] = [];
 
-    // Start node: only flow-out ports (one static, plus one virtual for drag)
-    const startFlowOuts = this.startNodeFlowOuts();
-    for (const fo of startFlowOuts) {
-      result.push(fo);
-    }
+    // Start node: flow-out on right edge of the 68px circle
+    result.push({
+      nodeId: 'start', portId: 'flow-out-0', kind: 'flow-out', color: FLOW_COLOR, types: FLOW_TYPE,
+      x: this.graph.startNode.x + 34,
+      y: this.graph.startNode.y,
+    });
 
-    // Rune nodes
+    // Rune nodes — ports centered vertically around the image center
     for (const ns of this.nodeStates.values()) {
       const n = ns.node;
-      const inputPorts  = ns.ports.filter(p => p.kind === 'flow-in'  || p.kind === 'data-in');
-      const outputPorts = ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out');
+      const ins  = ns.ports.filter(p => p.kind === 'flow-in'  || p.kind === 'data-in');
+      const outs = ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out');
+      const imgCY = n.y + this.NODE_IMG / 2;
 
-      inputPorts.forEach((p, i) => {
+      // Left edge (x = node.x), ports centered around image midpoint
+      ins.forEach((p, i) => {
         result.push({
           nodeId: n.id, portId: p.id, kind: p.kind, color: p.color, types: p.types,
-          x: n.x + this.PORT_INSET,
-          y: n.y + this.NODE_H_BASE + i * this.PORT_SPACING + this.PORT_SPACING / 2,
+          x: n.x,
+          y: imgCY - ((ins.length - 1) * this.PORT_GAP / 2) + i * this.PORT_GAP,
         });
       });
-      outputPorts.forEach((p, i) => {
+
+      // Right edge (x = node.x + NODE_IMG)
+      outs.forEach((p, i) => {
         result.push({
           nodeId: n.id, portId: p.id, kind: p.kind, color: p.color, types: p.types,
-          x: n.x + this.NODE_W - this.PORT_INSET,
-          y: n.y + this.NODE_H_BASE + i * this.PORT_SPACING + this.PORT_SPACING / 2,
+          x: n.x + this.NODE_IMG,
+          y: imgCY - ((outs.length - 1) * this.PORT_GAP / 2) + i * this.PORT_GAP,
         });
       });
     }
@@ -349,7 +352,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // Node drag
   onNodeMouseDown(e: MouseEvent, nodeId: string) {
     e.stopPropagation();
-    if ((e.target as Element).closest('.port-circle')) return;
+    if ((e.target as Element).closest('.rune-port')) return;
     const node = this.graph.nodes.find(n => n.id === nodeId)!;
     const world = this.clientToWorld(e.clientX, e.clientY);
     this.draggingNodeId = nodeId;
@@ -365,7 +368,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   onStartNodeMouseDown(e: MouseEvent) {
     e.stopPropagation();
-    if ((e.target as Element).closest('.port-circle')) return;
+    if ((e.target as Element).closest('.rune-port, .port-circle')) return;
     const world = this.clientToWorld(e.clientX, e.clientY);
     this.isDraggingStartNode = true;
     this.startNodeDragOffX = world.x - this.graph.startNode.x;
@@ -485,7 +488,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const runeName = e.dataTransfer!.getData('runeName');
     if (!runeName) return;
     const world = this.clientToWorld(e.clientX, e.clientY);
-    this.addNode(runeName, world.x - this.NODE_W / 2, world.y - 30);
+    this.addNode(runeName, world.x - this.NODE_IMG / 2, world.y - this.NODE_IMG / 2);
   }
 
   onCanvasDragOver(e: DragEvent) { e.preventDefault(); e.dataTransfer!.dropEffect = 'copy'; }
@@ -555,6 +558,14 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
     if (!from || !to) return { x: 0, y: 0 };
     return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+  }
+
+  // Port's CSS top offset within the node div (world y → node-local px)
+  portNodeTop(nodeId: string, portId: string): number {
+    const pp   = this.portPortPos(nodeId, portId);
+    const node = this.graph.nodes.find(n => n.id === nodeId);
+    if (!pp || !node) return 0;
+    return pp.y - node.y - this.PORT_R;
   }
 
   trackById(_: number, item: { id: string }) { return item.id; }

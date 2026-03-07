@@ -157,56 +157,55 @@
           </div>
 
           <!-- ── RUNE NODES ──────────────────────────────────────────── -->
-          @for (node of graph.nodes; track trackById($index, node); let ni = $index) {
+          @for (node of graph.nodes; track trackById($index, node)) {
             @let rune = getNodeRune(node.id);
-            <div class="spell-node"
-                 [class.spell-node-drag]="draggingNodeId === node.id"
+            <div class="rune-node"
+                 [class.rune-node-drag]="draggingNodeId === node.id"
                  [style.left.px]="node.x"
-                 [style.top.px]="node.y + nodeFloatY(ni)"
+                 [style.top.px]="node.y"
                  [style.--glow]="nodeGlowColor(node.id)"
-                 [style.width.px]="NODE_W"
                  (mousedown)="onNodeMouseDown($event, node.id)">
 
-              <!-- Node header -->
-              <div class="node-header">
-                @if (rune?.drawing) {
-                  <img class="node-thumb" [src]="rune!.drawing | imageUrl" [alt]="rune!.name"/>
-                } @else {
-                  <span class="node-thumb-placeholder">✦</span>
-                }
-                <span class="node-name">{{ rune?.name ?? node.runeId }}</span>
-                <button class="node-delete-btn" (click)="removeNode(node.id)">×</button>
-              </div>
+              <!-- Input ports — absolutely positioned on the left edge -->
+              @for (p of inputPorts(node.id); track p.id) {
+                <div class="rune-port rune-port-in"
+                     [class.rune-port-flow]="p.types.length === 0"
+                     [class.rune-port-hovered]="isPortHovered(node.id, p.id)"
+                     [style.--pc]="p.color"
+                     [style.left.px]="-PORT_R"
+                     [style.top.px]="portNodeTop(node.id, p.id)"
+                     (mousedown)="$event.stopPropagation()">
+                  <span class="rune-port-tip rune-port-tip-in">{{ p.name }}</span>
+                </div>
+              }
 
-              <!-- Port rows -->
-              <div class="node-ports">
-                <div class="node-ports-col node-ports-left">
-                  @for (p of inputPorts(node.id); track p.id; let i = $index) {
-                    <div class="port-row">
-                      <div class="port-circle port-in"
-                           [class.port-flow]="p.types.length === 0"
-                           [class.port-hovered]="isPortHovered(node.id, p.id)"
-                           [style.--port-color]="p.color"
-                           (mousedown)="$event.stopPropagation()">
-                      </div>
-                      <span class="port-label port-label-in">{{ p.name }}</span>
-                    </div>
-                  }
+              <!-- Output ports — absolutely positioned on the right edge -->
+              @for (p of outputPorts(node.id); track p.id) {
+                <div class="rune-port rune-port-out"
+                     [class.rune-port-flow]="p.types.length === 0"
+                     [class.rune-port-hovered]="isPortHovered(node.id, p.id)"
+                     [style.--pc]="p.color"
+                     [style.left.px]="NODE_IMG - PORT_R"
+                     [style.top.px]="portNodeTop(node.id, p.id)"
+                     (mousedown)="onPortMouseDown($event, node.id, p.id)">
+                  <span class="rune-port-tip rune-port-tip-out">{{ p.name }}</span>
                 </div>
-                <div class="node-ports-col node-ports-right">
-                  @for (p of outputPorts(node.id); track p.id; let i = $index) {
-                    <div class="port-row port-row-right">
-                      <span class="port-label port-label-out">{{ p.name }}</span>
-                      <div class="port-circle port-out"
-                           [class.port-flow]="p.types.length === 0"
-                           [class.port-hovered]="isPortHovered(node.id, p.id)"
-                           [style.--port-color]="p.color"
-                           (mousedown)="onPortMouseDown($event, node.id, p.id)">
-                      </div>
-                    </div>
-                  }
+              }
+
+              <!-- Rune image / placeholder -->
+              @if (rune?.drawing) {
+                <img class="rune-node-img" [src]="rune!.drawing | imageUrl" [alt]="rune!.name"/>
+              } @else {
+                <div class="rune-node-placeholder">
+                  <span>{{ rune?.name?.charAt(0)?.toUpperCase() ?? '✦' }}</span>
                 </div>
-              </div>
+              }
+
+              <!-- Name label -->
+              <div class="rune-node-name">{{ rune?.name ?? node.runeId }}</div>
+
+              <!-- Delete button -->
+              <button class="rune-node-del" (click)="removeNode(node.id); $event.stopPropagation()">×</button>
 
             </div>
           }

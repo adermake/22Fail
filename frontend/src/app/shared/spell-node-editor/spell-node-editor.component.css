@@ -402,167 +402,165 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   RUNE NODES
+   RUNE NODES — image-centred, ports absolutely positioned on the edges
    ══════════════════════════════════════════════════════════════════════════ */
-.spell-node {
+.rune-node {
   position: absolute;
-  border-radius: 12px;
-  background: rgba(9, 11, 24, 0.92);
-  border: 1px solid color-mix(in srgb, var(--glow, #8b5cf6) 40%, rgba(255,255,255,0.1));
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,0.5),
-    0 4px 20px rgba(0,0,0,0.6),
-    0 0 20px color-mix(in srgb, var(--glow, #8b5cf6) 18%, transparent);
   cursor: grab;
   user-select: none;
-  transition: box-shadow 0.2s;
-  backdrop-filter: blur(4px);
+  overflow: visible; /* ports stick outside the box */
+  width: 110px;
   will-change: transform;
 }
-.spell-node:hover {
+.rune-node:active,
+.rune-node.rune-node-drag { cursor: grabbing; }
+.rune-node.rune-node-drag { opacity: 0.88; }
+
+/* ── Rune image ──────────────────────────────────────────────────────────── */
+.rune-node-img {
+  display: block;
+  width: 110px;
+  height: 110px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid color-mix(in srgb, var(--glow, #8b5cf6) 55%, rgba(255,255,255,0.1));
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.5),
-    0 8px 32px rgba(0,0,0,0.7),
-    0 0 32px color-mix(in srgb, var(--glow, #8b5cf6) 35%, transparent);
+    0 0 22px color-mix(in srgb, var(--glow, #8b5cf6) 25%, transparent),
+    0 4px 20px rgba(0,0,0,0.7);
+  transition: box-shadow 0.22s, border-color 0.22s;
+  pointer-events: none;
 }
-.spell-node.spell-node-drag {
-  opacity: 0.85;
-  cursor: grabbing;
+.rune-node:hover .rune-node-img,
+.rune-node.rune-node-drag .rune-node-img {
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.5),
-    0 16px 48px rgba(0,0,0,0.8),
-    0 0 48px color-mix(in srgb, var(--glow, #8b5cf6) 55%, transparent);
-}
-/* Subtle inner top highlight */
-.spell-node::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 12px;
-  right: 12px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--glow, #8b5cf6) 60%, white), transparent);
-  border-radius: 1px;
+    0 0 44px color-mix(in srgb, var(--glow, #8b5cf6) 55%, transparent),
+    0 8px 32px rgba(0,0,0,0.85);
+  border-color: color-mix(in srgb, var(--glow, #8b5cf6) 85%, white);
 }
 
-/* Node header */
-.node-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 10px 7px 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-.node-thumb {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  object-fit: cover;
-  border: 1px solid rgba(255,255,255,0.1);
-  flex-shrink: 0;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--glow, #8b5cf6) 40%, transparent);
-}
-.node-thumb-placeholder {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.08);
+/* ── Placeholder when no drawing ─────────────────────────────────────────── */
+.rune-node-placeholder {
+  width: 110px;
+  height: 110px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 40% 35%, color-mix(in srgb, var(--glow, #8b5cf6) 16%, #0e1020), #090b18);
+  border: 2px solid color-mix(in srgb, var(--glow, #8b5cf6) 40%, rgba(255,255,255,0.08));
+  box-shadow:
+    0 0 22px color-mix(in srgb, var(--glow, #8b5cf6) 20%, transparent),
+    0 4px 20px rgba(0,0,0,0.7);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
-  color: var(--glow, #8b5cf6);
-  filter: drop-shadow(0 0 4px var(--glow, #8b5cf6));
-  flex-shrink: 0;
 }
-.node-name {
-  flex: 1;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #f1f5f9;
+.rune-node-placeholder > span {
+  font-size: 2.6rem;
+  font-weight: 800;
+  color: var(--glow, #8b5cf6);
+  filter: drop-shadow(0 0 12px var(--glow, #8b5cf6));
+  user-select: none;
+}
+
+/* ── Name label ──────────────────────────────────────────────────────────── */
+.rune-node-name {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #c4b5fd;
+  margin-top: 5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-shadow: 0 0 12px color-mix(in srgb, var(--glow, #8b5cf6) 50%, transparent);
+  max-width: 110px;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--glow, #8b5cf6) 35%, transparent);
+  pointer-events: none;
 }
-.node-delete-btn {
-  width: 18px;
-  height: 18px;
+
+/* ── Delete button ───────────────────────────────────────────────────────── */
+.rune-node-del {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: transparent;
-  border: 1px solid rgba(239,68,68,0.25);
-  color: rgba(239,68,68,0.6);
-  font-size: 0.85rem;
+  background: rgba(8, 10, 22, 0.94);
+  border: 1px solid rgba(239,68,68,0.35);
+  color: rgba(239,68,68,0.65);
+  font-size: 0.88rem;
   line-height: 1;
   cursor: pointer;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.15s;
   opacity: 0;
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s, background 0.15s;
+  z-index: 20;
 }
-.spell-node:hover .node-delete-btn { opacity: 1; }
-.node-delete-btn:hover {
-  background: rgba(239,68,68,0.2);
-  border-color: #ef4444;
-  color: #ef4444;
+.rune-node:hover .rune-node-del { opacity: 1; }
+.rune-node-del:hover { background: rgba(239,68,68,0.18); border-color: #ef4444; color: #ef4444; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PORT CIRCLES — rune nodes (absolutely positioned, CSS top/left set inline)
+   ══════════════════════════════════════════════════════════════════════════ */
+.rune-port {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--pc, #ffffff);
+  background: #07090f;
+  cursor: crosshair;
+  z-index: 15;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--pc, #ffffff) 45%, transparent);
+  transition: transform 0.12s, background 0.12s, box-shadow 0.12s;
+}
+.rune-port:hover,
+.rune-port.rune-port-hovered {
+  transform: scale(1.5);
+  background: var(--pc, #ffffff);
+  box-shadow: 0 0 20px var(--pc, #ffffff), 0 0 6px rgba(255,255,255,0.5);
 }
 
-/* Port rows */
-.node-ports {
-  display: flex;
-  padding: 6px 0 8px;
-  min-height: 0;
-}
-.node-ports-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.node-ports-left { align-items: flex-start; padding-left: 4px; }
-.node-ports-right { align-items: flex-end; padding-right: 4px; }
-
-.port-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  height: 22px;
-}
-.port-row-right { flex-direction: row-reverse; }
-
-.port-label {
-  font-size: 0.67rem;
-  color: #6b7280;
+/* Port label tooltip */
+.rune-port-tip {
+  position: absolute;
+  font-size: 0.63rem;
+  font-weight: 600;
+  color: #e2e8f0;
   white-space: nowrap;
   pointer-events: none;
-  user-select: none;
-  max-width: 58px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  background: rgba(6, 8, 20, 0.94);
+  border: 1px solid rgba(139,92,246,0.3);
+  border-radius: 5px;
+  padding: 2px 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 30;
+  top: 50%;
+  transform: translateY(-50%);
+  line-height: 1.4;
 }
-.port-label-in  { text-align: left; }
-.port-label-out { text-align: right; }
+.rune-port:hover .rune-port-tip,
+.rune-port.rune-port-hovered .rune-port-tip { opacity: 1; }
+.rune-port-tip-in  { left: 22px; }
+.rune-port-tip-out { right: 22px; }
 
-/* ── Port circles ────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════
+   PORT CIRCLES — start node (kept as-is with .port-circle class)
+   ══════════════════════════════════════════════════════════════════════════ */
 .port-circle {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   border: 2px solid var(--port-color, #8b5cf6);
   background: rgba(9,11,24,0.95);
   cursor: crosshair;
   flex-shrink: 0;
-  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
-  position: relative;
+  transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
   box-shadow: 0 0 6px color-mix(in srgb, var(--port-color, #8b5cf6) 50%, transparent);
 }
-.port-circle.port-flow {
-  border-color: #ffffff;
-  box-shadow: 0 0 6px rgba(255,255,255,0.4);
-}
+.port-circle.port-flow { border-color: #ffffff; box-shadow: 0 0 6px rgba(255,255,255,0.4); }
 .port-circle:hover,
 .port-circle.port-hovered {
   transform: scale(1.4);
@@ -570,19 +568,7 @@
   box-shadow: 0 0 14px var(--port-color, #8b5cf6);
 }
 .port-circle.port-flow:hover,
-.port-circle.port-flow.port-hovered {
-  background: #ffffff;
-  box-shadow: 0 0 14px rgba(255,255,255,0.8);
-}
-
-/* Position: left ports stick out to the left */
-.port-in {
-  margin-left: -12px;
-}
-/* Position: right ports stick out to the right */
-.port-out {
-  margin-right: -12px;
-}
+.port-circle.port-flow.port-hovered { background: #ffffff; box-shadow: 0 0 14px rgba(255,255,255,0.8); }
 
 /* ══════════════════════════════════════════════════════════════════════════
    ZOOM CONTROLS
