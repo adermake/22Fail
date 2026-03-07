@@ -96,6 +96,10 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // ── Animation ─────────────────────────────────────────────────────────────
   private animFrame = 0;
 
+  // Bound document event handlers (stored for removeEventListener)
+  private boundMouseMove!: (e: MouseEvent) => void;
+  private boundMouseUp!:   (e: MouseEvent) => void;
+
   constructor(private cdr: ChangeDetectorRef) {}
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -109,18 +113,30 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       }
     }
     this.rebuildNodeStates();
+
+    // Register document-level mouse listeners manually so they always fire
+    // and are not subject to zone/CD timing issues.
+    this.boundMouseMove = (e: MouseEvent) => this.handleMouseMove(e);
+    this.boundMouseUp   = (e: MouseEvent) => this.handleMouseUp(e);
+    document.addEventListener('mousemove', this.boundMouseMove);
+    document.addEventListener('mouseup',   this.boundMouseUp);
+
     this.startAnimation();
   }
 
   ngOnDestroy() {
     document.body.style.overflow = '';
     cancelAnimationFrame(this.animFrame);
+    document.removeEventListener('mousemove', this.boundMouseMove);
+    document.removeEventListener('mouseup',   this.boundMouseUp);
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Animation loop — gentle floating for nodes
+  // Animation loop — drives change detection every frame so interactive drags
+  // (pending connection line, node dragging, panning) stay smooth.
   private startAnimation() {
     const tick = () => {
+      this.cdr.detectChanges();
       this.animFrame = requestAnimationFrame(tick);
     };
     this.animFrame = requestAnimationFrame(tick);
@@ -292,12 +308,11 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     this.panStartPanY = this.panY;
   }
 
-  @HostListener('document:mousemove', ['$event'])
-  onMouseMove(e: MouseEvent) {
+  // Document-level mouse handlers (registered manually in ngOnInit)
+  private handleMouseMove(e: MouseEvent) {
     if (this.isPanning) {
       this.panX = this.panStartPanX + (e.clientX - this.panStartX);
       this.panY = this.panStartPanY + (e.clientY - this.panStartY);
-      this.cdr.detectChanges();
       return;
     }
     if (this.draggingNodeId) {
@@ -308,30 +323,25 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
         node.y = world.y - this.dragOffsetY;
         this.nodeStates.get(node.id)!.node = node;
       }
-      this.cdr.detectChanges();
       return;
     }
     if (this.pending) {
       const world = this.clientToWorld(e.clientX, e.clientY);
       this.pending = { ...this.pending, toX: world.x, toY: world.y };
-      // hover detection
       this.hoveredPort = this.findPortAt(world.x, world.y, 14);
-      this.cdr.detectChanges();
       return;
     }
     if (this.isDraggingStartNode) {
       const world = this.clientToWorld(e.clientX, e.clientY);
       this.graph.startNode.x = world.x - this.startNodeDragOffX;
       this.graph.startNode.y = world.y - this.startNodeDragOffY;
-      this.cdr.detectChanges();
     }
   }
 
-  @HostListener('document:mouseup', ['$event'])
-  onMouseUp(e: MouseEvent) {
-    if (this.isPanning) { this.isPanning = false; this.cdr.detectChanges(); return; }
-    if (this.isDraggingStartNode) { this.isDraggingStartNode = false; this.cdr.detectChanges(); return; }
-    if (this.draggingNodeId) { this.draggingNodeId = null; this.cdr.detectChanges(); return; }
+  private handleMouseUp(e: MouseEvent) {
+    if (this.isPanning)          { this.isPanning = false; return; }
+    if (this.isDraggingStartNode){ this.isDraggingStartNode = false; return; }
+    if (this.draggingNodeId)     { this.draggingNodeId = null; return; }
     if (this.pending) {
       const world = this.clientToWorld(e.clientX, e.clientY);
       const target = this.findPortAt(world.x, world.y, 14);
@@ -340,7 +350,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       }
       this.pending = null;
       this.hoveredPort = null;
-      this.cdr.detectChanges();
     }
   }
 
