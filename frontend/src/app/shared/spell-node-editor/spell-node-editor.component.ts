@@ -1,7 +1,6 @@
 import {
   Component, Input, Output, EventEmitter, OnInit, OnDestroy,
-  ChangeDetectionStrategy, ChangeDetectorRef, NgZone, ElementRef, ViewChild,
-  HostListener,
+  ElementRef, ViewChild, HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -26,7 +25,6 @@ interface NodeState {
   imports: [CommonModule, FormsModule, ImageUrlPipe],
   templateUrl: './spell-node-editor.component.html',
   styleUrl: './spell-node-editor.component.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
@@ -97,9 +95,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // ── Animation ─────────────────────────────────────────────────────────────
   private animFrame = 0;
-  private floatPhase = 0;
 
-  constructor(private cd: ChangeDetectorRef, private zone: NgZone) {}
+  constructor() {}
 
   // ────────────────────────────────────────────────────────────────────────────
   ngOnInit() {
@@ -124,18 +121,12 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // Animation loop — gentle floating for nodes
   private startAnimation() {
     const tick = () => {
-      this.floatPhase += 0.012;
-      this.cd.markForCheck();
       this.animFrame = requestAnimationFrame(tick);
     };
-    this.zone.runOutsideAngular(() => {
-      this.animFrame = requestAnimationFrame(() => this.zone.run(tick));
-    });
+    this.animFrame = requestAnimationFrame(tick);
   }
 
-  nodeFloatY(index: number): number {
-    return Math.sin(this.floatPhase + index * 0.9) * 2.8;
-  }
+  nodeFloatY(_index: number): number { return 0; }
 
   // ────────────────────────────────────────────────────────────────────────────
   // Build NodeState from graph
@@ -379,6 +370,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // Port drag (start connection)
   onPortMouseDown(e: MouseEvent, nodeId: string, portId: string) {
     e.stopPropagation();
+    e.preventDefault();
     const all = this.allPortPositions();
     const port = all.find(p => p.nodeId === nodeId && p.portId === portId);
     if (!port) return;
