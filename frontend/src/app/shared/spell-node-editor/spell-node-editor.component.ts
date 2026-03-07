@@ -371,15 +371,29 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   private handleMouseUp(e: MouseEvent) {
-    // Check pending FIRST — a connection drag must never be eaten by panning/node-drag state
+    // Check pending FIRST
     const cur = this.pending();
+    console.log('[SNE] mouseup — pending:', cur ? `${cur.fromNodeId}:${cur.fromPortId}` : 'null', 'target el:', (e.target as Element).tagName, (e.target as Element).className);
     if (cur) {
-      const hovered = this.hoveredPort();
-      const world   = this.clientToWorld(e.clientX, e.clientY);
-      const scanned = this.findPortAt(world.x, world.y, 28);
-      const target  = (hovered && this.canConnect(cur, hovered)) ? hovered
-                    : (scanned && this.canConnect(cur, scanned)) ? scanned
-                    : null;
+      // DOM-based target detection: find the port element directly under the cursor.
+      const portEl = (e.target as Element).closest('[data-port-id]') as HTMLElement | null;
+      const nodeId = portEl?.dataset['nodeId'];
+      const portId = portEl?.dataset['portId'];
+      console.log('[SNE] DOM detection — portEl:', portEl?.className, 'nodeId:', nodeId, 'portId:', portId);
+      let target: PortPosition | null = null;
+      if (nodeId && portId) {
+        const pp = this.allPortPositions().find(p => p.nodeId === nodeId && p.portId === portId);
+        console.log('[SNE] found pp:', pp, 'canConnect:', pp ? this.canConnect(cur, pp) : 'n/a');
+        if (pp && this.canConnect(cur, pp)) target = pp;
+      }
+      // Fallback: coordinate scan with generous radius (handles fast mouse movement)
+      if (!target) {
+        const world = this.clientToWorld(e.clientX, e.clientY);
+        const near  = this.findPortAt(world.x, world.y, 40);
+        console.log('[SNE] fallback scan — world:', world, 'near:', near ? `${near.nodeId}:${near.portId}` : 'null');
+        if (near && this.canConnect(cur, near)) target = near;
+      }
+      console.log('[SNE] final target:', target ? `${target.nodeId}:${target.portId}` : 'null');
       if (target) this.createConnection(cur, target);
       this.pending.set(null);
       this.hoveredPort.set(null);
@@ -422,9 +436,10 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   onPortMouseDown(e: MouseEvent, nodeId: string, portId: string) {
     e.stopPropagation();
     e.preventDefault();
+    console.log('[SNE] portMouseDown:', nodeId, portId);
     const all = this.allPortPositions();
     const port = all.find(p => p.nodeId === nodeId && p.portId === portId);
-    if (!port) return;
+    if (!port) { console.warn('[SNE] port not found in allPortPositions!'); return; }
     this.pending.set({
       fromNodeId: nodeId,
       fromPortId: portId,
@@ -473,6 +488,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // ────────────────────────────────────────────────────────────────────────────
   // Connection creation + loop detection
   createConnection(pending: PendingConnection, target: PortPosition) {
+    console.log('[SNE] createConnection:', pending.fromNodeId, '->', target.nodeId);
     // Normalize direction: fromPort is always the output side, toPort the input side
     const pendingIsOutput = pending.kind === 'flow-out' || pending.kind === 'data-out';
     const conn: SpellConnection = {

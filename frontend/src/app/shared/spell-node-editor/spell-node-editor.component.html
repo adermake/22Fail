@@ -147,7 +147,10 @@
             <!-- Flow-out port -->
             <div class="port-circle port-out port-flow start-port-out"
                  [class.port-hovered]="isPortHovered('start','flow-out-0')"
+                 [class.rune-port-valid]="isPendingValidTarget('start','flow-out-0')"
                  [style.--port-color]="'#ffffff'"
+                 data-node-id="start"
+                 data-port-id="flow-out-0"
                  (mousedown)="onPortMouseDown($event, 'start', 'flow-out-0')">
             </div>
           </div>
@@ -171,6 +174,8 @@
                      [style.--pc]="p.color"
                      [style.left.px]="-PORT_R"
                      [style.top.px]="portNodeTop(node.id, p.id)"
+                     [attr.data-node-id]="node.id"
+                     [attr.data-port-id]="p.id"
                      (mousedown)="onPortMouseDown($event, node.id, p.id)">
                   <span class="rune-port-tip rune-port-tip-in">{{ p.name }}</span>
                 </div>
@@ -185,6 +190,8 @@
                      [style.--pc]="p.color"
                      [style.left.px]="NODE_IMG - PORT_R"
                      [style.top.px]="portNodeTop(node.id, p.id)"
+                     [attr.data-node-id]="node.id"
+                     [attr.data-port-id]="p.id"
                      (mousedown)="onPortMouseDown($event, node.id, p.id)">
                   <span class="rune-port-tip rune-port-tip-out">{{ p.name }}</span>
                 </div>
