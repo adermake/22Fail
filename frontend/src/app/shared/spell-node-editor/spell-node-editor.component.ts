@@ -1,6 +1,6 @@
 import {
   Component, Input, Output, EventEmitter, OnInit, OnDestroy,
-  ElementRef, ViewChild, HostListener, ChangeDetectorRef,
+  ElementRef, ViewChild, HostListener, ChangeDetectorRef, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -86,8 +86,9 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   private dragOffsetX = 0;
   private dragOffsetY = 0;
 
-  pending: PendingConnection | null = null;    // connection being drawn
-  hoveredPort: PortPosition | null = null;
+  // Signals — drive template reactivity in Angular 21 zoneless
+  pending    = signal<PendingConnection | null>(null);
+  hoveredPort = signal<PortPosition | null>(null);
   selectedConnectionId: string | null = null;
 
   // ── Start node flow-out drag counter ──────────────────────────────────────
@@ -238,8 +239,23 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   pendingPath(): string {
-    if (!this.pending) return '';
-    return this.bezierPath(this.pending.fromX, this.pending.fromY, this.pending.toX, this.pending.toY);
+    const p = this.pending();
+    if (!p) return '';
+    return this.bezierPath(p.fromX, p.fromY, p.toX, p.toY);
+  }
+
+  // Screen-space pending path — coordinates relative to canvas-wrap (no world transform).
+  // Used by the overlay SVG that lives outside canvas-world, so it always renders correctly.
+  pendingPathScreen(): string {
+    const p = this.pending();
+    if (!p) return '';
+    const from = this.worldToCanvasLocal(p.fromX, p.fromY);
+    const to   = this.worldToCanvasLocal(p.toX,   p.toY);
+    return this.bezierPath(from.x, from.y, to.x, to.y);
+  }
+
+  pendingColor(): string {
+    return this.pending()?.color ?? '#ffffff';
   }
 
   private bezierPath(x1: number, y1: number, x2: number, y2: number): string {
@@ -267,6 +283,14 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return {
       x: (cx - rect.left - this.panX) / this.zoom,
       y: (cy - rect.top  - this.panY) / this.zoom,
+    };
+  }
+
+  // World → canvas-wrap-local (no rect offset; used by the screen-space pending line SVG)
+  worldToCanvasLocal(wx: number, wy: number): { x: number; y: number } {
+    return {
+      x: wx * this.zoom + this.panX,
+      y: wy * this.zoom + this.panY,
     };
   }
 
@@ -325,10 +349,11 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       }
       return;
     }
-    if (this.pending) {
+    const cur = this.pending();
+    if (cur) {
       const world = this.clientToWorld(e.clientX, e.clientY);
-      this.pending = { ...this.pending, toX: world.x, toY: world.y };
-      this.hoveredPort = this.findPortAt(world.x, world.y, 14);
+      this.pending.set({ ...cur, toX: world.x, toY: world.y });
+      this.hoveredPort.set(this.findPortAt(world.x, world.y, 14));
       return;
     }
     if (this.isDraggingStartNode) {
@@ -342,14 +367,15 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (this.isPanning)          { this.isPanning = false; return; }
     if (this.isDraggingStartNode){ this.isDraggingStartNode = false; return; }
     if (this.draggingNodeId)     { this.draggingNodeId = null; return; }
-    if (this.pending) {
+    const cur = this.pending();
+    if (cur) {
       const world = this.clientToWorld(e.clientX, e.clientY);
       const target = this.findPortAt(world.x, world.y, 14);
-      if (target && this.canConnect(this.pending, target)) {
-        this.createConnection(this.pending, target);
+      if (target && this.canConnect(cur, target)) {
+        this.createConnection(cur, target);
       }
-      this.pending = null;
-      this.hoveredPort = null;
+      this.pending.set(null);
+      this.hoveredPort.set(null);
     }
   }
 
@@ -390,7 +416,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (!port) return;
     // Only start connections from outputs
     if (port.kind !== 'flow-out' && port.kind !== 'data-out') return;
-    this.pending = {
+    this.pending.set({
       fromNodeId: nodeId,
       fromPortId: portId,
       fromX: port.x,
@@ -400,8 +426,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       color: port.color,
       types: port.types,
       kind: port.kind,
-    };
-    this.cdr.detectChanges();
+    });
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -550,7 +575,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   isPortHovered(nodeId: string, portId: string): boolean {
-    return this.hoveredPort?.nodeId === nodeId && this.hoveredPort?.portId === portId;
+    const h = this.hoveredPort();
+    return h?.nodeId === nodeId && h?.portId === portId;
   }
 
   isConnectionSelected(connId: string): boolean {

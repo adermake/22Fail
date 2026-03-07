@@ -132,11 +132,7 @@
             }
 
             <!-- Pending connection being drawn -->
-            @if (pending) {
-              <path class="conn-path-pending"
-                    [attr.d]="pendingPath()"
-                    [attr.stroke]="pending.color"/>
-            }
+            <!-- NOTE: pending line is rendered in the screen-space overlay SVG below -->
           </svg>
 
           <!-- ── START NODE ──────────────────────────────────────────── -->
@@ -211,6 +207,17 @@
           }
 
         </div><!-- /canvas-world -->
+
+        <!-- Pending connection overlay — in canvas-wrap space, not canvas-world.
+             Uses screen-space coordinates (worldToCanvasLocal) so it renders reliably
+             regardless of the canvas-world transform. Signal-driven: auto-updates. -->
+        @if (pending()) {
+          <svg class="pending-overlay-svg" xmlns="http://www.w3.org/2000/svg">
+            <path class="conn-path-pending"
+                  [attr.d]="pendingPathScreen()"
+                  [attr.stroke]="pendingColor()"/>
+          </svg>
+        }
 
         <!-- Zoom controls -->
         <div class="zoom-controls">
