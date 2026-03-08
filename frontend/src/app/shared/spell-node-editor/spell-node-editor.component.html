@@ -233,34 +233,32 @@
               }
 
               <!-- Connection badges distributed along the actual routed path -->
-              @if (c.condition) {
-                @let cp = getPointOnPath(c, 0.5);
+              @let bp = getBadgePositions(c);
+              @if (c.condition && bp.condition; as cp) {
                 <g class="conn-badge conn-cond-label-group"
                    [class.cond-known]="c.precastKnown"
                    [class.cond-unknown]="!c.precastKnown"
-                   [attr.transform]="'translate('+cp.x+','+cp.y+')'">
+                   [attr.transform]="'translate('+cp.x+','+cp.y+') scale('+zoom+')'">
                   <rect class="conn-cond-label-bg" rx="4"
                         [attr.x]="-condLabelWidth(c.condition)/2" y="-11"
                         [attr.width]="condLabelWidth(c.condition)" height="22"/>
                   <text class="conn-cond-label-text">{{ c.condition }}</text>
                 </g>
               }
-              @if (c.passthroughEnabled) {
-                @let pp = getPointOnPath(c, 0.12);
-                <g class="conn-badge" [attr.transform]="'translate('+pp.x+','+pp.y+')'">
+              @if (c.passthroughEnabled && bp.passthrough; as pp) {
+                <g class="conn-badge" [attr.transform]="'translate('+pp.x+','+pp.y+') scale('+zoom+')'">
                   <circle r="14" class="conn-badge-bg conn-badge-passthrough"/>
                   <text class="conn-badge-icon">⟳</text>
                   @if (c.maxPassthrough) {
-                    <text class="conn-badge-sub" dy="16">{{ c.maxPassthrough }}×</text>
+                    <text class="conn-badge-sub" dy="18">{{ c.maxPassthrough }}×</text>
                   }
                 </g>
               }
-              @if (c.lineDelay) {
-                @let dp = getPointOnPath(c, 0.24);
-                <g class="conn-badge" [attr.transform]="'translate('+dp.x+','+dp.y+')'">
+              @if (c.lineDelay && bp.delay; as dp) {
+                <g class="conn-badge" [attr.transform]="'translate('+dp.x+','+dp.y+') scale('+zoom+')'">
                   <circle r="14" class="conn-badge-bg conn-badge-delay"/>
                   <text class="conn-badge-icon">⧗</text>
-                  <text class="conn-badge-sub" dy="16">{{ c.lineDelay }}R</text>
+                  <text class="conn-badge-sub" dy="18">{{ c.lineDelay }}R</text>
                 </g>
               }
             </g>
@@ -445,12 +443,26 @@
 
   </div><!-- /sne-layout -->
 
-  <!-- ── QUICK SEARCH POPUP (drop connection into void) ─────────────────── -->
+  <!-- ── CLOSE CONFIRMATION DIALOG ──────────────────────────────────────────── -->
+  @if (showCloseDialog) {
+    <div class="close-dialog-backdrop" (click)="onCloseDialogCancel()"></div>
+    <div class="close-dialog-box">
+      <div class="close-dialog-title">Ungespeicherte Änderungen</div>
+      <div class="close-dialog-body">Möchtest du die Änderungen an diesem Zauber speichern?</div>
+      <div class="close-dialog-actions">
+        <button class="close-dialog-btn close-dialog-save" (click)="onCloseConfirmSave()">Speichern</button>
+        <button class="close-dialog-btn close-dialog-discard" (click)="onCloseConfirmDiscard()">Nicht speichern</button>
+        <button class="close-dialog-btn close-dialog-cancel" (click)="onCloseDialogCancel()">Abbrechen</button>
+      </div>
+    </div>
+  }
+
+  <!-- ── QUICK SEARCH POPUP (drop connection into void) ─────────────────────── -->
   @if (qsOpen) {
     <div class="qs-backdrop" (mousedown)="closeQuickSearch()"></div>
     <div class="qs-popup" [style.left.px]="qsX" [style.top.px]="qsY"
          (mousedown)="$event.stopPropagation()">
-      <div class="qs-header">Rune platzieren & verbinden</div>
+      <div class="qs-header">Rune platzieren &amp; verbinden</div>
       <input class="qs-input" type="text"
              [(ngModel)]="qsQuery"
              placeholder="Runenname eingeben…"
@@ -458,7 +470,9 @@
              autocomplete="off"/>
       <div class="qs-list">
         @for (r of qsResults; track r.name) {
-          <button class="qs-item" (click)="selectQsRune(r)">
+          <button class="qs-item" (click)="selectQsRune(r)"
+                  [class.qs-item-incompatible]="!isRuneCompatibleWithPending(r)">
+                  [class.qs-item-incompatible]="!isRuneCompatibleWithPending(r)">
             <span class="qs-item-glyph"
                   [style.background]="'radial-gradient(circle at 40% 35%, ' + (r.glowColor || '#8b5cf6') + '44 0%, transparent 70%)'">
               @if (r.drawing) {

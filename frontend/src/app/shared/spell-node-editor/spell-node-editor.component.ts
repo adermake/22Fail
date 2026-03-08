@@ -149,6 +149,9 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   savedFeedback = false;
   lastSavedJson  = '';
 
+  // ── Close-confirmation dialog ──
+  showCloseDialog = false;
+
   // ── Quick-search popup state (drop connection into void to place+connect a rune) ──
   qsOpen     = false;
   qsX        = 0;
@@ -162,7 +165,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const q = this.qsQuery.toLowerCase().trim();
     return this.availableRunes
       .filter(r => r.name !== NEUTRAL_RUNE_ID && (q === '' || r.name.toLowerCase().includes(q)))
-      .slice(0, 8);
+      .slice(0, 12);
   }
 
   openQuickSearch(pending: PendingConnection, clientX: number, clientY: number) {
@@ -195,12 +198,64 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     this.graph.nodes = [...this.graph.nodes, newNode];
     this.rebuildNodeStates();
     this.graphNodesSig.set(this.graph.nodes);
-    const inputPort = this.allPortPositions().find(
-      p => p.nodeId === newId && (p.kind === 'flow-in' || p.kind === 'data-in')
-    );
-    if (inputPort && this.canConnect(pending, inputPort)) {
+    const allPorts = this.allPortPositions().filter(p => p.nodeId === newId);
+    // Prefer a port whose kind specifically matches the pending connection kind
+    const preferredKind = (pending.kind === 'flow-out') ? 'flow-in' : (pending.kind === 'data-out') ? 'data-in' : 'flow-in';
+    const inputPort =
+      allPorts.find(p => p.kind === preferredKind && this.canConnect(pending, p)) ??
+      allPorts.find(p => (p.kind === 'flow-in' || p.kind === 'data-in') && this.canConnect(pending, p));
+    if (inputPort) {
       this.createConnection(pending, inputPort);
     }
+  }
+
+  /** True when the rune has at least one input port compatible with the current pending connection. */
+  isRuneCompatibleWithPending(rune: RuneBlock): boolean {
+    if (!this.qsPending) return true;
+    const ports = buildRunePorts(rune as any);
+    const pk = this.qsPending.kind;
+    if (pk === 'flow-out') return ports.some(p => p.kind === 'flow-in');
+    if (pk === 'data-out') {
+      return ports.some(p => p.kind === 'data-in' &&
+        (p.types.length === 0 || this.qsPending!.types.length === 0 ||
+          p.types.some(t => this.qsPending!.types.includes(t))));
+    }
+    return true;
+  }
+
+  /**
+   * Compute badge screen positions for a connection, enforcing a minimum
+   * screen-space gap of MIN_D pixels between badge centres.
+   * Returns { condition, passthrough, delay } each as {x,y} or null.
+   */
+  getBadgePositions(c: SpellConnection): {
+    condition:   { x: number; y: number } | null;
+    passthrough: { x: number; y: number } | null;
+    delay:       { x: number; y: number } | null;
+  } {
+    const MIN_D = 36; // min screen pixels between badge centres
+    const condition   = c.condition        ? this.getPointOnPath(c, 0.50) : null;
+    let   passthrough = c.passthroughEnabled ? this.getPointOnPath(c, 0.15) : null;
+    let   delay       = c.lineDelay          ? this.getPointOnPath(c, 0.32) : null;
+
+    // Nudge delay forward until it clears the passthrough badge
+    if (passthrough && delay) {
+      for (let t = 0.32; t <= 0.70; t += 0.04) {
+        delay = this.getPointOnPath(c, t);
+        if (Math.hypot(delay.x - passthrough.x, delay.y - passthrough.y) >= MIN_D) break;
+      }
+    }
+    // Nudge condition forward if it overlaps passthrough or delay
+    if (condition) {
+      for (let t = 0.50; t <= 0.88; t += 0.04) {
+        const pt = this.getPointOnPath(c, t);
+        const dP = passthrough ? Math.hypot(pt.x - passthrough.x, pt.y - passthrough.y) : Infinity;
+        const dD = delay       ? Math.hypot(pt.x - delay.x,       pt.y - delay.y)       : Infinity;
+        if (dP >= MIN_D && dD >= MIN_D) { /* condition stays at midpoint for readability; keep going */ break; }
+      }
+      // Keep condition at t=0.50 always for visual balance — only nudge pass/delay
+    }
+    return { condition, passthrough, delay };
   }
 
   // Track mousedown position to distinguish click vs drag on rune nodes
@@ -891,11 +946,13 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       sn.y + START_R >= wa.y && sn.y - START_R <= wb.y
     );
     const newWpSel = new Map<string, Set<number>>();
+    const tolW = 5 / this.zoom; // 5 screen-pixel tolerance converted to world units
     for (const c of this.graph.connections) {
       const wps = c.waypoints ?? [];
       const sel = new Set<number>();
       for (let i = 0; i < wps.length; i++) {
-        if (wps[i].x >= wa.x && wps[i].x <= wb.x && wps[i].y >= wa.y && wps[i].y <= wb.y) {
+        if (wps[i].x >= wa.x - tolW && wps[i].x <= wb.x + tolW &&
+            wps[i].y >= wa.y - tolW && wps[i].y <= wb.y + tolW) {
           sel.add(i);
         }
       }
@@ -1716,10 +1773,25 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   onClose() {
     if (this.isDirty) {
-      const ok = confirm('Es gibt ungespeicherte Änderungen. Trotzdem schließen?');
-      if (!ok) return;
+      this.showCloseDialog = true;
+    } else {
+      this.cancel.emit();
     }
+  }
+
+  onCloseConfirmSave() {
+    this.onSave();
+    this.showCloseDialog = false;
     this.cancel.emit();
+  }
+
+  onCloseConfirmDiscard() {
+    this.showCloseDialog = false;
+    this.cancel.emit();
+  }
+
+  onCloseDialogCancel() {
+    this.showCloseDialog = false;
   }
 
   private extractTags(): string[] {

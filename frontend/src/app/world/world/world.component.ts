@@ -24,6 +24,7 @@ import { Subscription } from 'rxjs';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
 import { SpellNodeEditorComponent } from '../../shared/spell-node-editor/spell-node-editor.component';
+import { SpellBlock } from '../../model/spell-block-model';
 import { RuneEditorComponent } from '../../shared/rune-editor/rune-editor.component';
 import { AssetBrowserComponent } from '../asset-browser/asset-browser.component';
 import { LibrarySelectorComponent } from '../../shared/library-selector/library-selector.component';
@@ -84,6 +85,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   editingItemIndex: number | null = null;
   editingRuneIndex: number | null = null;
   editingSpellIndex: number | null = null;
+  editingSpell: SpellBlock | null = null; // stable ref kept across library updates
   editingSkillIndex: number | null = null;
   editingStatusEffectIndex: number | null = null;
   editingItems = new Set<number>();
@@ -566,8 +568,11 @@ export class WorldComponent implements OnInit, OnDestroy {
   openRuneEditorDialog(index: number) { this.editingRuneIndex = index; }
   closeRuneEditor() { this.editingRuneIndex = null; }
 
-  openSpellEditorDialog(index: number) { this.editingSpellIndex = index; }
-  closeSpellEditorDialog() { this.editingSpellIndex = null; }
+  openSpellEditorDialog(index: number) {
+    this.editingSpellIndex = index;
+    this.editingSpell = this.store.worldValue?.spellLibrary?.[index] ?? null;
+  }
+  closeSpellEditorDialog() { this.editingSpellIndex = null; this.editingSpell = null; }
 
   openSkillEditorDialog(index: number) { this.editingSkillIndex = index; }
   closeSkillEditorDialog() { this.editingSkillIndex = null; }

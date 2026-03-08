@@ -240,9 +240,9 @@
 }
 
 <!-- Spell Node Editor Dialog -->
-@if (editingSpellIndex !== null && world.spellLibrary[editingSpellIndex]) {
+@if (editingSpell !== null && editingSpellIndex !== null) {
   <app-spell-node-editor
-    [spell]="world.spellLibrary[editingSpellIndex]"
+    [spell]="editingSpell"
     [availableRunes]="mergedRunes()"
     (save)="updateSpell(editingSpellIndex, { path: '', value: $event })"
     (cancel)="closeSpellEditorDialog()"

@@ -232,15 +232,17 @@ app/
   - `SpellGraph { startNode, nodes[], connections[] }`
   - `SpellNode { id, runeId, x, y }` — Runen-Knoten auf Canvas (world coords)
   - `SpellConnection { id, fromNodeId, fromPortId, toNodeId, toPortId, waypoints[], condition?, precastKnown?, passthroughEnabled?, maxPassthrough?, lineDelay? }`
-    - Kein `isLoop`/`isBranch`/`defaultShape`/`precastUnknown` mehr
-    - `condition` — Branch-Label; leer = keine Verzweigung; gefüllt = zeigt einzelnen boolean-Toggle „Bedingung bekannt/unbekannt" (`precastKnown`)
+    - `condition` — Branch-Label; Branch-Farbe: orange (unbekannt), lila (bekannt)
     - `passthroughEnabled + maxPassthrough` — Rücklauf (Passthrough)
     - `lineDelay` — Verzögerung in Runden
+  - `PendingConnection.isPickup?: boolean` — true beim Umleiten bestehender Verbindungen (Void-Drop = Abbruch, nicht QS)
 - **Routing**: Queen-Movement (H/V/45°), `queenRoute()` + `buildQueenPath()`; Zyklen erhalten Auto-Waypoints
 - **Waypoints**: Rechtsklick auf Linie = Wegpunkt ziehen/erstellen; Box-Select + Entf zum Löschen
-- **Undo/Redo**: Ctrl+Z/Y (max 60 Schritte); Ctrl+C/X/V = Copy/Cut/Paste ausgewählter Knoten
+  - Box-Selektion: 5px Screen-Pixel-Toleranz für Waypoints
+- **Undo/Redo**: Ctrl+Z/Y (max 60 Schritte); Ctrl+C/X/V = Copy/Cut/Paste ausgewählter Knoten+Verbindungen (Waypoints werden mit Offset kopiert)
 - **Inspektor**: Runen-Info (Klick auf Knoten) ODER Verbindungs-Inspektor (Linksklick auf Linie) — gegenseitig exklusiv
-  - Verbindungs-Inspektor: Bedingung (Branch-Label) → zeigt bei Eingabe „Bedingung bekannt/unbekannt"-Toggle; Durchläufe; Verzögerung
-- **Canvas Badges**: entlang tatsächlichem Pfad verteilt via `getPointOnPath(c, t)`: Condition-Text-Pill (t=0.5), Passthrough-⟳ (t=0.30), Delay-⧗ (t=0.70)
-- **Zyklus-Erkennung**: `createsCycle()` DFS; bei Zyklus → Arch+Passthrough auto-gesetzt, außer es gibt bereits eine Passthrough-Verbindung im gleichen Zyklus
-- **Selektion**: Box-Select für Knoten, Start-Knoten und Waypoints; Knoten + Start können verschoben (aber Start nicht gelöscht) werden
+- **Canvas Badges**: `getBadgePositions(c)` garantiert ≥36px Screen-Abstand zwischen Badge-Centern. Badges skalieren mit zoom (`scale(zoom)` im SVG-Transform). Condition-Pill (Mitte), Passthrough-⟳ (t=0.15), Delay-⧗ (t=0.32+).
+- **Linienselektion**: Grüner Glow (`#22c55e`, stroke-width 10), nicht mehr breiter weißer Block
+- **Quick-Search Popup**: Connection in Void droppen (nur neue, nicht isPickup) → Popup mit Runen-Suche; inkompatible Runes werden ausgegraut. Platziert Rune an Welt-Position + verbindet sie.
+- **Schließen-Dialog**: 3-Button-Modal (Speichern / Nicht speichern / Abbrechen) statt `confirm()` bei ungespeicherten Änderungen
+- **Kein Schließen beim Speichern**: `world.component` hält `editingSpell` als stabile Referenz unabhängig von Library-Updates; Speichern schließt den Editor nicht mehr
