@@ -4,7 +4,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RuneBlock, RuneDataLine, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS } from '../../model/rune-block.model';
+import { RuneBlock, RuneDataLine, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS, DATA_TYPE_PRESETS, DataTypePreset } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../image-url.pipe';
 
@@ -31,9 +31,10 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   editRune!: RuneBlock;
   isNewRune = true;
 
-  glowColors   = RUNE_GLOW_COLORS;
-  defaultTags  = RUNE_DEFAULT_TAGS;
-  allTagOptions = RUNE_TAG_OPTIONS;
+  glowColors     = RUNE_GLOW_COLORS;
+  defaultTags    = RUNE_DEFAULT_TAGS;
+  allTagOptions  = RUNE_TAG_OPTIONS;
+  dataTypePresets = DATA_TYPE_PRESETS;
   newTag = '';
 
   // Drawing state
@@ -335,6 +336,12 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   addDataLine(dir: 'inputs' | 'outputs') {
     const list = (this.editRune[dir] ?? []).slice();
     list.push({ name: '', color: '#06b6d4', types: [] });
+    this.editRune[dir] = list;
+  }
+
+  addPresetDataLine(dir: 'inputs' | 'outputs', preset: DataTypePreset) {
+    const list = (this.editRune[dir] ?? []).slice();
+    list.push({ name: preset.name, color: preset.color, types: [preset.type] });
     this.editRune[dir] = list;
   }
 

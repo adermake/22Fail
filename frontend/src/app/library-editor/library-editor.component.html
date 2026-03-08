@@ -124,6 +124,12 @@
           </nav>
         </div>
         <div class="toolbar-right">
+          <!-- Rune Table Button -->
+          <button class="rune-table-btn" (click)="showRuneTable.set(true)"
+                  title="Alle Runen in Tabellenansicht bearbeiten">
+            ✨ Rune-Tabelle
+          </button>
+
           <!-- Create Button -->
           <div class="create-dropdown">
             <button class="create-btn" (click)="toggleCreateMenu(); $event.stopPropagation()">
@@ -382,7 +388,7 @@
               <app-spell-node-editor
                 [spell]="editingFile()!.data"
                 [availableRunes]="availableRunesAsBlocks"
-                (save)="saveEditor($event)"
+                (save)="saveEditor($event, false)"
                 (cancel)="closeEditor()"
               />
             }
@@ -771,6 +777,16 @@
     </div>
   }
 </div>
+
+<!-- Rune Table Overlay -->
+@if (showRuneTable()) {
+  <app-rune-table
+    [libraryId]="libraryId()"
+    [folderId]="currentFolderId()"
+    (close)="showRuneTable.set(false)"
+    (filesChanged)="loadFolderContents()">
+  </app-rune-table>
+}
 
 <!-- Folder Tree Node Template -->
 <ng-template #folderNode let-folder="folder" let-depth="depth">

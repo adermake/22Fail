@@ -1,0 +1,140 @@
+<div class="rt-overlay">
+  <!-- Header bar -->
+  <div class="rt-header">
+    <span class="rt-title">Rune-Tabelle</span>
+    <span class="rt-count">{{ runeFiles.length }} Runen</span>
+    <div class="rt-spacer"></div>
+    <button class="rt-upload-btn"
+            [disabled]="uploading()"
+            (click)="triggerUpload()">
+      {{ uploading() ? 'Lädt hoch…' : '↑ Runen hochladen' }}
+    </button>
+    <input #uploadInput type="file" multiple accept="image/*"
+           (change)="uploadRunes($event)" style="display:none">
+    <button class="rt-close-btn" (click)="close.emit()">✕ Schließen</button>
+  </div>
+
+  <!-- Table wrapper -->
+  <div class="rt-scroll">
+    @if (isLoading()) {
+      <div class="rt-loading">Wird geladen…</div>
+    } @else if (runeFiles.length === 0) {
+      <div class="rt-empty">
+        Keine Runen in diesem Ordner. Klicke auf „Runen hochladen" um Bilder als Runen zu importieren.
+      </div>
+    } @else {
+      <table class="rt-table">
+        <thead>
+          <tr>
+            <th class="c-img">Bild</th>
+            <th class="c-name">Name</th>
+            <th class="c-color" title="Leuchtfarbe">Farbe</th>
+            <th class="c-num" title="Fokus-Basis">Fok</th>
+            <th class="c-num" title="Fokus-Multiplikator">×F</th>
+            <th class="c-num" title="Mana-Basis">Man</th>
+            <th class="c-num" title="Mana-Multiplikator">×M</th>
+            <th class="c-num" title="Effektivität">Eff</th>
+            <th class="c-stat" title="Stärke">STR</th>
+            <th class="c-stat" title="Geschick">GES</th>
+            <th class="c-stat" title="Intelligenz">INT</th>
+            <th class="c-stat" title="Konstitution">KON</th>
+            <th class="c-stat" title="Charisma">CHR</th>
+            <th class="c-tags">Tags</th>
+            <th class="c-desc">Beschreibung</th>
+            <th class="c-del"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (file of runeFiles; track file.id) {
+            <tr [class.rt-saving]="savingIds().has(file.id)">
+              <!-- Bild -->
+              <td class="c-img">
+                @if (file.data.drawing) {
+                  <img [src]="file.data.drawing | imageUrl" alt="" class="rt-thumb">
+                } @else {
+                  <div class="rt-thumb-empty">✨</div>
+                }
+              </td>
+
+              <!-- Name -->
+              <td class="c-name">
+                <input type="text" class="rt-input"
+                       [(ngModel)]="file.data.name"
+                       (ngModelChange)="onFieldChange(file)"
+                       placeholder="Name…">
+              </td>
+
+              <!-- Leuchtfarbe -->
+              <td class="c-color">
+                <input type="color"
+                       [value]="file.data.glowColor || '#8b5cf6'"
+                       (input)="file.data.glowColor = $any($event.target).value; onFieldChange(file)"
+                       class="rt-color-pick"
+                       title="Leuchtfarbe">
+              </td>
+
+              <!-- Fokus -->
+              <td><input type="number" class="rt-num"
+                         [(ngModel)]="file.data.fokus"
+                         (ngModelChange)="onFieldChange(file)" min="0"></td>
+              <td><input type="number" class="rt-num"
+                         [(ngModel)]="file.data.fokusMult"
+                         (ngModelChange)="onFieldChange(file)" min="0"></td>
+
+              <!-- Mana -->
+              <td><input type="number" class="rt-num"
+                         [(ngModel)]="file.data.mana"
+                         (ngModelChange)="onFieldChange(file)" min="0"></td>
+              <td><input type="number" class="rt-num"
+                         [(ngModel)]="file.data.manaMult"
+                         (ngModelChange)="onFieldChange(file)" min="0"></td>
+
+              <!-- Effektivität -->
+              <td><input type="number" class="rt-num"
+                         [(ngModel)]="file.data.effektivitaet"
+                         (ngModelChange)="onFieldChange(file)" min="0"></td>
+
+              <!-- Stat-Anforderungen -->
+              <td><input type="number" class="rt-stat"
+                         [ngModel]="reqVal(file, 'strength')"
+                         (ngModelChange)="setReq(file, 'strength', $event)" min="0"></td>
+              <td><input type="number" class="rt-stat"
+                         [ngModel]="reqVal(file, 'dexterity')"
+                         (ngModelChange)="setReq(file, 'dexterity', $event)" min="0"></td>
+              <td><input type="number" class="rt-stat"
+                         [ngModel]="reqVal(file, 'intelligence')"
+                         (ngModelChange)="setReq(file, 'intelligence', $event)" min="0"></td>
+              <td><input type="number" class="rt-stat"
+                         [ngModel]="reqVal(file, 'constitution')"
+                         (ngModelChange)="setReq(file, 'constitution', $event)" min="0"></td>
+              <td><input type="number" class="rt-stat"
+                         [ngModel]="reqVal(file, 'chill')"
+                         (ngModelChange)="setReq(file, 'chill', $event)" min="0"></td>
+
+              <!-- Tags (comma-separated) -->
+              <td class="c-tags">
+                <input type="text" class="rt-input"
+                       [value]="tagsStr(file)"
+                       (change)="setTags(file, $any($event.target).value)"
+                       placeholder="tag1, tag2…">
+              </td>
+
+              <!-- Beschreibung -->
+              <td class="c-desc">
+                <input type="text" class="rt-input"
+                       [(ngModel)]="file.data.description"
+                       (ngModelChange)="onFieldChange(file)"
+                       placeholder="Beschreibung…">
+              </td>
+
+              <!-- Löschen -->
+              <td class="c-del">
+                <button class="rt-del-btn" (click)="deleteRune(file)" title="Rune löschen">×</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>

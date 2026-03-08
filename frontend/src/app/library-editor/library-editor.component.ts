@@ -49,6 +49,7 @@ import { StatusEffectEditorComponent } from '../shared/status-effect-editor/stat
 import { MacroEditorComponent } from '../shared/macro-editor/macro-editor.component';
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 import { ImageUrlPipe } from '../shared/image-url.pipe';
+import { RuneTableComponent } from './rune-table/rune-table.component';
 
 /**
  * Library Editor Component
@@ -72,6 +73,7 @@ import { ImageUrlPipe } from '../shared/image-url.pipe';
     ImageUrlPipe,
     ItemEditorComponent,
     RuneEditorComponent,
+    RuneTableComponent,
     SpellNodeEditorComponent,
     SkillEditorComponent,
     StatusEffectEditorComponent,
@@ -130,6 +132,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   // Editor state
   editingFile = signal<AssetFile | null>(null);
   editingType = signal<AssetType | null>(null);
+  showRuneTable = signal(false);
 
   // Library settings state
   showLibrarySettings = signal(false);

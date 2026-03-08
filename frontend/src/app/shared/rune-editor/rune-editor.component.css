@@ -567,6 +567,39 @@
 .req-tiny:focus { outline: none; border-color: var(--accent, #8b5cf6); }
 
 /* ─── Datalines ──────────────────────────────────────────────────────────────── */
+.dl-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 5px 7px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border, #374151);
+  border-radius: 6px;
+}
+.dl-preset-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #9ca3af);
+  margin-right: 2px;
+}
+.dl-preset-btn {
+  padding: 1px 7px;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, opacity 0.12s;
+  opacity: 0.8;
+}
+.dl-preset-btn:hover { background: rgba(255,255,255,0.08); opacity: 1; }
+.dl-preset-out { opacity: 0.55; }
+.dl-preset-out:hover { opacity: 0.9; }
+
 .dl-subheader {
   display: flex;
   align-items: center;

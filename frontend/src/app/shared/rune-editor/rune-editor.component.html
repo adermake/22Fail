@@ -220,6 +220,23 @@
         <section class="ed-section">
           <h3 class="section-title">Datenlinien</h3>
 
+          <!-- Quick data type presets -->
+          <div class="dl-presets">
+            <span class="dl-preset-label">Schnell-Typ:</span>
+            @for (p of dataTypePresets; track p.name) {
+              <button class="dl-preset-btn"
+                      [style.border-color]="p.color"
+                      [style.color]="p.color"
+                      title="Eingang: {{ p.name }}"
+                      (click)="addPresetDataLine('inputs', p)">↓ {{ p.name }}</button>
+              <button class="dl-preset-btn dl-preset-out"
+                      [style.border-color]="p.color"
+                      [style.color]="p.color"
+                      title="Ausgang: {{ p.name }}"
+                      (click)="addPresetDataLine('outputs', p)">↑ {{ p.name }}</button>
+            }
+          </div>
+
           <div class="dl-subheader">
             <span class="dl-dir-label dl-in">↓ Eingänge</span>
             <button class="dl-add-btn" (click)="addDataLine('inputs')">+ Eingang</button>

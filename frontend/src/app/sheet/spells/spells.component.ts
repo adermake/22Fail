@@ -74,7 +74,7 @@ export class SpellsComponent {
       this.sheet.spells = spells;
     }
     this.patch.emit({ path: 'spells', value: this.sheet.spells });
-    this.closeNodeEditor();
+    // Do NOT close — spell editor stays open after save (explicit close via cancel/X)
   }
 
   createSpell(spell: SpellBlock) {

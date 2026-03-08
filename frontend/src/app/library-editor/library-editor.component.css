@@ -446,6 +446,23 @@
 }
 
 /* Create Button */
+.rune-table-btn {
+  background: transparent;
+  border: 1px solid #4c3d8a;
+  color: #a78bfa;
+  padding: 7px 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 0.15s, border-color 0.15s;
+}
+.rune-table-btn:hover {
+  background: rgba(139,92,246,0.12);
+  border-color: #8b5cf6;
+  color: #c4b5fd;
+}
+
 .create-dropdown {
   position: relative;
 }

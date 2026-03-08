@@ -60,3 +60,18 @@ export const RUNE_TAG_OPTIONS = [
   'Schutz', 'Angriff', 'Verteidigung', 'Buff', 'Debuff',
   'Beschwörung', 'Verzauberung', 'Illusion', 'Wind', 'Blitz', 'Eis',
 ];
+
+export interface DataTypePreset {
+  name: string;
+  color: string;
+  type: string;
+}
+
+export const DATA_TYPE_PRESETS: DataTypePreset[] = [
+  { name: 'Zahl',        color: '#3b82f6', type: 'Zahl' },
+  { name: 'Vektor',      color: '#22c55e', type: 'Vektor' },
+  { name: 'Aussage',     color: '#f97316', type: 'Aussage' },
+  { name: 'Medium',      color: '#ec4899', type: 'Medium' },
+  { name: 'Fluss',       color: '#06b6d4', type: 'Fluss' },
+  { name: 'Information', color: '#eab308', type: 'Information' },
+];
