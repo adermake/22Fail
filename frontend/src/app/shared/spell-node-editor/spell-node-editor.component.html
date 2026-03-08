@@ -193,8 +193,9 @@
                (click)="onConnGroupClick($event, c)"
                (dblclick)="onConnGroupDblClick($event, c)"
                (contextmenu)="onConnectionRightClick(c, $event)">
-              <!-- Invisible wide-stroke hit area: limits click region to near the actual line -->
-              <path class="conn-hit" [attr.d]="connectionPathScreen(c)"/>
+              <!-- Invisible wide-stroke hit area: pull to create waypoint, click to select -->
+              <path class="conn-hit" [attr.d]="connectionPathScreen(c)"
+                    (mousedown)="onConnHitMouseDown($event, c)"/>
               <path class="conn-path-glow"
                     [attr.d]="connectionPathScreen(c)"
                     [attr.stroke]="connectionColor(c)"
@@ -208,13 +209,13 @@
                     [class.conn-loop]="c.isLoop"
                     [class.conn-branch]="c.isBranch"/>
 
-              <!-- Waypoint handles — draggable circles on each intermediate point -->
-              @if (!c.isLoop && c.waypoints?.length) {
+              <!-- Waypoint handles — only shown when connection is selected -->
+              @if (!c.isLoop && c.waypoints?.length && isConnectionSelected(c.id)) {
                 @for (wp of c.waypoints; track $index; let wi = $index) {
                   <circle class="conn-waypoint"
                           [attr.cx]="worldToCanvasLocal(wp.x, wp.y).x"
                           [attr.cy]="worldToCanvasLocal(wp.x, wp.y).y"
-                          r="5"
+                          r="6"
                           (mousedown)="onWaypointMouseDown($event, c.id, wi)"/>
                 }
               }
@@ -263,7 +264,34 @@
               }
             </g>
           }
+          <!-- Snap grid dots — shown while pulling / dragging a waypoint -->
+          @if ((pullingWaypointConnId || draggingWaypointConnId) && waypointSnapGrid.length) {
+            @for (sg of waypointSnapGrid; track $index) {
+              <circle class="conn-snap-dot"
+                      [attr.cx]="worldToCanvasLocal(sg.x, sg.y).x"
+                      [attr.cy]="worldToCanvasLocal(sg.x, sg.y).y"
+                      r="4"/>
+            }
+          }
+          <!-- Live pull-preview dot -->
+          @if (pullingWaypointConnId && pullingWaypointPos) {
+            <circle class="conn-waypoint-preview"
+                    [attr.cx]="worldToCanvasLocal(pullingWaypointPos.x, pullingWaypointPos.y).x"
+                    [attr.cy]="worldToCanvasLocal(pullingWaypointPos.x, pullingWaypointPos.y).y"
+                    r="6"/>
+          }
         </svg>
+
+        <!-- Node drag Y-snap indicator lines -->
+        @if (nodeDragSnapLines.length) {
+          <svg class="conn-overlay-svg snap-line-svg" xmlns="http://www.w3.org/2000/svg">
+            @for (sl of nodeDragSnapLines; track $index) {
+              <line class="node-snap-line"
+                    x1="0" [attr.y1]="worldToCanvasLocal(0, sl.y).y"
+                    x2="100%" [attr.y2]="worldToCanvasLocal(0, sl.y).y"/>
+            }
+          </svg>
+        }
 
         <!-- Marquee selection overlay -->
         @if (marqueeActive && (marqueeRect.w > 4 || marqueeRect.h > 4)) {
@@ -294,7 +322,7 @@
 
         <!-- Hint bar -->
         <div class="canvas-hint">
-          Palette anklicken = Runen-Info · Mausrad = Zoom · Mittelmaus = Schwenken · Port ziehen = Verbinden · Doppelklick auf Linie = Wegpunkt · Entf = Löschen · Strg+S = Speichern
+          Palette anklicken = Runen-Info · Mausrad = Zoom · Mittelmaus = Schwenken · Port ziehen = Verbinden · Linie ziehen = Wegpunkt · Entf = Löschen · Strg+S = Speichern
         </div>
 
       </div><!-- /canvas-wrap -->

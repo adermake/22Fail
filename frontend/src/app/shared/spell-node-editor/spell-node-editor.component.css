@@ -332,7 +332,7 @@
   stroke: rgba(0,0,0,0.01);
   stroke-width: 16;
   pointer-events: stroke;
-  cursor: pointer;
+  cursor: grab;
 }
 
 /* Full-size screen-space SVG overlay for the pending (in-progress) connection line.
@@ -840,6 +840,33 @@
   stroke: #a78bfa;
   stroke-width: 2;
   cursor: grabbing;
+}
+
+/* Snap grid dots shown during waypoint drag/pull */
+.conn-snap-dot {
+  fill: none;
+  stroke: rgba(139, 92, 246, 0.45);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  pointer-events: none;
+}
+
+/* Live drag preview dot for new waypoint being pulled */
+.conn-waypoint-preview {
+  fill: rgba(139, 92, 246, 0.35);
+  stroke: #a78bfa;
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+/* Node drag Y-snap indicator line */
+.snap-line-svg {
+  pointer-events: none;
+}
+.node-snap-line {
+  stroke: rgba(139, 92, 246, 0.55);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

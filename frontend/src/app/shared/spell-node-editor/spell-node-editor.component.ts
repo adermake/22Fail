@@ -117,9 +117,18 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // Inline editing state for connection badges
   editingConnId: string | null = null;
 
-  // Waypoint drag state
-  private draggingWaypointConnId: string | null = null;
-  private draggingWaypointIndex = -1;
+  // ── Waypoint drag state ────────────────────────────────────────────────────
+  // Dragging an EXISTING waypoint circle:
+  draggingWaypointConnId: string | null = null;
+  draggingWaypointIndex = -1;
+  // Pulling a NEW waypoint out of a line segment (mousedown on conn-hit, not on a waypoint):
+  pullingWaypointConnId: string | null = null;
+  pullingWaypointSegIndex = -1;  // insert position in waypoints array
+  pullingWaypointPos: { x: number; y: number } | null = null;
+  // Snap grid shown while dragging/pulling a waypoint:
+  waypointSnapGrid: { x: number; y: number }[] = [];
+  // Node drag snap indicators (world coords of matched port Ys)
+  nodeDragSnapLines: { y: number }[] = [];
 
   // Rune inspector panel (right sidebar)
   inspectedRune: RuneBlock | null = null;
@@ -294,124 +303,142 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Circuit-board auto-router — generates queen-movement waypoints (H/V/45°)
-  // Returns intermediate world-space points between (x1,y1) and (x2,y2).
-  private autoRoutePoints(x1: number, y1: number, x2: number, y2: number): { x: number; y: number }[] {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const adx = Math.abs(dx);
-    const ady = Math.abs(dy);
-    const sx = dx >= 0 ? 1 : -1;
-    const sy = dy >= 0 ? 1 : -1;
-
-    // Already axis-aligned or diagonal — no waypoints needed
-    if (adx === 0 || ady === 0) return [];
-    if (adx === ady) return [];
-
-    // Strategy: exit horizontally a bit, then diagonal to match vertical delta,
-    // then horizontal to target. Results in exactly 2 waypoints.
-    //   H-segment: x1 → x1 + hLen (y stays y1)
-    //   Diag: diagonal for min(absDx-hLen, absDy) to match dy
-    //   H-segment: to target
+  // Queen-movement router — all segments must be H, V, or 45° diagonal.
+  // Returns intermediate world-space waypoints between (x1,y1)→(x2,y2) (endpoints NOT included).
+  // Strategy: H → diagonal → H, splitting horizontal remainder evenly.
+  queenRoute(x1: number, y1: number, x2: number, y2: number): { x: number; y: number }[] {
+    const dx = x2 - x1, dy = y2 - y1;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    if (adx < 0.5 || ady < 0.5) return [];          // horizontal or vertical — direct
+    if (Math.abs(adx - ady) < 0.5) return [];        // exact 45° diagonal — direct
+    const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1;
     const diag = Math.min(adx, ady);
-    const hRemainder = adx - diag; // leftover horizontal after diagonal
-    const hLeft  = Math.floor(hRemainder / 2);
-    const hRight = hRemainder - hLeft;
-
-    const p1 = { x: x1 + sx * hLeft,          y: y1 };
-    const p2 = { x: x1 + sx * (hLeft + diag), y: y1 + sy * diag };
-    // p2.x + sx * hRight should == x2; p2.y should == y2
-
-    // If p1 == start or p2 == end, skip degenerate
+    const hBefore = (adx - diag) / 2;
     const pts: { x: number; y: number }[] = [];
-    if (hLeft > 0) pts.push(p1);
-    pts.push(p2);
+    if (hBefore > 0.5) pts.push({ x: x1 + sx * hBefore, y: y1 });
+    pts.push({ x: x1 + sx * (hBefore + diag), y: y1 + sy * diag });
     return pts;
   }
 
-  // Build circuit-board SVG path through queen-movement waypoints (screen space)
-  private circuitPath(from: { x: number; y: number }, to: { x: number; y: number },
-                      worldWaypoints: { x: number; y: number }[]): string {
-    const pr = this.PORT_R * this.zoom;
-
-    // All world points in order
-    const allWorld = [from, ...worldWaypoints, to];
-    // Convert to screen
-    const pts = allWorld.map(p => this.worldToCanvasLocal(p.x, p.y));
-
-    if (pts.length < 2) return '';
-
-    // Offset start by +PORT_R (exit from output port right side)
-    // Offset end by -PORT_R (enter input port left side)
-    let d = `M ${pts[0].x + pr} ${pts[0].y}`;
-    for (let i = 1; i < pts.length; i++) {
-      const isLast = i === pts.length - 1;
-      const px = isLast ? pts[i].x - pr : pts[i].x;
-      const py = pts[i].y;
-      d += ` L ${px} ${py}`;
+  // Build SVG path (screen space) running queenRoute between each consecutive world-space point pair.
+  private buildQueenPath(worldPoints: { x: number; y: number }[]): string {
+    if (worldPoints.length < 2) return '';
+    const all: { x: number; y: number }[] = [worldPoints[0]];
+    for (let i = 0; i < worldPoints.length - 1; i++) {
+      const a = worldPoints[i], b = worldPoints[i + 1];
+      all.push(...this.queenRoute(a.x, a.y, b.x, b.y), b);
     }
-    return d;
+    return all.map((p, i) => {
+      const s = this.worldToCanvasLocal(p.x, p.y);
+      return `${i === 0 ? 'M' : 'L'} ${s.x.toFixed(1)} ${s.y.toFixed(1)}`;
+    }).join(' ');
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // Connection path helpers (SVG bezier)
-  connectionPath(c: SpellConnection): string {
+  // Loop arc — rectangular arch going upward (circuit-board style, no bezier)
+  private loopArcPathScreen(c: SpellConnection): string {
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
     if (!from || !to) return '';
-    return this.bezierPath(from.x, from.y, to.x, to.y);
+    const worldDy = Math.abs(from.y - to.y);
+    const rise = Math.max(80, worldDy * 0.8 + 80);
+    const topY = Math.min(from.y, to.y) - rise;
+    const pts = [
+      { x: from.x, y: from.y },
+      { x: from.x, y: topY   },
+      { x: to.x,   y: topY   },
+      { x: to.x,   y: to.y   },
+    ];
+    return pts.map((p, i) => {
+      const s = this.worldToCanvasLocal(p.x, p.y);
+      return `${i === 0 ? 'M' : 'L'} ${s.x.toFixed(1)} ${s.y.toFixed(1)}`;
+    }).join(' ');
   }
 
-  pendingPath(): string {
-    const p = this.pending();
-    if (!p) return '';
-    return this.bezierPath(p.fromX, p.fromY, p.toX, p.toY);
+  // Compute snap-grid points for a control point dragged between prev→next.
+  // Returns positions where both prev→pt and pt→next are queen-movement.
+  computeSnapGrid(prev: { x: number; y: number }, next: { x: number; y: number }): { x: number; y: number }[] {
+    const grid: { x: number; y: number }[] = [];
+    const dx = next.x - prev.x, dy = next.y - prev.y;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    const sx = dx >= 0 ? 1 : -1, sy = dy >= 0 ? 1 : -1;
+
+    // Candidate intersections: corners where one segment is H/V/45 from prev and other from next
+    const cxs = [prev.x, next.x, (prev.x + next.x) / 2,
+                 prev.x + sx * ady, prev.x - sx * ady,
+                 next.x + sx * ady, next.x - sx * ady];
+    const cys = [prev.y, next.y, (prev.y + next.y) / 2,
+                 prev.y + sy * adx, prev.y - sy * adx,
+                 next.y + sy * adx, next.y - sy * adx];
+
+    for (const cx of cxs) {
+      for (const cy of cys) {
+        const p = { x: cx, y: cy };
+        if (this.isQueenMove(prev, p) && this.isQueenMove(p, next)) {
+          grid.push(p);
+        }
+      }
+    }
+    // Auto-route midpoints from prev→next
+    grid.push(...this.queenRoute(prev.x, prev.y, next.x, next.y));
+
+    // Deduplicate
+    const seen = new Set<string>();
+    return grid.filter(p => {
+      const k = `${Math.round(p.x)},${Math.round(p.y)}`;
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    });
   }
 
-  // Screen-space pending path — circuit-board routing, queen movement
+  isQueenMove(a: { x: number; y: number }, b: { x: number; y: number }): boolean {
+    const dx = Math.abs(b.x - a.x), dy = Math.abs(b.y - a.y);
+    return dx < 0.5 || dy < 0.5 || Math.abs(dx - dy) < 0.5;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Connection path helpers
+  connectionPath(_c: SpellConnection): string { return ''; } // world-space — unused
+
+  pendingPath(): string { return ''; } // world-space — unused
+
+  // Screen-space pending path
   pendingPathScreen(): string {
     const p = this.pending();
     if (!p) return '';
-    // Normalize direction: output is always source
     const isInput = p.kind === 'flow-in' || p.kind === 'data-in';
-    const fx = isInput ? p.toX : p.fromX,  fy = isInput ? p.toY : p.fromY;
-    const tx = isInput ? p.fromX : p.toX,  ty = isInput ? p.fromY : p.toY;
-    const wps = this.autoRoutePoints(fx, fy, tx, ty);
-    return this.circuitPath({ x: fx, y: fy }, { x: tx, y: ty }, wps);
+    const fx = isInput ? p.toX : p.fromX, fy = isInput ? p.toY : p.fromY;
+    const tx = isInput ? p.fromX : p.toX, ty = isInput ? p.fromY : p.toY;
+    return this.buildQueenPath([{ x: fx, y: fy }, { x: tx, y: ty }]);
   }
 
   pendingColor(): string {
     return this.pending()?.color ?? '#ffffff';
   }
 
-  private bezierPath(x1: number, y1: number, x2: number, y2: number): string {
-    // NOTE: this is still used for the world-space conn-svg (unused by overlay). Keep it simple.
-    const dx = Math.abs(x2 - x1);
-    const force = Math.max(60, dx * 0.5);
-    return `M ${x1} ${y1} C ${x1 + force} ${y1} ${x2 - force} ${y2} ${x2} ${y2}`;
-  }
-
-  // Loop connections arc upward — clean parabolic arch, zoom-independent rise + PORT_R offset
-  private loopBezierPathScreen(c: SpellConnection): string {
+  // Screen-space (canvas-wrap-local) — used by conn-overlay-svg
+  connectionPathScreen(c: SpellConnection): string {
+    if (c.isLoop) return this.loopArcPathScreen(c);
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
     if (!from || !to) return '';
-    const sf = this.worldToCanvasLocal(from.x, from.y);
-    const st = this.worldToCanvasLocal(to.x,   to.y);
-    // Rise computed in world units so it stays visually consistent at all zoom levels
-    const worldDy = Math.abs(from.y - to.y);
-    const rise = Math.max(80, worldDy * 0.8 + 80) * this.zoom;
-    const topY = Math.min(sf.y, st.y) - rise;
-    const pr = this.PORT_R * this.zoom;
-    return `M ${sf.x + pr} ${sf.y} C ${sf.x + pr} ${topY} ${st.x - pr} ${topY} ${st.x - pr} ${st.y}`;
+    // User waypoints as control points; each sub-segment uses queen routing
+    const wps = c.waypoints ?? [];
+    // Also include the currently-being-pulled waypoint for live preview
+    if (this.pullingWaypointConnId === c.id && this.pullingWaypointPos) {
+      const liveWps = [
+        ...wps.slice(0, this.pullingWaypointSegIndex),
+        this.pullingWaypointPos,
+        ...wps.slice(this.pullingWaypointSegIndex),
+      ];
+      return this.buildQueenPath([from, ...liveWps, to]);
+    }
+    return this.buildQueenPath([from, ...wps, to]);
   }
 
   private resolvePortWorldPos(nodeId: string, portId: string): { x: number; y: number } | null {
     const all = this.allPortPositions();
     return all.find(p => p.nodeId === nodeId && p.portId === portId) ?? null;
   }
-
-
 
   // ────────────────────────────────────────────────────────────────────────────
   // Coordinate helpers
@@ -498,7 +525,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       this.panY = this.panStartPanY + (e.clientY - this.panStartY);
       return;
     }
-    // Waypoint drag
+    // ── Dragging an existing waypoint circle ─────────────────────────────────
     if (this.draggingWaypointConnId !== null) {
       const world = this.clientToWorld(e.clientX, e.clientY);
       const conn = this.graph.connections.find(c => c.id === this.draggingWaypointConnId);
@@ -507,10 +534,18 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
         const to   = this.resolvePortWorldPos(conn.toNodeId,   conn.toPortId);
         if (from && to) {
           const allPts = [from, ...conn.waypoints, to];
-          const prev = allPts[this.draggingWaypointIndex];      // point before waypoint
-          const next = allPts[this.draggingWaypointIndex + 2];  // point after waypoint
-          // Snap to queen movement from previous point
-          const snapped = this.snapToQueenMovement(world, prev, next);
+          const prev = allPts[this.draggingWaypointIndex];
+          const next = allPts[this.draggingWaypointIndex + 2];
+          // Snap to snap-grid if close enough (20 world units)
+          let snapped = world;
+          const grid = this.computeSnapGrid(prev, next);
+          this.waypointSnapGrid = grid;
+          const SNAP_THRESHOLD = 20;
+          let bestDist = SNAP_THRESHOLD;
+          for (const g of grid) {
+            const d = Math.hypot(world.x - g.x, world.y - g.y);
+            if (d < bestDist) { bestDist = d; snapped = g; }
+          }
           const newWps = [...conn.waypoints];
           newWps[this.draggingWaypointIndex] = snapped;
           this.graph.connections = this.graph.connections.map(c =>
@@ -521,15 +556,73 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       }
       return;
     }
+    // ── Pulling a new waypoint out of a line segment ──────────────────────────
+    if (this.pullingWaypointConnId !== null) {
+      const world = this.clientToWorld(e.clientX, e.clientY);
+      // Snap to snap-grid if close enough
+      let snapped = world;
+      const SNAP_THRESHOLD = 20;
+      let bestDist = SNAP_THRESHOLD;
+      for (const g of this.waypointSnapGrid) {
+        const d = Math.hypot(world.x - g.x, world.y - g.y);
+        if (d < bestDist) { bestDist = d; snapped = g; }
+      }
+      this.pullingWaypointPos = snapped;
+      return;
+    }
+    // ── Node drag with Y-snap ─────────────────────────────────────────────────
     if (this.draggingNodeId) {
       const world = this.clientToWorld(e.clientX, e.clientY);
       const primaryNode = this.graph.nodes.find(n => n.id === this.draggingNodeId);
       if (primaryNode) {
         const newX = world.x - this.dragOffsetX;
-        const newY = world.y - this.dragOffsetY;
+        let   newY = world.y - this.dragOffsetY;
         const dx = newX - primaryNode.x;
-        const dy = newY - primaryNode.y;
-        // Move all selected nodes by the same delta
+        let   dy = newY - primaryNode.y;
+
+        // Compute candidate Y positions of ports on nodes being moved
+        const movingIds = new Set(
+          this.graph.nodes.filter(n => this.selectedNodeIds.has(n.id)).map(n => n.id)
+        );
+
+        // Gather all port screen-Y from stationary nodes
+        const stationaryPortYs: number[] = [];
+        for (const pp of this.allPortPositions()) {
+          if (!movingIds.has(pp.nodeId)) stationaryPortYs.push(pp.y);
+        }
+
+        // Candidate port Ys on moving nodes after applying dy
+        const SNAP_Y = 10;
+        let snapDy: number | null = null;
+        for (const pp of this.allPortPositions()) {
+          if (!movingIds.has(pp.nodeId)) continue;
+          const candidateY = pp.y + dy;
+          for (const sy of stationaryPortYs) {
+            if (Math.abs(candidateY - sy) < SNAP_Y) {
+              snapDy = sy - pp.y;
+              break;
+            }
+          }
+          if (snapDy !== null) break;
+        }
+        if (snapDy !== null) dy = snapDy;
+
+        // Compute snap indicator lines (port Ys that we just snapped to)
+        if (snapDy !== null) {
+          const snapSet = new Set<number>();
+          for (const pp of this.allPortPositions()) {
+            if (!movingIds.has(pp.nodeId)) continue;
+            const snappedY = pp.y + dy;
+            for (const sy of stationaryPortYs) {
+              if (Math.abs(snappedY - sy) < 0.5) snapSet.add(sy);
+            }
+          }
+          this.nodeDragSnapLines = Array.from(snapSet).map(y => ({ y }));
+        } else {
+          this.nodeDragSnapLines = [];
+        }
+
+        // Move all selected nodes
         for (const node of this.graph.nodes) {
           if (this.selectedNodeIds.has(node.id)) {
             node.x += dx;
@@ -582,12 +675,45 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       this.hoveredPort.set(null);
       return;
     }
-    // Finish waypoint drag — snap-delete if collinear with neighbours
+    // Finish pulling a new waypoint out of a line
+    if (this.pullingWaypointConnId !== null) {
+      const connId  = this.pullingWaypointConnId;
+      const segIdx  = this.pullingWaypointSegIndex;
+      const pos     = this.pullingWaypointPos;
+      this.pullingWaypointConnId  = null;
+      this.pullingWaypointSegIndex = -1;
+      this.pullingWaypointPos     = null;
+      this.waypointSnapGrid       = [];
+      if (pos) {
+        const conn = this.graph.connections.find(c => c.id === connId);
+        if (conn) {
+          const from = this.resolvePortWorldPos(conn.fromNodeId, conn.fromPortId);
+          const to   = this.resolvePortWorldPos(conn.toNodeId,   conn.toPortId);
+          if (from && to) {
+            const wps    = conn.waypoints ?? [];
+            const allPts = [from, ...wps, to];
+            const prev   = allPts[segIdx];
+            const next   = allPts[segIdx + 1];
+            // Discard if the position essentially matches the auto-route (within 4 world units)
+            const autoMid = this.queenRoute(prev.x, prev.y, next.x, next.y);
+            const isRedundant = autoMid.length === 0
+              || autoMid.some(m => Math.hypot(pos.x - m.x, pos.y - m.y) < 4);
+            if (!isRedundant) {
+              const newWps = [...wps.slice(0, segIdx), pos, ...wps.slice(segIdx)];
+              this.updateConnectionWaypoints(connId, newWps);
+            }
+          }
+        }
+      }
+      return;
+    }
+    // Finish dragging an existing waypoint — snap-delete if redundant with auto-route
     if (this.draggingWaypointConnId !== null) {
       const connId = this.draggingWaypointConnId;
       const wpIdx  = this.draggingWaypointIndex;
       this.draggingWaypointConnId = null;
       this.draggingWaypointIndex  = -1;
+      this.waypointSnapGrid       = [];
       const conn = this.graph.connections.find(c => c.id === connId);
       if (conn && conn.waypoints) {
         const from = this.resolvePortWorldPos(conn.fromNodeId, conn.fromPortId);
@@ -612,7 +738,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     }
     if (this.isPanning)          { this.isPanning = false; return; }
     if (this.isDraggingStartNode){ this.isDraggingStartNode = false; return; }
-    if (this.draggingNodeId)     { this.draggingNodeId = null; return; }
+    if (this.draggingNodeId)     { this.draggingNodeId = null; this.nodeDragSnapLines = []; return; }
   }
 
   // Returns true if wp lies within `threshold` units of the line segment prev→next
@@ -815,14 +941,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       conn.isLoop = true;
       conn.loopCount = 1;
     }
-    // Compute initial circuit-board waypoints (skip for loops — they use arc paths)
-    if (!conn.isLoop) {
-      const fromPos = this.resolvePortWorldPos(fromNodeId, fromPortId);
-      const toPos   = this.resolvePortWorldPos(toNodeId,   toPortId);
-      if (fromPos && toPos) {
-        conn.waypoints = this.autoRoutePoints(fromPos.x, fromPos.y, toPos.x, toPos.y);
-      }
-    }
+    // No pre-stored waypoints — user pulls them out by dragging on the line
+    conn.waypoints = [];
     this.graph.connections = [...this.graph.connections, conn];
     this.graphConnectionsSig.set(this.graph.connections);
   }
@@ -911,8 +1031,48 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   onWaypointMouseDown(e: MouseEvent, connId: string, wpIdx: number) {
     e.stopPropagation();
     e.preventDefault();
+    const conn = this.graph.connections.find(c => c.id === connId);
+    if (conn) {
+      const from = this.resolvePortWorldPos(conn.fromNodeId, conn.fromPortId);
+      const to   = this.resolvePortWorldPos(conn.toNodeId,   conn.toPortId);
+      if (from && to) {
+        const allPts = [from, ...(conn.waypoints ?? []), to];
+        const prev = allPts[wpIdx];
+        const next = allPts[wpIdx + 2];
+        if (prev && next) this.waypointSnapGrid = this.computeSnapGrid(prev, next);
+      }
+    }
     this.draggingWaypointConnId  = connId;
     this.draggingWaypointIndex   = wpIdx;
+  }
+
+  // Mousedown on the invisible hit-area path — begin pulling a new waypoint from that segment
+  onConnHitMouseDown(e: MouseEvent, c: SpellConnection) {
+    if (c.isLoop) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const world = this.clientToWorld(e.clientX, e.clientY);
+    const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
+    const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
+    if (!from || !to) return;
+    const wps    = c.waypoints ?? [];
+    const allPts = [from, ...wps, to];
+
+    // Find nearest segment
+    let bestSeg  = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < allPts.length - 1; i++) {
+      const d = this.distToSegment(world, allPts[i], allPts[i + 1]);
+      if (d < bestDist) { bestDist = d; bestSeg = i; }
+    }
+    if (bestDist > 40) return; // too far from any segment
+
+    const prev = allPts[bestSeg];
+    const next = allPts[bestSeg + 1];
+    this.pullingWaypointConnId   = c.id;
+    this.pullingWaypointSegIndex = bestSeg;
+    this.pullingWaypointPos      = world;
+    this.waypointSnapGrid        = this.computeSnapGrid(prev, next);
   }
 
   // Called from onConnGroupClick to insert a waypoint at the clicked segment position
@@ -1090,37 +1250,17 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
   }
 
-  // Screen-space (canvas-wrap-local) variants — used by the conn-overlay-svg
-  connectionPathScreen(c: SpellConnection): string {
-    if (c.isLoop) return this.loopBezierPathScreen(c);
-    const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
-    const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
-    if (!from || !to) return '';
-    // Use stored waypoints; if none, compute via auto-router
-    const wps = (c.waypoints && c.waypoints.length > 0)
-      ? c.waypoints
-      : this.autoRoutePoints(from.x, from.y, to.x, to.y);
-    return this.circuitPath(from, to, wps);
-  }
-
   loopMidPointScreen(c: SpellConnection): { x: number; y: number } {
     if (c.isLoop) {
       const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
       const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
       if (!from || !to) return { x: 0, y: 0 };
-      const sf = this.worldToCanvasLocal(from.x, from.y);
-      const st = this.worldToCanvasLocal(to.x,   to.y);
-      // Rise must exactly match loopBezierPathScreen
+      // Match loopArcPathScreen: rectangular arch top-center
       const worldDy = Math.abs(from.y - to.y);
-      const rise = Math.max(80, worldDy * 0.8 + 80) * this.zoom;
-      const topY = Math.min(sf.y, st.y) - rise;
-      // P0=(sf.x+pr,sf.y) P1=(sf.x+pr,topY) P2=(st.x-pr,topY) P3=(st.x-pr,st.y)
-      // B_x(0.5) = (P0.x+3P1.x+3P2.x+P3.x)/8 = (4*(sf.x+pr)+4*(st.x-pr))/8 = (sf.x+st.x)/2
-      // B_y(0.5) = (sf.y + 3*topY + 3*topY + st.y) / 8
-      return {
-        x: (sf.x + st.x) / 2,
-        y: (sf.y + st.y + 6 * topY) / 8,
-      };
+      const rise  = Math.max(80, worldDy * 0.8 + 80);
+      const topY  = Math.min(from.y, to.y) - rise;
+      const midX  = (from.x + to.x) / 2;
+      return this.worldToCanvasLocal(midX, topY);
     }
     const mp = this.loopMidPoint(c);
     return this.worldToCanvasLocal(mp.x, mp.y);
