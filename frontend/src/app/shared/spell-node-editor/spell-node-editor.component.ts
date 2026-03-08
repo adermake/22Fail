@@ -1,6 +1,6 @@
 import {
   Component, Input, Output, EventEmitter, OnInit, OnDestroy,
-  ElementRef, ViewChild, HostListener, ChangeDetectorRef, signal,
+  ElementRef, ViewChild, HostListener, HostBinding, ChangeDetectorRef, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -110,6 +110,16 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   selectedWaypoints = new Map<string, Set<number>>();
   // Start node box-select state
   startNodeSelected = false;
+
+  // Undo/redo stacks
+  private undoStack: SpellGraph[] = [];
+  private redoStack: SpellGraph[] = [];
+  // Copy/paste clipboard
+  private clipboard: { nodes: SpellNode[]; connections: SpellConnection[] } | null = null;
+
+  // Expose for cursor CSS: set on host element when user is actively dragging a waypoint
+  @HostBinding('class.wp-dragging')
+  get isWpDragging(): boolean { return !!this.pullingWaypointConnId || !!this.draggingWaypointConnId; }
 
   // Marquee (selection box) state
   marqueeActive = false;
@@ -430,10 +440,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
           ...wps.slice(this.pullingWaypointSegIndex),
         ]
       : wps;
-    // Arch shape: if no user waypoints yet, use rectangular arch above the nodes
-    if (c.defaultShape === 'arch' && liveWps.length === 0) {
-      return this.loopArcPathScreen(c);
-    }
     return this.buildQueenPath([from, ...liveWps, to]);
   }
 
@@ -842,6 +848,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   onNodeMouseDown(e: MouseEvent, nodeId: string) {
     e.stopPropagation();
     if ((e.target as Element).closest('.rune-port')) return;
+    this.pushUndo(); // capture pre-drag state
     this.lastMouseDownX = e.clientX;
     this.lastMouseDownY = e.clientY;
     // If clicking a selected node, ensure it stays selected (don't clear)
@@ -864,6 +871,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   onStartNodeMouseDown(e: MouseEvent) {
     e.stopPropagation();
     if ((e.target as Element).closest('.rune-port, .port-circle')) return;
+    this.pushUndo();
     const world = this.clientToWorld(e.clientX, e.clientY);
     this.isDraggingStartNode = true;
     this.startNodeDragOffX = world.x - this.graph.startNode.x;
@@ -963,6 +971,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // ────────────────────────────────────────────────────────────────────────────
   // Connection creation + loop detection
   createConnection(pending: PendingConnection, target: PortPosition) {
+    this.pushUndo();
     // Normalize direction: fromPort is always the output side, toPort the input side
     const pendingIsOutput = pending.kind === 'flow-out' || pending.kind === 'data-out';
     const fromNodeId = pendingIsOutput ? pending.fromNodeId : target.nodeId;
@@ -997,8 +1006,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       if (!hasExistingPassthrough) {
         conn.passthroughEnabled = true;
         conn.maxPassthrough = 1;
-        conn.defaultShape = 'arch';
-        // Build default arch waypoints: go up above both ports
+        // Build default arch waypoints so cyclic line avoids overlapping node images
         const fromPos = this.resolvePortWorldPos(fromNodeId, fromPortId);
         const toPos   = this.resolvePortWorldPos(toNodeId,   toPortId);
         if (fromPos && toPos) {
@@ -1050,6 +1058,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     this.selectedConnectionId = this.selectedConnectionId === id ? null : id;
     this.selectedNodeIds = new Set(); // deselect nodes when selecting a connection
     this.startNodeSelected = false;
+    this.inspectedRune = null; // close rune inspector
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -1058,6 +1067,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   onWaypointMouseDown(e: MouseEvent, connId: string, wpIdx: number) {
     e.stopPropagation();
     e.preventDefault();
+    this.pushUndo(); // capture pre-drag state
     const conn = this.graph.connections.find(c => c.id === connId);
     if (conn) {
       const from = this.resolvePortWorldPos(conn.fromNodeId, conn.fromPortId);
@@ -1079,6 +1089,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     e.stopPropagation();
     e.preventDefault();
     if (e.button !== 2) return; // right-click only
+    this.pushUndo(); // capture pre-pull state
     const world = this.clientToWorld(e.clientX, e.clientY);
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
@@ -1128,6 +1139,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // Double-click on a connection inserts a waypoint at that position
   onConnGroupDblClick(e: MouseEvent, c: SpellConnection) {
     e.stopPropagation();
+    this.pushUndo();
     const world = this.clientToWorld(e.clientX, e.clientY);
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
@@ -1214,6 +1226,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   onCanvasDragOver(e: DragEvent) { e.preventDefault(); e.dataTransfer!.dropEffect = 'copy'; }
 
   private addNode(runeName: string, x: number, y: number) {
+    this.pushUndo();
     const id = `node-${this.nextId++}`;
     const node: SpellNode = { id, runeId: runeName, x, y };
     this.graph.nodes = [...this.graph.nodes, node];
@@ -1307,22 +1320,10 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   loopMidPointScreen(c: SpellConnection): { x: number; y: number } {
-    if (c.defaultShape === 'arch') {
-      const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
-      const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
-      if (!from || !to) return { x: 0, y: 0 };
-      const wps = c.waypoints ?? [];
-      if (wps.length > 0) {
-        // Use midpoint of the waypoint array
-        const mid = wps[Math.floor(wps.length / 2)];
-        return this.worldToCanvasLocal(mid.x, mid.y);
-      }
-      // Match loopArcPathScreen: rectangular arch top-center
-      const worldDy = Math.abs(from.y - to.y);
-      const rise  = Math.max(80, worldDy * 0.8 + 80);
-      const topY  = Math.min(from.y, to.y) - rise;
-      const midX  = (from.x + to.x) / 2;
-      return this.worldToCanvasLocal(midX, topY);
+    const wps = c.waypoints ?? [];
+    if (wps.length > 0) {
+      const mid = wps[Math.floor(wps.length / 2)];
+      return this.worldToCanvasLocal(mid.x, mid.y);
     }
     const mp = this.loopMidPoint(c);
     return this.worldToCanvasLocal(mp.x, mp.y);
@@ -1345,7 +1346,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // True when the connection has any visible settings that need badge display
   hasConnectionSettings(c: SpellConnection): boolean {
-    return !!(c.condition || c.precastKnown || c.precastUnknown || c.passthroughEnabled || c.lineDelay);
+    return !!(c.condition || c.passthroughEnabled || c.lineDelay);
   }
 
   /** Returns the currently selected SpellConnection, or null */
@@ -1357,11 +1358,150 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   /** Patches fields on the selected connection and emits change */
   updateSelectedConnection(patch: Partial<SpellConnection>) {
     if (!this.selectedConnectionId) return;
+    this.pushUndo();
     const updated = this.graph.connections.map(c =>
       c.id === this.selectedConnectionId ? { ...c, ...patch } : c
     );
     this.graph.connections = updated;
     this.graphConnectionsSig.set(updated);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Undo / Redo
+  private pushUndo() {
+    const snap = JSON.stringify(this.graph);
+    const last = this.undoStack.length > 0 ? JSON.stringify(this.undoStack[this.undoStack.length - 1]) : '';
+    if (snap === last) return; // nothing changed
+    this.undoStack.push(JSON.parse(snap));
+    this.redoStack = [];
+    if (this.undoStack.length > 60) this.undoStack.shift();
+  }
+
+  private applySnapshot(g: SpellGraph) {
+    this.graph = g;
+    this.rebuildNodeStates();
+    this.graphNodesSig.set(this.graph.nodes);
+    this.graphConnectionsSig.set(this.graph.connections);
+    this.selectedConnectionId = null;
+    this.selectedNodeIds = new Set();
+    this.selectedWaypoints = new Map();
+    this.startNodeSelected = false;
+    // Keep nextId ahead of all restored IDs to avoid collisions
+    const allNums = [
+      ...this.graph.nodes.map(n => parseInt(n.id.replace(/[^0-9]/g, ''), 10)),
+      ...this.graph.connections.map(c => parseInt(c.id.replace(/[^0-9]/g, ''), 10)),
+    ].filter(v => !isNaN(v));
+    if (allNums.length > 0) this.nextId = Math.max(this.nextId, Math.max(...allNums) + 1);
+  }
+
+  undo() {
+    if (this.undoStack.length === 0) return;
+    this.redoStack.push(JSON.parse(JSON.stringify(this.graph)));
+    this.applySnapshot(this.undoStack.pop()!);
+  }
+
+  redo() {
+    if (this.redoStack.length === 0) return;
+    this.undoStack.push(JSON.parse(JSON.stringify(this.graph)));
+    this.applySnapshot(this.redoStack.pop()!);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Copy / Paste
+  copySelected() {
+    if (this.selectedNodeIds.size === 0) return;
+    const nodes = this.graph.nodes.filter(n => this.selectedNodeIds.has(n.id));
+    const ids   = new Set(nodes.map(n => n.id));
+    const connections = this.graph.connections.filter(c => ids.has(c.fromNodeId) && ids.has(c.toNodeId));
+    this.clipboard = {
+      nodes:       JSON.parse(JSON.stringify(nodes)),
+      connections: JSON.parse(JSON.stringify(connections)),
+    };
+  }
+
+  cutSelected() {
+    if (this.selectedNodeIds.size === 0) return;
+    this.copySelected();
+    this.pushUndo();
+    for (const id of [...this.selectedNodeIds]) this.removeNode(id);
+    this.selectedNodeIds = new Set();
+  }
+
+  pasteClipboard() {
+    if (!this.clipboard || this.clipboard.nodes.length === 0) return;
+    this.pushUndo();
+    const idMap  = new Map<string, string>();
+    const OFFSET = 50;
+    // Add new nodes with offset positions
+    for (const node of this.clipboard.nodes) {
+      const newId   = `node-${this.nextId++}`;
+      idMap.set(node.id, newId);
+      const newNode: SpellNode = { ...node, id: newId, x: node.x + OFFSET, y: node.y + OFFSET };
+      this.graph.nodes = [...this.graph.nodes, newNode];
+    }
+    this.rebuildNodeStates();
+    this.graphNodesSig.set(this.graph.nodes);
+    // Recreate connections internal to the copied selection
+    for (const conn of this.clipboard.connections) {
+      const newFromId = idMap.get(conn.fromNodeId);
+      const newToId   = idMap.get(conn.toNodeId);
+      if (newFromId && newToId) {
+        const newConn: SpellConnection = {
+          ...JSON.parse(JSON.stringify(conn)),
+          id: `conn-${this.nextId++}`,
+          fromNodeId: newFromId,
+          toNodeId:   newToId,
+        };
+        this.graph.connections = [...this.graph.connections, newConn];
+      }
+    }
+    this.graphConnectionsSig.set(this.graph.connections);
+    this.selectedNodeIds = new Set(idMap.values());
+    this.selectedConnectionId = null;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Point-on-path: returns screen-space position at fraction t (0..1) along connection
+  getPointOnPath(c: SpellConnection, t: number): { x: number; y: number } {
+    const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
+    const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
+    if (!from || !to) return { x: 0, y: 0 };
+    const wps     = c.waypoints ?? [];
+    const liveWps = (this.pullingWaypointConnId === c.id && this.pullingWaypointPos)
+      ? [...wps.slice(0, this.pullingWaypointSegIndex), this.pullingWaypointPos, ...wps.slice(this.pullingWaypointSegIndex)]
+      : wps;
+    // Build routed world-space points (queen-movement)
+    const worldPoints = [from, ...liveWps, to];
+    const pts: { x: number; y: number }[] = [worldPoints[0]];
+    for (let i = 0; i < worldPoints.length - 1; i++) {
+      const a = worldPoints[i], b = worldPoints[i + 1];
+      pts.push(...this.queenRoute(a.x, a.y, b.x, b.y), b);
+    }
+    // Walk the polyline to find point at fraction t
+    let totalLen = 0;
+    const segLens: number[] = [];
+    for (let i = 1; i < pts.length; i++) {
+      const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+      segLens.push(d);
+      totalLen += d;
+    }
+    if (totalLen < 0.01) return this.worldToCanvasLocal(from.x, from.y);
+    const target = Math.max(0, Math.min(1, t)) * totalLen;
+    let walked = 0;
+    for (let i = 0; i < segLens.length; i++) {
+      if (walked + segLens[i] >= target) {
+        const frac = segLens[i] > 0 ? (target - walked) / segLens[i] : 0;
+        const a = pts[i], b = pts[i + 1];
+        return this.worldToCanvasLocal(a.x + (b.x - a.x) * frac, a.y + (b.y - a.y) * frac);
+      }
+      walked += segLens[i];
+    }
+    return this.worldToCanvasLocal(pts[pts.length - 1].x, pts[pts.length - 1].y);
+  }
+
+  /** Estimated pixel width of a condition label SVG rect */
+  condLabelWidth(condition: string | undefined): number {
+    return Math.max(50, (condition?.length ?? 0) * 6.5 + 28);
   }
 
   // Port's CSS top offset within the node div (world y → node-local px)
@@ -1385,11 +1525,13 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   inspectNode(node: SpellNode) {
     if (node.runeId === NEUTRAL_RUNE_ID) return;
+    this.selectedConnectionId = null; // close connection inspector
     this.inspectedRune = this.availableRunes.find(r => r.name === node.runeId) ?? null;
   }
 
   inspectPaletteRune(rune: RuneBlock) {
     if (rune.name === NEUTRAL_RUNE_ID) return;
+    this.selectedConnectionId = null; // close connection inspector
     this.inspectedRune = rune;
   }
 
@@ -1402,11 +1544,35 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       this.onSave();
       return;
     }
+    if (e.ctrlKey && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
+      e.preventDefault();
+      this.undo();
+      return;
+    }
+    if (e.ctrlKey && (e.key === 'y' || e.key === 'Y' || (e.key === 'z' && e.shiftKey) || (e.key === 'Z' && e.shiftKey))) {
+      e.preventDefault();
+      this.redo();
+      return;
+    }
     const tag = (e.target as HTMLElement).tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    // Copy / Cut / Paste — not in input fields
+    if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+      this.copySelected();
+      return;
+    }
+    if (e.ctrlKey && (e.key === 'x' || e.key === 'X')) {
+      this.cutSelected();
+      return;
+    }
+    if (e.ctrlKey && (e.key === 'v' || e.key === 'V')) {
+      this.pasteClipboard();
+      return;
+    }
     if (e.key === 'Delete' || e.key === 'Backspace') {
       // First: delete selected waypoints (prioritised over node/conn delete)
       if (this.selectedWaypoints.size > 0) {
+        this.pushUndo();
         for (const [connId, indices] of this.selectedWaypoints) {
           const conn = this.graph.connections.find(c => c.id === connId);
           if (conn?.waypoints) {
@@ -1417,9 +1583,11 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
         return;
       }
       if (this.selectedConnectionId) {
+        this.pushUndo();
         this.removeConnection(this.selectedConnectionId);
       }
       if (this.selectedNodeIds.size > 0) {
+        this.pushUndo();
         for (const id of [...this.selectedNodeIds]) {
           this.removeNode(id);
         }

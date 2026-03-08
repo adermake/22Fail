@@ -201,14 +201,14 @@
                     [attr.stroke]="connectionColor(c)"
                     [class.conn-selected]="isConnectionSelected(c.id)"
                     [class.conn-passthrough]="c.passthroughEnabled"
-                    [class.conn-condition]="c.condition || c.precastKnown || c.precastUnknown"
+                    [class.conn-condition]="c.condition"
                     [class.conn-delay]="c.lineDelay"/>
               <path class="conn-path"
                     [attr.d]="connectionPathScreen(c)"
                     [attr.stroke]="connectionColor(c)"
                     [class.conn-selected]="isConnectionSelected(c.id)"
                     [class.conn-passthrough]="c.passthroughEnabled"
-                    [class.conn-condition]="c.condition || c.precastKnown || c.precastUnknown"
+                    [class.conn-condition]="c.condition"
                     [class.conn-delay]="c.lineDelay"/>
 
               <!-- Waypoint handles — visible on hover or when connection/waypoint is selected -->
@@ -223,37 +223,37 @@
                 }
               }
 
-              <!-- Connection settings badges at line midpoint -->
-              @if (hasConnectionSettings(c)) {
-                <g [attr.transform]="'translate('+connMidPointScreen(c).x+','+connMidPointScreen(c).y+')'">
-                  @if (c.passthroughEnabled) {
-                    <g transform="translate(-28, -14)" class="conn-badge">
-                      <circle r="11" class="conn-badge-bg conn-badge-passthrough"/>
-                      <text class="conn-badge-icon">⟳</text>
-                      @if (c.maxPassthrough) {
-                        <text class="conn-badge-sub" dy="13">{{ c.maxPassthrough }}×</text>
-                      }
-                    </g>
+              <!-- Selected-line white highlight drawn on top of colored path -->
+              @if (isConnectionSelected(c.id)) {
+                <path class="conn-path-selected" [attr.d]="connectionPathScreen(c)"/>
+              }
+
+              <!-- Connection badges distributed along the actual routed path -->
+              @if (c.condition) {
+                @let cp = getPointOnPath(c, 0.5);
+                <g class="conn-badge conn-cond-label-group" [attr.transform]="'translate('+cp.x+','+cp.y+')'">
+                  <rect class="conn-cond-label-bg" rx="4"
+                        [attr.x]="-condLabelWidth(c.condition)/2" y="-10"
+                        [attr.width]="condLabelWidth(c.condition)" height="20"/>
+                  <text class="conn-cond-label-text">{{ c.precastKnown ? '★' : '☆' }} {{ c.condition }}</text>
+                </g>
+              }
+              @if (c.passthroughEnabled) {
+                @let pp = getPointOnPath(c, c.lineDelay ? 0.30 : 0.5);
+                <g class="conn-badge" [attr.transform]="'translate('+pp.x+','+pp.y+')'">
+                  <circle r="11" class="conn-badge-bg conn-badge-passthrough"/>
+                  <text class="conn-badge-icon">⟳</text>
+                  @if (c.maxPassthrough) {
+                    <text class="conn-badge-sub" dy="13">{{ c.maxPassthrough }}×</text>
                   }
-                  @if (c.lineDelay) {
-                    <g transform="translate(0, -14)" class="conn-badge">
-                      <circle r="11" class="conn-badge-bg conn-badge-delay"/>
-                      <text class="conn-badge-icon">⧗</text>
-                      <text class="conn-badge-sub" dy="13">{{ c.lineDelay }}R</text>
-                    </g>
-                  }
-                  @if (c.condition || c.precastKnown || c.precastUnknown) {
-                    <g transform="translate(28, -14)" class="conn-badge">
-                      <circle r="11" class="conn-badge-bg conn-badge-condition"/>
-                      @if (c.precastKnown) {
-                        <text class="conn-badge-icon">★</text>
-                      } @else if (c.precastUnknown) {
-                        <text class="conn-badge-icon">☆</text>
-                      } @else {
-                        <text class="conn-badge-icon">?</text>
-                      }
-                    </g>
-                  }
+                </g>
+              }
+              @if (c.lineDelay) {
+                @let dp = getPointOnPath(c, c.passthroughEnabled ? 0.70 : 0.5);
+                <g class="conn-badge" [attr.transform]="'translate('+dp.x+','+dp.y+')'">
+                  <circle r="11" class="conn-badge-bg conn-badge-delay"/>
+                  <text class="conn-badge-icon">⧗</text>
+                  <text class="conn-badge-sub" dy="13">{{ c.lineDelay }}R</text>
                 </g>
               }
             </g>
@@ -391,38 +391,22 @@
         </div>
         <div class="ci-body">
 
-          <!-- Form / Linienform -->
-          <div class="ci-section-lbl">Linienform</div>
-          <div class="ci-shape-row">
-            <button class="ci-shape-btn"
-                    [class.ci-shape-active]="!getSelectedConnection()!.defaultShape || getSelectedConnection()!.defaultShape === 'straight'"
-                    (click)="updateSelectedConnection({defaultShape: 'straight'})">
-              <span class="ci-shape-icon">⟶</span> Gerade
-            </button>
-            <button class="ci-shape-btn"
-                    [class.ci-shape-active]="getSelectedConnection()!.defaultShape === 'arch'"
-                    (click)="updateSelectedConnection({defaultShape: 'arch'})">
-              <span class="ci-shape-icon">⌒</span> Bogen
-            </button>
-          </div>
-
-          <!-- Bedingung -->
-          <div class="ci-section-lbl">Bedingung</div>
-          <input class="ci-input" type="text" placeholder="z.B. Mana &gt; 10"
+          <!-- Bedingung / Branch-Label -->
+          <div class="ci-section-lbl">Bedingung (Branch-Label)</div>
+          <input class="ci-input" type="text" placeholder="Leer = keine Verzweigung"
                  [value]="getSelectedConnection()!.condition ?? ''"
-                 (input)="updateSelectedConnection({condition: $any($event.target).value || undefined})"/>
-          <div class="ci-toggle-row">
-            <button class="ci-toggle-btn"
-                    [class.ci-toggle-active]="getSelectedConnection()!.precastKnown"
+                 (change)="updateSelectedConnection({condition: $any($event.target).value || undefined})"/>
+          @if (getSelectedConnection()!.condition) {
+            <button class="ci-precast-toggle"
+                    [class.is-known]="getSelectedConnection()!.precastKnown"
                     (click)="updateSelectedConnection({precastKnown: !getSelectedConnection()!.precastKnown})">
-              ★ Vorzauber bekannt
+              @if (getSelectedConnection()!.precastKnown) {
+                ★ Bedingung bekannt
+              } @else {
+                ☆ Bedingung unbekannt
+              }
             </button>
-            <button class="ci-toggle-btn"
-                    [class.ci-toggle-active]="getSelectedConnection()!.precastUnknown"
-                    (click)="updateSelectedConnection({precastUnknown: !getSelectedConnection()!.precastUnknown})">
-              ☆ Vorzauber unbekannt
-            </button>
-          </div>
+          }
 
           <!-- Durchläufe / Passthrough -->
           <div class="ci-section-lbl">Durchläufe</div>

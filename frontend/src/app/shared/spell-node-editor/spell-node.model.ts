@@ -26,13 +26,10 @@ export interface SpellConnection {
   toNodeId: string;
   toPortId: string;
   waypoints?: { x: number; y: number }[]; // world-space intermediate points for circuit-board routing
-  /** 'straight' = queen-route (default) | 'arch' = rectangular arch going upward (former loop style) */
-  defaultShape?: 'straight' | 'arch';
   /** Branch condition text; undefined/empty = unconditional */
   condition?: string;
-  /** Trigger only when precast result is known / unknown */
+  /** Whether the branch condition is currently known (true) or unknown (false); only applies when condition has text */
   precastKnown?: boolean;
-  precastUnknown?: boolean;
   /** Passthrough limiting — replaces isLoop + loopCount */
   passthroughEnabled?: boolean;
   maxPassthrough?: number; // undefined = unlimited; 1 = old single-loop behavior

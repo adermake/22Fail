@@ -231,17 +231,16 @@ app/
 - **Models** (`spell-node.model.ts`):
   - `SpellGraph { startNode, nodes[], connections[] }`
   - `SpellNode { id, runeId, x, y }` — Runen-Knoten auf Canvas (world coords)
-  - `SpellConnection { id, fromNodeId, fromPortId, toNodeId, toPortId, waypoints[], defaultShape?, condition?, precastKnown?, precastUnknown?, passthroughEnabled?, maxPassthrough?, lineDelay? }`
-    - Kein `isLoop`/`isBranch` mehr — alle Verbindungen sind gleichartig mit optionalen Settings
-    - `defaultShape: 'straight' | 'arch'` — Arch = Bogen über den Knoten, auto-gesetzt bei Zyklus-Erkennung
-    - `passthroughEnabled + maxPassthrough` — ersetzt alten isLoop/loopCount
-    - `condition` — bedingter Text, `precastKnown/precastUnknown` — Vorzauber-Bedingungen
-    - `lineDelay` — Verzögerung in Runden (Dezimal OK)
-- **Routing**: Queen-Movement (H/V/45°), `queenRoute()` + `buildQueenPath()`; Arch-Shape über Waypoints
+  - `SpellConnection { id, fromNodeId, fromPortId, toNodeId, toPortId, waypoints[], condition?, precastKnown?, passthroughEnabled?, maxPassthrough?, lineDelay? }`
+    - Kein `isLoop`/`isBranch`/`defaultShape`/`precastUnknown` mehr
+    - `condition` — Branch-Label; leer = keine Verzweigung; gefüllt = zeigt einzelnen boolean-Toggle „Bedingung bekannt/unbekannt" (`precastKnown`)
+    - `passthroughEnabled + maxPassthrough` — Rücklauf (Passthrough)
+    - `lineDelay` — Verzögerung in Runden
+- **Routing**: Queen-Movement (H/V/45°), `queenRoute()` + `buildQueenPath()`; Zyklen erhalten Auto-Waypoints
 - **Waypoints**: Rechtsklick auf Linie = Wegpunkt ziehen/erstellen; Box-Select + Entf zum Löschen
-- **Inspektor**:
-  - Rechts: Runen-Info (Klick auf Knoten) ODER Verbindungs-Inspektor (Linksklick auf Linie)
-  - Verbindungs-Inspektor: Linienform, Bedingung, Vorzauber, Durchläufe, Verzögerung
-- **Canvas Badges**: Passthrough (⟳), Delay (⧗), Bedingung (★/☆/?) als SVG-Badges auf Linen-Mittelpunkt
+- **Undo/Redo**: Ctrl+Z/Y (max 60 Schritte); Ctrl+C/X/V = Copy/Cut/Paste ausgewählter Knoten
+- **Inspektor**: Runen-Info (Klick auf Knoten) ODER Verbindungs-Inspektor (Linksklick auf Linie) — gegenseitig exklusiv
+  - Verbindungs-Inspektor: Bedingung (Branch-Label) → zeigt bei Eingabe „Bedingung bekannt/unbekannt"-Toggle; Durchläufe; Verzögerung
+- **Canvas Badges**: entlang tatsächlichem Pfad verteilt via `getPointOnPath(c, t)`: Condition-Text-Pill (t=0.5), Passthrough-⟳ (t=0.30), Delay-⧗ (t=0.70)
 - **Zyklus-Erkennung**: `createsCycle()` DFS; bei Zyklus → Arch+Passthrough auto-gesetzt, außer es gibt bereits eine Passthrough-Verbindung im gleichen Zyklus
 - **Selektion**: Box-Select für Knoten, Start-Knoten und Waypoints; Knoten + Start können verschoben (aber Start nicht gelöscht) werden
