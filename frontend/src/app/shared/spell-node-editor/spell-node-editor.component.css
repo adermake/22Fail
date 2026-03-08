@@ -302,8 +302,15 @@
 .conn-group:has(.conn-hit:hover) .conn-path-glow { opacity: 0.32; }
 .conn-path.conn-selected { stroke-width: 3; opacity: 1; }
 .conn-path-glow.conn-selected { opacity: 0.4; }
-.conn-path.conn-loop { stroke-dasharray: 8 5; }
-.conn-path-glow.conn-loop { stroke-dasharray: 8 5; }
+/* Passthrough: dashed stroke indicates the line loops back */
+.conn-path.conn-passthrough { stroke-dasharray: 10 5; }
+.conn-path-glow.conn-passthrough { stroke-dasharray: 10 5; }
+/* Condition: dotted style for conditional branching */
+.conn-path.conn-condition { stroke-dasharray: 4 4; opacity: 0.9; }
+.conn-path-glow.conn-condition { stroke-dasharray: 4 4; }
+/* Delay: fine dot pattern */
+.conn-path.conn-delay { stroke-dasharray: 2 6; }
+.conn-path-glow.conn-delay { stroke-dasharray: 2 6; }
 
 .conn-path-pending {
   fill: none;
@@ -784,45 +791,172 @@
 .palette-rune-neutral { border-color: rgba(107,114,128,0.25) !important; }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   BRANCH BADGE
+   CONNECTION SETTINGS BADGES (SVG, shown at line midpoint)
    ══════════════════════════════════════════════════════════════════════════ */
-.branch-badge-bg {
-  fill: rgba(245,158,11,0.15);
-  stroke: #f59e0b;
+.conn-badge { pointer-events: none; }
+.conn-badge-bg {
+  fill: rgba(7,9,20,0.88);
+  stroke: rgba(255,255,255,0.2);
   stroke-width: 1.5;
-  cursor: pointer;
-  pointer-events: all;
 }
-.branch-badge-label {
-  fill: #fcd34d;
+.conn-badge-passthrough { stroke: rgba(139,92,246,0.7); fill: rgba(139,92,246,0.12); }
+.conn-badge-delay      { stroke: rgba(251,191,36,0.7);  fill: rgba(251,191,36,0.10); }
+.conn-badge-condition  { stroke: rgba(52,211,153,0.7);  fill: rgba(52,211,153,0.10); }
+.conn-badge-icon {
+  fill: #e2e8f0;
   font-size: 11px;
-  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
   font-family: monospace;
-  cursor: pointer;
-  pointer-events: all;
+}
+.conn-badge-sub {
+  fill: rgba(226,232,240,0.7);
+  font-size: 8px;
+  text-anchor: middle;
+  dominant-baseline: hanging;
+  font-family: monospace;
+  pointer-events: none;
 }
 
-/* Branch connection style */
-.conn-path-glow.conn-branch { opacity: 0.22; stroke-dasharray: none; }
-.conn-path.conn-branch { stroke-dasharray: 10 4; }
-
-/* Inline badge inputs (loop count / branch label) */
-.badge-input {
-  width: 100%;
-  height: 100%;
-  background: rgba(9,11,24,0.95);
-  border: 1px solid rgba(139,92,246,0.5);
-  border-radius: 4px;
-  color: #f8fafc;
-  font-size: 11px;
+/* ══════════════════════════════════════════════════════════════════════════
+   CONNECTION INSPECTOR (right sidebar panel)
+   ══════════════════════════════════════════════════════════════════════════ */
+.conn-inspector {
+  width: 240px;
+  min-width: 240px;
+  background: rgba(7,9,20,0.97);
+  border-left: 1px solid rgba(139,92,246,0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.ci-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid rgba(139,92,246,0.15);
+  flex-shrink: 0;
+}
+.ci-title {
+  font-size: 0.82rem;
   font-weight: 700;
-  text-align: center;
-  padding: 0 2px;
-  outline: none;
+  color: #a78bfa;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
-.badge-input-number { font-family: monospace; }
-.badge-input-text   { font-family: monospace; }
-.badge-input:focus { border-color: #8b5cf6; }
+.ci-close {
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.ci-close:hover { color: #ef4444; }
+.ci-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ci-section-lbl {
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #4b5563;
+  margin-top: 6px;
+}
+.ci-input {
+  width: 100%;
+  padding: 5px 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(139,92,246,0.25);
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.ci-input:focus { border-color: #8b5cf6; background: rgba(139,92,246,0.06); }
+.ci-input:disabled { opacity: 0.4; cursor: not-allowed; }
+.ci-input-num { max-width: 80px; text-align: right; }
+.ci-input-hint {
+  font-size: 0.72rem;
+  color: #6b7280;
+  align-self: center;
+}
+.ci-shape-row {
+  display: flex;
+  gap: 8px;
+}
+.ci-shape-btn {
+  flex: 1;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.ci-shape-btn:hover { border-color: #8b5cf6; color: #e2e8f0; }
+.ci-shape-btn.ci-shape-active {
+  background: rgba(139,92,246,0.18);
+  border-color: #8b5cf6;
+  color: #c4b5fd;
+}
+.ci-shape-icon { font-size: 1rem; }
+.ci-toggle-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ci-toggle-btn {
+  width: 100%;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+.ci-toggle-btn:hover { border-color: rgba(139,92,246,0.5); color: #e2e8f0; }
+.ci-toggle-btn.ci-toggle-active {
+  background: rgba(139,92,246,0.18);
+  border-color: #8b5cf6;
+  color: #c4b5fd;
+}
+.ci-toggle-passthrough.ci-toggle-active {
+  background: rgba(139,92,246,0.22);
+  border-color: #a78bfa;
+}
+.ci-passthrough-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ci-delay-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
    CIRCUIT-BOARD CONNECTION WAYPOINTS

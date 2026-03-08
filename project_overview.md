@@ -224,3 +224,24 @@ app/
 - **Icons**: Emoji-basiert (🏪 shop, 🎁 bundle, 🎪 events, etc.)
 - **Type Safety**: Strict TypeScript mit expliziten unions
 - **Component Architektur**: Standalone Angular Components (kein NgModule)
+
+## Spell Node Editor (`shared/spell-node-editor/`)
+- **Purpose**: Visueller Flow-Graph-Editor für Zauber-Logik (Runen-Knoten + Verbindungen)
+- **Tech**: Angular 21 zoneless, RAF-driven CD, SVG-Overlay für Verbindungen
+- **Models** (`spell-node.model.ts`):
+  - `SpellGraph { startNode, nodes[], connections[] }`
+  - `SpellNode { id, runeId, x, y }` — Runen-Knoten auf Canvas (world coords)
+  - `SpellConnection { id, fromNodeId, fromPortId, toNodeId, toPortId, waypoints[], defaultShape?, condition?, precastKnown?, precastUnknown?, passthroughEnabled?, maxPassthrough?, lineDelay? }`
+    - Kein `isLoop`/`isBranch` mehr — alle Verbindungen sind gleichartig mit optionalen Settings
+    - `defaultShape: 'straight' | 'arch'` — Arch = Bogen über den Knoten, auto-gesetzt bei Zyklus-Erkennung
+    - `passthroughEnabled + maxPassthrough` — ersetzt alten isLoop/loopCount
+    - `condition` — bedingter Text, `precastKnown/precastUnknown` — Vorzauber-Bedingungen
+    - `lineDelay` — Verzögerung in Runden (Dezimal OK)
+- **Routing**: Queen-Movement (H/V/45°), `queenRoute()` + `buildQueenPath()`; Arch-Shape über Waypoints
+- **Waypoints**: Rechtsklick auf Linie = Wegpunkt ziehen/erstellen; Box-Select + Entf zum Löschen
+- **Inspektor**:
+  - Rechts: Runen-Info (Klick auf Knoten) ODER Verbindungs-Inspektor (Linksklick auf Linie)
+  - Verbindungs-Inspektor: Linienform, Bedingung, Vorzauber, Durchläufe, Verzögerung
+- **Canvas Badges**: Passthrough (⟳), Delay (⧗), Bedingung (★/☆/?) als SVG-Badges auf Linen-Mittelpunkt
+- **Zyklus-Erkennung**: `createsCycle()` DFS; bei Zyklus → Arch+Passthrough auto-gesetzt, außer es gibt bereits eine Passthrough-Verbindung im gleichen Zyklus
+- **Selektion**: Box-Select für Knoten, Start-Knoten und Waypoints; Knoten + Start können verschoben (aber Start nicht gelöscht) werden

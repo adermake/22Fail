@@ -108,6 +108,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   selectedNodeIds = new Set<string>();
   // Selected waypoints: connId → set of waypoint indices
   selectedWaypoints = new Map<string, Set<number>>();
+  // Start node box-select state
+  startNodeSelected = false;
 
   // Marquee (selection box) state
   marqueeActive = false;
@@ -116,9 +118,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   marqueeEndX   = 0;
   marqueeEndY   = 0;
 
-  // Inline editing state for connection badges
-  editingConnId: string | null = null;
-  editingBranchLabel = ''; // local buffer — committed on blur/enter to avoid CD resets
 
   // ── Waypoint drag state ────────────────────────────────────────────────────
   // Dragging an EXISTING waypoint circle:
@@ -431,8 +430,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
           ...wps.slice(this.pullingWaypointSegIndex),
         ]
       : wps;
-    // Loop default arch: if no user waypoints, use rectangular arch above the node
-    if (c.isLoop && liveWps.length === 0) {
+    // Arch shape: if no user waypoints yet, use rectangular arch above the nodes
+    if (c.defaultShape === 'arch' && liveWps.length === 0) {
       return this.loopArcPathScreen(c);
     }
     return this.buildQueenPath([from, ...liveWps, to]);
@@ -637,6 +636,11 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
             this.nodeStates.get(node.id)!.node = node;
           }
         }
+        // Move start node when it was box-selected
+        if (this.startNodeSelected) {
+          this.graph.startNode.x += dx;
+          this.graph.startNode.y += dy;
+        }
         // Move selected waypoints along with nodes
         for (const [connId, wpIndices] of this.selectedWaypoints) {
           const conn = this.graph.connections.find(c => c.id === connId);
@@ -799,7 +803,13 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       }
     }
     this.selectedNodeIds = selected;
-    // Select waypoints within the marquee
+    // Select start node if its circle overlaps the marquee
+    const START_R = 34;
+    const sn = this.graph.startNode;
+    this.startNodeSelected = (
+      sn.x + START_R >= wa.x && sn.x - START_R <= wb.x &&
+      sn.y + START_R >= wa.y && sn.y - START_R <= wb.y
+    );
     const newWpSel = new Map<string, Set<number>>();
     for (const c of this.graph.connections) {
       const wps = c.waypoints ?? [];
@@ -978,13 +988,29 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     }
 
     const conn: SpellConnection = { id: `conn-${this.nextId++}`, fromNodeId, fromPortId, toNodeId, toPortId };
-    // Check for cycle
+    // Check for cycle — auto-set arch+passthrough only if no existing passthrough line in the loop
     if (this.createsCycle(conn)) {
-      conn.isLoop = true;
-      conn.loopCount = 1;
+      const hasExistingPassthrough = this.graph.connections.some(
+        c => c.passthroughEnabled &&
+          (c.toNodeId === fromNodeId || c.fromNodeId === toNodeId)
+      );
+      if (!hasExistingPassthrough) {
+        conn.passthroughEnabled = true;
+        conn.maxPassthrough = 1;
+        conn.defaultShape = 'arch';
+        // Build default arch waypoints: go up above both ports
+        const fromPos = this.resolvePortWorldPos(fromNodeId, fromPortId);
+        const toPos   = this.resolvePortWorldPos(toNodeId,   toPortId);
+        if (fromPos && toPos) {
+          const worldDy = Math.abs(fromPos.y - toPos.y);
+          const rise    = Math.max(80, worldDy * 0.8 + 80);
+          const topY    = Math.min(fromPos.y, toPos.y) - rise;
+          conn.waypoints = [{ x: fromPos.x, y: topY }, { x: toPos.x, y: topY }];
+        }
+      }
     }
     // No pre-stored waypoints — user pulls them out by dragging on the line
-    conn.waypoints = [];
+    if (!conn.waypoints) conn.waypoints = [];
     this.graph.connections = [...this.graph.connections, conn];
     this.graphConnectionsSig.set(this.graph.connections);
   }
@@ -1023,58 +1049,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     e.stopPropagation();
     this.selectedConnectionId = this.selectedConnectionId === id ? null : id;
     this.selectedNodeIds = new Set(); // deselect nodes when selecting a connection
-  }
-
-  // Right-click on a connection — toggle branch/normal (only when source has multiple outs)
-  onConnectionRightClick(c: SpellConnection, e: MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    // Only toggle if the source node has more than one outgoing flow connection
-    const siblingsCount = this.graph.connections.filter(
-      x => x.fromNodeId === c.fromNodeId && x.fromPortId === c.fromPortId
-    ).length;
-    if (siblingsCount < 2) return;
-    const updated = this.graph.connections.map(x =>
-      x.id === c.id ? { ...x, isBranch: !x.isBranch, branchLabel: x.branchLabel ?? '' } : x
-    );
-    this.graph.connections = updated;
-    this.graphConnectionsSig.set(updated);
-  }
-
-  setBranchLabel(connId: string, label: string) {
-    const updated = this.graph.connections.map(c =>
-      c.id === connId ? { ...c, branchLabel: label } : c
-    );
-    this.graph.connections = updated;
-    this.graphConnectionsSig.set(updated);
-  }
-
-  setLoopCount(connId: string, value: number) {
-    const updated = this.graph.connections.map(c =>
-      c.id === connId ? { ...c, loopCount: Math.max(1, value) } : c
-    );
-    this.graph.connections = updated;
-    this.graphConnectionsSig.set(updated);
-  }
-
-  startConnBadgeEdit(connId: string, e: Event) {
-    e.stopPropagation();
-    const conn = this.graph.connections.find(c => c.id === connId);
-    this.editingBranchLabel = conn?.branchLabel ?? '';
-    this.editingConnId = connId;
-  }
-
-  commitBranchLabel(e: Event) {
-    e.stopPropagation();
-    if (this.editingConnId) {
-      this.setBranchLabel(this.editingConnId, this.editingBranchLabel);
-    }
-    this.editingConnId = null;
-  }
-
-  stopConnBadgeEdit(e: Event) {
-    e.stopPropagation();
-    this.editingConnId = null;
+    this.startNodeSelected = false;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -1098,10 +1073,12 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     this.draggingWaypointIndex   = wpIdx;
   }
 
-  // Mousedown on the invisible hit-area path — begin pulling a new waypoint from that segment
+  // Mousedown on the invisible hit-area path — begin pulling a new waypoint from that segment.
+  // Only responds to right-click; left-click on the line just selects it.
   onConnHitMouseDown(e: MouseEvent, c: SpellConnection) {
     e.stopPropagation();
     e.preventDefault();
+    if (e.button !== 2) return; // right-click only
     const world = this.clientToWorld(e.clientX, e.clientY);
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
@@ -1330,7 +1307,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   loopMidPointScreen(c: SpellConnection): { x: number; y: number } {
-    if (c.isLoop) {
+    if (c.defaultShape === 'arch') {
       const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
       const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
       if (!from || !to) return { x: 0, y: 0 };
@@ -1351,8 +1328,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return this.worldToCanvasLocal(mp.x, mp.y);
   }
 
-  // Midpoint for branch label badge (sits on the line midpoint)
-  branchMidPointScreen(c: SpellConnection): { x: number; y: number } {
+  // Midpoint of a connection in screen space — used for badges
+  connMidPointScreen(c: SpellConnection): { x: number; y: number } {
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
     if (!from || !to) return { x: 0, y: 0 };
@@ -1362,9 +1339,29 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   connectionColor(c: SpellConnection): string {
-    if (c.isBranch) return '#f59e0b'; // amber for branch
     const from = this.allPortPositions().find(p => p.nodeId === c.fromNodeId && p.portId === c.fromPortId);
     return from?.color ?? FLOW_COLOR;
+  }
+
+  // True when the connection has any visible settings that need badge display
+  hasConnectionSettings(c: SpellConnection): boolean {
+    return !!(c.condition || c.precastKnown || c.precastUnknown || c.passthroughEnabled || c.lineDelay);
+  }
+
+  /** Returns the currently selected SpellConnection, or null */
+  getSelectedConnection(): SpellConnection | null {
+    if (!this.selectedConnectionId) return null;
+    return this.graph.connections.find(c => c.id === this.selectedConnectionId) ?? null;
+  }
+
+  /** Patches fields on the selected connection and emits change */
+  updateSelectedConnection(patch: Partial<SpellConnection>) {
+    if (!this.selectedConnectionId) return;
+    const updated = this.graph.connections.map(c =>
+      c.id === this.selectedConnectionId ? { ...c, ...patch } : c
+    );
+    this.graph.connections = updated;
+    this.graphConnectionsSig.set(updated);
   }
 
   // Port's CSS top offset within the node div (world y → node-local px)
@@ -1408,6 +1405,17 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const tag = (e.target as HTMLElement).tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     if (e.key === 'Delete' || e.key === 'Backspace') {
+      // First: delete selected waypoints (prioritised over node/conn delete)
+      if (this.selectedWaypoints.size > 0) {
+        for (const [connId, indices] of this.selectedWaypoints) {
+          const conn = this.graph.connections.find(c => c.id === connId);
+          if (conn?.waypoints) {
+            this.updateConnectionWaypoints(connId, conn.waypoints.filter((_, i) => !indices.has(i)));
+          }
+        }
+        this.selectedWaypoints = new Map();
+        return;
+      }
       if (this.selectedConnectionId) {
         this.removeConnection(this.selectedConnectionId);
       }
@@ -1422,6 +1430,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       this.selectedConnectionId = null;
       this.selectedNodeIds = new Set();
       this.selectedWaypoints = new Map();
+      this.startNodeSelected = false;
       this.pending.set(null);
       this.hoveredPort.set(null);
     }

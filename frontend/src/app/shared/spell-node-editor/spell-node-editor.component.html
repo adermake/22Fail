@@ -192,26 +192,27 @@
           @for (c of graphConnectionsSig(); track trackById($index, c)) {
             <g class="conn-group"
                (click)="onConnGroupClick($event, c)"
-               (dblclick)="onConnGroupDblClick($event, c)"
-               (contextmenu)="onConnectionRightClick(c, $event)">
-              <!-- Invisible wide-stroke hit area: pull to create waypoint, click to select -->
+               (dblclick)="onConnGroupDblClick($event, c)">
+              <!-- Invisible wide-stroke hit area: right-click to pull waypoints, left-click to select -->
               <path class="conn-hit" [attr.d]="connectionPathScreen(c)"
                     (mousedown)="onConnHitMouseDown($event, c)"/>
               <path class="conn-path-glow"
                     [attr.d]="connectionPathScreen(c)"
                     [attr.stroke]="connectionColor(c)"
                     [class.conn-selected]="isConnectionSelected(c.id)"
-                    [class.conn-loop]="c.isLoop"
-                    [class.conn-branch]="c.isBranch"/>
+                    [class.conn-passthrough]="c.passthroughEnabled"
+                    [class.conn-condition]="c.condition || c.precastKnown || c.precastUnknown"
+                    [class.conn-delay]="c.lineDelay"/>
               <path class="conn-path"
                     [attr.d]="connectionPathScreen(c)"
                     [attr.stroke]="connectionColor(c)"
                     [class.conn-selected]="isConnectionSelected(c.id)"
-                    [class.conn-loop]="c.isLoop"
-                    [class.conn-branch]="c.isBranch"/>
+                    [class.conn-passthrough]="c.passthroughEnabled"
+                    [class.conn-condition]="c.condition || c.precastKnown || c.precastUnknown"
+                    [class.conn-delay]="c.lineDelay"/>
 
-              <!-- Waypoint handles — visible on hover or when connection is selected -->
-              @if (!c.isLoop && c.waypoints?.length) {
+              <!-- Waypoint handles — visible on hover or when connection/waypoint is selected -->
+              @if (c.waypoints?.length) {
                 @for (wp of c.waypoints; track $index; let wi = $index) {
                   <circle class="conn-waypoint"
                           [class.conn-waypoint-selected]="isConnectionSelected(c.id) || isWaypointSelected(c.id, wi)"
@@ -222,49 +223,36 @@
                 }
               }
 
-              <!-- Loop badge: shows loopCount and lets user edit it -->
-              @if (c.isLoop) {
-                <g [attr.transform]="'translate('+loopMidPointScreen(c).x+','+loopMidPointScreen(c).y+')'">
-                  <circle r="16" class="loop-badge-bg"/>
-                  @if (editingConnId === c.id) {
-                    <foreignObject x="-14" y="-12" width="28" height="24">
-                      <input xmlns="http://www.w3.org/1999/xhtml"
-                             class="badge-input badge-input-number"
-                             type="number" min="1"
-                             [value]="c.loopCount ?? 1"
-                             (change)="setLoopCount(c.id, +$any($event.target).value)"
-                             (blur)="stopConnBadgeEdit($event)"
-                             (click)="$event.stopPropagation()"
-                             (mousedown)="$event.stopPropagation()"/>
-                    </foreignObject>
-                  } @else {
-                    <text class="loop-badge-count" text-anchor="middle" dominant-baseline="central"
-                          (click)="startConnBadgeEdit(c.id, $event)">{{ c.loopCount ?? 1 }}×</text>
+              <!-- Connection settings badges at line midpoint -->
+              @if (hasConnectionSettings(c)) {
+                <g [attr.transform]="'translate('+connMidPointScreen(c).x+','+connMidPointScreen(c).y+')'">
+                  @if (c.passthroughEnabled) {
+                    <g transform="translate(-28, -14)" class="conn-badge">
+                      <circle r="11" class="conn-badge-bg conn-badge-passthrough"/>
+                      <text class="conn-badge-icon">⟳</text>
+                      @if (c.maxPassthrough) {
+                        <text class="conn-badge-sub" dy="13">{{ c.maxPassthrough }}×</text>
+                      }
+                    </g>
                   }
-                </g>
-              }
-
-              <!-- Branch label badge -->
-              @if (c.isBranch) {
-                <g [attr.transform]="'translate('+branchMidPointScreen(c).x+','+branchMidPointScreen(c).y+')'">
-                  <rect x="-30" y="-12" width="60" height="24" rx="6" class="branch-badge-bg"/>
-                  @if (editingConnId === c.id) {
-                    <foreignObject x="-28" y="-11" width="56" height="22">
-                      <input xmlns="http://www.w3.org/1999/xhtml"
-                             class="badge-input badge-input-text"
-                             type="text"
-                             [defaultValue]="editingBranchLabel"
-                             (input)="editingBranchLabel = $any($event.target).value"
-                             (blur)="commitBranchLabel($event)"
-                             (keydown.enter)="commitBranchLabel($event)"
-                             (keydown.escape)="stopConnBadgeEdit($event)"
-                             (click)="$event.stopPropagation()"
-                             (mousedown)="$event.stopPropagation()"
-                             placeholder="Label…"/>
-                    </foreignObject>
-                  } @else {
-                    <text class="branch-badge-label" text-anchor="middle" dominant-baseline="central"
-                          (click)="startConnBadgeEdit(c.id, $event)">{{ c.branchLabel || '?' }}</text>
+                  @if (c.lineDelay) {
+                    <g transform="translate(0, -14)" class="conn-badge">
+                      <circle r="11" class="conn-badge-bg conn-badge-delay"/>
+                      <text class="conn-badge-icon">⧗</text>
+                      <text class="conn-badge-sub" dy="13">{{ c.lineDelay }}R</text>
+                    </g>
+                  }
+                  @if (c.condition || c.precastKnown || c.precastUnknown) {
+                    <g transform="translate(28, -14)" class="conn-badge">
+                      <circle r="11" class="conn-badge-bg conn-badge-condition"/>
+                      @if (c.precastKnown) {
+                        <text class="conn-badge-icon">★</text>
+                      } @else if (c.precastUnknown) {
+                        <text class="conn-badge-icon">☆</text>
+                      } @else {
+                        <text class="conn-badge-icon">?</text>
+                      }
+                    </g>
                   }
                 </g>
               }
@@ -390,6 +378,76 @@
               </div>
             }
           }
+        </div>
+      </aside>
+    }
+
+    <!-- ── VERBINDUNGS-INSPEKTOR ─────────────────────────────────────────── -->
+    @if (!inspectedRune && selectedConnectionId && getSelectedConnection()) {
+      <aside class="conn-inspector">
+        <div class="ci-header">
+          <span class="ci-title">Verbindung</span>
+          <button class="ci-close" (click)="selectedConnectionId = null">✕</button>
+        </div>
+        <div class="ci-body">
+
+          <!-- Form / Linienform -->
+          <div class="ci-section-lbl">Linienform</div>
+          <div class="ci-shape-row">
+            <button class="ci-shape-btn"
+                    [class.ci-shape-active]="!getSelectedConnection()!.defaultShape || getSelectedConnection()!.defaultShape === 'straight'"
+                    (click)="updateSelectedConnection({defaultShape: 'straight'})">
+              <span class="ci-shape-icon">⟶</span> Gerade
+            </button>
+            <button class="ci-shape-btn"
+                    [class.ci-shape-active]="getSelectedConnection()!.defaultShape === 'arch'"
+                    (click)="updateSelectedConnection({defaultShape: 'arch'})">
+              <span class="ci-shape-icon">⌒</span> Bogen
+            </button>
+          </div>
+
+          <!-- Bedingung -->
+          <div class="ci-section-lbl">Bedingung</div>
+          <input class="ci-input" type="text" placeholder="z.B. Mana &gt; 10"
+                 [value]="getSelectedConnection()!.condition ?? ''"
+                 (input)="updateSelectedConnection({condition: $any($event.target).value || undefined})"/>
+          <div class="ci-toggle-row">
+            <button class="ci-toggle-btn"
+                    [class.ci-toggle-active]="getSelectedConnection()!.precastKnown"
+                    (click)="updateSelectedConnection({precastKnown: !getSelectedConnection()!.precastKnown})">
+              ★ Vorzauber bekannt
+            </button>
+            <button class="ci-toggle-btn"
+                    [class.ci-toggle-active]="getSelectedConnection()!.precastUnknown"
+                    (click)="updateSelectedConnection({precastUnknown: !getSelectedConnection()!.precastUnknown})">
+              ☆ Vorzauber unbekannt
+            </button>
+          </div>
+
+          <!-- Durchläufe / Passthrough -->
+          <div class="ci-section-lbl">Durchläufe</div>
+          <div class="ci-passthrough-row">
+            <button class="ci-toggle-btn ci-toggle-passthrough"
+                    [class.ci-toggle-active]="getSelectedConnection()!.passthroughEnabled"
+                    (click)="updateSelectedConnection({passthroughEnabled: !getSelectedConnection()!.passthroughEnabled})">
+              ⟳ Aktiv
+            </button>
+            <input class="ci-input ci-input-num" type="number" min="1" placeholder="∞"
+                   [value]="getSelectedConnection()!.maxPassthrough ?? ''"
+                   [disabled]="!getSelectedConnection()!.passthroughEnabled"
+                   (change)="updateSelectedConnection({maxPassthrough: +$any($event.target).value || undefined})"/>
+            <span class="ci-input-hint">Max</span>
+          </div>
+
+          <!-- Verzögerung -->
+          <div class="ci-section-lbl">Verzögerung (Runden)</div>
+          <div class="ci-delay-row">
+            <input class="ci-input ci-input-num" type="number" min="0" step="0.1" placeholder="0"
+                   [value]="getSelectedConnection()!.lineDelay ?? ''"
+                   (change)="updateSelectedConnection({lineDelay: +$any($event.target).value || undefined})"/>
+            <span class="ci-input-hint">Runden</span>
+          </div>
+
         </div>
       </aside>
     }

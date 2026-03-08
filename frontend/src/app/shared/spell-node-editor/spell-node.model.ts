@@ -25,11 +25,19 @@ export interface SpellConnection {
   fromPortId: string;
   toNodeId: string;
   toPortId: string;
-  isLoop?: boolean;
-  loopCount?: number;  // how many iterations when looped
-  isBranch?: boolean;  // branch flow: exclusive choice among siblings
-  branchLabel?: string; // user-visible label for the branch
   waypoints?: { x: number; y: number }[]; // world-space intermediate points for circuit-board routing
+  /** 'straight' = queen-route (default) | 'arch' = rectangular arch going upward (former loop style) */
+  defaultShape?: 'straight' | 'arch';
+  /** Branch condition text; undefined/empty = unconditional */
+  condition?: string;
+  /** Trigger only when precast result is known / unknown */
+  precastKnown?: boolean;
+  precastUnknown?: boolean;
+  /** Passthrough limiting — replaces isLoop + loopCount */
+  passthroughEnabled?: boolean;
+  maxPassthrough?: number; // undefined = unlimited; 1 = old single-loop behavior
+  /** Wait N turns before continuing; undefined = instant */
+  lineDelay?: number;
 }
 
 /** Neutral pass-through node — hardcoded, no rune reference */
