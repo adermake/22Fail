@@ -218,6 +218,12 @@
   color: #9ca3af;
 }
 .tb-cancel:hover { border-color: rgba(255,255,255,0.3); color: #e2e8f0; }
+.tb-close {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.15);
+  color: #9ca3af;
+}
+.tb-close:hover { border-color: rgba(239,68,68,0.6); color: #fca5a5; background: rgba(239,68,68,0.08); }
 .tb-delete {
   background: transparent;
   border-color: rgba(239,68,68,0.4);
@@ -300,26 +306,26 @@
 }
 .conn-group:has(.conn-hit:hover) .conn-path { stroke-width: 3; opacity: 1; }
 .conn-group:has(.conn-hit:hover) .conn-path-glow { opacity: 0.32; }
-.conn-path.conn-selected { stroke-width: 5; opacity: 1; }
-.conn-path-glow.conn-selected { stroke-width: 30; animation: conn-sel-glow 1.4s ease-in-out infinite alternate; }
+.conn-path.conn-selected { stroke: #22c55e; stroke-width: 5; opacity: 1; }
+.conn-path-glow.conn-selected { stroke: #22c55e; stroke-width: 36; animation: conn-sel-glow 1.2s ease-in-out infinite alternate; }
 @keyframes conn-sel-glow {
-  from { opacity: 0.55; }
-  to   { opacity: 0.9;  }
+  from { opacity: 0.5; }
+  to   { opacity: 0.95; }
 }
-/* White inner line drawn on top of the colored glow when selected */
+/* Thin white centerline on selected path for extra depth */
 .conn-path-selected {
   fill: none;
-  stroke: white;
-  stroke-width: 1.5;
+  stroke: rgba(255,255,255,0.65);
+  stroke-width: 1;
   stroke-linecap: round;
-  opacity: 0.85;
   pointer-events: none;
-  animation: conn-sel-inner 1.4s ease-in-out infinite alternate;
+  opacity: 1;
 }
-@keyframes conn-sel-inner {
-  from { opacity: 0.6;  }
-  to   { opacity: 1.0; }
-}
+/* Branch-line colors */
+.conn-path.conn-cond-known  { stroke: #a78bfa; }
+.conn-path-glow.conn-cond-known  { stroke: #a78bfa; }
+.conn-path.conn-cond-unknown { stroke: #fb923c; }
+.conn-path-glow.conn-cond-unknown { stroke: #fb923c; }
 /* Passthrough: dashed stroke indicates the line loops back */
 .conn-path.conn-passthrough { stroke-dasharray: 10 5; }
 .conn-path-glow.conn-passthrough { stroke-dasharray: 10 5; }
@@ -816,43 +822,49 @@
    ══════════════════════════════════════════════════════════════════════════ */
 .conn-badge { pointer-events: none; }
 .conn-badge-bg {
-  fill: rgba(7,9,20,0.88);
+  fill: rgba(2,4,14,0.96);
   stroke: rgba(255,255,255,0.2);
   stroke-width: 1.5;
 }
-.conn-badge-passthrough { stroke: rgba(139,92,246,0.7); fill: rgba(139,92,246,0.12); }
-.conn-badge-delay      { stroke: rgba(251,191,36,0.7);  fill: rgba(251,191,36,0.10); }
-.conn-badge-condition  { stroke: rgba(52,211,153,0.7);  fill: rgba(52,211,153,0.10); }
+.conn-badge-passthrough { stroke: rgba(139,92,246,0.85); fill: rgba(60,20,120,0.92); }
+.conn-badge-delay      { stroke: rgba(251,191,36,0.85);  fill: rgba(100,60,5,0.92); }
 .conn-badge-icon {
-  fill: #e2e8f0;
-  font-size: 11px;
+  fill: #f1f5f9;
+  font-size: 13px;
   text-anchor: middle;
   dominant-baseline: central;
   pointer-events: none;
   font-family: monospace;
 }
 .conn-badge-sub {
-  fill: rgba(226,232,240,0.7);
-  font-size: 8px;
+  fill: rgba(226,232,240,0.9);
+  font-size: 9px;
   text-anchor: middle;
   dominant-baseline: hanging;
   font-family: monospace;
+  font-weight: 600;
   pointer-events: none;
 }
-/* Condition text-pill badge displayed at the line midpoint */
+/* Condition text-pill — orange (unknown) vs purple (known) */
 .conn-cond-label-group { pointer-events: none; }
-.conn-cond-label-bg {
-  fill: rgba(5,7,17,0.93);
-  stroke: rgba(52,211,153,0.65);
+.conn-cond-label-group.cond-unknown .conn-cond-label-bg {
+  fill: rgba(120,40,5,0.96);
+  stroke: rgba(251,146,60,0.85);
   stroke-width: 1.5;
 }
+.conn-cond-label-group.cond-unknown .conn-cond-label-text { fill: #fed7aa; }
+.conn-cond-label-group.cond-known .conn-cond-label-bg {
+  fill: rgba(55,20,110,0.96);
+  stroke: rgba(167,139,250,0.85);
+  stroke-width: 1.5;
+}
+.conn-cond-label-group.cond-known .conn-cond-label-text { fill: #ddd6fe; }
 .conn-cond-label-text {
   font-size: 10px;
-  fill: #86efac;
   text-anchor: middle;
   dominant-baseline: central;
   font-family: monospace;
-  font-weight: 600;
+  font-weight: 700;
   pointer-events: none;
 }
 
@@ -1021,6 +1033,87 @@
   align-items: center;
   gap: 8px;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   QUICK SEARCH POPUP (drop connection into void to place + connect a rune)
+   ══════════════════════════════════════════════════════════════════════════ */
+.qs-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  cursor: default;
+}
+.qs-popup {
+  position: fixed;
+  z-index: 2001;
+  width: 240px;
+  background: rgba(7,9,22,0.98);
+  border: 1px solid rgba(139,92,246,0.4);
+  border-radius: 10px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(139,92,246,0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.qs-header {
+  padding: 9px 12px 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #a78bfa;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(139,92,246,0.15);
+}
+.qs-input {
+  margin: 8px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(139,92,246,0.3);
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.82rem;
+  outline: none;
+}
+.qs-input:focus { border-color: #8b5cf6; }
+.qs-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px 0 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139,92,246,0.3) transparent;
+}
+.qs-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: #d1d5db;
+  font-size: 0.8rem;
+  transition: background 0.1s;
+}
+.qs-item:hover { background: rgba(139,92,246,0.15); color: #e2e8f0; }
+.qs-item-glyph {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30,20,60,0.8);
+  border: 1px solid rgba(139,92,246,0.25);
+}
+.qs-item-img { width: 24px; height: 24px; object-fit: contain; }
+.qs-item-icon { font-size: 0.9rem; color: #a78bfa; }
+.qs-item-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qs-empty { padding: 10px 12px; color: #6b7280; font-size: 0.78rem; font-style: italic; }
 
 /* ══════════════════════════════════════════════════════════════════════════
    CIRCUIT-BOARD CONNECTION WAYPOINTS

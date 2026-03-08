@@ -244,7 +244,7 @@
   <app-spell-node-editor
     [spell]="world.spellLibrary[editingSpellIndex]"
     [availableRunes]="mergedRunes()"
-    (save)="updateSpell(editingSpellIndex, { path: '', value: $event }); closeSpellEditorDialog()"
+    (save)="updateSpell(editingSpellIndex, { path: '', value: $event })"
     (cancel)="closeSpellEditorDialog()"
     (deleteSpell)="removeSpell(editingSpellIndex); closeSpellEditorDialog()">
   </app-spell-node-editor>

@@ -75,6 +75,7 @@ export interface PendingConnection {
   color: string;
   types: string[];      // empty = flow
   kind: PortKind;       // kind of the source port
+  isPickup?: boolean;   // true when re-routing an existing connection (drop-in-void = cancel)
 }
 
 export const FLOW_COLOR = '#ffffff';

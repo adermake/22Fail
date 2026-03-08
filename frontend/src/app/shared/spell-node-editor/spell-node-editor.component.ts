@@ -147,6 +147,61 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // Save feedback
   savedFeedback = false;
+  lastSavedJson  = '';
+
+  // ── Quick-search popup state (drop connection into void to place+connect a rune) ──
+  qsOpen     = false;
+  qsX        = 0;
+  qsY        = 0;
+  qsWorldX   = 0;
+  qsWorldY   = 0;
+  qsQuery    = '';
+  qsPending: PendingConnection | null = null;
+
+  get qsResults(): RuneBlock[] {
+    const q = this.qsQuery.toLowerCase().trim();
+    return this.availableRunes
+      .filter(r => r.name !== NEUTRAL_RUNE_ID && (q === '' || r.name.toLowerCase().includes(q)))
+      .slice(0, 8);
+  }
+
+  openQuickSearch(pending: PendingConnection, clientX: number, clientY: number) {
+    const world = this.clientToWorld(clientX, clientY);
+    this.qsOpen    = true;
+    this.qsX       = Math.min(clientX, window.innerWidth  - 260);
+    this.qsY       = Math.min(clientY, window.innerHeight - 340);
+    this.qsWorldX  = world.x;
+    this.qsWorldY  = world.y;
+    this.qsQuery   = '';
+    this.qsPending = { ...pending };
+    setTimeout(() => (document.querySelector('.qs-input') as HTMLInputElement | null)?.focus(), 0);
+  }
+
+  closeQuickSearch() {
+    this.qsOpen    = false;
+    this.qsQuery   = '';
+    this.qsPending = null;
+  }
+
+  selectQsRune(rune: RuneBlock) {
+    if (!this.qsPending) return;
+    this.pushUndo();
+    const pending = { ...this.qsPending };
+    const wx = this.qsWorldX;
+    const wy = this.qsWorldY;
+    this.closeQuickSearch();
+    const newId = `node-${this.nextId++}`;
+    const newNode: SpellNode = { id: newId, runeId: rune.name, x: wx - this.NODE_IMG / 2, y: wy - this.NODE_IMG / 2 };
+    this.graph.nodes = [...this.graph.nodes, newNode];
+    this.rebuildNodeStates();
+    this.graphNodesSig.set(this.graph.nodes);
+    const inputPort = this.allPortPositions().find(
+      p => p.nodeId === newId && (p.kind === 'flow-in' || p.kind === 'data-in')
+    );
+    if (inputPort && this.canConnect(pending, inputPort)) {
+      this.createConnection(pending, inputPort);
+    }
+  }
 
   // Track mousedown position to distinguish click vs drag on rune nodes
   private lastMouseDownX = 0;
@@ -180,6 +235,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     this.rebuildNodeStates();
     this.graphNodesSig.set(this.graph.nodes);
     this.graphConnectionsSig.set(this.graph.connections);
+    this.lastSavedJson = JSON.stringify(this.graph);
 
     // Register document-level mouse listeners manually so they always fire
     // and are not subject to zone/CD timing issues.
@@ -676,8 +732,21 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     }
     if (this.isDraggingStartNode) {
       const world = this.clientToWorld(e.clientX, e.clientY);
-      this.graph.startNode.x = world.x - this.startNodeDragOffX;
-      this.graph.startNode.y = world.y - this.startNodeDragOffY;
+      const newSX  = world.x - this.startNodeDragOffX;
+      const newSY  = world.y - this.startNodeDragOffY;
+      const dxS    = newSX - this.graph.startNode.x;
+      const dyS    = newSY - this.graph.startNode.y;
+      this.graph.startNode.x = newSX;
+      this.graph.startNode.y = newSY;
+      // Move all other selected nodes by the same delta
+      for (const node of this.graph.nodes) {
+        if (this.selectedNodeIds.has(node.id)) {
+          node.x += dxS;
+          node.y += dyS;
+          this.nodeStates.get(node.id)!.node = node;
+        }
+      }
+      if (this.selectedNodeIds.size > 0) this.graphNodesSig.set([...this.graph.nodes]);
     }
   }
 
@@ -701,7 +770,12 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
         const near  = this.findPortAt(world.x, world.y, 40);
         if (near && this.canConnect(cur, near)) target = near;
       }
-      if (target) this.createConnection(cur, target);
+      if (target) {
+        this.createConnection(cur, target);
+      } else if (!cur.isPickup) {
+        // Drop into void with a fresh connection — open quick rune search
+        this.openQuickSearch(cur, e.clientX, e.clientY);
+      }
       this.pending.set(null);
       this.hoveredPort.set(null);
       return;
@@ -913,6 +987,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
             color: srcPort.color,
             types: srcPort.types,
             kind: srcPort.kind,
+            isPickup: true, // re-routing; drop-in-void = cancel, NOT quick search
           });
         }
         return;
@@ -1451,6 +1526,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
           id: `conn-${this.nextId++}`,
           fromNodeId: newFromId,
           toNodeId:   newToId,
+          // Offset waypoints to match the shifted node positions
+          waypoints: conn.waypoints?.map((wp: { x: number; y: number }) => ({ x: wp.x + OFFSET, y: wp.y + OFFSET })),
         };
         this.graph.connections = [...this.graph.connections, newConn];
       }
@@ -1625,11 +1702,24 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       graph: JSON.parse(JSON.stringify(this.graph)),
     };
     this.save.emit(spell);
+    this.lastSavedJson = JSON.stringify(spell.graph);
     this.savedFeedback = true;
     // Show brief save confirmation, then reset — do NOT close the editor
     setTimeout(() => {
       this.savedFeedback = false;
     }, 700);
+  }
+
+  get isDirty(): boolean {
+    return JSON.stringify(this.graph) !== this.lastSavedJson;
+  }
+
+  onClose() {
+    if (this.isDirty) {
+      const ok = confirm('Es gibt ungespeicherte Änderungen. Trotzdem schließen?');
+      if (!ok) return;
+    }
+    this.cancel.emit();
   }
 
   private extractTags(): string[] {

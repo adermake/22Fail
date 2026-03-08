@@ -56,7 +56,7 @@
           @if (!isNewSpell) {
             <button class="tb-btn tb-delete" (click)="onDelete()">Löschen</button>
           }
-          <button class="tb-btn tb-cancel" (click)="onCancel()">Abbrechen</button>
+          <button class="tb-btn tb-close" (click)="onClose()">Schließen ✕</button>
           <button class="tb-btn tb-save"
                   [class.tb-save-done]="savedFeedback"
                   [disabled]="savedFeedback"
@@ -202,6 +202,8 @@
                     [class.conn-selected]="isConnectionSelected(c.id)"
                     [class.conn-passthrough]="c.passthroughEnabled"
                     [class.conn-condition]="c.condition"
+                    [class.conn-cond-known]="c.condition && c.precastKnown"
+                    [class.conn-cond-unknown]="c.condition && !c.precastKnown"
                     [class.conn-delay]="c.lineDelay"/>
               <path class="conn-path"
                     [attr.d]="connectionPathScreen(c)"
@@ -209,6 +211,8 @@
                     [class.conn-selected]="isConnectionSelected(c.id)"
                     [class.conn-passthrough]="c.passthroughEnabled"
                     [class.conn-condition]="c.condition"
+                    [class.conn-cond-known]="c.condition && c.precastKnown"
+                    [class.conn-cond-unknown]="c.condition && !c.precastKnown"
                     [class.conn-delay]="c.lineDelay"/>
 
               <!-- Waypoint handles — visible on hover or when connection/waypoint is selected -->
@@ -231,29 +235,32 @@
               <!-- Connection badges distributed along the actual routed path -->
               @if (c.condition) {
                 @let cp = getPointOnPath(c, 0.5);
-                <g class="conn-badge conn-cond-label-group" [attr.transform]="'translate('+cp.x+','+cp.y+')'">
+                <g class="conn-badge conn-cond-label-group"
+                   [class.cond-known]="c.precastKnown"
+                   [class.cond-unknown]="!c.precastKnown"
+                   [attr.transform]="'translate('+cp.x+','+cp.y+')'">
                   <rect class="conn-cond-label-bg" rx="4"
-                        [attr.x]="-condLabelWidth(c.condition)/2" y="-10"
-                        [attr.width]="condLabelWidth(c.condition)" height="20"/>
-                  <text class="conn-cond-label-text">{{ c.precastKnown ? '★' : '☆' }} {{ c.condition }}</text>
+                        [attr.x]="-condLabelWidth(c.condition)/2" y="-11"
+                        [attr.width]="condLabelWidth(c.condition)" height="22"/>
+                  <text class="conn-cond-label-text">{{ c.condition }}</text>
                 </g>
               }
               @if (c.passthroughEnabled) {
-                @let pp = getPointOnPath(c, c.lineDelay ? 0.30 : 0.5);
+                @let pp = getPointOnPath(c, 0.12);
                 <g class="conn-badge" [attr.transform]="'translate('+pp.x+','+pp.y+')'">
-                  <circle r="11" class="conn-badge-bg conn-badge-passthrough"/>
+                  <circle r="14" class="conn-badge-bg conn-badge-passthrough"/>
                   <text class="conn-badge-icon">⟳</text>
                   @if (c.maxPassthrough) {
-                    <text class="conn-badge-sub" dy="13">{{ c.maxPassthrough }}×</text>
+                    <text class="conn-badge-sub" dy="16">{{ c.maxPassthrough }}×</text>
                   }
                 </g>
               }
               @if (c.lineDelay) {
-                @let dp = getPointOnPath(c, c.passthroughEnabled ? 0.70 : 0.5);
+                @let dp = getPointOnPath(c, 0.24);
                 <g class="conn-badge" [attr.transform]="'translate('+dp.x+','+dp.y+')'">
-                  <circle r="11" class="conn-badge-bg conn-badge-delay"/>
+                  <circle r="14" class="conn-badge-bg conn-badge-delay"/>
                   <text class="conn-badge-icon">⧗</text>
-                  <text class="conn-badge-sub" dy="13">{{ c.lineDelay }}R</text>
+                  <text class="conn-badge-sub" dy="16">{{ c.lineDelay }}R</text>
                 </g>
               }
             </g>
@@ -437,4 +444,37 @@
     }
 
   </div><!-- /sne-layout -->
+
+  <!-- ── QUICK SEARCH POPUP (drop connection into void) ─────────────────── -->
+  @if (qsOpen) {
+    <div class="qs-backdrop" (mousedown)="closeQuickSearch()"></div>
+    <div class="qs-popup" [style.left.px]="qsX" [style.top.px]="qsY"
+         (mousedown)="$event.stopPropagation()">
+      <div class="qs-header">Rune platzieren & verbinden</div>
+      <input class="qs-input" type="text"
+             [(ngModel)]="qsQuery"
+             placeholder="Runenname eingeben…"
+             (keydown.escape)="closeQuickSearch()"
+             autocomplete="off"/>
+      <div class="qs-list">
+        @for (r of qsResults; track r.name) {
+          <button class="qs-item" (click)="selectQsRune(r)">
+            <span class="qs-item-glyph"
+                  [style.background]="'radial-gradient(circle at 40% 35%, ' + (r.glowColor || '#8b5cf6') + '44 0%, transparent 70%)'">
+              @if (r.drawing) {
+                <img [src]="r.drawing | imageUrl" class="qs-item-img" [alt]="r.name"/>
+              } @else {
+                <span class="qs-item-icon">✦</span>
+              }
+            </span>
+            <span class="qs-item-name">{{ r.name }}</span>
+          </button>
+        }
+        @if (qsResults.length === 0) {
+          <div class="qs-empty">Keine Rune gefunden</div>
+        }
+      </div>
+    </div>
+  }
+
 </div><!-- /sne-overlay -->
