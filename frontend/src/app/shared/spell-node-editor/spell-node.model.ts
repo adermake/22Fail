@@ -29,6 +29,7 @@ export interface SpellConnection {
   loopCount?: number;  // how many iterations when looped
   isBranch?: boolean;  // branch flow: exclusive choice among siblings
   branchLabel?: string; // user-visible label for the branch
+  waypoints?: { x: number; y: number }[]; // world-space intermediate points for circuit-board routing
 }
 
 /** Neutral pass-through node — hardcoded, no rune reference */

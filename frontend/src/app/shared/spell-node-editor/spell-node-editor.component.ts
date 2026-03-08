@@ -117,6 +117,10 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // Inline editing state for connection badges
   editingConnId: string | null = null;
 
+  // Waypoint drag state
+  private draggingWaypointConnId: string | null = null;
+  private draggingWaypointIndex = -1;
+
   // Rune inspector panel (right sidebar)
   inspectedRune: RuneBlock | null = null;
 
@@ -290,6 +294,66 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
+  // Circuit-board auto-router — generates queen-movement waypoints (H/V/45°)
+  // Returns intermediate world-space points between (x1,y1) and (x2,y2).
+  private autoRoutePoints(x1: number, y1: number, x2: number, y2: number): { x: number; y: number }[] {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+    const sx = dx >= 0 ? 1 : -1;
+    const sy = dy >= 0 ? 1 : -1;
+
+    // Already axis-aligned or diagonal — no waypoints needed
+    if (adx === 0 || ady === 0) return [];
+    if (adx === ady) return [];
+
+    // Strategy: exit horizontally a bit, then diagonal to match vertical delta,
+    // then horizontal to target. Results in exactly 2 waypoints.
+    //   H-segment: x1 → x1 + hLen (y stays y1)
+    //   Diag: diagonal for min(absDx-hLen, absDy) to match dy
+    //   H-segment: to target
+    const diag = Math.min(adx, ady);
+    const hRemainder = adx - diag; // leftover horizontal after diagonal
+    const hLeft  = Math.floor(hRemainder / 2);
+    const hRight = hRemainder - hLeft;
+
+    const p1 = { x: x1 + sx * hLeft,          y: y1 };
+    const p2 = { x: x1 + sx * (hLeft + diag), y: y1 + sy * diag };
+    // p2.x + sx * hRight should == x2; p2.y should == y2
+
+    // If p1 == start or p2 == end, skip degenerate
+    const pts: { x: number; y: number }[] = [];
+    if (hLeft > 0) pts.push(p1);
+    pts.push(p2);
+    return pts;
+  }
+
+  // Build circuit-board SVG path through queen-movement waypoints (screen space)
+  private circuitPath(from: { x: number; y: number }, to: { x: number; y: number },
+                      worldWaypoints: { x: number; y: number }[]): string {
+    const pr = this.PORT_R * this.zoom;
+
+    // All world points in order
+    const allWorld = [from, ...worldWaypoints, to];
+    // Convert to screen
+    const pts = allWorld.map(p => this.worldToCanvasLocal(p.x, p.y));
+
+    if (pts.length < 2) return '';
+
+    // Offset start by +PORT_R (exit from output port right side)
+    // Offset end by -PORT_R (enter input port left side)
+    let d = `M ${pts[0].x + pr} ${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) {
+      const isLast = i === pts.length - 1;
+      const px = isLast ? pts[i].x - pr : pts[i].x;
+      const py = pts[i].y;
+      d += ` L ${px} ${py}`;
+    }
+    return d;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
   // Connection path helpers (SVG bezier)
   connectionPath(c: SpellConnection): string {
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
@@ -304,23 +368,16 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return this.bezierPath(p.fromX, p.fromY, p.toX, p.toY);
   }
 
-  // Screen-space pending path — world-space force keeps curve shape zoom-independent.
+  // Screen-space pending path — circuit-board routing, queen movement
   pendingPathScreen(): string {
     const p = this.pending();
     if (!p) return '';
-    const from = this.worldToCanvasLocal(p.fromX, p.fromY);
-    const to   = this.worldToCanvasLocal(p.toX,   p.toY);
-    // Normalise so output is always the left-hand control point
+    // Normalize direction: output is always source
     const isInput = p.kind === 'flow-in' || p.kind === 'data-in';
-    const fx = isInput ? to.x : from.x,  fy = isInput ? to.y : from.y;
-    const tx = isInput ? from.x : to.x,  ty = isInput ? from.y : to.y;
-    // Force in world space so bezier shape stays constant across zoom levels
-    const worldFromX = isInput ? p.toX : p.fromX;
-    const worldToX   = isInput ? p.fromX : p.toX;
-    const force = Math.max(60, Math.abs(worldToX - worldFromX) * 0.5) * this.zoom;
-    // Offset source (output-port) end by PORT_R so line doesn't clip into the port circle
-    const pr = this.PORT_R * this.zoom;
-    return `M ${fx + pr} ${fy} C ${fx + pr + force} ${fy} ${tx - force} ${ty} ${tx} ${ty}`;
+    const fx = isInput ? p.toX : p.fromX,  fy = isInput ? p.toY : p.fromY;
+    const tx = isInput ? p.fromX : p.toX,  ty = isInput ? p.fromY : p.toY;
+    const wps = this.autoRoutePoints(fx, fy, tx, ty);
+    return this.circuitPath({ x: fx, y: fy }, { x: tx, y: ty }, wps);
   }
 
   pendingColor(): string {
@@ -441,6 +498,29 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       this.panY = this.panStartPanY + (e.clientY - this.panStartY);
       return;
     }
+    // Waypoint drag
+    if (this.draggingWaypointConnId !== null) {
+      const world = this.clientToWorld(e.clientX, e.clientY);
+      const conn = this.graph.connections.find(c => c.id === this.draggingWaypointConnId);
+      if (conn && conn.waypoints) {
+        const from = this.resolvePortWorldPos(conn.fromNodeId, conn.fromPortId);
+        const to   = this.resolvePortWorldPos(conn.toNodeId,   conn.toPortId);
+        if (from && to) {
+          const allPts = [from, ...conn.waypoints, to];
+          const prev = allPts[this.draggingWaypointIndex];      // point before waypoint
+          const next = allPts[this.draggingWaypointIndex + 2];  // point after waypoint
+          // Snap to queen movement from previous point
+          const snapped = this.snapToQueenMovement(world, prev, next);
+          const newWps = [...conn.waypoints];
+          newWps[this.draggingWaypointIndex] = snapped;
+          this.graph.connections = this.graph.connections.map(c =>
+            c.id === this.draggingWaypointConnId ? { ...c, waypoints: newWps } : c
+          );
+          this.graphConnectionsSig.set(this.graph.connections);
+        }
+      }
+      return;
+    }
     if (this.draggingNodeId) {
       const world = this.clientToWorld(e.clientX, e.clientY);
       const primaryNode = this.graph.nodes.find(n => n.id === this.draggingNodeId);
@@ -502,6 +582,30 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       this.hoveredPort.set(null);
       return;
     }
+    // Finish waypoint drag — snap-delete if collinear with neighbours
+    if (this.draggingWaypointConnId !== null) {
+      const connId = this.draggingWaypointConnId;
+      const wpIdx  = this.draggingWaypointIndex;
+      this.draggingWaypointConnId = null;
+      this.draggingWaypointIndex  = -1;
+      const conn = this.graph.connections.find(c => c.id === connId);
+      if (conn && conn.waypoints) {
+        const from = this.resolvePortWorldPos(conn.fromNodeId, conn.fromPortId);
+        const to   = this.resolvePortWorldPos(conn.toNodeId,   conn.toPortId);
+        if (from && to) {
+          const allPts = [from, ...conn.waypoints, to];
+          const prev = allPts[wpIdx];
+          const wp   = allPts[wpIdx + 1];
+          const next = allPts[wpIdx + 2];
+          // Delete waypoint if it is collinear (or nearly so) with its neighbours
+          if (prev && next && this.isNearlyCollinear(prev, wp, next, 8)) {
+            const newWps = conn.waypoints.filter((_, i) => i !== wpIdx);
+            this.updateConnectionWaypoints(connId, newWps);
+          }
+        }
+      }
+      return;
+    }
     if (this.marqueeActive) {
       this.marqueeActive = false;
       this.finishMarqueeSelection();
@@ -509,6 +613,16 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (this.isPanning)          { this.isPanning = false; return; }
     if (this.isDraggingStartNode){ this.isDraggingStartNode = false; return; }
     if (this.draggingNodeId)     { this.draggingNodeId = null; return; }
+  }
+
+  // Returns true if wp lies within `threshold` units of the line segment prev→next
+  private isNearlyCollinear(
+    prev: { x: number; y: number },
+    wp: { x: number; y: number },
+    next: { x: number; y: number },
+    threshold: number
+  ): boolean {
+    return this.distToSegment(wp, prev, next) < threshold;
   }
 
   // Compute marquee rect in world space and select contained nodes
@@ -701,6 +815,14 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       conn.isLoop = true;
       conn.loopCount = 1;
     }
+    // Compute initial circuit-board waypoints (skip for loops — they use arc paths)
+    if (!conn.isLoop) {
+      const fromPos = this.resolvePortWorldPos(fromNodeId, fromPortId);
+      const toPos   = this.resolvePortWorldPos(toNodeId,   toPortId);
+      if (fromPos && toPos) {
+        conn.waypoints = this.autoRoutePoints(fromPos.x, fromPos.y, toPos.x, toPos.y);
+      }
+    }
     this.graph.connections = [...this.graph.connections, conn];
     this.graphConnectionsSig.set(this.graph.connections);
   }
@@ -781,6 +903,84 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   stopConnBadgeEdit(e: Event) {
     e.stopPropagation();
     this.editingConnId = null;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Waypoint drag — click on a connection segment to add a waypoint,
+  // drag an existing waypoint to move it, or move it "back in line" to delete it.
+  onWaypointMouseDown(e: MouseEvent, connId: string, wpIdx: number) {
+    e.stopPropagation();
+    e.preventDefault();
+    this.draggingWaypointConnId  = connId;
+    this.draggingWaypointIndex   = wpIdx;
+  }
+
+  // Called from onConnGroupClick to insert a waypoint at the clicked segment position
+  onConnGroupClick(e: MouseEvent, c: SpellConnection) {
+    // If we just dragged a waypoint, ignore
+    if (this.draggingWaypointConnId) return;
+    // Select the connection
+    this.selectConnection(c.id, e);
+  }
+
+  // Double-click on a connection inserts a waypoint at that position
+  onConnGroupDblClick(e: MouseEvent, c: SpellConnection) {
+    if (c.isLoop) return; // no waypoints on loop arcs
+    e.stopPropagation();
+    const world = this.clientToWorld(e.clientX, e.clientY);
+    const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
+    const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
+    if (!from || !to) return;
+    const wps = c.waypoints ?? [];
+    const allPts = [from, ...wps, to];
+
+    // Find which segment was clicked (nearest segment endpoint-pair)
+    let bestSeg = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < allPts.length - 1; i++) {
+      const d = this.distToSegment(world, allPts[i], allPts[i + 1]);
+      if (d < bestDist) { bestDist = d; bestSeg = i; }
+    }
+    if (bestDist > 30) return; // clicked too far from line
+
+    // Insert new waypoint on this segment at the click position
+    const newWp = this.snapToQueenMovement(world, allPts[bestSeg], allPts[bestSeg + 1]);
+    const newWps = [...wps.slice(0, bestSeg), newWp, ...wps.slice(bestSeg)];
+    this.updateConnectionWaypoints(c.id, newWps);
+  }
+
+  private distToSegment(p: { x: number; y: number }, a: { x: number; y: number }, b: { x: number; y: number }): number {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+    let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+  }
+
+  // Snap a point to lie on a queen-movement direction from anchor
+  private snapToQueenMovement(p: { x: number; y: number },
+                               a: { x: number; y: number },
+                               _b: { x: number; y: number }): { x: number; y: number } {
+    const dx = p.x - a.x, dy = p.y - a.y;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    const sx = dx >= 0 ? 1 : -1, sy = dy >= 0 ? 1 : -1;
+    // Pick nearest queen direction: H, V, or 45°
+    const distH   = ady;                              // cost to go horizontal to p
+    const distV   = adx;                              // cost to go vertical to p
+    const distD   = Math.abs(adx - ady);              // cost to go diagonal to p
+    const minCost = Math.min(distH, distV, distD);
+    if (minCost === distH) return { x: p.x, y: a.y };             // horizontal
+    if (minCost === distV) return { x: a.x, y: p.y };             // vertical
+    const diag = Math.min(adx, ady);
+    return { x: a.x + sx * diag, y: a.y + sy * diag };            // 45° diagonal
+  }
+
+  private updateConnectionWaypoints(connId: string, wps: { x: number; y: number }[]) {
+    this.graph.connections = this.graph.connections.map(c =>
+      c.id === connId ? { ...c, waypoints: wps } : c
+    );
+    this.graphConnectionsSig.set(this.graph.connections);
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -896,14 +1096,11 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
     if (!from || !to) return '';
-    const sf = this.worldToCanvasLocal(from.x, from.y);
-    const st = this.worldToCanvasLocal(to.x,   to.y);
-    // Force in world units → scale to screen so curve shape is zoom-independent
-    const worldDx = Math.abs(to.x - from.x);
-    const force = Math.max(60, worldDx * 0.5) * this.zoom;
-    // Offset endpoints by PORT_R so the line starts/ends outside the port circle
-    const pr = this.PORT_R * this.zoom;
-    return `M ${sf.x + pr} ${sf.y} C ${sf.x + pr + force} ${sf.y} ${st.x - pr - force} ${st.y} ${st.x - pr} ${st.y}`;
+    // Use stored waypoints; if none, compute via auto-router
+    const wps = (c.waypoints && c.waypoints.length > 0)
+      ? c.waypoints
+      : this.autoRoutePoints(from.x, from.y, to.x, to.y);
+    return this.circuitPath(from, to, wps);
   }
 
   loopMidPointScreen(c: SpellConnection): { x: number; y: number } {
@@ -1026,10 +1223,9 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     };
     this.save.emit(spell);
     this.savedFeedback = true;
-    // Show brief confirmation, then close the editor
+    // Show brief save confirmation, then reset — do NOT close the editor
     setTimeout(() => {
       this.savedFeedback = false;
-      this.cancel.emit();
     }, 700);
   }
 

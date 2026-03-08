@@ -190,7 +190,8 @@
         <svg class="conn-overlay-svg" xmlns="http://www.w3.org/2000/svg">
           @for (c of graphConnectionsSig(); track trackById($index, c)) {
             <g class="conn-group"
-               (click)="selectConnection(c.id, $event)"
+               (click)="onConnGroupClick($event, c)"
+               (dblclick)="onConnGroupDblClick($event, c)"
                (contextmenu)="onConnectionRightClick(c, $event)">
               <!-- Invisible wide-stroke hit area: limits click region to near the actual line -->
               <path class="conn-hit" [attr.d]="connectionPathScreen(c)"/>
@@ -206,6 +207,17 @@
                     [class.conn-selected]="isConnectionSelected(c.id)"
                     [class.conn-loop]="c.isLoop"
                     [class.conn-branch]="c.isBranch"/>
+
+              <!-- Waypoint handles — draggable circles on each intermediate point -->
+              @if (!c.isLoop && c.waypoints?.length) {
+                @for (wp of c.waypoints; track $index; let wi = $index) {
+                  <circle class="conn-waypoint"
+                          [attr.cx]="worldToCanvasLocal(wp.x, wp.y).x"
+                          [attr.cy]="worldToCanvasLocal(wp.x, wp.y).y"
+                          r="5"
+                          (mousedown)="onWaypointMouseDown($event, c.id, wi)"/>
+                }
+              }
 
               <!-- Loop badge: shows loopCount and lets user edit it -->
               @if (c.isLoop) {
@@ -282,7 +294,7 @@
 
         <!-- Hint bar -->
         <div class="canvas-hint">
-          Palette anklicken = Runen-Info · Mausrad = Zoom · Mittelmaus = Schwenken · Port ziehen = Verbinden · Entf = Löschen · Strg+S = Speichern
+          Palette anklicken = Runen-Info · Mausrad = Zoom · Mittelmaus = Schwenken · Port ziehen = Verbinden · Doppelklick auf Linie = Wegpunkt · Entf = Löschen · Strg+S = Speichern
         </div>
 
       </div><!-- /canvas-wrap -->
