@@ -833,13 +833,20 @@
   stroke-width: 1.5;
   cursor: grab;
   pointer-events: all;
-  transition: r 0.1s, stroke 0.1s;
+  opacity: 0;
+  transition: opacity 0.15s, r 0.1s, stroke 0.1s;
 }
+/* Show faintly on line hover */
+.conn-group:has(.conn-hit:hover) .conn-waypoint { opacity: 0.45; }
+/* Show fully when selected */
+.conn-waypoint.conn-waypoint-selected { opacity: 1; fill: rgba(139,92,246,0.3); stroke: #c4b5fd; }
+.conn-group:has(.conn-hit:hover) .conn-waypoint.conn-waypoint-selected { opacity: 1; }
 .conn-waypoint:hover {
   fill: rgba(139, 92, 246, 0.25);
   stroke: #a78bfa;
   stroke-width: 2;
   cursor: grabbing;
+  opacity: 1;
 }
 
 /* Snap grid dots shown during waypoint drag/pull */

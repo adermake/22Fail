@@ -71,6 +71,7 @@
            #canvasWrap
            (wheel)="onWheel($event)"
            (mousedown)="onCanvasMouseDown($event)"
+           (contextmenu)="$event.preventDefault()"
            (drop)="onCanvasDrop($event)"
            (dragover)="onCanvasDragOver($event)">
 
@@ -209,10 +210,11 @@
                     [class.conn-loop]="c.isLoop"
                     [class.conn-branch]="c.isBranch"/>
 
-              <!-- Waypoint handles — only shown when connection is selected -->
-              @if (!c.isLoop && c.waypoints?.length && isConnectionSelected(c.id)) {
+              <!-- Waypoint handles — visible on hover or when connection is selected -->
+              @if (!c.isLoop && c.waypoints?.length) {
                 @for (wp of c.waypoints; track $index; let wi = $index) {
                   <circle class="conn-waypoint"
+                          [class.conn-waypoint-selected]="isConnectionSelected(c.id) || isWaypointSelected(c.id, wi)"
                           [attr.cx]="worldToCanvasLocal(wp.x, wp.y).x"
                           [attr.cy]="worldToCanvasLocal(wp.x, wp.y).y"
                           r="6"
@@ -232,7 +234,8 @@
                              [value]="c.loopCount ?? 1"
                              (change)="setLoopCount(c.id, +$any($event.target).value)"
                              (blur)="stopConnBadgeEdit($event)"
-                             (click)="$event.stopPropagation()"/>
+                             (click)="$event.stopPropagation()"
+                             (mousedown)="$event.stopPropagation()"/>
                     </foreignObject>
                   } @else {
                     <text class="loop-badge-count" text-anchor="middle" dominant-baseline="central"
@@ -250,10 +253,13 @@
                       <input xmlns="http://www.w3.org/1999/xhtml"
                              class="badge-input badge-input-text"
                              type="text"
-                             [value]="c.branchLabel ?? ''"
-                             (input)="setBranchLabel(c.id, $any($event.target).value)"
-                             (blur)="stopConnBadgeEdit($event)"
+                             [defaultValue]="editingBranchLabel"
+                             (input)="editingBranchLabel = $any($event.target).value"
+                             (blur)="commitBranchLabel($event)"
+                             (keydown.enter)="commitBranchLabel($event)"
+                             (keydown.escape)="stopConnBadgeEdit($event)"
                              (click)="$event.stopPropagation()"
+                             (mousedown)="$event.stopPropagation()"
                              placeholder="Label…"/>
                     </foreignObject>
                   } @else {
@@ -282,13 +288,19 @@
           }
         </svg>
 
-        <!-- Node drag Y-snap indicator lines -->
+        <!-- Node drag snap indicator lines (Y-horizontal + X-vertical) -->
         @if (nodeDragSnapLines.length) {
           <svg class="conn-overlay-svg snap-line-svg" xmlns="http://www.w3.org/2000/svg">
             @for (sl of nodeDragSnapLines; track $index) {
-              <line class="node-snap-line"
-                    x1="0" [attr.y1]="worldToCanvasLocal(0, sl.y).y"
-                    x2="100%" [attr.y2]="worldToCanvasLocal(0, sl.y).y"/>
+              @if (sl.axis === 'y') {
+                <line class="node-snap-line"
+                      x1="0" [attr.y1]="worldToCanvasLocal(0, sl.v).y"
+                      x2="100%" [attr.y2]="worldToCanvasLocal(0, sl.v).y"/>
+              } @else {
+                <line class="node-snap-line"
+                      [attr.x1]="worldToCanvasLocal(sl.v, 0).x" y1="0"
+                      [attr.x2]="worldToCanvasLocal(sl.v, 0).x" y2="100%"/>
+              }
             }
           </svg>
         }

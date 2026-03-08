@@ -106,6 +106,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // Multi-select
   selectedNodeIds = new Set<string>();
+  // Selected waypoints: connId → set of waypoint indices
+  selectedWaypoints = new Map<string, Set<number>>();
 
   // Marquee (selection box) state
   marqueeActive = false;
@@ -116,6 +118,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // Inline editing state for connection badges
   editingConnId: string | null = null;
+  editingBranchLabel = ''; // local buffer — committed on blur/enter to avoid CD resets
 
   // ── Waypoint drag state ────────────────────────────────────────────────────
   // Dragging an EXISTING waypoint circle:
@@ -127,8 +130,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   pullingWaypointPos: { x: number; y: number } | null = null;
   // Snap grid shown while dragging/pulling a waypoint:
   waypointSnapGrid: { x: number; y: number }[] = [];
-  // Node drag snap indicators (world coords of matched port Ys)
-  nodeDragSnapLines: { y: number }[] = [];
+  // Node drag snap indicators (world coords of matched port Ys/Xs)
+  nodeDragSnapLines: { axis: 'x' | 'y'; v: number }[] = [];
 
   // Rune inspector panel (right sidebar)
   inspectedRune: RuneBlock | null = null;
@@ -417,22 +420,22 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // Screen-space (canvas-wrap-local) — used by conn-overlay-svg
   connectionPathScreen(c: SpellConnection): string {
-    if (c.isLoop) return this.loopArcPathScreen(c);
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
     if (!from || !to) return '';
-    // User waypoints as control points; each sub-segment uses queen routing
     const wps = c.waypoints ?? [];
-    // Also include the currently-being-pulled waypoint for live preview
-    if (this.pullingWaypointConnId === c.id && this.pullingWaypointPos) {
-      const liveWps = [
-        ...wps.slice(0, this.pullingWaypointSegIndex),
-        this.pullingWaypointPos,
-        ...wps.slice(this.pullingWaypointSegIndex),
-      ];
-      return this.buildQueenPath([from, ...liveWps, to]);
+    const liveWps = (this.pullingWaypointConnId === c.id && this.pullingWaypointPos)
+      ? [
+          ...wps.slice(0, this.pullingWaypointSegIndex),
+          this.pullingWaypointPos,
+          ...wps.slice(this.pullingWaypointSegIndex),
+        ]
+      : wps;
+    // Loop default arch: if no user waypoints, use rectangular arch above the node
+    if (c.isLoop && liveWps.length === 0) {
+      return this.loopArcPathScreen(c);
     }
-    return this.buildQueenPath([from, ...wps, to]);
+    return this.buildQueenPath([from, ...liveWps, to]);
   }
 
   private resolvePortWorldPos(nodeId: string, portId: string): { x: number; y: number } | null {
@@ -570,57 +573,61 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       this.pullingWaypointPos = snapped;
       return;
     }
-    // ── Node drag with Y-snap ─────────────────────────────────────────────────
+    // ── Node drag with Y + X snap ─────────────────────────────────────────────
     if (this.draggingNodeId) {
       const world = this.clientToWorld(e.clientX, e.clientY);
       const primaryNode = this.graph.nodes.find(n => n.id === this.draggingNodeId);
       if (primaryNode) {
         const newX = world.x - this.dragOffsetX;
-        let   newY = world.y - this.dragOffsetY;
-        const dx = newX - primaryNode.x;
-        let   dy = newY - primaryNode.y;
+        const newY = world.y - this.dragOffsetY;
+        let   dx   = newX - primaryNode.x;
+        let   dy   = newY - primaryNode.y;
 
-        // Compute candidate Y positions of ports on nodes being moved
         const movingIds = new Set(
           this.graph.nodes.filter(n => this.selectedNodeIds.has(n.id)).map(n => n.id)
         );
+        const allPP = this.allPortPositions();
+        const stationaryPorts = allPP.filter(pp => !movingIds.has(pp.nodeId));
+        const stationaryYs = stationaryPorts.map(pp => pp.y);
+        const stationaryXs = stationaryPorts.map(pp => pp.x);
 
-        // Gather all port screen-Y from stationary nodes
-        const stationaryPortYs: number[] = [];
-        for (const pp of this.allPortPositions()) {
-          if (!movingIds.has(pp.nodeId)) stationaryPortYs.push(pp.y);
-        }
-
-        // Candidate port Ys on moving nodes after applying dy
-        const SNAP_Y = 10;
+        const SNAP_D = 10;
         let snapDy: number | null = null;
-        for (const pp of this.allPortPositions()) {
+        let snapDx: number | null = null;
+
+        for (const pp of allPP) {
           if (!movingIds.has(pp.nodeId)) continue;
-          const candidateY = pp.y + dy;
-          for (const sy of stationaryPortYs) {
-            if (Math.abs(candidateY - sy) < SNAP_Y) {
-              snapDy = sy - pp.y;
-              break;
+          if (snapDy === null) {
+            for (const sy of stationaryYs) {
+              if (Math.abs(pp.y + dy - sy) < SNAP_D) { snapDy = sy - pp.y; break; }
             }
           }
-          if (snapDy !== null) break;
+          if (snapDx === null) {
+            for (const sx of stationaryXs) {
+              if (Math.abs(pp.x + dx - sx) < SNAP_D) { snapDx = sx - pp.x; break; }
+            }
+          }
+          if (snapDy !== null && snapDx !== null) break;
         }
         if (snapDy !== null) dy = snapDy;
+        if (snapDx !== null) dx = snapDx;
 
-        // Compute snap indicator lines (port Ys that we just snapped to)
-        if (snapDy !== null) {
-          const snapSet = new Set<number>();
-          for (const pp of this.allPortPositions()) {
-            if (!movingIds.has(pp.nodeId)) continue;
-            const snappedY = pp.y + dy;
-            for (const sy of stationaryPortYs) {
-              if (Math.abs(snappedY - sy) < 0.5) snapSet.add(sy);
-            }
+        // Snap indicator lines
+        const snapYSet = new Set<number>();
+        const snapXSet = new Set<number>();
+        for (const pp of allPP) {
+          if (!movingIds.has(pp.nodeId)) continue;
+          for (const sy of stationaryYs) {
+            if (Math.abs(pp.y + dy - sy) < 0.5) snapYSet.add(sy);
           }
-          this.nodeDragSnapLines = Array.from(snapSet).map(y => ({ y }));
-        } else {
-          this.nodeDragSnapLines = [];
+          for (const sx of stationaryXs) {
+            if (Math.abs(pp.x + dx - sx) < 0.5) snapXSet.add(sx);
+          }
         }
+        this.nodeDragSnapLines = [
+          ...Array.from(snapYSet).map(y => ({ axis: 'y' as const, v: y })),
+          ...Array.from(snapXSet).map(x => ({ axis: 'x' as const, v: x })),
+        ];
 
         // Move all selected nodes
         for (const node of this.graph.nodes) {
@@ -629,6 +636,20 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
             node.y += dy;
             this.nodeStates.get(node.id)!.node = node;
           }
+        }
+        // Move selected waypoints along with nodes
+        for (const [connId, wpIndices] of this.selectedWaypoints) {
+          const conn = this.graph.connections.find(c => c.id === connId);
+          if (conn && conn.waypoints) {
+            const newWps = conn.waypoints.map((wp, i) =>
+              wpIndices.has(i) ? { x: wp.x + dx, y: wp.y + dy } : wp
+            );
+            conn.waypoints = newWps;
+          }
+        }
+        if (this.selectedWaypoints.size > 0) {
+          this.graph.connections = [...this.graph.connections];
+          this.graphConnectionsSig.set(this.graph.connections);
         }
         this.graphNodesSig.set([...this.graph.nodes]);
       }
@@ -694,10 +715,12 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
             const allPts = [from, ...wps, to];
             const prev   = allPts[segIdx];
             const next   = allPts[segIdx + 1];
-            // Discard if the position essentially matches the auto-route (within 4 world units)
-            const autoMid = this.queenRoute(prev.x, prev.y, next.x, next.y);
-            const isRedundant = autoMid.length === 0
-              || autoMid.some(m => Math.hypot(pos.x - m.x, pos.y - m.y) < 4);
+            // Discard the waypoint only if it lies ON the auto-route path between prev→next
+            // (i.e., inserting it doesn't change the visual route at all).
+            const autoRoute = [prev, ...this.queenRoute(prev.x, prev.y, next.x, next.y), next];
+            const isRedundant = autoRoute.slice(0, -1).some((a, i) =>
+              this.distToSegment(pos, a, autoRoute[i + 1]) < 4
+            );
             if (!isRedundant) {
               const newWps = [...wps.slice(0, segIdx), pos, ...wps.slice(segIdx)];
               this.updateConnectionWaypoints(connId, newWps);
@@ -723,10 +746,16 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
           const prev = allPts[wpIdx];
           const wp   = allPts[wpIdx + 1];
           const next = allPts[wpIdx + 2];
-          // Delete waypoint if it is collinear (or nearly so) with its neighbours
-          if (prev && next && this.isNearlyCollinear(prev, wp, next, 8)) {
-            const newWps = conn.waypoints.filter((_, i) => i !== wpIdx);
-            this.updateConnectionWaypoints(connId, newWps);
+          // Delete waypoint if it lies on the auto-route path between its neighbours (redundant)
+          if (prev && next && wp) {
+            const autoRoute = [prev, ...this.queenRoute(prev.x, prev.y, next.x, next.y), next];
+            const isRedundant = autoRoute.slice(0, -1).some((a, i) =>
+              this.distToSegment(wp, a, autoRoute[i + 1]) < 6
+            );
+            if (isRedundant) {
+              const newWps = conn.waypoints.filter((_, i) => i !== wpIdx);
+              this.updateConnectionWaypoints(connId, newWps);
+            }
           }
         }
       }
@@ -751,7 +780,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return this.distToSegment(wp, prev, next) < threshold;
   }
 
-  // Compute marquee rect in world space and select contained nodes
+  // Compute marquee rect in world space and select contained nodes and waypoints
   private finishMarqueeSelection() {
     const ax = Math.min(this.marqueeStartX, this.marqueeEndX);
     const ay = Math.min(this.marqueeStartY, this.marqueeEndY);
@@ -770,6 +799,19 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       }
     }
     this.selectedNodeIds = selected;
+    // Select waypoints within the marquee
+    const newWpSel = new Map<string, Set<number>>();
+    for (const c of this.graph.connections) {
+      const wps = c.waypoints ?? [];
+      const sel = new Set<number>();
+      for (let i = 0; i < wps.length; i++) {
+        if (wps[i].x >= wa.x && wps[i].x <= wb.x && wps[i].y >= wa.y && wps[i].y <= wb.y) {
+          sel.add(i);
+        }
+      }
+      if (sel.size > 0) newWpSel.set(c.id, sel);
+    }
+    this.selectedWaypoints = newWpSel;
   }
 
   get marqueeRect(): { x: number; y: number; w: number; h: number } {
@@ -1017,7 +1059,17 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   startConnBadgeEdit(connId: string, e: Event) {
     e.stopPropagation();
+    const conn = this.graph.connections.find(c => c.id === connId);
+    this.editingBranchLabel = conn?.branchLabel ?? '';
     this.editingConnId = connId;
+  }
+
+  commitBranchLabel(e: Event) {
+    e.stopPropagation();
+    if (this.editingConnId) {
+      this.setBranchLabel(this.editingConnId, this.editingBranchLabel);
+    }
+    this.editingConnId = null;
   }
 
   stopConnBadgeEdit(e: Event) {
@@ -1048,17 +1100,30 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // Mousedown on the invisible hit-area path — begin pulling a new waypoint from that segment
   onConnHitMouseDown(e: MouseEvent, c: SpellConnection) {
-    if (c.isLoop) return;
     e.stopPropagation();
     e.preventDefault();
     const world = this.clientToWorld(e.clientX, e.clientY);
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
     if (!from || !to) return;
-    const wps    = c.waypoints ?? [];
-    const allPts = [from, ...wps, to];
+    const wps = c.waypoints ?? [];
 
-    // Find nearest segment
+    // ── If near an existing waypoint, drag that instead of creating a new one ──
+    const WP_GRAB_RADIUS = 18; // world-space grab radius for existing waypoints
+    for (let i = 0; i < wps.length; i++) {
+      if (Math.hypot(world.x - wps[i].x, world.y - wps[i].y) < WP_GRAB_RADIUS) {
+        const allPts = [from, ...wps, to];
+        const prev = allPts[i];
+        const next = allPts[i + 2];
+        if (prev && next) this.waypointSnapGrid = this.computeSnapGrid(prev, next);
+        this.draggingWaypointConnId  = c.id;
+        this.draggingWaypointIndex   = i;
+        return;
+      }
+    }
+
+    // ── Otherwise find nearest segment and start a pull ────────────────────
+    const allPts = [from, ...wps, to];
     let bestSeg  = 0;
     let bestDist = Infinity;
     for (let i = 0; i < allPts.length - 1; i++) {
@@ -1085,7 +1150,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // Double-click on a connection inserts a waypoint at that position
   onConnGroupDblClick(e: MouseEvent, c: SpellConnection) {
-    if (c.isLoop) return; // no waypoints on loop arcs
     e.stopPropagation();
     const world = this.clientToWorld(e.clientX, e.clientY);
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
@@ -1136,7 +1200,18 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return { x: a.x + sx * diag, y: a.y + sy * diag };            // 45° diagonal
   }
 
-  private updateConnectionWaypoints(connId: string, wps: { x: number; y: number }[]) {
+  private updateConnectionWaypoints(connId: string, rawWps: { x: number; y: number }[]) {
+    // Merge waypoints that are very close to each other (within 8 world units)
+    const MERGE_D = 8;
+    const wps: { x: number; y: number }[] = [];
+    for (const wp of rawWps) {
+      const last = wps[wps.length - 1];
+      if (last && Math.hypot(wp.x - last.x, wp.y - last.y) < MERGE_D) {
+        wps[wps.length - 1] = { x: (last.x + wp.x) / 2, y: (last.y + wp.y) / 2 };
+      } else {
+        wps.push(wp);
+      }
+    }
     this.graph.connections = this.graph.connections.map(c =>
       c.id === connId ? { ...c, waypoints: wps } : c
     );
@@ -1239,6 +1314,10 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return this.selectedConnectionId === connId;
   }
 
+  isWaypointSelected(connId: string, wpIdx: number): boolean {
+    return this.selectedWaypoints.get(connId)?.has(wpIdx) ?? false;
+  }
+
   getLoopConn(connId: string): SpellConnection | undefined {
     return this.graph.connections.find(c => c.id === connId);
   }
@@ -1255,6 +1334,12 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
       const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
       if (!from || !to) return { x: 0, y: 0 };
+      const wps = c.waypoints ?? [];
+      if (wps.length > 0) {
+        // Use midpoint of the waypoint array
+        const mid = wps[Math.floor(wps.length / 2)];
+        return this.worldToCanvasLocal(mid.x, mid.y);
+      }
       // Match loopArcPathScreen: rectangular arch top-center
       const worldDy = Math.abs(from.y - to.y);
       const rise  = Math.max(80, worldDy * 0.8 + 80);
@@ -1336,6 +1421,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (e.key === 'Escape') {
       this.selectedConnectionId = null;
       this.selectedNodeIds = new Set();
+      this.selectedWaypoints = new Map();
       this.pending.set(null);
       this.hoveredPort.set(null);
     }
