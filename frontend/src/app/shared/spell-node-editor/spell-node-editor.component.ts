@@ -117,6 +117,16 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // Inline editing state for connection badges
   editingConnId: string | null = null;
 
+  // Rune inspector panel (right sidebar)
+  inspectedRune: RuneBlock | null = null;
+
+  // Save feedback
+  savedFeedback = false;
+
+  // Track mousedown position to distinguish click vs drag on rune nodes
+  private lastMouseDownX = 0;
+  private lastMouseDownY = 0;
+
   // Expose for template
   readonly NEUTRAL_RUNE_ID = NEUTRAL_RUNE_ID;
 
@@ -294,20 +304,23 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return this.bezierPath(p.fromX, p.fromY, p.toX, p.toY);
   }
 
-  // Screen-space pending path — coordinates relative to canvas-wrap (no world transform).
-  // Used by the overlay SVG that lives outside canvas-world, so it always renders correctly.
+  // Screen-space pending path — world-space force keeps curve shape zoom-independent.
   pendingPathScreen(): string {
     const p = this.pending();
     if (!p) return '';
     const from = this.worldToCanvasLocal(p.fromX, p.fromY);
     const to   = this.worldToCanvasLocal(p.toX,   p.toY);
-    // When dragging FROM an input port (left side), swap from/to so the bezier
-    // control handles point in the correct direction (output side curves right,
-    // input side curves left), matching the stored-connection path convention.
+    // Normalise so output is always the left-hand control point
     const isInput = p.kind === 'flow-in' || p.kind === 'data-in';
-    return isInput
-      ? this.bezierPath(to.x, to.y, from.x, from.y)
-      : this.bezierPath(from.x, from.y, to.x, to.y);
+    const fx = isInput ? to.x : from.x,  fy = isInput ? to.y : from.y;
+    const tx = isInput ? from.x : to.x,  ty = isInput ? from.y : to.y;
+    // Force in world space so bezier shape stays constant across zoom levels
+    const worldFromX = isInput ? p.toX : p.fromX;
+    const worldToX   = isInput ? p.fromX : p.toX;
+    const force = Math.max(60, Math.abs(worldToX - worldFromX) * 0.5) * this.zoom;
+    // Offset source (output-port) end by PORT_R so line doesn't clip into the port circle
+    const pr = this.PORT_R * this.zoom;
+    return `M ${fx + pr} ${fy} C ${fx + pr + force} ${fy} ${tx - force} ${ty} ${tx} ${ty}`;
   }
 
   pendingColor(): string {
@@ -315,22 +328,25 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   private bezierPath(x1: number, y1: number, x2: number, y2: number): string {
+    // NOTE: this is still used for the world-space conn-svg (unused by overlay). Keep it simple.
     const dx = Math.abs(x2 - x1);
     const force = Math.max(60, dx * 0.5);
     return `M ${x1} ${y1} C ${x1 + force} ${y1} ${x2 - force} ${y2} ${x2} ${y2}`;
   }
 
-  // Loop connections arc upward — clean parabolic arch directly above both endpoints
+  // Loop connections arc upward — clean parabolic arch, zoom-independent rise + PORT_R offset
   private loopBezierPathScreen(c: SpellConnection): string {
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
     if (!from || !to) return '';
     const sf = this.worldToCanvasLocal(from.x, from.y);
     const st = this.worldToCanvasLocal(to.x,   to.y);
-    const rise = Math.max(80, Math.abs(sf.y - st.y) * 0.8 + 80) * this.zoom;
+    // Rise computed in world units so it stays visually consistent at all zoom levels
+    const worldDy = Math.abs(from.y - to.y);
+    const rise = Math.max(80, worldDy * 0.8 + 80) * this.zoom;
     const topY = Math.min(sf.y, st.y) - rise;
-    // Control points sit directly above each endpoint → clean symmetric arch
-    return `M ${sf.x} ${sf.y} C ${sf.x} ${topY} ${st.x} ${topY} ${st.x} ${st.y}`;
+    const pr = this.PORT_R * this.zoom;
+    return `M ${sf.x + pr} ${sf.y} C ${sf.x + pr} ${topY} ${st.x - pr} ${topY} ${st.x - pr} ${st.y}`;
   }
 
   private resolvePortWorldPos(nodeId: string, portId: string): { x: number; y: number } | null {
@@ -534,6 +550,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   onNodeMouseDown(e: MouseEvent, nodeId: string) {
     e.stopPropagation();
     if ((e.target as Element).closest('.rune-port')) return;
+    this.lastMouseDownX = e.clientX;
+    this.lastMouseDownY = e.clientY;
     // If clicking a selected node, ensure it stays selected (don't clear)
     if (!this.selectedNodeIds.has(nodeId)) {
       this.selectedNodeIds = new Set([nodeId]);
@@ -872,7 +890,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
   }
 
-  // Screen-space (canvas-wrap-local) variants — used by the conn-svg overlay
+  // Screen-space (canvas-wrap-local) variants — used by the conn-overlay-svg
   connectionPathScreen(c: SpellConnection): string {
     if (c.isLoop) return this.loopBezierPathScreen(c);
     const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
@@ -880,7 +898,12 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (!from || !to) return '';
     const sf = this.worldToCanvasLocal(from.x, from.y);
     const st = this.worldToCanvasLocal(to.x,   to.y);
-    return this.bezierPath(sf.x, sf.y, st.x, st.y);
+    // Force in world units → scale to screen so curve shape is zoom-independent
+    const worldDx = Math.abs(to.x - from.x);
+    const force = Math.max(60, worldDx * 0.5) * this.zoom;
+    // Offset endpoints by PORT_R so the line starts/ends outside the port circle
+    const pr = this.PORT_R * this.zoom;
+    return `M ${sf.x + pr} ${sf.y} C ${sf.x + pr + force} ${sf.y} ${st.x - pr - force} ${st.y} ${st.x - pr} ${st.y}`;
   }
 
   loopMidPointScreen(c: SpellConnection): { x: number; y: number } {
@@ -890,12 +913,13 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       if (!from || !to) return { x: 0, y: 0 };
       const sf = this.worldToCanvasLocal(from.x, from.y);
       const st = this.worldToCanvasLocal(to.x,   to.y);
-      const rise = Math.max(80, Math.abs(sf.y - st.y) * 0.8 + 80) * this.zoom;
+      // Rise must exactly match loopBezierPathScreen
+      const worldDy = Math.abs(from.y - to.y);
+      const rise = Math.max(80, worldDy * 0.8 + 80) * this.zoom;
       const topY = Math.min(sf.y, st.y) - rise;
-      // Exact t=0.5 on M sf C sf,topY st,topY st:
-      // B(0.5) = (1/8)*P0 + (3/8)*P1 + (3/8)*P2 + (1/8)*P3
-      // bx = (4*sf.x + 4*st.x)/8 = (sf.x+st.x)/2
-      // by = (sf.y + 3*topY + 3*topY + st.y)/8 = (sf.y + st.y + 6*topY) / 8
+      // P0=(sf.x+pr,sf.y) P1=(sf.x+pr,topY) P2=(st.x-pr,topY) P3=(st.x-pr,st.y)
+      // B_x(0.5) = (P0.x+3P1.x+3P2.x+P3.x)/8 = (4*(sf.x+pr)+4*(st.x-pr))/8 = (sf.x+st.x)/2
+      // B_y(0.5) = (sf.y + 3*topY + 3*topY + st.y) / 8
       return {
         x: (sf.x + st.x) / 2,
         y: (sf.y + st.y + 6 * topY) / 8,
@@ -932,10 +956,33 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   trackById(_: number, item: { id: string }) { return item.id; }
   trackByName(_: number, item: { name: string }) { return item.name; }
 
+  // Detect rune-node click (vs drag): if mouse barely moved between mousedown and mouseup
+  onNodeClick(e: MouseEvent, node: SpellNode) {
+    if ((e.target as Element).closest('[data-port-id]')) return; // ignore port clicks
+    const moved = Math.abs(e.clientX - this.lastMouseDownX) > 4 ||
+                  Math.abs(e.clientY - this.lastMouseDownY) > 4;
+    if (!moved) this.inspectNode(node);
+  }
+
+  inspectNode(node: SpellNode) {
+    if (node.runeId === NEUTRAL_RUNE_ID) return;
+    this.inspectedRune = this.availableRunes.find(r => r.name === node.runeId) ?? null;
+  }
+
+  inspectPaletteRune(rune: RuneBlock) {
+    if (rune.name === NEUTRAL_RUNE_ID) return;
+    this.inspectedRune = rune;
+  }
+
   // ────────────────────────────────────────────────────────────────────────────
   // Keyboard: delete selected connection or selected nodes
   @HostListener('document:keydown', ['$event'])
   onKeyDown(e: KeyboardEvent) {
+    if (e.ctrlKey && e.key === 's') {
+      e.preventDefault();
+      this.onSave();
+      return;
+    }
     const tag = (e.target as HTMLElement).tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -966,6 +1013,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // ────────────────────────────────────────────────────────────────────────────
   // Save
   onSave() {
+    if (this.savedFeedback) return; // debounce double-click / repeated Ctrl+S
     const spell: SpellBlock = {
       name: this.spellName || 'Unbenannter Zauber',
       description: this.spellDescription,
@@ -977,6 +1025,12 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       graph: JSON.parse(JSON.stringify(this.graph)),
     };
     this.save.emit(spell);
+    this.savedFeedback = true;
+    // Show brief confirmation, then close the editor
+    setTimeout(() => {
+      this.savedFeedback = false;
+      this.cancel.emit();
+    }, 700);
   }
 
   private extractTags(): string[] {

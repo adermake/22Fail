@@ -16,6 +16,7 @@
                [class.palette-rune-neutral]="rune.name === NEUTRAL_RUNE_ID"
                draggable="true"
                (dragstart)="onPaletteDragStart($event, rune)"
+               (click)="inspectPaletteRune(rune)"
                [style.--glow]="rune.name === NEUTRAL_RUNE_ID ? '#6b7280' : (rune.glowColor || '#8b5cf6')">
             <div class="palette-rune-glyph">
               @if (rune.name === NEUTRAL_RUNE_ID) {
@@ -56,7 +57,12 @@
             <button class="tb-btn tb-delete" (click)="onDelete()">Löschen</button>
           }
           <button class="tb-btn tb-cancel" (click)="onCancel()">Abbrechen</button>
-          <button class="tb-btn tb-save" (click)="onSave()">Zauber speichern</button>
+          <button class="tb-btn tb-save"
+                  [class.tb-save-done]="savedFeedback"
+                  [disabled]="savedFeedback"
+                  (click)="onSave()">
+            {{ savedFeedback ? '✓ Gespeichert!' : 'Zauber speichern (Strg+S)' }}
+          </button>
         </div>
       </div>
 
@@ -122,7 +128,8 @@
                  [style.left.px]="node.x"
                  [style.top.px]="node.y"
                  [style.--glow]="nodeGlowColor(node.id)"
-                 (mousedown)="onNodeMouseDown($event, node.id)">
+                 (mousedown)="onNodeMouseDown($event, node.id)"
+                 (click)="onNodeClick($event, node)">
 
               <!-- Input ports — absolutely positioned on the left edge -->
               @for (p of inputPorts(node.id); track p.id) {
@@ -275,11 +282,65 @@
 
         <!-- Hint bar -->
         <div class="canvas-hint">
-          Drag Rune aus Palette · Mausrad = Zoom · Klick+Ziehen = Schwenken · Port ziehen = Verbinden · Entf = Verbindung löschen
+          Palette anklicken = Runen-Info · Mausrad = Zoom · Mittelmaus = Schwenken · Port ziehen = Verbinden · Entf = Löschen · Strg+S = Speichern
         </div>
 
       </div><!-- /canvas-wrap -->
 
     </div><!-- /sne-main -->
+
+    <!-- ── RIGHT INSPECTOR ───────────────────────────────────────────── -->
+    @if (inspectedRune) {
+      <aside class="rune-inspector">
+        <div class="ri-header">
+          <span class="ri-title">Runen-Info</span>
+          <button class="ri-close" (click)="inspectedRune = null">✕</button>
+        </div>
+        <div class="ri-body">
+          @if (inspectedRune.drawing) {
+            <img class="ri-img" [src]="inspectedRune.drawing | imageUrl" [alt]="inspectedRune.name"/>
+          }
+          <h3 class="ri-name" [style.color]="inspectedRune.glowColor || '#a78bfa'">{{ inspectedRune.name }}</h3>
+          @if (inspectedRune.tags?.length) {
+            <div class="ri-tags">
+              @for (t of inspectedRune.tags; track t) {
+                <span class="ri-tag">{{ t }}</span>
+              }
+            </div>
+          }
+          @if (inspectedRune.description) {
+            <p class="ri-desc">{{ inspectedRune.description }}</p>
+          }
+          @if (inspectedRune.mana || inspectedRune.fokus || inspectedRune.effektivitaet) {
+            <div class="ri-costs">
+              @if (inspectedRune.mana)          { <div class="ri-cost"><span class="ri-cost-lbl">Mana</span><span class="ri-cost-val">{{ inspectedRune.mana }}</span></div> }
+              @if (inspectedRune.fokus)         { <div class="ri-cost"><span class="ri-cost-lbl">Fokus</span><span class="ri-cost-val">{{ inspectedRune.fokus }}</span></div> }
+              @if (inspectedRune.effektivitaet) { <div class="ri-cost"><span class="ri-cost-lbl">Effekt.</span><span class="ri-cost-val">{{ inspectedRune.effektivitaet }}</span></div> }
+            </div>
+          }
+          @if (inspectedRune.inputs?.length) {
+            <div class="ri-section-lbl">↓ Eingänge</div>
+            @for (dl of inspectedRune.inputs; track $index) {
+              <div class="ri-dl" [style.--dlc]="dl.color">
+                <span class="ri-dl-dot"></span>
+                <span class="ri-dl-name">{{ dl.name }}</span>
+                @for (t of dl.types; track t) { <span class="ri-dl-type">{{ t }}</span> }
+              </div>
+            }
+          }
+          @if (inspectedRune.outputs?.length) {
+            <div class="ri-section-lbl ri-section-lbl-out">↑ Ausgänge</div>
+            @for (dl of inspectedRune.outputs; track $index) {
+              <div class="ri-dl" [style.--dlc]="dl.color">
+                <span class="ri-dl-dot"></span>
+                <span class="ri-dl-name">{{ dl.name }}</span>
+                @for (t of dl.types; track t) { <span class="ri-dl-type">{{ t }}</span> }
+              </div>
+            }
+          }
+        </div>
+      </aside>
+    }
+
   </div><!-- /sne-layout -->
 </div><!-- /sne-overlay -->
