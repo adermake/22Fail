@@ -472,7 +472,6 @@
         @for (r of qsResults; track r.name) {
           <button class="qs-item" (click)="selectQsRune(r)"
                   [class.qs-item-incompatible]="!isRuneCompatibleWithPending(r)">
-                  [class.qs-item-incompatible]="!isRuneCompatibleWithPending(r)">
             <span class="qs-item-glyph"
                   [style.background]="'radial-gradient(circle at 40% 35%, ' + (r.glowColor || '#8b5cf6') + '44 0%, transparent 70%)'">
               @if (r.drawing) {

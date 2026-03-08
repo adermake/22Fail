@@ -285,6 +285,12 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       this.spellDescription = this.spell.description || '';
       if (this.spell.graph) {
         this.graph = JSON.parse(JSON.stringify(this.spell.graph));
+        // Advance nextId past all existing IDs to prevent duplicate-ID collisions
+        const allNums = [
+          ...this.graph.nodes.map((n: any) => parseInt(n.id.replace(/[^0-9]/g, ''), 10)),
+          ...this.graph.connections.map((c: any) => parseInt(c.id.replace(/[^0-9]/g, ''), 10)),
+        ].filter((v: number) => !isNaN(v));
+        if (allNums.length > 0) this.nextId = Math.max(...allNums) + 1;
       }
     }
     this.rebuildNodeStates();

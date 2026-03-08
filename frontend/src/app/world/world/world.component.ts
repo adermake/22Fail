@@ -86,6 +86,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   editingRuneIndex: number | null = null;
   editingSpellIndex: number | null = null;
   editingSpell: SpellBlock | null = null; // stable ref kept across library updates
+  isSpellEditorOpen = false;
   editingSkillIndex: number | null = null;
   editingStatusEffectIndex: number | null = null;
   editingItems = new Set<number>();
@@ -571,8 +572,9 @@ export class WorldComponent implements OnInit, OnDestroy {
   openSpellEditorDialog(index: number) {
     this.editingSpellIndex = index;
     this.editingSpell = this.store.worldValue?.spellLibrary?.[index] ?? null;
+    this.isSpellEditorOpen = true;
   }
-  closeSpellEditorDialog() { this.editingSpellIndex = null; this.editingSpell = null; }
+  closeSpellEditorDialog() { this.isSpellEditorOpen = false; this.editingSpellIndex = null; this.editingSpell = null; }
 
   openSkillEditorDialog(index: number) { this.editingSkillIndex = index; }
   closeSkillEditorDialog() { this.editingSkillIndex = null; }

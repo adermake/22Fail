@@ -239,16 +239,7 @@
   </app-rune-editor>
 }
 
-<!-- Spell Node Editor Dialog -->
-@if (editingSpell !== null && editingSpellIndex !== null) {
-  <app-spell-node-editor
-    [spell]="editingSpell"
-    [availableRunes]="mergedRunes()"
-    (save)="updateSpell(editingSpellIndex, { path: '', value: $event })"
-    (cancel)="closeSpellEditorDialog()"
-    (deleteSpell)="removeSpell(editingSpellIndex); closeSpellEditorDialog()">
-  </app-spell-node-editor>
-}
+
 
 <!-- Skill Editor Dialog -->
 @if (editingSkillIndex !== null && world.skillLibrary[editingSkillIndex]) {
@@ -313,6 +304,17 @@
     </div>
   </div>
 }
+}
+
+<!-- Spell Node Editor Dialog — outside world$ to prevent close-on-save -->
+@if (isSpellEditorOpen && editingSpell !== null && editingSpellIndex !== null) {
+  <app-spell-node-editor
+    [spell]="editingSpell"
+    [availableRunes]="mergedRunes()"
+    (save)="updateSpell(editingSpellIndex, { path: '', value: $event })"
+    (cancel)="closeSpellEditorDialog()"
+    (deleteSpell)="removeSpell(editingSpellIndex); closeSpellEditorDialog()">
+  </app-spell-node-editor>
 }
 
 <!-- Character Generator Modal -->
