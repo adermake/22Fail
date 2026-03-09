@@ -123,7 +123,7 @@
 .c-stat  { width: 40px; text-align: center; }
 .c-tags  { width: 120px; }
 .c-desc  { width: auto; min-width: 160px; }
-.c-ports { width: 140px; }
+.c-type  { width: 92px; text-align: center; }
 .c-del   { width: 30px; text-align: center; }
 
 /* ── Thumbnail ────────────────────────────────────────────────────────────── */
@@ -289,3 +289,26 @@
   transition: border-color 0.12s, color 0.12s;
 }
 .rt-port-add:hover { border-color: #8b5cf6; color: #a78bfa; }
+
+/* ── Rune type buttons ─────────────────────────────────────────────────────── */
+.rt-type-btns {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+}
+.rt-tb {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid #374151;
+  background: transparent;
+  color: #6b7280;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+  padding: 0;
+}
+.rt-tb:hover { border-color: #8b5cf6; color: #a78bfa; }
+.rt-tb.rtb-active { background: #8b5cf6; border-color: #8b5cf6; color: #fff; }
+

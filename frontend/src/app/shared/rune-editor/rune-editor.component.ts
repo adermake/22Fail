@@ -4,7 +4,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RuneBlock, RuneDataLine, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS, DATA_TYPE_PRESETS, DataTypePreset } from '../../model/rune-block.model';
+import { RuneBlock, RuneDataLine, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS, DATA_TYPE_PRESETS, DataTypePreset, RUNE_TYPE_CONFIGS, RuneType } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../image-url.pipe';
 
@@ -349,6 +349,15 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     const list = (this.editRune[dir] ?? []).slice();
     list.splice(index, 1);
     this.editRune[dir] = list;
+  }
+
+  setRuneType(type: RuneType) {
+    this.editRune.runeType = type;
+    if (type !== 'custom') {
+      const config = RUNE_TYPE_CONFIGS[type as 'medium' | 'formung' | 'selektor'];
+      this.editRune.inputs  = JSON.parse(JSON.stringify(config.inputs));
+      this.editRune.outputs = JSON.parse(JSON.stringify(config.outputs));
+    }
   }
 
   addType(line: RuneDataLine, event: Event) {

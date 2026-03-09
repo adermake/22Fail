@@ -503,14 +503,16 @@
   overflow: visible; /* ports stick outside the box */
   width: 110px;
   will-change: transform;
-  transition: transform 0.25s ease;
-}
-.rune-node:hover {
-  transform: translateY(-4px);
+  /* No transform/transition on .rune-node — keeps ports fully static */
 }
 .rune-node:active,
-.rune-node.rune-node-drag { cursor: grabbing; transform: none; }
+.rune-node.rune-node-drag { cursor: grabbing; }
 .rune-node.rune-node-drag { opacity: 0.88; }
+
+@keyframes rune-node-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
 
 /* ── Rune image ──────────────────────────────────────────────────────────── */
 .rune-node-img {
@@ -526,7 +528,9 @@
     drop-shadow(0 2px 14px rgba(0,0,0,0.65));
   transition: filter 0.25s;
   pointer-events: none;
+  animation: rune-node-float 2.8s ease-in-out infinite;
 }
+.rune-node.rune-node-drag .rune-node-img { animation: none; }
 .rune-node:hover .rune-node-img,
 .rune-node.rune-node-drag .rune-node-img {
   filter:
@@ -579,7 +583,9 @@
   max-width: 110px;
   text-shadow: 0 0 8px color-mix(in srgb, var(--glow, #8b5cf6) 35%, transparent);
   pointer-events: none;
+  animation: rune-node-float 2.8s ease-in-out infinite;
 }
+.rune-node.rune-node-drag .rune-node-name { animation: none; }
 
 /* Node selected highlight (marquee / click-select) — pulsing glow, no box */
 .rune-node.rune-node-selected .rune-node-img {
@@ -630,40 +636,53 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 2px solid var(--pc, #ffffff);
-  background: #07090f;
+  background: transparent;
+  border: none;
   cursor: crosshair;
   z-index: 15;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--pc, #ffffff) 45%, transparent);
-  transition: transform 0.12s, background 0.12s, box-shadow 0.12s;
 }
-.rune-port:hover,
-.rune-port.rune-port-hovered {
-  transform: scale(1.5);
+/* Visual indicator via ::before — 8px dot centered in 16px hitbox */
+.rune-port::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--pc, #ffffff);
+  background: #07090f;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--pc, #ffffff) 45%, transparent);
+  transition: transform 0.12s, background 0.12s, box-shadow 0.12s;
+  pointer-events: none;
+}
+.rune-port:hover::before,
+.rune-port.rune-port-hovered::before {
+  transform: translate(-50%, -50%) scale(1.7);
   background: var(--pc, #ffffff);
-  box-shadow: 0 0 20px var(--pc, #ffffff), 0 0 6px rgba(255,255,255,0.5);
+  box-shadow: 0 0 14px var(--pc, #ffffff), 0 0 5px rgba(255,255,255,0.5);
 }
 
 /* ── Port state during an active connection drag ──────────────────────────── */
 
 /* Valid target: glows in the port's own color, pulses to invite drop */
-.rune-port.rune-port-valid {
-  border-color: var(--pc, #ffffff);
+.rune-port.rune-port-valid::before {
   background: color-mix(in srgb, var(--pc, #ffffff) 18%, #07090f);
-  box-shadow: 0 0 16px var(--pc, #ffffff), 0 0 32px color-mix(in srgb, var(--pc, #ffffff) 45%, transparent);
-  transform: scale(1.35);
+  box-shadow: 0 0 10px var(--pc, #ffffff), 0 0 20px color-mix(in srgb, var(--pc, #ffffff) 45%, transparent);
+  transform: translate(-50%, -50%) scale(1.3);
   animation: port-valid-pulse 0.9s ease-in-out infinite alternate;
   transition: none;
 }
-.rune-port.rune-port-valid.rune-port-hovered {
-  transform: scale(1.7) !important;
+.rune-port.rune-port-valid.rune-port-hovered::before {
+  transform: translate(-50%, -50%) scale(1.6) !important;
   background: var(--pc, #ffffff) !important;
-  box-shadow: 0 0 28px var(--pc, #ffffff), 0 0 56px color-mix(in srgb, var(--pc, #ffffff) 65%, transparent) !important;
+  box-shadow: 0 0 22px var(--pc, #ffffff), 0 0 44px color-mix(in srgb, var(--pc, #ffffff) 65%, transparent) !important;
 }
 
 @keyframes port-valid-pulse {
-  from { box-shadow: 0 0 10px var(--pc, #ffffff), 0 0 20px color-mix(in srgb, var(--pc, #ffffff) 35%, transparent); }
-  to   { box-shadow: 0 0 22px var(--pc, #ffffff), 0 0 44px color-mix(in srgb, var(--pc, #ffffff) 60%, transparent); }
+  from { box-shadow: 0 0 8px var(--pc, #ffffff), 0 0 16px color-mix(in srgb, var(--pc, #ffffff) 35%, transparent); }
+  to   { box-shadow: 0 0 16px var(--pc, #ffffff), 0 0 32px color-mix(in srgb, var(--pc, #ffffff) 60%, transparent); }
 }
 
 /* Port label tooltip */
@@ -687,8 +706,8 @@
 }
 .rune-port:hover .rune-port-tip,
 .rune-port.rune-port-hovered .rune-port-tip { opacity: 1; }
-.rune-port-tip-in  { left: 22px; }
-.rune-port-tip-out { right: 22px; }
+.rune-port-tip-in  { left: 14px; }
+.rune-port-tip-out { right: 14px; }
 
 /* ══════════════════════════════════════════════════════════════════════════
    PORT CIRCLES — start node (kept as-is with .port-circle class)

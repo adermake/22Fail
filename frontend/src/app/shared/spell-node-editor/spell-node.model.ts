@@ -82,7 +82,7 @@ export const FLOW_COLOR = '#ffffff';
 export const FLOW_TYPE: string[] = [];
 
 /** Build ports list for a rune */
-export function buildRunePorts(rune: { inputs?: { name: string, color: string, types: string[] }[], outputs?: { name: string, color: string, types: string[] }[], name?: string }): SpellPort[] {
+export function buildRunePorts(rune: { inputs?: { name: string, color: string, types: string[] }[], outputs?: { name: string, color: string, types: string[] }[], name?: string, runeType?: string }): SpellPort[] {
   // Neutral node: one any-type in and one any-type out — ports colored dynamically by attached connections
   if (rune.name === NEUTRAL_RUNE_ID) {
     return [
@@ -91,15 +91,29 @@ export function buildRunePorts(rune: { inputs?: { name: string, color: string, t
     ];
   }
   const ports: SpellPort[] = [];
-  ports.push({ id: 'flow-in',  kind: 'flow-in',  name: 'Fluss', color: FLOW_COLOR, types: FLOW_TYPE });
-  ports.push({ id: 'flow-out', kind: 'flow-out', name: 'Fluss', color: FLOW_COLOR, types: FLOW_TYPE });
 
-  (rune.inputs || []).forEach((dl, i) => {
-    ports.push({ id: `in-${i}`, kind: 'data-in', name: dl.name, color: dl.color, types: dl.types });
-  });
-  (rune.outputs || []).forEach((dl, i) => {
-    ports.push({ id: `out-${i}`, kind: 'data-out', name: dl.name, color: dl.color, types: dl.types });
-  });
+  if (rune.runeType) {
+    // New mode: inputs/outputs fully define the ports.
+    // A data line with types: ['Fluss'] becomes a flow port.
+    (rune.inputs || []).forEach((dl, i) => {
+      const isFlow = dl.types.includes('Fluss');
+      ports.push({ id: `in-${i}`, kind: isFlow ? 'flow-in' : 'data-in', name: dl.name, color: isFlow ? FLOW_COLOR : dl.color, types: isFlow ? FLOW_TYPE : dl.types });
+    });
+    (rune.outputs || []).forEach((dl, i) => {
+      const isFlow = dl.types.includes('Fluss');
+      ports.push({ id: `out-${i}`, kind: isFlow ? 'flow-out' : 'data-out', name: dl.name, color: isFlow ? FLOW_COLOR : dl.color, types: isFlow ? FLOW_TYPE : dl.types });
+    });
+  } else {
+    // Legacy: always prepend flow-in/flow-out, then data ports from inputs/outputs
+    ports.push({ id: 'flow-in',  kind: 'flow-in',  name: 'Fluss', color: FLOW_COLOR, types: FLOW_TYPE });
+    ports.push({ id: 'flow-out', kind: 'flow-out', name: 'Fluss', color: FLOW_COLOR, types: FLOW_TYPE });
+    (rune.inputs || []).forEach((dl, i) => {
+      ports.push({ id: `in-${i}`, kind: 'data-in', name: dl.name, color: dl.color, types: dl.types });
+    });
+    (rune.outputs || []).forEach((dl, i) => {
+      ports.push({ id: `out-${i}`, kind: 'data-out', name: dl.name, color: dl.color, types: dl.types });
+    });
+  }
   return ports;
 }
 

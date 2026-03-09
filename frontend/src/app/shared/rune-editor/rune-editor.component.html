@@ -220,6 +220,19 @@
         <section class="ed-section">
           <h3 class="section-title">Datenlinien</h3>
 
+          <!-- Runentyp Schnellauswahl -->
+          <div class="rt-type-row">
+            <span class="rt-type-label">Runentyp:</span>
+            <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'medium'"
+                    (click)="setRuneType('medium')" title="Medium: MediumTyp-Ausgang, kein Fluss">M</button>
+            <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'formung'"
+                    (click)="setRuneType('formung')" title="Formung: Fluss+Medium Ein/Aus">F</button>
+            <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'selektor'"
+                    (click)="setRuneType('selektor')" title="Selektor: MediumTyp→Medium">S</button>
+            <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'custom' || !editRune.runeType"
+                    (click)="setRuneType('custom')" title="Benutzerdefiniert">?</button>
+          </div>
+
           <!-- Quick data type presets -->
           <div class="dl-presets">
             <span class="dl-preset-label">Schnell-Typ:</span>

@@ -566,6 +566,35 @@
 }
 .req-tiny:focus { outline: none; border-color: var(--accent, #8b5cf6); }
 
+/* ─── Runentyp-Buttons ───────────────────────────────────────────────────────── */
+.rt-type-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.rt-type-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #9ca3af);
+  margin-right: 2px;
+}
+.rt-type-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  border: 1px solid var(--border, #374151);
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.rt-type-btn:hover { border-color: #8b5cf6; color: #a78bfa; }
+.rt-type-btn.rtb-active { background: #8b5cf6; border-color: #8b5cf6; color: #fff; }
+
 /* ─── Datalines ──────────────────────────────────────────────────────────────── */
 .dl-presets {
   display: flex;

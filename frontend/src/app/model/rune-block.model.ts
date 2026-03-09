@@ -4,6 +4,8 @@ export interface RuneDataLine {
   types: string[]; // Multiple entries = mixed/union port (accepts any listed type)
 }
 
+export type RuneType = 'medium' | 'formung' | 'selektor' | 'custom';
+
 export interface RuneStatRequirements {
   strength?: number;
   dexterity?: number;
@@ -29,6 +31,7 @@ export class RuneBlock {
   learned?: boolean;          // character sheet: has the character learned this rune
   libraryOrigin?: string;
   libraryOriginName?: string;
+  runeType?: RuneType;    // undefined = legacy (auto flow ports)
   inputs?: RuneDataLine[];
   outputs?: RuneDataLine[];
 }
@@ -72,6 +75,33 @@ export const DATA_TYPE_PRESETS: DataTypePreset[] = [
   { name: 'Vektor',      color: '#22c55e', type: 'Vektor' },
   { name: 'Aussage',     color: '#f97316', type: 'Aussage' },
   { name: 'Medium',      color: '#ec4899', type: 'Medium' },
+  { name: 'MediumTyp',   color: '#7c3aed', type: 'MediumTyp' },
   { name: 'Fluss',       color: '#06b6d4', type: 'Fluss' },
   { name: 'Information', color: '#eab308', type: 'Information' },
 ];
+
+// ── Rune type port presets ────────────────────────────────────────────────
+export interface RuneTypeConfig {
+  label: string;
+  short: string;
+  inputs: RuneDataLine[];
+  outputs: RuneDataLine[];
+}
+
+export const RUNE_TYPE_CONFIGS: Record<'medium' | 'formung' | 'selektor', RuneTypeConfig> = {
+  medium: {
+    label: 'Medium', short: 'M',
+    inputs: [],
+    outputs: [{ name: 'MediumTyp', color: '#7c3aed', types: ['MediumTyp'] }],
+  },
+  formung: {
+    label: 'Formung', short: 'F',
+    inputs:  [{ name: 'Fluss', color: '#06b6d4', types: ['Fluss'] }, { name: 'Medium', color: '#ec4899', types: ['Medium'] }],
+    outputs: [{ name: 'Fluss', color: '#06b6d4', types: ['Fluss'] }, { name: 'Medium', color: '#ec4899', types: ['Medium'] }],
+  },
+  selektor: {
+    label: 'Selektor', short: 'S',
+    inputs:  [{ name: 'MediumTyp', color: '#7c3aed', types: ['MediumTyp'] }],
+    outputs: [{ name: 'Medium', color: '#ec4899', types: ['Medium'] }],
+  },
+};

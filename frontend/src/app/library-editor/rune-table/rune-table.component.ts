@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
 import { AssetFile, createAssetFile } from '../../model/asset-browser.model';
-import { RuneBlock, RuneDataLine, RuneStatRequirements, DATA_TYPE_PRESETS } from '../../model/rune-block.model';
+import { RuneBlock, RuneDataLine, RuneStatRequirements, DATA_TYPE_PRESETS, RUNE_TYPE_CONFIGS, RuneType } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
@@ -149,7 +149,26 @@ export class RuneTableComponent implements OnInit, OnDestroy {
       try {
         const base64 = await this.readFileAsBase64(file);
         const imageId = await this.imageService.uploadImage(base64);
-        const runeName = file.name.replace(/\.[^.]+$/, ''); // strip extension
+
+        // Detect rune type from filename suffix: -m → medium, -f → formung, -s → selektor
+        const extStripped = file.name.replace(/\.[^.]+$/, '');
+        let runeName = extStripped;
+        let detectedType: 'medium' | 'formung' | 'selektor' | undefined;
+        const typeMatch = extStripped.match(/^(.+)-([mfsaMFSA])$/);
+        if (typeMatch) {
+          runeName = typeMatch[1].trim();
+          const tag = typeMatch[2].toLowerCase();
+          if (tag === 'm') detectedType = 'medium';
+          else if (tag === 'f') detectedType = 'formung';
+          else if (tag === 's') detectedType = 'selektor';
+        }
+
+        const portConfig = detectedType
+          ? RUNE_TYPE_CONFIGS[detectedType]
+          : null;
+        const inputs  = portConfig ? JSON.parse(JSON.stringify(portConfig.inputs))  : [{ name: 'Medium', color: '#ec4899', types: ['Medium'] }];
+        const outputs = portConfig ? JSON.parse(JSON.stringify(portConfig.outputs)) : [{ name: 'Medium', color: '#ec4899', types: ['Medium'] }];
+
         const newRune: RuneBlock = {
           name: runeName,
           description: '',
@@ -162,12 +181,9 @@ export class RuneTableComponent implements OnInit, OnDestroy {
           statRequirements: {},
           identified: true,
           learned: false,
-          inputs: [
-            { name: 'Medium', color: '#ec4899', types: ['Medium'] },
-          ],
-          outputs: [
-            { name: 'Medium', color: '#ec4899', types: ['Medium'] },
-          ],
+          runeType: detectedType,
+          inputs,
+          outputs,
         };
         const assetFile = await firstValueFrom(
           this.api.createFile(this.libraryId, runeName, 'rune', this.folderId, newRune)
@@ -234,5 +250,22 @@ export class RuneTableComponent implements OnInit, OnDestroy {
     const val = sel.value;
     sel.value = '';
     this.addPresetPort(file, dir, val);
+  }
+
+  // ─── Rune type ────────────────────────────────────────────────────────────
+
+  getRuneType(file: AssetFile): RuneType | undefined {
+    return (file.data as RuneBlock).runeType;
+  }
+
+  setRuneType(file: AssetFile, type: RuneType) {
+    const rune = file.data as RuneBlock;
+    rune.runeType = type;
+    if (type !== 'custom') {
+      const config = RUNE_TYPE_CONFIGS[type as 'medium' | 'formung' | 'selektor'];
+      rune.inputs  = JSON.parse(JSON.stringify(config.inputs));
+      rune.outputs = JSON.parse(JSON.stringify(config.outputs));
+    }
+    this.onFieldChange(file);
   }
 }
