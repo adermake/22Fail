@@ -793,8 +793,18 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     }
     if (this.isDraggingStartNode) {
       const world = this.clientToWorld(e.clientX, e.clientY);
-      const newSX  = world.x - this.startNodeDragOffX;
-      const newSY  = world.y - this.startNodeDragOffY;
+      let newSX = world.x - this.startNodeDragOffX;
+      let newSY = world.y - this.startNodeDragOffY;
+
+      // Snap: align the start port (y = newSY) with input ports of other nodes
+      const SNAP_D = 10;
+      const allPP = this.allPortPositions();
+      for (const pp of allPP) {
+        if (pp.nodeId === 'start') continue;
+        if (pp.kind !== 'flow-in' && pp.kind !== 'data-in') continue;
+        if (Math.abs(newSY - pp.y) < SNAP_D) { newSY = pp.y; break; }
+      }
+
       const dxS    = newSX - this.graph.startNode.x;
       const dyS    = newSY - this.graph.startNode.y;
       this.graph.startNode.x = newSX;

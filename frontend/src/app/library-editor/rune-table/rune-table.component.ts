@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
 import { AssetFile, createAssetFile } from '../../model/asset-browser.model';
-import { RuneBlock, RuneStatRequirements } from '../../model/rune-block.model';
+import { RuneBlock, RuneDataLine, RuneStatRequirements, DATA_TYPE_PRESETS } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
@@ -36,6 +36,7 @@ export class RuneTableComponent implements OnInit, OnDestroy {
   isLoading = signal(false);
   uploading = signal(false);
   savingIds = signal(new Set<string>());
+  readonly presets = DATA_TYPE_PRESETS;
   /** Per-file save timer ids */
   private saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -154,15 +155,21 @@ export class RuneTableComponent implements OnInit, OnDestroy {
           description: '',
           drawing: imageId,
           tags: [],
-          glowColor: '#06b6d4',
+          glowColor: '#ffffff',
           fokus: 0, fokusMult: 0,
           mana: 0, manaMult: 0,
           effektivitaet: 0,
           statRequirements: {},
           identified: true,
           learned: false,
-          inputs: [],
-          outputs: [],
+          inputs: [
+            { name: 'Fluss', color: '#06b6d4', types: ['Fluss'] },
+            { name: 'Medium', color: '#ec4899', types: ['Medium'] },
+          ],
+          outputs: [
+            { name: 'Fluss', color: '#06b6d4', types: ['Fluss'] },
+            { name: 'Medium', color: '#ec4899', types: ['Medium'] },
+          ],
         };
         const assetFile = await firstValueFrom(
           this.api.createFile(this.libraryId, runeName, 'rune', this.folderId, newRune)
@@ -200,5 +207,34 @@ export class RuneTableComponent implements OnInit, OnDestroy {
     } catch (e) {
       console.error('[RuneTable] Delete failed', e);
     }
+  }
+
+  // ─── Port helpers ─────────────────────────────────────────────────────────
+
+  getPorts(file: AssetFile, dir: 'inputs' | 'outputs'): RuneDataLine[] {
+    return (file.data as RuneBlock)[dir] ?? [];
+  }
+
+  addPresetPort(file: AssetFile, dir: 'inputs' | 'outputs', presetName: string) {
+    const preset = this.presets.find(p => p.name === presetName);
+    if (!preset) return;
+    const rune = file.data as RuneBlock;
+    if (!rune[dir]) rune[dir] = [];
+    rune[dir]!.push({ name: preset.name, color: preset.color, types: [preset.type] });
+    this.onFieldChange(file);
+  }
+
+  removePort(file: AssetFile, dir: 'inputs' | 'outputs', idx: number) {
+    const rune = file.data as RuneBlock;
+    if (!rune[dir]) return;
+    rune[dir] = rune[dir]!.filter((_, i) => i !== idx);
+    this.onFieldChange(file);
+  }
+
+  onAddPortSelect(event: Event, file: AssetFile, dir: 'inputs' | 'outputs') {
+    const sel = event.target as HTMLSelectElement;
+    const val = sel.value;
+    sel.value = '';
+    this.addPresetPort(file, dir, val);
   }
 }

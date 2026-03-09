@@ -123,6 +123,7 @@
 .c-stat  { width: 40px; text-align: center; }
 .c-tags  { width: 120px; }
 .c-desc  { width: auto; min-width: 160px; }
+.c-ports { width: 140px; }
 .c-del   { width: 30px; text-align: center; }
 
 /* ── Thumbnail ────────────────────────────────────────────────────────────── */
@@ -232,3 +233,59 @@
   transition: all 0.12s;
 }
 .rt-del-btn:hover { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.1); }
+
+/* ── Port editor ──────────────────────────────────────────────────────────── */
+.rt-ports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.rt-port-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 4px 1px 3px;
+  border: 1px solid #6b7280;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  font-size: 0.68rem;
+  color: #d1d5db;
+  white-space: nowrap;
+}
+
+.rt-port-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rt-port-rm {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 1px;
+  margin-left: 1px;
+  transition: color 0.1s;
+}
+.rt-port-rm:hover { color: #ef4444; }
+
+.rt-port-add {
+  height: 20px;
+  padding: 0 4px;
+  background: rgba(255,255,255,0.05);
+  border: 1px dashed #374151;
+  border-radius: 4px;
+  color: #6b7280;
+  font-size: 0.72rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.12s, color 0.12s;
+}
+.rt-port-add:hover { border-color: #8b5cf6; color: #a78bfa; }

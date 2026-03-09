@@ -784,7 +784,7 @@
     [libraryId]="libraryId()"
     [folderId]="currentFolderId()"
     (close)="showRuneTable.set(false)"
-    (filesChanged)="loadFolderContents()">
+    (filesChanged)="loadFolderContents(); loadDependencyItems()">
   </app-rune-table>
 }
 

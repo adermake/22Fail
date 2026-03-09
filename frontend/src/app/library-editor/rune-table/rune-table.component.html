@@ -41,6 +41,8 @@
             <th class="c-stat" title="Charisma">CHR</th>
             <th class="c-tags">Tags</th>
             <th class="c-desc">Beschreibung</th>
+            <th class="c-ports" title="Eingänge">Eingänge</th>
+            <th class="c-ports" title="Ausgänge">Ausgänge</th>
             <th class="c-del"></th>
           </tr>
         </thead>
@@ -125,6 +127,44 @@
                        [(ngModel)]="file.data.description"
                        (ngModelChange)="onFieldChange(file)"
                        placeholder="Beschreibung…">
+              </td>
+
+              <!-- Eingänge -->
+              <td class="c-ports">
+                <div class="rt-ports">
+                  @for (port of getPorts(file, 'inputs'); track $index) {
+                    <span class="rt-port-chip" [style.border-color]="port.color">
+                      <span class="rt-port-dot" [style.background]="port.color"></span>
+                      {{ port.name }}
+                      <button class="rt-port-rm" (click)="removePort(file, 'inputs', $index)" title="Entfernen">×</button>
+                    </span>
+                  }
+                  <select class="rt-port-add" (change)="onAddPortSelect($event, file, 'inputs')" title="Port hinzufügen">
+                    <option value="" selected disabled>+</option>
+                    @for (p of presets; track p.name) {
+                      <option [value]="p.name">{{ p.name }}</option>
+                    }
+                  </select>
+                </div>
+              </td>
+
+              <!-- Ausgänge -->
+              <td class="c-ports">
+                <div class="rt-ports">
+                  @for (port of getPorts(file, 'outputs'); track $index) {
+                    <span class="rt-port-chip" [style.border-color]="port.color">
+                      <span class="rt-port-dot" [style.background]="port.color"></span>
+                      {{ port.name }}
+                      <button class="rt-port-rm" (click)="removePort(file, 'outputs', $index)" title="Entfernen">×</button>
+                    </span>
+                  }
+                  <select class="rt-port-add" (change)="onAddPortSelect($event, file, 'outputs')" title="Port hinzufügen">
+                    <option value="" selected disabled>+</option>
+                    @for (p of presets; track p.name) {
+                      <option [value]="p.name">{{ p.name }}</option>
+                    }
+                  </select>
+                </div>
               </td>
 
               <!-- Löschen -->

@@ -59,9 +59,10 @@
           <button class="tb-btn tb-close" (click)="onClose()">Schließen ✕</button>
           <button class="tb-btn tb-save"
                   [class.tb-save-done]="savedFeedback"
+                  [class.tb-save-dirty]="isDirty && !savedFeedback"
                   [disabled]="savedFeedback"
                   (click)="onSave()">
-            {{ savedFeedback ? '✓ Gespeichert!' : 'Zauber speichern (Strg+S)' }}
+            {{ savedFeedback ? '\u2713 Gespeichert!' : 'Zauber speichern (Strg+S)' }}
           </button>
         </div>
       </div>
