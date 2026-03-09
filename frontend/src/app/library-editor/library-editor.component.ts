@@ -222,8 +222,8 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
       this.paste();
     }
 
-    // Delete - Delete selected
-    if (event.key === 'Delete' && hasSelection) {
+    // Delete - Delete selected (skip when spell node editor is open — it handles its own Delete)
+    if (event.key === 'Delete' && hasSelection && this.editingFile()?.type !== 'spell') {
       event.preventDefault();
       this.deleteSelected();
     }

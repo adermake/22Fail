@@ -163,11 +163,9 @@ export class RuneTableComponent implements OnInit, OnDestroy {
           identified: true,
           learned: false,
           inputs: [
-            { name: 'Fluss', color: '#06b6d4', types: ['Fluss'] },
             { name: 'Medium', color: '#ec4899', types: ['Medium'] },
           ],
           outputs: [
-            { name: 'Fluss', color: '#06b6d4', types: ['Fluss'] },
             { name: 'Medium', color: '#ec4899', types: ['Medium'] },
           ],
         };
