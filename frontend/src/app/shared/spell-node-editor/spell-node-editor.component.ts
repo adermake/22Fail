@@ -145,6 +145,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // Rune inspector panel (right sidebar)
   inspectedRune: RuneBlock | null = null;
+  inspectedNodeId: string | null = null;
 
   // Save feedback
   savedFeedback = false;
@@ -381,27 +382,26 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       const ins  = ns.ports.filter(p => p.kind === 'flow-in'  || p.kind === 'data-in');
       const outs = ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out');
       const imgCY = n.y + this.NODE_IMG / 2;
-      const isBasic = !isNeutral && (n.mode ?? this.defaultNodeMode) === 'basic';
+      // Use 'advanced' as default — global defaultNodeMode only affects newly placed runes
+      const isBasic = !isNeutral && (n.mode ?? 'advanced') === 'basic';
 
       // Neutral nodes inherit color/types from their connected input
       const neutralInfo = isNeutral ? this.getNeutralPortInfo(n.id) : null;
 
       if (isBasic) {
         // ── Basic mode: one merged multi-in + one merged multi-out ─────────────
-        // multi-in (left edge, centered)
+        // multi-in (left edge, centered) — only if the node actually has input ports
         const inTypes  = mergePortTypes(ins);
         const inColors = mergePortColors(ins);
-        const hasFlowIn = ins.some(p => p.types.length === 0);
-        result.push({
+        if (ins.length > 0) if (ins.length > 0) result.push({
           nodeId: n.id, portId: 'multi-in', kind: 'data-in',
           color: inColors[0] ?? FLOW_COLOR,
-          types: inTypes,      // merged types (empty array means flow only — no data types)
+          types: inTypes,
           x: n.x,
           y: imgCY,
         });
-        // Also register each underlying input port at the multiport center position
-        // so existing connections resolve correctly
-        ins.forEach(p => {
+        // Register each underlying input port at the multiport center so existing connections resolve correctly
+        if (ins.length > 0) ins.forEach(p => {
           result.push({
             nodeId: n.id, portId: p.id, kind: p.kind,
             color: neutralInfo ? neutralInfo.color : p.color,
@@ -410,18 +410,17 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
             y: imgCY,
           });
         });
-        // multi-out (right edge, centered)
+        // multi-out (right edge, centered) — only if the node actually has output ports
         const outTypes  = mergePortTypes(outs);
         const outColors = mergePortColors(outs);
-        result.push({
+        if (outs.length > 0) result.push({
           nodeId: n.id, portId: 'multi-out', kind: 'data-out',
           color: outColors[0] ?? FLOW_COLOR,
           types: outTypes,
           x: n.x + this.NODE_IMG,
           y: imgCY,
         });
-        // Also register each underlying output port at the multiport center position
-        outs.forEach(p => {
+        if (outs.length > 0) outs.forEach(p => {
           result.push({
             nodeId: n.id, portId: p.id, kind: p.kind,
             color: neutralInfo ? neutralInfo.color : p.color,
@@ -989,7 +988,12 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     }
     if (this.isPanning)          { this.isPanning = false; return; }
     if (this.isDraggingStartNode){ this.isDraggingStartNode = false; return; }
-    if (this.draggingNodeId)     { this.draggingNodeId = null; this.nodeDragSnapLines = []; return; }
+    if (this.draggingNodeId) {
+      this.trySnapConnect();
+      this.draggingNodeId = null;
+      this.nodeDragSnapLines = [];
+      return;
+    }
   }
 
   // Returns true if wp lies within `threshold` units of the line segment prev→next
@@ -1000,6 +1004,99 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     threshold: number
   ): boolean {
     return this.distToSegment(wp, prev, next) < threshold;
+  }
+
+  /**
+   * When a node drag ends, detect if any moved ports are within PORT_R*2 world units
+   * of a stationary port with a compatible direction + type. If so, snap the node
+   * position so ports exactly coincide and auto-create the connections.
+   */
+  private trySnapConnect() {
+    const SNAP_R = this.PORT_R * 2; // 16 world units
+    const movedIds = new Set<string>();
+    for (const n of this.graph.nodes) {
+      if (this.selectedNodeIds.has(n.id)) movedIds.add(n.id);
+    }
+    if (this.draggingNodeId) movedIds.add(this.draggingNodeId);
+
+    // Only use real underlying ports (not virtual multi-in/multi-out)
+    const allPP = this.allPortPositions();
+    const movedPorts    = allPP.filter(pp => movedIds.has(pp.nodeId)  && pp.portId !== 'multi-in' && pp.portId !== 'multi-out');
+    const stationaryPorts = allPP.filter(pp => !movedIds.has(pp.nodeId) && pp.portId !== 'multi-in' && pp.portId !== 'multi-out');
+
+    // Find the closest compatible port pair within snap radius
+    let bestDist = SNAP_R;
+    let snapDx = 0, snapDy = 0;
+    let hasPair = false;
+
+    for (const mp of movedPorts) {
+      for (const sp of stationaryPorts) {
+        const dist = Math.hypot(mp.x - sp.x, mp.y - sp.y);
+        if (dist >= bestDist) continue;
+        const mpIsOut = mp.kind === 'flow-out' || mp.kind === 'data-out';
+        const spIsIn  = sp.kind === 'flow-in'  || sp.kind === 'data-in';
+        const mpIsIn  = mp.kind === 'flow-in'  || mp.kind === 'data-in';
+        const spIsOut = sp.kind === 'flow-out' || sp.kind === 'data-out';
+        if (!(mpIsOut && spIsIn) && !(mpIsIn && spIsOut)) continue;
+        if (!this.portsRawCompatible(mp, sp)) continue;
+        bestDist = dist;
+        snapDx = sp.x - mp.x;
+        snapDy = sp.y - mp.y;
+        hasPair = true;
+      }
+    }
+
+    if (!hasPair) return;
+
+    // Snap moved nodes so ports exactly coincide
+    for (const n of this.graph.nodes) {
+      if (movedIds.has(n.id)) {
+        n.x += snapDx;
+        n.y += snapDy;
+        this.nodeStates.get(n.id)!.node = n;
+      }
+    }
+    this.graphNodesSig.set([...this.graph.nodes]);
+
+    // Re-compute port positions after the snap
+    const freshPP = this.allPortPositions();
+    const freshMoved      = freshPP.filter(pp => movedIds.has(pp.nodeId)   && pp.portId !== 'multi-in' && pp.portId !== 'multi-out');
+    const freshStationary = freshPP.filter(pp => !movedIds.has(pp.nodeId)  && pp.portId !== 'multi-in' && pp.portId !== 'multi-out');
+
+    // Connect all exactly-coincident compatible port pairs
+    for (const mp of freshMoved) {
+      for (const sp of freshStationary) {
+        if (Math.hypot(mp.x - sp.x, mp.y - sp.y) > 1) continue;
+        const mpIsOut = mp.kind === 'flow-out' || mp.kind === 'data-out';
+        const spIsIn  = sp.kind === 'flow-in'  || sp.kind === 'data-in';
+        const mpIsIn  = mp.kind === 'flow-in'  || mp.kind === 'data-in';
+        const spIsOut = sp.kind === 'flow-out' || sp.kind === 'data-out';
+        if (!(mpIsOut && spIsIn) && !(mpIsIn && spIsOut)) continue;
+        if (!this.portsRawCompatible(mp, sp)) continue;
+        const fromPort = mpIsOut ? mp : sp;
+        const toPort   = mpIsOut ? sp : mp;
+        this.createSingleConnection(fromPort.nodeId, fromPort.portId, toPort.nodeId, toPort.portId);
+      }
+    }
+    this.graphConnectionsSig.set(this.graph.connections);
+  }
+
+  /** True when a connection's from-port and to-port are at the same world position (direct/snap connection → hidden). */
+  isDirectConnection(c: SpellConnection): boolean {
+    const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
+    const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
+    if (!from || !to) return false;
+    return Math.hypot(from.x - to.x, from.y - to.y) < 2;
+  }
+
+  /** True when the connection comes from a basic-mode node with multiple output colors (uses SVG gradient stroke). */
+  isGradientConnection(c: SpellConnection): boolean {
+    const fromNode = this.graph.nodes.find(n => n.id === c.fromNodeId);
+    if (!fromNode || !this.isBasicNode(fromNode.id)) return false;
+    const ns = this.nodeStates.get(fromNode.id);
+    if (!ns) return false;
+    const colors = mergePortColors(ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out'));
+    return colors.length > 1;
   }
 
   // Compute marquee rect in world space and select contained nodes and waypoints
@@ -1426,6 +1523,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     this.selectedNodeIds = new Set(); // deselect nodes when selecting a connection
     this.startNodeSelected = false;
     this.inspectedRune = null; // close rune inspector
+    this.inspectedNodeId = null;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -1685,7 +1783,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return null;
   }
 
-  /** CSS gradient string for a multiport circle (conic-gradient with N color stops) */
+  /** CSS conic-gradient string for a multiport circle with soft color transitions */
   multiportGradient(nodeId: string, dir: 'in' | 'out'): string {
     const ns = this.nodeStates.get(nodeId);
     if (!ns) return FLOW_COLOR;
@@ -1695,9 +1793,20 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const colors = mergePortColors(ports);
     if (colors.length === 0) return FLOW_COLOR;
     if (colors.length === 1) return colors[0];
+    // Build a conic-gradient with soft blend zones between each color segment
     const step = 360 / colors.length;
-    const stops = colors.map((c, i) => `${c} ${i * step}deg ${(i + 1) * step}deg`).join(', ');
-    return `conic-gradient(${stops})`;
+    const blend = Math.min(step * 0.28, 18); // blend zone in degrees
+    const stops: string[] = [];
+    for (let i = 0; i < colors.length; i++) {
+      const c = colors[i];
+      const next = colors[(i + 1) % colors.length];
+      const segStart = i * step;
+      const segEnd   = (i + 1) * step;
+      stops.push(`${c} ${segStart + (i === 0 ? 0 : blend)}deg`);
+      stops.push(`${c} ${segEnd - blend}deg`);
+      stops.push(`${next} ${segEnd}deg`);
+    }
+    return `conic-gradient(from 0deg, ${stops.join(', ')})`;
   }
 
   /** True when there is at least one connection going into/out of any underlying port of the multi-port */
@@ -2041,6 +2150,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (node.runeId === NEUTRAL_RUNE_ID) return;
     this.selectedConnectionId = null; // close connection inspector
     this.inspectedRune = this.availableRunes.find(r => r.name === node.runeId) ?? null;
+    this.inspectedNodeId = node.id;
   }
 
   inspectPaletteRune(rune: RuneBlock) {

@@ -145,33 +145,37 @@
               @if (isBasic && !isNeutral) {
                 <!-- ── BASIC MODE: single multi-in + multi-out ─────────── -->
 
-                <!-- Multi-in port (left edge, centered) -->
-                <div class="rune-port rune-port-in rune-port-multi"
-                     [class.rune-port-hovered]="isPortHovered(node.id, 'multi-in')"
-                     [class.rune-port-valid]="isPendingValidTarget(node.id, 'multi-in')"
-                     [class.rune-port-occupied]="multiportHasConnections(node.id, 'in')"
-                     [style.--pc]="'transparent'"
-                     [style.left.px]="-PORT_R"
-                     [style.top.px]="NODE_IMG / 2 - PORT_R"
-                     [style.background]="multiportGradient(node.id, 'in')"
-                     [attr.data-node-id]="node.id"
-                     data-port-id="multi-in"
-                     (mousedown)="onPortMouseDown($event, node.id, 'multi-in')">
-                </div>
+                <!-- Multi-in port (left edge, centered) — only if node has input ports -->
+                @if (inputPorts(node.id).length > 0) {
+                  <div class="rune-port rune-port-in rune-port-multi"
+                       [class.rune-port-hovered]="isPortHovered(node.id, 'multi-in')"
+                       [class.rune-port-valid]="isPendingValidTarget(node.id, 'multi-in')"
+                       [class.rune-port-occupied]="multiportHasConnections(node.id, 'in')"
+                       [style.--pc]="'transparent'"
+                       [style.left.px]="-PORT_R"
+                       [style.top.px]="NODE_IMG / 2 - PORT_R"
+                       [style.background]="multiportGradient(node.id, 'in')"
+                       [attr.data-node-id]="node.id"
+                       data-port-id="multi-in"
+                       (mousedown)="onPortMouseDown($event, node.id, 'multi-in')">
+                  </div>
+                }
 
-                <!-- Multi-out port (right edge, centered) -->
-                <div class="rune-port rune-port-out rune-port-multi"
-                     [class.rune-port-hovered]="isPortHovered(node.id, 'multi-out')"
-                     [class.rune-port-valid]="isPendingValidTarget(node.id, 'multi-out')"
-                     [class.rune-port-occupied]="multiportHasConnections(node.id, 'out')"
-                     [style.--pc]="'transparent'"
-                     [style.left.px]="NODE_IMG - PORT_R"
-                     [style.top.px]="NODE_IMG / 2 - PORT_R"
-                     [style.background]="multiportGradient(node.id, 'out')"
-                     [attr.data-node-id]="node.id"
-                     data-port-id="multi-out"
-                     (mousedown)="onPortMouseDown($event, node.id, 'multi-out')">
-                </div>
+                <!-- Multi-out port (right edge, centered) — only if node has output ports -->
+                @if (outputPorts(node.id).length > 0) {
+                  <div class="rune-port rune-port-out rune-port-multi"
+                       [class.rune-port-hovered]="isPortHovered(node.id, 'multi-out')"
+                       [class.rune-port-valid]="isPendingValidTarget(node.id, 'multi-out')"
+                       [class.rune-port-occupied]="multiportHasConnections(node.id, 'out')"
+                       [style.--pc]="'transparent'"
+                       [style.left.px]="NODE_IMG - PORT_R"
+                       [style.top.px]="NODE_IMG / 2 - PORT_R"
+                       [style.background]="multiportGradient(node.id, 'out')"
+                       [attr.data-node-id]="node.id"
+                       data-port-id="multi-out"
+                       (mousedown)="onPortMouseDown($event, node.id, 'multi-out')">
+                  </div>
+                }
 
               } @else {
                 <!-- ── ADVANCED MODE: individual ports ─────────────────── -->
@@ -207,19 +211,6 @@
                   <span class="rune-port-tip rune-port-tip-out">{{ p.name }}</span>
                   </div>
                 }
-              }
-
-              <!-- Mode toggle button (B/E) — always visible for non-neutral nodes -->
-              @if (!isNeutral) {
-                @let blocked = switchToBasicBlocked(node.id);
-                <button class="node-mode-btn"
-                        [class.node-mode-basic]="isBasic"
-                        [class.node-mode-blocked]="!!blocked"
-                        [title]="blocked ?? (isBasic ? 'Zu Erweitert wechseln' : 'Zu Basis-Ansicht wechseln')"
-                        (mousedown)="$event.stopPropagation()"
-                        (click)="$event.stopPropagation(); toggleNodeMode(node.id)">
-                  {{ blocked ? '⚠' : (isBasic ? 'B' : 'E') }}
-                </button>
               }
 
               <!-- Rune image / placeholder. Neutral node uses half-circle design -->
@@ -260,6 +251,7 @@
             }
           </defs>
           @for (c of graphConnectionsSig(); track trackById($index, c)) {
+            @if (!isDirectConnection(c)) {
             <g class="conn-group"
                (click)="onConnGroupClick($event, c)"
                (dblclick)="onConnGroupDblClick($event, c)">
@@ -274,7 +266,8 @@
                     [class.conn-condition]="c.condition"
                     [class.conn-cond-known]="c.condition && c.precastKnown"
                     [class.conn-cond-unknown]="c.condition && !c.precastKnown"
-                    [class.conn-delay]="c.lineDelay"/>
+                    [class.conn-delay]="c.lineDelay"
+                    [class.conn-gradient]="isGradientConnection(c)"/>
               <path class="conn-path"
                     [attr.d]="connectionPathScreen(c)"
                     [attr.stroke]="connectionStroke(c)"
@@ -283,7 +276,8 @@
                     [class.conn-condition]="c.condition"
                     [class.conn-cond-known]="c.condition && c.precastKnown"
                     [class.conn-cond-unknown]="c.condition && !c.precastKnown"
-                    [class.conn-delay]="c.lineDelay"/>
+                    [class.conn-delay]="c.lineDelay"
+                    [class.conn-gradient]="isGradientConnection(c)"/>
 
               <!-- Waypoint handles — visible on hover or when connection/waypoint is selected -->
               @if (c.waypoints?.length) {
@@ -332,6 +326,7 @@
                 </g>
               }
             </g>
+            } <!-- /isDirectConnection guard -->
           }
           <!-- Snap grid dots — shown while pulling / dragging a waypoint -->
           @if ((pullingWaypointConnId || draggingWaypointConnId) && waypointSnapGrid.length) {
@@ -409,7 +404,7 @@
       <aside class="rune-inspector">
         <div class="ri-header">
           <span class="ri-title">Runen-Info</span>
-          <button class="ri-close" (click)="inspectedRune = null">✕</button>
+          <button class="ri-close" (click)="inspectedRune = null; inspectedNodeId = null">✕</button>
         </div>
         <div class="ri-body">
           @if (inspectedRune.drawing) {
@@ -451,6 +446,27 @@
                 <span class="ri-dl-name">{{ dl.name }}</span>
                 @for (t of dl.types; track t) { <span class="ri-dl-type">{{ t }}</span> }
               </div>
+            }
+          }
+          <!-- ── Node-Ansicht-Umschalter (nur wenn eine Runen-Instanz selektiert) ─ -->
+          @if (inspectedNodeId) {
+            @let inspNodeIsBasic = isBasicNode(inspectedNodeId);
+            @let inspNodeBlocked = switchToBasicBlocked(inspectedNodeId);
+            <div class="ri-section-lbl ri-section-lbl-mode">Knoten-Ansicht</div>
+            <div class="ri-mode-row">
+              <button class="ri-mode-btn" [class.ri-mode-active]="!inspNodeIsBasic"
+                      (click)="inspectedNodeId && toggleNodeMode(inspectedNodeId)"
+                      [disabled]="!!inspNodeBlocked && !inspNodeIsBasic"
+                      title="Alle Ports einzeln anzeigen">Erweitert</button>
+              <button class="ri-mode-btn" [class.ri-mode-active]="inspNodeIsBasic"
+                      [class.ri-mode-blocked]="!!inspNodeBlocked && !inspNodeIsBasic"
+                      (click)="!inspNodeBlocked && toggleNodeMode(inspectedNodeId)"
+                      [title]="inspNodeBlocked ?? 'Alle Ports zu einem zusammenfassen'">
+                Basis
+              </button>
+            </div>
+            @if (inspNodeBlocked && !inspNodeIsBasic) {
+              <p class="ri-mode-hint">{{ inspNodeBlocked }}</p>
             }
           }
         </div>

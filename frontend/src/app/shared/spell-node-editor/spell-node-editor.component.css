@@ -793,73 +793,80 @@
    BASIC / ADVANCED MODE
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Multiport circles — ring-only visual via radial mask ────────────────── */
-/* The element inherits the base .rune-port sizing/positioning.
-   inline [style.background] supplies the conic-gradient with colour slices.
-   The radial-gradient mask punches out the centre → only the ring shows. */
+/* ── Multiport circles — smooth thin ring with glow and rotation ─────────── */
+/* The element itself IS the ring visual.
+   [style.background] = conic-gradient from TS.
+   mask: radial-gradient punches out the center leaving only a ring.
+   We use a 2-stop mask with a small anti-alias zone for crispness. */
 .rune-port-multi {
-  width: 18px;
-  height: 18px;
-  -webkit-mask: radial-gradient(circle at center, transparent 38%, black 40%);
-  mask:         radial-gradient(circle at center, transparent 38%, black 40%);
-  transition: transform 0.14s, filter 0.14s;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0%, transparent 56%, rgba(0,0,0,0.5) 59%, black 62%, black 100%);
+  mask:         radial-gradient(circle at 50% 50%, transparent 0%, transparent 56%, rgba(0,0,0,0.5) 59%, black 62%, black 100%);
+  /* Slight ambient glow */
+  filter: drop-shadow(0 0 3px rgba(255,255,255,0.3));
+  /* Continuous slow rotation */
+  animation: multiport-spin 5s linear infinite;
 }
-/* Suppress the old ::before dot — the element itself IS the visual now */
+/* Suppress the port's child ::before dot — the element background IS the ring */
 .rune-port-multi::before { display: none !important; }
+
+@keyframes multiport-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 
 .rune-port-multi:hover,
 .rune-port-multi.rune-port-hovered {
-  transform: scale(1.55);
-  filter: drop-shadow(0 0 5px rgba(255,255,255,0.6));
+  filter: drop-shadow(0 0 7px rgba(255,255,255,0.75));
+  animation: multiport-spin-hover 5s linear infinite;
 }
-.rune-port-multi.rune-port-valid {
-  transform: scale(1.35);
-  animation: multiport-valid-pulse 0.85s ease-in-out infinite alternate;
-}
-.rune-port-multi.rune-port-valid.rune-port-hovered {
-  transform: scale(1.65) !important;
-}
-@keyframes multiport-valid-pulse {
-  from { filter: drop-shadow(0 0 4px rgba(255,255,255,0.5)); }
-  to   { filter: drop-shadow(0 0 12px rgba(255,255,255,0.9)); }
-}
-.rune-port-multi.rune-port-occupied {
-  filter: drop-shadow(0 0 3px rgba(255,255,255,0.35));
+@keyframes multiport-spin-hover {
+  from { transform: scale(1.55) rotate(0deg); }
+  to   { transform: scale(1.55) rotate(360deg); }
 }
 
-/* ── Node mode toggle button (B/E in top-left corner of node) ────────────── */
-.node-mode-btn {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(6,8,20,0.72);
-  color: rgba(156,163,175,0.65);
-  font-size: 0.58rem;
-  font-weight: 800;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 0.12s, background 0.12s, color 0.12s;
-  /* Always visible — not hidden on hover */
+.rune-port-multi.rune-port-valid {
+  filter: drop-shadow(0 0 5px rgba(255,255,255,0.6));
+  animation: multiport-spin-valid 5s linear infinite, multiport-valid-glow 0.85s ease-in-out infinite alternate;
 }
-.node-mode-btn:hover { border-color: #8b5cf6; color: #c4b5fd; background: rgba(139,92,246,0.22); }
-.node-mode-btn.node-mode-basic { color: #a78bfa; border-color: rgba(167,139,250,0.45); background: rgba(139,92,246,0.15); }
-/* Blocked: amber warning icon state */
-.node-mode-btn.node-mode-blocked {
-  color: #f59e0b;
-  border-color: rgba(245,158,11,0.35);
-  background: rgba(120,53,15,0.25);
-  cursor: not-allowed;
+.rune-port-multi.rune-port-valid.rune-port-hovered {
+  animation: multiport-spin-hover 5s linear infinite, multiport-valid-glow 0.85s ease-in-out infinite alternate;
 }
-.node-mode-btn.node-mode-blocked:hover { background: rgba(245,158,11,0.2); border-color: #f59e0b; }
+@keyframes multiport-spin-valid {
+  from { transform: scale(1.35) rotate(0deg); }
+  to   { transform: scale(1.35) rotate(360deg); }
+}
+@keyframes multiport-valid-glow {
+  from { filter: drop-shadow(0 0 5px rgba(255,255,255,0.55)); }
+  to   { filter: drop-shadow(0 0 14px rgba(255,255,255,1.0)); }
+}
+
+.rune-port-multi.rune-port-occupied {
+  filter: drop-shadow(0 0 4px rgba(255,255,255,0.45));
+}
+
+/* ── Gradient connection lines (from basic-mode multi-color outputs) ──────── */
+/* Animated color-cycling via stroke-dashoffset gives a "flowing" effect */
+.conn-path.conn-gradient {
+  stroke-dasharray: 18 9;
+  opacity: 0.9;
+  animation: gradient-flow 1.1s linear infinite;
+}
+.conn-path-glow.conn-gradient {
+  stroke-width: 12;
+  opacity: 0.35;
+  stroke-dasharray: none;
+  animation: gradient-glow-pulse 1.5s ease-in-out infinite alternate;
+}
+@keyframes gradient-flow {
+  to { stroke-dashoffset: -27; }
+}
+@keyframes gradient-glow-pulse {
+  from { opacity: 0.22; stroke-width: 10; }
+  to   { opacity: 0.55; stroke-width: 16; }
+}
 
 /* ── Default mode toggle in top-bar ─────────────────────────────────────── */
 .sne-mode-toggle {
@@ -892,9 +899,39 @@
 .sne-mode-btn:hover { border-color: #8b5cf6; color: #a78bfa; }
 .sne-mode-btn.sne-mode-active { background: #8b5cf6; border-color: #8b5cf6; color: #fff; }
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* ── Node mode toggle in the RIGHT INSPECTOR ─────────────────────────────── */
+.ri-section-lbl-mode { margin-top: 10px; }
+.ri-mode-row {
+  display: flex;
+  gap: 6px;
+  margin: 5px 0 4px;
+}
+.ri-mode-btn {
+  flex: 1;
+  padding: 5px 0;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: rgba(156,163,175,0.7);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.ri-mode-btn:hover:not([disabled]) { border-color: #8b5cf6; color: #c4b5fd; }
+.ri-mode-btn.ri-mode-active { background: rgba(139,92,246,0.3); border-color: #8b5cf6; color: #e9d5ff; }
+.ri-mode-btn.ri-mode-blocked { color: rgba(245,158,11,0.7); border-color: rgba(245,158,11,0.25); cursor: not-allowed; }
+.ri-mode-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+.ri-mode-hint {
+  font-size: 0.68rem;
+  color: rgba(245,158,11,0.8);
+  margin: 2px 0 6px;
+  line-height: 1.35;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    CUSTOM SCROLLBAR
-   ═══════════════════════════════════════════════════════════════════════════ */
+   ══════════════════════════════════════════════════════════════════════════ */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 3px; }
