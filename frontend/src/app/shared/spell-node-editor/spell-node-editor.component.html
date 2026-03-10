@@ -53,6 +53,14 @@
                  placeholder="Beschreibung…"/>
         </div>
         <div class="sne-topbar-right">
+          <!-- Default mode toggle -->
+          <div class="sne-mode-toggle" title="Standard-Ansicht für neue Runen">
+            <span class="sne-mode-label">Standard:</span>
+            <button class="sne-mode-btn" [class.sne-mode-active]="defaultNodeMode === 'basic'"
+                    (click)="setDefaultNodeMode('basic')" title="Basis-Ansicht (ein Multi-Port)">B</button>
+            <button class="sne-mode-btn" [class.sne-mode-active]="defaultNodeMode === 'advanced'"
+                    (click)="setDefaultNodeMode('advanced')" title="Erweitert (alle Ports)">E</button>
+          </div>
           @if (!isNewSpell) {
             <button class="tb-btn tb-delete" (click)="onDelete()">Löschen</button>
           }
@@ -124,6 +132,7 @@
           @for (node of graphNodesSig(); track trackById($index, node)) {
             @let rune = getNodeRune(node.id);
             @let isNeutral = node.runeId === NEUTRAL_RUNE_ID;
+            @let isBasic = isBasicNode(node.id);
             <div class="rune-node"
                  [class.rune-node-drag]="draggingNodeId === node.id"
                  [class.rune-node-selected]="isNodeSelected(node.id)"
@@ -133,36 +142,82 @@
                  (mousedown)="onNodeMouseDown($event, node.id)"
                  (click)="onNodeClick($event, node)">
 
-              <!-- Input ports — absolutely positioned on the left edge -->
-              @for (p of inputPorts(node.id); track p.id) {
-                <div class="rune-port rune-port-in"
-                     [class.rune-port-flow]="p.types.length === 0"
-                     [class.rune-port-hovered]="isPortHovered(node.id, p.id)"
-                     [class.rune-port-valid]="isPendingValidTarget(node.id, p.id)"
-                     [style.--pc]="p.color"
+              @if (isBasic && !isNeutral) {
+                <!-- ── BASIC MODE: single multi-in + multi-out ─────────── -->
+
+                <!-- Multi-in port (left edge, centered) -->
+                <div class="rune-port rune-port-in rune-port-multi"
+                     [class.rune-port-hovered]="isPortHovered(node.id, 'multi-in')"
+                     [class.rune-port-valid]="isPendingValidTarget(node.id, 'multi-in')"
+                     [class.rune-port-occupied]="multiportHasConnections(node.id, 'in')"
+                     [style.--pc]="'transparent'"
                      [style.left.px]="-PORT_R"
-                     [style.top.px]="portNodeTop(node.id, p.id)"
+                     [style.top.px]="NODE_IMG / 2 - PORT_R"
+                     [style.background]="multiportGradient(node.id, 'in')"
                      [attr.data-node-id]="node.id"
-                     [attr.data-port-id]="p.id"
-                     (mousedown)="onPortMouseDown($event, node.id, p.id)">
-                  <span class="rune-port-tip rune-port-tip-in">{{ p.name }}</span>
+                     data-port-id="multi-in"
+                     (mousedown)="onPortMouseDown($event, node.id, 'multi-in')">
                 </div>
+
+                <!-- Multi-out port (right edge, centered) -->
+                <div class="rune-port rune-port-out rune-port-multi"
+                     [class.rune-port-hovered]="isPortHovered(node.id, 'multi-out')"
+                     [class.rune-port-valid]="isPendingValidTarget(node.id, 'multi-out')"
+                     [class.rune-port-occupied]="multiportHasConnections(node.id, 'out')"
+                     [style.--pc]="'transparent'"
+                     [style.left.px]="NODE_IMG - PORT_R"
+                     [style.top.px]="NODE_IMG / 2 - PORT_R"
+                     [style.background]="multiportGradient(node.id, 'out')"
+                     [attr.data-node-id]="node.id"
+                     data-port-id="multi-out"
+                     (mousedown)="onPortMouseDown($event, node.id, 'multi-out')">
+                </div>
+
+              } @else {
+                <!-- ── ADVANCED MODE: individual ports ─────────────────── -->
+
+                <!-- Input ports — absolutely positioned on the left edge -->
+                @for (p of inputPorts(node.id); track p.id) {
+                  <div class="rune-port rune-port-in"
+                       [class.rune-port-flow]="p.types.length === 0"
+                       [class.rune-port-hovered]="isPortHovered(node.id, p.id)"
+                       [class.rune-port-valid]="isPendingValidTarget(node.id, p.id)"
+                       [style.--pc]="p.color"
+                       [style.left.px]="-PORT_R"
+                       [style.top.px]="portNodeTop(node.id, p.id)"
+                       [attr.data-node-id]="node.id"
+                       [attr.data-port-id]="p.id"
+                       (mousedown)="onPortMouseDown($event, node.id, p.id)">
+                    <span class="rune-port-tip rune-port-tip-in">{{ p.name }}</span>
+                  </div>
+                }
+
+                <!-- Output ports — absolutely positioned on the right edge -->
+                @for (p of outputPorts(node.id); track p.id) {
+                  <div class="rune-port rune-port-out"
+                       [class.rune-port-flow]="p.types.length === 0"
+                       [class.rune-port-hovered]="isPortHovered(node.id, p.id)"
+                       [class.rune-port-valid]="isPendingValidTarget(node.id, p.id)"
+                       [style.--pc]="p.color"
+                       [style.left.px]="NODE_IMG - PORT_R"
+                       [style.top.px]="portNodeTop(node.id, p.id)"
+                       [attr.data-node-id]="node.id"
+                       [attr.data-port-id]="p.id"
+                       (mousedown)="onPortMouseDown($event, node.id, p.id)">
+                  <span class="rune-port-tip rune-port-tip-out">{{ p.name }}</span>
+                  </div>
+                }
               }
 
-              <!-- Output ports — absolutely positioned on the right edge -->
-              @for (p of outputPorts(node.id); track p.id) {
-                <div class="rune-port rune-port-out"
-                     [class.rune-port-flow]="p.types.length === 0"
-                     [class.rune-port-hovered]="isPortHovered(node.id, p.id)"
-                     [class.rune-port-valid]="isPendingValidTarget(node.id, p.id)"
-                     [style.--pc]="p.color"
-                     [style.left.px]="NODE_IMG - PORT_R"
-                     [style.top.px]="portNodeTop(node.id, p.id)"
-                     [attr.data-node-id]="node.id"
-                     [attr.data-port-id]="p.id"
-                     (mousedown)="onPortMouseDown($event, node.id, p.id)">
-                  <span class="rune-port-tip rune-port-tip-out">{{ p.name }}</span>
-                </div>
+              <!-- Mode toggle button (B/E) — top-left corner, hidden for neutral -->
+              @if (!isNeutral) {
+                <button class="node-mode-btn"
+                        [class.node-mode-basic]="isBasic"
+                        [title]="isBasic ? 'Basis-Ansicht (klicken für Erweitert)' : 'Erweitert (klicken für Basis)'"
+                        (mousedown)="$event.stopPropagation()"
+                        (click)="$event.stopPropagation(); toggleNodeMode(node.id)">
+                  {{ isBasic ? 'B' : 'E' }}
+                </button>
               }
 
               <!-- Rune image / placeholder. Neutral node uses half-circle design -->

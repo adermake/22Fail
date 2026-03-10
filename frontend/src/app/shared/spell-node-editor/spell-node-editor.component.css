@@ -789,6 +789,118 @@
   border-top: 1px solid rgba(255,255,255,0.04);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   BASIC / ADVANCED MODE
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Multiport circles ───────────────────────────────────────────────────── */
+.rune-port-multi {
+  /* Override: make basic multiport visually larger (= 16px hitbox → 12px dot via ::before override) */
+  width: 16px;
+  height: 16px;
+}
+/* Multiport uses inline [style.background] for the conic-gradient — suppress default ::before coloring */
+.rune-port-multi::before {
+  /* larger visual dot for multiport */
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255,255,255,0.5);
+  background: inherit !important; /* use the conic-gradient set inline */
+  box-shadow: 0 0 8px rgba(255,255,255,0.3);
+  border-radius: 50%;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.rune-port-multi:hover::before,
+.rune-port-multi.rune-port-hovered::before {
+  transform: translate(-50%,-50%) scale(1.5);
+  box-shadow: 0 0 18px rgba(255,255,255,0.6), 0 0 8px rgba(255,255,255,0.4);
+  background: inherit !important;
+}
+.rune-port-multi.rune-port-valid::before {
+  transform: translate(-50%,-50%) scale(1.25);
+  box-shadow: 0 0 14px rgba(255,255,255,0.7), 0 0 28px rgba(255,255,255,0.4);
+  background: inherit !important;
+  animation: multiport-valid-pulse 0.8s ease-in-out infinite alternate;
+}
+.rune-port-multi.rune-port-valid.rune-port-hovered::before {
+  transform: translate(-50%,-50%) scale(1.55) !important;
+}
+@keyframes multiport-valid-pulse {
+  from { box-shadow: 0 0 10px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.3); }
+  to   { box-shadow: 0 0 20px rgba(255,255,255,0.9), 0 0 40px rgba(255,255,255,0.6); }
+}
+/* Occupied indicator: thin outer ring */
+.rune-port-multi.rune-port-occupied::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  pointer-events: none;
+}
+
+/* ── Node mode toggle button (B/E in top-left corner of node) ────────────── */
+.node-mode-btn {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(6,8,20,0.75);
+  color: rgba(156,163,175,0.8);
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+  opacity: 0;
+}
+.rune-node:hover .node-mode-btn { opacity: 1; }
+.node-mode-btn:hover { border-color: #8b5cf6; color: #c4b5fd; background: rgba(139,92,246,0.18); }
+.node-mode-btn.node-mode-basic { color: #a78bfa; border-color: rgba(167,139,250,0.4); }
+
+/* ── Default mode toggle in top-bar ─────────────────────────────────────── */
+.sne-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+}
+.sne-mode-label {
+  font-size: 0.68rem;
+  color: rgba(156,163,175,0.7);
+  white-space: nowrap;
+  user-select: none;
+}
+.sne-mode-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(107,114,128,0.8);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.sne-mode-btn:hover { border-color: #8b5cf6; color: #a78bfa; }
+.sne-mode-btn.sne-mode-active { background: #8b5cf6; border-color: #8b5cf6; color: #fff; }
+
 /* ═══════════════════════════════════════════════════════════════════════════
    CUSTOM SCROLLBAR
    ═══════════════════════════════════════════════════════════════════════════ */

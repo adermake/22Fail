@@ -16,6 +16,7 @@ export interface SpellNode {
   runeId: string;      // reference to RuneBlock (by name — since runes have no DB id)
   x: number;
   y: number;
+  mode?: 'basic' | 'advanced';   // 'basic' collapses all ports into one multi-in + one multi-out
 }
 
 /** A connection between two ports */
@@ -126,4 +127,30 @@ export function portsCompatible(from: SpellPort | PortPosition, to: SpellPort | 
   if (fromIsFlow && toIsFlow) return true;
   // data: at least one type in common
   return from.types.some(t => to.types.includes(t));
+}
+
+/**
+ * Returns the union of all non-flow types from an array of ports.
+ * Does NOT include flow (empty-types) ports by default — they are handled separately.
+ * If you want to check if ANY flow port exists, check `ports.some(p => p.types.length === 0)`.
+ */
+export function mergePortTypes(ports: SpellPort[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const p of ports) {
+    for (const t of p.types) {
+      if (!seen.has(t)) { seen.add(t); result.push(t); }
+    }
+  }
+  return result;
+}
+
+/** All port colors as an ordered array (deduplicated) for a set of ports */
+export function mergePortColors(ports: SpellPort[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const p of ports) {
+    if (!seen.has(p.color)) { seen.add(p.color); result.push(p.color); }
+  }
+  return result;
 }
