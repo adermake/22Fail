@@ -793,54 +793,38 @@
    BASIC / ADVANCED MODE
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Multiport circles ───────────────────────────────────────────────────── */
+/* ── Multiport circles — ring-only visual via radial mask ────────────────── */
+/* The element inherits the base .rune-port sizing/positioning.
+   inline [style.background] supplies the conic-gradient with colour slices.
+   The radial-gradient mask punches out the centre → only the ring shows. */
 .rune-port-multi {
-  /* Override: make basic multiport visually larger (= 16px hitbox → 12px dot via ::before override) */
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
+  -webkit-mask: radial-gradient(circle at center, transparent 38%, black 40%);
+  mask:         radial-gradient(circle at center, transparent 38%, black 40%);
+  transition: transform 0.14s, filter 0.14s;
 }
-/* Multiport uses inline [style.background] for the conic-gradient — suppress default ::before coloring */
-.rune-port-multi::before {
-  /* larger visual dot for multiport */
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(255,255,255,0.5);
-  background: inherit !important; /* use the conic-gradient set inline */
-  box-shadow: 0 0 8px rgba(255,255,255,0.3);
-  border-radius: 50%;
-  transition: transform 0.15s, box-shadow 0.15s;
+/* Suppress the old ::before dot — the element itself IS the visual now */
+.rune-port-multi::before { display: none !important; }
+
+.rune-port-multi:hover,
+.rune-port-multi.rune-port-hovered {
+  transform: scale(1.55);
+  filter: drop-shadow(0 0 5px rgba(255,255,255,0.6));
 }
-.rune-port-multi:hover::before,
-.rune-port-multi.rune-port-hovered::before {
-  transform: translate(-50%,-50%) scale(1.5);
-  box-shadow: 0 0 18px rgba(255,255,255,0.6), 0 0 8px rgba(255,255,255,0.4);
-  background: inherit !important;
+.rune-port-multi.rune-port-valid {
+  transform: scale(1.35);
+  animation: multiport-valid-pulse 0.85s ease-in-out infinite alternate;
 }
-.rune-port-multi.rune-port-valid::before {
-  transform: translate(-50%,-50%) scale(1.25);
-  box-shadow: 0 0 14px rgba(255,255,255,0.7), 0 0 28px rgba(255,255,255,0.4);
-  background: inherit !important;
-  animation: multiport-valid-pulse 0.8s ease-in-out infinite alternate;
-}
-.rune-port-multi.rune-port-valid.rune-port-hovered::before {
-  transform: translate(-50%,-50%) scale(1.55) !important;
+.rune-port-multi.rune-port-valid.rune-port-hovered {
+  transform: scale(1.65) !important;
 }
 @keyframes multiport-valid-pulse {
-  from { box-shadow: 0 0 10px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.3); }
-  to   { box-shadow: 0 0 20px rgba(255,255,255,0.9), 0 0 40px rgba(255,255,255,0.6); }
+  from { filter: drop-shadow(0 0 4px rgba(255,255,255,0.5)); }
+  to   { filter: drop-shadow(0 0 12px rgba(255,255,255,0.9)); }
 }
-/* Occupied indicator: thin outer ring */
-.rune-port-multi.rune-port-occupied::after {
-  content: '';
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255,255,255,0.25);
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%,-50%);
-  pointer-events: none;
+.rune-port-multi.rune-port-occupied {
+  filter: drop-shadow(0 0 3px rgba(255,255,255,0.35));
 }
 
 /* ── Node mode toggle button (B/E in top-left corner of node) ────────────── */
@@ -851,9 +835,9 @@
   width: 16px;
   height: 16px;
   border-radius: 3px;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(6,8,20,0.75);
-  color: rgba(156,163,175,0.8);
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(6,8,20,0.72);
+  color: rgba(156,163,175,0.65);
   font-size: 0.58rem;
   font-weight: 800;
   line-height: 1;
@@ -864,11 +848,18 @@
   align-items: center;
   justify-content: center;
   transition: border-color 0.12s, background 0.12s, color 0.12s;
-  opacity: 0;
+  /* Always visible — not hidden on hover */
 }
-.rune-node:hover .node-mode-btn { opacity: 1; }
-.node-mode-btn:hover { border-color: #8b5cf6; color: #c4b5fd; background: rgba(139,92,246,0.18); }
-.node-mode-btn.node-mode-basic { color: #a78bfa; border-color: rgba(167,139,250,0.4); }
+.node-mode-btn:hover { border-color: #8b5cf6; color: #c4b5fd; background: rgba(139,92,246,0.22); }
+.node-mode-btn.node-mode-basic { color: #a78bfa; border-color: rgba(167,139,250,0.45); background: rgba(139,92,246,0.15); }
+/* Blocked: amber warning icon state */
+.node-mode-btn.node-mode-blocked {
+  color: #f59e0b;
+  border-color: rgba(245,158,11,0.35);
+  background: rgba(120,53,15,0.25);
+  cursor: not-allowed;
+}
+.node-mode-btn.node-mode-blocked:hover { background: rgba(245,158,11,0.2); border-color: #f59e0b; }
 
 /* ── Default mode toggle in top-bar ─────────────────────────────────────── */
 .sne-mode-toggle {

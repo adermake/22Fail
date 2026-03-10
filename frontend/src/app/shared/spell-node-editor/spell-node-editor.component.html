@@ -209,14 +209,16 @@
                 }
               }
 
-              <!-- Mode toggle button (B/E) — top-left corner, hidden for neutral -->
+              <!-- Mode toggle button (B/E) — always visible for non-neutral nodes -->
               @if (!isNeutral) {
+                @let blocked = switchToBasicBlocked(node.id);
                 <button class="node-mode-btn"
                         [class.node-mode-basic]="isBasic"
-                        [title]="isBasic ? 'Basis-Ansicht (klicken für Erweitert)' : 'Erweitert (klicken für Basis)'"
+                        [class.node-mode-blocked]="!!blocked"
+                        [title]="blocked ?? (isBasic ? 'Zu Erweitert wechseln' : 'Zu Basis-Ansicht wechseln')"
                         (mousedown)="$event.stopPropagation()"
                         (click)="$event.stopPropagation(); toggleNodeMode(node.id)">
-                  {{ isBasic ? 'B' : 'E' }}
+                  {{ blocked ? '⚠' : (isBasic ? 'B' : 'E') }}
                 </button>
               }
 
@@ -245,6 +247,18 @@
 
         <!-- Connection overlay -->
         <svg class="conn-overlay-svg" xmlns="http://www.w3.org/2000/svg">
+          <!-- SVG gradient definitions for basic-mode multi-color connection lines -->
+          <defs>
+            @for (gd of connectionGradientDefs(); track gd.id) {
+              <linearGradient [attr.id]="gd.id" gradientUnits="userSpaceOnUse"
+                              [attr.x1]="gd.x1" [attr.y1]="gd.y1"
+                              [attr.x2]="gd.x2" [attr.y2]="gd.y2">
+                @for (s of gd.stops; track $index) {
+                  <stop [attr.offset]="s.offset" [attr.stop-color]="s.color"/>
+                }
+              </linearGradient>
+            }
+          </defs>
           @for (c of graphConnectionsSig(); track trackById($index, c)) {
             <g class="conn-group"
                (click)="onConnGroupClick($event, c)"
@@ -254,7 +268,7 @@
                     (mousedown)="onConnHitMouseDown($event, c)"/>
               <path class="conn-path-glow"
                     [attr.d]="connectionPathScreen(c)"
-                    [attr.stroke]="connectionColor(c)"
+                    [attr.stroke]="connectionStroke(c)"
                     [class.conn-selected]="isConnectionSelected(c.id)"
                     [class.conn-passthrough]="c.passthroughEnabled"
                     [class.conn-condition]="c.condition"
@@ -263,7 +277,7 @@
                     [class.conn-delay]="c.lineDelay"/>
               <path class="conn-path"
                     [attr.d]="connectionPathScreen(c)"
-                    [attr.stroke]="connectionColor(c)"
+                    [attr.stroke]="connectionStroke(c)"
                     [class.conn-selected]="isConnectionSelected(c.id)"
                     [class.conn-passthrough]="c.passthroughEnabled"
                     [class.conn-condition]="c.condition"

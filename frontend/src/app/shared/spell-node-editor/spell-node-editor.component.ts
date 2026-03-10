@@ -1623,17 +1623,66 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   isBasicNode(nodeId: string): boolean {
     const node = this.graph.nodes.find(n => n.id === nodeId);
     if (!node || node.runeId === NEUTRAL_RUNE_ID) return false;
-    return (node.mode ?? this.defaultNodeMode) === 'basic';
+    // Use 'advanced' as default — the global defaultNodeMode only affects NEW nodes at creation time
+    return (node.mode ?? 'advanced') === 'basic';
   }
 
   toggleNodeMode(nodeId: string) {
+    const node = this.graph.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    const current = node.mode ?? 'advanced';
+    // Switching to basic is only allowed when connections are unambiguous
+    if (current === 'advanced') {
+      const check = this.canSwitchToBasic(nodeId);
+      if (!check.ok) return;
+    }
     this.pushUndo();
-    this.graph.nodes = this.graph.nodes.map(n => {
-      if (n.id !== nodeId) return n;
-      const current = n.mode ?? this.defaultNodeMode;
-      return { ...n, mode: current === 'basic' ? 'advanced' : 'basic' };
-    });
+    this.graph.nodes = this.graph.nodes.map(n =>
+      n.id !== nodeId ? n : { ...n, mode: current === 'basic' ? 'advanced' : 'basic' }
+    );
     this.graphNodesSig.set(this.graph.nodes);
+  }
+
+  /**
+   * Returns null when the node CAN be switched to basic mode.
+   * Returns a human-readable German reason string when it cannot.
+   */
+  canSwitchToBasic(nodeId: string): { ok: boolean; reason?: string } {
+    const ns = this.nodeStates.get(nodeId);
+    if (!ns) return { ok: true };
+    const inPorts  = ns.ports.filter(p => p.kind === 'flow-in'  || p.kind === 'data-in');
+    const outPorts = ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out');
+    // Count distinct DATA (non-flow) ports that have active connections
+    const usedDataIns = new Set(
+      this.graph.connections
+        .filter(c => c.toNodeId === nodeId)
+        .map(c => c.toPortId)
+        .filter(pid => { const p = inPorts.find(x => x.id === pid); return p && p.types.length > 0; })
+    );
+    const usedDataOuts = new Set(
+      this.graph.connections
+        .filter(c => c.fromNodeId === nodeId)
+        .map(c => c.fromPortId)
+        .filter(pid => { const p = outPorts.find(x => x.id === pid); return p && p.types.length > 0; })
+    );
+    if (usedDataIns.size > 1 || usedDataOuts.size > 1) {
+      return {
+        ok: false,
+        reason: 'Die aktuelle Datenleitungskonfiguration ist zu komplex, um diese Rune in den Basis-Modus zu schalten.'
+      };
+    }
+    return { ok: true };
+  }
+
+  /** For template: null if toggle is allowed, German reason string if blocked. */
+  switchToBasicBlocked(nodeId: string): string | null {
+    const node = this.graph.nodes.find(n => n.id === nodeId);
+    if (!node) return null;
+    if ((node.mode ?? 'advanced') === 'advanced') {
+      const check = this.canSwitchToBasic(nodeId);
+      return check.ok ? null : (check.reason ?? null);
+    }
+    return null;
   }
 
   /** CSS gradient string for a multiport circle (conic-gradient with N color stops) */
@@ -1660,6 +1709,57 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   /** Connection color — for basic-mode nodes returns a gradient data URI (for SVG linearGradient) */
   connectionColorOrGradient(c: SpellConnection): string {
     return this.connectionColor(c);
+  }
+
+  /**
+   * Returns the SVG stroke value for a connection.
+   * For connections whose source node is in basic mode with multiple port colors,
+   * this returns `url(#cg-<id>)` referencing a generated linearGradient.
+   * Otherwise returns the plain port color.
+   */
+  connectionStroke(c: SpellConnection): string {
+    const fromNode = this.graph.nodes.find(n => n.id === c.fromNodeId);
+    if (fromNode && this.isBasicNode(fromNode.id)) {
+      const ns = this.nodeStates.get(fromNode.id);
+      if (ns) {
+        const colors = mergePortColors(ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out'));
+        if (colors.length > 1) return `url(#cg-${c.id})`;
+      }
+    }
+    return this.connectionColor(c);
+  }
+
+  /**
+   * Builds the list of SVG linearGradient definitions needed for basic-mode connection lines.
+   * Called once per render frame from the SVG template.
+   */
+  connectionGradientDefs(): Array<{
+    id: string; x1: number; y1: number; x2: number; y2: number;
+    stops: Array<{ offset: string; color: string }>;
+  }> {
+    const defs: Array<{
+      id: string; x1: number; y1: number; x2: number; y2: number;
+      stops: Array<{ offset: string; color: string }>;
+    }> = [];
+    for (const c of this.graph.connections) {
+      const fromNode = this.graph.nodes.find(n => n.id === c.fromNodeId);
+      if (!fromNode || !this.isBasicNode(fromNode.id)) continue;
+      const ns = this.nodeStates.get(fromNode.id);
+      if (!ns) continue;
+      const colors = mergePortColors(ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out'));
+      if (colors.length <= 1) continue;
+      const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
+      const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
+      if (!from || !to) continue;
+      const sf = this.worldToCanvasLocal(from.x, from.y);
+      const st = this.worldToCanvasLocal(to.x,   to.y);
+      const stops = colors.map((color, i) => ({
+        offset: `${Math.round(i / (colors.length - 1) * 100)}%`,
+        color
+      }));
+      defs.push({ id: `cg-${c.id}`, x1: sf.x, y1: sf.y, x2: st.x, y2: st.y, stops });
+    }
+    return defs;
   }
 
   getNodeState(nodeId: string): NodeState | undefined {
