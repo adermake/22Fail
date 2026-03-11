@@ -154,8 +154,8 @@
             }
             @if (selectedRune.fokus) {
               <span class="tag tag-fokus">◆ {{ selectedRune.fokus }}
-                @if (selectedRune.fokusMult && selectedRune.fokusMult !== 1) {
-                  <span class="tag-mult">×{{ selectedRune.fokusMult }}</span>
+                @if (selectedRune.fokusVerlust && selectedRune.fokusVerlust !== 0) {
+                  <span class="tag-mult">V{{ selectedRune.fokusVerlust }}</span>
                 }
               </span>
             }

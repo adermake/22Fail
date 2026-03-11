@@ -22,7 +22,7 @@ export class RuneBlock {
   tags!: string[];
   glowColor?: string;         // Glow color for drawing strokes (default: #8b5cf6)
   fokus?: number;             // Base Fokus cost
-  fokusMult?: number;         // Fokus cost multiplier
+  fokusVerlust?: number;      // Fokus cost per unused input port
   mana?: number;              // Base Mana cost
   manaMult?: number;          // Mana cost multiplier
   effektivitaet?: number;     // Effektivität value
@@ -75,7 +75,7 @@ export const DATA_TYPE_PRESETS: DataTypePreset[] = [
   { name: 'Vektor',      color: '#22c55e', type: 'Vektor' },
   { name: 'Aussage',     color: '#f97316', type: 'Aussage' },
   { name: 'Medium',      color: '#ec4899', type: 'Medium' },
-  { name: 'MediumTyp',   color: '#7c3aed', type: 'MediumTyp' },
+  { name: 'Mana',        color: '#f59e0b', type: 'Mana' },
   { name: 'Fluss',       color: '#06b6d4', type: 'Fluss' },
   { name: 'Information', color: '#eab308', type: 'Information' },
 ];
@@ -91,8 +91,8 @@ export interface RuneTypeConfig {
 export const RUNE_TYPE_CONFIGS: Record<'medium' | 'formung' | 'selektor', RuneTypeConfig> = {
   medium: {
     label: 'Medium', short: 'M',
-    inputs: [],
-    outputs: [{ name: 'MediumTyp', color: '#7c3aed', types: ['MediumTyp'] }],
+    inputs:  [{ name: 'Fluss', color: '#06b6d4', types: ['Fluss'] }, { name: 'Mana', color: '#f59e0b', types: ['Mana'] }],
+    outputs: [{ name: 'Fluss', color: '#06b6d4', types: ['Fluss'] }, { name: 'Medium', color: '#ec4899', types: ['Medium'] }],
   },
   formung: {
     label: 'Formung', short: 'F',

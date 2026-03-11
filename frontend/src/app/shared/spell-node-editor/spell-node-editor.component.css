@@ -255,6 +255,69 @@
   color: #fff !important;
   cursor: default;
 }
+.tb-cost {
+  border-color: rgba(245,158,11,0.35);
+  color: #fcd34d;
+}
+.tb-cost:hover { border-color: rgba(245,158,11,0.7); background: rgba(245,158,11,0.1); color: #fef3c7; }
+.tb-cost-active {
+  background: rgba(245,158,11,0.18) !important;
+  border-color: rgba(245,158,11,0.6) !important;
+  color: #fef3c7 !important;
+  box-shadow: 0 0 12px rgba(245,158,11,0.3);
+}
+
+/* Cost panel overlay */
+.cost-panel-overlay {
+  position: absolute;
+  top: 54px;
+  right: 8px;
+  z-index: 210;
+  background: #0a0a16;
+  border: 1px solid rgba(139,92,246,0.3);
+  border-radius: 12px;
+  box-shadow: 0 8px 42px rgba(0,0,0,0.7), 0 0 24px rgba(139,92,246,0.15);
+  min-width: 260px;
+  max-width: 340px;
+  max-height: calc(100% - 70px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cost-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+.cost-panel-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fcd34d;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.cost-panel-close {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.cost-panel-close:hover { color: #e2e8f0; }
+.cost-panel-body {
+  overflow-y: auto;
+  padding: 4px 4px 8px;
+  flex: 1;
+}
+.cost-panel-body::-webkit-scrollbar { width: 4px; }
+.cost-panel-body::-webkit-scrollbar-track { background: transparent; }
+.cost-panel-body::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.25); border-radius: 4px; }
 
 /* ══════════════════════════════════════════════════════════════════════════
    CANVAS WRAP
@@ -526,18 +589,31 @@
     drop-shadow(0 0 28px color-mix(in srgb, var(--glow, #8b5cf6) 80%, transparent))
     drop-shadow(0 0 10px color-mix(in srgb, var(--glow, #8b5cf6) 50%, transparent))
     drop-shadow(0 2px 14px rgba(0,0,0,0.65));
-  transition: filter 0.25s;
+  transition: filter 0.25s, transform 0.35s cubic-bezier(.34,1.56,.64,1);
   pointer-events: none;
   animation: rune-node-float 2.8s ease-in-out infinite;
 }
 .rune-node.rune-node-drag .rune-node-img { animation: none; }
-.rune-node:hover .rune-node-img,
-.rune-node.rune-node-drag .rune-node-img {
+.rune-node:hover .rune-node-img {
   filter:
     drop-shadow(0 0 52px color-mix(in srgb, var(--glow, #8b5cf6) 100%, transparent))
     drop-shadow(0 0 24px color-mix(in srgb, var(--glow, #8b5cf6) 70%, transparent))
     drop-shadow(0 0 10px color-mix(in srgb, var(--glow, #8b5cf6) 40%, transparent))
     drop-shadow(0 4px 22px rgba(0,0,0,0.85));
+  animation: rune-hover-spin 3.2s ease-in-out infinite;
+}
+.rune-node.rune-node-drag .rune-node-img {
+  filter:
+    drop-shadow(0 0 52px color-mix(in srgb, var(--glow, #8b5cf6) 100%, transparent))
+    drop-shadow(0 0 24px color-mix(in srgb, var(--glow, #8b5cf6) 70%, transparent))
+    drop-shadow(0 4px 22px rgba(0,0,0,0.85));
+}
+@keyframes rune-hover-spin {
+  0%   { transform: scale(1.02) rotate(-4deg); }
+  25%  { transform: scale(1.04) rotate(4deg); }
+  50%  { transform: scale(1.02) rotate(-3deg); }
+  75%  { transform: scale(1.04) rotate(3deg); }
+  100% { transform: scale(1.02) rotate(-4deg); }
 }
 
 /* ── Placeholder when no drawing ─────────────────────────────────────────── */
@@ -850,22 +926,23 @@
 /* ── Gradient connection lines (from basic-mode multi-color outputs) ──────── */
 /* Animated color-cycling via stroke-dashoffset gives a "flowing" effect */
 .conn-path.conn-gradient {
-  stroke-dasharray: 18 9;
-  opacity: 0.9;
-  animation: gradient-flow 1.1s linear infinite;
+  stroke-dasharray: 10 6;
+  opacity: 0.92;
+  animation: gradient-flow 0.9s linear infinite;
 }
 .conn-path-glow.conn-gradient {
-  stroke-width: 12;
-  opacity: 0.35;
+  stroke-width: 7;
+  opacity: 0.28;
   stroke-dasharray: none;
   animation: gradient-glow-pulse 1.5s ease-in-out infinite alternate;
 }
 @keyframes gradient-flow {
-  to { stroke-dashoffset: -27; }
+  from { stroke-dashoffset: 16; }
+  to   { stroke-dashoffset: 0; }
 }
 @keyframes gradient-glow-pulse {
-  from { opacity: 0.22; stroke-width: 10; }
-  to   { opacity: 0.55; stroke-width: 16; }
+  from { opacity: 0.18; stroke-width: 6; }
+  to   { opacity: 0.42; stroke-width: 10; }
 }
 
 /* ── Default mode toggle in top-bar ─────────────────────────────────────── */

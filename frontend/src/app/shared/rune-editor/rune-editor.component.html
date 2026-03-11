@@ -194,8 +194,8 @@
 
             <span class="cc-lbl fokus-label">Fokus</span>
             <input type="number" [(ngModel)]="editRune.fokus" min="0" class="cc-input" placeholder="0">
-            <span class="cc-mult">&times;</span>
-            <input type="number" [(ngModel)]="editRune.fokusMult" min="0" step="0.1" class="cc-input" placeholder="0">
+            <span class="cc-mult">V</span>
+            <input type="number" [(ngModel)]="editRune.fokusVerlust" min="0" step="0.1" class="cc-input" placeholder="0" title="Fokus-Verlust pro ungenutztem Eingangsport">
 
             <span class="cc-lbl eff-label">Effekt.</span>
             <input type="number" [(ngModel)]="editRune.effektivitaet" min="0" class="cc-input" placeholder="0">
@@ -224,7 +224,7 @@
           <div class="rt-type-row">
             <span class="rt-type-label">Runentyp:</span>
             <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'medium'"
-                    (click)="setRuneType('medium')" title="Medium: MediumTyp-Ausgang, kein Fluss">M</button>
+                    (click)="setRuneType('medium')" title="Medium: Fluss-Ein/Aus + Mana-Eingang + Medium-Ausgang">M</button>
             <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'formung'"
                     (click)="setRuneType('formung')" title="Formung: Fluss+Medium Ein/Aus">F</button>
             <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'selektor'"

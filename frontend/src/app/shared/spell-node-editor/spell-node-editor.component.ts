@@ -12,6 +12,9 @@ import {
   mergePortTypes, mergePortColors,
 } from './spell-node.model';
 import { ImageUrlPipe } from '../image-url.pipe';
+import { SpellCostResult } from './spell-cost.model';
+import { calculateSpellCost } from './spell-cost-calculator';
+import { SpellCostDisplayComponent } from './spell-cost-display/spell-cost-display.component';
 
 interface NodeState {
   node: SpellNode;
@@ -23,7 +26,7 @@ interface NodeState {
 @Component({
   selector: 'app-spell-node-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, ImageUrlPipe],
+  imports: [CommonModule, FormsModule, ImageUrlPipe, SpellCostDisplayComponent],
   templateUrl: './spell-node-editor.component.html',
   styleUrl: './spell-node-editor.component.css',
 })
@@ -164,6 +167,17 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // ── Close-confirmation dialog ──
   showCloseDialog = false;
 
+  // ── Spell cost panel ───────────────────────────────────────────────────────
+  showCostPanel    = false;
+  spellCostResult: SpellCostResult | null = null;
+
+  toggleCostPanel() {
+    this.showCostPanel = !this.showCostPanel;
+    if (this.showCostPanel) {
+      this.spellCostResult = calculateSpellCost(this.graph, this.availableRunes);
+    }
+  }
+
   // ── Quick-search popup state (drop connection into void to place+connect a rune) ──
   qsOpen     = false;
   qsX        = 0;
@@ -192,6 +206,22 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     setTimeout(() => (document.querySelector('.qs-input') as HTMLInputElement | null)?.focus(), 0);
   }
 
+  /** Open quick search at canvas center without a pending connection — just places a rune. */
+  openSpaceSearch() {
+    const rect = this.canvasEl().getBoundingClientRect();
+    const clientX = rect.left + rect.width / 2;
+    const clientY = rect.top  + rect.height / 2;
+    const world = this.clientToWorld(clientX, clientY);
+    this.qsOpen    = true;
+    this.qsX       = Math.min(clientX - 130, window.innerWidth  - 260);
+    this.qsY       = Math.min(clientY - 170, window.innerHeight - 340);
+    this.qsWorldX  = world.x;
+    this.qsWorldY  = world.y;
+    this.qsQuery   = '';
+    this.qsPending = null; // no pending connection — just place
+    setTimeout(() => (document.querySelector('.qs-input') as HTMLInputElement | null)?.focus(), 0);
+  }
+
   closeQuickSearch() {
     this.qsOpen    = false;
     this.qsQuery   = '';
@@ -199,25 +229,26 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   selectQsRune(rune: RuneBlock) {
-    if (!this.qsPending) return;
     this.pushUndo();
-    const pending = { ...this.qsPending };
     const wx = this.qsWorldX;
     const wy = this.qsWorldY;
+    const pending = this.qsPending ? { ...this.qsPending } : null;
     this.closeQuickSearch();
     const newId = `node-${this.nextId++}`;
     const newNode: SpellNode = { id: newId, runeId: rune.name, x: wx - this.NODE_IMG / 2, y: wy - this.NODE_IMG / 2, mode: this.defaultNodeMode };
     this.graph.nodes = [...this.graph.nodes, newNode];
     this.rebuildNodeStates();
     this.graphNodesSig.set(this.graph.nodes);
-    const allPorts = this.allPortPositions().filter(p => p.nodeId === newId);
-    // Prefer a port whose kind specifically matches the pending connection kind
-    const preferredKind = (pending.kind === 'flow-out') ? 'flow-in' : (pending.kind === 'data-out') ? 'data-in' : 'flow-in';
-    const inputPort =
-      allPorts.find(p => p.kind === preferredKind && this.canConnect(pending, p)) ??
-      allPorts.find(p => (p.kind === 'flow-in' || p.kind === 'data-in') && this.canConnect(pending, p));
-    if (inputPort) {
-      this.createConnection(pending, inputPort);
+    if (pending) {
+      const allPorts = this.allPortPositions().filter(p => p.nodeId === newId);
+      // Prefer a port whose kind specifically matches the pending connection kind
+      const preferredKind = (pending.kind === 'flow-out') ? 'flow-in' : (pending.kind === 'data-out') ? 'data-in' : 'flow-in';
+      const inputPort =
+        allPorts.find(p => p.kind === preferredKind && this.canConnect(pending, p)) ??
+        allPorts.find(p => (p.kind === 'flow-in' || p.kind === 'data-in') && this.canConnect(pending, p));
+      if (inputPort) {
+        this.createConnection(pending, inputPort);
+      }
     }
   }
 
@@ -1738,7 +1769,14 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     this.graph.nodes = this.graph.nodes.map(n =>
       n.id !== nodeId ? n : { ...n, mode: current === 'basic' ? 'advanced' : 'basic' }
     );
+    // Clear waypoints for all connections involving this node — ports move when switching
+    // modes and old waypoints would create broken routes.
+    this.graph.connections = this.graph.connections.map(c =>
+      (c.fromNodeId === nodeId || c.toNodeId === nodeId) ? { ...c, waypoints: [] } : c
+    );
+    this.rebuildNodeStates();
     this.graphNodesSig.set(this.graph.nodes);
+    this.graphConnectionsSig.set(this.graph.connections);
   }
 
   /**
@@ -2180,6 +2218,12 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     }
     const tag = (e.target as HTMLElement).tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    // Space bar: open quick-place rune search at canvas center
+    if (e.key === ' ') {
+      e.preventDefault();
+      if (!this.qsOpen) this.openSpaceSearch();
+      return;
+    }
     // Copy / Cut / Paste — not in input fields
     if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
       this.copySelected();

@@ -246,3 +246,21 @@ app/
 - **Quick-Search Popup**: Connection in Void droppen (nur neue, nicht isPickup) → Popup mit Runen-Suche; inkompatible Runes werden ausgegraut. Platziert Rune an Welt-Position + verbindet sie.
 - **Schließen-Dialog**: 3-Button-Modal (Speichern / Nicht speichern / Abbrechen) statt `confirm()` bei ungespeicherten Änderungen
 - **Kein Schließen beim Speichern**: `world.component` hält `editingSpell` als stabile Referenz unabhängig von Library-Updates; Speichern schließt den Editor nicht mehr
+
+## Rune Model (`model/rune-block.model.ts`)
+- `RuneBlock.fokusVerlust?: number` — Fokus-Kosten pro ungenutztem Daten-Eingangsport (ersetzt altes `fokusMult`)
+- `DATA_TYPE_PRESETS`: beinhaltet `Mana` (#f59e0b) — kein `MediumTyp` mehr
+- `RUNE_TYPE_CONFIGS.medium`: inputs=[Fluss, Mana], outputs=[Fluss, Medium]
+
+## Spell Cost Calculator (`shared/spell-node-editor/`)
+- `spell-cost.model.ts`: Interfaces `TurnCostEntry`, `CostCase`, `CaseTotals`, `SpellCostResult`
+- `spell-cost-calculator.ts`: Pure function `calculateSpellCost(graph, availableRunes)`
+  - DFS traversal der Flow-Verbindungen
+  - Mana-Multiplikator-Kette: Rune mit Mana-Daten-Eingang erbt Multiplikator vom Provider
+  - Fokus: `baseFokus + unusedDataInPorts × fokusVerlust`
+  - Loops: `passthroughEnabled + maxPassthrough` (UNLIMITED_LOOP_CAP=5)
+  - Delay: `lineDelay` → Turn-Buckets (Turn 0 = Wirkungsrunde)
+  - Branches: `precastKnown=true` → benannte Fälle; `false` → Worst-Case-Merge
+- `spell-cost-display/`: Standalone Component, zeigt SpellCostResult als Panel
+  - Button "⚖ Kosten" in der Top-Bar des Spell-Editors (amber/gelb)
+  - Floating Overlay-Panel rechts, togglebar, zeigt Mana/Fokus/Attributanforderungen/Fälle

@@ -64,6 +64,7 @@
           @if (!isNewSpell) {
             <button class="tb-btn tb-delete" (click)="onDelete()">Löschen</button>
           }
+          <button class="tb-btn tb-cost" [class.tb-cost-active]="showCostPanel" (click)="toggleCostPanel()" title="Kostenberechnung anzeigen">⚖ Kosten</button>
           <button class="tb-btn tb-close" (click)="onClose()">Schließen ✕</button>
           <button class="tb-btn tb-save"
                   [class.tb-save-done]="savedFeedback"
@@ -392,7 +393,7 @@
 
         <!-- Hint bar -->
         <div class="canvas-hint">
-          Palette anklicken = Runen-Info · Mausrad = Zoom · Mittelmaus = Schwenken · Port ziehen = Verbinden · Linie ziehen = Wegpunkt · Entf = Löschen · Strg+S = Speichern
+          Leertaste = Rune hinzufügen · Palette anklicken = Runen-Info · Mausrad = Zoom · Mittelmaus = Schwenken · Port ziehen = Verbinden · Linie ziehen = Wegpunkt · Entf = Löschen · Strg+S = Speichern
         </div>
 
       </div><!-- /canvas-wrap -->
@@ -529,6 +530,19 @@
 
   </div><!-- /sne-layout -->
 
+  <!-- ── KOSTEN-PANEL (floating overlay) ───────────────────────────────────── -->
+  @if (showCostPanel && spellCostResult) {
+    <div class="cost-panel-overlay">
+      <div class="cost-panel-header">
+        <span class="cost-panel-title">Kostenberechnung</span>
+        <button class="cost-panel-close" (click)="toggleCostPanel()">✕</button>
+      </div>
+      <div class="cost-panel-body">
+        <app-spell-cost-display [result]="spellCostResult" [spellName]="spellName"/>
+      </div>
+    </div>
+  }
+
   <!-- ── CLOSE CONFIRMATION DIALOG ──────────────────────────────────────────── -->
   @if (showCloseDialog) {
     <div class="close-dialog-backdrop" (click)="onCloseDialogCancel()"></div>
@@ -548,7 +562,7 @@
     <div class="qs-backdrop" (mousedown)="closeQuickSearch()"></div>
     <div class="qs-popup" [style.left.px]="qsX" [style.top.px]="qsY"
          (mousedown)="$event.stopPropagation()">
-      <div class="qs-header">Rune platzieren &amp; verbinden</div>
+      <div class="qs-header">{{ qsPending ? 'Rune platzieren &amp; verbinden' : 'Rune hinzufügen' }}</div>
       <input class="qs-input" type="text"
              [(ngModel)]="qsQuery"
              placeholder="Runenname eingeben…"

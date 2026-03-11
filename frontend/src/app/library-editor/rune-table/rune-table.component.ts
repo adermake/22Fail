@@ -70,7 +70,7 @@ export class RuneTableComponent implements OnInit, OnDestroy {
       if (!d.statRequirements) d.statRequirements = {};
       if (!d.tags) d.tags = [];
       d.fokus ??= 0;
-      d.fokusMult ??= 0;
+      d.fokusVerlust ??= 0;
       d.mana ??= 0;
       d.manaMult ??= 0;
       d.effektivitaet ??= 0;
@@ -175,7 +175,7 @@ export class RuneTableComponent implements OnInit, OnDestroy {
           drawing: imageId,
           tags: [],
           glowColor: '#ffffff',
-          fokus: 0, fokusMult: 0,
+          fokus: 0, fokusVerlust: 0,
           mana: 0, manaMult: 0,
           effektivitaet: 0,
           statRequirements: {},

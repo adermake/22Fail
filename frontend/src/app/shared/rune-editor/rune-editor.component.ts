@@ -70,7 +70,7 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     } else {
       this.editRune = {
         name: '', description: '', drawing: '', tags: [],
-        glowColor: '#06b6d4', fokus: 0, fokusMult: 0,
+        glowColor: '#06b6d4', fokus: 0, fokusVerlust: 0,
         mana: 0, manaMult: 0, effektivitaet: 0,
         statRequirements: { strength: 0, dexterity: 0, speed: 0, intelligence: 0, constitution: 0, chill: 0 },
         identified: true, learned: false,

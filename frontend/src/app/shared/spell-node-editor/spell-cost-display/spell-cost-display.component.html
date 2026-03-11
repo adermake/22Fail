@@ -1,0 +1,123 @@
+<div class="scd-root">
+
+  <!-- ── KOSTEN-HEADER ─────────────────────────────────────────────── -->
+  <div class="scd-spell-name">{{ spellName || 'Zauber' }}</div>
+  <div class="scd-subtitle">Geschätzte Kosten</div>
+
+  <!-- ── ATTRIBUT-ANFORDERUNGEN ────────────────────────────────────── -->
+  @if (hasStat()) {
+    <div class="scd-section-lbl">Attributanforderungen</div>
+    <div class="scd-stat-row">
+      @for (s of statEntries; track s.key) {
+        <div class="scd-stat-chip">
+          <span class="scd-stat-key">{{ s.label }}</span>
+          <span class="scd-stat-val">{{ s.value }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ── EINFACHE KOSTEN (kein Branching) ──────────────────────────── -->
+  @if (!result.hasKnownBranches) {
+    @let total = result.simpleTotals;
+    <div class="scd-section-lbl">Wirkungskosten</div>
+    <div class="scd-cost-block scd-cost-main">
+      <div class="scd-cost-row">
+        @if (total.mana > 0) {
+          <div class="scd-cost-pill scd-mana">
+            <span class="scd-pill-icon">◆</span>
+            <span class="scd-pill-val">{{ total.mana }}</span>
+            <span class="scd-pill-lbl">Mana</span>
+          </div>
+        }
+        @if (total.fokus > 0) {
+          <div class="scd-cost-pill scd-fokus">
+            <span class="scd-pill-icon">◇</span>
+            <span class="scd-pill-val">{{ total.fokus }}</span>
+            <span class="scd-pill-lbl">Fokus</span>
+          </div>
+        }
+        @if (total.mana === 0 && total.fokus === 0) {
+          <span class="scd-zero">Keine Kosten</span>
+        }
+      </div>
+    </div>
+
+    <!-- Per-turn costs -->
+    @if (result.hasPerTurnCosts) {
+      @if (total.perTurnUniform && total.maxRepeats > 0) {
+        <!-- All delayed turns identical: show "+ X per turn" -->
+        <div class="scd-perturn-row">
+          <span class="scd-perturn-prefix">+&nbsp;</span>
+          <span class="scd-perturn-value">{{ perTurnStr(total) }}</span>
+          <span class="scd-perturn-suffix">&nbsp;pro Runde&nbsp;</span>
+          @if (total.maxRepeats < 99) {
+            <span class="scd-perturn-rounds">({{ total.maxRepeats }}×)</span>
+          }
+        </div>
+      } @else {
+        <!-- Different per turn: list each -->
+        @for (e of turnEntries(result.cases[0]); track e.turn) {
+          <div class="scd-turn-row">
+            <span class="scd-turn-lbl">Runde {{ e.turn }}</span>
+            <span class="scd-turn-val">{{ e.str }}</span>
+          </div>
+        }
+      }
+    }
+  }
+
+  <!-- ── BEKANNTE VERZWEIGUNGEN ─────────────────────────────────────── -->
+  @if (result.hasKnownBranches) {
+    <div class="scd-section-lbl">Verzweigungen</div>
+    @for (c of result.cases; track $index; let ci = $index) {
+      @let t = totalsFor(ci);
+      <div class="scd-case-block">
+        <div class="scd-case-header">
+          <span class="scd-case-label">{{ c.label }}</span>
+          <span class="scd-case-cost">{{ castCostStr(t) }}</span>
+        </div>
+
+        <!-- Per-turn for this case -->
+        @if (t.perTurnUniform && t.maxRepeats > 0) {
+          <div class="scd-case-perturn">
+            + {{ perTurnStr(t) }} pro Runde
+            @if (t.maxRepeats < 99) { <span class="scd-perturn-rounds">({{ t.maxRepeats }}×)</span> }
+          </div>
+        } @else if (!t.perTurnUniform) {
+          @for (e of turnEntries(c); track e.turn) {
+            <div class="scd-turn-row scd-turn-indented">
+              <span class="scd-turn-lbl">↳ Runde {{ e.turn }}</span>
+              <span class="scd-turn-val">{{ e.str }}</span>
+            </div>
+          }
+        }
+
+        <!-- Nested subcases -->
+        @if (c.subcases?.length) {
+          @for (sub of c.subcases; track $index) {
+            <div class="scd-sub-case">
+              <div class="scd-sub-header">
+                <span class="scd-sub-label">{{ sub.label }}</span>
+                <span class="scd-sub-cost">
+                  @for (e of sub.entries; track e.turn) {
+                    {{ e.turn === 0 ? '' : 'R' + e.turn + ': ' }}{{ e.mana > 0 ? e.mana + ' Mana' : '' }}{{ (e.mana > 0 && e.fokus > 0) ? ' · ' : '' }}{{ e.fokus > 0 ? e.fokus + ' Fokus' : '' }}
+                  }
+                </span>
+              </div>
+            </div>
+          }
+        }
+      </div>
+    }
+  }
+
+  <!-- ── HINWEIS ─────────────────────────────────────────────────────── -->
+  <div class="scd-note">
+    Schätzung — tatsächliche Kosten können variieren.
+    @if (hasNoFlowCosts) {
+      <br>Keine Flussverbindungen gefunden.
+    }
+  </div>
+
+</div>

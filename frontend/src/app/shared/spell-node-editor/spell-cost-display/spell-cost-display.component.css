@@ -1,0 +1,261 @@
+/* ── Root ──────────────────────────────────────────────────────────── */
+:host {
+  display: block;
+}
+
+.scd-root {
+  background: #0f0f1a;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 10px;
+  padding: 14px 14px 10px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #e2e8f0;
+  min-width: 240px;
+  max-width: 320px;
+}
+
+/* ── Header ────────────────────────────────────────────────────────── */
+.scd-spell-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #c4b5fd;
+  letter-spacing: 0.04em;
+  margin-bottom: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scd-subtitle {
+  font-size: 0.65rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 10px;
+}
+
+/* ── Section labels ─────────────────────────────────────────────────── */
+.scd-section-lbl {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #64748b;
+  margin: 10px 0 5px;
+}
+
+/* ── Stat chips ─────────────────────────────────────────────────────── */
+.scd-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.scd-stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 0.72rem;
+}
+
+.scd-stat-key {
+  color: #a78bfa;
+  font-weight: 600;
+  font-size: 0.68rem;
+}
+
+.scd-stat-val {
+  color: #f1f5f9;
+  font-weight: 700;
+}
+
+/* ── Cost block ─────────────────────────────────────────────────────── */
+.scd-cost-block {
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 4px;
+}
+
+.scd-cost-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scd-cost-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 20px;
+  padding: 4px 11px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.scd-mana {
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fcd34d;
+}
+
+.scd-fokus {
+  background: rgba(139, 92, 246, 0.18);
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  color: #c4b5fd;
+}
+
+.scd-pill-icon {
+  font-size: 0.6rem;
+  opacity: 0.7;
+}
+
+.scd-pill-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.scd-pill-lbl {
+  font-size: 0.66rem;
+  opacity: 0.8;
+  font-weight: 400;
+}
+
+.scd-zero {
+  font-size: 0.78rem;
+  color: #475569;
+  font-style: italic;
+}
+
+/* ── Per-turn ───────────────────────────────────────────────────────── */
+.scd-perturn-row {
+  display: flex;
+  align-items: center;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  padding: 3px 4px;
+  margin-bottom: 2px;
+}
+
+.scd-perturn-prefix {
+  color: #64748b;
+}
+
+.scd-perturn-value {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.scd-perturn-suffix {
+  color: #64748b;
+}
+
+.scd-perturn-rounds {
+  background: rgba(139, 92, 246, 0.12);
+  border-radius: 4px;
+  padding: 0 5px;
+  font-size: 0.68rem;
+  color: #a78bfa;
+  margin-left: 2px;
+}
+
+/* ── Turn rows (non-uniform per turn) ──────────────────────────────── */
+.scd-turn-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  color: #94a3b8;
+}
+
+.scd-turn-indented {
+  padding-left: 12px;
+}
+
+.scd-turn-lbl {
+  color: #64748b;
+  font-size: 0.7rem;
+}
+
+.scd-turn-val {
+  color: #e2e8f0;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+/* ── Case blocks (known branches) ───────────────────────────────────── */
+.scd-case-block {
+  background: rgba(139, 92, 246, 0.06);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 7px;
+  padding: 7px 10px;
+  margin-bottom: 5px;
+}
+
+.scd-case-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
+.scd-case-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #a78bfa;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.scd-case-cost {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.scd-case-perturn {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  padding-left: 2px;
+}
+
+/* ── Sub-cases ─────────────────────────────────────────────────────── */
+.scd-sub-case {
+  margin-top: 4px;
+  border-left: 2px solid rgba(139, 92, 246, 0.25);
+  padding-left: 8px;
+}
+
+.scd-sub-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.scd-sub-label {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #7c3aed;
+}
+
+.scd-sub-cost {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+/* ── Footer note ─────────────────────────────────────────────────────── */
+.scd-note {
+  font-size: 0.62rem;
+  color: #334155;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  line-height: 1.5;
+}
