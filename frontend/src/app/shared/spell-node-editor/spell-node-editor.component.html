@@ -400,8 +400,17 @@
 
     </div><!-- /sne-main -->
 
-    <!-- ── RIGHT INSPECTOR ───────────────────────────────────────────── -->
-    @if (inspectedRune) {
+    <!-- ── RIGHT PANEL: cost | rune-inspector | conn-inspector ─────── -->
+    @if (showCostPanel && spellCostResult) {
+      <aside class="cost-inspector">
+        <div class="ci-header">
+          <span class="ci-title">⚖ Kostenberechnung</span>
+          <button class="ci-recalc" (click)="recalculateCost()" title="Neu berechnen">↺</button>
+          <button class="ci-close" (click)="showCostPanel = false">✕</button>
+        </div>
+        <app-spell-cost-display [result]="spellCostResult" [spellName]="spellName"/>
+      </aside>
+    } @else if (inspectedRune) {
       <aside class="rune-inspector">
         <div class="ri-header">
           <span class="ri-title">Runen-Info</span>
@@ -472,10 +481,7 @@
           }
         </div>
       </aside>
-    }
-
-    <!-- ── VERBINDUNGS-INSPEKTOR ─────────────────────────────────────────── -->
-    @if (!inspectedRune && selectedConnectionId && getSelectedConnection()) {
+    } @else if (selectedConnectionId && getSelectedConnection()) {
       <aside class="conn-inspector">
         <div class="ci-header">
           <span class="ci-title">Verbindung</span>
@@ -529,19 +535,6 @@
     }
 
   </div><!-- /sne-layout -->
-
-  <!-- ── KOSTEN-PANEL (floating overlay) ───────────────────────────────────── -->
-  @if (showCostPanel && spellCostResult) {
-    <div class="cost-panel-overlay">
-      <div class="cost-panel-header">
-        <span class="cost-panel-title">Kostenberechnung</span>
-        <button class="cost-panel-close" (click)="toggleCostPanel()">✕</button>
-      </div>
-      <div class="cost-panel-body">
-        <app-spell-cost-display [result]="spellCostResult" [spellName]="spellName"/>
-      </div>
-    </div>
-  }
 
   <!-- ── CLOSE CONFIRMATION DIALOG ──────────────────────────────────────────── -->
   @if (showCloseDialog) {

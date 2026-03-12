@@ -178,6 +178,10 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     }
   }
 
+  recalculateCost() {
+    this.spellCostResult = calculateSpellCost(this.graph, this.availableRunes);
+  }
+
   // ── Quick-search popup state (drop connection into void to place+connect a rune) ──
   qsOpen     = false;
   qsX        = 0;
@@ -2186,7 +2190,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   inspectNode(node: SpellNode) {
     if (node.runeId === NEUTRAL_RUNE_ID) return;
-    this.selectedConnectionId = null; // close connection inspector
+    this.showCostPanel = false;      // switch from cost panel to rune inspector
+    this.selectedConnectionId = null;
     this.inspectedRune = this.availableRunes.find(r => r.name === node.runeId) ?? null;
     this.inspectedNodeId = node.id;
   }
