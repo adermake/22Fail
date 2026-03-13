@@ -219,7 +219,7 @@ export class ItemComponent implements OnChanges {
       'speed': 'SPD',
       'intelligence': 'INT',
       'constitution': 'CON',
-      'chill': 'CHL',
+      'chill': 'WIL',
       'mana': 'Mana',
       'life': 'Leben',
       'energy': 'Energie'

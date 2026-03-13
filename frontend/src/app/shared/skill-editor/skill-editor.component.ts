@@ -99,7 +99,7 @@ export class SkillEditorComponent implements OnInit {
       speed: 'Tempo',
       intelligence: 'Intelligenz',
       constitution: 'Konstitution',
-      chill: 'Gemüt',
+      chill: 'Wille',
       mana: 'Mana',
       life: 'Leben',
       energy: 'Energie'

@@ -233,7 +233,7 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
       { name: 'Geschicklichkeit', value: this.calculateStatDiceBonus(this.sheet.dexterity, 'dexterity'), source: 'stat' },
       { name: 'Konstitution', value: this.calculateStatDiceBonus(this.sheet.constitution, 'constitution'), source: 'stat' },
       { name: 'Intelligenz', value: this.calculateStatDiceBonus(this.sheet.intelligence, 'intelligence'), source: 'stat' },
-      { name: 'Charisma', value: this.calculateStatDiceBonus(this.sheet.chill, 'chill'), source: 'stat' },
+      { name: 'Wille', value: this.calculateStatDiceBonus(this.sheet.chill, 'chill'), source: 'stat' },
       { name: 'Geschwindigkeit', value: this.calculateStatDiceBonus(this.sheet.speed, 'speed'), source: 'stat' }
     ];
     

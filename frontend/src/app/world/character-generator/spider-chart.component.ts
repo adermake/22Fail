@@ -184,7 +184,7 @@ export class SpiderChartComponent implements AfterViewInit {
     { name: 'Dexterity', key: 'dexterity', angle: 30, label: 'DEX' },
     { name: 'Speed', key: 'speed', angle: -30, label: 'SPD' },
     { name: 'Intelligence', key: 'intelligence', angle: -90, label: 'INT' },
-    { name: 'Chill', key: 'chill', angle: -150, label: 'CHL' },
+    { name: 'Wille', key: 'chill', angle: -150, label: 'WIL' },
     { name: 'Constitution', key: 'constitution', angle: 150, label: 'CON' }
   ];
 

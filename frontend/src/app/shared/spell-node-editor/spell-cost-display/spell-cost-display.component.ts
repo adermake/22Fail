@@ -23,7 +23,7 @@ export class SpellCostDisplayComponent {
       { key: 'speed',        label: 'SPD' },
       { key: 'intelligence', label: 'INT' },
       { key: 'constitution', label: 'KON' },
-      { key: 'chill',        label: 'CHR' },
+      { key: 'chill',        label: 'WIL' },
     ];
     return map.filter(m => (r[m.key] ?? 0) > 0).map(m => ({ key: m.key, label: m.label, value: r[m.key]! }));
   }

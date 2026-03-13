@@ -119,9 +119,9 @@
 
               <p class="skill-description">{{ skill.description }}</p>
 
-              @if (skill.cost && skill.cost.amount > 0) {
+              @if (skill.type === 'active') {
                 <div class="skill-cost">
-                  Kosten: {{ getCostDisplay(skill) }}
+                  {{ getCostDisplay(skill) }}
                 </div>
               }
 

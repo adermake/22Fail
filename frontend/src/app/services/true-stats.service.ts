@@ -11,7 +11,7 @@ export interface CalculatedStats {
   speed: number;
   intelligence: number;
   constitution: number;
-  chill: number;
+  wille: number;
 }
 
 /**
@@ -37,6 +37,7 @@ export interface StatModifierSource {
 }
 
 type StatKey = 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill';
+type StatKeyDisplay = 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'wille';
 
 /**
  * TrueStatsService - Centralized stat calculation service.
@@ -206,7 +207,7 @@ export class TrueStatsService {
       speed: this.calculateStat(sheet, sheet.speed, 'speed'),
       intelligence: this.calculateStat(sheet, sheet.intelligence, 'intelligence'),
       constitution: this.calculateStat(sheet, sheet.constitution, 'constitution'),
-      chill: this.calculateStat(sheet, sheet.chill, 'chill'),
+      wille: this.calculateStat(sheet, sheet.chill, 'chill'),
     };
   }
 
@@ -252,9 +253,9 @@ export class TrueStatsService {
   }
 
   /**
-   * Calculate chill.
+   * Calculate wille (formerly chill).
    */
-  calculateChill(sheet: CharacterSheet): number {
+  calculateWille(sheet: CharacterSheet): number {
     return this.calculateStat(sheet, sheet.chill, 'chill');
   }
 
@@ -442,7 +443,7 @@ export class TrueStatsService {
     if (sheet.speed) sheet.speed.current = stats.speed;
     if (sheet.intelligence) sheet.intelligence.current = stats.intelligence;
     if (sheet.constitution) sheet.constitution.current = stats.constitution;
-    if (sheet.chill) sheet.chill.current = stats.chill;
+    if (sheet.chill) sheet.chill.current = stats.wille;
   }
 
   /**
@@ -488,7 +489,7 @@ export class TrueStatsService {
       sheet.speed,
       sheet.intelligence,
       sheet.constitution,
-      sheet.chill
+      sheet.chill  // wille
     ];
     
     return stats.reduce((sum, stat) => sum + (stat?.free || 0), 0);

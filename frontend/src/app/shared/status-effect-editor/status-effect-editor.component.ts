@@ -34,7 +34,7 @@ export class StatusEffectEditorComponent implements OnInit {
     speed: 'Geschwindigkeit',
     intelligence: 'Intelligenz',
     constitution: 'Konstitution',
-    chill: 'Gelassenheit'
+    chill: 'Wille'
   };
 
   // Color presets 

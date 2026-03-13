@@ -141,23 +141,25 @@ export class SkillDetailComponent {
   }
 
   getCostDisplay(skill: SkillDefinition): string {
-    if (!skill.cost) return '';
+    const parts: string[] = [];
 
-    const typeLabels: Record<string, string> = {
-      'mana': 'Mana',
-      'energy': 'Ausdauer',
-      'life': 'Leben'
-    };
-
-    let costText = `${skill.cost.amount} ${typeLabels[skill.cost.type] || skill.cost.type}`;
-    if (skill.cost.perRound) {
-      costText += ' pro Runde';
+    if (skill.cost) {
+      const typeLabels: Record<string, string> = {
+        'mana': 'Mana',
+        'energy': 'Ausdauer',
+        'life': 'Leben'
+      };
+      let costText = `${skill.cost.amount} ${typeLabels[skill.cost.type] || skill.cost.type}`;
+      if (skill.cost.perRound) {
+        costText += '/Runde';
+      }
+      parts.push(costText);
     }
-    if (skill.bonusAction) {
-      costText += ' (Bonusaktion)';
-    }
 
-    return costText;
+    const actionType = skill.actionType || (skill.bonusAction ? 'Bonusaktion' : 'Aktion');
+    parts.push(actionType);
+
+    return parts.join(' · ');
   }
 
   getStatBonusDisplay(skill: SkillDefinition): string {
@@ -169,7 +171,7 @@ export class SkillDetailComponent {
       'dexterity': 'Geschicklichkeit',
       'speed': 'Tempo',
       'constitution': 'Konstitution',
-      'chill': 'Chill',
+      'chill': 'Wille',
       'mana': 'Mana',
       'life': 'Leben',
       'energy': 'Ausdauer',

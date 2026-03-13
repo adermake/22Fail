@@ -1,69 +1,17 @@
-﻿import { SkillDefinition } from '../model/skill-definition.model';
+const fs = require('fs');
+const path = require('path');
 
-// Class hierarchy definition (replaces class-definitions.txt)
-export interface ClassHierarchy {
-  [className: string]: {
-    tier: number;
-    angle: number;
-    children: Array<{ className: string; angle: number }>;
-  };
-}
+const filePath = path.join(__dirname, 'frontend/src/app/data/skill-definitions.ts');
+const content = fs.readFileSync(filePath, 'utf8');
 
-export const CLASS_DEFINITIONS: ClassHierarchy = {
-  // Tier 1
-  'Magier': { tier: 1, angle: 90, children: [{ className: 'Kampfzauberer', angle: 114 }, { className: 'Heiler', angle: 67 }] },
-  'Kämpfer': { tier: 1, angle: -41, children: [{ className: 'Krieger', angle: -14 }, { className: 'Barbar', angle: -58 }] },
-  'Techniker': { tier: 1, angle: -147, children: [{ className: 'Schütze', angle: -165 }, { className: 'Dieb', angle: -125 }] },
-  
-  // Tier 2
-  'Kampfzauberer': { tier: 2, angle: 114, children: [{ className: 'Arkanist', angle: 123 }, { className: 'Hämonant', angle: 90 }] },
-  'Heiler': { tier: 2, angle: 67, children: [{ className: 'Seelenmagier', angle: 65 }, { className: 'Paladin', angle: 26 }] },
-  'Schütze': { tier: 2, angle: -165, children: [{ className: 'Jäger', angle: -160 }, { className: 'Schnellschütze', angle: -179 }] },
-  'Dieb': { tier: 2, angle: -125, children: [{ className: 'Kampfakrobat', angle: -131 }, { className: 'Assassine', angle: -151 }] },
-  'Krieger': { tier: 2, angle: -14, children: [{ className: 'Ritter', angle: -1 }, { className: 'Mönch', angle: -35 }] },
-  'Barbar': { tier: 2, angle: -58, children: [{ className: 'Berserker', angle: -68 }, { className: 'Plünderer', angle: -96 }] },
-  
-  // Tier 3
-  'Arkanist': { tier: 3, angle: 123, children: [{ className: 'Formationsmagier', angle: 127 }, { className: 'Phantom', angle: -174 }, { className: 'Runenkünstler', angle: 104 }] },
-  'Hämonant': { tier: 3, angle: 90, children: [{ className: 'Nekromant', angle: 83 }] },
-  'Seelenmagier': { tier: 3, angle: 65, children: [{ className: 'Gestaltenwandler', angle: 55 }, { className: 'Mentalist', angle: 71 }] },
-  'Jäger': { tier: 3, angle: -160, children: [{ className: 'Attentäter', angle: -155 }] },
-  'Kampfakrobat': { tier: 3, angle: -131, children: [{ className: 'Klingentänzer', angle: -136 }, { className: 'Duellant', angle: -116 }, { className: 'Phantom', angle: -174 }] },
-  'Ritter': { tier: 3, angle: -1, children: [{ className: 'Erzritter', angle: 14 }, { className: 'Paladin', angle: 26 }, { className: 'Wächter', angle: -1 }] },
-  'Berserker': { tier: 3, angle: -68, children: [{ className: 'Kriegsherr', angle: -92 }, { className: 'Omen', angle: -51 }] },
-  'Plünderer': { tier: 3, angle: -96, children: [{ className: 'General', angle: -94 }] },
-  'Mönch': { tier: 3, angle: -35, children: [{ className: 'Templer', angle: -42 }] },
-  'Schnellschütze': { tier: 3, angle: -179, children: [{ className: 'Artificer', angle: 157 }] },
-  
-  // Tier 4
-  'Phantom': { tier: 4, angle: -174, children: [] },
-  'Gestaltenwandler': { tier: 4, angle: 55, children: [] },
-  'Formationsmagier': { tier: 4, angle: 127, children: [{ className: 'Manalord', angle: 118 }, { className: 'Artificer', angle: 157 }] },
-  'Runenkünstler': { tier: 4, angle: 104, children: [{ className: 'Manalord', angle: 118 }, { className: 'Dunkler Ritter', angle: 24 }] },
-  'Mentalist': { tier: 4, angle: 71, children: [{ className: 'Orakel', angle: 67 }, { className: 'Nekromant', angle: 83 }] },
-  'Assassine': { tier: 4, angle: -151, children: [{ className: 'Attentäter', angle: -155 }] },
-  'Klingentänzer': { tier: 4, angle: -136, children: [{ className: 'Waffenmeister', angle: -138 }] },
-  'Erzritter': { tier: 4, angle: 14, children: [{ className: 'Wächter', angle: -1 }, { className: 'Dunkler Ritter', angle: 24 }] },
-  'General': { tier: 4, angle: -94, children: [{ className: 'Kriegsherr', angle: -92 }] },
-  'Paladin': { tier: 4, angle: 26, children: [] },
-  'Templer': { tier: 4, angle: -42, children: [{ className: 'Koloss', angle: -30 }, { className: 'Omen', angle: -51 }] },
-  
-  // Tier 5
-  'Manalord': { tier: 5, angle: 118, children: [] },
-  'Artificer': { tier: 5, angle: 157, children: [] },
-  'Attentäter': { tier: 5, angle: -155, children: [] },
-  'Duellant': { tier: 5, angle: -116, children: [] },
-  'Waffenmeister': { tier: 5, angle: -138, children: [] },
-  'Kriegsherr': { tier: 5, angle: -92, children: [] },
-  'Omen': { tier: 5, angle: -51, children: [] },
-  'Koloss': { tier: 5, angle: -30, children: [] },
-  'Wächter': { tier: 5, angle: -1, children: [] },
-  'Dunkler Ritter': { tier: 5, angle: 24, children: [] },
-  'Orakel': { tier: 5, angle: 67, children: [] },
-  'Nekromant': { tier: 5, angle: 83, children: [] }
-};
+// Keep the part up to and including the opening of SKILL_DEFINITIONS
+const keepStart = content.substring(0, content.indexOf('export const SKILL_DEFINITIONS: SkillDefinition[] = [') + 'export const SKILL_DEFINITIONS: SkillDefinition[] = ['.length);
 
-export const SKILL_DEFINITIONS: SkillDefinition[] = [
+// Keep the helper functions at the end
+const helperStart = content.indexOf('\n// Get all unique class names');
+const keepEnd = content.substring(helperStart);
+
+const newSkillDefinitions = `
   // ==================== MAGIER ====================
   {
     id: 'magier_intelligenz_1',
@@ -2603,21 +2551,9 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     cost: { type: 'life', amount: 20, perRound: true },
     actionType: 'Bonusaktion'
   },
+`;
 
-];
-// Get all unique class names from skill definitions
-export function getAllClassesFromSkills(): string[] {
-  const classes = new Set<string>();
-  SKILL_DEFINITIONS.forEach(skill => classes.add(skill.class));
-  return Array.from(classes);
-}
-
-// Get skills for a specific class
-export function getSkillsForClass(className: string): SkillDefinition[] {
-  return SKILL_DEFINITIONS.filter(s => s.class === className);
-}
-
-// Get skill by ID
-export function getSkillById(skillId: string): SkillDefinition | undefined {
-  return SKILL_DEFINITIONS.find(s => s.id === skillId);
-}
+const newContent = keepStart + newSkillDefinitions + '\n];' + keepEnd;
+fs.writeFileSync(filePath, newContent, 'utf8');
+console.log('Done! File written successfully.');
+console.log('New file size:', newContent.length, 'chars');

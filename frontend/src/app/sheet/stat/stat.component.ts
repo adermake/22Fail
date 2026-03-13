@@ -42,7 +42,7 @@ export class StatComponent {
       'Geschwindigkeit': 'speed',
       'Intelligenz': 'intelligence',
       'Konstitution': 'constitution',
-      'Chill': 'chill'
+      'Wille': 'chill'
     };
     return nameMap[this.stat.name] || null;
   }

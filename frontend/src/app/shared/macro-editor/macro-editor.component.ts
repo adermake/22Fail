@@ -110,7 +110,7 @@ import { MacroAction, MacroActionType, MacroActionParameters } from '../../model
               <option value="speed">Tempo</option>
               <option value="intelligence">Intelligenz</option>
               <option value="constitution">Konstitution</option>
-              <option value="chill">Chill</option>
+              <option value="chill">Wille</option>
             </select>
           </div>
           <div class="form-row">

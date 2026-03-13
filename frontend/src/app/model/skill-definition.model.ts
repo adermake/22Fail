@@ -1,3 +1,7 @@
+export type SkillStatType =
+  'intelligence' | 'strength' | 'dexterity' | 'speed' | 'constitution' | 'chill' |
+  'mana' | 'life' | 'energy' | 'focus' | 'maxCastValue' | 'spellRadius';
+
 export interface SkillDefinition {
   id: string;                    // Unique ID: "magier_intelligenz_1"
   name: string;                  // Display name: "Intelligenz+1"
@@ -8,10 +12,15 @@ export interface SkillDefinition {
 
   // For stat bonuses (type: 'stat_bonus')
   statBonus?: {
-    stat: 'intelligence' | 'strength' | 'dexterity' | 'speed' | 'constitution' | 'chill' |
-          'mana' | 'life' | 'energy' | 'focus' | 'maxCastValue' | 'spellRadius';
+    stat: SkillStatType;
     amount: number;
   };
+
+  // For skills that grant two stat bonuses (e.g. Konstitution&Wille+2)
+  statBonuses?: Array<{
+    stat: SkillStatType;
+    amount: number;
+  }>;
 
   // For active skills (type: 'active')
   cost?: {
@@ -19,12 +28,17 @@ export interface SkillDefinition {
     amount: number;
     perRound?: boolean;          // Cost per round (like "10 pro Runde")
   };
-  bonusAction?: boolean;         // Is it a bonus action?
+
+  // Action type for active skills
+  actionType?: 'Aktion' | 'Bonusaktion' | 'Keine Aktion' | 'Reaktion';
+
+  /** @deprecated Use actionType instead */
+  bonusAction?: boolean;
 
   // Special flags
-  requiresSkill?: string | string[];  // Requires another skill or array of skills (e.g., "+Verinnerlichen" requires "Verinnerlichen")
-  infiniteLevel?: boolean;            // Can be learned multiple times (e.g., stat bonuses marked with ∞)
-  maxLevel?: number;                  // Maximum times this skill can be learned (default: 1, Infinity if infiniteLevel)
+  requiresSkill?: string | string[];  // Requires another skill or array of skills
+  infiniteLevel?: boolean;            // Can be learned multiple times (marked with ∞)
+  maxLevel?: number;                  // Maximum times this skill can be learned (default: 1)
 }
 
 // Helper to get skills for a specific class

@@ -264,3 +264,52 @@ app/
 - `spell-cost-display/`: Standalone Component, zeigt SpellCostResult als Panel
   - Button "⚖ Kosten" in der Top-Bar des Spell-Editors (amber/gelb)
   - Floating Overlay-Panel rechts, togglebar, zeigt Mana/Fokus/Attributanforderungen/Fälle
+
+## Skill-System (`data/skill-definitions.ts` + `model/skill-definition.model.ts`)
+
+### Stat "Wille" (intern: `chill`)
+- **Internes Property**: `chill` — in `character-sheet-model.ts` und `data.json` gespeichert
+- **WICHTIG**: Der interne Key bleibt `chill` für JSON-Kompatibilität mit bestehenden Saves. Nur UI-Text zeigt "Wille".
+- **Alle Anzeige-Texte** → "Wille" (nie "Charisma", "Chill", "Charm", "Charme"):
+  - StatKey-Mapping in allen Komponenten: `chill → 'Wille'`
+  - Abkürzung: `WIL` (nicht `CHR` oder `CHL`)
+- `CalculatedStats.wille` (früher `chill`) in `true-stats.service.ts`
+- `calculateWille()` (früher `calculateChill()`)
+
+### SkillDefinition Interface
+```typescript
+interface SkillDefinition {
+  id: string; name: string; class: string;
+  type: 'stat_bonus' | 'passive' | 'active' | 'dice_bonus';
+  description: string;
+  enlightened?: boolean;  // true = ! prefix in source
+  statBonus?: { stat: SkillStatType; amount: number };
+  statBonuses?: Array<{ stat: SkillStatType; amount: number }>;  // für dual-stat skills
+  cost?: { type: 'mana'|'energy'|'life'; amount: number; perRound?: boolean };
+  actionType?: 'Aktion'|'Bonusaktion'|'Keine Aktion'|'Reaktion';  // alle active skills haben dieses Feld
+  bonusAction?: boolean;  // deprecated, verwende actionType
+  requiresSkill?: string | string[];
+  infiniteLevel?: boolean;
+  maxLevel?: number;
+}
+```
+
+### Klassen-Hierarchie (CLASS_DEFINITIONS)
+- Tier 1: Magier, Kämpfer, Techniker
+- Tier 2: Kampfzauberer, Heiler, Schütze, Dieb, Krieger, Barbar
+- Tier 3: Arkanist, Hämonant, Seelenmagier, Jäger, Kampfakrobat, Ritter, Berserker, Plünderer, Mönch, Schnellschütze
+- Tier 4: Phantom, Gestaltenwandler, Formationsmagier, Runenkünstler, Mentalist, Assassine, Klingentänzer, Erzritter, General, Paladin, Templer
+- Tier 5: Manalord, Artificer, Attentäter, Duellant, Waffenmeister, Kriegsherr, Omen, Koloss, Wächter, Dunkler Ritter, Orakel, Nekromant
+- **Alias-Mapping** (Quelltext → Code): Seelenformer→Seelenmagier, Hämomant→Hämonant, Tüftler→Artificer, Manafürst→Manalord
+
+### Skill Detail Anzeige (`skill-detail.component`)
+- `getCostDisplay()`: Zeigt `"X Ausdauer/Mana · Aktion|Bonusaktion|..."` für alle `type: 'active'` Skills
+- `getStatBonusDisplay()`: Übersetzt interno `chill` → "Wille" für Display
+
+### Skill-Definitions Quellregeln (aus AlleKlassen.txt)
+- Default Kosten: `energy` (Ausdauer) wenn keine Ressource angegeben
+- Default actionType: `'Aktion'` wenn kein Schlüsselwort im Text
+- `!` Prefix → `enlightened: true`; `∞` Suffix → `infiniteLevel: true`
+- `+SkillName` Prefix → `requiresSkill: 'parent_skill_id'`
+- Dual-Stat-Klassen (Konstitution&Wille, etc.) → `statBonuses[]` Array
+- Phantom-Klasse ist NICHT in AlleKlassen.txt → wird separat beibehalten

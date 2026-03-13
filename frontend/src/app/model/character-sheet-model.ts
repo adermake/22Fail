@@ -77,7 +77,7 @@ export function createEmptySheet(): CharacterSheet {
     dexterity: createEmptyStatBlock('Geschicklichkeit'),
     speed: createEmptyStatBlock('Geschwindigkeit'),
     intelligence: createEmptyStatBlock('Intelligenz'),
-    chill: createEmptyStatBlock('Chill'),
+    chill: createEmptyStatBlock('Wille'),
     constitution: createEmptyStatBlock('Konstitution'),
     skills: [],
     inventory: [],

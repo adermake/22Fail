@@ -60,7 +60,7 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     { key: 'speed',        label: 'GES' },
     { key: 'intelligence', label: 'INT' },
     { key: 'constitution', label: 'KON' },
-    { key: 'chill',        label: 'CHR' },
+    { key: 'chill',        label: 'WIL' },
   ];
 
   ngOnInit() {

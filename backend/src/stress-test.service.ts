@@ -164,7 +164,7 @@ export class StressTestService {
       dexterity: this.generateStatBlock('Geschicklichkeit'),
       speed: this.generateStatBlock('Geschwindigkeit'),
       intelligence: this.generateStatBlock('Intelligenz'),
-      chill: this.generateStatBlock('Chill'),
+      chill: this.generateStatBlock('Wille'),
       constitution: this.generateStatBlock('Konstitution'),
       skills: this.generateSkills(this.randomInt(3, 10)),
       statuses: this.generateStatuses(),
