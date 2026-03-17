@@ -12,9 +12,10 @@
 import { SpellGraph, SpellNode, SpellConnection } from './spell-node.model';
 import { RuneBlock, RuneStatRequirements } from '../../model/rune-block.model';
 import { buildRunePorts } from './spell-node.model';
-import { SpellCostResult, CostCase, TurnCostEntry, CaseTotals, TraceStep } from './spell-cost.model';
+import { SpellCostResult, CostCase, TurnCostEntry, CaseTotals, TraceStep, TurnSummaryGroup } from './spell-cost.model';
 
-const UNLIMITED_LOOP_CAP = 5;
+/** When no maxPassthrough is set, cap loops at this value for cost estimation */
+const UNLIMITED_LOOP_CAP = 20;
 
 type PortsMap    = Map<string, ReturnType<typeof buildRunePorts>>;
 /** Keyed by node INSTANCE ID (SpellNode.id), NOT by rune name */
@@ -142,6 +143,31 @@ function mergeEntries(a: TurnCostEntry[], b: TurnCostEntry[]): TurnCostEntry[] {
 function entriesIdentical(a: TurnCostEntry[], b: TurnCostEntry[]): boolean {
   if (a.length !== b.length) return false;
   return a.every((e, i) => e.turn === b[i].turn && Math.abs(e.mana - b[i].mana) < 0.001 && Math.abs(e.fokus - b[i].fokus) < 0.001);
+}
+
+/**
+ * Compress a sorted list of TurnCostEntry into run-length groups.
+ * E.g. turns 1-5 identical → one group {fromTurn:1, toTurn:5}; then turn 6 different → separate group.
+ */
+function compressTurns(entries: TurnCostEntry[]): TurnSummaryGroup[] {
+  if (entries.length === 0) return [];
+  const groups: TurnSummaryGroup[] = [];
+  let cur = entries[0];
+  let fromTurn = cur.turn;
+  let prevTurn = cur.turn;
+  for (let i = 1; i < entries.length; i++) {
+    const e = entries[i];
+    const consecutive = e.turn === prevTurn + 1;
+    const sameCost = Math.abs(e.mana - cur.mana) < 0.001 && Math.abs(e.fokus - cur.fokus) < 0.001;
+    if (consecutive && sameCost) {
+      prevTurn = e.turn;
+    } else {
+      groups.push({ fromTurn, toTurn: prevTurn, mana: cur.mana, fokus: cur.fokus });
+      cur = e; fromTurn = e.turn; prevTurn = e.turn;
+    }
+  }
+  groups.push({ fromTurn, toTurn: prevTurn, mana: cur.mana, fokus: cur.fokus });
+  return groups;
 }
 
 function traverse(
@@ -273,7 +299,8 @@ function computeTotals(entries: TurnCostEntry[]): CaseTotals {
     perTurnUniform = delayed.every(e => e.mana === fm && e.fokus === ff);
     if (perTurnUniform) { perTurnMana = fm; perTurnFokus = ff; }
   }
-  return { mana: t0?.mana ?? 0, fokus: t0?.fokus ?? 0, perTurnMana, perTurnFokus, perTurnUniform, maxRepeats: delayed.length };
+  const turnSummary = compressTurns(delayed);
+  return { mana: t0?.mana ?? 0, fokus: t0?.fokus ?? 0, perTurnMana, perTurnFokus, perTurnUniform, maxRepeats: delayed.length, turnSummary };
 }
 
 function sumStatRequirements(nodes: SpellNode[], runeByName: Map<string, RuneBlock>): RuneStatRequirements {
@@ -297,6 +324,9 @@ export function calculateSpellCost(graph: SpellGraph, availableRunes: RuneBlock[
   const nodeRuneMap = buildNodeRuneMap(graph.nodes, runeByName);
   const portsMap    = buildPortsMap(graph.nodes, runeByName);
   const statRequirements = sumStatRequirements(graph.nodes, runeByName);
+
+  // Detect infinite loops: any unconditional connection without a maxPassthrough that participates in a cycle
+  const hasInfiniteLoop = detectInfiniteLoop(graph, portsMap);
 
   const rootCase = traverse('start', 0, new Map(), graph, nodeRuneMap, portsMap, 'Gesamt');
   const knownSubs = rootCase.subcases?.filter(s => !s.isUnknownMerge) ?? [];
@@ -343,6 +373,7 @@ export function calculateSpellCost(graph: SpellGraph, availableRunes: RuneBlock[
     caseTotals,
     simpleTotals,
     hasPerTurnCosts: cases.some(c => (c.fullEntries ?? c.entries).some(e => e.turn > 0)),
+    hasInfiniteLoop,
     nodeCount: graph.nodes.length,
     connectionCount: graph.connections.length,
     rootTrace: rootCase.trace,
@@ -350,5 +381,33 @@ export function calculateSpellCost(graph: SpellGraph, availableRunes: RuneBlock[
     unknownBranches: unknownSubs.map(s => ({ label: s.label, entries: s.entries })),
     unknownMergeMode,
   };
+}
+
+/** Detect if there's any unconditional cycle with no finite maxPassthrough. */
+function detectInfiniteLoop(graph: SpellGraph, portsMap: PortsMap): boolean {
+  // Build adjacency from unconditional flow edges that have no maxPassthrough
+  const adj = new Map<string, string[]>();
+  for (const c of graph.connections) {
+    if (c.condition) continue; // conditional branches are not loops
+    if (c.maxPassthrough != null) continue; // finite passthrough → not infinite
+    if (!isFlowConnection(c, portsMap)) continue;
+    const list = adj.get(c.fromNodeId) ?? [];
+    list.push(c.toNodeId);
+    adj.set(c.fromNodeId, list);
+  }
+  // DFS cycle detection
+  const visited = new Set<string>();
+  const inStack = new Set<string>();
+  function hasCycle(n: string): boolean {
+    if (inStack.has(n)) return true;
+    if (visited.has(n)) return false;
+    visited.add(n); inStack.add(n);
+    for (const nb of adj.get(n) ?? []) { if (hasCycle(nb)) return true; }
+    inStack.delete(n);
+    return false;
+  }
+  const allNodes = new Set(['start', ...graph.nodes.map(n => n.id)]);
+  for (const n of allNodes) { if (!visited.has(n) && hasCycle(n)) return true; }
+  return false;
 }
 

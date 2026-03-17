@@ -1,6 +1,6 @@
 ﻿import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { SpellCostResult, CaseTotals, TraceStep, TurnCostEntry } from '../spell-cost.model';
+import { SpellCostResult, CaseTotals, TraceStep, TurnCostEntry, TurnSummaryGroup } from '../spell-cost.model';
 import { RuneStatRequirements } from '../../../model/rune-block.model';
 
 @Component({
@@ -67,6 +67,24 @@ export class SpellCostDisplayComponent {
     if (t.perTurnMana  > 0) parts.push(`${this.fmt(t.perTurnMana)} Mana`);
     if (t.perTurnFokus > 0) parts.push(`${this.fmt(t.perTurnFokus)} Fokus`);
     return parts.join(' · ');
+  }
+
+  /** Get the compressed turn-summary groups for a case. */
+  summaryGroups(ci: number): TurnSummaryGroup[] {
+    return this.result.caseTotals[ci]?.turnSummary ?? [];
+  }
+
+  /** Label for a summary group: "Runde 3" or "Runde 3–8" */
+  summaryGroupLabel(g: TurnSummaryGroup): string {
+    return g.fromTurn === g.toTurn ? `Runde ${g.fromTurn}` : `Runde ${g.fromTurn}–${g.toTurn}`;
+  }
+
+  /** Cost string for a summary group: "2 Mana · 1 Fokus" */
+  summaryGroupStr(g: TurnSummaryGroup): string {
+    const parts: string[] = [];
+    if (g.mana  > 0) parts.push(`${this.fmt(g.mana)} Mana`);
+    if (g.fokus > 0) parts.push(`${this.fmt(g.fokus)} Fokus`);
+    return parts.join(' · ') || '—';
   }
 
   totalsFor(idx: number): CaseTotals { return this.result.caseTotals[idx]; }

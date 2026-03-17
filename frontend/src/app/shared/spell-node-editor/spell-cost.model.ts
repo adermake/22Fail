@@ -43,6 +43,16 @@ export interface CaseTotals {
   perTurnFokus: number;
   perTurnUniform: boolean;
   maxRepeats: number;
+  /** Compressed summary of the turn pattern for display */
+  turnSummary?: TurnSummaryGroup[];
+}
+
+/** A run of turns with the same cost, e.g. turns 1-5 */
+export interface TurnSummaryGroup {
+  fromTurn: number;
+  toTurn: number;   // same as fromTurn if single turn
+  mana: number;
+  fokus: number;
 }
 
 /** The complete result from the spell cost calculator */
@@ -53,6 +63,8 @@ export interface SpellCostResult {
   caseTotals: CaseTotals[];
   simpleTotals: CaseTotals;
   hasPerTurnCosts: boolean;
+  /** True when the spell has at least one unbounded loop (no maxPassthrough set on a cycling connection). */
+  hasInfiniteLoop: boolean;
   nodeCount: number;
   connectionCount: number;
   /** Ordered trace of shared path nodes (before branches). Full trace when no branches. */

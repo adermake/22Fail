@@ -1137,6 +1137,29 @@
 }
 .conn-badge-passthrough { stroke: rgba(139,92,246,0.85); fill: rgba(60,20,120,0.92); }
 .conn-badge-delay      { stroke: rgba(251,191,36,0.85);  fill: rgba(100,60,5,0.92); }
+/* Combined split badge (passthrough + delay) */
+.conn-badge-combined .conn-badge-outline {
+  stroke: rgba(200,160,60,0.55);
+  stroke-width: 1.2;
+  fill: none;
+}
+.conn-badge-icon-sm {
+  fill: #f1f5f9;
+  font-size: 11px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+  font-family: monospace;
+}
+.conn-badge-sub-l {
+  fill: rgba(226,232,240,0.9);
+  font-size: 9px;
+  text-anchor: middle;
+  dominant-baseline: hanging;
+  font-family: monospace;
+  font-weight: 600;
+  pointer-events: none;
+}
 .conn-badge-icon {
   fill: #f1f5f9;
   font-size: 13px;

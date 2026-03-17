@@ -1,5 +1,12 @@
 ﻿<div class="scd-body">
 
+  @if (result.hasInfiniteLoop) {
+    <div class="scd-infinite-warn">
+      <span class="scd-inf-icon">∞</span>
+      Ungebundene Schleife — Manakosten theoretisch unbegrenzt (Anzeige begrenzt)
+    </div>
+  }
+
   <!-- GESAMTKOSTEN -->
   <div class="scd-section">
     <div class="scd-lbl">
@@ -31,10 +38,10 @@
         </div>
       } @else {
         <div class="scd-turn-list">
-          @for (e of caseEntries(0); track e.turn) {
+          @for (g of summaryGroups(0); track g.fromTurn) {
             <div class="scd-turn-row">
-              <span class="scd-turn-label">Runde {{ e.turn }}</span>
-              <span class="scd-turn-costs">{{ turnCostStr(e) }}</span>
+              <span class="scd-turn-label">{{ summaryGroupLabel(g) }}</span>
+              <span class="scd-turn-costs">{{ summaryGroupStr(g) }}</span>
             </div>
           }
         </div>
@@ -49,10 +56,10 @@
             <div class="scd-branch-case-cost">{{ turnCostStr(caseEntries(ci)[0] ?? {turn:0,mana:0,fokus:0}) }}</div>
           } @else {
             <div class="scd-turn-list scd-turn-list-sm">
-              @for (e of caseEntries(ci); track e.turn) {
+              @for (g of summaryGroups(ci); track g.fromTurn) {
                 <div class="scd-turn-row">
-                  <span class="scd-turn-label">R{{ e.turn }}</span>
-                  <span class="scd-turn-costs">{{ turnCostStr(e) }}</span>
+                  <span class="scd-turn-label">{{ summaryGroupLabel(g) }}</span>
+                  <span class="scd-turn-costs">{{ summaryGroupStr(g) }}</span>
                 </div>
               }
             </div>

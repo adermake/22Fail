@@ -316,15 +316,33 @@
                 </g>
               }
               @if (c.passthroughEnabled && bp.passthrough; as pp) {
-                <g class="conn-badge" [attr.transform]="'translate('+pp.x+','+pp.y+') scale('+zoom+')'">
-                  <circle r="14" class="conn-badge-bg conn-badge-passthrough"/>
-                  <text class="conn-badge-icon">⟳</text>
-                  @if (c.maxPassthrough) {
-                    <text class="conn-badge-sub" dy="18">{{ c.maxPassthrough }}×</text>
-                  }
-                </g>
+                @if (c.lineDelay) {
+                  <!-- Combined badge: passthrough + delay split half-half -->
+                  <g class="conn-badge conn-badge-combined" [attr.transform]="'translate('+pp.x+','+pp.y+') scale('+zoom+')'">
+                    <!-- top half: passthrough colour -->
+                    <path d="M -18 0 A 18 18 0 0 1 18 0 Z" class="conn-badge-bg conn-badge-passthrough"/>
+                    <!-- bottom half: delay colour -->
+                    <path d="M -18 0 A 18 18 0 0 0 18 0 Z" class="conn-badge-bg conn-badge-delay"/>
+                    <circle r="18" fill="none" class="conn-badge-outline"/>
+                    <text class="conn-badge-icon-sm" dy="-3" dx="-7">⟳</text>
+                    <text class="conn-badge-icon-sm" dy="10" dx="4">⧗</text>
+                    @if (c.maxPassthrough) {
+                      <text class="conn-badge-sub-l" dy="23">{{ c.maxPassthrough }}×</text>
+                    }
+                  </g>
+                } @else {
+                  <!-- Passthrough-only badge -->
+                  <g class="conn-badge" [attr.transform]="'translate('+pp.x+','+pp.y+') scale('+zoom+')'">
+                    <circle r="14" class="conn-badge-bg conn-badge-passthrough"/>
+                    <text class="conn-badge-icon">⟳</text>
+                    @if (c.maxPassthrough) {
+                      <text class="conn-badge-sub" dy="18">{{ c.maxPassthrough }}×</text>
+                    }
+                  </g>
+                }
               }
-              @if (c.lineDelay && bp.delay; as dp) {
+              @if (c.lineDelay && !c.passthroughEnabled && bp.delay; as dp) {
+                <!-- Delay-only badge (only when NO passthrough — combined shown above) -->
                 <g class="conn-badge" [attr.transform]="'translate('+dp.x+','+dp.y+') scale('+zoom+')'">
                   <circle r="14" class="conn-badge-bg conn-badge-delay"/>
                   <text class="conn-badge-icon">⧗</text>
@@ -573,14 +591,14 @@
               }
             </button>
           }
-          @if (getSelectedConnection()!.condition && getSelectedConnection()!.precastKnown) {
+          @if (getSelectedConnection()!.condition) {
             <button class="ci-precast-toggle ci-excl-toggle"
                     [class.is-exclusive]="getSelectedConnection()!.exclusive"
-                    (click)="updateSelectedConnection({exclusive: !getSelectedConnection()!.exclusive})">
+                    (click)="toggleExclusiveSiblings()">
               @if (getSelectedConnection()!.exclusive) {
-                ⊗ Exklusiv (nur eine Bedingung)
+                ⊗ Exklusiv — alle Äste von dieser Quelle
               } @else {
-                ⊕ Kombinierbar (mehrere möglich)
+                ⊕ Kombinierbar — Äste können gleichzeitig feuern
               }
             </button>
           }

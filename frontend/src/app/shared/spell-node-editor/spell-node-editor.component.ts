@@ -1219,6 +1219,9 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     this.pushUndo(); // capture pre-drag state
     this.lastMouseDownX = e.clientX;
     this.lastMouseDownY = e.clientY;
+    // Deselect waypoints and connection when clicking a node
+    this.selectedWaypoints = new Map();
+    this.selectedConnectionId = null;
     // If clicking a selected node, ensure it stays selected (don't clear)
     if (!this.selectedNodeIds.has(nodeId)) {
       this.selectedNodeIds = new Set([nodeId]);
@@ -1578,6 +1581,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   selectConnection(id: string, e: MouseEvent) {
     e.stopPropagation();
+    this.selectedWaypoints = new Map(); // deselect waypoints when clicking a connection
     this.selectedConnectionId = this.selectedConnectionId === id ? null : id;
     this.selectedNodeIds = new Set(); // deselect nodes when selecting a connection
     this.startNodeSelected = false;
@@ -2056,6 +2060,20 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     this.pushUndo();
     const updated = this.graph.connections.map(c =>
       c.id === this.selectedConnectionId ? { ...c, ...patch } : c
+    );
+    this.graph.connections = updated;
+    this.graphConnectionsSig.set(updated);
+  }
+
+  /** Toggle exclusive flag and propagate to all conditional siblings from the same source node. */
+  toggleExclusiveSiblings() {
+    if (!this.selectedConnectionId) return;
+    const sel = this.graph.connections.find(c => c.id === this.selectedConnectionId);
+    if (!sel?.condition) return;
+    const newVal = !sel.exclusive;
+    this.pushUndo();
+    const updated = this.graph.connections.map(c =>
+      c.condition && c.fromNodeId === sel.fromNodeId ? { ...c, exclusive: newVal } : c
     );
     this.graph.connections = updated;
     this.graphConnectionsSig.set(updated);

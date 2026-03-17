@@ -17,6 +17,28 @@
 .scd-body::-webkit-scrollbar-track { background: transparent; }
 .scd-body::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.25); border-radius: 4px; }
 
+/* ── Infinite loop warning ───────────────────────────────────────────── */
+.scd-infinite-warn {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin: 8px 14px 0;
+  padding: 5px 10px;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 6px;
+  color: #fca5a5;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.scd-inf-icon {
+  font-size: 1.1rem;
+  font-weight: 900;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 /* ── Sections ────────────────────────────────────────────────────────── */
 .scd-section {
   padding: 10px 14px 8px;
