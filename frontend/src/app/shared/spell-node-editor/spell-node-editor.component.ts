@@ -755,6 +755,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // Document-level mouse handlers (registered manually in ngOnInit)
   private handleMouseMove(e: MouseEvent) {
+    // Canvas not in DOM (Eigenschaften tab) — ignore all canvas-related mouse events
+    if (!this.canvasWrapRef) return;
     if (this.marqueeActive) {
       const rect = this.canvasEl().getBoundingClientRect();
       this.marqueeEndX = e.clientX - rect.left;
@@ -937,6 +939,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   private handleMouseUp(e: MouseEvent) {
+    if (!this.canvasWrapRef) return;
     // Check pending FIRST
     const cur = this.pending();
     if (cur) {
@@ -1738,6 +1741,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   onCanvasDrop(e: DragEvent) {
     e.preventDefault();
     e.stopPropagation();
+    if (!this.canvasWrapRef) return;
     const runeName = e.dataTransfer!.getData('runeName');
     if (!runeName) return;
     const world = this.clientToWorld(e.clientX, e.clientY);
