@@ -116,6 +116,17 @@ function mergeWorstCase(a: Acc, b: Acc): Acc {
   return r;
 }
 
+/** Non-exclusive unknown branches: all fire simultaneously → sum costs */
+function mergeSumCase(a: Acc, b: Acc): Acc {
+  const r: Acc = { turnMap: new Map(), trace: [], subcases: [] };
+  for (const t of new Set([...a.turnMap.keys(), ...b.turnMap.keys()])) {
+    const av = a.turnMap.get(t) ?? { mana: 0, fokus: 0 };
+    const bv = b.turnMap.get(t) ?? { mana: 0, fokus: 0 };
+    r.turnMap.set(t, { mana: av.mana + bv.mana, fokus: av.fokus + bv.fokus });
+  }
+  return r;
+}
+
 /** Merge two TurnCostEntry arrays, summing costs for the same turn */
 function mergeEntries(a: TurnCostEntry[], b: TurnCostEntry[]): TurnCostEntry[] {
   const m = new Map<number, { mana: number; fokus: number }>();
@@ -160,8 +171,9 @@ function traverse(
     const unknownBranches = outConns.filter(c =>  c.condition && !c.precastKnown);
 
     // Reverse so first output is processed first (stack is LIFO)
+    // limit: explicit maxPassthrough caps the loop; without it the connection is unlimited (capped by UNLIMITED_LOOP_CAP)
     for (const conn of [...unconditional].reverse()) {
-      const limit = conn.passthroughEnabled ? (conn.maxPassthrough ?? UNLIMITED_LOOP_CAP) : 1;
+      const limit = conn.maxPassthrough ?? UNLIMITED_LOOP_CAP;
       const count = pc.get(conn.id) ?? 0;
       if (count >= limit) continue;
       const nc = new Map(pc);
@@ -176,7 +188,7 @@ function traverse(
       if (isExclusive) {
         // EXCLUSIVE: each branch fires independently — mutually exclusive cases
         knownBranches.forEach((conn, idx) => {
-          const limit = conn.passthroughEnabled ? (conn.maxPassthrough ?? UNLIMITED_LOOP_CAP) : 1;
+          const limit = conn.maxPassthrough ?? UNLIMITED_LOOP_CAP;
           const count = pc.get(conn.id) ?? 0;
           if (count >= limit) return;
           const nc = new Map(pc);
@@ -193,7 +205,7 @@ function traverse(
           const subTurnMap = new Map<number, { mana: number; fokus: number }>();
           const subTrace: TraceStep[] = [];
           for (const conn of subset) {
-            const limit = conn.passthroughEnabled ? (conn.maxPassthrough ?? UNLIMITED_LOOP_CAP) : 1;
+            const limit = conn.maxPassthrough ?? UNLIMITED_LOOP_CAP;
             const count = pc.get(conn.id) ?? 0;
             if (count >= limit) continue;
             const nc = new Map(pc);
@@ -215,9 +227,11 @@ function traverse(
 
     if (unknownBranches.length > 0) {
       const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      // exclusive unknown: only one fires → worst-case = max; non-exclusive: all fire → sum
+      const isExclusiveUnknown = unknownBranches.some(c => c.exclusive);
       const branchAccs: Acc[] = [];
       unknownBranches.forEach((conn, idx) => {
-        const limit = conn.passthroughEnabled ? (conn.maxPassthrough ?? UNLIMITED_LOOP_CAP) : 1;
+        const limit = conn.maxPassthrough ?? UNLIMITED_LOOP_CAP;
         const count = pc.get(conn.id) ?? 0;
         if (count >= limit) {
           acc.subcases.push({ label: conn.condition || `Pfad ${letters[idx]}`, entries: [], trace: [], isUnknownMerge: true });
@@ -234,7 +248,11 @@ function traverse(
       });
       if (branchAccs.length > 0) {
         let merged = branchAccs[0];
-        for (let i = 1; i < branchAccs.length; i++) merged = mergeWorstCase(merged, branchAccs[i]);
+        for (let i = 1; i < branchAccs.length; i++) {
+          merged = isExclusiveUnknown
+            ? mergeWorstCase(merged, branchAccs[i])   // exclusive: take max (only one fires)
+            : mergeSumCase(merged, branchAccs[i]);     // non-exclusive: sum all (all can fire)
+        }
         for (const [t, v] of merged.turnMap) accumAdd(acc, t, v.mana, v.fokus);
       }
     }
@@ -284,6 +302,12 @@ export function calculateSpellCost(graph: SpellGraph, availableRunes: RuneBlock[
   const knownSubs = rootCase.subcases?.filter(s => !s.isUnknownMerge) ?? [];
   const hasKnownBranches = knownSubs.length > 0;
 
+  const unknownSubs = rootCase.subcases?.filter(s =>  s.isUnknownMerge) ?? [];
+  const allUnknownConns = graph.connections.filter(c => c.condition && !c.precastKnown);
+  const unknownMergeMode: 'exclusive' | 'combined' | 'none' =
+    allUnknownConns.length === 0 ? 'none'
+    : allUnknownConns.some(c => c.exclusive) ? 'exclusive' : 'combined';
+
   // Merge shared-path costs (rootCase.entries) into each case's fullEntries
   const sharedEntries = rootCase.entries;
   const casesRaw: CostCase[] = hasKnownBranches
@@ -322,6 +346,9 @@ export function calculateSpellCost(graph: SpellGraph, availableRunes: RuneBlock[
     nodeCount: graph.nodes.length,
     connectionCount: graph.connections.length,
     rootTrace: rootCase.trace,
+    sharedEntries,
+    unknownBranches: unknownSubs.map(s => ({ label: s.label, entries: s.entries })),
+    unknownMergeMode,
   };
 }
 

@@ -62,6 +62,57 @@
     }
   </div>
 
+  <!-- KOSTENBAUM -->
+  @if (hasBranchTree) {
+    <div class="scd-section">
+      <div class="scd-lbl">Kostenbaum</div>
+      <div class="scd-tree">
+
+        <!-- Shared / main path node -->
+        <div class="scd-tree-root">
+          <span class="scd-tree-root-lbl">Gemeinsamer Pfad</span>
+          <span class="scd-tree-root-cost">{{ treeNodeCostStr(sharedEntries) }}</span>
+        </div>
+
+        <!-- Known branch split -->
+        @if (result.hasKnownBranches) {
+          <div class="scd-tree-branch-list">
+            @for (c of result.cases; let ci = $index; let last = $last; track ci) {
+              <div class="scd-tree-branch-item" [class.scd-tree-last]="last">
+                <span class="scd-tree-branch-lbl">{{ c.label }}</span>
+                @if (branchOnlyHasCost(ci)) {
+                  <span class="scd-tree-branch-delta">+{{ treeNodeCostStr(branchOnlyEntries(ci)) }}</span>
+                }
+                <span class="scd-tree-arrow">→</span>
+                <span class="scd-tree-branch-total">{{ treeNodeCostStr(caseEntries(ci)) }}</span>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Unknown branches -->
+        @if (result.unknownBranches.length > 0) {
+          <div class="scd-tree-unknown-group">
+            <div class="scd-tree-unknown-header">
+              <span class="scd-tree-unknown-icon">?</span>
+              <span class="scd-tree-unknown-lbl">Unbekannte Äste</span>
+            </div>
+            <div class="scd-tree-branch-list scd-tree-unk-list">
+              @for (ub of result.unknownBranches; let last = $last; track $index) {
+                <div class="scd-tree-branch-item scd-tree-branch-unk" [class.scd-tree-last]="last">
+                  <span class="scd-tree-branch-lbl">{{ ub.label }}</span>
+                  <span class="scd-tree-branch-delta">{{ treeNodeCostStr(ub.entries) }}</span>
+                </div>
+              }
+            </div>
+            <div class="scd-tree-unknown-mode">{{ unknownModeLabel() }}</div>
+          </div>
+        }
+
+      </div>
+    </div>
+  }
+
   <!-- ATTRIBUTANFORDERUNGEN -->
   @if (hasStat()) {
     <div class="scd-section">

@@ -57,4 +57,10 @@ export interface SpellCostResult {
   connectionCount: number;
   /** Ordered trace of shared path nodes (before branches). Full trace when no branches. */
   rootTrace: TraceStep[];
+  /** Costs along the shared path before known branches (includes unknown worst-case if any). */
+  sharedEntries: TurnCostEntry[];
+  /** Individual unknown branch costs (before merging), for tree visualization. */
+  unknownBranches: { label: string; entries: TurnCostEntry[] }[];
+  /** How unknown branches were merged. */
+  unknownMergeMode: 'exclusive' | 'combined' | 'none';
 }

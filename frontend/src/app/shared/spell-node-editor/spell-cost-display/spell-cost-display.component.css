@@ -586,3 +586,80 @@
   font-weight: 600;
   color: #e2e8f0;
 }
+
+/* ── Kostenbaum tree visualization ──────────────────────────────────── */
+.scd-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.scd-tree-root {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+}
+.scd-tree-root-lbl {
+  font-size: 0.63rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.scd-tree-root-cost {
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-left: auto;
+}
+.scd-tree-branch-list {
+  margin-left: 10px;
+  border-left: 2px solid rgba(139,92,246,0.35);
+  padding-left: 0;
+}
+.scd-tree-branch-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px 4px 12px;
+  font-size: 0.71rem;
+  border-bottom: 1px solid rgba(139,92,246,0.08);
+}
+.scd-tree-branch-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 10px;
+  height: 1px;
+  background: rgba(139,92,246,0.35);
+}
+.scd-tree-last { border-bottom: none; }
+.scd-tree-branch-lbl  { color: #c4b5fd; font-weight: 700; flex-shrink: 0; }
+.scd-tree-branch-delta { color: #64748b; font-size: 0.66rem; flex-shrink: 0; }
+.scd-tree-arrow        { color: #334155; flex-shrink: 0; }
+.scd-tree-branch-total { color: #e2e8f0; font-weight: 600; margin-left: auto; white-space: nowrap; }
+
+/* Unknown branch sub-list uses amber palette */
+.scd-tree-unknown-group { margin-top: 6px; }
+.scd-tree-unknown-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+}
+.scd-tree-unknown-icon { color: #eab308; font-weight: 700; font-size: 0.8rem; }
+.scd-tree-unknown-lbl  { font-size: 0.63rem; font-weight: 700; color: #ca8a04; text-transform: uppercase; letter-spacing: 0.05em; }
+.scd-tree-unk-list { border-left-color: rgba(234,179,8,0.4); }
+.scd-tree-branch-item.scd-tree-branch-unk::before { background: rgba(234,179,8,0.4); }
+.scd-tree-branch-item.scd-tree-branch-unk .scd-tree-branch-lbl  { color: #fde68a; }
+.scd-tree-branch-item.scd-tree-branch-unk .scd-tree-branch-delta { color: #a16207; }
+.scd-tree-unknown-mode {
+  font-size: 0.62rem;
+  color: #d97706;
+  padding: 3px 8px;
+}

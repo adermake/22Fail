@@ -90,4 +90,40 @@ export class SpellCostDisplayComponent {
     return !this.result.hasKnownBranches &&
       this.result.cases.every(c => c.entries.length === 0 && !c.subcases?.length);
   }
+
+  // ── Kostenbaum helpers ───────────────────────────────────────────────
+
+  get hasBranchTree(): boolean {
+    return this.result.hasKnownBranches || this.result.unknownBranches.length > 0;
+  }
+
+  get sharedEntries(): TurnCostEntry[] {
+    return this.result.sharedEntries;
+  }
+
+  /** Sum all turns and format as compact "5 Mana · 3 Fokus" for tree nodes. */
+  treeNodeCostStr(entries: TurnCostEntry[]): string {
+    const totalMana  = entries.reduce((s, e) => s + e.mana,  0);
+    const totalFokus = entries.reduce((s, e) => s + e.fokus, 0);
+    const parts: string[] = [];
+    if (totalMana  > 0) parts.push(`${this.fmt(totalMana)} Mana`);
+    if (totalFokus > 0) parts.push(`${this.fmt(totalFokus)} Fokus`);
+    return parts.join(' · ') || '—';
+  }
+
+  /** Returns branch-only (delta) entries for case ci. */
+  branchOnlyEntries(ci: number): TurnCostEntry[] {
+    return this.result.cases[ci]?.entries ?? [];
+  }
+
+  /** True if the branch has its own delta cost (beyond shared path). */
+  branchOnlyHasCost(ci: number): boolean {
+    return this.branchOnlyEntries(ci).some(e => e.mana > 0 || e.fokus > 0);
+  }
+
+  unknownModeLabel(): string {
+    return this.result.unknownMergeMode === 'exclusive'
+      ? '⚠ Schlimmster Fall: Maximum (exklusiv)'
+      : '⚠ Schlimmster Fall: Summe (kombinierbar)';
+  }
 }
