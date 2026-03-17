@@ -573,6 +573,17 @@
               }
             </button>
           }
+          @if (getSelectedConnection()!.condition && getSelectedConnection()!.precastKnown) {
+            <button class="ci-precast-toggle ci-excl-toggle"
+                    [class.is-exclusive]="getSelectedConnection()!.exclusive"
+                    (click)="updateSelectedConnection({exclusive: !getSelectedConnection()!.exclusive})">
+              @if (getSelectedConnection()!.exclusive) {
+                ⊗ Exklusiv (nur eine Bedingung)
+              } @else {
+                ⊕ Kombinierbar (mehrere möglich)
+              }
+            </button>
+          }
 
           <!-- Durchläufe / Passthrough -->
           <div class="ci-section-lbl">Durchläufe</div>

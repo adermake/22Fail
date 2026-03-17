@@ -1,6 +1,6 @@
 ﻿import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { SpellCostResult, CaseTotals, TraceStep } from '../spell-cost.model';
+import { SpellCostResult, CaseTotals, TraceStep, TurnCostEntry } from '../spell-cost.model';
 import { RuneStatRequirements } from '../../../model/rune-block.model';
 
 @Component({
@@ -36,18 +36,37 @@ export class SpellCostDisplayComponent {
     return (Math.round(v * 100) / 100).toFixed(2).replace(/\.?0+$/, '');
   }
 
+  /** Returns the complete per-turn entries for a case (shared path + branch costs merged). */
+  caseEntries(ci: number): TurnCostEntry[] {
+    const c = this.result.cases[ci];
+    return c?.fullEntries ?? c?.entries ?? [];
+  }
+
+  /** True when entries span more than just a single Turn-0 cost. */
+  hasMultipleTurns(entries: TurnCostEntry[]): boolean {
+    return entries.length > 1 || (entries.length === 1 && entries[0].turn > 0);
+  }
+
+  /** Format a single TurnCostEntry as "5 Mana · 3 Fokus". */
+  turnCostStr(e: TurnCostEntry): string {
+    const parts: string[] = [];
+    if (e.mana  > 0) parts.push(`${this.fmt(e.mana)} Mana`);
+    if (e.fokus > 0) parts.push(`${this.fmt(e.fokus)} Fokus`);
+    return parts.length > 0 ? parts.join(' · ') : '—';
+  }
+
   castCostStr(t: CaseTotals): string {
     const parts: string[] = [];
     if (t.mana  > 0) parts.push(`${this.fmt(t.mana)} Mana`);
     if (t.fokus > 0) parts.push(`${this.fmt(t.fokus)} Fokus`);
-    return parts.length > 0 ? parts.join(' Â· ') : 'â€”';
+    return parts.length > 0 ? parts.join(' · ') : '—';
   }
 
   perTurnStr(t: CaseTotals): string {
     const parts: string[] = [];
     if (t.perTurnMana  > 0) parts.push(`${this.fmt(t.perTurnMana)} Mana`);
     if (t.perTurnFokus > 0) parts.push(`${this.fmt(t.perTurnFokus)} Fokus`);
-    return parts.join(' Â· ');
+    return parts.join(' · ');
   }
 
   totalsFor(idx: number): CaseTotals { return this.result.caseTotals[idx]; }
@@ -58,12 +77,12 @@ export class SpellCostDisplayComponent {
 
   multLabel(s: TraceStep): string {
     if (s.manaMult === 1 || s.baseMana === 0) return this.fmt(s.finalMana);
-    return `${this.fmt(s.baseMana)} Ã— ${this.fmt(s.manaMult)} = ${this.fmt(s.finalMana)}`;
+    return `${this.fmt(s.baseMana)} × ${this.fmt(s.manaMult)} = ${this.fmt(s.finalMana)}`;
   }
 
   fokusLabel(s: TraceStep): string {
     if (s.additionalFokus > 0)
-      return `${this.fmt(s.baseFokus)} + ${s.unusedDataPorts}Ã—${this.fmt(s.fokusVerlust)} = ${this.fmt(s.finalFokus)}`;
+      return `${this.fmt(s.baseFokus)} + ${s.unusedDataPorts}×${this.fmt(s.fokusVerlust)} = ${this.fmt(s.finalFokus)}`;
     return this.fmt(s.finalFokus);
   }
 
@@ -72,4 +91,3 @@ export class SpellCostDisplayComponent {
       this.result.cases.every(c => c.entries.length === 0 && !c.subcases?.length);
   }
 }
-

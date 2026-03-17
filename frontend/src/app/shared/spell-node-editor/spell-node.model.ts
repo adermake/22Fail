@@ -31,6 +31,9 @@ export interface SpellConnection {
   condition?: string;
   /** Whether the branch condition is currently known (true) or unknown (false); only applies when condition has text */
   precastKnown?: boolean;
+  /** When true, this connection is part of a mutually-exclusive fork group (only ONE branch fires at a time).
+   *  When false/undefined, multiple branches from the same node can fire simultaneously → power-set cost cases. */
+  exclusive?: boolean;
   /** Passthrough limiting — replaces isLoop + loopCount */
   passthroughEnabled?: boolean;
   maxPassthrough?: number; // undefined = unlimited; 1 = old single-loop behavior

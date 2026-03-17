@@ -116,6 +116,23 @@ function mergeWorstCase(a: Acc, b: Acc): Acc {
   return r;
 }
 
+/** Merge two TurnCostEntry arrays, summing costs for the same turn */
+function mergeEntries(a: TurnCostEntry[], b: TurnCostEntry[]): TurnCostEntry[] {
+  const m = new Map<number, { mana: number; fokus: number }>();
+  for (const e of [...a, ...b]) {
+    const ex = m.get(e.turn) ?? { mana: 0, fokus: 0 };
+    m.set(e.turn, { mana: ex.mana + e.mana, fokus: ex.fokus + e.fokus });
+  }
+  return Array.from(m.entries())
+    .map(([t, v]) => ({ turn: t, mana: v.mana, fokus: v.fokus }))
+    .sort((a, b) => a.turn - b.turn);
+}
+
+function entriesIdentical(a: TurnCostEntry[], b: TurnCostEntry[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((e, i) => e.turn === b[i].turn && Math.abs(e.mana - b[i].mana) < 0.001 && Math.abs(e.fokus - b[i].fokus) < 0.001);
+}
+
 function traverse(
   startNodeId: string, startTurn: number, startPc: Map<string, number>,
   graph: SpellGraph, nodeRuneMap: NodeRuneMap, portsMap: PortsMap, label: string,
@@ -154,14 +171,46 @@ function traverse(
 
     if (knownBranches.length > 0) {
       const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      knownBranches.forEach((conn, idx) => {
-        const limit = conn.passthroughEnabled ? (conn.maxPassthrough ?? UNLIMITED_LOOP_CAP) : 1;
-        const count = pc.get(conn.id) ?? 0;
-        if (count >= limit) return;
-        const nc = new Map(pc);
-        nc.set(conn.id, count + 1);
-        acc.subcases.push(traverse(conn.toNodeId, turn + (conn.lineDelay ?? 0), nc, graph, nodeRuneMap, portsMap, conn.condition || `FALL ${letters[idx]}`));
-      });
+      const isExclusive = knownBranches.some(c => c.exclusive);
+
+      if (isExclusive) {
+        // EXCLUSIVE: each branch fires independently — mutually exclusive cases
+        knownBranches.forEach((conn, idx) => {
+          const limit = conn.passthroughEnabled ? (conn.maxPassthrough ?? UNLIMITED_LOOP_CAP) : 1;
+          const count = pc.get(conn.id) ?? 0;
+          if (count >= limit) return;
+          const nc = new Map(pc);
+          nc.set(conn.id, count + 1);
+          acc.subcases.push(traverse(conn.toNodeId, turn + (conn.lineDelay ?? 0), nc, graph, nodeRuneMap, portsMap,
+            conn.condition || `FALL ${letters[idx]}`));
+        });
+      } else {
+        // NON-EXCLUSIVE: enumerate all 2^N − 1 non-empty subsets (branches can fire simultaneously)
+        const n = knownBranches.length;
+        for (let mask = 1; mask < (1 << n); mask++) {
+          const subset = knownBranches.filter((_, i) => (mask >> i) & 1);
+          const subLabel = subset.map(c => c.condition || `F${letters[knownBranches.indexOf(c)]}`).join(' + ');
+          const subTurnMap = new Map<number, { mana: number; fokus: number }>();
+          const subTrace: TraceStep[] = [];
+          for (const conn of subset) {
+            const limit = conn.passthroughEnabled ? (conn.maxPassthrough ?? UNLIMITED_LOOP_CAP) : 1;
+            const count = pc.get(conn.id) ?? 0;
+            if (count >= limit) continue;
+            const nc = new Map(pc);
+            nc.set(conn.id, count + 1);
+            const sub = traverse(conn.toNodeId, turn + (conn.lineDelay ?? 0), nc, graph, nodeRuneMap, portsMap, subLabel);
+            for (const e of sub.entries) {
+              const ex = subTurnMap.get(e.turn) ?? { mana: 0, fokus: 0 };
+              subTurnMap.set(e.turn, { mana: ex.mana + e.mana, fokus: ex.fokus + e.fokus });
+            }
+            subTrace.push(...sub.trace);
+          }
+          const entries: TurnCostEntry[] = Array.from(subTurnMap.entries())
+            .map(([t, v]) => ({ turn: t, mana: v.mana, fokus: v.fokus }))
+            .sort((a, b) => a.turn - b.turn);
+          acc.subcases.push({ label: subLabel, entries, trace: subTrace });
+        }
+      }
     }
 
     if (unknownBranches.length > 0) {
@@ -197,9 +246,9 @@ function traverse(
   return { label, entries, trace: acc.trace, subcases: acc.subcases.length > 0 ? acc.subcases : undefined };
 }
 
-function computeTotals(c: CostCase): CaseTotals {
-  const t0      = c.entries.find(e => e.turn === 0);
-  const delayed = c.entries.filter(e => e.turn > 0);
+function computeTotals(entries: TurnCostEntry[]): CaseTotals {
+  const t0      = entries.find(e => e.turn === 0);
+  const delayed = entries.filter(e => e.turn > 0);
   let perTurnMana = 0, perTurnFokus = 0, perTurnUniform = false;
   if (delayed.length > 0) {
     const fm = delayed[0].mana, ff = delayed[0].fokus;
@@ -234,8 +283,24 @@ export function calculateSpellCost(graph: SpellGraph, availableRunes: RuneBlock[
   const rootCase = traverse('start', 0, new Map(), graph, nodeRuneMap, portsMap, 'Gesamt');
   const knownSubs = rootCase.subcases?.filter(s => !s.isUnknownMerge) ?? [];
   const hasKnownBranches = knownSubs.length > 0;
-  const cases: CostCase[] = hasKnownBranches ? knownSubs : [{ ...rootCase, label: 'Gesamt' }];
-  const caseTotals = cases.map(computeTotals);
+
+  // Merge shared-path costs (rootCase.entries) into each case's fullEntries
+  const sharedEntries = rootCase.entries;
+  const casesRaw: CostCase[] = hasKnownBranches
+    ? knownSubs.map(s => ({ ...s, fullEntries: mergeEntries(sharedEntries, s.entries) }))
+    : [{ ...rootCase, label: 'Gesamt', fullEntries: rootCase.entries }];
+
+  // Collapse: if all branch cases have identical full costs → treat as a single "Gesamt"
+  const firstFull = casesRaw[0]?.fullEntries ?? [];
+  const allIdentical = hasKnownBranches && casesRaw.length > 1 &&
+    casesRaw.every(c => entriesIdentical(c.fullEntries ?? [], firstFull));
+
+  const cases: CostCase[] = allIdentical
+    ? [{ ...casesRaw[0], label: 'Gesamt' }]
+    : casesRaw;
+  const finalHasKnownBranches = hasKnownBranches && !allIdentical;
+
+  const caseTotals = cases.map(c => computeTotals(c.fullEntries ?? c.entries));
   const simpleTotals: CaseTotals = caseTotals.length === 1
     ? caseTotals[0]
     : {
@@ -249,11 +314,11 @@ export function calculateSpellCost(graph: SpellGraph, availableRunes: RuneBlock[
 
   return {
     statRequirements,
-    hasKnownBranches,
+    hasKnownBranches: finalHasKnownBranches,
     cases,
     caseTotals,
     simpleTotals,
-    hasPerTurnCosts: cases.some(c => c.entries.some(e => e.turn > 0)),
+    hasPerTurnCosts: cases.some(c => (c.fullEntries ?? c.entries).some(e => e.turn > 0)),
     nodeCount: graph.nodes.length,
     connectionCount: graph.connections.length,
     rootTrace: rootCase.trace,

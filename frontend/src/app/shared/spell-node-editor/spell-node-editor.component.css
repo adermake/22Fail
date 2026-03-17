@@ -1332,6 +1332,25 @@
   background: rgba(251,191,36,0.18);
   border-color: #fbbf24;
 }
+/* Exclusive / combinable toggle */
+.ci-excl-toggle {
+  background: rgba(251,146,60,0.07);
+  border: 1px solid rgba(251,146,60,0.3);
+  color: #fb923c;
+}
+.ci-excl-toggle:hover {
+  border-color: rgba(251,146,60,0.55);
+  color: #fdba74;
+}
+.ci-excl-toggle.is-exclusive {
+  background: rgba(239,68,68,0.1);
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+.ci-excl-toggle.is-exclusive:hover {
+  background: rgba(239,68,68,0.16);
+  border-color: #f87171;
+}
 .ci-passthrough-row {
   display: flex;
   align-items: center;

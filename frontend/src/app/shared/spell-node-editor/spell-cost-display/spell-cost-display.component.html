@@ -10,29 +10,32 @@
     </div>
 
     @if (!result.hasKnownBranches) {
-      @let total = result.simpleTotals;
-      <div class="scd-pills">
-        @if (total.mana > 0) {
-          <div class="scd-pill scd-pill-mana">
-            <span class="scd-pill-n">{{ fmt(total.mana) }}</span>
-            <span class="scd-pill-u">Mana</span>
-          </div>
-        }
-        @if (total.fokus > 0) {
-          <div class="scd-pill scd-pill-fokus">
-            <span class="scd-pill-n">{{ fmt(total.fokus) }}</span>
-            <span class="scd-pill-u">Fokus</span>
-          </div>
-        }
-        @if (total.mana === 0 && total.fokus === 0) {
-          <span class="scd-no-cost">Keine Kosten</span>
-        }
-      </div>
-      @if (result.hasPerTurnCosts && total.perTurnUniform && total.maxRepeats > 0) {
-        <div class="scd-perturn">
-          + {{ perTurnStr(total) }} / Runde
-          @if (total.maxRepeats < 99) {
-            <span class="scd-badge-rounds">{{ total.maxRepeats }}&times;</span>
+      @if (!hasMultipleTurns(caseEntries(0))) {
+        @let total = result.simpleTotals;
+        <div class="scd-pills">
+          @if (total.mana > 0) {
+            <div class="scd-pill scd-pill-mana">
+              <span class="scd-pill-n">{{ fmt(total.mana) }}</span>
+              <span class="scd-pill-u">Mana</span>
+            </div>
+          }
+          @if (total.fokus > 0) {
+            <div class="scd-pill scd-pill-fokus">
+              <span class="scd-pill-n">{{ fmt(total.fokus) }}</span>
+              <span class="scd-pill-u">Fokus</span>
+            </div>
+          }
+          @if (total.mana === 0 && total.fokus === 0) {
+            <span class="scd-no-cost">Keine Kosten</span>
+          }
+        </div>
+      } @else {
+        <div class="scd-turn-list">
+          @for (e of caseEntries(0); track e.turn) {
+            <div class="scd-turn-row">
+              <span class="scd-turn-label">Runde {{ e.turn }}</span>
+              <span class="scd-turn-costs">{{ turnCostStr(e) }}</span>
+            </div>
           }
         </div>
       }
@@ -40,10 +43,20 @@
 
     @if (result.hasKnownBranches) {
       @for (c of result.cases; let ci = $index; track ci) {
-        @let t = totalsFor(ci);
-        <div class="scd-branch-row">
-          <span class="scd-branch-lbl">{{ c.label }}</span>
-          <span class="scd-branch-val">{{ castCostStr(t) }}</span>
+        <div class="scd-branch-case">
+          <div class="scd-branch-case-lbl">{{ c.label }}</div>
+          @if (!hasMultipleTurns(caseEntries(ci))) {
+            <div class="scd-branch-case-cost">{{ turnCostStr(caseEntries(ci)[0] ?? {turn:0,mana:0,fokus:0}) }}</div>
+          } @else {
+            <div class="scd-turn-list scd-turn-list-sm">
+              @for (e of caseEntries(ci); track e.turn) {
+                <div class="scd-turn-row">
+                  <span class="scd-turn-label">R{{ e.turn }}</span>
+                  <span class="scd-turn-costs">{{ turnCostStr(e) }}</span>
+                </div>
+              }
+            </div>
+          }
         </div>
       }
     }

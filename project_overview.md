@@ -235,8 +235,10 @@ app/
 - **Models** (`spell-node.model.ts`):
   - `SpellGraph { startNode, nodes[], connections[] }`
   - `SpellNode { id, runeId, x, y }` — Runen-Knoten auf Canvas (world coords)
-  - `SpellConnection { id, fromNodeId, fromPortId, toNodeId, toPortId, waypoints[], condition?, precastKnown?, passthroughEnabled?, maxPassthrough?, lineDelay? }`
+  - `SpellConnection { id, fromNodeId, fromPortId, toNodeId, toPortId, waypoints[], condition?, precastKnown?, exclusive?, passthroughEnabled?, maxPassthrough?, lineDelay? }`
     - `condition` — Branch-Label; Branch-Farbe: orange (unbekannt), lila (bekannt)
+    - `precastKnown` — ob Bedingung vor dem Cast bekannt (bekannte Branches = benannte CostCases)
+    - `exclusive` — (nur wenn precastKnown) true → nur eine Branch feuert; false → alle Kombinationen (2^N-1 Fälle)
     - `passthroughEnabled + maxPassthrough` — Rücklauf (Passthrough)
     - `lineDelay` — Verzögerung in Runden
   - `PendingConnection.isPickup?: boolean` — true beim Umleiten bestehender Verbindungen (Void-Drop = Abbruch, nicht QS)
@@ -257,7 +259,7 @@ app/
 - `RUNE_TYPE_CONFIGS.medium`: inputs=[Fluss, Mana], outputs=[Fluss, Medium]
 
 ## Spell Cost Calculator (`shared/spell-node-editor/`)
-- `spell-cost.model.ts`: Interfaces `TurnCostEntry`, `CostCase`, `CaseTotals`, `SpellCostResult`
+- `spell-cost.model.ts`: Interfaces `TurnCostEntry`, `CostCase { entries, fullEntries?, trace, subcases?, isUnknownMerge? }`, `CaseTotals`, `SpellCostResult`
 - `spell-cost-calculator.ts`: Pure function `calculateSpellCost(graph, availableRunes)`
   - DFS traversal der Flow-Verbindungen
   - Mana-Multiplikator-Kette: Rune mit Mana-Daten-Eingang erbt Multiplikator vom Provider
@@ -265,8 +267,9 @@ app/
   - Loops: `passthroughEnabled + maxPassthrough` (UNLIMITED_LOOP_CAP=5)
   - Delay: `lineDelay` → Turn-Buckets (Turn 0 = Wirkungsrunde)
   - Branches: `precastKnown=true` → benannte Fälle; `false` → Worst-Case-Merge
-- `spell-cost-display/`: Standalone Component, zeigt SpellCostResult als Panel — wird im Eigenschaften-Tab eingebettet
-- Kein separater Toggle-Button mehr; Kosten-Felder und Schätzen-Button sind direkt im Eigenschaften-Tab
+  - `exclusive=true` → N separate exklusive Cases (eine Branch feuert); `exclusive=false` → 2^N-1 Kombinations-Cases
+  - `fullEntries` = geteilte-Pfad-Kosten + Branch-Kosten (gemergt); gleiche fullEntries → kollabieren zu "Gesamt"
+- `spell-cost-display/`: Zeigt per-Turn-Breakdown; Multi-Turn → Rundenliste, Branches → scd-branch-case Blöcke
 
 ## Spell-Karte (sheet/spell/)
 - Kompakte Ansicht: Thumbnail (52×52), Name, Kostenpillen (◆ Mana, ◇ Fokus), Stat-Chips (STR/GES/...), Beschreibung (3-zeilig geclampt), Tags, Binding-Info

@@ -28,6 +28,8 @@ export interface TraceStep {
 export interface CostCase {
   label: string;
   entries: TurnCostEntry[];
+  /** Full per-turn costs including shared-path costs before this branch (set by calculateSpellCost). */
+  fullEntries?: TurnCostEntry[];
   trace: TraceStep[];
   subcases?: CostCase[];
   isUnknownMerge?: boolean;
