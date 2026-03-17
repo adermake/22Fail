@@ -40,8 +40,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   get isNewSpell(): boolean { return this.spell === null; }
 
-  @ViewChild('canvasWrap', { static: true }) canvasWrapRef!: ElementRef<HTMLDivElement>;
-  @ViewChild('svgLayer',   { static: true }) svgRef!: ElementRef<SVGSVGElement>;
+  @ViewChild('canvasWrap', { static: false }) canvasWrapRef!: ElementRef<HTMLDivElement>;
+  @ViewChild('svgLayer',   { static: false }) svgRef!: ElementRef<SVGSVGElement>;
 
   // ── View tabs ──────────────────────────────────────────────────────────────
   activeTab: 'netzwerk' | 'eigenschaften' = 'netzwerk';
@@ -685,6 +685,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   private canvasEl(): HTMLDivElement { return this.canvasWrapRef.nativeElement; }
 
   clientToWorld(cx: number, cy: number): { x: number; y: number } {
+    if (!this.canvasWrapRef) return { x: 0, y: 0 };
     const rect = this.canvasEl().getBoundingClientRect();
     return {
       x: (cx - rect.left - this.panX) / this.zoom,
@@ -701,6 +702,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   worldToClient(wx: number, wy: number): { x: number; y: number } {
+    if (!this.canvasWrapRef) return { x: 0, y: 0 };
     const rect = this.canvasEl().getBoundingClientRect();
     return {
       x: wx * this.zoom + this.panX + rect.left,
@@ -711,6 +713,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // ────────────────────────────────────────────────────────────────────────────
   // Wheel zoom
   onWheel(e: WheelEvent) {
+    if (!this.canvasWrapRef) return;
     e.preventDefault();
     const rect  = this.canvasEl().getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -730,6 +733,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // ────────────────────────────────────────────────────────────────────────────
   // Canvas mouse events (pan + marquee selection)
   onCanvasMouseDown(e: MouseEvent) {
+    if (!this.canvasWrapRef) return;
     const isCanvas = e.target === this.canvasEl() || (e.target as Element).classList.contains('svg-bg');
     if (!isCanvas) return;
     if (e.button === 0) {
@@ -1209,6 +1213,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // ────────────────────────────────────────────────────────────────────────────
   // Node drag — if part of selection, move all selected nodes together
   onNodeMouseDown(e: MouseEvent, nodeId: string) {
+    if (!this.canvasWrapRef) return;
     e.stopPropagation();
     if ((e.target as Element).closest('.rune-port')) return;
     this.pushUndo(); // capture pre-drag state
@@ -1232,6 +1237,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   startNodeDragOffY = 0;
 
   onStartNodeMouseDown(e: MouseEvent) {
+    if (!this.canvasWrapRef) return;
     e.stopPropagation();
     if ((e.target as Element).closest('.rune-port, .port-circle')) return;
     this.pushUndo();
@@ -1247,6 +1253,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   //   - data-in (single): picks up the existing connection (removes it, starts dragging from source)
   //   - flow-in (multi): always creates a new connection
   onPortMouseDown(e: MouseEvent, nodeId: string, portId: string) {
+    if (!this.canvasWrapRef) return;
     e.stopPropagation();
     e.preventDefault();
     const all = this.allPortPositions();
