@@ -228,6 +228,10 @@ app/
 ## Spell Node Editor (`shared/spell-node-editor/`)
 - **Purpose**: Visueller Flow-Graph-Editor für Zauber-Logik (Runen-Knoten + Verbindungen)
 - **Tech**: Angular 21 zoneless, RAF-driven CD, SVG-Overlay für Verbindungen
+- **Tab-System**: Topbar hat 2 Tabs — "Netzwerk" (Graph) und "Eigenschaften" (Name/Desc/Tags/Kosten). Canvas wird nur in `activeTab === 'netzwerk'` gerendert.
+- **Kosten manuell**: `spellCostMana` + `spellCostFokus` — direkt editierbare Felder in Eigenschaften-Tab. Button "⚡ Schätzen" → `calculateEstimate()` überschreibt Felder mit Kalkulations-Ergebnis.
+- **SpellBlock-Felder**: `costMana?: number`, `costFokus?: number`, `statRequirements?: SpellStatRequirements`
+- **Drag-Ghost**: `onPaletteDragStart()` erstellt temporäres `ghost`-Div, `setDragImage()`, dann `setTimeout(() => ghost.remove(), 0)`
 - **Models** (`spell-node.model.ts`):
   - `SpellGraph { startNode, nodes[], connections[] }`
   - `SpellNode { id, runeId, x, y }` — Runen-Knoten auf Canvas (world coords)
@@ -261,9 +265,12 @@ app/
   - Loops: `passthroughEnabled + maxPassthrough` (UNLIMITED_LOOP_CAP=5)
   - Delay: `lineDelay` → Turn-Buckets (Turn 0 = Wirkungsrunde)
   - Branches: `precastKnown=true` → benannte Fälle; `false` → Worst-Case-Merge
-- `spell-cost-display/`: Standalone Component, zeigt SpellCostResult als Panel
-  - Button "⚖ Kosten" in der Top-Bar des Spell-Editors (amber/gelb)
-  - Floating Overlay-Panel rechts, togglebar, zeigt Mana/Fokus/Attributanforderungen/Fälle
+- `spell-cost-display/`: Standalone Component, zeigt SpellCostResult als Panel — wird im Eigenschaften-Tab eingebettet
+- Kein separater Toggle-Button mehr; Kosten-Felder und Schätzen-Button sind direkt im Eigenschaften-Tab
+
+## Spell-Karte (sheet/spell/)
+- Kompakte Ansicht: Thumbnail (52×52), Name, Kostenpillen (◆ Mana, ◇ Fokus), Stat-Chips (STR/GES/...), Beschreibung (3-zeilig geclampt), Tags, Binding-Info
+- `statReqEntries` getter: Filtert SpellStatRequirements auf Werte > 0, mappt zu `{label, value}`-Array
 
 ## Skill-System (`data/skill-definitions.ts` + `model/skill-definition.model.ts`)
 
