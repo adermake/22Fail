@@ -6,39 +6,69 @@
 >
   @if (!isEditing) {
   <div class="spell-view">
-    <div class="spell-header">
+    <!-- Thumbnail + Name row -->
+    <div class="sc-header">
       @if (spell.drawing) {
-      <div class="spell-drawing">
-        <img [src]="spell.drawing | imageUrl" alt="Spell symbol" />
-      </div>
+        <div class="sc-thumb">
+          <img [src]="spell.drawing | imageUrl" alt="Zauber-Symbol"/>
+        </div>
       }
-      <div class="spell-info">
-        <div class="spell-title-row">
-          <h4>{{ spell.name }}</h4>
-          <div class="spell-badges">
-            @if (spell.binding.type === 'learned') {
-            <span class="binding-badge learned">Learned</span>
-            } @else {
-            <span class="binding-badge item" [class.missing]="isDisabled">
-              {{ spell.binding.itemName }}
-              @if (spell.binding.durability !== undefined) {
-              <span class="durability"
-                >{{ spell.binding.durability }}/{{ spell.binding.maxDurability }}</span
-              >
-              }
-            </span>
-            }
-            <button class="delete-btn-compact" (click)="deleteSpell(); $event.stopPropagation()" title="Delete">🗑️</button>
+      <div class="sc-title-block">
+        <div class="sc-title-row">
+          <h4 class="sc-name">{{ spell.name || 'Unbekannter Zauber' }}</h4>
+          <div class="sc-actions">
+            <button class="sc-edit-btn" (click)="openEditor.emit(); $event.stopPropagation()" title="Bearbeiten">✎</button>
+            <button class="sc-del-btn" (click)="deleteSpell(); $event.stopPropagation()" title="Löschen">✕</button>
           </div>
         </div>
-        <div class="spell-tags">
-          @for (tag of spell.tags; track tag) {
-          <span class="tag">{{ tag }}</span>
+
+        <!-- Cost pills -->
+        <div class="sc-costs">
+          @if (spell.costMana) {
+            <span class="sc-cost-pill sc-cost-mana">&#9670; {{ spell.costMana }} Mana</span>
+          }
+          @if (spell.costFokus) {
+            <span class="sc-cost-pill sc-cost-fokus">&#9671; {{ spell.costFokus }} Fokus</span>
+          }
+          @if (!spell.costMana && !spell.costFokus) {
+            <span class="sc-cost-pill sc-cost-none">Keine Kosten</span>
           }
         </div>
+
+        <!-- Stat requirements -->
+        @if (statReqEntries.length > 0) {
+          <div class="sc-stats">
+            @for (req of statReqEntries; track req.label) {
+              <span class="sc-stat-chip">{{ req.label }} {{ req.value }}</span>
+            }
+          </div>
+        }
       </div>
     </div>
-    <p class="spell-description" [innerHTML]="enhancedDescription"></p>
+
+    <!-- Description -->
+    @if (spell.description) {
+      <p class="sc-desc" [innerHTML]="enhancedDescription"></p>
+    }
+
+    <!-- Tags -->
+    @if (spell.tags?.length) {
+      <div class="sc-tags">
+        @for (tag of spell.tags; track tag) {
+          <span class="sc-tag">{{ tag }}</span>
+        }
+      </div>
+    }
+
+    <!-- Binding info (subtle) -->
+    @if (spell.binding?.type !== 'learned' && spell.binding?.itemName) {
+      <div class="sc-binding" [class.sc-binding-missing]="isDisabled">
+        ⚔ {{ spell.binding.itemName }}
+        @if (spell.binding.durability !== undefined) {
+          <span class="sc-durability">{{ spell.binding.durability }}/{{ spell.binding.maxDurability }}</span>
+        }
+      </div>
+    }
   </div>
   } @else {
   <!-- Fullscreen Drawing Modal -->

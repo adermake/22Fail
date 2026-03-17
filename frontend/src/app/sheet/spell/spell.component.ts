@@ -166,9 +166,25 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   get enhancedDescription(): SafeHtml {
-    const original = this.spell.description || 'No description';
+    const original = this.spell.description || 'Keine Beschreibung';
     const enhanced = KeywordEnhancer.enhance(original);
     return this.sanitizer.bypassSecurityTrustHtml(enhanced);
+  }
+
+  get statReqEntries(): { label: string; value: number }[] {
+    const req = this.spell.statRequirements;
+    if (!req) return [];
+    const map = [
+      { key: 'strength',     label: 'STR' },
+      { key: 'dexterity',    label: 'GES' },
+      { key: 'speed',        label: 'SPD' },
+      { key: 'intelligence', label: 'INT' },
+      { key: 'constitution', label: 'KON' },
+      { key: 'chill',        label: 'CHR' },
+    ];
+    return map
+      .filter(m => (req as Record<string,number>)[m.key] > 0)
+      .map(m => ({ label: m.label, value: (req as Record<string,number>)[m.key] }));
   }
 
   get isDisabled(): boolean {

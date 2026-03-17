@@ -166,6 +166,8 @@
   border-bottom: 1px solid rgba(139,92,246,0.18);
   flex-shrink: 0;
   gap: 12px;
+  min-height: 50px; /* prevent jump */
+  box-sizing: border-box;
 }
 .sne-topbar-left {
   display: flex;
@@ -174,34 +176,42 @@
   min-width: 0;
   flex: 1;
 }
-.spell-name-input {
-  padding: 6px 12px;
-  background: rgba(139,92,246,0.08);
-  border: 1px solid rgba(139,92,246,0.3);
+.sne-spell-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #c4b5fd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  flex-shrink: 0;
+}
+.sne-tabs {
+  display: flex;
+  gap: 3px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(139,92,246,0.15);
   border-radius: 8px;
-  color: #e2e8f0;
-  font-size: 0.95rem;
+  padding: 3px;
+}
+.sne-tab-btn {
+  padding: 4px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
   font-weight: 600;
-  outline: none;
-  min-width: 0;
-  max-width: 200px;
-  transition: border-color 0.2s;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  transition: background 0.15s, color 0.15s;
 }
-.spell-name-input:focus { border-color: #8b5cf6; }
-.spell-desc-input {
-  padding: 6px 12px;
-  background: rgba(139,92,246,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
-  color: #9ca3af;
-  font-size: 0.82rem;
-  outline: none;
-  flex: 1;
-  min-width: 0;
-  transition: border-color 0.2s;
+.sne-tab-btn:hover { color: #a78bfa; }
+.sne-tab-active {
+  background: rgba(139,92,246,0.25) !important;
+  color: #c4b5fd !important;
+  box-shadow: 0 1px 6px rgba(139,92,246,0.2);
 }
-.spell-desc-input:focus { border-color: rgba(139,92,246,0.4); color: #e2e8f0; }
-.sne-topbar-right { display: flex; gap: 8px; flex-shrink: 0; }
+.sne-topbar-right { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
 
 .tb-btn {
   padding: 6px 16px;
@@ -210,22 +220,15 @@
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
+  background: transparent;
   transition: all 0.18s;
 }
-.tb-cancel {
-  background: transparent;
-  border-color: rgba(255,255,255,0.12);
-  color: #9ca3af;
-}
-.tb-cancel:hover { border-color: rgba(255,255,255,0.3); color: #e2e8f0; }
 .tb-close {
-  background: rgba(255,255,255,0.05);
   border-color: rgba(255,255,255,0.15);
   color: #9ca3af;
 }
 .tb-close:hover { border-color: rgba(239,68,68,0.6); color: #fca5a5; background: rgba(239,68,68,0.08); }
 .tb-delete {
-  background: transparent;
   border-color: rgba(239,68,68,0.4);
   color: #ef4444;
 }
@@ -255,47 +258,108 @@
   color: #fff !important;
   cursor: default;
 }
-.tb-cost {
-  border-color: rgba(59,130,246,0.4);
-  color: #93c5fd;
-}
-.tb-cost:hover { border-color: rgba(59,130,246,0.7); background: rgba(59,130,246,0.1); color: #bfdbfe; }
-.tb-cost-active {
-  background: rgba(59,130,246,0.18) !important;
-  border-color: rgba(59,130,246,0.6) !important;
-  color: #bfdbfe !important;
-  box-shadow: 0 0 12px rgba(59,130,246,0.3);
-}
 
-/* ── Cost inspector (right panel — same structure as conn-inspector) ── */
-.cost-inspector {
-  width: 280px;
-  flex-shrink: 0;
-  background: rgba(7,9,20,0.97);
-  border-left: 1px solid rgba(139,92,246,0.2);
+/* ── Eigenschaften (properties) view ──────────────────────────────────────── */
+.eigenschaften-view {
+  flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: rgba(5,7,18,0.98);
 }
-/* Recalculate button inside ci-header */
-.ci-recalc {
-  margin-left: auto;
-  margin-right: 4px;
-  width: 22px;
-  height: 22px;
+.ep-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  max-width: 700px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139,92,246,0.3) transparent;
+}
+.ep-section { margin-bottom: 24px; }
+.ep-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #7c3aed;
+  margin-bottom: 8px;
+  display: block;
+}
+.ep-input, .ep-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(139,92,246,0.08);
+  border: 1px solid rgba(139,92,246,0.25);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.18s;
+}
+.ep-textarea { resize: vertical; font-family: inherit; min-height: 90px; }
+.ep-input:focus, .ep-textarea:focus { border-color: #8b5cf6; }
+.ep-tag-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.ep-tag-btn {
+  padding: 4px 11px;
   border-radius: 6px;
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.08);
-  color: #475569;
-  font-size: 0.85rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #6b7280;
+  font-size: 0.78rem;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  transition: all 0.15s;
 }
-.ci-recalc:hover { color: #a78bfa; border-color: rgba(139,92,246,0.4); }
+.ep-tag-btn:hover { color: #e2e8f0; border-color: rgba(139,92,246,0.3); }
+.ep-tag-active {
+  background: rgba(139,92,246,0.2) !important;
+  border-color: rgba(139,92,246,0.6) !important;
+  color: #c4b5fd !important;
+}
+.ep-cost-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.ep-cost-field { display: flex; flex-direction: column; gap: 4px; }
+.ep-cost-label { font-size: 0.75rem; color: #6b7280; }
+.ep-cost-input {
+  width: 100px;
+  padding: 7px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.ep-cost-input:focus { border-color: rgba(139,92,246,0.5); }
+.ep-calc-btn {
+  padding: 7px 16px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.12));
+  border: 1px solid rgba(59,130,246,0.35);
+  color: #93c5fd;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+  align-self: flex-end;
+}
+.ep-calc-btn:hover { background: rgba(59,130,246,0.2); box-shadow: 0 0 12px rgba(59,130,246,0.3); }
+.ep-stat-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.ep-stat-chip {
+  padding: 3px 10px;
+  border-radius: 5px;
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.3);
+  color: #fcd34d;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.ep-empty-stat { font-size: 0.78rem; color: #4b5563; font-style: italic; }
 
 
 /* ══════════════════════════════════════════════════════════════════════════

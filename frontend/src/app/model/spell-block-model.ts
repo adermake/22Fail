@@ -7,6 +7,15 @@ export interface SpellBinding {
   maxDurability?: number; // Max durability for item-bound spells
 }
 
+export interface SpellStatRequirements {
+  strength?: number;
+  dexterity?: number;
+  speed?: number;
+  intelligence?: number;
+  constitution?: number;
+  chill?: number;
+}
+
 export class SpellBlock {
   name!: string;
   description!: string;
@@ -17,6 +26,9 @@ export class SpellBlock {
   libraryOrigin?: string; // Library ID if this spell came from a library (undefined for custom spells)
   libraryOriginName?: string; // Human-readable library name
   graph?: SpellGraph; // Node-based spell construction graph
+  costMana?: number;       // Stored mana cost (manually set or from calculator)
+  costFokus?: number;      // Stored fokus cost (manually set or from calculator)
+  statRequirements?: SpellStatRequirements; // Attribute requirements (from calculator)
 }
 
 export const SPELL_GLOW_COLORS = [

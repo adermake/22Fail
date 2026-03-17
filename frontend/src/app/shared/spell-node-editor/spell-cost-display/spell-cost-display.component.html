@@ -1,11 +1,11 @@
 ﻿<div class="scd-body">
 
-  <!-- â”€â”€ GESAMTKOSTEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <!-- GESAMTKOSTEN -->
   <div class="scd-section">
     <div class="scd-lbl">
       Gesamtkosten
       @if (result.hasKnownBranches) {
-        <span class="scd-badge-branch">{{ result.cases.length }} FÃ¤lle</span>
+        <span class="scd-badge-branch">{{ result.cases.length }} Fälle</span>
       }
     </div>
 
@@ -32,7 +32,7 @@
         <div class="scd-perturn">
           + {{ perTurnStr(total) }} / Runde
           @if (total.maxRepeats < 99) {
-            <span class="scd-badge-rounds">{{ total.maxRepeats }}Ã—</span>
+            <span class="scd-badge-rounds">{{ total.maxRepeats }}&times;</span>
           }
         </div>
       }
@@ -49,7 +49,7 @@
     }
   </div>
 
-  <!-- â”€â”€ ATTRIBUTANFORDERUNGEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <!-- ATTRIBUTANFORDERUNGEN -->
   @if (hasStat()) {
     <div class="scd-section">
       <div class="scd-lbl">Attributanforderungen</div>
@@ -64,17 +64,17 @@
     </div>
   }
 
-  <!-- â”€â”€ BERECHNUNGSPFAD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <!-- BERECHNUNGSPFAD -->
   <div class="scd-section scd-trace-section">
     <div class="scd-lbl scd-trace-lbl">
       Berechnungspfad
-      <span class="scd-lbl-meta">{{ result.nodeCount }} Kn. Â· {{ result.connectionCount }} Verb.</span>
+      <span class="scd-lbl-meta">{{ result.nodeCount }} Kn. &middot; {{ result.connectionCount }} Verb.</span>
     </div>
 
     @if (result.rootTrace.length === 0) {
       <p class="scd-empty">
         Keine Rune im Fluss-Pfad.<br>
-        Verbinde Runen mit dem START-Knoten Ã¼ber Fluss-Ports.
+        Verbinde Runen mit dem START-Knoten über Fluss-Ports.
       </p>
     }
 
@@ -87,7 +87,7 @@
           <span class="scd-step-name">{{ step.runeName }}</span>
           <span class="scd-step-tags">
             @if ((step.loopPass ?? 1) > 1) {
-              <span class="scd-tag scd-tag-loop">â†»{{ step.loopPass }}</span>
+              <span class="scd-tag scd-tag-loop">↻{{ step.loopPass }}</span>
             }
             @if (step.turn > 0) {
               <span class="scd-tag scd-tag-delay">T+{{ step.turn }}</span>
@@ -97,13 +97,13 @@
         <div class="scd-step-body">
           @if (hasManaInfo(step)) {
             <div class="scd-cost-line scd-cost-mana">
-              <span class="scd-dot">â—†</span>
+              <span class="scd-dot">&#9670;</span>
               <span class="scd-expr">{{ multLabel(step) }} Mana</span>
             </div>
           }
           @if (hasFokusInfo(step)) {
             <div class="scd-cost-line scd-cost-fokus">
-              <span class="scd-dot">â—‡</span>
+              <span class="scd-dot">&#9671;</span>
               <span class="scd-expr">{{ fokusLabel(step) }} Fokus</span>
             </div>
           }
@@ -114,12 +114,12 @@
       </div>
     }
 
-    <!-- â”€â”€ BRANCH TRACES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <!-- BRANCH TRACES -->
     @if (result.hasKnownBranches) {
       @for (c of result.cases; let ci = $index; track ci) {
         <div class="scd-branch-trace">
           <div class="scd-branch-trace-head">
-            <span class="scd-branch-icon">â†³</span>
+            <span class="scd-branch-icon">&#8627;</span>
             <span class="scd-branch-name">{{ c.label }}</span>
             <span class="scd-branch-total">{{ castCostStr(totalsFor(ci)) }}</span>
           </div>
@@ -135,13 +135,13 @@
               <div class="scd-step-body">
                 @if (hasManaInfo(step)) {
                   <div class="scd-cost-line scd-cost-mana">
-                    <span class="scd-dot">â—†</span>
+                    <span class="scd-dot">&#9670;</span>
                     <span class="scd-expr">{{ multLabel(step) }} Mana</span>
                   </div>
                 }
                 @if (hasFokusInfo(step)) {
                   <div class="scd-cost-line scd-cost-fokus">
-                    <span class="scd-dot">â—‡</span>
+                    <span class="scd-dot">&#9671;</span>
                     <span class="scd-expr">{{ fokusLabel(step) }} Fokus</span>
                   </div>
                 }
@@ -156,7 +156,6 @@
     }
   </div>
 
-  <div class="scd-footer">SchÃ¤tzung â€” kann je nach Zustand variieren</div>
+  <div class="scd-footer">Schätzung — kann je nach Zustand variieren</div>
 
 </div>
-

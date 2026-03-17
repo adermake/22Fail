@@ -5,7 +5,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RuneBlock } from '../../model/rune-block.model';
-import { SpellBlock } from '../../model/spell-block-model';
+import { SpellBlock, SPELL_TAG_OPTIONS, SpellStatRequirements } from '../../model/spell-block-model';
 import {
   SpellGraph, SpellNode, SpellConnection, SpellPort, PendingConnection, PortPosition,
   buildRunePorts, portsCompatible, FLOW_COLOR, FLOW_TYPE, NEUTRAL_RUNE_ID,
@@ -43,9 +43,19 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   @ViewChild('canvasWrap', { static: true }) canvasWrapRef!: ElementRef<HTMLDivElement>;
   @ViewChild('svgLayer',   { static: true }) svgRef!: ElementRef<SVGSVGElement>;
 
+  // ── View tabs ──────────────────────────────────────────────────────────────
+  activeTab: 'netzwerk' | 'eigenschaften' = 'netzwerk';
+
   // ── Spell meta ─────────────────────────────────────────────────────────────
   spellName        = 'Neuer Zauber';
   spellDescription = '';
+  spellTags: string[] = [];
+  readonly allTagOptions = SPELL_TAG_OPTIONS;
+
+  // ── Spell costs (manual / calculated) ─────────────────────────────────────
+  spellCostMana  = 0;
+  spellCostFokus = 0;
+  spellStatRequirements: SpellStatRequirements = {};
 
   // ── Rune palette ───────────────────────────────────────────────────────────
   paletteSearch = '';
@@ -167,19 +177,19 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   // ── Close-confirmation dialog ──
   showCloseDialog = false;
 
-  // ── Spell cost panel ───────────────────────────────────────────────────────
-  showCostPanel    = false;
+  // ── Spell cost panel (shown in Eigenschaften tab) ───────────────────────────
   spellCostResult: SpellCostResult | null = null;
 
-  toggleCostPanel() {
-    this.showCostPanel = !this.showCostPanel;
-    if (this.showCostPanel) {
-      this.spellCostResult = calculateSpellCost(this.graph, this.availableRunes);
-    }
-  }
-
-  recalculateCost() {
-    this.spellCostResult = calculateSpellCost(this.graph, this.availableRunes);
+  calculateEstimate() {
+    const result = calculateSpellCost(this.graph, this.availableRunes);
+    this.spellCostResult = result;
+    this.spellCostMana  = Math.round(result.simpleTotals.mana  * 100) / 100;
+    this.spellCostFokus = Math.round(result.simpleTotals.fokus * 100) / 100;
+    const req = result.statRequirements;
+    const out: SpellStatRequirements = {};
+    const keys: Array<keyof SpellStatRequirements> = ['strength','dexterity','speed','intelligence','constitution','chill'];
+    for (const k of keys) { if ((req[k] ?? 0) > 0) out[k] = req[k]; }
+    this.spellStatRequirements = out;
   }
 
   // ── Quick-search popup state (drop connection into void to place+connect a rune) ──
@@ -330,6 +340,10 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (this.spell) {
       this.spellName        = this.spell.name;
       this.spellDescription = this.spell.description || '';
+      this.spellTags        = this.spell.tags ? [...this.spell.tags] : [];
+      this.spellCostMana    = this.spell.costMana  ?? 0;
+      this.spellCostFokus   = this.spell.costFokus ?? 0;
+      this.spellStatRequirements = this.spell.statRequirements ?? {};
       if (this.spell.graph) {
         this.graph = JSON.parse(JSON.stringify(this.spell.graph));
         // Advance nextId past all existing IDs to prevent duplicate-ID collisions
@@ -1712,6 +1726,13 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   onPaletteDragStart(e: DragEvent, rune: RuneBlock) {
     e.dataTransfer!.setData('runeName', rune.name);
     e.dataTransfer!.effectAllowed = 'copy';
+    // Create a legible drag ghost
+    const ghost = document.createElement('div');
+    ghost.style.cssText = 'position:fixed;top:-200px;left:-200px;background:rgba(15,10,35,0.97);border:1px solid rgba(139,92,246,0.6);border-radius:8px;color:#e2e8f0;padding:6px 14px;font-size:0.82rem;font-weight:600;pointer-events:none;z-index:9999;white-space:nowrap';
+    ghost.textContent = rune.name === this.NEUTRAL_RUNE_ID ? 'Neutral' : rune.name;
+    document.body.appendChild(ghost);
+    e.dataTransfer!.setDragImage(ghost, -10, 10);
+    setTimeout(() => ghost.remove(), 0);
   }
 
   onCanvasDrop(e: DragEvent) {
@@ -2190,7 +2211,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   inspectNode(node: SpellNode) {
     if (node.runeId === NEUTRAL_RUNE_ID) return;
-    this.showCostPanel = false;      // switch from cost panel to rune inspector
     this.selectedConnectionId = null;
     this.inspectedRune = this.availableRunes.find(r => r.name === node.runeId) ?? null;
     this.inspectedNodeId = node.id;
@@ -2295,7 +2315,11 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       strokeColor: this.spell?.strokeColor ?? '#8b5cf6',
       libraryOrigin: this.spell?.libraryOrigin,
       libraryOriginName: this.spell?.libraryOriginName,
+      drawing: this.spell?.drawing,
       graph: JSON.parse(JSON.stringify(this.graph)),
+      costMana: this.spellCostMana,
+      costFokus: this.spellCostFokus,
+      statRequirements: Object.keys(this.spellStatRequirements).length > 0 ? this.spellStatRequirements : undefined,
     };
     this.save.emit(spell);
     this.lastSavedJson = JSON.stringify(spell.graph);
@@ -2334,12 +2358,22 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   private extractTags(): string[] {
-    const tags = new Set<string>();
+    const tags = new Set<string>(this.spellTags);
     for (const node of this.graph.nodes) {
       const rune = this.availableRunes.find(r => r.name === node.runeId);
       if (rune) rune.tags?.forEach(t => tags.add(t));
     }
     return Array.from(tags);
+  }
+
+  toggleSpellTag(tag: string) {
+    const idx = this.spellTags.indexOf(tag);
+    if (idx >= 0) this.spellTags.splice(idx, 1);
+    else this.spellTags.push(tag);
+  }
+
+  hasSpellTag(tag: string): boolean {
+    return this.spellTags.includes(tag);
   }
 
   onDelete() {

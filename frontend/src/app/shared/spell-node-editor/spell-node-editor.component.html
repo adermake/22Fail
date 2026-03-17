@@ -47,24 +47,28 @@
       <!-- Top bar -->
       <div class="sne-topbar">
         <div class="sne-topbar-left">
-          <input class="spell-name-input" type="text" [(ngModel)]="spellName"
-                 placeholder="Zaubername…"/>
-          <input class="spell-desc-input" type="text" [(ngModel)]="spellDescription"
-                 placeholder="Beschreibung…"/>
+          <span class="sne-spell-title">{{ spellName || 'Neuer Zauber' }}</span>
+          <div class="sne-tabs">
+            <button class="sne-tab-btn" [class.sne-tab-active]="activeTab === 'netzwerk'"
+                    (click)="activeTab = 'netzwerk'">Netzwerk</button>
+            <button class="sne-tab-btn" [class.sne-tab-active]="activeTab === 'eigenschaften'"
+                    (click)="activeTab = 'eigenschaften'">Eigenschaften</button>
+          </div>
         </div>
         <div class="sne-topbar-right">
-          <!-- Default mode toggle -->
-          <div class="sne-mode-toggle" title="Standard-Ansicht für neue Runen">
-            <span class="sne-mode-label">Standard:</span>
-            <button class="sne-mode-btn" [class.sne-mode-active]="defaultNodeMode === 'basic'"
-                    (click)="setDefaultNodeMode('basic')" title="Basis-Ansicht (ein Multi-Port)">B</button>
-            <button class="sne-mode-btn" [class.sne-mode-active]="defaultNodeMode === 'advanced'"
-                    (click)="setDefaultNodeMode('advanced')" title="Erweitert (alle Ports)">E</button>
-          </div>
+          @if (activeTab === 'netzwerk') {
+            <!-- Default mode toggle -->
+            <div class="sne-mode-toggle" title="Standard-Ansicht für neue Runen">
+              <span class="sne-mode-label">Standard:</span>
+              <button class="sne-mode-btn" [class.sne-mode-active]="defaultNodeMode === 'basic'"
+                      (click)="setDefaultNodeMode('basic')" title="Basis-Ansicht (ein Multi-Port)">B</button>
+              <button class="sne-mode-btn" [class.sne-mode-active]="defaultNodeMode === 'advanced'"
+                      (click)="setDefaultNodeMode('advanced')" title="Erweitert (alle Ports)">E</button>
+            </div>
+          }
           @if (!isNewSpell) {
             <button class="tb-btn tb-delete" (click)="onDelete()">Löschen</button>
           }
-          <button class="tb-btn tb-cost" [class.tb-cost-active]="showCostPanel" (click)="toggleCostPanel()" title="Kostenberechnung anzeigen">⚖ Kosten</button>
           <button class="tb-btn tb-close" (click)="onClose()">Schließen ✕</button>
           <button class="tb-btn tb-save"
                   [class.tb-save-done]="savedFeedback"
@@ -76,7 +80,8 @@
         </div>
       </div>
 
-      <!-- Canvas -->
+      <!-- Canvas (Netzwerk tab only) -->
+      @if (activeTab === 'netzwerk') {
       <div class="canvas-wrap"
            #canvasWrap
            (wheel)="onWheel($event)"
@@ -397,20 +402,83 @@
         </div>
 
       </div><!-- /canvas-wrap -->
+      } <!-- /netzwerk tab -->
+
+      <!-- ── EIGENSCHAFTEN TAB ──────────────────────────────────────── -->
+      @if (activeTab === 'eigenschaften') {
+        <div class="eigenschaften-view">
+          <div class="ep-scroll">
+
+            <!-- Name -->
+            <div class="ep-section">
+              <div class="ep-label">Zaubername</div>
+              <input class="ep-input" type="text" [(ngModel)]="spellName" placeholder="Zaubername…"/>
+            </div>
+
+            <!-- Beschreibung -->
+            <div class="ep-section">
+              <div class="ep-label">Beschreibung</div>
+              <textarea class="ep-textarea" [(ngModel)]="spellDescription" rows="4" placeholder="Beschreibung…"></textarea>
+            </div>
+
+            <!-- Tags -->
+            <div class="ep-section">
+              <div class="ep-label">Tags</div>
+              <div class="ep-tag-grid">
+                @for (tag of allTagOptions; track tag) {
+                  <button class="ep-tag-btn" [class.ep-tag-active]="hasSpellTag(tag)"
+                          (click)="toggleSpellTag(tag)">{{ tag }}</button>
+                }
+              </div>
+            </div>
+
+            <!-- Kosten -->
+            <div class="ep-section">
+              <div class="ep-label">Kosten</div>
+              <div class="ep-cost-row">
+                <div class="ep-cost-field">
+                  <label class="ep-cost-label">&#9670; Mana</label>
+                  <input class="ep-cost-input" type="number" min="0" step="0.5" [(ngModel)]="spellCostMana"/>
+                </div>
+                <div class="ep-cost-field">
+                  <label class="ep-cost-label">&#9671; Fokus</label>
+                  <input class="ep-cost-input" type="number" min="0" step="0.5" [(ngModel)]="spellCostFokus"/>
+                </div>
+                <button class="ep-calc-btn" (click)="calculateEstimate()">&#9889; Schätzen</button>
+              </div>
+            </div>
+
+            <!-- Attributanforderungen (aus Kalkulation) -->
+            @if (spellCostResult && (spellCostResult.statRequirements.strength || spellCostResult.statRequirements.dexterity || spellCostResult.statRequirements.intelligence || spellCostResult.statRequirements.constitution || spellCostResult.statRequirements.chill)) {
+              <div class="ep-section">
+                <div class="ep-label">Attributanforderungen</div>
+                <div class="ep-stat-row">
+                  @if (spellCostResult.statRequirements.strength)     { <span class="ep-stat-chip">STR {{ spellCostResult.statRequirements.strength }}</span> }
+                  @if (spellCostResult.statRequirements.dexterity)    { <span class="ep-stat-chip">GES {{ spellCostResult.statRequirements.dexterity }}</span> }
+                  @if (spellCostResult.statRequirements.speed)        { <span class="ep-stat-chip">SPD {{ spellCostResult.statRequirements.speed }}</span> }
+                  @if (spellCostResult.statRequirements.intelligence) { <span class="ep-stat-chip">INT {{ spellCostResult.statRequirements.intelligence }}</span> }
+                  @if (spellCostResult.statRequirements.constitution) { <span class="ep-stat-chip">KON {{ spellCostResult.statRequirements.constitution }}</span> }
+                  @if (spellCostResult.statRequirements.chill)        { <span class="ep-stat-chip">CHR {{ spellCostResult.statRequirements.chill }}</span> }
+                </div>
+              </div>
+            }
+
+            <!-- Berechnungspfad -->
+            @if (spellCostResult) {
+              <div class="ep-section ep-trace-section">
+                <div class="ep-label">Berechnungspfad</div>
+                <app-spell-cost-display [result]="spellCostResult" [spellName]="spellName"/>
+              </div>
+            }
+
+          </div>
+        </div>
+      }
 
     </div><!-- /sne-main -->
 
-    <!-- ── RIGHT PANEL: cost | rune-inspector | conn-inspector ─────── -->
-    @if (showCostPanel && spellCostResult) {
-      <aside class="cost-inspector">
-        <div class="ci-header">
-          <span class="ci-title">⚖ Kostenberechnung</span>
-          <button class="ci-recalc" (click)="recalculateCost()" title="Neu berechnen">↺</button>
-          <button class="ci-close" (click)="showCostPanel = false">✕</button>
-        </div>
-        <app-spell-cost-display [result]="spellCostResult" [spellName]="spellName"/>
-      </aside>
-    } @else if (inspectedRune) {
+    <!-- ── RIGHT PANEL: rune-inspector | conn-inspector ───────── -->
+    @if (inspectedRune) {
       <aside class="rune-inspector">
         <div class="ri-header">
           <span class="ri-title">Runen-Info</span>
