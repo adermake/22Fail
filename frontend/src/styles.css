@@ -83,6 +83,8 @@ label {
   pointer-events: none !important;
   display: block !important;
   visibility: visible !important;
+  overflow: visible !important;
+  opacity: 0.97 !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
 }
 

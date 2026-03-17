@@ -151,6 +151,9 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
       if (this.ctx) {
         const c = this.canvasRef.nativeElement;
         this.ctx.clearRect(0, 0, c.width, c.height);
+        // Must reset shadowBlur before drawImage to prevent glow being baked into the canvas
+        this.ctx.shadowBlur = 0;
+        this.ctx.shadowColor = 'transparent';
         this.ctx.drawImage(img, 0, 0, c.width, c.height);
         this.saveHistory();
       }

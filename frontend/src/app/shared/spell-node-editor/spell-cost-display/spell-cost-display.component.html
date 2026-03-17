@@ -38,6 +38,13 @@
         </div>
       } @else {
         <div class="scd-turn-list">
+          @let t0 = castTurn0(0);
+          @if (t0) {
+            <div class="scd-turn-row scd-turn-cast">
+              <span class="scd-turn-label">Beschwörung</span>
+              <span class="scd-turn-costs">{{ turnCostStr(t0) }}</span>
+            </div>
+          }
           @for (g of summaryGroups(0); track g.fromTurn) {
             <div class="scd-turn-row">
               <span class="scd-turn-label">{{ summaryGroupLabel(g) }}</span>
@@ -56,6 +63,13 @@
             <div class="scd-branch-case-cost">{{ turnCostStr(caseEntries(ci)[0] ?? {turn:0,mana:0,fokus:0}) }}</div>
           } @else {
             <div class="scd-turn-list scd-turn-list-sm">
+              @let t0ci = castTurn0(ci);
+              @if (t0ci) {
+                <div class="scd-turn-row scd-turn-cast">
+                  <span class="scd-turn-label">Beschwörung</span>
+                  <span class="scd-turn-costs">{{ turnCostStr(t0ci) }}</span>
+                </div>
+              }
               @for (g of summaryGroups(ci); track g.fromTurn) {
                 <div class="scd-turn-row">
                   <span class="scd-turn-label">{{ summaryGroupLabel(g) }}</span>
@@ -77,8 +91,24 @@
 
         <!-- Shared / main path node -->
         <div class="scd-tree-root">
-          <span class="scd-tree-root-lbl">Gemeinsamer Pfad</span>
-          <span class="scd-tree-root-cost">{{ treeNodeCostStr(sharedEntries) }}</span>
+          <div class="scd-tree-root-head">
+            <span class="scd-tree-root-lbl">Gemeinsamer Pfad</span>
+            <span class="scd-tree-root-cost">{{ treeNodeCostStr(sharedEntries) }}</span>
+          </div>
+          @if (sharedSummaryGroups.length > 0) {
+            <div class="scd-tree-turns">
+              @if (sharedCastTurn0) {
+                <div class="scd-tree-turn-row scd-tree-turn-cast">
+                  <span>Beschwörung</span><span>{{ turnCostStr(sharedCastTurn0) }}</span>
+                </div>
+              }
+              @for (g of sharedSummaryGroups; track g.fromTurn) {
+                <div class="scd-tree-turn-row">
+                  <span>{{ summaryGroupLabel(g) }}</span><span>{{ summaryGroupStr(g) }}</span>
+                </div>
+              }
+            </div>
+          }
         </div>
 
         <!-- Known branch split -->

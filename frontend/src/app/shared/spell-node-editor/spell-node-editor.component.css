@@ -259,6 +259,64 @@
   cursor: default;
 }
 
+/* ── Settings toggle button ───────────────────────────────────────────────── */
+.tb-settings {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 1rem;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #9ca3af;
+  cursor: pointer;
+  background: transparent;
+  transition: all 0.18s;
+}
+.tb-settings:hover { border-color: rgba(139,92,246,0.5); color: #a78bfa; background: rgba(139,92,246,0.08); }
+.tb-settings-active { background: rgba(139,92,246,0.18) !important; color: #c4b5fd !important; border-color: rgba(139,92,246,0.5) !important; }
+
+/* ── Properties right panel ───────────────────────────────────────────────── */
+.properties-panel {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgba(8, 10, 22, 0.97);
+  border-left: 1px solid rgba(139,92,246,0.2);
+}
+.pp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(139,92,246,0.15);
+  flex-shrink: 0;
+}
+.pp-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #a78bfa;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.pp-close {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.pp-close:hover { color: #fca5a5; }
+.pp-scroll {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139,92,246,0.3) transparent;
+}
+.pp-scroll .ep-section { padding: 0 14px; margin-bottom: 0; border-bottom: 1px solid rgba(255,255,255,0.04); padding-top: 12px; padding-bottom: 12px; }
+
 /* ── Eigenschaften (properties) view ──────────────────────────────────────── */
 .eigenschaften-view {
   flex: 1;
@@ -1138,26 +1196,34 @@
 .conn-badge-passthrough { stroke: rgba(139,92,246,0.85); fill: rgba(60,20,120,0.92); }
 .conn-badge-delay      { stroke: rgba(251,191,36,0.85);  fill: rgba(100,60,5,0.92); }
 /* Combined split badge (passthrough + delay) */
-.conn-badge-combined .conn-badge-outline {
-  stroke: rgba(200,160,60,0.55);
-  stroke-width: 1.2;
+.conn-badge-combined-circle {
   fill: none;
+  stroke: rgba(200,160,60,0.45);
+  stroke-width: 1.5;
+}
+.conn-badge-divider {
+  stroke: rgba(255,255,255,0.25);
+  stroke-width: 1;
+}
+.conn-badge-combined .conn-badge-passthrough,
+.conn-badge-combined .conn-badge-delay {
+  stroke: none;
 }
 .conn-badge-icon-sm {
   fill: #f1f5f9;
-  font-size: 11px;
+  font-size: 12px;
   text-anchor: middle;
-  dominant-baseline: central;
+  dominant-baseline: auto;
   pointer-events: none;
   font-family: monospace;
 }
 .conn-badge-sub-l {
-  fill: rgba(226,232,240,0.9);
-  font-size: 9px;
+  fill: rgba(226,232,240,0.85);
+  font-size: 8px;
   text-anchor: middle;
-  dominant-baseline: hanging;
+  dominant-baseline: auto;
   font-family: monospace;
-  font-weight: 600;
+  font-weight: 700;
   pointer-events: none;
 }
 .conn-badge-icon {

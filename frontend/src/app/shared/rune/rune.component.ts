@@ -148,10 +148,7 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
     setTimeout(() => {
       if (this.canvasRef) {
         this.initCanvas();
-        // Load existing drawing if available
-        if (this.rune.drawing) {
-          this.loadDrawing(this.rune.drawing);
-        }
+        // initCanvas already loads the drawing — no second loadDrawing call needed
         this.cd.detectChanges();
       }
     }, 0);
@@ -176,6 +173,9 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
     img.onload = () => {
       if (this.ctx) {
         this.ctx.clearRect(0, 0, this.canvasWidth(), this.canvasHeight());
+        // Reset shadow before drawing image to prevent glow burn-in
+        this.ctx.shadowBlur = 0;
+        this.ctx.shadowColor = 'transparent';
         this.ctx.drawImage(img, 0, 0);
       }
     };
@@ -215,6 +215,9 @@ export class RuneComponent implements AfterViewInit, OnInit, OnDestroy {
             // Fill black background first
             this.ctx.fillStyle = '#000';
             this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Reset shadow before drawing image to prevent glow burn-in
+            this.ctx.shadowBlur = 0;
+            this.ctx.shadowColor = 'transparent';
             // Draw the image
             this.ctx.drawImage(img, 0, 0);
             // Restore settings

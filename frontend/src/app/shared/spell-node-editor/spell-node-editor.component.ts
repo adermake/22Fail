@@ -43,8 +43,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   @ViewChild('canvasWrap', { static: false }) canvasWrapRef!: ElementRef<HTMLDivElement>;
   @ViewChild('svgLayer',   { static: false }) svgRef!: ElementRef<SVGSVGElement>;
 
-  // ── View tabs ──────────────────────────────────────────────────────────────
-  activeTab: 'netzwerk' | 'eigenschaften' = 'netzwerk';
+  // ── View state ─────────────────────────────────────────────────────────────
+  showProperties = false;
 
   // ── Spell meta ─────────────────────────────────────────────────────────────
   spellName        = 'Neuer Zauber';
@@ -759,7 +759,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   // Document-level mouse handlers (registered manually in ngOnInit)
   private handleMouseMove(e: MouseEvent) {
-    // Canvas not in DOM (Eigenschaften tab) — ignore all canvas-related mouse events
+    // Canvas may not be available (e.g. ref not yet initialised) — guard
     if (!this.canvasWrapRef) return;
     if (this.marqueeActive) {
       const rect = this.canvasEl().getBoundingClientRect();

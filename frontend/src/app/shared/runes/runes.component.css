@@ -9,14 +9,7 @@
   overflow: visible;
 }
 
-/* ─── CDK Drag Preview override — must be global to reach portaled preview ── */
-:host ::ng-deep .cdk-drag-preview {
-  overflow: visible !important;
-  z-index: 99999 !important;
-  opacity: 0.97 !important;
-  display: block !important;
-  visibility: visible !important;
-}
+/* CDK drag preview styles are handled globally in styles.css */
 
 .runes-container {
   display: grid;

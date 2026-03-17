@@ -609,6 +609,12 @@
   color: #e2e8f0;
 }
 
+/* Beschwörung (turn-0 cast) row highlight */
+.scd-turn-cast {
+  background: rgba(139,92,246,0.08) !important;
+}
+.scd-turn-cast .scd-turn-label { color: #8b5cf6; }
+
 /* ── Kostenbaum tree visualization ──────────────────────────────────── */
 .scd-tree {
   display: flex;
@@ -617,12 +623,17 @@
 }
 .scd-tree-root {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
   padding: 5px 8px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 6px;
+}
+.scd-tree-root-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .scd-tree-root-lbl {
   font-size: 0.63rem;
@@ -637,6 +648,25 @@
   color: #e2e8f0;
   margin-left: auto;
 }
+/* Per-turn breakdown inside the tree shared-path node */
+.scd-tree-turns {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 4px;
+}
+.scd-tree-turn-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.64rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #94a3b8;
+}
+.scd-tree-turn-row span:last-child { font-weight: 600; color: #cbd5e1; }
+.scd-tree-turn-cast { background: rgba(139,92,246,0.07); }
+.scd-tree-turn-cast span:first-child { color: #7c3aed; }
 .scd-tree-branch-list {
   margin-left: 10px;
   border-left: 2px solid rgba(139,92,246,0.35);

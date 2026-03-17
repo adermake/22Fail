@@ -69,9 +69,44 @@ export class SpellCostDisplayComponent {
     return parts.join(' · ');
   }
 
-  /** Get the compressed turn-summary groups for a case. */
+  /** Get the compressed turn-summary groups for a case (turns > 0 only). */
   summaryGroups(ci: number): TurnSummaryGroup[] {
     return this.result.caseTotals[ci]?.turnSummary ?? [];
+  }
+
+  /** Return the turn-0 cast entry if it has cost > 0, otherwise undefined. */
+  castTurn0(ci: number): TurnCostEntry | undefined {
+    const e = this.caseEntries(ci).find(e => e.turn === 0);
+    return (e && (e.mana > 0 || e.fokus > 0)) ? e : undefined;
+  }
+
+  /** Compressed turn summary for the shared path entries. */
+  get sharedSummaryGroups(): TurnSummaryGroup[] {
+    const delayed = this.result.sharedEntries.filter(e => e.turn > 0);
+    return this.compress(delayed);
+  }
+
+  /** Turn-0 cast entry from the shared path (if has cost). */
+  get sharedCastTurn0(): TurnCostEntry | undefined {
+    const e = this.result.sharedEntries.find(e => e.turn === 0);
+    return (e && (e.mana > 0 || e.fokus > 0)) ? e : undefined;
+  }
+
+  private compress(delayed: TurnCostEntry[]): TurnSummaryGroup[] {
+    if (delayed.length === 0) return [];
+    const groups: TurnSummaryGroup[] = [];
+    let cur = delayed[0]; let fromTurn = cur.turn; let prevTurn = cur.turn;
+    for (let i = 1; i < delayed.length; i++) {
+      const e = delayed[i];
+      if (e.turn === prevTurn + 1 && Math.abs(e.mana - cur.mana) < 0.001 && Math.abs(e.fokus - cur.fokus) < 0.001) {
+        prevTurn = e.turn;
+      } else {
+        groups.push({ fromTurn, toTurn: prevTurn, mana: cur.mana, fokus: cur.fokus });
+        cur = e; fromTurn = e.turn; prevTurn = e.turn;
+      }
+    }
+    groups.push({ fromTurn, toTurn: prevTurn, mana: cur.mana, fokus: cur.fokus });
+    return groups;
   }
 
   /** Label for a summary group: "Runde 3" or "Runde 3–8" */
@@ -112,7 +147,9 @@ export class SpellCostDisplayComponent {
   // ── Kostenbaum helpers ───────────────────────────────────────────────
 
   get hasBranchTree(): boolean {
-    return this.result.hasKnownBranches || this.result.unknownBranches.length > 0;
+    return this.result.hasKnownBranches
+      || this.result.unknownBranches.length > 0
+      || this.sharedSummaryGroups.length > 0;
   }
 
   get sharedEntries(): TurnCostEntry[] {
