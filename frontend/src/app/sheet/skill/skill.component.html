@@ -101,6 +101,14 @@
         </button>
       </div>
 
+      <!-- Pay feedback overlay (shown after paying, auto-closes) -->
+      @if (payFeedback.active) {
+        <div class="sp-feedback" [style.--rc]="resourceColor">
+          <div class="sp-feedback-icon">&#x2713;</div>
+          <div class="sp-feedback-cost">&minus;{{ payFeedback.amount }} {{ payFeedback.label }}</div>
+        </div>
+      }
+
     </div>
   </div>
 }

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 import { JsonPatch } from '../../model/json-patch.model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { StatusBlock } from '../../model/status-block.model';
@@ -32,8 +32,11 @@ export class SkillComponent {
   menuY = 0;
 
   showPayPopup = false;
+  payFeedback: { active: boolean; amount: number; label: string } = {
+    active: false, amount: 0, label: '',
+  };
 
-  constructor(private sanitizer: DomSanitizer) {}
+  constructor(private sanitizer: DomSanitizer, private cdr: ChangeDetectorRef) {}
 
   @HostListener('document:click')
   closeMenu() { this.showContextMenu = false; }
@@ -56,6 +59,7 @@ export class SkillComponent {
   }
 
   closePayPopup() {
+    if (this.payFeedback.active) return; // don't close during feedback
     this.showPayPopup = false;
   }
 
@@ -106,14 +110,24 @@ export class SkillComponent {
   payAndUse() {
     const status = this.resourceStatus;
     if (!status || !this.cost || !this.canAfford) return;
+    const amount = this.cost.amount;
+    const label = this.resourceLabel;
     const statuses = this.sheet.statuses.map(s =>
       s === status
-        ? { ...s, statusCurrent: Math.max(0, (s.statusCurrent ?? 0) - this.cost!.amount) }
+        ? { ...s, statusCurrent: Math.max(0, (s.statusCurrent ?? 0) - amount) }
         : s
     );
     this.sheet.statuses = statuses;
     this.patch.emit({ path: 'statuses', value: statuses });
-    this.closePayPopup();
+
+    // Show feedback then close after 1.1 s
+    this.payFeedback = { active: true, amount, label };
+    this.cdr.markForCheck();
+    setTimeout(() => {
+      this.payFeedback = { active: false, amount: 0, label: '' };
+      this.showPayPopup = false;
+      this.cdr.markForCheck();
+    }, 1100);
   }
 
   // --- Definition lookups ---
@@ -152,22 +166,42 @@ export class SkillComponent {
   }
 
   get typeIcon(): string {
-    const icons: Record<string, string> = { active: '?', passive: '??', dice_bonus: '??', stat_bonus: '??' };
-    return icons[this.effectiveType] ?? '?';
+    // Using Unicode escapes to avoid file-encoding issues with multi-byte emoji
+    const icons: Record<string, string> = {
+      active:     '\u26A1',           // lightning bolt
+      passive:    '\uD83D\uDD2E',     // crystal ball
+      dice_bonus: '\uD83C\uDFB2',     // dice
+      stat_bonus: '\uD83D\uDCC8',     // chart
+    };
+    return icons[this.effectiveType] ?? '\u2726';
   }
 
   get typeLabel(): string {
-    const labels: Record<string, string> = { active: 'Aktiv', passive: 'Passiv', dice_bonus: 'Würfelbonus', stat_bonus: 'Stat-Bonus' };
+    const labels: Record<string, string> = {
+      active: 'Aktiv',
+      passive: 'Passiv',
+      dice_bonus: 'W\u00FCrfelbonus',
+      stat_bonus: 'Stat-Bonus',
+    };
     return labels[this.effectiveType] ?? this.effectiveType;
   }
 
   get costIcon(): string {
-    const icons: Record<string, string> = { mana: '??', energy: '?', life: '??' };
-    return this.cost ? (icons[this.cost.type] ?? '?') : '';
+    const icons: Record<string, string> = {
+      mana:   '\uD83D\uDCA7',  // water drop
+      energy: '\u26A1',        // lightning bolt
+      life:   '\u2764',        // heart
+    };
+    return this.cost ? (icons[this.cost.type] ?? '\u25C6') : '';
   }
 
   get actionIcon(): string {
-    const icons: Record<string, string> = { 'Aktion': '?', 'Bonusaktion': '?', 'Keine Aktion': '?', 'Reaktion': '?' };
+    const icons: Record<string, string> = {
+      'Aktion':        '\u2694',  // crossed swords
+      'Bonusaktion':   '\u2726',  // star
+      'Keine Aktion':  '\u25CE',  // bullseye
+      'Reaktion':      '\u21A9',  // curved arrow
+    };
     return this.actionType ? (icons[this.actionType] ?? '') : '';
   }
 
@@ -188,7 +222,7 @@ export class SkillComponent {
   private shortStat(stat: string): string {
     const map: Record<string, string> = {
       intelligence: 'INT', strength: 'STR', dexterity: 'GES', speed: 'GES',
-      constitution: 'KON', chill: 'WIL', mana: 'MANA', life: 'LP', energy: 'EP', focus: 'FO'
+      constitution: 'KON', chill: 'WIL', mana: 'MANA', life: 'LP', energy: 'EP', focus: 'FO',
     };
     return map[stat] ?? stat.toUpperCase().slice(0, 3);
   }
