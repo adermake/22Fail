@@ -12,6 +12,19 @@
             title="Filter">
       &#x25BC; Filter{{ hasActiveFilters ? ' (' + filteredSkills.length + ')' : '' }}
     </button>
+    <!-- Sort controls -->
+    <select [(ngModel)]="sortBy" class="sk-select sk-sort-sel" title="Sortieren nach">
+      <option value="type">Typ</option>
+      <option value="name">Name</option>
+      <option value="class">Klasse</option>
+      <option value="tier">Rang</option>
+      <option value="cost">Kosten</option>
+    </select>
+    <button class="sk-sort-dir"
+            (click)="toggleSortDir()"
+            [title]="sortDir === 'asc' ? 'Aufsteigend' : 'Absteigend'">
+      {{ sortDir === 'asc' ? '&#x2191;' : '&#x2193;' }}
+    </button>
     <button class="sk-add-btn" (click)="openCreateDialog()">+ Neu</button>
   </div>
 

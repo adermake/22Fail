@@ -3,23 +3,18 @@
      [class.sc-disabled]="isDisabled"
      (contextmenu)="onRightClick($event)">
 
-  <!-- Type bar: icon + label + action pill (active only) + rank -->
+  <!-- Topbar: type icon + type label + NAME (prominent) + action pill + enlightened -->
   <div class="sc-bar">
     <span class="sc-type-icon">{{ typeIcon }}</span>
     <span class="sc-type-lbl">{{ typeLabel }}</span>
+    <span class="sc-name">{{ skill.name }}</span>
     @if (effectiveType === 'active' && actionType) {
       <span class="sc-action" [attr.data-action]="actionType">{{ actionIcon }} {{ actionType }}</span>
-    }
-    @if (rankRoman) {
-      <span class="sc-rank">{{ rankRoman }}</span>
     }
     @if (skill.enlightened) {
       <span class="sc-enl" title="Erleuchtet">&#x2726;</span>
     }
   </div>
-
-  <!-- Name -->
-  <div class="sc-name">{{ skill.name }}</div>
 
   <!-- Stat summary for stat_bonus type -->
   @if (effectiveType === 'stat_bonus' && statSummary) {
@@ -29,9 +24,14 @@
   <!-- Description -->
   <div class="sc-desc" [innerHTML]="enhancedDescription"></div>
 
-  <!-- Footer: class + cost -->
+  <!-- Footer: class + rank (gray) + cost (big) -->
   <div class="sc-footer">
-    <span class="sc-class">{{ skill.class }}</span>
+    <div class="sc-footer-left">
+      <span class="sc-class">{{ skill.class }}</span>
+      @if (rankRoman) {
+        <span class="sc-rank">{{ rankRoman }}</span>
+      }
+    </div>
     @if (cost) {
       <span class="sc-cost" [attr.data-resource]="cost.type">
         {{ costIcon }} {{ cost.amount }}{{ cost.perRound ? '/Rd' : '' }}

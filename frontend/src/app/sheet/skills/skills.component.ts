@@ -31,9 +31,30 @@ export class SkillsComponent implements OnInit {
   filterTier = '';
   showFilters = false;
 
+  // Sort state
+  sortBy: 'type' | 'name' | 'class' | 'tier' | 'cost' = 'type';
+  sortDir: 'asc' | 'desc' = 'asc';
+
   // Editor state
   showSkillEditor = false;
   editorSkillIndex: number | null = null;
+
+  private readonly TYPE_LABELS: Record<string, string> = {
+    active: 'aktiv',
+    passive: 'passiv',
+    dice_bonus: 'wuerfelbonus wuerfeln wuerfel',
+    stat_bonus: 'stat-bonus',
+  };
+
+  private readonly COST_LABELS: Record<string, string> = {
+    mana: 'mana',
+    energy: 'energie ausdauer',
+    life: 'leben',
+  };
+
+  private readonly RANK_ROMAN: Record<number, string> = {
+    1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V',
+  };
 
   ngOnInit() {
     if (!this.sheet.skills) {
@@ -41,7 +62,28 @@ export class SkillsComponent implements OnInit {
     }
   }
 
-  // --- Filter helpers ---------------------------------------------------------
+  private buildSearchCorpus(s: SkillBlock): string {
+    const def = this.getDefinition(s);
+    const type = def?.type ?? s.type;
+    const cost = def?.cost ?? s.cost;
+    const action = def?.actionType ?? s.actionType;
+    const tier = CLASS_DEFINITIONS[s.class]?.tier;
+    const parts = [
+      s.name ?? '',
+      s.description ?? '',
+      s.class ?? '',
+      this.TYPE_LABELS[type] ?? type,
+      action ?? '',
+      cost ? (this.COST_LABELS[cost.type] ?? cost.type) : '',
+      cost ? String(cost.amount) : '',
+      tier ? (this.RANK_ROMAN[tier] ?? '') : '',
+      tier ? `rang ${this.RANK_ROMAN[tier] ?? ''}` : '',
+      s.enlightened ? 'erleuchtet' : '',
+    ];
+    return parts.join(' ').toLowerCase();
+  }
+
+  // --- Filter helpers ---
 
   getDefinition(skill: SkillBlock): SkillDefinition | undefined {
     if (skill.skillId) return SKILL_DEFINITIONS.find(s => s.id === skill.skillId);
@@ -60,18 +102,11 @@ export class SkillsComponent implements OnInit {
 
     if (this.searchText) {
       const q = this.searchText.toLowerCase();
-      skills = skills.filter(s =>
-        (s.name ?? '').toLowerCase().includes(q) ||
-        (s.description ?? '').toLowerCase().includes(q) ||
-        (s.class ?? '').toLowerCase().includes(q)
-      );
+      skills = skills.filter(s => this.buildSearchCorpus(s).includes(q));
     }
 
     if (this.filterType) {
-      skills = skills.filter(s => {
-        const t = this.getDefinition(s)?.type ?? s.type;
-        return t === this.filterType;
-      });
+      skills = skills.filter(s => (this.getDefinition(s)?.type ?? s.type) === this.filterType);
     }
 
     if (this.filterClass) {
@@ -98,14 +133,44 @@ export class SkillsComponent implements OnInit {
       skills = skills.filter(s => CLASS_DEFINITIONS[s.class]?.tier === tier);
     }
 
-    // Sort: active ? passive ? dice_bonus ? stat_bonus, then alphabetical
+    // Dynamic sort
     const typeOrder: Record<string, number> = { active: 0, passive: 1, dice_bonus: 2, stat_bonus: 3 };
+    const dir = this.sortDir === 'asc' ? 1 : -1;
+
     skills.sort((a, b) => {
       const da = this.getDefinition(a), db = this.getDefinition(b);
-      const ta = typeOrder[da?.type ?? a.type] ?? 4;
-      const tb = typeOrder[db?.type ?? b.type] ?? 4;
-      if (ta !== tb) return ta - tb;
-      return (a.name ?? '').localeCompare(b.name ?? '');
+      let cmp = 0;
+      switch (this.sortBy) {
+        case 'type': {
+          const ta = typeOrder[da?.type ?? a.type] ?? 4;
+          const tb = typeOrder[db?.type ?? b.type] ?? 4;
+          cmp = ta - tb;
+          if (cmp === 0) cmp = (a.name ?? '').localeCompare(b.name ?? '');
+          break;
+        }
+        case 'name':
+          cmp = (a.name ?? '').localeCompare(b.name ?? '');
+          break;
+        case 'class':
+          cmp = (a.class ?? '').localeCompare(b.class ?? '');
+          if (cmp === 0) cmp = (a.name ?? '').localeCompare(b.name ?? '');
+          break;
+        case 'tier': {
+          const ta = CLASS_DEFINITIONS[a.class]?.tier ?? 0;
+          const tb = CLASS_DEFINITIONS[b.class]?.tier ?? 0;
+          cmp = ta - tb;
+          if (cmp === 0) cmp = (a.name ?? '').localeCompare(b.name ?? '');
+          break;
+        }
+        case 'cost': {
+          const ca = (da?.cost ?? a.cost)?.amount ?? 0;
+          const cb = (db?.cost ?? b.cost)?.amount ?? 0;
+          cmp = ca - cb;
+          if (cmp === 0) cmp = (a.name ?? '').localeCompare(b.name ?? '');
+          break;
+        }
+      }
+      return cmp * dir;
     });
 
     return skills;
@@ -125,7 +190,11 @@ export class SkillsComponent implements OnInit {
     this.filterTier = '';
   }
 
-  // --- Editor -----------------------------------------------------------------
+  toggleSortDir() {
+    this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+  }
+
+  // --- Editor ---
 
   openEditor(index: number) {
     this.editorSkillIndex = index;
@@ -165,7 +234,7 @@ export class SkillsComponent implements OnInit {
     this.closeEditor();
   }
 
-  // --- CRUD -------------------------------------------------------------------
+  // --- CRUD ---
 
   deleteSkill(index: number) {
     const skill = this.sheet.skills[index];
