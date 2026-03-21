@@ -232,3 +232,54 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ---- New form layout helpers ---- */
+.form-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.form-row > .form-group {
+  flex: 1;
+  min-width: 100px;
+}
+
+.form-group-check {
+  justify-content: flex-end;
+  padding-bottom: 6px;
+}
+
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.check-label input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--accent, #8b5cf6);
+}
+
+.form-fieldset {
+  border: 1px solid var(--border, #374151);
+  border-radius: 8px;
+  padding: 10px 14px 14px;
+  margin: 0;
+}
+
+.form-fieldset legend {
+  font-size: 0.78rem;
+  color: var(--text-muted, #9ca3af);
+  font-weight: 600;
+  padding: 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}

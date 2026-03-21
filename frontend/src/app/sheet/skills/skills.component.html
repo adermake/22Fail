@@ -1,45 +1,98 @@
 <app-card>
-  <div class="skills-header">
-    <h2>Skills</h2>
-    <button class="add-btn" (click)="openCreateDialog()">+ Add Skill</button>
+  <!-- Header row -->
+  <div class="sk-header">
+    <h2 class="sk-title">&#x26A1; F&auml;higkeiten</h2>
+    <input class="sk-search"
+           type="text"
+           [(ngModel)]="searchText"
+           placeholder="Suche nach Name, Klasse, Beschreibung...">
+    <button class="sk-filter-btn"
+            [class.active]="showFilters || hasActiveFilters"
+            (click)="showFilters = !showFilters"
+            title="Filter">
+      &#x25BC; Filter{{ hasActiveFilters ? ' (' + filteredSkills.length + ')' : '' }}
+    </button>
+    <button class="sk-add-btn" (click)="openCreateDialog()">+ Neu</button>
   </div>
 
-  <div class="skills-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
-    @for (skill of sortedSkills; track skill.name + skill.class; let i = $index) {
-      <div cdkDrag [cdkDragDisabled]="isSkillEditing(getOriginalIndex(skill))" (cdkDragStarted)="onDragStarted($event)">
-        <app-skill
-          [skill]="skill"
-          [sheet]="sheet"
-          [index]="getOriginalIndex(skill)"
-          [isEditing]="isSkillEditing(getOriginalIndex(skill))"
-          (patch)="updateSkill(getOriginalIndex(skill), $event)"
-          (delete)="deleteSkill(getOriginalIndex(skill))"
-          (editingChange)="onEditingChange(getOriginalIndex(skill), $event)"
-        ></app-skill>
-        <div 
-          class="drag-placeholder-wrapper" 
-          *cdkDragPlaceholder
-          [style.height]="placeholderHeight"
-          [style.width]="placeholderWidth">
-        </div>
-      </div>
-    }
-    
-    @if ((sheet.skills || []).length === 0) {
-      <p class="empty-message">No skills yet. Click + to add one.</p>
-    }
-  </div>
-
-  <!-- Create Dialog -->
-  @if (showCreateDialog) {
-    <div class="dialog-overlay" (click)="closeCreateDialog()">
-      <div class="dialog-content" (click)="$event.stopPropagation()">
-        <h3>Create New Skill</h3>
-        <app-skill-creator
-          (create)="createSkill($event)"
-          (cancel)="closeCreateDialog()"
-        ></app-skill-creator>
-      </div>
+  <!-- Filter row -->
+  @if (showFilters) {
+    <div class="sk-filters">
+      <select [(ngModel)]="filterType" class="sk-select">
+        <option value="">Alle Typen</option>
+        <option value="active">&#x26A1; Aktiv</option>
+        <option value="passive">&#x1F52E; Passiv</option>
+        <option value="dice_bonus">&#x1F3B2; W&uuml;rfelbonus</option>
+        <option value="stat_bonus">&#x1F4C8; Stat-Bonus</option>
+      </select>
+      <select [(ngModel)]="filterClass" class="sk-select">
+        <option value="">Alle Klassen</option>
+        @for (cls of availableClasses; track cls) {
+          <option [value]="cls">{{ cls }}</option>
+        }
+      </select>
+      <select [(ngModel)]="filterAction" class="sk-select">
+        <option value="">Alle Aktionen</option>
+        <option value="Aktion">&#x2694; Aktion</option>
+        <option value="Bonusaktion">&#x2726; Bonusaktion</option>
+        <option value="Keine Aktion">&#x25CE; Keine Aktion</option>
+        <option value="Reaktion">&#x21A9; Reaktion</option>
+      </select>
+      <select [(ngModel)]="filterCost" class="sk-select">
+        <option value="">Alle Kosten</option>
+        <option value="free">Kostenlos</option>
+        <option value="mana">&#x1F4A7; Mana</option>
+        <option value="energy">&#x26A1; Energie</option>
+        <option value="life">&#x2764;&#xFE0F; Leben</option>
+      </select>
+      <select [(ngModel)]="filterTier" class="sk-select">
+        <option value="">Alle R&auml;nge</option>
+        <option value="1">Rang I</option>
+        <option value="2">Rang II</option>
+        <option value="3">Rang III</option>
+        <option value="4">Rang IV</option>
+        <option value="5">Rang V</option>
+      </select>
+      @if (hasActiveFilters) {
+        <button class="sk-reset-btn" (click)="clearFilters()">&#x2715; Zur&uuml;cksetzen</button>
+      }
     </div>
   }
+
+  <!-- Result info -->
+  @if (hasActiveFilters) {
+    <div class="sk-count">
+      {{ filteredSkills.length }} von {{ (sheet.skills || []).length }} F&auml;higkeiten angezeigt
+    </div>
+  }
+
+  <!-- Skills grid: 2 columns -->
+  <div class="sk-grid">
+    @for (skill of filteredSkills; track skill.name + skill.class; let i = $index) {
+      <app-skill
+        [skill]="skill"
+        [sheet]="sheet"
+        [index]="getOriginalIndex(skill)"
+        [isEditing]="false"
+        (delete)="deleteSkill(getOriginalIndex(skill))"
+        (openEditor)="openEditor(getOriginalIndex(skill))">
+      </app-skill>
+    }
+    @if (filteredSkills.length === 0) {
+      <p class="sk-empty">
+        @if (hasActiveFilters) { Keine F&auml;higkeiten gefunden. }
+        @else { Noch keine F&auml;higkeiten. Klicke auf &bdquo;+ Neu&ldquo; um eine hinzuzuf&uuml;gen. }
+      </p>
+    }
+  </div>
 </app-card>
+
+<!-- Full-screen skill editor -->
+@if (showSkillEditor) {
+  <app-skill-editor
+    [skill]="editorSkill"
+    (save)="onEditorSave($event)"
+    (cancel)="closeEditor()"
+    (delete)="onEditorDelete()">
+  </app-skill-editor>
+}

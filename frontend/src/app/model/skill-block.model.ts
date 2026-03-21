@@ -9,11 +9,14 @@ export class SkillBlock {
   name!: string;
   class!: string;
   description!: string;
-  type!: 'active' | 'passive' | 'dice_bonus' | 'stat_bonus'; 
+  type!: 'active' | 'passive' | 'dice_bonus' | 'stat_bonus';
   enlightened!: boolean;
-  level?: number;  // How many times this skill has been learned (for infiniteLevel skills)
-  skillId?: string;  // Reference to the skill definition ID
-  statModifiers?: StatModifier[]; // Stat bonuses from this skill
-  libraryOrigin?: string; // Library ID if this skill came from a library (undefined for custom skills)
-  libraryOriginName?: string; // Human-readable library name
+  level?: number;
+  skillId?: string;
+  statModifiers?: StatModifier[];
+  libraryOrigin?: string;
+  libraryOriginName?: string;
+  // Custom cost for active skills (falls back to definition lookup if not set)
+  cost?: { type: 'mana' | 'energy' | 'life'; amount: number; perRound?: boolean };
+  actionType?: 'Aktion' | 'Bonusaktion' | 'Keine Aktion' | 'Reaktion';
 }

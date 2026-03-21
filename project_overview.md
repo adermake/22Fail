@@ -76,7 +76,17 @@ app/
     - Kosten kompakt: Inline-Grid (4 Spalten: Label, Basis, ×, Multiplikator), keine großen Blöcke
     - Anforderungen kompakt: Flex-Wrap mit kleinen Inline-Inputs
   - `identified = false` → Nur Bild im Detail-Panel; `learned` = Goldener Rahmen in Grid
-- **Skills**: Fähigkeiten/Talente
+- **Skills**: Fähigkeiten/Talente — vollständig überarbeitet:
+  - `SkillBlock` Model: `name, class, type, enlightened, description, cost?, actionType?, skillId?, statModifiers?, libraryOrigin?`
+    - `cost`: `{ type: 'mana'|'energy'|'life'; amount; perRound? }` — Kosten für aktive Skills
+    - `actionType`: `'Aktion'|'Bonusaktion'|'Keine Aktion'|'Reaktion'` — Aktionsverbrauch
+  - `SkillDefinition` in `data/skill-definitions.ts`: kanonische Definitionen; lookup by `skillId > name+class > name`
+  - `CLASS_DEFINITIONS`: `ClassHierarchy` (string-index) → `{ tier:1-5, angle, children[] }` — bestimmt Rang-Badge
+  - `app-skills` (`sheet/skills/`): 2-Spalten-Grid, Suchleiste + 5 Filter (Typ/Klasse/Aktion/Kosten/Rang), Vollbild-Editor-Overlay via `app-skill-editor`
+  - `app-skill` (`sheet/skill/`): Kompakte Game-Karte, Rechtsklick → Kontextmenü (Bearbeiten/Löschen), Typ-Farbcodierung mit CSS `--tc`/`--tc-bg` Tokens
+    - Typen-Farben: active=#f59e0b (amber), passive=#a78bfa (violett), dice_bonus=#34d399 (grün), stat_bonus=#38bdf8 (blau)
+    - Action-Pills: Aktion=rot, Bonusaktion=blau, Keine Aktion=grau, Reaktion=orange
+  - `app-skill-editor` (`shared/skill-editor/`): Vollbild-Modal, unterstützt cost+actionType+enlightened-Felder
 - **Status Effects**: Buffs/Debuffs für Charaktere
 - **Shops**: Verkaufsveranstaltungen mit Deals (normal/reverse)
   - `isReverseDeal: true` → Shop kauft Items von Spielern

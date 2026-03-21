@@ -28,10 +28,6 @@ export class RunesComponent implements OnChanges {
   editingIndex: number | null = null;
 
   // Drag state
-  dragPreviewOffsetX = 0;
-  dragPreviewOffsetY = 0;
-  private readonly CHIP_HALF_W = 90;
-  private readonly CHIP_HALF_H = 20;
   dragSourceSlotIdx: number | null = null;
   dropTargetSlotIdx: number | null = null;
 
@@ -150,12 +146,7 @@ export class RunesComponent implements OnChanges {
   onDragStarted(event: CdkDragStart, slotIdx: number) {
     this.dragSourceSlotIdx = slotIdx;
     this.dropTargetSlotIdx = slotIdx;
-    const nativeEvent = event.event as MouseEvent;
-    const rect = (event.source.element.nativeElement as HTMLElement).getBoundingClientRect();
-    const grabX = nativeEvent.clientX - rect.left;
-    const grabY = nativeEvent.clientY - rect.top;
-    this.dragPreviewOffsetX = grabX - this.CHIP_HALF_W;
-    this.dragPreviewOffsetY = grabY - this.CHIP_HALF_H;
+
   }
 
   onDragMoved(event: CdkDragMove) {

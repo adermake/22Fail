@@ -62,12 +62,7 @@ export class InventoryComponent {
   dragSourceSlotIdx: number | null = null;
   /** Padded slot index the pointer is currently hovering over */
   dropTargetSlotIdx: number | null = null;
-  /** Offset (px) to center drag chip on cursor. Applied via absolute positioning in the preview template. */
-  dragPreviewOffsetX = 0;
-  dragPreviewOffsetY = 0;
-  /** Half-dimensions of the drag chip (approx: 220px wide, 40px tall) */
-  private readonly DRAG_CHIP_HALF_W = 110;
-  private readonly DRAG_CHIP_HALF_H = 20;
+
 
   /**
    * Fixed-size slot array: inventory items packed to front, nulls fill the rest.
@@ -290,13 +285,7 @@ getCurrencyWeight(): number {
     this.dragSourceSlotIdx = slotIdx;
     this.dropTargetSlotIdx = slotIdx; // start at self
 
-    // Compute offset so the drag chip appears centered on the cursor
-    const nativeEvent = event.event as MouseEvent;
-    const rect = (event.source.element.nativeElement as HTMLElement).getBoundingClientRect();
-    const grabX = nativeEvent.clientX - rect.left;
-    const grabY = nativeEvent.clientY - rect.top;
-    this.dragPreviewOffsetX = grabX - this.DRAG_CHIP_HALF_W;
-    this.dragPreviewOffsetY = grabY - this.DRAG_CHIP_HALF_H;
+
   }
 
   onDragMoved(event: CdkDragMove) {

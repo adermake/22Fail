@@ -1,93 +1,51 @@
-<div class="skill-card" 
-     [class.editing]="isEditing" 
-     [class.passive]="effectiveType === 'passive'" 
-     [class.active]="effectiveType === 'active'" 
-     [class.dice-bonus]="effectiveType === 'dice_bonus'" 
-     [class.stat-bonus]="effectiveType === 'stat_bonus'" 
-     [class.disabled]="isDisabled"
+<div class="sc"
+     [attr.data-type]="effectiveType"
+     [class.sc-disabled]="isDisabled"
      (contextmenu)="onRightClick($event)">
-  @if (!isEditing) {
-    <div class="skill-view">
-      <div class="skill-header">
-        <h4>{{ skill.name }}</h4>
-        <div class="skill-badges">
-          <span class="skill-type" 
-                [class.active]="effectiveType === 'active'" 
-                [class.passive]="effectiveType === 'passive'"
-                [class.dice-bonus]="effectiveType === 'dice_bonus'"
-                [class.stat-bonus]="effectiveType === 'stat_bonus'">
-            {{ getTypeLabel(effectiveType) }}
-          </span>
-          <span class="skill-class" [class.disabled]="isDisabled">
-            {{ skill.class }}
-          </span>
-          @if (skill.enlightened) {
-            <span class="skill-enlightened">Enlightened</span>
-          }
-          <button class="delete-btn-compact" 
-                  (click)="deleteSkill(); $event.stopPropagation()" 
-                  (dblclick)="$event.stopPropagation()" 
-                  title="Delete">🗑️</button>
-        </div>
-      </div>
-      <p class="skill-description" [innerHTML]="enhancedDescription"></p>
-    </div>
-  } @else {
-    <div class="skill-edit" (click)="$event.stopPropagation()">
-      <div class="field">
-        <label>Name</label>
-        <input
-          type="text"
-          [ngModel]="skill.name"
-          (ngModelChange)="updateField('name', $event)"
-        />
-      </div>
 
-      <div class="field">
-        <label>Class</label>
-        <input
-          type="text"
-          [ngModel]="skill.class"
-          (ngModelChange)="updateField('class', $event)"
-        />
-      </div>
+  <!-- Type bar: icon + label + action pill (active only) + rank -->
+  <div class="sc-bar">
+    <span class="sc-type-icon">{{ typeIcon }}</span>
+    <span class="sc-type-lbl">{{ typeLabel }}</span>
+    @if (effectiveType === 'active' && actionType) {
+      <span class="sc-action" [attr.data-action]="actionType">{{ actionIcon }} {{ actionType }}</span>
+    }
+    @if (rankRoman) {
+      <span class="sc-rank">{{ rankRoman }}</span>
+    }
+    @if (skill.enlightened) {
+      <span class="sc-enl" title="Erleuchtet">&#x2726;</span>
+    }
+  </div>
 
-      <div class="field">
-        <label>Type</label>
-        <select
-          [ngModel]="skill.type"
-          (ngModelChange)="updateField('type', $event)"
-        >
-          <option value="active">Active</option>
-          <option value="passive">Passive</option>
-          <option value="dice_bonus">Dice Bonus</option>
-          <option value="stat_bonus">Stat Bonus</option>
-        </select>
-      </div>
+  <!-- Name -->
+  <div class="sc-name">{{ skill.name }}</div>
 
-      <div class="field checkbox-field">
-        <label>
-          <input
-            type="checkbox"
-            [ngModel]="skill.enlightened"
-            (ngModelChange)="updateField('enlightened', $event)"
-          />
-          Enlightened
-        </label>
-      </div>
-
-      <div class="field">
-        <label>Description</label>
-        <textarea
-          [ngModel]="skill.description"
-          (ngModelChange)="updateField('description', $event)"
-          rows="3"
-        ></textarea>
-      </div>
-
-      <div class="skill-actions">
-        <button class="save-btn" (click)="toggleEdit()">Done</button>
-      </div>
-    </div>
+  <!-- Stat summary for stat_bonus type -->
+  @if (effectiveType === 'stat_bonus' && statSummary) {
+    <div class="sc-stat-summary">{{ statSummary }}</div>
   }
+
+  <!-- Description -->
+  <div class="sc-desc" [innerHTML]="enhancedDescription"></div>
+
+  <!-- Footer: class + cost -->
+  <div class="sc-footer">
+    <span class="sc-class">{{ skill.class }}</span>
+    @if (cost) {
+      <span class="sc-cost" [attr.data-resource]="cost.type">
+        {{ costIcon }} {{ cost.amount }}{{ cost.perRound ? '/Rd' : '' }}
+      </span>
+    }
+  </div>
+
 </div>
+
+<!-- Context menu (fixed position) -->
+@if (showContextMenu) {
+  <div class="sc-ctx" [style.left.px]="menuX" [style.top.px]="menuY"
+       (click)="$event.stopPropagation()">
+    <button class="sc-ctx-btn" (click)="editSkill()">&#x270F; Bearbeiten</button>
+    <button class="sc-ctx-btn sc-ctx-del" (click)="deleteSkill()">&#x2715; L&ouml;schen</button>
+  </div>
+}

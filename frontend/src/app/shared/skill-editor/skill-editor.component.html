@@ -1,19 +1,21 @@
 <div class="skill-editor-overlay">
   <div class="skill-editor-container">
+
     <!-- Header -->
     <div class="editor-header">
-      <h2>{{ isNewSkill ? 'Neue Fähigkeit' : 'Fähigkeit bearbeiten' }}</h2>
-      <button class="close-btn" (click)="cancelEdit()">×</button>
+      <h2>{{ isNewSkill ? 'Neue F&auml;higkeit' : 'F&auml;higkeit bearbeiten' }}</h2>
+      <button class="close-btn" (click)="cancelEdit()">&times;</button>
     </div>
 
     <!-- Content -->
     <div class="editor-content">
+
       <!-- Name -->
       <div class="form-group">
         <label>Name</label>
-        <input type="text" [(ngModel)]="editSkill.name" 
+        <input type="text" [(ngModel)]="editSkill.name"
                [class.input-empty]="!editSkill.name?.trim()"
-               placeholder="Fähigkeitsname...">
+               placeholder="F&auml;higkeitsname...">
       </div>
 
       <!-- Class -->
@@ -22,21 +24,74 @@
         <input type="text" [(ngModel)]="editSkill.class" placeholder="z.B. Krieger, Magier...">
       </div>
 
-      <!-- Type -->
-      <div class="form-group">
-        <label>Typ</label>
-        <select [(ngModel)]="editSkill.type">
-          <option *ngFor="let t of skillTypes" [value]="t.value">{{ t.label }}</option>
-        </select>
+      <!-- Type + Enlightened row -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>Typ</label>
+          <select [(ngModel)]="editSkill.type">
+            @for (t of skillTypes; track t.value) {
+              <option [value]="t.value">{{ t.label }}</option>
+            }
+          </select>
+        </div>
+        <div class="form-group form-group-check">
+          <label class="check-label">
+            <input type="checkbox" [(ngModel)]="editSkill.enlightened">
+            Erleuchtet (kein Klassenrang n&ouml;tig)
+          </label>
+        </div>
       </div>
+
+      <!-- Action Type (active only) -->
+      @if (editSkill.type === 'active') {
+        <div class="form-group">
+          <label>Aktionstyp</label>
+          <select [(ngModel)]="editSkill.actionType">
+            <option value="">&mdash; kein &mdash;</option>
+            <option value="Aktion">&#x2694; Aktion</option>
+            <option value="Bonusaktion">&#x2726; Bonusaktion</option>
+            <option value="Keine Aktion">&#x25CE; Keine Aktion</option>
+            <option value="Reaktion">&#x21A9; Reaktion</option>
+          </select>
+        </div>
+
+        <!-- Cost (active only) -->
+        <fieldset class="form-fieldset">
+          <legend>Kosten</legend>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Ressource</label>
+              <select [(ngModel)]="editCostType">
+                <option value="">Keine</option>
+                <option value="mana">&#x1F4A7; Mana</option>
+                <option value="energy">&#x26A1; Energie</option>
+                <option value="life">&#x2764; Leben</option>
+              </select>
+            </div>
+            @if (editCostType) {
+              <div class="form-group">
+                <label>Menge</label>
+                <input type="number" [(ngModel)]="editCostAmount" min="0" placeholder="0">
+              </div>
+              <div class="form-group form-group-check">
+                <label class="check-label">
+                  <input type="checkbox" [(ngModel)]="editCostPerRound">
+                  Pro Runde
+                </label>
+              </div>
+            }
+          </div>
+        </fieldset>
+      }
 
       <!-- Description -->
       <div class="form-group">
         <label>Beschreibung</label>
-        <textarea [(ngModel)]="editSkill.description" rows="4" placeholder="Beschreibung der Fähigkeit..."></textarea>
+        <textarea [(ngModel)]="editSkill.description" rows="4"
+                  placeholder="Beschreibung der F&auml;higkeit..."></textarea>
       </div>
 
-      <!-- Stat Modifiers (for stat_bonus type) -->
+      <!-- Stat Modifiers (stat_bonus type) -->
       @if (editSkill.type === 'stat_bonus') {
         <div class="form-group">
           <label>Stat-Boni</label>
@@ -45,8 +100,10 @@
               <div class="stat-modifier-item">
                 <span class="stat-label">{{ getStatLabel(stat) }}</span>
                 <div class="stat-controls">
-                  <button class="stat-btn" (click)="decrementStat(stat)">−</button>
-                  <span class="stat-value" [class.positive]="statModifiers[stat] > 0" [class.negative]="statModifiers[stat] < 0">
+                  <button class="stat-btn" (click)="decrementStat(stat)">&minus;</button>
+                  <span class="stat-value"
+                        [class.positive]="statModifiers[stat] > 0"
+                        [class.negative]="statModifiers[stat] < 0">
                     {{ statModifiers[stat] > 0 ? '+' : '' }}{{ statModifiers[stat] }}
                   </span>
                   <button class="stat-btn" (click)="incrementStat(stat)">+</button>
@@ -57,7 +114,7 @@
         </div>
       }
 
-      <!-- Resource Modifiers (mana, life, energy) for any type -->
+      <!-- Resource Modifiers -->
       <div class="form-group">
         <label>Ressourcen-Boni</label>
         <div class="stat-modifiers-grid">
@@ -65,8 +122,10 @@
             <div class="stat-modifier-item">
               <span class="stat-label">{{ getStatLabel(stat) }}</span>
               <div class="stat-controls">
-                <button class="stat-btn" (click)="decrementStat(stat)">−</button>
-                <span class="stat-value" [class.positive]="statModifiers[stat] > 0" [class.negative]="statModifiers[stat] < 0">
+                <button class="stat-btn" (click)="decrementStat(stat)">&minus;</button>
+                <span class="stat-value"
+                      [class.positive]="statModifiers[stat] > 0"
+                      [class.negative]="statModifiers[stat] < 0">
                   {{ statModifiers[stat] > 0 ? '+' : '' }}{{ statModifiers[stat] }}
                 </span>
                 <button class="stat-btn" (click)="incrementStat(stat)">+</button>
@@ -75,19 +134,23 @@
           }
         </div>
       </div>
+
     </div>
 
     <!-- Footer -->
     <div class="editor-footer">
       <div class="footer-buttons">
         @if (!isNewSkill) {
-          <button class="delete-btn" (click)="deleteSkill()">Löschen</button>
+          <button class="delete-btn" (click)="deleteSkill()">L&ouml;schen</button>
         }
         <button class="cancel-btn" (click)="cancelEdit()">Abbrechen</button>
-        <button class="save-btn" (click)="saveSkill()" [disabled]="!editSkill.name?.trim()">
+        <button class="save-btn"
+                (click)="saveSkill()"
+                [disabled]="!editSkill.name?.trim()">
           {{ isNewSkill ? 'Erstellen' : 'Speichern' }}
         </button>
       </div>
     </div>
+
   </div>
 </div>

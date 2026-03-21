@@ -11,32 +11,28 @@ import { SkillBlock, StatModifier } from '../../model/skill-block.model';
   styleUrl: './skill-editor.component.css',
 })
 export class SkillEditorComponent implements OnInit {
-  @Input() skill: SkillBlock | null = null; // null = creating new skill
+  @Input() skill: SkillBlock | null = null;
   @Output() save = new EventEmitter<SkillBlock>();
   @Output() cancel = new EventEmitter<void>();
   @Output() delete = new EventEmitter<void>();
 
-  // Working copy
   editSkill!: SkillBlock;
   isNewSkill = true;
 
-  // Stat modifier UI
+  // Cost editing state
+  editCostType = '';
+  editCostAmount = 0;
+  editCostPerRound = false;
+
   statModifiers: { [key: string]: number } = {
-    strength: 0,
-    dexterity: 0,
-    speed: 0,
-    intelligence: 0,
-    constitution: 0,
-    chill: 0,
-    mana: 0,
-    life: 0,
-    energy: 0
+    strength: 0, dexterity: 0, speed: 0, intelligence: 0,
+    constitution: 0, chill: 0, mana: 0, life: 0, energy: 0
   };
 
   skillTypes: { value: string; label: string }[] = [
     { value: 'active', label: 'Aktiv' },
     { value: 'passive', label: 'Passiv' },
-    { value: 'dice_bonus', label: 'Würfelbonus' },
+    { value: 'dice_bonus', label: 'Wuerfelbonus' },
     { value: 'stat_bonus', label: 'Stat-Bonus' }
   ];
 
@@ -44,11 +40,15 @@ export class SkillEditorComponent implements OnInit {
     if (this.skill) {
       this.editSkill = JSON.parse(JSON.stringify(this.skill));
       this.isNewSkill = false;
-      // Initialize stat modifiers from skill
       if (this.editSkill.statModifiers) {
         for (const mod of this.editSkill.statModifiers) {
           this.statModifiers[mod.stat] = mod.amount;
         }
+      }
+      if (this.editSkill.cost) {
+        this.editCostType = this.editSkill.cost.type;
+        this.editCostAmount = this.editSkill.cost.amount;
+        this.editCostPerRound = this.editSkill.cost.perRound ?? false;
       }
     } else {
       this.editSkill = {
@@ -56,13 +56,12 @@ export class SkillEditorComponent implements OnInit {
         class: 'Allgemein',
         description: '',
         type: 'passive',
-        enlightened: true, // Item-based skills are always "enlightened" (no class restriction)
+        enlightened: true,
       };
     }
   }
 
   saveSkill() {
-    // Convert stat modifiers to array
     const modifiers: StatModifier[] = [];
     for (const [stat, amount] of Object.entries(this.statModifiers)) {
       if (amount !== 0) {
@@ -70,6 +69,20 @@ export class SkillEditorComponent implements OnInit {
       }
     }
     this.editSkill.statModifiers = modifiers.length > 0 ? modifiers : undefined;
+
+    if (this.editSkill.type === 'active' && this.editCostType) {
+      this.editSkill.cost = {
+        type: this.editCostType as 'mana' | 'energy' | 'life',
+        amount: this.editCostAmount,
+        perRound: this.editCostPerRound || undefined,
+      };
+    } else {
+      this.editSkill.cost = undefined;
+    }
+
+    if (this.editSkill.type !== 'active') {
+      this.editSkill.actionType = undefined;
+    }
 
     this.save.emit(this.editSkill);
   }
@@ -79,30 +92,19 @@ export class SkillEditorComponent implements OnInit {
   }
 
   deleteSkill() {
-    if (confirm('Fähigkeit wirklich löschen?')) {
+    if (confirm('Faehigkeit wirklich loeschen?')) {
       this.delete.emit();
     }
   }
 
-  incrementStat(stat: string) {
-    this.statModifiers[stat]++;
-  }
-
-  decrementStat(stat: string) {
-    this.statModifiers[stat]--;
-  }
+  incrementStat(stat: string) { this.statModifiers[stat]++; }
+  decrementStat(stat: string) { this.statModifiers[stat]--; }
 
   getStatLabel(stat: string): string {
     const labels: Record<string, string> = {
-      strength: 'Stärke',
-      dexterity: 'Geschick',
-      speed: 'Tempo',
-      intelligence: 'Intelligenz',
-      constitution: 'Konstitution',
-      chill: 'Wille',
-      mana: 'Mana',
-      life: 'Leben',
-      energy: 'Energie'
+      strength: 'Staerke', dexterity: 'Geschick', speed: 'Tempo',
+      intelligence: 'Intelligenz', constitution: 'Konstitution',
+      chill: 'Wille', mana: 'Mana', life: 'Leben', energy: 'Energie'
     };
     return labels[stat] || stat;
   }

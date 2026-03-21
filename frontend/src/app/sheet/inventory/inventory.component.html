@@ -86,15 +86,11 @@
             ></app-item>
           }
 
-          <!-- Custom drag preview chip: zero-size root so the chip is centered on cursor -->
+          <!-- Drag preview chip -->
           <ng-template cdkDragPreview>
-            <div class="drag-preview-root">
-              <div class="drag-chip"
-                   [style.left.px]="dragPreviewOffsetX"
-                   [style.top.px]="dragPreviewOffsetY">
-                <span class="drag-chip-icon">{{ slot.itemType === 'weapon' ? '⚔' : slot.itemType === 'armor' ? '🛡' : '📦' }}</span>
-                <span class="drag-chip-name">{{ slot.name }}</span>
-              </div>
+            <div class="drag-chip">
+              <span class="drag-chip-icon">{{ slot.itemType === 'weapon' ? '⚔' : slot.itemType === 'armor' ? '🛡' : '📦' }}</span>
+              <span class="drag-chip-name">{{ slot.name }}</span>
             </div>
           </ng-template>
 

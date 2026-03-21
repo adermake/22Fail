@@ -66,13 +66,9 @@
 
             <!-- Drag preview chip -->
             <ng-template cdkDragPreview>
-              <div class="drag-preview-root">
-                <div class="rune-drag-chip"
-                     [style.left.px]="dragPreviewOffsetX"
-                     [style.top.px]="dragPreviewOffsetY">
-                  <span class="rdc-glyph" [style.color]="slot.glowColor || '#06b6d4'">᚛</span>
-                  <span class="rdc-name">{{ slot.identified ? slot.name : '???' }}</span>
-                </div>
+              <div class="rune-drag-chip">
+                <span class="rdc-glyph" [style.color]="slot.glowColor || '#06b6d4'">᚛</span>
+                <span class="rdc-name">{{ slot.identified ? slot.name : '???' }}</span>
               </div>
             </ng-template>
 

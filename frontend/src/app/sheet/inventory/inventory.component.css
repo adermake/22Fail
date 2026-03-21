@@ -431,35 +431,7 @@ app-card > *,
   background-color: var(--accentdark);
 }
 
-/* Zero-size drag preview positioner: CDK positions this, chip inside is centered on cursor */
-.drag-preview-root {
-  position: relative;
-  width: 0;
-  height: 0;
-  overflow: visible;
-  pointer-events: none;
-}
-
-/* Custom drag chip (replaces cloned item preview) */
-.drag-chip {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--card);
-  border: 2px solid var(--accent);
-  border-radius: 8px;
-  padding: 0.5rem 0.85rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.55);
-  white-space: nowrap;
-  max-width: 220px;
-  pointer-events: none;
-}
-.drag-chip-icon { font-size: 1rem; }
-.drag-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+/* Drag chip styles are in global styles.css so they apply inside CDK's body-level portal */
 
 /* Fixed grid: no transition shifts during active drag */
 .inventory-grid.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {

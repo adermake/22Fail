@@ -115,3 +115,44 @@ label {
   display: block !important;
   opacity: 0.4 !important;
 }
+
+/* ── Drag chip styles – global so they work inside CDK's body-level preview portal ── */
+.drag-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--card, #1f2937);
+  border: 2px solid var(--accent, #8b5cf6);
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text, #e5e7eb);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  white-space: nowrap;
+  max-width: 240px;
+  pointer-events: none;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+.drag-chip-icon { font-size: 1rem; }
+.drag-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
+
+.rune-drag-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--card, #1f2937);
+  border: 2px solid var(--accent, #8b5cf6);
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text, #e5e7eb);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  white-space: nowrap;
+  max-width: 200px;
+  pointer-events: none;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+.rdc-glyph { font-size: 1.1rem; }
+.rdc-name  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }

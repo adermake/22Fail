@@ -241,35 +241,7 @@
   transition: none;
 }
 
-/* Zero-size root: CDK positions this element at cursor, chip is absolutely offset for centering */
-.drag-preview-root {
-  position: relative;
-  width: 0;
-  height: 0;
-  overflow: visible;
-  pointer-events: none;
-}
-
-/* Horizontal chip matching inventory drag chip style */
-.rune-drag-chip {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--card, #1f2937);
-  border: 2px solid var(--accent, #8b5cf6);
-  border-radius: 8px;
-  padding: 0.5rem 0.85rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text, #e5e7eb);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.55);
-  white-space: nowrap;
-  max-width: 180px;
-  pointer-events: none;
-}
-.rdc-glyph { font-size: 1.1rem; }
-.rdc-name  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+/* Drag chip styles are in global styles.css so they apply inside CDK's body-level portal */
 
 .rune-drag-placeholder {
   aspect-ratio: 1;
