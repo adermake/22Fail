@@ -59,8 +59,8 @@ export class SkillComponent {
   }
 
   closePayPopup() {
-    if (this.payFeedback.active) return; // don't close during feedback
     this.showPayPopup = false;
+    this.payFeedback = { active: false, amount: 0, label: '' };
   }
 
   editSkill() {
@@ -120,14 +120,13 @@ export class SkillComponent {
     this.sheet.statuses = statuses;
     this.patch.emit({ path: 'statuses', value: statuses });
 
-    // Show feedback then close after 1.1 s
+    // Show ✓ feedback in button briefly, popup stays open
     this.payFeedback = { active: true, amount, label };
     this.cdr.markForCheck();
     setTimeout(() => {
       this.payFeedback = { active: false, amount: 0, label: '' };
-      this.showPayPopup = false;
       this.cdr.markForCheck();
-    }, 1100);
+    }, 1400);
   }
 
   // --- Definition lookups ---

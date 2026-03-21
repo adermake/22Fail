@@ -64,6 +64,7 @@
         @if (effectiveType === 'active' && actionType) {
           <span class="sp-action" [attr.data-action]="actionType">{{ actionIcon }} {{ actionType }}</span>
         }
+        <button class="sp-close" (click)="closePayPopup()" title="Schlie&szlig;en">&#x2715;</button>
       </div>
 
       <!-- Skill name -->
@@ -87,27 +88,21 @@
 
       <!-- Actions -->
       <div class="sp-actions">
-        <button class="sp-cancel" (click)="closePayPopup()">Abbrechen</button>
         <button class="sp-use"
                 [style.--rc]="resourceColor"
-                [class.sp-cant]="!canAfford"
-                [disabled]="!canAfford"
+                [class.sp-cant]="!canAfford && !payFeedback.active"
+                [class.sp-paid]="payFeedback.active"
+                [disabled]="!canAfford && !payFeedback.active"
                 (click)="payAndUse()">
-          @if (canAfford) {
+          @if (payFeedback.active) {
+            &#x2713;&nbsp;Eingesetzt &nbsp;&minus;{{ payFeedback.amount }} {{ payFeedback.label }}
+          } @else if (canAfford) {
             Einsetzen &nbsp;&minus;{{ cost?.amount }} {{ resourceLabel }}{{ cost?.perRound ? ' / Rd' : '' }}
           } @else {
             Nicht genug {{ resourceLabel }}
           }
         </button>
       </div>
-
-      <!-- Pay feedback overlay (shown after paying, auto-closes) -->
-      @if (payFeedback.active) {
-        <div class="sp-feedback" [style.--rc]="resourceColor">
-          <div class="sp-feedback-icon">&#x2713;</div>
-          <div class="sp-feedback-cost">&minus;{{ payFeedback.amount }} {{ payFeedback.label }}</div>
-        </div>
-      }
 
     </div>
   </div>

@@ -257,14 +257,32 @@
 }
 
 .sp-action {
-  margin-left: auto;
   font-size: 0.6rem;
   font-weight: 700;
   padding: 0.15rem 0.45rem;
   border-radius: 4px;
   background: rgba(255,255,255,0.07);
   color: #94a3b8;
+  margin-left: auto;
 }
+
+.sp-close {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: #475569;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+/* When action pill is present it takes the auto-margin; close sits right after */
+.sp-action + .sp-close { margin-left: 0.5rem; }
+
+.sp-close:hover { color: #f1f5f9; }
 
 .sp-name {
   padding: 0.65rem 0.85rem 0.2rem;
@@ -329,23 +347,6 @@
   padding: 0 0.75rem 0.75rem;
 }
 
-.sp-cancel {
-  flex: 0 0 auto;
-  padding: 0.5rem 1rem;
-  background: transparent;
-  border: 1px solid #334155;
-  border-radius: 7px;
-  color: #64748b;
-  cursor: pointer;
-  font-size: 0.82rem;
-  transition: border-color 0.15s, color 0.15s;
-}
-
-.sp-cancel:hover {
-  border-color: #475569;
-  color: #94a3b8;
-}
-
 .sp-use {
   flex: 1;
   padding: 0.55rem 0.75rem;
@@ -356,10 +357,10 @@
   font-weight: 700;
   cursor: pointer;
   font-size: 0.88rem;
-  transition: opacity 0.15s, filter 0.15s;
+  transition: background 0.2s, filter 0.15s;
 }
 
-.sp-use:hover:not(.sp-cant) {
+.sp-use:hover:not(.sp-cant):not(.sp-paid) {
   filter: brightness(1.15);
 }
 
@@ -369,44 +370,16 @@
   cursor: not-allowed;
 }
 
-/* ----- Pay feedback overlay (inside popup) ----- */
-.sp-feedback {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #0f1829;
-  border-radius: 12px;
-  z-index: 20;
-  gap: 0.35rem;
-  pointer-events: none;
-  animation: sp-fb-fade 1.1s ease forwards;
+/* Paid / success state — green flash in the button */
+.sp-use.sp-paid {
+  background: #166534;
+  color: #bbf7d0;
+  cursor: default;
+  animation: sp-paid-flash 1.4s ease forwards;
 }
 
-.sp-feedback-icon {
-  font-size: 3.8rem;
-  line-height: 1;
-  color: var(--rc, #22c55e);
-  animation: sp-fb-pop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-.sp-feedback-cost {
-  font-size: 1.55rem;
-  font-weight: 800;
-  color: var(--rc, #22c55e);
-  animation: sp-fb-pop 0.38s 0.06s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@keyframes sp-fb-pop {
-  from { opacity: 0; transform: scale(0.35) translateY(12px); }
-  to   { opacity: 1; transform: scale(1)    translateY(0); }
-}
-
-@keyframes sp-fb-fade {
-  0%   { opacity: 0; }
-  12%  { opacity: 1; }
-  70%  { opacity: 1; }
-  100% { opacity: 0; }
+@keyframes sp-paid-flash {
+  0%   { background: #22c55e; color: #fff; filter: brightness(1.2); }
+  18%  { background: #166534; color: #bbf7d0; filter: none; }
+  100% { background: #166534; color: #bbf7d0; }
 }
