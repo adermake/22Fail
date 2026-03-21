@@ -1,6 +1,8 @@
-import { Component, ElementRef, EventEmitter, HostListener, Input, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 import { JsonPatch } from '../../model/json-patch.model';
 import { SkillBlock } from '../../model/skill-block.model';
+import { StatusBlock } from '../../model/status-block.model';
+import { FormulaType } from '../../model/formula-type.enum';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ClassTree } from '../class-tree-model';
@@ -29,6 +31,8 @@ export class SkillComponent {
   menuX = 0;
   menuY = 0;
 
+  showPayPopup = false;
+
   constructor(private sanitizer: DomSanitizer) {}
 
   @HostListener('document:click')
@@ -45,6 +49,16 @@ export class SkillComponent {
     this.showContextMenu = true;
   }
 
+  onCardClick() {
+    if (this.cost && this.effectiveType === 'active') {
+      this.showPayPopup = true;
+    }
+  }
+
+  closePayPopup() {
+    this.showPayPopup = false;
+  }
+
   editSkill() {
     this.showContextMenu = false;
     this.openEditor.emit();
@@ -55,10 +69,57 @@ export class SkillComponent {
     this.delete.emit();
   }
 
+  // --- Pay logic ---
+
+  private getStatusForCostType(type: string): StatusBlock | undefined {
+    const formulaMap: Record<string, FormulaType> = {
+      energy: FormulaType.ENERGY,
+      mana:   FormulaType.MANA,
+      life:   FormulaType.LIFE,
+    };
+    const ft = formulaMap[type];
+    if (!ft) return undefined;
+    return this.sheet.statuses?.find(s => s.formulaType === ft);
+  }
+
+  get resourceStatus(): StatusBlock | undefined {
+    if (!this.cost) return undefined;
+    return this.getStatusForCostType(this.cost.type);
+  }
+
+  get resourceLabel(): string {
+    const labels: Record<string, string> = { energy: 'Ausdauer', mana: 'Mana', life: 'Leben' };
+    return this.cost ? (labels[this.cost.type] ?? this.cost.type) : '';
+  }
+
+  get resourceColor(): string {
+    const colors: Record<string, string> = { energy: '#22c55e', mana: '#60a5fa', life: '#f87171' };
+    return this.cost ? (colors[this.cost.type] ?? '#a78bfa') : '#a78bfa';
+  }
+
+  get canAfford(): boolean {
+    const status = this.resourceStatus;
+    if (!status || !this.cost) return false;
+    return (status.statusCurrent ?? 0) >= this.cost.amount;
+  }
+
+  payAndUse() {
+    const status = this.resourceStatus;
+    if (!status || !this.cost || !this.canAfford) return;
+    const statuses = this.sheet.statuses.map(s =>
+      s === status
+        ? { ...s, statusCurrent: Math.max(0, (s.statusCurrent ?? 0) - this.cost!.amount) }
+        : s
+    );
+    this.sheet.statuses = statuses;
+    this.patch.emit({ path: 'statuses', value: statuses });
+    this.closePayPopup();
+  }
+
+  // --- Definition lookups ---
+
   get definition(): SkillDefinition | undefined {
-    if (this.skill.skillId) {
-      return SKILL_DEFINITIONS.find(s => s.id === this.skill.skillId);
-    }
+    if (this.skill.skillId) return SKILL_DEFINITIONS.find(s => s.id === this.skill.skillId);
     return SKILL_DEFINITIONS.find(s => s.name === this.skill.name && s.class === this.skill.class)
       ?? SKILL_DEFINITIONS.find(s => s.name === this.skill.name);
   }
@@ -87,36 +148,26 @@ export class SkillComponent {
 
   get isDisabled(): boolean {
     if (this.skill.enlightened) return false;
-    return !ClassTree.isClassEnabled(
-      this.skill.class,
-      this.sheet.primary_class,
-      this.sheet.secondary_class
-    );
+    return !ClassTree.isClassEnabled(this.skill.class, this.sheet.primary_class, this.sheet.secondary_class);
   }
 
   get typeIcon(): string {
-    const icons: Record<string, string> = {
-      active: '⚡', passive: '🔮', dice_bonus: '🎲', stat_bonus: '📈'
-    };
-    return icons[this.effectiveType] ?? '✦';
+    const icons: Record<string, string> = { active: '?', passive: '??', dice_bonus: '??', stat_bonus: '??' };
+    return icons[this.effectiveType] ?? '?';
   }
 
   get typeLabel(): string {
-    const labels: Record<string, string> = {
-      active: 'Aktiv', passive: 'Passiv', dice_bonus: 'Würfelbonus', stat_bonus: 'Stat-Bonus'
-    };
+    const labels: Record<string, string> = { active: 'Aktiv', passive: 'Passiv', dice_bonus: 'W�rfelbonus', stat_bonus: 'Stat-Bonus' };
     return labels[this.effectiveType] ?? this.effectiveType;
   }
 
   get costIcon(): string {
-    const icons: Record<string, string> = { mana: '💧', energy: '⚡', life: '❤️' };
-    return this.cost ? (icons[this.cost.type] ?? '◆') : '';
+    const icons: Record<string, string> = { mana: '??', energy: '?', life: '??' };
+    return this.cost ? (icons[this.cost.type] ?? '?') : '';
   }
 
   get actionIcon(): string {
-    const icons: Record<string, string> = {
-      'Aktion': '⚔', 'Bonusaktion': '✦', 'Keine Aktion': '◎', 'Reaktion': '↩'
-    };
+    const icons: Record<string, string> = { 'Aktion': '?', 'Bonusaktion': '?', 'Keine Aktion': '?', 'Reaktion': '?' };
     return this.actionType ? (icons[this.actionType] ?? '') : '';
   }
 
@@ -125,7 +176,6 @@ export class SkillComponent {
     return this.sanitizer.bypassSecurityTrustHtml(enhanced);
   }
 
-  // for stat_bonus: build compact summary e.g. "+1 INT"
   get statSummary(): string {
     const def = this.definition;
     if (!def) return '';

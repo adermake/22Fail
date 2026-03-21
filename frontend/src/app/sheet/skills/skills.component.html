@@ -130,6 +130,7 @@
         [sheet]="sheet"
         [index]="getOriginalIndex(skill)"
         [isEditing]="false"
+        (patch)="patch.emit($event)"
         (delete)="deleteSkill(getOriginalIndex(skill))"
         (openEditor)="openEditor(getOriginalIndex(skill))">
       </app-skill>

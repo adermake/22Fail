@@ -1,6 +1,8 @@
 <div class="sc"
      [attr.data-type]="effectiveType"
      [class.sc-disabled]="isDisabled"
+     [class.sc-clickable]="effectiveType === 'active' && cost"
+     (click)="onCardClick()"
      (contextmenu)="onRightClick($event)">
 
   <!-- Topbar: type icon + type label + NAME (prominent) + action pill + enlightened -->
@@ -47,5 +49,58 @@
        (click)="$event.stopPropagation()">
     <button class="sc-ctx-btn" (click)="editSkill()">&#x270F; Bearbeiten</button>
     <button class="sc-ctx-btn sc-ctx-del" (click)="deleteSkill()">&#x2715; L&ouml;schen</button>
+  </div>
+}
+
+<!-- Pay resource popup -->
+@if (showPayPopup) {
+  <div class="sp-backdrop" (click)="closePayPopup()">
+    <div class="sp-popup" (click)="$event.stopPropagation()">
+
+      <!-- Type bar (same style as card topbar) -->
+      <div class="sp-bar" [attr.data-type]="effectiveType">
+        <span class="sp-type-icon">{{ typeIcon }}</span>
+        <span class="sp-type-lbl">{{ typeLabel }}</span>
+        @if (effectiveType === 'active' && actionType) {
+          <span class="sp-action" [attr.data-action]="actionType">{{ actionIcon }} {{ actionType }}</span>
+        }
+      </div>
+
+      <!-- Skill name -->
+      <div class="sp-name">{{ skill.name }}</div>
+
+      <!-- Skill description -->
+      <div class="sp-desc" [innerHTML]="enhancedDescription"></div>
+
+      <!-- Resource bar -->
+      <div class="sp-resource" [style.--rc]="resourceColor">
+        <span class="sp-res-label">{{ resourceLabel }}</span>
+        <div class="sp-res-track">
+          <div class="sp-res-fill"
+               [style.width.%]="((resourceStatus?.statusCurrent ?? 0) / ((resourceStatus?.statusBase ?? 1) + (resourceStatus?.statusBonus ?? 0))) * 100">
+          </div>
+        </div>
+        <span class="sp-res-val">
+          {{ resourceStatus?.statusCurrent ?? 0 }} / {{ (resourceStatus?.statusBase ?? 0) + (resourceStatus?.statusBonus ?? 0) }}
+        </span>
+      </div>
+
+      <!-- Actions -->
+      <div class="sp-actions">
+        <button class="sp-cancel" (click)="closePayPopup()">Abbrechen</button>
+        <button class="sp-use"
+                [style.--rc]="resourceColor"
+                [class.sp-cant]="!canAfford"
+                [disabled]="!canAfford"
+                (click)="payAndUse()">
+          @if (canAfford) {
+            Einsetzen &nbsp;&minus;{{ cost?.amount }} {{ resourceLabel }}{{ cost?.perRound ? ' / Rd' : '' }}
+          } @else {
+            Nicht genug {{ resourceLabel }}
+          }
+        </button>
+      </div>
+
+    </div>
   </div>
 }
