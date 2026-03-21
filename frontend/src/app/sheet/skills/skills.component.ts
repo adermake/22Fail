@@ -10,6 +10,8 @@ import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.com
 import { SKILL_DEFINITIONS, CLASS_DEFINITIONS } from '../../data/skill-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
 
+export type FilterState = 'include' | 'exclude' | 'off';
+
 @Component({
   selector: 'app-skills',
   imports: [CommonModule, FormsModule, SkillComponent, CardComponent, SkillEditorComponent],
@@ -22,22 +24,52 @@ export class SkillsComponent implements OnInit {
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() editingChange = new EventEmitter<{index: number, isEditing: boolean}>();
 
-  // Search / filter state
+  // Search
   searchText = '';
-  filterType = '';
-  filterClass = '';
-  filterAction = '';
-  filterCost = '';
-  filterTier = '';
+
+  // Multi-select filter state (Record<value, FilterState>)
+  filterTypes:   Record<string, FilterState> = {};
+  filterClasses: Record<string, FilterState> = {};
+  filterActions: Record<string, FilterState> = {};
+  filterCosts:   Record<string, FilterState> = {};
+  filterTiers:   Record<string, FilterState> = {};
+
   showFilters = false;
 
-  // Sort state
+  // Sort
   sortBy: 'type' | 'name' | 'class' | 'tier' | 'cost' = 'type';
   sortDir: 'asc' | 'desc' = 'asc';
 
-  // Editor state
+  // Editor
   showSkillEditor = false;
   editorSkillIndex: number | null = null;
+
+  // Static option lists
+  readonly typeOptions = [
+    { value: 'active',     label: '\u26A1 Aktiv' },
+    { value: 'passive',    label: '\uD83D\uDD2E Passiv' },
+    { value: 'dice_bonus', label: '\uD83C\uDFB2 W\u00FCrfelbonus' },
+    { value: 'stat_bonus', label: '\uD83D\uDCC8 Stat-Bonus' },
+  ];
+  readonly actionOptions = [
+    { value: 'Aktion',       label: '\u2694 Aktion' },
+    { value: 'Bonusaktion',  label: '\u2726 Bonusaktion' },
+    { value: 'Keine Aktion', label: '\u25CE Keine Aktion' },
+    { value: 'Reaktion',     label: '\u21A9 Reaktion' },
+  ];
+  readonly costOptions = [
+    { value: 'free',   label: 'Kostenlos' },
+    { value: 'mana',   label: '\uD83D\uDCA7 Mana' },
+    { value: 'energy', label: '\u26A1 Energie' },
+    { value: 'life',   label: '\u2764 Leben' },
+  ];
+  readonly tierOptions = [
+    { value: '1', label: 'Rang I' },
+    { value: '2', label: 'Rang II' },
+    { value: '3', label: 'Rang III' },
+    { value: '4', label: 'Rang IV' },
+    { value: '5', label: 'Rang V' },
+  ];
 
   private readonly TYPE_LABELS: Record<string, string> = {
     active: 'aktiv',
@@ -45,22 +77,18 @@ export class SkillsComponent implements OnInit {
     dice_bonus: 'wuerfelbonus wuerfeln wuerfel',
     stat_bonus: 'stat-bonus',
   };
-
   private readonly COST_LABELS: Record<string, string> = {
-    mana: 'mana',
-    energy: 'energie ausdauer',
-    life: 'leben',
+    mana: 'mana', energy: 'energie ausdauer', life: 'leben',
   };
-
   private readonly RANK_ROMAN: Record<number, string> = {
     1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V',
   };
 
   ngOnInit() {
-    if (!this.sheet.skills) {
-      this.sheet.skills = [];
-    }
+    if (!this.sheet.skills) this.sheet.skills = [];
   }
+
+  // --- Search corpus ---
 
   private buildSearchCorpus(s: SkillBlock): string {
     const def = this.getDefinition(s);
@@ -68,7 +96,7 @@ export class SkillsComponent implements OnInit {
     const cost = def?.cost ?? s.cost;
     const action = def?.actionType ?? s.actionType;
     const tier = CLASS_DEFINITIONS[s.class]?.tier;
-    const parts = [
+    return [
       s.name ?? '',
       s.description ?? '',
       s.class ?? '',
@@ -78,9 +106,8 @@ export class SkillsComponent implements OnInit {
       cost ? String(cost.amount) : '',
       tier ? (this.RANK_ROMAN[tier] ?? '') : '',
       tier ? `rang ${this.RANK_ROMAN[tier] ?? ''}` : '',
-      s.enlightened ? 'erleuchtet' : '',
-    ];
-    return parts.join(' ').toLowerCase();
+      s.enlightened ? 'erkenntnis' : '',
+    ].join(' ').toLowerCase();
   }
 
   // --- Filter helpers ---
@@ -97,6 +124,49 @@ export class SkillsComponent implements OnInit {
     return [...classes].sort();
   }
 
+  private applyMultiFilter(
+    skills: SkillBlock[],
+    getKey: (s: SkillBlock) => string,
+    states: Record<string, FilterState>
+  ): SkillBlock[] {
+    const includes = Object.entries(states).filter(([, v]) => v === 'include').map(([k]) => k);
+    const excludes = Object.entries(states).filter(([, v]) => v === 'exclude').map(([k]) => k);
+    if (!includes.length && !excludes.length) return skills;
+    return skills.filter(s => {
+      const key = getKey(s);
+      if (excludes.includes(key)) return false;
+      if (includes.length) return includes.includes(key);
+      return true;
+    });
+  }
+
+  private hasFilter(obj: Record<string, FilterState>): boolean {
+    return Object.values(obj).some(v => v !== 'off');
+  }
+
+  cycleFilter(
+    dim: 'types' | 'classes' | 'actions' | 'costs' | 'tiers',
+    key: string
+  ) {
+    const map: Record<string, Record<string, FilterState>> = {
+      types: this.filterTypes, classes: this.filterClasses,
+      actions: this.filterActions, costs: this.filterCosts, tiers: this.filterTiers,
+    };
+    const current = map[dim][key] || 'off';
+    const next = current === 'off' ? 'include' : current === 'include' ? 'exclude' : 'off';
+    const clone = { ...map[dim] };
+    if (next === 'off') delete clone[key]; else clone[key] = next;
+    if (dim === 'types')   this.filterTypes   = clone;
+    if (dim === 'classes') this.filterClasses = clone;
+    if (dim === 'actions') this.filterActions = clone;
+    if (dim === 'costs')   this.filterCosts   = clone;
+    if (dim === 'tiers')   this.filterTiers   = clone;
+  }
+
+  getFilterState(obj: Record<string, FilterState>, key: string): FilterState {
+    return obj[key] || 'off';
+  }
+
   get filteredSkills(): SkillBlock[] {
     let skills = [...(this.sheet.skills || [])];
 
@@ -105,68 +175,73 @@ export class SkillsComponent implements OnInit {
       skills = skills.filter(s => this.buildSearchCorpus(s).includes(q));
     }
 
-    if (this.filterType) {
-      skills = skills.filter(s => (this.getDefinition(s)?.type ?? s.type) === this.filterType);
+    // Type filter
+    if (this.hasFilter(this.filterTypes)) {
+      skills = this.applyMultiFilter(
+        skills,
+        s => this.getDefinition(s)?.type ?? s.type,
+        this.filterTypes
+      );
     }
 
-    if (this.filterClass) {
-      skills = skills.filter(s => s.class === this.filterClass);
+    // Class filter
+    if (this.hasFilter(this.filterClasses)) {
+      skills = this.applyMultiFilter(skills, s => s.class ?? '', this.filterClasses);
     }
 
-    if (this.filterAction) {
-      skills = skills.filter(s => {
-        const action = this.getDefinition(s)?.actionType ?? s.actionType;
-        return action === this.filterAction;
-      });
+    // Action filter
+    if (this.hasFilter(this.filterActions)) {
+      skills = this.applyMultiFilter(
+        skills,
+        s => this.getDefinition(s)?.actionType ?? s.actionType ?? '',
+        this.filterActions
+      );
     }
 
-    if (this.filterCost) {
-      skills = skills.filter(s => {
-        const cost = this.getDefinition(s)?.cost ?? s.cost;
-        if (this.filterCost === 'free') return !cost;
-        return cost?.type === this.filterCost;
-      });
+    // Cost filter — 'free' = no cost
+    if (this.hasFilter(this.filterCosts)) {
+      skills = this.applyMultiFilter(
+        skills,
+        s => {
+          const cost = this.getDefinition(s)?.cost ?? s.cost;
+          return cost ? cost.type : 'free';
+        },
+        this.filterCosts
+      );
     }
 
-    if (this.filterTier) {
-      const tier = parseInt(this.filterTier, 10);
-      skills = skills.filter(s => CLASS_DEFINITIONS[s.class]?.tier === tier);
+    // Tier filter
+    if (this.hasFilter(this.filterTiers)) {
+      skills = this.applyMultiFilter(
+        skills,
+        s => String(CLASS_DEFINITIONS[s.class]?.tier ?? ''),
+        this.filterTiers
+      );
     }
 
-    // Dynamic sort
+    // Sort
     const typeOrder: Record<string, number> = { active: 0, passive: 1, dice_bonus: 2, stat_bonus: 3 };
     const dir = this.sortDir === 'asc' ? 1 : -1;
-
     skills.sort((a, b) => {
       const da = this.getDefinition(a), db = this.getDefinition(b);
       let cmp = 0;
       switch (this.sortBy) {
         case 'type': {
-          const ta = typeOrder[da?.type ?? a.type] ?? 4;
-          const tb = typeOrder[db?.type ?? b.type] ?? 4;
-          cmp = ta - tb;
-          if (cmp === 0) cmp = (a.name ?? '').localeCompare(b.name ?? '');
+          cmp = (typeOrder[da?.type ?? a.type] ?? 4) - (typeOrder[db?.type ?? b.type] ?? 4);
+          if (!cmp) cmp = (a.name ?? '').localeCompare(b.name ?? '');
           break;
         }
-        case 'name':
-          cmp = (a.name ?? '').localeCompare(b.name ?? '');
-          break;
-        case 'class':
-          cmp = (a.class ?? '').localeCompare(b.class ?? '');
-          if (cmp === 0) cmp = (a.name ?? '').localeCompare(b.name ?? '');
-          break;
+        case 'name':  cmp = (a.name ?? '').localeCompare(b.name ?? ''); break;
+        case 'class': cmp = (a.class ?? '').localeCompare(b.class ?? '');
+                      if (!cmp) cmp = (a.name ?? '').localeCompare(b.name ?? ''); break;
         case 'tier': {
-          const ta = CLASS_DEFINITIONS[a.class]?.tier ?? 0;
-          const tb = CLASS_DEFINITIONS[b.class]?.tier ?? 0;
-          cmp = ta - tb;
-          if (cmp === 0) cmp = (a.name ?? '').localeCompare(b.name ?? '');
+          cmp = (CLASS_DEFINITIONS[a.class]?.tier ?? 0) - (CLASS_DEFINITIONS[b.class]?.tier ?? 0);
+          if (!cmp) cmp = (a.name ?? '').localeCompare(b.name ?? '');
           break;
         }
         case 'cost': {
-          const ca = (da?.cost ?? a.cost)?.amount ?? 0;
-          const cb = (db?.cost ?? b.cost)?.amount ?? 0;
-          cmp = ca - cb;
-          if (cmp === 0) cmp = (a.name ?? '').localeCompare(b.name ?? '');
+          cmp = ((da?.cost ?? a.cost)?.amount ?? 0) - ((db?.cost ?? b.cost)?.amount ?? 0);
+          if (!cmp) cmp = (a.name ?? '').localeCompare(b.name ?? '');
           break;
         }
       }
@@ -177,17 +252,21 @@ export class SkillsComponent implements OnInit {
   }
 
   get hasActiveFilters(): boolean {
-    return !!(this.searchText || this.filterType || this.filterClass ||
-              this.filterAction || this.filterCost || this.filterTier);
+    return !!(this.searchText) ||
+      this.hasFilter(this.filterTypes) ||
+      this.hasFilter(this.filterClasses) ||
+      this.hasFilter(this.filterActions) ||
+      this.hasFilter(this.filterCosts) ||
+      this.hasFilter(this.filterTiers);
   }
 
   clearFilters() {
     this.searchText = '';
-    this.filterType = '';
-    this.filterClass = '';
-    this.filterAction = '';
-    this.filterCost = '';
-    this.filterTier = '';
+    this.filterTypes = {};
+    this.filterClasses = {};
+    this.filterActions = {};
+    this.filterCosts = {};
+    this.filterTiers = {};
   }
 
   toggleSortDir() {
@@ -228,9 +307,7 @@ export class SkillsComponent implements OnInit {
   }
 
   onEditorDelete() {
-    if (this.editorSkillIndex !== null) {
-      this.deleteSkill(this.editorSkillIndex);
-    }
+    if (this.editorSkillIndex !== null) this.deleteSkill(this.editorSkillIndex);
     this.closeEditor();
   }
 

@@ -1,87 +1,130 @@
 <app-card>
-  <!-- Header row -->
+  <!-- Header row: title + search + filter btn + add -->
   <div class="sk-header">
     <h2 class="sk-title">&#x26A1; F&auml;higkeiten</h2>
     <input class="sk-search"
            type="text"
            [(ngModel)]="searchText"
-           placeholder="Suche nach Name, Klasse, Beschreibung...">
+           placeholder="Suche: aktiv, mana, bonusaktion, rang I...">
     <button class="sk-filter-btn"
             [class.active]="showFilters || hasActiveFilters"
-            (click)="showFilters = !showFilters"
-            title="Filter">
-      &#x25BC; Filter{{ hasActiveFilters ? ' (' + filteredSkills.length + ')' : '' }}
-    </button>
-    <!-- Sort controls -->
-    <select [(ngModel)]="sortBy" class="sk-select sk-sort-sel" title="Sortieren nach">
-      <option value="type">Typ</option>
-      <option value="name">Name</option>
-      <option value="class">Klasse</option>
-      <option value="tier">Rang</option>
-      <option value="cost">Kosten</option>
-    </select>
-    <button class="sk-sort-dir"
-            (click)="toggleSortDir()"
-            [title]="sortDir === 'asc' ? 'Aufsteigend' : 'Absteigend'">
-      {{ sortDir === 'asc' ? '&#x2191;' : '&#x2193;' }}
+            (click)="showFilters = !showFilters">
+      &#x25BC; Filter{{ hasActiveFilters ? ' &#x25CF;' : '' }}
     </button>
     <button class="sk-add-btn" (click)="openCreateDialog()">+ Neu</button>
   </div>
 
-  <!-- Filter row -->
+  <!-- Filter panel (directly below header) -->
   @if (showFilters) {
     <div class="sk-filters">
-      <select [(ngModel)]="filterType" class="sk-select">
-        <option value="">Alle Typen</option>
-        <option value="active">&#x26A1; Aktiv</option>
-        <option value="passive">&#x1F52E; Passiv</option>
-        <option value="dice_bonus">&#x1F3B2; W&uuml;rfelbonus</option>
-        <option value="stat_bonus">&#x1F4C8; Stat-Bonus</option>
-      </select>
-      <select [(ngModel)]="filterClass" class="sk-select">
-        <option value="">Alle Klassen</option>
-        @for (cls of availableClasses; track cls) {
-          <option [value]="cls">{{ cls }}</option>
-        }
-      </select>
-      <select [(ngModel)]="filterAction" class="sk-select">
-        <option value="">Alle Aktionen</option>
-        <option value="Aktion">&#x2694; Aktion</option>
-        <option value="Bonusaktion">&#x2726; Bonusaktion</option>
-        <option value="Keine Aktion">&#x25CE; Keine Aktion</option>
-        <option value="Reaktion">&#x21A9; Reaktion</option>
-      </select>
-      <select [(ngModel)]="filterCost" class="sk-select">
-        <option value="">Alle Kosten</option>
-        <option value="free">Kostenlos</option>
-        <option value="mana">&#x1F4A7; Mana</option>
-        <option value="energy">&#x26A1; Energie</option>
-        <option value="life">&#x2764;&#xFE0F; Leben</option>
-      </select>
-      <select [(ngModel)]="filterTier" class="sk-select">
-        <option value="">Alle R&auml;nge</option>
-        <option value="1">Rang I</option>
-        <option value="2">Rang II</option>
-        <option value="3">Rang III</option>
-        <option value="4">Rang IV</option>
-        <option value="5">Rang V</option>
-      </select>
-      @if (hasActiveFilters) {
-        <button class="sk-reset-btn" (click)="clearFilters()">&#x2715; Zur&uuml;cksetzen</button>
-      }
+
+      <!-- Typ -->
+      <div class="sk-fg">
+        <span class="sk-fl">Typ</span>
+        <div class="sk-chips">
+          @for (opt of typeOptions; track opt.value) {
+            <button class="sk-chip"
+                    [attr.data-state]="getFilterState(filterTypes, opt.value)"
+                    (click)="cycleFilter('types', opt.value)">
+              {{ opt.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Klasse -->
+      <div class="sk-fg">
+        <span class="sk-fl">Klasse</span>
+        <div class="sk-chips">
+          @for (cls of availableClasses; track cls) {
+            <button class="sk-chip"
+                    [attr.data-state]="getFilterState(filterClasses, cls)"
+                    (click)="cycleFilter('classes', cls)">
+              {{ cls }}
+            </button>
+          }
+          @if (availableClasses.length === 0) {
+            <span class="sk-no-opts">Keine Klassen vorhanden</span>
+          }
+        </div>
+      </div>
+
+      <!-- Aktionstyp -->
+      <div class="sk-fg">
+        <span class="sk-fl">Aktionstyp</span>
+        <div class="sk-chips">
+          @for (opt of actionOptions; track opt.value) {
+            <button class="sk-chip"
+                    [attr.data-state]="getFilterState(filterActions, opt.value)"
+                    (click)="cycleFilter('actions', opt.value)">
+              {{ opt.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Kosten -->
+      <div class="sk-fg">
+        <span class="sk-fl">Kosten</span>
+        <div class="sk-chips">
+          @for (opt of costOptions; track opt.value) {
+            <button class="sk-chip"
+                    [attr.data-state]="getFilterState(filterCosts, opt.value)"
+                    (click)="cycleFilter('costs', opt.value)">
+              {{ opt.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Rang -->
+      <div class="sk-fg">
+        <span class="sk-fl">Rang</span>
+        <div class="sk-chips">
+          @for (opt of tierOptions; track opt.value) {
+            <button class="sk-chip"
+                    [attr.data-state]="getFilterState(filterTiers, opt.value)"
+                    (click)="cycleFilter('tiers', opt.value)">
+              {{ opt.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Sortierung + Reset -->
+      <div class="sk-fg sk-fg-sort">
+        <span class="sk-fl">Sortierung</span>
+        <div class="sk-chips sk-sort-row">
+          <select [(ngModel)]="sortBy" class="sk-sort-sel">
+            <option value="type">Typ</option>
+            <option value="name">Name</option>
+            <option value="class">Klasse</option>
+            <option value="tier">Rang</option>
+            <option value="cost">Kosten</option>
+          </select>
+          <button class="sk-sort-dir" (click)="toggleSortDir()">
+            {{ sortDir === 'asc' ? '&#x2191; Aufsteigend' : '&#x2193; Absteigend' }}
+          </button>
+          @if (hasActiveFilters) {
+            <button class="sk-reset-btn" (click)="clearFilters()">&#x2715; Zur&uuml;cksetzen</button>
+          }
+        </div>
+      </div>
+
     </div>
   }
 
   <!-- Result info -->
   @if (hasActiveFilters) {
     <div class="sk-count">
-      {{ filteredSkills.length }} von {{ (sheet.skills || []).length }} F&auml;higkeiten angezeigt
+      {{ filteredSkills.length }} von {{ (sheet.skills || []).length }} F&auml;higkeiten &mdash;
+      <span class="sk-legend">&#x2713; einschlie&szlig;en&nbsp;&nbsp;&#x2715; ausschlie&szlig;en</span>
     </div>
   }
 
-  <!-- Skills grid: 2 columns -->
+  <!-- 2-column grid -->
   <div class="sk-grid">
-    @for (skill of filteredSkills; track skill.name + skill.class; let i = $index) {
+    @for (skill of filteredSkills; track skill.name + skill.class) {
       <app-skill
         [skill]="skill"
         [sheet]="sheet"

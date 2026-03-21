@@ -72,13 +72,14 @@
 .sc-action[data-action="Keine Aktion"] { background: #4b5563; color: #d1d5db; }
 .sc-action[data-action="Reaktion"]     { background: #d97706; color: #fff; }
 
-/* Rank — in footer, plain gray, subtle */
+/* Rank — in footer, plain gray, subtle, never clipped */
 .sc-rank {
   font-size: 0.59rem;
   font-weight: 700;
   color: var(--muted);
   opacity: 0.75;
   letter-spacing: 0.04em;
+  flex-shrink: 0;
 }
 
 .sc-enl {
@@ -113,7 +114,7 @@
 
 /* Description */
 .sc-desc {
-  padding: 0 0.5rem;
+  padding: 0.28rem 0.5rem 0.1rem;
   font-size: 0.71rem;
   color: var(--text-muted);
   line-height: 1.45;
@@ -143,7 +144,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 70%;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 
 .sc-footer-left {
@@ -152,6 +154,7 @@
   gap: 0.3rem;
   overflow: hidden;
   min-width: 0;
+  flex: 1;
 }
 
 .sc-cost {
