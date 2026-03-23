@@ -132,7 +132,8 @@
         [isEditing]="false"
         (patch)="patch.emit($event)"
         (delete)="deleteSkill(getOriginalIndex(skill))"
-        (openEditor)="openEditor(getOriginalIndex(skill))">
+        (openEditor)="openEditor(getOriginalIndex(skill))"
+        (triggerMacro)="triggerMacro.emit($event)">
       </app-skill>
     }
     @if (filteredSkills.length === 0) {

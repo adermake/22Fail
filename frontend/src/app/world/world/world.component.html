@@ -32,33 +32,33 @@
 
     <!-- Active Party -->
     <app-card>
-      <h2>Active Party</h2>
+      <h2>Aktive Partei</h2>
       <div class="party-list">
         @for (partyId of world.partyIds; track partyId; let i = $index) {
           <div class="party-item">
             <span>{{ partyId }}</span>
-            <button (click)="removeFromParty(i)">Remove</button>
+            <button (click)="removeFromParty(i)">Entfernen</button>
           </div>
         }
       </div>
       <div class="add-section">
         <select [(ngModel)]="selectedCharacterForParty">
-          <option value="">Select a character...</option>
+          <option value="">Charakter wählen...</option>
           @for (characterId of world.characterIds; track characterId) {
             @if (!world.partyIds.includes(characterId)) {
               <option [value]="characterId">{{ characterId }}</option>
             }
           }
         </select>
-        <button (click)="addToParty()">Add to Party</button>
+        <button (click)="addToParty()">Zur Partei hinzufügen</button>
       </div>
     </app-card>
 
     <!-- Party Dashboard -->
     <app-card class="party-dashboard-card">
-      <h2>Party Dashboard</h2>
+      <h2>Partei-Übersicht</h2>
       @if (getPartyCharacterArray().length === 0) {
-        <p>No characters in party. Add characters to see their stats.</p>
+        <p>Keine Charaktere in der Partei. Füge Charaktere hinzu um ihre Werte zu sehen.</p>
       } @else {
         <div class="dashboard-grid">
           @for (member of getPartyCharacterArray(); track member.id) {
@@ -80,7 +80,7 @@
 
               <div class="character-stats">
                 <div class="stat-row">
-                  <span class="stat-label">Health</span>
+                  <span class="stat-label">Leben</span>
                   <div class="stat-bar-wrapper">
                     <div class="stat-bar-fill health"
                          [style.width.%]="getResourcePercentage(member.sheet, FormulaType.LIFE)">
@@ -89,7 +89,7 @@
                   </div>
                 </div>
                 <div class="stat-row">
-                  <span class="stat-label">Energy</span>
+                  <span class="stat-label">Ausdauer</span>
                   <div class="stat-bar-wrapper">
                     <div class="stat-bar-fill energy"
                          [style.width.%]="getResourcePercentage(member.sheet, FormulaType.ENERGY)">
@@ -107,14 +107,63 @@
                   </div>
                 </div>
                 <div class="stat-row money">
-                  <span class="stat-label">Money:</span>
+                  <span class="stat-label">Gold:</span>
                   <div class="currency">
-                    <span class="copper">{{ member.sheet.currency.copper || 0 }}c</span>
+                    <span class="copper">{{ member.sheet.currency.copper || 0 }}k</span>
                     <span class="silver">{{ member.sheet.currency.silver || 0 }}s</span>
                     <span class="gold">{{ member.sheet.currency.gold || 0 }}g</span>
                     <span class="platinum">{{ member.sheet.currency.platinum || 0 }}p</span>
                   </div>
                 </div>
+              </div>
+
+              <!-- Active Status Effects section -->
+              <div class="dashboard-status-effects">
+                <div class="dashboard-status-header">
+                  <span class="dashboard-status-label">Aktive Effekte</span>
+                  <button class="dashboard-add-effect-btn"
+                    (click)="$event.stopPropagation(); toggleDashboardStatusPicker(member.id)"
+                    title="Status-Effekt hinzufügen">+</button>
+                </div>
+
+                <!-- Effect chips -->
+                <div class="dashboard-effect-chips">
+                  @for (active of getDashboardActiveEffects(member.id); track active.statusEffectId + active.appliedAt) {
+                    @let def = getDashboardEffectDef(active.statusEffectId);
+                    <div class="dashboard-effect-chip" [style.--ec]="def?.color ?? '#8b5cf6'">
+                      <span class="dashboard-effect-icon" [style.color]="def?.color ?? '#8b5cf6'">{{ def?.icon ?? '✦' }}</span>
+                      <span class="dashboard-effect-name">{{ active.customName ?? def?.name ?? active.statusEffectId }}</span>
+                      <button class="dashboard-effect-remove"
+                        (click)="$event.stopPropagation(); removeStatusEffectFromCharacter(member.id, active.statusEffectId, active.appliedAt)"
+                        title="Effekt entfernen">✕</button>
+                    </div>
+                  }
+                  @if (getDashboardActiveEffects(member.id).length === 0) {
+                    <span class="dashboard-no-effects">Keine</span>
+                  }
+                </div>
+
+                <!-- Status effect picker -->
+                @if (dashboardStatusPickerFor === member.id && mergedStatusEffects().length > 0) {
+                  <div class="dashboard-effect-picker" (click)="$event.stopPropagation()">
+                    <div class="dashboard-picker-header">
+                      <span>Effekt wählen</span>
+                      <button class="dashboard-picker-close" (click)="dashboardStatusPickerFor = null">✕</button>
+                    </div>
+                    <div class="dashboard-picker-list">
+                      @for (effect of mergedStatusEffects(); track effect.id) {
+                        <button class="dashboard-picker-item"
+                          (click)="addEffectFromDashboard(member.id, effect)">
+                          <span [style.color]="effect.color ?? '#8b5cf6'">{{ effect.icon ?? '✦' }}</span>
+                          <span>{{ effect.name }}</span>
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+                @if (dashboardStatusPickerFor === member.id && mergedStatusEffects().length === 0) {
+                  <p class="dashboard-no-effects-lib">Keine Status-Effekte in Bibliotheken gefunden.</p>
+                }
               </div>
             </div>
           }

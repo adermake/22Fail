@@ -20,6 +20,15 @@
     <app-currentstats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-currentstats>
   </div>
 
+  <!-- Status Effects Panel - below health bars -->
+  <div class="grid-statusfx">
+    <app-sheet-status-effects
+      [sheet]="sheet"
+      (triggerMacro)="handleMacroExecution($event)"
+      (patch)="store.applyPatch($any($event))">
+    </app-sheet-status-effects>
+  </div>
+
   <!-- Equipment - Separate so you can drag items from inventory -->
   <div class="grid-equipment">
     <app-equipment [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-equipment>
@@ -36,7 +45,8 @@
       (runeEditingChange)="onRuneEditingChange($any($event).index, $any($event).isEditing)"
       (spellEditingChange)="onSpellEditingChange($any($event).index, $any($event).isEditing)"
       (skillEditingChange)="onSkillEditingChange($any($event).index, $any($event).isEditing)"
-      (openTrash)="openTrash()">
+      (openTrash)="openTrash()"
+      (triggerMacro)="handleMacroExecution($event)">
     </app-character-tabs>
   </div>
 

@@ -441,6 +441,156 @@
   flex: 1;
 }
 
+/* Dashboard status effects */
+.dashboard-status-effects {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  position: relative;
+}
+.dashboard-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+.dashboard-status-label {
+  color: #777;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.dashboard-add-effect-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px dashed #555;
+  color: #9ca3af;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all 0.15s;
+}
+.dashboard-add-effect-btn:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: #888;
+  color: #fff;
+}
+.dashboard-effect-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 20px;
+}
+.dashboard-effect-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: color-mix(in srgb, var(--ec, #8b5cf6) 12%, #222);
+  border: 1px solid color-mix(in srgb, var(--ec, #8b5cf6) 30%, transparent);
+  border-radius: 12px;
+  padding: 2px 6px 2px 5px;
+}
+.dashboard-effect-icon {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+.dashboard-effect-name {
+  color: #e5e7eb;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+.dashboard-effect-remove {
+  background: transparent;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  font-size: 0.55rem;
+  padding: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.dashboard-effect-remove:hover {
+  color: #ef4444;
+  background: rgba(239,68,68,0.15);
+}
+.dashboard-no-effects {
+  color: #555;
+  font-size: 0.7rem;
+  font-style: italic;
+}
+.dashboard-effect-picker {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #252525;
+  border: 1px solid #444;
+  border-radius: 7px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  margin-top: 4px;
+}
+.dashboard-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: #2a2a2a;
+  border-bottom: 1px solid #333;
+  font-size: 0.75rem;
+  color: #ccc;
+}
+.dashboard-picker-close {
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+}
+.dashboard-picker-close:hover { color: #ddd; }
+.dashboard-picker-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.dashboard-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: #e5e7eb;
+  font-size: 0.82rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.12s;
+}
+.dashboard-picker-item:hover {
+  background: rgba(255,255,255,0.07);
+}
+.dashboard-no-effects-lib {
+  color: #666;
+  font-size: 0.72rem;
+  font-style: italic;
+  margin: 4px 0 0;
+}
+
 /* Battle Tracker Section */
 .battle-tracker-section {
   margin-bottom: 1rem;

@@ -9,6 +9,7 @@ import { FormsModule } from '@angular/forms';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
 import { SKILL_DEFINITIONS, CLASS_DEFINITIONS } from '../../data/skill-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
+import { ActionMacro } from '../../model/action-macro.model';
 
 export type FilterState = 'include' | 'exclude' | 'off';
 
@@ -23,6 +24,7 @@ export class SkillsComponent implements OnInit {
   @Input() editingSkills!: Set<number>;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() editingChange = new EventEmitter<{index: number, isEditing: boolean}>();
+  @Output() triggerMacro = new EventEmitter<ActionMacro>();
 
   // Search
   searchText = '';
@@ -198,7 +200,7 @@ export class SkillsComponent implements OnInit {
       );
     }
 
-    // Cost filter — 'free' = no cost
+    // Cost filter ï¿½ 'free' = no cost
     if (this.hasFilter(this.filterCosts)) {
       skills = this.applyMultiFilter(
         skills,

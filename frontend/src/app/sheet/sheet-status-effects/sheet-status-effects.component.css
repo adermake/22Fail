@@ -1,0 +1,111 @@
+:host {
+  display: block;
+}
+
+.sse-panel {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.sse-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.sse-label {
+  color: #777;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.sse-count {
+  background: #333;
+  color: #9ca3af;
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.sse-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* Chip */
+.sse-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: color-mix(in srgb, var(--ec, #8b5cf6) 12%, #1e1e1e);
+  border: 1px solid color-mix(in srgb, var(--ec, #8b5cf6) 35%, transparent);
+  border-radius: 20px;
+  padding: 3px 8px 3px 6px;
+  user-select: none;
+  transition: all 0.15s;
+  cursor: default;
+}
+
+.sse-chip.has-macro {
+  cursor: pointer;
+}
+.sse-chip.has-macro:hover {
+  background: color-mix(in srgb, var(--ec, #8b5cf6) 22%, #1e1e1e);
+  border-color: color-mix(in srgb, var(--ec, #8b5cf6) 60%, transparent);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ec, #8b5cf6) 30%, transparent);
+}
+
+.sse-chip-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.sse-chip-name {
+  color: #e5e7eb;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sse-chip-stacks,
+.sse-chip-duration {
+  color: #9ca3af;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.sse-chip-macro-hint {
+  color: var(--ec, #8b5cf6);
+  font-size: 0.6rem;
+  opacity: 0.7;
+}
+
+.sse-chip-remove {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 0.6rem;
+  cursor: pointer;
+  padding: 0;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.sse-chip-remove:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}

@@ -1,0 +1,221 @@
+<div class="eme-wrapper">
+
+  <!-- Header -->
+  <div class="eme-header">
+    <div class="eme-header-left">
+      <span class="eme-icon" [style.color]="editMacro.color || '#f59e0b'">{{ editMacro.icon || '✦' }}</span>
+      <h3>{{ isNew ? 'Neues Makro erstellen' : 'Makro bearbeiten' }}</h3>
+    </div>
+    @if (availableMacros.length > 0) {
+      <button class="eme-copy-btn" (click)="toggleCopyFrom()" title="Aus vorh. Makro als Vorlage">
+        ⎘ Als Vorlage kopieren
+      </button>
+    }
+  </div>
+
+  <!-- Copy-from picker -->
+  @if (showCopyFrom) {
+    <div class="eme-copy-panel">
+      <h4>Vorlage wählen</h4>
+      <div class="eme-copy-list">
+        @for (m of availableMacros; track m.id) {
+          <button class="eme-copy-item" (click)="applyTemplate(m)">
+            <span class="eme-copy-icon" [style.color]="m.color || '#f59e0b'">{{ m.icon || '✦' }}</span>
+            <span class="eme-copy-name">{{ m.name }}</span>
+            <span class="eme-copy-meta">{{ m.conditions.length }} Bed. · {{ m.consequences.length }} Akt.</span>
+          </button>
+        }
+      </div>
+      <button class="eme-cancel-btn small" (click)="toggleCopyFrom()">Abbrechen</button>
+    </div>
+  }
+
+  <div class="eme-body">
+
+    <!-- Basic Settings -->
+    <section class="eme-section">
+      <div class="eme-section-title">⚙ Grundeinstellungen</div>
+
+      <div class="eme-row">
+        <div class="eme-field grow">
+          <label>Name</label>
+          <input type="text" [(ngModel)]="editMacro.name" placeholder="z.B. Feuerball, Heilzauber" />
+        </div>
+        <div class="eme-field compact">
+          <label>Farbe</label>
+          <input type="color" [(ngModel)]="editMacro.color" />
+        </div>
+      </div>
+
+      <div class="eme-field">
+        <label>Beschreibung <span class="hint">Optional</span></label>
+        <input type="text" [(ngModel)]="editMacro.description" placeholder="Was macht dieses Makro?" />
+      </div>
+
+      <!-- Icon picker (colorable symbols) -->
+      <div class="eme-field">
+        <label>Icon</label>
+        <div class="eme-icon-grid">
+          @for (icon of iconSymbols; track icon) {
+            <button
+              class="eme-icon-btn"
+              [class.selected]="editMacro.icon === icon"
+              [style.color]="editMacro.color || '#f59e0b'"
+              (click)="selectIcon(icon)">
+              {{ icon }}
+            </button>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Conditions -->
+    <section class="eme-section">
+      <div class="eme-section-title">
+        ❓ Bedingungen
+        <button class="eme-add-small" (click)="addCondition()">+ Bedingung</button>
+      </div>
+      @if (editMacro.conditions.length === 0) {
+        <p class="eme-empty">Keine – Makro ist immer verfügbar</p>
+      } @else {
+        @for (cond of editMacro.conditions; track cond.id; let i = $index) {
+          <div class="eme-cond-row">
+            <select [(ngModel)]="cond.type" class="eme-select">
+              <option value="resource">Ressource</option>
+              <option value="stat">Attribut</option>
+              <option value="skill">Skill</option>
+            </select>
+
+            @if (cond.type === 'resource') {
+              <select [(ngModel)]="cond.resource" class="eme-select">
+                @for (r of resourceTypes; track r) {
+                  <option [value]="r">{{ resourceLabels[r] }}</option>
+                }
+              </select>
+            } @else if (cond.type === 'stat') {
+              <select [(ngModel)]="cond.stat" class="eme-select">
+                @for (s of statTypes; track s) {
+                  <option [value]="s">{{ statLabels[s] }}</option>
+                }
+              </select>
+            } @else {
+              <input type="text" [(ngModel)]="cond.skillName" placeholder="Skill-Name" class="eme-input" />
+            }
+
+            @if (cond.type !== 'skill') {
+              <select [(ngModel)]="cond.operator" class="eme-select narrow">
+                @for (op of operators; track op) {
+                  <option [value]="op">{{ op }}</option>
+                }
+              </select>
+              <select [(ngModel)]="cond.valueType" class="eme-select">
+                @for (vt of valueTypes; track vt) {
+                  <option [value]="vt">{{ valueTypeLabels[vt] }}</option>
+                }
+              </select>
+              @if (cond.valueType === 'fixed') {
+                <input type="number" [(ngModel)]="cond.value" placeholder="Wert" class="eme-input narrow" />
+              } @else if (cond.valueType === 'currentResource' || cond.valueType === 'maxResource') {
+                <select [(ngModel)]="cond.compareToResource" class="eme-select">
+                  @for (r of resourceTypes; track r) {
+                    <option [value]="r">{{ resourceLabels[r] }}</option>
+                  }
+                </select>
+              } @else if (cond.valueType === 'stat') {
+                <select [(ngModel)]="cond.compareToStat" class="eme-select">
+                  @for (s of statTypes; track s) {
+                    <option [value]="s">{{ statLabels[s] }}</option>
+                  }
+                </select>
+              }
+            }
+
+            <button class="eme-remove-btn" (click)="removeCondition(i)" title="Entfernen">✕</button>
+          </div>
+        }
+      }
+    </section>
+
+    <!-- Consequences -->
+    <section class="eme-section">
+      <div class="eme-section-title">
+        ⚡ Aktionen (Dann…)
+        <button class="eme-add-small" (click)="addConsequence()">+ Aktion</button>
+      </div>
+      @if (editMacro.consequences.length === 0) {
+        <p class="eme-empty">Keine Aktionen definiert</p>
+      } @else {
+        @for (cons of editMacro.consequences; track cons.id; let i = $index) {
+          <div class="eme-cons-card">
+            <div class="eme-cons-header">
+              <div class="eme-field grow">
+                <label>Aktionstyp</label>
+                <select [(ngModel)]="cons.type" class="eme-select">
+                  @for (k of ['dice_roll','spend_resource','gain_resource','apply_bonus']; track k) {
+                    <option [value]="k">{{ consequenceTypeLabels[k] }}</option>
+                  }
+                </select>
+              </div>
+              <button class="eme-remove-btn" (click)="removeConsequence(i)" title="Entfernen">✕</button>
+            </div>
+
+            @if (cons.type === 'spend_resource' || cons.type === 'gain_resource') {
+              <div class="eme-field">
+                <label>Ressource</label>
+                <select [(ngModel)]="cons.resource" class="eme-select">
+                  @for (r of resourceTypes; track r) {
+                    <option [value]="r">{{ resourceLabels[r] }}</option>
+                  }
+                </select>
+              </div>
+            }
+
+            <div class="eme-row">
+              <div class="eme-field grow">
+                <label>Anzeigename <span class="hint">Optional</span></label>
+                <input type="text" [(ngModel)]="cons.rollName" placeholder="z.B. Angriff, Schaden" class="eme-input" />
+              </div>
+              <div class="eme-field compact">
+                <label>Farbe</label>
+                <input type="color" [(ngModel)]="cons.rollColor" />
+              </div>
+            </div>
+
+            <div class="eme-field">
+              <label>
+                Würfelformel oder fester Wert
+                <span class="hint">z.B. 1d20+3, 2d6*2, 10</span>
+              </label>
+              <div class="eme-formula-wrap">
+                <input
+                  type="text"
+                  [(ngModel)]="cons.diceFormula"
+                  placeholder="z.B. 2d6+3"
+                  class="eme-input"
+                  [class.valid]="isFormulaValid(cons.diceFormula)"
+                  [class.invalid]="cons.diceFormula && !isFormulaValid(cons.diceFormula)" />
+                @if (cons.diceFormula && isFormulaValid(cons.diceFormula)) {
+                  <span class="eme-valid-icon">✓</span>
+                }
+                @if (cons.diceFormula && !isFormulaValid(cons.diceFormula)) {
+                  <span class="eme-invalid-icon">✗</span>
+                }
+              </div>
+              @if (cons.diceFormula && !isFormulaValid(cons.diceFormula)) {
+                <div class="eme-error">{{ getFormulaError(cons.diceFormula) }}</div>
+              }
+            </div>
+          </div>
+        }
+      }
+    </section>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="eme-footer">
+    <button class="eme-cancel-btn" (click)="onCancel()">Abbrechen</button>
+    <button class="eme-save-btn" [style.--mc]="editMacro.color || '#f59e0b'" (click)="onSave()">Makro speichern</button>
+  </div>
+
+</div>

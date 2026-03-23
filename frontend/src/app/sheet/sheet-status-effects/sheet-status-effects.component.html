@@ -1,0 +1,31 @@
+@if (activeEffects.length > 0) {
+  <div class="sse-panel">
+    <div class="sse-header">
+      <span class="sse-label">Aktive Effekte</span>
+      <span class="sse-count">{{ activeEffects.length }}</span>
+    </div>
+    <div class="sse-list">
+      @for (active of activeEffects; track trackByEffect($index, active)) {
+        <div
+          class="sse-chip"
+          [class.has-macro]="hasMacro(active)"
+          [style.--ec]="getEffectColor(active)"
+          (click)="onEffectClick(active)"
+          [title]="getEffectName(active) + (hasMacro(active) ? ' (Klicken zum Auslösen)' : '')">
+          <span class="sse-chip-icon" [style.color]="getEffectColor(active)">{{ getEffectIcon(active) }}</span>
+          <span class="sse-chip-name">{{ getEffectName(active) }}</span>
+          @if (active.stacks > 1) {
+            <span class="sse-chip-stacks">×{{ active.stacks }}</span>
+          }
+          @if (active.duration !== undefined && active.duration !== null) {
+            <span class="sse-chip-duration">{{ active.duration }}R</span>
+          }
+          @if (hasMacro(active)) {
+            <span class="sse-chip-macro-hint">▶</span>
+          }
+          <button class="sse-chip-remove" (click)="$event.stopPropagation(); removeEffect(active)" title="Entfernen">✕</button>
+        </div>
+      }
+    </div>
+  </div>
+}

@@ -7,7 +7,7 @@ import { InventoryComponent } from '../inventory/inventory.component';
 import { SpellsComponent } from '../spells/spells.component';
 import { RunesComponent } from '../../shared/runes/runes.component';
 import { SkillsComponent } from '../skills/skills.component';
-import { StatusEffectsTabComponent } from '../status-effects-tab/status-effects-tab.component';
+import { ActionMacro } from '../../model/action-macro.model';
 
 @Component({
   selector: 'app-character-tabs',
@@ -19,7 +19,6 @@ import { StatusEffectsTabComponent } from '../status-effects-tab/status-effects-
     SpellsComponent,
     RunesComponent,
     SkillsComponent,
-    StatusEffectsTabComponent
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './character-tabs.html',
@@ -36,10 +35,11 @@ export class CharacterTabsComponent {
   @Output() spellEditingChange = new EventEmitter<{index: number, isEditing: boolean}>();
   @Output() skillEditingChange = new EventEmitter<{index: number, isEditing: boolean}>();
   @Output() openTrash = new EventEmitter<void>();
+  @Output() triggerMacro = new EventEmitter<ActionMacro>();
 
-  activeTab: 'inventory' | 'spells' | 'runes' | 'skills' | 'status-effects' = 'inventory';
+  activeTab: 'inventory' | 'spells' | 'runes' | 'skills' = 'inventory';
 
-  setActiveTab(tab: 'inventory' | 'spells' | 'runes' | 'skills' | 'status-effects') {
+  setActiveTab(tab: 'inventory' | 'spells' | 'runes' | 'skills') {
     this.activeTab = tab;
   }
 

@@ -1,0 +1,377 @@
+/* EmbeddedMacroEditor – inline panel style (no overlay wrapper)
+   The parent is responsible for any overlay/modal positioning. */
+
+.eme-wrapper {
+  display: flex;
+  flex-direction: column;
+  background: #1e1e1e;
+  border: 1px solid #3a3a3a;
+  border-radius: 12px;
+  overflow: hidden;
+  width: 100%;
+  max-width: 680px;
+  max-height: 80vh;
+}
+
+/* ---- Header ---- */
+.eme-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #333;
+  background: linear-gradient(180deg, #252525, #1e1e1e);
+  flex-shrink: 0;
+}
+
+.eme-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eme-header-left .eme-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.eme-header h3 {
+  margin: 0;
+  color: #e5e7eb;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.eme-copy-btn {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid #444;
+  color: #aaa;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.eme-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.13);
+  color: #ddd;
+}
+
+/* ---- Copy-from panel ---- */
+.eme-copy-panel {
+  background: #252525;
+  border-bottom: 1px solid #333;
+  padding: 12px 16px;
+  flex-shrink: 0;
+}
+.eme-copy-panel h4 {
+  margin: 0 0 8px;
+  color: #ccc;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.eme-copy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+.eme-copy-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+.eme-copy-item:hover {
+  background: rgba(255,255,255,0.09);
+  border-color: #666;
+}
+.eme-copy-icon { font-size: 1.1rem; }
+.eme-copy-name { color: #e5e7eb; font-size: 0.9rem; flex: 1; }
+.eme-copy-meta { color: #777; font-size: 0.75rem; }
+
+/* ---- Body (scrollable) ---- */
+.eme-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---- Sections ---- */
+.eme-section {
+  background: #252525;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.eme-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #f59e0b;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+
+/* ---- Fields ---- */
+.eme-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.eme-field.grow { flex: 1; }
+.eme-field.compact { flex: 0 0 auto; }
+
+.eme-field label {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.eme-field label .hint {
+  color: #666;
+  font-size: 0.7rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 4px;
+}
+
+.eme-field input[type="text"],
+.eme-field input[type="number"],
+.eme-input {
+  background: #1a1a1a;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: #e5e7eb;
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.eme-input {
+  width: auto;
+  min-width: 0;
+}
+.eme-input.narrow { width: 80px; }
+.eme-field input:focus,
+.eme-input:focus {
+  border-color: #f59e0b;
+}
+.eme-input.valid { border-color: #22c55e; }
+.eme-input.invalid { border-color: #ef4444; }
+
+.eme-field input[type="color"] {
+  width: 48px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  background: #1a1a1a;
+  cursor: pointer;
+}
+
+.eme-select {
+  background: #1a1a1a;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: #e5e7eb;
+  font-size: 0.82rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.eme-select:focus { border-color: #f59e0b; }
+.eme-select.narrow { width: 90px; }
+
+/* ---- Row layout ---- */
+.eme-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+/* ---- Condition row ---- */
+.eme-cond-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+/* ---- Consequence card ---- */
+.eme-cons-card {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.eme-cons-header {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+/* ---- Formula ---- */
+.eme-formula-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.eme-formula-wrap .eme-input { width: 100%; padding-right: 32px; box-sizing: border-box; }
+.eme-valid-icon { position: absolute; right: 8px; color: #22c55e; font-size: 0.9rem; }
+.eme-invalid-icon { position: absolute; right: 8px; color: #ef4444; font-size: 0.9rem; }
+.eme-error { color: #ef4444; font-size: 0.75rem; margin-top: 2px; }
+
+/* ---- Icon grid ---- */
+.eme-icon-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.eme-icon-btn {
+  width: 34px;
+  height: 34px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid #3a3a3a;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.eme-icon-btn:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: #666;
+  transform: scale(1.1);
+}
+.eme-icon-btn.selected {
+  background: rgba(245,158,11,0.18);
+  border-color: #f59e0b;
+}
+
+/* ---- Buttons ---- */
+.eme-add-small {
+  background: rgba(255,255,255,0.06);
+  border: 1px dashed #555;
+  color: #9ca3af;
+  padding: 3px 9px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.15s;
+}
+.eme-add-small:hover {
+  background: rgba(255,255,255,0.1);
+  color: #ddd;
+  border-color: #888;
+}
+
+.eme-remove-btn {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #ef4444;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.eme-remove-btn:hover {
+  background: rgba(239,68,68,0.25);
+  border-color: #ef4444;
+}
+
+/* ---- Empty state ---- */
+.eme-empty {
+  color: #666;
+  font-size: 0.82rem;
+  font-style: italic;
+  margin: 0;
+  text-align: center;
+  padding: 8px 0;
+}
+
+/* ---- Footer ---- */
+.eme-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid #333;
+  background: #1e1e1e;
+  flex-shrink: 0;
+}
+
+.eme-cancel-btn {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid #444;
+  color: #9ca3af;
+  padding: 8px 18px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  transition: all 0.2s;
+}
+.eme-cancel-btn.small {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+}
+.eme-cancel-btn:hover {
+  background: rgba(255,255,255,0.12);
+  color: #ddd;
+}
+
+.eme-save-btn {
+  background: var(--mc, #f59e0b);
+  border: none;
+  color: #000;
+  padding: 8px 22px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+.eme-save-btn:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}

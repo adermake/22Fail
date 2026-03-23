@@ -10,6 +10,7 @@ import { KeywordEnhancer } from '../keyword-enhancer';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SKILL_DEFINITIONS, CLASS_DEFINITIONS } from '../../data/skill-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
+import { ActionMacro } from '../../model/action-macro.model';
 
 @Component({
   selector: 'app-skill',
@@ -26,6 +27,7 @@ export class SkillComponent {
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
   @Output() openEditor = new EventEmitter<void>();
+  @Output() triggerMacro = new EventEmitter<ActionMacro>();
 
   showContextMenu = false;
   menuX = 0;
@@ -53,7 +55,14 @@ export class SkillComponent {
   }
 
   onCardClick() {
-    if (this.cost && this.effectiveType === 'active') {
+    if (this.effectiveType !== 'active') return;
+    // If skill has an embedded macro, trigger it instead of showing cost popup
+    const macro = this.skill.embeddedMacro;
+    if (macro) {
+      this.triggerMacro.emit(macro);
+      return;
+    }
+    if (this.cost) {
       this.showPayPopup = true;
     }
   }

@@ -47,12 +47,13 @@
             <button 
               class="icon-btn" 
               [class.selected]="editEffect.icon === icon"
+              [style.color]="editEffect.color"
               (click)="selectIcon(icon)">
               {{ icon }}
             </button>
           }
         </div>
-        <input type="text" [(ngModel)]="editEffect.icon" placeholder="Oder eigenes Emoji eingeben" class="icon-input">
+        <input type="text" [(ngModel)]="editEffect.icon" placeholder="Oder eigenes Symbol eingeben" class="icon-input">
       </div>
 
       <div class="form-row">
@@ -170,15 +171,64 @@
       </div>
     </section>
 
-    <!-- Macro Action (placeholder) -->
+    <!-- Makro-Aktion -->
     <section class="section">
       <h3>Makro-Aktion</h3>
-      
-      <div class="form-row">
-        <label>Makro-ID (optional)</label>
-        <input type="text" [(ngModel)]="editEffect.macroActionId" placeholder="ID der auszuführenden Makro-Aktion">
-        <span class="hint">Wird ausgeführt wenn der Effekt angeklickt wird</span>
-      </div>
+
+      @if (!showMacroEditor) {
+        <!-- Summary when macro exists -->
+        @if (editEffect.embeddedMacro) {
+          <div class="macro-summary">
+            <span class="macro-summary-icon" [style.color]="editEffect.embeddedMacro.color || '#f59e0b'">
+              {{ editEffect.embeddedMacro.icon || '✦' }}
+            </span>
+            <div class="macro-summary-info">
+              <strong>{{ editEffect.embeddedMacro.name }}</strong>
+              <span class="macro-meta">
+                {{ editEffect.embeddedMacro.conditions.length }} Bed. ·
+                {{ editEffect.embeddedMacro.consequences.length }} Akt.
+              </span>
+            </div>
+            <button class="edit-macro-btn" (click)="openEditMacro()">✏ Bearbeiten</button>
+            <button class="remove-macro-btn" (click)="removeMacro()">✕</button>
+          </div>
+        } @else {
+          <p class="section-hint">Kein Makro – Klicken auf den Effekt hat keinen Effekt.</p>
+          <div class="macro-actions-row">
+            <button class="add-btn" (click)="openCreateMacro()">+ Makro erstellen</button>
+            @if (availableMacros.length > 0) {
+              <button class="add-btn secondary" (click)="toggleCopyFromLibrary()">
+                ⎘ Aus Bibliothek kopieren
+              </button>
+            }
+          </div>
+        }
+
+        <!-- Copy-from-library dropdown -->
+        @if (showCopyFromLibrary) {
+          <div class="copy-library-panel">
+            <h4>Makro aus Bibliothek wählen</h4>
+            @for (m of availableMacros; track m.id) {
+              <button class="copy-library-item" (click)="copyMacroFromLibrary(m)">
+                <span [style.color]="m.color || '#f59e0b'">{{ m.icon || '✦' }}</span>
+                <span>{{ m.name }}</span>
+                <span class="macro-meta">{{ m.conditions.length }} Bed. · {{ m.consequences.length }} Akt.</span>
+              </button>
+            }
+            <button class="cancel-btn small" (click)="toggleCopyFromLibrary()">Abbrechen</button>
+          </div>
+        }
+      }
+
+      <!-- Embedded macro editor -->
+      @if (showMacroEditor) {
+        <app-embedded-macro-editor
+          [macro]="macroEditMode === 'edit' ? editEffect.embeddedMacro ?? null : null"
+          [availableMacros]="availableMacros"
+          (save)="onMacroSaved($event)"
+          (cancel)="onMacroCancel()">
+        </app-embedded-macro-editor>
+      }
     </section>
   </div>
 

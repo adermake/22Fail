@@ -3,22 +3,31 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StatusEffect, StatusStatModifier } from '../../model/status-effect.model';
 import { DiceBonus } from '../../model/dice-bonus.model';
+import { ActionMacro, createEmptyActionMacro } from '../../model/action-macro.model';
+import { EmbeddedMacroEditorComponent, MACRO_ICON_SYMBOLS } from '../embedded-macro-editor/embedded-macro-editor.component';
 
 @Component({
   selector: 'app-status-effect-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, EmbeddedMacroEditorComponent],
   templateUrl: './status-effect-editor.component.html',
   styleUrl: './status-effect-editor.component.css',
 })
 export class StatusEffectEditorComponent implements OnInit {
   @Input() statusEffect: StatusEffect | null = null;
+  /** ActionMacros from the library to allow 'copy from template' */
+  @Input() availableMacros: ActionMacro[] = [];
   @Output() save = new EventEmitter<StatusEffect>();
   @Output() cancel = new EventEmitter<void>();
   @Output() delete = new EventEmitter<void>();
 
   editEffect!: StatusEffect;
   isNew = true;
+
+  // Embedded macro editor state
+  showMacroEditor = false;
+  macroEditMode: 'new' | 'edit' = 'new';
+  showCopyFromLibrary = false;
 
   // Tag input
   newTag = '';
@@ -50,12 +59,8 @@ export class StatusEffectEditorComponent implements OnInit {
     '#6b7280', // Gray
   ];
 
-  // Icon presets
-  iconPresets = [
-    '💫', '🔥', '❄️', '⚡', '💀', '🛡️', '⚔️', '🎯',
-    '💪', '🧠', '👁️', '💨', '🌟', '☠️', '💖', '🌀',
-    '🔮', '✨', '🩸', '🧪', '⏳', '🎭', '👻', '🌙'
-  ];
+  // Colorable Unicode icon presets (respond to CSS color property)
+  iconPresets = MACRO_ICON_SYMBOLS;
 
   ngOnInit() {
     if (this.statusEffect) {
@@ -152,5 +157,46 @@ export class StatusEffectEditorComponent implements OnInit {
   // Icon selection
   selectIcon(icon: string) {
     this.editEffect.icon = icon;
+  }
+
+  // ---- Embedded Macro ----
+  openCreateMacro() {
+    this.macroEditMode = 'new';
+    this.showMacroEditor = true;
+    this.showCopyFromLibrary = false;
+  }
+
+  openEditMacro() {
+    this.macroEditMode = 'edit';
+    this.showMacroEditor = true;
+    this.showCopyFromLibrary = false;
+  }
+
+  removeMacro() {
+    if (confirm('Eingebettetes Makro entfernen?')) {
+      this.editEffect.embeddedMacro = undefined;
+    }
+  }
+
+  onMacroSaved(macro: ActionMacro) {
+    this.editEffect.embeddedMacro = macro;
+    this.showMacroEditor = false;
+  }
+
+  onMacroCancel() {
+    this.showMacroEditor = false;
+  }
+
+  toggleCopyFromLibrary() {
+    this.showCopyFromLibrary = !this.showCopyFromLibrary;
+  }
+
+  copyMacroFromLibrary(macro: ActionMacro) {
+    const copy: ActionMacro = JSON.parse(JSON.stringify(macro));
+    copy.id = `macro-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    copy.createdAt = new Date();
+    copy.modifiedAt = new Date();
+    this.editEffect.embeddedMacro = copy;
+    this.showCopyFromLibrary = false;
   }
 }

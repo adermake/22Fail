@@ -1,4 +1,5 @@
 import { DiceBonus } from './dice-bonus.model';
+import { ActionMacro } from './action-macro.model';
 
 
 /**
@@ -19,8 +20,9 @@ export interface StatusEffect {
   statModifiers?: StatusStatModifier[]; // Direct stat modifications
   
   // Macro integration
-  macroActionId?: string; // ID of macro action to trigger when clicked
-  
+  macroActionId?: string;      // Legacy: ID of a library MacroAction
+  embeddedMacro?: ActionMacro; // Inline ActionMacro (copied, not referenced)
+
   // Duration & stacking
   defaultDuration?: number; // Default duration in turns/rounds
   maxStacks?: number; // Maximum number of times this effect can stack

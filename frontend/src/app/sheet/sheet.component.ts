@@ -41,6 +41,7 @@ import { CurrentEventsViewComponent } from './current-events-view';
 import type { BuyItemEvent, ClaimLootEvent } from './current-events-view';
 import { TransactionPopupComponent, Transaction } from './transaction-popup/transaction-popup.component';
 import { EventPortalComponent } from './event-portal/event-portal.component';
+import { SheetStatusEffectsComponent } from './sheet-status-effects/sheet-status-effects.component';
 
 @Component({
   selector: 'app-sheet',
@@ -62,7 +63,8 @@ import { EventPortalComponent } from './event-portal/event-portal.component';
     GameInfoComponent,
     CurrentEventsViewComponent,
     TransactionPopupComponent,
-    EventPortalComponent
+    EventPortalComponent,
+    SheetStatusEffectsComponent,
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',

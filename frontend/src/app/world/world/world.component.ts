@@ -18,7 +18,7 @@ import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-mo
 import { JsonPatch } from '../../model/json-patch.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { StatusBlock } from '../../model/status-block.model';
-import { StatusEffect } from '../../model/status-effect.model';
+import { StatusEffect, ActiveStatusEffect } from '../../model/status-effect.model';
 import { CurrentEvent, ShopEvent, LootBundleEvent } from '../../model/current-events.model';
 import { Subscription } from 'rxjs';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
@@ -94,6 +94,10 @@ export class WorldComponent implements OnInit, OnDestroy {
   editingSpells = new Set<number>();
   editingSkills = new Set<number>();
   editingStatusEffects = new Set<number>();
+
+  // Dashboard status effect management
+  /** Character ID whose status effect picker is open, null = none */
+  dashboardStatusPickerFor: string | null = null;
 
   // Drag state
   private dragScrollInterval?: number;
@@ -651,6 +655,41 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.editingStatusEffectIndex = index;
     console.log('Open status effect editor:', index);
     // TODO: Implement a proper status effect editor dialog
+  }
+
+  // ---- Dashboard: assign status effects to party characters ----
+
+  toggleDashboardStatusPicker(characterId: string) {
+    this.dashboardStatusPickerFor = this.dashboardStatusPickerFor === characterId ? null : characterId;
+    this.cdr.markForCheck();
+  }
+
+  getDashboardActiveEffects(characterId: string): ActiveStatusEffect[] {
+    const sheet = this.partyCharacters.get(characterId);
+    return sheet?.activeStatusEffects ?? [];
+  }
+
+  getDashboardEffectDef(statusEffectId: string): StatusEffect | undefined {
+    return this.mergedStatusEffects().find(e => e.id === statusEffectId);
+  }
+
+  /** Called when GM picks an effect from the dashboard picker */
+  addEffectFromDashboard(characterId: string, effect: StatusEffect) {
+    const libId = this.loadedLibraries().find(lib => lib.statusEffects?.some(e => e.id === effect.id))?.id ?? '';
+    this.applyStatusEffectToCharacter(characterId, effect.id, libId);
+    this.dashboardStatusPickerFor = null;
+    this.cdr.markForCheck();
+  }
+
+  removeStatusEffectFromCharacter(characterId: string, statusEffectId: string, appliedAt: number) {
+    const sheet = this.partyCharacters.get(characterId);
+    if (!sheet) return;
+    const activeEffects = (sheet.activeStatusEffects ?? []).filter(
+      e => !(e.statusEffectId === statusEffectId && e.appliedAt === appliedAt)
+    );
+    this.characterSocket.sendPatch(characterId, { path: '/activeStatusEffects', value: activeEffects });
+    sheet.activeStatusEffects = activeEffects;
+    this.cdr.markForCheck();
   }
 
   // Editing state handlers

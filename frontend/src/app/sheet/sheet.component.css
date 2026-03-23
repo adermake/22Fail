@@ -4,6 +4,7 @@
   grid-template-areas:
     "character currentstats currentstats"
     "levelclass stats stats"
+    "statusfx statusfx statusfx"
     "tabs tabs equipment"
     "tabs tabs equipment"
     "tabs tabs equipment"
@@ -58,6 +59,7 @@
 .grid-stats { grid-area: stats; }
 .grid-levelclass { grid-area: levelclass; }
 .grid-currentstats { grid-area: currentstats; }
+.grid-statusfx { grid-area: statusfx; }
 .grid-equipment { grid-area: equipment; }
 .grid-tabs { grid-area: tabs; }
 .grid-events { grid-area: events; }
@@ -71,6 +73,7 @@
       "character stats"
       "levelclass stats"
       "currentstats equipment"
+      "statusfx statusfx"
       "events events"
       "tabs tabs"
       "backstory backstory";
@@ -86,6 +89,7 @@
       "stats"
       "levelclass"
       "currentstats"
+      "statusfx"
       "events"
       "equipment"
       "tabs"
