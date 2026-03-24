@@ -2,6 +2,7 @@
   display: block;
   position: relative;
   width: 100%;
+  overflow: visible;
 }
 
 /* ── Section Container ─────────────────────────────────── */
@@ -9,7 +10,7 @@
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
   margin-top: 8px;
 }
@@ -83,7 +84,7 @@
   gap: 7px;
   padding: 12px;
   flex-wrap: wrap;
-  min-height: 100px;
+  min-height: 400px;
   background: var(--bg);
 }
 
