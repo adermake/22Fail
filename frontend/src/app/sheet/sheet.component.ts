@@ -10,6 +10,7 @@ import { CharacterStoreService } from '../services/character-store.service';
 import { CharacterSocketService, BattleLootEvent } from '../services/character-socket.service';
 import { WorldSocketService } from '../services/world-socket.service';
 import { WorldApiService } from '../services/world-api.service';
+import { LibraryStoreService } from '../services/library-store.service';
 import { CommonModule } from '@angular/common';
 import { SkillsComponent } from './skills/skills.component';
 import { ClassTree } from './class-tree-model';
@@ -76,6 +77,7 @@ export class SheetComponent implements OnInit {
   private socket = inject(CharacterSocketService);
   private worldSocket = inject(WorldSocketService);
   private worldApi = inject(WorldApiService);
+  private libraryStore = inject(LibraryStoreService);
   private cdr = inject(ChangeDetectorRef);
   private ngZone = inject(NgZone);
 
@@ -174,6 +176,9 @@ export class SheetComponent implements OnInit {
     
     // Initialize class tree (auto-initializes from CLASS_DEFINITIONS)
     ClassTree.initialize();
+    
+    // Load libraries (needed for status effects, spells, items, etc.)
+    this.libraryStore.loadAllLibraries();
     
     // Load character data
     await this.store.load(id);
