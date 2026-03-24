@@ -1,9 +1,10 @@
 import {
   Component, Input, Output, EventEmitter, inject, ChangeDetectionStrategy,
-  ChangeDetectorRef, OnChanges, SimpleChanges,
+  ChangeDetectorRef, OnChanges, SimpleChanges, OnInit, OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ActiveStatusEffect, StatusEffect } from '../../model/status-effect.model';
 import { ActionMacro } from '../../model/action-macro.model';
@@ -18,13 +19,14 @@ import { LibraryStoreService } from '../../services/library-store.service';
   styleUrl: './sheet-status-effects.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SheetStatusEffectsComponent implements OnChanges {
+export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() triggerMacro = new EventEmitter<ActionMacro>();
   @Output() patch = new EventEmitter<JsonPatch>();
 
   private libraryStore = inject(LibraryStoreService);
   private cdr = inject(ChangeDetectorRef);
+  private libSub?: Subscription;
 
   /** All known status effect definitions from loaded libraries */
   resolvedEffects = new Map<string, StatusEffect>();
@@ -35,10 +37,21 @@ export class SheetStatusEffectsComponent implements OnChanges {
   /** Search string for the picker */
   pickerSearch = '';
 
+  ngOnInit() {
+    // Re-resolve whenever the library list changes (handles late-load case)
+    this.libSub = this.libraryStore.allLibraries$.subscribe(() => {
+      this.resolveEffects();
+    });
+  }
+
   ngOnChanges(changes: SimpleChanges) {
     if (changes['sheet']) {
       this.resolveEffects();
     }
+  }
+
+  ngOnDestroy() {
+    this.libSub?.unsubscribe();
   }
 
   private resolveEffects() {

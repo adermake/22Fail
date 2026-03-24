@@ -1,18 +1,67 @@
 :host {
   display: block;
   position: relative;
+  width: 100%;
+}
+
+/* ── Section Container ─────────────────────────────────── */
+.sse-section {
+  background: #1a1a1e;
+  border: 1px solid #2d2d30;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  margin-top: 8px;
+}
+
+.sse-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px 8px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(139, 92, 246, 0.02));
+  border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.sse-section-title {
+  color: #a78bfa;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  flex: 1;
+}
+
+.sse-section-count {
+  background: rgba(139, 92, 246, 0.25);
+  color: #c4b5fd;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  line-height: 1.4;
 }
 
 /* ── Bar container ──────────────────────────────────────── */
 .sse-bar {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
-  padding: 6px 2px 2px;
+  gap: 7px;
+  padding: 12px;
   flex-wrap: wrap;
-  overflow-x: visible;
-  min-height: 94px;
+  min-height: 100px;
+  background: #18181b;
 }
+
+.sse-empty-hint {
+  color: #4a4a4a;
+  font-size: 0.8rem;
+  font-style: italic;
+  padding: 20px 0;
+  flex: 1;
+  text-align: center;
+}
+
 
 /* ── Effect Card ──────────────────────────────────────────  */
 .sse-card {

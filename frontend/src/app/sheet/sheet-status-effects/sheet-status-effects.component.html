@@ -1,48 +1,52 @@
-<div class="sse-bar">
+<div class="sse-section">
+  <div class="sse-section-header">
+    <span class="sse-section-title">⚔ Aktive Effekte</span>
+    @if (activeEffects.length > 0) {
+      <span class="sse-section-count">{{ activeEffects.length }}</span>
+    }
+  </div>
 
-  <!-- Active Effect Cards -->
-  @for (active of activeEffects; track trackByEffect($index, active)) {
-    <div
-      class="sse-card"
-      [class.is-debuff]="getEffect(active)?.isDebuff"
-      [class.has-macro]="hasMacro(active)"
-      [style.--ec]="getEffectColor(active)"
-      (click)="onEffectClick(active)"
-      [title]="getEffectName(active) + (hasMacro(active) ? ' — Klicken zum Auslösen' : '')">
+  <div class="sse-bar">
+    <!-- Active Effect Cards -->
+    @for (active of activeEffects; track trackByEffect($index, active)) {
+      <div
+        class="sse-card"
+        [class.is-debuff]="getEffect(active)?.isDebuff"
+        [class.has-macro]="hasMacro(active)"
+        [style.--ec]="getEffectColor(active)"
+        (click)="onEffectClick(active)"
+        [title]="getEffectName(active) + (hasMacro(active) ? ' — Klicken zum Auslösen' : '')">
 
-      <!-- Remove -->
-      <button class="sse-card-remove" (click)="$event.stopPropagation(); removeEffect(active)" title="Entfernen">✕</button>
+        <button class="sse-card-remove" (click)="$event.stopPropagation(); removeEffect(active)" title="Entfernen">✕</button>
 
-      <!-- Stack badge (top-right) -->
-      @if (active.stacks > 1) {
-        <span class="sse-card-stack">×{{ active.stacks }}</span>
-      }
+        @if (active.stacks > 1) {
+          <span class="sse-card-stack">×{{ active.stacks }}</span>
+        }
+        @if (active.duration !== undefined && active.duration !== null) {
+          <span class="sse-card-dur">{{ active.duration }}R</span>
+        }
+        @if (hasMacro(active)) {
+          <span class="sse-card-play">▶</span>
+        }
 
-      <!-- Duration badge (bottom-left) -->
-      @if (active.duration !== undefined && active.duration !== null) {
-        <span class="sse-card-dur">{{ active.duration }}R</span>
-      }
+        <div class="sse-card-icon">{{ getEffectIcon(active) }}</div>
+        <div class="sse-card-name">{{ getEffectName(active) }}</div>
+      </div>
+    }
 
-      <!-- Macro play indicator -->
-      @if (hasMacro(active)) {
-        <span class="sse-card-play">▶</span>
-      }
+    <!-- Empty state inside the bar -->
+    @if (activeEffects.length === 0) {
+      <span class="sse-empty-hint">Keine aktiven Status-Effekte.</span>
+    }
 
-      <!-- Big Icon -->
-      <div class="sse-card-icon">{{ getEffectIcon(active) }}</div>
+    <!-- Add Button Card -->
+    <button class="sse-add-card" (click)="togglePicker()" [class.is-open]="showPicker" title="Effekt hinzufügen">
+      <span class="sse-add-plus">+</span>
+      <span class="sse-add-label">Effekt</span>
+    </button>
+  </div>
 
-      <!-- Name -->
-      <div class="sse-card-name">{{ getEffectName(active) }}</div>
-    </div>
-  }
-
-  <!-- Add Button Card -->
-  <button class="sse-add-card" (click)="togglePicker()" [class.is-open]="showPicker" title="Effekt hinzufügen">
-    <span class="sse-add-plus">+</span>
-    <span class="sse-add-label">Effekt</span>
-  </button>
-
-  <!-- Picker Dropdown -->
+  <!-- Picker dropdown -->
   @if (showPicker) {
     <div class="sse-picker" (click)="$event.stopPropagation()">
       <div class="sse-picker-head">
@@ -81,5 +85,6 @@
     </div>
   }
 </div>
+
 
 
