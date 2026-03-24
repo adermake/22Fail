@@ -1,9 +1,13 @@
-@if (activeEffects.length > 0) {
-  <div class="sse-panel">
-    <div class="sse-header">
-      <span class="sse-label">Aktive Effekte</span>
+<div class="sse-panel">
+  <div class="sse-header">
+    <span class="sse-label">Aktive Effekte</span>
+    @if (activeEffects.length > 0) {
       <span class="sse-count">{{ activeEffects.length }}</span>
-    </div>
+    }
+    <button class="sse-add-btn" (click)="togglePicker()" [class.active]="showPicker" title="Effekt hinzufügen">+</button>
+  </div>
+
+  @if (activeEffects.length > 0) {
     <div class="sse-list">
       @for (active of activeEffects; track trackByEffect($index, active)) {
         <div
@@ -27,5 +31,44 @@
         </div>
       }
     </div>
-  </div>
-}
+  } @else {
+    <p class="sse-empty">Keine aktiven Effekte.</p>
+  }
+
+  <!-- Add Picker -->
+  @if (showPicker) {
+    <div class="sse-picker">
+      <div class="sse-picker-header">
+        <span>Effekt hinzufügen</span>
+        <button class="sse-picker-close" (click)="closePicker()">✕</button>
+      </div>
+      <input
+        class="sse-picker-search"
+        type="text"
+        [(ngModel)]="pickerSearch"
+        placeholder="Suche..."
+        autofocus>
+      @if (availableToAdd.length === 0) {
+        <p class="sse-picker-empty">Keine Effekte verfügbar. Der GM muss dir Effekte zuweisen oder Effekte als Öffentlich markieren.</p>
+      } @else {
+        <div class="sse-picker-list">
+          @for (effect of availableToAdd; track trackById($index, effect)) {
+            <button class="sse-picker-item" (click)="applyEffect(effect)">
+              <span class="sse-picker-icon" [style.color]="effect.color || '#8b5cf6'">{{ effect.icon || '✦' }}</span>
+              <span class="sse-picker-name">{{ effect.name }}</span>
+              @if (effect.isDebuff) {
+                <span class="sse-picker-badge debuff">Debuff</span>
+              } @else {
+                <span class="sse-picker-badge buff">Buff</span>
+              }
+              @if (effect.public) {
+                <span class="sse-picker-badge pub">Öffentlich</span>
+              }
+            </button>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
+

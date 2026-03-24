@@ -122,6 +122,13 @@
   color: #666;
 }
 
+/* Checkboxes row */
+.checkboxes-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
 /* Checkbox */
 .checkbox-label {
   display: flex;

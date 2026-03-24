@@ -1195,13 +1195,14 @@ export class WorldComponent implements OnInit, OnDestroy {
     }
     character.activeStatusEffects.push(activeEffect);
 
-    // Emit patch to update character
-    const patch: JsonPatch = {
-      path: '/activeStatusEffects',
-      value: character.activeStatusEffects
-    };
+    // Track as seen so the character can re-apply it from their sheet
+    const seen = new Set(character.seenStatusEffectIds ?? []);
+    seen.add(statusEffectId);
+    character.seenStatusEffectIds = Array.from(seen);
 
-    this.characterSocket.sendPatch(characterId, patch);
+    // Emit patches
+    this.characterSocket.sendPatch(characterId, { path: '/activeStatusEffects', value: character.activeStatusEffects });
+    this.characterSocket.sendPatch(characterId, { path: '/seenStatusEffectIds', value: character.seenStatusEffectIds });
     this.cdr.markForCheck();
   }
 

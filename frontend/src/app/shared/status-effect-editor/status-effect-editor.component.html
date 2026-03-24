@@ -28,10 +28,14 @@
         <textarea [(ngModel)]="editEffect.description" rows="3" placeholder="Beschreibung des Effekts"></textarea>
       </div>
 
-      <div class="form-row">
+      <div class="form-row checkboxes-row">
         <label class="checkbox-label">
           <input type="checkbox" [(ngModel)]="editEffect.isDebuff">
           <span>Ist Debuff (negative Wirkung)</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="editEffect.public">
+          <span>Öffentlich (auf jedem Charakterbogen sichtbar)</span>
         </label>
       </div>
     </section>

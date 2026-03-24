@@ -3,6 +3,7 @@ import {
   ChangeDetectorRef, OnChanges, SimpleChanges,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ActiveStatusEffect, StatusEffect } from '../../model/status-effect.model';
 import { ActionMacro } from '../../model/action-macro.model';
@@ -12,7 +13,7 @@ import { LibraryStoreService } from '../../services/library-store.service';
 @Component({
   selector: 'app-sheet-status-effects',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './sheet-status-effects.component.html',
   styleUrl: './sheet-status-effects.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,8 +26,14 @@ export class SheetStatusEffectsComponent implements OnChanges {
   private libraryStore = inject(LibraryStoreService);
   private cdr = inject(ChangeDetectorRef);
 
-  // Resolved status effect definitions keyed by statusEffectId
+  /** All known status effect definitions from loaded libraries */
   resolvedEffects = new Map<string, StatusEffect>();
+
+  /** Whether the add-effect picker is open */
+  showPicker = false;
+
+  /** Search string for the picker */
+  pickerSearch = '';
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['sheet']) {
@@ -36,15 +43,11 @@ export class SheetStatusEffectsComponent implements OnChanges {
 
   private resolveEffects() {
     this.resolvedEffects.clear();
-    const actives = this.sheet.activeStatusEffects ?? [];
     const libs = this.libraryStore.allLibraries;
-    for (const active of actives) {
-      if (this.resolvedEffects.has(active.statusEffectId)) continue;
-      for (const lib of libs) {
-        const found = lib.statusEffects?.find(se => se.id === active.statusEffectId);
-        if (found) {
-          this.resolvedEffects.set(active.statusEffectId, found);
-          break;
+    for (const lib of libs) {
+      for (const se of lib.statusEffects ?? []) {
+        if (!this.resolvedEffects.has(se.id)) {
+          this.resolvedEffects.set(se.id, se);
         }
       }
     }
@@ -91,5 +94,62 @@ export class SheetStatusEffectsComponent implements OnChanges {
 
   trackByEffect(_: number, active: ActiveStatusEffect): string {
     return `${active.statusEffectId}-${active.appliedAt}`;
+  }
+
+  trackById(_: number, effect: StatusEffect): string {
+    return effect.id;
+  }
+
+  // ---- Picker ----
+
+  togglePicker() {
+    this.showPicker = !this.showPicker;
+    this.pickerSearch = '';
+    this.cdr.markForCheck();
+  }
+
+  closePicker() {
+    this.showPicker = false;
+    this.cdr.markForCheck();
+  }
+
+  /** Effects the character is allowed to see:
+   *  - public effects (visible to everyone), OR
+   *  - effects the character has encountered before (seenStatusEffectIds) */
+  get availableToAdd(): StatusEffect[] {
+    const seen = new Set(this.sheet.seenStatusEffectIds ?? []);
+    const alreadyActive = new Set((this.sheet.activeStatusEffects ?? []).map(e => e.statusEffectId));
+    const search = this.pickerSearch.toLowerCase().trim();
+
+    return Array.from(this.resolvedEffects.values()).filter(se => {
+      const visible = se.public || seen.has(se.id);
+      const notActive = !alreadyActive.has(se.id);
+      const matchesSearch = !search
+        || se.name.toLowerCase().includes(search)
+        || (se.tags ?? []).some(t => t.toLowerCase().includes(search));
+      return visible && notActive && matchesSearch;
+    });
+  }
+
+  applyEffect(effect: StatusEffect) {
+    const libs = this.libraryStore.allLibraries;
+    const sourceLib = libs.find(lib => lib.statusEffects?.some(e => e.id === effect.id));
+
+    const newActive: ActiveStatusEffect = {
+      statusEffectId: effect.id,
+      sourceLibraryId: sourceLib?.id ?? '',
+      appliedAt: Date.now(),
+      stacks: 1,
+      duration: effect.defaultDuration,
+    };
+
+    const updatedActive = [...(this.sheet.activeStatusEffects ?? []), newActive];
+    const updatedSeen = Array.from(new Set([...(this.sheet.seenStatusEffectIds ?? []), effect.id]));
+
+    this.patch.emit({ path: '/activeStatusEffects', value: updatedActive });
+    this.patch.emit({ path: '/seenStatusEffectIds', value: updatedSeen });
+
+    this.showPicker = false;
+    this.cdr.markForCheck();
   }
 }

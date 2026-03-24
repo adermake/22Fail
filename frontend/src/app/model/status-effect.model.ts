@@ -28,6 +28,9 @@ export interface StatusEffect {
   maxStacks?: number; // Maximum number of times this effect can stack
   isDebuff?: boolean; // Whether this is a negative effect
   
+  // Visibility
+  public?: boolean; // If true, all characters can always see and add this effect from their sheet
+
   // Metadata
   tags?: string[]; // Categorization (e.g., 'poison', 'buff', 'curse')
 }
@@ -73,7 +76,8 @@ export function createEmptyStatusEffect(): StatusEffect {
     statModifiers: [],
     tags: [],
     isDebuff: false,
-    maxStacks: 1
+    maxStacks: 1,
+    public: false,
   };
 }
 

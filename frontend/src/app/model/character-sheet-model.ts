@@ -51,6 +51,7 @@ export interface CharacterSheet {
   currency: Currency;
   trash: SheetTrashItem[]; // Recycle bin for deleted items
   activeStatusEffects: ActiveStatusEffect[]; // Status effects currently applied to this character
+  seenStatusEffectIds: string[]; // IDs of status effects this character has encountered (allows re-application from sheet)
   // Talent System
   talentPoints: number;           // Available talent points to spend
   talentPointsBonus: number;      // GM-assigned bonus talent points
@@ -98,6 +99,7 @@ export function createEmptySheet(): CharacterSheet {
     },
     trash: [],
     activeStatusEffects: [],
+    seenStatusEffectIds: [],
     talentPoints: 2,
     talentPointsBonus: 0,
     learnedSkillIds: [],
