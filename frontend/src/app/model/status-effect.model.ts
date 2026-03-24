@@ -62,6 +62,9 @@ export interface ActiveStatusEffect {
   customName?: string; // Override the base name
   customDescription?: string; // Override the base description
   customDiceBonuses?: DiceBonus[]; // Override dice bonuses
+  
+  // Custom effect (breaks library link when edited)
+  customEffect?: StatusEffect; // If present, use this instead of library definition
 }
 
 /**

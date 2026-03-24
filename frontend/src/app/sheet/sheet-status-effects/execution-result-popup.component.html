@@ -1,0 +1,55 @@
+<div class="execution-popup" 
+     [class.show]="isVisible"
+     [class.success]="result.success"
+     [class.failure]="!result.success"
+     [style.--action-color]="result.actionColor">
+  
+  <!-- Header -->
+  <div class="popup-header">
+    <span class="popup-icon">{{ result.actionIcon }}</span>
+    <span class="popup-name">{{ result.actionName }}</span>
+  </div>
+
+  <!-- Condition Failures -->
+  @if (result.conditionFailures.length > 0) {
+    <div class="popup-failures">
+      @for (failure of result.conditionFailures; track $index) {
+        <div class="failure-item">
+          <span class="failure-icon">⚠</span>
+          <span class="failure-text">{{ failure }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Dice Rolls -->
+  @if (result.rolls.length > 0) {
+    <div class="popup-rolls">
+      @for (roll of result.rolls; track roll.id) {
+        <div class="roll-item" [style.--roll-color]="roll.color">
+          <div class="roll-name">{{ roll.name }}</div>
+          <div class="roll-result">
+            <span class="roll-dice">
+              @for (die of roll.rolls; track $index) {
+                <span class="die">{{ die }}</span>
+              }
+            </span>
+            <span class="roll-total">= {{ roll.total }}</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Resource Changes -->
+  @if (result.resourceChanges.length > 0) {
+    <div class="popup-resources">
+      @for (change of result.resourceChanges; track $index) {
+        <div class="resource-item" [class.gain]="change.amount > 0" [class.loss]="change.amount < 0">
+          <span class="resource-name">{{ change.displayName }}</span>
+          <span class="resource-amount">{{ change.amount > 0 ? '+' : '' }}{{ change.amount }}</span>
+        </div>
+      }
+    </div>
+  }
+</div>
