@@ -1,44 +1,51 @@
-<div class="sse-panel">
-  <div class="sse-header">
-    <span class="sse-label">Aktive Effekte</span>
-    @if (activeEffects.length > 0) {
-      <span class="sse-count">{{ activeEffects.length }}</span>
-    }
-    <button class="sse-add-btn" (click)="togglePicker()" [class.active]="showPicker" title="Effekt hinzufügen">+</button>
-  </div>
+<div class="sse-bar">
 
-  @if (activeEffects.length > 0) {
-    <div class="sse-list">
-      @for (active of activeEffects; track trackByEffect($index, active)) {
-        <div
-          class="sse-chip"
-          [class.has-macro]="hasMacro(active)"
-          [style.--ec]="getEffectColor(active)"
-          (click)="onEffectClick(active)"
-          [title]="getEffectName(active) + (hasMacro(active) ? ' (Klicken zum Auslösen)' : '')">
-          <span class="sse-chip-icon" [style.color]="getEffectColor(active)">{{ getEffectIcon(active) }}</span>
-          <span class="sse-chip-name">{{ getEffectName(active) }}</span>
-          @if (active.stacks > 1) {
-            <span class="sse-chip-stacks">×{{ active.stacks }}</span>
-          }
-          @if (active.duration !== undefined && active.duration !== null) {
-            <span class="sse-chip-duration">{{ active.duration }}R</span>
-          }
-          @if (hasMacro(active)) {
-            <span class="sse-chip-macro-hint">▶</span>
-          }
-          <button class="sse-chip-remove" (click)="$event.stopPropagation(); removeEffect(active)" title="Entfernen">✕</button>
-        </div>
+  <!-- Active Effect Cards -->
+  @for (active of activeEffects; track trackByEffect($index, active)) {
+    <div
+      class="sse-card"
+      [class.is-debuff]="getEffect(active)?.isDebuff"
+      [class.has-macro]="hasMacro(active)"
+      [style.--ec]="getEffectColor(active)"
+      (click)="onEffectClick(active)"
+      [title]="getEffectName(active) + (hasMacro(active) ? ' — Klicken zum Auslösen' : '')">
+
+      <!-- Remove -->
+      <button class="sse-card-remove" (click)="$event.stopPropagation(); removeEffect(active)" title="Entfernen">✕</button>
+
+      <!-- Stack badge (top-right) -->
+      @if (active.stacks > 1) {
+        <span class="sse-card-stack">×{{ active.stacks }}</span>
       }
+
+      <!-- Duration badge (bottom-left) -->
+      @if (active.duration !== undefined && active.duration !== null) {
+        <span class="sse-card-dur">{{ active.duration }}R</span>
+      }
+
+      <!-- Macro play indicator -->
+      @if (hasMacro(active)) {
+        <span class="sse-card-play">▶</span>
+      }
+
+      <!-- Big Icon -->
+      <div class="sse-card-icon">{{ getEffectIcon(active) }}</div>
+
+      <!-- Name -->
+      <div class="sse-card-name">{{ getEffectName(active) }}</div>
     </div>
-  } @else {
-    <p class="sse-empty">Keine aktiven Effekte.</p>
   }
 
-  <!-- Add Picker -->
+  <!-- Add Button Card -->
+  <button class="sse-add-card" (click)="togglePicker()" [class.is-open]="showPicker" title="Effekt hinzufügen">
+    <span class="sse-add-plus">+</span>
+    <span class="sse-add-label">Effekt</span>
+  </button>
+
+  <!-- Picker Dropdown -->
   @if (showPicker) {
-    <div class="sse-picker">
-      <div class="sse-picker-header">
+    <div class="sse-picker" (click)="$event.stopPropagation()">
+      <div class="sse-picker-head">
         <span>Effekt hinzufügen</span>
         <button class="sse-picker-close" (click)="closePicker()">✕</button>
       </div>
@@ -46,23 +53,26 @@
         class="sse-picker-search"
         type="text"
         [(ngModel)]="pickerSearch"
-        placeholder="Suche..."
-        autofocus>
+        placeholder="Suche nach Effekten...">
+
       @if (availableToAdd.length === 0) {
-        <p class="sse-picker-empty">Keine Effekte verfügbar. Der GM muss dir Effekte zuweisen oder Effekte als Öffentlich markieren.</p>
+        <p class="sse-picker-empty">
+          Keine Effekte verfügbar.<br>
+          Der GM muss Effekte zuweisen oder als <em>Öffentlich</em> markieren.
+        </p>
       } @else {
-        <div class="sse-picker-list">
+        <div class="sse-picker-grid">
           @for (effect of availableToAdd; track trackById($index, effect)) {
-            <button class="sse-picker-item" (click)="applyEffect(effect)">
-              <span class="sse-picker-icon" [style.color]="effect.color || '#8b5cf6'">{{ effect.icon || '✦' }}</span>
-              <span class="sse-picker-name">{{ effect.name }}</span>
+            <button
+              class="sse-picker-card"
+              [class.is-debuff]="effect.isDebuff"
+              [style.--ec]="effect.color || '#8b5cf6'"
+              (click)="applyEffect(effect)"
+              [title]="effect.description || effect.name">
+              <span class="sse-picker-card-icon">{{ effect.icon || '✦' }}</span>
+              <span class="sse-picker-card-name">{{ effect.name }}</span>
               @if (effect.isDebuff) {
-                <span class="sse-picker-badge debuff">Debuff</span>
-              } @else {
-                <span class="sse-picker-badge buff">Buff</span>
-              }
-              @if (effect.public) {
-                <span class="sse-picker-badge pub">Öffentlich</span>
+                <span class="sse-picker-tag debuff">Debuff</span>
               }
             </button>
           }
@@ -71,4 +81,5 @@
     </div>
   }
 </div>
+
 

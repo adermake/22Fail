@@ -18,10 +18,7 @@
   
   <div class="grid-currentstats">
     <app-currentstats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-currentstats>
-  </div>
-
-  <!-- Status Effects Panel - below health bars -->
-  <div class="grid-statusfx">
+    <!-- Status Effects Panel — directly below health bars, same grid area -->
     <app-sheet-status-effects
       [sheet]="sheet"
       (triggerMacro)="handleMacroExecution($event)"
