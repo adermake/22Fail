@@ -40,7 +40,7 @@ export interface StatusEffect {
  * Stat modifier applied by a status effect
  */
 export interface StatusStatModifier {
-  stat: 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill';
+  stat: 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill' | 'life' | 'energy' | 'mana';
   amount: number; // Can be negative for debuffs
   isPercentage?: boolean; // If true, apply as percentage instead of flat amount
 }

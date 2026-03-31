@@ -1,0 +1,28 @@
+{
+  "id": "tmp_status-effect_1774980008000_q5r6s7t",
+  "name": "Gesegnet",
+  "type": "status-effect",
+  "folderId": "root",
+  "path": "Gesegnet",
+  "data": {
+    "id": "status_1774980008000_q5r6s7t",
+    "name": "Gesegnet",
+    "description": "Göttlicher Segen stärkt dich. Alle Würfe sind verbessert und dein Wille ist unerschütterlich.",
+    "diceBonuses": [
+      { "name": "Göttlicher Segen", "value": -2, "source": "status_effect", "context": "auf alle Würfe" }
+    ],
+    "statModifiers": [
+      { "stat": "intelligence", "amount": 2 }
+    ],
+    "tags": ["göttlich", "buff"],
+    "isDebuff": false,
+    "maxStacks": 1,
+    "public": true,
+    "icon": "❋",
+    "color": "#facc15"
+  },
+  "createdAt": 1774980008000,
+  "updatedAt": 1774980008000,
+  "icon": "🎭",
+  "tags": []
+}

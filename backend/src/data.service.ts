@@ -74,6 +74,10 @@ export class DataService {
     return path.join(this.getWorldDir(worldName), 'loot-bundles');
   }
 
+  private getWorldStatusEffectsDir(worldName: string): string {
+    return path.join(this.getWorldDir(worldName), 'status-effects');
+  }
+
   private getWorldLobbyFilePath(worldName: string): string {
     return path.join(this.getWorldDir(worldName), 'lobby.json');
   }
@@ -172,6 +176,7 @@ export class DataService {
     this.ensureDirectory(this.getWorldRunesDir(worldName));
     this.ensureDirectory(this.getWorldSkillsDir(worldName));
     this.ensureDirectory(this.getWorldLootBundlesDir(worldName));
+    this.ensureDirectory(this.getWorldStatusEffectsDir(worldName));
     this.ensureDirectory(this.getWorldMapsDir(worldName));
   }
 
@@ -340,6 +345,7 @@ export class DataService {
       world.runeLibrary = this.readEntityCollection(this.getWorldRunesDir(name));
       world.skillLibrary = this.readEntityCollection(this.getWorldSkillsDir(name));
       world.lootBundles = this.readEntityCollection(this.getWorldLootBundlesDir(name));
+      world.statusEffectLibrary = this.readEntityCollection(this.getWorldStatusEffectsDir(name));
 
       // Load lobby if exists
       const lobbyPath = this.getWorldLobbyFilePath(name);
@@ -366,6 +372,7 @@ export class DataService {
       const runeLibrary = world.runeLibrary || [];
       const skillLibrary = world.skillLibrary || [];
       const lootBundles = world.lootBundles || [];
+      const statusEffectLibrary = world.statusEffectLibrary || [];
 
       // Clear existing entity files
       const itemsDir = this.getWorldItemsDir(name);
@@ -373,6 +380,7 @@ export class DataService {
       const runesDir = this.getWorldRunesDir(name);
       const skillsDir = this.getWorldSkillsDir(name);
       const lootBundlesDir = this.getWorldLootBundlesDir(name);
+      const statusEffectsDir = this.getWorldStatusEffectsDir(name);
 
       // Write each entity to its own file
       for (const item of itemLibrary) {
@@ -389,6 +397,9 @@ export class DataService {
       }
       for (const bundle of lootBundles) {
         this.writeEntity(lootBundlesDir, bundle.id, bundle);
+      }
+      for (const effect of statusEffectLibrary) {
+        this.writeEntity(statusEffectsDir, effect.id, effect);
       }
 
       // Save lobby separately if present

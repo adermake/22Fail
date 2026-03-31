@@ -1,0 +1,44 @@
+{
+  "id": "tmp_status-effect_1774980007000_m2n3o4p",
+  "name": "Regenerierend",
+  "type": "status-effect",
+  "folderId": "root",
+  "path": "Regenerierend",
+  "data": {
+    "id": "status_1774980007000_m2n3o4p",
+    "name": "Regenerierend",
+    "description": "Du regenerierst langsam deine Lebenskraft. Jede Runde heilst du etwas.",
+    "diceBonuses": [],
+    "statModifiers": [],
+    "tags": ["heilung", "buff"],
+    "isDebuff": false,
+    "maxStacks": 2,
+    "public": true,
+    "icon": "✚",
+    "color": "#22c55e",
+    "defaultDuration": 5,
+    "embeddedMacro": {
+      "id": "macro_1774980007000_m2n3o4p",
+      "name": "Regeneration",
+      "description": "Heilt LP pro Runde.",
+      "consequences": [
+        {
+          "id": "cons-1774980007000-m2n3o4p",
+          "type": "gain_resource",
+          "diceType": 20,
+          "diceCount": 1,
+          "bonuses": [],
+          "resource": "health",
+          "rollColor": "#22c55e",
+          "rollName": "Regeneration heilt!",
+          "diceFormula": "1d6"
+        }
+      ],
+      "color": "#22c55e"
+    }
+  },
+  "createdAt": 1774980007000,
+  "updatedAt": 1774980007000,
+  "icon": "🎭",
+  "tags": []
+}

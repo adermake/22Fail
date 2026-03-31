@@ -43,6 +43,8 @@
 
               @if (active.duration !== undefined && active.duration !== null) {
                 <span class="sse-card-dur">{{ active.duration }}R</span>
+              } @else {
+                <span class="sse-card-dur">∞</span>
               }
               @if (active.stacks && active.stacks > 1) {
                 <span class="sse-card-stack">×{{ active.stacks }}</span>
@@ -184,18 +186,20 @@
       }
 
       <div class="sse-panel-details">
-        @if (expandedEffect.duration !== undefined && expandedEffect.duration !== null) {
-          <div class="sse-panel-detail">
-            <span class="detail-icon">⏱</span>
-            <span class="detail-label">Dauer</span>
-            <span class="detail-value detail-editable">
-              <button class="detail-btn" (click)="changeDuration(expandedEffect, -1)">−</button>
+        <div class="sse-panel-detail">
+          <span class="detail-icon">⏱</span>
+          <span class="detail-label">Dauer</span>
+          <span class="detail-value detail-editable">
+            <button class="detail-btn" (click)="changeDuration(expandedEffect, -1)">−</button>
+            @if (expandedEffect.duration !== undefined && expandedEffect.duration !== null) {
               <span class="detail-num">{{ expandedEffect.duration }}</span>
-              <button class="detail-btn" (click)="changeDuration(expandedEffect, 1)">+</button>
-              <span class="detail-unit">Runden</span>
-            </span>
-          </div>
-        }
+            } @else {
+              <span class="detail-num">∞</span>
+            }
+            <button class="detail-btn" (click)="changeDuration(expandedEffect, 1)">+</button>
+            <span class="detail-unit">Runden</span>
+          </span>
+        </div>
         @if (expandedEffect.stacks && expandedEffect.stacks > 0) {
           <div class="sse-panel-detail">
             <span class="detail-icon">📚</span>
@@ -213,7 +217,7 @@
             <span class="detail-label">Modifikatoren</span>
             <span class="detail-value mod-chips">
               @for (mod of getEffect(expandedEffect)!.statModifiers!; track $index) {
-                <span class="mod-chip">{{ getStatLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}</span>
+                <span class="mod-chip" [class.mod-positive]="mod.amount > 0" [class.mod-negative]="mod.amount < 0">{{ getStatLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}</span>
               }
             </span>
           </div>
@@ -224,7 +228,7 @@
             <span class="detail-label">Würfel-Boni</span>
             <span class="detail-value mod-chips">
               @for (bonus of getEffect(expandedEffect)!.diceBonuses!; track $index) {
-                <span class="mod-chip">{{ bonus.name }}: {{ bonus.value > 0 ? '+' : '' }}{{ bonus.value }}</span>
+                <span class="mod-chip" [class.mod-positive]="bonus.value > 0" [class.mod-negative]="bonus.value < 0">{{ bonus.name }}: {{ bonus.value > 0 ? '+' : '' }}{{ bonus.value }}</span>
               }
             </span>
           </div>

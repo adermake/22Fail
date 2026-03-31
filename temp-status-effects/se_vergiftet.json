@@ -1,0 +1,52 @@
+{
+  "id": "tmp_status-effect_1774980002000_b2c3d4e",
+  "name": "Vergiftet",
+  "type": "status-effect",
+  "folderId": "root",
+  "path": "Vergiftet",
+  "data": {
+    "id": "status_1774980002000_b2c3d4e",
+    "name": "Vergiftet",
+    "description": "Gift schwächt deinen Körper. Du verlierst jede Runde Leben und deine Konstitution sinkt.",
+    "diceBonuses": [
+      { "name": "Gift-Schwäche", "value": 1, "source": "status_effect", "context": "auf alle Würfe" }
+    ],
+    "statModifiers": [
+      { "stat": "constitution", "amount": -2 }
+    ],
+    "tags": ["gift", "dot"],
+    "isDebuff": true,
+    "maxStacks": 3,
+    "public": true,
+    "icon": "✧",
+    "color": "#16a34a",
+    "defaultDuration": 5,
+    "embeddedMacro": {
+      "id": "macro-1774980002000-b2c3d4e",
+      "name": "Giftschaden",
+      "description": "Das Gift frisst sich durch deinen Körper.",
+      "icon": "✧",
+      "color": "#16a34a",
+      "conditions": [],
+      "consequences": [
+        {
+          "id": "cons-1774980002000-b2c3d4e",
+          "type": "spend_resource",
+          "resource": "health",
+          "rollColor": "#16a34a",
+          "rollName": "Giftschaden",
+          "diceFormula": "1d6"
+        }
+      ],
+      "referencedSkillNames": [],
+      "isValid": true,
+      "order": 0,
+      "createdAt": "2026-03-31T18:00:02.000Z",
+      "modifiedAt": "2026-03-31T18:00:02.000Z"
+    }
+  },
+  "createdAt": 1774980002000,
+  "updatedAt": 1774980002000,
+  "icon": "🎭",
+  "tags": []
+}

@@ -1,0 +1,27 @@
+{
+  "id": "tmp_status-effect_1774980009000_u8v9w0x",
+  "name": "Geschützt",
+  "type": "status-effect",
+  "folderId": "root",
+  "path": "Geschützt",
+  "data": {
+    "id": "status_1774980009000_u8v9w0x",
+    "name": "Geschützt",
+    "description": "Ein Schutzzauber umgibt dich und stärkt deine Konstitution erheblich.",
+    "diceBonuses": [],
+    "statModifiers": [
+      { "stat": "constitution", "amount": 4 }
+    ],
+    "tags": ["schutz", "buff"],
+    "isDebuff": false,
+    "maxStacks": 1,
+    "public": true,
+    "icon": "◆",
+    "color": "#6366f1",
+    "defaultDuration": 6
+  },
+  "createdAt": 1774980009000,
+  "updatedAt": 1774980009000,
+  "icon": "🎭",
+  "tags": []
+}

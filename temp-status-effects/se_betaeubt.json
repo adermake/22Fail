@@ -1,0 +1,30 @@
+{
+  "id": "tmp_status-effect_1774980005000_e5f6g7h",
+  "name": "Betäubt",
+  "type": "status-effect",
+  "folderId": "root",
+  "path": "Betäubt",
+  "data": {
+    "id": "status_1774980005000_e5f6g7h",
+    "name": "Betäubt",
+    "description": "Du bist benommen und kannst dich kaum bewegen. Alle Würfe verschlechtert.",
+    "diceBonuses": [
+      { "name": "Benommenheit", "value": 3, "source": "status_effect", "context": "auf alle Würfe" }
+    ],
+    "statModifiers": [
+      { "stat": "dexterity", "amount": -4 },
+      { "stat": "speed", "amount": -4 }
+    ],
+    "tags": ["kontrolle", "debuff"],
+    "isDebuff": true,
+    "maxStacks": 1,
+    "public": true,
+    "icon": "◎",
+    "color": "#eab308",
+    "defaultDuration": 2
+  },
+  "createdAt": 1774980005000,
+  "updatedAt": 1774980005000,
+  "icon": "🎭",
+  "tags": []
+}

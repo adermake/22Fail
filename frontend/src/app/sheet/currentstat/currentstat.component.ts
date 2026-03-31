@@ -5,6 +5,8 @@ import { required } from '@angular/forms/signals';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { JsonPatch } from '../../model/json-patch.model';
+import { LibraryStoreService } from '../../services/library-store.service';
+import { StatusEffect } from '../../model/status-effect.model';
 
 @Component({
   selector: 'app-currentstat',
@@ -21,6 +23,7 @@ export class CurrentstatComponent {
   @Input() bonus!: number;
   @Input() formula!: FormulaType;
   constructor(private cd: ChangeDetectorRef) {}
+  private libraryStore = inject(LibraryStoreService);
 
   // Map formula types to stat keys for skill modifiers
   private getStatusKey(): 'mana' | 'life' | 'energy' | null {
@@ -69,7 +72,31 @@ export class CurrentstatComponent {
       }
     }
 
+    // Add bonuses from active status effects
+    if (this.sheet.activeStatusEffects) {
+      for (const active of this.sheet.activeStatusEffects) {
+        const effect = this.resolveStatusEffect(active.statusEffectId, active.customEffect);
+        if (effect?.statModifiers) {
+          for (const modifier of effect.statModifiers) {
+            if (modifier.stat === statusKey) {
+              const stacks = active.stacks || 1;
+              total += modifier.amount * stacks;
+            }
+          }
+        }
+      }
+    }
+
     return total;
+  }
+
+  private resolveStatusEffect(statusEffectId: string, customEffect?: StatusEffect): StatusEffect | undefined {
+    if (customEffect) return customEffect;
+    for (const lib of this.libraryStore.allLibraries) {
+      const found = lib.statusEffects?.find((se: StatusEffect) => se.id === statusEffectId);
+      if (found) return found;
+    }
+    return undefined;
   }
 
   get effectSources(): string[] {
@@ -102,6 +129,24 @@ export class CurrentstatComponent {
             if (modifier.stat === statusKey) {
               const sign = modifier.amount >= 0 ? '+' : '';
               sources.push(`${item.name}: ${sign}${modifier.amount}`);
+            }
+          }
+        }
+      }
+    }
+
+    // Collect sources from active status effects
+    if (this.sheet.activeStatusEffects) {
+      for (const active of this.sheet.activeStatusEffects) {
+        const effect = this.resolveStatusEffect(active.statusEffectId, active.customEffect);
+        if (effect?.statModifiers) {
+          for (const modifier of effect.statModifiers) {
+            if (modifier.stat === statusKey) {
+              const stacks = active.stacks || 1;
+              const amount = modifier.amount * stacks;
+              const sign = amount >= 0 ? '+' : '';
+              const name = active.customName ?? effect.name ?? active.statusEffectId;
+              sources.push(`${name}: ${sign}${amount}`);
             }
           }
         }

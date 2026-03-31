@@ -19,6 +19,8 @@ Echtzeit-D&D-Kollaborationstool mit WebSocket-synchronisierter multiplayer-Funkt
   
 - **Services**:
   - `data.service.ts`: Daten-Persistierung (JSON read/write)
+    - Entity-Collections (Items, Spells, Runes, Skills, LootBundles, StatusEffects) in eigene Unterverzeichnisse pro Welt
+    - `readEntityCollection()` / `writeEntity()` für einzelne JSON-Dateien pro Entity
   - `asset-browser.service.ts`: Asset-Management (Items, Spells, Skills, Shops, Bundles)
     - `AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle'`
     - `getTypeIcon()`: Emoji-Icons für Asset-Typen (🏪 shops, 🎁 bundles)
@@ -90,6 +92,8 @@ app/
 - **Status Effects**: Buffs/Debuffs für Charaktere
   - `StatusEffect` Model: id, name, description, icon, color, diceBonuses, statModifiers, embeddedMacro/embeddedMacros, macroActionId, defaultDuration, maxStacks, isDebuff, public, tags
   - `ActiveStatusEffect`: statusEffectId, sourceLibraryId, appliedAt, duration, stacks, customEffect
+  - `StatusStatModifier.stat`: 'strength'|'dexterity'|'speed'|'intelligence'|'constitution'|'chill'|'life'|'energy'|'mana'
+  - **Integration**: Status-Effekt statModifiers und diceBonuses fließen in stat.component, currentstat.component, true-stats.service und dice-roller.component ein (via LibraryStoreService Resolution)
   - **Sheet-Komponente** (`sheet/sheet-status-effects/`):
     - 2/3 + 1/3 Layout: Karten-Bereich (links) + Ausführungs-Sidebar (rechts)
     - Karten: Icon, Name, Dauer-Badge, Stack-Badge, Drag-Handle (⠿) für Neuordnung

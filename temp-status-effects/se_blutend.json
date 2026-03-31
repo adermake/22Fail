@@ -1,0 +1,48 @@
+{
+  "id": "tmp_status-effect_1774980001000_a1b2c3d",
+  "name": "Blutend",
+  "type": "status-effect",
+  "folderId": "root",
+  "path": "Blutend",
+  "data": {
+    "id": "status_1774980001000_a1b2c3d",
+    "name": "Blutend",
+    "description": "Du blutest und verlierst jede Runde Lebenspunkte pro Stapel.",
+    "diceBonuses": [],
+    "statModifiers": [],
+    "tags": ["physisch", "dot"],
+    "isDebuff": true,
+    "maxStacks": 5,
+    "public": true,
+    "icon": "✦",
+    "color": "#dc2626",
+    "defaultDuration": 3,
+    "embeddedMacro": {
+      "id": "macro-1774980001000-a1b2c3d",
+      "name": "Blutverlust",
+      "description": "Du blutest!",
+      "icon": "✦",
+      "color": "#dc2626",
+      "conditions": [],
+      "consequences": [
+        {
+          "id": "cons-1774980001000-a1b2c3d",
+          "type": "spend_resource",
+          "resource": "health",
+          "rollColor": "#dc2626",
+          "rollName": "Blutung",
+          "diceFormula": "1d4-1"
+        }
+      ],
+      "referencedSkillNames": [],
+      "isValid": true,
+      "order": 0,
+      "createdAt": "2026-03-31T18:00:01.000Z",
+      "modifiedAt": "2026-03-31T18:00:01.000Z"
+    }
+  },
+  "createdAt": 1774980001000,
+  "updatedAt": 1774980001000,
+  "icon": "🎭",
+  "tags": []
+}

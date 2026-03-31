@@ -1,6 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { StatBlock } from '../model/stat-block.model';
+import { LibraryStoreService } from './library-store.service';
+import { StatusEffect } from '../model/status-effect.model';
 
 /**
  * All calculated stat values for a character.
@@ -33,7 +35,7 @@ export interface CalculatedStatDetails {
 export interface StatModifierSource {
   name: string;
   amount: number;
-  type: 'skill' | 'equipment';
+  type: 'skill' | 'equipment' | 'status_effect';
 }
 
 type StatKey = 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill';
@@ -58,6 +60,7 @@ type StatKeyDisplay = 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'con
   providedIn: 'root'
 })
 export class TrueStatsService {
+  private libraryStore = inject(LibraryStoreService);
   
   /**
    * Calculate the effect bonus for a specific stat from skills and equipment.
@@ -97,7 +100,31 @@ export class TrueStatsService {
       }
     }
 
+    // Add bonuses from active status effects
+    if (sheet.activeStatusEffects) {
+      for (const active of sheet.activeStatusEffects) {
+        const effect = this.resolveStatusEffect(active.statusEffectId, active.customEffect);
+        if (effect?.statModifiers) {
+          for (const modifier of effect.statModifiers) {
+            if (modifier.stat === statKey) {
+              const stacks = active.stacks || 1;
+              total += modifier.amount * stacks;
+            }
+          }
+        }
+      }
+    }
+
     return total;
+  }
+
+  private resolveStatusEffect(statusEffectId: string, customEffect?: StatusEffect): StatusEffect | undefined {
+    if (customEffect) return customEffect;
+    for (const lib of this.libraryStore.allLibraries) {
+      const found = lib.statusEffects?.find((se: StatusEffect) => se.id === statusEffectId);
+      if (found) return found;
+    }
+    return undefined;
   }
 
   /**
@@ -140,6 +167,25 @@ export class TrueStatsService {
                 name: item.name,
                 amount: modifier.amount,
                 type: 'equipment'
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Collect sources from active status effects
+    if (sheet.activeStatusEffects) {
+      for (const active of sheet.activeStatusEffects) {
+        const effect = this.resolveStatusEffect(active.statusEffectId, active.customEffect);
+        if (effect?.statModifiers) {
+          for (const modifier of effect.statModifiers) {
+            if (modifier.stat === statKey) {
+              const stacks = active.stacks || 1;
+              sources.push({
+                name: active.customName ?? effect.name ?? active.statusEffectId,
+                amount: modifier.amount * stacks,
+                type: 'status_effect'
               });
             }
           }

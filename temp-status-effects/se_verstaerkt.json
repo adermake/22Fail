@@ -1,0 +1,30 @@
+{
+  "id": "tmp_status-effect_1774980010000_y1z2a3b",
+  "name": "Verstärkt",
+  "type": "status-effect",
+  "folderId": "root",
+  "path": "Verstärkt",
+  "data": {
+    "id": "status_1774980010000_y1z2a3b",
+    "name": "Verstärkt",
+    "description": "Magische Verstärkung durchströmt deinen Körper. Du bist stärker und schneller.",
+    "diceBonuses": [
+      { "name": "Kampfverstärkung", "value": -1, "source": "status_effect", "context": "auf alle Würfe" }
+    ],
+    "statModifiers": [
+      { "stat": "strength", "amount": 3 },
+      { "stat": "dexterity", "amount": 2 }
+    ],
+    "tags": ["verstärkung", "buff"],
+    "isDebuff": false,
+    "maxStacks": 1,
+    "public": true,
+    "icon": "✠",
+    "color": "#ef4444",
+    "defaultDuration": 4
+  },
+  "createdAt": 1774980010000,
+  "updatedAt": 1774980010000,
+  "icon": "🎭",
+  "tags": []
+}

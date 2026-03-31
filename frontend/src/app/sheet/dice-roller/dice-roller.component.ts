@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
+import { LibraryStoreService } from '../../services/library-store.service';
+import { StatusEffect } from '../../model/status-effect.model';
 import { Subscription } from 'rxjs';
 
 export interface DiceRoll {
@@ -50,6 +52,7 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
   @Output() close = new EventEmitter<void>();
 
   private worldSocket = inject(WorldSocketService);
+  private libraryStore = inject(LibraryStoreService);
   private diceRollSub?: Subscription;
 
   // Dice rolling state
@@ -150,6 +153,26 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
       });
     }
     
+    // Add dice bonuses from active status effects
+    if (this.sheet.activeStatusEffects) {
+      this.sheet.activeStatusEffects.forEach(active => {
+        const effect = this.resolveStatusEffect(active.statusEffectId, active.customEffect);
+        if (!effect) return;
+        const diceBonuses = active.customDiceBonuses ?? effect.diceBonuses;
+        if (diceBonuses && diceBonuses.length > 0) {
+          const stacks = active.stacks || 1;
+          diceBonuses.forEach(db => {
+            bonuses.push({
+              name: `${effect.name}: ${db.name}`,
+              value: db.value * stacks,
+              source: 'status_effect',
+              context: stacks > 1 ? `${stacks}× Stapel` : `von ${effect.name}`
+            });
+          });
+        }
+      });
+    }
+    
     return bonuses;
   });
 
@@ -201,7 +224,31 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
       }
     }
 
+    // Add bonuses from active status effects
+    if (this.sheet.activeStatusEffects) {
+      for (const active of this.sheet.activeStatusEffects) {
+        const effect = this.resolveStatusEffect(active.statusEffectId, active.customEffect);
+        if (effect?.statModifiers) {
+          for (const modifier of effect.statModifiers) {
+            if (modifier.stat === statKey) {
+              const stacks = active.stacks || 1;
+              total += modifier.amount * stacks;
+            }
+          }
+        }
+      }
+    }
+
     return total;
+  }
+
+  private resolveStatusEffect(statusEffectId: string, customEffect?: StatusEffect): StatusEffect | undefined {
+    if (customEffect) return customEffect;
+    for (const lib of this.libraryStore.allLibraries) {
+      const found = lib.statusEffects?.find((se: StatusEffect) => se.id === statusEffectId);
+      if (found) return found;
+    }
+    return undefined;
   }
 
   // Calculate stat total (base + bonus + level bonus + effect)

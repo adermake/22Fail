@@ -1,0 +1,28 @@
+{
+  "id": "tmp_status-effect_1774980006000_i9j0k1l",
+  "name": "Geschwächt",
+  "type": "status-effect",
+  "folderId": "root",
+  "path": "Geschwächt",
+  "data": {
+    "id": "status_1774980006000_i9j0k1l",
+    "name": "Geschwächt",
+    "description": "Deine Kraft lässt nach. Körperliche Attribute sind stark eingeschränkt.",
+    "diceBonuses": [],
+    "statModifiers": [
+      { "stat": "strength", "amount": -3 },
+      { "stat": "constitution", "amount": -2 }
+    ],
+    "tags": ["körperlich", "debuff"],
+    "isDebuff": true,
+    "maxStacks": 3,
+    "public": true,
+    "icon": "▼",
+    "color": "#a1a1aa",
+    "defaultDuration": 5
+  },
+  "createdAt": 1774980006000,
+  "updatedAt": 1774980006000,
+  "icon": "🎭",
+  "tags": []
+}

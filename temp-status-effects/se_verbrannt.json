@@ -1,0 +1,48 @@
+{
+  "id": "tmp_status-effect_1774980003000_c3d4e5f",
+  "name": "Verbrannt",
+  "type": "status-effect",
+  "folderId": "root",
+  "path": "Verbrannt",
+  "data": {
+    "id": "status_1774980003000_c3d4e5f",
+    "name": "Verbrannt",
+    "description": "Du stehst in Flammen und erleidest jede Runde Feuerschaden.",
+    "diceBonuses": [],
+    "statModifiers": [],
+    "tags": ["feuer", "dot"],
+    "isDebuff": true,
+    "maxStacks": 3,
+    "public": true,
+    "icon": "✶",
+    "color": "#f97316",
+    "defaultDuration": 3,
+    "embeddedMacro": {
+      "id": "macro-1774980003000-c3d4e5f",
+      "name": "Feuerschaden",
+      "description": "Die Flammen verzehren dich!",
+      "icon": "✶",
+      "color": "#f97316",
+      "conditions": [],
+      "consequences": [
+        {
+          "id": "cons-1774980003000-c3d4e5f",
+          "type": "spend_resource",
+          "resource": "health",
+          "rollColor": "#f97316",
+          "rollName": "Feuerschaden",
+          "diceFormula": "1d6"
+        }
+      ],
+      "referencedSkillNames": [],
+      "isValid": true,
+      "order": 0,
+      "createdAt": "2026-03-31T18:00:03.000Z",
+      "modifiedAt": "2026-03-31T18:00:03.000Z"
+    }
+  },
+  "createdAt": 1774980003000,
+  "updatedAt": 1774980003000,
+  "icon": "🎭",
+  "tags": []
+}

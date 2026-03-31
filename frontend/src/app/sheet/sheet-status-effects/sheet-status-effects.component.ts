@@ -74,7 +74,10 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     speed: 'SPD',
     intelligence: 'INT',
     constitution: 'KON',
-    chill: 'WIL'
+    chill: 'WIL',
+    life: 'LP',
+    energy: 'EP',
+    mana: 'MP'
   };
 
   ngOnInit() {
@@ -188,9 +191,22 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
   }
 
   changeDuration(active: ActiveStatusEffect, delta: number) {
-    if (active.duration === undefined || active.duration === null) return;
-    const newDuration = Math.max(0, active.duration + delta);
-    active.duration = newDuration;
+    if (active.duration === undefined || active.duration === null) {
+      // Infinite → pressing + sets duration to 1, pressing - does nothing
+      if (delta > 0) {
+        active.duration = 1;
+      } else {
+        return;
+      }
+    } else {
+      const newDuration = active.duration + delta;
+      if (newDuration < 0) {
+        // Going below 0 resets to infinite
+        active.duration = undefined;
+      } else {
+        active.duration = newDuration;
+      }
+    }
     this.patch.emit({ path: '/activeStatusEffects', value: [...(this.sheet.activeStatusEffects ?? [])] });
     this.cdr.markForCheck();
   }
@@ -518,15 +534,31 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
   }
 
   private finalizeChain() {
-    // Mark expired effects
-    const expiring = this.chainEffects.filter(e => e.duration === 0);
+    // Mark expired effects (only those with numeric duration that hit 0)
+    const expiring = this.chainEffects.filter(e => e.duration !== undefined && e.duration !== null && e.duration === 0);
     for (const expired of expiring) {
       this.expiringEffects.add(this.trackByEffect(0, expired));
     }
     this.cdr.markForCheck();
 
     setTimeout(() => {
-      const updated = this.chainEffects.filter(e => e.duration !== 0);
+      // Use current sheet order to preserve any reorders done before/during chain
+      const currentEffects = [...(this.sheet.activeStatusEffects ?? [])];
+
+      // Apply duration decrements from chain execution to current effects
+      for (const chainEffect of this.chainEffects) {
+        const match = currentEffects.find(e =>
+          e.statusEffectId === chainEffect.statusEffectId && e.appliedAt === chainEffect.appliedAt
+        );
+        if (match && chainEffect.duration !== undefined && chainEffect.duration !== null) {
+          match.duration = chainEffect.duration;
+        }
+      }
+
+      // Remove only effects with duration explicitly equal to 0 (keep undefined/null = infinite)
+      const updated = currentEffects.filter(e =>
+        e.duration === undefined || e.duration === null || e.duration > 0
+      );
       this.patch.emit({ path: '/activeStatusEffects', value: updated });
 
       this.expiringEffects.clear();
