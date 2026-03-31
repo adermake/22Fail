@@ -99,6 +99,15 @@ export class WorldComponent implements OnInit, OnDestroy {
   /** Character ID whose status effect picker is open, null = none */
   dashboardStatusPickerFor: string | null = null;
 
+  /** Character ID whose status manager overlay is open */
+  statusManagerFor: string | null = null;
+  statusManagerSearch = '';
+
+  /** Character ID + type for send-picker overlay */
+  sendPickerFor: string | null = null;
+  sendPickerType: 'item' | 'rune' | 'spell' | 'skill' | null = null;
+  sendPickerSearch = '';
+
   // Drag state
   private dragScrollInterval?: number;
   private isDragging = false;
@@ -685,6 +694,87 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  // ---- Status Manager overlay ----
+
+  closeStatusManager() {
+    this.statusManagerFor = null;
+    this.statusManagerSearch = '';
+    this.cdr.markForCheck();
+  }
+
+  get statusManagerEffects(): StatusEffect[] {
+    const search = this.statusManagerSearch.toLowerCase().trim();
+    return this.mergedStatusEffects().filter(e => {
+      if (!search) return true;
+      return e.name.toLowerCase().includes(search)
+        || (e.tags ?? []).some(t => t.toLowerCase().includes(search));
+    });
+  }
+
+  getStatusManagerActiveEffects(): ActiveStatusEffect[] {
+    if (!this.statusManagerFor) return [];
+    return this.getDashboardActiveEffects(this.statusManagerFor);
+  }
+
+  addEffectFromManager(effect: StatusEffect) {
+    if (!this.statusManagerFor) return;
+    const libId = this.loadedLibraries().find(lib => lib.statusEffects?.some(e => e.id === effect.id))?.id ?? '';
+    this.applyStatusEffectToCharacter(this.statusManagerFor, effect.id, libId);
+    this.cdr.markForCheck();
+  }
+
+  removeEffectFromManager(active: ActiveStatusEffect) {
+    if (!this.statusManagerFor) return;
+    this.removeStatusEffectFromCharacter(this.statusManagerFor, active.statusEffectId, active.appliedAt);
+    this.cdr.markForCheck();
+  }
+
+  // ---- Send Picker overlay ----
+
+  closeSendPicker() {
+    this.sendPickerFor = null;
+    this.sendPickerType = null;
+    this.sendPickerSearch = '';
+    this.cdr.markForCheck();
+  }
+
+  get sendPickerItems(): any[] {
+    const search = this.sendPickerSearch.toLowerCase().trim();
+    let items: any[] = [];
+    switch (this.sendPickerType) {
+      case 'item': items = this.mergedItems(); break;
+      case 'rune': items = this.mergedRunes(); break;
+      case 'spell': items = this.mergedSpells(); break;
+      case 'skill': items = this.mergedSkills(); break;
+    }
+    if (!search) return items;
+    return items.filter(i => i.name?.toLowerCase().includes(search));
+  }
+
+  get sendPickerTypeLabel(): string {
+    switch (this.sendPickerType) {
+      case 'item': return 'Item';
+      case 'rune': return 'Rune';
+      case 'spell': return 'Zauber';
+      case 'skill': return 'Fähigkeit';
+      default: return '';
+    }
+  }
+
+  sendFromPicker(item: any) {
+    if (!this.sendPickerFor || !this.sendPickerType) return;
+    const character = this.partyCharacters.get(this.sendPickerFor);
+    if (!character) return;
+
+    this.characterApi.loadCharacter(this.sendPickerFor).then(freshSheet => {
+      if (!freshSheet) return;
+      this.giveItemToCharacter(this.sendPickerFor!, this.sendPickerType!, item, freshSheet);
+      const typeName = this.sendPickerTypeLabel;
+      this.notification.success(`${typeName} "${item.name}" wurde an ${character.name} gesendet.`, 2500);
+      this.cdr.markForCheck();
+    });
+  }
+
   removeStatusEffectFromCharacter(characterId: string, statusEffectId: string, appliedAt: number) {
     const sheet = this.partyCharacters.get(characterId);
     if (!sheet) return;
@@ -1013,23 +1103,18 @@ export class WorldComponent implements OnInit, OnDestroy {
     const menuItems: ContextMenuItem[] = [];
 
     // ── Section 1: Open sheet ──
-    menuItems.push({ icon: '📋', label: `${charName} öffnen`, action: `open_sheet_${characterId}` });
+    menuItems.push({ icon: '📋', label: `${charName} öffnen`, action: `open_sheet::${characterId}` });
     menuItems.push({ label: '', action: '', divider: true });
 
-    // ── Section 2: Status Effects ──
-    const allEffects = this.mergedStatusEffects();
-    if (allEffects.length > 0) {
-      for (const effect of allEffects.slice(0, 12)) {
-        const libId = this.loadedLibraries().find(lib => lib.statusEffects?.some(e => e.id === effect.id))?.id ?? '';
-        menuItems.push({
-          icon: effect.icon ?? '✦',
-          label: `${effect.name}`,
-          action: `apply_status_${effect.id}_${libId}`
-        });
-      }
-    } else {
-      menuItems.push({ icon: 'ℹ️', label: 'Keine Status-Effekte verfügbar', action: 'none' });
-    }
+    // ── Section 2: Send items/spells/runes/skills ──
+    menuItems.push({ icon: '📦', label: 'Item senden', action: `send_picker::item::${characterId}` });
+    menuItems.push({ icon: '🔮', label: 'Zauber senden', action: `send_picker::spell::${characterId}` });
+    menuItems.push({ icon: '💎', label: 'Rune senden', action: `send_picker::rune::${characterId}` });
+    menuItems.push({ icon: '⚔', label: 'Fähigkeit senden', action: `send_picker::skill::${characterId}` });
+    menuItems.push({ label: '', action: '', divider: true });
+
+    // ── Section 3: Status management ──
+    menuItems.push({ icon: '✨', label: 'Status verwalten', action: `manage_status::${characterId}` });
 
     // Active effects removal
     const activeEffects = character?.activeStatusEffects ?? [];
@@ -1041,7 +1126,7 @@ export class WorldComponent implements OnInit, OnDestroy {
         menuItems.push({
           icon: '🗑️',
           label: `${name} entfernen`,
-          action: `remove_status_${active.statusEffectId}_${active.appliedAt}`
+          action: `remove_status::${active.statusEffectId}::${active.appliedAt}`
         });
       }
     }
@@ -1065,7 +1150,7 @@ export class WorldComponent implements OnInit, OnDestroy {
       menuItems.push({
         icon: '📤',
         label: `An ${charName} senden`,
-        action: `send_to_${characterId}`
+        action: `send_to::${characterId}`
       });
     });
 
@@ -1082,7 +1167,7 @@ export class WorldComponent implements OnInit, OnDestroy {
     menuItems.push({
       icon: '✏️',
       label: 'Bearbeiten',
-      action: `edit_${type}`
+      action: `edit::${type}`
     });
 
     this.contextMenu?.show(event.clientX, event.clientY, menuItems);
@@ -1091,24 +1176,36 @@ export class WorldComponent implements OnInit, OnDestroy {
   handleContextMenuAction(action: string) {
     if (action === 'none') return;
 
-    if (action.startsWith('open_sheet_')) {
-      const characterId = action.replace('open_sheet_', '');
-      this.openCharacterSheet(characterId);
-    } else if (action.startsWith('apply_status_')) {
-      const parts = action.split('_');
-      const statusEffectId = parts[2];
-      const libraryId = parts[3];
-      this.applyStatusEffectToCharacter(this.selectedCharacterForContextMenu, statusEffectId, libraryId);
-    } else if (action.startsWith('remove_status_')) {
-      const parts = action.replace('remove_status_', '').split('_');
-      const statusEffectId = parts[0];
-      const appliedAt = parseInt(parts[1], 10);
-      this.removeStatusEffectFromCharacter(this.selectedCharacterForContextMenu, statusEffectId, appliedAt);
-    } else if (action.startsWith('send_to_')) {
-      const characterId = action.replace('send_to_', '');
-      this.sendItemToCharacter(characterId);
-    } else if (action.startsWith('edit_')) {
-      this.editSelectedLibraryItem();
+    const parts = action.split('::');
+    const command = parts[0];
+
+    switch (command) {
+      case 'open_sheet':
+        this.openCharacterSheet(parts[1]);
+        break;
+      case 'send_picker':
+        this.sendPickerType = parts[1] as 'item' | 'rune' | 'spell' | 'skill';
+        this.sendPickerFor = parts[2];
+        this.sendPickerSearch = '';
+        this.cdr.markForCheck();
+        break;
+      case 'manage_status':
+        this.statusManagerFor = parts[1];
+        this.statusManagerSearch = '';
+        this.cdr.markForCheck();
+        break;
+      case 'remove_status': {
+        const statusEffectId = parts[1];
+        const appliedAt = parseInt(parts[2], 10);
+        this.removeStatusEffectFromCharacter(this.selectedCharacterForContextMenu, statusEffectId, appliedAt);
+        break;
+      }
+      case 'send_to':
+        this.sendItemToCharacter(parts[1]);
+        break;
+      case 'edit':
+        this.editSelectedLibraryItem();
+        break;
     }
   }
 

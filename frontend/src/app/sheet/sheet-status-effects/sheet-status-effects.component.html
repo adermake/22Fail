@@ -5,9 +5,9 @@
       <span class="sse-section-count">{{ activeEffects.length }}</span>
       <button 
         class="sse-execute-all" 
-        (click)="executeAll()" 
-        [disabled]="executeAllInProgress"
-        [class.disabled]="executeAllInProgress"
+        (click)="startExecuteAllChain()" 
+        [disabled]="executeAllInProgress || chainEffects.length > 0"
+        [class.disabled]="executeAllInProgress || chainEffects.length > 0"
         title="Alle Effekte auslösen und Rundenanzahl verringern">
         @if (executeAllInProgress) {
           <span class="spinner">⟳</span>
@@ -18,48 +18,118 @@
     }
   </div>
 
-  <div class="sse-bar">
-    @for (active of activeEffects; track trackByEffect($index, active)) {
-      <div class="sse-card-container"
-           [class.is-triggering]="triggeringEffects.has(trackByEffect($index, active))"
-           [class.is-expiring]="isExpiring(active)">
-        <div
-          class="sse-card"
-          [class.is-debuff]="getEffect(active)?.isDebuff"
-          [class.has-macro]="hasMacro(active)"
-          [class.is-selected]="expandedEffect === active"
-          [style.--ec]="getEffectColor(active)"
-          (click)="onEffectClick(active, $event)"
-          (contextmenu)="onRightClick(active, $event)"
-          (mouseenter)="onCardHover(active, $event)"
-          (mouseleave)="onCardLeave()"
-          [title]="getEffectName(active)">
+  <div class="sse-body">
+    <!-- Left: card bar (2/3) -->
+    <div class="sse-cards-area">
+      <div class="sse-bar" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="onEffectDrop($event)">
+        @for (active of activeEffects; track trackByEffect($index, active)) {
+          <div class="sse-card-container"
+               cdkDrag
+               [class.is-triggering]="triggeringEffects.has(trackByEffect($index, active))"
+               [class.is-expiring]="isExpiring(active)">
+            <div class="sse-drag-handle" cdkDragHandle title="Ziehen zum Sortieren">⠿</div>
+            <div
+              class="sse-card"
+              [class.is-debuff]="getEffect(active)?.isDebuff"
+              [class.has-macro]="hasMacro(active)"
+              [class.is-selected]="expandedEffect === active"
+              [class.is-chain-active]="chainEffects.length > 0 && chainEffects[chainIndex] === active"
+              [style.--ec]="getEffectColor(active)"
+              (click)="onEffectClick(active, $event)"
+              (contextmenu)="onRightClick(active, $event)"
+              (mouseenter)="onCardHover(active, $event)"
+              (mouseleave)="onCardLeave()"
+              [title]="getEffectName(active)">
 
-          @if (active.duration !== undefined && active.duration !== null) {
-            <span class="sse-card-dur">{{ active.duration }}R</span>
-          }
-          @if (active.stacks && active.stacks > 1) {
-            <span class="sse-card-stack">×{{ active.stacks }}</span>
-          }
+              @if (active.duration !== undefined && active.duration !== null) {
+                <span class="sse-card-dur">{{ active.duration }}R</span>
+              }
+              @if (active.stacks && active.stacks > 1) {
+                <span class="sse-card-stack">×{{ active.stacks }}</span>
+              }
 
-          <div class="sse-card-icon">{{ getEffectIcon(active) }}</div>
-          <div class="sse-card-name">{{ getEffectName(active) }}</div>
+              <div class="sse-card-icon">{{ getEffectIcon(active) }}</div>
+              <div class="sse-card-name">{{ getEffectName(active) }}</div>
+            </div>
+          </div>
+        }
 
-          @if (hasMacro(active)) {
-            <div class="sse-card-macro-hint">⚡</div>
+        @if (activeEffects.length === 0) {
+          <span class="sse-empty-hint">Keine aktiven Status-Effekte.</span>
+        }
+
+        <button class="sse-add-card" (click)="togglePicker()" [class.is-open]="showPicker" title="Effekt hinzufügen">
+          <span class="sse-add-plus">+</span>
+          <span class="sse-add-label">Effekt</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Right: execution sidebar (1/3) -->
+    <div class="sse-exec-sidebar">
+      @if (chainEffects.length > 0) {
+        <!-- Chain in progress -->
+        @let currentActive = chainEffects[chainIndex];
+        @let currentDef = getEffect(currentActive);
+        <div class="exec-sb-current" [style.--ec]="getEffectColor(currentActive)">
+          <div class="exec-sb-icon">{{ getEffectIcon(currentActive) }}</div>
+          <div class="exec-sb-name">{{ getEffectName(currentActive) }}</div>
+          @if (currentActive.stacks > 1) {
+            <span class="exec-sb-stacks">×{{ currentActive.stacks }}</span>
           }
         </div>
-      </div>
-    }
 
-    @if (activeEffects.length === 0) {
-      <span class="sse-empty-hint">Keine aktiven Status-Effekte.</span>
-    }
+        <!-- Roll results for current chain effect -->
+        @if (chainResult) {
+          <div class="exec-sb-result">
+            @if (chainResult.rolls.length > 0) {
+              @for (roll of chainResult.rolls; track roll.id) {
+                <div class="exec-sb-roll" [style.--roll-color]="roll.color">
+                  <span class="exec-sb-roll-name">{{ roll.name }}</span>
+                  <div class="exec-sb-roll-dice">
+                    @for (die of roll.rolls; track $index) {
+                      <span class="exec-sb-die">{{ die }}</span>
+                    }
+                    <span class="exec-sb-total">= {{ roll.total }}</span>
+                  </div>
+                </div>
+              }
+            }
+            @if (chainResult.resourceChanges.length > 0) {
+              @for (change of chainResult.resourceChanges; track $index) {
+                <div class="exec-sb-resource" [class.gain]="change.amount > 0" [class.loss]="change.amount < 0">
+                  {{ change.displayName }}: {{ change.amount > 0 ? '+' : '' }}{{ change.amount }}
+                </div>
+              }
+            }
+            @if (chainResult.rolls.length === 0 && chainResult.resourceChanges.length === 0) {
+              <div class="exec-sb-no-roll">Kein Würfelergebnis</div>
+            }
+          </div>
+        }
 
-    <button class="sse-add-card" (click)="togglePicker()" [class.is-open]="showPicker" title="Effekt hinzufügen">
-      <span class="sse-add-plus">+</span>
-      <span class="sse-add-label">Effekt</span>
-    </button>
+        <div class="exec-sb-progress">
+          {{ chainIndex + 1 }} / {{ chainEffects.length }}
+        </div>
+
+        <button class="exec-sb-next"
+                [class.disabled]="!chainStepDone"
+                [disabled]="!chainStepDone"
+                (click)="executeNextInChain()">
+          @if (chainIndex < chainEffects.length - 1) {
+            Nächster ▸
+          } @else {
+            Fertig ✓
+          }
+        </button>
+      } @else {
+        <!-- Idle state -->
+        <div class="exec-sb-idle">
+          <span class="exec-sb-idle-icon">⚔</span>
+          <span class="exec-sb-idle-text">Drücke "Alle Ausführen" um die Effektkette zu starten</span>
+        </div>
+      }
+    </div>
   </div>
 </div>
 
@@ -118,14 +188,23 @@
           <div class="sse-panel-detail">
             <span class="detail-icon">⏱</span>
             <span class="detail-label">Dauer</span>
-            <span class="detail-value">{{ expandedEffect.duration }} Runden</span>
+            <span class="detail-value detail-editable">
+              <button class="detail-btn" (click)="changeDuration(expandedEffect, -1)">−</button>
+              <span class="detail-num">{{ expandedEffect.duration }}</span>
+              <button class="detail-btn" (click)="changeDuration(expandedEffect, 1)">+</button>
+              <span class="detail-unit">Runden</span>
+            </span>
           </div>
         }
         @if (expandedEffect.stacks && expandedEffect.stacks > 0) {
           <div class="sse-panel-detail">
             <span class="detail-icon">📚</span>
             <span class="detail-label">Stapel</span>
-            <span class="detail-value">×{{ expandedEffect.stacks }}</span>
+            <span class="detail-value detail-editable">
+              <button class="detail-btn" (click)="changeStacks(expandedEffect, -1)">−</button>
+              <span class="detail-num">×{{ expandedEffect.stacks }}</span>
+              <button class="detail-btn" (click)="changeStacks(expandedEffect, 1)">+</button>
+            </span>
           </div>
         }
         @if (getEffect(expandedEffect)?.statModifiers?.length) {

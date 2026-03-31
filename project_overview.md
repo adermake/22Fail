@@ -88,6 +88,17 @@ app/
     - Action-Pills: Aktion=rot, Bonusaktion=blau, Keine Aktion=grau, Reaktion=orange
   - `app-skill-editor` (`shared/skill-editor/`): Vollbild-Modal, unterstützt cost+actionType+enlightened-Felder
 - **Status Effects**: Buffs/Debuffs für Charaktere
+  - `StatusEffect` Model: id, name, description, icon, color, diceBonuses, statModifiers, embeddedMacro/embeddedMacros, macroActionId, defaultDuration, maxStacks, isDebuff, public, tags
+  - `ActiveStatusEffect`: statusEffectId, sourceLibraryId, appliedAt, duration, stacks, customEffect
+  - **Sheet-Komponente** (`sheet/sheet-status-effects/`):
+    - 2/3 + 1/3 Layout: Karten-Bereich (links) + Ausführungs-Sidebar (rechts)
+    - Karten: Icon, Name, Dauer-Badge, Stack-Badge, Drag-Handle (⠿) für Neuordnung
+    - CDK DragDrop für Reihenfolge-Änderung
+    - Expanded Panel: Stack +/- Buttons, Dauer +/- Buttons, Effekt-Auslösen, Bearbeiten, Entfernen
+    - Ausführungs-Sidebar: Zeigt aktuellen Effekt in Kette mit Würfelergebnis, "Nächster ▸" Button
+    - Kette: "Alle Ausführen" startet Kette, manuelle Weiter-Taste schreitet voran, nach letztem Effekt Aufräum-Phase
+    - Picker Overlay: Suche + Effekt-Karten
+  - **World-Dashboard**: Kontextmenü mit "Status verwalten" → Status-Manager-Overlay (Suche + Effekt-Grid + aktive Entfernung)
 - **Shops**: Verkaufsveranstaltungen mit Deals (normal/reverse)
   - `isReverseDeal: true` → Shop kauft Items von Spielern
   - `identified?: boolean` → `false` = Spieler sehen "Unbekannter Effekt" statt Item-Details

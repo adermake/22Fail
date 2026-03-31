@@ -4,6 +4,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { Subscription } from 'rxjs';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ActiveStatusEffect, StatusEffect } from '../../model/status-effect.model';
@@ -17,7 +18,7 @@ import { StatusEffectEditorComponent } from '../../shared/status-effect-editor/s
 @Component({
   selector: 'app-sheet-status-effects',
   standalone: true,
-  imports: [CommonModule, FormsModule, StatusEffectEditorComponent],
+  imports: [CommonModule, FormsModule, DragDropModule, StatusEffectEditorComponent],
   templateUrl: './sheet-status-effects.component.html',
   styleUrl: './sheet-status-effects.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -54,6 +55,12 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
 
   editingEffect: ActiveStatusEffect | null = null;
   editedStatusEffect: StatusEffect | null = null;
+
+  // Chain execution state (sidebar)
+  chainEffects: ActiveStatusEffect[] = [];
+  chainIndex = 0;
+  chainResult: UnifiedMacroResult | null = null;
+  chainStepDone = false;
 
   // Hover tooltip state
   hoverEffect: ActiveStatusEffect | null = null;
@@ -178,6 +185,29 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     );
     this.patch.emit({ path: '/activeStatusEffects', value: updated });
     this.closeExpandedView();
+  }
+
+  changeDuration(active: ActiveStatusEffect, delta: number) {
+    if (active.duration === undefined || active.duration === null) return;
+    const newDuration = Math.max(0, active.duration + delta);
+    active.duration = newDuration;
+    this.patch.emit({ path: '/activeStatusEffects', value: [...(this.sheet.activeStatusEffects ?? [])] });
+    this.cdr.markForCheck();
+  }
+
+  changeStacks(active: ActiveStatusEffect, delta: number) {
+    const newStacks = active.stacks + delta;
+    if (newStacks < 1) {
+      // Remove the effect when stacks drop to 0
+      this.removeEffect(active);
+      return;
+    }
+    const effect = this.getEffect(active);
+    const maxStacks = effect?.maxStacks || 99;
+    if (newStacks > maxStacks) return;
+    active.stacks = newStacks;
+    this.patch.emit({ path: '/activeStatusEffects', value: [...(this.sheet.activeStatusEffects ?? [])] });
+    this.cdr.markForCheck();
   }
 
   closeExpandedView() {
@@ -392,75 +422,121 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     this.cdr.markForCheck();
   }
 
-  // ---- Execute All ----
+  // ---- Execute All (chain-based with sidebar) ----
 
-  async executeAll() {
-    if (this.executeAllInProgress || this.activeEffects.length === 0) return;
-
+  startExecuteAllChain() {
+    if (this.executeAllInProgress || this.chainEffects.length > 0 || this.activeEffects.length === 0) return;
+    this.chainEffects = [...this.activeEffects];
+    this.chainIndex = 0;
+    this.chainResult = null;
+    this.chainStepDone = false;
     this.executeAllInProgress = true;
     this.cdr.markForCheck();
+    // Immediately execute the first step
+    this.executeCurrentChainStep();
+  }
 
-    const effects = [...this.activeEffects];
+  executeNextInChain() {
+    if (!this.chainStepDone) return;
 
-    for (let i = 0; i < effects.length; i++) {
-      const active = effects[i];
-      const key = this.trackByEffect(i, active);
-
-      // Trigger animation
-      this.triggeringEffects.add(key);
-      this.cdr.markForCheck();
-
-      // Tick down duration
-      if (active.duration !== undefined && active.duration !== null && active.duration > 0) {
-        active.duration -= 1;
-      }
-
-      // Execute macros for each stack
-      const effect = this.getEffect(active);
-      if (effect) {
-        const macros = this.getAllMacros(effect);
-        const stacks = active.stacks || 1;
-        const allResults: UnifiedMacroResult[] = [];
-
-        for (let s = 0; s < stacks; s++) {
-          for (const macro of macros) {
-            const result = this.macroExecutor.executeActionMacro(macro, this.sheet);
-            allResults.push(result);
-            this.applyResourceChanges(result);
-          }
-        }
-
-        if (allResults.length > 0) {
-          const merged = this.mergeResults(allResults, stacks);
-          this.lastRollResults.set(key, merged);
-          this.showExecutionPopup(merged, stacks > 1 ? stacks + '\u00d7 Stapel' : null);
-        }
-      }
-
-      // Wait for readability
-      if (i < effects.length - 1) {
-        await this.delay(2000);
-      }
-
-      this.triggeringEffects.delete(key);
-      this.cdr.markForCheck();
+    // After executing the last one, finalize
+    if (this.chainIndex >= this.chainEffects.length - 1) {
+      this.finalizeChain();
+      return;
     }
 
+    this.chainIndex++;
+    this.chainResult = null;
+    this.chainStepDone = false;
+    this.cdr.markForCheck();
+    this.executeCurrentChainStep();
+  }
+
+  private executeCurrentChainStep() {
+    const active = this.chainEffects[this.chainIndex];
+    if (!active) return;
+
+    const key = this.trackByEffect(this.chainIndex, active);
+    this.triggeringEffects.add(key);
+    this.cdr.markForCheck();
+
+    // Tick down duration
+    if (active.duration !== undefined && active.duration !== null && active.duration > 0) {
+      active.duration -= 1;
+    }
+
+    // Execute macros for each stack
+    const effect = this.getEffect(active);
+    if (effect) {
+      const macros = this.getAllMacros(effect);
+      const stacks = active.stacks || 1;
+      const allResults: UnifiedMacroResult[] = [];
+
+      for (let s = 0; s < stacks; s++) {
+        for (const macro of macros) {
+          const result = this.macroExecutor.executeActionMacro(macro, this.sheet);
+          allResults.push(result);
+          this.applyResourceChanges(result);
+        }
+      }
+
+      if (allResults.length > 0) {
+        const merged = this.mergeResults(allResults, stacks);
+        this.lastRollResults.set(key, merged);
+        this.chainResult = merged;
+      } else {
+        this.chainResult = {
+          success: true,
+          actionName: this.getEffectName(active),
+          actionIcon: this.getEffectIcon(active),
+          actionColor: this.getEffectColor(active),
+          conditionFailures: [],
+          rolls: [],
+          resourceChanges: [],
+          timestamp: new Date()
+        };
+      }
+    } else {
+      this.chainResult = {
+        success: true,
+        actionName: this.getEffectName(active),
+        actionIcon: this.getEffectIcon(active),
+        actionColor: this.getEffectColor(active),
+        conditionFailures: [],
+        rolls: [],
+        resourceChanges: [],
+        timestamp: new Date()
+      };
+    }
+
+    // Remove trigger animation after delay
+    setTimeout(() => {
+      this.triggeringEffects.delete(key);
+      this.chainStepDone = true;
+      this.cdr.markForCheck();
+    }, 800);
+  }
+
+  private finalizeChain() {
     // Mark expired effects
-    const expiring = effects.filter(e => e.duration === 0);
+    const expiring = this.chainEffects.filter(e => e.duration === 0);
     for (const expired of expiring) {
       this.expiringEffects.add(this.trackByEffect(0, expired));
     }
     this.cdr.markForCheck();
 
-    await this.delay(600);
+    setTimeout(() => {
+      const updated = this.chainEffects.filter(e => e.duration !== 0);
+      this.patch.emit({ path: '/activeStatusEffects', value: updated });
 
-    const updated = effects.filter(e => e.duration !== 0);
-    this.patch.emit({ path: '/activeStatusEffects', value: updated });
-
-    this.expiringEffects.clear();
-    this.executeAllInProgress = false;
-    this.cdr.markForCheck();
+      this.expiringEffects.clear();
+      this.chainEffects = [];
+      this.chainIndex = 0;
+      this.chainResult = null;
+      this.chainStepDone = false;
+      this.executeAllInProgress = false;
+      this.cdr.markForCheck();
+    }, 600);
   }
 
   isExpiring(active: ActiveStatusEffect): boolean {
@@ -484,6 +560,14 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
   }
 
   // ---- Picker ----
+
+  onEffectDrop(event: CdkDragDrop<ActiveStatusEffect[]>) {
+    if (event.previousIndex === event.currentIndex) return;
+    const effects = [...(this.sheet.activeStatusEffects ?? [])];
+    moveItemInArray(effects, event.previousIndex, event.currentIndex);
+    this.patch.emit({ path: '/activeStatusEffects', value: effects });
+    this.cdr.markForCheck();
+  }
 
   togglePicker() {
     this.showPicker = !this.showPicker;

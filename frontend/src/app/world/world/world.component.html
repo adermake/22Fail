@@ -112,7 +112,7 @@
               <div class="cc-currency">
                 @for (coin of getCoinPartsForMember(member.sheet); track coin.type) {
                   <span class="cc-coin" [style.--coin-color]="coin.color">
-                    {{ coin.amount }}{{ coin.symbol }}
+                    {{ coin.amount }} {{ coin.symbol }}
                   </span>
                 }
               </div>
@@ -386,3 +386,92 @@
 
 <!-- Context Menu for Character Interactions -->
 <app-context-menu (itemSelected)="handleContextMenuAction($event)" />
+
+<!-- Status Manager Overlay -->
+@if (statusManagerFor) {
+  <div class="sm-overlay" (click)="closeStatusManager()">
+    <div class="sm-panel" (click)="$event.stopPropagation()">
+      <div class="sm-header">
+        <span class="sm-title">✨ Status verwalten</span>
+        <span class="sm-subtitle">{{ partyCharacters.get(statusManagerFor)?.name || statusManagerFor }}</span>
+        <button class="sm-close" (click)="closeStatusManager()">✕</button>
+      </div>
+
+      <!-- Active effects on character -->
+      @if (getStatusManagerActiveEffects().length > 0) {
+        <div class="sm-active-section">
+          <span class="sm-section-label">Aktive Effekte</span>
+          <div class="sm-active-list">
+            @for (active of getStatusManagerActiveEffects(); track active.statusEffectId + active.appliedAt) {
+              @let def = getDashboardEffectDef(active.statusEffectId);
+              <div class="sm-active-chip" [style.--ec]="def?.color ?? '#8b5cf6'">
+                <span class="sm-active-icon">{{ def?.icon ?? '✦' }}</span>
+                <span class="sm-active-name">{{ active.customName ?? def?.name ?? active.statusEffectId }}</span>
+                @if (active.stacks && active.stacks > 1) {
+                  <span class="sm-active-stack">×{{ active.stacks }}</span>
+                }
+                @if (active.duration !== undefined && active.duration !== null) {
+                  <span class="sm-active-dur">{{ active.duration }}R</span>
+                }
+                <button class="sm-active-remove" (click)="removeEffectFromManager(active)" title="Entfernen">✕</button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Search + add effects -->
+      <input
+        class="sm-search"
+        type="text"
+        [(ngModel)]="statusManagerSearch"
+        placeholder="Effekte suchen...">
+
+      <div class="sm-effect-grid">
+        @for (effect of statusManagerEffects; track effect.id) {
+          <button class="sm-effect-card" [style.--ec]="effect.color || '#8b5cf6'"
+                  (click)="addEffectFromManager(effect)">
+            <span class="sm-effect-icon">{{ effect.icon || '✦' }}</span>
+            <span class="sm-effect-name">{{ effect.name }}</span>
+            @if (effect.isDebuff) {
+              <span class="sm-effect-tag debuff">Debuff</span>
+            }
+          </button>
+        }
+        @if (statusManagerEffects.length === 0) {
+          <p class="sm-empty">Keine Effekte gefunden.</p>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Send Picker Overlay -->
+@if (sendPickerFor && sendPickerType) {
+  <div class="sm-overlay" (click)="closeSendPicker()">
+    <div class="sm-panel" (click)="$event.stopPropagation()">
+      <div class="sm-header">
+        <span class="sm-title">📤 {{ sendPickerTypeLabel }} senden</span>
+        <span class="sm-subtitle">An {{ partyCharacters.get(sendPickerFor)?.name || sendPickerFor }}</span>
+        <button class="sm-close" (click)="closeSendPicker()">✕</button>
+      </div>
+
+      <input
+        class="sm-search"
+        type="text"
+        [(ngModel)]="sendPickerSearch"
+        placeholder="{{ sendPickerTypeLabel }} suchen...">
+
+      <div class="sm-send-list">
+        @for (item of sendPickerItems; track item.id ?? item.name ?? $index) {
+          <button class="sm-send-item" (click)="sendFromPicker(item)">
+            <span class="sm-send-name">{{ item.name }}</span>
+          </button>
+        }
+        @if (sendPickerItems.length === 0) {
+          <p class="sm-empty">Keine {{ sendPickerTypeLabel }}e gefunden.</p>
+        }
+      </div>
+    </div>
+  </div>
+}
