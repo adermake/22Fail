@@ -19,97 +19,162 @@
   </div>
 
   <div class="sse-bar">
-    <!-- Active Effect Cards -->
     @for (active of activeEffects; track trackByEffect($index, active)) {
-      <div class="sse-card-container" [class.expanded]="isExpanded(active)">
+      <div class="sse-card-container"
+           [class.is-triggering]="triggeringEffects.has(trackByEffect($index, active))"
+           [class.is-expiring]="isExpiring(active)">
         <div
           class="sse-card"
           [class.is-debuff]="getEffect(active)?.isDebuff"
           [class.has-macro]="hasMacro(active)"
-          [class.is-expanded]="isExpanded(active)"
-          [class.is-expiring]="isExpiring(active)"
+          [class.is-selected]="expandedEffect === active"
           [style.--ec]="getEffectColor(active)"
           (click)="onEffectClick(active, $event)"
           (contextmenu)="onRightClick(active, $event)"
+          (mouseenter)="onCardHover(active, $event)"
+          (mouseleave)="onCardLeave()"
           [title]="getEffectName(active)">
 
-          @if (active.stacks && active.stacks > 1) {
-            <span class="sse-card-stack">×{{ active.stacks }}</span>
-          }
           @if (active.duration !== undefined && active.duration !== null) {
             <span class="sse-card-dur">{{ active.duration }}R</span>
           }
-          @if (hasMacro(active)) {
-            <span class="sse-card-play">▶</span>
+          @if (active.stacks && active.stacks > 1) {
+            <span class="sse-card-stack">×{{ active.stacks }}</span>
           }
 
           <div class="sse-card-icon">{{ getEffectIcon(active) }}</div>
           <div class="sse-card-name">{{ getEffectName(active) }}</div>
+
+          @if (hasMacro(active)) {
+            <div class="sse-card-macro-hint">⚡</div>
+          }
         </div>
-
-        <!-- Expanded View -->
-        @if (isExpanded(active)) {
-          <div class="sse-expanded-view" (click)="$event.stopPropagation()">
-            <div class="sse-expanded-header">
-              <span class="sse-expanded-icon">{{ getEffectIcon(active) }}</span>
-              <span class="sse-expanded-name">{{ getEffectName(active) }}</span>
-              <button class="sse-expanded-close" (click)="closeExpandedView()">✕</button>
-            </div>
-
-            @if (getEffect(active)?.description) {
-              <div class="sse-expanded-description">
-                {{ getEffect(active)?.description }}
-              </div>
-            }
-
-            <div class="sse-expanded-details">
-              @if (active.duration !== undefined && active.duration !== null) {
-                <div class="sse-detail-row">
-                  <span class="sse-detail-label">Dauer:</span>
-                  <span class="sse-detail-value">{{ active.duration }} Runden</span>
-                </div>
-              }
-              @if (active.stacks && active.stacks > 1) {
-                <div class="sse-detail-row">
-                  <span class="sse-detail-label">Stapel:</span>
-                  <span class="sse-detail-value">×{{ active.stacks }}</span>
-                </div>
-              }
-            </div>
-
-            @if (hasMacro(active)) {
-              <button class="sse-expanded-execute" (click)="executeEffectMacro(active, $event)">
-                <span class="execute-icon">▶</span>
-                <span>Effekt Auslösen</span>
-              </button>
-            }
-          </div>
-        }
-
-        <!-- Execution Result Popup -->
-        @if (isShowingPopup(active) && executionPopupResult) {
-          <app-execution-result-popup 
-            [result]="executionPopupResult" 
-            [isVisible]="true">
-          </app-execution-result-popup>
-        }
       </div>
     }
 
-    <!-- Empty state inside the bar -->
     @if (activeEffects.length === 0) {
       <span class="sse-empty-hint">Keine aktiven Status-Effekte.</span>
     }
 
-    <!-- Add Button Card -->
     <button class="sse-add-card" (click)="togglePicker()" [class.is-open]="showPicker" title="Effekt hinzufügen">
       <span class="sse-add-plus">+</span>
       <span class="sse-add-label">Effekt</span>
     </button>
   </div>
+</div>
 
-  <!-- Picker dropdown -->
-  @if (showPicker) {
+<!-- Hover tooltip for last rolls -->
+@if (hoverEffect && lastRollResults.has(trackByEffect(0, hoverEffect)) && !expandedEffect) {
+  <div class="sse-hover-tooltip" [style.left.px]="hoverX" [style.top.px]="hoverY">
+    <div class="tooltip-header">Letztes Ergebnis</div>
+    @if (getLastResult(hoverEffect); as lastResult) {
+      @if (lastResult.rolls.length > 0) {
+        @for (roll of lastResult.rolls; track roll.id) {
+          <div class="tooltip-roll" [style.--roll-color]="roll.color">
+            <span class="tooltip-roll-name">{{ roll.name }}</span>
+            <span class="tooltip-roll-dice">
+              @for (die of roll.rolls; track $index) {
+                <span class="tooltip-die">{{ die }}</span>
+              }
+              = {{ roll.total }}
+            </span>
+          </div>
+        }
+      }
+      @if (lastResult.resourceChanges.length > 0) {
+        @for (change of lastResult.resourceChanges; track $index) {
+          <div class="tooltip-resource" [class.gain]="change.amount > 0" [class.loss]="change.amount < 0">
+            {{ change.displayName }}: {{ change.amount > 0 ? '+' : '' }}{{ change.amount }}
+          </div>
+        }
+      }
+    }
+  </div>
+}
+
+<!-- Expanded Effect Panel (overlay) -->
+@if (expandedEffect) {
+  <div class="sse-panel-overlay" (click)="closeExpandedView()">
+    <div class="sse-panel" (click)="$event.stopPropagation()" [style.--ec]="getEffectColor(expandedEffect)">
+      <div class="sse-panel-header">
+        <span class="sse-panel-icon" [style.color]="getEffectColor(expandedEffect)">{{ getEffectIcon(expandedEffect) }}</span>
+        <div class="sse-panel-title-group">
+          <span class="sse-panel-name">{{ getEffectName(expandedEffect) }}</span>
+          @if (getEffect(expandedEffect)?.isDebuff) {
+            <span class="sse-panel-tag debuff">Debuff</span>
+          }
+        </div>
+        <button class="sse-panel-close" (click)="closeExpandedView()">✕</button>
+      </div>
+
+      @if (getEffect(expandedEffect)?.description) {
+        <div class="sse-panel-description">
+          {{ getEffect(expandedEffect)?.description }}
+        </div>
+      }
+
+      <div class="sse-panel-details">
+        @if (expandedEffect.duration !== undefined && expandedEffect.duration !== null) {
+          <div class="sse-panel-detail">
+            <span class="detail-icon">⏱</span>
+            <span class="detail-label">Dauer</span>
+            <span class="detail-value">{{ expandedEffect.duration }} Runden</span>
+          </div>
+        }
+        @if (expandedEffect.stacks && expandedEffect.stacks > 0) {
+          <div class="sse-panel-detail">
+            <span class="detail-icon">📚</span>
+            <span class="detail-label">Stapel</span>
+            <span class="detail-value">×{{ expandedEffect.stacks }}</span>
+          </div>
+        }
+        @if (getEffect(expandedEffect)?.statModifiers?.length) {
+          <div class="sse-panel-detail">
+            <span class="detail-icon">📊</span>
+            <span class="detail-label">Modifikatoren</span>
+            <span class="detail-value mod-chips">
+              @for (mod of getEffect(expandedEffect)!.statModifiers!; track $index) {
+                <span class="mod-chip">{{ getStatLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}</span>
+              }
+            </span>
+          </div>
+        }
+        @if (getEffect(expandedEffect)?.diceBonuses?.length) {
+          <div class="sse-panel-detail">
+            <span class="detail-icon">🎲</span>
+            <span class="detail-label">Würfel-Boni</span>
+            <span class="detail-value mod-chips">
+              @for (bonus of getEffect(expandedEffect)!.diceBonuses!; track $index) {
+                <span class="mod-chip">{{ bonus.name }}: {{ bonus.value > 0 ? '+' : '' }}{{ bonus.value }}</span>
+              }
+            </span>
+          </div>
+        }
+      </div>
+
+      @if (hasMacro(expandedEffect)) {
+        <div class="sse-panel-actions">
+          <button class="sse-panel-execute" (click)="executeEffectMacro(expandedEffect, $event)">
+            <span class="execute-icon">▶</span>
+            <span>Effekt Auslösen</span>
+            @if (expandedEffect.stacks > 1) {
+              <span class="execute-stacks">({{ expandedEffect.stacks }}× Stapel)</span>
+            }
+          </button>
+        </div>
+      }
+
+      <div class="sse-panel-footer">
+        <button class="sse-panel-btn edit" (click)="editEffect(expandedEffect)">✏ Bearbeiten</button>
+        <button class="sse-panel-btn delete" (click)="removeEffect(expandedEffect)">🗑 Entfernen</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Picker overlay -->
+@if (showPicker) {
+  <div class="sse-picker-overlay" (click)="closePicker()">
     <div class="sse-picker" (click)="$event.stopPropagation()">
       <div class="sse-picker-head">
         <span>Effekt hinzufügen</span>
@@ -145,23 +210,80 @@
         </div>
       }
     </div>
-  }
-</div>
+  </div>
+}
+
+<!-- Execution Result Overlay -->
+@if (executionPopupResult) {
+  <div class="sse-exec-overlay" (click)="dismissExecutionPopup()">
+    <div class="sse-exec-popup" (click)="$event.stopPropagation()"
+         [class.success]="executionPopupResult.success"
+         [class.failure]="!executionPopupResult.success">
+      <div class="exec-header">
+        <span class="exec-icon">{{ executionPopupResult.actionIcon }}</span>
+        <span class="exec-name">{{ executionPopupResult.actionName }}</span>
+        @if (executionPopupStackInfo) {
+          <span class="exec-stack-badge">{{ executionPopupStackInfo }}</span>
+        }
+        <button class="exec-close" (click)="dismissExecutionPopup()">✕</button>
+      </div>
+
+      @if (executionPopupResult.conditionFailures.length > 0) {
+        <div class="exec-failures">
+          @for (failure of executionPopupResult.conditionFailures; track $index) {
+            <div class="exec-failure">⚠ {{ failure }}</div>
+          }
+        </div>
+      }
+
+      @if (executionPopupResult.rolls.length > 0) {
+        <div class="exec-rolls">
+          @for (roll of executionPopupResult.rolls; track roll.id) {
+            <div class="exec-roll" [style.--roll-color]="roll.color">
+              <div class="exec-roll-name">{{ roll.name }}</div>
+              <div class="exec-roll-result">
+                <span class="exec-dice">
+                  @for (die of roll.rolls; track $index) {
+                    <span class="exec-die">{{ die }}</span>
+                  }
+                </span>
+                <span class="exec-total">= {{ roll.total }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      @if (executionPopupResult.resourceChanges.length > 0) {
+        <div class="exec-resources">
+          @for (change of executionPopupResult.resourceChanges; track $index) {
+            <div class="exec-resource" [class.gain]="change.amount > 0" [class.loss]="change.amount < 0">
+              <span class="exec-resource-name">{{ change.displayName }}</span>
+              <span class="exec-resource-amount">{{ change.amount > 0 ? '+' : '' }}{{ change.amount }}</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}
 
 <!-- Context Menu -->
 @if (contextMenuEffect) {
-  <div class="sse-context-menu" 
-       [style.left.px]="contextMenuX" 
-       [style.top.px]="contextMenuY"
-       (click)="$event.stopPropagation()">
-    <button class="sse-context-item sse-context-edit" (click)="contextEdit($event)">
-      <span class="context-icon">✏️</span>
-      <span>Bearbeiten</span>
-    </button>
-    <button class="sse-context-item sse-context-delete" (click)="contextDelete($event)">
-      <span class="context-icon">🗑️</span>
-      <span>Löschen</span>
-    </button>
+  <div class="sse-context-overlay" (click)="closeContextMenu()">
+    <div class="sse-context-menu" 
+         [style.left.px]="contextMenuX" 
+         [style.top.px]="contextMenuY"
+         (click)="$event.stopPropagation()">
+      <button class="sse-context-item" (click)="contextEdit($event)">
+        <span class="context-icon">✏️</span>
+        <span>Bearbeiten</span>
+      </button>
+      <button class="sse-context-item delete" (click)="contextDelete($event)">
+        <span class="context-icon">🗑️</span>
+        <span>Entfernen</span>
+      </button>
+    </div>
   </div>
 }
 

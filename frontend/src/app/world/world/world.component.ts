@@ -19,7 +19,7 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { StatusBlock } from '../../model/status-block.model';
 import { StatusEffect, ActiveStatusEffect } from '../../model/status-effect.model';
-import { CurrentEvent, ShopEvent, LootBundleEvent } from '../../model/current-events.model';
+import { CurrentEvent, ShopEvent, LootBundleEvent, getCoinParts, CoinPart } from '../../model/current-events.model';
 import { Subscription } from 'rxjs';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
@@ -659,6 +659,10 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   // ---- Dashboard: assign status effects to party characters ----
 
+  getCoinPartsForMember(sheet: CharacterSheet): CoinPart[] {
+    return getCoinParts(sheet.currency ?? { copper: 0, silver: 0, gold: 0, platinum: 0 });
+  }
+
   toggleDashboardStatusPicker(characterId: string) {
     this.dashboardStatusPickerFor = this.dashboardStatusPickerFor === characterId ? null : characterId;
     this.cdr.markForCheck();
@@ -1003,37 +1007,45 @@ export class WorldComponent implements OnInit, OnDestroy {
   handleCharacterRightClick(event: MouseEvent, characterId: string) {
     event.preventDefault();
     this.selectedCharacterForContextMenu = characterId;
+    const character = this.partyCharacters.get(characterId);
+    const charName = character?.name || characterId;
 
-    // Load all status effects from linked libraries
-    const world = this.store.worldValue;
-    const linkedLibraries = world?.linkedLibraries || [];
-    
     const menuItems: ContextMenuItem[] = [];
-    
-    // Get all loaded libraries and filter for linked ones
-    const allLibraries = this.libraryStoreService.allLibraries;
-    
-    linkedLibraries.forEach(libraryId => {
-      const library = allLibraries.find(lib => lib.id === libraryId);
-      if (library && library.statusEffects.length > 0) {
-        library.statusEffects.forEach(statusEffect => {
-          menuItems.push({
-            icon: '✨',
-            label: `${statusEffect.name} (${library.name})`,
-            action: `apply_status_${statusEffect.id}_${libraryId}`
-          });
+
+    // ── Section 1: Open sheet ──
+    menuItems.push({ icon: '📋', label: `${charName} öffnen`, action: `open_sheet_${characterId}` });
+    menuItems.push({ label: '', action: '', divider: true });
+
+    // ── Section 2: Status Effects ──
+    const allEffects = this.mergedStatusEffects();
+    if (allEffects.length > 0) {
+      for (const effect of allEffects.slice(0, 12)) {
+        const libId = this.loadedLibraries().find(lib => lib.statusEffects?.some(e => e.id === effect.id))?.id ?? '';
+        menuItems.push({
+          icon: effect.icon ?? '✦',
+          label: `${effect.name}`,
+          action: `apply_status_${effect.id}_${libId}`
         });
       }
-    });
-    
-    if (menuItems.length === 0) {
-      menuItems.push({
-        icon: 'ℹ️',
-        label: linkedLibraries.length > 0 ? 'No status effects available' : 'No libraries linked',
-        action: 'none'
-      });
+    } else {
+      menuItems.push({ icon: 'ℹ️', label: 'Keine Status-Effekte verfügbar', action: 'none' });
     }
-    
+
+    // Active effects removal
+    const activeEffects = character?.activeStatusEffects ?? [];
+    if (activeEffects.length > 0) {
+      menuItems.push({ label: '', action: '', divider: true });
+      for (const active of activeEffects) {
+        const def = this.getDashboardEffectDef(active.statusEffectId);
+        const name = active.customName ?? def?.name ?? active.statusEffectId;
+        menuItems.push({
+          icon: '🗑️',
+          label: `${name} entfernen`,
+          action: `remove_status_${active.statusEffectId}_${active.appliedAt}`
+        });
+      }
+    }
+
     this.contextMenu?.show(event.clientX, event.clientY, menuItems);
   }
 
@@ -1077,11 +1089,21 @@ export class WorldComponent implements OnInit, OnDestroy {
   }
 
   handleContextMenuAction(action: string) {
-    if (action.startsWith('apply_status_')) {
+    if (action === 'none') return;
+
+    if (action.startsWith('open_sheet_')) {
+      const characterId = action.replace('open_sheet_', '');
+      this.openCharacterSheet(characterId);
+    } else if (action.startsWith('apply_status_')) {
       const parts = action.split('_');
       const statusEffectId = parts[2];
       const libraryId = parts[3];
       this.applyStatusEffectToCharacter(this.selectedCharacterForContextMenu, statusEffectId, libraryId);
+    } else if (action.startsWith('remove_status_')) {
+      const parts = action.replace('remove_status_', '').split('_');
+      const statusEffectId = parts[0];
+      const appliedAt = parseInt(parts[1], 10);
+      this.removeStatusEffectFromCharacter(this.selectedCharacterForContextMenu, statusEffectId, appliedAt);
     } else if (action.startsWith('send_to_')) {
       const characterId = action.replace('send_to_', '');
       this.sendItemToCharacter(characterId);
@@ -1170,30 +1192,40 @@ export class WorldComponent implements OnInit, OnDestroy {
     const character = this.partyCharacters.get(characterId);
     if (!character) return;
 
+    // Resolve the effect definition for defaultDuration and maxStacks
+    const effectDef = this.mergedStatusEffects().find(e => e.id === statusEffectId);
+
     // Check if status effect is already applied
-    const alreadyApplied = character.activeStatusEffects?.some(
-      effect => effect.statusEffectId === statusEffectId && effect.sourceLibraryId === libraryId
+    const existingIndex = (character.activeStatusEffects ?? []).findIndex(
+      effect => effect.statusEffectId === statusEffectId
     );
 
-    if (alreadyApplied) {
-      console.log('Status effect already applied to character');
-      return;
-    }
-
-    // Create active status effect
-    const activeEffect = {
-      statusEffectId,
-      sourceLibraryId: libraryId,
-      appliedAt: Date.now(),
-      duration: undefined,
-      stacks: 1
-    };
-
-    // Add to character's active status effects
     if (!character.activeStatusEffects) {
       character.activeStatusEffects = [];
     }
-    character.activeStatusEffects.push(activeEffect);
+
+    if (existingIndex !== -1) {
+      // Stack if allowed
+      const maxStacks = effectDef?.maxStacks || 1;
+      const existing = character.activeStatusEffects[existingIndex];
+      const currentStacks = existing.stacks || 1;
+      if (currentStacks < maxStacks) {
+        character.activeStatusEffects[existingIndex] = { ...existing, stacks: currentStacks + 1 };
+      } else {
+        console.log('Status effect already at max stacks');
+        return;
+      }
+    } else {
+      // Create new active status effect with duration from definition
+      const activeEffect: ActiveStatusEffect = {
+        statusEffectId,
+        sourceLibraryId: libraryId,
+        appliedAt: Date.now(),
+        duration: effectDef?.defaultDuration,
+        stacks: 1
+      };
+      character.activeStatusEffects.push(activeEffect);
+    }
 
     // Track as seen so the character can re-apply it from their sheet
     const seen = new Set(character.seenStatusEffectIds ?? []);

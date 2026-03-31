@@ -1,19 +1,19 @@
 @if (store.world$ | async; as world) {
 <div class="world-container">
   <div class="world-header">
-    <h1>{{ worldName }} - GM View</h1>
+    <h1>{{ worldName }} - GM Ansicht</h1>
   </div>
 
   <!-- Top Section: Character Management -->
   <div class="management-grid">
     <!-- All Characters -->
     <app-card>
-      <h2>All Characters</h2>
+      <h2>Alle Charaktere</h2>
       <div class="character-list">
         @for (characterId of world.characterIds; track characterId; let i = $index) {
           <div class="character-item">
             <span>{{ characterId }}</span>
-            <button (click)="removeCharacter(i)">Remove</button>
+            <button (click)="removeCharacter(i)">Entfernen</button>
           </div>
         }
       </div>
@@ -21,9 +21,9 @@
         <input
           type="text"
           [(ngModel)]="newCharacterId"
-          placeholder="Character ID"
+          placeholder="Charakter-ID"
         />
-        <button (click)="addCharacter()">Add Character</button>
+        <button (click)="addCharacter()">Charakter hinzufügen</button>
         <button (click)="openCharacterGenerator()" class="generate-character-btn">
           ⚔️ Generate Character
         </button>
@@ -58,111 +58,113 @@
     <app-card class="party-dashboard-card">
       <h2>Partei-Übersicht</h2>
       @if (getPartyCharacterArray().length === 0) {
-        <p>Keine Charaktere in der Partei. Füge Charaktere hinzu um ihre Werte zu sehen.</p>
+        <p class="dashboard-empty">Keine Charaktere in der Partei. Füge Charaktere hinzu um ihre Werte zu sehen.</p>
       } @else {
         <div class="dashboard-grid">
           @for (member of getPartyCharacterArray(); track member.id) {
-            <div class="character-card drop-zone"
+            <div class="char-card drop-zone"
                  (dragover)="onDragOver($event)"
                  (drop)="onDropOnCharacter($event, member.id)"
                  (dblclick)="openCharacterSheet(member.id)"
                  (contextmenu)="handleCharacterRightClick($event, member.id)">
-              <div class="character-header">
+
+              <!-- Header: portrait + name -->
+              <div class="cc-header">
                 @if (member.sheet.portrait) {
-                  <div class="character-portrait">
+                  <div class="cc-portrait">
                     <img [src]="member.sheet.portrait | imageUrl" alt="{{ member.sheet.name || member.id }}" />
                   </div>
                 }
-                <div class="character-info">
-                  <h3>{{ member.sheet.name || member.id }}</h3>
+                <div class="cc-name-group">
+                  <h3 class="cc-name">{{ member.sheet.name || member.id }}</h3>
                 </div>
               </div>
 
-              <div class="character-stats">
-                <div class="stat-row">
-                  <span class="stat-label">Leben</span>
-                  <div class="stat-bar-wrapper">
-                    <div class="stat-bar-fill health"
-                         [style.width.%]="getResourcePercentage(member.sheet, FormulaType.LIFE)">
-                    </div>
-                    <span class="stat-value">{{ getResourceCurrent(member.sheet, FormulaType.LIFE) }} / {{ getResourceMax(member.sheet, FormulaType.LIFE) }}</span>
+              <!-- Resource bars (skill-card style) -->
+              <div class="cc-resources">
+                <div class="cc-bar" data-resource="health">
+                  <span class="cc-bar-label">Leben</span>
+                  <div class="cc-bar-track">
+                    <div class="cc-bar-fill health"
+                         [style.width.%]="getResourcePercentage(member.sheet, FormulaType.LIFE)"></div>
+                    <span class="cc-bar-value">{{ getResourceCurrent(member.sheet, FormulaType.LIFE) }} / {{ getResourceMax(member.sheet, FormulaType.LIFE) }}</span>
                   </div>
                 </div>
-                <div class="stat-row">
-                  <span class="stat-label">Ausdauer</span>
-                  <div class="stat-bar-wrapper">
-                    <div class="stat-bar-fill energy"
-                         [style.width.%]="getResourcePercentage(member.sheet, FormulaType.ENERGY)">
-                    </div>
-                    <span class="stat-value">{{ getResourceCurrent(member.sheet, FormulaType.ENERGY) }} / {{ getResourceMax(member.sheet, FormulaType.ENERGY) }}</span>
+                <div class="cc-bar" data-resource="energy">
+                  <span class="cc-bar-label">Ausdauer</span>
+                  <div class="cc-bar-track">
+                    <div class="cc-bar-fill energy"
+                         [style.width.%]="getResourcePercentage(member.sheet, FormulaType.ENERGY)"></div>
+                    <span class="cc-bar-value">{{ getResourceCurrent(member.sheet, FormulaType.ENERGY) }} / {{ getResourceMax(member.sheet, FormulaType.ENERGY) }}</span>
                   </div>
                 </div>
-                <div class="stat-row">
-                  <span class="stat-label">Mana</span>
-                  <div class="stat-bar-wrapper">
-                    <div class="stat-bar-fill mana"
-                         [style.width.%]="getResourcePercentage(member.sheet, FormulaType.MANA)">
-                    </div>
-                    <span class="stat-value">{{ getResourceCurrent(member.sheet, FormulaType.MANA) }} / {{ getResourceMax(member.sheet, FormulaType.MANA) }}</span>
-                  </div>
-                </div>
-                <div class="stat-row money">
-                  <span class="stat-label">Gold:</span>
-                  <div class="currency">
-                    <span class="copper">{{ member.sheet.currency.copper || 0 }}k</span>
-                    <span class="silver">{{ member.sheet.currency.silver || 0 }}s</span>
-                    <span class="gold">{{ member.sheet.currency.gold || 0 }}g</span>
-                    <span class="platinum">{{ member.sheet.currency.platinum || 0 }}p</span>
+                <div class="cc-bar" data-resource="mana">
+                  <span class="cc-bar-label">Mana</span>
+                  <div class="cc-bar-track">
+                    <div class="cc-bar-fill mana"
+                         [style.width.%]="getResourcePercentage(member.sheet, FormulaType.MANA)"></div>
+                    <span class="cc-bar-value">{{ getResourceCurrent(member.sheet, FormulaType.MANA) }} / {{ getResourceMax(member.sheet, FormulaType.MANA) }}</span>
                   </div>
                 </div>
               </div>
 
-              <!-- Active Status Effects section -->
-              <div class="dashboard-status-effects">
-                <div class="dashboard-status-header">
-                  <span class="dashboard-status-label">Aktive Effekte</span>
-                  <button class="dashboard-add-effect-btn"
+              <!-- Currency (coin pills) -->
+              <div class="cc-currency">
+                @for (coin of getCoinPartsForMember(member.sheet); track coin.type) {
+                  <span class="cc-coin" [style.--coin-color]="coin.color">
+                    {{ coin.amount }}{{ coin.symbol }}
+                  </span>
+                }
+              </div>
+
+              <!-- Active Status Effects -->
+              <div class="cc-effects">
+                <div class="cc-effects-header">
+                  <span class="cc-effects-label">Effekte</span>
+                  <button class="cc-effects-add"
                     (click)="$event.stopPropagation(); toggleDashboardStatusPicker(member.id)"
                     title="Status-Effekt hinzufügen">+</button>
                 </div>
-
-                <!-- Effect chips -->
-                <div class="dashboard-effect-chips">
+                <div class="cc-effect-list">
                   @for (active of getDashboardActiveEffects(member.id); track active.statusEffectId + active.appliedAt) {
                     @let def = getDashboardEffectDef(active.statusEffectId);
-                    <div class="dashboard-effect-chip" [style.--ec]="def?.color ?? '#8b5cf6'">
-                      <span class="dashboard-effect-icon" [style.color]="def?.color ?? '#8b5cf6'">{{ def?.icon ?? '✦' }}</span>
-                      <span class="dashboard-effect-name">{{ active.customName ?? def?.name ?? active.statusEffectId }}</span>
-                      <button class="dashboard-effect-remove"
-                        (click)="$event.stopPropagation(); removeStatusEffectFromCharacter(member.id, active.statusEffectId, active.appliedAt)"
-                        title="Effekt entfernen">✕</button>
+                    <div class="cc-effect-chip" [style.--ec]="def?.color ?? '#8b5cf6'"
+                         title="{{ active.customName ?? def?.name ?? active.statusEffectId }}">
+                      <span class="cc-effect-icon">{{ def?.icon ?? '✦' }}</span>
+                      @if (active.stacks && active.stacks > 1) {
+                        <span class="cc-effect-stack">×{{ active.stacks }}</span>
+                      }
+                      @if (active.duration !== undefined && active.duration !== null) {
+                        <span class="cc-effect-dur">{{ active.duration }}R</span>
+                      }
                     </div>
                   }
                   @if (getDashboardActiveEffects(member.id).length === 0) {
-                    <span class="dashboard-no-effects">Keine</span>
+                    <span class="cc-no-effects">—</span>
                   }
                 </div>
 
-                <!-- Status effect picker -->
-                @if (dashboardStatusPickerFor === member.id && mergedStatusEffects().length > 0) {
-                  <div class="dashboard-effect-picker" (click)="$event.stopPropagation()">
-                    <div class="dashboard-picker-header">
+                <!-- Status effect picker (overlay) -->
+                @if (dashboardStatusPickerFor === member.id) {
+                  <div class="cc-picker-backdrop" (click)="$event.stopPropagation(); dashboardStatusPickerFor = null"></div>
+                  <div class="cc-picker" (click)="$event.stopPropagation()">
+                    <div class="cc-picker-head">
                       <span>Effekt wählen</span>
-                      <button class="dashboard-picker-close" (click)="dashboardStatusPickerFor = null">✕</button>
+                      <button class="cc-picker-close" (click)="dashboardStatusPickerFor = null">✕</button>
                     </div>
-                    <div class="dashboard-picker-list">
-                      @for (effect of mergedStatusEffects(); track effect.id) {
-                        <button class="dashboard-picker-item"
-                          (click)="addEffectFromDashboard(member.id, effect)">
-                          <span [style.color]="effect.color ?? '#8b5cf6'">{{ effect.icon ?? '✦' }}</span>
-                          <span>{{ effect.name }}</span>
-                        </button>
-                      }
-                    </div>
+                    @if (mergedStatusEffects().length === 0) {
+                      <p class="cc-picker-empty">Keine Status-Effekte in Bibliotheken.</p>
+                    } @else {
+                      <div class="cc-picker-list">
+                        @for (effect of mergedStatusEffects(); track effect.id) {
+                          <button class="cc-picker-item" (click)="addEffectFromDashboard(member.id, effect)">
+                            <span class="cc-picker-item-icon" [style.color]="effect.color ?? '#8b5cf6'">{{ effect.icon ?? '✦' }}</span>
+                            <span class="cc-picker-item-name">{{ effect.name }}</span>
+                          </button>
+                        }
+                      </div>
+                    }
                   </div>
-                }
-                @if (dashboardStatusPickerFor === member.id && mergedStatusEffects().length === 0) {
-                  <p class="dashboard-no-effects-lib">Keine Status-Effekte in Bibliotheken gefunden.</p>
                 }
               </div>
             </div>

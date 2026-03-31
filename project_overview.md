@@ -218,6 +218,28 @@ app/
 - Keine User-Auth: Session-basiertes system
 - File-basierte Assets: Alle Libraries/Characters als JSON-Files
 
+## Status-Effekt-System (`sheet/sheet-status-effects/`)
+- **Model**: `StatusEffect` (id, name, icon, color, diceBonuses, statModifiers, embeddedMacro, embeddedMacros[], macroActionId, defaultDuration, maxStacks, isDebuff, public, tags)
+- **ActiveStatusEffect**: (statusEffectId, sourceLibraryId, appliedAt, duration, stacks, customName, customDescription, customDiceBonuses, customEffect)
+- **Multi-Macro**: `embeddedMacros: ActionMacro[]` — alle Macros feuern bei Auslösung
+- **Multi-Stack**: Bei n Stapeln wird jeder Macro n× ausgeführt
+- **UI**: Karten-basiert (90×110px Cards), Klick → Overlay-Panel, Rechtsklick → Kontextmenü
+- **Trigger-Animation**: `is-triggering` CSS-Klasse mit Pulse/Glow-Keyframes
+- **Hover**: Zeigt letzte Wurfergebnisse als Tooltip (`lastRollResults: Map`)
+- **Execution Popup**: Fixed-Overlay (8s auto-dismiss), zeigt Würfel/Ressourcen/Fehler, Stack-Badge
+- **Picker**: Fixed-Overlay (zentriert), Suche, Grid-Layout
+- **Duration Tick-Down**: Bei Ausführung wird duration-1, bei 0 → Effekt entfernt (mit Fade-Animation)
+- **Execute All**: Sequentiell mit 2s Delay, tickt alle Dauern, entfernt abgelaufene
+
+## World Dashboard (Partei-Übersicht)
+- **Char-Card Stil**: Skill-Card-inspiriert (`#0f1829` bg, 3px accent left-border, rounded corners)
+- **Resource Bars**: Gradient-Fill mit Glow-Schatten (Health=rot, Energy=grün, Mana=blau)
+- **Währung**: Coin-Pills via `getCoinParts()` (nicht raw text)
+- **Status-Effekte**: Icon-basierte Chips (ohne ✕-Button), zeigen Stacks + Duration
+- **Picker**: Absolutpositioniert mit Backdrop-Click zum Schließen
+- **Context Menu**: Rechtsklick auf Charakter → Sheet öffnen, Status-Effekte anwenden/entfernen
+- **applyStatusEffectToCharacter()**: Respektiert maxStacks + defaultDuration
+
 ## Library-Editor (`library-editor/`)
 - **Dependency-Items**: `loadDependencyItems()` lädt Items von eigener Library und allen Dependencies. Wird auf `ngOnInit` + nach `saveLibrarySettings()` aufgerufen.
 - **Dependency-Reload-Button**: "↺ Abhängigkeiten neu laden" in Settings-Panel — erlaubt manuelles Reload. Zeigt Anzahl geladener Elemente.
