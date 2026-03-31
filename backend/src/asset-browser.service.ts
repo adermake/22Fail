@@ -135,9 +135,11 @@ export class AssetBrowserService {
 
   private loadMeta(libraryName: string): LibraryMeta {
     const metaPath = this.getMetaPath(libraryName);
+    let meta: LibraryMeta;
+
     if (!fs.existsSync(metaPath)) {
       // Initialize with root folder
-      return {
+      meta = {
         libraryId: this.generateId(libraryName, 'lib'),
         idToPath: new Map(),
         folders: new Map([
@@ -151,14 +153,77 @@ export class AssetBrowserService {
           }]
         ])
       };
+    } else {
+      const content = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+      meta = {
+        libraryId: content.libraryId,
+        idToPath: new Map(Object.entries(content.idToPath || {})),
+        folders: new Map(Object.entries(content.folders || {}).map(([id, folder]) => [id, folder as AssetFolder]))
+      };
     }
 
-    const content = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-    return {
-      libraryId: content.libraryId,
-      idToPath: new Map(Object.entries(content.idToPath || {})),
-      folders: new Map(Object.entries(content.folders || {}).map(([id, folder]) => [id, folder as AssetFolder]))
+    // Auto-discover unregistered AssetFile JSON files and register them
+    const registered = this.autoDiscoverAssets(libraryName, meta);
+    if (registered > 0) {
+      console.log(`[ASSET-BROWSER] Auto-registered ${registered} untracked files in "${libraryName}"`);
+      this.saveMeta(libraryName, meta);
+    }
+
+    return meta;
+  }
+
+  /**
+   * Scan library directory for JSON files that look like valid AssetFiles
+   * but aren't tracked in .meta.json yet. Registers them automatically.
+   */
+  private autoDiscoverAssets(libraryName: string, meta: LibraryMeta): number {
+    const libraryDir = this.getLibraryDir(libraryName);
+    if (!fs.existsSync(libraryDir)) return 0;
+
+    const trackedPaths = new Set(meta.idToPath.values());
+    let registered = 0;
+
+    const scanDir = (dirPath: string, relativeBase: string) => {
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'status-effects'
+          && entry.name !== 'items' && entry.name !== 'runes' && entry.name !== 'spells'
+          && entry.name !== 'skills' && entry.name !== 'macro-actions' && entry.name !== 'shops'
+          && entry.name !== 'loot-bundles') {
+          const subRelative = relativeBase ? `${relativeBase}/${entry.name}` : entry.name;
+          scanDir(path.join(dirPath, entry.name), subRelative);
+        }
+        if (entry.isFile() && entry.name.endsWith('.json') && !entry.name.startsWith('.') && entry.name !== 'library.json') {
+          const relativePath = relativeBase ? `${relativeBase}/${entry.name}` : entry.name;
+          if (trackedPaths.has(relativePath)) continue;
+
+          try {
+            const content = JSON.parse(fs.readFileSync(path.join(dirPath, entry.name), 'utf-8'));
+            // Check if it looks like a valid AssetFile (has id, type, data)
+            if (content.id && content.type && content.data) {
+              meta.idToPath.set(content.id, relativePath);
+              trackedPaths.add(relativePath);
+              // Ensure the file's folderId maps to an existing folder
+              if (content.folderId && !meta.folders.has(content.folderId)) {
+                content.folderId = 'root';
+                fs.writeFileSync(path.join(dirPath, entry.name), JSON.stringify(content, null, 2), 'utf-8');
+              }
+              registered++;
+            }
+          } catch {
+            // Skip invalid JSON
+          }
+        }
+      }
     };
+
+    scanDir(libraryDir, '');
+    return registered;
   }
 
   private saveMeta(libraryName: string, meta: LibraryMeta): void {
