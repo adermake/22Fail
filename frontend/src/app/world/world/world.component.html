@@ -121,9 +121,6 @@
               <div class="cc-effects">
                 <div class="cc-effects-header">
                   <span class="cc-effects-label">Effekte</span>
-                  <button class="cc-effects-add"
-                    (click)="$event.stopPropagation(); toggleDashboardStatusPicker(member.id)"
-                    title="Status-Effekt hinzufügen">+</button>
                 </div>
                 <div class="cc-effect-list">
                   @for (active of getDashboardActiveEffects(member.id); track active.statusEffectId + active.appliedAt) {
@@ -143,29 +140,6 @@
                     <span class="cc-no-effects">—</span>
                   }
                 </div>
-
-                <!-- Status effect picker (overlay) -->
-                @if (dashboardStatusPickerFor === member.id) {
-                  <div class="cc-picker-backdrop" (click)="$event.stopPropagation(); dashboardStatusPickerFor = null"></div>
-                  <div class="cc-picker" (click)="$event.stopPropagation()">
-                    <div class="cc-picker-head">
-                      <span>Effekt wählen</span>
-                      <button class="cc-picker-close" (click)="dashboardStatusPickerFor = null">✕</button>
-                    </div>
-                    @if (mergedStatusEffects().length === 0) {
-                      <p class="cc-picker-empty">Keine Status-Effekte in Bibliotheken.</p>
-                    } @else {
-                      <div class="cc-picker-list">
-                        @for (effect of mergedStatusEffects(); track effect.id) {
-                          <button class="cc-picker-item" (click)="addEffectFromDashboard(member.id, effect)">
-                            <span class="cc-picker-item-icon" [style.color]="effect.color ?? '#8b5cf6'">{{ effect.icon ?? '✦' }}</span>
-                            <span class="cc-picker-item-name">{{ effect.name }}</span>
-                          </button>
-                        }
-                      </div>
-                    }
-                  </div>
-                }
               </div>
             </div>
           }

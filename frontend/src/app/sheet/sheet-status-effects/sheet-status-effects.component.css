@@ -81,9 +81,13 @@
   align-items: flex-start;
   gap: 7px;
   padding: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: visible;
   min-height: 80px;
   background: var(--bg);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
 .sse-empty-hint {

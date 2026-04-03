@@ -81,6 +81,17 @@
           }
         </div>
 
+        <button class="exec-sb-next"
+                [class.disabled]="!chainStepDone"
+                [disabled]="!chainStepDone"
+                (click)="executeNextInChain()">
+          @if (chainIndex < chainEffects.length - 1) {
+            Nächster ▸
+          } @else {
+            Fertig ✓
+          }
+        </button>
+
         <!-- Roll results for current chain effect -->
         @if (chainResult) {
           <div class="exec-sb-result">
@@ -113,17 +124,6 @@
         <div class="exec-sb-progress">
           {{ chainIndex + 1 }} / {{ chainEffects.length }}
         </div>
-
-        <button class="exec-sb-next"
-                [class.disabled]="!chainStepDone"
-                [disabled]="!chainStepDone"
-                (click)="executeNextInChain()">
-          @if (chainIndex < chainEffects.length - 1) {
-            Nächster ▸
-          } @else {
-            Fertig ✓
-          }
-        </button>
       } @else {
         <!-- Idle state -->
         <div class="exec-sb-idle">

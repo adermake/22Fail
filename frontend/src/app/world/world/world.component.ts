@@ -35,6 +35,7 @@ import { CurrentEventsManagerComponent } from '../current-events-manager/current
 import { BattleTrackerEngine } from '../battle-tracker/battle-tracker-engine';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 import { CharacterGeneratorComponent } from '../character-generator/character-generator.component';
+import { TrueStatsService } from '../../services/true-stats.service';
 
 // Re-export types for template usage
 export type { SimulatedTurn, BattleGroup };
@@ -64,6 +65,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   trashService = inject(TrashService);
   notification = inject(NotificationService);
   cdr = inject(ChangeDetectorRef);
+  trueStats = inject(TrueStatsService);
   router = inject(Router);
 
   // Character/party state
@@ -1010,11 +1012,21 @@ export class WorldComponent implements OnInit, OnDestroy {
     return status?.statusCurrent || 0;
   }
 
-  // Get max resource value (base + bonus + effectBonus)
+  // Get max resource value using the same formula as currentstat.component
   getResourceMax(sheet: CharacterSheet, type: FormulaType): number {
     const status = this.getResourceStatus(sheet, type);
     if (!status) return 0;
-    return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
+    const base = (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
+    switch (type) {
+      case FormulaType.LIFE:
+        return base + this.trueStats.calculateConstitution(sheet) * 5;
+      case FormulaType.ENERGY:
+        return base + this.trueStats.calculateDexterity(sheet) * 5;
+      case FormulaType.MANA:
+        return base + this.trueStats.calculateIntelligence(sheet) * 5;
+      default:
+        return base;
+    }
   }
 
   // Get resource percentage
@@ -1115,21 +1127,6 @@ export class WorldComponent implements OnInit, OnDestroy {
 
     // ── Section 3: Status management ──
     menuItems.push({ icon: '✨', label: 'Status verwalten', action: `manage_status::${characterId}` });
-
-    // Active effects removal
-    const activeEffects = character?.activeStatusEffects ?? [];
-    if (activeEffects.length > 0) {
-      menuItems.push({ label: '', action: '', divider: true });
-      for (const active of activeEffects) {
-        const def = this.getDashboardEffectDef(active.statusEffectId);
-        const name = active.customName ?? def?.name ?? active.statusEffectId;
-        menuItems.push({
-          icon: '🗑️',
-          label: `${name} entfernen`,
-          action: `remove_status::${active.statusEffectId}::${active.appliedAt}`
-        });
-      }
-    }
 
     this.contextMenu?.show(event.clientX, event.clientY, menuItems);
   }
