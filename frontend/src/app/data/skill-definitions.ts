@@ -12,52 +12,52 @@ export interface ClassHierarchy {
 export const CLASS_DEFINITIONS: ClassHierarchy = {
   // Tier 1
   'Magier': { tier: 1, angle: 90, children: [{ className: 'Kampfzauberer', angle: 114 }, { className: 'Heiler', angle: 67 }] },
-  'K�mpfer': { tier: 1, angle: -41, children: [{ className: 'Krieger', angle: -14 }, { className: 'Barbar', angle: -58 }] },
-  'Techniker': { tier: 1, angle: -147, children: [{ className: 'Sch�tze', angle: -165 }, { className: 'Dieb', angle: -125 }] },
+  'Kämpfer': { tier: 1, angle: -41, children: [{ className: 'Krieger', angle: -14 }, { className: 'Barbar', angle: -58 }] },
+  'Techniker': { tier: 1, angle: -147, children: [{ className: 'Schütze', angle: -165 }, { className: 'Dieb', angle: -125 }] },
   
   // Tier 2
-  'Kampfzauberer': { tier: 2, angle: 114, children: [{ className: 'Arkanist', angle: 123 }, { className: 'H�momant', angle: 90 }] },
+  'Kampfzauberer': { tier: 2, angle: 114, children: [{ className: 'Arkanist', angle: 123 }, { className: 'Hämomant', angle: 90 }] },
   'Heiler': { tier: 2, angle: 67, children: [{ className: 'Seelenformer', angle: 65 }, { className: 'Paladin', angle: 26 }] },
-  'Sch�tze': { tier: 2, angle: -165, children: [{ className: 'J�ger', angle: -160 }, { className: 'Schnellsch�tze', angle: -179 }] },
+  'Schütze': { tier: 2, angle: -165, children: [{ className: 'Jäger', angle: -160 }, { className: 'Schnellschütze', angle: -179 }] },
   'Dieb': { tier: 2, angle: -125, children: [{ className: 'Kampfakrobat', angle: -131 }, { className: 'Assassine', angle: -151 }] },
-  'Krieger': { tier: 2, angle: -14, children: [{ className: 'Ritter', angle: -1 }, { className: 'M�nch', angle: -35 }] },
-  'Barbar': { tier: 2, angle: -58, children: [{ className: 'Berserker', angle: -68 }, { className: 'Pl�nderer', angle: -96 }] },
+  'Krieger': { tier: 2, angle: -14, children: [{ className: 'Ritter', angle: -1 }, { className: 'Mönch', angle: -35 }] },
+  'Barbar': { tier: 2, angle: -58, children: [{ className: 'Berserker', angle: -68 }, { className: 'Plünderer', angle: -96 }] },
   
   // Tier 3
-  'Arkanist': { tier: 3, angle: 123, children: [{ className: 'Formationsmagier', angle: 127 }, { className: 'Phantom', angle: -174 }, { className: 'Runenk�nstler', angle: 104 }] },
-  'H�momant': { tier: 3, angle: 90, children: [{ className: 'Nekromant', angle: 83 }] },
+  'Arkanist': { tier: 3, angle: 123, children: [{ className: 'Formationsmagier', angle: 127 }, { className: 'Phantom', angle: -174 }, { className: 'Runenkünstler', angle: 104 }] },
+  'Hämomant': { tier: 3, angle: 90, children: [{ className: 'Nekromant', angle: 83 }] },
   'Seelenformer': { tier: 3, angle: 65, children: [{ className: 'Gestaltenwandler', angle: 55 }, { className: 'Mentalist', angle: 71 }] },
-  'J�ger': { tier: 3, angle: -160, children: [{ className: 'Attent�ter', angle: -155 }] },
-  'Kampfakrobat': { tier: 3, angle: -131, children: [{ className: 'Klingent�nzer', angle: -136 }, { className: 'Duellant', angle: -116 }, { className: 'Phantom', angle: -174 }] },
-  'Ritter': { tier: 3, angle: -1, children: [{ className: 'Erzritter', angle: 14 }, { className: 'Paladin', angle: 26 }, { className: 'W�chter', angle: -1 }] },
+  'Jäger': { tier: 3, angle: -160, children: [{ className: 'Attentäter', angle: -155 }] },
+  'Kampfakrobat': { tier: 3, angle: -131, children: [{ className: 'Klingentänzer', angle: -136 }, { className: 'Duellant', angle: -116 }, { className: 'Phantom', angle: -174 }] },
+  'Ritter': { tier: 3, angle: -1, children: [{ className: 'Erzritter', angle: 14 }, { className: 'Paladin', angle: 26 }, { className: 'Wächter', angle: -1 }] },
   'Berserker': { tier: 3, angle: -68, children: [{ className: 'Kriegsherr', angle: -92 }, { className: 'Omen', angle: -51 }] },
-  'Pl�nderer': { tier: 3, angle: -96, children: [{ className: 'General', angle: -94 }] },
-  'M�nch': { tier: 3, angle: -35, children: [{ className: 'Templer', angle: -42 }] },
-  'Schnellsch�tze': { tier: 3, angle: -179, children: [{ className: 'T�ftler', angle: 157 }] },
+  'Plünderer': { tier: 3, angle: -96, children: [{ className: 'General', angle: -94 }] },
+  'Mönch': { tier: 3, angle: -35, children: [{ className: 'Templer', angle: -42 }] },
+  'Schnellschütze': { tier: 3, angle: -179, children: [{ className: 'Tüftler', angle: 157 }] },
   
   // Tier 4
   'Phantom': { tier: 4, angle: -174, children: [] },
   'Gestaltenwandler': { tier: 4, angle: 55, children: [] },
-  'Formationsmagier': { tier: 4, angle: 127, children: [{ className: 'Manaf�rst', angle: 118 }, { className: 'T�ftler', angle: 157 }] },
-  'Runenk�nstler': { tier: 4, angle: 104, children: [{ className: 'Manaf�rst', angle: 118 }, { className: 'Dunkler Ritter', angle: 24 }] },
+  'Formationsmagier': { tier: 4, angle: 127, children: [{ className: 'Manafürst', angle: 118 }, { className: 'Tüftler', angle: 157 }] },
+  'Runenkünstler': { tier: 4, angle: 104, children: [{ className: 'Manafürst', angle: 118 }, { className: 'Dunkler Ritter', angle: 24 }] },
   'Mentalist': { tier: 4, angle: 71, children: [{ className: 'Orakel', angle: 67 }, { className: 'Nekromant', angle: 83 }] },
-  'Assassine': { tier: 4, angle: -151, children: [{ className: 'Attent�ter', angle: -155 }] },
-  'Klingent�nzer': { tier: 4, angle: -136, children: [{ className: 'Waffenmeister', angle: -138 }] },
-  'Erzritter': { tier: 4, angle: 14, children: [{ className: 'W�chter', angle: -1 }, { className: 'Dunkler Ritter', angle: 24 }] },
+  'Assassine': { tier: 4, angle: -151, children: [{ className: 'Attentäter', angle: -155 }] },
+  'Klingentänzer': { tier: 4, angle: -136, children: [{ className: 'Waffenmeister', angle: -138 }] },
+  'Erzritter': { tier: 4, angle: 14, children: [{ className: 'Wächter', angle: -1 }, { className: 'Dunkler Ritter', angle: 24 }] },
   'General': { tier: 4, angle: -94, children: [{ className: 'Kriegsherr', angle: -92 }] },
   'Paladin': { tier: 4, angle: 26, children: [] },
   'Templer': { tier: 4, angle: -42, children: [{ className: 'Koloss', angle: -30 }, { className: 'Omen', angle: -51 }] },
   
   // Tier 5
-  'Manaf�rst': { tier: 5, angle: 118, children: [] },
-  'T�ftler': { tier: 5, angle: 157, children: [] },
-  'Attent�ter': { tier: 5, angle: -155, children: [] },
+  'Manafürst': { tier: 5, angle: 118, children: [] },
+  'Tüftler': { tier: 5, angle: 157, children: [] },
+  'Attentäter': { tier: 5, angle: -155, children: [] },
   'Duellant': { tier: 5, angle: -116, children: [] },
   'Waffenmeister': { tier: 5, angle: -138, children: [] },
   'Kriegsherr': { tier: 5, angle: -92, children: [] },
   'Omen': { tier: 5, angle: -51, children: [] },
   'Koloss': { tier: 5, angle: -30, children: [] },
-  'W�chter': { tier: 5, angle: -1, children: [] },
+  'Wächter': { tier: 5, angle: -1, children: [] },
   'Dunkler Ritter': { tier: 5, angle: 24, children: [] },
   'Orakel': { tier: 5, angle: 67, children: [] },
   'Nekromant': { tier: 5, angle: 83, children: [] }
@@ -66,19 +66,19 @@ export const CLASS_DEFINITIONS: ClassHierarchy = {
 export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // ==================== TIER 1 ====================
 
-  // ==================== K�MPFER ====================
+  // ==================== KÄMPFER ====================
   {
     id: 'kaempfer_staerke_1',
-    name: 'St�rke+1',
-    class: 'K�mpfer',
+    name: 'Stärke+1',
+    class: 'Kämpfer',
     type: 'stat_bonus',
-    description: 'St�rke+1',
+    description: 'Stärke+1',
     statBonus: { stat: 'strength', amount: 1 }
   },
   {
     id: 'kaempfer_konstitution_1',
     name: 'Konstitution+1',
-    class: 'K�mpfer',
+    class: 'Kämpfer',
     type: 'stat_bonus',
     description: 'Konstitution+1',
     statBonus: { stat: 'constitution', amount: 1 }
@@ -86,23 +86,23 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'kaempfer_schwere_waffen_werfen',
     name: 'Schwere Waffen werfen+1',
-    class: 'K�mpfer',
+    class: 'Kämpfer',
     type: 'dice_bonus',
     description: 'Schwere Waffen werfen+1'
   },
   {
     id: 'kaempfer_backpacker',
     name: 'Backpacker',
-    class: 'K�mpfer',
+    class: 'Kämpfer',
     type: 'passive',
-    description: '+30 Inventarkapazit�t'
+    description: '+30 Inventarkapazität'
   },
   {
     id: 'kaempfer_fester_stand',
     name: 'Fester Stand',
-    class: 'K�mpfer',
+    class: 'Kämpfer',
     type: 'passive',
-    description: '-1 gegen R�cksto�'
+    description: '-1 gegen Rückstoß'
   },
 
   // ==================== TECHNIKER ====================
@@ -182,7 +182,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Zauberlehrling',
     class: 'Magier',
     type: 'passive',
-    description: '+2 Effektivit�t auf Zauber'
+    description: '+2 Effektivität auf Zauber'
   },
 
   // ==================== TIER 2 ====================
@@ -213,17 +213,17 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'krieger_aetherkraft',
-    name: '�therkraft',
+    name: 'Ätherkraft',
     class: 'Krieger',
     type: 'passive',
-    description: 'Kann erlittenen Schaden halbieren und die andere H�lfte als Mana zahlen.'
+    description: 'Kann erlittenen Schaden halbieren und die andere Hälfte als Mana zahlen.'
   },
   {
     id: 'krieger_schwerer_schlag',
     name: 'Schwerer Schlag',
     class: 'Krieger',
     type: 'active',
-    description: 'Schlag mit hoher St�rke, muss eine Runde ausholen',
+    description: 'Schlag mit hoher Stärke, muss eine Runde ausholen',
     enlightened: true,
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
@@ -241,25 +241,25 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // ==================== BARBAR ====================
   {
     id: 'barbar_staerke_2',
-    name: 'St�rke+2',
+    name: 'Stärke+2',
     class: 'Barbar',
     type: 'stat_bonus',
-    description: 'St�rke+2',
+    description: 'Stärke+2',
     statBonus: { stat: 'strength', amount: 2 }
   },
   {
     id: 'barbar_ruecksichtslos',
-    name: 'R�cksichtslos',
+    name: 'Rücksichtslos',
     class: 'Barbar',
     type: 'passive',
-    description: 'St�rke+4 bei weniger als 5 R�stungsmalus'
+    description: 'Stärke+4 bei weniger als 5 Rüstungsmalus'
   },
   {
     id: 'barbar_blutlust',
     name: 'Blutlust',
     class: 'Barbar',
     type: 'passive',
-    description: '-1 auf Angriffe f�r jeden get�ten Gegner, h�lt f�r den Rest des Kampfes, maximal -3'
+    description: '-1 auf Angriffe für jeden getöten Gegner, hält für den Rest des Kampfes, maximal -3'
   },
   {
     id: 'barbar_muskelprotz',
@@ -284,7 +284,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Kampfschrei',
     class: 'Barbar',
     type: 'active',
-    description: 'Erh�ht Bewegung aller Verb�ndeter um 3 in der N�he f�r einen Zug',
+    description: 'Erhöht Bewegung aller Verbündeter um 3 in der Nähe für einen Zug. Bonusaktion',
     cost: { type: 'energy', amount: 10 },
     actionType: 'Bonusaktion'
   },
@@ -314,10 +314,10 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'dieb_schloesser_knacken',
-    name: 'Schl�sser knacken-2',
+    name: 'Schlösser knacken-2',
     class: 'Dieb',
     type: 'dice_bonus',
-    description: 'Schl�sser knacken-2'
+    description: 'Schlösser knacken-2'
   },
   {
     id: 'dieb_feinmotoriker',
@@ -329,10 +329,10 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'dieb_leichtfuessigkeit',
-    name: 'Leichtf��igkeit',
+    name: 'Leichtfüßigkeit',
     class: 'Dieb',
     type: 'passive',
-    description: 'Bewegung+2 bei weniger als 5 R�stungsmalus',
+    description: 'Bewegung+2 bei weniger als 5 Rüstungsmalus',
     enlightened: true
   },
   {
@@ -340,7 +340,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Auge der Gier',
     class: 'Dieb',
     type: 'dice_bonus',
-    description: '-2 auf Wert absch�tzen',
+    description: '-2 auf Wert abschätzen',
     enlightened: true
   },
   {
@@ -354,11 +354,11 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     actionType: 'Bonusaktion'
   },
 
-  // ==================== SCH�TZE ====================
+  // ==================== SCHÜTZE ====================
   {
     id: 'schutze_geschicklichkeit_2',
     name: 'Geschicklichkeit+2',
-    class: 'Sch�tze',
+    class: 'Schütze',
     type: 'stat_bonus',
     description: 'Geschicklichkeit+2',
     statBonus: { stat: 'dexterity', amount: 2 }
@@ -366,46 +366,46 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'schutze_reichweite_10',
     name: 'Reichweite+10m',
-    class: 'Sch�tze',
+    class: 'Schütze',
     type: 'stat_bonus',
-    description: 'Reichweite+10m f�r Fernkampfwaffen'
+    description: 'Reichweite+10m für Fernkampfwaffen'
   },
   {
     id: 'schutze_waffenwissen',
     name: 'Waffenwissen',
-    class: 'Sch�tze',
+    class: 'Schütze',
     type: 'passive',
-    description: 'Waffenvorraussetzung-4 f�r Fernkampfwaffen',
+    description: 'Waffenvorraussetzung-4 für Fernkampfwaffen',
     enlightened: true
   },
   {
     id: 'schutze_adlerauge',
     name: 'Adlerauge',
-    class: 'Sch�tze',
+    class: 'Schütze',
     type: 'passive',
     description: '-1 im Fernkampf'
   },
   {
     id: 'schutze_geschaerfte_sinne',
-    name: 'Gesch�rfte Sinne',
-    class: 'Sch�tze',
+    name: 'Geschärfte Sinne',
+    class: 'Schütze',
     type: 'passive',
-    description: '-2 auf alle Aktionen au�erhalb von K�mpfen, die gute Sehkraft vorraussetzen',
+    description: '-2 auf alle Aktionen außerhalb von Kämpfen, die gute Sehkraft vorraussetzen',
     enlightened: true
   },
   {
     id: 'schutze_aetherfeuer',
-    name: '�therfeuer',
-    class: 'Sch�tze',
+    name: 'Ätherfeuer',
+    class: 'Schütze',
     type: 'active',
-    description: 'F�hre eine weitere Aktion aus',
+    description: 'Führe eine weitere Aktion aus. Bonusaktion',
     cost: { type: 'mana', amount: 20 },
     actionType: 'Bonusaktion'
   },
   {
     id: 'schutze_zielschuss',
     name: 'Zielschuss',
-    class: 'Sch�tze',
+    class: 'Schütze',
     type: 'active',
     description: 'Schuss mit doppelter Reichweite und Schaden',
     cost: { type: 'energy', amount: 25 },
@@ -433,14 +433,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Zauberladung',
     class: 'Kampfzauberer',
     type: 'passive',
-    description: '+2 beim W�rfeln f�r Zaubercasts'
+    description: '+2 beim Würfeln für Zaubercasts'
   },
   {
     id: 'kampfzauberer_verinnerlichen',
     name: 'Verinnerlichen',
     class: 'Kampfzauberer',
     type: 'passive',
-    description: 'Lerne einen Zauber auswendig, damit du ihn ohne Medium benutzen kannst. Zauber k�nnen jederzeit gewechselt werden, brauchen aber mehrere Stunden.',
+    description: 'Lerne einen Zauber auswendig, damit du ihn ohne Medium benutzen kannst. Zauber können jederzeit gewechselt werden, brauchen aber mehrere Stunden.',
     enlightened: true
   },
   {
@@ -448,7 +448,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Freies Wirken',
     class: 'Kampfzauberer',
     type: 'passive',
-    description: 'Kann sich w�hrend eines Zaubercasts bewegen'
+    description: 'Kann sich während eines Zaubercasts bewegen'
   },
   {
     id: 'kampfzauberer_manatransfer',
@@ -465,7 +465,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Manadisruption',
     class: 'Kampfzauberer',
     type: 'active',
-    description: 'Reduziere den Castwert des Spells eines Gegners in 20m Umfeld um eine gew�rfelte Anzahl. Boni f�r Zaubercasts werden hier auch angewandt.',
+    description: 'Reduziere den Castwert des Spells eines Gegners in 20m Umfeld um eine gewürfelte Anzahl. Boni für Zaubercasts werden hier auch angewandt. Bonusaktion',
     enlightened: true,
     cost: { type: 'energy', amount: 5 },
     actionType: 'Bonusaktion'
@@ -492,7 +492,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Notarzt',
     class: 'Heiler',
     type: 'passive',
-    description: '-3 auf alle Heilungsw�rfe, wenn Ziel im kritischen Zustand ist',
+    description: '-3 auf alle Heilungswürfe, wenn Ziel im kritischen Zustand ist',
     enlightened: true
   },
   {
@@ -500,7 +500,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Alchemist',
     class: 'Heiler',
     type: 'passive',
-    description: '-2 beim Brauen von Tr�nken mit positivem Effekt',
+    description: '-2 beim Brauen von Tränken mit positivem Effekt',
     enlightened: true
   },
   {
@@ -522,7 +522,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Gruppencast',
     class: 'Heiler',
     type: 'active',
-    description: 'Helfe einem Verb�ndeten beim Zaubercast, indem du f�r seinen Castwert w�rfelst. Boni f�r Zaubercasts werden hier auch angewandt.',
+    description: 'Helfe einem Verbündeten beim Zaubercast, indem du für seinen Castwert würfelst. Boni für Zaubercasts werden hier auch angewandt. 0',
     cost: { type: 'energy', amount: 0 },
     actionType: 'Aktion'
   },
@@ -554,10 +554,10 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'ritter_ruestungsnegation_5',
-    name: 'R�stungsnegation+5',
+    name: 'Rüstungsnegation+5',
     class: 'Ritter',
     type: 'stat_bonus',
-    description: 'R�stungsnegation+5'
+    description: 'Rüstungsnegation+5'
   },
   {
     id: 'ritter_tierfreund',
@@ -572,89 +572,89 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Ritterschwur',
     class: 'Ritter',
     type: 'passive',
-    description: '-2 auf Reaktionen, die gegnerische Angriffe auf Verb�ndete blocken',
+    description: '-2 auf Reaktionen, die gegnerische Angriffe auf Verbündete blocken',
     enlightened: true
   },
   {
     id: 'ritter_schwere_ruestung',
-    name: 'Schwere R�stung',
+    name: 'Schwere Rüstung',
     class: 'Ritter',
     type: 'active',
-    description: 'Negiert Schaden und wandelt ihn zu doppeltem R�stungsschaden um',
+    description: 'Negiert Schaden und wandelt ihn zu doppeltem Rüstungsschaden um',
     cost: { type: 'energy', amount: 10, perRound: true },
     actionType: 'Bonusaktion'
   },
   {
     id: 'ritter_schildstoss',
-    name: 'Schildsto�',
+    name: 'Schildstoß',
     class: 'Ritter',
     type: 'active',
-    description: 'Angriff mit Schild, hoher R�cksto�',
+    description: 'Angriff mit Schild, hoher Rückstoß',
     enlightened: true,
     cost: { type: 'energy', amount: 10 },
     actionType: 'Aktion'
   },
   {
     id: 'ritter_reitstoss',
-    name: 'Reitsto�',
+    name: 'Reitstoß',
     class: 'Ritter',
     type: 'active',
-    description: 'Durchbohrender Angriff auf dem Pferd, -5 auf Zerst�rung einer br�chigen Waffe',
+    description: 'Durchbohrender Angriff auf dem Pferd, -5 auf Zerstörung einer brüchigen Waffe',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
 
-  // ==================== M�NCH ====================
+  // ==================== MÖNCH ====================
   {
     id: 'moench_konstitution_3',
     name: 'Konstitution+3',
-    class: 'M�nch',
+    class: 'Mönch',
     type: 'stat_bonus',
     description: 'Konstitution+3',
     statBonus: { stat: 'constitution', amount: 3 }
   },
   {
     id: 'moench_goettlicher_segen',
-    name: 'G�ttlicher Segen',
-    class: 'M�nch',
+    name: 'Göttlicher Segen',
+    class: 'Mönch',
     type: 'passive',
     description: 'Pechresistenz'
   },
   {
     id: 'moench_fokussierte_schlaege',
-    name: 'Fokussierte Schl�ge',
-    class: 'M�nch',
+    name: 'Fokussierte Schläge',
+    class: 'Mönch',
     type: 'passive',
-    description: '-3 bei Angriffen auf Gegenst�nde'
+    description: '-3 bei Angriffen auf Gegenstände'
   },
   {
     id: 'moench_waffenloser_kampf',
     name: 'Waffenloser Kampf',
-    class: 'M�nch',
+    class: 'Mönch',
     type: 'passive',
-    description: '-2 im Kampf ohne Waffen(au�er Handschuhen)'
+    description: '-2 im Kampf ohne Waffen(außer Handschuhen)'
   },
   {
     id: 'moench_hartes_training',
     name: 'Hartes Training',
-    class: 'M�nch',
+    class: 'Mönch',
     type: 'passive',
-    description: 'Geschicklichkeit+4 bei weniger als 5 R�stungsmalus',
+    description: 'Geschicklichkeit+4 bei weniger als 5 Rüstungsmalus',
     enlightened: true
   },
   {
     id: 'moench_chakra_blockade',
     name: 'Chakra-Blockade',
-    class: 'M�nch',
+    class: 'Mönch',
     type: 'active',
-    description: 'Angriff, der gegnerische Extremit�ten l�hmt',
+    description: 'Angriff, der gegnerische Extremitäten lähmt',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
   {
     id: 'moench_meditation',
     name: 'Meditation',
-    class: 'M�nch',
+    class: 'Mönch',
     type: 'active',
     description: 'Stellt 5 Mana her',
     enlightened: true,
@@ -665,15 +665,15 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // ==================== BERSERKER ====================
   {
     id: 'berserker_staerke_2',
-    name: 'St�rke+2',
+    name: 'Stärke+2',
     class: 'Berserker',
     type: 'stat_bonus',
-    description: 'St�rke+2',
+    description: 'Stärke+2',
     statBonus: { stat: 'strength', amount: 2 }
   },
   {
     id: 'berserker_notfallstaerke',
-    name: 'Notfallst�rke',
+    name: 'Notfallstärke',
     class: 'Berserker',
     type: 'passive',
     description: '-1 im Kampf je 40 fehlende Leben, maximal -5',
@@ -681,10 +681,10 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'berserker_kriegsschrei',
-    name: '+Kriegsschrei',
+    name: 'Kriegsschrei',
     class: 'Berserker',
     type: 'passive',
-    description: 'Mit jedem get�ten Gegner wird "Kampfschrei" ausgel�st',
+    description: 'Mit jedem getöten Gegner wird "Kampfschrei" ausgelöst, benötigt Kampfschrei',
     requiresSkill: 'barbar_kampfschrei'
   },
   {
@@ -692,7 +692,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Unsterblicher Krieger',
     class: 'Berserker',
     type: 'passive',
-    description: 'Heilt Leben um 3 D20, wenn Gegner get�tet wird'
+    description: 'Heilt Leben um 3 D20, wenn Gegner getötet wird'
   },
   {
     id: 'berserker_adrenalin',
@@ -706,7 +706,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Erbarmunglosigkeit',
     class: 'Berserker',
     type: 'passive',
-    description: 'F�r Z�ge in denen angegriffen wurde bleibt Rage bestehen.',
+    description: 'Für Züge in denen angegriffen wurde bleibt Rage bestehen.',
     enlightened: true
   },
   {
@@ -714,13 +714,13 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Rage',
     class: 'Berserker',
     type: 'active',
-    description: 'Wird in den Ragemodus versetzt.',
+    description: 'Wird in den Ragemodus versetzt. Bonusaktion',
     cost: { type: 'energy', amount: 5 },
     actionType: 'Bonusaktion'
   },
   {
     id: 'berserker_wuetender_wurf',
-    name: 'W�tender Wurf',
+    name: 'Wütender Wurf',
     class: 'Berserker',
     type: 'active',
     description: 'Wirft einen Gegner bis zu 50m weit',
@@ -729,11 +729,11 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     actionType: 'Aktion'
   },
 
-  // ==================== PL�NDERER ====================
+  // ==================== PLÜNDERER ====================
   {
     id: 'pluenderer_charisma_3',
     name: 'Charisma+3',
-    class: 'Pl�nderer',
+    class: 'Plünderer',
     type: 'stat_bonus',
     description: 'Charisma+3',
     statBonus: { stat: 'chill', amount: 3 }
@@ -741,38 +741,38 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'pluenderer_horter',
     name: 'Horter',
-    class: 'Pl�nderer',
+    class: 'Plünderer',
     type: 'passive',
-    description: 'Erh�ht Inventarkapazit�t um 50%',
+    description: 'Erhöht Inventarkapazität um 50%',
     enlightened: true
   },
   {
     id: 'pluenderer_reichtum',
     name: 'Reichtum',
-    class: 'Pl�nderer',
+    class: 'Plünderer',
     type: 'passive',
-    description: 'Erh�lt 50% mehr Geld durch Loot und Verk�ufe'
+    description: 'Erhält 50% mehr Geld durch Loot und Verkäufe'
   },
   {
     id: 'pluenderer_brandstifter',
     name: 'Brandstifter',
-    class: 'Pl�nderer',
+    class: 'Plünderer',
     type: 'passive',
     description: 'Reduziert Schaden von normalem Feuer um 80%',
     enlightened: true
   },
   {
     id: 'pluenderer_raeuberbande',
-    name: 'R�uberbande',
-    class: 'Pl�nderer',
+    name: 'Räuberbande',
+    class: 'Plünderer',
     type: 'passive',
-    description: '-1 im Kampf, wenn deine Gruppe in �berzahl ist',
+    description: '-1 im Kampf, wenn deine Gruppe in Überzahl ist',
     enlightened: true
   },
   {
     id: 'pluenderer_pluendern',
-    name: 'Pl�ndern',
-    class: 'Pl�nderer',
+    name: 'Plündern',
+    class: 'Plünderer',
     type: 'active',
     description: 'Schlag, der dem Gegner Geld stiehlt (D20)',
     cost: { type: 'energy', amount: 10 },
@@ -793,7 +793,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Bonusaktion',
     class: 'Kampfakrobat',
     type: 'passive',
-    description: 'Erhalte eine zus�tzliche Bonusaktion pro Zug'
+    description: 'Erhalte eine zusätzliche Bonusaktion pro Zug'
   },
   {
     id: 'kampfakrobat_sprungangriff',
@@ -807,7 +807,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Sicherer Fall',
     class: 'Kampfakrobat',
     type: 'passive',
-    description: 'Landet garantiert auf instabilem Boden und erh�lt -1 auf den folgenden Angriff',
+    description: 'Landet garantiert auf instabilem Boden und erhält -1 auf den folgenden Angriff',
     enlightened: true
   },
   {
@@ -836,11 +836,11 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     actionType: 'Bonusaktion'
   },
 
-  // ==================== J�GER ====================
+  // ==================== JÄGER ====================
   {
     id: 'jaeger_geschicklichkeit_3',
     name: 'Geschicklichkeit+3',
-    class: 'J�ger',
+    class: 'Jäger',
     type: 'stat_bonus',
     description: 'Geschicklichkeit+3',
     statBonus: { stat: 'dexterity', amount: 3 }
@@ -848,76 +848,76 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'jaeger_klettern',
     name: 'Klettern-2',
-    class: 'J�ger',
+    class: 'Jäger',
     type: 'dice_bonus',
     description: 'Klettern-2'
   },
   {
     id: 'jaeger_verstecken',
     name: 'Verstecken-2',
-    class: 'J�ger',
+    class: 'Jäger',
     type: 'dice_bonus',
     description: 'Verstecken-2'
   },
   {
     id: 'jaeger_fallen_stellen',
     name: 'Fallen stellen-2',
-    class: 'J�ger',
+    class: 'Jäger',
     type: 'dice_bonus',
     description: 'Fallen stellen-2'
   },
   {
     id: 'jaeger_basteln',
     name: 'Basteln',
-    class: 'J�ger',
+    class: 'Jäger',
     type: 'passive',
-    description: 'Die Qualit�t hergestellter Munition erh�ht sich um einen Rang',
+    description: 'Die Qualität hergestellter Munition erhöht sich um einen Rang',
     enlightened: true
   },
   {
     id: 'jaeger_spuren_lesen',
     name: 'Spuren lesen',
-    class: 'J�ger',
+    class: 'Jäger',
     type: 'passive',
     description: 'Kann Spuren von Tieren und Gegnern lesen und verfolgen',
     enlightened: true
   },
   {
     id: 'jaeger_angedrehte_schuesse',
-    name: 'Angedrehte Sch�sse',
-    class: 'J�ger',
+    name: 'Angedrehte Schüsse',
+    class: 'Jäger',
     type: 'passive',
-    description: 'Fernkampfprojektile k�nnen in der Luft die Richtung �ndern'
+    description: 'Fernkampfprojektile können in der Luft die Richtung ändern'
   },
 
-  // ==================== SCHNELLSCH�TZE ====================
+  // ==================== SCHNELLSCHÜTZE ====================
   {
     id: 'schnellschuetze_bewegung_3',
     name: 'Bewegung+3',
-    class: 'Schnellsch�tze',
+    class: 'Schnellschütze',
     type: 'stat_bonus',
     description: 'Bewegung+3',
     statBonus: { stat: 'speed', amount: 3 }
   },
   {
     id: 'schnellschuetze_dynamisches_schiessen',
-    name: 'Dynamisches Schie�en',
-    class: 'Schnellsch�tze',
+    name: 'Dynamisches Schießen',
+    class: 'Schnellschütze',
     type: 'passive',
-    description: 'Kann w�hrend dem Laufen ohne Malus schie�en',
+    description: 'Kann während dem Laufen ohne Malus schießen',
     enlightened: true
   },
   {
     id: 'schnellschuetze_sofortladung',
     name: 'Sofortladung',
-    class: 'Schnellsch�tze',
+    class: 'Schnellschütze',
     type: 'passive',
     description: 'Verbraucht keine Aktion, um Waffen nachzuladen'
   },
   {
     id: 'schnellschuetze_unberuehrt',
-    name: 'Unber�hrt',
-    class: 'Schnellsch�tze',
+    name: 'Unberührt',
+    class: 'Schnellschütze',
     type: 'passive',
     description: '+5 Bewegung, wenn du diese und letzte Runde keinen Schaden genommen hast',
     enlightened: true
@@ -925,25 +925,25 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'schnellschuetze_folgeangriff',
     name: 'Folgeangriff',
-    class: 'Schnellsch�tze',
+    class: 'Schnellschütze',
     type: 'passive',
-    description: 'Erh�lt sofort eine Extra-Aktion, wenn ein Gegner handlungsunf�hig wird, egal wer am Zug ist'
+    description: 'Erhält sofort eine Extra-Aktion, wenn ein Gegner handlungsunfähig wird, egal wer am Zug ist'
   },
   {
     id: 'schnellschuetze_multischuss',
     name: 'Multischuss',
-    class: 'Schnellsch�tze',
+    class: 'Schnellschütze',
     type: 'active',
-    description: 'Kann bis zu 3 Projektile auf unterschiedliche Gegner auf einmal schie�en',
+    description: 'Kann bis zu 3 Projektile auf unterschiedliche Gegner auf einmal schießen',
     cost: { type: 'energy', amount: 15 },
     actionType: 'Aktion'
   },
   {
     id: 'schnellschuetze_runde_2',
     name: 'Runde 2',
-    class: 'Schnellsch�tze',
+    class: 'Schnellschütze',
     type: 'active',
-    description: 'Erhalte eine Extra-Aktion, wenn du das n�chste mal am Zug bist',
+    description: 'Erhalte eine Extra-Aktion, wenn du das nächste mal am Zug bist',
     enlightened: true,
     cost: { type: 'energy', amount: 5 },
     actionType: 'Aktion'
@@ -969,18 +969,18 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'arkanist_managespuer',
-    name: 'Managesp�r',
+    name: 'Managespür',
     class: 'Arkanist',
     type: 'passive',
-    description: 'Kann pures Mana sp�ren',
+    description: 'Kann pures Mana spüren',
     enlightened: true
   },
   {
     id: 'arkanist_verinnerlichen',
-    name: '+Verinnerlichen',
+    name: 'Verinnererlichen',
     class: 'Arkanist',
     type: 'passive',
-    description: 'Besetze je 5 Fokus, um einen zus�tzlichen Zauber auswendig zu lernen.',
+    description: 'Besetze je 5 Fokus, um einen zusätzlichen Zauber auswendig zu lernen. Benötigt Verinnerlichen(p)',
     enlightened: true,
     requiresSkill: 'kampfzauberer_verinnerlichen'
   },
@@ -996,24 +996,24 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Zauberbrecher',
     class: 'Arkanist',
     type: 'active',
-    description: 'Annulliert einen Zauber im Zauberradius, Ausdauerkosten entsprechen den halben Manakosten des Zaubers und kann Ausdauer ins Negative bringen. Erh�lt M�glichkeit, diese F�higkeit zu nutzen, wenn ein Zauber den Zauberradius betritt.',
+    description: 'Annulliert einen Zauber im Zauberradius, Ausdauerkosten entsprechen den halben Manakosten des Zaubers und kann Ausdauer ins Negative bringen. Erhält Möglichkeit, diese Fähigkeit zu nutzen, wenn ein Zauber den Zauberradius betritt.',
     actionType: 'Aktion'
   },
   {
     id: 'arkanist_ueberladen',
-    name: '�berladen',
+    name: 'Überladen',
     class: 'Arkanist',
     type: 'active',
-    description: 'Nutze den n�chsten Zauber mit verdoppelter Vorraussetzung und Effektivit�t',
+    description: 'Nutze den nächsten Zauber mit verdoppelter Vorraussetzung und Effektivität',
     cost: { type: 'energy', amount: 10 },
     actionType: 'Bonusaktion'
   },
 
-  // ==================== H�MOMANT ====================
+  // ==================== HÄMOMANT ====================
   {
     id: 'haemomant_leben_30',
     name: 'Leben+30',
-    class: 'H�momant',
+    class: 'Hämomant',
     type: 'stat_bonus',
     description: 'Leben+30',
     statBonus: { stat: 'life', amount: 30 }
@@ -1021,14 +1021,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'haemomant_magisches_blut',
     name: 'Magisches Blut',
-    class: 'H�momant',
+    class: 'Hämomant',
     type: 'passive',
-    description: 'Kann eigenes Blut als Startpunkt f�r Zauber benutzen'
+    description: 'Kann eigenes Blut als Startpunkt für Zauber benutzen'
   },
   {
     id: 'haemomant_kaltbluetig',
-    name: 'Kaltbl�tig',
-    class: 'H�momant',
+    name: 'Kaltblütig',
+    class: 'Hämomant',
     type: 'passive',
     description: '-1 im Kampf gegen Gegner mit offenen Wunden',
     enlightened: true
@@ -1036,25 +1036,25 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'haemomant_transfusion',
     name: 'Transfusion',
-    class: 'H�momant',
+    class: 'Hämomant',
     type: 'active',
-    description: 'Absorbiere umliegendes Blut und heile dich um den gew�rfelten Betrag (D8)',
+    description: 'Absorbiere umliegendes Blut und heile dich um den gewürfelten Betrag (D8). Bonusaktion',
     cost: { type: 'energy', amount: 5 },
     actionType: 'Bonusaktion'
   },
   {
     id: 'haemomant_blutecho',
     name: 'Blutecho',
-    class: 'H�momant',
+    class: 'Hämomant',
     type: 'active',
-    description: 'Absorbiert einen genannten Skill aus gegnerischem Blut und verwende ihn direkt ohne Kosten. Sollte der genannte Skill nicht existieren, wird ein zuf�lliger Skill ausgew�hlt. Nur einmal pro Person m�glich',
+    description: 'Absorbiert einen genannten Skill aus gegnerischem Blut und verwende ihn direkt ohne Kosten. Sollte der genannte Skill nicht existieren, wird ein zufälliger Skill ausgewählt. Nur einmal pro Person möglich',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
   {
     id: 'haemomant_hypertonie',
     name: 'Hypertonie',
-    class: 'H�momant',
+    class: 'Hämomant',
     type: 'active',
     description: '-2 im Kampf',
     cost: { type: 'life', amount: 20, perRound: true },
@@ -1063,7 +1063,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'haemomant_aderlass',
     name: 'Aderlass',
-    class: 'H�momant',
+    class: 'Hämomant',
     type: 'active',
     description: 'Konvertiert 1x Leben zu 0,8x Mana (wird abgerundet)',
     enlightened: true,
@@ -1085,21 +1085,21 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Runenkonvergenz',
     class: 'Seelenformer',
     type: 'passive',
-    description: '-1 auf Nutzung von Zaubern die eine Elementarrune beinhalten, die f�r eine aktive Beschw�rung benutzt wurde.'
+    description: '-1 auf Nutzung von Zaubern die eine Elementarrune beinhalten, die für eine aktive Beschwörung benutzt wurde.'
   },
   {
     id: 'seelenformer_hausgemacht',
     name: 'Hausgemacht',
     class: 'Seelenformer',
     type: 'passive',
-    description: 'Senkt Fokuskosten f�r selbst kreierte Seelenrunen in Beschw�rungszaubern um 20% und erm�glicht es, diese Seelenrunen in diesen Zaubern frei auszutauschen.'
+    description: 'Senkt Fokuskosten für selbst kreierte Seelenrunen in Beschwörungszaubern um 20% und ermöglicht es, diese Seelenrunen in diesen Zaubern frei auszutauschen.'
   },
   {
     id: 'seelenformer_seelenwacht',
     name: 'Seelenwacht',
     class: 'Seelenformer',
     type: 'active',
-    description: 'Kann Seelen von Tieren analysieren, um sie als Rune zu speichern. Ben�tigt mehrere Tage intensiver Inspektion',
+    description: 'Kann Seelen von Tieren analysieren, um sie als Rune zu speichern. Benötigt mehrere Tage intensiver Inspektion',
     cost: { type: 'energy', amount: 0 },
     actionType: 'Aktion'
   },
@@ -1108,7 +1108,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Erweitertes Bewusstsein',
     class: 'Seelenformer',
     type: 'active',
-    description: 'Reduziert Ausdauer auf 0, um den maximalen Fokus zu verdreifachen. Muss deaktiviert werden, um Ausdauer zu regenerieren. (Minimum)',
+    description: 'Reduziert Ausdauer auf 0, um den maximalen Fokus zu verdreifachen. Muss deaktiviert werden, um Ausdauer zu regenerieren. Bonusaktion',
     cost: { type: 'energy', amount: 30 },
     actionType: 'Bonusaktion'
   },
@@ -1117,7 +1117,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Adlerauge',
     class: 'Seelenformer',
     type: 'active',
-    description: 'Nutze die Wahrnehmung einer deiner Beschw�rungen als deine eigene',
+    description: 'Nutze die Wahrnehmung einer deiner Beschwörungen als deine eigene',
     cost: { type: 'energy', amount: 10, perRound: true },
     actionType: 'Aktion'
   },
@@ -1126,7 +1126,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Sanktum',
     class: 'Seelenformer',
     type: 'active',
-    description: 'Festige die Seele eines Verb�ndeten, was ihn immun gegen psychische Angriffe macht',
+    description: 'Festige die Seele eines Verbündeten, was ihn immun gegen psychische Angriffe macht. Bonusaktion',
     enlightened: true,
     cost: { type: 'energy', amount: 10, perRound: true },
     actionType: 'Bonusaktion'
@@ -1148,7 +1148,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Waffenkenner',
     class: 'Erzritter',
     type: 'passive',
-    description: 'Waffenvorraussetzung-8 f�r schwere Waffen',
+    description: 'Waffenvorraussetzung-8 für schwere Waffen',
     enlightened: true
   },
   {
@@ -1160,43 +1160,43 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'erzritter_unzerbrechliche_ruestung',
-    name: 'Unzerbrechliche R�stung',
+    name: 'Unzerbrechliche Rüstung',
     class: 'Erzritter',
     type: 'passive',
-    description: 'Halbiert R�stungsschaden'
+    description: 'Halbiert Rüstungsschaden'
   },
   {
     id: 'erzritter_ruestungsschmied',
-    name: 'R�stungsschmied',
+    name: 'Rüstungsschmied',
     class: 'Erzritter',
     type: 'passive',
-    description: 'Verdreifacht erw�rfelte Schmiedepunkte beim Schmieden von R�stung'
+    description: 'Verdreifacht erwürfelte Schmiedepunkte beim Schmieden von Rüstung'
   },
   {
     id: 'erzritter_volle_wucht',
     name: 'Volle Wucht',
     class: 'Erzritter',
     type: 'active',
-    description: 'Rammangriff, der mit R�stungsgewicht skaliert',
+    description: 'Rammangriff, der mit Rüstungsgewicht skaliert',
     enlightened: true,
     cost: { type: 'energy', amount: 15 },
     actionType: 'Aktion'
   },
   {
     id: 'erzritter_schwerer_panzer',
-    name: '+Schwerer Panzer',
+    name: 'Schwerer Panzer',
     class: 'Erzritter',
     type: 'active',
-    description: '"Schwere R�stung" kostet keine Ausdauer.',
+    description: '"Schwere Rüstung" kostet keine Ausdauer. Benötigt Schwere Rüstung.',
     requiresSkill: 'ritter_schwere_ruestung',
     actionType: 'Aktion'
   },
   {
     id: 'erzritter_magische_ausruestung',
-    name: 'Magische Ausr�stung',
+    name: 'Magische Ausrüstung',
     class: 'Erzritter',
     type: 'active',
-    description: 'R�stung wird magisch an- und ausger�stet',
+    description: 'Rüstung wird magisch an- und ausgerüstet. Bonusaktion',
     cost: { type: 'mana', amount: 5 },
     actionType: 'Bonusaktion'
   },
@@ -1212,15 +1212,15 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'templer_verlaengerter_arm',
-    name: '+Verl�ngerter Arm',
+    name: 'Verlängerter Arm',
     class: 'Templer',
     type: 'passive',
-    description: 'St�be z�hlen f�r "Waffenloser Kampf".',
+    description: 'Stäbe zählen für "Waffenloser Kampf". Benötigt Waffenloser Kampf',
     requiresSkill: 'moench_waffenloser_kampf'
   },
   {
     id: 'templer_staehlerne_haut',
-    name: 'St�hlerne Haut',
+    name: 'Stählerne Haut',
     class: 'Templer',
     type: 'passive',
     description: 'Halbiert Schaden gegen Wuchtangriffe',
@@ -1228,7 +1228,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'templer_mentale_ruestung',
-    name: 'Mentale R�stung',
+    name: 'Mentale Rüstung',
     class: 'Templer',
     type: 'passive',
     description: 'Kann bei Schaden anstatt Leben 150% des Schadens als Ausdauer verlieren.',
@@ -1236,20 +1236,20 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'templer_chakrawissen',
-    name: '+Chakrawissen',
+    name: 'Chakrawissen',
     class: 'Templer',
     type: 'active',
-    description: '"Chakra-Blockade" kann f�r jeden Angriff ohne Kosten aktiviert werden.',
+    description: '"Chakra-Blockade" kann für jeden Angriff ohne Kosten aktiviert werden. Keine Aktion',
     requiresSkill: 'moench_chakra_blockade',
     cost: { type: 'energy', amount: 0 },
     actionType: 'Keine Aktion'
   },
   {
     id: 'templer_laehmung',
-    name: 'L�hmung',
+    name: 'Lähmung',
     class: 'Templer',
     type: 'active',
-    description: 'Angriff, der Gegner komplett l�hmt',
+    description: 'Angriff, der Gegner komplett lähmt',
     cost: { type: 'energy', amount: 30 },
     actionType: 'Aktion'
   },
@@ -1277,10 +1277,10 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // ==================== GENERAL ====================
   {
     id: 'general_staerke_4',
-    name: 'St�rke+4',
+    name: 'Stärke+4',
     class: 'General',
     type: 'stat_bonus',
-    description: 'St�rke+4',
+    description: 'Stärke+4',
     statBonus: { stat: 'strength', amount: 4 }
   },
   {
@@ -1293,10 +1293,10 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'general_leibwaechter',
-    name: 'Leibw�chter',
+    name: 'Leibwächter',
     class: 'General',
     type: 'passive',
-    description: '-2 auf Reaktionen von Verb�ndeten, um dich zu sch�tzen',
+    description: '-2 auf Reaktionen von Verbündeten, um dich zu schützen',
     enlightened: true
   },
   {
@@ -1304,7 +1304,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Angriffsbefehl',
     class: 'General',
     type: 'active',
-    description: 'Schenkt einem Verb�ndeten einen Extrazug',
+    description: 'Schenkt einem Verbündeten einen Extrazug',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -1313,7 +1313,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schutzbefehl',
     class: 'General',
     type: 'active',
-    description: 'Ein Veb�ndeter erh�lt -5 auf die Reaktion des n�chsten Angriffs',
+    description: 'Ein Vebündeter erhält -5 auf die Reaktion des nächsten Angriffs',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -1322,7 +1322,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Standbefehl',
     class: 'General',
     type: 'active',
-    description: 'Zieht eine Linie, auf der alle Verb�ndeten im Kampf -1 erhalten',
+    description: 'Zieht eine Linie, auf der alle Verbündeten im Kampf -1 erhalten',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -1331,16 +1331,16 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Befehlskette',
     class: 'General',
     type: 'active',
-    description: 'Kann diese Runde unendlich viele Befehle ausgeben f�r doppelte Ausdauerkosten',
+    description: 'Kann diese Runde unendlich viele Befehle ausgeben für doppelte Ausdauerkosten',
     cost: { type: 'energy', amount: 0 },
     actionType: 'Aktion'
   },
 
-  // ==================== KLINGENT�NZER ====================
+  // ==================== KLINGENTÄNZER ====================
   {
     id: 'klingentaenzer_geschwindigkeit_4',
     name: 'Geschwindigkeit+4',
-    class: 'Klingent�nzer',
+    class: 'Klingentänzer',
     type: 'stat_bonus',
     description: 'Geschwindigkeit+4',
     statBonus: { stat: 'speed', amount: 4 }
@@ -1348,55 +1348,55 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'klingentaenzer_waffen_werfen',
     name: 'Waffen werfen-2',
-    class: 'Klingent�nzer',
+    class: 'Klingentänzer',
     type: 'dice_bonus',
     description: 'Waffen werfen-2'
   },
   {
     id: 'klingentaenzer_waffengelehrter',
     name: 'Waffengelehrter',
-    class: 'Klingent�nzer',
+    class: 'Klingentänzer',
     type: 'passive',
-    description: 'Waffenvorraussetzung-8 f�r leichte Waffen',
+    description: 'Waffenvorraussetzung-8 für leichte Waffen',
     enlightened: true
   },
   {
     id: 'klingentaenzer_waffentanz',
     name: 'Waffentanz',
-    class: 'Klingent�nzer',
+    class: 'Klingentänzer',
     type: 'passive',
     description: '-1 auf den ersten Angriff mit einer Waffe. Erneuert sich, wenn Waffe min. 1m von dir entfernt ist oder in dieser Runde aufgehoben wurde'
   },
   {
     id: 'klingentaenzer_akrobat',
     name: 'Akrobat',
-    class: 'Klingent�nzer',
+    class: 'Klingentänzer',
     type: 'passive',
-    description: '+3 Bewegung auf Waffen zu, die momentan niemand h�lt'
+    description: '+3 Bewegung auf Waffen zu, die momentan niemand hält'
   },
   {
     id: 'klingentaenzer_unantastbar',
     name: 'Unantastbar',
-    class: 'Klingent�nzer',
+    class: 'Klingentänzer',
     type: 'passive',
-    description: 'Nach einer Killbeteiligung kann in der n�chsten Runde einem Angriff garantiert ausgewichen werden',
+    description: 'Nach einer Killbeteiligung kann in der nächsten Runde einem Angriff garantiert ausgewichen werden',
     enlightened: true
   },
   {
     id: 'klingentaenzer_fliegender_kick',
     name: 'Fliegender Kick',
-    class: 'Klingent�nzer',
+    class: 'Klingentänzer',
     type: 'active',
-    description: 'Leichte Waffen, die sich in der Luft befinden, k�nnen auf Gegner gekickt werden. Kann auch als Reaktion genutzt werden',
+    description: 'Leichte Waffen, die sich in der Luft befinden, können auf Gegner gekickt werden. Kann auch als Reaktion genutzt werden',
     cost: { type: 'energy', amount: 10 },
     actionType: 'Aktion'
   },
   {
     id: 'klingentaenzer_klingenwirbel',
     name: 'Klingenwirbel',
-    class: 'Klingent�nzer',
+    class: 'Klingentänzer',
     type: 'active',
-    description: 'Wirf eine leichte Waffe mit so viel Drall, dass sie n�chste Runde zur�ckkehrt',
+    description: 'Wirf eine leichte Waffe mit so viel Drall, dass sie nächste Runde zurückkehrt',
     enlightened: true,
     cost: { type: 'energy', amount: 5 },
     actionType: 'Aktion'
@@ -1413,7 +1413,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'assassine_gnadenstoss',
-    name: 'Gnadensto�',
+    name: 'Gnadenstoß',
     class: 'Assassine',
     type: 'passive',
     description: '-2 auf Angriffe gegen vergiftete Gegner',
@@ -1424,7 +1424,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Exitus',
     class: 'Assassine',
     type: 'passive',
-    description: '-1 auf Angriffe mit Absicht zu t�ten'
+    description: '-1 auf Angriffe mit Absicht zu töten'
   },
   {
     id: 'assassine_hinterhalt',
@@ -1446,7 +1446,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Gift mischen',
     class: 'Assassine',
     type: 'passive',
-    description: '-2 beim Brauen auf Tr�nke mit sch�dlichem Effekt',
+    description: '-2 beim Brauen auf Tränke mit schädlichem Effekt',
     enlightened: true
   },
   {
@@ -1474,14 +1474,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Nachternte',
     class: 'Phantom',
     type: 'passive',
-    description: 'Stellt 2 D20 Mana her, wenn Gegner get�tet wird'
+    description: 'Stellt 2 D20 Mana her, wenn Gegner getötet wird'
   },
   {
     id: 'phantom_hoehenvorteil',
-    name: 'H�henvorteil',
+    name: 'Höhenvorteil',
     class: 'Phantom',
     type: 'passive',
-    description: '-2 auf Angriffe, die aus mindestens 10m H�he �ber dem Gegner ausgef�hrt werden',
+    description: '-2 auf Angriffe, die aus mindestens 10m Höhe über dem Gegner ausgeführt werden',
     enlightened: true
   },
   {
@@ -1489,7 +1489,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Spiegelversteck',
     class: 'Phantom',
     type: 'passive',
-    description: 'Kann sich in der Reflektion eines Spiegels verbergen. Kann von Spiegel zu Spiegel in Sichtfeld springen. Wird beendet, wenn dieser zerst�rt oder unklar wird. 5 pro Runde',
+    description: 'Kann sich in der Reflektion eines Spiegels verbergen. Kann von Spiegel zu Spiegel in Sichtfeld springen. Wird beendet, wenn dieser zerstört oder unklar wird. 5 pro Runde',
     enlightened: true
   },
   {
@@ -1497,7 +1497,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schattenform',
     class: 'Phantom',
     type: 'active',
-    description: 'Mache deinen K�rper durchl�ssig und schwebend, wodurch du dich durch Objekte bewegen kannst und nicht von nichtmagischen Angriffen getroffen werden kannst, aber auch nur mit Magie angreifen kannst',
+    description: 'Mache deinen Körper durchlässig und schwebend, wodurch du dich durch Objekte bewegen kannst und nicht von nichtmagischen Angriffen getroffen werden kannst, aber auch nur mit Magie angreifen kannst',
     cost: { type: 'energy', amount: 20, perRound: true },
     actionType: 'Bonusaktion'
   },
@@ -1506,7 +1506,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schrei der Todesfee',
     class: 'Phantom',
     type: 'active',
-    description: 'W�hle einen Skill aus, der f�r alle Gegner in H�rreichweite blockiert wird. Kostet 10x die Rundendauer',
+    description: 'Wähle einen Skill aus, der für alle Gegner in Hörreichweite blockiert wird. Kostet 10x die Rundendauer',
     actionType: 'Aktion'
   },
   {
@@ -1514,7 +1514,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Dunkler Begleiter',
     class: 'Phantom',
     type: 'active',
-    description: 'Verschwinde im K�rper eines Verb�ndeten. In diesem Zustand k�nnen alle Skills des Verb�ndeten verwendet werden (auf eigene Kosten). Bei Angriffen erhalten beide Schaden',
+    description: 'Verschwinde im Körper eines Verbündeten. In diesem Zustand können alle Skills des Verbündeten verwendet werden (auf eigene Kosten). Bei Angriffen erhalten beide Schaden',
     cost: { type: 'energy', amount: 10, perRound: true },
     actionType: 'Aktion'
   },
@@ -1542,11 +1542,11 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Zauberarchitekt',
     class: 'Formationsmagier',
     type: 'passive',
-    description: 'Halbiert Fokuskosten von Zaubern mit einer Effizienz von �ber 100.'
+    description: 'Halbiert Fokuskosten von Zaubern mit einer Effizienz von über 100.'
   },
   {
     id: 'formationsmagier_magische_rueckkopplung',
-    name: 'Magische R�ckkopplung',
+    name: 'Magische Rückkopplung',
     class: 'Formationsmagier',
     type: 'passive',
     description: 'Kann objektgebundene Zauber als Bonusaktion verwenden, verbraucht aber x10 Haltbarkeit.',
@@ -1557,38 +1557,38 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Arkane Resonanz',
     class: 'Formationsmagier',
     type: 'passive',
-    description: 'Muss bei Formationen(gro�en Spells) nur 10% der zus�tzlichen Manakosten zahlen.'
+    description: 'Muss bei Formationen(großen Spells) nur 10% der zusätzlichen Manakosten zahlen.'
   },
   {
     id: 'formationsmagier_vorbereiten',
     name: 'Vorbereiten',
     class: 'Formationsmagier',
     type: 'passive',
-    description: '+5 beim W�rfeln f�r Zaubercasts, deren Maximum bei 50 oder h�her liegt'
+    description: '+5 beim Würfeln für Zaubercasts, deren Maximum bei 50 oder höher liegt'
   },
   {
     id: 'formationsmagier_dunkles_siegel',
     name: 'Dunkles Siegel',
     class: 'Formationsmagier',
     type: 'active',
-    description: '-10 auf den n�chsten Zauber, danach kann einen Tag keine Magie mehr benutzt werden',
+    description: '-10 auf den nächsten Zauber, danach kann einen Tag keine Magie mehr benutzt werden',
     cost: { type: 'energy', amount: 10 },
     actionType: 'Bonusaktion'
   },
 
-  // ==================== RUNENK�NSTLER ====================
+  // ==================== RUNENKÜNSTLER ====================
   {
     id: 'runenkuenstler_mana_40',
     name: 'Mana+40',
-    class: 'Runenk�nstler',
+    class: 'Runenkünstler',
     type: 'stat_bonus',
     description: 'Mana+40',
     statBonus: { stat: 'mana', amount: 40 }
   },
   {
     id: 'runenkuenstler_verinnerlichen',
-    name: '+Verinnerlichen',
-    class: 'Runenk�nstler',
+    name: 'Verinnerstlichen',
+    class: 'Runenkünstler',
     type: 'passive',
     description: 'Kann unendlich viele Zauber sofort auswendig lernen.',
     enlightened: true,
@@ -1597,14 +1597,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'runenkuenstler_zauberecho',
     name: 'Zauberecho',
-    class: 'Runenk�nstler',
+    class: 'Runenkünstler',
     type: 'passive',
     description: 'Kann den in dieser Aktion genutzten Zauber nochmal benutzen. Bonusaktion, 20'
   },
   {
     id: 'runenkuenstler_runenmeister',
     name: 'Runenmeister',
-    class: 'Runenk�nstler',
+    class: 'Runenkünstler',
     type: 'passive',
     description: 'Vorteil auf Analyse von unbekannten Runen',
     enlightened: true
@@ -1612,24 +1612,24 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'runenkuenstler_zauberhast',
     name: 'Zauberhast',
-    class: 'Runenk�nstler',
+    class: 'Runenkünstler',
     type: 'passive',
-    description: '+10m Bewegung, wenn du in dieser Runde einen Gegner kampfunf�hig gemacht hast. Pro Gegner einmal m�glich.'
+    description: '+10m Bewegung, wenn du in dieser Runde einen Gegner kampfunfähig gemacht hast. Pro Gegner einmal möglich.'
   },
   {
     id: 'runenkuenstler_runenblick',
     name: 'Runenblick',
-    class: 'Runenk�nstler',
+    class: 'Runenkünstler',
     type: 'active',
-    description: 'Analysiert die Struktur eines unbekannten Spells im Sichtfeld und lernt dessen Struktur auswendig. Manakosten des Zaubers/4',
+    description: 'Analysiert die Struktur eines unbekannten Spells im Sichtfeld und lernt dessen Struktur auswendig, Manakosten des Zaubers/4',
     actionType: 'Aktion'
   },
   {
     id: 'runenkuenstler_brennender_fokus',
     name: 'Brennender Fokus',
-    class: 'Runenk�nstler',
+    class: 'Runenkünstler',
     type: 'active',
-    description: 'Halbiert Fokus solange aktiv und erh�ht Effektivit�t von allen Zaubern um 50%',
+    description: 'Halbiert Fokus solange aktiv und erhöht Effektivität von allen Zaubern um 50%. Bonusaktion',
     cost: { type: 'energy', amount: 5, perRound: true },
     actionType: 'Bonusaktion'
   },
@@ -1663,7 +1663,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Telepathie',
     class: 'Mentalist',
     type: 'passive',
-    description: 'Kann mit Verb�ndeten in [Intelligenz*5]m Entfernung telepathisch kommunizieren (mit deren Einverst�ndnis)',
+    description: 'Kann mit Verbündeten in [Intelligenz*5]m Entfernung telepathisch kommunizieren (mit deren Einverständnis)',
     enlightened: true
   },
   {
@@ -1678,7 +1678,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Invasion',
     class: 'Mentalist',
     type: 'active',
-    description: '�bernimmt Kontrolle �ber Kreatur. Gegnerintelligenz*2 pro Runde, min. 10',
+    description: 'Übernimmt Kontrolle über Kreatur, Gegnerintelligenz*2 pro Runde, min. 10',
     actionType: 'Aktion'
   },
   {
@@ -1686,7 +1686,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Abbild',
     class: 'Mentalist',
     type: 'active',
-    description: 'Kopiere den aktiven Skill einer Person und �bertrage ihn zu einer anderen Person, der Skill kann einmalig verwendet werden und ist auf 1 pro Person limitiert',
+    description: 'Kopiere den aktiven Skill einer Person und übertrage ihn zu einer anderen Person, der Skill kann einmalig verwendet werden und ist auf 1 pro Person limitiert',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -1714,7 +1714,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Formwechsel',
     class: 'Gestaltenwandler',
     type: 'passive',
-    description: 'Kann bei K�rperkontakt Objekte in Beschw�rungen verwandeln, das Objekt bleibt in der Beschw�rung, solange diese besteht',
+    description: 'Kann bei Körperkontakt Objekte in Beschwörungen verwandeln, das Objekt bleibt in der Beschwörung, solange diese besteht',
     enlightened: true
   },
   {
@@ -1731,26 +1731,26 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Imitation',
     class: 'Gestaltenwandler',
     type: 'active',
-    description: 'Verwandelt sich in ein anderes Lebewesen, wenn K�rperkontakt besteht. �bernimmt keine Skills oder Stats',
+    description: 'Verwandelt sich in ein anderes Lebewesen, wenn Körperkontakt besteht. Übernimmt keine Skills oder Stats',
     enlightened: true,
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
   {
     id: 'gestaltenwandler_doppelgaenger',
-    name: 'Doppelg�nger',
+    name: 'Doppelgänger',
     class: 'Gestaltenwandler',
     type: 'active',
-    description: 'Beschw�rt einen Doppelg�nger mit identischem Aussehen und teilt Leben, Mana, Ausdauer und Fokus zwischen beiden auf. Stirbt das Original, lebt der Doppelg�nger mit halbierten Stats weiter, auf einen gleichzeitig begrenzt',
+    description: 'Beschwört einen Doppelgänger mit identischem Aussehen und teilt Leben, Mana, Ausdauer und Fokus zwischen beiden auf. Stirbt das Original, lebt der Doppelgänger mit halbierten Stats weiter, auf einen gleichzeitig begrenzt',
     cost: { type: 'energy', amount: 50 },
     actionType: 'Aktion'
   },
   {
     id: 'gestaltenwandler_seelenmeister',
-    name: '+Seelenmeister',
+    name: 'Seelenmeister',
     class: 'Gestaltenwandler',
     type: 'active',
-    description: 'Erweitert Seelenwacht auf menschliche Ziele. Kopiert deren Skills.',
+    description: 'Erweitert Seelenwacht auf menschliche Ziele. Kopiert deren Skills. Benötigt Seelenwacht',
     requiresSkill: 'seelenformer_seelenwacht',
     actionType: 'Aktion'
   },
@@ -1770,26 +1770,26 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Fixer Fixer',
     class: 'Paladin',
     type: 'passive',
-    description: 'Kann pure Unterst�tzungszauber als Bonusaktion verwenden'
+    description: 'Kann pure Unterstützungszauber als Bonusaktion verwenden'
   },
   {
     id: 'paladin_schnelle_hilfe',
     name: 'Schnelle Hilfe',
     class: 'Paladin',
     type: 'passive',
-    description: 'Verb�ndete, die von einem puren Unterst�tzungszauber getroffen werden, erhalten in ihrem n�chsten Zug eine zus�tzliche Bonusaktion'
+    description: 'Verbündete, die von einem puren Unterstützungszauber getroffen werden, erhalten in ihrem nächsten Zug eine zusätzliche Bonusaktion'
   },
   {
     id: 'paladin_inspiration',
     name: 'Inspiration',
     class: 'Paladin',
     type: 'passive',
-    description: 'Nach einem guten Wurf (1-8nat) kann ein Verb�ndeter ausgew�hlt werden, der -1 auf seinen n�chsten Wurf erh�lt',
+    description: 'Nach einem guten Wurf (1-8nat) kann ein Verbündeter ausgewählt werden, der -1 auf seinen nächsten Wurf erhält',
     enlightened: true
   },
   {
     id: 'paladin_gleissendes_licht',
-    name: 'Glei�endes Licht',
+    name: 'Gleißendes Licht',
     class: 'Paladin',
     type: 'passive',
     description: 'Halbiert Manakosten von Lichtrunen',
@@ -1800,14 +1800,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Heroischer Auftritt',
     class: 'Paladin',
     type: 'passive',
-    description: 'Wenn ein Verb�ndeter in kritischem Zustand ist, erhalte Vorteil auf alle Aktionen, um diesen Verb�ndeten zu besch�tzen oder zu heilen.'
+    description: 'Wenn ein Verbündeter in kritischem Zustand ist, erhalte Vorteil auf alle Aktionen, um diesen Verbündeten zu beschützen oder zu heilen.'
   },
   {
     id: 'paladin_erneuerung',
     name: 'Erneuerung',
     class: 'Paladin',
     type: 'active',
-    description: 'Repariert einen ausgew�hlten Gegenstand in der N�he um 3 D20 Haltbarkeit',
+    description: 'Repariert einen ausgewählten Gegenstand in der Nähe um 3 D20 Haltbarkeit',
     enlightened: true,
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
@@ -1817,7 +1817,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Heiliger Sprint',
     class: 'Paladin',
     type: 'active',
-    description: 'Erhalte x4 Bewegung auf Verb�ndete im kritischen Zustand',
+    description: 'Erhalte x4 Bewegung auf Verbündete im kritischen Zustand',
     enlightened: true,
     cost: { type: 'energy', amount: 10 },
     actionType: 'Aktion'
@@ -1825,11 +1825,11 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
 
   // ==================== TIER 5 ====================
 
-  // ==================== W�CHTER ====================
+  // ==================== WÄCHTER ====================
   {
     id: 'waechter_konstitution_4',
     name: 'Konstitution+4',
-    class: 'W�chter',
+    class: 'Wächter',
     type: 'stat_bonus',
     description: 'Konstitution+4',
     statBonus: { stat: 'constitution', amount: 4 },
@@ -1838,22 +1838,22 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'waechter_leibwache',
     name: 'Leibwache',
-    class: 'W�chter',
+    class: 'Wächter',
     type: 'passive',
-    description: 'Erhalte 2 Reaktionen f�r Angriffe auf Verb�ndete in der N�he'
+    description: 'Erhalte 2 Reaktionen für Angriffe auf Verbündete in der Nähe'
   },
   {
     id: 'waechter_kenne_deinen_feind',
     name: 'Kenne deinen Feind',
-    class: 'W�chter',
+    class: 'Wächter',
     type: 'passive',
-    description: 'Nach jedem erfolgreichen Block erh�lst du -1 auf alle Angriffe und Blocks gegen diesen Gegner, maximal -3',
+    description: 'Nach jedem erfolgreichen Block erhälst du -1 auf alle Angriffe und Blocks gegen diesen Gegner, maximal -3',
     enlightened: true
   },
   {
     id: 'waechter_schildmeister',
     name: 'Schildmeister',
-    class: 'W�chter',
+    class: 'Wächter',
     type: 'passive',
     description: '-2 auf Angriffe und Blocks mit Schild',
     enlightened: true
@@ -1861,25 +1861,25 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'waechter_edles_opfer',
     name: 'Edles Opfer',
-    class: 'W�chter',
+    class: 'Wächter',
     type: 'passive',
-    description: 'Wenn du in den kritischen Zustand f�llst, erhalten alle Verb�ndeten in der N�he einmal pro Kampf eine Heilung, die der H�lfte deiner Leben entspricht'
+    description: 'Wenn du in den kritischen Zustand fällst, erhalten alle Verbündeten in der Nähe einmal pro Kampf eine Heilung, die der Hälfte deiner Leben entspricht'
   },
   {
     id: 'waechter_beschuetzerinstinkt',
-    name: 'Besch�tzerinstinkt',
-    class: 'W�chter',
+    name: 'Beschützerinstinkt',
+    class: 'Wächter',
     type: 'active',
-    description: 'Sp�rt alle Gefahren in der Umgebung auf. Kosten entsprechen dem Aufsp�rradius in m',
+    description: 'Spürt alle Gefahren in der Umgebung auf, Kosten entsprechen dem Aufspürradius in m',
     enlightened: true,
     actionType: 'Aktion'
   },
   {
     id: 'waechter_vergeltungsschlag',
     name: 'Vergeltungsschlag',
-    class: 'W�chter',
+    class: 'Wächter',
     type: 'active',
-    description: 'Geht in eine defensive Position f�r die Dauer des Skills, was Bewegung halbiert und nur defensive Aktionen erlaubt. Wird der Skill beendet, wird ein Schlag ausgef�hrt, dessen St�rke mit dem eingesteckten Schaden skaliert',
+    description: 'Geht in eine defensive Position für die Dauer des Skills, was Bewegung halbiert und nur defensive Aktionen erlaubt. Wird der Skill beendet, wird ein Schlag ausgeführt, dessen Stärke mit dem eingesteckten Schaden skaliert',
     cost: { type: 'energy', amount: 10, perRound: true },
     actionType: 'Bonusaktion'
   },
@@ -1887,10 +1887,10 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // ==================== KOLOSS ====================
   {
     id: 'koloss_konstitution_staerke_2',
-    name: 'Konstitution&St�rke+2',
+    name: 'Konstitution&Stärke+2',
     class: 'Koloss',
     type: 'stat_bonus',
-    description: 'Konstitution&St�rke+2',
+    description: 'Konstitution&Stärke+2',
     statBonuses: [{ stat: 'constitution', amount: 2 }, { stat: 'strength', amount: 2 }],
     infiniteLevel: true
   },
@@ -1912,7 +1912,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'koloss_provokante_praesenz',
-    name: 'Provokante Pr�senz',
+    name: 'Provokante Präsenz',
     class: 'Koloss',
     type: 'passive',
     description: 'Zieht Fokus der Gegner auf sich',
@@ -1923,15 +1923,15 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Erdbeben',
     class: 'Koloss',
     type: 'active',
-    description: 'Erzeugt Beben im Umkreis. Kosten entsprechen der H�lfte des Radius',
+    description: 'Erzeugt Beben im Umkreis, Kosten entsprechen der Hälfte des Radius',
     actionType: 'Aktion'
   },
   {
     id: 'koloss_wahre_groesse',
-    name: 'Wahre Gr��e',
+    name: 'Wahre Größe',
     class: 'Koloss',
     type: 'active',
-    description: 'Wird f�r kurze Zeit viel gr��er. Kosten entsprechen Gr��enskalierung*10 pro Runde',
+    description: 'Wird für kurze Zeit viel größer, Bonusaktion, Kosten entsprechen Größenskalierung*10 pro Runde',
     actionType: 'Bonusaktion'
   },
   {
@@ -1939,7 +1939,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Kolossaler Schlag',
     class: 'Koloss',
     type: 'active',
-    description: 'Holt f�r Schlag aus, der mehr Reichweite und Schaden besitzt, je l�nger ausgeholt wird',
+    description: 'Holt für Schlag aus, der mehr Reichweite und Schaden besitzt, je länger ausgeholt wird',
     enlightened: true,
     cost: { type: 'energy', amount: 20, perRound: true },
     actionType: 'Aktion'
@@ -1968,7 +1968,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Finstere Aura',
     class: 'Omen',
     type: 'passive',
-    description: 'Gegner, die ihm Schaden zuf�gen, werden mit geringer Wahrscheinlichkeit ver�ngstigt.',
+    description: 'Gegner, die ihm Schaden zufügen, werden mit geringer Wahrscheinlichkeit verängstigt.',
     enlightened: true
   },
   {
@@ -1976,7 +1976,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Vorwarnung',
     class: 'Omen',
     type: 'active',
-    description: 'Kann eine bereits bekannte Person verfluchen, nach einem Tag wird diese Person von Pech verfolgt. Dieser Effekt wird st�rker, je n�her der Nutzer zum verfluchten Ziel ist. Kostet 1/4 der gegn. HP',
+    description: 'Kann eine bereits bekannte Person verfluchen, nach einem Tag wird diese Person von Pech verfolgt. Dieser Effekt wird stärker, je näher der Nutzer zum verfluchten Ziel ist. Kostet 1/4 der gegn. HP',
     actionType: 'Aktion'
   },
   {
@@ -1984,7 +1984,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Kraftraub',
     class: 'Omen',
     type: 'active',
-    description: 'Stiehlt die Ausdauer (D20) einer anderen Person in unmittelbarer N�he und regeneriert den selben Betrag beim Nutzer',
+    description: 'Stiehlt die Ausdauer (D20) einer anderen Person in unmittelbarer Nähe und regeneriert den selben Betrag beim Nutzer. Bonusaktion',
     enlightened: true,
     cost: { type: 'energy', amount: 0 },
     actionType: 'Bonusaktion'
@@ -1994,7 +1994,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schlachtschwur',
     class: 'Omen',
     type: 'active',
-    description: 'Solange die F�higkeit aktiv ist, wird der Schaden gegen den Anwender gespeichert. Wenn er einen Gegner t�tet, wird der gespeicherte Schaden wieder geheilt',
+    description: 'Solange die Fähigkeit aktiv ist, wird der Schaden gegen den Anwender gespeichert. Wenn er einen Gegner tötet, wird der gespeicherte Schaden wieder geheilt',
     cost: { type: 'energy', amount: 10, perRound: true },
     actionType: 'Bonusaktion'
   },
@@ -2003,16 +2003,16 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Unheilvoller Auftritt',
     class: 'Omen',
     type: 'active',
-    description: 'Bereitet f�r 3 Runden ein finsteres Ritual an einem Ort in seinem Sichtfeld vor, w�hrend denen der Nutzer nichts anderes tun kann. Danach h�llt er diesen Ort in Finsternis und fliegt in sein Zentrum. Alle Gegner im Umkreis werden entweder gel�hmt, ver�ngstigt, oder verstummt',
+    description: 'Bereitet für 3 Runden ein finsteres Ritual an einem Ort in seinem Sichtfeld vor, während denen der Nutzer nichts anderes tun kann. Danach hüllt er diesen Ort in Finsternis und fliegt in sein Zentrum. Alle Gegner im Umkreis werden entweder gelähmt, verängstigt, oder verstummt',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
   {
     id: 'omen_fluchruestung',
-    name: 'Fluchr�stung',
+    name: 'Fluchrüstung',
     class: 'Omen',
     type: 'active',
-    description: 'Absorbiert alle negativen Effekte aller Personen im Umkreis. Erh�lt R�stung mit Stabilit�t abh�ngig von der Anzahl und St�rke der absorbierten Effekte f�r 3 Runden',
+    description: 'Absorbiert alle negativen Effekte aller Personen im Umkreis. Erhält Rüstung mit Stabilität abhängig von der Anzahl und Stärke der absorbierten Effekte für 3 Runden',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -2020,10 +2020,10 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // ==================== KRIEGSHERR ====================
   {
     id: 'kriegsherr_staerke_4',
-    name: 'St�rke+4',
+    name: 'Stärke+4',
     class: 'Kriegsherr',
     type: 'stat_bonus',
-    description: 'St�rke+4',
+    description: 'Stärke+4',
     statBonus: { stat: 'strength', amount: 4 },
     infiniteLevel: true
   },
@@ -2032,11 +2032,11 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Blutrausch',
     class: 'Kriegsherr',
     type: 'passive',
-    description: 'Erhalte eine Extra-Aktion, wenn du diese Runde einen Gegner t�test'
+    description: 'Erhalte eine Extra-Aktion, wenn du diese Runde einen Gegner tötest'
   },
   {
     id: 'kriegsherr_wutbewaeltigung',
-    name: 'Wutbew�ltigung',
+    name: 'Wutbewältigung',
     class: 'Kriegsherr',
     type: 'passive',
     description: 'Negative Effekte von Rage werden aufgehoben',
@@ -2047,11 +2047,11 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Vorreiter',
     class: 'Kriegsherr',
     type: 'passive',
-    description: 'Wenn du den ersten Treffer austeilst oder einsteckst, erhalten alle Verb�ndeten eine Extra-Aktion f�r ihren n�chsten Zug'
+    description: 'Wenn du den ersten Treffer austeilst oder einsteckst, erhalten alle Verbündeten eine Extra-Aktion für ihren nächsten Zug'
   },
   {
     id: 'kriegsherr_lebensmuede',
-    name: 'Lebensm�de',
+    name: 'Lebensmüde',
     class: 'Kriegsherr',
     type: 'active',
     description: '-3 auf Nahkampfangriffe, +2 gegen Angriffe',
@@ -2064,7 +2064,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Todeswirbel',
     class: 'Kriegsherr',
     type: 'active',
-    description: 'Greife jeden Gegner um dich herum an, -1 f�r jeden Gegner in Reichweite',
+    description: 'Greife jeden Gegner um dich herum an, -1 für jeden Gegner in Reichweite',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -2079,7 +2079,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'kriegsherr_maechtiger_stoss',
-    name: 'M�chtiger Sto�',
+    name: 'Mächtiger Stoß',
     class: 'Kriegsherr',
     type: 'active',
     description: 'Gegner, die von Nahkampfangriffen getroffen werden, fliegen bis zu 20m weg',
@@ -2122,10 +2122,10 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'duellant_uebertakten',
-    name: '�bertakten',
+    name: 'Übertakten',
     class: 'Duellant',
     type: 'active',
-    description: 'Greift Gegner an, kann nach einem Treffer eine Extra-Aktion ausf�hren. (+15 mit jeder weiteren Benutzung in dieser Runde)',
+    description: 'Greift Gegner an, kann nach einem Treffer eine Extra-Aktion ausführen',
     enlightened: true,
     cost: { type: 'energy', amount: 15 },
     actionType: 'Aktion'
@@ -2135,7 +2135,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Konter',
     class: 'Duellant',
     type: 'active',
-    description: 'Blockt und reflektiert physischen Angriff mit doppelter St�rke',
+    description: 'Blockt und reflektiert physischen Angriff mit doppelter Stärke. Reaktion',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Reaktion'
   },
@@ -2144,7 +2144,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schwachstellen aufdecken',
     class: 'Duellant',
     type: 'active',
-    description: 'Kann R�stung mit n�chstem Angriff ignorieren',
+    description: 'Kann Rüstung mit nächstem Angriff ignorieren. Bonusaktion',
     enlightened: true,
     cost: { type: 'energy', amount: 15 },
     actionType: 'Bonusaktion'
@@ -2153,19 +2153,19 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // ==================== WAFFENMEISTER ====================
   {
     id: 'waffenmeister_geschicklichkeit_staerke_2',
-    name: 'Geschicklichkeit&St�rke+2',
+    name: 'Geschicklichkeit&Stärke+2',
     class: 'Waffenmeister',
     type: 'stat_bonus',
-    description: 'Geschicklichkeit&St�rke+2',
+    description: 'Geschicklichkeit&Stärke+2',
     statBonuses: [{ stat: 'dexterity', amount: 2 }, { stat: 'strength', amount: 2 }],
     infiniteLevel: true
   },
   {
     id: 'waffenmeister_waffenmeister',
-    name: '+Waffenmeister',
+    name: 'Waffenmeister',
     class: 'Waffenmeister',
     type: 'passive',
-    description: 'Waffenvorraussetzungen werden aufgehoben, ben�tigt "Waffenwissen","Waffenkenner" und "Waffengelehter"',
+    description: 'Waffenvorraussetzungen werden aufgehoben, benötigt "Waffenwissen","Waffenkenner" und "Waffengelehter"',
     enlightened: true,
     requiresSkill: ['schutze_waffenwissen', 'erzritter_waffenkenner', 'klingentaenzer_waffengelehrter']
   },
@@ -2182,14 +2182,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Waffenschmied',
     class: 'Waffenmeister',
     type: 'passive',
-    description: 'Verdreifacht erw�rfelte Schmiedepunkte beim Schmieden von Waffen'
+    description: 'Verdreifacht erwürfelte Schmiedepunkte beim Schmieden von Waffen'
   },
   {
     id: 'waffenmeister_ultimativer_stoss',
-    name: 'Ultimativer Sto�',
+    name: 'Ultimativer Stoß',
     class: 'Waffenmeister',
     type: 'active',
-    description: 'Getroffener Gegner wird zur�ckgeworfen, maximal 200m, nur f�r Wuchtwaffen',
+    description: 'Getroffener Gegner wird zurückgeworfen, maximal 200m, nur für Wuchtwaffen',
     cost: { type: 'energy', amount: 30 },
     actionType: 'Aktion'
   },
@@ -2198,7 +2198,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Sturmschnitt',
     class: 'Waffenmeister',
     type: 'active',
-    description: 'Erzeugt Schockwelle, die getroffenen Gegnern Schnittwunden zuf�gt, maximal 50m, nur f�r Schnittwaffen',
+    description: 'Erzeugt Schockwelle, die getroffenen Gegnern Schnittwunden zufügt, maximal 50m, nur für Schnittwaffen',
     cost: { type: 'energy', amount: 30 },
     actionType: 'Aktion'
   },
@@ -2207,16 +2207,16 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Panzerbrecher',
     class: 'Waffenmeister',
     type: 'active',
-    description: 'Stich, der gegnerische Verteidigung durchbricht, nur f�r Stichwaffen',
+    description: 'Stich, der gegnerische Verteidigung durchbricht, nur für Stichwaffen',
     cost: { type: 'energy', amount: 30 },
     actionType: 'Aktion'
   },
 
-  // ==================== ATTENT�TER ====================
+  // ==================== ATTENTÄTER ====================
   {
     id: 'attentaeter_geschicklichkeit_geschwindigkeit_2',
     name: 'Geschicklichkeit&Geschwindigkeit+2',
-    class: 'Attent�ter',
+    class: 'Attentäter',
     type: 'stat_bonus',
     description: 'Geschicklichkeit&Geschwindigkeit+2',
     statBonuses: [{ stat: 'dexterity', amount: 2 }, { stat: 'speed', amount: 2 }],
@@ -2225,66 +2225,66 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'attentaeter_reichweite_50',
     name: 'Reichweite+50m',
-    class: 'Attent�ter',
+    class: 'Attentäter',
     type: 'stat_bonus',
-    description: 'Reichweite+50m f�r Fernkampfwaffen'
+    description: 'Reichweite+50m für Fernkampfwaffen'
   },
   {
     id: 'attentaeter_schattenlaeufer',
-    name: 'Schattenl�ufer',
-    class: 'Attent�ter',
+    name: 'Schattenläufer',
+    class: 'Attentäter',
     type: 'passive',
-    description: 'Kann "Schleichen" ohne Ausdauerkosten benutzen',
+    description: 'Kann "Schleichen" ohne Ausdauerkosten benutzen, benötigt Schleichen',
     enlightened: true,
     requiresSkill: 'dieb_schleichen'
   },
   {
     id: 'attentaeter_verstuemmeln',
-    name: 'Verst�mmeln',
-    class: 'Attent�ter',
+    name: 'Verstümmeln',
+    class: 'Attentäter',
     type: 'passive',
-    description: 'Wird ein Kampf mit einem �berraschungsangriff gestartet, erh�lt das Ziel des Angriffs +1 auf alle Aktionen bis zum Ende des Kampfes'
+    description: 'Wird ein Kampf mit einem Überraschungsangriff gestartet, erhält das Ziel des Angriffs +1 auf alle Aktionen bis zum Ende des Kampfes'
   },
   {
     id: 'attentaeter_erfrischender_mord',
     name: 'Erfrischender Mord',
-    class: 'Attent�ter',
+    class: 'Attentäter',
     type: 'passive',
-    description: 'Stellt 3 D20 Ausdauer her, wenn Gegner get�tet wird'
+    description: 'Stellt 3 D20 Ausdauer her, wenn Gegner getötet wird'
   },
   {
     id: 'attentaeter_ueberwachung',
-    name: '�berwachung',
-    class: 'Attent�ter',
+    name: 'Überwachung',
+    class: 'Attentäter',
     type: 'active',
-    description: 'Kann bei K�rperkontakt andere Person markieren. Der Anwender kann die Markierung orten, solange sie aktiv ist. Die Markierung kann leicht zerst�rt werden',
+    description: 'Kann bei Körperkontakt andere Person markieren. Der Anwender kann die Markierung orten, solange sie aktiv ist. Die Markierung kann leicht zerstört werden',
     cost: { type: 'energy', amount: 5, perRound: true },
     actionType: 'Aktion'
   },
   {
     id: 'attentaeter_blitzschritt',
     name: 'Blitzschritt',
-    class: 'Attent�ter',
+    class: 'Attentäter',
     type: 'active',
-    description: 'Verdoppelt Bewegung',
+    description: 'Verdoppelt Bewegung. Keine Aktion',
     cost: { type: 'energy', amount: 45, perRound: true },
     actionType: 'Keine Aktion'
   },
   {
     id: 'attentaeter_tragisches_schicksal',
     name: 'Tragisches Schicksal',
-    class: 'Attent�ter',
+    class: 'Attentäter',
     type: 'active',
     description: 'Markiere vor dem Kampf einen Gegner in Sichtweite. +5 auf ersten Angriff gegen ihn als einzelnes Ziel',
     cost: { type: 'energy', amount: 50 },
     actionType: 'Aktion'
   },
 
-  // ==================== T�FTLER ====================
+  // ==================== TÜFTLER ====================
   {
     id: 'tueftler_intelligenz_geschicklichkeit_2',
     name: 'Intelligenz+Geschicklichkeit+2',
-    class: 'T�ftler',
+    class: 'Tüftler',
     type: 'stat_bonus',
     description: 'Intelligenz+Geschicklichkeit+2',
     statBonuses: [{ stat: 'intelligence', amount: 2 }, { stat: 'dexterity', amount: 2 }],
@@ -2293,39 +2293,39 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'tueftler_mechaniker',
     name: 'Mechaniker',
-    class: 'T�ftler',
+    class: 'Tüftler',
     type: 'passive',
-    description: '-3 auf Bauen & Verst�ndnis von Mechanik',
+    description: '-3 auf Bauen & Verständnis von Mechanik',
     enlightened: true
   },
   {
     id: 'tueftler_kalibrierte_geschosse',
     name: 'Kalibrierte Geschosse',
-    class: 'T�ftler',
+    class: 'Tüftler',
     type: 'passive',
     description: 'Verdoppelt Effizienz von selbst hergestellter Munition, inklusive Zauber'
   },
   {
     id: 'tueftler_runenchirurg',
     name: 'Runenchirurg',
-    class: 'T�ftler',
+    class: 'Tüftler',
     type: 'passive',
     description: 'Verkleinerte Zauber verlieren nur halb so viel Effizienz'
   },
   {
     id: 'tueftler_raffiniert',
     name: 'Raffiniert',
-    class: 'T�ftler',
+    class: 'Tüftler',
     type: 'passive',
-    description: 'Vorteil auf Zerst�rungswurf von eigener Ausr�stung und Zauber und setzt Haltbarkeit nach K�mpfen auf 100 (Ausr�stung) und 10 (Zauber) zur�ck, wenn es im Kampf unter diesen Wert gefallen ist',
+    description: 'Vorteil auf Zerstörungswurf von eigener Ausrüstung und Zauber und setzt Haltbarkeit nach Kämpfen auf 100 (Ausrüstung) und 10 (Zauber) zurück, wenn es im Kampf unter diesen Wert gefallen ist',
     enlightened: true
   },
   {
     id: 'tueftler_zweiter_atem',
     name: 'Zweiter Atem',
-    class: 'T�ftler',
+    class: 'Tüftler',
     type: 'active',
-    description: 'Erh�lt eine zus�tzliche Bonusaktion f�r diese Runde. (+15 mit jeder weiteren Benutzung in dieser Runde)',
+    description: 'Erhält eine zusätzliche Bonusaktion für diese Runde. Keine Aktion',
     enlightened: true,
     cost: { type: 'energy', amount: 15 },
     actionType: 'Keine Aktion'
@@ -2333,18 +2333,18 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'tueftler_zauberschmiede',
     name: 'Zauberschmiede',
-    class: 'T�ftler',
+    class: 'Tüftler',
     type: 'active',
-    description: 'Verarbeite Materialien in eine gew�nschte Form',
+    description: 'Verarbeite Materialien in eine gewünschte Form',
     cost: { type: 'energy', amount: 10, perRound: true },
     actionType: 'Aktion'
   },
 
-  // ==================== MANAF�RST ====================
+  // ==================== MANAFÜRST ====================
   {
     id: 'manafuerst_mana_40',
     name: 'Mana+40',
-    class: 'Manaf�rst',
+    class: 'Manafürst',
     type: 'stat_bonus',
     description: 'Mana+40',
     statBonus: { stat: 'mana', amount: 40 },
@@ -2353,7 +2353,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'manafuerst_zauberradius_5',
     name: 'Zauberradius+5m',
-    class: 'Manaf�rst',
+    class: 'Manafürst',
     type: 'stat_bonus',
     description: 'Zauberradius+5m',
     enlightened: true,
@@ -2362,48 +2362,48 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   {
     id: 'manafuerst_runenschmied',
     name: 'Runenschmied',
-    class: 'Manaf�rst',
+    class: 'Manafürst',
     type: 'passive',
-    description: 'Verwende einen Talentpunkt, um die Effizienz einer Rune in deinem Besitz dauerhaft um 1 D10 zu erh�hen',
+    description: 'Verwende einen Talentpunkt, um die Effizienz einer Rune in deinem Besitz dauerhaft um 1 D10 zu erhöhen',
     enlightened: true
   },
   {
     id: 'manafuerst_energiewandler',
     name: 'Energiewandler',
-    class: 'Manaf�rst',
+    class: 'Manafürst',
     type: 'passive',
-    description: '10% der verwendeten Mana werden in latente Energie umgewandelt, die entweder zu Leben, Ausdauer oder Mana f�r einen Verb�ndeten konvertiert werden kann',
+    description: '10% der verwendeten Mana werden in latente Energie umgewandelt, die entweder zu Leben, Ausdauer oder Mana für einen Verbündeten konvertiert werden kann',
     enlightened: true
   },
   {
     id: 'manafuerst_arkaner_speicher',
     name: 'Arkaner Speicher',
-    class: 'Manaf�rst',
+    class: 'Manafürst',
     type: 'passive',
-    description: 'Kann einen Zaubercast speichern, um ihn sp�ter zu benutzen, solange das Medium f�r die Benutzung in der N�he ist'
+    description: 'Kann einen Zaubercast speichern, um ihn später zu benutzen, solange das Medium für die Benutzung in der Nähe ist'
   },
   {
     id: 'manafuerst_magieherrschaft',
     name: 'Magieherrschaft',
-    class: 'Manaf�rst',
+    class: 'Manafürst',
     type: 'passive',
-    description: 'Gegner im Zauberradius erhalten den Malus f�r Zauber zus�tzlich auf ihre F�higkeiten'
+    description: 'Gegner im Zauberradius erhalten den Malus für Zauber zusätzlich auf ihre Fähigkeiten'
   },
   {
     id: 'manafuerst_zauberautoritaet',
-    name: '+Zauberauthorit�t',
-    class: 'Manaf�rst',
+    name: 'Zauberauthorität',
+    class: 'Manafürst',
     type: 'active',
-    description: 'Erweitert "Zauberbrecher", sodass schwache Zauber absorbiert werden und deine Mana um die H�lfte der Manakosten aufgef�llt wird. Halbiert zus�tzlich Ausdauerkosten',
+    description: 'Erweitert "Zauberbrecher", sodass schwache Zauber absorbiert werden und deine Mana um die Hälfte der Manakosten aufgefüllt wird. Halbiert zusätzlich Ausdauerkosten',
     requiresSkill: 'arkanist_zauberbrecher',
     actionType: 'Aktion'
   },
   {
     id: 'manafuerst_herrschaftsgebiet',
     name: 'Herrschaftsgebiet',
-    class: 'Manaf�rst',
+    class: 'Manafürst',
     type: 'active',
-    description: 'Verdreifacht Zauberradius',
+    description: 'Verdreifacht Zauberradius. Bonusaktion',
     cost: { type: 'energy', amount: 30, perRound: true },
     actionType: 'Bonusaktion'
   },
@@ -2420,17 +2420,17 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   },
   {
     id: 'nekromant_totenbeschworer',
-    name: 'Totenbeschw�rer',
+    name: 'Totenbeschwörer',
     class: 'Nekromant',
     type: 'passive',
-    description: 'Tote Gegner hinterlassen Seelenrunen, die einmalig beschworen werden k�nnen. F�higkeiten, Zauber und 50% der Leben, Ausdauer und Mana der Seele entsprechen denen des Opfers'
+    description: 'Tote Gegner hinterlassen Seelenrunen, die einmalig beschworen werden können. Fähigkeiten, Zauber und 50% der Leben, Ausdauer und Mana der Seele entsprechen denen des Opfers'
   },
   {
     id: 'nekromant_seelenverbindung',
     name: 'Seelenverbindung',
     class: 'Nekromant',
     type: 'passive',
-    description: 'Kann beschworene Kreaturen in 50m Radius als Startpunkt f�r Zauber benutzen, kann �ber mehrere beschworene Kreaturen verkettet werden, um Reichweite zu erh�hen',
+    description: 'Kann beschworene Kreaturen in 50m Radius als Startpunkt für Zauber benutzen, kann über mehrere beschworene Kreaturen verkettet werden, um Reichweite zu erhöhen',
     enlightened: true
   },
   {
@@ -2438,31 +2438,31 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Seelenfusion',
     class: 'Nekromant',
     type: 'passive',
-    description: 'Entfernt Nachteil und -5 bei Infusion einer Seele in einen lebendigen K�rper.'
+    description: 'Entfernt Nachteil und -5 bei Infusion einer Seele in einen lebendigen Körper.'
   },
   {
     id: 'nekromant_gestohlene_macht',
     name: 'Gestohlene Macht',
     class: 'Nekromant',
     type: 'passive',
-    description: 'Solange eine Leiche beschworen ist, wird die H�lfte ihres Fokus dem Anwender gutgeschrieben (kann maximal den Fokuskosten der Seelenrune entsprechen)'
+    description: 'Solange eine Leiche beschworen ist, wird die Hälfte ihres Fokus dem Anwender gutgeschrieben (kann maximal den Fokuskosten der Seelenrune entsprechen)'
   },
   {
     id: 'nekromant_unheiliges_ritual',
     name: 'Unheiliges Ritual',
     class: 'Nekromant',
     type: 'active',
-    description: 'Zerst�re Seelenrune f�r Mana, kann Rune danach nicht mehr benutzen. Stellt Mana in H�he der Effizienz der Rune her',
+    description: 'Zerstöre Seelenrune für Mana, kann Rune danach nicht mehr benutzen. Stellt Mana in Höhe der Effizienz der Rune her',
     enlightened: true,
     cost: { type: 'energy', amount: 0 },
     actionType: 'Aktion'
   },
   {
     id: 'nekromant_maertyrer',
-    name: 'M�rtyrer',
+    name: 'Märtyrer',
     class: 'Nekromant',
     type: 'active',
-    description: 'Solange die F�higkeit aktiv ist, werden Verletzungen auf beschworene Leichenseelen in bis zu 10m Entfernung transferiert',
+    description: 'Solange die Fähigkeit aktiv ist, werden Verletzungen auf beschworene Leichenseelen in bis zu 10m Entfernung transferiert',
     cost: { type: 'energy', amount: 30, perRound: true },
     actionType: 'Bonusaktion'
   },
@@ -2482,12 +2482,12 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Adaptiver Geist',
     class: 'Orakel',
     type: 'passive',
-    description: 'Kann F�higkeiten mit Mana anstatt Ausdauer ausl�sen, kostet 20% mehr',
+    description: 'Kann Fähigkeiten mit Mana anstatt Ausdauer auslösen, kostet 20% mehr',
     enlightened: true
   },
   {
     id: 'orakel_ueberreaktion',
-    name: '�berreaktion',
+    name: 'Überreaktion',
     class: 'Orakel',
     type: 'passive',
     description: '-2 bei Reaktionen',
@@ -2498,22 +2498,22 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Vorschuss',
     class: 'Orakel',
     type: 'passive',
-    description: 'Kann Zauber mit Castzeit sofort ausf�hren, muss den Cast aber nach Abschluss des Zaubers abarbeiten und kann bis dahin keine weiteren Zauber verwenden'
+    description: 'Kann Zauber mit Castzeit sofort ausführen, muss den Cast aber nach Abschluss des Zaubers abarbeiten und kann bis dahin keine weiteren Zauber verwenden'
   },
   {
     id: 'orakel_identifizieren',
     name: 'Identifizieren',
     class: 'Orakel',
     type: 'passive',
-    description: 'Kann alle Stats von Items sofort erkennen und erh�lt manchmal Visionen aus deren Vergangenheit',
+    description: 'Kann alle Stats von Items sofort erkennen und erhält manchmal Visionen aus deren Vergangenheit',
     enlightened: true
   },
   {
     id: 'orakel_glueckstraehne',
-    name: 'Gl�cksstr�hne',
+    name: 'Glückssträhne',
     class: 'Orakel',
     type: 'active',
-    description: 'W�hle eine Zahl zwischen 1 und 20. Wenn du im Verlauf diesen Kampfes diese Zahl w�rfelst(ohne Boni), erhalte Vorteil f�r die n�chsten Runden, abh�ngig davon wie viel du gesetzt hast',
+    description: 'Wähle eine Zahl zwischen 1 und 20. Wenn du im Verlauf diesen Kampfes diese Zahl würfelst(ohne Boni), erhalte Vorteil für die nächsten Runden, abhängig davon wie viel du gesetzt hast',
     cost: { type: 'energy', amount: 20, perRound: true },
     actionType: 'Aktion'
   },
@@ -2522,7 +2522,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schicksal',
     class: 'Orakel',
     type: 'active',
-    description: 'Kann ein W�rfelergebnis f�r Verb�ndete zur�cksetzen und neu w�rfeln lassen oder das eigene W�rfelergebnis zur�cksetzen und den Zug neu starten',
+    description: 'Kann ein Würfelergebnis für Verbündete zurücksetzen und neu würfeln lassen oder das eigene Würfelergebnis zurücksetzen und den Zug neu starten',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -2531,7 +2531,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Prophezeiung',
     class: 'Orakel',
     type: 'active',
-    description: 'Sieh einen zuf�lligen Moment in bis zu einem Tag in der Zukunft. Nur einmal pro Tag',
+    description: 'Sieh einen zufälligen Moment in bis zu einem Tag in der Zukunft. Nur einmal pro Tag',
     cost: { type: 'energy', amount: 0 },
     actionType: 'Aktion'
   },
@@ -2539,10 +2539,10 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   // ==================== DUNKLER RITTER ====================
   {
     id: 'dunkler_ritter_staerke_intelligenz_2',
-    name: 'St�rke&Intelligenz+2',
+    name: 'Stärke&Intelligenz+2',
     class: 'Dunkler Ritter',
     type: 'stat_bonus',
-    description: 'St�rke&Intelligenz+2',
+    description: 'Stärke&Intelligenz+2',
     statBonuses: [{ stat: 'strength', amount: 2 }, { stat: 'intelligence', amount: 2 }],
     infiniteLevel: true
   },
@@ -2567,14 +2567,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Arkane Ausstattung',
     class: 'Dunkler Ritter',
     type: 'passive',
-    description: 'Effizienz x2 auf Zauber, die �ber Ausr�stung oder Waffen als Medium genutzt werden'
+    description: 'Effizienz x2 auf Zauber, die über Ausrüstung oder Waffen als Medium genutzt werden'
   },
   {
     id: 'dunkler_ritter_schattenruestung',
-    name: 'Schattenr�stung',
+    name: 'Schattenrüstung',
     class: 'Dunkler Ritter',
     type: 'active',
-    description: 'Alle Geschwindgkeitsmali von R�stungen werden aufgehoben, addiert die H�lfte des Geschwindigkeitsmalus auf den Geschwindigkeitswert',
+    description: 'Alle Geschwindgkeitsmali von Rüstungen werden aufgehoben, addiert die Hälfte des Geschwindigkeitsmalus auf den Geschwindigkeitswert',
     cost: { type: 'energy', amount: 15, perRound: true },
     actionType: 'Bonusaktion'
   },
@@ -2583,7 +2583,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Dunkler Schnitt',
     class: 'Dunkler Ritter',
     type: 'active',
-    description: 'Schnitt, der fast alle Waffen und R�stungen ignoriert, verbraucht 50 Waffenhaltbarkeit',
+    description: 'Schnitt, der fast alle Waffen und Rüstungen ignoriert, verbraucht 50 Waffenhaltbarkeit',
     enlightened: true,
     cost: { type: 'energy', amount: 0 },
     actionType: 'Aktion'
@@ -2593,7 +2593,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Tiefer Fokus',
     class: 'Dunkler Ritter',
     type: 'active',
-    description: 'Verdoppelt Fokus',
+    description: 'Verdoppelt Fokus. Bonusaktion',
     cost: { type: 'life', amount: 20, perRound: true },
     actionType: 'Bonusaktion'
   },

@@ -82,7 +82,8 @@ app/
   - `SkillBlock` Model: `name, class, type, enlightened, description, cost?, actionType?, skillId?, statModifiers?, libraryOrigin?`
     - `cost`: `{ type: 'mana'|'energy'|'life'; amount; perRound? }` — Kosten für aktive Skills
     - `actionType`: `'Aktion'|'Bonusaktion'|'Keine Aktion'|'Reaktion'` — Aktionsverbrauch
-  - `SkillDefinition` in `data/skill-definitions.ts`: kanonische Definitionen; lookup by `skillId > name+class > name`
+  - `SkillDefinition` in `data/skill-definitions.ts`: kanonische Definitionen; 298 Skills, 42 Klassen; Beschreibungen 1:1 aus AlleKlassen.txt (UTF-8, verbatim); lookup by `skillId > name+class > name`
+  - `fix-descriptions.js` (Workspace-Root): Wartungs-Script zum Neu-Einlesen aller Beschreibungen aus `AlleKlassen.txt` (bei source-Änderungen ausführen)
   - `CLASS_DEFINITIONS`: `ClassHierarchy` (string-index) → `{ tier:1-5, angle, children[] }` — bestimmt Rang-Badge
   - `app-skills` (`sheet/skills/`): 2-Spalten-Grid, Suchleiste + 5 Filter (Typ/Klasse/Aktion/Kosten/Rang), Vollbild-Editor-Overlay via `app-skill-editor`
   - `app-skill` (`sheet/skill/`): Kompakte Game-Karte, Rechtsklick → Kontextmenü (Bearbeiten/Löschen), Typ-Farbcodierung mit CSS `--tc`/`--tc-bg` Tokens
