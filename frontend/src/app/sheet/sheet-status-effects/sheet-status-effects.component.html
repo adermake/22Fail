@@ -72,7 +72,6 @@
       @if (chainEffects.length > 0) {
         <!-- Chain in progress -->
         @let currentActive = chainEffects[chainIndex];
-        @let currentDef = getEffect(currentActive);
         <div class="exec-sb-current" [style.--ec]="getEffectColor(currentActive)">
           <div class="exec-sb-icon">{{ getEffectIcon(currentActive) }}</div>
           <div class="exec-sb-name">{{ getEffectName(currentActive) }}</div>

@@ -2600,8 +2600,18 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
 ];
 
 // Helper to get skills for a specific class
-export function getSkillsForClass(skills: SkillDefinition[], className: string): SkillDefinition[] {
-  return skills.filter(s => s.class === className);
+export function getSkillsForClass(className: string): SkillDefinition[];
+export function getSkillsForClass(skills: SkillDefinition[], className: string): SkillDefinition[];
+export function getSkillsForClass(skillsOrClassName: SkillDefinition[] | string, className?: string): SkillDefinition[] {
+  if (typeof skillsOrClassName === 'string') {
+    return SKILL_DEFINITIONS.filter(s => s.class === skillsOrClassName);
+  }
+  return skillsOrClassName.filter(s => s.class === className);
+}
+
+// Helper to get a skill by its ID
+export function getSkillById(skillId: string): SkillDefinition | undefined {
+  return SKILL_DEFINITIONS.find(s => s.id === skillId);
 }
 
 // Helper to check if a skill is learned
