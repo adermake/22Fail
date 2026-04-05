@@ -1,0 +1,300 @@
+/* ── Container ─────────────────────────────────────────────── */
+.dmg-calc-card {
+  background: var(--card, #1f2937);
+  border: 1px solid var(--border, #374151);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dmg-calc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--border, #374151);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.dmg-calc-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #9ca3af);
+}
+
+.dmg-calc-formula {
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent, #8b5cf6);
+  background: rgba(139, 92, 246, 0.12);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+/* ── Body ───────────────────────────────────────────────────── */
+.dmg-calc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.dmg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dmg-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted, #9ca3af);
+}
+
+/* ── Effektivität input ─────────────────────────────────────── */
+.dmg-effekt-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: fit-content;
+}
+
+.dmg-dice-prefix {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent, #8b5cf6);
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-right: none;
+  padding: 6px 10px;
+  border-radius: 6px 0 0 6px;
+  line-height: 1;
+  font-family: 'Courier New', monospace;
+}
+
+.dmg-effekt-input {
+  background: var(--bg, #111827);
+  border: 1px solid var(--border, #374151);
+  border-radius: 0 6px 6px 0;
+  color: var(--text, #e5e7eb);
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  padding: 6px 10px;
+  width: 72px;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.dmg-effekt-input:focus {
+  border-color: var(--accent, #8b5cf6);
+}
+
+.dmg-effekt-input::-webkit-inner-spin-button,
+.dmg-effekt-input::-webkit-outer-spin-button {
+  opacity: 0.4;
+}
+
+/* ── Severity grid ──────────────────────────────────────────── */
+.dmg-severity-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dmg-severity-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: var(--bg, #111827);
+  border: 1px solid var(--border, #374151);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  text-align: left;
+  color: var(--text, #e5e7eb);
+}
+
+.dmg-severity-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--sev-color, #6b7280);
+}
+
+.dmg-severity-btn.selected {
+  background: color-mix(in srgb, var(--sev-color, #6b7280) 14%, transparent);
+  border-color: var(--sev-color, #6b7280);
+  color: var(--sev-color, #e5e7eb);
+}
+
+.dmg-severity-btn.selected .dmg-sev-icon,
+.dmg-severity-btn.selected .dmg-sev-multi {
+  color: var(--sev-color, #e5e7eb);
+}
+
+.dmg-sev-icon {
+  font-size: 0.9rem;
+  color: var(--muted, #9ca3af);
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.dmg-sev-label {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.dmg-sev-multi {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  color: var(--muted, #9ca3af);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+/* ── Roll button ────────────────────────────────────────────── */
+.dmg-roll-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  background: #991b1b;
+  border: 1px solid #b91c1c;
+  border-radius: 6px;
+  color: #fef2f2;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s, opacity 0.15s;
+  width: 100%;
+}
+
+.dmg-roll-btn:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #dc2626;
+}
+
+.dmg-roll-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.dmg-roll-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dmg-roll-btn.rolling {
+  animation: dmg-roll-pulse 0.4s ease-in-out;
+}
+
+@keyframes dmg-roll-pulse {
+  0%   { transform: scale(1);    background: #991b1b; }
+  40%  { transform: scale(0.96); background: #7f1d1d; }
+  100% { transform: scale(1);    background: #991b1b; }
+}
+
+.dmg-roll-icon {
+  font-size: 1rem;
+}
+
+/* ── Result panel ───────────────────────────────────────────── */
+.dmg-result-panel {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border, #374151);
+  border-radius: 7px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: dmg-result-in 0.25s ease-out;
+}
+
+@keyframes dmg-result-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dmg-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dmg-result-severity {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.dmg-result-formula {
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: var(--muted, #9ca3af);
+}
+
+.dmg-dice-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.dmg-die-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  background: var(--bg, #111827);
+  border: 1px solid var(--border, #374151);
+  border-radius: 5px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  color: var(--text, #e5e7eb);
+}
+
+.dmg-die-chip.max-roll {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+
+.dmg-die-chip.min-roll {
+  background: rgba(107, 114, 128, 0.12);
+  border-color: #4b5563;
+  color: #6b7280;
+}
+
+.dmg-total-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-top: 6px;
+  border-top: 1px solid var(--border, #374151);
+}
+
+.dmg-total-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted, #9ca3af);
+}
+
+.dmg-total-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  font-family: 'Courier New', monospace;
+  line-height: 1;
+}

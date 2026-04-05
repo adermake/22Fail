@@ -37,6 +37,7 @@ app/
   ├── world/          # DM-Ansicht
   │   ├── asset-browser/              # Library-Assets (drag source)
   │   ├── current-events-manager/     # Event-Verwaltung (drop zone)
+  │   ├── damage-calculator/          # Schadensrechner (DM-Tool, sendet DiceRollEvent)
   │   └── world.component.ts          # Haupt-DM-Controller
   ├── sheet/          # Spieler-Ansicht
   │   ├── character-tabs/             # Tab-Navigation (Stats, Inventar, Ereignisse)
