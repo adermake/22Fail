@@ -66,14 +66,16 @@
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   background: #1a1a2e;
-  height: 200px;
-  overflow: hidden;
+  max-height: 45vh;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
 
 .battle-tracker-section.collapsed {
-  height: 32px;
+  max-height: 32px;
+  overflow: hidden;
 }
 
 .battle-tracker-toggle {

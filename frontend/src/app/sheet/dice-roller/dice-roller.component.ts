@@ -121,17 +121,17 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
         const definition = SKILL_DEFINITIONS.find(s => s.name === skill.name);
         const description = definition?.description || skill.description || '';
         
-        // Extract bonus value from description (e.g., "+2 beim Würfeln")
-        const match = description.match(/\+(\d+)/);
+        // Extract bonus value from description – supports both "+N" (bad) and "-N" (good) modifiers
+        const match = description.match(/([+-]\d+)/);
         if (match) {
           // Extract context from description (everything after the number)
-          const contextMatch = description.match(/\+\d+\s*(.+)/);
+          const contextMatch = description.match(/[+-]\d+\s*(.+)/);
           const skillLevel = skill.level || 1; // Default to 1 if not set
           bonuses.push({
             name: skill.name,
-            value: parseInt(match[1]) * skillLevel, // Multiply by skill level
+            value: parseInt(match[1]) * skillLevel, // Preserves sign: negative = good, positive = bad
             source: 'skill',
-            context: contextMatch ? contextMatch[1] : undefined
+            context: contextMatch?.[1] || undefined
           });
         }
       }

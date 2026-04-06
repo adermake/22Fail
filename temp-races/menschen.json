@@ -1,0 +1,58 @@
+{
+  "id": "race_menschen",
+  "name": "Menschen",
+  "baseImage": "",
+  "ageRange": "60-80",
+  "size": "1,7m",
+  "lore": "Menschen leben zusammen in großen Gruppen, meistens in Wassernähe in mildem Klima,\r wo sie große Städte bauen mit ausgeprägter Infrastruktur, wo sie mit vielen anderen\r Rassen Handel treiben. Menschen sind Feen und Naturgeistern abgeneigt, da diese im\r Bezug auf Natur widersprüchliche Ansichten haben. Die Menschen leben in steilen\r Hierarchien, in denen Menschen je nach sozialem Stand sehr unterschiedliche\r Lebenskonditionen besitzen. Der Drang nach Fortschritt zeichnet den Menschen aus, was\r ihn manchmal jedoch den Respekt vor allem Lebenden vergessen lässt.",
+  "baseHealth": 50,
+  "baseEnergy": 60,
+  "baseMana": 40,
+  "baseStrength": 10,
+  "baseDexterity": 9,
+  "baseSpeed": 9,
+  "baseIntelligence": 10,
+  "baseConstitution": 9,
+  "baseChill": 10,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.25,
+  "dexterityPerLevel": 0.3333,
+  "speedPerLevel": 0.2,
+  "intelligencePerLevel": 0.3333,
+  "constitutionPerLevel": 0.25,
+  "chillPerLevel": 0.2,
+  "skills": [
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Naturtalent",
+        "class": "Menschen",
+        "description": "Erhält anstatt alle 3 alle 2 Level einen freien Stat",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 10,
+      "skill": {
+        "name": "Daumen drücken",
+        "class": "Menschen",
+        "description": "Gibt Verbündeten +1-3 auf nächste Aktion, 10 (1-7, 8-14, 15+)",
+        "type": "active",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 25,
+      "skill": {
+        "name": "Déjà-vu",
+        "class": "Menschen",
+        "description": "+2 auf Aktionen gegen/für Personen mit denen diese Aktion schon einmal ausgeführt wurde",
+        "type": "passive",
+        "enlightened": false
+      }
+    }
+  ]
+}

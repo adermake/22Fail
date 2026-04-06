@@ -1,0 +1,58 @@
+{
+  "id": "race_goblins",
+  "name": "Goblins",
+  "baseImage": "",
+  "ageRange": "20-30",
+  "size": "0,9m",
+  "lore": "Goblins leben in kleinen Stämmen in Höhlen, versteckt vor dem Rest der Welt. Sie werden\r von anderen Rassen als Ungeziefer betrachtet und dementsprechend behandelt. Da sie aber\r äußerst flink und geschickt sind, stehlen sie oft von größeren Städten und bauen ihre\r Zivilisation auf ihrem Diebesgut auf. Dementsprechend können verschiedene\r Goblinstämme sehr unterschiedliche Kulturen haben. Doch während sie sehr\r problematische Beziehungen zu anderen Rassen haben, halten Goblins verschiedener\r Stämme immer zusammen und tauschen ihre Erfolge und Fortschritte untereinander aus.",
+  "baseHealth": 45,
+  "baseEnergy": 65,
+  "baseMana": 40,
+  "baseStrength": 11,
+  "baseDexterity": 10,
+  "baseSpeed": 13,
+  "baseIntelligence": 9,
+  "baseConstitution": 10,
+  "baseChill": 8,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.25,
+  "dexterityPerLevel": 0.25,
+  "speedPerLevel": 0.3333,
+  "intelligencePerLevel": 0.2,
+  "constitutionPerLevel": 0.2,
+  "chillPerLevel": 0.1667,
+  "skills": [
+    {
+      "levelRequired": 5,
+      "skill": {
+        "name": "Stehlen+2",
+        "class": "Goblins",
+        "description": "Stehlen+2",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 15,
+      "skill": {
+        "name": "Kidnapper",
+        "class": "Goblins",
+        "description": "Inventarkapazität+100",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 20,
+      "skill": {
+        "name": "Proliferation",
+        "class": "Goblins",
+        "description": "Erhält einmalig 10 freie Stats",
+        "type": "passive",
+        "enlightened": false
+      }
+    }
+  ]
+}

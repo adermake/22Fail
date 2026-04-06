@@ -1,0 +1,58 @@
+{
+  "id": "race_zentauren",
+  "name": "Zentauren",
+  "baseImage": "",
+  "ageRange": "60-80",
+  "size": "2,5m",
+  "lore": "Zentauren leben in kleinen Herden und reisen durch das Land und verweilen dabei nie\r lange am selben Ort. Zentauren sind Allesfresser, sind jedoch mit ihrer hohen\r Geschwindigkeit und Zielgenauigkeit gefährliche Jäger. Da Zentauren allgemein aber ein\r äußerst friedfertiges Volk sind, machen sie davon nur sehr selten Gebrauch. Sie verstehen\r sich mit allen Rassen und sind allseits anerkannt, werden aber oft als Feiglinge bezeichnet,\r da sie Gewalt verabscheuen und nur im absoluten Notfall handgreiflich werden, selbst\r wenn ihnen das langfristig noch mehr Probleme bereitet.",
+  "baseHealth": 45,
+  "baseEnergy": 70,
+  "baseMana": 35,
+  "baseStrength": 9,
+  "baseDexterity": 11,
+  "baseSpeed": 13,
+  "baseIntelligence": 10,
+  "baseConstitution": 10,
+  "baseChill": 8,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.25,
+  "dexterityPerLevel": 0.25,
+  "speedPerLevel": 0.3333,
+  "intelligencePerLevel": 0.2,
+  "constitutionPerLevel": 0.2,
+  "chillPerLevel": 0.1667,
+  "skills": [
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Vorreiter",
+        "class": "Zentauren",
+        "description": "Benötigte Skills zur Klassenmeisterung-1",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 10,
+      "skill": {
+        "name": "Symbiose",
+        "class": "Zentauren",
+        "description": "Wenn eine Person auf dir reitet, erhalten beide +1",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 20,
+      "skill": {
+        "name": "Ansturm",
+        "class": "Zentauren",
+        "description": "Greift Gegner mit doppelter Geschwindigkeit an, 30",
+        "type": "active",
+        "enlightened": false
+      }
+    }
+  ]
+}

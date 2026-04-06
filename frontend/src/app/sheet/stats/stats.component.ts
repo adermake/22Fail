@@ -34,7 +34,8 @@ export class StatsComponent {
 
   get fokusValue(): number {
     const intelligence = this.sheet.intelligence?.current || 10;
-    return Math.floor((intelligence + (this.sheet.fokusBonus || 0)) * (this.sheet.fokusMultiplier || 1));
+    const base = Math.floor(intelligence / 2) + 5;
+    return Math.floor((base + (this.sheet.fokusBonus || 0)) * (this.sheet.fokusMultiplier || 1));
   }
 
   ngOnInit() {

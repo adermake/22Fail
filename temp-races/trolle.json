@@ -1,0 +1,58 @@
+{
+  "id": "race_trolle",
+  "name": "Trolle",
+  "baseImage": "",
+  "ageRange": "~100",
+  "size": "2,5m",
+  "lore": "Trolle leben meist vereinzelt oder in Kleingruppen, die ein sehr enges, brüderliches\r Bündnis haben. Die Stärke von Trollen bestimmt über ihren sozialen Status, sodass die\r stärksten Trolle oft auf den schwächeren herumhacken und sie manchmal komplett aus\r ihrer Gruppe verbannen. Sollte man vereinzelten Trollen in der Wildnis begegnen, ist\r höchste Vorsicht geboten, da diese sehr reizbar sein können. Normalerweise sind Trolle\r nicht gefährlich, verabscheuen aber \"schwache\" Rassen wie Elfen und Feen, und\r verstehen sich viel besser mit Orks, die ihre Stärke zu schätzen wissen. Manchmal verbünden sich Trollstämme unter einem starken Anführer, um naheliegende Städte einzunehmen und ihr Gebiet zu erweitern. Diese Bündnisse halten jedoch selten lange, da ihre\r Hierarchie mit dem Tod ihres Anführeres sofort auseinanderfällt.",
+  "baseHealth": 75,
+  "baseEnergy": 65,
+  "baseMana": 10,
+  "baseStrength": 15,
+  "baseDexterity": 9,
+  "baseSpeed": 8,
+  "baseIntelligence": 7,
+  "baseConstitution": 15,
+  "baseChill": 7,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.5,
+  "dexterityPerLevel": 0.2,
+  "speedPerLevel": 0.2,
+  "intelligencePerLevel": 0.1667,
+  "constitutionPerLevel": 0.3333,
+  "chillPerLevel": 0.1667,
+  "skills": [
+    {
+      "levelRequired": 5,
+      "skill": {
+        "name": "Blinde Wut",
+        "class": "Trolle",
+        "description": "+1, wenn im Ragemodus",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 10,
+      "skill": {
+        "name": "Massive Stärke",
+        "class": "Trolle",
+        "description": "Erhöhter Schaden und Rückstoß von Wuchtwaffen",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 25,
+      "skill": {
+        "name": "Verdoppelt",
+        "class": "Trolle",
+        "description": "Verdoppelt Stärkemodifikator bei 0 Mana, kann Obergrenze von 4 überschreiten",
+        "type": "passive",
+        "enlightened": false
+      }
+    }
+  ]
+}

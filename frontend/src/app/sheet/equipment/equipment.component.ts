@@ -77,6 +77,11 @@ export class EquipmentComponent {
     return Math.max(0, baseSpeed - this.totalArmorDebuff);
   }
 
+  get combinedDefense(): number {
+    const total = (this.sheet.equipment || []).reduce((sum, item) => sum + (item.stability || 0), 0);
+    return Math.floor(total / 5);
+  }
+
   deleteItem(index: number) {
     const item = this.sheet.equipment[index];
     this.sheet.equipment = this.sheet.equipment.filter((_, i) => i !== index);
@@ -180,7 +185,8 @@ export class EquipmentComponent {
       const item = event.previousContainer.data[event.previousIndex];
       const isFromInventory = event.previousContainer.id === 'inventoryList';
       
-      // Note: Validation is now handled by enter predicates, so we don't need to check here
+      // Guard against null items (inventory slots can be nulled-out after removal)
+      if (!item) return;
       
       // Set the armor type if moving from inventory or if not set
       if (!item.armorType || item.armorType === 'extra') {

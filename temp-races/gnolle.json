@@ -1,0 +1,58 @@
+{
+  "id": "race_gnolle",
+  "name": "Gnolle",
+  "baseImage": "",
+  "ageRange": "~100",
+  "size": "2,5m",
+  "lore": "Gnolle sind geborene Jäger. Sie jagen in Kleingruppen, leben jedoch meist in größeren\r Stämmen in Steppengebieten. In diesen Gruppen gehen sie regelmäßig auf lange Reisen,\r um ihr Territorium zu erweitern, Feinde zu vertreiben, und Nahrung für ihren\r Stamm zu finden. Ihr Zusammenhalt im Stamm ist stark, jedoch stehen sie mit anderen\r Gnollstämmen oft auf Kriegsfuß, da sich diese oft ihr Territorium streitig machen. Andere\r Rassen wissen, wie brutal es in diesen Stammeskriegen zugehen kann, weshalb\r sie sich aus ihren Streitigkeiten raushalten und pflegen dadurch meistens freundliche\r Beziehungen zu ihnen. Sie handeln oft mit anderen Rassen, wo ihre Waffen besonders\r beliebt sind, da diese trotz ihrer Einfachheit sehr effektiv sind und mit regulären\r Waffen mithalten können.",
+  "baseHealth": 45,
+  "baseEnergy": 65,
+  "baseMana": 40,
+  "baseStrength": 10,
+  "baseDexterity": 13,
+  "baseSpeed": 12,
+  "baseIntelligence": 9,
+  "baseConstitution": 9,
+  "baseChill": 8,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.2,
+  "dexterityPerLevel": 0.3333,
+  "speedPerLevel": 0.3333,
+  "intelligencePerLevel": 0.2,
+  "constitutionPerLevel": 0.2,
+  "chillPerLevel": 0.1667,
+  "skills": [
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Urform",
+        "class": "Gnolle",
+        "description": "Erhöht Bewegung um 50% bei Fortbewegung auf allen Vieren",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 10,
+      "skill": {
+        "name": "Spürnase",
+        "class": "Gnolle",
+        "description": "Kann Geruchsspuren bis zu eine Woche später aufspüren, benötigt Geruchsprobe, 0",
+        "type": "active",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 20,
+      "skill": {
+        "name": "Wilde Jagd",
+        "class": "Gnolle",
+        "description": "Nach einem Kill +5 auf nächsten Angriff in diesem Kampf",
+        "type": "passive",
+        "enlightened": false
+      }
+    }
+  ]
+}

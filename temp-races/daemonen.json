@@ -1,0 +1,68 @@
+{
+  "id": "race_daemonen",
+  "name": "Dämonen",
+  "baseImage": "",
+  "ageRange": "~300",
+  "size": "1,9m",
+  "lore": "Dämonen lebten in der Unterwelt versteckt, nachdem sie im Großen Krieg von den Engeln\r geschlagen und verbannt wurden. Seitdem ist allerdings einige Zeit vergangen und viele\r Dämonen haben angefangen, sich unter andere Zivilisationen zu mischen. Trotzdem sind\r viele Rassen den Dämonen immer noch misstrauisch gegenüber, ihre klugen Köpfe und\r Gerissenheit machen sie jedoch zu beliebten Arbeitskräften für reiche Händler und Adlige,\r um sich vor politischen Feinden zu schützen oder diese loszuwerden. Sie verstehen sich\r mit anderen Rassen allgemein recht gut, selbst mit den einst verfeindeten Engeln, haben\r jedoch die Tendenz, sehr obsessiv in ihren Beziehungen zu werden.",
+  "baseHealth": 50,
+  "baseEnergy": 50,
+  "baseMana": 50,
+  "baseStrength": 13,
+  "baseDexterity": 10,
+  "baseSpeed": 11,
+  "baseIntelligence": 11,
+  "baseConstitution": 9,
+  "baseChill": 11,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.3333,
+  "dexterityPerLevel": 0.2,
+  "speedPerLevel": 0.25,
+  "intelligencePerLevel": 0.3333,
+  "constitutionPerLevel": 0.2,
+  "chillPerLevel": 0.25,
+  "skills": [
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Fliegen",
+        "class": "Dämonen",
+        "description": "Kann mit 1,5-facher Geschwindigkeit fliegen, 20 pro Runde",
+        "type": "active",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 10,
+      "skill": {
+        "name": "Pakt",
+        "class": "Dämonen",
+        "description": "Geht eine Bindung mit einer anderen Person ein, welche alle Fähigkeiten kopiert, dadurch aber jeglichen Schaden des Dämonen abfängt, 5 pro Runde für beide",
+        "type": "active",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 25,
+      "skill": {
+        "name": "Descende caelo",
+        "class": "Dämonen",
+        "description": "Erhält doppelte Geschwindigkeit, solange Dauerfähigkeiten aktiv sind",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Schwäche",
+        "class": "Dämonen",
+        "description": "Heilzauber auf Dämonen werden um 50% reduziert",
+        "type": "passive",
+        "enlightened": false
+      }
+    }
+  ]
+}

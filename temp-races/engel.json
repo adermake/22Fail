@@ -1,0 +1,68 @@
+{
+  "id": "race_engel",
+  "name": "Engel",
+  "baseImage": "",
+  "ageRange": "~300",
+  "size": "1,9m",
+  "lore": "Engel leben in der Überwelt, weit oben in den Wolken, abgelegen von allen anderen\r Zivilisationen. Da sie ohne Kontakt zum Sonnenlicht ihre Kraft verlieren, können sie nur\r bei Sonnenschein auf die Erde kommen. Da das der einzige Weg für sie ist, mit anderen\r Spezies Kontakt aufzunehmen, werden sie allerdings sehr selten gesichtet. Ihre\r Anwesenheit wird dafür allseits genossen und von manchen sogar als gutes Omen gesehen.\r In der Vergangenheit waren sie jedoch nicht an den Himmel gebunden. Vor vielen\r Generationen waren Engel auf der ganzen Welt vertreten und waren allen Rassen\r technologisch überlegen. Nach dem Großen Krieg machten die Dämonen die Erde für die\r Engel unbewohnbar, was ihren technologischen Fortschritt abrupt stoppte. Obwohl Engel\r heutzutage nur noch ein Schatten ihrer vergangenen Tage sind, sehnen sie sich danach,\r wieder zu ihrem früheren Glanz zurückzukehren.",
+  "baseHealth": 35,
+  "baseEnergy": 45,
+  "baseMana": 80,
+  "baseStrength": 10,
+  "baseDexterity": 10,
+  "baseSpeed": 12,
+  "baseIntelligence": 13,
+  "baseConstitution": 8,
+  "baseChill": 12,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.25,
+  "dexterityPerLevel": 0.25,
+  "speedPerLevel": 0.25,
+  "intelligencePerLevel": 0.3333,
+  "constitutionPerLevel": 0.1667,
+  "chillPerLevel": 0.25,
+  "skills": [
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Fliegen",
+        "class": "Engel",
+        "description": "Kann mit 1,5-facher Geschwindigkeit fliegen, 20 pro Runde",
+        "type": "active",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 15,
+      "skill": {
+        "name": "Segen",
+        "class": "Engel",
+        "description": "+2 auf Heilzauber",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 25,
+      "skill": {
+        "name": "Deus ex machina",
+        "class": "Engel",
+        "description": "Kosten von Dauer- fähigkeiten und -zaubern, werden halbiert",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Schwäche",
+        "class": "Engel",
+        "description": "-1 ohne direkten Kontakt zum Sonnenlicht",
+        "type": "passive",
+        "enlightened": false
+      }
+    }
+  ]
+}

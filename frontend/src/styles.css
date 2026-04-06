@@ -18,10 +18,16 @@
 html, body {
   margin: 0;
   padding: 0;
-  overflow: auto;
+}
+
+html {
+  /* Prevent double scrollbar: only html element scrolls, body stays within it */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 body {
+  overflow: hidden;
   background-color: var(--bg);
   color: var(--text);
 }

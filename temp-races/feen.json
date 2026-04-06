@@ -1,0 +1,68 @@
+{
+  "id": "race_feen",
+  "name": "Feen",
+  "baseImage": "",
+  "ageRange": "150-180",
+  "size": "0,3-",
+  "lore": "Feen leben in Wald- und Seegebieten mit starkem Bezug zur Natur. Sie leben im Moment\r und kümmern sich nicht um die Konsequenzen ihrer Taten, weshalb sie vom Rest der Welt\r meistens gemieden werden. Ihre Sorglosigkeit kann ihnen aber auch zum Verhängnis\r werden, da sie oft entführt und auf dem Schwarzmarkt verkauft werden, wo ihre Flügel als\r Trankzutat hohen Wert besitzen. Den Rest der Feen interessiert das jedoch wenig, sie\r haben besseres zu tun als ihr Leben für andere aufs Spiel zu setzen. Da Feen nicht essen\r müssen, verbringen die meisten ihr gesamtes Leben in Sicherheit, ohne aus ihrer\r Komfortzone ausbrechen zu müssen.",
+  "baseHealth": 0,
+  "baseEnergy": 0,
+  "baseMana": 0,
+  "baseStrength": 7,
+  "baseDexterity": 10,
+  "baseSpeed": 11,
+  "baseIntelligence": 13,
+  "baseConstitution": 7,
+  "baseChill": 13,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.1667,
+  "dexterityPerLevel": 0.25,
+  "speedPerLevel": 0.25,
+  "intelligencePerLevel": 0.3333,
+  "constitutionPerLevel": 0.1667,
+  "chillPerLevel": 0.3333,
+  "skills": [
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Fliegen",
+        "class": "Feen",
+        "description": "Kann fliegen, 10 pro Runde",
+        "type": "active",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 10,
+      "skill": {
+        "name": "Fata Morgana",
+        "class": "Feen",
+        "description": "Kann sich unsichtbar machen, 10 pro Runde",
+        "type": "active",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 20,
+      "skill": {
+        "name": "Schicksalswende",
+        "class": "Feen",
+        "description": "+2 auf nächsten Wurf, falls der letzte Wurf 15 oder mehr war",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Schwäche",
+        "class": "Feen",
+        "description": "-3 im Kampf mit schweren Waffen",
+        "type": "passive",
+        "enlightened": false
+      }
+    }
+  ]
+}

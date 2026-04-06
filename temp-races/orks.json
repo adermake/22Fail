@@ -1,0 +1,58 @@
+{
+  "id": "race_orks",
+  "name": "Orks",
+  "baseImage": "",
+  "ageRange": "100-120",
+  "size": "1m",
+  "lore": "Orks leben zusammen in Kleingruppen, die ohne festen Wohnort durch das Land ziehen,\r generell aber feuchte und dreckige Orte als Unterkunft bevorzugen. Sie besitzen eine\r unnatürliche Ausdauer und können mehrere Wochen ohne Pausen laufen. Sie\r halten sich meistens von anderen Rassen fern und ernähren sich hauptsächlich von der\r Jagd, handeln aber oft mit ihrer Beute gegen komplexere Jagdwaffen, zu denen sie sonst\r keinen Zugang haben. Der Umgang mit anderen Rassen kann endet oft in gewalttätigten\r Auseinandersetzungen, da Orks sich nicht gerne für dumm verkaufen lassen und schnell\r aggressiv werden, wenn sie sich nicht durchsetzen können.",
+  "baseHealth": 60,
+  "baseEnergy": 60,
+  "baseMana": 30,
+  "baseStrength": 13,
+  "baseDexterity": 9,
+  "baseSpeed": 12,
+  "baseIntelligence": 9,
+  "baseConstitution": 11,
+  "baseChill": 7,
+  "healthPerLevel": 0,
+  "energyPerLevel": 0,
+  "manaPerLevel": 0,
+  "strengthPerLevel": 0.3333,
+  "dexterityPerLevel": 0.2,
+  "speedPerLevel": 0.25,
+  "intelligencePerLevel": 0.2,
+  "constitutionPerLevel": 0.25,
+  "chillPerLevel": 0.1667,
+  "skills": [
+    {
+      "levelRequired": 0,
+      "skill": {
+        "name": "Unerschöpflich",
+        "class": "Orks",
+        "description": "Bleibt bei 0 Ausdauer bei Bewusstsein, kann aber keine weitere Ausdauer verbrauchen",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 5,
+      "skill": {
+        "name": "Einschüchtern+2",
+        "class": "Orks",
+        "description": "Einschüchtern+2",
+        "type": "passive",
+        "enlightened": false
+      }
+    },
+    {
+      "levelRequired": 20,
+      "skill": {
+        "name": "Zähigkeit",
+        "class": "Orks",
+        "description": "Konvertiert 1 Mana zu 0,8 Ausdauer (wird gerundet), 0",
+        "type": "active",
+        "enlightened": false
+      }
+    }
+  ]
+}
