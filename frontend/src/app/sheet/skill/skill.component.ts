@@ -170,6 +170,7 @@ export class SkillComponent {
 
   get isDisabled(): boolean {
     if (this.skill.enlightened) return false;
+    if (this.skill.sourceRaceId) return false; // Rassenfähigkeiten sind immer aktiv
     return !ClassTree.isClassEnabled(this.skill.class, this.sheet.primary_class, this.sheet.secondary_class);
   }
 

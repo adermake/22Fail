@@ -39,11 +39,12 @@ import { LobbyStoreService } from '../../services/lobby-store.service';
 import { LobbySocketService } from '../../services/lobby-socket.service';
 import { ImageService } from '../../services/image.service';
 import { TextureService } from '../../services/texture.service';
+import { TrueStatsService } from '../../services/true-stats.service';
+import { FormulaType } from '../../model/formula-type.enum';
 import { LobbyTokenComponent, TokenResources } from '../lobby-token/lobby-token.component';
 import { DiceRollPopupComponent, DiceRollPopup } from '../dice-roll-popup/dice-roll-popup.component';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { StatusBlock } from '../../model/status-block.model';
-import { FormulaType } from '../../model/formula-type.enum';
 import { ToolType, DragMode } from '../lobby.component';
 
 // Texture palette entry interface
@@ -135,6 +136,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private socket = inject(LobbySocketService);
   private imageService = inject(ImageService);
   private textureService = inject(TextureService);
+  private trueStats = inject(TrueStatsService);
   private cdr = inject(ChangeDetectorRef);
 
   // Remote measurements from other users
@@ -266,6 +268,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   contextMenuImageId = signal<string | null>(null);
   contextMenuTokenId = signal<string | null>(null);
   contextMenuHex = signal<HexCoord | null>(null);
+  quickTokenName = signal<string>('');
 
   // Texture Palette (15 slots, stored locally)
   texturePalette = signal<(TexturePaletteEntry | null)[]>(Array(15).fill(null));
@@ -5168,7 +5171,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   onRemoveToken(): void {
     const tokenId = this.contextMenuTokenId();
-    if (tokenId && confirm('Remove this token from the map?')) {
+    if (tokenId) {
       this.tokenRemove.emit(tokenId);
     }
     this.showContextMenu.set(false);
@@ -5245,12 +5248,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   onCreateQuickToken(): void {
     const hex = this.contextMenuHex();
     if (hex) {
-      // contextMenuHex is already the correct hex coordinate computed in onContextMenu
       this.quickTokenDrop.emit({
-        name: 'Quick Token',
+        name: this.quickTokenName() || 'Quick Token',
         portrait: '',
         position: hex
       });
+      this.quickTokenName.set('');
     }
     this.closeContextMenu();
   }
@@ -5323,15 +5326,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     return {
       health: {
         current: lifeStatus?.statusCurrent || 0,
-        max: this.calculateMaxHealth(lifeStatus)
+        max: lifeStatus ? this.trueStats.calculateResourceMax(sheet, FormulaType.LIFE) : 0
       },
       energy: {
         current: energyStatus?.statusCurrent || 0,
-        max: this.calculateMaxEnergy(energyStatus)
+        max: energyStatus ? this.trueStats.calculateResourceMax(sheet, FormulaType.ENERGY) : 0
       },
       mana: {
         current: manaStatus?.statusCurrent || 0,
-        max: this.calculateMaxMana(manaStatus)
+        max: manaStatus ? this.trueStats.calculateResourceMax(sheet, FormulaType.MANA) : 0
       }
     };
   }
@@ -5344,30 +5347,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // You might want to add a field to CharacterSheet to explicitly mark NPCs
     const character = this.worldCharacters.find(c => c.id === characterId);
     return character !== null;
-  }
-
-  /**
-   * Calculate max health from status block
-   */
-  private calculateMaxHealth(status: StatusBlock | undefined): number {
-    if (!status) return 0;
-    return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
-  }
-
-  /**
-   * Calculate max mana from status block
-   */
-  private calculateMaxMana(status: StatusBlock | undefined): number {
-    if (!status) return 0;
-    return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
-  }
-
-  /**
-   * Calculate max energy from status block
-   */
-  private calculateMaxEnergy(status: StatusBlock | undefined): number {
-    if (!status) return 0;
-    return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
   }
 
   /**

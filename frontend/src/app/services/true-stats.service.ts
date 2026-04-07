@@ -3,6 +3,7 @@ import { CharacterSheet } from '../model/character-sheet-model';
 import { StatBlock } from '../model/stat-block.model';
 import { LibraryStoreService } from './library-store.service';
 import { StatusEffect } from '../model/status-effect.model';
+import { FormulaType } from '../model/formula-type.enum';
 
 /**
  * All calculated stat values for a character.
@@ -557,5 +558,68 @@ export class TrueStatsService {
     
     // Available = (Total - Spent) + Stored
     return (total - spent) + stored;
+  }
+
+  /**
+   * Calculate the maximum value of a resource (life/energy/mana).
+   * Mirrors the formula in currentstat.component.ts:
+   *   max = statusBase + statusBonus + effectBonus + stat * 5
+   */
+  calculateResourceMax(sheet: CharacterSheet, formulaType: FormulaType): number {
+    const status = sheet.statuses?.find(s => s.formulaType === formulaType);
+    if (!status) return 0;
+
+    const base = status.statusBase || 0;
+    const bonus = status.statusBonus || 0;
+    const effectBonus = this.calculateResourceEffectBonus(sheet, formulaType);
+
+    let statBonus = 0;
+    switch (formulaType) {
+      case FormulaType.LIFE:
+        statBonus = this.calculateConstitution(sheet) * 5;
+        break;
+      case FormulaType.ENERGY:
+        statBonus = this.calculateDexterity(sheet) * 5;
+        break;
+      case FormulaType.MANA:
+        statBonus = this.calculateIntelligence(sheet) * 5;
+        break;
+    }
+
+    return base + bonus + effectBonus + statBonus;
+  }
+
+  private calculateResourceEffectBonus(sheet: CharacterSheet, formulaType: FormulaType): number {
+    const statKey = formulaType === FormulaType.LIFE ? 'life'
+      : formulaType === FormulaType.ENERGY ? 'energy'
+      : 'mana';
+    let total = 0;
+
+    for (const skill of (sheet.skills || [])) {
+      if (skill.statModifiers) {
+        for (const mod of skill.statModifiers) {
+          if (mod.stat === statKey) total += mod.amount * (skill.level || 1);
+        }
+      }
+    }
+
+    for (const item of (sheet.equipment || [])) {
+      if (item?.statModifiers) {
+        for (const mod of item.statModifiers) {
+          if (mod.stat === statKey) total += mod.amount;
+        }
+      }
+    }
+
+    for (const active of (sheet.activeStatusEffects || [])) {
+      const effect = this.resolveStatusEffect(active.statusEffectId, active.customEffect);
+      if (effect?.statModifiers) {
+        for (const mod of effect.statModifiers) {
+          if (mod.stat === statKey) total += mod.amount * (active.stacks || 1);
+        }
+      }
+    }
+
+    return total;
   }
 }

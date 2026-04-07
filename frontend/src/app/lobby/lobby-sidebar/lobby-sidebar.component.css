@@ -5,6 +5,13 @@
   height: 100%;
 }
 
+/* GM-only controls - visible but disabled for non-GM */
+.gm-locked {
+  opacity: 0.35;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
 /* Tab header */
 .tab-header {
   display: flex;

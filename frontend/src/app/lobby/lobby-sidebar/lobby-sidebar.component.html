@@ -84,8 +84,7 @@
     @if (activeTab() === 'images') {
       <div class="image-library">
         <!-- Upload button (GM only) -->
-        @if (isGM) {
-          <label class="upload-btn">
+        <label class="upload-btn" [class.gm-locked]="!isGM">
             <input 
               type="file" 
               accept="image/*" 
@@ -95,7 +94,6 @@
             />
             <span>📁 Upload Images</span>
           </label>
-        }
 
         <!-- Image grid -->
         <div class="image-grid">
@@ -125,8 +123,7 @@
                 </div>
               }
 
-              @if (isGM) {
-                <div class="image-actions">
+              <div class="image-actions" [class.gm-locked]="!isGM">
                   <button 
                     class="action-btn" 
                     (click)="startRename(image, $event)"
@@ -142,7 +139,6 @@
                     🗑️
                   </button>
                 </div>
-              }
             </div>
           }
         </div>
@@ -166,8 +162,7 @@
     @if (activeTab() === 'textures') {
       <div class="texture-library">
         <!-- Upload button (GM only) -->
-        @if (isGM) {
-          <label class="upload-btn" style="margin-bottom: 12px;">
+        <label class="upload-btn gm-upload" style="margin-bottom: 12px;" [class.gm-locked]="!isGM">
             <input 
               type="file" 
               accept="image/*" 
@@ -177,7 +172,6 @@
             />
             <span>📁 Upload Textures</span>
           </label>
-        }
 
         <!-- Texture grid -->
         <div class="image-grid">

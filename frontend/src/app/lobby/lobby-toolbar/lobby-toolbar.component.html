@@ -77,16 +77,14 @@
       </div>
 
       <!-- Draw with walls checkbox -->
-      @if (isGM) {
-        <label class="checkbox-label">
-          <input 
-            type="checkbox" 
-            [checked]="drawWithWalls"
-            (change)="toggleDrawWithWalls()"
-          />
-          <span>+ Walls</span>
-        </label>
-      }
+      <label class="checkbox-label" [class.gm-locked]="!isGM">
+        <input 
+          type="checkbox" 
+          [checked]="drawWithWalls"
+          (change)="toggleDrawWithWalls()"
+        />
+        <span>+ Walls</span>
+      </label>
     </div>
 
     <div class="toolbar-divider"></div>
@@ -200,17 +198,16 @@
     <div class="toolbar-divider"></div>
 
     <!-- Clear textures button -->
-    @if (isGM) {
-      <div class="tool-group">
-        <button 
-          class="tool-btn danger" 
-          (click)="clearTextures.emit()"
-          title="Clear All Textures"
-        >
-          🗑️ Textures
-        </button>
-      </div>
-    }
+    <div class="tool-group">
+      <button 
+        class="tool-btn danger" 
+        [class.gm-locked]="!isGM"
+        (click)="clearTextures.emit()"
+        title="Clear All Textures"
+      >
+        🗑️ Textures
+      </button>
+    </div>
   }
 
   <!-- Cursor mode options -->
@@ -236,10 +233,11 @@
   }
 
   <!-- Walls options -->
-  @if (currentTool === 'walls' && isGM) {
+  @if (currentTool === 'walls') {
     <div class="tool-group">
       <button 
         class="tool-btn danger" 
+        [class.gm-locked]="!isGM"
         (click)="clearWalls.emit()"
         title="Clear All Walls"
       >
@@ -264,14 +262,13 @@
     </button>
 
     <!-- Map Settings Button (GM only) -->
-    @if (isGM) {
-      <button
-        class="tool-btn map-settings-btn"
-        (click)="mapSettingsClicked.emit()"
-        title="Map Settings"
-      >
-        ⚙️
-      </button>
-    }
+    <button
+      class="tool-btn map-settings-btn"
+      [class.gm-locked]="!isGM"
+      (click)="mapSettingsClicked.emit()"
+      title="Karteneinstellungen"
+    >
+      ⚙️
+    </button>
   </div>
 </div>

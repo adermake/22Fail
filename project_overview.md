@@ -130,6 +130,18 @@ app/
   2. `-` für Array-Append unterstützen
   3. Array-Indices korrekt behandeln
 
+### Lineal-Sync (Lobby Measurement)
+- **Frontend**: `lobby-grid.component.ts` sendet bei `handleMeasureMove` via `LobbySocketService.sendMeasurement()` mit `{id: socketId, start, end, createdBy: socketId}`. Auf `handleMeasureUp` wird `null` gesendet (löscht Messung).
+- **Backend**: `battlemap.gateway.ts` hält `activeMeasurements: Map<mapId, Map<socketId, MeasurementLine>>`. Auf `updateMeasurement` Event: speichern/löschen + broadcast aller aktuellen Messungen (`measurementUpdate`) an den Map-Raum. Bei Client-Disconnect: Messung entfernen + neu-broadcasten.
+- **Empfang**: `LobbySocketService.measurements$` Observable → `remoteMeasurements` Signal in lobby-grid → `renderRemoteMeasurements()` overlay-Pass (blau `#60a5fa` statt gelb)
+- **Eigene Messung**: Lokal gerendert (gelb), remote Messungen anderer Nutzer gefiltert nach `socketId ≠ eigenem`
+
+### Race Skills System
+- **Model**: `SkillBlock.sourceRaceId?: string` — optionales Feld, markiert Skills als Rassen-Skills
+- **Zuweisung**: `race-selector.selectRace()` entfernt alle Skills mit altem `sourceRaceId`, fügt `race.skills` (filtered by `levelRequired <= sheet.level`) mit `sourceRaceId = race.id` hinzu
+- **Entfernung**: `clearRace()` entfernt alle Skills mit `sourceRaceId === raceId`
+- **Kompatibilität**: Skills ohne `sourceRaceId` bleiben unberührt → Alte Sheets brechen nicht
+
 ### Current Events (Shop/Bundle State)
 - **Zentraler State**: `world.currentEvents[]` im Backend
 - **Persistierung**: Wird in `world.json` gespeichert (data.service.ts saveWorld)
@@ -252,6 +264,7 @@ app/
 - **Char-Card Stil**: Skill-Card-inspiriert (`#0f1829` bg, 3px accent left-border, rounded corners)
 - **Resource Bars**: Gradient-Fill mit Glow-Schatten (Health=rot, Energy=grün, Mana=blau)
 - **Währung**: Coin-Pills via `getCoinParts()` (nicht raw text)
+- **Level + Klasse**: `.cc-meta` unter dem Namen zeigt `cc-level-badge` (accent-Farbe) + `cc-class-badge` für primary/secondary Klasse
 - **Status-Effekte**: Icon-basierte Chips (ohne ✕-Button), zeigen Stacks + Duration
 - **Picker**: Absolutpositioniert mit Backdrop-Click zum Schließen
 - **Context Menu**: Rechtsklick auf Charakter → Sheet öffnen, Status-Effekte anwenden/entfernen

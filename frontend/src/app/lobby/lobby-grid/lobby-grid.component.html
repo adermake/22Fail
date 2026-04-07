@@ -160,7 +160,17 @@
         <button class="danger" (click)="onRemoveToken()">🗑️ Remove Token</button>
       } @else if (contextMenuHex()) {
         <!-- Quick token creation menu -->
-        <button (click)="onCreateQuickToken()">➕ Create Quick Token</button>
+        <div class="quick-token-form">
+          <input
+            type="text"
+            class="quick-token-name-input"
+            [value]="quickTokenName()"
+            (input)="quickTokenName.set($any($event.target).value)"
+            placeholder="Token Name"
+            (keydown.enter)="onCreateQuickToken()"
+          />
+          <button (click)="onCreateQuickToken()">➕ Erstellen</button>
+        </div>
       }
     </div>
   }

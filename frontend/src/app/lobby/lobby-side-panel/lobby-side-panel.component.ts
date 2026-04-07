@@ -19,29 +19,24 @@ type PanelTab = 'layers' | 'rolls';
   imports: [CommonModule, LobbyLayerPanelComponent],
   template: `
     <div class="side-panel-container">
-      <!-- Tab header (only show for GM) -->
-      @if (isGM) {
-        <div class="tab-header">
-          <button 
-            class="tab-button"
-            [class.active]="activeTab() === 'layers'"
-            (click)="activeTab.set('layers')"
-          >
-            📐 Layers
-          </button>
-          <button 
-            class="tab-button"
-            [class.active]="activeTab() === 'rolls'"
-            (click)="activeTab.set('rolls')"
-          >
-            🎲 Rolls
-          </button>
-        </div>
-      } @else {
-        <div class="tab-header">
-          <div class="tab-title">📜 Historie</div>
-        </div>
-      }
+      <!-- Tab header -->
+      <div class="tab-header">
+        <button 
+          class="tab-button"
+          [class.active]="activeTab() === 'layers'"
+          [class.gm-locked]="!isGM"
+          (click)="activeTab.set('layers')"
+        >
+          📐 Ebenen
+        </button>
+        <button 
+          class="tab-button"
+          [class.active]="!isGM || activeTab() === 'rolls'"
+          (click)="activeTab.set('rolls')"
+        >
+          🎲 Würfe
+        </button>
+      </div>
 
       <!-- Tab content -->
       <div class="tab-content">
@@ -204,6 +199,12 @@ type PanelTab = 'layers' | 'rolls';
       right: 0;
       height: 2px;
       background: #60a5fa;
+    }
+
+    .gm-locked {
+      opacity: 0.35;
+      pointer-events: none;
+      cursor: not-allowed;
     }
 
     .tab-title {

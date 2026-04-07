@@ -162,6 +162,29 @@
   background: rgba(239, 68, 68, 0.15);
 }
 
+.quick-token-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+}
+
+.quick-token-name-input {
+  background: var(--input, #1e293b);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 5px 8px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.quick-token-name-input:focus {
+  border-color: var(--accent, #6366f1);
+}
+
 .menu-divider {
   height: 1px;
   background: #334155;

@@ -10,6 +10,13 @@
   flex-shrink: 0;
 }
 
+/* GM-only controls - visible but disabled for non-GM */
+.gm-locked {
+  opacity: 0.35;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
 /* Tool groups */
 .tool-group {
   display: flex;
