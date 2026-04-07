@@ -182,7 +182,9 @@ export class EquipmentComponent {
         value: this.sheet.equipment,
       });
     } else {
-      const item = event.previousContainer.data[event.previousIndex];
+      // Use event.item.data (the cdkDragData = actual ItemBlock) instead of data[previousIndex]
+      // because the inventory array may contain null gaps, making previousIndex unreliable.
+      const item: ItemBlock | null = event.item.data ?? event.previousContainer.data[event.previousIndex];
       const isFromInventory = event.previousContainer.id === 'inventoryList';
       
       // Guard against null items (inventory slots can be nulled-out after removal)
@@ -199,10 +201,16 @@ export class EquipmentComponent {
         const existingItem = existingInSlot.length > 0 && targetSlot !== 'extra' ? existingInSlot[0] : null;
 
         if (existingItem) {
-          // SWAP: put existing equipment item back into inventory at source index
-          const newInventory = [...(this.sheet.inventory || [])];
-          newInventory[event.previousIndex] = existingItem;
-          this.sheet.inventory = newInventory;
+          // SWAP: find item's actual position in inventory by object reference
+          const invCopy = [...(this.sheet.inventory || [])] as (ItemBlock | null)[];
+          const realIdx = invCopy.indexOf(item);
+          if (realIdx !== -1) {
+            invCopy[realIdx] = existingItem;
+          } else {
+            // Fallback: append to inventory
+            invCopy.push(existingItem);
+          }
+          this.sheet.inventory = invCopy;
 
           // Replace in equipment array
           const equipIdx = this.sheet.equipment.indexOf(existingItem);
@@ -213,9 +221,10 @@ export class EquipmentComponent {
           }
           this.sheet.equipment = [...this.sheet.equipment];
         } else {
-          // Empty slot: null out the position (preserve other item slots), add to equipment
-          const invCopy = [...this.sheet.inventory] as (typeof this.sheet.inventory[0] | null)[];
-          invCopy[event.previousIndex] = null;
+          // Empty slot: remove item from inventory by reference, add to equipment
+          const invCopy = [...(this.sheet.inventory || [])] as (ItemBlock | null)[];
+          const realIdx = invCopy.indexOf(item);
+          if (realIdx !== -1) invCopy[realIdx] = null;
           while (invCopy.length > 0 && invCopy[invCopy.length - 1] === null) invCopy.pop();
           this.sheet.inventory = invCopy as typeof this.sheet.inventory;
           this.sheet.equipment.push(item);
