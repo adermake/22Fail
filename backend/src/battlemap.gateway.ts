@@ -16,6 +16,9 @@ import { DataService, JsonPatch } from './data.service';
 export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
+  // Transient per-map measurements: mapId → (socketId → MeasurementLine)
+  private activeMeasurements = new Map<string, Map<string, { id: string; start: { x: number; y: number }; end: { x: number; y: number }; createdBy: string }>>();
+
   constructor(private readonly dataService: DataService) {}
 
   handleConnection(client: Socket) {
@@ -24,6 +27,14 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   handleDisconnect(client: Socket) {
     console.log('Client disconnected from battlemap gateway:', client.id);
+    // Clean up any active measurements for this client and notify map rooms
+    for (const [mapId, measurements] of this.activeMeasurements.entries()) {
+      if (measurements.has(client.id)) {
+        measurements.delete(client.id);
+        const remaining = Array.from(measurements.values());
+        this.server.to(`map-${mapId}`).emit('measurementUpdate', remaining);
+      }
+    }
   }
 
   // Join a lobby room (for world-level coordination)
@@ -105,5 +116,30 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.server.to(room).emit('mainViewChanged', { mapId });
     
     console.log(`[BATTLEMAP GATEWAY] Broadcasted mainViewChanged to ${room}`);
+  }
+
+  // Handle real-time measurement sync
+  @SubscribeMessage('updateMeasurement')
+  handleUpdateMeasurement(
+    @MessageBody() data: { worldName: string; battleMapId: string; measurement: { id: string; start: { x: number; y: number }; end: { x: number; y: number }; createdBy: string } | null },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { battleMapId, measurement } = data;
+
+    if (!this.activeMeasurements.has(battleMapId)) {
+      this.activeMeasurements.set(battleMapId, new Map());
+    }
+
+    const mapMeasurements = this.activeMeasurements.get(battleMapId)!;
+
+    if (measurement === null) {
+      mapMeasurements.delete(client.id);
+    } else {
+      // Stamp the socket id as the measurement id so each client can identify its own
+      mapMeasurements.set(client.id, { ...measurement, id: client.id, createdBy: client.id });
+    }
+
+    const allMeasurements = Array.from(mapMeasurements.values());
+    this.server.to(`map-${battleMapId}`).emit('measurementUpdate', allMeasurements);
   }
 }

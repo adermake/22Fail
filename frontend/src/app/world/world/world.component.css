@@ -186,6 +186,26 @@
   font-size: 1.05rem;
   font-weight: 700;
 }
+.cc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+.cc-level-badge,
+.cc-class-badge {
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.55);
+  white-space: nowrap;
+}
+.cc-level-badge {
+  color: var(--accent);
+  font-weight: 600;
+}
 
 /* ── Resource Bars ──────────────────────────── */
 .cc-resources {

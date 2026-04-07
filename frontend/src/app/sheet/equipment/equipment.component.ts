@@ -66,7 +66,7 @@ export class EquipmentComponent {
       }
     }
     
-    const armorPenalty = sumOfArmorDebuffs / 5;
+    const armorPenalty = Math.round(sumOfArmorDebuffs / 5);
     const negation = this.sheet.speedPenaltyNegation || 0;
     
     return Math.max(0, armorPenalty + brokenArmorPenalty - negation);

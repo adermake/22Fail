@@ -142,6 +142,7 @@
       class="context-menu"
       [style.left.px]="contextMenuPosition().x"
       [style.top.px]="contextMenuPosition().y"
+      (mousedown)="$event.stopPropagation()"
       (click)="$event.stopPropagation()"
     >
       @if (contextMenuImageId()) {

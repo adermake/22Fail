@@ -738,6 +738,17 @@
   color: #4ade80;
   border-color: rgba(74, 222, 128, 0.35);
 }
+/* Stat modifiers: + is good (green), - is bad (red) */
+.mod-chip.stat-mod-positive {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.35);
+}
+.mod-chip.stat-mod-negative {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.35);
+}
 
 .sse-panel-actions {
   padding: 10px 18px;

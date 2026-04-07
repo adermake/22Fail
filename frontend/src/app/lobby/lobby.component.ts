@@ -126,18 +126,27 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     const chars = this.worldCharacters();
     const teams = this.battleTeams();
+    const charMap = new Map<string, { id: string; sheet: CharacterSheet }>();
     const portraitMap = new Map<string, string>();
     chars.forEach(c => {
+      charMap.set(c.id, c);
       if (c.sheet.portrait) {
         portraitMap.set(c.id, c.sheet.portrait);
       }
     });
 
-    return map.tokens.map(token => ({
-      ...token,
-      portrait: token.isQuickToken ? token.portrait : (portraitMap.get(token.characterId) || token.portrait),
-      team: teams.get(token.characterId) || token.team || 'blue',
-    }));
+    return map.tokens.map(token => {
+      const char = token.isQuickToken ? null : charMap.get(token.characterId);
+      const movementSpeed = char
+        ? this.trueStats.calculateEffectiveSpeed(char.sheet)
+        : (token.movementSpeed ?? 6);
+      return {
+        ...token,
+        portrait: token.isQuickToken ? token.portrait : (portraitMap.get(token.characterId) || token.portrait),
+        team: teams.get(token.characterId) || token.team || 'blue',
+        movementSpeed,
+      };
+    });
   });
 
   // Computed: image library (NOW FROM GLOBAL STORE, NOT LOBBY DATA)

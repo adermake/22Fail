@@ -136,8 +136,9 @@ export class InventoryComponent {
 
  get totalWeight(): number {
   const itemWeight = this.sheet.inventory?.reduce((sum, item) => sum + (item ? (item.weight || 0) : 0), 0) || 0;
+  const equipmentWeight = this.sheet.equipment?.reduce((sum, item) => sum + (item ? (item.weight || 0) : 0), 0) || 0;
   const currencyWeight = this.getCurrencyWeight();
-  return Math.floor(itemWeight + currencyWeight);
+  return Math.floor(itemWeight + equipmentWeight + currencyWeight);
 }
 
 getCurrencyWeight(): number {

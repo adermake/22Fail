@@ -21,4 +21,6 @@ export class SkillBlock {
   actionType?: 'Aktion' | 'Bonusaktion' | 'Keine Aktion' | 'Reaktion';
   // Optional inline action macro (overrides cost popup when set)
   embeddedMacro?: import('./action-macro.model').ActionMacro;
+  // Set when this skill was granted by a race (holds race id) - used for cleanup on race change
+  sourceRaceId?: string;
 }

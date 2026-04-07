@@ -141,6 +141,13 @@ export class LobbySocketService {
   }
 
   /**
+   * Get the current socket id (used to filter own measurements from remote broadcasts).
+   */
+  get socketId(): string | undefined {
+    return this.socket?.id;
+  }
+
+  /**
    * Disconnect from the WebSocket server.
    */
   disconnect(): void {

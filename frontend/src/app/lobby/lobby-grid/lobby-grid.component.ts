@@ -33,8 +33,10 @@ import {
   ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke, LibraryTexture } from '../../model/lobby.model';
+import { Subscription } from 'rxjs';
+import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke, LibraryTexture, MeasurementLine } from '../../model/lobby.model';
 import { LobbyStoreService } from '../../services/lobby-store.service';
+import { LobbySocketService } from '../../services/lobby-socket.service';
 import { ImageService } from '../../services/image.service';
 import { TextureService } from '../../services/texture.service';
 import { LobbyTokenComponent, TokenResources } from '../lobby-token/lobby-token.component';
@@ -130,9 +132,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // Services
   private store = inject(LobbyStoreService);
+  private socket = inject(LobbySocketService);
   private imageService = inject(ImageService);
   private textureService = inject(TextureService);
   private cdr = inject(ChangeDetectorRef);
+
+  // Remote measurements from other users
+  remoteMeasurements = signal<MeasurementLine[]>([]);
+  private measurementSub: Subscription | null = null;
 
   // Document-level listeners for continuous tracking outside container
   private documentMouseMoveListener: ((e: MouseEvent) => void) | null = null;
@@ -358,6 +365,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.scheduleRender();
     this.setupResizeObserver();
     this.loadPalette(); // Load saved palette from localStorage
+
+    // Subscribe to remote measurement updates and re-render
+    this.measurementSub = this.socket.measurements$.subscribe(measurements => {
+      const ownId = this.socket.socketId;
+      // Filter out own measurement to avoid double-drawing with the local one
+      this.remoteMeasurements.set(ownId ? measurements.filter(m => m.id !== ownId) : measurements);
+      this.scheduleRender();
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -443,6 +458,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.saveDirtyTiles();
     }
     
+    // Cancel measurement subscription
+    this.measurementSub?.unsubscribe();
+    this.measurementSub = null;
+
     // Clean up resources
     this.resizeObserver?.disconnect();
     this.removeDocumentListeners();
@@ -3174,9 +3193,70 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
     this.renderMeasurement(ctx);
+    this.renderRemoteMeasurements(ctx);
     this.renderDragPath(ctx);
     this.renderSelectionBox(ctx);
     this.renderBrushSizeCircle(ctx);
+  }
+
+  private renderRemoteMeasurements(ctx: CanvasRenderingContext2D): void {
+    const measurements = this.remoteMeasurements();
+    for (const m of measurements) {
+      const startScreen = this.worldToScreen(m.start.x, m.start.y);
+      const endScreen = this.worldToScreen(m.end.x, m.end.y);
+
+      ctx.save();
+
+      // Glow layer
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#60a5fa';
+      ctx.beginPath();
+      ctx.moveTo(startScreen.x, startScreen.y);
+      ctx.lineTo(endScreen.x, endScreen.y);
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 5;
+      ctx.setLineDash([10, 5]);
+      ctx.stroke();
+
+      // Solid line
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.moveTo(startScreen.x, startScreen.y);
+      ctx.lineTo(endScreen.x, endScreen.y);
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.restore();
+
+      // Endpoints
+      ctx.save();
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = '#60a5fa';
+      ctx.fillStyle = '#60a5fa';
+      ctx.beginPath();
+      ctx.arc(startScreen.x, startScreen.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(endScreen.x, endScreen.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Distance label
+      const startHex = HexMath.pixelToHex(m.start);
+      const endHex = HexMath.pixelToHex(m.end);
+      const hexDist = HexMath.hexDistance(startHex, endHex);
+      const meters = hexDist * 1.5;
+      const midX = (startScreen.x + endScreen.x) / 2;
+      const midY = (startScreen.y + endScreen.y) / 2;
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillStyle = '#60a5fa';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`${meters.toFixed(1)}m`, midX, midY - 5);
+    }
   }
 
   private renderMeasurement(ctx: CanvasRenderingContext2D): void {
@@ -3923,6 +4003,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const meters = hexDistance * 1.5;
     this.measureDistance.set(meters);
     this.scheduleRender();
+
+    // Broadcast measurement to other clients
+    this.socket.sendMeasurement(
+      this.store.worldName,
+      this.store.currentMapId,
+      { id: this.socket.socketId ?? 'local', start, end: hexCenter, createdBy: this.socket.socketId ?? 'local' },
+    );
   }
 
   private handleMeasureUp(event: MouseEvent, world: Point, hex: HexCoord): void {
@@ -3931,6 +4018,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.measureEnd.set(null);
     this.measureDistance.set(0);
     this.scheduleRender();
+
+    // Clear our measurement on the server
+    this.socket.sendMeasurement(this.store.worldName, this.store.currentMapId, null);
   }
 
   private handleImageDown(event: MouseEvent, world: Point): void {

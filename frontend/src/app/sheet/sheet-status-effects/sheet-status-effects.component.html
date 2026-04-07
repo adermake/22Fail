@@ -216,7 +216,7 @@
             <span class="detail-label">Modifikatoren</span>
             <span class="detail-value mod-chips">
               @for (mod of getEffect(expandedEffect)!.statModifiers!; track $index) {
-                <span class="mod-chip" [class.mod-positive]="mod.amount > 0" [class.mod-negative]="mod.amount < 0">{{ getStatLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}</span>
+                <span class="mod-chip" [class.stat-mod-positive]="mod.amount > 0" [class.stat-mod-negative]="mod.amount < 0">{{ getStatLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}</span>
               }
             </span>
           </div>

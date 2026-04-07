@@ -74,9 +74,23 @@ export class RaceSelectorComponent implements OnInit {
     this.patch.emit({ path: 'statuses.0.statusBase', value: race.baseHealth });
     this.patch.emit({ path: 'statuses.1.statusBase', value: race.baseEnergy });
     this.patch.emit({ path: 'statuses.2.statusBase', value: race.baseMana });
+
+    // Remove skills from the previously selected race, then add new racial skills
+    const oldRaceId = this.sheet.raceId;
+    const currentSkills = this.sheet.skills || [];
+    const filteredSkills = currentSkills.filter(s => !s.sourceRaceId || s.sourceRaceId !== oldRaceId);
+    const currentLevel = this.sheet.level || 1;
+    const newRacialSkills = (race.skills || [])
+      .filter(rs => rs.levelRequired <= currentLevel)
+      .map(rs => ({ ...rs.skill, sourceRaceId: race.id }));
+    this.patch.emit({ path: 'skills', value: [...filteredSkills, ...newRacialSkills] });
   }
 
   clearRace() {
+    const oldRaceId = this.sheet.raceId;
+    const currentSkills = this.sheet.skills || [];
+    const filteredSkills = currentSkills.filter(s => !s.sourceRaceId || s.sourceRaceId !== oldRaceId);
+    this.patch.emit({ path: 'skills', value: filteredSkills });
     this.patch.emit({ path: 'raceId', value: '' });
     this.patch.emit({ path: 'race', value: '' });
     this.selectedRace = null;

@@ -77,6 +77,15 @@
                 }
                 <div class="cc-name-group">
                   <h3 class="cc-name">{{ member.sheet.name || member.id }}</h3>
+                  <div class="cc-meta">
+                    <span class="cc-level-badge">Lvl {{ member.sheet.level || 1 }}</span>
+                    @if (member.sheet.primary_class) {
+                      <span class="cc-class-badge">{{ member.sheet.primary_class }}</span>
+                    }
+                    @if (member.sheet.secondary_class) {
+                      <span class="cc-class-badge secondary">{{ member.sheet.secondary_class }}</span>
+                    }
+                  </div>
                 </div>
               </div>
 
