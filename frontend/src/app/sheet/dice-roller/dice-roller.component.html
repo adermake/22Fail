@@ -152,7 +152,7 @@
                   (click)="toggleBonus(bonus.name)"
                   [title]="bonus.context || ''">
                   <span class="chip-name">{{bonus.name}}</span>
-                  <span class="chip-value">+{{bonus.value}}</span>
+                  <span class="chip-value" [class.negative]="bonus.value < 0">{{bonus.value > 0 ? '+' : ''}}{{bonus.value}}</span>
                   @if (bonus.context) {
                     <span class="chip-context">{{bonus.context}}</span>
                   }

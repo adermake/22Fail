@@ -407,6 +407,9 @@ export class TrueStatsService {
     // Item weight
     const itemWeight = sheet.inventory?.reduce((sum, item) => sum + (item ? (item.weight || 0) : 0), 0) || 0;
     
+    // Equipment weight (worn/equipped items also count toward carry weight)
+    const equipmentWeight = sheet.equipment?.reduce((sum, item) => sum + (item ? (item.weight || 0) : 0), 0) || 0;
+    
     // Currency weight (using COIN_WEIGHT constant)
     const COIN_WEIGHT = 0.02; // 50 coins per pound
     const currencyWeight = sheet.currency ? (
@@ -416,7 +419,7 @@ export class TrueStatsService {
       (sheet.currency.platinum || 0)
     ) * COIN_WEIGHT : 0;
     
-    return Math.floor(itemWeight + currencyWeight);
+    return Math.floor(itemWeight + equipmentWeight + currencyWeight);
   }
 
   /**
@@ -446,7 +449,7 @@ export class TrueStatsService {
     if (!sheet.equipment) return 0;
     
     const sumOfArmorDebuffs = sheet.equipment.reduce((sum, item) => sum + (item.armorDebuff || 0), 0);
-    const armorPenalty = sumOfArmorDebuffs / 5;
+    const armorPenalty = Math.round(sumOfArmorDebuffs / 5);
     const negation = sheet.speedPenaltyNegation || 0;
     
     return Math.max(0, armorPenalty - negation);

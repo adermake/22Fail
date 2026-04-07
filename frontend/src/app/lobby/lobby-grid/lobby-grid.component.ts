@@ -5153,12 +5153,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   onCreateQuickToken(): void {
-    const rect = this.contextMenuPos();
-    if (rect) {
-      const world = this.screenToWorld(rect.x, rect.y);
-      const hex = HexMath.pixelToHex(world);
-      
-      // Emit event to create quick token at this hex position
+    const hex = this.contextMenuHex();
+    if (hex) {
+      // contextMenuHex is already the correct hex coordinate computed in onContextMenu
       this.quickTokenDrop.emit({
         name: 'Quick Token',
         portrait: '',

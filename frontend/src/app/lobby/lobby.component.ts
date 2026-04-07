@@ -333,7 +333,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
       id: c.id,
       name: c.sheet.name,
       portrait: c.sheet.portrait,
-      speed: this.trueStats.calculateSpeed(c.sheet) // Use TrueStatsService for correct speed
+      speed: this.trueStats.calculateEffectiveSpeed(c.sheet) // Use effective speed including armor/encumbrance penalties
     })));
     
     // Skip FLIP animations in battle tracker when loading characters
@@ -489,7 +489,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     if (!character) return;
 
     // Use TrueStatsService for correct speed calculation including all bonuses
-    const movementSpeed = this.trueStats.calculateSpeed(character.sheet);
+    const movementSpeed = this.trueStats.calculateEffectiveSpeed(character.sheet);
 
     this.store.addToken({
       characterId: data.characterId,
