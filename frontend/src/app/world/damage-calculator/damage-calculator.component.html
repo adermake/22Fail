@@ -5,18 +5,33 @@
   </div>
 
   <div class="dmg-calc-body">
-    <!-- Effektivität input -->
-    <div class="dmg-field">
-      <label class="dmg-label">Effektivität (Würfelgröße)</label>
-      <div class="dmg-effekt-row">
-        <span class="dmg-dice-prefix">d</span>
-        <input
-          class="dmg-effekt-input"
-          type="number"
-          min="2"
-          max="100"
-          [(ngModel)]="effektivitaet"
-        />
+    <!-- Effektivität + Stabilität inputs -->
+    <div class="dmg-inputs-row">
+      <div class="dmg-field">
+        <label class="dmg-label">Effektivität (Würfelgröße)</label>
+        <div class="dmg-effekt-row">
+          <span class="dmg-dice-prefix">d</span>
+          <input
+            class="dmg-effekt-input"
+            type="number"
+            min="2"
+            max="100"
+            [(ngModel)]="effektivitaet"
+          />
+        </div>
+      </div>
+
+      <div class="dmg-field">
+        <label class="dmg-label">Stabilität</label>
+        <div class="dmg-effekt-row">
+          <span class="dmg-stab-prefix">🛡</span>
+          <input
+            class="dmg-effekt-input dmg-stab-input"
+            type="number"
+            min="0"
+            [(ngModel)]="stabilitaet"
+          />
+        </div>
       </div>
     </div>
 
@@ -72,6 +87,11 @@
       <div class="dmg-total-row">
         <span class="dmg-total-label">Gesamtschaden</span>
         <span class="dmg-total-value" [style.color]="lastResult.severity.color">{{ lastResult.total }}</span>
+      </div>
+
+      <div *ngIf="stabilitaet > 0" class="dmg-final-row">
+        <span class="dmg-final-label">Nach Stabilität ({{ stabilitaet }})</span>
+        <span class="dmg-final-value" [style.color]="lastResult.severity.color">{{ finalDamage }}</span>
       </div>
     </div>
   </div>

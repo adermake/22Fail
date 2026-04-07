@@ -48,6 +48,7 @@ export class DamageCalculatorComponent {
   readonly severityOptions = SEVERITY_OPTIONS;
 
   effektivitaet: number = 6;
+  stabilitaet: number = 0;
   selectedSeverity: DamageSeverity = SEVERITY_OPTIONS[1]; // Normaler Treffer default
 
   lastResult: DamageRollResult | null = null;
@@ -122,11 +123,26 @@ export class DamageCalculatorComponent {
     this.cdr.markForCheck();
   }
 
+  get finalDamage(): number {
+    if (!this.lastResult) return 0;
+    const stab = Math.max(0, this.stabilitaet || 0);
+    return Math.round(this.lastResult.total * (100 / (100 + stab)));
+  }
+
   onEffektivitaetInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const val = parseInt(input.value, 10);
     if (!isNaN(val) && val >= 2 && val <= 100) {
       this.effektivitaet = val;
+    }
+    this.cdr.markForCheck();
+  }
+
+  onStabilitaetInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const val = parseInt(input.value, 10);
+    if (!isNaN(val) && val >= 0) {
+      this.stabilitaet = val;
     }
     this.cdr.markForCheck();
   }

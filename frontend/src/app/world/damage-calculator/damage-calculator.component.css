@@ -56,6 +56,18 @@
   color: var(--muted, #9ca3af);
 }
 
+/* ── Inputs row (Effektivität + Stabilität side by side) ──────── */
+.dmg-inputs-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dmg-inputs-row .dmg-field {
+  flex: 1;
+  min-width: 120px;
+}
+
 /* ── Effektivität input ─────────────────────────────────────── */
 .dmg-effekt-row {
   display: flex;
@@ -99,6 +111,24 @@
 .dmg-effekt-input::-webkit-inner-spin-button,
 .dmg-effekt-input::-webkit-outer-spin-button {
   opacity: 0.4;
+}
+
+.dmg-stab-prefix {
+  font-size: 0.9rem;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-right: none;
+  padding: 6px 9px;
+  border-radius: 6px 0 0 6px;
+  line-height: 1;
+}
+
+.dmg-stab-input {
+  border-radius: 0 6px 6px 0;
+}
+
+.dmg-stab-input:focus {
+  border-color: #6366f1;
 }
 
 /* ── Severity grid ──────────────────────────────────────────── */
@@ -297,4 +327,28 @@
   font-weight: 800;
   font-family: 'Courier New', monospace;
   line-height: 1;
+}
+
+.dmg-final-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-top: 6px;
+  border-top: 1px solid var(--border, #374151);
+}
+
+.dmg-final-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6366f1;
+}
+
+.dmg-final-value {
+  font-size: 1.9rem;
+  font-weight: 800;
+  font-family: 'Courier New', monospace;
+  line-height: 1;
+  filter: brightness(1.15);
 }
