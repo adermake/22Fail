@@ -6,13 +6,13 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { SpellComponent } from '../spell/spell.component';
 import { CardComponent } from '../../shared/card/card.component';
 import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { SpellBlock } from '../../model/spell-block-model';
+import { SpellBlock, generateSpellId } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
-import { SpellNodeEditorComponent } from '../../shared/spell-node-editor/spell-node-editor.component';
+import { SpellEditorOverlayComponent } from '../spell-editor-overlay/spell-editor-overlay.component';
 
 @Component({
   selector: 'app-spells',
-  imports: [CommonModule, SpellComponent, CardComponent, DragDropModule, FormsModule, SpellNodeEditorComponent],
+  imports: [CommonModule, SpellComponent, CardComponent, DragDropModule, FormsModule, SpellEditorOverlayComponent],
   templateUrl: './spells.component.html',
   styleUrl: './spells.component.css',
 })
@@ -53,7 +53,7 @@ export class SpellsComponent {
     this.showCreateDialog = false;
   }
 
-  // Node editor
+  // Spell editor overlay
   openNodeEditor(index: number | null) {
     this.nodeEditorSpellIndex = index;
     this.showNodeEditor = true;
@@ -64,15 +64,33 @@ export class SpellsComponent {
     this.nodeEditorSpellIndex = null;
   }
 
-  saveFromNodeEditor(spell: SpellBlock) {
-    if (this.nodeEditorSpellIndex === null) {
-      // new spell
-      this.sheet.spells = [...this.sheet.spells, spell];
-    } else {
-      const spells = [...this.sheet.spells];
-      spells[this.nodeEditorSpellIndex] = spell;
-      this.sheet.spells = spells;
+  deleteSpellFromEditor() {
+    if (this.nodeEditorSpellIndex !== null) {
+      this.deleteSpell(this.nodeEditorSpellIndex);
     }
+    this.closeNodeEditor();
+  }
+
+  saveFromNodeEditor(spell: SpellBlock) {
+    const spells = [...this.sheet.spells];
+
+    // Prefer ID-based lookup — survives tab switching that resets nodeEditorSpellIndex
+    let targetIndex = spell.id ? spells.findIndex(s => s.id === spell.id) : -1;
+
+    // Fallback to index-based if no ID match (e.g., legacy spells without IDs)
+    if (targetIndex < 0 && this.nodeEditorSpellIndex !== null) {
+      targetIndex = this.nodeEditorSpellIndex;
+    }
+
+    if (targetIndex >= 0) {
+      spells[targetIndex] = spell;
+    } else {
+      // Brand new spell — ensure it has an ID
+      if (!spell.id) spell.id = generateSpellId();
+      spells.push(spell);
+    }
+
+    this.sheet.spells = spells;
     this.patch.emit({ path: 'spells', value: this.sheet.spells });
     // Do NOT close — spell editor stays open after save (explicit close via cancel/X)
   }

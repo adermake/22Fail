@@ -37,6 +37,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   @Output() save        = new EventEmitter<SpellBlock>();
   @Output() cancel      = new EventEmitter<void>();
   @Output() deleteSpell = new EventEmitter<void>();
+  @Output() estimatedCostResult = new EventEmitter<SpellCostResult | null>();
 
   get isNewSpell(): boolean { return this.spell === null; }
 
@@ -190,6 +191,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const keys: Array<keyof SpellStatRequirements> = ['strength','dexterity','speed','intelligence','constitution','chill'];
     for (const k of keys) { if ((req[k] ?? 0) > 0) out[k] = req[k]; }
     this.spellStatRequirements = out;
+    this.estimatedCostResult.emit(result);
   }
 
   // ── Quick-search popup state (drop connection into void to place+connect a rune) ──
@@ -2351,6 +2353,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       statRequirements: Object.keys(this.spellStatRequirements).length > 0 ? this.spellStatRequirements : undefined,
     };
     this.save.emit(spell);
+    this.estimatedCostResult.emit(this.spellCostResult);
     this.lastSavedJson = JSON.stringify(spell.graph);
     this.savedFeedback = true;
     // Show brief save confirmation, then reset — do NOT close the editor

@@ -30,13 +30,13 @@
   </div>
 </app-card>
 
-<!-- Spell Node Editor (fullscreen) -->
+<!-- Spell Editor Overlay (fullscreen) -->
 @if (showNodeEditor) {
-  <app-spell-node-editor
+  <app-spell-editor-overlay
     [spell]="nodeEditorSpell"
     [availableRunes]="learnedRunes"
     (save)="saveFromNodeEditor($event)"
     (cancel)="closeNodeEditor()"
-    (deleteSpell)="deleteSpell(nodeEditorSpellIndex!); closeNodeEditor()">
-  </app-spell-node-editor>
+    (deleteSpell)="deleteSpellFromEditor()">
+  </app-spell-editor-overlay>
 }

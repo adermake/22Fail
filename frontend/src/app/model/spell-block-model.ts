@@ -1,10 +1,11 @@
 import { SpellGraph } from '../shared/spell-node-editor/spell-node.model';
+import { ActionMacro } from './action-macro.model';
 
 export interface SpellBinding {
   type: 'learned' | 'item';
-  itemName?: string; // Only for item-bound spells
-  durability?: number; // Current durability for item-bound spells
-  maxDurability?: number; // Max durability for item-bound spells
+  itemName?: string;
+  durability?: number;
+  maxDurability?: number;
 }
 
 export interface SpellStatRequirements {
@@ -16,19 +17,47 @@ export interface SpellStatRequirements {
   chill?: number;
 }
 
+// ── Cost schedule (stored, program-readable) ──────────────────────────────────
+
+export interface StoredCostTurn {
+  turn: number;
+  mana: number;
+  fokus: number;
+}
+
+export interface StoredCostCase {
+  label: string;
+  turns: StoredCostTurn[];
+  subcases?: StoredCostCase[];
+  isUnknownBranch?: boolean;
+}
+
+export interface StoredCostSchedule {
+  cases: StoredCostCase[];
+}
+
+export function generateSpellId(): string {
+  return 'spell_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now().toString(36);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export class SpellBlock {
+  id?: string;                          // Stable identifier (prevents duplicate-save bugs)
   name!: string;
   description!: string;
-  drawing?: string; // Optional base64 encoded image
+  drawing?: string;
   tags!: string[];
   binding!: SpellBinding;
-  strokeColor?: string; // Color for the spell drawing stroke (default: #673ab7)
-  libraryOrigin?: string; // Library ID if this spell came from a library (undefined for custom spells)
-  libraryOriginName?: string; // Human-readable library name
-  graph?: SpellGraph; // Node-based spell construction graph
-  costMana?: number;       // Stored mana cost (manually set or from calculator)
-  costFokus?: number;      // Stored fokus cost (manually set or from calculator)
-  statRequirements?: SpellStatRequirements; // Attribute requirements (from calculator)
+  strokeColor?: string;
+  libraryOrigin?: string;
+  libraryOriginName?: string;
+  graph?: SpellGraph;
+  costMana?: number;
+  costFokus?: number;
+  statRequirements?: SpellStatRequirements;
+  costSchedule?: StoredCostSchedule;    // Detailed cost plan (from estimator or manual)
+  embeddedMacro?: ActionMacro;          // Optional action macro to execute on cast
 }
 
 export const SPELL_GLOW_COLORS = [
