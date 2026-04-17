@@ -7,18 +7,19 @@ import { FormsModule } from '@angular/forms';
 import {
   SpellBlock, SpellStatRequirements, SpellBinding,
   StoredCostSchedule, StoredCostCase, StoredCostTurn,
-  SPELL_TAG_OPTIONS, SPELL_GLOW_COLORS, generateSpellId,
+  SPELL_TAG_OPTIONS, generateSpellId,
 } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellNodeEditorComponent } from '../../shared/spell-node-editor/spell-node-editor.component';
 import { SpellCostResult } from '../../shared/spell-node-editor/spell-cost.model';
-import { ActionMacro, ActionConsequence } from '../../model/action-macro.model';
+import { ActionMacro, createEmptyActionMacro } from '../../model/action-macro.model';
 import { SpellGraph } from '../../shared/spell-node-editor/spell-node.model';
+import { EmbeddedMacroEditorComponent } from '../../shared/embedded-macro-editor/embedded-macro-editor.component';
 
 @Component({
   selector: 'app-spell-editor-overlay',
   standalone: true,
-  imports: [CommonModule, FormsModule, SpellNodeEditorComponent],
+  imports: [CommonModule, FormsModule, SpellNodeEditorComponent, EmbeddedMacroEditorComponent],
   templateUrl: './spell-editor-overlay.component.html',
   styleUrl: './spell-editor-overlay.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -41,11 +42,13 @@ export class SpellEditorOverlayComponent implements OnInit {
   spellCostFokus = 0;
   spellStatRequirements: SpellStatRequirements = {};
   spellBinding: SpellBinding = { type: 'learned' };
-  spellStrokeColor = '#8b5cf6';
   costSchedule: StoredCostSchedule | null = null;
   graph: SpellGraph | undefined;
   embeddedMacro: ActionMacro | null = null;
   hasDrawing = false;
+  // For add-turn form
+  newTurnMana = 0;
+  newTurnFokus = 0;
 
   // ── UI state ─────────────────────────────────────────────────────────────────
   showNodeEditor = false;
@@ -53,9 +56,9 @@ export class SpellEditorOverlayComponent implements OnInit {
   showMacroEditor = false;
   lastEstimatedCostResult: SpellCostResult | null = null;
   hasNewEstimate = false;
+  savedFeedback = false;       // Brief "Gespeichert" flash
 
   readonly tagOptions = SPELL_TAG_OPTIONS;
-  readonly glowColors = SPELL_GLOW_COLORS;
   readonly statLabels: { key: keyof SpellStatRequirements; label: string }[] = [
     { key: 'intelligence',  label: 'Intelligenz' },
     { key: 'constitution',  label: 'Konstitution' },
@@ -64,11 +67,6 @@ export class SpellEditorOverlayComponent implements OnInit {
     { key: 'speed',         label: 'Tempo' },
     { key: 'chill',         label: 'Chill' },
   ];
-
-  readonly statIcons: Record<keyof SpellStatRequirements, string> = {
-    intelligence: '🧠', constitution: '💪', strength: '⚔️',
-    dexterity: '🏃', speed: '⚡', chill: '❄️',
-  };
 
   get isNewSpell(): boolean { return !this.spell; }
 
@@ -82,7 +80,6 @@ export class SpellEditorOverlayComponent implements OnInit {
       this.spellCostFokus        = this.spell.costFokus ?? 0;
       this.spellStatRequirements = { ...(this.spell.statRequirements || {}) };
       this.spellBinding          = { ...(this.spell.binding || { type: 'learned' }) };
-      this.spellStrokeColor      = this.spell.strokeColor ?? '#8b5cf6';
       this.costSchedule          = this.spell.costSchedule ?? null;
       this.graph                 = this.spell.graph ? JSON.parse(JSON.stringify(this.spell.graph)) : undefined;
       this.embeddedMacro         = this.spell.embeddedMacro ? JSON.parse(JSON.stringify(this.spell.embeddedMacro)) : null;
@@ -101,7 +98,7 @@ export class SpellEditorOverlayComponent implements OnInit {
       description:     this.spellDescription,
       tags:            [...this.spellTags],
       binding:         { ...this.spellBinding },
-      strokeColor:     this.spellStrokeColor,
+      strokeColor:     this.spell?.strokeColor,
       libraryOrigin:   this.spell?.libraryOrigin,
       libraryOriginName: this.spell?.libraryOriginName,
       drawing:         this.spell?.drawing,
@@ -113,6 +110,10 @@ export class SpellEditorOverlayComponent implements OnInit {
       embeddedMacro:   this.embeddedMacro ?? undefined,
     };
     this.save.emit(spell);
+    // Brief visual feedback
+    this.savedFeedback = true;
+    this.cdr.markForCheck();
+    setTimeout(() => { this.savedFeedback = false; this.cdr.markForCheck(); }, 1500);
   }
 
   onCancel(): void {
@@ -171,7 +172,7 @@ export class SpellEditorOverlayComponent implements OnInit {
       description:      this.spellDescription,
       tags:             [...this.spellTags],
       binding:          { ...this.spellBinding },
-      strokeColor:      this.spellStrokeColor,
+      strokeColor:      this.spell?.strokeColor,
       graph:            this.graph ? JSON.parse(JSON.stringify(this.graph)) : undefined,
       costMana:         this.spellCostMana || undefined,
       costFokus:        this.spellCostFokus || undefined,
@@ -183,7 +184,7 @@ export class SpellEditorOverlayComponent implements OnInit {
     return this.graph?.nodes?.length ?? 0;
   }
 
-  // ── Cost schedule ─────────────────────────────────────────────────────────────
+  // ── Cost schedule (manual editing) ────────────────────────────────────────────
 
   applyEstimatedCosts(): void {
     if (!this.lastEstimatedCostResult) return;
@@ -207,35 +208,54 @@ export class SpellEditorOverlayComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
+  ensureCostSchedule(): void {
+    if (!this.costSchedule) {
+      this.costSchedule = { cases: [{ label: 'Standard', turns: [] }] };
+    }
+  }
+
+  addManualTurnToCase(caseIdx: number): void {
+    this.ensureCostSchedule();
+    const c = this.costSchedule!.cases[caseIdx];
+    const nextTurn = (c.turns[c.turns.length - 1]?.turn ?? 0) + 1;
+    c.turns = [...c.turns, { turn: nextTurn, mana: this.newTurnMana, fokus: this.newTurnFokus }];
+    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
+    this.cdr.markForCheck();
+  }
+
+  removeManualTurn(caseIdx: number, turnIdx: number): void {
+    const c = this.costSchedule!.cases[caseIdx];
+    c.turns = c.turns.filter((_, i) => i !== turnIdx);
+    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
+    this.cdr.markForCheck();
+  }
+
+  addCase(): void {
+    this.ensureCostSchedule();
+    this.costSchedule = {
+      cases: [...this.costSchedule!.cases, { label: 'Fall ' + (this.costSchedule!.cases.length + 1), turns: [] }],
+    };
+    this.cdr.markForCheck();
+  }
+
+  removeCase(idx: number): void {
+    if (!this.costSchedule) return;
+    this.costSchedule = { cases: this.costSchedule.cases.filter((_, i) => i !== idx) };
+    if (this.costSchedule.cases.length === 0) this.costSchedule = null;
+    this.cdr.markForCheck();
+  }
+
   clearCostSchedule(): void {
     this.costSchedule = null;
     this.cdr.markForCheck();
   }
 
-  getCaseTurnsPreview(caseItem: StoredCostCase): string {
-    if (!caseItem.turns?.length) return 'Keine Kosten';
-    const first = caseItem.turns[0];
-    const parts: string[] = [];
-    if (first.mana  > 0) parts.push(`${first.mana}♦ Mana`);
-    if (first.fokus > 0) parts.push(`${first.fokus}◇ Fokus`);
-    const tail = caseItem.turns.length > 1 ? ` + ${caseItem.turns.length - 1} weitere Runden` : '';
-    return (parts.join(', ') || 'Keine') + tail;
-  }
-
   // ── Macro ─────────────────────────────────────────────────────────────────────
 
   enableMacro(): void {
-    this.embeddedMacro = {
-      id:          'macro_' + Date.now(),
-      name:        this.spellName || 'Zauber-Makro',
-      conditions:  [],
-      consequences: [],
-      referencedSkillNames: [],
-      isValid:     true,
-      order:       0,
-      createdAt:   new Date(),
-      modifiedAt:  new Date(),
-    };
+    const m = createEmptyActionMacro();
+    m.name = this.spellName || 'Zauber-Makro';
+    this.embeddedMacro = m;
     this.showMacroEditor = true;
     this.cdr.markForCheck();
   }
@@ -246,41 +266,18 @@ export class SpellEditorOverlayComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  addConsequence(type: ActionConsequence['type']): void {
-    if (!this.embeddedMacro) return;
-    const c: ActionConsequence = {
-      id:   'c_' + Date.now(),
-      type,
-      ...(type === 'spend_resource' || type === 'gain_resource' ? { resource: 'mana' as const, diceFormula: '1' } : {}),
-      ...(type === 'dice_roll' ? { diceFormula: '1d6', rollName: 'Würfelwurf' } : {}),
-    };
-    this.embeddedMacro.consequences = [...this.embeddedMacro.consequences, c];
+  onMacroSave(macro: ActionMacro): void {
+    this.embeddedMacro = macro;
+    this.showMacroEditor = false;
     this.cdr.markForCheck();
   }
 
-  removeConsequence(id: string): void {
-    if (!this.embeddedMacro) return;
-    this.embeddedMacro.consequences = this.embeddedMacro.consequences.filter(c => c.id !== id);
+  onMacroCancel(): void {
+    if (!this.embeddedMacro) {
+      // was creating new, cancel means kill it
+      this.embeddedMacro = null;
+    }
+    this.showMacroEditor = false;
     this.cdr.markForCheck();
-  }
-
-  consequenceLabel(type: ActionConsequence['type']): string {
-    switch (type) {
-      case 'dice_roll':      return '🎲 Würfelwurf';
-      case 'spend_resource': return '💸 Ressource abziehen';
-      case 'gain_resource':  return '✨ Ressource regenerieren';
-      case 'apply_bonus':    return '⬆️ Bonus anwenden';
-      default:               return type;
-    }
-  }
-
-  resourceLabel(r: string | undefined): string {
-    switch (r) {
-      case 'mana':   return '♦ Mana';
-      case 'fokus':  return '◇ Fokus';
-      case 'health': return '❤️ Leben';
-      case 'energy': return '⚡ Ausdauer';
-      default:       return r || '';
-    }
   }
 }

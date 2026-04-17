@@ -2,7 +2,7 @@ import { Currency } from './currency-model';
 import { FormulaType } from './formula-type.enum';
 import { ItemBlock } from './item-block.model';
 import { SkillBlock } from './skill-block.model';
-import { SpellBlock } from './spell-block-model';
+import { SpellBlock, CastingSpellEntry } from './spell-block-model';
 import { StatBlock } from './stat-block.model';
 import { StatusBlock } from './status-block.model';
 import { RuneBlock } from './rune-block.model';
@@ -60,6 +60,9 @@ export interface CharacterSheet {
   freeStatPoints: number;         // Available free stat points to spend
   // Backstory
   backstory?: string;             // Character background story (supports simple markdown)
+  // Active / Sustained Skills & Spells
+  activeSkillNames?: string[];    // Names of currently toggled-on perRound skills
+  castingSpells?: CastingSpellEntry[]; // Spells actively being cast (cast-level tracking)
 }
 
 export function createEmptySheet(): CharacterSheet {

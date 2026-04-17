@@ -43,6 +43,7 @@ import type { BuyItemEvent, ClaimLootEvent } from './current-events-view';
 import { TransactionPopupComponent, Transaction } from './transaction-popup/transaction-popup.component';
 import { EventPortalComponent } from './event-portal/event-portal.component';
 import { SheetStatusEffectsComponent } from './sheet-status-effects/sheet-status-effects.component';
+import { SheetActiveSkillsSpellsComponent } from './sheet-active-skills-spells/sheet-active-skills-spells.component';
 
 @Component({
   selector: 'app-sheet',
@@ -66,6 +67,7 @@ import { SheetStatusEffectsComponent } from './sheet-status-effects/sheet-status
     TransactionPopupComponent,
     EventPortalComponent,
     SheetStatusEffectsComponent,
+    SheetActiveSkillsSpellsComponent,
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',

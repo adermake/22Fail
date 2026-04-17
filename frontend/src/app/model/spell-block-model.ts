@@ -40,6 +40,13 @@ export function generateSpellId(): string {
   return 'spell_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now().toString(36);
 }
 
+// ── Casting Spell Entry (active/sustained cast tracking on the character sheet) ─
+export interface CastingSpellEntry {
+  spellId: string;      // Matches SpellBlock.id
+  spellName: string;    // Denormalized for fast display
+  castLevel: number;    // Accumulated cast level (determines cost reduction)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class SpellBlock {

@@ -385,3 +385,24 @@ interface SkillDefinition {
 - `+SkillName` Prefix → `requiresSkill: 'parent_skill_id'`
 - Dual-Stat-Klassen (Konstitution&Wille, etc.) → `statBonuses[]` Array
 - Phantom-Klasse ist NICHT in AlleKlassen.txt → wird separat beibehalten
+
+## Zauber-System (`sheet/spells/`, `sheet/spell/`, `sheet/spell-editor-overlay/`)
+- **SpellBlock Model**: `id?, name, description, drawing?, tags[], binding, strokeColor?, libraryOrigin?, graph?, costMana?, costFokus?, statRequirements?, costSchedule?, embeddedMacro?`
+  - `id`: Stabile ID (`spell_<random>_<timestamp36>`) — verhindert Duplizier-Bug beim Speichern
+  - `costSchedule?: StoredCostSchedule` — detaillierter Kosten-Plan (manuell oder aus Estimator)
+  - `embeddedMacro?: ActionMacro` — optionales Makro, das bei Wirken ausgeführt wird
+- **CastingSpellEntry**: `{ spellId, spellName, castLevel }` — gezielt wirkende Zauber auf dem Sheet (cast-level-Tracking)
+- **Spell-Karte** (`sheet/spell/`): Rechtsklick → Kontextmenü (Wirken / Bearbeiten / Löschen); Linksklick → emittiert `cast` Output
+- **Spell-Editor-Overlay** (`sheet/spell-editor-overlay/`): Vollbild-Overlay im Stil des Item-Editors
+  - CSS-Variablen: `--bg, --card, --border, --accent, --accentdark, --text, --text-muted`
+  - Dynamischer Titel gebunden an `spellName`; Spar-Feedback-Flash (1.5s)
+  - Beschreibungsfeld: `rows="10"` (3× größer als früher)
+  - `<app-embedded-macro-editor>` eingebettet mit `max-height: 60vh; overflow-y: auto`
+  - Runen-Editor öffnet `<app-spell-node-editor>` **außerhalb** des Panels (korrekter z-index)
+  - Manuelle cost-schedule Bearbeitung (Fälle + Runden hinzufügen/entfernen)
+- **Aktive Skills & Zauber Panel** (`sheet/sheet-active-skills-spells/`): Direkt unter Status-Effekten im `grid-currentstats`
+  - Zeigt: andauernde Fähigkeiten (Skills mit `cost.perRound = true`) als Toggle-Chips
+  - Zeigt: Wirkende Zauber (`sheet.castingSpells`) mit Cast-Level +/- und Reduktions-Badge
+  - `CharacterSheet.activeSkillNames?: string[]` — Names aktiver Toggle-Skills
+  - `CharacterSheet.castingSpells?: CastingSpellEntry[]` — aktive Cast-Einträge
+  - Cast-Level-Reduktion: `Math.min(90, floor(castLevel/10)*10)`%

@@ -6,7 +6,7 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { SpellComponent } from '../spell/spell.component';
 import { CardComponent } from '../../shared/card/card.component';
 import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { SpellBlock, generateSpellId } from '../../model/spell-block-model';
+import { SpellBlock, generateSpellId, CastingSpellEntry } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellEditorOverlayComponent } from '../spell-editor-overlay/spell-editor-overlay.component';
 
@@ -69,6 +69,26 @@ export class SpellsComponent {
       this.deleteSpell(this.nodeEditorSpellIndex);
     }
     this.closeNodeEditor();
+  }
+
+  castSpell(index: number) {
+    const spell = this.sheet.spells[index];
+    if (!spell) return;
+
+    // Ensure the spell has an ID (legacy spells may not)
+    if (!spell.id) {
+      spell.id = generateSpellId();
+      this.patch.emit({ path: 'spells', value: [...this.sheet.spells] });
+    }
+
+    // Add to castingSpells if not already present
+    const current: CastingSpellEntry[] = [...(this.sheet.castingSpells || [])];
+    const existing = current.find(e => e.spellId === spell.id);
+    if (!existing) {
+      current.push({ spellId: spell.id!, spellName: spell.name, castLevel: 0 });
+      this.sheet.castingSpells = current;
+      this.patch.emit({ path: 'castingSpells', value: current });
+    }
   }
 
   saveFromNodeEditor(spell: SpellBlock) {

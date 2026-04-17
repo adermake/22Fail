@@ -1,0 +1,69 @@
+@if (hasSomething) {
+  <div class="sass-section">
+    <div class="sass-header">
+      <span class="sass-title">Aktive Fähigkeiten &amp; Zauber</span>
+    </div>
+
+    <div class="sass-body">
+
+      <!-- ── Sustained Skills ─────────────────────────── -->
+      @if (sustainedSkills.length > 0) {
+        <div class="sass-group">
+          <div class="sass-group-label">Andauernde Fähigkeiten</div>
+          <div class="skill-chips">
+            @for (skill of sustainedSkills; track skill.name) {
+              <button
+                class="skill-chip"
+                [class.active]="isSkillActive(skill)"
+                (click)="toggleSkill(skill)"
+                [title]="skill.description">
+                <span class="chip-name">{{ skill.name }}</span>
+                @if (skill.cost) {
+                  <span class="chip-cost">
+                    {{ skill.cost.amount }}
+                    {{ skill.cost.type === 'mana' ? 'M' : skill.cost.type === 'energy' ? 'E' : 'L' }}
+                    /Rd
+                  </span>
+                }
+                <span class="chip-dot" [class.on]="isSkillActive(skill)"></span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- ── Casting Spells ──────────────────────────── -->
+      @if (castingSpells.length > 0) {
+        <div class="sass-group">
+          <div class="sass-group-label">Wirkende Zauber</div>
+          <div class="casting-list">
+            @for (entry of castingSpells; track entry.spellId; let i = $index) {
+              <div class="casting-row">
+                <span class="casting-name">{{ entry.spellName }}</span>
+
+                <div class="cast-level-ctrl">
+                  <button class="cl-btn" (click)="decrementCastLevel(entry)" title="Cast-Level senken">−</button>
+                  <input
+                    class="cl-input"
+                    type="number"
+                    [ngModel]="entry.castLevel"
+                    (ngModelChange)="setCastLevel(entry, $event)"
+                    min="0"
+                    title="Cast-Level">
+                  <button class="cl-btn" (click)="incrementCastLevel(entry)" title="Cast-Level erhöhen">+</button>
+                </div>
+
+                @if (reductionLabel(entry.castLevel); as label) {
+                  <span class="reduction-badge">{{ label }}</span>
+                }
+
+                <button class="remove-btn" (click)="removeCastingSpell(i)" title="Zauber entfernen">✕</button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+    </div>
+  </div>
+}

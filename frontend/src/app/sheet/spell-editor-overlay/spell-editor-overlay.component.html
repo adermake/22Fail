@@ -1,279 +1,218 @@
-<!-- Fullscreen backdrop -->
-<div class="overlay-backdrop" (click)="onCancel()"></div>
+﻿<div class="item-editor-overlay">
+  <div class="item-editor-modal">
 
-<!-- Main editor panel -->
-<div class="spell-editor-panel">
-
-  <!-- Header bar -->
-  <div class="editor-header">
-    <div class="header-left">
-      <!-- Color dot / indicator -->
-      <span class="spell-color-dot" [style.background]="spellStrokeColor"></span>
-      <h2 class="editor-title">
-        {{ isNewSpell ? 'Neuer Zauber' : 'Zauber bearbeiten' }}
+    <!-- Header -->
+    <div class="editor-header">
+      <h2>
+        @if (isNewSpell) { Neuen Zauber erstellen }
+        @else { {{ spellName || 'Zauber bearbeiten' }} }
       </h2>
-    </div>
-    <div class="header-actions">
-      @if (!isNewSpell) {
-        @if (!showDeleteConfirm) {
-          <button class="btn-danger-ghost" (click)="showDeleteConfirm = true">🗑 Löschen</button>
-        } @else {
+      <div class="header-actions">
+        @if (savedFeedback) {
+          <span class="saved-feedback">Gespeichert</span>
+        }
+        @if (!isNewSpell && !showDeleteConfirm) {
+          <button class="btn-outline-danger" (click)="showDeleteConfirm = true">Löschen</button>
+        }
+        @if (showDeleteConfirm) {
           <span class="delete-confirm-text">Wirklich löschen?</span>
-          <button class="btn-danger" (click)="onDeleteConfirm()">Ja, löschen</button>
-          <button class="btn-ghost" (click)="showDeleteConfirm = false">Abbrechen</button>
+          <button class="btn-danger" (click)="onDeleteConfirm()">Ja</button>
+          <button class="btn-outline" (click)="showDeleteConfirm = false">Nein</button>
         }
-      }
-      <button class="btn-primary" (click)="onSave()">💾 Speichern</button>
-      <button class="btn-close" (click)="onCancel()">✕</button>
-    </div>
-  </div>
-
-  <!-- Two-column body -->
-  <div class="editor-body">
-
-    <!-- ── Left column: Identity ─────────────────────────────────────────── -->
-    <div class="col-left">
-
-      <!-- Name -->
-      <div class="field-group">
-        <label class="field-label">Name</label>
-        <input class="field-input large-input" [(ngModel)]="spellName" placeholder="Zaubername..." />
+        <button class="btn-primary" (click)="onSave()">Speichern</button>
+        <button class="close-btn" (click)="onCancel()">×</button>
       </div>
-
-      <!-- Description -->
-      <div class="field-group">
-        <label class="field-label">Beschreibung</label>
-        <textarea class="field-input desc-area" [(ngModel)]="spellDescription"
-          rows="4" placeholder="Was bewirkt dieser Zauber?"></textarea>
-      </div>
-
-      <!-- Tags -->
-      <div class="field-group">
-        <label class="field-label">Tags</label>
-        <div class="tags-grid">
-          @for (tag of tagOptions; track tag) {
-            <button class="tag-chip"
-              [class.tag-chip--active]="spellTags.includes(tag)"
-              (click)="toggleTag(tag)">{{ tag }}</button>
-          }
-        </div>
-      </div>
-
-      <!-- Binding -->
-      <div class="field-group">
-        <label class="field-label">Bindung</label>
-        <div class="binding-row">
-          <select class="field-input select-sm" [(ngModel)]="spellBinding.type">
-            <option value="learned">Erlernt</option>
-            <option value="item">Gegenstand</option>
-          </select>
-          @if (spellBinding.type === 'item') {
-            <input class="field-input flex-1" [(ngModel)]="spellBinding.itemName"
-              placeholder="Gegenstandsname..." />
-            <input class="field-input w-16" type="number" min="0"
-              [(ngModel)]="spellBinding.durability" placeholder="HP" />
-            <span class="binding-sep">/</span>
-            <input class="field-input w-16" type="number" min="0"
-              [(ngModel)]="spellBinding.maxDurability" placeholder="Max HP" />
-          }
-        </div>
-      </div>
-
-      <!-- Glow color -->
-      <div class="field-group">
-        <label class="field-label">Runenfarbe</label>
-        <div class="color-row">
-          @for (color of glowColors; track color.value) {
-            <button class="color-swatch"
-              [class.color-swatch--active]="spellStrokeColor === color.value"
-              [style.background]="color.value"
-              [title]="color.name"
-              (click)="spellStrokeColor = color.value">
-            </button>
-          }
-        </div>
-      </div>
-
     </div>
 
-    <!-- ── Right column: Mechanics ────────────────────────────────────────── -->
-    <div class="col-right">
+    <!-- Content -->
+    <div class="editor-content">
 
-      <!-- Rune graph button -->
-      <div class="rune-editor-banner" (click)="openNodeEditor()">
-        <div class="rune-banner-icon">✦</div>
-        <div class="rune-banner-text">
-          <span class="rune-banner-title">Runen bearbeiten</span>
-          <span class="rune-banner-sub">
-            @if (graphNodeCount > 0) {
-              {{ graphNodeCount }} Runenknoten konfiguriert
-            } @else {
-              Noch keine Runen — jetzt konfigurieren
-            }
-          </span>
-        </div>
-        <div class="rune-banner-arrow">→</div>
-      </div>
+      <!-- Left column: Identity -->
+      <div class="editor-column">
 
-      <!-- Simple costs -->
-      <div class="field-group">
-        <label class="field-label">Kosten (manuell)</label>
-        <div class="costs-row">
-          <div class="cost-input-wrap">
-            <span class="cost-icon">♦</span>
-            <input class="field-input cost-input" type="number" min="0" step="0.5"
-              [(ngModel)]="spellCostMana" placeholder="0" />
-            <span class="cost-label">Mana</span>
+        <section class="editor-section">
+          <h3>Grundlegendes</h3>
+
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" [(ngModel)]="spellName" placeholder="Zaubername..." />
           </div>
-          <div class="cost-input-wrap">
-            <span class="cost-icon focus">◇</span>
-            <input class="field-input cost-input" type="number" min="0" step="0.5"
-              [(ngModel)]="spellCostFokus" placeholder="0" />
-            <span class="cost-label">Fokus</span>
+
+          <div class="form-group">
+            <label>Beschreibung</label>
+            <textarea [(ngModel)]="spellDescription" rows="10"
+              placeholder="Was bewirkt dieser Zauber? Effekte, Reichweite, Dauer..."></textarea>
           </div>
-        </div>
-      </div>
 
-      <!-- Cost schedule from estimator -->
-      <div class="field-group">
-        <div class="schedule-header">
-          <label class="field-label">Kostenplan</label>
-          <div class="schedule-actions">
-            @if (hasNewEstimate) {
-              <button class="btn-accent pulse-btn" (click)="applyEstimatedCosts()">
-                ✦ Übernehmen
-              </button>
-            }
-            @if (costSchedule) {
-              <button class="btn-ghost-sm" (click)="clearCostSchedule()">Leeren</button>
-            }
-          </div>
-        </div>
-
-        @if (!costSchedule || costSchedule.cases.length === 0) {
-          <div class="schedule-empty">
-            <span>Kein Kostenplan. Erzeuge einen über den Rune-Editor → Schätzer → Übernehmen.</span>
-          </div>
-        } @else {
-          <div class="schedule-cases">
-            @for (caseItem of costSchedule.cases; track i; let i = $index) {
-              <ng-container *ngTemplateOutlet="costCaseTemplate; context: { $implicit: caseItem, depth: 0 }"></ng-container>
-            }
-          </div>
-        }
-      </div>
-
-      <!-- Stat requirements -->
-      <div class="field-group">
-        <label class="field-label">Statanforderungen</label>
-        <div class="stat-reqs-grid">
-          @for (stat of statLabels; track stat.key) {
-            <div class="stat-req-item">
-              <span class="stat-req-icon">{{ statIcons[stat.key] }}</span>
-              <span class="stat-req-label">{{ stat.label }}</span>
-              <input class="field-input stat-req-input" type="number" min="0"
-                [(ngModel)]="spellStatRequirements[stat.key]"
-                placeholder="–" />
-            </div>
-          }
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ── Macro section (full width) ───────────────────────────────────────── -->
-  <div class="macro-section">
-    <div class="macro-header">
-      <div class="macro-title-row">
-        <span class="field-label">Aktions-Makro</span>
-        <span class="macro-subtitle">Wird beim Wirken ausgeführt</span>
-      </div>
-      @if (!embeddedMacro) {
-        <button class="btn-ghost-sm" (click)="enableMacro()">+ Makro erstellen</button>
-      } @else {
-        <button class="btn-ghost-sm danger-ghost" (click)="disableMacro()">Makro entfernen</button>
-      }
-    </div>
-
-    @if (embeddedMacro) {
-      <div class="macro-editor">
-        <div class="macro-field-row">
-          <input class="field-input" [(ngModel)]="embeddedMacro.name" placeholder="Makro-Name..." />
-        </div>
-        <div class="macro-consequences">
-          <div class="macro-consequences-header">
-            <span class="macro-section-label">Konsequenzen</span>
-            <div class="add-consequence-row">
-              <button class="btn-ghost-sm" (click)="addConsequence('dice_roll')">+ 🎲 Würfeln</button>
-              <button class="btn-ghost-sm" (click)="addConsequence('spend_resource')">+ 💸 Kosten</button>
-              <button class="btn-ghost-sm" (click)="addConsequence('gain_resource')">+ ✨ Regen.</button>
-            </div>
-          </div>
-          @for (c of embeddedMacro.consequences; track c.id) {
-            <div class="consequence-row">
-              <span class="consequence-type-badge">{{ consequenceLabel(c.type) }}</span>
-              @if (c.type === 'dice_roll') {
-                <input class="field-input mini-input" [(ngModel)]="c.diceFormula" placeholder="1d6" />
-                <input class="field-input mini-input" [(ngModel)]="c.rollName" placeholder="Bezeichnung..." />
-              } @else if (c.type === 'spend_resource' || c.type === 'gain_resource') {
-                <select class="field-input select-sm" [(ngModel)]="c.resource">
-                  <option value="mana">♦ Mana</option>
-                  <option value="fokus">◇ Fokus</option>
-                  <option value="health">❤️ Leben</option>
-                  <option value="energy">⚡ Ausdauer</option>
-                </select>
-                <input class="field-input mini-input" [(ngModel)]="c.diceFormula" placeholder="Betrag..." />
+          <div class="form-group">
+            <label>Bindung</label>
+            <div class="form-row">
+              <select [(ngModel)]="spellBinding.type">
+                <option value="learned">Erlernt</option>
+                <option value="item">Gegenstand</option>
+              </select>
+              @if (spellBinding.type === 'item') {
+                <input type="text" [(ngModel)]="spellBinding.itemName"
+                  placeholder="Gegenstandsname..." style="flex:1" />
+                <input type="number" [(ngModel)]="spellBinding.durability"
+                  placeholder="HP" style="width:64px" min="0" />
+                <span>/</span>
+                <input type="number" [(ngModel)]="spellBinding.maxDurability"
+                  placeholder="Max" style="width:64px" min="0" />
               }
-              <button class="btn-close-sm" (click)="removeConsequence(c.id)">✕</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="editor-section">
+          <h3>Tags</h3>
+          <div class="tag-grid">
+            @for (tag of tagOptions; track tag) {
+              <button class="tag-chip"
+                [class.tag-chip--active]="spellTags.includes(tag)"
+                (click)="toggleTag(tag)">{{ tag }}</button>
+            }
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Right column: Mechanics -->
+      <div class="editor-column">
+
+        <section class="editor-section">
+          <h3>Runen</h3>
+          <button class="rune-edit-btn" (click)="openNodeEditor()">
+            Runen bearbeiten
+            @if (graphNodeCount > 0) {
+              <span class="rune-node-count">{{ graphNodeCount }} Knoten</span>
+            }
+          </button>
+        </section>
+
+        <section class="editor-section">
+          <h3>Kosten</h3>
+          <div class="form-row">
+            <div class="form-group" style="flex:1">
+              <label>Mana</label>
+              <input type="number" [(ngModel)]="spellCostMana" min="0" step="0.5" placeholder="0" />
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Fokus</label>
+              <input type="number" [(ngModel)]="spellCostFokus" min="0" step="0.5" placeholder="0" />
+            </div>
+          </div>
+        </section>
+
+        <section class="editor-section">
+          <div class="section-header-row">
+            <h3>Kostenplan</h3>
+            <div class="section-header-actions">
+              @if (hasNewEstimate) {
+                <button class="btn-accent" (click)="applyEstimatedCosts()">Schätzung übernehmen</button>
+              }
+              <button class="btn-outline-small" (click)="addCase()">+ Fall</button>
+              @if (costSchedule) {
+                <button class="btn-outline-small danger" (click)="clearCostSchedule()">Leeren</button>
+              }
+            </div>
+          </div>
+
+          @if (!costSchedule || costSchedule.cases.length === 0) {
+            <p class="empty-hint">Kein Kostenplan. Erstelle Fälle manuell oder übernimm die Schätzung aus dem Runen-Editor.</p>
+          } @else {
+            <div class="cost-schedule">
+              @for (caseItem of costSchedule.cases; track i; let i = $index) {
+                <div class="cost-case">
+                  <div class="cost-case-header">
+                    <input type="text" [(ngModel)]="caseItem.label"
+                      class="cost-case-label-input" placeholder="Fallbezeichnung..." />
+                    <button class="btn-icon-sm" (click)="removeCase(i)" title="Fall entfernen">×</button>
+                  </div>
+                  <div class="cost-turns">
+                    @for (turn of caseItem.turns; track turn.turn; let ti = $index) {
+                      <div class="cost-turn-row">
+                        <span class="turn-label">R{{ turn.turn }}</span>
+                        <span class="turn-field-label">Mana</span>
+                        <input type="number" [(ngModel)]="turn.mana" min="0" step="0.5" class="turn-input" />
+                        <span class="turn-field-label">Fokus</span>
+                        <input type="number" [(ngModel)]="turn.fokus" min="0" step="0.5" class="turn-input" />
+                        <button class="btn-icon-sm" (click)="removeManualTurn(i, ti)">×</button>
+                      </div>
+                    }
+                    <div class="add-turn-row">
+                      <span class="turn-label turn-label--new">Neue Runde</span>
+                      <span class="turn-field-label">Mana</span>
+                      <input type="number" [(ngModel)]="newTurnMana" min="0" step="0.5" class="turn-input" placeholder="0" />
+                      <span class="turn-field-label">Fokus</span>
+                      <input type="number" [(ngModel)]="newTurnFokus" min="0" step="0.5" class="turn-input" placeholder="0" />
+                      <button class="btn-outline-small" (click)="addManualTurnToCase(i)">+ Hinzufügen</button>
+                    </div>
+                  </div>
+                </div>
+              }
             </div>
           }
-          @if (embeddedMacro.consequences.length === 0) {
-            <span class="macro-empty-text">Keine Konsequenzen. Füge welche hinzu.</span>
-          }
-        </div>
-      </div>
-    }
-  </div>
+        </section>
 
+        <section class="editor-section">
+          <h3>Statanforderungen</h3>
+          <div class="stat-reqs-grid">
+            @for (stat of statLabels; track stat.key) {
+              <div class="form-group">
+                <label>{{ stat.label }}</label>
+                <input type="number" [(ngModel)]="spellStatRequirements[stat.key]" min="0" placeholder="—" />
+              </div>
+            }
+          </div>
+        </section>
+
+        <section class="editor-section macro-section">
+          <div class="section-header-row">
+            <h3>Aktions-Makro</h3>
+            <div class="section-header-actions">
+              @if (!embeddedMacro && !showMacroEditor) {
+                <button class="btn-outline-small" (click)="enableMacro()">+ Makro erstellen</button>
+              }
+              @if (embeddedMacro && !showMacroEditor) {
+                <button class="btn-outline-small" (click)="showMacroEditor = true">Bearbeiten</button>
+                <button class="btn-outline-small danger" (click)="disableMacro()">Entfernen</button>
+              }
+            </div>
+          </div>
+
+          @if (!embeddedMacro && !showMacroEditor) {
+            <p class="empty-hint">Kein Makro. Wird beim Wirken automatisch ausgeführt.</p>
+          }
+
+          @if (embeddedMacro && !showMacroEditor) {
+            <div class="macro-summary">
+              <span class="macro-icon" [style.color]="embeddedMacro.color || '#f59e0b'">
+                {{ embeddedMacro.icon || '✦' }}
+              </span>
+              <span class="macro-name">{{ embeddedMacro.name }}</span>
+              <span class="macro-meta">
+                {{ embeddedMacro.conditions.length }} Bed. · {{ embeddedMacro.consequences.length }} Akt.
+              </span>
+            </div>
+          }
+
+          @if (showMacroEditor) {
+            <div class="macro-editor-wrap">
+              <app-embedded-macro-editor
+                [macro]="embeddedMacro"
+                (save)="onMacroSave($event)"
+                (cancel)="onMacroCancel()">
+              </app-embedded-macro-editor>
+            </div>
+          }
+        </section>
+
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- Recursive cost case template -->
-<ng-template #costCaseTemplate let-caseItem let-depth="depth">
-  <div class="cost-case" [class.cost-case--sub]="depth > 0">
-    <div class="cost-case-header">
-      @if (caseItem.isUnknownBranch) {
-        <span class="cost-case-unknown">?</span>
-      }
-      <span class="cost-case-label">{{ caseItem.label }}</span>
-    </div>
-    <div class="cost-case-turns">
-      @for (turn of caseItem.turns; track turn.turn) {
-        <div class="cost-turn-row">
-          <span class="cost-turn-num">R{{ turn.turn }}</span>
-          @if (turn.mana > 0) {
-            <span class="cost-turn-mana">♦ {{ turn.mana }}</span>
-          }
-          @if (turn.fokus > 0) {
-            <span class="cost-turn-fokus">◇ {{ turn.fokus }}</span>
-          }
-          @if (turn.mana === 0 && turn.fokus === 0) {
-            <span class="cost-turn-free">—</span>
-          }
-        </div>
-      }
-    </div>
-    @if (caseItem.subcases?.length) {
-      <div class="cost-subcases">
-        @for (sub of caseItem.subcases; track sub.label) {
-          <ng-container *ngTemplateOutlet="costCaseTemplate; context: { $implicit: sub, depth: depth + 1 }"></ng-container>
-        }
-      </div>
-    }
-  </div>
-</ng-template>
-
-<!-- Inner rune node editor (on top of overlay) -->
 @if (showNodeEditor) {
   <app-spell-node-editor
     [spell]="buildSpellForNodeEditor()"

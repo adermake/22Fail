@@ -24,6 +24,11 @@
       (triggerMacro)="handleMacroExecution($event)"
       (patch)="store.applyPatch($any($event))">
     </app-sheet-status-effects>
+    <!-- Active Skills & Spells Panel — below status effects -->
+    <app-sheet-active-skills-spells
+      [sheet]="sheet"
+      (patch)="store.applyPatch($any($event))">
+    </app-sheet-active-skills-spells>
   </div>
 
   <!-- Equipment - Separate so you can drag items from inventory -->
