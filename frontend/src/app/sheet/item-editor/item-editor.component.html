@@ -462,10 +462,11 @@
 
 <!-- Sub-Editor: Spell Editor -->
 @if (showSpellEditor) {
-  <app-spell-editor
+  <app-spell-editor-overlay
     [spell]="editingSpell"
+    [availableRunes]="[]"
     (save)="saveSpell($event)"
     (cancel)="closeSpellEditor()"
-    (delete)="editingSpellIndex !== null ? deleteEmbeddedSpell(editingSpellIndex) : null; closeSpellEditor()">
-  </app-spell-editor>
+    (deleteSpell)="editingSpellIndex !== null ? deleteEmbeddedSpell(editingSpellIndex) : null; closeSpellEditor()">
+  </app-spell-editor-overlay>
 }

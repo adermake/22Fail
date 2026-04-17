@@ -102,6 +102,9 @@
 
 <!-- Sticky Action Buttons - Horizontal Layout -->
 <div class="sticky-actions horizontal">
+  <button class="action-btn cast-btn" [class.active]="showCastWindow" (click)="toggleCastWindow()" title="Zauberwirken (C)">
+    ✦
+  </button>
   <button class="action-btn dice-btn" [class.active]="showDiceRoller" (click)="toggleDiceRoller()" title="Würfeln (D)">
     🎲
   </button>
@@ -115,6 +118,15 @@
     📚
   </button>
 </div>
+
+<!-- Cast Window -->
+@if (showCastWindow) {
+  <app-spellcast-window
+    [sheet]="sheet"
+    (patch)="store.applyPatch($any($event))"
+    (close)="showCastWindow = false">
+  </app-spellcast-window>
+}
 
 <!-- Game Info Dialog -->
 @if (showGameInfo) {

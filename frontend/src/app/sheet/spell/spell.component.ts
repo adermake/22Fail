@@ -3,7 +3,6 @@ import {
   Component,
   ElementRef,
   EventEmitter,
-  HostListener,
   Input,
   Output,
   ViewChild,
@@ -39,13 +38,8 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   @Output() editingChange = new EventEmitter<boolean>();
   @Output() openEditor = new EventEmitter<void>();
   @Output() cast = new EventEmitter<void>();
-
-  /** Tracks the last opened context menu instance so others can close themselves */
-  private static activeContextMenu: SpellComponent | null = null;
-
-  showContextMenu = false;
-  contextMenuX = 0;
-  contextMenuY = 0;
+  /** Emitted on right-click — parent component renders the context menu */
+  @Output() contextMenuRequest = new EventEmitter<{ x: number; y: number; index: number }>();
 
   tagOptions = SPELL_TAG_OPTIONS;
   glowColors = SPELL_GLOW_COLORS;
@@ -217,51 +211,7 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   onRightClick(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
-    if (SpellComponent.activeContextMenu && SpellComponent.activeContextMenu !== this) {
-      SpellComponent.activeContextMenu.showContextMenu = false;
-      SpellComponent.activeContextMenu.cd.markForCheck();
-    }
-    SpellComponent.activeContextMenu = this;
-    this.contextMenuX = event.clientX;
-    this.contextMenuY = event.clientY;
-    this.showContextMenu = true;
-    this.cd.markForCheck();
-  }
-
-  openEditorFromMenu() {
-    this.showContextMenu = false;
-    SpellComponent.activeContextMenu = null;
-    this.openEditor.emit();
-  }
-
-  castFromMenu() {
-    this.showContextMenu = false;
-    SpellComponent.activeContextMenu = null;
-    this.cast.emit();
-  }
-
-  deleteFromMenu() {
-    this.showContextMenu = false;
-    SpellComponent.activeContextMenu = null;
-    this.delete.emit();
-  }
-
-  @HostListener('document:click')
-  onDocumentClick() {
-    if (this.showContextMenu) {
-      this.showContextMenu = false;
-      if (SpellComponent.activeContextMenu === this) SpellComponent.activeContextMenu = null;
-      this.cd.markForCheck();
-    }
-  }
-
-  @HostListener('document:keydown.escape')
-  onEscape() {
-    if (this.showContextMenu) {
-      this.showContextMenu = false;
-      if (SpellComponent.activeContextMenu === this) SpellComponent.activeContextMenu = null;
-      this.cd.markForCheck();
-    }
+    this.contextMenuRequest.emit({ x: event.clientX, y: event.clientY, index: this.index });
   }
 
   async toggleEdit() {

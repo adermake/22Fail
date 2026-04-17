@@ -6,7 +6,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SkillBlock } from '../../model/skill-block.model';
-import { CastingSpellEntry } from '../../model/spell-block-model';
+import { SpellBlock, CastingSpellEntry } from '../../model/spell-block-model';
 import { JsonPatch } from '../../model/json-patch.model';
 
 @Component({
@@ -38,8 +38,59 @@ export class SheetActiveSkillsSpellsComponent implements OnChanges {
     return this.sheet.castingSpells || [];
   }
 
+  get totalActive(): number {
+    return this.sustainedSkills.filter(s => this.isSkillActive(s)).length + this.castingSpells.length;
+  }
+
   get hasSomething(): boolean {
     return this.sustainedSkills.length > 0 || this.castingSpells.length > 0;
+  }
+
+  /** Look up the full SpellBlock for a casting entry */
+  getSpellData(spellId: string): SpellBlock | undefined {
+    return (this.sheet.spells || []).find(s => s.id === spellId);
+  }
+
+  /** Icon for a skill — use first letter of name as fallback */
+  skillIcon(skill: SkillBlock): string {
+    return skill.name?.charAt(0)?.toUpperCase() || '⚡';
+  }
+
+  /** Short cost label from the spell's cost schedule or simple cost */
+  spellCostLabel(spell: SpellBlock | undefined): string {
+    if (!spell) return '';
+    const c = spell.costSchedule?.cases?.[0]?.turns?.[0];
+    if (c) {
+      const parts: string[] = [];
+      if (c.mana)  parts.push(`${c.mana}M`);
+      if (c.fokus) parts.push(`${c.fokus}F`);
+      return parts.join(' ') || '';
+    }
+    const parts: string[] = [];
+    if (spell.costMana)  parts.push(`${spell.costMana}M`);
+    if (spell.costFokus) parts.push(`${spell.costFokus}F`);
+    return parts.join(' ');
+  }
+
+  // ── Fokus bar ──────────────────────────────────────────────────────────────
+
+  get usedFokus(): number {
+    return this.castingSpells.reduce((sum, entry) => {
+      const spell = this.getSpellData(entry.spellId);
+      if (!spell) return sum;
+      const c = spell.costSchedule?.cases?.[0]?.turns?.[0];
+      return sum + (c ? c.fokus : (spell.costFokus || 0));
+    }, 0);
+  }
+
+  get maxFokus(): number {
+    return (this.sheet as any).maxFokus ?? (this.sheet as any).stats?.fokus ?? 100;
+  }
+
+  get fokusPercent(): number {
+    const max = this.maxFokus;
+    if (!max) return 0;
+    return Math.min(100, Math.round((this.usedFokus / max) * 100));
   }
 
   // ── Active Skills ──────────────────────────────────────────────────────────

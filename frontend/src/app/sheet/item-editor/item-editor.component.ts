@@ -14,12 +14,12 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
-import { SpellEditorComponent } from '../../shared/spell-editor/spell-editor.component';
+import { SpellEditorOverlayComponent } from '../spell-editor-overlay/spell-editor-overlay.component';
 
 @Component({
   selector: 'app-item-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, SkillEditorComponent, SpellEditorComponent],
+  imports: [CommonModule, FormsModule, SkillEditorComponent, SpellEditorOverlayComponent],
   templateUrl: './item-editor.component.html',
   styleUrl: './item-editor.component.css',
 })

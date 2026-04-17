@@ -91,7 +91,12 @@
         </section>
 
         <section class="editor-section">
-          <h3>Kosten</h3>
+          <div class="section-header-row">
+            <h3>Kosten</h3>
+            @if (hasGraph) {
+              <button class="btn-accent-small" (click)="runEstimate()">⚡ Kosten schätzen</button>
+            }
+          </div>
           <div class="form-row">
             <div class="form-group" style="flex:1">
               <label>Mana</label>
@@ -103,6 +108,30 @@
             </div>
           </div>
         </section>
+
+        <!-- Estimate popup -->
+        @if (showEstimatePopup && lastEstimatedCostResult) {
+          <div class="estimate-popup">
+            <div class="estimate-popup-header">
+              <span>Kostenschätzung</span>
+              <button class="btn-icon-sm" (click)="closeEstimatePopup()">×</button>
+            </div>
+            <div class="estimate-cases">
+              @for (cs of estimateCaseSummaries; track cs.label) {
+                <div class="estimate-case-row">
+                  <span class="estimate-case-label">{{ cs.label }}</span>
+                  <span class="estimate-badge mana">◆ {{ cs.mana }}</span>
+                  <span class="estimate-badge fokus">◇ {{ cs.fokus }}</span>
+                  <span class="estimate-badge turns">{{ cs.turns }}R</span>
+                </div>
+              }
+            </div>
+            <div class="estimate-popup-actions">
+              <button class="btn-accent" (click)="applyEstimatedCosts(); closeEstimatePopup()">Übernehmen</button>
+              <button class="btn-outline-small" (click)="closeEstimatePopup()">Schließen</button>
+            </div>
+          </div>
+        }
 
         <section class="editor-section">
           <div class="section-header-row">
@@ -119,7 +148,7 @@
           </div>
 
           @if (!costSchedule || costSchedule.cases.length === 0) {
-            <p class="empty-hint">Kein Kostenplan. Erstelle Fälle manuell oder übernimm die Schätzung aus dem Runen-Editor.</p>
+            <p class="empty-hint">Kein Kostenplan. Erstelle Fälle manuell oder schätze die Kosten aus dem Runen-Netzwerk.</p>
           } @else {
             <div class="cost-schedule">
               @for (caseItem of costSchedule.cases; track i; let i = $index) {
@@ -140,13 +169,26 @@
                         <button class="btn-icon-sm" (click)="removeManualTurn(i, ti)">×</button>
                       </div>
                     }
+                    <!-- Single turn add -->
                     <div class="add-turn-row">
-                      <span class="turn-label turn-label--new">Neue Runde</span>
-                      <span class="turn-field-label">Mana</span>
+                      <span class="turn-label turn-label--new">+1 Runde</span>
+                      <span class="turn-field-label">M</span>
                       <input type="number" [(ngModel)]="newTurnMana" min="0" step="0.5" class="turn-input" placeholder="0" />
-                      <span class="turn-field-label">Fokus</span>
+                      <span class="turn-field-label">F</span>
                       <input type="number" [(ngModel)]="newTurnFokus" min="0" step="0.5" class="turn-input" placeholder="0" />
-                      <button class="btn-outline-small" (click)="addManualTurnToCase(i)">+ Hinzufügen</button>
+                      <button class="btn-outline-small" (click)="addManualTurnToCase(i)">+</button>
+                    </div>
+                    <!-- Range add (A-B same cost) -->
+                    <div class="add-range-row">
+                      <span class="turn-label turn-label--new">Runde</span>
+                      <input type="number" [(ngModel)]="newRangeFrom" min="0" class="turn-input turn-input--range" placeholder="1" title="Von Runde" />
+                      <span class="turn-field-label">–</span>
+                      <input type="number" [(ngModel)]="newRangeTo" min="0" class="turn-input turn-input--range" placeholder="10" title="Bis Runde" />
+                      <span class="turn-field-label">M</span>
+                      <input type="number" [(ngModel)]="newRangeMana" min="0" step="0.5" class="turn-input" placeholder="0" />
+                      <span class="turn-field-label">F</span>
+                      <input type="number" [(ngModel)]="newRangeFokus" min="0" step="0.5" class="turn-input" placeholder="0" />
+                      <button class="btn-outline-small" (click)="addRangeToCase(i)" title="Bereich hinzufügen">Bereich</button>
                     </div>
                   </div>
                 </div>

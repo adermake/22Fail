@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -25,6 +25,49 @@ export class SpellsComponent {
   showCreateDialog = false;
   placeholderHeight = '90px';
   placeholderWidth = '100%';
+
+  // ── Context menu (rendered at this level to escape stacking contexts) ──────
+  showContextMenu = false;
+  contextMenuX = 0;
+  contextMenuY = 0;
+  contextMenuIndex = -1;
+
+  onSpellContextMenu(event: { x: number; y: number; index: number }) {
+    this.contextMenuX = event.x;
+    this.contextMenuY = event.y;
+    this.contextMenuIndex = event.index;
+    this.showContextMenu = true;
+  }
+
+  closeContextMenu() {
+    this.showContextMenu = false;
+    this.contextMenuIndex = -1;
+  }
+
+  castFromMenu() {
+    if (this.contextMenuIndex >= 0) this.castSpell(this.contextMenuIndex);
+    this.closeContextMenu();
+  }
+
+  openEditorFromMenu() {
+    if (this.contextMenuIndex >= 0) this.openNodeEditor(this.contextMenuIndex);
+    this.closeContextMenu();
+  }
+
+  deleteFromMenu() {
+    if (this.contextMenuIndex >= 0) this.deleteSpell(this.contextMenuIndex);
+    this.closeContextMenu();
+  }
+
+  @HostListener('document:click')
+  onDocumentClick() {
+    if (this.showContextMenu) this.closeContextMenu();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    if (this.showContextMenu) this.closeContextMenu();
+  }
 
   // Node editor state
   showNodeEditor = false;

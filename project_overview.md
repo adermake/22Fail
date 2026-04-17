@@ -406,3 +406,16 @@ interface SkillDefinition {
   - `CharacterSheet.activeSkillNames?: string[]` — Names aktiver Toggle-Skills
   - `CharacterSheet.castingSpells?: CastingSpellEntry[]` — aktive Cast-Einträge
   - Cast-Level-Reduktion: `Math.min(90, floor(castLevel/10)*10)`%
+
+## Zauberwirken-Fenster (`sheet/spellcast-window/`)
+- **Zweck**: Vollbild-Overlay für Zauberwirker im Kampf; immer präsentes Werkzeug während der Runde
+- **Selektor**: `app-spellcast-window`; Inputs: `[sheet]!: CharacterSheet`; Outputs: `(patch)`, `(close)`
+- **Öffnen**: ✦-Button in `.sticky-actions.horizontal` (oben-rechts) oder Tastenkürzel `C`; Escape schließt
+- **Layout**: Vollbild-Overlay (`position:fixed; inset:0; z-index:2000`) mit Runen-Hintergrund-Animation
+  - Header: Titel + Charname + Mana-Bar + Fokus-Bar + Schließen-Button
+  - Body: Zauber-Grid (links, verfügbare Zauber) | Divider | Aktive-Wirk-Liste (rechts)
+- **Runen-Feld**: 18+ `.scw-rune-glyph` Spans mit `@keyframes runeFloat` (free-floating Unicode Runen ᚠ–ᛟ)
+- **Spell-Karten**: 120px Breite, linker Border `--sc` (Zauberfarbe), Klick → `castSpell(spell)`; `is-casting`-Klasse mit `pulseGlow`-Animation wenn bereits aktiv
+- **Cast-Level**: +/- Buttons in Aktiv-Liste; Reduktion: `Math.min(90, floor(cl/10)*10)`%
+- **Fokus-Formel (korrekt)**: `Math.floor((Math.floor(int/2) + 5 + bonus) * mult)` (aus `sheet.statuses` Intelligenz lesen)
+- **Patch-Pattern**: `(patch)="store.applyPatch($any($event))"` in sheet.component.html

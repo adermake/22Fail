@@ -1,32 +1,31 @@
 @if (hasSomething) {
   <div class="sass-section">
     <div class="sass-header">
-      <span class="sass-title">Aktive Fähigkeiten &amp; Zauber</span>
+      <span class="sass-title">✦ Aktive Fähigkeiten &amp; Zauber</span>
+      <span class="sass-count">{{ totalActive }}</span>
     </div>
 
     <div class="sass-body">
 
       <!-- ── Sustained Skills ─────────────────────────── -->
       @if (sustainedSkills.length > 0) {
-        <div class="sass-group">
-          <div class="sass-group-label">Andauernde Fähigkeiten</div>
-          <div class="skill-chips">
+        <div class="sass-lane">
+          <div class="sass-lane-label">Andauernd</div>
+          <div class="sass-bar">
             @for (skill of sustainedSkills; track skill.name) {
-              <button
-                class="skill-chip"
-                [class.active]="isSkillActive(skill)"
-                (click)="toggleSkill(skill)"
-                [title]="skill.description">
-                <span class="chip-name">{{ skill.name }}</span>
+              <div class="sass-card sass-card--skill"
+                   [class.is-active]="isSkillActive(skill)"
+                   (click)="toggleSkill(skill)"
+                   [title]="skill.description || skill.name">
+                <div class="sass-card-icon">{{ skillIcon(skill) }}</div>
+                <div class="sass-card-name">{{ skill.name }}</div>
                 @if (skill.cost) {
-                  <span class="chip-cost">
-                    {{ skill.cost.amount }}
-                    {{ skill.cost.type === 'mana' ? 'M' : skill.cost.type === 'energy' ? 'E' : 'L' }}
-                    /Rd
-                  </span>
+                  <div class="sass-card-cost">
+                    {{ skill.cost.amount }}{{ skill.cost.type === 'mana' ? 'M' : skill.cost.type === 'energy' ? 'E' : 'L' }}/Rd
+                  </div>
                 }
-                <span class="chip-dot" [class.on]="isSkillActive(skill)"></span>
-              </button>
+                <div class="sass-card-dot" [class.on]="isSkillActive(skill)"></div>
+              </div>
             }
           </div>
         </div>
@@ -34,35 +33,42 @@
 
       <!-- ── Casting Spells ──────────────────────────── -->
       @if (castingSpells.length > 0) {
-        <div class="sass-group">
-          <div class="sass-group-label">Wirkende Zauber</div>
-          <div class="casting-list">
+        <div class="sass-lane">
+          <div class="sass-lane-label">Aktive Zauber</div>
+          <div class="sass-bar">
             @for (entry of castingSpells; track entry.spellId; let i = $index) {
-              <div class="casting-row">
-                <span class="casting-name">{{ entry.spellName }}</span>
-
-                <div class="cast-level-ctrl">
-                  <button class="cl-btn" (click)="decrementCastLevel(entry)" title="Cast-Level senken">−</button>
-                  <input
-                    class="cl-input"
-                    type="number"
-                    [ngModel]="entry.castLevel"
-                    (ngModelChange)="setCastLevel(entry, $event)"
-                    min="0"
-                    title="Cast-Level">
-                  <button class="cl-btn" (click)="incrementCastLevel(entry)" title="Cast-Level erhöhen">+</button>
-                </div>
-
-                @if (reductionLabel(entry.castLevel); as label) {
-                  <span class="reduction-badge">{{ label }}</span>
+              @let spellData = getSpellData(entry.spellId);
+              <div class="sass-card sass-card--spell"
+                   [style.--sc]="spellData?.strokeColor || '#8b5cf6'"
+                   [title]="entry.spellName">
+                <div class="sass-card-icon">{{ spellData ? '✦' : '◈' }}</div>
+                <div class="sass-card-name">{{ entry.spellName }}</div>
+                @if (spellCostLabel(spellData); as costLbl) {
+                  <div class="sass-card-cost sass-card-cost--spell">{{ costLbl }}</div>
                 }
-
-                <button class="remove-btn" (click)="removeCastingSpell(i)" title="Zauber entfernen">✕</button>
+                <div class="sass-card-castlevel">
+                  <button class="cl-btn" (click)="decrementCastLevel(entry); $event.stopPropagation()" title="−">−</button>
+                  <span class="cl-value">{{ entry.castLevel }}</span>
+                  <button class="cl-btn" (click)="incrementCastLevel(entry); $event.stopPropagation()" title="+">+</button>
+                </div>
+                @if (reductionLabel(entry.castLevel); as label) {
+                  <div class="sass-card-reduction">{{ label }}</div>
+                }
+                <button class="sass-card-remove" (click)="removeCastingSpell(i); $event.stopPropagation()" title="Entfernen">✕</button>
               </div>
             }
           </div>
         </div>
       }
+
+      <!-- ── Fokus bar ───────────────────────────────── -->
+      <div class="fokus-bar-row">
+        <span class="fokus-label">Fokus-Auslastung</span>
+        <div class="fokus-bar-track">
+          <div class="fokus-bar-fill" [style.width.%]="fokusPercent"></div>
+        </div>
+        <span class="fokus-value">{{ usedFokus }} / {{ maxFokus }}</span>
+      </div>
 
     </div>
   </div>

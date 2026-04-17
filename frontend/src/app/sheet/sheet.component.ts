@@ -44,6 +44,7 @@ import { TransactionPopupComponent, Transaction } from './transaction-popup/tran
 import { EventPortalComponent } from './event-portal/event-portal.component';
 import { SheetStatusEffectsComponent } from './sheet-status-effects/sheet-status-effects.component';
 import { SheetActiveSkillsSpellsComponent } from './sheet-active-skills-spells/sheet-active-skills-spells.component';
+import { SpellcastWindowComponent } from './spellcast-window/spellcast-window.component';
 
 @Component({
   selector: 'app-sheet',
@@ -68,6 +69,7 @@ import { SheetActiveSkillsSpellsComponent } from './sheet-active-skills-spells/s
     EventPortalComponent,
     SheetStatusEffectsComponent,
     SheetActiveSkillsSpellsComponent,
+    SpellcastWindowComponent,
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
@@ -96,6 +98,7 @@ export class SheetComponent implements OnInit {
   showResourcePanel = false;
   showActionMacros = false;
   showGameInfo = false;
+  showCastWindow = false;
   currentEvents: CurrentEvent[] = [];
   transactions: Transaction[] = [];
   openPortalEventId: string | null = null;
@@ -153,6 +156,12 @@ export class SheetComponent implements OnInit {
         this.cdr.detectChanges();
         event.preventDefault();
         break;
+      case 'c':
+        // Toggle cast window
+        this.showCastWindow = !this.showCastWindow;
+        this.cdr.detectChanges();
+        event.preventDefault();
+        break;
       case 'h':
         // Toggle game info help
         this.showGameInfo = !this.showGameInfo;
@@ -161,11 +170,12 @@ export class SheetComponent implements OnInit {
         break;
       case 'escape':
         // Close all panels
-        if (this.showDiceRoller || this.showResourcePanel || this.showActionMacros || this.showGameInfo) {
+        if (this.showDiceRoller || this.showResourcePanel || this.showActionMacros || this.showGameInfo || this.showCastWindow) {
           this.showDiceRoller = false;
           this.showResourcePanel = false;
           this.showActionMacros = false;
           this.showGameInfo = false;
+          this.showCastWindow = false;
           this.cdr.detectChanges();
           event.preventDefault();
         }
@@ -649,6 +659,11 @@ export class SheetComponent implements OnInit {
 
   toggleGameInfo() {
     this.showGameInfo = !this.showGameInfo;
+    this.cdr.detectChanges();
+  }
+
+  toggleCastWindow() {
+    this.showCastWindow = !this.showCastWindow;
     this.cdr.detectChanges();
   }
 

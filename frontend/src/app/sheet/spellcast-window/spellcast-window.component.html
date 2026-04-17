@@ -1,0 +1,129 @@
+<div class="scw-overlay" (click)="$event.stopPropagation()">
+
+  <!-- Ambient floating runes -->
+  <div class="scw-rune-field" aria-hidden="true">
+    @for (rune of floatingRunes; track rune.id) {
+      <span class="scw-rune-glyph"
+            [style.left.%]="rune.x"
+            [style.top.%]="rune.y"
+            [style.font-size.px]="rune.size"
+            [style.opacity]="rune.opacity"
+            [style.color]="rune.color"
+            [style.animation-duration.s]="rune.speed"
+            [style.animation-delay.s]="rune.delay">{{ rune.symbol }}</span>
+    }
+  </div>
+
+  <!-- Header -->
+  <div class="scw-header">
+    <div class="scw-header-left">
+      <span class="scw-title">✦ Zauberwirken</span>
+      @if (sheet.name) {
+        <span class="scw-char-name">{{ sheet.name }}</span>
+      }
+    </div>
+
+    <!-- Resources -->
+    <div class="scw-resources">
+      <div class="scw-res-block">
+        <span class="scw-res-label">Mana</span>
+        <div class="scw-res-bar">
+          <div class="scw-res-fill scw-res-fill--mana" [style.width.%]="manaPercent"></div>
+        </div>
+        <span class="scw-res-val">{{ manaCurrent }} / {{ manaMax }}</span>
+      </div>
+      <div class="scw-res-block">
+        <span class="scw-res-label">Fokus</span>
+        <div class="scw-res-bar">
+          <div class="scw-res-fill scw-res-fill--fokus" [style.width.%]="fokusPercent"></div>
+        </div>
+        <span class="scw-res-val">{{ fokusUsed }} / {{ fokusMax }}</span>
+      </div>
+    </div>
+
+    <button class="scw-close-btn" (click)="close.emit()" title="Schließen (Esc)">✕</button>
+  </div>
+
+  <!-- Body -->
+  <div class="scw-body">
+
+    <!-- Left: Available spells -->
+    <div class="scw-panel scw-panel--available">
+      <div class="scw-panel-header">Verfügbare Zauber</div>
+      @if (availableSpells.length === 0) {
+        <div class="scw-empty">Keine Zauber vorhanden.</div>
+      } @else {
+        <div class="scw-spell-grid">
+          @for (spell of availableSpells; track spell.id) {
+            <div class="scw-spell-card"
+                 [class.is-casting]="isActivelyCasting(spell)"
+                 [style.--sc]="spellColor(spell)"
+                 (click)="castSpell(spell)"
+                 [title]="isActivelyCasting(spell) ? 'Wird bereits gewirkt' : 'Klicken zum Wirken: ' + spell.name">
+              <div class="scw-spell-glow"></div>
+              <div class="scw-spell-icon">✦</div>
+              <div class="scw-spell-name">{{ spell.name }}</div>
+              @if (costLabel(spell); as cost) {
+                <div class="scw-spell-cost">{{ cost }}</div>
+              }
+              @if (spell.tags && spell.tags.length > 0) {
+                <div class="scw-spell-tags">
+                  @for (tag of spell.tags; track tag) {
+                    <span class="scw-tag">{{ tag }}</span>
+                  }
+                </div>
+              }
+              @if (isActivelyCasting(spell)) {
+                <div class="scw-active-badge">Aktiv</div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Divider -->
+    <div class="scw-divider">
+      <div class="scw-divider-line"></div>
+      <span class="scw-divider-rune">ᛊ</span>
+      <div class="scw-divider-line"></div>
+    </div>
+
+    <!-- Right: Active casts -->
+    <div class="scw-panel scw-panel--active">
+      <div class="scw-panel-header">Aktive Zauber</div>
+      @if (castingSpells.length === 0) {
+        <div class="scw-empty">Keine Zauber aktiv.<br><span class="scw-empty-hint">Klicke einen Zauber an, um ihn zu wirken.</span></div>
+      } @else {
+        <div class="scw-active-list">
+          @for (entry of castingSpells; track entry.spellId) {
+            <div class="scw-active-card"
+                 [style.--sc]="getSpell(entry.spellId) ? spellColor(getSpell(entry.spellId)!) : '#8b5cf6'">
+              <div class="scw-active-glow"></div>
+              <div class="scw-active-header">
+                <span class="scw-active-icon">✦</span>
+                <span class="scw-active-name">{{ entry.spellName }}</span>
+                <button class="scw-stop-btn" (click)="stopCasting(entry)" title="Beenden">✕</button>
+              </div>
+              @if (getSpell(entry.spellId); as spell) {
+                @if (costLabel(spell); as cost) {
+                  <div class="scw-active-cost">{{ cost }}/Rd</div>
+                }
+              }
+              <div class="scw-cl-row">
+                <span class="scw-cl-label">Cast-Level</span>
+                <button class="scw-cl-btn" (click)="decrementCastLevel(entry)">−</button>
+                <span class="scw-cl-val">{{ entry.castLevel }}</span>
+                <button class="scw-cl-btn" (click)="incrementCastLevel(entry)">+</button>
+                @if (reductionLabel(entry.castLevel); as red) {
+                  <span class="scw-reduction">{{ red }}</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+  </div>
+</div>

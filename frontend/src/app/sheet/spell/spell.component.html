@@ -5,18 +5,6 @@
   (contextmenu)="onRightClick($event)"
   (click)="!isEditing && cast.emit(); $event.stopPropagation()"
 >
-  <!-- Context menu -->
-  @if (showContextMenu) {
-    <div class="context-menu"
-      [style.top.px]="contextMenuY"
-      [style.left.px]="contextMenuX"
-      (click)="$event.stopPropagation()">
-      <button class="ctx-item" (click)="castFromMenu()">Wirken</button>
-      <button class="ctx-item" (click)="openEditorFromMenu()">Bearbeiten</button>
-      <button class="ctx-item ctx-delete" (click)="deleteFromMenu()">Löschen</button>
-    </div>
-  }
-
   @if (!isEditing) {
   <div class="spell-view">
     <!-- Thumbnail + Name row -->

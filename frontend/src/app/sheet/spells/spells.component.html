@@ -17,6 +17,7 @@
         (editingChange)="onEditingChange(i, $event)"
         (openEditor)="openNodeEditor(i)"
         (cast)="castSpell(i)"
+        (contextMenuRequest)="onSpellContextMenu($event)"
       ></app-spell>
       <div
         class="drag-placeholder-wrapper"
@@ -30,6 +31,18 @@
     }
   </div>
 </app-card>
+
+<!-- Context menu – rendered at this level to escape stacking contexts inside spell cards -->
+@if (showContextMenu) {
+  <div class="spells-ctx-menu"
+    [style.top.px]="contextMenuY"
+    [style.left.px]="contextMenuX"
+    (click)="$event.stopPropagation()">
+    <button class="ctx-item" (click)="castFromMenu()">Wirken</button>
+    <button class="ctx-item" (click)="openEditorFromMenu()">Bearbeiten</button>
+    <button class="ctx-item ctx-delete" (click)="deleteFromMenu()">Löschen</button>
+  </div>
+}
 
 <!-- Spell Editor Overlay (fullscreen) -->
 @if (showNodeEditor) {

@@ -12,6 +12,7 @@ import {
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellNodeEditorComponent } from '../../shared/spell-node-editor/spell-node-editor.component';
 import { SpellCostResult } from '../../shared/spell-node-editor/spell-cost.model';
+import { calculateSpellCost } from '../../shared/spell-node-editor/spell-cost-calculator';
 import { ActionMacro, createEmptyActionMacro } from '../../model/action-macro.model';
 import { SpellGraph } from '../../shared/spell-node-editor/spell-node.model';
 import { EmbeddedMacroEditorComponent } from '../../shared/embedded-macro-editor/embedded-macro-editor.component';
@@ -46,9 +47,14 @@ export class SpellEditorOverlayComponent implements OnInit {
   graph: SpellGraph | undefined;
   embeddedMacro: ActionMacro | null = null;
   hasDrawing = false;
-  // For add-turn form
+  // For add-turn form (single turn)
   newTurnMana = 0;
   newTurnFokus = 0;
+  // For add range form (A-B)
+  newRangeFrom = 1;
+  newRangeTo = 10;
+  newRangeMana = 0;
+  newRangeFokus = 0;
 
   // ── UI state ─────────────────────────────────────────────────────────────────
   showNodeEditor = false;
@@ -57,6 +63,7 @@ export class SpellEditorOverlayComponent implements OnInit {
   lastEstimatedCostResult: SpellCostResult | null = null;
   hasNewEstimate = false;
   savedFeedback = false;       // Brief "Gespeichert" flash
+  showEstimatePopup = false;   // Inline estimate result popup
 
   readonly tagOptions = SPELL_TAG_OPTIONS;
   readonly statLabels: { key: keyof SpellStatRequirements; label: string }[] = [
@@ -69,6 +76,7 @@ export class SpellEditorOverlayComponent implements OnInit {
   ];
 
   get isNewSpell(): boolean { return !this.spell; }
+  get hasGraph(): boolean { return (this.graph?.nodes?.length ?? 0) > 0; }
 
   ngOnInit(): void {
     if (this.spell) {
@@ -250,7 +258,62 @@ export class SpellEditorOverlayComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  // ── Macro ─────────────────────────────────────────────────────────────────────
+  /** Add a range of turns (e.g. turns 5-100) with the same cost to a case */
+  addRangeToCase(caseIdx: number): void {
+    const from = Math.max(0, Math.round(this.newRangeFrom));
+    const to   = Math.max(from, Math.round(this.newRangeTo));
+    if (from > to) return;
+    this.ensureCostSchedule();
+    const c = this.costSchedule!.cases[caseIdx];
+    const existingTurnNums = new Set(c.turns.map(t => t.turn));
+    const newTurns: StoredCostTurn[] = [];
+    for (let t = from; t <= to; t++) {
+      if (!existingTurnNums.has(t)) {
+        newTurns.push({ turn: t, mana: this.newRangeMana, fokus: this.newRangeFokus });
+      }
+    }
+    c.turns = [...c.turns, ...newTurns].sort((a, b) => a.turn - b.turn);
+    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
+    this.cdr.markForCheck();
+  }
+
+  // ── Estimate ─────────────────────────────────────────────────────────────────
+
+  runEstimate(): void {
+    if (!this.graph || !this.graph.nodes?.length) return;
+    try {
+      const result = calculateSpellCost(this.graph, this.availableRunes);
+      this.lastEstimatedCostResult = result;
+      this.hasNewEstimate = true;
+      this.showEstimatePopup = true;
+    } catch (e) {
+      console.error('Spell cost estimate failed:', e);
+    }
+    this.cdr.markForCheck();
+  }
+
+  closeEstimatePopup(): void {
+    this.showEstimatePopup = false;
+    this.cdr.markForCheck();
+  }
+
+  /** Format estimate cases for display in popup */
+  get estimateCaseSummaries(): Array<{ label: string; mana: number; fokus: number; turns: number }> {
+    if (!this.lastEstimatedCostResult) return [];
+    return this.lastEstimatedCostResult.cases.map(c => {
+      const entries = c.fullEntries || c.entries || [];
+      const totalMana  = entries.reduce((s, e) => s + e.mana, 0);
+      const totalFokus = entries.reduce((s, e) => s + e.fokus, 0);
+      return {
+        label: c.label,
+        mana:  Math.round(totalMana  * 100) / 100,
+        fokus: Math.round(totalFokus * 100) / 100,
+        turns: entries.length,
+      };
+    });
+  }
+
+
 
   enableMacro(): void {
     const m = createEmptyActionMacro();

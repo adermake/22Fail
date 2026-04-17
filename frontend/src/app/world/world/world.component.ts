@@ -23,7 +23,7 @@ import { CurrentEvent, ShopEvent, LootBundleEvent, getCoinParts, CoinPart } from
 import { Subscription } from 'rxjs';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
-import { SpellNodeEditorComponent } from '../../shared/spell-node-editor/spell-node-editor.component';
+import { SpellEditorOverlayComponent } from '../../sheet/spell-editor-overlay/spell-editor-overlay.component';
 import { SpellBlock } from '../../model/spell-block-model';
 import { RuneEditorComponent } from '../../shared/rune-editor/rune-editor.component';
 import { AssetBrowserComponent } from '../asset-browser/asset-browser.component';
@@ -44,7 +44,7 @@ export type { SimulatedTurn, BattleGroup };
 @Component({
   selector: 'app-world',
   standalone: true,
-  imports: [CommonModule, CardComponent, FormsModule, ItemEditorComponent, SkillEditorComponent, SpellNodeEditorComponent, RuneEditorComponent, AssetBrowserComponent, LibrarySelectorComponent, ContextMenuComponent, BattleTracker, CurrentEventsManagerComponent, ImageUrlPipe, CharacterGeneratorComponent, DamageCalculatorComponent],
+  imports: [CommonModule, CardComponent, FormsModule, ItemEditorComponent, SkillEditorComponent, SpellEditorOverlayComponent, RuneEditorComponent, AssetBrowserComponent, LibrarySelectorComponent, ContextMenuComponent, BattleTracker, CurrentEventsManagerComponent, ImageUrlPipe, CharacterGeneratorComponent, DamageCalculatorComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
