@@ -17,6 +17,7 @@
         (editingChange)="onEditingChange(i, $event)"
         (openEditor)="openNodeEditor(i)"
         (cast)="castSpell(i)"
+        (openCastView)="requestCastWindow.emit()"
         (contextMenuRequest)="onSpellContextMenu($event)"
       ></app-spell>
       <div

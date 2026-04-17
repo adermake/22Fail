@@ -385,12 +385,13 @@
               />
             }
             @case ('spell') {
-              <app-spell-node-editor
+              <app-spell-editor-overlay
                 [spell]="editingFile()!.data"
                 [availableRunes]="availableRunesAsBlocks"
                 (save)="saveEditor($event, false)"
                 (cancel)="closeEditor()"
-              />
+                (deleteSpell)="closeEditor()">
+              </app-spell-editor-overlay>
             }
             @case ('skill') {
               <app-skill-editor

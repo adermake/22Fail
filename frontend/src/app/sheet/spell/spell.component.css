@@ -3,17 +3,143 @@
   width: 100%;
 }
 
+/* Base wrapper — no styling; new .scv handles the card */
 .spell-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  transition: all 0.2s;
-  border-left: 3px solid rgba(139,92,246,0.6);
-  cursor: pointer;
+  position: relative;
   width: 100%;
   box-sizing: border-box;
-  position: relative;
+}
+
+.spell-card.editing {
+  cursor: default;
+}
+
+/* ── New skill-like card view ──────────────────────────────────────────── */
+.scv {
+  background: #0f1829;
+  border-radius: 8px;
+  border: 1px solid var(--border, #374151);
+  border-left: 3px solid var(--sc, #8b5cf6);
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s;
+  user-select: none;
+}
+.scv:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.45), 0 0 0 1px var(--sc, #8b5cf6);
+  transform: translateY(-1px);
+}
+
+/* Top bar */
+.scv-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  background: rgba(255,255,255,0.025);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  min-height: 28px;
+}
+.scv-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.scv-type {
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--sc, #8b5cf6);
+  flex-shrink: 0;
+}
+.scv-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text, #e5e7eb);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scv-actions {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.scv-edit-btn,
+.scv-del-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  color: var(--text-muted, #9ca3af);
+  padding: 0;
+}
+.scv-edit-btn:hover { border-color: rgba(139,92,246,0.5); color: #c4b5fd; background: rgba(139,92,246,0.1); }
+.scv-del-btn:hover  { border-color: rgba(239,68,68,0.4);  color: #fca5a5;  background: rgba(239,68,68,0.08); }
+
+/* Meta row: cost + stat chips */
+.scv-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 8px;
+}
+.scv-cost {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.scv-cost--mana  { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.3); color: #c4b5fd; }
+.scv-cost--fokus { background: rgba(59,130,246,0.1);  border: 1px solid rgba(59,130,246,0.25); color: #93c5fd; }
+.scv-cost--free  { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #4b5563; font-style: italic; }
+.scv-cost--plan  { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.25); color: #a78bfa; }
+.scv-req {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: #fcd34d;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+/* Description */
+.scv-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted, #9ca3af);
+  padding: 2px 8px 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.45;
+}
+
+/* Tags */
+.scv-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 0 8px 6px;
+}
+.scv-tag {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.65rem;
 }
 
 /* Context menu */

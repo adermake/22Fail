@@ -1,12 +1,12 @@
 import {
-  Component, Input, Output, EventEmitter, OnInit,
+  Component, Input, Output, EventEmitter, OnInit, OnDestroy,
   ChangeDetectionStrategy, ChangeDetectorRef, inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   SpellBlock, SpellStatRequirements, SpellBinding,
-  StoredCostSchedule, StoredCostCase, StoredCostTurn,
+  StoredCostSchedule, StoredCostCase, StoredCostTurn, StoredCostRange,
   SPELL_TAG_OPTIONS, generateSpellId,
 } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
@@ -16,6 +16,7 @@ import { calculateSpellCost } from '../../shared/spell-node-editor/spell-cost-ca
 import { ActionMacro, createEmptyActionMacro } from '../../model/action-macro.model';
 import { SpellGraph } from '../../shared/spell-node-editor/spell-node.model';
 import { EmbeddedMacroEditorComponent } from '../../shared/embedded-macro-editor/embedded-macro-editor.component';
+import { MACRO_ICON_SYMBOLS } from '../../shared/embedded-macro-editor/embedded-macro-editor.component';
 
 @Component({
   selector: 'app-spell-editor-overlay',
@@ -25,7 +26,7 @@ import { EmbeddedMacroEditorComponent } from '../../shared/embedded-macro-editor
   styleUrl: './spell-editor-overlay.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SpellEditorOverlayComponent implements OnInit {
+export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
   @Input() spell: SpellBlock | null = null;
   @Input() availableRunes: RuneBlock[] = [];
   @Output() save        = new EventEmitter<SpellBlock>();
@@ -47,6 +48,8 @@ export class SpellEditorOverlayComponent implements OnInit {
   graph: SpellGraph | undefined;
   embeddedMacro: ActionMacro | null = null;
   hasDrawing = false;
+  spellIcon = '✦';
+  spellColor = '#8b5cf6';
   // For add-turn form (single turn)
   newTurnMana = 0;
   newTurnFokus = 0;
@@ -66,6 +69,12 @@ export class SpellEditorOverlayComponent implements OnInit {
   showEstimatePopup = false;   // Inline estimate result popup
 
   readonly tagOptions = SPELL_TAG_OPTIONS;
+  readonly iconOptions = MACRO_ICON_SYMBOLS;
+  readonly colorPresets = [
+    '#8b5cf6', '#ef4444', '#f97316', '#eab308',
+    '#22c55e', '#06b6d4', '#3b82f6', '#ec4899',
+    '#a78bfa', '#ffffff',
+  ];
   readonly statLabels: { key: keyof SpellStatRequirements; label: string }[] = [
     { key: 'intelligence',  label: 'Intelligenz' },
     { key: 'constitution',  label: 'Konstitution' },
@@ -79,6 +88,7 @@ export class SpellEditorOverlayComponent implements OnInit {
   get hasGraph(): boolean { return (this.graph?.nodes?.length ?? 0) > 0; }
 
   ngOnInit(): void {
+    document.body.style.overflow = 'hidden';
     if (this.spell) {
       this.spellId               = this.spell.id || generateSpellId();
       this.spellName             = this.spell.name || '';
@@ -92,9 +102,15 @@ export class SpellEditorOverlayComponent implements OnInit {
       this.graph                 = this.spell.graph ? JSON.parse(JSON.stringify(this.spell.graph)) : undefined;
       this.embeddedMacro         = this.spell.embeddedMacro ? JSON.parse(JSON.stringify(this.spell.embeddedMacro)) : null;
       this.hasDrawing            = !!this.spell.drawing;
+      this.spellIcon             = this.spell.icon || '\u2726';
+      this.spellColor            = this.spell.strokeColor || '#8b5cf6';
     } else {
       this.spellId = generateSpellId();
     }
+  }
+
+  ngOnDestroy(): void {
+    document.body.style.overflow = '';
   }
 
   // ── Save ─────────────────────────────────────────────────────────────────────
@@ -106,7 +122,8 @@ export class SpellEditorOverlayComponent implements OnInit {
       description:     this.spellDescription,
       tags:            [...this.spellTags],
       binding:         { ...this.spellBinding },
-      strokeColor:     this.spell?.strokeColor,
+      strokeColor:     this.spellColor,
+      icon:            this.spellIcon,
       libraryOrigin:   this.spell?.libraryOrigin,
       libraryOriginName: this.spell?.libraryOriginName,
       drawing:         this.spell?.drawing,
@@ -258,23 +275,89 @@ export class SpellEditorOverlayComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  /** Add a range of turns (e.g. turns 5-100) with the same cost to a case */
+  /** Add a range (stored as one collapsed entry, NOT expanded) */
   addRangeToCase(caseIdx: number): void {
     const from = Math.max(0, Math.round(this.newRangeFrom));
     const to   = Math.max(from, Math.round(this.newRangeTo));
     if (from > to) return;
     this.ensureCostSchedule();
     const c = this.costSchedule!.cases[caseIdx];
-    const existingTurnNums = new Set(c.turns.map(t => t.turn));
-    const newTurns: StoredCostTurn[] = [];
-    for (let t = from; t <= to; t++) {
-      if (!existingTurnNums.has(t)) {
-        newTurns.push({ turn: t, mana: this.newRangeMana, fokus: this.newRangeFokus });
-      }
-    }
-    c.turns = [...c.turns, ...newTurns].sort((a, b) => a.turn - b.turn);
+    const range: StoredCostRange = { from, to, mana: this.newRangeMana, fokus: this.newRangeFokus };
+    c.ranges = [...(c.ranges || []), range];
     this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
     this.cdr.markForCheck();
+  }
+
+  removeRange(caseIdx: number, rangeIdx: number): void {
+    const c = this.costSchedule!.cases[caseIdx];
+    c.ranges = (c.ranges || []).filter((_, i) => i !== rangeIdx);
+    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
+    this.cdr.markForCheck();
+  }
+
+  // ── Subcase (tree branch) editing ─────────────────────────────────────────
+
+  addSubcase(caseIdx: number): void {
+    this.ensureCostSchedule();
+    const c = this.costSchedule!.cases[caseIdx];
+    const sub: StoredCostCase = {
+      label: 'Zweig ' + ((c.subcases?.length ?? 0) + 1),
+      conditionType: 'known',
+      branchAtTurn: 2,
+      turns: [],
+      ranges: [],
+    };
+    c.subcases = [...(c.subcases || []), sub];
+    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
+    this.cdr.markForCheck();
+  }
+
+  removeSubcase(caseIdx: number, subcaseIdx: number): void {
+    const c = this.costSchedule!.cases[caseIdx];
+    c.subcases = (c.subcases || []).filter((_, i) => i !== subcaseIdx);
+    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
+    this.cdr.markForCheck();
+  }
+
+  addSubcaseTurn(caseIdx: number, subcaseIdx: number): void {
+    const sub = this.costSchedule!.cases[caseIdx].subcases?.[subcaseIdx];
+    if (!sub) return;
+    const nextTurn = (sub.turns[sub.turns.length - 1]?.turn ?? (sub.branchAtTurn ?? 1) - 1) + 1;
+    sub.turns = [...sub.turns, { turn: nextTurn, mana: this.newTurnMana, fokus: this.newTurnFokus }];
+    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
+    this.cdr.markForCheck();
+  }
+
+  removeSubcaseTurn(caseIdx: number, subcaseIdx: number, turnIdx: number): void {
+    const sub = this.costSchedule!.cases[caseIdx].subcases?.[subcaseIdx];
+    if (!sub) return;
+    sub.turns = sub.turns.filter((_, i) => i !== turnIdx);
+    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
+    this.cdr.markForCheck();
+  }
+
+  addSubcaseRange(caseIdx: number, subcaseIdx: number): void {
+    const sub = this.costSchedule!.cases[caseIdx].subcases?.[subcaseIdx];
+    if (!sub) return;
+    const from = Math.max(0, Math.round(this.newRangeFrom));
+    const to   = Math.max(from, Math.round(this.newRangeTo));
+    if (from > to) return;
+    sub.ranges = [...(sub.ranges || []), { from, to, mana: this.newRangeMana, fokus: this.newRangeFokus }];
+    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
+    this.cdr.markForCheck();
+  }
+
+  removeSubcaseRange(caseIdx: number, subcaseIdx: number, rangeIdx: number): void {
+    const sub = this.costSchedule!.cases[caseIdx].subcases?.[subcaseIdx];
+    if (!sub) return;
+    sub.ranges = (sub.ranges || []).filter((_, i) => i !== rangeIdx);
+    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
+    this.cdr.markForCheck();
+  }
+
+  rangeLabel(r: StoredCostRange): string {
+    const to = r.to >= 9999 ? '∞' : String(r.to);
+    return `R${r.from}–${to}`;
   }
 
   // ── Estimate ─────────────────────────────────────────────────────────────────

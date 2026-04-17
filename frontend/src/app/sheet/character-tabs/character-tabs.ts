@@ -36,6 +36,7 @@ export class CharacterTabsComponent {
   @Output() skillEditingChange = new EventEmitter<{index: number, isEditing: boolean}>();
   @Output() openTrash = new EventEmitter<void>();
   @Output() triggerMacro = new EventEmitter<ActionMacro>();
+  @Output() requestCastWindow = new EventEmitter<void>();
 
   activeTab: 'inventory' | 'spells' | 'runes' | 'skills' = 'inventory';
 

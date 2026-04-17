@@ -25,11 +25,24 @@ export interface StoredCostTurn {
   fokus: number;
 }
 
+/** A range of turns that all share the same per-turn cost (collapsed representation) */
+export interface StoredCostRange {
+  from: number;
+  to: number;    // inclusive; 9999 = open-ended
+  mana: number;
+  fokus: number;
+}
+
 export interface StoredCostCase {
   label: string;
+  /** Whether this branch condition is known before casting ('known') or discovered at runtime ('unknown') */
+  conditionType?: 'known' | 'unknown';
+  /** Turn at which this branch diverges from its parent (undefined = from the start) */
+  branchAtTurn?: number;
   turns: StoredCostTurn[];
+  ranges?: StoredCostRange[];    // Collapsed multi-turn ranges
   subcases?: StoredCostCase[];
-  isUnknownBranch?: boolean;
+  isUnknownBranch?: boolean;     // Legacy compat
 }
 
 export interface StoredCostSchedule {
@@ -42,6 +55,7 @@ export function generateSpellId(): string {
 
 // ── Casting Spell Entry (active/sustained cast tracking on the character sheet) ─
 export interface CastingSpellEntry {
+  entryId?: string;     // Unique per cast instance (allows same spell multiple times)
   spellId: string;      // Matches SpellBlock.id
   spellName: string;    // Denormalized for fast display
   castLevel: number;    // Accumulated cast level (determines cost reduction)
@@ -56,7 +70,8 @@ export class SpellBlock {
   drawing?: string;
   tags!: string[];
   binding!: SpellBinding;
-  strokeColor?: string;
+  strokeColor?: string;                 // Card left-border / glow color
+  icon?: string;                        // Unicode symbol for card display
   libraryOrigin?: string;
   libraryOriginName?: string;
   graph?: SpellGraph;
@@ -80,22 +95,22 @@ export const SPELL_GLOW_COLORS = [
 ];
 
 export const SPELL_TAG_OPTIONS = [
-  'Fire',
-  'Water',
-  'Earth',
-  'Air',
-  'Light',
-  'Dark',
-  'Healing',
-  'Protection',
-  'Attack',
-  'Defense',
+  'Feuer',
+  'Wasser',
+  'Erde',
+  'Luft',
+  'Licht',
+  'Dunkel',
+  'Heilung',
+  'Schutz',
+  'Angriff',
+  'Verteidigung',
   'Buff',
   'Debuff',
-  'Summoning',
-  'Enchantment',
+  'Beschwörung',
+  'Verzauberung',
   'Illusion',
-  'Divination',
-  'Transmutation',
-  'Necromancy',
+  'Weissagung',
+  'Verwandlung',
+  'Nekromantie',
 ];

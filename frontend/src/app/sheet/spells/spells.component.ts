@@ -21,6 +21,7 @@ export class SpellsComponent {
   @Input() editingSpells!: Set<number>;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() editingChange = new EventEmitter<{index: number, isEditing: boolean}>();
+  @Output() requestCastWindow = new EventEmitter<void>();
 
   showCreateDialog = false;
   placeholderHeight = '90px';

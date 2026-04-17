@@ -120,11 +120,12 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
   // ── Actions ───────────────────────────────────────────────────────────────
 
   castSpell(spell: SpellBlock): void {
-    if (this.isActivelyCasting(spell)) return;
+    const entryId = `${spell.id || generateSpellId()}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const entry: CastingSpellEntry = {
       spellId: spell.id || generateSpellId(),
       spellName: spell.name,
       castLevel: 0,
+      entryId,
     };
     const updated = [...this.castingSpells, entry];
     this.sheet.castingSpells = updated;
@@ -144,7 +145,9 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
   }
 
   stopCasting(entry: CastingSpellEntry): void {
-    const updated = this.castingSpells.filter(e => e.spellId !== entry.spellId);
+    const updated = entry.entryId
+      ? this.castingSpells.filter(e => e.entryId !== entry.entryId)
+      : this.castingSpells.filter(e => e.spellId !== entry.spellId);
     this.sheet.castingSpells = updated;
     this._patchCasting();
     this.cdr.markForCheck();

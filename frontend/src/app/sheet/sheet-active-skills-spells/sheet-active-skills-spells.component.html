@@ -36,7 +36,7 @@
         <div class="sass-lane">
           <div class="sass-lane-label">Aktive Zauber</div>
           <div class="sass-bar">
-            @for (entry of castingSpells; track entry.spellId; let i = $index) {
+            @for (entry of castingSpells; track (entry.entryId || entry.spellId + '_' + i); let i = $index) {
               @let spellData = getSpellData(entry.spellId);
               <div class="sass-card sass-card--spell"
                    [style.--sc]="spellData?.strokeColor || '#8b5cf6'"

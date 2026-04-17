@@ -48,7 +48,8 @@
       (spellEditingChange)="onSpellEditingChange($any($event).index, $any($event).isEditing)"
       (skillEditingChange)="onSkillEditingChange($any($event).index, $any($event).isEditing)"
       (openTrash)="openTrash()"
-      (triggerMacro)="handleMacroExecution($event)">
+      (triggerMacro)="handleMacroExecution($event)"
+      (requestCastWindow)="showCastWindow = true">
     </app-character-tabs>
   </div>
 

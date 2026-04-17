@@ -43,7 +43,7 @@ import {
 // Editor Components
 import { ItemEditorComponent } from '../sheet/item-editor/item-editor.component';
 import { RuneEditorComponent } from '../shared/rune-editor/rune-editor.component';
-import { SpellNodeEditorComponent } from '../shared/spell-node-editor/spell-node-editor.component';
+import { SpellEditorOverlayComponent } from '../sheet/spell-editor-overlay/spell-editor-overlay.component';
 import { SkillEditorComponent } from '../shared/skill-editor/skill-editor.component';
 import { StatusEffectEditorComponent } from '../shared/status-effect-editor/status-effect-editor.component';
 import { MacroEditorComponent } from '../shared/macro-editor/macro-editor.component';
@@ -74,7 +74,7 @@ import { RuneTableComponent } from './rune-table/rune-table.component';
     ItemEditorComponent,
     RuneEditorComponent,
     RuneTableComponent,
-    SpellNodeEditorComponent,
+    SpellEditorOverlayComponent,
     SkillEditorComponent,
     StatusEffectEditorComponent,
     MacroEditorComponent,

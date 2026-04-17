@@ -1,72 +1,53 @@
 <div
   class="spell-card"
   [class.editing]="isEditing"
-  [class.disabled]="isDisabled"
   (contextmenu)="onRightClick($event)"
-  (click)="!isEditing && cast.emit(); $event.stopPropagation()"
+  (click)="!isEditing && openCastView.emit(); $event.stopPropagation()"
 >
   @if (!isEditing) {
-  <div class="spell-view">
-    <!-- Thumbnail + Name row -->
-    <div class="sc-header">
-      @if (spell.drawing) {
-        <div class="sc-thumb">
-          <img [src]="spell.drawing | imageUrl" alt="Zauber-Symbol"/>
-        </div>
-      }
-      <div class="sc-title-block">
-        <div class="sc-title-row">
-          <h4 class="sc-name">{{ spell.name || 'Unbekannter Zauber' }}</h4>
-          <div class="sc-actions">
-            <button class="sc-edit-btn" (click)="openEditor.emit(); $event.stopPropagation()" title="Bearbeiten">✎</button>
-            <button class="sc-del-btn" (click)="deleteSpell(); $event.stopPropagation()" title="Löschen">✕</button>
-          </div>
-        </div>
+  <!-- ── Skill-like compact card view ── -->
+  <div class="scv" [style.--sc]="spell.strokeColor || '#8b5cf6'">
 
-        <!-- Cost pills -->
-        <div class="sc-costs">
-          @if (spell.costMana) {
-            <span class="sc-cost-pill sc-cost-mana">&#9670; {{ spell.costMana }} Mana</span>
-          }
-          @if (spell.costFokus) {
-            <span class="sc-cost-pill sc-cost-fokus">&#9671; {{ spell.costFokus }} Fokus</span>
-          }
-          @if (!spell.costMana && !spell.costFokus) {
-            <span class="sc-cost-pill sc-cost-none">Keine Kosten</span>
-          }
-        </div>
-
-        <!-- Stat requirements -->
-        @if (statReqEntries.length > 0) {
-          <div class="sc-stats">
-            @for (req of statReqEntries; track req.label) {
-              <span class="sc-stat-chip">{{ req.label }} {{ req.value }}</span>
-            }
-          </div>
-        }
+    <!-- Top bar: icon + ZAUBER type label + name + actions -->
+    <div class="scv-bar">
+      <span class="scv-icon" [style.color]="spell.strokeColor || '#8b5cf6'">{{ spell.icon || '✦' }}</span>
+      <span class="scv-type">ZAUBER</span>
+      <span class="scv-name">{{ spell.name || 'Unbekannter Zauber' }}</span>
+      <div class="scv-actions">
+        <button class="scv-edit-btn" (click)="openEditor.emit(); $event.stopPropagation()" title="Bearbeiten">✎</button>
+        <button class="scv-del-btn" (click)="deleteSpell(); $event.stopPropagation()" title="Löschen">✕</button>
       </div>
+    </div>
+
+    <!-- Cost + stat requirements row -->
+    <div class="scv-meta">
+      @if (spell.costMana) {
+        <span class="scv-cost scv-cost--mana">◆ {{ spell.costMana }}M</span>
+      }
+      @if (spell.costFokus) {
+        <span class="scv-cost scv-cost--fokus">◇ {{ spell.costFokus }}F</span>
+      }
+      @if (!spell.costMana && !spell.costFokus) {
+        <span class="scv-cost scv-cost--free">Keine Kosten</span>
+      }
+      @if (hasCostSchedule) {
+        <span class="scv-cost scv-cost--plan" title="Hat detaillierten Kostenplan">▶</span>
+      }
+      @for (req of statReqEntries; track req.label) {
+        <span class="scv-req">{{ req.label }} {{ req.value }}</span>
+      }
     </div>
 
     <!-- Description -->
     @if (spell.description) {
-      <p class="sc-desc" [innerHTML]="enhancedDescription"></p>
+      <div class="scv-desc">{{ spell.description }}</div>
     }
 
     <!-- Tags -->
     @if (spell.tags?.length) {
-      <div class="sc-tags">
+      <div class="scv-tags">
         @for (tag of spell.tags; track tag) {
-          <span class="sc-tag">{{ tag }}</span>
-        }
-      </div>
-    }
-
-    <!-- Binding info (subtle) -->
-    @if (spell.binding?.type !== 'learned' && spell.binding?.itemName) {
-      <div class="sc-binding" [class.sc-binding-missing]="isDisabled">
-        ⚔ {{ spell.binding.itemName }}
-        @if (spell.binding.durability !== undefined) {
-          <span class="sc-durability">{{ spell.binding.durability }}/{{ spell.binding.maxDurability }}</span>
+          <span class="scv-tag">{{ tag }}</span>
         }
       </div>
     }

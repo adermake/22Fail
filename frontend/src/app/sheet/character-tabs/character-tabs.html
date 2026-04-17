@@ -45,7 +45,8 @@
         [sheet]="sheet"
         [editingSpells]="editingSpells"
         (patch)="onPatch($event)"
-        (editingChange)="onSpellEditingChange($event)">
+        (editingChange)="onSpellEditingChange($event)"
+        (requestCastWindow)="requestCastWindow.emit()">
       </app-spells>
     }
 

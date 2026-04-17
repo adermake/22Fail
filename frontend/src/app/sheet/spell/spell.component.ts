@@ -38,6 +38,8 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   @Output() editingChange = new EventEmitter<boolean>();
   @Output() openEditor = new EventEmitter<void>();
   @Output() cast = new EventEmitter<void>();
+  /** Emitted on left-click — open the cast window for this spell */
+  @Output() openCastView = new EventEmitter<void>();
   /** Emitted on right-click — parent component renders the context menu */
   @Output() contextMenuRequest = new EventEmitter<{ x: number; y: number; index: number }>();
 
@@ -191,16 +193,12 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   get isDisabled(): boolean {
-    if (this.spell.binding.type === 'learned') {
-      return false;
-    }
+    // Binding is no longer used for enabling/disabling — always enabled
+    return false;
+  }
 
-    const itemName = this.spell.binding.itemName?.toLowerCase().trim();
-    if (!itemName) return true;
-
-    const allItems = [...(this.sheet.inventory || []), ...(this.sheet.equipment || [])].filter((x): x is NonNullable<typeof x> => x !== null && x !== undefined);
-
-    return !allItems.some((item) => item.name.toLowerCase().trim() === itemName);
+  get hasCostSchedule(): boolean {
+    return (this.spell.costSchedule?.cases?.length ?? 0) > 0;
   }
 
   get availableItems(): string[] {
