@@ -103,7 +103,17 @@
         <section class="editor-section">
           <div class="section-header-row">
             <h3>Kosten</h3>
+            <div class="section-header-actions">
+              <button class="btn-outline-small" (click)="runManualEstimate()" title="Kostenschätzung aus Runen-Netzwerk">&#9960; Schätzen</button>
+            </div>
           </div>
+          @if (lastSimpleEstimate) {
+            <div class="estimate-inline">
+              <span class="estimate-pill estimate-pill--mana">&#9670; {{ lastSimpleEstimate.mana }} Mana</span>
+              <span class="estimate-pill estimate-pill--fokus">&#9671; {{ lastSimpleEstimate.fokus }} Fokus</span>
+              <span class="estimate-pill estimate-pill--nodes">{{ lastSimpleEstimate.nodeCount }} Runen</span>
+            </div>
+          }
           <div class="form-row">
             <div class="form-group" style="flex:1">
               <label>&#9670; Mana (Start)</label>
@@ -133,6 +143,56 @@
         </section>
 
         <section class="editor-section">
+          <h3>Eigene Zähler</h3>
+          @if (counters.length > 0) {
+            <div class="counter-list">
+              @for (counter of counters; track counter.id; let i = $index) {
+                <div class="counter-item-editable">
+                  <div class="counter-color" [style.backgroundColor]="counter.color"></div>
+                  <span class="counter-name">{{ counter.name }}</span>
+                  <input type="number" [(ngModel)]="counter.current" [min]="counter.min" [max]="counter.max" />
+                  <input type="range"  [(ngModel)]="counter.current" [min]="counter.min" [max]="counter.max" />
+                  <span class="counter-max-label">/ {{ counter.max }}</span>
+                  <button class="btn-icon-sm" (click)="removeCounter(i)" title="Entfernen">×</button>
+                </div>
+              }
+            </div>
+          }
+          <div class="add-counter-form">
+            <div class="form-row">
+              <div class="form-group" style="flex:2">
+                <label>Name</label>
+                <input type="text" [(ngModel)]="newCounter.name" placeholder="z.B. Ladungen" />
+              </div>
+              <div class="form-group" style="flex:1">
+                <label>Farbe</label>
+                <select [(ngModel)]="newCounter.color">
+                  @for (col of counterColors; track col) {
+                    <option [value]="col">{{ col }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:1">
+                <label>Min</label>
+                <input type="number" [(ngModel)]="newCounter.min" />
+              </div>
+              <div class="form-group" style="flex:1">
+                <label>Max</label>
+                <input type="number" [(ngModel)]="newCounter.max" />
+              </div>
+              <div class="form-group" style="flex:1">
+                <label>Start</label>
+                <input type="number" [(ngModel)]="newCounter.current" />
+              </div>
+            </div>
+            <button class="btn-outline-small add-btn" (click)="addCounter()" [disabled]="!newCounter.name.trim()">+ Zähler hinzufügen</button>
+          </div>
+        </section>
+
+        <section class="editor-section">
+          <h3>Stat-Anforderungen</h3>
           <div class="stat-reqs-grid">
             @for (stat of statLabels; track stat.key) {
               <div class="form-group">

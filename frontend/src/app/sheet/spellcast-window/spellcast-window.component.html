@@ -61,7 +61,7 @@
                  (click)="castSpell(spell)"
                  [title]="isActivelyCasting(spell) ? 'Wird bereits gewirkt' : 'Klicken zum Wirken: ' + spell.name">
               <div class="scw-spell-glow"></div>
-              <div class="scw-spell-icon">✦</div>
+              <div class="scw-spell-icon">{{ spell.icon || '✦' }}</div>
               <div class="scw-spell-name">{{ spell.name }}</div>
               @if (costLabel(spell); as cost) {
                 <div class="scw-spell-cost">{{ cost }}</div>
@@ -101,13 +101,32 @@
                  [style.--sc]="getSpell(entry.spellId) ? spellColor(getSpell(entry.spellId)!) : '#8b5cf6'">
               <div class="scw-active-glow"></div>
               <div class="scw-active-header">
-                <span class="scw-active-icon">✦</span>
+                <span class="scw-active-icon">{{ getSpell(entry.spellId)?.icon || '✦' }}</span>
                 <span class="scw-active-name">{{ entry.spellName }}</span>
                 <button class="scw-stop-btn" (click)="stopCasting(entry)" title="Beenden">✕</button>
               </div>
               @if (getSpell(entry.spellId); as spell) {
-                @if (costLabel(spell); as cost) {
-                  <div class="scw-active-cost">{{ cost }}/Rd</div>
+                @if (perTurnLabel(spell); as ptl) {
+                  <div class="scw-active-cost">{{ ptl }}</div>
+                }
+                @if (spell.counters && spell.counters.length > 0) {
+                  <div class="scw-counter-list">
+                    @for (counter of spell.counters; track counter.id; let ci = $index) {
+                      <div class="scw-counter">
+                        <span class="scw-counter-dot" [style.backgroundColor]="counter.color"></span>
+                        <span class="scw-counter-name">{{ counter.name }}</span>
+                        <button class="scw-counter-btn" (click)="adjustCounter(entry.spellId, ci, counter.current - 1)">−</button>
+                        <span class="scw-counter-val">{{ counter.current }}</span>
+                        <button class="scw-counter-btn" (click)="adjustCounter(entry.spellId, ci, counter.current + 1)">+</button>
+                        <span class="scw-counter-max">/ {{ counter.max }}</span>
+                        <div class="scw-counter-bar">
+                          <div class="scw-counter-fill"
+                               [style.width.%]="counter.max > counter.min ? ((counter.current - counter.min) / (counter.max - counter.min)) * 100 : 0"
+                               [style.backgroundColor]="counter.color"></div>
+                        </div>
+                      </div>
+                    }
+                  </div>
                 }
               }
               <div class="scw-cl-row">

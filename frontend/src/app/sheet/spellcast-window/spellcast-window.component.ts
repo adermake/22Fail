@@ -3,6 +3,7 @@ import {
   EventEmitter, HostListener, inject, Input, OnChanges, OnInit, Output, SimpleChanges,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SpellBlock, CastingSpellEntry, generateSpellId } from '../../model/spell-block-model';
 import { JsonPatch } from '../../model/json-patch.model';
@@ -24,7 +25,7 @@ const RUNE_SYMBOLS = ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ
 @Component({
   selector: 'app-spellcast-window',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './spellcast-window.component.html',
   styleUrl: './spellcast-window.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -72,8 +73,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
     return this.castingSpells.reduce((sum, entry) => {
       const spell = this.availableSpells.find(s => s.id === entry.spellId);
       if (!spell) return sum;
-      const c = spell.costSchedule?.cases?.[0]?.turns?.[0];
-      return sum + (c ? c.fokus : (spell.costFokus || 0));
+      return sum + (spell.perTurnFokus || spell.costFokus || 0);
     }, 0);
   }
 
@@ -99,17 +99,17 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
   }
 
   costLabel(spell: SpellBlock): string {
-    const c = spell.costSchedule?.cases?.[0]?.turns?.[0];
-    if (c) {
-      const parts: string[] = [];
-      if (c.mana)  parts.push(`${c.mana}M`);
-      if (c.fokus) parts.push(`${c.fokus}F`);
-      return parts.join(' ');
-    }
     const parts: string[] = [];
     if (spell.costMana)  parts.push(`${spell.costMana}M`);
     if (spell.costFokus) parts.push(`${spell.costFokus}F`);
     return parts.join(' ');
+  }
+
+  perTurnLabel(spell: SpellBlock): string {
+    const parts: string[] = [];
+    if (spell.perTurnMana)  parts.push(`${spell.perTurnMana}M`);
+    if (spell.perTurnFokus) parts.push(`${spell.perTurnFokus}F`);
+    return parts.length ? parts.join(' ') + '/Rd' : '';
   }
 
   reductionLabel(castLevel: number): string {
@@ -155,6 +155,22 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
 
   private _patchCasting(): void {
     this.patch.emit({ path: 'castingSpells', value: [...this.castingSpells] });
+    this.cdr.markForCheck();
+  }
+
+  /** Adjust a counter on a spell's definition and sync via patch */
+  adjustCounter(spellId: string, counterIndex: number, newValue: number): void {
+    const spells = [...(this.sheet.spells || [])];
+    const idx = spells.findIndex(s => s.id === spellId);
+    if (idx < 0) return;
+    const spell = { ...spells[idx] };
+    if (!spell.counters || counterIndex >= spell.counters.length) return;
+    spell.counters = spell.counters.map((c, i) =>
+      i === counterIndex ? { ...c, current: Math.max(c.min, Math.min(c.max, newValue)) } : c
+    );
+    spells[idx] = spell;
+    this.sheet.spells = spells;
+    this.patch.emit({ path: 'spells', value: spells });
     this.cdr.markForCheck();
   }
 

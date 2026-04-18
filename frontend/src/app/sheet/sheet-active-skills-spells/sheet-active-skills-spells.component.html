@@ -41,7 +41,7 @@
               <div class="sass-card sass-card--spell"
                    [style.--sc]="spellData?.strokeColor || '#8b5cf6'"
                    [title]="entry.spellName">
-                <div class="sass-card-icon">{{ spellData ? '✦' : '◈' }}</div>
+                <div class="sass-card-icon">{{ spellData?.icon || '✦' }}</div>
                 <div class="sass-card-name">{{ entry.spellName }}</div>
                 @if (spellCostLabel(spellData); as costLbl) {
                   <div class="sass-card-cost sass-card-cost--spell">{{ costLbl }}</div>
@@ -53,6 +53,24 @@
                 </div>
                 @if (reductionLabel(entry.castLevel); as label) {
                   <div class="sass-card-reduction">{{ label }}</div>
+                }
+                @if (spellData?.counters && spellData!.counters!.length > 0) {
+                  <div class="sass-counters">
+                    @for (counter of spellData!.counters!; track counter.id; let ci = $index) {
+                      <div class="sass-counter">
+                        <div class="sass-counter-bar">
+                          <div class="sass-counter-fill"
+                               [style.width.%]="counter.max > counter.min ? ((counter.current - counter.min) / (counter.max - counter.min)) * 100 : 0"
+                               [style.backgroundColor]="counter.color"></div>
+                        </div>
+                        <div class="sass-counter-controls">
+                          <button class="cl-btn" (click)="adjustSpellCounter(entry.spellId, ci, counter.current - 1); $event.stopPropagation()">−</button>
+                          <span class="sass-counter-val">{{ counter.current }}</span>
+                          <button class="cl-btn" (click)="adjustSpellCounter(entry.spellId, ci, counter.current + 1); $event.stopPropagation()">+</button>
+                        </div>
+                      </div>
+                    }
+                  </div>
                 }
                 <button class="sass-card-remove" (click)="removeCastingSpell(i); $event.stopPropagation()" title="Entfernen">✕</button>
               </div>

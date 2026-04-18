@@ -5,16 +5,16 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
-  SpellBlock, SpellStatRequirements, SpellBinding,
-  SPELL_TAG_OPTIONS, generateSpellId,
+  SpellBlock, SpellStatRequirements, SpellBinding, SpellCounter,
+  SPELL_TAG_OPTIONS, SPELL_ICON_SYMBOLS, generateSpellId,
 } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellNodeEditorComponent } from '../../shared/spell-node-editor/spell-node-editor.component';
 import { SimpleSpellCost } from '../../shared/spell-node-editor/spell-cost.model';
+import { calculateSpellCost } from '../../shared/spell-node-editor/spell-cost-calculator';
 import { ActionMacro, createEmptyActionMacro } from '../../model/action-macro.model';
 import { SpellGraph } from '../../shared/spell-node-editor/spell-node.model';
 import { EmbeddedMacroEditorComponent } from '../../shared/embedded-macro-editor/embedded-macro-editor.component';
-import { MACRO_ICON_SYMBOLS } from '../../shared/embedded-macro-editor/embedded-macro-editor.component';
 
 @Component({
   selector: 'app-spell-editor-overlay',
@@ -51,6 +51,10 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
   spellIcon = '✦';
   spellColor = '#8b5cf6';
 
+  // ── Counter state ────────────────────────────────────────────────────────────
+  counters: SpellCounter[] = [];
+  newCounter: SpellCounter = { id: '', name: '', min: 0, max: 10, current: 0, color: '#22c55e' };
+
   // ── UI state ─────────────────────────────────────────────────────────────────
   showNodeEditor = false;
   showDeleteConfirm = false;
@@ -59,7 +63,7 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
   savedFeedback = false;
 
   readonly tagOptions = SPELL_TAG_OPTIONS;
-  readonly iconOptions = MACRO_ICON_SYMBOLS;
+  readonly iconOptions = SPELL_ICON_SYMBOLS;
   readonly colorPresets = [
     '#8b5cf6', '#ef4444', '#f97316', '#eab308',
     '#22c55e', '#06b6d4', '#3b82f6', '#ec4899',
@@ -72,6 +76,11 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
     { key: 'dexterity',     label: 'Geschick' },
     { key: 'speed',         label: 'Tempo' },
     { key: 'chill',         label: 'Chill' },
+  ];
+
+  readonly counterColors = [
+    '#22c55e', '#3b82f6', '#8b5cf6', '#ef4444', '#f97316',
+    '#eab308', '#06b6d4', '#ec4899', '#a78bfa', '#ffffff',
   ];
 
   get isNewSpell(): boolean { return !this.spell; }
@@ -96,6 +105,7 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
       this.hasDrawing            = !!this.spell.drawing;
       this.spellIcon             = this.spell.icon || '\u2726';
       this.spellColor            = this.spell.strokeColor || '#8b5cf6';
+      this.counters              = this.spell.counters ? JSON.parse(JSON.stringify(this.spell.counters)) : [];
     } else {
       this.spellId = generateSpellId();
     }
@@ -127,6 +137,7 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
       durationTurns:   this.durationTurns || undefined,
       statRequirements: this.hasAnyStatReq() ? { ...this.spellStatRequirements } : undefined,
       embeddedMacro:   this.embeddedMacro ?? undefined,
+      counters:        this.counters.length > 0 ? JSON.parse(JSON.stringify(this.counters)) : undefined,
     };
     this.save.emit(spell);
     // Brief visual feedback
@@ -145,6 +156,28 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
 
   private hasAnyStatReq(): boolean {
     return Object.values(this.spellStatRequirements).some(v => (v ?? 0) > 0);
+  }
+
+  // ── Counters ─────────────────────────────────────────────────────────────────
+
+  addCounter(): void {
+    if (!this.newCounter.name.trim()) return;
+    const counter: SpellCounter = {
+      id: 'c_' + Math.random().toString(36).slice(2, 9),
+      name: this.newCounter.name.trim(),
+      min: this.newCounter.min,
+      max: this.newCounter.max,
+      current: this.newCounter.current,
+      color: this.newCounter.color,
+    };
+    this.counters = [...this.counters, counter];
+    this.newCounter = { id: '', name: '', min: 0, max: 10, current: 0, color: '#22c55e' };
+    this.cdr.markForCheck();
+  }
+
+  removeCounter(index: number): void {
+    this.counters = this.counters.filter((_, i) => i !== index);
+    this.cdr.markForCheck();
   }
 
   // ── Tags ─────────────────────────────────────────────────────────────────────
@@ -168,7 +201,11 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
     if (savedSpell.costMana  !== undefined) this.spellCostMana  = savedSpell.costMana;
     if (savedSpell.costFokus !== undefined) this.spellCostFokus = savedSpell.costFokus;
     if (savedSpell.statRequirements)        this.spellStatRequirements = { ...savedSpell.statRequirements };
-    this.cdr.markForCheck();
+    // Auto-update estimate after graph save
+    this._updateEstimateFromGraph();
+    // Auto-save the whole spell and close the node editor so no double-save is needed
+    this.showNodeEditor = false;
+    this.onSave();
   }
 
   onNodeEditorCostResult(result: SimpleSpellCost | null): void {
@@ -179,6 +216,20 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
 
   closeNodeEditor(): void {
     this.showNodeEditor = false;
+    this.cdr.markForCheck();
+  }
+
+  /** Run a quick estimate from the current saved graph without opening the node editor */
+  runManualEstimate(): void {
+    this._updateEstimateFromGraph();
+  }
+
+  private _updateEstimateFromGraph(): void {
+    if (!this.graph || !this.graph.nodes?.length) {
+      this.lastSimpleEstimate = null;
+    } else {
+      this.lastSimpleEstimate = calculateSpellCost(this.graph, this.availableRunes);
+    }
     this.cdr.markForCheck();
   }
 

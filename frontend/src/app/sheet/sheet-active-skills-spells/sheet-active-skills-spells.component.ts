@@ -56,17 +56,13 @@ export class SheetActiveSkillsSpellsComponent implements OnChanges {
     return skill.name?.charAt(0)?.toUpperCase() || '⚡';
   }
 
-  /** Short cost label from the spell's cost schedule or simple cost */
+  /** Short cost label for per-turn cost */
   spellCostLabel(spell: SpellBlock | undefined): string {
     if (!spell) return '';
-    const c = spell.costSchedule?.cases?.[0]?.turns?.[0];
-    if (c) {
-      const parts: string[] = [];
-      if (c.mana)  parts.push(`${c.mana}M`);
-      if (c.fokus) parts.push(`${c.fokus}F`);
-      return parts.join(' ') || '';
-    }
     const parts: string[] = [];
+    if (spell.perTurnMana)  parts.push(`${spell.perTurnMana}M`);
+    if (spell.perTurnFokus) parts.push(`${spell.perTurnFokus}F`);
+    if (parts.length) return parts.join(' ') + '/Rd';
     if (spell.costMana)  parts.push(`${spell.costMana}M`);
     if (spell.costFokus) parts.push(`${spell.costFokus}F`);
     return parts.join(' ');
@@ -78,8 +74,7 @@ export class SheetActiveSkillsSpellsComponent implements OnChanges {
     return this.castingSpells.reduce((sum, entry) => {
       const spell = this.getSpellData(entry.spellId);
       if (!spell) return sum;
-      const c = spell.costSchedule?.cases?.[0]?.turns?.[0];
-      return sum + (c ? c.fokus : (spell.costFokus || 0));
+      return sum + (spell.perTurnFokus || spell.costFokus || 0);
     }, 0);
   }
 
@@ -141,6 +136,22 @@ export class SheetActiveSkillsSpellsComponent implements OnChanges {
 
   private _patchCasting(): void {
     this.patch.emit({ path: 'castingSpells', value: [...this.castingSpells] });
+    this.cdr.markForCheck();
+  }
+
+  /** Adjust a counter on a spell definition and sync via patch */
+  adjustSpellCounter(spellId: string, counterIndex: number, newValue: number): void {
+    const spells = [...(this.sheet.spells || [])];
+    const idx = spells.findIndex(s => s.id === spellId);
+    if (idx < 0) return;
+    const spell = { ...spells[idx] };
+    if (!spell.counters || counterIndex >= spell.counters.length) return;
+    spell.counters = spell.counters.map((c, i) =>
+      i === counterIndex ? { ...c, current: Math.max(c.min, Math.min(c.max, newValue)) } : c
+    );
+    spells[idx] = spell;
+    this.sheet.spells = spells;
+    this.patch.emit({ path: 'spells', value: spells });
     this.cdr.markForCheck();
   }
 

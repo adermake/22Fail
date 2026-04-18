@@ -63,6 +63,16 @@ export interface CastingSpellEntry {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Configurable bars/counters (same shape as ItemCounter) ───────────────────
+export interface SpellCounter {
+  id: string;
+  name: string;
+  min: number;
+  max: number;
+  current: number;
+  color: string;   // Hex color for the bar
+}
+
 export class SpellBlock {
   id?: string;                          // Stable identifier (prevents duplicate-save bugs)
   name!: string;
@@ -83,6 +93,7 @@ export class SpellBlock {
   statRequirements?: SpellStatRequirements;
   costSchedule?: StoredCostSchedule;    // Kept for backwards compat (not editable)
   embeddedMacro?: ActionMacro;          // Optional action macro to execute on cast
+  counters?: SpellCounter[];            // Configurable bars shown while casting
 }
 
 export const SPELL_GLOW_COLORS = [
@@ -116,4 +127,27 @@ export const SPELL_TAG_OPTIONS = [
   'Weissagung',
   'Verwandlung',
   'Nekromantie',
+];
+
+// ── Neutral Unicode symbols for spell icons (no colored emoji) ────────────────
+export const SPELL_ICON_SYMBOLS = [
+  // Stars & Sparkles
+  '✦', '✧', '✶', '✷', '✸', '✹', '✺', '✻', '✼', '✽',
+  '★', '☆', '✩', '✪', '✫', '✬', '✭', '✮', '✯', '✰',
+  '❋', '✱', '✲', '✳', '✴', '✵', '⁂',
+  // Elder Futhark Runes
+  'ᚠ', 'ᚢ', 'ᚦ', 'ᚨ', 'ᚱ', 'ᚲ', 'ᚷ', 'ᚹ', 'ᚾ', 'ᛁ',
+  'ᛃ', 'ᛇ', 'ᛈ', 'ᛉ', 'ᛊ', 'ᛏ', 'ᛒ', 'ᛖ', 'ᛗ', 'ᛚ',
+  'ᛜ', 'ᛞ', 'ᛟ',
+  // Geometric
+  '◆', '◇', '◈', '◉', '◎', '◌', '◊', '■', '□', '▲',
+  '△', '▽', '▼', '◁', '▷', '⬡', '⬢', '⬟',
+  // Celestial & Arcane
+  '☽', '☾', '☸', '∞', '⊕', '⊗', '⊙', '⊛', '⊜', '⊝',
+  // Planetary / Alchemical
+  '♁', '♃', '♄', '♅', '♆', '♇', '☿', '♀', '♂',
+  // Cross / Faith symbols
+  '✝', '✞', '✟', '✠', '☬', '☯', '☰', '☷',
+  // Heraldic & Misc
+  '⚜', '✚', '✙', '☥', '⛤', '⛧',
 ];

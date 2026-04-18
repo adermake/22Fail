@@ -461,3 +461,81 @@
   border-radius: 8px;
   padding: 2px 6px;
 }
+
+/* ── Counter controls in active cast cards ──────────────────────────────────── */
+.scw-counter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(139,92,246,0.2);
+}
+
+.scw-counter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.scw-counter-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.scw-counter-name {
+  font-size: 0.78rem;
+  color: var(--text-muted, #9ca3af);
+  flex-shrink: 0;
+  min-width: 50px;
+}
+
+.scw-counter-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid rgba(139,92,246,0.4);
+  background: rgba(139,92,246,0.1);
+  color: #c4b5fd;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  padding: 0;
+  font-family: inherit;
+}
+.scw-counter-btn:hover { background: rgba(139,92,246,0.25); }
+
+.scw-counter-val {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text, #e5e7eb);
+  min-width: 20px;
+  text-align: center;
+}
+
+.scw-counter-max {
+  font-size: 0.75rem;
+  color: var(--text-muted, #9ca3af);
+}
+
+.scw-counter-bar {
+  flex: 1;
+  min-width: 60px;
+  height: 5px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.scw-counter-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
