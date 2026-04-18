@@ -40,7 +40,7 @@
 
     <!-- Description -->
     @if (spell.description) {
-      <div class="scv-desc">{{ spell.description }}</div>
+      <div class="scv-desc" [innerHTML]="enhancedDescription"></div>
     }
 
     <!-- Tags -->

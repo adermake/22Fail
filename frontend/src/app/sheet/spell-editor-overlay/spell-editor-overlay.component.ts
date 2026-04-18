@@ -253,6 +253,33 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
     return this.graph?.nodes?.length ?? 0;
   }
 
+  /** Mini preview: unique runes in the current graph with their effectiveness */
+  get graphRuneNodes(): { name: string; effektivitaet: number | undefined }[] {
+    if (!this.graph?.nodes?.length) return [];
+    const runeByName = new Map(this.availableRunes.map(r => [r.name, r]));
+    // Deduplicate by runeId — show each unique rune once
+    const seen = new Set<string>();
+    const result: { name: string; effektivitaet: number | undefined }[] = [];
+    for (const node of this.graph.nodes) {
+      if (seen.has(node.runeId)) continue;
+      seen.add(node.runeId);
+      const rune = runeByName.get(node.runeId);
+      result.push({ name: node.runeId, effektivitaet: rune?.effektivitaet });
+    }
+    return result;
+  }
+
+  /** Copy the current estimate values into the spell cost fields */
+  applyEstimate(): void {
+    if (!this.lastSimpleEstimate) return;
+    this.spellCostMana  = this.lastSimpleEstimate.mana;
+    this.spellCostFokus = this.lastSimpleEstimate.fokus;
+    if (this.lastSimpleEstimate.statRequirements && Object.keys(this.lastSimpleEstimate.statRequirements).length > 0) {
+      this.spellStatRequirements = { ...this.lastSimpleEstimate.statRequirements } as any;
+    }
+    this.cdr.markForCheck();
+  }
+
   // ── Macro ─────────────────────────────────────────────────────────────────────
 
   enableMacro(): void {

@@ -95,7 +95,7 @@
   gap: 16px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 20px;
+  padding: 20px 20px 48px 20px;
   border-right: 1px solid var(--border, #4a5568);
   min-height: 0;
   height: 100%;
@@ -136,7 +136,7 @@
   font-weight: 500;
 }
 
-.form-group input,
+.form-group input:not([type="color"]),
 .form-group textarea,
 .form-group select {
   background: var(--card, #2d3748);
@@ -721,11 +721,43 @@
   padding: 6px 10px;
 }
 
+.counter-color-wrap {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
 .counter-color {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+.counter-color-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+}
+
+.counter-color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.counter-color-preview {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border, #4a5568);
+  flex-shrink: 0;
+}
+.counter-color-group {
+  flex: 0 0 auto;
 }
 
 .counter-name {
@@ -788,13 +820,31 @@
 /* ── Inline estimate display ────────────────────────────────────────────────── */
 .estimate-inline {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
   margin-bottom: 10px;
   padding: 8px 10px;
   background: rgba(139, 92, 246, 0.08);
   border: 1px solid rgba(139, 92, 246, 0.3);
   border-radius: 6px;
+}
+.estimate-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.estimate-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+.estimate-stat-label {
+  font-size: 0.72rem;
+  color: var(--text-muted, #9ca3af);
+  font-weight: 600;
+  margin-right: 2px;
 }
 
 .estimate-pill {
@@ -806,4 +856,36 @@
 .estimate-pill--mana  { background: rgba(59, 130, 246, 0.2);  color: #93c5fd; }
 .estimate-pill--fokus { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; }
 .estimate-pill--nodes { background: rgba(255,255,255,0.06);  color: var(--text-muted, #9ca3af); }
+.estimate-pill--stat  { background: rgba(251, 191, 36, 0.15); color: #fcd34d; font-size: 0.72rem; }
+
+/* ── Rune mini preview ────────────────────────────────────────────────────── */
+.rune-mini-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.rune-mini-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 8px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 6px;
+  min-width: 48px;
+}
+.rune-mini-name {
+  font-size: 0.68rem;
+  color: var(--text, #e5e7eb);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+}
+.rune-mini-eff {
+  font-size: 0.65rem;
+  color: #fcd34d;
+  font-weight: 700;
+}
 

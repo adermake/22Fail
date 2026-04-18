@@ -98,6 +98,11 @@ export class KeywordEnhancer {
       result = result.substring(0, start) + replacement + result.substring(end);
     }
 
+    // Final pass: inline shorthand syntax E:number → ⚔ number, S:number → 🛡 number
+    result = result
+      .replace(/\bE:(\d+(?:\.\d+)?)\b/g, '<span class="inline-eff">⚔ $1</span>')
+      .replace(/\bS:(\d+(?:\.\d+)?)\b/g, '<span class="inline-stab">🛡 $1</span>');
+
     return result;
   }
 

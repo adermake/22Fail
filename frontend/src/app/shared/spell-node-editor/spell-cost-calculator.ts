@@ -39,6 +39,8 @@ export function calculateSpellCost(
   let totalMana = 0;
   let totalFokus = 0;
   let nodeCount = 0;
+  const statReqs: Record<string, number> = {};
+  const statKeys = ['strength', 'dexterity', 'speed', 'intelligence', 'constitution', 'chill'] as const;
 
   for (const [nodeId, visits] of visitCount) {
     if (nodeId === 'start') continue;
@@ -51,11 +53,21 @@ export function calculateSpellCost(
     const fokus = (rune.fokus ?? 0);
     totalMana  += mana  * visits;
     totalFokus += fokus * visits;
+    // Accumulate stat requirements (additive across all rune visits)
+    if (rune.statRequirements) {
+      for (const key of statKeys) {
+        const val = (rune.statRequirements as Record<string, number | undefined>)[key];
+        if (val && val > 0) {
+          statReqs[key] = (statReqs[key] ?? 0) + val * visits;
+        }
+      }
+    }
   }
 
   return {
     mana:      Math.round(totalMana  * 100) / 100,
     fokus:     Math.round(totalFokus * 100) / 100,
     nodeCount,
+    statRequirements: statReqs,
   };
 }

@@ -92,6 +92,18 @@
 
         <section class="editor-section">
           <h3>Runen</h3>
+          @if (graphRuneNodes.length > 0) {
+            <div class="rune-mini-preview">
+              @for (node of graphRuneNodes; track node.name) {
+                <div class="rune-mini-chip">
+                  <span class="rune-mini-name">{{ node.name }}</span>
+                  @if (node.effektivitaet != null) {
+                    <span class="rune-mini-eff">⚔ {{ node.effektivitaet }}</span>
+                  }
+                </div>
+              }
+            </div>
+          }
           <button class="rune-edit-btn" (click)="openNodeEditor()">
             Runen bearbeiten
             @if (graphNodeCount > 0) {
@@ -109,9 +121,24 @@
           </div>
           @if (lastSimpleEstimate) {
             <div class="estimate-inline">
-              <span class="estimate-pill estimate-pill--mana">&#9670; {{ lastSimpleEstimate.mana }} Mana</span>
-              <span class="estimate-pill estimate-pill--fokus">&#9671; {{ lastSimpleEstimate.fokus }} Fokus</span>
-              <span class="estimate-pill estimate-pill--nodes">{{ lastSimpleEstimate.nodeCount }} Runen</span>
+              <div class="estimate-pills-row">
+                <span class="estimate-pill estimate-pill--mana">&#9670; {{ lastSimpleEstimate.mana }} Mana</span>
+                <span class="estimate-pill estimate-pill--fokus">&#9671; {{ lastSimpleEstimate.fokus }} Fokus</span>
+                <span class="estimate-pill estimate-pill--nodes">{{ lastSimpleEstimate.nodeCount }} Runen</span>
+                <button class="btn-accent-small" (click)="applyEstimate()" title="Geschätzte Kosten übernehmen">↓ Übernehmen</button>
+              </div>
+              @let sreqs = lastSimpleEstimate.statRequirements;
+              @if (sreqs.strength || sreqs.dexterity || sreqs.speed || sreqs.intelligence || sreqs.constitution || sreqs.chill) {
+                <div class="estimate-stat-row">
+                  <span class="estimate-stat-label">Anforderungen:</span>
+                  @if (sreqs.strength)      { <span class="estimate-pill estimate-pill--stat">STR {{ sreqs.strength }}</span> }
+                  @if (sreqs.dexterity)     { <span class="estimate-pill estimate-pill--stat">GES {{ sreqs.dexterity }}</span> }
+                  @if (sreqs.speed)         { <span class="estimate-pill estimate-pill--stat">TEM {{ sreqs.speed }}</span> }
+                  @if (sreqs.intelligence)  { <span class="estimate-pill estimate-pill--stat">INT {{ sreqs.intelligence }}</span> }
+                  @if (sreqs.constitution)  { <span class="estimate-pill estimate-pill--stat">KON {{ sreqs.constitution }}</span> }
+                  @if (sreqs.chill)         { <span class="estimate-pill estimate-pill--stat">CHR {{ sreqs.chill }}</span> }
+                </div>
+              }
             </div>
           }
           <div class="form-row">
@@ -148,7 +175,10 @@
             <div class="counter-list">
               @for (counter of counters; track counter.id; let i = $index) {
                 <div class="counter-item-editable">
-                  <div class="counter-color" [style.backgroundColor]="counter.color"></div>
+                  <div class="counter-color-wrap">
+                    <div class="counter-color" [style.backgroundColor]="counter.color"></div>
+                    <input type="color" [(ngModel)]="counter.color" class="counter-color-input" title="Farbe ändern" />
+                  </div>
                   <span class="counter-name">{{ counter.name }}</span>
                   <input type="number" [(ngModel)]="counter.current" [min]="counter.min" [max]="counter.max" />
                   <input type="range"  [(ngModel)]="counter.current" [min]="counter.min" [max]="counter.max" />
@@ -164,13 +194,12 @@
                 <label>Name</label>
                 <input type="text" [(ngModel)]="newCounter.name" placeholder="z.B. Ladungen" />
               </div>
-              <div class="form-group" style="flex:1">
+              <div class="form-group counter-color-group">
                 <label>Farbe</label>
-                <select [(ngModel)]="newCounter.color">
-                  @for (col of counterColors; track col) {
-                    <option [value]="col">{{ col }}</option>
-                  }
-                </select>
+                <div class="counter-color-picker-row">
+                  <div class="counter-color-preview" [style.backgroundColor]="newCounter.color"></div>
+                  <input type="color" [(ngModel)]="newCounter.color" class="color-picker-custom" />
+                </div>
               </div>
             </div>
             <div class="form-row">
