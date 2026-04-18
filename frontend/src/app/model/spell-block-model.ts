@@ -77,8 +77,11 @@ export class SpellBlock {
   graph?: SpellGraph;
   costMana?: number;
   costFokus?: number;
+  perTurnMana?: number;                 // Mana cost per active turn
+  perTurnFokus?: number;                // Fokus cost per active turn
+  durationTurns?: number;               // How many turns the spell lasts
   statRequirements?: SpellStatRequirements;
-  costSchedule?: StoredCostSchedule;    // Detailed cost plan (from estimator or manual)
+  costSchedule?: StoredCostSchedule;    // Kept for backwards compat (not editable)
   embeddedMacro?: ActionMacro;          // Optional action macro to execute on cast
 }
 

@@ -103,182 +103,36 @@
         <section class="editor-section">
           <div class="section-header-row">
             <h3>Kosten</h3>
-            @if (hasGraph) {
-              <button class="btn-accent-small" (click)="runEstimate()">⚡ Kosten schätzen</button>
-            }
           </div>
           <div class="form-row">
             <div class="form-group" style="flex:1">
-              <label>Mana</label>
+              <label>&#9670; Mana (Start)</label>
               <input type="number" [(ngModel)]="spellCostMana" min="0" step="0.5" placeholder="0" />
             </div>
             <div class="form-group" style="flex:1">
-              <label>Fokus</label>
+              <label>&#9671; Fokus (Start)</label>
               <input type="number" [(ngModel)]="spellCostFokus" min="0" step="0.5" placeholder="0" />
             </div>
           </div>
-        </section>
-
-        <!-- Estimate popup -->
-        @if (showEstimatePopup && lastEstimatedCostResult) {
-          <div class="estimate-popup">
-            <div class="estimate-popup-header">
-              <span>Kostenschätzung</span>
-              <button class="btn-icon-sm" (click)="closeEstimatePopup()">×</button>
+          <div class="form-row">
+            <div class="form-group" style="flex:1">
+              <label>&#9670; Mana pro Runde</label>
+              <input type="number" [(ngModel)]="perTurnMana" min="0" step="0.5" placeholder="0" />
             </div>
-            <div class="estimate-cases">
-              @for (cs of estimateCaseSummaries; track cs.label) {
-                <div class="estimate-case-row">
-                  <span class="estimate-case-label">{{ cs.label }}</span>
-                  <span class="estimate-badge mana">◆ {{ cs.mana }}</span>
-                  <span class="estimate-badge fokus">◇ {{ cs.fokus }}</span>
-                  <span class="estimate-badge turns">{{ cs.turns }}R</span>
-                </div>
-              }
-            </div>
-            <div class="estimate-popup-actions">
-              <button class="btn-accent" (click)="applyEstimatedCosts(); closeEstimatePopup()">Übernehmen</button>
-              <button class="btn-outline-small" (click)="closeEstimatePopup()">Schließen</button>
+            <div class="form-group" style="flex:1">
+              <label>&#9671; Fokus pro Runde</label>
+              <input type="number" [(ngModel)]="perTurnFokus" min="0" step="0.5" placeholder="0" />
             </div>
           </div>
-        }
-
-        <section class="editor-section">
-          <div class="section-header-row">
-            <h3>Kostenplan</h3>
-            <div class="section-header-actions">
-              @if (hasNewEstimate) {
-                <button class="btn-accent" (click)="applyEstimatedCosts()">Schätzung übernehmen</button>
-              }
-              <button class="btn-outline-small" (click)="addCase()">+ Fall</button>
-              @if (costSchedule) {
-                <button class="btn-outline-small danger" (click)="clearCostSchedule()">Leeren</button>
-              }
+          <div class="form-row">
+            <div class="form-group" style="flex:1">
+              <label>&#x29D7; Dauer (Runden)</label>
+              <input type="number" [(ngModel)]="durationTurns" min="0" placeholder="0" />
             </div>
           </div>
-
-          @if (!costSchedule || costSchedule.cases.length === 0) {
-            <p class="empty-hint">Kein Kostenplan. Erstelle Fälle manuell oder schätze die Kosten aus dem Runen-Netzwerk.</p>
-          } @else {
-            <div class="cost-schedule">
-              @for (caseItem of costSchedule.cases; track i; let i = $index) {
-                <div class="cost-case">
-                  <!-- Case header -->
-                  <div class="cost-case-header">
-                    <input type="text" [(ngModel)]="caseItem.label"
-                      class="cost-case-label-input" placeholder="Fallbezeichnung..." />
-                    <button class="btn-icon-sm" (click)="removeCase(i)" title="Fall entfernen">×</button>
-                  </div>
-
-                  <!-- Existing single turns -->
-                  @for (turn of caseItem.turns; track turn.turn; let ti = $index) {
-                    <div class="cost-turn-row">
-                      <span class="turn-label">R{{ turn.turn }}</span>
-                      <span class="turn-field-label">M</span>
-                      <input type="number" [(ngModel)]="turn.mana" min="0" step="0.5" class="turn-input" />
-                      <span class="turn-field-label">F</span>
-                      <input type="number" [(ngModel)]="turn.fokus" min="0" step="0.5" class="turn-input" />
-                      <button class="btn-icon-sm" (click)="removeManualTurn(i, ti)">×</button>
-                    </div>
-                  }
-                  <!-- Existing ranges (collapsed) -->
-                  @for (rng of (caseItem.ranges || []); track ri; let ri = $index) {
-                    <div class="cost-turn-row cost-range-row">
-                      <span class="turn-label turn-label--range">{{ rangeLabel(rng) }}</span>
-                      <span class="turn-field-label">M</span>
-                      <input type="number" [(ngModel)]="rng.mana" min="0" step="0.5" class="turn-input" />
-                      <span class="turn-field-label">F</span>
-                      <input type="number" [(ngModel)]="rng.fokus" min="0" step="0.5" class="turn-input" />
-                      <button class="btn-icon-sm" (click)="removeRange(i, ri)">×</button>
-                    </div>
-                  }
-
-                  <!-- Add controls row -->
-                  <div class="add-controls-row">
-                    <div class="add-turn-row">
-                      <span class="turn-label turn-label--new">+R</span>
-                      <span class="turn-field-label">M</span>
-                      <input type="number" [(ngModel)]="newTurnMana" min="0" step="0.5" class="turn-input" />
-                      <span class="turn-field-label">F</span>
-                      <input type="number" [(ngModel)]="newTurnFokus" min="0" step="0.5" class="turn-input" />
-                      <button class="btn-outline-small" (click)="addManualTurnToCase(i)">+ Runde</button>
-                    </div>
-                    <div class="add-range-row">
-                      <input type="number" [(ngModel)]="newRangeFrom" min="0" class="turn-input turn-input--range" placeholder="1" title="Von" />
-                      <span class="turn-field-label">–</span>
-                      <input type="number" [(ngModel)]="newRangeTo" min="0" class="turn-input turn-input--range" placeholder="∞" title="Bis" />
-                      <span class="turn-field-label">M</span>
-                      <input type="number" [(ngModel)]="newRangeMana" min="0" step="0.5" class="turn-input" />
-                      <span class="turn-field-label">F</span>
-                      <input type="number" [(ngModel)]="newRangeFokus" min="0" step="0.5" class="turn-input" />
-                      <button class="btn-outline-small" (click)="addRangeToCase(i)">+ Bereich</button>
-                    </div>
-                  </div>
-
-                  <!-- Subcases (tree branches) -->
-                  @if ((caseItem.subcases || []).length > 0) {
-                    <div class="subcases-block">
-                      <div class="subcases-header-label">Zweige</div>
-                      @for (sub of caseItem.subcases!; track si; let si = $index) {
-                        <div class="subcase-node">
-                          <div class="subcase-connector">├─</div>
-                          <div class="subcase-body">
-                            <!-- Subcase header row -->
-                            <div class="subcase-meta">
-                              <select [(ngModel)]="sub.conditionType" class="condition-select">
-                                <option value="known">BEKANNT</option>
-                                <option value="unknown">UNBEKANNT</option>
-                              </select>
-                              <span class="subcase-at-label">ab R</span>
-                              <input type="number" [(ngModel)]="sub.branchAtTurn" min="1" class="turn-input turn-input--range" />
-                              <input type="text" [(ngModel)]="sub.label" class="cost-case-label-input" placeholder="Zweigname..." style="flex:1" />
-                              <button class="btn-icon-sm" (click)="removeSubcase(i, si)">×</button>
-                            </div>
-                            <!-- Subcase turns -->
-                            @for (turn of sub.turns; track turn.turn; let sti = $index) {
-                              <div class="cost-turn-row">
-                                <span class="turn-label">R{{ turn.turn }}</span>
-                                <span class="turn-field-label">M</span>
-                                <input type="number" [(ngModel)]="turn.mana" min="0" step="0.5" class="turn-input" />
-                                <span class="turn-field-label">F</span>
-                                <input type="number" [(ngModel)]="turn.fokus" min="0" step="0.5" class="turn-input" />
-                                <button class="btn-icon-sm" (click)="removeSubcaseTurn(i, si, sti)">×</button>
-                              </div>
-                            }
-                            <!-- Subcase ranges -->
-                            @for (rng of (sub.ranges || []); track sri; let sri = $index) {
-                              <div class="cost-turn-row cost-range-row">
-                                <span class="turn-label turn-label--range">{{ rangeLabel(rng) }}</span>
-                                <span class="turn-field-label">M</span>
-                                <input type="number" [(ngModel)]="rng.mana" min="0" step="0.5" class="turn-input" />
-                                <span class="turn-field-label">F</span>
-                                <input type="number" [(ngModel)]="rng.fokus" min="0" step="0.5" class="turn-input" />
-                                <button class="btn-icon-sm" (click)="removeSubcaseRange(i, si, sri)">×</button>
-                              </div>
-                            }
-                            <!-- Add to subcase -->
-                            <div class="add-controls-row subcase-add-row">
-                              <button class="btn-outline-small btn-tiny" (click)="addSubcaseTurn(i, si)">+ Runde</button>
-                              <button class="btn-outline-small btn-tiny" (click)="addSubcaseRange(i, si)">+ Bereich</button>
-                            </div>
-                          </div>
-                        </div>
-                      }
-                    </div>
-                  }
-
-                  <!-- Add branch button -->
-                  <div class="add-branch-row">
-                    <button class="btn-outline-small" (click)="addSubcase(i)">+ Zweig hinzufügen</button>
-                  </div>
-                </div>
-              }
-            </div>
-          }
         </section>
 
         <section class="editor-section">
-          <h3>Statanforderungen</h3>
           <div class="stat-reqs-grid">
             @for (stat of statLabels; track stat.key) {
               <div class="form-group">

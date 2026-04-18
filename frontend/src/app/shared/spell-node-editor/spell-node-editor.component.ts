@@ -8,13 +8,11 @@ import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock, SPELL_TAG_OPTIONS, SpellStatRequirements } from '../../model/spell-block-model';
 import {
   SpellGraph, SpellNode, SpellConnection, SpellPort, PendingConnection, PortPosition,
-  buildRunePorts, portsCompatible, FLOW_COLOR, FLOW_TYPE, NEUTRAL_RUNE_ID,
-  mergePortTypes, mergePortColors,
+  buildRunePorts, FLOW_COLOR, FLOW_TYPE, NEUTRAL_RUNE_ID,
 } from './spell-node.model';
 import { ImageUrlPipe } from '../image-url.pipe';
-import { SpellCostResult } from './spell-cost.model';
+import { SimpleSpellCost } from './spell-cost.model';
 import { calculateSpellCost } from './spell-cost-calculator';
-import { SpellCostDisplayComponent } from './spell-cost-display/spell-cost-display.component';
 
 interface NodeState {
   node: SpellNode;
@@ -26,7 +24,7 @@ interface NodeState {
 @Component({
   selector: 'app-spell-node-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, ImageUrlPipe, SpellCostDisplayComponent],
+  imports: [CommonModule, FormsModule, ImageUrlPipe],
   templateUrl: './spell-node-editor.component.html',
   styleUrl: './spell-node-editor.component.css',
 })
@@ -37,7 +35,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   @Output() save        = new EventEmitter<SpellBlock>();
   @Output() cancel      = new EventEmitter<void>();
   @Output() deleteSpell = new EventEmitter<void>();
-  @Output() estimatedCostResult = new EventEmitter<SpellCostResult | null>();
+  @Output() estimatedCostResult = new EventEmitter<SimpleSpellCost | null>();
 
   get isNewSpell(): boolean { return this.spell === null; }
 
@@ -165,32 +163,17 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   savedFeedback = false;
   lastSavedJson  = '';
 
-  // ── Basic/Advanced default mode (per-editor, stored in localStorage) ──────
-  defaultNodeMode: 'basic' | 'advanced' = (() => {
-    try { return (localStorage.getItem('sne-defaultNodeMode') as 'basic' | 'advanced') || 'advanced'; } catch { return 'advanced'; }
-  })();
-
-  setDefaultNodeMode(m: 'basic' | 'advanced') {
-    this.defaultNodeMode = m;
-    try { localStorage.setItem('sne-defaultNodeMode', m); } catch {}
-  }
-
   // ── Close-confirmation dialog ──
   showCloseDialog = false;
 
-  // ── Spell cost panel (shown in Eigenschaften tab) ───────────────────────────
-  spellCostResult: SpellCostResult | null = null;
+  // ── Spell cost estimate (simple sum) ──────────────────────────────────────
+  simpleEstimate: SimpleSpellCost | null = null;
 
   calculateEstimate() {
     const result = calculateSpellCost(this.graph, this.availableRunes);
-    this.spellCostResult = result;
-    this.spellCostMana  = Math.round(result.simpleTotals.mana  * 100) / 100;
-    this.spellCostFokus = Math.round(result.simpleTotals.fokus * 100) / 100;
-    const req = result.statRequirements;
-    const out: SpellStatRequirements = {};
-    const keys: Array<keyof SpellStatRequirements> = ['strength','dexterity','speed','intelligence','constitution','chill'];
-    for (const k of keys) { if ((req[k] ?? 0) > 0) out[k] = req[k]; }
-    this.spellStatRequirements = out;
+    this.simpleEstimate = result;
+    this.spellCostMana  = result.mana;
+    this.spellCostFokus = result.fokus;
     this.estimatedCostResult.emit(result);
   }
 
@@ -251,17 +234,14 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const pending = this.qsPending ? { ...this.qsPending } : null;
     this.closeQuickSearch();
     const newId = `node-${this.nextId++}`;
-    const newNode: SpellNode = { id: newId, runeId: rune.name, x: wx - this.NODE_IMG / 2, y: wy - this.NODE_IMG / 2, mode: this.defaultNodeMode };
+    const newNode: SpellNode = { id: newId, runeId: rune.name, x: wx - this.NODE_IMG / 2, y: wy - this.NODE_IMG / 2 };
     this.graph.nodes = [...this.graph.nodes, newNode];
     this.rebuildNodeStates();
     this.graphNodesSig.set(this.graph.nodes);
     if (pending) {
       const allPorts = this.allPortPositions().filter(p => p.nodeId === newId);
-      // Prefer a port whose kind specifically matches the pending connection kind
-      const preferredKind = (pending.kind === 'flow-out') ? 'flow-in' : (pending.kind === 'data-out') ? 'data-in' : 'flow-in';
-      const inputPort =
-        allPorts.find(p => p.kind === preferredKind && this.canConnect(pending, p)) ??
-        allPorts.find(p => (p.kind === 'flow-in' || p.kind === 'data-in') && this.canConnect(pending, p));
+      // Find a flow-in port to connect the pending output to
+      const inputPort = allPorts.find(p => p.kind === 'flow-in' && this.canConnect(pending, p));
       if (inputPort) {
         this.createConnection(pending, inputPort);
       }
@@ -272,49 +252,18 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   isRuneCompatibleWithPending(rune: RuneBlock): boolean {
     if (!this.qsPending) return true;
     const ports = buildRunePorts(rune as any);
-    const pk = this.qsPending.kind;
-    if (pk === 'flow-out') return ports.some(p => p.kind === 'flow-in');
-    if (pk === 'data-out') {
-      return ports.some(p => p.kind === 'data-in' &&
-        (p.types.length === 0 || this.qsPending!.types.length === 0 ||
-          p.types.some(t => this.qsPending!.types.includes(t))));
-    }
-    return true;
+    return ports.some(p => p.kind === 'flow-in');
   }
 
   /**
-   * Compute badge screen positions for a connection, enforcing a minimum
-   * screen-space gap of MIN_D pixels between badge centres.
-   * Returns { condition, passthrough, delay } each as {x,y} or null.
+   * Compute badge screen positions for a connection.
+   * Returns { passthrough } as {x,y} or null.
    */
   getBadgePositions(c: SpellConnection): {
-    condition:   { x: number; y: number } | null;
     passthrough: { x: number; y: number } | null;
-    delay:       { x: number; y: number } | null;
   } {
-    const MIN_D = 36; // min screen pixels between badge centres
-    const condition   = c.condition        ? this.getPointOnPath(c, 0.50) : null;
-    let   passthrough = c.passthroughEnabled ? this.getPointOnPath(c, 0.15) : null;
-    let   delay       = c.lineDelay          ? this.getPointOnPath(c, 0.32) : null;
-
-    // Nudge delay forward until it clears the passthrough badge
-    if (passthrough && delay) {
-      for (let t = 0.32; t <= 0.70; t += 0.04) {
-        delay = this.getPointOnPath(c, t);
-        if (Math.hypot(delay.x - passthrough.x, delay.y - passthrough.y) >= MIN_D) break;
-      }
-    }
-    // Nudge condition forward if it overlaps passthrough or delay
-    if (condition) {
-      for (let t = 0.50; t <= 0.88; t += 0.04) {
-        const pt = this.getPointOnPath(c, t);
-        const dP = passthrough ? Math.hypot(pt.x - passthrough.x, pt.y - passthrough.y) : Infinity;
-        const dD = delay       ? Math.hypot(pt.x - delay.x,       pt.y - delay.y)       : Infinity;
-        if (dP >= MIN_D && dD >= MIN_D) { /* condition stays at midpoint for readability; keep going */ break; }
-      }
-      // Keep condition at t=0.50 always for visual balance — only nudge pass/delay
-    }
-    return { condition, passthrough, delay };
+    const passthrough = c.passthroughEnabled ? this.getPointOnPath(c, 0.15) : null;
+    return { passthrough };
   }
 
   // Track mousedown position to distinguish click vs drag on rune nodes
@@ -400,8 +349,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       const isNeutral = node.runeId === NEUTRAL_RUNE_ID;
       const rune = isNeutral ? { name: NEUTRAL_RUNE_ID } : this.availableRunes.find(r => r.name === node.runeId);
       const ports = rune ? buildRunePorts(rune as any) : [
-        { id: 'flow-in',  kind: 'flow-in'  as const, name: 'Fluss', color: FLOW_COLOR, types: FLOW_TYPE },
-        { id: 'flow-out', kind: 'flow-out' as const, name: 'Fluss', color: FLOW_COLOR, types: FLOW_TYPE },
+        { id: 'flow-in',  kind: 'flow-in'  as const, name: 'Fluss' },
+        { id: 'flow-out', kind: 'flow-out' as const, name: 'Fluss' },
       ];
       const h = this.NODE_IMG;
       newMap.set(node.id, {
@@ -421,116 +370,35 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
     // Start node: flow-out on right edge of the 68px circle
     result.push({
-      nodeId: 'start', portId: 'flow-out-0', kind: 'flow-out', color: FLOW_COLOR, types: FLOW_TYPE,
+      nodeId: 'start', portId: 'flow-out-0', kind: 'flow-out',
       x: this.graph.startNode.x + 34,
       y: this.graph.startNode.y,
     });
 
-    // Rune nodes — ports centered vertically around the image center
+    // Rune nodes — always single flow-in on left, flow-out on right (centered)
     for (const ns of this.nodeStates.values()) {
       const n = ns.node;
-      const isNeutral = n.runeId === NEUTRAL_RUNE_ID;
-      const ins  = ns.ports.filter(p => p.kind === 'flow-in'  || p.kind === 'data-in');
-      const outs = ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out');
       const imgCY = n.y + this.NODE_IMG / 2;
-      // Use 'advanced' as default — global defaultNodeMode only affects newly placed runes
-      const isBasic = !isNeutral && (n.mode ?? 'advanced') === 'basic';
+      const ins  = ns.ports.filter(p => p.kind === 'flow-in');
+      const outs = ns.ports.filter(p => p.kind === 'flow-out');
 
-      // Neutral nodes inherit color/types from their connected input
-      const neutralInfo = isNeutral ? this.getNeutralPortInfo(n.id) : null;
-
-      if (isBasic) {
-        // ── Basic mode: one merged multi-in + one merged multi-out ─────────────
-        // multi-in (left edge, centered) — only if the node actually has input ports
-        const inTypes  = mergePortTypes(ins);
-        const inColors = mergePortColors(ins);
-        if (ins.length > 0) if (ins.length > 0) result.push({
-          nodeId: n.id, portId: 'multi-in', kind: 'data-in',
-          color: inColors[0] ?? FLOW_COLOR,
-          types: inTypes,
+      ins.forEach((p, i) => {
+        result.push({
+          nodeId: n.id, portId: p.id, kind: p.kind,
           x: n.x,
-          y: imgCY,
+          y: imgCY - ((ins.length - 1) * this.PORT_GAP / 2) + i * this.PORT_GAP,
         });
-        // Register each underlying input port at the multiport center so existing connections resolve correctly
-        if (ins.length > 0) ins.forEach(p => {
-          result.push({
-            nodeId: n.id, portId: p.id, kind: p.kind,
-            color: neutralInfo ? neutralInfo.color : p.color,
-            types: neutralInfo ? neutralInfo.types : p.types,
-            x: n.x,
-            y: imgCY,
-          });
-        });
-        // multi-out (right edge, centered) — only if the node actually has output ports
-        const outTypes  = mergePortTypes(outs);
-        const outColors = mergePortColors(outs);
-        if (outs.length > 0) result.push({
-          nodeId: n.id, portId: 'multi-out', kind: 'data-out',
-          color: outColors[0] ?? FLOW_COLOR,
-          types: outTypes,
-          x: n.x + this.NODE_IMG,
-          y: imgCY,
-        });
-        if (outs.length > 0) outs.forEach(p => {
-          result.push({
-            nodeId: n.id, portId: p.id, kind: p.kind,
-            color: neutralInfo ? neutralInfo.color : p.color,
-            types: neutralInfo ? neutralInfo.types : p.types,
-            x: n.x + this.NODE_IMG,
-            y: imgCY,
-          });
-        });
-      } else {
-        // ── Advanced mode: individual ports ────────────────────────────────────
-        // Left edge (x = node.x), ports centered around image midpoint
-        ins.forEach((p, i) => {
-          result.push({
-            nodeId: n.id, portId: p.id, kind: p.kind,
-            color: neutralInfo ? neutralInfo.color : p.color,
-            types: neutralInfo ? neutralInfo.types : p.types,
-            x: n.x,
-            y: imgCY - ((ins.length - 1) * this.PORT_GAP / 2) + i * this.PORT_GAP,
-          });
-        });
+      });
 
-        // Right edge (x = node.x + NODE_IMG)
-        outs.forEach((p, i) => {
-          result.push({
-            nodeId: n.id, portId: p.id, kind: p.kind,
-            color: neutralInfo ? neutralInfo.color : p.color,
-            types: neutralInfo ? neutralInfo.types : p.types,
-            x: n.x + this.NODE_IMG,
-            y: imgCY - ((outs.length - 1) * this.PORT_GAP / 2) + i * this.PORT_GAP,
-          });
+      outs.forEach((p, i) => {
+        result.push({
+          nodeId: n.id, portId: p.id, kind: p.kind,
+          x: n.x + this.NODE_IMG,
+          y: imgCY - ((outs.length - 1) * this.PORT_GAP / 2) + i * this.PORT_GAP,
         });
-      }
+      });
     }
     return result;
-  }
-
-  /** Returns the color+types flowing through a neutral node (derived from its single input connection). */
-  private getNeutralPortInfo(nodeId: string): { color: string; types: string[] } {
-    const inConn = this.graph.connections.find(c => c.toNodeId === nodeId && c.toPortId === 'neutral-in');
-    if (!inConn) return { color: '#6b7280', types: FLOW_TYPE };
-    if (inConn.fromNodeId === 'start') return { color: FLOW_COLOR, types: FLOW_TYPE };
-    const srcNs = this.nodeStates.get(inConn.fromNodeId);
-    if (!srcNs) return { color: '#6b7280', types: FLOW_TYPE };
-    const srcPort = srcNs.ports.find(p => p.id === inConn.fromPortId);
-    if (!srcPort) return { color: '#6b7280', types: FLOW_TYPE };
-    return { color: srcPort.color, types: srcPort.types };
-  }
-
-  private startNodeFlowOuts(): PortPosition[] {
-    // Count how many outgoing connections start node already has
-    const existing = this.graph.connections.filter(c => c.fromNodeId === 'start');
-    const positions: PortPosition[] = [];
-    // One fixed output at top
-    positions.push({
-      nodeId: 'start', portId: 'flow-out-0', kind: 'flow-out', color: FLOW_COLOR, types: FLOW_TYPE,
-      x: this.graph.startNode.x + 34,
-      y: this.graph.startNode.y,
-    });
-    return positions;
   }
 
   startPortPos(): { x: number; y: number } {
@@ -643,22 +511,13 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   pendingPathScreen(): string {
     const p = this.pending();
     if (!p) return '';
-    const isInput = p.kind === 'flow-in' || p.kind === 'data-in';
-    const fx = isInput ? p.toX : p.fromX, fy = isInput ? p.toY : p.fromY;
-    const tx = isInput ? p.fromX : p.toX, ty = isInput ? p.fromY : p.toY;
+    const fx = p.fromX, fy = p.fromY;
+    const tx = p.toX,   ty = p.toY;
     return this.buildQueenPath([{ x: fx, y: fy }, { x: tx, y: ty }]);
   }
 
   pendingColor(): string {
-    const p = this.pending();
-    if (!p) return '#ffffff';
-    // For multi-out drag: color of first merged output
-    if (p.fromPortId === 'multi-out') {
-      const ns = this.nodeStates.get(p.fromNodeId);
-      const outs = ns?.ports.filter(pp => pp.kind === 'flow-out' || pp.kind === 'data-out') ?? [];
-      return outs[0]?.color ?? FLOW_COLOR;
-    }
-    return p.color ?? '#ffffff';
+    return FLOW_COLOR;
   }
 
   // Screen-space (canvas-wrap-local) — used by conn-overlay-svg
@@ -924,7 +783,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       const allPP = this.allPortPositions();
       for (const pp of allPP) {
         if (pp.nodeId === 'start') continue;
-        if (pp.kind !== 'flow-in' && pp.kind !== 'data-in') continue;
+        if (pp.kind !== 'flow-in') continue;
         if (Math.abs(newSY - pp.y) < SNAP_D) { newSY = pp.y; break; }
       }
 
@@ -1066,23 +925,21 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   /**
    * When a node drag ends, detect if any moved ports are within PORT_R*2 world units
-   * of a stationary port with a compatible direction + type. If so, snap the node
+   * of a stationary port with a compatible direction. If so, snap the node
    * position so ports exactly coincide and auto-create the connections.
    */
   private trySnapConnect() {
-    const SNAP_R = this.PORT_R * 2; // 16 world units
+    const SNAP_R = this.PORT_R * 2;
     const movedIds = new Set<string>();
     for (const n of this.graph.nodes) {
       if (this.selectedNodeIds.has(n.id)) movedIds.add(n.id);
     }
     if (this.draggingNodeId) movedIds.add(this.draggingNodeId);
 
-    // Only use real underlying ports (not virtual multi-in/multi-out)
     const allPP = this.allPortPositions();
-    const movedPorts    = allPP.filter(pp => movedIds.has(pp.nodeId)  && pp.portId !== 'multi-in' && pp.portId !== 'multi-out');
-    const stationaryPorts = allPP.filter(pp => !movedIds.has(pp.nodeId) && pp.portId !== 'multi-in' && pp.portId !== 'multi-out');
+    const movedPorts      = allPP.filter(pp => movedIds.has(pp.nodeId));
+    const stationaryPorts = allPP.filter(pp => !movedIds.has(pp.nodeId));
 
-    // Find the closest compatible port pair within snap radius
     let bestDist = SNAP_R;
     let snapDx = 0, snapDy = 0;
     let hasPair = false;
@@ -1091,12 +948,11 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       for (const sp of stationaryPorts) {
         const dist = Math.hypot(mp.x - sp.x, mp.y - sp.y);
         if (dist >= bestDist) continue;
-        const mpIsOut = mp.kind === 'flow-out' || mp.kind === 'data-out';
-        const spIsIn  = sp.kind === 'flow-in'  || sp.kind === 'data-in';
-        const mpIsIn  = mp.kind === 'flow-in'  || mp.kind === 'data-in';
-        const spIsOut = sp.kind === 'flow-out' || sp.kind === 'data-out';
+        const mpIsOut = mp.kind === 'flow-out';
+        const spIsIn  = sp.kind === 'flow-in';
+        const mpIsIn  = mp.kind === 'flow-in';
+        const spIsOut = sp.kind === 'flow-out';
         if (!(mpIsOut && spIsIn) && !(mpIsIn && spIsOut)) continue;
-        if (!this.portsRawCompatible(mp, sp)) continue;
         bestDist = dist;
         snapDx = sp.x - mp.x;
         snapDy = sp.y - mp.y;
@@ -1118,19 +974,18 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
     // Re-compute port positions after the snap
     const freshPP = this.allPortPositions();
-    const freshMoved      = freshPP.filter(pp => movedIds.has(pp.nodeId)   && pp.portId !== 'multi-in' && pp.portId !== 'multi-out');
-    const freshStationary = freshPP.filter(pp => !movedIds.has(pp.nodeId)  && pp.portId !== 'multi-in' && pp.portId !== 'multi-out');
+    const freshMoved      = freshPP.filter(pp => movedIds.has(pp.nodeId));
+    const freshStationary = freshPP.filter(pp => !movedIds.has(pp.nodeId));
 
     // Connect all exactly-coincident compatible port pairs
     for (const mp of freshMoved) {
       for (const sp of freshStationary) {
         if (Math.hypot(mp.x - sp.x, mp.y - sp.y) > 1) continue;
-        const mpIsOut = mp.kind === 'flow-out' || mp.kind === 'data-out';
-        const spIsIn  = sp.kind === 'flow-in'  || sp.kind === 'data-in';
-        const mpIsIn  = mp.kind === 'flow-in'  || mp.kind === 'data-in';
-        const spIsOut = sp.kind === 'flow-out' || sp.kind === 'data-out';
+        const mpIsOut = mp.kind === 'flow-out';
+        const spIsIn  = sp.kind === 'flow-in';
+        const mpIsIn  = mp.kind === 'flow-in';
+        const spIsOut = sp.kind === 'flow-out';
         if (!(mpIsOut && spIsIn) && !(mpIsIn && spIsOut)) continue;
-        if (!this.portsRawCompatible(mp, sp)) continue;
         const fromPort = mpIsOut ? mp : sp;
         const toPort   = mpIsOut ? sp : mp;
         this.createSingleConnection(fromPort.nodeId, fromPort.portId, toPort.nodeId, toPort.portId);
@@ -1145,16 +1000,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
     if (!from || !to) return false;
     return Math.hypot(from.x - to.x, from.y - to.y) < 2;
-  }
-
-  /** True when the connection comes from a basic-mode node with multiple output colors (uses SVG gradient stroke). */
-  isGradientConnection(c: SpellConnection): boolean {
-    const fromNode = this.graph.nodes.find(n => n.id === c.fromNodeId);
-    if (!fromNode || !this.isBasicNode(fromNode.id)) return false;
-    const ns = this.nodeStates.get(fromNode.id);
-    if (!ns) return false;
-    const colors = mergePortColors(ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out'));
-    return colors.length > 1;
   }
 
   // Compute marquee rect in world space and select contained nodes and waypoints
@@ -1253,10 +1098,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Port drag (start connection) — any port kind allowed (bidirectional)
-  // If clicking an INPUT port that already has a connection:
-  //   - data-in (single): picks up the existing connection (removes it, starts dragging from source)
-  //   - flow-in (multi): always creates a new connection
+  // Port drag (start connection) — flow ports only
+  // If clicking an INPUT port that already has a connection, pick up that connection.
   onPortMouseDown(e: MouseEvent, nodeId: string, portId: string) {
     if (!this.canvasWrapRef) return;
     e.stopPropagation();
@@ -1265,74 +1108,13 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const port = all.find(p => p.nodeId === nodeId && p.portId === portId);
     if (!port) return;
 
-    // ── multi-out: start a multi-drag with merged types ──────────────────────
-    if (portId === 'multi-out') {
-      const ns = this.nodeStates.get(nodeId);
-      const outs = ns ? ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out') : [];
-      const mergedTypes  = mergePortTypes(outs);
-      const mergedColors = mergePortColors(outs);
-      this.pending.set({
-        fromNodeId: nodeId,
-        fromPortId: 'multi-out',
-        fromX: port.x,
-        fromY: port.y,
-        toX: port.x,
-        toY: port.y,
-        color: mergedColors[0] ?? FLOW_COLOR,
-        types: mergedTypes,
-        kind: 'data-out',
-      });
-      return;
-    }
-
-    // ── multi-in: pick up ALL incoming connections (detach them all) ──────────
-    if (portId === 'multi-in') {
-      const incoming = this.graph.connections.filter(c => c.toNodeId === nodeId);
-      if (incoming.length > 0) {
-        // Pick up the last incoming connection to enable re-routing
-        const existing = incoming[incoming.length - 1];
-        const srcPort = all.find(p => p.nodeId === existing.fromNodeId && p.portId === existing.fromPortId);
-        this.removeConnection(existing.id);
-        if (srcPort) {
-          this.pending.set({
-            fromNodeId: srcPort.nodeId,
-            fromPortId: srcPort.portId,
-            fromX: srcPort.x,
-            fromY: srcPort.y,
-            toX: port.x,
-            toY: port.y,
-            color: srcPort.color,
-            types: srcPort.types,
-            kind: srcPort.kind,
-            isPickup: true,
-          });
-        }
-        return;
-      }
-      // No incoming connections: start a reverse drag (to connect FROM somewhere TO here)
-      this.pending.set({
-        fromNodeId: nodeId,
-        fromPortId: 'multi-in',
-        fromX: port.x,
-        fromY: port.y,
-        toX: port.x,
-        toY: port.y,
-        color: port.color,
-        types: port.types,
-        kind: 'data-in',
-      });
-      return;
-    }
-
-    // Pick up existing connection from ANY input port that has incoming connections.
-    // (Output ports always create a new connection.)
-    const isInput = port.kind === 'flow-in' || port.kind === 'data-in';
+    const isInput = port.kind === 'flow-in';
     if (isInput) {
       const incoming = this.graph.connections.filter(
         c => c.toNodeId === nodeId && c.toPortId === portId
       );
       if (incoming.length > 0) {
-        // Pick up the last incoming connection — remove it and drag from its source
+        // Pick up the last incoming connection
         const existing = incoming[incoming.length - 1];
         const srcPort = all.find(p => p.nodeId === existing.fromNodeId && p.portId === existing.fromPortId);
         this.removeConnection(existing.id);
@@ -1344,10 +1126,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
             fromY: srcPort.y,
             toX: port.x,
             toY: port.y,
-            color: srcPort.color,
-            types: srcPort.types,
-            kind: srcPort.kind,
-            isPickup: true, // re-routing; drop-in-void = cancel, NOT quick search
+            isPickup: true,
           });
         }
         return;
@@ -1361,9 +1140,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       fromY: port.y,
       toX: port.x,
       toY: port.y,
-      color: port.color,
-      types: port.types,
-      kind: port.kind,
     });
   }
 
@@ -1380,124 +1156,53 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   canConnect(pending: PendingConnection, target: PortPosition): boolean {
-    const targetNodeIsNeutral = target.nodeId !== 'start' &&
-      this.graph.nodes.find(n => n.id === target.nodeId)?.runeId === NEUTRAL_RUNE_ID;
-    const pendingIsOutput = pending.kind === 'flow-out' || pending.kind === 'data-out';
-    const isMultiSource = pending.fromPortId === 'multi-out';
-    const isMultiTarget = target.portId === 'multi-in';
+    // Direction check: must be output → input
+    const pendingIsOutput = pending.fromPortId !== 'flow-out-0'
+      ? (pending.fromPortId.includes('out') || pending.fromPortId === 'flow-out')
+      : true; // start node flow-out-0
+    const targetIsInput = target.kind === 'flow-in';
+    const targetIsOutput = target.kind === 'flow-out';
 
-    // Direction check: target must be the opposite side
-    if (pendingIsOutput) {
-      if (target.kind !== 'flow-in' && target.kind !== 'data-in') return false;
+    // A pickup from input side: pending is actually carrying a re-routed "output"
+    if (pending.isPickup) {
+      // The pending carries the source's port kind — allow connecting to flow-in
+      return targetIsInput && pending.fromNodeId !== target.nodeId;
+    }
+
+    const fromKind = pending.fromPortId === 'flow-in' || pending.fromPortId === 'neutral-in'
+      ? 'flow-in'
+      : 'flow-out';
+
+    if (fromKind === 'flow-out') {
+      if (!targetIsInput) return false;
     } else {
-      if (target.kind !== 'flow-out' && target.kind !== 'data-out') return false;
+      if (!targetIsOutput) return false;
     }
     // Same node not allowed
     if (pending.fromNodeId === target.nodeId) return false;
-    // neutral-in accepts any type — bypass type check only when connecting INTO it
-    if (targetNodeIsNeutral && target.portId === 'neutral-in') return true;
-
-    // Multi-source: check if ANY underlying output port is compatible with the target
-    if (isMultiSource) {
-      const ns = this.nodeStates.get(pending.fromNodeId);
-      if (!ns) return false;
-      const outs = ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out');
-      return outs.some(op => {
-        if (isMultiTarget) {
-          const targetNs = this.nodeStates.get(target.nodeId);
-          if (!targetNs) return false;
-          const ins = targetNs.ports.filter(p => p.kind === 'flow-in' || p.kind === 'data-in');
-          return ins.some(ip => this.portsRawCompatible(op, ip));
-        }
-        return this.portsRawCompatible(op, target);
-      });
-    }
-
-    // Multi-target: check if ANY underlying input port of target is compatible with source,
-    //               AND that port is not already occupied (or it's a flow port)
-    if (isMultiTarget) {
-      const ns = this.nodeStates.get(target.nodeId);
-      if (!ns) return false;
-      const ins = ns.ports.filter(p => p.kind === 'flow-in' || p.kind === 'data-in');
-      return ins.some(ip => {
-        if (!this.portsRawCompatible({ types: pending.types, color: pending.color } as any, ip)) return false;
-        // For data-in: occupied check — if already connected, not allowed
-        if (ip.kind === 'data-in') {
-          const occupied = this.graph.connections.some(c => c.toNodeId === target.nodeId && c.toPortId === ip.id);
-          if (occupied) return false;
-        }
-        return true;
-      });
-    }
-
-    // Normal type compatibility
-    const fromTypes = pending.types;
-    const toTypes   = target.types;
-    const fromFlow  = fromTypes.length === 0;
-    const toFlow    = toTypes.length   === 0;
-    if (fromFlow !== toFlow) return false;
-    if (!fromFlow && !toFlow && !fromTypes.some(t => toTypes.includes(t))) return false;
     return true;
   }
 
-  /** Raw port↔port type compatibility (no direction check) */
-  private portsRawCompatible(a: { types: string[] }, b: { types: string[] }): boolean {
-    const af = a.types.length === 0, bf = b.types.length === 0;
-    if (af !== bf) return false;
-    if (af) return true;
-    return a.types.some(t => b.types.includes(t));
+  /** Raw port↔port type compatibility (always true for flow-only) */
+  private portsRawCompatible(_a: unknown, _b: unknown): boolean {
+    return true;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
   // Connection creation + loop detection
   createConnection(pending: PendingConnection, target: PortPosition) {
-    const isMultiSource = pending.fromPortId === 'multi-out';
-    const isMultiTarget = target.portId === 'multi-in';
-
-    if (isMultiSource || isMultiTarget) {
-      // Resolve the actual underlying port pairs to connect
-      this.pushUndo();
-      const fromNodeId = pending.fromNodeId;
-      const toNodeId   = target.nodeId;
-
-      const srcNs = isMultiSource ? this.nodeStates.get(fromNodeId) : null;
-      const dstNs = isMultiTarget ? this.nodeStates.get(toNodeId)   : null;
-
-      const srcPorts: SpellPort[] = isMultiSource
-        ? (srcNs?.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out') ?? [])
-        : [{ id: pending.fromPortId, kind: pending.kind as any, color: pending.color, types: pending.types, name: '' }];
-
-      const dstPorts: SpellPort[] = isMultiTarget
-        ? (dstNs?.ports.filter(p => p.kind === 'flow-in' || p.kind === 'data-in') ?? [])
-        : [{ id: target.portId, kind: target.kind, color: target.color, types: target.types, name: '' }];
-
-      // Pair each src port with the best matching dst port
-      const usedDstIds = new Set<string>();
-      for (const sp of srcPorts) {
-        for (const dp of dstPorts) {
-          if (usedDstIds.has(dp.id) && dp.kind !== 'flow-in') continue;
-          if (!this.portsRawCompatible(sp, dp)) continue;
-          // For data-in: skip if already occupied
-          if (dp.kind === 'data-in') {
-            const occupied = this.graph.connections.some(c => c.toNodeId === toNodeId && c.toPortId === dp.id);
-            if (occupied) continue;
-          }
-          this.createSingleConnection(fromNodeId, sp.id, toNodeId, dp.id);
-          usedDstIds.add(dp.id);
-          break; // each src port → at most one dst port (first match)
-        }
-      }
-      return;
-    }
-
-    // Normal single-port connection
     this.createSingleConnectionFromPending(pending, target);
   }
 
   /** Creates a single SpellConnection, performing cycle detection and de-duplication. */
   private createSingleConnectionFromPending(pending: PendingConnection, target: PortPosition) {
     this.pushUndo();
-    const pendingIsOutput = pending.kind === 'flow-out' || pending.kind === 'data-out';
+    // For pickup: pending carries source's output, target is an input
+    // For normal drag: pending.fromPortId is an output port
+    const fromKind = pending.fromPortId.includes('in') && !pending.fromPortId.includes('out')
+      ? 'flow-in'
+      : 'flow-out';
+    const pendingIsOutput = fromKind === 'flow-out' || pending.fromPortId === 'flow-out-0';
     const fromNodeId = pendingIsOutput ? pending.fromNodeId : target.nodeId;
     const fromPortId = pendingIsOutput ? pending.fromPortId : target.portId;
     const toNodeId   = pendingIsOutput ? target.nodeId      : pending.fromNodeId;
@@ -1506,28 +1211,21 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   private createSingleConnection(fromNodeId: string, fromPortId: string, toNodeId: string, toPortId: string) {
-    // Prevent exact duplicate connections (same source + destination)
+    // Prevent exact duplicate connections
     const duplicate = this.graph.connections.find(
       c => c.fromNodeId === fromNodeId && c.fromPortId === fromPortId &&
            c.toNodeId   === toNodeId   && c.toPortId   === toPortId
     );
     if (duplicate) return;
 
-    // Find target port kind (needed for data-in single-connection enforcement)
-    const targetPortPP = this.allPortPositions().find(
-      p => p.nodeId === toNodeId && p.portId === toPortId
+    // Replace any existing connection into the same input port
+    const old = this.graph.connections.find(
+      c => c.toNodeId === toNodeId && c.toPortId === toPortId
     );
-    const targetPortKind = targetPortPP?.kind;
-    const isNeutralIn = toPortId === 'neutral-in';
-    if (targetPortKind === 'data-in' || isNeutralIn) {
-      const old = this.graph.connections.find(
-        c => c.toNodeId === toNodeId && c.toPortId === toPortId
-      );
-      if (old) this.removeConnection(old.id);
-    }
+    if (old) this.removeConnection(old.id);
 
     const conn: SpellConnection = { id: `conn-${this.nextId++}`, fromNodeId, fromPortId, toNodeId, toPortId };
-    // Check for cycle — auto-set arch+passthrough only if no existing passthrough line in the loop
+    // Check for cycle — auto-set arch+passthrough
     if (this.createsCycle(conn)) {
       const hasExistingPassthrough = this.graph.connections.some(
         c => c.passthroughEnabled &&
@@ -1766,7 +1464,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   private addNode(runeName: string, x: number, y: number) {
     this.pushUndo();
     const id = `node-${this.nextId++}`;
-    const node: SpellNode = { id, runeId: runeName, x, y, mode: this.defaultNodeMode };
+    const node: SpellNode = { id, runeId: runeName, x, y };
     this.graph.nodes = [...this.graph.nodes, node];
     this.rebuildNodeStates();
     this.graphNodesSig.set(this.graph.nodes);
@@ -1785,198 +1483,20 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   getNodeRune(nodeId: string): RuneBlock | undefined {
     const ns = this.nodeStates.get(nodeId);
     if (!ns) return undefined;
-    if (ns.node.runeId === NEUTRAL_RUNE_ID) return undefined; // neutral has its own template
+    if (ns.node.runeId === NEUTRAL_RUNE_ID) return undefined;
     return this.availableRunes.find(r => r.name === ns.node.runeId);
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Basic / Advanced mode helpers
-  isBasicNode(nodeId: string): boolean {
-    const node = this.graph.nodes.find(n => n.id === nodeId);
-    if (!node || node.runeId === NEUTRAL_RUNE_ID) return false;
-    // Use 'advanced' as default — the global defaultNodeMode only affects NEW nodes at creation time
-    return (node.mode ?? 'advanced') === 'basic';
-  }
-
-  toggleNodeMode(nodeId: string) {
-    const node = this.graph.nodes.find(n => n.id === nodeId);
-    if (!node) return;
-    const current = node.mode ?? 'advanced';
-    // Switching to basic is only allowed when connections are unambiguous
-    if (current === 'advanced') {
-      const check = this.canSwitchToBasic(nodeId);
-      if (!check.ok) return;
-    }
-    this.pushUndo();
-    this.graph.nodes = this.graph.nodes.map(n =>
-      n.id !== nodeId ? n : { ...n, mode: current === 'basic' ? 'advanced' : 'basic' }
-    );
-    // Clear waypoints for all connections involving this node — ports move when switching
-    // modes and old waypoints would create broken routes.
-    this.graph.connections = this.graph.connections.map(c =>
-      (c.fromNodeId === nodeId || c.toNodeId === nodeId) ? { ...c, waypoints: [] } : c
-    );
-    this.rebuildNodeStates();
-    this.graphNodesSig.set(this.graph.nodes);
-    this.graphConnectionsSig.set(this.graph.connections);
-  }
-
-  /**
-   * Returns null when the node CAN be switched to basic mode.
-   * Returns a human-readable German reason string when it cannot.
-   */
-  canSwitchToBasic(nodeId: string): { ok: boolean; reason?: string } {
-    const ns = this.nodeStates.get(nodeId);
-    if (!ns) return { ok: true };
-    const inPorts  = ns.ports.filter(p => p.kind === 'flow-in'  || p.kind === 'data-in');
-    const outPorts = ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out');
-    // Count distinct DATA (non-flow) ports that have active connections
-    const usedDataIns = new Set(
-      this.graph.connections
-        .filter(c => c.toNodeId === nodeId)
-        .map(c => c.toPortId)
-        .filter(pid => { const p = inPorts.find(x => x.id === pid); return p && p.types.length > 0; })
-    );
-    const usedDataOuts = new Set(
-      this.graph.connections
-        .filter(c => c.fromNodeId === nodeId)
-        .map(c => c.fromPortId)
-        .filter(pid => { const p = outPorts.find(x => x.id === pid); return p && p.types.length > 0; })
-    );
-    if (usedDataIns.size > 1 || usedDataOuts.size > 1) {
-      return {
-        ok: false,
-        reason: 'Die aktuelle Datenleitungskonfiguration ist zu komplex, um diese Rune in den Basis-Modus zu schalten.'
-      };
-    }
-    return { ok: true };
-  }
-
-  /** For template: null if toggle is allowed, German reason string if blocked. */
-  switchToBasicBlocked(nodeId: string): string | null {
-    const node = this.graph.nodes.find(n => n.id === nodeId);
-    if (!node) return null;
-    if ((node.mode ?? 'advanced') === 'advanced') {
-      const check = this.canSwitchToBasic(nodeId);
-      return check.ok ? null : (check.reason ?? null);
-    }
-    return null;
-  }
-
-  /** CSS conic-gradient string for a multiport circle with soft color transitions */
-  multiportGradient(nodeId: string, dir: 'in' | 'out'): string {
-    const ns = this.nodeStates.get(nodeId);
-    if (!ns) return FLOW_COLOR;
-    const ports = dir === 'in'
-      ? ns.ports.filter(p => p.kind === 'flow-in'  || p.kind === 'data-in')
-      : ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out');
-    const colors = mergePortColors(ports);
-    if (colors.length === 0) return FLOW_COLOR;
-    if (colors.length === 1) return colors[0];
-    // Build a conic-gradient with soft blend zones between each color segment
-    const step = 360 / colors.length;
-    const blend = Math.min(step * 0.28, 18); // blend zone in degrees
-    const stops: string[] = [];
-    for (let i = 0; i < colors.length; i++) {
-      const c = colors[i];
-      const next = colors[(i + 1) % colors.length];
-      const segStart = i * step;
-      const segEnd   = (i + 1) * step;
-      stops.push(`${c} ${segStart + (i === 0 ? 0 : blend)}deg`);
-      stops.push(`${c} ${segEnd - blend}deg`);
-      stops.push(`${next} ${segEnd}deg`);
-    }
-    return `conic-gradient(from 0deg, ${stops.join(', ')})`;
-  }
-
-  /** True when there is at least one connection going into/out of any underlying port of the multi-port */
-  multiportHasConnections(nodeId: string, dir: 'in' | 'out'): boolean {
-    if (dir === 'in') return this.graph.connections.some(c => c.toNodeId === nodeId);
-    return this.graph.connections.some(c => c.fromNodeId === nodeId);
-  }
-
-  /** Connection color — for basic-mode nodes returns a gradient data URI (for SVG linearGradient) */
-  connectionColorOrGradient(c: SpellConnection): string {
-    return this.connectionColor(c);
-  }
-
-  /**
-   * Returns the SVG stroke value for a connection.
-   * For connections whose source node is in basic mode with multiple port colors,
-   * this returns `url(#cg-<id>)` referencing a generated linearGradient.
-   * Otherwise returns the plain port color.
-   */
-  connectionStroke(c: SpellConnection): string {
-    const fromNode = this.graph.nodes.find(n => n.id === c.fromNodeId);
-    if (fromNode && this.isBasicNode(fromNode.id)) {
-      const ns = this.nodeStates.get(fromNode.id);
-      if (ns) {
-        const colors = mergePortColors(ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out'));
-        if (colors.length > 1) return `url(#cg-${c.id})`;
-      }
-    }
-    return this.connectionColor(c);
-  }
-
-  /**
-   * Builds the list of SVG linearGradient definitions needed for basic-mode connection lines.
-   * Called once per render frame from the SVG template.
-   */
-  connectionGradientDefs(): Array<{
-    id: string; x1: number; y1: number; x2: number; y2: number;
-    stops: Array<{ offset: string; color: string }>;
-  }> {
-    const defs: Array<{
-      id: string; x1: number; y1: number; x2: number; y2: number;
-      stops: Array<{ offset: string; color: string }>;
-    }> = [];
-    for (const c of this.graph.connections) {
-      const fromNode = this.graph.nodes.find(n => n.id === c.fromNodeId);
-      if (!fromNode || !this.isBasicNode(fromNode.id)) continue;
-      const ns = this.nodeStates.get(fromNode.id);
-      if (!ns) continue;
-      const colors = mergePortColors(ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out'));
-      if (colors.length <= 1) continue;
-      const from = this.resolvePortWorldPos(c.fromNodeId, c.fromPortId);
-      const to   = this.resolvePortWorldPos(c.toNodeId,   c.toPortId);
-      if (!from || !to) continue;
-      const sf = this.worldToCanvasLocal(from.x, from.y);
-      const st = this.worldToCanvasLocal(to.x,   to.y);
-      const stops = colors.map((color, i) => ({
-        offset: `${Math.round(i / (colors.length - 1) * 100)}%`,
-        color
-      }));
-      defs.push({ id: `cg-${c.id}`, x1: sf.x, y1: sf.y, x2: st.x, y2: st.y, stops });
-    }
-    return defs;
   }
 
   getNodeState(nodeId: string): NodeState | undefined {
     return this.nodeStates.get(nodeId);
   }
 
-  inputPorts(nodeId: string): SpellPort[] {
-    const ns = this.nodeStates.get(nodeId);
-    return ns ? ns.ports.filter(p => p.kind === 'flow-in'  || p.kind === 'data-in')  : [];
-  }
-
-  outputPorts(nodeId: string): SpellPort[] {
-    const ns = this.nodeStates.get(nodeId);
-    return ns ? ns.ports.filter(p => p.kind === 'flow-out' || p.kind === 'data-out') : [];
-  }
-
-  // For neutral nodes: pick glow from the first connected line's color
+  // For neutral nodes: fixed grey glow
   nodeGlowColor(nodeId: string): string {
     const node = this.graph.nodes.find(n => n.id === nodeId);
-    if (node?.runeId === NEUTRAL_RUNE_ID) {
-      return this.neutralNodeColor(nodeId);
-    }
+    if (node?.runeId === NEUTRAL_RUNE_ID) return '#6b7280';
     const rune = this.getNodeRune(nodeId);
     return rune?.glowColor || '#8b5cf6';
-  }
-
-  neutralNodeColor(nodeId: string): string {
-    return this.getNeutralPortInfo(nodeId).color;
   }
 
   nodeIndexForFloat(nodeId: string): number {
@@ -1996,7 +1516,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   isPendingValidTarget(nodeId: string, portId: string): boolean {
     const p = this.pending();
     if (!p) return false;
-    // For basic-mode nodes, only check multi-in / multi-out virtual ports
     const port = this.allPortPositions().find(pp => pp.nodeId === nodeId && pp.portId === portId);
     return !!port && this.canConnect(p, port);
   }
@@ -2040,14 +1559,13 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return { x: (sf.x + st.x) / 2, y: (sf.y + st.y) / 2 };
   }
 
-  connectionColor(c: SpellConnection): string {
-    const from = this.allPortPositions().find(p => p.nodeId === c.fromNodeId && p.portId === c.fromPortId);
-    return from?.color ?? FLOW_COLOR;
+  connectionColor(_c: SpellConnection): string {
+    return FLOW_COLOR;
   }
 
-  // True when the connection has any visible settings that need badge display
+  // True when the connection has any visible settings (only passthrough now)
   hasConnectionSettings(c: SpellConnection): boolean {
-    return !!(c.condition || c.passthroughEnabled || c.lineDelay);
+    return !!c.passthroughEnabled;
   }
 
   /** Returns the currently selected SpellConnection, or null */
@@ -2062,20 +1580,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     this.pushUndo();
     const updated = this.graph.connections.map(c =>
       c.id === this.selectedConnectionId ? { ...c, ...patch } : c
-    );
-    this.graph.connections = updated;
-    this.graphConnectionsSig.set(updated);
-  }
-
-  /** Toggle exclusive flag and propagate to all conditional siblings from the same source node. */
-  toggleExclusiveSiblings() {
-    if (!this.selectedConnectionId) return;
-    const sel = this.graph.connections.find(c => c.id === this.selectedConnectionId);
-    if (!sel?.condition) return;
-    const newVal = !sel.exclusive;
-    this.pushUndo();
-    const updated = this.graph.connections.map(c =>
-      c.condition && c.fromNodeId === sel.fromNodeId ? { ...c, exclusive: newVal } : c
     );
     this.graph.connections = updated;
     this.graphConnectionsSig.set(updated);
@@ -2216,11 +1720,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return this.worldToCanvasLocal(pts[pts.length - 1].x, pts[pts.length - 1].y);
   }
 
-  /** Estimated pixel width of a condition label SVG rect */
-  condLabelWidth(condition: string | undefined): number {
-    return Math.max(50, (condition?.length ?? 0) * 6.5 + 28);
-  }
-
   // Port's CSS top offset within the node div (world y → node-local px)
   portNodeTop(nodeId: string, portId: string): number {
     const pp   = this.portPortPos(nodeId, portId);
@@ -2353,7 +1852,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       statRequirements: Object.keys(this.spellStatRequirements).length > 0 ? this.spellStatRequirements : undefined,
     };
     this.save.emit(spell);
-    this.estimatedCostResult.emit(this.spellCostResult);
+    this.estimatedCostResult.emit(this.simpleEstimate);
     this.lastSavedJson = JSON.stringify(spell.graph);
     this.savedFeedback = true;
     // Show brief save confirmation, then reset — do NOT close the editor

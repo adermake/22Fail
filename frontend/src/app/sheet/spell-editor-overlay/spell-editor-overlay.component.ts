@@ -6,13 +6,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   SpellBlock, SpellStatRequirements, SpellBinding,
-  StoredCostSchedule, StoredCostCase, StoredCostTurn, StoredCostRange,
   SPELL_TAG_OPTIONS, generateSpellId,
 } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellNodeEditorComponent } from '../../shared/spell-node-editor/spell-node-editor.component';
-import { SpellCostResult } from '../../shared/spell-node-editor/spell-cost.model';
-import { calculateSpellCost } from '../../shared/spell-node-editor/spell-cost-calculator';
+import { SimpleSpellCost } from '../../shared/spell-node-editor/spell-cost.model';
 import { ActionMacro, createEmptyActionMacro } from '../../model/action-macro.model';
 import { SpellGraph } from '../../shared/spell-node-editor/spell-node.model';
 import { EmbeddedMacroEditorComponent } from '../../shared/embedded-macro-editor/embedded-macro-editor.component';
@@ -42,31 +40,23 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
   spellTags: string[] = [];
   spellCostMana = 0;
   spellCostFokus = 0;
+  perTurnMana = 0;
+  perTurnFokus = 0;
+  durationTurns = 0;
   spellStatRequirements: SpellStatRequirements = {};
   spellBinding: SpellBinding = { type: 'learned' };
-  costSchedule: StoredCostSchedule | null = null;
   graph: SpellGraph | undefined;
   embeddedMacro: ActionMacro | null = null;
   hasDrawing = false;
   spellIcon = '✦';
   spellColor = '#8b5cf6';
-  // For add-turn form (single turn)
-  newTurnMana = 0;
-  newTurnFokus = 0;
-  // For add range form (A-B)
-  newRangeFrom = 1;
-  newRangeTo = 10;
-  newRangeMana = 0;
-  newRangeFokus = 0;
 
   // ── UI state ─────────────────────────────────────────────────────────────────
   showNodeEditor = false;
   showDeleteConfirm = false;
   showMacroEditor = false;
-  lastEstimatedCostResult: SpellCostResult | null = null;
-  hasNewEstimate = false;
-  savedFeedback = false;       // Brief "Gespeichert" flash
-  showEstimatePopup = false;   // Inline estimate result popup
+  lastSimpleEstimate: SimpleSpellCost | null = null;
+  savedFeedback = false;
 
   readonly tagOptions = SPELL_TAG_OPTIONS;
   readonly iconOptions = MACRO_ICON_SYMBOLS;
@@ -96,9 +86,11 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
       this.spellTags             = [...(this.spell.tags || [])];
       this.spellCostMana         = this.spell.costMana ?? 0;
       this.spellCostFokus        = this.spell.costFokus ?? 0;
+      this.perTurnMana           = this.spell.perTurnMana ?? 0;
+      this.perTurnFokus          = this.spell.perTurnFokus ?? 0;
+      this.durationTurns         = this.spell.durationTurns ?? 0;
       this.spellStatRequirements = { ...(this.spell.statRequirements || {}) };
       this.spellBinding          = { ...(this.spell.binding || { type: 'learned' }) };
-      this.costSchedule          = this.spell.costSchedule ?? null;
       this.graph                 = this.spell.graph ? JSON.parse(JSON.stringify(this.spell.graph)) : undefined;
       this.embeddedMacro         = this.spell.embeddedMacro ? JSON.parse(JSON.stringify(this.spell.embeddedMacro)) : null;
       this.hasDrawing            = !!this.spell.drawing;
@@ -130,8 +122,10 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
       graph:           this.graph,
       costMana:        this.spellCostMana || undefined,
       costFokus:       this.spellCostFokus || undefined,
+      perTurnMana:     this.perTurnMana || undefined,
+      perTurnFokus:    this.perTurnFokus || undefined,
+      durationTurns:   this.durationTurns || undefined,
       statRequirements: this.hasAnyStatReq() ? { ...this.spellStatRequirements } : undefined,
-      costSchedule:    this.costSchedule ?? undefined,
       embeddedMacro:   this.embeddedMacro ?? undefined,
     };
     this.save.emit(spell);
@@ -177,10 +171,9 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  onNodeEditorCostResult(result: SpellCostResult | null): void {
+  onNodeEditorCostResult(result: SimpleSpellCost | null): void {
     if (!result) return;
-    this.lastEstimatedCostResult = result;
-    this.hasNewEstimate = true;
+    this.lastSimpleEstimate = result;
     this.cdr.markForCheck();
   }
 
@@ -209,194 +202,7 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
     return this.graph?.nodes?.length ?? 0;
   }
 
-  // ── Cost schedule (manual editing) ────────────────────────────────────────────
-
-  applyEstimatedCosts(): void {
-    if (!this.lastEstimatedCostResult) return;
-    const result = this.lastEstimatedCostResult;
-
-    const convertCase = (cc: any): StoredCostCase => ({
-      label:           cc.label,
-      turns:           (cc.fullEntries || cc.entries || []).map((e: any): StoredCostTurn => ({
-        turn:  e.turn,
-        mana:  Math.round(e.mana  * 100) / 100,
-        fokus: Math.round(e.fokus * 100) / 100,
-      })),
-      subcases:        cc.subcases?.map(convertCase),
-      isUnknownBranch: cc.isUnknownMerge ?? false,
-    });
-
-    this.costSchedule = { cases: result.cases.map(convertCase) };
-    this.spellCostMana  = Math.round(result.simpleTotals.mana  * 100) / 100;
-    this.spellCostFokus = Math.round(result.simpleTotals.fokus * 100) / 100;
-    this.hasNewEstimate = false;
-    this.cdr.markForCheck();
-  }
-
-  ensureCostSchedule(): void {
-    if (!this.costSchedule) {
-      this.costSchedule = { cases: [{ label: 'Standard', turns: [] }] };
-    }
-  }
-
-  addManualTurnToCase(caseIdx: number): void {
-    this.ensureCostSchedule();
-    const c = this.costSchedule!.cases[caseIdx];
-    const nextTurn = (c.turns[c.turns.length - 1]?.turn ?? 0) + 1;
-    c.turns = [...c.turns, { turn: nextTurn, mana: this.newTurnMana, fokus: this.newTurnFokus }];
-    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
-    this.cdr.markForCheck();
-  }
-
-  removeManualTurn(caseIdx: number, turnIdx: number): void {
-    const c = this.costSchedule!.cases[caseIdx];
-    c.turns = c.turns.filter((_, i) => i !== turnIdx);
-    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
-    this.cdr.markForCheck();
-  }
-
-  addCase(): void {
-    this.ensureCostSchedule();
-    this.costSchedule = {
-      cases: [...this.costSchedule!.cases, { label: 'Fall ' + (this.costSchedule!.cases.length + 1), turns: [] }],
-    };
-    this.cdr.markForCheck();
-  }
-
-  removeCase(idx: number): void {
-    if (!this.costSchedule) return;
-    this.costSchedule = { cases: this.costSchedule.cases.filter((_, i) => i !== idx) };
-    if (this.costSchedule.cases.length === 0) this.costSchedule = null;
-    this.cdr.markForCheck();
-  }
-
-  clearCostSchedule(): void {
-    this.costSchedule = null;
-    this.cdr.markForCheck();
-  }
-
-  /** Add a range (stored as one collapsed entry, NOT expanded) */
-  addRangeToCase(caseIdx: number): void {
-    const from = Math.max(0, Math.round(this.newRangeFrom));
-    const to   = Math.max(from, Math.round(this.newRangeTo));
-    if (from > to) return;
-    this.ensureCostSchedule();
-    const c = this.costSchedule!.cases[caseIdx];
-    const range: StoredCostRange = { from, to, mana: this.newRangeMana, fokus: this.newRangeFokus };
-    c.ranges = [...(c.ranges || []), range];
-    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
-    this.cdr.markForCheck();
-  }
-
-  removeRange(caseIdx: number, rangeIdx: number): void {
-    const c = this.costSchedule!.cases[caseIdx];
-    c.ranges = (c.ranges || []).filter((_, i) => i !== rangeIdx);
-    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
-    this.cdr.markForCheck();
-  }
-
-  // ── Subcase (tree branch) editing ─────────────────────────────────────────
-
-  addSubcase(caseIdx: number): void {
-    this.ensureCostSchedule();
-    const c = this.costSchedule!.cases[caseIdx];
-    const sub: StoredCostCase = {
-      label: 'Zweig ' + ((c.subcases?.length ?? 0) + 1),
-      conditionType: 'known',
-      branchAtTurn: 2,
-      turns: [],
-      ranges: [],
-    };
-    c.subcases = [...(c.subcases || []), sub];
-    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
-    this.cdr.markForCheck();
-  }
-
-  removeSubcase(caseIdx: number, subcaseIdx: number): void {
-    const c = this.costSchedule!.cases[caseIdx];
-    c.subcases = (c.subcases || []).filter((_, i) => i !== subcaseIdx);
-    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
-    this.cdr.markForCheck();
-  }
-
-  addSubcaseTurn(caseIdx: number, subcaseIdx: number): void {
-    const sub = this.costSchedule!.cases[caseIdx].subcases?.[subcaseIdx];
-    if (!sub) return;
-    const nextTurn = (sub.turns[sub.turns.length - 1]?.turn ?? (sub.branchAtTurn ?? 1) - 1) + 1;
-    sub.turns = [...sub.turns, { turn: nextTurn, mana: this.newTurnMana, fokus: this.newTurnFokus }];
-    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
-    this.cdr.markForCheck();
-  }
-
-  removeSubcaseTurn(caseIdx: number, subcaseIdx: number, turnIdx: number): void {
-    const sub = this.costSchedule!.cases[caseIdx].subcases?.[subcaseIdx];
-    if (!sub) return;
-    sub.turns = sub.turns.filter((_, i) => i !== turnIdx);
-    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
-    this.cdr.markForCheck();
-  }
-
-  addSubcaseRange(caseIdx: number, subcaseIdx: number): void {
-    const sub = this.costSchedule!.cases[caseIdx].subcases?.[subcaseIdx];
-    if (!sub) return;
-    const from = Math.max(0, Math.round(this.newRangeFrom));
-    const to   = Math.max(from, Math.round(this.newRangeTo));
-    if (from > to) return;
-    sub.ranges = [...(sub.ranges || []), { from, to, mana: this.newRangeMana, fokus: this.newRangeFokus }];
-    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
-    this.cdr.markForCheck();
-  }
-
-  removeSubcaseRange(caseIdx: number, subcaseIdx: number, rangeIdx: number): void {
-    const sub = this.costSchedule!.cases[caseIdx].subcases?.[subcaseIdx];
-    if (!sub) return;
-    sub.ranges = (sub.ranges || []).filter((_, i) => i !== rangeIdx);
-    this.costSchedule = { ...this.costSchedule!, cases: [...this.costSchedule!.cases] };
-    this.cdr.markForCheck();
-  }
-
-  rangeLabel(r: StoredCostRange): string {
-    const to = r.to >= 9999 ? '∞' : String(r.to);
-    return `R${r.from}–${to}`;
-  }
-
-  // ── Estimate ─────────────────────────────────────────────────────────────────
-
-  runEstimate(): void {
-    if (!this.graph || !this.graph.nodes?.length) return;
-    try {
-      const result = calculateSpellCost(this.graph, this.availableRunes);
-      this.lastEstimatedCostResult = result;
-      this.hasNewEstimate = true;
-      this.showEstimatePopup = true;
-    } catch (e) {
-      console.error('Spell cost estimate failed:', e);
-    }
-    this.cdr.markForCheck();
-  }
-
-  closeEstimatePopup(): void {
-    this.showEstimatePopup = false;
-    this.cdr.markForCheck();
-  }
-
-  /** Format estimate cases for display in popup */
-  get estimateCaseSummaries(): Array<{ label: string; mana: number; fokus: number; turns: number }> {
-    if (!this.lastEstimatedCostResult) return [];
-    return this.lastEstimatedCostResult.cases.map(c => {
-      const entries = c.fullEntries || c.entries || [];
-      const totalMana  = entries.reduce((s, e) => s + e.mana, 0);
-      const totalFokus = entries.reduce((s, e) => s + e.fokus, 0);
-      return {
-        label: c.label,
-        mana:  Math.round(totalMana  * 100) / 100,
-        fokus: Math.round(totalFokus * 100) / 100,
-        turns: entries.length,
-      };
-    });
-  }
-
-
+  // ── Macro ─────────────────────────────────────────────────────────────────────
 
   enableMacro(): void {
     const m = createEmptyActionMacro();

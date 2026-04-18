@@ -50,14 +50,6 @@
           <span class="sne-spell-title">{{ spellName || 'Neuer Zauber' }}</span>
         </div>
         <div class="sne-topbar-right">
-          <!-- Default mode toggle -->
-          <div class="sne-mode-toggle" title="Standard-Ansicht für neue Runen">
-            <span class="sne-mode-label">Standard:</span>
-            <button class="sne-mode-btn" [class.sne-mode-active]="defaultNodeMode === 'basic'"
-                    (click)="setDefaultNodeMode('basic')" title="Basis-Ansicht (ein Multi-Port)">B</button>
-            <button class="sne-mode-btn" [class.sne-mode-active]="defaultNodeMode === 'advanced'"
-                    (click)="setDefaultNodeMode('advanced')" title="Erweitert (alle Ports)">E</button>
-          </div>
           @if (!isNewSpell) {
             <button class="tb-btn tb-delete" (click)="onDelete()">Löschen</button>
           }
@@ -131,7 +123,6 @@
           @for (node of graphNodesSig(); track trackById($index, node)) {
             @let rune = getNodeRune(node.id);
             @let isNeutral = node.runeId === NEUTRAL_RUNE_ID;
-            @let isBasic = isBasicNode(node.id);
             <div class="rune-node"
                  [class.rune-node-drag]="draggingNodeId === node.id"
                  [class.rune-node-selected]="isNodeSelected(node.id)"
@@ -141,81 +132,34 @@
                  (mousedown)="onNodeMouseDown($event, node.id)"
                  (click)="onNodeClick($event, node)">
 
-              @if (isBasic && !isNeutral) {
-                <!-- ── BASIC MODE: single multi-in + multi-out ─────────── -->
+              <!-- Flow-in port (left edge, centered) -->
+              <div class="rune-port rune-port-in rune-port-flow"
+                   [class.rune-port-hovered]="isPortHovered(node.id, 'flow-in')"
+                   [class.rune-port-valid]="isPendingValidTarget(node.id, 'flow-in')"
+                   [style.--pc]="'#8b5cf6'"
+                   [style.left.px]="-PORT_R"
+                   [style.top.px]="NODE_IMG / 2 - PORT_R"
+                   [attr.data-node-id]="node.id"
+                   data-port-id="flow-in"
+                   (mousedown)="onPortMouseDown($event, node.id, 'flow-in')">
+              </div>
 
-                <!-- Multi-in port (left edge, centered) — only if node has input ports -->
-                @if (inputPorts(node.id).length > 0) {
-                  <div class="rune-port rune-port-in rune-port-multi"
-                       [class.rune-port-hovered]="isPortHovered(node.id, 'multi-in')"
-                       [class.rune-port-valid]="isPendingValidTarget(node.id, 'multi-in')"
-                       [class.rune-port-occupied]="multiportHasConnections(node.id, 'in')"
-                       [style.--pc]="'transparent'"
-                       [style.left.px]="-PORT_R"
-                       [style.top.px]="NODE_IMG / 2 - PORT_R"
-                       [style.background]="multiportGradient(node.id, 'in')"
-                       [attr.data-node-id]="node.id"
-                       data-port-id="multi-in"
-                       (mousedown)="onPortMouseDown($event, node.id, 'multi-in')">
-                  </div>
-                }
+              <!-- Flow-out port (right edge, centered) -->
+              <div class="rune-port rune-port-out rune-port-flow"
+                   [class.rune-port-hovered]="isPortHovered(node.id, 'flow-out')"
+                   [class.rune-port-valid]="isPendingValidTarget(node.id, 'flow-out')"
+                   [style.--pc]="'#8b5cf6'"
+                   [style.left.px]="NODE_IMG - PORT_R"
+                   [style.top.px]="NODE_IMG / 2 - PORT_R"
+                   [attr.data-node-id]="node.id"
+                   data-port-id="flow-out"
+                   (mousedown)="onPortMouseDown($event, node.id, 'flow-out')">
+              </div>
 
-                <!-- Multi-out port (right edge, centered) — only if node has output ports -->
-                @if (outputPorts(node.id).length > 0) {
-                  <div class="rune-port rune-port-out rune-port-multi"
-                       [class.rune-port-hovered]="isPortHovered(node.id, 'multi-out')"
-                       [class.rune-port-valid]="isPendingValidTarget(node.id, 'multi-out')"
-                       [class.rune-port-occupied]="multiportHasConnections(node.id, 'out')"
-                       [style.--pc]="'transparent'"
-                       [style.left.px]="NODE_IMG - PORT_R"
-                       [style.top.px]="NODE_IMG / 2 - PORT_R"
-                       [style.background]="multiportGradient(node.id, 'out')"
-                       [attr.data-node-id]="node.id"
-                       data-port-id="multi-out"
-                       (mousedown)="onPortMouseDown($event, node.id, 'multi-out')">
-                  </div>
-                }
-
-              } @else {
-                <!-- ── ADVANCED MODE: individual ports ─────────────────── -->
-
-                <!-- Input ports — absolutely positioned on the left edge -->
-                @for (p of inputPorts(node.id); track p.id) {
-                  <div class="rune-port rune-port-in"
-                       [class.rune-port-flow]="p.types.length === 0"
-                       [class.rune-port-hovered]="isPortHovered(node.id, p.id)"
-                       [class.rune-port-valid]="isPendingValidTarget(node.id, p.id)"
-                       [style.--pc]="p.color"
-                       [style.left.px]="-PORT_R"
-                       [style.top.px]="portNodeTop(node.id, p.id)"
-                       [attr.data-node-id]="node.id"
-                       [attr.data-port-id]="p.id"
-                       (mousedown)="onPortMouseDown($event, node.id, p.id)">
-                    <span class="rune-port-tip rune-port-tip-in">{{ p.name }}</span>
-                  </div>
-                }
-
-                <!-- Output ports — absolutely positioned on the right edge -->
-                @for (p of outputPorts(node.id); track p.id) {
-                  <div class="rune-port rune-port-out"
-                       [class.rune-port-flow]="p.types.length === 0"
-                       [class.rune-port-hovered]="isPortHovered(node.id, p.id)"
-                       [class.rune-port-valid]="isPendingValidTarget(node.id, p.id)"
-                       [style.--pc]="p.color"
-                       [style.left.px]="NODE_IMG - PORT_R"
-                       [style.top.px]="portNodeTop(node.id, p.id)"
-                       [attr.data-node-id]="node.id"
-                       [attr.data-port-id]="p.id"
-                       (mousedown)="onPortMouseDown($event, node.id, p.id)">
-                  <span class="rune-port-tip rune-port-tip-out">{{ p.name }}</span>
-                  </div>
-                }
-              }
-
-              <!-- Rune image / placeholder. Neutral node uses half-circle design -->
+              <!-- Rune image / placeholder -->
               @if (isNeutral) {
                 <div class="neutral-node-wrap">
-                  <div class="neutral-node-body" [style.--nc]="neutralNodeColor(node.id)"></div>
+                  <div class="neutral-node-body"></div>
                 </div>
               } @else if (rune?.drawing) {
                 <img class="rune-node-img" [src]="rune!.drawing | imageUrl" [alt]="rune!.name"/>
@@ -237,18 +181,6 @@
 
         <!-- Connection overlay -->
         <svg class="conn-overlay-svg" xmlns="http://www.w3.org/2000/svg">
-          <!-- SVG gradient definitions for basic-mode multi-color connection lines -->
-          <defs>
-            @for (gd of connectionGradientDefs(); track gd.id) {
-              <linearGradient [attr.id]="gd.id" gradientUnits="userSpaceOnUse"
-                              [attr.x1]="gd.x1" [attr.y1]="gd.y1"
-                              [attr.x2]="gd.x2" [attr.y2]="gd.y2">
-                @for (s of gd.stops; track $index) {
-                  <stop [attr.offset]="s.offset" [attr.stop-color]="s.color"/>
-                }
-              </linearGradient>
-            }
-          </defs>
           @for (c of graphConnectionsSig(); track trackById($index, c)) {
             @if (!isDirectConnection(c)) {
             <g class="conn-group"
@@ -259,24 +191,14 @@
                     (mousedown)="onConnHitMouseDown($event, c)"/>
               <path class="conn-path-glow"
                     [attr.d]="connectionPathScreen(c)"
-                    [attr.stroke]="connectionStroke(c)"
+                    [attr.stroke]="connectionColor(c)"
                     [class.conn-selected]="isConnectionSelected(c.id)"
-                    [class.conn-passthrough]="c.passthroughEnabled"
-                    [class.conn-condition]="c.condition"
-                    [class.conn-cond-known]="c.condition && c.precastKnown"
-                    [class.conn-cond-unknown]="c.condition && !c.precastKnown"
-                    [class.conn-delay]="c.lineDelay"
-                    [class.conn-gradient]="isGradientConnection(c)"/>
+                    [class.conn-passthrough]="c.passthroughEnabled"/>
               <path class="conn-path"
                     [attr.d]="connectionPathScreen(c)"
-                    [attr.stroke]="connectionStroke(c)"
+                    [attr.stroke]="connectionColor(c)"
                     [class.conn-selected]="isConnectionSelected(c.id)"
-                    [class.conn-passthrough]="c.passthroughEnabled"
-                    [class.conn-condition]="c.condition"
-                    [class.conn-cond-known]="c.condition && c.precastKnown"
-                    [class.conn-cond-unknown]="c.condition && !c.precastKnown"
-                    [class.conn-delay]="c.lineDelay"
-                    [class.conn-gradient]="isGradientConnection(c)"/>
+                    [class.conn-passthrough]="c.passthroughEnabled"/>
 
               <!-- Waypoint handles — visible on hover or when connection/waypoint is selected -->
               @if (c.waypoints?.length) {
@@ -295,55 +217,15 @@
                 <path class="conn-path-selected" [attr.d]="connectionPathScreen(c)"/>
               }
 
-              <!-- Connection badges distributed along the actual routed path -->
+              <!-- Connection badges -->
               @let bp = getBadgePositions(c);
-              @if (c.condition && bp.condition; as cp) {
-                <g class="conn-badge conn-cond-label-group"
-                   [class.cond-known]="c.precastKnown"
-                   [class.cond-unknown]="!c.precastKnown"
-                   [attr.transform]="'translate('+cp.x+','+cp.y+') scale('+zoom+')'">
-                  <rect class="conn-cond-label-bg" rx="4"
-                        [attr.x]="-condLabelWidth(c.condition)/2" y="-11"
-                        [attr.width]="condLabelWidth(c.condition)" height="22"/>
-                  <text class="conn-cond-label-text">{{ c.condition }}</text>
-                </g>
-              }
               @if (c.passthroughEnabled && bp.passthrough; as pp) {
-                @if (c.lineDelay) {
-                  <!-- Combined badge: left half = passthrough, right half = delay -->
-                  <g class="conn-badge conn-badge-combined" [attr.transform]="'translate('+pp.x+','+pp.y+') scale('+zoom+')'">
-                    <!-- Outer circle outline -->
-                    <circle r="20" class="conn-badge-combined-circle"/>
-                    <!-- Left half: passthrough color -->
-                    <path d="M 0 -20 A 20 20 0 0 0 0 20 Z" class="conn-badge-bg conn-badge-passthrough"/>
-                    <!-- Right half: delay color -->
-                    <path d="M 0 -20 A 20 20 0 0 1 0 20 Z" class="conn-badge-bg conn-badge-delay"/>
-                    <!-- Divider -->
-                    <line x1="0" y1="-20" x2="0" y2="20" class="conn-badge-divider"/>
-                    <!-- Left side: passthrough icon + count -->
-                    <text x="-10" y="-5" class="conn-badge-icon-sm">⟳</text>
-                    <text x="-10" y="10" class="conn-badge-sub-l">{{ c.maxPassthrough != null ? c.maxPassthrough + '×' : '∞' }}</text>
-                    <!-- Right side: delay icon + count -->
-                    <text x="10" y="-5" class="conn-badge-icon-sm">⧗</text>
-                    <text x="10" y="10" class="conn-badge-sub-l">{{ c.lineDelay }}R</text>
-                  </g>
-                } @else {
-                  <!-- Passthrough-only badge -->
-                  <g class="conn-badge" [attr.transform]="'translate('+pp.x+','+pp.y+') scale('+zoom+')'">
-                    <circle r="14" class="conn-badge-bg conn-badge-passthrough"/>
-                    <text class="conn-badge-icon">⟳</text>
-                    @if (c.maxPassthrough) {
-                      <text class="conn-badge-sub" dy="18">{{ c.maxPassthrough }}×</text>
-                    }
-                  </g>
-                }
-              }
-              @if (c.lineDelay && !c.passthroughEnabled && bp.delay; as dp) {
-                <!-- Delay-only badge (only when NO passthrough — combined shown above) -->
-                <g class="conn-badge" [attr.transform]="'translate('+dp.x+','+dp.y+') scale('+zoom+')'">
-                  <circle r="14" class="conn-badge-bg conn-badge-delay"/>
-                  <text class="conn-badge-icon">⧗</text>
-                  <text class="conn-badge-sub" dy="18">{{ c.lineDelay }}R</text>
+                <g class="conn-badge" [attr.transform]="'translate('+pp.x+','+pp.y+') scale('+zoom+')'">
+                  <circle r="14" class="conn-badge-bg conn-badge-passthrough"/>
+                  <text class="conn-badge-icon">⟳</text>
+                  @if (c.maxPassthrough) {
+                    <text class="conn-badge-sub" dy="18">{{ c.maxPassthrough }}×</text>
+                  }
                 </g>
               }
             </g>
@@ -466,12 +348,15 @@
               </div>
               <button class="ep-calc-btn" (click)="calculateEstimate()">&#9889; Schätzen</button>
             </div>
+            @if (simpleEstimate) {
+              <div class="ep-cost-estimate">
+                <span class="ep-est-lbl">Geschätzt:</span>
+                <span class="ep-est-val">&#9670; {{ simpleEstimate.mana | number:'1.0-1' }} Mana</span>
+                <span class="ep-est-val">&#9671; {{ simpleEstimate.fokus | number:'1.0-1' }} Fokus</span>
+                <span class="ep-est-nodes">({{ simpleEstimate.nodeCount }} Runen)</span>
+              </div>
+            }
           </div>
-
-          <!-- Cost calculation result (no extra wrapper labels — display component has its own sections) -->
-          @if (spellCostResult) {
-            <app-spell-cost-display [result]="spellCostResult" [spellName]="spellName"/>
-          }
 
         </div>
       </aside>
@@ -526,27 +411,7 @@
               </div>
             }
           }
-          <!-- ── Node-Ansicht-Umschalter (nur wenn eine Runen-Instanz selektiert) ─ -->
-          @if (inspectedNodeId) {
-            @let inspNodeIsBasic = isBasicNode(inspectedNodeId);
-            @let inspNodeBlocked = switchToBasicBlocked(inspectedNodeId);
-            <div class="ri-section-lbl ri-section-lbl-mode">Knoten-Ansicht</div>
-            <div class="ri-mode-row">
-              <button class="ri-mode-btn" [class.ri-mode-active]="!inspNodeIsBasic"
-                      (click)="inspectedNodeId && toggleNodeMode(inspectedNodeId)"
-                      [disabled]="!!inspNodeBlocked && !inspNodeIsBasic"
-                      title="Alle Ports einzeln anzeigen">Erweitert</button>
-              <button class="ri-mode-btn" [class.ri-mode-active]="inspNodeIsBasic"
-                      [class.ri-mode-blocked]="!!inspNodeBlocked && !inspNodeIsBasic"
-                      (click)="!inspNodeBlocked && toggleNodeMode(inspectedNodeId)"
-                      [title]="inspNodeBlocked ?? 'Alle Ports zu einem zusammenfassen'">
-                Basis
-              </button>
-            </div>
-            @if (inspNodeBlocked && !inspNodeIsBasic) {
-              <p class="ri-mode-hint">{{ inspNodeBlocked }}</p>
-            }
-          }
+          <!-- ── Conn-inspector ── -->
         </div>
       </aside>
     } @else if (selectedConnectionId && getSelectedConnection()) {
@@ -556,34 +421,6 @@
           <button class="ci-close" (click)="selectedConnectionId = null">✕</button>
         </div>
         <div class="ci-body">
-
-          <!-- Bedingung / Branch-Label -->
-          <div class="ci-section-lbl">Bedingung (Branch-Label)</div>
-          <input class="ci-input" type="text" placeholder="Leer = keine Verzweigung"
-                 [value]="getSelectedConnection()!.condition ?? ''"
-                 (change)="updateSelectedConnection({condition: $any($event.target).value || undefined})"/>
-          @if (getSelectedConnection()!.condition) {
-            <button class="ci-precast-toggle"
-                    [class.is-known]="getSelectedConnection()!.precastKnown"
-                    (click)="updateSelectedConnection({precastKnown: !getSelectedConnection()!.precastKnown})">
-              @if (getSelectedConnection()!.precastKnown) {
-                ★ Bedingung bekannt
-              } @else {
-                ☆ Bedingung unbekannt
-              }
-            </button>
-          }
-          @if (getSelectedConnection()!.condition) {
-            <button class="ci-precast-toggle ci-excl-toggle"
-                    [class.is-exclusive]="getSelectedConnection()!.exclusive"
-                    (click)="toggleExclusiveSiblings()">
-              @if (getSelectedConnection()!.exclusive) {
-                ⊗ Exklusiv — alle Äste von dieser Quelle
-              } @else {
-                ⊕ Kombinierbar — Äste können gleichzeitig feuern
-              }
-            </button>
-          }
 
           <!-- Durchläufe / Passthrough -->
           <div class="ci-section-lbl">Durchläufe</div>
@@ -598,15 +435,6 @@
                    [disabled]="!getSelectedConnection()!.passthroughEnabled"
                    (change)="updateSelectedConnection({maxPassthrough: +$any($event.target).value || undefined})"/>
             <span class="ci-input-hint">Max</span>
-          </div>
-
-          <!-- Verzögerung -->
-          <div class="ci-section-lbl">Verzögerung (Runden)</div>
-          <div class="ci-delay-row">
-            <input class="ci-input ci-input-num" type="number" min="0" step="0.1" placeholder="0"
-                   [value]="getSelectedConnection()!.lineDelay ?? ''"
-                   (change)="updateSelectedConnection({lineDelay: +$any($event.target).value || undefined})"/>
-            <span class="ci-input-hint">Runden</span>
           </div>
 
         </div>
