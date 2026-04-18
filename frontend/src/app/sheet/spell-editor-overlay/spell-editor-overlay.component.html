@@ -8,19 +8,14 @@
         @else { {{ spellName || 'Zauber bearbeiten' }} }
       </h2>
       <div class="header-actions">
-        @if (savedFeedback) {
-          <span class="saved-feedback">Gespeichert</span>
-        }
-        @if (!isNewSpell && !showDeleteConfirm) {
-          <button class="btn-outline-danger" (click)="showDeleteConfirm = true">Löschen</button>
-        }
-        @if (showDeleteConfirm) {
-          <span class="delete-confirm-text">Wirklich löschen?</span>
-          <button class="btn-danger" (click)="onDeleteConfirm()">Ja</button>
-          <button class="btn-outline" (click)="showDeleteConfirm = false">Nein</button>
-        }
-        <button class="btn-primary" (click)="onSave()">Speichern</button>
-        <button class="close-btn" (click)="onCancel()">×</button>
+        <button class="btn-save"
+                [class.btn-save--done]="savedFeedback"
+                [class.btn-save--dirty]="isDirty && !savedFeedback"
+                [disabled]="savedFeedback"
+                (click)="onSave()">
+          {{ savedFeedback ? '✓ Gespeichert!' : 'Speichern' }}
+        </button>
+        <button class="btn-close-header" (click)="onCancel()" title="Schließen">Schließen ✕</button>
       </div>
     </div>
 
@@ -94,11 +89,14 @@
           <h3>Runen</h3>
           @if (graphRuneNodes.length > 0) {
             <div class="rune-mini-preview">
-              @for (node of graphRuneNodes; track node.name) {
-                <div class="rune-mini-chip">
-                  <span class="rune-mini-name">{{ node.name }}</span>
-                  @if (node.effektivitaet != null) {
-                    <span class="rune-mini-eff">⚔ {{ node.effektivitaet }}</span>
+              @for (node of graphRuneNodes; track $index) {
+                <div class="rune-mini-chip" [class.rune-mini-unknown]="!node.known" [title]="node.known ? node.runeId : '??? (Rune nicht gelernt)'">
+                  @if (node.drawing) {
+                    <img class="rune-mini-img" [src]="node.drawing" [alt]="node.runeId" />
+                  } @else if (node.known) {
+                    <span class="rune-mini-glyph">{{ node.icon }}</span>
+                  } @else {
+                    <span class="rune-mini-glyph rune-mini-glyph-unknown">???</span>
                   }
                 </div>
               }
@@ -175,10 +173,7 @@
             <div class="counter-list">
               @for (counter of counters; track counter.id; let i = $index) {
                 <div class="counter-item-editable">
-                  <div class="counter-color-wrap">
-                    <div class="counter-color" [style.backgroundColor]="counter.color"></div>
-                    <input type="color" [(ngModel)]="counter.color" class="counter-color-input" title="Farbe ändern" />
-                  </div>
+                  <input type="color" [(ngModel)]="counter.color" class="counter-color-input-visible" title="Farbe ändern" />
                   <span class="counter-name">{{ counter.name }}</span>
                   <input type="number" [(ngModel)]="counter.current" [min]="counter.min" [max]="counter.max" />
                   <input type="range"  [(ngModel)]="counter.current" [min]="counter.min" [max]="counter.max" />
@@ -196,10 +191,7 @@
               </div>
               <div class="form-group counter-color-group">
                 <label>Farbe</label>
-                <div class="counter-color-picker-row">
-                  <div class="counter-color-preview" [style.backgroundColor]="newCounter.color"></div>
-                  <input type="color" [(ngModel)]="newCounter.color" class="color-picker-custom" />
-                </div>
+                <input type="color" [(ngModel)]="newCounter.color" class="color-picker-custom" />
               </div>
             </div>
             <div class="form-row">
@@ -275,6 +267,20 @@
 
       </div>
     </div>
+
+    <!-- ── Close confirmation dialog ─────────────────────────────────────── -->
+    @if (showCloseDialog) {
+      <div class="close-dialog-backdrop" (click)="onCloseDialogCancel()"></div>
+      <div class="close-dialog-box">
+        <div class="close-dialog-title">Ungespeicherte Änderungen</div>
+        <div class="close-dialog-body">Möchtest du die Änderungen an diesem Zauber speichern?</div>
+        <div class="close-dialog-actions">
+          <button class="close-dialog-btn close-dialog-save" (click)="onCloseConfirmSave()">Speichern</button>
+          <button class="close-dialog-btn close-dialog-discard" (click)="onCloseConfirmDiscard()">Nicht speichern</button>
+          <button class="close-dialog-btn close-dialog-cancel" (click)="onCloseDialogCancel()">Abbrechen</button>
+        </div>
+      </div>
+    }
   </div>
 </div>
 

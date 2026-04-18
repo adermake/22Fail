@@ -24,6 +24,7 @@
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  position: relative;
 }
 
 .editor-header {
@@ -65,6 +66,104 @@
   transition: color 0.15s;
 }
 .close-btn:hover { color: var(--text, #e5e7eb); }
+
+/* New unified save button (matches node editor style) */
+.btn-save {
+  padding: 7px 18px;
+  border-radius: 6px;
+  border: 1px solid var(--accent, #8b5cf6);
+  background: rgba(139, 92, 246, 0.12);
+  color: #c4b5fd;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-save:hover { background: rgba(139, 92, 246, 0.25); }
+.btn-save--dirty {
+  border-color: #f59e0b;
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.1);
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+.btn-save--done {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  cursor: default;
+}
+.btn-close-header {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #4a5568);
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-close-header:hover { border-color: var(--text, #e5e7eb); color: var(--text, #e5e7eb); }
+
+/* Close-confirmation dialog (same as node editor) */
+.close-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  border-radius: inherit;
+  z-index: 200;
+}
+.close-dialog-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--card, #2d3748);
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 12px;
+  padding: 28px 32px;
+  z-index: 201;
+  min-width: 340px;
+  max-width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.close-dialog-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text, #e5e7eb);
+  margin-bottom: 10px;
+}
+.close-dialog-body {
+  font-size: 0.9rem;
+  color: var(--text-muted, #9ca3af);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+.close-dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.close-dialog-btn {
+  padding: 8px 18px;
+  border-radius: 7px;
+  border: 1px solid var(--border, #4a5568);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.close-dialog-save    { background: var(--accent, #8b5cf6); border-color: var(--accent); color: #fff; }
+.close-dialog-save:hover { background: var(--accentdark, #7c3aed); }
+.close-dialog-discard { background: transparent; color: #fca5a5; border-color: #7f1d1d; }
+.close-dialog-discard:hover { background: rgba(185,28,28,0.1); }
+.close-dialog-cancel  { background: transparent; color: var(--text-muted, #9ca3af); }
+.close-dialog-cancel:hover { border-color: var(--accent, #8b5cf6); color: var(--text, #e5e7eb); }
 
 .saved-feedback {
   font-size: 0.82rem;
@@ -744,20 +843,15 @@
   border: none;
 }
 
-.counter-color-picker-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.counter-color-preview {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 2px solid var(--border, #4a5568);
+.counter-color-input-visible {
+  width: 32px !important;
+  height: 28px;
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 5px;
+  padding: 0;
+  cursor: pointer;
   flex-shrink: 0;
-}
-.counter-color-group {
-  flex: 0 0 auto;
+  -webkit-appearance: none;
 }
 
 .counter-name {
@@ -862,30 +956,39 @@
 .rune-mini-preview {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
   margin-bottom: 10px;
 }
 .rune-mini-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 5px 8px;
-  background: rgba(139, 92, 246, 0.1);
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  width: 36px;
+  height: 36px;
   border-radius: 6px;
-  min-width: 48px;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
 }
-.rune-mini-name {
-  font-size: 0.68rem;
-  color: var(--text, #e5e7eb);
-  font-weight: 600;
-  text-align: center;
-  line-height: 1.2;
+.rune-mini-chip.rune-mini-unknown {
+  border-color: rgba(107, 114, 128, 0.4);
+  background: rgba(107, 114, 128, 0.08);
 }
-.rune-mini-eff {
+.rune-mini-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.rune-mini-glyph {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #c4b5fd;
+  line-height: 1;
+}
+.rune-mini-glyph-unknown {
   font-size: 0.65rem;
-  color: #fcd34d;
+  color: #6b7280;
   font-weight: 700;
 }
 

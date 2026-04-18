@@ -58,7 +58,7 @@
             <div class="scw-spell-card"
                  [class.is-casting]="isActivelyCasting(spell)"
                  [style.--sc]="spellColor(spell)"
-                 (click)="castSpell(spell)"
+                 (click)="!isActivelyCasting(spell) && requestCast(spell)"
                  [title]="isActivelyCasting(spell) ? 'Wird bereits gewirkt' : 'Klicken zum Wirken: ' + spell.name">
               <div class="scw-spell-glow"></div>
               <div class="scw-spell-icon">{{ spell.icon || '✦' }}</div>
@@ -106,6 +106,12 @@
                 <button class="scw-stop-btn" (click)="stopCasting(entry)" title="Beenden">✕</button>
               </div>
               @if (getSpell(entry.spellId); as spell) {
+                @if (spell.description) {
+                  <div class="scw-active-desc">{{ spell.description }}</div>
+                }
+                @if (costLabel(spell); as cl) {
+                  <div class="scw-active-startcost">⚡ Einmalig: {{ cl }}</div>
+                }
                 @if (perTurnLabel(spell); as ptl) {
                   <div class="scw-active-cost">{{ ptl }}</div>
                 }
@@ -113,7 +119,6 @@
                   <div class="scw-counter-list">
                     @for (counter of spell.counters; track counter.id; let ci = $index) {
                       <div class="scw-counter">
-                        <span class="scw-counter-dot" [style.backgroundColor]="counter.color"></span>
                         <span class="scw-counter-name">{{ counter.name }}</span>
                         <button class="scw-counter-btn" (click)="adjustCounter(entry.spellId, ci, counter.current - 1)">−</button>
                         <span class="scw-counter-val">{{ counter.current }}</span>
@@ -145,4 +150,77 @@
     </div>
 
   </div>
+
+  <!-- ── Cast confirmation popup ──────────────────────────────────────── -->
+  @if (showCastConfirm && pendingCastSpell) {
+    <div class="cast-confirm-backdrop" (click)="cancelCast()"></div>
+    <div class="cast-confirm-box" (click)="$event.stopPropagation()">
+      <div class="ccb-header" [style.--sc]="spellColor(pendingCastSpell)">
+        <span class="ccb-icon">{{ pendingCastSpell.icon || '✦' }}</span>
+        <span class="ccb-name">{{ pendingCastSpell.name }}</span>
+      </div>
+
+      @if (pendingCastSpell.description) {
+        <div class="ccb-desc">{{ pendingCastSpell.description }}</div>
+      }
+
+      <div class="ccb-cost-section">
+        <div class="ccb-cost-title">Einmalkosten</div>
+        <div class="ccb-cost-row">
+          @if (pendingCastSpell.costMana) {
+            <span class="ccb-pill ccb-pill--mana">◆ {{ pendingCostMana() }} Mana</span>
+          }
+          @if (pendingCastSpell.costFokus) {
+            <span class="ccb-pill ccb-pill--fokus">◇ {{ pendingCostFokus() }} Fokus</span>
+          }
+          @if (!pendingCastSpell.costMana && !pendingCastSpell.costFokus) {
+            <span class="ccb-pill ccb-pill--free">Keine Kosten</span>
+          }
+        </div>
+      </div>
+
+      @if (pendingCastSpell.perTurnMana || pendingCastSpell.perTurnFokus) {
+        <div class="ccb-cost-section">
+          <div class="ccb-cost-title">Pro Runde</div>
+          <div class="ccb-cost-row">
+            @if (pendingCastSpell.perTurnMana) {
+              <span class="ccb-pill ccb-pill--mana">◆ {{ pendingCastSpell.perTurnMana }} Mana/Rd</span>
+            }
+            @if (pendingCastSpell.perTurnFokus) {
+              <span class="ccb-pill ccb-pill--fokus">◇ {{ pendingCastSpell.perTurnFokus }} Fokus/Rd</span>
+            }
+          </div>
+        </div>
+      }
+
+      @if (pendingCastSpell.durationTurns) {
+        <div class="ccb-cost-section">
+          <div class="ccb-cost-title">Dauer</div>
+          <div class="ccb-cost-row">
+            <span class="ccb-pill ccb-pill--neutral">{{ pendingCastSpell.durationTurns }} Runden</span>
+          </div>
+        </div>
+      }
+
+      <div class="ccb-castlevel-section">
+        <div class="ccb-cost-title">Cast-Level</div>
+        <div class="ccb-cl-row">
+          <button class="ccb-cl-btn" (click)="pendingCastLevel = Math.max(0, pendingCastLevel - 1)">−</button>
+          <span class="ccb-cl-val">{{ pendingCastLevel }}</span>
+          <button class="ccb-cl-btn" (click)="pendingCastLevel = pendingCastLevel + 1">+</button>
+          @if (pendingCastLevel > 0) {
+            <span class="ccb-cl-reduction">−{{ Math.min(90, Math.floor(pendingCastLevel / 10) * 10) }}%</span>
+          }
+        </div>
+      </div>
+
+      <div class="ccb-actions">
+        <button class="ccb-cancel-btn" (click)="cancelCast()">Abbrechen</button>
+        <button class="ccb-confirm-btn" [style.--sc]="spellColor(pendingCastSpell)" (click)="confirmCast()">
+          ✦ Wirken
+        </button>
+      </div>
+    </div>
+  }
+
 </div>

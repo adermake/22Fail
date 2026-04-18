@@ -36,6 +36,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
   @Output() close = new EventEmitter<void>();
 
   private cdr = inject(ChangeDetectorRef);
+  protected readonly Math = Math;
 
   floatingRunes: FloatingRune[] = [];
   private runeIdCounter = 0;
@@ -117,14 +118,56 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
     return pct > 0 ? `-${pct}%` : '';
   }
 
+  // ── Cast confirmation popup ───────────────────────────────────────────────
+  pendingCastSpell: SpellBlock | null = null;
+  pendingCastLevel = 0;
+
+  get showCastConfirm(): boolean { return this.pendingCastSpell !== null; }
+
+  requestCast(spell: SpellBlock): void {
+    if (this.isActivelyCasting(spell)) return;
+    this.pendingCastSpell = spell;
+    this.pendingCastLevel = 0;
+    this.cdr.markForCheck();
+  }
+
+  cancelCast(): void {
+    this.pendingCastSpell = null;
+    this.cdr.markForCheck();
+  }
+
+  confirmCast(): void {
+    const spell = this.pendingCastSpell;
+    if (!spell) return;
+    this.pendingCastSpell = null;
+    this.castSpell(spell, this.pendingCastLevel);
+    this.cdr.markForCheck();
+  }
+
+  pendingCostMana(): number {
+    const spell = this.pendingCastSpell;
+    if (!spell) return 0;
+    const base = spell.costMana || 0;
+    const reduction = Math.min(0.9, Math.floor(this.pendingCastLevel / 10) * 0.1);
+    return Math.round(base * (1 - reduction) * 100) / 100;
+  }
+
+  pendingCostFokus(): number {
+    const spell = this.pendingCastSpell;
+    if (!spell) return 0;
+    const base = spell.costFokus || 0;
+    const reduction = Math.min(0.9, Math.floor(this.pendingCastLevel / 10) * 0.1);
+    return Math.round(base * (1 - reduction) * 100) / 100;
+  }
+
   // ── Actions ───────────────────────────────────────────────────────────────
 
-  castSpell(spell: SpellBlock): void {
+  castSpell(spell: SpellBlock, castLevel = 0): void {
     const entryId = `${spell.id || generateSpellId()}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const entry: CastingSpellEntry = {
       spellId: spell.id || generateSpellId(),
       spellName: spell.name,
-      castLevel: 0,
+      castLevel,
       entryId,
     };
     const updated = [...this.castingSpells, entry];

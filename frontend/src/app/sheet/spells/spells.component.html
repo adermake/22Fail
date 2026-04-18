@@ -39,7 +39,6 @@
     [style.top.px]="contextMenuY"
     [style.left.px]="contextMenuX"
     (click)="$event.stopPropagation()">
-    <button class="ctx-item" (click)="castFromMenu()">Wirken</button>
     <button class="ctx-item" (click)="openEditorFromMenu()">Bearbeiten</button>
     <button class="ctx-item ctx-delete" (click)="deleteFromMenu()">Löschen</button>
   </div>

@@ -59,8 +59,32 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
   showNodeEditor = false;
   showDeleteConfirm = false;
   showMacroEditor = false;
+  showCloseDialog = false;
   lastSimpleEstimate: SimpleSpellCost | null = null;
   savedFeedback = false;
+  private _initialSnapshot = '';
+
+  get isDirty(): boolean {
+    return this._makeSnapshot() !== this._initialSnapshot;
+  }
+
+  private _makeSnapshot(): string {
+    return JSON.stringify({
+      name: this.spellName,
+      description: this.spellDescription,
+      tags: [...this.spellTags].sort(),
+      costMana: this.spellCostMana,
+      costFokus: this.spellCostFokus,
+      perTurnMana: this.perTurnMana,
+      perTurnFokus: this.perTurnFokus,
+      durationTurns: this.durationTurns,
+      statReqs: this.spellStatRequirements,
+      icon: this.spellIcon,
+      color: this.spellColor,
+      counters: this.counters,
+      graph: this.graph,
+    });
+  }
 
   readonly tagOptions = SPELL_TAG_OPTIONS;
   readonly iconOptions = SPELL_ICON_SYMBOLS;
@@ -109,6 +133,8 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
     } else {
       this.spellId = generateSpellId();
     }
+    // Snapshot after all fields are loaded — used for dirty-check
+    this._initialSnapshot = this._makeSnapshot();
   }
 
   ngOnDestroy(): void {
@@ -140,6 +166,8 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
       counters:        this.counters.length > 0 ? JSON.parse(JSON.stringify(this.counters)) : undefined,
     };
     this.save.emit(spell);
+    // Reset dirty state
+    this._initialSnapshot = this._makeSnapshot();
     // Brief visual feedback
     this.savedFeedback = true;
     this.cdr.markForCheck();
@@ -147,7 +175,28 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
   }
 
   onCancel(): void {
+    if (this.isDirty) {
+      this.showCloseDialog = true;
+      this.cdr.markForCheck();
+    } else {
+      this.cancel.emit();
+    }
+  }
+
+  onCloseConfirmSave(): void {
+    this.onSave();
+    this.showCloseDialog = false;
     this.cancel.emit();
+  }
+
+  onCloseConfirmDiscard(): void {
+    this.showCloseDialog = false;
+    this.cancel.emit();
+  }
+
+  onCloseDialogCancel(): void {
+    this.showCloseDialog = false;
+    this.cdr.markForCheck();
   }
 
   onDeleteConfirm(): void {
@@ -253,20 +302,41 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
     return this.graph?.nodes?.length ?? 0;
   }
 
-  /** Mini preview: unique runes in the current graph with their effectiveness */
-  get graphRuneNodes(): { name: string; effektivitaet: number | undefined }[] {
+  /** Mini preview: rune nodes in graph connection order with their icons/drawings */
+  get graphRuneNodes(): { runeId: string; drawing: string | undefined; icon: string; known: boolean }[] {
     if (!this.graph?.nodes?.length) return [];
     const runeByName = new Map(this.availableRunes.map(r => [r.name, r]));
-    // Deduplicate by runeId — show each unique rune once
-    const seen = new Set<string>();
-    const result: { name: string; effektivitaet: number | undefined }[] = [];
-    for (const node of this.graph.nodes) {
-      if (seen.has(node.runeId)) continue;
-      seen.add(node.runeId);
-      const rune = runeByName.get(node.runeId);
-      result.push({ name: node.runeId, effektivitaet: rune?.effektivitaet });
+
+    // BFS from start to get nodes in traversal order
+    const visited = new Set<string>();
+    const ordered: string[] = [];
+    const queue: string[] = ['start'];
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      if (visited.has(cur)) continue;
+      visited.add(cur);
+      if (cur !== 'start') ordered.push(cur);
+      for (const conn of (this.graph.connections || [])) {
+        if (conn.fromNodeId === cur && !visited.has(conn.toNodeId)) {
+          queue.push(conn.toNodeId);
+        }
+      }
     }
-    return result;
+    // Append any unreachable nodes at the end
+    for (const node of this.graph.nodes) {
+      if (!visited.has(node.id)) ordered.push(node.id);
+    }
+
+    return ordered.map(nodeId => {
+      const node = this.graph!.nodes.find(n => n.id === nodeId)!;
+      const rune = runeByName.get(node.runeId);
+      return {
+        runeId: node.runeId,
+        drawing: rune?.drawing,
+        icon: rune?.name?.charAt(0)?.toUpperCase() ?? '✦',
+        known: !!rune,
+      };
+    }).filter(Boolean);
   }
 
   /** Copy the current estimate values into the spell cost fields */

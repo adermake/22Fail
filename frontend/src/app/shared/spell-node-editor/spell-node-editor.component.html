@@ -50,11 +50,6 @@
           <span class="sne-spell-title">{{ spellName || 'Neuer Zauber' }}</span>
         </div>
         <div class="sne-topbar-right">
-          @if (!isNewSpell) {
-            <button class="tb-btn tb-delete" (click)="onDelete()">Löschen</button>
-          }
-          <button class="tb-btn tb-settings" [class.tb-settings-active]="showProperties"
-                  (click)="showProperties = !showProperties" title="Zaubereigenschaften">⚙</button>
           <button class="tb-btn tb-close" (click)="onClose()">Schließen ✕</button>
           <button class="tb-btn tb-save"
                   [class.tb-save-done]="savedFeedback"
@@ -163,9 +158,13 @@
                 </div>
               } @else if (rune?.drawing) {
                 <img class="rune-node-img" [src]="rune!.drawing | imageUrl" [alt]="rune!.name"/>
-              } @else {
+              } @else if (rune) {
                 <div class="rune-node-placeholder">
-                  <span>{{ rune?.name?.charAt(0)?.toUpperCase() ?? '✦' }}</span>
+                  <span>{{ rune.name.charAt(0).toUpperCase() }}</span>
+                </div>
+              } @else {
+                <div class="rune-node-placeholder rune-node-unknown">
+                  <span>???</span>
                 </div>
               }
 
@@ -301,66 +300,6 @@
       </div><!-- /canvas-wrap -->
 
     </div><!-- /sne-main -->
-
-    <!-- ── PROPERTIES PANEL (right side, toggleable) ─────────────── -->
-    @if (showProperties) {
-      <aside class="properties-panel">
-        <div class="pp-header">
-          <span class="pp-title">Zaubereigenschaften</span>
-          <button class="pp-close" (click)="showProperties = false">✕</button>
-        </div>
-        <div class="pp-scroll">
-
-          <!-- Name -->
-          <div class="ep-section">
-            <div class="ep-label">Zaubername</div>
-            <input class="ep-input" type="text" [(ngModel)]="spellName" placeholder="Zaubername…"/>
-          </div>
-
-          <!-- Beschreibung -->
-          <div class="ep-section">
-            <div class="ep-label">Beschreibung</div>
-            <textarea class="ep-textarea" [(ngModel)]="spellDescription" rows="3" placeholder="Beschreibung…"></textarea>
-          </div>
-
-          <!-- Tags -->
-          <div class="ep-section">
-            <div class="ep-label">Tags</div>
-            <div class="ep-tag-grid">
-              @for (tag of allTagOptions; track tag) {
-                <button class="ep-tag-btn" [class.ep-tag-active]="hasSpellTag(tag)"
-                        (click)="toggleSpellTag(tag)">{{ tag }}</button>
-              }
-            </div>
-          </div>
-
-          <!-- Kosten schätzen -->
-          <div class="ep-section">
-            <div class="ep-label">Kosten</div>
-            <div class="ep-cost-row">
-              <div class="ep-cost-field">
-                <label class="ep-cost-label">&#9670; Mana</label>
-                <input class="ep-cost-input" type="number" min="0" step="0.5" [(ngModel)]="spellCostMana"/>
-              </div>
-              <div class="ep-cost-field">
-                <label class="ep-cost-label">&#9671; Fokus</label>
-                <input class="ep-cost-input" type="number" min="0" step="0.5" [(ngModel)]="spellCostFokus"/>
-              </div>
-              <button class="ep-calc-btn" (click)="calculateEstimate()">&#9889; Schätzen</button>
-            </div>
-            @if (simpleEstimate) {
-              <div class="ep-cost-estimate">
-                <span class="ep-est-lbl">Geschätzt:</span>
-                <span class="ep-est-val">&#9670; {{ simpleEstimate.mana | number:'1.0-1' }} Mana</span>
-                <span class="ep-est-val">&#9671; {{ simpleEstimate.fokus | number:'1.0-1' }} Fokus</span>
-                <span class="ep-est-nodes">({{ simpleEstimate.nodeCount }} Runen)</span>
-              </div>
-            }
-          </div>
-
-        </div>
-      </aside>
-    }
 
     <!-- ── RIGHT PANEL: rune-inspector | conn-inspector ───────── -->
     @if (inspectedRune) {

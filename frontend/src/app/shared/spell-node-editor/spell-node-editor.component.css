@@ -746,6 +746,14 @@
   filter: drop-shadow(0 0 12px var(--glow, #8b5cf6));
   user-select: none;
 }
+.rune-node-unknown {
+  border-color: #6b7280 !important;
+}
+.rune-node-unknown > span {
+  font-size: 1.4rem;
+  color: #6b7280;
+  filter: none;
+}
 
 /* ── Name label ──────────────────────────────────────────────────────────── */
 .rune-node-name {
