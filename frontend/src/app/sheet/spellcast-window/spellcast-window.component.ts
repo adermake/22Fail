@@ -4,9 +4,12 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SpellBlock, CastingSpellEntry, generateSpellId } from '../../model/spell-block-model';
 import { JsonPatch } from '../../model/json-patch.model';
+import { KeywordEnhancer } from '../keyword-enhancer';
+import { ImageService } from '../../services/image.service';
 
 interface FloatingRune {
   id: number;
@@ -19,6 +22,27 @@ interface FloatingRune {
   delay: number;
   color: string;
 }
+
+interface PortalRune {
+  id: number;
+  drawing: string | null; // resolved URL (via ImageService) or null
+  symbol: string;         // fallback unicode glyph
+  color: string;
+  x: number;    // % from left
+  y: number;    // % from top
+  size: number; // px
+  speed: number;
+  delay: number;
+  opacity: number;
+}
+
+/** Positions distributed around screen edges, avoiding the central card area */
+const PORTAL_POSITIONS = [
+  { x: 4,  y: 8  }, { x: 86, y: 6  }, { x: 4,  y: 50 }, { x: 90, y: 52 },
+  { x: 12, y: 84 }, { x: 82, y: 86 }, { x: 42, y: 3  }, { x: 52, y: 91 },
+  { x: 8,  y: 28 }, { x: 86, y: 30 }, { x: 18, y: 72 }, { x: 76, y: 75 },
+  { x: 38, y: 5  }, { x: 60, y: 7  }, { x: 6,  y: 68 }, { x: 88, y: 70 },
+];
 
 const RUNE_SYMBOLS = ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ','ᛁ','ᛃ','ᛇ','ᛈ','ᛉ','ᛊ','ᛏ','ᛒ','ᛖ','ᛗ','ᛚ','ᛜ','ᛞ','ᛟ'];
 
@@ -36,10 +60,19 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
   @Output() close = new EventEmitter<void>();
 
   private cdr = inject(ChangeDetectorRef);
+  private _sanitizer = inject(DomSanitizer);
+  private _imageService = inject(ImageService);
   protected readonly Math = Math;
 
   floatingRunes: FloatingRune[] = [];
   private runeIdCounter = 0;
+  private _portalRunes: PortalRune[] = [];
+  get portalRunes(): PortalRune[] { return this._portalRunes; }
+
+  // ── Pending cast state ────────────────────────────────────────────────────
+  pendingCastSpell: SpellBlock | null = null;
+  pendingCastLevel = 0;
+  skalierung = 1;
 
   // ── Data accessors ────────────────────────────────────────────────────────
 
@@ -118,9 +151,109 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
     return pct > 0 ? `-${pct}%` : '';
   }
 
+  // ── Spell stat helpers ────────────────────────────────────────────────────
+
+  spellStatReqs(spell: SpellBlock): { key: string; label: string; value: number }[] {
+    const req = spell.statRequirements;
+    if (!req) return [];
+    const map = [
+      { key: 'strength',     label: 'STR' },
+      { key: 'dexterity',    label: 'GES' },
+      { key: 'speed',        label: 'SPD' },
+      { key: 'intelligence', label: 'INT' },
+      { key: 'constitution', label: 'KON' },
+      { key: 'chill',        label: 'CHR' },
+    ];
+    return map
+      .filter(m => (req as Record<string, number>)[m.key] > 0)
+      .map(m => ({ key: m.key, label: m.label, value: (req as Record<string, number>)[m.key] }));
+  }
+
+  spellMeetsStat(key: string, value: number): boolean {
+    const stat = (this.sheet as any)[key];
+    const current = stat?.current ?? 0;
+    return current >= value;
+  }
+
+  castLevelMeetsReq(key: string, value: number): boolean {
+    const stat = (this.sheet as any)[key];
+    const current = stat?.current ?? 0;
+    // Each 10 cast levels adds 1 effective stat point
+    return current + Math.floor(this.pendingCastLevel / 10) >= value;
+  }
+
+  castLevelForReq(key: string, value: number): number {
+    const stat = (this.sheet as any)[key];
+    const current = stat?.current ?? 0;
+    if (current >= value) return 0;
+    return Math.max(0, (value - current) * 10);
+  }
+
+  get castLevelMarkers(): { key: string; label: string; level: number }[] {
+    if (!this.pendingCastSpell?.statRequirements) return [];
+    return this.spellStatReqs(this.pendingCastSpell)
+      .filter(req => !this.spellMeetsStat(req.key, req.value))
+      .map(req => ({ key: req.key, label: req.label, level: this.castLevelForReq(req.key, req.value) }))
+      .filter(m => m.level <= 100);
+  }
+
+  // ── Resource impact computations ──────────────────────────────────────────
+
+  get fokusAvailable(): number {
+    return Math.max(0, this.fokusMax - this.fokusUsed);
+  }
+
+  get fokusAvailPercent(): number {
+    return this.fokusMax > 0 ? Math.min(100, Math.round((this.fokusAvailable / this.fokusMax) * 100)) : 0;
+  }
+
+  pendingCostManaTotal(): number {
+    const spell = this.pendingCastSpell;
+    if (!spell) return 0;
+    const base = spell.costMana || 0;
+    const reduction = Math.min(0.9, Math.floor(this.pendingCastLevel / 10) * 0.1);
+    return Math.round(base * (1 - reduction) * this.skalierung * 100) / 100;
+  }
+
+  pendingCostFokusTotal(): number {
+    const spell = this.pendingCastSpell;
+    if (!spell) return 0;
+    const base = spell.costFokus || 0;
+    const reduction = Math.min(0.9, Math.floor(this.pendingCastLevel / 10) * 0.1);
+    return Math.round(base * (1 - reduction) * this.skalierung * 100) / 100;
+  }
+
+  manaAfterCast(): number {
+    return this.manaCurrent - this.pendingCostManaTotal();
+  }
+
+  fokusAfterCast(): number {
+    return this.fokusAvailable - this.pendingCostFokusTotal();
+  }
+
+  get manaAfterPercent(): number {
+    const after = Math.max(0, this.manaAfterCast());
+    return this.manaMax > 0 ? Math.round((after / this.manaMax) * 100) : 0;
+  }
+
+  get manaCostPercent(): number {
+    return this.manaMax > 0 ? Math.min(100, Math.round((this.pendingCostManaTotal() / this.manaMax) * 100)) : 0;
+  }
+
+  get fokusAfterPercent(): number {
+    const after = Math.max(0, this.fokusAfterCast());
+    return this.fokusMax > 0 ? Math.round((after / this.fokusMax) * 100) : 0;
+  }
+
+  get fokusCostPercent(): number {
+    return this.fokusMax > 0 ? Math.min(100, Math.round((this.pendingCostFokusTotal() / this.fokusMax) * 100)) : 0;
+  }
+
+  get skalerungStars(): number[] {
+    return Array.from({ length: Math.min(9, Math.floor(this.skalierung - 1)) });
+  }
+
   // ── Cast confirmation popup ───────────────────────────────────────────────
-  pendingCastSpell: SpellBlock | null = null;
-  pendingCastLevel = 0;
 
   get showCastConfirm(): boolean { return this.pendingCastSpell !== null; }
 
@@ -128,47 +261,80 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
     if (this.isActivelyCasting(spell)) return;
     this.pendingCastSpell = spell;
     this.pendingCastLevel = 0;
+    this.skalierung = 1;
+    this._computePortalRunes(spell);
     this.cdr.markForCheck();
   }
 
   cancelCast(): void {
     this.pendingCastSpell = null;
+    this._portalRunes = [];
     this.cdr.markForCheck();
   }
 
   confirmCast(): void {
     const spell = this.pendingCastSpell;
     if (!spell) return;
+    const sk = this.skalierung;
+    const cl = this.pendingCastLevel;
     this.pendingCastSpell = null;
-    this.castSpell(spell, this.pendingCastLevel);
+    this._portalRunes = [];
+    this.castSpell(spell, cl, sk);
     this.cdr.markForCheck();
   }
 
-  pendingCostMana(): number {
-    const spell = this.pendingCastSpell;
-    if (!spell) return 0;
-    const base = spell.costMana || 0;
-    const reduction = Math.min(0.9, Math.floor(this.pendingCastLevel / 10) * 0.1);
-    return Math.round(base * (1 - reduction) * 100) / 100;
+  enhancedSpellDesc(spell: SpellBlock): SafeHtml {
+    const enhanced = KeywordEnhancer.enhance(spell.description || '');
+    return this._sanitizer.bypassSecurityTrustHtml(enhanced);
   }
 
-  pendingCostFokus(): number {
-    const spell = this.pendingCastSpell;
-    if (!spell) return 0;
-    const base = spell.costFokus || 0;
-    const reduction = Math.min(0.9, Math.floor(this.pendingCastLevel / 10) * 0.1);
-    return Math.round(base * (1 - reduction) * 100) / 100;
+  private _computePortalRunes(spell: SpellBlock): void {
+    const runeByName = new Map(
+      (this.sheet.runes || []).filter(r => r !== null).map(r => [r!.name, r!])
+    );
+    const nodes = spell.graph?.nodes || [];
+    const positions = PORTAL_POSITIONS;
+    // Use at least 8 rune glyphs, up to positions.length
+    const useCount = Math.min(positions.length, Math.max(nodes.length > 0 ? nodes.length : 0, 8));
+    const speeds  = [12, 9, 14, 11, 8, 13, 10, 15, 12, 9, 11, 14, 8, 13, 10, 12];
+    const delays  = [0, -4, -8, -2, -6, -10, -3, -7, -1, -5, -9, -2, -6, -4, -8, -3];
+    const sizes   = [52, 38, 56, 42, 46, 40, 58, 44, 48, 36, 52, 40, 46, 42, 50, 38];
+    const opacities = [0.6, 0.5, 0.65, 0.55, 0.45, 0.6, 0.5, 0.55, 0.65, 0.45, 0.55, 0.6, 0.5, 0.65, 0.55, 0.45];
+    this._portalRunes = [];
+    for (let i = 0; i < useCount; i++) {
+      const nodeIdx = nodes.length > 0 ? (i % nodes.length) : -1;
+      const node = nodeIdx >= 0 ? nodes[nodeIdx] : null;
+      const rune = node ? runeByName.get(node.runeId) : null;
+      const color = rune?.glowColor || spell.strokeColor || '#8b5cf6';
+      const drawingUrl = rune?.drawing ? this._imageService.getImageUrl(rune.drawing) : null;
+      const pos = positions[i % positions.length];
+      this._portalRunes.push({
+        id: i,
+        drawing: drawingUrl,
+        symbol: rune
+          ? (rune.name?.charAt(0)?.toUpperCase() ?? '✦')
+          : RUNE_SYMBOLS[i % RUNE_SYMBOLS.length],
+        color,
+        x: pos.x,
+        y: pos.y,
+        size: sizes[i % 16],
+        speed: speeds[i % 16],
+        delay: delays[i % 16],
+        opacity: opacities[i % 16],
+      });
+    }
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
-  castSpell(spell: SpellBlock, castLevel = 0): void {
+  castSpell(spell: SpellBlock, castLevel = 0, skalierung = 1): void {
     const entryId = `${spell.id || generateSpellId()}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const entry: CastingSpellEntry = {
       spellId: spell.id || generateSpellId(),
       spellName: spell.name,
       castLevel,
       entryId,
+      skalierung: skalierung !== 1 ? skalierung : undefined,
     };
     const updated = [...this.castingSpells, entry];
     this.sheet.castingSpells = updated;

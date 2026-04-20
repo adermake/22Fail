@@ -164,5 +164,6 @@ label {
 .rdc-name  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
 
 /* ── Keyword enhancer inline icons (used in innerHTML-rendered descriptions) ── */
-.inline-eff  { color: #fcd34d; font-weight: 700; }
-.inline-stab { color: #86efac; font-weight: 700; }
+.inline-eff   { color: #fcd34d; font-weight: 700; }
+.inline-stab  { color: #86efac; font-weight: 700; }
+.inline-range { color: #34d399; font-weight: 700; }

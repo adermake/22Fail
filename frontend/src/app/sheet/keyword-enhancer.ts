@@ -101,7 +101,8 @@ export class KeywordEnhancer {
     // Final pass: inline shorthand syntax E:number → ⚔ number, S:number → 🛡 number
     result = result
       .replace(/\bE:(\d+(?:\.\d+)?)\b/g, '<span class="inline-eff">⚔ $1</span>')
-      .replace(/\bS:(\d+(?:\.\d+)?)\b/g, '<span class="inline-stab">🛡 $1</span>');
+      .replace(/\bS:(\d+(?:\.\d+)?)\b/g, '<span class="inline-stab">🛡 $1</span>')
+      .replace(/\bR:(\d+(?:\.\d+)?)\b/g, '<span class="inline-range">↔ $1m</span>');
 
     return result;
   }

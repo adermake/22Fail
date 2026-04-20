@@ -5,7 +5,7 @@
   (click)="!isEditing && openCastView.emit(); $event.stopPropagation()"
 >
   @if (!isEditing) {
-  <!-- ── Skill-like compact card view ── -->
+  <!-- ── Trading-card style view ── -->
   <div class="scv" [style.--sc]="spell.strokeColor || '#8b5cf6'">
 
     <!-- Top bar: icon + ZAUBER type label + name + actions -->
@@ -17,25 +17,6 @@
         <button class="scv-edit-btn" (click)="openEditor.emit(); $event.stopPropagation()" title="Bearbeiten">✎</button>
         <button class="scv-del-btn" (click)="deleteSpell(); $event.stopPropagation()" title="Löschen">✕</button>
       </div>
-    </div>
-
-    <!-- Cost + stat requirements row -->
-    <div class="scv-meta">
-      @if (spell.costMana) {
-        <span class="scv-cost scv-cost--mana">◆ {{ spell.costMana }}M</span>
-      }
-      @if (spell.costFokus) {
-        <span class="scv-cost scv-cost--fokus">◇ {{ spell.costFokus }}F</span>
-      }
-      @if (!spell.costMana && !spell.costFokus) {
-        <span class="scv-cost scv-cost--free">Keine Kosten</span>
-      }
-      @if (hasCostSchedule) {
-        <span class="scv-cost scv-cost--plan" title="Hat detaillierten Kostenplan">▶</span>
-      }
-      @for (req of statReqEntries; track req.label) {
-        <span class="scv-req">{{ req.label }} {{ req.value }}</span>
-      }
     </div>
 
     <!-- Description -->
@@ -51,6 +32,48 @@
         }
       </div>
     }
+
+    <!-- Footer: stat requirements (left) + costs (right) -->
+    <div class="scv-footer">
+      <!-- Stat requirements (item-like, met = blue, unmet = red strikethrough) -->
+      <div class="scv-reqs">
+        @for (req of statReqEntries; track req.label) {
+          <span class="scv-req" [class.scv-req--unmet]="!meetsStatRequirement(req.key, req.value)">
+            {{ req.label }}&nbsp;{{ req.value }}
+          </span>
+        }
+      </div>
+
+      <!-- Cost block (right-aligned) -->
+      <div class="scv-cost-block">
+        <!-- Start costs -->
+        <div class="scv-cost-row">
+          @if (spell.costMana) {
+            <span class="scv-cost scv-cost--mana">◆&nbsp;{{ spell.costMana }}</span>
+          }
+          @if (spell.costFokus) {
+            <span class="scv-cost scv-cost--fokus">◆&nbsp;{{ spell.costFokus }}</span>
+          }
+          @if (!spell.costMana && !spell.costFokus) {
+            <span class="scv-cost scv-cost--free">Kostenlos</span>
+          }
+        </div>
+        <!-- Per-turn + duration -->
+        @if (spell.perTurnMana || spell.perTurnFokus || spell.durationTurns) {
+          <div class="scv-cost-row scv-cost-row--sub">
+            @if (spell.perTurnMana) {
+              <span class="scv-perturn scv-perturn--mana">+{{ spell.perTurnMana }}/Rd</span>
+            }
+            @if (spell.perTurnFokus) {
+              <span class="scv-perturn scv-perturn--fokus">+{{ spell.perTurnFokus }}/Rd</span>
+            }
+            @if (spell.durationTurns) {
+              <span class="scv-duration">⧗&nbsp;{{ spell.durationTurns }}Rd</span>
+            }
+          </div>
+        }
+      </div>
+    </div>
   </div>
   } @else {
   <!-- Fullscreen Drawing Modal -->

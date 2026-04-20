@@ -176,7 +176,7 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
     return this.sanitizer.bypassSecurityTrustHtml(enhanced);
   }
 
-  get statReqEntries(): { label: string; value: number }[] {
+  get statReqEntries(): { key: string; label: string; value: number }[] {
     const req = this.spell.statRequirements;
     if (!req) return [];
     const map = [
@@ -189,7 +189,13 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
     ];
     return map
       .filter(m => (req as Record<string,number>)[m.key] > 0)
-      .map(m => ({ label: m.label, value: (req as Record<string,number>)[m.key] }));
+      .map(m => ({ key: m.key, label: m.label, value: (req as Record<string,number>)[m.key] }));
+  }
+
+  meetsStatRequirement(key: string, value: number): boolean {
+    const stat = (this.sheet as any)[key];
+    const current = stat?.current ?? 0;
+    return current >= value;
   }
 
   get isDisabled(): boolean {

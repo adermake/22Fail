@@ -59,6 +59,7 @@ export interface CastingSpellEntry {
   spellId: string;      // Matches SpellBlock.id
   spellName: string;    // Denormalized for fast display
   castLevel: number;    // Accumulated cast level (determines cost reduction)
+  skalierung?: number;  // Power multiplier chosen at cast time (default 1)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

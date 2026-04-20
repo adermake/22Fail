@@ -61,20 +61,63 @@
                  (click)="!isActivelyCasting(spell) && requestCast(spell)"
                  [title]="isActivelyCasting(spell) ? 'Wird bereits gewirkt' : 'Klicken zum Wirken: ' + spell.name">
               <div class="scw-spell-glow"></div>
-              <div class="scw-spell-icon">{{ spell.icon || '✦' }}</div>
-              <div class="scw-spell-name">{{ spell.name }}</div>
-              @if (costLabel(spell); as cost) {
-                <div class="scw-spell-cost">{{ cost }}</div>
+
+              <!-- Card header -->
+              <div class="scw-card-head">
+                <span class="scw-spell-icon">{{ spell.icon || '✦' }}</span>
+                <span class="scw-spell-name">{{ spell.name }}</span>
+                @if (isActivelyCasting(spell)) {
+                  <span class="scw-active-badge">Aktiv</span>
+                }
+              </div>
+
+              <!-- Description (short) -->
+              @if (spell.description) {
+                <div class="scw-spell-desc-short">{{ spell.description }}</div>
               }
+
+              <!-- Stat requirements -->
+              @if (spellStatReqs(spell).length > 0) {
+                <div class="scw-spell-reqs-row">
+                  @for (req of spellStatReqs(spell); track req.label) {
+                    <span class="scw-spell-req"
+                          [class.scw-spell-req--unmet]="!spellMeetsStat(req.key, req.value)">
+                      {{ req.label }}&nbsp;{{ req.value }}
+                    </span>
+                  }
+                </div>
+              }
+
+              <!-- Cost footer -->
+              <div class="scw-card-footer">
+                <div class="scw-card-costs">
+                  @if (spell.costMana) {
+                    <span class="scw-cost-chip scw-cost-chip--mana">◆&nbsp;{{ spell.costMana }}</span>
+                  }
+                  @if (spell.costFokus) {
+                    <span class="scw-cost-chip scw-cost-chip--fokus">◆&nbsp;{{ spell.costFokus }}</span>
+                  }
+                  @if (!spell.costMana && !spell.costFokus) {
+                    <span class="scw-cost-chip scw-cost-chip--free">Kostenlos</span>
+                  }
+                </div>
+                <div class="scw-card-meta">
+                  @if (spell.perTurnMana || spell.perTurnFokus) {
+                    <span class="scw-card-perturn">/Rd</span>
+                  }
+                  @if (spell.durationTurns) {
+                    <span class="scw-card-dur">⧗{{ spell.durationTurns }}</span>
+                  }
+                </div>
+              </div>
+
+              <!-- Tags -->
               @if (spell.tags && spell.tags.length > 0) {
                 <div class="scw-spell-tags">
                   @for (tag of spell.tags; track tag) {
                     <span class="scw-tag">{{ tag }}</span>
                   }
                 </div>
-              }
-              @if (isActivelyCasting(spell)) {
-                <div class="scw-active-badge">Aktiv</div>
               }
             </div>
           }
@@ -103,6 +146,9 @@
               <div class="scw-active-header">
                 <span class="scw-active-icon">{{ getSpell(entry.spellId)?.icon || '✦' }}</span>
                 <span class="scw-active-name">{{ entry.spellName }}</span>
+                @if (entry.skalierung && entry.skalierung > 1) {
+                  <span class="scw-skal-badge">×{{ entry.skalierung }}</span>
+                }
                 <button class="scw-stop-btn" (click)="stopCasting(entry)" title="Beenden">✕</button>
               </div>
               @if (getSpell(entry.spellId); as spell) {
@@ -153,74 +199,216 @@
 
   <!-- ── Cast confirmation popup ──────────────────────────────────────── -->
   @if (showCastConfirm && pendingCastSpell) {
-    <div class="cast-confirm-backdrop" (click)="cancelCast()"></div>
-    <div class="cast-confirm-box" (click)="$event.stopPropagation()">
-      <div class="ccb-header" [style.--sc]="spellColor(pendingCastSpell)">
-        <span class="ccb-icon">{{ pendingCastSpell.icon || '✦' }}</span>
-        <span class="ccb-name">{{ pendingCastSpell.name }}</span>
-      </div>
+    <!-- ═══════════════ EPIC CAST PORTAL ═══════════════ -->
+    <div class="cast-portal" [style.--sc]="spellColor(pendingCastSpell)" (click)="cancelCast()">
 
-      @if (pendingCastSpell.description) {
-        <div class="ccb-desc">{{ pendingCastSpell.description }}</div>
-      }
-
-      <div class="ccb-cost-section">
-        <div class="ccb-cost-title">Einmalkosten</div>
-        <div class="ccb-cost-row">
-          @if (pendingCastSpell.costMana) {
-            <span class="ccb-pill ccb-pill--mana">◆ {{ pendingCostMana() }} Mana</span>
-          }
-          @if (pendingCastSpell.costFokus) {
-            <span class="ccb-pill ccb-pill--fokus">◇ {{ pendingCostFokus() }} Fokus</span>
-          }
-          @if (!pendingCastSpell.costMana && !pendingCastSpell.costFokus) {
-            <span class="ccb-pill ccb-pill--free">Keine Kosten</span>
-          }
-        </div>
-      </div>
-
-      @if (pendingCastSpell.perTurnMana || pendingCastSpell.perTurnFokus) {
-        <div class="ccb-cost-section">
-          <div class="ccb-cost-title">Pro Runde</div>
-          <div class="ccb-cost-row">
-            @if (pendingCastSpell.perTurnMana) {
-              <span class="ccb-pill ccb-pill--mana">◆ {{ pendingCastSpell.perTurnMana }} Mana/Rd</span>
+      <!-- Floating rune field (background) -->
+      <div class="portal-rune-field">
+        @for (rune of portalRunes; track rune.id) {
+          <div class="portal-rune"
+               [style.left.%]="rune.x"
+               [style.top.%]="rune.y"
+               [style.width.px]="rune.size"
+               [style.height.px]="rune.size"
+               [style.animationDuration.s]="rune.speed"
+               [style.animationDelay.s]="rune.delay"
+               [style.opacity]="rune.opacity">
+            @if (rune.drawing) {
+              <img class="portal-rune-img"
+                   [src]="rune.drawing"
+                   [style.filter]="'drop-shadow(0 0 8px ' + rune.color + ') drop-shadow(0 0 20px ' + rune.color + '66)'"
+                   [alt]="rune.symbol" />
+            } @else {
+              <span class="portal-rune-glyph"
+                    [style.color]="rune.color"
+                    [style.textShadow]="'0 0 12px ' + rune.color + ', 0 0 30px ' + rune.color + '88'">
+                {{ rune.symbol }}
+              </span>
             }
-            @if (pendingCastSpell.perTurnFokus) {
-              <span class="ccb-pill ccb-pill--fokus">◇ {{ pendingCastSpell.perTurnFokus }} Fokus/Rd</span>
+          </div>
+        }
+      </div>
+
+      <!-- Central cast card (click does NOT bubble to backdrop) -->
+      <div class="cast-card" (click)="$event.stopPropagation()">
+
+        <!-- Header -->
+        <div class="cast-card-head" [style.--sc]="spellColor(pendingCastSpell)">
+          <span class="cast-icon">{{ pendingCastSpell.icon || '✦' }}</span>
+          <div class="cast-title-block">
+            <span class="cast-type-label">ZAUBER</span>
+            <span class="cast-spell-name">{{ pendingCastSpell.name }}</span>
+          </div>
+          <button class="cast-close-btn" (click)="cancelCast()" title="Schließen">✕</button>
+        </div>
+
+        <!-- Description -->
+        @if (pendingCastSpell.description) {
+          <div class="cast-desc" [innerHTML]="enhancedSpellDesc(pendingCastSpell)"></div>
+        }
+
+        <!-- Stat requirements -->
+        @if (spellStatReqs(pendingCastSpell).length > 0) {
+          <div class="cast-reqs-row">
+            @for (req of spellStatReqs(pendingCastSpell); track req.label) {
+              <span class="cast-req"
+                    [class.cast-req--met]="castLevelMeetsReq(req.key, req.value)"
+                    [class.cast-req--unmet]="!castLevelMeetsReq(req.key, req.value)">
+                {{ req.label }}&nbsp;{{ req.value }}
+                @if (!spellMeetsStat(req.key, req.value) && castLevelMeetsReq(req.key, req.value)) {
+                  <span class="cast-req-boost">✓ +{{ Math.floor(pendingCastLevel / 10) }}</span>
+                }
+              </span>
+            }
+          </div>
+        }
+
+        <!-- Two-column controls -->
+        <div class="cast-controls">
+
+          <!-- LEFT: Sliders -->
+          <div class="cast-col cast-col--left">
+
+            <!-- Cast Level -->
+            <div class="cast-section-label">Cast-Level</div>
+            <div class="cast-slider-row">
+              <input class="cast-slider cast-slider--cl"
+                     type="range"
+                     [style.--sc]="spellColor(pendingCastSpell)"
+                     min="0" max="100"
+                     [(ngModel)]="pendingCastLevel" />
+              <input class="cast-level-input"
+                     type="number"
+                     min="0"
+                     [(ngModel)]="pendingCastLevel"
+                     title="Cast-Level direkt eingeben" />
+            </div>
+
+            <!-- Req markers -->
+            @if (castLevelMarkers.length > 0) {
+              <div class="cast-cl-markers">
+                @for (marker of castLevelMarkers; track marker.key) {
+                  <div class="cast-cl-marker"
+                       [style.left.%]="Math.min(98, marker.level)"
+                       [title]="marker.label + ' ' + marker.level + ' CL benötigt'">
+                    <span class="cast-cl-marker-label">{{ marker.label }}</span>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Duration estimate -->
+            <div class="cast-estimate">
+              <span class="cast-estimate-label">Dauer:</span>
+              <span class="cast-estimate-val">~{{ (pendingCastLevel / 10).toFixed(1) }} Runden</span>
+            </div>
+
+            <!-- Skalierung -->
+            <div class="cast-section-label cast-section-label--skal">
+              Skalierung
+              <span class="cast-skal-val">× {{ skalierung.toFixed(1) }}</span>
+              @if (skalerungStars.length > 0) {
+                <span class="cast-stars">
+                  @for (star of skalerungStars; track $index) {
+                    <span class="cast-star">★</span>
+                  }
+                </span>
+              }
+            </div>
+            <input class="cast-slider cast-slider--skal"
+                   type="range"
+                   [style.--sc]="spellColor(pendingCastSpell)"
+                   min="1" max="10" step="0.5"
+                   [(ngModel)]="skalierung" />
+          </div>
+
+          <!-- RIGHT: Resource bars -->
+          <div class="cast-col cast-col--right">
+
+            <!-- Mana bar -->
+            <div class="cast-section-label">Mana</div>
+            <div class="cast-res-bar-wrap">
+              <div class="cast-res-bar cast-res-bar--mana">
+                <div class="cast-res-fill"
+                     [style.width.%]="manaAfterPercent"
+                     [style.background]="'#3b82f6'"></div>
+                @if (pendingCostManaTotal() > 0) {
+                  <div class="cast-res-cost-overlay cast-res-cost-overlay--mana"
+                       [style.width.%]="manaCostPercent"
+                       [style.left.%]="manaAfterPercent"></div>
+                }
+              </div>
+              <div class="cast-res-labels">
+                <span class="cast-res-cur" [style.color]="'#60a5fa'">
+                  {{ manaCurrent }}
+                  @if (pendingCostManaTotal() > 0) {
+                    <span class="cast-res-after"> → {{ manaAfterCast() | number:'1.0-1' }}</span>
+                  }
+                </span>
+                <span class="cast-res-max">/{{ manaMax }}</span>
+              </div>
+              @if (pendingCostManaTotal() > 0) {
+                <div class="cast-res-cost-tag cast-res-cost-tag--mana">
+                  −◆&nbsp;{{ pendingCostManaTotal() | number:'1.0-1' }}
+                </div>
+              }
+            </div>
+
+            <!-- Fokus bar -->
+            <div class="cast-section-label">Fokus</div>
+            <div class="cast-res-bar-wrap">
+              <div class="cast-res-bar cast-res-bar--fokus">
+                <div class="cast-res-fill"
+                     [style.width.%]="fokusAfterPercent"
+                     [style.background]="'#7c3aed'"></div>
+                @if (pendingCostFokusTotal() > 0) {
+                  <div class="cast-res-cost-overlay cast-res-cost-overlay--fokus"
+                       [style.width.%]="fokusCostPercent"
+                       [style.left.%]="fokusAfterPercent"></div>
+                }
+              </div>
+              <div class="cast-res-labels">
+                <span class="cast-res-cur" [style.color]="'#a78bfa'">
+                  {{ fokusAvailable }}
+                  @if (pendingCostFokusTotal() > 0) {
+                    <span class="cast-res-after"> → {{ fokusAfterCast() | number:'1.0-1' }}</span>
+                  }
+                </span>
+                <span class="cast-res-max">/{{ fokusMax }}</span>
+              </div>
+              @if (pendingCostFokusTotal() > 0) {
+                <div class="cast-res-cost-tag cast-res-cost-tag--fokus">
+                  −◆&nbsp;{{ pendingCostFokusTotal() | number:'1.0-1' }}
+                </div>
+              }
+            </div>
+
+            <!-- Per-turn / duration info -->
+            @if (pendingCastSpell.perTurnMana || pendingCastSpell.perTurnFokus || pendingCastSpell.durationTurns) {
+              <div class="cast-perturn-block">
+                @if (pendingCastSpell.perTurnMana) {
+                  <span class="cast-perturn-chip cast-perturn-chip--mana">+{{ pendingCastSpell.perTurnMana }}/Rd ◆</span>
+                }
+                @if (pendingCastSpell.perTurnFokus) {
+                  <span class="cast-perturn-chip cast-perturn-chip--fokus">+{{ pendingCastSpell.perTurnFokus }}/Rd ◆</span>
+                }
+                @if (pendingCastSpell.durationTurns) {
+                  <span class="cast-perturn-chip cast-perturn-chip--dur">⧗&nbsp;{{ pendingCastSpell.durationTurns }}Rd</span>
+                }
+              </div>
             }
           </div>
         </div>
-      }
 
-      @if (pendingCastSpell.durationTurns) {
-        <div class="ccb-cost-section">
-          <div class="ccb-cost-title">Dauer</div>
-          <div class="ccb-cost-row">
-            <span class="ccb-pill ccb-pill--neutral">{{ pendingCastSpell.durationTurns }} Runden</span>
-          </div>
+        <!-- Footer actions -->
+        <div class="cast-footer">
+          <button class="cast-cancel-btn" (click)="cancelCast()">Abbrechen</button>
+          <button class="cast-confirm-btn" [style.--sc]="spellColor(pendingCastSpell)" (click)="confirmCast()">
+            ✦ WIRKEN
+          </button>
         </div>
-      }
-
-      <div class="ccb-castlevel-section">
-        <div class="ccb-cost-title">Cast-Level</div>
-        <div class="ccb-cl-row">
-          <button class="ccb-cl-btn" (click)="pendingCastLevel = Math.max(0, pendingCastLevel - 1)">−</button>
-          <span class="ccb-cl-val">{{ pendingCastLevel }}</span>
-          <button class="ccb-cl-btn" (click)="pendingCastLevel = pendingCastLevel + 1">+</button>
-          @if (pendingCastLevel > 0) {
-            <span class="ccb-cl-reduction">−{{ Math.min(90, Math.floor(pendingCastLevel / 10) * 10) }}%</span>
-          }
-        </div>
-      </div>
-
-      <div class="ccb-actions">
-        <button class="ccb-cancel-btn" (click)="cancelCast()">Abbrechen</button>
-        <button class="ccb-confirm-btn" [style.--sc]="spellColor(pendingCastSpell)" (click)="confirmCast()">
-          ✦ Wirken
-        </button>
-      </div>
-    </div>
+      </div><!-- /cast-card -->
+    </div><!-- /cast-portal -->
   }
 
 </div>

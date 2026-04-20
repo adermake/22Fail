@@ -95,23 +95,94 @@
   padding: 4px 8px;
 }
 .scv-cost {
-  padding: 1px 6px;
+  padding: 1px 7px;
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 700;
+  white-space: nowrap;
 }
-.scv-cost--mana  { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.3); color: #c4b5fd; }
-.scv-cost--fokus { background: rgba(59,130,246,0.1);  border: 1px solid rgba(59,130,246,0.25); color: #93c5fd; }
+/* Mana = blue, Fokus = dark purple */
+.scv-cost--mana  { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.35); color: #60a5fa; }
+.scv-cost--fokus { background: rgba(109,40,217,0.12); border: 1px solid rgba(109,40,217,0.4); color: #a78bfa; }
 .scv-cost--free  { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #4b5563; font-style: italic; }
 .scv-cost--plan  { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.25); color: #a78bfa; }
 .scv-req {
   padding: 1px 6px;
   border-radius: 4px;
-  background: rgba(245,158,11,0.1);
-  border: 1px solid rgba(245,158,11,0.25);
-  color: #fcd34d;
+  background: #1e3a5f;
+  color: #90caf9;
+  border: 1px solid rgba(66,165,245,0.5);
   font-size: 0.68rem;
   font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ── Footer: stat reqs (left) + costs (right) ─── */
+.scv-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px 6px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  min-height: 28px;
+}
+.scv-reqs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  flex: 1;
+  align-items: center;
+}
+.scv-req {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #1e3a5f;
+  color: #90caf9;
+  border: 1px solid rgba(66,165,245,0.5);
+  font-size: 0.66rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.scv-req--unmet {
+  background: #4d1c21;
+  color: #ffcdd2;
+  border-color: rgba(229,115,115,0.6);
+  text-decoration: line-through;
+}
+.scv-cost-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.scv-cost-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.scv-cost-row--sub {
+  opacity: 0.85;
+}
+.scv-perturn--mana {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #60a5fa;
+  white-space: nowrap;
+}
+.scv-perturn--fokus {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #a78bfa;
+  white-space: nowrap;
+}
+.scv-duration {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #fcd34d;
+  white-space: nowrap;
 }
 
 /* Description */
