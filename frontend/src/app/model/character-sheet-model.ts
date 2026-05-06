@@ -63,6 +63,7 @@ export interface CharacterSheet {
   // Active / Sustained Skills & Spells
   activeSkillNames?: string[];    // Names of currently toggled-on perRound skills
   castingSpells?: CastingSpellEntry[]; // Spells actively being cast (cast-level tracking)
+  spellCastBonus?: number;        // Saved bonus added to every d20 cast roll
 }
 
 export function createEmptySheet(): CharacterSheet {

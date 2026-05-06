@@ -129,7 +129,7 @@ export class SpellsComponent {
     const current: CastingSpellEntry[] = [...(this.sheet.castingSpells || [])];
     const existing = current.find(e => e.spellId === spell.id);
     if (!existing) {
-      current.push({ spellId: spell.id!, spellName: spell.name, castLevel: 0 });
+      current.push({ spellId: spell.id!, spellName: spell.name, castLevel: 0, remainingCast: 0 });
       this.sheet.castingSpells = current;
       this.patch.emit({ path: 'castingSpells', value: current });
     }

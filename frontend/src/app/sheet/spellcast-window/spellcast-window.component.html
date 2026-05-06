@@ -58,8 +58,8 @@
             <div class="scw-spell-card"
                  [class.is-casting]="isActivelyCasting(spell)"
                  [style.--sc]="spellColor(spell)"
-                 (click)="!isActivelyCasting(spell) && requestCast(spell)"
-                 [title]="isActivelyCasting(spell) ? 'Wird bereits gewirkt' : 'Klicken zum Wirken: ' + spell.name">
+                 (click)="requestCast(spell)"
+                 [title]="'Klicken zum Wirken: ' + spell.name">
               <div class="scw-spell-glow"></div>
 
               <!-- Card header -->
@@ -135,11 +135,22 @@
     <!-- Right: Active casts -->
     <div class="scw-panel scw-panel--active">
       <div class="scw-panel-header">Aktive Zauber</div>
+
+      <!-- Cast Bonus (saved on sheet) -->
+      <div class="scw-cast-bonus-row">
+        <label class="scw-cast-bonus-label">Wirk-Bonus</label>
+        <input class="scw-cast-bonus-input"
+               type="number"
+               [ngModel]="castBonus"
+               (ngModelChange)="setCastBonus($event)"
+               title="Wird zu jedem Wirk-Würfelwurf addiert" />
+      </div>
+
       @if (castingSpells.length === 0) {
         <div class="scw-empty">Keine Zauber aktiv.<br><span class="scw-empty-hint">Klicke einen Zauber an, um ihn zu wirken.</span></div>
       } @else {
         <div class="scw-active-list">
-          @for (entry of castingSpells; track entry.spellId) {
+          @for (entry of castingSpells; track (entry.entryId ?? entry.spellId)) {
             <div class="scw-active-card"
                  [style.--sc]="getSpell(entry.spellId) ? spellColor(getSpell(entry.spellId)!) : '#8b5cf6'">
               <div class="scw-active-glow"></div>
@@ -147,7 +158,7 @@
                 <span class="scw-active-icon">{{ getSpell(entry.spellId)?.icon || '✦' }}</span>
                 <span class="scw-active-name">{{ entry.spellName }}</span>
                 @if (entry.skalierung && entry.skalierung > 1) {
-                  <span class="scw-skal-badge">×{{ entry.skalierung }}</span>
+                  <span class="scw-skal-badge scw-skal-badge--prominent">✦ ×{{ entry.skalierung }}</span>
                 }
                 <button class="scw-stop-btn" (click)="stopCasting(entry)" title="Beenden">✕</button>
               </div>
@@ -167,7 +178,10 @@
                       <div class="scw-counter">
                         <span class="scw-counter-name">{{ counter.name }}</span>
                         <button class="scw-counter-btn" (click)="adjustCounter(entry.spellId, ci, counter.current - 1)">−</button>
-                        <span class="scw-counter-val">{{ counter.current }}</span>
+                        <input class="scw-counter-input"
+                               type="number"
+                               [ngModel]="counter.current"
+                               (ngModelChange)="adjustCounter(entry.spellId, ci, $event)" />
                         <button class="scw-counter-btn" (click)="adjustCounter(entry.spellId, ci, counter.current + 1)">+</button>
                         <span class="scw-counter-max">/ {{ counter.max }}</span>
                         <div class="scw-counter-bar">
@@ -180,15 +194,51 @@
                   </div>
                 }
               }
-              <div class="scw-cl-row">
-                <span class="scw-cl-label">Cast-Level</span>
-                <button class="scw-cl-btn" (click)="decrementCastLevel(entry)">−</button>
-                <span class="scw-cl-val">{{ entry.castLevel }}</span>
-                <button class="scw-cl-btn" (click)="incrementCastLevel(entry)">+</button>
-                @if (reductionLabel(entry.castLevel); as red) {
-                  <span class="scw-reduction">{{ red }}</span>
-                }
-              </div>
+
+              <!-- Cast progress (while remainingCast > 0) -->
+              @if (entry.remainingCast > 0) {
+                <div class="scw-cast-progress">
+                  <div class="scw-cast-progress-header">
+                    <span class="scw-cast-progress-label">Wirken...</span>
+                    <div class="scw-cast-remaining-row">
+                      <input class="scw-cast-remaining-input"
+                             type="number"
+                             min="0"
+                             [ngModel]="entry.remainingCast"
+                             (ngModelChange)="setRemainingCast(entry, $event)" />
+                      <span class="scw-cast-remaining-of">/ {{ entry.castLevel }}</span>
+                    </div>
+                  </div>
+                  <div class="scw-cast-bar">
+                    <div class="scw-cast-bar-fill" [style.width.%]="castProgressPercent(entry)"></div>
+                  </div>
+                  <button class="scw-roll-btn" (click)="rollCast(entry)">🎲 W20 Würfeln</button>
+                </div>
+              }
+
+              <!-- Round counter (cast done, spell active) -->
+              @if (entry.remainingCast <= 0 && !isSpellFinished(entry)) {
+                <div class="scw-round-counter">
+                  <span class="scw-round-label">Runde</span>
+                  <input class="scw-round-input"
+                         type="number"
+                         min="0"
+                         [ngModel]="entry.roundsActive ?? 0"
+                         (ngModelChange)="setRoundsActive(entry, $event)" />
+                  @if (getSpell(entry.spellId)?.durationTurns; as dur) {
+                    <span class="scw-round-of">/ {{ dur }}</span>
+                  }
+                  <button class="scw-advance-btn" (click)="advanceRound(entry)" title="Runde voranbringen">+</button>
+                </div>
+              }
+
+              <!-- Finished / expired state -->
+              @if (isSpellFinished(entry)) {
+                <div class="scw-spell-finished">
+                  <span class="scw-finished-badge">✓ Beendet</span>
+                  <button class="scw-dismiss-btn" (click)="stopCasting(entry)">Entlassen</button>
+                </div>
+              }
             </div>
           }
         </div>
@@ -275,11 +325,11 @@
               <input class="cast-slider cast-slider--cl"
                      type="range"
                      [style.--sc]="spellColor(pendingCastSpell)"
-                     min="0" max="100"
+                     min="0" max="100" step="10"
                      [(ngModel)]="pendingCastLevel" />
               <input class="cast-level-input"
                      type="number"
-                     min="0"
+                     min="0" step="10"
                      [(ngModel)]="pendingCastLevel"
                      title="Cast-Level direkt eingeben" />
             </div>
@@ -320,6 +370,11 @@
                    [style.--sc]="spellColor(pendingCastSpell)"
                    min="1" max="10" step="0.5"
                    [(ngModel)]="skalierung" />
+            <input class="cast-skal-input"
+                   type="number"
+                   min="1" step="0.5"
+                   [(ngModel)]="skalierung"
+                   title="Skalierung direkt eingeben" />
           </div>
 
           <!-- RIGHT: Resource bars -->
@@ -403,7 +458,7 @@
         <!-- Footer actions -->
         <div class="cast-footer">
           <button class="cast-cancel-btn" (click)="cancelCast()">Abbrechen</button>
-          <button class="cast-confirm-btn" [style.--sc]="spellColor(pendingCastSpell)" (click)="confirmCast()">
+          <button class="cast-confirm-btn" [style.--sc]="spellColor(pendingCastSpell)" (click)="confirmCast()" [disabled]="!canCast" [title]="!canCast ? 'Fehlende Ressourcen oder Stats' : ''">
             ✦ WIRKEN
           </button>
         </div>

@@ -10,6 +10,7 @@ import { SpellBlock, CastingSpellEntry, generateSpellId } from '../../model/spel
 import { JsonPatch } from '../../model/json-patch.model';
 import { KeywordEnhancer } from '../keyword-enhancer';
 import { ImageService } from '../../services/image.service';
+import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
 
 interface FloatingRune {
   id: number;
@@ -62,6 +63,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
   private cdr = inject(ChangeDetectorRef);
   private _sanitizer = inject(DomSanitizer);
   private _imageService = inject(ImageService);
+  private _worldSocket = inject(WorldSocketService);
   protected readonly Math = Math;
 
   floatingRunes: FloatingRune[] = [];
@@ -73,6 +75,18 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
   pendingCastSpell: SpellBlock | null = null;
   pendingCastLevel = 0;
   skalierung = 1;
+
+  // ── Cast-bonus (saved on sheet) ───────────────────────────────────────────
+
+  get castBonus(): number {
+    return this.sheet.spellCastBonus ?? 0;
+  }
+
+  setCastBonus(v: number): void {
+    this.sheet.spellCastBonus = v;
+    this.patch.emit({ path: 'spellCastBonus', value: v });
+    this.cdr.markForCheck();
+  }
 
   // ── Data accessors ────────────────────────────────────────────────────────
 
@@ -107,7 +121,12 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
     return this.castingSpells.reduce((sum, entry) => {
       const spell = this.availableSpells.find(s => s.id === entry.spellId);
       if (!spell) return sum;
-      return sum + (spell.perTurnFokus || spell.costFokus || 0);
+      // Cast level reduces fokus cost; scale with skalierung
+      const base = spell.perTurnFokus || spell.costFokus || 0;
+      const sk = entry.skalierung ?? 1;
+      const cl = entry.castLevel || 0;
+      const reduction = Math.min(0.9, Math.floor(cl / 10) * 0.1);
+      return sum + Math.round(base * (1 - reduction) * sk * 100) / 100;
     }, 0);
   }
 
@@ -210,17 +229,25 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
   pendingCostManaTotal(): number {
     const spell = this.pendingCastSpell;
     if (!spell) return 0;
-    const base = spell.costMana || 0;
-    const reduction = Math.min(0.9, Math.floor(this.pendingCastLevel / 10) * 0.1);
-    return Math.round(base * (1 - reduction) * this.skalierung * 100) / 100;
+    // Mana is NOT reduced by cast level — only scaled by skalierung
+    return Math.round((spell.costMana || 0) * this.skalierung * 100) / 100;
   }
 
   pendingCostFokusTotal(): number {
     const spell = this.pendingCastSpell;
     if (!spell) return 0;
-    const base = spell.costFokus || 0;
+    // Fokus (ongoing) IS reduced by cast level
+    const base = spell.perTurnFokus || spell.costFokus || 0;
     const reduction = Math.min(0.9, Math.floor(this.pendingCastLevel / 10) * 0.1);
     return Math.round(base * (1 - reduction) * this.skalierung * 100) / 100;
+  }
+
+  get canCast(): boolean {
+    if (!this.pendingCastSpell) return false;
+    const manaOk = this.manaAfterCast() >= 0;
+    const fokusOk = (this.fokusAvailable - this.pendingCostFokusTotal()) >= 0;
+    const statsOk = this.spellStatReqs(this.pendingCastSpell).every(r => this.castLevelMeetsReq(r.key, r.value));
+    return manaOk && fokusOk && statsOk;
   }
 
   manaAfterCast(): number {
@@ -258,7 +285,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
   get showCastConfirm(): boolean { return this.pendingCastSpell !== null; }
 
   requestCast(spell: SpellBlock): void {
-    if (this.isActivelyCasting(spell)) return;
+    // No restriction — same spell can be cast multiple times simultaneously
     this.pendingCastSpell = spell;
     this.pendingCastLevel = 0;
     this.skalierung = 1;
@@ -274,7 +301,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
 
   confirmCast(): void {
     const spell = this.pendingCastSpell;
-    if (!spell) return;
+    if (!spell || !this.canCast) return;
     const sk = this.skalierung;
     const cl = this.pendingCastLevel;
     this.pendingCastSpell = null;
@@ -329,30 +356,131 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
 
   castSpell(spell: SpellBlock, castLevel = 0, skalierung = 1): void {
     const entryId = `${spell.id || generateSpellId()}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    // Mana is immediately consumed; fokus is an ongoing commitment (not one-time subtracted)
+    const manaCost = Math.round((spell.costMana || 0) * skalierung * 100) / 100;
+
+    // Subtract mana from statuses immediately
+    this._consumeMana(manaCost);
+
+    // Build the entry — remainingCast = castLevel (d20 rolls will reduce it to 0)
     const entry: CastingSpellEntry = {
       spellId: spell.id || generateSpellId(),
       spellName: spell.name,
       castLevel,
       entryId,
       skalierung: skalierung !== 1 ? skalierung : undefined,
+      remainingCast: castLevel,  // 0 = instant cast; >0 = needs d20 rolls to complete
+      roundsActive: castLevel <= 0 ? 0 : undefined,  // instant spells start active immediately
     };
     const updated = [...this.castingSpells, entry];
     this.sheet.castingSpells = updated;
     this.patch.emit({ path: 'castingSpells', value: updated });
+
+    // Send lobby action
+    this._sendCastAction(spell, castLevel, skalierung, manaCost);
+
     this._spawnRunesForSpell(spell);
     this.cdr.markForCheck();
   }
 
-  incrementCastLevel(entry: CastingSpellEntry): void {
-    entry.castLevel = (entry.castLevel || 0) + 1;
+  private _consumeMana(amount: number): void {
+    if (amount <= 0) return;
+    const statuses = [...(this.sheet.statuses || [])];
+    const idx = statuses.findIndex(s => s.statusName === 'Mana');
+    if (idx < 0) return;
+    const newVal = Math.max(0, statuses[idx].statusCurrent - amount);
+    statuses[idx] = { ...statuses[idx], statusCurrent: newVal };
+    this.sheet.statuses = statuses;
+    this.patch.emit({ path: `statuses.${idx}.statusCurrent`, value: newVal });
+  }
+
+  private _sendCastAction(spell: SpellBlock, castLevel: number, skalierung: number, manaCost: number): void {
+    if (!this.sheet.worldName) return;
+    const fokusBase = spell.perTurnFokus || spell.costFokus || 0;
+    const fokusReduction = Math.min(0.9, Math.floor(castLevel / 10) * 0.1);
+    const fokusCommit = Math.round(fokusBase * (1 - fokusReduction) * skalierung * 100) / 100;
+    const resourceChanges: DiceRollEvent['resourceChanges'] = [];
+    if (manaCost > 0) resourceChanges.push({ resource: 'Mana', amount: -manaCost });
+    if (fokusCommit > 0) resourceChanges.push({ resource: 'Fokus', amount: -fokusCommit });
+    const event: DiceRollEvent = {
+      id: `cast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      worldName: this.sheet.worldName,
+      characterName: this.sheet.name,
+      characterId: this.sheet.id || '',
+      diceType: 0,
+      diceCount: 0,
+      bonuses: [],
+      result: 0,
+      rolls: [],
+      timestamp: new Date(),
+      isSecret: false,
+      actionName: `✦ ${spell.name}${skalierung > 1 ? ` ×${skalierung}` : ''}`,
+      actionIcon: spell.icon || '✦',
+      actionColor: spell.strokeColor || '#8b5cf6',
+      resourceChanges: resourceChanges.length > 0 ? resourceChanges : undefined,
+    };
+    this._worldSocket.sendDiceRoll(event);
+  }
+
+  /** Roll d20 + castBonus and subtract from remaining cast. Returns roll result. */
+  rollCast(entry: CastingSpellEntry): void {
+    const roll = Math.floor(Math.random() * 20) + 1;
+    const total = roll + this.castBonus;
+    const before = entry.remainingCast;
+    entry.remainingCast = Math.max(0, entry.remainingCast - total);
+    // If this roll completed the cast, start round tracking
+    if (before > 0 && entry.remainingCast <= 0) {
+      entry.roundsActive = 0;
+      const spell = this.getSpell(entry.spellId);
+      // Immediately mark finished if spell has no duration
+      if (spell && !spell.durationTurns) {
+        entry.roundsActive = 0; // show as active; will be finished right away
+      }
+    }
     this._patchCasting();
   }
 
-  decrementCastLevel(entry: CastingSpellEntry): void {
-    entry.castLevel = Math.max(0, (entry.castLevel || 0) - 1);
+  /** Advance round counter for an active spell */
+  advanceRound(entry: CastingSpellEntry): void {
+    entry.roundsActive = (entry.roundsActive ?? 0) + 1;
     this._patchCasting();
   }
 
+  /** Whether a spell has exceeded its round duration and should be shown as finished */
+  isSpellFinished(entry: CastingSpellEntry): boolean {
+    if (entry.remainingCast > 0) return false; // still casting
+    const spell = this.getSpell(entry.spellId);
+    if (!spell?.durationTurns) return true;  // no duration = instantly done
+    return (entry.roundsActive ?? 0) >= spell.durationTurns;
+  }
+
+  /** Whether the spell is actively sustained (casting complete, not yet finished) */
+  isSpellActive(entry: CastingSpellEntry): boolean {
+    return entry.remainingCast <= 0 && !this.isSpellFinished(entry);
+  }
+
+  castProgressPercent(entry: CastingSpellEntry): number {
+    const total = entry.castLevel || 0;
+    if (total <= 0) return 100;
+    return Math.round(((total - entry.remainingCast) / total) * 100);
+  }
+
+  /** Edit remaining cast directly */
+  setRemainingCast(entry: CastingSpellEntry, value: number): void {
+    entry.remainingCast = Math.max(0, value);
+    if (entry.remainingCast <= 0 && entry.roundsActive === undefined) {
+      entry.roundsActive = 0;
+    }
+    this._patchCasting();
+  }
+
+  /** Edit round counter directly */
+  setRoundsActive(entry: CastingSpellEntry, value: number): void {
+    entry.roundsActive = Math.max(0, value);
+    this._patchCasting();
+  }
+
+  /** Stop / dismiss a spell (removes from active list) */
   stopCasting(entry: CastingSpellEntry): void {
     const updated = entry.entryId
       ? this.castingSpells.filter(e => e.entryId !== entry.entryId)

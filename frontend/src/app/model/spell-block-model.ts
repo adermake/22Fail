@@ -55,11 +55,13 @@ export function generateSpellId(): string {
 
 // ── Casting Spell Entry (active/sustained cast tracking on the character sheet) ─
 export interface CastingSpellEntry {
-  entryId?: string;     // Unique per cast instance (allows same spell multiple times)
-  spellId: string;      // Matches SpellBlock.id
-  spellName: string;    // Denormalized for fast display
-  castLevel: number;    // Accumulated cast level (determines cost reduction)
-  skalierung?: number;  // Power multiplier chosen at cast time (default 1)
+  entryId?: string;         // Unique per cast instance (allows same spell multiple times)
+  spellId: string;          // Matches SpellBlock.id
+  spellName: string;        // Denormalized for fast display
+  castLevel: number;        // Cast level set at cast time (used for fokus/stat reduction)
+  skalierung?: number;      // Power multiplier chosen at cast time (default 1)
+  remainingCast: number;    // Cast points remaining (d20 rolls reduce this; 0 = spell is active)
+  roundsActive?: number;    // Rounds elapsed since spell became active (undefined = not yet active)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
