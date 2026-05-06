@@ -854,6 +854,21 @@
   opacity: 0.85;
 }
 
+/* Stat req with cast-level reduction: original → effective */
+.cast-req-orig {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+.cast-req-arrow {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin: 0 1px;
+}
+.cast-req-effective {
+  font-weight: 800;
+  color: #4ade80;
+}
+
 /* Two-column controls */
 .cast-controls {
   display: flex;

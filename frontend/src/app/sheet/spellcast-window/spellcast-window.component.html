@@ -35,9 +35,9 @@
       <div class="scw-res-block">
         <span class="scw-res-label">Fokus</span>
         <div class="scw-res-bar">
-          <div class="scw-res-fill scw-res-fill--fokus" [style.width.%]="fokusPercent"></div>
+          <div class="scw-res-fill scw-res-fill--fokus" [style.width.%]="fokusAvailPercent"></div>
         </div>
-        <span class="scw-res-val">{{ fokusUsed }} / {{ fokusMax }}</span>
+        <span class="scw-res-val">{{ fokusAvailable }} / {{ fokusMax }}</span>
       </div>
     </div>
 
@@ -304,9 +304,13 @@
               <span class="cast-req"
                     [class.cast-req--met]="castLevelMeetsReq(req.key, req.value)"
                     [class.cast-req--unmet]="!castLevelMeetsReq(req.key, req.value)">
-                {{ req.label }}&nbsp;{{ req.value }}
-                @if (!spellMeetsStat(req.key, req.value) && castLevelMeetsReq(req.key, req.value)) {
-                  <span class="cast-req-boost">✓ +{{ Math.floor(pendingCastLevel / 10) }}</span>
+                {{ req.label }}&nbsp;
+                @if (castLevelReducedReq(req.value) < req.value) {
+                  <span class="cast-req-orig">{{ req.value }}</span>
+                  <span class="cast-req-arrow">→</span>
+                  <span class="cast-req-effective">{{ castLevelReducedReq(req.value) }}</span>
+                } @else {
+                  {{ req.value }}
                 }
               </span>
             }

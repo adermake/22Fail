@@ -197,8 +197,13 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
   castLevelMeetsReq(key: string, value: number): boolean {
     const stat = (this.sheet as any)[key];
     const current = stat?.current ?? 0;
-    // Each 10 cast levels adds 1 effective stat point
-    return current + Math.floor(this.pendingCastLevel / 10) >= value;
+    // Each 10 cast levels reduces the effective stat requirement by 1
+    return current >= this.castLevelReducedReq(value);
+  }
+
+  /** Effective stat requirement after cast-level reduction */
+  castLevelReducedReq(value: number): number {
+    return Math.max(0, value - Math.floor(this.pendingCastLevel / 10));
   }
 
   castLevelForReq(key: string, value: number): number {
