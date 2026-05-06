@@ -284,6 +284,17 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
 
   get showCastConfirm(): boolean { return this.pendingCastSpell !== null; }
 
+  /** Explicit handlers so OnPush re-evaluates all derived template expressions */
+  onCastLevelChange(val: number): void {
+    this.pendingCastLevel = +val || 0;
+    this.cdr.markForCheck();
+  }
+
+  onSkalierungChange(val: number): void {
+    this.skalierung = +val || 1;
+    this.cdr.markForCheck();
+  }
+
   requestCast(spell: SpellBlock): void {
     // No restriction — same spell can be cast multiple times simultaneously
     this.pendingCastSpell = spell;
@@ -375,9 +386,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
     const updated = [...this.castingSpells, entry];
     this.sheet.castingSpells = updated;
     this.patch.emit({ path: 'castingSpells', value: updated });
-
-    // Send lobby action
-    this._sendCastAction(spell, castLevel, skalierung, manaCost);
+    // No lobby action yet — action fires on each d20 roll and when casting completes
 
     this._spawnRunesForSpell(spell);
     this.cdr.markForCheck();
@@ -394,16 +403,44 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
     this.patch.emit({ path: `statuses.${idx}.statusCurrent`, value: newVal });
   }
 
-  private _sendCastAction(spell: SpellBlock, castLevel: number, skalierung: number, manaCost: number): void {
+  /** Sent each time a d20 cast roll is made — shows the roll to the lobby */
+  private _sendCastRollAction(entry: CastingSpellEntry, roll: number, bonus: number, total: number): void {
     if (!this.sheet.worldName) return;
-    const fokusBase = spell.perTurnFokus || spell.costFokus || 0;
-    const fokusReduction = Math.min(0.9, Math.floor(castLevel / 10) * 0.1);
-    const fokusCommit = Math.round(fokusBase * (1 - fokusReduction) * skalierung * 100) / 100;
+    const spell = this.getSpell(entry.spellId);
+    const spellName = entry.spellName;
+    const remaining = entry.remainingCast;
+    this._worldSocket.sendDiceRoll({
+      id: `cast-roll-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      worldName: this.sheet.worldName,
+      characterName: this.sheet.name,
+      characterId: this.sheet.id || '',
+      diceType: 20,
+      diceCount: 1,
+      bonuses: bonus !== 0 ? [{ name: 'Wirk-Bonus', value: bonus, source: 'sheet' }] : [],
+      result: total,
+      rolls: [roll],
+      timestamp: new Date(),
+      isSecret: false,
+      actionName: `🎲 Wirken: ${spellName} (noch ${remaining})`,
+      actionIcon: spell?.icon || '🎲',
+      actionColor: spell?.strokeColor || '#8b5cf6',
+    });
+  }
+
+  /** Sent once when casting finishes (remainingCast reaches 0) */
+  private _sendSpellActivatedAction(entry: CastingSpellEntry, manaCost: number): void {
+    if (!this.sheet.worldName) return;
+    const spell = this.getSpell(entry.spellId);
+    const sk = entry.skalierung ?? 1;
+    const cl = entry.castLevel || 0;
+    const fokusBase = spell ? (spell.perTurnFokus || spell.costFokus || 0) : 0;
+    const fokusReduction = Math.min(0.9, Math.floor(cl / 10) * 0.1);
+    const fokusCommit = Math.round(fokusBase * (1 - fokusReduction) * sk * 100) / 100;
     const resourceChanges: DiceRollEvent['resourceChanges'] = [];
     if (manaCost > 0) resourceChanges.push({ resource: 'Mana', amount: -manaCost });
     if (fokusCommit > 0) resourceChanges.push({ resource: 'Fokus', amount: -fokusCommit });
-    const event: DiceRollEvent = {
-      id: `cast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    this._worldSocket.sendDiceRoll({
+      id: `cast-done-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       worldName: this.sheet.worldName,
       characterName: this.sheet.name,
       characterId: this.sheet.id || '',
@@ -414,29 +451,38 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
       rolls: [],
       timestamp: new Date(),
       isSecret: false,
-      actionName: `✦ ${spell.name}${skalierung > 1 ? ` ×${skalierung}` : ''}`,
-      actionIcon: spell.icon || '✦',
-      actionColor: spell.strokeColor || '#8b5cf6',
+      actionName: `✦ ${entry.spellName}${sk > 1 ? ` ×${sk}` : ''} — Gewirkt!`,
+      actionIcon: spell?.icon || '✦',
+      actionColor: spell?.strokeColor || '#8b5cf6',
       resourceChanges: resourceChanges.length > 0 ? resourceChanges : undefined,
-    };
-    this._worldSocket.sendDiceRoll(event);
+    });
   }
 
-  /** Roll d20 + castBonus and subtract from remaining cast. Returns roll result. */
+  /** Roll d20 + castBonus and subtract from remaining cast. Sends lobby actions. */
   rollCast(entry: CastingSpellEntry): void {
     const roll = Math.floor(Math.random() * 20) + 1;
-    const total = roll + this.castBonus;
+    const bonus = this.castBonus;
+    const total = roll + bonus;
     const before = entry.remainingCast;
-    entry.remainingCast = Math.max(0, entry.remainingCast - total);
-    // If this roll completed the cast, start round tracking
-    if (before > 0 && entry.remainingCast <= 0) {
+    entry.remainingCast = Math.max(0, before - total);
+
+    const justCompleted = before > 0 && entry.remainingCast <= 0;
+    if (justCompleted) {
       entry.roundsActive = 0;
-      const spell = this.getSpell(entry.spellId);
-      // Immediately mark finished if spell has no duration
-      if (spell && !spell.durationTurns) {
-        entry.roundsActive = 0; // show as active; will be finished right away
-      }
     }
+
+    // Send roll action first (shows remaining AFTER this roll)
+    this._sendCastRollAction(entry, roll, bonus, total);
+
+    // If casting just finished, also send the spell-activated action
+    if (justCompleted) {
+      // manaCost was already consumed at cast time — just show it in the notification
+      const spell = this.getSpell(entry.spellId);
+      const sk = entry.skalierung ?? 1;
+      const manaCost = Math.round((spell?.costMana || 0) * sk * 100) / 100;
+      this._sendSpellActivatedAction(entry, manaCost);
+    }
+
     this._patchCasting();
   }
 
