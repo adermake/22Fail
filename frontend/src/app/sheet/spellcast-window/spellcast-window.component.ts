@@ -1,6 +1,6 @@
 import {
   ChangeDetectionStrategy, ChangeDetectorRef, Component,
-  EventEmitter, HostListener, inject, Input, OnChanges, OnInit, Output, SimpleChanges,
+  EventEmitter, HostListener, inject, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -55,7 +55,7 @@ const RUNE_SYMBOLS = ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ
   styleUrl: './spellcast-window.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SpellcastWindowComponent implements OnInit, OnChanges {
+export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() close = new EventEmitter<void>();
@@ -565,7 +565,12 @@ export class SpellcastWindowComponent implements OnInit, OnChanges {
   // ── Floating runes ────────────────────────────────────────────────────────
 
   ngOnInit(): void {
+    document.body.style.overflow = 'hidden';
     this._generateAmbientRunes();
+  }
+
+  ngOnDestroy(): void {
+    document.body.style.overflow = '';
   }
 
   ngOnChanges(_: SimpleChanges): void {

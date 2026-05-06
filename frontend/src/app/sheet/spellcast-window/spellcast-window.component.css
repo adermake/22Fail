@@ -13,7 +13,7 @@
   height: 100%;
   background: radial-gradient(ellipse at 40% 30%, rgba(88, 28, 235, 0.18) 0%, rgba(0,0,0,0) 60%),
               radial-gradient(ellipse at 70% 70%, rgba(59, 130, 246, 0.12) 0%, rgba(0,0,0,0) 60%),
-              rgba(8, 6, 20, 0.97);
+              rgb(8, 6, 20);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -148,17 +148,18 @@
   position: relative;
   z-index: 1;
   flex: 1;
+  min-height: 0; /* allows flex children to shrink and scroll */
   display: flex;
   align-items: stretch;
   gap: 0;
   overflow: hidden;
   padding: 24px 28px;
-  gap: 0;
 }
 
 /* ── Panel ───────────────────────────────────────────── */
 .scw-panel {
   flex: 1;
+  min-height: 0; /* critical: allows overflow-y on children to actually scroll */
   display: flex;
   flex-direction: column;
   gap: 16px;
