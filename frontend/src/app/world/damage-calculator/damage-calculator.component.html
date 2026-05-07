@@ -2,7 +2,6 @@
   <!-- Header -->
   <div class="dmg-calc-header">
     <span class="dmg-calc-title">&#x2694; Schadensrechner</span>
-    <span class="dmg-calc-formula">{{ formula }}</span>
     @if (close.observed) {
       <button class="dmg-close-btn" (click)="close.emit()" title="Schließen">&#x2715;</button>
     }
@@ -35,7 +34,7 @@
 
       <!-- Severity selector -->
       <div class="dmg-field">
-        <label class="dmg-label">Schwere des Treffers</label>
+        <label class="dmg-label">Trefferstärke</label>
         <div class="dmg-severity-grid">
           <button
             *ngFor="let s of severityOptions; trackBy: trackBySeverity"
@@ -44,7 +43,6 @@
             [style.--sev-color]="s.color"
             (click)="selectSeverity(s)"
           >
-            <span class="dmg-sev-icon">{{ s.icon }}</span>
             <span class="dmg-sev-label">{{ s.label }}</span>
             <span class="dmg-sev-multi">x{{ s.multiplier }}</span>
           </button>

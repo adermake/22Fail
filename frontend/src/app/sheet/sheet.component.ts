@@ -164,7 +164,8 @@ export class SheetComponent implements OnInit {
         event.preventDefault();
         break;
       case 'c':
-        // Toggle cast window, close all others
+        // Toggle cast window, close all others — skip if CTRL is held (e.g. CTRL+C)
+        if (event.ctrlKey || event.metaKey) break;
         this.showCastWindow = !this.showCastWindow;
         if (this.showCastWindow) {
           this.showDiceRoller = false;

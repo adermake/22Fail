@@ -108,7 +108,7 @@
 }
 
 .dmg-dice-prefix {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--accent, #8b5cf6);
   background: rgba(139, 92, 246, 0.15);
@@ -120,6 +120,8 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  height: 48px;
+  box-sizing: border-box;
 }
 
 .dmg-effekt-input {
@@ -129,7 +131,9 @@
   color: var(--text, #e5e7eb);
   font-size: 1.5rem;
   font-weight: 700;
-  padding: 8px 12px;
+  padding: 0 12px;
+  height: 48px;
+  box-sizing: border-box;
   flex: 1;
   min-width: 0;
   text-align: center;
@@ -147,7 +151,7 @@
 }
 
 .dmg-stab-prefix {
-  font-size: 1.1rem;
+  font-size: 1rem;
   background: rgba(99, 102, 241, 0.15);
   border: 1px solid rgba(99, 102, 241, 0.35);
   border-right: none;
@@ -157,6 +161,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  height: 48px;
+  box-sizing: border-box;
+  line-height: 1;
 }
 
 .dmg-stab-input {
