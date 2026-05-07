@@ -135,7 +135,7 @@
 
 <!-- Damage Calculator Dialog -->
 @if (showDamageCalc) {
-  <div class="dialog-overlay damage-calc-overlay" (click)="showDamageCalc = false; cdr.detectChanges()">
+  <div class="dialog-overlay damage-calc-overlay" (click)="closeDamageCalc()">
     <div class="dialog-content damage-calc-dialog" (click)="$event.stopPropagation()">
       @if (store.sheet$ | async; as sheet) {
         <app-damage-calculator
@@ -143,7 +143,7 @@
           [characterName]="sheet.name"
           [characterId]="sheet.id || ''"
           [initialEffektivitaet]="damageCalcEffektivitaet"
-          (close)="showDamageCalc = false; cdr.detectChanges()">
+          (close)="closeDamageCalc()">
         </app-damage-calculator>
       }
     </div>

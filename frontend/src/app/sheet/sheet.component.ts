@@ -132,6 +132,7 @@ export class SheetComponent implements OnInit {
           this.showActionMacros = false;
           this.showCastWindow = false;
           this.showDamageCalc = false;
+          document.body.style.overflow = '';
         }
         this.cdr.detectChanges();
         event.preventDefault();
@@ -144,6 +145,7 @@ export class SheetComponent implements OnInit {
           this.showActionMacros = false;
           this.showCastWindow = false;
           this.showDamageCalc = false;
+          document.body.style.overflow = '';
         }
         this.cdr.detectChanges();
         event.preventDefault();
@@ -156,6 +158,7 @@ export class SheetComponent implements OnInit {
           this.showResourcePanel = false;
           this.showCastWindow = false;
           this.showDamageCalc = false;
+          document.body.style.overflow = '';
         }
         this.cdr.detectChanges();
         event.preventDefault();
@@ -168,6 +171,7 @@ export class SheetComponent implements OnInit {
           this.showResourcePanel = false;
           this.showActionMacros = false;
           this.showDamageCalc = false;
+          document.body.style.overflow = '';
         }
         this.cdr.detectChanges();
         event.preventDefault();
@@ -181,6 +185,9 @@ export class SheetComponent implements OnInit {
           this.showActionMacros = false;
           this.showCastWindow = false;
           this.damageCalcEffektivitaet = undefined;
+          document.body.style.overflow = 'hidden';
+        } else {
+          document.body.style.overflow = '';
         }
         this.cdr.detectChanges();
         event.preventDefault();
@@ -200,6 +207,7 @@ export class SheetComponent implements OnInit {
           this.showGameInfo = false;
           this.showCastWindow = false;
           this.showDamageCalc = false;
+          document.body.style.overflow = '';
           this.cdr.detectChanges();
           event.preventDefault();
         }
@@ -693,13 +701,25 @@ export class SheetComponent implements OnInit {
 
   toggleDamageCalc() {
     this.showDamageCalc = !this.showDamageCalc;
-    if (this.showDamageCalc) this.damageCalcEffektivitaet = undefined;
+    if (this.showDamageCalc) {
+      this.damageCalcEffektivitaet = undefined;
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    this.cdr.detectChanges();
+  }
+
+  closeDamageCalc() {
+    this.showDamageCalc = false;
+    document.body.style.overflow = '';
     this.cdr.detectChanges();
   }
 
   openDamageCalcWithEfficiency(efficiency: number) {
     this.damageCalcEffektivitaet = efficiency;
     this.showDamageCalc = true;
+    document.body.style.overflow = 'hidden';
     this.cdr.detectChanges();
   }
 

@@ -25,14 +25,15 @@ export interface DamageRollResult {
 }
 
 const SEVERITY_OPTIONS: DamageSeverity[] = [
-  { label: 'Schwacher Treffer',   multiplier: 1, color: '#6b7280', icon: 'â—¦' },
-  { label: 'Normaler Treffer',    multiplier: 2, color: '#f59e0b', icon: 'â—ˆ' },
-  { label: 'Starker Treffer',     multiplier: 3, color: '#f97316', icon: 'â—‰' },
-  { label: 'Kritischer Treffer',  multiplier: 4, color: '#ef4444', icon: 'â—Ž' },
-  { label: 'TÃ¶dlicher Treffer',   multiplier: 5, color: '#dc2626', icon: 'âœ¦' },
+  { label: 'Schwacher Treffer',   multiplier: 1, color: '#eab308', icon: '\u25E6' },
+  { label: 'Normaler Treffer',    multiplier: 2, color: '#f59e0b', icon: '\u25C8' },
+  { label: 'Starker Treffer',     multiplier: 3, color: '#f97316', icon: '\u25C9' },
+  { label: 'Kritischer Treffer',  multiplier: 4, color: '#ef4444', icon: '\u25CE' },
+  { label: 'T\u00F6dlicher Treffer',   multiplier: 5, color: '#dc2626', icon: '\u2726' },
 ];
 
 const STORAGE_KEY_STAB = 'dmg-calc-last-stab';
+const STORAGE_KEY_HISTORY = 'dmg-calc-history';
 const MAX_HISTORY = 20;
 
 @Component({
@@ -47,7 +48,7 @@ export class DamageCalculatorComponent implements OnChanges, OnInit {
   @Input() worldName: string = '';
   @Input() characterName: string = 'Spielleiter';
   @Input() characterId: string = 'dm';
-  /** Pre-fills the EffektivitÃ¤t field (e.g. from weapon efficiency) */
+  /** Pre-fills the Effektivit\u00E4t field (e.g. from weapon efficiency) */
   @Input() initialEffektivitaet?: number;
   @Output() rolled = new EventEmitter<DamageRollResult>();
   @Output() close = new EventEmitter<void>();
@@ -75,6 +76,17 @@ export class DamageCalculatorComponent implements OnChanges, OnInit {
       const val = parseInt(savedStab, 10);
       if (!isNaN(val) && val >= 0) {
         this.stabilitaet = val;
+      }
+    }
+
+    const savedHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
+    if (savedHistory) {
+      try {
+        const parsed: DamageRollResult[] = JSON.parse(savedHistory);
+        // Restore Date objects (JSON.parse turns them into strings)
+        this.rollHistory = parsed.map(e => ({ ...e, timestamp: new Date(e.timestamp) }));
+      } catch {
+        this.rollHistory = [];
       }
     }
   }
@@ -128,6 +140,7 @@ export class DamageCalculatorComponent implements OnChanges, OnInit {
 
     this.lastResult = result;
     this.rollHistory = [result, ...this.rollHistory].slice(0, MAX_HISTORY);
+    localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(this.rollHistory));
 
     if (this.worldName) {
       const rollEvent: DiceRollEvent = {
