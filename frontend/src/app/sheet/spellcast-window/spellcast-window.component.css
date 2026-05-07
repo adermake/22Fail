@@ -413,19 +413,24 @@
   animation: runeFloat 6s ease-in-out infinite;
 }
 
-/* ── Active casts panel ──────────────────────────────── */
+/* ── Active casts scroll wrapper ────────────────────── */
+.scw-active-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding-right: 4px;
+}
+.scw-active-scroll::-webkit-scrollbar { width: 5px; }
+.scw-active-scroll::-webkit-scrollbar-track { background: transparent; }
+.scw-active-scroll::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 3px; }
+
 .scw-active-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0; /* critical: allows overflow-y to actually scroll in flex column */
-  padding-right: 4px;
 }
-.scw-active-list::-webkit-scrollbar { width: 5px; }
-.scw-active-list::-webkit-scrollbar-track { background: transparent; }
-.scw-active-list::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.3); border-radius: 3px; }
 
 .scw-active-card {
   position: relative;
@@ -1204,7 +1209,7 @@
   background: rgba(139,92,246,0.08);
   border: 1px solid rgba(139,92,246,0.2);
   border-radius: 8px;
-  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 .scw-cast-bonus-label {
   font-size: 0.72rem;

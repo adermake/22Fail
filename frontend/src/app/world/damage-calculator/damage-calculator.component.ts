@@ -1,5 +1,5 @@
-import {
-  Component, Input, Output, EventEmitter, OnChanges, SimpleChanges,
+﻿import {
+  Component, Input, Output, EventEmitter, OnChanges, OnInit, SimpleChanges,
   ChangeDetectionStrategy, ChangeDetectorRef, inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -19,16 +19,21 @@ export interface DamageRollResult {
   total: number;
   severity: DamageSeverity;
   effektivitaet: number;
+  stabilitaet: number;
+  finalDamage: number;
   timestamp: Date;
 }
 
 const SEVERITY_OPTIONS: DamageSeverity[] = [
-  { label: 'Schwacher Treffer',    multiplier: 1, color: '#6b7280', icon: '◦' },
-  { label: 'Normaler Treffer',     multiplier: 2, color: '#f59e0b', icon: '◈' },
-  { label: 'Starker Treffer',      multiplier: 3, color: '#f97316', icon: '◉' },
-  { label: 'Kritischer Treffer',   multiplier: 4, color: '#ef4444', icon: '◎' },
-  { label: 'Tödlicher Treffer',    multiplier: 5, color: '#dc2626', icon: '✦' },
+  { label: 'Schwacher Treffer',   multiplier: 1, color: '#6b7280', icon: 'â—¦' },
+  { label: 'Normaler Treffer',    multiplier: 2, color: '#f59e0b', icon: 'â—ˆ' },
+  { label: 'Starker Treffer',     multiplier: 3, color: '#f97316', icon: 'â—‰' },
+  { label: 'Kritischer Treffer',  multiplier: 4, color: '#ef4444', icon: 'â—Ž' },
+  { label: 'TÃ¶dlicher Treffer',   multiplier: 5, color: '#dc2626', icon: 'âœ¦' },
 ];
+
+const STORAGE_KEY_STAB = 'dmg-calc-last-stab';
+const MAX_HISTORY = 20;
 
 @Component({
   selector: 'app-damage-calculator',
@@ -38,11 +43,11 @@ const SEVERITY_OPTIONS: DamageSeverity[] = [
   styleUrl: './damage-calculator.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DamageCalculatorComponent implements OnChanges {
+export class DamageCalculatorComponent implements OnChanges, OnInit {
   @Input() worldName: string = '';
   @Input() characterName: string = 'Spielleiter';
   @Input() characterId: string = 'dm';
-  /** Pre-fills the Effektivität field (e.g. from weapon efficiency) */
+  /** Pre-fills the EffektivitÃ¤t field (e.g. from weapon efficiency) */
   @Input() initialEffektivitaet?: number;
   @Output() rolled = new EventEmitter<DamageRollResult>();
   @Output() close = new EventEmitter<void>();
@@ -58,9 +63,20 @@ export class DamageCalculatorComponent implements OnChanges {
 
   lastResult: DamageRollResult | null = null;
   isRolling = false;
+  rollHistory: DamageRollResult[] = [];
 
   get formula(): string {
     return `${this.selectedSeverity.multiplier}d${this.effektivitaet}`;
+  }
+
+  ngOnInit(): void {
+    const savedStab = localStorage.getItem(STORAGE_KEY_STAB);
+    if (savedStab !== null) {
+      const val = parseInt(savedStab, 10);
+      if (!isNaN(val) && val >= 0) {
+        this.stabilitaet = val;
+      }
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -75,9 +91,13 @@ export class DamageCalculatorComponent implements OnChanges {
     this.cdr.markForCheck();
   }
 
+  onStabChange(): void {
+    localStorage.setItem(STORAGE_KEY_STAB, String(this.stabilitaet || 0));
+  }
+
   rollDamage(): void {
     if (this.isRolling) return;
-    if (!this.effektivitaet || this.effektivitaet < 2 || this.effektivitaet > 100) return;
+    if (!this.effektivitaet || this.effektivitaet < 2) return;
 
     this.isRolling = true;
     this.cdr.markForCheck();
@@ -92,6 +112,8 @@ export class DamageCalculatorComponent implements OnChanges {
 
     const total = rolls.reduce((a, b) => a + b, 0);
     const formula = `${count}d${sides}`;
+    const stab = Math.max(0, this.stabilitaet || 0);
+    const finalDmg = stab > 0 ? Math.round(total * (100 / (100 + stab))) : total;
 
     const result: DamageRollResult = {
       formula,
@@ -99,12 +121,14 @@ export class DamageCalculatorComponent implements OnChanges {
       total,
       severity: this.selectedSeverity,
       effektivitaet: sides,
+      stabilitaet: stab,
+      finalDamage: finalDmg,
       timestamp: new Date(),
     };
 
     this.lastResult = result;
+    this.rollHistory = [result, ...this.rollHistory].slice(0, MAX_HISTORY);
 
-    // Broadcast via the existing roll system so it appears in lobby
     if (this.worldName) {
       const rollEvent: DiceRollEvent = {
         id: `dmg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -135,31 +159,21 @@ export class DamageCalculatorComponent implements OnChanges {
     this.cdr.markForCheck();
   }
 
-  get finalDamage(): number {
-    if (!this.lastResult) return 0;
-    const stab = Math.max(0, this.stabilitaet || 0);
-    return Math.round(this.lastResult.total * (100 / (100 + stab)));
-  }
-
-  onEffektivitaetInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const val = parseInt(input.value, 10);
-    if (!isNaN(val) && val >= 2 && val <= 100) {
-      this.effektivitaet = val;
-    }
-    this.cdr.markForCheck();
-  }
-
-  onStabilitaetInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const val = parseInt(input.value, 10);
-    if (!isNaN(val) && val >= 0) {
-      this.stabilitaet = val;
-    }
+  /** Load a history entry's values back into the inputs */
+  useHistoryEntry(entry: DamageRollResult): void {
+    this.effektivitaet = entry.effektivitaet;
+    this.stabilitaet = entry.stabilitaet;
+    const sev = SEVERITY_OPTIONS.find(s => s.multiplier === entry.severity.multiplier);
+    if (sev) this.selectedSeverity = sev;
+    localStorage.setItem(STORAGE_KEY_STAB, String(entry.stabilitaet));
     this.cdr.markForCheck();
   }
 
   trackBySeverity(_: number, s: DamageSeverity): number {
     return s.multiplier;
+  }
+
+  trackByTimestamp(_: number, r: DamageRollResult): number {
+    return r.timestamp.getTime();
   }
 }

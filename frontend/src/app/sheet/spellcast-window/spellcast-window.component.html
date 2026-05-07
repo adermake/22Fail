@@ -146,9 +146,10 @@
                title="Wird zu jedem Wirk-Würfelwurf addiert" />
       </div>
 
-      @if (castingSpells.length === 0) {
-        <div class="scw-empty">Keine Zauber aktiv.<br><span class="scw-empty-hint">Klicke einen Zauber an, um ihn zu wirken.</span></div>
-      } @else {
+      <div class="scw-active-scroll">
+        @if (castingSpells.length === 0) {
+          <div class="scw-empty">Keine Zauber aktiv.<br><span class="scw-empty-hint">Klicke einen Zauber an, um ihn zu wirken.</span></div>
+        } @else {
         <div class="scw-active-list">
           @for (entry of castingSpells; track (entry.entryId ?? entry.spellId)) {
             <div class="scw-active-card"
@@ -242,7 +243,8 @@
             </div>
           }
         </div>
-      }
+        }
+      </div>
     </div>
 
   </div>

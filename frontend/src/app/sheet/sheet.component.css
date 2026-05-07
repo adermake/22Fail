@@ -167,7 +167,8 @@
 
 .damage-calc-dialog {
   padding: 0;
-  max-width: 400px;
+  max-width: 760px;
+  width: 95vw;
   background: transparent;
   border: none;
   box-shadow: none;

@@ -1,101 +1,126 @@
-<div class="dmg-calc-card">
+﻿<div class="dmg-calc-card">
+  <!-- Header -->
   <div class="dmg-calc-header">
-    <span class="dmg-calc-title">Schadensrechner</span>
+    <span class="dmg-calc-title">&#x2694; Schadensrechner</span>
     <span class="dmg-calc-formula">{{ formula }}</span>
     @if (close.observed) {
-      <button class="dmg-close-btn" (click)="close.emit()" title="Schließen">✕</button>
+      <button class="dmg-close-btn" (click)="close.emit()" title="Schließen">&#x2715;</button>
     }
   </div>
 
+  <!-- Two-column body -->
   <div class="dmg-calc-body">
-    <!-- Effektivität + Stabilität inputs -->
-    <div class="dmg-inputs-row">
-      <div class="dmg-field">
-        <label class="dmg-label">Effektivität (Würfelgröße)</label>
-        <div class="dmg-effekt-row">
-          <span class="dmg-dice-prefix">d</span>
-          <input
-            class="dmg-effekt-input"
-            type="number"
-            min="2"
-            max="100"
-            [(ngModel)]="effektivitaet"
-          />
+
+    <!-- Left column: Controls -->
+    <div class="dmg-controls">
+
+      <!-- Inputs: Effektivität + Stabilität -->
+      <div class="dmg-inputs-row">
+        <div class="dmg-field">
+          <label class="dmg-label">Effektivität (Würfelgröße)</label>
+          <div class="dmg-effekt-row">
+            <span class="dmg-dice-prefix">d</span>
+            <input class="dmg-effekt-input" type="number" min="2" [(ngModel)]="effektivitaet" />
+          </div>
+        </div>
+        <div class="dmg-field">
+          <label class="dmg-label">Stabilität</label>
+          <div class="dmg-effekt-row">
+            <span class="dmg-stab-prefix">&#x1F6E1;</span>
+            <input class="dmg-effekt-input dmg-stab-input" type="number" min="0"
+                   [(ngModel)]="stabilitaet" (ngModelChange)="onStabChange()" />
+          </div>
         </div>
       </div>
 
+      <!-- Severity selector -->
       <div class="dmg-field">
-        <label class="dmg-label">Stabilität</label>
-        <div class="dmg-effekt-row">
-          <span class="dmg-stab-prefix">🛡</span>
-          <input
-            class="dmg-effekt-input dmg-stab-input"
-            type="number"
-            min="0"
-            [(ngModel)]="stabilitaet"
-          />
+        <label class="dmg-label">Schwere des Treffers</label>
+        <div class="dmg-severity-grid">
+          <button
+            *ngFor="let s of severityOptions; trackBy: trackBySeverity"
+            class="dmg-severity-btn"
+            [class.selected]="s === selectedSeverity"
+            [style.--sev-color]="s.color"
+            (click)="selectSeverity(s)"
+          >
+            <span class="dmg-sev-icon">{{ s.icon }}</span>
+            <span class="dmg-sev-label">{{ s.label }}</span>
+            <span class="dmg-sev-multi">x{{ s.multiplier }}</span>
+          </button>
         </div>
       </div>
+
+      <!-- Roll button -->
+      <button class="dmg-roll-btn" [class.rolling]="isRolling" [disabled]="isRolling || effektivitaet < 2" (click)="rollDamage()">
+        <span class="dmg-roll-icon">&#x2694;</span>
+        Schaden würfeln
+      </button>
+
+      <!-- Last result panel -->
+      @if (lastResult) {
+        <div class="dmg-result-panel">
+          <div class="dmg-result-header">
+            <span class="dmg-result-severity" [style.color]="lastResult.severity.color">
+              {{ lastResult.severity.icon }} {{ lastResult.severity.label }}
+            </span>
+            <span class="dmg-result-formula">{{ lastResult.formula }}</span>
+          </div>
+          <div class="dmg-dice-list">
+            @for (r of lastResult.individualRolls; track $index) {
+              <span class="dmg-die-chip"
+                    [class.max-roll]="r === lastResult.effektivitaet"
+                    [class.min-roll]="r === 1">{{ r }}</span>
+            }
+          </div>
+          <div class="dmg-total-row">
+            <span class="dmg-total-label">Gesamtschaden</span>
+            <span class="dmg-total-value" [style.color]="lastResult.severity.color">{{ lastResult.total }}</span>
+          </div>
+          @if (lastResult.stabilitaet > 0) {
+            <div class="dmg-final-row">
+              <span class="dmg-final-label">Nach Stabilität ({{ lastResult.stabilitaet }})</span>
+              <span class="dmg-final-value" [style.color]="lastResult.severity.color">{{ lastResult.finalDamage }}</span>
+            </div>
+          }
+        </div>
+      }
     </div>
 
-    <!-- Severity selector -->
-    <div class="dmg-field">
-      <label class="dmg-label">Schwere des Treffers</label>
-      <div class="dmg-severity-grid">
-        <button
-          *ngFor="let s of severityOptions; trackBy: trackBySeverity"
-          class="dmg-severity-btn"
-          [class.selected]="s === selectedSeverity"
-          [style.--sev-color]="s.color"
-          (click)="selectSeverity(s)"
-        >
-          <span class="dmg-sev-icon">{{ s.icon }}</span>
-          <span class="dmg-sev-label">{{ s.label }}</span>
-          <span class="dmg-sev-multi">×{{ s.multiplier }}</span>
-        </button>
+    <!-- Right column: History -->
+    <div class="dmg-history">
+      <div class="dmg-history-header">
+        <span class="dmg-history-title">Verlauf</span>
+        <span class="dmg-history-hint">Klick = Werte laden</span>
       </div>
+
+      @if (rollHistory.length === 0) {
+        <div class="dmg-history-empty">
+          <span class="dmg-history-empty-icon">&#x2694;</span>
+          <span>Noch keine Würfe in dieser Sitzung</span>
+        </div>
+      } @else {
+        <div class="dmg-history-list">
+          @for (entry of rollHistory; track trackByTimestamp($index, entry)) {
+            <button class="dmg-history-entry" (click)="useHistoryEntry(entry)"
+                    [title]="'d' + entry.effektivitaet + ' / Stab ' + entry.stabilitaet + ' laden'">
+              <span class="dmg-hist-sev-icon" [style.color]="entry.severity.color">{{ entry.severity.icon }}</span>
+              <span class="dmg-hist-formula">{{ entry.formula }}</span>
+              <span class="dmg-hist-stab" title="Stabilität">&#x1F6E1;{{ entry.stabilitaet }}</span>
+              <span class="dmg-hist-result">
+                @if (entry.stabilitaet > 0) {
+                  <span class="dmg-hist-raw">{{ entry.total }}</span>
+                  <span class="dmg-hist-arrow">→</span>
+                  <span class="dmg-hist-final" [style.color]="entry.severity.color">{{ entry.finalDamage }}</span>
+                } @else {
+                  <span class="dmg-hist-final" [style.color]="entry.severity.color">{{ entry.total }}</span>
+                }
+              </span>
+            </button>
+          }
+        </div>
+      }
     </div>
 
-    <!-- Roll button -->
-    <button
-      class="dmg-roll-btn"
-      [class.rolling]="isRolling"
-      [disabled]="isRolling || effektivitaet < 2 || effektivitaet > 100"
-      (click)="rollDamage()"
-    >
-      <span class="dmg-roll-icon">⚔</span>
-      Schaden würfeln
-    </button>
-
-    <!-- Result display -->
-    <div *ngIf="lastResult" class="dmg-result-panel">
-      <div class="dmg-result-header">
-        <span class="dmg-result-severity" [style.color]="lastResult.severity.color">
-          {{ lastResult.severity.icon }} {{ lastResult.severity.label }}
-        </span>
-        <span class="dmg-result-formula">{{ lastResult.formula }}</span>
-      </div>
-
-      <div class="dmg-dice-list">
-        <span
-          *ngFor="let r of lastResult.individualRolls; let i = index"
-          class="dmg-die-chip"
-          [class.max-roll]="r === lastResult.effektivitaet"
-          [class.min-roll]="r === 1"
-        >
-          {{ r }}
-        </span>
-      </div>
-
-      <div class="dmg-total-row">
-        <span class="dmg-total-label">Gesamtschaden</span>
-        <span class="dmg-total-value" [style.color]="lastResult.severity.color">{{ lastResult.total }}</span>
-      </div>
-
-      <div *ngIf="stabilitaet > 0" class="dmg-final-row">
-        <span class="dmg-final-label">Nach Stabilität ({{ stabilitaet }})</span>
-        <span class="dmg-final-value" [style.color]="lastResult.severity.color">{{ finalDamage }}</span>
-      </div>
-    </div>
   </div>
 </div>

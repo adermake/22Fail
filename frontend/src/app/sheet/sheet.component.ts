@@ -125,51 +125,63 @@ export class SheetComponent implements OnInit {
 
     switch (key) {
       case 'd':
-        // Toggle dice roller, close others
-        if (!this.showDiceRoller) {
+        // Toggle dice roller, close all others
+        this.showDiceRoller = !this.showDiceRoller;
+        if (this.showDiceRoller) {
           this.showResourcePanel = false;
           this.showActionMacros = false;
-          this.showDiceRoller = true;
-        } else {
-          this.showDiceRoller = false;
+          this.showCastWindow = false;
+          this.showDamageCalc = false;
         }
         this.cdr.detectChanges();
         event.preventDefault();
         break;
       case 'r':
-        // Toggle resources, close others
-        if (!this.showResourcePanel) {
+        // Toggle resources, close all others
+        this.showResourcePanel = !this.showResourcePanel;
+        if (this.showResourcePanel) {
           this.showDiceRoller = false;
           this.showActionMacros = false;
-          this.showResourcePanel = true;
-        } else {
-          this.showResourcePanel = false;
+          this.showCastWindow = false;
+          this.showDamageCalc = false;
         }
         this.cdr.detectChanges();
         event.preventDefault();
         break;
       case 'a':
-        // Toggle action macros, close others
-        if (!this.showActionMacros) {
+        // Toggle action macros, close all others
+        this.showActionMacros = !this.showActionMacros;
+        if (this.showActionMacros) {
           this.showDiceRoller = false;
           this.showResourcePanel = false;
-          this.showActionMacros = true;
-        } else {
-          this.showActionMacros = false;
+          this.showCastWindow = false;
+          this.showDamageCalc = false;
         }
         this.cdr.detectChanges();
         event.preventDefault();
         break;
       case 'c':
-        // Toggle cast window
+        // Toggle cast window, close all others
         this.showCastWindow = !this.showCastWindow;
+        if (this.showCastWindow) {
+          this.showDiceRoller = false;
+          this.showResourcePanel = false;
+          this.showActionMacros = false;
+          this.showDamageCalc = false;
+        }
         this.cdr.detectChanges();
         event.preventDefault();
         break;
       case 'f':
-        // Toggle damage calculator
+        // Toggle damage calculator, close all others
         this.showDamageCalc = !this.showDamageCalc;
-        if (this.showDamageCalc) this.damageCalcEffektivitaet = undefined;
+        if (this.showDamageCalc) {
+          this.showDiceRoller = false;
+          this.showResourcePanel = false;
+          this.showActionMacros = false;
+          this.showCastWindow = false;
+          this.damageCalcEffektivitaet = undefined;
+        }
         this.cdr.detectChanges();
         event.preventDefault();
         break;

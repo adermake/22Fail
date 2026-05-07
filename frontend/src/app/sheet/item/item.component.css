@@ -165,15 +165,17 @@
 .fold-btn:hover { opacity: 1; background: var(--bg); border-color: var(--accent); }
 .fold-btn:active { transform: scale(0.95); }
 
-/* Weapon damage roll button */
+/* Weapon damage roll button - styled like fold-btn */
 .roll-damage-btn {
-  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
-  border: 1px solid #b91c1c;
-  color: #fef2f2;
+  background: transparent;
+  border: 1px solid var(--border);
   cursor: pointer;
-  font-size: 0.85rem;
-  padding: 0;
+  font-size: 0.9rem;
+  padding: 0.45rem;
+  opacity: 0.75;
+  transition: all 0.2s;
   border-radius: 5px;
+  color: var(--text);
   flex-shrink: 0;
   min-width: 34px;
   min-height: 34px;
@@ -181,15 +183,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
-  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.35);
 }
-.roll-damage-btn:hover {
-  background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);
-  border-color: #ef4444;
-  box-shadow: 0 2px 12px rgba(220, 38, 38, 0.55);
-  transform: translateY(-1px);
-}
+.roll-damage-btn:hover { opacity: 1; background: var(--bg); border-color: #ef4444; color: #ef4444; }
 .roll-damage-btn:active { transform: scale(0.95); }
 
 /* Lost / action button */
