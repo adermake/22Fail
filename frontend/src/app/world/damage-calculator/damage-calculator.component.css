@@ -96,28 +96,30 @@
 
 .dmg-inputs-row .dmg-field {
   flex: 1;
-  min-width: 120px;
+  min-width: 130px;
 }
 
 /* ── Effektivität input ─────────────────────────────────────── */
 .dmg-effekt-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0;
-  width: fit-content;
+  width: 100%;
 }
 
 .dmg-dice-prefix {
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--accent, #8b5cf6);
   background: rgba(139, 92, 246, 0.15);
   border: 1px solid rgba(139, 92, 246, 0.3);
   border-right: none;
-  padding: 6px 10px;
+  padding: 0 12px;
   border-radius: 6px 0 0 6px;
-  line-height: 1;
-  font-family: 'Courier New', monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .dmg-effekt-input {
@@ -125,11 +127,11 @@
   border: 1px solid var(--border, #374151);
   border-radius: 0 6px 6px 0;
   color: var(--text, #e5e7eb);
-  font-size: 1rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  font-family: 'Courier New', monospace;
-  padding: 6px 10px;
-  width: 72px;
+  padding: 8px 12px;
+  flex: 1;
+  min-width: 0;
   text-align: center;
   outline: none;
   transition: border-color 0.15s;
@@ -145,13 +147,16 @@
 }
 
 .dmg-stab-prefix {
-  font-size: 0.9rem;
+  font-size: 1.1rem;
   background: rgba(99, 102, 241, 0.15);
   border: 1px solid rgba(99, 102, 241, 0.35);
   border-right: none;
-  padding: 6px 9px;
+  padding: 0 12px;
   border-radius: 6px 0 0 6px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .dmg-stab-input {

@@ -1,5 +1,5 @@
 ﻿import {
-  Component, Input, Output, EventEmitter, OnChanges, OnInit, SimpleChanges,
+  Component, Input, Output, EventEmitter, OnChanges, OnInit, OnDestroy, SimpleChanges,
   ChangeDetectionStrategy, ChangeDetectorRef, inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -44,7 +44,7 @@ const MAX_HISTORY = 20;
   styleUrl: './damage-calculator.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DamageCalculatorComponent implements OnChanges, OnInit {
+export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
   @Input() worldName: string = '';
   @Input() characterName: string = 'Spielleiter';
   @Input() characterId: string = 'dm';
@@ -66,11 +66,19 @@ export class DamageCalculatorComponent implements OnChanges, OnInit {
   isRolling = false;
   rollHistory: DamageRollResult[] = [];
 
+  private rollSound: HTMLAudioElement | null = null;
+
   get formula(): string {
     return `${this.selectedSeverity.multiplier}d${this.effektivitaet}`;
   }
 
   ngOnInit(): void {
+    // Lock background scroll
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    this.initRollSound();
+
     const savedStab = localStorage.getItem(STORAGE_KEY_STAB);
     if (savedStab !== null) {
       const val = parseInt(savedStab, 10);
@@ -89,6 +97,12 @@ export class DamageCalculatorComponent implements OnChanges, OnInit {
         this.rollHistory = [];
       }
     }
+  }
+
+  ngOnDestroy(): void {
+    // Restore background scroll
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -112,6 +126,7 @@ export class DamageCalculatorComponent implements OnChanges, OnInit {
     if (!this.effektivitaet || this.effektivitaet < 2) return;
 
     this.isRolling = true;
+    this.playRollSound();
     this.cdr.markForCheck();
 
     const count = this.selectedSeverity.multiplier;
@@ -188,5 +203,17 @@ export class DamageCalculatorComponent implements OnChanges, OnInit {
 
   trackByTimestamp(_: number, r: DamageRollResult): number {
     return r.timestamp.getTime();
+  }
+
+  private initRollSound(): void {
+    this.rollSound = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleVQIj6PLwZ14MQ+E1uvl0pZlAQBfnNPq7LqBT+7uubvV8ei/Nx1u0fbuqXkmAKzw//+rZTofrdnt/5Z3LyKWy+/+tX0vH4fG7f/Hi0osaMjq/7eYPyZYsuT/1aNREV657/z/l2wdB1qf2er9qnwyDl+XyvKvhT4UUInB7rKKRxVGbJ/Xx5dOICdOXoO2s2orCBYrVHOhsGszCgAJGEBniqhiOwobJy9EYoOUZEoqKjQaHSw+VGmBbkguNjwsGRQhNERZbmtSQUxNQy0eDRQjN05mZU5DSkI9Ly0hERUiMEhebVZAPz02Li8oIiMiLDZIVk1BP0E8NjM0Li4sJiorNEFMRDs+QDs3NDUyNDEvMjY8Q0M9PD8+Ozg3NjY2NzQ4PEA+Ozw+Pjo5ODg5ODk6Ozw8Ozs8PDw7Ozs7PDw8PD08PD09PT4+Pj4+Pz8/Pz9AQEBAQEBAQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB');
+  }
+
+  private playRollSound(): void {
+    if (this.rollSound) {
+      this.rollSound.currentTime = 0;
+      this.rollSound.volume = 0.3;
+      this.rollSound.play().catch(() => {});
+    }
   }
 }
