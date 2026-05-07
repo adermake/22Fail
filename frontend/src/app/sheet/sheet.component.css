@@ -165,6 +165,14 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
+.damage-calc-dialog {
+  padding: 0;
+  max-width: 400px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
 /* Sticky Action Buttons - Horizontal Layout */
 .sticky-actions {
   position: fixed;
@@ -247,6 +255,19 @@
 .action-btn.action-macro-btn {
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+}
+
+.action-btn.damage-btn {
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+}
+
+.action-btn.damage-btn:hover,
+.action-btn.damage-btn.active {
+  background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.5);
+  border-color: #fca5a5;
 }
 
 .action-btn.action-macro-btn:hover,

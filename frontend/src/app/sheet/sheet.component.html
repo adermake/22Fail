@@ -33,7 +33,7 @@
 
   <!-- Equipment - Separate so you can drag items from inventory -->
   <div class="grid-equipment">
-    <app-equipment [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-equipment>
+    <app-equipment [sheet]="sheet" (patch)="store.applyPatch($any($event))" (rollWeaponDamage)="openDamageCalcWithEfficiency($event)"></app-equipment>
   </div>
 
   <!-- Tabbed Component for Inventory, Spells, Runes, Skills -->
@@ -49,7 +49,8 @@
       (skillEditingChange)="onSkillEditingChange($any($event).index, $any($event).isEditing)"
       (openTrash)="openTrash()"
       (triggerMacro)="handleMacroExecution($event)"
-      (requestCastWindow)="showCastWindow = true">
+      (requestCastWindow)="showCastWindow = true"
+      (rollWeaponDamage)="openDamageCalcWithEfficiency($event)">
     </app-character-tabs>
   </div>
 
@@ -109,6 +110,9 @@
   <button class="action-btn dice-btn" [class.active]="showDiceRoller" (click)="toggleDiceRoller()" title="Würfeln (D)">
     🎲
   </button>
+  <button class="action-btn damage-btn" [class.active]="showDamageCalc" (click)="toggleDamageCalc()" title="Schadensrechner (F)">
+    ⚔
+  </button>
   <button class="action-btn resource-btn" [class.active]="showResourcePanel" (click)="toggleResourcePanel()" title="Ressourcen (R)">
     💎
   </button>
@@ -127,6 +131,23 @@
     (patch)="store.applyPatch($any($event))"
     (close)="showCastWindow = false">
   </app-spellcast-window>
+}
+
+<!-- Damage Calculator Dialog -->
+@if (showDamageCalc) {
+  <div class="dialog-overlay damage-calc-overlay" (click)="showDamageCalc = false; cdr.detectChanges()">
+    <div class="dialog-content damage-calc-dialog" (click)="$event.stopPropagation()">
+      @if (store.sheet$ | async; as sheet) {
+        <app-damage-calculator
+          [worldName]="sheet.worldName || ''"
+          [characterName]="sheet.name"
+          [characterId]="sheet.id || ''"
+          [initialEffektivitaet]="damageCalcEffektivitaet"
+          (close)="showDamageCalc = false; cdr.detectChanges()">
+        </app-damage-calculator>
+      }
+    </div>
+  </div>
 }
 
 <!-- Game Info Dialog -->

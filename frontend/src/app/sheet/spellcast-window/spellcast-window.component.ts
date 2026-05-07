@@ -566,11 +566,13 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
 
   ngOnInit(): void {
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
     this._generateAmbientRunes();
   }
 
   ngOnDestroy(): void {
     document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
   }
 
   ngOnChanges(_: SimpleChanges): void {

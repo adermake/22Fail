@@ -19,6 +19,7 @@ import { NotificationService } from '../../services/notification.service';
 export class EquipmentComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
+  @Output() rollWeaponDamage = new EventEmitter<number>();
   
   private worldSocket = inject(WorldSocketService);
   private notification = inject(NotificationService);

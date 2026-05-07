@@ -764,6 +764,54 @@
   margin-left: auto;
 }
 
+/* Received roll items (Aktionsverlauf) */
+.received-roll-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #2a2a2a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.received-name {
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.received-action {
+  color: #9ca3af;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.received-formula {
+  color: #9ca3af;
+  font-family: monospace;
+  flex: 1;
+}
+
+.received-result {
+  color: white;
+  font-weight: bold;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.rolls-count {
+  background: #4a5568;
+  color: #e5e7eb;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 1px 6px;
+}
+
 /* Responsive */
 @media (max-width: 1000px) {
   .dialog-body {

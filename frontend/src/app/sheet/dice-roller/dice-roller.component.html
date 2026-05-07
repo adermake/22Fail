@@ -6,7 +6,7 @@
       <div class="header-controls">
         <label class="secret-toggle" [class.active]="isSecretRoll()">
           <input type="checkbox" [checked]="isSecretRoll()" (change)="isSecretRoll.set($any($event.target).checked)" />
-          <span class="secret-label">🤫 Geheim</span>
+          <span class="secret-label">Geheim</span>
         </label>
         <button class="close-btn" (click)="onClose()">&times;</button>
       </div>
@@ -219,7 +219,28 @@
           }
         </div>
 
-        <!-- Received Rolls section removed -->
+        <!-- Received Rolls / Aktionsverlauf -->
+        @if (receivedRolls().length > 0) {
+          <div class="history-section">
+            <div class="panel-header">
+              <h4>Aktionsverlauf</h4>
+              <span class="rolls-count">{{ receivedRolls().length }}</span>
+            </div>
+            <div class="history-list received-list">
+              @for (roll of receivedRolls().slice(0, 100); track roll.id) {
+                <div class="received-roll-item">
+                  <span class="received-name" [style.color]="roll.actionColor || '#9ca3af'">{{ roll.actionIcon || '🎲' }} {{ roll.characterName }}</span>
+                  @if (roll.actionName) {
+                    <span class="received-action">{{ roll.actionName }}</span>
+                  } @else {
+                    <span class="received-formula">{{ roll.diceCount }}d{{ roll.diceType }}</span>
+                  }
+                  <span class="received-result">{{ roll.result }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
       </div>
     </div>
   </div>

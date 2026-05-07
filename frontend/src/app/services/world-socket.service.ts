@@ -32,6 +32,10 @@ export class WorldSocketService {
   private diceRollSubject = new Subject<DiceRollEvent>();
   private isConnected = false;
 
+  /** Rolling buffer of the last 100 received dice roll events (survives tab open/close) */
+  private _rollBuffer: DiceRollEvent[] = [];
+  get rollBuffer(): DiceRollEvent[] { return this._rollBuffer; }
+
   patches$ = this.patchSubject.asObservable();
   lootReceived$ = this.lootReceivedSubject.asObservable();
   battleLootReceived$ = this.battleLootReceivedSubject.asObservable();
@@ -86,6 +90,7 @@ export class WorldSocketService {
 
     this.socket.on('diceRolled', (roll: DiceRollEvent) => {
       console.log('[WORLD SOCKET] Received diceRolled:', roll);
+      this._rollBuffer = [roll, ...this._rollBuffer.slice(0, 99)];
       this.diceRollSubject.next(roll);
     });
   }

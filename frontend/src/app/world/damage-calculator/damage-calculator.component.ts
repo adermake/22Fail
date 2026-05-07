@@ -1,5 +1,5 @@
 import {
-  Component, Input, Output, EventEmitter,
+  Component, Input, Output, EventEmitter, OnChanges, SimpleChanges,
   ChangeDetectionStrategy, ChangeDetectorRef, inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -38,9 +38,14 @@ const SEVERITY_OPTIONS: DamageSeverity[] = [
   styleUrl: './damage-calculator.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DamageCalculatorComponent {
+export class DamageCalculatorComponent implements OnChanges {
   @Input() worldName: string = '';
+  @Input() characterName: string = 'Spielleiter';
+  @Input() characterId: string = 'dm';
+  /** Pre-fills the Effektivität field (e.g. from weapon efficiency) */
+  @Input() initialEffektivitaet?: number;
   @Output() rolled = new EventEmitter<DamageRollResult>();
+  @Output() close = new EventEmitter<void>();
 
   private worldSocket = inject(WorldSocketService);
   private cdr = inject(ChangeDetectorRef);
@@ -56,6 +61,13 @@ export class DamageCalculatorComponent {
 
   get formula(): string {
     return `${this.selectedSeverity.multiplier}d${this.effektivitaet}`;
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['initialEffektivitaet'] && changes['initialEffektivitaet'].currentValue != null) {
+      this.effektivitaet = changes['initialEffektivitaet'].currentValue;
+      this.cdr.markForCheck();
+    }
   }
 
   selectSeverity(severity: DamageSeverity): void {
@@ -97,8 +109,8 @@ export class DamageCalculatorComponent {
       const rollEvent: DiceRollEvent = {
         id: `dmg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         worldName: this.worldName,
-        characterId: 'dm',
-        characterName: 'Spielleiter',
+        characterId: this.characterId,
+        characterName: this.characterName,
         diceType: sides,
         diceCount: count,
         rolls,

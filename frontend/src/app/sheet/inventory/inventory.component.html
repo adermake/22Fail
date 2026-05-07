@@ -83,6 +83,7 @@
               (openEditor)="openItemEditor(i)"
               (breakTest)="performBreakTest(i)"
               (foldChange)="onFoldChange(i, $event)"
+              (rollDamage)="rollWeaponDamage.emit($event)"
             ></app-item>
           }
 
@@ -130,6 +131,7 @@
           (openEditor)="openItemEditor(exp.activeIdx)"
           (breakTest)="performBreakTest(exp.activeIdx)"
           (foldChange)="onFoldChange(exp.activeIdx, $event)"
+          (rollDamage)="rollWeaponDamage.emit($event)"
         ></app-item>
       </div>
     }

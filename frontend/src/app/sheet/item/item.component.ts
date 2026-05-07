@@ -43,6 +43,8 @@ export class ItemComponent implements OnChanges {
   contextMenuY = 0;
 
   @Output() foldChange = new EventEmitter<boolean>();
+  /** Emits the weapon's efficiency when the roll-damage button is clicked */
+  @Output() rollDamage = new EventEmitter<number>();
 
   /** Maps armorType/itemType to short slot label */
   get slotLabel(): string | null {

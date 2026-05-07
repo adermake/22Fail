@@ -420,6 +420,7 @@
   gap: 10px;
   overflow-y: auto;
   flex: 1;
+  min-height: 0; /* critical: allows overflow-y to actually scroll in flex column */
   padding-right: 4px;
 }
 .scw-active-list::-webkit-scrollbar { width: 5px; }

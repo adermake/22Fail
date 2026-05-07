@@ -42,7 +42,7 @@
               <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
                 (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
                 (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
-                (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
+                (breakTest)="performBreakTest(getItemIndex(item))" (rollDamage)="rollWeaponDamage.emit($event)"></app-item>
               <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
             </div>
           }
@@ -70,7 +70,7 @@
               <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
                 (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
                 (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
-                (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
+                (breakTest)="performBreakTest(getItemIndex(item))" (rollDamage)="rollWeaponDamage.emit($event)"></app-item>
               <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
             </div>
           }
@@ -98,7 +98,7 @@
               <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
                 (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
                 (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
-                (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
+                (breakTest)="performBreakTest(getItemIndex(item))" (rollDamage)="rollWeaponDamage.emit($event)"></app-item>
               <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
             </div>
           }
@@ -126,7 +126,7 @@
               <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
                 (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
                 (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
-                (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
+                (breakTest)="performBreakTest(getItemIndex(item))" (rollDamage)="rollWeaponDamage.emit($event)"></app-item>
               <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
             </div>
           }
@@ -154,7 +154,7 @@
               <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
                 (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
                 (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
-                (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
+                (breakTest)="performBreakTest(getItemIndex(item))" (rollDamage)="rollWeaponDamage.emit($event)"></app-item>
               <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
             </div>
           }
@@ -182,7 +182,7 @@
               <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
                 (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
                 (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
-                (breakTest)="performBreakTest(getItemIndex(item))"></app-item>
+                (breakTest)="performBreakTest(getItemIndex(item))" (rollDamage)="rollWeaponDamage.emit($event)"></app-item>
               <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
             </div>
           }

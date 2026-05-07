@@ -34,6 +34,28 @@
   border: 1px solid rgba(139, 92, 246, 0.25);
 }
 
+.dmg-close-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #9ca3af;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.dmg-close-btn:hover {
+  background: rgba(239,68,68,0.15);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
 /* ── Body ───────────────────────────────────────────────────── */
 .dmg-calc-body {
   display: flex;

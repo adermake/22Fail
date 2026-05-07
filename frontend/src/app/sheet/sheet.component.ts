@@ -45,6 +45,7 @@ import { EventPortalComponent } from './event-portal/event-portal.component';
 import { SheetStatusEffectsComponent } from './sheet-status-effects/sheet-status-effects.component';
 import { SheetActiveSkillsSpellsComponent } from './sheet-active-skills-spells/sheet-active-skills-spells.component';
 import { SpellcastWindowComponent } from './spellcast-window/spellcast-window.component';
+import { DamageCalculatorComponent } from '../world/damage-calculator/damage-calculator.component';
 
 @Component({
   selector: 'app-sheet',
@@ -70,6 +71,7 @@ import { SpellcastWindowComponent } from './spellcast-window/spellcast-window.co
     SheetStatusEffectsComponent,
     SheetActiveSkillsSpellsComponent,
     SpellcastWindowComponent,
+    DamageCalculatorComponent,
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
@@ -82,7 +84,7 @@ export class SheetComponent implements OnInit {
   private worldSocket = inject(WorldSocketService);
   private worldApi = inject(WorldApiService);
   private libraryStore = inject(LibraryStoreService);
-  private cdr = inject(ChangeDetectorRef);
+  cdr = inject(ChangeDetectorRef);
   private ngZone = inject(NgZone);
 
   // Expose Math for template
@@ -99,6 +101,8 @@ export class SheetComponent implements OnInit {
   showActionMacros = false;
   showGameInfo = false;
   showCastWindow = false;
+  showDamageCalc = false;
+  damageCalcEffektivitaet?: number;
   currentEvents: CurrentEvent[] = [];
   transactions: Transaction[] = [];
   openPortalEventId: string | null = null;
@@ -162,6 +166,13 @@ export class SheetComponent implements OnInit {
         this.cdr.detectChanges();
         event.preventDefault();
         break;
+      case 'f':
+        // Toggle damage calculator
+        this.showDamageCalc = !this.showDamageCalc;
+        if (this.showDamageCalc) this.damageCalcEffektivitaet = undefined;
+        this.cdr.detectChanges();
+        event.preventDefault();
+        break;
       case 'h':
         // Toggle game info help
         this.showGameInfo = !this.showGameInfo;
@@ -170,12 +181,13 @@ export class SheetComponent implements OnInit {
         break;
       case 'escape':
         // Close all panels
-        if (this.showDiceRoller || this.showResourcePanel || this.showActionMacros || this.showGameInfo || this.showCastWindow) {
+        if (this.showDiceRoller || this.showResourcePanel || this.showActionMacros || this.showGameInfo || this.showCastWindow || this.showDamageCalc) {
           this.showDiceRoller = false;
           this.showResourcePanel = false;
           this.showActionMacros = false;
           this.showGameInfo = false;
           this.showCastWindow = false;
+          this.showDamageCalc = false;
           this.cdr.detectChanges();
           event.preventDefault();
         }
@@ -664,6 +676,18 @@ export class SheetComponent implements OnInit {
 
   toggleCastWindow() {
     this.showCastWindow = !this.showCastWindow;
+    this.cdr.detectChanges();
+  }
+
+  toggleDamageCalc() {
+    this.showDamageCalc = !this.showDamageCalc;
+    if (this.showDamageCalc) this.damageCalcEffektivitaet = undefined;
+    this.cdr.detectChanges();
+  }
+
+  openDamageCalcWithEfficiency(efficiency: number) {
+    this.damageCalcEffektivitaet = efficiency;
+    this.showDamageCalc = true;
     this.cdr.detectChanges();
   }
 

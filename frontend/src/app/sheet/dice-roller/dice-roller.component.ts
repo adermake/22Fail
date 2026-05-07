@@ -310,15 +310,22 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     
     // Prevent background scrolling
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
     
     // Listen for rolls from other players in the world
     if (this.sheet.worldName) {
+      // Pre-fill with buffered events that arrived while the dice roller was closed
+      const buffered = this.worldSocket.rollBuffer.filter(
+        r => r.characterId !== this.sheet.id && !r.isSecret
+      );
+      this.receivedRolls.set(buffered.slice(0, 100));
+
       this.diceRollSub = this.worldSocket.diceRoll$.subscribe(roll => {
         // Don't add our own rolls (we already show them)
         if (roll.characterId !== this.sheet.id) {
           // For secret rolls, only show if we're a GM (checked by component using this)
           if (!roll.isSecret) {
-            this.receivedRolls.update(rolls => [roll, ...rolls.slice(0, 4)]); // Keep last 5
+            this.receivedRolls.update(rolls => [roll, ...rolls.slice(0, 99)]); // Keep last 100
           }
         }
       });
@@ -361,6 +368,7 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     this.diceRollSub?.unsubscribe();
     // Restore background scrolling
     document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
   }
 
   // Initialize dice roll sound

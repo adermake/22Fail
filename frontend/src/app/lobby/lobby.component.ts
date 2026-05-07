@@ -241,10 +241,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
       this.worldSocket.diceRoll$.subscribe((roll) => {
         console.log('[Lobby] Received dice roll:', roll);
         
-        // Add to history (keep last 20 rolls)
+        // Add to history (keep last 100 rolls)
         this.rollHistory.update(history => {
           const updated = [roll, ...history];
-          return updated.slice(0, 20);
+          return updated.slice(0, 100);
         });
 
         // Show popup over token if visible on current map

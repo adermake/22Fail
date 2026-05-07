@@ -35,6 +35,8 @@ export class InventoryComponent {
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() buyFromShop = new EventEmitter<any>();
   @Output() claimLoot = new EventEmitter<any>();
+  /** Emits weapon efficiency when user clicks the roll-damage button on a weapon item */
+  @Output() rollWeaponDamage = new EventEmitter<number>();
   
   private worldSocket = inject(WorldSocketService);
   private notification = inject(NotificationService);

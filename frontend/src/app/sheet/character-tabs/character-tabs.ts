@@ -37,6 +37,7 @@ export class CharacterTabsComponent {
   @Output() openTrash = new EventEmitter<void>();
   @Output() triggerMacro = new EventEmitter<ActionMacro>();
   @Output() requestCastWindow = new EventEmitter<void>();
+  @Output() rollWeaponDamage = new EventEmitter<number>();
 
   activeTab: 'inventory' | 'spells' | 'runes' | 'skills' = 'inventory';
 

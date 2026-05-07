@@ -75,6 +75,14 @@
       </div>
 
       <div class="item-controls">
+        @if (showDetails && item.itemType === 'weapon' && item.efficiency) {
+          <button class="roll-damage-btn"
+                  (click)="rollDamage.emit(item.efficiency!); $event.stopPropagation()"
+                  (mousedown)="$event.stopPropagation()"
+                  title="Schaden würfeln (Eff: {{ item.efficiency }})">
+            ⚔
+          </button>
+        }
         @if (!hideFoldControls) {
           <button class="fold-btn"
                   (click)="toggleFold(); $event.stopPropagation()"

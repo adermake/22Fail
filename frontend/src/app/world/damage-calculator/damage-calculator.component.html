@@ -2,6 +2,9 @@
   <div class="dmg-calc-header">
     <span class="dmg-calc-title">Schadensrechner</span>
     <span class="dmg-calc-formula">{{ formula }}</span>
+    @if (close.observed) {
+      <button class="dmg-close-btn" (click)="close.emit()" title="Schließen">✕</button>
+    }
   </div>
 
   <div class="dmg-calc-body">
