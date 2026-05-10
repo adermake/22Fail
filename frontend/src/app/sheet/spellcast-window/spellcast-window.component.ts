@@ -121,12 +121,10 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     return this.castingSpells.reduce((sum, entry) => {
       const spell = this.availableSpells.find(s => s.id === entry.spellId);
       if (!spell) return sum;
-      // Cast level reduces fokus cost; scale with skalierung
+      // Fokus is NOT reduced by cast level; scaled by skalierung only
       const base = spell.perTurnFokus || spell.costFokus || 0;
       const sk = entry.skalierung ?? 1;
-      const cl = entry.castLevel || 0;
-      const reduction = Math.min(0.9, Math.floor(cl / 10) * 0.1);
-      return sum + Math.round(base * (1 - reduction) * sk * 100) / 100;
+      return sum + Math.round(base * sk * 100) / 100;
     }, 0);
   }
 
@@ -181,7 +179,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
       { key: 'speed',        label: 'SPD' },
       { key: 'intelligence', label: 'INT' },
       { key: 'constitution', label: 'KON' },
-      { key: 'chill',        label: 'CHR' },
+      { key: 'chill',        label: 'WIL' },
     ];
     return map
       .filter(m => (req as Record<string, number>)[m.key] > 0)
@@ -234,17 +232,17 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   pendingCostManaTotal(): number {
     const spell = this.pendingCastSpell;
     if (!spell) return 0;
-    // Mana is NOT reduced by cast level — only scaled by skalierung
-    return Math.round((spell.costMana || 0) * this.skalierung * 100) / 100;
+    // Mana IS reduced by cast level and scaled by skalierung
+    const reduction = Math.min(0.9, Math.floor(this.pendingCastLevel / 10) * 0.1);
+    return Math.round((spell.costMana || 0) * (1 - reduction) * this.skalierung * 100) / 100;
   }
 
   pendingCostFokusTotal(): number {
     const spell = this.pendingCastSpell;
     if (!spell) return 0;
-    // Fokus (ongoing) IS reduced by cast level
+    // Fokus is NOT reduced by cast level — only scaled by skalierung
     const base = spell.perTurnFokus || spell.costFokus || 0;
-    const reduction = Math.min(0.9, Math.floor(this.pendingCastLevel / 10) * 0.1);
-    return Math.round(base * (1 - reduction) * this.skalierung * 100) / 100;
+    return Math.round(base * this.skalierung * 100) / 100;
   }
 
   get canCast(): boolean {
@@ -439,8 +437,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     const sk = entry.skalierung ?? 1;
     const cl = entry.castLevel || 0;
     const fokusBase = spell ? (spell.perTurnFokus || spell.costFokus || 0) : 0;
-    const fokusReduction = Math.min(0.9, Math.floor(cl / 10) * 0.1);
-    const fokusCommit = Math.round(fokusBase * (1 - fokusReduction) * sk * 100) / 100;
+    const fokusCommit = Math.round(fokusBase * sk * 100) / 100;
     const resourceChanges: DiceRollEvent['resourceChanges'] = [];
     if (manaCost > 0) resourceChanges.push({ resource: 'Mana', amount: -manaCost });
     if (fokusCommit > 0) resourceChanges.push({ resource: 'Fokus', amount: -fokusCommit });

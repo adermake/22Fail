@@ -38,6 +38,25 @@ export class StatsComponent {
     return Math.floor((base + (this.sheet.fokusBonus || 0)) * (this.sheet.fokusMultiplier || 1));
   }
 
+  get grundbonus(): number {
+    return Math.floor((this.sheet.level || 1) / 5) + (this.sheet.grundbonusBonus || 0);
+  }
+
+  get reaktionswert(): number {
+    const wille = this.sheet.chill?.current || 10;
+    return 10 - Math.floor(wille / 5) + (this.sheet.reaktionswertBonus || 0);
+  }
+
+  adjustStatBonusPoints(delta: number): void {
+    const current = this.sheet.freeStatPointsBonus || 0;
+    const newValue = Math.max(0, current + delta);
+    this.patch.emit({ path: 'freeStatPointsBonus', value: newValue });
+  }
+
+  updateDerivedBonus(field: 'grundbonusBonus' | 'reaktionswertBonus', value: number): void {
+    this.patch.emit({ path: field, value: value });
+  }
+
   ngOnInit() {
     if (this.sheet.fokusMultiplier === undefined) {
       this.sheet.fokusMultiplier = 1;

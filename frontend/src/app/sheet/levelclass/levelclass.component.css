@@ -84,12 +84,12 @@ input:focus {
 
 @keyframes glow-pulse {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(139, 92, 246, 0.3);
-    border-color: var(--accent);
+    box-shadow: 0 0 5px rgba(34, 197, 94, 0.4);
+    border-color: #22c55e;
   }
   50% {
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.6), 0 0 30px rgba(139, 92, 246, 0.3);
-    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.7), 0 0 30px rgba(34, 197, 94, 0.4);
+    border-color: #22c55e;
   }
 }
 

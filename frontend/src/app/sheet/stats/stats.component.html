@@ -14,6 +14,44 @@
       @if (trueStats.hasNaturtalent(sheet)) {
         <div class="talent-badge">🌟 Naturtalent: +1 Stat Punkt alle 2 Level</div>
       }
+      <div class="bonus-adjust">
+        <span class="bonus-label">Bonus-Punkte (GM):</span>
+        <div class="bonus-controls">
+          <button class="adjust-btn" (click)="adjustStatBonusPoints(-1)">-</button>
+          <span class="bonus-value">{{ sheet.freeStatPointsBonus || 0 }}</span>
+          <button class="adjust-btn" (click)="adjustStatBonusPoints(1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Derived Stats: Grundbonus + Reaktionswert -->
+    <div class="derived-stats-row">
+      <div class="derived-stat-card">
+        <div class="derived-stat-header">
+          <span class="derived-stat-label">Grundbonus</span>
+          <span class="derived-stat-formula">Level ÷ 5</span>
+        </div>
+        <div class="derived-stat-value">{{ grundbonus }}</div>
+        <div class="derived-stat-bonus-row">
+          <label class="derived-bonus-label">Bonus</label>
+          <input class="derived-bonus-input" type="number"
+                 [ngModel]="sheet.grundbonusBonus || 0"
+                 (ngModelChange)="updateDerivedBonus('grundbonusBonus', $event)" />
+        </div>
+      </div>
+      <div class="derived-stat-card">
+        <div class="derived-stat-header">
+          <span class="derived-stat-label">Reaktionswert</span>
+          <span class="derived-stat-formula">10 − Wille ÷ 5</span>
+        </div>
+        <div class="derived-stat-value">{{ reaktionswert }}</div>
+        <div class="derived-stat-bonus-row">
+          <label class="derived-bonus-label">Bonus</label>
+          <input class="derived-bonus-input" type="number"
+                 [ngModel]="sheet.reaktionswertBonus || 0"
+                 (ngModelChange)="updateDerivedBonus('reaktionswertBonus', $event)" />
+        </div>
+      </div>
     </div>
     
     <!-- Spell Fokus Info -->

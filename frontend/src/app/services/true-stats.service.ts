@@ -504,11 +504,9 @@ export class TrueStatsService {
    * @returns True if the character has Naturtalent
    */
   hasNaturtalent(sheet: CharacterSheet): boolean {
-    // Check if the character has learned the Naturtalent skill
-    // This is a racial skill for humans at level 0
+    // Check if the character has learned the Naturtalent skill (skill-based only, not hardcoded by race)
     return sheet.learnedSkillIds?.includes('race_menschen_naturtalent') || 
-           sheet.skills?.some(skill => skill.name === 'Naturtalent') ||
-           (sheet.race?.toLowerCase() === 'menschen' || sheet.race?.toLowerCase() === 'human');
+           sheet.skills?.some(skill => skill.name === 'Naturtalent') || false;
   }
 
   /**
@@ -555,9 +553,10 @@ export class TrueStatsService {
     const total = this.calculateTotalFreeStatPoints(sheet);
     const spent = this.calculateSpentFreeStatPoints(sheet);
     const stored = sheet.freeStatPoints || 0;
+    const bonus = sheet.freeStatPointsBonus || 0;
     
-    // Available = (Total - Spent) + Stored
-    return (total - spent) + stored;
+    // Available = (Total - Spent) + Stored + GM Bonus
+    return (total - spent) + stored + bonus;
   }
 
   /**

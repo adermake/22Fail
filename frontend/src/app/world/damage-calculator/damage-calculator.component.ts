@@ -28,8 +28,8 @@ const SEVERITY_OPTIONS: DamageSeverity[] = [
   { label: 'Schwacher Treffer',   multiplier: 1, color: '#eab308', icon: '\u25E6' },
   { label: 'Normaler Treffer',    multiplier: 2, color: '#f59e0b', icon: '\u25C8' },
   { label: 'Starker Treffer',     multiplier: 3, color: '#f97316', icon: '\u25C9' },
-  { label: 'Kritischer Treffer',  multiplier: 4, color: '#ef4444', icon: '\u25CE' },
-  { label: 'T\u00F6dlicher Treffer',   multiplier: 5, color: '#dc2626', icon: '\u2726' },
+  { label: 'Kritischer Treffer',  multiplier: 5, color: '#ef4444', icon: '\u25CE' },
+  { label: 'T\u00F6dlicher Treffer',   multiplier: 8, color: '#dc2626', icon: '\u2726' },
 ];
 
 const STORAGE_KEY_STAB = 'dmg-calc-last-stab';

@@ -58,6 +58,10 @@ export interface CharacterSheet {
   learnedSkillIds: string[];      // IDs of skills learned from the skill tree
   // Free Stat Points System
   freeStatPoints: number;         // Available free stat points to spend
+  freeStatPointsBonus: number;    // GM-assigned bonus stat points
+  // Derived stat bonuses
+  grundbonusBonus?: number;       // Extra added to Grundbonus (Level/5)
+  reaktionswertBonus?: number;    // Extra added to Reaktionswert (10 - Wille/5)
   // Backstory
   backstory?: string;             // Character background story (supports simple markdown)
   // Active / Sustained Skills & Spells
@@ -108,6 +112,9 @@ export function createEmptySheet(): CharacterSheet {
     talentPointsBonus: 0,
     learnedSkillIds: [],
     freeStatPoints: 0,
+    freeStatPointsBonus: 0,
+    grundbonusBonus: 0,
+    reaktionswertBonus: 0,
     backstory: '',
   };
 }
