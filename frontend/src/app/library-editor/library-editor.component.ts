@@ -35,6 +35,10 @@ import { SpellBlock } from '../model/spell-block-model';
 import { SkillBlock } from '../model/skill-block.model';
 import { StatusEffect, createEmptyStatusEffect } from '../model/status-effect.model';
 import { MacroAction, createEmptyMacroAction } from '../model/macro-action.model';
+import {
+  MaterialBlock, ForgeTrait,
+  createEmptyMaterialBlock, createEmptyForgeTrait,
+} from '../model/forging.model';
 import { 
   ShopEvent, ShopDeal, LootBundleEvent, LootItem, 
   createEmptyShopDeal, Currency 
@@ -47,6 +51,8 @@ import { SpellEditorOverlayComponent } from '../sheet/spell-editor-overlay/spell
 import { SkillEditorComponent } from '../shared/skill-editor/skill-editor.component';
 import { StatusEffectEditorComponent } from '../shared/status-effect-editor/status-effect-editor.component';
 import { MacroEditorComponent } from '../shared/macro-editor/macro-editor.component';
+import { MaterialEditorComponent } from '../shared/material-editor/material-editor.component';
+import { ForgeTraitEditorComponent } from '../shared/forge-trait-editor/forge-trait-editor.component';
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 import { ImageUrlPipe } from '../shared/image-url.pipe';
 import { RuneTableComponent } from './rune-table/rune-table.component';
@@ -78,6 +84,8 @@ import { RuneTableComponent } from './rune-table/rune-table.component';
     SkillEditorComponent,
     StatusEffectEditorComponent,
     MacroEditorComponent,
+    MaterialEditorComponent,
+    ForgeTraitEditorComponent,
   ],
   templateUrl: './library-editor.component.html',
   styleUrls: ['./library-editor.component.css', './library-editor-shop-bundle-editors.css'],
@@ -329,6 +337,8 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   availableSpells = signal<AssetFile[]>([]);
   availableSkills = signal<AssetFile[]>([]);
   availableStatusEffects = signal<AssetFile[]>([]);
+  availableMaterials = signal<AssetFile[]>([]);
+  availableForgeTraits = signal<AssetFile[]>([]);
 
   /** Computed RuneBlock array for the spell-node-editor */
   get availableRunesAsBlocks(): import('../model/rune-block.model').RuneBlock[] {
@@ -340,27 +350,26 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
     if (!lib) return;
 
     try {
-      // Get items from current library and all dependencies
       const libraryIds = [lib.id, ...(lib.dependencies || [])];
       console.log('Loading items from library IDs:', libraryIds);
-      
-      // Load all item types in parallel
-      const [items, runes, spells, skills, statusEffects] = await Promise.all([
+
+      const [items, runes, spells, skills, statusEffects, materials, forgeTraits] = await Promise.all([
         this.loadItemsByType(libraryIds, 'item'),
         this.loadItemsByType(libraryIds, 'rune'),
         this.loadItemsByType(libraryIds, 'spell'),
         this.loadItemsByType(libraryIds, 'skill'),
-        this.loadItemsByType(libraryIds, 'status-effect')
+        this.loadItemsByType(libraryIds, 'status-effect'),
+        this.loadItemsByType(libraryIds, 'material'),
+        this.loadItemsByType(libraryIds, 'forge-trait'),
       ]);
-
-      console.log('Loaded items:', items.length, 'runes:', runes.length, 'spells:', spells.length, 'skills:', skills.length, 'status effects:', statusEffects.length);
-      console.log('Available items sample:', items.slice(0, 3).map(i => ({ id: i.id, name: i.name, data: i.data })));
 
       this.availableItems.set(items);
       this.availableRunes.set(runes);
       this.availableSpells.set(spells);
       this.availableSkills.set(skills);
       this.availableStatusEffects.set(statusEffects);
+      this.availableMaterials.set(materials);
+      this.availableForgeTraits.set(forgeTraits);
     } catch (error) {
       console.error('Failed to load dependency items:', error);
     }
@@ -672,6 +681,10 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
         return { ...createEmptyStatusEffect(), name };
       case 'macro':
         return { ...createEmptyMacroAction(), name };
+      case 'material':
+        return { ...createEmptyMaterialBlock(), name };
+      case 'forge-trait':
+        return { ...createEmptyForgeTrait(), name };
       case 'shop':
         return {
           id: `shop_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,

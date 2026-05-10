@@ -8,6 +8,7 @@ import { SpellsComponent } from '../spells/spells.component';
 import { RunesComponent } from '../../shared/runes/runes.component';
 import { SkillsComponent } from '../skills/skills.component';
 import { ActionMacro } from '../../model/action-macro.model';
+import { ForgingComponent } from '../forging/forging.component';
 
 @Component({
   selector: 'app-character-tabs',
@@ -19,6 +20,7 @@ import { ActionMacro } from '../../model/action-macro.model';
     SpellsComponent,
     RunesComponent,
     SkillsComponent,
+    ForgingComponent,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './character-tabs.html',
@@ -39,9 +41,9 @@ export class CharacterTabsComponent {
   @Output() requestCastWindow = new EventEmitter<void>();
   @Output() rollWeaponDamage = new EventEmitter<number>();
 
-  activeTab: 'inventory' | 'spells' | 'runes' | 'skills' = 'inventory';
+  activeTab: 'inventory' | 'spells' | 'runes' | 'skills' | 'forging' = 'inventory';
 
-  setActiveTab(tab: 'inventory' | 'spells' | 'runes' | 'skills') {
+  setActiveTab(tab: 'inventory' | 'spells' | 'runes' | 'skills' | 'forging') {
     this.activeTab = tab;
   }
 

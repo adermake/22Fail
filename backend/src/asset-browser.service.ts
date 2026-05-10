@@ -5,7 +5,7 @@ import * as path from 'path';
 /**
  * Asset types supported by the browser
  */
-export type AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle';
+export type AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle' | 'material' | 'forge-trait';
 
 /**
  * Folder structure

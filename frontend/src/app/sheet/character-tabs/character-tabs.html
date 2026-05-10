@@ -25,6 +25,12 @@
       Fähigkeiten ({{ (sheet.skills || []).length }})
     </button>
     <button
+      class="tab-button"
+      [class.active]="activeTab === 'forging'"
+      (click)="setActiveTab('forging')">
+      Schmiede
+    </button>
+    <button
       class="trash-button"
       (click)="openTrash.emit()"
       title="Open Trash"
@@ -67,6 +73,11 @@
         (editingChange)="onSkillEditingChange($event)"
         (triggerMacro)="triggerMacro.emit($event)">
       </app-skills>
+    }
+
+    <!-- Forging Tab -->
+    @if (activeTab === 'forging') {
+      <app-forging (patch)="onPatch($event)"></app-forging>
     }
 
     <!-- Status Effects Tab -->

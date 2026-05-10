@@ -1,0 +1,101 @@
+<div class="mat-editor">
+  <!-- Name & Description -->
+  <div class="section">
+    <div class="form-row">
+      <label>Name</label>
+      <input type="text" [(ngModel)]="edit.name" placeholder="Materialname" />
+    </div>
+    <div class="form-row">
+      <label>Beschreibung</label>
+      <textarea [(ngModel)]="edit.description" rows="2" placeholder="Optionale Beschreibung..."></textarea>
+    </div>
+  </div>
+
+  <!-- Usage toggles -->
+  <div class="section toggles-row">
+    <label class="toggle-label">
+      <input type="checkbox" [(ngModel)]="edit.canBeWeaponMaterial" (ngModelChange)="onWeaponToggle()" />
+      Waffen-Material
+    </label>
+    <label class="toggle-label">
+      <input type="checkbox" [(ngModel)]="edit.canBeArmorMaterial" (ngModelChange)="onArmorToggle()" />
+      Rüstungs-Material
+    </label>
+  </div>
+
+  <!-- Weapon Stats -->
+  @if (edit.canBeWeaponMaterial && edit.weaponStats) {
+    <div class="section stat-section">
+      <div class="stat-section-title">⚔ Waffen-Werte</div>
+      <div class="stats-grid">
+        <div class="stat-row">
+          <label>Haltbarkeit</label>
+          <input type="number" [(ngModel)]="edit.weaponStats.haltbarkeit" min="0" />
+        </div>
+        <div class="stat-row">
+          <label>Halt. Skalierung <span class="hint">(pro Schmiedung)</span></label>
+          <input type="number" [(ngModel)]="edit.weaponStats.haltbarkeitSkalierung" min="0" />
+        </div>
+        <div class="stat-row">
+          <label>Effektivität</label>
+          <input type="number" [(ngModel)]="edit.weaponStats.effektivitaet" min="0" />
+        </div>
+        <div class="stat-row">
+          <label>Eff. Skalierung <span class="hint">(pro Schmiedung)</span></label>
+          <input type="number" [(ngModel)]="edit.weaponStats.effektivitaetSkalierung" min="0" />
+        </div>
+        <div class="stat-row">
+          <label>Gewicht <span class="hint">(kg)</span></label>
+          <input type="number" [(ngModel)]="edit.weaponStats.weight" min="0" step="0.1" />
+        </div>
+        <div class="stat-row full">
+          <label>Extraeffekt</label>
+          <input type="text" [(ngModel)]="edit.weaponStats.extraEffect" placeholder="z.B. +1 Reichweite" />
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Armor Stats -->
+  @if (edit.canBeArmorMaterial && edit.armorStats) {
+    <div class="section stat-section">
+      <div class="stat-section-title">🛡 Rüstungs-Werte</div>
+      <div class="stats-grid">
+        <div class="stat-row">
+          <label>Haltbarkeit</label>
+          <input type="number" [(ngModel)]="edit.armorStats.haltbarkeit" min="0" />
+        </div>
+        <div class="stat-row">
+          <label>Halt. Skalierung <span class="hint">(pro Schmiedung)</span></label>
+          <input type="number" [(ngModel)]="edit.armorStats.haltbarkeitSkalierung" min="0" />
+        </div>
+        <div class="stat-row">
+          <label>Stabilität</label>
+          <input type="number" [(ngModel)]="edit.armorStats.effektivitaet" min="0" />
+        </div>
+        <div class="stat-row">
+          <label>Stab. Skalierung <span class="hint">(pro Schmiedung)</span></label>
+          <input type="number" [(ngModel)]="edit.armorStats.effektivitaetSkalierung" min="0" />
+        </div>
+        <div class="stat-row">
+          <label>Gewicht <span class="hint">(kg)</span></label>
+          <input type="number" [(ngModel)]="edit.armorStats.weight" min="0" step="0.1" />
+        </div>
+        <div class="stat-row">
+          <label>Rüstungsmalus <span class="hint">(Geschw.)</span></label>
+          <input type="number" [(ngModel)]="edit.armorStats.ruestungsmalus" min="0" />
+        </div>
+        <div class="stat-row full">
+          <label>Extraeffekt</label>
+          <input type="text" [(ngModel)]="edit.armorStats.extraEffect" placeholder="z.B. Feuerschutz +1" />
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Actions -->
+  <div class="editor-actions">
+    <button class="btn-cancel" (click)="onCancel()">Abbrechen</button>
+    <button class="btn-save" (click)="onSave()" [disabled]="!edit.name?.trim()">Speichern</button>
+  </div>
+</div>

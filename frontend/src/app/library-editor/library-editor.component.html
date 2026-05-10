@@ -145,6 +145,8 @@
                 <button (click)="createFile('skill')">⚔️ Neues Talent</button>
                 <button (click)="createFile('status-effect')">🎭 Neuer Status-Effekt</button>
                 <button (click)="createFile('macro')">⚡ Neues Makro</button>
+                <button (click)="createFile('material')">⚙️ Neues Material</button>
+                <button (click)="createFile('forge-trait')">🔥 Neues Schmiedemerkmal</button>
               </div>
             }
           </div>
@@ -349,6 +351,8 @@
         <button (click)="createFile('skill'); closeContextMenu()">⚔️ Neues Talent</button>
         <button (click)="createFile('status-effect'); closeContextMenu()">🎭 Neuer Status-Effekt</button>
         <button (click)="createFile('macro'); closeContextMenu()">⚡ Neues Makro</button>
+        <button (click)="createFile('material'); closeContextMenu()">⚙️ Neues Material</button>
+        <button (click)="createFile('forge-trait'); closeContextMenu()">🔥 Neues Schmiedemerkmal</button>
         <button (click)="createFile('shop'); closeContextMenu()">🏪 Neuer Handel</button>
         <button (click)="createFile('loot-bundle'); closeContextMenu()">💰 Neue Beute</button>
         @if (clipboard.canPaste()) {
@@ -410,6 +414,20 @@
             @case ('macro') {
               <app-macro-editor
                 [macro]="editingFile()!.data"
+                (save)="saveEditor($event)"
+                (cancel)="closeEditor()"
+              />
+            }
+            @case ('material') {
+              <app-material-editor
+                [material]="editingFile()!.data"
+                (save)="saveEditor($event)"
+                (cancel)="closeEditor()"
+              />
+            }
+            @case ('forge-trait') {
+              <app-forge-trait-editor
+                [trait]="editingFile()!.data"
                 (save)="saveEditor($event)"
                 (cancel)="closeEditor()"
               />

@@ -1,0 +1,58 @@
+<div class="trait-editor">
+  <!-- Name -->
+  <div class="form-row">
+    <label>Name</label>
+    <input type="text" [(ngModel)]="edit.name" placeholder="z.B. Werfen" />
+  </div>
+
+  <!-- Description -->
+  <div class="form-row">
+    <label>Beschreibung</label>
+    <textarea [(ngModel)]="edit.description" rows="2" placeholder="Optionale Beschreibung..."></textarea>
+  </div>
+
+  <!-- SP cost -->
+  <div class="form-row">
+    <label>Schmiedepunkte-Kosten</label>
+    <input type="number" [(ngModel)]="edit.schmiedepunktKosten" min="1" />
+  </div>
+
+  <!-- Scalable toggle -->
+  <div class="toggle-row">
+    <label class="toggle-label">
+      <input type="checkbox" [(ngModel)]="edit.scalable" (ngModelChange)="onScalableChange()" />
+      Skalierbar (mehrfach hinzufügbar)
+    </label>
+    @if (edit.scalable) {
+      <div class="inline-field">
+        <label>Max. Stufe</label>
+        <input type="number" [(ngModel)]="edit.maxLevel" min="2" max="99" class="small-input" />
+      </div>
+    }
+  </div>
+
+  <!-- Effect -->
+  <div class="form-row">
+    <label>
+      Effekttext
+      @if (edit.scalable) {
+        <span class="hint"> — Nutze <code>[L]</code> als Platzhalter für die Stufe</span>
+      }
+    </label>
+    <input type="text" [(ngModel)]="edit.effect" [placeholder]="edit.scalable ? 'z.B. Werfen + [L]' : 'z.B. Werfen + 1'" />
+  </div>
+
+  <!-- Live preview -->
+  @if (edit.scalable && edit.effect) {
+    <div class="preview-box">
+      <span class="preview-label">Vorschau (Stufe 1):</span>
+      <span class="preview-text">{{ previewEffect }}</span>
+    </div>
+  }
+
+  <!-- Actions -->
+  <div class="editor-actions">
+    <button class="btn-cancel" (click)="onCancel()">Abbrechen</button>
+    <button class="btn-save" (click)="onSave()" [disabled]="!edit.name?.trim()">Speichern</button>
+  </div>
+</div>
