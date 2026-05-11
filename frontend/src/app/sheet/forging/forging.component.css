@@ -698,3 +698,142 @@
   font-size: 0.78rem;
   color: var(--text-muted, #9ca3af);
 }
+
+.pi-public {
+  font-size: 0.7rem;
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.12);
+  border-radius: 10px;
+  padding: 0.1rem 0.5rem;
+  align-self: flex-start;
+}
+
+/* ── Multi-entry slot styles ─────────────────────────────────────────────────── */
+.slot-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.material-entry {
+  background: var(--bg, #1e293b);
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 7px;
+  padding: 0.5rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.entry-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.entry-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text, #e5e7eb);
+}
+
+.remove-entry-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted, #9ca3af);
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.remove-entry-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.entry-forge-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.1rem;
+}
+
+.forge-adj {
+  height: 26px;
+  border: 1px solid var(--border, #4a5568);
+  background: var(--card, #2d3748);
+  color: var(--text, #e5e7eb);
+  border-radius: 5px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.4rem;
+  transition: all 0.2s;
+}
+
+.forge-adj.minus {
+  min-width: 26px;
+}
+
+.forge-adj.plus {
+  padding: 0 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-color: var(--accent, #8b5cf6);
+  color: var(--accent, #8b5cf6);
+}
+
+.forge-adj.plus:not(:disabled):hover {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.forge-adj:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.forge-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.forge-num {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text, #e5e7eb);
+  line-height: 1;
+}
+
+.forge-cost {
+  font-size: 0.65rem;
+  color: var(--text-muted, #9ca3af);
+  white-space: nowrap;
+}
+
+/* Slot preview (aggregated) */
+.slot-preview {
+  border-top: 1px solid var(--border, #4a5568);
+  padding-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.stat-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: var(--bg, #1e293b);
+  border-radius: 6px;
+  padding: 0.4rem 0.65rem;
+}
+

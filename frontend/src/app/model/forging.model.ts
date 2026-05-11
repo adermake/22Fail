@@ -28,6 +28,8 @@ export interface MaterialBlock {
   description?: string;
   icon?: string;
   color?: string;
+  /** If true, all players can see and use this material without GM permission. */
+  isPublic: boolean;
   canBeWeaponMaterial: boolean;
   canBeArmorMaterial: boolean;
   weaponStats?: MaterialStats;
@@ -52,10 +54,26 @@ export interface ForgeTrait {
 
 // ── In-session state ──────────────────────────────────────────────────────────
 
-export interface MaterialSlotState {
-  material: MaterialBlock | null;
-  /** Number of times this material has been forged in this session (1 SP each). */
+/** A single material entry within a slot, with its individual forge count. */
+export interface SlotMaterialEntry {
+  material: MaterialBlock;
+  /** Number of times this material has been forged. Cost of the n-th forge = n SP. */
   forgeCount: number;
+}
+
+export interface MaterialSlotState {
+  /** Multiple materials can be placed in one slot (e.g. for special class abilities). */
+  entries: SlotMaterialEntry[];
+}
+
+/** SP cost of the NEXT forge for an entry that has already been forged forgeCount times. */
+export function nextForgeCost(forgeCount: number): number {
+  return forgeCount + 1;
+}
+
+/** Total SP already spent forging an entry (sum 1+2+…+forgeCount). */
+export function totalForgeSPSpent(forgeCount: number): number {
+  return (forgeCount * (forgeCount + 1)) / 2;
 }
 
 export interface AppliedTraitState {
@@ -88,9 +106,9 @@ export interface ForgedTraitRecord {
 export interface ForgingData {
   createdAt: number;
   itemType: 'weapon' | 'armor';
-  primaryMaterial?: ForgedMaterialRecord;
-  secondaryMaterial?: ForgedMaterialRecord;
-  bonusMaterial?: ForgedMaterialRecord;
+  primaryMaterials?: ForgedMaterialRecord[];
+  secondaryMaterials?: ForgedMaterialRecord[];
+  bonusMaterials?: ForgedMaterialRecord[];
   appliedTraits: ForgedTraitRecord[];
   totalSP: number;
   spentSP: number;
@@ -103,6 +121,7 @@ export function createEmptyMaterialBlock(): MaterialBlock {
     id: `mat_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
     name: 'Neues Material',
     description: '',
+    isPublic: false,
     canBeWeaponMaterial: true,
     canBeArmorMaterial: false,
     weaponStats: {

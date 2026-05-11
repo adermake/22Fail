@@ -41,10 +41,19 @@ export class CharacterTabsComponent {
   @Output() requestCastWindow = new EventEmitter<void>();
   @Output() rollWeaponDamage = new EventEmitter<number>();
 
-  activeTab: 'inventory' | 'spells' | 'runes' | 'skills' | 'forging' = 'inventory';
+  activeTab: 'inventory' | 'spells' | 'runes' | 'skills' = 'inventory';
+  showForgingOverlay = false;
 
-  setActiveTab(tab: 'inventory' | 'spells' | 'runes' | 'skills' | 'forging') {
+  setActiveTab(tab: 'inventory' | 'spells' | 'runes' | 'skills') {
     this.activeTab = tab;
+  }
+
+  openForgingOverlay(): void {
+    this.showForgingOverlay = true;
+  }
+
+  closeForgingOverlay(): void {
+    this.showForgingOverlay = false;
   }
 
   onRuneEditingChange(data: {index: number, isEditing: boolean}) {

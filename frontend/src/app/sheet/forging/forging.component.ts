@@ -1,6 +1,6 @@
 import {
-  Component, OnInit, Output, EventEmitter, ChangeDetectionStrategy,
-  ChangeDetectorRef, inject, signal, computed,
+  Component, OnInit, Output, Input, EventEmitter, ChangeDetectionStrategy,
+  ChangeDetectorRef, inject, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,12 +10,15 @@ import { AssetBrowserApiService } from '../../services/asset-browser-api.service
 import { AssetFile } from '../../model/asset-browser.model';
 import {
   MaterialBlock, ForgeTrait,
-  MaterialSlotState, AppliedTraitState, ForgedStatPreview,
+  MaterialSlotState, SlotMaterialEntry,
+  AppliedTraitState, ForgedStatPreview,
   ForgingData, ForgedMaterialRecord, ForgedTraitRecord,
   computeForgedStats, formatTraitEffect,
+  nextForgeCost, totalForgeSPSpent,
 } from '../../model/forging.model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
+import { CharacterSheet } from '../../model/character-sheet-model';
 
 export type SlotType = 'primary' | 'secondary' | 'bonus';
 
@@ -34,7 +37,9 @@ interface SlotConfig {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ForgingComponent implements OnInit {
+  @Input() sheet: CharacterSheet | null = null;
   @Output() patch = new EventEmitter<JsonPatch>();
+  @Output() closeOverlay = new EventEmitter<void>();
 
   private api = inject(AssetBrowserApiService);
   private cdr = inject(ChangeDetectorRef);
@@ -52,9 +57,9 @@ export class ForgingComponent implements OnInit {
   schmiedepunkte = 100;
 
   // ── Slots ────────────────────────────────────────────────────────────────────
-  primarySlot: MaterialSlotState = { material: null, forgeCount: 0 };
-  secondarySlot: MaterialSlotState = { material: null, forgeCount: 0 };
-  bonusSlot: MaterialSlotState = { material: null, forgeCount: 0 };
+  primarySlot: MaterialSlotState = { entries: [] };
+  secondarySlot: MaterialSlotState = { entries: [] };
+  bonusSlot: MaterialSlotState = { entries: [] };
 
   readonly slots: SlotConfig[] = [
     { key: 'primary',   label: 'Primär',   subtitle: 'Alle Werte + Extraeffekt' },
@@ -73,11 +78,37 @@ export class ForgingComponent implements OnInit {
   showTraitPicker = false;
   traitFilter = '';
 
-  // ── Computed: spent SP ───────────────────────────────────────────────────────
+  // ── Available materials filtered by knowledge ─────────────────────────────────
+  get availableMaterials(): MaterialBlock[] {
+    const knownIds = new Set(this.sheet?.knownMaterialIds ?? []);
+    const isWeapon = this.itemType === 'weapon';
+    return this.allMaterials.filter(m => {
+      const compatible = isWeapon ? m.canBeWeaponMaterial : m.canBeArmorMaterial;
+      if (!compatible) return false;
+      return m.isPublic || knownIds.has(m.id);
+    });
+  }
+
+  get filteredMaterials(): MaterialBlock[] {
+    const q = this.materialFilter.toLowerCase();
+    return this.availableMaterials.filter(m => !q || m.name.toLowerCase().includes(q));
+  }
+
+  get filteredForgeTraits(): ForgeTrait[] {
+    const q = this.traitFilter.toLowerCase();
+    return this.allForgeTraits.filter(t => !q || t.name.toLowerCase().includes(q));
+  }
+
+  // ── SP calculations ──────────────────────────────────────────────────────────
   get spentSP(): number {
-    const forgeSP = this.primarySlot.forgeCount + this.secondarySlot.forgeCount + this.bonusSlot.forgeCount;
-    const traitSP = this.appliedTraits.reduce((acc, t) => acc + t.trait.schmiedepunktKosten * t.level, 0);
-    return forgeSP + traitSP;
+    let sp = 0;
+    for (const slot of [this.primarySlot, this.secondarySlot, this.bonusSlot]) {
+      for (const entry of slot.entries) {
+        sp += totalForgeSPSpent(entry.forgeCount);
+      }
+    }
+    sp += this.appliedTraits.reduce((acc, t) => acc + t.trait.schmiedepunktKosten * t.level, 0);
+    return sp;
   }
 
   get remainingSP(): number {
@@ -89,26 +120,39 @@ export class ForgingComponent implements OnInit {
     return Math.min(100, Math.round((this.spentSP / this.schmiedepunkte) * 100));
   }
 
-  // ── Computed: slot previews ──────────────────────────────────────────────────
-  get primaryPreview(): ForgedStatPreview | null {
-    return this.previewForSlot(this.primarySlot);
+  // ── Slot stat aggregation ────────────────────────────────────────────────────
+  /** Aggregate ForgedStatPreview for all entries in a slot. */
+  aggregateSlot(slot: MaterialSlotState): ForgedStatPreview | null {
+    if (slot.entries.length === 0) return null;
+    let h = 0, e = 0, w = 0, mal = 0;
+    const effects: string[] = [];
+    for (const entry of slot.entries) {
+      const preview = computeForgedStats(entry.material, entry.forgeCount, this.itemType === 'weapon');
+      if (!preview) continue;
+      h += preview.haltbarkeit;
+      e += preview.effektivitaet;
+      w += preview.weight;
+      mal += preview.ruestungsmalus ?? 0;
+      if (preview.extraEffect) effects.push(preview.extraEffect);
+    }
+    return { haltbarkeit: h, effektivitaet: e, weight: w, ruestungsmalus: mal || undefined, extraEffect: effects.join(', ') };
   }
 
+  get primaryPreview(): ForgedStatPreview | null { return this.aggregateSlot(this.primarySlot); }
+
   get secondaryPreview(): ForgedStatPreview | null {
-    const raw = this.previewForSlot(this.secondarySlot);
+    const raw = this.aggregateSlot(this.secondarySlot);
     if (!raw) return null;
     return {
       ...raw,
-      haltbarkeit:  Math.floor(raw.haltbarkeit  / 2),
+      haltbarkeit:   Math.floor(raw.haltbarkeit / 2),
       effektivitaet: Math.floor(raw.effektivitaet / 2),
       weight:        raw.weight / 2,
       ruestungsmalus: raw.ruestungsmalus != null ? Math.floor(raw.ruestungsmalus / 2) : undefined,
     };
   }
 
-  get bonusPreview(): ForgedStatPreview | null {
-    return this.previewForSlot(this.bonusSlot);
-  }
+  get bonusPreview(): ForgedStatPreview | null { return this.aggregateSlot(this.bonusSlot); }
 
   get finalHaltbarkeit(): number {
     return (this.primaryPreview?.haltbarkeit ?? 0) + (this.secondaryPreview?.haltbarkeit ?? 0);
@@ -119,19 +163,11 @@ export class ForgingComponent implements OnInit {
   }
 
   get finalWeight(): number {
-    return (
-      (this.primaryPreview?.weight ?? 0) +
-      (this.secondaryPreview?.weight ?? 0) +
-      (this.bonusPreview?.weight ?? 0)
-    );
+    return (this.primaryPreview?.weight ?? 0) + (this.secondaryPreview?.weight ?? 0) + (this.bonusPreview?.weight ?? 0);
   }
 
   get finalRuestungsmalus(): number {
-    return (
-      (this.primaryPreview?.ruestungsmalus ?? 0) +
-      (this.secondaryPreview?.ruestungsmalus ?? 0) +
-      (this.bonusPreview?.ruestungsmalus ?? 0)
-    );
+    return (this.primaryPreview?.ruestungsmalus ?? 0) + (this.secondaryPreview?.ruestungsmalus ?? 0) + (this.bonusPreview?.ruestungsmalus ?? 0);
   }
 
   get allExtraEffects(): string[] {
@@ -140,22 +176,6 @@ export class ForgingComponent implements OnInit {
       if (preview?.extraEffect) effects.push(preview.extraEffect);
     }
     return effects;
-  }
-
-  // ── Filtered lists ───────────────────────────────────────────────────────────
-  get filteredMaterials(): MaterialBlock[] {
-    const q = this.materialFilter.toLowerCase();
-    const isWeapon = this.itemType === 'weapon';
-    return this.allMaterials.filter(m => {
-      const valid = isWeapon ? m.canBeWeaponMaterial : m.canBeArmorMaterial;
-      if (!valid) return false;
-      return !q || m.name.toLowerCase().includes(q);
-    });
-  }
-
-  get filteredForgeTraits(): ForgeTrait[] {
-    const q = this.traitFilter.toLowerCase();
-    return this.allForgeTraits.filter(t => !q || t.name.toLowerCase().includes(q));
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────────
@@ -189,51 +209,60 @@ export class ForgingComponent implements OnInit {
     }
   }
 
-  // ── Slot management ──────────────────────────────────────────────────────────
+  // ── Slot helpers ─────────────────────────────────────────────────────────────
   getSlotState(key: SlotType): MaterialSlotState {
     if (key === 'primary') return this.primarySlot;
     if (key === 'secondary') return this.secondarySlot;
     return this.bonusSlot;
   }
 
+  getSlotPreview(key: SlotType): ForgedStatPreview | null {
+    if (key === 'primary') return this.primaryPreview;
+    if (key === 'secondary') return this.secondaryPreview;
+    return this.bonusPreview;
+  }
+
+  isBonusSlot(key: SlotType): boolean { return key === 'bonus'; }
+
+  // ── Material picker ───────────────────────────────────────────────────────────
   openPicker(slot: SlotType): void {
     this.pickingSlot = slot;
     this.materialFilter = '';
   }
 
-  closePicker(): void {
-    this.pickingSlot = null;
-  }
+  closePicker(): void { this.pickingSlot = null; }
 
   selectMaterial(mat: MaterialBlock): void {
     if (!this.pickingSlot) return;
     const slot = this.getSlotState(this.pickingSlot);
-    slot.material = mat;
-    slot.forgeCount = 0;
+    slot.entries.push({ material: mat, forgeCount: 0 });
     this.pickingSlot = null;
     this.cdr.markForCheck();
   }
 
-  clearSlot(key: SlotType): void {
-    const slot = this.getSlotState(key);
-    slot.material = null;
-    slot.forgeCount = 0;
+  removeMaterialEntry(slot: MaterialSlotState, idx: number): void {
+    slot.entries.splice(idx, 1);
     this.cdr.markForCheck();
   }
 
-  canForge(slot: MaterialSlotState): boolean {
-    return slot.material !== null && this.remainingSP > 0;
+  // ── Forging ───────────────────────────────────────────────────────────────────
+  nextForgeCostFor(entry: SlotMaterialEntry): number {
+    return nextForgeCost(entry.forgeCount);
   }
 
-  forge(slot: MaterialSlotState): void {
-    if (!this.canForge(slot)) return;
-    slot.forgeCount++;
+  canForge(entry: SlotMaterialEntry): boolean {
+    return this.remainingSP >= nextForgeCost(entry.forgeCount);
+  }
+
+  forge(entry: SlotMaterialEntry): void {
+    if (!this.canForge(entry)) return;
+    entry.forgeCount++;
     this.cdr.markForCheck();
   }
 
-  unforge(slot: MaterialSlotState): void {
-    if (slot.forgeCount <= 0) return;
-    slot.forgeCount--;
+  unforge(entry: SlotMaterialEntry): void {
+    if (entry.forgeCount <= 0) return;
+    entry.forgeCount--;
     this.cdr.markForCheck();
   }
 
@@ -251,22 +280,16 @@ export class ForgingComponent implements OnInit {
   addTrait(trait: ForgeTrait): void {
     if (!this.canAddTrait(trait)) return;
     const existing = this.appliedTraits.find(t => t.trait.id === trait.id);
-    if (existing) {
-      existing.level++;
-    } else {
-      this.appliedTraits.push({ trait, level: 1 });
-    }
+    if (existing) existing.level++;
+    else this.appliedTraits.push({ trait, level: 1 });
     this.cdr.markForCheck();
   }
 
   removeTrait(trait: ForgeTrait): void {
     const idx = this.appliedTraits.findIndex(t => t.trait.id === trait.id);
     if (idx === -1) return;
-    if (this.appliedTraits[idx].level <= 1) {
-      this.appliedTraits.splice(idx, 1);
-    } else {
-      this.appliedTraits[idx].level--;
-    }
+    if (this.appliedTraits[idx].level <= 1) this.appliedTraits.splice(idx, 1);
+    else this.appliedTraits[idx].level--;
     this.cdr.markForCheck();
   }
 
@@ -276,36 +299,21 @@ export class ForgingComponent implements OnInit {
 
   // ── Item type change ─────────────────────────────────────────────────────────
   onItemTypeChange(): void {
-    // Clear slots that are incompatible with new type
-    if (this.primarySlot.material) {
-      const ok = this.itemType === 'weapon'
-        ? this.primarySlot.material.canBeWeaponMaterial
-        : this.primarySlot.material.canBeArmorMaterial;
-      if (!ok) this.clearSlot('primary');
-    }
-    if (this.secondarySlot.material) {
-      const ok = this.itemType === 'weapon'
-        ? this.secondarySlot.material.canBeWeaponMaterial
-        : this.secondarySlot.material.canBeArmorMaterial;
-      if (!ok) this.clearSlot('secondary');
-    }
-    if (this.bonusSlot.material) {
-      const ok = this.itemType === 'weapon'
-        ? this.bonusSlot.material.canBeWeaponMaterial
-        : this.bonusSlot.material.canBeArmorMaterial;
-      if (!ok) this.clearSlot('bonus');
+    for (const slot of [this.primarySlot, this.secondarySlot, this.bonusSlot]) {
+      slot.entries = slot.entries.filter(e => {
+        return this.itemType === 'weapon' ? e.material.canBeWeaponMaterial : e.material.canBeArmorMaterial;
+      });
     }
     this.cdr.markForCheck();
   }
 
-  // ── Finish forging ───────────────────────────────────────────────────────────
+  // ── Finish forging ────────────────────────────────────────────────────────────
   canFinish(): boolean {
-    return !!this.itemName.trim() && this.primarySlot.material !== null;
+    return !!this.itemName.trim() && this.primarySlot.entries.length > 0;
   }
 
   finishForging(): void {
     if (!this.canFinish()) return;
-
     const isWeapon = this.itemType === 'weapon';
 
     const item = new ItemBlock();
@@ -330,53 +338,40 @@ export class ForgingComponent implements OnInit {
       item.armorDebuff = this.finalRuestungsmalus || undefined;
     }
 
-    // Forge-trait effects as secondary / special effects
     if (this.appliedTraits.length > 0) {
       item.secondaryEffect = this.appliedTraits.map(t => this.formatEffect(t)).join('\n');
     }
 
-    // Metadata — stored as arbitrary extra fields via type assertion
+    const toRecords = (slot: MaterialSlotState): ForgedMaterialRecord[] =>
+      slot.entries.map(e => ({ name: e.material.name, forgeCount: e.forgeCount }));
+
     const forgingData: ForgingData = {
       createdAt: Date.now(),
       itemType: this.itemType,
-      primaryMaterial: this.primarySlot.material
-        ? { name: this.primarySlot.material.name, forgeCount: this.primarySlot.forgeCount }
-        : undefined,
-      secondaryMaterial: this.secondarySlot.material
-        ? { name: this.secondarySlot.material.name, forgeCount: this.secondarySlot.forgeCount }
-        : undefined,
-      bonusMaterial: this.bonusSlot.material
-        ? { name: this.bonusSlot.material.name, forgeCount: this.bonusSlot.forgeCount }
-        : undefined,
+      primaryMaterials: toRecords(this.primarySlot),
+      secondaryMaterials: toRecords(this.secondarySlot),
+      bonusMaterials: toRecords(this.bonusSlot),
       appliedTraits: this.appliedTraits.map(t => ({ name: t.trait.name, level: t.level })),
       totalSP: this.schmiedepunkte,
       spentSP: this.spentSP,
     };
     (item as any)['forgingData'] = forgingData;
 
-    // Emit as a patch — append to inventory
-    this.patch.emit({
-      path: '/inventory/-',
-      value: item,
-    });
-
-    // Reset for next forging session
+    this.patch.emit({ path: '/inventory/-', value: item });
     this.resetSession();
+    this.closeOverlay.emit();
   }
 
   private buildDescription(): string {
     const lines: string[] = [];
-    if (this.primarySlot.material) {
-      const fc = this.primarySlot.forgeCount;
-      lines.push(`Primär: ${this.primarySlot.material.name}${fc > 0 ? ` (+${fc}× geschmiedet)` : ''}`);
-    }
-    if (this.secondarySlot.material) {
-      const fc = this.secondarySlot.forgeCount;
-      lines.push(`Sekundär: ${this.secondarySlot.material.name}${fc > 0 ? ` (+${fc}× geschmiedet)` : ''}`);
-    }
-    if (this.bonusSlot.material) {
-      lines.push(`Zusatz: ${this.bonusSlot.material.name}`);
-    }
+    const addSlot = (label: string, slot: MaterialSlotState) => {
+      if (slot.entries.length === 0) return;
+      const parts = slot.entries.map(e => `${e.material.name}${e.forgeCount > 0 ? ` (+${e.forgeCount}×)` : ''}`);
+      lines.push(`${label}: ${parts.join(', ')}`);
+    };
+    addSlot('Primär', this.primarySlot);
+    addSlot('Sekundär', this.secondarySlot);
+    addSlot('Zusatz', this.bonusSlot);
     if (this.appliedTraits.length > 0) {
       lines.push('');
       lines.push('Schmiedemerkmale:');
@@ -389,29 +384,12 @@ export class ForgingComponent implements OnInit {
 
   private resetSession(): void {
     this.itemName = '';
-    this.primarySlot = { material: null, forgeCount: 0 };
-    this.secondarySlot = { material: null, forgeCount: 0 };
-    this.bonusSlot = { material: null, forgeCount: 0 };
+    this.primarySlot = { entries: [] };
+    this.secondarySlot = { entries: [] };
+    this.bonusSlot = { entries: [] };
     this.appliedTraits = [];
     this.pickingSlot = null;
     this.showTraitPicker = false;
     this.cdr.markForCheck();
-  }
-
-  // ── Helpers ──────────────────────────────────────────────────────────────────
-  private previewForSlot(slot: MaterialSlotState): ForgedStatPreview | null {
-    if (!slot.material) return null;
-    return computeForgedStats(slot.material, slot.forgeCount, this.itemType === 'weapon');
-  }
-
-  getSlotPreview(key: SlotType): ForgedStatPreview | null {
-    if (key === 'primary') return this.primaryPreview;
-    if (key === 'secondary') return this.secondaryPreview;
-    return this.bonusPreview;
-  }
-
-  // bonus slot shows only extra effect
-  isBonusSlot(key: SlotType): boolean {
-    return key === 'bonus';
   }
 }

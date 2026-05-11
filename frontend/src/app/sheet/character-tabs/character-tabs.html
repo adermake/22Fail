@@ -25,12 +25,6 @@
       Fähigkeiten ({{ (sheet.skills || []).length }})
     </button>
     <button
-      class="tab-button"
-      [class.active]="activeTab === 'forging'"
-      (click)="setActiveTab('forging')">
-      Schmiede
-    </button>
-    <button
       class="trash-button"
       (click)="openTrash.emit()"
       title="Open Trash"
@@ -42,7 +36,12 @@
   <div class="tab-content">
     <!-- Inventory Tab - Always rendered but hidden when not active for CDK drag-drop -->
     <div [style.display]="activeTab === 'inventory' ? 'block' : 'none'">
-      <app-inventory [sheet]="sheet" (patch)="onPatch($event)" (rollWeaponDamage)="rollWeaponDamage.emit($event)"></app-inventory>
+      <app-inventory
+        [sheet]="sheet"
+        (patch)="onPatch($event)"
+        (rollWeaponDamage)="rollWeaponDamage.emit($event)"
+        (openForge)="openForgingOverlay()">
+      </app-inventory>
     </div>
 
     <!-- Spells Tab -->
@@ -75,11 +74,21 @@
       </app-skills>
     }
 
-    <!-- Forging Tab -->
-    @if (activeTab === 'forging') {
-      <app-forging (patch)="onPatch($event)"></app-forging>
-    }
-
     <!-- Status Effects Tab -->
   </div>
 </div>
+
+<!-- Forging Overlay -->
+@if (showForgingOverlay) {
+  <div class="forging-overlay-backdrop" (click)="closeForgingOverlay()">
+    <div class="forging-overlay-panel" (click)="$event.stopPropagation()">
+      <div class="forging-overlay-header">
+        <span class="forging-overlay-title">⚒ Schmiede</span>
+        <button class="forging-overlay-close" (click)="closeForgingOverlay()">✕</button>
+      </div>
+      <div class="forging-overlay-body">
+        <app-forging [sheet]="sheet" (patch)="onPatch($event)" (closeOverlay)="closeForgingOverlay()"></app-forging>
+      </div>
+    </div>
+  </div>
+}

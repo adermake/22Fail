@@ -44,23 +44,50 @@
         @let slot = getSlotState(slotCfg.key);
         @let preview = getSlotPreview(slotCfg.key);
 
-        <div class="slot-card card" [class.filled]="slot.material">
+        <div class="slot-card card" [class.filled]="slot.entries.length > 0">
           <div class="slot-header">
             <div>
               <div class="slot-label">{{ slotCfg.label }}</div>
               <div class="slot-subtitle">{{ slotCfg.subtitle }}</div>
             </div>
-            @if (slot.material) {
-              <button class="clear-btn" (click)="clearSlot(slotCfg.key)" title="Entfernen">✕</button>
-            }
           </div>
 
-          @if (slot.material) {
-            <div class="slot-content">
-              <div class="material-name">{{ slot.material.name }}</div>
+          <!-- Material entries in this slot -->
+          @if (slot.entries.length > 0) {
+            <div class="slot-entries">
+              @for (entry of slot.entries; track entry.material.id; let i = $index) {
+                <div class="material-entry">
+                  <div class="entry-top">
+                    <span class="entry-name">{{ entry.material.name }}</span>
+                    <button class="remove-entry-btn" (click)="removeMaterialEntry(slot, i)" title="Entfernen">✕</button>
+                  </div>
 
-              @if (!isBonusSlot(slotCfg.key) && preview) {
-                <div class="stat-preview">
+                  @if (!isBonusSlot(slotCfg.key)) {
+                    <div class="entry-forge-controls">
+                      <button class="forge-adj minus" (click)="unforge(entry)" [disabled]="entry.forgeCount <= 0">−</button>
+                      <div class="forge-info">
+                        <span class="forge-num">{{ entry.forgeCount }}×</span>
+                        <span class="forge-cost">Nächste: {{ nextForgeCostFor(entry) }} SP</span>
+                      </div>
+                      <button
+                        class="forge-adj plus"
+                        (click)="forge(entry)"
+                        [disabled]="!canForge(entry)"
+                        title="Schmieden (kostet {{ nextForgeCostFor(entry) }} SP)">
+                        Schmieden
+                      </button>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Aggregated preview for slot -->
+          @if (slot.entries.length > 0 && preview) {
+            <div class="slot-preview">
+              @if (!isBonusSlot(slotCfg.key)) {
+                <div class="stat-grid">
                   <div class="stat-row">
                     <span class="stat-name">Haltbarkeit</span>
                     <span class="stat-val">{{ preview.haltbarkeit }}</span>
@@ -77,42 +104,30 @@
                   }
                   <div class="stat-row">
                     <span class="stat-name">Gewicht</span>
-                    <span class="stat-val">{{ preview.weight }} kg</span>
+                    <span class="stat-val">{{ preview.weight | number:'1.1-1' }} kg</span>
                   </div>
                 </div>
               }
-
-              @if (preview?.extraEffect) {
+              @if (preview.extraEffect) {
                 <div class="extra-effect">
                   <span class="extra-label">Extraeffekt:</span>
-                  {{ preview!.extraEffect }}
-                </div>
-              }
-
-              @if (!isBonusSlot(slotCfg.key)) {
-                <div class="forge-controls">
-                  <button class="forge-btn minus" (click)="unforge(slot)" [disabled]="slot.forgeCount <= 0">−</button>
-                  <div class="forge-count">
-                    <span class="forge-num">{{ slot.forgeCount }}</span>
-                    <span class="forge-unit">Schmiedungen</span>
-                  </div>
-                  <button class="forge-btn plus" (click)="forge(slot)" [disabled]="!canForge(slot)">+</button>
+                  {{ preview.extraEffect }}
                 </div>
               }
             </div>
-          } @else {
-            <button class="add-material-btn" (click)="openPicker(slotCfg.key)">
-              + Material wählen
-            </button>
           }
+
+          <button class="add-material-btn" (click)="openPicker(slotCfg.key)">
+            + Material hinzufügen
+          </button>
         </div>
       }
     </div>
 
     <!-- ── Final stats preview ──────────────────────────────────────────── -->
-    @if (primarySlot.material || secondarySlot.material) {
+    @if (primarySlot.entries.length > 0 || secondarySlot.entries.length > 0) {
       <div class="final-stats card">
-        <div class="final-title">Berechnete Werte</div>
+        <div class="final-title">Berechnete Gesamtwerte</div>
         <div class="final-grid">
           <div class="final-stat">
             <span class="f-label">Haltbarkeit</span>
@@ -180,7 +195,7 @@
       <!-- Trait picker panel -->
       @if (showTraitPicker) {
         <div class="trait-picker">
-          <input class="filter-input" type="text" [(ngModel)]="traitFilter" placeholder="Merkmal suchen..." />
+          <input class="filter-input" type="text" [(ngModel)]="traitFilter" placeholder="Merkmal suchen..." autofocus />
           @if (filteredForgeTraits.length === 0) {
             <p class="empty-msg">Keine Schmiedemerkmale in der Bibliothek.</p>
           }
@@ -232,6 +247,9 @@
         @for (mat of filteredMaterials; track mat.id) {
           <div class="picker-item" (click)="selectMaterial(mat)">
             <span class="pi-name">{{ mat.name }}</span>
+            @if (mat.isPublic) {
+              <span class="pi-public">öffentlich</span>
+            }
             @if (mat.description) {
               <span class="pi-desc">{{ mat.description }}</span>
             }

@@ -142,6 +142,23 @@ app-card > *,
   background-color: var(--accentdark);
 }
 
+.forge-btn {
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.forge-btn:hover {
+  background-color: rgba(139, 92, 246, 0.12);
+}
+
 /* Kill CDK snap-back animation — items teleport directly to new position */
 ::ng-deep .cdk-drag-animating {
   transition: none !important;

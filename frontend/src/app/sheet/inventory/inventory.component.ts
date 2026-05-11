@@ -37,6 +37,8 @@ export class InventoryComponent {
   @Output() claimLoot = new EventEmitter<any>();
   /** Emits weapon efficiency when user clicks the roll-damage button on a weapon item */
   @Output() rollWeaponDamage = new EventEmitter<number>();
+  /** Requests parent to open the forging overlay */
+  @Output() openForge = new EventEmitter<void>();
   
   private worldSocket = inject(WorldSocketService);
   private notification = inject(NotificationService);

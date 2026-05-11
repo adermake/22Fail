@@ -78,6 +78,69 @@
   display: none;
 }
 
+/* ── Forging Overlay ─────────────────────────────────────── */
+.forging-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  overflow-y: auto;
+}
+
+.forging-overlay-panel {
+  background: var(--bg, #1e293b);
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  width: 100%;
+  max-width: 1100px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.forging-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border, #4a5568);
+  flex-shrink: 0;
+}
+
+.forging-overlay-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent, #8b5cf6);
+  letter-spacing: 0.04em;
+}
+
+.forging-overlay-close {
+  background: none;
+  border: none;
+  color: var(--text-muted, #9ca3af);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 5px;
+  transition: all 0.2s;
+}
+
+.forging-overlay-close:hover {
+  color: var(--text, #e5e7eb);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.forging-overlay-body {
+  overflow-y: auto;
+  max-height: calc(100vh - 150px);
+}
+
 .tab-content {
   flex: 1;
   overflow-y: auto;
