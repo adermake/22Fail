@@ -14,9 +14,9 @@
     </button>
     <button
       class="tab-button"
-      [class.active]="activeTab === 'runes'"
-      (click)="setActiveTab('runes')">
-      Runen ({{ (sheet.runes || []).length }})
+      [class.active]="activeTab === 'wissen'"
+      (click)="setActiveTab('wissen')">
+      Wissen
     </button>
     <button
       class="tab-button"
@@ -55,12 +55,12 @@
       </app-spells>
     }
 
-    <!-- Runes Tab -->
-    @if (activeTab === 'runes') {
-      <app-runes
+    <!-- Wissen Tab (Runen + Bekannte Materialien) -->
+    @if (activeTab === 'wissen') {
+      <app-wissen
         [sheet]="sheet"
         (patch)="onPatch($event)">
-      </app-runes>
+      </app-wissen>
     }
 
     <!-- Skills Tab -->

@@ -879,3 +879,146 @@
 .sm-send-list::-webkit-scrollbar-track { background: var(--card); }
 .sm-effect-grid::-webkit-scrollbar-thumb,
 .sm-send-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Knowledge Manager Overlay ───────────────────────────── */
+.km-panel {
+  max-width: 560px;
+}
+
+.km-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2.5rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.km-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.km-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding: 8px 16px 0;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.km-list {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex: 1;
+  max-height: 45vh;
+  padding: 6px 0;
+}
+
+.km-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.15s;
+}
+
+.km-item:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.km-item.km-known {
+  background: rgba(139, 92, 246, 0.06);
+}
+
+.km-item input[type="checkbox"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.km-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.km-item-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.km-item-desc {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.km-item-types {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.1rem;
+}
+
+.km-type {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 8px;
+  text-transform: uppercase;
+}
+
+.km-type.weapon {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+}
+
+.km-type.armor {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+}
+
+.km-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.km-count {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.km-save-btn {
+  padding: 0.45rem 1.4rem;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+
+.km-save-btn:hover {
+  filter: brightness(1.15);
+}

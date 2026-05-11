@@ -463,3 +463,60 @@
     </div>
   </div>
 }
+
+<!-- Knowledge Manager Overlay -->
+@if (knowledgeManagerFor) {
+  <div class="sm-overlay" (click)="closeKnowledgeManager()">
+    <div class="sm-panel km-panel" (click)="$event.stopPropagation()">
+      <div class="sm-header">
+        <span class="sm-title">📖 Materialwissen</span>
+        <span class="sm-subtitle">{{ partyCharacters.get(knowledgeManagerFor)?.name || knowledgeManagerFor }}</span>
+        <button class="sm-close" (click)="closeKnowledgeManager()">✕</button>
+      </div>
+
+      @if (knowledgeManagerLoading) {
+        <div class="km-loading">
+          <span class="km-spinner"></span>
+          <span>Materialien werden geladen...</span>
+        </div>
+      } @else {
+        <p class="km-hint">Öffentliche Materialien sind automatisch für alle sichtbar. Hier kannst du nicht-öffentliche Materialien freigeben.</p>
+
+        <input
+          class="sm-search"
+          type="text"
+          [(ngModel)]="knowledgeManagerSearch"
+          placeholder="Material suchen...">
+
+        @if (filteredKnowledgeMaterials.length === 0) {
+          <p class="sm-empty">
+            {{ knowledgeManagerSearch ? 'Keine passenden Materialien.' : 'Keine nicht-öffentlichen Materialien in der Bibliothek.' }}
+          </p>
+        } @else {
+          <div class="km-list">
+            @for (entry of filteredKnowledgeMaterials; track entry.material.id) {
+              <label class="km-item" [class.km-known]="entry.known">
+                <input type="checkbox" [checked]="entry.known" (change)="toggleMaterialKnowledge(entry)" />
+                <div class="km-item-info">
+                  <span class="km-item-name">{{ entry.material.name }}</span>
+                  @if (entry.material.description) {
+                    <span class="km-item-desc">{{ entry.material.description }}</span>
+                  }
+                  <div class="km-item-types">
+                    @if (entry.material.canBeWeaponMaterial) { <span class="km-type weapon">Waffe</span> }
+                    @if (entry.material.canBeArmorMaterial) { <span class="km-type armor">Rüstung</span> }
+                  </div>
+                </div>
+              </label>
+            }
+          </div>
+        }
+
+        <div class="km-footer">
+          <span class="km-count">{{ knownMaterialCount }} von {{ knowledgeManagerMaterials.length }} bekannt</span>
+          <button class="km-save-btn" (click)="saveKnowledgeManager()">Speichern</button>
+        </div>
+      }
+    </div>
+  </div>
+}

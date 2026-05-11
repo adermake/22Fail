@@ -37,6 +37,8 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
 import { CharacterGeneratorComponent } from '../character-generator/character-generator.component';
 import { DamageCalculatorComponent } from '../damage-calculator/damage-calculator.component';
 import { TrueStatsService } from '../../services/true-stats.service';
+import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
+import { firstValueFrom } from 'rxjs';
 
 // Re-export types for template usage
 export type { SimulatedTurn, BattleGroup };
@@ -67,6 +69,7 @@ export class WorldComponent implements OnInit, OnDestroy {
   notification = inject(NotificationService);
   cdr = inject(ChangeDetectorRef);
   trueStats = inject(TrueStatsService);
+  assetBrowserApi = inject(AssetBrowserApiService);
   router = inject(Router);
 
   // Character/party state
@@ -110,6 +113,12 @@ export class WorldComponent implements OnInit, OnDestroy {
   sendPickerFor: string | null = null;
   sendPickerType: 'item' | 'rune' | 'spell' | 'skill' | null = null;
   sendPickerSearch = '';
+
+  /** Character ID whose knowledge management overlay is open */
+  knowledgeManagerFor: string | null = null;
+  knowledgeManagerLoading = false;
+  knowledgeManagerMaterials: { material: any; known: boolean }[] = [];
+  knowledgeManagerSearch = '';
 
   // Drag state
   private dragScrollInterval?: number;
@@ -1128,13 +1137,80 @@ export class WorldComponent implements OnInit, OnDestroy {
 
     // ── Section 3: Status management ──
     menuItems.push({ icon: '✨', label: 'Status verwalten', action: `manage_status::${characterId}` });
+    menuItems.push({ label: '', action: '', divider: true });
+
+    // ── Section 4: Knowledge management ──
+    menuItems.push({ icon: '📖', label: 'Materialwissen verwalten', action: `manage_knowledge::${characterId}` });
 
     this.contextMenu?.show(event.clientX, event.clientY, menuItems);
   }
 
+  // ── Knowledge Management ─────────────────────────────────────────────────────
+
+  async openKnowledgeManager(characterId: string): Promise<void> {
+    this.knowledgeManagerFor = characterId;
+    this.knowledgeManagerSearch = '';
+    this.knowledgeManagerLoading = true;
+    this.cdr.markForCheck();
+
+    try {
+      const libraries = await firstValueFrom(this.assetBrowserApi.getAllLibraries());
+      const materialFiles: any[] = [];
+      for (const lib of libraries) {
+        const mats = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', ['material']));
+        materialFiles.push(...mats);
+      }
+      const character = this.partyCharacters.get(characterId);
+      const knownIds = new Set(character?.knownMaterialIds ?? []);
+
+      // Only show non-public materials (public ones are visible to all, no need to manage)
+      this.knowledgeManagerMaterials = materialFiles
+        .map(f => f.data)
+        .filter(m => !m.isPublic)
+        .map(m => ({ material: m, known: knownIds.has(m.id) }));
+    } catch (e) {
+      console.error('Knowledge manager: Fehler beim Laden', e);
+    } finally {
+      this.knowledgeManagerLoading = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  get filteredKnowledgeMaterials(): { material: any; known: boolean }[] {
+    const q = this.knowledgeManagerSearch.toLowerCase();
+    if (!q) return this.knowledgeManagerMaterials;
+    return this.knowledgeManagerMaterials.filter(m => m.material.name.toLowerCase().includes(q));
+  }
+
+  toggleMaterialKnowledge(entry: { material: any; known: boolean }): void {
+    entry.known = !entry.known;
+    this.cdr.markForCheck();
+  }
+
+  saveKnowledgeManager(): void {
+    if (!this.knowledgeManagerFor) return;
+    const knownIds = this.knowledgeManagerMaterials
+      .filter(e => e.known)
+      .map(e => e.material.id);
+    this.characterSocket.sendPatch(this.knowledgeManagerFor, { path: '/knownMaterialIds', value: knownIds });
+    const char = this.partyCharacters.get(this.knowledgeManagerFor);
+    const name = char?.name ?? this.knowledgeManagerFor;
+    this.notification.success(`Materialwissen für ${name} gespeichert.`, 2000);
+    this.knowledgeManagerFor = null;
+    this.cdr.markForCheck();
+  }
+
+  closeKnowledgeManager(): void {
+    this.knowledgeManagerFor = null;
+    this.cdr.markForCheck();
+  }
+
+  get knownMaterialCount(): number {
+    return this.knowledgeManagerMaterials.filter(e => e.known).length;
+  }
+
   // Context menu for library items (send to player, edit)
-  onLibraryItemContextMenu(eventData: { event: MouseEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'; index: number }) {
-    const { event, type, index } = eventData;
+  onLibraryItemContextMenu(eventData: { event: MouseEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'; index: number }) {    const { event, type, index } = eventData;
     event.preventDefault();
     
     this.selectedLibraryItemType = type;
@@ -1191,6 +1267,9 @@ export class WorldComponent implements OnInit, OnDestroy {
         this.statusManagerFor = parts[1];
         this.statusManagerSearch = '';
         this.cdr.markForCheck();
+        break;
+      case 'manage_knowledge':
+        this.openKnowledgeManager(parts[1]);
         break;
       case 'remove_status': {
         const statusEffectId = parts[1];

@@ -1,0 +1,94 @@
+<div class="wissen-container">
+
+  <!-- Sub-tab header -->
+  <div class="wissen-tabs">
+    <button class="wissen-tab" [class.active]="activeTab === 'runes'" (click)="setTab('runes')">
+      Runen ({{ runeCount }})
+    </button>
+    <button class="wissen-tab" [class.active]="activeTab === 'materials'" (click)="setTab('materials')">
+      Bekannte Materialien
+      @if (!isLoading()) {
+        ({{ knownMaterials.length }})
+      }
+    </button>
+  </div>
+
+  <!-- Runen sub-tab -->
+  @if (activeTab === 'runes') {
+    <app-runes [sheet]="sheet" (patch)="patch.emit($event)"></app-runes>
+  }
+
+  <!-- Bekannte Materialien sub-tab -->
+  @if (activeTab === 'materials') {
+    <div class="materials-tab">
+      @if (isLoading()) {
+        <div class="loading-row">
+          <span class="spinner"></span>
+          <span>Materialien werden geladen...</span>
+        </div>
+      } @else if (knownMaterials.length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">⚒</span>
+          <p>Keine Materialien bekannt.</p>
+          <p class="empty-hint">Öffentliche Materialien und vom GM freigegebene Materialien erscheinen hier.</p>
+        </div>
+      } @else {
+        <div class="materials-list">
+          @for (mat of knownMaterials; track mat.id) {
+            <div class="material-card">
+              <div class="material-header">
+                <span class="material-name">{{ mat.name }}</span>
+                <span class="material-badge" [class.public]="mat.isPublic">
+                  {{ mat.isPublic ? 'Öffentlich' : 'Bekannt' }}
+                </span>
+              </div>
+              @if (mat.description) {
+                <p class="material-description">{{ mat.description }}</p>
+              }
+              <div class="material-types">
+                @if (mat.canBeWeaponMaterial) {
+                  <span class="type-chip weapon">Waffe</span>
+                }
+                @if (mat.canBeArmorMaterial) {
+                  <span class="type-chip armor">Rüstung</span>
+                }
+              </div>
+              <div class="material-stats-row">
+                @if (mat.canBeWeaponMaterial && mat.weaponStats) {
+                  <div class="stat-group">
+                    <span class="stat-group-label">Waffe</span>
+                    <div class="stat-pills">
+                      <span class="stat-pill">Halt. {{ mat.weaponStats.haltbarkeit }} +{{ mat.weaponStats.haltbarkeitSkalierung }}/Schmied.</span>
+                      <span class="stat-pill">Effk. {{ mat.weaponStats.effektivitaet }} +{{ mat.weaponStats.effektivitaetSkalierung }}/Schmied.</span>
+                      <span class="stat-pill">{{ mat.weaponStats.weight }} kg</span>
+                      @if (mat.weaponStats.extraEffect) {
+                        <span class="stat-pill effect">{{ mat.weaponStats.extraEffect }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+                @if (mat.canBeArmorMaterial && mat.armorStats) {
+                  <div class="stat-group">
+                    <span class="stat-group-label">Rüstung</span>
+                    <div class="stat-pills">
+                      <span class="stat-pill">Halt. {{ mat.armorStats.haltbarkeit }} +{{ mat.armorStats.haltbarkeitSkalierung }}/Schmied.</span>
+                      <span class="stat-pill">Stab. {{ mat.armorStats.effektivitaet }} +{{ mat.armorStats.effektivitaetSkalierung }}/Schmied.</span>
+                      <span class="stat-pill">{{ mat.armorStats.weight }} kg</span>
+                      @if (mat.armorStats.ruestungsmalus) {
+                        <span class="stat-pill malus">Malus -{{ mat.armorStats.ruestungsmalus }}</span>
+                      }
+                      @if (mat.armorStats.extraEffect) {
+                        <span class="stat-pill effect">{{ mat.armorStats.extraEffect }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+</div>
