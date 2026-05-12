@@ -73,6 +73,7 @@ export class ForgingComponent implements OnInit {
   // ── UI state: material picker ────────────────────────────────────────────────
   pickingSlot: SlotType | null = null;
   materialFilter = '';
+  materialTypeFilter: 'all' | 'weapon' | 'armor' = 'all';
 
   // ── UI state: trait picker ───────────────────────────────────────────────────
   showTraitPicker = false;
@@ -91,8 +92,26 @@ export class ForgingComponent implements OnInit {
 
   get filteredMaterials(): MaterialBlock[] {
     const q = this.materialFilter.toLowerCase();
-    return this.availableMaterials.filter(m => !q || m.name.toLowerCase().includes(q));
+    return this.availableMaterials.filter(m => {
+      if (q && !m.name.toLowerCase().includes(q)) return false;
+      if (this.materialTypeFilter === 'weapon') return m.canBeWeaponMaterial;
+      if (this.materialTypeFilter === 'armor') return m.canBeArmorMaterial;
+      return true;
+    });
   }
+
+  get pickingSlotLabel(): string {
+    const labels: Record<SlotType, string> = { primary: 'Primärslot', secondary: 'Sekundärslot', bonus: 'Zusatzslot' };
+    return this.pickingSlot ? labels[this.pickingSlot] : '';
+  }
+
+  setMaterialTypeFilter(f: 'all' | 'weapon' | 'armor'): void {
+    this.materialTypeFilter = f;
+    this.cdr.markForCheck();
+  }
+
+  openTraitPicker(): void { this.showTraitPicker = true; this.traitFilter = ''; this.cdr.markForCheck(); }
+  closeTraitPicker(): void { this.showTraitPicker = false; this.cdr.markForCheck(); }
 
   get filteredForgeTraits(): ForgeTrait[] {
     const q = this.traitFilter.toLowerCase();
@@ -228,6 +247,8 @@ export class ForgingComponent implements OnInit {
   openPicker(slot: SlotType): void {
     this.pickingSlot = slot;
     this.materialFilter = '';
+    this.materialTypeFilter = 'all';
+    this.cdr.markForCheck();
   }
 
   closePicker(): void { this.pickingSlot = null; }

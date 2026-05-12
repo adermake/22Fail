@@ -1,261 +1,312 @@
-<div class="forging-container">
+﻿<div class="forging-root">
   @if (isLoading()) {
-    <div class="loading-state">
+    <div class="forge-loading">
       <span class="spinner"></span>
       <span>Bibliothek wird geladen...</span>
     </div>
   } @else {
 
-    <!-- ── Session config ──────────────────────────────────────────────── -->
-    <div class="session-config card">
-      <div class="config-row">
-        <div class="config-field">
-          <label>Gegenstandsname</label>
-          <input type="text" [(ngModel)]="itemName" placeholder="z.B. Eisenschwert des Nordens" />
-        </div>
-        <div class="config-field small">
-          <label>Typ</label>
-          <select [(ngModel)]="itemType" (ngModelChange)="onItemTypeChange()">
-            <option value="weapon">Waffe</option>
-            <option value="armor">Rüstung</option>
-          </select>
-        </div>
-        <div class="config-field small">
-          <label>Schmiedepunkte (SP)</label>
-          <input type="number" [(ngModel)]="schmiedepunkte" min="0" />
+    <!-- Config bar -->
+    <div class="forge-config-bar">
+      <div class="config-field name-field">
+        <label>Gegenstandsname</label>
+        <input type="text" [(ngModel)]="itemName" placeholder="z.B. Eisenschwert des Nordens" />
+      </div>
+      <div class="config-field type-field">
+        <label>Typ</label>
+        <div class="type-toggle">
+          <button [class.active]="itemType === 'weapon'" (click)="itemType='weapon'; onItemTypeChange()">&#x2694; Waffe</button>
+          <button [class.active]="itemType === 'armor'" (click)="itemType='armor'; onItemTypeChange()">&#x1F6E1; Rustung</button>
         </div>
       </div>
-
-      <!-- SP bar -->
-      <div class="sp-bar-wrapper">
-        <div class="sp-label">
-          <span>Verbrauchte SP: <strong>{{ spentSP }}</strong> / {{ schmiedepunkte }}</span>
+      <div class="config-field sp-field">
+        <label>Schmiedepunkte (SP)</label>
+        <input type="number" [(ngModel)]="schmiedepunkte" min="0" />
+      </div>
+      <div class="config-field sp-bar-field">
+        <div class="sp-bar-row">
+          <span class="sp-text"><strong>{{ spentSP }}</strong> / {{ schmiedepunkte }} SP</span>
           <span class="sp-remaining" [class.warning]="remainingSP < 10">{{ remainingSP }} verbleibend</span>
         </div>
-        <div class="sp-bar">
-          <div class="sp-bar-fill" [style.width.%]="spProgress" [class.full]="spProgress >= 100"></div>
+        <div class="sp-track">
+          <div class="sp-fill" [style.width.%]="spProgress" [class.full]="spProgress >= 100"></div>
         </div>
       </div>
     </div>
 
-    <!-- ── Material slots ──────────────────────────────────────────────── -->
-    <div class="slots-row">
-      @for (slotCfg of slots; track slotCfg.key) {
-        @let slot = getSlotState(slotCfg.key);
-        @let preview = getSlotPreview(slotCfg.key);
-
-        <div class="slot-card card" [class.filled]="slot.entries.length > 0">
-          <div class="slot-header">
-            <div>
-              <div class="slot-label">{{ slotCfg.label }}</div>
-              <div class="slot-subtitle">{{ slotCfg.subtitle }}</div>
+    <!-- Main 2-col layout -->
+    <div class="forge-main">
+      <!-- Left: Material slots -->
+      <div class="forge-slots-col">
+        @for (slotCfg of slots; track slotCfg.key) {
+          @let slot = getSlotState(slotCfg.key);
+          @let preview = getSlotPreview(slotCfg.key);
+          <div class="forge-slot" [class.slot-filled]="slot.entries.length > 0" [attr.data-slot]="slotCfg.key">
+            <div class="slot-head">
+              <div>
+                <div class="slot-label">{{ slotCfg.label }}</div>
+                <div class="slot-subtitle">{{ slotCfg.subtitle }}</div>
+              </div>
+              @if (slot.entries.length > 0 && preview && !isBonusSlot(slotCfg.key)) {
+                <div class="slot-mini-stats">
+                  <span class="mini-val halt">{{ preview.haltbarkeit }}</span>
+                  <span class="mini-sep">/</span>
+                  <span class="mini-val effk">{{ preview.effektivitaet }}</span>
+                </div>
+              }
             </div>
-          </div>
-
-          <!-- Material entries in this slot -->
-          @if (slot.entries.length > 0) {
-            <div class="slot-entries">
-              @for (entry of slot.entries; track entry.material.id; let i = $index) {
-                <div class="material-entry">
-                  <div class="entry-top">
-                    <span class="entry-name">{{ entry.material.name }}</span>
-                    <button class="remove-entry-btn" (click)="removeMaterialEntry(slot, i)" title="Entfernen">✕</button>
-                  </div>
-
-                  @if (!isBonusSlot(slotCfg.key)) {
-                    <div class="entry-forge-controls">
-                      <button class="forge-adj minus" (click)="unforge(entry)" [disabled]="entry.forgeCount <= 0">−</button>
-                      <div class="forge-info">
-                        <span class="forge-num">{{ entry.forgeCount }}×</span>
-                        <span class="forge-cost">Nächste: {{ nextForgeCostFor(entry) }} SP</span>
+            @if (slot.entries.length > 0) {
+              <div class="slot-entries">
+                @for (entry of slot.entries; track entry.material.id; let i = $index) {
+                  <div class="slot-entry">
+                    <div class="entry-row">
+                      <span class="entry-name">{{ entry.material.name }}</span>
+                      <button class="entry-remove" (click)="removeMaterialEntry(slot, i)" title="Entfernen">&#x2715;</button>
+                    </div>
+                    @if (!isBonusSlot(slotCfg.key)) {
+                      <div class="entry-forge-row">
+                        <button class="forg-btn forg-minus" (click)="unforge(entry)" [disabled]="entry.forgeCount <= 0">&#x2212;</button>
+                        <div class="forg-count">
+                          <span class="forg-num">{{ entry.forgeCount }}&times;</span>
+                          <span class="forg-next">Nachste: <strong>{{ nextForgeCostFor(entry) }}</strong> SP</span>
+                        </div>
+                        <button class="forg-btn forg-plus" (click)="forge(entry)" [disabled]="!canForge(entry)">Schmieden</button>
                       </div>
-                      <button
-                        class="forge-adj plus"
-                        (click)="forge(entry)"
-                        [disabled]="!canForge(entry)"
-                        title="Schmieden (kostet {{ nextForgeCostFor(entry) }} SP)">
-                        Schmieden
-                      </button>
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-          }
-
-          <!-- Aggregated preview for slot -->
-          @if (slot.entries.length > 0 && preview) {
-            <div class="slot-preview">
-              @if (!isBonusSlot(slotCfg.key)) {
-                <div class="stat-grid">
-                  <div class="stat-row">
-                    <span class="stat-name">Haltbarkeit</span>
-                    <span class="stat-val">{{ preview.haltbarkeit }}</span>
+                    }
                   </div>
-                  <div class="stat-row">
-                    <span class="stat-name">{{ itemType === 'weapon' ? 'Effektivität' : 'Stabilität' }}</span>
-                    <span class="stat-val">{{ preview.effektivitaet }}</span>
-                  </div>
-                  @if (itemType === 'armor' && preview.ruestungsmalus != null) {
-                    <div class="stat-row">
-                      <span class="stat-name">Rüstungsmalus</span>
-                      <span class="stat-val malus">-{{ preview.ruestungsmalus }}</span>
-                    </div>
-                  }
-                  <div class="stat-row">
-                    <span class="stat-name">Gewicht</span>
-                    <span class="stat-val">{{ preview.weight | number:'1.1-1' }} kg</span>
-                  </div>
-                </div>
-              }
-              @if (preview.extraEffect) {
-                <div class="extra-effect">
-                  <span class="extra-label">Extraeffekt:</span>
-                  {{ preview.extraEffect }}
-                </div>
-              }
-            </div>
-          }
-
-          <button class="add-material-btn" (click)="openPicker(slotCfg.key)">
-            + Material hinzufügen
-          </button>
-        </div>
-      }
-    </div>
-
-    <!-- ── Final stats preview ──────────────────────────────────────────── -->
-    @if (primarySlot.entries.length > 0 || secondarySlot.entries.length > 0) {
-      <div class="final-stats card">
-        <div class="final-title">Berechnete Gesamtwerte</div>
-        <div class="final-grid">
-          <div class="final-stat">
-            <span class="f-label">Haltbarkeit</span>
-            <span class="f-val">{{ finalHaltbarkeit }}</span>
-          </div>
-          <div class="final-stat">
-            <span class="f-label">{{ itemType === 'weapon' ? 'Effektivität' : 'Stabilität' }}</span>
-            <span class="f-val">{{ finalEffektivitaet }}</span>
-          </div>
-          @if (itemType === 'armor' && finalRuestungsmalus > 0) {
-            <div class="final-stat">
-              <span class="f-label">Rüstungsmalus</span>
-              <span class="f-val malus">-{{ finalRuestungsmalus }}</span>
-            </div>
-          }
-          <div class="final-stat">
-            <span class="f-label">Gewicht</span>
-            <span class="f-val">{{ finalWeight | number:'1.1-1' }} kg</span>
-          </div>
-        </div>
-        @if (allExtraEffects.length > 0) {
-          <div class="final-effects">
-            <span class="f-label">Extraeffekte:</span>
-            @for (eff of allExtraEffects; track eff) {
-              <span class="effect-chip">{{ eff }}</span>
+                }
+              </div>
             }
+            @if (slot.entries.length > 0 && preview) {
+              <div class="slot-preview-row">
+                @if (!isBonusSlot(slotCfg.key)) {
+                  <span class="prev-pair"><span class="prev-lbl">Halt.</span><span class="prev-val halt">{{ preview.haltbarkeit }}</span></span>
+                  <span class="prev-pair"><span class="prev-lbl">{{ itemType === 'weapon' ? 'Effk.' : 'Stab.' }}</span><span class="prev-val effk">{{ preview.effektivitaet }}</span></span>
+                  @if (itemType === 'armor' && preview.ruestungsmalus) {
+                    <span class="prev-pair"><span class="prev-lbl">Malus</span><span class="prev-val malus">-{{ preview.ruestungsmalus }}</span></span>
+                  }
+                  <span class="prev-pair"><span class="prev-lbl">Gew.</span><span class="prev-val weight">{{ preview.weight | number:'1.1-1' }}kg</span></span>
+                }
+                @if (preview.extraEffect) {
+                  <span class="prev-effect">&#x2726; {{ preview.extraEffect }}</span>
+                }
+              </div>
+            }
+            <button class="add-mat-btn" (click)="openPicker(slotCfg.key)">+ Material hinzufugen</button>
           </div>
         }
       </div>
-    }
 
-    <!-- ── Applied traits ──────────────────────────────────────────────── -->
-    <div class="traits-section card">
-      <div class="traits-header">
-        <span class="section-title">⚒ Schmiedemerkmale</span>
-        <button class="add-trait-btn" (click)="showTraitPicker = !showTraitPicker">
-          {{ showTraitPicker ? 'Schließen' : '+ Merkmal hinzufügen' }}
-        </button>
+      <!-- Right: Traits + Stats + Finish -->
+      <div class="forge-right-col">
+
+        <!-- Applied traits -->
+        <div class="forge-section">
+          <div class="section-header">
+            <span class="section-title">&#x2699; Schmiedemerkmale</span>
+            <span class="section-hint">{{ appliedTraits.length }} aktiv</span>
+          </div>
+          @if (appliedTraits.length > 0) {
+            <div class="applied-traits">
+              @for (applied of appliedTraits; track applied.trait.id) {
+                <div class="applied-trait">
+                  <div class="at-info">
+                    <div class="at-top-row">
+                      <span class="at-name">{{ applied.trait.name }}</span>
+                      @if (applied.level > 1) {
+                        <span class="at-level">Stufe {{ applied.level }}</span>
+                      }
+                      <span class="at-cost">{{ applied.trait.schmiedepunktKosten * applied.level }} SP</span>
+                    </div>
+                    <span class="at-effect">{{ formatEffect(applied) }}</span>
+                  </div>
+                  <div class="at-actions">
+                    @if (applied.trait.scalable && applied.level < applied.trait.maxLevel) {
+                      <button class="at-btn at-plus" (click)="addTrait(applied.trait)" [disabled]="remainingSP < applied.trait.schmiedepunktKosten">+</button>
+                    }
+                    <button class="at-btn at-minus" (click)="removeTrait(applied.trait)">&#x2212;</button>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="no-traits">Noch keine Merkmale eingraviert.</p>
+          }
+          <button class="open-trait-btn" (click)="openTraitPicker()">+ Merkmal hinzufugen</button>
+        </div>
+
+        <!-- Final stats -->
+        @if (primarySlot.entries.length > 0 || secondarySlot.entries.length > 0) {
+          <div class="forge-section stats-section">
+            <div class="section-header">
+              <span class="section-title">&#x1F4CA; Gesamtwerte</span>
+            </div>
+            <div class="final-stats-grid">
+              <div class="fst-block">
+                <span class="fst-label">Haltbarkeit</span>
+                <span class="fst-value halt">{{ finalHaltbarkeit }}</span>
+              </div>
+              <div class="fst-block">
+                <span class="fst-label">{{ itemType === 'weapon' ? 'Effektivitat' : 'Stabilitat' }}</span>
+                <span class="fst-value effk">{{ finalEffektivitaet }}</span>
+              </div>
+              @if (itemType === 'armor' && finalRuestungsmalus > 0) {
+                <div class="fst-block">
+                  <span class="fst-label">Rustungsmalus</span>
+                  <span class="fst-value malus">-{{ finalRuestungsmalus }}</span>
+                </div>
+              }
+              <div class="fst-block">
+                <span class="fst-label">Gewicht</span>
+                <span class="fst-value weight">{{ finalWeight | number:'1.1-1' }} kg</span>
+              </div>
+            </div>
+            @if (allExtraEffects.length > 0) {
+              <div class="final-effects">
+                @for (eff of allExtraEffects; track eff) {
+                  <span class="effect-pill">&#x2726; {{ eff }}</span>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Finish -->
+        <div class="forge-finish">
+          <button class="finish-btn" (click)="finishForging()" [disabled]="!canFinish()">
+            &#x2692; Schmieden abschliessen &amp; zum Inventar
+          </button>
+          @if (!canFinish()) {
+            <span class="finish-hint">{{ !itemName.trim() ? 'Bitte einen Namen eingeben' : 'Primarmaterial wird benotigt' }}</span>
+          }
+        </div>
+
       </div>
-
-      @if (appliedTraits.length > 0) {
-        <div class="trait-list">
-          @for (applied of appliedTraits; track applied.trait.id) {
-            <div class="trait-chip">
-              <div class="trait-chip-info">
-                <span class="trait-chip-name">{{ applied.trait.name }}</span>
-                @if (applied.level > 1) {
-                  <span class="trait-chip-level">Stufe {{ applied.level }}</span>
-                }
-                <span class="trait-chip-effect">{{ formatEffect(applied) }}</span>
-              </div>
-              <div class="trait-chip-actions">
-                @if (applied.trait.scalable && applied.level < applied.trait.maxLevel) {
-                  <button class="trait-adj plus" (click)="addTrait(applied.trait)" [disabled]="remainingSP < applied.trait.schmiedepunktKosten">+</button>
-                }
-                <button class="trait-adj minus" (click)="removeTrait(applied.trait)">−</button>
-              </div>
-            </div>
-          }
-        </div>
-      } @else {
-        <p class="no-traits">Noch keine Merkmale eingraviert.</p>
-      }
-
-      <!-- Trait picker panel -->
-      @if (showTraitPicker) {
-        <div class="trait-picker">
-          <input class="filter-input" type="text" [(ngModel)]="traitFilter" placeholder="Merkmal suchen..." autofocus />
-          @if (filteredForgeTraits.length === 0) {
-            <p class="empty-msg">Keine Schmiedemerkmale in der Bibliothek.</p>
-          }
-          @for (trait of filteredForgeTraits; track trait.id) {
-            @let appliedLevel = getAppliedLevel(trait);
-            <div class="trait-picker-row" [class.maxed]="appliedLevel >= trait.maxLevel">
-              <div class="trait-picker-info">
-                <span class="t-name">{{ trait.name }}</span>
-                <span class="t-cost">{{ trait.schmiedepunktKosten }} SP</span>
-                @if (trait.scalable) {
-                  <span class="t-level">{{ appliedLevel }}/{{ trait.maxLevel }}</span>
-                }
-                <span class="t-effect">{{ trait.effect }}</span>
-              </div>
-              <button
-                class="add-btn"
-                (click)="addTrait(trait)"
-                [disabled]="!canAddTrait(trait)">
-                + Hinzufügen
-              </button>
-            </div>
-          }
-        </div>
-      }
-    </div>
-
-    <!-- ── Finish button ────────────────────────────────────────────────── -->
-    <div class="finish-row">
-      <button class="finish-btn" (click)="finishForging()" [disabled]="!canFinish()">
-        ⚒ Schmieden abschließen &amp; zum Inventar
-      </button>
     </div>
   }
 </div>
 
-<!-- Material picker overlay -->
+<!-- Material Picker Modal -->
 @if (pickingSlot) {
-  <div class="picker-overlay" (click)="closePicker()">
-    <div class="picker-panel" (click)="$event.stopPropagation()">
-      <div class="picker-header">
-        <span>Material wählen</span>
-        <button class="picker-close" (click)="closePicker()">✕</button>
+  <div class="picker-backdrop" (click)="closePicker()">
+    <div class="picker-modal" (click)="$event.stopPropagation()">
+      <div class="picker-modal-header">
+        <div class="picker-title-block">
+          <span class="picker-title">Material wahlen</span>
+          <span class="picker-subtitle">fur {{ pickingSlotLabel }}</span>
+        </div>
+        <button class="picker-close-btn" (click)="closePicker()">&#x2715;</button>
       </div>
-      <input class="filter-input" type="text" [(ngModel)]="materialFilter" placeholder="Material suchen..." autofocus />
+      <div class="picker-filters-bar">
+        <div class="picker-search-wrap">
+          <span class="picker-search-icon">&#x1F50D;</span>
+          <input class="picker-search" type="text" [(ngModel)]="materialFilter" placeholder="Material suchen..." />
+        </div>
+        <div class="picker-type-tabs">
+          <button [class.active]="materialTypeFilter === 'all'" (click)="setMaterialTypeFilter('all')">Alle</button>
+          <button [class.active]="materialTypeFilter === 'weapon'" (click)="setMaterialTypeFilter('weapon')">&#x2694; Waffe</button>
+          <button [class.active]="materialTypeFilter === 'armor'" (click)="setMaterialTypeFilter('armor')">&#x1F6E1; Rustung</button>
+        </div>
+      </div>
       @if (filteredMaterials.length === 0) {
-        <p class="empty-msg">Keine passenden Materialien in der Bibliothek.</p>
+        <div class="picker-empty">Keine passenden Materialien in der Bibliothek.</div>
+      } @else {
+        <div class="picker-grid">
+          @for (mat of filteredMaterials; track mat.id) {
+            <div class="picker-mat-card" (click)="selectMaterial(mat)">
+              <div class="pmc-header">
+                <span class="pmc-name">{{ mat.name }}</span>
+                @if (mat.isPublic) { <span class="pmc-public-badge">offentlich</span> }
+              </div>
+              @if (mat.description) { <p class="pmc-desc">{{ mat.description }}</p> }
+              <div class="pmc-types">
+                @if (mat.canBeWeaponMaterial) { <span class="pmc-type weapon">&#x2694; Waffe</span> }
+                @if (mat.canBeArmorMaterial) { <span class="pmc-type armor">&#x1F6E1; Rustung</span> }
+              </div>
+              @if (mat.canBeWeaponMaterial && mat.weaponStats) {
+                <div class="pmc-stats weapon-stats">
+                  <div class="pmc-stats-title">&#x2694; Waffenwerte</div>
+                  <div class="pmc-stat-row">
+                    <span class="pmc-sn">Haltb.</span><span class="pmc-sv halt">{{ mat.weaponStats.haltbarkeit }}</span><span class="pmc-scale">+{{ mat.weaponStats.haltbarkeitSkalierung }}/S</span>
+                    <span class="pmc-sn">Effk.</span><span class="pmc-sv effk">{{ mat.weaponStats.effektivitaet }}</span><span class="pmc-scale">+{{ mat.weaponStats.effektivitaetSkalierung }}/S</span>
+                  </div>
+                  <div class="pmc-stat-row">
+                    <span class="pmc-sn">Gewicht</span><span class="pmc-sv weight">{{ mat.weaponStats.weight }} kg</span>
+                  </div>
+                  @if (mat.weaponStats.extraEffect) { <div class="pmc-extra">&#x2726; {{ mat.weaponStats.extraEffect }}</div> }
+                </div>
+              }
+              @if (mat.canBeArmorMaterial && mat.armorStats) {
+                <div class="pmc-stats armor-stats">
+                  <div class="pmc-stats-title">&#x1F6E1; Rustungswerte</div>
+                  <div class="pmc-stat-row">
+                    <span class="pmc-sn">Haltb.</span><span class="pmc-sv halt">{{ mat.armorStats.haltbarkeit }}</span><span class="pmc-scale">+{{ mat.armorStats.haltbarkeitSkalierung }}/S</span>
+                    <span class="pmc-sn">Stab.</span><span class="pmc-sv effk">{{ mat.armorStats.effektivitaet }}</span><span class="pmc-scale">+{{ mat.armorStats.effektivitaetSkalierung }}/S</span>
+                  </div>
+                  <div class="pmc-stat-row">
+                    <span class="pmc-sn">Gewicht</span><span class="pmc-sv weight">{{ mat.armorStats.weight }} kg</span>
+                    @if (mat.armorStats.ruestungsmalus) {
+                      <span class="pmc-sn">Malus</span><span class="pmc-sv malus">-{{ mat.armorStats.ruestungsmalus }}</span>
+                    }
+                  </div>
+                  @if (mat.armorStats.extraEffect) { <div class="pmc-extra">&#x2726; {{ mat.armorStats.extraEffect }}</div> }
+                </div>
+              }
+            </div>
+          }
+        </div>
       }
-      <div class="picker-list">
-        @for (mat of filteredMaterials; track mat.id) {
-          <div class="picker-item" (click)="selectMaterial(mat)">
-            <span class="pi-name">{{ mat.name }}</span>
-            @if (mat.isPublic) {
-              <span class="pi-public">öffentlich</span>
-            }
-            @if (mat.description) {
-              <span class="pi-desc">{{ mat.description }}</span>
-            }
-          </div>
-        }
+    </div>
+  </div>
+}
+
+<!-- Trait Picker Modal -->
+@if (showTraitPicker) {
+  <div class="picker-backdrop" (click)="closeTraitPicker()">
+    <div class="picker-modal" (click)="$event.stopPropagation()">
+      <div class="picker-modal-header">
+        <div class="picker-title-block">
+          <span class="picker-title">&#x2699; Schmiedemerkmale</span>
+          <span class="picker-subtitle">{{ remainingSP }} SP verbleibend</span>
+        </div>
+        <button class="picker-close-btn" (click)="closeTraitPicker()">&#x2715;</button>
       </div>
+      <div class="picker-filters-bar">
+        <div class="picker-search-wrap">
+          <span class="picker-search-icon">&#x1F50D;</span>
+          <input class="picker-search" type="text" [(ngModel)]="traitFilter" placeholder="Merkmal suchen..." />
+        </div>
+      </div>
+      @if (filteredForgeTraits.length === 0) {
+        <div class="picker-empty">Keine Schmiedemerkmale in der Bibliothek.</div>
+      } @else {
+        <div class="picker-grid trait-picker-grid">
+          @for (trait of filteredForgeTraits; track trait.id) {
+            @let appliedLevel = getAppliedLevel(trait);
+            <div class="picker-trait-card" [class.tc-maxed]="appliedLevel >= trait.maxLevel">
+              <div class="ptc-header">
+                <span class="ptc-name">{{ trait.name }}</span>
+                <span class="ptc-cost" [class.unaffordable]="remainingSP < trait.schmiedepunktKosten">{{ trait.schmiedepunktKosten }} SP</span>
+              </div>
+              <p class="ptc-effect">{{ trait.effect }}</p>
+              <div class="ptc-footer">
+                @if (trait.scalable) {
+                  <span class="ptc-levels">{{ appliedLevel }}/{{ trait.maxLevel }}</span>
+                } @else {
+                  <span></span>
+                }
+                @if (appliedLevel >= trait.maxLevel) {
+                  <span class="ptc-tag maxed">Max</span>
+                } @else if (remainingSP < trait.schmiedepunktKosten) {
+                  <span class="ptc-tag cant">Zu wenig SP</span>
+                } @else {
+                  <button class="ptc-add-btn" (click)="$event.stopPropagation(); addTrait(trait)">+ Hinzufugen</button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
     </div>
   </div>
 }
