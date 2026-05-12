@@ -63,8 +63,7 @@
 
 .name-field { flex: 2; min-width: 180px; }
 .type-field { flex-shrink: 0; }
-.sp-field { flex: 0 0 140px; }
-.sp-bar-field { flex: 2; min-width: 200px; }
+.sp-combined-field { flex: 3; min-width: 260px; }
 
 .config-field input,
 .config-field select {
@@ -107,18 +106,30 @@
   color: var(--text, #e5e7eb);
 }
 
-/* SP bar */
-.sp-bar-row {
+/* SP section */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+.sp-control-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.3rem;
+}
+.sp-max-input { width: 70px !important; flex-shrink: 0; }
+.sp-status {
+  flex: 1;
   display: flex;
   justify-content: space-between;
-  font-size: 0.8rem;
+  align-items: center;
+  font-size: 0.82rem;
   color: var(--text-muted, #9ca3af);
-  margin-bottom: 0.35rem;
 }
-.sp-bar-row strong { color: var(--text, #e5e7eb); }
+.sp-status strong { color: var(--text, #e5e7eb); }
+.sp-remaining { font-size: 0.78rem; color: var(--text-muted, #9ca3af); }
 .sp-remaining.warning { color: #f59e0b; font-weight: 700; }
 .sp-track {
-  height: 7px;
+  height: 6px;
   background: var(--bg, #1e293b);
   border-radius: 4px;
   overflow: hidden;
@@ -780,3 +791,64 @@
   transition: filter 0.15s;
 }
 .ptc-add-btn:hover { filter: brightness(1.15); }
+
+/* ── SVG icon masks ─────────────────────────────────────────────────────────── */
+.stat-icon {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.si-sword {
+  background-color: #60a5fa;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='14.5 17.5 3 6 3 3 6 3 17.5 14.5'/%3E%3Cline x1='13' y1='19' x2='19' y2='13'/%3E%3Cline x1='16' y1='16' x2='20' y2='20'/%3E%3Cline x1='19' y1='21' x2='21' y2='19'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='14.5 17.5 3 6 3 3 6 3 17.5 14.5'/%3E%3Cline x1='13' y1='19' x2='19' y2='13'/%3E%3Cline x1='16' y1='16' x2='20' y2='20'/%3E%3Cline x1='19' y1='21' x2='21' y2='19'/%3E%3C/svg%3E");
+}
+.si-shield-ic {
+  background-color: #60a5fa;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/%3E%3C/svg%3E");
+}
+.si-gem {
+  background-color: #34d399;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 3h12l4 6-10 13L2 9z'/%3E%3Cline x1='2' y1='9' x2='22' y2='9'/%3E%3Cpath d='M12 3l-4 6 4 13 4-13z'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 3h12l4 6-10 13L2 9z'/%3E%3Cline x1='2' y1='9' x2='22' y2='9'/%3E%3Cpath d='M12 3l-4 6 4 13 4-13z'/%3E%3C/svg%3E");
+}
+/* Context-specific icon sizes */
+.mini-si { width: 11px; height: 11px; }
+.prev-si { width: 11px; height: 11px; }
+.fst-si  { width: 14px; height: 14px; }
+.pmc-si  { width: 10px; height: 10px; }
+
+/* Label row for fst-block icons */
+.fst-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* pmc-stats-title with icon */
+.pmc-stats-title {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.pmc-stats.weapon-stats .pmc-stats-title { color: #fb923c; }
+.pmc-stats.armor-stats  .pmc-stats-title { color: #60a5fa; }
+
+/* Badge: Spezial (GM-granted non-public) */
+.pmc-badge-special {
+  background: rgba(139,92,246,0.12) !important;
+  border-color: rgba(139,92,246,0.3) !important;
+  color: var(--accent, #8b5cf6) !important;
+}
+
+/* prev-pair flex alignment */
+.prev-pair { display: inline-flex; align-items: center; gap: 0.2rem; }

@@ -41,7 +41,7 @@
                 <div class="mat-card-name-row">
                   <span class="mat-card-name">{{ mat.name }}</span>
                   <span class="mat-badge" [class.badge-public]="mat.isPublic">
-                    {{ mat.isPublic ? '&#x2295; Offentlich' : '&#x2605; Bekannt' }}
+                    {{ mat.isPublic ? 'Allgemein' : 'Spezial' }}
                   </span>
                 </div>
                 @if (mat.description) {
@@ -56,15 +56,15 @@
               <div class="mat-stats-area">
                 @if (mat.canBeWeaponMaterial && mat.weaponStats) {
                   <div class="stat-block weapon-block">
-                    <div class="stat-block-label">&#x2694; Waffenwerte</div>
+                    <div class="stat-block-label"><span class="stat-icon si-sword wbt-si"></span> Waffenwerte</div>
                     <div class="stat-entries">
                       <div class="stat-entry">
-                        <span class="se-label">Haltbarkeit</span>
+                        <span class="stat-icon si-gem se-si"></span><span class="se-label">Haltbarkeit</span>
                         <span class="se-value halt">{{ mat.weaponStats.haltbarkeit }}</span>
                         <span class="se-scale">+{{ mat.weaponStats.haltbarkeitSkalierung }}/S</span>
                       </div>
                       <div class="stat-entry">
-                        <span class="se-label">Effektivitat</span>
+                        <span class="stat-icon si-sword se-si"></span><span class="se-label">Effektivitat</span>
                         <span class="se-value effk">{{ mat.weaponStats.effektivitaet }}</span>
                         <span class="se-scale">+{{ mat.weaponStats.effektivitaetSkalierung }}/S</span>
                       </div>
@@ -80,15 +80,15 @@
                 }
                 @if (mat.canBeArmorMaterial && mat.armorStats) {
                   <div class="stat-block armor-block">
-                    <div class="stat-block-label">&#x1F6E1; Rustungswerte</div>
+                    <div class="stat-block-label"><span class="stat-icon si-shield-ic wbt-si"></span> Rustungswerte</div>
                     <div class="stat-entries">
                       <div class="stat-entry">
-                        <span class="se-label">Haltbarkeit</span>
+                        <span class="stat-icon si-gem se-si"></span><span class="se-label">Haltbarkeit</span>
                         <span class="se-value halt">{{ mat.armorStats.haltbarkeit }}</span>
                         <span class="se-scale">+{{ mat.armorStats.haltbarkeitSkalierung }}/S</span>
                       </div>
                       <div class="stat-entry">
-                        <span class="se-label">Stabilitat</span>
+                        <span class="stat-icon si-shield-ic se-si"></span><span class="se-label">Stabilitat</span>
                         <span class="se-value effk">{{ mat.armorStats.effektivitaet }}</span>
                         <span class="se-scale">+{{ mat.armorStats.effektivitaetSkalierung }}/S</span>
                       </div>

@@ -144,7 +144,7 @@ export class ForgingComponent implements OnInit {
   aggregateSlot(slot: MaterialSlotState): ForgedStatPreview | null {
     if (slot.entries.length === 0) return null;
     let h = 0, e = 0, w = 0, mal = 0;
-    const effects: string[] = [];
+    const effectSet = new Set<string>();
     for (const entry of slot.entries) {
       const preview = computeForgedStats(entry.material, entry.forgeCount, this.itemType === 'weapon');
       if (!preview) continue;
@@ -152,9 +152,9 @@ export class ForgingComponent implements OnInit {
       e += preview.effektivitaet;
       w += preview.weight;
       mal += preview.ruestungsmalus ?? 0;
-      if (preview.extraEffect) effects.push(preview.extraEffect);
+      if (preview.extraEffect) effectSet.add(preview.extraEffect);
     }
-    return { haltbarkeit: h, effektivitaet: e, weight: w, ruestungsmalus: mal || undefined, extraEffect: effects.join(', ') };
+    return { haltbarkeit: h, effektivitaet: e, weight: w, ruestungsmalus: mal || undefined, extraEffect: Array.from(effectSet).join(', ') };
   }
 
   get primaryPreview(): ForgedStatPreview | null { return this.aggregateSlot(this.primarySlot); }

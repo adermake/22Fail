@@ -19,14 +19,14 @@
           <button [class.active]="itemType === 'armor'" (click)="itemType='armor'; onItemTypeChange()">&#x1F6E1; Rustung</button>
         </div>
       </div>
-      <div class="config-field sp-field">
-        <label>Schmiedepunkte (SP)</label>
-        <input type="number" [(ngModel)]="schmiedepunkte" min="0" />
-      </div>
-      <div class="config-field sp-bar-field">
-        <div class="sp-bar-row">
-          <span class="sp-text"><strong>{{ spentSP }}</strong> / {{ schmiedepunkte }} SP</span>
-          <span class="sp-remaining" [class.warning]="remainingSP < 10">{{ remainingSP }} verbleibend</span>
+      <div class="config-field sp-combined-field">
+        <label>Schmiedepunkte</label>
+        <div class="sp-control-row">
+          <input type="number" class="sp-max-input" [(ngModel)]="schmiedepunkte" min="0" />
+          <div class="sp-status">
+            <span class="sp-used-val"><strong>{{ spentSP }}</strong> / {{ schmiedepunkte }} SP</span>
+            <span class="sp-remaining" [class.warning]="remainingSP < 10">{{ remainingSP }} verbl.</span>
+          </div>
         </div>
         <div class="sp-track">
           <div class="sp-fill" [style.width.%]="spProgress" [class.full]="spProgress >= 100"></div>
@@ -49,8 +49,10 @@
               </div>
               @if (slot.entries.length > 0 && preview && !isBonusSlot(slotCfg.key)) {
                 <div class="slot-mini-stats">
+                  <span class="stat-icon si-gem mini-si"></span>
                   <span class="mini-val halt">{{ preview.haltbarkeit }}</span>
-                  <span class="mini-sep">/</span>
+                  <span class="mini-sep"> / </span>
+                  <span class="stat-icon mini-si" [class.si-sword]="itemType === 'weapon'" [class.si-shield-ic]="itemType !== 'weapon'"></span>
                   <span class="mini-val effk">{{ preview.effektivitaet }}</span>
                 </div>
               }
@@ -80,8 +82,8 @@
             @if (slot.entries.length > 0 && preview) {
               <div class="slot-preview-row">
                 @if (!isBonusSlot(slotCfg.key)) {
-                  <span class="prev-pair"><span class="prev-lbl">Halt.</span><span class="prev-val halt">{{ preview.haltbarkeit }}</span></span>
-                  <span class="prev-pair"><span class="prev-lbl">{{ itemType === 'weapon' ? 'Effk.' : 'Stab.' }}</span><span class="prev-val effk">{{ preview.effektivitaet }}</span></span>
+                  <span class="prev-pair"><span class="stat-icon si-gem prev-si"></span><span class="prev-lbl">Halt.</span><span class="prev-val halt">{{ preview.haltbarkeit }}</span></span>
+                  <span class="prev-pair"><span class="stat-icon prev-si" [class.si-sword]="itemType === 'weapon'" [class.si-shield-ic]="itemType !== 'weapon'"></span><span class="prev-lbl">{{ itemType === 'weapon' ? 'Effk.' : 'Stab.' }}</span><span class="prev-val effk">{{ preview.effektivitaet }}</span></span>
                   @if (itemType === 'armor' && preview.ruestungsmalus) {
                     <span class="prev-pair"><span class="prev-lbl">Malus</span><span class="prev-val malus">-{{ preview.ruestungsmalus }}</span></span>
                   }
@@ -143,11 +145,11 @@
             </div>
             <div class="final-stats-grid">
               <div class="fst-block">
-                <span class="fst-label">Haltbarkeit</span>
+                <div class="fst-label-row"><span class="stat-icon si-gem fst-si"></span><span class="fst-label">Haltbarkeit</span></div>
                 <span class="fst-value halt">{{ finalHaltbarkeit }}</span>
               </div>
               <div class="fst-block">
-                <span class="fst-label">{{ itemType === 'weapon' ? 'Effektivitat' : 'Stabilitat' }}</span>
+                <div class="fst-label-row"><span class="stat-icon fst-si" [class.si-sword]="itemType === 'weapon'" [class.si-shield-ic]="itemType !== 'weapon'"></span><span class="fst-label">{{ itemType === 'weapon' ? 'Effektivitat' : 'Stabilitat' }}</span></div>
                 <span class="fst-value effk">{{ finalEffektivitaet }}</span>
               </div>
               @if (itemType === 'armor' && finalRuestungsmalus > 0) {
@@ -216,7 +218,7 @@
             <div class="picker-mat-card" (click)="selectMaterial(mat)">
               <div class="pmc-header">
                 <span class="pmc-name">{{ mat.name }}</span>
-                @if (mat.isPublic) { <span class="pmc-public-badge">offentlich</span> }
+                <span class="pmc-public-badge" [class.pmc-badge-special]="!mat.isPublic">{{ mat.isPublic ? 'Allgemein' : 'Spezial' }}</span>
               </div>
               @if (mat.description) { <p class="pmc-desc">{{ mat.description }}</p> }
               <div class="pmc-types">
@@ -225,7 +227,7 @@
               </div>
               @if (mat.canBeWeaponMaterial && mat.weaponStats) {
                 <div class="pmc-stats weapon-stats">
-                  <div class="pmc-stats-title">&#x2694; Waffenwerte</div>
+                  <div class="pmc-stats-title"><span class="stat-icon si-sword pmc-si"></span> Waffenwerte</div>
                   <div class="pmc-stat-row">
                     <span class="pmc-sn">Haltb.</span><span class="pmc-sv halt">{{ mat.weaponStats.haltbarkeit }}</span><span class="pmc-scale">+{{ mat.weaponStats.haltbarkeitSkalierung }}/S</span>
                     <span class="pmc-sn">Effk.</span><span class="pmc-sv effk">{{ mat.weaponStats.effektivitaet }}</span><span class="pmc-scale">+{{ mat.weaponStats.effektivitaetSkalierung }}/S</span>
@@ -238,7 +240,7 @@
               }
               @if (mat.canBeArmorMaterial && mat.armorStats) {
                 <div class="pmc-stats armor-stats">
-                  <div class="pmc-stats-title">&#x1F6E1; Rustungswerte</div>
+                  <div class="pmc-stats-title"><span class="stat-icon si-shield-ic pmc-si"></span> Rustungswerte</div>
                   <div class="pmc-stat-row">
                     <span class="pmc-sn">Haltb.</span><span class="pmc-sv halt">{{ mat.armorStats.haltbarkeit }}</span><span class="pmc-scale">+{{ mat.armorStats.haltbarkeitSkalierung }}/S</span>
                     <span class="pmc-sn">Stab.</span><span class="pmc-sv effk">{{ mat.armorStats.effektivitaet }}</span><span class="pmc-scale">+{{ mat.armorStats.effektivitaetSkalierung }}/S</span>
