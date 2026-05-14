@@ -30,19 +30,6 @@
           <p class="empty-hint">Offentliche und vom GM freigegebene Materialien erscheinen hier.</p>
         </div>
       } @else {
-        <div class="materials-header">
-          <span class="legend-trigger" title="Legende">
-            <span class="legend-q">?</span>
-            <span class="legend-popup">
-              <span class="legend-row"><span class="stat-icon-inline si-gem-c">&#x2390;</span> Haltbarkeit</span>
-              <span class="legend-row"><span class="stat-icon-inline si-eff-c">&#x2694;&#xFE0E;</span> Effektivitat</span>
-              <span class="legend-row"><span class="stat-icon-inline si-stab-c stat-icon si-shield-ic" style="width:12px;height:12px"></span> Stabilitat</span>
-              <span class="legend-row"><span class="stat-icon-inline si-wt-c">&#x2696;&#xFE0E;</span> Gewicht</span>
-              <span class="legend-row"><span class="stat-icon-inline si-scale-c">&#x1F845;</span> Skalierung</span>
-              <span class="legend-row"><span class="stat-icon-inline si-malus-c">&#x2296;</span> Rustungsmalus</span>
-            </span>
-          </span>
-        </div>
         <div class="materials-grid">
           @for (mat of knownMaterials; track mat.id) {
             <div class="mat-card"
@@ -50,78 +37,83 @@
               [class.card-armor]="mat.canBeArmorMaterial && !mat.canBeWeaponMaterial"
               [class.card-both]="mat.canBeWeaponMaterial && mat.canBeArmorMaterial">
 
-              <div class="mat-card-top">
-                <div class="mat-card-name-row">
-                  <span class="mat-card-name">{{ mat.name }}</span>
-                  <span class="mat-badge" [class.badge-public]="mat.isPublic">
-                    {{ mat.isPublic ? 'Allgemein' : 'Spezial' }}
-                  </span>
-                </div>
-                @if (mat.description) {
-                  <p class="mat-card-desc">{{ mat.description }}</p>
-                }
-                <div class="mat-type-chips">
-                  @if (mat.canBeWeaponMaterial) { <span class="mat-type weapon">&#x2694; Waffe</span> }
-                  @if (mat.canBeArmorMaterial)  { <span class="mat-type armor">&#x1F6E1; Rustung</span> }
-                </div>
+              <!-- Header: name + badge -->
+              <div class="mat-header">
+                <span class="mat-name">{{ mat.name }}</span>
+                <span class="mat-badge" [class.badge-public]="mat.isPublic">
+                  {{ mat.isPublic ? 'Allgemein' : 'Spezial' }}
+                </span>
               </div>
 
-              <div class="mat-stats-area">
+              <!-- Type chips -->
+              <div class="mat-chips">
+                @if (mat.canBeWeaponMaterial) { <span class="chip chip-w">Waffe</span> }
+                @if (mat.canBeArmorMaterial)  { <span class="chip chip-a">Rustung</span> }
+              </div>
+
+              <!-- Stats: weapon + armor side by side if both exist -->
+              <div class="mat-stats" [class.stats-split]="mat.canBeWeaponMaterial && mat.canBeArmorMaterial">
                 @if (mat.canBeWeaponMaterial && mat.weaponStats) {
-                  <div class="stat-block weapon-block">
-                    <div class="stat-block-label"><span class="stat-icon si-sword wbt-si"></span> Waffenwerte</div>
-                    <div class="stat-entries">
-                      <div class="stat-entry">
-                        <span class="si-inline durability-c">&#x2390;</span>
-                        <span class="se-value halt">{{ mat.weaponStats.haltbarkeit }}</span>
-                        <span class="se-scale"><span class="si-inline scale-c">&#x1F845;</span>{{ mat.weaponStats.haltbarkeitSkalierung }}</span>
+                  <div class="stat-col">
+                    <div class="stat-col-title col-title-w">Waffe</div>
+                    <div class="stat-rows">
+                      <div class="sr">
+                        <span class="sr-icon">&#x2390;</span>
+                        <span class="sr-val">{{ mat.weaponStats.haltbarkeit }}</span>
+                        <span class="sr-scl">+{{ mat.weaponStats.haltbarkeitSkalierung }}</span>
                       </div>
-                      <div class="stat-entry">
-                        <span class="si-inline effk-c">&#x2694;&#xFE0E;</span>
-                        <span class="se-value effk">{{ mat.weaponStats.effektivitaet }}</span>
-                        <span class="se-scale"><span class="si-inline scale-c">&#x1F845;</span>{{ mat.weaponStats.effektivitaetSkalierung }}</span>
+                      <div class="sr">
+                        <span class="sr-icon">&#x2694;&#xFE0E;</span>
+                        <span class="sr-val">{{ mat.weaponStats.effektivitaet }}</span>
+                        <span class="sr-scl">+{{ mat.weaponStats.effektivitaetSkalierung }}</span>
                       </div>
-                      <div class="stat-entry">
-                        <span class="si-inline weight-c">&#x2696;&#xFE0E;</span>
-                        <span class="se-value weight">{{ mat.weaponStats.weight }} kg</span>
+                      <div class="sr">
+                        <span class="sr-icon">&#x2696;&#xFE0E;</span>
+                        <span class="sr-val">{{ mat.weaponStats.weight }}&thinsp;kg</span>
                       </div>
                     </div>
                     @if (mat.weaponStats.extraEffect) {
-                      <div class="stat-extra">&#x2726; {{ mat.weaponStats.extraEffect }}</div>
+                      <div class="stat-extra">{{ mat.weaponStats.extraEffect }}</div>
                     }
                   </div>
                 }
                 @if (mat.canBeArmorMaterial && mat.armorStats) {
-                  <div class="stat-block armor-block">
-                    <div class="stat-block-label"><span class="stat-icon si-shield-ic wbt-si"></span> Rustungswerte</div>
-                    <div class="stat-entries">
-                      <div class="stat-entry">
-                        <span class="si-inline durability-c">&#x2390;</span>
-                        <span class="se-value halt">{{ mat.armorStats.haltbarkeit }}</span>
-                        <span class="se-scale"><span class="si-inline scale-c">&#x1F845;</span>{{ mat.armorStats.haltbarkeitSkalierung }}</span>
+                  <div class="stat-col">
+                    <div class="stat-col-title col-title-a">Rustung</div>
+                    <div class="stat-rows">
+                      <div class="sr">
+                        <span class="sr-icon">&#x2390;</span>
+                        <span class="sr-val">{{ mat.armorStats.haltbarkeit }}</span>
+                        <span class="sr-scl">+{{ mat.armorStats.haltbarkeitSkalierung }}</span>
                       </div>
-                      <div class="stat-entry">
-                        <span class="stat-icon si-shield-ic se-si stab-color"></span>
-                        <span class="se-value effk">{{ mat.armorStats.effektivitaet }}</span>
-                        <span class="se-scale"><span class="si-inline scale-c">&#x1F845;</span>{{ mat.armorStats.effektivitaetSkalierung }}</span>
+                      <div class="sr">
+                        <span class="sr-icon">&#x26CA;</span>
+                        <span class="sr-val">{{ mat.armorStats.effektivitaet }}</span>
+                        <span class="sr-scl">+{{ mat.armorStats.effektivitaetSkalierung }}</span>
                       </div>
-                      <div class="stat-entry">
-                        <span class="si-inline weight-c">&#x2696;&#xFE0E;</span>
-                        <span class="se-value weight">{{ mat.armorStats.weight }} kg</span>
+                      <div class="sr">
+                        <span class="sr-icon">&#x2696;&#xFE0E;</span>
+                        <span class="sr-val">{{ mat.armorStats.weight }}&thinsp;kg</span>
                       </div>
                       @if (mat.armorStats.ruestungsmalus) {
-                        <div class="stat-entry">
-                          <span class="si-inline malus-c">&#x2296;</span>
-                          <span class="se-value malus">{{ mat.armorStats.ruestungsmalus }}</span>
+                        <div class="sr">
+                          <span class="sr-icon sr-malus">&#x2296;</span>
+                          <span class="sr-val sr-malus-val">{{ mat.armorStats.ruestungsmalus }}</span>
                         </div>
                       }
                     </div>
                     @if (mat.armorStats.extraEffect) {
-                      <div class="stat-extra">&#x2726; {{ mat.armorStats.extraEffect }}</div>
+                      <div class="stat-extra">{{ mat.armorStats.extraEffect }}</div>
                     }
                   </div>
                 }
               </div>
+
+              <!-- Description below stats -->
+              @if (mat.description) {
+                <p class="mat-desc">{{ mat.description }}</p>
+              }
+
             </div>
           }
         </div>
