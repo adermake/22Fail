@@ -80,17 +80,34 @@
               </div>
             }
             @if (slot.entries.length > 0 && preview) {
-              <div class="slot-preview-row">
+              <div class="slot-preview-stats">
                 @if (!isBonusSlot(slotCfg.key)) {
-                  <span class="prev-pair"><span class="si-inline durability-c prev-ico">&#x2390;</span><span class="prev-val halt">{{ preview.haltbarkeit }}</span></span>
-                  <span class="prev-pair"><span class="stat-icon prev-si" [class.si-sword]="itemType === 'weapon'" [class.si-shield-ic]="itemType !== 'weapon'"></span><span class="prev-val effk">{{ preview.effektivitaet }}</span></span>
-                  @if (itemType === 'armor' && preview.ruestungsmalus) {
-                    <span class="prev-pair"><span class="prev-lbl">Malus</span><span class="prev-val malus">-{{ preview.ruestungsmalus }}</span></span>
-                  }
-                  <span class="prev-pair"><span class="prev-lbl">Gew.</span><span class="prev-val weight">{{ preview.weight | number:'1.1-1' }}kg</span></span>
+                  <div class="stat-col-title" [class.col-title-w]="itemType === 'weapon'" [class.col-title-a]="itemType !== 'weapon'">
+                    {{ itemType === 'weapon' ? 'Waffenwerte' : 'Rustungswerte' }}
+                  </div>
+                  <div class="stat-rows">
+                    <div class="sr">
+                      <span class="sr-icon">&#x2390;</span>
+                      <span class="sr-val">{{ preview.haltbarkeit }}</span>
+                    </div>
+                    <div class="sr">
+                      <span class="sr-icon">{{ itemType === 'weapon' ? '&#x2694;&#xFE0E;' : '&#x26CA;' }}</span>
+                      <span class="sr-val">{{ preview.effektivitaet }}</span>
+                    </div>
+                    @if (itemType === 'armor' && preview.ruestungsmalus) {
+                      <div class="sr">
+                        <span class="sr-icon sr-malus">&#x2296;</span>
+                        <span class="sr-val sr-malus-val">-{{ preview.ruestungsmalus }}</span>
+                      </div>
+                    }
+                    <div class="sr">
+                      <span class="sr-icon">&#x2696;&#xFE0E;</span>
+                      <span class="sr-val">{{ preview.weight | number:'1.1-1' }}&thinsp;kg</span>
+                    </div>
+                  </div>
                 }
                 @if (preview.extraEffect) {
-                  <span class="prev-effect">&#x2726; {{ preview.extraEffect }}</span>
+                  <div class="stat-extra">&#x2726; {{ preview.extraEffect }}</div>
                 }
               </div>
             }
@@ -235,11 +252,11 @@
                 @if (mat.canBeArmorMaterial)  { <span class="chip chip-a">Rustung</span> }
               </div>
 
-              <!-- Stats -->
-              <div class="mat-stats" [class.stats-split]="mat.canBeWeaponMaterial && mat.canBeArmorMaterial">
-                @if (mat.canBeWeaponMaterial && mat.weaponStats) {
+              <!-- Stats: only show relevant type for current forge mode -->
+              <div class="mat-stats">
+                @if (mat.canBeWeaponMaterial && mat.weaponStats && itemType === 'weapon') {
                   <div class="stat-col">
-                    <div class="stat-col-title col-title-w">Waffe</div>
+                    <div class="stat-col-title col-title-w">Waffenwerte</div>
                     <div class="stat-rows">
                       <div class="sr">
                         <span class="sr-icon">&#x2390;</span>
@@ -261,9 +278,9 @@
                     }
                   </div>
                 }
-                @if (mat.canBeArmorMaterial && mat.armorStats) {
+                @if (mat.canBeArmorMaterial && mat.armorStats && itemType === 'armor') {
                   <div class="stat-col">
-                    <div class="stat-col-title col-title-a">Rustung</div>
+                    <div class="stat-col-title col-title-a">Rustungswerte</div>
                     <div class="stat-rows">
                       <div class="sr">
                         <span class="sr-icon">&#x2390;</span>

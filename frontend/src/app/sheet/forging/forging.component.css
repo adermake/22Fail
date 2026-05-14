@@ -219,12 +219,16 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .slot-entry {
   background: var(--bg, #1e293b);
   border: 1px solid var(--border, #4a5568);
+  border-left: 3px solid var(--border, #4a5568);
   border-radius: 7px;
   padding: 0.5rem 0.65rem;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
+.forge-slot[data-slot="primary"] .slot-entry   { border-left-color: #8b5cf6; }
+.forge-slot[data-slot="secondary"] .slot-entry { border-left-color: #60a5fa; }
+.forge-slot[data-slot="bonus"] .slot-entry     { border-left-color: #34d399; }
 .entry-row {
   display: flex;
   justify-content: space-between;
@@ -301,7 +305,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .forg-next strong { color: var(--accent, #8b5cf6); }
 
-/* Slot stats preview */
+/* Slot stats preview (legacy flex row, kept for .prev-pair etc.) */
 .slot-preview-row {
   display: flex;
   flex-wrap: wrap;
@@ -309,6 +313,16 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   background: rgba(0,0,0,0.18);
   border-radius: 6px;
   padding: 0.4rem 0.65rem;
+}
+
+/* Slot stats preview (new card-aligned style) */
+.slot-preview-stats {
+  background: rgba(0,0,0,0.18);
+  border-radius: 7px;
+  padding: 0.5rem 0.65rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
 }
 .prev-pair {
   display: flex;
@@ -617,12 +631,14 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 /* Material picker grid */
 .picker-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 0.75rem;
   padding: 1rem;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
   align-content: start;
+  align-items: start;
 }
 .picker-grid::-webkit-scrollbar { width: 6px; }
 .picker-grid::-webkit-scrollbar-track { background: transparent; }
