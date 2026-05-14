@@ -187,6 +187,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.22rem;
+  background: rgba(0,0,0,0.28);
+  border-radius: 6px;
+  padding: 0.35rem 0.45rem;
 }
 
 .sr {
@@ -212,9 +215,9 @@
 }
 
 .sr-scl {
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: #6b7280;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #e2e8f0;
   text-align: right;
   white-space: nowrap;
 }
