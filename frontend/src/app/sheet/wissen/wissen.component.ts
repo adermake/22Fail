@@ -10,7 +10,7 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { RunesComponent } from '../../shared/runes/runes.component';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
 import { AssetFile } from '../../model/asset-browser.model';
-import { MaterialBlock } from '../../model/forging.model';
+import { MaterialBlock, ForgeTrait } from '../../model/forging.model';
 
 @Component({
   selector: 'app-wissen',
@@ -27,12 +27,13 @@ export class WissenComponent implements OnInit {
   private api = inject(AssetBrowserApiService);
   private cdr = inject(ChangeDetectorRef);
 
-  activeTab: 'runes' | 'materials' = 'runes';
+  activeTab: 'runes' | 'materials' | 'traits' = 'runes';
   isLoading = signal(false);
   knownMaterials: MaterialBlock[] = [];
+  knownTraits: ForgeTrait[] = [];
 
   async ngOnInit(): Promise<void> {
-    await this.loadMaterials();
+    await Promise.all([this.loadMaterials(), this.loadTraits()]);
   }
 
   private async loadMaterials(): Promise<void> {
@@ -49,18 +50,39 @@ export class WissenComponent implements OnInit {
         .map(f => f.data as MaterialBlock)
         .filter(m => m.isPublic || knownIds.has(m.id));
     } catch (e) {
-      console.error('Wissen: Fehler beim Laden', e);
+      console.error('Wissen: Fehler beim Laden der Materialien', e);
     } finally {
       this.isLoading.set(false);
       this.cdr.markForCheck();
     }
   }
 
-  setTab(tab: 'runes' | 'materials'): void {
+  private async loadTraits(): Promise<void> {
+    try {
+      const libraries = await firstValueFrom(this.api.getAllLibraries());
+      const traitFiles: AssetFile[] = [];
+      for (const lib of libraries) {
+        const traits = await firstValueFrom(this.api.searchFiles(lib.id, '', ['forge-trait']));
+        traitFiles.push(...traits);
+      }
+      const knownIds = new Set(this.sheet.knownForgeTraitIds ?? []);
+      this.knownTraits = traitFiles
+        .map(f => f.data as ForgeTrait)
+        .filter(t => t.isPublic || knownIds.has(t.id));
+    } catch (e) {
+      console.error('Wissen: Fehler beim Laden der Schmiedemerkmale', e);
+    } finally {
+      this.cdr.markForCheck();
+    }
+  }
+
+  setTab(tab: 'runes' | 'materials' | 'traits'): void {
     this.activeTab = tab;
   }
 
   get runeCount(): number { return (this.sheet.runes || []).length; }
   get publicMaterialCount(): number { return this.knownMaterials.filter(m => m.isPublic).length; }
   get knownOnlyCount(): number { return this.knownMaterials.filter(m => !m.isPublic).length; }
+  get publicTraitCount(): number { return this.knownTraits.filter(t => t.isPublic).length; }
+  get knownOnlyTraitCount(): number { return this.knownTraits.filter(t => !t.isPublic).length; }
 }

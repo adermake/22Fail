@@ -27,6 +27,14 @@
     </label>
   </div>
 
+  <!-- Cost -->
+  <div class="section">
+    <div class="form-row">
+      <label>💰 Kosten</label>
+      <input type="number" [(ngModel)]="edit.cost" min="0" placeholder="0" />
+    </div>
+  </div>
+
   <!-- Weapon Stats -->
   @if (edit.canBeWeaponMaterial && edit.weaponStats) {
     <div class="section stat-section">
@@ -55,6 +63,14 @@
         <div class="stat-row full">
           <label>Effekt</label>
           <input type="text" [(ngModel)]="edit.weaponStats.extraEffect" placeholder="z.B. +1 Reichweite" />
+        </div>
+        <div class="stat-row">
+          <label>Anf. Basis</label>
+          <input type="number" [(ngModel)]="edit.weaponStats.reqBase" min="0" />
+        </div>
+        <div class="stat-row">
+          <label>Anf. +/S</label>
+          <input type="number" [(ngModel)]="edit.weaponStats.reqScaling" min="0" />
         </div>
       </div>
     </div>
@@ -92,6 +108,14 @@
         <div class="stat-row full">
           <label>Effekt</label>
           <input type="text" [(ngModel)]="edit.armorStats.extraEffect" placeholder="z.B. Feuerschutz +1" />
+        </div>
+        <div class="stat-row">
+          <label>Anf. Basis</label>
+          <input type="number" [(ngModel)]="edit.armorStats.reqBase" min="0" />
+        </div>
+        <div class="stat-row">
+          <label>Anf. +/S</label>
+          <input type="number" [(ngModel)]="edit.armorStats.reqScaling" min="0" />
         </div>
       </div>
     </div>

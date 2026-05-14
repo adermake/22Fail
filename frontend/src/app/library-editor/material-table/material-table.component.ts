@@ -71,11 +71,11 @@ export class MaterialTableComponent implements OnInit, OnDestroy {
   }
 
   private defaultWeaponStats(): MaterialStats {
-    return { haltbarkeit: 50, haltbarkeitSkalierung: 10, effektivitaet: 5, effektivitaetSkalierung: 2, extraEffect: '', weight: 1 };
+    return { haltbarkeit: 50, haltbarkeitSkalierung: 10, effektivitaet: 5, effektivitaetSkalierung: 2, extraEffect: '', weight: 1, reqBase: 0, reqScaling: 0 };
   }
 
   private defaultArmorStats(): MaterialStats {
-    return { haltbarkeit: 80, haltbarkeitSkalierung: 15, effektivitaet: 5, effektivitaetSkalierung: 2, extraEffect: '', weight: 2, ruestungsmalus: 0 };
+    return { haltbarkeit: 80, haltbarkeitSkalierung: 15, effektivitaet: 5, effektivitaetSkalierung: 2, extraEffect: '', weight: 2, ruestungsmalus: 0, reqBase: 0, reqScaling: 0 };
   }
 
   // ─── Auto-save ────────────────────────────────────────────────────────────

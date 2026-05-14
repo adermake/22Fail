@@ -19,6 +19,16 @@
           <button [class.active]="itemType === 'armor'" (click)="itemType='armor'; onItemTypeChange()">&#x1F6E1; Rustung</button>
         </div>
       </div>
+      @if (itemType === 'weapon') {
+        <div class="config-field stat-req-field">
+          <label>Stat-Anforderung</label>
+          <div class="stat-req-toggle">
+            @for (s of statKeys; track s) {
+              <button [class.active]="statRequirement === s" (click)="statRequirement = s">{{ s }}</button>
+            }
+          </div>
+        </div>
+      }
       <div class="config-field sp-combined-field">
         <label>Schmiedepunkte</label>
         <div class="sp-control-row">
@@ -176,6 +186,12 @@
                 <div class="fst-block">
                   <span class="fst-label">Rustungsmalus</span>
                   <span class="fst-value malus">-{{ finalRuestungsmalus }}</span>
+                </div>
+              }
+              @if (itemType === 'weapon' && finalStatRequirement > 0) {
+                <div class="fst-block">
+                  <span class="fst-label">Anforderung</span>
+                  <span class="fst-value stat-req">{{ statRequirement }} {{ finalStatRequirement }}</span>
                 </div>
               }
               <div class="fst-block">

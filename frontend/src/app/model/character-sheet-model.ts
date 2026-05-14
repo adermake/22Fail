@@ -70,6 +70,7 @@ export interface CharacterSheet {
   spellCastBonus?: number;        // Saved bonus added to every d20 cast roll
   // Material Knowledge System
   knownMaterialIds?: string[];     // IDs of materials the player has knowledge of
+  knownForgeTraitIds?: string[];   // IDs of forge traits the player has knowledge of
 }
 
 export function createEmptySheet(): CharacterSheet {
@@ -119,6 +120,7 @@ export function createEmptySheet(): CharacterSheet {
     reaktionswertBonus: 0,
     backstory: '',
     knownMaterialIds: [],
+    knownForgeTraitIds: [],
   };
 }
 

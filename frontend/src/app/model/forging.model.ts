@@ -20,6 +20,8 @@ export interface MaterialStats {
   extraEffect: string;             // Free-text extra effect granted to the item
   weight: number;                  // Weight contribution (kg)
   ruestungsmalus?: number;         // Speed penalty — armor only
+  reqBase: number;                 // Base stat requirement contribution
+  reqScaling: number;              // Per-forge stat requirement increase
 }
 
 export interface MaterialBlock {
@@ -34,9 +36,14 @@ export interface MaterialBlock {
   canBeArmorMaterial: boolean;
   weaponStats?: MaterialStats;
   armorStats?: MaterialStats;
+  /** Base cost/price of this material. */
+  cost?: number;
   libraryOrigin?: string;
   libraryOriginName?: string;
 }
+
+export type WeaponStatKey = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'SPD';
+export const WEAPON_STAT_KEYS: WeaponStatKey[] = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'SPD'];
 
 export interface ForgeTrait {
   id: string;
@@ -48,6 +55,10 @@ export interface ForgeTrait {
   /** Maximum times this trait may be added. undefined or 1 = not scalable. */
   maxLevel: number;
   scalable: boolean;
+  /** If true, all players can see this trait in their knowledge tab. */
+  isPublic: boolean;
+  /** Optional SP cost discount (%) shown in the knowledge tab. */
+  discount?: number;
   libraryOrigin?: string;
   libraryOriginName?: string;
 }
@@ -89,6 +100,8 @@ export interface ForgedStatPreview {
   weight: number;
   ruestungsmalus?: number;
   extraEffect: string;
+  /** Accumulated stat requirement contribution. */
+  statRequirement: number;
 }
 
 // ── Forging history embedded in the produced ItemBlock ────────────────────────
@@ -124,6 +137,7 @@ export function createEmptyMaterialBlock(): MaterialBlock {
     isPublic: false,
     canBeWeaponMaterial: true,
     canBeArmorMaterial: false,
+    cost: 0,
     weaponStats: {
       haltbarkeit: 50,
       haltbarkeitSkalierung: 10,
@@ -131,6 +145,8 @@ export function createEmptyMaterialBlock(): MaterialBlock {
       effektivitaetSkalierung: 2,
       extraEffect: '',
       weight: 1,
+      reqBase: 0,
+      reqScaling: 0,
     },
     armorStats: {
       haltbarkeit: 80,
@@ -140,6 +156,8 @@ export function createEmptyMaterialBlock(): MaterialBlock {
       extraEffect: '',
       weight: 2,
       ruestungsmalus: 0,
+      reqBase: 0,
+      reqScaling: 0,
     },
   };
 }
@@ -153,6 +171,8 @@ export function createEmptyForgeTrait(): ForgeTrait {
     schmiedepunktKosten: 10,
     maxLevel: 1,
     scalable: false,
+    isPublic: false,
+    discount: 0,
   };
 }
 
@@ -178,5 +198,6 @@ export function computeForgedStats(
     weight: base.weight ?? 0,
     ruestungsmalus: base.ruestungsmalus,
     extraEffect: base.extraEffect ?? '',
+    statRequirement: (base.reqBase ?? 0) + forgeCount * (base.reqScaling ?? 0),
   };
 }

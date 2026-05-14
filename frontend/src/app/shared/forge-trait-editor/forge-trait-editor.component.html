@@ -17,6 +17,18 @@
     <input type="number" [(ngModel)]="edit.schmiedepunktKosten" min="1" />
   </div>
 
+  <!-- Public + Discount -->
+  <div class="toggle-row">
+    <label class="toggle-label">
+      <input type="checkbox" [(ngModel)]="edit.isPublic" />
+      Öffentlich (für alle Spieler im Wissen-Tab sichtbar)
+    </label>
+    <div class="inline-field">
+      <label>Rabatt %</label>
+      <input type="number" [(ngModel)]="edit.discount" min="0" max="100" class="small-input" placeholder="0" />
+    </div>
+  </div>
+
   <!-- Scalable toggle -->
   <div class="toggle-row">
     <label class="toggle-label">

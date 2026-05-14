@@ -15,6 +15,7 @@ import {
   ForgingData, ForgedMaterialRecord, ForgedTraitRecord,
   computeForgedStats, formatTraitEffect,
   nextForgeCost, totalForgeSPSpent,
+  WeaponStatKey, WEAPON_STAT_KEYS,
 } from '../../model/forging.model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
@@ -55,6 +56,9 @@ export class ForgingComponent implements OnInit {
   itemType: 'weapon' | 'armor' = 'weapon';
   itemName = '';
   schmiedepunkte = 100;
+  /** Chosen stat requirement for the item (weapon only — label for min stat). */
+  statRequirement: WeaponStatKey = 'STR';
+  readonly statKeys = WEAPON_STAT_KEYS;
 
   // ── Slots ────────────────────────────────────────────────────────────────────
   primarySlot: MaterialSlotState = { entries: [] };
@@ -143,7 +147,7 @@ export class ForgingComponent implements OnInit {
   /** Aggregate ForgedStatPreview for all entries in a slot. */
   aggregateSlot(slot: MaterialSlotState): ForgedStatPreview | null {
     if (slot.entries.length === 0) return null;
-    let h = 0, e = 0, w = 0, mal = 0;
+    let h = 0, e = 0, w = 0, mal = 0, req = 0;
     const effectSet = new Set<string>();
     for (const entry of slot.entries) {
       const preview = computeForgedStats(entry.material, entry.forgeCount, this.itemType === 'weapon');
@@ -152,9 +156,10 @@ export class ForgingComponent implements OnInit {
       e += preview.effektivitaet;
       w += preview.weight;
       mal += preview.ruestungsmalus ?? 0;
+      req += preview.statRequirement;
       if (preview.extraEffect) effectSet.add(preview.extraEffect);
     }
-    return { haltbarkeit: h, effektivitaet: e, weight: w, ruestungsmalus: mal || undefined, extraEffect: Array.from(effectSet).join(', ') };
+    return { haltbarkeit: h, effektivitaet: e, weight: w, ruestungsmalus: mal || undefined, extraEffect: Array.from(effectSet).join(', '), statRequirement: req };
   }
 
   get primaryPreview(): ForgedStatPreview | null { return this.aggregateSlot(this.primarySlot); }
@@ -187,6 +192,14 @@ export class ForgingComponent implements OnInit {
 
   get finalRuestungsmalus(): number {
     return (this.primaryPreview?.ruestungsmalus ?? 0) + (this.secondaryPreview?.ruestungsmalus ?? 0) + (this.bonusPreview?.ruestungsmalus ?? 0);
+  }
+
+  /** Summed stat requirement from primary + secondary slots (not halved — it's an absolute requirement). */
+  get finalStatRequirement(): number {
+    const priReq = this.primaryPreview?.statRequirement ?? 0;
+    // Secondary statRequirement is not halved — both contribute equally to the requirement
+    const secReq = this.aggregateSlot(this.secondarySlot)?.statRequirement ?? 0;
+    return priReq + secReq;
   }
 
   get allExtraEffects(): string[] {

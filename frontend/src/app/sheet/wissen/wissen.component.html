@@ -8,6 +8,9 @@
     <button class="wissen-tab" [class.active]="activeTab === 'materials'" (click)="setTab('materials')">
       &#x2692; Materialien @if (!isLoading()) { ({{ knownMaterials.length }}) }
     </button>
+    <button class="wissen-tab" [class.active]="activeTab === 'traits'" (click)="setTab('traits')">
+      &#x2692; Merkmale @if (!isLoading()) { ({{ knownTraits.length }}) }
+    </button>
   </div>
 
   <!-- Runen sub-tab -->
@@ -49,6 +52,7 @@
               <div class="mat-chips">
                 @if (mat.canBeWeaponMaterial) { <span class="chip chip-w">Waffe</span> }
                 @if (mat.canBeArmorMaterial)  { <span class="chip chip-a">Rustung</span> }
+                @if ((mat.cost ?? 0) > 0)     { <span class="chip chip-cost">&#x1F4B0; {{ mat.cost }}</span> }
               </div>
 
               <!-- Stats: weapon + armor side by side if both exist -->
@@ -71,6 +75,13 @@
                         <span class="sr-icon">&#x2696;&#xFE0E;</span>
                         <span class="sr-val">{{ mat.weaponStats.weight }}&thinsp;kg</span>
                       </div>
+                      @if ((mat.weaponStats.reqBase ?? 0) > 0 || (mat.weaponStats.reqScaling ?? 0) > 0) {
+                        <div class="sr">
+                          <span class="sr-icon">&#x25B2;</span>
+                          <span class="sr-val">{{ mat.weaponStats.reqBase ?? 0 }}</span>
+                          <span class="sr-scl">+{{ mat.weaponStats.reqScaling ?? 0 }}</span>
+                        </div>
+                      }
                     </div>
                     @if (mat.weaponStats.extraEffect) {
                       <div class="stat-extra">{{ mat.weaponStats.extraEffect }}</div>
@@ -101,6 +112,13 @@
                           <span class="sr-val sr-malus-val">{{ mat.armorStats.ruestungsmalus }}</span>
                         </div>
                       }
+                      @if ((mat.armorStats.reqBase ?? 0) > 0 || (mat.armorStats.reqScaling ?? 0) > 0) {
+                        <div class="sr">
+                          <span class="sr-icon">&#x25B2;</span>
+                          <span class="sr-val">{{ mat.armorStats.reqBase ?? 0 }}</span>
+                          <span class="sr-scl">+{{ mat.armorStats.reqScaling ?? 0 }}</span>
+                        </div>
+                      }
                     </div>
                     @if (mat.armorStats.extraEffect) {
                       <div class="stat-extra">{{ mat.armorStats.extraEffect }}</div>
@@ -112,6 +130,63 @@
               <!-- Description below stats -->
               @if (mat.description) {
                 <p class="mat-desc">{{ mat.description }}</p>
+              }
+
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+  <!-- Bekannte Schmiedemerkmale sub-tab -->
+  @if (activeTab === 'traits') {
+    <div class="materials-tab">
+      @if (isLoading()) {
+        <div class="loading-row">
+          <span class="spinner"></span>
+          <span>Schmiedemerkmale werden geladen...</span>
+        </div>
+      } @else if (knownTraits.length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">&#x2692;</span>
+          <p>Keine Schmiedemerkmale bekannt.</p>
+          <p class="empty-hint">Offentliche und vom GM freigegebene Merkmale erscheinen hier.</p>
+        </div>
+      } @else {
+        <div class="materials-grid">
+          @for (trait of knownTraits; track trait.id) {
+            <div class="mat-card trait-card">
+
+              <!-- Header: name + badge -->
+              <div class="mat-header">
+                <span class="mat-name">{{ trait.name }}</span>
+                <span class="mat-badge" [class.badge-public]="trait.isPublic">
+                  {{ trait.isPublic ? 'Allgemein' : 'Spezial' }}
+                </span>
+              </div>
+
+              <!-- SP cost + discount chips -->
+              <div class="mat-chips">
+                <span class="chip chip-sp">&#x2692; {{ trait.schmiedepunktKosten }} SP</span>
+                @if ((trait.discount ?? 0) > 0) {
+                  <span class="chip chip-discount">{{ trait.discount }}% Rabatt</span>
+                }
+                @if (trait.scalable) {
+                  <span class="chip chip-scale">Stufig (max. {{ trait.maxLevel }})</span>
+                }
+              </div>
+
+              <!-- Effect -->
+              <div class="stat-rows trait-effect-row">
+                <div class="sr">
+                  <span class="sr-icon">&#x2726;</span>
+                  <span class="sr-val trait-effect-text">{{ trait.effect }}</span>
+                </div>
+              </div>
+
+              <!-- Description -->
+              @if (trait.description) {
+                <p class="mat-desc">{{ trait.description }}</p>
               }
 
             </div>

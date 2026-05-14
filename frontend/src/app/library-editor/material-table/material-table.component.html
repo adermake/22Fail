@@ -32,9 +32,9 @@
       <table class="mt-table">
         <thead>
           <tr class="thead-groups">
-            <th colspan="4" class="grp-base">Basis</th>
-            <th colspan="6" class="grp-weapon">⚔︎ Waffenwerte</th>
-            <th colspan="7" class="grp-armor">⛊ Rüstungswerte</th>
+            <th colspan="5" class="grp-base">Basis</th>
+            <th colspan="8" class="grp-weapon">⚔︎ Waffenwerte</th>
+            <th colspan="9" class="grp-armor">⛊ Rüstungswerte</th>
             <th colspan="1" class="grp-del"></th>
           </tr>
           <tr>
@@ -42,12 +42,15 @@
             <th class="c-cb" title="Öffentlich">Öff</th>
             <th class="c-cb" title="Kann als Waffen-Material genutzt werden">Waffe</th>
             <th class="c-cb" title="Kann als Rüstungs-Material genutzt werden">Rüst</th>
+            <th class="c-num" title="Kosten">💰</th>
             <!-- Weapon -->
             <th class="c-num" title="Haltbarkeit (Waffe)">⎐</th>
             <th class="c-num" title="Haltbarkeit Skalierung (Waffe)">+⎐</th>
             <th class="c-num" title="Effektivität">⚔</th>
             <th class="c-num" title="Effektivität Skalierung">+⚔</th>
             <th class="c-num" title="Gewicht (Waffe, kg)">⚖</th>
+            <th class="c-num" title="Anforderung Basis">AnfB</th>
+            <th class="c-num" title="Anforderung Skalierung">Anf+</th>
             <th class="c-eff" title="Extraeffekt (Waffe)">Eff.W</th>
             <!-- Armor -->
             <th class="c-num" title="Haltbarkeit (Rüstung)">⎐</th>
@@ -56,6 +59,8 @@
             <th class="c-num" title="Stabilität Skalierung">+⛊</th>
             <th class="c-num" title="Gewicht (Rüstung, kg)">⚖</th>
             <th class="c-num" title="Rüstungsmalus">Mal</th>
+            <th class="c-num" title="Anforderung Basis">AnfB</th>
+            <th class="c-num" title="Anforderung Skalierung">Anf+</th>
             <th class="c-eff" title="Extraeffekt (Rüstung)">Eff.R</th>
             <th class="c-del"></th>
           </tr>
@@ -88,6 +93,12 @@
                 <input type="checkbox"
                        [ngModel]="mat(file).canBeArmorMaterial"
                        (ngModelChange)="mat(file).canBeArmorMaterial = $event; onFieldChange(file)" />
+              </td>
+              <!-- Kosten -->
+              <td class="c-num">
+                <input class="mt-num" type="number" min="0"
+                       [ngModel]="mat(file).cost ?? 0"
+                       (ngModelChange)="mat(file).cost = $event; onFieldChange(file)" />
               </td>
 
               <!-- ── Weapon stats ───────────────────────────── -->
@@ -128,6 +139,18 @@
                        [ngModel]="ws(file).extraEffect"
                        (ngModelChange)="ws(file).extraEffect = $event; onFieldChange(file)"
                        placeholder="z.B. +1 Reichweite" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeWeaponMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeWeaponMaterial"
+                       [ngModel]="ws(file).reqBase ?? 0"
+                       (ngModelChange)="ws(file).reqBase = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeWeaponMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeWeaponMaterial"
+                       [ngModel]="ws(file).reqScaling ?? 0"
+                       (ngModelChange)="ws(file).reqScaling = $event; onFieldChange(file)" />
               </td>
 
               <!-- ── Armor stats ─────────────────────────────── -->
@@ -174,6 +197,18 @@
                        [ngModel]="aStats(file).extraEffect"
                        (ngModelChange)="aStats(file).extraEffect = $event; onFieldChange(file)"
                        placeholder="z.B. Feuerschutz +1" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeArmorMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeArmorMaterial"
+                       [ngModel]="aStats(file).reqBase ?? 0"
+                       (ngModelChange)="aStats(file).reqBase = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeArmorMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeArmorMaterial"
+                       [ngModel]="aStats(file).reqScaling ?? 0"
+                       (ngModelChange)="aStats(file).reqScaling = $event; onFieldChange(file)" />
               </td>
 
               <!-- Delete -->
