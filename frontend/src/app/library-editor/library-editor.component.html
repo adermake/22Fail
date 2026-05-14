@@ -129,6 +129,11 @@
                   title="Alle Runen in Tabellenansicht bearbeiten">
             ✨ Rune-Tabelle
           </button>
+          <!-- Material Table Button -->
+          <button class="rune-table-btn material-table-btn" (click)="showMaterialTable.set(true)"
+                  title="Alle Materialien in Tabellenansicht bearbeiten">
+            ⚙️ Material-Tabelle
+          </button>
 
           <!-- Create Button -->
           <div class="create-dropdown">
@@ -805,6 +810,16 @@
     (close)="showRuneTable.set(false)"
     (filesChanged)="loadFolderContents(); loadDependencyItems()">
   </app-rune-table>
+}
+
+<!-- Material Table Overlay -->
+@if (showMaterialTable()) {
+  <app-material-table
+    [libraryId]="libraryId()"
+    [folderId]="currentFolderId()"
+    (close)="showMaterialTable.set(false)"
+    (filesChanged)="loadFolderContents(); loadDependencyItems()">
+  </app-material-table>
 }
 
 <!-- Folder Tree Node Template -->

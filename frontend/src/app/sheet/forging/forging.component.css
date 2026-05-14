@@ -731,6 +731,24 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   margin-top: 0.1rem;
 }
 
+/* ── Inline icon characters (shared with wissen) ────────────────────────────── */
+.si-inline {
+  font-style: normal;
+  font-size: 0.85rem;
+  line-height: 1;
+  font-family: sans-serif;
+  font-variant-emoji: text;
+}
+.pmc-ico   { font-size: 0.78rem; }
+.prev-ico  { font-size: 0.72rem; }
+.fst-ico   { font-size: 1rem; }
+.durability-c { color: #34d399; }
+.effk-c       { color: #60a5fa; }
+.stab-color   { background-color: #60a5fa !important; }
+.weight-c     { color: #94a3b8; }
+.scale-c      { color: #4ade80; }
+.malus-c      { color: #f87171; }
+
 /* Trait picker grid */
 .trait-picker-grid {
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

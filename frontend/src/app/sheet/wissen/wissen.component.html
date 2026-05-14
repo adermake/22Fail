@@ -30,6 +30,19 @@
           <p class="empty-hint">Offentliche und vom GM freigegebene Materialien erscheinen hier.</p>
         </div>
       } @else {
+        <div class="materials-header">
+          <span class="legend-trigger" title="Legende">
+            <span class="legend-q">?</span>
+            <span class="legend-popup">
+              <span class="legend-row"><span class="stat-icon-inline si-gem-c">&#x2390;</span> Haltbarkeit</span>
+              <span class="legend-row"><span class="stat-icon-inline si-eff-c">&#x2694;&#xFE0E;</span> Effektivitat</span>
+              <span class="legend-row"><span class="stat-icon-inline si-stab-c stat-icon si-shield-ic" style="width:12px;height:12px"></span> Stabilitat</span>
+              <span class="legend-row"><span class="stat-icon-inline si-wt-c">&#x2696;&#xFE0E;</span> Gewicht</span>
+              <span class="legend-row"><span class="stat-icon-inline si-scale-c">&#x1F845;</span> Skalierung</span>
+              <span class="legend-row"><span class="stat-icon-inline si-malus-c">&#x2296;</span> Rustungsmalus</span>
+            </span>
+          </span>
+        </div>
         <div class="materials-grid">
           @for (mat of knownMaterials; track mat.id) {
             <div class="mat-card"
@@ -59,17 +72,17 @@
                     <div class="stat-block-label"><span class="stat-icon si-sword wbt-si"></span> Waffenwerte</div>
                     <div class="stat-entries">
                       <div class="stat-entry">
-                        <span class="stat-icon si-gem se-si"></span><span class="se-label">Haltbarkeit</span>
+                        <span class="si-inline durability-c">&#x2390;</span>
                         <span class="se-value halt">{{ mat.weaponStats.haltbarkeit }}</span>
-                        <span class="se-scale">+{{ mat.weaponStats.haltbarkeitSkalierung }}/S</span>
+                        <span class="se-scale"><span class="si-inline scale-c">&#x1F845;</span>{{ mat.weaponStats.haltbarkeitSkalierung }}</span>
                       </div>
                       <div class="stat-entry">
-                        <span class="stat-icon si-sword se-si"></span><span class="se-label">Effektivitat</span>
+                        <span class="si-inline effk-c">&#x2694;&#xFE0E;</span>
                         <span class="se-value effk">{{ mat.weaponStats.effektivitaet }}</span>
-                        <span class="se-scale">+{{ mat.weaponStats.effektivitaetSkalierung }}/S</span>
+                        <span class="se-scale"><span class="si-inline scale-c">&#x1F845;</span>{{ mat.weaponStats.effektivitaetSkalierung }}</span>
                       </div>
                       <div class="stat-entry">
-                        <span class="se-label">Gewicht</span>
+                        <span class="si-inline weight-c">&#x2696;&#xFE0E;</span>
                         <span class="se-value weight">{{ mat.weaponStats.weight }} kg</span>
                       </div>
                     </div>
@@ -83,23 +96,23 @@
                     <div class="stat-block-label"><span class="stat-icon si-shield-ic wbt-si"></span> Rustungswerte</div>
                     <div class="stat-entries">
                       <div class="stat-entry">
-                        <span class="stat-icon si-gem se-si"></span><span class="se-label">Haltbarkeit</span>
+                        <span class="si-inline durability-c">&#x2390;</span>
                         <span class="se-value halt">{{ mat.armorStats.haltbarkeit }}</span>
-                        <span class="se-scale">+{{ mat.armorStats.haltbarkeitSkalierung }}/S</span>
+                        <span class="se-scale"><span class="si-inline scale-c">&#x1F845;</span>{{ mat.armorStats.haltbarkeitSkalierung }}</span>
                       </div>
                       <div class="stat-entry">
-                        <span class="stat-icon si-shield-ic se-si"></span><span class="se-label">Stabilitat</span>
+                        <span class="stat-icon si-shield-ic se-si stab-color"></span>
                         <span class="se-value effk">{{ mat.armorStats.effektivitaet }}</span>
-                        <span class="se-scale">+{{ mat.armorStats.effektivitaetSkalierung }}/S</span>
+                        <span class="se-scale"><span class="si-inline scale-c">&#x1F845;</span>{{ mat.armorStats.effektivitaetSkalierung }}</span>
                       </div>
                       <div class="stat-entry">
-                        <span class="se-label">Gewicht</span>
+                        <span class="si-inline weight-c">&#x2696;&#xFE0E;</span>
                         <span class="se-value weight">{{ mat.armorStats.weight }} kg</span>
                       </div>
                       @if (mat.armorStats.ruestungsmalus) {
                         <div class="stat-entry">
-                          <span class="se-label">Rustungsmalus</span>
-                          <span class="se-value malus">-{{ mat.armorStats.ruestungsmalus }}</span>
+                          <span class="si-inline malus-c">&#x2296;</span>
+                          <span class="se-value malus">{{ mat.armorStats.ruestungsmalus }}</span>
                         </div>
                       }
                     </div>

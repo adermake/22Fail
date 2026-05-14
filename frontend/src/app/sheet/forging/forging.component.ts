@@ -190,11 +190,14 @@ export class ForgingComponent implements OnInit {
   }
 
   get allExtraEffects(): string[] {
-    const effects: string[] = [];
+    const seen = new Set<string>();
     for (const preview of [this.primaryPreview, this.secondaryPreview, this.bonusPreview]) {
-      if (preview?.extraEffect) effects.push(preview.extraEffect);
+      if (!preview?.extraEffect) continue;
+      for (const part of preview.extraEffect.split(',').map(s => s.trim()).filter(Boolean)) {
+        seen.add(part);
+      }
     }
-    return effects;
+    return Array.from(seen);
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────────

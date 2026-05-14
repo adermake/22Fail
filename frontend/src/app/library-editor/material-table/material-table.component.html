@@ -1,0 +1,189 @@
+<div class="mt-overlay">
+  <!-- Header -->
+  <div class="mt-header">
+    <span class="mt-title">Material-Tabelle</span>
+    <span class="mt-count">{{ materialFiles.length }} Materialien</span>
+    <div class="mt-spacer"></div>
+    @if (addingNew()) {
+      <input
+        class="mt-new-input"
+        type="text"
+        [(ngModel)]="newName"
+        placeholder="Materialname..."
+        (keyup.enter)="confirmAdd()"
+        (keyup.escape)="cancelAdding()"
+        autofocus
+      />
+      <button class="mt-confirm-btn" (click)="confirmAdd()">✓ Hinzufügen</button>
+      <button class="mt-cancel-btn" (click)="cancelAdding()">✕</button>
+    } @else {
+      <button class="mt-add-btn" (click)="startAdding()">+ Neues Material</button>
+    }
+    <button class="mt-close-btn" (click)="close.emit()">✕ Schließen</button>
+  </div>
+
+  <!-- Table -->
+  <div class="mt-scroll">
+    @if (isLoading()) {
+      <div class="mt-loading">Wird geladen…</div>
+    } @else if (materialFiles.length === 0) {
+      <div class="mt-empty">Keine Materialien in diesem Ordner. Klicke auf „+ Neues Material" um anzufangen.</div>
+    } @else {
+      <table class="mt-table">
+        <thead>
+          <tr class="thead-groups">
+            <th colspan="4" class="grp-base">Basis</th>
+            <th colspan="6" class="grp-weapon">⚔︎ Waffenwerte</th>
+            <th colspan="7" class="grp-armor">⛊ Rüstungswerte</th>
+            <th colspan="1" class="grp-del"></th>
+          </tr>
+          <tr>
+            <th class="c-name">Name</th>
+            <th class="c-cb" title="Öffentlich">Öff</th>
+            <th class="c-cb" title="Kann als Waffen-Material genutzt werden">Waffe</th>
+            <th class="c-cb" title="Kann als Rüstungs-Material genutzt werden">Rüst</th>
+            <!-- Weapon -->
+            <th class="c-num" title="Haltbarkeit (Waffe)">⎐</th>
+            <th class="c-num" title="Haltbarkeit Skalierung (Waffe)">+⎐</th>
+            <th class="c-num" title="Effektivität">⚔</th>
+            <th class="c-num" title="Effektivität Skalierung">+⚔</th>
+            <th class="c-num" title="Gewicht (Waffe, kg)">⚖</th>
+            <th class="c-eff" title="Extraeffekt (Waffe)">Eff.W</th>
+            <!-- Armor -->
+            <th class="c-num" title="Haltbarkeit (Rüstung)">⎐</th>
+            <th class="c-num" title="Haltbarkeit Skalierung (Rüstung)">+⎐</th>
+            <th class="c-num" title="Stabilität">⛊</th>
+            <th class="c-num" title="Stabilität Skalierung">+⛊</th>
+            <th class="c-num" title="Gewicht (Rüstung, kg)">⚖</th>
+            <th class="c-num" title="Rüstungsmalus">Mal</th>
+            <th class="c-eff" title="Extraeffekt (Rüstung)">Eff.R</th>
+            <th class="c-del"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (file of materialFiles; track file.id) {
+            <tr [class.mt-saving]="savingIds().has(file.id)">
+              <!-- Name -->
+              <td class="c-name">
+                <input class="mt-input"
+                       type="text"
+                       [ngModel]="mat(file).name"
+                       (ngModelChange)="mat(file).name = $event; onFieldChange(file)"
+                       placeholder="Name…" />
+              </td>
+              <!-- Öffentlich -->
+              <td class="c-cb">
+                <input type="checkbox"
+                       [ngModel]="mat(file).isPublic"
+                       (ngModelChange)="mat(file).isPublic = $event; onFieldChange(file)" />
+              </td>
+              <!-- Waffe toggle -->
+              <td class="c-cb">
+                <input type="checkbox"
+                       [ngModel]="mat(file).canBeWeaponMaterial"
+                       (ngModelChange)="mat(file).canBeWeaponMaterial = $event; onFieldChange(file)" />
+              </td>
+              <!-- Rüstung toggle -->
+              <td class="c-cb">
+                <input type="checkbox"
+                       [ngModel]="mat(file).canBeArmorMaterial"
+                       (ngModelChange)="mat(file).canBeArmorMaterial = $event; onFieldChange(file)" />
+              </td>
+
+              <!-- ── Weapon stats ───────────────────────────── -->
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeWeaponMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeWeaponMaterial"
+                       [ngModel]="ws(file).haltbarkeit"
+                       (ngModelChange)="ws(file).haltbarkeit = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeWeaponMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeWeaponMaterial"
+                       [ngModel]="ws(file).haltbarkeitSkalierung"
+                       (ngModelChange)="ws(file).haltbarkeitSkalierung = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeWeaponMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeWeaponMaterial"
+                       [ngModel]="ws(file).effektivitaet"
+                       (ngModelChange)="ws(file).effektivitaet = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeWeaponMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeWeaponMaterial"
+                       [ngModel]="ws(file).effektivitaetSkalierung"
+                       (ngModelChange)="ws(file).effektivitaetSkalierung = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeWeaponMaterial">
+                <input class="mt-num" type="number" min="0" step="0.1"
+                       [disabled]="!mat(file).canBeWeaponMaterial"
+                       [ngModel]="ws(file).weight"
+                       (ngModelChange)="ws(file).weight = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-eff" [class.mt-dim]="!mat(file).canBeWeaponMaterial">
+                <input class="mt-input"
+                       type="text"
+                       [disabled]="!mat(file).canBeWeaponMaterial"
+                       [ngModel]="ws(file).extraEffect"
+                       (ngModelChange)="ws(file).extraEffect = $event; onFieldChange(file)"
+                       placeholder="z.B. +1 Reichweite" />
+              </td>
+
+              <!-- ── Armor stats ─────────────────────────────── -->
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeArmorMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeArmorMaterial"
+                       [ngModel]="aStats(file).haltbarkeit"
+                       (ngModelChange)="aStats(file).haltbarkeit = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeArmorMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeArmorMaterial"
+                       [ngModel]="aStats(file).haltbarkeitSkalierung"
+                       (ngModelChange)="aStats(file).haltbarkeitSkalierung = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeArmorMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeArmorMaterial"
+                       [ngModel]="aStats(file).effektivitaet"
+                       (ngModelChange)="aStats(file).effektivitaet = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeArmorMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeArmorMaterial"
+                       [ngModel]="aStats(file).effektivitaetSkalierung"
+                       (ngModelChange)="aStats(file).effektivitaetSkalierung = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeArmorMaterial">
+                <input class="mt-num" type="number" min="0" step="0.1"
+                       [disabled]="!mat(file).canBeArmorMaterial"
+                       [ngModel]="aStats(file).weight"
+                       (ngModelChange)="aStats(file).weight = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-num" [class.mt-dim]="!mat(file).canBeArmorMaterial">
+                <input class="mt-num" type="number" min="0"
+                       [disabled]="!mat(file).canBeArmorMaterial"
+                       [ngModel]="aStats(file).ruestungsmalus ?? 0"
+                       (ngModelChange)="aStats(file).ruestungsmalus = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-eff" [class.mt-dim]="!mat(file).canBeArmorMaterial">
+                <input class="mt-input"
+                       type="text"
+                       [disabled]="!mat(file).canBeArmorMaterial"
+                       [ngModel]="aStats(file).extraEffect"
+                       (ngModelChange)="aStats(file).extraEffect = $event; onFieldChange(file)"
+                       placeholder="z.B. Feuerschutz +1" />
+              </td>
+
+              <!-- Delete -->
+              <td class="c-del">
+                <button class="mt-del-btn" (click)="deleteMaterial(file)" title="Löschen">✕</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>

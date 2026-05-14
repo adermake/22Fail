@@ -463,6 +463,17 @@
   color: #c4b5fd;
 }
 
+/* Material table button — teal variant */
+.rune-table-btn.material-table-btn {
+  border-color: #1f5c52;
+  color: #34d399;
+}
+.rune-table-btn.material-table-btn:hover {
+  background: rgba(52,211,153,0.1);
+  border-color: #34d399;
+  color: #6ee7b7;
+}
+
 .create-dropdown {
   position: relative;
 }

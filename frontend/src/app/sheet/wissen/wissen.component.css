@@ -269,3 +269,77 @@
   border-color: rgba(139,92,246,0.22);
   color: var(--accent, #8b5cf6);
 }
+
+/* ── Materials header / legend ─────────────────────────────────────────────── */
+.materials-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.55rem 1rem 0;
+}
+.legend-trigger {
+  position: relative;
+  cursor: pointer;
+}
+.legend-q {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border, #4a5568);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-muted, #9ca3af);
+  user-select: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.legend-trigger:hover .legend-q {
+  border-color: var(--accent, #8b5cf6);
+  color: var(--accent, #8b5cf6);
+}
+.legend-popup {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--card, #2d3748);
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  white-space: nowrap;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 160px;
+}
+.legend-trigger:hover .legend-popup { display: flex; }
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-muted, #9ca3af);
+}
+
+/* ── Inline icon characters ─────────────────────────────────────────────────── */
+.si-inline {
+  font-style: normal;
+  font-size: 0.85rem;
+  line-height: 1;
+  font-family: sans-serif;
+  /* force text presentation, suppress color emoji */
+  font-variant-emoji: text;
+}
+.stat-icon-inline { font-size: 0.9rem; }
+.durability-c { color: #34d399; }
+.effk-c       { color: #60a5fa; }
+.stab-color, .si-stab-c  { background-color: #60a5fa !important; }
+.weight-c     { color: #94a3b8; }
+.scale-c      { color: #4ade80; font-size: 0.75rem; }
+.malus-c      { color: #f87171; }
+.si-gem-c     { color: #34d399; }
+.si-eff-c     { color: #60a5fa; }
+.si-wt-c      { color: #94a3b8; }
+.si-scale-c   { color: #4ade80; }
+.si-malus-c   { color: #f87171; }

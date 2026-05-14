@@ -56,6 +56,7 @@ import { ForgeTraitEditorComponent } from '../shared/forge-trait-editor/forge-tr
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 import { ImageUrlPipe } from '../shared/image-url.pipe';
 import { RuneTableComponent } from './rune-table/rune-table.component';
+import { MaterialTableComponent } from './material-table/material-table.component';
 
 /**
  * Library Editor Component
@@ -86,6 +87,7 @@ import { RuneTableComponent } from './rune-table/rune-table.component';
     MacroEditorComponent,
     MaterialEditorComponent,
     ForgeTraitEditorComponent,
+    MaterialTableComponent,
   ],
   templateUrl: './library-editor.component.html',
   styleUrls: ['./library-editor.component.css', './library-editor-shop-bundle-editors.css'],
@@ -141,6 +143,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   editingFile = signal<AssetFile | null>(null);
   editingType = signal<AssetType | null>(null);
   showRuneTable = signal(false);
+  showMaterialTable = signal(false);
 
   // Library settings state
   showLibrarySettings = signal(false);
