@@ -278,6 +278,17 @@ export class ForgingComponent implements OnInit {
     return this.remainingSP >= nextForgeCost(entry.forgeCount);
   }
 
+  /** Returns the per-forge stat gain for a single entry based on current itemType. */
+  entryScaling(entry: SlotMaterialEntry): { halt: number; eff: number } {
+    const stats = this.itemType === 'weapon'
+      ? entry.material.weaponStats
+      : entry.material.armorStats;
+    return {
+      halt: stats?.haltbarkeitSkalierung ?? 0,
+      eff:  stats?.effektivitaetSkalierung ?? 0,
+    };
+  }
+
   forge(entry: SlotMaterialEntry): void {
     if (!this.canForge(entry)) return;
     entry.forgeCount++;

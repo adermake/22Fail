@@ -49,10 +49,10 @@
               </div>
               @if (slot.entries.length > 0 && preview && !isBonusSlot(slotCfg.key)) {
                 <div class="slot-mini-stats">
-                  <span class="stat-icon si-gem mini-si"></span>
+                  <span class="sms-icon">&#x2390;</span>
                   <span class="mini-val halt">{{ preview.haltbarkeit }}</span>
                   <span class="mini-sep"> / </span>
-                  <span class="stat-icon mini-si" [class.si-sword]="itemType === 'weapon'" [class.si-shield-ic]="itemType !== 'weapon'"></span>
+                  <span class="sms-icon">{{ itemType === 'weapon' ? '⚔︎' : '⛊' }}</span>
                   <span class="mini-val effk">{{ preview.effektivitaet }}</span>
                 </div>
               }
@@ -66,11 +66,14 @@
                       <button class="entry-remove" (click)="removeMaterialEntry(slot, i)" title="Entfernen">&#x2715;</button>
                     </div>
                     @if (!isBonusSlot(slotCfg.key)) {
+                      @let sc = entryScaling(entry);
                       <div class="entry-forge-row">
                         <button class="forg-btn forg-minus" (click)="unforge(entry)" [disabled]="entry.forgeCount <= 0">&#x2212;</button>
-                        <div class="forg-count">
-                          <span class="forg-num">{{ entry.forgeCount }}&times;</span>
-                          <span class="forg-next">Nachste: <strong>{{ nextForgeCostFor(entry) }}</strong> SP</span>
+                        <span class="forg-num">{{ entry.forgeCount }}&times;</span>
+                        <div class="forg-gain-block">
+                          <span class="forg-cost" [class.forg-cost-warn]="!canForge(entry)">{{ nextForgeCostFor(entry) }}&thinsp;SP</span>
+                          <span class="forg-arrow">&#x2192;</span>
+                          <span class="forg-gain">+{{ sc.halt }}&thinsp;&#x2390; +{{ sc.eff }}&thinsp;{{ itemType === 'weapon' ? '⚔︎' : '⛊' }}</span>
                         </div>
                         <button class="forg-btn forg-plus" (click)="forge(entry)" [disabled]="!canForge(entry)">Schmieden</button>
                       </div>
@@ -91,7 +94,7 @@
                       <span class="sr-val">{{ preview.haltbarkeit }}</span>
                     </div>
                     <div class="sr">
-                      <span class="sr-icon">{{ itemType === 'weapon' ? '&#x2694;&#xFE0E;' : '&#x26CA;' }}</span>
+                      <span class="sr-icon">{{ itemType === 'weapon' ? '⚔︎' : '⛊' }}</span>
                       <span class="sr-val">{{ preview.effektivitaet }}</span>
                     </div>
                     @if (itemType === 'armor' && preview.ruestungsmalus) {
