@@ -78,14 +78,8 @@ export class WeaponGeneratorService {
 
     if (availMaterials.length === 0) return null;
 
-    // SP budget capped by budget / costPerSP
-    const spFromBudget = params.costPerSP > 0 && params.budget > 0
-      ? Math.floor(params.budget / params.costPerSP)
-      : Number.MAX_SAFE_INTEGER;
-    const spBudget = Math.min(params.maxSP, spFromBudget);
-
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const result = this.tryGenerate(params, availMaterials, availTraits, spBudget);
+      const result = this.tryGenerate(params, availMaterials, availTraits);
       if (!result) continue;
 
       if (params.minHaltbarkeit != null && result.finalHaltbarkeit < params.minHaltbarkeit) continue;
@@ -102,7 +96,6 @@ export class WeaponGeneratorService {
     params: GeneratorParams,
     availMaterials: MaterialBlock[],
     availTraits: ForgeTrait[],
-    spBudget: number,
   ): GeneratedWeaponResult | null {
     const weaponType = params.weaponTypeName
       ? (WEAPON_TYPES.find(w => w.name === params.weaponTypeName) ?? this.pick(WEAPON_TYPES))
@@ -112,33 +105,58 @@ export class WeaponGeneratorService {
       params.weaponSize ?? this.pick(['LIGHT', 'MEDIUM', 'HEAVY'] as const);
     const sizeMult = { LIGHT: 0.8, MEDIUM: 1.0, HEAVY: 1.2 }[weaponSize];
 
+    // ── Pick materials first so we know material gold costs up front ─────────
+    const primaryMat = this.pick(availMaterials);
+
+    const hasSecondary = Math.random() < 0.6;
+    const hasBonus     = Math.random() < 0.3;
+
+    let secMat: MaterialBlock | null = null;
+    if (hasSecondary) {
+      const pool = availMaterials.filter(m => m.stackable || m.id !== primaryMat.id);
+      if (pool.length > 0) secMat = this.pick(pool);
+    }
+    const bonusMat: MaterialBlock | null = hasBonus ? this.pick(availMaterials) : null;
+
+    // Material base gold costs are paid from the gold budget directly.
+    const materialGoldCost =
+      (primaryMat.cost ?? 0) +
+      (secMat?.cost ?? 0) +
+      (bonusMat?.cost ?? 0);
+
+    // After paying for materials, remaining gold buys forging (SP × costPerSP).
+    if (params.budget > 0 && materialGoldCost > params.budget) return null;
+
+    const goldForForging = params.budget > 0
+      ? params.budget - materialGoldCost
+      : Number.MAX_SAFE_INTEGER;
+
+    const spFromGold = params.costPerSP > 0 && goldForForging < Number.MAX_SAFE_INTEGER
+      ? Math.floor(goldForForging / params.costPerSP)
+      : Number.MAX_SAFE_INTEGER;
+    const spBudget = Math.min(params.maxSP, spFromGold);
+
     let remainingSP = spBudget;
 
     // ── Primary slot (required) ───────────────────────────────────────────────
-    const primaryMat = this.pick(availMaterials);
     const primaryEntry: SlotMaterialEntry = { material: primaryMat, forgeCount: 0 };
     const primaryBudget = Math.floor(remainingSP * (0.25 + Math.random() * 0.4));
     this.forgeMaterial(primaryEntry, primaryBudget);
     remainingSP -= totalForgeSPSpent(primaryEntry.forgeCount);
 
-    // ── Secondary slot (60% chance) ───────────────────────────────────────────
+    // ── Secondary slot ────────────────────────────────────────────────────────
     let secondaryEntry: SlotMaterialEntry | null = null;
-    if (remainingSP > 0 && Math.random() < 0.6) {
-      const pool = availMaterials.filter(m => m.stackable || m.id !== primaryMat.id);
-      if (pool.length > 0) {
-        const secMat = this.pick(pool);
-        secondaryEntry = { material: secMat, forgeCount: 0 };
-        const secBudget = Math.floor(remainingSP * (0.15 + Math.random() * 0.3));
-        this.forgeMaterial(secondaryEntry, secBudget);
-        remainingSP -= totalForgeSPSpent(secondaryEntry.forgeCount);
-      }
+    if (secMat && remainingSP > 0) {
+      secondaryEntry = { material: secMat, forgeCount: 0 };
+      const secBudget = Math.floor(remainingSP * (0.15 + Math.random() * 0.3));
+      this.forgeMaterial(secondaryEntry, secBudget);
+      remainingSP -= totalForgeSPSpent(secondaryEntry.forgeCount);
     }
 
-    // ── Bonus slot (30% chance, no forging) ───────────────────────────────────
-    let bonusEntry: SlotMaterialEntry | null = null;
-    if (remainingSP > 0 && Math.random() < 0.3) {
-      bonusEntry = { material: this.pick(availMaterials), forgeCount: 0 };
-    }
+    // ── Bonus slot (no forging) ───────────────────────────────────────────────
+    const bonusEntry: SlotMaterialEntry | null = bonusMat
+      ? { material: bonusMat, forgeCount: 0 }
+      : null;
 
     // ── Traits (spend remaining SP) ───────────────────────────────────────────
     const appliedTraits: AppliedTraitState[] = [];
@@ -190,7 +208,7 @@ export class WeaponGeneratorService {
     const finalStatRequirement = (pri?.statRequirement ?? 0) + (secRaw?.statRequirement ?? 0);
 
     const spentSP = spBudget - remainingSP;
-    const totalCost = spentSP * params.costPerSP;
+    const totalCost = materialGoldCost + spentSP * params.costPerSP;
 
     // Collect extra effects
     const allExtraEffects: string[] = [];
