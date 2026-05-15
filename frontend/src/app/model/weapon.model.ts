@@ -34,9 +34,9 @@ export interface WeaponBonus {
 
 export class Weapon extends ItemBlock {
   // durability and efficiency are now inherited from ItemBlock
-  range!: number;
+  weaponRangeMeters!: number;
   weaponType!: WeaponType;
-  damageType!: DamageType;
+  declare damageType: DamageType;
   
   // For crafting
   primaryMaterial!: Material;

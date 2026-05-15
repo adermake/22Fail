@@ -36,6 +36,19 @@
             <button [class.active]="weaponSize === 'HEAVY'" (click)="weaponSize = 'HEAVY'">Schwer &#xD7;1.2</button>
           </div>
         </div>
+        <div class="config-field weapon-type-field">
+          <label>Waffentyp</label>
+          <select class="weapon-type-select" [(ngModel)]="selectedWeaponType" (ngModelChange)="onWeaponTypeChange()" [compareWith]="compareByName">
+            <option [ngValue]="null">– Kein Typ –</option>
+            @for (cat of weaponCategories; track cat) {
+              <optgroup [label]="weaponCategoryLabels[cat]">
+                @for (wt of getWeaponTypesForCategory(cat); track wt.name) {
+                  <option [ngValue]="wt">{{ wt.name }} ({{ wt.damageType }}, {{ wt.range }})</option>
+                }
+              </optgroup>
+            }
+          </select>
+        </div>
       }
       <div class="config-field sp-combined-field">
         <label>Schmiedepunkte</label>

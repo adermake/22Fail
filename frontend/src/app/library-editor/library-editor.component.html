@@ -35,6 +35,14 @@
         >
           ☰
         </button>
+        <button
+          class="generator-btn"
+          [class.active]="showWeaponGenerator()"
+          (click)="toggleWeaponGenerator()"
+          title="Zufallswaffe generieren"
+        >
+          ⚗
+        </button>
       </div>
     </div>
   </header>
@@ -324,6 +332,14 @@
         </div>
       }
     </main>
+
+    <!-- Weapon Generator Side Panel -->
+    @if (showWeaponGenerator()) {
+      <app-weapon-generator
+        (itemCreated)="onGeneratedItemCreated($event)"
+        (closePanel)="showWeaponGenerator.set(false)"
+      ></app-weapon-generator>
+    }
   </div>
 
   <!-- Context Menu -->

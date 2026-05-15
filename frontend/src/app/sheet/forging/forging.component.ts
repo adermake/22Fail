@@ -16,6 +16,7 @@ import {
   computeForgedStats, formatTraitEffect,
   nextForgeCost, totalForgeSPSpent,
   WeaponStatKey, WEAPON_STAT_KEYS,
+  WeaponType, WEAPON_TYPES, WeaponCategory, WEAPON_CATEGORY_LABELS,
 } from '../../model/forging.model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
@@ -64,6 +65,11 @@ export class ForgingComponent implements OnInit {
   readonly WEIGHT_MULT = { LIGHT: 0.8, MEDIUM: 1.0, HEAVY: 1.2 } as const;
   /** Session-level SP discount for traits (0–100 %). Applied during forging only. */
   traitDiscount = 0;
+  /** Selected weapon type — cosmetic, stored in produced ItemBlock. */
+  selectedWeaponType: WeaponType | null = null;
+  readonly weaponTypes = WEAPON_TYPES;
+  readonly weaponCategories: WeaponCategory[] = ['LEICHT', 'FERNKAMPF', 'SCHWER'];
+  readonly weaponCategoryLabels = WEAPON_CATEGORY_LABELS;
 
   // ── Slots ────────────────────────────────────────────────────────────────────
   primarySlot: MaterialSlotState = { entries: [] };
@@ -244,6 +250,23 @@ export class ForgingComponent implements OnInit {
       }
     }
     return Array.from(seen);
+  }
+
+  getWeaponTypesForCategory(cat: WeaponCategory): WeaponType[] {
+    return this.weaponTypes.filter(w => w.category === cat);
+  }
+
+  compareByName(a: WeaponType | null, b: WeaponType | null): boolean {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    return a.name === b.name;
+  }
+
+  onWeaponTypeChange(): void {
+    if (this.selectedWeaponType) {
+      this.weaponSize = this.selectedWeaponType.defaultForgeSize;
+    }
+    this.cdr.markForCheck();
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────────
@@ -435,6 +458,11 @@ export class ForgingComponent implements OnInit {
 
     if (isWeapon) {
       item.efficiency = this.finalEffektivitaet;
+      if (this.selectedWeaponType) {
+        item.weaponTypeName = this.selectedWeaponType.name;
+        item.damageType     = this.selectedWeaponType.damageType;
+        item.range          = this.selectedWeaponType.range;
+      }
     } else {
       item.stability = this.finalEffektivitaet;
       item.armorDebuff = this.finalRuestungsmalus || undefined;
@@ -468,6 +496,9 @@ export class ForgingComponent implements OnInit {
     const lines: string[] = [];
     if (this.itemType === 'weapon') {
       const sizeLabel = { LIGHT: 'Leicht', MEDIUM: 'Mittel', HEAVY: 'Schwer' }[this.weaponSize];
+      if (this.selectedWeaponType) {
+        lines.push(`Typ: ${this.selectedWeaponType.name}  ·  ${this.selectedWeaponType.damageType}  ·  ${this.selectedWeaponType.range}`);
+      }
       lines.push(`Größe: ${sizeLabel} (×${this.WEIGHT_MULT[this.weaponSize]})`);
     }
     const addSlot = (label: string, slot: MaterialSlotState) => {
@@ -496,6 +527,7 @@ export class ForgingComponent implements OnInit {
     this.appliedTraits = [];
     this.pickingSlot = null;
     this.showTraitPicker = false;
+    this.selectedWeaponType = null;
     this.cdr.markForCheck();
   }
 }

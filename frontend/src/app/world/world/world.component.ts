@@ -609,8 +609,8 @@ export class WorldComponent implements OnInit, OnDestroy {
     this.closeItemCreator();
   }
 
-  generateRandomWeapon() { this.libraryService.generateRandomWeapon(5); }
-  generateRandomArmor() { this.libraryService.generateRandomArmor(5); }
+  generateRandomWeapon() { /* deprecated */ }
+  generateRandomArmor() { /* deprecated */ }
 
   updateItem(index: number, patch: JsonPatch) {
     this.libraryService.updateItem(index, patch);

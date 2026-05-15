@@ -6,7 +6,6 @@ import { RuneBlock } from '../model/rune-block.model';
 import { SpellBlock } from '../model/spell-block-model';
 import { SkillBlock } from '../model/skill-block.model';
 import { JsonPatch } from '../model/json-patch.model';
-import { WeaponGeneratorService } from './weapon-generator.service';
 
 @Injectable({
   providedIn: 'root'
@@ -14,7 +13,6 @@ import { WeaponGeneratorService } from './weapon-generator.service';
 export class LibraryService {
   private store = inject(WorldStoreService);
   private trashService = inject(TrashService);
-  private weaponGenerator = inject(WeaponGeneratorService);
 
   // Item library management
   createItem(item: ItemBlock) {
@@ -25,26 +23,6 @@ export class LibraryService {
         value: [...world.itemLibrary, item]
       });
     }
-  }
-
-  generateRandomWeapon(level: number = 5) {
-    const world = this.store.worldValue;
-    if (!world) return;
-    const weapon = this.weaponGenerator.generateWeapon(level);
-    this.store.applyPatch({
-      path: 'itemLibrary',
-      value: [...world.itemLibrary, weapon]
-    });
-  }
-
-  generateRandomArmor(level: number = 5) {
-    const world = this.store.worldValue;
-    if (!world) return;
-    const armor = this.weaponGenerator.generateArmor(level);
-    this.store.applyPatch({
-      path: 'itemLibrary',
-      value: [...world.itemLibrary, armor]
-    });
   }
 
   updateItem(index: number, patch: JsonPatch) {

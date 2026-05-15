@@ -53,6 +53,7 @@ import { StatusEffectEditorComponent } from '../shared/status-effect-editor/stat
 import { MacroEditorComponent } from '../shared/macro-editor/macro-editor.component';
 import { MaterialEditorComponent } from '../shared/material-editor/material-editor.component';
 import { ForgeTraitEditorComponent } from '../shared/forge-trait-editor/forge-trait-editor.component';
+import { WeaponGeneratorComponent } from '../shared/weapon-generator/weapon-generator.component';
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 import { ImageUrlPipe } from '../shared/image-url.pipe';
 import { RuneTableComponent } from './rune-table/rune-table.component';
@@ -88,6 +89,7 @@ import { MaterialTableComponent } from './material-table/material-table.componen
     MaterialEditorComponent,
     ForgeTraitEditorComponent,
     MaterialTableComponent,
+    WeaponGeneratorComponent,
   ],
   templateUrl: './library-editor.component.html',
   styleUrls: ['./library-editor.component.css', './library-editor-shop-bundle-editors.css'],
@@ -144,6 +146,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   editingType = signal<AssetType | null>(null);
   showRuneTable = signal(false);
   showMaterialTable = signal(false);
+  showWeaponGenerator = signal(false);
 
   // Library settings state
   showLibrarySettings = signal(false);
@@ -1560,5 +1563,23 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
 
   trackById(index: number, item: { id: string }): string {
     return item.id;
+  }
+
+  // ── Weapon Generator ──────────────────────────────────────────────────────
+  toggleWeaponGenerator(): void {
+    this.showWeaponGenerator.update(v => !v);
+  }
+
+  async onGeneratedItemCreated(item: ItemBlock): Promise<void> {
+    const libId = this.libraryId();
+    const folderId = this.currentFolderId();
+    if (!libId) return;
+
+    try {
+      await firstValueFrom(this.api.createFile(libId, item.name, 'item', folderId ?? 'root', item));
+      await this.loadFolderContents();
+    } catch (e) {
+      console.error('Waffengenerator: Fehler beim Speichern', e);
+    }
   }
 }

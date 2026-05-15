@@ -54,7 +54,6 @@
               <div class="mat-chips">
                 @if (mat.canBeWeaponMaterial) { <span class="chip chip-w">Waffe</span> }
                 @if (mat.canBeArmorMaterial)  { <span class="chip chip-a">Rustung</span> }
-                @if ((mat.cost ?? 0) > 0)     { <span class="chip chip-cost">&#x1F4B0; {{ mat.cost }}</span> }
                 @if (mat.rarity === 'RARE')      { <span class="chip chip-rare">Selten</span> }
                 @if (mat.rarity === 'LEGENDARY') { <span class="chip chip-legendary">Legend&#xE4;r</span> }
               </div>

@@ -1,0 +1,258 @@
+<div class="wg-panel">
+
+  <!-- Header -->
+  <div class="wg-header">
+    <span class="wg-title">⚗ Waffengenerator</span>
+    <span class="wg-hint">R = Neu würfeln</span>
+    <button class="wg-close-btn" (click)="closePanel.emit()" title="Schließen">✕</button>
+  </div>
+
+  @if (isLoading) {
+    <div class="wg-loading">Lade Bibliotheksdaten…</div>
+  } @else {
+
+    <!-- ── Config row ──────────────────────────────────────────────────────── -->
+    <div class="wg-config-grid">
+      <label class="wg-field">
+        <span>SP</span>
+        <input type="number" min="1" [(ngModel)]="params.maxSP" (ngModelChange)="saveToStorage()" />
+      </label>
+      <label class="wg-field">
+        <span>GP/SP</span>
+        <input type="number" min="0" [(ngModel)]="params.costPerSP" (ngModelChange)="saveToStorage()" />
+      </label>
+      <label class="wg-field">
+        <span>Budget (GP)</span>
+        <input type="number" min="0" [(ngModel)]="params.budget" (ngModelChange)="saveToStorage()" placeholder="0=∞" />
+      </label>
+    </div>
+
+    <!-- ── Weapon type + size row ──────────────────────────────────────────── -->
+    <div class="wg-type-row">
+      <label class="wg-field wg-field-grow">
+        <span>Waffentyp</span>
+        <select [(ngModel)]="params.weaponTypeName" (ngModelChange)="saveToStorage()">
+          <option [ngValue]="null">Zufällig</option>
+          @for (cat of weaponCategories; track cat) {
+            <optgroup [label]="categoryLabels[cat]">
+              @for (wt of getWeaponTypesForCategory(cat); track wt.name) {
+                <option [value]="wt.name">{{ wt.name }} ({{ wt.damageType }}, {{ wt.range }})</option>
+              }
+            </optgroup>
+          }
+        </select>
+      </label>
+      <label class="wg-field">
+        <span>Waffengröße</span>
+        <select [(ngModel)]="params.weaponSize" (ngModelChange)="saveToStorage()">
+          <option [ngValue]="null">Zufällig</option>
+          <option value="LIGHT">Leicht (×0.8)</option>
+          <option value="MEDIUM">Mittel (×1.0)</option>
+          <option value="HEAVY">Schwer (×1.2)</option>
+        </select>
+      </label>
+    </div>
+
+    <!-- ── Filter toggles ─────────────────────────────────────────────────── -->
+    <div class="wg-filter-toggles">
+      <button class="wg-toggle-btn" [class.wg-toggle-active]="showMaterialFilters" (click)="showMaterialFilters = !showMaterialFilters">
+        Materialien
+        @if (whitelistedMaterialCount > 0) { <span class="wg-badge wg-badge-white">+{{ whitelistedMaterialCount }}</span> }
+        @if (blacklistedMaterialCount > 0) { <span class="wg-badge wg-badge-black">–{{ blacklistedMaterialCount }}</span> }
+      </button>
+      <button class="wg-toggle-btn" [class.wg-toggle-active]="showTraitFilters" (click)="showTraitFilters = !showTraitFilters">
+        Merkmale
+        @if (whitelistedTraitCount > 0) { <span class="wg-badge wg-badge-white">+{{ whitelistedTraitCount }}</span> }
+        @if (blacklistedTraitCount > 0) { <span class="wg-badge wg-badge-black">–{{ blacklistedTraitCount }}</span> }
+      </button>
+      <button class="wg-toggle-btn" [class.wg-toggle-active]="showMetricFilters" (click)="showMetricFilters = !showMetricFilters">
+        Einschränkungen
+      </button>
+      @if (activeFilterCount > 0) {
+        <button class="wg-reset-btn" (click)="resetFilters()" title="Alle Filter zurücksetzen">✕ Filter</button>
+      }
+    </div>
+
+    <!-- ── Material filter panel ──────────────────────────────────────────── -->
+    @if (showMaterialFilters) {
+      <div class="wg-filter-panel">
+        <div class="wg-filter-legend">
+          <span class="wg-legend-item wg-state-neutral">◈ Neutral</span>
+          <span class="wg-legend-item wg-state-whitelist">◉ Nur diese</span>
+          <span class="wg-legend-item wg-state-blacklist">⊗ Ausschließen</span>
+          <span class="wg-legend-hint">(Klicken zum Wechseln)</span>
+        </div>
+        <input class="wg-filter-search" type="text" placeholder="Suche…" [(ngModel)]="matFilterSearch" />
+        <div class="wg-filter-chips">
+          @for (mat of filteredMaterials; track mat.id) {
+            <button
+              class="wg-filter-chip"
+              [class.wg-state-whitelist]="getMatFilter(mat.id) === 'whitelist'"
+              [class.wg-state-blacklist]="getMatFilter(mat.id) === 'blacklist'"
+              (click)="cycleMatFilter(mat.id)"
+              [title]="mat.name"
+            >
+              <span class="wg-chip-icon">{{ getMatFilter(mat.id) === 'whitelist' ? '◉' : getMatFilter(mat.id) === 'blacklist' ? '⊗' : '◈' }}</span>
+              {{ mat.name }}
+            </button>
+          }
+          @if (filteredMaterials.length === 0) {
+            <span class="wg-empty">Keine Materialien gefunden.</span>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- ── Trait filter panel ─────────────────────────────────────────────── -->
+    @if (showTraitFilters) {
+      <div class="wg-filter-panel">
+        <div class="wg-filter-legend">
+          <span class="wg-legend-item wg-state-neutral">◈ Neutral</span>
+          <span class="wg-legend-item wg-state-whitelist">◉ Nur diese</span>
+          <span class="wg-legend-item wg-state-blacklist">⊗ Ausschließen</span>
+          <span class="wg-legend-hint">(Klicken zum Wechseln)</span>
+        </div>
+        <input class="wg-filter-search" type="text" placeholder="Suche…" [(ngModel)]="traitFilterSearch" />
+        <div class="wg-filter-chips">
+          @for (trait of filteredTraits; track trait.id) {
+            <button
+              class="wg-filter-chip"
+              [class.wg-state-whitelist]="getTraitFilter(trait.id) === 'whitelist'"
+              [class.wg-state-blacklist]="getTraitFilter(trait.id) === 'blacklist'"
+              (click)="cycleTraitFilter(trait.id)"
+              [title]="trait.name"
+            >
+              <span class="wg-chip-icon">{{ getTraitFilter(trait.id) === 'whitelist' ? '◉' : getTraitFilter(trait.id) === 'blacklist' ? '⊗' : '◈' }}</span>
+              {{ trait.name }}
+            </button>
+          }
+          @if (filteredTraits.length === 0) {
+            <span class="wg-empty">Keine Merkmale gefunden.</span>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- ── Metric filters ─────────────────────────────────────────────────── -->
+    @if (showMetricFilters) {
+      <div class="wg-metric-grid">
+        <label class="wg-field">
+          <span>Min ⎐</span>
+          <input type="number" min="0" [ngModel]="params.minHaltbarkeit" (ngModelChange)="params.minHaltbarkeit = $event || null; saveToStorage()" placeholder="–" />
+        </label>
+        <label class="wg-field">
+          <span>Min ⚔</span>
+          <input type="number" min="0" [ngModel]="params.minEffektivitaet" (ngModelChange)="params.minEffektivitaet = $event || null; saveToStorage()" placeholder="–" />
+        </label>
+        <label class="wg-field">
+          <span>Max ⚖ (kg)</span>
+          <input type="number" min="0" step="0.1" [ngModel]="params.maxWeight" (ngModelChange)="params.maxWeight = $event || null; saveToStorage()" placeholder="–" />
+        </label>
+      </div>
+    }
+
+    <!-- ── Effective budget info ───────────────────────────────────────────── -->
+    <div class="wg-budget-info">
+      Effektives SP-Budget: <strong>{{ effectiveSPBudget }}</strong>
+      @if (params.budget > 0 && params.costPerSP > 0) {
+        <span class="wg-muted">(Budget: {{ params.budget }} GP ÷ {{ params.costPerSP }} GP/SP)</span>
+      }
+    </div>
+
+    <!-- ── Reroll button ──────────────────────────────────────────────────── -->
+    <button class="wg-reroll-btn" (click)="reroll()" [disabled]="isGenerating || allMaterials.length === 0">
+      @if (isGenerating) { Generiere… } @else { 🎲 Neu würfeln <span class="wg-key-hint">[R]</span> }
+    </button>
+
+    @if (allMaterials.length === 0 && !isLoading) {
+      <div class="wg-warn">Keine Waffenmaterialien in Bibliotheken gefunden.</div>
+    }
+
+    <!-- ── No result ──────────────────────────────────────────────────────── -->
+    @if (noResultFound) {
+      <div class="wg-no-result">
+        Keine gültige Waffe gefunden. Bitte Einschränkungen lockern oder Filter anpassen.
+      </div>
+    }
+
+    <!-- ── Result card ────────────────────────────────────────────────────── -->
+    @if (result) {
+      <div class="wg-result">
+        <div class="wg-result-header">
+          <span class="wg-result-type">{{ result.weaponType.name }}</span>
+          <span class="wg-damage-badge wg-damage-{{ result.weaponType.damageType.toLowerCase() }}">
+            {{ result.weaponType.damageType }}
+          </span>
+          <span class="wg-size-badge">{{ resultSizeBadge }}</span>
+          <span class="wg-range-badge">{{ result.weaponType.range }}</span>
+        </div>
+
+        <div class="wg-result-stats">
+          <span class="wg-stat"><span class="wg-stat-icon">⎐</span> {{ result.finalHaltbarkeit }}</span>
+          <span class="wg-stat"><span class="wg-stat-icon">⚔</span> {{ result.finalEffektivitaet }}</span>
+          <span class="wg-stat"><span class="wg-stat-icon">⚖</span> {{ result.finalWeight }} kg</span>
+          @if (result.finalStatRequirement > 0) {
+            <span class="wg-stat"><span class="wg-stat-icon">Anf</span> {{ result.finalStatRequirement }}</span>
+          }
+        </div>
+
+        <div class="wg-result-slots">
+          @if (result.primarySlot.entries.length > 0) {
+            <div class="wg-slot-row">
+              <span class="wg-slot-label">Primär</span>
+              <span>{{ slotLabel(result.primarySlot) }}</span>
+            </div>
+          }
+          @if (result.secondarySlot.entries.length > 0) {
+            <div class="wg-slot-row">
+              <span class="wg-slot-label">Sekundär</span>
+              <span>{{ slotLabel(result.secondarySlot) }}</span>
+            </div>
+          }
+          @if (result.bonusSlot.entries.length > 0) {
+            <div class="wg-slot-row">
+              <span class="wg-slot-label">Zusatz</span>
+              <span>{{ slotLabel(result.bonusSlot) }}</span>
+            </div>
+          }
+        </div>
+
+        @if (result.appliedTraits.length > 0) {
+          <div class="wg-result-traits">
+            @for (t of result.appliedTraits; track t.trait.id) {
+              <span class="wg-trait-chip">{{ t.trait.name }}@if(t.level > 1){ Lv.{{ t.level }}}</span>
+            }
+          </div>
+        }
+
+        @if (result.allExtraEffects.length > 0) {
+          <div class="wg-result-effects">
+            <span class="wg-effects-label">Effekte:</span>
+            {{ result.allExtraEffects.join(' · ') }}
+          </div>
+        }
+
+        <div class="wg-result-cost">
+          <span>SP: <strong>{{ result.spentSP }}</strong> / {{ result.maxSP }}</span>
+          @if (params.costPerSP > 0) {
+            <span>Kosten: <strong>{{ result.totalCost | number:'1.0-0' }} GP</strong></span>
+          }
+        </div>
+
+        <div class="wg-result-save">
+          <input
+            class="wg-name-input"
+            type="text"
+            placeholder="Item-Name…"
+            [(ngModel)]="resultName"
+            (keyup.enter)="confirmItem()"
+          />
+          <button class="wg-confirm-btn" (click)="confirmItem()" [disabled]="!resultName.trim()">
+            + In Bibliothek
+          </button>
+        </div>
+      </div>
+    }
+
+  }
+</div>

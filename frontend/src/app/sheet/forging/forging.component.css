@@ -1143,6 +1143,20 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--text, #e5e7eb);
 }
 
+/* Weapon type selector */
+.weapon-type-field { flex-shrink: 0; min-width: 200px; }
+.weapon-type-select {
+  background: var(--bg, #1e293b);
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 7px;
+  color: var(--text, #e5e7eb);
+  font-size: 0.82rem;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+  width: 100%;
+}
+.weapon-type-select:focus { outline: none; border-color: var(--accent, #8b5cf6); }
+
 /* Forge action group: merges gain-block and button visually */
 .forg-action-group {
   flex: 1;

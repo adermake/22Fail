@@ -1,212 +1,319 @@
+/**
+ * WeaponGeneratorService
+ *
+ * Generates random forged weapons using the forging system's pure functions
+ * exclusively. No stat math is duplicated here — all computations go through
+ * computeForgedStats, totalForgeSPSpent, nextForgeCost, and formatTraitEffect
+ * from forging.model.ts. This guarantees that rule changes in the model
+ * automatically propagate to the generator.
+ */
+
 import { Injectable } from '@angular/core';
 import {
-  Weapon,
-  WeaponType,
-  Material,
-  BaseWeaponType,
-  DamageType,
-} from '../model/weapon.model';
-import { Armor } from '../model/armor.model';
-import { ArmorType } from '../model/item-block.model';
-import { WEAPON_MATERIALS } from '../data/materials.data';
-import { ARMOR_MATERIALS } from '../data/armor-materials.data';
-import { BASE_WEAPON_TYPES } from '../data/weapons.data';
-import { ItemRequirements } from '../model/item-block.model';
+  MaterialBlock, ForgeTrait,
+  MaterialSlotState, SlotMaterialEntry, AppliedTraitState, ForgedStatPreview,
+  computeForgedStats, totalForgeSPSpent, formatTraitEffect,
+  WeaponType, WEAPON_TYPES,
+} from '../model/forging.model';
+import { ItemBlock } from '../model/item-block.model';
 
-@Injectable({
-  providedIn: 'root',
-})
+export type ItemFilterState = 'neutral' | 'whitelist' | 'blacklist';
+
+export interface GeneratorParams {
+  /** Total Schmiedepunkte the blacksmith has available. */
+  maxSP: number;
+  /** Gold cost per SP spent (for budget calculation). */
+  costPerSP: number;
+  /** Maximum gold budget. 0 = unlimited. */
+  budget: number;
+  /** Specific weapon type by name, or null = random. */
+  weaponTypeName: string | null;
+  /** Specific forge size, or null = random. */
+  weaponSize: 'LIGHT' | 'MEDIUM' | 'HEAVY' | null;
+  /** Metric filters — null means no constraint. */
+  minHaltbarkeit: number | null;
+  minEffektivitaet: number | null;
+  maxWeight: number | null;
+}
+
+export interface GeneratedWeaponResult {
+  weaponType: WeaponType;
+  weaponSize: 'LIGHT' | 'MEDIUM' | 'HEAVY';
+  primarySlot: MaterialSlotState;
+  secondarySlot: MaterialSlotState;
+  bonusSlot: MaterialSlotState;
+  appliedTraits: AppliedTraitState[];
+  spentSP: number;
+  maxSP: number;
+  /** Gold cost = spentSP * costPerSP */
+  totalCost: number;
+  finalHaltbarkeit: number;
+  finalEffektivitaet: number;
+  finalWeight: number;
+  finalStatRequirement: number;
+  allExtraEffects: string[];
+  allTraitEffects: string[];
+}
+
+@Injectable({ providedIn: 'root' })
 export class WeaponGeneratorService {
-  private namePrefixes = [
-    'Mächtige(r)',
-    'Verfluchte(r)',
-    'Gesegnete(r)',
-    'Alte(r)',
-    'Meisterlich gefertigte(r)',
-    'Brutale(r)',
-    'Elegante(r)',
-    'Tödliche(r)',
-    'Rostige(r)',
-    'Leuchtende(r)',
-    'Dämonische(r)',
-    'Himmlische(r)',
-  ];
-  private nameSuffixes = [
-    'der Verdammnis',
-    'des Lichts',
-    'der Zerstörung',
-    'des Schutzes',
-    'aus der Tiefe',
-    'des Königs',
-    'der alten Götter',
-    'des Chaos',
-    'der Ordnung',
-    'des Blutes',
-  ];
 
-  constructor() {}
+  /**
+   * Try to generate a random weapon up to maxAttempts times.
+   * Returns null if no valid result could be found (e.g. constraints too strict).
+   */
+  generate(
+    params: GeneratorParams,
+    allMaterials: MaterialBlock[],
+    allTraits: ForgeTrait[],
+    materialFilters: Record<string, ItemFilterState>,
+    traitFilters: Record<string, ItemFilterState>,
+    maxAttempts = 30,
+  ): GeneratedWeaponResult | null {
+    const availMaterials = this.applyFilters(
+      allMaterials.filter(m => m.canBeWeaponMaterial),
+      materialFilters,
+    );
+    const availTraits = this.applyFilters(allTraits, traitFilters);
 
-  public generateWeapon(level: number, weaponType?: WeaponType): Weapon {
-    const weapon = new Weapon();
+    if (availMaterials.length === 0) return null;
 
-    // 1. Select base weapon type
-    let baseTypes = BASE_WEAPON_TYPES;
-    if (weaponType) {
-      baseTypes = baseTypes.filter((t) => t.type === weaponType);
+    // SP budget capped by budget / costPerSP
+    const spFromBudget = params.costPerSP > 0 && params.budget > 0
+      ? Math.floor(params.budget / params.costPerSP)
+      : Number.MAX_SAFE_INTEGER;
+    const spBudget = Math.min(params.maxSP, spFromBudget);
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const result = this.tryGenerate(params, availMaterials, availTraits, spBudget);
+      if (!result) continue;
+
+      if (params.minHaltbarkeit != null && result.finalHaltbarkeit < params.minHaltbarkeit) continue;
+      if (params.minEffektivitaet != null && result.finalEffektivitaet < params.minEffektivitaet) continue;
+      if (params.maxWeight != null && result.finalWeight > params.maxWeight) continue;
+
+      return result;
     }
-    const baseType = this.getRandomElement(baseTypes);
-    weapon.weaponType = baseType.type;
-    weapon.damageType = baseType.damageType;
-    weapon.range = baseType.range;
-    weapon.weight = this.getWeightFromType(baseType.type);
 
-
-    // 2. Select materials
-    // For now, just random. Later we can add logic based on level.
-    const primaryMaterial = this.getRandomElement(WEAPON_MATERIALS);
-    const secondaryMaterial = this.getRandomElement(WEAPON_MATERIALS);
-    const additiveMaterial = this.getRandomElement(WEAPON_MATERIALS);
-    weapon.primaryMaterial = primaryMaterial;
-    weapon.secondaryMaterial = secondaryMaterial;
-    weapon.additiveMaterial = additiveMaterial;
-
-    // 3. Calculate stats
-    weapon.durability =
-      primaryMaterial.durability + Math.floor(secondaryMaterial.durability / 2);
-    weapon.efficiency =
-      primaryMaterial.efficiency + Math.floor(secondaryMaterial.efficiency / 2);
-
-    // 4. Apply crafting points (SP)
-    const craftingPoints = 10 + this.rollD20();
-    // TODO: Implement logic to spend points
-    weapon.craftingPointsUsed = 0; // for now
-
-    // 5. Calculate Requirements
-    weapon.requirements = this.calculateRequirements(weapon.durability, weapon.efficiency);
-    
-    // 6. Generate Name
-    weapon.generatedName = this.generateName(baseType, primaryMaterial);
-    weapon.name = weapon.generatedName;
-
-    // 7. Generate Description
-    weapon.description = this.generateDescription(weapon);
-
-    return weapon;
+    return null;
   }
 
-  public generateArmor(level: number, armorType?: ArmorType): Armor {
-    const armor = new Armor();
+  private tryGenerate(
+    params: GeneratorParams,
+    availMaterials: MaterialBlock[],
+    availTraits: ForgeTrait[],
+    spBudget: number,
+  ): GeneratedWeaponResult | null {
+    const weaponType = params.weaponTypeName
+      ? (WEAPON_TYPES.find(w => w.name === params.weaponTypeName) ?? this.pick(WEAPON_TYPES))
+      : this.pick(WEAPON_TYPES);
 
-    // 1. Select armor type
-    const armorTypes: ArmorType[] = ['helmet', 'chestplate', 'armschienen', 'leggings', 'boots', 'extra'];
-    const baseType: ArmorType = armorType || this.getRandomElement(armorTypes);
-    armor.armorType = baseType;
-    armor.weight = this.getWeightFromType(baseType);
+    const weaponSize: 'LIGHT' | 'MEDIUM' | 'HEAVY' =
+      params.weaponSize ?? this.pick(['LIGHT', 'MEDIUM', 'HEAVY'] as const);
+    const sizeMult = { LIGHT: 0.8, MEDIUM: 1.0, HEAVY: 1.2 }[weaponSize];
 
-    // 2. Select materials
-    const primaryMaterial = this.getRandomElement(ARMOR_MATERIALS);
-    const secondaryMaterial = this.getRandomElement(ARMOR_MATERIALS);
-    const additiveMaterial = this.getRandomElement(ARMOR_MATERIALS);
-    armor.primaryMaterial = primaryMaterial;
-    armor.secondaryMaterial = secondaryMaterial;
-    armor.additiveMaterial = additiveMaterial;
+    let remainingSP = spBudget;
 
-    // 3. Calculate stats
-    armor.durability = primaryMaterial.durability + Math.floor(secondaryMaterial.durability / 2);
-    armor.stability = (primaryMaterial.stability || 0) + Math.floor((secondaryMaterial.stability || 0) / 2);
+    // ── Primary slot (required) ───────────────────────────────────────────────
+    const primaryMat = this.pick(availMaterials);
+    const primaryEntry: SlotMaterialEntry = { material: primaryMat, forgeCount: 0 };
+    const primaryBudget = Math.floor(remainingSP * (0.25 + Math.random() * 0.4));
+    this.forgeMaterial(primaryEntry, primaryBudget);
+    remainingSP -= totalForgeSPSpent(primaryEntry.forgeCount);
 
-    // 4. Apply crafting points (SP)
-    const craftingPoints = 10 + this.rollD20();
-    // TODO: Implement logic to spend points
-    armor.craftingPointsUsed = 0;
-
-    // 5. Calculate Requirements
-    armor.requirements = {}; // TODO: Armor requirements
-
-    // 6. Generate Name
-    armor.generatedName = `${primaryMaterial.name}-${baseType}`;
-    armor.name = armor.generatedName;
-
-    // 7. Generate Description
-    armor.description = this.generateArmorDescription(armor);
-
-    return armor;
-  }
-
-  private generateArmorDescription(armor: Armor): string {
-    let desc = `Eine Rüstung vom Typ ${armor.armorType}.`;
-    desc += ` Hergestellt aus ${armor.primaryMaterial.name}, ${armor.secondaryMaterial.name} und ${armor.additiveMaterial.name}.`;
-    if(armor.primaryMaterial.specialEffect) desc += `\nPrimär-Effekt: ${armor.primaryMaterial.specialEffect}`;
-    if(armor.secondaryMaterial.specialEffect) desc += `\nSekundär-Effekt: ${armor.secondaryMaterial.specialEffect}`;
-    if(armor.additiveMaterial.specialEffect) desc += `\nZusatz-Effekt: ${armor.additiveMaterial.specialEffect}`;
-    return desc;
-  }
-
-  private generateName(baseType: BaseWeaponType, material: Material): string {
-      const prefix = this.getRandomElement(this.namePrefixes);
-      const suffix = this.getRandomElement(this.nameSuffixes);
-      
-      // Add 's' to material name if it ends with a consonant
-      let materialName = material.name;
-      if (!['a','e','i','o','u'].includes(materialName.slice(-1).toLowerCase())) {
-        materialName += 's';
+    // ── Secondary slot (60% chance) ───────────────────────────────────────────
+    let secondaryEntry: SlotMaterialEntry | null = null;
+    if (remainingSP > 0 && Math.random() < 0.6) {
+      const pool = availMaterials.filter(m => m.stackable || m.id !== primaryMat.id);
+      if (pool.length > 0) {
+        const secMat = this.pick(pool);
+        secondaryEntry = { material: secMat, forgeCount: 0 };
+        const secBudget = Math.floor(remainingSP * (0.15 + Math.random() * 0.3));
+        this.forgeMaterial(secondaryEntry, secBudget);
+        remainingSP -= totalForgeSPSpent(secondaryEntry.forgeCount);
       }
+    }
 
-      const format = this.rollDie(4);
-      switch(format) {
-        case 1:
-            return `${material.name}-${baseType.name}`;
-        case 2:
-            return `${prefix} ${baseType.name}`;
-        case 3:
-            return `${baseType.name} ${suffix}`;
-        case 4:
-            return `${prefix} ${material.name}-${baseType.name} ${suffix}`;
-        default:
-            return `${material.name}-${baseType.name}`;
+    // ── Bonus slot (30% chance, no forging) ───────────────────────────────────
+    let bonusEntry: SlotMaterialEntry | null = null;
+    if (remainingSP > 0 && Math.random() < 0.3) {
+      bonusEntry = { material: this.pick(availMaterials), forgeCount: 0 };
+    }
+
+    // ── Traits (spend remaining SP) ───────────────────────────────────────────
+    const appliedTraits: AppliedTraitState[] = [];
+    if (availTraits.length > 0 && remainingSP > 0) {
+      const shuffled = [...availTraits].sort(() => Math.random() - 0.5);
+      let idx = 0;
+      let skipped = 0;
+      while (remainingSP > 0 && skipped < shuffled.length) {
+        const trait = shuffled[idx % shuffled.length];
+        idx++;
+        if (trait.schmiedepunktKosten > remainingSP) { skipped++; continue; }
+        const existing = appliedTraits.find(t => t.trait.id === trait.id);
+        if (existing && existing.level < trait.maxLevel) {
+          existing.level++;
+          remainingSP -= trait.schmiedepunktKosten;
+          skipped = 0;
+        } else if (!existing) {
+          appliedTraits.push({ trait, level: 1 });
+          remainingSP -= trait.schmiedepunktKosten;
+          skipped = 0;
+        } else {
+          skipped++;
+        }
       }
-  }
+    }
 
-  private generateDescription(weapon: Weapon): string {
-    let desc = `Eine Waffe vom Typ ${weapon.weaponType}.`;
-    desc += ` Hergestellt aus ${weapon.primaryMaterial.name}, ${weapon.secondaryMaterial.name} und ${weapon.additiveMaterial.name}.`;
-    if(weapon.primaryMaterial.specialEffect) desc += `\nPrimär-Effekt: ${weapon.primaryMaterial.specialEffect}`;
-    if(weapon.secondaryMaterial.specialEffect) desc += `\nSekundär-Effekt: ${weapon.secondaryMaterial.specialEffect}`;
-    if(weapon.additiveMaterial.specialEffect) desc += `\nZusatz-Effekt: ${weapon.additiveMaterial.specialEffect}`;
-    return desc;
-  }
+    // ── Build slot states ─────────────────────────────────────────────────────
+    const primarySlot: MaterialSlotState = { entries: [primaryEntry] };
+    const secondarySlot: MaterialSlotState = { entries: secondaryEntry ? [secondaryEntry] : [] };
+    const bonusSlot: MaterialSlotState = { entries: bonusEntry ? [bonusEntry] : [] };
 
-  private calculateRequirements(durability: number, efficiency: number): ItemRequirements {
-    // Formel: [5+Haltbarkeit/20+Effizienz/2]
-    const requirementValue = Math.floor(5 + durability / 20 + efficiency / 2);
-    // For now, let's just apply it to strength. This could be more sophisticated.
-    return { strength: requirementValue };
-  }
+    // ── Compute final stats using forging system functions ────────────────────
+    const pri    = this.aggregateSlot(primarySlot);
+    const secRaw = this.aggregateSlot(secondarySlot);
+    const sec: ForgedStatPreview | null = secRaw ? {
+      ...secRaw,
+      haltbarkeit:   Math.floor(secRaw.haltbarkeit   / 2),
+      effektivitaet: Math.floor(secRaw.effektivitaet / 2),
+      weight:        secRaw.weight / 2,
+    } : null;
+    const bon = this.aggregateSlot(bonusSlot);
 
-  private getWeightFromType(type: WeaponType | ArmorType): number {
-      switch(type) {
-          case WeaponType.LEICHT: return this.rollDie(5) + 2; // 3-7
-          case WeaponType.SCHWER: return this.rollDie(10) + 10; // 11-20
-          case WeaponType.FERNKAMPF: return this.rollDie(6) + 4; // 5-10
-          case 'helmet': return this.rollDie(4) + 1; // 2-5
-          case 'chestplate': return this.rollDie(10) + 8; // 9-18
-          case 'leggings': return this.rollDie(6) + 6; // 7-12
-          case 'boots': return this.rollDie(3) + 1; // 2-4
-          case 'armschienen': return this.rollDie(3) + 2; // 3-5
-          case 'extra': return this.rollDie(5) + 3; // 4-8
-          default: return 5; // Default weight
+    const finalHaltbarkeit   = Math.round(((pri?.haltbarkeit   ?? 0) + (sec?.haltbarkeit   ?? 0)) * sizeMult);
+    const finalEffektivitaet = Math.round(((pri?.effektivitaet ?? 0) + (sec?.effektivitaet ?? 0)) * sizeMult);
+    const finalWeight = Math.round(
+      ((pri?.weight ?? 0) + (sec?.weight ?? 0) + (bon?.weight ?? 0)) * sizeMult * 10
+    ) / 10;
+    // Secondary stat requirement is NOT halved (same as forging component)
+    const finalStatRequirement = (pri?.statRequirement ?? 0) + (secRaw?.statRequirement ?? 0);
+
+    const spentSP = spBudget - remainingSP;
+    const totalCost = spentSP * params.costPerSP;
+
+    // Collect extra effects
+    const allExtraEffects: string[] = [];
+    for (const preview of [pri, sec, bon]) {
+      if (!preview?.extraEffect) continue;
+      for (const eff of preview.extraEffect.split(',').map(s => s.trim()).filter(Boolean)) {
+        if (!allExtraEffects.includes(eff)) allExtraEffects.push(eff);
       }
+    }
+
+    const allTraitEffects = appliedTraits.map(t => formatTraitEffect(t.trait, t.level));
+
+    return {
+      weaponType, weaponSize,
+      primarySlot, secondarySlot, bonusSlot,
+      appliedTraits, spentSP, maxSP: spBudget, totalCost,
+      finalHaltbarkeit, finalEffektivitaet, finalWeight, finalStatRequirement,
+      allExtraEffects, allTraitEffects,
+    };
   }
 
-  private getRandomElement<T>(arr: T[]): T {
+  /**
+   * Aggregates the stats of all entries in a slot.
+   * Delegates per-entry computation to computeForgedStats from forging.model.ts.
+   */
+  private aggregateSlot(slot: MaterialSlotState): ForgedStatPreview | null {
+    if (slot.entries.length === 0) return null;
+    let h = 0, e = 0, w = 0, req = 0;
+    const effectParts: string[] = [];
+    const seenMats = new Set<string>();
+    const stackCounts = new Map<string, number>();
+    for (const entry of slot.entries) {
+      stackCounts.set(entry.material.id, (stackCounts.get(entry.material.id) ?? 0) + 1);
+    }
+    for (const entry of slot.entries) {
+      const preview = computeForgedStats(entry.material, entry.forgeCount, true);
+      if (!preview) continue;
+      h += preview.haltbarkeit;
+      e += preview.effektivitaet;
+      w += preview.weight;
+      req += preview.statRequirement;
+      if (!seenMats.has(entry.material.id)) {
+        seenMats.add(entry.material.id);
+        const mat = entry.material;
+        const count = stackCounts.get(mat.id) ?? 1;
+        if (mat.stackable && mat.stackLevels && mat.stackLevels.length > 0) {
+          const idx = Math.min(count - 1, mat.stackLevels.length - 1);
+          if (mat.stackLevels[idx]) effectParts.push(mat.stackLevels[idx]);
+        } else if (preview.extraEffect) {
+          effectParts.push(preview.extraEffect);
+        }
+      }
+    }
+    return { haltbarkeit: h, effektivitaet: e, weight: w, extraEffect: effectParts.join(', '), statRequirement: req };
+  }
+
+  /**
+   * Forge a material entry as many times as possible within spBudget.
+   * Uses totalForgeSPSpent from forging.model.ts to track SP cost.
+   */
+  private forgeMaterial(entry: SlotMaterialEntry, spBudget: number): void {
+    while (totalForgeSPSpent(entry.forgeCount + 1) <= spBudget) {
+      entry.forgeCount++;
+    }
+  }
+
+  private applyFilters<T extends { id: string }>(
+    items: T[],
+    filters: Record<string, ItemFilterState>,
+  ): T[] {
+    const hasWhitelist = Object.values(filters).some(v => v === 'whitelist');
+    return items.filter(item => {
+      const state = filters[item.id] ?? 'neutral';
+      if (state === 'blacklist') return false;
+      if (hasWhitelist && state !== 'whitelist') return false;
+      return true;
+    });
+  }
+
+  private pick<T>(arr: readonly T[]): T {
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
-  private rollD20(): number {
-    return Math.floor(Math.random() * 20) + 1;
-  }
+  /** Build a complete ItemBlock from a generated weapon result. */
+  buildItem(result: GeneratedWeaponResult, itemName: string): ItemBlock {
+    const item = new ItemBlock();
+    item.id = `forged_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    item.name = itemName.trim() || result.weaponType.name;
+    item.itemType = 'weapon';
+    item.weaponTypeName = result.weaponType.name;
+    item.damageType = result.weaponType.damageType;
+    item.range = result.weaponType.range;
+    item.weight = result.finalWeight;
+    item.hasDurability = true;
+    item.durability = result.finalHaltbarkeit;
+    item.maxDurability = result.finalHaltbarkeit;
+    item.efficiency = result.finalEffektivitaet;
+    item.lost = false;
+    item.broken = false;
+    item.isIdentified = true;
+    item.requirements = {};
+    item.primaryEffect = result.allExtraEffects.join(' | ') || undefined;
+    item.secondaryEffect = result.allTraitEffects.join('\n') || undefined;
 
-  private rollDie(sides: number): number {
-    return Math.floor(Math.random() * sides) + 1;
+    const sizeLabel = { LIGHT: 'Leicht', MEDIUM: 'Mittel', HEAVY: 'Schwer' }[result.weaponSize];
+    const entryLabel = (entry: SlotMaterialEntry) =>
+      `${entry.material.name}${entry.forgeCount > 0 ? ` (+${entry.forgeCount}×)` : ''}`;
+    const lines: string[] = [
+      `Typ: ${result.weaponType.name}  ·  ${result.weaponType.damageType}  ·  ${result.weaponType.range}`,
+      `Größe: ${sizeLabel}`,
+    ];
+    if (result.primarySlot.entries.length > 0) {
+      lines.push(`Primär: ${result.primarySlot.entries.map(entryLabel).join(', ')}`);
+    }
+    if (result.secondarySlot.entries.length > 0) {
+      lines.push(`Sekundär: ${result.secondarySlot.entries.map(entryLabel).join(', ')}`);
+    }
+    if (result.bonusSlot.entries.length > 0) {
+      lines.push(`Zusatz: ${result.bonusSlot.entries.map(entryLabel).join(', ')}`);
+    }
+    item.description = lines.join('\n');
+
+    return item;
   }
 }
+

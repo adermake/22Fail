@@ -51,6 +51,67 @@ export interface MaterialBlock {
 export type WeaponStatKey = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'SPD';
 export const WEAPON_STAT_KEYS: WeaponStatKey[] = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'SPD'];
 
+// ── Weapon types ──────────────────────────────────────────────────────────────
+
+export type DamageType = 'Schnitt' | 'Stich' | 'Wucht';
+export type WeaponCategory = 'LEICHT' | 'FERNKAMPF' | 'SCHWER';
+
+export interface WeaponType {
+  name: string;
+  category: WeaponCategory;
+  damageType: DamageType;
+  range: string;
+  /** Suggested forge-size multiplier for this weapon type. */
+  defaultForgeSize: 'LIGHT' | 'MEDIUM' | 'HEAVY';
+}
+
+export const WEAPON_TYPES: WeaponType[] = [
+  // Leicht
+  { name: 'Messer',       category: 'LEICHT',    damageType: 'Schnitt', range: '0,5m',  defaultForgeSize: 'LIGHT' },
+  { name: 'Sichel',       category: 'LEICHT',    damageType: 'Schnitt', range: '0,5m',  defaultForgeSize: 'LIGHT' },
+  { name: 'Kurzschwert',  category: 'LEICHT',    damageType: 'Schnitt', range: '1m',    defaultForgeSize: 'LIGHT' },
+  { name: 'Peitsche',     category: 'LEICHT',    damageType: 'Schnitt', range: '3m',    defaultForgeSize: 'LIGHT' },
+  { name: 'Dolch',        category: 'LEICHT',    damageType: 'Stich',   range: '0,5m',  defaultForgeSize: 'LIGHT' },
+  { name: 'Rapier',       category: 'LEICHT',    damageType: 'Stich',   range: '1,5m',  defaultForgeSize: 'LIGHT' },
+  { name: 'Handschuhe',   category: 'LEICHT',    damageType: 'Wucht',   range: '0,5m',  defaultForgeSize: 'LIGHT' },
+  { name: 'Nunchaku',     category: 'LEICHT',    damageType: 'Wucht',   range: '0,5m',  defaultForgeSize: 'LIGHT' },
+  { name: 'Stab',         category: 'LEICHT',    damageType: 'Wucht',   range: '1m',    defaultForgeSize: 'LIGHT' },
+  // Fernkampf
+  { name: 'Wurfbeil',     category: 'FERNKAMPF', damageType: 'Schnitt', range: '10m',   defaultForgeSize: 'LIGHT' },
+  { name: 'Wurfmesser',   category: 'FERNKAMPF', damageType: 'Schnitt', range: '20m',   defaultForgeSize: 'LIGHT' },
+  { name: 'Wurfspeer',    category: 'FERNKAMPF', damageType: 'Stich',   range: '50m',   defaultForgeSize: 'LIGHT' },
+  { name: 'Kurzbogen',    category: 'FERNKAMPF', damageType: 'Stich',   range: '50m',   defaultForgeSize: 'LIGHT' },
+  { name: 'Armbrust',     category: 'FERNKAMPF', damageType: 'Stich',   range: '100m',  defaultForgeSize: 'LIGHT' },
+  { name: 'Langbogen',    category: 'FERNKAMPF', damageType: 'Stich',   range: '100m',  defaultForgeSize: 'LIGHT' },
+  { name: 'Bola',         category: 'FERNKAMPF', damageType: 'Wucht',   range: '20m',   defaultForgeSize: 'LIGHT' },
+  { name: 'Bumerang',     category: 'FERNKAMPF', damageType: 'Wucht',   range: '30m',   defaultForgeSize: 'LIGHT' },
+  { name: 'Schleuder',    category: 'FERNKAMPF', damageType: 'Wucht',   range: '50m',   defaultForgeSize: 'LIGHT' },
+  // Schwer
+  { name: 'Axt',          category: 'SCHWER',    damageType: 'Schnitt', range: '1,5m',  defaultForgeSize: 'HEAVY' },
+  { name: 'Säbel',        category: 'SCHWER',    damageType: 'Schnitt', range: '1,5m',  defaultForgeSize: 'HEAVY' },
+  { name: 'Sense',        category: 'SCHWER',    damageType: 'Schnitt', range: '1,5m',  defaultForgeSize: 'HEAVY' },
+  { name: 'Kriegsaxt',    category: 'SCHWER',    damageType: 'Schnitt', range: '2m',    defaultForgeSize: 'HEAVY' },
+  { name: 'Langschwert',  category: 'SCHWER',    damageType: 'Schnitt', range: '2m',    defaultForgeSize: 'HEAVY' },
+  { name: 'Gleve',        category: 'SCHWER',    damageType: 'Schnitt', range: '2,5m',  defaultForgeSize: 'HEAVY' },
+  { name: 'Großschwert',  category: 'SCHWER',    damageType: 'Schnitt', range: '2,5m',  defaultForgeSize: 'HEAVY' },
+  { name: 'Hellebarde',   category: 'SCHWER',    damageType: 'Schnitt', range: '3m',    defaultForgeSize: 'HEAVY' },
+  { name: 'Hacke',        category: 'SCHWER',    damageType: 'Stich',   range: '1m',    defaultForgeSize: 'HEAVY' },
+  { name: 'Dreizack',     category: 'SCHWER',    damageType: 'Stich',   range: '2m',    defaultForgeSize: 'HEAVY' },
+  { name: 'Langspeer',    category: 'SCHWER',    damageType: 'Stich',   range: '3m',    defaultForgeSize: 'HEAVY' },
+  { name: 'Lanze',        category: 'SCHWER',    damageType: 'Stich',   range: '3m',    defaultForgeSize: 'HEAVY' },
+  { name: 'Schild',       category: 'SCHWER',    damageType: 'Wucht',   range: '0,5m',  defaultForgeSize: 'HEAVY' },
+  { name: 'Hammer',       category: 'SCHWER',    damageType: 'Wucht',   range: '1m',    defaultForgeSize: 'HEAVY' },
+  { name: 'Keule',        category: 'SCHWER',    damageType: 'Wucht',   range: '2m',    defaultForgeSize: 'HEAVY' },
+  { name: 'Kriegshammer', category: 'SCHWER',    damageType: 'Wucht',   range: '2m',    defaultForgeSize: 'HEAVY' },
+  { name: 'Morgenstern',  category: 'SCHWER',    damageType: 'Wucht',   range: '2,5m',  defaultForgeSize: 'HEAVY' },
+];
+
+export const WEAPON_CATEGORY_LABELS: Record<WeaponCategory, string> = {
+  LEICHT: 'Leicht',
+  FERNKAMPF: 'Fernkampf',
+  SCHWER: 'Schwer',
+};
+
 export interface ForgeTrait {
   id: string;
   name: string;
