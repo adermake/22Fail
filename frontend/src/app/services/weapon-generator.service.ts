@@ -24,6 +24,8 @@ export interface GeneratorParams {
   maxSP: number;
   /** Gold cost per SP spent (for budget calculation). */
   costPerSP: number;
+  /** Minimum gold budget. 0 = no minimum. */
+  minBudget: number;
   /** Maximum gold budget. 0 = unlimited. */
   budget: number;
   /** Specific weapon type by name, or null = random. */
@@ -45,7 +47,7 @@ export interface GeneratedWeaponResult {
   appliedTraits: AppliedTraitState[];
   spentSP: number;
   maxSP: number;
-  /** Gold cost = spentSP * costPerSP */
+  /** Total gold cost = material costs (with slot discounts) + spentSP * costPerSP */
   totalCost: number;
   finalHaltbarkeit: number;
   finalEffektivitaet: number;
@@ -85,6 +87,7 @@ export class WeaponGeneratorService {
       if (params.minHaltbarkeit != null && result.finalHaltbarkeit < params.minHaltbarkeit) continue;
       if (params.minEffektivitaet != null && result.finalEffektivitaet < params.minEffektivitaet) continue;
       if (params.maxWeight != null && result.finalWeight > params.maxWeight) continue;
+      if (params.minBudget > 0 && result.totalCost < params.minBudget) continue;
 
       return result;
     }
@@ -119,10 +122,11 @@ export class WeaponGeneratorService {
     const bonusMat: MaterialBlock | null = hasBonus ? this.pick(availMaterials) : null;
 
     // Material base gold costs are paid from the gold budget directly.
+    // Secondary slot materials cost half, bonus slot materials cost a quarter.
     const materialGoldCost =
       (primaryMat.cost ?? 0) +
-      (secMat?.cost ?? 0) +
-      (bonusMat?.cost ?? 0);
+      Math.ceil((secMat?.cost ?? 0) / 2) +
+      Math.ceil((bonusMat?.cost ?? 0) / 4);
 
     // After paying for materials, remaining gold buys forging (SP × costPerSP).
     if (params.budget > 0 && materialGoldCost > params.budget) return null;

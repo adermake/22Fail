@@ -24,6 +24,7 @@ const LS_TRAIT_FILTERS_KEY = 'wg_trait_filters';
 const defaultParams = (): GeneratorParams => ({
   maxSP: 100,
   costPerSP: 5,
+  minBudget: 0,
   budget: 0,
   weaponTypeName: null,
   weaponSize: null,

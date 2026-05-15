@@ -22,7 +22,11 @@
         <input type="number" min="0" [(ngModel)]="params.costPerSP" (ngModelChange)="saveToStorage()" />
       </label>
       <label class="wg-field">
-        <span>Budget (GP)</span>
+        <span>Min. Budget (GP)</span>
+        <input type="number" min="0" [(ngModel)]="params.minBudget" (ngModelChange)="saveToStorage()" placeholder="0=–" />
+      </label>
+      <label class="wg-field">
+        <span>Max. Budget (GP)</span>
         <input type="number" min="0" [(ngModel)]="params.budget" (ngModelChange)="saveToStorage()" placeholder="0=∞" />
       </label>
     </div>
@@ -154,8 +158,11 @@
     <!-- ── Effective budget info ───────────────────────────────────────────── -->
     <div class="wg-budget-info">
       Effektives SP-Budget: <strong>{{ effectiveSPBudget }}</strong>
-      @if (params.budget > 0 && params.costPerSP > 0) {
-        <span class="wg-muted">(Budget: {{ params.budget }} GP ÷ {{ params.costPerSP }} GP/SP)</span>
+      @if (params.costPerSP > 0 && (params.minBudget > 0 || params.budget > 0)) {
+        <span class="wg-muted">(
+          @if (params.minBudget > 0) { Min: {{ params.minBudget }} GP · }
+          @if (params.budget > 0) { Max: {{ params.budget }} GP ÷ {{ params.costPerSP }} GP/SP }
+        )</span>
       }
     </div>
 
