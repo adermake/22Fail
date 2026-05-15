@@ -54,6 +54,8 @@ import { MacroEditorComponent } from '../shared/macro-editor/macro-editor.compon
 import { MaterialEditorComponent } from '../shared/material-editor/material-editor.component';
 import { ForgeTraitEditorComponent } from '../shared/forge-trait-editor/forge-trait-editor.component';
 import { WeaponGeneratorComponent } from '../shared/weapon-generator/weapon-generator.component';
+import { NpcEditorComponent } from '../shared/npc-editor/npc-editor.component';
+import { createEmptyNpcStatblock } from '../model/npc-statblock.model';
 import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model';
 import { ImageUrlPipe } from '../shared/image-url.pipe';
 import { RuneTableComponent } from './rune-table/rune-table.component';
@@ -90,6 +92,7 @@ import { MaterialTableComponent } from './material-table/material-table.componen
     ForgeTraitEditorComponent,
     MaterialTableComponent,
     WeaponGeneratorComponent,
+    NpcEditorComponent,
   ],
   templateUrl: './library-editor.component.html',
   styleUrls: ['./library-editor.component.css', './library-editor-shop-bundle-editors.css'],
@@ -710,6 +713,8 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
           items: [],
           createdAt: Date.now()
         };
+      case 'statblock':
+        return { ...createEmptyNpcStatblock(), name };
       default:
         return { name };
     }

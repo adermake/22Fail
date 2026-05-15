@@ -1,0 +1,465 @@
+<div class="npc-editor">
+
+  <!-- ══ MODE TABS + IDENTITY ══════════════════════════════════════════════ -->
+  <div class="npc-top-bar">
+
+    <!-- Mode Toggle -->
+    <div class="mode-tabs">
+      <button
+        [class.active]="draft.mode === 'humanoid'"
+        (click)="draft.mode = 'humanoid'">
+        👤 Humanoid
+      </button>
+      <button
+        [class.active]="draft.mode === 'custom'"
+        (click)="draft.mode = 'custom'">
+        🐺 Individuell
+      </button>
+    </div>
+
+    <!-- Name -->
+    <div class="npc-field name-field">
+      <label>Name</label>
+      <input type="text" [(ngModel)]="draft.name" placeholder="NSC-Name" />
+    </div>
+
+    <!-- Level -->
+    <div class="npc-field level-field">
+      <label>Level</label>
+      <input type="number" [(ngModel)]="draft.level" min="1" max="99"
+             (ngModelChange)="recalcDerived()" />
+    </div>
+
+    @if (draft.mode === 'humanoid') {
+      <!-- Race -->
+      <div class="npc-field race-field">
+        <label>Rasse</label>
+        <select [ngModel]="draft.raceId" (ngModelChange)="onRaceChange($event)">
+          <option value="">— Keine —</option>
+          @for (race of races; track race.id) {
+            <option [value]="race.id">{{ race.name }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Archetype -->
+      <div class="npc-field archetype-field">
+        <label>Archetyp</label>
+        <select [ngModel]="draft.archetype" (ngModelChange)="onArchetypeChange($event)">
+          @for (arch of archetypes; track arch.id) {
+            <option [value]="arch.id">{{ arch.icon }} {{ arch.label }}</option>
+          }
+        </select>
+      </div>
+    }
+
+    <!-- Quick Generate All -->
+    @if (draft.mode === 'humanoid') {
+      <button class="gen-all-btn" (click)="generateAll()" title="Alle Werte automatisch berechnen">
+        ⚡ Alles generieren
+      </button>
+    }
+  </div>
+
+  <!-- ══ RESSOURCEN ════════════════════════════════════════════════════════ -->
+  <section class="npc-section">
+    <div class="section-header">
+      <span class="section-title">Ressourcen</span>
+      @if (draft.mode === 'humanoid' && selectedRace) {
+        <button class="mini-btn" (click)="autoCalcResources()"
+                title="HP/Mana/Ausdauer aus Rasse berechnen">↺ Aus Rasse</button>
+      }
+    </div>
+    <div class="resources-grid">
+      <div class="resource-item hp">
+        <label>❤ HP</label>
+        <input type="number" [(ngModel)]="draft.maxHealth" min="1" />
+      </div>
+      <div class="resource-item mana">
+        <label>💧 Mana</label>
+        <input type="number" [(ngModel)]="draft.maxMana" min="0" />
+      </div>
+      <div class="resource-item energy">
+        <label>⚡ Ausdauer</label>
+        <input type="number" [(ngModel)]="draft.maxEnergy" min="0" />
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ BASISWERTE ════════════════════════════════════════════════════════ -->
+  <section class="npc-section">
+    <div class="section-header">
+      <span class="section-title">Basiswerte</span>
+      <span class="stat-budget"
+            [class.over]="selectedRace && allocatedStatPoints > freeStatPoints">
+        @if (selectedRace) {
+          Punkte: {{ allocatedStatPoints }}/{{ freeStatPoints }}
+        }
+      </span>
+      @if (draft.mode === 'humanoid' && selectedRace && selectedArchetype) {
+        <button class="mini-btn" (click)="autoAllocateStats()"
+                title="Punkte nach Archetyp-Gewichtung verteilen">↺ Aus Archetyp</button>
+      }
+    </div>
+    <div class="stats-grid">
+      <div class="stat-item">
+        <label>STR</label>
+        <input type="number" [(ngModel)]="draft.strength" min="1" (ngModelChange)="recalcDerived()" />
+      </div>
+      <div class="stat-item">
+        <label>GES</label>
+        <input type="number" [(ngModel)]="draft.dexterity" min="1" (ngModelChange)="recalcDerived()" />
+      </div>
+      <div class="stat-item">
+        <label>KON</label>
+        <input type="number" [(ngModel)]="draft.constitution" min="1" (ngModelChange)="recalcDerived()" />
+      </div>
+      <div class="stat-item">
+        <label>WIL</label>
+        <input type="number" [(ngModel)]="draft.wille" min="1" (ngModelChange)="recalcDerived()" />
+      </div>
+      <div class="stat-item">
+        <label>GES</label>
+        <input type="number" [(ngModel)]="draft.speed" min="1" (ngModelChange)="recalcDerived()" />
+      </div>
+      <div class="stat-item">
+        <label>INT</label>
+        <input type="number" [(ngModel)]="draft.intelligence" min="1" (ngModelChange)="recalcDerived()" />
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ABGELEITETE WERTE ═════════════════════════════════════════════════ -->
+  <section class="npc-section">
+    <div class="section-title">Abgeleitete Werte</div>
+    <div class="derived-grid">
+
+      <!-- Fokus -->
+      <div class="derived-item">
+        <label>Fokus</label>
+        <div class="derived-value-row">
+          @if (draft.fokusOverride) {
+            <input class="derived-input" type="number" [(ngModel)]="draft.fokus" />
+          } @else {
+            <span class="derived-display">{{ computedFokus }}</span>
+          }
+          <button class="override-btn" [class.overriding]="draft.fokusOverride"
+                  (click)="toggleFokusOverride()"
+                  [title]="draft.fokusOverride ? 'Zurück zur Berechnung' : 'Manuell überschreiben'">
+            {{ draft.fokusOverride ? '🔒' : '✏️' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Reaktionswert -->
+      <div class="derived-item">
+        <label>Reaktion</label>
+        <div class="derived-value-row">
+          @if (draft.reaktionswertOverride) {
+            <input class="derived-input" type="number" [(ngModel)]="draft.reaktionswert" />
+          } @else {
+            <span class="derived-display">{{ computedReaktionswert }}</span>
+          }
+          <button class="override-btn" [class.overriding]="draft.reaktionswertOverride"
+                  (click)="toggleReaktionswertOverride()"
+                  [title]="draft.reaktionswertOverride ? 'Zurück zur Berechnung' : 'Manuell überschreiben'">
+            {{ draft.reaktionswertOverride ? '🔒' : '✏️' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Grundbonus -->
+      <div class="derived-item">
+        <label>Grundbonus</label>
+        <div class="derived-value-row">
+          @if (draft.grundbonusOverride) {
+            <input class="derived-input" type="number" [(ngModel)]="draft.grundbonus" />
+          } @else {
+            <span class="derived-display">{{ computedGrundbonus }}</span>
+          }
+          <button class="override-btn" [class.overriding]="draft.grundbonusOverride"
+                  (click)="toggleGrundbonusOverride()"
+                  [title]="draft.grundbonusOverride ? 'Zurück zur Berechnung' : 'Manuell überschreiben'">
+            {{ draft.grundbonusOverride ? '🔒' : '✏️' }}
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══ FERTIGKEITEN (TALENTBAUM) — HUMANOID ══════════════════════════════ -->
+  @if (draft.mode === 'humanoid') {
+    <section class="npc-section">
+      <div class="section-header">
+        <span class="section-title">Talentbaum</span>
+        <span class="tp-badge" [class.tp-over]="spentTP > totalTP">
+          TP: {{ spentTP }}/{{ totalTP }}
+        </span>
+        <button class="mini-btn accent" (click)="autoGenSkills()"
+                title="Fertigkeiten automatisch nach Klassen-Weg generieren">
+          ⚡ Generieren
+        </button>
+      </div>
+
+      <!-- Class targets + weight -->
+      <div class="class-config-row">
+        <div class="npc-field">
+          <label>Primärklasse</label>
+          <select [(ngModel)]="draft.primaryClassTarget">
+            @for (cls of allClasses; track cls) {
+              <option [value]="cls">{{ cls }}</option>
+            }
+          </select>
+        </div>
+        <div class="npc-field">
+          <label>Sekundärklasse</label>
+          <select [(ngModel)]="draft.secondaryClassTarget">
+            <option value="">— Keine —</option>
+            @for (cls of allClasses; track cls) {
+              <option [value]="cls">{{ cls }}</option>
+            }
+          </select>
+        </div>
+        <div class="npc-field weight-field">
+          <label>Gewichtung Primär: {{ draft.classWeight }}%</label>
+          <input type="range" min="0" max="100" step="5"
+                 [(ngModel)]="draft.classWeight" />
+        </div>
+      </div>
+
+      <!-- Learned skill chips -->
+      @if (learnedSkillDetails.length > 0) {
+        <div class="skill-chips">
+          @for (skill of learnedSkillDetails; track skill.id) {
+            <span class="skill-chip" [class]="tierClass(skill.tier)"
+                  [title]="skill.class + ' (T' + skill.tier + ')'">
+              {{ skill.name }}
+              <button class="chip-remove" (click)="removeLearnedSkill(skill.id)">×</button>
+            </span>
+          }
+        </div>
+      } @else {
+        <p class="empty-hint">Keine Talentbaum-Fertigkeiten — klicke „⚡ Generieren".</p>
+      }
+
+      <!-- Manual skill search -->
+      <div class="skill-search-row">
+        @if (!showSkillSearch) {
+          <button class="mini-btn" (click)="showSkillSearch = true">+ Manuell hinzufügen</button>
+        } @else {
+          <div class="skill-search">
+            <input type="text" [(ngModel)]="skillSearchQuery"
+                   placeholder="Fertigkeit suchen..." autofocus />
+            <button class="mini-btn" (click)="showSkillSearch = false; skillSearchQuery = ''">✕</button>
+          </div>
+          @if (filteredSkillSearch.length > 0) {
+            <div class="skill-search-results">
+              @for (s of filteredSkillSearch; track s.id) {
+                <button class="search-result-item" (click)="addLearnedSkillById(s.id)">
+                  <span class="sr-name">{{ s.name }}</span>
+                  <span class="sr-class">{{ s.class }}</span>
+                </button>
+              }
+            </div>
+          }
+        }
+      </div>
+    </section>
+  }
+
+  <!-- ══ BENUTZERDEFINIERTE FERTIGKEITEN ════════════════════════════════════ -->
+  <section class="npc-section">
+    <div class="section-header">
+      <span class="section-title">
+        @if (draft.mode === 'custom') {
+          Fertigkeiten
+        } @else {
+          Sonderfertigkeiten
+        }
+      </span>
+      <button class="mini-btn" (click)="addCustomSkill()">+ Hinzufügen</button>
+    </div>
+
+    @if (draft.customSkills.length === 0) {
+      <p class="empty-hint">Keine benutzerdefinierten Fertigkeiten.</p>
+    }
+
+    @for (skill of draft.customSkills; track $index; let i = $index) {
+      <div class="custom-skill-row">
+        <input type="text" [(ngModel)]="skill.name" placeholder="Name" class="cs-name" />
+        <select [(ngModel)]="skill.type" class="cs-type">
+          <option value="active">Aktiv</option>
+          <option value="passive">Passiv</option>
+          <option value="stat_bonus">Stat-Bonus</option>
+        </select>
+        <input type="text" [(ngModel)]="skill.description" placeholder="Beschreibung" class="cs-desc" />
+        <button class="chip-remove-lg" (click)="removeCustomSkill(i)">×</button>
+      </div>
+    }
+
+    <!-- Custom skill search (for non-humanoid: manual skill tree lookup too) -->
+    @if (draft.mode === 'custom') {
+      <div class="skill-search-row">
+        @if (!showSkillSearch) {
+          <button class="mini-btn" (click)="showSkillSearch = true">+ Aus Talentbaum</button>
+        } @else {
+          <div class="skill-search">
+            <input type="text" [(ngModel)]="skillSearchQuery"
+                   placeholder="Fertigkeit suchen..." autofocus />
+            <button class="mini-btn" (click)="showSkillSearch = false; skillSearchQuery = ''">✕</button>
+          </div>
+          @if (filteredSkillSearch.length > 0) {
+            <div class="skill-search-results">
+              @for (s of filteredSkillSearch; track s.id) {
+                <button class="search-result-item" (click)="addLearnedSkillById(s.id)">
+                  <span class="sr-name">{{ s.name }}</span>
+                  <span class="sr-class">{{ s.class }}</span>
+                </button>
+              }
+            </div>
+          }
+        }
+      </div>
+    }
+  </section>
+
+  <!-- ══ ZAUBER ════════════════════════════════════════════════════════════ -->
+  <section class="npc-section">
+    <div class="section-header">
+      <span class="section-title">Zauber</span>
+      @if (availableSpells.length > 0) {
+        <button class="mini-btn" (click)="showSpellPicker = !showSpellPicker">+ Aus Bibliothek</button>
+      }
+    </div>
+
+    @if (showSpellPicker) {
+      <div class="picker-list">
+        @for (file of availableSpells; track file.id) {
+          <button class="picker-item" (click)="addSpellFromLibrary(file)">
+            📖 {{ file.name }}
+          </button>
+        }
+      </div>
+    }
+
+    @if (draft.spells.length === 0) {
+      <p class="empty-hint">Keine Zauber.</p>
+    }
+
+    <div class="item-list">
+      @for (spell of draft.spells; track $index; let i = $index) {
+        <div class="item-row">
+          <span class="item-icon">📖</span>
+          <span class="item-name">{{ getSpellName(spell) }}</span>
+          <button class="chip-remove-lg" (click)="removeSpell(i)">×</button>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- ══ AUSRÜSTUNG ════════════════════════════════════════════════════════ -->
+  <section class="npc-section">
+    <div class="section-header">
+      <span class="section-title">Ausrüstung</span>
+    </div>
+
+    <!-- Budget + Spread -->
+    <div class="gear-config-row">
+      <div class="npc-field budget-field">
+        <label>💰 Budget (Gold)</label>
+        <input type="number" [(ngModel)]="draft.gearBudget" min="0" />
+      </div>
+      <div class="spread-controls">
+        <label>Verteilung (Waffe / Rüstung / Zubehör)</label>
+        <div class="spread-inputs">
+          <div class="spread-item">
+            <span>⚔</span>
+            <input type="number" [(ngModel)]="draft.gearSpreadWeapon" min="0" max="100" />
+            <span>%</span>
+          </div>
+          <div class="spread-item">
+            <span>🛡</span>
+            <input type="number" [(ngModel)]="draft.gearSpreadArmor" min="0" max="100" />
+            <span>%</span>
+          </div>
+          <div class="spread-item">
+            <span>💍</span>
+            <input type="number" [(ngModel)]="draft.gearSpreadAccessory" min="0" max="100" />
+            <span>%</span>
+          </div>
+          <span class="spread-total" [class.spread-warn]="spreadTotal !== 100">
+            {{ spreadTotal }}%
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gear Actions -->
+    <div class="gear-actions">
+      <button class="mini-btn accent" (click)="generateWeapon()"
+              [disabled]="!canGenerateGear"
+              [title]="canGenerateGear ? 'Zufällige Waffe schmieden' : 'Keine Materialien in der Bibliothek'">
+        ⚔ Waffe generieren
+      </button>
+      @if (availableItems.length > 0) {
+        <button class="mini-btn" (click)="showItemPicker = !showItemPicker">+ Aus Bibliothek</button>
+      }
+    </div>
+
+    @if (showItemPicker) {
+      <div class="picker-list">
+        @for (file of availableItems; track file.id) {
+          <button class="picker-item" (click)="addItemFromLibrary(file)">
+            📦 {{ file.name }}
+          </button>
+        }
+      </div>
+    }
+
+    @if (draft.equipment.length === 0) {
+      <p class="empty-hint">Kein Ausrüstung.</p>
+    }
+
+    <div class="item-list">
+      @for (item of draft.equipment; track $index; let i = $index) {
+        <div class="item-row">
+          <span class="item-icon">
+            @if (item.itemType === 'weapon') { ⚔ }
+            @else if (item.itemType === 'armor') { 🛡 }
+            @else { 📦 }
+          </span>
+          <span class="item-name">{{ item.name }}</span>
+          @if (item.efficiency) {
+            <span class="item-stat">Eff: {{ item.efficiency }}</span>
+          }
+          @if (item.maxDurability) {
+            <span class="item-stat">Halt: {{ item.maxDurability }}</span>
+          }
+          @if (item.value) {
+            <span class="item-stat">{{ item.value }}g</span>
+          }
+          <button class="chip-remove-lg" (click)="removeEquipment(i)">×</button>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- ══ NOTIZEN ═══════════════════════════════════════════════════════════ -->
+  <section class="npc-section">
+    <div class="section-title">Notizen</div>
+    <textarea
+      class="notes-area"
+      [(ngModel)]="draft.notes"
+      rows="4"
+      placeholder="Hintergrundgeschichte, Taktiken, Besonderheiten...">
+    </textarea>
+  </section>
+
+  <!-- ══ FOOTER ════════════════════════════════════════════════════════════ -->
+  <div class="npc-footer">
+    <button class="save-btn" (click)="onSave()">💾 Speichern</button>
+    <button class="cancel-btn" (click)="onCancel()">✕ Abbrechen</button>
+  </div>
+
+</div>

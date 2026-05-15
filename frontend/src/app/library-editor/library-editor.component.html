@@ -160,6 +160,7 @@
                 <button (click)="createFile('macro')">⚡ Neues Makro</button>
                 <button (click)="createFile('material')">⚙️ Neues Material</button>
                 <button (click)="createFile('forge-trait')">🔥 Neues Schmiedemerkmal</button>
+                <button (click)="createFile('statblock')">👤 Neues NSC-Statblock</button>
               </div>
             }
           </div>
@@ -376,6 +377,7 @@
         <button (click)="createFile('forge-trait'); closeContextMenu()">🔥 Neues Schmiedemerkmal</button>
         <button (click)="createFile('shop'); closeContextMenu()">🏪 Neuer Handel</button>
         <button (click)="createFile('loot-bundle'); closeContextMenu()">💰 Neue Beute</button>
+        <button (click)="createFile('statblock'); closeContextMenu()">👤 Neues NSC-Statblock</button>
         @if (clipboard.canPaste()) {
           <hr />
           <button (click)="paste(); closeContextMenu()">📥 Einfügen (Strg+V)</button>
@@ -449,6 +451,17 @@
             @case ('forge-trait') {
               <app-forge-trait-editor
                 [trait]="editingFile()!.data"
+                (save)="saveEditor($event)"
+                (cancel)="closeEditor()"
+              />
+            }
+            @case ('statblock') {
+              <app-npc-editor
+                [statblock]="editingFile()!.data"
+                [availableSpells]="availableSpells()"
+                [availableItems]="availableItems()"
+                [availableMaterials]="availableMaterials()"
+                [availableForgeTraits]="availableForgeTraits()"
                 (save)="saveEditor($event)"
                 (cancel)="closeEditor()"
               />
