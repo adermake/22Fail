@@ -114,24 +114,19 @@ export class WeaponGeneratorService {
     const sizeMult = { LIGHT: 0.8, MEDIUM: 1.0, HEAVY: 1.2 }[weaponSize];
 
     // ── Pick materials first so we know material gold costs up front ─────────
+    // All 3 slots are always filled.
     const primaryMat = this.pick(availMaterials);
 
-    const hasSecondary = Math.random() < 0.6;
-    const hasBonus     = Math.random() < 0.3;
-
-    let secMat: MaterialBlock | null = null;
-    if (hasSecondary) {
-      const pool = availMaterials.filter(m => m.stackable || m.id !== primaryMat.id);
-      if (pool.length > 0) secMat = this.pick(pool);
-    }
-    const bonusMat: MaterialBlock | null = hasBonus ? this.pick(availMaterials) : null;
+    const secPool = availMaterials.filter(m => m.stackable || m.id !== primaryMat.id);
+    const secMat  = this.pick(secPool.length > 0 ? secPool : availMaterials);
+    const bonusMat = this.pick(availMaterials);
 
     // Material base gold costs are paid from the gold budget directly.
     // Secondary slot materials cost half, bonus slot materials cost a quarter.
     const materialGoldCost =
       (primaryMat.cost ?? 0) +
-      Math.ceil((secMat?.cost ?? 0) / 2) +
-      Math.ceil((bonusMat?.cost ?? 0) / 4);
+      Math.ceil((secMat.cost ?? 0) / 2) +
+      Math.ceil((bonusMat.cost ?? 0) / 4);
 
     // After paying for materials, remaining gold buys forging (SP × costPerSP).
     if (params.budget > 0 && materialGoldCost > params.budget) return null;
@@ -150,28 +145,23 @@ export class WeaponGeneratorService {
     let spForForging = Math.round(spBudget * ratio);
     let spForTraits  = spBudget - spForForging;
 
-    // ── Primary slot (required) ───────────────────────────────────────────────
+    // ── Primary slot: forge with full forging budget ──────────────────────────────
+    // Due to quadratic SP cost, primary never consumes 100% of the budget;
+    // the remainder automatically flows to secondary.
     const primaryEntry: SlotMaterialEntry = { material: primaryMat, forgeCount: 0 };
-    const primaryBudget = Math.floor(spForForging * (0.25 + Math.random() * 0.4));
-    this.forgeMaterial(primaryEntry, primaryBudget);
+    this.forgeMaterial(primaryEntry, spForForging);
     spForForging -= totalForgeSPSpent(primaryEntry.forgeCount);
 
-    // ── Secondary slot ────────────────────────────────────────────────────────
-    let secondaryEntry: SlotMaterialEntry | null = null;
-    if (secMat && spForForging > 0) {
-      secondaryEntry = { material: secMat, forgeCount: 0 };
-      const secBudget = Math.floor(spForForging * (0.15 + Math.random() * 0.3));
-      this.forgeMaterial(secondaryEntry, secBudget);
-      spForForging -= totalForgeSPSpent(secondaryEntry.forgeCount);
-    }
+    // ── Secondary slot: forge with remaining forging SP ─────────────────────────
+    const secondaryEntry: SlotMaterialEntry = { material: secMat, forgeCount: 0 };
+    this.forgeMaterial(secondaryEntry, spForForging);
+    spForForging -= totalForgeSPSpent(secondaryEntry.forgeCount);
 
     // Unused forging SP rolls over to traits
     spForTraits += spForForging;
 
-    // ── Bonus slot (no forging) ───────────────────────────────────────────────
-    const bonusEntry: SlotMaterialEntry | null = bonusMat
-      ? { material: bonusMat, forgeCount: 0 }
-      : null;
+    // ── Bonus slot (no forging, effects only) ────────────────────────────────
+    const bonusEntry: SlotMaterialEntry = { material: bonusMat, forgeCount: 0 };
 
     // ── Traits (spend trait SP pool) ──────────────────────────────────────────
     let remainingSP = spForTraits;
@@ -200,9 +190,9 @@ export class WeaponGeneratorService {
     }
 
     // ── Build slot states ─────────────────────────────────────────────────────
-    const primarySlot: MaterialSlotState = { entries: [primaryEntry] };
-    const secondarySlot: MaterialSlotState = { entries: secondaryEntry ? [secondaryEntry] : [] };
-    const bonusSlot: MaterialSlotState = { entries: bonusEntry ? [bonusEntry] : [] };
+    const primarySlot:   MaterialSlotState = { entries: [primaryEntry] };
+    const secondarySlot: MaterialSlotState = { entries: [secondaryEntry] };
+    const bonusSlot:     MaterialSlotState = { entries: [bonusEntry] };
 
     // ── Compute final stats using forging system functions ────────────────────
     const pri    = this.aggregateSlot(primarySlot);
