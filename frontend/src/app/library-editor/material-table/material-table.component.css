@@ -175,17 +175,33 @@
 .mt-dim input { pointer-events: none; }
 
 /* ── Column widths ────────────────────────────────────────────────────────── */
-.c-name { width: 150px; }
-.c-cb   { width: 36px; text-align: center; }
-.c-num  { width: 50px; text-align: center; }
-.c-eff  { width: 130px; min-width: 100px; }
-.c-del  { width: 30px; text-align: center; }
+.c-name   { width: 150px; }
+.c-cb     { width: 36px; text-align: center; }
+.c-num    { width: 50px; text-align: center; }
+.c-rarity { width: 80px; text-align: center; }
+.c-eff    { width: 130px; min-width: 100px; }
+.c-del    { width: 30px; text-align: center; }
+
+/* Rarity select styling */
+.mt-rarity-sel {
+  width: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text, #e5e7eb);
+  font-size: 0.78rem;
+  padding: 0.1rem 0.15rem;
+  cursor: pointer;
+}
+.mt-rarity-sel:focus { outline: none; border-color: var(--accent, #8b5cf6); }
+.mt-rarity-sel.rarity-rare     { color: #60a5fa; }
+.mt-rarity-sel.rarity-legendary{ color: #fbbf24; }
 
 /* Column group right borders */
-.mt-table td:nth-child(4),
-.mt-table th:nth-child(4) { border-right: 2px solid #1e3a5f; }
-.mt-table td:nth-child(10),
-.mt-table th:nth-child(10) { border-right: 2px solid #2d1b69; }
+.mt-table td:nth-child(6),
+.mt-table th:nth-child(6) { border-right: 2px solid #1e3a5f; }
+.mt-table td:nth-child(14),
+.mt-table th:nth-child(14) { border-right: 2px solid #2d1b69; }
 
 /* ── Inputs ───────────────────────────────────────────────────────────────── */
 .mt-input {

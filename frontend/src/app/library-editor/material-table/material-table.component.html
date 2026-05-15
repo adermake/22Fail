@@ -32,7 +32,7 @@
       <table class="mt-table">
         <thead>
           <tr class="thead-groups">
-            <th colspan="5" class="grp-base">Basis</th>
+            <th colspan="6" class="grp-base">Basis</th>
             <th colspan="8" class="grp-weapon">⚔︎ Waffenwerte</th>
             <th colspan="9" class="grp-armor">⛊ Rüstungswerte</th>
             <th colspan="1" class="grp-del"></th>
@@ -43,6 +43,7 @@
             <th class="c-cb" title="Kann als Waffen-Material genutzt werden">Waffe</th>
             <th class="c-cb" title="Kann als Rüstungs-Material genutzt werden">Rüst</th>
             <th class="c-num" title="Kosten">💰</th>
+            <th class="c-rarity" title="Rarität">Rart.</th>
             <!-- Weapon -->
             <th class="c-num" title="Haltbarkeit (Waffe)">⎐</th>
             <th class="c-num" title="Haltbarkeit Skalierung (Waffe)">+⎐</th>
@@ -99,6 +100,18 @@
                 <input class="mt-num" type="number" min="0"
                        [ngModel]="mat(file).cost ?? 0"
                        (ngModelChange)="mat(file).cost = $event; onFieldChange(file)" />
+              </td>
+              <!-- Rarität -->
+              <td class="c-rarity">
+                <select class="mt-rarity-sel"
+                        [class.rarity-rare]="mat(file).rarity === 'RARE'"
+                        [class.rarity-legendary]="mat(file).rarity === 'LEGENDARY'"
+                        [ngModel]="mat(file).rarity ?? 'COMMON'"
+                        (ngModelChange)="mat(file).rarity = $event; onFieldChange(file)">
+                  <option value="COMMON">Gew.</option>
+                  <option value="RARE">Selten</option>
+                  <option value="LEGENDARY">Legär</option>
+                </select>
               </td>
 
               <!-- ── Weapon stats ───────────────────────────── -->

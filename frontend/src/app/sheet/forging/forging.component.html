@@ -28,6 +28,14 @@
             }
           </div>
         </div>
+        <div class="config-field weapon-size-field">
+          <label>Waffengr&#xF6;&#xDF;e</label>
+          <div class="weapon-size-toggle">
+            <button [class.active]="weaponSize === 'LIGHT'" (click)="weaponSize = 'LIGHT'">Leicht &#xD7;0.8</button>
+            <button [class.active]="weaponSize === 'MEDIUM'" (click)="weaponSize = 'MEDIUM'">Mittel &#xD7;1.0</button>
+            <button [class.active]="weaponSize === 'HEAVY'" (click)="weaponSize = 'HEAVY'">Schwer &#xD7;1.2</button>
+          </div>
+        </div>
       }
       <div class="config-field sp-combined-field">
         <label>Schmiedepunkte</label>
@@ -80,13 +88,19 @@
                       <div class="entry-forge-row">
                         <button class="forg-btn forg-minus" (click)="unforge(entry)" [disabled]="entry.forgeCount <= 0">&#x2212;</button>
                         <span class="forg-num">{{ entry.forgeCount }}&times;</span>
-                        <div class="forg-gain-block">
-                          <span class="forg-cost" [class.forg-cost-warn]="!canForge(entry)">{{ nextForgeCostFor(entry) }}&thinsp;SP</span>
-                          <span class="forg-arrow">&#x2192;</span>
-                          <span class="forg-gain">+{{ sc.halt }}&thinsp;&#x2390; +{{ sc.eff }}&thinsp;{{ itemType === 'weapon' ? '⚔︎' : '⛊' }}</span>
+                        <div class="forg-action-group">
+                          <div class="forg-gain-block">
+                            <span class="forg-cost" [class.forg-cost-warn]="!canForge(entry)">{{ nextForgeCostFor(entry) }}&thinsp;SP</span>
+                            <span class="forg-arrow">&#x2192;</span>
+                            <span class="forg-gain">+{{ sc.halt }}&thinsp;&#x2390; +{{ sc.eff }}&thinsp;{{ itemType === 'weapon' ? '&#x2694;&#xFE0E;' : '&#x26CA;' }}</span>
+                          </div>
+                          <button class="forg-btn forg-plus" (click)="forge(entry)" [disabled]="!canForge(entry)">Schmieden</button>
                         </div>
-                        <button class="forg-btn forg-plus" (click)="forge(entry)" [disabled]="!canForge(entry)">Schmieden</button>
                       </div>
+                    }
+                    @let stackDesc = getStackLevelDesc(entry, slot);
+                    @if (stackDesc) {
+                      <div class="entry-stack-desc">&#x2726; {{ stackDesc }}</div>
                     }
                   </div>
                 }
@@ -104,7 +118,7 @@
                       <span class="sr-val">{{ preview.haltbarkeit }}</span>
                     </div>
                     <div class="sr">
-                      <span class="sr-icon">{{ itemType === 'weapon' ? '⚔︎' : '⛊' }}</span>
+                      <span class="sr-icon sr-icon-eff">{{ itemType === 'weapon' ? '&#x2694;&#xFE0E;' : '&#x26CA;' }}</span>
                       <span class="sr-val">{{ preview.effektivitaet }}</span>
                     </div>
                     @if (itemType === 'armor' && preview.ruestungsmalus) {
@@ -154,7 +168,7 @@
                   </div>
                   <div class="at-actions">
                     @if (applied.trait.scalable && applied.level < applied.trait.maxLevel) {
-                      <button class="at-btn at-plus" (click)="addTrait(applied.trait)" [disabled]="remainingSP < applied.trait.schmiedepunktKosten">+</button>
+                      <button class="at-btn at-plus" (click)="addTrait(applied.trait)" [disabled]="remainingSP < effectiveTraitCost(applied.trait)">+</button>
                     }
                     <button class="at-btn at-minus" (click)="removeTrait(applied.trait)">&#x2212;</button>
                   </div>
@@ -255,6 +269,8 @@
               [class.card-weapon]="mat.canBeWeaponMaterial && !mat.canBeArmorMaterial"
               [class.card-armor]="mat.canBeArmorMaterial && !mat.canBeWeaponMaterial"
               [class.card-both]="mat.canBeWeaponMaterial && mat.canBeArmorMaterial"
+              [class.rarity-rare]="mat.rarity === 'RARE'"
+              [class.rarity-legendary]="mat.rarity === 'LEGENDARY'"
               (click)="selectMaterial(mat)">
 
               <!-- Header: name + badge -->
@@ -265,10 +281,13 @@
                 </span>
               </div>
 
-              <!-- Type chips -->
+              <!-- Type + rarity chips -->
               <div class="mat-chips">
                 @if (mat.canBeWeaponMaterial) { <span class="chip chip-w">Waffe</span> }
                 @if (mat.canBeArmorMaterial)  { <span class="chip chip-a">Rustung</span> }
+                @if (mat.rarity === 'RARE')       { <span class="chip chip-rare">Selten</span> }
+                @if (mat.rarity === 'LEGENDARY')  { <span class="chip chip-legendary">Legend&#xE4;r</span> }
+                @if (mat.stackable)               { <span class="chip chip-stackable">Stapelbar</span> }
               </div>
 
               <!-- Stats: only show relevant type for current forge mode -->
@@ -283,7 +302,7 @@
                         <span class="sr-scl">+{{ mat.weaponStats.haltbarkeitSkalierung }}</span>
                       </div>
                       <div class="sr">
-                        <span class="sr-icon">&#x2694;&#xFE0E;</span>
+                        <span class="sr-icon sr-icon-eff">&#x2694;&#xFE0E;</span>
                         <span class="sr-val">{{ mat.weaponStats.effektivitaet }}</span>
                         <span class="sr-scl">+{{ mat.weaponStats.effektivitaetSkalierung }}</span>
                       </div>
@@ -307,7 +326,7 @@
                         <span class="sr-scl">+{{ mat.armorStats.haltbarkeitSkalierung }}</span>
                       </div>
                       <div class="sr">
-                        <span class="sr-icon">&#x26CA;</span>
+                        <span class="sr-icon sr-icon-eff">&#x26CA;</span>
                         <span class="sr-val">{{ mat.armorStats.effektivitaet }}</span>
                         <span class="sr-scl">+{{ mat.armorStats.effektivitaetSkalierung }}</span>
                       </div>
@@ -358,6 +377,13 @@
           <span class="picker-search-icon">&#x1F50D;</span>
           <input class="picker-search" type="text" [(ngModel)]="traitFilter" placeholder="Merkmal suchen..." />
         </div>
+        <div class="picker-discount-field">
+          <label>Fertigkeit-Rabatt</label>
+          <div class="picker-discount-wrap">
+            <input type="number" [(ngModel)]="traitDiscount" min="0" max="100" class="picker-discount-input" />
+            <span class="picker-discount-pct">%</span>
+          </div>
+        </div>
       </div>
       @if (filteredForgeTraits.length === 0) {
         <div class="picker-empty">Keine Schmiedemerkmale in der Bibliothek.</div>
@@ -368,7 +394,10 @@
             <div class="picker-trait-card" [class.tc-maxed]="appliedLevel >= trait.maxLevel">
               <div class="ptc-header">
                 <span class="ptc-name">{{ trait.name }}</span>
-                <span class="ptc-cost" [class.unaffordable]="remainingSP < trait.schmiedepunktKosten">{{ trait.schmiedepunktKosten }} SP</span>
+                <span class="ptc-cost" [class.unaffordable]="!canAddTrait(trait)">
+                  {{ effectiveTraitCost(trait) }}&thinsp;SP
+                  @if (traitDiscount > 0) { <span class="ptc-orig-cost">({{ trait.schmiedepunktKosten }})</span> }
+                </span>
               </div>
               <p class="ptc-effect">{{ trait.effect }}</p>
               <div class="ptc-footer">
@@ -379,10 +408,10 @@
                 }
                 @if (appliedLevel >= trait.maxLevel) {
                   <span class="ptc-tag maxed">Max</span>
-                } @else if (remainingSP < trait.schmiedepunktKosten) {
+                } @else if (remainingSP < effectiveTraitCost(trait)) {
                   <span class="ptc-tag cant">Zu wenig SP</span>
                 } @else {
-                  <button class="ptc-add-btn" (click)="$event.stopPropagation(); addTrait(trait)">+ Hinzufugen</button>
+                  <button class="ptc-add-btn" (click)="$event.stopPropagation(); addTrait(trait)">+ Hinzuf&#xFC;gen</button>
                 }
               </div>
             </div>

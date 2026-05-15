@@ -38,7 +38,9 @@
             <div class="mat-card"
               [class.card-weapon]="mat.canBeWeaponMaterial && !mat.canBeArmorMaterial"
               [class.card-armor]="mat.canBeArmorMaterial && !mat.canBeWeaponMaterial"
-              [class.card-both]="mat.canBeWeaponMaterial && mat.canBeArmorMaterial">
+              [class.card-both]="mat.canBeWeaponMaterial && mat.canBeArmorMaterial"
+              [class.rarity-rare]="mat.rarity === 'RARE'"
+              [class.rarity-legendary]="mat.rarity === 'LEGENDARY'">
 
               <!-- Header: name + badge -->
               <div class="mat-header">
@@ -53,6 +55,8 @@
                 @if (mat.canBeWeaponMaterial) { <span class="chip chip-w">Waffe</span> }
                 @if (mat.canBeArmorMaterial)  { <span class="chip chip-a">Rustung</span> }
                 @if ((mat.cost ?? 0) > 0)     { <span class="chip chip-cost">&#x1F4B0; {{ mat.cost }}</span> }
+                @if (mat.rarity === 'RARE')      { <span class="chip chip-rare">Selten</span> }
+                @if (mat.rarity === 'LEGENDARY') { <span class="chip chip-legendary">Legend&#xE4;r</span> }
               </div>
 
               <!-- Stats: weapon + armor side by side if both exist -->
@@ -67,7 +71,7 @@
                         <span class="sr-scl">+{{ mat.weaponStats.haltbarkeitSkalierung }}</span>
                       </div>
                       <div class="sr">
-                        <span class="sr-icon">&#x2694;&#xFE0E;</span>
+                        <span class="sr-icon sr-icon-eff">&#x2694;&#xFE0E;</span>
                         <span class="sr-val">{{ mat.weaponStats.effektivitaet }}</span>
                         <span class="sr-scl">+{{ mat.weaponStats.effektivitaetSkalierung }}</span>
                       </div>
@@ -98,7 +102,7 @@
                         <span class="sr-scl">+{{ mat.armorStats.haltbarkeitSkalierung }}</span>
                       </div>
                       <div class="sr">
-                        <span class="sr-icon">&#x26CA;</span>
+                        <span class="sr-icon sr-icon-eff">&#x26CA;</span>
                         <span class="sr-val">{{ mat.armorStats.effektivitaet }}</span>
                         <span class="sr-scl">+{{ mat.armorStats.effektivitaetSkalierung }}</span>
                       </div>
@@ -165,12 +169,9 @@
                 </span>
               </div>
 
-              <!-- SP cost + discount chips -->
+              <!-- SP cost chips -->
               <div class="mat-chips">
                 <span class="chip chip-sp">&#x2692; {{ trait.schmiedepunktKosten }} SP</span>
-                @if ((trait.discount ?? 0) > 0) {
-                  <span class="chip chip-discount">{{ trait.discount }}% Rabatt</span>
-                }
                 @if (trait.scalable) {
                   <span class="chip chip-scale">Stufig (max. {{ trait.maxLevel }})</span>
                 }

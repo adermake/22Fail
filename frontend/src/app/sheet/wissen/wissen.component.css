@@ -152,6 +152,12 @@
 .chip-sp      { background: rgba(139,92,246,0.15);  color: #a78bfa; }
 .chip-discount{ background: rgba(52,211,153,0.15);  color: #34d399; }
 .chip-scale   { background: rgba(96,165,250,0.12);  color: #93c5fd; }
+.chip-rare       { background: rgba(59,130,246,0.12); color: #60a5fa; }
+.chip-legendary  { background: rgba(245,158,11,0.15); color: #fbbf24; }
+
+/* Rarity card border accents */
+.mat-card.rarity-rare      { border-color: #3b82f6; box-shadow: 0 0 10px rgba(59,130,246,0.18); }
+.mat-card.rarity-legendary { border-color: #f59e0b; box-shadow: 0 0 12px rgba(245,158,11,0.22); }
 
 /* ── Trait card tweaks ────────────────────────────────────────────────────── */
 .trait-card { border-color: rgba(167,139,250,0.3); }
@@ -203,7 +209,7 @@
 
 .sr {
   display: grid;
-  grid-template-columns: 16px 1fr auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.3rem;
 }
@@ -214,6 +220,17 @@
   color: #6b7280;
   font-variant-emoji: text;
   text-align: center;
+}
+
+/* Blue box for efficiency icons */
+.sr-icon.sr-icon-eff {
+  background: #1e1b4b;
+  border: 1px solid #6366f1;
+  border-radius: 3px;
+  color: #a5b4fc;
+  font-size: 0.7rem;
+  padding: 0.05rem 0.15rem;
+  line-height: 1.2;
 }
 
 .sr-val {

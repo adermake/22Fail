@@ -38,6 +38,12 @@ export interface MaterialBlock {
   armorStats?: MaterialStats;
   /** Base cost/price of this material. */
   cost?: number;
+  /** Rarity level – determines visual indicator in the UI. */
+  rarity?: 'COMMON' | 'RARE' | 'LEGENDARY';
+  /** If true, multiple instances of this material in a slot apply stacked level effects. */
+  stackable?: boolean;
+  /** Per-stack-level description text. Index 0 = level 1 (material appears once), index 1 = level 2, etc. */
+  stackLevels?: string[];
   libraryOrigin?: string;
   libraryOriginName?: string;
 }
@@ -57,8 +63,6 @@ export interface ForgeTrait {
   scalable: boolean;
   /** If true, all players can see this trait in their knowledge tab. */
   isPublic: boolean;
-  /** Optional SP cost discount (%) shown in the knowledge tab. */
-  discount?: number;
   libraryOrigin?: string;
   libraryOriginName?: string;
 }
@@ -138,6 +142,9 @@ export function createEmptyMaterialBlock(): MaterialBlock {
     canBeWeaponMaterial: true,
     canBeArmorMaterial: false,
     cost: 0,
+    rarity: 'COMMON',
+    stackable: false,
+    stackLevels: [],
     weaponStats: {
       haltbarkeit: 50,
       haltbarkeitSkalierung: 10,
@@ -172,7 +179,6 @@ export function createEmptyForgeTrait(): ForgeTrait {
     maxLevel: 1,
     scalable: false,
     isPublic: false,
-    discount: 0,
   };
 }
 

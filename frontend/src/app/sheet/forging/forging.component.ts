@@ -59,6 +59,11 @@ export class ForgingComponent implements OnInit {
   /** Chosen stat requirement for the item (weapon only — label for min stat). */
   statRequirement: WeaponStatKey = 'STR';
   readonly statKeys = WEAPON_STAT_KEYS;
+  /** Weapon size class — multiplies all stats by 0.8 / 1.0 / 1.2. */
+  weaponSize: 'LIGHT' | 'MEDIUM' | 'HEAVY' = 'MEDIUM';
+  readonly WEIGHT_MULT = { LIGHT: 0.8, MEDIUM: 1.0, HEAVY: 1.2 } as const;
+  /** Session-level SP discount for traits (0–100 %). Applied during forging only. */
+  traitDiscount = 0;
 
   // ── Slots ────────────────────────────────────────────────────────────────────
   primarySlot: MaterialSlotState = { entries: [] };
@@ -130,7 +135,7 @@ export class ForgingComponent implements OnInit {
         sp += totalForgeSPSpent(entry.forgeCount);
       }
     }
-    sp += this.appliedTraits.reduce((acc, t) => acc + t.trait.schmiedepunktKosten * t.level, 0);
+    sp += this.appliedTraits.reduce((acc, t) => acc + this.effectiveTraitCost(t.trait) * t.level, 0);
     return sp;
   }
 
@@ -144,11 +149,28 @@ export class ForgingComponent implements OnInit {
   }
 
   // ── Slot stat aggregation ────────────────────────────────────────────────────
+  /** Effective SP cost of a trait after applying the session traitDiscount. */
+  effectiveTraitCost(trait: ForgeTrait): number {
+    return Math.max(1, Math.round(trait.schmiedepunktKosten * (1 - this.traitDiscount / 100)));
+  }
+
+  /** Weapon size multiplier — 1.0 when not forging a weapon. */
+  get weightMultiplier(): number {
+    if (this.itemType !== 'weapon') return 1;
+    return this.WEIGHT_MULT[this.weaponSize];
+  }
+
   /** Aggregate ForgedStatPreview for all entries in a slot. */
   aggregateSlot(slot: MaterialSlotState): ForgedStatPreview | null {
     if (slot.entries.length === 0) return null;
+    // Count stack levels per material
+    const stackCounts = new Map<string, number>();
+    for (const entry of slot.entries) {
+      stackCounts.set(entry.material.id, (stackCounts.get(entry.material.id) ?? 0) + 1);
+    }
     let h = 0, e = 0, w = 0, mal = 0, req = 0;
-    const effectSet = new Set<string>();
+    const effectParts: string[] = [];
+    const seenMats = new Set<string>();
     for (const entry of slot.entries) {
       const preview = computeForgedStats(entry.material, entry.forgeCount, this.itemType === 'weapon');
       if (!preview) continue;
@@ -157,9 +179,20 @@ export class ForgingComponent implements OnInit {
       w += preview.weight;
       mal += preview.ruestungsmalus ?? 0;
       req += preview.statRequirement;
-      if (preview.extraEffect) effectSet.add(preview.extraEffect);
+      // Effect text: for stackable materials use per-level description
+      if (!seenMats.has(entry.material.id)) {
+        seenMats.add(entry.material.id);
+        const mat = entry.material;
+        const count = stackCounts.get(mat.id) ?? 1;
+        if (mat.stackable && mat.stackLevels && mat.stackLevels.length > 0) {
+          const levelIdx = Math.min(count - 1, mat.stackLevels.length - 1);
+          if (mat.stackLevels[levelIdx]) effectParts.push(mat.stackLevels[levelIdx]);
+        } else if (preview.extraEffect) {
+          effectParts.push(preview.extraEffect);
+        }
+      }
     }
-    return { haltbarkeit: h, effektivitaet: e, weight: w, ruestungsmalus: mal || undefined, extraEffect: Array.from(effectSet).join(', '), statRequirement: req };
+    return { haltbarkeit: h, effektivitaet: e, weight: w, ruestungsmalus: mal || undefined, extraEffect: effectParts.join(', '), statRequirement: req };
   }
 
   get primaryPreview(): ForgedStatPreview | null { return this.aggregateSlot(this.primarySlot); }
@@ -179,15 +212,15 @@ export class ForgingComponent implements OnInit {
   get bonusPreview(): ForgedStatPreview | null { return this.aggregateSlot(this.bonusSlot); }
 
   get finalHaltbarkeit(): number {
-    return (this.primaryPreview?.haltbarkeit ?? 0) + (this.secondaryPreview?.haltbarkeit ?? 0);
+    return Math.round(((this.primaryPreview?.haltbarkeit ?? 0) + (this.secondaryPreview?.haltbarkeit ?? 0)) * this.weightMultiplier);
   }
 
   get finalEffektivitaet(): number {
-    return (this.primaryPreview?.effektivitaet ?? 0) + (this.secondaryPreview?.effektivitaet ?? 0);
+    return Math.round(((this.primaryPreview?.effektivitaet ?? 0) + (this.secondaryPreview?.effektivitaet ?? 0)) * this.weightMultiplier);
   }
 
   get finalWeight(): number {
-    return (this.primaryPreview?.weight ?? 0) + (this.secondaryPreview?.weight ?? 0) + (this.bonusPreview?.weight ?? 0);
+    return Math.round(((this.primaryPreview?.weight ?? 0) + (this.secondaryPreview?.weight ?? 0) + (this.bonusPreview?.weight ?? 0)) * this.weightMultiplier * 10) / 10;
   }
 
   get finalRuestungsmalus(): number {
@@ -272,9 +305,30 @@ export class ForgingComponent implements OnInit {
   selectMaterial(mat: MaterialBlock): void {
     if (!this.pickingSlot) return;
     const slot = this.getSlotState(this.pickingSlot);
+    // Non-stackable materials may only appear once per slot
+    if (!mat.stackable && slot.entries.some(e => e.material.id === mat.id)) {
+      this.pickingSlot = null;
+      this.cdr.markForCheck();
+      return;
+    }
     slot.entries.push({ material: mat, forgeCount: 0 });
     this.pickingSlot = null;
     this.cdr.markForCheck();
+  }
+
+  /** How many times a given material ID appears in a slot's entries. */
+  getStackCount(matId: string, slot: MaterialSlotState): number {
+    return slot.entries.filter(e => e.material.id === matId).length;
+  }
+
+  /** Returns the stack-level description for an entry's material in a slot, or null if not applicable. */
+  getStackLevelDesc(entry: SlotMaterialEntry, slot: MaterialSlotState): string | null {
+    const mat = entry.material;
+    if (!mat.stackable || !mat.stackLevels || mat.stackLevels.length === 0) return null;
+    const count = this.getStackCount(mat.id, slot);
+    if (count <= 0) return null;
+    const levelIdx = Math.min(count - 1, mat.stackLevels.length - 1);
+    return mat.stackLevels[levelIdx] || null;
   }
 
   removeMaterialEntry(slot: MaterialSlotState, idx: number): void {
@@ -322,7 +376,7 @@ export class ForgingComponent implements OnInit {
   canAddTrait(trait: ForgeTrait): boolean {
     const current = this.getAppliedLevel(trait);
     if (current >= trait.maxLevel) return false;
-    return this.remainingSP >= trait.schmiedepunktKosten;
+    return this.remainingSP >= this.effectiveTraitCost(trait);
   }
 
   addTrait(trait: ForgeTrait): void {
@@ -412,6 +466,10 @@ export class ForgingComponent implements OnInit {
 
   private buildDescription(): string {
     const lines: string[] = [];
+    if (this.itemType === 'weapon') {
+      const sizeLabel = { LIGHT: 'Leicht', MEDIUM: 'Mittel', HEAVY: 'Schwer' }[this.weaponSize];
+      lines.push(`Größe: ${sizeLabel} (×${this.WEIGHT_MULT[this.weaponSize]})`);
+    }
     const addSlot = (label: string, slot: MaterialSlotState) => {
       if (slot.entries.length === 0) return;
       const parts = slot.entries.map(e => `${e.material.name}${e.forgeCount > 0 ? ` (+${e.forgeCount}×)` : ''}`);

@@ -20,6 +20,7 @@ export class MaterialEditorComponent implements OnInit {
   ngOnInit(): void {
     this.edit = JSON.parse(JSON.stringify(this.material));
     this.ensureStats();
+    this.ensureDefaults();
   }
 
   private ensureStats(): void {
@@ -29,6 +30,12 @@ export class MaterialEditorComponent implements OnInit {
     if (!this.edit.armorStats) {
       this.edit.armorStats = this.emptyArmorStats();
     }
+  }
+
+  private ensureDefaults(): void {
+    if (!this.edit.rarity) this.edit.rarity = 'COMMON';
+    if (this.edit.stackable === undefined) this.edit.stackable = false;
+    if (!this.edit.stackLevels) this.edit.stackLevels = [];
   }
 
   private emptyWeaponStats(): MaterialStats {
@@ -49,6 +56,22 @@ export class MaterialEditorComponent implements OnInit {
     if (this.edit.canBeArmorMaterial && !this.edit.armorStats) {
       this.edit.armorStats = this.emptyArmorStats();
     }
+  }
+
+  onStackableChange(): void {
+    if (this.edit.stackable && (!this.edit.stackLevels || this.edit.stackLevels.length === 0)) {
+      this.edit.stackLevels = [''];
+    }
+  }
+
+  addStackLevel(): void {
+    if (!this.edit.stackLevels) this.edit.stackLevels = [];
+    this.edit.stackLevels.push('');
+  }
+
+  removeStackLevel(index: number): void {
+    if (!this.edit.stackLevels || index <= 0) return;
+    this.edit.stackLevels.splice(index, 1);
   }
 
   onSave(): void {

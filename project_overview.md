@@ -281,6 +281,18 @@ app/
   - `world.component.ts`: `worldName` bei route params load  
   - `library-editor.component.ts`: `library.name` nach `loadLibrary()`
 
+## Schmieden-System (`sheet/forging/`, `shared/material-editor/`, `shared/forge-trait-editor/`)
+- **Models** (`model/forging.model.ts`):
+  - `MaterialBlock`: id, name, description, icon, color, isPublic, canBeWeaponMaterial, canBeArmorMaterial, weaponStats?, armorStats?, cost?, **rarity?** ('COMMON'|'RARE'|'LEGENDARY'), **stackable?**, **stackLevels?** (string[] per-stack descriptions), libraryOrigin
+  - `MaterialStats`: haltbarkeit, haltbarkeitSkalierung, effektivitaet, effektivitaetSkalierung, weight, ruestungsmalus?, extraEffect?, reqBase?, reqScaling?
+  - `ForgeTrait`: id, name, description, effect, schmiedepunktKosten, maxLevel, scalable, isPublic, libraryOrigin — **kein discount** (discount ist session-level UI)
+- **Waffengröße**: LIGHT×0.8 / MEDIUM×1.0 / HEAVY×1.2 — multipliziert finalHaltbarkeit, finalEffektivitaet, finalWeight
+- **Rabatt**: Session-Feld `traitDiscount` (0-100%) in forging.component.ts — nicht in ForgeTrait-Daten gespeichert. Effektivkosten = `max(1, round(baseCost * (1 - discount/100)))`
+- **Stapelbare Materialien**: `stackable: true` erlaubt dasselbe Material mehrfach in einem Slot; `stackLevels[]` enthält Beschreibung pro Stapelstufe (Index 0 = Stufe 1)
+- **Rarität-Farbcodierung**: COMMON = Standard, RARE = Blauer Glow, LEGENDARY = Goldener Glow (in wissen + forging + material-editor)
+- **Material-Editor** (`shared/material-editor/`): Kompaktes me-* CSS-Klassen-Schema — eine Zeile für Name/Rarität/Kosten, Checkboxen-Reihe, Stats in 4-Spalten-Grid (`26px 1fr 34px 1fr`)
+- **Blaue Icon-Box**: `.sr-icon.sr-icon-eff` — `background: #1e1b4b; border: 1px solid #6366f1; color: #a5b4fc` — für ⚔/⛊ Effektivitäts-Icons in forging + wissen
+
 ## Konventionen
 - **Sprache**: UI vollständig auf Deutsch
 - **Icons**: Emoji-basiert (🏪 shop, 🎁 bundle, 🎪 events, etc.)

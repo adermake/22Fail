@@ -1113,3 +1113,136 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   border-top: 1px solid rgba(74,85,104,0.5);
   font-style: italic;
 }
+
+/* Weapon size toggle (Leicht / Mittel / Schwer) */
+.weapon-size-field { flex-shrink: 0; }
+.weapon-size-toggle {
+  display: flex;
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.weapon-size-toggle button {
+  padding: 0.45rem 0.75rem;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #9ca3af);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.weapon-size-toggle button.active {
+  background: #fb923c;
+  color: white;
+  font-weight: 700;
+}
+.weapon-size-toggle button:not(.active):hover {
+  background: rgba(251,146,60,0.1);
+  color: var(--text, #e5e7eb);
+}
+
+/* Forge action group: merges gain-block and button visually */
+.forg-action-group {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+}
+.forg-action-group .forg-gain-block {
+  flex: 1;
+  border-radius: 6px 0 0 6px;
+}
+.forg-action-group .forg-btn.forg-plus {
+  border-radius: 0 5px 5px 0;
+  border-left: none;
+  height: auto;
+  align-self: stretch;
+}
+
+/* Stack level description inside a slot entry */
+.entry-stack-desc {
+  font-size: 0.76rem;
+  color: #a5b4fc;
+  font-style: italic;
+  padding: 0.1rem 0.2rem;
+  margin-top: 0.05rem;
+  line-height: 1.3;
+}
+
+/* Rarity card styles */
+.mat-card.rarity-rare {
+  border-color: #3b82f6;
+  box-shadow: 0 0 10px rgba(59,130,246,0.18);
+}
+.mat-card.rarity-legendary {
+  border-color: #f59e0b;
+  box-shadow: 0 0 12px rgba(245,158,11,0.22);
+}
+
+/* Rarity + stackable chips */
+.chip-rare       { background: rgba(59,130,246,0.12);   color: #60a5fa; }
+.chip-legendary  { background: rgba(245,158,11,0.15);   color: #fbbf24; }
+.chip-stackable  { background: rgba(167,139,250,0.12);  color: #c4b5fd; }
+
+/* Blue box for sword/shield icons in stat rows (matching inventory .tag-eff/.tag-stab) */
+.sr-icon.sr-icon-eff {
+  background: #1e1b4b;
+  border: 1px solid #6366f1;
+  border-radius: 3px;
+  color: #a5b4fc;
+  font-size: 0.7rem;
+  padding: 0.05rem 0.15rem;
+  line-height: 1.2;
+}
+
+/* Adjust .sr grid to accommodate blue-box icon which may be slightly wider */
+.sr {
+  grid-template-columns: auto 1fr auto;
+}
+
+/* Trait picker discount field */
+.picker-discount-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+.picker-discount-field label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.picker-discount-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--card, #2d3748);
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 7px;
+  padding: 0.3rem 0.6rem;
+}
+.picker-discount-input {
+  width: 52px;
+  background: transparent;
+  border: none;
+  color: #34d399;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-align: center;
+}
+.picker-discount-input:focus { outline: none; }
+.picker-discount-pct { font-size: 0.78rem; color: #34d399; font-weight: 700; }
+
+/* Original (undiscounted) cost shown next to effective cost */
+.ptc-orig-cost {
+  font-size: 0.7rem;
+  color: var(--text-muted, #9ca3af);
+  font-weight: 600;
+  text-decoration: line-through;
+  margin-left: 0.2rem;
+}
