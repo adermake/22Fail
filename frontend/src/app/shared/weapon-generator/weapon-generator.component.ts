@@ -26,6 +26,7 @@ const defaultParams = (): GeneratorParams => ({
   costPerSP: 5,
   minBudget: 0,
   budget: 0,
+  forgingRatio: 50,
   weaponTypeName: null,
   weaponSize: null,
   minHaltbarkeit: null,

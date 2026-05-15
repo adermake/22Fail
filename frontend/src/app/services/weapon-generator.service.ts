@@ -28,6 +28,11 @@ export interface GeneratorParams {
   minBudget: number;
   /** Maximum gold budget. 0 = unlimited. */
   budget: number;
+  /**
+   * 0–100. Share of SP allocated to forging materials.
+   * The rest goes to traits. Default 50 = equal split.
+   */
+  forgingRatio: number;
   /** Specific weapon type by name, or null = random. */
   weaponTypeName: string | null;
   /** Specific forge size, or null = random. */
@@ -140,29 +145,36 @@ export class WeaponGeneratorService {
       : Number.MAX_SAFE_INTEGER;
     const spBudget = Math.min(params.maxSP, spFromGold);
 
-    let remainingSP = spBudget;
+    // ── Split SP between forging and traits based on forgingRatio ────────────
+    const ratio = Math.max(0, Math.min(100, params.forgingRatio ?? 50)) / 100;
+    let spForForging = Math.round(spBudget * ratio);
+    let spForTraits  = spBudget - spForForging;
 
     // ── Primary slot (required) ───────────────────────────────────────────────
     const primaryEntry: SlotMaterialEntry = { material: primaryMat, forgeCount: 0 };
-    const primaryBudget = Math.floor(remainingSP * (0.25 + Math.random() * 0.4));
+    const primaryBudget = Math.floor(spForForging * (0.25 + Math.random() * 0.4));
     this.forgeMaterial(primaryEntry, primaryBudget);
-    remainingSP -= totalForgeSPSpent(primaryEntry.forgeCount);
+    spForForging -= totalForgeSPSpent(primaryEntry.forgeCount);
 
     // ── Secondary slot ────────────────────────────────────────────────────────
     let secondaryEntry: SlotMaterialEntry | null = null;
-    if (secMat && remainingSP > 0) {
+    if (secMat && spForForging > 0) {
       secondaryEntry = { material: secMat, forgeCount: 0 };
-      const secBudget = Math.floor(remainingSP * (0.15 + Math.random() * 0.3));
+      const secBudget = Math.floor(spForForging * (0.15 + Math.random() * 0.3));
       this.forgeMaterial(secondaryEntry, secBudget);
-      remainingSP -= totalForgeSPSpent(secondaryEntry.forgeCount);
+      spForForging -= totalForgeSPSpent(secondaryEntry.forgeCount);
     }
+
+    // Unused forging SP rolls over to traits
+    spForTraits += spForForging;
 
     // ── Bonus slot (no forging) ───────────────────────────────────────────────
     const bonusEntry: SlotMaterialEntry | null = bonusMat
       ? { material: bonusMat, forgeCount: 0 }
       : null;
 
-    // ── Traits (spend remaining SP) ───────────────────────────────────────────
+    // ── Traits (spend trait SP pool) ──────────────────────────────────────────
+    let remainingSP = spForTraits;
     const appliedTraits: AppliedTraitState[] = [];
     if (availTraits.length > 0 && remainingSP > 0) {
       const shuffled = [...availTraits].sort(() => Math.random() - 0.5);

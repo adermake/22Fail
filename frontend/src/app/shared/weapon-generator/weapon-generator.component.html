@@ -31,6 +31,19 @@
       </label>
     </div>
 
+    <!-- ── Forging vs. Eigenschaften slider ─────────────────────────────────── -->
+    <div class="wg-ratio-row">
+      <span class="wg-ratio-label">Schmieden</span>
+      <input
+        type="range" min="0" max="100" step="5"
+        [(ngModel)]="params.forgingRatio"
+        (ngModelChange)="saveToStorage()"
+        class="wg-ratio-slider"
+      />
+      <span class="wg-ratio-label wg-ratio-label-right">Eigenschaften</span>
+      <span class="wg-ratio-value">{{ params.forgingRatio }}% / {{ 100 - params.forgingRatio }}%</span>
+    </div>
+
     <!-- ── Weapon type + size row ──────────────────────────────────────────── -->
     <div class="wg-type-row">
       <label class="wg-field wg-field-grow">

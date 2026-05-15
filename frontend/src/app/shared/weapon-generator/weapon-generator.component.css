@@ -89,8 +89,36 @@
 /* ── Config grid ───────────────────────────────────────────────────────────── */
 .wg-config-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 8px;
+}
+
+/* ── Forging ratio slider ──────────────────────────────────────────────────── */
+.wg-ratio-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.wg-ratio-label {
+  font-size: 0.78rem;
+  color: var(--text-muted, #9ca3af);
+  white-space: nowrap;
+  min-width: 70px;
+}
+.wg-ratio-label-right {
+  text-align: right;
+}
+.wg-ratio-slider {
+  flex: 1;
+  accent-color: var(--accent, #8b5cf6);
+  cursor: pointer;
+}
+.wg-ratio-value {
+  font-size: 0.78rem;
+  color: var(--accent, #8b5cf6);
+  font-weight: 600;
+  min-width: 72px;
+  text-align: right;
 }
 
 /* ── Type row ──────────────────────────────────────────────────────────────── */
