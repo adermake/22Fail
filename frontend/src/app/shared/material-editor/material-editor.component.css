@@ -196,7 +196,7 @@
 
 .me-stats-grid {
   display: grid;
-  grid-template-columns: 26px 1fr 34px 1fr;
+  grid-template-columns: 26px 68px 34px 68px;
   gap: 0.22rem 0.3rem;
   align-items: center;
 }

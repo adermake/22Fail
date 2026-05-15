@@ -145,14 +145,6 @@
                        [ngModel]="ws(file).weight"
                        (ngModelChange)="ws(file).weight = $event; onFieldChange(file)" />
               </td>
-              <td class="c-eff" [class.mt-dim]="!mat(file).canBeWeaponMaterial">
-                <input class="mt-input"
-                       type="text"
-                       [disabled]="!mat(file).canBeWeaponMaterial"
-                       [ngModel]="ws(file).extraEffect"
-                       (ngModelChange)="ws(file).extraEffect = $event; onFieldChange(file)"
-                       placeholder="z.B. +1 Reichweite" />
-              </td>
               <td class="c-num" [class.mt-dim]="!mat(file).canBeWeaponMaterial">
                 <input class="mt-num" type="number" min="0"
                        [disabled]="!mat(file).canBeWeaponMaterial"
@@ -164,6 +156,14 @@
                        [disabled]="!mat(file).canBeWeaponMaterial"
                        [ngModel]="ws(file).reqScaling ?? 0"
                        (ngModelChange)="ws(file).reqScaling = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-eff" [class.mt-dim]="!mat(file).canBeWeaponMaterial">
+                <input class="mt-input"
+                       type="text"
+                       [disabled]="!mat(file).canBeWeaponMaterial"
+                       [ngModel]="ws(file).extraEffect"
+                       (ngModelChange)="ws(file).extraEffect = $event; onFieldChange(file)"
+                       placeholder="z.B. +1 Reichweite" />
               </td>
 
               <!-- ── Armor stats ─────────────────────────────── -->
@@ -203,14 +203,6 @@
                        [ngModel]="aStats(file).ruestungsmalus ?? 0"
                        (ngModelChange)="aStats(file).ruestungsmalus = $event; onFieldChange(file)" />
               </td>
-              <td class="c-eff" [class.mt-dim]="!mat(file).canBeArmorMaterial">
-                <input class="mt-input"
-                       type="text"
-                       [disabled]="!mat(file).canBeArmorMaterial"
-                       [ngModel]="aStats(file).extraEffect"
-                       (ngModelChange)="aStats(file).extraEffect = $event; onFieldChange(file)"
-                       placeholder="z.B. Feuerschutz +1" />
-              </td>
               <td class="c-num" [class.mt-dim]="!mat(file).canBeArmorMaterial">
                 <input class="mt-num" type="number" min="0"
                        [disabled]="!mat(file).canBeArmorMaterial"
@@ -222,6 +214,14 @@
                        [disabled]="!mat(file).canBeArmorMaterial"
                        [ngModel]="aStats(file).reqScaling ?? 0"
                        (ngModelChange)="aStats(file).reqScaling = $event; onFieldChange(file)" />
+              </td>
+              <td class="c-eff" [class.mt-dim]="!mat(file).canBeArmorMaterial">
+                <input class="mt-input"
+                       type="text"
+                       [disabled]="!mat(file).canBeArmorMaterial"
+                       [ngModel]="aStats(file).extraEffect"
+                       (ngModelChange)="aStats(file).extraEffect = $event; onFieldChange(file)"
+                       placeholder="z.B. Feuerschutz +1" />
               </td>
 
               <!-- Delete -->

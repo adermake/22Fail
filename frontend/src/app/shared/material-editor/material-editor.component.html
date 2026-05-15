@@ -71,8 +71,10 @@
         <span class="me-lbl">+/S</span>
         <input type="number" [(ngModel)]="edit.weaponStats.reqScaling" min="0" />
 
-        <span class="me-lbl">Effekt</span>
-        <input type="text" [(ngModel)]="edit.weaponStats.extraEffect" placeholder="z.B. +1 Reichweite" class="me-span3" />
+        @if (!edit.stackable) {
+          <span class="me-lbl">Effekt</span>
+          <input type="text" [(ngModel)]="edit.weaponStats.extraEffect" placeholder="z.B. +1 Reichweite" class="me-span3" />
+        }
       </div>
     </div>
   }
@@ -102,8 +104,10 @@
         <span class="me-lbl">+/S</span>
         <input type="number" [(ngModel)]="edit.armorStats.reqScaling" min="0" />
 
-        <span class="me-lbl">Effekt</span>
-        <input type="text" [(ngModel)]="edit.armorStats.extraEffect" placeholder="z.B. Feuerschutz +1" class="me-span3" />
+        @if (!edit.stackable) {
+          <span class="me-lbl">Effekt</span>
+          <input type="text" [(ngModel)]="edit.armorStats.extraEffect" placeholder="z.B. Feuerschutz +1" class="me-span3" />
+        }
       </div>
     </div>
   }
