@@ -1,7 +1,7 @@
 <div class="sc"
      [attr.data-type]="effectiveType"
      [class.sc-disabled]="isDisabled"
-     [class.sc-clickable]="effectiveType === 'active' && cost"
+     [class.sc-clickable]="effectiveType === 'active' && (cost || skill.embeddedMacroAction || skill.embeddedMacro)"
      (click)="onCardClick()"
      (contextmenu)="onRightClick($event)">
 
@@ -15,6 +15,9 @@
     }
     @if (skill.enlightened) {
       <span class="sc-enl" title="Erkenntnis">&#x2726;</span>
+    }
+    @if (skill.disabled) {
+      <span class="sc-disabled-badge" title="Deaktiviert">🚫</span>
     }
   </div>
 
@@ -48,6 +51,11 @@
   <div class="sc-ctx" [style.left.px]="menuX" [style.top.px]="menuY"
        (click)="$event.stopPropagation()">
     <button class="sc-ctx-btn" (click)="editSkill()">&#x270F; Bearbeiten</button>
+    @if (isEditing) {
+      <button class="sc-ctx-btn" (click)="toggleDisabled()">
+        {{ skill.disabled ? '\u2705 Aktivieren' : '\uD83D\uDEAB Deaktivieren' }}
+      </button>
+    }
     <button class="sc-ctx-btn sc-ctx-del" (click)="deleteSkill()">&#x2715; L&ouml;schen</button>
   </div>
 }
@@ -104,6 +112,34 @@
         </button>
       </div>
 
+    </div>
+  </div>
+}
+
+<!-- Macro action popup -->
+@if (showMacroPopup) {
+  <div class="sp-backdrop" (click)="closeMacroPopup()">
+    <div class="sp-popup" (click)="$event.stopPropagation()">
+      <div class="sp-bar" [attr.data-type]="effectiveType">
+        <span class="sp-type-icon">{{ typeIcon }}</span>
+        <span class="sp-type-lbl">{{ typeLabel }}</span>
+        @if (actionType) {
+          <span class="sp-action" [attr.data-action]="actionType">{{ actionIcon }} {{ actionType }}</span>
+        }
+        <button class="sp-close" (click)="closeMacroPopup()" title="Schlie&szlig;en">&#x2715;</button>
+      </div>
+      <div class="sp-name">{{ skill.name }}</div>
+      <div class="sp-desc" [innerHTML]="enhancedDescription"></div>
+      <div class="sp-actions">
+        <button class="sp-use"
+                [class.sp-paid]="!!macroResult"
+                [disabled]="macroExecuting"
+                (click)="executeMacroAction()">
+          @if (macroResult) { &#x2713; {{ macroResult }} }
+          @else if (macroExecuting) { Wird ausgef&uuml;hrt... }
+          @else { &#x25BA; Ausf&uuml;hren }
+        </button>
+      </div>
     </div>
   </div>
 }

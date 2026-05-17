@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
 import { JsonPatch } from '../../model/json-patch.model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { StatusBlock } from '../../model/status-block.model';
@@ -11,6 +11,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SKILL_DEFINITIONS, CLASS_DEFINITIONS } from '../../data/skill-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
 import { ActionMacro } from '../../model/action-macro.model';
+import { MacroExecutorService } from '../../services/macro-executor.service';
 
 @Component({
   selector: 'app-skill',
@@ -38,6 +39,12 @@ export class SkillComponent {
     active: false, amount: 0, label: '',
   };
 
+  showMacroPopup = false;
+  macroExecuting = false;
+  macroResult: string | null = null;
+
+  private macroExecutor = inject(MacroExecutorService);
+
   constructor(private sanitizer: DomSanitizer, private cdr: ChangeDetectorRef) {}
 
   @HostListener('document:click')
@@ -56,6 +63,8 @@ export class SkillComponent {
 
   onCardClick() {
     if (this.effectiveType !== 'active') return;
+    const simpleMacro = this.skill.embeddedMacroAction;
+    if (simpleMacro) { this.showMacroPopup = true; return; }
     // If skill has an embedded macro, trigger it instead of showing cost popup
     const macro = this.skill.embeddedMacro;
     if (macro) {
@@ -65,6 +74,24 @@ export class SkillComponent {
     if (this.cost) {
       this.showPayPopup = true;
     }
+  }
+
+  closeMacroPopup() {
+    this.showMacroPopup = false;
+    this.macroResult = null;
+  }
+
+  async executeMacroAction() {
+    if (!this.skill.embeddedMacroAction) return;
+    this.macroExecuting = true;
+    const result = await this.macroExecutor.executeMacro(this.skill.embeddedMacroAction, this.sheet, this.skill.name);
+    if (this.sheet.statuses) {
+      this.patch.emit({ path: 'statuses', value: this.sheet.statuses });
+    }
+    this.macroResult = result.message;
+    this.macroExecuting = false;
+    this.cdr.markForCheck();
+    setTimeout(() => { this.macroResult = null; this.cdr.markForCheck(); }, 2500);
   }
 
   closePayPopup() {
@@ -80,6 +107,14 @@ export class SkillComponent {
   deleteSkill() {
     this.showContextMenu = false;
     this.delete.emit();
+  }
+
+  toggleDisabled() {
+    this.showContextMenu = false;
+    const skills = [...this.sheet.skills];
+    skills[this.index] = { ...skills[this.index], disabled: !skills[this.index].disabled };
+    this.sheet.skills = skills;
+    this.patch.emit({ path: 'skills', value: skills });
   }
 
   // --- Pay logic ---
@@ -169,6 +204,7 @@ export class SkillComponent {
   }
 
   get isDisabled(): boolean {
+    if (this.skill.disabled) return true; // user-set always wins
     if (this.skill.enlightened) return false;
     if (this.skill.sourceRaceId) return false; // Rassenfähigkeiten sind immer aktiv
     return !ClassTree.isClassEnabled(this.skill.class, this.sheet.primary_class, this.sheet.secondary_class);

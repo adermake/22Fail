@@ -18,6 +18,20 @@
   @if (showFilters) {
     <div class="sk-filters">
 
+      <!-- Quelle -->
+      <div class="sk-fg">
+        <span class="sk-fl">Quelle</span>
+        <div class="sk-chips">
+          @for (opt of sourceOptions; track opt.value) {
+            <button class="sk-chip"
+                    [attr.data-state]="getFilterState(filterSources, opt.value)"
+                    (click)="cycleFilter('sources', opt.value)">
+              {{ opt.label }}
+            </button>
+          }
+        </div>
+      </div>
+
       <!-- Typ -->
       <div class="sk-fg">
         <span class="sk-fl">Typ</span>

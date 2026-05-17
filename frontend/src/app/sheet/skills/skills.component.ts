@@ -35,6 +35,13 @@ export class SkillsComponent implements OnInit {
   filterActions: Record<string, FilterState> = {};
   filterCosts:   Record<string, FilterState> = {};
   filterTiers:   Record<string, FilterState> = {};
+  filterSources: Record<string, FilterState> = {};
+
+  readonly sourceOptions = [
+    { value: 'class',  label: '⚔️ Klasse' },
+    { value: 'race',   label: '🧬 Rasse' },
+    { value: 'custom', label: '✨ Eigen' },
+  ];
 
   showFilters = false;
 
@@ -109,6 +116,9 @@ export class SkillsComponent implements OnInit {
       tier ? (this.RANK_ROMAN[tier] ?? '') : '',
       tier ? `rang ${this.RANK_ROMAN[tier] ?? ''}` : '',
       s.enlightened ? 'erkenntnis' : '',
+      this.getSkillSource(s),
+      s.skillSource === 'custom' ? 'eigen benutzerdefiniert' : '',
+      s.skillSource === 'race' ? 'rasse rassen' : '',
     ].join(' ').toLowerCase();
   }
 
@@ -146,13 +156,18 @@ export class SkillsComponent implements OnInit {
     return Object.values(obj).some(v => v !== 'off');
   }
 
+  private getSkillSource(s: SkillBlock): string {
+    return s.skillSource ?? (s.sourceRaceId ? 'race' : 'class');
+  }
+
   cycleFilter(
-    dim: 'types' | 'classes' | 'actions' | 'costs' | 'tiers',
+    dim: 'types' | 'classes' | 'actions' | 'costs' | 'tiers' | 'sources',
     key: string
   ) {
     const map: Record<string, Record<string, FilterState>> = {
       types: this.filterTypes, classes: this.filterClasses,
       actions: this.filterActions, costs: this.filterCosts, tiers: this.filterTiers,
+      sources: this.filterSources,
     };
     const current = map[dim][key] || 'off';
     const next = current === 'off' ? 'include' : current === 'include' ? 'exclude' : 'off';
@@ -163,6 +178,7 @@ export class SkillsComponent implements OnInit {
     if (dim === 'actions') this.filterActions = clone;
     if (dim === 'costs')   this.filterCosts   = clone;
     if (dim === 'tiers')   this.filterTiers   = clone;
+    if (dim === 'sources') this.filterSources = clone;
   }
 
   getFilterState(obj: Record<string, FilterState>, key: string): FilterState {
@@ -221,6 +237,11 @@ export class SkillsComponent implements OnInit {
       );
     }
 
+    // Source filter
+    if (this.hasFilter(this.filterSources)) {
+      skills = this.applyMultiFilter(skills, s => this.getSkillSource(s), this.filterSources);
+    }
+
     // Sort
     const typeOrder: Record<string, number> = { active: 0, passive: 1, dice_bonus: 2, stat_bonus: 3 };
     const dir = this.sortDir === 'asc' ? 1 : -1;
@@ -259,7 +280,8 @@ export class SkillsComponent implements OnInit {
       this.hasFilter(this.filterClasses) ||
       this.hasFilter(this.filterActions) ||
       this.hasFilter(this.filterCosts) ||
-      this.hasFilter(this.filterTiers);
+      this.hasFilter(this.filterTiers) ||
+      this.hasFilter(this.filterSources);
   }
 
   clearFilters() {
@@ -269,6 +291,7 @@ export class SkillsComponent implements OnInit {
     this.filterActions = {};
     this.filterCosts = {};
     this.filterTiers = {};
+    this.filterSources = {};
   }
 
   toggleSortDir() {

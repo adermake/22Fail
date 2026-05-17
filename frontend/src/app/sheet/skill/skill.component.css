@@ -89,6 +89,12 @@
   opacity: 0.9;
 }
 
+.sc-disabled-badge {
+  font-size: 0.65rem;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
 /* Name — lives inside the topbar, grows to fill space */
 .sc-name {
   flex: 1;

@@ -1,152 +1,281 @@
-<div class="skill-editor-overlay">
-  <div class="skill-editor-container">
+<div class="se-overlay">
+  <div class="se-modal">
 
     <!-- Header -->
-    <div class="editor-header">
+    <div class="se-header">
       <h2>{{ isNewSkill ? 'Neue F&auml;higkeit' : 'F&auml;higkeit bearbeiten' }}</h2>
-      <button class="close-btn" (click)="cancelEdit()">&times;</button>
+      <button class="se-close" (click)="cancelEdit()">&times;</button>
     </div>
 
-    <!-- Content -->
-    <div class="editor-content">
+    <!-- Body: 2 columns -->
+    <div class="se-body">
 
-      <!-- Name -->
-      <div class="form-group">
-        <label>Name</label>
-        <input type="text" [(ngModel)]="editSkill.name"
-               [class.input-empty]="!editSkill.name?.trim()"
-               placeholder="F&auml;higkeitsname...">
-      </div>
+      <!-- LEFT: Name, Source, Type, Description -->
+      <div class="se-col se-col-left">
 
-      <!-- Class -->
-      <div class="form-group">
-        <label>Klasse</label>
-        <input type="text" [(ngModel)]="editSkill.class" placeholder="z.B. Krieger, Magier...">
-      </div>
+        <div class="se-field">
+          <label class="se-label">Name</label>
+          <input class="se-input" type="text" [(ngModel)]="editSkill.name"
+                 [class.se-invalid]="!editSkill.name?.trim()"
+                 placeholder="F&auml;higkeitsname...">
+        </div>
 
-      <!-- Type + Enlightened row -->
-      <div class="form-row">
-        <div class="form-group">
-          <label>Typ</label>
-          <select [(ngModel)]="editSkill.type">
+        <div class="se-field">
+          <label class="se-label">Klasse / Kategorie</label>
+          <input class="se-input" type="text" [(ngModel)]="editSkill.class"
+                 placeholder="z.B. K&auml;mpfer, Magier, Allgemein...">
+        </div>
+
+        <div class="se-field">
+          <label class="se-label">Quelle</label>
+          <div class="se-tabs">
+            @for (src of sourceOptions; track src.value) {
+              <button class="se-tab"
+                      [class.se-tab-active]="skillSource === src.value"
+                      [attr.data-src]="src.value"
+                      (click)="setSource(src.value)">
+                {{ src.icon }} {{ src.label }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="se-field">
+          <label class="se-label">Typ</label>
+          <div class="se-type-pills">
             @for (t of skillTypes; track t.value) {
-              <option [value]="t.value">{{ t.label }}</option>
-            }
-          </select>
-        </div>
-        <div class="form-group form-group-check">
-          <label class="check-label">
-            <input type="checkbox" [(ngModel)]="editSkill.enlightened">
-            Erleuchtet (kein Klassenrang n&ouml;tig)
-          </label>
-        </div>
-      </div>
-
-      <!-- Action Type (active only) -->
-      @if (editSkill.type === 'active') {
-        <div class="form-group">
-          <label>Aktionstyp</label>
-          <select [(ngModel)]="editSkill.actionType">
-            <option value="">&mdash; kein &mdash;</option>
-            <option value="Aktion">&#x2694; Aktion</option>
-            <option value="Bonusaktion">&#x2726; Bonusaktion</option>
-            <option value="Keine Aktion">&#x25CE; Keine Aktion</option>
-            <option value="Reaktion">&#x21A9; Reaktion</option>
-          </select>
-        </div>
-
-        <!-- Cost (active only) -->
-        <fieldset class="form-fieldset">
-          <legend>Kosten</legend>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Ressource</label>
-              <select [(ngModel)]="editCostType">
-                <option value="">Keine</option>
-                <option value="mana">&#x1F4A7; Mana</option>
-                <option value="energy">&#x26A1; Energie</option>
-                <option value="life">&#x2764; Leben</option>
-              </select>
-            </div>
-            @if (editCostType) {
-              <div class="form-group">
-                <label>Menge</label>
-                <input type="number" [(ngModel)]="editCostAmount" min="0" placeholder="0">
-              </div>
-              <div class="form-group form-group-check">
-                <label class="check-label">
-                  <input type="checkbox" [(ngModel)]="editCostPerRound">
-                  Pro Runde
-                </label>
-              </div>
+              <button class="se-pill"
+                      [attr.data-type]="t.value"
+                      [class.se-pill-active]="editSkill.type === t.value"
+                      (click)="setType(t.value)">
+                {{ t.icon }} {{ t.label }}
+              </button>
             }
           </div>
-        </fieldset>
-      }
+        </div>
 
-      <!-- Description -->
-      <div class="form-group">
-        <label>Beschreibung</label>
-        <textarea [(ngModel)]="editSkill.description" rows="4"
-                  placeholder="Beschreibung der F&auml;higkeit..."></textarea>
+        <div class="se-field se-field-flex">
+          <label class="se-label">Beschreibung</label>
+          <textarea class="se-textarea" [(ngModel)]="editSkill.description"
+                    placeholder="Beschreibung der F&auml;higkeit..."></textarea>
+        </div>
+
       </div>
 
-      <!-- Stat Modifiers (stat_bonus type) -->
-      @if (editSkill.type === 'stat_bonus') {
-        <div class="form-group">
-          <label>Stat-Boni</label>
-          <div class="stat-modifiers-grid">
-            @for (stat of ['strength', 'dexterity', 'speed', 'intelligence', 'constitution', 'chill']; track stat) {
-              <div class="stat-modifier-item">
-                <span class="stat-label">{{ getStatLabel(stat) }}</span>
-                <div class="stat-controls">
-                  <button class="stat-btn" (click)="decrementStat(stat)">&minus;</button>
-                  <span class="stat-value"
-                        [class.positive]="statModifiers[stat] > 0"
-                        [class.negative]="statModifiers[stat] < 0">
-                    {{ statModifiers[stat] > 0 ? '+' : '' }}{{ statModifiers[stat] }}
-                  </span>
-                  <button class="stat-btn" (click)="incrementStat(stat)">+</button>
+      <!-- RIGHT: Type-specific options -->
+      <div class="se-col se-col-right">
+
+        <!-- Action Type (active only) -->
+        @if (editSkill.type === 'active') {
+          <div class="se-field">
+            <label class="se-label">Aktionstyp</label>
+            <select class="se-select" [(ngModel)]="editSkill.actionType">
+              <option value="">&mdash; kein &mdash;</option>
+              <option value="Aktion">&#x2694; Aktion</option>
+              <option value="Bonusaktion">&#x2726; Bonusaktion</option>
+              <option value="Keine Aktion">&#x25CE; Keine Aktion</option>
+              <option value="Reaktion">&#x21A9; Reaktion</option>
+            </select>
+          </div>
+        }
+
+        <!-- Enlightened toggle (class skills only) -->
+        @if (skillSource === 'class') {
+          <div class="se-field se-field-check">
+            <label class="se-check-label">
+              <input type="checkbox" [(ngModel)]="editSkill.enlightened">
+              <span>&#x2726; Erleuchtet <span class="se-hint">(kein Klassenrang n&ouml;tig)</span></span>
+            </label>
+          </div>
+        }
+
+        <!-- Active: Cost vs Macro -->
+        @if (editSkill.type === 'active') {
+          <div class="se-section">
+            <div class="se-section-header">
+              <span class="se-section-title">Aktivierung</span>
+              <div class="se-toggle">
+                <button class="se-tog-btn" [class.active]="!macroMode" (click)="disableMacroMode()">
+                  &#x1F4B0; Kosten
+                </button>
+                <button class="se-tog-btn" [class.active]="macroMode" (click)="enableMacroMode()">
+                  &#x2699; Aktionsmakro
+                </button>
+              </div>
+            </div>
+
+            @if (!macroMode) {
+              <div class="se-cost-row">
+                <div class="se-field">
+                  <label class="se-label">Ressource</label>
+                  <select class="se-select" [(ngModel)]="editCostType">
+                    <option value="">Keine</option>
+                    <option value="mana">&#x1F4A7; Mana</option>
+                    <option value="energy">&#x26A1; Ausdauer</option>
+                    <option value="life">&#x2764; Leben</option>
+                  </select>
                 </div>
+                @if (editCostType) {
+                  <div class="se-field">
+                    <label class="se-label">Menge</label>
+                    <input class="se-input" type="number" [(ngModel)]="editCostAmount" min="0">
+                  </div>
+                  <div class="se-field se-field-check se-field-perround">
+                    <label class="se-check-label">
+                      <input type="checkbox" [(ngModel)]="editCostPerRound">
+                      <span>Pro Runde</span>
+                    </label>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (macroMode && editMacroAction) {
+              <div class="se-macro-block">
+                <div class="se-field">
+                  <label class="se-label">Makro-Typ</label>
+                  <select class="se-select" [(ngModel)]="editMacroAction.actionType">
+                    <option value="dice_roll">&#x1F3B2; W&uuml;rfeln</option>
+                    <option value="modify_resource">&#x2697; Ressource &auml;ndern</option>
+                    <option value="apply_damage">&#x1F4A2; Schaden</option>
+                    <option value="apply_healing">&#x1F49A; Heilen</option>
+                    <option value="custom_message">&#x1F4AC; Nachricht</option>
+                  </select>
+                </div>
+
+                @switch (editMacroAction.actionType) {
+                  @case ('dice_roll') {
+                    <div class="se-field">
+                      <label class="se-label">W&uuml;rfelformel</label>
+                      <input class="se-input" type="text" [(ngModel)]="editMacroAction.parameters.diceFormula" placeholder="z.B. 2d6+3">
+                    </div>
+                    <div class="se-macro-row">
+                      <div class="se-field">
+                        <label class="se-label">Rollname</label>
+                        <input class="se-input" type="text" [(ngModel)]="editMacroAction.parameters.rollName" placeholder="z.B. Angriff">
+                      </div>
+                      <div class="se-field se-field-color">
+                        <label class="se-label">Farbe</label>
+                        <input type="color" class="se-color" [(ngModel)]="editMacroAction.parameters.rollColor">
+                      </div>
+                    </div>
+                  }
+                  @case ('modify_resource') {
+                    <div class="se-field">
+                      <label class="se-label">Ressource</label>
+                      <select class="se-select" [(ngModel)]="editMacroAction.parameters.resource">
+                        <option value="health">&#x2764; Leben</option>
+                        <option value="energy">&#x26A1; Ausdauer</option>
+                        <option value="mana">&#x1F4A7; Mana</option>
+                      </select>
+                    </div>
+                    <div class="se-macro-row">
+                      <div class="se-field">
+                        <label class="se-label">Betrag <span class="se-hint">(neg. = Kosten)</span></label>
+                        <input class="se-input" type="number" [(ngModel)]="editMacroAction.parameters.resourceAmount">
+                      </div>
+                      <div class="se-field">
+                        <label class="se-label">Oder Formel</label>
+                        <input class="se-input" type="text" [(ngModel)]="editMacroAction.parameters.resourceDiceAmount" placeholder="z.B. 1d6">
+                      </div>
+                    </div>
+                  }
+                  @case ('apply_damage') {
+                    <div class="se-field">
+                      <label class="se-label">Schadenswürfel</label>
+                      <input class="se-input" type="text" [(ngModel)]="editMacroAction.parameters.diceAmount" placeholder="z.B. 1d8+5">
+                    </div>
+                  }
+                  @case ('apply_healing') {
+                    <div class="se-field">
+                      <label class="se-label">Heilungswürfel</label>
+                      <input class="se-input" type="text" [(ngModel)]="editMacroAction.parameters.diceAmount" placeholder="z.B. 2d8+3">
+                    </div>
+                  }
+                  @case ('custom_message') {
+                    <div class="se-field">
+                      <label class="se-label">Nachricht</label>
+                      <textarea class="se-input se-input-area" [(ngModel)]="editMacroAction.parameters.message" rows="2" placeholder="Nachricht..."></textarea>
+                    </div>
+                    <div class="se-field se-field-color">
+                      <label class="se-label">Farbe</label>
+                      <input type="color" class="se-color" [(ngModel)]="editMacroAction.parameters.messageColor">
+                    </div>
+                  }
+                }
               </div>
             }
           </div>
-        </div>
-      }
+        }
 
-      <!-- Resource Modifiers -->
-      <div class="form-group">
-        <label>Ressourcen-Boni</label>
-        <div class="stat-modifiers-grid">
-          @for (stat of ['mana', 'life', 'energy']; track stat) {
-            <div class="stat-modifier-item">
-              <span class="stat-label">{{ getStatLabel(stat) }}</span>
-              <div class="stat-controls">
-                <button class="stat-btn" (click)="decrementStat(stat)">&minus;</button>
-                <span class="stat-value"
-                      [class.positive]="statModifiers[stat] > 0"
-                      [class.negative]="statModifiers[stat] < 0">
-                  {{ statModifiers[stat] > 0 ? '+' : '' }}{{ statModifiers[stat] }}
-                </span>
-                <button class="stat-btn" (click)="incrementStat(stat)">+</button>
-              </div>
+        <!-- Stat modifiers (stat_bonus only) -->
+        @if (editSkill.type === 'stat_bonus') {
+          <div class="se-section">
+            <span class="se-section-title">Stat-Boni</span>
+            <div class="se-stat-grid">
+              @for (stat of ['strength', 'dexterity', 'speed', 'intelligence', 'constitution', 'chill']; track stat) {
+                <div class="se-stat-item">
+                  <span class="se-stat-name">{{ getStatLabel(stat) }}</span>
+                  <div class="se-stat-ctrl">
+                    <button class="se-stat-btn" (click)="decrementStat(stat)">&minus;</button>
+                    <span class="se-stat-val"
+                          [class.pos]="statModifiers[stat] > 0"
+                          [class.neg]="statModifiers[stat] < 0">
+                      {{ statModifiers[stat] > 0 ? '+' : '' }}{{ statModifiers[stat] }}
+                    </span>
+                    <button class="se-stat-btn" (click)="incrementStat(stat)">+</button>
+                  </div>
+                </div>
+              }
             </div>
-          }
-        </div>
-      </div>
+          </div>
 
+          <div class="se-section">
+            <span class="se-section-title">Ressourcen-Boni</span>
+            <div class="se-stat-grid se-stat-grid-3">
+              @for (stat of ['mana', 'life', 'energy']; track stat) {
+                <div class="se-stat-item">
+                  <span class="se-stat-name">{{ getStatLabel(stat) }}</span>
+                  <div class="se-stat-ctrl">
+                    <button class="se-stat-btn" (click)="decrementStat(stat)">&minus;</button>
+                    <span class="se-stat-val"
+                          [class.pos]="statModifiers[stat] > 0"
+                          [class.neg]="statModifiers[stat] < 0">
+                      {{ statModifiers[stat] > 0 ? '+' : '' }}{{ statModifiers[stat] }}
+                    </span>
+                    <button class="se-stat-btn" (click)="incrementStat(stat)">+</button>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Passive / Dice info -->
+        @if (editSkill.type === 'passive') {
+          <div class="se-info">
+            <span class="se-info-icon">&#x1F52E;</span>
+            <span>Passive F&auml;higkeit &mdash; immer aktiv, keine Kosten.</span>
+          </div>
+        }
+        @if (editSkill.type === 'dice_bonus') {
+          <div class="se-info">
+            <span class="se-info-icon">&#x1F3B2;</span>
+            <span>W&uuml;rfelbonus &mdash; wird beim W&uuml;rfeln automatisch angewendet.</span>
+          </div>
+        }
+
+      </div>
     </div>
 
     <!-- Footer -->
-    <div class="editor-footer">
-      <div class="footer-buttons">
-        @if (!isNewSkill) {
-          <button class="delete-btn" (click)="deleteSkill()">L&ouml;schen</button>
-        }
-        <button class="cancel-btn" (click)="cancelEdit()">Abbrechen</button>
-        <button class="save-btn"
-                (click)="saveSkill()"
-                [disabled]="!editSkill.name?.trim()">
+    <div class="se-footer">
+      @if (!isNewSkill) {
+        <button class="se-btn-del" (click)="deleteSkill()">L&ouml;schen</button>
+      }
+      <div class="se-footer-right">
+        <button class="se-btn-cancel" (click)="cancelEdit()">Abbrechen</button>
+        <button class="se-btn-save" (click)="saveSkill()" [disabled]="!editSkill.name?.trim()">
           {{ isNewSkill ? 'Erstellen' : 'Speichern' }}
         </button>
       </div>
