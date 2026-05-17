@@ -1,6 +1,8 @@
-<div class="race-selector-overlay">
+<div class="rso">
 
-  <!-- Create/Edit form — direct child of overlay, fills full screen -->
+  <!-- ══════════════════════════════════════════════════════════
+       CREATE / EDIT FORM — fills entire overlay
+  ══════════════════════════════════════════════════════════ -->
   @if (!loading && (viewMode === 'create' || viewMode === 'edit')) {
     <app-race-form
       [race]="editingRace"
@@ -14,39 +16,131 @@
     </app-race-form>
   }
 
-  <!-- Select / Choose-Skills / Loading screens -->
-  @if (loading || viewMode === 'select' || viewMode === 'choose-skills') {
-    <div class="race-selector-container">
+  <!-- ══════════════════════════════════════════════════════════
+       SKILLS VIEW — primary view when a race is selected
+  ══════════════════════════════════════════════════════════ -->
+  @if (!loading && viewMode === 'skills' && selectedRace) {
+    <div class="rso-wrap">
 
-      <!-- Header -->
-      <div class="header">
-        @if (viewMode === 'choose-skills') {
-          <button class="back-button" (click)="cancelEdit()">&larr; Zur&uuml;ck</button>
-          <h1>Rassen&shy;f&auml;higkeiten w&auml;hlen</h1>
-        } @else {
-          <h1>Rasse ausw&auml;hlen</h1>
-        }
-        <button class="close-button" (click)="onClose()">&times;</button>
+      <!-- Sticky header -->
+      <div class="rso-hdr">
+        <div class="rso-hdr-left">
+          <span class="rso-race-name">{{ selectedRace.name }}</span>
+          <span class="rso-race-meta">
+            {{ selectedRace.size }}&nbsp;&middot;&nbsp;{{ selectedRace.ageRange }}&nbsp;Jahre&nbsp;&middot;&nbsp;{{ selectedRace.weight }}
+          </span>
+        </div>
+        <div class="rso-hdr-right">
+          <button class="rso-btn rso-btn-outline" (click)="startEdit(selectedRace)">&#x270F; Bearbeiten</button>
+          <button class="rso-btn rso-btn-change" (click)="startRaceChange()">&#x21C4; Rasse wechseln</button>
+          <button class="rso-close-btn" (click)="onClose()" title="Schlie&szlig;en">&#x2715;</button>
+        </div>
       </div>
 
-      <!-- Loading -->
-      @if (loading) {
-        <div class="loading">Lade Rassen&hellip;</div>
-      }
+      <!-- Scrollable body -->
+      <div class="rso-body">
 
-      <!-- Selection Screen -->
-      @if (!loading && viewMode === 'select') {
-        <div class="selection-screen">
-          @if (selectedRace) {
-            <div class="current-race">
-              <span>Ausgew&auml;hlt: <strong>{{ selectedRace.name }}</strong></span>
-              <button class="btn btn-small btn-danger" (click)="clearRace()">Auswahl aufheben</button>
-            </div>
+        <!-- Lore strip -->
+        @if (selectedRace.lore) {
+          <div class="rso-lore" [class.rso-lore-open]="loreExpanded">
+            <p class="rso-lore-text">{{ selectedRace.lore }}</p>
+            <button class="rso-lore-toggle" (click)="loreExpanded = !loreExpanded">
+              {{ loreExpanded ? 'Weniger \u25B2' : 'Mehr \u25BC' }}
+            </button>
+          </div>
+        }
+
+        <!-- Skill groups -->
+        <div class="rso-groups">
+          @for (group of selectedRace.skills; track group.levelRequired) {
+            <section class="rso-group">
+
+              <!-- Group header -->
+              <div class="rso-group-hdr">
+                <span class="rso-group-lvl">Stufe {{ group.levelRequired }}</span>
+                @if (!isLevelUnlocked(group.levelRequired)) {
+                  <span class="rso-group-lock">&#x1F512; Nicht freigeschaltet</span>
+                }
+                @if (group.isChoice) {
+                  <span class="rso-group-tip">Empfehlung: 1 w&auml;hlen</span>
+                }
+                @if (countSelectedForGroup(selectedRace.id, group) > 0) {
+                  <span class="rso-group-sel-count">
+                    {{ countSelectedForGroup(selectedRace.id, group) }} ausgew&auml;hlt
+                  </span>
+                }
+              </div>
+
+              <!-- Skill cards -->
+              <div class="rso-cards">
+                @for (skill of group.skills; track skill.name) {
+                  <div class="rso-sk"
+                       [attr.data-type]="skill.type"
+                       [class.rso-sk-on]="isSkillSelected(skill, selectedRace.id)"
+                       [class.rso-sk-locked]="!isLevelUnlocked(group.levelRequired)"
+                       (click)="toggleSkill(skill, selectedRace.id)">
+
+                    <!-- Topbar (matches app-skill design) -->
+                    <div class="rso-sk-bar">
+                      <span class="rso-sk-ti">{{ getTypeIcon(skill.type) }}</span>
+                      <span class="rso-sk-tl">{{ getTypeLabel(skill.type) }}</span>
+                      <span class="rso-sk-name">{{ skill.name }}</span>
+                      @if (isSkillSelected(skill, selectedRace.id)) {
+                        <span class="rso-sk-check">&#x2713;</span>
+                      }
+                    </div>
+
+                    <!-- Description -->
+                    <div class="rso-sk-desc">{{ skill.description }}</div>
+
+                    <!-- Footer -->
+                    <div class="rso-sk-foot">
+                      <span class="rso-sk-class">{{ selectedRace.name }}</span>
+                      @if (!isLevelUnlocked(group.levelRequired)) {
+                        <span class="rso-sk-req">&#x1F512; Stufe {{ group.levelRequired }}</span>
+                      }
+                    </div>
+
+                  </div>
+                }
+              </div>
+
+            </section>
           }
+        </div>
 
-          <p class="hint">Klicken zum Ausw&auml;hlen, Doppelklick zum Bearbeiten.</p>
+      </div><!-- /rso-body -->
+    </div><!-- /rso-wrap -->
+  }
 
-          <div class="race-list">
+  <!-- ══════════════════════════════════════════════════════════
+       RACE SELECTION GRID — shown when no race or switching
+  ══════════════════════════════════════════════════════════ -->
+  @if (loading || viewMode === 'select') {
+    <div class="rso-wrap">
+
+      <div class="rso-hdr">
+        <div class="rso-hdr-left">
+          @if (selectedRace) {
+            <button class="rso-btn rso-btn-back" (click)="cancelEdit()">&#x2190; Zur&uuml;ck</button>
+          }
+          <h1 class="rso-select-title">Rasse ausw&auml;hlen</h1>
+        </div>
+        <button class="rso-close-btn" (click)="onClose()" title="Schlie&szlig;en">&#x2715;</button>
+      </div>
+
+      <div class="rso-body">
+        @if (loading) {
+          <div class="rso-loading">Lade Rassen&hellip;</div>
+        } @else {
+          @if (selectedRace) {
+            <p class="rso-change-hint">
+              &#x26A0; Das Ausw&auml;hlen einer anderen Rasse &uuml;bernimmt deren Basisstats und entfernt alle bisher ausgew&auml;hlten Rassenskills.
+            </p>
+          }
+          <p class="rso-hint">Klicken zum Ausw&auml;hlen &middot; Doppelklick zum Bearbeiten</p>
+
+          <div class="rso-race-list">
             @for (race of races; track race.id) {
               <app-race-card
                 [race]="race"
@@ -55,37 +149,13 @@
                 (edit)="startEdit($event)">
               </app-race-card>
             }
-
-            <div class="create-card" (click)="startCreate()">
-              <div class="icon">+</div>
-              <div class="text">Neue Rasse erstellen</div>
+            <div class="rso-create-card" (click)="startCreate()">
+              <span class="rso-create-icon">+</span>
+              <span class="rso-create-txt">Neue Rasse erstellen</span>
             </div>
           </div>
-        </div>
-      }
-
-      <!-- Skill Choice Screen -->
-      @if (!loading && viewMode === 'choose-skills' && selectedRace) {
-        <div class="skill-choice-screen">
-          <p class="hint">W&auml;hle eine F&auml;higkeit pro Stufe f&uuml;r deinen Charakter.</p>
-
-          @for (raceSkill of pendingSkillChoices; track raceSkill.levelRequired) {
-            <div class="skill-choice-group">
-              <h3>Stufe {{ raceSkill.levelRequired }}</h3>
-              <p class="choice-hint">W&auml;hle eine:</p>
-              <div class="skill-options">
-                @for (skill of raceSkill.skills; track skill.name) {
-                  <div class="skill-option" (click)="onSkillChoice(raceSkill, skill)">
-                    <div class="skill-name">{{ skill.name }}</div>
-                    <div class="skill-type">{{ skill.type }}</div>
-                    <div class="skill-desc">{{ skill.description }}</div>
-                  </div>
-                }
-              </div>
-            </div>
-          }
-        </div>
-      }
+        }
+      </div>
 
     </div>
   }

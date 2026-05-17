@@ -7,7 +7,10 @@ Echtzeit-D&D-Kollaborationstool mit WebSocket-synchronisierter multiplayer-Funkt
 - **Backend**: NestJS, WebSocket Gateways
 - **Frontend**: Angular (Standalone Components)
 - **Kommunikation**: Socket.io (real-time bidirectional)
-- **Datenspeicherung**: JSON-Dateien (worlds.json, races.json, data.json)
+- **Datenspeicherung**: JSON-Dateien pro Entity in `C:\Users\adermake\Documents\data\`
+  - `data/races/race_*.json` — Rassen (16 Stück, per API gespeichert)
+  - `data/characters/`, `data/worlds/` — weitere Entitäten
+  - WICHTIG: `dataDir = path.join(__dirname, '../../../data')` → dist liegt in `backend/dist/`, nicht `backend/dist/src/`, deshalb löst `__dirname=backend/dist` → `../../../data = Documents/data`
 
 ## Kern-Architektur
 

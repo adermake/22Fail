@@ -9,7 +9,7 @@
   <div class="race-card-content">
     <div class="race-card-header">
       <h3 class="race-card-name">{{ race.name }}</h3>
-      <span class="race-card-age">Lifespan: {{ race.ageRange }} years</span>
+      <span class="race-card-age">Lebensspanne: {{ race.ageRange }} Jahre</span>
     </div>
 
     @if (race.lore) {
@@ -18,17 +18,17 @@
 
     <div class="race-card-resources">
       <div class="resource health">
-        <span class="resource-icon">❤</span>
+        <span class="resource-icon">&#x2764;</span>
         <span class="resource-value">{{ race.baseHealth }}</span>
-        <span class="resource-label">Health</span>
+        <span class="resource-label">Leben</span>
       </div>
       <div class="resource energy">
-        <span class="resource-icon">⚡</span>
+        <span class="resource-icon">&#x26A1;</span>
         <span class="resource-value">{{ race.baseEnergy }}</span>
-        <span class="resource-label">Energy</span>
+        <span class="resource-label">Ausdauer</span>
       </div>
       <div class="resource mana">
-        <span class="resource-icon">✦</span>
+        <span class="resource-icon">&#x2736;</span>
         <span class="resource-value">{{ race.baseMana }}</span>
         <span class="resource-label">Mana</span>
       </div>
@@ -38,67 +38,51 @@
       <div class="stat">
         <span class="label">STR</span>
         <span class="value">{{ race.baseStrength }}</span>
-        <span class="gain">+{{ race.strengthPerLevel }}/lvl</span>
+        <span class="gain">+{{ race.strengthPerLevel }}/Lvl</span>
       </div>
       <div class="stat">
-        <span class="label">DEX</span>
+        <span class="label">GSK</span>
         <span class="value">{{ race.baseDexterity }}</span>
-        <span class="gain">+{{ race.dexterityPerLevel }}/lvl</span>
+        <span class="gain">+{{ race.dexterityPerLevel }}/Lvl</span>
       </div>
       <div class="stat">
-        <span class="label">SPD</span>
+        <span class="label">GSW</span>
         <span class="value">{{ race.baseSpeed }}</span>
-        <span class="gain">+{{ race.speedPerLevel }}/lvl</span>
+        <span class="gain">+{{ race.speedPerLevel }}/Lvl</span>
       </div>
       <div class="stat">
         <span class="label">INT</span>
         <span class="value">{{ race.baseIntelligence }}</span>
-        <span class="gain">+{{ race.intelligencePerLevel }}/lvl</span>
+        <span class="gain">+{{ race.intelligencePerLevel }}/Lvl</span>
       </div>
       <div class="stat">
-        <span class="label">CON</span>
+        <span class="label">KON</span>
         <span class="value">{{ race.baseConstitution }}</span>
-        <span class="gain">+{{ race.constitutionPerLevel }}/lvl</span>
+        <span class="gain">+{{ race.constitutionPerLevel }}/Lvl</span>
       </div>
       <div class="stat">
-        <span class="label">CHL</span>
+        <span class="label">WIL</span>
         <span class="value">{{ race.baseChill }}</span>
-        <span class="gain">+{{ race.chillPerLevel }}/lvl</span>
+        <span class="gain">+{{ race.chillPerLevel }}/Lvl</span>
       </div>
     </div>
 
     @if (race.skills.length > 0) {
       <div class="race-card-skills">
-        <h4>Racial Skills</h4>
+        <h4>Rassenfähigkeiten ({{ race.skills.length }} Stufen)</h4>
         @for (raceSkill of race.skills; track $index) {
           <div class="skill-group">
-            <span class="skill-level">Lvl {{ raceSkill.levelRequired }}</span>
-            @if (raceSkill.isChoice) {
-              <div class="skill-choices">
-                @for (skill of raceSkill.skills; track skill.name; let last = $last) {
-                  <div class="skill-info">
-                    <span class="skill-name">{{ skill.name }}</span>
-                    <span class="skill-type">({{ skill.type }})</span>
-                    @if (skill.description) {
-                      <p class="skill-desc">{{ skill.description }}</p>
-                    }
-                  </div>
-                  @if (!last) {
-                    <div class="skill-or">OR</div>
-                  }
-                }
-              </div>
-            } @else {
-              @for (skill of raceSkill.skills; track skill.name) {
+            <span class="skill-level">Stufe {{ raceSkill.levelRequired }}</span>
+            <div class="skill-choices">
+              @for (skill of raceSkill.skills; track skill.name; let last = $last) {
                 <div class="skill-info">
                   <span class="skill-name">{{ skill.name }}</span>
-                  <span class="skill-type">({{ skill.type }})</span>
-                  @if (skill.description) {
-                    <p class="skill-desc">{{ skill.description }}</p>
-                  }
                 </div>
+                @if (!last && raceSkill.isChoice) {
+                  <div class="skill-or">oder</div>
+                }
               }
-            }
+            </div>
           </div>
         }
       </div>

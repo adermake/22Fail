@@ -1,12 +1,404 @@
-.race-selector-overlay {
+/* ─── Outer overlay ────────────────────────────────────────────────────────── */
+.rso {
   position: fixed;
   inset: 0;
-  background: var(--bg, #0f0f1a);
+  background: var(--bg, #0f172a);
   z-index: 1000;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* app-race-form fills overlay when in create/edit mode */
+app-race-form {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
+
+/* ─── Shared wrap/header/body ───────────────────────────────────────────────── */
+.rso-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rso-hdr {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.5rem;
+  background: var(--bg, #0f172a);
+  border-bottom: 1px solid var(--border, #2d3748);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.rso-hdr-left {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.rso-hdr-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.rso-race-name {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text, #e5e7eb);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rso-race-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted, #9ca3af);
+  white-space: nowrap;
+}
+
+.rso-select-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text, #e5e7eb);
+  margin: 0;
+}
+
+/* ─── Header buttons ───────────────────────────────────────────────────────── */
+.rso-btn {
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.38rem 0.85rem;
+  white-space: nowrap;
+  transition: opacity 0.15s, background 0.15s;
+}
+.rso-btn:hover { opacity: 0.85; }
+
+.rso-btn-outline {
+  background: transparent;
+  border: 1px solid var(--border, #4a5568);
+  color: var(--text-muted, #9ca3af);
+}
+
+.rso-btn-change {
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  color: #a78bfa;
+}
+
+.rso-btn-back {
+  background: transparent;
+  border: 1px solid var(--border, #4a5568);
+  color: var(--text-muted, #9ca3af);
+}
+
+.rso-close-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 6px;
+  color: var(--text-muted, #9ca3af);
+  cursor: pointer;
+  font-size: 1rem;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.rso-close-btn:hover {
+  color: var(--text, #e5e7eb);
+  border-color: var(--text-muted, #9ca3af);
+}
+
+/* ─── Scrollable body ───────────────────────────────────────────────────────── */
+.rso-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+}
+
+/* ─── Lore strip ─────────────────────────────────────────────────────────────  */
+.rso-lore {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border, #2d3748);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  position: relative;
+}
+
+.rso-lore-text {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-muted, #9ca3af);
+  line-height: 1.6;
+  /* Collapsed: show 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.rso-lore.rso-lore-open .rso-lore-text {
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.rso-lore-toggle {
+  background: none;
+  border: none;
+  color: var(--accent, #8b5cf6);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* ─── Skill groups ───────────────────────────────────────────────────────────  */
+.rso-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.rso-group {}
+
+.rso-group-hdr {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.rso-group-lvl {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent, #8b5cf6);
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+.rso-group-lock {
+  font-size: 0.72rem;
+  color: var(--text-muted, #9ca3af);
+  opacity: 0.7;
+}
+
+.rso-group-tip {
+  font-size: 0.72rem;
+  color: var(--text-muted, #9ca3af);
+  font-style: italic;
+}
+
+.rso-group-sel-count {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: #4ade80;
+  font-weight: 600;
+}
+
+/* ─── Skill cards grid ───────────────────────────────────────────────────────── */
+.rso-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0.6rem;
+}
+
+/* ─── Individual skill card — mirrors app-skill visual language ─────────────── */
+.rso-sk {
+  /* Type-color token (overridden per data-type) */
+  --tc: #8b5cf6;
+  --tc-bg: rgba(139, 92, 246, 0.08);
+
+  display: flex;
+  flex-direction: column;
+  background: #0f1829;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2d3748);
+  border-left: 3px solid var(--tc);
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
+  user-select: none;
+  min-height: 90px;
+}
+
+.rso-sk:hover {
+  box-shadow: 0 3px 14px rgba(0,0,0,0.4), 0 0 0 1px var(--tc);
+  transform: translateY(-1px);
+}
+
+/* Type color tokens — identical to app-skill */
+.rso-sk[data-type="active"]     { --tc: #f59e0b; --tc-bg: rgba(245,158,11,0.10); }
+.rso-sk[data-type="passive"]    { --tc: #a78bfa; --tc-bg: rgba(167,139,250,0.10); }
+.rso-sk[data-type="dice_bonus"] { --tc: #34d399; --tc-bg: rgba(52,211,153,0.10);  }
+.rso-sk[data-type="stat_bonus"] { --tc: #38bdf8; --tc-bg: rgba(56,189,248,0.10);  }
+
+/* SELECTED state — bright ring + stronger background */
+.rso-sk.rso-sk-on {
+  border-color: var(--tc);
+  border-width: 1px 1px 1px 3px;
+  background: var(--tc-bg);
+  box-shadow: 0 0 0 1px var(--tc), 0 4px 18px rgba(0,0,0,0.45);
+}
+
+/* LOCKED state — slightly dimmed, but still interactive */
+.rso-sk.rso-sk-locked {
+  opacity: 0.6;
+  filter: saturate(0.7);
+}
+.rso-sk.rso-sk-locked:hover {
+  opacity: 0.85;
+  filter: saturate(1);
+}
+
+/* Topbar */
+.rso-sk-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.5rem;
+  background: var(--tc-bg);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  min-height: 24px;
+}
+
+.rso-sk-ti {
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+
+.rso-sk-tl {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--tc);
+}
+
+.rso-sk-name {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text, #e5e7eb);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rso-sk-check {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--tc);
+  flex-shrink: 0;
+  margin-left: 0.3rem;
+}
+
+/* Description */
+.rso-sk-desc {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.8rem;
+  color: var(--text-muted, #9ca3af);
+  line-height: 1.5;
+}
+
+/* Footer */
+.rso-sk-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0.6rem;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.rso-sk-class {
+  font-size: 0.68rem;
+  color: var(--text-muted, #9ca3af);
+  font-weight: 500;
+}
+
+.rso-sk-req {
+  font-size: 0.68rem;
+  color: var(--text-muted, #9ca3af);
+  opacity: 0.7;
+}
+
+/* ─── Race selection grid ────────────────────────────────────────────────────── */
+.rso-loading {
+  text-align: center;
+  padding: 4rem;
+  color: var(--text-muted, #9ca3af);
+  font-size: 1.1rem;
+}
+
+.rso-change-hint {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  font-size: 0.83rem;
+  color: #fcd34d;
+  margin-bottom: 1rem;
+}
+
+.rso-hint {
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.82rem;
+  margin: 0 0 1.25rem;
+}
+
+.rso-race-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Create card */
+.rso-create-card {
+  background: transparent;
+  border: 2px dashed var(--border, #4a5568);
+  border-radius: 12px;
+  padding: 2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  transition: border-color 0.2s;
+}
+.rso-create-card:hover { border-color: var(--accent, #8b5cf6); }
+
+.rso-create-icon {
+  font-size: 2rem;
+  color: var(--accent, #8b5cf6);
+  line-height: 1;
+}
+
+.rso-create-txt {
+  font-size: 1rem;
+  color: var(--text-muted, #9ca3af);
+  font-weight: 500;
+}
+
 
 /* When in create/edit mode the race-form fills the overlay */
 app-race-form {
