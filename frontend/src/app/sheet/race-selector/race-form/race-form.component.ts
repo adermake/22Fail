@@ -44,6 +44,9 @@ export class RaceFormComponent {
 
   onSkillEditorSave(skill: SkillBlock) {
     skill.skillSource = 'race';
+    if (!skill.class) {
+      skill.class = this.race.name;
+    }
     if (this.skillEditorRaceSkillIdx !== null) {
       // Edit existing
       this.race.skills[this.skillEditorRaceSkillIdx] = {
@@ -80,11 +83,7 @@ export class RaceFormComponent {
 
   onSave() { this.save.emit(); }
   onCancel() { this.cancel.emit(); }
-  onDelete() {
-    if (confirm('Rasse wirklich l\u00F6schen?')) {
-      this.delete.emit();
-    }
-  }
+  onDelete() { this.delete.emit(); }
 
   getTypeIcon(type: string): string {
     const icons: Record<string, string> = {

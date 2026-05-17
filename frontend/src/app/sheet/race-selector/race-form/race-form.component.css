@@ -1,9 +1,17 @@
-﻿/* === RACE FORM – fullscreen modal overlay === */
+﻿/* === RACE FORM – fills the race-selector overlay === */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg, #0f172a);
+}
 
 .rf-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 1050;
+  flex: 1;
+  min-height: 0;
   background: var(--bg, #0f172a);
   padding: 18px 24px 20px;
   display: flex;

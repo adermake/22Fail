@@ -4,12 +4,26 @@
   background: var(--bg, #0f0f1a);
   z-index: 1000;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* When in create/edit mode the race-form fills the overlay */
+app-race-form {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .race-selector-container {
+  flex: 1;
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .header {

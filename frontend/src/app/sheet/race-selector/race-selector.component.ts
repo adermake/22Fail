@@ -194,7 +194,7 @@ export class RaceSelectorComponent implements OnInit {
   }
 
   async deleteRace() {
-    if (this.editingRace && confirm(`Are you sure you want to delete "${this.editingRace.name}"?`)) {
+    if (this.editingRace && confirm(`Rasse "${this.editingRace.name}" wirklich löschen?`)) {
       await this.raceService.deleteRace(this.editingRace.id);
       this.races = await this.raceService.loadRaces();
       if (this.selectedRace?.id === this.editingRace.id) {

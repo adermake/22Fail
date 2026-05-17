@@ -1,87 +1,93 @@
 <div class="race-selector-overlay">
-  <div class="race-selector-container">
-    <!-- Header -->
-    <div class="header">
-      @if (viewMode === 'select') {
-        <h1>Select Race</h1>
-      } @else if (viewMode === 'choose-skills') {
-        <h1>Choose Your Racial Skills</h1>
-      } @else {
-        <button class="back-button" (click)="cancelEdit()">&larr; Cancel</button>
-      }
-      <button class="close-button" (click)="onClose()">&times;</button>
-    </div>
 
-    <!-- Loading State -->
-    @if (loading) {
-      <div class="loading">Loading races...</div>
-    }
+  <!-- Create/Edit form — direct child of overlay, fills full screen -->
+  @if (!loading && (viewMode === 'create' || viewMode === 'edit')) {
+    <app-race-form
+      [race]="editingRace"
+      [isCreate]="viewMode === 'create'"
+      [saving]="saving"
+      [pendingImagePreview]="pendingImagePreview"
+      (save)="saveRace()"
+      (cancel)="cancelEdit()"
+      (delete)="deleteRace()"
+      (imageSelect)="onImageSelect($event)">
+    </app-race-form>
+  }
 
-    <!-- Selection Screen -->
-    @if (!loading && viewMode === 'select') {
-      <div class="selection-screen">
-        @if (selectedRace) {
-          <div class="current-race">
-            <span>Currently selected: <strong>{{ selectedRace.name }}</strong></span>
-            <button class="btn btn-small btn-danger" (click)="clearRace()">Clear Selection</button>
-          </div>
+  <!-- Select / Choose-Skills / Loading screens -->
+  @if (loading || viewMode === 'select' || viewMode === 'choose-skills') {
+    <div class="race-selector-container">
+
+      <!-- Header -->
+      <div class="header">
+        @if (viewMode === 'choose-skills') {
+          <button class="back-button" (click)="cancelEdit()">&larr; Zur&uuml;ck</button>
+          <h1>Rassen&shy;f&auml;higkeiten w&auml;hlen</h1>
+        } @else {
+          <h1>Rasse ausw&auml;hlen</h1>
         }
+        <button class="close-button" (click)="onClose()">&times;</button>
+      </div>
 
-        <p class="hint">Click to select a race. Double-click to edit.</p>
+      <!-- Loading -->
+      @if (loading) {
+        <div class="loading">Lade Rassen&hellip;</div>
+      }
 
-        <div class="race-list">
-          @for (race of races; track race.id) {
-            <app-race-card
-              [race]="race"
-              [isSelected]="isCurrentRace(race)"
-              (select)="selectRace($event)"
-              (edit)="startEdit($event)">
-            </app-race-card>
+      <!-- Selection Screen -->
+      @if (!loading && viewMode === 'select') {
+        <div class="selection-screen">
+          @if (selectedRace) {
+            <div class="current-race">
+              <span>Ausgew&auml;hlt: <strong>{{ selectedRace.name }}</strong></span>
+              <button class="btn btn-small btn-danger" (click)="clearRace()">Auswahl aufheben</button>
+            </div>
           }
 
-          <div class="create-card" (click)="startCreate()">
-            <div class="icon">+</div>
-            <div class="text">Create New Race</div>
-          </div>
-        </div>
-      </div>
-    }
+          <p class="hint">Klicken zum Ausw&auml;hlen, Doppelklick zum Bearbeiten.</p>
 
-    <!-- Create/Edit Screen -->
-    @if (!loading && (viewMode === 'create' || viewMode === 'edit')) {
-      <app-race-form
-        [race]="editingRace"
-        [isCreate]="viewMode === 'create'"
-        [saving]="saving"
-        [pendingImagePreview]="pendingImagePreview"
-        (save)="saveRace()"
-        (cancel)="cancelEdit()"
-        (delete)="deleteRace()"
-        (imageSelect)="onImageSelect($event)">
-      </app-race-form>
-    }
-    
-    <!-- Skill Choice Screen -->
-    @if (!loading && viewMode === 'choose-skills' && selectedRace) {
-      <div class="skill-choice-screen">
-        <p class="hint">Choose one skill from each level to add to your character.</p>
-        
-        @for (raceSkill of pendingSkillChoices; track raceSkill.levelRequired) {
-          <div class="skill-choice-group">
-            <h3>Level {{ raceSkill.levelRequired }}</h3>
-            <p class="choice-hint">Choose one:</p>
-            <div class="skill-options">
-              @for (skill of raceSkill.skills; track skill.name) {
-                <div class="skill-option" (click)="onSkillChoice(raceSkill, skill)">
-                  <div class="skill-name">{{ skill.name }}</div>
-                  <div class="skill-type">{{ skill.type }}</div>
-                  <div class="skill-desc">{{ skill.description }}</div>
-                </div>
-              }
+          <div class="race-list">
+            @for (race of races; track race.id) {
+              <app-race-card
+                [race]="race"
+                [isSelected]="isCurrentRace(race)"
+                (select)="selectRace($event)"
+                (edit)="startEdit($event)">
+              </app-race-card>
+            }
+
+            <div class="create-card" (click)="startCreate()">
+              <div class="icon">+</div>
+              <div class="text">Neue Rasse erstellen</div>
             </div>
           </div>
-        }
-      </div>
-    }
-  </div>
+        </div>
+      }
+
+      <!-- Skill Choice Screen -->
+      @if (!loading && viewMode === 'choose-skills' && selectedRace) {
+        <div class="skill-choice-screen">
+          <p class="hint">W&auml;hle eine F&auml;higkeit pro Stufe f&uuml;r deinen Charakter.</p>
+
+          @for (raceSkill of pendingSkillChoices; track raceSkill.levelRequired) {
+            <div class="skill-choice-group">
+              <h3>Stufe {{ raceSkill.levelRequired }}</h3>
+              <p class="choice-hint">W&auml;hle eine:</p>
+              <div class="skill-options">
+                @for (skill of raceSkill.skills; track skill.name) {
+                  <div class="skill-option" (click)="onSkillChoice(raceSkill, skill)">
+                    <div class="skill-name">{{ skill.name }}</div>
+                    <div class="skill-type">{{ skill.type }}</div>
+                    <div class="skill-desc">{{ skill.description }}</div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+    </div>
+  }
+
 </div>

@@ -138,6 +138,12 @@ app/
 
 ### Race Skills System
 - **Model**: `SkillBlock.sourceRaceId?: string` — optionales Feld, markiert Skills als Rassen-Skills
+- **Race Editor** (`sheet/race-selector/`):
+  - `race-selector.component`: Vollbild-Overlay (z:1000, flex column). Enthält direkt (ohne Container) `app-race-form` wenn in 'create'/'edit' Modus.
+  - `race-form.component`: `:host` ist flex column, füllt den Selector-Overlay vollständig. KEIN `position:fixed` (verursacht Event-Probleme in gestapelten Stacking Contexts). 2-Spalten-Layout mit rf-* CSS-Klassen.
+  - `race-card.component`: Karte für Rassen-Auswahl (Klick = select, Doppelklick = edit)
+  - **Delete-Flow**: `race-form.onDelete()` emittet `delete`, `race-selector.deleteRace()` zeigt deutschen Bestätigungsdialog
+  - **Skill-Autofill**: `race-form.onSkillEditorSave()` setzt `skill.class = race.name` wenn kein class gesetzt
 - **Zuweisung**: `race-selector.selectRace()` entfernt alle Skills mit altem `sourceRaceId`, fügt `race.skills` (filtered by `levelRequired <= sheet.level`) mit `sourceRaceId = race.id` hinzu
 - **Entfernung**: `clearRace()` entfernt alle Skills mit `sourceRaceId === raceId`
 - **Kompatibilität**: Skills ohne `sourceRaceId` bleiben unberührt → Alte Sheets brechen nicht

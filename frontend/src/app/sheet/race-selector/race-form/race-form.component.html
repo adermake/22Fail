@@ -11,7 +11,7 @@
         <button class="rf-btn-del" (click)="onDelete()" [disabled]="saving">L&ouml;schen</button>
       }
       <button class="rf-btn-cancel" (click)="onCancel()" [disabled]="saving">Abbrechen</button>
-      <button class="rf-btn-save" (click)="onSave()" [disabled]="saving || !race.name?.trim()">
+      <button class="rf-btn-save" (click)="onSave()" [disabled]="saving || !race.name.trim()">
         {{ saving ? 'Speichert...' : (isCreate ? 'Erstellen' : 'Speichern') }}
       </button>
     </div>
@@ -26,7 +26,7 @@
       <div class="rf-field">
         <label class="rf-label">Name *</label>
         <input class="rf-input" type="text" [(ngModel)]="race.name"
-               [class.rf-invalid]="!race.name?.trim()"
+               [class.rf-invalid]="!race.name.trim()"
                placeholder="Rassenname...">
       </div>
 
