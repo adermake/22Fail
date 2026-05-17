@@ -2,10 +2,12 @@ import { SkillBlock } from './skill-block.model';
 
 /**
  * A skill that unlocks at a certain level for a race
+ * Can have multiple skill options to choose from (dual paths)
  */
 export interface RaceSkill {
   levelRequired: number;
-  skill: SkillBlock;
+  skills: SkillBlock[];    // Array of skill options to choose from
+  isChoice: boolean;       // Whether this is a choice or all skills are granted
 }
 
 /**
@@ -16,6 +18,8 @@ export interface Race {
   name: string;            // Display name
   baseImage?: string;      // Image for selection screen
   ageRange: string;        // e.g., "60-80"
+  size: string;            // e.g., "1.7m" or "0.3-1.5m"
+  weight: string;          // e.g., "mittel", "leicht", "schwer"
   lore: string;            // Lore/description text
 
   // Base stats at level 1
@@ -53,6 +57,8 @@ export function createEmptyRace(): Race {
     name: '',
     baseImage: '',
     ageRange: '20-80',
+    size: '1.7m',
+    weight: 'mittel',
     lore: '',
     baseHealth: 80,
     baseEnergy: 50,

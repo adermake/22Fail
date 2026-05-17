@@ -1,13 +1,13 @@
 import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Race, createEmptyRace } from '../../model/race.model';
+import { Race, createEmptyRace, RaceSkill, SkillBlock } from '../../model/race.model';
 import { RaceService } from '../../services/race.service';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { RaceCardComponent } from './race-card/race-card.component';
 import { RaceFormComponent } from './race-form/race-form.component';
 
-type ViewMode = 'select' | 'create' | 'edit';
+type ViewMode = 'select' | 'create' | 'edit' | 'choose-skills';
 
 @Component({
   selector: 'app-race-selector',
@@ -25,6 +25,9 @@ export class RaceSelectorComponent implements OnInit {
   viewMode: ViewMode = 'select';
   selectedRace: Race | null = null;
   editingRace: Race = createEmptyRace();
+  
+  // For skill choice modal
+  pendingSkillChoices: RaceSkill[] = [];
 
   pendingImageFile: File | null = null;
   pendingImagePreview = '';
@@ -80,10 +83,65 @@ export class RaceSelectorComponent implements OnInit {
     const currentSkills = this.sheet.skills || [];
     const filteredSkills = currentSkills.filter(s => !s.sourceRaceId || s.sourceRaceId !== oldRaceId);
     const currentLevel = this.sheet.level || 1;
-    const newRacialSkills = (race.skills || [])
+    
+    // For racial skills: only auto-add if isChoice is false (no player choice needed)
+    // If isChoice is true, player must manually select which skill they want
+    const newRacialSkills: any[] = [];
+    const pendingChoices: RaceSkill[] = [];
+    
+    (race.skills || [])
       .filter(rs => rs.levelRequired <= currentLevel)
-      .map(rs => ({ ...rs.skill, sourceRaceId: race.id }));
+      .forEach(rs => {
+        if (rs.isChoice) {
+          // Check if player has already made a choice for this level
+          const selectedSkills = this.sheet.selectedRacialSkills || {};
+          const chosenSkillName = selectedSkills[rs.levelRequired];
+          if (chosenSkillName) {
+            const chosenSkill = rs.skills.find(s => s.name === chosenSkillName);
+            if (chosenSkill) {
+              newRacialSkills.push({ ...chosenSkill, sourceRaceId: race.id });
+            }
+          } else {
+            // No choice made yet - add to pending choices
+            pendingChoices.push(rs);
+          }
+        } else {
+          // Auto-add all non-choice skills
+          rs.skills.forEach(skill => {
+            newRacialSkills.push({ ...skill, sourceRaceId: race.id });
+          });
+        }
+      });
+    
     this.patch.emit({ path: 'skills', value: [...filteredSkills, ...newRacialSkills] });
+    
+    // If there are pending skill choices, show the choice modal
+    if (pendingChoices.length > 0) {
+      this.pendingSkillChoices = pendingChoices;
+      this.viewMode = 'choose-skills';
+    }
+  }
+  
+  onSkillChoice(raceSkill: RaceSkill, skill: SkillBlock) {
+    if (!this.selectedRace) return;
+    
+    // Store the choice
+    const selectedSkills = this.sheet.selectedRacialSkills || {};
+    selectedSkills[raceSkill.levelRequired] = skill.name;
+    this.patch.emit({ path: 'selectedRacialSkills', value: selectedSkills });
+    
+    // Add the skill to the character
+    const currentSkills = this.sheet.skills || [];
+    currentSkills.push({ ...skill, sourceRaceId: this.selectedRace.id });
+    this.patch.emit({ path: 'skills', value: currentSkills });
+    
+    // Remove from pending choices
+    this.pendingSkillChoices = this.pendingSkillChoices.filter(rs => rs.levelRequired !== raceSkill.levelRequired);
+    
+    // If no more pending choices, go back to select mode
+    if (this.pendingSkillChoices.length === 0) {
+      this.viewMode = 'select';
+    }
   }
 
   clearRace() {

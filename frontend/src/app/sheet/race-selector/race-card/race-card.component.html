@@ -71,15 +71,34 @@
       <div class="race-card-skills">
         <h4>Racial Skills</h4>
         @for (raceSkill of race.skills; track $index) {
-          <div class="skill-item">
+          <div class="skill-group">
             <span class="skill-level">Lvl {{ raceSkill.levelRequired }}</span>
-            <div class="skill-info">
-              <span class="skill-name">{{ raceSkill.skill.name }}</span>
-              <span class="skill-type">({{ raceSkill.skill.type }})</span>
-              @if (raceSkill.skill.description) {
-                <p class="skill-desc">{{ raceSkill.skill.description }}</p>
+            @if (raceSkill.isChoice) {
+              <div class="skill-choices">
+                @for (skill of raceSkill.skills; track skill.name; let last = $last) {
+                  <div class="skill-info">
+                    <span class="skill-name">{{ skill.name }}</span>
+                    <span class="skill-type">({{ skill.type }})</span>
+                    @if (skill.description) {
+                      <p class="skill-desc">{{ skill.description }}</p>
+                    }
+                  </div>
+                  @if (!last) {
+                    <div class="skill-or">OR</div>
+                  }
+                }
+              </div>
+            } @else {
+              @for (skill of raceSkill.skills; track skill.name) {
+                <div class="skill-info">
+                  <span class="skill-name">{{ skill.name }}</span>
+                  <span class="skill-type">({{ skill.type }})</span>
+                  @if (skill.description) {
+                    <p class="skill-desc">{{ skill.description }}</p>
+                  }
+                </div>
               }
-            </div>
+            }
           </div>
         }
       </div>

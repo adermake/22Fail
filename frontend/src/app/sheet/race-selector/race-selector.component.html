@@ -4,6 +4,8 @@
     <div class="header">
       @if (viewMode === 'select') {
         <h1>Select Race</h1>
+      } @else if (viewMode === 'choose-skills') {
+        <h1>Choose Your Racial Skills</h1>
       } @else {
         <button class="back-button" (click)="cancelEdit()">&larr; Cancel</button>
       }
@@ -57,6 +59,29 @@
         (delete)="deleteRace()"
         (imageSelect)="onImageSelect($event)">
       </app-race-form>
+    }
+    
+    <!-- Skill Choice Screen -->
+    @if (!loading && viewMode === 'choose-skills' && selectedRace) {
+      <div class="skill-choice-screen">
+        <p class="hint">Choose one skill from each level to add to your character.</p>
+        
+        @for (raceSkill of pendingSkillChoices; track raceSkill.levelRequired) {
+          <div class="skill-choice-group">
+            <h3>Level {{ raceSkill.levelRequired }}</h3>
+            <p class="choice-hint">Choose one:</p>
+            <div class="skill-options">
+              @for (skill of raceSkill.skills; track skill.name) {
+                <div class="skill-option" (click)="onSkillChoice(raceSkill, skill)">
+                  <div class="skill-name">{{ skill.name }}</div>
+                  <div class="skill-type">{{ skill.type }}</div>
+                  <div class="skill-desc">{{ skill.description }}</div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
     }
   </div>
 </div>

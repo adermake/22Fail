@@ -21,6 +21,7 @@ export interface CharacterSheet {
   name: string;
   race: string;
   raceId?: string; // Reference to the Race object in races.json
+  selectedRacialSkills?: { [level: number]: string }; // Maps level to selected skill name for racial skill choices
   age: number;
   alignment: string;
   size: string;

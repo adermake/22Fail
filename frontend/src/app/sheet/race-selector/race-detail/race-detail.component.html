@@ -86,13 +86,36 @@
       <h3>Racial Skills</h3>
       <div class="skills-list">
         @for (raceSkill of race.skills; track $index) {
-          <div class="skill-item">
+          <div class="skill-group">
             <div class="skill-level">Lvl {{ raceSkill.levelRequired }}</div>
-            <div class="skill-info">
-              <div class="skill-name">{{ raceSkill.skill.name }}</div>
-              <div class="skill-type">{{ raceSkill.skill.type }}</div>
-              <div class="skill-desc">{{ raceSkill.skill.description }}</div>
-            </div>
+            @if (raceSkill.isChoice) {
+              <div class="skill-choice-container">
+                @for (skill of raceSkill.skills; track skill.name; let last = $last) {
+                  <div class="skill-item clickable" 
+                       [class.selected]="isSkillSelected(raceSkill, skill)"
+                       (click)="onSelectSkill(raceSkill, skill)">
+                    <div class="skill-info">
+                      <div class="skill-name">{{ skill.name }}</div>
+                      <div class="skill-type">{{ skill.type }}</div>
+                      <div class="skill-desc">{{ skill.description }}</div>
+                    </div>
+                  </div>
+                  @if (!last) {
+                    <div class="skill-choice-or">OR</div>
+                  }
+                }
+              </div>
+            } @else {
+              @for (skill of raceSkill.skills; track skill.name) {
+                <div class="skill-item">
+                  <div class="skill-info">
+                    <div class="skill-name">{{ skill.name }}</div>
+                    <div class="skill-type">{{ skill.type }}</div>
+                    <div class="skill-desc">{{ skill.description }}</div>
+                  </div>
+                </div>
+              }
+            }
           </div>
         }
       </div>
