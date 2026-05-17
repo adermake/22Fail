@@ -1,158 +1,228 @@
-<div class="edit-screen">
-  <h2>{{ isCreate ? 'Create New Race' : 'Edit Race' }}</h2>
+﻿<div class="rf-wrap">
 
-  <div class="form-section">
-    <h3>Basic Info</h3>
-    <div class="form-row">
-      <div class="form-field">
-        <label>Name *</label>
-        <input type="text" [(ngModel)]="race.name" placeholder="Race name">
-      </div>
-      <div class="form-field">
-        <label>Age Range</label>
-        <input type="text" [(ngModel)]="race.ageRange" placeholder="e.g., 60-80">
-      </div>
+  <!-- Top bar -->
+  <div class="rf-topbar">
+    <div class="rf-topbar-left">
+      <button class="rf-back" (click)="onCancel()">&#x2190; Zur&uuml;ck</button>
+      <h2 class="rf-title">{{ isCreate ? 'Neue Rasse' : 'Rasse bearbeiten' }}</h2>
     </div>
-
-    <div class="form-field">
-      <label>Base Image</label>
-      <div class="image-upload">
-        @if (pendingImagePreview) {
-          <img [src]="pendingImagePreview" class="preview-image">
-        } @else if (race.baseImage) {
-          <img [src]="race.baseImage | imageUrl" class="preview-image">
-        }
-        <input type="file" accept="image/*" (change)="onImageSelect($event)">
-      </div>
-    </div>
-
-    <div class="form-field">
-      <label>Lore</label>
-      <textarea [(ngModel)]="race.lore" rows="4" placeholder="Race description and lore..."></textarea>
+    <div class="rf-topbar-right">
+      @if (!isCreate) {
+        <button class="rf-btn-del" (click)="onDelete()" [disabled]="saving">L&ouml;schen</button>
+      }
+      <button class="rf-btn-cancel" (click)="onCancel()" [disabled]="saving">Abbrechen</button>
+      <button class="rf-btn-save" (click)="onSave()" [disabled]="saving || !race.name?.trim()">
+        {{ saving ? 'Speichert...' : (isCreate ? 'Erstellen' : 'Speichern') }}
+      </button>
     </div>
   </div>
 
-  <div class="form-section">
-    <h3>Resources</h3>
-    <div class="resources-edit-grid">
-      <div class="resource-edit-row health">
-        <span class="resource-icon">❤</span>
-        <label>Health</label>
-        <input type="number" [(ngModel)]="race.baseHealth">
+  <!-- Body: 2 columns -->
+  <div class="rf-body">
+
+    <!-- LEFT: Identity -->
+    <div class="rf-col rf-col-left">
+
+      <div class="rf-field">
+        <label class="rf-label">Name *</label>
+        <input class="rf-input" type="text" [(ngModel)]="race.name"
+               [class.rf-invalid]="!race.name?.trim()"
+               placeholder="Rassenname...">
       </div>
-      <div class="resource-edit-row energy">
-        <span class="resource-icon">⚡</span>
-        <label>Energy</label>
-        <input type="number" [(ngModel)]="race.baseEnergy">
+
+      <!-- Meta row: Age / Size / Weight -->
+      <div class="rf-meta-row">
+        <div class="rf-field">
+          <label class="rf-label">Altersbereich</label>
+          <input class="rf-input" type="text" [(ngModel)]="race.ageRange" placeholder="z.B. 60-80">
+        </div>
+        <div class="rf-field">
+          <label class="rf-label">Gr&ouml;&szlig;e</label>
+          <input class="rf-input" type="text" [(ngModel)]="race.size" placeholder="z.B. 1.7m">
+        </div>
+        <div class="rf-field">
+          <label class="rf-label">Gewicht</label>
+          <input class="rf-input" type="text" [(ngModel)]="race.weight" placeholder="mittel">
+        </div>
       </div>
-      <div class="resource-edit-row mana">
-        <span class="resource-icon">✦</span>
-        <label>Mana</label>
-        <input type="number" [(ngModel)]="race.baseMana">
+
+      <!-- Image -->
+      <div class="rf-field">
+        <label class="rf-label">Bild</label>
+        <div class="rf-img-row">
+          @if (pendingImagePreview) {
+            <img [src]="pendingImagePreview" class="rf-preview">
+          } @else if (race.baseImage) {
+            <img [src]="race.baseImage | imageUrl" class="rf-preview">
+          } @else {
+            <div class="rf-preview rf-preview-empty">&#x1F5BC;</div>
+          }
+          <label class="rf-file-btn">
+            Bild w&auml;hlen
+            <input type="file" accept="image/*" (change)="onImageSelect($event)" style="display:none">
+          </label>
+        </div>
       </div>
+
+      <!-- Lore -->
+      <div class="rf-field rf-field-flex">
+        <label class="rf-label">Hintergrund / Lore</label>
+        <textarea class="rf-textarea" [(ngModel)]="race.lore"
+                  placeholder="Beschreibung der Rasse..."></textarea>
+      </div>
+
     </div>
-  </div>
 
-  <div class="form-section">
-    <h3>Attributes & Per-Level Gains</h3>
-    <div class="stats-edit-grid">
-      <div class="stat-edit-row">
-        <label>Strength</label>
-        <input type="number" [(ngModel)]="race.baseStrength">
-        <span>+</span>
-        <input type="number" [(ngModel)]="race.strengthPerLevel">
-        <span>/lvl</span>
-      </div>
-      <div class="stat-edit-row">
-        <label>Dexterity</label>
-        <input type="number" [(ngModel)]="race.baseDexterity">
-        <span>+</span>
-        <input type="number" [(ngModel)]="race.dexterityPerLevel">
-        <span>/lvl</span>
-      </div>
-      <div class="stat-edit-row">
-        <label>Speed</label>
-        <input type="number" [(ngModel)]="race.baseSpeed">
-        <span>+</span>
-        <input type="number" [(ngModel)]="race.speedPerLevel">
-        <span>/lvl</span>
-      </div>
-      <div class="stat-edit-row">
-        <label>Intelligence</label>
-        <input type="number" [(ngModel)]="race.baseIntelligence">
-        <span>+</span>
-        <input type="number" [(ngModel)]="race.intelligencePerLevel">
-        <span>/lvl</span>
-      </div>
-      <div class="stat-edit-row">
-        <label>Constitution</label>
-        <input type="number" [(ngModel)]="race.baseConstitution">
-        <span>+</span>
-        <input type="number" [(ngModel)]="race.constitutionPerLevel">
-        <span>/lvl</span>
-      </div>
-      <div class="stat-edit-row">
-        <label>Chill</label>
-        <input type="number" [(ngModel)]="race.baseChill">
-        <span>+</span>
-        <input type="number" [(ngModel)]="race.chillPerLevel">
-        <span>/lvl</span>
-      </div>
-    </div>
-  </div>
+    <!-- RIGHT: Stats + Skills -->
+    <div class="rf-col rf-col-right">
 
-  <div class="form-section">
-    <h3>Racial Skills</h3>
+      <!-- Resources -->
+      <div class="rf-section">
+        <span class="rf-section-title">Ressourcen</span>
+        <div class="rf-res-grid">
 
-    @if (race.skills.length > 0) {
-      <div class="skills-edit-list">
-        @for (raceSkill of race.skills; track $index) {
-          <div class="skill-edit-item">
-            <span class="skill-level">Lvl {{ raceSkill.levelRequired }}</span>
-            @for (skill of raceSkill.skills; track skill.name) {
-              <span class="skill-name">{{ skill.name }}</span>
-              <span class="skill-type">({{ skill.type }})</span>
-            }
-            <button class="btn-remove" (click)="removeSkillFromRace($index)">&times;</button>
+          <div class="rf-res-row" data-res="health">
+            <span class="rf-res-icon">&#x2764;</span>
+            <span class="rf-res-name">Leben</span>
+            <div class="rf-field rf-field-num">
+              <label class="rf-label">Basis</label>
+              <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseHealth">
+            </div>
+            <span class="rf-sep">+</span>
+            <div class="rf-field rf-field-num">
+              <label class="rf-label">/Lvl</label>
+              <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.healthPerLevel">
+            </div>
           </div>
-        }
-      </div>
-    }
 
-    <div class="add-skill-form">
-      <h4>Add Skill</h4>
-      <div class="form-row">
-        <div class="form-field small">
-          <label>Level</label>
-          <input type="number" [(ngModel)]="newSkillLevelRequired" min="1">
-        </div>
-        <div class="form-field">
-          <label>Name</label>
-          <input type="text" [(ngModel)]="newSkill.name" placeholder="Skill name">
-        </div>
-        <div class="form-field small">
-          <label>Type</label>
-          <select [(ngModel)]="newSkill.type">
-            <option value="passive">Passive</option>
-            <option value="active">Active</option>
-          </select>
+          <div class="rf-res-row" data-res="energy">
+            <span class="rf-res-icon">&#x26A1;</span>
+            <span class="rf-res-name">Ausdauer</span>
+            <div class="rf-field rf-field-num">
+              <label class="rf-label">Basis</label>
+              <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseEnergy">
+            </div>
+            <span class="rf-sep">+</span>
+            <div class="rf-field rf-field-num">
+              <label class="rf-label">/Lvl</label>
+              <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.energyPerLevel">
+            </div>
+          </div>
+
+          <div class="rf-res-row" data-res="mana">
+            <span class="rf-res-icon">&#x1F4A7;</span>
+            <span class="rf-res-name">Mana</span>
+            <div class="rf-field rf-field-num">
+              <label class="rf-label">Basis</label>
+              <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseMana">
+            </div>
+            <span class="rf-sep">+</span>
+            <div class="rf-field rf-field-num">
+              <label class="rf-label">/Lvl</label>
+              <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.manaPerLevel">
+            </div>
+          </div>
+
         </div>
       </div>
-      <div class="form-field">
-        <label>Description</label>
-        <textarea [(ngModel)]="newSkill.description" rows="2" placeholder="Skill description"></textarea>
+
+      <!-- Attributes -->
+      <div class="rf-section">
+        <span class="rf-section-title">Attribute</span>
+        <div class="rf-stat-grid">
+
+          <div class="rf-stat-row">
+            <span class="rf-stat-name">St&auml;rke</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseStrength">
+            <span class="rf-sep">+</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.strengthPerLevel">
+            <span class="rf-lvl">/Lvl</span>
+          </div>
+          <div class="rf-stat-row">
+            <span class="rf-stat-name">Geschick</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseDexterity">
+            <span class="rf-sep">+</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.dexterityPerLevel">
+            <span class="rf-lvl">/Lvl</span>
+          </div>
+          <div class="rf-stat-row">
+            <span class="rf-stat-name">Tempo</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseSpeed">
+            <span class="rf-sep">+</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.speedPerLevel">
+            <span class="rf-lvl">/Lvl</span>
+          </div>
+          <div class="rf-stat-row">
+            <span class="rf-stat-name">Intelligenz</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseIntelligence">
+            <span class="rf-sep">+</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.intelligencePerLevel">
+            <span class="rf-lvl">/Lvl</span>
+          </div>
+          <div class="rf-stat-row">
+            <span class="rf-stat-name">Konstitution</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseConstitution">
+            <span class="rf-sep">+</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.constitutionPerLevel">
+            <span class="rf-lvl">/Lvl</span>
+          </div>
+          <div class="rf-stat-row">
+            <span class="rf-stat-name">Wille</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseChill">
+            <span class="rf-sep">+</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.chillPerLevel">
+            <span class="rf-lvl">/Lvl</span>
+          </div>
+
+        </div>
       </div>
-      <button class="btn btn-secondary" (click)="addSkillToRace()">+ Add Skill</button>
+
+      <!-- Racial Skills -->
+      <div class="rf-section rf-skills-section">
+        <div class="rf-section-header">
+          <span class="rf-section-title">Rassenfähigkeiten</span>
+        </div>
+
+        @if (race.skills.length > 0) {
+          <div class="rf-skill-list">
+            @for (rs of race.skills; track $index) {
+              <div class="rf-skill-item">
+                <span class="rf-skill-lvl" title="Ab Level {{ rs.levelRequired }}">Lvl {{ rs.levelRequired }}</span>
+                <span class="rf-skill-type-icon">{{ getTypeIcon(rs.skills[0].type) }}</span>
+                <span class="rf-skill-name">{{ rs.skills[0].name }}</span>
+                <span class="rf-skill-type-badge">{{ getTypeLabel(rs.skills[0].type) }}</span>
+                <button class="rf-skill-edit" (click)="openEditSkillEditor($index)" title="Bearbeiten">&#x270F;</button>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="rf-empty-hint">Noch keine Rassenfähigkeiten.</div>
+        }
+
+        <!-- Add skill row -->
+        <div class="rf-add-skill-row">
+          <div class="rf-field rf-field-num">
+            <label class="rf-label">Ab Level</label>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="pendingSkillLevel" min="1">
+          </div>
+          <button class="rf-btn-add" (click)="openNewSkillEditor()">
+            + Fähigkeit hinzufügen
+          </button>
+        </div>
+
+      </div>
+
     </div>
   </div>
 
-  <div class="actions">
-    <button class="btn btn-primary" (click)="onSave()" [disabled]="saving">
-      {{ saving ? 'Saving...' : 'Save Race' }}
-    </button>
-    <button class="btn btn-secondary" (click)="onCancel()" [disabled]="saving">Cancel</button>
-    @if (!isCreate) {
-      <button class="btn btn-danger" (click)="onDelete()" [disabled]="saving">Delete Race</button>
-    }
-  </div>
 </div>
+
+<!-- Skill Editor Overlay -->
+@if (showSkillEditor) {
+  <app-skill-editor
+    [skill]="skillEditorSkill"
+    (save)="onSkillEditorSave($event)"
+    (cancel)="closeSkillEditor()"
+    (delete)="onSkillEditorDelete()">
+  </app-skill-editor>
+}
