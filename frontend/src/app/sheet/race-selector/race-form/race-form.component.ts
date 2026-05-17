@@ -40,7 +40,8 @@ export class RaceFormComponent {
 
     const raceSkill: RaceSkill = {
       levelRequired: this.newSkillLevelRequired,
-      skill: { ...this.newSkill }
+      skills: [{ ...this.newSkill }],
+      isChoice: false
     };
 
     this.race.skills.push(raceSkill);

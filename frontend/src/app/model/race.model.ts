@@ -1,5 +1,8 @@
 import { SkillBlock } from './skill-block.model';
 
+// Re-export SkillBlock for convenience
+export { SkillBlock } from './skill-block.model';
+
 /**
  * A skill that unlocks at a certain level for a race
  * Can have multiple skill options to choose from (dual paths)

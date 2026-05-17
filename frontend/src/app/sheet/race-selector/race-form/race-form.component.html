@@ -109,8 +109,10 @@
         @for (raceSkill of race.skills; track $index) {
           <div class="skill-edit-item">
             <span class="skill-level">Lvl {{ raceSkill.levelRequired }}</span>
-            <span class="skill-name">{{ raceSkill.skill.name }}</span>
-            <span class="skill-type">({{ raceSkill.skill.type }})</span>
+            @for (skill of raceSkill.skills; track skill.name) {
+              <span class="skill-name">{{ skill.name }}</span>
+              <span class="skill-type">({{ skill.type }})</span>
+            }
             <button class="btn-remove" (click)="removeSkillFromRace($index)">&times;</button>
           </div>
         }
