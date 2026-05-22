@@ -83,6 +83,7 @@ export interface Token {
   team?: string; // Team color for grouping
   isQuickToken?: boolean; // True if created on-the-fly (not from character list)
   movementSpeed?: number; // Movement speed in hexes
+  statblockId?: string; // Links NPC quick tokens to their statblock for quick-view
 }
 
 // ============================================

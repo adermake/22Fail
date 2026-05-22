@@ -113,6 +113,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Output() tokenMove = new EventEmitter<{ tokenId: string; position: HexCoord }>();
   @Output() tokenRemove = new EventEmitter<string>();
   @Output() quickTokenDrop = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
+  @Output() tokenCombatAdd = new EventEmitter<string>(); // Emits tokenId
+  @Output() tokenCombatRemove = new EventEmitter<string>(); // Emits tokenId
+  @Output() tokenClick = new EventEmitter<string>(); // Emits tokenId for quick view
+  @Output() npcStatblockDrop = new EventEmitter<{ statblockId: string; name: string; portrait: string; position: HexCoord }>();
   @Output() imageSelect = new EventEmitter<string | null>();
   @Output() imageTransform = new EventEmitter<{ id: string; transform: Partial<MapImage> }>();
   @Output() imageDelete = new EventEmitter<string>();
@@ -4549,6 +4553,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         tokenId: this.draggingToken.id,
         position: targetHex,
       });
+    } else if (startHex && targetHex && startHex.q === targetHex.q && startHex.r === targetHex.r) {
+      // No movement — treat as a click for quick view
+      this.tokenClick.emit(this.draggingToken.id);
     }
 
     this.draggingToken = null;
@@ -5011,6 +5018,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
           characterId: dropData.characterId,
           position: hex,
         });
+      } else if (dropData.type === 'npc-statblock') {
+        this.npcStatblockDrop.emit({
+          statblockId: dropData.statblockId,
+          name: dropData.name,
+          portrait: dropData.portrait || '',
+          position: hex,
+        });
       } else if (dropData.type === 'quickToken') {
         this.quickTokenDrop.emit({
           name: dropData.name,
@@ -5051,6 +5065,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
           this.tokenDrop.emit({
             characterId: data.characterId,
             position: hex
+          });
+          return;
+        }
+
+        if (data.type === 'npc-statblock') {
+          // NPC statblock token drop
+          this.npcStatblockDrop.emit({
+            statblockId: data.statblockId,
+            name: data.name,
+            portrait: data.portrait || '',
+            position: hex,
           });
           return;
         }
@@ -5173,6 +5198,22 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const tokenId = this.contextMenuTokenId();
     if (tokenId) {
       this.tokenRemove.emit(tokenId);
+    }
+    this.showContextMenu.set(false);
+  }
+
+  onAddTokenToCombat(): void {
+    const tokenId = this.contextMenuTokenId();
+    if (tokenId) {
+      this.tokenCombatAdd.emit(tokenId);
+    }
+    this.showContextMenu.set(false);
+  }
+
+  onRemoveTokenFromCombat(): void {
+    const tokenId = this.contextMenuTokenId();
+    if (tokenId) {
+      this.tokenCombatRemove.emit(tokenId);
     }
     this.showContextMenu.set(false);
   }

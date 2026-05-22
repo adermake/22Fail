@@ -38,6 +38,13 @@
   <div class="tab-content">
     <!-- Characters Tab -->
     @if (activeTab() === 'characters') {
+      <!-- Sub-tab: Spieler / NSCs -->
+      <div class="char-subtabs">
+        <button class="subtab-btn" [class.active]="charSubTab() === 'players'" (click)="charSubTab.set('players')">Spieler</button>
+        <button class="subtab-btn" [class.active]="charSubTab() === 'npcs'" (click)="charSubTab.set('npcs')">NSCs</button>
+      </div>
+
+      @if (charSubTab() === 'players') {
       <div class="character-list">
         @for (char of filteredCharacters; track char.id) {
           <div 
@@ -62,7 +69,7 @@
               </div>
             </div>
             @if (isTokenOnMap(char.id)) {
-              <span class="on-map-badge" title="Token on map">🎯</span>
+              <span class="on-map-badge" title="Token auf der Karte">🎯</span>
             }
           </div>
         }
@@ -70,14 +77,50 @@
         @if (filteredCharacters.length === 0) {
           <div class="empty-state">
             @if (searchQuery()) {
-              <p>No characters match "{{ searchQuery() }}"</p>
+              <p>Keine Charaktere für "{{ searchQuery() }}"</p>
             } @else {
-              <p>No characters in this world</p>
-              <p class="hint">Add characters in the World view</p>
+              <p>Keine Charaktere in dieser Welt</p>
+              <p class="hint">Charaktere in der Weltansicht hinzufügen</p>
             }
           </div>
         }
       </div>
+      } @else {
+      <!-- NSC Statblocks -->
+      <div class="character-list">
+        @for (npc of npcStatblocks; track npc.id) {
+          <div
+            class="character-item npc-item"
+            draggable="true"
+            (dragstart)="onNpcDragStart($event, npc)"
+          >
+            <div class="char-portrait">
+              @if (npc.statblock.defaultPortrait) {
+                <img [src]="npc.statblock.defaultPortrait | imageUrl" alt="" />
+              } @else {
+                <div class="char-placeholder npc-icon">👾</div>
+              }
+            </div>
+            <div class="char-info">
+              <div class="char-name">{{ npc.name }}</div>
+              <div class="char-meta">
+                <span>Lv.{{ npc.statblock.level }}</span>
+                @if (npc.statblock.raceName) {
+                  <span>· {{ npc.statblock.raceName }}</span>
+                }
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (npcStatblocks.length === 0) {
+          <div class="empty-state">
+            <p>Keine NSC-Statblöcke verknüpft</p>
+            <p class="hint">Bibliotheken in der Weltansicht verknüpfen</p>
+          </div>
+        }
+      </div>
+      }
     }
 
     <!-- Images Tab -->

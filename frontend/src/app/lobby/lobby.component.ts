@@ -21,7 +21,9 @@ import { CharacterApiService } from '../services/character-api.service';
 import { ImageService } from '../services/image.service';
 import { TextureService } from '../services/texture.service';
 import { TrueStatsService } from '../services/true-stats.service';
+import { AssetBrowserApiService } from '../services/asset-browser-api.service';
 import { CharacterSheet } from '../model/character-sheet-model';
+import { NpcStatblock } from '../model/npc-statblock.model';
 import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture } from '../model/lobby.model';
 
 import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
@@ -61,6 +63,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   private imageService = inject(ImageService);
   private textureService = inject(TextureService);
   private trueStats = inject(TrueStatsService);
+  private assetBrowserApi = inject(AssetBrowserApiService);
   private cdr = inject(ChangeDetectorRef);
 
   @ViewChild(LobbyGridComponent) gridComponent?: LobbyGridComponent;
@@ -77,6 +80,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   // World state
   worldCharacters = signal<{ id: string; sheet: CharacterSheet }[]>([]);
+  npcStatblocks = signal<{ id: string; name: string; statblock: NpcStatblock }[]>([]);
 
   // Dice roll history
   rollHistory = signal<DiceRollEvent[]>([]);
@@ -169,6 +173,25 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // Battle tracker visibility
   showBattleTracker = signal(true);
 
+  // Selected token for quick view panel
+  selectedTokenId = signal<string | null>(null);
+
+  // Computed: selected token quick view data
+  selectedTokenInfo = computed(() => {
+    const tokenId = this.selectedTokenId();
+    if (!tokenId) return null;
+    const token = this.enrichedTokens().find(t => t.id === tokenId);
+    if (!token) return null;
+
+    if (token.statblockId) {
+      const npc = this.npcStatblocks().find(n => n.id === token.statblockId);
+      return { token, type: 'npc' as const, npc: npc?.statblock ?? null, character: null };
+    }
+
+    const character = this.worldCharacters().find(c => c.id === token.characterId);
+    return { token, type: 'character' as const, character: character?.sheet ?? null, npc: null };
+  });
+
   ngOnInit(): void {
     // Connect battle engine to world store for persistence (mirrors world view)
     this.battleEngine.setWorldStore(this.worldStore);
@@ -213,6 +236,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
         await this.worldStore.load(worldName);
         console.log('[Lobby] World loaded, characterIds:', this.worldStore.worldValue?.characterIds);
         await this.loadWorldCharacters();
+        await this.loadNpcStatblocks();
         
         // Initial load of battle tracker
         this.battleEngine.loadFromWorldStore();
@@ -303,15 +327,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   private async loadWorldCharacters(): Promise<void> {
-    // Load ALL characters from the system, not just world.characterIds
-    // This allows players to access any character they need
-    console.log('[Lobby] Loading all characters from system');
+    // Load only characters assigned to this world
+    const worldCharacterIds = this.worldStore.worldValue?.characterIds ?? [];
+    console.log('[Lobby] Loading world characters:', worldCharacterIds.length, worldCharacterIds);
     
     const characters: { id: string; sheet: CharacterSheet }[] = [];
 
     try {
-      const allCharacterIds = await this.characterApi.getAllCharacterIds();
-      console.log('[Lobby] Found total characters:', allCharacterIds.length);
+      const allCharacterIds = worldCharacterIds.length > 0
+        ? worldCharacterIds
+        : await this.characterApi.getAllCharacterIds();
+      console.log('[Lobby] Loading characters:', allCharacterIds.length);
       
       for (const charId of allCharacterIds) {
         try {
@@ -352,6 +378,27 @@ export class LobbyComponent implements OnInit, OnDestroy {
     setTimeout(() => {
       this.cdr.detectChanges();
     }, 0);
+  }
+
+  private async loadNpcStatblocks(): Promise<void> {
+    const linkedLibraries = this.worldStore.worldValue?.linkedLibraries ?? [];
+    if (linkedLibraries.length === 0) return;
+
+    const statblocks: { id: string; name: string; statblock: NpcStatblock }[] = [];
+    for (const libraryId of linkedLibraries) {
+      try {
+        const files = await this.assetBrowserApi.searchFiles(libraryId, '', ['statblock']).toPromise();
+        if (files) {
+          for (const file of files) {
+            statblocks.push({ id: file.id, name: file.name, statblock: file.data as NpcStatblock });
+          }
+        }
+      } catch (e) {
+        console.warn('[Lobby] Failed to load statblocks from library:', libraryId, e);
+      }
+    }
+    this.npcStatblocks.set(statblocks);
+    this.cdr.markForCheck();
   }
 
   ngOnDestroy(): void {
@@ -535,6 +582,36 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   onTokenRemove(tokenId: string): void {
     this.store.removeToken(tokenId);
+  }
+
+  onTokenCombatAdd(tokenId: string): void {
+    const token = this.enrichedTokens().find(t => t.id === tokenId);
+    if (!token) return;
+    this.battleEngine.addCharacter(token.characterId);
+  }
+
+  onTokenCombatRemove(tokenId: string): void {
+    const token = this.enrichedTokens().find(t => t.id === tokenId);
+    if (!token) return;
+    this.battleEngine.removeCharacter(token.characterId);
+  }
+
+  onTokenClick(tokenId: string): void {
+    this.selectedTokenId.set(tokenId === this.selectedTokenId() ? null : tokenId);
+  }
+
+  onNpcStatblockDrop(data: { statblockId: string; name: string; portrait: string; position: HexCoord }): void {
+    const characterId = 'npc-' + data.statblockId + '-' + Date.now();
+    this.store.addToken({
+      characterId,
+      name: data.name,
+      portrait: data.portrait || undefined,
+      position: data.position,
+      team: 'red',
+      isQuickToken: true,
+      statblockId: data.statblockId,
+    });
+    this.currentTool.set('cursor');
   }
 
   // ============================================

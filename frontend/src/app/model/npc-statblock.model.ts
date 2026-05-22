@@ -150,6 +150,9 @@ export interface NpcStatblock {
   // Ausrüstung
   equipment: ItemBlock[];
 
+  // Token-Bild
+  defaultPortrait?: string; // Image ID used as token head when dragging onto map
+
   // Auto-Generierungseinstellungen (Humanoid)
   primaryClassTarget: string;
   secondaryClassTarget: string;

@@ -157,7 +157,10 @@
         <button class="danger" (click)="onDeleteSelectedImage()">Delete Image</button>
       } @else if (contextMenuTokenId()) {
         <!-- Token context menu -->
-        <button class="danger" (click)="onRemoveToken()">🗑️ Remove Token</button>
+        <button (click)="onAddTokenToCombat()">⚔️ Zum Kampf hinzufügen</button>
+        <button (click)="onRemoveTokenFromCombat()">🚪 Aus Kampf entfernen</button>
+        <div class="menu-divider"></div>
+        <button class="danger" (click)="onRemoveToken()">🗑️ Token entfernen</button>
       } @else if (contextMenuHex()) {
         <!-- Quick token creation menu -->
         <div class="quick-token-form">

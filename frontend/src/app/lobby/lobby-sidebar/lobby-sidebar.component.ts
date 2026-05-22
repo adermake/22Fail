@@ -11,6 +11,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { Token, LibraryImage, LibraryTexture } from '../../model/lobby.model';
+import { NpcStatblock } from '../../model/npc-statblock.model';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 @Component({
@@ -29,6 +30,7 @@ export class LobbySidebarComponent {
   @Input() textures: LibraryTexture[] = [];
   @Input() isGM = false;
   @Input() selectedTextureId: string | null = null;
+  @Input() npcStatblocks: { id: string; name: string; statblock: NpcStatblock }[] = [];
 
   // Outputs
   @Output() loadImages = new EventEmitter<FileList>();
@@ -37,9 +39,11 @@ export class LobbySidebarComponent {
   @Output() dragStart = new EventEmitter<LibraryImage>();
   @Output() loadTextures = new EventEmitter<FileList>();
   @Output() selectTexture = new EventEmitter<string | null>();
+  @Output() npcDragStart = new EventEmitter<{ id: string; name: string; portrait?: string }>();
 
   // Local state
   activeTab = signal<'characters' | 'images' | 'textures'>('characters');
+  charSubTab = signal<'players' | 'npcs'>('players');
   editingImageId = signal<string | null>(null);
   editingName = signal('');
   searchQuery = signal('');
@@ -55,6 +59,16 @@ export class LobbySidebarComponent {
       type: 'character',
       characterId: charId
     }));
+  }
+
+  onNpcDragStart(event: DragEvent, npc: { id: string; name: string; statblock: NpcStatblock }): void {
+    event.dataTransfer?.setData('text/plain', JSON.stringify({
+      type: 'npc-statblock',
+      statblockId: npc.id,
+      name: npc.name,
+      portrait: npc.statblock.defaultPortrait || ''
+    }));
+    this.npcDragStart.emit({ id: npc.id, name: npc.name, portrait: npc.statblock.defaultPortrait });
   }
 
   isTokenOnMap(charId: string): boolean {
