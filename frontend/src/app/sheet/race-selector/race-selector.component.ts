@@ -4,7 +4,6 @@ import { Race, createEmptyRace, RaceSkill, SkillBlock } from '../../model/race.m
 import { RaceService } from '../../services/race.service';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
-import { RaceCardComponent } from './race-card/race-card.component';
 import { RaceFormComponent } from './race-form/race-form.component';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
@@ -16,7 +15,7 @@ type ViewMode = 'skills' | 'select' | 'create' | 'edit';
 @Component({
   selector: 'app-race-selector',
   standalone: true,
-  imports: [CommonModule, RaceCardComponent, RaceFormComponent, ImageUrlPipe],
+  imports: [CommonModule, RaceFormComponent, ImageUrlPipe],
   templateUrl: './race-selector.component.html',
   styleUrl: './race-selector.component.css'
 })

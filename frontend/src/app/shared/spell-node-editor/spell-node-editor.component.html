@@ -29,7 +29,7 @@
             </div>
             <div class="palette-rune-info">
               <div class="palette-rune-name">{{ rune.name === NEUTRAL_RUNE_ID ? 'Neutral' : rune.name }}</div>
-              @if (rune.name !== NEUTRAL_RUNE_ID && rune.tags?.length) {
+              @if (rune.name !== NEUTRAL_RUNE_ID && rune.tags.length) {
                 <div class="palette-rune-tags">{{ rune.tags!.join(' · ') }}</div>
               }
             </div>
@@ -313,7 +313,7 @@
             <img class="ri-img" [src]="inspectedRune.drawing | imageUrl" [alt]="inspectedRune.name"/>
           }
           <h3 class="ri-name" [style.color]="inspectedRune.glowColor || '#a78bfa'">{{ inspectedRune.name }}</h3>
-          @if (inspectedRune.tags?.length) {
+          @if (inspectedRune.tags.length) {
             <div class="ri-tags">
               @for (t of inspectedRune.tags; track t) {
                 <span class="ri-tag">{{ t }}</span>

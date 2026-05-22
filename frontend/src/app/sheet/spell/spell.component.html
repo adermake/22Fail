@@ -25,7 +25,7 @@
     }
 
     <!-- Tags -->
-    @if (spell.tags?.length) {
+    @if (spell.tags.length) {
       <div class="scv-tags">
         @for (tag of spell.tags; track tag) {
           <span class="scv-tag">{{ tag }}</span>

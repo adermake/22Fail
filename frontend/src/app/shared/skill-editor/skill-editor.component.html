@@ -16,7 +16,7 @@
         <div class="se-field">
           <label class="se-label">Name</label>
           <input class="se-input" type="text" [(ngModel)]="editSkill.name"
-                 [class.se-invalid]="!editSkill.name?.trim()"
+                 [class.se-invalid]="!editSkill.name.trim()"
                  placeholder="F&auml;higkeitsname...">
         </div>
 
@@ -275,7 +275,7 @@
       }
       <div class="se-footer-right">
         <button class="se-btn-cancel" (click)="cancelEdit()">Abbrechen</button>
-        <button class="se-btn-save" (click)="saveSkill()" [disabled]="!editSkill.name?.trim()">
+        <button class="se-btn-save" (click)="saveSkill()" [disabled]="!editSkill.name.trim()">
           {{ isNewSkill ? 'Erstellen' : 'Speichern' }}
         </button>
       </div>

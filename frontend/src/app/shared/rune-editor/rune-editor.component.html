@@ -14,7 +14,7 @@
         <button class="cancel-btn" (click)="cancelEdit()">Abbrechen</button>
         <button class="save-btn"
                 (click)="saveRune()"
-                [disabled]="!editRune.name?.trim() || isSavingCanvas()">
+                [disabled]="!editRune.name.trim() || isSavingCanvas()">
           {{ isSavingCanvas() ? 'Speichert…' : (isNewRune ? 'Erstellen' : 'Speichern') }}
         </button>
         <button class="close-btn" (click)="cancelEdit()">×</button>
@@ -34,7 +34,7 @@
           <div class="form-group">
             <label>Name *</label>
             <input type="text" [(ngModel)]="editRune.name"
-                   [class.input-empty]="!editRune.name?.trim()"
+                   [class.input-empty]="!editRune.name.trim()"
                    placeholder="Runenname…">
           </div>
 

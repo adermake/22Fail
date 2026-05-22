@@ -20,8 +20,8 @@ export interface MaterialStats {
   extraEffect: string;             // Free-text extra effect granted to the item
   weight: number;                  // Weight contribution (kg)
   ruestungsmalus?: number;         // Speed penalty — armor only
-  reqBase: number;                 // Base stat requirement contribution
-  reqScaling: number;              // Per-forge stat requirement increase
+  reqBase?: number;                // Base stat requirement contribution
+  reqScaling?: number;             // Per-forge stat requirement increase
 }
 
 export interface MaterialBlock {
