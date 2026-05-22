@@ -84,6 +84,9 @@ export interface Token {
   isQuickToken?: boolean; // True if created on-the-fly (not from character list)
   movementSpeed?: number; // Movement speed in hexes
   statblockId?: string; // Links NPC quick tokens to their statblock for quick-view
+  currentHealth?: number; // Per-token HP override (undefined = use sheet value)
+  currentMana?: number;   // Per-token Mana override
+  currentEnergy?: number; // Per-token Energy override
 }
 
 // ============================================

@@ -10,14 +10,18 @@ import { Component, Input, Output, EventEmitter, signal, ChangeDetectionStrategy
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
-import { Token, LibraryImage, LibraryTexture } from '../../model/lobby.model';
+import { Token, LibraryImage, LibraryTexture, Layer, LayerType } from '../../model/lobby.model';
 import { NpcStatblock } from '../../model/npc-statblock.model';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
+import { DiceRollEvent } from '../../services/world-socket.service';
+import { LobbyLayerPanelComponent } from '../lobby-layer-panel/lobby-layer-panel.component';
+
+type SidebarTab = 'characters' | 'images' | 'textures' | 'layers' | 'rolls';
 
 @Component({
   selector: 'app-lobby-sidebar',
   standalone: true,
-  imports: [CommonModule, FormsModule, ImageUrlPipe],
+  imports: [CommonModule, FormsModule, ImageUrlPipe, LobbyLayerPanelComponent],
   templateUrl: './lobby-sidebar.component.html',
   styleUrls: ['./lobby-sidebar.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,6 +35,9 @@ export class LobbySidebarComponent {
   @Input() isGM = false;
   @Input() selectedTextureId: string | null = null;
   @Input() npcStatblocks: { id: string; name: string; statblock: NpcStatblock }[] = [];
+  @Input() layers: Layer[] = [];
+  @Input() activeLayerId: string | null = null;
+  @Input() rolls: DiceRollEvent[] = [];
 
   // Outputs
   @Output() loadImages = new EventEmitter<FileList>();
@@ -40,17 +47,43 @@ export class LobbySidebarComponent {
   @Output() loadTextures = new EventEmitter<FileList>();
   @Output() selectTexture = new EventEmitter<string | null>();
   @Output() npcDragStart = new EventEmitter<{ id: string; name: string; portrait?: string }>();
+  @Output() layerSelect = new EventEmitter<string>();
+  @Output() layerToggleVisible = new EventEmitter<string>();
+  @Output() layerToggleLock = new EventEmitter<string>();
+  @Output() layerDelete = new EventEmitter<string>();
+  @Output() layerRename = new EventEmitter<{ id: string; name: string }>();
+  @Output() layerReorder = new EventEmitter<Layer[]>();
+  @Output() layerAdd = new EventEmitter<LayerType>();
 
   // Local state
-  activeTab = signal<'characters' | 'images' | 'textures'>('characters');
+  activeTab = signal<SidebarTab>('characters');
   charSubTab = signal<'players' | 'npcs'>('players');
   editingImageId = signal<string | null>(null);
   editingName = signal('');
   searchQuery = signal('');
 
   // Methods
-  switchTab(tab: 'characters' | 'images' | 'textures'): void {
+  switchTab(tab: SidebarTab): void {
     this.activeTab.set(tab);
+  }
+
+  getTotalBonus(roll: DiceRollEvent): number {
+    return roll.bonuses.reduce((sum, b) => sum + b.value, 0);
+  }
+
+  formatTime(timestamp: Date): string {
+    const diff = Date.now() - new Date(timestamp).getTime();
+    const s = Math.floor(diff / 1000);
+    const m = Math.floor(s / 60);
+    const h = Math.floor(m / 60);
+    if (s < 10)  return 'Gerade eben';
+    if (s < 60)  return `Vor ${s}s`;
+    if (m < 60)  return `Vor ${m}min`;
+    return `Vor ${h}h`;
+  }
+
+  get reversedRolls(): DiceRollEvent[] {
+    return [...this.rolls].reverse().slice(0, 50);
   }
 
   // Character methods

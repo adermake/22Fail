@@ -50,15 +50,17 @@
   min-width: 0;
 }
 
-/* Side panel on right */
-.lobby-side-panel {
-  width: 320px;
-  min-width: 320px;
-  max-width: 320px;
-  background: var(--card);
+/* Character panel on right */
+.lobby-character-panel {
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
+  background: #111827;
   border-left: 1px solid var(--border);
   overflow: hidden;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Battle tracker at bottom of lobby - compact view */

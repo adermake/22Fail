@@ -449,3 +449,38 @@ interface SkillDefinition {
 - **Cast-Level**: +/- Buttons in Aktiv-Liste; Reduktion: `Math.min(90, floor(cl/10)*10)`%
 - **Fokus-Formel (korrekt)**: `Math.floor((Math.floor(int/2) + 5 + bonus) * mult)` (aus `sheet.statuses` Intelligenz lesen)
 - **Patch-Pattern**: `(patch)="store.applyPatch($any($event))"` in sheet.component.html
+
+## Lobby-Architektur (lobby/)
+
+### Layout (Stand: Mai 2025)
+`
+lobby-container
+  +-- lobby-toolbar         (oben)
+  +-- lobby-main            (flex row)
+  ¦   +-- lobby-sidebar     (links, 280px) — Tabs: Charaktere | Bilder | Texturen | Schichten | Würfel
+  ¦   +-- lobby-grid        (Mitte, flex:1) — Hex-Karte mit Tokens und Drawing-Layer
+  ¦   +-- lobby-character-panel (rechts, 300px, IMMER präsent, kein Layout-Shift)
+  +-- battle-tracker        (unten, collapsible)
+`
+
+### Kein Flash-Problem
+- lobby-character-panel ist IMMER 300px breit, egal ob Token ausgewählt.
+- Kein @if-Wrapper um das Panel ? kein Layout-Shift ? kein Canvas-Resize ? kein Zeichnungs-Flash.
+
+### Komponenten
+- **lobby-character-panel** (lobby/lobby-character-panel/):
+  - Kein Token: zeigt Würfelroller + Roll-History
+  - Token ausgewählt: zeigt LP/Mana/Energie-Bars (editierbar), Stats (STR/GES/SPD/INT/KON/WIL als Würfel-Buttons), aktive Skills, Zauber, Freier Wurf
+  - Würfeln sendet DiceRollEvent via WorldSocketService.sendDiceRoll()
+  - @Output() tokenUpdate ? Lobby ruft store.updateToken(tokenId, updates)
+  - @Output() deselect ? selectedTokenId.set(null)
+- **lobby-sidebar**: Tabs: Charaktere (Spieler/NSC), Bilder, Texturen, Schichten (nur GM), Würfelverlauf
+- **lobby-side-panel**: NICHT MEHR VERWENDET (Inhalte in sidebar + character-panel migriert)
+
+### Token-Ressourcen
+- Token.currentHealth?, currentMana?, currentEnergy? — optionale Felder auf dem Token
+- Falls undefined: Wert wird aus CharacterSheet.statuses (FormulaType.LIFE/MANA/ENERGY) gelesen
+- Beim Bearbeiten über Panel: via store.updateToken() auf Token gespeichert
+
+### Würfelformel (invertiert)
+- diceBonus = (5 - stat / 2) | 0 — hoher Stat = niedriger Bonus (besser im System, weil niedrig gut ist)

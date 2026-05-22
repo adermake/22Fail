@@ -51,12 +51,22 @@
         [selectedTextureId]="selectedTextureId()"
         [isGM]="isGM()"
         [npcStatblocks]="npcStatblocks()"
+        [layers]="layers()"
+        [activeLayerId]="activeLayerId()"
+        [rolls]="rollHistory()"
         (loadImages)="onLoadImages($event)"
         (deleteImage)="onDeleteLibraryImage($event)"
         (renameImage)="onRenameLibraryImage($event)"
         (loadTextures)="onLoadTextures($event)"
         (selectTexture)="onSelectTexture($event)"
         (dragStart)="onImageDragStart($event)"
+        (layerSelect)="onLayerSelect($event)"
+        (layerToggleVisible)="onLayerToggleVisible($event)"
+        (layerToggleLock)="onLayerToggleLock($event)"
+        (layerDelete)="onLayerDelete($event)"
+        (layerRename)="onLayerRename($event)"
+        (layerReorder)="onLayerReorder($event)"
+        (layerAdd)="onLayerAdd($event)"
       />
     }
 
@@ -113,62 +123,18 @@
         />
       </div>
 
-      <!-- Side Panel (right side) - Layers for GM, Roll History for all -->
-      <app-lobby-side-panel
-        class="lobby-side-panel"
-        [isGM]="isGM()"
+      <!-- Character Action Panel (always present - no layout shift = no canvas flash) -->
+      <app-lobby-character-panel
+        class="lobby-character-panel"
+        [token]="selectedPanelToken()"
+        [character]="selectedPanelCharacter()"
+        [npc]="selectedPanelNpc()"
         [rolls]="rollHistory()"
-        [layers]="layers()"
-        [activeLayerId]="activeLayerId()"
-        (layerSelect)="onLayerSelect($event)"
-        (layerToggleVisible)="onLayerToggleVisible($event)"
-        (layerToggleLock)="onLayerToggleLock($event)"
-        (layerDelete)="onLayerDelete($event)"
-        (layerRename)="onLayerRename($event)"
-        (layerReorder)="onLayerReorder($event)"
-        (layerAdd)="onLayerAdd($event)"
+        [worldName]="worldName()"
+        [isGM]="isGM()"
+        (tokenUpdate)="onTokenResourceChange($event)"
+        (deselect)="selectedTokenId.set(null)"
       />
-
-      <!-- Token Quick View Panel -->
-      @if (selectedTokenInfo()) {
-        <div class="token-quick-view">
-          <div class="quick-view-header">
-            <span class="quick-view-title">{{ selectedTokenInfo()!.token.name }}</span>
-            <button class="quick-view-close" (click)="selectedTokenId.set(null)">✕</button>
-          </div>
-          @if (selectedTokenInfo()!.token.portrait) {
-            <div class="quick-view-portrait">
-              <img [src]="'/api/images/' + selectedTokenInfo()!.token.portrait" alt="" />
-            </div>
-          }
-          @if (selectedTokenInfo()!.type === 'npc' && selectedTokenInfo()!.npc) {
-            <div class="quick-view-stats">
-              <div class="qv-row"><span class="qv-label">LP</span><span class="qv-val">{{ selectedTokenInfo()!.npc!.maxHealth }}</span></div>
-              <div class="qv-row"><span class="qv-label">Mana</span><span class="qv-val">{{ selectedTokenInfo()!.npc!.maxMana }}</span></div>
-              <div class="qv-row"><span class="qv-label">Energie</span><span class="qv-val">{{ selectedTokenInfo()!.npc!.maxEnergy }}</span></div>
-              <div class="qv-divider"></div>
-              <div class="qv-row"><span class="qv-label">STR</span><span class="qv-val">{{ selectedTokenInfo()!.npc!.strength }}</span></div>
-              <div class="qv-row"><span class="qv-label">GES</span><span class="qv-val">{{ selectedTokenInfo()!.npc!.dexterity }}</span></div>
-              <div class="qv-row"><span class="qv-label">SPD</span><span class="qv-val">{{ selectedTokenInfo()!.npc!.speed }}</span></div>
-              <div class="qv-row"><span class="qv-label">INT</span><span class="qv-val">{{ selectedTokenInfo()!.npc!.intelligence }}</span></div>
-              <div class="qv-row"><span class="qv-label">KON</span><span class="qv-val">{{ selectedTokenInfo()!.npc!.constitution }}</span></div>
-              @if (selectedTokenInfo()!.npc!.notes) {
-                <div class="qv-notes">{{ selectedTokenInfo()!.npc!.notes }}</div>
-              }
-            </div>
-          }
-          @if (selectedTokenInfo()!.type === 'character' && selectedTokenInfo()!.character) {
-            <div class="quick-view-stats">
-              <div class="qv-row"><span class="qv-label">STR</span><span class="qv-val">{{ selectedTokenInfo()!.character!.strength.base }}</span></div>
-              <div class="qv-row"><span class="qv-label">GES</span><span class="qv-val">{{ selectedTokenInfo()!.character!.dexterity.base }}</span></div>
-              <div class="qv-row"><span class="qv-label">SPD</span><span class="qv-val">{{ selectedTokenInfo()!.character!.speed.base }}</span></div>
-              <div class="qv-row"><span class="qv-label">INT</span><span class="qv-val">{{ selectedTokenInfo()!.character!.intelligence.base }}</span></div>
-              <div class="qv-row"><span class="qv-label">KON</span><span class="qv-val">{{ selectedTokenInfo()!.character!.constitution.base }}</span></div>
-              <div class="qv-row"><span class="qv-label">Stufe</span><span class="qv-val">{{ selectedTokenInfo()!.character!.level }}</span></div>
-            </div>
-          }
-        </div>
-      }
     </div>
   </div>
 

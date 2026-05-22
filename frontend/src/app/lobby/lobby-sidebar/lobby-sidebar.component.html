@@ -5,34 +5,66 @@
       class="tab-btn" 
       [class.active]="activeTab() === 'characters'"
       (click)="switchTab('characters')"
+      title="Charaktere"
     >
-      👤 Characters
+      👤
     </button>
     <button 
       class="tab-btn" 
       [class.active]="activeTab() === 'images'"
       (click)="switchTab('images')"
+      title="Bilder"
     >
-      🖼️ Images
+      🖼️
     </button>
     <button 
       class="tab-btn" 
       [class.active]="activeTab() === 'textures'"
       (click)="switchTab('textures')"
+      title="Texturen"
     >
-      🎨 Textures
+      🎨
+    </button>
+    @if (isGM) {
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'layers'"
+        (click)="switchTab('layers')"
+        title="Schichten"
+      >
+        📐
+      </button>
+    }
+    <button 
+      class="tab-btn" 
+      [class.active]="activeTab() === 'rolls'"
+      (click)="switchTab('rolls')"
+      title="Würfe"
+    >
+      🎲
     </button>
   </div>
 
-  <!-- Search bar -->
+  <!-- Tab label -->
+  <div class="tab-label">
+    @if (activeTab() === 'characters') { Charaktere }
+    @else if (activeTab() === 'images') { Bilder }
+    @else if (activeTab() === 'textures') { Texturen }
+    @else if (activeTab() === 'layers') { Schichten }
+    @else if (activeTab() === 'rolls') { Würfelverlauf }
+  </div>
+
+  <!-- Search bar (only for character/image/texture tabs) -->
+  @if (activeTab() === 'characters' || activeTab() === 'images' || activeTab() === 'textures') {
   <div class="search-bar">
     <input 
       type="text" 
-      placeholder="Search..."
+      placeholder="Suchen..."
       [value]="searchQuery()"
       (input)="searchQuery.set($any($event.target).value)"
     />
   </div>
+  }
 
   <!-- Tab content -->
   <div class="tab-content">
@@ -241,16 +273,70 @@
         @if (filteredTextures.length === 0) {
           <div class="empty-state">
             @if (searchQuery()) {
-              <p>No textures match "{{ searchQuery() }}"</p>
+              <p>Keine Texturen für "{{ searchQuery() }}"</p>
             } @else {
-              <p>No textures in library</p>
+              <p>Keine Texturen in der Bibliothek</p>
               @if (isGM) {
-                <p class="hint">Upload tileable textures to use with the texture brush tool</p>
+                <p class="hint">Kachelbare Texturen für den Textur-Pinsel hochladen</p>
               }
             }
           </div>
         }
       </div>
     }
+
+    <!-- Schichten Tab -->
+    @if (activeTab() === 'layers') {
+      <div class="layers-tab">
+        <app-lobby-layer-panel
+          [layers]="layers"
+          [activeLayerId]="activeLayerId"
+          [isGM]="isGM"
+          (layerSelect)="layerSelect.emit($event)"
+          (layerToggleVisible)="layerToggleVisible.emit($event)"
+          (layerToggleLock)="layerToggleLock.emit($event)"
+          (layerDelete)="layerDelete.emit($event)"
+          (layerRename)="layerRename.emit($event)"
+          (layerReorder)="layerReorder.emit($event)"
+          (layerAdd)="layerAdd.emit($event)"
+        />
+      </div>
+    }
+
+    <!-- Würfelverlauf Tab -->
+    @if (activeTab() === 'rolls') {
+      <div class="rolls-tab">
+        @if (rolls.length === 0) {
+          <div class="empty-state">
+            <p>Noch keine Würfe in dieser Sitzung</p>
+          </div>
+        }
+        @for (roll of reversedRolls; track roll.id) {
+          <div class="roll-entry" [class.secret]="roll.isSecret">
+            <div class="roll-meta">
+              <span class="roll-char">{{ roll.characterName }}</span>
+              @if (roll.actionName) {
+                <span class="roll-action">{{ roll.actionName }}</span>
+              }
+              <span class="roll-time">{{ formatTime(roll.timestamp) }}</span>
+            </div>
+            <div class="roll-dice-row">
+              @for (d of roll.rolls; track $index) {
+                <span class="die-val"
+                  [class.crit-low]="d === 1 && roll.diceType === 20"
+                  [class.crit-high]="d === roll.diceType && roll.diceType === 20">{{ d }}</span>
+              }
+              @if (getTotalBonus(roll) !== 0) {
+                <span class="roll-bonus" [class.pos]="getTotalBonus(roll) < 0" [class.neg]="getTotalBonus(roll) > 0">
+                  {{ getTotalBonus(roll) > 0 ? '+' : '' }}{{ getTotalBonus(roll) }}
+                </span>
+              }
+              <span class="roll-eq">= <strong>{{ roll.result }}</strong></span>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
   </div>
 </div>

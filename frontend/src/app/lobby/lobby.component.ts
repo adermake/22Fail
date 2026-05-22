@@ -29,7 +29,7 @@ import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture } fr
 import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
 import { LobbyToolbarComponent } from './lobby-toolbar/lobby-toolbar.component';
 import { LobbySidebarComponent } from './lobby-sidebar/lobby-sidebar.component';
-import { LobbySidePanelComponent } from './lobby-side-panel/lobby-side-panel.component';
+import { LobbyCharacterPanelComponent } from './lobby-character-panel/lobby-character-panel.component';
 import { BattleTracker } from '../world/battle-tracker/battle-tracker.component';
 import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engine';
 
@@ -46,7 +46,7 @@ export type DragMode = 'free' | 'enforced';
     LobbyGridComponent,
     LobbyToolbarComponent,
     LobbySidebarComponent,
-    LobbySidePanelComponent,
+    LobbyCharacterPanelComponent,
     BattleTracker,
   ],
   templateUrl: './lobby.component.html',
@@ -191,6 +191,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const character = this.worldCharacters().find(c => c.id === token.characterId);
     return { token, type: 'character' as const, character: character?.sheet ?? null, npc: null };
   });
+
+  // Computed: separate accessors for character panel inputs
+  selectedPanelToken = computed(() => this.selectedTokenInfo()?.token ?? null);
+  selectedPanelCharacter = computed(() => this.selectedTokenInfo()?.character ?? null);
+  selectedPanelNpc = computed(() => this.selectedTokenInfo()?.npc ?? null);
 
   ngOnInit(): void {
     // Connect battle engine to world store for persistence (mirrors world view)
@@ -598,6 +603,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   onTokenClick(tokenId: string): void {
     this.selectedTokenId.set(tokenId === this.selectedTokenId() ? null : tokenId);
+  }
+
+  onTokenResourceChange(updates: Partial<Omit<Token, 'id'>>): void {
+    const tokenId = this.selectedTokenId();
+    if (!tokenId) return;
+    this.store.updateToken(tokenId, updates);
+    this.cdr.markForCheck();
   }
 
   onNpcStatblockDrop(data: { statblockId: string; name: string; portrait: string; position: HexCoord }): void {
