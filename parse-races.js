@@ -8,7 +8,7 @@ const racesText = fs.readFileSync('c:\\Users\\adermake\\Desktop\\Races.txt', 'ut
 const allLines = racesText.split('\n');
 const sections = [];
 let currentSection = [];
-
+//
 for (const line of allLines) {
   if (line.trim().match(/^-{100,}$/)) {
     // This is a separator line
