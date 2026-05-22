@@ -114,7 +114,7 @@
   }
 
   <!-- ══════════════════════════════════════════════════════════
-       RACE SELECTION GRID — shown when no race or switching
+       RACE SELECTION — split panel (list | detail)
   ══════════════════════════════════════════════════════════ -->
   @if (loading || viewMode === 'select') {
     <div class="rso-wrap">
@@ -129,35 +129,173 @@
         <button class="rso-close-btn" (click)="onClose()" title="Schlie&szlig;en">&#x2715;</button>
       </div>
 
-      <div class="rso-body">
-        @if (loading) {
-          <div class="rso-loading">Lade Rassen&hellip;</div>
-        } @else {
-          @if (selectedRace) {
-            <p class="rso-change-hint">
-              &#x26A0; Das Ausw&auml;hlen einer anderen Rasse &uuml;bernimmt deren Basisstats und entfernt alle bisher ausgew&auml;hlten Rassenskills.
-            </p>
-          }
-          <p class="rso-hint">Klicken zum Ausw&auml;hlen &middot; Doppelklick zum Bearbeiten</p>
-
-          <div class="rso-race-list">
-            @for (race of races; track race.id) {
-              <app-race-card
-                [race]="race"
-                [isSelected]="isCurrentRace(race)"
-                (select)="selectRace($event)"
-                (edit)="startEdit($event)">
-              </app-race-card>
-            }
-            <div class="rso-create-card" (click)="startCreate()">
-              <span class="rso-create-icon">+</span>
-              <span class="rso-create-txt">Neue Rasse erstellen</span>
-            </div>
+      @if (loading) {
+        <div class="rso-body"><div class="rso-loading">Lade Rassen&hellip;</div></div>
+      } @else {
+        @if (selectedRace) {
+          <div class="rso-change-hint">
+            &#x26A0; Das Ausw&auml;hlen einer anderen Rasse &uuml;bernimmt deren Basisstats und entfernt alle bisherigen Rassenskills.
           </div>
         }
-      </div>
 
-    </div>
+        <!-- Split layout -->
+        <div class="rso-sl">
+
+          <!-- ── LEFT: scrollable race list ── -->
+          <div class="rso-sl-left">
+            @for (race of races; track race.id) {
+              <div class="rso-sl-row"
+                   [class.rso-sl-row-cur]="isCurrentRace(race)"
+                   [class.rso-sl-row-hl]="previewRace?.id === race.id"
+                   (mouseenter)="previewRace = race"
+                   (click)="previewRace = race">
+                <div class="rso-sl-row-img">
+                  @if (race.baseImage) {
+                    <img [src]="race.baseImage | imageUrl" [alt]="race.name">
+                  } @else {
+                    <span class="rso-sl-row-no-img">?</span>
+                  }
+                </div>
+                <div class="rso-sl-row-info">
+                  <span class="rso-sl-row-name">{{ race.name }}</span>
+                  <span class="rso-sl-row-meta">{{ race.size }}&nbsp;&middot;&nbsp;{{ race.ageRange }}&nbsp;J.</span>
+                </div>
+                @if (isCurrentRace(race)) {
+                  <span class="rso-sl-row-active">&#x2713;</span>
+                }
+              </div>
+            }
+            <div class="rso-sl-create" (click)="startCreate()">
+              <span class="rso-create-icon">+</span>
+              <span>Neue Rasse</span>
+            </div>
+          </div>
+
+          <!-- ── RIGHT: detail panel ── -->
+          <div class="rso-sl-right">
+            @if (previewRace) {
+
+              <!-- Portrait + name + actions -->
+              <div class="rso-det-hdr">
+                @if (previewRace.baseImage) {
+                  <img class="rso-det-portrait" [src]="previewRace.baseImage | imageUrl" [alt]="previewRace.name">
+                } @else {
+                  <div class="rso-det-portrait rso-det-no-portrait">?</div>
+                }
+                <div class="rso-det-hdr-info">
+                  <h2 class="rso-det-name">{{ previewRace.name }}</h2>
+                  <p class="rso-det-meta">{{ previewRace.size }}&nbsp;&middot;&nbsp;{{ previewRace.ageRange }}&nbsp;Jahre&nbsp;&middot;&nbsp;{{ previewRace.weight }}</p>
+                  <div class="rso-det-actions">
+                    <button class="rso-btn rso-btn-outline" (click)="startEdit(previewRace)">&#x270F; Bearbeiten</button>
+                    <button class="rso-btn rso-btn-select" [class.rso-btn-select-cur]="isCurrentRace(previewRace)" (click)="selectRace(previewRace)">
+                      @if (isCurrentRace(previewRace)) { &#x2713; Gew&auml;hlt } @else { Rasse w&auml;hlen &rarr; }
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Lore -->
+              @if (previewRace.lore) {
+                <p class="rso-det-lore">{{ previewRace.lore }}</p>
+              }
+
+              <!-- Resources -->
+              <div class="rso-det-section">Ressourcen</div>
+              <div class="rso-det-resources">
+                <div class="rso-det-res rso-det-res-hp">
+                  <span class="rso-det-res-icon">&#x2764;</span>
+                  <span class="rso-det-res-label">Leben</span>
+                  <span class="rso-det-res-val">{{ previewRace.baseHealth }}</span>
+                  <span class="rso-det-res-gain">+{{ previewRace.healthPerLevel }}/Lvl</span>
+                </div>
+                <div class="rso-det-res rso-det-res-en">
+                  <span class="rso-det-res-icon">&#x26A1;</span>
+                  <span class="rso-det-res-label">Ausdauer</span>
+                  <span class="rso-det-res-val">{{ previewRace.baseEnergy }}</span>
+                  <span class="rso-det-res-gain">+{{ previewRace.energyPerLevel }}/Lvl</span>
+                </div>
+                <div class="rso-det-res rso-det-res-mp">
+                  <span class="rso-det-res-icon">&#x2736;</span>
+                  <span class="rso-det-res-label">Mana</span>
+                  <span class="rso-det-res-val">{{ previewRace.baseMana }}</span>
+                  <span class="rso-det-res-gain">+{{ previewRace.manaPerLevel }}/Lvl</span>
+                </div>
+              </div>
+
+              <!-- Stats -->
+              <div class="rso-det-section">Attribute</div>
+              <div class="rso-det-stats">
+                <div class="rso-det-stat">
+                  <span class="rso-det-stat-lbl">STR</span>
+                  <span class="rso-det-stat-val">{{ previewRace.baseStrength }}</span>
+                  <span class="rso-det-stat-gain">+{{ previewRace.strengthPerLevel }}/Lvl</span>
+                </div>
+                <div class="rso-det-stat">
+                  <span class="rso-det-stat-lbl">GSK</span>
+                  <span class="rso-det-stat-val">{{ previewRace.baseDexterity }}</span>
+                  <span class="rso-det-stat-gain">+{{ previewRace.dexterityPerLevel }}/Lvl</span>
+                </div>
+                <div class="rso-det-stat">
+                  <span class="rso-det-stat-lbl">GSW</span>
+                  <span class="rso-det-stat-val">{{ previewRace.baseSpeed }}</span>
+                  <span class="rso-det-stat-gain">+{{ previewRace.speedPerLevel }}/Lvl</span>
+                </div>
+                <div class="rso-det-stat">
+                  <span class="rso-det-stat-lbl">INT</span>
+                  <span class="rso-det-stat-val">{{ previewRace.baseIntelligence }}</span>
+                  <span class="rso-det-stat-gain">+{{ previewRace.intelligencePerLevel }}/Lvl</span>
+                </div>
+                <div class="rso-det-stat">
+                  <span class="rso-det-stat-lbl">KON</span>
+                  <span class="rso-det-stat-val">{{ previewRace.baseConstitution }}</span>
+                  <span class="rso-det-stat-gain">+{{ previewRace.constitutionPerLevel }}/Lvl</span>
+                </div>
+                <div class="rso-det-stat">
+                  <span class="rso-det-stat-lbl">WIL</span>
+                  <span class="rso-det-stat-val">{{ previewRace.baseChill }}</span>
+                  <span class="rso-det-stat-gain">+{{ previewRace.chillPerLevel }}/Lvl</span>
+                </div>
+              </div>
+
+              <!-- Skills -->
+              @if (previewRace.skills.length > 0) {
+                <div class="rso-det-section">Rassenf&auml;higkeiten</div>
+                <div class="rso-det-skill-groups">
+                  @for (group of previewRace.skills; track group.levelRequired) {
+                    <div class="rso-det-sg">
+                      <span class="rso-det-sg-lvl">Stufe {{ group.levelRequired }}</span>
+                      <div class="rso-det-sg-skills">
+                        @for (skill of group.skills; track skill.name; let last = $last) {
+                          <div class="rso-det-sk" [attr.data-type]="skill.type">
+                            <div class="rso-det-sk-bar">
+                              <span class="rso-det-sk-ti">{{ getTypeIcon(skill.type) }}</span>
+                              <span class="rso-det-sk-tl">{{ getTypeLabel(skill.type) }}</span>
+                              <span class="rso-det-sk-name">{{ skill.name }}</span>
+                            </div>
+                            <p class="rso-det-sk-desc">{{ skill.description }}</p>
+                          </div>
+                          @if (!last && group.isChoice) {
+                            <div class="rso-det-sk-or">oder</div>
+                          }
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+
+            } @else {
+              <div class="rso-sl-placeholder">
+                <div class="rso-sl-ph-icon">&#x2694;</div>
+                <p>Mit der Maus &uuml;ber eine Rasse fahren, um Details anzuzeigen.</p>
+              </div>
+            }
+          </div><!-- /rso-sl-right -->
+
+        </div><!-- /rso-sl -->
+      }
+
+    </div><!-- /rso-wrap -->
   }
 
 </div>

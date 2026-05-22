@@ -6,6 +6,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { RaceCardComponent } from './race-card/race-card.component';
 import { RaceFormComponent } from './race-form/race-form.component';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 /** 'skills' = skill picker for the selected race (default when race set).
  *  'select'  = race selection grid.
@@ -15,7 +16,7 @@ type ViewMode = 'skills' | 'select' | 'create' | 'edit';
 @Component({
   selector: 'app-race-selector',
   standalone: true,
-  imports: [CommonModule, RaceCardComponent, RaceFormComponent],
+  imports: [CommonModule, RaceCardComponent, RaceFormComponent, ImageUrlPipe],
   templateUrl: './race-selector.component.html',
   styleUrl: './race-selector.component.css'
 })
@@ -30,6 +31,9 @@ export class RaceSelectorComponent implements OnInit {
   editingRace: Race = createEmptyRace();
 
   loreExpanded = false;
+
+  /** Race being previewed in the selection screen (hover/click in the left list) */
+  previewRace: Race | null = null;
 
   /** Local mirror of selected racial skills for instant UI feedback.
    *  Key format: `${raceId}::${skillName}` */
@@ -157,6 +161,7 @@ export class RaceSelectorComponent implements OnInit {
   }
 
   startRaceChange() {
+    this.previewRace = this.selectedRace; // pre-select current race in list
     this.viewMode = 'select';
   }
 
