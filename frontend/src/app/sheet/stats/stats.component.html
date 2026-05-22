@@ -6,9 +6,12 @@
     <div class="free-stat-info" [class.has-points]="availableFreeStatPoints > 0">
       <div class="free-stat-row">
         <span class="label">Freie Stat Punkte:</span>
-        <span class="value">
-          <span class="available">{{ availableFreeStatPoints }}</span>
-          <span class="total-info"> / {{ totalFreeStatPoints }} ({{ spentFreeStatPoints }} verwendet)</span>
+        <span class="pts-summary">
+          <span class="pts-ungenutzt" [class.pts-flash]="availableFreeStatPoints > 0">Ungenutzt {{ availableFreeStatPoints }}</span>
+          <span class="pts-sep">|</span>
+          <span class="pts-ausgegeben">Ausgegeben {{ spentFreeStatPoints }}</span>
+          <span class="pts-sep">|</span>
+          <span class="pts-gesamt">Gesamt {{ totalFreeStatPoints }}</span>
         </span>
       </div>
       @if (trueStats.hasNaturtalent(sheet)) {
@@ -24,63 +27,44 @@
       </div>
     </div>
 
-    <!-- Derived Stats: Grundbonus + Reaktionswert -->
-    <div class="derived-stats-row">
-      <div class="derived-stat-card">
-        <div class="derived-stat-header">
-          <span class="derived-stat-label">Grundbonus</span>
-          <span class="derived-stat-formula">Level ÷ 5</span>
-        </div>
-        <div class="derived-stat-value">{{ grundbonus }}</div>
-        <div class="derived-stat-bonus-row">
-          <label class="derived-bonus-label">Bonus</label>
-          <input class="derived-bonus-input" type="number"
-                 [ngModel]="sheet.grundbonusBonus || 0"
-                 (ngModelChange)="updateDerivedBonus('grundbonusBonus', $event)" />
-        </div>
+    <!-- Derived Stats: compact inline row -->
+    <div class="derived-stats-compact">
+      <div class="derived-item">
+        <span class="derived-name">Grundbonus</span>
+        <span class="derived-val">{{ grundbonus }}</span>
+        <span class="derived-bonus-lbl">+Bonus</span>
+        <input class="derived-bonus-in" type="number"
+               [ngModel]="sheet.grundbonusBonus || 0"
+               (ngModelChange)="updateDerivedBonus('grundbonusBonus', $event)" />
       </div>
-      <div class="derived-stat-card">
-        <div class="derived-stat-header">
-          <span class="derived-stat-label">Reaktionswert</span>
-          <span class="derived-stat-formula">10 − Wille ÷ 5</span>
-        </div>
-        <div class="derived-stat-value">{{ reaktionswert }}</div>
-        <div class="derived-stat-bonus-row">
-          <label class="derived-bonus-label">Bonus</label>
-          <input class="derived-bonus-input" type="number"
-                 [ngModel]="sheet.reaktionswertBonus || 0"
-                 (ngModelChange)="updateDerivedBonus('reaktionswertBonus', $event)" />
-        </div>
+      <div class="derived-sep">|</div>
+      <div class="derived-item">
+        <span class="derived-name">Reaktion</span>
+        <span class="derived-val">{{ reaktionswert }}</span>
+        <span class="derived-bonus-lbl">+Bonus</span>
+        <input class="derived-bonus-in" type="number"
+               [ngModel]="sheet.reaktionswertBonus || 0"
+               (ngModelChange)="updateDerivedBonus('reaktionswertBonus', $event)" />
       </div>
     </div>
     
-    <!-- Spell Fokus Info -->
-    <div class="fokus-info">
-      <div class="fokus-display">
-        <span class="fokus-label">Spell Fokus:</span>
-        <span class="fokus-value">{{ fokusValue }}</span>
-      </div>
-      <div class="fokus-inputs">
-        <div class="fokus-input-group">
-          <label>Bonus (+)</label>
-          <input
-            type="number"
-            step="1"
-            [ngModel]="sheet.fokusBonus"
-            (ngModelChange)="updateFokusSetting('fokusBonus', $event)"
-          />
-        </div>
-        <div class="fokus-input-group">
-          <label>Multiplikator (×)</label>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            [ngModel]="sheet.fokusMultiplier"
-            (ngModelChange)="updateFokusSetting('fokusMultiplier', $event)"
-          />
-        </div>
-      </div>
+    <!-- Spell Fokus + SpeedPenalty: compact inline -->
+    <div class="fokus-compact">
+      <span class="fokus-lbl">Fokus:</span>
+      <span class="fokus-val">{{ fokusValue }}</span>
+      <span class="derived-bonus-lbl">Bonus</span>
+      <input class="derived-bonus-in" type="number" step="1"
+             [ngModel]="sheet.fokusBonus"
+             (ngModelChange)="updateFokusSetting('fokusBonus', $event)" />
+      <span class="derived-bonus-lbl">×</span>
+      <input class="derived-bonus-in" type="number" step="0.1" min="0"
+             [ngModel]="sheet.fokusMultiplier"
+             (ngModelChange)="updateFokusSetting('fokusMultiplier', $event)" />
+      <span class="derived-sep">|</span>
+      <span class="derived-name">Rüst.Malus Neg.</span>
+      <input class="derived-bonus-in" type="number" placeholder="0"
+             [ngModel]="sheet.speedPenaltyNegation"
+             (ngModelChange)="patch.emit({ path: 'speedPenaltyNegation', value: $event })" />
     </div>
     
     <div class="statgrid">
@@ -116,15 +100,5 @@
       ></app-stat>
     </div>
     
-    <div class="field">
-      <label for="speedPenaltyNegation">Speed Penalty Negation</label>
-      <input
-        id="speedPenaltyNegation"
-        type="number"
-        placeholder="0"
-        [ngModel]="sheet.speedPenaltyNegation"
-        (ngModelChange)="patch.emit({ path: 'speedPenaltyNegation', value: $event })"
-      />
-    </div>
   </app-card>
 </div>

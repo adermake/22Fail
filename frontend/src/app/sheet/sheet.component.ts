@@ -27,6 +27,7 @@ import { ItemComponent } from './item/item.component';
 import { ItemCreatorComponent } from './item-creator/item-creator.component';
 import { CardComponent } from '../shared/card/card.component';
 import { CharacterTabsComponent } from './character-tabs/character-tabs';
+import { TalentsComponent } from './talents/talents.component';
 import { SkillTreeComponent } from './skill-tree/skill-tree.component';
 import { BackstoryComponent } from './backstory/backstory.component';
 import { JsonPatch } from '../model/json-patch.model';
@@ -60,6 +61,7 @@ import { DamageCalculatorComponent } from '../world/damage-calculator/damage-cal
     EquipmentComponent,
     LootPopupComponent,
     CharacterTabsComponent,
+    TalentsComponent,
     SkillTreeComponent,
     BackstoryComponent,
     DiceRollerComponent,

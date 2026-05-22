@@ -1,5 +1,4 @@
 .talents {
-  padding: 0.75rem 0;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -28,8 +27,39 @@
   transition: border-color 0.2s, background 0.2s;
 }
 .points-info.has-points {
-  border-color: rgba(139, 92, 246, 0.4);
-  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.06);
+  animation: glow-pulse-green 2s ease-in-out infinite;
+}
+@keyframes glow-pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+  50%       { box-shadow: 0 0 8px 2px rgba(34, 197, 94, 0.35); }
+}
+
+.points-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+}
+.pts-ungenutzt {
+  font-weight: 700;
+  color: #22c55e;
+}
+.pts-ungenutzt.pts-flash {
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+.pts-ausgegeben {
+  font-weight: 600;
+  color: #f59e0b;
+}
+.pts-gesamt {
+  font-weight: 500;
+  color: var(--text-muted, #9ca3af);
+}
+.pts-sep {
+  color: var(--border, #4a5568);
+  font-weight: 300;
 }
 
 .points-label {
@@ -227,3 +257,8 @@
 .total-pos { color: #4ade80; }
 .total-neg { color: #f87171; }
 .total-zero { color: var(--text-muted, #9ca3af); }
+
+/* Dice bonus: negative = helpful (green), positive = penalty (red) */
+.dice-bonus   { color: #4ade80; }   /* negative value = good */
+.dice-neutral { color: var(--text-muted, #9ca3af); }
+.dice-penalty { color: #f87171; }   /* positive value = bad */

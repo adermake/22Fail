@@ -4,6 +4,7 @@
   grid-template-areas:
     "character currentstats currentstats"
     "levelclass stats stats"
+    "talents    stats stats"
     "tabs tabs equipment"
     "tabs tabs equipment"
     "tabs tabs equipment"
@@ -57,6 +58,7 @@
 .grid-character { grid-area: character; }
 .grid-stats { grid-area: stats; }
 .grid-levelclass { grid-area: levelclass; }
+.grid-talents { grid-area: talents; }
 .grid-currentstats { grid-area: currentstats; }
 .grid-equipment { grid-area: equipment; }
 .grid-tabs { grid-area: tabs; }
@@ -70,6 +72,7 @@
     grid-template-areas:
       "character stats"
       "levelclass stats"
+      "talents stats"
       "currentstats equipment"
       "events events"
       "tabs tabs"
@@ -85,6 +88,7 @@
       "character"
       "stats"
       "levelclass"
+      "talents"
       "currentstats"
       "events"
       "equipment"

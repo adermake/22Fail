@@ -9,7 +9,6 @@ import { SkillsComponent } from '../skills/skills.component';
 import { ActionMacro } from '../../model/action-macro.model';
 import { ForgingComponent } from '../forging/forging.component';
 import { WissenComponent } from '../wissen/wissen.component';
-import { TalentsComponent } from '../talents/talents.component';
 
 @Component({
   selector: 'app-character-tabs',
@@ -22,7 +21,6 @@ import { TalentsComponent } from '../talents/talents.component';
     SkillsComponent,
     ForgingComponent,
     WissenComponent,
-    TalentsComponent,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './character-tabs.html',
@@ -43,10 +41,10 @@ export class CharacterTabsComponent {
   @Output() requestCastWindow = new EventEmitter<void>();
   @Output() rollWeaponDamage = new EventEmitter<number>();
 
-  activeTab: 'inventory' | 'spells' | 'wissen' | 'skills' | 'talente' = 'inventory';
+  activeTab: 'inventory' | 'spells' | 'wissen' | 'skills' = 'inventory';
   showForgingOverlay = false;
 
-  setActiveTab(tab: 'inventory' | 'spells' | 'wissen' | 'skills' | 'talente') {
+  setActiveTab(tab: 'inventory' | 'spells' | 'wissen' | 'skills') {
     this.activeTab = tab;
   }
 

@@ -16,6 +16,10 @@
     <app-levelclass [sheet]="sheet" (patch)="store.applyPatch($any($event))" (openSkillTree)="showSkillTree = true"></app-levelclass>
   </div>
   
+  <div class="grid-talents">
+    <app-talents [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-talents>
+  </div>
+  
   <div class="grid-currentstats">
     <app-currentstats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-currentstats>
     <!-- Status Effects Panel — directly below health bars, same grid area -->

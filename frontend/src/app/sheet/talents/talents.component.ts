@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { CardComponent } from '../../shared/card/card.component';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { TALENT_DEFINITIONS, TalentDefinition } from '../../data/talent-definitions';
@@ -8,7 +9,7 @@ import { TrueStatsService } from '../../services/true-stats.service';
 @Component({
   selector: 'app-talents',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, CardComponent],
   templateUrl: './talents.component.html',
   styleUrl: './talents.component.css',
 })
@@ -49,6 +50,11 @@ export class TalentsComponent {
 
   getTotalBonus(talent: TalentDefinition): number {
     return this.getStatModifier(talent) + this.getRank(talent.id);
+  }
+
+  /** Dice bonus: inverted — negative = helpful (less is better). stat modifier inverted + ranks. */
+  getDiceBonus(talent: TalentDefinition): number {
+    return -(this.getStatModifier(talent) + this.getRank(talent.id));
   }
 
   incrementRank(talentId: string): void {

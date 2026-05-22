@@ -95,45 +95,45 @@ input:focus {
 
 .talent-info {
   display: flex;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
   margin-bottom: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
+  padding: 0.4rem 0.75rem;
+  border: 1px solid transparent;
   border-radius: 8px;
   transition: all 0.3s ease;
+  font-size: 0.82rem;
 }
 
 .talent-info.has-points {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.06);
   animation: glow-pulse 2s ease-in-out infinite;
 }
 
-.talent-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.pts-ungenutzt {
+  font-weight: 700;
+  color: #22c55e;
 }
-
-.talent-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-bottom: 0.25rem;
+.pts-ungenutzt.pts-flash {
+  animation: pts-flash 2s ease-in-out infinite;
 }
-
-.talent-value {
-  font-size: 1.5rem;
-  font-weight: bold;
+@keyframes pts-flash {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
 }
-
-.talent-value.available {
-  color: var(--accent);
-}
-
-.talent-value.spent {
+.pts-ausgegeben {
+  font-weight: 600;
   color: #f59e0b;
 }
-
-.talent-value.total {
-  color: var(--text);
+.pts-gesamt {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.pts-sep {
+  color: var(--border, #4a5568);
+  font-weight: 300;
 }
 
 .bonus-adjust {

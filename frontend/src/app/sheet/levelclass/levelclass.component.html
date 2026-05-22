@@ -45,18 +45,11 @@
       </div>
 
       <div class="talent-info" [class.has-points]="availableTalentPoints > 0">
-        <div class="talent-stat">
-          <span class="talent-label">Verfügbar:</span>
-          <span class="talent-value available">{{ availableTalentPoints }}</span>
-        </div>
-        <div class="talent-stat">
-          <span class="talent-label">Ausgegeben:</span>
-          <span class="talent-value spent">{{ spentTalentPoints }}</span>
-        </div>
-        <div class="talent-stat">
-          <span class="talent-label">Gesamt:</span>
-          <span class="talent-value total">{{ totalTalentPoints }}</span>
-        </div>
+        <span class="pts-ungenutzt" [class.pts-flash]="availableTalentPoints > 0">Ungenutzt {{ availableTalentPoints }}</span>
+        <span class="pts-sep">|</span>
+        <span class="pts-ausgegeben">Ausgegeben {{ spentTalentPoints }}</span>
+        <span class="pts-sep">|</span>
+        <span class="pts-gesamt">Gesamt {{ totalTalentPoints }}</span>
       </div>
 
       <div class="bonus-adjust">
