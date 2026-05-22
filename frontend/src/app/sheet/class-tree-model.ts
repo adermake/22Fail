@@ -88,6 +88,10 @@ export class ClassTree {
     if (!skillClass) return true;
     
     const normalizedSkillClass = this.normalize(skillClass);
+
+    // If the class is not in the game class tree (e.g. race name, custom category)
+    // it is not a real class restriction → skill is always enabled
+    if (!this.classes.has(normalizedSkillClass)) return true;
     const normalizedPrimary = this.normalize(primaryClass || '');
     const normalizedSecondary = this.normalize(secondaryClass || '');
 

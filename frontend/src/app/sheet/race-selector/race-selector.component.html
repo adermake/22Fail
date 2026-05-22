@@ -147,7 +147,6 @@
               <div class="rso-sl-row"
                    [class.rso-sl-row-cur]="isCurrentRace(race)"
                    [class.rso-sl-row-hl]="previewRace?.id === race.id"
-                   (mouseenter)="previewRace = race"
                    (click)="previewRace = race">
                 <div class="rso-sl-row-img">
                   @if (race.baseImage) {
@@ -199,31 +198,25 @@
                 <p class="rso-det-lore">{{ previewRace.lore }}</p>
               }
 
-              <!-- Resources -->
-              <div class="rso-det-section">Ressourcen</div>
-              <div class="rso-det-resources">
-                <div class="rso-det-res rso-det-res-hp">
-                  <span class="rso-det-res-icon">&#x2764;</span>
-                  <span class="rso-det-res-label">Leben</span>
-                  <span class="rso-det-res-val">{{ previewRace.baseHealth }}</span>
-                  <span class="rso-det-res-gain">+{{ previewRace.healthPerLevel }}/Lvl</span>
+              <!-- Resources + Stats combined compact row -->
+              <div class="rso-det-section">Ressourcen &amp; Attribute</div>
+              <div class="rso-det-compact-row">
+                <div class="rso-det-chip rso-det-chip-hp">
+                  <span class="rso-det-chip-icon">&#x2764;</span>
+                  <span class="rso-det-chip-lbl">Leben</span>
+                  <span class="rso-det-chip-val">{{ previewRace.baseHealth }}</span>
                 </div>
-                <div class="rso-det-res rso-det-res-en">
-                  <span class="rso-det-res-icon">&#x26A1;</span>
-                  <span class="rso-det-res-label">Ausdauer</span>
-                  <span class="rso-det-res-val">{{ previewRace.baseEnergy }}</span>
-                  <span class="rso-det-res-gain">+{{ previewRace.energyPerLevel }}/Lvl</span>
+                <div class="rso-det-chip rso-det-chip-en">
+                  <span class="rso-det-chip-icon">&#x26A1;</span>
+                  <span class="rso-det-chip-lbl">Ausdauer</span>
+                  <span class="rso-det-chip-val">{{ previewRace.baseEnergy }}</span>
                 </div>
-                <div class="rso-det-res rso-det-res-mp">
-                  <span class="rso-det-res-icon">&#x2736;</span>
-                  <span class="rso-det-res-label">Mana</span>
-                  <span class="rso-det-res-val">{{ previewRace.baseMana }}</span>
-                  <span class="rso-det-res-gain">+{{ previewRace.manaPerLevel }}/Lvl</span>
+                <div class="rso-det-chip rso-det-chip-mp">
+                  <span class="rso-det-chip-icon">&#x2736;</span>
+                  <span class="rso-det-chip-lbl">Mana</span>
+                  <span class="rso-det-chip-val">{{ previewRace.baseMana }}</span>
                 </div>
               </div>
-
-              <!-- Stats -->
-              <div class="rso-det-section">Attribute</div>
               <div class="rso-det-stats">
                 <div class="rso-det-stat">
                   <span class="rso-det-stat-lbl">STR</span>

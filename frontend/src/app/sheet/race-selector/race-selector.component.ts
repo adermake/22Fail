@@ -53,11 +53,13 @@ export class RaceSelectorComponent implements OnInit {
 
     this.races = await this.raceService.loadRaces();
     this.loading = false;
+    this.previewRace = this.races.length > 0 ? this.races[0] : null;
 
     if (this.sheet.raceId) {
       this.selectedRace = this.races.find(r => r.id === this.sheet.raceId) || null;
       if (this.selectedRace) {
         this.viewMode = 'skills';
+        this.previewRace = this.selectedRace;
         this.syncSelectedSkillKeys();
       }
     }
