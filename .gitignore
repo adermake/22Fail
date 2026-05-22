@@ -19,6 +19,6 @@ build/
 .DS_Store
 Thumbs.db
 
-# Data folder - all data files
-data/
+# Data folder - all data files (root-level only)
+/data/
 
