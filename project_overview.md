@@ -87,13 +87,12 @@ app/
     - `cost`: `{ type: 'mana'|'energy'|'life'; amount; perRound? }` — Kosten für aktive Skills
     - `actionType`: `'Aktion'|'Bonusaktion'|'Keine Aktion'|'Reaktion'` — Aktionsverbrauch
   - `SkillDefinition` in `data/skill-definitions.ts`: kanonische Definitionen; 298 Skills, 42 Klassen; Beschreibungen 1:1 aus AlleKlassen.txt (UTF-8, verbatim); lookup by `skillId > name+class > name`
-  - `fix-descriptions.js` (Workspace-Root): Wartungs-Script zum Neu-Einlesen aller Beschreibungen aus `AlleKlassen.txt` (bei source-Änderungen ausführen)
   - `CLASS_DEFINITIONS`: `ClassHierarchy` (string-index) → `{ tier:1-5, angle, children[] }` — bestimmt Rang-Badge
-  - `app-skills` (`sheet/skills/`): 2-Spalten-Grid, Suchleiste + 5 Filter (Typ/Klasse/Aktion/Kosten/Rang), Vollbild-Editor-Overlay via `app-skill-editor`
-  - `app-skill` (`sheet/skill/`): Kompakte Game-Karte, Rechtsklick → Kontextmenü (Bearbeiten/Löschen), Typ-Farbcodierung mit CSS `--tc`/`--tc-bg` Tokens
-    - Typen-Farben: active=#f59e0b (amber), passive=#a78bfa (violett), dice_bonus=#34d399 (grün), stat_bonus=#38bdf8 (blau)
-    - Action-Pills: Aktion=rot, Bonusaktion=blau, Keine Aktion=grau, Reaktion=orange
-  - `app-skill-editor` (`shared/skill-editor/`): Vollbild-Modal, unterstützt cost+actionType+enlightened-Felder
+  - **Fähigkeitenbaum** (renamed from Talentbaum): Skill-Tree für class-based Fähigkeiten
+    - `CharacterSheet.talentPoints/talentPointsBonus/learnedSkillIds` — intern unverändert, UI-Labels "Fähigkeitspunkte (FP)"
+  - `app-skills` (`sheet/skills/`): 2-Spalten-Grid, Suchleiste + 5 Filter (Typ/Klasse/Aktion/Kosten/Rang)
+  - `app-skill` (`sheet/skill/`): Kompakte Game-Karte mit Typ-Farbcodierung CSS `--tc`/`--tc-bg`
+    - Typen-Farben: active=#f59e0b, passive=#a78bfa, dice_bonus=#34d399, stat_bonus=#38bdf8
 - **Status Effects**: Buffs/Debuffs für Charaktere
   - `StatusEffect` Model: id, name, description, icon, color, diceBonuses, statModifiers, embeddedMacro/embeddedMacros, macroActionId, defaultDuration, maxStacks, isDebuff, public, tags
   - `ActiveStatusEffect`: statusEffectId, sourceLibraryId, appliedAt, duration, stacks, customEffect
@@ -138,6 +137,16 @@ app/
 - **Backend**: `battlemap.gateway.ts` hält `activeMeasurements: Map<mapId, Map<socketId, MeasurementLine>>`. Auf `updateMeasurement` Event: speichern/löschen + broadcast aller aktuellen Messungen (`measurementUpdate`) an den Map-Raum. Bei Client-Disconnect: Messung entfernen + neu-broadcasten.
 - **Empfang**: `LobbySocketService.measurements$` Observable → `remoteMeasurements` Signal in lobby-grid → `renderRemoteMeasurements()` overlay-Pass (blau `#60a5fa` statt gelb)
 - **Eigene Messung**: Lokal gerendert (gelb), remote Messungen anderer Nutzer gefiltert nach `socketId ≠ eigenem`
+
+### Talent System (DnD-style Proficiencies)
+- **Model**: `CharacterSheet.talentRanks: { [talentId: string]: number }`, `talentRankBonus: number`
+- **Definitionen**: `data/talent-definitions.ts` → `TALENT_DEFINITIONS` (15 Talente: Athletik, Akrobatik, Heimlichkeit, etc.)
+- **Punkte-Formel**: `5 + Math.floor((level - 1) / 3)` (Level 1=5, Level 4=6, etc.)
+- **Modifier-Formel**: `(-5 + stat / 2) | 0` via `TrueStatsService.calculateStatModifier()` (DnD-Standard)
+- **Würfel-Bonus**: `calculateStatDiceBonus - ranks` (inverted, lower=better in this game)
+- **Komponente**: `sheet/talents/talents.component` — Tabelle mit Stat-Mod, Ränge-Regler, Gesamt-Bonus
+- **Tab**: In `character-tabs` als "Talente"-Tab
+- **Dice Roller**: `talentBonuses` computed signal in `dice-roller.component` → selektierbare Talent-Chips
 
 ### Race Skills System
 - **Model**: `SkillBlock.sourceRaceId?: string` — optionales Feld, markiert Skills als Rassen-Skills

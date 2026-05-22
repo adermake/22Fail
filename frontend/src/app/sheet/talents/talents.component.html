@@ -1,0 +1,51 @@
+<div class="talents">
+
+  <!-- Header row with point summary -->
+  <div class="talents-header">
+    <div class="points-info" [class.has-points]="availableTalentPoints > 0">
+      <span class="points-label">Talentpunkte:</span>
+      <span class="points-available" [class.pulse]="availableTalentPoints > 0">{{ availableTalentPoints }}</span>
+      <span class="points-detail">/ {{ totalTalentPoints + bonusTalentPoints }} ({{ spentTalentPoints }} verwendet)</span>
+    </div>
+    <div class="bonus-adjust">
+      <span class="bonus-label">Bonus (GM):</span>
+      <div class="bonus-controls">
+        <button class="adjust-btn" (click)="adjustBonusPoints(-1)">−</button>
+        <span class="bonus-value">{{ bonusTalentPoints }}</span>
+        <button class="adjust-btn" (click)="adjustBonusPoints(1)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Talent table -->
+  <div class="talent-table">
+    <div class="talent-table-head">
+      <span class="col-name">Talent</span>
+      <span class="col-stat">Stat</span>
+      <span class="col-mod">Mod</span>
+      <span class="col-ranks">Ränge</span>
+      <span class="col-total">Bonus</span>
+    </div>
+
+    @for (talent of talents; track talent.id) {
+      <div class="talent-row" [title]="talent.description">
+        <span class="col-name talent-name">{{ talent.name }}</span>
+        <span class="col-stat stat-label">{{ talent.statLabel }}</span>
+        <span class="col-mod" [class.mod-pos]="getStatModifier(talent) > 0" [class.mod-neg]="getStatModifier(talent) < 0">
+          {{ getStatModifier(talent) >= 0 ? '+' : '' }}{{ getStatModifier(talent) }}
+        </span>
+        <span class="col-ranks">
+          <div class="rank-controls">
+            <button class="rank-btn minus" (click)="decrementRank(talent.id)" [disabled]="getRank(talent.id) <= 0">−</button>
+            <span class="rank-value">{{ getRank(talent.id) }}</span>
+            <button class="rank-btn plus" (click)="incrementRank(talent.id)" [disabled]="availableTalentPoints <= 0">+</button>
+          </div>
+        </span>
+        <span class="col-total" [class.total-pos]="getTotalBonus(talent) > 0" [class.total-zero]="getTotalBonus(talent) === 0" [class.total-neg]="getTotalBonus(talent) < 0">
+          {{ getTotalBonus(talent) >= 0 ? '+' : '' }}{{ getTotalBonus(talent) }}
+        </span>
+      </div>
+    }
+  </div>
+
+</div>

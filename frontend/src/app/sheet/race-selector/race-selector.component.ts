@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ChangeDetectorRef, Renderer2 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Race, createEmptyRace, RaceSkill, SkillBlock } from '../../model/race.model';
 import { RaceService } from '../../services/race.service';
@@ -20,7 +20,7 @@ type ViewMode = 'skills' | 'select' | 'create' | 'edit';
   templateUrl: './race-selector.component.html',
   styleUrl: './race-selector.component.css'
 })
-export class RaceSelectorComponent implements OnInit {
+export class RaceSelectorComponent implements OnInit, OnDestroy {
   @Input() sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() close = new EventEmitter<void>();
@@ -45,9 +45,12 @@ export class RaceSelectorComponent implements OnInit {
   loading = true;
   saving = false;
 
-  constructor(private raceService: RaceService, private cd: ChangeDetectorRef) {}
+  constructor(private raceService: RaceService, private cd: ChangeDetectorRef, private renderer: Renderer2) {}
 
   async ngOnInit() {
+    // Lock page scroll while overlay is open
+    this.renderer.setStyle(document.body, 'overflow', 'hidden');
+    this.renderer.setStyle(document.documentElement, 'overflow', 'hidden');
     this.loading = true;
     this.cd.detectChanges();
 
@@ -247,6 +250,12 @@ export class RaceSelectorComponent implements OnInit {
 
   onClose() {
     this.close.emit();
+  }
+
+  ngOnDestroy() {
+    // Restore page scroll
+    this.renderer.removeStyle(document.body, 'overflow');
+    this.renderer.removeStyle(document.documentElement, 'overflow');
   }
 
   isCurrentRace(race: Race): boolean {

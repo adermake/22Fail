@@ -162,6 +162,28 @@
           </div>
         }
 
+        <!-- Talent Bonuses -->
+        @if (talentBonuses().length > 0) {
+          <div class="bonus-section">
+            <h4>Talente</h4>
+            <div class="bonus-grid scrollable">
+              @for (bonus of talentBonuses(); track bonus.name) {
+                <button
+                  class="bonus-chip talent"
+                  [class.selected]="isBonusSelected(bonus.name)"
+                  (click)="toggleBonus(bonus.name)"
+                  [title]="bonus.context || ''">
+                  <span class="chip-name">{{bonus.name.replace('Talent: ', '')}}</span>
+                  <span class="chip-value" [class.negative]="bonus.value < 0">{{bonus.value > 0 ? '+' : ''}}{{bonus.value}}</span>
+                  @if (bonus.context) {
+                    <span class="chip-context">{{bonus.context}}</span>
+                  }
+                </button>
+              }
+            </div>
+          </div>
+        }
+
         <!-- Selected Bonuses Summary -->
         @if (selectedBonuses().size > 0) {
           <div class="selected-summary">

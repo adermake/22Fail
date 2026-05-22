@@ -53,10 +53,13 @@ export interface CharacterSheet {
   trash: SheetTrashItem[]; // Recycle bin for deleted items
   activeStatusEffects: ActiveStatusEffect[]; // Status effects currently applied to this character
   seenStatusEffectIds: string[]; // IDs of status effects this character has encountered (allows re-application from sheet)
-  // Talent System
-  talentPoints: number;           // Available talent points to spend
-  talentPointsBonus: number;      // GM-assigned bonus talent points
+  // Fähigkeiten System (Skill Tree)
+  talentPoints: number;           // Fähigkeitspunkte zum Ausgeben
+  talentPointsBonus: number;      // GM-zugewiesene Bonus-Fähigkeitspunkte
   learnedSkillIds: string[];      // IDs of skills learned from the skill tree
+  // Talente System (DnD-style stat proficiencies)
+  talentRanks?: { [talentId: string]: number }; // Invested ranks per talent
+  talentRankBonus?: number;       // GM-assigned bonus talent points for the talent system
   // Free Stat Points System
   freeStatPoints: number;         // Available free stat points to spend
   freeStatPointsBonus: number;    // GM-assigned bonus stat points
@@ -115,6 +118,8 @@ export function createEmptySheet(): CharacterSheet {
     talentPoints: 2,
     talentPointsBonus: 0,
     learnedSkillIds: [],
+    talentRanks: {},
+    talentRankBonus: 0,
     freeStatPoints: 0,
     freeStatPointsBonus: 0,
     grundbonusBonus: 0,

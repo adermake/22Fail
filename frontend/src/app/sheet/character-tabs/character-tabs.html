@@ -25,6 +25,12 @@
       Fähigkeiten ({{ (sheet.skills || []).length }})
     </button>
     <button
+      class="tab-button"
+      [class.active]="activeTab === 'talente'"
+      (click)="setActiveTab('talente')">
+      Talente
+    </button>
+    <button
       class="trash-button"
       (click)="openTrash.emit()"
       title="Open Trash"
@@ -72,6 +78,14 @@
         (editingChange)="onSkillEditingChange($event)"
         (triggerMacro)="triggerMacro.emit($event)">
       </app-skills>
+    }
+
+    <!-- Talente Tab -->
+    @if (activeTab === 'talente') {
+      <app-talents
+        [sheet]="sheet"
+        (patch)="onPatch($event)">
+      </app-talents>
     }
 
     <!-- Status Effects Tab -->

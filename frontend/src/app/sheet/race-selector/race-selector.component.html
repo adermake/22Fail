@@ -257,7 +257,7 @@
                   @for (group of previewRace.skills; track group.levelRequired) {
                     <div class="rso-det-sg">
                       <span class="rso-det-sg-lvl">Stufe {{ group.levelRequired }}</span>
-                      <div class="rso-det-sg-skills">
+                      <div class="rso-det-sg-skills" [class.rso-det-sg-skills--choice]="group.isChoice">
                         @for (skill of group.skills; track skill.name; let last = $last) {
                           <div class="rso-det-sk" [attr.data-type]="skill.type">
                             <div class="rso-det-sk-bar">

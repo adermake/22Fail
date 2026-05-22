@@ -685,6 +685,36 @@ app-race-form {
   flex-direction: column;
   gap: 0.35rem;
 }
+
+/* Choice groups: skills side-by-side */
+.rso-det-sg-skills--choice {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0;
+}
+.rso-det-sg-skills--choice .rso-det-sk {
+  flex: 1;
+  min-width: 160px;
+}
+.rso-det-sk-or {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent, #8b5cf6);
+  background: rgba(139, 92, 246, 0.08);
+  border-top: 1px solid var(--border, #2d3748);
+  border-bottom: 1px solid var(--border, #2d3748);
+  min-width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 .rso-det-sk {
   --tc: #8b5cf6;
   --tc-bg: rgba(139, 92, 246, 0.06);

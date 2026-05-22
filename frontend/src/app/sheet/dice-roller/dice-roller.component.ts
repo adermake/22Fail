@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
+import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { StatusEffect } from '../../model/status-effect.model';
@@ -287,11 +288,32 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     return bonuses.filter(b => b.value !== 0);
   });
 
+  /** Talent bonuses: stat dice modifier (inverted, lower=good) minus ranks. */
+  talentBonuses = computed(() => {
+    if (!this.sheet) return [];
+    const ranks = this.sheet.talentRanks ?? {};
+    return TALENT_DEFINITIONS
+      .map(t => {
+        const statKey = t.stat as 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill';
+        const statBlock = this.sheet[statKey];
+        const statDiceBonus = this.calculateStatDiceBonus(statBlock, statKey);
+        const talentRank = ranks[t.id] ?? 0;
+        const totalValue = statDiceBonus - talentRank;
+        return {
+          name: `Talent: ${t.name}`,
+          value: totalValue,
+          source: 'talent',
+          context: `${t.statLabel}: ${statDiceBonus >= 0 ? '+' : ''}${statDiceBonus}, ${talentRank} Ränge`,
+        } as DiceBonus;
+      })
+      .filter((b, i) => b.value !== 0 || (ranks[TALENT_DEFINITIONS[i].id] ?? 0) > 0);
+  });
+
   totalBonus = computed(() => {
     let total = this.manualBonus();
     
     // Add selected bonuses
-    const allBonuses = [...this.availableDiceBonuses(), ...this.statBonuses()];
+    const allBonuses = [...this.availableDiceBonuses(), ...this.statBonuses(), ...this.talentBonuses()];
     this.selectedBonuses().forEach(bonusName => {
       const bonus = allBonuses.find(b => b.name === bonusName);
       if (bonus) {

@@ -192,7 +192,7 @@
   @if (draft.mode === 'humanoid') {
     <section class="npc-section">
       <div class="section-header">
-        <span class="section-title">Talentbaum</span>
+        <span class="section-title">Fähigkeitenbaum</span>
         <span class="tp-badge" [class.tp-over]="spentTP > totalTP">
           TP: {{ spentTP }}/{{ totalTP }}
         </span>
@@ -240,7 +240,7 @@
           }
         </div>
       } @else {
-        <p class="empty-hint">Keine Talentbaum-Fertigkeiten — klicke „⚡ Generieren".</p>
+        <p class="empty-hint">Keine Fähigkeitenbaum-Fertigkeiten — klicke „⚡ Generieren“.</p>
       }
 
       <!-- Manual skill search -->
@@ -302,7 +302,7 @@
     @if (draft.mode === 'custom') {
       <div class="skill-search-row">
         @if (!showSkillSearch) {
-          <button class="mini-btn" (click)="showSkillSearch = true">+ Aus Talentbaum</button>
+          <button class="mini-btn" (click)="showSkillSearch = true">+ Aus Fähigkeitenbaum</button>
         } @else {
           <div class="skill-search">
             <input type="text" [(ngModel)]="skillSearchQuery"
