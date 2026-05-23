@@ -560,3 +560,44 @@
   border-top: 1px solid var(--border);
   padding-top: 6px;
 }
+
+/* ── Kampfrunde top bar ──────────────────────────────────────── */
+.kampfrunde-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background: rgba(239, 68, 68, 0.12);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+  flex-shrink: 0;
+  overflow: hidden;
+  min-height: 42px;
+}
+
+.kampfrunde-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #f87171;
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.kampfrunde-toggle-btn--end {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  border-radius: 5px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.kampfrunde-toggle-btn--end:hover {
+  background: rgba(239, 68, 68, 0.35);
+}
+

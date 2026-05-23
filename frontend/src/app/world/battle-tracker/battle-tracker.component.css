@@ -649,3 +649,82 @@
 .tile-portrait.tile-initial {
   font-size: 20px;
 }
+
+/* ── Compact mode (Kampfrunde bar) ─────────────────────────── */
+.battle-tracker-container.compact-mode {
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.compact-timeline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 0;
+}
+
+.compact-timeline::-webkit-scrollbar { display: none; }
+
+.compact-group {
+  display: flex;
+  gap: 3px;
+}
+
+.compact-group.first-group .compact-tile {
+  border-color: #fbbf24;
+  box-shadow: 0 0 6px rgba(251,191,36,0.4);
+}
+
+.compact-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.07);
+  min-width: 36px;
+}
+
+.compact-tile-portrait {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.compact-tile-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.12);
+  font-size: 14px;
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.compact-tile-name {
+  font-size: 0.6rem;
+  color: #9ca3af;
+  white-space: nowrap;
+  max-width: 50px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compact-empty {
+  font-size: 0.72rem;
+  color: #6b7280;
+  padding: 0 0.5rem;
+}
+

@@ -369,3 +369,16 @@
   min-width: 35px;
   text-align: right;
 }
+
+.kampfrunde-btn {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.kampfrunde-btn:hover,
+.kampfrunde-btn.active {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #f87171;
+  color: #fff;
+}

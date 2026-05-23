@@ -35,6 +35,7 @@ export class LobbyToolbarComponent {
   @Input() dragMode: DragMode = 'free';
   @Input() drawLayerVisible = true;
   @Input() isGM = false;
+  @Input() kampfrundeMode = false;
 
   // Outputs
   @Output() toolChange = new EventEmitter<ToolType>();
@@ -56,6 +57,7 @@ export class LobbyToolbarComponent {
   @Output() clearTextures = new EventEmitter<void>();
   @Output() toggleSidebar = new EventEmitter<void>();
   @Output() mapSettingsClicked = new EventEmitter<void>();
+  @Output() kampfrundeToggle = new EventEmitter<void>();
 
   // Tool definitions
   tools: { id: ToolType; icon: string; label: string; shortcut: string }[] = [

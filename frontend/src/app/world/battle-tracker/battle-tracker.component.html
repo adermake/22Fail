@@ -1,4 +1,27 @@
-<div class="battle-tracker-container" [class.read-only]="readOnly">
+<div class="battle-tracker-container" [class.read-only]="readOnly" [class.compact-mode]="compactMode">
+
+  @if (compactMode) {
+    <!-- Compact mode: just show timeline inline -->
+    <div class="compact-timeline">
+      @for (group of timeline(); track trackGroup($index, group); let gIdx = $index) {
+        <div class="compact-group" [ngClass]="'team-' + group.team" [class.first-group]="gIdx === 0">
+          @for (tile of group.tiles; track trackTile($index, tile)) {
+            <div class="compact-tile" [ngClass]="'team-' + tile.team">
+              @if (tile.portrait) {
+                <img [src]="tile.portrait | imageUrl" [alt]="tile.name" class="compact-tile-portrait">
+              } @else {
+                <span class="compact-tile-portrait compact-tile-initial">{{ tile.name.charAt(0) }}</span>
+              }
+              <span class="compact-tile-name">{{ tile.name }}</span>
+            </div>
+          }
+        </div>
+      }
+      @if (timeline().length === 0) {
+        <span class="compact-empty">Keine Teilnehmer</span>
+      }
+    </div>
+  } @else {
   <!-- Header -->
   <div class="battle-header">
     <h2>Battle Tracker</h2>
@@ -206,4 +229,7 @@
       </button>
     </div>
   }
+
+  } <!-- end @else (compact-mode) -->
+
 </div>

@@ -8,21 +8,9 @@
     </button>
     <button
       class="tab-button"
-      [class.active]="activeTab === 'spells'"
-      (click)="setActiveTab('spells')">
-      Zauber ({{ (sheet.spells || []).length }})
-    </button>
-    <button
-      class="tab-button"
       [class.active]="activeTab === 'wissen'"
       (click)="setActiveTab('wissen')">
       Wissen
-    </button>
-    <button
-      class="tab-button"
-      [class.active]="activeTab === 'skills'"
-      (click)="setActiveTab('skills')">
-      Fähigkeiten ({{ (sheet.skills || []).length }})
     </button>
     <button
       class="trash-button"
@@ -44,34 +32,12 @@
       </app-inventory>
     </div>
 
-    <!-- Spells Tab -->
-    @if (activeTab === 'spells') {
-      <app-spells
-        [sheet]="sheet"
-        [editingSpells]="editingSpells"
-        (patch)="onPatch($event)"
-        (editingChange)="onSpellEditingChange($event)"
-        (requestCastWindow)="requestCastWindow.emit()">
-      </app-spells>
-    }
-
     <!-- Wissen Tab (Runen + Bekannte Materialien) -->
     @if (activeTab === 'wissen') {
       <app-wissen
         [sheet]="sheet"
         (patch)="onPatch($event)">
       </app-wissen>
-    }
-
-    <!-- Skills Tab -->
-    @if (activeTab === 'skills') {
-      <app-skills
-        [sheet]="sheet"
-        [editingSkills]="editingSkills"
-        (patch)="onPatch($event)"
-        (editingChange)="onSkillEditingChange($event)"
-        (triggerMacro)="triggerMacro.emit($event)">
-      </app-skills>
     }
 
     <!-- Status Effects Tab -->

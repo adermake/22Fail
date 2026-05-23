@@ -172,6 +172,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   // Battle tracker visibility
   showBattleTracker = signal(true);
+  // Kampfrunde mode - GM activates to show compact top-bar battle tracker
+  kampfrundeMode = signal(false);
 
   // Selected token for quick view panel
   selectedTokenId = signal<string | null>(null);
@@ -442,9 +444,16 @@ export class LobbyComponent implements OnInit, OnDestroy {
         this.sidebarTab.set('textures' as any);
         event.preventDefault();
         break;
-      case 'f':
+      case 's':
         this.currentTool.set('cursor');
         this.isEraserMode.set(false);
+        event.preventDefault();
+        break;
+      case 'delete':
+        if (this.selectedTokenId()) {
+          this.store.removeToken(this.selectedTokenId()!);
+          this.selectedTokenId.set(null);
+        }
         event.preventDefault();
         break;
       case 'r':

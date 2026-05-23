@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SpellBlock, CastingSpellEntry, generateSpellId } from '../../model/spell-block-model';
+import { SkillBlock } from '../../model/skill-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { KeywordEnhancer } from '../keyword-enhancer';
 import { ImageService } from '../../services/image.service';
@@ -557,6 +558,59 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     this.sheet.spells = spells;
     this.patch.emit({ path: 'spells', value: spells });
     this.cdr.markForCheck();
+  }
+
+  // ── Skill support ─────────────────────────────────────────────────────────
+
+  /** Active skills (type === 'active') available on the sheet */
+  get availableSkills(): SkillBlock[] {
+    return (this.sheet.skills || []).filter(s => s.type === 'active' && !s.disabled);
+  }
+
+  /** Skills currently toggled on (have name in activeSkillNames) */
+  get activeSkillsList(): SkillBlock[] {
+    return this.availableSkills.filter(s => this.isSkillActive(s));
+  }
+
+  /** Whether a skill is currently toggled on */
+  isSkillActive(skill: SkillBlock): boolean {
+    return (this.sheet.activeSkillNames || []).includes(skill.name);
+  }
+
+  /** Toggle a skill on/off and emit patch */
+  toggleActiveSkill(skill: SkillBlock): void {
+    const current = [...(this.sheet.activeSkillNames || [])];
+    const idx = current.indexOf(skill.name);
+    if (idx >= 0) {
+      current.splice(idx, 1);
+    } else {
+      current.push(skill.name);
+    }
+    this.sheet.activeSkillNames = current;
+    this.patch.emit({ path: 'activeSkillNames', value: current });
+    this.cdr.markForCheck();
+  }
+
+  /** Adjust a counter on a skill definition and sync via patch */
+  adjustSkillCounter(skillName: string, counterIndex: number, newValue: number): void {
+    const skills = [...(this.sheet.skills || [])];
+    const idx = skills.findIndex(s => s.name === skillName);
+    if (idx < 0) return;
+    const skill = { ...skills[idx] };
+    if (!skill.counters || counterIndex >= skill.counters.length) return;
+    skill.counters = skill.counters.map((c, i) =>
+      i === counterIndex ? { ...c, current: Math.max(c.min, Math.min(c.max, newValue)) } : c
+    );
+    skills[idx] = skill;
+    this.sheet.skills = skills;
+    this.patch.emit({ path: 'skills', value: skills });
+    this.cdr.markForCheck();
+  }
+
+  skillCostLabel(skill: SkillBlock): string {
+    if (!skill.cost) return '';
+    const type = skill.cost.type === 'mana' ? 'M' : skill.cost.type === 'energy' ? 'E' : '❤';
+    return `${skill.cost.amount}${type}${skill.cost.perRound ? '/Rd' : ''}`;
   }
 
   // ── Floating runes ────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { FormulaType } from "./formula-type.enum";
+import { SpellCounter } from "./spell-block-model";
 
 export interface StatModifier {
   stat: 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill' | 'mana' | 'life' | 'energy';
@@ -29,4 +30,6 @@ export class SkillBlock {
   embeddedMacroAction?: import('./macro-action.model').MacroAction;
   // Set when this skill was granted by a race (holds race id) - used for cleanup on race change
   sourceRaceId?: string;
+  // Configurable counter bars shown while skill is active
+  counters?: SpellCounter[];
 }

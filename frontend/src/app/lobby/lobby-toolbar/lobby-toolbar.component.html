@@ -270,5 +270,16 @@
     >
       ⚙️
     </button>
+
+    <!-- Kampfrunde toggle (GM only) -->
+    @if (isGM) {
+      <button
+        class="tool-btn kampfrunde-btn"
+        [class.active]="kampfrundeMode"
+        (click)="kampfrundeToggle.emit()"
+        title="Kampfrunde starten/beenden">
+        ⚔️
+      </button>
+    }
   </div>
 </div>

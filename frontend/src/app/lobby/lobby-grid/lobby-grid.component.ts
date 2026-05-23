@@ -235,6 +235,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // Token dragging
   draggingToken: Token | null = null;
+  private dragGrabOffset: Point = { x: 0, y: 0 }; // Offset from token center to grab point
   dragGhostPosition = signal<Point | null>(null);
   dragCurrentPosition = signal<Point | null>(null); // Current position of dragged token in world coords
   dragHoverHex = signal<HexCoord | null>(null);
@@ -3731,7 +3732,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Cursor tool is ONLY for tokens - no image interaction
     const token = this.findTokenAtHex(hex);
     if (token) {
-      this.startTokenDrag(token, hex);
+      this.startTokenDrag(token, hex, world);
       return;
     }
     // Clicked on empty hex — notify lobby (for linked token placement etc.)
@@ -4467,7 +4468,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     return fallback;
   }
 
-  private startTokenDrag(token: Token, hex: HexCoord): void {
+  private startTokenDrag(token: Token, hex: HexCoord, grabWorld?: Point): void {
     this.draggingToken = token;
     this.dragStartHex.set(hex);
     this.dragHoverHex.set(hex);
@@ -4476,15 +4477,28 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.dragPathExceedsSpeed.set(false);
     this.dragPathIsBlocked.set(false);
     this.pathfindingCache.clear(); // Clear pathfinding cache for new drag
+    // Capture grab offset so large tokens don't jump when dragged
+    if (grabWorld) {
+      const tokenCenter = HexMath.hexToPixel(token.position);
+      this.dragGrabOffset = { x: grabWorld.x - tokenCenter.x, y: grabWorld.y - tokenCenter.y };
+    } else {
+      this.dragGrabOffset = { x: 0, y: 0 };
+    }
   }
 
   private updateTokenDrag(world: Point): void {
     if (!this.draggingToken) return;
 
+    // Apply grab offset so token stays at where user grabbed it (not jumping to center)
+    const adjustedWorld: Point = {
+      x: world.x - this.dragGrabOffset.x,
+      y: world.y - this.dragGrabOffset.y,
+    };
+
     // Always follow cursor position smoothly
-    this.dragCurrentPosition.set(world);
+    this.dragCurrentPosition.set(adjustedWorld);
     
-    const hex = HexMath.pixelToHex(world);
+    const hex = HexMath.pixelToHex(adjustedWorld);
     this.dragHoverHex.set(hex);
     
     // In enforced mode, calculate path with walls and speed limits

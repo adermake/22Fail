@@ -17,7 +17,7 @@
   <!-- Header -->
   <div class="scw-header">
     <div class="scw-header-left">
-      <span class="scw-title">✦ Zauberwirken</span>
+      <span class="scw-title">✦ Zauber und Fähigkeiten</span>
       @if (sheet.name) {
         <span class="scw-char-name">{{ sheet.name }}</span>
       }
@@ -125,6 +125,41 @@
       }
     </div>
 
+    <!-- Skills section in left panel -->
+    @if (availableSkills.length > 0) {
+      <div class="scw-skills-section">
+        <div class="scw-panel-header scw-panel-header--skills">Aktive Fähigkeiten</div>
+        <div class="scw-skills-grid">
+          @for (skill of availableSkills; track skill.name) {
+            <div class="scw-skill-card"
+                 [class.is-active]="isSkillActive(skill)"
+                 (click)="toggleActiveSkill(skill)"
+                 [title]="skill.description || skill.name">
+              <div class="scw-skill-glow"></div>
+              <div class="scw-skill-head">
+                <span class="scw-skill-icon">{{ skill.name.charAt(0) }}</span>
+                <span class="scw-skill-name">{{ skill.name }}</span>
+                @if (isSkillActive(skill)) {
+                  <span class="scw-active-badge">Aktiv</span>
+                }
+              </div>
+              @if (skill.description) {
+                <div class="scw-skill-desc">{{ skill.description }}</div>
+              }
+              <div class="scw-skill-footer">
+                @if (skill.actionType) {
+                  <span class="scw-skill-tag">{{ skill.actionType }}</span>
+                }
+                @if (skill.cost) {
+                  <span class="scw-cost-chip scw-cost-chip--skill">{{ skillCostLabel(skill) }}</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
     <!-- Divider -->
     <div class="scw-divider">
       <div class="scw-divider-line"></div>
@@ -132,9 +167,9 @@
       <div class="scw-divider-line"></div>
     </div>
 
-    <!-- Right: Active casts -->
+    <!-- Right: Active casts and skills -->
     <div class="scw-panel scw-panel--active">
-      <div class="scw-panel-header">Aktive Zauber</div>
+      <div class="scw-panel-header">Aktive Zauber &amp; Fähigkeiten</div>
 
       <!-- Cast Bonus (saved on sheet) -->
       <div class="scw-cast-bonus-row">
@@ -246,6 +281,49 @@
         }
       </div>
     </div>
+
+    <!-- Active skills section -->
+    @if (activeSkillsList.length > 0) {
+      <div class="scw-active-skills-section">
+        <div class="scw-active-skills-label">Aktive Fähigkeiten</div>
+        @for (skill of activeSkillsList; track skill.name) {
+            <div class="scw-active-skill-card">
+              <div class="scw-active-header">
+                <span class="scw-active-icon">{{ skill.name.charAt(0) }}</span>
+                <span class="scw-active-name">{{ skill.name }}</span>
+                @if (skill.cost) {
+                  <span class="scw-active-cost">{{ skillCostLabel(skill) }}</span>
+                }
+                <button class="scw-stop-btn" (click)="toggleActiveSkill(skill)" title="Deaktivieren">✕</button>
+              </div>
+              @if (skill.description) {
+                <div class="scw-active-desc">{{ skill.description }}</div>
+              }
+              @if (skill.counters && skill.counters.length > 0) {
+                <div class="scw-counter-list">
+                  @for (counter of skill.counters; track counter.id; let ci = $index) {
+                    <div class="scw-counter">
+                      <span class="scw-counter-name">{{ counter.name }}</span>
+                      <button class="scw-counter-btn" (click)="adjustSkillCounter(skill.name, ci, counter.current - 1)">−</button>
+                      <input class="scw-counter-input"
+                             type="number"
+                             [ngModel]="counter.current"
+                             (ngModelChange)="adjustSkillCounter(skill.name, ci, $event)" />
+                      <button class="scw-counter-btn" (click)="adjustSkillCounter(skill.name, ci, counter.current + 1)">+</button>
+                      <span class="scw-counter-max">/ {{ counter.max }}</span>
+                      <div class="scw-counter-bar">
+                        <div class="scw-counter-fill"
+                             [style.width.%]="counter.max > counter.min ? ((counter.current - counter.min) / (counter.max - counter.min)) * 100 : 0"
+                             [style.backgroundColor]="counter.color"></div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
 
   </div>
 

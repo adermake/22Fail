@@ -36,6 +36,8 @@
     (clearTextures)="onClearAllTextures()"
     (toggleSidebar)="toggleSidebar()"
     (mapSettingsClicked)="showMapSettings()"
+    [kampfrundeMode]="kampfrundeMode()"
+    (kampfrundeToggle)="kampfrundeMode.set(!kampfrundeMode())"
   />
 
   <!-- Main content area -->
@@ -144,16 +146,18 @@
     </div>
   </div>
 
-  <!-- Battle Tracker Section (collapsible) -->
-  <div class="battle-tracker-section" [class.collapsed]="!showBattleTracker()">
-    <button class="battle-tracker-toggle" (click)="showBattleTracker.set(!showBattleTracker())" title="Toggle Battle Tracker">
-      <span class="toggle-icon">{{ showBattleTracker() ? '▼' : '▲' }}</span>
-      <span class="toggle-label">Battle Tracker</span>
-    </button>
-    @if (showBattleTracker()) {
-      <app-battle-tracker [engine]="battleEngine" [readOnly]="true"></app-battle-tracker>
-    }
-  </div>
+  <!-- Kampfrunde top bar (compact, shown when GM enables Kampfrunde mode) -->
+  @if (kampfrundeMode()) {
+    <div class="kampfrunde-bar">
+      <span class="kampfrunde-label">⚔️ Kampfrunde</span>
+      <app-battle-tracker [engine]="battleEngine" [readOnly]="true" [compactMode]="true"></app-battle-tracker>
+      @if (isGM()) {
+        <button class="kampfrunde-toggle-btn kampfrunde-toggle-btn--end" (click)="kampfrundeMode.set(false)" title="Kampfrunde beenden">
+          ✕ Kampfrunde beenden
+        </button>
+      }
+    </div>
+  }
 </div>
 
 <!-- Map Settings Modal -->
