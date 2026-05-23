@@ -24,6 +24,7 @@ export interface TokenResources {
     <div 
       class="token-wrapper"
       [class.current-turn]="isCurrentTurn"
+      [class.selected]="isSelected"
       [class.dragging]="isDragging"
       [class.non-interactive]="!isInteractive"
       [class.show-resources]="showResources"
@@ -92,8 +93,8 @@ export interface TokenResources {
       margin-top: -30px;
       pointer-events: auto;
       z-index: 1;
-      /* Scale with zoom to match hex grid size, then apply user transforms */
-      transform: scale(var(--token-scale, 1)) scale(var(--user-scale-x, 1), var(--user-scale-y, 1)) rotate(var(--user-rotation, 0deg));
+      /* Scale with zoom; rotate FIRST so scale is in local (rotated) space */
+      transform: scale(var(--token-scale, 1)) rotate(var(--user-rotation, 0deg)) scale(var(--user-scale-x, 1), var(--user-scale-y, 1));
       transform-origin: center center;
     }
 
@@ -134,6 +135,14 @@ export interface TokenResources {
     .token-wrapper.current-turn .token-border {
       background: #22c55e;
       filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.8));
+    }
+
+    .token-wrapper.selected .token-border {
+      filter: drop-shadow(0 0 4px #a78bfa) drop-shadow(0 0 8px rgba(167, 139, 250, 0.7));
+    }
+
+    .token-wrapper.selected {
+      z-index: 3;
     }
 
     .token-portrait {
@@ -233,6 +242,7 @@ export class LobbyTokenComponent {
   @Input() isDragging = false;
   @Input() resources: TokenResources | null = null; // Character resources
   @Input() showResources = false; // Only show for party members
+  @Input() isSelected = false;
 
   @Output() dragStart = new EventEmitter<MouseEvent>();
   @Output() contextMenu = new EventEmitter<MouseEvent>();

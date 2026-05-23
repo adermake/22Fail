@@ -74,6 +74,7 @@
         [position]="getTokenScreenPosition(token)"
         [scale]="scale"
         [isCurrentTurn]="false"
+        [isSelected]="selectedTokenId === token.id"
         [isInteractive]="currentTool === 'cursor'"
         [isDragging]="draggingToken?.id === token.id"
         [resources]="getTokenResources(token.characterId)"

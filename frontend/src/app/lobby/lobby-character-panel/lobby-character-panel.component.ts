@@ -9,7 +9,8 @@
 
 import {
   Component, Input, Output, EventEmitter, ChangeDetectionStrategy,
-  inject, signal, ChangeDetectorRef, OnChanges, SimpleChanges
+  inject, signal, ChangeDetectorRef, OnChanges, SimpleChanges,
+  ViewChild, ElementRef, AfterViewInit
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -352,28 +353,31 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
               <input type="checkbox" [(ngModel)]="uniformScale" /> Einheitlich
             </label>
             <div class="scale-quick-btns">
-              <button class="quick-btn" (click)="adjustScale(-0.1)" title="-10%">−</button>
-              <span class="scale-label">{{ (uniformScale ? localScaleX : localScaleX).toFixed(2) }}×</span>
-              <button class="quick-btn" (click)="adjustScale(0.1)" title="+10%">+</button>
+              <button class="quick-btn" (click)="adjustScale(-0.25)">−¼</button>
+              <input type="number" class="fx-input scale-number-input"
+                [value]="uniformScale ? localScaleX : localScaleX"
+                min="0.1" max="20" step="0.1"
+                (change)="onScaleInputChange($any($event.target).value)" />
+              <button class="quick-btn" (click)="adjustScale(0.25)">+¼</button>
             </div>
           </div>
           @if (!uniformScale) {
             <div class="aussehen-slider-row">
               <span class="slider-label">X</span>
-              <input type="range" class="slider" min="0.3" max="4" step="0.05"
+              <input type="range" class="slider" min="0.1" max="10" step="0.05"
                 [value]="localScaleX" (input)="localScaleX = +$any($event.target).value; applyCosmetic()" />
               <span class="slider-val">{{ localScaleX.toFixed(2) }}</span>
             </div>
             <div class="aussehen-slider-row">
               <span class="slider-label">Y</span>
-              <input type="range" class="slider" min="0.3" max="4" step="0.05"
+              <input type="range" class="slider" min="0.1" max="10" step="0.05"
                 [value]="localScaleY" (input)="localScaleY = +$any($event.target).value; applyCosmetic()" />
               <span class="slider-val">{{ localScaleY.toFixed(2) }}</span>
             </div>
           } @else {
             <div class="aussehen-slider-row">
               <span class="slider-label">Scale</span>
-              <input type="range" class="slider" min="0.3" max="4" step="0.05"
+              <input type="range" class="slider" min="0.1" max="10" step="0.05"
                 [value]="localScaleX" (input)="localScaleX = +$any($event.target).value; localScaleY = localScaleX; applyCosmetic()" />
               <span class="slider-val">{{ localScaleX.toFixed(2) }}</span>
             </div>
@@ -388,8 +392,8 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
             <span class="slider-val">{{ localRotation }}°</span>
           </div>
           <div class="rotation-btns">
-            <button class="quick-btn" (click)="rotateBy(-90)" title="-90°">↺ 90°</button>
-            <button class="quick-btn" (click)="rotateBy(90)" title="+90°">↻ 90°</button>
+            <button class="quick-btn" (click)="rotateBy(-60)" title="-60°">↺ 60°</button>
+            <button class="quick-btn" (click)="rotateBy(60)" title="+60°">↻ 60°</button>
             <button class="quick-btn" (click)="localRotation = 0; applyCosmetic()" title="Reset">Reset</button>
           </div>
 
@@ -401,16 +405,52 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
           </div>
 
           <!-- Custom portrait -->
-          <div class="section-header">✏️ Portrait zeichnen</div>
+          <div class="section-header">🖼️ Portrait</div>
           @if (token.customPortraitData) {
             <div class="portrait-preview-row">
-              <img [src]="token!.customPortraitData" class="portrait-preview" alt="Portrait" />
-              <button class="action-btn danger-btn" (click)="clearCustomPortrait()">Löschen</button>
+              <img [src]="token.customPortraitData" class="portrait-preview" alt="Portrait" />
+              <button class="quick-btn danger-btn" (click)="clearCustomPortrait()">Löschen</button>
             </div>
           }
-          <button class="add-fx-btn draw-btn" (click)="requestTokenDraw.emit(token!.id)">
-            ✏️ Auf Token zeichnen (Max. Zoom benötigt)
-          </button>
+          <!-- Upload portrait -->
+          <div class="aussehen-row">
+            <label class="add-fx-btn upload-portrait-label" style="cursor:pointer;">
+              📁 Bild hochladen
+              <input type="file" accept="image/*" style="display:none" (change)="uploadPortrait($event)" />
+            </label>
+          </div>
+          <!-- Draw portrait -->
+          @if (!showDrawCanvas()) {
+            <button class="add-fx-btn draw-btn" (click)="openDrawCanvas()">
+              ✏️ Auf Token zeichnen
+            </button>
+          } @else {
+            <div class="draw-canvas-container">
+              <div class="draw-canvas-toolbar">
+                <label class="fx-check" style="gap:4px">
+                  Farbe: <input type="color" [(ngModel)]="drawColor" style="width:28px;height:22px;padding:0;border:none;cursor:pointer;background:none;" />
+                </label>
+                <label class="fx-check" style="gap:4px">
+                  Pinsel:
+                  <input type="range" min="2" max="40" step="1" [(ngModel)]="drawBrushSize" class="slider" style="width:60px" />
+                  <span class="slider-val">{{ drawBrushSize }}</span>
+                </label>
+                <button class="quick-btn" (click)="clearDrawCanvas()" title="Leinwand leeren">🗑️</button>
+              </div>
+              <canvas #tokenDrawCanvas
+                class="draw-canvas"
+                width="256" height="256"
+                (mousedown)="onDrawCanvasMouseDown($event)"
+                (mousemove)="onDrawCanvasMouseMove($event)"
+                (mouseup)="onDrawCanvasMouseUp()"
+                (mouseleave)="onDrawCanvasMouseUp()"
+              ></canvas>
+              <div class="draw-canvas-actions">
+                <button class="action-btn" (click)="saveDrawCanvas()">Speichern</button>
+                <button class="quick-btn" (click)="closeDrawCanvas()">Abbrechen</button>
+              </div>
+            </div>
+          }
 
         </div>
       }
@@ -982,6 +1022,48 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
     .fx-check input { cursor: pointer; }
     .small-btn { flex: 1; padding: 5px 8px !important; font-size: 11px !important; }
 
+    .scale-number-input {
+      width: 52px !important;
+      text-align: center;
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      padding: 3px 4px !important;
+      -moz-appearance: textfield;
+    }
+    .scale-number-input::-webkit-outer-spin-button,
+    .scale-number-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .upload-portrait-label {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .draw-canvas-container {
+      margin: 2px 8px 6px;
+      background: #1a2130;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .draw-canvas-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      flex-wrap: wrap;
+    }
+    .draw-canvas {
+      display: block;
+      width: 100%;
+      aspect-ratio: 1;
+      cursor: crosshair;
+      image-rendering: pixelated;
+    }
+    .draw-canvas-actions {
+      display: flex;
+      gap: 6px;
+      padding: 6px 8px;
+      border-top: 1px solid #334155;
+    }
     /* ---- Aussehen Tab ---- */
     .aussehen-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
     .uniform-row { justify-content: space-between; }
@@ -1024,7 +1106,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
     .hint-text { font-size: 10px; color: #4b5563; font-style: italic; }
   `]
 })
-export class LobbyCharacterPanelComponent implements OnChanges {
+export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   @Input() token: Token | null = null;
   @Input() character: CharacterSheet | null = null;
@@ -1055,6 +1137,14 @@ export class LobbyCharacterPanelComponent implements OnChanges {
   newEffectIsDebuff = false;
   newEffectDuration: number | null = null;
 
+  // Draw canvas state
+  @ViewChild('tokenDrawCanvas') tokenDrawCanvasRef?: ElementRef<HTMLCanvasElement>;
+  showDrawCanvas = signal(false);
+  drawColor = '#000000';
+  drawBrushSize = 8;
+  private _drawingActive = false;
+  private _drawCtx: CanvasRenderingContext2D | null = null;
+
   // Cosmetic state (local mirrors of token values)
   localName = '';
   localScaleX = 1.0;
@@ -1075,8 +1165,13 @@ export class LobbyCharacterPanelComponent implements OnChanges {
       this.activeTab.set('actions');
       this.syncCosmeticLocals();
       this.showAddEffectForm.set(false);
+      this.showDrawCanvas.set(false);
       this.cdr.markForCheck();
     }
+  }
+
+  ngAfterViewInit(): void {
+    // Canvas is rendered lazily; init happens in openDrawCanvas()
   }
 
   private syncCosmeticLocals(): void {
@@ -1368,8 +1463,15 @@ export class LobbyCharacterPanelComponent implements OnChanges {
   }
 
   adjustScale(delta: number): void {
-    this.localScaleX = Math.max(0.3, Math.min(4, Math.round((this.localScaleX + delta) * 100) / 100));
+    this.localScaleX = Math.max(0.1, Math.round((this.localScaleX + delta) * 100) / 100);
     if (this.uniformScale) this.localScaleY = this.localScaleX;
+    this.applyCosmetic();
+  }
+
+  onScaleInputChange(value: string): void {
+    const v = Math.max(0.1, +value);
+    this.localScaleX = v;
+    if (this.uniformScale) this.localScaleY = v;
     this.applyCosmetic();
   }
 
@@ -1381,6 +1483,100 @@ export class LobbyCharacterPanelComponent implements OnChanges {
   clearCustomPortrait(): void {
     if (!this.token) return;
     this.tokenUpdate.emit({ customPortraitData: undefined });
+  }
+
+  uploadPortrait(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.tokenUpdate.emit({ customPortraitData: reader.result as string });
+    };
+    reader.readAsDataURL(file);
+    // Reset input so the same file can be re-selected
+    input.value = '';
+  }
+
+  openDrawCanvas(): void {
+    this.showDrawCanvas.set(true);
+    this.cdr.markForCheck();
+    // Init canvas on next tick after it's rendered
+    setTimeout(() => this.initDrawCanvas(), 0);
+  }
+
+  closeDrawCanvas(): void {
+    this.showDrawCanvas.set(false);
+    this._drawCtx = null;
+  }
+
+  saveDrawCanvas(): void {
+    if (!this._drawCtx || !this.token) return;
+    const dataUrl = this._drawCtx.canvas.toDataURL('image/png');
+    this.tokenUpdate.emit({ customPortraitData: dataUrl });
+    this.showDrawCanvas.set(false);
+    this._drawCtx = null;
+  }
+
+  clearDrawCanvas(): void {
+    if (!this._drawCtx) return;
+    const c = this._drawCtx.canvas;
+    this._drawCtx.clearRect(0, 0, c.width, c.height);
+    this._drawCtx.fillStyle = '#ffffff';
+    this._drawCtx.fillRect(0, 0, c.width, c.height);
+  }
+
+  private initDrawCanvas(): void {
+    if (!this.tokenDrawCanvasRef) return;
+    const canvas = this.tokenDrawCanvasRef.nativeElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    this._drawCtx = ctx;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // If token already has a custom portrait, load it
+    if (this.token?.customPortraitData) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      img.src = this.token.customPortraitData;
+    }
+  }
+
+  onDrawCanvasMouseDown(event: MouseEvent): void {
+    if (!this._drawCtx) return;
+    this._drawingActive = true;
+    const pos = this.getCanvasPos(event);
+    this._drawCtx.beginPath();
+    this._drawCtx.moveTo(pos.x, pos.y);
+  }
+
+  onDrawCanvasMouseMove(event: MouseEvent): void {
+    if (!this._drawingActive || !this._drawCtx) return;
+    const pos = this.getCanvasPos(event);
+    this._drawCtx.lineWidth = this.drawBrushSize;
+    this._drawCtx.lineCap = 'round';
+    this._drawCtx.lineJoin = 'round';
+    this._drawCtx.strokeStyle = this.drawColor;
+    this._drawCtx.lineTo(pos.x, pos.y);
+    this._drawCtx.stroke();
+    this._drawCtx.beginPath();
+    this._drawCtx.moveTo(pos.x, pos.y);
+  }
+
+  onDrawCanvasMouseUp(): void {
+    this._drawingActive = false;
+    if (this._drawCtx) {
+      this._drawCtx.beginPath();
+    }
+  }
+
+  private getCanvasPos(event: MouseEvent): { x: number; y: number } {
+    if (!this.tokenDrawCanvasRef) return { x: 0, y: 0 };
+    const rect = this.tokenDrawCanvasRef.nativeElement.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * (this.tokenDrawCanvasRef.nativeElement.width / rect.width),
+      y: (event.clientY - rect.top) * (this.tokenDrawCanvasRef.nativeElement.height / rect.height),
+    };
   }
 
   // ============================================================

@@ -175,6 +175,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   // Selected token for quick view panel
   selectedTokenId = signal<string | null>(null);
+  pendingLinkedToken = signal<{ parentId: string; type: LinkedTokenType; name: string } | null>(null);
 
   // Computed: selected token quick view data
   selectedTokenInfo = computed(() => {
@@ -615,7 +616,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   onTokenClick(tokenId: string): void {
-    this.selectedTokenId.set(tokenId === this.selectedTokenId() ? null : tokenId);
+    // Only select — re-clicking already-selected token does nothing.
+    // Deselection happens via background click (onHexClick with no pending).
+    this.selectedTokenId.set(tokenId);
   }
 
   onTokenResourceChange(updates: Partial<Omit<Token, 'id'>>): void {
@@ -632,9 +635,28 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   onRequestLinkedTokenPlacement(data: { parentId: string; type: LinkedTokenType; name: string }): void {
-    // Pending feature: next click on the map will create a linked token.
-    // For now, this is a no-op placeholder.
-    console.log('[Lobby] requestLinkedTokenPlacement', data);
+    this.pendingLinkedToken.set(data);
+  }
+
+  onHexClick(hex: HexCoord): void {
+    const pending = this.pendingLinkedToken();
+    if (pending) {
+      // Place a linked token at the clicked hex
+      const characterId = 'npc-linked-' + Date.now();
+      this.store.addToken({
+        characterId,
+        name: pending.name,
+        position: hex,
+        team: 'default',
+        isQuickToken: true,
+        parentTokenId: pending.parentId,
+        linkedTokenType: pending.type,
+      });
+      this.pendingLinkedToken.set(null);
+      return;
+    }
+    // No pending action — click on empty hex deselects token
+    this.selectedTokenId.set(null);
   }
 
   onTokenChildDetach(data: { childId: string }): void {

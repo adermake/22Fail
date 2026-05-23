@@ -103,6 +103,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() isGM = false;
   @Input() isEraserMode = false; // E key toggles this
   @Input() textureLayer: 'background' | 'foreground' = 'background';
+  @Input() selectedTokenId: string | null = null;
 
   // Outputs
   @Output() tokenDrop = new EventEmitter<{ characterId: string; position: HexCoord }>();
@@ -116,6 +117,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Output() tokenCombatAdd = new EventEmitter<string>(); // Emits tokenId
   @Output() tokenCombatRemove = new EventEmitter<string>(); // Emits tokenId
   @Output() tokenClick = new EventEmitter<string>(); // Emits tokenId for quick view
+  @Output() hexClick = new EventEmitter<HexCoord>(); // Emits hex coord when empty hex clicked in cursor mode
   @Output() npcStatblockDrop = new EventEmitter<{ statblockId: string; name: string; portrait: string; position: HexCoord }>();
   @Output() imageSelect = new EventEmitter<string | null>();
   @Output() imageTransform = new EventEmitter<{ id: string; transform: Partial<MapImage> }>();
@@ -3732,6 +3734,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.startTokenDrag(token, hex);
       return;
     }
+    // Clicked on empty hex — notify lobby (for linked token placement etc.)
+    this.hexClick.emit(hex);
   }
 
   private handleCursorMove(event: MouseEvent, world: Point, hex: HexCoord): void {

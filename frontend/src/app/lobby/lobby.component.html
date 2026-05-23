@@ -119,6 +119,8 @@
         (tokenCombatAdd)="onTokenCombatAdd($event)"
         (tokenCombatRemove)="onTokenCombatRemove($event)"
         (tokenClick)="onTokenClick($event)"
+        (hexClick)="onHexClick($event)"
+        [selectedTokenId]="selectedTokenId()"
         (npcStatblockDrop)="onNpcStatblockDrop($event)"
         />
       </div>
