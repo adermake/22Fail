@@ -72,6 +72,10 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   private _portalRunes: PortalRune[] = [];
   get portalRunes(): PortalRune[] { return this._portalRunes; }
 
+  // ── Left panel tab ────────────────────────────────────────────────────────
+  leftTab: 'spells' | 'skills' = 'spells';
+  skillSearchText = '';
+
   // ── Pending cast state ────────────────────────────────────────────────────
   pendingCastSpell: SpellBlock | null = null;
   pendingCastLevel = 0;
@@ -110,6 +114,32 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   get manaPercent(): number {
     const max = this.manaMax;
     return max ? Math.min(100, Math.round((this.manaCurrent / max) * 100)) : 0;
+  }
+
+  get lebenCurrent(): number {
+    return this.sheet.statuses?.find(s => s.statusName === 'Leben')?.statusCurrent ?? 0;
+  }
+
+  get lebenMax(): number {
+    return this.sheet.statuses?.find(s => s.statusName === 'Leben')?.statusBase ?? 100;
+  }
+
+  get lebenPercent(): number {
+    const max = this.lebenMax;
+    return max ? Math.min(100, Math.round((this.lebenCurrent / max) * 100)) : 0;
+  }
+
+  get ausdauerCurrent(): number {
+    return this.sheet.statuses?.find(s => s.statusName === 'Ausdauer')?.statusCurrent ?? 0;
+  }
+
+  get ausdauerMax(): number {
+    return this.sheet.statuses?.find(s => s.statusName === 'Ausdauer')?.statusBase ?? 100;
+  }
+
+  get ausdauerPercent(): number {
+    const max = this.ausdauerMax;
+    return max ? Math.min(100, Math.round((this.ausdauerCurrent / max) * 100)) : 0;
   }
 
   get fokusMax(): number {
@@ -565,6 +595,22 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   /** Active skills (type === 'active') available on the sheet */
   get availableSkills(): SkillBlock[] {
     return (this.sheet.skills || []).filter(s => s.type === 'active' && !s.disabled);
+  }
+
+  /** Active skills filtered by search text */
+  get filteredAvailableSkills(): SkillBlock[] {
+    if (!this.skillSearchText.trim()) return this.availableSkills;
+    const q = this.skillSearchText.toLowerCase();
+    return this.availableSkills.filter(s =>
+      (s.name || '').toLowerCase().includes(q) ||
+      (s.description || '').toLowerCase().includes(q) ||
+      (s.class || '').toLowerCase().includes(q)
+    );
+  }
+
+  /** Active spells filtered by spell name for search */
+  get filteredAvailableSpells(): SpellBlock[] {
+    return this.availableSpells;
   }
 
   /** Skills currently toggled on (have name in activeSkillNames) */

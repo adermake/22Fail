@@ -26,6 +26,20 @@
     <!-- Resources -->
     <div class="scw-resources">
       <div class="scw-res-block">
+        <span class="scw-res-label">Leben</span>
+        <div class="scw-res-bar">
+          <div class="scw-res-fill scw-res-fill--leben" [style.width.%]="lebenPercent"></div>
+        </div>
+        <span class="scw-res-val">{{ lebenCurrent }} / {{ lebenMax }}</span>
+      </div>
+      <div class="scw-res-block">
+        <span class="scw-res-label">Ausdauer</span>
+        <div class="scw-res-bar">
+          <div class="scw-res-fill scw-res-fill--ausdauer" [style.width.%]="ausdauerPercent"></div>
+        </div>
+        <span class="scw-res-val">{{ ausdauerCurrent }} / {{ ausdauerMax }}</span>
+      </div>
+      <div class="scw-res-block">
         <span class="scw-res-label">Mana</span>
         <div class="scw-res-bar">
           <div class="scw-res-fill scw-res-fill--mana" [style.width.%]="manaPercent"></div>
@@ -47,118 +61,163 @@
   <!-- Body -->
   <div class="scw-body">
 
-    <!-- Left: Available spells -->
+    <!-- Left: Tabbed panel (Zauber | Fähigkeiten) -->
     <div class="scw-panel scw-panel--available">
-      <div class="scw-panel-header">Verfügbare Zauber</div>
-      @if (availableSpells.length === 0) {
-        <div class="scw-empty">Keine Zauber vorhanden.</div>
-      } @else {
-        <div class="scw-spell-grid">
-          @for (spell of availableSpells; track spell.id) {
-            <div class="scw-spell-card"
-                 [class.is-casting]="isActivelyCasting(spell)"
-                 [style.--sc]="spellColor(spell)"
-                 (click)="requestCast(spell)"
-                 [title]="'Klicken zum Wirken: ' + spell.name">
-              <div class="scw-spell-glow"></div>
 
-              <!-- Card header -->
-              <div class="scw-card-head">
-                <span class="scw-spell-icon">{{ spell.icon || '✦' }}</span>
-                <span class="scw-spell-name">{{ spell.name }}</span>
-                @if (isActivelyCasting(spell)) {
-                  <span class="scw-active-badge">Aktiv</span>
-                }
-              </div>
-
-              <!-- Description (short) -->
-              @if (spell.description) {
-                <div class="scw-spell-desc-short" [innerHTML]="enhancedSpellDesc(spell)"></div>
-              }
-
-              <!-- Stat requirements -->
-              @if (spellStatReqs(spell).length > 0) {
-                <div class="scw-spell-reqs-row">
-                  @for (req of spellStatReqs(spell); track req.label) {
-                    <span class="scw-spell-req"
-                          [class.scw-spell-req--unmet]="!spellMeetsStat(req.key, req.value)">
-                      {{ req.label }}&nbsp;{{ req.value }}
-                    </span>
-                  }
-                </div>
-              }
-
-              <!-- Cost footer -->
-              <div class="scw-card-footer">
-                <div class="scw-card-costs">
-                  @if (spell.costMana) {
-                    <span class="scw-cost-chip scw-cost-chip--mana">◆&nbsp;{{ spell.costMana }}</span>
-                  }
-                  @if (spell.costFokus) {
-                    <span class="scw-cost-chip scw-cost-chip--fokus">◆&nbsp;{{ spell.costFokus }}</span>
-                  }
-                  @if (!spell.costMana && !spell.costFokus) {
-                    <span class="scw-cost-chip scw-cost-chip--free">Kostenlos</span>
-                  }
-                </div>
-                <div class="scw-card-meta">
-                  @if (spell.perTurnMana || spell.perTurnFokus) {
-                    <span class="scw-card-perturn">/Rd</span>
-                  }
-                  @if (spell.durationTurns) {
-                    <span class="scw-card-dur">⧗{{ spell.durationTurns }}</span>
-                  }
-                </div>
-              </div>
-
-              <!-- Tags -->
-              @if (spell.tags && spell.tags.length > 0) {
-                <div class="scw-spell-tags">
-                  @for (tag of spell.tags; track tag) {
-                    <span class="scw-tag">{{ tag }}</span>
-                  }
-                </div>
-              }
-            </div>
-          }
-        </div>
-      }
-    </div>
-
-    <!-- Skills section in left panel -->
-    @if (availableSkills.length > 0) {
-      <div class="scw-skills-section">
-        <div class="scw-panel-header scw-panel-header--skills">Aktive Fähigkeiten</div>
-        <div class="scw-skills-grid">
-          @for (skill of availableSkills; track skill.name) {
-            <div class="scw-skill-card"
-                 [class.is-active]="isSkillActive(skill)"
-                 (click)="toggleActiveSkill(skill)"
-                 [title]="skill.description || skill.name">
-              <div class="scw-skill-glow"></div>
-              <div class="scw-skill-head">
-                <span class="scw-skill-icon">{{ skill.name.charAt(0) }}</span>
-                <span class="scw-skill-name">{{ skill.name }}</span>
-                @if (isSkillActive(skill)) {
-                  <span class="scw-active-badge">Aktiv</span>
-                }
-              </div>
-              @if (skill.description) {
-                <div class="scw-skill-desc">{{ skill.description }}</div>
-              }
-              <div class="scw-skill-footer">
-                @if (skill.actionType) {
-                  <span class="scw-skill-tag">{{ skill.actionType }}</span>
-                }
-                @if (skill.cost) {
-                  <span class="scw-cost-chip scw-cost-chip--skill">{{ skillCostLabel(skill) }}</span>
-                }
-              </div>
-            </div>
-          }
-        </div>
+      <!-- Tab bar -->
+      <div class="scw-left-tabs">
+        <button class="scw-left-tab" [class.active]="leftTab === 'spells'" (click)="leftTab = 'spells'">
+          ✦ Zauber <span class="scw-left-tab-count">{{ availableSpells.length }}</span>
+        </button>
+        <button class="scw-left-tab" [class.active]="leftTab === 'skills'" (click)="leftTab = 'skills'">
+          ⚡ Fähigkeiten <span class="scw-left-tab-count">{{ availableSkills.length }}</span>
+        </button>
       </div>
-    }
+
+      <!-- Spells tab content -->
+      @if (leftTab === 'spells') {
+        @if (availableSpells.length === 0) {
+          <div class="scw-empty">Keine Zauber vorhanden.</div>
+        } @else {
+          <div class="scw-spell-grid">
+            @for (spell of availableSpells; track spell.id) {
+              <div class="scw-spell-card"
+                   [class.is-casting]="isActivelyCasting(spell)"
+                   [style.--sc]="spellColor(spell)"
+                   (click)="requestCast(spell)"
+                   [title]="'Klicken zum Wirken: ' + spell.name">
+                <div class="scw-spell-glow"></div>
+
+                <!-- Card header -->
+                <div class="scw-card-head">
+                  <span class="scw-spell-icon">{{ spell.icon || '✦' }}</span>
+                  <span class="scw-spell-name">{{ spell.name }}</span>
+                  @if (isActivelyCasting(spell)) {
+                    <span class="scw-active-badge">Aktiv</span>
+                  }
+                </div>
+
+                <!-- Description (short) -->
+                @if (spell.description) {
+                  <div class="scw-spell-desc-short" [innerHTML]="enhancedSpellDesc(spell)"></div>
+                }
+
+                <!-- Stat requirements -->
+                @if (spellStatReqs(spell).length > 0) {
+                  <div class="scw-spell-reqs-row">
+                    @for (req of spellStatReqs(spell); track req.label) {
+                      <span class="scw-spell-req"
+                            [class.scw-spell-req--unmet]="!spellMeetsStat(req.key, req.value)">
+                        {{ req.label }}&nbsp;{{ req.value }}
+                      </span>
+                    }
+                  </div>
+                }
+
+                <!-- Cost footer -->
+                <div class="scw-card-footer">
+                  <div class="scw-card-costs">
+                    @if (spell.costMana) {
+                      <span class="scw-cost-chip scw-cost-chip--mana">◆&nbsp;{{ spell.costMana }}</span>
+                    }
+                    @if (spell.costFokus) {
+                      <span class="scw-cost-chip scw-cost-chip--fokus">◆&nbsp;{{ spell.costFokus }}</span>
+                    }
+                    @if (!spell.costMana && !spell.costFokus) {
+                      <span class="scw-cost-chip scw-cost-chip--free">Kostenlos</span>
+                    }
+                  </div>
+                  <div class="scw-card-meta">
+                    @if (spell.perTurnMana || spell.perTurnFokus) {
+                      <span class="scw-card-perturn">/Rd</span>
+                    }
+                    @if (spell.durationTurns) {
+                      <span class="scw-card-dur">⧗{{ spell.durationTurns }}</span>
+                    }
+                  </div>
+                </div>
+
+                <!-- Tags -->
+                @if (spell.tags && spell.tags.length > 0) {
+                  <div class="scw-spell-tags">
+                    @for (tag of spell.tags; track tag) {
+                      <span class="scw-tag">{{ tag }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      }
+
+      <!-- Skills tab content -->
+      @if (leftTab === 'skills') {
+        <!-- Search bar -->
+        <div class="scw-skill-search-row">
+          <input class="scw-skill-search"
+                 type="text"
+                 placeholder="Fähigkeit suchen..."
+                 [(ngModel)]="skillSearchText" />
+        </div>
+
+        @if (availableSkills.length === 0) {
+          <div class="scw-empty">Keine aktiven Fähigkeiten vorhanden.</div>
+        } @else if (filteredAvailableSkills.length === 0) {
+          <div class="scw-empty">Keine Fähigkeiten gefunden.</div>
+        } @else {
+          <div class="scw-spell-grid">
+            @for (skill of filteredAvailableSkills; track skill.name) {
+              <div class="scw-spell-card scw-spell-card--skill"
+                   [class.is-casting]="isSkillActive(skill)"
+                   (click)="toggleActiveSkill(skill)"
+                   [title]="skill.description || skill.name">
+                <div class="scw-spell-glow"></div>
+
+                <div class="scw-card-head">
+                  <span class="scw-spell-icon">{{ skill.name.charAt(0).toUpperCase() }}</span>
+                  <span class="scw-spell-name">{{ skill.name }}</span>
+                  @if (isSkillActive(skill)) {
+                    <span class="scw-active-badge">Aktiv</span>
+                  }
+                </div>
+
+                <!-- Action type (only on left panel) -->
+                @if (skill.actionType) {
+                  <div class="scw-spell-action-type">{{ skill.actionType }}</div>
+                }
+
+                @if (skill.description) {
+                  <div class="scw-spell-desc-short">{{ skill.description }}</div>
+                }
+
+                <div class="scw-card-footer">
+                  <div class="scw-card-costs">
+                    @if (skill.cost) {
+                      @if (skill.cost.type === 'mana') {
+                        <span class="scw-cost-chip scw-cost-chip--mana">◆&nbsp;{{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}</span>
+                      } @else if (skill.cost.type === 'energy') {
+                        <span class="scw-cost-chip scw-cost-chip--energy">⚡&nbsp;{{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}</span>
+                      } @else {
+                        <span class="scw-cost-chip scw-cost-chip--life">❤&nbsp;{{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}</span>
+                      }
+                    } @else {
+                      <span class="scw-cost-chip scw-cost-chip--free">Kostenlos</span>
+                    }
+                  </div>
+                  @if (skill.class) {
+                    <div class="scw-card-meta">
+                      <span class="scw-tag">{{ skill.class }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+
+    </div>
 
     <!-- Divider -->
     <div class="scw-divider">
@@ -167,7 +226,7 @@
       <div class="scw-divider-line"></div>
     </div>
 
-    <!-- Right: Active casts and skills -->
+    <!-- Right: Merged active spells + active skills in one column -->
     <div class="scw-panel scw-panel--active">
       <div class="scw-panel-header">Aktive Zauber &amp; Fähigkeiten</div>
 
@@ -182,43 +241,137 @@
       </div>
 
       <div class="scw-active-scroll">
-        @if (castingSpells.length === 0) {
-          <div class="scw-empty">Keine Zauber aktiv.<br><span class="scw-empty-hint">Klicke einen Zauber an, um ihn zu wirken.</span></div>
-        } @else {
-        <div class="scw-active-list">
-          @for (entry of castingSpells; track (entry.entryId ?? entry.spellId)) {
-            <div class="scw-active-card"
-                 [style.--sc]="getSpell(entry.spellId) ? spellColor(getSpell(entry.spellId)!) : '#8b5cf6'">
-              <div class="scw-active-glow"></div>
-              <div class="scw-active-header">
-                <span class="scw-active-icon">{{ getSpell(entry.spellId)?.icon || '✦' }}</span>
-                <span class="scw-active-name">{{ entry.spellName }}</span>
-                @if (entry.skalierung && entry.skalierung > 1) {
-                  <span class="scw-skal-badge scw-skal-badge--prominent">✦ ×{{ entry.skalierung }}</span>
+        @if (castingSpells.length === 0 && activeSkillsList.length === 0) {
+          <div class="scw-empty">Nichts aktiv.<br><span class="scw-empty-hint">Klicke einen Zauber oder eine Fähigkeit an.</span></div>
+        }
+
+        <!-- Active Spells -->
+        @if (castingSpells.length > 0) {
+          <div class="scw-active-list">
+            @for (entry of castingSpells; track (entry.entryId ?? entry.spellId)) {
+              <div class="scw-active-card"
+                   [style.--sc]="getSpell(entry.spellId) ? spellColor(getSpell(entry.spellId)!) : '#8b5cf6'">
+                <div class="scw-active-glow"></div>
+                <div class="scw-active-header">
+                  <span class="scw-active-type-badge scw-active-type-badge--spell">Zauber</span>
+                  <span class="scw-active-icon">{{ getSpell(entry.spellId)?.icon || '✦' }}</span>
+                  <span class="scw-active-name">{{ entry.spellName }}</span>
+                  @if (entry.skalierung && entry.skalierung > 1) {
+                    <span class="scw-skal-badge scw-skal-badge--prominent">✦ ×{{ entry.skalierung }}</span>
+                  }
+                  <button class="scw-stop-btn" (click)="stopCasting(entry)" title="Beenden">✕</button>
+                </div>
+                @if (getSpell(entry.spellId); as spell) {
+                  @if (spell.description) {
+                    <div class="scw-active-desc" [innerHTML]="enhancedSpellDesc(spell)"></div>
+                  }
+                  @if (costLabel(spell); as cl) {
+                    <div class="scw-active-startcost">⚡ Einmalig: {{ cl }}</div>
+                  }
+                  @if (perTurnLabel(spell); as ptl) {
+                    <div class="scw-active-cost">{{ ptl }}</div>
+                  }
+                  @if (spell.counters && spell.counters.length > 0) {
+                    <div class="scw-counter-list">
+                      @for (counter of spell.counters; track counter.id; let ci = $index) {
+                        <div class="scw-counter">
+                          <span class="scw-counter-name">{{ counter.name }}</span>
+                          <button class="scw-counter-btn" (click)="adjustCounter(entry.spellId, ci, counter.current - 1)">−</button>
+                          <input class="scw-counter-input"
+                                 type="number"
+                                 [ngModel]="counter.current"
+                                 (ngModelChange)="adjustCounter(entry.spellId, ci, $event)" />
+                          <button class="scw-counter-btn" (click)="adjustCounter(entry.spellId, ci, counter.current + 1)">+</button>
+                          <span class="scw-counter-max">/ {{ counter.max }}</span>
+                          <div class="scw-counter-bar">
+                            <div class="scw-counter-fill"
+                                 [style.width.%]="counter.max > counter.min ? ((counter.current - counter.min) / (counter.max - counter.min)) * 100 : 0"
+                                 [style.backgroundColor]="counter.color"></div>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
                 }
-                <button class="scw-stop-btn" (click)="stopCasting(entry)" title="Beenden">✕</button>
+
+                <!-- Cast progress (while remainingCast > 0) -->
+                @if (entry.remainingCast > 0) {
+                  <div class="scw-cast-progress">
+                    <div class="scw-cast-progress-header">
+                      <span class="scw-cast-progress-label">Wirken...</span>
+                      <div class="scw-cast-remaining-row">
+                        <input class="scw-cast-remaining-input"
+                               type="number"
+                               min="0"
+                               [ngModel]="entry.remainingCast"
+                               (ngModelChange)="setRemainingCast(entry, $event)" />
+                        <span class="scw-cast-remaining-of">/ {{ entry.castLevel }}</span>
+                      </div>
+                    </div>
+                    <div class="scw-cast-bar">
+                      <div class="scw-cast-bar-fill" [style.width.%]="castProgressPercent(entry)"></div>
+                    </div>
+                    <button class="scw-roll-btn" (click)="rollCast(entry)">🎲 W20 Würfeln</button>
+                  </div>
+                }
+
+                <!-- Round counter (cast done, spell active) -->
+                @if (entry.remainingCast <= 0 && !isSpellFinished(entry)) {
+                  <div class="scw-round-counter">
+                    <span class="scw-round-label">Runde</span>
+                    <input class="scw-round-input"
+                           type="number"
+                           min="0"
+                           [ngModel]="entry.roundsActive ?? 0"
+                           (ngModelChange)="setRoundsActive(entry, $event)" />
+                    @if (getSpell(entry.spellId)?.durationTurns; as dur) {
+                      <span class="scw-round-of">/ {{ dur }}</span>
+                    }
+                    <button class="scw-advance-btn" (click)="advanceRound(entry)" title="Runde voranbringen">+</button>
+                  </div>
+                }
+
+                <!-- Finished / expired state -->
+                @if (isSpellFinished(entry)) {
+                  <div class="scw-spell-finished">
+                    <span class="scw-finished-badge">✓ Beendet</span>
+                    <button class="scw-dismiss-btn" (click)="stopCasting(entry)">Entlassen</button>
+                  </div>
+                }
               </div>
-              @if (getSpell(entry.spellId); as spell) {
-                @if (spell.description) {
-                  <div class="scw-active-desc" [innerHTML]="enhancedSpellDesc(spell)"></div>
+            }
+          </div>
+        }
+
+        <!-- Active Skills (merged in same column) -->
+        @if (activeSkillsList.length > 0) {
+          <div class="scw-active-list">
+            @for (skill of activeSkillsList; track skill.name) {
+              <div class="scw-active-card scw-active-card--skill">
+                <div class="scw-active-glow"></div>
+                <div class="scw-active-header">
+                  <span class="scw-active-type-badge scw-active-type-badge--skill">Fähigkeit</span>
+                  <span class="scw-active-icon">{{ skill.name.charAt(0).toUpperCase() }}</span>
+                  <span class="scw-active-name">{{ skill.name }}</span>
+                  @if (skill.cost) {
+                    <span class="scw-active-cost">{{ skillCostLabel(skill) }}</span>
+                  }
+                  <button class="scw-stop-btn" (click)="toggleActiveSkill(skill)" title="Deaktivieren">✕</button>
+                </div>
+                @if (skill.description) {
+                  <div class="scw-active-desc">{{ skill.description }}</div>
                 }
-                @if (costLabel(spell); as cl) {
-                  <div class="scw-active-startcost">⚡ Einmalig: {{ cl }}</div>
-                }
-                @if (perTurnLabel(spell); as ptl) {
-                  <div class="scw-active-cost">{{ ptl }}</div>
-                }
-                @if (spell.counters && spell.counters.length > 0) {
+                @if (skill.counters && skill.counters.length > 0) {
                   <div class="scw-counter-list">
-                    @for (counter of spell.counters; track counter.id; let ci = $index) {
+                    @for (counter of skill.counters; track counter.id; let ci = $index) {
                       <div class="scw-counter">
                         <span class="scw-counter-name">{{ counter.name }}</span>
-                        <button class="scw-counter-btn" (click)="adjustCounter(entry.spellId, ci, counter.current - 1)">−</button>
+                        <button class="scw-counter-btn" (click)="adjustSkillCounter(skill.name, ci, counter.current - 1)">−</button>
                         <input class="scw-counter-input"
                                type="number"
                                [ngModel]="counter.current"
-                               (ngModelChange)="adjustCounter(entry.spellId, ci, $event)" />
-                        <button class="scw-counter-btn" (click)="adjustCounter(entry.spellId, ci, counter.current + 1)">+</button>
+                               (ngModelChange)="adjustSkillCounter(skill.name, ci, $event)" />
+                        <button class="scw-counter-btn" (click)="adjustSkillCounter(skill.name, ci, counter.current + 1)">+</button>
                         <span class="scw-counter-max">/ {{ counter.max }}</span>
                         <div class="scw-counter-bar">
                           <div class="scw-counter-fill"
@@ -229,101 +382,12 @@
                     }
                   </div>
                 }
-              }
-
-              <!-- Cast progress (while remainingCast > 0) -->
-              @if (entry.remainingCast > 0) {
-                <div class="scw-cast-progress">
-                  <div class="scw-cast-progress-header">
-                    <span class="scw-cast-progress-label">Wirken...</span>
-                    <div class="scw-cast-remaining-row">
-                      <input class="scw-cast-remaining-input"
-                             type="number"
-                             min="0"
-                             [ngModel]="entry.remainingCast"
-                             (ngModelChange)="setRemainingCast(entry, $event)" />
-                      <span class="scw-cast-remaining-of">/ {{ entry.castLevel }}</span>
-                    </div>
-                  </div>
-                  <div class="scw-cast-bar">
-                    <div class="scw-cast-bar-fill" [style.width.%]="castProgressPercent(entry)"></div>
-                  </div>
-                  <button class="scw-roll-btn" (click)="rollCast(entry)">🎲 W20 Würfeln</button>
-                </div>
-              }
-
-              <!-- Round counter (cast done, spell active) -->
-              @if (entry.remainingCast <= 0 && !isSpellFinished(entry)) {
-                <div class="scw-round-counter">
-                  <span class="scw-round-label">Runde</span>
-                  <input class="scw-round-input"
-                         type="number"
-                         min="0"
-                         [ngModel]="entry.roundsActive ?? 0"
-                         (ngModelChange)="setRoundsActive(entry, $event)" />
-                  @if (getSpell(entry.spellId)?.durationTurns; as dur) {
-                    <span class="scw-round-of">/ {{ dur }}</span>
-                  }
-                  <button class="scw-advance-btn" (click)="advanceRound(entry)" title="Runde voranbringen">+</button>
-                </div>
-              }
-
-              <!-- Finished / expired state -->
-              @if (isSpellFinished(entry)) {
-                <div class="scw-spell-finished">
-                  <span class="scw-finished-badge">✓ Beendet</span>
-                  <button class="scw-dismiss-btn" (click)="stopCasting(entry)">Entlassen</button>
-                </div>
-              }
-            </div>
-          }
-        </div>
+              </div>
+            }
+          </div>
         }
       </div>
     </div>
-
-    <!-- Active skills section -->
-    @if (activeSkillsList.length > 0) {
-      <div class="scw-active-skills-section">
-        <div class="scw-active-skills-label">Aktive Fähigkeiten</div>
-        @for (skill of activeSkillsList; track skill.name) {
-            <div class="scw-active-skill-card">
-              <div class="scw-active-header">
-                <span class="scw-active-icon">{{ skill.name.charAt(0) }}</span>
-                <span class="scw-active-name">{{ skill.name }}</span>
-                @if (skill.cost) {
-                  <span class="scw-active-cost">{{ skillCostLabel(skill) }}</span>
-                }
-                <button class="scw-stop-btn" (click)="toggleActiveSkill(skill)" title="Deaktivieren">✕</button>
-              </div>
-              @if (skill.description) {
-                <div class="scw-active-desc">{{ skill.description }}</div>
-              }
-              @if (skill.counters && skill.counters.length > 0) {
-                <div class="scw-counter-list">
-                  @for (counter of skill.counters; track counter.id; let ci = $index) {
-                    <div class="scw-counter">
-                      <span class="scw-counter-name">{{ counter.name }}</span>
-                      <button class="scw-counter-btn" (click)="adjustSkillCounter(skill.name, ci, counter.current - 1)">−</button>
-                      <input class="scw-counter-input"
-                             type="number"
-                             [ngModel]="counter.current"
-                             (ngModelChange)="adjustSkillCounter(skill.name, ci, $event)" />
-                      <button class="scw-counter-btn" (click)="adjustSkillCounter(skill.name, ci, counter.current + 1)">+</button>
-                      <span class="scw-counter-max">/ {{ counter.max }}</span>
-                      <div class="scw-counter-bar">
-                        <div class="scw-counter-fill"
-                             [style.width.%]="counter.max > counter.min ? ((counter.current - counter.min) / (counter.max - counter.min)) * 100 : 0"
-                             [style.backgroundColor]="counter.color"></div>
-                      </div>
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-          }
-        </div>
-      }
 
   </div>
 

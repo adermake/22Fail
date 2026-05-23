@@ -44,7 +44,6 @@ import type { BuyItemEvent, ClaimLootEvent } from './current-events-view';
 import { TransactionPopupComponent, Transaction } from './transaction-popup/transaction-popup.component';
 import { EventPortalComponent } from './event-portal/event-portal.component';
 import { SheetStatusEffectsComponent } from './sheet-status-effects/sheet-status-effects.component';
-import { SheetActiveSkillsSpellsComponent } from './sheet-active-skills-spells/sheet-active-skills-spells.component';
 import { SpellcastWindowComponent } from './spellcast-window/spellcast-window.component';
 import { DamageCalculatorComponent } from '../world/damage-calculator/damage-calculator.component';
 
@@ -71,7 +70,6 @@ import { DamageCalculatorComponent } from '../world/damage-calculator/damage-cal
     TransactionPopupComponent,
     EventPortalComponent,
     SheetStatusEffectsComponent,
-    SheetActiveSkillsSpellsComponent,
     SpellcastWindowComponent,
     DamageCalculatorComponent,
   ],
