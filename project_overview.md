@@ -457,30 +457,50 @@ interface SkillDefinition {
 lobby-container
   +-- lobby-toolbar         (oben)
   +-- lobby-main            (flex row)
-  �   +-- lobby-sidebar     (links, 280px) � Tabs: Charaktere | Bilder | Texturen | Schichten | W�rfel
-  �   +-- lobby-grid        (Mitte, flex:1) � Hex-Karte mit Tokens und Drawing-Layer
-  �   +-- lobby-character-panel (rechts, 300px, IMMER pr�sent, kein Layout-Shift)
+  �   +-- lobby-sidebar     (links, 280px) � Tabs: Charaktere | Bilder | Texturen | Schichten | W�rfel
+  �   +-- lobby-grid        (Mitte, flex:1) � Hex-Karte mit Tokens und Drawing-Layer
+  �   +-- lobby-character-panel (rechts, 300px, IMMER pr�sent, kein Layout-Shift)
   +-- battle-tracker        (unten, collapsible)
 `
 
 ### Kein Flash-Problem
-- lobby-character-panel ist IMMER 300px breit, egal ob Token ausgew�hlt.
+- lobby-character-panel ist IMMER 300px breit, egal ob Token ausgew�hlt.
 - Kein @if-Wrapper um das Panel ? kein Layout-Shift ? kein Canvas-Resize ? kein Zeichnungs-Flash.
 
 ### Komponenten
 - **lobby-character-panel** (lobby/lobby-character-panel/):
-  - Kein Token: zeigt W�rfelroller + Roll-History
-  - Token ausgew�hlt: zeigt LP/Mana/Energie-Bars (editierbar), Stats (STR/GES/SPD/INT/KON/WIL als W�rfel-Buttons), aktive Skills, Zauber, Freier Wurf
-  - W�rfeln sendet DiceRollEvent via WorldSocketService.sendDiceRoll()
-  - @Output() tokenUpdate ? Lobby ruft store.updateToken(tokenId, updates)
-  - @Output() deselect ? selectedTokenId.set(null)
-- **lobby-sidebar**: Tabs: Charaktere (Spieler/NSC), Bilder, Texturen, Schichten (nur GM), W�rfelverlauf
+  - Kein Token: zeigt Würfelroller + Roll-History
+  - Token ausgewählt: 5 Icon-Tabs: ⚔️ Aktionen | 🎲 Würfe | ✨ Status | 🎨 Aussehen | 🔗 Verknüpfung
+  - Aktionen-Tab: LP/Mana/Energie-Bars (editierbar), Stats als Würfel-Buttons, Skills, Zauber
+  - Würfe-Tab: Roll-History
+  - Status-Tab: Token-Status-Effekte hinzufügen/entfernen (lokal, per-token)
+  - Aussehen-Tab: Name umbenennen, Skalierung (X/Y unabhängig oder uniform), Rotation (Quick ±90°), Bildmodus (Fill/Stretch), Custom-Portrait löschen, Token zeichnen (aktiviert Draw-Tool)
+  - Verknüpfung-Tab: Zeigt Parent-Info wenn verknüpft; Kinder-Liste; neues verlinktes Token erstellen
+  - @Output() tokenUpdate → Lobby ruft store.updateToken(tokenId, updates)
+  - @Output() deselect → selectedTokenId.set(null)
+  - @Output() requestTokenDraw → setzt currentTool auf 'draw'
+  - @Output() requestLinkedTokenPlacement → pending feature
+  - @Output() tokenChildDetach → store.updateToken(childId, { parentTokenId: undefined, ... })
+  - @Input() allTokens: Token[] → benötigt für linkedChildren Getter
+- **lobby-sidebar**: Tabs: Charaktere (Spieler/NSC), Bilder, Texturen, Schichten (nur GM), Würfelverlauf
 - **lobby-side-panel**: NICHT MEHR VERWENDET (Inhalte in sidebar + character-panel migriert)
 
-### Token-Ressourcen
-- Token.currentHealth?, currentMana?, currentEnergy? � optionale Felder auf dem Token
-- Falls undefined: Wert wird aus CharacterSheet.statuses (FormulaType.LIFE/MANA/ENERGY) gelesen
-- Beim Bearbeiten �ber Panel: via store.updateToken() auf Token gespeichert
+### Token-Modell (Token Interface)
+- Basis: position, characterId, name, portrait, team, isQuickToken, statblockId
+- Ressourcen: currentHealth?, currentMana?, currentEnergy?
+- Kosmetik: scaleX?, scaleY?, rotation?, imageMode? ('fill'|'stretch'), customPortraitData? (Base64)
+- Status: activeStatusEffects?: TokenStatusEffect[] (id, name, icon, stacks, duration, isDebuff)
+- Verknüpfung: parentTokenId?, linkedTokenType? ('free'|'keepDistance'|'keepOffset'), linkedOffset?, linkedDistance?
 
-### W�rfelformel (invertiert)
-- diceBonus = (5 - stat / 2) | 0 � hoher Stat = niedriger Bonus (besser im System, weil niedrig gut ist)
+### Token-Ressourcen
+- Token.currentHealth?, currentMana?, currentEnergy? → optionale Felder auf dem Token
+- Falls undefined: Wert wird aus CharacterSheet.statuses (FormulaType.LIFE/MANA/ENERGY) gelesen
+- Beim Bearbeiten über Panel: via store.updateToken() auf Token gespeichert
+
+### Battle-Tracker Integration
+- `BattleTrackerEngine.registerCharacter(id, {name, portrait, speed})` muss vor `addCharacter(id)` aufgerufen werden für NSC-Tokens (deren IDs nicht in setAvailableCharacters() enthalten sind)
+- NSC-Token CharacterIds: `'npc-' + statblockId + '-' + Date.now()`
+- `lobby.onTokenCombatAdd()`: registriert NSC-Tokens vor dem Hinzufügen
+
+### Würfelformel (invertiert)
+- diceBonus = (5 - stat / 2) | 0 → hoher Stat = niedriger Bonus (besser im System, weil niedrig gut ist)

@@ -132,8 +132,12 @@
         [rolls]="rollHistory()"
         [worldName]="worldName()"
         [isGM]="isGM()"
+        [allTokens]="enrichedTokens()"
         (tokenUpdate)="onTokenResourceChange($event)"
         (deselect)="selectedTokenId.set(null)"
+        (requestTokenDraw)="onRequestTokenDraw($event)"
+        (requestLinkedTokenPlacement)="onRequestLinkedTokenPlacement($event)"
+        (tokenChildDetach)="onTokenChildDetach($event)"
       />
     </div>
   </div>

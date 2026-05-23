@@ -494,6 +494,17 @@ export class BattleTrackerEngine {
   // ============================================
 
   /** Add a character to battle */
+  /**
+   * Register a character in the available-characters map without adding to battle.
+   * Used for NPC tokens that aren't loaded via setAvailableCharacters.
+   */
+  registerCharacter(id: string, data: { name: string; portrait?: string; speed: number }): void {
+    if (!this.allCharacters.has(id)) {
+      this.allCharacters.set(id, { id, ...data });
+      this.notifyChange();
+    }
+  }
+
   addCharacter(characterId: string): void {
     const char = this.allCharacters.get(characterId);
     if (!char || this.participants.has(characterId)) return;

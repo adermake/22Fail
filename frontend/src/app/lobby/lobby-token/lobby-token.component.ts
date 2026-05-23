@@ -31,6 +31,9 @@ export interface TokenResources {
       [style.top.px]="position.y"
       [style.--team-color]="getTeamColor(token.team || 'default')"
       [style.--token-scale]="scale"
+      [style.--user-scale-x]="token.scaleX ?? 1"
+      [style.--user-scale-y]="token.scaleY ?? 1"
+      [style.--user-rotation]="(token.rotation ?? 0) + 'deg'"
       [style.cursor]="isInteractive ? 'grab' : 'default'"
       [style.pointer-events]="isInteractive ? 'auto' : 'none'"
       (mousedown)="onMouseDown($event)"
@@ -40,8 +43,14 @@ export interface TokenResources {
       <!-- Border layer: slightly larger hex with team color fill, NOT clipped by outer -->
       <div class="token-border"></div>
       <!-- Content layer: clipped hex with image/placeholder -->
-      <div class="token-content">
-        @if (token.portrait) {
+      <div class="token-content" [class.stretch]="(token.imageMode || 'fill') === 'stretch'">
+        @if (token.customPortraitData) {
+          <img 
+            class="token-portrait" 
+            [src]="token.customPortraitData" 
+            alt=""
+          />
+        } @else if (token.portrait) {
           <img 
             class="token-portrait" 
             [src]="token.portrait | imageUrl" 
@@ -83,8 +92,8 @@ export interface TokenResources {
       margin-top: -30px;
       pointer-events: auto;
       z-index: 1;
-      /* Scale with zoom to match hex grid size */
-      transform: scale(var(--token-scale, 1));
+      /* Scale with zoom to match hex grid size, then apply user transforms */
+      transform: scale(var(--token-scale, 1)) scale(var(--user-scale-x, 1), var(--user-scale-y, 1)) rotate(var(--user-rotation, 0deg));
       transform-origin: center center;
     }
 
@@ -130,7 +139,11 @@ export interface TokenResources {
     .token-portrait {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: cover; /* Default: fill/cover */
+    }
+
+    .token-content.stretch .token-portrait {
+      object-fit: fill; /* Stretch to fill exactly */
     }
 
     .token-placeholder {

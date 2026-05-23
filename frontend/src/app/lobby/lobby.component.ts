@@ -24,7 +24,7 @@ import { TrueStatsService } from '../services/true-stats.service';
 import { AssetBrowserApiService } from '../services/asset-browser-api.service';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { NpcStatblock } from '../model/npc-statblock.model';
-import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture } from '../model/lobby.model';
+import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType } from '../model/lobby.model';
 
 import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
 import { LobbyToolbarComponent } from './lobby-toolbar/lobby-toolbar.component';
@@ -592,6 +592,19 @@ export class LobbyComponent implements OnInit, OnDestroy {
   onTokenCombatAdd(tokenId: string): void {
     const token = this.enrichedTokens().find(t => t.id === tokenId);
     if (!token) return;
+
+    // For NPC quick-tokens, register them in the battle engine first
+    // (they aren't added via setAvailableCharacters which only covers player characters)
+    if (token.isQuickToken && token.statblockId) {
+      const npcEntry = this.npcStatblocks().find(n => n.id === token.statblockId);
+      const speed = npcEntry?.statblock?.speed ?? 10;
+      this.battleEngine.registerCharacter(token.characterId, {
+        name: token.name,
+        portrait: token.portrait,
+        speed,
+      });
+    }
+
     this.battleEngine.addCharacter(token.characterId);
   }
 
@@ -609,6 +622,28 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const tokenId = this.selectedTokenId();
     if (!tokenId) return;
     this.store.updateToken(tokenId, updates);
+    this.cdr.markForCheck();
+  }
+
+  onRequestTokenDraw(tokenId: string): void {
+    // Handled by the grid component when the user draws at max zoom over the token.
+    // Just ensure the pencil tool is active.
+    this.currentTool.set('draw');
+  }
+
+  onRequestLinkedTokenPlacement(data: { parentId: string; type: LinkedTokenType; name: string }): void {
+    // Pending feature: next click on the map will create a linked token.
+    // For now, this is a no-op placeholder.
+    console.log('[Lobby] requestLinkedTokenPlacement', data);
+  }
+
+  onTokenChildDetach(data: { childId: string }): void {
+    this.store.updateToken(data.childId, {
+      parentTokenId: undefined,
+      linkedTokenType: undefined,
+      linkedOffset: undefined,
+      linkedDistance: undefined,
+    });
     this.cdr.markForCheck();
   }
 

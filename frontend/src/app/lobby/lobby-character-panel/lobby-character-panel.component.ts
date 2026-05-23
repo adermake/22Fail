@@ -16,7 +16,7 @@ import { FormsModule } from '@angular/forms';
 
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { NpcStatblock } from '../../model/npc-statblock.model';
-import { Token } from '../../model/lobby.model';
+import { Token, TokenStatusEffect, LinkedTokenType } from '../../model/lobby.model';
 import { DiceRollEvent, WorldSocketService } from '../../services/world-socket.service';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { FormulaType } from '../../model/formula-type.enum';
@@ -30,7 +30,7 @@ interface StatDisplay {
   bonus: number;
 }
 
-type PanelTab = 'actions' | 'rolls';
+type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
 
 @Component({
   selector: 'app-lobby-character-panel',
@@ -164,8 +164,11 @@ type PanelTab = 'actions' | 'rolls';
 
     <!-- Panel Tabs -->
     <div class="panel-tabs">
-      <button class="ptab" [class.active]="activeTab() === 'actions'" (click)="activeTab.set('actions')">Aktionen</button>
-      <button class="ptab" [class.active]="activeTab() === 'rolls'" (click)="activeTab.set('rolls')">Würfe</button>
+      <button class="ptab" [class.active]="activeTab() === 'actions'" (click)="activeTab.set('actions')" title="Aktionen">⚔️</button>
+      <button class="ptab" [class.active]="activeTab() === 'rolls'" (click)="activeTab.set('rolls')" title="Würfelverlauf">🎲</button>
+      <button class="ptab" [class.active]="activeTab() === 'status'" (click)="activeTab.set('status')" title="Status-Effekte">✨</button>
+      <button class="ptab" [class.active]="activeTab() === 'aussehen'" (click)="activeTab.set('aussehen')" title="Aussehen & Transform">🎨</button>
+      <button class="ptab" [class.active]="activeTab() === 'linked'" (click)="activeTab.set('linked')" title="Verknüpfte Token">🔗</button>
     </div>
 
     <div class="panel-body">
@@ -280,7 +283,190 @@ type PanelTab = 'actions' | 'rolls';
         </div>
       }
 
-    </div>
+      <!-- ── Status-Effekte Tab ── -->
+      @if (activeTab() === 'status') {
+        <div class="status-tab">
+          <!-- Active effects list -->
+          @if (tokenStatusEffects.length === 0) {
+            <div class="empty-rolls">Keine aktiven Status-Effekte</div>
+          }
+          @for (fx of tokenStatusEffects; track fx.id) {
+            <div class="fx-entry" [class.debuff]="fx.isDebuff">
+              <span class="fx-icon">{{ fx.icon || (fx.isDebuff ? '💀' : '⭐') }}</span>
+              <span class="fx-name">{{ fx.name }}</span>
+              <div class="fx-controls">
+                <span class="fx-stacks-label">Stapel</span>
+                <button class="fx-btn" (click)="adjustFxStacks(fx, -1)">−</button>
+                <span class="fx-val">{{ fx.stacks }}</span>
+                <button class="fx-btn" (click)="adjustFxStacks(fx, 1)">+</button>
+                @if (fx.duration !== undefined) {
+                  <span class="fx-dur-label">Runden</span>
+                  <button class="fx-btn" (click)="adjustFxDuration(fx, -1)">−</button>
+                  <span class="fx-val">{{ fx.duration }}</span>
+                  <button class="fx-btn" (click)="adjustFxDuration(fx, 1)">+</button>
+                }
+                <button class="fx-remove-btn" (click)="removeStatusEffect(fx.id)" title="Entfernen">✕</button>
+              </div>
+            </div>
+          }
+
+          <!-- Add effect form -->
+          @if (showAddEffectForm()) {
+            <div class="add-fx-form">
+              <div class="form-row">
+                <input class="fx-input" placeholder="Icon (Emoji)" [(ngModel)]="newEffectIcon" style="width:54px" maxlength="4" />
+                <input class="fx-input" placeholder="Name" [(ngModel)]="newEffectName" style="flex:1" />
+              </div>
+              <div class="form-row">
+                <label class="fx-check">
+                  <input type="checkbox" [(ngModel)]="newEffectIsDebuff" /> Debuff
+                </label>
+                <input class="fx-input" type="number" placeholder="Dauer (leer=∞)" [(ngModel)]="newEffectDuration" style="width:96px" min="1" />
+              </div>
+              <div class="form-row">
+                <button class="do-roll-btn small-btn" (click)="addStatusEffect()">Hinzufügen</button>
+                <button class="action-btn" (click)="showAddEffectForm.set(false)">Abbrechen</button>
+              </div>
+            </div>
+          } @else {
+            <button class="add-fx-btn" (click)="openAddEffectForm()">+ Status-Effekt hinzufügen</button>
+          }
+        </div>
+      }
+
+      <!-- ── Aussehen Tab ── -->
+      @if (activeTab() === 'aussehen') {
+        <div class="aussehen-tab">
+
+          <!-- Rename -->
+          <div class="section-header">📛 Name</div>
+          <div class="aussehen-row">
+            <input class="fx-input name-input" [(ngModel)]="localName" placeholder="Token-Name" />
+            <button class="action-btn" (click)="saveName()">Speichern</button>
+          </div>
+
+          <!-- Scale -->
+          <div class="section-header">📐 Skalierung</div>
+          <div class="aussehen-row uniform-row">
+            <label class="fx-check">
+              <input type="checkbox" [(ngModel)]="uniformScale" /> Einheitlich
+            </label>
+            <div class="scale-quick-btns">
+              <button class="quick-btn" (click)="adjustScale(-0.1)" title="-10%">−</button>
+              <span class="scale-label">{{ (uniformScale ? localScaleX : localScaleX).toFixed(2) }}×</span>
+              <button class="quick-btn" (click)="adjustScale(0.1)" title="+10%">+</button>
+            </div>
+          </div>
+          @if (!uniformScale) {
+            <div class="aussehen-slider-row">
+              <span class="slider-label">X</span>
+              <input type="range" class="slider" min="0.3" max="4" step="0.05"
+                [value]="localScaleX" (input)="localScaleX = +$any($event.target).value; applyCosmetic()" />
+              <span class="slider-val">{{ localScaleX.toFixed(2) }}</span>
+            </div>
+            <div class="aussehen-slider-row">
+              <span class="slider-label">Y</span>
+              <input type="range" class="slider" min="0.3" max="4" step="0.05"
+                [value]="localScaleY" (input)="localScaleY = +$any($event.target).value; applyCosmetic()" />
+              <span class="slider-val">{{ localScaleY.toFixed(2) }}</span>
+            </div>
+          } @else {
+            <div class="aussehen-slider-row">
+              <span class="slider-label">Scale</span>
+              <input type="range" class="slider" min="0.3" max="4" step="0.05"
+                [value]="localScaleX" (input)="localScaleX = +$any($event.target).value; localScaleY = localScaleX; applyCosmetic()" />
+              <span class="slider-val">{{ localScaleX.toFixed(2) }}</span>
+            </div>
+          }
+
+          <!-- Rotation -->
+          <div class="section-header">🔄 Drehung</div>
+          <div class="aussehen-slider-row">
+            <span class="slider-label">°</span>
+            <input type="range" class="slider" min="0" max="360" step="1"
+              [value]="localRotation" (input)="localRotation = +$any($event.target).value; applyCosmetic()" />
+            <span class="slider-val">{{ localRotation }}°</span>
+          </div>
+          <div class="rotation-btns">
+            <button class="quick-btn" (click)="rotateBy(-90)" title="-90°">↺ 90°</button>
+            <button class="quick-btn" (click)="rotateBy(90)" title="+90°">↻ 90°</button>
+            <button class="quick-btn" (click)="localRotation = 0; applyCosmetic()" title="Reset">Reset</button>
+          </div>
+
+          <!-- Image mode -->
+          <div class="section-header">🖼️ Bildmodus</div>
+          <div class="imagemode-row">
+            <button class="mode-btn" [class.active]="localImageMode === 'fill'" (click)="localImageMode = 'fill'; applyCosmetic()">Füllen</button>
+            <button class="mode-btn" [class.active]="localImageMode === 'stretch'" (click)="localImageMode = 'stretch'; applyCosmetic()">Strecken</button>
+          </div>
+
+          <!-- Custom portrait -->
+          <div class="section-header">✏️ Portrait zeichnen</div>
+          @if (token.customPortraitData) {
+            <div class="portrait-preview-row">
+              <img [src]="token!.customPortraitData" class="portrait-preview" alt="Portrait" />
+              <button class="action-btn danger-btn" (click)="clearCustomPortrait()">Löschen</button>
+            </div>
+          }
+          <button class="add-fx-btn draw-btn" (click)="requestTokenDraw.emit(token!.id)">
+            ✏️ Auf Token zeichnen (Max. Zoom benötigt)
+          </button>
+
+        </div>
+      }
+
+      <!-- ── Verknüpfung Tab ── -->
+      @if (activeTab() === 'linked') {
+        <div class="linked-tab">
+
+          <!-- Parent info -->
+          @if (token.parentTokenId) {
+            <div class="linked-parent-info">
+              <span class="fx-icon">🔗</span>
+              <span>Verknüpft mit: <strong>{{ getParentName() }}</strong></span>
+              <span class="linked-type-badge">{{ getLinkedTypeLabel(token!.linkedTokenType) }}</span>
+              <button class="fx-remove-btn" (click)="detachFromParent()" title="Trennen">Trennen</button>
+            </div>
+          }
+
+          <!-- Children list -->
+          @if (linkedChildren.length > 0) {
+            <div class="section-header">Verknüpfte Token</div>
+            @for (child of linkedChildren; track child.id) {
+              <div class="fx-entry">
+                <span class="fx-icon">🔗</span>
+                <span class="fx-name">{{ child.name }}</span>
+                <span class="linked-type-badge">{{ getLinkedTypeLabel(child.linkedTokenType) }}</span>
+                <button class="fx-remove-btn" (click)="detachChild(child.id)" title="Trennen">Trennen</button>
+              </div>
+            }
+          }
+
+          <!-- Create new linked token -->
+          <div class="section-header">Neuer verknüpfter Token</div>
+          <div class="form-row">
+            <input class="fx-input" placeholder="Name" [(ngModel)]="newLinkedName" style="flex:1" />
+          </div>
+          <div class="form-row">
+            <select class="fx-input" [(ngModel)]="newLinkedType">
+              <option value="free">Frei (Free)</option>
+              <option value="keepDistance">Abstand halten</option>
+              <option value="keepOffset">Versatz halten</option>
+            </select>
+          </div>
+          <button class="add-fx-btn" (click)="startLinkedTokenPlacement()">
+            🔗 Token platzieren
+          </button>
+          <div class="linked-type-hint">
+            @if (newLinkedType === 'free') { <span class="hint-text">Freie Platzierung, folgt dem Eltern-Token nicht automatisch</span> }
+            @if (newLinkedType === 'keepDistance') { <span class="hint-text">Hält denselben Abstand zum Eltern-Token in Hexfeldern</span> }
+            @if (newLinkedType === 'keepOffset') { <span class="hint-text">Hält denselben relativen Versatz zum Eltern-Token</span> }
+          </div>
+
+        </div>
+      }
+
+    </div><!-- /panel-body -->
   }
 
 </div>
@@ -738,6 +924,104 @@ type PanelTab = 'actions' | 'rolls';
     .roll-bonus.neg { color: #f87171; }
     .roll-eq { font-size: 12px; color: #d1d5db; margin-left: 4px; }
     .roll-eq strong { color: #fbbf24; font-size: 14px; }
+
+    /* ---- Status Effects Tab ---- */
+    .status-tab, .aussehen-tab, .linked-tab {
+      padding: 0 0 16px;
+    }
+    .fx-entry {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: #1a2130;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      margin: 3px 8px;
+    }
+    .fx-entry.debuff { border-color: #7f1d1d; background: #1f0f0f; }
+    .fx-icon { font-size: 14px; flex-shrink: 0; }
+    .fx-name { font-size: 12px; font-weight: 600; color: #e2e8f0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fx-controls { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+    .fx-stacks-label, .fx-dur-label { font-size: 9px; color: #6b7280; }
+    .fx-btn {
+      width: 18px; height: 18px;
+      background: #1f2937; border: 1px solid #374151; border-radius: 3px;
+      color: #d1d5db; font-size: 13px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; line-height: 1;
+    }
+    .fx-btn:hover { background: #374151; }
+    .fx-val { font-size: 11px; font-weight: 700; color: #f1f5f9; min-width: 14px; text-align: center; }
+    .fx-remove-btn {
+      width: 18px; height: 18px;
+      background: none; border: 1px solid #374151; border-radius: 3px;
+      color: #ef4444; font-size: 10px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; padding: 0;
+    }
+    .fx-remove-btn:hover { background: #7f1d1d; border-color: #ef4444; }
+    .add-fx-btn {
+      display: block; width: calc(100% - 16px); margin: 6px 8px 0;
+      padding: 7px 10px;
+      background: #1e293b; border: 1px dashed #334155; border-radius: 6px;
+      color: #6b7280; font-size: 12px; font-weight: 600; cursor: pointer;
+      text-align: center; transition: all 0.15s;
+    }
+    .add-fx-btn:hover { border-color: #6366f1; color: #a5b4fc; background: #1e2540; }
+    .add-fx-form {
+      margin: 4px 8px; padding: 8px; background: #1e293b; border: 1px solid #334155; border-radius: 6px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .form-row { display: flex; gap: 6px; align-items: center; }
+    .fx-input {
+      background: #0f172a; border: 1px solid #334155; border-radius: 4px;
+      color: #f1f5f9; font-size: 12px; padding: 4px 6px;
+    }
+    .fx-input:focus { outline: none; border-color: #6366f1; }
+    .fx-check { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #9ca3af; cursor: pointer; }
+    .fx-check input { cursor: pointer; }
+    .small-btn { flex: 1; padding: 5px 8px !important; font-size: 11px !important; }
+
+    /* ---- Aussehen Tab ---- */
+    .aussehen-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
+    .uniform-row { justify-content: space-between; }
+    .scale-quick-btns { display: flex; align-items: center; gap: 6px; }
+    .scale-label { font-size: 12px; font-weight: 700; color: #f1f5f9; min-width: 36px; text-align: center; }
+    .quick-btn {
+      padding: 3px 8px; background: #1e293b; border: 1px solid #334155; border-radius: 4px;
+      color: #9ca3af; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .quick-btn:hover { background: #2d3748; border-color: #6366f1; color: #e2e8f0; }
+    .aussehen-slider-row { display: flex; align-items: center; gap: 8px; padding: 2px 10px 4px; }
+    .slider-label { font-size: 10px; font-weight: 700; color: #6b7280; width: 16px; flex-shrink: 0; }
+    .slider { flex: 1; accent-color: #6366f1; }
+    .slider-val { font-size: 11px; color: #94a3b8; min-width: 36px; text-align: right; }
+    .rotation-btns { display: flex; gap: 6px; padding: 2px 10px 6px; }
+    .imagemode-row { display: flex; gap: 6px; padding: 4px 10px 6px; }
+    .mode-btn {
+      flex: 1; padding: 5px 8px; background: #1e293b; border: 1px solid #334155;
+      border-radius: 5px; color: #6b7280; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+    }
+    .mode-btn:hover { border-color: #6366f1; color: #a5b4fc; }
+    .mode-btn.active { background: #312e81; border-color: #6366f1; color: #e0e7ff; }
+    .name-input { flex: 1; }
+    .portrait-preview-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px; }
+    .portrait-preview { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; border: 2px solid #6366f1; }
+    .danger-btn { color: #ef4444 !important; border-color: #7f1d1d !important; }
+    .danger-btn:hover { background: #7f1d1d !important; color: #fca5a5 !important; }
+    .draw-btn { margin-top: 4px; }
+
+    /* ---- Linked Tab ---- */
+    .linked-parent-info {
+      display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+      background: #1a2130; border: 1px solid #1e3a5f; border-radius: 6px; margin: 4px 8px;
+    }
+    .linked-type-badge {
+      font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px;
+      background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3);
+    }
+    .linked-type-hint { padding: 4px 10px; }
+    .hint-text { font-size: 10px; color: #4b5563; font-style: italic; }
   `]
 })
 export class LobbyCharacterPanelComponent implements OnChanges {
@@ -748,9 +1032,13 @@ export class LobbyCharacterPanelComponent implements OnChanges {
   @Input() rolls: DiceRollEvent[] = [];
   @Input() worldName: string = '';
   @Input() isGM: boolean = false;
+  @Input() allTokens: Token[] = [];
 
   @Output() tokenUpdate = new EventEmitter<Partial<Omit<Token, 'id'>>>();
   @Output() deselect = new EventEmitter<void>();
+  @Output() requestTokenDraw = new EventEmitter<string>(); // Emits tokenId
+  @Output() requestLinkedTokenPlacement = new EventEmitter<{ parentId: string; type: LinkedTokenType; name: string }>();
+  @Output() tokenChildDetach = new EventEmitter<{ childId: string }>();
 
   private worldSocket = inject(WorldSocketService);
   private trueStats = inject(TrueStatsService);
@@ -760,13 +1048,44 @@ export class LobbyCharacterPanelComponent implements OnChanges {
   selectedDiceType = signal(20);
   customBonus = signal(0);
 
+  // Status effect form state
+  showAddEffectForm = signal(false);
+  newEffectName = '';
+  newEffectIcon = '';
+  newEffectIsDebuff = false;
+  newEffectDuration: number | null = null;
+
+  // Cosmetic state (local mirrors of token values)
+  localName = '';
+  localScaleX = 1.0;
+  localScaleY = 1.0;
+  localRotation = 0;
+  localImageMode: 'fill' | 'stretch' = 'fill';
+  uniformScale = true;
+
+  // Linked token creation state
+  newLinkedType: LinkedTokenType = 'keepOffset';
+  newLinkedName = '';
+
   readonly diceTypes = [4, 6, 8, 10, 12, 20, 100];
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Switch to actions tab whenever the selected token changes
+    // Switch to actions tab and sync local state whenever the selected token changes
     if (changes['token'] && this.token?.id !== changes['token'].previousValue?.id) {
       this.activeTab.set('actions');
+      this.syncCosmeticLocals();
+      this.showAddEffectForm.set(false);
       this.cdr.markForCheck();
+    }
+  }
+
+  private syncCosmeticLocals(): void {
+    if (this.token) {
+      this.localName = this.token.name;
+      this.localScaleX = this.token.scaleX ?? 1.0;
+      this.localScaleY = this.token.scaleY ?? 1.0;
+      this.localRotation = this.token.rotation ?? 0;
+      this.localImageMode = this.token.imageMode ?? 'fill';
     }
   }
 
@@ -974,5 +1293,135 @@ export class LobbyCharacterPanelComponent implements OnChanges {
     if (s < 60)  return `Vor ${s}s`;
     if (m < 60)  return `Vor ${m}min`;
     return `Vor ${h}h`;
+  }
+
+  // ============================================================
+  // Status Effects
+  // ============================================================
+
+  get tokenStatusEffects(): TokenStatusEffect[] {
+    return this.token?.activeStatusEffects ?? [];
+  }
+
+  openAddEffectForm(): void {
+    this.newEffectName = '';
+    this.newEffectIcon = '';
+    this.newEffectIsDebuff = false;
+    this.newEffectDuration = null;
+    this.showAddEffectForm.set(true);
+  }
+
+  addStatusEffect(): void {
+    if (!this.token || !this.newEffectName.trim()) return;
+    const newFx: TokenStatusEffect = {
+      id: `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name: this.newEffectName.trim(),
+      icon: this.newEffectIcon.trim() || undefined,
+      stacks: 1,
+      duration: this.newEffectDuration ? +this.newEffectDuration : undefined,
+      isDebuff: this.newEffectIsDebuff,
+    };
+    const effects = [...this.tokenStatusEffects, newFx];
+    this.tokenUpdate.emit({ activeStatusEffects: effects });
+    this.showAddEffectForm.set(false);
+  }
+
+  removeStatusEffect(id: string): void {
+    if (!this.token) return;
+    const effects = this.tokenStatusEffects.filter(e => e.id !== id);
+    this.tokenUpdate.emit({ activeStatusEffects: effects });
+  }
+
+  adjustFxStacks(fx: TokenStatusEffect, delta: number): void {
+    if (!this.token) return;
+    const effects = this.tokenStatusEffects.map(e =>
+      e.id === fx.id ? { ...e, stacks: Math.max(1, e.stacks + delta) } : e
+    );
+    this.tokenUpdate.emit({ activeStatusEffects: effects });
+  }
+
+  adjustFxDuration(fx: TokenStatusEffect, delta: number): void {
+    if (!this.token) return;
+    const effects = this.tokenStatusEffects.map(e =>
+      e.id === fx.id ? { ...e, duration: Math.max(0, (e.duration ?? 0) + delta) } : e
+    );
+    this.tokenUpdate.emit({ activeStatusEffects: effects });
+  }
+
+  // ============================================================
+  // Cosmetic
+  // ============================================================
+
+  saveName(): void {
+    if (!this.token || !this.localName.trim()) return;
+    this.tokenUpdate.emit({ name: this.localName.trim() });
+  }
+
+  applyCosmetic(): void {
+    if (!this.token) return;
+    this.tokenUpdate.emit({
+      scaleX: this.localScaleX,
+      scaleY: this.localScaleY,
+      rotation: this.localRotation,
+      imageMode: this.localImageMode,
+    });
+  }
+
+  adjustScale(delta: number): void {
+    this.localScaleX = Math.max(0.3, Math.min(4, Math.round((this.localScaleX + delta) * 100) / 100));
+    if (this.uniformScale) this.localScaleY = this.localScaleX;
+    this.applyCosmetic();
+  }
+
+  rotateBy(degrees: number): void {
+    this.localRotation = ((this.localRotation + degrees) % 360 + 360) % 360;
+    this.applyCosmetic();
+  }
+
+  clearCustomPortrait(): void {
+    if (!this.token) return;
+    this.tokenUpdate.emit({ customPortraitData: undefined });
+  }
+
+  // ============================================================
+  // Linked Tokens
+  // ============================================================
+
+  get linkedChildren(): Token[] {
+    if (!this.token) return [];
+    return this.allTokens.filter(t => t.parentTokenId === this.token!.id);
+  }
+
+  getParentName(): string {
+    if (!this.token?.parentTokenId) return '';
+    const parent = this.allTokens.find(t => t.id === this.token!.parentTokenId);
+    return parent?.name ?? '(Unbekannt)';
+  }
+
+  getLinkedTypeLabel(type: LinkedTokenType | undefined): string {
+    switch (type) {
+      case 'free': return 'Frei';
+      case 'keepDistance': return 'Abstand';
+      case 'keepOffset': return 'Versatz';
+      default: return 'Verknüpft';
+    }
+  }
+
+  detachFromParent(): void {
+    if (!this.token) return;
+    this.tokenUpdate.emit({ parentTokenId: undefined, linkedTokenType: undefined, linkedOffset: undefined, linkedDistance: undefined });
+  }
+
+  detachChild(childId: string): void {
+    this.tokenChildDetach.emit({ childId });
+  }
+
+  startLinkedTokenPlacement(): void {
+    if (!this.token || !this.newLinkedName.trim()) return;
+    this.requestLinkedTokenPlacement.emit({
+      parentId: this.token.id,
+      type: this.newLinkedType,
+      name: this.newLinkedName.trim(),
+    });
   }
 }

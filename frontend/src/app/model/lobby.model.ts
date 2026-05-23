@@ -73,6 +73,12 @@ export const TEXTURE_TILE_SIZE = 512; // pixels per tile
 // Tokens
 // ============================================
 
+/** How an image fills the token hex */
+export type TokenImageMode = 'fill' | 'stretch';
+
+/** Types for linked (multi-hex) tokens */
+export type LinkedTokenType = 'free' | 'keepDistance' | 'keepOffset';
+
 /** A character token on the map */
 export interface Token {
   id: string;
@@ -87,6 +93,33 @@ export interface Token {
   currentHealth?: number; // Per-token HP override (undefined = use sheet value)
   currentMana?: number;   // Per-token Mana override
   currentEnergy?: number; // Per-token Energy override
+
+  // ---- Visual transforms ----
+  scaleX?: number; // Horizontal scale factor (default 1.0)
+  scaleY?: number; // Vertical scale factor (default 1.0)
+  rotation?: number; // Rotation in degrees (default 0)
+  imageMode?: TokenImageMode; // How image fills token (default 'fill' = cover, no stretch)
+  customPortraitData?: string; // Base64 hand-drawn portrait (overrides portrait if set)
+
+  // ---- Per-token status effects (used for NPC tokens) ----
+  activeStatusEffects?: TokenStatusEffect[];
+
+  // ---- Linked token (multi-hex creature support) ----
+  parentTokenId?: string; // ID of parent token (null = this is a root token)
+  linkedTokenType?: LinkedTokenType; // How this token follows the parent
+  linkedOffset?: HexCoord; // Stored offset from parent (used by keepOffset)
+  linkedDistance?: number; // Stored distance from parent (used by keepDistance)
+}
+
+/** A lightweight status effect stored directly on a token (no library ref needed) */
+export interface TokenStatusEffect {
+  id: string; // Local ID for this instance
+  name: string;
+  icon?: string; // Emoji icon
+  color?: string; // Hex color
+  stacks: number;
+  duration?: number; // Remaining turns (undefined = permanent)
+  isDebuff?: boolean;
 }
 
 // ============================================
