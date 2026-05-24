@@ -1,11 +1,11 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ChangeDetectorRef, Renderer2 } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Race, createEmptyRace, RaceSkill, SkillBlock } from '../../model/race.model';
 import { RaceService } from '../../services/race.service';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
+import { RaceCardComponent } from './race-card/race-card.component';
 import { RaceFormComponent } from './race-form/race-form.component';
-import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 /** 'skills' = skill picker for the selected race (default when race set).
  *  'select'  = race selection grid.
@@ -15,11 +15,11 @@ type ViewMode = 'skills' | 'select' | 'create' | 'edit';
 @Component({
   selector: 'app-race-selector',
   standalone: true,
-  imports: [CommonModule, RaceFormComponent, ImageUrlPipe],
+  imports: [CommonModule, RaceCardComponent, RaceFormComponent],
   templateUrl: './race-selector.component.html',
   styleUrl: './race-selector.component.css'
 })
-export class RaceSelectorComponent implements OnInit, OnDestroy {
+export class RaceSelectorComponent implements OnInit {
   @Input() sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() close = new EventEmitter<void>();
@@ -31,9 +31,6 @@ export class RaceSelectorComponent implements OnInit, OnDestroy {
 
   loreExpanded = false;
 
-  /** Race being previewed in the selection screen (hover/click in the left list) */
-  previewRace: Race | null = null;
-
   /** Local mirror of selected racial skills for instant UI feedback.
    *  Key format: `${raceId}::${skillName}` */
   selectedSkillKeys = new Set<string>();
@@ -44,24 +41,19 @@ export class RaceSelectorComponent implements OnInit, OnDestroy {
   loading = true;
   saving = false;
 
-  constructor(private raceService: RaceService, private cd: ChangeDetectorRef, private renderer: Renderer2) {}
+  constructor(private raceService: RaceService, private cd: ChangeDetectorRef) {}
 
   async ngOnInit() {
-    // Lock page scroll while overlay is open
-    this.renderer.setStyle(document.body, 'overflow', 'hidden');
-    this.renderer.setStyle(document.documentElement, 'overflow', 'hidden');
     this.loading = true;
     this.cd.detectChanges();
 
     this.races = await this.raceService.loadRaces();
     this.loading = false;
-    this.previewRace = this.races.length > 0 ? this.races[0] : null;
 
     if (this.sheet.raceId) {
       this.selectedRace = this.races.find(r => r.id === this.sheet.raceId) || null;
       if (this.selectedRace) {
         this.viewMode = 'skills';
-        this.previewRace = this.selectedRace;
         this.syncSelectedSkillKeys();
       }
     }
@@ -165,7 +157,6 @@ export class RaceSelectorComponent implements OnInit, OnDestroy {
   }
 
   startRaceChange() {
-    this.previewRace = this.selectedRace; // pre-select current race in list
     this.viewMode = 'select';
   }
 
@@ -249,12 +240,6 @@ export class RaceSelectorComponent implements OnInit, OnDestroy {
 
   onClose() {
     this.close.emit();
-  }
-
-  ngOnDestroy() {
-    // Restore page scroll
-    this.renderer.removeStyle(document.body, 'overflow');
-    this.renderer.removeStyle(document.documentElement, 'overflow');
   }
 
   isCurrentRace(race: Race): boolean {
