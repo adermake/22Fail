@@ -30,6 +30,7 @@ import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
 import { LobbyToolbarComponent } from './lobby-toolbar/lobby-toolbar.component';
 import { LobbySidebarComponent } from './lobby-sidebar/lobby-sidebar.component';
 import { LobbyCharacterPanelComponent } from './lobby-character-panel/lobby-character-panel.component';
+import { LobbyBottomPanelComponent } from './lobby-bottom-panel/lobby-bottom-panel.component';
 import { BattleTracker } from '../world/battle-tracker/battle-tracker.component';
 import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engine';
 
@@ -47,6 +48,7 @@ export type DragMode = 'free' | 'enforced';
     LobbyToolbarComponent,
     LobbySidebarComponent,
     LobbyCharacterPanelComponent,
+    LobbyBottomPanelComponent,
     BattleTracker,
   ],
   templateUrl: './lobby.component.html',

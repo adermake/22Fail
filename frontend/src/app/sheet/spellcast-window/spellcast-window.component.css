@@ -496,6 +496,24 @@
 }
 .scw-stop-btn:hover { background: rgba(239,68,68,0.25); color: #ef4444; }
 
+.scw-pay-cost-btn {
+  background: rgba(139,92,246,0.15);
+  border: 1px solid rgba(139,92,246,0.35);
+  color: #c4b5fd;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 5px;
+  font-size: 0.68rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.scw-pay-cost-btn:hover { background: rgba(139,92,246,0.3); color: #a78bfa; }
+
 .scw-active-desc {
   font-size: 0.78rem;
   color: #9ca3af;

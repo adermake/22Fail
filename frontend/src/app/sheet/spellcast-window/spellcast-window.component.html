@@ -356,6 +356,9 @@
                   @if (skill.cost) {
                     <span class="scw-active-cost">{{ skillCostLabel(skill) }}</span>
                   }
+                  @if (skill.cost?.perRound) {
+                    <button class="scw-pay-cost-btn" (click)="paySkillRoundCost(skill)" title="Rundenkosten zahlen">⚡ Zahlen</button>
+                  }
                   <button class="scw-stop-btn" (click)="toggleActiveSkill(skill)" title="Deaktivieren">✕</button>
                 </div>
                 @if (skill.description) {

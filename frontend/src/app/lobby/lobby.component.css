@@ -63,6 +63,11 @@
   flex-direction: column;
 }
 
+/* Bottom panel: Stats + Aktiv tabs for selected token */
+.lobby-bottom-panel {
+  flex-shrink: 0;
+}
+
 /* Battle tracker at bottom of lobby - compact view */
 .battle-tracker-section {
   border-top: 1px solid var(--border);

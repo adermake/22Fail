@@ -8,6 +8,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SpellBlock, CastingSpellEntry, generateSpellId } from '../../model/spell-block-model';
 import { SkillBlock } from '../../model/skill-block.model';
+import { FormulaType } from '../../model/formula-type.enum';
 import { JsonPatch } from '../../model/json-patch.model';
 import { KeywordEnhancer } from '../keyword-enhancer';
 import { ImageService } from '../../services/image.service';
@@ -104,11 +105,13 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get manaCurrent(): number {
-    return this.sheet.statuses?.find(s => s.statusName === 'Mana')?.statusCurrent ?? 0;
+    return this.sheet.statuses?.find(s => s.formulaType === FormulaType.MANA)?.statusCurrent ?? 0;
   }
 
   get manaMax(): number {
-    return this.sheet.statuses?.find(s => s.statusName === 'Mana')?.statusBase ?? 100;
+    const s = this.sheet.statuses?.find(s => s.formulaType === FormulaType.MANA);
+    if (!s) return 100;
+    return (s.statusBase || 0) + (s.statusBonus || 0) + (s.statusEffectBonus || 0);
   }
 
   get manaPercent(): number {
@@ -117,11 +120,13 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get lebenCurrent(): number {
-    return this.sheet.statuses?.find(s => s.statusName === 'Leben')?.statusCurrent ?? 0;
+    return this.sheet.statuses?.find(s => s.formulaType === FormulaType.LIFE)?.statusCurrent ?? 0;
   }
 
   get lebenMax(): number {
-    return this.sheet.statuses?.find(s => s.statusName === 'Leben')?.statusBase ?? 100;
+    const s = this.sheet.statuses?.find(s => s.formulaType === FormulaType.LIFE);
+    if (!s) return 100;
+    return (s.statusBase || 0) + (s.statusBonus || 0) + (s.statusEffectBonus || 0);
   }
 
   get lebenPercent(): number {
@@ -130,11 +135,13 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   get ausdauerCurrent(): number {
-    return this.sheet.statuses?.find(s => s.statusName === 'Ausdauer')?.statusCurrent ?? 0;
+    return this.sheet.statuses?.find(s => s.formulaType === FormulaType.ENERGY)?.statusCurrent ?? 0;
   }
 
   get ausdauerMax(): number {
-    return this.sheet.statuses?.find(s => s.statusName === 'Ausdauer')?.statusBase ?? 100;
+    const s = this.sheet.statuses?.find(s => s.formulaType === FormulaType.ENERGY);
+    if (!s) return 100;
+    return (s.statusBase || 0) + (s.statusBonus || 0) + (s.statusEffectBonus || 0);
   }
 
   get ausdauerPercent(): number {
@@ -657,6 +664,26 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     if (!skill.cost) return '';
     const type = skill.cost.type === 'mana' ? 'M' : skill.cost.type === 'energy' ? 'E' : '❤';
     return `${skill.cost.amount}${type}${skill.cost.perRound ? '/Rd' : ''}`;
+  }
+
+  /** Deduct per-round cost of an active skill from the matching status resource */
+  paySkillRoundCost(skill: SkillBlock): void {
+    if (!skill.cost?.perRound || !skill.cost.amount) return;
+    const formulaMap: Record<string, FormulaType> = {
+      mana: FormulaType.MANA,
+      energy: FormulaType.ENERGY,
+      life: FormulaType.LIFE,
+    };
+    const targetType = formulaMap[skill.cost.type];
+    if (!targetType) return;
+    const statuses = [...(this.sheet.statuses || [])];
+    const idx = statuses.findIndex(s => s.formulaType === targetType);
+    if (idx < 0) return;
+    const newVal = Math.max(0, (statuses[idx].statusCurrent || 0) - skill.cost.amount);
+    statuses[idx] = { ...statuses[idx], statusCurrent: newVal };
+    this.sheet.statuses = statuses;
+    this.patch.emit({ path: 'statuses', value: statuses });
+    this.cdr.markForCheck();
   }
 
   // ── Floating runes ────────────────────────────────────────────────────────

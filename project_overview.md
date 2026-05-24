@@ -455,13 +455,23 @@ interface SkillDefinition {
 ### Layout (Stand: Mai 2025)
 `
 lobby-container
-  +-- lobby-toolbar         (oben)
-  +-- lobby-main            (flex row)
-  �   +-- lobby-sidebar     (links, 280px) � Tabs: Charaktere | Bilder | Texturen | Schichten | W�rfel
-  �   +-- lobby-grid        (Mitte, flex:1) � Hex-Karte mit Tokens und Drawing-Layer
-  �   +-- lobby-character-panel (rechts, 300px, IMMER pr�sent, kein Layout-Shift)
-  +-- battle-tracker        (unten, collapsible)
+  +-- lobby-toolbar              (oben)
+  +-- kampfrunde-bar             (oben, nur wenn kampfrundeMode=true) – Compact Battle-Tracker + "Beenden"-Button
+  +-- lobby-main                 (flex row)
+  ¦   +-- lobby-sidebar          (links, 280px) – Tabs: Charaktere | Bilder | Texturen | Schichten | Würfel
+  ¦   +-- lobby-grid             (Mitte, flex:1) – Hex-Karte mit Tokens und Drawing-Layer
+  ¦   +-- lobby-character-panel  (rechts, 300px, IMMER präsent, kein Layout-Shift)
+  +-- lobby-bottom-panel         (unten, collapsible, 175px) – Stats + Aktiv-Tabs für ausgewähltes Token
 `
+
+### lobby-bottom-panel (lobby/lobby-bottom-panel/)
+- Immer sichtbar (collapsible per ▼/▲ Button), Höhe 175px / 33px collapsed
+- Tab 1 "📊 Werte": HP/Mana/Energie-Bars mit Bruchzahlen; GMs können Werte direkt bearbeiten (input)
+- Tab 2 "✦ Aktiv": Horizontale Card-Liste aller aktiven Zauber + aktiven Skills (mit Kosten)
+  - Charakter: castingSpells → SpellBlock-Lookup + activeSkillNames-gefilterte Skills
+  - NSC: alle npc.spells + alle customSkills vom Typ 'active'
+- Input: token, character, npc, isGM
+- Output: tokenUpdate → Lobby ruft store.updateToken()
 
 ### Kein Flash-Problem
 - lobby-character-panel ist IMMER 300px breit, egal ob Token ausgew�hlt.

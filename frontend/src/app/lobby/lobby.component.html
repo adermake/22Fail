@@ -40,6 +40,19 @@
     (kampfrundeToggle)="kampfrundeMode.set(!kampfrundeMode())"
   />
 
+  <!-- Kampfrunde top bar (compact, shown when GM enables Kampfrunde mode) -->
+  @if (kampfrundeMode()) {
+    <div class="kampfrunde-bar">
+      <span class="kampfrunde-label">⚔️ Kampfrunde</span>
+      <app-battle-tracker [engine]="battleEngine" [readOnly]="true" [compactMode]="true"></app-battle-tracker>
+      @if (isGM()) {
+        <button class="kampfrunde-toggle-btn kampfrunde-toggle-btn--end" (click)="kampfrundeMode.set(false)" title="Kampfrunde beenden">
+          ✕ Kampfrunde beenden
+        </button>
+      }
+    </div>
+  }
+
   <!-- Main content area -->
   <div class="lobby-main">
     <!-- Sidebar -->
@@ -146,18 +159,15 @@
     </div>
   </div>
 
-  <!-- Kampfrunde top bar (compact, shown when GM enables Kampfrunde mode) -->
-  @if (kampfrundeMode()) {
-    <div class="kampfrunde-bar">
-      <span class="kampfrunde-label">⚔️ Kampfrunde</span>
-      <app-battle-tracker [engine]="battleEngine" [readOnly]="true" [compactMode]="true"></app-battle-tracker>
-      @if (isGM()) {
-        <button class="kampfrunde-toggle-btn kampfrunde-toggle-btn--end" (click)="kampfrundeMode.set(false)" title="Kampfrunde beenden">
-          ✕ Kampfrunde beenden
-        </button>
-      }
-    </div>
-  }
+  <!-- Bottom panel: Stats + Spells/Abilities for selected token -->
+  <app-lobby-bottom-panel
+    class="lobby-bottom-panel"
+    [token]="selectedPanelToken()"
+    [character]="selectedPanelCharacter()"
+    [npc]="selectedPanelNpc()"
+    [isGM]="isGM()"
+    (tokenUpdate)="onTokenResourceChange($event)"
+  />
 </div>
 
 <!-- Map Settings Modal -->
