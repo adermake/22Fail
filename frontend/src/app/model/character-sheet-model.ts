@@ -2,7 +2,7 @@ import { Currency } from './currency-model';
 import { FormulaType } from './formula-type.enum';
 import { ItemBlock } from './item-block.model';
 import { SkillBlock } from './skill-block.model';
-import { SpellBlock, CastingSpellEntry } from './spell-block-model';
+import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from './spell-block-model';
 import { StatBlock } from './stat-block.model';
 import { StatusBlock } from './status-block.model';
 import { RuneBlock } from './rune-block.model';
@@ -69,7 +69,8 @@ export interface CharacterSheet {
   // Backstory
   backstory?: string;             // Character background story (supports simple markdown)
   // Active / Sustained Skills & Spells
-  activeSkillNames?: string[];    // Names of currently toggled-on perRound skills
+  activeSkillNames?: string[];    // Names of currently toggled-on perRound skills (spellcast-window toggle)
+  activeSkillEntries?: ActiveSkillEntry[]; // Active skill instances (supports multiple; bottom-panel activation)
   castingSpells?: CastingSpellEntry[]; // Spells actively being cast (cast-level tracking)
   spellCastBonus?: number;        // Saved bonus added to every d20 cast roll
   // Material Knowledge System

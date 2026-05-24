@@ -64,6 +64,15 @@ export interface CastingSpellEntry {
   roundsActive?: number;    // Rounds elapsed since spell became active (undefined = not yet active)
 }
 
+// ── Active Skill Entry (per-instance tracking; allows same skill active multiple times) ──
+export interface ActiveSkillEntry {
+  entryId: string;          // Unique per activation instance (allows same skill multiple times)
+  skillId?: string;         // Matches SkillBlock.skillId if set
+  skillName: string;        // Denormalized for fast display
+  roundsActive: number;     // Rounds elapsed since skill became active
+  counters?: SpellCounter[]; // Per-instance counter state (snapshot from skill definition at activation)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Configurable bars/counters (same shape as ItemCounter) ───────────────────

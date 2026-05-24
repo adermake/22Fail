@@ -106,6 +106,7 @@ export interface Token {
 
   // ---- Per-token combat state (used for NPC tokens; characters use CharacterSheet) ----
   activeSkillNames?: string[];
+  activeSkillEntries?: import('./spell-block-model').ActiveSkillEntry[];
   castingSpells?: import('./spell-block-model').CastingSpellEntry[];
 
   // ---- Linked token (multi-hex creature support) ----

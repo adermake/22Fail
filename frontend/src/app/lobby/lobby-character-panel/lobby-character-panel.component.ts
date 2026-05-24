@@ -22,7 +22,7 @@ import { DiceRollEvent, WorldSocketService } from '../../services/world-socket.s
 import { TrueStatsService } from '../../services/true-stats.service';
 import { FormulaType } from '../../model/formula-type.enum';
 import { SkillBlock } from '../../model/skill-block.model';
-import { SpellBlock, CastingSpellEntry } from '../../model/spell-block-model';
+import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../../model/spell-block-model';
 import { CharacterSocketService } from '../../services/character-socket.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
@@ -226,7 +226,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
                   }
                 </div>
                 <button class="action-btn" [class.action-btn--active]="isSkillActive(skill)" (click)="activateSkill(skill)">
-                  {{ isSkillActive(skill) ? 'Aktiv ✕' : 'Aktivieren' }}
+                  Aktivieren
                 </button>
               </div>
             }
@@ -1335,18 +1335,20 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return this.token?.characterId ?? null;
   }
 
-  get activeSkillNames(): string[] {
-    if (this.character) return this.character.activeSkillNames ?? [];
-    return this.token?.activeSkillNames ?? [];
-  }
-
   get characterCastingSpells(): CastingSpellEntry[] {
     if (this.character) return this.character.castingSpells ?? [];
     return this.token?.castingSpells ?? [];
   }
 
+  private get _activeSkillEntries(): ActiveSkillEntry[] {
+    if (this.character) return this.character.activeSkillEntries ?? [];
+    return this.token?.activeSkillEntries ?? [];
+  }
+
   isSkillActive(skill: SkillBlock): boolean {
-    return this.activeSkillNames.includes(skill.name);
+    return this._activeSkillEntries.some(e =>
+      (e.skillId && skill.skillId && e.skillId === skill.skillId) || e.skillName === skill.name
+    );
   }
 
   isSpellActive(spell: SpellBlock): boolean {
@@ -1354,17 +1356,22 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   }
 
   activateSkill(skill: SkillBlock): void {
-    const current = [...this.activeSkillNames];
-    const idx = current.indexOf(skill.name);
-    if (idx >= 0) current.splice(idx, 1);
-    else current.push(skill.name);
+    const entryId = `skill-${skill.skillId ?? skill.name}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const entry: ActiveSkillEntry = {
+      entryId,
+      skillId: skill.skillId,
+      skillName: skill.name,
+      roundsActive: 0,
+      counters: (skill.counters ?? []).map(c => ({ ...c })),
+    };
+    const updated = [...this._activeSkillEntries, entry];
 
     if (this.character) {
-      this.character.activeSkillNames = current;
+      this.character.activeSkillEntries = updated;
       const charId = this._charId;
-      if (charId) this.charSocket.sendPatch(charId, { path: 'activeSkillNames', value: current });
+      if (charId) this.charSocket.sendPatch(charId, { path: 'activeSkillEntries', value: updated });
     } else {
-      this.tokenUpdate.emit({ activeSkillNames: current });
+      this.tokenUpdate.emit({ activeSkillEntries: updated });
     }
     this.cdr.markForCheck();
   }

@@ -133,34 +133,35 @@
         }
 
         <!-- Active Skills -->
-        @for (skill of activeSkillsList; track skill.name) {
+        @for (entry of activeSkillEntries; track entry.entryId) {
+          @let skill = getSkillBlock(entry);
           <div class="lbp-active-card lbp-active-card--skill">
             <div class="lbp-active-glow"></div>
             <div class="lbp-active-header">
               <span class="lbp-active-badge lbp-active-badge--skill">Fähigkeit</span>
-              <span class="lbp-active-icon">{{ skill.name.charAt(0).toUpperCase() }}</span>
-              <span class="lbp-active-name">{{ skill.name }}</span>
-              @if (effectiveCost(skill)) {
+              <span class="lbp-active-icon">{{ entry.skillName.charAt(0).toUpperCase() }}</span>
+              <span class="lbp-active-name">{{ entry.skillName }}</span>
+              @if (skill && effectiveCost(skill)) {
                 <span class="lbp-active-cost">{{ skillCostLabel(skill) }}</span>
               }
-              @if (effectiveCost(skill)?.perRound) {
+              @if (skill && effectiveCost(skill)?.perRound) {
                 <button class="lbp-pay-btn" (click)="paySkillRoundCost(skill)" title="Rundenkosten zahlen">⚡ Zahlen</button>
               }
-              <button class="lbp-stop-btn" (click)="toggleSkill(skill)" title="Deaktivieren">✕</button>
+              <button class="lbp-stop-btn" (click)="stopSkillEntry(entry)" title="Deaktivieren">✕</button>
             </div>
-            @if (skill.description) {
-              <div class="lbp-active-desc">{{ skill.description }}</div>
+            @if (skill?.description) {
+              <div class="lbp-active-desc">{{ skill!.description }}</div>
             }
-            @if (skill.counters && skill.counters.length > 0) {
+            @if (entry.counters && entry.counters.length > 0) {
               <div class="lbp-counter-list">
-                @for (counter of skill.counters; track counter.id; let ci = $index) {
+                @for (counter of entry.counters; track counter.id; let ci = $index) {
                   <div class="lbp-counter">
                     <span class="lbp-counter-name">{{ counter.name }}</span>
-                    <button class="lbp-counter-btn" (click)="adjustSkillCounter(skill.name, ci, counter.current - 1)">−</button>
+                    <button class="lbp-counter-btn" (click)="adjustSkillEntryCounter(entry, ci, counter.current - 1)">−</button>
                     <input class="lbp-counter-input" type="number"
                            [ngModel]="counter.current"
-                           (ngModelChange)="adjustSkillCounter(skill.name, ci, $event)" />
-                    <button class="lbp-counter-btn" (click)="adjustSkillCounter(skill.name, ci, counter.current + 1)">+</button>
+                           (ngModelChange)="adjustSkillEntryCounter(entry, ci, $event)" />
+                    <button class="lbp-counter-btn" (click)="adjustSkillEntryCounter(entry, ci, counter.current + 1)">+</button>
                     <span class="lbp-counter-max">/ {{ counter.max }}</span>
                     <div class="lbp-counter-bar">
                       <div class="lbp-counter-fill"

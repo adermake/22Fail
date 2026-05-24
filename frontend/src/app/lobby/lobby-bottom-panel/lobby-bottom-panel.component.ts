@@ -7,7 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { Token, TokenStatusEffect } from '../../model/lobby.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { NpcStatblock } from '../../model/npc-statblock.model';
-import { SpellBlock, CastingSpellEntry } from '../../model/spell-block-model';
+import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../../model/spell-block-model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
@@ -86,12 +86,20 @@ export class LobbyBottomPanelComponent implements OnChanges {
     return this.token?.castingSpells ?? [];
   }
 
-  get activeSkillsList(): SkillBlock[] {
-    return this.availableSkills.filter(s => this.isSkillActive(s));
+  get activeSkillEntries(): ActiveSkillEntry[] {
+    if (this.character) return this.character.activeSkillEntries ?? [];
+    return this.token?.activeSkillEntries ?? [];
+  }
+
+  /** Look up the SkillBlock for a given skill entry. */
+  getSkillBlock(entry: ActiveSkillEntry): SkillBlock | undefined {
+    return this.availableSkills.find(s =>
+      (entry.skillId && s.skillId && entry.skillId === s.skillId) || s.name === entry.skillName
+    );
   }
 
   get hasActiveContent(): boolean {
-    return this.castingSpells.length > 0 || this.activeSkillsList.length > 0;
+    return this.castingSpells.length > 0 || this.activeSkillEntries.length > 0;
   }
 
   // ── Skill definition lookup ───────────────────────────────────────────────
@@ -150,23 +158,25 @@ export class LobbyBottomPanelComponent implements OnChanges {
   // ── Skill actions ─────────────────────────────────────────────────────────
 
   isSkillActive(skill: SkillBlock): boolean {
-    return this.activeSkillNames.includes(skill.name);
+    return this.activeSkillEntries.some(e =>
+      (e.skillId && skill.skillId && e.skillId === skill.skillId) || e.skillName === skill.name
+    );
   }
 
-  toggleSkill(skill: SkillBlock): void {
-    const current = [...this.activeSkillNames];
-    const idx = current.indexOf(skill.name);
-    if (idx >= 0) current.splice(idx, 1);
-    else current.push(skill.name);
+  stopSkillEntry(entry: ActiveSkillEntry): void {
+    const updated = this.activeSkillEntries.filter(e => e.entryId !== entry.entryId);
+    this._patchSkillEntries(updated);
+  }
 
-    if (this.character) {
-      this.character.activeSkillNames = current;
-      const charId = this.characterId;
-      if (charId) this.charSocket.sendPatch(charId, { path: 'activeSkillNames', value: current });
-    } else {
-      this.tokenUpdate.emit({ activeSkillNames: current });
-    }
-    this.cdr.markForCheck();
+  adjustSkillEntryCounter(entry: ActiveSkillEntry, counterIndex: number, newValue: number): void {
+    const updated = this.activeSkillEntries.map(e => {
+      if (e.entryId !== entry.entryId || !e.counters) return e;
+      const counters = e.counters.map((c, i) =>
+        i === counterIndex ? { ...c, current: Math.max(c.min, Math.min(c.max, newValue)) } : c
+      );
+      return { ...e, counters };
+    });
+    this._patchSkillEntries(updated);
   }
 
   paySkillRoundCost(skill: SkillBlock): void {
@@ -202,20 +212,14 @@ export class LobbyBottomPanelComponent implements OnChanges {
     this.cdr.markForCheck();
   }
 
-  adjustSkillCounter(skillName: string, counterIndex: number, newValue: number): void {
-    if (!this.character) return;
-    const skills = [...(this.character.skills || [])];
-    const idx = skills.findIndex(s => s.name === skillName);
-    if (idx < 0) return;
-    const skill = { ...skills[idx] };
-    if (!skill.counters || counterIndex >= skill.counters.length) return;
-    skill.counters = skill.counters.map((c, i) =>
-      i === counterIndex ? { ...c, current: Math.max(c.min, Math.min(c.max, newValue)) } : c
-    );
-    skills[idx] = skill;
-    this.character.skills = skills;
-    const charId = this.characterId;
-    if (charId) this.charSocket.sendPatch(charId, { path: 'skills', value: skills });
+  private _patchSkillEntries(updated: ActiveSkillEntry[]): void {
+    if (this.character) {
+      this.character.activeSkillEntries = updated;
+      const charId = this.characterId;
+      if (charId) this.charSocket.sendPatch(charId, { path: 'activeSkillEntries', value: updated });
+    } else {
+      this.tokenUpdate.emit({ activeSkillEntries: updated });
+    }
     this.cdr.markForCheck();
   }
 
