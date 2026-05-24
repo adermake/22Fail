@@ -35,13 +35,7 @@ export class LobbyBottomPanelComponent implements OnChanges {
   activeTab: 'status' | 'aktiv' = 'aktiv';
   collapsed = false;
 
-  // Pending cast state
-  pendingCastSpell: SpellBlock | null = null;
-  pendingCastLevel = 0;
-  pendingSkalierung = 1;
-
   ngOnChanges(_: SimpleChanges): void {
-    this.pendingCastSpell = null;
     this.cdr.markForCheck();
   }
 
@@ -227,64 +221,6 @@ export class LobbyBottomPanelComponent implements OnChanges {
 
   // ── Spell actions ─────────────────────────────────────────────────────────
 
-  requestCast(spell: SpellBlock): void {
-    this.pendingCastSpell = spell;
-    this.pendingCastLevel = 0;
-    this.pendingSkalierung = 1;
-    this.cdr.markForCheck();
-  }
-
-  cancelCast(): void {
-    this.pendingCastSpell = null;
-    this.cdr.markForCheck();
-  }
-
-  confirmCast(): void {
-    const spell = this.pendingCastSpell;
-    if (!spell) return;
-    const cl = this.pendingCastLevel;
-    const sk = this.pendingSkalierung;
-    this.pendingCastSpell = null;
-    this._castSpell(spell, cl, sk);
-  }
-
-  private _castSpell(spell: SpellBlock, castLevel: number, skalierung: number): void {
-    const entryId = `${spell.id ?? 'spell'}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const entry: CastingSpellEntry = {
-      spellId: spell.id ?? entryId,
-      spellName: spell.name,
-      castLevel,
-      entryId,
-      skalierung: skalierung !== 1 ? skalierung : undefined,
-      remainingCast: castLevel,
-      roundsActive: castLevel <= 0 ? 0 : undefined,
-    };
-    const updated = [...this.castingSpells, entry];
-
-    if (this.character) {
-      this.character.castingSpells = updated;
-      const manaCost = Math.round((spell.costMana || 0) * skalierung * 100) / 100;
-      if (manaCost > 0) this._consumeCharacterMana(manaCost);
-      const charId = this.characterId;
-      if (charId) this.charSocket.sendPatch(charId, { path: 'castingSpells', value: updated });
-    } else {
-      this.tokenUpdate.emit({ castingSpells: updated });
-    }
-    this.cdr.markForCheck();
-  }
-
-  private _consumeCharacterMana(amount: number): void {
-    if (!this.character || amount <= 0) return;
-    const statuses = [...(this.character.statuses || [])];
-    const idx = statuses.findIndex(s => s.formulaType === FormulaType.MANA);
-    if (idx < 0) return;
-    const newVal = Math.max(0, (statuses[idx].statusCurrent || 0) - amount);
-    statuses[idx] = { ...statuses[idx], statusCurrent: newVal };
-    this.character.statuses = statuses;
-    const charId = this.characterId;
-    if (charId) this.charSocket.sendPatch(charId, { path: 'statuses', value: statuses });
-  }
-
   stopCasting(entry: CastingSpellEntry): void {
     const updated = entry.entryId
       ? this.castingSpells.filter(e => e.entryId !== entry.entryId)
@@ -292,25 +228,8 @@ export class LobbyBottomPanelComponent implements OnChanges {
     this._patchCasting(updated);
   }
 
-  rollCast(entry: CastingSpellEntry): void {
-    const roll = Math.floor(Math.random() * 20) + 1;
-    entry.remainingCast = Math.max(0, entry.remainingCast - roll);
-    if (entry.remainingCast <= 0 && entry.roundsActive === undefined) {
-      entry.roundsActive = 0;
-    }
-    this._patchCasting([...this.castingSpells]);
-  }
-
   advanceRound(entry: CastingSpellEntry): void {
     entry.roundsActive = (entry.roundsActive ?? 0) + 1;
-    this._patchCasting([...this.castingSpells]);
-  }
-
-  setRemainingCast(entry: CastingSpellEntry, value: number): void {
-    entry.remainingCast = Math.max(0, value);
-    if (entry.remainingCast <= 0 && entry.roundsActive === undefined) {
-      entry.roundsActive = 0;
-    }
     this._patchCasting([...this.castingSpells]);
   }
 

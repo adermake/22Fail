@@ -357,10 +357,9 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     const spell = this.pendingCastSpell;
     if (!spell || !this.canCast) return;
     const sk = this.skalierung;
-    const cl = this.pendingCastLevel;
     this.pendingCastSpell = null;
     this._portalRunes = [];
-    this.castSpell(spell, cl, sk);
+    this.castSpell(spell, 0, sk);
     this.cdr.markForCheck();
   }
 
