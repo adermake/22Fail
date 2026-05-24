@@ -225,7 +225,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
                     <span class="skill-tag cost-tag">{{ skill.cost.amount }} {{ skill.cost.type === 'mana' ? '🔮' : skill.cost.type === 'energy' ? '⚡' : '❤️' }}</span>
                   }
                 </div>
-                <button class="action-btn" [class.action-btn--active]="isSkillActive(skill)" (click)="activateSkill(skill)">
+                <button class="action-btn" (click)="activateSkill(skill)">
                   Aktivieren
                 </button>
               </div>
@@ -1373,6 +1373,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     } else {
       this.tokenUpdate.emit({ activeSkillEntries: updated });
     }
+    this.charSocket.notifyLocalUpdate();
     this.cdr.markForCheck();
   }
 
@@ -1407,6 +1408,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     } else {
       this.tokenUpdate.emit({ castingSpells: updated });
     }
+    this.charSocket.notifyLocalUpdate();
     this.cdr.markForCheck();
   }
 

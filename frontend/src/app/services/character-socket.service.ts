@@ -20,10 +20,15 @@ export class CharacterSocketService {
   private patchSubject = new Subject<CharacterPatchEvent>();
   private lootReceivedSubject = new Subject<LootItem>();
   private battleLootReceivedSubject = new Subject<BattleLootEvent>();
+  private localUpdateSubject = new Subject<void>();
 
   patches$ = this.patchSubject.asObservable();
   lootReceived$ = this.lootReceivedSubject.asObservable();
   battleLootReceived$ = this.battleLootReceivedSubject.asObservable();
+  /** Fires immediately when the local UI mutates character data (before server echo). */
+  localUpdate$ = this.localUpdateSubject.asObservable();
+
+  notifyLocalUpdate(): void { this.localUpdateSubject.next(); }
 
   connect() {
     if (this.socket) return;

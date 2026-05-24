@@ -313,12 +313,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
       this.characterSocket.patches$.subscribe((data: CharacterPatchEvent) => {
         const characterIndex = this.worldCharacters().findIndex(c => c.id === data.characterId);
         if (characterIndex >= 0) {
-          const characters = this.worldCharacters();
-          const sheet = characters[characterIndex].sheet;
+          const characters = [...this.worldCharacters()];
+          // Shallow-copy the sheet so Angular OnPush detects a new reference
+          const sheet = { ...characters[characterIndex].sheet };
           this.applyJsonPatch(sheet, data.patch);
-          
-          // Update signal with modified array
-          this.worldCharacters.set([...characters]);
+          characters[characterIndex] = { ...characters[characterIndex], sheet };
+          this.worldCharacters.set(characters);
           this.cdr.markForCheck();
         }
       })

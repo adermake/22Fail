@@ -64,114 +64,61 @@
           </div>
         }
 
-        <!-- Active Spells -->
-        @for (entry of castingSpells; track (entry.entryId ?? entry.spellId)) {
-          <div class="lbp-active-card lbp-active-card--spell"
-               [style.--sc]="getSpell(entry.spellId) ? spellColor(getSpell(entry.spellId)!) : '#8b5cf6'">
-            <div class="lbp-active-glow"></div>
-            <div class="lbp-active-header">
-              <span class="lbp-active-badge lbp-active-badge--spell">Zauber</span>
-              <span class="lbp-active-icon">{{ getSpell(entry.spellId)?.icon || '✦' }}</span>
-              <span class="lbp-active-name">{{ entry.spellName }}</span>
-              @if (entry.skalierung && entry.skalierung > 1) {
-                <span class="lbp-skal-badge">✦ ×{{ entry.skalierung }}</span>
-              }
-              <button class="lbp-stop-btn" (click)="stopCasting(entry)" title="Beenden">✕</button>
-            </div>
-
-            @if (getSpell(entry.spellId); as spell) {
-              @if (spellCostLabel(spell)) {
-                <div class="lbp-active-info">⚡ Einmalig: {{ spellCostLabel(spell) }}</div>
-              }
-              @if (perTurnLabel(spell)) {
-                <div class="lbp-active-info">{{ perTurnLabel(spell) }}</div>
-              }
-              @if (spell.counters && spell.counters.length > 0) {
-                <div class="lbp-counter-list">
-                  @for (counter of spell.counters; track counter.id; let ci = $index) {
-                    <div class="lbp-counter">
-                      <span class="lbp-counter-name">{{ counter.name }}</span>
-                      <button class="lbp-counter-btn" (click)="adjustSpellCounter(entry.spellId, ci, counter.current - 1)">−</button>
-                      <input class="lbp-counter-input" type="number"
-                             [ngModel]="counter.current"
-                             (ngModelChange)="adjustSpellCounter(entry.spellId, ci, $event)" />
-                      <button class="lbp-counter-btn" (click)="adjustSpellCounter(entry.spellId, ci, counter.current + 1)">+</button>
-                      <span class="lbp-counter-max">/ {{ counter.max }}</span>
-                      <div class="lbp-counter-bar">
-                        <div class="lbp-counter-fill"
-                             [style.width.%]="counter.max > counter.min ? ((counter.current - counter.min) / (counter.max - counter.min)) * 100 : 0"
-                             [style.backgroundColor]="counter.color"></div>
-                      </div>
+        <!-- Active Spells Lane -->
+        @if (castingSpells.length > 0) {
+          <div class="lbp-lane">
+            <div class="lbp-lane-label">Aktive Zauber</div>
+            <div class="lbp-lane-bar">
+              @for (entry of castingSpells; track (entry.entryId ?? entry.spellId)) {
+                @let spell = getSpell(entry.spellId);
+                <div class="lbp-tile lbp-tile--spell"
+                     [style.--sc]="spell ? spellColor(spell) : '#8b5cf6'">
+                  <button class="lbp-tile-remove" (click)="stopCasting(entry)" title="Beenden">✕</button>
+                  <div class="lbp-tile-icon">{{ spell?.icon || '✦' }}</div>
+                  <div class="lbp-tile-name">{{ entry.spellName }}</div>
+                  @if (entry.skalierung && entry.skalierung > 1) {
+                    <div class="lbp-tile-sub">×{{ entry.skalierung }}</div>
+                  }
+                  @if (spell && spellCostLabel(spell)) {
+                    <div class="lbp-tile-sub">{{ spellCostLabel(spell) }}</div>
+                  }
+                  @if (!isSpellFinished(entry)) {
+                    <div class="lbp-tile-rounds">
+                      <button class="lbp-round-mini-btn" (click)="advanceRound(entry)" title="+Runde">+</button>
+                      <span class="lbp-tile-rnd">{{ entry.roundsActive ?? 0 }}
+                        @if (spell?.durationTurns) { <span class="lbp-tile-rnd-of">/{{ spell!.durationTurns }}</span> }
+                      </span>
                     </div>
+                  }
+                  @if (isSpellFinished(entry)) {
+                    <div class="lbp-tile-done">✓ Fertig</div>
                   }
                 </div>
               }
-            }
-
-            <!-- Round counter (spell active) -->
-            @if (!isSpellFinished(entry)) {
-              <div class="lbp-round-counter">
-                <span class="lbp-round-label">Runde</span>
-                <input class="lbp-round-input" type="number" min="0"
-                       [ngModel]="entry.roundsActive ?? 0"
-                       (ngModelChange)="setRoundsActive(entry, $event)" />
-                @if (getSpell(entry.spellId)?.durationTurns; as dur) {
-                  <span class="lbp-round-of">/ {{ dur }}</span>
-                }
-                <button class="lbp-advance-btn" (click)="advanceRound(entry)" title="Runde voranbringen">+</button>
-              </div>
-            }
-
-            <!-- Finished state -->
-            @if (isSpellFinished(entry)) {
-              <div class="lbp-spell-finished">
-                <span class="lbp-finished-badge">✓ Beendet</span>
-                <button class="lbp-dismiss-btn" (click)="stopCasting(entry)">Entlassen</button>
-              </div>
-            }
+            </div>
           </div>
         }
 
-        <!-- Active Skills -->
-        @for (entry of activeSkillEntries; track entry.entryId) {
-          @let skill = getSkillBlock(entry);
-          <div class="lbp-active-card lbp-active-card--skill">
-            <div class="lbp-active-glow"></div>
-            <div class="lbp-active-header">
-              <span class="lbp-active-badge lbp-active-badge--skill">Fähigkeit</span>
-              <span class="lbp-active-icon">{{ entry.skillName.charAt(0).toUpperCase() }}</span>
-              <span class="lbp-active-name">{{ entry.skillName }}</span>
-              @if (skill && effectiveCost(skill)) {
-                <span class="lbp-active-cost">{{ skillCostLabel(skill) }}</span>
+        <!-- Active Skills Lane -->
+        @if (activeSkillEntries.length > 0) {
+          <div class="lbp-lane">
+            <div class="lbp-lane-label">Aktive Fähigkeiten</div>
+            <div class="lbp-lane-bar">
+              @for (entry of activeSkillEntries; track entry.entryId) {
+                @let skill = getSkillBlock(entry);
+                <div class="lbp-tile lbp-tile--skill">
+                  <button class="lbp-tile-remove" (click)="stopSkillEntry(entry)" title="Deaktivieren">✕</button>
+                  <div class="lbp-tile-icon">{{ entry.skillName.charAt(0).toUpperCase() }}</div>
+                  <div class="lbp-tile-name">{{ entry.skillName }}</div>
+                  @if (skill && effectiveCost(skill)) {
+                    <div class="lbp-tile-sub">{{ skillCostLabel(skill) }}</div>
+                  }
+                  @if (skill && effectiveCost(skill)?.perRound) {
+                    <button class="lbp-tile-pay" (click)="paySkillRoundCost(skill)">⚡</button>
+                  }
+                </div>
               }
-              @if (skill && effectiveCost(skill)?.perRound) {
-                <button class="lbp-pay-btn" (click)="paySkillRoundCost(skill)" title="Rundenkosten zahlen">⚡ Zahlen</button>
-              }
-              <button class="lbp-stop-btn" (click)="stopSkillEntry(entry)" title="Deaktivieren">✕</button>
             </div>
-            @if (skill?.description) {
-              <div class="lbp-active-desc">{{ skill!.description }}</div>
-            }
-            @if (entry.counters && entry.counters.length > 0) {
-              <div class="lbp-counter-list">
-                @for (counter of entry.counters; track counter.id; let ci = $index) {
-                  <div class="lbp-counter">
-                    <span class="lbp-counter-name">{{ counter.name }}</span>
-                    <button class="lbp-counter-btn" (click)="adjustSkillEntryCounter(entry, ci, counter.current - 1)">−</button>
-                    <input class="lbp-counter-input" type="number"
-                           [ngModel]="counter.current"
-                           (ngModelChange)="adjustSkillEntryCounter(entry, ci, $event)" />
-                    <button class="lbp-counter-btn" (click)="adjustSkillEntryCounter(entry, ci, counter.current + 1)">+</button>
-                    <span class="lbp-counter-max">/ {{ counter.max }}</span>
-                    <div class="lbp-counter-bar">
-                      <div class="lbp-counter-fill"
-                           [style.width.%]="counter.max > counter.min ? ((counter.current - counter.min) / (counter.max - counter.min)) * 100 : 0"
-                           [style.backgroundColor]="counter.color"></div>
-                    </div>
-                  </div>
-                }
-              </div>
-            }
           </div>
         }
 

@@ -1,7 +1,8 @@
 import {
-  ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter,
-  inject, Input, OnChanges, Output, SimpleChanges,
+  ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, EventEmitter,
+  inject, Input, OnChanges, OnInit, Output, SimpleChanges,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Token, TokenStatusEffect } from '../../model/lobby.model';
@@ -22,7 +23,7 @@ import { CharacterSocketService } from '../../services/character-socket.service'
   styleUrl: './lobby-bottom-panel.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LobbyBottomPanelComponent implements OnChanges {
+export class LobbyBottomPanelComponent implements OnChanges, OnInit {
   @Input() token: Token | null = null;
   @Input() character: CharacterSheet | null = null;
   @Input() npc: NpcStatblock | null = null;
@@ -31,9 +32,17 @@ export class LobbyBottomPanelComponent implements OnChanges {
 
   private cdr = inject(ChangeDetectorRef);
   private charSocket = inject(CharacterSocketService);
+  private destroyRef = inject(DestroyRef);
 
   activeTab: 'status' | 'aktiv' = 'aktiv';
   collapsed = false;
+
+  ngOnInit(): void {
+    // Re-render immediately when the character panel mutates data locally (before server echo)
+    this.charSocket.localUpdate$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.cdr.markForCheck();
+    });
+  }
 
   ngOnChanges(_: SimpleChanges): void {
     this.cdr.markForCheck();
