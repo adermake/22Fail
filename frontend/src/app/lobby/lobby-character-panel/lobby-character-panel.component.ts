@@ -22,7 +22,8 @@ import { DiceRollEvent, WorldSocketService } from '../../services/world-socket.s
 import { TrueStatsService } from '../../services/true-stats.service';
 import { FormulaType } from '../../model/formula-type.enum';
 import { SkillBlock } from '../../model/skill-block.model';
-import { SpellBlock } from '../../model/spell-block-model';
+import { SpellBlock, CastingSpellEntry } from '../../model/spell-block-model';
+import { CharacterSocketService } from '../../services/character-socket.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 interface StatDisplay {
@@ -224,7 +225,9 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
                     <span class="skill-tag cost-tag">{{ skill.cost.amount }} {{ skill.cost.type === 'mana' ? '🔮' : skill.cost.type === 'energy' ? '⚡' : '❤️' }}</span>
                   }
                 </div>
-                <button class="action-btn" (click)="rollSkill(skill)">Würfeln</button>
+                <button class="action-btn" [class.action-btn--active]="isSkillActive(skill)" (click)="activateSkill(skill)">
+                  {{ isSkillActive(skill) ? 'Aktiv ✕' : 'Aktivieren' }}
+                </button>
               </div>
             }
           </div>
@@ -243,7 +246,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
                     <span class="skill-tag cost-tag">{{ spell.costMana }}🔮</span>
                   }
                 </div>
-                <button class="action-btn spell-btn" (click)="rollSpell(spell)">Zaubern</button>
+                <button class="action-btn spell-btn" [class.action-btn--active]="isSpellActive(spell)" (click)="activateSpell(spell)">Aktivieren</button>
               </div>
             }
           </div>
@@ -886,6 +889,8 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
       white-space: nowrap;
     }
     .action-btn:hover { background: #374151; color: #f1f5f9; border-color: #6366f1; }
+    .action-btn--active { background: rgba(34,197,94,0.15); border-color: rgba(34,197,94,0.4); color: #4ade80; }
+    .action-btn--active:hover { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.4); color: #f87171; }
     .spell-btn:hover { border-color: #8b5cf6; }
 
     /* ---- Roll History ---- */
@@ -1124,6 +1129,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   private worldSocket = inject(WorldSocketService);
   private trueStats = inject(TrueStatsService);
+  private charSocket = inject(CharacterSocketService);
   private cdr = inject(ChangeDetectorRef);
 
   activeTab = signal<PanelTab>('actions');
@@ -1320,20 +1326,81 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       stat.label + '-Wurf', '⚔️');
   }
 
-  rollSkill(skill: SkillBlock): void {
-    const bonuses: { name: string; value: number; source: string }[] = [];
-    const b = this.customBonus();
-    if (b !== 0) bonuses.push({ name: 'Bonus', value: b, source: 'manual' });
-    this.doRoll(20, 1, bonuses, skill.name, '✨');
+  rollSkill(_skill: SkillBlock): void { /* replaced by activateSkill */ }
+  rollSpell(_spell: SpellBlock): void { /* replaced by activateSpell */ }
+
+  // ---- Activation ----
+
+  private get _charId(): string | null {
+    return this.token?.characterId ?? null;
   }
 
-  rollSpell(spell: SpellBlock): void {
-    const bonuses: { name: string; value: number; source: string }[] = [];
-    const intBonus = this.character
-      ? this.diceBonus(this.trueStats.getAllStats(this.character).intelligence)
-      : (this.npc ? this.diceBonus(this.npc.intelligence) : 0);
-    bonuses.push({ name: 'INT', value: intBonus, source: 'stat' });
-    this.doRoll(20, 1, bonuses, spell.name, spell.icon || '✨');
+  get activeSkillNames(): string[] {
+    if (this.character) return this.character.activeSkillNames ?? [];
+    return this.token?.activeSkillNames ?? [];
+  }
+
+  get characterCastingSpells(): CastingSpellEntry[] {
+    if (this.character) return this.character.castingSpells ?? [];
+    return this.token?.castingSpells ?? [];
+  }
+
+  isSkillActive(skill: SkillBlock): boolean {
+    return this.activeSkillNames.includes(skill.name);
+  }
+
+  isSpellActive(spell: SpellBlock): boolean {
+    return this.characterCastingSpells.some(e => e.spellId === spell.id);
+  }
+
+  activateSkill(skill: SkillBlock): void {
+    const current = [...this.activeSkillNames];
+    const idx = current.indexOf(skill.name);
+    if (idx >= 0) current.splice(idx, 1);
+    else current.push(skill.name);
+
+    if (this.character) {
+      this.character.activeSkillNames = current;
+      const charId = this._charId;
+      if (charId) this.charSocket.sendPatch(charId, { path: 'activeSkillNames', value: current });
+    } else {
+      this.tokenUpdate.emit({ activeSkillNames: current });
+    }
+    this.cdr.markForCheck();
+  }
+
+  activateSpell(spell: SpellBlock): void {
+    const entryId = `${spell.id ?? 'spell'}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const entry: CastingSpellEntry = {
+      spellId: spell.id ?? entryId,
+      spellName: spell.name,
+      castLevel: 0,
+      entryId,
+      remainingCast: 0,
+      roundsActive: 0,
+    };
+    const updated = [...this.characterCastingSpells, entry];
+
+    if (this.character) {
+      this.character.castingSpells = updated;
+      const manaCost = spell.costMana ?? 0;
+      if (manaCost > 0) {
+        const statuses = [...(this.character.statuses || [])];
+        const manaIdx = statuses.findIndex(s => s.formulaType === FormulaType.MANA);
+        if (manaIdx >= 0) {
+          const newVal = Math.max(0, (statuses[manaIdx].statusCurrent || 0) - manaCost);
+          statuses[manaIdx] = { ...statuses[manaIdx], statusCurrent: newVal };
+          this.character.statuses = statuses;
+          const charId = this._charId;
+          if (charId) this.charSocket.sendPatch(charId, { path: 'statuses', value: statuses });
+        }
+      }
+      const charId = this._charId;
+      if (charId) this.charSocket.sendPatch(charId, { path: 'castingSpells', value: updated });
+    } else {
+      this.tokenUpdate.emit({ castingSpells: updated });
+    }
+    this.cdr.markForCheck();
   }
 
   rollCustom(): void {
