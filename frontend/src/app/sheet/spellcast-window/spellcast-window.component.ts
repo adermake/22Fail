@@ -13,6 +13,8 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { KeywordEnhancer } from '../keyword-enhancer';
 import { ImageService } from '../../services/image.service';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
+import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
+import { SkillDefinition } from '../../model/skill-definition.model';
 
 interface FloatingRune {
   id: number;
@@ -660,26 +662,44 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  // ── Skill definition resolution ───────────────────────────────────────────
+
+  private getSkillDefinition(skill: SkillBlock): SkillDefinition | undefined {
+    if (skill.skillId) return SKILL_DEFINITIONS.find(s => s.id === skill.skillId);
+    return SKILL_DEFINITIONS.find(s => s.name === skill.name && s.class === skill.class)
+      ?? SKILL_DEFINITIONS.find(s => s.name === skill.name);
+  }
+
+  effectiveCost(skill: SkillBlock): { type: string; amount: number; perRound?: boolean } | undefined {
+    return skill.cost ?? this.getSkillDefinition(skill)?.cost;
+  }
+
+  effectiveActionType(skill: SkillBlock): string | undefined {
+    return skill.actionType ?? this.getSkillDefinition(skill)?.actionType;
+  }
+
   skillCostLabel(skill: SkillBlock): string {
-    if (!skill.cost) return '';
-    const type = skill.cost.type === 'mana' ? 'M' : skill.cost.type === 'energy' ? 'E' : '❤';
-    return `${skill.cost.amount}${type}${skill.cost.perRound ? '/Rd' : ''}`;
+    const cost = this.effectiveCost(skill);
+    if (!cost) return '';
+    const type = cost.type === 'mana' ? 'M' : cost.type === 'energy' ? 'E' : '❤';
+    return `${cost.amount}${type}${cost.perRound ? '/Rd' : ''}`;
   }
 
   /** Deduct per-round cost of an active skill from the matching status resource */
   paySkillRoundCost(skill: SkillBlock): void {
-    if (!skill.cost?.perRound || !skill.cost.amount) return;
+    const cost = this.effectiveCost(skill);
+    if (!cost?.perRound || !cost.amount) return;
     const formulaMap: Record<string, FormulaType> = {
       mana: FormulaType.MANA,
       energy: FormulaType.ENERGY,
       life: FormulaType.LIFE,
     };
-    const targetType = formulaMap[skill.cost.type];
+    const targetType = formulaMap[cost.type];
     if (!targetType) return;
     const statuses = [...(this.sheet.statuses || [])];
     const idx = statuses.findIndex(s => s.formulaType === targetType);
     if (idx < 0) return;
-    const newVal = Math.max(0, (statuses[idx].statusCurrent || 0) - skill.cost.amount);
+    const newVal = Math.max(0, (statuses[idx].statusCurrent || 0) - cost.amount);
     statuses[idx] = { ...statuses[idx], statusCurrent: newVal };
     this.sheet.statuses = statuses;
     this.patch.emit({ path: 'statuses', value: statuses });

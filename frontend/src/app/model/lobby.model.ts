@@ -104,6 +104,10 @@ export interface Token {
   // ---- Per-token status effects (used for NPC tokens) ----
   activeStatusEffects?: TokenStatusEffect[];
 
+  // ---- Per-token combat state (used for NPC tokens; characters use CharacterSheet) ----
+  activeSkillNames?: string[];
+  castingSpells?: import('./spell-block-model').CastingSpellEntry[];
+
   // ---- Linked token (multi-hex creature support) ----
   parentTokenId?: string; // ID of parent token (null = this is a root token)
   linkedTokenType?: LinkedTokenType; // How this token follows the parent

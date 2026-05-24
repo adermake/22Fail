@@ -461,17 +461,22 @@ lobby-container
   ¦   +-- lobby-sidebar          (links, 280px) – Tabs: Charaktere | Bilder | Texturen | Schichten | Würfel
   ¦   +-- lobby-grid             (Mitte, flex:1) – Hex-Karte mit Tokens und Drawing-Layer
   ¦   +-- lobby-character-panel  (rechts, 300px, IMMER präsent, kein Layout-Shift)
-  +-- lobby-bottom-panel         (unten, collapsible, 175px) – Stats + Aktiv-Tabs für ausgewähltes Token
+  +-- lobby-bottom-panel         (unten, collapsible, 290px) – Status + Aktiv-Tabs für ausgewähltes Token
 `
 
 ### lobby-bottom-panel (lobby/lobby-bottom-panel/)
-- Immer sichtbar (collapsible per ▼/▲ Button), Höhe 175px / 33px collapsed
-- Tab 1 "📊 Werte": HP/Mana/Energie-Bars mit Bruchzahlen; GMs können Werte direkt bearbeiten (input)
-- Tab 2 "✦ Aktiv": Horizontale Card-Liste aller aktiven Zauber + aktiven Skills (mit Kosten)
-  - Charakter: castingSpells → SpellBlock-Lookup + activeSkillNames-gefilterte Skills
-  - NSC: alle npc.spells + alle customSkills vom Typ 'active'
-- Input: token, character, npc, isGM
-- Output: tokenUpdate → Lobby ruft store.updateToken()
+- Immer sichtbar (collapsible per ▼/▲ Button), Höhe 290px / 33px collapsed
+- Tab 1 "✨ Status": Liste aktiver TokenStatusEffects (icon, name, stacks×, Dauer Rd)
+- Tab 2 "✦ Aktiv": 2-Spalten-Layout:
+  - LINKS (210px): Browse-Liste aller Fähigkeiten (click=toggle) + Zauber (click=cast-dialog)
+    - Fähigkeiten zeigen effectiveCost(skill) (SKILL_DEFINITIONS lookup)
+    - Cast-Dialog: inline, Wirkstufe + Skalierung, dann Wirken
+  - RECHTS (flex:1, scrollable): Aktive Zauber-Karten + aktive Skill-Karten
+    - Volle spellcast-window-Funktionalität: cast progress, W20 würfeln, Rundentracker, ⚡ Zahlen, Zähler
+- State:
+  - Charaktere: Liest character.castingSpells / character.activeSkillNames, sendet Patches via CharacterSocketService.sendPatch()
+  - NSCs: Liest token.castingSpells / token.activeSkillNames, emittiert via tokenUpdate
+- Token model: jetzt auch activeSkillNames?: string[] und castingSpells?: CastingSpellEntry[]
 
 ### Kein Flash-Problem
 - lobby-character-panel ist IMMER 300px breit, egal ob Token ausgew�hlt.
@@ -500,6 +505,7 @@ lobby-container
 - Ressourcen: currentHealth?, currentMana?, currentEnergy?
 - Kosmetik: scaleX?, scaleY?, rotation?, imageMode? ('fill'|'stretch'), customPortraitData? (Base64)
 - Status: activeStatusEffects?: TokenStatusEffect[] (id, name, icon, stacks, duration, isDebuff)
+- Kampfzustand: activeSkillNames?: string[] (aktive Fähigkeiten für NSC-Tokens), castingSpells?: CastingSpellEntry[] (Casting-State für NSC-Tokens)
 - Verknüpfung: parentTokenId?, linkedTokenType? ('free'|'keepDistance'|'keepOffset'), linkedOffset?, linkedDistance?
 
 ### Token-Ressourcen

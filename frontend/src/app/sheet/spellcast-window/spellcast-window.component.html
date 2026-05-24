@@ -353,10 +353,10 @@
                   <span class="scw-active-type-badge scw-active-type-badge--skill">Fähigkeit</span>
                   <span class="scw-active-icon">{{ skill.name.charAt(0).toUpperCase() }}</span>
                   <span class="scw-active-name">{{ skill.name }}</span>
-                  @if (skill.cost) {
+                  @if (effectiveCost(skill)) {
                     <span class="scw-active-cost">{{ skillCostLabel(skill) }}</span>
                   }
-                  @if (skill.cost?.perRound) {
+                  @if (effectiveCost(skill)?.perRound) {
                     <button class="scw-pay-cost-btn" (click)="paySkillRoundCost(skill)" title="Rundenkosten zahlen">⚡ Zahlen</button>
                   }
                   <button class="scw-stop-btn" (click)="toggleActiveSkill(skill)" title="Deaktivieren">✕</button>
