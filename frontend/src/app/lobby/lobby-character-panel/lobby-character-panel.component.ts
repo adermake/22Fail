@@ -25,6 +25,7 @@ import { SkillBlock } from '../../model/skill-block.model';
 import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../../model/spell-block-model';
 import { CharacterSocketService } from '../../services/character-socket.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
+import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 
 interface StatDisplay {
   label: string;
@@ -1269,7 +1270,24 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   get activeSkills(): SkillBlock[] {
     if (this.character) return (this.character.skills || []).filter(s => s.type === 'active' && !s.disabled);
-    if (this.npc)       return (this.npc.customSkills || []).filter(s => s.type === 'active');
+    if (this.npc) {
+      // Resolve skill-tree skills from learnedSkillIds
+      const treeSkills: SkillBlock[] = (this.npc.learnedSkillIds || [])
+        .map(id => SKILL_DEFINITIONS.find(s => s.id === id))
+        .filter((def): def is NonNullable<typeof def> => !!def && def.type === 'active')
+        .map(def => ({
+          name: def.name,
+          class: def.class,
+          description: def.description,
+          type: def.type as 'active',
+          enlightened: def.enlightened ?? false,
+          skillId: def.id,
+          cost: def.cost,
+          actionType: def.actionType,
+        } as SkillBlock));
+      const customActive = (this.npc.customSkills || []).filter(s => s.type === 'active');
+      return [...treeSkills, ...customActive];
+    }
     return [];
   }
 
