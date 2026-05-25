@@ -1755,12 +1755,62 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   /** Forward patches from SpellcastWindow to the character socket (ignored for NPCs) */
   handleAbilitiesPatch(patch: JsonPatch): void {
-    if (!this.character) return;
-    const charId = this.character.id;
-    if (charId) {
-      this.charSocket.sendPatch(charId, patch);
-      this.charSocket.notifyLocalUpdate();
+    if (this.character) {
+      // ── Player character ──────────────────────────────────────────────
+      // When the SpellcastWindow toggles skills (activeSkillNames), also keep
+      // activeSkillEntries in sync so the bottom panel's "Aktiv" tab reflects
+      // the change immediately (without waiting for a server round-trip).
+      if (patch.path === 'activeSkillNames') {
+        const names: string[] = patch.value ?? [];
+        this._syncActiveSkillEntriesFromNames(names);
+      }
+      const charId = this.character.id;
+      if (charId) {
+        this.charSocket.sendPatch(charId, patch);
+        this.charSocket.notifyLocalUpdate();
+      }
+    } else if (this.token) {
+      // ── NPC / no-character token ──────────────────────────────────────
+      // Patches are not forwarded to a server character socket; instead we
+      // translate them into tokenUpdate emissions so the bottom panel and map
+      // stay in sync.
+      if (patch.path === 'activeSkillNames') {
+        const names: string[] = patch.value ?? [];
+        const updated = this._buildSkillEntriesFromNames(names, this.token.activeSkillEntries ?? []);
+        this.tokenUpdate.emit({ activeSkillNames: names, activeSkillEntries: updated });
+      } else if (patch.path === 'castingSpells') {
+        this.tokenUpdate.emit({ castingSpells: patch.value });
+      }
+      this.cdr.markForCheck();
     }
+  }
+
+  /** Build a synced activeSkillEntries array from a list of skill names.
+   *  Keeps existing entries (with their runtime state) and adds new ones. */
+  private _buildSkillEntriesFromNames(names: string[], current: ActiveSkillEntry[]): ActiveSkillEntry[] {
+    const kept = current.filter(e => names.includes(e.skillName ?? ''));
+    const existingNames = new Set(kept.map(e => e.skillName ?? ''));
+    const newEntries: ActiveSkillEntry[] = names
+      .filter(n => !existingNames.has(n))
+      .map(n => {
+        const skill = this.allSkills.find(s => s.name === n);
+        return {
+          entryId: `skill-${skill?.skillId ?? n}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          skillId: skill?.skillId,
+          skillName: n,
+          roundsActive: 0,
+          counters: (skill?.counters ?? []).map(c => ({ ...c })),
+        } as ActiveSkillEntry;
+      });
+    return [...kept, ...newEntries];
+  }
+
+  private _syncActiveSkillEntriesFromNames(names: string[]): void {
+    if (!this.character) return;
+    const updated = this._buildSkillEntriesFromNames(names, this.character.activeSkillEntries ?? []);
+    this.character.activeSkillEntries = updated;
+    const charId = this.character.id;
+    if (charId) this.charSocket.sendPatch(charId, { path: 'activeSkillEntries', value: updated });
   }
 
   // ---- Library Picker ----
