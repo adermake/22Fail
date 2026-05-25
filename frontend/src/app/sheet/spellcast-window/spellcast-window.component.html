@@ -66,10 +66,10 @@
 
       <!-- Tab bar -->
       <div class="scw-left-tabs">
-        <button class="scw-left-tab" [class.active]="leftTab === 'spells'" (click)="leftTab = 'spells'">
+        <button class="scw-left-tab" [class.active]="leftTab === 'spells'" (click)="setLeftTab('spells')">
           ✦ Zauber <span class="scw-left-tab-count">{{ availableSpells.length }}</span>
         </button>
-        <button class="scw-left-tab" [class.active]="leftTab === 'skills'" (click)="leftTab = 'skills'">
+        <button class="scw-left-tab" [class.active]="leftTab === 'skills'" (click)="setLeftTab('skills')">
           ⚡ Fähigkeiten <span class="scw-left-tab-count">{{ availableSkills.length }}</span>
         </button>
       </div>

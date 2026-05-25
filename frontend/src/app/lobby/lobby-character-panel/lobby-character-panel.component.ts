@@ -634,7 +634,9 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
     @if (showAbilitiesOverlay() && diceSheet) {
       <app-spellcast-window
         [sheet]="diceSheet"
+        [defaultTab]="currentAbilityTab"
         (patch)="handleAbilitiesPatch($event)"
+        (tabChange)="onAbilityTabChange($event)"
         (close)="showAbilitiesOverlay.set(false)">
       </app-spellcast-window>
     }
@@ -1393,6 +1395,15 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   libraryPickerSearch = '';
   private libraryLoaded = false;
 
+  // ── Per-token ability overlay state ──────────────────────────────────────
+  /** Remembered tab per tokenId so reopening restores the last-viewed tab */
+  private abilityTabMemory = new Map<string, 'spells' | 'skills'>();
+  currentAbilityTab: 'spells' | 'skills' = 'spells';
+
+  // ── Cached NPC sheet (mutable, persists mutations from SpellcastWindow) ──
+  private _cachedNpcSheet: CharacterSheet | null = null;
+  private _cachedNpcSheetId: string | null = null;
+
   // Status effect form state
   showAddEffectForm = signal(false);
   newEffectName = '';
@@ -1434,6 +1445,14 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       this.showAbilitiesOverlay.set(false);
       this.showLibraryPicker.set(false);
       this.cdr.markForCheck();
+    }
+    // Rebuild NPC sheet cache whenever token or NPC changes
+    if (changes['token'] || changes['npc']) {
+      const tokenId = this.token?.id ?? null;
+      if (tokenId !== this._cachedNpcSheetId || changes['npc']) {
+        this._cachedNpcSheetId = tokenId;
+        this._cachedNpcSheet = this.npc ? this._buildNpcSheet() : null;
+      }
     }
   }
 
@@ -1603,32 +1622,38 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return Math.floor(total / 5);
   }
 
-  /** CharacterSheet to pass to the dice roller / spellcast window. Creates a full stub for NPCs. */
+  /** CharacterSheet for the dice roller / spellcast window.
+   *  For characters: returns the live character (mutations persist on the real object).
+   *  For NPCs:       returns a cached stub so mutations (activeSkillNames etc.) survive
+   *                  change detection cycles. Only rebuilt when the token changes.
+   */
   get diceSheet(): CharacterSheet | null {
     if (this.character) return this.character;
-    if (this.npc) {
-      const sheet = createEmptySheet();
-      sheet.name = this.npc.name;
-      sheet.id = this.token?.id ?? '';
-      sheet.worldName = this.worldName;
-      const makeStatBlock = (name: string, base: number): StatBlock => {
-        const sb = new StatBlock(name, base);
-        sb.current = base;
-        return sb;
-      };
-      sheet.strength = makeStatBlock('Stärke', this.npc.strength);
-      sheet.dexterity = makeStatBlock('Geschicklichkeit', this.npc.dexterity);
-      sheet.speed = makeStatBlock('Geschwindigkeit', this.npc.speed);
-      sheet.intelligence = makeStatBlock('Intelligenz', this.npc.intelligence);
-      sheet.constitution = makeStatBlock('Konstitution', this.npc.constitution);
-      sheet.chill = makeStatBlock('Wille', this.npc.wille);
-      // Include skills so dice_bonus skills appear in the dice roller
-      sheet.skills = this.allSkills;
-      // Include spells for the spellcast window
-      sheet.spells = this.npc.spells ?? [];
-      return sheet;
-    }
-    return null;
+    return this._cachedNpcSheet;
+  }
+
+  private _buildNpcSheet(): CharacterSheet {
+    const npc = this.npc!;
+    const sheet = createEmptySheet();
+    sheet.name = npc.name;
+    sheet.id = this.token?.id ?? '';
+    sheet.worldName = this.worldName;
+    const makeStatBlock = (name: string, base: number): StatBlock => {
+      const sb = new StatBlock(name, base);
+      sb.current = base;
+      return sb;
+    };
+    sheet.strength = makeStatBlock('Stärke', npc.strength);
+    sheet.dexterity = makeStatBlock('Geschicklichkeit', npc.dexterity);
+    sheet.speed = makeStatBlock('Geschwindigkeit', npc.speed);
+    sheet.intelligence = makeStatBlock('Intelligenz', npc.intelligence);
+    sheet.constitution = makeStatBlock('Konstitution', npc.constitution);
+    sheet.chill = makeStatBlock('Wille', npc.wille);
+    // Include skills so dice_bonus skills appear in the dice roller
+    sheet.skills = this.allSkills;
+    // Include spells for the spellcast window
+    sheet.spells = npc.spells ?? [];
+    return sheet;
   }
 
   /** Status effects from all loaded libraries */
@@ -1717,7 +1742,15 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   }
 
   openAbilitiesOverlay(): void {
+    const key = this.token?.id ?? 'no-token';
+    this.currentAbilityTab = this.abilityTabMemory.get(key) ?? 'spells';
     this.showAbilitiesOverlay.set(true);
+  }
+
+  onAbilityTabChange(tab: 'spells' | 'skills'): void {
+    const key = this.token?.id ?? 'no-token';
+    this.abilityTabMemory.set(key, tab);
+    this.currentAbilityTab = tab;
   }
 
   /** Forward patches from SpellcastWindow to the character socket (ignored for NPCs) */

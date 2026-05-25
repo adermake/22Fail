@@ -61,7 +61,9 @@ const RUNE_SYMBOLS = ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ
 })
 export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   @Input({ required: true }) sheet!: CharacterSheet;
+  @Input() defaultTab: 'spells' | 'skills' = 'spells';
   @Output() patch = new EventEmitter<JsonPatch>();
+  @Output() tabChange = new EventEmitter<'spells' | 'skills'>();
   @Output() close = new EventEmitter<void>();
 
   private cdr = inject(ChangeDetectorRef);
@@ -710,6 +712,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
+    this.leftTab = this.defaultTab;
     this._generateAmbientRunes();
   }
 
@@ -719,6 +722,12 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(_: SimpleChanges): void {
+    this.cdr.markForCheck();
+  }
+
+  setLeftTab(tab: 'spells' | 'skills'): void {
+    this.leftTab = tab;
+    this.tabChange.emit(tab);
     this.cdr.markForCheck();
   }
 
