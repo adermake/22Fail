@@ -242,6 +242,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
         // Load lobby
         await this.loadLobby(worldName);
 
+        // Connect world socket for dice rolls and world events
+        this.worldSocket.connect();
+        await this.worldSocket.joinWorld(worldName);
+
         // Load world for characters
         await this.worldStore.load(worldName);
         console.log('[Lobby] World loaded, characterIds:', this.worldStore.worldValue?.characterIds);

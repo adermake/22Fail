@@ -26,6 +26,12 @@ import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../../model/spe
 import { CharacterSocketService } from '../../services/character-socket.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
+import { LibraryStoreService } from '../../services/library-store.service';
+import { DiceRollerComponent } from '../../sheet/dice-roller/dice-roller.component';
+import { createEmptySheet } from '../../model/character-sheet-model';
+import { StatusEffect } from '../../model/status-effect.model';
+import { ItemBlock } from '../../model/item-block.model';
+import { StatBlock } from '../../model/stat-block.model';
 
 interface StatDisplay {
   label: string;
@@ -33,12 +39,12 @@ interface StatDisplay {
   bonus: number;
 }
 
-type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
+type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipment';
 
 @Component({
   selector: 'app-lobby-character-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ImageUrlPipe],
+  imports: [CommonModule, FormsModule, ImageUrlPipe, DiceRollerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
 <div class="char-panel">
@@ -50,23 +56,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
     </div>
 
     <div class="quick-dice-section">
-      <div class="dice-type-row">
-        @for (dt of diceTypes; track dt) {
-          <button class="dice-btn" [class.active]="selectedDiceType() === dt" (click)="selectedDiceType.set(dt)">
-            d{{ dt }}
-          </button>
-        }
-      </div>
-      <div class="bonus-roll-row">
-        <input
-          type="number"
-          class="bonus-input"
-          placeholder="±0"
-          [value]="customBonus()"
-          (change)="customBonus.set(+$any($event.target).value)"
-        />
-        <button class="do-roll-btn" (click)="rollCustom()">1d{{ selectedDiceType() }} würfeln</button>
-      </div>
+      <button class="open-dice-btn" (click)="openDiceRoller()">🎲 Würfelansicht öffnen</button>
     </div>
 
     <div class="roll-history">
@@ -165,11 +155,30 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
       }
     </div>
 
+    <!-- Key Stats: Weapon Efficiency + Defense -->
+    @if (weaponEfficiency > 0 || totalStability > 0) {
+      <div class="key-stats-row">
+        @if (weaponEfficiency > 0) {
+          <div class="key-stat-item" title="Waffeneffizienz – höchster Wert aller Waffen">
+            <span class="key-stat-label">⚔️ Effizienz</span>
+            <span class="key-stat-val">{{ weaponEfficiency }}</span>
+          </div>
+        }
+        @if (totalStability > 0) {
+          <div class="key-stat-item" title="Gesamtverteidigung (Summe Stabilität ÷ 5)">
+            <span class="key-stat-label">🛡️ Verteidigung</span>
+            <span class="key-stat-val">{{ totalStability }}</span>
+          </div>
+        }
+      </div>
+    }
+
     <!-- Panel Tabs -->
     <div class="panel-tabs">
       <button class="ptab" [class.active]="activeTab() === 'actions'" (click)="activeTab.set('actions')" title="Aktionen">⚔️</button>
       <button class="ptab" [class.active]="activeTab() === 'rolls'" (click)="activeTab.set('rolls')" title="Würfelverlauf">🎲</button>
       <button class="ptab" [class.active]="activeTab() === 'status'" (click)="activeTab.set('status')" title="Status-Effekte">✨</button>
+      <button class="ptab" [class.active]="activeTab() === 'equipment'" (click)="activeTab.set('equipment')" title="Ausrüstung">🎒</button>
       <button class="ptab" [class.active]="activeTab() === 'aussehen'" (click)="activeTab.set('aussehen')" title="Aussehen & Transform">🎨</button>
       <button class="ptab" [class.active]="activeTab() === 'linked'" (click)="activeTab.set('linked')" title="Verknüpfte Token">🔗</button>
     </div>
@@ -196,39 +205,46 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
         <!-- Freier Wurf -->
         <div class="section-header">🎲 Freier Wurf</div>
         <div class="free-roll-section">
-          <div class="dice-type-row">
-            @for (dt of diceTypes; track dt) {
-              <button class="dice-btn" [class.active]="selectedDiceType() === dt" (click)="selectedDiceType.set(dt)">
-                d{{ dt }}
-              </button>
-            }
-          </div>
-          <div class="bonus-roll-row">
-            <input class="bonus-input" type="number" placeholder="±0"
-              [value]="customBonus()"
-              (change)="customBonus.set(+$any($event.target).value)" />
-            <button class="do-roll-btn" (click)="rollCustom()">1d{{ selectedDiceType() }} 🎲</button>
-          </div>
+          <button class="open-dice-btn" (click)="openDiceRoller()">🎲 Würfelansicht öffnen</button>
         </div>
 
         <!-- Fertigkeiten -->
-        @if (activeSkills.length > 0) {
+        @if (allSkills.length > 0) {
           <div class="section-header">✨ Fertigkeiten</div>
-          <div class="skill-list">
-            @for (skill of activeSkills; track skill.name) {
-              <div class="skill-entry">
-                <div class="skill-meta">
-                  <span class="skill-name">{{ skill.name }}</span>
+          <div class="skill-cards-list">
+            @for (skill of allSkills; track skill.name) {
+              <div class="lsc"
+                [attr.data-type]="skill.type"
+                [class.lsc--clickable]="skill.type === 'active'"
+                [class.lsc--active]="skill.type === 'active' && isSkillActive(skill)"
+                (click)="onSkillCardClick(skill)">
+                <div class="lsc-bar">
+                  <span class="lsc-type-icon">{{ getSkillTypeIcon(skill.type) }}</span>
+                  <span class="lsc-type-lbl">{{ getSkillTypeLabel(skill.type) }}</span>
+                  <span class="lsc-name">{{ skill.name }}</span>
                   @if (skill.actionType) {
-                    <span class="skill-tag action-tag">{{ skill.actionType }}</span>
+                    <span class="lsc-action-tag" [attr.data-action]="skill.actionType">{{ skill.actionType }}</span>
                   }
-                  @if (skill.cost) {
-                    <span class="skill-tag cost-tag">{{ skill.cost.amount }} {{ skill.cost.type === 'mana' ? '🔮' : skill.cost.type === 'energy' ? '⚡' : '❤️' }}</span>
+                  @if (skill.enlightened) {
+                    <span class="lsc-enl">✦</span>
+                  }
+                  @if (skill.type === 'active' && isSkillActive(skill)) {
+                    <span class="lsc-active-badge">Aktiv</span>
                   }
                 </div>
-                <button class="action-btn" (click)="activateSkill(skill)">
-                  Aktivieren
-                </button>
+                @if (skill.description) {
+                  <div class="lsc-desc">{{ skill.description }}</div>
+                }
+                <div class="lsc-footer">
+                  @if (skill.class) {
+                    <span class="lsc-class">{{ skill.class }}</span>
+                  }
+                  @if (skill.cost) {
+                    <span class="lsc-cost" [attr.data-resource]="skill.cost.type">
+                      {{ skill.cost.type === 'mana' ? '🔮' : skill.cost.type === 'energy' ? '⚡' : '❤️' }} {{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}
+                    </span>
+                  }
+                </div>
               </div>
             }
           </div>
@@ -253,7 +269,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
           </div>
         }
 
-        @if (stats.length === 0 && activeSkills.length === 0 && spells.length === 0) {
+        @if (stats.length === 0 && allSkills.length === 0 && spells.length === 0) {
           <div class="empty-rolls">Keine Daten für diesen Token</div>
         }
       }
@@ -311,6 +327,33 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
                   <button class="fx-btn" (click)="adjustFxDuration(fx, 1)">+</button>
                 }
                 <button class="fx-remove-btn" (click)="removeStatusEffect(fx.id)" title="Entfernen">✕</button>
+              </div>
+            </div>
+          }
+
+          <!-- Library picker -->
+          <button class="add-fx-btn" (click)="openLibraryPicker()">
+            📚 Aus Bibliothek wählen
+          </button>
+          @if (showLibraryPicker()) {
+            <div class="lib-picker">
+              <input class="fx-input lib-picker-search" placeholder="Status-Effekt suchen..."
+                [(ngModel)]="libraryPickerSearch" />
+              <div class="lib-picker-list">
+                @if (filteredLibraryEffects.length === 0) {
+                  <div class="empty-rolls">Keine Status-Effekte gefunden</div>
+                }
+                @for (effect of filteredLibraryEffects; track effect.id) {
+                  <div class="lib-picker-item" (click)="applyLibraryStatusEffect(effect)">
+                    <span class="lib-picker-icon">{{ effect.icon || (effect.isDebuff ? '💀' : '⭐') }}</span>
+                    <div class="lib-picker-info">
+                      <span class="lib-picker-name">{{ effect.name }}</span>
+                      @if (effect.defaultDuration) {
+                        <span class="lib-picker-dur">{{ effect.defaultDuration }} Runden</span>
+                      }
+                    </div>
+                  </div>
+                }
               </div>
             </div>
           }
@@ -510,7 +553,54 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
         </div>
       }
 
+      <!-- ── Ausrüstung Tab ── -->
+      @if (activeTab() === 'equipment') {
+        <div class="equip-tab">
+          @if (equipment.length === 0) {
+            <div class="empty-rolls">Keine Ausrüstung vorhanden</div>
+          } @else {
+            @for (item of equipment; track item.name) {
+              <div class="equip-entry"
+                [class.equip-entry--weapon]="item.itemType === 'weapon'"
+                [class.equip-entry--armor]="item.itemType === 'armor'">
+                <div class="equip-top">
+                  <span class="equip-type-icon">{{ item.itemType === 'weapon' ? '⚔️' : item.itemType === 'armor' ? '🛡️' : '🎒' }}</span>
+                  <span class="equip-name">{{ item.lost ? '[Verloren] ' : '' }}{{ item.name }}</span>
+                  @if (item.broken) { <span class="equip-broken-badge">💔 Kaputt</span> }
+                </div>
+                @if (item.itemType === 'weapon' && item.efficiency !== undefined) {
+                  <div class="equip-stat-row">
+                    <span class="equip-stat-label">⚔️ Effizienz</span>
+                    <span class="equip-stat-val">{{ item.efficiency }}</span>
+                  </div>
+                }
+                @if (item.itemType === 'armor' && item.stability !== undefined) {
+                  <div class="equip-stat-row">
+                    <span class="equip-stat-label">🛡️ Stabilität</span>
+                    <span class="equip-stat-val">{{ item.stability }}</span>
+                  </div>
+                }
+                @if (item.description) {
+                  <div class="equip-desc">{{ item.description }}</div>
+                }
+              </div>
+            }
+          }
+        </div>
+      }
+
     </div><!-- /panel-body -->
+
+    <!-- ── Würfelansicht Overlay ── -->
+    @if (showDiceRoller() && diceSheet) {
+      <div class="dice-overlay-backdrop" (click)="showDiceRoller.set(false)">
+        <div class="dice-overlay-panel" (click)="$event.stopPropagation()">
+          <button class="dice-overlay-close" (click)="showDiceRoller.set(false)" title="Schließen">✕</button>
+          <app-dice-roller [sheet]="diceSheet" (close)="showDiceRoller.set(false)"></app-dice-roller>
+        </div>
+      </div>
+    }
+
   }
 
 </div>
@@ -1110,6 +1200,123 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked';
     }
     .linked-type-hint { padding: 4px 10px; }
     .hint-text { font-size: 10px; color: #4b5563; font-style: italic; }
+
+    /* ---- Key Stats Row (Weapon Efficiency + Defense) ---- */
+    .key-stats-row {
+      display: flex; gap: 8px; padding: 6px 10px;
+      background: #0f172a; border-bottom: 1px solid #1e293b; flex-shrink: 0;
+    }
+    .key-stat-item {
+      display: flex; align-items: center; gap: 6px; flex: 1;
+      background: #1a2130; border: 1px solid #2d3748; border-radius: 6px; padding: 5px 8px;
+    }
+    .key-stat-label { font-size: 10px; font-weight: 700; color: #9ca3af; }
+    .key-stat-val { font-size: 15px; font-weight: 800; color: #f1f5f9; margin-left: auto; }
+
+    /* ---- Open Dice Button ---- */
+    .open-dice-btn {
+      display: block; width: 100%; padding: 9px 12px;
+      background: #1e293b; border: 1px solid #4338ca; border-radius: 6px;
+      color: #a5b4fc; font-size: 13px; font-weight: 700; cursor: pointer;
+      text-align: center; transition: all 0.15s;
+    }
+    .open-dice-btn:hover { background: #2d3748; border-color: #6366f1; color: #e0e7ff; }
+
+    /* ---- Lobby Skill Cards ---- */
+    .skill-cards-list { display: flex; flex-direction: column; gap: 4px; padding: 2px 8px 8px; }
+    .lsc {
+      border-radius: 6px; overflow: hidden; border: 1px solid #2d3748;
+      background: #1a2130; transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    .lsc[data-type="active"] { border-color: #3730a3; }
+    .lsc[data-type="passive"] { border-color: #166534; }
+    .lsc[data-type="stat_bonus"] { border-color: #92400e; }
+    .lsc[data-type="dice_bonus"] { border-color: #1e3a5f; }
+    .lsc--clickable { cursor: pointer; }
+    .lsc--clickable:hover { box-shadow: 0 0 0 2px rgba(99,102,241,0.4); border-color: #4f46e5; }
+    .lsc--active { box-shadow: 0 0 0 2px rgba(99,102,241,0.6) !important; border-color: #6366f1 !important; }
+    .lsc-bar {
+      display: flex; align-items: center; gap: 4px; padding: 5px 8px 4px;
+      background: rgba(255,255,255,0.03); flex-wrap: wrap;
+    }
+    .lsc-type-icon { font-size: 11px; flex-shrink: 0; }
+    .lsc-type-lbl {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      color: #6b7280; letter-spacing: 0.05em; flex-shrink: 0;
+    }
+    .lsc[data-type="active"] .lsc-type-lbl { color: #818cf8; }
+    .lsc[data-type="passive"] .lsc-type-lbl { color: #4ade80; }
+    .lsc[data-type="stat_bonus"] .lsc-type-lbl { color: #fbbf24; }
+    .lsc[data-type="dice_bonus"] .lsc-type-lbl { color: #38bdf8; }
+    .lsc-name {
+      flex: 1; font-size: 12px; font-weight: 700; color: #f1f5f9;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .lsc-action-tag {
+      font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+      background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3);
+    }
+    .lsc-action-tag[data-action="Reaktion"] { background: rgba(245,158,11,0.2); color: #fbbf24; border-color: rgba(245,158,11,0.3); }
+    .lsc-action-tag[data-action="Freie Aktion"] { background: rgba(74,222,128,0.2); color: #4ade80; border-color: rgba(74,222,128,0.3); }
+    .lsc-enl { font-size: 11px; color: #fbbf24; flex-shrink: 0; }
+    .lsc-active-badge {
+      font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+      background: rgba(99,102,241,0.3); color: #c7d2fe; border: 1px solid rgba(99,102,241,0.4);
+    }
+    .lsc-desc { font-size: 11px; color: #94a3b8; padding: 3px 8px 4px; line-height: 1.4; }
+    .lsc-footer { display: flex; align-items: center; justify-content: space-between; padding: 3px 8px 5px; gap: 6px; }
+    .lsc-class { font-size: 9px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
+    .lsc-cost { font-size: 11px; font-weight: 700; padding: 1px 5px; border-radius: 3px; }
+    .lsc-cost[data-resource="mana"] { background: rgba(99,102,241,0.2); color: #c4b5fd; }
+    .lsc-cost[data-resource="energy"] { background: rgba(251,191,36,0.2); color: #fcd34d; }
+    .lsc-cost[data-resource="life"] { background: rgba(239,68,68,0.2); color: #fca5a5; }
+
+    /* ---- Library Picker ---- */
+    .lib-picker { margin: 4px 8px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; overflow: hidden; }
+    .lib-picker-search { width: calc(100% - 16px); margin: 8px; display: block; }
+    .lib-picker-list { max-height: 220px; overflow-y: auto; }
+    .lib-picker-item {
+      display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer;
+      border-top: 1px solid #1e293b; transition: background 0.12s;
+    }
+    .lib-picker-item:hover { background: #2d3748; }
+    .lib-picker-icon { font-size: 14px; flex-shrink: 0; }
+    .lib-picker-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+    .lib-picker-name { font-size: 12px; font-weight: 600; color: #e2e8f0; }
+    .lib-picker-dur { font-size: 10px; color: #6b7280; }
+
+    /* ---- Ausrüstung Tab ---- */
+    .equip-tab { padding: 4px 8px 12px; }
+    .equip-entry { background: #1a2130; border: 1px solid #2d3748; border-radius: 6px; padding: 7px 10px; margin-bottom: 4px; }
+    .equip-entry--weapon { border-color: #1e3a5f; }
+    .equip-entry--armor { border-color: #1a3a1f; }
+    .equip-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .equip-type-icon { font-size: 13px; flex-shrink: 0; }
+    .equip-name { flex: 1; font-size: 12px; font-weight: 700; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .equip-broken-badge { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); flex-shrink: 0; }
+    .equip-stat-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+    .equip-stat-label { font-size: 10px; color: #6b7280; }
+    .equip-stat-val { font-size: 13px; font-weight: 700; color: #fbbf24; }
+    .equip-desc { font-size: 10px; color: #6b7280; margin-top: 3px; line-height: 1.3; }
+
+    /* ---- Dice Roller Overlay ---- */
+    .dice-overlay-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .dice-overlay-panel {
+      position: relative; max-width: 580px; width: calc(100vw - 32px);
+      max-height: calc(100vh - 48px); overflow: auto; background: #111827;
+      border-radius: 12px; border: 1px solid #334155;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    }
+    .dice-overlay-close {
+      position: absolute; top: 10px; right: 10px; z-index: 10;
+      background: #1e293b; border: 1px solid #374151; color: #94a3b8;
+      border-radius: 4px; width: 28px; height: 28px; cursor: pointer;
+      font-size: 14px; display: flex; align-items: center; justify-content: center;
+    }
+    .dice-overlay-close:hover { background: #374151; color: #ef4444; }
   `]
 })
 export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
@@ -1131,11 +1338,16 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   private worldSocket = inject(WorldSocketService);
   private trueStats = inject(TrueStatsService);
   private charSocket = inject(CharacterSocketService);
+  private libraryStore = inject(LibraryStoreService);
   private cdr = inject(ChangeDetectorRef);
 
   activeTab = signal<PanelTab>('actions');
   selectedDiceType = signal(20);
   customBonus = signal(0);
+  showDiceRoller = signal(false);
+  showLibraryPicker = signal(false);
+  libraryPickerSearch = '';
+  private libraryLoaded = false;
 
   // Status effect form state
   showAddEffectForm = signal(false);
@@ -1173,6 +1385,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       this.syncCosmeticLocals();
       this.showAddEffectForm.set(false);
       this.showDrawCanvas.set(false);
+      this.showDiceRoller.set(false);
+      this.showLibraryPicker.set(false);
       this.cdr.markForCheck();
     }
   }
@@ -1291,10 +1505,88 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return [];
   }
 
+  /** All skill types (active, passive, stat_bonus, dice_bonus) — used for the full-card skill display */
+  get allSkills(): SkillBlock[] {
+    if (this.character) return (this.character.skills || []).filter(s => !s.disabled);
+    if (this.npc) {
+      const treeSkills: SkillBlock[] = (this.npc.learnedSkillIds || [])
+        .map(id => SKILL_DEFINITIONS.find(s => s.id === id))
+        .filter((def): def is NonNullable<typeof def> => !!def)
+        .map(def => ({
+          name: def.name,
+          class: def.class,
+          description: def.description,
+          type: def.type as SkillBlock['type'],
+          enlightened: def.enlightened ?? false,
+          skillId: def.id,
+          cost: def.cost,
+          actionType: def.actionType,
+        } as SkillBlock));
+      const customSkills = this.npc.customSkills || [];
+      return [...treeSkills, ...customSkills];
+    }
+    return [];
+  }
+
   get spells(): SpellBlock[] {
     if (this.character) return this.character.spells || [];
     if (this.npc)       return this.npc.spells || [];
     return [];
+  }
+
+  get equipment(): ItemBlock[] {
+    return this.character?.equipment ?? this.npc?.equipment ?? [];
+  }
+
+  /** Highest efficiency among non-lost weapons */
+  get weaponEfficiency(): number {
+    const weapons = this.equipment.filter(i => i.itemType === 'weapon' && !i.lost && i.efficiency !== undefined);
+    if (weapons.length === 0) return 0;
+    return Math.max(...weapons.map(w => w.efficiency!));
+  }
+
+  /** Combined defense value: sum of all stability / 5 (matches sheet formula) */
+  get totalStability(): number {
+    const total = this.equipment.filter(i => !i.lost).reduce((sum, i) => sum + (i.stability ?? 0), 0);
+    return Math.floor(total / 5);
+  }
+
+  /** CharacterSheet to pass to the dice roller. Creates a minimal stub for NPCs. */
+  get diceSheet(): CharacterSheet | null {
+    if (this.character) return this.character;
+    if (this.npc) {
+      const sheet = createEmptySheet();
+      sheet.name = this.npc.name;
+      const makeStatBlock = (name: string, base: number): StatBlock => {
+        const sb = new StatBlock(name, base);
+        sb.current = base;
+        return sb;
+      };
+      sheet.strength = makeStatBlock('Stärke', this.npc.strength);
+      sheet.dexterity = makeStatBlock('Geschicklichkeit', this.npc.dexterity);
+      sheet.speed = makeStatBlock('Geschwindigkeit', this.npc.speed);
+      sheet.intelligence = makeStatBlock('Intelligenz', this.npc.intelligence);
+      sheet.constitution = makeStatBlock('Konstitution', this.npc.constitution);
+      sheet.chill = makeStatBlock('Wille', this.npc.wille);
+      return sheet;
+    }
+    return null;
+  }
+
+  /** Status effects from all loaded libraries */
+  get filteredLibraryEffects(): StatusEffect[] {
+    const search = this.libraryPickerSearch.toLowerCase().trim();
+    const effects: StatusEffect[] = [];
+    for (const lib of this.libraryStore.allLibraries) {
+      for (const effect of (lib.statusEffects ?? [])) {
+        effects.push(effect);
+      }
+    }
+    if (!search) return effects;
+    return effects.filter(e =>
+      e.name.toLowerCase().includes(search) ||
+      (e.tags ?? []).some((t: string) => t.toLowerCase().includes(search))
+    );
   }
 
   get reversedRolls(): DiceRollEvent[] {
@@ -1334,6 +1626,65 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     if (resource === 'health')  this.tokenUpdate.emit({ currentHealth: value });
     else if (resource === 'mana')   this.tokenUpdate.emit({ currentMana: value });
     else                            this.tokenUpdate.emit({ currentEnergy: value });
+  }
+
+  // ---- Skill type helpers ----
+
+  getSkillTypeIcon(type: string): string {
+    const icons: Record<string, string> = {
+      'active': '⚡', 'passive': '🌿', 'stat_bonus': '📊', 'dice_bonus': '🎲',
+    };
+    return icons[type] ?? '✨';
+  }
+
+  getSkillTypeLabel(type: string): string {
+    const labels: Record<string, string> = {
+      'active': 'Aktiv', 'passive': 'Passiv', 'stat_bonus': 'Statistik', 'dice_bonus': 'Würfelbonus',
+    };
+    return labels[type] ?? type;
+  }
+
+  onSkillCardClick(skill: SkillBlock): void {
+    if (skill.type === 'active') this.activateSkill(skill);
+  }
+
+  // ---- Dice Roller ----
+
+  openDiceRoller(): void {
+    this.showDiceRoller.set(true);
+  }
+
+  // ---- Library Picker ----
+
+  openLibraryPicker(): void {
+    if (!this.libraryLoaded) {
+      this.libraryLoaded = true;
+      this.libraryStore.loadAllLibraries().then(() => {
+        this.cdr.markForCheck();
+      });
+    }
+    this.showLibraryPicker.set(!this.showLibraryPicker());
+  }
+
+  applyLibraryStatusEffect(effect: StatusEffect): void {
+    if (!this.token) return;
+    const existing = this.tokenStatusEffects.find(e => e.name === effect.name);
+    if (existing) {
+      this.adjustFxStacks(existing, 1);
+    } else {
+      const newFx: TokenStatusEffect = {
+        id: `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        name: effect.name,
+        icon: effect.icon,
+        color: effect.color,
+        stacks: 1,
+        duration: effect.defaultDuration,
+        isDebuff: effect.isDebuff,
+      };
+      const effects = [...this.tokenStatusEffects, newFx];
+      this.tokenUpdate.emit({ activeStatusEffects: effects });
+    }
+    this.showLibraryPicker.set(false);
   }
 
   // ---- Dice Rolling ----
