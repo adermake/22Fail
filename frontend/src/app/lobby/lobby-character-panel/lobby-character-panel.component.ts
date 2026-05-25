@@ -28,10 +28,13 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { DiceRollerComponent } from '../../sheet/dice-roller/dice-roller.component';
+import { DamageCalculatorComponent } from '../../world/damage-calculator/damage-calculator.component';
+import { SpellcastWindowComponent } from '../../sheet/spellcast-window/spellcast-window.component';
 import { createEmptySheet } from '../../model/character-sheet-model';
 import { StatusEffect } from '../../model/status-effect.model';
 import { ItemBlock } from '../../model/item-block.model';
 import { StatBlock } from '../../model/stat-block.model';
+import { JsonPatch } from '../../model/json-patch.model';
 
 interface StatDisplay {
   label: string;
@@ -44,7 +47,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
 @Component({
   selector: 'app-lobby-character-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ImageUrlPipe, DiceRollerComponent],
+  imports: [CommonModule, FormsModule, ImageUrlPipe, DiceRollerComponent, DamageCalculatorComponent, SpellcastWindowComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
 <div class="char-panel">
@@ -206,7 +209,17 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
         <div class="section-header">🎲 Freier Wurf</div>
         <div class="free-roll-section">
           <button class="open-dice-btn" (click)="openDiceRoller()">🎲 Würfelansicht öffnen</button>
+          @if (weaponEfficiency > 0) {
+            <button class="open-dice-btn dmg-btn" (click)="openDamageRoller()">⚔️ Schaden würfeln</button>
+          }
         </div>
+
+        <!-- Alle Fertigkeiten & Zauber Vollansicht -->
+        @if (allSkills.length > 0 || spells.length > 0) {
+          <div class="free-roll-section">
+            <button class="open-dice-btn abilities-btn" (click)="openAbilitiesOverlay()">✦ Fertigkeiten &amp; Zauber (Vollansicht)</button>
+          </div>
+        }
 
         <!-- Fertigkeiten -->
         @if (allSkills.length > 0) {
@@ -241,7 +254,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                   }
                   @if (skill.cost) {
                     <span class="lsc-cost" [attr.data-resource]="skill.cost.type">
-                      {{ skill.cost.type === 'mana' ? '🔮' : skill.cost.type === 'energy' ? '⚡' : '❤️' }} {{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}
+                      {{ skill.cost.type === 'mana' ? '�' : skill.cost.type === 'energy' ? '⚡' : '❤️' }} {{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}
                     </span>
                   }
                 </div>
@@ -599,6 +612,31 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
           <app-dice-roller [sheet]="diceSheet" (close)="showDiceRoller.set(false)"></app-dice-roller>
         </div>
       </div>
+    }
+
+    <!-- ── Schaden würfeln Overlay ── -->
+    @if (showDamageRoller()) {
+      <div class="dice-overlay-backdrop" (click)="showDamageRoller.set(false)">
+        <div class="dice-overlay-panel" (click)="$event.stopPropagation()">
+          <button class="dice-overlay-close" (click)="showDamageRoller.set(false)" title="Schließen">✕</button>
+          <app-damage-calculator
+            [worldName]="worldName"
+            [characterName]="character?.name ?? npc?.name ?? 'Spielleiter'"
+            [characterId]="character?.id ?? token?.id ?? 'dm'"
+            [initialEffektivitaet]="weaponEfficiency > 0 ? weaponEfficiency : undefined"
+            (close)="showDamageRoller.set(false)">
+          </app-damage-calculator>
+        </div>
+      </div>
+    }
+
+    <!-- ── Fertigkeiten & Zauber Vollansicht ── -->
+    @if (showAbilitiesOverlay() && diceSheet) {
+      <app-spellcast-window
+        [sheet]="diceSheet"
+        (patch)="handleAbilitiesPatch($event)"
+        (close)="showAbilitiesOverlay.set(false)">
+      </app-spellcast-window>
     }
 
   }
@@ -1221,6 +1259,10 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       text-align: center; transition: all 0.15s;
     }
     .open-dice-btn:hover { background: #2d3748; border-color: #6366f1; color: #e0e7ff; }
+    .open-dice-btn.dmg-btn { background: rgba(220,38,38,0.1); border-color: #991b1b; color: #fca5a5; margin-top: 6px; }
+    .open-dice-btn.dmg-btn:hover { background: rgba(220,38,38,0.2); border-color: #ef4444; color: #fecaca; }
+    .open-dice-btn.abilities-btn { background: rgba(99,102,241,0.1); border-color: #4f46e5; color: #c7d2fe; }
+    .open-dice-btn.abilities-btn:hover { background: rgba(99,102,241,0.2); border-color: #6366f1; color: #e0e7ff; }
 
     /* ---- Lobby Skill Cards ---- */
     .skill-cards-list { display: flex; flex-direction: column; gap: 4px; padding: 2px 8px 8px; }
@@ -1345,6 +1387,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   selectedDiceType = signal(20);
   customBonus = signal(0);
   showDiceRoller = signal(false);
+  showDamageRoller = signal(false);
+  showAbilitiesOverlay = signal(false);
   showLibraryPicker = signal(false);
   libraryPickerSearch = '';
   private libraryLoaded = false;
@@ -1386,6 +1430,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       this.showAddEffectForm.set(false);
       this.showDrawCanvas.set(false);
       this.showDiceRoller.set(false);
+      this.showDamageRoller.set(false);
+      this.showAbilitiesOverlay.set(false);
       this.showLibraryPicker.set(false);
       this.cdr.markForCheck();
     }
@@ -1505,9 +1551,15 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return [];
   }
 
-  /** All skill types (active, passive, stat_bonus, dice_bonus) — used for the full-card skill display */
+  /** All skill types sorted: Active → Passive → Dice Bonus → Stat Bonus */
   get allSkills(): SkillBlock[] {
-    if (this.character) return (this.character.skills || []).filter(s => !s.disabled);
+    const TYPE_ORDER: Record<string, number> = {
+      'active': 0, 'passive': 1, 'dice_bonus': 2, 'stat_bonus': 3,
+    };
+    const sortByType = (skills: SkillBlock[]) =>
+      [...skills].sort((a, b) => (TYPE_ORDER[a.type] ?? 99) - (TYPE_ORDER[b.type] ?? 99));
+
+    if (this.character) return sortByType((this.character.skills || []).filter(s => !s.disabled));
     if (this.npc) {
       const treeSkills: SkillBlock[] = (this.npc.learnedSkillIds || [])
         .map(id => SKILL_DEFINITIONS.find(s => s.id === id))
@@ -1523,7 +1575,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
           actionType: def.actionType,
         } as SkillBlock));
       const customSkills = this.npc.customSkills || [];
-      return [...treeSkills, ...customSkills];
+      return sortByType([...treeSkills, ...customSkills]);
     }
     return [];
   }
@@ -1551,12 +1603,14 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return Math.floor(total / 5);
   }
 
-  /** CharacterSheet to pass to the dice roller. Creates a minimal stub for NPCs. */
+  /** CharacterSheet to pass to the dice roller / spellcast window. Creates a full stub for NPCs. */
   get diceSheet(): CharacterSheet | null {
     if (this.character) return this.character;
     if (this.npc) {
       const sheet = createEmptySheet();
       sheet.name = this.npc.name;
+      sheet.id = this.token?.id ?? '';
+      sheet.worldName = this.worldName;
       const makeStatBlock = (name: string, base: number): StatBlock => {
         const sb = new StatBlock(name, base);
         sb.current = base;
@@ -1568,6 +1622,10 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       sheet.intelligence = makeStatBlock('Intelligenz', this.npc.intelligence);
       sheet.constitution = makeStatBlock('Konstitution', this.npc.constitution);
       sheet.chill = makeStatBlock('Wille', this.npc.wille);
+      // Include skills so dice_bonus skills appear in the dice roller
+      sheet.skills = this.allSkills;
+      // Include spells for the spellcast window
+      sheet.spells = this.npc.spells ?? [];
       return sheet;
     }
     return null;
@@ -1639,7 +1697,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   getSkillTypeLabel(type: string): string {
     const labels: Record<string, string> = {
-      'active': 'Aktiv', 'passive': 'Passiv', 'stat_bonus': 'Statistik', 'dice_bonus': 'Würfelbonus',
+      'active': 'Aktiv', 'passive': 'Passiv', 'stat_bonus': 'Stat-Bonus', 'dice_bonus': 'Würfelbonus',
     };
     return labels[type] ?? type;
   }
@@ -1652,6 +1710,24 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   openDiceRoller(): void {
     this.showDiceRoller.set(true);
+  }
+
+  openDamageRoller(): void {
+    this.showDamageRoller.set(true);
+  }
+
+  openAbilitiesOverlay(): void {
+    this.showAbilitiesOverlay.set(true);
+  }
+
+  /** Forward patches from SpellcastWindow to the character socket (ignored for NPCs) */
+  handleAbilitiesPatch(patch: JsonPatch): void {
+    if (!this.character) return;
+    const charId = this.character.id;
+    if (charId) {
+      this.charSocket.sendPatch(charId, patch);
+      this.charSocket.notifyLocalUpdate();
+    }
   }
 
   // ---- Library Picker ----

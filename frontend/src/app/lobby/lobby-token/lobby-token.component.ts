@@ -138,13 +138,20 @@ export interface TokenResources {
     }
 
     .token-wrapper.selected .token-border {
-      filter: drop-shadow(0 0 6px #a78bfa) drop-shadow(0 0 16px rgba(167, 139, 250, 0.9)) drop-shadow(0 0 28px rgba(167, 139, 250, 0.5));
+      background: #7c3aed !important;
+      filter: drop-shadow(0 0 8px #a78bfa) drop-shadow(0 0 20px rgba(167, 139, 250, 0.9));
       animation: token-glow-pulse 1.5s ease-in-out infinite;
     }
 
     @keyframes token-glow-pulse {
-      0%, 100% { filter: drop-shadow(0 0 6px #a78bfa) drop-shadow(0 0 16px rgba(167, 139, 250, 0.9)) drop-shadow(0 0 28px rgba(167, 139, 250, 0.5)); }
-      50% { filter: drop-shadow(0 0 10px #c4b5fd) drop-shadow(0 0 24px rgba(196, 181, 253, 1.0)) drop-shadow(0 0 40px rgba(167, 139, 250, 0.8)); }
+      0%, 100% {
+        background: #7c3aed;
+        filter: drop-shadow(0 0 8px #a78bfa) drop-shadow(0 0 20px rgba(167, 139, 250, 0.9));
+      }
+      50% {
+        background: #a78bfa;
+        filter: drop-shadow(0 0 12px #c4b5fd) drop-shadow(0 0 30px rgba(196, 181, 253, 1.0));
+      }
     }
 
     .token-wrapper.selected {
