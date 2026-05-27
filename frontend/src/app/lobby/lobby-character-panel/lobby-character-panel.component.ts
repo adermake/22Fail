@@ -1818,9 +1818,9 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   openLibraryPicker(): void {
     if (!this.libraryLoaded) {
       this.libraryLoaded = true;
-      this.libraryStore.loadAllLibraries().then(() => {
-        this.cdr.markForCheck();
-      });
+      // Subscribe to allLibraries$ so the view re-renders when HTTP data actually arrives
+      this.libraryStore.allLibraries$.subscribe(() => this.cdr.markForCheck());
+      this.libraryStore.loadAllLibraries();
     }
     this.showLibraryPicker.set(!this.showLibraryPicker());
   }
@@ -1833,6 +1833,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     } else {
       const newFx: TokenStatusEffect = {
         id: `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        statusEffectId: effect.id,
         name: effect.name,
         icon: effect.icon,
         color: effect.color,

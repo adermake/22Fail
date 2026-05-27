@@ -276,7 +276,21 @@ app/
 - **Execution Popup**: Fixed-Overlay (8s auto-dismiss), zeigt Würfel/Ressourcen/Fehler, Stack-Badge
 - **Picker**: Fixed-Overlay (zentriert), Suche, Grid-Layout
 - **Duration Tick-Down**: Bei Ausführung wird duration-1, bei 0 → Effekt entfernt (mit Fade-Animation)
-- **Execute All**: Sequentiell mit 2s Delay, tickt alle Dauern, entfernt abgelaufene
+- **Chain Execute**: Kette mit manuellem "Nächster ▸" Schritt, Ergebnis-Sidebar rechts, "Fertig ✓" abschließen
+
+## Lobby Bottom Panel (`lobby/lobby-bottom-panel/`)
+- **Tabs**: Status + Aktiv (Zauber/Fähigkeiten)
+- **Status Tab Layout**: Toolbar (28px) + Body (flex row: Karten-Bereich + Exec-Sidebar 200px)
+- **`TokenStatusEffect`**: id, statusEffectId?, customEffect?, name, icon, color, stacks, duration, isDebuff
+  - `statusEffectId`: Verknüpft mit Library-StatusEffect für Macro-Lookup
+  - `customEffect`: Überschreibt Bibliotheks-Definition (nach Bearbeitung)
+- **Library-Loading**: `LibraryStoreService.allLibraries$` (Observable) + `allLibraries` (sync getter). Laden via `loadAllLibraries()`. Fix: Subscribe zu `allLibraries$` statt `.then()` für First-Load-Bug.
+- **Karten**: Keine Inline-Controls mehr. Klick öffnet Expanded Panel (fixed overlay). Rechtsklick auf Bereich → Kontextmenü.
+- **Expanded Panel**: Dauer +/-, Stapel +/-, Modifikatoren-Anzeige, Macro-Ausführung, Bearbeiten/Entfernen
+- **Chain Execute**: `startExecuteAllChain()` → `executeCurrentChainStep()` → `executeNextInChain()` → `finalizeChain()`. Sidebar zeigt aktuellen Effekt + Würfelergebnis.
+- **Macro-Ausführung**: `UnifiedMacroExecutorService.executeActionMacro(macro, sheet)`. Für NPCs: minimales `sheetForMacros` aus NPC-Werten. Ressourcen-Änderungen via `applyMacroResourceChanges()`.
+- **Picker**: `availableToAdd` getter aus allen Library-StatusEffects. `applyEffect()` checkt ob bereits vorhanden (→ Stapel+1) oder neu hinzufügt.
+- **Editor**: `StatusEffectEditorComponent` in Modal-Overlay; Änderungen speichern `customEffect` im TokenStatusEffect (löst Bibliotheks-Verknüpfung).
 
 ## World Dashboard (Partei-Übersicht)
 - **Char-Card Stil**: Skill-Card-inspiriert (`#0f1829` bg, 3px accent left-border, rounded corners)

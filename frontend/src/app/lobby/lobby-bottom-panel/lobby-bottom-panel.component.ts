@@ -1,12 +1,13 @@
 import {
   ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, EventEmitter,
-  inject, Input, OnChanges, OnInit, Output, SimpleChanges,
+  inject, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { Token, TokenStatusEffect } from '../../model/lobby.model';
-import { CharacterSheet } from '../../model/character-sheet-model';
+import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
 import { NpcStatblock } from '../../model/npc-statblock.model';
 import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../../model/spell-block-model';
 import { SkillBlock } from '../../model/skill-block.model';
@@ -14,16 +15,21 @@ import { FormulaType } from '../../model/formula-type.enum';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
 import { CharacterSocketService } from '../../services/character-socket.service';
+import { StatusEffect } from '../../model/status-effect.model';
+import { ActionMacro } from '../../model/action-macro.model';
+import { LibraryStoreService } from '../../services/library-store.service';
+import { UnifiedMacroExecutorService, UnifiedMacroResult } from '../../services/unified-macro-executor.service';
+import { StatusEffectEditorComponent } from '../../shared/status-effect-editor/status-effect-editor.component';
 
 @Component({
   selector: 'app-lobby-bottom-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, StatusEffectEditorComponent],
   templateUrl: './lobby-bottom-panel.component.html',
   styleUrl: './lobby-bottom-panel.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LobbyBottomPanelComponent implements OnChanges, OnInit {
+export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   @Input() token: Token | null = null;
   @Input() character: CharacterSheet | null = null;
   @Input() npc: NpcStatblock | null = null;
@@ -33,20 +39,64 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit {
   private cdr = inject(ChangeDetectorRef);
   private charSocket = inject(CharacterSocketService);
   private destroyRef = inject(DestroyRef);
+  private libraryStore = inject(LibraryStoreService);
+  private macroExecutor = inject(UnifiedMacroExecutorService);
 
   activeTab: 'status' | 'aktiv' = 'aktiv';
   collapsed = false;
-  selectedEffect: TokenStatusEffect | null = null;
+
+  // ── Status effect state ───────────────────────────────────────────────────
+  private libSub?: Subscription;
+  private popupTimeout?: ReturnType<typeof setTimeout>;
+  resolvedEffects = new Map<string, StatusEffect>();
+
+  expandedFx: TokenStatusEffect | null = null;
+  editingFx: TokenStatusEffect | null = null;
+  editedStatusEffect: StatusEffect | null = null;
+  showPicker = false;
+  pickerSearch = '';
+  showContextMenu = false;
+  contextMenuX = 0;
+  contextMenuY = 0;
+  executeAllInProgress = false;
+  chainEffects: TokenStatusEffect[] = [];
+  chainIndex = 0;
+  chainResult: UnifiedMacroResult | null = null;
+  chainStepDone = false;
+  triggeringEffects = new Set<string>();
+  expiringEffects = new Set<string>();
+  lastRollResults = new Map<string, UnifiedMacroResult>();
 
   ngOnInit(): void {
     // Re-render immediately when the character panel mutates data locally (before server echo)
     this.charSocket.localUpdate$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.cdr.markForCheck();
     });
+    // Subscribe to library changes and resolve effect definitions when data arrives
+    this.libSub = this.libraryStore.allLibraries$.subscribe(() => {
+      this.resolveEffects();
+      this.cdr.markForCheck();
+    });
+    // Eagerly load library if not yet loaded
+    if (this.libraryStore.allLibraries.length === 0) {
+      this.libraryStore.loadAllLibraries();
+    } else {
+      this.resolveEffects();
+    }
   }
 
   ngOnChanges(_: SimpleChanges): void {
+    // Sync expandedFx reference when token updates from server
+    if (this.expandedFx && this.token) {
+      const synced = (this.token.activeStatusEffects ?? []).find(e => e.id === this.expandedFx!.id);
+      this.expandedFx = synced ?? null;
+    }
     this.cdr.markForCheck();
+  }
+
+  ngOnDestroy(): void {
+    this.libSub?.unsubscribe();
+    if (this.popupTimeout) clearTimeout(this.popupTimeout);
   }
 
   get hasSelection(): boolean {
@@ -59,12 +109,6 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit {
 
   private get characterId(): string | null {
     return this.token?.characterId ?? null;
-  }
-
-  // ── Status effects ────────────────────────────────────────────────────────
-
-  get statusEffects(): TokenStatusEffect[] {
-    return this.token?.activeStatusEffects ?? [];
   }
 
   // ── Available skills and spells ───────────────────────────────────────────
@@ -169,51 +213,450 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit {
     return (entry.roundsActive ?? 0) >= spell.durationTurns;
   }
 
-  // ── Status effect actions ─────────────────────────────────────────────────
+  // ── Status effects ────────────────────────────────────────────────────────
 
-  toggleSelectEffect(fx: TokenStatusEffect): void {
-    this.selectedEffect = this.selectedEffect?.id === fx.id ? null : fx;
+  get statusEffects(): TokenStatusEffect[] {
+    return this.token?.activeStatusEffects ?? [];
+  }
+
+  /** Build Map<id, StatusEffect> from all library entries */
+  private resolveEffects(): void {
+    const map = new Map<string, StatusEffect>();
+    for (const lib of this.libraryStore.allLibraries) {
+      for (const effect of (lib as any).statusEffects ?? []) {
+        if (effect.id) map.set(effect.id, effect);
+      }
+    }
+    this.resolvedEffects = map;
+  }
+
+  /** Resolve StatusEffect for a TokenStatusEffect (customEffect overrides library) */
+  getEffect(fx: TokenStatusEffect): StatusEffect | undefined {
+    if (fx.customEffect) return fx.customEffect;
+    if (fx.statusEffectId) return this.resolvedEffects.get(fx.statusEffectId);
+    return undefined;
+  }
+
+  getEffectIcon(fx: TokenStatusEffect): string {
+    return fx.icon || this.getEffect(fx)?.icon || (fx.isDebuff ? '💀' : '⭐');
+  }
+
+  getEffectColor(fx: TokenStatusEffect): string {
+    return fx.color || this.getEffect(fx)?.color || (fx.isDebuff ? '#ef4444' : '#22c55e');
+  }
+
+  hasMacro(fx: TokenStatusEffect): boolean {
+    const effect = this.getEffect(fx);
+    if (!effect) return false;
+    return !!(effect.embeddedMacro || (effect as any).embeddedMacros?.length || effect.macroActionId);
+  }
+
+  private getAllMacros(effect: StatusEffect): ActionMacro[] {
+    const macros: ActionMacro[] = [];
+    const e = effect as any;
+    if (e.embeddedMacros?.length) {
+      macros.push(...e.embeddedMacros);
+    } else if (effect.embeddedMacro) {
+      macros.push(effect.embeddedMacro);
+    }
+    if (effect.macroActionId) {
+      const found = this.findMacroAction(effect.macroActionId);
+      if (found) {
+        const f = found as any;
+        const asMacro: ActionMacro = {
+          id: found.id,
+          name: found.name || 'Macro',
+          icon: f.icon || '✦',
+          color: f.color || '#f59e0b',
+          conditions: f.conditions ?? [],
+          consequences: f.consequences ?? [],
+          referencedSkillNames: f.referencedSkillNames ?? [],
+          isValid: f.isValid ?? true,
+          order: f.order ?? 0,
+          createdAt: new Date(),
+          modifiedAt: new Date(),
+        };
+        macros.push(asMacro);
+      }
+    }
+    return macros;
+  }
+
+  private findMacroAction(macroActionId: string): any {
+    for (const lib of this.libraryStore.allLibraries) {
+      const macro = (lib as any).macroActions?.find((m: any) => m.id === macroActionId);
+      if (macro) return macro;
+    }
+    return null;
+  }
+
+  trackByFx(_: number, fx: TokenStatusEffect): string {
+    return fx.id;
+  }
+
+  isFxTriggering(fx: TokenStatusEffect): boolean {
+    return this.triggeringEffects.has(fx.id);
+  }
+
+  isFxExpiring(fx: TokenStatusEffect): boolean {
+    return this.expiringEffects.has(fx.id);
+  }
+
+  getLastResult(fx: TokenStatusEffect): UnifiedMacroResult | null {
+    return this.lastRollResults.get(fx.id) ?? null;
+  }
+
+  onFxClick(fx: TokenStatusEffect, event: MouseEvent): void {
+    event.stopPropagation();
+    this.closeContextMenu();
+    this.expandedFx = this.expandedFx?.id === fx.id ? null : fx;
     this.cdr.markForCheck();
   }
 
-  adjustFxDuration(fx: TokenStatusEffect, delta: number): void {
-    if (!this.token) return;
-    const effects = (this.token.activeStatusEffects ?? []).map(e =>
-      e.id === fx.id
-        ? { ...e, duration: e.duration !== undefined ? Math.max(0, e.duration + delta) : undefined }
-        : e
-    );
-    if (this.selectedEffect?.id === fx.id && this.selectedEffect.duration !== undefined) {
-      this.selectedEffect = { ...this.selectedEffect, duration: Math.max(0, this.selectedEffect.duration + delta) };
-    }
-    this.tokenUpdate.emit({ activeStatusEffects: effects });
+  closeExpandedView(): void {
+    this.expandedFx = null;
+    this.cdr.markForCheck();
   }
 
-  adjustFxStacks(fx: TokenStatusEffect, delta: number): void {
+  changeDuration(fx: TokenStatusEffect, delta: number): void {
     if (!this.token) return;
-    const effects = (this.token.activeStatusEffects ?? []).map(e =>
-      e.id === fx.id ? { ...e, stacks: Math.max(1, e.stacks + delta) } : e
-    );
-    if (this.selectedEffect?.id === fx.id) {
-      this.selectedEffect = { ...this.selectedEffect, stacks: Math.max(1, this.selectedEffect.stacks + delta) };
+    let newDuration: number | undefined;
+    if (fx.duration === undefined || fx.duration === null) {
+      if (delta > 0) newDuration = 1;
+      else return;
+    } else {
+      const n = fx.duration + delta;
+      newDuration = n < 0 ? undefined : n;
     }
+    const effects = (this.token.activeStatusEffects ?? []).map(e =>
+      e.id === fx.id ? { ...e, duration: newDuration } : e
+    );
     this.tokenUpdate.emit({ activeStatusEffects: effects });
+    if (this.expandedFx?.id === fx.id) {
+      this.expandedFx = { ...this.expandedFx, duration: newDuration };
+    }
+    this.cdr.markForCheck();
+  }
+
+  changeStacks(fx: TokenStatusEffect, delta: number): void {
+    if (!this.token) return;
+    const effect = this.getEffect(fx);
+    const maxStacks = (effect as any)?.maxStacks ?? 99;
+    const newStacks = fx.stacks + delta;
+    if (newStacks < 1) {
+      this.removeStatusEffect(fx.id);
+      return;
+    }
+    if (newStacks > maxStacks) return;
+    const effects = (this.token.activeStatusEffects ?? []).map(e =>
+      e.id === fx.id ? { ...e, stacks: newStacks } : e
+    );
+    this.tokenUpdate.emit({ activeStatusEffects: effects });
+    if (this.expandedFx?.id === fx.id) {
+      this.expandedFx = { ...this.expandedFx, stacks: newStacks };
+    }
+    this.cdr.markForCheck();
   }
 
   removeStatusEffect(id: string): void {
     if (!this.token) return;
     const effects = (this.token.activeStatusEffects ?? []).filter(e => e.id !== id);
-    if (this.selectedEffect?.id === id) this.selectedEffect = null;
+    if (this.expandedFx?.id === id) this.expandedFx = null;
     this.tokenUpdate.emit({ activeStatusEffects: effects });
+    this.cdr.markForCheck();
   }
 
-  executeAllEffects(): void {
+  // ── Single effect execution ───────────────────────────────────────────────
+
+  executeSingleEffect(fx: TokenStatusEffect, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    const effect = this.getEffect(fx);
+    if (!effect) return;
+    const macros = this.getAllMacros(effect);
+    if (macros.length === 0) return;
+    const stacks = fx.stacks || 1;
+    const allResults: UnifiedMacroResult[] = [];
+    const sheet = this.sheetForMacros;
+    this.triggeringEffects.add(fx.id);
+    this.cdr.markForCheck();
+    for (let s = 0; s < stacks; s++) {
+      for (const macro of macros) {
+        if (sheet) {
+          const result = this.macroExecutor.executeActionMacro(macro, sheet);
+          allResults.push(result);
+          this.applyMacroResourceChanges(result);
+        }
+      }
+    }
+    if (allResults.length > 0) {
+      this.lastRollResults.set(fx.id, this.mergeResults(allResults, stacks));
+    }
+    this.changeDuration(fx, -1);
+    setTimeout(() => {
+      this.triggeringEffects.delete(fx.id);
+      this.cdr.markForCheck();
+    }, 800);
+  }
+
+  // ── Chain execution ───────────────────────────────────────────────────────
+
+  startExecuteAllChain(): void {
+    if (this.executeAllInProgress || this.chainEffects.length > 0 || this.statusEffects.length === 0) return;
+    this.chainEffects = [...this.statusEffects];
+    this.chainIndex = 0;
+    this.chainResult = null;
+    this.chainStepDone = false;
+    this.executeAllInProgress = true;
+    this.expandedFx = null;
+    this.cdr.markForCheck();
+    this.executeCurrentChainStep();
+  }
+
+  executeNextInChain(): void {
+    if (!this.chainStepDone) return;
+    if (this.chainIndex >= this.chainEffects.length - 1) {
+      this.finalizeChain();
+      return;
+    }
+    this.chainIndex++;
+    this.chainResult = null;
+    this.chainStepDone = false;
+    this.cdr.markForCheck();
+    this.executeCurrentChainStep();
+  }
+
+  private executeCurrentChainStep(): void {
+    const fx = this.chainEffects[this.chainIndex];
+    if (!fx) return;
+    this.triggeringEffects.add(fx.id);
+    this.cdr.markForCheck();
+    if (fx.duration !== undefined && fx.duration !== null && fx.duration > 0) {
+      fx.duration -= 1;
+    }
+    const effect = this.getEffect(fx);
+    if (effect) {
+      const macros = this.getAllMacros(effect);
+      const stacks = fx.stacks || 1;
+      const allResults: UnifiedMacroResult[] = [];
+      const sheet = this.sheetForMacros;
+      for (let s = 0; s < stacks; s++) {
+        for (const macro of macros) {
+          if (sheet) {
+            const result = this.macroExecutor.executeActionMacro(macro, sheet);
+            allResults.push(result);
+            this.applyMacroResourceChanges(result);
+          }
+        }
+      }
+      if (allResults.length > 0) {
+        const merged = this.mergeResults(allResults, stacks);
+        this.lastRollResults.set(fx.id, merged);
+        this.chainResult = merged;
+      } else {
+        this.chainResult = this.emptyResult(fx);
+      }
+    } else {
+      this.chainResult = this.emptyResult(fx);
+    }
+    setTimeout(() => {
+      this.triggeringEffects.delete(fx.id);
+      this.chainStepDone = true;
+      this.cdr.markForCheck();
+    }, 800);
+  }
+
+  private finalizeChain(): void {
+    const expiring = this.chainEffects.filter(e => e.duration !== undefined && e.duration !== null && e.duration === 0);
+    for (const expired of expiring) this.expiringEffects.add(expired.id);
+    this.cdr.markForCheck();
+    setTimeout(() => {
+      if (!this.token) return;
+      const current = [...(this.token.activeStatusEffects ?? [])];
+      for (const chainFx of this.chainEffects) {
+        const match = current.find(e => e.id === chainFx.id);
+        if (match && chainFx.duration !== undefined && chainFx.duration !== null) {
+          match.duration = chainFx.duration;
+        }
+      }
+      const updated = current.filter(e => e.duration === undefined || e.duration === null || e.duration > 0);
+      this.tokenUpdate.emit({ activeStatusEffects: updated });
+      this.expiringEffects.clear();
+      this.chainEffects = [];
+      this.chainIndex = 0;
+      this.chainResult = null;
+      this.chainStepDone = false;
+      this.executeAllInProgress = false;
+      this.cdr.markForCheck();
+    }, 600);
+  }
+
+  private mergeResults(results: UnifiedMacroResult[], _stacks: number): UnifiedMacroResult {
+    if (results.length === 1) return results[0];
+    return {
+      success: results.every(r => r.success),
+      actionName: results[0].actionName,
+      actionIcon: results[0].actionIcon,
+      actionColor: results[0].actionColor,
+      conditionFailures: results.flatMap(r => r.conditionFailures),
+      rolls: results.flatMap(r => r.rolls),
+      resourceChanges: results.flatMap(r => r.resourceChanges),
+      timestamp: new Date(),
+    };
+  }
+
+  private emptyResult(fx: TokenStatusEffect): UnifiedMacroResult {
+    return {
+      success: true, actionName: fx.name, actionIcon: this.getEffectIcon(fx),
+      actionColor: this.getEffectColor(fx), conditionFailures: [], rolls: [],
+      resourceChanges: [], timestamp: new Date(),
+    };
+  }
+
+  private get sheetForMacros(): CharacterSheet | null {
+    if (this.character) return this.character;
+    if (this.npc) {
+      const sheet = createEmptySheet();
+      sheet.statuses = [
+        { formulaType: FormulaType.LIFE, statusBase: this.npc.maxHealth ?? 0, statusCurrent: this.token?.currentHealth ?? 0, statusBonus: 0, statusEffectBonus: 0, statusName: 'Leben', statusColor: 'red' },
+        { formulaType: FormulaType.MANA, statusBase: this.npc.maxMana ?? 0, statusCurrent: this.token?.currentMana ?? 0, statusBonus: 0, statusEffectBonus: 0, statusName: 'Mana', statusColor: 'blue' },
+        { formulaType: FormulaType.ENERGY, statusBase: this.npc.maxEnergy ?? 0, statusCurrent: this.token?.currentEnergy ?? 0, statusBonus: 0, statusEffectBonus: 0, statusName: 'Ausdauer', statusColor: 'green' },
+      ];
+      return sheet;
+    }
+    return null;
+  }
+
+  private applyMacroResourceChanges(result: UnifiedMacroResult): void {
+    const resourceMap: Record<string, FormulaType> = {
+      health: FormulaType.LIFE, mana: FormulaType.MANA, energy: FormulaType.ENERGY,
+    };
+    for (const change of result.resourceChanges) {
+      const formulaType = resourceMap[change.resource];
+      if (formulaType === undefined) continue;
+      if (this.character) {
+        const status = this.character.statuses?.find(s => s.formulaType === formulaType);
+        if (status) {
+          const max = (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
+          const newVal = Math.max(0, Math.min(max, (status.statusCurrent || 0) + change.amount));
+          status.statusCurrent = newVal;
+          const charId = this.characterId;
+          const idx = this.character.statuses?.indexOf(status) ?? -1;
+          if (charId && idx !== -1) this.charSocket.sendPatch(charId, { path: `statuses/${idx}/statusCurrent`, value: newVal });
+        }
+      } else {
+        if (formulaType === FormulaType.LIFE) {
+          this.tokenUpdate.emit({ currentHealth: Math.max(0, (this.token?.currentHealth ?? 0) + change.amount) });
+        } else if (formulaType === FormulaType.MANA) {
+          this.tokenUpdate.emit({ currentMana: Math.max(0, (this.token?.currentMana ?? 0) + change.amount) });
+        } else if (formulaType === FormulaType.ENERGY) {
+          this.tokenUpdate.emit({ currentEnergy: Math.max(0, (this.token?.currentEnergy ?? 0) + change.amount) });
+        }
+      }
+    }
+  }
+
+  // ── Picker ────────────────────────────────────────────────────────────────
+
+  togglePicker(): void {
+    this.showPicker = !this.showPicker;
+    if (this.showPicker) {
+      this.pickerSearch = '';
+      if (this.libraryStore.allLibraries.length === 0) {
+        this.libraryStore.loadAllLibraries();
+      }
+    }
+    this.cdr.markForCheck();
+  }
+
+  closePicker(): void {
+    this.showPicker = false;
+    this.cdr.markForCheck();
+  }
+
+  get availableToAdd(): StatusEffect[] {
+    const search = this.pickerSearch.toLowerCase().trim();
+    const effects: StatusEffect[] = [];
+    for (const lib of this.libraryStore.allLibraries) {
+      for (const e of (lib as any).statusEffects ?? []) {
+        if (!search || e.name.toLowerCase().includes(search)) {
+          effects.push(e);
+        }
+      }
+    }
+    return effects;
+  }
+
+  applyEffect(effect: StatusEffect): void {
     if (!this.token) return;
-    const effects = (this.token.activeStatusEffects ?? [])
-      .map(e => e.duration !== undefined ? { ...e, duration: Math.max(0, e.duration - 1) } : e)
-      .filter(e => e.duration === undefined || e.duration > 0);
-    this.selectedEffect = null;
+    const existing = (this.token.activeStatusEffects ?? []).find(e => e.statusEffectId === effect.id);
+    if (existing) {
+      this.changeStacks(existing, 1);
+    } else {
+      const newFx: TokenStatusEffect = {
+        id: `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        statusEffectId: effect.id,
+        name: effect.name,
+        icon: effect.icon,
+        color: effect.color,
+        stacks: 1,
+        duration: effect.defaultDuration,
+        isDebuff: effect.isDebuff,
+      };
+      const effects = [...(this.token.activeStatusEffects ?? []), newFx];
+      this.tokenUpdate.emit({ activeStatusEffects: effects });
+    }
+    this.closePicker();
+  }
+
+  // ── Context menu ──────────────────────────────────────────────────────────
+
+  onRightClickStatusArea(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuX = event.clientX;
+    this.contextMenuY = event.clientY;
+    this.showContextMenu = true;
+    this.expandedFx = null;
+    this.cdr.markForCheck();
+  }
+
+  openPickerFromContextMenu(): void {
+    this.closeContextMenu();
+    this.togglePicker();
+  }
+
+  closeContextMenu(): void {
+    if (!this.showContextMenu) return;
+    this.showContextMenu = false;
+    this.cdr.markForCheck();
+  }
+
+  // ── Effect editor ─────────────────────────────────────────────────────────
+
+  editFx(fx: TokenStatusEffect): void {
+    const effect = this.getEffect(fx);
+    if (!effect) return;
+    this.editedStatusEffect = JSON.parse(JSON.stringify(effect));
+    this.editingFx = fx;
+    this.expandedFx = null;
+    this.cdr.markForCheck();
+  }
+
+  saveEditedFx(updated: StatusEffect): void {
+    if (!this.editingFx || !this.token) return;
+    const effects = (this.token.activeStatusEffects ?? []).map(e =>
+      e.id === this.editingFx!.id ? { ...e, customEffect: updated } : e
+    );
     this.tokenUpdate.emit({ activeStatusEffects: effects });
+    this.editingFx = null;
+    this.editedStatusEffect = null;
+    this.cdr.markForCheck();
+  }
+
+  cancelEditFx(): void {
+    this.editingFx = null;
+    this.editedStatusEffect = null;
+    this.cdr.markForCheck();
   }
 
   // ── Skill actions ─────────────────────────────────────────────────────────

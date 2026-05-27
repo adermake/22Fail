@@ -32,67 +32,247 @@
 
     <!-- ═════════ STATUS TAB ═════════ -->
     @if (hasSelection && activeTab === 'status') {
-      <div class="lbp-status-content">
+      <div class="lbp-status-content" (contextmenu)="onRightClickStatusArea($event)" (click)="closeContextMenu()">
 
         <!-- Toolbar -->
         <div class="lbp-status-toolbar">
-          @if (statusEffects.length > 0) {
-            <button class="lbp-exec-all-btn" (click)="executeAllEffects()">▶ Alle Ausführen</button>
+          @if (chainEffects.length > 0) {
+            <button class="lbp-exec-all-btn" (click)="executeNextInChain()" [disabled]="!chainStepDone">
+              @if (chainIndex < chainEffects.length - 1) { Nächster ▸ } @else { Fertig ✓ }
+            </button>
+            <span class="lbp-chain-progress">{{ chainIndex + 1 }}/{{ chainEffects.length }}</span>
+          } @else {
+            @if (statusEffects.length > 0) {
+              <button class="lbp-exec-all-btn" (click)="startExecuteAllChain()" [disabled]="executeAllInProgress">
+                ▶ Alle Ausführen
+              </button>
+            }
           }
           <span class="lbp-status-count">
             {{ statusEffects.length }} {{ statusEffects.length === 1 ? 'Effekt' : 'Effekte' }}
           </span>
+          <button class="lbp-add-status-btn" (click)="togglePicker(); $event.stopPropagation()" title="Status hinzufügen">+</button>
         </div>
 
-        <!-- Cards row -->
-        <div class="lbp-status-cards-row">
-          @if (statusEffects.length === 0) {
-            <div class="lbp-empty-inline">Keine Statuseffekte aktiv</div>
-          }
+        <!-- Body: cards area + exec sidebar -->
+        <div class="lbp-status-body">
 
-          @for (fx of statusEffects; track fx.id) {
-            <div class="lbp-sfx-card"
-                 [class.lbp-sfx-card--debuff]="fx.isDebuff"
-                 [class.lbp-sfx-card--selected]="selectedEffect?.id === fx.id"
-                 [style.--ec]="fx.color ?? (fx.isDebuff ? '#ef4444' : '#22c55e')"
-                 (click)="toggleSelectEffect(fx)">
+          <!-- Cards area -->
+          <div class="lbp-status-cards-area">
+            @if (statusEffects.length === 0) {
+              <div class="lbp-empty-inline">Rechtsklick → Status hinzufügen</div>
+            }
 
-              <!-- Duration badge top-left -->
-              <span class="lbp-sfx-dur">
-                @if (fx.duration !== undefined) { {{ fx.duration }}R } @else { ∞ }
-              </span>
+            @for (fx of statusEffects; track trackByFx($index, fx)) {
+              <div class="lbp-sfx-card"
+                   [class.lbp-sfx-card--debuff]="fx.isDebuff"
+                   [class.lbp-sfx-card--selected]="expandedFx?.id === fx.id"
+                   [class.is-chain-active]="chainEffects.length > 0 && chainEffects[chainIndex]?.id === fx.id"
+                   [class.is-triggering]="isFxTriggering(fx)"
+                   [class.is-expiring]="isFxExpiring(fx)"
+                   [style.--ec]="getEffectColor(fx)"
+                   (click)="onFxClick(fx, $event)">
 
-              <!-- Stacks badge top-right -->
-              @if (fx.stacks > 1) {
-                <span class="lbp-sfx-stacks">×{{ fx.stacks }}</span>
-              }
+                <!-- Duration badge top-left -->
+                <span class="lbp-sfx-dur">
+                  @if (fx.duration !== undefined && fx.duration !== null) { {{ fx.duration }}R } @else { ∞ }
+                </span>
 
-              <!-- Big icon -->
-              <div class="lbp-sfx-icon">{{ fx.icon || (fx.isDebuff ? '💀' : '⭐') }}</div>
+                <!-- Stacks badge top-right -->
+                @if (fx.stacks > 1) {
+                  <span class="lbp-sfx-stacks">×{{ fx.stacks }}</span>
+                }
 
-              <!-- Name -->
-              <div class="lbp-sfx-name">{{ fx.name }}</div>
+                <!-- Big icon -->
+                <div class="lbp-sfx-icon">{{ getEffectIcon(fx) }}</div>
 
-              <!-- Inline controls -->
-              <div class="lbp-sfx-ctrl-row">
-                <button class="lbp-sfx-btn" (click)="$event.stopPropagation(); adjustFxDuration(fx, -1)"
-                        [disabled]="fx.duration === undefined || fx.duration <= 0"
-                        title="Runde verringern">−R</button>
-                <button class="lbp-sfx-btn" (click)="$event.stopPropagation(); adjustFxDuration(fx, 1)"
-                        title="Runde erhöhen">+R</button>
-                <button class="lbp-sfx-btn" (click)="$event.stopPropagation(); adjustFxStacks(fx, -1)"
-                        [disabled]="fx.stacks <= 1"
-                        title="Stapel verringern">−S</button>
-                <button class="lbp-sfx-btn" (click)="$event.stopPropagation(); adjustFxStacks(fx, 1)"
-                        title="Stapel erhöhen">+S</button>
-                <button class="lbp-sfx-btn lbp-sfx-btn--remove"
-                        (click)="$event.stopPropagation(); removeStatusEffect(fx.id)"
-                        title="Effekt entfernen">✕</button>
+                <!-- Name -->
+                <div class="lbp-sfx-name">{{ fx.name }}</div>
               </div>
+            }
+          </div>
+
+          <!-- Exec sidebar -->
+          <div class="lbp-exec-sidebar">
+            @if (chainEffects.length > 0) {
+              @let currentFx = chainEffects[chainIndex];
+              <div class="exec-sb-current" [style.--ec]="getEffectColor(currentFx)">
+                <div class="exec-sb-icon">{{ getEffectIcon(currentFx) }}</div>
+                <div class="exec-sb-name">{{ currentFx.name }}</div>
+              </div>
+              @if (chainResult) {
+                <div class="exec-sb-result">
+                  @for (roll of chainResult.rolls; track roll.id) {
+                    <div class="exec-sb-roll" [style.--rc]="roll.color">
+                      <span class="exec-sb-roll-name">{{ roll.name }}</span>
+                      <div class="exec-sb-dice">
+                        @for (die of roll.rolls; track $index) {
+                          <span class="exec-sb-die">{{ die }}</span>
+                        }
+                        <span class="exec-sb-total">= {{ roll.total }}</span>
+                      </div>
+                    </div>
+                  }
+                  @for (change of chainResult.resourceChanges; track $index) {
+                    <div class="exec-sb-resource" [class.gain]="change.amount > 0" [class.loss]="change.amount < 0">
+                      {{ change.displayName }}: {{ change.amount > 0 ? '+' : '' }}{{ change.amount }}
+                    </div>
+                  }
+                  @if (chainResult.rolls.length === 0 && chainResult.resourceChanges.length === 0) {
+                    <div class="exec-sb-no-roll">Kein Ergebnis</div>
+                  }
+                </div>
+              }
+            } @else {
+              <div class="exec-sb-idle">
+                <span class="exec-sb-idle-icon">⚔</span>
+                <span class="exec-sb-idle-text">Alle Ausführen starten</span>
+              </div>
+            }
+          </div>
+
+        </div>
+      </div>
+    }
+
+    <!-- ═════════ STATUS: Expanded Panel ═════════ -->
+    @if (expandedFx) {
+      <div class="lbp-fx-panel-overlay" (click)="closeExpandedView()">
+        <div class="lbp-fx-panel" (click)="$event.stopPropagation()" [style.--ec]="getEffectColor(expandedFx)">
+          <div class="lbp-fx-panel-header">
+            <span class="lbp-fx-panel-icon" [style.color]="getEffectColor(expandedFx)">{{ getEffectIcon(expandedFx) }}</span>
+            <div class="lbp-fx-panel-title">
+              <span class="lbp-fx-panel-name">{{ expandedFx.name }}</span>
+              @if (expandedFx.isDebuff) { <span class="lbp-fx-badge debuff">Debuff</span> }
+            </div>
+            <button class="lbp-fx-panel-close" (click)="closeExpandedView()">✕</button>
+          </div>
+          @if (getEffect(expandedFx)?.description) {
+            <div class="lbp-fx-panel-desc">{{ getEffect(expandedFx)!.description }}</div>
+          }
+          <div class="lbp-fx-panel-details">
+            <div class="lbp-fx-detail">
+              <span class="lbp-fx-detail-icon">⏱</span>
+              <span class="lbp-fx-detail-label">Dauer</span>
+              <span class="lbp-fx-detail-value">
+                <button class="lbp-fx-btn" (click)="changeDuration(expandedFx, -1)">−</button>
+                @if (expandedFx.duration !== undefined && expandedFx.duration !== null) {
+                  <span class="lbp-fx-num">{{ expandedFx.duration }}</span>
+                } @else {
+                  <span class="lbp-fx-num">∞</span>
+                }
+                <button class="lbp-fx-btn" (click)="changeDuration(expandedFx, 1)">+</button>
+                <span class="lbp-fx-unit">Runden</span>
+              </span>
+            </div>
+            <div class="lbp-fx-detail">
+              <span class="lbp-fx-detail-icon">📚</span>
+              <span class="lbp-fx-detail-label">Stapel</span>
+              <span class="lbp-fx-detail-value">
+                <button class="lbp-fx-btn" (click)="changeStacks(expandedFx, -1)">−</button>
+                <span class="lbp-fx-num">×{{ expandedFx.stacks }}</span>
+                <button class="lbp-fx-btn" (click)="changeStacks(expandedFx, 1)">+</button>
+              </span>
+            </div>
+            @if (getEffect(expandedFx)?.statModifiers?.length) {
+              <div class="lbp-fx-detail">
+                <span class="lbp-fx-detail-icon">📊</span>
+                <span class="lbp-fx-detail-label">Modifikatoren</span>
+                <span class="lbp-fx-mods">
+                  @for (mod of getEffect(expandedFx)!.statModifiers!; track $index) {
+                    <span class="lbp-fx-mod" [class.positive]="mod.amount > 0" [class.negative]="mod.amount < 0">
+                      {{ mod.stat.toUpperCase().slice(0,3) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}
+                    </span>
+                  }
+                </span>
+              </div>
+            }
+          </div>
+          @if (hasMacro(expandedFx)) {
+            <div class="lbp-fx-panel-execute-row">
+              <button class="lbp-fx-execute-btn" (click)="executeSingleEffect(expandedFx, $event)">
+                ▶ Effekt Auslösen
+                @if (expandedFx.stacks > 1) { <span>(×{{ expandedFx.stacks }})</span> }
+              </button>
+              @if (getLastResult(expandedFx); as lastResult) {
+                <div class="lbp-fx-last-result">
+                  @for (roll of lastResult.rolls; track roll.id) {
+                    <span class="lbp-fx-last-roll" [style.color]="roll.color">{{ roll.name }}: {{ roll.total }}</span>
+                  }
+                  @for (change of lastResult.resourceChanges; track $index) {
+                    <span class="lbp-fx-last-change" [class.gain]="change.amount > 0" [class.loss]="change.amount < 0">
+                      {{ change.displayName }}: {{ change.amount > 0 ? '+' : '' }}{{ change.amount }}
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+          }
+          <div class="lbp-fx-panel-footer">
+            @if (getEffect(expandedFx)) {
+              <button class="lbp-fx-panel-btn edit" (click)="editFx(expandedFx)">✏ Bearbeiten</button>
+            }
+            <button class="lbp-fx-panel-btn delete" (click)="removeStatusEffect(expandedFx.id)">🗑 Entfernen</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ═════════ STATUS: Picker ═════════ -->
+    @if (showPicker) {
+      <div class="lbp-picker-overlay" (click)="closePicker()">
+        <div class="lbp-picker" (click)="$event.stopPropagation()">
+          <div class="lbp-picker-head">
+            <span>Status hinzufügen</span>
+            <button class="lbp-picker-close" (click)="closePicker()">✕</button>
+          </div>
+          <input class="lbp-picker-search" type="text" [(ngModel)]="pickerSearch" placeholder="Suche...">
+          @if (availableToAdd.length === 0) {
+            <p class="lbp-picker-empty">Keine Effekte in der Bibliothek.<br>Effekte zuerst in der Bibliothek erstellen.</p>
+          } @else {
+            <div class="lbp-picker-grid">
+              @for (effect of availableToAdd; track effect.id) {
+                <button class="lbp-picker-card" [class.is-debuff]="effect.isDebuff"
+                        [style.--ec]="effect.color || '#8b5cf6'"
+                        (click)="applyEffect(effect)" [title]="effect.description || effect.name">
+                  <span class="lbp-picker-card-icon">{{ effect.icon || '✦' }}</span>
+                  <span class="lbp-picker-card-name">{{ effect.name }}</span>
+                  @if (effect.isDebuff) { <span class="lbp-picker-tag debuff">Debuff</span> }
+                </button>
+              }
             </div>
           }
         </div>
+      </div>
+    }
 
+    <!-- ═════════ STATUS: Context Menu ═════════ -->
+    @if (showContextMenu) {
+      <div class="lbp-ctx-overlay" (click)="closeContextMenu()">
+        <div class="lbp-ctx-menu" [style.left.px]="contextMenuX" [style.top.px]="contextMenuY"
+             (click)="$event.stopPropagation()">
+          <button class="lbp-ctx-item" (click)="openPickerFromContextMenu()">
+            <span>✦</span><span>Status hinzufügen</span>
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- ═════════ STATUS: Effect Editor ═════════ -->
+    @if (editingFx && editedStatusEffect) {
+      <div class="lbp-editor-overlay" (click)="cancelEditFx()">
+        <div class="lbp-editor-container" (click)="$event.stopPropagation()">
+          <div class="lbp-editor-header">
+            <h3>Status-Effekt bearbeiten</h3>
+            <p class="lbp-editor-note">⚠ Änderungen lösen die Verknüpfung zur Bibliothek</p>
+          </div>
+          <app-status-effect-editor
+            [statusEffect]="editedStatusEffect"
+            (save)="saveEditedFx($event)"
+            (cancel)="cancelEditFx()"
+            (delete)="removeStatusEffect(editingFx!.id); cancelEditFx()">
+          </app-status-effect-editor>
+        </div>
       </div>
     }
 

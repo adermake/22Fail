@@ -119,6 +119,8 @@ export interface Token {
 /** A lightweight status effect stored directly on a token (no library ref needed) */
 export interface TokenStatusEffect {
   id: string; // Local ID for this instance
+  statusEffectId?: string; // Library StatusEffect ID (for macro lookup)
+  customEffect?: import('./status-effect.model').StatusEffect; // Per-instance overrides
   name: string;
   icon?: string; // Emoji icon
   color?: string; // Hex color
