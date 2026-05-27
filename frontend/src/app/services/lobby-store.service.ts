@@ -509,16 +509,47 @@ export class LobbyStoreService {
     const oldPosition = tokens[index].position;
     tokens[index] = { ...tokens[index], position };
 
-    // Move linked children that are not 'free'
+    // Move linked children by link behavior
     const dq = position.q - oldPosition.q;
     const dr = position.r - oldPosition.r;
     if (dq !== 0 || dr !== 0) {
+      const parent = tokens[index];
       for (let i = 0; i < tokens.length; i++) {
         const child = tokens[i];
-        if (child.parentTokenId === tokenId && child.linkedTokenType !== 'free') {
+        if (child.parentTokenId !== tokenId || child.linkedTokenType === 'free') {
+          continue;
+        }
+
+        if (child.linkedTokenType === 'keepOffset') {
+          const offset = child.linkedOffset ?? {
+            q: child.position.q - oldPosition.q,
+            r: child.position.r - oldPosition.r,
+          };
           tokens[i] = {
             ...child,
-            position: { q: child.position.q + dq, r: child.position.r + dr },
+            linkedOffset: offset,
+            position: { q: parent.position.q + offset.q, r: parent.position.r + offset.r },
+          };
+          continue;
+        }
+
+        if (child.linkedTokenType === 'keepDistance') {
+          const desiredDistance = child.linkedDistance ?? this.axialDistance(oldPosition, child.position);
+          const currentDistance = this.axialDistance(parent.position, child.position);
+
+          if (currentDistance === desiredDistance) {
+            tokens[i] = {
+              ...child,
+              linkedDistance: desiredDistance,
+            };
+            continue;
+          }
+
+          const constrained = this.closestHexAtDistance(parent.position, child.position, desiredDistance);
+          tokens[i] = {
+            ...child,
+            linkedDistance: desiredDistance,
+            position: constrained,
           };
         }
       }
@@ -574,6 +605,33 @@ export class LobbyStoreService {
     }
 
     return { q, r };
+  }
+
+  private axialDistance(a: HexCoord, b: HexCoord): number {
+    const dq = b.q - a.q;
+    const dr = b.r - a.r;
+    return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
+  }
+
+  private closestHexAtDistance(center: HexCoord, from: HexCoord, distance: number): HexCoord {
+    if (distance <= 0) return { ...center };
+
+    let best = { q: center.q + distance, r: center.r };
+    let bestDist = this.axialDistance(from, best);
+
+    for (let dq = -distance; dq <= distance; dq++) {
+      for (let dr = -distance; dr <= distance; dr++) {
+        const candidate = { q: center.q + dq, r: center.r + dr };
+        if (this.axialDistance(center, candidate) !== distance) continue;
+        const d = this.axialDistance(from, candidate);
+        if (d < bestDist) {
+          best = candidate;
+          bestDist = d;
+        }
+      }
+    }
+
+    return best;
   }
 
   /**

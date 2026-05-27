@@ -660,6 +660,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
   onHexClick(hex: HexCoord): void {
     const pending = this.pendingLinkedToken();
     if (pending) {
+      const parent = this.currentMap()?.tokens.find(t => t.id === pending.parentId);
+      const linkedOffset = parent
+        ? { q: hex.q - parent.position.q, r: hex.r - parent.position.r }
+        : undefined;
+      const linkedDistance = parent
+        ? (Math.abs(linkedOffset!.q) + Math.abs(linkedOffset!.r) + Math.abs(linkedOffset!.q + linkedOffset!.r)) / 2
+        : undefined;
+
       // Place a linked token at the clicked hex
       const characterId = 'npc-linked-' + Date.now();
       this.store.addToken({
@@ -670,6 +678,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
         isQuickToken: true,
         parentTokenId: pending.parentId,
         linkedTokenType: pending.type,
+        linkedOffset: pending.type === 'keepOffset' ? linkedOffset : undefined,
+        linkedDistance: pending.type === 'keepDistance' ? linkedDistance : undefined,
       });
       this.pendingLinkedToken.set(null);
       return;
@@ -703,6 +713,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
   }
 
   onLinkedTokenDrop(data: { parentId: string; linkedType: LinkedTokenType; name: string; position: HexCoord }): void {
+    const parent = this.currentMap()?.tokens.find(t => t.id === data.parentId);
+    const linkedOffset = parent
+      ? { q: data.position.q - parent.position.q, r: data.position.r - parent.position.r }
+      : undefined;
+    const linkedDistance = parent
+      ? (Math.abs(linkedOffset!.q) + Math.abs(linkedOffset!.r) + Math.abs(linkedOffset!.q + linkedOffset!.r)) / 2
+      : undefined;
+
     const characterId = 'linked-' + Date.now();
     this.store.addToken({
       characterId,
@@ -712,6 +730,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
       isQuickToken: true,
       parentTokenId: data.parentId,
       linkedTokenType: data.linkedType,
+      linkedOffset: data.linkedType === 'keepOffset' ? linkedOffset : undefined,
+      linkedDistance: data.linkedType === 'keepDistance' ? linkedDistance : undefined,
     });
   }
 
