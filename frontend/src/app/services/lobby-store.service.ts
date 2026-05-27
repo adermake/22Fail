@@ -512,6 +512,18 @@ export class LobbyStoreService {
 
     tokens[index] = { ...tokens[index], position };
 
+    // If a distance-linked token is moved directly, treat the new placement as the new constraint.
+    const movedToken = tokens[index];
+    if (movedToken.parentTokenId && movedToken.linkedTokenType === 'keepDistance') {
+      const parent = tokens.find(t => t.id === movedToken.parentTokenId);
+      if (parent) {
+        tokens[index] = {
+          ...movedToken,
+          linkedDistance: this.axialDistance(parent.position, position),
+        };
+      }
+    }
+
     const moveLinkedDescendants = (parentId: string): void => {
       const parent = tokens.find(t => t.id === parentId);
       if (!parent) return;
