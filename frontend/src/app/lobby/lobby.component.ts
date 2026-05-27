@@ -434,19 +434,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     switch (key) {
       case 'e':
-        // Toggle eraser mode in current tool context
         this.isEraserMode.set(!this.isEraserMode());
         event.preventDefault();
         break;
       case 'b':
         this.currentTool.set('draw');
-        this.isEraserMode.set(false); // Reset eraser when switching tools
+        this.isEraserMode.set(false);
         event.preventDefault();
         break;
       case 't':
         this.currentTool.set('texture');
-        this.isEraserMode.set(false); // Reset eraser when switching tools
-        // Auto-switch to textures tab
+        this.isEraserMode.set(false);
         this.sidebarTab.set('textures' as any);
         event.preventDefault();
         break;
@@ -462,11 +460,21 @@ export class LobbyComponent implements OnInit, OnDestroy {
         }
         event.preventDefault();
         break;
-      case 'r':
+      case 'm':
         this.currentTool.set('measure');
         this.isEraserMode.set(false);
         event.preventDefault();
         break;
+      case 'r': {
+        // Rotate selected token by 60° (Shift = -60°)
+        const selectedId = this.selectedTokenId();
+        if (selectedId) {
+          const delta = event.shiftKey ? -60 : 60;
+          this.store.rotateToken(selectedId, delta);
+        }
+        event.preventDefault();
+        break;
+      }
       case 'w':
         this.currentTool.set('walls');
         this.isEraserMode.set(false);
@@ -475,7 +483,6 @@ export class LobbyComponent implements OnInit, OnDestroy {
       case 'i':
         this.currentTool.set('image');
         this.isEraserMode.set(false);
-        // Auto-switch to textures tab for image tool
         this.sidebarTab.set('textures' as any);
         event.preventDefault();
         break;
