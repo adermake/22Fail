@@ -1,34 +1,3 @@
-  // =====================
-  // Overlay Rendering
-  // =====================
-  private renderOverlay(): void {
-    // Draw link lines between parent and child tokens
-    if (this.tokens && this.tokens.length > 0 && this.overlayCtx) {
-      const ctx = this.overlayCtx;
-      ctx.save();
-      ctx.translate(this.panX, this.panY);
-      ctx.scale(this.scale, this.scale);
-      for (const token of this.tokens) {
-        if (token.parentTokenId) {
-          const parent = this.tokens.find(t => t.id === token.parentTokenId);
-          if (parent) {
-            const a = HexMath.hexToPixel(parent.position);
-            const b = HexMath.hexToPixel(token.position);
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.strokeStyle = 'rgba(56,189,248,0.7)'; // Sky blue
-            ctx.lineWidth = 2 / this.scale;
-            ctx.setLineDash([8 / this.scale, 6 / this.scale]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-          }
-        }
-      }
-      ctx.restore();
-    }
-    // ...existing overlay rendering code (tokens, overlays, etc.)...
-  }
 /**
  * Lobby Grid Component
  * 
@@ -3234,11 +3203,40 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const dpr = window.devicePixelRatio || 1;
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
+    this.renderLinkedTokenLines(ctx);
     this.renderMeasurement(ctx);
     this.renderRemoteMeasurements(ctx);
     this.renderDragPath(ctx);
     this.renderSelectionBox(ctx);
     this.renderBrushSizeCircle(ctx);
+  }
+
+  private renderLinkedTokenLines(ctx: CanvasRenderingContext2D): void {
+    if (!this.tokens || this.tokens.length === 0) return;
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+
+    for (const token of this.tokens) {
+      if (!token.parentTokenId) continue;
+      const parent = this.tokens.find(t => t.id === token.parentTokenId);
+      if (!parent) continue;
+
+      const a = HexMath.hexToPixel(parent.position);
+      const b = HexMath.hexToPixel(token.position);
+      const aScreen = this.worldToScreen(a.x, a.y);
+      const bScreen = this.worldToScreen(b.x, b.y);
+
+      ctx.beginPath();
+      ctx.moveTo(aScreen.x, aScreen.y);
+      ctx.lineTo(bScreen.x, bScreen.y);
+      ctx.stroke();
+    }
+
+    ctx.setLineDash([]);
+    ctx.restore();
   }
 
   private renderRemoteMeasurements(ctx: CanvasRenderingContext2D): void {

@@ -1,61 +1,3 @@
-  /**
-   * Rotate a token and propagate to keepOffset children.
-   * @param tokenId Token to rotate
-   * @param deltaDegrees +60 or -60
-   */
-  rotateToken(tokenId: string, deltaDegrees: number): void {
-    const tokens = [...this.tokens];
-    const index = tokens.findIndex(t => t.id === tokenId);
-    if (index === -1) return;
-    // Update parent rotation
-    const oldRotation = tokens[index].rotation ?? 0;
-    const newRotation = ((oldRotation + deltaDegrees) % 360 + 360) % 360;
-    tokens[index] = { ...tokens[index], rotation: newRotation };
-
-    // Propagate to keepOffset children
-    for (let i = 0; i < tokens.length; i++) {
-      const child = tokens[i];
-      if (child.parentTokenId === tokenId && child.linkedTokenType === 'keepOffset' && child.linkedOffset) {
-        // Rotate offset by deltaDegrees around (0,0) in hex coords
-        const rotated = this.rotateHexOffset(child.linkedOffset, deltaDegrees);
-        tokens[i] = { ...child, linkedOffset: rotated };
-        // Also update position to match new offset
-        const parent = tokens[index];
-        tokens[i].position = {
-          q: parent.position.q + rotated.q,
-          r: parent.position.r + rotated.r,
-        };
-      }
-    }
-    this.applyPatch({ path: 'tokens', value: tokens });
-  }
-
-  /**
-   * Rotate a hex offset (dq, dr) by multiples of 60°.
-   * @param offset HexCoord
-   * @param degrees +60 or -60
-   */
-  private rotateHexOffset(offset: { q: number; r: number }, degrees: number): { q: number; r: number } {
-    // Only allow multiples of 60
-    const steps = Math.round(degrees / 60) % 6;
-    let { q, r } = offset;
-    for (let i = 0; i < Math.abs(steps); i++) {
-      if (steps > 0) {
-        // +60°: (q, r) -> (-r, q + r)
-        const nq = -r;
-        const nr = q + r;
-        q = nq;
-        r = nr;
-      } else {
-        // -60°: (q, r) -> (q + r, -q)
-        const nq = q + r;
-        const nr = -q;
-        q = nq;
-        r = nr;
-      }
-    }
-    return { q, r };
-  }
 /**
  * Lobby Store Service
  * 
@@ -583,6 +525,55 @@ export class LobbyStoreService {
     }
 
     this.applyPatch({ path: 'tokens', value: tokens });
+  }
+
+  /**
+   * Rotate a token and propagate rotation to keepOffset children.
+   */
+  rotateToken(tokenId: string, deltaDegrees: number): void {
+    const tokens = [...this.tokens];
+    const index = tokens.findIndex(t => t.id === tokenId);
+    if (index === -1) return;
+
+    const oldRotation = tokens[index].rotation ?? 0;
+    const newRotation = ((oldRotation + deltaDegrees) % 360 + 360) % 360;
+    tokens[index] = { ...tokens[index], rotation: newRotation };
+
+    const parent = tokens[index];
+    for (let i = 0; i < tokens.length; i++) {
+      const child = tokens[i];
+      if (child.parentTokenId !== tokenId) continue;
+
+      if (child.linkedTokenType === 'keepOffset' && child.linkedOffset) {
+        const rotatedOffset = this.rotateHexOffset(child.linkedOffset, deltaDegrees);
+        tokens[i] = {
+          ...child,
+          linkedOffset: rotatedOffset,
+          rotation: ((child.rotation ?? 0) + deltaDegrees + 360) % 360,
+          position: {
+            q: parent.position.q + rotatedOffset.q,
+            r: parent.position.r + rotatedOffset.r,
+          },
+        };
+      }
+    }
+
+    this.applyPatch({ path: 'tokens', value: tokens });
+  }
+
+  private rotateHexOffset(offset: { q: number; r: number }, degrees: number): { q: number; r: number } {
+    let q = offset.q;
+    let r = offset.r;
+
+    const normalized = ((Math.round(degrees / 60) % 6) + 6) % 6;
+    for (let step = 0; step < normalized; step++) {
+      const nextQ = -r;
+      const nextR = q + r;
+      q = nextQ;
+      r = nextR;
+    }
+
+    return { q, r };
   }
 
   /**
