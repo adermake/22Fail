@@ -138,6 +138,12 @@ app/
 - **Empfang**: `LobbySocketService.measurements$` Observable → `remoteMeasurements` Signal in lobby-grid → `renderRemoteMeasurements()` overlay-Pass (blau `#60a5fa` statt gelb)
 - **Eigene Messung**: Lokal gerendert (gelb), remote Messungen anderer Nutzer gefiltert nach `socketId ≠ eigenem`
 
+### Linked Tokens (Lobby)
+- `LinkedTokenType`: `free | keepOffset | keepDistance`
+- `LobbyStoreService.moveToken()` verarbeitet verlinkte Tokens rekursiv entlang der Parent-Child-Kette (nicht nur 1 Ebene)
+- `keepOffset`: behält festen axialen Offset zum Parent und rotiert bei Parent-Rotation in 60°-Schritten mit
+- `keepDistance`: hält nur den gespeicherten Hex-Abstand, versucht Position zu behalten und bewegt nur bei Constraint-Verletzung auf den nächstliegenden gültigen Ring-Hex (Tie-Break Richtung alter Parent-Position für "Ketten-/Tail"-Verhalten)
+
 ### Talent System (DnD-style Proficiencies)
 - **Model**: `CharacterSheet.talentRanks: { [talentId: string]: number }`, `talentRankBonus: number`
 - **Definitionen**: `data/talent-definitions.ts` → `TALENT_DEFINITIONS` (15 Talente: Athletik, Akrobatik, Heimlichkeit, etc.)

@@ -506,54 +506,70 @@ export class LobbyStoreService {
     const index = tokens.findIndex(t => t.id === tokenId);
     if (index === -1) return;
 
-    const oldPosition = tokens[index].position;
+    const oldPositions = new Map<string, HexCoord>(
+      tokens.map(t => [t.id, { q: t.position.q, r: t.position.r }])
+    );
+
     tokens[index] = { ...tokens[index], position };
 
-    // Move linked children by link behavior
-    const dq = position.q - oldPosition.q;
-    const dr = position.r - oldPosition.r;
-    if (dq !== 0 || dr !== 0) {
-      const parent = tokens[index];
+    const moveLinkedDescendants = (parentId: string): void => {
+      const parent = tokens.find(t => t.id === parentId);
+      if (!parent) return;
+      const oldParentPosition = oldPositions.get(parentId) ?? parent.position;
+
       for (let i = 0; i < tokens.length; i++) {
         const child = tokens[i];
-        if (child.parentTokenId !== tokenId || child.linkedTokenType === 'free') {
+        if (child.parentTokenId !== parentId || child.linkedTokenType === 'free') {
           continue;
         }
 
+        const oldChildPosition = oldPositions.get(child.id) ?? child.position;
+
         if (child.linkedTokenType === 'keepOffset') {
           const offset = child.linkedOffset ?? {
-            q: child.position.q - oldPosition.q,
-            r: child.position.r - oldPosition.r,
+            q: oldChildPosition.q - oldParentPosition.q,
+            r: oldChildPosition.r - oldParentPosition.r,
           };
           tokens[i] = {
             ...child,
             linkedOffset: offset,
             position: { q: parent.position.q + offset.q, r: parent.position.r + offset.r },
           };
+          moveLinkedDescendants(child.id);
           continue;
         }
 
         if (child.linkedTokenType === 'keepDistance') {
-          const desiredDistance = child.linkedDistance ?? this.axialDistance(oldPosition, child.position);
-          const currentDistance = this.axialDistance(parent.position, child.position);
+          const desiredDistance = child.linkedDistance ?? this.axialDistance(oldParentPosition, oldChildPosition);
+          const currentDistance = this.axialDistance(parent.position, oldChildPosition);
 
           if (currentDistance === desiredDistance) {
             tokens[i] = {
               ...child,
               linkedDistance: desiredDistance,
+              position: oldChildPosition,
             };
+            moveLinkedDescendants(child.id);
             continue;
           }
 
-          const constrained = this.closestHexAtDistance(parent.position, child.position, desiredDistance);
+          const constrained = this.closestHexAtDistance(
+            parent.position,
+            oldChildPosition,
+            desiredDistance,
+            oldParentPosition
+          );
           tokens[i] = {
             ...child,
             linkedDistance: desiredDistance,
             position: constrained,
           };
+          moveLinkedDescendants(child.id);
         }
       }
-    }
+    };
+
+    moveLinkedDescendants(tokenId);
 
     this.applyPatch({ path: 'tokens', value: tokens });
   }
@@ -613,20 +629,32 @@ export class LobbyStoreService {
     return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
   }
 
-  private closestHexAtDistance(center: HexCoord, from: HexCoord, distance: number): HexCoord {
+  private closestHexAtDistance(
+    center: HexCoord,
+    from: HexCoord,
+    distance: number,
+    oldCenter?: HexCoord
+  ): HexCoord {
     if (distance <= 0) return { ...center };
 
     let best = { q: center.q + distance, r: center.r };
-    let bestDist = this.axialDistance(from, best);
+    let bestFromDist = this.axialDistance(from, best);
+    let bestOldCenterDist = oldCenter ? this.axialDistance(best, oldCenter) : Number.MAX_SAFE_INTEGER;
 
     for (let dq = -distance; dq <= distance; dq++) {
       for (let dr = -distance; dr <= distance; dr++) {
         const candidate = { q: center.q + dq, r: center.r + dr };
         if (this.axialDistance(center, candidate) !== distance) continue;
-        const d = this.axialDistance(from, candidate);
-        if (d < bestDist) {
+        const fromDist = this.axialDistance(from, candidate);
+        const oldCenterDist = oldCenter ? this.axialDistance(candidate, oldCenter) : Number.MAX_SAFE_INTEGER;
+
+        if (
+          fromDist < bestFromDist ||
+          (fromDist === bestFromDist && oldCenterDist < bestOldCenterDist)
+        ) {
           best = candidate;
-          bestDist = d;
+          bestFromDist = fromDist;
+          bestOldCenterDist = oldCenterDist;
         }
       }
     }
