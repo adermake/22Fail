@@ -322,22 +322,43 @@
         @if (activeSkillsList.length > 0) {
           <div class="scw-active-list">
             @for (skill of activeSkillsList; track skill.name) {
-              <div class="scw-active-card scw-active-card--skill">
+              <div class="scw-active-card scw-active-card--skill"
+                   [attr.data-action]="effectiveActionType(skill) || 'Aktion'">
                 <div class="scw-active-glow"></div>
                 <div class="scw-active-header">
-                  <span class="scw-active-type-badge scw-active-type-badge--skill">Fähigkeit</span>
+                  @if (effectiveActionType(skill); as at) {
+                    <span class="scw-active-type-badge scw-active-type-badge--skill" [attr.data-action]="at">{{ at }}</span>
+                  } @else {
+                    <span class="scw-active-type-badge scw-active-type-badge--skill">Fähigkeit</span>
+                  }
                   <span class="scw-active-icon">{{ skill.name.charAt(0).toUpperCase() }}</span>
                   <span class="scw-active-name">{{ skill.name }}</span>
-                  @if (effectiveCost(skill)) {
-                    <span class="scw-active-cost">{{ skillCostLabel(skill) }}</span>
-                  }
-                  @if (effectiveCost(skill)?.perRound) {
-                    <button class="scw-pay-cost-btn" (click)="paySkillRoundCost(skill)" title="Rundenkosten zahlen">⚡ Zahlen</button>
-                  }
                   <button class="scw-stop-btn" (click)="toggleActiveSkill(skill)" title="Deaktivieren">✕</button>
                 </div>
                 @if (skill.description) {
                   <div class="scw-active-desc">{{ skill.description }}</div>
+                }
+                @if (effectiveCost(skill); as cost) {
+                  <div class="scw-active-meta-row">
+                    <span class="scw-active-startcost">{{ skillCostLabel(skill) }}{{ cost.perRound ? '/Runde' : '' }}</span>
+                    @if (cost.perRound) {
+                      <button class="scw-pay-cost-btn" (click)="paySkillRoundCost(skill)" title="Rundenkosten zahlen">⚡ Zahlen</button>
+                    }
+                  </div>
+                }
+                @if (skill.statModifiers && skill.statModifiers.length > 0) {
+                  <div class="scw-skill-modifiers">
+                    @for (mod of skill.statModifiers; track $index) {
+                      <span class="scw-skill-mod" [class.positive]="mod.amount > 0" [class.negative]="mod.amount < 0">
+                        {{ mod.stat.slice(0, 3).toUpperCase() }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}
+                      </span>
+                    }
+                  </div>
+                }
+                @if (!effectiveCost(skill)?.perRound) {
+                  <div class="scw-active-dismiss-row">
+                    <button class="scw-dismiss-btn" (click)="toggleActiveSkill(skill)">Entlassen</button>
+                  </div>
                 }
                 @if (skill.counters && skill.counters.length > 0) {
                   <div class="scw-counter-list">

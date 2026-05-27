@@ -506,7 +506,24 @@ export class LobbyStoreService {
     const index = tokens.findIndex(t => t.id === tokenId);
     if (index === -1) return;
 
+    const oldPosition = tokens[index].position;
     tokens[index] = { ...tokens[index], position };
+
+    // Move linked children that are not 'free'
+    const dq = position.q - oldPosition.q;
+    const dr = position.r - oldPosition.r;
+    if (dq !== 0 || dr !== 0) {
+      for (let i = 0; i < tokens.length; i++) {
+        const child = tokens[i];
+        if (child.parentTokenId === tokenId && child.linkedTokenType !== 'free') {
+          tokens[i] = {
+            ...child,
+            position: { q: child.position.q + dq, r: child.position.r + dr },
+          };
+        }
+      }
+    }
+
     this.applyPatch({ path: 'tokens', value: tokens });
   }
 

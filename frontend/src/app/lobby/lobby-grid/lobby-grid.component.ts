@@ -3393,7 +3393,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!circle) return;
 
     const screen = this.worldToScreen(circle.pos.x, circle.pos.y);
-    const radius = circle.size / 2;
+    const radius = (circle.size * this.scale) / 2;
 
     // Circle outline
     ctx.beginPath();

@@ -1775,6 +1775,26 @@
   color: #4ade80;
   border: 1px solid rgba(34,197,94,0.35);
 }
+.scw-active-type-badge--skill[data-action="Aktion"] {
+  background: rgba(245,158,11,0.2);
+  color: #f59e0b;
+  border: 1px solid rgba(245,158,11,0.35);
+}
+.scw-active-type-badge--skill[data-action="Bonusaktion"] {
+  background: rgba(167,139,250,0.2);
+  color: #a78bfa;
+  border: 1px solid rgba(167,139,250,0.35);
+}
+.scw-active-type-badge--skill[data-action="Reaktion"] {
+  background: rgba(56,189,248,0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56,189,248,0.35);
+}
+.scw-active-type-badge--skill[data-action="Keine Aktion"] {
+  background: rgba(156,163,175,0.15);
+  color: #9ca3af;
+  border: 1px solid rgba(156,163,175,0.25);
+}
 
 /* ── Skill variant of active card ───────────────────────────────── */
 .scw-active-card--skill {
@@ -1782,6 +1802,54 @@
   border-color: rgba(34,197,94,0.35);
   background: linear-gradient(145deg, rgba(34,197,94,0.08) 0%, rgba(15,23,42,0.9) 60%);
 }
+.scw-active-card--skill[data-action="Aktion"] {
+  --sc: #f59e0b;
+  border-color: rgba(245,158,11,0.35);
+  background: linear-gradient(145deg, rgba(245,158,11,0.08) 0%, rgba(15,23,42,0.9) 60%);
+}
+.scw-active-card--skill[data-action="Bonusaktion"] {
+  --sc: #a78bfa;
+  border-color: rgba(167,139,250,0.35);
+  background: linear-gradient(145deg, rgba(167,139,250,0.08) 0%, rgba(15,23,42,0.9) 60%);
+}
+.scw-active-card--skill[data-action="Reaktion"] {
+  --sc: #38bdf8;
+  border-color: rgba(56,189,248,0.35);
+  background: linear-gradient(145deg, rgba(56,189,248,0.08) 0%, rgba(15,23,42,0.9) 60%);
+}
+.scw-active-card--skill[data-action="Keine Aktion"] {
+  --sc: #9ca3af;
+  border-color: rgba(156,163,175,0.25);
+  background: linear-gradient(145deg, rgba(156,163,175,0.05) 0%, rgba(15,23,42,0.9) 60%);
+}
 
+/* Stat modifier chips */
+.scw-skill-modifiers {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  padding: 2px 0 2px 2px;
+}
+.scw-skill-mod {
+  font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px;
+  background: rgba(100,116,139,0.15); color: #64748b;
+  border: 1px solid rgba(100,116,139,0.2);
+}
+.scw-skill-mod.positive { background: rgba(34,197,94,0.12); color: #4ade80; border-color: rgba(34,197,94,0.25); }
+.scw-skill-mod.negative { background: rgba(239,68,68,0.12); color: #f87171; border-color: rgba(239,68,68,0.25); }
 
+/* Dismiss button for non-perpetual skills */
+.scw-active-dismiss-row { padding: 4px 0 0; }
+.scw-dismiss-btn {
+  width: 100%; padding: 5px 10px;
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: 5px; color: #4ade80;
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.scw-dismiss-btn:hover { background: rgba(34,197,94,0.2); border-color: rgba(34,197,94,0.5); }
 
+/* Meta row for cost + pay button */
+.scw-active-meta-row {
+  display: flex; align-items: center; gap: 6px; padding: 2px 0;
+  font-size: 10px; color: #6b7280;
+}

@@ -544,16 +544,9 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
 
           <!-- Create new linked token via drag -->
           <div class="section-header">Neuer verknüpfter Token</div>
-          <div class="form-row">
-            <input class="fx-input" placeholder="Name (für Drag erforderlich)" [(ngModel)]="newLinkedName" style="flex:1" />
-          </div>
-          @if (!newLinkedName.trim()) {
-            <div class="linked-drag-hint-info">Name eingeben, dann per Drag auf die Karte ziehen</div>
-          }
           <div class="linked-drag-types">
             <div class="linked-drag-card"
-                 [draggable]="!!newLinkedName.trim()"
-                 [class.linked-drag-card--disabled]="!newLinkedName.trim()"
+                 draggable="true"
                  (dragstart)="onLinkedDragStart($event, 'free')"
                  title="Frei – Folgt dem Eltern-Token nicht automatisch">
               <span class="linked-drag-icon">🔗</span>
@@ -564,8 +557,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
               <span class="linked-drag-arrow">⋮⋮</span>
             </div>
             <div class="linked-drag-card"
-                 [draggable]="!!newLinkedName.trim()"
-                 [class.linked-drag-card--disabled]="!newLinkedName.trim()"
+                 draggable="true"
                  (dragstart)="onLinkedDragStart($event, 'keepDistance')"
                  title="Abstand – Hält denselben Abstand zum Eltern-Token">
               <span class="linked-drag-icon">📏</span>
@@ -576,8 +568,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
               <span class="linked-drag-arrow">⋮⋮</span>
             </div>
             <div class="linked-drag-card"
-                 [draggable]="!!newLinkedName.trim()"
-                 [class.linked-drag-card--disabled]="!newLinkedName.trim()"
+                 draggable="true"
                  (dragstart)="onLinkedDragStart($event, 'keepOffset')"
                  title="Versatz – Hält denselben relativen Versatz zum Eltern-Token">
               <span class="linked-drag-icon">🔄</span>
@@ -2269,15 +2260,16 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   }
 
   onLinkedDragStart(event: DragEvent, type: LinkedTokenType): void {
-    if (!this.token || !this.newLinkedName.trim()) {
+    if (!this.token) {
       event.preventDefault();
       return;
     }
+    const name = this.newLinkedName.trim() || '';
     event.dataTransfer?.setData('text/plain', JSON.stringify({
       type: 'linked-token',
       parentId: this.token.id,
       linkedType: type,
-      name: this.newLinkedName.trim(),
+      name,
     }));
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'copy';

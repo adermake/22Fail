@@ -480,10 +480,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
         event.preventDefault();
         break;
       case 'z':
-        if (event.ctrlKey) {
-          this.store.undoStroke();
-          event.preventDefault();
-        }
+        // Undo is handled by lobby-grid component (tool-specific)
         break;
     }
   }
