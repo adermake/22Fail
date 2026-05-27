@@ -383,6 +383,73 @@
   background: rgba(245,158,11,0.18);
   color: #fbbf24;
 }
+/* Action type badge replacing Fähigkeit badge (colored by action type) */
+.lbp-ac-action-badge {
+  font-size: 0.52rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  background: rgba(245,158,11,0.18);
+  color: #f59e0b;
+  border: 1px solid rgba(245,158,11,0.28);
+}
+.lbp-ac-action-badge[data-action="Bonusaktion"] {
+  background: rgba(167,139,250,0.18);
+  color: #a78bfa;
+  border-color: rgba(167,139,250,0.28);
+}
+.lbp-ac-action-badge[data-action="Reaktion"] {
+  background: rgba(56,189,248,0.18);
+  color: #38bdf8;
+  border-color: rgba(56,189,248,0.28);
+}
+.lbp-ac-action-badge[data-action="Keine Aktion"] {
+  background: rgba(156,163,175,0.14);
+  color: #9ca3af;
+  border-color: rgba(156,163,175,0.22);
+}
+/* Skill card: action-type border coloring */
+.lbp-active-card--skill[data-action="Bonusaktion"] {
+  background: rgba(167,139,250,0.07);
+  border-color: rgba(167,139,250,0.35);
+}
+.lbp-active-card--skill[data-action="Reaktion"] {
+  background: rgba(56,189,248,0.07);
+  border-color: rgba(56,189,248,0.35);
+}
+.lbp-active-card--skill[data-action="Keine Aktion"] {
+  background: rgba(156,163,175,0.06);
+  border-color: rgba(156,163,175,0.28);
+}
+/* Stat modifier chips */
+.lbp-ac-modifiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.lbp-ac-mod {
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.06);
+  color: #9ca3af;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.lbp-ac-mod.positive {
+  background: rgba(34,197,94,0.12);
+  color: #4ade80;
+  border-color: rgba(34,197,94,0.25);
+}
+.lbp-ac-mod.negative {
+  background: rgba(239,68,68,0.12);
+  color: #f87171;
+  border-color: rgba(239,68,68,0.25);
+}
 .lbp-ac-icon {
   font-size: 1rem;
   line-height: 1;

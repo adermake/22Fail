@@ -170,6 +170,7 @@
             @for (skill of filteredAvailableSkills; track skill.name) {
               <div class="scw-spell-card scw-spell-card--skill"
                    [class.is-casting]="isSkillActive(skill)"
+                   [attr.data-action]="effectiveActionType(skill) || 'Aktion'"
                    (click)="toggleActiveSkill(skill)"
                    [title]="skill.description || skill.name">
                 <div class="scw-spell-glow"></div>
@@ -177,15 +178,10 @@
                 <div class="scw-card-head">
                   <span class="scw-spell-icon">{{ skill.name.charAt(0).toUpperCase() }}</span>
                   <span class="scw-spell-name">{{ skill.name }}</span>
-                  @if (isSkillActive(skill)) {
-                    <span class="scw-active-badge">Aktiv</span>
+                  @if (effectiveActionType(skill); as at) {
+                    <span class="scw-skill-action-badge" [attr.data-action]="at">{{ at }}</span>
                   }
                 </div>
-
-                <!-- Action type (only on left panel) -->
-                @if (skill.actionType) {
-                  <div class="scw-spell-action-type">{{ skill.actionType }}</div>
-                }
 
                 @if (skill.description) {
                   <div class="scw-spell-desc-short">{{ skill.description }}</div>

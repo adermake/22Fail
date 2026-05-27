@@ -168,6 +168,10 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     return skill.cost ?? this.getSkillDefinition(skill)?.cost;
   }
 
+  effectiveActionType(skill: SkillBlock): string | undefined {
+    return skill.actionType ?? this.getSkillDefinition(skill)?.actionType;
+  }
+
   skillCostLabel(skill: SkillBlock): string {
     const cost = this.effectiveCost(skill);
     if (!cost) return '';

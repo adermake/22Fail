@@ -542,25 +542,51 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
             }
           }
 
-          <!-- Create new linked token -->
+          <!-- Create new linked token via drag -->
           <div class="section-header">Neuer verknüpfter Token</div>
           <div class="form-row">
-            <input class="fx-input" placeholder="Name" [(ngModel)]="newLinkedName" style="flex:1" />
+            <input class="fx-input" placeholder="Name (für Drag erforderlich)" [(ngModel)]="newLinkedName" style="flex:1" />
           </div>
-          <div class="form-row">
-            <select class="fx-input" [(ngModel)]="newLinkedType">
-              <option value="free">Frei (Free)</option>
-              <option value="keepDistance">Abstand halten</option>
-              <option value="keepOffset">Versatz halten</option>
-            </select>
-          </div>
-          <button class="add-fx-btn" (click)="startLinkedTokenPlacement()">
-            🔗 Token platzieren
-          </button>
-          <div class="linked-type-hint">
-            @if (newLinkedType === 'free') { <span class="hint-text">Freie Platzierung, folgt dem Eltern-Token nicht automatisch</span> }
-            @if (newLinkedType === 'keepDistance') { <span class="hint-text">Hält denselben Abstand zum Eltern-Token in Hexfeldern</span> }
-            @if (newLinkedType === 'keepOffset') { <span class="hint-text">Hält denselben relativen Versatz zum Eltern-Token</span> }
+          @if (!newLinkedName.trim()) {
+            <div class="linked-drag-hint-info">Name eingeben, dann per Drag auf die Karte ziehen</div>
+          }
+          <div class="linked-drag-types">
+            <div class="linked-drag-card"
+                 [draggable]="!!newLinkedName.trim()"
+                 [class.linked-drag-card--disabled]="!newLinkedName.trim()"
+                 (dragstart)="onLinkedDragStart($event, 'free')"
+                 title="Frei – Folgt dem Eltern-Token nicht automatisch">
+              <span class="linked-drag-icon">🔗</span>
+              <div class="linked-drag-info">
+                <span class="linked-drag-label">Frei</span>
+                <span class="linked-drag-sub">Freie Platzierung</span>
+              </div>
+              <span class="linked-drag-arrow">⋮⋮</span>
+            </div>
+            <div class="linked-drag-card"
+                 [draggable]="!!newLinkedName.trim()"
+                 [class.linked-drag-card--disabled]="!newLinkedName.trim()"
+                 (dragstart)="onLinkedDragStart($event, 'keepDistance')"
+                 title="Abstand – Hält denselben Abstand zum Eltern-Token">
+              <span class="linked-drag-icon">📏</span>
+              <div class="linked-drag-info">
+                <span class="linked-drag-label">Abstand</span>
+                <span class="linked-drag-sub">Gleicher Abstand</span>
+              </div>
+              <span class="linked-drag-arrow">⋮⋮</span>
+            </div>
+            <div class="linked-drag-card"
+                 [draggable]="!!newLinkedName.trim()"
+                 [class.linked-drag-card--disabled]="!newLinkedName.trim()"
+                 (dragstart)="onLinkedDragStart($event, 'keepOffset')"
+                 title="Versatz – Hält denselben relativen Versatz zum Eltern-Token">
+              <span class="linked-drag-icon">🔄</span>
+              <div class="linked-drag-info">
+                <span class="linked-drag-label">Versatz</span>
+                <span class="linked-drag-sub">Relativer Versatz</span>
+              </div>
+              <span class="linked-drag-arrow">⋮⋮</span>
+            </div>
           </div>
 
         </div>
@@ -1238,8 +1264,24 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px;
       background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3);
     }
-    .linked-type-hint { padding: 4px 10px; }
-    .hint-text { font-size: 10px; color: #4b5563; font-style: italic; }
+    .linked-drag-hint-info { font-size: 10px; color: #4b5563; font-style: italic; padding: 2px 10px 6px; }
+    .linked-drag-types { display: flex; flex-direction: column; gap: 4px; padding: 2px 8px 6px; }
+    .linked-drag-card {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; background: #1a2130;
+      border: 1px solid #2d3748; border-radius: 6px;
+      cursor: grab; transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .linked-drag-card:hover:not(.linked-drag-card--disabled) {
+      background: #1e293b; border-color: #8b5cf6;
+    }
+    .linked-drag-card--disabled { opacity: 0.4; cursor: not-allowed; }
+    .linked-drag-icon { font-size: 16px; flex-shrink: 0; }
+    .linked-drag-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+    .linked-drag-label { font-size: 12px; font-weight: 700; color: #e5e7eb; }
+    .linked-drag-sub { font-size: 9px; color: #6b7280; }
+    .linked-drag-arrow { font-size: 14px; color: #4b5563; flex-shrink: 0; letter-spacing: 1px; }
 
     /* ---- Key Stats Row (Weapon Efficiency + Defense) ---- */
     .key-stats-row {
@@ -2224,5 +2266,21 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       type: this.newLinkedType,
       name: this.newLinkedName.trim(),
     });
+  }
+
+  onLinkedDragStart(event: DragEvent, type: LinkedTokenType): void {
+    if (!this.token || !this.newLinkedName.trim()) {
+      event.preventDefault();
+      return;
+    }
+    event.dataTransfer?.setData('text/plain', JSON.stringify({
+      type: 'linked-token',
+      parentId: this.token.id,
+      linkedType: type,
+      name: this.newLinkedName.trim(),
+    }));
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'copy';
+    }
   }
 }

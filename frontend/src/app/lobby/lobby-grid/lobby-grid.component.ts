@@ -34,7 +34,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
-import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke, LibraryTexture, MeasurementLine } from '../../model/lobby.model';
+import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke, LibraryTexture, MeasurementLine, LinkedTokenType } from '../../model/lobby.model';
 import { LobbyStoreService } from '../../services/lobby-store.service';
 import { LobbySocketService } from '../../services/lobby-socket.service';
 import { ImageService } from '../../services/image.service';
@@ -119,6 +119,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Output() tokenClick = new EventEmitter<string>(); // Emits tokenId for quick view
   @Output() hexClick = new EventEmitter<HexCoord>(); // Emits hex coord when empty hex clicked in cursor mode
   @Output() npcStatblockDrop = new EventEmitter<{ statblockId: string; name: string; portrait: string; position: HexCoord }>();
+  @Output() linkedTokenDrop = new EventEmitter<{ parentId: string; linkedType: LinkedTokenType; name: string; position: HexCoord }>();
   @Output() imageSelect = new EventEmitter<string | null>();
   @Output() imageTransform = new EventEmitter<{ id: string; transform: Partial<MapImage> }>();
   @Output() imageDelete = new EventEmitter<string>();
@@ -5093,6 +5094,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
             statblockId: data.statblockId,
             name: data.name,
             portrait: data.portrait || '',
+            position: hex,
+          });
+          return;
+        }
+
+        if (data.type === 'linked-token') {
+          // Linked token drag-to-create
+          this.linkedTokenDrop.emit({
+            parentId: data.parentId,
+            linkedType: data.linkedType as LinkedTokenType,
+            name: data.name,
             position: hex,
           });
           return;

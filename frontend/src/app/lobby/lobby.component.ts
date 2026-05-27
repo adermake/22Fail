@@ -698,6 +698,19 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.currentTool.set('cursor');
   }
 
+  onLinkedTokenDrop(data: { parentId: string; linkedType: LinkedTokenType; name: string; position: HexCoord }): void {
+    const characterId = 'linked-' + Date.now();
+    this.store.addToken({
+      characterId,
+      name: data.name,
+      position: data.position,
+      team: 'default',
+      isQuickToken: true,
+      parentTokenId: data.parentId,
+      linkedTokenType: data.linkedType,
+    });
+  }
+
   // ============================================
   // Image Handlers
   // ============================================

@@ -1642,19 +1642,89 @@
   border-color: rgba(139,92,246,0.5);
 }
 
-/* ── Skill variant of spell card ─────────────────────────────────── */
+/* ── Skill variant of spell card — default / no action type ──────── */
 .scw-spell-card--skill {
   --sc: #22c55e;
-  border-color: rgba(34,197,94,0.3);
-  background: linear-gradient(145deg, rgba(34,197,94,0.06) 0%, rgba(15,23,42,0.8) 60%);
+  border-color: rgba(34,197,94,0.25);
+  background: linear-gradient(145deg, rgba(34,197,94,0.05) 0%, rgba(15,23,42,0.8) 60%);
 }
-
 .scw-spell-card--skill.is-casting {
-  border-color: rgba(34,197,94,0.7);
-  background: linear-gradient(145deg, rgba(34,197,94,0.15) 0%, rgba(15,23,42,0.9) 60%);
+  border-color: rgba(34,197,94,0.65);
+  background: linear-gradient(145deg, rgba(34,197,94,0.14) 0%, rgba(15,23,42,0.9) 60%);
+  box-shadow: 0 0 10px rgba(34,197,94,0.18);
 }
 
-/* ── Spell / skill action type badge ─────────────────────────────── */
+/* ── Skill card: action-type color theming ───────────────────────── */
+.scw-spell-card--skill[data-action="Aktion"] {
+  --sc: #f59e0b;
+  border-color: rgba(245,158,11,0.3);
+  background: linear-gradient(145deg, rgba(245,158,11,0.06) 0%, rgba(15,23,42,0.8) 60%);
+  border-left: 3px solid rgba(245,158,11,0.5);
+}
+.scw-spell-card--skill[data-action="Aktion"].is-casting {
+  border-color: rgba(245,158,11,0.65);
+  background: linear-gradient(145deg, rgba(245,158,11,0.15) 0%, rgba(15,23,42,0.9) 60%);
+  box-shadow: 0 0 10px rgba(245,158,11,0.2);
+}
+.scw-spell-card--skill[data-action="Bonusaktion"] {
+  --sc: #a78bfa;
+  border-color: rgba(167,139,250,0.3);
+  background: linear-gradient(145deg, rgba(167,139,250,0.06) 0%, rgba(15,23,42,0.8) 60%);
+  border-left: 3px solid rgba(167,139,250,0.5);
+}
+.scw-spell-card--skill[data-action="Bonusaktion"].is-casting {
+  border-color: rgba(167,139,250,0.65);
+  background: linear-gradient(145deg, rgba(167,139,250,0.15) 0%, rgba(15,23,42,0.9) 60%);
+  box-shadow: 0 0 10px rgba(167,139,250,0.2);
+}
+.scw-spell-card--skill[data-action="Reaktion"] {
+  --sc: #38bdf8;
+  border-color: rgba(56,189,248,0.3);
+  background: linear-gradient(145deg, rgba(56,189,248,0.06) 0%, rgba(15,23,42,0.8) 60%);
+  border-left: 3px solid rgba(56,189,248,0.5);
+}
+.scw-spell-card--skill[data-action="Reaktion"].is-casting {
+  border-color: rgba(56,189,248,0.65);
+  background: linear-gradient(145deg, rgba(56,189,248,0.15) 0%, rgba(15,23,42,0.9) 60%);
+  box-shadow: 0 0 10px rgba(56,189,248,0.2);
+}
+.scw-spell-card--skill[data-action="Keine Aktion"] {
+  --sc: #9ca3af;
+  border-color: rgba(156,163,175,0.22);
+  background: linear-gradient(145deg, rgba(156,163,175,0.04) 0%, rgba(15,23,42,0.8) 60%);
+  border-left: 3px solid rgba(156,163,175,0.35);
+}
+
+/* ── Action type badge in skill card header ──────────────────────── */
+.scw-skill-action-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  /* Default: Aktion = amber */
+  background: rgba(245,158,11,0.16);
+  color: #f59e0b;
+  border: 1px solid rgba(245,158,11,0.3);
+}
+.scw-skill-action-badge[data-action="Bonusaktion"] {
+  background: rgba(167,139,250,0.16);
+  color: #a78bfa;
+  border-color: rgba(167,139,250,0.3);
+}
+.scw-skill-action-badge[data-action="Reaktion"] {
+  background: rgba(56,189,248,0.16);
+  color: #38bdf8;
+  border-color: rgba(56,189,248,0.3);
+}
+.scw-skill-action-badge[data-action="Keine Aktion"] {
+  background: rgba(156,163,175,0.12);
+  color: #9ca3af;
+  border-color: rgba(156,163,175,0.25);
+}
+
+/* ── Legacy: spell/skill action type div (kept for spells) ───────── */
 .scw-spell-action-type {
   font-size: 0.68rem;
   color: #fbbf24;

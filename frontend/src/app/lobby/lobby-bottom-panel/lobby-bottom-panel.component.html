@@ -387,12 +387,17 @@
           <!-- ── Active Skills ── -->
           @for (entry of activeSkillEntries; track entry.entryId) {
             @let skill = getSkillBlock(entry);
-            <div class="lbp-active-card lbp-active-card--skill">
+            <div class="lbp-active-card lbp-active-card--skill"
+                 [attr.data-action]="skill ? (effectiveActionType(skill) || 'Aktion') : 'Aktion'">
 
               <button class="lbp-ac-stop" (click)="stopSkillEntry(entry)" title="Deaktivieren">✕</button>
 
               <div class="lbp-ac-header">
-                <span class="lbp-ac-badge lbp-ac-badge--skill">Fähigkeit</span>
+                @if (skill && effectiveActionType(skill); as at) {
+                  <span class="lbp-ac-action-badge" [attr.data-action]="at">{{ at }}</span>
+                } @else {
+                  <span class="lbp-ac-badge lbp-ac-badge--skill">Fähigkeit</span>
+                }
                 <span class="lbp-ac-icon lbp-ac-icon--skill">{{ entry.skillName.charAt(0) }}</span>
                 <span class="lbp-ac-name">{{ entry.skillName }}</span>
               </div>
@@ -410,14 +415,30 @@
                 </div>
               }
 
-              <div class="lbp-ac-rounds">
-                <span class="lbp-ac-rounds-label">Runde</span>
-                <button class="lbp-ac-rd-btn" (click)="adjustSkillRounds(entry, -1)">−</button>
-                <input class="lbp-ac-rd-input" type="number" min="0"
-                       [ngModel]="entry.roundsActive"
-                       (ngModelChange)="setSkillRounds(entry, $event)" />
-                <button class="lbp-ac-rd-btn lbp-ac-rd-btn--plus" (click)="adjustSkillRounds(entry, 1)">+</button>
-              </div>
+              @if (skill && effectiveCost(skill)?.perRound) {
+                <div class="lbp-ac-rounds">
+                  <span class="lbp-ac-rounds-label">Runde</span>
+                  <button class="lbp-ac-rd-btn" (click)="adjustSkillRounds(entry, -1)">−</button>
+                  <input class="lbp-ac-rd-input" type="number" min="0"
+                         [ngModel]="entry.roundsActive"
+                         (ngModelChange)="setSkillRounds(entry, $event)" />
+                  <button class="lbp-ac-rd-btn lbp-ac-rd-btn--plus" (click)="adjustSkillRounds(entry, 1)">+</button>
+                </div>
+              } @else {
+                <div class="lbp-ac-done">
+                  <button class="lbp-ac-dismiss-btn" (click)="stopSkillEntry(entry)">Entlassen</button>
+                </div>
+              }
+
+              @if (skill?.statModifiers && skill!.statModifiers!.length > 0) {
+                <div class="lbp-ac-modifiers">
+                  @for (mod of skill!.statModifiers!; track $index) {
+                    <span class="lbp-ac-mod" [class.positive]="mod.amount > 0" [class.negative]="mod.amount < 0">
+                      {{ mod.stat.slice(0,3).toUpperCase() }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}
+                    </span>
+                  }
+                </div>
+              }
 
               <!-- Skill counters (per-instance, always editable) -->
               @if (entry.counters && entry.counters.length > 0) {
