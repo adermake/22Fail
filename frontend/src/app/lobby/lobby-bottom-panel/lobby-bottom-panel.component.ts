@@ -36,6 +36,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit {
 
   activeTab: 'status' | 'aktiv' = 'aktiv';
   collapsed = false;
+  selectedEffect: TokenStatusEffect | null = null;
 
   ngOnInit(): void {
     // Re-render immediately when the character panel mutates data locally (before server echo)
@@ -142,13 +143,17 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit {
   }
 
   spellCostLabel(spell: SpellBlock): string {
-    const mana = spell.costMana ?? 0;
-    return mana > 0 ? `◆ ${mana}` : '';
+    const parts: string[] = [];
+    if (spell.costMana)  parts.push(`${spell.costMana}M`);
+    if (spell.costFokus) parts.push(`${spell.costFokus}F`);
+    return parts.join(' ');
   }
 
   perTurnLabel(spell: SpellBlock): string {
-    const fokus = spell.perTurnFokus ?? spell.costFokus ?? 0;
-    return fokus > 0 ? `Fokus/Rd: ${fokus}` : '';
+    const parts: string[] = [];
+    if (spell.perTurnMana)  parts.push(`${spell.perTurnMana}M/Rd`);
+    if (spell.perTurnFokus) parts.push(`${spell.perTurnFokus}F/Rd`);
+    return parts.join(' ');
   }
 
   castProgressPercent(entry: CastingSpellEntry): number {
@@ -162,6 +167,53 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit {
     const spell = this.getSpell(entry.spellId);
     if (!spell?.durationTurns) return true;
     return (entry.roundsActive ?? 0) >= spell.durationTurns;
+  }
+
+  // ── Status effect actions ─────────────────────────────────────────────────
+
+  toggleSelectEffect(fx: TokenStatusEffect): void {
+    this.selectedEffect = this.selectedEffect?.id === fx.id ? null : fx;
+    this.cdr.markForCheck();
+  }
+
+  adjustFxDuration(fx: TokenStatusEffect, delta: number): void {
+    if (!this.token) return;
+    const effects = (this.token.activeStatusEffects ?? []).map(e =>
+      e.id === fx.id
+        ? { ...e, duration: e.duration !== undefined ? Math.max(0, e.duration + delta) : undefined }
+        : e
+    );
+    if (this.selectedEffect?.id === fx.id && this.selectedEffect.duration !== undefined) {
+      this.selectedEffect = { ...this.selectedEffect, duration: Math.max(0, this.selectedEffect.duration + delta) };
+    }
+    this.tokenUpdate.emit({ activeStatusEffects: effects });
+  }
+
+  adjustFxStacks(fx: TokenStatusEffect, delta: number): void {
+    if (!this.token) return;
+    const effects = (this.token.activeStatusEffects ?? []).map(e =>
+      e.id === fx.id ? { ...e, stacks: Math.max(1, e.stacks + delta) } : e
+    );
+    if (this.selectedEffect?.id === fx.id) {
+      this.selectedEffect = { ...this.selectedEffect, stacks: Math.max(1, this.selectedEffect.stacks + delta) };
+    }
+    this.tokenUpdate.emit({ activeStatusEffects: effects });
+  }
+
+  removeStatusEffect(id: string): void {
+    if (!this.token) return;
+    const effects = (this.token.activeStatusEffects ?? []).filter(e => e.id !== id);
+    if (this.selectedEffect?.id === id) this.selectedEffect = null;
+    this.tokenUpdate.emit({ activeStatusEffects: effects });
+  }
+
+  executeAllEffects(): void {
+    if (!this.token) return;
+    const effects = (this.token.activeStatusEffects ?? [])
+      .map(e => e.duration !== undefined ? { ...e, duration: Math.max(0, e.duration - 1) } : e)
+      .filter(e => e.duration === undefined || e.duration > 0);
+    this.selectedEffect = null;
+    this.tokenUpdate.emit({ activeStatusEffects: effects });
   }
 
   // ── Skill actions ─────────────────────────────────────────────────────────
@@ -232,6 +284,20 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit {
     this.cdr.markForCheck();
   }
 
+  adjustSkillRounds(entry: ActiveSkillEntry, delta: number): void {
+    const updated = this.activeSkillEntries.map(e =>
+      e.entryId === entry.entryId ? { ...e, roundsActive: Math.max(0, e.roundsActive + delta) } : e
+    );
+    this._patchSkillEntries(updated);
+  }
+
+  setSkillRounds(entry: ActiveSkillEntry, value: number): void {
+    const updated = this.activeSkillEntries.map(e =>
+      e.entryId === entry.entryId ? { ...e, roundsActive: Math.max(0, +value || 0) } : e
+    );
+    this._patchSkillEntries(updated);
+  }
+
   // ── Spell actions ─────────────────────────────────────────────────────────
 
   stopCasting(entry: CastingSpellEntry): void {
@@ -243,6 +309,11 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit {
 
   advanceRound(entry: CastingSpellEntry): void {
     entry.roundsActive = (entry.roundsActive ?? 0) + 1;
+    this._patchCasting([...this.castingSpells]);
+  }
+
+  decrementRound(entry: CastingSpellEntry): void {
+    entry.roundsActive = Math.max(0, (entry.roundsActive ?? 0) - 1);
     this._patchCasting([...this.castingSpells]);
   }
 

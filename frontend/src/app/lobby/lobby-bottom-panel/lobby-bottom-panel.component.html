@@ -1,8 +1,9 @@
 <div class="lbp-container" [class.lbp-collapsed]="collapsed">
 
-  <!-- Header bar (always visible) -->
+  <!-- ── Header ── -->
   <div class="lbp-header">
-    <button class="lbp-collapse-btn" (click)="collapsed = !collapsed" [title]="collapsed ? 'Ausklappen' : 'Einklappen'">
+    <button class="lbp-collapse-btn" (click)="collapsed = !collapsed"
+            [title]="collapsed ? 'Ausklappen' : 'Einklappen'">
       {{ collapsed ? '▲' : '▼' }}
     </button>
 
@@ -18,110 +19,258 @@
     }
 
     @if (tokenName) {
-      <span class="lbp-token-name">{{ tokenName }}</span>
+      <span class="lbp-token-label">{{ tokenName }}</span>
     }
   </div>
 
-  <!-- Content area -->
+  <!-- ── Content ── -->
   @if (!collapsed) {
 
     @if (!hasSelection) {
       <div class="lbp-no-selection">Kein Token ausgewählt</div>
     }
 
-    <!-- ── STATUS TAB ── -->
+    <!-- ═════════ STATUS TAB ═════════ -->
     @if (hasSelection && activeTab === 'status') {
       <div class="lbp-status-content">
-        @if (statusEffects.length === 0) {
-          <div class="lbp-empty">Keine Statuseffekte aktiv</div>
-        }
-        @for (effect of statusEffects; track effect.id) {
-          <div class="lbp-effect-card" [class.lbp-effect-card--debuff]="effect.isDebuff"
-               [style.border-color]="effect.color ?? (effect.isDebuff ? '#ef4444' : '#22c55e')">
-            @if (effect.icon) {
-              <span class="lbp-effect-icon">{{ effect.icon }}</span>
-            }
-            <span class="lbp-effect-name">{{ effect.name }}</span>
-            @if (effect.stacks > 1) {
-              <span class="lbp-effect-stacks">×{{ effect.stacks }}</span>
-            }
-            @if (effect.duration !== undefined) {
-              <span class="lbp-effect-dur">{{ effect.duration }} Rd</span>
-            }
-          </div>
-        }
+
+        <!-- Toolbar -->
+        <div class="lbp-status-toolbar">
+          @if (statusEffects.length > 0) {
+            <button class="lbp-exec-all-btn" (click)="executeAllEffects()">▶ Alle Ausführen</button>
+          }
+          <span class="lbp-status-count">
+            {{ statusEffects.length }} {{ statusEffects.length === 1 ? 'Effekt' : 'Effekte' }}
+          </span>
+        </div>
+
+        <!-- Cards row -->
+        <div class="lbp-status-cards-row">
+          @if (statusEffects.length === 0) {
+            <div class="lbp-empty-inline">Keine Statuseffekte aktiv</div>
+          }
+
+          @for (fx of statusEffects; track fx.id) {
+            <div class="lbp-sfx-card"
+                 [class.lbp-sfx-card--debuff]="fx.isDebuff"
+                 [class.lbp-sfx-card--selected]="selectedEffect?.id === fx.id"
+                 [style.--ec]="fx.color ?? (fx.isDebuff ? '#ef4444' : '#22c55e')"
+                 (click)="toggleSelectEffect(fx)">
+
+              <!-- Duration badge top-left -->
+              <span class="lbp-sfx-dur">
+                @if (fx.duration !== undefined) { {{ fx.duration }}R } @else { ∞ }
+              </span>
+
+              <!-- Stacks badge top-right -->
+              @if (fx.stacks > 1) {
+                <span class="lbp-sfx-stacks">×{{ fx.stacks }}</span>
+              }
+
+              <!-- Big icon -->
+              <div class="lbp-sfx-icon">{{ fx.icon || (fx.isDebuff ? '💀' : '⭐') }}</div>
+
+              <!-- Name -->
+              <div class="lbp-sfx-name">{{ fx.name }}</div>
+
+              <!-- Inline controls -->
+              <div class="lbp-sfx-ctrl-row">
+                <button class="lbp-sfx-btn" (click)="$event.stopPropagation(); adjustFxDuration(fx, -1)"
+                        [disabled]="fx.duration === undefined || fx.duration <= 0"
+                        title="Runde verringern">−R</button>
+                <button class="lbp-sfx-btn" (click)="$event.stopPropagation(); adjustFxDuration(fx, 1)"
+                        title="Runde erhöhen">+R</button>
+                <button class="lbp-sfx-btn" (click)="$event.stopPropagation(); adjustFxStacks(fx, -1)"
+                        [disabled]="fx.stacks <= 1"
+                        title="Stapel verringern">−S</button>
+                <button class="lbp-sfx-btn" (click)="$event.stopPropagation(); adjustFxStacks(fx, 1)"
+                        title="Stapel erhöhen">+S</button>
+                <button class="lbp-sfx-btn lbp-sfx-btn--remove"
+                        (click)="$event.stopPropagation(); removeStatusEffect(fx.id)"
+                        title="Effekt entfernen">✕</button>
+              </div>
+            </div>
+          }
+        </div>
+
       </div>
     }
 
-    <!-- ── AKTIV TAB ── -->
+    <!-- ═════════ AKTIV TAB ═════════ -->
     @if (hasSelection && activeTab === 'aktiv') {
       <div class="lbp-aktiv-content">
 
         @if (!hasActiveContent) {
-          <div class="lbp-empty">
-            Nichts aktiv.
-            <span class="lbp-empty-hint">Aktiviere Fähigkeiten und Zauber über das Zauberfenster (✦).</span>
-          </div>
+          <div class="lbp-empty">Keine aktiven Zauber oder Fähigkeiten.</div>
         }
 
-        <!-- Active Spells Lane -->
-        @if (castingSpells.length > 0) {
-          <div class="lbp-lane">
-            <div class="lbp-lane-label">Aktive Zauber</div>
-            <div class="lbp-lane-bar">
-              @for (entry of castingSpells; track (entry.entryId ?? entry.spellId)) {
-                @let spell = getSpell(entry.spellId);
-                <div class="lbp-tile lbp-tile--spell"
-                     [style.--sc]="spell ? spellColor(spell) : '#8b5cf6'">
-                  <button class="lbp-tile-remove" (click)="stopCasting(entry)" title="Beenden">✕</button>
-                  <div class="lbp-tile-icon">{{ spell?.icon || '✦' }}</div>
-                  <div class="lbp-tile-name">{{ entry.spellName }}</div>
-                  @if (entry.skalierung && entry.skalierung > 1) {
-                    <div class="lbp-tile-sub">×{{ entry.skalierung }}</div>
+        <div class="lbp-aktiv-row">
+
+          <!-- ── Active Spells ── -->
+          @for (entry of castingSpells; track (entry.entryId ?? entry.spellId)) {
+            @let spell = getSpell(entry.spellId);
+            <div class="lbp-active-card lbp-active-card--spell"
+                 [style.--sc]="spell ? spellColor(spell) : '#8b5cf6'">
+
+              <button class="lbp-ac-stop" (click)="stopCasting(entry)" title="Beenden">✕</button>
+
+              <div class="lbp-ac-header">
+                <span class="lbp-ac-badge lbp-ac-badge--spell">Zauber</span>
+                <span class="lbp-ac-icon">{{ spell?.icon || '✦' }}</span>
+                <span class="lbp-ac-name">{{ entry.spellName }}</span>
+              </div>
+
+              @if (spell?.description) {
+                <div class="lbp-ac-desc">{{ spell!.description }}</div>
+              }
+
+              <div class="lbp-ac-meta-row">
+                @if (spell && spellCostLabel(spell)) {
+                  <span class="lbp-ac-cost">◆ {{ spellCostLabel(spell) }}</span>
+                }
+                @if (spell && perTurnLabel(spell)) {
+                  <span class="lbp-ac-cost-turn">{{ perTurnLabel(spell) }}</span>
+                }
+                @if (entry.skalierung && entry.skalierung > 1) {
+                  <span class="lbp-ac-skal">×{{ entry.skalierung }}</span>
+                }
+              </div>
+
+              <!-- Cast progress (still casting) -->
+              @if (entry.remainingCast > 0) {
+                <div class="lbp-ac-cast-track">
+                  <div class="lbp-ac-cast-fill"
+                       [style.width.%]="castProgressPercent(entry)"
+                       [style.background]="spell ? spellColor(spell) : '#8b5cf6'">
+                  </div>
+                </div>
+                <div class="lbp-ac-cast-label">Zauberung: {{ castProgressPercent(entry) }}%</div>
+              }
+
+              <!-- Round counter (spell active) -->
+              @if (entry.remainingCast === 0 && !isSpellFinished(entry)) {
+                <div class="lbp-ac-rounds">
+                  <span class="lbp-ac-rounds-label">Runde</span>
+                  <button class="lbp-ac-rd-btn" (click)="decrementRound(entry)">−</button>
+                  <input class="lbp-ac-rd-input" type="number" min="0"
+                         [ngModel]="entry.roundsActive ?? 0"
+                         (ngModelChange)="setRoundsActive(entry, $event)" />
+                  @if (spell?.durationTurns) {
+                    <span class="lbp-ac-rd-max">/ {{ spell!.durationTurns }}</span>
                   }
-                  @if (spell && spellCostLabel(spell)) {
-                    <div class="lbp-tile-sub">{{ spellCostLabel(spell) }}</div>
-                  }
-                  @if (!isSpellFinished(entry)) {
-                    <div class="lbp-tile-rounds">
-                      <button class="lbp-round-mini-btn" (click)="advanceRound(entry)" title="+Runde">+</button>
-                      <span class="lbp-tile-rnd">{{ entry.roundsActive ?? 0 }}
-                        @if (spell?.durationTurns) { <span class="lbp-tile-rnd-of">/{{ spell!.durationTurns }}</span> }
-                      </span>
+                  <button class="lbp-ac-rd-btn lbp-ac-rd-btn--plus" (click)="advanceRound(entry)">+</button>
+                </div>
+              }
+
+              <!-- Finished -->
+              @if (isSpellFinished(entry)) {
+                <div class="lbp-ac-done">
+                  ✓ Beendet
+                  <button class="lbp-ac-dismiss-btn" (click)="stopCasting(entry)">Entlassen</button>
+                </div>
+              }
+
+              <!-- Spell counters -->
+              @if (spell?.counters && spell!.counters!.length > 0) {
+                @for (counter of spell!.counters!; track counter.id; let ci = $index) {
+                  <div class="lbp-ac-counter">
+                    <div class="lbp-ac-cnt-header">
+                      <span class="lbp-ac-cnt-name">{{ counter.name }}</span>
+                      <div class="lbp-ac-cnt-row">
+                        <button class="lbp-ac-cnt-btn"
+                                [disabled]="!character"
+                                (click)="adjustSpellCounter(entry.spellId, ci, counter.current - 1)">−</button>
+                        <input class="lbp-ac-cnt-input" type="number"
+                               [disabled]="!character"
+                               [ngModel]="counter.current"
+                               (ngModelChange)="adjustSpellCounter(entry.spellId, ci, $event)" />
+                        <button class="lbp-ac-cnt-btn"
+                                [disabled]="!character"
+                                (click)="adjustSpellCounter(entry.spellId, ci, counter.current + 1)">+</button>
+                      </div>
                     </div>
-                  }
-                  @if (isSpellFinished(entry)) {
-                    <div class="lbp-tile-done">✓ Fertig</div>
+                    <div class="lbp-ac-cnt-track" [style.background]="counter.color + '22'">
+                      <div class="lbp-ac-cnt-fill"
+                           [style.width.%]="counter.max > counter.min
+                             ? ((counter.current - counter.min) / (counter.max - counter.min)) * 100
+                             : 0"
+                           [style.background]="counter.color">
+                      </div>
+                    </div>
+                  </div>
+                }
+              }
+
+            </div>
+          }
+
+          <!-- ── Active Skills ── -->
+          @for (entry of activeSkillEntries; track entry.entryId) {
+            @let skill = getSkillBlock(entry);
+            <div class="lbp-active-card lbp-active-card--skill">
+
+              <button class="lbp-ac-stop" (click)="stopSkillEntry(entry)" title="Deaktivieren">✕</button>
+
+              <div class="lbp-ac-header">
+                <span class="lbp-ac-badge lbp-ac-badge--skill">Fähigkeit</span>
+                <span class="lbp-ac-icon lbp-ac-icon--skill">{{ entry.skillName.charAt(0) }}</span>
+                <span class="lbp-ac-name">{{ entry.skillName }}</span>
+              </div>
+
+              @if (skill?.description) {
+                <div class="lbp-ac-desc">{{ skill!.description }}</div>
+              }
+
+              @if (skill && effectiveCost(skill)) {
+                <div class="lbp-ac-meta-row">
+                  <span class="lbp-ac-cost lbp-ac-cost--skill">{{ skillCostLabel(skill) }}</span>
+                  @if (effectiveCost(skill)!.perRound) {
+                    <button class="lbp-ac-pay-btn" (click)="paySkillRoundCost(skill)">⚡ Zahlen</button>
                   }
                 </div>
               }
-            </div>
-          </div>
-        }
 
-        <!-- Active Skills Lane -->
-        @if (activeSkillEntries.length > 0) {
-          <div class="lbp-lane">
-            <div class="lbp-lane-label">Aktive Fähigkeiten</div>
-            <div class="lbp-lane-bar">
-              @for (entry of activeSkillEntries; track entry.entryId) {
-                @let skill = getSkillBlock(entry);
-                <div class="lbp-tile lbp-tile--skill">
-                  <button class="lbp-tile-remove" (click)="stopSkillEntry(entry)" title="Deaktivieren">✕</button>
-                  <div class="lbp-tile-icon">{{ entry.skillName.charAt(0).toUpperCase() }}</div>
-                  <div class="lbp-tile-name">{{ entry.skillName }}</div>
-                  @if (skill && effectiveCost(skill)) {
-                    <div class="lbp-tile-sub">{{ skillCostLabel(skill) }}</div>
-                  }
-                  @if (skill && effectiveCost(skill)?.perRound) {
-                    <button class="lbp-tile-pay" (click)="paySkillRoundCost(skill)">⚡</button>
-                  }
-                </div>
+              <div class="lbp-ac-rounds">
+                <span class="lbp-ac-rounds-label">Runde</span>
+                <button class="lbp-ac-rd-btn" (click)="adjustSkillRounds(entry, -1)">−</button>
+                <input class="lbp-ac-rd-input" type="number" min="0"
+                       [ngModel]="entry.roundsActive"
+                       (ngModelChange)="setSkillRounds(entry, $event)" />
+                <button class="lbp-ac-rd-btn lbp-ac-rd-btn--plus" (click)="adjustSkillRounds(entry, 1)">+</button>
+              </div>
+
+              <!-- Skill counters (per-instance, always editable) -->
+              @if (entry.counters && entry.counters.length > 0) {
+                @for (counter of entry.counters; track counter.id; let ci = $index) {
+                  <div class="lbp-ac-counter">
+                    <div class="lbp-ac-cnt-header">
+                      <span class="lbp-ac-cnt-name">{{ counter.name }}</span>
+                      <div class="lbp-ac-cnt-row">
+                        <button class="lbp-ac-cnt-btn"
+                                (click)="adjustSkillEntryCounter(entry, ci, counter.current - 1)">−</button>
+                        <input class="lbp-ac-cnt-input" type="number"
+                               [ngModel]="counter.current"
+                               (ngModelChange)="adjustSkillEntryCounter(entry, ci, $event)" />
+                        <button class="lbp-ac-cnt-btn"
+                                (click)="adjustSkillEntryCounter(entry, ci, counter.current + 1)">+</button>
+                      </div>
+                    </div>
+                    <div class="lbp-ac-cnt-track" [style.background]="counter.color + '22'">
+                      <div class="lbp-ac-cnt-fill"
+                           [style.width.%]="counter.max > counter.min
+                             ? ((counter.current - counter.min) / (counter.max - counter.min)) * 100
+                             : 0"
+                           [style.background]="counter.color">
+                      </div>
+                    </div>
+                  </div>
+                }
               }
-            </div>
-          </div>
-        }
 
+            </div>
+          }
+
+        </div>
       </div>
     }
 
