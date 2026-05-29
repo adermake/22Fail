@@ -374,9 +374,12 @@ export class WorldComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.store.world$.subscribe(world => {
+    this.store.world$.subscribe(async world => {
       if (world) {
-        this.loadPartyCharacters(world.partyIds);
+        await this.loadPartyCharacters(world.partyIds);
+        // Always re-sync tracker from store updates (local + websocket) to prevent drift.
+        this.battleEngine.syncFromWorldStore();
+        this.cdr.markForCheck();
       }
     });
   }
@@ -439,8 +442,8 @@ export class WorldComponent implements OnInit, OnDestroy {
       }))
     );
     
-    // Load battle state from world store (after setting available characters)
-    this.battleEngine.loadFromWorldStore();
+    // Re-sync battle state after available-character refresh.
+    this.battleEngine.syncFromWorldStore();
 
     this.cdr.detectChanges();
   }

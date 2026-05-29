@@ -679,6 +679,20 @@
   gap: 3px;
 }
 
+.compact-group.team-blue .compact-tile { border-color: rgba(52, 152, 219, 0.8); background: rgba(52, 152, 219, 0.18); }
+.compact-group.team-red .compact-tile { border-color: rgba(231, 76, 60, 0.85); background: rgba(231, 76, 60, 0.2); }
+.compact-group.team-green .compact-tile { border-color: rgba(39, 174, 96, 0.85); background: rgba(39, 174, 96, 0.2); }
+.compact-group.team-yellow .compact-tile { border-color: rgba(241, 196, 15, 0.85); background: rgba(241, 196, 15, 0.22); }
+.compact-group.team-purple .compact-tile { border-color: rgba(155, 89, 182, 0.85); background: rgba(155, 89, 182, 0.2); }
+.compact-group.team-orange .compact-tile { border-color: rgba(230, 126, 34, 0.85); background: rgba(230, 126, 34, 0.2); }
+
+.compact-tile.team-blue { border-color: rgba(52, 152, 219, 0.95); }
+.compact-tile.team-red { border-color: rgba(231, 76, 60, 0.95); }
+.compact-tile.team-green { border-color: rgba(39, 174, 96, 0.95); }
+.compact-tile.team-yellow { border-color: rgba(241, 196, 15, 0.95); }
+.compact-tile.team-purple { border-color: rgba(155, 89, 182, 0.95); }
+.compact-tile.team-orange { border-color: rgba(230, 126, 34, 0.95); }
+
 .compact-group.first-group .compact-tile {
   border-color: #fbbf24;
   box-shadow: 0 0 6px rgba(251,191,36,0.4);

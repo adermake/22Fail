@@ -438,22 +438,43 @@ export class BattleTrackerEngine {
 
   /** Get characters for the character list */
   getCharacters(): BattleCharacter[] {
-    const result: BattleCharacter[] = [];
-    
+    const result = new Map<string, BattleCharacter>();
+
+    // Base list from available characters (party, etc.)
     for (const [id, char] of this.allCharacters) {
       const participant = this.participants.get(id);
-      result.push({
+      result.set(id, {
         id,
-        name: char.name,
-        portrait: char.portrait,
-        speed: char.speed,
+        name: participant?.name || char.name,
+        portrait: participant?.portrait || char.portrait,
+        speed: participant?.speed ?? char.speed,
         team: participant?.team || 'blue',
         isInBattle: !!participant,
         turnMeter: participant?.turnMeter ?? 0,
       });
     }
 
-    return result;
+    // Ensure participants that are not in allCharacters (e.g. NPC tokens) are included.
+    for (const [id, participant] of this.participants) {
+      if (result.has(id)) continue;
+      result.set(id, {
+        id,
+        name: participant.name,
+        portrait: participant.portrait,
+        speed: participant.speed,
+        team: participant.team,
+        isInBattle: true,
+        turnMeter: participant.turnMeter,
+      });
+    }
+
+    const ordered = Array.from(result.values());
+    ordered.sort((a, b) => {
+      if (a.isInBattle !== b.isInBattle) return a.isInBattle ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    return ordered;
   }
 
   /** Get participants only (characters in battle) */

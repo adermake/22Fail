@@ -144,6 +144,11 @@ app/
 - `keepOffset`: behält festen axialen Offset zum Parent und rotiert bei Parent-Rotation in 60°-Schritten mit
 - `keepDistance`: hält nur den gespeicherten Hex-Abstand, versucht Position zu behalten und bewegt nur bei Constraint-Verletzung auf den nächstliegenden gültigen Ring-Hex (Tie-Break Richtung alter Parent-Position für "Ketten-/Tail"-Verhalten)
 
+### Battle Tracker Sync (World + Lobby)
+- `BattleTrackerEngine.getCharacters()` liefert die Vereinigungsmenge aus `allCharacters` + aktiven `participants` (wichtig für NPC/NSC-Tokens, die nicht in der Party-Liste sind)
+- `world.component.ts` synchronisiert den Engine-Zustand bei jedem `world$` Update via `battleEngine.syncFromWorldStore()` nach `loadPartyCharacters()`
+- Lobby Token-Kontextmenü unterstützt Team-Join direkt beim Kampfbeitritt (`Feind=red`, `Neutral=yellow`, `Verbündet=blue`)
+
 ### Talent System (DnD-style Proficiencies)
 - **Model**: `CharacterSheet.talentRanks: { [talentId: string]: number }`, `talentRankBonus: number`
 - **Definitionen**: `data/talent-definitions.ts` → `TALENT_DEFINITIONS` (15 Talente: Athletik, Akrobatik, Heimlichkeit, etc.)

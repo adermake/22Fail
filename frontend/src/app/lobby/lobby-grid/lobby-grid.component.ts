@@ -114,7 +114,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Output() tokenMove = new EventEmitter<{ tokenId: string; position: HexCoord }>();
   @Output() tokenRemove = new EventEmitter<string>();
   @Output() quickTokenDrop = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
-  @Output() tokenCombatAdd = new EventEmitter<string>(); // Emits tokenId
+  @Output() tokenCombatAdd = new EventEmitter<{ tokenId: string; team?: string }>();
   @Output() tokenCombatRemove = new EventEmitter<string>(); // Emits tokenId
   @Output() tokenClick = new EventEmitter<string>(); // Emits tokenId for quick view
   @Output() hexClick = new EventEmitter<HexCoord>(); // Emits hex coord when empty hex clicked in cursor mode
@@ -5261,10 +5261,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.showContextMenu.set(false);
   }
 
-  onAddTokenToCombat(): void {
+  onAddTokenToCombat(team: string = 'blue'): void {
     const tokenId = this.contextMenuTokenId();
     if (tokenId) {
-      this.tokenCombatAdd.emit(tokenId);
+      this.tokenCombatAdd.emit({ tokenId, team });
     }
     this.showContextMenu.set(false);
   }

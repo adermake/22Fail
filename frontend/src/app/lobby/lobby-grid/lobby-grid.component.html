@@ -158,7 +158,9 @@
         <button class="danger" (click)="onDeleteSelectedImage()">Delete Image</button>
       } @else if (contextMenuTokenId()) {
         <!-- Token context menu -->
-        <button (click)="onAddTokenToCombat()">⚔️ Zum Kampf hinzufügen</button>
+        <button (click)="onAddTokenToCombat('red')">⚔️ Als Feind beitreten</button>
+        <button (click)="onAddTokenToCombat('yellow')">⚖️ Als Neutral beitreten</button>
+        <button (click)="onAddTokenToCombat('blue')">🛡️ Als Verbündeter beitreten</button>
         <button (click)="onRemoveTokenFromCombat()">🚪 Aus Kampf entfernen</button>
         <div class="menu-divider"></div>
         <button class="danger" (click)="onRemoveToken()">🗑️ Token entfernen</button>

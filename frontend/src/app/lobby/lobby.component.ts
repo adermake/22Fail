@@ -609,9 +609,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.store.removeToken(tokenId);
   }
 
-  onTokenCombatAdd(tokenId: string): void {
-    const token = this.enrichedTokens().find(t => t.id === tokenId);
+  onTokenCombatAdd(data: { tokenId: string; team?: string }): void {
+    const token = this.enrichedTokens().find(t => t.id === data.tokenId);
     if (!token) return;
+    const targetTeam = data.team || token.team || 'blue';
 
     // For NPC quick-tokens, register them in the battle engine first
     // (they aren't added via setAvailableCharacters which only covers player characters)
@@ -626,6 +627,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     }
 
     this.battleEngine.addCharacter(token.characterId);
+    this.battleEngine.setTeam(token.characterId, targetTeam);
   }
 
   onTokenCombatRemove(tokenId: string): void {
