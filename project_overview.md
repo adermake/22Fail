@@ -147,7 +147,14 @@ app/
 ### Battle Tracker Sync (World + Lobby)
 - `BattleTrackerEngine.getCharacters()` liefert die Vereinigungsmenge aus `allCharacters` + aktiven `participants` (wichtig für NPC/NSC-Tokens, die nicht in der Party-Liste sind)
 - `world.component.ts` synchronisiert den Engine-Zustand bei jedem `world$` Update via `battleEngine.syncFromWorldStore()` nach `loadPartyCharacters()`
+- `lobby.component.ts` synchronisiert nach Character-Refresh erneut via `battleEngine.syncFromWorldStore()`, damit Team-Gruppierungen/Turn-Tiles im Lobby-Tracker konsistent mit der Welt bleiben
 - Lobby Token-Kontextmenü unterstützt Team-Join direkt beim Kampfbeitritt (`Feind=red`, `Neutral=yellow`, `Verbündet=blue`)
+
+### Weltuhr (synchronisiert)
+- Persistentes Feld: `WorldData.worldClockMinutes` (Unix-Zeit in Minuten)
+- Migration in `world-store.service.ts`: fehlende Uhr wird beim Laden ergänzt und gespeichert
+- Lobby-Topbar zeigt Datum + Uhrzeit für alle; nur GM darf setzen (`datetime-local`) oder fortschreiten (`+10 Min`, `+1 Stunde`)
+- Änderungen laufen über `WorldStoreService.applyPatch('worldClockMinutes')` und sind dadurch in allen Views synchron
 
 ### Talent System (DnD-style Proficiencies)
 - **Model**: `CharacterSheet.talentRanks: { [talentId: string]: number }`, `talentRankBonus: number`
