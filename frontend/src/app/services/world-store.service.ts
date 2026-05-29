@@ -110,6 +110,26 @@ export class WorldStoreService {
         world.worldClockMinutes = Math.floor(Date.now() / 60000);
         needsSave = true;
       }
+      if (!world.worldClock) {
+        console.log('[WORLD STORE] Migrating: adding worldClock');
+        world.worldClock = {
+          year: 321,
+          day: 1,
+          hour: 8,
+          minute: 0,
+        };
+        needsSave = true;
+      }
+      if (!world.encounterTimer) {
+        console.log('[WORLD STORE] Migrating: adding encounterTimer');
+        const startHour = ((world.worldClock.year * 360 + (world.worldClock.day - 1)) * 24) + world.worldClock.hour;
+        world.encounterTimer = {
+          enabled: false,
+          intervalHours: 4,
+          nextTriggerAtHour: startHour + 4,
+        };
+        needsSave = true;
+      }
       if (!world.battleParticipants) {
         console.log('[WORLD STORE] Migrating: adding battleParticipants');
         world.battleParticipants = [];

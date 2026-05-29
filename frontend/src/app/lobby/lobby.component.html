@@ -1,24 +1,52 @@
 <div class="lobby-container">
   <div class="lobby-clock-strip">
-    <div class="clock-display">
-      <span class="clock-icon">🕰️</span>
-      <span class="clock-date">{{ worldClockDateLabel }}</span>
-      <span class="clock-sep">•</span>
-      <span class="clock-time">{{ worldClockTimeLabel }}</span>
+    <div class="clock-display" aria-live="polite">
+      <div class="clock-title">Weltuhr</div>
+      <div class="clock-main">{{ worldClockLabel }}</div>
     </div>
     @if (isGM()) {
       <div class="clock-controls">
-        <input
-          class="clock-input"
-          type="datetime-local"
-          [value]="worldClockDateTimeLocal"
-          (change)="setWorldClockFromInput($any($event.target).value)"
-        />
+        <label class="clock-field">
+          <span>Jahr</span>
+          <input class="clock-input" type="number" min="1" [ngModel]="clockYearInput()" (ngModelChange)="clockYearInput.set($event)" />
+        </label>
+        <label class="clock-field">
+          <span>Tag</span>
+          <input class="clock-input" type="number" min="1" max="360" [ngModel]="clockDayInput()" (ngModelChange)="clockDayInput.set($event)" />
+        </label>
+        <label class="clock-field">
+          <span>Std</span>
+          <input class="clock-input" type="number" min="0" max="23" [ngModel]="clockHourInput()" (ngModelChange)="clockHourInput.set($event)" />
+        </label>
+        <label class="clock-field">
+          <span>Min</span>
+          <input class="clock-input" type="number" min="0" max="59" [ngModel]="clockMinuteInput()" (ngModelChange)="clockMinuteInput.set($event)" />
+        </label>
+        <button class="clock-btn clock-btn--primary" (click)="applyFantasyClockFromInputs()">Übernehmen</button>
         <button class="clock-btn" (click)="shiftWorldClock(10)">+10 Min</button>
         <button class="clock-btn" (click)="shiftWorldClock(60)">+1 Stunde</button>
+
+        <div class="encounter-controls">
+          <label class="clock-field">
+            <span>Intervall (h)</span>
+            <input class="clock-input" type="number" min="1" [ngModel]="encounterIntervalInput()" (ngModelChange)="encounterIntervalInput.set($event)" />
+          </label>
+          <button class="clock-btn" (click)="applyEncounterInterval()">Intervall setzen</button>
+          @if (!encounterTimerSettings.enabled) {
+            <button class="clock-btn clock-btn--encounter-on" (click)="setEncounterTimerEnabled(true)">Begegnungstimer an</button>
+          } @else {
+            <button class="clock-btn clock-btn--encounter-off" (click)="setEncounterTimerEnabled(false)">Begegnungstimer aus</button>
+          }
+        </div>
       </div>
     }
   </div>
+  @if (isGM() && encounterReminder) {
+    <div class="encounter-reminder-banner">
+      <span>{{ encounterReminder }}</span>
+      <button class="clock-btn" (click)="acknowledgeEncounterReminder()">OK</button>
+    </div>
+  }
 
   <!-- Toolbar at the top -->
   <app-lobby-toolbar

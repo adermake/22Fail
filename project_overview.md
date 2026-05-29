@@ -141,7 +141,7 @@ app/
 ### Linked Tokens (Lobby)
 - `LinkedTokenType`: `free | keepOffset | keepDistance`
 - `LobbyStoreService.moveToken()` verarbeitet verlinkte Tokens rekursiv entlang der Parent-Child-Kette (nicht nur 1 Ebene)
-- `keepOffset`: behält festen axialen Offset zum Parent und rotiert bei Parent-Rotation in 60°-Schritten mit
+- `keepOffset`: behält festen axialen Offset zum Parent, rotiert bei Parent-Rotation in 60°-Schritten mit und aktualisiert den gespeicherten Offset auch bei direktem Drag des Child-Tokens
 - `keepDistance`: hält nur den gespeicherten Hex-Abstand, versucht Position zu behalten und bewegt nur bei Constraint-Verletzung auf den nächstliegenden gültigen Ring-Hex (Tie-Break Richtung alter Parent-Position für "Ketten-/Tail"-Verhalten)
 
 ### Battle Tracker Sync (World + Lobby)
@@ -151,10 +151,11 @@ app/
 - Lobby Token-Kontextmenü unterstützt Team-Join direkt beim Kampfbeitritt (`Feind=red`, `Neutral=yellow`, `Verbündet=blue`)
 
 ### Weltuhr (synchronisiert)
-- Persistentes Feld: `WorldData.worldClockMinutes` (Unix-Zeit in Minuten)
-- Migration in `world-store.service.ts`: fehlende Uhr wird beim Laden ergänzt und gespeichert
-- Lobby-Topbar zeigt Datum + Uhrzeit für alle; nur GM darf setzen (`datetime-local`) oder fortschreiten (`+10 Min`, `+1 Stunde`)
-- Änderungen laufen über `WorldStoreService.applyPatch('worldClockMinutes')` und sind dadurch in allen Views synchron
+- Persistente Felder: `WorldData.worldClock` (`year/day/hour/minute`) und `WorldData.encounterTimer` (`enabled/intervalHours/nextTriggerAtHour`)
+- Migration in `world-store.service.ts`: fehlende Clock-/Timer-Felder werden beim Laden ergänzt und gespeichert
+- Lobby-Topbar zeigt lesbare Fantasy-Zeit (`Jahr`, `Tag`, `Uhrzeit`) für alle; nur GM darf setzen und fortschreiten (`+10 Min`, `+1 Stunde`)
+- Encounter-Timer: GM stellt Intervall in Stunden ein und aktiviert/deaktiviert den Timer; bei clean hour Trigger erscheint Reminder für Begegnungswurf
+- Änderungen laufen über `WorldStoreService.applyPatch('worldClock')` und `WorldStoreService.applyPatch('encounterTimer')` und sind dadurch synchron
 
 ### Talent System (DnD-style Proficiencies)
 - **Model**: `CharacterSheet.talentRanks: { [talentId: string]: number }`, `talentRankBonus: number`

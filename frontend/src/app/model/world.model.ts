@@ -31,9 +31,24 @@ export interface TrashItem {
   deletedAt: number; // Timestamp
 }
 
+export interface FantasyClock {
+  year: number;
+  day: number; // 1..360
+  hour: number; // 0..23
+  minute: number; // 0..59
+}
+
+export interface EncounterTimerSettings {
+  enabled: boolean;
+  intervalHours: number;
+  nextTriggerAtHour: number;
+}
+
 export interface WorldData {
   name: string;
   worldClockMinutes?: number; // Unix timestamp in minutes for synced world clock
+  worldClock?: FantasyClock;
+  encounterTimer?: EncounterTimerSettings;
   characterIds: string[]; // All characters in this world
   partyIds: string[]; // Characters currently in the active party
   
@@ -108,9 +123,23 @@ export interface BattleParticipant {
 }
 
 export function createEmptyWorld(name: string): WorldData {
+  const defaultClock: FantasyClock = {
+    year: 321,
+    day: 1,
+    hour: 8,
+    minute: 0,
+  };
+  const defaultAbsoluteHour = ((defaultClock.year * 360 + (defaultClock.day - 1)) * 24) + defaultClock.hour;
+
   return {
     name,
     worldClockMinutes: Math.floor(Date.now() / 60000),
+    worldClock: defaultClock,
+    encounterTimer: {
+      enabled: false,
+      intervalHours: 4,
+      nextTriggerAtHour: defaultAbsoluteHour + 4,
+    },
     characterIds: [],
     partyIds: [],
     linkedLibraries: [],

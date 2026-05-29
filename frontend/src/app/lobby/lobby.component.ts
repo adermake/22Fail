@@ -210,8 +210,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.subscriptions.push(
       this.worldStore.world$.subscribe((world) => {
         if (world) {
+          this.syncClockInputsFromWorld();
+
           // Sync battle tracker when world changes (e.g., participants updated from other client)
           this.battleEngine.syncFromWorldStore();
+
+          // Evaluate encounter reminder when synced clock hits a clean interval hour.
+          this.maybeTriggerEncounterReminder(this.worldClock, false);
 
           // Update team assignments for token rendering
           const chars = this.battleEngine.getCharacters();
@@ -251,6 +256,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
         console.log('[Lobby] World loaded, characterIds:', this.worldStore.worldValue?.characterIds);
         await this.loadWorldCharacters();
         await this.loadNpcStatblocks();
+        this.syncClockInputsFromWorld();
         
         // Initial load of battle tracker
         this.battleEngine.loadFromWorldStore();
@@ -401,47 +407,151 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // World Clock + Battle Controls (Top Bar)
   // ============================================
 
-  get worldClockMinutes(): number {
-    return this.worldStore.worldValue?.worldClockMinutes ?? Math.floor(Date.now() / 60000);
+  private encounterReminderText = signal<string | null>(null);
+
+  clockYearInput = signal(321);
+  clockDayInput = signal(1);
+  clockHourInput = signal(8);
+  clockMinuteInput = signal(0);
+  encounterIntervalInput = signal(4);
+
+  get encounterReminder(): string | null {
+    return this.encounterReminderText();
   }
 
-  get worldClockDateTimeLocal(): string {
-    const d = new Date(this.worldClockMinutes * 60000);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hour = String(d.getHours()).padStart(2, '0');
-    const minute = String(d.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}T${hour}:${minute}`;
+  get worldClock() {
+    return this.worldStore.worldValue?.worldClock ?? { year: 321, day: 1, hour: 8, minute: 0 };
   }
 
-  get worldClockDateLabel(): string {
-    return new Date(this.worldClockMinutes * 60000).toLocaleDateString('de-DE', {
-      weekday: 'short',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+  get worldClockLabel(): string {
+    const clock = this.worldClock;
+    const day = String(clock.day).padStart(3, '0');
+    const hour = String(clock.hour).padStart(2, '0');
+    const minute = String(clock.minute).padStart(2, '0');
+    return `Jahr: ${clock.year}  |  Tag: ${day}  |  ${hour}:${minute} Uhr`;
   }
 
-  get worldClockTimeLabel(): string {
-    return new Date(this.worldClockMinutes * 60000).toLocaleTimeString('de-DE', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
+  get encounterTimerSettings() {
+    const clock = this.worldClock;
+    const fallbackHour = this.toAbsoluteHour(clock);
+    return this.worldStore.worldValue?.encounterTimer ?? {
+      enabled: false,
+      intervalHours: 4,
+      nextTriggerAtHour: fallbackHour + 4,
+    };
   }
 
-  setWorldClockFromInput(value: string): void {
-    if (!this.isGM() || !value) return;
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return;
-    this.worldStore.applyPatch({ path: 'worldClockMinutes', value: Math.floor(parsed.getTime() / 60000) });
+  syncClockInputsFromWorld(): void {
+    const clock = this.worldClock;
+    this.clockYearInput.set(clock.year);
+    this.clockDayInput.set(clock.day);
+    this.clockHourInput.set(clock.hour);
+    this.clockMinuteInput.set(clock.minute);
+    this.encounterIntervalInput.set(this.encounterTimerSettings.intervalHours);
   }
 
-  shiftWorldClock(minutes: number): void {
+  applyFantasyClockFromInputs(): void {
     if (!this.isGM()) return;
-    this.worldStore.applyPatch({ path: 'worldClockMinutes', value: this.worldClockMinutes + minutes });
+
+    const year = Math.max(1, Math.floor(this.clockYearInput()));
+    const day = Math.min(360, Math.max(1, Math.floor(this.clockDayInput())));
+    const hour = Math.min(23, Math.max(0, Math.floor(this.clockHourInput())));
+    const minute = Math.min(59, Math.max(0, Math.floor(this.clockMinuteInput())));
+
+    this.worldStore.applyPatch({ path: 'worldClock', value: { year, day, hour, minute } });
+    this.maybeTriggerEncounterReminder({ year, day, hour, minute }, true);
+  }
+
+  shiftWorldClock(minutesDelta: number): void {
+    if (!this.isGM()) return;
+    const next = this.shiftFantasyClock(this.worldClock, minutesDelta);
+    this.worldStore.applyPatch({ path: 'worldClock', value: next });
+    this.syncClockInputsFromWorld();
+    this.maybeTriggerEncounterReminder(next, true);
+  }
+
+  setEncounterTimerEnabled(enabled: boolean): void {
+    if (!this.isGM()) return;
+    const interval = Math.max(1, Math.floor(this.encounterIntervalInput()));
+    const absoluteHour = this.toAbsoluteHour(this.worldClock);
+    const timer = {
+      enabled,
+      intervalHours: interval,
+      nextTriggerAtHour: this.nextAlignedHour(absoluteHour, interval),
+    };
+    this.worldStore.applyPatch({ path: 'encounterTimer', value: timer });
+    this.encounterReminderText.set(null);
+  }
+
+  applyEncounterInterval(): void {
+    if (!this.isGM()) return;
+    const interval = Math.max(1, Math.floor(this.encounterIntervalInput()));
+    const timer = this.encounterTimerSettings;
+    const absoluteHour = this.toAbsoluteHour(this.worldClock);
+    this.worldStore.applyPatch({
+      path: 'encounterTimer',
+      value: {
+        ...timer,
+        intervalHours: interval,
+        nextTriggerAtHour: this.nextAlignedHour(absoluteHour, interval),
+      },
+    });
+    this.encounterReminderText.set(null);
+  }
+
+  acknowledgeEncounterReminder(): void {
+    this.encounterReminderText.set(null);
+  }
+
+  private shiftFantasyClock(clock: { year: number; day: number; hour: number; minute: number }, minutesDelta: number) {
+    const minutesPerDay = 24 * 60;
+    const minutesPerYear = 360 * minutesPerDay;
+    const base = ((clock.year - 1) * minutesPerYear) + ((clock.day - 1) * minutesPerDay) + (clock.hour * 60) + clock.minute;
+    const shifted = Math.max(0, base + minutesDelta);
+
+    const year = Math.floor(shifted / minutesPerYear) + 1;
+    const restYear = shifted % minutesPerYear;
+    const day = Math.floor(restYear / minutesPerDay) + 1;
+    const restDay = restYear % minutesPerDay;
+    const hour = Math.floor(restDay / 60);
+    const minute = restDay % 60;
+    return { year, day, hour, minute };
+  }
+
+  private toAbsoluteHour(clock: { year: number; day: number; hour: number; minute: number }): number {
+    return ((clock.year * 360 + (clock.day - 1)) * 24) + clock.hour;
+  }
+
+  private nextAlignedHour(currentHour: number, interval: number): number {
+    const safeInterval = Math.max(1, interval);
+    return (Math.floor(currentHour / safeInterval) + 1) * safeInterval;
+  }
+
+  private maybeTriggerEncounterReminder(clock: { year: number; day: number; hour: number; minute: number }, updateTimer: boolean): void {
+    const timer = this.encounterTimerSettings;
+    if (!timer.enabled) return;
+
+    const absoluteHour = this.toAbsoluteHour(clock);
+    if (clock.minute !== 0) return;
+    if (absoluteHour < timer.nextTriggerAtHour) return;
+
+    this.encounterReminderText.set('Begegnungswurf fällig: Bitte Begegnungstabelle würfeln.');
+
+    if (!updateTimer || !this.isGM()) return;
+
+    const interval = Math.max(1, timer.intervalHours);
+    let nextHour = timer.nextTriggerAtHour;
+    while (nextHour <= absoluteHour) {
+      nextHour += interval;
+    }
+
+    this.worldStore.applyPatch({
+      path: 'encounterTimer',
+      value: {
+        ...timer,
+        nextTriggerAtHour: nextHour,
+      },
+    });
   }
 
   onLobbyNextTurn(): void {
