@@ -384,6 +384,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
       portrait: c.sheet.portrait,
       speed: this.trueStats.calculateEffectiveSpeed(c.sheet) // Use effective speed including armor/encumbrance penalties
     })));
+
+    // Keep lobby tracker grouping/turns faithful to persisted world state after character refresh.
+    this.battleEngine.syncFromWorldStore();
     
     // Skip FLIP animations in battle tracker when loading characters
     this.cdr.detectChanges();
@@ -392,6 +395,58 @@ export class LobbyComponent implements OnInit, OnDestroy {
     setTimeout(() => {
       this.cdr.detectChanges();
     }, 0);
+  }
+
+  // ============================================
+  // World Clock + Battle Controls (Top Bar)
+  // ============================================
+
+  get worldClockMinutes(): number {
+    return this.worldStore.worldValue?.worldClockMinutes ?? Math.floor(Date.now() / 60000);
+  }
+
+  get worldClockDateTimeLocal(): string {
+    const d = new Date(this.worldClockMinutes * 60000);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hour = String(d.getHours()).padStart(2, '0');
+    const minute = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+  }
+
+  get worldClockDateLabel(): string {
+    return new Date(this.worldClockMinutes * 60000).toLocaleDateString('de-DE', {
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  }
+
+  get worldClockTimeLabel(): string {
+    return new Date(this.worldClockMinutes * 60000).toLocaleTimeString('de-DE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  }
+
+  setWorldClockFromInput(value: string): void {
+    if (!this.isGM() || !value) return;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return;
+    this.worldStore.applyPatch({ path: 'worldClockMinutes', value: Math.floor(parsed.getTime() / 60000) });
+  }
+
+  shiftWorldClock(minutes: number): void {
+    if (!this.isGM()) return;
+    this.worldStore.applyPatch({ path: 'worldClockMinutes', value: this.worldClockMinutes + minutes });
+  }
+
+  onLobbyNextTurn(): void {
+    if (!this.isGM()) return;
+    this.battleEngine.nextTurn();
   }
 
   private async loadNpcStatblocks(): Promise<void> {

@@ -33,6 +33,7 @@ export interface TrashItem {
 
 export interface WorldData {
   name: string;
+  worldClockMinutes?: number; // Unix timestamp in minutes for synced world clock
   characterIds: string[]; // All characters in this world
   partyIds: string[]; // Characters currently in the active party
   
@@ -109,6 +110,7 @@ export interface BattleParticipant {
 export function createEmptyWorld(name: string): WorldData {
   return {
     name,
+    worldClockMinutes: Math.floor(Date.now() / 60000),
     characterIds: [],
     partyIds: [],
     linkedLibraries: [],

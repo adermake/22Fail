@@ -105,6 +105,11 @@ export class WorldStoreService {
         world.name = name;
         needsSave = true;
       }
+      if (world.worldClockMinutes === undefined || world.worldClockMinutes === null) {
+        console.log('[WORLD STORE] Migrating: adding worldClockMinutes');
+        world.worldClockMinutes = Math.floor(Date.now() / 60000);
+        needsSave = true;
+      }
       if (!world.battleParticipants) {
         console.log('[WORLD STORE] Migrating: adding battleParticipants');
         world.battleParticipants = [];
