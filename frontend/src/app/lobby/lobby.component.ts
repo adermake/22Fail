@@ -250,6 +250,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
         // Load lobby
         await this.loadLobby(worldName);
 
+        // Connect character socket for status-effect & resource patches
+        this.characterSocket.connect();
+
         // Connect world socket for dice rolls and world events
         this.worldSocket.connect();
         await this.worldSocket.joinWorld(worldName);
@@ -355,6 +358,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
               } else {
                 return {
                   id: ae.statusEffectId + '_' + ae.appliedAt,
+                  name: ae.customName ?? ae.statusEffectId ?? 'Effekt',
                   statusEffectId: ae.statusEffectId,
                   stacks: ae.stacks ?? 1,
                   duration: ae.duration,

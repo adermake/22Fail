@@ -1888,13 +1888,14 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
     const activeEffects: ActiveStatusEffect[] = tokenEffects.map(fx => {
       if (fx.statusEffectId) {
-        // Library-backed effect
+        // Library-backed effect — preserve display name so lobby can recover it on round-trip
         return {
           statusEffectId: fx.statusEffectId,
           sourceLibraryId: '',
           appliedAt: Date.now(),
           duration: fx.duration,
           stacks: fx.stacks ?? 1,
+          customName: fx.name,
         } as ActiveStatusEffect;
       } else {
         // Custom / free-form effect - embed definition

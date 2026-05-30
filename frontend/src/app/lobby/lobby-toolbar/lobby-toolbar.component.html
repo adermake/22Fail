@@ -290,19 +290,22 @@
   <!-- Spacer to push layer toggles to the right -->
   <div class="spacer"></div>
 
-  <!-- World Clock (GM only, in toolbar) -->
-  @if (isGM) {
+  <!-- World Clock (visible to all; controls only for GM) -->
+  @if (worldClockLabel) {
     <div class="toolbar-divider"></div>
     <div class="clock-section">
       <button
         class="clock-label-btn"
-        (click)="openClockDialog.emit()"
-        [title]="'Weltuhr-Einstellungen öffnen'"
+        (click)="isGM && openClockDialog.emit()"
+        [class.gm-locked]="!isGM"
+        [title]="isGM ? 'Weltuhr-Einstellungen öffnen' : 'Aktuelle Weltzeit'"
       >
         🕐 {{ worldClockLabel }}
       </button>
-      <button class="tool-btn clock-shift-btn" (click)="shiftClockBy10.emit()" title="+10 Minuten">+10′</button>
-      <button class="tool-btn clock-shift-btn" (click)="shiftClockBy60.emit()" title="+1 Stunde">+1h</button>
+      @if (isGM) {
+        <button class="tool-btn clock-shift-btn" (click)="shiftClockBy10.emit()" title="+10 Minuten">+10′</button>
+        <button class="tool-btn clock-shift-btn" (click)="shiftClockBy60.emit()" title="+1 Stunde">+1h</button>
+      }
     </div>
   }
 
