@@ -221,6 +221,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private isErasingTexture = false; // For texture eraser
   private isWallDrawing = false;
   private isAdjustingTextureBrushSize = false; // Shift+drag for texture brush size
+  private isAdjustingFogBrushSize = false; // Shift+drag for fog brush size
   private wallPaintMode: 'add' | 'remove' = 'add';
   private pendingWallChanges: { hex: HexCoord; action: 'add' | 'remove' }[] = []; // Batch wall changes
   private currentStrokePoints: Point[] = [];
@@ -1449,49 +1450,64 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const canvas = this.fogCanvas.nativeElement;
     const ctx = this.fogCtx;
     const dpr = window.devicePixelRatio || 1;
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
 
-    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    ctx.clearRect(0, 0, w, h);
 
     const fogStrokes = this.store.fogStrokes;
     if ((fogStrokes.length === 0) && (!this.isDrawingFog || this.currentFogPoints.length < 2)) return;
 
-    ctx.save();
-    ctx.translate(this.panX, this.panY);
-    ctx.scale(this.scale, this.scale);
+    // Render fog into an offscreen canvas to avoid alpha accumulation when strokes overlap
+    const offscreen = document.createElement('canvas');
+    offscreen.width = canvas.width;
+    offscreen.height = canvas.height;
+    const off = offscreen.getContext('2d')!;
+    off.scale(dpr, dpr);
+
+    off.save();
+    off.translate(this.panX, this.panY);
+    off.scale(this.scale, this.scale);
 
     for (const stroke of fogStrokes) {
       if (stroke.points.length < 2) continue;
-
-      ctx.globalCompositeOperation = stroke.isEraser ? 'destination-out' : 'source-over';
-      ctx.beginPath();
-      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      off.globalCompositeOperation = stroke.isEraser ? 'destination-out' : 'source-over';
+      off.beginPath();
+      off.moveTo(stroke.points[0].x, stroke.points[0].y);
       for (let i = 1; i < stroke.points.length; i++) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        off.lineTo(stroke.points[i].x, stroke.points[i].y);
       }
-      ctx.strokeStyle = stroke.isEraser ? 'rgba(0,0,0,1)' : 'rgba(0, 0, 0, 0.85)';
-      ctx.lineWidth = stroke.lineWidth;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
+      off.strokeStyle = 'rgba(0,0,0,1)';
+      off.lineWidth = stroke.lineWidth;
+      off.lineCap = 'round';
+      off.lineJoin = 'round';
+      off.stroke();
     }
 
     // Live preview of current fog stroke
     if (this.isDrawingFog && this.currentFogPoints.length > 1) {
       const isEraser = this.isEraserMode;
-      ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
-      ctx.beginPath();
-      ctx.moveTo(this.currentFogPoints[0].x, this.currentFogPoints[0].y);
+      off.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
+      off.beginPath();
+      off.moveTo(this.currentFogPoints[0].x, this.currentFogPoints[0].y);
       for (let i = 1; i < this.currentFogPoints.length; i++) {
-        ctx.lineTo(this.currentFogPoints[i].x, this.currentFogPoints[i].y);
+        off.lineTo(this.currentFogPoints[i].x, this.currentFogPoints[i].y);
       }
-      ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : 'rgba(0, 0, 0, 0.85)';
-      ctx.lineWidth = this.fogBrushSize;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
+      off.strokeStyle = 'rgba(0,0,0,1)';
+      off.lineWidth = this.fogBrushSize;
+      off.lineCap = 'round';
+      off.lineJoin = 'round';
+      off.stroke();
     }
 
-    ctx.globalCompositeOperation = 'source-over';
+    off.restore();
+
+    // Composite offscreen onto main fog canvas:
+    // GMs see translucent gray so they can see through the fog
+    // Players see solid black
+    ctx.save();
+    ctx.globalAlpha = this.isGM ? 0.45 : 1.0;
+    ctx.drawImage(offscreen, 0, 0, w, h);
     ctx.restore();
   }
 
@@ -3567,7 +3583,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         this.handleTextureDown(event, world);
         break;
       case 'fog':
-        this.handleFogDown(world);
+        this.handleFogDown(event, world);
         break;
     }
   }
@@ -3643,7 +3659,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         this.handleTextureMove(event, world);
         break;
       case 'fog':
-        this.handleFogMove(world);
+        this.handleFogMove(event, world);
         break;
     }
   }
@@ -3943,12 +3959,31 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.scheduleRender();
   }
 
-  private handleFogDown(world: Point): void {
+  private handleFogDown(event: MouseEvent, world: Point): void {
+    if (event.button !== 0) return;
+
+    // Shift+drag = adjust fog brush size
+    if (event.shiftKey) {
+      this.isAdjustingFogBrushSize = true;
+      this.brushSizeAdjustStart = { x: event.clientX, y: event.clientY, initialSize: this.fogBrushSize };
+      return;
+    }
+
     this.isDrawingFog = true;
     this.currentFogPoints = [world];
   }
 
-  private handleFogMove(world: Point): void {
+  private handleFogMove(event: MouseEvent, world: Point): void {
+    // Shift+drag = adjust fog brush size
+    if (this.isAdjustingFogBrushSize && this.brushSizeAdjustStart) {
+      const dx = event.clientX - this.brushSizeAdjustStart.x;
+      const newSize = Math.max(5, Math.min(600, this.brushSizeAdjustStart.initialSize + dx * 0.5));
+      this.fogBrushSize = Math.round(newSize);
+      this.brushSizeCircle.set({ pos: world, size: Math.round(newSize) });
+      this.scheduleRender();
+      return;
+    }
+
     if (!this.isDrawingFog) return;
     this.currentFogPoints.push(world);
     const now = performance.now();
@@ -3959,6 +3994,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private handleFogUp(): void {
+    // End fog brush size adjustment
+    if (this.isAdjustingFogBrushSize) {
+      this.isAdjustingFogBrushSize = false;
+      this.brushSizeAdjustStart = null;
+      this.brushSizeCircle.set(null);
+      this.scheduleRender();
+      return;
+    }
+
     if (!this.isDrawingFog) return;
     this.isDrawingFog = false;
 

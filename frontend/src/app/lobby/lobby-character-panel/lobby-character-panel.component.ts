@@ -1883,7 +1883,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
    * Called whenever lobby token status effects change.
    */
   private syncStatusEffectsToSheet(tokenEffects: TokenStatusEffect[]): void {
-    const charId = this.character?.id;
+    const charId = this._charId;
     if (!charId) return;
 
     const activeEffects: ActiveStatusEffect[] = tokenEffects.map(fx => {

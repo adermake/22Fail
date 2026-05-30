@@ -565,7 +565,6 @@ export class LobbyComponent implements OnInit, OnDestroy {
     if (!timer.enabled) return;
 
     const absoluteHour = this.toAbsoluteHour(clock);
-    if (clock.minute !== 0) return;
     if (absoluteHour < timer.nextTriggerAtHour) return;
 
     this.encounterReminderText.set('Begegnungswurf fällig: Bitte Begegnungstabelle würfeln.');
