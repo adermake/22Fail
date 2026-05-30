@@ -216,6 +216,7 @@ export interface LobbyMap {
   name: string;
   tokens: Token[];
   strokes: Stroke[];
+  fogStrokes?: Stroke[]; // Fog of war strokes
   textureStrokes: TextureStroke[]; // Legacy - for backward compatibility
   textureTiles?: TextureTile[]; // New tile-based texture storage
   walls: WallHex[];

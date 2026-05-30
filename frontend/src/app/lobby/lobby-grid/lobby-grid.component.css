@@ -42,6 +42,12 @@
   z-index: 6;
 }
 
+/* Fog of war layer - above everything including tokens */
+.fog-layer {
+  z-index: 20;
+  pointer-events: none;
+}
+
 /* Token layer */
 .token-layer {
   position: absolute;

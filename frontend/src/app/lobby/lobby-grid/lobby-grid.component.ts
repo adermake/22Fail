@@ -77,6 +77,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild('foregroundCanvas') foregroundCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('drawCanvas') drawCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('overlayCanvas') overlayCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('fogCanvas') fogCanvas!: ElementRef<HTMLCanvasElement>; // Fog of war canvas (on top of everything)
   @ViewChild('container') container!: ElementRef<HTMLDivElement>;
 
   // Inputs
@@ -104,6 +105,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() isEraserMode = false; // E key toggles this
   @Input() textureLayer: 'background' | 'foreground' = 'background';
   @Input() selectedTokenId: string | null = null;
+  @Input() fogBrushSize = 30; // Fog of war brush size
 
   // Outputs
   @Output() tokenDrop = new EventEmitter<{ characterId: string; position: HexCoord }>();
@@ -194,6 +196,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private textureCtx: CanvasRenderingContext2D | null = null;
   private drawCtx: CanvasRenderingContext2D | null = null;
   private overlayCtx: CanvasRenderingContext2D | null = null;
+  private fogCtx: CanvasRenderingContext2D | null = null; // Fog of war canvas
 
   // Image cache
   private imageCache = new Map<string, HTMLImageElement>();
@@ -213,6 +216,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private isPanning = false;
   private isZooming = false; // CTRL+middle-mouse zoom
   private isDrawing = false;
+  private isDrawingFog = false; // Fog of war drawing
   private isDrawingTexture = false; // For texture brush
   private isErasingTexture = false; // For texture eraser
   private isWallDrawing = false;
@@ -497,6 +501,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       { el: this.textureCanvas?.nativeElement, name: 'texture' },
       { el: this.drawCanvas?.nativeElement, name: 'draw' },
       { el: this.overlayCanvas?.nativeElement, name: 'overlay' },
+      { el: this.fogCanvas?.nativeElement, name: 'fog' },
     ];
 
     for (const { el, name } of canvases) {
@@ -508,6 +513,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         if (name === 'texture') this.textureCtx = ctx;
         if (name === 'draw') this.drawCtx = ctx;
         if (name === 'overlay') this.overlayCtx = ctx;
+        if (name === 'fog') this.fogCtx = ctx;
         this.resizeCanvas(el);
       }
     }
@@ -536,7 +542,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!container) return;
 
     this.resizeObserver = new ResizeObserver(() => {
-      [this.gridCanvas, this.imageCanvas, this.textureCanvas, this.drawCanvas, this.overlayCanvas].forEach(ref => {
+      [this.gridCanvas, this.imageCanvas, this.textureCanvas, this.drawCanvas, this.overlayCanvas, this.fogCanvas].forEach(ref => {
         if (ref?.nativeElement) {
           this.resizeCanvas(ref.nativeElement);
         }
@@ -647,6 +653,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.renderGrid();          // Grid above all layers
     this.renderOverlay();       // Tokens + overlays above grid
     this.renderStrokes();       // Drawing strokes always on top
+    this.renderFog();           // Fog of war on top of everything
   }
 
   private clearAllCanvases(): void {
@@ -686,6 +693,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (this.drawCtx && this.drawCanvas) {
       const canvas = this.drawCanvas.nativeElement;
       this.drawCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    }
+
+    // Clear fog canvas
+    if (this.fogCtx && this.fogCanvas) {
+      const canvas = this.fogCanvas.nativeElement;
+      this.fogCtx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
     }
   }
 
@@ -1418,6 +1431,61 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
       ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : this.brushColor;
       ctx.lineWidth = isEraser ? this.eraserBrushSize : this.penBrushSize;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+  }
+
+  // Current in-progress fog stroke points
+  private currentFogPoints: Point[] = [];
+
+  private renderFog(): void {
+    if (!this.fogCtx || !this.fogCanvas) return;
+
+    const canvas = this.fogCanvas.nativeElement;
+    const ctx = this.fogCtx;
+    const dpr = window.devicePixelRatio || 1;
+
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
+    const fogStrokes = this.store.fogStrokes;
+    if ((fogStrokes.length === 0) && (!this.isDrawingFog || this.currentFogPoints.length < 2)) return;
+
+    ctx.save();
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.scale, this.scale);
+
+    for (const stroke of fogStrokes) {
+      if (stroke.points.length < 2) continue;
+
+      ctx.globalCompositeOperation = stroke.isEraser ? 'destination-out' : 'source-over';
+      ctx.beginPath();
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      ctx.strokeStyle = stroke.isEraser ? 'rgba(0,0,0,1)' : 'rgba(0, 0, 0, 0.85)';
+      ctx.lineWidth = stroke.lineWidth;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+
+    // Live preview of current fog stroke
+    if (this.isDrawingFog && this.currentFogPoints.length > 1) {
+      const isEraser = this.isEraserMode;
+      ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
+      ctx.beginPath();
+      ctx.moveTo(this.currentFogPoints[0].x, this.currentFogPoints[0].y);
+      for (let i = 1; i < this.currentFogPoints.length; i++) {
+        ctx.lineTo(this.currentFogPoints[i].x, this.currentFogPoints[i].y);
+      }
+      ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : 'rgba(0, 0, 0, 0.85)';
+      ctx.lineWidth = this.fogBrushSize;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.stroke();
@@ -3498,6 +3566,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       case 'texture':
         this.handleTextureDown(event, world);
         break;
+      case 'fog':
+        this.handleFogDown(world);
+        break;
     }
   }
 
@@ -3571,6 +3642,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       case 'texture':
         this.handleTextureMove(event, world);
         break;
+      case 'fog':
+        this.handleFogMove(world);
+        break;
     }
   }
 
@@ -3616,6 +3690,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         break;
       case 'texture':
         this.handleTextureUp(event, world);
+        break;
+      case 'fog':
+        this.handleFogUp();
         break;
     }
   }
@@ -3863,6 +3940,41 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.currentStrokePoints = [];
     this.erasedStrokeIds.clear();
     this.lastRenderTime = 0; // Reset throttle
+    this.scheduleRender();
+  }
+
+  private handleFogDown(world: Point): void {
+    this.isDrawingFog = true;
+    this.currentFogPoints = [world];
+  }
+
+  private handleFogMove(world: Point): void {
+    if (!this.isDrawingFog) return;
+    this.currentFogPoints.push(world);
+    const now = performance.now();
+    if (now - this.lastRenderTime >= this.renderThrottleMs) {
+      this.lastRenderTime = now;
+      this.scheduleRender();
+    }
+  }
+
+  private handleFogUp(): void {
+    if (!this.isDrawingFog) return;
+    this.isDrawingFog = false;
+
+    if (this.currentFogPoints.length > 1) {
+      const stroke: Stroke = {
+        id: generateId(),
+        points: [...this.currentFogPoints],
+        color: 'rgba(0,0,0,0.85)',
+        lineWidth: this.fogBrushSize,
+        isEraser: this.isEraserMode,
+      };
+      this.store.addFogStroke(stroke);
+    }
+
+    this.currentFogPoints = [];
+    this.lastRenderTime = 0;
     this.scheduleRender();
   }
 

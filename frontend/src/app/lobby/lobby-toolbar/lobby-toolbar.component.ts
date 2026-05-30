@@ -36,6 +36,9 @@ export class LobbyToolbarComponent {
   @Input() drawLayerVisible = true;
   @Input() isGM = false;
   @Input() kampfrundeMode = false;
+  @Input() worldClockLabel = '';
+  @Input() showClockDialog = false;
+  @Input() fogBrushSize = 30;
 
   // Outputs
   @Output() toolChange = new EventEmitter<ToolType>();
@@ -58,20 +61,27 @@ export class LobbyToolbarComponent {
   @Output() toggleSidebar = new EventEmitter<void>();
   @Output() mapSettingsClicked = new EventEmitter<void>();
   @Output() kampfrundeToggle = new EventEmitter<void>();
+  @Output() shiftClockBy10 = new EventEmitter<void>();
+  @Output() shiftClockBy60 = new EventEmitter<void>();
+  @Output() openClockDialog = new EventEmitter<void>();
+  @Output() fogBrushSizeChange = new EventEmitter<number>();
+  @Output() clearFog = new EventEmitter<void>();
 
   // Tool definitions
   tools: { id: ToolType; icon: string; label: string; shortcut: string }[] = [
     { id: 'cursor', icon: '↖️', label: 'Select/Move', shortcut: 'F' },
-    { id: 'draw', icon: '✏️', label: 'Draw', shortcut: 'B' },
-    { id: 'walls', icon: '🧱', label: 'Walls', shortcut: 'W' },
-    { id: 'measure', icon: '📏', label: 'Measure', shortcut: 'R' },
-    { id: 'image', icon: '🖼️', label: 'Images', shortcut: 'I' },
-    { id: 'texture', icon: '🎨', label: 'Texture Brush', shortcut: 'T' },
+    { id: 'draw', icon: '✏️', label: 'Zeichnen', shortcut: 'B' },
+    { id: 'walls', icon: '🧱', label: 'Wände', shortcut: 'W' },
+    { id: 'measure', icon: '📏', label: 'Messen', shortcut: 'R' },
+    { id: 'image', icon: '🖼️', label: 'Bilder', shortcut: 'I' },
+    { id: 'texture', icon: '🎨', label: 'Textur Pinsel', shortcut: 'T' },
+    { id: 'fog', icon: '🌫️', label: 'Kriegsnebel', shortcut: 'G' },
   ];
 
   // Brush sizes
   penBrushSizes = [2, 4, 8, 12, 20];
   eraserBrushSizes = [8, 12, 20, 32, 48];
+  fogBrushSizes = [20, 40, 60, 80, 120, 200];
   textureBrushSizes = [10, 20, 30, 50, 80, 120];
   textureScales = [0.05, 0.1, 0.2, 0.5, 1.0];
 

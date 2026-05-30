@@ -24,7 +24,8 @@ import { TrueStatsService } from '../services/true-stats.service';
 import { AssetBrowserApiService } from '../services/asset-browser-api.service';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { NpcStatblock } from '../model/npc-statblock.model';
-import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType } from '../model/lobby.model';
+import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType, TokenStatusEffect } from '../model/lobby.model';
+import { ActiveStatusEffect } from '../model/status-effect.model';
 
 import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
 import { LobbyToolbarComponent } from './lobby-toolbar/lobby-toolbar.component';
@@ -35,7 +36,7 @@ import { BattleTracker } from '../world/battle-tracker/battle-tracker.component'
 import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engine';
 
 // Tool types
-export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image' | 'texture';
+export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image' | 'texture' | 'fog';
 export type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -92,6 +93,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   brushColor = signal('#000000');
   penBrushSize = signal(4);
   eraserBrushSize = signal(12);
+  fogBrushSize = signal(30); // Fog of war brush size
   textureBrushSize = signal(30);
   textureBrushStrength = signal(1.0); // 0-1
   textureScale = signal(0.1); // Default 10x smaller tiles
@@ -174,6 +176,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   // Battle tracker visibility
   showBattleTracker = signal(true);
+  showClockDialog = signal(false);
   // Kampfrunde mode - GM activates to show compact top-bar battle tracker
   kampfrundeMode = signal(false);
 
@@ -330,6 +333,36 @@ export class LobbyComponent implements OnInit, OnDestroy {
           characters[characterIndex] = { ...characters[characterIndex], sheet };
           this.worldCharacters.set(characters);
           this.cdr.markForCheck();
+        }
+
+        // Sync status effects from character sheet → lobby token
+        const patchPath = data.patch.path.replace(/^\//, '');
+        if (patchPath === 'activeStatusEffects' && Array.isArray(data.patch.value)) {
+          const token = this.enrichedTokens().find(t => t.characterId === data.characterId);
+          if (token) {
+            const activeEffects = data.patch.value as ActiveStatusEffect[];
+            const tokenEffects: TokenStatusEffect[] = activeEffects.map(ae => {
+              if (ae.customEffect) {
+                return {
+                  id: ae.statusEffectId,
+                  name: ae.customEffect.name,
+                  icon: ae.customEffect.icon,
+                  color: ae.customEffect.color,
+                  stacks: ae.stacks ?? 1,
+                  duration: ae.duration,
+                  isDebuff: ae.customEffect.isDebuff ?? false,
+                } as TokenStatusEffect;
+              } else {
+                return {
+                  id: ae.statusEffectId + '_' + ae.appliedAt,
+                  statusEffectId: ae.statusEffectId,
+                  stacks: ae.stacks ?? 1,
+                  duration: ae.duration,
+                } as TokenStatusEffect;
+              }
+            });
+            this.store.updateToken(token.id, { activeStatusEffects: tokenEffects });
+          }
         }
       })
     );
@@ -613,6 +646,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
         this.sidebarTab.set('textures' as any);
         event.preventDefault();
         break;
+      case 'g':
+        this.currentTool.set('fog');
+        this.isEraserMode.set(false);
+        event.preventDefault();
+        break;
       case 's':
         this.currentTool.set('cursor');
         this.isEraserMode.set(false);
@@ -681,6 +719,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   onEraserBrushSizeChange(size: number): void {
     this.eraserBrushSize.set(size);
+  }
+
+  onFogBrushSizeChange(size: number): void {
+    this.fogBrushSize.set(size);
+  }
+
+  onClearFog(): void {
+    this.store.clearFog();
   }
 
   onTextureBrushSizeChange(size: number): void {

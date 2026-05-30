@@ -1,50 +1,60 @@
 <div class="lobby-container">
-  <div class="lobby-clock-strip">
-    <div class="clock-display" aria-live="polite">
-      <div class="clock-title">Weltuhr</div>
-      <div class="clock-main">{{ worldClockLabel }}</div>
-    </div>
-    @if (isGM()) {
-      <div class="clock-controls">
-        <label class="clock-field">
-          <span>Jahr</span>
-          <input class="clock-input" type="number" min="1" [ngModel]="clockYearInput()" (ngModelChange)="clockYearInput.set($event)" />
-        </label>
-        <label class="clock-field">
-          <span>Tag</span>
-          <input class="clock-input" type="number" min="1" max="360" [ngModel]="clockDayInput()" (ngModelChange)="clockDayInput.set($event)" />
-        </label>
-        <label class="clock-field">
-          <span>Std</span>
-          <input class="clock-input" type="number" min="0" max="23" [ngModel]="clockHourInput()" (ngModelChange)="clockHourInput.set($event)" />
-        </label>
-        <label class="clock-field">
-          <span>Min</span>
-          <input class="clock-input" type="number" min="0" max="59" [ngModel]="clockMinuteInput()" (ngModelChange)="clockMinuteInput.set($event)" />
-        </label>
-        <button class="clock-btn clock-btn--primary" (click)="applyFantasyClockFromInputs()">Übernehmen</button>
-        <button class="clock-btn" (click)="shiftWorldClock(10)">+10 Min</button>
-        <button class="clock-btn" (click)="shiftWorldClock(60)">+1 Stunde</button>
-
-        <div class="encounter-controls">
-          <label class="clock-field">
-            <span>Intervall (h)</span>
-            <input class="clock-input" type="number" min="1" [ngModel]="encounterIntervalInput()" (ngModelChange)="encounterIntervalInput.set($event)" />
-          </label>
-          <button class="clock-btn" (click)="applyEncounterInterval()">Intervall setzen</button>
-          @if (!encounterTimerSettings.enabled) {
-            <button class="clock-btn clock-btn--encounter-on" (click)="setEncounterTimerEnabled(true)">Begegnungstimer an</button>
-          } @else {
-            <button class="clock-btn clock-btn--encounter-off" (click)="setEncounterTimerEnabled(false)">Begegnungstimer aus</button>
-          }
-        </div>
-      </div>
-    }
-  </div>
   @if (isGM() && encounterReminder) {
     <div class="encounter-reminder-banner">
       <span>{{ encounterReminder }}</span>
       <button class="clock-btn" (click)="acknowledgeEncounterReminder()">OK</button>
+    </div>
+  }
+
+  <!-- Clock Settings Dialog (opens when clock is clicked) -->
+  @if (showClockDialog()) {
+    <div class="clock-dialog-backdrop" (click)="showClockDialog.set(false)">
+      <div class="clock-dialog" (click)="$event.stopPropagation()">
+        <div class="clock-dialog-header">
+          <span>🕐 Weltuhr-Einstellungen</span>
+          <button class="clock-dialog-close" (click)="showClockDialog.set(false)">✕</button>
+        </div>
+        <div class="clock-dialog-body">
+          <div class="clock-fields-row">
+            <label class="clock-field">
+              <span>Jahr</span>
+              <input class="clock-input" type="number" min="1" [ngModel]="clockYearInput()" (ngModelChange)="clockYearInput.set($event)" />
+            </label>
+            <label class="clock-field">
+              <span>Tag</span>
+              <input class="clock-input" type="number" min="1" max="360" [ngModel]="clockDayInput()" (ngModelChange)="clockDayInput.set($event)" />
+            </label>
+            <label class="clock-field">
+              <span>Stunde</span>
+              <input class="clock-input" type="number" min="0" max="23" [ngModel]="clockHourInput()" (ngModelChange)="clockHourInput.set($event)" />
+            </label>
+            <label class="clock-field">
+              <span>Minute</span>
+              <input class="clock-input" type="number" min="0" max="59" [ngModel]="clockMinuteInput()" (ngModelChange)="clockMinuteInput.set($event)" />
+            </label>
+          </div>
+          <div class="clock-apply-row">
+            <button class="clock-btn clock-btn--primary" (click)="applyFantasyClockFromInputs()">Zeit übernehmen</button>
+          </div>
+          <div class="clock-divider"></div>
+          <div class="encounter-section">
+            <div class="encounter-row">
+              <label class="clock-field">
+                <span>Begegnungsintervall (h)</span>
+                <input class="clock-input" type="number" min="1" [ngModel]="encounterIntervalInput()" (ngModelChange)="encounterIntervalInput.set($event)" />
+              </label>
+              <button class="clock-btn" (click)="applyEncounterInterval()">Intervall setzen</button>
+            </div>
+            <div class="encounter-row">
+              @if (!encounterTimerSettings.enabled) {
+                <button class="clock-btn clock-btn--encounter-on" (click)="setEncounterTimerEnabled(true)">Begegnungstimer aktivieren</button>
+              } @else {
+                <button class="clock-btn clock-btn--encounter-off" (click)="setEncounterTimerEnabled(false)">Begegnungstimer deaktivieren</button>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   }
 
@@ -66,6 +76,9 @@
     [dragMode]="dragMode()"
     [drawLayerVisible]="drawLayerVisible()"
     [isGM]="isGM()"
+    [worldClockLabel]="worldClockLabel"
+    [showClockDialog]="showClockDialog()"
+    [fogBrushSize]="fogBrushSize()"
     (toolChange)="onToolChange($event)"
     (brushColorChange)="onBrushColorChange($event)"
     (penBrushSizeChange)="onPenBrushSizeChange($event)"
@@ -87,6 +100,11 @@
     (mapSettingsClicked)="showMapSettings()"
     [kampfrundeMode]="kampfrundeMode()"
     (kampfrundeToggle)="kampfrundeMode.set(!kampfrundeMode())"
+    (shiftClockBy10)="shiftWorldClock(10)"
+    (shiftClockBy60)="shiftWorldClock(60)"
+    (openClockDialog)="showClockDialog.set(true)"
+    (fogBrushSizeChange)="onFogBrushSizeChange($event)"
+    (clearFog)="onClearFog()"
   />
 
   <!-- Kampfrunde top bar (compact, shown when GM enables Kampfrunde mode) -->
@@ -165,6 +183,7 @@
         [imageLayerVisible]="imageLayerVisible()"
         [selectedImageId]="selectedImageId()"
         [isGM]="isGM()"
+        [fogBrushSize]="fogBrushSize()"
         (tokenDrop)="onTokenDrop($event)"
         (tokenMove)="onTokenMove($event)"
         (tokenRemove)="onTokenRemove($event)"

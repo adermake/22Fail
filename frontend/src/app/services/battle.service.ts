@@ -48,7 +48,7 @@ export class BattleService {
     if (lifeStatus) {
       return {
         current: lifeStatus.statusCurrent || 0,
-        max: (lifeStatus.statusBase || 0) + (lifeStatus.statusBonus || 0)
+        max: this.trueStats.calculateResourceMax(character, lifeStatus.formulaType)
       };
     }
     return { current: 0, max: 0 };

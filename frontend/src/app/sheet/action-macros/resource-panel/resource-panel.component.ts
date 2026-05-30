@@ -1,7 +1,8 @@
-import { Component, Input } from '@angular/core';
+import { Component, inject, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../../model/character-sheet-model';
 import { StatusBlock } from '../../../model/status-block.model';
+import { TrueStatsService } from '../../../services/true-stats.service';
 import { ActionExecution } from '../action-macros.component';
 
 @Component({
@@ -14,6 +15,8 @@ import { ActionExecution } from '../action-macros.component';
 export class ResourcePanelComponent {
   @Input() sheet!: CharacterSheet;
   @Input() actionHistory: ActionExecution[] = [];
+
+  private trueStats = inject(TrueStatsService);
 
   getResourceIcon(formulaType: string): string {
     switch (formulaType) {
@@ -30,6 +33,6 @@ export class ResourcePanelComponent {
   }
 
   getStatusMax(status: StatusBlock): number {
-    return status.statusBase + status.statusBonus;
+    return this.trueStats.calculateResourceMax(this.sheet, status.formulaType);
   }
 }

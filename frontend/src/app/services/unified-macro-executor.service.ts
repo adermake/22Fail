@@ -3,6 +3,7 @@ import { CharacterSheet } from '../model/character-sheet-model';
 import { ActionMacro, ActionCondition, ActionConsequence } from '../model/action-macro.model';
 import { MacroAction } from '../model/macro-action.model';
 import { FormulaType } from '../model/formula-type.enum';
+import { TrueStatsService } from './true-stats.service';
 import { WorldSocketService } from './world-socket.service';
 
 /**
@@ -45,6 +46,7 @@ export interface MacroResourceChange {
 })
 export class UnifiedMacroExecutorService {
   private worldSocket = inject(WorldSocketService);
+  private trueStats = inject(TrueStatsService);
 
   /**
    * Execute an ActionMacro with full condition checking
@@ -408,7 +410,7 @@ export class UnifiedMacroExecutorService {
     if (formulaType !== undefined) {
       const status = sheet.statuses?.find(s => s.formulaType === formulaType);
       if (status) {
-        return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
+        return this.trueStats.calculateResourceMax(sheet, formulaType);
       }
     }
     

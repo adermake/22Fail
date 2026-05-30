@@ -239,15 +239,72 @@
         class="tool-btn danger" 
         [class.gm-locked]="!isGM"
         (click)="clearWalls.emit()"
-        title="Clear All Walls"
+        title="Alle Wände entfernen"
       >
-        🗑️ Walls
+        🗑️ Wände
+      </button>
+    </div>
+  }
+
+  <!-- Fog of War tool options -->
+  @if (currentTool === 'fog') {
+    <div class="tool-group fog-options">
+      <!-- Eraser indicator -->
+      @if (isEraserMode) {
+        <span class="eraser-badge" title="Löscht Kriegsnebel (E drücken zum wechseln)">
+          🧹 RADIEREN
+        </span>
+        <div class="toolbar-divider" style="margin: 0 4px;"></div>
+      }
+      <!-- Fog brush sizes -->
+      <span class="option-label">Größe:</span>
+      <div class="brush-sizes">
+        @for (size of fogBrushSizes; track size) {
+          <button
+            class="size-btn"
+            [class.active]="fogBrushSize === size"
+            (click)="fogBrushSizeChange.emit(size)"
+            [title]="size + 'px'"
+          >
+            <span
+              class="size-dot"
+              [style.width.px]="clampSize(size)"
+              [style.height.px]="clampSize(size)"
+              [style.background]="isEraserMode ? '#94a3b8' : 'rgba(0,0,0,0.7)'"
+            ></span>
+          </button>
+        }
+      </div>
+      <div class="toolbar-divider" style="margin: 0 4px;"></div>
+      <button
+        class="tool-btn danger"
+        [class.gm-locked]="!isGM"
+        (click)="clearFog.emit()"
+        title="Gesamten Kriegsnebel entfernen"
+      >
+        🗑️ Nebel
       </button>
     </div>
   }
 
   <!-- Spacer to push layer toggles to the right -->
   <div class="spacer"></div>
+
+  <!-- World Clock (GM only, in toolbar) -->
+  @if (isGM) {
+    <div class="toolbar-divider"></div>
+    <div class="clock-section">
+      <button
+        class="clock-label-btn"
+        (click)="openClockDialog.emit()"
+        [title]="'Weltuhr-Einstellungen öffnen'"
+      >
+        🕐 {{ worldClockLabel }}
+      </button>
+      <button class="tool-btn clock-shift-btn" (click)="shiftClockBy10.emit()" title="+10 Minuten">+10′</button>
+      <button class="tool-btn clock-shift-btn" (click)="shiftClockBy60.emit()" title="+1 Stunde">+1h</button>
+    </div>
+  }
 
   <!-- Layer visibility toggles -->
   <div class="tool-group layer-toggles">

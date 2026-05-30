@@ -95,6 +95,10 @@ export class LobbyStoreService {
     return this.currentMap?.strokes || [];
   }
 
+  get fogStrokes(): Stroke[] {
+    return this.currentMap?.fogStrokes || [];
+  }
+
   get textureStrokes(): TextureStroke[] {
     return this.currentMap?.textureStrokes || [];
   }
@@ -826,6 +830,23 @@ export class LobbyStoreService {
     }
 
     this.applyPatch({ path: 'strokes', value: [] });
+  }
+
+  /**
+   * Add a fog of war stroke.
+   */
+  addFogStroke(stroke: Omit<Stroke, 'id'>): void {
+    const newStroke: Stroke = { ...stroke, id: generateId() };
+    const fogStrokes = [...this.fogStrokes, newStroke];
+    this.applyPatch({ path: 'fogStrokes', value: fogStrokes });
+  }
+
+  /**
+   * Clear all fog of war strokes.
+   */
+  clearFog(): void {
+    if (this.fogStrokes.length === 0) return;
+    this.applyPatch({ path: 'fogStrokes', value: [] });
   }
 
   // ============================================

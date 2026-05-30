@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, signal, computed, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, computed, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -14,6 +14,7 @@ import {
 } from '../../model/action-macro.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { StatusBlock } from '../../model/status-block.model';
+import { TrueStatsService } from '../../services/true-stats.service';
 import { ResourcePanelComponent } from './resource-panel/resource-panel.component';
 import { MacroGridComponent } from './macro-grid/macro-grid.component';
 
@@ -232,6 +233,8 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
   @Output() resourceChanged = new EventEmitter<{resource: string, amount: number}>(); // For applying changes
   @Output() actionExecuted = new EventEmitter<ActionExecution>(); // Full action execution with resource changes
 
+  private trueStats = inject(TrueStatsService);
+
   // State
   macros = signal<ActionMacro[]>([]);
   showEditor = signal<boolean>(false);
@@ -397,7 +400,7 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
     if (formulaType !== undefined) {
       const status = this.sheet.statuses.find(s => s.formulaType === formulaType);
       if (status) {
-        return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
+        return this.trueStats.calculateResourceMax(this.sheet, formulaType);
       }
     }
     
@@ -590,7 +593,7 @@ export class ActionMacrosComponent implements OnInit, OnDestroy {
   }
 
   getStatusMax(status: StatusBlock): number {
-    return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
+    return this.trueStats.calculateResourceMax(this.sheet, status.formulaType);
   }
 
   getResourceName(status: StatusBlock): string {

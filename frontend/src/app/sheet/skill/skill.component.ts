@@ -12,6 +12,7 @@ import { SKILL_DEFINITIONS, CLASS_DEFINITIONS } from '../../data/skill-definitio
 import { SkillDefinition } from '../../model/skill-definition.model';
 import { ActionMacro } from '../../model/action-macro.model';
 import { MacroExecutorService } from '../../services/macro-executor.service';
+import { TrueStatsService } from '../../services/true-stats.service';
 
 @Component({
   selector: 'app-skill',
@@ -44,6 +45,7 @@ export class SkillComponent {
   macroResult: string | null = null;
 
   private macroExecutor = inject(MacroExecutorService);
+  private trueStats = inject(TrueStatsService);
 
   constructor(private sanitizer: DomSanitizer, private cdr: ChangeDetectorRef) {}
 
@@ -133,6 +135,12 @@ export class SkillComponent {
   get resourceStatus(): StatusBlock | undefined {
     if (!this.cost) return undefined;
     return this.getStatusForCostType(this.cost.type);
+  }
+
+  get resourceMax(): number {
+    const status = this.resourceStatus;
+    if (!status) return 1;
+    return this.trueStats.calculateResourceMax(this.sheet, status.formulaType);
   }
 
   get resourceLabel(): string {

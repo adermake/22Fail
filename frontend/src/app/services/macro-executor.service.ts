@@ -1,6 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { MacroAction, MacroActionType } from '../model/macro-action.model';
 import { CharacterSheet } from '../model/character-sheet-model';
+import { FormulaType } from '../model/formula-type.enum';
+import { TrueStatsService } from './true-stats.service';
 import { WorldSocketService } from './world-socket.service';
 
 export interface MacroExecutionResult {
@@ -20,6 +22,7 @@ export interface MacroExecutionResult {
 })
 export class MacroExecutorService {
   private worldSocket = inject(WorldSocketService);
+  private trueStats = inject(TrueStatsService);
 
   /**
    * Execute a macro action on a character
@@ -144,7 +147,7 @@ export class MacroExecutorService {
     const healthStatus = character.statuses.find(s => s.statusName === 'Leben');
     if (healthStatus) {
       healthStatus.statusCurrent = Math.min(
-        healthStatus.statusBase + healthStatus.statusBonus,
+        this.trueStats.calculateResourceMax(character, healthStatus.formulaType),
         healthStatus.statusCurrent + healing
       );
     }
@@ -210,7 +213,7 @@ export class MacroExecutorService {
     
     if (status) {
       status.statusCurrent = Math.max(0, Math.min(
-        status.statusBase + status.statusBonus,
+        this.trueStats.calculateResourceMax(character, status.formulaType),
         status.statusCurrent + amount
       ));
     }

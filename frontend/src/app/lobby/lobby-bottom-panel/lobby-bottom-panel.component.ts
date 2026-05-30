@@ -15,6 +15,7 @@ import { FormulaType } from '../../model/formula-type.enum';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
 import { CharacterSocketService } from '../../services/character-socket.service';
+import { TrueStatsService } from '../../services/true-stats.service';
 import { StatusEffect } from '../../model/status-effect.model';
 import { ActionMacro } from '../../model/action-macro.model';
 import { LibraryStoreService } from '../../services/library-store.service';
@@ -38,6 +39,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   private cdr = inject(ChangeDetectorRef);
   private charSocket = inject(CharacterSocketService);
+  private trueStats = inject(TrueStatsService);
   private destroyRef = inject(DestroyRef);
   private libraryStore = inject(LibraryStoreService);
   private macroExecutor = inject(UnifiedMacroExecutorService);
@@ -540,7 +542,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       if (this.character) {
         const status = this.character.statuses?.find(s => s.formulaType === formulaType);
         if (status) {
-          const max = (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
+          const max = this.trueStats.calculateResourceMax(this.character!, formulaType);
           const newVal = Math.max(0, Math.min(max, (status.statusCurrent || 0) + change.amount));
           status.statusCurrent = newVal;
           const charId = this.characterId;

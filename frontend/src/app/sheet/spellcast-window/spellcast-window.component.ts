@@ -13,6 +13,7 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { KeywordEnhancer } from '../keyword-enhancer';
 import { ImageService } from '../../services/image.service';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
+import { TrueStatsService } from '../../services/true-stats.service';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
 
@@ -70,6 +71,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   private _sanitizer = inject(DomSanitizer);
   private _imageService = inject(ImageService);
   private _worldSocket = inject(WorldSocketService);
+  private _trueStats = inject(TrueStatsService);
   protected readonly Math = Math;
 
   floatingRunes: FloatingRune[] = [];
@@ -115,7 +117,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   get manaMax(): number {
     const s = this.sheet.statuses?.find(s => s.formulaType === FormulaType.MANA);
     if (!s) return 100;
-    return (s.statusBase || 0) + (s.statusBonus || 0) + (s.statusEffectBonus || 0);
+    return this._trueStats.calculateResourceMax(this.sheet, FormulaType.MANA);
   }
 
   get manaPercent(): number {
@@ -130,7 +132,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   get lebenMax(): number {
     const s = this.sheet.statuses?.find(s => s.formulaType === FormulaType.LIFE);
     if (!s) return 100;
-    return (s.statusBase || 0) + (s.statusBonus || 0) + (s.statusEffectBonus || 0);
+    return this._trueStats.calculateResourceMax(this.sheet, FormulaType.LIFE);
   }
 
   get lebenPercent(): number {
@@ -145,7 +147,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   get ausdauerMax(): number {
     const s = this.sheet.statuses?.find(s => s.formulaType === FormulaType.ENERGY);
     if (!s) return 100;
-    return (s.statusBase || 0) + (s.statusBonus || 0) + (s.statusEffectBonus || 0);
+    return this._trueStats.calculateResourceMax(this.sheet, FormulaType.ENERGY);
   }
 
   get ausdauerPercent(): number {

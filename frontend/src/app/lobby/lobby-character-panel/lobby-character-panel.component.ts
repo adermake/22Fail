@@ -31,7 +31,7 @@ import { DiceRollerComponent } from '../../sheet/dice-roller/dice-roller.compone
 import { DamageCalculatorComponent } from '../../world/damage-calculator/damage-calculator.component';
 import { SpellcastWindowComponent } from '../../sheet/spellcast-window/spellcast-window.component';
 import { createEmptySheet } from '../../model/character-sheet-model';
-import { StatusEffect } from '../../model/status-effect.model';
+import { StatusEffect, ActiveStatusEffect } from '../../model/status-effect.model';
 import { ItemBlock } from '../../model/item-block.model';
 import { StatBlock } from '../../model/stat-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
@@ -1515,8 +1515,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   get maxHealth(): number {
     if (this.character) {
-      const s = this.character.statuses?.find(s => s.formulaType === FormulaType.LIFE);
-      if (s) return (s.statusBase || 0) + (s.statusBonus || 0) + (s.statusEffectBonus || 0);
+      return this.trueStats.calculateResourceMax(this.character, FormulaType.LIFE);
     }
     return this.npc?.maxHealth ?? 0;
   }
@@ -1531,8 +1530,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   get maxMana(): number {
     if (this.character) {
-      const s = this.character.statuses?.find(s => s.formulaType === FormulaType.MANA);
-      if (s) return (s.statusBase || 0) + (s.statusBonus || 0) + (s.statusEffectBonus || 0);
+      return this.trueStats.calculateResourceMax(this.character, FormulaType.MANA);
     }
     return this.npc?.maxMana ?? 0;
   }
@@ -1547,8 +1545,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   get maxEnergy(): number {
     if (this.character) {
-      const s = this.character.statuses?.find(s => s.formulaType === FormulaType.ENERGY);
-      if (s) return (s.statusBase || 0) + (s.statusBonus || 0) + (s.statusEffectBonus || 0);
+      return this.trueStats.calculateResourceMax(this.character, FormulaType.ENERGY);
     }
     return this.npc?.maxEnergy ?? 0;
   }
@@ -1876,8 +1873,51 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       };
       const effects = [...this.tokenStatusEffects, newFx];
       this.tokenUpdate.emit({ activeStatusEffects: effects });
+      this.syncStatusEffectsToSheet(effects);
     }
     this.showLibraryPicker.set(false);
+  }
+
+  /**
+   * Syncs token status effects to the character sheet via socket.
+   * Called whenever lobby token status effects change.
+   */
+  private syncStatusEffectsToSheet(tokenEffects: TokenStatusEffect[]): void {
+    const charId = this.character?.id;
+    if (!charId) return;
+
+    const activeEffects: ActiveStatusEffect[] = tokenEffects.map(fx => {
+      if (fx.statusEffectId) {
+        // Library-backed effect
+        return {
+          statusEffectId: fx.statusEffectId,
+          sourceLibraryId: '',
+          appliedAt: Date.now(),
+          duration: fx.duration,
+          stacks: fx.stacks ?? 1,
+        } as ActiveStatusEffect;
+      } else {
+        // Custom / free-form effect - embed definition
+        return {
+          statusEffectId: fx.id,
+          sourceLibraryId: '',
+          appliedAt: Date.now(),
+          duration: fx.duration,
+          stacks: fx.stacks ?? 1,
+          customName: fx.name,
+          customEffect: {
+            id: fx.id,
+            name: fx.name,
+            description: '',
+            icon: fx.icon,
+            color: fx.color,
+            isDebuff: fx.isDebuff ?? false,
+          } as ActiveStatusEffect['customEffect'],
+        } as ActiveStatusEffect;
+      }
+    });
+
+    this.charSocket.sendPatch(charId, { path: 'activeStatusEffects', value: activeEffects });
   }
 
   // ---- Dice Rolling ----
@@ -2056,6 +2096,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     };
     const effects = [...this.tokenStatusEffects, newFx];
     this.tokenUpdate.emit({ activeStatusEffects: effects });
+    this.syncStatusEffectsToSheet(effects);
     this.showAddEffectForm.set(false);
   }
 
@@ -2063,6 +2104,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     if (!this.token) return;
     const effects = this.tokenStatusEffects.filter(e => e.id !== id);
     this.tokenUpdate.emit({ activeStatusEffects: effects });
+    this.syncStatusEffectsToSheet(effects);
   }
 
   adjustFxStacks(fx: TokenStatusEffect, delta: number): void {
@@ -2071,6 +2113,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       e.id === fx.id ? { ...e, stacks: Math.max(1, e.stacks + delta) } : e
     );
     this.tokenUpdate.emit({ activeStatusEffects: effects });
+    this.syncStatusEffectsToSheet(effects);
   }
 
   adjustFxDuration(fx: TokenStatusEffect, delta: number): void {
@@ -2079,6 +2122,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       e.id === fx.id ? { ...e, duration: Math.max(0, (e.duration ?? 0) + delta) } : e
     );
     this.tokenUpdate.emit({ activeStatusEffects: effects });
+    this.syncStatusEffectsToSheet(effects);
   }
 
   // ============================================================

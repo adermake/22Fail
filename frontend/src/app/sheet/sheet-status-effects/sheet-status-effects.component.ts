@@ -12,6 +12,7 @@ import { ActionMacro } from '../../model/action-macro.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { LibraryStoreService } from '../../services/library-store.service';
+import { TrueStatsService } from '../../services/true-stats.service';
 import { UnifiedMacroExecutorService, UnifiedMacroResult } from '../../services/unified-macro-executor.service';
 import { StatusEffectEditorComponent } from '../../shared/status-effect-editor/status-effect-editor.component';
 
@@ -30,6 +31,7 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
 
   private libraryStore = inject(LibraryStoreService);
   private macroExecutor = inject(UnifiedMacroExecutorService);
+  private trueStats = inject(TrueStatsService);
   private cdr = inject(ChangeDetectorRef);
   private libSub?: Subscription;
   private popupTimeout?: any;
@@ -377,7 +379,7 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
   }
 
   private getStatusMax(status: any): number {
-    return (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
+    return this.trueStats.calculateResourceMax(this.sheet, status.formulaType);
   }
 
   // ---- Context Menu ----
