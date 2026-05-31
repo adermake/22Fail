@@ -24,8 +24,7 @@ import { TrueStatsService } from '../services/true-stats.service';
 import { AssetBrowserApiService } from '../services/asset-browser-api.service';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { NpcStatblock } from '../model/npc-statblock.model';
-import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType, TokenStatusEffect } from '../model/lobby.model';
-import { ActiveStatusEffect } from '../model/status-effect.model';
+import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType } from '../model/lobby.model';
 
 import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
 import { LobbyToolbarComponent } from './lobby-toolbar/lobby-toolbar.component';
@@ -336,37 +335,6 @@ export class LobbyComponent implements OnInit, OnDestroy {
           characters[characterIndex] = { ...characters[characterIndex], sheet };
           this.worldCharacters.set(characters);
           this.cdr.markForCheck();
-        }
-
-        // Sync status effects from character sheet → lobby token
-        const patchPath = data.patch.path.replace(/^\//, '');
-        if (patchPath === 'activeStatusEffects' && Array.isArray(data.patch.value)) {
-          const token = this.enrichedTokens().find(t => t.characterId === data.characterId);
-          if (token) {
-            const activeEffects = data.patch.value as ActiveStatusEffect[];
-            const tokenEffects: TokenStatusEffect[] = activeEffects.map(ae => {
-              if (ae.customEffect) {
-                return {
-                  id: ae.statusEffectId,
-                  name: ae.customEffect.name,
-                  icon: ae.customEffect.icon,
-                  color: ae.customEffect.color,
-                  stacks: ae.stacks ?? 1,
-                  duration: ae.duration,
-                  isDebuff: ae.customEffect.isDebuff ?? false,
-                } as TokenStatusEffect;
-              } else {
-                return {
-                  id: ae.statusEffectId + '_' + ae.appliedAt,
-                  name: ae.customName ?? ae.statusEffectId ?? 'Effekt',
-                  statusEffectId: ae.statusEffectId,
-                  stacks: ae.stacks ?? 1,
-                  duration: ae.duration,
-                } as TokenStatusEffect;
-              }
-            });
-            this.store.updateToken(token.id, { activeStatusEffects: tokenEffects });
-          }
         }
       })
     );

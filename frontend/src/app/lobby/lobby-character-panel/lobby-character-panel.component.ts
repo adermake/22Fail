@@ -1871,54 +1871,9 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
         duration: effect.defaultDuration,
         isDebuff: effect.isDebuff,
       };
-      const effects = [...this.tokenStatusEffects, newFx];
-      this.tokenUpdate.emit({ activeStatusEffects: effects });
-      this.syncStatusEffectsToSheet(effects);
+      this.saveStatusEffects([...this.tokenStatusEffects, newFx]);
     }
     this.showLibraryPicker.set(false);
-  }
-
-  /**
-   * Syncs token status effects to the character sheet via socket.
-   * Called whenever lobby token status effects change.
-   */
-  private syncStatusEffectsToSheet(tokenEffects: TokenStatusEffect[]): void {
-    const charId = this._charId;
-    if (!charId) return;
-
-    const activeEffects: ActiveStatusEffect[] = tokenEffects.map(fx => {
-      if (fx.statusEffectId) {
-        // Library-backed effect — preserve display name so lobby can recover it on round-trip
-        return {
-          statusEffectId: fx.statusEffectId,
-          sourceLibraryId: '',
-          appliedAt: Date.now(),
-          duration: fx.duration,
-          stacks: fx.stacks ?? 1,
-          customName: fx.name,
-        } as ActiveStatusEffect;
-      } else {
-        // Custom / free-form effect - embed definition
-        return {
-          statusEffectId: fx.id,
-          sourceLibraryId: '',
-          appliedAt: Date.now(),
-          duration: fx.duration,
-          stacks: fx.stacks ?? 1,
-          customName: fx.name,
-          customEffect: {
-            id: fx.id,
-            name: fx.name,
-            description: '',
-            icon: fx.icon,
-            color: fx.color,
-            isDebuff: fx.isDebuff ?? false,
-          } as ActiveStatusEffect['customEffect'],
-        } as ActiveStatusEffect;
-      }
-    });
-
-    this.charSocket.sendPatch(charId, { path: 'activeStatusEffects', value: activeEffects });
   }
 
   // ---- Dice Rolling ----
@@ -2073,8 +2028,109 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   // Status Effects
   // ============================================================
 
+  /**
+   * Convert ActiveStatusEffect (sheet model) → TokenStatusEffect (panel display model).
+   * Uses the libraryStore to resolve the display name for library-backed effects.
+   */
+  private activeToTokenEffect(ae: ActiveStatusEffect): TokenStatusEffect {
+    if (ae.customEffect) {
+      return {
+        id: ae.statusEffectId + '_' + ae.appliedAt,
+        statusEffectId: ae.statusEffectId,
+        customEffect: ae.customEffect,
+        name: ae.customName ?? ae.customEffect.name,
+        icon: ae.customEffect.icon,
+        color: ae.customEffect.color,
+        stacks: ae.stacks ?? 1,
+        duration: ae.duration,
+        isDebuff: ae.customEffect.isDebuff ?? false,
+      };
+    }
+    // Library-backed: resolve name from library or fall back to customName/id
+    const resolved = this.resolveLibraryEffect(ae.statusEffectId);
+    return {
+      id: ae.statusEffectId + '_' + ae.appliedAt,
+      statusEffectId: ae.statusEffectId,
+      name: ae.customName ?? resolved?.name ?? ae.statusEffectId,
+      icon: resolved?.icon,
+      color: resolved?.color,
+      stacks: ae.stacks ?? 1,
+      duration: ae.duration,
+      isDebuff: resolved?.isDebuff ?? false,
+    };
+  }
+
+  private resolveLibraryEffect(statusEffectId: string | undefined): StatusEffect | undefined {
+    if (!statusEffectId) return undefined;
+    for (const lib of this.libraryStore.allLibraries) {
+      const found = (lib.statusEffects ?? []).find(e => e.id === statusEffectId);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  /**
+   * Convert TokenStatusEffect (panel display model) → ActiveStatusEffect (sheet model).
+   */
+  private tokenToActiveEffect(fx: TokenStatusEffect): ActiveStatusEffect {
+    if (fx.statusEffectId) {
+      return {
+        statusEffectId: fx.statusEffectId,
+        sourceLibraryId: '',
+        appliedAt: Date.now(),
+        duration: fx.duration,
+        stacks: fx.stacks ?? 1,
+        customName: fx.name,
+      } as ActiveStatusEffect;
+    }
+    return {
+      statusEffectId: fx.id,
+      sourceLibraryId: '',
+      appliedAt: Date.now(),
+      duration: fx.duration,
+      stacks: fx.stacks ?? 1,
+      customName: fx.name,
+      customEffect: {
+        id: fx.id,
+        name: fx.name,
+        description: '',
+        icon: fx.icon,
+        color: fx.color,
+        isDebuff: fx.isDebuff ?? false,
+      } as ActiveStatusEffect['customEffect'],
+    } as ActiveStatusEffect;
+  }
+
+  /**
+   * The displayed list of status effects.
+   * For character tokens: derived from character sheet (single source of truth).
+   * For NPC tokens: stored directly on the token.
+   */
   get tokenStatusEffects(): TokenStatusEffect[] {
+    if (this.character) {
+      return (this.character.activeStatusEffects ?? []).map(ae => this.activeToTokenEffect(ae));
+    }
     return this.token?.activeStatusEffects ?? [];
+  }
+
+  /**
+   * Persist an updated status effect list.
+   * For character tokens: patch the character sheet via socket.
+   * For NPC tokens: emit tokenUpdate for lobby-map storage.
+   */
+  private saveStatusEffects(effects: TokenStatusEffect[]): void {
+    if (this.character) {
+      const charId = this._charId;
+      if (!charId) return;
+      const activeEffects = effects.map(fx => this.tokenToActiveEffect(fx));
+      // Apply locally for immediate UI feedback (OnPush)
+      this.character.activeStatusEffects = activeEffects;
+      // Persist + broadcast via character socket
+      this.charSocket.sendPatch(charId, { path: 'activeStatusEffects', value: activeEffects });
+      this.cdr.markForCheck();
+    } else {
+      this.tokenUpdate.emit({ activeStatusEffects: effects });
+    }
   }
 
   openAddEffectForm(): void {
@@ -2095,35 +2151,27 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       duration: this.newEffectDuration ? +this.newEffectDuration : undefined,
       isDebuff: this.newEffectIsDebuff,
     };
-    const effects = [...this.tokenStatusEffects, newFx];
-    this.tokenUpdate.emit({ activeStatusEffects: effects });
-    this.syncStatusEffectsToSheet(effects);
+    this.saveStatusEffects([...this.tokenStatusEffects, newFx]);
     this.showAddEffectForm.set(false);
   }
 
   removeStatusEffect(id: string): void {
     if (!this.token) return;
-    const effects = this.tokenStatusEffects.filter(e => e.id !== id);
-    this.tokenUpdate.emit({ activeStatusEffects: effects });
-    this.syncStatusEffectsToSheet(effects);
+    this.saveStatusEffects(this.tokenStatusEffects.filter(e => e.id !== id));
   }
 
   adjustFxStacks(fx: TokenStatusEffect, delta: number): void {
     if (!this.token) return;
-    const effects = this.tokenStatusEffects.map(e =>
+    this.saveStatusEffects(this.tokenStatusEffects.map(e =>
       e.id === fx.id ? { ...e, stacks: Math.max(1, e.stacks + delta) } : e
-    );
-    this.tokenUpdate.emit({ activeStatusEffects: effects });
-    this.syncStatusEffectsToSheet(effects);
+    ));
   }
 
   adjustFxDuration(fx: TokenStatusEffect, delta: number): void {
     if (!this.token) return;
-    const effects = this.tokenStatusEffects.map(e =>
+    this.saveStatusEffects(this.tokenStatusEffects.map(e =>
       e.id === fx.id ? { ...e, duration: Math.max(0, (e.duration ?? 0) + delta) } : e
-    );
-    this.tokenUpdate.emit({ activeStatusEffects: effects });
-    this.syncStatusEffectsToSheet(effects);
+    ));
   }
 
   // ============================================================
