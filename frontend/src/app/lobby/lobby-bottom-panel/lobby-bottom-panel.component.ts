@@ -16,7 +16,7 @@ import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
 import { CharacterSocketService } from '../../services/character-socket.service';
 import { TrueStatsService } from '../../services/true-stats.service';
-import { StatusEffect } from '../../model/status-effect.model';
+import { ActiveStatusEffect, StatusEffect } from '../../model/status-effect.model';
 import { ActionMacro } from '../../model/action-macro.model';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { UnifiedMacroExecutorService, UnifiedMacroResult } from '../../services/unified-macro-executor.service';
@@ -36,6 +36,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   @Input() npc: NpcStatblock | null = null;
   @Input() isGM = false;
   @Output() tokenUpdate = new EventEmitter<Partial<Omit<Token, 'id'>>>();
+  @Output() sheetPatched = new EventEmitter<{ characterId: string; patch: any }>();
 
   private cdr = inject(ChangeDetectorRef);
   private charSocket = inject(CharacterSocketService);
@@ -88,9 +89,9 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   ngOnChanges(_: SimpleChanges): void {
-    // Sync expandedFx reference when token updates from server
-    if (this.expandedFx && this.token) {
-      const synced = (this.token.activeStatusEffects ?? []).find(e => e.id === this.expandedFx!.id);
+    // Sync expandedFx reference when token/character updates from server
+    if (this.expandedFx) {
+      const synced = this.statusEffects.find(e => e.id === this.expandedFx!.id);
       this.expandedFx = synced ?? null;
     }
     this.cdr.markForCheck();
@@ -222,7 +223,89 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   // ── Status effects ────────────────────────────────────────────────────────
 
   get statusEffects(): TokenStatusEffect[] {
+    if (this.character) {
+      return (this.character.activeStatusEffects ?? []).map(ae => this.activeToTokenEffect(ae));
+    }
     return this.token?.activeStatusEffects ?? [];
+  }
+
+  private saveStatusEffects(effects: TokenStatusEffect[]): void {
+    const charId = this.characterId;
+    if (this.character && charId) {
+      const activeEffects = effects.map(fx => this.tokenToActiveEffect(fx));
+      this.character.activeStatusEffects = activeEffects;
+      const patch = { path: 'activeStatusEffects', value: activeEffects };
+      this.sheetPatched.emit({ characterId: charId, patch });
+      this.charSocket.sendPatch(charId, patch);
+      this.cdr.markForCheck();
+    } else {
+      this.tokenUpdate.emit({ activeStatusEffects: effects });
+    }
+  }
+
+  private activeToTokenEffect(ae: ActiveStatusEffect): TokenStatusEffect {
+    if (ae.customEffect) {
+      return {
+        id: ae.statusEffectId + '_' + ae.appliedAt,
+        statusEffectId: ae.statusEffectId,
+        customEffect: ae.customEffect,
+        name: ae.customName ?? ae.customEffect.name,
+        icon: ae.customEffect.icon,
+        color: ae.customEffect.color,
+        stacks: ae.stacks ?? 1,
+        duration: ae.duration,
+        isDebuff: ae.customEffect.isDebuff ?? false,
+      };
+    }
+    const resolved = this.resolveLibraryEffect(ae.statusEffectId);
+    return {
+      id: ae.statusEffectId + '_' + ae.appliedAt,
+      statusEffectId: ae.statusEffectId,
+      name: ae.customName ?? resolved?.name ?? ae.statusEffectId,
+      icon: resolved?.icon,
+      color: resolved?.color,
+      stacks: ae.stacks ?? 1,
+      duration: ae.duration,
+      isDebuff: resolved?.isDebuff ?? false,
+    };
+  }
+
+  private resolveLibraryEffect(statusEffectId: string | undefined): StatusEffect | undefined {
+    if (!statusEffectId) return undefined;
+    for (const lib of this.libraryStore.allLibraries) {
+      const found = (lib.statusEffects ?? []).find(e => e.id === statusEffectId);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  private tokenToActiveEffect(fx: TokenStatusEffect): ActiveStatusEffect {
+    if (fx.statusEffectId) {
+      return {
+        statusEffectId: fx.statusEffectId,
+        sourceLibraryId: '',
+        appliedAt: Date.now(),
+        duration: fx.duration,
+        stacks: fx.stacks ?? 1,
+        customName: fx.name,
+      } as ActiveStatusEffect;
+    }
+    return {
+      statusEffectId: fx.id,
+      sourceLibraryId: '',
+      appliedAt: Date.now(),
+      duration: fx.duration,
+      stacks: fx.stacks ?? 1,
+      customName: fx.name,
+      customEffect: {
+        id: fx.id,
+        name: fx.name,
+        description: '',
+        icon: fx.icon,
+        color: fx.color,
+        isDebuff: fx.isDebuff ?? false,
+      } as ActiveStatusEffect['customEffect'],
+    } as ActiveStatusEffect;
   }
 
   /** Build Map<id, StatusEffect> from all library entries */
@@ -334,10 +417,10 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       const n = fx.duration + delta;
       newDuration = n < 0 ? undefined : n;
     }
-    const effects = (this.token.activeStatusEffects ?? []).map(e =>
+    const effects = this.statusEffects.map(e =>
       e.id === fx.id ? { ...e, duration: newDuration } : e
     );
-    this.tokenUpdate.emit({ activeStatusEffects: effects });
+    this.saveStatusEffects(effects);
     if (this.expandedFx?.id === fx.id) {
       this.expandedFx = { ...this.expandedFx, duration: newDuration };
     }
@@ -354,10 +437,10 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       return;
     }
     if (newStacks > maxStacks) return;
-    const effects = (this.token.activeStatusEffects ?? []).map(e =>
+    const effects = this.statusEffects.map(e =>
       e.id === fx.id ? { ...e, stacks: newStacks } : e
     );
-    this.tokenUpdate.emit({ activeStatusEffects: effects });
+    this.saveStatusEffects(effects);
     if (this.expandedFx?.id === fx.id) {
       this.expandedFx = { ...this.expandedFx, stacks: newStacks };
     }
@@ -366,9 +449,9 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   removeStatusEffect(id: string): void {
     if (!this.token) return;
-    const effects = (this.token.activeStatusEffects ?? []).filter(e => e.id !== id);
+    const effects = this.statusEffects.filter(e => e.id !== id);
     if (this.expandedFx?.id === id) this.expandedFx = null;
-    this.tokenUpdate.emit({ activeStatusEffects: effects });
+    this.saveStatusEffects(effects);
     this.cdr.markForCheck();
   }
 
@@ -477,7 +560,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.cdr.markForCheck();
     setTimeout(() => {
       if (!this.token) return;
-      const current = [...(this.token.activeStatusEffects ?? [])];
+      const current = [...this.statusEffects];
       for (const chainFx of this.chainEffects) {
         const match = current.find(e => e.id === chainFx.id);
         if (match && chainFx.duration !== undefined && chainFx.duration !== null) {
@@ -485,7 +568,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
         }
       }
       const updated = current.filter(e => e.duration === undefined || e.duration === null || e.duration > 0);
-      this.tokenUpdate.emit({ activeStatusEffects: updated });
+      this.saveStatusEffects(updated);
       this.expiringEffects.clear();
       this.chainEffects = [];
       this.chainIndex = 0;
@@ -594,7 +677,8 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   applyEffect(effect: StatusEffect): void {
     if (!this.token) return;
-    const existing = (this.token.activeStatusEffects ?? []).find(e => e.statusEffectId === effect.id);
+    const currentEffects = this.statusEffects;
+    const existing = currentEffects.find(e => e.statusEffectId === effect.id);
     if (existing) {
       this.changeStacks(existing, 1);
     } else {
@@ -608,8 +692,8 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
         duration: effect.defaultDuration,
         isDebuff: effect.isDebuff,
       };
-      const effects = [...(this.token.activeStatusEffects ?? []), newFx];
-      this.tokenUpdate.emit({ activeStatusEffects: effects });
+      const effects = [...currentEffects, newFx];
+      this.saveStatusEffects(effects);
     }
     this.closePicker();
   }
@@ -650,10 +734,10 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   saveEditedFx(updated: StatusEffect): void {
     if (!this.editingFx || !this.token) return;
-    const effects = (this.token.activeStatusEffects ?? []).map(e =>
+    const effects = this.statusEffects.map(e =>
       e.id === this.editingFx!.id ? { ...e, customEffect: updated } : e
     );
-    this.tokenUpdate.emit({ activeStatusEffects: effects });
+    this.saveStatusEffects(effects);
     this.editingFx = null;
     this.editedStatusEffect = null;
     this.cdr.markForCheck();

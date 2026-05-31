@@ -97,6 +97,12 @@ app/
   - `StatusEffect` Model: id, name, description, icon, color, diceBonuses, statModifiers, embeddedMacro/embeddedMacros, macroActionId, defaultDuration, maxStacks, isDebuff, public, tags
   - `ActiveStatusEffect`: statusEffectId, sourceLibraryId, appliedAt, duration, stacks, customEffect
   - `StatusStatModifier.stat`: 'strength'|'dexterity'|'speed'|'intelligence'|'constitution'|'chill'|'life'|'energy'|'mana'
+  - **Single Source of Truth**: `CharacterSheet.activeStatusEffects` (ActiveStatusEffect[]) ist die einzige kanonische Quelle für Charakter-Tokens. `Token.activeStatusEffects` wird nur für NSC/NPC-Tokens ohne CharacterId verwendet.
+  - **Lobby Sync-Architektur**:
+    - `lobby-character-panel` + `lobby-bottom-panel`: lesen aus `character.activeStatusEffects`, schreiben via `charSocket.sendPatch` + `@Output() sheetPatched`
+    - `lobby.component.ts` `onPanelSheetPatched()`: aktualisiert `worldCharacters` Signal lokal → beide Panels re-rendern sofort
+    - `characterSocket.patches$.subscribe`: empfängt Patches von anderen Tabs/Clients → aktualisiert `worldCharacters`
+    - Konvertierung: `activeToTokenEffect(ae: ActiveStatusEffect): TokenStatusEffect` (Display), `tokenToActiveEffect(fx): ActiveStatusEffect` (Persistierung)
   - **Integration**: Status-Effekt statModifiers und diceBonuses fließen in stat.component, currentstat.component, true-stats.service und dice-roller.component ein (via LibraryStoreService Resolution)
   - **Sheet-Komponente** (`sheet/sheet-status-effects/`):
     - 2/3 + 1/3 Layout: Karten-Bereich (links) + Ausführungs-Sidebar (rechts)
