@@ -10,13 +10,13 @@
       class="tab-button"
       [class.active]="activeTab === 'runes'"
       (click)="setActiveTab('runes')">
-      Runes ({{ runes.length }})
+      Runen ({{ runes.length }})
     </button>
     <button
       class="tab-button"
       [class.active]="activeTab === 'spells'"
       (click)="setActiveTab('spells')">
-      Spells ({{ spells.length }})
+      Zauber ({{ spells.length }})
     </button>
     <button
       class="tab-button"
@@ -28,7 +28,7 @@
       class="tab-button"
       [class.active]="activeTab === 'status-effects'"
       (click)="setActiveTab('status-effects')">
-      💫 Effects ({{ statusEffects.length || 0 }})
+      💫 Effekte ({{ statusEffects.length || 0 }})
     </button>
     <button
       class="tab-button"
@@ -49,7 +49,7 @@
       type="text"
       class="search-input"
       [(ngModel)]="searchTerm"
-      placeholder="Search by name or description...">
+      placeholder="Nach Name oder Beschreibung suchen...">
   </div>
 
   <div class="tab-content">
@@ -75,7 +75,7 @@
           </div>
         }
         @if (!readonly) {
-          <button class="add-button" (click)="addItem.emit()">+ Add Item</button>
+          <button class="add-button" (click)="addItem.emit()">+ Gegenstand hinzufügen</button>
         }
       </div>
     }
@@ -101,7 +101,7 @@
           </div>
         }
         @if (!readonly) {
-          <button class="add-button" (click)="addRune.emit()">+ Add Rune</button>
+          <button class="add-button" (click)="addRune.emit()">+ Rune hinzufügen</button>
         }
       </div>
     }
@@ -128,7 +128,7 @@
           </div>
         }
         @if (!readonly) {
-          <button class="add-button" (click)="addSpell.emit()">+ Add Spell</button>
+          <button class="add-button" (click)="addSpell.emit()">+ Zauber hinzufügen</button>
         }
       </div>
     }
@@ -155,7 +155,7 @@
           </div>
         }
         @if (!readonly) {
-          <button class="add-button" (click)="addSkill.emit()">+ Add Skill</button>
+          <button class="add-button" (click)="addSkill.emit()">+ Talent hinzufügen</button>
         }
       </div>
     }
@@ -190,7 +190,7 @@
           </div>
         }
         @if (!readonly) {
-          <button class="add-button" (click)="addStatusEffect.emit()">+ Add Status Effect</button>
+          <button class="add-button" (click)="addStatusEffect.emit()">+ Statuseffekt hinzufügen</button>
         }
       </div>
     }
@@ -211,7 +211,7 @@
               <p class="shop-description">{{ shop.description }}</p>
             }
             <div class="deals-summary">
-              <strong>{{ shop.deals?.length || 0 }} Deals</strong>
+              <strong>{{ shop.deals?.length || 0 }} Angebote</strong>
               @if (shop.deals && shop.deals.length > 0) {
                 <div class="deals-preview">
                   @for (deal of shop.deals.slice(0, 3); track deal.id) {
@@ -227,7 +227,7 @@
                     </div>
                   }
                   @if (shop.deals.length > 3) {
-                    <span class="more-items">+{{ shop.deals.length - 3 }} more</span>
+                    <span class="more-items">+{{ shop.deals.length - 3 }} weitere</span>
                   }
                 </div>
               }
@@ -235,7 +235,7 @@
           </div>
         }
         @if (filteredShops.length === 0) {
-          <p class="empty-hint">No shops available in linked libraries.</p>
+          <p class="empty-hint">Keine Shops in verknüpften Bibliotheken.</p>
         }
       </div>
     }
@@ -256,7 +256,7 @@
               <p class="bundle-description">{{ bundle.description }}</p>
             }
             <div class="loot-summary">
-              <strong>{{ bundle.items?.length || 0 }} Items</strong>
+              <strong>{{ bundle.items?.length || 0 }} Gegenstände</strong>
               @if (bundle.items && bundle.items.length > 0) {
                 <div class="loot-preview">
                   @for (item of bundle.items.slice(0, 3); track item.id) {
@@ -266,7 +266,7 @@
                     </div>
                   }
                   @if (bundle.items.length > 3) {
-                    <span class="more-items">+{{ bundle.items.length - 3 }} more</span>
+                    <span class="more-items">+{{ bundle.items.length - 3 }} weitere</span>
                   }
                 </div>
               }
@@ -274,7 +274,7 @@
           </div>
         }
         @if (filteredBundles.length === 0) {
-          <p class="empty-hint">No loot bundles available in linked libraries.</p>
+          <p class="empty-hint">Keine Beutepakete in verknüpften Bibliotheken.</p>
         }
       </div>
     }

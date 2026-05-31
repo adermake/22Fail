@@ -119,7 +119,27 @@ app/
   - Library Editor: Einzelne identified-Checkbox pro Deal + "Alle identifiziert" Bulk-Toggle
 - **Loot Bundles**: Beutepakete mit claimable Items
 
-## Währungs-System
+## Wissen-System (Knowledge System)
+- **Model**: `CharacterSheet.knownMaterialIds?: string[]`, `CharacterSheet.knownForgeTraitIds?: string[]`
+- **Verwaltung**: Kontextmenü im World-Dashboard → "Materialwissen verwalten" / "Schmiedewissen verwalten"
+- **Overlay**: `knowledgeManagerType: 'material' | 'forge-trait'` steuert welche Einträge geladen werden
+- **Laden**: `assetBrowserApi.searchFiles(lib.id, '', ['material'])` / `['forge-trait']` über alle Bibliotheken
+- **Filter**: Nur `!m.isPublic` Einträge werden angezeigt (öffentliche sind auto-sichtbar)
+- **Speichern**: `characterSocket.sendPatch(charId, { path: '/knownMaterialIds', value: ids })` bzw. `knownForgeTraitIds`
+
+## Stapelbare Items (Stackable Items)
+- `ItemBlock.stackable?: boolean` — ob das Item stapelbar ist
+- `ItemBlock.amount?: number` — Anzahl im Stapel (Default: 1)
+- **Anzeige**: `displayName` in item.component = "Name ×Anzahl" wenn stackable && amount > 1
+- **Gewicht**: `totalWeight` in item.component = weight × amount (bei stackable); sonst weight
+- **Editor**: Checkbox "Stapelbar" + Zahlenfeld "Anzahl" (sichtbar wenn stackable)
+
+## World-View Layout
+- **Reihenfolge** (oben → unten): Party-Dashboard → Battle-Tracker → Content-Grid (Ereignisse + Bibliothek) → Schadenrechner
+- **Bibliothek-Header**: `.library-header` + `.header-btn` CSS-Klassen (keine Inline-Styles)
+- **Resource-Max Formel**: `world.component.getResourceMax()` delegiert an `trueStats.calculateResourceMax()` (verhindert Abweichung von Charakter-Sheet-Werten)
+
+
 - **10:1 Ratios**: 10 Kupfer = 1 Silber, 10 Silber = 1 Gold, 10 Gold = 1 Platin
 - `convertToCopper(Currency): number` / `copperToCurrency(number): Currency`
 - `formatCurrency(Currency): string` → "3g 2s 5c"

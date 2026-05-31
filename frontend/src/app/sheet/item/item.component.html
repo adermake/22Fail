@@ -54,7 +54,7 @@
             <span class="tag tag-slot">{{ slotLabel }}</span>
           }
           @if (showDetails) {
-            <span class="tag tag-weight" [class.tag-big]="!isFolded">{{ item.weight }} kg</span>
+            <span class="tag tag-weight" [class.tag-big]="!isFolded">{{ totalWeight }} kg</span>
           }
           @if (showDetails && item.itemType === 'weapon' && item.efficiency) {
             <span class="tag tag-eff" [class.tag-big]="!isFolded">⚔ {{ item.efficiency }}</span>

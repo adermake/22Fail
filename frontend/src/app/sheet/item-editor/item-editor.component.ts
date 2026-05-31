@@ -125,6 +125,8 @@ export class ItemEditorComponent implements OnInit {
       name: '',
       description: '',
       weight: 0,
+      stackable: false,
+      amount: 1,
       itemType: 'other',
       lost: false,
       broken: false,

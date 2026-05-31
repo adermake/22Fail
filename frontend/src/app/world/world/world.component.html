@@ -162,11 +162,6 @@
     <app-battle-tracker [engine]="battleEngine"></app-battle-tracker>
   </div>
 
-  <!-- Damage Calculator -->
-  <div class="damage-calc-section">
-    <app-damage-calculator [worldName]="worldName"></app-damage-calculator>
-  </div>
-
   <!-- Bottom Section: Current Events + Library -->
   <div class="content-grid">
     <!-- Current Events Section (Left) -->
@@ -188,22 +183,18 @@
 
     <!-- Asset Browser Section (Right) -->
     <app-card class="library-card">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>Asset Browser</h2>
-        <div style="display: flex; gap: 0.5rem;">
-          <button (click)="openLibrarySelector()" style="background: #4CAF50; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;" title="Manage Linked Libraries">
-            📚 Manage Libraries
+      <div class="library-header">
+        <h2>Bibliothek</h2>
+        <div class="library-header-actions">
+          <button (click)="openLibrarySelector()" class="header-btn" title="Verknüpfte Bibliotheken verwalten">
+            📚 Bibliotheken
           </button>
-          <button (click)="openTrash()" style="background: #666; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;" title="Open Trash">
-            🗑️ Trash ({{ (world.trash || []).length }})
+          <button (click)="openTrash()" class="header-btn secondary" title="Papierkorb öffnen">
+            🗑️ Papierkorb ({{ (world.trash || []).length }})
           </button>
         </div>
       </div>
-      <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
-        <button (click)="generateRandomWeapon()" style="width: 100%; background: var(--accent); color: white; padding: 8px;">Zufällige Waffe schmieden</button>
-        <button (click)="generateRandomArmor()" style="width: 100%; background: var(--accent); color: white; padding: 8px;">Zufällige Rüstung schmieden</button>
-      </div>
-      <p class="drag-hint">Drag items onto characters or battle loot. Right-click for options.</p>
+      <p class="drag-hint">Elemente auf Charaktere oder Kampfbeute ziehen. Rechtsklick für Optionen.</p>
       <app-asset-browser
         [items]="mergedItems()"
         [runes]="mergedRunes()"
@@ -239,6 +230,11 @@
       </app-asset-browser>
     </app-card>
   </div>
+</div>
+
+<!-- Damage Calculator -->
+<div class="damage-calc-section">
+  <app-damage-calculator [worldName]="worldName"></app-damage-calculator>
 </div>
 
 <!-- Item Creator Dialog -->
@@ -295,19 +291,19 @@
   <div class="dialog-overlay" (click)="closeTrash()">
     <div class="dialog-content trash-dialog" (click)="$event.stopPropagation()" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <h2>🗑️ Trash</h2>
+        <h2>🗑️ Papierkorb</h2>
         <div style="display: flex; gap: 0.5rem;">
           <button (click)="emptyTrash()" [disabled]="!world.trash || world.trash.length === 0" style="background: #d32f2f; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;">
-            Empty Trash
+            Papierkorb leeren
           </button>
           <button (click)="closeTrash()" style="background: #666; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;">
-            Close
+            Schließen
           </button>
         </div>
       </div>
 
       @if (!world.trash || world.trash.length === 0) {
-        <p style="text-align: center; color: #999; padding: 2rem;">Trash is empty</p>
+        <p style="text-align: center; color: #999; padding: 2rem;">Papierkorb ist leer</p>
       } @else {
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
           @for (trashItem of world.trash; track $index; let i = $index) {
@@ -317,10 +313,10 @@
                   <span style="background: var(--accent); color: white; padding: 2px 8px; border-radius: 3px; font-size: 0.75rem; text-transform: uppercase;">
                     {{ trashItem.type }}
                   </span>
-                  <strong>{{ trashItem.data.name || 'Unnamed' }}</strong>
+                  <strong>{{ trashItem.data.name || 'Unbenannt' }}</strong>
                 </div>
                 <div style="color: #999; font-size: 0.85rem; margin-top: 0.25rem;">
-                  Deleted: {{ trashItem.deletedAt | date:'short' }}
+                  Gelöscht: {{ trashItem.deletedAt | date:'short' }}
                 </div>
                 @if (trashItem.data.description) {
                   <div style="color: #ccc; font-size: 0.9rem; margin-top: 0.5rem; max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -330,10 +326,10 @@
               </div>
               <div style="display: flex; gap: 0.5rem;">
                 <button (click)="restoreFromTrash(i)" style="background: #4caf50; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;">
-                  Restore
+                  Wiederherstellen
                 </button>
                 <button (click)="permanentlyDelete(i)" style="background: #d32f2f; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;">
-                  Delete Forever
+                  Endgültig löschen
                 </button>
               </div>
             </div>
@@ -469,7 +465,11 @@
   <div class="sm-overlay" (click)="closeKnowledgeManager()">
     <div class="sm-panel km-panel" (click)="$event.stopPropagation()">
       <div class="sm-header">
-        <span class="sm-title">📖 Materialwissen</span>
+        @if (knowledgeManagerType === 'material') {
+          <span class="sm-title">📖 Materialwissen</span>
+        } @else {
+          <span class="sm-title">🔨 Schmiedewissen</span>
+        }
         <span class="sm-subtitle">{{ partyCharacters.get(knowledgeManagerFor)?.name || knowledgeManagerFor }}</span>
         <button class="sm-close" (click)="closeKnowledgeManager()">✕</button>
       </div>
@@ -477,45 +477,80 @@
       @if (knowledgeManagerLoading) {
         <div class="km-loading">
           <span class="km-spinner"></span>
-          <span>Materialien werden geladen...</span>
+          <span>Wird geladen...</span>
         </div>
       } @else {
-        <p class="km-hint">Öffentliche Materialien sind automatisch für alle sichtbar. Hier kannst du nicht-öffentliche Materialien freigeben.</p>
+        @if (knowledgeManagerType === 'material') {
+          <p class="km-hint">Öffentliche Materialien sind automatisch für alle sichtbar. Hier kannst du nicht-öffentliche Materialien freigeben.</p>
 
-        <input
-          class="sm-search"
-          type="text"
-          [(ngModel)]="knowledgeManagerSearch"
-          placeholder="Material suchen...">
+          <input
+            class="sm-search"
+            type="text"
+            [(ngModel)]="knowledgeManagerSearch"
+            placeholder="Material suchen...">
 
-        @if (filteredKnowledgeMaterials.length === 0) {
-          <p class="sm-empty">
-            {{ knowledgeManagerSearch ? 'Keine passenden Materialien.' : 'Keine nicht-öffentlichen Materialien in der Bibliothek.' }}
-          </p>
-        } @else {
-          <div class="km-list">
-            @for (entry of filteredKnowledgeMaterials; track entry.material.id) {
-              <label class="km-item" [class.km-known]="entry.known">
-                <input type="checkbox" [checked]="entry.known" (change)="toggleMaterialKnowledge(entry)" />
-                <div class="km-item-info">
-                  <span class="km-item-name">{{ entry.material.name }}</span>
-                  @if (entry.material.description) {
-                    <span class="km-item-desc">{{ entry.material.description }}</span>
-                  }
-                  <div class="km-item-types">
-                    @if (entry.material.canBeWeaponMaterial) { <span class="km-type weapon">Waffe</span> }
-                    @if (entry.material.canBeArmorMaterial) { <span class="km-type armor">Rüstung</span> }
+          @if (filteredKnowledgeMaterials.length === 0) {
+            <p class="sm-empty">
+              {{ knowledgeManagerSearch ? 'Keine passenden Materialien.' : 'Keine nicht-öffentlichen Materialien in der Bibliothek.' }}
+            </p>
+          } @else {
+            <div class="km-list">
+              @for (entry of filteredKnowledgeMaterials; track entry.material.id) {
+                <label class="km-item" [class.km-known]="entry.known">
+                  <input type="checkbox" [checked]="entry.known" (change)="toggleMaterialKnowledge(entry)" />
+                  <div class="km-item-info">
+                    <span class="km-item-name">{{ entry.material.name }}</span>
+                    @if (entry.material.description) {
+                      <span class="km-item-desc">{{ entry.material.description }}</span>
+                    }
+                    <div class="km-item-types">
+                      @if (entry.material.canBeWeaponMaterial) { <span class="km-type weapon">Waffe</span> }
+                      @if (entry.material.canBeArmorMaterial) { <span class="km-type armor">Rüstung</span> }
+                    </div>
                   </div>
-                </div>
-              </label>
-            }
+                </label>
+              }
+            </div>
+          }
+
+          <div class="km-footer">
+            <span class="km-count">{{ knownMaterialCount }} von {{ knowledgeManagerMaterials.length }} bekannt</span>
+            <button class="km-save-btn" (click)="saveKnowledgeManager()">Speichern</button>
+          </div>
+        } @else {
+          <p class="km-hint">Öffentliche Schmiedemerkmale sind automatisch für alle sichtbar. Hier kannst du nicht-öffentliche Schmiedemerkmale freigeben.</p>
+
+          <input
+            class="sm-search"
+            type="text"
+            [(ngModel)]="knowledgeManagerSearch"
+            placeholder="Schmiedemerkmal suchen...">
+
+          @if (filteredKnowledgeForgeTraits.length === 0) {
+            <p class="sm-empty">
+              {{ knowledgeManagerSearch ? 'Keine passenden Schmiedemerkmale.' : 'Keine nicht-öffentlichen Schmiedemerkmale in der Bibliothek.' }}
+            </p>
+          } @else {
+            <div class="km-list">
+              @for (entry of filteredKnowledgeForgeTraits; track entry.forgeTrait.id) {
+                <label class="km-item" [class.km-known]="entry.known">
+                  <input type="checkbox" [checked]="entry.known" (change)="toggleForgeTraitKnowledge(entry)" />
+                  <div class="km-item-info">
+                    <span class="km-item-name">{{ entry.forgeTrait.name }}</span>
+                    @if (entry.forgeTrait.description) {
+                      <span class="km-item-desc">{{ entry.forgeTrait.description }}</span>
+                    }
+                  </div>
+                </label>
+              }
+            </div>
+          }
+
+          <div class="km-footer">
+            <span class="km-count">{{ knownForgeTraitCount }} von {{ knowledgeManagerForgeTraits.length }} bekannt</span>
+            <button class="km-save-btn" (click)="saveKnowledgeManager()">Speichern</button>
           </div>
         }
-
-        <div class="km-footer">
-          <span class="km-count">{{ knownMaterialCount }} von {{ knowledgeManagerMaterials.length }} bekannt</span>
-          <button class="km-save-btn" (click)="saveKnowledgeManager()">Speichern</button>
-        </div>
       }
     </div>
   </div>

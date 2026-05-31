@@ -254,7 +254,19 @@ export class ItemComponent implements OnChanges {
   }
 
   get displayName(): string {
-    return this.item.isIdentified === false ? 'Unidentifiziertes Item' : this.item.name;
+    if (this.item.isIdentified === false) return 'Unidentifiziertes Item';
+    const baseName = this.item.name;
+    if (this.item.stackable && (this.item.amount ?? 1) > 1) {
+      return `${baseName} ×${this.item.amount}`;
+    }
+    return baseName;
+  }
+
+  get totalWeight(): number {
+    if (this.item.stackable && (this.item.amount ?? 1) > 1) {
+      return (this.item.weight || 0) * (this.item.amount ?? 1);
+    }
+    return this.item.weight || 0;
   }
 
   get showDetails(): boolean {

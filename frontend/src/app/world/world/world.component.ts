@@ -117,7 +117,9 @@ export class WorldComponent implements OnInit, OnDestroy {
   /** Character ID whose knowledge management overlay is open */
   knowledgeManagerFor: string | null = null;
   knowledgeManagerLoading = false;
+  knowledgeManagerType: 'material' | 'forge-trait' = 'material';
   knowledgeManagerMaterials: { material: any; known: boolean }[] = [];
+  knowledgeManagerForgeTraits: { forgeTrait: any; known: boolean }[] = [];
   knowledgeManagerSearch = '';
 
   // Drag state
@@ -1027,19 +1029,7 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   // Get max resource value using the same formula as currentstat.component
   getResourceMax(sheet: CharacterSheet, type: FormulaType): number {
-    const status = this.getResourceStatus(sheet, type);
-    if (!status) return 0;
-    const base = (status.statusBase || 0) + (status.statusBonus || 0) + (status.statusEffectBonus || 0);
-    switch (type) {
-      case FormulaType.LIFE:
-        return base + this.trueStats.calculateConstitution(sheet) * 5;
-      case FormulaType.ENERGY:
-        return base + this.trueStats.calculateDexterity(sheet) * 5;
-      case FormulaType.MANA:
-        return base + this.trueStats.calculateIntelligence(sheet) * 5;
-      default:
-        return base;
-    }
+    return this.trueStats.calculateResourceMax(sheet, type);
   }
 
   // Get resource percentage
@@ -1143,34 +1133,48 @@ export class WorldComponent implements OnInit, OnDestroy {
     menuItems.push({ label: '', action: '', divider: true });
 
     // ── Section 4: Knowledge management ──
-    menuItems.push({ icon: '📖', label: 'Materialwissen verwalten', action: `manage_knowledge::${characterId}` });
+    menuItems.push({ icon: '📖', label: 'Materialwissen verwalten', action: `manage_knowledge::material::${characterId}` });
+    menuItems.push({ icon: '🔨', label: 'Schmiedewissen verwalten', action: `manage_knowledge::forge-trait::${characterId}` });
 
     this.contextMenu?.show(event.clientX, event.clientY, menuItems);
   }
 
   // ── Knowledge Management ─────────────────────────────────────────────────────
 
-  async openKnowledgeManager(characterId: string): Promise<void> {
+  async openKnowledgeManager(characterId: string, type: 'material' | 'forge-trait' = 'material'): Promise<void> {
     this.knowledgeManagerFor = characterId;
+    this.knowledgeManagerType = type;
     this.knowledgeManagerSearch = '';
     this.knowledgeManagerLoading = true;
     this.cdr.markForCheck();
 
     try {
       const libraries = await firstValueFrom(this.assetBrowserApi.getAllLibraries());
-      const materialFiles: any[] = [];
-      for (const lib of libraries) {
-        const mats = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', ['material']));
-        materialFiles.push(...mats);
-      }
       const character = this.partyCharacters.get(characterId);
-      const knownIds = new Set(character?.knownMaterialIds ?? []);
 
-      // Only show non-public materials (public ones are visible to all, no need to manage)
-      this.knowledgeManagerMaterials = materialFiles
-        .map(f => f.data)
-        .filter(m => !m.isPublic)
-        .map(m => ({ material: m, known: knownIds.has(m.id) }));
+      if (type === 'material') {
+        const materialFiles: any[] = [];
+        for (const lib of libraries) {
+          const mats = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', ['material']));
+          materialFiles.push(...mats);
+        }
+        const knownIds = new Set(character?.knownMaterialIds ?? []);
+        this.knowledgeManagerMaterials = materialFiles
+          .map(f => f.data)
+          .filter(m => !m.isPublic)
+          .map(m => ({ material: m, known: knownIds.has(m.id) }));
+      } else {
+        const forgeTraitFiles: any[] = [];
+        for (const lib of libraries) {
+          const traits = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', ['forge-trait']));
+          forgeTraitFiles.push(...traits);
+        }
+        const knownIds = new Set(character?.knownForgeTraitIds ?? []);
+        this.knowledgeManagerForgeTraits = forgeTraitFiles
+          .map(f => f.data)
+          .filter(t => !t.isPublic)
+          .map(t => ({ forgeTrait: t, known: knownIds.has(t.id) }));
+      }
     } catch (e) {
       console.error('Knowledge manager: Fehler beim Laden', e);
     } finally {
@@ -1185,20 +1189,36 @@ export class WorldComponent implements OnInit, OnDestroy {
     return this.knowledgeManagerMaterials.filter(m => m.material.name.toLowerCase().includes(q));
   }
 
+  get filteredKnowledgeForgeTraits(): { forgeTrait: any; known: boolean }[] {
+    const q = this.knowledgeManagerSearch.toLowerCase();
+    if (!q) return this.knowledgeManagerForgeTraits;
+    return this.knowledgeManagerForgeTraits.filter(t => t.forgeTrait.name.toLowerCase().includes(q));
+  }
+
   toggleMaterialKnowledge(entry: { material: any; known: boolean }): void {
+    entry.known = !entry.known;
+    this.cdr.markForCheck();
+  }
+
+  toggleForgeTraitKnowledge(entry: { forgeTrait: any; known: boolean }): void {
     entry.known = !entry.known;
     this.cdr.markForCheck();
   }
 
   saveKnowledgeManager(): void {
     if (!this.knowledgeManagerFor) return;
-    const knownIds = this.knowledgeManagerMaterials
-      .filter(e => e.known)
-      .map(e => e.material.id);
-    this.characterSocket.sendPatch(this.knowledgeManagerFor, { path: '/knownMaterialIds', value: knownIds });
     const char = this.partyCharacters.get(this.knowledgeManagerFor);
     const name = char?.name ?? this.knowledgeManagerFor;
-    this.notification.success(`Materialwissen für ${name} gespeichert.`, 2000);
+
+    if (this.knowledgeManagerType === 'material') {
+      const knownIds = this.knowledgeManagerMaterials.filter(e => e.known).map(e => e.material.id);
+      this.characterSocket.sendPatch(this.knowledgeManagerFor, { path: '/knownMaterialIds', value: knownIds });
+      this.notification.success(`Materialwissen für ${name} gespeichert.`, 2000);
+    } else {
+      const knownIds = this.knowledgeManagerForgeTraits.filter(e => e.known).map(e => e.forgeTrait.id);
+      this.characterSocket.sendPatch(this.knowledgeManagerFor, { path: '/knownForgeTraitIds', value: knownIds });
+      this.notification.success(`Schmiedewissen für ${name} gespeichert.`, 2000);
+    }
     this.knowledgeManagerFor = null;
     this.cdr.markForCheck();
   }
@@ -1210,6 +1230,10 @@ export class WorldComponent implements OnInit, OnDestroy {
 
   get knownMaterialCount(): number {
     return this.knowledgeManagerMaterials.filter(e => e.known).length;
+  }
+
+  get knownForgeTraitCount(): number {
+    return this.knowledgeManagerForgeTraits.filter(e => e.known).length;
   }
 
   // Context menu for library items (send to player, edit)
@@ -1272,7 +1296,7 @@ export class WorldComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
         break;
       case 'manage_knowledge':
-        this.openKnowledgeManager(parts[1]);
+        this.openKnowledgeManager(parts[2], parts[1] as 'material' | 'forge-trait');
         break;
       case 'remove_status': {
         const statusEffectId = parts[1];

@@ -102,6 +102,10 @@ export class ItemBlock {
   embeddedSkills?: SkillBlock[];
   embeddedSpells?: SpellBlock[];
   
+  // Stackable items (e.g. consumables)
+  stackable?: boolean; // If true, item can have multiple amounts
+  amount?: number; // Number of items in this stack (only relevant when stackable is true)
+
   // Library origin tracking
   libraryOrigin?: string; // Library ID if this item came from a library (undefined for custom items)
   libraryOriginName?: string; // Human-readable library name
