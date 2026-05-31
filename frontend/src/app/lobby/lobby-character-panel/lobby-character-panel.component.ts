@@ -1411,6 +1411,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   @Output() requestTokenDraw = new EventEmitter<string>(); // Emits tokenId
   @Output() requestLinkedTokenPlacement = new EventEmitter<{ parentId: string; type: LinkedTokenType; name: string }>();
   @Output() tokenChildDetach = new EventEmitter<{ childId: string }>();
+  /** Fired when the panel directly patches the character sheet (so lobby can update worldCharacters locally). */
+  @Output() sheetPatched = new EventEmitter<{ characterId: string; patch: import('../../model/json-patch.model').JsonPatch }>();
 
   private worldSocket = inject(WorldSocketService);
   private trueStats = inject(TrueStatsService);
@@ -2125,8 +2127,11 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       const activeEffects = effects.map(fx => this.tokenToActiveEffect(fx));
       // Apply locally for immediate UI feedback (OnPush)
       this.character.activeStatusEffects = activeEffects;
+      const patch = { path: 'activeStatusEffects', value: activeEffects };
+      // Notify lobby so it can update worldCharacters without waiting for socket echo
+      this.sheetPatched.emit({ characterId: charId, patch });
       // Persist + broadcast via character socket
-      this.charSocket.sendPatch(charId, { path: 'activeStatusEffects', value: activeEffects });
+      this.charSocket.sendPatch(charId, patch);
       this.cdr.markForCheck();
     } else {
       this.tokenUpdate.emit({ activeStatusEffects: effects });

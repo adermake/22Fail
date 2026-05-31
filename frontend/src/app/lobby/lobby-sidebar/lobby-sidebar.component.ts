@@ -117,6 +117,15 @@ export class LobbySidebarComponent {
     );
   }
 
+  get filteredNpcs() {
+    const query = this.searchQuery().toLowerCase();
+    if (!query) return this.npcStatblocks;
+    return this.npcStatblocks.filter(n =>
+      n.name.toLowerCase().includes(query) ||
+      (n.statblock.raceName ?? '').toLowerCase().includes(query)
+    );
+  }
+
   // Image methods
   onFileSelect(event: Event): void {
     const input = event.target as HTMLInputElement;

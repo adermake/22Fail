@@ -831,6 +831,18 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  /** Called when the lobby character panel patches the character sheet directly (e.g. status effects). */
+  onPanelSheetPatched(event: { characterId: string; patch: any }): void {
+    const characterIndex = this.worldCharacters().findIndex(c => c.id === event.characterId);
+    if (characterIndex < 0) return;
+    const characters = [...this.worldCharacters()];
+    const sheet = { ...characters[characterIndex].sheet };
+    this.applyJsonPatch(sheet, event.patch);
+    characters[characterIndex] = { ...characters[characterIndex], sheet };
+    this.worldCharacters.set(characters);
+    this.cdr.markForCheck();
+  }
+
   onRequestTokenDraw(tokenId: string): void {
     // Handled by the grid component when the user draws at max zoom over the token.
     // Just ensure the pencil tool is active.

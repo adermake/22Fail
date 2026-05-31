@@ -182,7 +182,16 @@
 }
 
 .kampfrunde-toggle-btn--next {
+  flex-shrink: 0;
   background: #0f766e;
+  border: 1px solid rgba(20, 184, 166, 0.5);
+  color: #ccfbf1;
+  border-radius: 5px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .kampfrunde-toggle-btn--next:hover {

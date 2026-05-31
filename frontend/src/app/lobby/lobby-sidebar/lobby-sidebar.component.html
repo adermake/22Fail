@@ -120,7 +120,7 @@
       } @else {
       <!-- NSC Statblocks -->
       <div class="character-list">
-        @for (npc of npcStatblocks; track npc.id) {
+        @for (npc of filteredNpcs; track npc.id) {
           <div
             class="character-item npc-item"
             draggable="true"
@@ -145,10 +145,14 @@
           </div>
         }
 
-        @if (npcStatblocks.length === 0) {
+        @if (filteredNpcs.length === 0) {
           <div class="empty-state">
-            <p>Keine NSC-Statblöcke verknüpft</p>
-            <p class="hint">Bibliotheken in der Weltansicht verknüpfen</p>
+            @if (searchQuery()) {
+              <p>Keine NSCs für "{{ searchQuery() }}"</p>
+            } @else {
+              <p>Keine NSC-Statblöcke verknüpft</p>
+              <p class="hint">Bibliotheken in der Weltansicht verknüpfen</p>
+            }
           </div>
         }
       </div>
