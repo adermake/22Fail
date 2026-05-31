@@ -85,16 +85,16 @@
     }
     
     <!-- Dice Roll Popup -->
-    @if (activeRollPopup) {
-      <app-dice-roll-popup [popup]="activeRollPopup" />
+    @if (activeRollPopup && rollPopupScreenPos) {
+      <app-dice-roll-popup [popup]="activeRollPopup" [screenPos]="rollPopupScreenPos" />
     }
     
     <!-- Simple Floating Roll Number -->
-    @if (activeRollPopup) {
+    @if (activeRollPopup && rollPopupScreenPos) {
       <div 
         class="floating-roll-number"
-        [style.left.px]="activeRollPopup.position.x"
-        [style.top.px]="activeRollPopup.position.y"
+        [style.left.px]="rollPopupScreenPos.x"
+        [style.top.px]="rollPopupScreenPos.y"
         [class.crit-success]="isCritSuccess(activeRollPopup)"
         [class.crit-fail]="isCritFail(activeRollPopup)"
       >

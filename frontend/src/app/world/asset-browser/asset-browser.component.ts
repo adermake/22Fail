@@ -9,8 +9,8 @@ import { StatusEffect } from '../../model/status-effect.model';
 import { ShopEvent, LootBundleEvent, Currency, LootItem } from '../../model/current-events.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
+import { MaterialBlock, ForgeTrait } from '../../model/forging.model';
 import { ItemComponent } from '../../sheet/item/item.component';
-import { RuneComponent } from '../../shared/rune/rune.component';
 import { SpellComponent } from '../../sheet/spell/spell.component';
 import { SkillComponent } from '../../sheet/skill/skill.component';
 
@@ -24,7 +24,7 @@ import { SkillComponent } from '../../sheet/skill/skill.component';
  */
 @Component({
   selector: 'app-asset-browser',
-  imports: [CommonModule, FormsModule, ItemComponent, RuneComponent, SpellComponent, SkillComponent],
+  imports: [CommonModule, FormsModule, ItemComponent, SpellComponent, SkillComponent],
   templateUrl: './asset-browser.component.html',
   styleUrl: './asset-browser.component.css'
 })
@@ -36,6 +36,8 @@ export class AssetBrowserComponent implements OnChanges {
   @Input() statusEffects: StatusEffect[] = [];
   @Input() shops: ShopEvent[] = [];
   @Input() lootBundles: LootBundleEvent[] = [];
+  @Input() materials: MaterialBlock[] = [];
+  @Input() forgeTraits: ForgeTrait[] = [];
   @Input({ required: true }) dummySheet!: CharacterSheet;
   @Input({ required: true }) editingItems!: Set<number>;
   @Input({ required: true }) editingRunes!: Set<number>;
@@ -72,8 +74,14 @@ export class AssetBrowserComponent implements OnChanges {
   @Output() dragStart = new EventEmitter<{ event: DragEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'shop' | 'loot-bundle'; index: number }>();
   @Output() contextMenuRequest = new EventEmitter<{ event: MouseEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'; index: number }>();
 
-  activeTab: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects' | 'shops' | 'loot-bundles' = 'items';
+  activeTab: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects' | 'shops' | 'loot-bundles' | 'knowledge' = 'items';
+  activeKnowledgeTab: 'material' | 'forge-trait' = 'material';
   private _searchTerm: string = '';
+
+  // Per-tab filters
+  itemTypeFilter: string = '';
+  skillTypeFilter: string = '';
+  runeTagFilter: string = '';
 
   filteredItems: any[] = [];
   filteredRunes: any[] = [];
@@ -82,6 +90,8 @@ export class AssetBrowserComponent implements OnChanges {
   filteredStatusEffects: any[] = [];
   filteredShops: any[] = [];
   filteredBundles: any[] = [];
+  filteredMaterials: MaterialBlock[] = [];
+  filteredForgeTraits: ForgeTrait[] = [];
 
   // Track previous array lengths to detect add/remove vs patch
   private prevItemsLength = 0;
@@ -134,12 +144,16 @@ export class AssetBrowserComponent implements OnChanges {
       this.prevBundlesLength = this.lootBundles.length;
       shouldUpdate = true;
     }
+    if (changes['materials'] || changes['forgeTraits']) {
+      shouldUpdate = true;
+    }
 
     // Always update on first change
     if (changes['items']?.firstChange || changes['runes']?.firstChange ||
         changes['spells']?.firstChange || changes['skills']?.firstChange ||
         changes['statusEffects']?.firstChange || changes['shops']?.firstChange ||
-        changes['lootBundles']?.firstChange) {
+        changes['lootBundles']?.firstChange || changes['materials']?.firstChange ||
+        changes['forgeTraits']?.firstChange) {
       shouldUpdate = true;
     }
 
@@ -149,13 +163,76 @@ export class AssetBrowserComponent implements OnChanges {
   }
 
   private updateFilteredArrays() {
-    this.filteredItems = this.filterAndSort(this.items, this._searchTerm);
-    this.filteredRunes = this.filterAndSort(this.runes, this._searchTerm);
-    this.filteredSpells = this.filterAndSort(this.spells, this._searchTerm);
-    this.filteredSkills = this.filterAndSort(this.skills, this._searchTerm);
-    this.filteredStatusEffects = this.filterAndSort(this.statusEffects || [], this._searchTerm);
-    this.filteredShops = this.filterAndSort(this.shops || [], this._searchTerm);
-    this.filteredBundles = this.filterAndSort(this.lootBundles || [], this._searchTerm);
+    const term = this._searchTerm;
+    this.filteredItems = this.filterItems(this.items, term);
+    this.filteredRunes = this.filterRunes(this.runes, term);
+    this.filteredSpells = this.filterAndSort(this.spells, term);
+    this.filteredSkills = this.filterSkills(this.skills, term);
+    this.filteredStatusEffects = this.filterAndSort(this.statusEffects || [], term);
+    this.filteredShops = this.filterAndSort(this.shops || [], term);
+    this.filteredBundles = this.filterAndSort(this.lootBundles || [], term);
+    this.filteredMaterials = this.filterKnowledge(this.materials || [], term);
+    this.filteredForgeTraits = this.filterKnowledge(this.forgeTraits || [], term);
+  }
+
+  private filterItems(array: ItemBlock[], searchTerm: string): ItemBlock[] {
+    let filtered: ItemBlock[] = array;
+    if (this.itemTypeFilter) {
+      filtered = filtered.filter(item => item.itemType === this.itemTypeFilter);
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.name?.toLowerCase().includes(term) ||
+        item.description?.toLowerCase().includes(term)
+      );
+    }
+    return [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }
+
+  private filterRunes(array: RuneBlock[], searchTerm: string): RuneBlock[] {
+    let filtered: RuneBlock[] = array;
+    if (this.runeTagFilter) {
+      filtered = filtered.filter(r => r.tags?.includes(this.runeTagFilter));
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(r =>
+        r.name?.toLowerCase().includes(term) ||
+        r.description?.toLowerCase().includes(term) ||
+        r.tags?.some(t => t.toLowerCase().includes(term))
+      );
+    }
+    return [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }
+
+  private filterSkills(array: SkillBlock[], searchTerm: string): SkillBlock[] {
+    let filtered: SkillBlock[] = array;
+    if (this.skillTypeFilter) {
+      filtered = filtered.filter(s => s.type === this.skillTypeFilter);
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(s =>
+        s.name?.toLowerCase().includes(term) ||
+        s.description?.toLowerCase().includes(term)
+      );
+    }
+    const typeOrder: Record<string, number> = { 'dice_bonus': 0, 'active': 1, 'passive': 2, 'stat_bonus': 3 };
+    return [...filtered].sort((a, b) => {
+      const oA = typeOrder[a.type ?? ''] ?? 4;
+      const oB = typeOrder[b.type ?? ''] ?? 4;
+      if (oA !== oB) return oA - oB;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
+  private filterKnowledge<T extends { name?: string; description?: string }>(array: T[], searchTerm: string): T[] {
+    if (!searchTerm) return [...array].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const term = searchTerm.toLowerCase();
+    return array
+      .filter(item => item.name?.toLowerCase().includes(term) || item.description?.toLowerCase().includes(term))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }
 
   private filterAndSort(array: any[], searchTerm: string) {
@@ -170,17 +247,6 @@ export class AssetBrowserComponent implements OnChanges {
     }
 
     return [...filtered].sort((a, b) => {
-      // Skills have special type-based sorting
-      if (a.type && b.type) {
-        const typeOrder: Record<string, number> = { 'dice_bonus': 0, 'active': 1, 'passive': 2, 'stat_bonus': 3 };
-        const orderA = typeOrder[a.type] ?? 4;
-        const orderB = typeOrder[b.type] ?? 4;
-        if (orderA !== orderB) {
-          return orderA - orderB;
-        }
-      }
-      
-      // Then sort by name
       const nameA = (a.name || '').toLowerCase();
       const nameB = (b.name || '').toLowerCase();
       return nameA.localeCompare(nameB);
@@ -196,8 +262,59 @@ export class AssetBrowserComponent implements OnChanges {
   }
 
 
-  setActiveTab(tab: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects' | 'shops' | 'loot-bundles') {
+  setActiveTab(tab: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects' | 'shops' | 'loot-bundles' | 'knowledge') {
     this.activeTab = tab;
+  }
+
+  setActiveKnowledgeTab(tab: 'material' | 'forge-trait') {
+    this.activeKnowledgeTab = tab;
+  }
+
+  onItemTypeFilterChange() {
+    this.filteredItems = this.filterItems(this.items, this._searchTerm);
+  }
+
+  onSkillTypeFilterChange() {
+    this.filteredSkills = this.filterSkills(this.skills, this._searchTerm);
+  }
+
+  onRuneTagFilterChange() {
+    this.filteredRunes = this.filterRunes(this.runes, this._searchTerm);
+  }
+
+  getRuneTypeLabel(runeType?: string): string {
+    const labels: Record<string, string> = {
+      medium: 'Medium',
+      formung: 'Formung',
+      selektor: 'Selektor',
+      custom: 'Custom',
+    };
+    return runeType ? (labels[runeType] ?? runeType) : 'Legacy';
+  }
+
+  getMaterialCategoryLabel(m: MaterialBlock): string {
+    const cats: string[] = [];
+    if (m.canBeWeaponMaterial) cats.push('Waffe');
+    if (m.canBeArmorMaterial) cats.push('Rüstung');
+    return cats.join(' / ') || 'Allgemein';
+  }
+
+  getRarityLabel(rarity?: string): string {
+    const map: Record<string, string> = { COMMON: 'Häufig', RARE: 'Selten', LEGENDARY: 'Legendär' };
+    return rarity ? (map[rarity] ?? rarity) : '';
+  }
+
+  getUniqueRuneTags(): string[] {
+    const tags = new Set<string>();
+    this.runes.forEach(r => r.tags?.forEach(t => tags.add(t)));
+    return [...tags].sort();
+  }
+
+  getSkillTypeLabel(type?: string): string {
+    const labels: Record<string, string> = {
+      active: 'Aktiv', passive: 'Passiv', dice_bonus: 'Würfelbonus', stat_bonus: 'Wertbonus'
+    };
+    return type ? (labels[type] ?? type) : '';
   }
 
   onDragStart(event: DragEvent, type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect' | 'shop' | 'loot-bundle', index: number) {

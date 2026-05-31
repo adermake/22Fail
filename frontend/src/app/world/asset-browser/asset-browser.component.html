@@ -1,46 +1,28 @@
-<div class="asset-browser-container">
+﻿<div class="asset-browser-container">
   <div class="tabs-header">
-    <button
-      class="tab-button"
-      [class.active]="activeTab === 'items'"
-      (click)="setActiveTab('items')">
-      Items ({{ items.length }})
+    <button class="tab-button" [class.active]="activeTab === 'items'" (click)="setActiveTab('items')">
+      ⚔️ Items ({{ items.length }})
     </button>
-    <button
-      class="tab-button"
-      [class.active]="activeTab === 'runes'"
-      (click)="setActiveTab('runes')">
-      Runen ({{ runes.length }})
+    <button class="tab-button" [class.active]="activeTab === 'runes'" (click)="setActiveTab('runes')">
+      ✨ Runen ({{ runes.length }})
     </button>
-    <button
-      class="tab-button"
-      [class.active]="activeTab === 'spells'"
-      (click)="setActiveTab('spells')">
-      Zauber ({{ spells.length }})
+    <button class="tab-button" [class.active]="activeTab === 'spells'" (click)="setActiveTab('spells')">
+      🔮 Zauber ({{ spells.length }})
     </button>
-    <button
-      class="tab-button"
-      [class.active]="activeTab === 'skills'"
-      (click)="setActiveTab('skills')">
-      Talente ({{ skills.length }})
+    <button class="tab-button" [class.active]="activeTab === 'skills'" (click)="setActiveTab('skills')">
+      📖 Talente ({{ skills.length }})
     </button>
-    <button
-      class="tab-button"
-      [class.active]="activeTab === 'status-effects'"
-      (click)="setActiveTab('status-effects')">
+    <button class="tab-button" [class.active]="activeTab === 'status-effects'" (click)="setActiveTab('status-effects')">
       💫 Effekte ({{ statusEffects.length || 0 }})
     </button>
-    <button
-      class="tab-button"
-      [class.active]="activeTab === 'shops'"
-      (click)="setActiveTab('shops')">
+    <button class="tab-button" [class.active]="activeTab === 'shops'" (click)="setActiveTab('shops')">
       🏪 Handel ({{ shops.length || 0 }})
     </button>
-    <button
-      class="tab-button"
-      [class.active]="activeTab === 'loot-bundles'"
-      (click)="setActiveTab('loot-bundles')">
+    <button class="tab-button" [class.active]="activeTab === 'loot-bundles'" (click)="setActiveTab('loot-bundles')">
       💰 Beute ({{ lootBundles.length || 0 }})
+    </button>
+    <button class="tab-button" [class.active]="activeTab === 'knowledge'" (click)="setActiveTab('knowledge')">
+      🧪 Wissen
     </button>
   </div>
 
@@ -50,6 +32,33 @@
       class="search-input"
       [(ngModel)]="searchTerm"
       placeholder="Nach Name oder Beschreibung suchen...">
+
+    <!-- Per-tab filters -->
+    @if (activeTab === 'items') {
+      <select class="tab-filter" [(ngModel)]="itemTypeFilter" (ngModelChange)="onItemTypeFilterChange()">
+        <option value="">Alle Typen</option>
+        <option value="weapon">Waffe</option>
+        <option value="armor">Rüstung</option>
+        <option value="other">Sonstiges</option>
+      </select>
+    }
+    @if (activeTab === 'runes' && getUniqueRuneTags().length > 0) {
+      <select class="tab-filter" [(ngModel)]="runeTagFilter" (ngModelChange)="onRuneTagFilterChange()">
+        <option value="">Alle Tags</option>
+        @for (tag of getUniqueRuneTags(); track tag) {
+          <option [value]="tag">{{ tag }}</option>
+        }
+      </select>
+    }
+    @if (activeTab === 'skills') {
+      <select class="tab-filter" [(ngModel)]="skillTypeFilter" (ngModelChange)="onSkillTypeFilterChange()">
+        <option value="">Alle Typen</option>
+        <option value="active">Aktiv</option>
+        <option value="passive">Passiv</option>
+        <option value="dice_bonus">Würfelbonus</option>
+        <option value="stat_bonus">Wertbonus</option>
+      </select>
+    }
   </div>
 
   <div class="tab-content">
@@ -74,31 +83,49 @@
             </app-item>
           </div>
         }
+        @if (filteredItems.length === 0) {
+          <p class="empty-hint">Keine Items gefunden.</p>
+        }
         @if (!readonly) {
           <button class="add-button" (click)="addItem.emit()">+ Gegenstand hinzufügen</button>
         }
       </div>
     }
 
-    <!-- Runes Tab -->
+    <!-- Runes Tab (Compact) -->
     @if (activeTab === 'runes') {
       <div class="library-list">
         @for (rune of filteredRunes; track getOriginalIndex(rune, 'runes'); let i = $index) {
-          <div class="library-item-wrapper"
-               [class.draggable]="!isRuneEditing(getOriginalIndex(rune, 'runes'))"
-               [attr.draggable]="!isRuneEditing(getOriginalIndex(rune, 'runes'))"
+          <div class="rune-compact-card"
+               draggable="true"
                (dragstart)="onDragStart($event, 'rune', getOriginalIndex(rune, 'runes'))"
                (contextmenu)="onContextMenu($event, 'rune', getOriginalIndex(rune, 'runes'))">
-            <app-rune
-              [rune]="rune"
-              [index]="getOriginalIndex(rune, 'runes')"
-              [isEditing]="isRuneEditing(getOriginalIndex(rune, 'runes'))"
-              (patch)="onRuneUpdate(getOriginalIndex(rune, 'runes'), $event)"
-              (delete)="removeRune.emit(getOriginalIndex(rune, 'runes'))"
-              (editingChange)="onRuneEditingChange(getOriginalIndex(rune, 'runes'), $event)"
-              (openEditor)="openRuneEditor.emit(getOriginalIndex(rune, 'runes'))">
-            </app-rune>
+            <div class="rune-compact-header">
+              <span class="rune-dot" [style.background]="rune.glowColor || '#8b5cf6'"></span>
+              <span class="rune-compact-name">{{ rune.name }}</span>
+              <span class="rune-compact-type">{{ getRuneTypeLabel(rune.runeType) }}</span>
+              <div class="rune-compact-costs">
+                @if (rune.mana) { <span class="cost-badge mana">{{ rune.mana }} M</span> }
+                @if (rune.fokus) { <span class="cost-badge fokus">{{ rune.fokus }} F</span> }
+              </div>
+            </div>
+            @if (rune.tags?.length) {
+              <div class="rune-tags-row">
+                @for (tag of rune.tags; track tag) {
+                  <span class="rune-tag">{{ tag }}</span>
+                }
+              </div>
+            }
+            @if (rune.description) {
+              <p class="rune-compact-desc">{{ rune.description }}</p>
+            }
+            @if (!readonly) {
+              <button class="edit-btn-sm" (click)="openRuneEditor.emit(getOriginalIndex(rune, 'runes'))">✏️</button>
+            }
           </div>
+        }
+        @if (filteredRunes.length === 0) {
+          <p class="empty-hint">Keine Runen gefunden.</p>
         }
         @if (!readonly) {
           <button class="add-button" (click)="addRune.emit()">+ Rune hinzufügen</button>
@@ -127,6 +154,9 @@
             </app-spell>
           </div>
         }
+        @if (filteredSpells.length === 0) {
+          <p class="empty-hint">Keine Zauber gefunden.</p>
+        }
         @if (!readonly) {
           <button class="add-button" (click)="addSpell.emit()">+ Zauber hinzufügen</button>
         }
@@ -153,6 +183,9 @@
               (openEditor)="openSkillEditor.emit(getOriginalIndex(skill, 'skills'))">
             </app-skill>
           </div>
+        }
+        @if (filteredSkills.length === 0) {
+          <p class="empty-hint">Keine Talente gefunden.</p>
         }
         @if (!readonly) {
           <button class="add-button" (click)="addSkill.emit()">+ Talent hinzufügen</button>
@@ -188,6 +221,9 @@
               }
             </div>
           </div>
+        }
+        @if (filteredStatusEffects.length === 0) {
+          <p class="empty-hint">Keine Statuseffekte gefunden.</p>
         }
         @if (!readonly) {
           <button class="add-button" (click)="addStatusEffect.emit()">+ Statuseffekt hinzufügen</button>
@@ -278,3 +314,78 @@
         }
       </div>
     }
+
+    <!-- Knowledge Tab -->
+    @if (activeTab === 'knowledge') {
+      <div class="knowledge-sub-tabs">
+        <button class="sub-tab-btn" [class.active]="activeKnowledgeTab === 'material'" (click)="setActiveKnowledgeTab('material')">
+          🪨 Materialien ({{ filteredMaterials.length }})
+        </button>
+        <button class="sub-tab-btn" [class.active]="activeKnowledgeTab === 'forge-trait'" (click)="setActiveKnowledgeTab('forge-trait')">
+          🔨 Schmiede-Traits ({{ filteredForgeTraits.length }})
+        </button>
+      </div>
+
+      @if (activeKnowledgeTab === 'material') {
+        <div class="library-list">
+          @for (mat of filteredMaterials; track mat.id) {
+            <div class="knowledge-card">
+              <div class="knowledge-card-header">
+                @if (mat.icon) { <span class="knowledge-icon">{{ mat.icon }}</span> }
+                <span class="knowledge-name">{{ mat.name }}</span>
+                @if (mat.rarity) {
+                  <span class="rarity-badge rarity-{{ mat.rarity | lowercase }}">{{ getRarityLabel(mat.rarity) }}</span>
+                }
+                <span class="knowledge-category">{{ getMaterialCategoryLabel(mat) }}</span>
+              </div>
+              @if (mat.description) {
+                <p class="knowledge-desc">{{ mat.description }}</p>
+              }
+              @if (mat.weaponStats) {
+                <div class="knowledge-stats">
+                  <span class="stat-chip">HB {{ mat.weaponStats.haltbarkeit }}</span>
+                  <span class="stat-chip">EFF {{ mat.weaponStats.effektivitaet }}</span>
+                  @if (mat.weaponStats.extraEffect) {
+                    <span class="stat-chip effect">{{ mat.weaponStats.extraEffect }}</span>
+                  }
+                </div>
+              }
+              @if (mat.isPublic) {
+                <span class="public-badge">Öffentlich</span>
+              }
+            </div>
+          }
+          @if (filteredMaterials.length === 0) {
+            <p class="empty-hint">Keine Materialien gefunden. Erstelle Materialien in den Bibliotheken.</p>
+          }
+        </div>
+      }
+
+      @if (activeKnowledgeTab === 'forge-trait') {
+        <div class="library-list">
+          @for (trait of filteredForgeTraits; track trait.id) {
+            <div class="knowledge-card">
+              <div class="knowledge-card-header">
+                <span class="knowledge-name">{{ trait.name }}</span>
+                <span class="knowledge-cost">{{ trait.schmiedepunktKosten }} SP</span>
+                @if (trait.scalable) {
+                  <span class="scalable-badge">bis Lv.{{ trait.maxLevel }}</span>
+                }
+              </div>
+              <p class="knowledge-effect">{{ trait.effect }}</p>
+              @if (trait.description) {
+                <p class="knowledge-desc">{{ trait.description }}</p>
+              }
+              @if (trait.isPublic) {
+                <span class="public-badge">Öffentlich</span>
+              }
+            </div>
+          }
+          @if (filteredForgeTraits.length === 0) {
+            <p class="empty-hint">Keine Schmiede-Traits gefunden. Erstelle Traits in den Bibliotheken.</p>
+          }
+        </div>
+      }
+    }
+  </div>
+</div>

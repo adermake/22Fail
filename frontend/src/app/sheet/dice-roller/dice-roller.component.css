@@ -478,45 +478,27 @@
 .bonus-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .bonus-grid.scrollable {
-  max-height: 180px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 4px;
-}
-
-.bonus-grid.scrollable::-webkit-scrollbar {
-  width: 6px;
-}
-
-.bonus-grid.scrollable::-webkit-scrollbar-track {
-  background: #1a1a1a;
-  border-radius: 3px;
-}
-
-.bonus-grid.scrollable::-webkit-scrollbar-thumb {
-  background: #444;
-  border-radius: 3px;
-}
-
-.bonus-grid.scrollable::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  /* No nested scroll — the panel itself scrolls */
+  overflow: visible;
+  padding-right: 0;
 }
 
 .bonus-chip {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
+  gap: 6px;
   background: #2a2a2a;
   border: 2px solid #444;
-  border-radius: 8px;
-  padding: 10px 14px;
+  border-radius: 6px;
+  padding: 5px 10px;
   cursor: pointer;
   transition: all 0.2s;
-  min-width: 90px;
+  min-width: 0;
 }
 
 .bonus-chip:hover {
@@ -547,13 +529,18 @@
 .chip-name {
   color: #ccc;
   font-size: 11px;
-  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
 }
 
 .chip-value {
   color: #ef4444; /* RED by default - positive is BAD */
-  font-size: 16px;
+  font-size: 13px;
   font-weight: bold;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .chip-value.negative {
@@ -563,8 +550,10 @@
 .chip-context {
   color: #666;
   font-size: 9px;
-  text-align: center;
-  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
 }
 
 .selected-summary {

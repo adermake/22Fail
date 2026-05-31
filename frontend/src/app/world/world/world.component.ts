@@ -14,6 +14,7 @@ import { Library } from '../../model/library.model';
 import { TrashService } from '../../services/trash.service';
 import { NotificationService } from '../../services/notification.service';
 import { ItemBlock } from '../../model/item-block.model';
+import { MaterialBlock, ForgeTrait } from '../../model/forging.model';
 import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { FormulaType } from '../../model/formula-type.enum';
@@ -121,6 +122,11 @@ export class WorldComponent implements OnInit, OnDestroy {
   knowledgeManagerMaterials: { material: any; known: boolean }[] = [];
   knowledgeManagerForgeTraits: { forgeTrait: any; known: boolean }[] = [];
   knowledgeManagerSearch = '';
+
+  // Asset browser knowledge data loaded from AssetBrowserApi
+  allMaterials: MaterialBlock[] = [];
+  allForgeTraits: ForgeTrait[] = [];
+  private knowledgeDataLoaded = false;
 
   // Drag state
   private dragScrollInterval?: number;
@@ -350,6 +356,9 @@ export class WorldComponent implements OnInit, OnDestroy {
     
     // Load all libraries for context menu usage
     this.libraryStoreService.loadAllLibraries();
+
+    // Load materials and forge traits for asset browser knowledge tab
+    this.loadKnowledgeData();
     
     this.route.params.subscribe(params => {
       this.worldName = params['worldName'];
@@ -1226,6 +1235,28 @@ export class WorldComponent implements OnInit, OnDestroy {
   closeKnowledgeManager(): void {
     this.knowledgeManagerFor = null;
     this.cdr.markForCheck();
+  }
+
+  /** Loads all materials and forge traits from the asset browser API for the knowledge tab. */
+  private async loadKnowledgeData(): Promise<void> {
+    if (this.knowledgeDataLoaded) return;
+    try {
+      const libraries = await firstValueFrom(this.assetBrowserApi.getAllLibraries());
+      const materials: MaterialBlock[] = [];
+      const forgeTraits: ForgeTrait[] = [];
+      for (const lib of libraries) {
+        const mats = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', ['material']));
+        materials.push(...mats.map(f => f.data as MaterialBlock));
+        const traits = await firstValueFrom(this.assetBrowserApi.searchFiles(lib.id, '', ['forge-trait']));
+        forgeTraits.push(...traits.map(f => f.data as ForgeTrait));
+      }
+      this.allMaterials = materials;
+      this.allForgeTraits = forgeTraits;
+      this.knowledgeDataLoaded = true;
+      this.cdr.markForCheck();
+    } catch (e) {
+      console.error('[WORLD] Fehler beim Laden der Wissensdaten', e);
+    }
   }
 
   get knownMaterialCount(): number {

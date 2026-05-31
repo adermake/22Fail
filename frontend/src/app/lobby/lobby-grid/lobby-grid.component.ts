@@ -5628,8 +5628,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const token = this.tokens.find(t => t.characterId === characterId);
     if (!token) return;
 
-    // Get token screen position
-    const screenPos = this.getTokenScreenPosition(token);
+    // Store world-space position so it follows camera pan/zoom
+    const worldPos = HexMath.hexToPixel(token.position);
 
     // Create popup
     this.activeRollPopup = {
@@ -5641,7 +5641,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       rolls: roll.rolls,
       total: roll.total,
       bonuses: roll.bonuses,
-      position: screenPos,
+      position: worldPos,
       formula: roll.formula,
       actionName: roll.actionName,
       actionColor: roll.actionColor,
@@ -5660,6 +5660,15 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }, 4000);
 
     this.cdr.detectChanges();
+  }
+
+  /**
+   * Returns the current screen position for the active roll popup,
+   * computed from world coords on every render so it follows camera pan/zoom.
+   */
+  get rollPopupScreenPos(): Point | null {
+    if (!this.activeRollPopup) return null;
+    return this.worldToScreen(this.activeRollPopup.position.x, this.activeRollPopup.position.y);
   }
 
   /**

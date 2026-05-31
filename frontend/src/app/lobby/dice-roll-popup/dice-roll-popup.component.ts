@@ -1,9 +1,3 @@
-/**
- * Dice Roll Popup Component
- * 
- * Shows animated dice roll results floating over character tokens.
- */
-
 import { Component, Input, ChangeDetectionStrategy, OnInit, OnDestroy, OnChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Point } from '../../model/lobby.model';
@@ -32,8 +26,8 @@ export interface DiceRollPopup {
     @if (popup) {
       <div 
         class="roll-popup"
-        [style.left.px]="popup.position.x"
-        [style.top.px]="popup.position.y"
+        [style.left.px]="screenPos ? screenPos.x : popup.position.x"
+        [style.top.px]="screenPos ? screenPos.y : popup.position.y"
       >
         <div class="popup-content" [style.border-color]="popup.actionColor || '#f59e0b'">
           <!-- Character Name Header -->
@@ -246,6 +240,8 @@ export interface DiceRollPopup {
 })
 export class DiceRollPopupComponent implements OnInit, OnDestroy, OnChanges {
   @Input() popup!: DiceRollPopup | null;
+  /** Live screen-space position overriding popup.position (world coords). Pass from parent to follow pan/zoom. */
+  @Input() screenPos: Point | null = null;
 
   private rollSound: HTMLAudioElement | null = null;
   private previousPopupId: string | null = null;

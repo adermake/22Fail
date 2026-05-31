@@ -203,6 +203,8 @@
         [statusEffects]="mergedStatusEffects()"
         [shops]="mergedShops()"
         [lootBundles]="mergedBundles()"
+        [materials]="allMaterials"
+        [forgeTraits]="allForgeTraits"
         [dummySheet]="dummySheet"
         [editingItems]="editingItems"
         [editingRunes]="editingRunes"
@@ -230,11 +232,11 @@
       </app-asset-browser>
     </app-card>
   </div>
-</div>
 
-<!-- Damage Calculator -->
-<div class="damage-calc-section">
-  <app-damage-calculator [worldName]="worldName"></app-damage-calculator>
+  <!-- Damage Calculator -->
+  <div class="damage-calc-section">
+    <app-damage-calculator [worldName]="worldName"></app-damage-calculator>
+  </div>
 </div>
 
 <!-- Item Creator Dialog -->
