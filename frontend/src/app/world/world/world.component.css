@@ -35,8 +35,8 @@
   display: grid;
   grid-template-columns: 1fr 2fr;
   gap: 1rem;
-  height: calc(100vh - 400px);
-  min-height: 600px;
+  height: calc(100vh - 300px);
+  min-height: 700px;
 }
 
 .battle-loot-card {
