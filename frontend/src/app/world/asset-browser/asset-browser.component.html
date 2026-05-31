@@ -3,9 +3,6 @@
     <button class="tab-button" [class.active]="activeTab === 'items'" (click)="setActiveTab('items')">
       ⚔️ Items ({{ items.length }})
     </button>
-    <button class="tab-button" [class.active]="activeTab === 'runes'" (click)="setActiveTab('runes')">
-      ✨ Runen ({{ runes.length }})
-    </button>
     <button class="tab-button" [class.active]="activeTab === 'spells'" (click)="setActiveTab('spells')">
       🔮 Zauber ({{ spells.length }})
     </button>
@@ -40,14 +37,6 @@
         <option value="weapon">Waffe</option>
         <option value="armor">Rüstung</option>
         <option value="other">Sonstiges</option>
-      </select>
-    }
-    @if (activeTab === 'runes' && getUniqueRuneTags().length > 0) {
-      <select class="tab-filter" [(ngModel)]="runeTagFilter" (ngModelChange)="onRuneTagFilterChange()">
-        <option value="">Alle Tags</option>
-        @for (tag of getUniqueRuneTags(); track tag) {
-          <option [value]="tag">{{ tag }}</option>
-        }
       </select>
     }
     @if (activeTab === 'skills') {
@@ -92,46 +81,6 @@
       </div>
     }
 
-    <!-- Runes Tab (Compact) -->
-    @if (activeTab === 'runes') {
-      <div class="library-list">
-        @for (rune of filteredRunes; track getOriginalIndex(rune, 'runes'); let i = $index) {
-          <div class="rune-compact-card"
-               draggable="true"
-               (dragstart)="onDragStart($event, 'rune', getOriginalIndex(rune, 'runes'))"
-               (contextmenu)="onContextMenu($event, 'rune', getOriginalIndex(rune, 'runes'))">
-            <div class="rune-compact-header">
-              <span class="rune-dot" [style.background]="rune.glowColor || '#8b5cf6'"></span>
-              <span class="rune-compact-name">{{ rune.name }}</span>
-              <span class="rune-compact-type">{{ getRuneTypeLabel(rune.runeType) }}</span>
-              <div class="rune-compact-costs">
-                @if (rune.mana) { <span class="cost-badge mana">{{ rune.mana }} M</span> }
-                @if (rune.fokus) { <span class="cost-badge fokus">{{ rune.fokus }} F</span> }
-              </div>
-            </div>
-            @if (rune.tags?.length) {
-              <div class="rune-tags-row">
-                @for (tag of rune.tags; track tag) {
-                  <span class="rune-tag">{{ tag }}</span>
-                }
-              </div>
-            }
-            @if (rune.description) {
-              <p class="rune-compact-desc">{{ rune.description }}</p>
-            }
-            @if (!readonly) {
-              <button class="edit-btn-sm" (click)="openRuneEditor.emit(getOriginalIndex(rune, 'runes'))">✏️</button>
-            }
-          </div>
-        }
-        @if (filteredRunes.length === 0) {
-          <p class="empty-hint">Keine Runen gefunden.</p>
-        }
-        @if (!readonly) {
-          <button class="add-button" (click)="addRune.emit()">+ Rune hinzufügen</button>
-        }
-      </div>
-    }
 
     <!-- Spells Tab -->
     @if (activeTab === 'spells') {
@@ -318,6 +267,9 @@
     <!-- Knowledge Tab -->
     @if (activeTab === 'knowledge') {
       <div class="knowledge-sub-tabs">
+        <button class="sub-tab-btn" [class.active]="activeKnowledgeTab === 'rune'" (click)="setActiveKnowledgeTab('rune')">
+          ✨ Runen ({{ filteredRunes.length }})
+        </button>
         <button class="sub-tab-btn" [class.active]="activeKnowledgeTab === 'material'" (click)="setActiveKnowledgeTab('material')">
           🪨 Materialien ({{ filteredMaterials.length }})
         </button>
@@ -325,6 +277,66 @@
           🔨 Schmiede-Traits ({{ filteredForgeTraits.length }})
         </button>
       </div>
+
+      <!-- Rune filter inside knowledge -->
+      @if (activeKnowledgeTab === 'rune' && getUniqueRuneTags().length > 0) {
+        <div class="knowledge-filter-row">
+          <select class="tab-filter" [(ngModel)]="runeTagFilter" (ngModelChange)="onRuneTagFilterChange()">
+            <option value="">Alle Tags</option>
+            @for (tag of getUniqueRuneTags(); track tag) {
+              <option [value]="tag">{{ tag }}</option>
+            }
+          </select>
+        </div>
+      }
+
+      @if (activeKnowledgeTab === 'rune') {
+        <div class="library-list rune-list">
+          @for (rune of filteredRunes; track getOriginalIndex(rune, 'runes')) {
+            <div class="rune-compact-card"
+                 [style.border-left-color]="rune.glowColor || '#8b5cf6'"
+                 draggable="true"
+                 (dragstart)="onDragStart($event, 'rune', getOriginalIndex(rune, 'runes'))"
+                 (contextmenu)="onContextMenu($event, 'rune', getOriginalIndex(rune, 'runes'))">
+              <div class="rune-card-body">
+                @if (rune.drawing) {
+                  <img class="rune-drawing-thumb" [src]="rune.drawing | imageUrl" alt="{{ rune.name }}" />
+                } @else {
+                  <div class="rune-drawing-placeholder">
+                    <span class="rune-dot" [style.background]="rune.glowColor || '#8b5cf6'"></span>
+                  </div>
+                }
+                <div class="rune-card-info">
+                  <div class="rune-compact-header">
+                    <span class="rune-compact-name">{{ rune.name }}</span>
+                    <span class="rune-compact-type">{{ getRuneTypeLabel(rune.runeType) }}</span>
+                    <div class="rune-compact-costs">
+                      @if (rune.mana) { <span class="cost-badge mana">{{ rune.mana }} M</span> }
+                      @if (rune.fokus) { <span class="cost-badge fokus">{{ rune.fokus }} F</span> }
+                    </div>
+                  </div>
+                  @if (rune.tags?.length) {
+                    <div class="rune-tags-row">
+                      @for (tag of rune.tags; track tag) {
+                        <span class="rune-tag">{{ tag }}</span>
+                      }
+                    </div>
+                  }
+                  @if (rune.description) {
+                    <p class="rune-compact-desc">{{ rune.description }}</p>
+                  }
+                </div>
+              </div>
+              @if (!readonly) {
+                <button class="edit-btn-sm" (click)="openRuneEditor.emit(getOriginalIndex(rune, 'runes'))">✏️</button>
+              }
+            </div>
+          }
+          @if (filteredRunes.length === 0) {
+            <p class="empty-hint">Keine Runen gefunden.</p>
+          }
+        </div>
+      }
 
       @if (activeKnowledgeTab === 'material') {
         <div class="library-list">

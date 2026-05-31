@@ -39,11 +39,22 @@
   min-height: 600px;
 }
 
-.battle-loot-card,
+.battle-loot-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .library-card {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  box-sizing: border-box;
 }
 
 .party-dashboard-card {
@@ -521,6 +532,12 @@
   display: block;
 }
 
+.library-card app-asset-browser {
+  flex: 1;
+  min-height: 0;
+  display: block;
+}
+
 .drag-hint {
   font-size: 12px;
   color: var(--muted);
@@ -653,6 +670,7 @@
 .damage-calc-section {
   margin-top: 1rem;
   margin-bottom: 1rem;
+  max-width: 720px;
 }
 
 /* Drag and Drop Animations */

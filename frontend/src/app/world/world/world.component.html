@@ -182,7 +182,7 @@
     </app-card>
 
     <!-- Asset Browser Section (Right) -->
-    <app-card class="library-card">
+    <div class="library-card">
       <div class="library-header">
         <h2>Bibliothek</h2>
         <div class="library-header-actions">
@@ -230,7 +230,7 @@
         (dragStart)="onDragStart($event.event, $event.type, $event.index)"
         (contextMenuRequest)="onLibraryItemContextMenu($event)">
       </app-asset-browser>
-    </app-card>
+    </div>
   </div>
 
   <!-- Damage Calculator -->

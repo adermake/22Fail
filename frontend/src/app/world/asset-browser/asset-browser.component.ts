@@ -13,6 +13,7 @@ import { MaterialBlock, ForgeTrait } from '../../model/forging.model';
 import { ItemComponent } from '../../sheet/item/item.component';
 import { SpellComponent } from '../../sheet/spell/spell.component';
 import { SkillComponent } from '../../sheet/skill/skill.component';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
 /**
  * Asset Browser Component (World View)
@@ -24,7 +25,7 @@ import { SkillComponent } from '../../sheet/skill/skill.component';
  */
 @Component({
   selector: 'app-asset-browser',
-  imports: [CommonModule, FormsModule, ItemComponent, SpellComponent, SkillComponent],
+  imports: [CommonModule, FormsModule, ItemComponent, SpellComponent, SkillComponent, ImageUrlPipe],
   templateUrl: './asset-browser.component.html',
   styleUrl: './asset-browser.component.css'
 })
@@ -75,7 +76,7 @@ export class AssetBrowserComponent implements OnChanges {
   @Output() contextMenuRequest = new EventEmitter<{ event: MouseEvent; type: 'item' | 'rune' | 'spell' | 'skill' | 'status-effect'; index: number }>();
 
   activeTab: 'items' | 'runes' | 'spells' | 'skills' | 'status-effects' | 'shops' | 'loot-bundles' | 'knowledge' = 'items';
-  activeKnowledgeTab: 'material' | 'forge-trait' = 'material';
+  activeKnowledgeTab: 'material' | 'forge-trait' | 'rune' = 'rune';
   private _searchTerm: string = '';
 
   // Per-tab filters
@@ -266,7 +267,7 @@ export class AssetBrowserComponent implements OnChanges {
     this.activeTab = tab;
   }
 
-  setActiveKnowledgeTab(tab: 'material' | 'forge-trait') {
+  setActiveKnowledgeTab(tab: 'material' | 'forge-trait' | 'rune') {
     this.activeKnowledgeTab = tab;
   }
 
