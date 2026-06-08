@@ -14,12 +14,15 @@
           <span class="pts-gesamt">Gesamt {{ totalTalentPoints + bonusTalentPoints }}</span>
         </span>
       </div>
-      <div class="bonus-adjust">
-        <span class="bonus-label">Bonus (GM):</span>
-        <div class="bonus-controls">
-          <button class="adjust-btn" (click)="adjustBonusPoints(-1)">−</button>
-          <span class="bonus-value">{{ bonusTalentPoints }}</span>
-          <button class="adjust-btn" (click)="adjustBonusPoints(1)">+</button>
+      <div class="header-right">
+        <span class="max-rank-hint">Max. pro Talent: {{ maxRankPerTalent }}</span>
+        <div class="bonus-adjust">
+          <span class="bonus-label">Bonus (GM):</span>
+          <div class="bonus-controls">
+            <button class="adjust-btn" (click)="adjustBonusPoints(-1)">−</button>
+            <span class="bonus-value">{{ bonusTalentPoints }}</span>
+            <button class="adjust-btn" (click)="adjustBonusPoints(1)">+</button>
+          </div>
         </div>
       </div>
     </div>
@@ -30,7 +33,7 @@
         <span class="col-name">Talent</span>
         <span class="col-stat">Stat</span>
         <span class="col-mod">Mod</span>
-        <span class="col-ranks">Ränge</span>
+        <span class="col-ranks">Punkte</span>
         <span class="col-total">Würfel</span>
       </div>
 
@@ -45,12 +48,47 @@
             <div class="rank-controls">
               <button class="rank-btn minus" (click)="decrementRank(talent.id)" [disabled]="getRank(talent.id) <= 0">−</button>
               <span class="rank-value">{{ getRank(talent.id) }}</span>
-              <button class="rank-btn plus" (click)="incrementRank(talent.id)" [disabled]="availableTalentPoints <= 0">+</button>
+              <button class="rank-btn plus" (click)="incrementRank(talent.id)" [disabled]="!canIncrement(talent.id)">+</button>
             </div>
           </span>
           <span class="col-total" [class.dice-bonus]="getDiceBonus(talent) < 0" [class.dice-neutral]="getDiceBonus(talent) === 0" [class.dice-penalty]="getDiceBonus(talent) > 0">
             {{ getDiceBonus(talent) > 0 ? '+' : '' }}{{ getDiceBonus(talent) }}
           </span>
+        </div>
+      }
+    </div>
+
+    <!-- Herstellen (Sonstiges) -->
+    <div class="herstellen-section">
+      <div class="herstellen-header">
+        <span class="section-label">Sonstiges — Herstellen</span>
+        <button class="add-herstellen-btn" (click)="addHerstellen()" [disabled]="availableTalentPoints <= 0" title="Neues Herstellen-Talent">
+          + Hinzufügen
+        </button>
+      </div>
+
+      @if (herstellenEntries.length === 0) {
+        <p class="herstellen-empty">Noch keine Herstellen-Talente.</p>
+      }
+
+      @for (entry of herstellenEntries; track entry.id) {
+        <div class="herstellen-row">
+          <input
+            class="herstellen-label-input"
+            type="text"
+            [value]="entry.label"
+            placeholder="Was wird hergestellt?"
+            (blur)="updateHerstellenLabel(entry.id, $any($event.target).value)"
+            (keydown.enter)="$any($event.target).blur()" />
+          <div class="rank-controls">
+            <button class="rank-btn minus" (click)="decrementHerstellenRank(entry.id)" [disabled]="(entry.rank || 0) <= 0">−</button>
+            <span class="rank-value">{{ entry.rank || 0 }}</span>
+            <button class="rank-btn plus" (click)="incrementHerstellenRank(entry.id)" [disabled]="!canIncrementHerstellen(entry)">+</button>
+          </div>
+          <span class="col-total" [class.dice-bonus]="getHerstellenDiceBonus(entry) < 0" [class.dice-neutral]="getHerstellenDiceBonus(entry) === 0">
+            {{ getHerstellenDiceBonus(entry) > 0 ? '+' : '' }}{{ getHerstellenDiceBonus(entry) }}
+          </span>
+          <button class="remove-herstellen-btn" (click)="removeHerstellen(entry.id)" title="Entfernen">✕</button>
         </div>
       }
     </div>

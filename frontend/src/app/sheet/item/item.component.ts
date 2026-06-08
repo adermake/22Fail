@@ -37,6 +37,7 @@ export class ItemComponent implements OnChanges {
   @Output() breakTest = new EventEmitter<void>();
 
   isFolded = true; // Start items as folded to save space
+  readonly Math = Math;
 
   showContextMenu = false;
   contextMenuX = 0;

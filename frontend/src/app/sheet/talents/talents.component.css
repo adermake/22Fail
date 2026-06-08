@@ -262,3 +262,132 @@
 .dice-bonus   { color: #4ade80; }   /* negative value = good */
 .dice-neutral { color: var(--text-muted, #9ca3af); }
 .dice-penalty { color: #f87171; }   /* positive value = bad */
+
+/* ─── Header right side (max rank hint + bonus) ─────────────────────────────── */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.max-rank-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted, #9ca3af);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border, #2d3748);
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+}
+
+/* ─── Herstellen Section ────────────────────────────────────────────────────── */
+.herstellen-section {
+  margin-top: 0.75rem;
+  border: 1px solid var(--border, #2d3748);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.herstellen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 0.6rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border, #2d3748);
+}
+
+.section-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #9ca3af);
+}
+
+.add-herstellen-btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent, #8b5cf6);
+  background: transparent;
+  border: 1px solid var(--accent, #8b5cf6);
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.add-herstellen-btn:hover:not([disabled]) {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.add-herstellen-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.herstellen-empty {
+  padding: 0.6rem;
+  font-size: 0.78rem;
+  color: var(--text-muted, #9ca3af);
+  font-style: italic;
+  text-align: center;
+}
+
+.herstellen-row {
+  display: grid;
+  grid-template-columns: 1fr 110px 52px 28px;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.12s;
+}
+
+.herstellen-row:last-child {
+  border-bottom: none;
+}
+
+.herstellen-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.herstellen-label-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border, #4a5568);
+  color: var(--text, #e5e7eb);
+  font-size: 0.85rem;
+  padding: 0.1rem 0.2rem;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.herstellen-label-input:focus {
+  outline: none;
+  border-bottom-color: var(--accent, #8b5cf6);
+}
+
+.herstellen-label-input::placeholder {
+  color: var(--text-muted, #9ca3af);
+  font-style: italic;
+}
+
+.remove-herstellen-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #9ca3af);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.2rem;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-herstellen-btn:hover {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+}

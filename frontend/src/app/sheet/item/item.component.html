@@ -97,6 +97,24 @@
 
     @if (!isFolded && showDetails) {
 
+      <!-- 0. Amount (stackable items only) -->
+      @if (item.stackable) {
+        <div class="amount-row" (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()">
+          <span class="amount-label">Anzahl</span>
+          <div class="amount-controls">
+            <button class="amount-btn" (click)="updateField('amount', Math.max(1, (item.amount ?? 1) - 1)); $event.stopPropagation()">−</button>
+            <input
+              type="number"
+              class="amount-input"
+              [value]="item.amount ?? 1"
+              min="1"
+              (change)="updateField('amount', Math.max(1, +$any($event.target).value))"
+              (click)="$event.stopPropagation()" />
+            <button class="amount-btn" (click)="updateField('amount', (item.amount ?? 1) + 1); $event.stopPropagation()">+</button>
+          </div>
+        </div>
+      }
+
       <!-- 1. Description -->
       @if (item.description) {
         <p class="item-description" [innerHTML]="enhancedDescription"></p>
