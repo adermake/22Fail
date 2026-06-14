@@ -26,6 +26,7 @@ export class ForgeTraitEditorComponent implements OnInit {
   ngOnInit(): void {
     this.edit = JSON.parse(JSON.stringify(this.trait));
     if (this.edit.maxLevel == null) this.edit.maxLevel = 1;
+    if (!this.edit.appliesTo) this.edit.appliesTo = 'all';
   }
 
   onScalableChange(): void {

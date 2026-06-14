@@ -112,6 +112,30 @@ export const WEAPON_CATEGORY_LABELS: Record<WeaponCategory, string> = {
   SCHWER: 'Schwer',
 };
 
+// ── Armor types ───────────────────────────────────────────────────────────────
+
+export type ArmorWeight = 'LEICHT' | 'MITTEL' | 'SCHWER';
+
+export interface ForgingArmorType {
+  name: string;
+  weight: ArmorWeight;
+  itemBlockType: 'helmet' | 'chestplate' | 'armschienen' | 'leggings' | 'boots' | 'extra';
+}
+
+export const ARMOR_TYPES: ForgingArmorType[] = [
+  { name: 'Helm', weight: 'LEICHT', itemBlockType: 'helmet' },
+  { name: 'Brustplatte', weight: 'SCHWER', itemBlockType: 'chestplate' },
+  { name: 'Hose', weight: 'MITTEL', itemBlockType: 'leggings' },
+  { name: 'Stiefel', weight: 'LEICHT', itemBlockType: 'boots' },
+  { name: 'Armschienen', weight: 'LEICHT', itemBlockType: 'armschienen' },
+];
+
+export const ARMOR_WEIGHT_MULT: Record<ArmorWeight, number> = {
+  LEICHT: 0.8,
+  MITTEL: 1.0,
+  SCHWER: 1.2,
+};
+
 export interface ForgeTrait {
   id: string;
   name: string;
@@ -124,6 +148,8 @@ export interface ForgeTrait {
   scalable: boolean;
   /** If true, all players can see this trait in their knowledge tab. */
   isPublic: boolean;
+  /** What type of equipment this trait can be applied to. */
+  appliesTo?: 'weapon' | 'armor' | 'all';
   libraryOrigin?: string;
   libraryOriginName?: string;
 }
@@ -240,6 +266,7 @@ export function createEmptyForgeTrait(): ForgeTrait {
     maxLevel: 1,
     scalable: false,
     isPublic: false,
+    appliesTo: 'all',
   };
 }
 

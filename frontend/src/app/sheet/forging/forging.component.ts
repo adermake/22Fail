@@ -17,6 +17,7 @@ import {
   nextForgeCost, totalForgeSPSpent,
   WeaponStatKey, WEAPON_STAT_KEYS,
   WeaponType, WEAPON_TYPES, WeaponCategory, WEAPON_CATEGORY_LABELS,
+  ForgingArmorType, ARMOR_TYPES, ArmorWeight, ARMOR_WEIGHT_MULT,
 } from '../../model/forging.model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
@@ -70,6 +71,9 @@ export class ForgingComponent implements OnInit {
   readonly weaponTypes = WEAPON_TYPES;
   readonly weaponCategories: WeaponCategory[] = ['LEICHT', 'FERNKAMPF', 'SCHWER'];
   readonly weaponCategoryLabels = WEAPON_CATEGORY_LABELS;
+  /** Selected armor type — cosmetic, determines armor weight multiplier. */
+  selectedArmorType: ForgingArmorType | null = null;
+  readonly armorTypes = ARMOR_TYPES;
 
   // ── Slots ────────────────────────────────────────────────────────────────────
   primarySlot: MaterialSlotState = { entries: [] };
@@ -88,7 +92,6 @@ export class ForgingComponent implements OnInit {
   // ── UI state: material picker ────────────────────────────────────────────────
   pickingSlot: SlotType | null = null;
   materialFilter = '';
-  materialTypeFilter: 'all' | 'weapon' | 'armor' = 'all';
 
   // ── UI state: trait picker ───────────────────────────────────────────────────
   showTraitPicker = false;
@@ -107,12 +110,12 @@ export class ForgingComponent implements OnInit {
 
   get filteredMaterials(): MaterialBlock[] {
     const q = this.materialFilter.toLowerCase();
-    return this.availableMaterials.filter(m => {
+    const filtered = this.availableMaterials.filter(m => {
       if (q && !m.name.toLowerCase().includes(q)) return false;
-      if (this.materialTypeFilter === 'weapon') return m.canBeWeaponMaterial;
-      if (this.materialTypeFilter === 'armor') return m.canBeArmorMaterial;
       return true;
     });
+    // Sort alphabetically by name
+    return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   get pickingSlotLabel(): string {
@@ -120,17 +123,20 @@ export class ForgingComponent implements OnInit {
     return this.pickingSlot ? labels[this.pickingSlot] : '';
   }
 
-  setMaterialTypeFilter(f: 'all' | 'weapon' | 'armor'): void {
-    this.materialTypeFilter = f;
-    this.cdr.markForCheck();
-  }
-
   openTraitPicker(): void { this.showTraitPicker = true; this.traitFilter = ''; this.cdr.markForCheck(); }
   closeTraitPicker(): void { this.showTraitPicker = false; this.cdr.markForCheck(); }
 
   get filteredForgeTraits(): ForgeTrait[] {
     const q = this.traitFilter.toLowerCase();
-    return this.allForgeTraits.filter(t => !q || t.name.toLowerCase().includes(q));
+    const filtered = this.allForgeTraits.filter(t => {
+      if (q && !t.name.toLowerCase().includes(q)) return false;
+      // Filter by appliesTo
+      const applies = t.appliesTo || 'all';
+      if (applies === 'all') return true;
+      return applies === this.itemType;
+    });
+    // Sort alphabetically by name
+    return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   // ── SP calculations ──────────────────────────────────────────────────────────
@@ -160,10 +166,17 @@ export class ForgingComponent implements OnInit {
     return Math.max(1, Math.round(trait.schmiedepunktKosten * (1 - this.traitDiscount / 100)));
   }
 
-  /** Weapon size multiplier — 1.0 when not forging a weapon. */
+  /** Weapon/armor size multiplier based on selected type. */
   get weightMultiplier(): number {
-    if (this.itemType !== 'weapon') return 1;
-    return this.WEIGHT_MULT[this.weaponSize];
+    if (this.itemType === 'weapon') {
+      return this.WEIGHT_MULT[this.weaponSize];
+    } else {
+      // Armor: use selected armor type's weight multiplier
+      if (this.selectedArmorType) {
+        return ARMOR_WEIGHT_MULT[this.selectedArmorType.weight];
+      }
+      return 1.0; // Default if no armor type selected
+    }
   }
 
   /** Aggregate ForgedStatPreview for all entries in a slot. */
@@ -212,6 +225,7 @@ export class ForgingComponent implements OnInit {
       effektivitaet: Math.floor(raw.effektivitaet / 2),
       weight:        raw.weight / 2,
       ruestungsmalus: raw.ruestungsmalus != null ? Math.floor(raw.ruestungsmalus / 2) : undefined,
+      statRequirement: Math.floor(raw.statRequirement / 2), // Halve stat requirement too
     };
   }
 
@@ -233,12 +247,11 @@ export class ForgingComponent implements OnInit {
     return (this.primaryPreview?.ruestungsmalus ?? 0) + (this.secondaryPreview?.ruestungsmalus ?? 0) + (this.bonusPreview?.ruestungsmalus ?? 0);
   }
 
-  /** Summed stat requirement from primary + secondary slots (not halved — it's an absolute requirement). */
+  /** Summed stat requirement from primary + secondary slots, multiplied by weight multiplier. */
   get finalStatRequirement(): number {
     const priReq = this.primaryPreview?.statRequirement ?? 0;
-    // Secondary statRequirement is not halved — both contribute equally to the requirement
-    const secReq = this.aggregateSlot(this.secondarySlot)?.statRequirement ?? 0;
-    return priReq + secReq;
+    const secReq = this.secondaryPreview?.statRequirement ?? 0; // Already halved in secondaryPreview
+    return Math.round((priReq + secReq) * this.weightMultiplier);
   }
 
   get allExtraEffects(): string[] {
@@ -266,6 +279,10 @@ export class ForgingComponent implements OnInit {
     if (this.selectedWeaponType) {
       this.weaponSize = this.selectedWeaponType.defaultForgeSize;
     }
+    this.cdr.markForCheck();
+  }
+
+  onArmorTypeChange(): void {
     this.cdr.markForCheck();
   }
 
@@ -319,7 +336,6 @@ export class ForgingComponent implements OnInit {
   openPicker(slot: SlotType): void {
     this.pickingSlot = slot;
     this.materialFilter = '';
-    this.materialTypeFilter = 'all';
     this.cdr.markForCheck();
   }
 
@@ -458,6 +474,9 @@ export class ForgingComponent implements OnInit {
 
     if (isWeapon) {
       item.efficiency = this.finalEffektivitaet;
+      if (this.finalStatRequirement > 0) {
+        item.requirements = { [this.statRequirement.toLowerCase()]: this.finalStatRequirement };
+      }
       if (this.selectedWeaponType) {
         item.weaponTypeName = this.selectedWeaponType.name;
         item.damageType     = this.selectedWeaponType.damageType;
@@ -466,6 +485,9 @@ export class ForgingComponent implements OnInit {
     } else {
       item.stability = this.finalEffektivitaet;
       item.armorDebuff = this.finalRuestungsmalus || undefined;
+      if (this.selectedArmorType) {
+        item.armorType = this.selectedArmorType.itemBlockType;
+      }
     }
 
     if (this.appliedTraits.length > 0) {
@@ -500,6 +522,11 @@ export class ForgingComponent implements OnInit {
         lines.push(`Typ: ${this.selectedWeaponType.name}  ·  ${this.selectedWeaponType.damageType}  ·  ${this.selectedWeaponType.range}`);
       }
       lines.push(`Größe: ${sizeLabel} (×${this.WEIGHT_MULT[this.weaponSize]})`);
+    } else {
+      if (this.selectedArmorType) {
+        const weightLabel = { LEICHT: 'Leicht', MITTEL: 'Mittel', SCHWER: 'Schwer' }[this.selectedArmorType.weight];
+        lines.push(`Typ: ${this.selectedArmorType.name}  ·  ${weightLabel} (×${ARMOR_WEIGHT_MULT[this.selectedArmorType.weight]})`);
+      }
     }
     const addSlot = (label: string, slot: MaterialSlotState) => {
       if (slot.entries.length === 0) return;
@@ -528,6 +555,7 @@ export class ForgingComponent implements OnInit {
     this.pickingSlot = null;
     this.showTraitPicker = false;
     this.selectedWeaponType = null;
+    this.selectedArmorType = null;
     this.cdr.markForCheck();
   }
 }

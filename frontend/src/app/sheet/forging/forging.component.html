@@ -49,6 +49,16 @@
             }
           </select>
         </div>
+      } @else {
+        <div class="config-field armor-type-field">
+          <label>Rustungstyp</label>
+          <select class="armor-type-select" [(ngModel)]="selectedArmorType" (ngModelChange)="onArmorTypeChange()">
+            <option [ngValue]="null">– Kein Typ –</option>
+            @for (at of armorTypes; track at.name) {
+              <option [ngValue]="at">{{ at.name }} ({{ at.weight }}, &#xD7;{{ at.weight === 'LEICHT' ? '0.8' : at.weight === 'MITTEL' ? '1.0' : '1.2' }})</option>
+            }
+          </select>
+        </div>
       }
       <div class="config-field sp-combined-field">
         <label>Schmiedepunkte</label>
@@ -266,11 +276,6 @@
         <div class="picker-search-wrap">
           <span class="picker-search-icon">&#x1F50D;</span>
           <input class="picker-search" type="text" [(ngModel)]="materialFilter" placeholder="Material suchen..." />
-        </div>
-        <div class="picker-type-tabs">
-          <button [class.active]="materialTypeFilter === 'all'" (click)="setMaterialTypeFilter('all')">Alle</button>
-          <button [class.active]="materialTypeFilter === 'weapon'" (click)="setMaterialTypeFilter('weapon')">&#x2694; Waffe</button>
-          <button [class.active]="materialTypeFilter === 'armor'" (click)="setMaterialTypeFilter('armor')">&#x1F6E1; Rustung</button>
         </div>
       </div>
       @if (filteredMaterials.length === 0) {

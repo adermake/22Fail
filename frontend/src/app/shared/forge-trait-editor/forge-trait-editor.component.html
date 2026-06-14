@@ -25,6 +25,16 @@
     </label>
   </div>
 
+  <!-- Applies to -->
+  <div class="form-row">
+    <label>Anwendbar auf</label>
+    <select [(ngModel)]="edit.appliesTo">
+      <option value="all">Alle (Waffen & Rüstungen)</option>
+      <option value="weapon">Nur Waffen</option>
+      <option value="armor">Nur Rüstungen</option>
+    </select>
+  </div>
+
   <!-- Scalable toggle -->
   <div class="toggle-row">
     <label class="toggle-label">

@@ -64,6 +64,15 @@
 .name-field { flex: 2; min-width: 180px; }
 .type-field { flex-shrink: 0; }
 .sp-combined-field { flex: 3; min-width: 260px; }
+.weapon-type-field { flex: 1; min-width: 200px; }
+.armor-type-field { flex: 1; min-width: 200px; }
+.stat-req-field { flex-shrink: 0; }
+.weapon-size-field { flex-shrink: 0; }
+
+.weapon-type-select,
+.armor-type-select {
+  width: 100%;
+}
 
 .config-field input,
 .config-field select {
@@ -592,9 +601,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   backdrop-filter: blur(6px);
   z-index: 6000;
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
   overflow: hidden;
+  padding: 2rem;
 }
 .picker-modal {
   background: var(--bg, #1e293b);
@@ -602,9 +612,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   flex-direction: column;
   width: 100%;
   max-width: 1060px;
-  height: 100%;
+  max-height: 90vh;
   overflow: hidden;
   box-shadow: 0 0 60px rgba(0,0,0,0.6);
+  border-radius: 12px;
 }
 
 .picker-modal-header {
@@ -696,9 +707,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 /* Material picker grid */
 .picker-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 0.75rem;
-  padding: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.85rem;
+  padding: 1.25rem;
   overflow-y: auto;
   flex: 1;
   min-height: 0;
