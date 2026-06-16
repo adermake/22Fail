@@ -76,7 +76,7 @@ interface FloatingSelection {
   y: number;
   width: number;
   height: number;
-  sourceLayerIds: string[];
+  sourceLayerId: string;
   sourcePolygon: Point[];
   offsetX: number;
   offsetY: number;
@@ -607,14 +607,22 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     const rect = container.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
+    const newWidth = Math.round(rect.width * dpr);
+    const newHeight = Math.round(rect.height * dpr);
+
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
 
+    if (canvas.width === newWidth && canvas.height === newHeight) {
+      return;
+    }
+
+    canvas.width = newWidth;
+    canvas.height = newHeight;
+
     const ctx = canvas.getContext('2d');
     if (ctx) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
     }
   }
@@ -1474,8 +1482,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const w = canvas.width / dpr;
     const h = canvas.height / dpr;
 
-    ctx.clearRect(0, 0, w, h);
-
     const defaultDrawId = getDefaultDrawLayerId(this.map.layers);
     const drawLayers = (this.map.layers || [])
       .filter(l => l.type === 'draw' && l.visible)
@@ -1486,32 +1492,44 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const activeDrawLayerId = this.isDrawing ? this.store.getActiveDrawLayerId() : null;
     const hasPreview = this.isDrawing && this.currentStrokePoints.length > 1;
 
-    const drawLayer = (layerId: string) => {
-      this.blitDrawLayer(ctx, canvas, dpr, layerId, strokes, bitmaps, defaultDrawId);
+    const composite = document.createElement('canvas');
+    composite.width = canvas.width;
+    composite.height = canvas.height;
+    const compCtx = composite.getContext('2d')!;
+    compCtx.scale(dpr, dpr);
+
+    const drawLayer = (layerId: string, withPreview = false) => {
+      if (withPreview) {
+        this.blitActiveLayerWithPreview(compCtx, canvas, dpr, layerId, strokes, bitmaps, defaultDrawId);
+      } else {
+        this.blitDrawLayer(compCtx, canvas, dpr, layerId, strokes, bitmaps, defaultDrawId);
+      }
     };
 
     if (!hasPreview || !activeDrawLayerId) {
       for (const layer of drawLayers) {
         drawLayer(layer.id);
       }
-      return;
+    } else {
+      const activeIndex = drawLayers.findIndex(l => l.id === activeDrawLayerId);
+      const layersBelow = activeIndex >= 0 ? drawLayers.slice(0, activeIndex) : drawLayers;
+      const layersAbove = activeIndex >= 0 ? drawLayers.slice(activeIndex + 1) : [];
+
+      for (const layer of layersBelow) {
+        drawLayer(layer.id);
+      }
+
+      if (activeIndex >= 0) {
+        drawLayer(activeDrawLayerId, true);
+      }
+
+      for (const layer of layersAbove) {
+        drawLayer(layer.id);
+      }
     }
 
-    const activeIndex = drawLayers.findIndex(l => l.id === activeDrawLayerId);
-    const layersBelow = activeIndex >= 0 ? drawLayers.slice(0, activeIndex) : drawLayers;
-    const layersAbove = activeIndex >= 0 ? drawLayers.slice(activeIndex + 1) : [];
-
-    for (const layer of layersBelow) {
-      drawLayer(layer.id);
-    }
-
-    if (activeIndex >= 0) {
-      this.blitActiveLayerWithPreview(ctx, canvas, dpr, activeDrawLayerId, strokes, bitmaps, defaultDrawId);
-    }
-
-    for (const layer of layersAbove) {
-      drawLayer(layer.id);
-    }
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(composite, 0, 0, w, h);
   }
 
   /** Blit one draw layer isolated so erasers don't affect layers below */
@@ -5778,22 +5796,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!this.selectionHasVisibleContent(sel)) return;
 
     const defaultDrawId = getDefaultDrawLayerId(this.map?.layers);
-    let strokes = this.store.strokes;
-    let drawBitmaps = this.store.drawBitmaps;
-
-    for (const layerId of sel.sourceLayerIds) {
-      const cleaned = removeLayerContentInPolygon(
-        strokes,
-        drawBitmaps,
-        layerId,
-        sel.sourcePolygon,
-        defaultDrawId
-      );
-      strokes = cleaned.strokes;
-      drawBitmaps = cleaned.drawBitmaps;
-    }
-
-    this.store.applyDrawChanges(strokes, drawBitmaps);
+    const cleaned = removeLayerContentInPolygon(
+      this.store.strokes,
+      this.store.drawBitmaps,
+      sel.sourceLayerId,
+      sel.sourcePolygon,
+      defaultDrawId
+    );
+    this.store.applyDrawChanges(cleaned.strokes, cleaned.drawBitmaps);
     sel.sourceCutApplied = true;
   }
 
@@ -5912,14 +5922,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (polygon[0].x !== polygon[polygon.length - 1].x || polygon[0].y !== polygon[polygon.length - 1].y) {
       polygon.push({ ...polygon[0] });
     }
-    const sourceLayerIds = (this.map?.layers || [])
-      .filter(l => l.type === 'draw' && l.visible)
-      .sort((a, b) => a.zIndex - b.zIndex)
-      .map(l => l.id);
+    const sourceLayerId = this.store.getActiveDrawLayerId();
     const defaultDrawId = getDefaultDrawLayerId(this.map?.layers);
 
     for (const bmp of this.map?.drawBitmaps || []) {
-      if (sourceLayerIds.includes(bmp.layerId)) {
+      if (bmp.layerId === sourceLayerId) {
         this.ensureBitmapLoaded(bmp);
       }
     }
@@ -5928,7 +5935,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       polygon,
       this.map?.strokes || [],
       this.map?.drawBitmaps || [],
-      sourceLayerIds,
+      sourceLayerId,
       defaultDrawId,
       (c, bmp) => this.drawBitmapOnContext(c, bmp)
     );
@@ -5942,7 +5949,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       y: extracted.y,
       width: extracted.width,
       height: extracted.height,
-      sourceLayerIds,
+      sourceLayerId,
       sourcePolygon: polygon,
       offsetX: 0,
       offsetY: 0,
@@ -6198,22 +6205,20 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       let drawBitmaps = [...this.store.drawBitmaps];
 
       if (!sel.sourceCutApplied && sel.sourcePolygon.length >= 3) {
-        for (const layerId of sel.sourceLayerIds) {
-          const cleaned = removeLayerContentInPolygon(
-            strokes,
-            drawBitmaps,
-            layerId,
-            sel.sourcePolygon,
-            defaultDrawId
-          );
-          strokes = cleaned.strokes;
-          drawBitmaps = cleaned.drawBitmaps;
-        }
+        const cleaned = removeLayerContentInPolygon(
+          strokes,
+          drawBitmaps,
+          sel.sourceLayerId,
+          sel.sourcePolygon,
+          defaultDrawId
+        );
+        strokes = cleaned.strokes;
+        drawBitmaps = cleaned.drawBitmaps;
       }
 
       drawBitmaps.push({
         id: generateId(),
-        layerId: this.store.getActiveDrawLayerId(),
+        layerId: sel.sourceLayerId,
         x: baked.x,
         y: baked.y,
         width: baked.width,
@@ -6289,7 +6294,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         y: pasteY,
         width: this.lassoClipboard!.width,
         height: this.lassoClipboard!.height,
-        sourceLayerIds: [this.store.getActiveDrawLayerId()],
+        sourceLayerId: this.store.getActiveDrawLayerId(),
         sourcePolygon: [],
         offsetX: 0,
         offsetY: 0,

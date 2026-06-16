@@ -1,4 +1,4 @@
-import { DrawBitmap, Layer, Point, Stroke } from '../model/lobby.model';
+import { DrawBitmap, Layer, Point, Stroke, generateId } from '../model/lobby.model';
 
 export interface DrawLayerSnapshot {
   strokes: Stroke[];
@@ -166,16 +166,147 @@ function getStrokeBounds(stroke: Stroke): { minX: number; minY: number; maxX: nu
   return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad };
 }
 
+function segmentsIntersect(a1: Point, a2: Point, b1: Point, b2: Point): boolean {
+  const d1x = a2.x - a1.x;
+  const d1y = a2.y - a1.y;
+  const d2x = b2.x - b1.x;
+  const d2y = b2.y - b1.y;
+  const cross = d1x * d2y - d1y * d2x;
+  if (Math.abs(cross) < 1e-10) return false;
+  const t = ((b1.x - a1.x) * d2y - (b1.y - a1.y) * d2x) / cross;
+  const u = ((b1.x - a1.x) * d1y - (b1.y - a1.y) * d1x) / cross;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+}
+
+function segmentIntersection(a1: Point, a2: Point, b1: Point, b2: Point): Point | null {
+  const d1x = a2.x - a1.x;
+  const d1y = a2.y - a1.y;
+  const d2x = b2.x - b1.x;
+  const d2y = b2.y - b1.y;
+  const cross = d1x * d2y - d1y * d2x;
+  if (Math.abs(cross) < 1e-10) return null;
+  const t = ((b1.x - a1.x) * d2y - (b1.y - a1.y) * d2x) / cross;
+  const u = ((b1.x - a1.x) * d1y - (b1.y - a1.y) * d1x) / cross;
+  if (t < 0 || t > 1 || u < 0 || u > 1) return null;
+  return { x: a1.x + t * d1x, y: a1.y + t * d1y };
+}
+
+function segmentPolygonCrossings(a: Point, b: Point, polygon: Point[]): { t: number; point: Point }[] {
+  const hits: { t: number; point: Point }[] = [];
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq < 1e-10) return hits;
+
+  for (let i = 0; i < polygon.length; i++) {
+    const j = (i + 1) % polygon.length;
+    const hit = segmentIntersection(a, b, polygon[i], polygon[j]);
+    if (!hit) continue;
+    const t = ((hit.x - a.x) * dx + (hit.y - a.y) * dy) / lenSq;
+    if (t >= 0 && t <= 1) {
+      hits.push({ t, point: hit });
+    }
+  }
+
+  hits.sort((a, b) => a.t - b.t);
+  const deduped: { t: number; point: Point }[] = [];
+  for (const hit of hits) {
+    const last = deduped[deduped.length - 1];
+    if (!last || Math.abs(last.t - hit.t) > 1e-6) {
+      deduped.push(hit);
+    }
+  }
+  return deduped;
+}
+
+function segmentIntersectsPolygon(a: Point, b: Point, polygon: Point[]): boolean {
+  if (pointInPolygon(a, polygon) || pointInPolygon(b, polygon)) return true;
+  for (let i = 0; i < polygon.length; i++) {
+    const j = (i + 1) % polygon.length;
+    if (segmentsIntersect(a, b, polygon[i], polygon[j])) return true;
+  }
+  return false;
+}
+
+function strokeFullyInsidePolygon(stroke: Stroke, polygon: Point[]): boolean {
+  if (stroke.points.length === 0) return false;
+  return stroke.points.every(p => pointInPolygon(p, polygon));
+}
+
 function strokeIntersectsPolygon(stroke: Stroke, polygon: Point[]): boolean {
   const polyBounds = getPolygonBounds(polygon);
   const strokeBounds = getStrokeBounds(stroke);
   if (!boundsOverlap(polyBounds, strokeBounds)) return false;
 
-  if (stroke.points.some(p => pointInPolygon(p, polygon))) return true;
+  for (let i = 0; i < stroke.points.length - 1; i++) {
+    if (segmentIntersectsPolygon(stroke.points[i], stroke.points[i + 1], polygon)) {
+      return true;
+    }
+  }
+  return stroke.points.some(p => pointInPolygon(p, polygon));
+}
 
-  const cx = (strokeBounds.minX + strokeBounds.maxX) / 2;
-  const cy = (strokeBounds.minY + strokeBounds.maxY) / 2;
-  return pointInPolygon({ x: cx, y: cy }, polygon);
+/** Keep polyline portions outside a polygon as one or more stroke fragments */
+export function splitStrokeKeepOutside(stroke: Stroke, polygon: Point[]): Stroke[] {
+  const pts = stroke.points;
+  if (pts.length < 2) return [stroke];
+  if (strokeFullyInsidePolygon(stroke, polygon)) return [];
+  if (!strokeIntersectsPolygon(stroke, polygon)) return [stroke];
+
+  const runs: Point[][] = [];
+  let current: Point[] = [];
+
+  const flush = () => {
+    if (current.length >= 2) runs.push([...current]);
+    current = [];
+  };
+
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    const aIn = pointInPolygon(a, polygon);
+    const bIn = pointInPolygon(b, polygon);
+    const crossings = segmentPolygonCrossings(a, b, polygon);
+
+    if (crossings.length === 0) {
+      if (!aIn && !bIn) {
+        if (current.length === 0) current.push(a);
+        current.push(b);
+      } else if (aIn && bIn) {
+        flush();
+      } else if (!aIn && bIn) {
+        if (current.length === 0) current.push(a);
+        flush();
+      } else {
+        flush();
+        current.push(b);
+      }
+      continue;
+    }
+
+    let prev = a;
+    let prevIn = aIn;
+    for (const cross of crossings) {
+      if (!prevIn) {
+        if (current.length === 0) current.push(prev);
+        current.push(cross.point);
+        flush();
+      }
+      prev = cross.point;
+      prevIn = !prevIn;
+    }
+
+    if (!prevIn) {
+      if (current.length === 0) current.push(prev);
+      if (!bIn) current.push(b);
+      else flush();
+    } else {
+      flush();
+    }
+  }
+
+  flush();
+  return runs.map(points => ({ ...stroke, id: generateId(), points }));
 }
 
 function bitmapFullyInsidePolygon(bmp: DrawBitmap, polygon: Point[]): boolean {
@@ -315,9 +446,11 @@ export function removeLayerContentInPolygon(
   }
 
   return {
-    strokes: strokes.filter(s => {
-      if (getStrokeLayerId(s, defaultLayerId) !== layerId) return true;
-      return !strokeIntersectsPolygon(s, polygon);
+    strokes: strokes.flatMap(s => {
+      if (getStrokeLayerId(s, defaultLayerId) !== layerId) return [s];
+      if (!strokeIntersectsPolygon(s, polygon)) return [s];
+      if (strokeFullyInsidePolygon(s, polygon)) return [];
+      return splitStrokeKeepOutside(s, polygon);
     }),
     drawBitmaps: bitmaps.flatMap(b => {
       if (b.layerId !== layerId) return [b];
@@ -333,7 +466,7 @@ export function extractLassoRegion(
   polygon: Point[],
   strokes: Stroke[],
   bitmaps: DrawBitmap[],
-  layerIds: string[],
+  layerId: string,
   defaultLayerId: string | null,
   drawBitmap?: BitmapDrawFn,
   padding = 2
@@ -363,7 +496,17 @@ export function extractLassoRegion(
     layerCtx.clip();
   };
 
-  renderDrawLayersContent(ctx, layerIds, strokes, bitmaps, defaultLayerId, drawBitmap, prepareLayerCtx);
+  compositeDrawLayerContent(
+    ctx,
+    layerId,
+    strokes,
+    bitmaps,
+    defaultLayerId,
+    width,
+    height,
+    prepareLayerCtx,
+    drawBitmap
+  );
 
   const imageData = ctx.getImageData(0, 0, width, height);
 
@@ -400,11 +543,11 @@ export function createLassoRegionFromPolygon(
   polygon: Point[],
   strokes: Stroke[],
   bitmaps: DrawBitmap[],
-  layerIds: string[],
+  layerId: string,
   defaultLayerId: string | null,
   drawBitmap?: BitmapDrawFn
 ): { imageData: ImageData; x: number; y: number; width: number; height: number } {
-  return extractLassoRegion(polygon, strokes, bitmaps, layerIds, defaultLayerId, drawBitmap)
+  return extractLassoRegion(polygon, strokes, bitmaps, layerId, defaultLayerId, drawBitmap)
     ?? createEmptyLassoRegion(polygon);
 }
 
