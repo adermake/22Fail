@@ -884,7 +884,7 @@ function getItemsBounds(
   return { minX, minY, maxX, maxY };
 }
 
-/** Render full layer, punch cut box, return bitmap strips outside the cut region */
+/** Render overlapping layer content with a rectangular cut-box hole as one bitmap (no strip seams) */
 function extractExteriorBitmapsForLayerCut(
   strokes: Stroke[],
   bitmaps: DrawBitmap[],
@@ -936,14 +936,14 @@ function extractExteriorBitmapsForLayerCut(
   punchRectFromImageData(data, x, y, cutRegion);
   if (!tightAlphaBounds(data)) return [];
 
-  return splitImageDataOutsideCutRegion(
+  const bmp = imageDataToDrawBitmap(
     data,
     x,
     y,
-    cutRegion,
     layerId,
     minOrder === Infinity ? undefined : minOrder
   );
+  return bmp ? [bmp] : [];
 }
 
 function getLayerContentBounds(

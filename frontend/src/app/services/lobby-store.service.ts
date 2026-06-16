@@ -855,11 +855,44 @@ export class LobbyStoreService {
     this.applyPatch({ path: 'drawBitmaps', value: drawBitmaps });
   }
 
-  /** Apply multiple draw changes in one undo step */
+  /** Apply multiple draw changes in one undo step (single UI notification) */
   applyDrawChanges(strokes: Stroke[], drawBitmaps: DrawBitmap[]): void {
     this.captureDrawSnapshot();
-    this.applyPatch({ path: 'strokes', value: strokes });
-    this.applyPatch({ path: 'drawBitmaps', value: drawBitmaps });
+    const map = this.currentMap;
+    if (!map) return;
+
+    const patches: JsonPatch[] = [
+      { path: 'strokes', value: strokes },
+      { path: 'drawBitmaps', value: drawBitmaps },
+    ];
+
+    for (const patch of patches) {
+      const patchHash = this.hashPatch(patch);
+      this.pendingPatchHashes.add(patchHash);
+      setTimeout(() => this.pendingPatchHashes.delete(patchHash), 10000);
+      this.applyJsonPatch(map, patch);
+    }
+    map.updatedAt = Date.now();
+
+    const lobby = this.lobby;
+    if (lobby) {
+      lobby.maps[this.currentMapId] = { ...map };
+      lobby.updatedAt = Date.now();
+      this.lobbySubject.next({ ...lobby });
+
+      this.api.saveLobby(this.worldName, lobby).catch(err => {
+        console.error('[LobbyStore] Failed to save:', err);
+      });
+      this.scheduleAutoSave();
+    }
+
+    this.socket.ensureConnected().then(() => {
+      for (const patch of patches) {
+        this.socket.sendPatch(this.worldName, this.currentMapId, patch);
+      }
+    }).catch(err => {
+      console.error('[LobbyStore] ❌ Socket not ready, draw patches not broadcast:', err);
+    });
   }
 
   /**

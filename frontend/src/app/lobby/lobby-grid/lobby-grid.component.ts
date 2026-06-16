@@ -233,6 +233,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // Render optimization
   private renderPending = false;
+  private drawRenderPending = false;
   private drawCompositeCanvas: HTMLCanvasElement | null = null;
   private lastContainerWidth = 0;
   private lastContainerHeight = 0;
@@ -706,6 +707,27 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.renderPending = false;
       this.render();
     });
+  }
+
+  /** Redraw only the draw canvas — avoids flashing image/grid layers during lasso edits */
+  private scheduleDrawRender(): void {
+    if (this.drawRenderPending) return;
+    this.drawRenderPending = true;
+    requestAnimationFrame(() => {
+      this.drawRenderPending = false;
+      if (this.drawCtx && this.map) {
+        this.renderStrokes();
+      }
+    });
+  }
+
+  private preloadDrawBitmaps(bitmaps: DrawBitmap[]): void {
+    for (const bmp of bitmaps) {
+      const sync = loadDataUrlImage(bmp.dataUrl);
+      if (sync) {
+        this.bitmapImageCache.set(bmp.id, sync);
+      }
+    }
   }
 
   private render(): void {
@@ -1674,7 +1696,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         return sync;
       }
       img = new Image();
-      img.onload = () => this.scheduleRender();
+      img.onload = () => this.scheduleDrawRender();
       img.src = bmp.dataUrl;
       this.bitmapImageCache.set(bmp.id, img);
     }
@@ -5927,13 +5949,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const dy = world.y - this.lassoDragStart.y;
       this.floatingSelection.offsetX = this.lassoInitialTransform.offsetX + dx;
       this.floatingSelection.offsetY = this.lassoInitialTransform.offsetY + dy;
-      this.scheduleRender();
+      this.scheduleDrawRender();
       return;
     }
 
     if (this.floatingSelection && this.lassoTransformHandle && this.lassoTransformAnchor && this.lassoInitialTransform) {
       this.updateLassoTransform(event, world);
-      this.scheduleRender();
+      this.scheduleDrawRender();
       return;
     }
 
@@ -5943,7 +5965,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const now = performance.now();
     if (now - this.lastRenderTime >= this.renderThrottleMs) {
       this.lastRenderTime = now;
-      this.scheduleRender();
+      this.scheduleDrawRender();
     }
   }
 
@@ -5961,14 +5983,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     if (this.lassoPoints.length < 3) {
       this.lassoPoints = [];
-      this.scheduleRender();
+      this.scheduleDrawRender();
       return;
     }
 
     const polygon = normalizeLassoPolygon([...this.lassoPoints]);
     if (polygon.length < 3) {
       this.lassoPoints = [];
-      this.scheduleRender();
+      this.scheduleDrawRender();
       return;
     }
 
@@ -5993,7 +6015,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.lassoPoints = [];
 
     if (!extracted) {
-      this.scheduleRender();
+      this.scheduleDrawRender();
       return;
     }
 
@@ -6005,11 +6027,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       defaultDrawId,
       (c, bmp) => this.drawBitmapForCut(c, bmp)
     );
+    this.preloadDrawBitmaps(cleaned.drawBitmaps);
     this.store.applyDrawChanges(cleaned.strokes, cleaned.drawBitmaps);
 
+    const selectionDataUrl = imageDataToDataUrl(extracted.imageData);
     this.floatingSelection = {
       imageData: extracted.imageData,
-      dataUrl: imageDataToDataUrl(extracted.imageData),
+      dataUrl: selectionDataUrl,
       x: extracted.x,
       y: extracted.y,
       width: extracted.width,
@@ -6023,14 +6047,22 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       scaleY: 1,
       sourceCutApplied: true,
     };
-    this.floatingSelectionImgSrc = '';
-    this.scheduleRender();
+    const syncSelectionImg = loadDataUrlImage(selectionDataUrl);
+    this.floatingSelectionImg = syncSelectionImg;
+    this.floatingSelectionImgSrc = syncSelectionImg ? selectionDataUrl : '';
+    this.scheduleDrawRender();
   }
 
   private getFloatingSelectionImage(dataUrl: string): HTMLImageElement | null {
     if (this.floatingSelectionImgSrc !== dataUrl) {
+      const sync = loadDataUrlImage(dataUrl);
+      if (sync) {
+        this.floatingSelectionImg = sync;
+        this.floatingSelectionImgSrc = dataUrl;
+        return sync;
+      }
       this.floatingSelectionImg = new Image();
-      this.floatingSelectionImg.onload = () => this.scheduleRender();
+      this.floatingSelectionImg.onload = () => this.scheduleDrawRender();
       this.floatingSelectionImg.src = dataUrl;
       this.floatingSelectionImgSrc = dataUrl;
     }
@@ -6301,12 +6333,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       );
       strokes = flattened.strokes;
       drawBitmaps = flattened.drawBitmaps;
+      this.preloadDrawBitmaps(drawBitmaps);
       this.store.applyDrawChanges(strokes, drawBitmaps);
     }
 
     this.floatingSelection = null;
     this.floatingSelectionImgSrc = '';
-    this.scheduleRender();
+    this.scheduleDrawRender();
   }
 
   private copyFloatingSelection(): void {
@@ -6331,7 +6364,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     sel.scaleX = 1;
     sel.scaleY = 1;
     this.floatingSelectionImgSrc = '';
-    this.scheduleRender();
+    this.scheduleDrawRender();
   }
 
   private pasteFromLassoClipboard(): void {
@@ -6379,7 +6412,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         sourceCutApplied: false,
       };
       this.floatingSelectionImgSrc = '';
-      this.scheduleRender();
+      this.scheduleDrawRender();
     };
     img.src = this.lassoClipboard.dataUrl;
   }
