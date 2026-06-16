@@ -60,12 +60,45 @@ export function renderDrawLayerContent(
   bitmaps: DrawBitmap[],
   defaultLayerId: string | null
 ): void {
+  // Pass 1: normal strokes
   for (const stroke of strokes) {
     if (getStrokeLayerId(stroke, defaultLayerId) !== layerId) continue;
+    if (stroke.isEraser) continue;
     const minPoints = stroke.isEraserFill ? 3 : 2;
     if (stroke.points.length < minPoints) continue;
 
-    ctx.globalCompositeOperation = stroke.isEraser ? 'destination-out' : 'source-over';
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.beginPath();
+    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+    for (let i = 1; i < stroke.points.length; i++) {
+      ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+    }
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
+
+  // Pass 2: bitmaps (can be erased by pass 3)
+  ctx.globalCompositeOperation = 'source-over';
+  for (const bmp of bitmaps) {
+    if (bmp.layerId !== layerId) continue;
+    const img = new Image();
+    img.src = bmp.dataUrl;
+    if (img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
+    }
+  }
+
+  // Pass 3: eraser strokes (affect strokes + bitmaps above)
+  for (const stroke of strokes) {
+    if (getStrokeLayerId(stroke, defaultLayerId) !== layerId) continue;
+    if (!stroke.isEraser) continue;
+    const minPoints = stroke.isEraserFill ? 3 : 2;
+    if (stroke.points.length < minPoints) continue;
+
+    ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
     ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
     for (let i = 1; i < stroke.points.length; i++) {
@@ -76,7 +109,7 @@ export function renderDrawLayerContent(
       ctx.fillStyle = 'rgba(0,0,0,1)';
       ctx.fill();
     } else {
-      ctx.strokeStyle = stroke.isEraser ? 'rgba(0,0,0,1)' : stroke.color;
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
       ctx.lineWidth = stroke.lineWidth;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -85,14 +118,6 @@ export function renderDrawLayerContent(
   }
 
   ctx.globalCompositeOperation = 'source-over';
-  for (const bmp of bitmaps) {
-    if (bmp.layerId !== layerId) continue;
-    const img = new Image();
-    img.src = bmp.dataUrl;
-    if (img.complete && img.naturalWidth > 0) {
-      ctx.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
-    }
-  }
 }
 
 /** Render layer content to an offscreen canvas clipped by polygon; returns ImageData + bounds */
@@ -144,6 +169,34 @@ export function extractLassoRegion(
   if (!hasContent) return null;
 
   return { imageData, x, y, width, height };
+}
+
+/** Create a transparent selection region from polygon bounds (empty/air selection) */
+export function createEmptyLassoRegion(polygon: Point[], padding = 2): {
+  imageData: ImageData;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const bounds = getPolygonBounds(polygon);
+  const x = Math.floor(bounds.minX - padding);
+  const y = Math.floor(bounds.minY - padding);
+  const width = Math.max(1, Math.ceil(bounds.width + padding * 2));
+  const height = Math.max(1, Math.ceil(bounds.height + padding * 2));
+  return { imageData: new ImageData(width, height), x, y, width, height };
+}
+
+/** Extract lasso region; falls back to empty transparent region if no pixels found */
+export function createLassoRegionFromPolygon(
+  polygon: Point[],
+  strokes: Stroke[],
+  bitmaps: DrawBitmap[],
+  layerId: string,
+  defaultLayerId: string | null
+): { imageData: ImageData; x: number; y: number; width: number; height: number } {
+  return extractLassoRegion(polygon, strokes, bitmaps, layerId, defaultLayerId)
+    ?? createEmptyLassoRegion(polygon);
 }
 
 export function imageDataToDataUrl(imageData: ImageData): string {
