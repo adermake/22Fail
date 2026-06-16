@@ -1506,8 +1506,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       .filter(l => l.type === 'draw' && l.visible)
       .sort((a, b) => a.zIndex - b.zIndex);
 
-    const strokes = this.map.strokes || [];
-    const bitmaps = this.map.drawBitmaps || [];
+    const strokes = this.store.strokes;
+    const bitmaps = this.store.drawBitmaps;
     const activeDrawLayerId = this.isDrawing ? this.store.getActiveDrawLayerId() : null;
     const hasPreview = this.isDrawing && this.currentStrokePoints.length > 1;
 
@@ -1633,6 +1633,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     offCtx.restore();
 
     mainCtx.drawImage(off, 0, 0, w, h);
+  }
+
+  private drawBitmapForCut(ctx: CanvasRenderingContext2D, bmp: DrawBitmap): void {
+    const sync = loadDataUrlImage(bmp.dataUrl);
+    if (sync) {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(sync, bmp.x, bmp.y, bmp.width, bmp.height);
+      return;
+    }
+    this.drawBitmapOnContext(ctx, bmp);
   }
 
   private drawBitmapOnContext(ctx: CanvasRenderingContext2D, bmp: DrawBitmap): void {
@@ -5840,7 +5850,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       sel.sourceLayerId,
       sel.sourcePolygon,
       defaultDrawId,
-      (c, bmp) => this.drawBitmapOnContext(c, bmp)
+      (c, bmp) => this.drawBitmapForCut(c, bmp)
     );
     this.store.applyDrawChanges(cleaned.strokes, cleaned.drawBitmaps);
     sel.sourceCutApplied = true;
@@ -5977,7 +5987,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.store.drawBitmaps,
       sourceLayerId,
       defaultDrawId,
-      (c, bmp) => this.drawBitmapOnContext(c, bmp)
+      (c, bmp) => this.drawBitmapForCut(c, bmp)
     );
 
     this.lassoPoints = [];
@@ -5993,7 +6003,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       sourceLayerId,
       polygon,
       defaultDrawId,
-      (c, bmp) => this.drawBitmapOnContext(c, bmp)
+      (c, bmp) => this.drawBitmapForCut(c, bmp)
     );
     this.store.applyDrawChanges(cleaned.strokes, cleaned.drawBitmaps);
 
@@ -6265,7 +6275,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
           sel.sourceLayerId,
           sel.sourcePolygon,
           defaultDrawId,
-          (c, bmp) => this.drawBitmapOnContext(c, bmp)
+          (c, bmp) => this.drawBitmapForCut(c, bmp)
         );
         strokes = cleaned.strokes;
         drawBitmaps = cleaned.drawBitmaps;
@@ -6287,7 +6297,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         drawBitmaps,
         sel.sourceLayerId,
         defaultDrawId,
-        (c, bmp) => this.drawBitmapOnContext(c, bmp)
+        (c, bmp) => this.drawBitmapForCut(c, bmp)
       );
       strokes = flattened.strokes;
       drawBitmaps = flattened.drawBitmaps;
