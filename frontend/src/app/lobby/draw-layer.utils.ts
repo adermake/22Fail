@@ -713,6 +713,13 @@ function renderLayerInCutBox(
   }
   return data;
 }
+
+/**
+ * Remove lassoed content by subtracting the exact inside mask (same as extract) from
+ * the full layer render. Vectors in the cut bounding box are flattened into one
+ * remainder bitmap so outside-lasso content is preserved without duplicates.
+ */
+export function removeLayerContentInPolygon(
   strokes: Stroke[],
   bitmaps: DrawBitmap[],
   layerId: string,
