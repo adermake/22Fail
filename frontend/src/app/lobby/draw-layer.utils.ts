@@ -668,12 +668,51 @@ export function tightCropExtractedRegion(extracted: {
   };
 }
 
-/**
- * Remove lassoed content via a single raster punch that matches extractLassoRegion.
- * Everything in the cut region is flattened to one remainder bitmap (if any pixels
- * remain outside the lasso); vectors in that region are removed to prevent duplicates.
- */
-export function removeLayerContentInPolygon(
+function subtractInsideFromFull(full: ImageData, inside: ImageData): ImageData {
+  const out = new ImageData(full.width, full.height);
+  for (let i = 0; i < full.data.length; i += 4) {
+    if (inside.data[i + 3] > 8) {
+      out.data[i + 3] = 0;
+    } else {
+      out.data[i] = full.data[i];
+      out.data[i + 1] = full.data[i + 1];
+      out.data[i + 2] = full.data[i + 2];
+      out.data[i + 3] = full.data[i + 3];
+    }
+  }
+  return out;
+}
+
+/** Render layer in a cut bounding box — full frame or clipped to polygon interior */
+function renderLayerInCutBox(
+  cutW: number,
+  cutH: number,
+  cutX: number,
+  cutY: number,
+  layerId: string,
+  strokes: Stroke[],
+  bitmaps: DrawBitmap[],
+  defaultLayerId: string | null,
+  drawBitmap: BitmapDrawFn | undefined,
+  clipToPolygon: Point[] | null
+): ImageData {
+  const canvas = document.createElement('canvas');
+  canvas.width = cutW;
+  canvas.height = cutH;
+  const ctx = canvas.getContext('2d')!;
+  ctx.clearRect(0, 0, cutW, cutH);
+  ctx.translate(-cutX, -cutY);
+  if (clipToPolygon && clipToPolygon.length >= 3) {
+    fillPolygonPath(ctx, clipToPolygon);
+    ctx.clip();
+  }
+  renderDrawLayerContent(ctx, layerId, strokes, bitmaps, defaultLayerId, drawBitmap);
+  let data = ctx.getImageData(0, 0, cutW, cutH);
+  if (clipToPolygon && clipToPolygon.length >= 3) {
+    data = maskImageDataToPolygon(data, cutX, cutY, clipToPolygon);
+  }
+  return data;
+}
   strokes: Stroke[],
   bitmaps: DrawBitmap[],
   layerId: string,
@@ -694,22 +733,13 @@ export function removeLayerContentInPolygon(
   const cutH = Math.max(1, Math.ceil(pb.height + pad * 2));
   const cutRegion = { minX: cutX, minY: cutY, maxX: cutX + cutW, maxY: cutY + cutH };
 
-  const canvas = document.createElement('canvas');
-  canvas.width = cutW;
-  canvas.height = cutH;
-  const ctx = canvas.getContext('2d')!;
-  ctx.clearRect(0, 0, cutW, cutH);
-  ctx.translate(-cutX, -cutY);
-  renderDrawLayerContent(ctx, layerId, strokes, bitmaps, defaultLayerId, drawBitmap);
-
-  ctx.save();
-  ctx.globalCompositeOperation = 'destination-out';
-  fillPolygonPath(ctx, poly);
-  ctx.fillStyle = 'rgba(0,0,0,1)';
-  ctx.fill();
-  ctx.restore();
-
-  const after = ctx.getImageData(0, 0, cutW, cutH);
+  const fullData = renderLayerInCutBox(
+    cutW, cutH, cutX, cutY, layerId, strokes, bitmaps, defaultLayerId, drawBitmap, null
+  );
+  const insideData = renderLayerInCutBox(
+    cutW, cutH, cutX, cutY, layerId, strokes, bitmaps, defaultLayerId, drawBitmap, poly
+  );
+  const after = subtractInsideFromFull(fullData, insideData);
 
   const keptStrokes = strokes.filter(s => {
     if (getStrokeLayerId(s, defaultLayerId) !== layerId) return true;
@@ -778,32 +808,9 @@ export function extractLassoRegion(
   const width = Math.max(1, Math.ceil(bounds.width + pad * 2));
   const height = Math.max(1, Math.ceil(bounds.height + pad * 2));
 
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d')!;
-  ctx.clearRect(0, 0, width, height);
-
-  const prepareLayerCtx: LayerContextSetup = layerCtx => {
-    layerCtx.translate(-x, -y);
-    fillPolygonPath(layerCtx, poly);
-    layerCtx.clip();
-  };
-
-  compositeDrawLayerContent(
-    ctx,
-    layerId,
-    strokes,
-    bitmaps,
-    defaultLayerId,
-    width,
-    height,
-    prepareLayerCtx,
-    drawBitmap
+  const imageData = renderLayerInCutBox(
+    width, height, x, y, layerId, strokes, bitmaps, defaultLayerId, drawBitmap, poly
   );
-
-  const imageData = ctx.getImageData(0, 0, width, height);
-  maskImageDataToPolygon(imageData, x, y, poly);
 
   if (!tightAlphaBounds(imageData)) return null;
 
