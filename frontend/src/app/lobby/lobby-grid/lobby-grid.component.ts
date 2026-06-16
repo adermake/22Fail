@@ -39,7 +39,8 @@ import {
   createLassoRegionFromPolygon,
   getDefaultDrawLayerId,
   imageDataToDataUrl,
-  createEraserFillStroke,
+  loadDataUrlImage,
+  removeLayerContentInPolygon,
   renderDrawLayerContent,
 } from '../draw-layer.utils';
 import { LobbyStoreService } from '../../services/lobby-store.service';
@@ -75,7 +76,7 @@ interface FloatingSelection {
   y: number;
   width: number;
   height: number;
-  sourceLayerId: string;
+  sourceLayerIds: string[];
   sourcePolygon: Point[];
   offsetX: number;
   offsetY: number;
@@ -498,9 +499,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (changes['map'] || changes['tokens'] || changes['selectedImageId']) {
       this.scheduleRender();
     }
-    if (changes['drawLayerVisible']) {
-      this.updateLayerVisibility();
-    }
     if (changes['imageLayerVisible']) {
       this.updateLayerVisibility();
     }
@@ -646,10 +644,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private updateLayerVisibility(): void {
-    // Draw eye only controls normal drawing strokes, not textures
-    if (this.drawCanvas?.nativeElement) {
-      this.drawCanvas.nativeElement.style.opacity = this.drawLayerVisible ? '1' : '0';
-    }
+    // Draw layer visibility is handled per-layer in renderStrokes() — do not hide the whole canvas
     if (this.imageCanvas?.nativeElement) {
       this.imageCanvas.nativeElement.style.opacity = this.imageLayerVisible ? '1' : '0';
     }
@@ -1491,21 +1486,44 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const activeDrawLayerId = this.isDrawing ? this.store.getActiveDrawLayerId() : null;
     const hasPreview = this.isDrawing && this.currentStrokePoints.length > 1;
 
-    // Pass 1: all layers except active layer during preview (world transform)
+    const drawLayer = (layerId: string) => {
+      this.renderDrawLayerStrokes(ctx, layerId, strokes, bitmaps, defaultDrawId);
+    };
+
+    if (!hasPreview || !activeDrawLayerId) {
+      ctx.save();
+      ctx.translate(this.panX, this.panY);
+      ctx.scale(this.scale, this.scale);
+      for (const layer of drawLayers) {
+        drawLayer(layer.id);
+      }
+      ctx.restore();
+      return;
+    }
+
+    const activeIndex = drawLayers.findIndex(l => l.id === activeDrawLayerId);
+    const layersBelow = activeIndex >= 0 ? drawLayers.slice(0, activeIndex) : drawLayers;
+    const layersAbove = activeIndex >= 0 ? drawLayers.slice(activeIndex + 1) : [];
+
     ctx.save();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
-
-    for (const layer of drawLayers) {
-      if (hasPreview && layer.id === activeDrawLayerId) continue;
-      this.renderDrawLayerStrokes(ctx, layer.id, strokes, bitmaps, defaultDrawId);
+    for (const layer of layersBelow) {
+      drawLayer(layer.id);
     }
     ctx.restore();
 
-    // Pass 2: active layer + preview blitted in screen space (avoids double pan/zoom scale)
-    if (hasPreview && activeDrawLayerId) {
+    if (activeIndex >= 0) {
       this.blitActiveLayerWithPreview(ctx, canvas, dpr, activeDrawLayerId, strokes, bitmaps, defaultDrawId);
     }
+
+    ctx.save();
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.scale, this.scale);
+    for (const layer of layersAbove) {
+      drawLayer(layer.id);
+    }
+    ctx.restore();
   }
 
   /** Blit active draw layer + in-progress stroke without double-transform artifact */
@@ -1549,6 +1567,14 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     mainCtx.drawImage(off, 0, 0, w, h);
   }
 
+  private drawBitmapOnContext(ctx: CanvasRenderingContext2D, bmp: DrawBitmap): void {
+    const img = this.ensureBitmapLoaded(bmp);
+    if (img) {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
+    }
+  }
+
   private renderDrawLayerStrokes(
     ctx: CanvasRenderingContext2D,
     layerId: string,
@@ -1557,17 +1583,18 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     defaultDrawId: string | null
   ): void {
     renderDrawLayerContent(ctx, layerId, strokes, bitmaps, defaultDrawId, (c, bmp) => {
-      const img = this.ensureBitmapLoaded(bmp);
-      if (img) {
-        c.globalCompositeOperation = 'source-over';
-        c.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
-      }
+      this.drawBitmapOnContext(c, bmp);
     });
   }
 
   private ensureBitmapLoaded(bmp: DrawBitmap): HTMLImageElement | null {
     let img = this.bitmapImageCache.get(bmp.id);
     if (!img || img.src !== bmp.dataUrl) {
+      const sync = loadDataUrlImage(bmp.dataUrl);
+      if (sync) {
+        this.bitmapImageCache.set(bmp.id, sync);
+        return sync;
+      }
       img = new Image();
       img.onload = () => this.scheduleRender();
       img.src = bmp.dataUrl;
@@ -5735,12 +5762,23 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!sel || sel.sourceCutApplied || sel.sourcePolygon.length < 3) return;
     if (!this.selectionHasVisibleContent(sel)) return;
 
-    const cutOrder = this.store.getNextDrawOrder();
-    const strokes = [
-      ...this.store.strokes,
-      createEraserFillStroke(sel.sourcePolygon, sel.sourceLayerId, generateId(), cutOrder),
-    ];
-    this.store.applyDrawChanges(strokes, [...this.store.drawBitmaps]);
+    const defaultDrawId = getDefaultDrawLayerId(this.map?.layers);
+    let strokes = this.store.strokes;
+    let drawBitmaps = this.store.drawBitmaps;
+
+    for (const layerId of sel.sourceLayerIds) {
+      const cleaned = removeLayerContentInPolygon(
+        strokes,
+        drawBitmaps,
+        layerId,
+        sel.sourcePolygon,
+        defaultDrawId
+      );
+      strokes = cleaned.strokes;
+      drawBitmaps = cleaned.drawBitmaps;
+    }
+
+    this.store.applyDrawChanges(strokes, drawBitmaps);
     sel.sourceCutApplied = true;
   }
 
@@ -5859,14 +5897,25 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (polygon[0].x !== polygon[polygon.length - 1].x || polygon[0].y !== polygon[polygon.length - 1].y) {
       polygon.push({ ...polygon[0] });
     }
-    const sourceLayerId = this.store.getActiveDrawLayerId();
+    const sourceLayerIds = (this.map?.layers || [])
+      .filter(l => l.type === 'draw' && l.visible)
+      .sort((a, b) => a.zIndex - b.zIndex)
+      .map(l => l.id);
     const defaultDrawId = getDefaultDrawLayerId(this.map?.layers);
+
+    for (const bmp of this.map?.drawBitmaps || []) {
+      if (sourceLayerIds.includes(bmp.layerId)) {
+        this.ensureBitmapLoaded(bmp);
+      }
+    }
+
     const extracted = createLassoRegionFromPolygon(
       polygon,
       this.map?.strokes || [],
       this.map?.drawBitmaps || [],
-      sourceLayerId,
-      defaultDrawId
+      sourceLayerIds,
+      defaultDrawId,
+      (c, bmp) => this.drawBitmapOnContext(c, bmp)
     );
 
     this.lassoPoints = [];
@@ -5878,7 +5927,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       y: extracted.y,
       width: extracted.width,
       height: extracted.height,
-      sourceLayerId,
+      sourceLayerIds,
       sourcePolygon: polygon,
       offsetX: 0,
       offsetY: 0,
@@ -6129,31 +6178,34 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     if (this.selectionHasVisibleContent(sel)) {
       const baked = this.bakeSelectionTransform(sel);
-      const strokes = [...this.store.strokes];
-      let nextOrder = this.store.getNextDrawOrder();
+      const defaultDrawId = getDefaultDrawLayerId(this.map?.layers);
+      let strokes = [...this.store.strokes];
+      let drawBitmaps = [...this.store.drawBitmaps];
 
       if (!sel.sourceCutApplied && sel.sourcePolygon.length >= 3) {
-        strokes.push(createEraserFillStroke(
-          sel.sourcePolygon,
-          sel.sourceLayerId,
-          generateId(),
-          nextOrder++
-        ));
+        for (const layerId of sel.sourceLayerIds) {
+          const cleaned = removeLayerContentInPolygon(
+            strokes,
+            drawBitmaps,
+            layerId,
+            sel.sourcePolygon,
+            defaultDrawId
+          );
+          strokes = cleaned.strokes;
+          drawBitmaps = cleaned.drawBitmaps;
+        }
       }
 
-      const drawBitmaps = [
-        ...this.store.drawBitmaps,
-        {
-          id: generateId(),
-          layerId: this.store.getActiveDrawLayerId(),
-          x: baked.x,
-          y: baked.y,
-          width: baked.width,
-          height: baked.height,
-          dataUrl: baked.dataUrl,
-          drawOrder: nextOrder,
-        },
-      ];
+      drawBitmaps.push({
+        id: generateId(),
+        layerId: this.store.getActiveDrawLayerId(),
+        x: baked.x,
+        y: baked.y,
+        width: baked.width,
+        height: baked.height,
+        dataUrl: baked.dataUrl,
+        drawOrder: this.store.getNextDrawOrder(),
+      });
       this.store.applyDrawChanges(strokes, drawBitmaps);
     }
 
@@ -6222,7 +6274,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         y: pasteY,
         width: this.lassoClipboard!.width,
         height: this.lassoClipboard!.height,
-        sourceLayerId: this.store.getActiveDrawLayerId(),
+        sourceLayerIds: [this.store.getActiveDrawLayerId()],
         sourcePolygon: [],
         offsetX: 0,
         offsetY: 0,

@@ -43,6 +43,13 @@ export function getPolygonBounds(polygon: Point[]): {
   return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
 }
 
+function boundsOverlap(
+  a: { minX: number; minY: number; maxX: number; maxY: number },
+  b: { minX: number; minY: number; maxX: number; maxY: number }
+): boolean {
+  return a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY;
+}
+
 export function getDefaultDrawLayerId(layers: Layer[] | undefined): string | null {
   const drawLayers = (layers || []).filter(l => l.type === 'draw');
   if (drawLayers.length === 0) return null;
@@ -84,7 +91,7 @@ export function drawStrokeOnContext(ctx: CanvasRenderingContext2D, stroke: Strok
   }
 }
 
-type BitmapDrawFn = (ctx: CanvasRenderingContext2D, bmp: DrawBitmap) => void;
+export type BitmapDrawFn = (ctx: CanvasRenderingContext2D, bmp: DrawBitmap) => void;
 
 /** Render layer content in chronological order (erasers only affect earlier items) */
 export function renderDrawLayerContent(
@@ -113,11 +120,7 @@ export function renderDrawLayerContent(
         if (drawBitmap) {
           drawBitmap(ctx, bmp);
         } else {
-          const img = new Image();
-          img.src = bmp.dataUrl;
-          if (img.complete && img.naturalWidth > 0) {
-            ctx.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
-          }
+          drawBitmapFromDataUrl(ctx, bmp);
         }
       },
     });
@@ -130,13 +133,172 @@ export function renderDrawLayerContent(
   ctx.globalCompositeOperation = 'source-over';
 }
 
+/** Draw bitmap synchronously from data URL (works for inline data URLs) */
+export function loadDataUrlImage(dataUrl: string): HTMLImageElement | null {
+  const img = new Image();
+  img.src = dataUrl;
+  if (img.complete && img.naturalWidth > 0) {
+    return img;
+  }
+  return null;
+}
+
+export function drawBitmapFromDataUrl(ctx: CanvasRenderingContext2D, bmp: DrawBitmap): void {
+  const img = loadDataUrlImage(bmp.dataUrl);
+  if (img) {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
+  }
+}
+
+function getStrokeBounds(stroke: Stroke): { minX: number; minY: number; maxX: number; maxY: number } {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of stroke.points) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
+  }
+  const pad = stroke.lineWidth / 2;
+  return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad };
+}
+
+function strokeIntersectsPolygon(stroke: Stroke, polygon: Point[]): boolean {
+  const polyBounds = getPolygonBounds(polygon);
+  const strokeBounds = getStrokeBounds(stroke);
+  if (!boundsOverlap(polyBounds, strokeBounds)) return false;
+
+  if (stroke.points.some(p => pointInPolygon(p, polygon))) return true;
+
+  const cx = (strokeBounds.minX + strokeBounds.maxX) / 2;
+  const cy = (strokeBounds.minY + strokeBounds.maxY) / 2;
+  return pointInPolygon({ x: cx, y: cy }, polygon);
+}
+
+function bitmapFullyInsidePolygon(bmp: DrawBitmap, polygon: Point[]): boolean {
+  const corners = [
+    { x: bmp.x, y: bmp.y },
+    { x: bmp.x + bmp.width, y: bmp.y },
+    { x: bmp.x + bmp.width, y: bmp.y + bmp.height },
+    { x: bmp.x, y: bmp.y + bmp.height },
+  ];
+  return corners.every(c => pointInPolygon(c, polygon));
+}
+
+/** Punch a polygon hole in a bitmap; returns null if fully removed or unchanged if no overlap */
+function cutBitmapByPolygon(bmp: DrawBitmap, polygon: Point[]): DrawBitmap | null {
+  if (!bitmapIntersectsPolygon(bmp, polygon)) return bmp;
+  if (bitmapFullyInsidePolygon(bmp, polygon)) return null;
+
+  const img = loadDataUrlImage(bmp.dataUrl);
+  if (!img) return bmp;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = bmp.width;
+  canvas.height = bmp.height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, 0, 0, bmp.width, bmp.height);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath();
+  ctx.moveTo(polygon[0].x - bmp.x, polygon[0].y - bmp.y);
+  for (let i = 1; i < polygon.length; i++) {
+    ctx.lineTo(polygon[i].x - bmp.x, polygon[i].y - bmp.y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0,0,0,1)';
+  ctx.fill();
+  ctx.restore();
+
+  const imageData = ctx.getImageData(0, 0, bmp.width, bmp.height);
+  let hasContent = false;
+  for (let i = 3; i < imageData.data.length; i += 4) {
+    if (imageData.data[i] > 0) {
+      hasContent = true;
+      break;
+    }
+  }
+  if (!hasContent) return null;
+
+  return { ...bmp, dataUrl: canvas.toDataURL('image/png') };
+}
+
+/** Render multiple draw layers in z-order (bottom to top) */
+export function renderDrawLayersContent(
+  ctx: CanvasRenderingContext2D,
+  layerIds: string[],
+  strokes: Stroke[],
+  bitmaps: DrawBitmap[],
+  defaultLayerId: string | null,
+  drawBitmap?: BitmapDrawFn
+): void {
+  for (const layerId of layerIds) {
+    renderDrawLayerContent(ctx, layerId, strokes, bitmaps, defaultLayerId, drawBitmap);
+  }
+}
+
+function bitmapIntersectsPolygon(bmp: DrawBitmap, polygon: Point[]): boolean {
+  const polyBounds = getPolygonBounds(polygon);
+  const bmpBounds = {
+    minX: bmp.x,
+    minY: bmp.y,
+    maxX: bmp.x + bmp.width,
+    maxY: bmp.y + bmp.height,
+  };
+  if (!boundsOverlap(polyBounds, bmpBounds)) return false;
+
+  // Corners or center inside polygon
+  const corners = [
+    { x: bmp.x, y: bmp.y },
+    { x: bmp.x + bmp.width, y: bmp.y },
+    { x: bmp.x + bmp.width, y: bmp.y + bmp.height },
+    { x: bmp.x, y: bmp.y + bmp.height },
+    { x: bmp.x + bmp.width / 2, y: bmp.y + bmp.height / 2 },
+  ];
+  return corners.some(c => pointInPolygon(c, polygon));
+}
+
+/**
+ * Remove strokes and bitmaps inside/intersecting a lasso polygon from a layer.
+ * Used when cutting/moving a selection (destructive, not eraser-mask).
+ */
+export function removeLayerContentInPolygon(
+  strokes: Stroke[],
+  bitmaps: DrawBitmap[],
+  layerId: string,
+  polygon: Point[],
+  defaultLayerId: string | null
+): { strokes: Stroke[]; drawBitmaps: DrawBitmap[] } {
+  if (polygon.length < 3) {
+    return { strokes, drawBitmaps: bitmaps };
+  }
+
+  return {
+    strokes: strokes.filter(s => {
+      if (getStrokeLayerId(s, defaultLayerId) !== layerId) return true;
+      return !strokeIntersectsPolygon(s, polygon);
+    }),
+    drawBitmaps: bitmaps.flatMap(b => {
+      if (b.layerId !== layerId) return [b];
+      const cut = cutBitmapByPolygon(b, polygon);
+      if (cut === null) return [];
+      return [cut];
+    }),
+  };
+}
+
 /** Render layer content to an offscreen canvas clipped by polygon; returns ImageData + bounds */
 export function extractLassoRegion(
   polygon: Point[],
   strokes: Stroke[],
   bitmaps: DrawBitmap[],
-  layerId: string,
+  layerIds: string[],
   defaultLayerId: string | null,
+  drawBitmap?: BitmapDrawFn,
   padding = 2
 ): { imageData: ImageData; x: number; y: number; width: number; height: number } | null {
   const bounds = getPolygonBounds(polygon);
@@ -163,7 +325,7 @@ export function extractLassoRegion(
   ctx.closePath();
   ctx.clip();
 
-  renderDrawLayerContent(ctx, layerId, strokes, bitmaps, defaultLayerId);
+  renderDrawLayersContent(ctx, layerIds, strokes, bitmaps, defaultLayerId, drawBitmap);
   ctx.restore();
 
   const imageData = ctx.getImageData(0, 0, width, height);
@@ -201,10 +363,11 @@ export function createLassoRegionFromPolygon(
   polygon: Point[],
   strokes: Stroke[],
   bitmaps: DrawBitmap[],
-  layerId: string,
-  defaultLayerId: string | null
+  layerIds: string[],
+  defaultLayerId: string | null,
+  drawBitmap?: BitmapDrawFn
 ): { imageData: ImageData; x: number; y: number; width: number; height: number } {
-  return extractLassoRegion(polygon, strokes, bitmaps, layerId, defaultLayerId)
+  return extractLassoRegion(polygon, strokes, bitmaps, layerIds, defaultLayerId, drawBitmap)
     ?? createEmptyLassoRegion(polygon);
 }
 
@@ -215,21 +378,4 @@ export function imageDataToDataUrl(imageData: ImageData): string {
   const ctx = canvas.getContext('2d')!;
   ctx.putImageData(imageData, 0, 0);
   return canvas.toDataURL('image/png');
-}
-
-export function createEraserFillStroke(polygon: Point[], layerId: string, id: string, drawOrder?: number): Stroke {
-  return {
-    id,
-    layerId,
-    points: [...polygon],
-    color: '#000000',
-    lineWidth: 1,
-    isEraser: true,
-    isEraserFill: true,
-    drawOrder,
-  };
-}
-
-export function createEraserPolygonStroke(polygon: Point[], layerId: string, id: string, drawOrder?: number): Stroke {
-  return createEraserFillStroke(polygon, layerId, id, drawOrder);
 }
