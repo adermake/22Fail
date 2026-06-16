@@ -38,9 +38,9 @@ import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId
 import {
   createLassoRegionFromPolygon,
   getDefaultDrawLayerId,
-  getStrokeLayerId,
   imageDataToDataUrl,
   createEraserFillStroke,
+  renderDrawLayerContent,
 } from '../draw-layer.utils';
 import { LobbyStoreService } from '../../services/lobby-store.service';
 import { LobbySocketService } from '../../services/lobby-socket.service';
@@ -1476,12 +1476,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const canvas = this.drawCanvas.nativeElement;
     const ctx = this.drawCtx;
     const dpr = window.devicePixelRatio || 1;
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
 
-    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-
-    ctx.save();
-    ctx.translate(this.panX, this.panY);
-    ctx.scale(this.scale, this.scale);
+    ctx.clearRect(0, 0, w, h);
 
     const defaultDrawId = getDefaultDrawLayerId(this.map.layers);
     const drawLayers = (this.map.layers || [])
@@ -1491,45 +1489,46 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const strokes = this.map.strokes || [];
     const bitmaps = this.map.drawBitmaps || [];
     const activeDrawLayerId = this.isDrawing ? this.store.getActiveDrawLayerId() : null;
+    const hasPreview = this.isDrawing && this.currentStrokePoints.length > 1;
+
+    // Pass 1: all layers except active layer during preview (world transform)
+    ctx.save();
+    ctx.translate(this.panX, this.panY);
+    ctx.scale(this.scale, this.scale);
 
     for (const layer of drawLayers) {
-      const needsIsolatedPreview =
-        this.isDrawing &&
-        this.currentStrokePoints.length > 1 &&
-        layer.id === activeDrawLayerId;
-
-      if (needsIsolatedPreview) {
-        this.renderDrawLayerWithPreview(ctx, layer.id, strokes, bitmaps, defaultDrawId, canvas, dpr);
-      } else {
-        this.renderDrawLayerStrokes(ctx, layer.id, strokes, bitmaps, defaultDrawId);
-      }
+      if (hasPreview && layer.id === activeDrawLayerId) continue;
+      this.renderDrawLayerStrokes(ctx, layer.id, strokes, bitmaps, defaultDrawId);
     }
-
-    ctx.globalCompositeOperation = 'source-over';
     ctx.restore();
+
+    // Pass 2: active layer + preview blitted in screen space (avoids double pan/zoom scale)
+    if (hasPreview && activeDrawLayerId) {
+      this.blitActiveLayerWithPreview(ctx, canvas, dpr, activeDrawLayerId, strokes, bitmaps, defaultDrawId);
+    }
   }
 
-  /** Render one draw layer with in-progress stroke preview isolated (eraser won't affect other layers) */
-  private renderDrawLayerWithPreview(
+  /** Blit active draw layer + in-progress stroke without double-transform artifact */
+  private blitActiveLayerWithPreview(
     mainCtx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    dpr: number,
     layerId: string,
     strokes: Stroke[],
     bitmaps: DrawBitmap[],
-    defaultDrawId: string | null,
-    canvas: HTMLCanvasElement,
-    dpr: number
+    defaultDrawId: string | null
   ): void {
     const w = canvas.width / dpr;
     const h = canvas.height / dpr;
     const off = document.createElement('canvas');
-    off.width = w;
-    off.height = h;
+    off.width = canvas.width;
+    off.height = canvas.height;
     const offCtx = off.getContext('2d')!;
-    offCtx.clearRect(0, 0, w, h);
+    offCtx.scale(dpr, dpr);
+
     offCtx.save();
     offCtx.translate(this.panX, this.panY);
     offCtx.scale(this.scale, this.scale);
-
     this.renderDrawLayerStrokes(offCtx, layerId, strokes, bitmaps, defaultDrawId);
 
     const isEraser = this.isEraserMode;
@@ -1557,63 +1556,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     bitmaps: DrawBitmap[],
     defaultDrawId: string | null
   ): void {
-    // Pass 1: normal strokes
-    for (const stroke of strokes) {
-      if (getStrokeLayerId(stroke, defaultDrawId) !== layerId) continue;
-      if (stroke.isEraser) continue;
-      const minPoints = stroke.isEraserFill ? 3 : 2;
-      if (stroke.points.length < minPoints) continue;
-
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.beginPath();
-      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-      for (let i = 1; i < stroke.points.length; i++) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
-      }
-      ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = stroke.lineWidth;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
-    }
-
-    // Pass 2: bitmaps
-    ctx.globalCompositeOperation = 'source-over';
-    for (const bmp of bitmaps) {
-      if (bmp.layerId !== layerId) continue;
+    renderDrawLayerContent(ctx, layerId, strokes, bitmaps, defaultDrawId, (c, bmp) => {
       const img = this.ensureBitmapLoaded(bmp);
       if (img) {
-        ctx.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
+        c.globalCompositeOperation = 'source-over';
+        c.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
       }
-    }
-
-    // Pass 3: erasers (affect strokes + bitmaps on this layer)
-    for (const stroke of strokes) {
-      if (getStrokeLayerId(stroke, defaultDrawId) !== layerId) continue;
-      if (!stroke.isEraser) continue;
-      const minPoints = stroke.isEraserFill ? 3 : 2;
-      if (stroke.points.length < minPoints) continue;
-
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.beginPath();
-      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-      for (let i = 1; i < stroke.points.length; i++) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
-      }
-      if (stroke.isEraserFill) {
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(0,0,0,1)';
-        ctx.fill();
-      } else {
-        ctx.strokeStyle = 'rgba(0,0,0,1)';
-        ctx.lineWidth = stroke.lineWidth;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.stroke();
-      }
-    }
-
-    ctx.globalCompositeOperation = 'source-over';
+    });
   }
 
   private ensureBitmapLoaded(bmp: DrawBitmap): HTMLImageElement | null {
@@ -5786,9 +5735,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!sel || sel.sourceCutApplied || sel.sourcePolygon.length < 3) return;
     if (!this.selectionHasVisibleContent(sel)) return;
 
+    const cutOrder = this.store.getNextDrawOrder();
     const strokes = [
       ...this.store.strokes,
-      createEraserFillStroke(sel.sourcePolygon, sel.sourceLayerId, generateId()),
+      createEraserFillStroke(sel.sourcePolygon, sel.sourceLayerId, generateId(), cutOrder),
     ];
     this.store.applyDrawChanges(strokes, [...this.store.drawBitmaps]);
     sel.sourceCutApplied = true;
@@ -6131,6 +6081,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   private bakeSelectionTransform(sel: FloatingSelection): {
     dataUrl: string;
+    imageData: ImageData;
     width: number;
     height: number;
     x: number;
@@ -6164,6 +6115,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     return {
       dataUrl: canvas.toDataURL('image/png'),
+      imageData: ctx.getImageData(0, 0, outW, outH),
       width: outW,
       height: outH,
       x: cx - outW / 2,
@@ -6178,9 +6130,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (this.selectionHasVisibleContent(sel)) {
       const baked = this.bakeSelectionTransform(sel);
       const strokes = [...this.store.strokes];
+      let nextOrder = this.store.getNextDrawOrder();
+
       if (!sel.sourceCutApplied && sel.sourcePolygon.length >= 3) {
-        strokes.push(createEraserFillStroke(sel.sourcePolygon, sel.sourceLayerId, generateId()));
+        strokes.push(createEraserFillStroke(
+          sel.sourcePolygon,
+          sel.sourceLayerId,
+          generateId(),
+          nextOrder++
+        ));
       }
+
       const drawBitmaps = [
         ...this.store.drawBitmaps,
         {
@@ -6191,6 +6151,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
           width: baked.width,
           height: baked.height,
           dataUrl: baked.dataUrl,
+          drawOrder: nextOrder,
         },
       ];
       this.store.applyDrawChanges(strokes, drawBitmaps);
@@ -6210,6 +6171,20 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       width: baked.width,
       height: baked.height,
     };
+    // Bake current transform into floating preview so copy matches what you see
+    sel.dataUrl = baked.dataUrl;
+    sel.imageData = baked.imageData;
+    sel.x = baked.x;
+    sel.y = baked.y;
+    sel.width = baked.width;
+    sel.height = baked.height;
+    sel.offsetX = 0;
+    sel.offsetY = 0;
+    sel.rotation = 0;
+    sel.scaleX = 1;
+    sel.scaleY = 1;
+    this.floatingSelectionImgSrc = '';
+    this.scheduleRender();
   }
 
   private pasteFromLassoClipboard(): void {
@@ -6224,16 +6199,27 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       ctx.drawImage(img, 0, 0);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-      const container = this.container?.nativeElement;
-      const centerWorld = container
-        ? this.screenToWorld(container.getBoundingClientRect().width / 2, container.getBoundingClientRect().height / 2)
-        : { x: 0, y: 0 };
+      let pasteX: number;
+      let pasteY: number;
+
+      if (this.floatingSelection) {
+        const sel = this.floatingSelection;
+        pasteX = sel.x + sel.offsetX;
+        pasteY = sel.y + sel.offsetY;
+      } else {
+        const container = this.container?.nativeElement;
+        const centerWorld = container
+          ? this.screenToWorld(container.getBoundingClientRect().width / 2, container.getBoundingClientRect().height / 2)
+          : { x: 0, y: 0 };
+        pasteX = centerWorld.x - this.lassoClipboard!.width / 2;
+        pasteY = centerWorld.y - this.lassoClipboard!.height / 2;
+      }
 
       this.floatingSelection = {
         imageData,
         dataUrl: this.lassoClipboard!.dataUrl,
-        x: centerWorld.x - this.lassoClipboard!.width / 2,
-        y: centerWorld.y - this.lassoClipboard!.height / 2,
+        x: pasteX,
+        y: pasteY,
         width: this.lassoClipboard!.width,
         height: this.lassoClipboard!.height,
         sourceLayerId: this.store.getActiveDrawLayerId(),

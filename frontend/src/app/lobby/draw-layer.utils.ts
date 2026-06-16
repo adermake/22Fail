@@ -53,70 +53,80 @@ export function getStrokeLayerId(stroke: Stroke, defaultLayerId: string | null):
   return stroke.layerId || defaultLayerId;
 }
 
-export function renderDrawLayerContent(
-  ctx: CanvasRenderingContext2D,
-  layerId: string,
-  strokes: Stroke[],
-  bitmaps: DrawBitmap[],
-  defaultLayerId: string | null
-): void {
-  // Pass 1: normal strokes
-  for (const stroke of strokes) {
-    if (getStrokeLayerId(stroke, defaultLayerId) !== layerId) continue;
-    if (stroke.isEraser) continue;
-    const minPoints = stroke.isEraserFill ? 3 : 2;
-    if (stroke.points.length < minPoints) continue;
+function strokeDrawOrder(stroke: Stroke, index: number): number {
+  return stroke.drawOrder ?? index;
+}
 
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.beginPath();
-    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-    for (let i = 1; i < stroke.points.length; i++) {
-      ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
-    }
-    ctx.strokeStyle = stroke.color;
+function bitmapDrawOrder(bmp: DrawBitmap, index: number, strokeCount: number): number {
+  return bmp.drawOrder ?? strokeCount + index;
+}
+
+export function drawStrokeOnContext(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
+  const minPoints = stroke.isEraserFill ? 3 : 2;
+  if (stroke.points.length < minPoints) return;
+
+  ctx.globalCompositeOperation = stroke.isEraser ? 'destination-out' : 'source-over';
+  ctx.beginPath();
+  ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+  for (let i = 1; i < stroke.points.length; i++) {
+    ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+  }
+  if (stroke.isEraserFill) {
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = stroke.isEraser ? 'rgba(0,0,0,1)' : stroke.color;
     ctx.lineWidth = stroke.lineWidth;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.stroke();
   }
+}
 
-  // Pass 2: bitmaps (can be erased by pass 3)
-  ctx.globalCompositeOperation = 'source-over';
-  for (const bmp of bitmaps) {
-    if (bmp.layerId !== layerId) continue;
-    const img = new Image();
-    img.src = bmp.dataUrl;
-    if (img.complete && img.naturalWidth > 0) {
-      ctx.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
-    }
+type BitmapDrawFn = (ctx: CanvasRenderingContext2D, bmp: DrawBitmap) => void;
+
+/** Render layer content in chronological order (erasers only affect earlier items) */
+export function renderDrawLayerContent(
+  ctx: CanvasRenderingContext2D,
+  layerId: string,
+  strokes: Stroke[],
+  bitmaps: DrawBitmap[],
+  defaultLayerId: string | null,
+  drawBitmap?: BitmapDrawFn
+): void {
+  type Item = { order: number; render: () => void };
+  const items: Item[] = [];
+
+  strokes.forEach((stroke, index) => {
+    if (getStrokeLayerId(stroke, defaultLayerId) !== layerId) return;
+    const order = strokeDrawOrder(stroke, index);
+    items.push({ order, render: () => drawStrokeOnContext(ctx, stroke) });
+  });
+
+  bitmaps.forEach((bmp, index) => {
+    if (bmp.layerId !== layerId) return;
+    const order = bitmapDrawOrder(bmp, index, strokes.length);
+    items.push({
+      order,
+      render: () => {
+        if (drawBitmap) {
+          drawBitmap(ctx, bmp);
+        } else {
+          const img = new Image();
+          img.src = bmp.dataUrl;
+          if (img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
+          }
+        }
+      },
+    });
+  });
+
+  items.sort((a, b) => a.order - b.order);
+  for (const item of items) {
+    item.render();
   }
-
-  // Pass 3: eraser strokes (affect strokes + bitmaps above)
-  for (const stroke of strokes) {
-    if (getStrokeLayerId(stroke, defaultLayerId) !== layerId) continue;
-    if (!stroke.isEraser) continue;
-    const minPoints = stroke.isEraserFill ? 3 : 2;
-    if (stroke.points.length < minPoints) continue;
-
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.beginPath();
-    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-    for (let i = 1; i < stroke.points.length; i++) {
-      ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
-    }
-    if (stroke.isEraserFill) {
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(0,0,0,1)';
-      ctx.fill();
-    } else {
-      ctx.strokeStyle = 'rgba(0,0,0,1)';
-      ctx.lineWidth = stroke.lineWidth;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
-    }
-  }
-
   ctx.globalCompositeOperation = 'source-over';
 }
 
@@ -158,7 +168,6 @@ export function extractLassoRegion(
 
   const imageData = ctx.getImageData(0, 0, width, height);
 
-  // Check if selection has any non-transparent pixels
   let hasContent = false;
   for (let i = 3; i < imageData.data.length; i += 4) {
     if (imageData.data[i] > 0) {
@@ -208,7 +217,7 @@ export function imageDataToDataUrl(imageData: ImageData): string {
   return canvas.toDataURL('image/png');
 }
 
-export function createEraserFillStroke(polygon: Point[], layerId: string, id: string): Stroke {
+export function createEraserFillStroke(polygon: Point[], layerId: string, id: string, drawOrder?: number): Stroke {
   return {
     id,
     layerId,
@@ -217,9 +226,10 @@ export function createEraserFillStroke(polygon: Point[], layerId: string, id: st
     lineWidth: 1,
     isEraser: true,
     isEraserFill: true,
+    drawOrder,
   };
 }
 
-export function createEraserPolygonStroke(polygon: Point[], layerId: string, id: string): Stroke {
-  return createEraserFillStroke(polygon, layerId, id);
+export function createEraserPolygonStroke(polygon: Point[], layerId: string, id: string, drawOrder?: number): Stroke {
+  return createEraserFillStroke(polygon, layerId, id, drawOrder);
 }

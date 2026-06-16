@@ -421,6 +421,21 @@ export class LobbyStoreService {
           }));
         }
       }
+
+      // Assign chronological drawOrder for layered rendering
+      let drawOrder = 0;
+      if (map.strokes) {
+        map.strokes = map.strokes.map(s => ({
+          ...s,
+          drawOrder: s.drawOrder ?? drawOrder++,
+        }));
+      }
+      if (map.drawBitmaps) {
+        map.drawBitmaps = map.drawBitmaps.map(b => ({
+          ...b,
+          drawOrder: b.drawOrder ?? drawOrder++,
+        }));
+      }
     }
 
     return lobby;
@@ -798,6 +813,20 @@ export class LobbyStoreService {
   // ============================================
 
   /**
+   * Next chronological draw order for strokes/bitmaps on the current map.
+   */
+  getNextDrawOrder(): number {
+    let max = 0;
+    for (const s of this.strokes) {
+      max = Math.max(max, s.drawOrder ?? 0);
+    }
+    for (const b of this.drawBitmaps) {
+      max = Math.max(max, b.drawOrder ?? 0);
+    }
+    return max + 1;
+  }
+
+  /**
    * Add a drawing stroke.
    */
   addStroke(stroke: Omit<Stroke, 'id'>): void {
@@ -807,6 +836,7 @@ export class LobbyStoreService {
     const newStroke: Stroke = {
       ...stroke,
       layerId,
+      drawOrder: stroke.drawOrder ?? this.getNextDrawOrder(),
       id: generateId(),
     };
 
@@ -816,7 +846,11 @@ export class LobbyStoreService {
 
   addDrawBitmap(bitmap: Omit<DrawBitmap, 'id'>): void {
     this.captureDrawSnapshot();
-    const newBitmap: DrawBitmap = { ...bitmap, id: generateId() };
+    const newBitmap: DrawBitmap = {
+      ...bitmap,
+      drawOrder: bitmap.drawOrder ?? this.getNextDrawOrder(),
+      id: generateId(),
+    };
     const drawBitmaps = [...this.drawBitmaps, newBitmap];
     this.applyPatch({ path: 'drawBitmaps', value: drawBitmaps });
   }

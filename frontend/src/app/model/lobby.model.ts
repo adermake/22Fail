@@ -44,6 +44,7 @@ export interface Stroke {
   isEraser: boolean;
   isEraserFill?: boolean; // Filled polygon eraser (lasso cut)
   layerId?: string; // Reference to draw Layer.id
+  drawOrder?: number; // Chronological order within the map
 }
 
 /** A raster region placed on a draw layer (from lasso selection) */
@@ -55,6 +56,7 @@ export interface DrawBitmap {
   width: number;
   height: number;
   dataUrl: string; // PNG base64 data URL
+  drawOrder?: number; // Chronological order within the map
 }
 
 /** A texture stamp/brush stroke (legacy - kept for backward compatibility) */
