@@ -13,11 +13,13 @@ import { LobbySocketService } from './lobby-socket.service';
 import { ImageService } from './image.service';
 import { TextureService } from './texture.service';
 import { MapStorageService } from './map-storage.service';
+import { DrawLayerSnapshot, getDefaultDrawLayerId } from '../lobby/draw-layer.utils';
 import {
   LobbyData,
   LobbyMap,
   Token,
   Stroke,
+  DrawBitmap,
   MapImage,
   LibraryImage,
   LibraryTexture,
@@ -55,8 +57,8 @@ export class LobbyStoreService {
   worldName = '';
   currentMapId = '';
 
-  // Undo history for strokes
-  private strokeUndoHistory: Stroke[][] = [];
+  // Undo history for draw content (strokes + bitmaps)
+  private drawUndoHistory: DrawLayerSnapshot[] = [];
   // Undo history for texture tiles (NEW)
   private textureTileUndoHistory: TextureTile[][] = [];
   private readonly MAX_UNDO = 50;
@@ -89,6 +91,52 @@ export class LobbyStoreService {
 
   get tokens(): Token[] {
     return this.currentMap?.tokens || [];
+  }
+
+  get drawBitmaps(): DrawBitmap[] {
+    return this.currentMap?.drawBitmaps || [];
+  }
+
+  get drawLayers(): Layer[] {
+    return (this.currentMap?.layers || []).filter(l => l.type === 'draw');
+  }
+
+  /** Resolve the active draw layer, creating one if needed */
+  getActiveDrawLayerId(): string {
+    const map = this.currentMap;
+    if (!map) throw new Error('No current map');
+
+    const layers = map.layers || [];
+    const active = layers.find(l => l.id === map.activeLayerId);
+    if (active?.type === 'draw') return active.id;
+
+    const drawLayer = layers.find(l => l.type === 'draw');
+    if (drawLayer) return drawLayer.id;
+
+    return this.addLayer('draw', 'Drawing');
+  }
+
+  isActiveDrawLayerLocked(): boolean {
+    const map = this.currentMap;
+    if (!map?.layers) return false;
+    const id = this.getActiveDrawLayerId();
+    const layer = map.layers.find(l => l.id === id);
+    return layer?.locked ?? false;
+  }
+
+  private captureDrawSnapshot(): void {
+    this.drawUndoHistory.push({
+      strokes: [...this.strokes],
+      drawBitmaps: JSON.parse(JSON.stringify(this.drawBitmaps)),
+    });
+    if (this.drawUndoHistory.length > this.MAX_UNDO) {
+      this.drawUndoHistory.shift();
+    }
+  }
+
+  private applyDrawSnapshot(snapshot: DrawLayerSnapshot): void {
+    this.applyPatch({ path: 'strokes', value: snapshot.strokes });
+    this.applyPatch({ path: 'drawBitmaps', value: snapshot.drawBitmaps });
   }
 
   get strokes(): Stroke[] {
@@ -338,6 +386,40 @@ export class LobbyStoreService {
         }
         
         console.log('[LobbyStore] Migrated map', mapId, 'to layer system');
+      }
+
+      // DRAW LAYER MIGRATION: ensure at least one draw layer exists
+      if (!map.drawBitmaps) map.drawBitmaps = [];
+      const hasDrawLayer = (map.layers || []).some(l => l.type === 'draw');
+      if (!hasDrawLayer) {
+        const maxZ = map.layers && map.layers.length > 0
+          ? Math.max(...map.layers.map(l => l.zIndex))
+          : 1;
+        const defaultDrawLayer: Layer = {
+          id: generateId(),
+          name: 'Drawing',
+          type: 'draw',
+          visible: true,
+          locked: false,
+          zIndex: maxZ + 1,
+          createdAt: Date.now(),
+        };
+        map.layers = [...(map.layers || []), defaultDrawLayer];
+        if (map.strokes && map.strokes.length > 0) {
+          map.strokes = map.strokes.map(s => ({
+            ...s,
+            layerId: s.layerId || defaultDrawLayer.id,
+          }));
+        }
+        console.log('[LobbyStore] Migrated map', mapId, 'with default draw layer');
+      } else if (map.strokes && map.strokes.length > 0) {
+        const defaultId = getDefaultDrawLayerId(map.layers);
+        if (defaultId) {
+          map.strokes = map.strokes.map(s => ({
+            ...s,
+            layerId: s.layerId || defaultId,
+          }));
+        }
       }
     }
 
@@ -719,20 +801,31 @@ export class LobbyStoreService {
    * Add a drawing stroke.
    */
   addStroke(stroke: Omit<Stroke, 'id'>): void {
-    // Save undo state
-    this.strokeUndoHistory.push([...this.strokes]);
-    if (this.strokeUndoHistory.length > this.MAX_UNDO) {
-      this.strokeUndoHistory.shift();
-    }
+    this.captureDrawSnapshot();
 
+    const layerId = stroke.layerId || this.getActiveDrawLayerId();
     const newStroke: Stroke = {
       ...stroke,
+      layerId,
       id: generateId(),
     };
 
     const strokes = [...this.strokes, newStroke];
-    console.log('[LobbyStore] 🖊️ Adding stroke, total strokes:', strokes.length, 'stroke ID:', newStroke.id);
     this.applyPatch({ path: 'strokes', value: strokes });
+  }
+
+  addDrawBitmap(bitmap: Omit<DrawBitmap, 'id'>): void {
+    this.captureDrawSnapshot();
+    const newBitmap: DrawBitmap = { ...bitmap, id: generateId() };
+    const drawBitmaps = [...this.drawBitmaps, newBitmap];
+    this.applyPatch({ path: 'drawBitmaps', value: drawBitmaps });
+  }
+
+  /** Apply multiple draw changes in one undo step */
+  applyDrawChanges(strokes: Stroke[], drawBitmaps: DrawBitmap[]): void {
+    this.captureDrawSnapshot();
+    this.applyPatch({ path: 'strokes', value: strokes });
+    this.applyPatch({ path: 'drawBitmaps', value: drawBitmaps });
   }
 
   /**
@@ -775,10 +868,9 @@ export class LobbyStoreService {
    * Undo the last stroke.
    */
   undoStroke(): boolean {
-    if (this.strokeUndoHistory.length === 0) return false;
-
-    const previousStrokes = this.strokeUndoHistory.pop()!;
-    this.applyPatch({ path: 'strokes', value: previousStrokes });
+    if (this.drawUndoHistory.length === 0) return false;
+    const previous = this.drawUndoHistory.pop()!;
+    this.applyDrawSnapshot(previous);
     return true;
   }
 
@@ -821,15 +913,18 @@ export class LobbyStoreService {
   /**
    * Clear all strokes.
    */
-  clearStrokes(): void {
-    if (this.strokes.length === 0) return;
-    
-    this.strokeUndoHistory.push([...this.strokes]);
-    if (this.strokeUndoHistory.length > this.MAX_UNDO) {
-      this.strokeUndoHistory.shift();
-    }
+  clearStrokes(layerId?: string): void {
+    const targetId = layerId || this.getActiveDrawLayerId();
+    const hasStrokes = this.strokes.some(s => (s.layerId || targetId) === targetId);
+    const hasBitmaps = this.drawBitmaps.some(b => b.layerId === targetId);
+    if (!hasStrokes && !hasBitmaps) return;
 
-    this.applyPatch({ path: 'strokes', value: [] });
+    this.captureDrawSnapshot();
+
+    const strokes = this.strokes.filter(s => (s.layerId || targetId) !== targetId);
+    const drawBitmaps = this.drawBitmaps.filter(b => b.layerId !== targetId);
+    this.applyPatch({ path: 'strokes', value: strokes });
+    this.applyPatch({ path: 'drawBitmaps', value: drawBitmaps });
   }
 
   /**
@@ -1117,7 +1212,7 @@ export class LobbyStoreService {
 
     const newLayer: Layer = {
       id: generateId(),
-      name: name || `${type === 'image' ? 'Images' : 'Textures'} ${map.layers.length + 1}`,
+      name: name || (type === 'image' ? 'Images' : type === 'texture' ? 'Textures' : 'Drawing') + ` ${map.layers.length + 1}`,
       type,
       visible: true,
       locked: false,
@@ -1128,8 +1223,8 @@ export class LobbyStoreService {
     const layers = [...map.layers, newLayer];
     this.applyPatch({ path: 'layers', value: layers });
 
-    // Set as active if no active layer
-    if (!map.activeLayerId) {
+    // Draw layers become active when created
+    if (type === 'draw' || !map.activeLayerId) {
       this.applyPatch({ path: 'activeLayerId', value: newLayer.id });
     }
 
@@ -1143,13 +1238,22 @@ export class LobbyStoreService {
     const map = this.currentMap;
     if (!map || !map.layers) return;
 
-    // Don't allow deleting the last layer
-    if (map.layers.length <= 1) {
+    const layers = map.layers.filter(l => l.id !== layerId);
+    const deletedLayer = map.layers.find(l => l.id === layerId);
+    if (!deletedLayer) return;
+
+    // Draw layers: require at least one remaining
+    if (deletedLayer.type === 'draw') {
+      const remainingDraw = layers.filter(l => l.type === 'draw');
+      if (remainingDraw.length === 0) {
+        console.warn('[LobbyStore] Cannot delete the only draw layer');
+        return;
+      }
+    } else if (layers.length === 0) {
       console.warn('[LobbyStore] Cannot delete the only layer');
       return;
     }
 
-    const layers = map.layers.filter(l => l.id !== layerId);
     this.applyPatch({ path: 'layers', value: layers });
 
     // Remove all images and tiles on this layer
@@ -1161,6 +1265,18 @@ export class LobbyStoreService {
     const tiles = (map.textureTiles || []).filter(tile => tile.layerId !== layerId);
     if (tiles.length !== (map.textureTiles || []).length) {
       this.applyPatch({ path: 'textureTiles', value: tiles });
+    }
+
+    // Remove draw content on this layer
+    if (deletedLayer.type === 'draw') {
+      const strokes = this.strokes.filter(s => s.layerId !== layerId);
+      const drawBitmaps = this.drawBitmaps.filter(b => b.layerId !== layerId);
+      if (strokes.length !== this.strokes.length) {
+        this.applyPatch({ path: 'strokes', value: strokes });
+      }
+      if (drawBitmaps.length !== this.drawBitmaps.length) {
+        this.applyPatch({ path: 'drawBitmaps', value: drawBitmaps });
+      }
     }
 
     // Switch active layer if needed

@@ -34,7 +34,14 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
-import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke, LibraryTexture, MeasurementLine, LinkedTokenType } from '../../model/lobby.model';
+import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke, LibraryTexture, MeasurementLine, LinkedTokenType, DrawBitmap } from '../../model/lobby.model';
+import {
+  extractLassoRegion,
+  getDefaultDrawLayerId,
+  getStrokeLayerId,
+  imageDataToDataUrl,
+  createEraserFillStroke,
+} from '../draw-layer.utils';
 import { LobbyStoreService } from '../../services/lobby-store.service';
 import { LobbySocketService } from '../../services/lobby-socket.service';
 import { ImageService } from '../../services/image.service';
@@ -59,6 +66,22 @@ interface TexturePaletteEntry {
   textureBlendColor: string;
   layer: 'background' | 'foreground';
   previewUrl?: string; // Cached colored preview
+}
+
+interface FloatingSelection {
+  imageData: ImageData;
+  dataUrl: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  sourceLayerId: string;
+  sourcePolygon: Point[];
+  offsetX: number;
+  offsetY: number;
+  rotation: number;
+  scale: number;
+  cutOnCommit: boolean;
 }
 
 @Component({
@@ -231,6 +254,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private isAdjustingBrushSize = false; // Shift+drag to adjust brush size
   private brushSizeAdjustStart: { x: number; y: number; initialSize: number } | null = null;
 
+  // Lasso selection tool
+  private isLassoDrawing = false;
+  private lassoPoints: Point[] = [];
+  private floatingSelection: FloatingSelection | null = null;
+  private lassoClipboard: { dataUrl: string; width: number; height: number } | null = null;
+  private lassoDragStart: Point | null = null;
+  private lassoTransformHandle: 'move' | 'rotate' | 'scale' | null = null;
+  private lassoTransformAnchor: Point | null = null;
+  private lassoInitialTransform: { offsetX: number; offsetY: number; rotation: number; scale: number } | null = null;
+  private bitmapImageCache = new Map<string, HTMLImageElement>();
+
   // Measurement
   measureStart = signal<Point | null>(null);
   measureEnd = signal<Point | null>(null);
@@ -321,13 +355,53 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Ctrl+Z for undo (tool-specific to prevent interference)
     if (event.ctrlKey && event.key === 'z') {
       event.preventDefault();
-      // Only undo for current tool to prevent strokes from disappearing
       if (this.currentTool === 'texture') {
         this.store.undoTextureTiles();
-      } else if (this.currentTool === 'draw') {
+      } else if (this.currentTool === 'draw' || this.currentTool === 'lasso') {
         this.store.undoStroke();
+        this.floatingSelection = null;
+        this.lassoPoints = [];
       }
       this.scheduleRender();
+      return;
+    }
+
+    if (event.ctrlKey && event.key === 'c' && this.floatingSelection) {
+      event.preventDefault();
+      this.copyFloatingSelection();
+      return;
+    }
+
+    if (event.ctrlKey && event.key === 'x' && this.floatingSelection) {
+      event.preventDefault();
+      this.copyFloatingSelection();
+      if (this.floatingSelection) {
+        this.floatingSelection.cutOnCommit = true;
+      }
+      return;
+    }
+
+    if (event.ctrlKey && event.key === 'v' && this.lassoClipboard) {
+      event.preventDefault();
+      this.pasteFromLassoClipboard();
+      return;
+    }
+
+    if (event.key === 'Enter' && this.floatingSelection) {
+      event.preventDefault();
+      this.commitFloatingSelection();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      if (this.floatingSelection || this.lassoPoints.length > 0) {
+        event.preventDefault();
+        this.floatingSelection = null;
+        this.lassoPoints = [];
+        this.isLassoDrawing = false;
+        this.scheduleRender();
+      }
+      return;
     }
     
     // Number keys 1-9 for palette slots (0 = slot 10)
@@ -1394,42 +1468,33 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const ctx = this.drawCtx;
     const dpr = window.devicePixelRatio || 1;
 
-    // Clear draw canvas (normal strokes only)
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
     ctx.save();
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.scale, this.scale);
 
-    for (const stroke of this.map.strokes || []) {
-      if (stroke.points.length < 2) continue;
+    const defaultDrawId = getDefaultDrawLayerId(this.map.layers);
+    const drawLayers = (this.map.layers || [])
+      .filter(l => l.type === 'draw' && l.visible)
+      .sort((a, b) => a.zIndex - b.zIndex);
 
-      ctx.globalCompositeOperation = stroke.isEraser ? 'destination-out' : 'source-over';
-      ctx.beginPath();
-      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+    const strokes = this.map.strokes || [];
+    const bitmaps = this.map.drawBitmaps || [];
 
-      for (let i = 1; i < stroke.points.length; i++) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
-      }
-
-      ctx.strokeStyle = stroke.isEraser ? 'rgba(0,0,0,1)' : stroke.color;
-      ctx.lineWidth = stroke.lineWidth;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
+    for (const layer of drawLayers) {
+      this.renderDrawLayerStrokes(ctx, layer.id, strokes, bitmaps, defaultDrawId);
     }
 
-    // Render current in-progress stroke for live preview
+    // Live preview of in-progress stroke on active draw layer
     if (this.isDrawing && this.currentStrokePoints.length > 1) {
       const isEraser = this.isEraserMode;
       ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
       ctx.beginPath();
       ctx.moveTo(this.currentStrokePoints[0].x, this.currentStrokePoints[0].y);
-
       for (let i = 1; i < this.currentStrokePoints.length; i++) {
         ctx.lineTo(this.currentStrokePoints[i].x, this.currentStrokePoints[i].y);
       }
-
       ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : this.brushColor;
       ctx.lineWidth = isEraser ? this.eraserBrushSize : this.penBrushSize;
       ctx.lineCap = 'round';
@@ -1439,6 +1504,58 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     ctx.globalCompositeOperation = 'source-over';
     ctx.restore();
+  }
+
+  private renderDrawLayerStrokes(
+    ctx: CanvasRenderingContext2D,
+    layerId: string,
+    strokes: Stroke[],
+    bitmaps: DrawBitmap[],
+    defaultDrawId: string | null
+  ): void {
+    for (const stroke of strokes) {
+      if (getStrokeLayerId(stroke, defaultDrawId) !== layerId) continue;
+      const minPoints = stroke.isEraserFill ? 3 : 2;
+      if (stroke.points.length < minPoints) continue;
+
+      ctx.globalCompositeOperation = stroke.isEraser ? 'destination-out' : 'source-over';
+      ctx.beginPath();
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      if (stroke.isEraserFill) {
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(0,0,0,1)';
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = stroke.isEraser ? 'rgba(0,0,0,1)' : stroke.color;
+        ctx.lineWidth = stroke.lineWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      }
+    }
+
+    ctx.globalCompositeOperation = 'source-over';
+    for (const bmp of bitmaps) {
+      if (bmp.layerId !== layerId) continue;
+      const img = this.ensureBitmapLoaded(bmp);
+      if (img) {
+        ctx.drawImage(img, bmp.x, bmp.y, bmp.width, bmp.height);
+      }
+    }
+  }
+
+  private ensureBitmapLoaded(bmp: DrawBitmap): HTMLImageElement | null {
+    let img = this.bitmapImageCache.get(bmp.id);
+    if (!img || img.src !== bmp.dataUrl) {
+      img = new Image();
+      img.onload = () => this.scheduleRender();
+      img.src = bmp.dataUrl;
+      this.bitmapImageCache.set(bmp.id, img);
+    }
+    return img.complete && img.naturalWidth > 0 ? img : null;
   }
 
   // Current in-progress fog stroke points
@@ -3292,6 +3409,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.renderRemoteMeasurements(ctx);
     this.renderDragPath(ctx);
     this.renderSelectionBox(ctx);
+    this.renderLassoOverlay(ctx);
     this.renderBrushSizeCircle(ctx);
   }
 
@@ -3585,6 +3703,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       case 'fog':
         this.handleFogDown(event, world);
         break;
+      case 'lasso':
+        this.handleLassoDown(event, world);
+        break;
     }
   }
 
@@ -3661,6 +3782,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       case 'fog':
         this.handleFogMove(event, world);
         break;
+      case 'lasso':
+        this.handleLassoMove(event, world);
+        break;
     }
   }
 
@@ -3709,6 +3833,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         break;
       case 'fog':
         this.handleFogUp();
+        break;
+      case 'lasso':
+        this.handleLassoUp(event, world);
         break;
     }
   }
@@ -3878,6 +4005,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   private handleDrawDown(event: MouseEvent, world: Point): void {
     if (event.button !== 0) return;
+    if (this.store.isActiveDrawLayerLocked()) return;
 
     // Shift+drag = adjust brush size
     if (event.shiftKey) {
@@ -3948,6 +4076,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         color: this.isEraserMode ? '#FFFFFF' : this.brushColor,
         lineWidth: this.isEraserMode ? this.eraserBrushSize : this.penBrushSize,
         isEraser: this.isEraserMode,
+        layerId: this.store.getActiveDrawLayerId(),
       };
       
       this.store.addStroke(stroke);
@@ -5561,6 +5690,388 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     return selectedIds;
+  }
+
+  // ============================================
+  // Lasso Selection Tool
+  // ============================================
+
+  private handleLassoDown(event: MouseEvent, world: Point): void {
+    if (event.button !== 0) return;
+
+    if (this.floatingSelection) {
+      const handle = this.getLassoTransformHandle(world);
+      if (handle) {
+        this.lassoTransformHandle = handle;
+        this.lassoTransformAnchor = world;
+        this.lassoInitialTransform = {
+          offsetX: this.floatingSelection.offsetX,
+          offsetY: this.floatingSelection.offsetY,
+          rotation: this.floatingSelection.rotation,
+          scale: this.floatingSelection.scale,
+        };
+        if (handle === 'move') {
+          this.floatingSelection.cutOnCommit = true;
+        }
+        return;
+      }
+
+      if (this.isPointInFloatingSelection(world)) {
+        this.lassoTransformHandle = 'move';
+        this.lassoDragStart = world;
+        this.lassoInitialTransform = {
+          offsetX: this.floatingSelection.offsetX,
+          offsetY: this.floatingSelection.offsetY,
+          rotation: this.floatingSelection.rotation,
+          scale: this.floatingSelection.scale,
+        };
+        this.floatingSelection.cutOnCommit = true;
+        return;
+      }
+
+      // Click outside floating selection → commit
+      this.commitFloatingSelection();
+      return;
+    }
+
+    this.isLassoDrawing = true;
+    this.lassoPoints = [world];
+  }
+
+  private handleLassoMove(event: MouseEvent, world: Point): void {
+    if (this.floatingSelection && this.lassoTransformHandle && this.lassoInitialTransform) {
+      this.updateLassoTransform(world);
+      this.scheduleRender();
+      return;
+    }
+
+    if (this.floatingSelection && this.lassoDragStart && this.lassoInitialTransform) {
+      const dx = world.x - this.lassoDragStart.x;
+      const dy = world.y - this.lassoDragStart.y;
+      this.floatingSelection.offsetX = this.lassoInitialTransform.offsetX + dx;
+      this.floatingSelection.offsetY = this.lassoInitialTransform.offsetY + dy;
+      this.scheduleRender();
+      return;
+    }
+
+    if (!this.isLassoDrawing) return;
+    this.lassoPoints.push(world);
+
+    const now = performance.now();
+    if (now - this.lastRenderTime >= this.renderThrottleMs) {
+      this.lastRenderTime = now;
+      this.scheduleRender();
+    }
+  }
+
+  private handleLassoUp(event: MouseEvent, world: Point): void {
+    if (this.lassoTransformHandle || this.lassoDragStart) {
+      this.lassoTransformHandle = null;
+      this.lassoTransformAnchor = null;
+      this.lassoInitialTransform = null;
+      this.lassoDragStart = null;
+      return;
+    }
+
+    if (!this.isLassoDrawing) return;
+    this.isLassoDrawing = false;
+
+    if (this.lassoPoints.length < 3) {
+      this.lassoPoints = [];
+      this.scheduleRender();
+      return;
+    }
+
+    const polygon = [...this.lassoPoints, this.lassoPoints[0]];
+    const sourceLayerId = this.store.getActiveDrawLayerId();
+    const defaultDrawId = getDefaultDrawLayerId(this.map?.layers);
+    const extracted = extractLassoRegion(
+      polygon,
+      this.map?.strokes || [],
+      this.map?.drawBitmaps || [],
+      sourceLayerId,
+      defaultDrawId
+    );
+
+    this.lassoPoints = [];
+
+    if (!extracted) {
+      this.scheduleRender();
+      return;
+    }
+
+    this.floatingSelection = {
+      imageData: extracted.imageData,
+      dataUrl: imageDataToDataUrl(extracted.imageData),
+      x: extracted.x,
+      y: extracted.y,
+      width: extracted.width,
+      height: extracted.height,
+      sourceLayerId,
+      sourcePolygon: polygon,
+      offsetX: 0,
+      offsetY: 0,
+      rotation: 0,
+      scale: 1,
+      cutOnCommit: false,
+    };
+    this.scheduleRender();
+  }
+
+  private renderLassoOverlay(ctx: CanvasRenderingContext2D): void {
+    if (this.lassoPoints.length > 1) {
+      ctx.save();
+      ctx.beginPath();
+      const first = this.worldToScreen(this.lassoPoints[0].x, this.lassoPoints[0].y);
+      ctx.moveTo(first.x, first.y);
+      for (let i = 1; i < this.lassoPoints.length; i++) {
+        const p = this.worldToScreen(this.lassoPoints[i].x, this.lassoPoints[i].y);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    const sel = this.floatingSelection;
+    if (!sel) return;
+
+    const cx = sel.x + sel.width / 2 + sel.offsetX;
+    const cy = sel.y + sel.height / 2 + sel.offsetY;
+
+    ctx.save();
+    const screenCenter = this.worldToScreen(cx, cy);
+    ctx.translate(screenCenter.x, screenCenter.y);
+    ctx.rotate(sel.rotation * Math.PI / 180);
+    ctx.scale(sel.scale, sel.scale);
+
+    const sw = sel.width * this.scale;
+    const sh = sel.height * this.scale;
+    const img = new Image();
+    img.src = sel.dataUrl;
+    if (img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+    }
+
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(-sw / 2, -sh / 2, sw, sh);
+    ctx.setLineDash([]);
+
+    // Scale handle (bottom-right)
+    ctx.fillStyle = '#3b82f6';
+    ctx.fillRect(sw / 2 - 5, sh / 2 - 5, 10, 10);
+
+    // Rotate handle (top)
+    ctx.beginPath();
+    ctx.moveTo(0, -sh / 2);
+    ctx.lineTo(0, -sh / 2 - 20);
+    ctx.strokeStyle = '#22c55e';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, -sh / 2 - 20, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#22c55e';
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  private getFloatingSelectionBounds(): { minX: number; minY: number; maxX: number; maxY: number; centerX: number; centerY: number } | null {
+    const sel = this.floatingSelection;
+    if (!sel) return null;
+    const cx = sel.x + sel.width / 2 + sel.offsetX;
+    const cy = sel.y + sel.height / 2 + sel.offsetY;
+    const hw = (sel.width * sel.scale) / 2;
+    const hh = (sel.height * sel.scale) / 2;
+    return {
+      minX: cx - hw,
+      minY: cy - hh,
+      maxX: cx + hw,
+      maxY: cy + hh,
+      centerX: cx,
+      centerY: cy,
+    };
+  }
+
+  private isPointInFloatingSelection(world: Point): boolean {
+    const sel = this.floatingSelection;
+    if (!sel) return false;
+    const cx = sel.x + sel.width / 2 + sel.offsetX;
+    const cy = sel.y + sel.height / 2 + sel.offsetY;
+    const dx = world.x - cx;
+    const dy = world.y - cy;
+    const rad = -sel.rotation * Math.PI / 180;
+    const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
+    const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+    return Math.abs(rx) <= (sel.width * sel.scale) / 2 && Math.abs(ry) <= (sel.height * sel.scale) / 2;
+  }
+
+  private getLassoTransformHandle(world: Point): 'move' | 'rotate' | 'scale' | null {
+    const sel = this.floatingSelection;
+    if (!sel) return null;
+
+    const bounds = this.getFloatingSelectionBounds();
+    if (!bounds) return null;
+
+    const handleRadius = 8 / this.scale;
+    const cx = bounds.centerX;
+    const cy = bounds.centerY;
+    const rotHandleY = bounds.minY - 20 / this.scale;
+
+    if (Math.hypot(world.x - cx, world.y - rotHandleY) < handleRadius) {
+      return 'rotate';
+    }
+
+    const brX = bounds.maxX;
+    const brY = bounds.maxY;
+    if (Math.hypot(world.x - brX, world.y - brY) < handleRadius) {
+      return 'scale';
+    }
+
+    return null;
+  }
+
+  private updateLassoTransform(world: Point): void {
+    const sel = this.floatingSelection;
+    if (!sel || !this.lassoTransformHandle || !this.lassoTransformAnchor || !this.lassoInitialTransform) return;
+
+    const bounds = this.getFloatingSelectionBounds();
+    if (!bounds) return;
+
+    if (this.lassoTransformHandle === 'rotate') {
+      const startAngle = Math.atan2(
+        this.lassoTransformAnchor.y - bounds.centerY,
+        this.lassoTransformAnchor.x - bounds.centerX
+      );
+      const currentAngle = Math.atan2(
+        world.y - bounds.centerY,
+        world.x - bounds.centerX
+      );
+      sel.rotation = this.lassoInitialTransform.rotation + (currentAngle - startAngle) * 180 / Math.PI;
+    } else if (this.lassoTransformHandle === 'scale') {
+      const initialDist = Math.hypot(
+        this.lassoTransformAnchor.x - bounds.centerX,
+        this.lassoTransformAnchor.y - bounds.centerY
+      );
+      const currentDist = Math.hypot(
+        world.x - bounds.centerX,
+        world.y - bounds.centerY
+      );
+      sel.scale = Math.max(0.1, this.lassoInitialTransform.scale * (currentDist / Math.max(initialDist, 0.001)));
+    }
+  }
+
+  private bakeSelectionTransform(sel: FloatingSelection): { dataUrl: string; width: number; height: number; x: number; y: number } {
+    const rad = sel.rotation * Math.PI / 180;
+    const cos = Math.abs(Math.cos(rad));
+    const sin = Math.abs(Math.sin(rad));
+    const outW = Math.ceil(sel.width * sel.scale * cos + sel.height * sel.scale * sin);
+    const outH = Math.ceil(sel.width * sel.scale * sin + sel.height * sel.scale * cos);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d')!;
+
+    const tmp = document.createElement('canvas');
+    tmp.width = sel.width;
+    tmp.height = sel.height;
+    tmp.getContext('2d')!.putImageData(sel.imageData, 0, 0);
+
+    ctx.translate(outW / 2, outH / 2);
+    ctx.rotate(rad);
+    ctx.scale(sel.scale, sel.scale);
+    ctx.drawImage(tmp, -sel.width / 2, -sel.height / 2);
+
+    const cx = sel.x + sel.width / 2 + sel.offsetX;
+    const cy = sel.y + sel.height / 2 + sel.offsetY;
+
+    return {
+      dataUrl: canvas.toDataURL('image/png'),
+      width: outW,
+      height: outH,
+      x: cx - outW / 2,
+      y: cy - outH / 2,
+    };
+  }
+
+  private commitFloatingSelection(): void {
+    const sel = this.floatingSelection;
+    if (!sel) return;
+
+    const baked = this.bakeSelectionTransform(sel);
+    const targetLayerId = this.store.getActiveDrawLayerId();
+    let strokes = [...this.store.strokes];
+
+    if (sel.cutOnCommit) {
+      strokes.push(createEraserFillStroke(sel.sourcePolygon, sel.sourceLayerId, generateId()));
+    }
+
+    const drawBitmaps = [...this.store.drawBitmaps, {
+      id: generateId(),
+      layerId: targetLayerId,
+      x: baked.x,
+      y: baked.y,
+      width: baked.width,
+      height: baked.height,
+      dataUrl: baked.dataUrl,
+    }];
+
+    this.store.applyDrawChanges(strokes, drawBitmaps);
+    this.floatingSelection = null;
+    this.scheduleRender();
+  }
+
+  private copyFloatingSelection(): void {
+    const sel = this.floatingSelection;
+    if (!sel) return;
+    const baked = this.bakeSelectionTransform(sel);
+    this.lassoClipboard = {
+      dataUrl: baked.dataUrl,
+      width: baked.width,
+      height: baked.height,
+    };
+  }
+
+  private pasteFromLassoClipboard(): void {
+    if (!this.lassoClipboard) return;
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = this.lassoClipboard!.width;
+      canvas.height = this.lassoClipboard!.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      const container = this.container?.nativeElement;
+      const centerWorld = container
+        ? this.screenToWorld(container.getBoundingClientRect().width / 2, container.getBoundingClientRect().height / 2)
+        : { x: 0, y: 0 };
+
+      this.floatingSelection = {
+        imageData,
+        dataUrl: this.lassoClipboard!.dataUrl,
+        x: centerWorld.x - this.lassoClipboard!.width / 2,
+        y: centerWorld.y - this.lassoClipboard!.height / 2,
+        width: this.lassoClipboard!.width,
+        height: this.lassoClipboard!.height,
+        sourceLayerId: this.store.getActiveDrawLayerId(),
+        sourcePolygon: [],
+        offsetX: 0,
+        offsetY: 0,
+        rotation: 0,
+        scale: 1,
+        cutOnCommit: false,
+      };
+      this.scheduleRender();
+    };
+    img.src = this.lassoClipboard.dataUrl;
   }
 
   // ===================================================================

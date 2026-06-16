@@ -69,7 +69,8 @@ export class LobbyToolbarComponent {
 
   // Tool definitions
   tools: { id: ToolType; icon: string; label: string; shortcut: string }[] = [
-    { id: 'cursor', icon: '↖️', label: 'Select/Move', shortcut: 'F' },
+    { id: 'cursor', icon: '↖️', label: 'Select/Move', shortcut: 'S' },
+    { id: 'lasso', icon: '⭕', label: 'Lasso', shortcut: 'F' },
     { id: 'draw', icon: '✏️', label: 'Zeichnen', shortcut: 'B' },
     { id: 'walls', icon: '🧱', label: 'Wände', shortcut: 'W' },
     { id: 'measure', icon: '📏', label: 'Messen', shortcut: 'R' },

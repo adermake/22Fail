@@ -35,7 +35,7 @@ import { BattleTracker } from '../world/battle-tracker/battle-tracker.component'
 import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engine';
 
 // Tool types
-export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image' | 'texture' | 'fog';
+export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image' | 'texture' | 'fog' | 'lasso';
 export type DragMode = 'free' | 'enforced';
 
 @Component({
@@ -105,9 +105,6 @@ export class LobbyComponent implements OnInit, OnDestroy {
   drawWithWalls = signal(false);
   dragMode = signal<DragMode>('free');
 
-  // Layer visibility
-  drawLayerVisible = signal(true);
-  imageLayerVisible = signal(true);
 
   // Selection state
   selectedImageId = signal<string | null>(null);
@@ -627,6 +624,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
         this.isEraserMode.set(false);
         event.preventDefault();
         break;
+      case 'f':
+        this.currentTool.set('lasso');
+        this.isEraserMode.set(false);
+        event.preventDefault();
+        break;
       case 'delete':
         if (this.selectedTokenId()) {
           this.store.removeToken(this.selectedTokenId()!);
@@ -672,7 +674,14 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   onToolChange(tool: ToolType): void {
     this.currentTool.set(tool);
-    this.isEraserMode.set(false); // Reset eraser when tool changes
+    this.isEraserMode.set(false);
+
+    // When switching to draw/lasso, ensure a draw layer is active
+    if (tool === 'draw' || tool === 'lasso') {
+      try {
+        this.store.getActiveDrawLayerId();
+      } catch { /* no map */ }
+    }
     
     // Auto-switch to texture tab when texture or image tool selected
     if (tool === 'texture' || tool === 'image') {
@@ -1036,8 +1045,21 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // ============================================
 
   onDrawLayerVisibleChange(visible: boolean): void {
-    this.drawLayerVisible.set(visible);
+    const map = this.currentMap();
+    if (!map?.layers) return;
+    for (const layer of map.layers.filter(l => l.type === 'draw')) {
+      if (layer.visible !== visible) {
+        this.store.toggleLayerVisibility(layer.id);
+      }
+    }
+    this.cdr.markForCheck();
   }
+
+  allDrawLayersVisible = computed(() => {
+    const drawLayers = (this.currentMap()?.layers || []).filter(l => l.type === 'draw');
+    if (drawLayers.length === 0) return true;
+    return drawLayers.every(l => l.visible);
+  });
 
   onImageLayerVisibleChange(visible: boolean): void {
     this.imageLayerVisible.set(visible);
@@ -1188,7 +1210,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  onLayerAdd(type: 'image' | 'texture'): void {
+  onLayerAdd(type: 'image' | 'texture' | 'draw'): void {
     this.store.addLayer(type);
     this.cdr.markForCheck();
   }

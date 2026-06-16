@@ -15,6 +15,12 @@
           title="Add Texture Layer">
           🎨
         </button>
+        <button 
+          class="add-layer-btn" 
+          (click)="onAddDrawLayer()"
+          title="Add Draw Layer">
+          ✏️
+        </button>
       </div>
     }
   </div>
@@ -24,14 +30,7 @@
     cdkDropList 
     (cdkDropListDropped)="onDrop($event)">
     
-    <!-- Draw Layer (always on top, not draggable) -->
-    <div class="layer-item draw-layer">
-      <div class="layer-icon">✏️</div>
-      <div class="layer-name">Draw Layer</div>
-      <div class="layer-info">(always on top)</div>
-    </div>
-
-    <!-- User-created layers -->
+    <!-- All layers (image, texture, draw) -->
     @for (layer of sortedLayers; track layer.id) {
       <div 
         class="layer-item"
@@ -93,7 +92,7 @@
       <div class="empty-state">
         <p>No layers yet</p>
         @if (isGM) {
-          <p class="hint">Click 🖼️ or 🎨 to add a layer</p>
+          <p class="hint">Click 🖼️, 🎨 or ✏️ to add a layer</p>
         }
       </div>
     }

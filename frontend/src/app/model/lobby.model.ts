@@ -42,6 +42,19 @@ export interface Stroke {
   color: string;
   lineWidth: number;
   isEraser: boolean;
+  isEraserFill?: boolean; // Filled polygon eraser (lasso cut)
+  layerId?: string; // Reference to draw Layer.id
+}
+
+/** A raster region placed on a draw layer (from lasso selection) */
+export interface DrawBitmap {
+  id: string;
+  layerId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  dataUrl: string; // PNG base64 data URL
 }
 
 /** A texture stamp/brush stroke (legacy - kept for backward compatibility) */
@@ -134,7 +147,7 @@ export interface TokenStatusEffect {
 // ============================================
 
 /** Layer types supported */
-export type LayerType = 'image' | 'texture';
+export type LayerType = 'image' | 'texture' | 'draw';
 
 /** A layer for organizing content */
 export interface Layer {
@@ -216,6 +229,7 @@ export interface LobbyMap {
   name: string;
   tokens: Token[];
   strokes: Stroke[];
+  drawBitmaps?: DrawBitmap[]; // Raster regions on draw layers
   fogStrokes?: Stroke[]; // Fog of war strokes
   textureStrokes: TextureStroke[]; // Legacy - for backward compatibility
   textureTiles?: TextureTile[]; // New tile-based texture storage
@@ -275,18 +289,28 @@ export function createEmptyMap(id: string, name: string): LobbyMap {
     zIndex: 0,
     createdAt: Date.now(),
   };
+  const defaultDrawLayer: Layer = {
+    id: generateId(),
+    name: 'Drawing',
+    type: 'draw',
+    visible: true,
+    locked: false,
+    zIndex: 2,
+    createdAt: Date.now(),
+  };
 
   return {
     id,
     name,
     tokens: [],
     strokes: [],
+    drawBitmaps: [],
     textureStrokes: [],
     walls: [],
     measurementLines: [],
     images: [],
-    layers: [defaultImageLayer, defaultTextureLayer],
-    activeLayerId: defaultImageLayer.id,
+    layers: [defaultImageLayer, defaultTextureLayer, defaultDrawLayer],
+    activeLayerId: defaultDrawLayer.id,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };

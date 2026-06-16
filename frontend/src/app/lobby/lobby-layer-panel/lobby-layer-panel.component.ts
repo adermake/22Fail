@@ -110,7 +110,15 @@ export class LobbyLayerPanelComponent implements OnChanges {
     this.layerAdd.emit('texture');
   }
 
+  onAddDrawLayer(): void {
+    this.layerAdd.emit('draw');
+  }
+
   getLayerIcon(type: LayerType): string {
-    return type === 'image' ? '🖼️' : '🎨';
+    switch (type) {
+      case 'image': return '🖼️';
+      case 'texture': return '🎨';
+      case 'draw': return '✏️';
+    }
   }
 }
