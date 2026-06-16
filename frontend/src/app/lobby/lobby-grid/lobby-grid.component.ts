@@ -392,7 +392,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (event.ctrlKey && event.key === 'x' && this.floatingSelection) {
       event.preventDefault();
       this.copyFloatingSelection();
-      this.ensureSourceCut();
       return;
     }
 
@@ -5839,7 +5838,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.store.drawBitmaps,
       sel.sourceLayerId,
       sel.sourcePolygon,
-      defaultDrawId
+      defaultDrawId,
+      (c, bmp) => this.drawBitmapOnContext(c, bmp)
     );
     this.store.applyDrawChanges(cleaned.strokes, cleaned.drawBitmaps);
     sel.sourceCutApplied = true;
@@ -5877,7 +5877,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (this.floatingSelection) {
       const handle = this.getLassoTransformHandle(world);
       if (handle) {
-        this.ensureSourceCut();
         this.lassoTransformHandle = handle;
         this.lassoTransformAnchor = world;
         this.lassoInitialTransform = {
@@ -5891,7 +5890,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
 
       if (this.isPointInFloatingSelection(world)) {
-        this.ensureSourceCut();
         this.lassoDragStart = world;
         this.lassoInitialTransform = {
           offsetX: this.floatingSelection.offsetX,
@@ -5974,8 +5972,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     const extracted = createLassoRegionFromPolygon(
       polygon,
-      this.map?.strokes || [],
-      this.map?.drawBitmaps || [],
+      this.store.strokes,
+      this.store.drawBitmaps,
       sourceLayerId,
       defaultDrawId,
       (c, bmp) => this.drawBitmapOnContext(c, bmp)
@@ -5983,7 +5981,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.lassoPoints = [];
 
-    if (!this.imageDataHasVisibleContent(extracted.imageData)) {
+    if (!extracted) {
       this.scheduleRender();
       return;
     }
@@ -5993,7 +5991,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.store.drawBitmaps,
       sourceLayerId,
       polygon,
-      defaultDrawId
+      defaultDrawId,
+      (c, bmp) => this.drawBitmapOnContext(c, bmp)
     );
     this.store.applyDrawChanges(cleaned.strokes, cleaned.drawBitmaps);
 
@@ -6271,7 +6270,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
           drawBitmaps,
           sel.sourceLayerId,
           sel.sourcePolygon,
-          defaultDrawId
+          defaultDrawId,
+          (c, bmp) => this.drawBitmapOnContext(c, bmp)
         );
         strokes = cleaned.strokes;
         drawBitmaps = cleaned.drawBitmaps;

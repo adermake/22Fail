@@ -605,43 +605,156 @@ function bitmapIntersectsPolygon(bmp: DrawBitmap, polygon: Point[]): boolean {
   return corners.some(c => pointInPolygon(c, polygon));
 }
 
+function getBitmapBounds(bmp: DrawBitmap): {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+} {
+  return { minX: bmp.x, minY: bmp.y, maxX: bmp.x + bmp.width, maxY: bmp.y + bmp.height };
+}
+
+function getLassoCutPadding(strokes: Stroke[], layerId: string, defaultLayerId: string | null): number {
+  let maxWidth = 16;
+  for (const s of strokes) {
+    if (getStrokeLayerId(s, defaultLayerId) === layerId) {
+      maxWidth = Math.max(maxWidth, s.lineWidth);
+    }
+  }
+  return Math.ceil(maxWidth / 2) + 8;
+}
+
+/** Zero alpha for pixels outside the lasso polygon (removes bbox corner bleed) */
+export function maskImageDataToPolygon(
+  imageData: ImageData,
+  originX: number,
+  originY: number,
+  polygon: Point[]
+): ImageData {
+  const poly = normalizeLassoPolygon(polygon);
+  if (poly.length < 3) return imageData;
+  const { width, height, data } = imageData;
+  for (let py = 0; py < height; py++) {
+    for (let px = 0; px < width; px++) {
+      if (!pointInPolygon({ x: originX + px, y: originY + py }, poly)) {
+        data[(py * width + px) * 4 + 3] = 0;
+      }
+    }
+  }
+  return imageData;
+}
+
+export function tightCropExtractedRegion(extracted: {
+  imageData: ImageData;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}): {
+  imageData: ImageData;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} | null {
+  const tight = tightAlphaBounds(extracted.imageData);
+  if (!tight) return null;
+  return {
+    imageData: cropImageData(extracted.imageData, tight),
+    x: extracted.x + tight.minX,
+    y: extracted.y + tight.minY,
+    width: tight.width,
+    height: tight.height,
+  };
+}
+
 /**
- * Remove strokes and bitmaps inside/intersecting a lasso polygon from a layer.
- * Used when cutting/moving a selection (destructive, not eraser-mask).
+ * Remove lassoed content via a single raster punch that matches extractLassoRegion.
+ * Everything in the cut region is flattened to one remainder bitmap (if any pixels
+ * remain outside the lasso); vectors in that region are removed to prevent duplicates.
  */
 export function removeLayerContentInPolygon(
   strokes: Stroke[],
   bitmaps: DrawBitmap[],
   layerId: string,
   polygon: Point[],
-  defaultLayerId: string | null
+  defaultLayerId: string | null,
+  drawBitmap?: BitmapDrawFn
 ): { strokes: Stroke[]; drawBitmaps: DrawBitmap[] } {
   const poly = normalizeLassoPolygon(polygon);
   if (poly.length < 3) {
     return { strokes, drawBitmaps: bitmaps };
   }
 
-  let nextStrokes: Stroke[] = [];
-  let nextBitmaps = [...bitmaps];
+  const pad = getLassoCutPadding(strokes, layerId, defaultLayerId);
+  const pb = getPolygonBounds(poly);
+  const cutX = Math.floor(pb.minX - pad);
+  const cutY = Math.floor(pb.minY - pad);
+  const cutW = Math.max(1, Math.ceil(pb.width + pad * 2));
+  const cutH = Math.max(1, Math.ceil(pb.height + pad * 2));
+  const cutRegion = { minX: cutX, minY: cutY, maxX: cutX + cutW, maxY: cutY + cutH };
 
-  for (const s of strokes) {
-    if (getStrokeLayerId(s, defaultLayerId) !== layerId) {
-      nextStrokes.push(s);
-      continue;
-    }
-    const cut = cutStrokeAgainstPolygon(s, poly, layerId);
-    nextStrokes.push(...cut.strokes);
-    nextBitmaps.push(...cut.bitmaps);
-  }
+  const canvas = document.createElement('canvas');
+  canvas.width = cutW;
+  canvas.height = cutH;
+  const ctx = canvas.getContext('2d')!;
+  ctx.clearRect(0, 0, cutW, cutH);
+  ctx.translate(-cutX, -cutY);
+  renderDrawLayerContent(ctx, layerId, strokes, bitmaps, defaultLayerId, drawBitmap);
 
-  nextBitmaps = nextBitmaps.flatMap(b => {
-    if (b.layerId !== layerId) return [b];
-    const cut = cutBitmapByPolygon(b, poly);
-    if (cut === null) return [];
-    return [cut];
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  fillPolygonPath(ctx, poly);
+  ctx.fillStyle = 'rgba(0,0,0,1)';
+  ctx.fill();
+  ctx.restore();
+
+  const after = ctx.getImageData(0, 0, cutW, cutH);
+
+  const keptStrokes = strokes.filter(s => {
+    if (getStrokeLayerId(s, defaultLayerId) !== layerId) return true;
+    return !boundsOverlap(getStrokeBounds(s), cutRegion);
   });
 
-  return { strokes: nextStrokes, drawBitmaps: nextBitmaps };
+  let keptBitmaps = bitmaps.filter(b => {
+    if (b.layerId !== layerId) return true;
+    return !boundsOverlap(getBitmapBounds(b), cutRegion);
+  });
+
+  if (countImageAlpha(after) > 0) {
+    const tight = tightAlphaBounds(after);
+    if (tight) {
+      let minOrder = Infinity;
+      for (const s of strokes) {
+        if (getStrokeLayerId(s, defaultLayerId) === layerId && boundsOverlap(getStrokeBounds(s), cutRegion)) {
+          minOrder = Math.min(minOrder, s.drawOrder ?? minOrder);
+        }
+      }
+      for (const b of bitmaps) {
+        if (b.layerId === layerId && boundsOverlap(getBitmapBounds(b), cutRegion)) {
+          minOrder = Math.min(minOrder, b.drawOrder ?? minOrder);
+        }
+      }
+
+      const cropCanvas = document.createElement('canvas');
+      cropCanvas.width = tight.width;
+      cropCanvas.height = tight.height;
+      cropCanvas.getContext('2d')!.putImageData(cropImageData(after, tight), 0, 0);
+
+      keptBitmaps.push({
+        id: generateId(),
+        layerId,
+        x: cutX + tight.minX,
+        y: cutY + tight.minY,
+        width: tight.width,
+        height: tight.height,
+        dataUrl: cropCanvas.toDataURL('image/png'),
+        drawOrder: minOrder === Infinity ? undefined : minOrder,
+      });
+    }
+  }
+
+  return { strokes: keptStrokes, drawBitmaps: keptBitmaps };
 }
 
 /** Render layer content to an offscreen canvas clipped by polygon; returns ImageData + bounds */
@@ -651,16 +764,19 @@ export function extractLassoRegion(
   bitmaps: DrawBitmap[],
   layerId: string,
   defaultLayerId: string | null,
-  drawBitmap?: BitmapDrawFn,
-  padding = 2
+  drawBitmap?: BitmapDrawFn
 ): { imageData: ImageData; x: number; y: number; width: number; height: number } | null {
-  const bounds = getPolygonBounds(polygon);
+  const poly = normalizeLassoPolygon(polygon);
+  if (poly.length < 3) return null;
+
+  const pad = getLassoCutPadding(strokes, layerId, defaultLayerId);
+  const bounds = getPolygonBounds(poly);
   if (bounds.width < 1 || bounds.height < 1) return null;
 
-  const x = Math.floor(bounds.minX - padding);
-  const y = Math.floor(bounds.minY - padding);
-  const width = Math.ceil(bounds.width + padding * 2);
-  const height = Math.ceil(bounds.height + padding * 2);
+  const x = Math.floor(bounds.minX - pad);
+  const y = Math.floor(bounds.minY - pad);
+  const width = Math.max(1, Math.ceil(bounds.width + pad * 2));
+  const height = Math.max(1, Math.ceil(bounds.height + pad * 2));
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -669,9 +785,8 @@ export function extractLassoRegion(
   ctx.clearRect(0, 0, width, height);
 
   const prepareLayerCtx: LayerContextSetup = layerCtx => {
-    const clipPoly = normalizeLassoPolygon(polygon);
     layerCtx.translate(-x, -y);
-    fillPolygonPath(layerCtx, clipPoly);
+    fillPolygonPath(layerCtx, poly);
     layerCtx.clip();
   };
 
@@ -688,15 +803,9 @@ export function extractLassoRegion(
   );
 
   const imageData = ctx.getImageData(0, 0, width, height);
+  maskImageDataToPolygon(imageData, x, y, poly);
 
-  let hasContent = false;
-  for (let i = 3; i < imageData.data.length; i += 4) {
-    if (imageData.data[i] > 0) {
-      hasContent = true;
-      break;
-    }
-  }
-  if (!hasContent) return null;
+  if (!tightAlphaBounds(imageData)) return null;
 
   return { imageData, x, y, width, height };
 }
@@ -717,7 +826,7 @@ export function createEmptyLassoRegion(polygon: Point[], padding = 2): {
   return { imageData: new ImageData(width, height), x, y, width, height };
 }
 
-/** Extract lasso region; falls back to empty transparent region if no pixels found */
+/** Extract lasso region; returns null if no visible pixels */
 export function createLassoRegionFromPolygon(
   polygon: Point[],
   strokes: Stroke[],
@@ -725,9 +834,10 @@ export function createLassoRegionFromPolygon(
   layerId: string,
   defaultLayerId: string | null,
   drawBitmap?: BitmapDrawFn
-): { imageData: ImageData; x: number; y: number; width: number; height: number } {
-  return extractLassoRegion(polygon, strokes, bitmaps, layerId, defaultLayerId, drawBitmap)
-    ?? createEmptyLassoRegion(polygon);
+): { imageData: ImageData; x: number; y: number; width: number; height: number } | null {
+  const raw = extractLassoRegion(polygon, strokes, bitmaps, layerId, defaultLayerId, drawBitmap);
+  if (!raw) return null;
+  return tightCropExtractedRegion(raw);
 }
 
 export function imageDataToDataUrl(imageData: ImageData): string {
