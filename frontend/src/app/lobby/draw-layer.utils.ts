@@ -227,17 +227,54 @@ function cutBitmapByPolygon(bmp: DrawBitmap, polygon: Point[]): DrawBitmap | nul
   return { ...bmp, dataUrl: canvas.toDataURL('image/png') };
 }
 
-/** Render multiple draw layers in z-order (bottom to top) */
+export type LayerContextSetup = (ctx: CanvasRenderingContext2D) => void;
+
+/** Render one draw layer to an offscreen buffer, then composite (erasers stay layer-local) */
+export function compositeDrawLayerContent(
+  targetCtx: CanvasRenderingContext2D,
+  layerId: string,
+  strokes: Stroke[],
+  bitmaps: DrawBitmap[],
+  defaultLayerId: string | null,
+  width: number,
+  height: number,
+  prepareLayerCtx: LayerContextSetup,
+  drawBitmap?: BitmapDrawFn
+): void {
+  const off = document.createElement('canvas');
+  off.width = width;
+  off.height = height;
+  const offCtx = off.getContext('2d')!;
+  prepareLayerCtx(offCtx);
+  renderDrawLayerContent(offCtx, layerId, strokes, bitmaps, defaultLayerId, drawBitmap);
+  targetCtx.globalCompositeOperation = 'source-over';
+  targetCtx.drawImage(off, 0, 0, width, height);
+}
+
+/** Render multiple draw layers in z-order, each isolated so erasers don't bleed through */
 export function renderDrawLayersContent(
   ctx: CanvasRenderingContext2D,
   layerIds: string[],
   strokes: Stroke[],
   bitmaps: DrawBitmap[],
   defaultLayerId: string | null,
-  drawBitmap?: BitmapDrawFn
+  drawBitmap?: BitmapDrawFn,
+  prepareLayerCtx: LayerContextSetup = c => c
 ): void {
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
   for (const layerId of layerIds) {
-    renderDrawLayerContent(ctx, layerId, strokes, bitmaps, defaultLayerId, drawBitmap);
+    compositeDrawLayerContent(
+      ctx,
+      layerId,
+      strokes,
+      bitmaps,
+      defaultLayerId,
+      width,
+      height,
+      prepareLayerCtx,
+      drawBitmap
+    );
   }
 }
 
@@ -315,18 +352,18 @@ export function extractLassoRegion(
   const ctx = canvas.getContext('2d')!;
   ctx.clearRect(0, 0, width, height);
 
-  ctx.save();
-  ctx.translate(-x, -y);
-  ctx.beginPath();
-  ctx.moveTo(polygon[0].x, polygon[0].y);
-  for (let i = 1; i < polygon.length; i++) {
-    ctx.lineTo(polygon[i].x, polygon[i].y);
-  }
-  ctx.closePath();
-  ctx.clip();
+  const prepareLayerCtx: LayerContextSetup = layerCtx => {
+    layerCtx.translate(-x, -y);
+    layerCtx.beginPath();
+    layerCtx.moveTo(polygon[0].x, polygon[0].y);
+    for (let i = 1; i < polygon.length; i++) {
+      layerCtx.lineTo(polygon[i].x, polygon[i].y);
+    }
+    layerCtx.closePath();
+    layerCtx.clip();
+  };
 
-  renderDrawLayersContent(ctx, layerIds, strokes, bitmaps, defaultLayerId, drawBitmap);
-  ctx.restore();
+  renderDrawLayersContent(ctx, layerIds, strokes, bitmaps, defaultLayerId, drawBitmap, prepareLayerCtx);
 
   const imageData = ctx.getImageData(0, 0, width, height);
 

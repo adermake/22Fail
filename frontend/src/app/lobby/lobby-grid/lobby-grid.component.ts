@@ -1487,17 +1487,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const hasPreview = this.isDrawing && this.currentStrokePoints.length > 1;
 
     const drawLayer = (layerId: string) => {
-      this.renderDrawLayerStrokes(ctx, layerId, strokes, bitmaps, defaultDrawId);
+      this.blitDrawLayer(ctx, canvas, dpr, layerId, strokes, bitmaps, defaultDrawId);
     };
 
     if (!hasPreview || !activeDrawLayerId) {
-      ctx.save();
-      ctx.translate(this.panX, this.panY);
-      ctx.scale(this.scale, this.scale);
       for (const layer of drawLayers) {
         drawLayer(layer.id);
       }
-      ctx.restore();
       return;
     }
 
@@ -1505,25 +1501,44 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const layersBelow = activeIndex >= 0 ? drawLayers.slice(0, activeIndex) : drawLayers;
     const layersAbove = activeIndex >= 0 ? drawLayers.slice(activeIndex + 1) : [];
 
-    ctx.save();
-    ctx.translate(this.panX, this.panY);
-    ctx.scale(this.scale, this.scale);
     for (const layer of layersBelow) {
       drawLayer(layer.id);
     }
-    ctx.restore();
 
     if (activeIndex >= 0) {
       this.blitActiveLayerWithPreview(ctx, canvas, dpr, activeDrawLayerId, strokes, bitmaps, defaultDrawId);
     }
 
-    ctx.save();
-    ctx.translate(this.panX, this.panY);
-    ctx.scale(this.scale, this.scale);
     for (const layer of layersAbove) {
       drawLayer(layer.id);
     }
-    ctx.restore();
+  }
+
+  /** Blit one draw layer isolated so erasers don't affect layers below */
+  private blitDrawLayer(
+    mainCtx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    dpr: number,
+    layerId: string,
+    strokes: Stroke[],
+    bitmaps: DrawBitmap[],
+    defaultDrawId: string | null
+  ): void {
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
+    const off = document.createElement('canvas');
+    off.width = canvas.width;
+    off.height = canvas.height;
+    const offCtx = off.getContext('2d')!;
+    offCtx.scale(dpr, dpr);
+
+    offCtx.save();
+    offCtx.translate(this.panX, this.panY);
+    offCtx.scale(this.scale, this.scale);
+    this.renderDrawLayerStrokes(offCtx, layerId, strokes, bitmaps, defaultDrawId);
+    offCtx.restore();
+
+    mainCtx.drawImage(off, 0, 0, w, h);
   }
 
   /** Blit active draw layer + in-progress stroke without double-transform artifact */
