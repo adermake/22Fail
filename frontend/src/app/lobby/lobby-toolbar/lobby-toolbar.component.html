@@ -26,14 +26,18 @@
 
   <div class="toolbar-divider"></div>
 
-  <!-- Eraser mode indicator (E key toggles) -->
-  @if (isEraserMode && (currentTool === 'draw' || currentTool === 'texture')) {
-    <div class="tool-group eraser-mode-indicator">
-      <span class="eraser-badge" title="Eraser Mode Active (Press E to toggle)">
-        🧹 ERASE MODE
-      </span>
+  <!-- Eraser mode indicator (E key toggles) — reserved slot prevents toolbar layout shift -->
+  @if (currentTool === 'draw' || currentTool === 'texture') {
+    <div class="eraser-mode-slot">
+      @if (isEraserMode) {
+        <span class="eraser-badge" title="Eraser Mode Active (Press E to toggle)">
+          🧹 ERASE MODE
+        </span>
+      }
     </div>
-    <div class="toolbar-divider"></div>
+    @if (isEraserMode) {
+      <div class="toolbar-divider"></div>
+    }
   }
 
   <!-- Drawing options (visible when draw tool selected) -->

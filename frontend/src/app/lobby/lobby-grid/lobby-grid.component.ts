@@ -40,6 +40,7 @@ import {
   getDefaultDrawLayerId,
   imageDataToDataUrl,
   loadDataUrlImage,
+  normalizeLassoPolygon,
   removeLayerContentInPolygon,
   renderDrawLayerContent,
 } from '../draw-layer.utils';
@@ -231,6 +232,10 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // Render optimization
   private renderPending = false;
+  private drawCompositeCanvas: HTMLCanvasElement | null = null;
+  private lastContainerWidth = 0;
+  private lastContainerHeight = 0;
+  private resizeRenderTimer: ReturnType<typeof setTimeout> | null = null;
   private resizeObserver: ResizeObserver | null = null;
 
   // Pan and zoom
@@ -632,12 +637,26 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (!container) return;
 
     this.resizeObserver = new ResizeObserver(() => {
-      [this.gridCanvas, this.imageCanvas, this.textureCanvas, this.drawCanvas, this.overlayCanvas, this.fogCanvas].forEach(ref => {
-        if (ref?.nativeElement) {
-          this.resizeCanvas(ref.nativeElement);
-        }
-      });
-      this.scheduleRender();
+      const rect = container.getBoundingClientRect();
+      if (
+        Math.abs(rect.width - this.lastContainerWidth) < 0.5 &&
+        Math.abs(rect.height - this.lastContainerHeight) < 0.5
+      ) {
+        return;
+      }
+      this.lastContainerWidth = rect.width;
+      this.lastContainerHeight = rect.height;
+
+      if (this.resizeRenderTimer) clearTimeout(this.resizeRenderTimer);
+      this.resizeRenderTimer = setTimeout(() => {
+        this.resizeRenderTimer = null;
+        [this.gridCanvas, this.imageCanvas, this.textureCanvas, this.drawCanvas, this.overlayCanvas, this.fogCanvas].forEach(ref => {
+          if (ref?.nativeElement) {
+            this.resizeCanvas(ref.nativeElement);
+          }
+        });
+        this.scheduleRender();
+      }, 32);
     });
     this.resizeObserver.observe(container);
   }
@@ -1492,11 +1511,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const activeDrawLayerId = this.isDrawing ? this.store.getActiveDrawLayerId() : null;
     const hasPreview = this.isDrawing && this.currentStrokePoints.length > 1;
 
-    const composite = document.createElement('canvas');
-    composite.width = canvas.width;
-    composite.height = canvas.height;
+    const composite = this.getDrawCompositeCanvas(canvas.width, canvas.height);
     const compCtx = composite.getContext('2d')!;
+    compCtx.setTransform(1, 0, 0, 1, 0, 0);
     compCtx.scale(dpr, dpr);
+    compCtx.clearRect(0, 0, w, h);
 
     const drawLayer = (layerId: string, withPreview = false) => {
       if (withPreview) {
@@ -1528,8 +1547,24 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
 
-    ctx.clearRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'copy';
     ctx.drawImage(composite, 0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-over';
+
+    if (this.currentTool === 'lasso') {
+      this.renderLassoOverlay(ctx);
+    }
+  }
+
+  private getDrawCompositeCanvas(pixelWidth: number, pixelHeight: number): HTMLCanvasElement {
+    if (!this.drawCompositeCanvas) {
+      this.drawCompositeCanvas = document.createElement('canvas');
+    }
+    if (this.drawCompositeCanvas.width !== pixelWidth || this.drawCompositeCanvas.height !== pixelHeight) {
+      this.drawCompositeCanvas.width = pixelWidth;
+      this.drawCompositeCanvas.height = pixelHeight;
+    }
+    return this.drawCompositeCanvas;
   }
 
   /** Blit one draw layer isolated so erasers don't affect layers below */
@@ -3487,7 +3522,6 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.renderRemoteMeasurements(ctx);
     this.renderDragPath(ctx);
     this.renderSelectionBox(ctx);
-    this.renderLassoOverlay(ctx);
     this.renderBrushSizeCircle(ctx);
   }
 
@@ -5784,8 +5818,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // ============================================
 
   private selectionHasVisibleContent(sel: FloatingSelection): boolean {
-    for (let i = 3; i < sel.imageData.data.length; i += 4) {
-      if (sel.imageData.data[i] > 0) return true;
+    return this.imageDataHasVisibleContent(sel.imageData);
+  }
+
+  private imageDataHasVisibleContent(imageData: ImageData): boolean {
+    for (let i = 3; i < imageData.data.length; i += 4) {
+      if (imageData.data[i] > 0) return true;
     }
     return false;
   }
@@ -5918,10 +5956,13 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
 
-    const polygon = [...this.lassoPoints];
-    if (polygon[0].x !== polygon[polygon.length - 1].x || polygon[0].y !== polygon[polygon.length - 1].y) {
-      polygon.push({ ...polygon[0] });
+    const polygon = normalizeLassoPolygon([...this.lassoPoints]);
+    if (polygon.length < 3) {
+      this.lassoPoints = [];
+      this.scheduleRender();
+      return;
     }
+
     const sourceLayerId = this.store.getActiveDrawLayerId();
     const defaultDrawId = getDefaultDrawLayerId(this.map?.layers);
 
@@ -5942,6 +5983,20 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
 
     this.lassoPoints = [];
 
+    if (!this.imageDataHasVisibleContent(extracted.imageData)) {
+      this.scheduleRender();
+      return;
+    }
+
+    const cleaned = removeLayerContentInPolygon(
+      this.store.strokes,
+      this.store.drawBitmaps,
+      sourceLayerId,
+      polygon,
+      defaultDrawId
+    );
+    this.store.applyDrawChanges(cleaned.strokes, cleaned.drawBitmaps);
+
     this.floatingSelection = {
       imageData: extracted.imageData,
       dataUrl: imageDataToDataUrl(extracted.imageData),
@@ -5956,7 +6011,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       rotation: 0,
       scaleX: 1,
       scaleY: 1,
-      sourceCutApplied: false,
+      sourceCutApplied: true,
     };
     this.floatingSelectionImgSrc = '';
     this.scheduleRender();
@@ -6068,10 +6123,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const sel = this.floatingSelection;
     if (!sel) return false;
     const local = this.worldToSelectionLocal(world, sel);
-    return (
-      Math.abs(local.x) <= (sel.width * sel.scaleX) / 2 &&
-      Math.abs(local.y) <= (sel.height * sel.scaleY) / 2
-    );
+    const hw = (sel.width * sel.scaleX) / 2;
+    const hh = (sel.height * sel.scaleY) / 2;
+    if (Math.abs(local.x) > hw || Math.abs(local.y) > hh) return false;
+
+    const u = (local.x + hw) / (sel.width * sel.scaleX);
+    const v = (local.y + hh) / (sel.height * sel.scaleY);
+    const ix = Math.floor(u * sel.width);
+    const iy = Math.floor(v * sel.height);
+    if (ix < 0 || iy < 0 || ix >= sel.width || iy >= sel.height) return false;
+    return sel.imageData.data[(iy * sel.width + ix) * 4 + 3] > 16;
   }
 
   private getLassoTransformHandle(world: Point): LassoHandle | null {

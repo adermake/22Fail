@@ -226,6 +226,13 @@
   padding: 4px 12px;
 }
 
+.eraser-mode-slot {
+  display: flex;
+  align-items: center;
+  min-width: 108px;
+  height: 32px;
+}
+
 .eraser-badge {
   color: #fbbf24;
   font-size: 11px;

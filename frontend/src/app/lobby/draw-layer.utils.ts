@@ -228,6 +228,184 @@ function segmentIntersectsPolygon(a: Point, b: Point, polygon: Point[]): boolean
   return false;
 }
 
+export function normalizeLassoPolygon(points: Point[]): Point[] {
+  if (points.length < 2) return points;
+  const last = points[points.length - 1];
+  const first = points[0];
+  if (Math.hypot(last.x - first.x, last.y - first.y) < 1e-6) {
+    return points.slice(0, -1);
+  }
+  return points;
+}
+
+function fillPolygonPath(ctx: CanvasRenderingContext2D, polygon: Point[]): void {
+  if (polygon.length < 3) return;
+  ctx.beginPath();
+  ctx.moveTo(polygon[0].x, polygon[0].y);
+  for (let i = 1; i < polygon.length; i++) {
+    ctx.lineTo(polygon[i].x, polygon[i].y);
+  }
+  ctx.closePath();
+}
+
+function countImageAlpha(imageData: ImageData): number {
+  let total = 0;
+  for (let i = 3; i < imageData.data.length; i += 4) {
+    total += imageData.data[i];
+  }
+  return total;
+}
+
+function tightAlphaBounds(imageData: ImageData): {
+  minX: number;
+  minY: number;
+  width: number;
+  height: number;
+} | null {
+  const { width, height, data } = imageData;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > 0) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+  if (maxX < 0) return null;
+  return { minX, minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+}
+
+function cropImageData(
+  source: ImageData,
+  bounds: { minX: number; minY: number; width: number; height: number }
+): ImageData {
+  const out = new Uint8ClampedArray(bounds.width * bounds.height * 4);
+  for (let y = 0; y < bounds.height; y++) {
+    for (let x = 0; x < bounds.width; x++) {
+      const srcIdx = ((bounds.minY + y) * source.width + (bounds.minX + x)) * 4;
+      const dstIdx = (y * bounds.width + x) * 4;
+      out[dstIdx] = source.data[srcIdx];
+      out[dstIdx + 1] = source.data[srcIdx + 1];
+      out[dstIdx + 2] = source.data[srcIdx + 2];
+      out[dstIdx + 3] = source.data[srcIdx + 3];
+    }
+  }
+  return new ImageData(out, bounds.width, bounds.height);
+}
+
+/** True when rendered stroke pixels overlap the polygon interior */
+function strokeVisualIntersectsPolygon(stroke: Stroke, polygon: Point[]): boolean {
+  if (strokeIntersectsPolygon(stroke, polygon)) return true;
+
+  const strokeBounds = getStrokeBounds(stroke);
+  const polyBounds = getPolygonBounds(polygon);
+  if (!boundsOverlap(strokeBounds, polyBounds)) return false;
+
+  const pad = 2;
+  const x = Math.floor(strokeBounds.minX - pad);
+  const y = Math.floor(strokeBounds.minY - pad);
+  const w = Math.max(1, Math.ceil(strokeBounds.maxX - strokeBounds.minX + pad * 2));
+  const h = Math.max(1, Math.ceil(strokeBounds.maxY - strokeBounds.minY + pad * 2));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.translate(-x, -y);
+  drawStrokeOnContext(ctx, stroke);
+  const pixels = ctx.getImageData(0, 0, w, h);
+
+  const step = Math.max(1, Math.floor(Math.min(w, h) / 64));
+  for (let py = 0; py < h; py += step) {
+    for (let px = 0; px < w; px += step) {
+      if (pixels.data[(py * w + px) * 4 + 3] === 0) continue;
+      if (pointInPolygon({ x: x + px, y: y + py }, polygon)) return true;
+    }
+  }
+  return false;
+}
+
+/** Cut a stroke using its rendered footprint so thick strokes match the lasso clip */
+function cutStrokeAgainstPolygon(
+  stroke: Stroke,
+  polygon: Point[],
+  layerId: string
+): { strokes: Stroke[]; bitmaps: DrawBitmap[] } {
+  const poly = normalizeLassoPolygon(polygon);
+  if (poly.length < 3) return { strokes: [stroke], bitmaps: [] };
+
+  if (stroke.isEraser) {
+    if (!strokeIntersectsPolygon(stroke, poly)) return { strokes: [stroke], bitmaps: [] };
+    if (strokeFullyInsidePolygon(stroke, poly)) return { strokes: [], bitmaps: [] };
+    return {
+      strokes: splitStrokeKeepOutside(stroke, poly),
+      bitmaps: [],
+    };
+  }
+
+  if (!strokeVisualIntersectsPolygon(stroke, poly)) {
+    return { strokes: [stroke], bitmaps: [] };
+  }
+
+  const bounds = getStrokeBounds(stroke);
+  const pad = 4;
+  const x = Math.floor(bounds.minX - pad);
+  const y = Math.floor(bounds.minY - pad);
+  const w = Math.max(1, Math.ceil(bounds.maxX - bounds.minX + pad * 2));
+  const h = Math.max(1, Math.ceil(bounds.maxY - bounds.minY + pad * 2));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.translate(-x, -y);
+  drawStrokeOnContext(ctx, stroke);
+
+  const before = ctx.getImageData(0, 0, w, h);
+  const beforeAlpha = countImageAlpha(before);
+  if (beforeAlpha === 0) return { strokes: [stroke], bitmaps: [] };
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  fillPolygonPath(ctx, poly);
+  ctx.fillStyle = 'rgba(0,0,0,1)';
+  ctx.fill();
+  ctx.restore();
+
+  const after = ctx.getImageData(0, 0, w, h);
+  const afterAlpha = countImageAlpha(after);
+  if (afterAlpha === 0) return { strokes: [], bitmaps: [] };
+  if (afterAlpha >= beforeAlpha - 4) return { strokes: [stroke], bitmaps: [] };
+
+  const tight = tightAlphaBounds(after);
+  if (!tight) return { strokes: [], bitmaps: [] };
+
+  const cropCanvas = document.createElement('canvas');
+  cropCanvas.width = tight.width;
+  cropCanvas.height = tight.height;
+  cropCanvas.getContext('2d')!.putImageData(cropImageData(after, tight), 0, 0);
+
+  return {
+    strokes: [],
+    bitmaps: [{
+      id: generateId(),
+      layerId,
+      x: x + tight.minX,
+      y: y + tight.minY,
+      width: tight.width,
+      height: tight.height,
+      dataUrl: cropCanvas.toDataURL('image/png'),
+      drawOrder: stroke.drawOrder,
+    }],
+  };
+}
+
 function strokeFullyInsidePolygon(stroke: Stroke, polygon: Point[]): boolean {
   if (stroke.points.length === 0) return false;
   return stroke.points.every(p => pointInPolygon(p, polygon));
@@ -321,8 +499,10 @@ function bitmapFullyInsidePolygon(bmp: DrawBitmap, polygon: Point[]): boolean {
 
 /** Punch a polygon hole in a bitmap; returns null if fully removed or unchanged if no overlap */
 function cutBitmapByPolygon(bmp: DrawBitmap, polygon: Point[]): DrawBitmap | null {
-  if (!bitmapIntersectsPolygon(bmp, polygon)) return bmp;
-  if (bitmapFullyInsidePolygon(bmp, polygon)) return null;
+  const poly = normalizeLassoPolygon(polygon);
+  if (poly.length < 3) return bmp;
+  if (!bitmapIntersectsPolygon(bmp, poly)) return bmp;
+  if (bitmapFullyInsidePolygon(bmp, poly)) return null;
 
   const img = loadDataUrlImage(bmp.dataUrl);
   if (!img) return bmp;
@@ -335,12 +515,7 @@ function cutBitmapByPolygon(bmp: DrawBitmap, polygon: Point[]): DrawBitmap | nul
 
   ctx.save();
   ctx.globalCompositeOperation = 'destination-out';
-  ctx.beginPath();
-  ctx.moveTo(polygon[0].x - bmp.x, polygon[0].y - bmp.y);
-  for (let i = 1; i < polygon.length; i++) {
-    ctx.lineTo(polygon[i].x - bmp.x, polygon[i].y - bmp.y);
-  }
-  ctx.closePath();
+  fillPolygonPath(ctx, poly.map(p => ({ x: p.x - bmp.x, y: p.y - bmp.y })));
   ctx.fillStyle = 'rgba(0,0,0,1)';
   ctx.fill();
   ctx.restore();
@@ -441,24 +616,32 @@ export function removeLayerContentInPolygon(
   polygon: Point[],
   defaultLayerId: string | null
 ): { strokes: Stroke[]; drawBitmaps: DrawBitmap[] } {
-  if (polygon.length < 3) {
+  const poly = normalizeLassoPolygon(polygon);
+  if (poly.length < 3) {
     return { strokes, drawBitmaps: bitmaps };
   }
 
-  return {
-    strokes: strokes.flatMap(s => {
-      if (getStrokeLayerId(s, defaultLayerId) !== layerId) return [s];
-      if (!strokeIntersectsPolygon(s, polygon)) return [s];
-      if (strokeFullyInsidePolygon(s, polygon)) return [];
-      return splitStrokeKeepOutside(s, polygon);
-    }),
-    drawBitmaps: bitmaps.flatMap(b => {
-      if (b.layerId !== layerId) return [b];
-      const cut = cutBitmapByPolygon(b, polygon);
-      if (cut === null) return [];
-      return [cut];
-    }),
-  };
+  let nextStrokes: Stroke[] = [];
+  let nextBitmaps = [...bitmaps];
+
+  for (const s of strokes) {
+    if (getStrokeLayerId(s, defaultLayerId) !== layerId) {
+      nextStrokes.push(s);
+      continue;
+    }
+    const cut = cutStrokeAgainstPolygon(s, poly, layerId);
+    nextStrokes.push(...cut.strokes);
+    nextBitmaps.push(...cut.bitmaps);
+  }
+
+  nextBitmaps = nextBitmaps.flatMap(b => {
+    if (b.layerId !== layerId) return [b];
+    const cut = cutBitmapByPolygon(b, poly);
+    if (cut === null) return [];
+    return [cut];
+  });
+
+  return { strokes: nextStrokes, drawBitmaps: nextBitmaps };
 }
 
 /** Render layer content to an offscreen canvas clipped by polygon; returns ImageData + bounds */
@@ -486,13 +669,9 @@ export function extractLassoRegion(
   ctx.clearRect(0, 0, width, height);
 
   const prepareLayerCtx: LayerContextSetup = layerCtx => {
+    const clipPoly = normalizeLassoPolygon(polygon);
     layerCtx.translate(-x, -y);
-    layerCtx.beginPath();
-    layerCtx.moveTo(polygon[0].x, polygon[0].y);
-    for (let i = 1; i < polygon.length; i++) {
-      layerCtx.lineTo(polygon[i].x, polygon[i].y);
-    }
-    layerCtx.closePath();
+    fillPolygonPath(layerCtx, clipPoly);
     layerCtx.clip();
   };
 
