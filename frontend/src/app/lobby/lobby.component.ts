@@ -105,6 +105,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   drawWithWalls = signal(false);
   dragMode = signal<DragMode>('free');
 
+  // Layer visibility toggles (toolbar eye buttons)
+  imageLayerVisible = signal(true);
 
   // Selection state
   selectedImageId = signal<string | null>(null);
