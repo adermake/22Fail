@@ -37,6 +37,7 @@ import { Subscription } from 'rxjs';
 import { LobbyMap, Token, Stroke, MapImage, HexCoord, HexMath, Point, generateId, TextureStroke, LibraryTexture, MeasurementLine, LinkedTokenType, DrawBitmap } from '../../model/lobby.model';
 import {
   createLassoRegionFromPolygon,
+  flattenDrawLayerContent,
   getDefaultDrawLayerId,
   imageDataToDataUrl,
   loadDataUrlImage,
@@ -6124,14 +6125,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const local = this.worldToSelectionLocal(world, sel);
     const hw = (sel.width * sel.scaleX) / 2;
     const hh = (sel.height * sel.scaleY) / 2;
-    if (Math.abs(local.x) > hw || Math.abs(local.y) > hh) return false;
-
-    const u = (local.x + hw) / (sel.width * sel.scaleX);
-    const v = (local.y + hh) / (sel.height * sel.scaleY);
-    const ix = Math.floor(u * sel.width);
-    const iy = Math.floor(v * sel.height);
-    if (ix < 0 || iy < 0 || ix >= sel.width || iy >= sel.height) return false;
-    return sel.imageData.data[(iy * sel.width + ix) * 4 + 3] > 16;
+    return Math.abs(local.x) <= hw && Math.abs(local.y) <= hh;
   }
 
   private getLassoTransformHandle(world: Point): LassoHandle | null {
@@ -6287,6 +6281,16 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
         dataUrl: baked.dataUrl,
         drawOrder: this.store.getNextDrawOrder(),
       });
+
+      const flattened = flattenDrawLayerContent(
+        strokes,
+        drawBitmaps,
+        sel.sourceLayerId,
+        defaultDrawId,
+        (c, bmp) => this.drawBitmapOnContext(c, bmp)
+      );
+      strokes = flattened.strokes;
+      drawBitmaps = flattened.drawBitmaps;
       this.store.applyDrawChanges(strokes, drawBitmaps);
     }
 
