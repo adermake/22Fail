@@ -683,6 +683,136 @@ function subtractInsideFromFull(full: ImageData, inside: ImageData): ImageData {
   return out;
 }
 
+function isBoundsFullyInside(
+  inner: { minX: number; minY: number; maxX: number; maxY: number },
+  outer: { minX: number; minY: number; maxX: number; maxY: number }
+): boolean {
+  return (
+    inner.minX >= outer.minX &&
+    inner.minY >= outer.minY &&
+    inner.maxX <= outer.maxX &&
+    inner.maxY <= outer.maxY
+  );
+}
+
+function cropDrawBitmapRegion(
+  bmp: DrawBitmap,
+  cropX: number,
+  cropY: number,
+  cropW: number,
+  cropH: number
+): DrawBitmap | null {
+  const img = loadDataUrlImage(bmp.dataUrl);
+  if (!img) return null;
+
+  const srcX = Math.round(cropX - bmp.x);
+  const srcY = Math.round(cropY - bmp.y);
+  const srcW = Math.round(cropW);
+  const srcH = Math.round(cropH);
+  if (srcW < 1 || srcH < 1) return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = srcW;
+  canvas.height = srcH;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+  if (!tightAlphaBounds(ctx.getImageData(0, 0, srcW, srcH))) return null;
+
+  return {
+    id: generateId(),
+    layerId: bmp.layerId,
+    x: cropX,
+    y: cropY,
+    width: srcW,
+    height: srcH,
+    dataUrl: canvas.toDataURL('image/png'),
+    drawOrder: bmp.drawOrder,
+  };
+}
+
+/** Keep bitmap portions strictly outside the cut bounding box */
+function splitBitmapOutsideCutRegion(
+  bmp: DrawBitmap,
+  cutRegion: { minX: number; minY: number; maxX: number; maxY: number }
+): DrawBitmap[] {
+  const bb = getBitmapBounds(bmp);
+  if (!boundsOverlap(bb, cutRegion)) return [bmp];
+  if (isBoundsFullyInside(bb, cutRegion)) return [];
+
+  const result: DrawBitmap[] = [];
+  const add = (x: number, y: number, w: number, h: number) => {
+    const cropped = cropDrawBitmapRegion(bmp, x, y, w, h);
+    if (cropped) result.push(cropped);
+  };
+
+  if (bb.minY < cutRegion.minY) {
+    add(bmp.x, bmp.y, bmp.width, cutRegion.minY - bb.minY);
+  }
+  if (bb.maxY > cutRegion.maxY) {
+    add(bmp.x, cutRegion.maxY, bmp.width, bb.maxY - cutRegion.maxY);
+  }
+  const midTop = Math.max(bb.minY, cutRegion.minY);
+  const midBottom = Math.min(bb.maxY, cutRegion.maxY);
+  if (bb.minX < cutRegion.minX && midBottom > midTop) {
+    add(bmp.x, midTop, cutRegion.minX - bb.minX, midBottom - midTop);
+  }
+  if (bb.maxX > cutRegion.maxX && midBottom > midTop) {
+    add(cutRegion.maxX, midTop, bb.maxX - cutRegion.maxX, midBottom - midTop);
+  }
+  return result;
+}
+
+/** Rasterize stroke pixels outside the cut bounding box (for thick strokes crossing the box) */
+function rasterizeStrokeOutsideCutRegion(
+  stroke: Stroke,
+  cutRegion: { minX: number; minY: number; maxX: number; maxY: number },
+  layerId: string
+): DrawBitmap[] {
+  const bounds = getStrokeBounds(stroke);
+  if (!boundsOverlap(bounds, cutRegion)) return [];
+  if (isBoundsFullyInside(bounds, cutRegion)) return [];
+
+  const pad = 4;
+  const x = Math.floor(bounds.minX - pad);
+  const y = Math.floor(bounds.minY - pad);
+  const w = Math.max(1, Math.ceil(bounds.maxX - bounds.minX + pad * 2));
+  const h = Math.max(1, Math.ceil(bounds.maxY - bounds.minY + pad * 2));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.translate(-x, -y);
+  drawStrokeOnContext(ctx, stroke);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = '#000';
+  ctx.fillRect(
+    cutRegion.minX,
+    cutRegion.minY,
+    cutRegion.maxX - cutRegion.minX,
+    cutRegion.maxY - cutRegion.minY
+  );
+  ctx.restore();
+
+  if (!tightAlphaBounds(ctx.getImageData(0, 0, w, h))) return [];
+
+  return splitBitmapOutsideCutRegion(
+    {
+      id: generateId(),
+      layerId,
+      x,
+      y,
+      width: w,
+      height: h,
+      dataUrl: canvas.toDataURL('image/png'),
+      drawOrder: stroke.drawOrder,
+    },
+    cutRegion
+  );
+}
+
 /** Render layer in a cut bounding box — full frame or clipped to polygon interior */
 function renderLayerInCutBox(
   cutW: number,
@@ -748,15 +878,54 @@ export function removeLayerContentInPolygon(
   );
   const after = subtractInsideFromFull(fullData, insideData);
 
-  const keptStrokes = strokes.filter(s => {
-    if (getStrokeLayerId(s, defaultLayerId) !== layerId) return true;
-    return !boundsOverlap(getStrokeBounds(s), cutRegion);
-  });
+  const keptStrokes: Stroke[] = [];
+  const exteriorBitmaps: DrawBitmap[] = [];
+  for (const s of strokes) {
+    if (getStrokeLayerId(s, defaultLayerId) !== layerId) {
+      keptStrokes.push(s);
+      continue;
+    }
 
-  let keptBitmaps = bitmaps.filter(b => {
-    if (b.layerId !== layerId) return true;
-    return !boundsOverlap(getBitmapBounds(b), cutRegion);
-  });
+    const bounds = getStrokeBounds(s);
+    if (!boundsOverlap(bounds, cutRegion)) {
+      keptStrokes.push(s);
+      continue;
+    }
+
+    const splits = splitStrokeKeepOutside(s, poly);
+    for (const frag of splits) {
+      if (!boundsOverlap(getStrokeBounds(frag), cutRegion)) {
+        keptStrokes.push(frag);
+      }
+    }
+
+    const extendsOutside =
+      bounds.minX < cutRegion.minX ||
+      bounds.minY < cutRegion.minY ||
+      bounds.maxX > cutRegion.maxX ||
+      bounds.maxY > cutRegion.maxY;
+    const needsRasterExterior =
+      extendsOutside &&
+      (splits.length === 0 ||
+        splits.some(f => boundsOverlap(getStrokeBounds(f), cutRegion)));
+
+    if (needsRasterExterior) {
+      exteriorBitmaps.push(...rasterizeStrokeOutsideCutRegion(s, cutRegion, layerId));
+    }
+  }
+
+  let keptBitmaps: DrawBitmap[] = [...exteriorBitmaps];
+  for (const b of bitmaps) {
+    if (b.layerId !== layerId) {
+      keptBitmaps.push(b);
+      continue;
+    }
+    if (!boundsOverlap(getBitmapBounds(b), cutRegion)) {
+      keptBitmaps.push(b);
+      continue;
+    }
+    keptBitmaps.push(...splitBitmapOutsideCutRegion(b, cutRegion));
+  }
 
   if (countImageAlpha(after) > 0) {
     const tight = tightAlphaBounds(after);
