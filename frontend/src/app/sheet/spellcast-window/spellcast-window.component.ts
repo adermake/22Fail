@@ -14,6 +14,30 @@ import { KeywordEnhancer } from '../keyword-enhancer';
 import { ImageService } from '../../services/image.service';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
 import { TrueStatsService } from '../../services/true-stats.service';
+import { calculateSpellCost } from '../../shared/spell-node-editor/spell-cost-calculator';
+import { RuneBlock } from '../../model/rune-block.model';
+
+interface CastCostPreview {
+  manaCost: number;
+  fokusCost: number;
+  manaAfter: number;
+  fokusAfter: number;
+  manaAfterPct: number;
+  manaCostPct: number;
+  fokusAfterPct: number;
+  fokusCostPct: number;
+}
+
+const EMPTY_CAST_PREVIEW: CastCostPreview = {
+  manaCost: 0,
+  fokusCost: 0,
+  manaAfter: 0,
+  fokusAfter: 0,
+  manaAfterPct: 0,
+  manaCostPct: 0,
+  fokusAfterPct: 0,
+  fokusCostPct: 0,
+};
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
 
@@ -87,6 +111,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   pendingCastSpell: SpellBlock | null = null;
   pendingCastLevel = 0;
   skalierung = 1;
+  castPreview: CastCostPreview = { ...EMPTY_CAST_PREVIEW };
 
   // ── Cast-bonus (saved on sheet) ───────────────────────────────────────────
 
@@ -165,10 +190,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     return this.castingSpells.reduce((sum, entry) => {
       const spell = this.availableSpells.find(s => s.id === entry.spellId);
       if (!spell) return sum;
-      // Fokus is NOT reduced by cast level; scaled by skalierung only
-      const base = spell.perTurnFokus || spell.costFokus || 0;
-      const sk = entry.skalierung ?? 1;
-      return sum + Math.round(base * sk * 100) / 100;
+      return sum + this.computeFokusCost(spell, entry.castLevel || 0, entry.skalierung ?? 1);
     }, 0);
   }
 
@@ -273,54 +295,68 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     return this.fokusMax > 0 ? Math.min(100, Math.round((this.fokusAvailable / this.fokusMax) * 100)) : 0;
   }
 
-  pendingCostManaTotal(): number {
-    const spell = this.pendingCastSpell;
-    if (!spell) return 0;
-    // Mana IS reduced by cast level and scaled by skalierung
-    const reduction = Math.min(0.9, Math.floor(this.pendingCastLevel / 10) * 0.1);
-    return Math.round((spell.costMana || 0) * (1 - reduction) * this.skalierung * 100) / 100;
+  private castLevelReduction(castLevel: number): number {
+    return Math.min(0.9, Math.floor(castLevel / 10) * 0.1);
   }
 
-  pendingCostFokusTotal(): number {
+  private learnedRunes(): RuneBlock[] {
+    return (this.sheet.runes || []).filter((r): r is RuneBlock => r !== null);
+  }
+
+  /** Resolve stored or graph-derived base costs for a spell */
+  private spellBaseCosts(spell: SpellBlock): { mana: number; fokus: number } {
+    let mana = spell.costMana ?? 0;
+    let fokus = spell.perTurnFokus ?? spell.costFokus ?? 0;
+    if ((mana <= 0 || fokus <= 0) && spell.graph) {
+      const est = calculateSpellCost(spell.graph, this.learnedRunes());
+      if (mana <= 0) mana = est.mana;
+      if (fokus <= 0) fokus = est.fokus;
+    }
+    return { mana, fokus };
+  }
+
+  computeManaCost(spell: SpellBlock, castLevel: number, skalierung: number): number {
+    const base = this.spellBaseCosts(spell).mana;
+    const factor = (1 - this.castLevelReduction(castLevel)) * skalierung;
+    return Math.round(base * factor * 100) / 100;
+  }
+
+  computeFokusCost(spell: SpellBlock, castLevel: number, skalierung: number): number {
+    const base = this.spellBaseCosts(spell).fokus;
+    const factor = (1 - this.castLevelReduction(castLevel)) * skalierung;
+    return Math.round(base * factor * 100) / 100;
+  }
+
+  private recalcCastPreview(): void {
     const spell = this.pendingCastSpell;
-    if (!spell) return 0;
-    // Fokus is NOT reduced by cast level — only scaled by skalierung
-    const base = spell.perTurnFokus || spell.costFokus || 0;
-    return Math.round(base * this.skalierung * 100) / 100;
+    if (!spell) {
+      this.castPreview = { ...EMPTY_CAST_PREVIEW };
+      return;
+    }
+
+    const manaCost = this.computeManaCost(spell, this.pendingCastLevel, this.skalierung);
+    const fokusCost = this.computeFokusCost(spell, this.pendingCastLevel, this.skalierung);
+    const manaAfter = this.manaCurrent - manaCost;
+    const fokusAfter = this.fokusAvailable - fokusCost;
+
+    this.castPreview = {
+      manaCost,
+      fokusCost,
+      manaAfter,
+      fokusAfter,
+      manaAfterPct: this.manaMax > 0 ? Math.round((Math.max(0, manaAfter) / this.manaMax) * 100) : 0,
+      manaCostPct: this.manaMax > 0 ? Math.min(100, Math.round((manaCost / this.manaMax) * 100)) : 0,
+      fokusAfterPct: this.fokusMax > 0 ? Math.round((Math.max(0, fokusAfter) / this.fokusMax) * 100) : 0,
+      fokusCostPct: this.fokusMax > 0 ? Math.min(100, Math.round((fokusCost / this.fokusMax) * 100)) : 0,
+    };
   }
 
   get canCast(): boolean {
     if (!this.pendingCastSpell) return false;
-    const manaOk = this.manaAfterCast() >= 0;
-    const fokusOk = (this.fokusAvailable - this.pendingCostFokusTotal()) >= 0;
+    const manaOk = this.castPreview.manaAfter >= 0;
+    const fokusOk = this.castPreview.fokusAfter >= 0;
     const statsOk = this.spellStatReqs(this.pendingCastSpell).every(r => this.castLevelMeetsReq(r.key, r.value));
     return manaOk && fokusOk && statsOk;
-  }
-
-  manaAfterCast(): number {
-    return this.manaCurrent - this.pendingCostManaTotal();
-  }
-
-  fokusAfterCast(): number {
-    return this.fokusAvailable - this.pendingCostFokusTotal();
-  }
-
-  get manaAfterPercent(): number {
-    const after = Math.max(0, this.manaAfterCast());
-    return this.manaMax > 0 ? Math.round((after / this.manaMax) * 100) : 0;
-  }
-
-  get manaCostPercent(): number {
-    return this.manaMax > 0 ? Math.min(100, Math.round((this.pendingCostManaTotal() / this.manaMax) * 100)) : 0;
-  }
-
-  get fokusAfterPercent(): number {
-    const after = Math.max(0, this.fokusAfterCast());
-    return this.fokusMax > 0 ? Math.round((after / this.fokusMax) * 100) : 0;
-  }
-
-  get fokusCostPercent(): number {
-    return this.fokusMax > 0 ? Math.min(100, Math.round((this.pendingCostFokusTotal() / this.fokusMax) * 100)) : 0;
   }
 
   get skalerungStars(): number[] {
@@ -333,12 +369,14 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
 
   /** Explicit handlers so OnPush re-evaluates all derived template expressions */
   onCastLevelChange(val: number): void {
-    this.pendingCastLevel = +val || 0;
+    this.pendingCastLevel = Math.max(0, +val || 0);
+    this.recalcCastPreview();
     this.cdr.markForCheck();
   }
 
   onSkalierungChange(val: number): void {
-    this.skalierung = +val || 1;
+    this.skalierung = Math.max(0.1, +val || 1);
+    this.recalcCastPreview();
     this.cdr.markForCheck();
   }
 
@@ -347,12 +385,14 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     this.pendingCastSpell = spell;
     this.pendingCastLevel = 0;
     this.skalierung = 1;
+    this.recalcCastPreview();
     this._computePortalRunes(spell);
     this.cdr.markForCheck();
   }
 
   cancelCast(): void {
     this.pendingCastSpell = null;
+    this.castPreview = { ...EMPTY_CAST_PREVIEW };
     this._portalRunes = [];
     this.cdr.markForCheck();
   }
@@ -363,6 +403,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     const sk = this.skalierung;
     const cl = this.pendingCastLevel;
     this.pendingCastSpell = null;
+    this.castPreview = { ...EMPTY_CAST_PREVIEW };
     this._portalRunes = [];
     this.castSpell(spell, cl, sk);
     this.cdr.markForCheck();
@@ -414,9 +455,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
 
   castSpell(spell: SpellBlock, castLevel = 0, skalierung = 1): void {
     const entryId = `${spell.id || generateSpellId()}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    // Mana is immediately consumed; fokus is an ongoing commitment (not one-time subtracted)
-    const reduction = Math.min(0.9, Math.floor(castLevel / 10) * 0.1);
-    const manaCost = Math.round((spell.costMana || 0) * (1 - reduction) * skalierung * 100) / 100;
+    const manaCost = this.computeManaCost(spell, castLevel, skalierung);
 
     // Subtract mana from statuses immediately
     this._consumeMana(manaCost);
@@ -481,8 +520,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     const spell = this.getSpell(entry.spellId);
     const sk = entry.skalierung ?? 1;
     const cl = entry.castLevel || 0;
-    const fokusBase = spell ? (spell.perTurnFokus || spell.costFokus || 0) : 0;
-    const fokusCommit = Math.round(fokusBase * sk * 100) / 100;
+    const fokusCommit = spell ? this.computeFokusCost(spell, cl, sk) : 0;
     const resourceChanges: DiceRollEvent['resourceChanges'] = [];
     if (manaCost > 0) resourceChanges.push({ resource: 'Mana', amount: -manaCost });
     if (fokusCommit > 0) resourceChanges.push({ resource: 'Fokus', amount: -fokusCommit });
@@ -526,7 +564,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
       // manaCost was already consumed at cast time — just show it in the notification
       const spell = this.getSpell(entry.spellId);
       const sk = entry.skalierung ?? 1;
-      const manaCost = Math.round((spell?.costMana || 0) * sk * 100) / 100;
+      const manaCost = spell ? this.computeManaCost(spell, entry.castLevel || 0, sk) : 0;
       this._sendSpellActivatedAction(entry, manaCost);
     }
 
@@ -726,6 +764,9 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(_: SimpleChanges): void {
+    if (this.pendingCastSpell) {
+      this.recalcCastPreview();
+    }
     this.cdr.markForCheck();
   }
 

@@ -564,26 +564,26 @@
             <div class="cast-res-bar-wrap">
               <div class="cast-res-bar cast-res-bar--mana">
                 <div class="cast-res-fill"
-                     [style.width.%]="manaAfterPercent"
+                     [style.width.%]="castPreview.manaAfterPct"
                      [style.background]="'#3b82f6'"></div>
-                @if (pendingCostManaTotal() > 0) {
+                @if (castPreview.manaCost > 0) {
                   <div class="cast-res-cost-overlay cast-res-cost-overlay--mana"
-                       [style.width.%]="manaCostPercent"
-                       [style.left.%]="manaAfterPercent"></div>
+                       [style.width.%]="castPreview.manaCostPct"
+                       [style.left.%]="castPreview.manaAfterPct"></div>
                 }
               </div>
               <div class="cast-res-labels">
                 <span class="cast-res-cur" [style.color]="'#60a5fa'">
                   {{ manaCurrent }}
-                  @if (pendingCostManaTotal() > 0) {
-                    <span class="cast-res-after"> → {{ manaAfterCast() | number:'1.0-1' }}</span>
+                  @if (castPreview.manaCost > 0) {
+                    <span class="cast-res-after"> → {{ castPreview.manaAfter | number:'1.0-1' }}</span>
                   }
                 </span>
                 <span class="cast-res-max">/{{ manaMax }}</span>
               </div>
-              @if (pendingCostManaTotal() > 0) {
+              @if (castPreview.manaCost > 0) {
                 <div class="cast-res-cost-tag cast-res-cost-tag--mana">
-                  −◆&nbsp;{{ pendingCostManaTotal() | number:'1.0-1' }}
+                  −◆&nbsp;{{ castPreview.manaCost | number:'1.0-1' }}
                 </div>
               }
             </div>
@@ -593,26 +593,26 @@
             <div class="cast-res-bar-wrap">
               <div class="cast-res-bar cast-res-bar--fokus">
                 <div class="cast-res-fill"
-                     [style.width.%]="fokusAfterPercent"
+                     [style.width.%]="castPreview.fokusAfterPct"
                      [style.background]="'#7c3aed'"></div>
-                @if (pendingCostFokusTotal() > 0) {
+                @if (castPreview.fokusCost > 0) {
                   <div class="cast-res-cost-overlay cast-res-cost-overlay--fokus"
-                       [style.width.%]="fokusCostPercent"
-                       [style.left.%]="fokusAfterPercent"></div>
+                       [style.width.%]="castPreview.fokusCostPct"
+                       [style.left.%]="castPreview.fokusAfterPct"></div>
                 }
               </div>
               <div class="cast-res-labels">
                 <span class="cast-res-cur" [style.color]="'#a78bfa'">
                   {{ fokusAvailable }}
-                  @if (pendingCostFokusTotal() > 0) {
-                    <span class="cast-res-after"> → {{ fokusAfterCast() | number:'1.0-1' }}</span>
+                  @if (castPreview.fokusCost > 0) {
+                    <span class="cast-res-after"> → {{ castPreview.fokusAfter | number:'1.0-1' }}</span>
                   }
                 </span>
                 <span class="cast-res-max">/{{ fokusMax }}</span>
               </div>
-              @if (pendingCostFokusTotal() > 0) {
+              @if (castPreview.fokusCost > 0) {
                 <div class="cast-res-cost-tag cast-res-cost-tag--fokus">
-                  −◆&nbsp;{{ pendingCostFokusTotal() | number:'1.0-1' }}
+                  −◆&nbsp;{{ castPreview.fokusCost | number:'1.0-1' }}
                 </div>
               }
             </div>
