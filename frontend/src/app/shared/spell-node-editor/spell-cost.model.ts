@@ -2,6 +2,7 @@
 export interface SimpleSpellCost {
   mana: number;
   fokus: number;
+  effektivitaet: number;
   nodeCount: number;
   statRequirements: {
     strength?: number;

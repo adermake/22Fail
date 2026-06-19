@@ -15,6 +15,13 @@ import { ImageService } from '../../services/image.service';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { calculateSpellCost } from '../../shared/spell-node-editor/spell-cost-calculator';
+import {
+  castFactorPercent,
+  castLevelForStatRequirement,
+  effectiveStatRequirement,
+  scaledBySkalierung,
+  scaledManaCost,
+} from '../../shared/spell-cast-formulas';
 import { RuneBlock } from '../../model/rune-block.model';
 
 interface CastCostPreview {
@@ -26,6 +33,8 @@ interface CastCostPreview {
   manaCostPct: number;
   fokusAfterPct: number;
   fokusCostPct: number;
+  scaledEffektivitaet: number;
+  scaledHaltbarkeit: number;
 }
 
 const EMPTY_CAST_PREVIEW: CastCostPreview = {
@@ -37,6 +46,8 @@ const EMPTY_CAST_PREVIEW: CastCostPreview = {
   manaCostPct: 0,
   fokusAfterPct: 0,
   fokusCostPct: 0,
+  scaledEffektivitaet: 0,
+  scaledHaltbarkeit: 0,
 };
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
@@ -230,8 +241,8 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   reductionLabel(castLevel: number): string {
-    const pct = Math.min(90, Math.floor((castLevel || 0) / 10) * 10);
-    return pct > 0 ? `-${pct}%` : '';
+    const pct = castFactorPercent(castLevel);
+    return pct < 100 ? `×${pct}% Mana & Anf.` : '';
   }
 
   // ── Spell stat helpers ────────────────────────────────────────────────────
@@ -261,20 +272,29 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   castLevelMeetsReq(key: string, value: number): boolean {
     const stat = (this.sheet as any)[key];
     const current = stat?.current ?? 0;
-    // Each 10 cast levels reduces the effective stat requirement by 1
     return current >= this.castLevelReducedReq(value);
   }
 
-  /** Effective stat requirement after cast-level reduction */
+  /** Effective stat requirement: base × 100/(Cast+100) */
   castLevelReducedReq(value: number): number {
-    return Math.max(0, value - Math.floor(this.pendingCastLevel / 10));
+    return effectiveStatRequirement(value, this.pendingCastLevel);
   }
 
   castLevelForReq(key: string, value: number): number {
     const stat = (this.sheet as any)[key];
     const current = stat?.current ?? 0;
-    if (current >= value) return 0;
-    return Math.max(0, (value - current) * 10);
+    const needed = castLevelForStatRequirement(value, current);
+    return Number.isFinite(needed) ? needed : 9999;
+  }
+
+  /** Slider scale for cast-level markers (supports CL > 100) */
+  get castLevelSliderMax(): number {
+    const markerMax = this.castLevelMarkers.reduce((m, x) => Math.max(m, x.level), 0);
+    return Math.max(100, this.pendingCastLevel, markerMax, 1);
+  }
+
+  castMarkerLeftPct(level: number): number {
+    return Math.min(98, (level / this.castLevelSliderMax) * 98);
   }
 
   get castLevelMarkers(): { key: string; label: string; level: number }[] {
@@ -282,7 +302,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     return this.spellStatReqs(this.pendingCastSpell)
       .filter(req => !this.spellMeetsStat(req.key, req.value))
       .map(req => ({ key: req.key, label: req.label, level: this.castLevelForReq(req.key, req.value) }))
-      .filter(m => m.level <= 100);
+      .filter(m => Number.isFinite(m.level) && m.level <= 9999);
   }
 
   // ── Resource impact computations ──────────────────────────────────────────
@@ -295,37 +315,47 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     return this.fokusMax > 0 ? Math.min(100, Math.round((this.fokusAvailable / this.fokusMax) * 100)) : 0;
   }
 
-  private castLevelReduction(castLevel: number): number {
-    return Math.min(0.9, Math.floor(castLevel / 10) * 0.1);
-  }
-
   private learnedRunes(): RuneBlock[] {
     return (this.sheet.runes || []).filter((r): r is RuneBlock => r !== null);
   }
 
-  /** Resolve stored or graph-derived base costs for a spell */
-  private spellBaseCosts(spell: SpellBlock): { mana: number; fokus: number } {
+  /** Resolve stored or graph-derived base values for a spell */
+  private spellBaseValues(spell: SpellBlock): { mana: number; fokus: number; effektivitaet: number; haltbarkeit: number } {
     let mana = spell.costMana ?? 0;
     let fokus = spell.perTurnFokus ?? spell.costFokus ?? 0;
-    if ((mana <= 0 || fokus <= 0) && spell.graph) {
+    let effektivitaet = 0;
+    if (spell.graph) {
       const est = calculateSpellCost(spell.graph, this.learnedRunes());
       if (mana <= 0) mana = est.mana;
       if (fokus <= 0) fokus = est.fokus;
+      effektivitaet = est.effektivitaet;
     }
-    return { mana, fokus };
+    return {
+      mana,
+      fokus,
+      effektivitaet,
+      haltbarkeit: spell.durationTurns ?? 0,
+    };
   }
 
-  /** Mana scales with skalierung only — not reduced by cast level */
-  computeManaCost(spell: SpellBlock, _castLevel: number, skalierung: number): number {
-    const base = this.spellBaseCosts(spell).mana;
-    return Math.round(base * skalierung * 100) / 100;
+  /** Mana: base × 100/(Cast+100) × skalierung */
+  computeManaCost(spell: SpellBlock, castLevel: number, skalierung: number): number {
+    const base = this.spellBaseValues(spell).mana;
+    return scaledManaCost(base, castLevel, skalierung);
   }
 
-  /** Fokus reduced by cast level — not affected by skalierung */
-  computeFokusCost(spell: SpellBlock, castLevel: number): number {
-    const base = this.spellBaseCosts(spell).fokus;
-    const factor = 1 - this.castLevelReduction(castLevel);
-    return Math.round(base * factor * 100) / 100;
+  /** Fokus commitment (unchanged by cast/skalierung per rules) */
+  computeFokusCost(spell: SpellBlock, _castLevel: number): number {
+    const base = this.spellBaseValues(spell).fokus;
+    return Math.round(base * 100) / 100;
+  }
+
+  computeScaledEffektivitaet(spell: SpellBlock, skalierung: number): number {
+    return scaledBySkalierung(this.spellBaseValues(spell).effektivitaet, skalierung);
+  }
+
+  computeScaledHaltbarkeit(spell: SpellBlock, skalierung: number): number {
+    return scaledBySkalierung(this.spellBaseValues(spell).haltbarkeit, skalierung);
   }
 
   private recalcCastPreview(): void {
@@ -349,6 +379,8 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
       manaCostPct: this.manaMax > 0 ? Math.min(100, Math.round((manaCost / this.manaMax) * 100)) : 0,
       fokusAfterPct: this.fokusMax > 0 ? Math.round((Math.max(0, fokusAfter) / this.fokusMax) * 100) : 0,
       fokusCostPct: this.fokusMax > 0 ? Math.min(100, Math.round((fokusCost / this.fokusMax) * 100)) : 0,
+      scaledEffektivitaet: this.computeScaledEffektivitaet(spell, this.skalierung),
+      scaledHaltbarkeit: this.computeScaledHaltbarkeit(spell, this.skalierung),
     };
   }
 
@@ -578,12 +610,27 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     this._patchCasting();
   }
 
-  /** Whether a spell has exceeded its round duration and should be shown as finished */
+  /** Whether a spell has exceeded its scaled round duration */
   isSpellFinished(entry: CastingSpellEntry): boolean {
-    if (entry.remainingCast > 0) return false; // still casting
+    if (entry.remainingCast > 0) return false;
     const spell = this.getSpell(entry.spellId);
-    if (!spell?.durationTurns) return true;  // no duration = instantly done
-    return (entry.roundsActive ?? 0) >= spell.durationTurns;
+    const baseDur = spell?.durationTurns ?? 0;
+    if (!baseDur) return true;
+    const sk = entry.skalierung ?? 1;
+    const scaledDur = scaledBySkalierung(baseDur, sk);
+    return (entry.roundsActive ?? 0) >= scaledDur;
+  }
+
+  entryScaledHaltbarkeit(entry: CastingSpellEntry): number {
+    const spell = this.getSpell(entry.spellId);
+    const base = spell?.durationTurns ?? 0;
+    return scaledBySkalierung(base, entry.skalierung ?? 1);
+  }
+
+  entryScaledEffektivitaet(entry: CastingSpellEntry): number {
+    const spell = this.getSpell(entry.spellId);
+    if (!spell) return 0;
+    return this.computeScaledEffektivitaet(spell, entry.skalierung ?? 1);
   }
 
   /** Whether the spell is actively sustained (casting complete, not yet finished) */

@@ -308,7 +308,7 @@
                       <div class="scw-cast-bar-fill" [style.width.%]="castProgressPercent(entry)"></div>
                     </div>
                     @if (reductionLabel(entry.castLevel); as red) {
-                      <div class="scw-reduction">{{ red }} Fokus</div>
+                      <div class="scw-reduction">{{ red }}</div>
                     }
                     <button class="scw-roll-btn" (click)="rollCast(entry)">🎲 W20 Würfeln</button>
                   </div>
@@ -323,8 +323,10 @@
                            min="0"
                            [ngModel]="entry.roundsActive ?? 0"
                            (ngModelChange)="setRoundsActive(entry, $event)" />
-                    @if (getSpell(entry.spellId)?.durationTurns; as dur) {
-                      <span class="scw-round-of">/ {{ dur }}</span>
+                    @if (entryScaledHaltbarkeit(entry); as dur) {
+                      @if (dur > 0) {
+                        <span class="scw-round-of">/ {{ dur }}</span>
+                      }
                     }
                     <button class="scw-advance-btn" (click)="advanceRound(entry)" title="Runde voranbringen">+</button>
                   </div>
@@ -490,35 +492,35 @@
           <!-- LEFT: Sliders -->
           <div class="cast-col cast-col--left">
 
-            <!-- Cast Level (longer activation = lower mana cost) -->
+            <!-- Cast Level (longer activation = lower mana cost & stat reqs via 100/(Cast+100)) -->
             <div class="cast-section-label">
               Cast-Level
               @if (reductionLabel(pendingCastLevel); as red) {
-                <span class="cast-skal-val">{{ red }} Fokus</span>
+                <span class="cast-skal-val">{{ red }}</span>
               }
             </div>
             <div class="cast-slider-row">
               <input class="cast-slider cast-slider--cl"
                      type="range"
                      [style.--sc]="spellColor(pendingCastSpell)"
-                     [style.--val]="pendingCastLevel"
-                     min="0" max="100" step="10"
+                     [style.--pct]="castLevelSliderMax > 0 ? (pendingCastLevel / castLevelSliderMax * 100) : 0"
+                     min="0" [max]="castLevelSliderMax" step="1"
                      [ngModel]="pendingCastLevel"
                      (input)="onCastLevelChange($any($event.target).value)"
                      (ngModelChange)="onCastLevelChange($event)" />
               <input class="cast-level-input"
                      type="number"
-                     min="0" step="10"
+                     min="0" step="1"
                      [ngModel]="pendingCastLevel"
                      (ngModelChange)="onCastLevelChange($event)"
-                     title="Cast-Level direkt eingeben" />
+                     title="Cast-Level direkt eingeben (kein Maximum)" />
             </div>
 
             @if (castLevelMarkers.length > 0) {
               <div class="cast-cl-markers">
                 @for (marker of castLevelMarkers; track marker.key) {
                   <div class="cast-cl-marker"
-                       [style.left.%]="Math.min(98, marker.level)"
+                       [style.left.%]="castMarkerLeftPct(marker.level)"
                        [title]="marker.label + ' ' + marker.level + ' CL benötigt'">
                     <span class="cast-cl-marker-label">{{ marker.label }}</span>
                   </div>
@@ -531,7 +533,7 @@
               <span class="cast-estimate-val">~{{ (pendingCastLevel / 10).toFixed(1) }} Runden</span>
             </div>
 
-            <!-- Skalierung -->
+            <!-- Skalierung (Effektivität, Haltbarkeit, Manakosten) -->
             <div class="cast-section-label cast-section-label--skal">
               Skalierung
               <span class="cast-skal-val">× {{ skalierung.toFixed(1) }}</span>
@@ -543,6 +545,16 @@
                 </span>
               }
             </div>
+            @if (castPreview.scaledEffektivitaet > 0 || castPreview.scaledHaltbarkeit > 0) {
+              <div class="cast-skal-stats">
+                @if (castPreview.scaledEffektivitaet > 0) {
+                  <span class="cast-skal-stat">⚡ Eff. {{ castPreview.scaledEffektivitaet | number:'1.0-1' }}</span>
+                }
+                @if (castPreview.scaledHaltbarkeit > 0) {
+                  <span class="cast-skal-stat">⧗ {{ castPreview.scaledHaltbarkeit | number:'1.0-1' }} Rd</span>
+                }
+              </div>
+            }
             <input class="cast-slider cast-slider--skal"
                    type="range"
                    [style.--sc]="spellColor(pendingCastSpell)"
@@ -620,7 +632,7 @@
             </div>
 
             <!-- Per-turn / duration info -->
-            @if (pendingCastSpell.perTurnMana || pendingCastSpell.perTurnFokus || pendingCastSpell.durationTurns) {
+            @if (pendingCastSpell.perTurnMana || pendingCastSpell.perTurnFokus || pendingCastSpell.durationTurns || castPreview.scaledEffektivitaet > 0) {
               <div class="cast-perturn-block">
                 @if (pendingCastSpell.perTurnMana) {
                   <span class="cast-perturn-chip cast-perturn-chip--mana">+{{ pendingCastSpell.perTurnMana }}/Rd ◆</span>
@@ -628,8 +640,11 @@
                 @if (pendingCastSpell.perTurnFokus) {
                   <span class="cast-perturn-chip cast-perturn-chip--fokus">+{{ pendingCastSpell.perTurnFokus }}/Rd ◆</span>
                 }
-                @if (pendingCastSpell.durationTurns) {
-                  <span class="cast-perturn-chip cast-perturn-chip--dur">⧗&nbsp;{{ pendingCastSpell.durationTurns }}Rd</span>
+                @if (castPreview.scaledHaltbarkeit > 0) {
+                  <span class="cast-perturn-chip cast-perturn-chip--dur">⧗&nbsp;{{ castPreview.scaledHaltbarkeit | number:'1.0-1' }}Rd</span>
+                }
+                @if (castPreview.scaledEffektivitaet > 0) {
+                  <span class="cast-perturn-chip cast-perturn-chip--eff">⚡&nbsp;{{ castPreview.scaledEffektivitaet | number:'1.0-1' }}</span>
                 }
               </div>
             }
