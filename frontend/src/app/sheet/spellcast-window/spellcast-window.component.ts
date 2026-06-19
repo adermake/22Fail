@@ -190,7 +190,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     return this.castingSpells.reduce((sum, entry) => {
       const spell = this.availableSpells.find(s => s.id === entry.spellId);
       if (!spell) return sum;
-      return sum + this.computeFokusCost(spell, entry.castLevel || 0, entry.skalierung ?? 1);
+      return sum + this.computeFokusCost(spell, entry.castLevel || 0);
     }, 0);
   }
 
@@ -315,15 +315,16 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     return { mana, fokus };
   }
 
-  computeManaCost(spell: SpellBlock, castLevel: number, skalierung: number): number {
+  /** Mana scales with skalierung only — not reduced by cast level */
+  computeManaCost(spell: SpellBlock, _castLevel: number, skalierung: number): number {
     const base = this.spellBaseCosts(spell).mana;
-    const factor = (1 - this.castLevelReduction(castLevel)) * skalierung;
-    return Math.round(base * factor * 100) / 100;
+    return Math.round(base * skalierung * 100) / 100;
   }
 
-  computeFokusCost(spell: SpellBlock, castLevel: number, skalierung: number): number {
+  /** Fokus reduced by cast level — not affected by skalierung */
+  computeFokusCost(spell: SpellBlock, castLevel: number): number {
     const base = this.spellBaseCosts(spell).fokus;
-    const factor = (1 - this.castLevelReduction(castLevel)) * skalierung;
+    const factor = 1 - this.castLevelReduction(castLevel);
     return Math.round(base * factor * 100) / 100;
   }
 
@@ -335,7 +336,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     const manaCost = this.computeManaCost(spell, this.pendingCastLevel, this.skalierung);
-    const fokusCost = this.computeFokusCost(spell, this.pendingCastLevel, this.skalierung);
+    const fokusCost = this.computeFokusCost(spell, this.pendingCastLevel);
     const manaAfter = this.manaCurrent - manaCost;
     const fokusAfter = this.fokusAvailable - fokusCost;
 
@@ -367,17 +368,17 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
 
   get showCastConfirm(): boolean { return this.pendingCastSpell !== null; }
 
-  /** Explicit handlers so OnPush re-evaluates all derived template expressions */
+  /** Explicit handlers so OnPush re-evaluates cost preview bars while dragging sliders */
   onCastLevelChange(val: number): void {
     this.pendingCastLevel = Math.max(0, +val || 0);
     this.recalcCastPreview();
-    this.cdr.markForCheck();
+    this.cdr.detectChanges();
   }
 
   onSkalierungChange(val: number): void {
     this.skalierung = Math.max(0.1, +val || 1);
     this.recalcCastPreview();
-    this.cdr.markForCheck();
+    this.cdr.detectChanges();
   }
 
   requestCast(spell: SpellBlock): void {
@@ -520,7 +521,7 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     const spell = this.getSpell(entry.spellId);
     const sk = entry.skalierung ?? 1;
     const cl = entry.castLevel || 0;
-    const fokusCommit = spell ? this.computeFokusCost(spell, cl, sk) : 0;
+    const fokusCommit = spell ? this.computeFokusCost(spell, cl) : 0;
     const resourceChanges: DiceRollEvent['resourceChanges'] = [];
     if (manaCost > 0) resourceChanges.push({ resource: 'Mana', amount: -manaCost });
     if (fokusCommit > 0) resourceChanges.push({ resource: 'Fokus', amount: -fokusCommit });
