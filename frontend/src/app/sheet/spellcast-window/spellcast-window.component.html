@@ -290,6 +290,30 @@
                   }
                 }
 
+                <!-- Cast progress (while remainingCast > 0) -->
+                @if (entry.remainingCast > 0) {
+                  <div class="scw-cast-progress">
+                    <div class="scw-cast-progress-header">
+                      <span class="scw-cast-progress-label">Wirken...</span>
+                      <div class="scw-cast-remaining-row">
+                        <input class="scw-cast-remaining-input"
+                               type="number"
+                               min="0"
+                               [ngModel]="entry.remainingCast"
+                               (ngModelChange)="setRemainingCast(entry, $event)" />
+                        <span class="scw-cast-remaining-of">/ {{ entry.castLevel }}</span>
+                      </div>
+                    </div>
+                    <div class="scw-cast-bar">
+                      <div class="scw-cast-bar-fill" [style.width.%]="castProgressPercent(entry)"></div>
+                    </div>
+                    @if (reductionLabel(entry.castLevel); as red) {
+                      <div class="scw-reduction">{{ red }} Mana</div>
+                    }
+                    <button class="scw-roll-btn" (click)="rollCast(entry)">🎲 W20 Würfeln</button>
+                  </div>
+                }
+
                 <!-- Round counter (spell active) -->
                 @if (entry.remainingCast <= 0 && !isSpellFinished(entry)) {
                   <div class="scw-round-counter">
@@ -465,6 +489,46 @@
 
           <!-- LEFT: Sliders -->
           <div class="cast-col cast-col--left">
+
+            <!-- Cast Level (longer activation = lower mana cost) -->
+            <div class="cast-section-label">
+              Cast-Level
+              @if (reductionLabel(pendingCastLevel); as red) {
+                <span class="cast-skal-val">{{ red }} Mana</span>
+              }
+            </div>
+            <div class="cast-slider-row">
+              <input class="cast-slider cast-slider--cl"
+                     type="range"
+                     [style.--sc]="spellColor(pendingCastSpell)"
+                     [style.--val]="pendingCastLevel"
+                     min="0" max="100" step="10"
+                     [ngModel]="pendingCastLevel"
+                     (ngModelChange)="onCastLevelChange($event)" />
+              <input class="cast-level-input"
+                     type="number"
+                     min="0" step="10"
+                     [ngModel]="pendingCastLevel"
+                     (ngModelChange)="onCastLevelChange($event)"
+                     title="Cast-Level direkt eingeben" />
+            </div>
+
+            @if (castLevelMarkers.length > 0) {
+              <div class="cast-cl-markers">
+                @for (marker of castLevelMarkers; track marker.key) {
+                  <div class="cast-cl-marker"
+                       [style.left.%]="Math.min(98, marker.level)"
+                       [title]="marker.label + ' ' + marker.level + ' CL benötigt'">
+                    <span class="cast-cl-marker-label">{{ marker.label }}</span>
+                  </div>
+                }
+              </div>
+            }
+
+            <div class="cast-estimate">
+              <span class="cast-estimate-label">Dauer:</span>
+              <span class="cast-estimate-val">~{{ (pendingCastLevel / 10).toFixed(1) }} Runden</span>
+            </div>
 
             <!-- Skalierung -->
             <div class="cast-section-label cast-section-label--skal">

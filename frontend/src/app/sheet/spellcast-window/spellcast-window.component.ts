@@ -361,9 +361,10 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     const spell = this.pendingCastSpell;
     if (!spell || !this.canCast) return;
     const sk = this.skalierung;
+    const cl = this.pendingCastLevel;
     this.pendingCastSpell = null;
     this._portalRunes = [];
-    this.castSpell(spell, 0, sk);
+    this.castSpell(spell, cl, sk);
     this.cdr.markForCheck();
   }
 
@@ -414,7 +415,8 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
   castSpell(spell: SpellBlock, castLevel = 0, skalierung = 1): void {
     const entryId = `${spell.id || generateSpellId()}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     // Mana is immediately consumed; fokus is an ongoing commitment (not one-time subtracted)
-    const manaCost = Math.round((spell.costMana || 0) * skalierung * 100) / 100;
+    const reduction = Math.min(0.9, Math.floor(castLevel / 10) * 0.1);
+    const manaCost = Math.round((spell.costMana || 0) * (1 - reduction) * skalierung * 100) / 100;
 
     // Subtract mana from statuses immediately
     this._consumeMana(manaCost);
