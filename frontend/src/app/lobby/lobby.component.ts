@@ -22,6 +22,7 @@ import { ImageService } from '../services/image.service';
 import { TextureService } from '../services/texture.service';
 import { TrueStatsService } from '../services/true-stats.service';
 import { AssetBrowserApiService } from '../services/asset-browser-api.service';
+import { prepareImageForUpload, formatBytes } from '../shared/image-upload.utils';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { NpcStatblock } from '../model/npc-statblock.model';
 import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType } from '../model/lobby.model';
@@ -953,20 +954,19 @@ export class LobbyComponent implements OnInit, OnDestroy {
       const file = files[i];
       if (!file.type.startsWith('image/')) continue;
 
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const dataUrl = e.target?.result as string;
-        if (dataUrl) {
-          try {
-            const name = file.name.replace(/\.[^/.]+$/, '');
-            await this.store.addLibraryImage(dataUrl, name);
-            this.cdr.markForCheck();
-          } catch (error) {
-            console.error('[Lobby] Failed to upload image:', error);
-          }
+      try {
+        const prepared = await prepareImageForUpload(file);
+        if (prepared.size < file.size) {
+          console.log(
+            `[Lobby] Compressed ${file.name}: ${formatBytes(file.size)} → ${formatBytes(prepared.size)}`,
+          );
         }
-      };
-      reader.readAsDataURL(file);
+        const name = file.name.replace(/\.[^/.]+$/, '');
+        await this.store.addLibraryImage(prepared, name);
+        this.cdr.markForCheck();
+      } catch (error) {
+        console.error('[Lobby] Failed to upload image:', error);
+      }
     }
   }
 

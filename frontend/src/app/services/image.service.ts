@@ -20,6 +20,16 @@ export class ImageService {
     return response.imageId;
   }
 
+  /** Upload raw image bytes (multipart — no base64 overhead). Prefer for large lobby images. */
+  async uploadImageFile(file: File | Blob, filename = 'image.jpg'): Promise<string> {
+    const form = new FormData();
+    form.append('file', file, filename);
+    const response = await firstValueFrom(
+      this.http.post<{ imageId: string }>('/api/images/upload', form)
+    );
+    return response.imageId;
+  }
+
   /**
    * Get the URL for an image by its ID
    * For images stored in the new system, this returns /api/images/{id}

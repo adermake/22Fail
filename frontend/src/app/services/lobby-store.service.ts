@@ -1419,9 +1419,10 @@ export class LobbyStoreService {
    * Add an image to the GLOBAL reusable library (NEW: shared across all lobbies).
    * Uploads the image to the server first.
    */
-  async addLibraryImage(base64Data: string, name: string): Promise<LibraryImage> {
-    // Upload to server
-    const imageId = await this.imageService.uploadImage(base64Data);
+  async addLibraryImage(source: string | File, name: string): Promise<LibraryImage> {
+    const imageId = typeof source === 'string'
+      ? await this.imageService.uploadImage(source)
+      : await this.imageService.uploadImageFile(source, source.name);
     
     const newImage: LibraryImage = {
       id: generateId(),

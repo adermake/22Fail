@@ -289,6 +289,26 @@ export class AppController {
     return { imageId };
   }
 
+  @Post('images/upload')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 100 * 1024 * 1024 },
+    }),
+  )
+  uploadImageFile(@UploadedFile() file: Express.Multer.File): any {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    if (!file.mimetype?.startsWith('image/')) {
+      throw new BadRequestException('File must be an image');
+    }
+
+    const base64 = Buffer.from(file.buffer).toString('base64');
+    const dataUrl = `data:${file.mimetype};base64,${base64}`;
+    const imageId = this.imageService.storeImage(dataUrl);
+    return { imageId };
+  }
+
   @Get('images/:id')
   getImage(@Param('id') id: string, @Res() res: Response): void {
     const imageData = this.imageService.getImageBuffer(id);
