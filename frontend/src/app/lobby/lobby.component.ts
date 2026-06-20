@@ -57,6 +57,8 @@ export type DragMode = 'free' | 'enforced';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LobbyComponent implements OnInit, OnDestroy {
+  private static readonly PANELS_VISIBLE_STORAGE_KEY = 'lobby:panels-visible';
+
   private route = inject(ActivatedRoute);
   store = inject(LobbyStoreService);
   private worldStore = inject(WorldStoreService);
@@ -113,8 +115,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   selectedImageId = signal<string | null>(null);
   selectedTextureId = signal<string | null>(null);
 
-  // UI state
-  showSidebar = signal(true);
+  // UI state — left sidebar, right character panel, bottom panel (persisted)
+  showLobbyPanels = signal(true);
   sidebarTab = signal<'characters' | 'images' | 'textures'>('characters');
   showMapSettingsModal = signal(false);
   newMapName = ''; // For creating new maps
@@ -205,6 +207,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
   selectedPanelNpc = computed(() => this.selectedTokenInfo()?.npc ?? null);
 
   ngOnInit(): void {
+    const storedPanels = localStorage.getItem(LobbyComponent.PANELS_VISIBLE_STORAGE_KEY);
+    if (storedPanels !== null) {
+      this.showLobbyPanels.set(storedPanels === 'true');
+    }
+
     // Connect battle engine to world store for persistence (mirrors world view)
     this.battleEngine.setWorldStore(this.worldStore);
     
@@ -1071,8 +1078,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // UI
   // ============================================
 
-  toggleSidebar(): void {
-    this.showSidebar.set(!this.showSidebar());
+  toggleLobbyPanels(): void {
+    const next = !this.showLobbyPanels();
+    this.showLobbyPanels.set(next);
+    localStorage.setItem(LobbyComponent.PANELS_VISIBLE_STORAGE_KEY, String(next));
+    this.cdr.markForCheck();
   }
 
   showMapSettings(): void {

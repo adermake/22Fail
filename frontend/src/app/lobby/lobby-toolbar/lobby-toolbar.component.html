@@ -1,11 +1,12 @@
 <div class="toolbar">
-  <!-- Sidebar toggle -->
-  <button 
-    class="tool-btn sidebar-toggle" 
-    (click)="toggleSidebar.emit()"
-    title="Toggle Sidebar"
+  <!-- Toggle left sidebar, right panel, and bottom panel -->
+  <button
+    class="tool-btn sidebar-toggle"
+    [class.active]="showLobbyPanels"
+    (click)="toggleLobbyPanels.emit()"
+    [title]="showLobbyPanels ? 'Panels ausblenden (Seitenleiste, Charakter, Unten)' : 'Panels einblenden'"
   >
-    ☰
+    {{ showLobbyPanels ? '◧' : '◨' }}
   </button>
 
   <div class="toolbar-divider"></div>

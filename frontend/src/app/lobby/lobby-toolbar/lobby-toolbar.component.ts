@@ -39,6 +39,7 @@ export class LobbyToolbarComponent {
   @Input() worldClockLabel = '';
   @Input() showClockDialog = false;
   @Input() fogBrushSize = 30;
+  @Input() showLobbyPanels = true;
 
   // Outputs
   @Output() toolChange = new EventEmitter<ToolType>();
@@ -58,7 +59,7 @@ export class LobbyToolbarComponent {
   @Output() clearDrawings = new EventEmitter<void>();
   @Output() clearWalls = new EventEmitter<void>();
   @Output() clearTextures = new EventEmitter<void>();
-  @Output() toggleSidebar = new EventEmitter<void>();
+  @Output() toggleLobbyPanels = new EventEmitter<void>();
   @Output() mapSettingsClicked = new EventEmitter<void>();
   @Output() kampfrundeToggle = new EventEmitter<void>();
   @Output() shiftClockBy10 = new EventEmitter<void>();

@@ -96,7 +96,8 @@
     (clearDrawings)="store.clearStrokes()"
     (clearWalls)="store.clearWalls()"
     (clearTextures)="onClearAllTextures()"
-    (toggleSidebar)="toggleSidebar()"
+    [showLobbyPanels]="showLobbyPanels()"
+    (toggleLobbyPanels)="toggleLobbyPanels()"
     (mapSettingsClicked)="showMapSettings()"
     [kampfrundeMode]="kampfrundeMode()"
     (kampfrundeToggle)="kampfrundeMode.set(!kampfrundeMode())"
@@ -126,7 +127,7 @@
   <!-- Main content area -->
   <div class="lobby-main">
     <!-- Sidebar -->
-    @if (showSidebar()) {
+    @if (showLobbyPanels()) {
       <app-lobby-sidebar
         class="lobby-sidebar"
         [characters]="worldCharacters()"
@@ -212,36 +213,38 @@
         />
       </div>
 
-      <!-- Character Action Panel (always present - no layout shift = no canvas flash) -->
-      <app-lobby-character-panel
-        class="lobby-character-panel"
-        [token]="selectedPanelToken()"
-        [character]="selectedPanelCharacter()"
-        [npc]="selectedPanelNpc()"
-        [rolls]="rollHistory()"
-        [worldName]="worldName()"
-        [isGM]="isGM()"
-        [allTokens]="enrichedTokens()"
-        (tokenUpdate)="onTokenResourceChange($event)"
-        (deselect)="selectedTokenId.set(null)"
-        (requestTokenDraw)="onRequestTokenDraw($event)"
-        (requestLinkedTokenPlacement)="onRequestLinkedTokenPlacement($event)"
-        (tokenChildDetach)="onTokenChildDetach($event)"
-        (sheetPatched)="onPanelSheetPatched($event)"
-      />
+      @if (showLobbyPanels()) {
+        <app-lobby-character-panel
+          class="lobby-character-panel"
+          [token]="selectedPanelToken()"
+          [character]="selectedPanelCharacter()"
+          [npc]="selectedPanelNpc()"
+          [rolls]="rollHistory()"
+          [worldName]="worldName()"
+          [isGM]="isGM()"
+          [allTokens]="enrichedTokens()"
+          (tokenUpdate)="onTokenResourceChange($event)"
+          (deselect)="selectedTokenId.set(null)"
+          (requestTokenDraw)="onRequestTokenDraw($event)"
+          (requestLinkedTokenPlacement)="onRequestLinkedTokenPlacement($event)"
+          (tokenChildDetach)="onTokenChildDetach($event)"
+          (sheetPatched)="onPanelSheetPatched($event)"
+        />
+      }
     </div>
   </div>
 
-  <!-- Bottom panel: Stats + Spells/Abilities for selected token -->
-  <app-lobby-bottom-panel
-    class="lobby-bottom-panel"
-    [token]="selectedPanelToken()"
-    [character]="selectedPanelCharacter()"
-    [npc]="selectedPanelNpc()"
-    [isGM]="isGM()"
-    (tokenUpdate)="onTokenResourceChange($event)"
-    (sheetPatched)="onPanelSheetPatched($event)"
-  />
+  @if (showLobbyPanels()) {
+    <app-lobby-bottom-panel
+      class="lobby-bottom-panel"
+      [token]="selectedPanelToken()"
+      [character]="selectedPanelCharacter()"
+      [npc]="selectedPanelNpc()"
+      [isGM]="isGM()"
+      (tokenUpdate)="onTokenResourceChange($event)"
+      (sheetPatched)="onPanelSheetPatched($event)"
+    />
+  }
 </div>
 
 <!-- Map Settings Modal -->
