@@ -49,6 +49,7 @@ export interface WorldData {
   worldClockMinutes?: number; // Unix timestamp in minutes for synced world clock
   worldClock?: FantasyClock;
   encounterTimer?: EncounterTimerSettings;
+  kampfrundeActive?: boolean;
   characterIds: string[]; // All characters in this world
   partyIds: string[]; // Characters currently in the active party
   

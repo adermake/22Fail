@@ -491,6 +491,21 @@ export class BattleTrackerEngine {
     return firstGroup.tiles.map(t => t.name).join(' & ');
   }
 
+  /** Character IDs in the current (first) turn group. */
+  getCurrentTurnCharacterIds(): string[] {
+    const groups = this.getTimeline();
+    if (groups.length === 0) return [];
+    const seen = new Set<string>();
+    const ids: string[] = [];
+    for (const tile of groups[0].tiles) {
+      if (!seen.has(tile.characterId)) {
+        seen.add(tile.characterId);
+        ids.push(tile.characterId);
+      }
+    }
+    return ids;
+  }
+
   /** Check if there are any participants */
   hasParticipants(): boolean {
     return this.participants.size > 0;

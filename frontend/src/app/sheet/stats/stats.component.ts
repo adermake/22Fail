@@ -33,9 +33,15 @@ export class StatsComponent {
   }
 
   get fokusValue(): number {
-    const intelligence = this.sheet.intelligence?.current || 10;
-    const base = Math.floor(intelligence / 2) + 5;
-    return Math.floor((base + (this.sheet.fokusBonus || 0)) * (this.sheet.fokusMultiplier || 1));
+    return this.trueStats.calculateFokusMax(this.sheet);
+  }
+
+  get movementSpeed(): number {
+    return this.trueStats.calculateMovementSpeed(this.sheet);
+  }
+
+  get effectiveSpeed(): number {
+    return this.trueStats.calculateEffectiveSpeed(this.sheet);
   }
 
   get grundbonus(): number {

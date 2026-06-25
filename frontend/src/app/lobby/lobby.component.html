@@ -8,7 +8,7 @@
 
   <!-- Clock Settings Dialog (opens when clock is clicked) -->
   @if (showClockDialog()) {
-    <div class="clock-dialog-backdrop" (click)="showClockDialog.set(false)">
+    <div class="clock-dialog-backdrop" (mousedown)="onClockBackdropMouseDown($event)">
       <div class="clock-dialog" (click)="$event.stopPropagation()">
         <div class="clock-dialog-header">
           <span>🕐 Weltuhr-Einstellungen</span>
@@ -100,7 +100,7 @@
     (toggleLobbyPanels)="toggleLobbyPanels()"
     (mapSettingsClicked)="showMapSettings()"
     [kampfrundeMode]="kampfrundeMode()"
-    (kampfrundeToggle)="kampfrundeMode.set(!kampfrundeMode())"
+    (kampfrundeToggle)="onKampfrundeToggle()"
     (shiftClockBy10)="shiftWorldClock(10)"
     (shiftClockBy60)="shiftWorldClock(60)"
     (openClockDialog)="showClockDialog.set(true)"
@@ -112,12 +112,18 @@
   @if (kampfrundeMode()) {
     <div class="kampfrunde-bar">
       <span class="kampfrunde-label">⚔️ Kampfrunde</span>
-      <app-battle-tracker [engine]="battleEngine" [readOnly]="true" [compactMode]="true"></app-battle-tracker>
+      <app-battle-tracker
+        [engine]="battleEngine"
+        [readOnly]="true"
+        [compactMode]="true"
+        [effectReminderIds]="effectReminderCharacterIds()"
+        (dismissEffectReminder)="dismissEffectReminder($event)">
+      </app-battle-tracker>
       @if (isGM()) {
         <button class="kampfrunde-toggle-btn kampfrunde-toggle-btn--next" (click)="onLobbyNextTurn()" title="Nächsten Zug ausführen (synchronisiert)">
           ⏭ Nächster Zug
         </button>
-        <button class="kampfrunde-toggle-btn kampfrunde-toggle-btn--end" (click)="kampfrundeMode.set(false)" title="Kampfrunde beenden">
+        <button class="kampfrunde-toggle-btn kampfrunde-toggle-btn--end" (click)="onKampfrundeToggle()" title="Kampfrunde beenden">
           ✕ Kampfrunde beenden
         </button>
       }
@@ -222,6 +228,7 @@
           [rolls]="rollHistory()"
           [worldName]="worldName()"
           [isGM]="isGM()"
+          [canViewStats]="selectedPanelToken() ? canViewTokenStats(selectedPanelToken()!.characterId) : true"
           [allTokens]="enrichedTokens()"
           (tokenUpdate)="onTokenResourceChange($event)"
           (deselect)="selectedTokenId.set(null)"
@@ -241,6 +248,9 @@
       [character]="selectedPanelCharacter()"
       [npc]="selectedPanelNpc()"
       [isGM]="isGM()"
+      [canViewStats]="selectedPanelToken() ? canViewTokenStats(selectedPanelToken()!.characterId) : true"
+      [statusBarBlinking]="statusBarBlinking()"
+      (dismissStatusReminder)="statusBarBlinking.set(false)"
       (tokenUpdate)="onTokenResourceChange($event)"
       (sheetPatched)="onPanelSheetPatched($event)"
     />

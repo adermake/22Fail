@@ -46,6 +46,12 @@
                [ngModel]="sheet.reaktionswertBonus || 0"
                (ngModelChange)="updateDerivedBonus('reaktionswertBonus', $event)" />
       </div>
+      <div class="derived-sep">|</div>
+      <div class="derived-item">
+        <span class="derived-name">Bewegung</span>
+        <span class="derived-val" title="Effektive Geschw.: {{ effectiveSpeed }}">{{ movementSpeed }}</span>
+        <span class="derived-hint">5+Spd/4</span>
+      </div>
     </div>
     
     <!-- Spell Fokus + SpeedPenalty: compact inline -->

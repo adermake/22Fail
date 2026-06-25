@@ -13,6 +13,15 @@
                 <span class="compact-tile-portrait compact-tile-initial">{{ tile.name.charAt(0) }}</span>
               }
               <span class="compact-tile-name">{{ tile.name }}</span>
+              @if (effectReminderIds.has(tile.characterId)) {
+                <button
+                  type="button"
+                  class="compact-effect-reminder"
+                  title="Status-Effekte auslösen?"
+                  (click)="dismissEffectReminder.emit(tile.characterId); $event.stopPropagation()">
+                  ✨
+                </button>
+              }
             </div>
           }
         </div>

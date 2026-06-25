@@ -768,7 +768,11 @@ export class SheetComponent implements OnInit {
               return false;
             });
             if (status) {
-              status.statusCurrent = Math.max(0, status.statusCurrent - consequence.amount);
+              if (resourceType === 'health') {
+                status.statusCurrent = status.statusCurrent - consequence.amount;
+              } else {
+                status.statusCurrent = Math.max(0, status.statusCurrent - consequence.amount);
+              }
               this.store.applyPatch({ path: '/statuses', value: sheet.statuses });
             }
           }
@@ -813,7 +817,11 @@ export class SheetComponent implements OnInit {
     if (status) {
       if (event.amount < 0) {
         // Spending
-        status.statusCurrent = Math.max(0, status.statusCurrent + event.amount);
+        if (resourceType === 'health') {
+          status.statusCurrent = status.statusCurrent + event.amount;
+        } else {
+          status.statusCurrent = Math.max(0, status.statusCurrent + event.amount);
+        }
       } else {
         // Gaining - don't exceed max
         const max = status.statusBase + (status.statusEffectBonus || 0);

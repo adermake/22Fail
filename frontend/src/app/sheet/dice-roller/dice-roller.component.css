@@ -377,6 +377,28 @@
   font-size: 14px;
 }
 
+.advantage-rolls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.advantage-set {
+  font-family: monospace;
+  font-size: 13px;
+  color: #888;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.advantage-set.chosen {
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.08);
+}
+
 .bonus-pill {
   background: #333;
   color: #ef4444; /* RED by default - positive is BAD */

@@ -12,6 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { COIN_WEIGHT } from '../../model/currency-model';
 import { WorldSocketService } from '../../services/world-socket.service';
 import { NotificationService } from '../../services/notification.service';
+import { TrueStatsService } from '../../services/true-stats.service';
 import { CurrentEvent, ShopEvent, LootBundleEvent, formatCurrency } from '../../model/current-events.model';
 
 @Component({
@@ -42,6 +43,7 @@ export class InventoryComponent {
   
   private worldSocket = inject(WorldSocketService);
   private notification = inject(NotificationService);
+  private trueStats = inject(TrueStatsService);
   private elRef = inject(ElementRef);
 
   Math = Math; // Expose Math to template
@@ -139,10 +141,7 @@ export class InventoryComponent {
   }
 
  get totalWeight(): number {
-  const itemWeight = this.sheet.inventory?.reduce((sum, item) => sum + (item ? (item.weight || 0) : 0), 0) || 0;
-  const equipmentWeight = this.sheet.equipment?.reduce((sum, item) => sum + (item ? (item.weight || 0) : 0), 0) || 0;
-  const currencyWeight = this.getCurrencyWeight();
-  return Math.floor(itemWeight + equipmentWeight + currencyWeight);
+  return this.trueStats.getTotalWeight(this.sheet);
 }
 
 getCurrencyWeight(): number {

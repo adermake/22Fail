@@ -105,6 +105,12 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       <button class="deselect-btn" (click)="deselect.emit()" title="Auswahl aufheben">✕</button>
     </div>
 
+    @if (!canViewStats) {
+      <div class="privacy-notice">
+        <span>🔒 Statistiken anderer Spieler sind verborgen.</span>
+      </div>
+    } @else {
+
     <!-- Resources: HP / Mana / Energy -->
     <div class="resources">
       <!-- LP -->
@@ -116,7 +122,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
           <input class="res-input" type="number"
             [value]="currentHealth"
             (change)="setResource('health', $event)"
-            min="0" [max]="maxHealth" />
+            [max]="maxHealth" />
           <button class="res-btn plus" (click)="adjustResource('health', 1)">+</button>
         </div>
         <span class="res-max">/ {{ maxHealth }}</span>
@@ -620,6 +626,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       }
 
     </div><!-- /panel-body -->
+    } <!-- /canViewStats -->
 
     <!-- ── Würfelansicht Overlay ── -->
     @if (showDiceRoller() && diceSheet) {
@@ -700,6 +707,12 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       background: #1e293b;
       border-bottom: 1px solid #334155;
       flex-shrink: 0;
+    }
+    .privacy-notice {
+      padding: 24px 16px;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.9rem;
     }
     .token-portrait {
       width: 36px;
@@ -1404,6 +1417,7 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   @Input() rolls: DiceRollEvent[] = [];
   @Input() worldName: string = '';
   @Input() isGM: boolean = false;
+  @Input() canViewStats = true;
   @Input() allTokens: Token[] = [];
 
   @Output() tokenUpdate = new EventEmitter<Partial<Omit<Token, 'id'>>>();
@@ -1685,6 +1699,9 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     sheet.skills = this.allSkills;
     // Include spells for the spellcast window
     sheet.spells = npc.spells ?? [];
+    sheet.castingSpells = this.token?.castingSpells ?? [];
+    sheet.fokusBonus = 0;
+    sheet.fokusMultiplier = 1;
     return sheet;
   }
 
@@ -1725,7 +1742,9 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     if (!this.token) return;
     const cur = resource === 'health' ? this.currentHealth : resource === 'mana' ? this.currentMana : this.currentEnergy;
     const max = resource === 'health' ? this.maxHealth    : resource === 'mana' ? this.maxMana    : this.maxEnergy;
-    const newVal = Math.max(0, Math.min(max, cur + delta));
+    const newVal = resource === 'health'
+      ? Math.min(max, cur + delta)
+      : Math.max(0, Math.min(max, cur + delta));
     this.emitResource(resource, newVal);
   }
 
@@ -1734,7 +1753,10 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     const raw = parseInt((event.target as HTMLInputElement).value, 10);
     if (isNaN(raw)) return;
     const max = resource === 'health' ? this.maxHealth : resource === 'mana' ? this.maxMana : this.maxEnergy;
-    this.emitResource(resource, Math.max(0, Math.min(max, raw)));
+    const value = resource === 'health'
+      ? Math.min(max, raw)
+      : Math.max(0, Math.min(max, raw));
+    this.emitResource(resource, value);
   }
 
   private emitResource(resource: 'health' | 'mana' | 'energy', value: number): void {

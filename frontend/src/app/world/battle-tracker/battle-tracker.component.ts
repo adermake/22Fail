@@ -9,7 +9,9 @@ import {
   inject,
   signal,
   computed,
-  HostListener
+  HostListener,
+  Output,
+  EventEmitter,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -41,6 +43,8 @@ export class BattleTracker implements OnInit, OnDestroy {
   @Input() engine!: BattleTrackerEngine;
   @Input() readOnly = false; // View-only mode for lobby
   @Input() compactMode = false; // Compact top-bar mode for lobby
+  @Input() effectReminderIds: Set<string> = new Set();
+  @Output() dismissEffectReminder = new EventEmitter<string>();
   @ViewChild('timelineContainer') timelineRef!: ElementRef<HTMLElement>;
 
   private cdr = inject(ChangeDetectorRef);

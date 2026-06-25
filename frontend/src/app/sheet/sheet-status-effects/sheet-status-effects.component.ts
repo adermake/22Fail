@@ -365,10 +365,11 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
         const status = this.sheet.statuses?.find(s => s.formulaType === formulaType);
         if (status) {
           const currentValue = status.statusCurrent || 0;
-          const newValue = Math.max(0, Math.min(
-            this.getStatusMax(status),
-            currentValue + change.amount
-          ));
+          const newValue = this.trueStats.clampResourceCurrent(
+            formulaType,
+            currentValue + change.amount,
+            this.getStatusMax(status)
+          );
           const statusIndex = this.sheet.statuses?.indexOf(status);
           if (statusIndex !== undefined && statusIndex !== -1) {
             this.patch.emit({ path: '/statuses/' + statusIndex + '/statusCurrent', value: newValue });

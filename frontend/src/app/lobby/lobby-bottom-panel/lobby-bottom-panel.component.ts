@@ -35,6 +35,9 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   @Input() character: CharacterSheet | null = null;
   @Input() npc: NpcStatblock | null = null;
   @Input() isGM = false;
+  @Input() canViewStats = true;
+  @Input() statusBarBlinking = false;
+  @Output() dismissStatusReminder = new EventEmitter<void>();
   @Output() tokenUpdate = new EventEmitter<Partial<Omit<Token, 'id'>>>();
   @Output() sheetPatched = new EventEmitter<{ characterId: string; patch: any }>();
 
@@ -626,7 +629,11 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
         const status = this.character.statuses?.find(s => s.formulaType === formulaType);
         if (status) {
           const max = this.trueStats.calculateResourceMax(this.character!, formulaType);
-          const newVal = Math.max(0, Math.min(max, (status.statusCurrent || 0) + change.amount));
+          const newVal = this.trueStats.clampResourceCurrent(
+            formulaType,
+            (status.statusCurrent || 0) + change.amount,
+            max
+          );
           status.statusCurrent = newVal;
           const charId = this.characterId;
           const idx = this.character.statuses?.indexOf(status) ?? -1;
@@ -634,7 +641,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
         }
       } else {
         if (formulaType === FormulaType.LIFE) {
-          this.tokenUpdate.emit({ currentHealth: Math.max(0, (this.token?.currentHealth ?? 0) + change.amount) });
+          this.tokenUpdate.emit({ currentHealth: (this.token?.currentHealth ?? 0) + change.amount });
         } else if (formulaType === FormulaType.MANA) {
           this.tokenUpdate.emit({ currentMana: Math.max(0, (this.token?.currentMana ?? 0) + change.amount) });
         } else if (formulaType === FormulaType.ENERGY) {
@@ -800,7 +807,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
         this.tokenUpdate.emit({ currentEnergy: Math.max(0, cur - cost.amount) });
       } else {
         const cur = this.token?.currentHealth ?? this.npc?.maxHealth ?? 0;
-        this.tokenUpdate.emit({ currentHealth: Math.max(0, cur - cost.amount) });
+        this.tokenUpdate.emit({ currentHealth: cur - cost.amount });
       }
     }
     this.cdr.markForCheck();

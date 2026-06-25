@@ -8,6 +8,10 @@
           <input type="checkbox" [checked]="isSecretRoll()" (change)="isSecretRoll.set($any($event.target).checked)" />
           <span class="secret-label">Geheim</span>
         </label>
+        <label class="secret-toggle advantage-toggle" [class.active]="useAdvantage()">
+          <input type="checkbox" [checked]="useAdvantage()" (change)="useAdvantage.set($any($event.target).checked)" />
+          <span class="secret-label">Vorteil</span>
+        </label>
         <button class="close-btn" (click)="onClose()">&times;</button>
       </div>
     </div>
@@ -85,7 +89,17 @@
           <div class="result-display" [class.secret]="rollResult.isSecret" [class.animate]="isAnimating()">
             <div class="result-number">{{rollResult.result}}</div>
             <div class="result-breakdown">
-              <span class="dice-rolls">[{{rollResult.rolls.join('+')}}]</span>
+              @if (rollResult.advantage && rollResult.advantageRolls) {
+                <div class="advantage-rolls">
+                  @for (set of rollResult.advantageRolls; track $index) {
+                    <span class="advantage-set" [class.chosen]="$index === rollResult.chosenAdvantageIndex">
+                      Wurf {{ $index + 1 }}: [{{ set.join('+') }}] = {{ rollResult.advantageTotals?.[$index] }}
+                    </span>
+                  }
+                </div>
+              } @else {
+                <span class="dice-rolls">[{{rollResult.rolls.join('+')}}]</span>
+              }
               @for (bonus of rollResult.bonuses; track bonus.name) {
                 <span class="bonus-pill" [class.negative]="bonus.value < 0">
                   {{bonus.name}}: {{bonus.value > 0 ? '+' : ''}}{{bonus.value}}

@@ -3634,7 +3634,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const startHex = HexMath.pixelToHex(m.start);
       const endHex = HexMath.pixelToHex(m.end);
       const hexDist = HexMath.hexDistance(startHex, endHex);
-      const meters = hexDist * 1.5;
+      const meters = hexDist * 1;
       const midX = (startScreen.x + endScreen.x) / 2;
       const midY = (startScreen.y + endScreen.y) / 2;
       ctx.font = 'bold 14px sans-serif';
@@ -4470,7 +4470,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.measureEnd.set(hexCenter);
     const start = this.measureStart()!;
     
-    // Calculate hex distance and convert to meters (1.5m per hex)
+    // Calculate hex distance and convert to meters (1m per hex)
     const startHex = HexMath.pixelToHex(start);
     const endHex = HexMath.pixelToHex(hexCenter);
     const hexDistance = HexMath.hexDistance(startHex, endHex);

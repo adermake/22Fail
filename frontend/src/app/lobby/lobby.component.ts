@@ -147,7 +147,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     return map.tokens.map(token => {
       const char = token.isQuickToken ? null : charMap.get(token.characterId);
       const movementSpeed = char
-        ? this.trueStats.calculateEffectiveSpeed(char.sheet)
+        ? this.trueStats.calculateMovementSpeed(char.sheet)
         : (token.movementSpeed ?? 6);
       return {
         ...token,
@@ -181,7 +181,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // Kampfrunde mode - GM activates to show compact top-bar battle tracker
   kampfrundeMode = signal(false);
 
-  // Selected token for quick view panel
+  /** Character ID of the viewing player (from ?characterId= URL param). */
+  viewingCharacterId = signal<string | null>(null);
+
+  /** GM reminders: characters on turn with active status effects. */
+  effectReminderCharacterIds = signal<Set<string>>(new Set());
+  dismissedEffectReminders = signal<Set<string>>(new Set());
+  statusBarBlinking = signal(false);
   selectedTokenId = signal<string | null>(null);
   pendingLinkedToken = signal<{ parentId: string; type: LinkedTokenType; name: string } | null>(null);
 
@@ -237,6 +243,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
           });
           this.battleTeams.set(teamMap);
 
+          if (world.kampfrundeActive) {
+            this.kampfrundeMode.set(true);
+          }
+
           this.cdr.markForCheck();
         }
       })
@@ -251,6 +261,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
         // Check for GM mode
         this.route.queryParamMap.subscribe((queryParams) => {
           this.isGM.set(queryParams.get('gm') === 'true');
+          const charId = queryParams.get('characterId');
+          this.viewingCharacterId.set(charId);
         });
 
         // Load lobby
@@ -265,6 +277,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
         // Load world for characters
         await this.worldStore.load(worldName);
+        if (this.worldStore.worldValue?.kampfrundeActive) {
+          this.kampfrundeMode.set(true);
+        }
         console.log('[Lobby] World loaded, characterIds:', this.worldStore.worldValue?.characterIds);
         await this.loadWorldCharacters();
         await this.loadNpcStatblocks();
@@ -568,6 +583,64 @@ export class LobbyComponent implements OnInit, OnDestroy {
   onLobbyNextTurn(): void {
     if (!this.isGM()) return;
     this.battleEngine.nextTurn();
+
+    const turnIds = this.battleEngine.getCurrentTurnCharacterIds();
+    if (turnIds.length > 0) {
+      const token = this.enrichedTokens().find(t => turnIds.includes(t.characterId));
+      if (token) {
+        this.selectedTokenId.set(token.id);
+      }
+    }
+
+    const reminders = turnIds.filter(
+      id => this.characterHasActiveEffects(id) && !this.dismissedEffectReminders().has(id)
+    );
+    if (reminders.length > 0) {
+      this.effectReminderCharacterIds.set(new Set(reminders));
+      this.statusBarBlinking.set(true);
+    }
+    this.cdr.markForCheck();
+  }
+
+  onKampfrundeToggle(): void {
+    const next = !this.kampfrundeMode();
+    this.kampfrundeMode.set(next);
+    if (this.isGM()) {
+      this.worldStore.applyPatch({ path: 'kampfrundeActive', value: next });
+    }
+  }
+
+  onClockBackdropMouseDown(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.showClockDialog.set(false);
+    }
+  }
+
+  dismissEffectReminder(characterId: string): void {
+    this.dismissedEffectReminders.update(s => new Set([...s, characterId]));
+    this.effectReminderCharacterIds.update(s => {
+      const next = new Set(s);
+      next.delete(characterId);
+      return next;
+    });
+    if (this.effectReminderCharacterIds().size === 0) {
+      this.statusBarBlinking.set(false);
+    }
+    this.cdr.markForCheck();
+  }
+
+  canViewTokenStats(characterId: string): boolean {
+    if (this.isGM()) return true;
+    const viewerId = this.viewingCharacterId();
+    return !!viewerId && viewerId === characterId;
+  }
+
+  private characterHasActiveEffects(characterId: string): boolean {
+    const char = this.worldCharacters().find(c => c.id === characterId);
+    if (char?.sheet.activeStatusEffects?.length) return true;
+    const token = this.enrichedTokens().find(t => t.characterId === characterId);
+    if (token?.activeStatusEffects?.length) return true;
+    return false;
   }
 
   private async loadNpcStatblocks(): Promise<void> {
@@ -771,7 +844,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     if (!character) return;
 
     // Use TrueStatsService for correct speed calculation including all bonuses
-    const movementSpeed = this.trueStats.calculateEffectiveSpeed(character.sheet);
+    const movementSpeed = this.trueStats.calculateMovementSpeed(character.sheet);
 
     this.store.addToken({
       characterId: data.characterId,

@@ -1,7 +1,7 @@
-<div class="lbp-container" [class.lbp-collapsed]="collapsed">
+<div class="lbp-container" [class.lbp-collapsed]="collapsed" [class.lbp-blink-reminder]="statusBarBlinking">
 
   <!-- ── Header ── -->
-  <div class="lbp-header">
+  <div class="lbp-header" (click)="statusBarBlinking && dismissStatusReminder.emit()">
     <button class="lbp-collapse-btn" (click)="collapsed = !collapsed"
             [title]="collapsed ? 'Ausklappen' : 'Einklappen'">
       {{ collapsed ? '▲' : '▼' }}
@@ -30,8 +30,12 @@
       <div class="lbp-no-selection">Kein Token ausgewählt</div>
     }
 
+    @if (hasSelection && !canViewStats) {
+      <div class="lbp-no-selection">🔒 Statistiken anderer Spieler sind verborgen.</div>
+    }
+
     <!-- ═════════ STATUS TAB ═════════ -->
-    @if (hasSelection && activeTab === 'status') {
+    @if (hasSelection && canViewStats && activeTab === 'status') {
       <div class="lbp-status-content" (contextmenu)="onRightClickStatusArea($event)" (click)="closeContextMenu()">
 
         <!-- Toolbar -->
@@ -277,7 +281,7 @@
     }
 
     <!-- ═════════ AKTIV TAB ═════════ -->
-    @if (hasSelection && activeTab === 'aktiv') {
+    @if (hasSelection && canViewStats && activeTab === 'aktiv') {
       <div class="lbp-aktiv-content">
 
         @if (!hasActiveContent) {

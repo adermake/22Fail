@@ -343,15 +343,13 @@
       ⚙️
     </button>
 
-    <!-- Kampfrunde toggle (GM only) -->
-    @if (isGM) {
-      <button
-        class="tool-btn kampfrunde-btn"
-        [class.active]="kampfrundeMode"
-        (click)="kampfrundeToggle.emit()"
-        title="Kampfrunde starten/beenden">
-        ⚔️
-      </button>
-    }
+    <!-- Kampfrunde toggle (all players; GM syncs to world) -->
+    <button
+      class="tool-btn kampfrunde-btn"
+      [class.active]="kampfrundeMode"
+      (click)="kampfrundeToggle.emit()"
+      title="Kampfrunde anzeigen{{ isGM ? '/starten' : '' }}">
+      ⚔️
+    </button>
   </div>
 </div>

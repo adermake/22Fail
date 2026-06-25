@@ -121,7 +121,7 @@ export class MacroExecutorService {
     // Find health status
     const healthStatus = character.statuses.find(s => s.statusName === 'Leben');
     if (healthStatus) {
-      healthStatus.statusCurrent = Math.max(0, healthStatus.statusCurrent - damage);
+      healthStatus.statusCurrent = healthStatus.statusCurrent - damage;
     }
 
     return {
@@ -212,10 +212,12 @@ export class MacroExecutorService {
     const status = character.statuses.find(s => s.statusName === statusName);
     
     if (status) {
-      status.statusCurrent = Math.max(0, Math.min(
-        this.trueStats.calculateResourceMax(character, status.formulaType),
-        status.statusCurrent + amount
-      ));
+      const max = this.trueStats.calculateResourceMax(character, status.formulaType);
+      status.statusCurrent = this.trueStats.clampResourceCurrent(
+        status.formulaType,
+        status.statusCurrent + amount,
+        max
+      );
     }
 
     return {

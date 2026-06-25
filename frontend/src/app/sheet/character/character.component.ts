@@ -38,7 +38,7 @@ export class CharacterComponent {
 
   openWorldLobby() {
     if (this.sheet.worldName) {
-      window.open(`/lobby/${this.sheet.worldName}`, '_blank');
+      window.open(`/lobby/${this.sheet.worldName}?characterId=${encodeURIComponent(this.characterId)}`, '_blank');
     }
   }
 }

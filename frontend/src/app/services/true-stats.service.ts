@@ -325,6 +325,29 @@ export class TrueStatsService {
     return (-5 + total / 2) | 0;
   }
 
+  /** Stack-aware item weight (weight × amount when stackable). */
+  getItemStackWeight(item: { weight?: number; stackable?: boolean; amount?: number } | null | undefined): number {
+    if (!item) return 0;
+    const w = item.weight || 0;
+    const qty = item.stackable && (item.amount ?? 1) > 1 ? (item.amount ?? 1) : 1;
+    return w * qty;
+  }
+
+  /** Max spell fokus pool from calculated intelligence + sheet bonuses. */
+  calculateFokusMax(sheet: CharacterSheet): number {
+    const intelligence = this.calculateIntelligence(sheet);
+    const base = Math.floor(intelligence / 2) + 5;
+    return Math.floor((base + (sheet.fokusBonus || 0)) * (sheet.fokusMultiplier || 1));
+  }
+
+  /** Clamp resource current; life may go negative, others floor at 0. */
+  clampResourceCurrent(formulaType: FormulaType, current: number, max: number): number {
+    if (formulaType === FormulaType.LIFE) {
+      return Math.min(max, current);
+    }
+    return Math.max(0, Math.min(max, current));
+  }
+
   /**
    * Calculate effective speed after all penalties.
    * Takes into account:
@@ -358,6 +381,12 @@ export class TrueStatsService {
     
     // Apply penalty to base speed
     return Math.max(0, baseSpeed - finalPenalty);
+  }
+
+  /** Movement speed in hex steps: 5 + effective speed / 4 (floored). */
+  calculateMovementSpeed(sheet: CharacterSheet): number {
+    const spd = this.calculateEffectiveSpeed(sheet);
+    return Math.max(0, Math.floor(5 + spd / 4));
   }
 
   /**
@@ -405,11 +434,8 @@ export class TrueStatsService {
    * @returns Total weight in pounds/kg
    */
   getTotalWeight(sheet: CharacterSheet): number {
-    // Item weight
-    const itemWeight = sheet.inventory?.reduce((sum, item) => sum + (item ? (item.weight || 0) : 0), 0) || 0;
-    
-    // Equipment weight (worn/equipped items also count toward carry weight)
-    const equipmentWeight = sheet.equipment?.reduce((sum, item) => sum + (item ? (item.weight || 0) : 0), 0) || 0;
+    const itemWeight = sheet.inventory?.reduce((sum, item) => sum + this.getItemStackWeight(item), 0) || 0;
+    const equipmentWeight = sheet.equipment?.reduce((sum, item) => sum + this.getItemStackWeight(item), 0) || 0;
     
     // Currency weight (using COIN_WEIGHT constant)
     const COIN_WEIGHT = 0.02; // 50 coins per pound
@@ -440,20 +466,21 @@ export class TrueStatsService {
   }
 
   /**
-   * Calculate total armor debuff from equipped items.
-   * Formula: (sum of all armor debuffs / 5) - speedPenaltyNegation
-   * 
-   * @param sheet The character sheet
-   * @returns Total speed penalty from armor after negation
+   * Raw armor speed malus points (before Rüstungsnegation).
+   * Each 5 armor debuff = 1 malus; broken armor adds +5 malus.
    */
   calculateTotalArmorDebuff(sheet: CharacterSheet): number {
     if (!sheet.equipment) return 0;
-    
-    const sumOfArmorDebuffs = sheet.equipment.reduce((sum, item) => sum + (item.armorDebuff || 0), 0);
-    const armorPenalty = Math.round(sumOfArmorDebuffs / 5);
-    const negation = sheet.speedPenaltyNegation || 0;
-    
-    return Math.max(0, armorPenalty - negation);
+
+    let sumOfArmorDebuffs = 0;
+    let brokenPenalty = 0;
+    for (const item of sheet.equipment) {
+      sumOfArmorDebuffs += item.armorDebuff || 0;
+      if (item.broken && item.itemType === 'armor') {
+        brokenPenalty += 5;
+      }
+    }
+    return Math.round(sumOfArmorDebuffs / 5) + brokenPenalty;
   }
 
   /**

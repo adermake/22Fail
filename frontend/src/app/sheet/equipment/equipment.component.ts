@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output,inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
+import { TrueStatsService } from '../../services/true-stats.service';
 import { JsonPatch } from '../../model/json-patch.model';
 import { ItemComponent } from '../item/item.component';
 import { ItemEditorComponent } from '../item-editor/item-editor.component';
@@ -23,6 +24,7 @@ export class EquipmentComponent {
   
   private worldSocket = inject(WorldSocketService);
   private notification = inject(NotificationService);
+  private trueStats = inject(TrueStatsService);
 
   private editingItems = new Set<number>();
   placeholderHeight = '90px';
@@ -53,29 +55,15 @@ export class EquipmentComponent {
   }
 
   get totalArmorDebuff(): number {
-    // Sum of all individual armor debuffs divided by 5, then subtract negation
-    // Also add +5 penalty for each broken armor piece
-    let sumOfArmorDebuffs = 0;
-    let brokenArmorPenalty = 0;
-    
-    for (const item of (this.sheet.equipment || [])) {
-      sumOfArmorDebuffs += item.armorDebuff || 0;
-      
-      // Broken armor gives +5 penalty
-      if (item.broken && item.itemType === 'armor') {
-        brokenArmorPenalty += 5;
-      }
-    }
-    
-    const armorPenalty = Math.round(sumOfArmorDebuffs / 5);
-    const negation = this.sheet.speedPenaltyNegation || 0;
-    
-    return Math.max(0, armorPenalty + brokenArmorPenalty - negation);
+    return this.trueStats.calculateTotalArmorDebuff(this.sheet);
   }
 
   get effectiveSpeed(): number {
-    const baseSpeed = this.sheet.speed?.current || 0;
-    return Math.max(0, baseSpeed - this.totalArmorDebuff);
+    return this.trueStats.calculateEffectiveSpeed(this.sheet);
+  }
+
+  get movementSpeed(): number {
+    return this.trueStats.calculateMovementSpeed(this.sheet);
   }
 
   get combinedDefense(): number {

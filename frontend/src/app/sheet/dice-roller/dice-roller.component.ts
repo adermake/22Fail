@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
+import { TrueStatsService } from '../../services/true-stats.service';
 import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
 import { LibraryStoreService } from '../../services/library-store.service';
@@ -19,6 +20,11 @@ export interface DiceRoll {
   rolls: number[];
   timestamp: Date;
   isSecret?: boolean;
+  /** Advantage: two full roll sets; lower total wins. */
+  advantage?: boolean;
+  advantageRolls?: number[][];
+  advantageTotals?: number[];
+  chosenAdvantageIndex?: number;
 }
 
 export interface DiceBonus {
@@ -54,6 +60,7 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
 
   private worldSocket = inject(WorldSocketService);
   private libraryStore = inject(LibraryStoreService);
+  private trueStats = inject(TrueStatsService);
   private diceRollSub?: Subscription;
 
   // Dice rolling state
@@ -62,6 +69,7 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
   selectedBonuses = signal<Set<string>>(new Set());
   manualBonus = signal<number>(0);
   isSecretRoll = signal<boolean>(false); // Secret roll - only GM sees
+  useAdvantage = signal<boolean>(false);
   
   // Animation state
   isRolling = signal<boolean>(false);
@@ -194,55 +202,6 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     return bonuses.sort((a, b) => a.name.localeCompare(b.name));
   });
 
-  // Calculate stat effectBonus the same way as stat.component does
-  private calculateStatEffectBonus(statKey: 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill'): number {
-    let total = 0;
-
-    // Add bonuses from skills
-    if (this.sheet.skills) {
-      for (const skill of this.sheet.skills) {
-        if (skill.statModifiers) {
-          for (const modifier of skill.statModifiers) {
-            if (modifier.stat === statKey) {
-              const multiplier = skill.level || 1;
-              total += modifier.amount * multiplier;
-            }
-          }
-        }
-      }
-    }
-
-    // Add bonuses from equipped items
-    if (this.sheet.equipment) {
-      for (const item of this.sheet.equipment) {
-        if (item.statModifiers) {
-          for (const modifier of item.statModifiers) {
-            if (modifier.stat === statKey) {
-              total += modifier.amount;
-            }
-          }
-        }
-      }
-    }
-
-    // Add bonuses from active status effects
-    if (this.sheet.activeStatusEffects) {
-      for (const active of this.sheet.activeStatusEffects) {
-        const effect = this.resolveStatusEffect(active.statusEffectId, active.customEffect);
-        if (effect?.statModifiers) {
-          for (const modifier of effect.statModifiers) {
-            if (modifier.stat === statKey) {
-              const stacks = active.stacks || 1;
-              total += modifier.amount * stacks;
-            }
-          }
-        }
-      }
-    }
-
-    return total;
-  }
-
   private resolveStatusEffect(statusEffectId: string, customEffect?: StatusEffect): StatusEffect | undefined {
     if (customEffect) return customEffect;
     for (const lib of this.libraryStore.allLibraries) {
@@ -252,58 +211,42 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     return undefined;
   }
 
-  // Calculate stat total (base + bonus + level bonus + effect)
-  // Matches stat.component.ts: (base + bonus + effectBonus + gain*level) | 0
-  private calculateStatCurrent(stat: any, statKey: string): number {
-    if (!stat) return 0;
-    const base = stat.base || 0;
-    const bonus = stat.bonus || 0;
-    const gain = stat.gain || 0;
-    const effectBonus = this.calculateStatEffectBonus(statKey as any);
-    // Match exact formula from stat.component.ts
-    return (base + bonus + effectBonus + gain * this.sheet.level) | 0;
-  }
-
-  // Calculate the dice modifier from stat (the purple/red number shown on sheet)
-  // Inverted formula: high stat gives negative modifier (helps roll lower)
-  // Lower is better in this system!
-  private calculateStatDiceBonus(stat: any, statKey: string): number {
-    const current = this.calculateStatCurrent(stat, statKey);
-    // Inverted formula: (5 - total / 2) | 0
-    return (5 - current / 2) | 0;
-  }
-
   statBonuses = computed(() => {
     if (!this.sheet) return [];
     
-    const bonuses: DiceBonus[] = [
-      { name: 'Stärke', value: this.calculateStatDiceBonus(this.sheet.strength, 'strength'), source: 'stat' },
-      { name: 'Geschicklichkeit', value: this.calculateStatDiceBonus(this.sheet.dexterity, 'dexterity'), source: 'stat' },
-      { name: 'Konstitution', value: this.calculateStatDiceBonus(this.sheet.constitution, 'constitution'), source: 'stat' },
-      { name: 'Intelligenz', value: this.calculateStatDiceBonus(this.sheet.intelligence, 'intelligence'), source: 'stat' },
-      { name: 'Wille', value: this.calculateStatDiceBonus(this.sheet.chill, 'chill'), source: 'stat' },
-      { name: 'Geschwindigkeit', value: this.calculateStatDiceBonus(this.sheet.speed, 'speed'), source: 'stat' }
+    const statKeys: Array<{ name: string; key: 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill' }> = [
+      { name: 'Stärke', key: 'strength' },
+      { name: 'Geschicklichkeit', key: 'dexterity' },
+      { name: 'Konstitution', key: 'constitution' },
+      { name: 'Intelligenz', key: 'intelligence' },
+      { name: 'Wille', key: 'chill' },
+      { name: 'Geschwindigkeit', key: 'speed' },
     ];
     
-    return bonuses.filter(b => b.value !== 0);
+    return statKeys
+      .map(({ name, key }) => ({
+        name,
+        value: this.trueStats.calculateStatModifier(this.sheet, key),
+        source: 'stat' as const,
+      }))
+      .filter(b => b.value !== 0);
   });
 
-  /** Talent bonuses: stat dice modifier (inverted, lower=good) minus ranks. */
+  /** Talent bonuses — matches talents tab: -(statModifier + ranks). */
   talentBonuses = computed(() => {
     if (!this.sheet) return [];
     const ranks = this.sheet.talentRanks ?? {};
     return TALENT_DEFINITIONS
       .map(t => {
         const statKey = t.stat as 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill';
-        const statBlock = this.sheet[statKey];
-        const statDiceBonus = this.calculateStatDiceBonus(statBlock, statKey);
+        const statModifier = this.trueStats.calculateStatModifier(this.sheet, statKey);
         const talentRank = ranks[t.id] ?? 0;
-        const totalValue = statDiceBonus - talentRank;
+        const totalValue = -(statModifier + talentRank);
         return {
           name: `Talent: ${t.name}`,
           value: totalValue,
-          source: 'talent',
-          context: `${t.statLabel}: ${statDiceBonus >= 0 ? '+' : ''}${statDiceBonus}, ${talentRank} Ränge`,
+          source: 'talent' as const,
+          context: `${t.statLabel}: ${statModifier >= 0 ? '+' : ''}${statModifier}, ${talentRank} Ränge`,
         } as DiceBonus;
       })
       .filter((b, i) => b.value !== 0 || (ranks[TALENT_DEFINITIONS[i].id] ?? 0) > 0);
@@ -505,19 +448,41 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     await this.animateRoll();
     
     // Calculate actual roll
-    const rolls: number[] = [];
     const diceType = this.selectedDiceType();
     const count = this.diceCount();
-    
-    for (let i = 0; i < count; i++) {
-      rolls.push(Math.floor(Math.random() * diceType) + 1);
+    const bonus = this.totalBonus();
+
+    const rollOnce = (): number[] => {
+      const r: number[] = [];
+      for (let i = 0; i < count; i++) {
+        r.push(Math.floor(Math.random() * diceType) + 1);
+      }
+      return r;
+    };
+
+    let rolls: number[];
+    let advantageRolls: number[][] | undefined;
+    let advantageTotals: number[] | undefined;
+    let chosenAdvantageIndex: number | undefined;
+
+    if (this.useAdvantage()) {
+      const setA = rollOnce();
+      const setB = rollOnce();
+      const totalA = setA.reduce((a, b) => a + b, 0) + bonus;
+      const totalB = setB.reduce((a, b) => a + b, 0) + bonus;
+      advantageRolls = [setA, setB];
+      advantageTotals = [totalA, totalB];
+      chosenAdvantageIndex = totalA <= totalB ? 0 : 1;
+      rolls = advantageRolls[chosenAdvantageIndex];
+    } else {
+      rolls = rollOnce();
     }
     
     const diceSum = rolls.reduce((a, b) => a + b, 0);
-    const total = diceSum + this.totalBonus();
+    const total = diceSum + bonus;
     
     // Get selected bonuses
-    const allBonuses = [...this.availableDiceBonuses(), ...this.statBonuses()];
+    const allBonuses = [...this.availableDiceBonuses(), ...this.statBonuses(), ...this.talentBonuses()];
     const appliedBonuses: DiceBonus[] = [];
     
     this.selectedBonuses().forEach(bonusName => {
@@ -544,7 +509,11 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
       result: total,
       rolls,
       timestamp: new Date(),
-      isSecret: this.isSecretRoll()
+      isSecret: this.isSecretRoll(),
+      advantage: this.useAdvantage() || undefined,
+      advantageRolls,
+      advantageTotals,
+      chosenAdvantageIndex,
     };
     
     this.lastRoll.set(roll);
