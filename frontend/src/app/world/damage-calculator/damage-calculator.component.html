@@ -44,7 +44,7 @@
             (click)="selectSeverity(s)"
           >
             <span class="dmg-sev-label">{{ s.label }}</span>
-            <span class="dmg-sev-multi">x{{ s.multiplier }}</span>
+            <span class="dmg-sev-multi">{{ getSeverityDisplay(s) }}</span>
           </button>
         </div>
       </div>
@@ -65,6 +65,9 @@
             <span class="dmg-result-formula">{{ lastResult.formula }}</span>
           </div>
           <div class="dmg-dice-list">
+            @if (lastResult.flatBonus > 0) {
+              <span class="dmg-flat-chip" title="Effektivitäts-Bonus">+{{ lastResult.flatBonus }}</span>
+            }
             @for (r of lastResult.individualRolls; track $index) {
               <span class="dmg-die-chip"
                     [class.max-roll]="r === lastResult.effektivitaet"

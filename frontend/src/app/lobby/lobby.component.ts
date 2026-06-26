@@ -23,6 +23,7 @@ import { TextureService } from '../services/texture.service';
 import { TrueStatsService } from '../services/true-stats.service';
 import { AssetBrowserApiService } from '../services/asset-browser-api.service';
 import { prepareImageForUpload, formatBytes } from '../shared/image-upload.utils';
+import { mergeControlledCharacterIds } from '../shared/lobby-character-access.utils';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { NpcStatblock } from '../model/npc-statblock.model';
 import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType } from '../model/lobby.model';
@@ -181,8 +182,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // Kampfrunde mode - GM activates to show compact top-bar battle tracker
   kampfrundeMode = signal(false);
 
-  /** Character ID of the viewing player (from ?characterId= URL param). */
-  viewingCharacterId = signal<string | null>(null);
+  /** Character IDs the viewer may see full stats for (?characterId=a,b,c). */
+  viewingCharacterIds = signal<Set<string>>(new Set());
 
   /** GM reminders: characters on turn with active status effects. */
   effectReminderCharacterIds = signal<Set<string>>(new Set());
@@ -261,8 +262,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
         // Check for GM mode
         this.route.queryParamMap.subscribe((queryParams) => {
           this.isGM.set(queryParams.get('gm') === 'true');
-          const charId = queryParams.get('characterId');
-          this.viewingCharacterId.set(charId);
+          const ids = mergeControlledCharacterIds(worldName, queryParams.get('characterId'));
+          this.viewingCharacterIds.set(ids);
         });
 
         // Load lobby
@@ -631,8 +632,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
   canViewTokenStats(characterId: string): boolean {
     if (this.isGM()) return true;
-    const viewerId = this.viewingCharacterId();
-    return !!viewerId && viewerId === characterId;
+    const ids = this.viewingCharacterIds();
+    return ids.size > 0 && ids.has(characterId);
   }
 
   private characterHasActiveEffects(characterId: string): boolean {

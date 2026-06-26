@@ -8,14 +8,23 @@ import { DiceRollEvent, WorldSocketService } from '../../services/world-socket.s
 
 export interface DamageSeverity {
   label: string;
+  /** Dice count for standard severities; display hint for special ones */
   multiplier: number;
   color: string;
   icon: string;
 }
 
+export interface DamageRollPlan {
+  diceCount: number;
+  flatBonus: number;
+  formula: string;
+  displayMulti: string;
+}
+
 export interface DamageRollResult {
   formula: string;
   individualRolls: number[];
+  flatBonus: number;
   total: number;
   severity: DamageSeverity;
   effektivitaet: number;
@@ -28,8 +37,8 @@ const SEVERITY_OPTIONS: DamageSeverity[] = [
   { label: 'Schwacher Treffer',   multiplier: 1, color: '#eab308', icon: '\u25E6' },
   { label: 'Normaler Treffer',    multiplier: 2, color: '#f59e0b', icon: '\u25C8' },
   { label: 'Starker Treffer',     multiplier: 3, color: '#f97316', icon: '\u25C9' },
-  { label: 'Kritischer Treffer',  multiplier: 5, color: '#ef4444', icon: '\u25CE' },
-  { label: 'T\u00F6dlicher Treffer',   multiplier: 8, color: '#dc2626', icon: '\u2726' },
+  { label: 'Kritischer Treffer',  multiplier: 3, color: '#ef4444', icon: '\u25CE' },
+  { label: 'T\u00F6dlicher Treffer',   multiplier: 3, color: '#dc2626', icon: '\u2726' },
 ];
 
 const STORAGE_KEY_STAB = 'dmg-calc-last-stab';
@@ -69,7 +78,38 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
   private rollSound: HTMLAudioElement | null = null;
 
   get formula(): string {
-    return `${this.selectedSeverity.multiplier}d${this.effektivitaet}`;
+    return this.getRollPlan(this.selectedSeverity, this.effektivitaet).formula;
+  }
+
+  getSeverityDisplay(severity: DamageSeverity): string {
+    return this.getRollPlan(severity, this.effektivitaet).displayMulti;
+  }
+
+  private getRollPlan(severity: DamageSeverity, eff: number): DamageRollPlan {
+    const sides = Math.max(2, eff || 2);
+    switch (severity.label) {
+      case 'Kritischer Treffer':
+        return {
+          diceCount: 3,
+          flatBonus: sides,
+          formula: `${sides} + 3d${sides}`,
+          displayMulti: `Eff + ×3`,
+        };
+      case 'T\u00F6dlicher Treffer':
+        return {
+          diceCount: 3,
+          flatBonus: sides * 2,
+          formula: `${sides * 2} + 3d${sides}`,
+          displayMulti: `2×Eff + ×3`,
+        };
+      default:
+        return {
+          diceCount: severity.multiplier,
+          flatBonus: 0,
+          formula: `${severity.multiplier}d${sides}`,
+          displayMulti: `×${severity.multiplier}`,
+        };
+    }
   }
 
   ngOnInit(): void {
@@ -129,7 +169,8 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
     this.playRollSound();
     this.cdr.markForCheck();
 
-    const count = this.selectedSeverity.multiplier;
+    const plan = this.getRollPlan(this.selectedSeverity, this.effektivitaet);
+    const count = plan.diceCount;
     const sides = this.effektivitaet;
     const rolls: number[] = [];
 
@@ -137,14 +178,16 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
       rolls.push(Math.floor(Math.random() * sides) + 1);
     }
 
-    const total = rolls.reduce((a, b) => a + b, 0);
-    const formula = `${count}d${sides}`;
+    const diceSum = rolls.reduce((a, b) => a + b, 0);
+    const total = plan.flatBonus + diceSum;
+    const formula = plan.formula;
     const stab = Math.max(0, this.stabilitaet || 0);
     const finalDmg = stab > 0 ? Math.round(total * (100 / (100 + stab))) : total;
 
     const result: DamageRollResult = {
       formula,
       individualRolls: rolls,
+      flatBonus: plan.flatBonus,
       total,
       severity: this.selectedSeverity,
       effektivitaet: sides,
@@ -191,14 +234,14 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
   useHistoryEntry(entry: DamageRollResult): void {
     this.effektivitaet = entry.effektivitaet;
     this.stabilitaet = entry.stabilitaet;
-    const sev = SEVERITY_OPTIONS.find(s => s.multiplier === entry.severity.multiplier);
+    const sev = SEVERITY_OPTIONS.find(s => s.label === entry.severity.label);
     if (sev) this.selectedSeverity = sev;
     localStorage.setItem(STORAGE_KEY_STAB, String(entry.stabilitaet));
     this.cdr.markForCheck();
   }
 
-  trackBySeverity(_: number, s: DamageSeverity): number {
-    return s.multiplier;
+  trackBySeverity(_: number, s: DamageSeverity): string {
+    return s.label;
   }
 
   trackByTimestamp(_: number, r: DamageRollResult): number {

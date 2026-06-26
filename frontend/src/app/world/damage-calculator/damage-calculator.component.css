@@ -321,6 +321,22 @@
   gap: 5px;
 }
 
+.dmg-flat-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: 5px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  color: #fbbf24;
+}
+
 .dmg-die-chip {
   display: inline-flex;
   align-items: center;
