@@ -325,6 +325,86 @@ export class TrueStatsService {
     return (-5 + total / 2) | 0;
   }
 
+  /** Dice roll modifier (inverted — lower is better). Matches stat card display. */
+  calculateStatDiceModifier(sheet: CharacterSheet, statKey: StatKey): number {
+    const statBlock = sheet[statKey] as StatBlock;
+    const total = this.calculateStat(sheet, statBlock, statKey);
+    return (5 - total / 2) | 0;
+  }
+
+  /** ⌊Level / 5⌋ — base portion that shifts from Reaktion to Grundbonus. */
+  calculateGrundbonusBaseFromLevel(sheet: CharacterSheet): number {
+    return Math.floor((sheet.level || 1) / 5);
+  }
+
+  /** ⌊Wille / 5⌋ — Wille bonus added to Grundbonus. */
+  calculateWilleBonus(sheet: CharacterSheet): number {
+    return Math.floor(this.calculateWille(sheet) / 5);
+  }
+
+  /** Grundbonus = ⌊Level/5⌋ + ⌊Wille/5⌋ + Bonus. */
+  calculateGrundbonus(sheet: CharacterSheet): number {
+    return this.calculateGrundbonusBaseFromLevel(sheet)
+      + this.calculateWilleBonus(sheet)
+      + (sheet.grundbonusBonus || 0);
+  }
+
+  /** Reaktion = 10 − ⌊Wille/5⌋ − ⌊Level/5⌋ + Bonus. */
+  calculateReaktionswert(sheet: CharacterSheet): number {
+    return 10
+      - this.calculateWilleBonus(sheet)
+      - this.calculateGrundbonusBaseFromLevel(sheet)
+      + (sheet.reaktionswertBonus || 0);
+  }
+
+  /** Total speed malus before negation (armor + encumbrance). */
+  calculateTotalSpeedMalus(sheet: CharacterSheet): number {
+    const baseSpeed = this.calculateSpeed(sheet);
+    return this.calculateTotalArmorDebuff(sheet) + this.calculateEncumbrancePenalty(sheet, baseSpeed);
+  }
+
+  getGrundbonusFormulaTooltip(sheet: CharacterSheet): string {
+    const levelBase = this.calculateGrundbonusBaseFromLevel(sheet);
+    const willeBonus = this.calculateWilleBonus(sheet);
+    const extra = sheet.grundbonusBonus || 0;
+    let line = `= ${levelBase} + ${willeBonus}`;
+    if (extra) line += ` + ${extra}`;
+    line += ` = ${this.calculateGrundbonus(sheet)}`;
+    return `⌊Level / 5⌋ + ⌊Wille / 5⌋ + Bonus\n${line}`;
+  }
+
+  getReaktionswertFormulaTooltip(sheet: CharacterSheet): string {
+    const levelBase = this.calculateGrundbonusBaseFromLevel(sheet);
+    const willeBonus = this.calculateWilleBonus(sheet);
+    const extra = sheet.reaktionswertBonus || 0;
+    let line = `= 10 − ${willeBonus} − ${levelBase}`;
+    if (extra) line += ` + ${extra}`;
+    line += ` = ${this.calculateReaktionswert(sheet)}`;
+    return `10 − ⌊Wille / 5⌋ − ⌊Level / 5⌋ + Bonus\n${line}`;
+  }
+
+  getMovementFormulaTooltip(sheet: CharacterSheet): string {
+    const eff = this.calculateEffectiveSpeed(sheet);
+    const mov = this.calculateMovementSpeed(sheet);
+    return `⌊5 + Effektive Geschw. / 4⌋\nEffektive Geschw.: ${eff}\n= ⌊5 + ${eff} / 4⌋ = ${mov}`;
+  }
+
+  getFokusFormulaTooltip(sheet: CharacterSheet): string {
+    const int = this.calculateIntelligence(sheet);
+    const intHalf = Math.floor(int / 2);
+    const fb = sheet.fokusBonus || 0;
+    const fm = sheet.fokusMultiplier || 1;
+    const inner = fb ? `${intHalf} + 5 + ${fb}` : `${intHalf} + 5`;
+    return `(⌊INT / 2⌋ + 5 + Bonus) × Multiplikator\n= (${inner}) × ${fm} = ${this.calculateFokusMax(sheet)}`;
+  }
+
+  getArmorNegationFormulaTooltip(sheet: CharacterSheet): string {
+    const malus = this.calculateTotalSpeedMalus(sheet);
+    const neg = sheet.speedPenaltyNegation || 0;
+    const after = Math.max(0, malus - neg);
+    return `1 Punkt negiert 1 Malus-Punkt (Rüstung + Belastung)\nMalus gesamt: ${malus}, Negation: ${neg}\nVerbleibender Malus: ${after}`;
+  }
+
   /** Stack-aware item weight (weight × amount when stackable). */
   getItemStackWeight(item: { weight?: number; stackable?: boolean; amount?: number } | null | undefined): number {
     if (!item) return 0;

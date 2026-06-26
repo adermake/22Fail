@@ -122,6 +122,10 @@
   color: var(--text-muted);
   opacity: 0.85;
 }
+.formula-label {
+  cursor: help;
+  border-bottom: 1px dotted var(--text-muted);
+}
 .derived-bonus-in {
   width: 48px;
   padding: 0.2rem 0.3rem;

@@ -317,14 +317,14 @@ export class NpcGeneratorService {
     return fokus;
   }
 
-  /** Berechnet Reaktionswert (= 10 − ⌊Wille / 5⌋). */
-  calcReaktionswert(wille: number): number {
-    return 10 - Math.floor(wille / 5);
+  /** Berechnet Reaktionswert (= 10 − ⌊Wille / 5⌋ − ⌊Level / 5⌋). */
+  calcReaktionswert(wille: number, level = 1): number {
+    return 10 - Math.floor(wille / 5) - Math.floor(level / 5);
   }
 
-  /** Berechnet Grundbonus (= ⌊Level / 5⌋). */
-  calcGrundbonus(level: number): number {
-    return Math.floor(level / 5);
+  /** Berechnet Grundbonus (= ⌊Level / 5⌋ + ⌊Wille / 5⌋). */
+  calcGrundbonus(level: number, wille = 10): number {
+    return Math.floor(level / 5) + Math.floor(wille / 5);
   }
 
   // ─── Hilfsmethoden für die UI ─────────────────────────────────────────────

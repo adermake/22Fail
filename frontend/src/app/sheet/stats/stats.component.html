@@ -30,7 +30,7 @@
     <!-- Derived Stats: compact inline row -->
     <div class="derived-stats-compact">
       <div class="derived-item">
-        <span class="derived-name">Grundbonus</span>
+        <span class="derived-name formula-label" [title]="grundbonusTooltip">Grundbonus</span>
         <span class="derived-val">{{ grundbonus }}</span>
         <span class="derived-bonus-lbl">+Bonus</span>
         <input class="derived-bonus-in" type="number"
@@ -39,7 +39,7 @@
       </div>
       <div class="derived-sep">|</div>
       <div class="derived-item">
-        <span class="derived-name">Reaktion</span>
+        <span class="derived-name formula-label" [title]="reaktionTooltip">Reaktion</span>
         <span class="derived-val">{{ reaktionswert }}</span>
         <span class="derived-bonus-lbl">+Bonus</span>
         <input class="derived-bonus-in" type="number"
@@ -48,15 +48,14 @@
       </div>
       <div class="derived-sep">|</div>
       <div class="derived-item">
-        <span class="derived-name">Bewegung</span>
-        <span class="derived-val" title="Effektive Geschw.: {{ effectiveSpeed }}">{{ movementSpeed }}</span>
-        <span class="derived-hint">5+Spd/4</span>
+        <span class="derived-name formula-label" [title]="movementTooltip">Bewegung</span>
+        <span class="derived-val">{{ movementSpeed }}</span>
       </div>
     </div>
     
     <!-- Spell Fokus + SpeedPenalty: compact inline -->
     <div class="fokus-compact">
-      <span class="fokus-lbl">Fokus:</span>
+      <span class="fokus-lbl formula-label" [title]="fokusTooltip">Fokus:</span>
       <span class="fokus-val">{{ fokusValue }}</span>
       <span class="derived-bonus-lbl">Bonus</span>
       <input class="derived-bonus-in" type="number" step="1"
@@ -67,7 +66,7 @@
              [ngModel]="sheet.fokusMultiplier"
              (ngModelChange)="updateFokusSetting('fokusMultiplier', $event)" />
       <span class="derived-sep">|</span>
-      <span class="derived-name">Rüst.Malus Neg.</span>
+      <span class="derived-name formula-label" [title]="armorNegationTooltip">Rüst.Malus Neg.</span>
       <input class="derived-bonus-in" type="number" placeholder="0"
              [ngModel]="sheet.speedPenaltyNegation"
              (ngModelChange)="patch.emit({ path: 'speedPenaltyNegation', value: $event })" />

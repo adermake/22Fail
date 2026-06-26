@@ -71,8 +71,8 @@ export interface CharacterSheet {
   freeStatPoints: number;         // Available free stat points to spend
   freeStatPointsBonus: number;    // GM-assigned bonus stat points
   // Derived stat bonuses
-  grundbonusBonus?: number;       // Extra added to Grundbonus (Level/5)
-  reaktionswertBonus?: number;    // Extra added to Reaktionswert (10 - Wille/5)
+  grundbonusBonus?: number;       // Extra added to Grundbonus (⌊Level/5⌋ + ⌊Wille/5⌋)
+  reaktionswertBonus?: number;    // Extra added to Reaktion (10 − ⌊Wille/5⌋ − ⌊Level/5⌋)
   // Backstory
   backstory?: string;             // Character background story (supports simple markdown)
   // Active / Sustained Skills & Spells

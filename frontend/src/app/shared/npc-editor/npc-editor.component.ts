@@ -115,12 +115,12 @@ export class NpcEditorComponent implements OnInit {
 
   get computedReaktionswert(): number {
     if (this.draft.reaktionswertOverride) return this.draft.reaktionswert;
-    return this.npcGen.calcReaktionswert(this.draft.wille);
+    return this.npcGen.calcReaktionswert(this.draft.wille, this.draft.level);
   }
 
   get computedGrundbonus(): number {
     if (this.draft.grundbonusOverride) return this.draft.grundbonus;
-    return this.npcGen.calcGrundbonus(this.draft.level);
+    return this.npcGen.calcGrundbonus(this.draft.level, this.draft.wille);
   }
 
   get freeStatPoints(): number {
@@ -237,10 +237,10 @@ export class NpcEditorComponent implements OnInit {
       this.draft.fokus = this.npcGen.calcFokus(this.draft.intelligence, this.draft.learnedSkillIds);
     }
     if (!this.draft.reaktionswertOverride) {
-      this.draft.reaktionswert = this.npcGen.calcReaktionswert(this.draft.wille);
+      this.draft.reaktionswert = this.npcGen.calcReaktionswert(this.draft.wille, this.draft.level);
     }
     if (!this.draft.grundbonusOverride) {
-      this.draft.grundbonus = this.npcGen.calcGrundbonus(this.draft.level);
+      this.draft.grundbonus = this.npcGen.calcGrundbonus(this.draft.level, this.draft.wille);
     }
   }
 

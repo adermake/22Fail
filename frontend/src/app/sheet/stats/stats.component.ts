@@ -45,12 +45,31 @@ export class StatsComponent {
   }
 
   get grundbonus(): number {
-    return Math.floor((this.sheet.level || 1) / 5) + (this.sheet.grundbonusBonus || 0);
+    return this.trueStats.calculateGrundbonus(this.sheet);
   }
 
   get reaktionswert(): number {
-    const wille = this.sheet.chill?.current || 10;
-    return 10 - Math.floor(wille / 5) + (this.sheet.reaktionswertBonus || 0);
+    return this.trueStats.calculateReaktionswert(this.sheet);
+  }
+
+  get grundbonusTooltip(): string {
+    return this.trueStats.getGrundbonusFormulaTooltip(this.sheet);
+  }
+
+  get reaktionTooltip(): string {
+    return this.trueStats.getReaktionswertFormulaTooltip(this.sheet);
+  }
+
+  get movementTooltip(): string {
+    return this.trueStats.getMovementFormulaTooltip(this.sheet);
+  }
+
+  get fokusTooltip(): string {
+    return this.trueStats.getFokusFormulaTooltip(this.sheet);
+  }
+
+  get armorNegationTooltip(): string {
+    return this.trueStats.getArmorNegationFormulaTooltip(this.sheet);
   }
 
   adjustStatBonusPoints(delta: number): void {

@@ -226,7 +226,7 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
     return statKeys
       .map(({ name, key }) => ({
         name,
-        value: this.trueStats.calculateStatModifier(this.sheet, key),
+        value: this.trueStats.calculateStatDiceModifier(this.sheet, key),
         source: 'stat' as const,
       }))
       .filter(b => b.value !== 0);
