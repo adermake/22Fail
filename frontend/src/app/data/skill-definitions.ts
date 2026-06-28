@@ -101,7 +101,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'kaempfer_fester_stand',
     name: 'Fester Stand',
     class: 'Kämpfer',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '-1 gegen Rückstoß'
   },
 
