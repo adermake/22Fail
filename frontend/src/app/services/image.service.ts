@@ -24,10 +24,21 @@ export class ImageService {
   async uploadImageFile(file: File | Blob, filename = 'image.jpg'): Promise<string> {
     const form = new FormData();
     form.append('file', file, filename);
-    const response = await firstValueFrom(
-      this.http.post<{ imageId: string }>('/api/images/upload', form)
-    );
-    return response.imageId;
+    try {
+      const response = await firstValueFrom(
+        this.http.post<{ imageId: string }>('/api/images/upload', form)
+      );
+      return response.imageId;
+    } catch (err: any) {
+      const status = err?.status ?? err?.error?.statusCode;
+      if (status === 413) {
+        throw new Error(
+          'Upload abgelehnt (413): Datei zu groß für den Webserver. ' +
+            'nginx client_max_body_size auf mindestens 500m erhöhen (deploy/nginx-eszentrium.example.conf).',
+        );
+      }
+      throw err;
+    }
   }
 
   /**

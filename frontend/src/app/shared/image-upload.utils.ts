@@ -2,6 +2,9 @@
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_MAX_DIMENSION = 8192;
 
+/** World-map macro tiles (~3128×3620 PNG) — keep full resolution, allow large files. */
+export const WORLD_MAP_TILE_MAX_BYTES = 450 * 1024 * 1024;
+
 function jpegName(originalName: string): string {
   const base = originalName.replace(/\.[^/.]+$/, '') || 'image';
   return `${base}.jpg`;
@@ -97,4 +100,74 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function extensionForMime(mime: string, originalName: string): string {
+  if (mime === 'image/webp') return '.webp';
+  if (mime === 'image/png') return '.png';
+  if (mime === 'image/jpeg') return '.jpg';
+  const ext = originalName.match(/(\.[^.]+)$/)?.[1];
+  return ext ?? '.png';
+}
+
+/**
+ * Prepare a world-map macro tile for upload: never downscales (hex alignment depends on pixel size).
+ * Re-encodes as WebP/PNG at full resolution only if the file exceeds maxBytes.
+ */
+export async function prepareWorldMapTileForUpload(
+  file: File,
+  options?: { maxBytes?: number },
+): Promise<File> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Not an image file');
+  }
+
+  const maxBytes = options?.maxBytes ?? WORLD_MAP_TILE_MAX_BYTES;
+  if (file.size <= maxBytes) {
+    return file;
+  }
+
+  const img = await loadImageFromFile(file);
+  try {
+    const width = img.naturalWidth;
+    const height = img.naturalHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas not available');
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const baseName = file.name.replace(/\.[^/.]+$/, '') || 'hex_tile';
+
+    for (const mime of ['image/webp', 'image/png'] as const) {
+      const qualities = mime === 'image/webp' ? [0.95, 0.9, 0.85, 0.8, 0.75, 0.7] : [undefined];
+      for (const quality of qualities) {
+        const blob = await canvasToBlob(canvas, mime, quality ?? 1);
+        if (blob.size <= maxBytes) {
+          const ext = extensionForMime(mime, file.name);
+          return new File([blob], `${baseName}${ext}`, {
+            type: mime,
+            lastModified: Date.now(),
+          });
+        }
+      }
+    }
+
+    throw new Error(
+      `Kachel "${file.name}" ist ${formatBytes(file.size)} — auch nach Komprimierung zu groß. ` +
+        'Bitte nginx client_max_body_size auf mindestens 500m setzen (siehe deploy/nginx-eszentrium.example.conf).',
+    );
+  } finally {
+    img.src = '';
+  }
+}
+
+export function uploadTooLargeMessage(status: number): string | null {
+  if (status !== 413) return null;
+  return (
+    'Upload abgelehnt (413): Datei zu groß für den Webserver. ' +
+    'Auf dem VPS nginx client_max_body_size 500m setzen und neu laden ' +
+    '(deploy/nginx-eszentrium.example.conf).'
+  );
 }

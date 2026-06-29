@@ -35,6 +35,7 @@ import {
 } from '../model/world-map.model';
 import { Stroke, Point, generateId } from '../model/lobby.model';
 import { drawStrokeOnContext } from '../lobby/draw-layer.utils';
+import { prepareWorldMapTileForUpload, formatBytes } from '../shared/image-upload.utils';
 import {
   HEX_WIDTH,
   HEX_HEIGHT,
@@ -544,7 +545,18 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     for (const file of Array.from(files)) {
       try {
-        const imageId = await this.imageService.uploadImageFile(file, file.name);
+        this.statusText.set(`Bereite ${file.name} vor (${formatBytes(file.size)})…`);
+        this.cdr.markForCheck();
+        const prepared = await prepareWorldMapTileForUpload(file);
+        if (prepared !== file) {
+          this.statusText.set(
+            `Komprimiert: ${formatBytes(file.size)} → ${formatBytes(prepared.size)}`,
+          );
+          this.cdr.markForCheck();
+        }
+        this.statusText.set(`Lade ${prepared.name} hoch (${formatBytes(prepared.size)})…`);
+        this.cdr.markForCheck();
+        const imageId = await this.imageService.uploadImageFile(prepared, prepared.name);
         const coords = parseHexFilename(file.name);
         if (!coords) {
           this.statusText.set(`Keine hex_q_r Koordinaten in "${file.name}" — übersprungen`);
@@ -568,9 +580,9 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
           this.store.addMacroTile(tile);
         }
         this.statusText.set(`Kachel ${coords.q},${coords.r} geladen`);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Tile upload failed:', err);
-        this.statusText.set('Upload fehlgeschlagen');
+        this.statusText.set(err?.message ?? 'Upload fehlgeschlagen');
       }
     }
     input.value = '';

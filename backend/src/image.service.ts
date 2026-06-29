@@ -58,6 +58,36 @@ export class ImageService {
   }
 
   /**
+   * Store raw image bytes (multipart upload — avoids base64 memory overhead).
+   */
+  storeImageBuffer(buffer: Buffer, mimetype: string): string {
+    if (!buffer?.length) {
+      throw new Error('Invalid image buffer: empty');
+    }
+
+    const extMatch = mimetype.match(/^image\/([a-zA-Z0-9+.-]+)$/);
+    if (!extMatch) {
+      throw new Error(`Unsupported image mimetype: ${mimetype}`);
+    }
+
+    let extension = extMatch[1].toLowerCase();
+    if (extension === 'jpeg') extension = 'jpg';
+
+    const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+    const imageId = `${hash}.${extension}`;
+    const filePath = path.join(this.imagesDir, imageId);
+
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, buffer);
+      console.log(
+        `[IMAGE SERVICE] Stored new image: ${imageId} (${(buffer.length / (1024 * 1024)).toFixed(2)} MB)`,
+      );
+    }
+
+    return imageId;
+  }
+
+  /**
    * Retrieve an image by its ID
    * @param imageId The unique image ID
    * @returns The base64 data URL or null if not found

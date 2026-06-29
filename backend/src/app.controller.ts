@@ -26,6 +26,10 @@ import * as http from 'http';
 import * as path from 'path';
 import * as fs from 'fs';
 
+/** Multipart upload limit (world-map macro tiles can be 50–200 MB PNG each). */
+const IMAGE_UPLOAD_MAX_BYTES =
+  parseInt(process.env.IMAGE_UPLOAD_MAX_BYTES ?? '', 10) || 500 * 1024 * 1024;
+
 @Controller('api')
 export class AppController {
   constructor(
@@ -292,7 +296,7 @@ export class AppController {
   @Post('images/upload')
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: 100 * 1024 * 1024 },
+      limits: { fileSize: IMAGE_UPLOAD_MAX_BYTES },
     }),
   )
   uploadImageFile(@UploadedFile() file: Express.Multer.File): any {
@@ -303,9 +307,7 @@ export class AppController {
       throw new BadRequestException('File must be an image');
     }
 
-    const base64 = Buffer.from(file.buffer).toString('base64');
-    const dataUrl = `data:${file.mimetype};base64,${base64}`;
-    const imageId = this.imageService.storeImage(dataUrl);
+    const imageId = this.imageService.storeImageBuffer(file.buffer, file.mimetype);
     return { imageId };
   }
 
