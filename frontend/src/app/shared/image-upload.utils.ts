@@ -2,8 +2,8 @@
 const DEFAULT_MAX_BYTES = 10 * 1024 * 1024;
 const DEFAULT_MAX_DIMENSION = 8192;
 
-/** World-map macro tiles (~3128×3620 PNG) — keep full resolution, allow large files. */
-export const WORLD_MAP_TILE_MAX_BYTES = 450 * 1024 * 1024;
+/** Stay under typical nginx client_max_body_size 100m (leave headroom for multipart overhead). */
+export const WORLD_MAP_TILE_MAX_BYTES = 95 * 1024 * 1024;
 
 function jpegName(originalName: string): string {
   const base = originalName.replace(/\.[^/.]+$/, '') || 'image';
@@ -141,7 +141,10 @@ export async function prepareWorldMapTileForUpload(
     const baseName = file.name.replace(/\.[^/.]+$/, '') || 'hex_tile';
 
     for (const mime of ['image/webp', 'image/png'] as const) {
-      const qualities = mime === 'image/webp' ? [0.95, 0.9, 0.85, 0.8, 0.75, 0.7] : [undefined];
+      const qualities =
+        mime === 'image/webp'
+          ? [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45]
+          : [undefined];
       for (const quality of qualities) {
         const blob = await canvasToBlob(canvas, mime, quality ?? 1);
         if (blob.size <= maxBytes) {
@@ -155,8 +158,8 @@ export async function prepareWorldMapTileForUpload(
     }
 
     throw new Error(
-      `Kachel "${file.name}" ist ${formatBytes(file.size)} — auch nach Komprimierung zu groß. ` +
-        'Bitte nginx client_max_body_size auf mindestens 500m setzen (siehe deploy/nginx-eszentrium.example.conf).',
+      `Kachel "${file.name}" ist ${formatBytes(file.size)} — auch als WebP unter ${formatBytes(maxBytes)} nicht darstellbar. ` +
+        'Entweder nginx client_max_body_size erhöhen (z. B. 500m) oder Kacheln extern verkleinern.',
     );
   } finally {
     img.src = '';
@@ -166,8 +169,8 @@ export async function prepareWorldMapTileForUpload(
 export function uploadTooLargeMessage(status: number): string | null {
   if (status !== 413) return null;
   return (
-    'Upload abgelehnt (413): Datei zu groß für den Webserver. ' +
-    'Auf dem VPS nginx client_max_body_size 500m setzen und neu laden ' +
-    '(deploy/nginx-eszentrium.example.conf).'
+    'Upload abgelehnt (413): nginx client_max_body_size ist vermutlich 100m und die Datei ist größer. ' +
+    'Nach dem nächsten Frontend-Deploy werden große Kacheln automatisch komprimiert. ' +
+    'Alternativ nginx auf 500m erhöhen.'
   );
 }

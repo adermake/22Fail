@@ -40,6 +40,25 @@ export class AppController {
     private readonly characterGateway: CharacterGateway, // Add this
   ) {}
 
+  /** Helps debug 413 upload errors (compare with nginx client_max_body_size). */
+  @Get('health/upload-limits')
+  getUploadLimits(): {
+    multipartMaxBytes: number;
+    multipartMaxLabel: string;
+    jsonBodyLimit: string;
+    hint: string;
+  } {
+    const mb = IMAGE_UPLOAD_MAX_BYTES / (1024 * 1024);
+    return {
+      multipartMaxBytes: IMAGE_UPLOAD_MAX_BYTES,
+      multipartMaxLabel: `${mb} MB`,
+      jsonBodyLimit: process.env.BODY_SIZE_LIMIT ?? '200mb',
+      hint:
+        '413 on a ~10 MB file usually means nginx still uses the default 1m limit — ' +
+        'run: sudo nginx -T | grep client_max_body_size',
+    };
+  }
+
   // Image proxy endpoint - downloads image from URL and returns it
   // This avoids CORS issues when searching for images
   @Get('images/proxy')

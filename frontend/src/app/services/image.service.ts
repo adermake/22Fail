@@ -33,8 +33,9 @@ export class ImageService {
       const status = err?.status ?? err?.error?.statusCode;
       if (status === 413) {
         throw new Error(
-          'Upload abgelehnt (413): Datei zu groß für den Webserver. ' +
-            'nginx client_max_body_size auf mindestens 500m erhöhen (deploy/nginx-eszentrium.example.conf).',
+          'Upload abgelehnt (413): Der Webserver blockiert die Datei — bei ~10 MB ist nginx ' +
+            'fast sicher noch auf dem Standard 1m (nicht 100m). Auf dem VPS prüfen: ' +
+            'sudo nginx -T | grep client_max_body_size',
         );
       }
       throw err;
