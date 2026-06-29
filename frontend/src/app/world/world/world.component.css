@@ -13,6 +13,26 @@
 
 .world-header {
   margin-bottom: 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.world-header-links {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.world-header-links a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.world-header-links a:hover {
+  text-decoration: underline;
 }
 
 .world-header h1 {

@@ -82,6 +82,10 @@ export class DataService {
     return path.join(this.getWorldDir(worldName), 'lobby.json');
   }
 
+  private getWorldOvermapFilePath(worldName: string): string {
+    return path.join(this.getWorldDir(worldName), 'world-map.json');
+  }
+
   private getWorldMapsDir(worldName: string): string {
     return path.join(this.getWorldDir(worldName), 'maps');
   }
@@ -692,6 +696,50 @@ export class DataService {
       console.error(`Error saving lobby for ${worldName}:`, error);
       throw error;
     }
+  }
+
+  getWorldOvermap(worldName: string): any | null {
+    const filePath = this.getWorldOvermapFilePath(worldName);
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+    try {
+      const json = fs.readFileSync(filePath, 'utf-8');
+      return JSON.parse(json);
+    } catch (error) {
+      console.error(`Error reading world map for ${worldName}:`, error);
+      return null;
+    }
+  }
+
+  saveWorldOvermap(worldName: string, data: any): any {
+    try {
+      this.ensureWorldDirectories(worldName);
+      const filePath = this.getWorldOvermapFilePath(worldName);
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      console.log('SAVED world map for world:', worldName);
+      return data;
+    } catch (error) {
+      console.error(`Error saving world map for ${worldName}:`, error);
+      throw error;
+    }
+  }
+
+  applyPatchToWorldOvermap(worldName: string, patch: JsonPatch): any | null {
+    let data = this.getWorldOvermap(worldName);
+    if (!data) {
+      data = {
+        worldName,
+        macroTiles: [],
+        revealedSubHexes: [],
+        strokes: [],
+        tokens: [],
+        updatedAt: Date.now(),
+      };
+    }
+    this.applyJsonPatch(data, patch);
+    data.updatedAt = Date.now();
+    return this.saveWorldOvermap(worldName, data);
   }
 
   getMap(worldName: string, mapId: string): any | null {

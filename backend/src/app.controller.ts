@@ -546,6 +546,16 @@ export class AppController {
     return lobby;
   }
 
+  @Get('worlds/:worldName/world-map')
+  getWorldMap(@Param('worldName') worldName: string): any {
+    return this.dataService.getWorldOvermap(worldName);
+  }
+
+  @Post('worlds/:worldName/world-map')
+  saveWorldMap(@Param('worldName') worldName: string, @Body() body: any): any {
+    return this.dataService.saveWorldOvermap(worldName, body);
+  }
+
   @Get('worlds/:worldName/lobby/maps/:mapId')
   getMap(@Param('worldName') worldName: string, @Param('mapId') mapId: string): any {
     const map = this.dataService.getMap(worldName, mapId);

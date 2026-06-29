@@ -47,4 +47,10 @@ export class CharacterComponent {
       );
     }
   }
+
+  openWorldMap() {
+    if (this.sheet.worldName) {
+      window.open(`/world-map/${this.sheet.worldName}`, '_blank');
+    }
+  }
 }

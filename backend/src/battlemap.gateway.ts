@@ -18,6 +18,7 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   // Transient per-map measurements: mapId → (socketId → MeasurementLine)
   private activeMeasurements = new Map<string, Map<string, { id: string; start: { x: number; y: number }; end: { x: number; y: number }; createdBy: string }>>();
+  private activeWorldMapMeasurements = new Map<string, Map<string, { id: string; start: { x: number; y: number }; end: { x: number; y: number }; createdBy: string }>>();
 
   constructor(private readonly dataService: DataService) {}
 
@@ -33,6 +34,13 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
         measurements.delete(client.id);
         const remaining = Array.from(measurements.values());
         this.server.to(`map-${mapId}`).emit('measurementUpdate', remaining);
+      }
+    }
+    for (const [worldName, measurements] of this.activeWorldMapMeasurements.entries()) {
+      if (measurements.has(client.id)) {
+        measurements.delete(client.id);
+        const remaining = Array.from(measurements.values());
+        this.server.to(`worldmap-${worldName}`).emit('worldMapMeasurementUpdate', remaining);
       }
     }
   }
@@ -116,6 +124,49 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.server.to(room).emit('mainViewChanged', { mapId });
     
     console.log(`[BATTLEMAP GATEWAY] Broadcasted mainViewChanged to ${room}`);
+  }
+
+  @SubscribeMessage('joinWorldMap')
+  joinWorldMap(
+    @MessageBody() data: { worldName: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const room = `worldmap-${data.worldName}`;
+    client.join(room);
+    console.log(`Client ${client.id} joined world map for ${data.worldName}`);
+  }
+
+  @SubscribeMessage('patchWorldMap')
+  handleWorldMapPatch(
+    @MessageBody() data: { worldName: string; patch: JsonPatch },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { worldName, patch } = data;
+    this.dataService.applyPatchToWorldOvermap(worldName, patch);
+    const room = `worldmap-${worldName}`;
+    this.server.to(room).emit('worldMapPatched', patch);
+  }
+
+  @SubscribeMessage('updateWorldMapMeasurement')
+  handleWorldMapMeasurement(
+    @MessageBody() data: {
+      worldName: string;
+      measurement: { id: string; start: { x: number; y: number }; end: { x: number; y: number }; createdBy: string } | null;
+    },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { worldName, measurement } = data;
+    if (!this.activeWorldMapMeasurements.has(worldName)) {
+      this.activeWorldMapMeasurements.set(worldName, new Map());
+    }
+    const mapMeasurements = this.activeWorldMapMeasurements.get(worldName)!;
+    if (measurement === null) {
+      mapMeasurements.delete(client.id);
+    } else {
+      mapMeasurements.set(client.id, { ...measurement, id: client.id, createdBy: client.id });
+    }
+    const allMeasurements = Array.from(mapMeasurements.values());
+    this.server.to(`worldmap-${worldName}`).emit('worldMapMeasurementUpdate', allMeasurements);
   }
 
   // Handle real-time measurement sync

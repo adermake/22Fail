@@ -2,6 +2,10 @@
 <div class="world-container">
   <div class="world-header">
     <h1>{{ worldName }} - GM Ansicht</h1>
+    <div class="world-header-links">
+      <a [href]="'/lobby/' + worldName + '?gm=true'" target="_blank" rel="noopener">🌍 Lobby</a>
+      <a [href]="'/world-map/' + worldName + '?gm=true'" target="_blank" rel="noopener">🗺 Weltkarte</a>
+    </div>
   </div>
 
   <!-- Top Section: Character Management -->

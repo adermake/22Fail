@@ -1,0 +1,56 @@
+<div class="world-map-page">
+  <header class="wm-toolbar">
+    <div class="wm-title">
+      <span class="world-name">{{ worldName() }}</span>
+      <span class="role-badge" [class.gm]="isGM()">{{ isGM() ? 'GM' : 'Spieler' }}</span>
+    </div>
+
+    <div class="tool-group">
+      @for (tool of visibleTools(); track tool.id) {
+        <button
+          type="button"
+          class="tool-btn"
+          [class.active]="currentTool() === tool.id"
+          [title]="tool.label"
+          (click)="setTool(tool.id)"
+        >
+          {{ tool.icon }}
+        </button>
+      }
+    </div>
+
+    @if (currentTool() === 'draw' || currentTool() === 'erase') {
+      <div class="tool-options">
+        <input type="color" [ngModel]="brushColor()" (ngModelChange)="brushColor.set($event)" />
+        <input type="range" min="2" max="40" [ngModel]="brushSize()" (ngModelChange)="brushSize.set(+$event)" />
+      </div>
+    }
+
+    @if (isGM()) {
+      <div class="gm-actions">
+        <label class="upload-btn">
+          Kacheln laden
+          <input type="file" accept="image/*" multiple hidden (change)="onTileFilesSelected($event)" />
+        </label>
+        @if (selectedMacroTileId()) {
+          <button type="button" class="danger-btn" (click)="removeSelectedMacroTile()">Kachel entfernen</button>
+        }
+        @if (selectedSubHexes().size > 0) {
+          <button type="button" (click)="revealSelection()">Aufdecken</button>
+          <button type="button" (click)="recoverSelection()">Verbergen</button>
+        }
+      </div>
+    }
+
+    @if (selectedTokenId()) {
+      <button type="button" class="danger-btn" (click)="removeSelectedToken()">Token entfernen</button>
+    }
+
+    <div class="wm-status">{{ statusText() }}</div>
+  </header>
+
+  <div class="viewer-wrap">
+    <div #viewerHost class="viewer-host"></div>
+    <canvas #overlayCanvas class="overlay-canvas"></canvas>
+  </div>
+</div>

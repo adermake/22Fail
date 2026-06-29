@@ -22,6 +22,10 @@ export const routes: Routes = [
         path: 'lobby/:worldName', 
         loadComponent: () => import('./lobby/lobby.component').then(m => m.LobbyComponent)
     },
+    {
+        path: 'world-map/:worldName',
+        loadComponent: () => import('./world-map/world-map.component').then(m => m.WorldMapComponent)
+    },
     { 
         path: 'library/:libraryId', 
         loadComponent: () => import('./library-editor/library-editor.component').then(m => m.LibraryEditorComponent)
