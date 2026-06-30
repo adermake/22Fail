@@ -27,6 +27,7 @@
 .sc[data-type="passive"]    { --tc: #a78bfa; --tc-bg: rgba(167,139,250,0.10); }
 .sc[data-type="dice_bonus"] { --tc: #34d399; --tc-bg: rgba(52,211,153,0.10);  }
 .sc[data-type="stat_bonus"] { --tc: #38bdf8; --tc-bg: rgba(56,189,248,0.10);  }
+.sc[data-type="talent_bonus"] { --tc: #fbbf24; --tc-bg: rgba(251,191,36,0.10); }
 
 .sc.sc-disabled {
   opacity: 0.45;

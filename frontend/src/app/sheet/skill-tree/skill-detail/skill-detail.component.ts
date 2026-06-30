@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SkillDefinition } from '../../../model/skill-definition.model';
+import { TALENT_DEFINITIONS } from '../../../data/talent-definitions';
 
 @Component({
   selector: 'app-skill-detail',
@@ -35,7 +36,7 @@ export class SkillDetailComponent {
 
   private sortSkills(skills: SkillDefinition[]): SkillDefinition[] {
     // Sort order: dice_bonus, active, passive, stat_bonus
-    const typeOrder = { 'dice_bonus': 0, 'active': 1, 'passive': 2, 'stat_bonus': 3 };
+    const typeOrder = { 'dice_bonus': 0, 'active': 1, 'passive': 2, 'stat_bonus': 3, 'talent_bonus': 4 };
     return [...skills].sort((a, b) => {
       const orderA = typeOrder[a.type] ?? 4;
       const orderB = typeOrder[b.type] ?? 4;
@@ -132,6 +133,7 @@ export class SkillDetailComponent {
       case 'active': return 'Aktiv';
       case 'passive': return 'Passiv';
       case 'stat_bonus': return 'Bonus';
+      case 'talent_bonus': return 'Talent';
       default: return type;
     }
   }
@@ -183,6 +185,23 @@ export class SkillDetailComponent {
     const label = statLabels[skill.statBonus.stat] || skill.statBonus.stat;
     const sign = skill.statBonus.amount >= 0 ? '+' : '';
     return `${sign}${skill.statBonus.amount} ${label}`;
+  }
+
+  getTalentBonusDisplay(skill: SkillDefinition): string {
+    const parts: string[] = [];
+    if (skill.talentBonus) {
+      const name = TALENT_DEFINITIONS.find(t => t.id === skill.talentBonus!.talent)?.name ?? skill.talentBonus.talent;
+      const sign = skill.talentBonus.amount >= 0 ? '+' : '';
+      parts.push(`${sign}${skill.talentBonus.amount} ${name}`);
+    }
+    if (skill.talentBonuses) {
+      for (const bonus of skill.talentBonuses) {
+        const name = TALENT_DEFINITIONS.find(t => t.id === bonus.talent)?.name ?? bonus.talent;
+        const sign = bonus.amount >= 0 ? '+' : '';
+        parts.push(`${sign}${bonus.amount} ${name}`);
+      }
+    }
+    return parts.join(', ');
   }
 
   getLockedReason(): string {

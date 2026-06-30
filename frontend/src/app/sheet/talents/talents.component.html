@@ -51,10 +51,19 @@
               <button class="rank-btn plus" (click)="incrementRank(talent.id)" [disabled]="!canIncrement(talent.id)">+</button>
             </div>
           </span>
-          <span class="col-total" [class.dice-bonus]="getDiceBonus(talent) < 0" [class.dice-neutral]="getDiceBonus(talent) === 0" [class.dice-penalty]="getDiceBonus(talent) > 0">
-            {{ getDiceBonus(talent) > 0 ? '+' : '' }}{{ getDiceBonus(talent) }}
+          <span class="col-total" [class.dice-bonus]="getTotalDiceBonus(talent) < 0" [class.dice-neutral]="getTotalDiceBonus(talent) === 0" [class.dice-penalty]="getTotalDiceBonus(talent) > 0">
+            {{ getTotalDiceBonus(talent) > 0 ? '+' : '' }}{{ getTotalDiceBonus(talent) }}
           </span>
         </div>
+        @if (getSkillTalentBonus(talent.id) !== 0) {
+          <div class="talent-row talent-row-skill-bonus" [title]="getSkillTalentBonusTooltip(talent.id)">
+            <span class="col-name talent-name skill-bonus-label">Fähigkeiten</span>
+            <span class="col-stat"></span>
+            <span class="col-mod"></span>
+            <span class="col-ranks skill-bonus-value">+{{ getSkillTalentBonus(talent.id) }}</span>
+            <span class="col-total dice-bonus">−{{ getSkillTalentBonus(talent.id) }}</span>
+          </div>
+        }
       }
     </div>
 

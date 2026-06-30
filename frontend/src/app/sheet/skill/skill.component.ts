@@ -9,6 +9,7 @@ import { ClassTree } from '../class-tree-model';
 import { KeywordEnhancer } from '../keyword-enhancer';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SKILL_DEFINITIONS, CLASS_DEFINITIONS } from '../../data/skill-definitions';
+import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
 import { ActionMacro } from '../../model/action-macro.model';
 import { MacroExecutorService } from '../../services/macro-executor.service';
@@ -189,7 +190,7 @@ export class SkillComponent {
       ?? SKILL_DEFINITIONS.find(s => s.name === this.skill.name);
   }
 
-  get effectiveType(): 'active' | 'passive' | 'dice_bonus' | 'stat_bonus' {
+  get effectiveType(): 'active' | 'passive' | 'dice_bonus' | 'stat_bonus' | 'talent_bonus' {
     return this.definition?.type ?? this.skill.type;
   }
 
@@ -225,6 +226,7 @@ export class SkillComponent {
       passive:    '\uD83D\uDD2E',     // crystal ball
       dice_bonus: '\uD83C\uDFB2',     // dice
       stat_bonus: '\uD83D\uDCC8',     // chart
+      talent_bonus: '\u2B50',         // star
     };
     return icons[this.effectiveType] ?? '\u2726';
   }
@@ -235,6 +237,7 @@ export class SkillComponent {
       passive: 'Passiv',
       dice_bonus: 'W\u00FCrfelbonus',
       stat_bonus: 'Stat-Bonus',
+      talent_bonus: 'Talent-Bonus',
     };
     return labels[this.effectiveType] ?? this.effectiveType;
   }
@@ -270,6 +273,24 @@ export class SkillComponent {
     if (def.statBonus) parts.push(`+${def.statBonus.amount} ${this.shortStat(def.statBonus.stat)}`);
     if (def.statBonuses) def.statBonuses.forEach(b => parts.push(`+${b.amount} ${this.shortStat(b.stat)}`));
     return parts.join(', ');
+  }
+
+  get talentSummary(): string {
+    const def = this.definition;
+    if (!def) return '';
+    const parts: string[] = [];
+    const level = this.skill.level ?? 1;
+    if (def.talentBonus) {
+      parts.push(`+${def.talentBonus.amount * level} ${this.talentName(def.talentBonus.talent)}`);
+    }
+    if (def.talentBonuses) {
+      def.talentBonuses.forEach(b => parts.push(`+${b.amount * level} ${this.talentName(b.talent)}`));
+    }
+    return parts.join(', ');
+  }
+
+  private talentName(talentId: string): string {
+    return TALENT_DEFINITIONS.find(t => t.id === talentId)?.name ?? talentId;
   }
 
   private shortStat(stat: string): string {

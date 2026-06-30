@@ -5,6 +5,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
+import { computeSkillTalentBonuses } from '../../utils/skill-talent-bonus.utils';
 import { WorldSocketService, DiceRollEvent } from '../../services/world-socket.service';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { StatusEffect } from '../../model/status-effect.model';
@@ -232,24 +233,28 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
       .filter(b => b.value !== 0);
   });
 
-  /** Talent bonuses — matches talents tab: -(statModifier + ranks). */
+  /** Talent bonuses — matches talents tab: -(statModifier + ranks + skill bonuses). */
   talentBonuses = computed(() => {
     if (!this.sheet) return [];
     const ranks = this.sheet.talentRanks ?? {};
+    const skillBonuses = computeSkillTalentBonuses(this.sheet);
     return TALENT_DEFINITIONS
       .map(t => {
         const statKey = t.stat as 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill';
         const statModifier = this.trueStats.calculateStatModifier(this.sheet, statKey);
         const talentRank = ranks[t.id] ?? 0;
-        const totalValue = -(statModifier + talentRank);
+        const skillBonus = skillBonuses.get(t.id) ?? 0;
+        const totalValue = -(statModifier + talentRank + skillBonus);
+        const contextParts = [`${t.statLabel}: ${statModifier >= 0 ? '+' : ''}${statModifier}`, `${talentRank} Ränge`];
+        if (skillBonus !== 0) contextParts.push(`+${skillBonus} Fähigkeiten`);
         return {
           name: `Talent: ${t.name}`,
           value: totalValue,
           source: 'talent' as const,
-          context: `${t.statLabel}: ${statModifier >= 0 ? '+' : ''}${statModifier}, ${talentRank} Ränge`,
+          context: contextParts.join(', '),
         } as DiceBonus;
       })
-      .filter((b, i) => b.value !== 0 || (ranks[TALENT_DEFINITIONS[i].id] ?? 0) > 0);
+      .filter((b, i) => b.value !== 0 || (ranks[TALENT_DEFINITIONS[i].id] ?? 0) > 0 || (skillBonuses.get(TALENT_DEFINITIONS[i].id) ?? 0) > 0);
   });
 
   totalBonus = computed(() => {

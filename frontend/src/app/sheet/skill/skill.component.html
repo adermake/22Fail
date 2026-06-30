@@ -26,6 +26,11 @@
     <div class="sc-stat-summary">{{ statSummary }}</div>
   }
 
+  <!-- Talent summary for talent_bonus type -->
+  @if (effectiveType === 'talent_bonus' && talentSummary) {
+    <div class="sc-stat-summary">{{ talentSummary }}</div>
+  }
+
   <!-- Description -->
   <div class="sc-desc" [innerHTML]="enhancedDescription"></div>
 

@@ -95,6 +95,11 @@
   background: linear-gradient(90deg, rgba(59, 130, 246, 0.08) 0%, var(--bg) 100%);
 }
 
+.skill-item.type-talent-bonus {
+  border-left-color: #fbbf24;
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.08) 0%, var(--bg) 100%);
+}
+
 .skill-item:hover {
   border-color: var(--accent);
   transform: translateX(2px);
@@ -174,6 +179,11 @@
 .skill-type.type-stat-bonus {
   background: #3b82f6;
   color: white;
+}
+
+.skill-type.type-talent-bonus {
+  background: #fbbf24;
+  color: #1f2937;
 }
 
 .enlightened-badge {
@@ -262,6 +272,12 @@
 .stat-bonus {
   font-weight: 600;
   color: #3b82f6;
+  margin-bottom: 0.2rem;
+}
+
+.talent-bonus {
+  font-weight: 600;
+  color: #fbbf24;
   margin-bottom: 0.2rem;
 }
 

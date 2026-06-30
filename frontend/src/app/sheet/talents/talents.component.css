@@ -168,6 +168,26 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+.talent-row-skill-bonus {
+  background: rgba(251, 191, 36, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 0.15rem;
+  padding-bottom: 0.15rem;
+}
+
+.skill-bonus-label {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: #fbbf24;
+  padding-left: 0.75rem;
+}
+
+.skill-bonus-value {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
 .col-name { padding-right: 0.5rem; }
 .col-stat,
 .col-mod,

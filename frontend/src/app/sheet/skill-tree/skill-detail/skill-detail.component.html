@@ -52,7 +52,8 @@
             class="skill-item"            [class.type-dice-bonus]="skill.type === 'dice_bonus'"
             [class.type-active]="skill.type === 'active'"
             [class.type-passive]="skill.type === 'passive'"
-            [class.type-stat-bonus]="skill.type === 'stat_bonus'"            [class.learned]="isLearned(skill)"
+            [class.type-stat-bonus]="skill.type === 'stat_bonus'"
+            [class.type-talent-bonus]="skill.type === 'talent_bonus'"            [class.learned]="isLearned(skill)"
             [class.can-learn]="canLearn(skill)"
             [class.enlightened]="skill.enlightened"
             [class.infinite-level]="skill.infiniteLevel"
@@ -114,6 +115,12 @@
               @if (skill.type === 'stat_bonus' && skill.statBonus) {
                 <div class="stat-bonus">
                   {{ getStatBonusDisplay(skill) }}
+                </div>
+              }
+
+              @if (skill.type === 'talent_bonus' && (skill.talentBonus || skill.talentBonuses)) {
+                <div class="talent-bonus">
+                  {{ getTalentBonusDisplay(skill) }}
                 </div>
               }
 

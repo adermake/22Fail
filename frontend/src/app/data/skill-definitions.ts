@@ -2597,6 +2597,18 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     cost: { type: 'life', amount: 20, perRound: true },
     actionType: 'Bonusaktion'
   },
+
+  // ==================== EXAMPLE: talent_bonus ====================
+  // Grants +1 virtual rank to Akrobatik (shown on Talente tab + dice roller).
+  // talent ids: see talent-definitions.ts (e.g. 'akrobatik', 'athletik', 'wahrnehmung')
+  {
+    id: 'example_akrobatik_talent_1',
+    name: 'Akrobatik+1',
+    class: 'Kampfakrobat',
+    type: 'talent_bonus',
+    description: 'Erhöht Akrobatik um 1 Punkt (virtuell, zählt für Würfelbonus).',
+    talentBonus: { talent: 'akrobatik', amount: 1 },
+  },
 ];
 
 // Helper to get skills for a specific class

@@ -59,6 +59,7 @@ export class SkillsComponent implements OnInit {
     { value: 'passive',    label: '\uD83D\uDD2E Passiv' },
     { value: 'dice_bonus', label: '\uD83C\uDFB2 W\u00FCrfelbonus' },
     { value: 'stat_bonus', label: '\uD83D\uDCC8 Stat-Bonus' },
+    { value: 'talent_bonus', label: '\u2B50 Talent-Bonus' },
   ];
   readonly actionOptions = [
     { value: 'Aktion',       label: '\u2694 Aktion' },
@@ -85,6 +86,7 @@ export class SkillsComponent implements OnInit {
     passive: 'passiv',
     dice_bonus: 'wuerfelbonus wuerfeln wuerfel',
     stat_bonus: 'stat-bonus',
+    talent_bonus: 'talent-bonus talent',
   };
   private readonly COST_LABELS: Record<string, string> = {
     mana: 'mana', energy: 'energie ausdauer', life: 'leben',
@@ -243,7 +245,7 @@ export class SkillsComponent implements OnInit {
     }
 
     // Sort
-    const typeOrder: Record<string, number> = { active: 0, passive: 1, dice_bonus: 2, stat_bonus: 3 };
+    const typeOrder: Record<string, number> = { active: 0, passive: 1, dice_bonus: 2, stat_bonus: 3, talent_bonus: 4 };
     const dir = this.sortDir === 'asc' ? 1 : -1;
     skills.sort((a, b) => {
       const da = this.getDefinition(a), db = this.getDefinition(b);

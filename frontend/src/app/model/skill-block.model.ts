@@ -10,7 +10,7 @@ export class SkillBlock {
   name!: string;
   class!: string;
   description!: string;
-  type!: 'active' | 'passive' | 'dice_bonus' | 'stat_bonus';
+  type!: 'active' | 'passive' | 'dice_bonus' | 'stat_bonus' | 'talent_bonus';
   enlightened!: boolean;
   level?: number;
   skillId?: string;

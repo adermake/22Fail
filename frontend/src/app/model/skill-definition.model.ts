@@ -1,12 +1,19 @@
+import { TalentId } from '../data/talent-definitions';
+
 export type SkillStatType =
   'intelligence' | 'strength' | 'dexterity' | 'speed' | 'constitution' | 'chill' |
   'mana' | 'life' | 'energy' | 'focus' | 'maxCastValue' | 'spellRadius';
+
+export interface SkillTalentBonus {
+  talent: TalentId;
+  amount: number;
+}
 
 export interface SkillDefinition {
   id: string;                    // Unique ID: "magier_intelligenz_1"
   name: string;                  // Display name: "Intelligenz+1"
   class: string;                 // Class: "Magier"
-  type: 'stat_bonus' | 'passive' | 'active' | 'dice_bonus';
+  type: 'stat_bonus' | 'passive' | 'active' | 'dice_bonus' | 'talent_bonus';
   description: string;           // Full description
   enlightened?: boolean;         // If true, skill is "enlightened" (marked with ! in original data)
 
@@ -21,6 +28,10 @@ export interface SkillDefinition {
     stat: SkillStatType;
     amount: number;
   }>;
+
+  // For talent bonuses (type: 'talent_bonus') — adds virtual ranks to sheet talents
+  talentBonus?: SkillTalentBonus;
+  talentBonuses?: SkillTalentBonus[];
 
   // For active skills (type: 'active')
   cost?: {

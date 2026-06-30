@@ -135,3 +135,6 @@ export const TALENT_DEFINITIONS: TalentDefinition[] = [
     description: 'Aktionen, um schwer Erkennbares wahrzunehmen.',
   },
 ];
+
+/** Talent id from TALENT_DEFINITIONS (e.g. 'akrobatik', 'athletik'). */
+export type TalentId = (typeof TALENT_DEFINITIONS)[number]['id'];

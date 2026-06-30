@@ -6,6 +6,7 @@ import { CharacterSheet, HerstellenEntry } from '../../model/character-sheet-mod
 import { JsonPatch } from '../../model/json-patch.model';
 import { TALENT_DEFINITIONS, TalentDefinition } from '../../data/talent-definitions';
 import { TrueStatsService } from '../../services/true-stats.service';
+import { computeSkillTalentBonusBreakdown } from '../../utils/skill-talent-bonus.utils';
 
 @Component({
   selector: 'app-talents',
@@ -60,7 +61,23 @@ export class TalentsComponent {
     return this.trueStats.calculateStatModifier(this.sheet, talent.stat as any);
   }
 
-  /** Würfelbonus: negative = helpful. Each rank = -1. */
+  /** Virtual ranks from learned Fähigkeiten (type: talent_bonus). */
+  getSkillTalentBonus(talentId: string): number {
+    return computeSkillTalentBonusBreakdown(this.sheet).get(talentId as any)?.total ?? 0;
+  }
+
+  getSkillTalentBonusTooltip(talentId: string): string {
+    const breakdown = computeSkillTalentBonusBreakdown(this.sheet).get(talentId as any);
+    if (!breakdown?.sources.length) return '';
+    return breakdown.sources.map(s => `${s.skillName}: +${s.amount}`).join('\n');
+  }
+
+  /** Würfelbonus including invested ranks and skill bonuses. Negative = helpful. */
+  getTotalDiceBonus(talent: TalentDefinition): number {
+    return -(this.getStatModifier(talent) + this.getRank(talent.id) + this.getSkillTalentBonus(talent.id));
+  }
+
+  /** Würfelbonus: negative = helpful. Each rank = -1 (base only, without skill bonuses). */
   getDiceBonus(talent: TalentDefinition): number {
     return -(this.getStatModifier(talent) + this.getRank(talent.id));
   }
