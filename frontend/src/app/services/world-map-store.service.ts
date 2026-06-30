@@ -131,6 +131,12 @@ export class WorldMapStoreService {
     this.patch('strokes', strokes);
   }
 
+  undoStroke(): void {
+    const strokes = this.data?.strokes ?? [];
+    if (strokes.length === 0) return;
+    this.patch('strokes', strokes.slice(0, -1));
+  }
+
   setStrokes(strokes: Stroke[]): void {
     this.patch('strokes', strokes);
   }

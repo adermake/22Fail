@@ -1,0 +1,164 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--card, #1f2937);
+  border-bottom: 1px solid var(--border, #374151);
+  min-height: 52px;
+  flex-shrink: 0;
+}
+
+.world-label {
+  font-weight: 600;
+  color: var(--text, #e5e7eb);
+  font-size: 14px;
+}
+
+.role-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #374151;
+  color: #d1d5db;
+}
+
+.role-badge.gm {
+  background: #78350f;
+  color: #fde68a;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border, #374151);
+  margin: 0 4px;
+}
+
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border, #374151);
+  border-radius: 8px;
+  background: var(--bg, #111827);
+  color: var(--text, #e5e7eb);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tool-btn:hover {
+  border-color: var(--accent, #3b82f6);
+}
+
+.tool-btn.active {
+  background: var(--accent, #3b82f6);
+  border-color: var(--accent, #3b82f6);
+}
+
+.tool-btn.danger:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.fog-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.03em;
+}
+
+.fog-badge.reveal {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.5);
+}
+
+.fog-badge.hide {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.fog-badge.neutral {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.drawing-options {
+  gap: 8px;
+}
+
+.color-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.color-input {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.color-btn {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #374151;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.color-btn.active {
+  border-color: #3b82f6;
+}
+
+.brush-sizes {
+  display: flex;
+  gap: 4px;
+}
+
+.size-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  background: #111827;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.size-btn.active {
+  border-color: #3b82f6;
+  background: #1e3a5f;
+}
+
+.size-dot {
+  border-radius: 50%;
+}
+
+.eraser-badge {
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: bold;
+}

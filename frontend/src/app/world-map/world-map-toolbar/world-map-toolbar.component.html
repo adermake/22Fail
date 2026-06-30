@@ -1,0 +1,60 @@
+<div class="toolbar">
+  <span class="world-label">{{ worldName }}</span>
+  <span class="role-badge" [class.gm]="isGM">{{ isGM ? 'GM' : 'Spieler' }}</span>
+
+  <div class="toolbar-divider"></div>
+
+  <div class="tool-group">
+    @for (tool of tools; track tool.id) {
+      <button
+        class="tool-btn"
+        [class.active]="currentTool === tool.id"
+        (click)="selectTool(tool.id)"
+        [title]="tool.label + ' (' + tool.shortcut + ')'"
+      >
+        {{ tool.icon }}
+      </button>
+    }
+  </div>
+
+  @if (isGM) {
+    <div class="toolbar-divider"></div>
+    <span class="fog-badge" [class.reveal]="fogMode === 'reveal'" [class.hide]="fogMode === 'hide'" [class.neutral]="fogMode === 'neutral'">
+      {{ fogModeLabel() }}
+    </span>
+  }
+
+  @if (currentTool === 'draw') {
+    <div class="toolbar-divider"></div>
+    <div class="tool-group drawing-options">
+      @if (isEraserMode) {
+        <span class="eraser-badge">🧹 RADIEREN</span>
+      }
+      <div class="color-picker">
+        <input type="color" class="color-input" [value]="brushColor" (input)="onColorInput($event)" />
+        @for (color of presetColors; track color) {
+          <button class="color-btn" [style.background]="color" [class.active]="brushColor === color" (click)="selectColor(color)"></button>
+        }
+      </div>
+      <div class="brush-sizes">
+        @for (size of penBrushSizes; track size) {
+          <button class="size-btn" [class.active]="penBrushSize === size" (click)="selectPenSize(size)" [title]="size + 'px'">
+            <span class="size-dot" [style.width.px]="clampSize(size)" [style.height.px]="clampSize(size)" [style.background]="brushColor"></span>
+          </button>
+        }
+      </div>
+      <button class="tool-btn danger" (click)="clearDrawings.emit()" title="Zeichnungen löschen">🗑️</button>
+    </div>
+  }
+
+  <div class="spacer"></div>
+
+  @if (isGM) {
+    <div class="tool-group gm-group">
+      <button class="tool-btn" (click)="uploadTiles.emit()" title="Kacheln laden">📁</button>
+      @if (hasMacroTileSelected) {
+        <button class="tool-btn danger" (click)="removeMacroTile.emit()" title="Kachel entfernen">✕</button>
+      }
+    </div>
+  }
+</div>

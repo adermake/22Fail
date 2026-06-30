@@ -1,56 +1,74 @@
 <div class="world-map-page">
-  <header class="wm-toolbar">
-    <div class="wm-title">
-      <span class="world-name">{{ worldName() }}</span>
-      <span class="role-badge" [class.gm]="isGM()">{{ isGM() ? 'GM' : 'Spieler' }}</span>
-    </div>
+  <app-world-map-toolbar
+    [currentTool]="currentTool()"
+    [isGM]="isGM()"
+    [isEraserMode]="isEraserMode()"
+    [fogMode]="fogMode()"
+    [brushColor]="brushColor()"
+    [penBrushSize]="penBrushSize()"
+    [worldName]="worldName()"
+    [hasMacroTileSelected]="!!selectedMacroTileId()"
+    (toolChange)="onToolChange($event)"
+    (brushColorChange)="brushColor.set($event)"
+    (penBrushSizeChange)="penBrushSize.set($event)"
+    (clearDrawings)="clearDrawings()"
+    (uploadTiles)="tileFileInput.click()"
+    (removeMacroTile)="removeSelectedMacroTile()"
+  />
 
-    <div class="tool-group">
-      @for (tool of visibleTools(); track tool.id) {
-        <button
-          type="button"
-          class="tool-btn"
-          [class.active]="currentTool() === tool.id"
-          [title]="tool.label"
-          (click)="setTool(tool.id)"
-        >
-          {{ tool.icon }}
-        </button>
+  <input
+    #tileFileInput
+    type="file"
+    accept="image/*"
+    multiple
+    hidden
+    (change)="onTileFilesSelected($event)"
+  />
+
+  <div class="viewer-wrap" #viewerWrap>
+    <div #viewerHost class="viewer-host"></div>
+    <canvas #overlayCanvas class="overlay-canvas"></canvas>
+    <canvas #fogCanvas class="fog-canvas"></canvas>
+
+    <div class="token-layer">
+      @for (token of visibleTokens(); track token.id) {
+        <app-lobby-token
+          [token]="token"
+          [position]="getTokenScreenPosition(token)"
+          [scale]="tokenScale()"
+          [isSelected]="selectedTokenId() === token.id"
+          [isInteractive]="currentTool() === 'cursor'"
+          [isDragging]="draggingTokenId() === token.id"
+          [isCurrentTurn]="false"
+          [showResources]="false"
+          (dragStart)="onTokenDragStart(token, $event)"
+        />
       }
     </div>
 
-    @if (currentTool() === 'draw' || currentTool() === 'erase') {
-      <div class="tool-options">
-        <input type="color" [ngModel]="brushColor()" (ngModelChange)="brushColor.set($event)" />
-        <input type="range" min="2" max="40" [ngModel]="brushSize()" (ngModelChange)="brushSize.set(+$event)" />
+    @if (showContextMenu()) {
+      <div
+        class="context-menu"
+        [style.left.px]="contextMenuPos().x"
+        [style.top.px]="contextMenuPos().y"
+        (mousedown)="$event.stopPropagation()"
+      >
+        @if (contextMenuTokenId()) {
+          <button type="button" (click)="removeContextToken()">🗑️ Token entfernen</button>
+        } @else if (contextMenuHex() && isGM()) {
+          <div class="quick-token-form">
+            <input
+              type="text"
+              class="quick-token-name-input"
+              [value]="quickTokenName()"
+              (input)="quickTokenName.set($any($event.target).value)"
+              placeholder="Token Name"
+              (keydown.enter)="createQuickTokenFromMenu()"
+            />
+            <button type="button" (click)="createQuickTokenFromMenu()">➕ Erstellen</button>
+          </div>
+        }
       </div>
     }
-
-    @if (isGM()) {
-      <div class="gm-actions">
-        <label class="upload-btn">
-          Kacheln laden
-          <input type="file" accept="image/*" multiple hidden (change)="onTileFilesSelected($event)" />
-        </label>
-        @if (selectedMacroTileId()) {
-          <button type="button" class="danger-btn" (click)="removeSelectedMacroTile()">Kachel entfernen</button>
-        }
-        @if (selectedSubHexes().size > 0) {
-          <button type="button" (click)="revealSelection()">Aufdecken</button>
-          <button type="button" (click)="recoverSelection()">Verbergen</button>
-        }
-      </div>
-    }
-
-    @if (selectedTokenId()) {
-      <button type="button" class="danger-btn" (click)="removeSelectedToken()">Token entfernen</button>
-    }
-
-    <div class="wm-status">{{ statusText() }}</div>
-  </header>
-
-  <div class="viewer-wrap">
-    <div #viewerHost class="viewer-host"></div>
-    <canvas #overlayCanvas class="overlay-canvas"></canvas>
   </div>
 </div>
