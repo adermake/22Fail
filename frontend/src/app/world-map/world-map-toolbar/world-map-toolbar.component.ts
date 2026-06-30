@@ -25,7 +25,7 @@ export class WorldMapToolbarComponent {
   @Output() clearDrawings = new EventEmitter<void>();
   @Output() uploadTiles = new EventEmitter<void>();
   @Output() removeMacroTile = new EventEmitter<void>();
-  @Output() hasMacroTileSelected = false;
+  @Input() hasMacroTileSelected = false;
 
   tools: { id: WorldMapTool; icon: string; label: string; shortcut: string }[] = [
     { id: 'cursor', icon: '↖️', label: 'Token bewegen', shortcut: 'S' },
