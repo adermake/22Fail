@@ -113,7 +113,9 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   contextMenuPos = signal({ x: 0, y: 0 });
   contextMenuHex = signal<SubHexRef | null>(null);
   contextMenuTokenId = signal<string | null>(null);
-  brushSizeCircle = signal<{ x: number; y: number; r: number } | null>(null);
+  brushSizeCircle = signal<{ screenX: number; screenY: number; radius: number } | null>(null);
+  /** Bumped on every pan/zoom so token positions refresh. */
+  viewEpoch = signal(0);
 
   visibleTokens = computed(() => {
     const data = this.mapData();
@@ -173,10 +175,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     this.viewer.setMouseNavEnabled(false);
 
-    this.viewer.addHandler('viewport-change', () => {
-      this.updateTokenScale();
-      this.renderCanvases();
-    });
+    this.viewer.addHandler('viewport-change', () => this.syncViewOverlays());
 
     const overlay = this.overlayCanvas?.nativeElement;
     const fog = this.fogCanvas?.nativeElement;
@@ -196,6 +195,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     wrap?.addEventListener('mouseleave', this.onWrapMouseLeave);
     wrap?.addEventListener('contextmenu', this.onContextMenu);
     wrap?.addEventListener('auxclick', this.onAuxClick);
+    wrap?.addEventListener('wheel', this.onWheel, { passive: false });
 
     this.updateInteractionMode();
   }
@@ -210,6 +210,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     wrap?.removeEventListener('mouseleave', this.onWrapMouseLeave);
     wrap?.removeEventListener('contextmenu', this.onContextMenu);
     wrap?.removeEventListener('auxclick', this.onAuxClick);
+    wrap?.removeEventListener('wheel', this.onWheel);
     this.subs.forEach(s => s.unsubscribe());
     this.viewer?.destroy();
     this.store.destroy();
@@ -294,15 +295,30 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private updateInteractionMode(): void {
-    const wrap = this.viewerWrap?.nativeElement;
-    if (!wrap) return;
-    const tool = this.currentTool();
-    const needsOverlay =
-      tool === 'draw' ||
-      tool === 'measure' ||
-      (this.isGM() && this.fogMode() !== 'neutral');
-    wrap.classList.toggle('interactive', needsOverlay);
+    // Input is always on viewer-wrap; overlay canvases stay pointer-events: none.
   }
+
+  /** Keep tokens, strokes, and fog aligned with the OpenSeadragon viewport. */
+  private syncViewOverlays(): void {
+    this.updateTokenScale();
+    this.renderCanvases();
+    this.viewEpoch.update(n => n + 1);
+    this.cdr.markForCheck();
+  }
+
+  private onWheel = (e: WheelEvent): void => {
+    if (!this.viewer || !this.viewerHost) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = this.viewerHost.nativeElement.getBoundingClientRect();
+    const pixel = new OpenSeadragon.Point(e.clientX - rect.left, e.clientY - rect.top);
+    const factor = e.deltaY > 0 ? 1 / 1.15 : 1.15;
+    this.viewer.viewport.zoomBy(
+      factor,
+      this.viewer.viewport.pointFromPixel(pixel),
+      true,
+    );
+  };
 
   private updateTokenScale(): void {
     const data = this.mapData();
@@ -474,6 +490,8 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getTokenScreenPosition(token: WorldMapToken): Point {
+    // viewEpoch forces template refresh when the viewport pans/zooms
+    void this.viewEpoch();
     const data = this.mapData();
     if (!data) return { x: 0, y: 0 };
     const tile = data.macroTiles.find(t => t.q === token.macroQ && t.r === token.macroR);
@@ -526,13 +544,25 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (tool === 'draw') {
       if (e.shiftKey) {
+        e.preventDefault();
         this.isAdjustingBrushSize = true;
+        const host = this.viewerHost?.nativeElement;
+        const rect = host?.getBoundingClientRect();
         this.brushSizeAdjustStart = {
           x: e.clientX,
           y: e.clientY,
           initialSize: this.isEraserMode() ? this.eraserBrushSize() : this.penBrushSize(),
         };
+        if (rect) {
+          const radius = this.isEraserMode() ? this.eraserBrushSize() : this.penBrushSize();
+          this.brushSizeCircle.set({
+            screenX: e.clientX - rect.left,
+            screenY: e.clientY - rect.top,
+            radius,
+          });
+        }
         this.addDocumentListeners();
+        this.renderCanvases();
         return;
       }
       const world = this.screenToWorld(e.clientX, e.clientY);
@@ -583,8 +613,12 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
       const dx = e.clientX - this.lastPanMouse.x;
       const dy = e.clientY - this.lastPanMouse.y;
       this.lastPanMouse = { x: e.clientX, y: e.clientY };
-      const delta = this.viewer.viewport.deltaPointsFromPixels(new OpenSeadragon.Point(dx, dy));
-      this.viewer.viewport.panBy(delta);
+      const delta = this.viewer.viewport.deltaPointsFromPixels(
+        new OpenSeadragon.Point(dx, dy),
+      );
+      // Negate so the map follows the cursor (grab-pan).
+      this.viewer.viewport.panBy(delta.negate(), true);
+      this.syncViewOverlays();
       return;
     }
 
@@ -596,12 +630,17 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
       const newSize = Math.max(1, Math.min(300, this.brushSizeAdjustStart.initialSize + dx * 0.3));
       if (this.isEraserMode()) this.eraserBrushSize.set(Math.round(newSize));
       else this.penBrushSize.set(Math.round(newSize));
-      if (pick) {
-        const tile = this.mapData()?.macroTiles.find(t => t.q === pick.macroQ && t.r === pick.macroR);
-        const r = tile ? this.imageSizeToScreen(Math.round(newSize), tile.id) : Math.round(newSize);
-        this.brushSizeCircle.set({ x: pick.worldX, y: pick.worldY, r });
+      const host = this.viewerHost?.nativeElement;
+      const rect = host?.getBoundingClientRect();
+      if (rect) {
+        this.brushSizeCircle.set({
+          screenX: e.clientX - rect.left,
+          screenY: e.clientY - rect.top,
+          radius: Math.round(newSize),
+        });
       }
       this.renderCanvases();
+      this.cdr.markForCheck();
       return;
     }
 
@@ -880,12 +919,22 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private drawStrokeWorld(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
     if (stroke.points.length < 2) return;
     const screenPts: Point[] = [];
+    const data = this.mapData();
+    const tile = data?.macroTiles[0];
+    let scale = 1;
+    if (tile) {
+      scale = this.imageSizeToScreen(1, tile.id);
+    }
     for (const p of stroke.points) {
       const s = this.worldToScreen(p.x, p.y);
       if (s) screenPts.push(s);
     }
     if (screenPts.length < 2) return;
-    drawStrokeOnContext(ctx, { ...stroke, points: screenPts });
+    drawStrokeOnContext(ctx, {
+      ...stroke,
+      points: screenPts,
+      lineWidth: stroke.lineWidth * scale,
+    });
   }
 
   private drawMeasurements(ctx: CanvasRenderingContext2D): void {
@@ -975,13 +1024,12 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const circle = this.brushSizeCircle();
     if (!circle) return;
     const tile = this.mapData()?.macroTiles[0];
-    if (!tile) return;
-    const screen = this.worldToScreen(circle.x, circle.y);
-    if (!screen) return;
-    const r = this.imageSizeToScreen(circle.r, tile.id);
+    const screenRadius = tile
+      ? this.imageSizeToScreen(circle.radius, tile.id) / 2
+      : circle.radius / 2;
     ctx.beginPath();
-    ctx.arc(screen.x, screen.y, r / 2, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.arc(circle.screenX, circle.screenY, screenRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.stroke();

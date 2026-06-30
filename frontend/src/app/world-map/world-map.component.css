@@ -44,8 +44,9 @@
   pointer-events: none;
 }
 
+/* Overlays never capture pointer — all input goes through to viewer-wrap / OSD */
 .viewer-wrap.interactive .overlay-canvas {
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .token-layer {
