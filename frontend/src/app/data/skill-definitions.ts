@@ -107,7 +107,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Kämpfer',
     type: 'talent_bonus',
     description: 'Athletik+1',
-    talentBonus: { talent: 'athletik', amount: 1 },
+    talentBonus: { talent: 'athletik', amount: -1 },
   },
 
   // ==================== TECHNIKER ====================
@@ -141,7 +141,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Techniker',
     type: 'talent_bonus',
     description: 'Akrobatik+1',
-    talentBonus: { talent: 'akrobatik', amount: 1 },
+    talentBonus: { talent: 'akrobatik', amount: -1 },
   },
   {
     id: 'techniker_leichte_waffen_werfen',
@@ -180,8 +180,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'magier_exzellenz',
     name: 'Exzellenz',
     class: 'Magier',
-    type: 'passive',
-    description: '-1 auf Zauber mit voller Mana'
+    type: 'dice_bonus',
+    description: '-2 auf Zauber mit voller Mana'
   },
   {
     id: 'magier_zauberlehrling',
@@ -273,7 +273,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'barbar_muskelprotz',
     name: 'Muskelprotz',
     class: 'Barbar',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '-1 auf Angriffe mit schweren Waffen',
     enlightened: true
   },
@@ -282,7 +282,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Waffenweitwurf',
     class: 'Barbar',
     type: 'active',
-    description: 'Wirft schwere Waffe mit hoher Genauigkeit auf weit entfernte Gegner, maximal 50m',
+    description: 'Wirft schwere Waffe bis zu 50m weit und ignoriert Mali, die schlecht werfbare Waffen erhalten',
     enlightened: true,
     cost: { type: 'energy', amount: 25 },
     actionType: 'Aktion'
@@ -307,31 +307,26 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     statBonus: { stat: 'speed', amount: 2 }
   },
   {
-    id: 'dieb_stehlen',
-    name: 'Stehlen-2',
+    id: 'dieb_fingerfertigkeit_talent_2',
+    name: 'Fingerfertigkeit+2',
     class: 'Dieb',
-    type: 'dice_bonus',
-    description: 'Stehlen-2'
+    type: 'talent_bonus',
+    description: 'Fingerfertigkeit+2',
+    talentBonus: { talent: 'fingerfertigkeit', amount: -2 },
   },
   {
-    id: 'dieb_fliehen',
-    name: 'Fliehen-2',
+    id: 'dieb_verstecken_talent_2',
+    name: 'Verstecken+2',
     class: 'Dieb',
-    type: 'dice_bonus',
-    description: 'Fliehen-2'
-  },
-  {
-    id: 'dieb_schloesser_knacken',
-    name: 'Schlösser knacken-2',
-    class: 'Dieb',
-    type: 'dice_bonus',
-    description: 'Schlösser knacken-2'
+    type: 'talent_bonus',
+    description: 'Verstecken+2',
+    talentBonus: { talent: 'verstecken', amount: -2 },
   },
   {
     id: 'dieb_feinmotoriker',
     name: 'Feinmotoriker',
     class: 'Dieb',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '-1 auf Angriffe mit leichten Waffen',
     enlightened: true
   },
@@ -356,7 +351,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schleichen',
     class: 'Dieb',
     type: 'active',
-    description: 'Bewegung, die von Gegnern schwer entdeckt werden kann',
+    description: 'Bewegung, die von Gegnern schwerer entdeckt werden kann. Wird bei Angriff abgebrochen',
     enlightened: true,
     cost: { type: 'energy', amount: 10, perRound: true },
     actionType: 'Bonusaktion'
@@ -375,7 +370,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'schutze_reichweite_10',
     name: 'Reichweite+10m',
     class: 'Schütze',
-    type: 'stat_bonus',
+    type: 'passive',
     description: 'Reichweite+10m für Fernkampfwaffen'
   },
   {
@@ -390,14 +385,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'schutze_adlerauge',
     name: 'Adlerauge',
     class: 'Schütze',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '-1 im Fernkampf'
   },
   {
     id: 'schutze_geschaerfte_sinne',
     name: 'Geschärfte Sinne',
     class: 'Schütze',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '-2 auf alle Aktionen außerhalb von Kämpfen, die gute Sehkraft vorraussetzen',
     enlightened: true
   },
@@ -415,8 +410,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Zielschuss',
     class: 'Schütze',
     type: 'active',
-    description: 'Schuss mit doppelter Reichweite und Schaden',
-    cost: { type: 'energy', amount: 25 },
+    description: 'Fernkampfangriff dessen Schadensberechnung um eine Stufe aufsteigt (kann keinen tödlichen Treffer erhalten) und doppelte Reichweite erhält',
+    cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
 
@@ -429,19 +424,20 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     description: 'Intelligenz+2',
     statBonus: { stat: 'intelligence', amount: 2 }
   },
-  {
-    id: 'kampfzauberer_runenlehre',
-    name: 'Runenlehre',
-    class: 'Kampfzauberer',
-    type: 'passive',
-    description: '-3 auf Analyse von unbekannten Runen'
-  },
+{
+  id: 'kampfzauberer_runenkunde_talent_2',
+  name: 'Runenkunde+2',
+  class: 'Kampfzauberer',
+  type: 'talent_bonus',
+  description: 'Runenkunde+2',
+  talentBonus: { talent: 'runenkunde', amount: -2 },
+},
   {
     id: 'kampfzauberer_zauberladung',
     name: 'Zauberladung',
     class: 'Kampfzauberer',
     type: 'passive',
-    description: '+2 beim Würfeln für Zaubercasts'
+    description: '+3 beim Würfeln für Zaubercasts'
   },
   {
     id: 'kampfzauberer_verinnerlichen',
@@ -473,7 +469,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Manadisruption',
     class: 'Kampfzauberer',
     type: 'active',
-    description: 'Reduziere den Castwert des Spells eines Gegners in 20m Umfeld um eine gewürfelte Anzahl. Boni für Zaubercasts werden hier auch angewandt. Bonusaktion',
+    description: 'Reduziere den Castwert des Spells eines Gegners im Umfeld (Intelligenz in m) um eine gewürfelte Anzahl. Boni für Zaubercasts werden hier auch angewandt. Bonusaktion',
     enlightened: true,
     cost: { type: 'energy', amount: 5 },
     actionType: 'Bonusaktion'
@@ -489,18 +485,19 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     statBonus: { stat: 'mana', amount: 20 }
   },
   {
-    id: 'heiler_gesundheitscheck',
-    name: 'Gesundheitscheck',
-    class: 'Heiler',
-    type: 'passive',
-    description: '-4 auf Untersuchung von Gesundheit'
+    id: 'heiler_heilkunde_talent_2',
+    name: 'Heilkunde+2',
+    class: 'Heilkunde',
+    type: 'talent_bonus',
+    description: 'Heilkunde+2',
+    talentBonus: { talent: 'heilkunde', amount: -2 },
   },
   {
     id: 'heiler_notarzt',
     name: 'Notarzt',
     class: 'Heiler',
-    type: 'passive',
-    description: '-3 auf alle Heilungswürfe, wenn Ziel im kritischen Zustand ist',
+    type: 'dice_bonus',
+    description: 'Vorteil auf alle Heilungswürfe und Heilkundewürfe, wenn Ziel im kritischen Zustand ist',
     enlightened: true
   },
   {
@@ -508,7 +505,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Alchemist',
     class: 'Heiler',
     type: 'passive',
-    description: '-2 beim Brauen von Tränken mit positivem Effekt',
+    description: 'Verdoppelt erwürfelte Braupunkte beim Brauen von Tränken mit ausschließlich positivem Effekt',
     enlightened: true
   },
   {
@@ -523,7 +520,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Einfachheit',
     class: 'Heiler',
     type: 'passive',
-    description: '-2 Voraussetzung auf Heilzauber'
+    description: '-4 Voraussetzung auf Heilzauber'
   },
   {
     id: 'heiler_gruppencast',
