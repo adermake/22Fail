@@ -1,3 +1,7 @@
+//Passive -> Dice Bonus
+//New Changes & abgleichen
+//Balance (Kampfakrobat, Formationsmagier)
+//Talente
 import { SkillDefinition } from '../model/skill-definition.model';
 
 // Class hierarchy definition (replaces class-definitions.txt)
@@ -98,11 +102,12 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     description: '+30 Inventarkapazität'
   },
   {
-    id: 'kaempfer_fester_stand',
-    name: 'Fester Stand',
+    id: 'kampfer_athletik_talent_1',
+    name: 'Athletik+1',
     class: 'Kämpfer',
-    type: 'dice_bonus',
-    description: '-1 gegen Rückstoß'
+    type: 'talent_bonus',
+    description: 'Athletik+1',
+    talentBonus: { talent: 'athletik', amount: 1 },
   },
 
   // ==================== TECHNIKER ====================
@@ -131,11 +136,12 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     statBonus: { stat: 'energy', amount: 15 }
   },
   {
-    id: 'techniker_springen',
-    name: 'Springen-2',
+    id: 'techniker_akrobatik_talent_1',
+    name: 'Akrobatik+1',
     class: 'Techniker',
-    type: 'dice_bonus',
-    description: 'Springen-2'
+    type: 'talent_bonus',
+    description: 'Akrobatik+1',
+    talentBonus: { talent: 'akrobatik', amount: 1 },
   },
   {
     id: 'techniker_leichte_waffen_werfen',
@@ -200,30 +206,32 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'krieger_statusresistenz',
     name: 'Statusresistenz',
     class: 'Krieger',
-    type: 'passive',
-    description: 'Schaden von negativen Effekten gegen dich werden halbiert',
-    enlightened: true
+    type: 'active',
+    description: 'Würfle mit einem D20+Überlebensbonus. Die erwürfelte Zahl kann verwendet werden, um Statuseffekte zu entfernen',
+    enlightened: true,
+    cost: { type: 'energy', amount: 10 },
+    actionType: 'Aktion'
   },
   {
     id: 'krieger_harter_bursche',
     name: 'Harter Bursche',
     class: 'Krieger',
     type: 'passive',
-    description: '+1, um aus Bewusstlosigkeit zu erwachen'
+    description: 'Vorteil auf Würfe, um aus der Bewusstlosigkeit zu erwachen'
   },
   {
     id: 'krieger_aetherkraft',
     name: 'Ätherkraft',
     class: 'Krieger',
     type: 'passive',
-    description: 'Kann erlittenen Schaden halbieren und die andere Hälfte als Mana zahlen.'
+    description: 'Kann erlittenen Schaden halbieren und die andere Hälfte als Mana zahlen'
   },
   {
     id: 'krieger_schwerer_schlag',
     name: 'Schwerer Schlag',
     class: 'Krieger',
     type: 'active',
-    description: 'Schlag mit hoher Stärke, muss eine Runde ausholen',
+    description: 'Schlag mit hoher Stärke, dessen Schadensberechnung um eine Stufe aufsteigt (kann keinen tödlichen Treffer erhalten)',
     enlightened: true,
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
@@ -233,9 +241,9 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Defensive Haltung',
     class: 'Krieger',
     type: 'active',
-    description: 'Reduziert erlittenen Schaden von Fernkampfwaffen stark, kann aber nicht angreifen',
+    description: 'Erhöht Stabilität gegen Fernkampfangriffe um Konstitution*2, kann aber nicht angreifen und kann nach einem Angriff nicht in dieser Runde aktiviert werden',
     cost: { type: 'energy', amount: 20, perRound: true },
-    actionType: 'Aktion'
+    actionType: 'Bonusaktion'
   },
 
   // ==================== BARBAR ====================
@@ -258,7 +266,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'barbar_blutlust',
     name: 'Blutlust',
     class: 'Barbar',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '-1 auf Angriffe für jeden getöten Gegner, hält für den Rest des Kampfes, maximal -3'
   },
   {
@@ -2596,18 +2604,6 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     description: 'Verdoppelt Fokus. Bonusaktion',
     cost: { type: 'life', amount: 20, perRound: true },
     actionType: 'Bonusaktion'
-  },
-
-  // ==================== EXAMPLE: talent_bonus ====================
-  // Grants +1 virtual rank to Akrobatik (shown on Talente tab + dice roller).
-  // talent ids: see talent-definitions.ts (e.g. 'akrobatik', 'athletik', 'wahrnehmung')
-  {
-    id: 'example_akrobatik_talent_1',
-    name: 'Akrobatik+1',
-    class: 'Kampfakrobat',
-    type: 'talent_bonus',
-    description: 'Erhöht Akrobatik um 1 Punkt (virtuell, zählt für Würfelbonus).',
-    talentBonus: { talent: 'akrobatik', amount: 1 },
   },
 ];
 
