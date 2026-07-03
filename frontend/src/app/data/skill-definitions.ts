@@ -544,18 +544,19 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     statBonus: { stat: 'life', amount: 30 }
   },
   {
-    id: 'ritter_reiten',
-    name: 'Reiten-2',
+    id: 'ritter_mit_tieren_umgehen_3',
+    name: 'Mit Tieren umgehen+3',
     class: 'Ritter',
-    type: 'dice_bonus',
-    description: 'Reiten-2'
+    type: 'talent_bonus',
+    description: 'Mit Tieren umgehen+3',
+    talentBonus: { talent: 'tiere', amount: -3 },
   },
   {
     id: 'ritter_parieren',
-    name: 'Parieren-1',
+    name: 'Parieren-2',
     class: 'Ritter',
     type: 'dice_bonus',
-    description: 'Parieren-1'
+    description: 'Parieren-2'
   },
   {
     id: 'ritter_ruestungsnegation_5',
@@ -565,20 +566,11 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     description: 'Rüstungsnegation+5'
   },
   {
-    id: 'ritter_tierfreund',
-    name: 'Tierfreund',
-    class: 'Ritter',
-    type: 'passive',
-    description: '-2 im Umgang mit Tieren',
-    enlightened: true
-  },
-  {
     id: 'ritter_ritterschwur',
     name: 'Ritterschwur',
     class: 'Ritter',
     type: 'passive',
-    description: '-2 auf Reaktionen, die gegnerische Angriffe auf Verbündete blocken',
-    enlightened: true
+    description: 'Erhalte pro Runde eine Reaktion auf Angriffe gegen Verbündete in 3m',
   },
   {
     id: 'ritter_schwere_ruestung',
@@ -604,7 +596,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Reitstoß',
     class: 'Ritter',
     type: 'active',
-    description: 'Durchbohrender Angriff auf dem Pferd, -5 auf Zerstörung einer brüchigen Waffe',
+    description: 'Durchbohrender Angriff auf einem Reittier, dessen Effizienz um 50% der Bewegung des Reittiers erhöht wird',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -637,14 +629,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Waffenloser Kampf',
     class: 'Mönch',
     type: 'passive',
-    description: '-2 im Kampf ohne Waffen(außer Handschuhen)'
+    description: '-2 im Kampf ohne Waffen(außer Handschuhen) und Effizienz+5 auf Angriffe mit der Hand'
   },
   {
     id: 'moench_hartes_training',
     name: 'Hartes Training',
     class: 'Mönch',
     type: 'passive',
-    description: 'Geschicklichkeit+4 bei weniger als 5 Rüstungsmalus',
+    description: 'Reaktionswert+3 bei weniger als 5 Rüstungsmalus',
     enlightened: true
   },
   {
@@ -681,7 +673,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Notfallstärke',
     class: 'Berserker',
     type: 'passive',
-    description: '-1 im Kampf je 40 fehlende Leben, maximal -5',
+    description: '-1 auf Angriffe je 40 fehlende Leben, maximal -5',
     enlightened: true
   },
   {
@@ -704,14 +696,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Adrenalin',
     class: 'Berserker',
     type: 'passive',
-    description: 'Immun gegen negative Statuseffekte im Ragemodus'
+    description: 'Immun gegen negative Statuseffekte im Ragemodus, bestehende Effekte werden pausiert'
   },
   {
     id: 'berserker_erbarmungslosigkeit',
     name: 'Erbarmunglosigkeit',
     class: 'Berserker',
     type: 'passive',
-    description: 'Für Züge in denen angegriffen wurde bleibt Rage bestehen.',
+    description: 'Für Züge in denen angegriffen wurde muss kein Befreiungswurf für den Ragemodus gewürfelt werden',
     enlightened: true
   },
   {
@@ -728,7 +720,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Wütender Wurf',
     class: 'Berserker',
     type: 'active',
-    description: 'Wirft einen Gegner bis zu 50m weit',
+    description: 'Wirft einen Gegner bis zu 20m weit',
     enlightened: true,
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
@@ -736,12 +728,20 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
 
   // ==================== PLÜNDERER ====================
   {
-    id: 'pluenderer_charisma_3',
-    name: 'Charisma+3',
+    id: 'pluenderer_wille_3',
+    name: 'Wille+3',
     class: 'Plünderer',
     type: 'stat_bonus',
-    description: 'Charisma+3',
+    description: 'Wille+3',
     statBonus: { stat: 'chill', amount: 3 }
+  },
+  {
+    id: 'pluenderer_ueberleben_3',
+    name: 'Überleben+3',
+    class: 'Plünderer',
+    type: 'talent_bonus',
+    description: 'Überleben+3',
+    talentBonus: { talent: 'ueberleben', amount: -3 },
   },
   {
     id: 'pluenderer_horter',
@@ -756,7 +756,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Reichtum',
     class: 'Plünderer',
     type: 'passive',
-    description: 'Erhält 50% mehr Geld durch Loot und Verkäufe'
+    description: 'Erhält 50% mehr Loot und kann versteckte Wertgegenstände in der Nähe erspüren'
   },
   {
     id: 'pluenderer_brandstifter',
@@ -770,18 +770,25 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'pluenderer_raeuberbande',
     name: 'Räuberbande',
     class: 'Plünderer',
-    type: 'passive',
-    description: '-1 im Kampf, wenn deine Gruppe in Überzahl ist',
+    type: 'dice_bonus',
+    description: '-1 im Kampf für alle Verbündeten, wenn deine Gruppe in Überzahl ist',
     enlightened: true
   },
   {
     id: 'pluenderer_pluendern',
     name: 'Plündern',
     class: 'Plünderer',
-    type: 'active',
-    description: 'Schlag, der dem Gegner Geld stiehlt (D20)',
-    cost: { type: 'energy', amount: 10 },
-    actionType: 'Aktion'
+    type: 'dice_bonus',
+    description: '-5 auf Täuschungswürfe beim Kauf oder Verkauf',
+  },
+  {
+  id: 'pluenderer_ueberfall',
+  name: 'Überfall',
+  class: 'Plünderer',
+  type: 'active',
+  description: 'Wähle einen Verbündeten aus, um bei dessen nächsten Angriff einen Synchronangriff mit ihm auszuführen',
+  cost: { type: 'energy', amount: 10 },
+  actionType: 'Bonusaktion'
   },
 
   // ==================== KAMPFAKROBAT ====================
@@ -794,25 +801,33 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     statBonus: { stat: 'speed', amount: 3 }
   },
   {
+    id: 'kampfakrobat_akrobatik_talent_3',
+    name: 'Akrobatik+3',
+    class: 'Kampfakrobat',
+    type: 'talent_bonus',
+    description: 'Akrobatik+3',
+    talentBonus: { talent: 'akrobatik', amount: -3 },
+  },
+  {
     id: 'kampfakrobat_bonusaktion',
     name: 'Bonusaktion',
     class: 'Kampfakrobat',
     type: 'passive',
-    description: 'Erhalte eine zusätzliche Bonusaktion pro Zug'
+    description: 'Erhalte bei einem Rüstungsmalus von 0 eine zusätzliche Bonusaktion pro Zug'
   },
   {
     id: 'kampfakrobat_sprungangriff',
     name: 'Sprungangriff',
     class: 'Kampfakrobat',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '-2 auf Angriffe in der Luft'
   },
   {
-    id: 'kampfakrobat_sicherer_fall',
-    name: 'Sicherer Fall',
+    id: 'kampfakrobat_sicherer_stand',
+    name: 'Sicherer Stand',
     class: 'Kampfakrobat',
-    type: 'passive',
-    description: 'Landet garantiert auf instabilem Boden und erhält -1 auf den folgenden Angriff',
+    type: 'dice_bonus',
+    description: 'Kann garantiert auf instabilem/wackligem Grund stehen bleiben und erhält währenddessen -1 im Kampf',
     enlightened: true
   },
   {
@@ -827,17 +842,19 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'kampfakrobat_opportunist',
     name: 'Opportunist',
     class: 'Kampfakrobat',
-    type: 'passive',
-    description: 'Wenn du einem Angriff ausweichst, kontere mit einem simplen Waffenangriff'
+    type: 'active',
+    description: 'Wenn du einem Angriff ausweichst, kontere mit einem simplen Waffenangriff',
+    cost: {type:'energy', amount: 10},
+    actionType: 'Reaktion'
   },
   {
     id: 'kampfakrobat_bonusangriff',
     name: 'Bonusangriff',
     class: 'Kampfakrobat',
     type: 'active',
-    description: 'Angriff als Bonusaktion',
+    description: 'Einfacher Angriff als Bonusaktion',
     enlightened: true,
-    cost: { type: 'energy', amount: 0 },
+    cost: { type: 'energy', amount: 10 },
     actionType: 'Bonusaktion'
   },
 
@@ -1698,11 +1715,11 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
 
   // ==================== GESTALTENWANDLER ====================
   {
-    id: 'gestaltenwandler_charisma_3',
-    name: 'Charisma+3',
+    id: 'gestaltenwandler_wille_3',
+    name: 'Wille+3',
     class: 'Gestaltenwandler',
     type: 'stat_bonus',
-    description: 'Charisma+3',
+    description: 'Wille+3',
     statBonus: { stat: 'chill', amount: 3 },
     infiniteLevel: true
   },
@@ -1762,11 +1779,11 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
 
   // ==================== PALADIN ====================
   {
-    id: 'paladin_konstitution_charisma_2',
-    name: 'Konstitution&Charisma+2',
+    id: 'paladin_konstitution_wille_2',
+    name: 'Konstitution&Wille+2',
     class: 'Paladin',
     type: 'stat_bonus',
-    description: 'Konstitution&Charisma+2',
+    description: 'Konstitution&Wille+2',
     statBonuses: [{ stat: 'constitution', amount: 2 }, { stat: 'chill', amount: 2 }],
     infiniteLevel: true
   },
@@ -1845,7 +1862,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Leibwache',
     class: 'Wächter',
     type: 'passive',
-    description: 'Erhalte 2 Reaktionen für Angriffe auf Verbündete in der Nähe'
+    description: 'Die Anzahl der Reaktionen von Ritterschwur wird auf 3 erhöht und die Reichweite erhöht sich auf 5m. Benötigt Ritterschwur',
+    requiresSkill: 'ritter_ritterschwur'
   },
   {
     id: 'waechter_kenne_deinen_feind',
