@@ -10,6 +10,7 @@ import { CardComponent } from '../../shared/card/card.component';
 import { CdkDragDrop, CdkDragStart, DragDropModule } from '@angular/cdk/drag-drop';
 import { WorldSocketService } from '../../services/world-socket.service';
 import { NotificationService } from '../../services/notification.service';
+import { getEquipSlot } from '../../utils/equip-slot.utils';
 
 @Component({
   selector: 'app-equipment',
@@ -38,7 +39,7 @@ export class EquipmentComponent {
   // Connected drop lists - safely connect to inventory and other slots
   get connectedDropLists(): string[] {
     try {
-      return ['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot'];
+      return ['inventoryList', 'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'weaponSlot', 'extraSlot'];
     } catch {
       return [];
     }
@@ -132,9 +133,9 @@ export class EquipmentComponent {
   }
 
   // Get items for a specific armor slot
-  getArmorSlot(slotType: 'helmet' | 'chestplate' | 'armschienen' | 'leggings' | 'boots' | 'extra'): ItemBlock[] {
+  getArmorSlot(slotType: 'helmet' | 'chestplate' | 'armschienen' | 'leggings' | 'boots' | 'weapon' | 'extra'): ItemBlock[] {
     if (!this.sheet.equipment) return [];
-    return this.sheet.equipment.filter(item => (item.armorType || 'extra') === slotType);
+    return this.sheet.equipment.filter(item => getEquipSlot(item) === slotType);
   }
 
   // Get the global equipment index for an item
@@ -179,10 +180,8 @@ export class EquipmentComponent {
       // Guard against null items (inventory slots can be nulled-out after removal)
       if (!item) return;
       
-      // Set the armor type if moving from inventory or if not set
-      if (!item.armorType || item.armorType === 'extra') {
-        item.armorType = targetSlot as any;
-      }
+      // Set the armor type when moving from inventory or when slot changes
+      item.armorType = targetSlot as any;
       
       if (isFromInventory) {
         // Check if target slot already has an item → swap
@@ -368,36 +367,43 @@ export class EquipmentComponent {
     return this.canDropInSlot(item, 'boots');
   };
 
+  canDropInWeapon = (drag: any, drop: any) => {
+    const item = drag?.data as ItemBlock;
+    if (!item) return false;
+    return this.canDropInSlot(item, 'weapon');
+  };
+
   canDropInExtra = (drag: any, drop: any) => {
-    // Extra slot accepts anything
-    return true;
+    const item = drag?.data as ItemBlock;
+    if (!item) return false;
+    return this.canDropInSlot(item, 'extra');
   };
 
   private canDropInSlot(item: ItemBlock, targetSlot: string): boolean {
     if (!item) return false;
-    
-    // Extra slot accepts everything
-    if (targetSlot === 'extra') return true;
-    
-    // All other slots only accept armor type items
+
+    if (targetSlot === 'weapon') {
+      return item.itemType === 'weapon';
+    }
+
+    if (targetSlot === 'extra') {
+      return item.itemType !== 'weapon';
+    }
+
     if (item.itemType !== 'armor') {
       return false;
     }
-    
-    // Check if item type matches slot
-    const itemType = item.armorType || 'extra';
-    
-    // Item must match the slot or have no specific slot (extra)
-    if (itemType !== targetSlot && itemType !== 'extra') {
+
+    const itemSlot = getEquipSlot(item);
+    if (itemSlot !== targetSlot && itemSlot !== 'extra' && itemSlot !== 'weapon') {
       return false;
     }
-    
-    // Check if slot is already occupied (single-item slots, except extra)
+
     const currentSlotItems = this.getArmorSlot(targetSlot as any);
     if (currentSlotItems.length > 0 && !currentSlotItems.includes(item)) {
-      return false; // Slot already has an item
+      return false;
     }
-    
+
     return true;
   }
 }

@@ -189,6 +189,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   effectReminderCharacterIds = signal<Set<string>>(new Set());
   dismissedEffectReminders = signal<Set<string>>(new Set());
   statusBarBlinking = signal(false);
+  private lastTurnKey = '';
   selectedTokenId = signal<string | null>(null);
   pendingLinkedToken = signal<{ parentId: string; type: LinkedTokenType; name: string } | null>(null);
 
@@ -247,6 +248,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
           if (world.kampfrundeActive) {
             this.kampfrundeMode.set(true);
           }
+
+          this.syncEffectRemindersForCurrentTurn();
 
           this.cdr.markForCheck();
         }
@@ -593,19 +596,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
       }
     }
 
-    const reminders = turnIds.filter(
-      id => this.characterHasActiveEffects(id) && !this.dismissedEffectReminders().has(id)
-    );
-    if (reminders.length > 0) {
-      this.effectReminderCharacterIds.set(new Set(reminders));
-      this.statusBarBlinking.set(true);
-    }
+    this.syncEffectRemindersForCurrentTurn();
     this.cdr.markForCheck();
   }
 
   onKampfrundeToggle(): void {
     const next = !this.kampfrundeMode();
     this.kampfrundeMode.set(next);
+    if (next) {
+      this.lastTurnKey = '';
+      this.syncEffectRemindersForCurrentTurn();
+    }
     if (this.isGM()) {
       this.worldStore.applyPatch({ path: 'kampfrundeActive', value: next });
     }
@@ -915,6 +916,34 @@ export class LobbyComponent implements OnInit, OnDestroy {
     // Only select — re-clicking already-selected token does nothing.
     // Deselection happens via background click (onHexClick with no pending).
     this.selectedTokenId.set(tokenId);
+  }
+
+  onBattleTrackerTileSelect(characterId: string): void {
+    const token = this.enrichedTokens().find(t => t.characterId === characterId);
+    if (token) {
+      this.selectedTokenId.set(token.id);
+      this.cdr.markForCheck();
+    }
+  }
+
+  private syncEffectRemindersForCurrentTurn(): void {
+    if (!this.kampfrundeMode()) return;
+
+    const turnIds = this.battleEngine.getCurrentTurnCharacterIds();
+    const turnKey = turnIds.join('|');
+    if (turnKey === this.lastTurnKey) return;
+    this.lastTurnKey = turnKey;
+
+    const eligible = turnIds.filter(
+      id => this.characterHasActiveEffects(id) && !this.dismissedEffectReminders().has(id)
+    );
+
+    const visible = this.isGM()
+      ? eligible
+      : eligible.filter(id => this.viewingCharacterIds().has(id));
+
+    this.effectReminderCharacterIds.set(new Set(visible));
+    this.statusBarBlinking.set(visible.length > 0);
   }
 
   onTokenResourceChange(updates: Partial<Omit<Token, 'id'>>): void {

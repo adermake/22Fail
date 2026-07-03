@@ -20,6 +20,12 @@ export interface DiceRollEvent {
   actionIcon?: string;
   actionColor?: string;
   resourceChanges?: { resource: string; amount: number }[];
+  /** Pre-stability damage total (damage calculator). */
+  rawResult?: number;
+  /** Target stability used when rolling damage. */
+  stabilitaet?: number;
+  /** Post-stability damage (shown in history). */
+  finalDamage?: number;
 }
 
 @Injectable({ providedIn: 'root' })

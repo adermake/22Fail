@@ -33,6 +33,7 @@ import { SpellcastWindowComponent } from '../../sheet/spellcast-window/spellcast
 import { createEmptySheet } from '../../model/character-sheet-model';
 import { StatusEffect, ActiveStatusEffect } from '../../model/status-effect.model';
 import { ItemBlock } from '../../model/item-block.model';
+import { isWieldedWeapon } from '../../utils/equip-slot.utils';
 import { StatBlock } from '../../model/stat-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 
@@ -66,7 +67,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       @if (rolls.length === 0) {
         <div class="empty-rolls">Noch keine Würfe in dieser Sitzung</div>
       }
-      @for (roll of reversedRolls; track roll.id) {
+      @for (roll of displayRolls; track roll.id) {
         <div class="roll-entry" [class.secret]="roll.isSecret">
           <div class="roll-meta">
             <span class="roll-char">{{ roll.characterName }}</span>
@@ -84,7 +85,11 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                 {{ getTotalBonus(roll) > 0 ? '+' : '' }}{{ getTotalBonus(roll) }}
               </span>
             }
-            <span class="roll-eq">= <strong>{{ roll.result }}</strong></span>
+            @if (getRollRawResult(roll) !== null) {
+              <span class="roll-eq">{{ getRollRawResult(roll) }} → <strong>{{ getRollDisplayResult(roll) }}</strong> <span class="roll-stab">(🛡{{ roll.stabilitaet }})</span></span>
+            } @else {
+              <span class="roll-eq">= <strong>{{ getRollDisplayResult(roll) }}</strong></span>
+            }
           </div>
         </div>
       }
@@ -121,7 +126,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
           <button class="res-btn minus" (click)="adjustResource('health', -1)">−</button>
           <input class="res-input" type="number"
             [value]="currentHealth"
-            (change)="setResource('health', $event)"
+            (input)="setResource('health', $event)"
             [max]="maxHealth" />
           <button class="res-btn plus" (click)="adjustResource('health', 1)">+</button>
         </div>
@@ -137,7 +142,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
             <button class="res-btn minus" (click)="adjustResource('mana', -1)">−</button>
             <input class="res-input" type="number"
               [value]="currentMana"
-              (change)="setResource('mana', $event)"
+              (input)="setResource('mana', $event)"
               min="0" [max]="maxMana" />
             <button class="res-btn plus" (click)="adjustResource('mana', 1)">+</button>
           </div>
@@ -154,7 +159,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
             <button class="res-btn minus" (click)="adjustResource('energy', -1)">−</button>
             <input class="res-input" type="number"
               [value]="currentEnergy"
-              (change)="setResource('energy', $event)"
+              (input)="setResource('energy', $event)"
               min="0" [max]="maxEnergy" />
             <button class="res-btn plus" (click)="adjustResource('energy', 1)">+</button>
           </div>
@@ -164,23 +169,33 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       }
     </div>
 
-    <!-- Key Stats: Weapon Efficiency + Defense -->
-    @if (weaponEfficiency > 0 || totalStability > 0) {
-      <div class="key-stats-row">
-        @if (weaponEfficiency > 0) {
-          <div class="key-stat-item" title="Waffeneffizienz – höchster Wert aller Waffen">
-            <span class="key-stat-label">⚔️ Effizienz</span>
-            <span class="key-stat-val">{{ weaponEfficiency }}</span>
-          </div>
-        }
-        @if (totalStability > 0) {
-          <div class="key-stat-item" title="Gesamtverteidigung (Summe Stabilität ÷ 5)">
-            <span class="key-stat-label">🛡️ Verteidigung</span>
-            <span class="key-stat-val">{{ totalStability }}</span>
-          </div>
-        }
+    <!-- Key Stats -->
+    <div class="key-stats-row">
+      @if (weaponEfficiency > 0) {
+        <div class="key-stat-item" title="Waffeneffizienz – höchster Wert der geführten Waffe">
+          <span class="key-stat-label">⚔️ Effizienz</span>
+          <span class="key-stat-val">{{ weaponEfficiency }}</span>
+        </div>
+      }
+      @if (totalStability > 0) {
+        <div class="key-stat-item" title="Gesamtverteidigung (Summe Stabilität ÷ 5)">
+          <span class="key-stat-label">🛡️ Verteidigung</span>
+          <span class="key-stat-val">{{ totalStability }}</span>
+        </div>
+      }
+      <div class="key-stat-item" title="Grundbonus">
+        <span class="key-stat-label">Grundbonus</span>
+        <span class="key-stat-val">{{ panelGrundbonus }}</span>
       </div>
-    }
+      <div class="key-stat-item" title="Reaktionswert">
+        <span class="key-stat-label">Reaktion</span>
+        <span class="key-stat-val">{{ panelReaktion }}</span>
+      </div>
+      <div class="key-stat-item" title="Bewegungsgeschwindigkeit">
+        <span class="key-stat-label">Bewegung</span>
+        <span class="key-stat-val">{{ panelMovement }}</span>
+      </div>
+    </div>
 
     <!-- Panel Tabs -->
     <div class="panel-tabs">
@@ -298,7 +313,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
           @if (rolls.length === 0) {
             <div class="empty-rolls">Noch keine Würfe in dieser Sitzung</div>
           }
-          @for (roll of reversedRolls; track roll.id) {
+          @for (roll of displayRolls; track roll.id) {
             <div class="roll-entry" [class.secret]="roll.isSecret">
               <div class="roll-meta">
                 <span class="roll-char">{{ roll.characterName }}</span>
@@ -316,7 +331,11 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                     {{ getTotalBonus(roll) > 0 ? '+' : '' }}{{ getTotalBonus(roll) }}
                   </span>
                 }
-                <span class="roll-eq">= <strong>{{ roll.result }}</strong></span>
+                @if (getRollRawResult(roll) !== null) {
+                  <span class="roll-eq">{{ getRollRawResult(roll) }} → <strong>{{ getRollDisplayResult(roll) }}</strong> <span class="roll-stab">(🛡{{ roll.stabilitaet }})</span></span>
+                } @else {
+                  <span class="roll-eq">= <strong>{{ getRollDisplayResult(roll) }}</strong></span>
+                }
               </div>
             </div>
           }
@@ -1655,9 +1674,9 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return this.character?.equipment ?? this.npc?.equipment ?? [];
   }
 
-  /** Highest efficiency among non-lost weapons */
+  /** Highest efficiency among wielded (non-stowed) weapons */
   get weaponEfficiency(): number {
-    const weapons = this.equipment.filter(i => i.itemType === 'weapon' && !i.lost && i.efficiency !== undefined);
+    const weapons = this.equipment.filter(i => isWieldedWeapon(i) && i.efficiency !== undefined);
     if (weapons.length === 0) return 0;
     return Math.max(...weapons.map(w => w.efficiency!));
   }
@@ -1721,8 +1740,23 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     );
   }
 
-  get reversedRolls(): DiceRollEvent[] {
-    return [...this.rolls].reverse().slice(0, 40);
+  get displayRolls(): DiceRollEvent[] {
+    return this.rolls.slice(0, 40);
+  }
+
+  get panelGrundbonus(): number {
+    if (this.character) return this.trueStats.calculateGrundbonus(this.character);
+    return this.npc?.grundbonus ?? 0;
+  }
+
+  get panelReaktion(): number {
+    if (this.character) return this.trueStats.calculateReaktionswert(this.character);
+    return this.npc?.reaktionswert ?? 0;
+  }
+
+  get panelMovement(): number {
+    if (this.character) return this.trueStats.calculateMovementSpeed(this.character);
+    return this.token?.movementSpeed ?? 0;
   }
 
   // ---- Formulas ----
@@ -2035,6 +2069,17 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   getTotalBonus(roll: DiceRollEvent): number {
     return roll.bonuses.reduce((sum, b) => sum + b.value, 0);
+  }
+
+  getRollDisplayResult(roll: DiceRollEvent): number {
+    return roll.finalDamage ?? roll.result;
+  }
+
+  getRollRawResult(roll: DiceRollEvent): number | null {
+    if (roll.rawResult !== undefined && roll.stabilitaet && roll.stabilitaet > 0) {
+      return roll.rawResult;
+    }
+    return null;
   }
 
   formatTime(timestamp: Date): string {

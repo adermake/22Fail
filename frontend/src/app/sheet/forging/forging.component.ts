@@ -473,6 +473,7 @@ export class ForgingComponent implements OnInit {
     item.maxDurability = this.finalHaltbarkeit;
 
     if (isWeapon) {
+      item.armorType = 'weapon';
       item.efficiency = this.finalEffektivitaet;
       if (this.finalStatRequirement > 0) {
         item.requirements = { [this.statRequirement.toLowerCase()]: this.finalStatRequirement };

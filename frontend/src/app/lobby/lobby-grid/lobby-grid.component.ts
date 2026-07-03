@@ -3653,55 +3653,57 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const startScreen = this.worldToScreen(start.x, start.y);
     const endScreen = this.worldToScreen(end.x, end.y);
 
-    // Draw line with glow effect
     ctx.save();
-    
-    // Glow layer (draw first, underneath)
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = '#fbbf24';
+
+    // Dark outline for visibility on light backgrounds
+    ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(startScreen.x, startScreen.y);
     ctx.lineTo(endScreen.x, endScreen.y);
-    ctx.strokeStyle = '#fbbf24';
-    ctx.lineWidth = 5;
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.lineWidth = 7;
     ctx.setLineDash([10, 5]);
     ctx.stroke();
-    
-    // Solid line (draw second, on top)
-    ctx.shadowBlur = 0;
+
+    // Bright center line
     ctx.beginPath();
     ctx.moveTo(startScreen.x, startScreen.y);
     ctx.lineTo(endScreen.x, endScreen.y);
-    ctx.strokeStyle = '#fbbf24';
+    ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 3;
     ctx.setLineDash([10, 5]);
     ctx.stroke();
     ctx.setLineDash([]);
-    
+
+    // Endpoints: dark ring + bright fill
+    for (const pt of [startScreen, endScreen]) {
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#f59e0b';
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
     ctx.restore();
 
-    // Endpoints with glow
-    ctx.save();
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = '#fbbf24';
-    ctx.fillStyle = '#fbbf24';
-    ctx.beginPath();
-    ctx.arc(startScreen.x, startScreen.y, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(endScreen.x, endScreen.y, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    // Distance label
+    // Distance label with dark halo
     const midX = (startScreen.x + endScreen.x) / 2;
     const midY = (startScreen.y + endScreen.y) / 2;
     const distance = this.measureDistance();
 
     ctx.font = 'bold 14px sans-serif';
-    ctx.fillStyle = '#fbbf24';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.9)';
+    ctx.strokeText(`${distance.toFixed(1)}m`, midX, midY - 5);
+    ctx.fillStyle = '#fbbf24';
     ctx.fillText(`${distance.toFixed(1)}m`, midX, midY - 5);
   }
 
@@ -4038,8 +4040,18 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
 
-    // Check if we right-clicked on an image
+    // Check if we right-clicked on an image (skip locked layers)
     const clickedImage = this.findImageAtPoint(world);
+    
+    if (clickedImage && this.store.isLayerLocked(clickedImage.layerId)) {
+      // Fall through to hex/token menu — don't block token creation on locked images
+      this.showContextMenu.set(true);
+      this.contextMenuPosition.set({ x: event.clientX, y: event.clientY });
+      this.contextMenuImageId.set(null);
+      this.contextMenuTokenId.set(null);
+      this.contextMenuHex.set(hex);
+      return;
+    }
     
     this.showContextMenu.set(true);
     this.contextMenuPosition.set({ x: event.clientX, y: event.clientY });
@@ -4714,10 +4726,11 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private findImageAtPoint(point: Point): MapImage | null {
     if (!this.map?.images) return null;
 
-    // Check in reverse order (top to bottom)
+    // Check in reverse order (top to bottom), skip locked layers
     const images = [...this.map.images].sort((a, b) => b.zIndex - a.zIndex);
     
     for (const img of images) {
+      if (this.store.isLayerLocked(img.layerId)) continue;
       if (this.isPointInImage(point, img)) {
         return img;
       }

@@ -315,7 +315,7 @@
             <p>Noch keine Würfe in dieser Sitzung</p>
           </div>
         }
-        @for (roll of reversedRolls; track roll.id) {
+        @for (roll of displayRolls; track roll.id) {
           <div class="roll-entry" [class.secret]="roll.isSecret">
             <div class="roll-meta">
               <span class="roll-char">{{ roll.characterName }}</span>
@@ -335,7 +335,11 @@
                   {{ getTotalBonus(roll) > 0 ? '+' : '' }}{{ getTotalBonus(roll) }}
                 </span>
               }
-              <span class="roll-eq">= <strong>{{ roll.result }}</strong></span>
+              @if (getRollRawResult(roll) !== null) {
+                <span class="roll-eq">{{ getRollRawResult(roll) }} → <strong>{{ getRollDisplayResult(roll) }}</strong> <span class="roll-stab">(🛡{{ roll.stabilitaet }})</span></span>
+              } @else {
+                <span class="roll-eq">= <strong>{{ getRollDisplayResult(roll) }}</strong></span>
+              }
             </div>
           </div>
         }

@@ -124,6 +124,14 @@ export class LobbyStoreService {
     return layer?.locked ?? false;
   }
 
+  isLayerLocked(layerId: string | undefined): boolean {
+    if (!layerId) return false;
+    const map = this.currentMap;
+    if (!map?.layers) return false;
+    const layer = map.layers.find(l => l.id === layerId);
+    return layer?.locked ?? false;
+  }
+
   private captureDrawSnapshot(): void {
     this.drawUndoHistory.push({
       strokes: [...this.strokes],

@@ -117,7 +117,9 @@
         [readOnly]="true"
         [compactMode]="true"
         [effectReminderIds]="effectReminderCharacterIds()"
-        (dismissEffectReminder)="dismissEffectReminder($event)">
+        [selectedCharacterId]="selectedPanelToken()?.characterId ?? null"
+        (dismissEffectReminder)="dismissEffectReminder($event)"
+        (tileSelect)="onBattleTrackerTileSelect($event)">
       </app-battle-tracker>
       @if (isGM()) {
         <button class="kampfrunde-toggle-btn kampfrunde-toggle-btn--next" (click)="onLobbyNextTurn()" title="Nächsten Zug ausführen (synchronisiert)">

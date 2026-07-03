@@ -356,6 +356,7 @@ export class NpcEditorComponent implements OnInit {
     weapon.lost = false;
     weapon.broken = false;
     weapon.itemType = 'weapon';
+    weapon.armorType = 'weapon';
     weapon.requirements = { strength: result.finalStatRequirement };
     weapon.efficiency = result.finalEffektivitaet;
     weapon.hasDurability = true;

@@ -6,7 +6,10 @@
       @for (group of timeline(); track trackGroup($index, group); let gIdx = $index) {
         <div class="compact-group" [ngClass]="'team-' + group.team" [class.first-group]="gIdx === 0">
           @for (tile of group.tiles; track trackTile($index, tile)) {
-            <div class="compact-tile" [ngClass]="'team-' + tile.team">
+            <div class="compact-tile"
+              [ngClass]="'team-' + tile.team"
+              [class.compact-tile--selected]="selectedCharacterId === tile.characterId"
+              (click)="onCompactTileClick($event, tile)">
               @if (tile.portrait) {
                 <img [src]="tile.portrait | imageUrl" [alt]="tile.name" class="compact-tile-portrait">
               } @else {

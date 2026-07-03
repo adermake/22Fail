@@ -164,9 +164,37 @@
       </div>
     </div>
 
-    <!-- Extra / Waffen -->
+    <!-- Waffe -->
     <div class="armor-slot">
-      <div class="slot-label"><span class="slot-abbr">EXTRA</span> Extra / Waffen</div>
+      <div class="slot-label"><span class="slot-abbr">WAFFE</span> Waffe</div>
+      <div
+        class="slot-content"
+        cdkDropList
+        [cdkDropListData]="getArmorSlot('weapon')"
+        [cdkDropListConnectedTo]="connectedDropLists"
+        [cdkDropListEnterPredicate]="canDropInWeapon"
+        [id]="'weaponSlot'"
+        (cdkDropListDropped)="onSlotDrop($event, 'weapon')"
+      >
+        @if (getArmorSlot('weapon').length > 0) {
+          @for (item of getArmorSlot('weapon'); track item.name; let i = $index) {
+            <div cdkDrag [cdkDragData]="item" [cdkDragDisabled]="isItemEditing(getItemIndex(item))" (cdkDragStarted)="onDragStarted($event)">
+              <app-item [item]="item" [sheet]="sheet" [index]="getItemIndex(item)" [isEditing]="isItemEditing(getItemIndex(item))"
+                (patch)="updateItem(getItemIndex(item), $event)" (delete)="deleteItem(getItemIndex(item))"
+                (editingChange)="onEditingChange(getItemIndex(item), $event)" (openEditor)="openItemEditor(getItemIndex(item))"
+                (breakTest)="performBreakTest(getItemIndex(item))" (rollDamage)="rollWeaponDamage.emit($event)"></app-item>
+              <div class="drag-placeholder-wrapper" *cdkDragPlaceholder style="height:52px"></div>
+            </div>
+          }
+        } @else {
+          <div class="empty-slot">Leer — Waffe hierher ziehen</div>
+        }
+      </div>
+    </div>
+
+    <!-- Extra -->
+    <div class="armor-slot">
+      <div class="slot-label"><span class="slot-abbr">EXTRA</span> Extra</div>
       <div
         class="slot-content"
         cdkDropList

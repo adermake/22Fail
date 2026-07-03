@@ -304,6 +304,7 @@ export class WeaponGeneratorService {
     item.id = `forged_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     item.name = itemName.trim() || result.weaponType.name;
     item.itemType = 'weapon';
+    item.armorType = 'weapon';
     item.weaponTypeName = result.weaponType.name;
     item.damageType = result.weaponType.damageType;
     item.range = result.weaponType.range;

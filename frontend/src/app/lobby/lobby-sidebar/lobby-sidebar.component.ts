@@ -82,8 +82,19 @@ export class LobbySidebarComponent {
     return `Vor ${h}h`;
   }
 
-  get reversedRolls(): DiceRollEvent[] {
-    return [...this.rolls].reverse().slice(0, 50);
+  get displayRolls(): DiceRollEvent[] {
+    return this.rolls.slice(0, 50);
+  }
+
+  getRollDisplayResult(roll: DiceRollEvent): number {
+    return roll.finalDamage ?? roll.result;
+  }
+
+  getRollRawResult(roll: DiceRollEvent): number | null {
+    if (roll.rawResult !== undefined && roll.stabilitaet && roll.stabilitaet > 0) {
+      return roll.rawResult;
+    }
+    return null;
   }
 
   // Character methods

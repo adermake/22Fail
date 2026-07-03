@@ -44,7 +44,9 @@ export class BattleTracker implements OnInit, OnDestroy {
   @Input() readOnly = false; // View-only mode for lobby
   @Input() compactMode = false; // Compact top-bar mode for lobby
   @Input() effectReminderIds: Set<string> = new Set();
+  @Input() selectedCharacterId: string | null = null;
   @Output() dismissEffectReminder = new EventEmitter<string>();
+  @Output() tileSelect = new EventEmitter<string>();
   @ViewChild('timelineContainer') timelineRef!: ElementRef<HTMLElement>;
 
   private cdr = inject(ChangeDetectorRef);
@@ -374,6 +376,11 @@ export class BattleTracker implements OnInit, OnDestroy {
     this.radialMenuCharId = tile.characterId;
     this.radialMenuPosition.set({ x: event.clientX, y: event.clientY });
     this.radialMenuOpen.set(true);
+  }
+
+  onCompactTileClick(event: MouseEvent, tile: TurnTile): void {
+    if ((event.target as HTMLElement).closest('.compact-effect-reminder')) return;
+    this.tileSelect.emit(tile.characterId);
   }
 
   closeRadialMenu(): void {

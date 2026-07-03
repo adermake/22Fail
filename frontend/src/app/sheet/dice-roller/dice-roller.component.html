@@ -271,7 +271,7 @@
                   } @else {
                     <span class="received-formula">{{ roll.diceCount }}d{{ roll.diceType }}</span>
                   }
-                  <span class="received-result">{{ roll.result }}</span>
+                  <span class="received-result">{{ roll.finalDamage ?? roll.result }}</span>
                 </div>
               }
             </div>

@@ -106,7 +106,7 @@ export class InventoryComponent {
   get connectedDropLists(): string[] {
     // Try to connect to equipment slots, but handle if they don't exist
     try {
-      return ['helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'extraSlot'];
+      return ['helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'weaponSlot', 'extraSlot'];
     } catch {
       return [];
     }

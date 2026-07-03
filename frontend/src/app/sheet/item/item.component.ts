@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ItemBlock, ItemCounter } from '../../model/item-block.model';
+import { getEquipSlot } from '../../utils/equip-slot.utils';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { KeywordEnhancer } from '../keyword-enhancer';
@@ -49,15 +50,12 @@ export class ItemComponent implements OnChanges {
 
   /** Maps armorType/itemType to short slot label */
   get slotLabel(): string | null {
-    if (this.item.itemType === 'weapon') return 'WAFFE';
-    if (this.item.itemType === 'armor' && this.item.armorType) {
-      const map: Record<string, string> = {
-        helmet: 'HELM', chestplate: 'BRUST', armschienen: 'ARME',
-        leggings: 'BEINE', boots: 'STIEFEL', extra: 'EXTRA',
-      };
-      return map[this.item.armorType] ?? null;
-    }
-    return null;
+    const slot = getEquipSlot(this.item);
+    const map: Record<string, string> = {
+      helmet: 'HELM', chestplate: 'BRUST', armschienen: 'ARME',
+      leggings: 'BEINE', boots: 'STIEFEL', weapon: 'WAFFE', extra: 'EXTRA',
+    };
+    return map[slot] ?? null;
   }
 
   @HostListener('document:click')

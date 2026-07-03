@@ -47,7 +47,7 @@ export interface AttachedSpell {
 export type ItemType = 'weapon' | 'armor' | 'other';
 
 // Armor type enumeration
-export type ArmorType = 'helmet' | 'chestplate' | 'armschienen' | 'leggings' | 'boots' | 'extra';
+export type ArmorType = 'helmet' | 'chestplate' | 'armschienen' | 'leggings' | 'boots' | 'weapon' | 'extra';
 
 export class ItemBlock {
   // Basic properties
