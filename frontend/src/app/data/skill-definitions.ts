@@ -868,32 +868,27 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     statBonus: { stat: 'dexterity', amount: 3 }
   },
   {
-    id: 'jaeger_klettern',
-    name: 'Klettern-2',
+    id: 'jaeger_naturwissen_3',
+    name: 'Naturwissen+3',
     class: 'Jäger',
-    type: 'dice_bonus',
-    description: 'Klettern-2'
+    type: 'talent_bonus',
+    description: 'Naturwissen+3',
+    talentBonus: { talent: 'naturwissen', amount: -3 },
   },
   {
-    id: 'jaeger_verstecken',
-    name: 'Verstecken-2',
+    id: 'jaeger_wahrnehmung_3',
+    name: 'Wahrnehmung+3',
     class: 'Jäger',
-    type: 'dice_bonus',
-    description: 'Verstecken-2'
-  },
-  {
-    id: 'jaeger_fallen_stellen',
-    name: 'Fallen stellen-2',
-    class: 'Jäger',
-    type: 'dice_bonus',
-    description: 'Fallen stellen-2'
+    type: 'talent_bonus',
+    description: 'Wahrnehmung+3',
+    talentBonus: { talent: 'wahrnehmung', amount: -3 },
   },
   {
     id: 'jaeger_basteln',
     name: 'Basteln',
     class: 'Jäger',
     type: 'passive',
-    description: 'Die Qualität hergestellter Munition erhöht sich um einen Rang',
+    description: 'Verdoppelt erwürfelte Schmiedepunkte beim Schmieden von Munition',
     enlightened: true
   },
   {
@@ -911,6 +906,15 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     type: 'passive',
     description: 'Fernkampfprojektile können in der Luft die Richtung ändern'
   },
+  {
+    id: 'jaeger_tragisches_schicksal',
+    name: 'Beute markieren',
+    class: 'Jäger',
+    type: 'active',
+    description: 'Markiere einen Gegner in Sichtweite. -5 auf ersten Angriff gegen ihn als einzelnes Ziel',
+    cost: { type: 'energy', amount: 30 },
+    actionType: 'Aktion'
+  },
 
   // ==================== SCHNELLSCHÜTZE ====================
   {
@@ -926,7 +930,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Dynamisches Schießen',
     class: 'Schnellschütze',
     type: 'passive',
-    description: 'Kann während dem Laufen ohne Malus schießen',
+    description: 'Kann während dem Laufen ohne Nachteil schießen',
     enlightened: true
   },
   {
@@ -934,14 +938,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Sofortladung',
     class: 'Schnellschütze',
     type: 'passive',
-    description: 'Verbraucht keine Aktion, um Waffen nachzuladen'
+    description: 'Waffen, die eine Aktion zum Nachladen benötigen, brauchen nur noch eine Bonusaktion. Waffen, die nur eine Bonusaktion benötigen verbrauchen keine Bonusaktion'
   },
   {
     id: 'schnellschuetze_unberuehrt',
     name: 'Unberührt',
     class: 'Schnellschütze',
     type: 'passive',
-    description: '+5 Bewegung, wenn du diese und letzte Runde keinen Schaden genommen hast',
+    description: '+3 Bewegung, wenn du diese und letzte Runde keinen Schaden genommen hast',
     enlightened: true
   },
   {
@@ -949,7 +953,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Folgeangriff',
     class: 'Schnellschütze',
     type: 'passive',
-    description: 'Erhält sofort eine Extra-Aktion, wenn ein Gegner handlungsunfähig wird, egal wer am Zug ist'
+    description: 'Erhält sofort eine Extra-Aktion, wenn ein Gegner bewegungsunfähig wird, egal wer am Zug ist, maximal einmal zwischen Zügen möglich'
   },
   {
     id: 'schnellschuetze_multischuss',
@@ -998,7 +1002,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     enlightened: true
   },
   {
-    id: 'arkanist_verinnerlichen',
+    id: 'arkanist_verinnererlichen',
     name: 'Verinnererlichen',
     class: 'Arkanist',
     type: 'passive',
@@ -1018,7 +1022,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Zauberbrecher',
     class: 'Arkanist',
     type: 'active',
-    description: 'Annulliert einen Zauber im Zauberradius, Ausdauerkosten entsprechen den halben Manakosten des Zaubers und kann Ausdauer ins Negative bringen. Erhält Möglichkeit, diese Fähigkeit zu nutzen, wenn ein Zauber den Zauberradius betritt.',
+    description: 'Annulliert einen Zauber im Zauberradius, Ausdauerkosten entsprechen den halben Manakosten des Zaubers und kann Ausdauer ins Negative bringen. Erhält Möglichkeit, diese Fähigkeit zu nutzen, wenn ein Zauber den Zauberradius betritt',
     actionType: 'Aktion'
   },
   {
@@ -1052,7 +1056,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Kaltblütig',
     class: 'Hämomant',
     type: 'passive',
-    description: '-1 im Kampf gegen Gegner mit offenen Wunden',
+    description: '-1 im Kampf gegen blutende Gegner',
     enlightened: true
   },
   {
@@ -1060,8 +1064,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Transfusion',
     class: 'Hämomant',
     type: 'active',
-    description: 'Absorbiere umliegendes Blut und heile dich um den gewürfelten Betrag (D8). Bonusaktion',
-    cost: { type: 'energy', amount: 5 },
+    description: 'Absorbiere umliegendes Blut und heile dich um den gewürfelten Betrag (D8)',
+    cost: { type: 'energy', amount: 0 },
     actionType: 'Bonusaktion'
   },
   {
@@ -1078,7 +1082,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Hypertonie',
     class: 'Hämomant',
     type: 'active',
-    description: '-2 im Kampf',
+    description: '-4 im Kampf',
     cost: { type: 'life', amount: 20, perRound: true },
     actionType: 'Bonusaktion'
   },
@@ -1089,7 +1093,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     type: 'active',
     description: 'Konvertiert 1x Leben zu 0,8x Mana (wird abgerundet)',
     enlightened: true,
-    cost: { type: 'energy', amount: 0 },
+    cost: { type: 'life', amount: 0 },
     actionType: 'Bonusaktion'
   },
 
@@ -1107,14 +1111,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Runenkonvergenz',
     class: 'Seelenformer',
     type: 'passive',
-    description: '-1 auf Nutzung von Zaubern die eine Elementarrune beinhalten, die für eine aktive Beschwörung benutzt wurde.'
+    description: '-1 auf Nutzung von Zaubern die eine Elementarrune beinhalten, die für eine aktive Beschwörung benutzt wurde'
   },
   {
     id: 'seelenformer_hausgemacht',
     name: 'Hausgemacht',
     class: 'Seelenformer',
     type: 'passive',
-    description: 'Senkt Fokuskosten für selbst kreierte Seelenrunen in Beschwörungszaubern um 20% und ermöglicht es, diese Seelenrunen in diesen Zaubern frei auszutauschen.'
+    description: 'Senkt Fokuskosten für selbst kreierte Seelenrunen in Beschwörungszaubern um 20% und ermöglicht es, diese Seelenrunen in diesen Zaubern frei auszutauschen'
   },
   {
     id: 'seelenformer_seelenwacht',
@@ -1148,9 +1152,9 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Sanktum',
     class: 'Seelenformer',
     type: 'active',
-    description: 'Festige die Seele eines Verbündeten, was ihn immun gegen psychische Angriffe macht. Bonusaktion',
+    description: 'Festige die Seele eines Verbündeten, was ihn für die Dauer der Fähigkeit immun gegen psychische Angriffe macht',
     enlightened: true,
-    cost: { type: 'energy', amount: 10, perRound: true },
+    cost: { type: 'energy', amount: 5, perRound: true },
     actionType: 'Bonusaktion'
   },
 
