@@ -577,7 +577,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schwere Rüstung',
     class: 'Ritter',
     type: 'active',
-    description: 'Negiert Schaden und wandelt ihn zu doppeltem Rüstungsschaden um',
+    description: 'Reduziert Schaden um 90% und wandelt den Rest zu doppeltem Rüstungsschaden um',
     cost: { type: 'energy', amount: 10, perRound: true },
     actionType: 'Bonusaktion'
   },
@@ -1181,7 +1181,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'erzritter_rittmeister',
     name: 'Rittmeister',
     class: 'Erzritter',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '-2 auf Angriffe wenn auf einem Reittier'
   },
   {
@@ -1189,7 +1189,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Unzerbrechliche Rüstung',
     class: 'Erzritter',
     type: 'passive',
-    description: 'Halbiert Rüstungsschaden'
+    description: 'Halbiert Rüstungsschaden und erhöht Stabilität von getragener Rüstung um 20%'
   },
   {
     id: 'erzritter_ruestungsschmied',
@@ -1203,7 +1203,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Volle Wucht',
     class: 'Erzritter',
     type: 'active',
-    description: 'Rammangriff, der mit Rüstungsgewicht skaliert',
+    description: 'Rammangriff, der mit Rüstungsmalus (RM*5) skaliert',
     enlightened: true,
     cost: { type: 'energy', amount: 15 },
     actionType: 'Aktion'
@@ -1213,7 +1213,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schwerer Panzer',
     class: 'Erzritter',
     type: 'active',
-    description: '"Schwere Rüstung" kostet keine Ausdauer. Benötigt Schwere Rüstung.',
+    description: '"Schwere Rüstung" kostet keine Ausdauer. Benötigt Schwere Rüstung',
     requiresSkill: 'ritter_schwere_ruestung',
     actionType: 'Aktion'
   },
@@ -1241,7 +1241,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Verlängerter Arm',
     class: 'Templer',
     type: 'passive',
-    description: 'Stäbe zählen für "Waffenloser Kampf". Benötigt Waffenloser Kampf',
+    description: 'Leichte Wuchtwaffen zählen für "Waffenloser Kampf" und können fast alle Aktionen vollführen, die mit der Hand ausgeführt werden können. Benötigt Waffenloser Kampf',
     requiresSkill: 'moench_waffenloser_kampf'
   },
   {
@@ -1249,7 +1249,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Stählerne Haut',
     class: 'Templer',
     type: 'passive',
-    description: 'Halbiert Schaden gegen Wuchtangriffe',
+    description: 'Erhält Stabilität entsprechend seines Willens',
     enlightened: true
   },
   {
@@ -1265,7 +1265,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Chakrawissen',
     class: 'Templer',
     type: 'active',
-    description: '"Chakra-Blockade" kann für jeden Angriff ohne Kosten aktiviert werden. Keine Aktion',
+    description: '"Chakra-Blockade" kann für jeden Angriff ohne Kosten aktiviert werden',
     requiresSkill: 'moench_chakra_blockade',
     cost: { type: 'energy', amount: 0 },
     actionType: 'Keine Aktion'
@@ -1286,7 +1286,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     type: 'active',
     description: 'Kann jeden Gegner in Reichweite mit Nahkampfwaffe einmal pro Runde angreifen, +1 je Angriff nach dem Ersten',
     enlightened: true,
-    cost: { type: 'energy', amount: 0 },
+    cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
   {
@@ -1294,9 +1294,9 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Kraft aus dem Inneren',
     class: 'Templer',
     type: 'active',
-    description: 'Nach Kanalisierung 10 HP Heilung pro Zug und Bewegung+5, Buffdauer entspricht Kanalisierungsdauer',
+    description: 'Meditiere, um jede Runde Statuseffekte zu entfernen (D20+Überlebensbonus). Erhalte nach Kanalisierung D20 HP Heilung pro Zug und Bewegung+5 für so viele Runden, wie meditiert wurde. Meditation wird bei Bewegung abgebrochen',
     enlightened: true,
-    cost: { type: 'energy', amount: 10, perRound: true },
+    cost: { type: 'energy', amount: 15, perRound: true },
     actionType: 'Aktion'
   },
 
@@ -1308,6 +1308,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     type: 'stat_bonus',
     description: 'Stärke+4',
     statBonus: { stat: 'strength', amount: 4 }
+  },
+  {
+    id: 'general_ueberzeugen_4',
+    name: 'Überzeugen+4',
+    class: 'General',
+    type: 'talent_bonus',
+    description: 'Überzeugen+4',
+    talentBonus: { talent: 'ueberzeugen', amount: -4 },
   },
   {
     id: 'general_meisterstratege',
@@ -1322,7 +1330,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Leibwächter',
     class: 'General',
     type: 'passive',
-    description: '-2 auf Reaktionen von Verbündeten, um dich zu schützen',
+    description: 'Kann bei gegnerischen Angriffen einen Verbündeten in 3m Reichweite auswählen, der ebenfalls auf den Angriff reagieren kann. Jeder Verbündete kann nur einmal pro Zug ausgewählt werden',
     enlightened: true
   },
   {
@@ -1330,7 +1338,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Angriffsbefehl',
     class: 'General',
     type: 'active',
-    description: 'Schenkt einem Verbündeten einen Extrazug',
+    description: 'Schenkt einem Verbündeten einen Extrazug. Kann nicht in einem Extrazug verwendet werden',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -1339,7 +1347,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schutzbefehl',
     class: 'General',
     type: 'active',
-    description: 'Ein Vebündeter erhält -5 auf die Reaktion des nächsten Angriffs',
+    description: 'Ein Verbündeter erhält -8 auf den Reaktionswert des nächsten Angriffs',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -1348,7 +1356,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Standbefehl',
     class: 'General',
     type: 'active',
-    description: 'Zieht eine Linie, auf der alle Verbündeten im Kampf -1 erhalten',
+    description: 'Zieht eine Linie (Anzahl Felder entspricht Wille, Felder müssen verbunden sein), auf der alle Verbündeten für den Rest des Kampfes im Kampf -2 und Immunität gegen schwieriges Terrain erhalten',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
