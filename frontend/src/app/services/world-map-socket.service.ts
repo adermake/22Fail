@@ -27,7 +27,10 @@ export class WorldMapSocketService {
 
   connect(worldName: string): void {
     this.worldName = worldName;
-    if (this.socket?.connected) return;
+    if (this.socket?.connected) {
+      this.socket.emit('joinWorldMap', { worldName });
+      return;
+    }
 
     if (this.socket) {
       this.socket.disconnect();

@@ -51,6 +51,8 @@ import {
   oddqHexDistance,
   worldPixelToSubHex,
   macroTilePosition,
+  isInsideMacroTileHex,
+  subHexToPixel,
 } from './world-map-hex.utils';
 import { WorldMapToolbarComponent } from './world-map-toolbar/world-map-toolbar.component';
 import { LobbyTokenComponent } from '../lobby/lobby-token/lobby-token.component';
@@ -93,6 +95,8 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private remoteMeasurements: WorldMapMeasurement[] = [];
   private documentMoveListener: ((e: MouseEvent) => void) | null = null;
   private documentUpListener: ((e: MouseEvent) => void) | null = null;
+  private fogRenderRaf = 0;
+  private fogOffscreen?: HTMLCanvasElement;
 
   worldName = signal('');
   isGM = signal(false);
@@ -145,7 +149,10 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
         if (!prev || prev.macroTiles !== data.macroTiles) {
           this.syncOsdTiles(data.macroTiles);
         }
-        this.renderCanvases();
+        if (!prev || prev.revealedSubHexes !== data.revealedSubHexes || prev.macroTiles !== data.macroTiles) {
+          this.renderFog();
+        }
+        this.renderOverlay();
         this.cdr.markForCheck();
       }),
       this.socket.patches$.subscribe(patch => this.store.applyRemotePatch(patch)),
@@ -201,6 +208,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.fogRenderRaf) cancelAnimationFrame(this.fogRenderRaf);
     window.removeEventListener('resize', this.onResize);
     this.removeDocumentListeners();
     const wrap = this.viewerWrap?.nativeElement;
@@ -301,9 +309,18 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Keep tokens, strokes, and fog aligned with the OpenSeadragon viewport. */
   private syncViewOverlays(): void {
     this.updateTokenScale();
-    this.renderCanvases();
+    this.renderOverlay();
+    this.scheduleFogRender();
     this.viewEpoch.update(n => n + 1);
     this.cdr.markForCheck();
+  }
+
+  private scheduleFogRender(): void {
+    if (this.fogRenderRaf) return;
+    this.fogRenderRaf = requestAnimationFrame(() => {
+      this.fogRenderRaf = 0;
+      this.renderFog();
+    });
   }
 
   private onWheel = (e: WheelEvent): void => {
@@ -330,12 +347,13 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const p2 = osd.imageToViewportCoordinates(SUB_HEX_RADIUS * 2, 0);
     const s1 = this.viewer.viewport.pixelFromPoint(p1);
     const s2 = this.viewer.viewport.pixelFromPoint(p2);
-    this.tokenScale.set(Math.abs(s2.x - s1.x) / (SUB_HEX_RADIUS * 2));
+    this.tokenScale.set((Math.abs(s2.x - s1.x) / (SUB_HEX_RADIUS * 2)) * 0.5);
   }
 
   private onResize = (): void => {
     this.resizeCanvases();
-    this.renderCanvases();
+    this.renderOverlay();
+    this.renderFog();
   };
 
   private resizeCanvases(): void {
@@ -574,6 +592,8 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (tool === 'cursor') {
+      if (this.isGM() && pick && this.applyFogAtPick(pick)) return;
+
       if (!pick) return;
       const data = this.mapData();
       const token = data?.tokens.find(
@@ -598,15 +618,22 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    if (this.isGM() && pick) {
-      const mode = this.fogMode();
-      if (mode === 'reveal') {
-        this.store.revealSubHexes([pick]);
-      } else if (mode === 'hide') {
-        this.store.recoverSubHexes([pick]);
-      }
-    }
+    if (this.isGM() && pick && this.applyFogAtPick(pick)) return;
   };
+
+  /** GM fog reveal/hide while in cursor mode (V/D hotkeys). */
+  private applyFogAtPick(pick: SubHexRef & { worldX: number; worldY: number }): boolean {
+    const mode = this.fogMode();
+    if (mode === 'reveal') {
+      this.store.revealSubHexes([pick]);
+      return true;
+    }
+    if (mode === 'hide') {
+      this.store.recoverSubHexes([pick]);
+      return true;
+    }
+    return false;
+  }
 
   private onWrapMouseMove = (e: MouseEvent): void => {
     if (this.isPanning && this.viewer) {
@@ -667,7 +694,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (tool !== 'draw' && tool !== 'measure') {
       this.hoverSubHex.set(pick);
-      this.renderCanvases();
+      this.renderOverlay();
     }
   };
 
@@ -888,26 +915,53 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const ctx = this.fogCtx;
     const canvas = this.fogCanvas?.nativeElement;
     const data = this.mapData();
-    if (!ctx || !canvas || !data) return;
+    if (!ctx || !canvas || !data || data.macroTiles.length === 0) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (this.isGM()) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    if (!this.fogOffscreen || this.fogOffscreen.width !== w || this.fogOffscreen.height !== h) {
+      this.fogOffscreen = document.createElement('canvas');
+      this.fogOffscreen.width = w;
+      this.fogOffscreen.height = h;
+    }
+    const off = this.fogOffscreen;
+    const octx = off.getContext('2d');
+    if (!octx) return;
 
+    octx.clearRect(0, 0, w, h);
     const revealed = new Set(data.revealedSubHexes);
-    ctx.fillStyle = '#000000';
+    const pad = SUB_HEX_RADIUS * 3;
+
+    octx.fillStyle = '#000000';
+    octx.beginPath();
 
     for (const tile of data.macroTiles) {
       for (const sub of MACRO_SUB_HEXES) {
+        const local = subHexToPixel({ q: sub.q, r: sub.r });
+        if (!isInsideMacroTileHex(local.x, local.y)) continue;
+
         const key = subHexKey({ macroQ: tile.q, macroR: tile.r, subQ: sub.q, subR: sub.r });
         if (revealed.has(key)) continue;
+
         const center = subHexToWorldPixel(tile, sub.q, sub.r);
         const screen = this.worldToScreen(center.x, center.y);
         if (!screen) continue;
-        const r = this.imageSizeToScreen(SUB_HEX_RADIUS, tile.id);
-        drawFlatHexPath(ctx, screen.x, screen.y, r);
-        ctx.fill();
+        if (screen.x < -pad || screen.y < -pad || screen.x > w + pad || screen.y > h + pad) {
+          continue;
+        }
+
+        const r = this.imageSizeToScreen(SUB_HEX_RADIUS * 1.06, tile.id);
+        drawFlatHexPath(octx, screen.x, screen.y, r);
       }
     }
+
+    octx.fill();
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.globalAlpha = this.isGM() ? 0.45 : 1;
+    ctx.drawImage(off, 0, 0);
+    ctx.restore();
   }
 
   private drawStrokes(ctx: CanvasRenderingContext2D, data: WorldMapData): void {

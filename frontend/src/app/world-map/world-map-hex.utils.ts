@@ -92,6 +92,18 @@ export function subHexWorldDistance(a: Point, b: Point): number {
   return oddqHexDistance(ha, hb);
 }
 
+/** Pointy-top macro tile hex (matches stencil / tile image shape). */
+export function isInsideMacroTileHex(localX: number, localY: number): boolean {
+  const cx = HEX_WIDTH / 2;
+  const cy = HEX_HEIGHT / 2;
+  const dx = Math.abs(localX - cx);
+  const dy = Math.abs(localY - cy);
+  const halfH = HEX_HEIGHT / 2;
+  const halfW = HEX_WIDTH / 2;
+  if (dy > halfH) return false;
+  return dx <= halfW * (1 - dy / halfH);
+}
+
 export function drawFlatHexPath(
   ctx: CanvasRenderingContext2D,
   cx: number,
