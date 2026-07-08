@@ -97,8 +97,8 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private remoteMeasurements: WorldMapMeasurement[] = [];
   private documentMoveListener: ((e: MouseEvent) => void) | null = null;
   private documentUpListener: ((e: MouseEvent) => void) | null = null;
-  private fogRenderRaf = 0;
-  private fogOffscreen?: HTMLCanvasElement;
+  /** Per-macro-tile fog bitmap in tile-local pixels (fast composite on pan/zoom). */
+  private fogTileCaches = new Map<string, HTMLCanvasElement>();
 
   worldName = signal('');
   isGM = signal(false);
@@ -141,6 +141,8 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.store.load(worldName).then(data => {
       this.mapData.set(data);
       this.syncOsdTiles(data.macroTiles);
+      this.rebuildAllFogTileCaches(data);
+      this.renderFog();
       this.cdr.markForCheck();
     });
 
@@ -153,6 +155,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
           this.syncOsdTiles(data.macroTiles);
         }
         if (!prev || prev.revealedSubHexes !== data.revealedSubHexes || prev.macroTiles !== data.macroTiles) {
+          this.rebuildAllFogTileCaches(data);
           this.renderFog();
         }
         this.renderOverlay();
@@ -211,7 +214,6 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.fogRenderRaf) cancelAnimationFrame(this.fogRenderRaf);
     window.removeEventListener('resize', this.onResize);
     this.removeDocumentListeners();
     const wrap = this.viewerWrap?.nativeElement;
@@ -313,17 +315,9 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private syncViewOverlays(): void {
     this.updateTokenScale();
     this.renderOverlay();
-    this.scheduleFogRender();
+    this.renderFog();
     this.viewEpoch.update(n => n + 1);
     this.cdr.markForCheck();
-  }
-
-  private scheduleFogRender(): void {
-    if (this.fogRenderRaf) return;
-    this.fogRenderRaf = requestAnimationFrame(() => {
-      this.fogRenderRaf = 0;
-      this.renderFog();
-    });
   }
 
   private onWheel = (e: WheelEvent): void => {
@@ -420,6 +414,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
             this.osdTileState.set(tile.id, { x: pos.x, y: pos.y, imageId: tile.imageId });
           }
           this.updateTokenScale();
+          this.rebuildFogTileCache(tile, new Set(this.mapData()?.revealedSubHexes ?? []));
           this.renderCanvases();
         },
       });
@@ -640,6 +635,15 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const mode = this.fogMode();
     const refs = this.getFogBrushHexRefs(pick);
     if (refs.length === 0) return false;
+
+    const data = this.mapData();
+    const tile = data?.macroTiles.find(t => t.q === pick.macroQ && t.r === pick.macroR);
+    if (tile) {
+      if (mode === 'reveal') this.punchFogHoles(tile, refs);
+      else if (mode === 'hide') this.addFogHexes(tile, refs);
+      this.renderFog();
+    }
+
     if (mode === 'reveal') {
       this.store.revealSubHexes(refs);
       return true;
@@ -904,6 +908,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const id = this.selectedMacroTileId();
     if (!id) return;
     this.store.removeMacroTile(id);
+    this.fogTileCaches.delete(id);
     const item = this.osdTiles.get(id);
     if (item && this.viewer) {
       this.viewer.world.removeItem(item);
@@ -949,54 +954,110 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private renderFog(): void {
     const ctx = this.fogCtx;
     const canvas = this.fogCanvas?.nativeElement;
+    const viewer = this.viewer;
     const data = this.mapData();
-    if (!ctx || !canvas || !data || data.macroTiles.length === 0) return;
+    if (!ctx || !canvas || !viewer || !data || data.macroTiles.length === 0) return;
 
     const w = canvas.width;
     const h = canvas.height;
-    if (!this.fogOffscreen || this.fogOffscreen.width !== w || this.fogOffscreen.height !== h) {
-      this.fogOffscreen = document.createElement('canvas');
-      this.fogOffscreen.width = w;
-      this.fogOffscreen.height = h;
-    }
-    const off = this.fogOffscreen;
-    const octx = off.getContext('2d');
-    if (!octx) return;
-
-    octx.clearRect(0, 0, w, h);
-    const revealed = new Set(data.revealedSubHexes);
-    const pad = SUB_HEX_RADIUS * 3;
-
-    octx.fillStyle = '#000000';
-    octx.beginPath();
-
-    for (const tile of data.macroTiles) {
-      for (const sub of MACRO_SUB_HEXES) {
-        const local = subHexToPixel({ q: sub.q, r: sub.r });
-        if (!isInsideMacroTileHex(local.x, local.y)) continue;
-
-        const key = subHexKey({ macroQ: tile.q, macroR: tile.r, subQ: sub.q, subR: sub.r });
-        if (revealed.has(key)) continue;
-
-        const center = subHexToWorldPixel(tile, sub.q, sub.r);
-        const screen = this.worldToScreen(center.x, center.y);
-        if (!screen) continue;
-        if (screen.x < -pad || screen.y < -pad || screen.x > w + pad || screen.y > h + pad) {
-          continue;
-        }
-
-        const r = this.imageSizeToScreen(SUB_HEX_RADIUS * 1.06, tile.id);
-        appendFlatHexPath(octx, screen.x, screen.y, r);
-      }
-    }
-
-    octx.fill();
-
     ctx.clearRect(0, 0, w, h);
     ctx.save();
     ctx.globalAlpha = this.isGM() ? 0.45 : 1;
-    ctx.drawImage(off, 0, 0);
+
+    for (const tile of data.macroTiles) {
+      const cache = this.fogTileCaches.get(tile.id);
+      const osdItem = this.osdTiles.get(tile.id);
+      if (!cache || !osdItem) continue;
+
+      const bounds = osdItem.getBounds();
+      const topLeft = viewer.viewport.pixelFromPoint(bounds.getTopLeft());
+      const bottomRight = viewer.viewport.pixelFromPoint(bounds.getBottomRight());
+      const sw = bottomRight.x - topLeft.x;
+      const sh = bottomRight.y - topLeft.y;
+      if (topLeft.x > w || topLeft.y > h || topLeft.x + sw < 0 || topLeft.y + sh < 0) continue;
+
+      ctx.drawImage(cache, topLeft.x, topLeft.y, sw, sh);
+    }
+
     ctx.restore();
+  }
+
+  private rebuildAllFogTileCaches(data: WorldMapData): void {
+    const revealed = new Set(data.revealedSubHexes);
+    const activeIds = new Set(data.macroTiles.map(t => t.id));
+    for (const id of this.fogTileCaches.keys()) {
+      if (!activeIds.has(id)) this.fogTileCaches.delete(id);
+    }
+    for (const tile of data.macroTiles) {
+      this.rebuildFogTileCache(tile, revealed);
+    }
+  }
+
+  private rebuildFogTileCache(tile: MacroTile, revealed: Set<string>): void {
+    let cache = this.fogTileCaches.get(tile.id);
+    if (!cache) {
+      cache = document.createElement('canvas');
+      cache.width = HEX_WIDTH;
+      cache.height = HEX_HEIGHT;
+      this.fogTileCaches.set(tile.id, cache);
+    }
+    const ctx = cache.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, HEX_WIDTH, HEX_HEIGHT);
+    ctx.fillStyle = '#000000';
+    const fogR = SUB_HEX_RADIUS * 1.03;
+
+    for (const sub of MACRO_SUB_HEXES) {
+      const local = subHexToPixel({ q: sub.q, r: sub.r });
+      if (!isInsideMacroTileHex(local.x, local.y)) continue;
+
+      const key = subHexKey({ macroQ: tile.q, macroR: tile.r, subQ: sub.q, subR: sub.r });
+      if (revealed.has(key)) continue;
+
+      ctx.beginPath();
+      appendFlatHexPath(ctx, local.x, local.y, fogR);
+      ctx.fill();
+    }
+  }
+
+  private punchFogHoles(tile: MacroTile, refs: SubHexRef[]): void {
+    const cache = this.fogTileCaches.get(tile.id);
+    if (!cache) {
+      this.rebuildFogTileCache(tile, new Set(this.mapData()?.revealedSubHexes ?? []));
+      return;
+    }
+    const ctx = cache.getContext('2d');
+    if (!ctx) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = '#000000';
+    const fogR = SUB_HEX_RADIUS * 1.03;
+    for (const ref of refs) {
+      const local = subHexToPixel({ q: ref.subQ, r: ref.subR });
+      ctx.beginPath();
+      appendFlatHexPath(ctx, local.x, local.y, fogR);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  private addFogHexes(tile: MacroTile, refs: SubHexRef[]): void {
+    const cache = this.fogTileCaches.get(tile.id);
+    if (!cache) {
+      this.rebuildFogTileCache(tile, new Set(this.mapData()?.revealedSubHexes ?? []));
+      return;
+    }
+    const ctx = cache.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = '#000000';
+    const fogR = SUB_HEX_RADIUS * 1.03;
+    for (const ref of refs) {
+      const local = subHexToPixel({ q: ref.subQ, r: ref.subR });
+      ctx.beginPath();
+      appendFlatHexPath(ctx, local.x, local.y, fogR);
+      ctx.fill();
+    }
   }
 
   private drawStrokes(ctx: CanvasRenderingContext2D, data: WorldMapData): void {
@@ -1081,7 +1142,9 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!hover) return;
     const tile = this.mapData()?.macroTiles.find(t => t.q === hover.macroQ && t.r === hover.macroR);
     if (!tile) return;
-    const r = this.imageSizeToScreen(SUB_HEX_RADIUS, tile.id);
+    const osdItem = this.osdTiles.get(tile.id);
+    if (!osdItem || !this.viewer) return;
+    const fogR = SUB_HEX_RADIUS;
 
     const brushHexes =
       this.isGM() && this.fogMode() !== 'neutral'
@@ -1106,9 +1169,10 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     ctx.beginPath();
     for (const hex of brushHexes) {
-      const center = subHexToWorldPixel(tile, hex.subQ, hex.subR);
-      const screen = this.worldToScreen(center.x, center.y);
-      if (!screen) continue;
+      const local = subHexToPixel({ q: hex.subQ, r: hex.subR });
+      const vp = osdItem.imageToViewportCoordinates(local.x, local.y);
+      const screen = this.viewer.viewport.pixelFromPoint(vp);
+      const r = this.imageSizeToScreen(fogR, tile.id);
       appendFlatHexPath(ctx, screen.x, screen.y, r);
     }
     if (fillStyle !== 'transparent') {
@@ -1116,7 +1180,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
       ctx.fill();
     }
     ctx.strokeStyle = strokeStyle;
-    ctx.lineWidth = this.isGM() ? Math.max(2, r * 0.12) : Math.max(1, r * 0.08);
+    ctx.lineWidth = this.isGM() ? Math.max(2, this.imageSizeToScreen(fogR, tile.id) * 0.12) : Math.max(1, this.imageSizeToScreen(fogR, tile.id) * 0.08);
     ctx.stroke();
   }
 

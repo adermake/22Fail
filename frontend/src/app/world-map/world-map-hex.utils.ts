@@ -104,6 +104,9 @@ export function isInsideMacroTileHex(localX: number, localY: number): boolean {
   return dx <= halfW * (1 - dy / halfH);
 }
 
+/** Flat-top sub-hex orientation (flat edges top/bottom, matches odd-q grid). */
+const FLAT_TOP_HEX_ANGLE_OFFSET = -Math.PI / 2;
+
 export function appendFlatHexPath(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -111,7 +114,7 @@ export function appendFlatHexPath(
   r: number,
 ): void {
   for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i;
+    const angle = (Math.PI / 3) * i + FLAT_TOP_HEX_ANGLE_OFFSET;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
     if (i === 0) ctx.moveTo(x, y);
