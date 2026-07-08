@@ -53,6 +53,8 @@ import {
   macroTilePosition,
   isInsideMacroTileHex,
   subHexToPixel,
+  appendFlatHexPath,
+  subHexesInOddqRadius,
 } from './world-map-hex.utils';
 import { WorldMapToolbarComponent } from './world-map-toolbar/world-map-toolbar.component';
 import { LobbyTokenComponent } from '../lobby/lobby-token/lobby-token.component';
@@ -103,6 +105,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   mapData = signal<WorldMapData | null>(null);
   currentTool = signal<WorldMapTool>('cursor');
   fogMode = signal<FogMode>('neutral');
+  fogBrushRadius = signal(0);
   isEraserMode = signal(false);
   brushColor = signal('#ef4444');
   penBrushSize = signal(4);
@@ -325,6 +328,17 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private onWheel = (e: WheelEvent): void => {
     if (!this.viewer || !this.viewerHost) return;
+
+    if (this.isGM() && e.ctrlKey && this.fogMode() !== 'neutral') {
+      e.preventDefault();
+      e.stopPropagation();
+      const delta = e.deltaY > 0 ? -1 : 1;
+      this.fogBrushRadius.update(r => Math.max(0, Math.min(6, r + delta)));
+      this.renderOverlay();
+      this.cdr.markForCheck();
+      return;
+    }
+
     e.preventDefault();
     e.stopPropagation();
     const rect = this.viewerHost.nativeElement.getBoundingClientRect();
@@ -624,15 +638,36 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   /** GM fog reveal/hide while in cursor mode (V/D hotkeys). */
   private applyFogAtPick(pick: SubHexRef & { worldX: number; worldY: number }): boolean {
     const mode = this.fogMode();
+    const refs = this.getFogBrushHexRefs(pick);
+    if (refs.length === 0) return false;
     if (mode === 'reveal') {
-      this.store.revealSubHexes([pick]);
+      this.store.revealSubHexes(refs);
       return true;
     }
     if (mode === 'hide') {
-      this.store.recoverSubHexes([pick]);
+      this.store.recoverSubHexes(refs);
       return true;
     }
     return false;
+  }
+
+  private getFogBrushHexRefs(
+    pick: SubHexRef & { worldX?: number; worldY?: number },
+  ): SubHexRef[] {
+    const radius = this.fogBrushRadius();
+    const coords = subHexesInOddqRadius(pick.subQ, pick.subR, radius);
+    const refs: SubHexRef[] = [];
+    for (const coord of coords) {
+      const local = subHexToPixel(coord);
+      if (!isInsideMacroTileHex(local.x, local.y)) continue;
+      refs.push({
+        macroQ: pick.macroQ,
+        macroR: pick.macroR,
+        subQ: coord.q,
+        subR: coord.r,
+      });
+    }
+    return refs;
   }
 
   private onWrapMouseMove = (e: MouseEvent): void => {
@@ -951,7 +986,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
         }
 
         const r = this.imageSizeToScreen(SUB_HEX_RADIUS * 1.06, tile.id);
-        drawFlatHexPath(octx, screen.x, screen.y, r);
+        appendFlatHexPath(octx, screen.x, screen.y, r);
       }
     }
 
@@ -1046,32 +1081,43 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!hover) return;
     const tile = this.mapData()?.macroTiles.find(t => t.q === hover.macroQ && t.r === hover.macroR);
     if (!tile) return;
-    const screen = this.worldToScreen(hover.worldX, hover.worldY);
-    if (!screen) return;
     const r = this.imageSizeToScreen(SUB_HEX_RADIUS, tile.id);
 
-    drawFlatHexPath(ctx, screen.x, screen.y, r);
+    const brushHexes =
+      this.isGM() && this.fogMode() !== 'neutral'
+        ? this.getFogBrushHexRefs(hover)
+        : [hover];
 
+    const mode = this.fogMode();
+    let strokeStyle = 'rgba(148, 163, 184, 0.6)';
+    let fillStyle = 'transparent';
     if (this.isGM()) {
-      const mode = this.fogMode();
       if (mode === 'reveal') {
-        ctx.strokeStyle = 'rgba(34, 197, 94, 0.95)';
-        ctx.fillStyle = 'rgba(34, 197, 94, 0.15)';
+        strokeStyle = 'rgba(34, 197, 94, 0.95)';
+        fillStyle = 'rgba(34, 197, 94, 0.15)';
       } else if (mode === 'hide') {
-        ctx.strokeStyle = 'rgba(239, 68, 68, 0.95)';
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+        strokeStyle = 'rgba(239, 68, 68, 0.95)';
+        fillStyle = 'rgba(239, 68, 68, 0.15)';
       } else {
-        ctx.strokeStyle = 'rgba(59, 130, 246, 0.85)';
-        ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+        strokeStyle = 'rgba(59, 130, 246, 0.85)';
+        fillStyle = 'rgba(59, 130, 246, 0.1)';
       }
-      ctx.lineWidth = Math.max(2, r * 0.12);
-      ctx.fill();
-      ctx.stroke();
-    } else {
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
-      ctx.lineWidth = Math.max(1, r * 0.08);
-      ctx.stroke();
     }
+
+    ctx.beginPath();
+    for (const hex of brushHexes) {
+      const center = subHexToWorldPixel(tile, hex.subQ, hex.subR);
+      const screen = this.worldToScreen(center.x, center.y);
+      if (!screen) continue;
+      appendFlatHexPath(ctx, screen.x, screen.y, r);
+    }
+    if (fillStyle !== 'transparent') {
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+    }
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = this.isGM() ? Math.max(2, r * 0.12) : Math.max(1, r * 0.08);
+    ctx.stroke();
   }
 
   private drawBrushCircle(ctx: CanvasRenderingContext2D): void {

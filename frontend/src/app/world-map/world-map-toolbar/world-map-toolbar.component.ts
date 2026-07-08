@@ -15,6 +15,7 @@ export class WorldMapToolbarComponent {
   @Input() isGM = false;
   @Input() isEraserMode = false;
   @Input() fogMode: FogMode = 'neutral';
+  @Input() fogBrushRadius = 0;
   @Input() brushColor = '#ef4444';
   @Input() penBrushSize = 4;
   @Input() worldName = '';
@@ -65,5 +66,11 @@ export class WorldMapToolbarComponent {
       case 'hide': return 'Verbergen (V)';
       default: return 'Neutral (D)';
     }
+  }
+
+  fogBrushLabel(): string {
+    const n = this.fogBrushRadius;
+    const hexCount = n === 0 ? 1 : 1 + 3 * n * (n + 1);
+    return `Pinsel ${n} (${hexCount} Hex)`;
   }
 }

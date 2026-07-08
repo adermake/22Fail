@@ -100,6 +100,15 @@
   border: 1px solid rgba(59, 130, 246, 0.4);
 }
 
+.fog-brush-badge {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #374151;
+  color: #d1d5db;
+  border: 1px solid #4b5563;
+}
+
 .drawing-options {
   gap: 8px;
 }

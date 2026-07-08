@@ -104,13 +104,12 @@ export function isInsideMacroTileHex(localX: number, localY: number): boolean {
   return dx <= halfW * (1 - dy / halfH);
 }
 
-export function drawFlatHexPath(
+export function appendFlatHexPath(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
-  r: number
+  r: number,
 ): void {
-  ctx.beginPath();
   for (let i = 0; i < 6; i++) {
     const angle = (Math.PI / 3) * i;
     const x = cx + r * Math.cos(angle);
@@ -119,6 +118,32 @@ export function drawFlatHexPath(
     else ctx.lineTo(x, y);
   }
   ctx.closePath();
+}
+
+export function drawFlatHexPath(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number
+): void {
+  ctx.beginPath();
+  appendFlatHexPath(ctx, cx, cy, r);
+}
+
+/** Sub-hexes within `radius` rings of center (0 = center only, 1 = center + 6 neighbors, …). */
+export function subHexesInOddqRadius(centerQ: number, centerR: number, radius: number): HexCoord[] {
+  if (radius <= 0) return [{ q: centerQ, r: centerR }];
+  const hexes: HexCoord[] = [];
+  for (let dq = -radius; dq <= radius; dq++) {
+    for (let dr = -radius; dr <= radius; dr++) {
+      const q = centerQ + dq;
+      const r = centerR + dr;
+      if (oddqHexDistance({ q: centerQ, r: centerR }, { q, r }) <= radius) {
+        hexes.push({ q, r });
+      }
+    }
+  }
+  return hexes;
 }
 
 /** Sub-hexes visible inside a macro tile (approximate grid bounds) */

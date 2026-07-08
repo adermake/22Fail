@@ -22,6 +22,11 @@
     <span class="fog-badge" [class.reveal]="fogMode === 'reveal'" [class.hide]="fogMode === 'hide'" [class.neutral]="fogMode === 'neutral'">
       {{ fogModeLabel() }}
     </span>
+    @if (fogMode !== 'neutral') {
+      <span class="fog-brush-badge" title="Strg + Mausrad: Pinselgröße">
+        {{ fogBrushLabel() }}
+      </span>
+    }
   }
 
   @if (currentTool === 'draw') {
