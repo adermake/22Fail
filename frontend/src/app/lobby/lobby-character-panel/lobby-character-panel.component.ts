@@ -665,7 +665,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
           <app-damage-calculator
             [worldName]="worldName"
             [characterName]="character?.name ?? npc?.name ?? 'Spielleiter'"
-            [characterId]="character?.id ?? token?.id ?? 'dm'"
+            [characterId]="character?.id ?? token.id ?? 'dm'"
             [initialEffektivitaet]="weaponEfficiency > 0 ? weaponEfficiency : undefined"
             (close)="showDamageRoller.set(false)">
           </app-damage-calculator>

@@ -39,6 +39,7 @@ import { prepareWorldMapTileForUpload } from '../shared/image-upload.utils';
 import { applyMacroStencilToFile } from './world-map-stencil.utils';
 import {
   HEX_WIDTH,
+  HEX_HEIGHT,
   SUB_HEX_RADIUS,
   KM_PER_SUB_HEX,
   parseHexFilename,
