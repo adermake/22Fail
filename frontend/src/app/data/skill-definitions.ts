@@ -689,7 +689,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Unsterblicher Krieger',
     class: 'Berserker',
     type: 'passive',
-    description: 'Heilt Leben um 3 D20, wenn Gegner getötet wird'
+    description: 'Heilt Leben um 2 D20, wenn Gegner getötet wird'
   },
   {
     id: 'berserker_adrenalin',
@@ -1398,12 +1398,12 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'klingentaenzer_waffentanz',
     name: 'Waffentanz',
     class: 'Klingentänzer',
-    type: 'passive',
-    description: '-1 auf den ersten Angriff mit einer Waffe. Erneuert sich, wenn Waffe min. 1m von dir entfernt ist oder in dieser Runde aufgehoben wurde'
+    type: 'dice_bonus',
+    description: '-1 auf den ersten Angriff mit einer Waffe. Erneuert sich, wenn Waffe in dieser Runde aufgehoben oder gefangen wurde. Dieser Vorgang kostet zusätzlich keine Aktion'
   },
   {
-    id: 'klingentaenzer_akrobat',
-    name: 'Akrobat',
+    id: 'klingentaenzer_blitzgriff',
+    name: 'Blitzgriff',
     class: 'Klingentänzer',
     type: 'passive',
     description: '+3 Bewegung auf Waffen zu, die momentan niemand hält'
@@ -1412,8 +1412,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'klingentaenzer_unantastbar',
     name: 'Unantastbar',
     class: 'Klingentänzer',
-    type: 'passive',
-    description: 'Nach einer Killbeteiligung kann in der nächsten Runde einem Angriff garantiert ausgewichen werden',
+    type: 'dice_bonus',
+    description: '-20 auf Ausweichen in der Runde nach einer Killbeteiligung',
     enlightened: true
   },
   {
@@ -1421,7 +1421,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Fliegender Kick',
     class: 'Klingentänzer',
     type: 'active',
-    description: 'Leichte Waffen, die sich in der Luft befinden, können auf Gegner gekickt werden. Kann auch als Reaktion genutzt werden',
+    description: 'Leichte Waffen, die sich in der Luft befinden, können auf Gegner gekickt werden',
     cost: { type: 'energy', amount: 10 },
     actionType: 'Aktion'
   },
@@ -1446,6 +1446,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     statBonus: { stat: 'energy', amount: 40 }
   },
   {
+    id: 'assassine_taeuschen_4',
+    name: 'Täuschen+4',
+    class: 'Assassine',
+    type: 'talent_bonus',
+    description: 'Täuschen+4',
+    talentBonus: { talent: 'taeuschen', amount: -4 },
+  },
+  {
     id: 'assassine_gnadenstoss',
     name: 'Gnadenstoß',
     class: 'Assassine',
@@ -1458,7 +1466,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Exitus',
     class: 'Assassine',
     type: 'passive',
-    description: '-1 auf Angriffe mit Absicht zu töten'
+    description: 'Erhalte einen zusätzlichen Schadenswürfel bei kritischen und tödlichen Treffern'
   },
   {
     id: 'assassine_hinterhalt',
@@ -1472,7 +1480,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Infiltration',
     class: 'Assassine',
     type: 'passive',
-    description: 'Bewegung+3, wenn deine Gruppe in Unterzahl ist',
+    description: 'Erhalte Bewegung+X, wenn deine Gruppe in Unterzahl ist. X entspricht der Gegnerzahl - Verbündetenzahl ',
     enlightened: true
   },
   {
@@ -1480,7 +1488,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Gift mischen',
     class: 'Assassine',
     type: 'passive',
-    description: '-2 beim Brauen auf Tränke mit schädlichem Effekt',
+    description: 'Verdreifacht erwürfelte Braupunkte beim Brauen von Tränken mit ausschließlich positivem Effekt',
     enlightened: true
   },
   {
@@ -1489,7 +1497,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Assassine',
     type: 'active',
     description: 'Greift Gegner an, der erst nach bis zu einer Minute Schaden nimmt',
-    cost: { type: 'energy', amount: 30 },
+    cost: { type: 'energy', amount: 10 },
     actionType: 'Aktion'
   },
 
@@ -1522,8 +1530,10 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'phantom_spiegelversteck',
     name: 'Spiegelversteck',
     class: 'Phantom',
-    type: 'passive',
-    description: 'Kann sich in der Reflektion eines Spiegels verbergen. Kann von Spiegel zu Spiegel in Sichtfeld springen. Wird beendet, wenn dieser zerstört oder unklar wird. 5 pro Runde',
+    type: 'active',
+    description: 'Kann sich in der Reflektion eines Spiegels verbergen. Kann von Spiegel zu Spiegel in Sichtfeld springen. Wird beendet, wenn dieser zerstört oder unklar wird',
+    cost: { type: 'energy', amount: 5, perRound: true },
+    actionType: 'Bonusaktion',
     enlightened: true
   },
   {
@@ -1540,7 +1550,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schrei der Todesfee',
     class: 'Phantom',
     type: 'active',
-    description: 'Wähle einen Skill aus, der für alle Gegner in Hörreichweite blockiert wird. Kostet 10x die Rundendauer',
+    description: 'Wähle eine Fähigkeit aus, der für alle Gegner in Hörreichweite blockiert wird, wenn sie einen Willenswurf verlieren. Kostet 10x die Rundendauer',
     actionType: 'Aktion'
   },
   {
@@ -1576,7 +1586,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Zauberarchitekt',
     class: 'Formationsmagier',
     type: 'passive',
-    description: 'Halbiert Fokuskosten von Zaubern mit einer Effizienz von über 100.'
+    description: 'Wenn ein Zauber bei 0 Fokus verwendet wird, erhöht sich dein maximaler Fokus um 20% der Manakosten, solange dieser Zauber aktiv ist'
   },
   {
     id: 'formationsmagier_magische_rueckkopplung',
@@ -1591,21 +1601,21 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Arkane Resonanz',
     class: 'Formationsmagier',
     type: 'passive',
-    description: 'Muss bei Formationen(großen Spells) nur 10% der zusätzlichen Manakosten zahlen.'
+    description: 'Muss bei Formationen(großen Spells) nur 50% der zusätzlichen Manakosten zahlen.'
   },
   {
     id: 'formationsmagier_vorbereiten',
     name: 'Vorbereiten',
     class: 'Formationsmagier',
     type: 'passive',
-    description: '+5 beim Würfeln für Zaubercasts, deren Maximum bei 50 oder höher liegt'
+    description: 'Erhalte 10% vom Castwert als Castbonus'
   },
   {
     id: 'formationsmagier_dunkles_siegel',
     name: 'Dunkles Siegel',
     class: 'Formationsmagier',
     type: 'active',
-    description: '-10 auf den nächsten Zauber, danach kann einen Tag keine Magie mehr benutzt werden',
+    description: '-10 auf den nächsten Zauber (-5 für Dauerzauber), danach kann einen Tag keine Magie mehr benutzt werden',
     cost: { type: 'energy', amount: 10 },
     actionType: 'Bonusaktion'
   },
