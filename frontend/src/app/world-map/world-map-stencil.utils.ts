@@ -30,7 +30,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Flat-top hex mask (white = visible) matching macro tile dimensions. */
+/** Pointy-top hex mask (white = visible) matching the real stencil.png shape. */
 export function createGeneratedMacroStencil(
   width = HEX_WIDTH,
   height = HEX_HEIGHT,
@@ -44,12 +44,13 @@ export function createGeneratedMacroStencil(
 
   const cx = width / 2;
   const cy = height / 2;
-  const r = Math.min(width / 2, height / Math.sqrt(3));
+  // Pointy-top: width = sqrt(3)·r (points at top & bottom, vertical side edges).
+  const r = Math.min(width / Math.sqrt(3), height / 2);
 
   ctx.fillStyle = '#fff';
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i;
+    const angle = (Math.PI / 3) * i - Math.PI / 2;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
     if (i === 0) ctx.moveTo(x, y);

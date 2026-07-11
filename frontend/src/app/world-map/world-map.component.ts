@@ -32,6 +32,7 @@ import {
   WorldMapToken,
   SubHexRef,
   subHexKey,
+  parseSubHexKey,
 } from '../model/world-map.model';
 import { Stroke, Point, generateId } from '../model/lobby.model';
 import { drawStrokeOnContext } from '../lobby/draw-layer.utils';
@@ -98,8 +99,20 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private remoteMeasurements: WorldMapMeasurement[] = [];
   private documentMoveListener: ((e: MouseEvent) => void) | null = null;
   private documentUpListener: ((e: MouseEvent) => void) | null = null;
-  /** Per-macro-tile fog bitmap in tile-local pixels (fast composite on pan/zoom). */
+  /** Per-macro-tile fog bitmap (fast composite on pan/zoom). */
   private fogTileCaches = new Map<string, HTMLCanvasElement>();
+  /** Revealed sub-hexes the fog caches currently reflect (baseline for incremental diffs). */
+  private fogCacheRevealed = new Set<string>();
+  /** Coalesces heavy canvas re-renders to one per animation frame during pan/zoom. */
+  private viewRenderScheduled = false;
+
+  /**
+   * Fog caches are rendered at a fraction of tile resolution — fog is quantised to
+   * ~30px sub-hexes, so a full 3128×3620 bitmap per tile (≈45 MB) is wasteful. At 0.5
+   * each cache is ≈11 MB and composites 4× faster; lower this further for very large
+   * maps (many macro tiles) at the cost of slightly softer fog edges when zoomed in.
+   */
+  private static readonly FOG_CACHE_SCALE = 0.5;
 
   worldName = signal('');
   isGM = signal(false);
@@ -142,7 +155,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.store.load(worldName).then(data => {
       this.mapData.set(data);
       this.syncOsdTiles(data.macroTiles);
-      this.rebuildAllFogTileCaches(data);
+      this.syncFogCaches(data);
       this.renderFog();
       this.cdr.markForCheck();
     });
@@ -156,7 +169,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
           this.syncOsdTiles(data.macroTiles);
         }
         if (!prev || prev.revealedSubHexes !== data.revealedSubHexes || prev.macroTiles !== data.macroTiles) {
-          this.rebuildAllFogTileCaches(data);
+          this.syncFogCaches(data);
           this.renderFog();
         }
         this.renderOverlay();
@@ -315,10 +328,24 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Keep tokens, strokes, and fog aligned with the OpenSeadragon viewport. */
   private syncViewOverlays(): void {
     this.updateTokenScale();
-    this.renderOverlay();
-    this.renderFog();
+    this.scheduleViewRender();
     this.viewEpoch.update(n => n + 1);
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Coalesce canvas re-renders to one per frame. `viewport-change` fires many times
+   * per animation during pan/zoom; redrawing strokes + compositing fog on each is the
+   * main source of pan/zoom lag.
+   */
+  private scheduleViewRender(): void {
+    if (this.viewRenderScheduled) return;
+    this.viewRenderScheduled = true;
+    requestAnimationFrame(() => {
+      this.viewRenderScheduled = false;
+      this.renderOverlay();
+      this.renderFog();
+    });
   }
 
   private onWheel = (e: WheelEvent): void => {
@@ -631,19 +658,15 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.isGM() && pick && this.applyFogAtPick(pick)) return;
   };
 
-  /** GM fog reveal/hide while in cursor mode (V/D hotkeys). */
+  /**
+   * GM fog reveal/hide while in cursor mode (V/D hotkeys). The store update emits
+   * synchronously, so `syncFogCaches` updates the affected tile's cache incrementally
+   * and `renderFog` runs within this call — instant feedback, no full rebuild.
+   */
   private applyFogAtPick(pick: SubHexRef & { worldX: number; worldY: number }): boolean {
     const mode = this.fogMode();
     const refs = this.getFogBrushHexRefs(pick);
     if (refs.length === 0) return false;
-
-    const data = this.mapData();
-    const tile = data?.macroTiles.find(t => t.q === pick.macroQ && t.r === pick.macroR);
-    if (tile) {
-      if (mode === 'reveal') this.punchFogHoles(tile, refs);
-      else if (mode === 'hide') this.addFogHexes(tile, refs);
-      this.renderFog();
-    }
 
     if (mode === 'reveal') {
       this.store.revealSubHexes(refs);
@@ -983,31 +1006,65 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     ctx.restore();
   }
 
-  private rebuildAllFogTileCaches(data: WorldMapData): void {
-    const revealed = new Set(data.revealedSubHexes);
+  /** Slight overlap between neighbouring fog hexes hides sub-pixel seams at any zoom. */
+  private static readonly FOG_HEX_OVERLAP = 1.05;
+
+  /**
+   * Bring the fog caches in line with `data` doing the least work possible:
+   *  - drop caches for removed tiles,
+   *  - fully build caches for new/uncached tiles,
+   *  - for existing caches, apply only the sub-hexes whose revealed state changed.
+   *
+   * This replaces the old "rebuild every tile on every change" path, which redrew
+   * thousands of hexes across all tiles on each brush dab and each remote patch.
+   */
+  private syncFogCaches(data: WorldMapData): void {
     const activeIds = new Set(data.macroTiles.map(t => t.id));
-    for (const id of this.fogTileCaches.keys()) {
+    for (const id of [...this.fogTileCaches.keys()]) {
       if (!activeIds.has(id)) this.fogTileCaches.delete(id);
     }
+
+    const newRevealed = new Set(data.revealedSubHexes);
+    const tileByCoord = new Map<string, MacroTile>();
+    for (const t of data.macroTiles) tileByCoord.set(`${t.q},${t.r}`, t);
+
+    // New tiles: build the whole cache once from the current revealed set.
+    const freshlyBuilt = new Set<string>();
     for (const tile of data.macroTiles) {
-      this.rebuildFogTileCache(tile, revealed);
+      if (!this.fogTileCaches.has(tile.id)) {
+        this.rebuildFogTileCache(tile, newRevealed);
+        freshlyBuilt.add(tile.id);
+      }
     }
+
+    // Existing caches: apply just the delta since the last sync.
+    for (const key of newRevealed) {
+      if (this.fogCacheRevealed.has(key)) continue; // newly revealed → punch a hole
+      this.editFogHex(key, tileByCoord, freshlyBuilt, 'reveal');
+    }
+    for (const key of this.fogCacheRevealed) {
+      if (newRevealed.has(key)) continue; // newly hidden → paint fog back
+      this.editFogHex(key, tileByCoord, freshlyBuilt, 'recover');
+    }
+
+    this.fogCacheRevealed = newRevealed;
   }
 
   private rebuildFogTileCache(tile: MacroTile, revealed: Set<string>): void {
+    const scale = WorldMapComponent.FOG_CACHE_SCALE;
     let cache = this.fogTileCaches.get(tile.id);
     if (!cache) {
       cache = document.createElement('canvas');
-      cache.width = HEX_WIDTH;
-      cache.height = HEX_HEIGHT;
       this.fogTileCaches.set(tile.id, cache);
     }
+    cache.width = Math.ceil(HEX_WIDTH * scale);
+    cache.height = Math.ceil(HEX_HEIGHT * scale);
     const ctx = cache.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, HEX_WIDTH, HEX_HEIGHT);
+    ctx.clearRect(0, 0, cache.width, cache.height);
     ctx.fillStyle = '#000000';
-    const fogR = SUB_HEX_RADIUS * 1.03;
+    const fogR = SUB_HEX_RADIUS * WorldMapComponent.FOG_HEX_OVERLAP * scale;
 
     for (const sub of MACRO_SUB_HEXES) {
       const local = subHexToPixel({ q: sub.q, r: sub.r });
@@ -1017,48 +1074,36 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
       if (revealed.has(key)) continue;
 
       ctx.beginPath();
-      appendFlatHexPath(ctx, local.x, local.y, fogR);
+      appendFlatHexPath(ctx, local.x * scale, local.y * scale, fogR);
       ctx.fill();
     }
   }
 
-  private punchFogHoles(tile: MacroTile, refs: SubHexRef[]): void {
+  /** Reveal (punch out) or recover (paint) a single sub-hex on its tile's fog cache. */
+  private editFogHex(
+    key: string,
+    tileByCoord: Map<string, MacroTile>,
+    freshlyBuilt: Set<string>,
+    mode: 'reveal' | 'recover',
+  ): void {
+    const ref = parseSubHexKey(key);
+    if (!ref) return;
+    const tile = tileByCoord.get(`${ref.macroQ},${ref.macroR}`);
+    if (!tile || freshlyBuilt.has(tile.id)) return; // fresh caches already reflect this
     const cache = this.fogTileCaches.get(tile.id);
-    if (!cache) {
-      this.rebuildFogTileCache(tile, new Set(this.mapData()?.revealedSubHexes ?? []));
-      return;
-    }
-    const ctx = cache.getContext('2d');
+    const ctx = cache?.getContext('2d');
     if (!ctx) return;
+
+    const scale = WorldMapComponent.FOG_CACHE_SCALE;
+    const local = subHexToPixel({ q: ref.subQ, r: ref.subR });
+    const fogR = SUB_HEX_RADIUS * WorldMapComponent.FOG_HEX_OVERLAP * scale;
     ctx.save();
-    ctx.globalCompositeOperation = 'destination-out';
+    ctx.globalCompositeOperation = mode === 'reveal' ? 'destination-out' : 'source-over';
     ctx.fillStyle = '#000000';
-    const fogR = SUB_HEX_RADIUS * 1.03;
-    for (const ref of refs) {
-      const local = subHexToPixel({ q: ref.subQ, r: ref.subR });
-      ctx.beginPath();
-      appendFlatHexPath(ctx, local.x, local.y, fogR);
-      ctx.fill();
-    }
+    ctx.beginPath();
+    appendFlatHexPath(ctx, local.x * scale, local.y * scale, fogR);
+    ctx.fill();
     ctx.restore();
-  }
-
-  private addFogHexes(tile: MacroTile, refs: SubHexRef[]): void {
-    const cache = this.fogTileCaches.get(tile.id);
-    if (!cache) {
-      this.rebuildFogTileCache(tile, new Set(this.mapData()?.revealedSubHexes ?? []));
-      return;
-    }
-    const ctx = cache.getContext('2d');
-    if (!ctx) return;
-    ctx.fillStyle = '#000000';
-    const fogR = SUB_HEX_RADIUS * 1.03;
-    for (const ref of refs) {
-      const local = subHexToPixel({ q: ref.subQ, r: ref.subR });
-      ctx.beginPath();
-      appendFlatHexPath(ctx, local.x, local.y, fogR);
-      ctx.fill();
-    }
   }
 
   private drawStrokes(ctx: CanvasRenderingContext2D, data: WorldMapData): void {

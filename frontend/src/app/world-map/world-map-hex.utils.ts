@@ -92,20 +92,33 @@ export function subHexWorldDistance(a: Point, b: Point): number {
   return oddqHexDistance(ha, hb);
 }
 
-/** Pointy-top macro tile hex (matches stencil / tile image shape). */
+/**
+ * Pointy-top macro tile hex (matches stencil.png / tile image shape): a vertex at
+ * top and bottom, vertical side edges through the middle half of the height.
+ *
+ * The previous version tapered linearly from full width at the centre to a point at
+ * top/bottom, which describes a *diamond*, not a hexagon — so fog only filled the
+ * central rhombus and left the four corner triangles uncovered.
+ */
 export function isInsideMacroTileHex(localX: number, localY: number): boolean {
-  const cx = HEX_WIDTH / 2;
-  const cy = HEX_HEIGHT / 2;
-  const dx = Math.abs(localX - cx);
-  const dy = Math.abs(localY - cy);
-  const halfH = HEX_HEIGHT / 2;
   const halfW = HEX_WIDTH / 2;
-  if (dy > halfH) return false;
-  return dx <= halfW * (1 - dy / halfH);
+  const halfH = HEX_HEIGHT / 2;
+  const dx = Math.abs(localX - halfW);
+  const dy = Math.abs(localY - halfH);
+  if (dx > halfW || dy > halfH) return false;
+  // Vertical side edges span the middle half of the height.
+  if (dy <= halfH / 2) return true;
+  // Above/below that, taper to the top/bottom point.
+  return dx <= 2 * halfW * (1 - dy / halfH);
 }
 
-/** Flat-top sub-hex orientation (flat edges top/bottom, matches odd-q grid). */
-const FLAT_TOP_HEX_ANGLE_OFFSET = -Math.PI / 2;
+/**
+ * Flat-top sub-hex orientation (flat edges top/bottom, points left/right) — this is
+ * what the odd-q sub-hex grid in `subHexToPixel` actually lays out (columns are
+ * offset vertically, so directly-vertical neighbours share a horizontal edge).
+ * Offset 0 puts vertices at 0°/60°/…/300°, giving horizontal top & bottom edges.
+ */
+const FLAT_TOP_HEX_ANGLE_OFFSET = 0;
 
 export function appendFlatHexPath(
   ctx: CanvasRenderingContext2D,
