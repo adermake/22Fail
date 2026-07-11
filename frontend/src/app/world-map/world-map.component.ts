@@ -56,15 +56,20 @@ import {
   isInsideMacroTileHex,
   subHexToPixel,
   appendFlatHexPath,
+  appendMacroHexPath,
   subHexesInOddqRadius,
 } from './world-map-hex.utils';
 import { WorldMapToolbarComponent } from './world-map-toolbar/world-map-toolbar.component';
 import { LobbyTokenComponent } from '../lobby/lobby-token/lobby-token.component';
+import { PingLayerComponent, RenderedPing } from '../shared/ping/ping-layer.component';
+import { PingWheelComponent } from '../shared/ping/ping-wheel.component';
+import { PingController } from '../shared/ping/ping-controller';
+import { preloadPingSounds } from '../shared/ping/ping-audio';
 
 @Component({
   selector: 'app-world-map',
   standalone: true,
-  imports: [CommonModule, WorldMapToolbarComponent, LobbyTokenComponent],
+  imports: [CommonModule, WorldMapToolbarComponent, LobbyTokenComponent, PingLayerComponent, PingWheelComponent],
   templateUrl: './world-map.component.html',
   styleUrls: ['./world-map.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -93,6 +98,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private isPanning = false;
   private lastPanMouse = { x: 0, y: 0 };
   private isAdjustingBrushSize = false;
+  private isAdjustingFogBrush = false;
   private brushSizeAdjustStart: { x: number; y: number; initialSize: number } | null = null;
   private measureStartWorld: Point | null = null;
   private measureEndWorld: Point | null = null;
@@ -103,6 +109,13 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private fogTileCaches = new Map<string, HTMLCanvasElement>();
   /** Revealed sub-hexes the fog caches currently reflect (baseline for incremental diffs). */
   private fogCacheRevealed = new Set<string>();
+  /**
+   * Array references last synced to the view. The store applies patches by reassigning
+   * these properties to fresh arrays on a mutated-in-place shared object, so the signal's
+   * "previous" value is unreliable for change detection — we track the refs ourselves.
+   */
+  private lastMacroTilesRef: MacroTile[] | null = null;
+  private lastRevealedRef: string[] | null = null;
   /** Coalesces heavy canvas re-renders to one per animation frame during pan/zoom. */
   private viewRenderScheduled = false;
 
@@ -127,6 +140,11 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   selectedMacroTileId = signal<string | null>(null);
   selectedTokenId = signal<string | null>(null);
   draggingTokenId = signal<string | null>(null);
+  /** Live world position of the token being dragged (smooth cursor-follow). */
+  draggingTokenWorld = signal<Point | null>(null);
+  /** Original world position of the dragged token (ghost anchor). */
+  dragStartWorld = signal<Point | null>(null);
+  private dragGrabOffset: Point = { x: 0, y: 0 };
   hoverSubHex = signal<(SubHexRef & { worldX: number; worldY: number }) | null>(null);
   tokenScale = signal(1);
   quickTokenName = signal('');
@@ -138,6 +156,13 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Bumped on every pan/zoom so token positions refresh. */
   viewEpoch = signal(0);
 
+  /** Radial ping state machine (hold G + left-click). */
+  pingCtl = new PingController(
+    () => this.cdr.markForCheck(),
+    p => this.socket.sendPing(p),
+    () => this.socket.socketId ?? 'local',
+  );
+
   visibleTokens = computed(() => {
     const data = this.mapData();
     if (!data) return [];
@@ -146,32 +171,37 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return data.tokens.filter(t => revealed.has(subHexKey(t)));
   });
 
+  draggingToken = computed(() => {
+    const id = this.draggingTokenId();
+    if (!id) return null;
+    return this.mapData()?.tokens.find(t => t.id === id) ?? null;
+  });
+
   ngOnInit(): void {
     const worldName = this.route.snapshot.paramMap.get('worldName') ?? '';
     const gmParam = this.route.snapshot.queryParamMap.get('gm');
     this.worldName.set(worldName);
     this.isGM.set(gmParam === 'true' || gmParam === '1');
 
-    this.store.load(worldName).then(data => {
-      this.mapData.set(data);
-      this.syncOsdTiles(data.macroTiles);
-      this.syncFogCaches(data);
-      this.renderFog();
-      this.cdr.markForCheck();
-    });
+    // The data$ subscription below handles the initial emission (tiles, fog, render);
+    // load() resolves after it fires, so we only need a change-detection nudge here.
+    this.store.load(worldName).then(() => this.cdr.markForCheck());
 
     this.subs.push(
       this.store.data$.subscribe(data => {
         if (!data) return;
-        const prev = this.mapData();
         this.mapData.set(data);
-        if (!prev || prev.macroTiles !== data.macroTiles) {
+        const tilesChanged = data.macroTiles !== this.lastMacroTilesRef;
+        const revealedChanged = data.revealedSubHexes !== this.lastRevealedRef;
+        if (tilesChanged) {
           this.syncOsdTiles(data.macroTiles);
         }
-        if (!prev || prev.revealedSubHexes !== data.revealedSubHexes || prev.macroTiles !== data.macroTiles) {
+        if (tilesChanged || revealedChanged) {
           this.syncFogCaches(data);
           this.renderFog();
         }
+        this.lastMacroTilesRef = data.macroTiles;
+        this.lastRevealedRef = data.revealedSubHexes;
         this.renderOverlay();
         this.cdr.markForCheck();
       }),
@@ -182,7 +212,9 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.renderCanvases();
         this.cdr.markForCheck();
       }),
+      this.socket.pings$.subscribe(p => this.pingCtl.addRemotePing(p)),
     );
+    preloadPingSounds();
   }
 
   ngAfterViewInit(): void {
@@ -239,6 +271,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     wrap?.removeEventListener('auxclick', this.onAuxClick);
     wrap?.removeEventListener('wheel', this.onWheel);
     this.subs.forEach(s => s.unsubscribe());
+    this.pingCtl.destroy();
     this.viewer?.destroy();
     this.store.destroy();
   }
@@ -249,6 +282,11 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
     const key = event.key.toLowerCase();
+
+    if (key === 'g') {
+      this.pingCtl.setGDown(true);
+      return;
+    }
 
     if (event.ctrlKey && key === 'z') {
       if (this.currentTool() === 'draw') {
@@ -311,6 +349,11 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.removeSelectedMacroTile();
       }
     }
+  }
+
+  @HostListener('window:keyup', ['$event'])
+  handleKeyUp(event: KeyboardEvent): void {
+    if (event.key.toLowerCase() === 'g') this.pingCtl.setGDown(false);
   }
 
   onToolChange(tool: WorldMapTool): void {
@@ -526,6 +569,39 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return { x: screen.x, y: screen.y };
   }
 
+  /** Host-relative pixel coords (origin matches the overlay/ping layers in viewer-wrap). */
+  private clientToHostPixel(clientX: number, clientY: number): Point | null {
+    const host = this.viewerHost?.nativeElement;
+    if (!host) return null;
+    const rect = host.getBoundingClientRect();
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }
+
+  /** World pixel == OSD viewport coords, so this works anywhere (even off any tile). */
+  private clientToWorldGlobal(clientX: number, clientY: number): Point | null {
+    const px = this.clientToHostPixel(clientX, clientY);
+    if (!px || !this.viewer) return null;
+    const vp = this.viewer.viewport.pointFromPixel(new OpenSeadragon.Point(px.x, px.y));
+    return { x: vp.x, y: vp.y };
+  }
+
+  private worldToScreenGlobal(wx: number, wy: number): Point | null {
+    if (!this.viewer) return null;
+    const p = this.viewer.viewport.pixelFromPoint(new OpenSeadragon.Point(wx, wy));
+    return { x: p.x, y: p.y };
+  }
+
+  /** Active pings resolved to screen space for the current viewport (reactive to pan/zoom). */
+  renderedPings(): RenderedPing[] {
+    void this.viewEpoch();
+    const out: RenderedPing[] = [];
+    for (const p of this.pingCtl.activePings) {
+      const s = this.worldToScreenGlobal(p.worldX, p.worldY);
+      if (s) out.push({ id: p.id, type: p.type, x: s.x, y: s.y });
+    }
+    return out;
+  }
+
   private imageSizeToScreen(size: number, tileId: string): number {
     const viewer = this.viewer;
     const item = this.osdTiles.get(tileId);
@@ -547,6 +623,14 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   getTokenScreenPosition(token: WorldMapToken): Point {
     // viewEpoch forces template refresh when the viewport pans/zooms
     void this.viewEpoch();
+    // While dragging, follow the cursor smoothly (grab-offset applied).
+    if (this.draggingTokenId() === token.id) {
+      const w = this.draggingTokenWorld();
+      if (w) {
+        const s = this.worldToScreenGlobal(w.x, w.y);
+        if (s) return s;
+      }
+    }
     const data = this.mapData();
     if (!data) return { x: 0, y: 0 };
     const tile = data.macroTiles.find(t => t.q === token.macroQ && t.r === token.macroR);
@@ -573,12 +657,40 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (e.button !== 0) return;
+
+    // Hold G + left-click opens the radial ping wheel, regardless of the active tool.
+    if (this.pingCtl.gDown) {
+      const world = this.clientToWorldGlobal(e.clientX, e.clientY);
+      const screen = this.clientToHostPixel(e.clientX, e.clientY);
+      if (world && screen && this.pingCtl.beginWheel(screen.x, screen.y, world.x, world.y)) {
+        e.preventDefault();
+        this.addDocumentListeners();
+        return;
+      }
+    }
+
     this.showContextMenu.set(false);
 
     const pick = this.snapPick(e.clientX, e.clientY);
     const tool = this.currentTool();
 
-    if (this.isGM() && e.shiftKey && pick) {
+    // SHIFT-drag while in reveal/hide mode resizes the fog brush (same gesture as the
+    // lobby brush). Falls through to tile-select only when fog mode is neutral.
+    if (this.isGM() && e.shiftKey && this.fogMode() !== 'neutral') {
+      e.preventDefault();
+      this.isAdjustingFogBrush = true;
+      this.brushSizeAdjustStart = {
+        x: e.clientX,
+        y: e.clientY,
+        initialSize: this.fogBrushRadius(),
+      };
+      if (pick) this.hoverSubHex.set(pick);
+      this.addDocumentListeners();
+      this.renderOverlay();
+      return;
+    }
+
+    if (this.isGM() && e.shiftKey && this.fogMode() === 'neutral' && pick) {
       const data = this.mapData();
       const hit = data ? findMacroTileAtWorldPixel(data.macroTiles, pick.worldX, pick.worldY) : null;
       if (hit) {
@@ -641,10 +753,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
           t.subR === pick.subR,
       );
       if (token) {
-        this.selectedTokenId.set(token.id);
-        this.draggingTokenId.set(token.id);
-        this.addDocumentListeners();
-        this.cdr.markForCheck();
+        this.beginTokenDrag(token, e.clientX, e.clientY);
         return;
       }
       if (this.selectedTokenId()) {
@@ -699,6 +808,12 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private onWrapMouseMove = (e: MouseEvent): void => {
+    if (this.pingCtl.wheelOpen) {
+      const screen = this.clientToHostPixel(e.clientX, e.clientY);
+      if (screen) this.pingCtl.updateWheel(screen.x, screen.y);
+      return;
+    }
+
     if (this.isPanning && this.viewer) {
       const dx = e.clientX - this.lastPanMouse.x;
       const dy = e.clientY - this.lastPanMouse.y;
@@ -712,8 +827,34 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    if (this.isAdjustingFogBrush && this.brushSizeAdjustStart) {
+      const dx = e.clientX - this.brushSizeAdjustStart.x;
+      // ~40px per ring; the live hover preview shows the resulting hex coverage.
+      const newRadius = Math.max(0, Math.min(6, Math.round(this.brushSizeAdjustStart.initialSize + dx / 40)));
+      this.fogBrushRadius.set(newRadius);
+      const pick = this.snapPick(e.clientX, e.clientY);
+      if (pick) this.hoverSubHex.set(pick);
+      this.renderOverlay();
+      this.cdr.markForCheck();
+      return;
+    }
+
     const pick = this.snapPick(e.clientX, e.clientY);
     const tool = this.currentTool();
+
+    if (this.draggingTokenId()) {
+      const cursorWorld = this.clientToWorldGlobal(e.clientX, e.clientY);
+      if (cursorWorld) {
+        this.draggingTokenWorld.set({
+          x: cursorWorld.x + this.dragGrabOffset.x,
+          y: cursorWorld.y + this.dragGrabOffset.y,
+        });
+      }
+      this.hoverSubHex.set(pick); // target-hex highlight
+      this.renderOverlay();
+      this.cdr.markForCheck();
+      return;
+    }
 
     if (this.isAdjustingBrushSize && this.brushSizeAdjustStart) {
       const dx = e.clientX - this.brushSizeAdjustStart.x;
@@ -762,10 +903,24 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   };
 
   private onWrapMouseUp = (e: MouseEvent): void => {
+    if (this.pingCtl.wheelOpen) {
+      this.pingCtl.endWheel();
+      this.removeDocumentListeners();
+      return;
+    }
+
     if (this.isPanning) {
       this.isPanning = false;
       this.viewerWrap?.nativeElement.classList.remove('panning');
       this.removeDocumentListeners();
+      return;
+    }
+
+    if (this.isAdjustingFogBrush) {
+      this.isAdjustingFogBrush = false;
+      this.brushSizeAdjustStart = null;
+      this.removeDocumentListeners();
+      this.renderOverlay();
       return;
     }
 
@@ -809,8 +964,10 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
       if (pick && this.draggingTokenId()) {
         this.store.moveToken(this.draggingTokenId()!, pick);
       }
-      this.draggingTokenId.set(null);
+      this.endTokenDrag();
+      this.hoverSubHex.set(null);
       this.removeDocumentListeners();
+      this.renderOverlay();
       this.cdr.markForCheck();
     }
   };
@@ -845,10 +1002,41 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onTokenDragStart(token: WorldMapToken, event: MouseEvent): void {
     if (this.currentTool() !== 'cursor') return;
+    this.beginTokenDrag(token, event.clientX, event.clientY);
+  }
+
+  /** Start dragging a token, recording where on the token it was grabbed (grab offset). */
+  private beginTokenDrag(token: WorldMapToken, clientX: number, clientY: number): void {
     this.selectedTokenId.set(token.id);
     this.draggingTokenId.set(token.id);
+
+    const tile = this.mapData()?.macroTiles.find(t => t.q === token.macroQ && t.r === token.macroR);
+    const center = tile ? subHexToWorldPixel(tile, token.subQ, token.subR) : null;
+    const cursorWorld = this.clientToWorldGlobal(clientX, clientY);
+    if (center) {
+      this.dragGrabOffset = cursorWorld
+        ? { x: center.x - cursorWorld.x, y: center.y - cursorWorld.y }
+        : { x: 0, y: 0 };
+      this.dragStartWorld.set(center);
+      this.draggingTokenWorld.set(center);
+    }
+
     this.addDocumentListeners();
     this.cdr.markForCheck();
+  }
+
+  private endTokenDrag(): void {
+    this.draggingTokenId.set(null);
+    this.draggingTokenWorld.set(null);
+    this.dragStartWorld.set(null);
+  }
+
+  /** Screen position of the drag ghost (dragged token's original hex). */
+  dragStartScreen(): Point {
+    void this.viewEpoch();
+    const w = this.dragStartWorld();
+    if (!w) return { x: 0, y: 0 };
+    return this.worldToScreenGlobal(w.x, w.y) ?? { x: 0, y: 0 };
   }
 
   createQuickTokenFromMenu(): void {
@@ -1050,6 +1238,13 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.fogCacheRevealed = newRevealed;
   }
 
+  /**
+   * Fog is drawn by filling the *entire* macro hex (clipped to its exact pointy-top
+   * shape) and then punching out revealed sub-hexes. This guarantees the fog reaches
+   * the tile's own edges — the old per-unrevealed-sub-hex fill left the sloped top
+   * edges and vertical sides bare, so map content peeked through wherever no
+   * neighbouring tile happened to overlap the seam.
+   */
   private rebuildFogTileCache(tile: MacroTile, revealed: Set<string>): void {
     const scale = WorldMapComponent.FOG_CACHE_SCALE;
     let cache = this.fogTileCaches.get(tile.id);
@@ -1063,20 +1258,25 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!ctx) return;
 
     ctx.clearRect(0, 0, cache.width, cache.height);
+    ctx.save();
+    ctx.beginPath();
+    appendMacroHexPath(ctx, cache.width, cache.height);
+    ctx.clip();
+
     ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, cache.width, cache.height);
+
+    ctx.globalCompositeOperation = 'destination-out';
     const fogR = SUB_HEX_RADIUS * WorldMapComponent.FOG_HEX_OVERLAP * scale;
-
     for (const sub of MACRO_SUB_HEXES) {
-      const local = subHexToPixel({ q: sub.q, r: sub.r });
-      if (!isInsideMacroTileHex(local.x, local.y)) continue;
-
       const key = subHexKey({ macroQ: tile.q, macroR: tile.r, subQ: sub.q, subR: sub.r });
-      if (revealed.has(key)) continue;
-
+      if (!revealed.has(key)) continue;
+      const local = subHexToPixel({ q: sub.q, r: sub.r });
       ctx.beginPath();
       appendFlatHexPath(ctx, local.x * scale, local.y * scale, fogR);
       ctx.fill();
     }
+    ctx.restore();
   }
 
   /** Reveal (punch out) or recover (paint) a single sub-hex on its tile's fog cache. */
@@ -1098,6 +1298,12 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const local = subHexToPixel({ q: ref.subQ, r: ref.subR });
     const fogR = SUB_HEX_RADIUS * WorldMapComponent.FOG_HEX_OVERLAP * scale;
     ctx.save();
+    if (mode === 'recover') {
+      // Keep re-painted fog inside the tile's hex so it never spills into the corners.
+      ctx.beginPath();
+      appendMacroHexPath(ctx, cache!.width, cache!.height);
+      ctx.clip();
+    }
     ctx.globalCompositeOperation = mode === 'reveal' ? 'destination-out' : 'source-over';
     ctx.fillStyle = '#000000';
     ctx.beginPath();
@@ -1148,23 +1354,41 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
       if (!s || !e) continue;
 
       ctx.save();
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = '#fbbf24';
-      ctx.strokeStyle = '#fbbf24';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([10, 5]);
+      ctx.lineCap = 'round';
+
+      // Dark outline for visibility on light backgrounds.
       ctx.beginPath();
       ctx.moveTo(s.x, s.y);
       ctx.lineTo(e.x, e.y);
+      ctx.strokeStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.lineWidth = 7;
+      ctx.setLineDash([10, 5]);
+      ctx.stroke();
+
+      // Bright amber center line.
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(e.x, e.y);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 5]);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.shadowBlur = 0;
 
-      ctx.fillStyle = '#fbbf24';
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, 5, 0, Math.PI * 2);
-      ctx.arc(e.x, e.y, 5, 0, Math.PI * 2);
-      ctx.fill();
+      // Endpoints: dark ring + amber fill + white stroke.
+      for (const pt of [s, e]) {
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#f59e0b';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
       ctx.restore();
 
       const ha = worldPixelToSubHex(m.start.x, m.start.y);
@@ -1173,10 +1397,15 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
       const midX = (s.x + e.x) / 2;
       const midY = (s.y + e.y) / 2;
       ctx.font = 'bold 14px sans-serif';
-      ctx.fillStyle = '#fbbf24';
       ctx.textAlign = 'center';
-      ctx.fillText(`${km.toFixed(1)} km`, midX, midY - 8);
+      ctx.textBaseline = 'bottom';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(15, 23, 42, 0.9)';
+      ctx.strokeText(`${km.toFixed(1)} km`, midX, midY - 5);
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillText(`${km.toFixed(1)} km`, midX, midY - 5);
       ctx.textAlign = 'start';
+      ctx.textBaseline = 'alphabetic';
     }
   }
 

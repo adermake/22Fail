@@ -10,6 +10,7 @@ import { Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 import { JsonPatch } from '../model/json-patch.model';
 import { MeasurementLine } from '../model/lobby.model';
+import { PingBroadcast } from '../shared/ping/ping.model';
 
 @Injectable({ providedIn: 'root' })
 export class LobbySocketService {
@@ -19,12 +20,14 @@ export class LobbySocketService {
   // Subjects for observables
   private patchSubject = new Subject<JsonPatch>();
   private measurementSubject = new Subject<MeasurementLine[]>();
+  private pingSubject = new Subject<PingBroadcast>();
   private connectionReadySubject = new Subject<void>();
   private mainViewChangedSubject = new Subject<{ mapId: string }>();
 
   // Public observables
   patches$ = this.patchSubject.asObservable();
   measurements$ = this.measurementSubject.asObservable();
+  pings$ = this.pingSubject.asObservable();
   connectionReady$ = this.connectionReadySubject.asObservable();
   mainViewChanged$ = this.mainViewChangedSubject.asObservable();
 
@@ -124,6 +127,11 @@ export class LobbySocketService {
     // Measurement updates
     this.socket.on('measurementUpdate', (measurements: MeasurementLine[]) => {
       this.measurementSubject.next(measurements);
+    });
+
+    // Radial ping broadcasts
+    this.socket.on('lobbyPing', (ping: PingBroadcast) => {
+      this.pingSubject.next(ping);
     });
 
     // Main view sync (DM broadcasts map change to all viewers)
@@ -240,6 +248,11 @@ export class LobbySocketService {
    */
   sendMeasurement(worldName: string, mapId: string, measurement: MeasurementLine | null): void {
     this.socket?.emit('updateMeasurement', { worldName, battleMapId: mapId, measurement });
+  }
+
+  sendPing(mapId: string, ping: PingBroadcast): void {
+    if (!this.socket?.connected || !mapId) return;
+    this.socket.emit('lobbyPing', { mapId, ping });
   }
 
   /**

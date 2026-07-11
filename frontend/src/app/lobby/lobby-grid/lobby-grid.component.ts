@@ -53,6 +53,10 @@ import { TrueStatsService } from '../../services/true-stats.service';
 import { FormulaType } from '../../model/formula-type.enum';
 import { LobbyTokenComponent, TokenResources } from '../lobby-token/lobby-token.component';
 import { DiceRollPopupComponent, DiceRollPopup } from '../dice-roll-popup/dice-roll-popup.component';
+import { PingLayerComponent, RenderedPing } from '../../shared/ping/ping-layer.component';
+import { PingWheelComponent } from '../../shared/ping/ping-wheel.component';
+import { PingController } from '../../shared/ping/ping-controller';
+import { preloadPingSounds } from '../../shared/ping/ping-audio';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { StatusBlock } from '../../model/status-block.model';
 import { ToolType, DragMode } from '../lobby.component';
@@ -93,7 +97,7 @@ type LassoHandle = 'rotate' | 'tl' | 'tm' | 'tr' | 'ml' | 'mr' | 'bl' | 'bm' | '
 @Component({
   selector: 'app-lobby-grid',
   standalone: true,
-  imports: [CommonModule, LobbyTokenComponent, DiceRollPopupComponent],
+  imports: [CommonModule, LobbyTokenComponent, DiceRollPopupComponent, PingLayerComponent, PingWheelComponent],
   templateUrl: './lobby-grid.component.html',
   styleUrls: ['./lobby-grid.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -177,9 +181,17 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   private trueStats = inject(TrueStatsService);
   private cdr = inject(ChangeDetectorRef);
 
+  /** Radial ping state machine (hold G + left-click). */
+  pingCtl = new PingController(
+    () => this.cdr.markForCheck(),
+    p => this.socket.sendPing(this.store.currentMapId, p),
+    () => this.socket.socketId ?? 'local',
+  );
+
   // Remote measurements from other users
   remoteMeasurements = signal<MeasurementLine[]>([]);
   private measurementSub: Subscription | null = null;
+  private pingSub: Subscription | null = null;
 
   // Document-level listeners for continuous tracking outside container
   private documentMouseMoveListener: ((e: MouseEvent) => void) | null = null;
@@ -357,6 +369,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
 
+    // G arms the radial ping wheel (hold G, then left-click/drag).
+    if (event.key === 'g' || event.key === 'G') {
+      this.pingCtl.setGDown(true);
+      return;
+    }
+
     // D key for Draw tool
     if (event.key === 'd' || event.key === 'D') {
       event.preventDefault();
@@ -461,6 +479,21 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
+  @HostListener('document:keyup', ['$event'])
+  onKeyUp(event: KeyboardEvent): void {
+    if (event.key === 'g' || event.key === 'G') this.pingCtl.setGDown(false);
+  }
+
+  /** Active pings resolved to screen space for the current pan/zoom. */
+  renderedPings(): RenderedPing[] {
+    const out: RenderedPing[] = [];
+    for (const p of this.pingCtl.activePings) {
+      const s = this.worldToScreen(p.worldX, p.worldY);
+      out.push({ id: p.id, type: p.type, x: s.x, y: s.y });
+    }
+    return out;
+  }
+
   // ============================================
   // Lifecycle
   // ============================================
@@ -471,6 +504,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.scheduleRender();
     this.setupResizeObserver();
     this.loadPalette(); // Load saved palette from localStorage
+    preloadPingSounds();
+    this.pingSub = this.socket.pings$.subscribe(p => this.pingCtl.addRemotePing(p));
 
     // Subscribe to remote measurement updates and re-render
     this.measurementSub = this.socket.measurements$.subscribe(measurements => {
@@ -564,6 +599,9 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     // Cancel measurement subscription
     this.measurementSub?.unsubscribe();
     this.measurementSub = null;
+    this.pingSub?.unsubscribe();
+    this.pingSub = null;
+    this.pingCtl.destroy();
 
     // Clean up resources
     this.resizeObserver?.disconnect();
@@ -3792,6 +3830,19 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   // ============================================
 
   onMouseDown(event: MouseEvent): void {
+    // Hold G + left-click opens the radial ping wheel, regardless of the active tool.
+    if (event.button === 0 && this.pingCtl.gDown) {
+      const rect = this.container.nativeElement.getBoundingClientRect();
+      const screenX = event.clientX - rect.left;
+      const screenY = event.clientY - rect.top;
+      const world = this.screenToWorld(screenX, screenY);
+      if (this.pingCtl.beginWheel(screenX, screenY, world.x, world.y)) {
+        event.preventDefault();
+        this.addDocumentListeners();
+        return;
+      }
+    }
+
     if (event.button === 1) {
       // Middle mouse - zoom if CTRL, otherwise pan
       event.preventDefault();
@@ -3869,6 +3920,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const rect = this.container.nativeElement.getBoundingClientRect();
     const screenX = event.clientX - rect.left;
     const screenY = event.clientY - rect.top;
+
+    if (this.pingCtl.wheelOpen) {
+      this.pingCtl.updateWheel(screenX, screenY);
+      return;
+    }
+
     const world = this.screenToWorld(screenX, screenY);
     const hex = HexMath.pixelToHex(world);
 
@@ -3938,6 +3995,12 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   onMouseUp(event: MouseEvent): void {
+    if (this.pingCtl.wheelOpen) {
+      this.pingCtl.endWheel();
+      this.removeDocumentListeners();
+      return;
+    }
+
     if (this.isZooming) {
       this.isZooming = false;
       this.zoomStartPoint = null;

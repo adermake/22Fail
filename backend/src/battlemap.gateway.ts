@@ -169,6 +169,33 @@ export class BattleMapGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.server.to(`worldmap-${worldName}`).emit('worldMapMeasurementUpdate', allMeasurements);
   }
 
+  // Ephemeral radial pings — broadcast-only, never persisted.
+  @SubscribeMessage('worldMapPing')
+  handleWorldMapPing(
+    @MessageBody() data: {
+      worldName: string;
+      ping: { id: string; type: string; worldX: number; worldY: number; createdBy: string };
+    },
+  ) {
+    const { worldName, ping } = data;
+    if (!worldName || !ping) return;
+    this.server.to(`worldmap-${worldName}`).emit('worldMapPing', ping);
+  }
+
+  @SubscribeMessage('lobbyPing')
+  handleLobbyPing(
+    @MessageBody() data: {
+      mapId: string;
+      ping: { id: string; type: string; worldX: number; worldY: number; createdBy: string };
+    },
+  ) {
+    const { mapId, ping } = data;
+    if (!mapId || !ping) return;
+    this.server.to(`map-${mapId}`).emit('lobbyPing', ping);
+    // Legacy battlemap room for backward compatibility with older clients.
+    this.server.to(`battlemap-${mapId}`).emit('lobbyPing', ping);
+  }
+
   // Handle real-time measurement sync
   @SubscribeMessage('updateMeasurement')
   handleUpdateMeasurement(

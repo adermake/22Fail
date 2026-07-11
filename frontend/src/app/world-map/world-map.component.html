@@ -31,7 +31,26 @@
     <canvas #overlayCanvas class="overlay-canvas"></canvas>
     <canvas #fogCanvas class="fog-canvas"></canvas>
 
+    <app-ping-layer [pings]="renderedPings()" />
+    @if (pingCtl.wheelOpen) {
+      <app-ping-wheel [x]="pingCtl.wheelScreen.x" [y]="pingCtl.wheelScreen.y" [selected]="pingCtl.wheelType" />
+    }
+
     <div class="token-layer">
+      @if (draggingToken(); as ghost) {
+        <div class="drag-ghost">
+          <app-lobby-token
+            [token]="ghost"
+            [position]="dragStartScreen()"
+            [scale]="tokenScale()"
+            [isSelected]="false"
+            [isInteractive]="false"
+            [isDragging]="false"
+            [isCurrentTurn]="false"
+            [showResources]="false"
+          />
+        </div>
+      }
       @for (token of visibleTokens(); track token.id) {
         <app-lobby-token
           [token]="token"

@@ -3,6 +3,7 @@ import { Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 import { JsonPatch } from '../model/json-patch.model';
 import { Point } from '../model/lobby.model';
+import { PingBroadcast } from '../shared/ping/ping.model';
 
 export interface WorldMapMeasurement {
   id: string;
@@ -19,10 +20,12 @@ export class WorldMapSocketService {
 
   private patchSubject = new Subject<JsonPatch>();
   private measurementSubject = new Subject<WorldMapMeasurement[]>();
+  private pingSubject = new Subject<PingBroadcast>();
   private connectionReadySubject = new Subject<void>();
 
   patches$ = this.patchSubject.asObservable();
   measurements$ = this.measurementSubject.asObservable();
+  pings$ = this.pingSubject.asObservable();
   connectionReady$ = this.connectionReadySubject.asObservable();
 
   connect(worldName: string): void {
@@ -64,6 +67,10 @@ export class WorldMapSocketService {
     this.socket.on('worldMapMeasurementUpdate', (measurements: WorldMapMeasurement[]) => {
       this.measurementSubject.next(measurements);
     });
+
+    this.socket.on('worldMapPing', (ping: PingBroadcast) => {
+      this.pingSubject.next(ping);
+    });
   }
 
   disconnect(): void {
@@ -93,6 +100,11 @@ export class WorldMapSocketService {
   sendMeasurement(measurement: WorldMapMeasurement | null): void {
     if (!this.socket?.connected || !this.worldName) return;
     this.socket.emit('updateWorldMapMeasurement', { worldName: this.worldName, measurement });
+  }
+
+  sendPing(ping: PingBroadcast): void {
+    if (!this.socket?.connected || !this.worldName) return;
+    this.socket.emit('worldMapPing', { worldName: this.worldName, ping });
   }
 
   get socketId(): string | undefined {

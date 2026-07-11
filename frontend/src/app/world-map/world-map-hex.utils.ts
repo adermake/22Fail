@@ -146,6 +146,25 @@ export function drawFlatHexPath(
   appendFlatHexPath(ctx, cx, cy, r);
 }
 
+/**
+ * Path for the pointy-top macro tile hexagon, in a box of `w`×`h` starting at (0,0).
+ * Matches stencil.png / `isInsideMacroTileHex`: point at top & bottom, vertical sides
+ * spanning the middle half. Used to clip fog to the exact tile shape.
+ */
+export function appendMacroHexPath(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+): void {
+  ctx.moveTo(w / 2, 0); // top point
+  ctx.lineTo(w, h / 4); // upper right
+  ctx.lineTo(w, (h * 3) / 4); // lower right
+  ctx.lineTo(w / 2, h); // bottom point
+  ctx.lineTo(0, (h * 3) / 4); // lower left
+  ctx.lineTo(0, h / 4); // upper left
+  ctx.closePath();
+}
+
 /** Sub-hexes within `radius` rings of center (0 = center only, 1 = center + 6 neighbors, …). */
 export function subHexesInOddqRadius(centerQ: number, centerR: number, radius: number): HexCoord[] {
   if (radius <= 0) return [{ q: centerQ, r: centerR }];
