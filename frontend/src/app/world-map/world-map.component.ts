@@ -100,6 +100,13 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private isAdjustingBrushSize = false;
   private isAdjustingFogBrush = false;
   private brushSizeAdjustStart: { x: number; y: number; initialSize: number } | null = null;
+  /** Active fog paint stroke (hold + drag to reveal/hide like a brush). */
+  private paintingFogMode: 'reveal' | 'hide' | null = null;
+  /** Sub-hexes already touched this fog stroke, so a drag doesn't re-patch them. */
+  private paintedFogKeys = new Set<string>();
+  /** New sub-hexes accumulated since the last flush (coalesced to one patch per frame). */
+  private pendingFogRefs: SubHexRef[] = [];
+  private fogFlushScheduled = false;
   private measureStartWorld: Point | null = null;
   private measureEndWorld: Point | null = null;
   private remoteMeasurements: WorldMapMeasurement[] = [];
@@ -768,24 +775,56 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   };
 
   /**
-   * GM fog reveal/hide while in cursor mode (V/D hotkeys). The store update emits
-   * synchronously, so `syncFogCaches` updates the affected tile's cache incrementally
-   * and `renderFog` runs within this call — instant feedback, no full rebuild.
+   * Start a GM fog reveal/hide stroke (hold + drag to paint like a brush). Returns true
+   * if fog painting is active. The store update emits synchronously, so `syncFogCaches`
+   * updates the affected tile's cache incrementally within this call — instant feedback.
    */
   private applyFogAtPick(pick: SubHexRef & { worldX: number; worldY: number }): boolean {
     const mode = this.fogMode();
-    const refs = this.getFogBrushHexRefs(pick);
-    if (refs.length === 0) return false;
+    if (mode !== 'reveal' && mode !== 'hide') return false;
+    this.paintingFogMode = mode;
+    this.paintedFogKeys.clear();
+    this.paintFogAt(pick);
+    this.addDocumentListeners();
+    return true;
+  }
 
-    if (mode === 'reveal') {
-      this.store.revealSubHexes(refs);
-      return true;
+  /** Queue one dab of the current fog stroke, skipping sub-hexes already touched. */
+  private paintFogAt(pick: SubHexRef): void {
+    if (!this.paintingFogMode) return;
+    for (const ref of this.getFogBrushHexRefs(pick)) {
+      const key = subHexKey(ref);
+      if (this.paintedFogKeys.has(key)) continue;
+      this.paintedFogKeys.add(key);
+      this.pendingFogRefs.push(ref);
     }
-    if (mode === 'hide') {
-      this.store.recoverSubHexes(refs);
-      return true;
-    }
-    return false;
+    this.scheduleFogFlush();
+  }
+
+  /** Coalesce dabs to at most one store patch per animation frame. */
+  private scheduleFogFlush(): void {
+    if (this.fogFlushScheduled) return;
+    this.fogFlushScheduled = true;
+    requestAnimationFrame(() => {
+      this.fogFlushScheduled = false;
+      this.flushFogRefs();
+    });
+  }
+
+  private flushFogRefs(): void {
+    const mode = this.paintingFogMode;
+    if (!mode || this.pendingFogRefs.length === 0) return;
+    const refs = this.pendingFogRefs;
+    this.pendingFogRefs = [];
+    if (mode === 'reveal') this.store.revealSubHexes(refs);
+    else this.store.recoverSubHexes(refs);
+  }
+
+  private endFogPaint(): void {
+    this.flushFogRefs();
+    this.paintingFogMode = null;
+    this.paintedFogKeys.clear();
+    this.pendingFogRefs = [];
   }
 
   private getFogBrushHexRefs(
@@ -836,6 +875,16 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
       if (pick) this.hoverSubHex.set(pick);
       this.renderOverlay();
       this.cdr.markForCheck();
+      return;
+    }
+
+    if (this.paintingFogMode) {
+      const pick = this.snapPick(e.clientX, e.clientY);
+      if (pick) {
+        this.hoverSubHex.set(pick);
+        this.paintFogAt(pick);
+        this.renderOverlay();
+      }
       return;
     }
 
@@ -905,6 +954,12 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private onWrapMouseUp = (e: MouseEvent): void => {
     if (this.pingCtl.wheelOpen) {
       this.pingCtl.endWheel();
+      this.removeDocumentListeners();
+      return;
+    }
+
+    if (this.paintingFogMode) {
+      this.endFogPaint();
       this.removeDocumentListeners();
       return;
     }
