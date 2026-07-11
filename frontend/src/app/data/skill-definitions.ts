@@ -1630,11 +1630,11 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     statBonus: { stat: 'mana', amount: 40 }
   },
   {
-    id: 'runenkuenstler_verinnerlichen',
+    id: 'runenkuenstler_verinnerstlichen',
     name: 'Verinnerstlichen',
     class: 'Runenkünstler',
     type: 'passive',
-    description: 'Kann unendlich viele Zauber sofort auswendig lernen.',
+    description: 'Kann unendlich viele Zauber sofort auswendig lernen',
     enlightened: true,
     requiresSkill: 'kampfzauberer_verinnerlichen'
   },
@@ -1642,15 +1642,17 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'runenkuenstler_zauberecho',
     name: 'Zauberecho',
     class: 'Runenkünstler',
-    type: 'passive',
-    description: 'Kann den in dieser Aktion genutzten Zauber nochmal benutzen. Bonusaktion, 20'
+    type: 'active',
+    description: 'Kann den in dieser Aktion genutzten Zauber nochmal benutzen',
+    cost: { type: 'energy', amount: 20},
+    actionType: 'Bonusaktion'
   },
   {
     id: 'runenkuenstler_runenmeister',
     name: 'Runenmeister',
     class: 'Runenkünstler',
-    type: 'passive',
-    description: 'Vorteil auf Analyse von unbekannten Runen',
+    type: 'dice_bonus',
+    description: 'Vorteil auf Würfe für Runenkunde',
     enlightened: true
   },
   {
@@ -1658,14 +1660,15 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Zauberhast',
     class: 'Runenkünstler',
     type: 'passive',
-    description: '+10m Bewegung, wenn du in dieser Runde einen Gegner kampfunfähig gemacht hast. Pro Gegner einmal möglich.'
+    description: '+10 Bewegung, wenn du in dieser Runde durch einen Zauber als Reaktion Schaden entgehen konntest'
   },
   {
     id: 'runenkuenstler_runenblick',
     name: 'Runenblick',
     class: 'Runenkünstler',
     type: 'active',
-    description: 'Analysiert die Struktur eines unbekannten Spells im Sichtfeld und lernt dessen Struktur auswendig, Manakosten des Zaubers/4',
+    description: 'Analysiert die Struktur eines unbekannten Spells im Sichtfeld und lernt dessen Struktur auswendig (Schwierigkeitsgrad = 20 - Fokus), Kosten entsprechen Fokuskosten des Zaubers*2',
+    cost: { type: 'energy', amount: 0},
     actionType: 'Aktion'
   },
   {
@@ -1688,6 +1691,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     statBonus: { stat: 'intelligence', amount: 4 }
   },
   {
+    id: 'mentalist_durchschauen_4',
+    name: 'Durchschauen+4',
+    class: 'Mentalist',
+    type: 'talent_bonus',
+    description: 'Durchschauen+4',
+    talentBonus: { talent: 'durchschauen', amount: -4 },
+  },
+  {
     id: 'mentalist_traumcaster',
     name: 'Traumcaster',
     class: 'Mentalist',
@@ -1698,8 +1709,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'mentalist_aluhut',
     name: 'Aluhut',
     class: 'Mentalist',
-    type: 'passive',
-    description: 'Gegner, die deine Gedanken beeinflussen wollen, erhalten einen Nachteil',
+    type: 'dice_bonus',
+    description: 'Vorteil auf alle defensiven Willenswürfe',
     enlightened: true
   },
   {
@@ -1722,7 +1733,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Invasion',
     class: 'Mentalist',
     type: 'active',
-    description: 'Übernimmt Kontrolle über Kreatur, Gegnerintelligenz*2 pro Runde, min. 10',
+    description: 'Übernimmt Kontrolle über Kreatur bei erfolgreichem Wurf (Intelligenz vs. Wille), gegnerischer Wille*2 pro Runde, min. 10',
+    cost: { type: 'energy', amount: 0},
     actionType: 'Aktion'
   },
   {
@@ -1730,7 +1742,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Abbild',
     class: 'Mentalist',
     type: 'active',
-    description: 'Kopiere den aktiven Skill einer Person und übertrage ihn zu einer anderen Person, der Skill kann einmalig verwendet werden und ist auf 1 pro Person limitiert',
+    description: 'Kopiere einen Aktive Fähigkeit einer Person und übertrage ihn zu einer anderen Person, die Fähigkeit kann einmalig verwendet werden und ist auf 1 pro Person limitiert',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -1749,8 +1761,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'gestaltenwandler_botschafter',
     name: 'Botschafter',
     class: 'Gestaltenwandler',
-    type: 'passive',
-    description: 'Charme+2 bei Kommunikation mit Personen derselben Rasse',
+    type: 'dice_bonus',
+    description: '-3 auf Würfe für Unterhaltung, Täuschen und Überzeugen mit Personen derselben Rasse',
     enlightened: true
   },
   {
@@ -1775,7 +1787,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Imitation',
     class: 'Gestaltenwandler',
     type: 'active',
-    description: 'Verwandelt sich in ein anderes Lebewesen, wenn Körperkontakt besteht. Übernimmt keine Skills oder Stats',
+    description: 'Verwandelt sich in ein anderes Lebewesen, wenn Körperkontakt besteht. Endet wenn Schaden erlitten wird. Übernimmt keine Skills oder Stats',
     enlightened: true,
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
@@ -1821,14 +1833,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schnelle Hilfe',
     class: 'Paladin',
     type: 'passive',
-    description: 'Verbündete, die von einem puren Unterstützungszauber getroffen werden, erhalten in ihrem nächsten Zug eine zusätzliche Bonusaktion'
+    description: 'Verbündete, die von einem puren Unterstützungszauber getroffen werden, erhalten in ihrem nächsten Zug eine zusätzliche Bonusaktion (Dauerzauber zählen nur im ersten Zug)'
   },
   {
     id: 'paladin_inspiration',
     name: 'Inspiration',
     class: 'Paladin',
     type: 'passive',
-    description: 'Nach einem guten Wurf (1-8nat) kann ein Verbündeter ausgewählt werden, der -1 auf seinen nächsten Wurf erhält',
+    description: 'Nach einem guten Wurf (1-8nat) kann ein Verbündeter ausgewählt werden, der -1 auf einen Wurf im nächsten Zug erhält',
     enlightened: true
   },
   {
@@ -1843,18 +1855,18 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'paladin_heroischer_auftritt',
     name: 'Heroischer Auftritt',
     class: 'Paladin',
-    type: 'passive',
-    description: 'Wenn ein Verbündeter in kritischem Zustand ist, erhalte Vorteil auf alle Aktionen, um diesen Verbündeten zu beschützen oder zu heilen.'
+    type: 'dice_bonus',
+    description: 'Wenn ein Verbündeter in kritischem Zustand ist, erhalte Vorteil auf alle Aktionen, um diesen Verbündeten zu beschützen oder zu heilen'
   },
   {
     id: 'paladin_erneuerung',
     name: 'Erneuerung',
     class: 'Paladin',
     type: 'active',
-    description: 'Repariert einen ausgewählten Gegenstand in der Nähe um 3 D20 Haltbarkeit',
+    description: 'Verleiht einem ausgewählten Gegenstand in der Nähe für die Dauer des Kampfes 3 D20 Haltbarkeit',
     enlightened: true,
     cost: { type: 'energy', amount: 20 },
-    actionType: 'Aktion'
+    actionType: 'Bonusaktion'
   },
   {
     id: 'paladin_heiliger_sprint',
