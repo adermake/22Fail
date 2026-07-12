@@ -163,7 +163,18 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
   hasMacro(active: ActiveStatusEffect): boolean {
     const effect = this.getEffect(active);
     if (!effect) return false;
-    return !!(effect.embeddedMacro || effect.embeddedMacros?.length || effect.macroActionId);
+    return !!(effect.script?.trim() || effect.embeddedMacro || effect.embeddedMacros?.length || effect.macroActionId);
+  }
+
+  /** Run a status effect's FailScript (if present) else its legacy macros; one "run". */
+  private runEffectResults(effect: StatusEffect): UnifiedMacroResult[] {
+    if (effect.script && effect.script.trim()) {
+      const exec = this.macroExecutor.executeScript(effect.script, this.sheet, {
+        inCombat: false, name: effect.name, icon: effect.icon, color: effect.color,
+      });
+      return [exec.unified];
+    }
+    return this.getAllMacros(effect).map(m => this.macroExecutor.executeActionMacro(m, this.sheet));
   }
 
   private getAllMacros(effect: StatusEffect): ActionMacro[] {
@@ -268,8 +279,9 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     const effect = this.getEffect(active);
     if (!effect) return;
 
+    const hasScript = !!(effect.script && effect.script.trim());
     const macros = this.getAllMacros(effect);
-    if (macros.length === 0) return;
+    if (!hasScript && macros.length === 0) return;
 
     const stacks = active.stacks || 1;
     const allResults: UnifiedMacroResult[] = [];
@@ -279,10 +291,9 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     this.triggeringEffects.add(key);
     this.cdr.markForCheck();
 
-    // Execute all macros for each stack
+    // Execute the script/macros for each stack
     for (let s = 0; s < stacks; s++) {
-      for (const macro of macros) {
-        const result = this.macroExecutor.executeActionMacro(macro, this.sheet);
+      for (const result of this.runEffectResults(effect)) {
         allResults.push(result);
         this.applyResourceChanges(result);
       }
@@ -331,6 +342,7 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
       conditionFailures: results.flatMap(r => r.conditionFailures),
       rolls: results.flatMap(r => r.rolls),
       resourceChanges: results.flatMap(r => r.resourceChanges),
+      messages: results.flatMap(r => r.messages ?? []),
       timestamp: new Date()
     };
   }
@@ -498,13 +510,11 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     // Execute macros for each stack
     const effect = this.getEffect(active);
     if (effect) {
-      const macros = this.getAllMacros(effect);
       const stacks = active.stacks || 1;
       const allResults: UnifiedMacroResult[] = [];
 
       for (let s = 0; s < stacks; s++) {
-        for (const macro of macros) {
-          const result = this.macroExecutor.executeActionMacro(macro, this.sheet);
+        for (const result of this.runEffectResults(effect)) {
           allResults.push(result);
           this.applyResourceChanges(result);
         }

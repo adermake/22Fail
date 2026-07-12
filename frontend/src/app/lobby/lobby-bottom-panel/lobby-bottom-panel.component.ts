@@ -20,7 +20,7 @@ import { TrueStatsService } from '../../services/true-stats.service';
 import { ActiveStatusEffect, StatusEffect } from '../../model/status-effect.model';
 import { ActionMacro } from '../../model/action-macro.model';
 import { LibraryStoreService } from '../../services/library-store.service';
-import { UnifiedMacroExecutorService, UnifiedMacroResult } from '../../services/unified-macro-executor.service';
+import { UnifiedMacroExecutorService, UnifiedMacroResult, ScriptExecution } from '../../services/unified-macro-executor.service';
 import { StatusEffectEditorComponent } from '../../shared/status-effect-editor/status-effect-editor.component';
 
 @Component({
@@ -487,20 +487,18 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (event) event.stopPropagation();
     const effect = this.getEffect(fx);
     if (!effect) return;
+    const sheet = this.sheetForMacros;
+    const hasScript = !!(effect.script && effect.script.trim());
     const macros = this.getAllMacros(effect);
-    if (macros.length === 0) return;
+    if ((!hasScript && macros.length === 0) || !sheet) return;
     const stacks = fx.stacks || 1;
     const allResults: UnifiedMacroResult[] = [];
-    const sheet = this.sheetForMacros;
     this.triggeringEffects.add(fx.id);
     this.cdr.markForCheck();
     for (let s = 0; s < stacks; s++) {
-      for (const macro of macros) {
-        if (sheet) {
-          const result = this.macroExecutor.executeActionMacro(macro, sheet);
-          allResults.push(result);
-          this.applyMacroResourceChanges(result);
-        }
+      for (const result of this.runEffectResults(effect, sheet)) {
+        allResults.push(result);
+        this.applyMacroResourceChanges(result);
       }
     }
     if (allResults.length > 0) {
@@ -553,17 +551,14 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     }
     const effect = this.getEffect(fx);
     if (effect) {
-      const macros = this.getAllMacros(effect);
       const stacks = fx.stacks || 1;
       const allResults: UnifiedMacroResult[] = [];
       const sheet = this.sheetForMacros;
       for (let s = 0; s < stacks; s++) {
-        for (const macro of macros) {
-          if (sheet) {
-            const result = this.macroExecutor.executeActionMacro(macro, sheet);
-            allResults.push(result);
-            this.applyMacroResourceChanges(result);
-          }
+        if (!sheet) break;
+        for (const result of this.runEffectResults(effect, sheet)) {
+          allResults.push(result);
+          this.applyMacroResourceChanges(result);
         }
       }
       if (allResults.length > 0) {
@@ -694,6 +689,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       conditionFailures: results.flatMap(r => r.conditionFailures),
       rolls: results.flatMap(r => r.rolls),
       resourceChanges: results.flatMap(r => r.resourceChanges),
+      messages: results.flatMap(r => r.messages ?? []),
       timestamp: new Date(),
     };
   }
@@ -718,6 +714,24 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       return sheet;
     }
     return null;
+  }
+
+  /** Run a status effect's FailScript (if present) else its legacy macros; one "run". */
+  private runEffectResults(effect: StatusEffect, sheet: CharacterSheet): UnifiedMacroResult[] {
+    if (effect.script && effect.script.trim()) {
+      const exec = this.macroExecutor.executeScript(effect.script, sheet, {
+        inCombat: false, name: effect.name, icon: effect.icon, color: effect.color,
+      });
+      this.applyScriptExtras(exec);
+      return [exec.unified];
+    }
+    return this.getAllMacros(effect).map(m => this.macroExecutor.executeActionMacro(m, sheet));
+  }
+
+  /** Apply the non-resource side effects of a script run. Temp mods (M5) / grants (M6). */
+  private applyScriptExtras(_exec: ScriptExecution): void {
+    // Placeholder — temporary modifiers, granted skills and status ops are wired in later
+    // milestones. Resource changes are applied by the caller via applyMacroResourceChanges.
   }
 
   private applyMacroResourceChanges(result: UnifiedMacroResult): void {

@@ -126,10 +126,17 @@
                       <span class="exec-sb-chip-val">{{ res.total > 0 ? '+' : '' }}{{ res.total }}</span>
                     </button>
                   }
-                  @if (summarizeStepRolls(chainResult).length === 0 && summarizeStepResources(chainResult).length === 0) {
+                  @if (summarizeStepRolls(chainResult).length === 0 && summarizeStepResources(chainResult).length === 0 && !(chainResult.messages?.length)) {
                     <div class="exec-sb-no-roll">Kein Ergebnis</div>
                   }
                 </div>
+                @if (chainResult.messages?.length) {
+                  <div class="exec-sb-messages">
+                    @for (msg of chainResult.messages; track $index) {
+                      <div class="exec-sb-message">💬 {{ msg }}</div>
+                    }
+                  </div>
+                }
               }
 
               <!-- Running grand total across the whole run -->

@@ -5,6 +5,8 @@ import { MacroAction } from '../model/macro-action.model';
 import { FormulaType } from '../model/formula-type.enum';
 import { TrueStatsService } from './true-stats.service';
 import { WorldSocketService } from './world-socket.service';
+import { runScript, ScriptResult } from '../scripting/interpreter';
+import { createPlayerContext } from '../scripting/character-context';
 
 /**
  * Unified result type for all macro executions
@@ -18,6 +20,14 @@ export interface UnifiedMacroResult {
   actionIcon: string;
   actionColor: string;
   timestamp: Date;
+  messages?: string[]; // display() output from FailScript
+}
+
+/** Result of running a FailScript action: the display-facing result plus script extras. */
+export interface ScriptExecution {
+  unified: UnifiedMacroResult;
+  /** Temporary modifiers, granted skills and status ops for the caller to apply. */
+  script: ScriptResult;
 }
 
 export interface MacroRoll {
@@ -90,6 +100,41 @@ export class UnifiedMacroExecutorService {
     this.broadcastToWorld(result, sheet);
 
     return result;
+  }
+
+  /**
+   * Execute a FailScript action against a character sheet. Reads resolve through
+   * TrueStatsService; the result maps to a UnifiedMacroResult (rolls, resourceChanges,
+   * display messages) so the existing lobby/sheet display + application paths work, and
+   * `script` carries the temp modifiers / granted skills / status ops for the caller.
+   */
+  executeScript(
+    src: string,
+    sheet: CharacterSheet,
+    opts: { inCombat?: boolean; name?: string; icon?: string; color?: string } = {},
+  ): ScriptExecution {
+    const ctx = createPlayerContext(sheet, this.trueStats, opts.inCombat ?? false);
+    const script = runScript(src, ctx);
+
+    const unified: UnifiedMacroResult = {
+      success: script.ok,
+      rolls: script.rolls.map(r => ({
+        id: this.generateUUID(), name: r.name, formula: r.formula,
+        rolls: r.rolls, total: r.total, color: opts.color || '#f59e0b',
+      })),
+      resourceChanges: script.resourceChanges.map(rc => ({
+        resource: rc.resource, amount: rc.amount, displayName: this.getResourceDisplayName(rc.resource),
+      })),
+      conditionFailures: script.errors,
+      actionName: opts.name || 'Skript',
+      actionIcon: opts.icon || '⚡',
+      actionColor: opts.color || '#f59e0b',
+      timestamp: new Date(),
+      messages: script.messages,
+    };
+
+    if (script.ok) this.broadcastToWorld(unified, sheet);
+    return { unified, script };
   }
 
   /**

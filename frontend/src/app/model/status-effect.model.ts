@@ -30,6 +30,7 @@ export interface StatusEffect {
   macroActionId?: string;      // Legacy: ID of a library MacroAction
   embeddedMacro?: ActionMacro; // Inline ActionMacro (copied, not referenced)
   embeddedMacros?: ActionMacro[]; // Multiple macros that all trigger when the effect fires
+  script?: string;             // FailScript action (new); takes precedence over embeddedMacro(s)
 
   // Duration & stacking
   defaultDuration?: number; // Default duration in turns/rounds

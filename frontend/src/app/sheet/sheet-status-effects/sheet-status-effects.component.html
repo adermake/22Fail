@@ -364,6 +364,14 @@
           }
         </div>
       }
+
+      @if (executionPopupResult.messages?.length) {
+        <div class="exec-messages">
+          @for (msg of executionPopupResult.messages; track $index) {
+            <div class="exec-message">💬 {{ msg }}</div>
+          }
+        </div>
+      }
     </div>
   </div>
 }

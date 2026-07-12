@@ -205,9 +205,21 @@
       </div>
     </section>
 
-    <!-- Makro-Aktion -->
+    <!-- Skript (FailScript) -->
     <section class="section">
-      <h3>Makro-Aktion</h3>
+      <h3>Skript (Aktion)</h3>
+      <p class="section-hint">Code, das beim Auslösen des Effekts läuft. Hat Vorrang vor dem Makro unten.</p>
+      <div class="script-editor-host">
+        <app-script-editor
+          [value]="editEffect.script || ''"
+          (valueChange)="editEffect.script = $event">
+        </app-script-editor>
+      </div>
+    </section>
+
+    <!-- Makro-Aktion (Legacy) -->
+    <section class="section">
+      <h3>Makro-Aktion (Legacy)</h3>
 
       @if (!showMacroEditor) {
         <!-- Summary when macro exists -->

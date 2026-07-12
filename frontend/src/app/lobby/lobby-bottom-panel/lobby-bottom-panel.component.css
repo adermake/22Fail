@@ -1187,3 +1187,7 @@
 }
 .lbp-editor-header h3 { font-size: 0.88rem; font-weight: 700; color: var(--text, #e5e7eb); margin: 0 0 4px; }
 .lbp-editor-note { font-size: 0.68rem; color: #fbbf24; margin: 0; }
+
+/* FailScript display() messages */
+.exec-sb-messages { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+.exec-sb-message { font-size: 0.66rem; color: #cbd5e1; background: rgba(148,163,184,0.1); border-radius: 5px; padding: 3px 6px; }
