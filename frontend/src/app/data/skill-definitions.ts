@@ -231,7 +231,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schwerer Schlag',
     class: 'Krieger',
     type: 'active',
-    description: 'Schlag mit hoher Stärke, dessen Schadensberechnung um eine Stufe aufsteigt (kann keinen tödlichen Treffer erhalten)',
+    description: 'Angriff mit hoher Stärke, dessen Schadensberechnung um eine Stufe aufsteigt (kann keinen tödlichen Treffer erhalten)',
     enlightened: true,
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
@@ -1073,7 +1073,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Blutecho',
     class: 'Hämomant',
     type: 'active',
-    description: 'Absorbiert einen genannten Skill aus gegnerischem Blut und verwende ihn direkt ohne Kosten. Sollte der genannte Skill nicht existieren, wird ein zufälliger Skill ausgewählt. Nur einmal pro Person möglich',
+    description: 'Absorbiert eine genannte Fähigkeit aus gegnerischem Blut und verwende ihn direkt ohne Kosten. Sollte die genannte Fähigkeit nicht existieren, wird eine zufällige Fähigkeit ausgewählt. Nur einmal pro Person möglich',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -1558,7 +1558,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Dunkler Begleiter',
     class: 'Phantom',
     type: 'active',
-    description: 'Verschwinde im Körper eines Verbündeten. In diesem Zustand können alle Skills des Verbündeten verwendet werden (auf eigene Kosten). Bei Angriffen erhalten beide Schaden',
+    description: 'Verschwinde im Körper eines Verbündeten. In diesem Zustand können alle Fähigkeiten des Verbündeten verwendet werden (auf eigene Kosten). Bei Angriffen erhalten beide Schaden',
     cost: { type: 'energy', amount: 10, perRound: true },
     actionType: 'Aktion'
   },
@@ -1787,7 +1787,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Imitation',
     class: 'Gestaltenwandler',
     type: 'active',
-    description: 'Verwandelt sich in ein anderes Lebewesen, wenn Körperkontakt besteht. Endet wenn Schaden erlitten wird. Übernimmt keine Skills oder Stats',
+    description: 'Verwandelt sich in ein anderes Lebewesen, wenn Körperkontakt besteht. Endet wenn Schaden erlitten wird. Übernimmt keine Fähigkeiten oder Stats',
     enlightened: true,
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
@@ -1806,7 +1806,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Seelenmeister',
     class: 'Gestaltenwandler',
     type: 'active',
-    description: 'Erweitert Seelenwacht auf menschliche Ziele. Kopiert deren Skills. Benötigt Seelenwacht',
+    description: 'Erweitert Seelenwacht auf menschliche Ziele. Kopiert deren Fähigkeiten. Benötigt Seelenwacht',
     requiresSkill: 'seelenformer_seelenwacht',
     actionType: 'Aktion'
   },
@@ -1903,7 +1903,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'waechter_kenne_deinen_feind',
     name: 'Kenne deinen Feind',
     class: 'Wächter',
-    type: 'passive',
+    type: 'dice_bonus',
     description: 'Nach jedem erfolgreichen Block erhälst du -1 auf alle Angriffe und Blocks gegen diesen Gegner, maximal -3',
     enlightened: true
   },
@@ -1920,7 +1920,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Edles Opfer',
     class: 'Wächter',
     type: 'passive',
-    description: 'Wenn du in den kritischen Zustand fällst, erhalten alle Verbündeten in der Nähe einmal pro Kampf eine Heilung, die der Hälfte deiner Leben entspricht'
+    description: 'Wenn du in den kritischen Zustand fällst, erhalten alle Verbündeten in der Nähe einmal pro Kampf eine Heilung, die der Hälfte deiner maximalen Leben entspricht'
   },
   {
     id: 'waechter_beschuetzerinstinkt',
@@ -1936,7 +1936,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Vergeltungsschlag',
     class: 'Wächter',
     type: 'active',
-    description: 'Geht in eine defensive Position für die Dauer des Skills, was Bewegung halbiert und nur defensive Aktionen erlaubt. Wird der Skill beendet, wird ein Schlag ausgeführt, dessen Stärke mit dem eingesteckten Schaden skaliert',
+    description: 'Geht in eine defensive Position für die Dauer der Fähigkeit, was Bewegung halbiert und nur defensive Aktionen erlaubt. Wird die Fähigkeit beendet, wird ein Schlag ausgeführt, dessen Stärke mit dem eingesteckten Schaden skaliert (Effizienz + Schaden/4)',
     cost: { type: 'energy', amount: 10, perRound: true },
     actionType: 'Bonusaktion'
   },
@@ -1950,6 +1950,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     description: 'Konstitution&Stärke+2',
     statBonuses: [{ stat: 'constitution', amount: 2 }, { stat: 'strength', amount: 2 }],
     infiniteLevel: true
+  },
+  {
+    id: 'koloss_athletik_5',
+    name: 'Athletik+5',
+    class: 'Koloss',
+    type: 'talent_bonus',
+    description: 'Athletik+5',
+    talentBonus: { talent: 'athletik', amount: -5 },
   },
   {
     id: 'koloss_weg_des_eroberers',
@@ -1971,16 +1979,19 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'koloss_provokante_praesenz',
     name: 'Provokante Präsenz',
     class: 'Koloss',
-    type: 'passive',
-    description: 'Zieht Fokus der Gegner auf sich',
-    enlightened: true
+    type: 'active',
+    description: 'Zieht Aufmerksamkeit der Gegner für ihre nächste Runde auf sich, Würfelbonus passt sich an die genaue Aktion an, die die Aufmerksamkeit erregt',
+    enlightened: true,
+    cost: { type: 'energy', amount: 5},
+    actionType: 'Bonusaktion'
   },
   {
     id: 'koloss_erdbeben',
     name: 'Erdbeben',
     class: 'Koloss',
     type: 'active',
-    description: 'Erzeugt Beben im Umkreis, Kosten entsprechen der Hälfte des Radius',
+    description: 'Erzeugt Beben im Umkreis was je nach Stärke sogar Steinhäuser oder ähnliche Konstrukte zerstören kann und Gegnern leichten Schaden zufügt (Effizienz/5), Kosten entsprechen der Hälfte des Radius',
+    cost: { type: 'energy', amount: 0},
     actionType: 'Aktion'
   },
   {
@@ -1988,7 +1999,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Wahre Größe',
     class: 'Koloss',
     type: 'active',
-    description: 'Wird für kurze Zeit viel größer, Bonusaktion, Kosten entsprechen Größenskalierung*10 pro Runde',
+    description: 'Wird für kurze Zeit viel größer und erhöht Effizienz von Handangriffen um denselben Wert, Bonusaktion, Kosten entsprechen Größenskalierung*10 pro Runde',
+    cost: { type: 'energy', amount: 0, perRound: true},
     actionType: 'Bonusaktion'
   },
   {
@@ -1996,9 +2008,9 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Kolossaler Schlag',
     class: 'Koloss',
     type: 'active',
-    description: 'Holt für Schlag aus, der mehr Reichweite und Schaden besitzt, je länger ausgeholt wird',
+    description: 'Angriff mit hoher Stärke und Rückstoß, dessen Schadensberechnung um eine Stufe aufsteigt (kann keinen tödlichen Treffer erhalten) und auch noch leichten Schaden zufügt, wenn der Gegner ausweicht/blockt',
     enlightened: true,
-    cost: { type: 'energy', amount: 20, perRound: true },
+    cost: { type: 'energy', amount: 30},
     actionType: 'Aktion'
   },
 
