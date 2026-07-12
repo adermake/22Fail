@@ -15,6 +15,7 @@ import { LibraryStoreService } from '../../services/library-store.service';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { UnifiedMacroExecutorService, UnifiedMacroResult } from '../../services/unified-macro-executor.service';
 import { StatusEffectEditorComponent } from '../../shared/status-effect-editor/status-effect-editor.component';
+import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
 
 @Component({
   selector: 'app-sheet-status-effects',
@@ -79,7 +80,13 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     chill: 'WIL',
     life: 'LP',
     energy: 'EP',
-    mana: 'MP'
+    mana: 'MP',
+    fokus: 'Fokus',
+    armorMalus: 'R\u00fcst.-Malus',
+    armorNegation: 'R\u00fcst.-Neg.',
+    grundbonus: 'Grundbonus',
+    reaktion: 'Reaktion',
+    bewegung: 'Bewegung'
   };
 
   ngOnInit() {
@@ -131,6 +138,10 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
 
   getStatLabel(stat: string): string {
     return SheetStatusEffectsComponent.statLabels[stat] ?? stat;
+  }
+
+  getTalentName(talentId: string): string {
+    return TALENT_DEFINITIONS.find(t => t.id === talentId)?.name ?? talentId;
   }
 
   getLastResult(active: ActiveStatusEffect): UnifiedMacroResult | undefined {

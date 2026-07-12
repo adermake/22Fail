@@ -66,15 +66,25 @@ export class TalentsComponent {
     return computeSkillTalentBonusBreakdown(this.sheet).get(talentId as any)?.total ?? 0;
   }
 
+  /** Bonus from active status effects targeting this talent. */
+  getStatusTalentBonus(talentId: string): number {
+    return this.trueStats.getStatusTalentBonus(this.sheet, talentId);
+  }
+
   getSkillTalentBonusTooltip(talentId: string): string {
     const breakdown = computeSkillTalentBonusBreakdown(this.sheet).get(talentId as any);
     if (!breakdown?.sources.length) return '';
     return breakdown.sources.map(s => `${s.skillName}: +${s.amount}`).join('\n');
   }
 
-  /** Würfelbonus including invested ranks and skill bonuses. Negative = helpful. */
+  /** Würfelbonus including invested ranks, skill bonuses and status effects. Negative = helpful. */
   getTotalDiceBonus(talent: TalentDefinition): number {
-    return -(this.getStatModifier(talent) + this.getRank(talent.id) + this.getSkillTalentBonus(talent.id));
+    return -(
+      this.getStatModifier(talent) +
+      this.getRank(talent.id) +
+      this.getSkillTalentBonus(talent.id) +
+      this.getStatusTalentBonus(talent.id)
+    );
   }
 
   /** Würfelbonus: negative = helpful. Each rank = -1 (base only, without skill bonuses). */

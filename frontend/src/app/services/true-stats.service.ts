@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { StatBlock } from '../model/stat-block.model';
 import { LibraryStoreService } from './library-store.service';
-import { StatusEffect } from '../model/status-effect.model';
+import { StatusEffect, StatusModifierTarget } from '../model/status-effect.model';
 import { FormulaType } from '../model/formula-type.enum';
 
 /**
@@ -116,6 +116,36 @@ export class TrueStatsService {
       }
     }
 
+    return total;
+  }
+
+  /**
+   * Sum every active status effect's modifier for a given target (× stacks). This is the
+   * single entry point derived-stat calculations use so status effects are always folded
+   * in — Fokus, Rüstungsmalus/-negation, Grundbonus, Reaktion, Bewegung, resources, etc.
+   */
+  getStatusModifierTotal(sheet: CharacterSheet, target: StatusModifierTarget): number {
+    let total = 0;
+    for (const active of sheet.activeStatusEffects || []) {
+      const effect = this.resolveStatusEffect(active.statusEffectId, active.customEffect);
+      if (!effect?.statModifiers) continue;
+      for (const mod of effect.statModifiers) {
+        if (mod.stat === target) total += mod.amount * (active.stacks || 1);
+      }
+    }
+    return total;
+  }
+
+  /** Total modifier a status effect adds to a specific Talent's Würfelbonus (× stacks). */
+  getStatusTalentBonus(sheet: CharacterSheet, talentId: string): number {
+    let total = 0;
+    for (const active of sheet.activeStatusEffects || []) {
+      const effect = this.resolveStatusEffect(active.statusEffectId, active.customEffect);
+      if (!effect?.talentModifiers) continue;
+      for (const mod of effect.talentModifiers) {
+        if (mod.talentId === talentId) total += mod.amount * (active.stacks || 1);
+      }
+    }
     return total;
   }
 
@@ -342,25 +372,34 @@ export class TrueStatsService {
     return Math.floor(this.calculateWille(sheet) / 5);
   }
 
-  /** Grundbonus = ⌊Level/5⌋ + ⌊Wille/5⌋ + Bonus. */
+  /** Grundbonus = ⌊Level/5⌋ + ⌊Wille/5⌋ + Bonus (+ status effects). */
   calculateGrundbonus(sheet: CharacterSheet): number {
     return this.calculateGrundbonusBaseFromLevel(sheet)
       + this.calculateWilleBonus(sheet)
-      + (sheet.grundbonusBonus || 0);
+      + (sheet.grundbonusBonus || 0)
+      + this.getStatusModifierTotal(sheet, 'grundbonus');
   }
 
-  /** Reaktion = 10 − ⌊Wille/5⌋ − ⌊Level/5⌋ + Bonus. */
+  /** Reaktion = 10 − ⌊Wille/5⌋ − ⌊Level/5⌋ + Bonus (+ status effects). */
   calculateReaktionswert(sheet: CharacterSheet): number {
     return 10
       - this.calculateWilleBonus(sheet)
       - this.calculateGrundbonusBaseFromLevel(sheet)
-      + (sheet.reaktionswertBonus || 0);
+      + (sheet.reaktionswertBonus || 0)
+      + this.getStatusModifierTotal(sheet, 'reaktion');
   }
 
-  /** Total speed malus before negation (armor + encumbrance). */
+  /** Speed-penalty negation from the sheet plus any status effects (Rüstungsnegation). */
+  calculateSpeedPenaltyNegation(sheet: CharacterSheet): number {
+    return (sheet.speedPenaltyNegation || 0) + this.getStatusModifierTotal(sheet, 'armorNegation');
+  }
+
+  /** Total speed malus before negation (armor + encumbrance + status Rüstungsmalus). */
   calculateTotalSpeedMalus(sheet: CharacterSheet): number {
     const baseSpeed = this.calculateSpeed(sheet);
-    return this.calculateTotalArmorDebuff(sheet) + this.calculateEncumbrancePenalty(sheet, baseSpeed);
+    return this.calculateTotalArmorDebuff(sheet)
+      + this.calculateEncumbrancePenalty(sheet, baseSpeed)
+      + this.getStatusModifierTotal(sheet, 'armorMalus');
   }
 
   getGrundbonusFormulaTooltip(sheet: CharacterSheet): string {
@@ -386,7 +425,13 @@ export class TrueStatsService {
   getMovementFormulaTooltip(sheet: CharacterSheet): string {
     const eff = this.calculateEffectiveSpeed(sheet);
     const mov = this.calculateMovementSpeed(sheet);
-    return `⌊5 + Effektive Geschw. / 4⌋\nEffektive Geschw.: ${eff}\n= ⌊5 + ${eff} / 4⌋ = ${mov}`;
+    const bewegung = this.getStatusModifierTotal(sheet, 'bewegung');
+    const base = `⌊5 + Effektive Geschw. / 4⌋\nEffektive Geschw.: ${eff}\n= ⌊5 + ${eff} / 4⌋`;
+    if (bewegung) {
+      const sign = bewegung > 0 ? '+' : '−';
+      return `${base} ${sign} ${Math.abs(bewegung)} (Bewegung) = ${mov}`;
+    }
+    return `${base} = ${mov}`;
   }
 
   getFokusFormulaTooltip(sheet: CharacterSheet): string {
@@ -400,7 +445,7 @@ export class TrueStatsService {
 
   getArmorNegationFormulaTooltip(sheet: CharacterSheet): string {
     const malus = this.calculateTotalSpeedMalus(sheet);
-    const neg = sheet.speedPenaltyNegation || 0;
+    const neg = this.calculateSpeedPenaltyNegation(sheet);
     const after = Math.max(0, malus - neg);
     return `1 Punkt negiert 1 Malus-Punkt (Rüstung + Belastung)\nMalus gesamt: ${malus}, Negation: ${neg}\nVerbleibender Malus: ${after}`;
   }
@@ -413,11 +458,12 @@ export class TrueStatsService {
     return w * qty;
   }
 
-  /** Max spell fokus pool from calculated intelligence + sheet bonuses. */
+  /** Max spell fokus pool from calculated intelligence + sheet bonuses + status effects. */
   calculateFokusMax(sheet: CharacterSheet): number {
     const intelligence = this.calculateIntelligence(sheet);
     const base = Math.floor(intelligence / 2) + 5;
-    return Math.floor((base + (sheet.fokusBonus || 0)) * (sheet.fokusMultiplier || 1));
+    const bonus = (sheet.fokusBonus || 0) + this.getStatusModifierTotal(sheet, 'fokus');
+    return Math.floor((base + bonus) * (sheet.fokusMultiplier || 1));
   }
 
   /** Clamp resource current; life may go negative, others floor at 0. */
@@ -445,28 +491,32 @@ export class TrueStatsService {
    */
   calculateEffectiveSpeed(sheet: CharacterSheet): number {
     const baseSpeed = this.calculateSpeed(sheet);
-    
-    // Armor penalty
+
+    // Armor penalty (items) + encumbrance + status Rüstungsmalus
     const armorDebuff = this.calculateTotalArmorDebuff(sheet);
-    
-    // Encumbrance penalty
     const encumbrancePenalty = this.calculateEncumbrancePenalty(sheet, baseSpeed);
-    
+    const statusMalus = this.getStatusModifierTotal(sheet, 'armorMalus');
+
     // Total penalty before negation
-    const totalPenalty = armorDebuff + encumbrancePenalty;
-    
+    const totalPenalty = armorDebuff + encumbrancePenalty + statusMalus;
+
     // Apply speed penalty negation (can reduce penalty but not create bonus speed)
-    const negation = sheet.speedPenaltyNegation || 0;
+    const negation = this.calculateSpeedPenaltyNegation(sheet);
     const finalPenalty = Math.max(0, totalPenalty - negation);
-    
+
     // Apply penalty to base speed
     return Math.max(0, baseSpeed - finalPenalty);
   }
 
-  /** Movement speed in hex steps: 5 + effective speed / 4 (floored). */
+  /**
+   * Movement speed in hex steps: ⌊5 + effective speed / 4⌋, then the status "Bewegung"
+   * modifier is added flatly on top (it bypasses the speed→movement conversion; speed
+   * itself is unaffected).
+   */
   calculateMovementSpeed(sheet: CharacterSheet): number {
     const spd = this.calculateEffectiveSpeed(sheet);
-    return Math.max(0, Math.floor(5 + spd / 4));
+    const bewegung = this.getStatusModifierTotal(sheet, 'bewegung');
+    return Math.max(0, Math.floor(5 + spd / 4) + bewegung);
   }
 
   /**

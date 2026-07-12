@@ -210,6 +210,13 @@
             </span>
           </div>
         }
+        @if (getEffect(expandedEffect)?.strength !== undefined && getEffect(expandedEffect)?.strength !== null) {
+          <div class="sse-panel-detail">
+            <span class="detail-icon">🛡</span>
+            <span class="detail-label">Stärke</span>
+            <span class="detail-value">{{ getEffect(expandedEffect)?.strength }}</span>
+          </div>
+        }
         @if (getEffect(expandedEffect)?.statModifiers?.length) {
           <div class="sse-panel-detail">
             <span class="detail-icon">📊</span>
@@ -217,6 +224,17 @@
             <span class="detail-value mod-chips">
               @for (mod of getEffect(expandedEffect)!.statModifiers!; track $index) {
                 <span class="mod-chip" [class.stat-mod-positive]="mod.amount > 0" [class.stat-mod-negative]="mod.amount < 0">{{ getStatLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}</span>
+              }
+            </span>
+          </div>
+        }
+        @if (getEffect(expandedEffect)?.talentModifiers?.length) {
+          <div class="sse-panel-detail">
+            <span class="detail-icon">🎯</span>
+            <span class="detail-label">Talente</span>
+            <span class="detail-value mod-chips">
+              @for (mod of getEffect(expandedEffect)!.talentModifiers!; track $index) {
+                <span class="mod-chip" [class.stat-mod-positive]="mod.amount > 0" [class.stat-mod-negative]="mod.amount < 0">{{ getTalentName(mod.talentId) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}</span>
               }
             </span>
           </div>

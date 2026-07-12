@@ -98,6 +98,12 @@
           <input type="number" [(ngModel)]="editEffect.maxStacks" min="1" max="99" placeholder="1">
           <span class="hint">Wie oft stapelbar</span>
         </div>
+
+        <div class="inline-field">
+          <label>Stärke</label>
+          <input type="number" [(ngModel)]="editEffect.strength" min="0" placeholder="–">
+          <span class="hint">Schwierigkeit zu entfernen</span>
+        </div>
       </div>
     </section>
 
@@ -148,6 +154,30 @@
       }
       
       <button class="add-btn" (click)="addStatModifier()">+ Modifikator hinzufügen</button>
+    </section>
+
+    <!-- Talent Modifiers -->
+    <section class="section">
+      <h3>Talent-Modifikatoren</h3>
+      <p class="section-hint">Ändert den Würfelbonus eines Talents (positiv = leichter)</p>
+
+      @if (editEffect.talentModifiers && editEffect.talentModifiers.length > 0) {
+        <div class="modifier-list">
+          @for (mod of editEffect.talentModifiers; track $index) {
+            <div class="modifier-row">
+              <select [(ngModel)]="mod.talentId">
+                @for (talent of talentOptions; track talent.id) {
+                  <option [value]="talent.id">{{ talent.name }} ({{ talent.statLabel }})</option>
+                }
+              </select>
+              <input type="number" [(ngModel)]="mod.amount" class="value-input">
+              <button class="remove-btn" (click)="removeTalentModifier($index)">✕</button>
+            </div>
+          }
+        </div>
+      }
+
+      <button class="add-btn" (click)="addTalentModifier()">+ Talent-Modifikator hinzufügen</button>
     </section>
 
     <!-- Tags -->

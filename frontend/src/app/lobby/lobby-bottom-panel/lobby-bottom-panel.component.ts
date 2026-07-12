@@ -13,6 +13,7 @@ import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../../model/spe
 import { SkillBlock } from '../../model/skill-block.model';
 import { FormulaType } from '../../model/formula-type.enum';
 import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
+import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
 import { CharacterSocketService } from '../../services/character-socket.service';
 import { TrueStatsService } from '../../services/true-stats.service';
@@ -69,6 +70,13 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   chainIndex = 0;
   chainResult: UnifiedMacroResult | null = null;
   chainStepDone = false;
+
+  /** Running per-resource totals for the whole "Alle Ausführen" run. */
+  chainResourceTotals: { resource: string; displayName: string; total: number }[] = [];
+  /** Full itemised log so a summed total can be expanded into its breakdown. */
+  private chainResourceLog: { resource: string; displayName: string; amount: number; source: string }[] = [];
+  /** Breakdown popup shown when a summarised number is clicked. */
+  breakdownPopup: { title: string; color: string; rows: { label: string; value: string; positive: boolean }[] } | null = null;
   triggeringEffects = new Set<string>();
   expiringEffects = new Set<string>();
   lastRollResults = new Map<string, UnifiedMacroResult>();
@@ -337,6 +345,21 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     return fx.color || this.getEffect(fx)?.color || (fx.isDebuff ? '#ef4444' : '#22c55e');
   }
 
+  private static readonly STAT_MOD_LABELS: Record<string, string> = {
+    strength: 'STÄ', dexterity: 'GES', speed: 'SPD', intelligence: 'INT',
+    constitution: 'KON', chill: 'WIL', life: 'LP', energy: 'EP', mana: 'MP',
+    fokus: 'Fokus', armorMalus: 'Rüst.-Malus', armorNegation: 'Rüst.-Neg.',
+    grundbonus: 'Grundbonus', reaktion: 'Reaktion', bewegung: 'Bewegung',
+  };
+
+  getStatModLabel(stat: string): string {
+    return LobbyBottomPanelComponent.STAT_MOD_LABELS[stat] ?? stat.slice(0, 3).toUpperCase();
+  }
+
+  getTalentName(talentId: string): string {
+    return TALENT_DEFINITIONS.find(t => t.id === talentId)?.name ?? talentId;
+  }
+
   hasMacro(fx: TokenStatusEffect): boolean {
     const effect = this.getEffect(fx);
     if (!effect) return false;
@@ -500,6 +523,9 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.chainStepDone = false;
     this.executeAllInProgress = true;
     this.expandedFx = null;
+    this.chainResourceTotals = [];
+    this.chainResourceLog = [];
+    this.breakdownPopup = null;
     this.cdr.markForCheck();
     this.executeCurrentChainStep();
   }
@@ -544,6 +570,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
         const merged = this.mergeResults(allResults, stacks);
         this.lastRollResults.set(fx.id, merged);
         this.chainResult = merged;
+        this.accumulateChainTotals(merged, fx.name);
       } else {
         this.chainResult = this.emptyResult(fx);
       }
@@ -578,8 +605,83 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       this.chainResult = null;
       this.chainStepDone = false;
       this.executeAllInProgress = false;
+      this.breakdownPopup = null;
+      // Keep chainResourceTotals until the next run starts so the GM can review the total.
       this.cdr.markForCheck();
     }, 600);
+  }
+
+  /** Fold a step's resource changes into the running run totals + itemised log. */
+  private accumulateChainTotals(result: UnifiedMacroResult, source: string): void {
+    for (const change of result.resourceChanges) {
+      if (!change.amount) continue;
+      this.chainResourceLog.push({
+        resource: change.resource,
+        displayName: change.displayName,
+        amount: change.amount,
+        source,
+      });
+      const existing = this.chainResourceTotals.find(t => t.resource === change.resource);
+      if (existing) existing.total += change.amount;
+      else this.chainResourceTotals.push({ resource: change.resource, displayName: change.displayName, total: change.amount });
+    }
+  }
+
+  /** Per-resource summary of a single step's result (collapses the wall of numbers). */
+  summarizeStepResources(result: UnifiedMacroResult | null): { resource: string; displayName: string; total: number }[] {
+    if (!result) return [];
+    const map = new Map<string, { resource: string; displayName: string; total: number }>();
+    for (const c of result.resourceChanges) {
+      if (!c.amount) continue;
+      const e = map.get(c.resource);
+      if (e) e.total += c.amount;
+      else map.set(c.resource, { resource: c.resource, displayName: c.displayName, total: c.amount });
+    }
+    return [...map.values()];
+  }
+
+  /** Per-name roll summary of a single step (e.g. "Blutung ×4 = 6"). */
+  summarizeStepRolls(result: UnifiedMacroResult | null): { name: string; total: number; count: number; color: string }[] {
+    if (!result) return [];
+    const map = new Map<string, { name: string; total: number; count: number; color: string }>();
+    for (const r of result.rolls) {
+      const e = map.get(r.name);
+      if (e) { e.total += r.total; e.count++; }
+      else map.set(r.name, { name: r.name, total: r.total, count: 1, color: r.color });
+    }
+    return [...map.values()];
+  }
+
+  /** Open the breakdown popup for one resource, itemised across the whole run. */
+  openResourceBreakdown(resource: string, displayName: string, color: string): void {
+    const rows = this.chainResourceLog
+      .filter(l => l.resource === resource)
+      .map(l => ({
+        label: l.source,
+        value: `${l.amount > 0 ? '+' : ''}${l.amount}`,
+        positive: l.amount > 0,
+      }));
+    this.breakdownPopup = { title: displayName, color, rows };
+    this.cdr.markForCheck();
+  }
+
+  /** Open the breakdown popup for a step's rolls, itemised per die. */
+  openRollBreakdown(result: UnifiedMacroResult | null, name: string, color: string): void {
+    if (!result) return;
+    const rows = result.rolls
+      .filter(r => r.name === name)
+      .map(r => ({
+        label: r.rolls.length ? r.rolls.join(' + ') : r.formula,
+        value: `= ${r.total}`,
+        positive: false,
+      }));
+    this.breakdownPopup = { title: name, color, rows };
+    this.cdr.markForCheck();
+  }
+
+  closeBreakdown(): void {
+    this.breakdownPopup = null;
+    this.cdr.markForCheck();
   }
 
   private mergeResults(results: UnifiedMacroResult[], _stacks: number): UnifiedMacroResult {

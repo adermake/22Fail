@@ -1,10 +1,11 @@
 import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { StatusEffect, StatusStatModifier } from '../../model/status-effect.model';
+import { StatusEffect, StatusStatModifier, StatusModifierTarget, StatusTalentModifier } from '../../model/status-effect.model';
 import { DiceBonus } from '../../model/dice-bonus.model';
 import { ActionMacro, createEmptyActionMacro } from '../../model/action-macro.model';
 import { EmbeddedMacroEditorComponent, MACRO_ICON_SYMBOLS } from '../embedded-macro-editor/embedded-macro-editor.component';
+import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
 
 @Component({
   selector: 'app-status-effect-editor',
@@ -32,9 +33,11 @@ export class StatusEffectEditorComponent implements OnInit {
   // Tag input
   newTag = '';
 
-  // Available stats for modifiers
-  stats: Array<'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill'> = [
-    'strength', 'dexterity', 'speed', 'intelligence', 'constitution', 'chill'
+  // Available targets for stat modifiers (base stats, resources, derived values)
+  stats: StatusModifierTarget[] = [
+    'strength', 'dexterity', 'speed', 'intelligence', 'constitution', 'chill',
+    'life', 'energy', 'mana',
+    'fokus', 'armorMalus', 'armorNegation', 'grundbonus', 'reaktion', 'bewegung'
   ];
 
   statLabels: Record<string, string> = {
@@ -43,8 +46,20 @@ export class StatusEffectEditorComponent implements OnInit {
     speed: 'Geschwindigkeit',
     intelligence: 'Intelligenz',
     constitution: 'Konstitution',
-    chill: 'Wille'
+    chill: 'Wille',
+    life: 'Leben',
+    energy: 'Ausdauer',
+    mana: 'Mana',
+    fokus: 'Fokus',
+    armorMalus: 'Rüstungsmalus',
+    armorNegation: 'Rüstungsnegation',
+    grundbonus: 'Grundbonus',
+    reaktion: 'Reaktionsbonus',
+    bewegung: 'Bewegung',
   };
+
+  // Talents available for talent modifiers
+  readonly talentOptions = TALENT_DEFINITIONS.map(t => ({ id: t.id, name: t.name, statLabel: t.statLabel }));
 
   // Color presets 
   colorPresets = [
@@ -85,6 +100,7 @@ export class StatusEffectEditorComponent implements OnInit {
     // Ensure arrays exist
     if (!this.editEffect.diceBonuses) this.editEffect.diceBonuses = [];
     if (!this.editEffect.statModifiers) this.editEffect.statModifiers = [];
+    if (!this.editEffect.talentModifiers) this.editEffect.talentModifiers = [];
     if (!this.editEffect.tags) this.editEffect.tags = [];
   }
 
@@ -143,6 +159,19 @@ export class StatusEffectEditorComponent implements OnInit {
 
   removeStatModifier(index: number) {
     this.editEffect.statModifiers = this.editEffect.statModifiers!.filter((_, i) => i !== index);
+  }
+
+  // Talent Modifiers
+  addTalentModifier() {
+    const newMod: StatusTalentModifier = {
+      talentId: this.talentOptions[0]?.id ?? '',
+      amount: 1,
+    };
+    this.editEffect.talentModifiers = [...(this.editEffect.talentModifiers ?? []), newMod];
+  }
+
+  removeTalentModifier(index: number) {
+    this.editEffect.talentModifiers = (this.editEffect.talentModifiers ?? []).filter((_, i) => i !== index);
   }
 
   // Color selection
