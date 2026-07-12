@@ -67,6 +67,8 @@ class Parser {
     if (this.isPunct(';')) { this.next(); return null; }
     if (this.isKeyword('var')) return this.parseVarDecl();
     if (this.isKeyword('if')) return this.parseIf();
+    if (this.isKeyword('repeat')) return this.parseRepeat();
+    if (this.isKeyword('while')) return this.parseWhile();
     if (this.isKeyword('untilNextTurn')) return this.parseLifecycle();
     if (this.isKeyword('grantSkill')) return this.parseGrantSkill();
     if (this.isKeyword('action')) return this.parseActionDecl();
@@ -100,6 +102,24 @@ class Parser {
       elseBranch = this.isKeyword('if') ? this.parseIf() : this.parseBlock();
     }
     return { kind: 'If', test, then, else: elseBranch, from: kw.from, to: (elseBranch ?? then).to };
+  }
+
+  private parseRepeat(): Stmt {
+    const kw = this.next(); // 'repeat'
+    this.expectPunct('(');
+    const count = this.parseExpr();
+    this.expectPunct(')');
+    const body = this.parseBlock();
+    return { kind: 'Repeat', keywordSpan: { from: kw.from, to: kw.to }, count, body, from: kw.from, to: body.to };
+  }
+
+  private parseWhile(): Stmt {
+    const kw = this.next(); // 'while'
+    this.expectPunct('(');
+    const test = this.parseExpr();
+    this.expectPunct(')');
+    const body = this.parseBlock();
+    return { kind: 'While', keywordSpan: { from: kw.from, to: kw.to }, test, body, from: kw.from, to: body.to };
   }
 
   private parseLifecycle(): Stmt {

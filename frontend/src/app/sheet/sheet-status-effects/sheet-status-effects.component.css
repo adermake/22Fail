@@ -1185,3 +1185,17 @@
 .sse-editor-container::-webkit-scrollbar { width: 8px; }
 .sse-editor-container::-webkit-scrollbar-track { background: #1a1a1a; }
 .sse-editor-container::-webkit-scrollbar-thumb { background: var(--accent, #8b5cf6); border-radius: 4px; }
+
+/* FailScript styled displays + roll toggle */
+.exec-displays { display: flex; flex-direction: column; gap: 5px; margin: 6px 0; }
+.ds-text { font-size: 0.8rem; padding: 5px 9px; border-radius: 6px; border-left: 3px solid; }
+.ds-banner { font-size: 0.95rem; font-weight: 800; text-align: center; padding: 7px 9px; border-radius: 6px; }
+.ds-stat { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.82rem; padding: 5px 9px; border-radius: 6px; border-left: 3px solid; }
+.ds-stat .ds-lbl { color: #cbd5e1; }
+.ds-stat .ds-val { font-weight: 800; }
+.ds-good { background: rgba(34,197,94,0.14); border-color: #22c55e; color: #86efac; }
+.ds-bad { background: rgba(239,68,68,0.14); border-color: #ef4444; color: #fca5a5; }
+.ds-info { background: rgba(59,130,246,0.14); border-color: #3b82f6; color: #93c5fd; }
+.ds-neutral { background: rgba(148,163,184,0.12); border-color: #94a3b8; color: #e5e7eb; }
+.exec-rolls-toggle { margin-top: 6px; width: 100%; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.35); color: #fbbf24; font-size: 0.72rem; font-weight: 600; padding: 5px 9px; border-radius: 6px; cursor: pointer; }
+.exec-rolls-toggle:hover { background: rgba(245,158,11,0.2); }

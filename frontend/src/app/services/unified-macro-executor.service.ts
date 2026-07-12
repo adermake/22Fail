@@ -5,7 +5,7 @@ import { MacroAction } from '../model/macro-action.model';
 import { FormulaType } from '../model/formula-type.enum';
 import { TrueStatsService } from './true-stats.service';
 import { WorldSocketService } from './world-socket.service';
-import { runScript, ScriptResult } from '../scripting/interpreter';
+import { runScript, ScriptResult, DisplayItem } from '../scripting/interpreter';
 import { createPlayerContext } from '../scripting/character-context';
 
 /**
@@ -20,7 +20,7 @@ export interface UnifiedMacroResult {
   actionIcon: string;
   actionColor: string;
   timestamp: Date;
-  messages?: string[]; // display() output from FailScript
+  displays?: DisplayItem[]; // styled display()/stat()/banner() output from FailScript
 }
 
 /** Result of running a FailScript action: the display-facing result plus script extras. */
@@ -111,9 +111,17 @@ export class UnifiedMacroExecutorService {
   executeScript(
     src: string,
     sheet: CharacterSheet,
-    opts: { inCombat?: boolean; name?: string; icon?: string; color?: string } = {},
+    opts: {
+      inCombat?: boolean; stacks?: number; turn?: number; effectStrength?: number;
+      name?: string; icon?: string; color?: string;
+    } = {},
   ): ScriptExecution {
-    const ctx = createPlayerContext(sheet, this.trueStats, opts.inCombat ?? false);
+    const ctx = createPlayerContext(sheet, this.trueStats, {
+      inCombat: opts.inCombat ?? false,
+      stacks: opts.stacks ?? 1,
+      turn: opts.turn ?? 0,
+      effectStrength: opts.effectStrength ?? 0,
+    });
     const script = runScript(src, ctx);
 
     const unified: UnifiedMacroResult = {
@@ -130,7 +138,7 @@ export class UnifiedMacroExecutorService {
       actionIcon: opts.icon || '⚡',
       actionColor: opts.color || '#f59e0b',
       timestamp: new Date(),
-      messages: script.messages,
+      displays: script.displays,
     };
 
     if (script.ok) this.broadcastToWorld(unified, sheet);

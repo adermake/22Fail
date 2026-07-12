@@ -106,36 +106,39 @@
                 <div class="exec-sb-name">{{ currentFx.name }}</div>
               </div>
 
-              <!-- Current step: summarised, click a number for the breakdown -->
+              <!-- Current step: only what the code chose to display; rolls in a hidden breakdown -->
               @if (chainResult) {
-                <div class="exec-sb-section-label">Dieser Effekt</div>
-                <div class="exec-sb-summary">
-                  @for (roll of summarizeStepRolls(chainResult); track roll.name) {
-                    <button class="exec-sb-chip roll" [style.--rc]="roll.color"
-                            (click)="openRollBreakdown(chainResult, roll.name, roll.color)"
-                            title="Aufschlüsselung anzeigen">
-                      {{ roll.name }}@if (roll.count > 1) { <span class="exec-sb-x">×{{ roll.count }}</span> }
-                      <span class="exec-sb-chip-val">{{ roll.total }}</span>
-                    </button>
-                  }
-                  @for (res of summarizeStepResources(chainResult); track res.resource) {
-                    <button class="exec-sb-chip" [class.gain]="res.total > 0" [class.loss]="res.total < 0"
-                            (click)="openResourceBreakdown(res.resource, res.displayName, chainResult.actionColor)"
-                            title="Aufschlüsselung anzeigen">
-                      {{ res.displayName }}
-                      <span class="exec-sb-chip-val">{{ res.total > 0 ? '+' : '' }}{{ res.total }}</span>
-                    </button>
-                  }
-                  @if (summarizeStepRolls(chainResult).length === 0 && summarizeStepResources(chainResult).length === 0 && !(chainResult.messages?.length)) {
-                    <div class="exec-sb-no-roll">Kein Ergebnis</div>
-                  }
-                </div>
-                @if (chainResult.messages?.length) {
-                  <div class="exec-sb-messages">
-                    @for (msg of chainResult.messages; track $index) {
-                      <div class="exec-sb-message">💬 {{ msg }}</div>
+                @if (chainResult.displays?.length) {
+                  <div class="exec-sb-displays">
+                    @for (d of chainResult.displays; track $index) {
+                      @switch (d.type) {
+                        @case ('banner') { <div class="ds-banner" [ngClass]="'ds-' + d.style">{{ d.text }}</div> }
+                        @case ('stat') { <div class="ds-stat" [ngClass]="'ds-' + d.style"><span class="ds-lbl">{{ d.label }}</span><span class="ds-val">{{ d.value }}</span></div> }
+                        @default { <div class="ds-text" [ngClass]="'ds-' + d.style">{{ d.text }}</div> }
+                      }
                     }
                   </div>
+                }
+                @if (summarizeStepResources(chainResult).length > 0) {
+                  <div class="exec-sb-section-label">Ressourcen</div>
+                  <div class="exec-sb-summary">
+                    @for (res of summarizeStepResources(chainResult); track res.resource) {
+                      <button class="exec-sb-chip" [class.gain]="res.total > 0" [class.loss]="res.total < 0"
+                              (click)="openResourceBreakdown(res.resource, res.displayName, chainResult.actionColor)"
+                              title="Aufschlüsselung anzeigen">
+                        {{ res.displayName }}
+                        <span class="exec-sb-chip-val">{{ res.total > 0 ? '+' : '' }}{{ res.total }}</span>
+                      </button>
+                    }
+                  </div>
+                }
+                @if (chainResult.rolls.length > 0) {
+                  <button class="exec-sb-rolls-btn" (click)="openAllRollsBreakdown(chainResult)">
+                    🎲 Würfel-Details ({{ chainResult.rolls.length }})
+                  </button>
+                }
+                @if (!chainResult.displays?.length && summarizeStepResources(chainResult).length === 0 && chainResult.rolls.length === 0) {
+                  <div class="exec-sb-no-roll">Kein Ergebnis</div>
                 }
               }
 

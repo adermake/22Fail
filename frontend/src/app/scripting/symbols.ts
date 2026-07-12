@@ -8,7 +8,10 @@ import { StatusModifierTarget } from '../model/status-effect.model';
 import { TALENT_DEFINITIONS } from '../data/talent-definitions';
 
 export type SymbolCategory =
-  | 'attribute' | 'resource' | 'derived' | 'level' | 'class' | 'currency' | 'namespace';
+  | 'attribute' | 'resource' | 'derived' | 'level' | 'class' | 'currency' | 'namespace' | 'runtime';
+
+/** Display styles for display()/stat()/banner(). */
+export const STYLE_NAMES = new Set(['good', 'bad', 'neutral', 'info']);
 
 export interface SymbolInfo {
   name: string;
@@ -79,6 +82,11 @@ export const SYMBOLS: SymbolInfo[] = [
   { name: 'gold', category: 'currency', type: 'number', description: 'Gold' },
   { name: 'platinum', category: 'currency', type: 'number', description: 'Platin' },
 
+  // Runtime context (of the current effect/execution)
+  { name: 'stacks', category: 'runtime', type: 'number', description: 'Stapelanzahl des aktuellen Effekts (Code verarbeitet Stapel selbst)' },
+  { name: 'turn', category: 'runtime', type: 'number', description: 'Aktuelle Zugnummer (0 außerhalb des Kampfes)' },
+  { name: 'effectStrength', category: 'runtime', type: 'number', description: 'Stärke des aktuellen Status-Effekts' },
+
   // Namespace
   { name: 'talent', category: 'namespace', type: 'namespace', description: 'Talent-Würfelboni: talent.<name>' },
 ];
@@ -99,10 +107,14 @@ export interface FnInfo {
   maxArgs: number;
   /** First arg is a resource selector identifier (loseResource/gainResource). */
   resourceFirstArg?: boolean;
+  /** Index of an optional style-selector argument (good/bad/neutral/info). */
+  styleArgIndex?: number;
 }
 
 export const BUILTINS: FnInfo[] = [
-  { name: 'display', signature: 'display(text)', description: 'Zeigt eine Nachricht an', minArgs: 1, maxArgs: 1 },
+  { name: 'display', signature: 'display(text, style?)', description: 'Zeigt Text an (style: good/bad/neutral/info)', minArgs: 1, maxArgs: 2, styleArgIndex: 1 },
+  { name: 'stat', signature: 'stat(label, value, style?)', description: 'Zeigt einen Wert als Chip an', minArgs: 2, maxArgs: 3, styleArgIndex: 2 },
+  { name: 'banner', signature: 'banner(text, style?)', description: 'Große Überschrift', minArgs: 1, maxArgs: 2, styleArgIndex: 1 },
   { name: 'roll', signature: 'roll(dice) oder roll(count, sides)', description: 'Würfelt und liefert das Ergebnis', minArgs: 1, maxArgs: 2 },
   { name: 'loseResource', signature: 'loseResource(resource, amount)', description: 'Verliert dauerhaft Ressource (health/energy/mana/fokus)', minArgs: 2, maxArgs: 2, resourceFirstArg: true },
   { name: 'gainResource', signature: 'gainResource(resource, amount)', description: 'Gewinnt dauerhaft Ressource', minArgs: 2, maxArgs: 2, resourceFirstArg: true },
@@ -125,6 +137,8 @@ export const KEYWORD_INFO: { name: string; description: string; snippet?: string
   { name: 'untilNextTurn', description: 'Temporäre Modifikatoren bis zum nächsten Zug', snippet: 'untilNextTurn {\n\t\n}' },
   { name: 'grantSkill', description: 'Temporäre Fähigkeit gewähren', snippet: 'grantSkill("Name", 0, 0, 0) {\n\t\n}' },
   { name: 'action', description: 'Benannter Aktionsblock', snippet: 'action name {\n\t\n}' },
+  { name: 'repeat', description: 'Wiederhole n-mal', snippet: 'repeat(n) {\n\t\n}' },
+  { name: 'while', description: 'Solange Bedingung wahr', snippet: 'while (bedingung) {\n\t\n}' },
   { name: 'true', description: 'Wahr' },
   { name: 'false', description: 'Falsch' },
 ];

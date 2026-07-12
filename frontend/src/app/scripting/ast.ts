@@ -64,7 +64,9 @@ export type Stmt =
   | Block
   | Lifecycle
   | GrantSkill
-  | ActionDecl;
+  | ActionDecl
+  | RepeatStmt
+  | WhileStmt;
 
 export interface VarDecl extends Span { kind: 'VarDecl'; name: string; nameSpan: Span; value: Expr; }
 
@@ -74,6 +76,12 @@ export interface Assign extends Span { kind: 'Assign'; target: Identifier | Memb
 export interface ExprStmt extends Span { kind: 'ExprStmt'; expr: Expr; }
 
 export interface IfStmt extends Span { kind: 'If'; test: Expr; then: Block; else?: Block | IfStmt; }
+
+/** `repeat(count) { … }` — bounded loop. */
+export interface RepeatStmt extends Span { kind: 'Repeat'; keywordSpan: Span; count: Expr; body: Block; }
+
+/** `while (test) { … }` — capped at a max iteration count at runtime. */
+export interface WhileStmt extends Span { kind: 'While'; keywordSpan: Span; test: Expr; body: Block; }
 
 export interface Block extends Span { kind: 'Block'; body: Stmt[]; }
 

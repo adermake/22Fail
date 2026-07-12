@@ -495,11 +495,9 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     const allResults: UnifiedMacroResult[] = [];
     this.triggeringEffects.add(fx.id);
     this.cdr.markForCheck();
-    for (let s = 0; s < stacks; s++) {
-      for (const result of this.runEffectResults(effect, sheet)) {
-        allResults.push(result);
-        this.applyMacroResourceChanges(result);
-      }
+    for (const result of this.runEffectResults(effect, sheet, stacks)) {
+      allResults.push(result);
+      this.applyMacroResourceChanges(result);
     }
     if (allResults.length > 0) {
       this.lastRollResults.set(fx.id, this.mergeResults(allResults, stacks));
@@ -554,9 +552,8 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       const stacks = fx.stacks || 1;
       const allResults: UnifiedMacroResult[] = [];
       const sheet = this.sheetForMacros;
-      for (let s = 0; s < stacks; s++) {
-        if (!sheet) break;
-        for (const result of this.runEffectResults(effect, sheet)) {
+      if (sheet) {
+        for (const result of this.runEffectResults(effect, sheet, stacks)) {
           allResults.push(result);
           this.applyMacroResourceChanges(result);
         }
@@ -674,6 +671,17 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  /** Open the roll breakdown for a step: every die, per roll (rolls are hidden by default). */
+  openAllRollsBreakdown(result: UnifiedMacroResult): void {
+    const rows = result.rolls.map(r => ({
+      label: r.rolls.length ? `${r.name} [${r.rolls.join(', ')}]` : r.name,
+      value: `= ${r.total}`,
+      positive: false,
+    }));
+    this.breakdownPopup = { title: 'Würfel-Details', color: '#f59e0b', rows };
+    this.cdr.markForCheck();
+  }
+
   closeBreakdown(): void {
     this.breakdownPopup = null;
     this.cdr.markForCheck();
@@ -689,7 +697,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       conditionFailures: results.flatMap(r => r.conditionFailures),
       rolls: results.flatMap(r => r.rolls),
       resourceChanges: results.flatMap(r => r.resourceChanges),
-      messages: results.flatMap(r => r.messages ?? []),
+      displays: results.flatMap(r => r.displays ?? []),
       timestamp: new Date(),
     };
   }
@@ -716,16 +724,25 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     return null;
   }
 
-  /** Run a status effect's FailScript (if present) else its legacy macros; one "run". */
-  private runEffectResults(effect: StatusEffect, sheet: CharacterSheet): UnifiedMacroResult[] {
+  /**
+   * Run a status effect once. A FailScript runs a SINGLE time with `stacks`/`effectStrength`
+   * exposed — the code decides how to apply the stack count. Legacy macros still repeat per stack.
+   */
+  private runEffectResults(effect: StatusEffect, sheet: CharacterSheet, stacks: number): UnifiedMacroResult[] {
     if (effect.script && effect.script.trim()) {
       const exec = this.macroExecutor.executeScript(effect.script, sheet, {
-        inCombat: false, name: effect.name, icon: effect.icon, color: effect.color,
+        inCombat: false, stacks, turn: 0, effectStrength: effect.strength ?? 0,
+        name: effect.name, icon: effect.icon, color: effect.color,
       });
       this.applyScriptExtras(exec);
       return [exec.unified];
     }
-    return this.getAllMacros(effect).map(m => this.macroExecutor.executeActionMacro(m, sheet));
+    const results: UnifiedMacroResult[] = [];
+    const macros = this.getAllMacros(effect);
+    for (let s = 0; s < stacks; s++) {
+      for (const m of macros) results.push(this.macroExecutor.executeActionMacro(m, sheet));
+    }
+    return results;
   }
 
   /** Apply the non-resource side effects of a script run. Temp mods (M5) / grants (M6). */

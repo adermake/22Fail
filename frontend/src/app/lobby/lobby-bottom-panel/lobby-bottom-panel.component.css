@@ -19,11 +19,8 @@
   height: 33px;
 }
 
-/* Folding window: grow upward and give the results more room while an
-   "Alle Ausführen" run is active. Auto-reverts when the chain ends. */
-.lbp-container.lbp-exec-active {
-  height: 380px;
-}
+/* While a run is active, ONLY the results panel expands — it floats up from the
+   bottom-right over the map. The rest of the status bar keeps its height. */
 
 .lbp-container.lbp-blink-reminder .lbp-header {
   animation: lbp-status-blink 0.8s ease-in-out infinite;
@@ -817,8 +814,48 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Wider results area while the folding window is expanded. */
-.lbp-exec-active .lbp-exec-sidebar { width: 320px; }
+/* Active run: float the results panel up from the bottom-right, over the map. */
+.lbp-exec-active .lbp-exec-sidebar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 340px;
+  max-height: 65vh;
+  z-index: 200;
+  background: #0f172a;
+  border: 1px solid #374151;
+  border-radius: 10px 0 0 0;
+  box-shadow: -8px -8px 24px rgba(0,0,0,0.5);
+  overflow-y: auto;
+  padding: 8px 10px;
+}
+
+/* Coded displays (styled) */
+.exec-sb-displays { display: flex; flex-direction: column; gap: 5px; margin-bottom: 6px; }
+.ds-text { font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; border-left: 3px solid; }
+.ds-banner { font-size: 0.85rem; font-weight: 800; text-align: center; padding: 6px 8px; border-radius: 6px; }
+.ds-stat { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.74rem; padding: 4px 8px; border-radius: 6px; border-left: 3px solid; }
+.ds-stat .ds-lbl { color: #cbd5e1; }
+.ds-stat .ds-val { font-weight: 800; }
+.ds-good { background: rgba(34,197,94,0.14); border-color: #22c55e; color: #86efac; }
+.ds-bad { background: rgba(239,68,68,0.14); border-color: #ef4444; color: #fca5a5; }
+.ds-info { background: rgba(59,130,246,0.14); border-color: #3b82f6; color: #93c5fd; }
+.ds-neutral { background: rgba(148,163,184,0.12); border-color: #94a3b8; color: #e5e7eb; }
+
+/* Roll breakdown toggle (rolls are hidden by default) */
+.exec-sb-rolls-btn {
+  margin-top: 6px;
+  width: 100%;
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.35);
+  color: #fbbf24;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.exec-sb-rolls-btn:hover { background: rgba(245,158,11,0.2); }
 
 .exec-sb-section-label {
   font-size: 0.58rem;

@@ -22,11 +22,18 @@ const ATTR_TO_STATKEY: Record<string, StatKey> = {
   intelligence: 'intelligence', constitution: 'constitution', wille: 'chill',
 };
 
+export interface ScriptRuntime {
+  inCombat: boolean;
+  stacks: number;
+  turn: number;
+  effectStrength: number;
+  rng?: () => number;
+}
+
 export function createPlayerContext(
   sheet: CharacterSheet,
   trueStats: TrueStatsService,
-  inCombat: boolean,
-  rng: () => number = Math.random,
+  runtime: ScriptRuntime,
 ): CharacterContext {
   const resourceCurrent = (ft: FormulaType) => sheet.statuses?.find(s => s.formulaType === ft)?.statusCurrent ?? 0;
 
@@ -69,11 +76,15 @@ export function createPlayerContext(
     silver: () => sheet.currency?.silver ?? 0,
     gold: () => sheet.currency?.gold ?? 0,
     platinum: () => sheet.currency?.platinum ?? 0,
+    // Runtime context of the current effect/execution
+    stacks: () => runtime.stacks,
+    turn: () => runtime.turn,
+    effectStrength: () => runtime.effectStrength,
   };
 
   return {
-    rng,
-    inCombat: () => inCombat,
+    rng: runtime.rng ?? Math.random,
+    inCombat: () => runtime.inCombat,
     readScalar: (name) => scalars[name]?.() ?? 0,
     readAttributeMember: (attr, prop) => {
       const key = ATTR_TO_STATKEY[attr];

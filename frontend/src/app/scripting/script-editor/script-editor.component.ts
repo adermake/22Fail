@@ -9,7 +9,7 @@ import { history, historyKeymap, defaultKeymap, indentWithTab } from '@codemirro
 import { acceptCompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { bracketMatching, indentOnInput } from '@codemirror/language';
 
-import { failscriptExtensions } from './failscript-cm';
+import { failscriptExtensions, formatFailScript } from './failscript-cm';
 import { BUILTINS, KEYWORD_INFO, SYMBOLS, TALENT_INFO } from '../symbols';
 
 interface RefItem { label: string; detail?: string; info?: string; insert: string; }
@@ -95,6 +95,16 @@ export class ScriptEditorComponent implements AfterViewInit, OnChanges, OnDestro
       ...failscriptExtensions(),
       keymap.of([
         { key: 'Tab', run: acceptCompletion },
+        {
+          key: 'Mod-Shift-f',
+          preventDefault: true,
+          run: v => {
+            const formatted = formatFailScript(v.state.doc.toString());
+            const sel = v.state.selection.main.head;
+            v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: formatted }, selection: { anchor: Math.min(sel, formatted.length) } });
+            return true;
+          },
+        },
         indentWithTab,
         ...closeBracketsKeymap,
         ...completionKeymap,

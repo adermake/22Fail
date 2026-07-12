@@ -7,7 +7,7 @@
  */
 
 import {
-  ATTRIBUTE_MEMBERS, BUILTIN_MAP, RESOURCE_NAMES, SYMBOL_MAP, TALENT_IDS,
+  ATTRIBUTE_MEMBERS, BUILTIN_MAP, RESOURCE_NAMES, STYLE_NAMES, SYMBOL_MAP, TALENT_IDS,
 } from './symbols';
 import { parse } from './parser';
 import { Block, Diagnostic, Expr, Program, Stmt } from './ast';
@@ -88,6 +88,16 @@ class Checker {
 
       case 'Block':
         this.checkBlock(stmt, scope);
+        break;
+
+      case 'Repeat':
+        this.checkExpr(stmt.count, scope);
+        this.checkBlock(stmt.body, scope);
+        break;
+
+      case 'While':
+        this.checkExpr(stmt.test, scope);
+        this.checkBlock(stmt.body, scope);
         break;
 
       case 'Lifecycle':
@@ -238,11 +248,21 @@ class Checker {
       if (first.kind !== 'Identifier' || !RESOURCE_NAMES.has(first.name)) {
         this.err(first.from, first.to, `Erwartet eine Ressource: ${[...RESOURCE_NAMES].join(', ')}`);
       }
-      // Remaining args checked normally; skip re-checking the resource selector.
-      for (let k = 1; k < expr.args.length; k++) this.checkExpr(expr.args[k], scope);
-      return;
     }
 
-    for (const a of expr.args) this.checkExpr(a, scope);
+    // Style-selector argument (display/stat/banner) — a bareword good/bad/neutral/info.
+    if (fn.styleArgIndex !== undefined && expr.args.length > fn.styleArgIndex) {
+      const styleArg = expr.args[fn.styleArgIndex];
+      if (styleArg.kind !== 'Identifier' || !STYLE_NAMES.has(styleArg.name)) {
+        this.err(styleArg.from, styleArg.to, `Stil erwartet: ${[...STYLE_NAMES].join(', ')}`);
+      }
+    }
+
+    // Check the remaining (value) arguments normally.
+    for (let k = 0; k < expr.args.length; k++) {
+      if (fn.resourceFirstArg && k === 0) continue;
+      if (fn.styleArgIndex === k) continue;
+      this.checkExpr(expr.args[k], scope);
+    }
   }
 }

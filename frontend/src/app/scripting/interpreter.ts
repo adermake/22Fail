@@ -14,6 +14,12 @@ import { RESOURCE_NAMES, SYMBOL_MAP } from './symbols';
 
 export type ScriptValue = number | string | boolean;
 
+export type DisplayStyle = 'good' | 'bad' | 'neutral' | 'info';
+export type DisplayItem =
+  | { type: 'text'; text: string; style: DisplayStyle }
+  | { type: 'stat'; label: string; value: string; style: DisplayStyle }
+  | { type: 'banner'; text: string; style: DisplayStyle };
+
 export interface ScriptRoll { name: string; formula: string; rolls: number[]; total: number; }
 export interface ScriptResourceChange { resource: string; amount: number; } // negative = lose
 export interface ScriptTempModifier { target: StatusModifierTarget; amount: number; }
@@ -22,7 +28,7 @@ export interface ScriptStatusOp { op: 'apply' | 'remove'; id: string; stacks?: n
 
 export interface ScriptResult {
   ok: boolean;
-  messages: string[];
+  displays: DisplayItem[];
   rolls: ScriptRoll[];
   resourceChanges: ScriptResourceChange[];
   /** From untilNextTurn (only persisted by the caller when combat is active). */
@@ -46,7 +52,7 @@ class ScriptError extends Error {}
 /** Compile then run. Refuses to run scripts with checker errors. */
 export function runScript(src: string, ctx: CharacterContext): ScriptResult {
   const result: ScriptResult = {
-    ok: false, messages: [], rolls: [], resourceChanges: [],
+    ok: false, displays: [], rolls: [], resourceChanges: [],
     tempModifiers: [], grantedSkills: [], statusOps: [], errors: [],
   };
   const compiled = compileScript(src);
@@ -69,9 +75,19 @@ class Interpreter {
   private rng: () => number;
   /** Accumulated temp-modifier deltas per target, while inside a lifecycle block. */
   private tempDeltas: Map<StatusModifierTarget, number> | null = null;
+  /** Per-loop cap and a global iteration budget to prevent runaway scripts. */
+  private readonly LOOP_CAP = 10000;
+  private readonly TOTAL_BUDGET = 200000;
+  private totalIterations = 0;
 
   constructor(private src: string, private ctx: CharacterContext, private result: ScriptResult) {
     this.rng = ctx.rng ?? Math.random;
+  }
+
+  private tick(): void {
+    if (++this.totalIterations > this.TOTAL_BUDGET) {
+      throw new ScriptError('Iterationslimit überschritten');
+    }
   }
 
   runProgram(program: Program): void {
@@ -102,6 +118,20 @@ class Interpreter {
       case 'Block':
         this.execBlock(stmt, frame);
         break;
+      case 'Repeat': {
+        const n = Math.max(0, Math.min(this.LOOP_CAP, Math.floor(toNum(this.evalExpr(stmt.count, frame)))));
+        for (let k = 0; k < n; k++) { this.tick(); this.execBlock(stmt.body, frame); }
+        break;
+      }
+      case 'While': {
+        let guard = 0;
+        while (truthy(this.evalExpr(stmt.test, frame))) {
+          this.tick();
+          if (++guard > this.LOOP_CAP) throw new ScriptError('Schleifenlimit überschritten (mögliche Endlosschleife)');
+          this.execBlock(stmt.body, frame);
+        }
+        break;
+      }
       case 'Lifecycle':
         this.execLifecycle(stmt, frame);
         break;
@@ -250,7 +280,13 @@ class Interpreter {
 
     switch (name) {
       case 'display':
-        this.result.messages.push(String(this.evalExpr(args[0], frame)));
+        this.result.displays.push({ type: 'text', text: String(this.evalExpr(args[0], frame)), style: styleOf(args[1]) });
+        return 0;
+      case 'stat':
+        this.result.displays.push({ type: 'stat', label: String(this.evalExpr(args[0], frame)), value: String(this.evalExpr(args[1], frame)), style: styleOf(args[2]) });
+        return 0;
+      case 'banner':
+        this.result.displays.push({ type: 'banner', text: String(this.evalExpr(args[0], frame)), style: styleOf(args[1]) });
         return 0;
       case 'roll': {
         if (args.length === 1 && args[0].kind === 'Dice') {
@@ -306,4 +342,12 @@ function truthy(v: ScriptValue): boolean {
   if (typeof v === 'number') return v !== 0;
   if (typeof v === 'string') return v.length > 0;
   return false;
+}
+
+/** A style-selector arg is a bareword identifier (good/bad/neutral/info); default neutral. */
+function styleOf(arg: Expr | undefined): DisplayStyle {
+  if (arg && arg.kind === 'Identifier' && (arg.name === 'good' || arg.name === 'bad' || arg.name === 'info' || arg.name === 'neutral')) {
+    return arg.name;
+  }
+  return 'neutral';
 }

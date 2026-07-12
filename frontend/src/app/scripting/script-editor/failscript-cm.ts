@@ -180,6 +180,24 @@ const editorTheme = EditorView.theme({
   '.fs-hover': { padding: '4px 8px', maxWidth: '320px', font: '12px/1.4 sans-serif' },
 }, { dark: true });
 
+/** Re-indent a FailScript by brace depth (best-effort; ignores braces inside strings). */
+export function formatFailScript(src: string): string {
+  const lines = src.replace(/\r\n/g, '\n').split('\n');
+  const out: string[] = [];
+  let depth = 0;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { out.push(''); continue; }
+    const lead = line.match(/^\}+/)?.[0].length ?? 0;
+    const thisDepth = Math.max(0, depth - lead);
+    out.push('  '.repeat(thisDepth) + line);
+    const opens = (line.match(/\{/g) || []).length;
+    const closes = (line.match(/\}/g) || []).length;
+    depth = Math.max(0, depth + opens - closes);
+  }
+  return out.join('\n');
+}
+
 /** All FailScript editor extensions. */
 export function failscriptExtensions(): Extension[] {
   return [
