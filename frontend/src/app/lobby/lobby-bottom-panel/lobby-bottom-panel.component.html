@@ -1,4 +1,5 @@
-<div class="lbp-container" [class.lbp-collapsed]="collapsed" [class.lbp-blink-reminder]="statusBarBlinking">
+<div class="lbp-container" [class.lbp-collapsed]="collapsed" [class.lbp-blink-reminder]="statusBarBlinking"
+     [class.lbp-exec-active]="!collapsed && chainEffects.length > 0">
 
   <!-- ── Header ── -->
   <div class="lbp-header" (click)="statusBarBlinking && dismissStatusReminder.emit()">
@@ -104,29 +105,59 @@
                 <div class="exec-sb-icon">{{ getEffectIcon(currentFx) }}</div>
                 <div class="exec-sb-name">{{ currentFx.name }}</div>
               </div>
+
+              <!-- Current step: summarised, click a number for the breakdown -->
               @if (chainResult) {
-                <div class="exec-sb-result">
-                  @for (roll of chainResult.rolls; track roll.id) {
-                    <div class="exec-sb-roll" [style.--rc]="roll.color">
-                      <span class="exec-sb-roll-name">{{ roll.name }}</span>
-                      <div class="exec-sb-dice">
-                        @for (die of roll.rolls; track $index) {
-                          <span class="exec-sb-die">{{ die }}</span>
-                        }
-                        <span class="exec-sb-total">= {{ roll.total }}</span>
-                      </div>
-                    </div>
+                <div class="exec-sb-section-label">Dieser Effekt</div>
+                <div class="exec-sb-summary">
+                  @for (roll of summarizeStepRolls(chainResult); track roll.name) {
+                    <button class="exec-sb-chip roll" [style.--rc]="roll.color"
+                            (click)="openRollBreakdown(chainResult, roll.name, roll.color)"
+                            title="Aufschlüsselung anzeigen">
+                      {{ roll.name }}@if (roll.count > 1) { <span class="exec-sb-x">×{{ roll.count }}</span> }
+                      <span class="exec-sb-chip-val">{{ roll.total }}</span>
+                    </button>
                   }
-                  @for (change of chainResult.resourceChanges; track $index) {
-                    <div class="exec-sb-resource" [class.gain]="change.amount > 0" [class.loss]="change.amount < 0">
-                      {{ change.displayName }}: {{ change.amount > 0 ? '+' : '' }}{{ change.amount }}
-                    </div>
+                  @for (res of summarizeStepResources(chainResult); track res.resource) {
+                    <button class="exec-sb-chip" [class.gain]="res.total > 0" [class.loss]="res.total < 0"
+                            (click)="openResourceBreakdown(res.resource, res.displayName, chainResult.actionColor)"
+                            title="Aufschlüsselung anzeigen">
+                      {{ res.displayName }}
+                      <span class="exec-sb-chip-val">{{ res.total > 0 ? '+' : '' }}{{ res.total }}</span>
+                    </button>
                   }
-                  @if (chainResult.rolls.length === 0 && chainResult.resourceChanges.length === 0) {
+                  @if (summarizeStepRolls(chainResult).length === 0 && summarizeStepResources(chainResult).length === 0) {
                     <div class="exec-sb-no-roll">Kein Ergebnis</div>
                   }
                 </div>
               }
+
+              <!-- Running grand total across the whole run -->
+              @if (chainResourceTotals.length > 0) {
+                <div class="exec-sb-section-label">Gesamt</div>
+                <div class="exec-sb-summary">
+                  @for (res of chainResourceTotals; track res.resource) {
+                    <button class="exec-sb-chip total" [class.gain]="res.total > 0" [class.loss]="res.total < 0"
+                            (click)="openResourceBreakdown(res.resource, res.displayName, '#f59e0b')"
+                            title="Aufschlüsselung anzeigen">
+                      {{ res.displayName }}
+                      <span class="exec-sb-chip-val">{{ res.total > 0 ? '+' : '' }}{{ res.total }}</span>
+                    </button>
+                  }
+                </div>
+              }
+            } @else if (chainResourceTotals.length > 0) {
+              <!-- Post-run summary -->
+              <div class="exec-sb-section-label">Letzter Durchlauf – Gesamt</div>
+              <div class="exec-sb-summary">
+                @for (res of chainResourceTotals; track res.resource) {
+                  <button class="exec-sb-chip total" [class.gain]="res.total > 0" [class.loss]="res.total < 0"
+                          (click)="openResourceBreakdown(res.resource, res.displayName, '#f59e0b')">
+                    {{ res.displayName }}
+                    <span class="exec-sb-chip-val">{{ res.total > 0 ? '+' : '' }}{{ res.total }}</span>
+                  </button>
+                }
+              </div>
             } @else {
               <div class="exec-sb-idle">
                 <span class="exec-sb-idle-icon">⚔</span>
@@ -136,6 +167,30 @@
           </div>
 
         </div>
+
+        <!-- Breakdown popup: how a summarised number was reached -->
+        @if (breakdownPopup) {
+          <div class="lbp-breakdown-overlay" (click)="closeBreakdown()">
+            <div class="lbp-breakdown" (click)="$event.stopPropagation()" [style.--bc]="breakdownPopup.color">
+              <div class="lbp-breakdown-head">
+                <span class="lbp-breakdown-title">{{ breakdownPopup.title }}</span>
+                <button class="lbp-breakdown-close" (click)="closeBreakdown()">✕</button>
+              </div>
+              @if (breakdownPopup.rows.length === 0) {
+                <div class="lbp-breakdown-empty">Keine Einträge</div>
+              } @else {
+                <div class="lbp-breakdown-rows">
+                  @for (row of breakdownPopup.rows; track $index) {
+                    <div class="lbp-breakdown-row">
+                      <span class="lbp-breakdown-label">{{ row.label }}</span>
+                      <span class="lbp-breakdown-value" [class.gain]="row.positive" [class.loss]="!row.positive">{{ row.value }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
       </div>
     }
 
@@ -178,6 +233,25 @@
                 <button class="lbp-fx-btn" (click)="changeStacks(expandedFx, 1)">+</button>
               </span>
             </div>
+            @if (getEffect(expandedFx)?.strength !== undefined && getEffect(expandedFx)?.strength !== null) {
+              <div class="lbp-fx-detail">
+                <span class="lbp-fx-detail-icon">🛡</span>
+                <span class="lbp-fx-detail-label">Stärke</span>
+                <span class="lbp-fx-detail-value"><span class="lbp-fx-num">{{ getEffect(expandedFx)?.strength }}</span></span>
+              </div>
+            }
+            @if (getEffect(expandedFx)?.talentModifiers?.length) {
+              <div class="lbp-fx-detail">
+                <span class="lbp-fx-detail-icon">🎯</span>
+                <span class="lbp-fx-detail-label">Talente</span>
+                <span class="lbp-fx-mods">
+                  @for (mod of getEffect(expandedFx)!.talentModifiers!; track $index) {
+                    <span class="lbp-fx-mod" [class.positive]="mod.amount > 0" [class.negative]="mod.amount < 0">
+                      {{ getTalentName(mod.talentId) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}</span>
+                  }
+                </span>
+              </div>
+            }
             @if (getEffect(expandedFx)?.statModifiers?.length) {
               <div class="lbp-fx-detail">
                 <span class="lbp-fx-detail-icon">📊</span>
@@ -185,7 +259,7 @@
                 <span class="lbp-fx-mods">
                   @for (mod of getEffect(expandedFx)!.statModifiers!; track $index) {
                     <span class="lbp-fx-mod" [class.positive]="mod.amount > 0" [class.negative]="mod.amount < 0">
-                      {{ mod.stat.toUpperCase().slice(0,3) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}
+                      {{ getStatModLabel(mod.stat) }} {{ mod.amount > 0 ? '+' : '' }}{{ mod.amount }}{{ mod.isPercentage ? '%' : '' }}
                     </span>
                   }
                 </span>

@@ -7,6 +7,7 @@ import { FormulaType } from '../../model/formula-type.enum';
 import { JsonPatch } from '../../model/json-patch.model';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { StatusEffect } from '../../model/status-effect.model';
+import { TrueStatsService } from '../../services/true-stats.service';
 
 @Component({
   selector: 'app-currentstat',
@@ -24,6 +25,7 @@ export class CurrentstatComponent {
   @Input() formula!: FormulaType;
   constructor(private cd: ChangeDetectorRef) {}
   private libraryStore = inject(LibraryStoreService);
+  private trueStats = inject(TrueStatsService);
 
   // Map formula types to stat keys for skill modifiers
   private getStatusKey(): 'mana' | 'life' | 'energy' | null {
@@ -157,17 +159,12 @@ export class CurrentstatComponent {
   }
 
   get statusMax(): number {
-    var value = this.base + this.bonus + this.effectBonus;
-    switch (this.formula) {
-      case FormulaType.LIFE:
-        return value + this.sheet.constitution.current * 5;
-      case FormulaType.ENERGY:
-        return value + this.sheet.dexterity.current * 5;
-      case FormulaType.MANA:
-        return value + this.sheet.intelligence.current * 5;
-      default:
-        return value;
+    // Delegate to the central calculator so the stat contribution (CON/GES/INT × 5)
+    // reflects skills, equipment and status effects — not the stale cached `.current`.
+    if (this.getStatusKey()) {
+      return this.trueStats.calculateResourceMax(this.sheet, this.formula);
     }
+    return this.base + this.bonus + this.effectBonus;
   }
 
   get barClass(): string {

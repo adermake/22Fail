@@ -49,7 +49,6 @@ import {
   subHexToWorldPixel,
   findMacroTileAtWorldPixel,
   drawFlatHexPath,
-  MACRO_SUB_HEXES,
   oddqHexDistance,
   worldPixelToSubHex,
   macroTilePosition,
@@ -116,6 +115,8 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private fogTileCaches = new Map<string, HTMLCanvasElement>();
   /** Revealed sub-hexes the fog caches currently reflect (baseline for incremental diffs). */
   private fogCacheRevealed = new Set<string>();
+  /** World-pixel centres of every revealed sub-hex, punched into any tile they overlap. */
+  private revealedWorldPts: Point[] = [];
   /**
    * Array references last synced to the view. The store applies patches by reassigning
    * these properties to fresh arrays on a mutated-in-place shared object, so the signal's
@@ -492,7 +493,7 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
             this.osdTileState.set(tile.id, { x: pos.x, y: pos.y, imageId: tile.imageId });
           }
           this.updateTokenScale();
-          this.rebuildFogTileCache(tile, new Set(this.mapData()?.revealedSubHexes ?? []));
+          this.rebuildFogTileCache(tile);
           this.renderCanvases();
         },
       });
@@ -1252,14 +1253,20 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Slight overlap between neighbouring fog hexes hides sub-pixel seams at any zoom. */
   private static readonly FOG_HEX_OVERLAP = 1.05;
 
+  /** Margin (world px) so sub-hexes just outside a tile still punch its edge. */
+  private static readonly FOG_TILE_MARGIN = SUB_HEX_RADIUS * 2;
+
   /**
-   * Bring the fog caches in line with `data` doing the least work possible:
+   * Bring the fog caches in line with `data`:
    *  - drop caches for removed tiles,
-   *  - fully build caches for new/uncached tiles,
-   *  - for existing caches, apply only the sub-hexes whose revealed state changed.
+   *  - recompute the world-space positions of all revealed sub-hexes,
+   *  - rebuild any tile that is new or whose area overlaps a changed sub-hex.
    *
-   * This replaces the old "rebuild every tile on every change" path, which redrew
-   * thousands of hexes across all tiles on each brush dab and each remote patch.
+   * Tiles are rebuilt from scratch (fill the hex, punch revealed holes) rather than
+   * edited incrementally: incremental punch/refill accumulated anti-aliased partial
+   * alpha at hex edges, leaving seams after a reveal→rehide. Punching happens by *world
+   * position* across every overlapping tile, so a reveal straddling a macro-tile
+   * boundary is cleared in both tiles instead of staying half-covered by the neighbour.
    */
   private syncFogCaches(data: WorldMapData): void {
     const activeIds = new Set(data.macroTiles.map(t => t.id));
@@ -1271,36 +1278,65 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const tileByCoord = new Map<string, MacroTile>();
     for (const t of data.macroTiles) tileByCoord.set(`${t.q},${t.r}`, t);
 
-    // New tiles: build the whole cache once from the current revealed set.
-    const freshlyBuilt = new Set<string>();
-    for (const tile of data.macroTiles) {
-      if (!this.fogTileCaches.has(tile.id)) {
-        this.rebuildFogTileCache(tile, newRevealed);
-        freshlyBuilt.add(tile.id);
+    // World-pixel centres of everything currently revealed.
+    this.revealedWorldPts = [];
+    for (const key of newRevealed) {
+      const pt = this.revealedKeyWorldPos(key, tileByCoord);
+      if (pt) this.revealedWorldPts.push(pt);
+    }
+
+    // World positions of sub-hexes whose revealed state changed since the last sync.
+    const changedPts: Point[] = [];
+    for (const key of newRevealed) {
+      if (!this.fogCacheRevealed.has(key)) {
+        const pt = this.revealedKeyWorldPos(key, tileByCoord);
+        if (pt) changedPts.push(pt);
+      }
+    }
+    for (const key of this.fogCacheRevealed) {
+      if (!newRevealed.has(key)) {
+        const pt = this.revealedKeyWorldPos(key, tileByCoord);
+        if (pt) changedPts.push(pt);
       }
     }
 
-    // Existing caches: apply just the delta since the last sync.
-    for (const key of newRevealed) {
-      if (this.fogCacheRevealed.has(key)) continue; // newly revealed → punch a hole
-      this.editFogHex(key, tileByCoord, freshlyBuilt, 'reveal');
-    }
-    for (const key of this.fogCacheRevealed) {
-      if (newRevealed.has(key)) continue; // newly hidden → paint fog back
-      this.editFogHex(key, tileByCoord, freshlyBuilt, 'recover');
+    const margin = WorldMapComponent.FOG_TILE_MARGIN;
+    for (const tile of data.macroTiles) {
+      let affected = !this.fogTileCaches.has(tile.id);
+      if (!affected && changedPts.length) {
+        const pos = getMacroTilePosition(tile);
+        for (const p of changedPts) {
+          const lx = p.x - pos.x;
+          const ly = p.y - pos.y;
+          if (lx >= -margin && ly >= -margin && lx <= HEX_WIDTH + margin && ly <= HEX_HEIGHT + margin) {
+            affected = true;
+            break;
+          }
+        }
+      }
+      if (affected) this.rebuildFogTileCache(tile);
     }
 
     this.fogCacheRevealed = newRevealed;
   }
 
+  private revealedKeyWorldPos(key: string, tileByCoord: Map<string, MacroTile>): Point | null {
+    const ref = parseSubHexKey(key);
+    if (!ref) return null;
+    const home = tileByCoord.get(`${ref.macroQ},${ref.macroR}`);
+    if (!home) return null;
+    const pos = getMacroTilePosition(home);
+    const local = subHexToPixel({ q: ref.subQ, r: ref.subR });
+    return { x: pos.x + local.x, y: pos.y + local.y };
+  }
+
   /**
-   * Fog is drawn by filling the *entire* macro hex (clipped to its exact pointy-top
-   * shape) and then punching out revealed sub-hexes. This guarantees the fog reaches
-   * the tile's own edges — the old per-unrevealed-sub-hex fill left the sloped top
-   * edges and vertical sides bare, so map content peeked through wherever no
-   * neighbouring tile happened to overlap the seam.
+   * Fill the entire macro hex (clipped to its exact pointy-top shape) with fog, then
+   * punch out every revealed sub-hex that overlaps this tile — including ones whose
+   * home tile is a neighbour. Filling the whole hex guarantees fog reaches the tile's
+   * own edges; the global punch keeps boundary reveals from being half-covered.
    */
-  private rebuildFogTileCache(tile: MacroTile, revealed: Set<string>): void {
+  private rebuildFogTileCache(tile: MacroTile): void {
     const scale = WorldMapComponent.FOG_CACHE_SCALE;
     let cache = this.fogTileCaches.get(tile.id);
     if (!cache) {
@@ -1322,48 +1358,17 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
     ctx.fillRect(0, 0, cache.width, cache.height);
 
     ctx.globalCompositeOperation = 'destination-out';
+    const pos = getMacroTilePosition(tile);
     const fogR = SUB_HEX_RADIUS * WorldMapComponent.FOG_HEX_OVERLAP * scale;
-    for (const sub of MACRO_SUB_HEXES) {
-      const key = subHexKey({ macroQ: tile.q, macroR: tile.r, subQ: sub.q, subR: sub.r });
-      if (!revealed.has(key)) continue;
-      const local = subHexToPixel({ q: sub.q, r: sub.r });
+    const margin = WorldMapComponent.FOG_TILE_MARGIN;
+    for (const pt of this.revealedWorldPts) {
+      const lx = pt.x - pos.x;
+      const ly = pt.y - pos.y;
+      if (lx < -margin || ly < -margin || lx > HEX_WIDTH + margin || ly > HEX_HEIGHT + margin) continue;
       ctx.beginPath();
-      appendFlatHexPath(ctx, local.x * scale, local.y * scale, fogR);
+      appendFlatHexPath(ctx, lx * scale, ly * scale, fogR);
       ctx.fill();
     }
-    ctx.restore();
-  }
-
-  /** Reveal (punch out) or recover (paint) a single sub-hex on its tile's fog cache. */
-  private editFogHex(
-    key: string,
-    tileByCoord: Map<string, MacroTile>,
-    freshlyBuilt: Set<string>,
-    mode: 'reveal' | 'recover',
-  ): void {
-    const ref = parseSubHexKey(key);
-    if (!ref) return;
-    const tile = tileByCoord.get(`${ref.macroQ},${ref.macroR}`);
-    if (!tile || freshlyBuilt.has(tile.id)) return; // fresh caches already reflect this
-    const cache = this.fogTileCaches.get(tile.id);
-    const ctx = cache?.getContext('2d');
-    if (!ctx) return;
-
-    const scale = WorldMapComponent.FOG_CACHE_SCALE;
-    const local = subHexToPixel({ q: ref.subQ, r: ref.subR });
-    const fogR = SUB_HEX_RADIUS * WorldMapComponent.FOG_HEX_OVERLAP * scale;
-    ctx.save();
-    if (mode === 'recover') {
-      // Keep re-painted fog inside the tile's hex so it never spills into the corners.
-      ctx.beginPath();
-      appendMacroHexPath(ctx, cache!.width, cache!.height);
-      ctx.clip();
-    }
-    ctx.globalCompositeOperation = mode === 'reveal' ? 'destination-out' : 'source-over';
-    ctx.fillStyle = '#000000';
-    ctx.beginPath();
-    appendFlatHexPath(ctx, local.x * scale, local.y * scale, fogR);
-    ctx.fill();
     ctx.restore();
   }
 

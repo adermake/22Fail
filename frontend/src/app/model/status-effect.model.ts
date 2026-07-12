@@ -18,7 +18,14 @@ export interface StatusEffect {
   // Mechanical effects
   diceBonuses?: DiceBonus[]; // Bonuses or penalties to dice rolls
   statModifiers?: StatusStatModifier[]; // Direct stat modifications
-  
+  talentModifiers?: StatusTalentModifier[]; // Modifiers to specific Talent-Modifikatoren
+
+  /**
+   * Cleanse difficulty — how hard this effect is to remove. Purely informational for
+   * players (shown on the status display); does not affect stats.
+   */
+  strength?: number;
+
   // Macro integration
   macroActionId?: string;      // Legacy: ID of a library MacroAction
   embeddedMacro?: ActionMacro; // Inline ActionMacro (copied, not referenced)
@@ -37,12 +44,34 @@ export interface StatusEffect {
 }
 
 /**
+ * Targets a status effect stat modifier can apply to.
+ *  - Base stats: strength…chill
+ *  - Resources: life / energy / mana
+ *  - Derived values: fokus, armorMalus (Rüstungsmalus), armorNegation (Rüstungsnegation),
+ *    grundbonus, reaktion (Reaktionsbonus), bewegung (flat movement, added to movement
+ *    steps directly — NOT to speed).
+ */
+export type StatusModifierTarget =
+  | 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill'
+  | 'life' | 'energy' | 'mana'
+  | 'fokus' | 'armorMalus' | 'armorNegation' | 'grundbonus' | 'reaktion' | 'bewegung';
+
+/**
  * Stat modifier applied by a status effect
  */
 export interface StatusStatModifier {
-  stat: 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill' | 'life' | 'energy' | 'mana';
+  stat: StatusModifierTarget;
   amount: number; // Can be negative for debuffs
   isPercentage?: boolean; // If true, apply as percentage instead of flat amount
+}
+
+/**
+ * Modifier a status effect applies to a specific Talent's Würfelbonus (Talent-Modifikator).
+ * Positive `amount` makes the roll easier (like an invested rank).
+ */
+export interface StatusTalentModifier {
+  talentId: string;
+  amount: number;
 }
 
 /**

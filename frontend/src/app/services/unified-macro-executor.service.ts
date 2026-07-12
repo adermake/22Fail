@@ -418,11 +418,14 @@ export class UnifiedMacroExecutorService {
   }
 
   /**
-   * Get value of a stat
+   * Get value of a stat. Routed through TrueStatsService so macro conditions compare
+   * against the *effective* stat (base + skills + equipment + status effects), not the
+   * possibly-stale cached `.current` value.
    */
   private getStatValue(stat: string, sheet: CharacterSheet): number {
-    const statObj = (sheet as any)[stat];
-    return statObj?.current || 0;
+    const statBlock = (sheet as any)[stat];
+    if (!statBlock) return 0;
+    return this.trueStats.calculateStat(sheet, statBlock, stat as any);
   }
 
   /**
