@@ -6,11 +6,12 @@ import { DiceBonus } from '../../model/dice-bonus.model';
 import { ActionMacro, createEmptyActionMacro } from '../../model/action-macro.model';
 import { EmbeddedMacroEditorComponent, MACRO_ICON_SYMBOLS } from '../embedded-macro-editor/embedded-macro-editor.component';
 import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
+import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
 
 @Component({
   selector: 'app-status-effect-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmbeddedMacroEditorComponent],
+  imports: [CommonModule, FormsModule, EmbeddedMacroEditorComponent, ScriptEditorComponent],
   templateUrl: './status-effect-editor.component.html',
   styleUrl: './status-effect-editor.component.css',
 })

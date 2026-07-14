@@ -163,7 +163,27 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
   hasMacro(active: ActiveStatusEffect): boolean {
     const effect = this.getEffect(active);
     if (!effect) return false;
-    return !!(effect.embeddedMacro || effect.embeddedMacros?.length || effect.macroActionId);
+    return !!(effect.script?.trim() || effect.embeddedMacro || effect.embeddedMacros?.length || effect.macroActionId);
+  }
+
+  /**
+   * Run a status effect once. A FailScript runs a SINGLE time with `stacks`/`effectStrength`
+   * exposed; legacy macros still repeat per stack.
+   */
+  private runEffectResults(effect: StatusEffect, stacks: number): UnifiedMacroResult[] {
+    if (effect.script && effect.script.trim()) {
+      const exec = this.macroExecutor.executeScript(effect.script, this.sheet, {
+        inCombat: false, stacks, turn: 0, effectStrength: effect.strength ?? 0,
+        name: effect.name, icon: effect.icon, color: effect.color,
+      });
+      return [exec.unified];
+    }
+    const results: UnifiedMacroResult[] = [];
+    const macros = this.getAllMacros(effect);
+    for (let s = 0; s < stacks; s++) {
+      for (const m of macros) results.push(this.macroExecutor.executeActionMacro(m, this.sheet));
+    }
+    return results;
   }
 
   private getAllMacros(effect: StatusEffect): ActionMacro[] {
@@ -268,8 +288,9 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     const effect = this.getEffect(active);
     if (!effect) return;
 
+    const hasScript = !!(effect.script && effect.script.trim());
     const macros = this.getAllMacros(effect);
-    if (macros.length === 0) return;
+    if (!hasScript && macros.length === 0) return;
 
     const stacks = active.stacks || 1;
     const allResults: UnifiedMacroResult[] = [];
@@ -279,13 +300,10 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     this.triggeringEffects.add(key);
     this.cdr.markForCheck();
 
-    // Execute all macros for each stack
-    for (let s = 0; s < stacks; s++) {
-      for (const macro of macros) {
-        const result = this.macroExecutor.executeActionMacro(macro, this.sheet);
-        allResults.push(result);
-        this.applyResourceChanges(result);
-      }
+    // Execute once (scripts handle stacks internally; legacy macros repeat per stack).
+    for (const result of this.runEffectResults(effect, stacks)) {
+      allResults.push(result);
+      this.applyResourceChanges(result);
     }
 
     // Merge results for display
@@ -331,6 +349,7 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
       conditionFailures: results.flatMap(r => r.conditionFailures),
       rolls: results.flatMap(r => r.rolls),
       resourceChanges: results.flatMap(r => r.resourceChanges),
+      displays: results.flatMap(r => r.displays ?? []),
       timestamp: new Date()
     };
   }
@@ -343,8 +362,13 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     return null;
   }
 
+  /** Roll details are hidden by default; only code-driven displays show. */
+  showExecRolls = false;
+  toggleExecRolls() { this.showExecRolls = !this.showExecRolls; this.cdr.markForCheck(); }
+
   private showExecutionPopup(result: UnifiedMacroResult, stackInfo: string | null) {
     if (this.popupTimeout) clearTimeout(this.popupTimeout);
+    this.showExecRolls = false;
     this.executionPopupResult = result;
     this.executionPopupStackInfo = stackInfo;
     this.cdr.markForCheck();
@@ -498,16 +522,12 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     // Execute macros for each stack
     const effect = this.getEffect(active);
     if (effect) {
-      const macros = this.getAllMacros(effect);
       const stacks = active.stacks || 1;
       const allResults: UnifiedMacroResult[] = [];
 
-      for (let s = 0; s < stacks; s++) {
-        for (const macro of macros) {
-          const result = this.macroExecutor.executeActionMacro(macro, this.sheet);
-          allResults.push(result);
-          this.applyResourceChanges(result);
-        }
+      for (const result of this.runEffectResults(effect, stacks)) {
+        allResults.push(result);
+        this.applyResourceChanges(result);
       }
 
       if (allResults.length > 0) {

@@ -337,21 +337,26 @@
       }
 
       @if (executionPopupResult.rolls.length > 0) {
-        <div class="exec-rolls">
-          @for (roll of executionPopupResult.rolls; track roll.id) {
-            <div class="exec-roll" [style.--roll-color]="roll.color">
-              <div class="exec-roll-name">{{ roll.name }}</div>
-              <div class="exec-roll-result">
-                <span class="exec-dice">
-                  @for (die of roll.rolls; track $index) {
-                    <span class="exec-die">{{ die }}</span>
-                  }
-                </span>
-                <span class="exec-total">= {{ roll.total }}</span>
+        <button class="exec-rolls-toggle" (click)="toggleExecRolls()">
+          🎲 Würfel-Details ({{ executionPopupResult.rolls.length }}) {{ showExecRolls ? '▲' : '▼' }}
+        </button>
+        @if (showExecRolls) {
+          <div class="exec-rolls">
+            @for (roll of executionPopupResult.rolls; track roll.id) {
+              <div class="exec-roll" [style.--roll-color]="roll.color">
+                <div class="exec-roll-name">{{ roll.name }}</div>
+                <div class="exec-roll-result">
+                  <span class="exec-dice">
+                    @for (die of roll.rolls; track $index) {
+                      <span class="exec-die">{{ die }}</span>
+                    }
+                  </span>
+                  <span class="exec-total">= {{ roll.total }}</span>
+                </div>
               </div>
-            </div>
-          }
-        </div>
+            }
+          </div>
+        }
       }
 
       @if (executionPopupResult.resourceChanges.length > 0) {
@@ -361,6 +366,18 @@
               <span class="exec-resource-name">{{ change.displayName }}</span>
               <span class="exec-resource-amount">{{ change.amount > 0 ? '+' : '' }}{{ change.amount }}</span>
             </div>
+          }
+        </div>
+      }
+
+      @if (executionPopupResult.displays?.length) {
+        <div class="exec-displays">
+          @for (d of executionPopupResult.displays; track $index) {
+            @switch (d.type) {
+              @case ('banner') { <div class="ds-banner" [ngClass]="'ds-' + d.style">{{ d.text }}</div> }
+              @case ('stat') { <div class="ds-stat" [ngClass]="'ds-' + d.style"><span class="ds-lbl">{{ d.label }}</span><span class="ds-val">{{ d.value }}</span></div> }
+              @default { <div class="ds-text" [ngClass]="'ds-' + d.style">{{ d.text }}</div> }
+            }
           }
         </div>
       }

@@ -581,3 +581,6 @@
   font-size: 0.8rem;
 }
 
+
+/* FailScript editor host */
+.script-editor-host { height: 320px; margin-top: 4px; }
