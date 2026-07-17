@@ -14,6 +14,7 @@ import { SkillDefinition } from '../../model/skill-definition.model';
 import { ActionMacro } from '../../model/action-macro.model';
 import { MacroExecutorService } from '../../services/macro-executor.service';
 import { TrueStatsService } from '../../services/true-stats.service';
+import { macroActionToScript } from '../../scripting/decompiler';
 
 @Component({
   selector: 'app-skill',
@@ -66,9 +67,9 @@ export class SkillComponent {
 
   onCardClick() {
     if (this.effectiveType !== 'active') return;
-    const simpleMacro = this.skill.embeddedMacroAction;
-    if (simpleMacro) { this.showMacroPopup = true; return; }
-    // If skill has an embedded macro, trigger it instead of showing cost popup
+    // Script or legacy simple macro → show the action popup.
+    if (this.skill.script?.trim() || this.skill.embeddedMacroAction) { this.showMacroPopup = true; return; }
+    // Legacy ActionMacro → let the parent trigger it (runs through the interpreter now).
     const macro = this.skill.embeddedMacro;
     if (macro) {
       this.triggerMacro.emit(macro);
@@ -85,9 +86,15 @@ export class SkillComponent {
   }
 
   async executeMacroAction() {
-    if (!this.skill.embeddedMacroAction) return;
+    // Prefer the new FailScript; fall back to decompiling a legacy macro action.
+    const script = this.skill.script?.trim()
+      ? this.skill.script
+      : this.skill.embeddedMacroAction
+        ? macroActionToScript(this.skill.embeddedMacroAction)
+        : null;
+    if (!script) return;
     this.macroExecuting = true;
-    const result = await this.macroExecutor.executeMacro(this.skill.embeddedMacroAction, this.sheet, this.skill.name);
+    const result = this.macroExecutor.runScriptOnSheet(script, this.sheet);
     if (this.sheet.statuses) {
       this.patch.emit({ path: 'statuses', value: this.sheet.statuses });
     }

@@ -14,12 +14,13 @@ import { SimpleSpellCost } from '../../shared/spell-node-editor/spell-cost.model
 import { calculateSpellCost } from '../../shared/spell-node-editor/spell-cost-calculator';
 import { ActionMacro, createEmptyActionMacro } from '../../model/action-macro.model';
 import { SpellGraph } from '../../shared/spell-node-editor/spell-node.model';
-import { EmbeddedMacroEditorComponent } from '../../shared/embedded-macro-editor/embedded-macro-editor.component';
+import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
+import { actionMacroToScript } from '../../scripting/decompiler';
 
 @Component({
   selector: 'app-spell-editor-overlay',
   standalone: true,
-  imports: [CommonModule, FormsModule, SpellNodeEditorComponent, EmbeddedMacroEditorComponent],
+  imports: [CommonModule, FormsModule, SpellNodeEditorComponent, ScriptEditorComponent],
   templateUrl: './spell-editor-overlay.component.html',
   styleUrl: './spell-editor-overlay.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,6 +48,7 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
   spellBinding: SpellBinding = { type: 'learned' };
   graph: SpellGraph | undefined;
   embeddedMacro: ActionMacro | null = null;
+  spellScript = '';
   hasDrawing = false;
   spellIcon = '✦';
   spellColor = '#8b5cf6';
@@ -126,6 +128,7 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
       this.spellBinding          = { ...(this.spell.binding || { type: 'learned' }) };
       this.graph                 = this.spell.graph ? JSON.parse(JSON.stringify(this.spell.graph)) : undefined;
       this.embeddedMacro         = this.spell.embeddedMacro ? JSON.parse(JSON.stringify(this.spell.embeddedMacro)) : null;
+      this.spellScript           = this.spell.script ?? (this.spell.embeddedMacro ? actionMacroToScript(this.spell.embeddedMacro) : '');
       this.hasDrawing            = !!this.spell.drawing;
       this.spellIcon             = this.spell.icon || '\u2726';
       this.spellColor            = this.spell.strokeColor || '#8b5cf6';
@@ -162,7 +165,8 @@ export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
       perTurnFokus:    this.perTurnFokus || undefined,
       durationTurns:   this.durationTurns || undefined,
       statRequirements: this.hasAnyStatReq() ? { ...this.spellStatRequirements } : undefined,
-      embeddedMacro:   this.embeddedMacro ?? undefined,
+      script:          this.spellScript.trim() || undefined,
+      embeddedMacro:   undefined, // migrated to script
       counters:        this.counters.length > 0 ? JSON.parse(JSON.stringify(this.counters)) : undefined,
     };
     this.save.emit(spell);

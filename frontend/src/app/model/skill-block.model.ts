@@ -28,6 +28,8 @@ export class SkillBlock {
   embeddedMacro?: import('./action-macro.model').ActionMacro;
   // Simpler skill macro (MacroAction, configured in editor)
   embeddedMacroAction?: import('./macro-action.model').MacroAction;
+  // FailScript action (new); takes precedence over the legacy macros above
+  script?: string;
   // Set when this skill was granted by a race (holds race id) - used for cleanup on race change
   sourceRaceId?: string;
   // Configurable counter bars shown while skill is active

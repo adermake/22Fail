@@ -138,3 +138,6 @@
 
 .se-btn-del { padding: 8px 18px; background: transparent; border: 1px solid #ef4444; border-radius: 6px; color: #ef4444; font-size: 0.9rem; cursor: pointer; transition: all 0.15s; }
 .se-btn-del:hover { background: rgba(239,68,68,0.12); }
+
+/* FailScript editor host */
+.se-script-host { height: 300px; margin-top: 6px; }

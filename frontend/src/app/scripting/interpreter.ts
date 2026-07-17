@@ -43,6 +43,7 @@ export interface CharacterContext {
   readScalar(name: string): number | string;
   readAttributeMember(attr: string, prop: string): number;
   readTalent(id: string): number;
+  hasSkill(name: string): boolean;
   inCombat(): boolean;
   rng?: () => number;
 }
@@ -310,6 +311,8 @@ class Interpreter {
       case 'removeStatus':
         this.result.statusOps.push({ op: 'remove', id: String(this.evalExpr(args[0], frame)) });
         return 0;
+      case 'hasSkill':
+        return this.ctx.hasSkill(String(this.evalExpr(args[0], frame)));
       case 'min': return Math.min(...args.map(a => toNum(this.evalExpr(a, frame))));
       case 'max': return Math.max(...args.map(a => toNum(this.evalExpr(a, frame))));
       case 'floor': return Math.floor(toNum(this.evalExpr(args[0], frame)));

@@ -104,7 +104,8 @@ export class SpellBlock {
   durationTurns?: number;               // How many turns the spell lasts
   statRequirements?: SpellStatRequirements;
   costSchedule?: StoredCostSchedule;    // Kept for backwards compat (not editable)
-  embeddedMacro?: ActionMacro;          // Optional action macro to execute on cast
+  embeddedMacro?: ActionMacro;          // Legacy action macro to execute on cast
+  script?: string;                      // FailScript action (new); takes precedence over embeddedMacro
   counters?: SpellCounter[];            // Configurable bars shown while casting
 }
 

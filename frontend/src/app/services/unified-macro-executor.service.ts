@@ -7,6 +7,7 @@ import { TrueStatsService } from './true-stats.service';
 import { WorldSocketService } from './world-socket.service';
 import { runScript, ScriptResult, DisplayItem } from '../scripting/interpreter';
 import { createPlayerContext } from '../scripting/character-context';
+import { actionMacroToScript, macroActionToScript } from '../scripting/decompiler';
 
 /**
  * Unified result type for all macro executions
@@ -63,43 +64,12 @@ export class UnifiedMacroExecutorService {
    */
   executeActionMacro(
     macro: ActionMacro,
-    sheet: CharacterSheet
+    sheet: CharacterSheet,
   ): UnifiedMacroResult {
-    const result: UnifiedMacroResult = {
-      success: false,
-      rolls: [],
-      resourceChanges: [],
-      conditionFailures: [],
-      actionName: macro.name,
-      actionIcon: macro.icon || '⚡',
-      actionColor: macro.color || '#f59e0b',
-      timestamp: new Date()
-    };
-
-    // Check conditions
-    for (const condition of macro.conditions) {
-      const failure = this.checkCondition(condition, sheet);
-      if (failure) {
-        result.conditionFailures.push(failure);
-      }
-    }
-
-    // If any condition failed, don't execute
-    if (result.conditionFailures.length > 0) {
-      return result;
-    }
-
-    // Execute consequences
-    for (const consequence of macro.consequences) {
-      this.executeConsequence(consequence, result);
-    }
-
-    result.success = true;
-
-    // Broadcast to world socket
-    this.broadcastToWorld(result, sheet);
-
-    return result;
+    // Legacy structured macros now run through the single FailScript interpreter.
+    return this.executeScript(actionMacroToScript(macro), sheet, {
+      name: macro.name, icon: macro.icon, color: macro.color,
+    }).unified;
   }
 
   /**
@@ -150,81 +120,11 @@ export class UnifiedMacroExecutorService {
    */
   executeMacroAction(
     macro: MacroAction,
-    sheet: CharacterSheet
+    sheet: CharacterSheet,
   ): UnifiedMacroResult {
-    const result: UnifiedMacroResult = {
-      success: true,
-      rolls: [],
-      resourceChanges: [],
-      conditionFailures: [],
-      actionName: macro.name,
-      actionIcon: macro.icon || '✦',
-      actionColor: macro.color || '#8b5cf6',
-      timestamp: new Date()
-    };
-
-    // MacroActions have no conditions - always execute
-    switch (macro.actionType) {
-      case 'dice_roll':
-        if (macro.parameters.diceFormula) {
-          const roll = this.rollDice(macro.parameters.diceFormula);
-          result.rolls.push({
-            id: this.generateUUID(),
-            name: macro.parameters.rollName || 'Wurf',
-            formula: roll.formula,
-            rolls: roll.diceRolls,
-            total: roll.total,
-            color: macro.parameters.rollColor || macro.color || '#f59e0b'
-          });
-        }
-        break;
-
-      case 'apply_damage':
-        const damage = macro.parameters.diceAmount 
-          ? this.rollDice(macro.parameters.diceAmount).total
-          : (macro.parameters.amount || 0);
-        result.resourceChanges.push({
-          resource: 'health',
-          amount: -damage,
-          displayName: 'Leben'
-        });
-        break;
-
-      case 'apply_healing':
-        const healing = macro.parameters.diceAmount 
-          ? this.rollDice(macro.parameters.diceAmount).total
-          : (macro.parameters.amount || 0);
-        result.resourceChanges.push({
-          resource: 'health',
-          amount: healing,
-          displayName: 'Leben'
-        });
-        break;
-
-      case 'modify_resource':
-        if (macro.parameters.resource) {
-          const amount = macro.parameters.resourceDiceAmount
-            ? this.rollDice(macro.parameters.resourceDiceAmount).total
-            : (macro.parameters.resourceAmount || 0);
-          result.resourceChanges.push({
-            resource: macro.parameters.resource,
-            amount: amount,
-            displayName: this.getResourceDisplayName(macro.parameters.resource)
-          });
-        }
-        break;
-
-      case 'custom_message':
-        // Message is just stored in the result, UI will display it
-        break;
-
-      // TODO: Implement other action types (apply_status, remove_status, modify_stat)
-    }
-
-    // Broadcast to world socket
-    this.broadcastToWorld(result, sheet);
-
-    return result;
+    return this.executeScript(macroActionToScript(macro), sheet, {
+      name: macro.name, icon: macro.icon, color: macro.color,
+    }).unified;
   }
 
   /**

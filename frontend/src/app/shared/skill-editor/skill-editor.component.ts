@@ -2,12 +2,13 @@ import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SkillBlock, StatModifier } from '../../model/skill-block.model';
-import { MacroAction, createEmptyMacroAction } from '../../model/macro-action.model';
+import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
+import { actionMacroToScript, macroActionToScript } from '../../scripting/decompiler';
 
 @Component({
   selector: 'app-skill-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ScriptEditorComponent],
   templateUrl: './skill-editor.component.html',
   styleUrl: './skill-editor.component.css',
 })
@@ -25,9 +26,8 @@ export class SkillEditorComponent implements OnInit {
   editCostAmount = 0;
   editCostPerRound = false;
 
-  // Macro mode (active skills)
+  // Script mode (active skills): the "Aktionsmakro" toggle now edits a FailScript.
   macroMode = false;
-  editMacroAction: MacroAction | null = null;
 
   statModifiers: { [key: string]: number } = {
     strength: 0, dexterity: 0, speed: 0, intelligence: 0,
@@ -65,9 +65,16 @@ export class SkillEditorComponent implements OnInit {
         this.editCostAmount = this.editSkill.cost.amount;
         this.editCostPerRound = this.editSkill.cost.perRound ?? false;
       }
-      if (this.editSkill.embeddedMacroAction) {
+      // Migrate legacy macros to a FailScript so the user edits/executes the new system.
+      if (this.editSkill.script || this.editSkill.embeddedMacroAction || this.editSkill.embeddedMacro) {
         this.macroMode = true;
-        this.editMacroAction = JSON.parse(JSON.stringify(this.editSkill.embeddedMacroAction));
+        if (!this.editSkill.script) {
+          this.editSkill.script = this.editSkill.embeddedMacroAction
+            ? macroActionToScript(this.editSkill.embeddedMacroAction)
+            : this.editSkill.embeddedMacro
+              ? actionMacroToScript(this.editSkill.embeddedMacro)
+              : '';
+        }
       }
     } else {
       this.editSkill = {
@@ -96,21 +103,16 @@ export class SkillEditorComponent implements OnInit {
     this.editSkill.type = type;
     if (type !== 'active') {
       this.macroMode = false;
-      this.editMacroAction = null;
     }
   }
 
   enableMacroMode() {
     this.macroMode = true;
-    if (!this.editMacroAction) {
-      this.editMacroAction = createEmptyMacroAction();
-      this.editMacroAction.name = this.editSkill.name || 'Skill-Makro';
-    }
+    if (!this.editSkill.script) this.editSkill.script = '';
   }
 
   disableMacroMode() {
     this.macroMode = false;
-    this.editMacroAction = null;
   }
 
   saveSkill() {
@@ -130,24 +132,32 @@ export class SkillEditorComponent implements OnInit {
     }
 
     if (this.editSkill.type === 'active') {
-      if (this.macroMode && this.editMacroAction) {
-        this.editSkill.embeddedMacroAction = this.editMacroAction;
+      if (this.macroMode) {
+        // Script mode — clear legacy macros (migrated) and the simple cost.
+        this.editSkill.embeddedMacroAction = undefined;
+        this.editSkill.embeddedMacro = undefined;
         this.editSkill.cost = undefined;
-      } else if (!this.macroMode && this.editCostType) {
+      } else if (this.editCostType) {
         this.editSkill.cost = {
           type: this.editCostType as 'mana' | 'energy' | 'life',
           amount: this.editCostAmount,
           perRound: this.editCostPerRound || undefined,
         };
+        this.editSkill.script = undefined;
         this.editSkill.embeddedMacroAction = undefined;
+        this.editSkill.embeddedMacro = undefined;
       } else {
         this.editSkill.cost = undefined;
+        this.editSkill.script = undefined;
         this.editSkill.embeddedMacroAction = undefined;
+        this.editSkill.embeddedMacro = undefined;
       }
     } else {
       this.editSkill.cost = undefined;
       this.editSkill.actionType = undefined;
+      this.editSkill.script = undefined;
       this.editSkill.embeddedMacroAction = undefined;
+      this.editSkill.embeddedMacro = undefined;
     }
 
     this.save.emit(this.editSkill);

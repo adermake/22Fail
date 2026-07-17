@@ -115,9 +115,6 @@
   <button class="action-btn resource-btn" [class.active]="showResourcePanel" (click)="toggleResourcePanel()" title="Ressourcen (R)">
     💎
   </button>
-  <button class="action-btn action-macro-btn" [class.active]="showActionMacros" (click)="toggleActionMacros()" title="Aktionen (A)">
-    ⚡
-  </button>
   <button class="action-btn info-btn" [class.active]="showGameInfo" (click)="toggleGameInfo()" title="Game Guide (H)">
     📚
   </button>
@@ -251,17 +248,8 @@
   </div>
 }
 
-<!-- Action Macros Dialog -->
-@if (showActionMacros) {
-  <app-action-macros 
-    [sheet]="sheet" 
-    (close)="closeActionMacros()"
-    (executeMacro)="handleMacroExecution($event)"
-    (resourceChanged)="handleResourceChange($event)"
-    (rollPerformed)="handleActionRoll($event)"
-    (actionExecuted)="handleActionExecution($any($event))">
-  </app-action-macros>
-}
+<!-- Action Macros view removed — actions are now authored as FailScript on skills/items -->
+
 
 <!-- Trash Dialog -->
 @if (showTrash) {

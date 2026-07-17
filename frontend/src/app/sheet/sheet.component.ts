@@ -35,7 +35,7 @@ import { FormulaType } from '../model/formula-type.enum';
 import { StatusBlock } from '../model/status-block.model';
 import { CurrentEvent, LootBundleEvent, convertToCopper, copperToCurrency } from '../model/current-events.model';
 import { DiceRollerComponent } from './dice-roller/dice-roller.component';
-import { ActionMacrosComponent, RollResult } from './action-macros/action-macros.component';
+import { RollResult } from './action-macros/action-macros.component';
 import { ActionMacro } from '../model/action-macro.model';
 import { ActionExecution } from './action-macros/action-macros.component';
 import { GameInfoComponent } from '../shared/game-info/game-info.component';
@@ -64,7 +64,6 @@ import { DamageCalculatorComponent } from '../world/damage-calculator/damage-cal
     SkillTreeComponent,
     BackstoryComponent,
     DiceRollerComponent,
-    ActionMacrosComponent,
     GameInfoComponent,
     CurrentEventsViewComponent,
     TransactionPopupComponent,

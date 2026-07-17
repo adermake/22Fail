@@ -992,3 +992,6 @@
   font-weight: 700;
 }
 
+
+/* FailScript editor host */
+.spell-script-host { height: 300px; }

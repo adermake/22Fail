@@ -4,14 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { StatusEffect, StatusStatModifier, StatusModifierTarget, StatusTalentModifier } from '../../model/status-effect.model';
 import { DiceBonus } from '../../model/dice-bonus.model';
 import { ActionMacro, createEmptyActionMacro } from '../../model/action-macro.model';
-import { EmbeddedMacroEditorComponent, MACRO_ICON_SYMBOLS } from '../embedded-macro-editor/embedded-macro-editor.component';
+import { MACRO_ICON_SYMBOLS } from '../embedded-macro-editor/embedded-macro-editor.component';
 import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
 import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
+import { actionMacroToScript } from '../../scripting/decompiler';
 
 @Component({
   selector: 'app-status-effect-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmbeddedMacroEditorComponent, ScriptEditorComponent],
+  imports: [CommonModule, FormsModule, ScriptEditorComponent],
   templateUrl: './status-effect-editor.component.html',
   styleUrl: './status-effect-editor.component.css',
 })
@@ -103,6 +104,11 @@ export class StatusEffectEditorComponent implements OnInit {
     if (!this.editEffect.statModifiers) this.editEffect.statModifiers = [];
     if (!this.editEffect.talentModifiers) this.editEffect.talentModifiers = [];
     if (!this.editEffect.tags) this.editEffect.tags = [];
+
+    // Migrate a legacy embedded macro into the FailScript field so it keeps working.
+    if (!this.editEffect.script?.trim() && this.editEffect.embeddedMacro) {
+      this.editEffect.script = actionMacroToScript(this.editEffect.embeddedMacro);
+    }
   }
 
   // Save/Cancel/Delete

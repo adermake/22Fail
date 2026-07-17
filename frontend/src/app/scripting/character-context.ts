@@ -106,5 +106,8 @@ export function createPlayerContext(
       const statusBonus = trueStats.getStatusTalentBonus(sheet, id);
       return -(statMod + rank + skillBonus + statusBonus);
     },
+    hasSkill: (name) =>
+      (sheet.skills ?? []).some(s => s.name === name || s.skillId === name) ||
+      (sheet.learnedSkillIds ?? []).includes(name),
   };
 }

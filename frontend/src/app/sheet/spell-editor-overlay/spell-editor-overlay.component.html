@@ -226,43 +226,15 @@
 
         <section class="editor-section macro-section">
           <div class="section-header-row">
-            <h3>Aktions-Makro</h3>
-            <div class="section-header-actions">
-              @if (!embeddedMacro && !showMacroEditor) {
-                <button class="btn-outline-small" (click)="enableMacro()">+ Makro erstellen</button>
-              }
-              @if (embeddedMacro && !showMacroEditor) {
-                <button class="btn-outline-small" (click)="showMacroEditor = true">Bearbeiten</button>
-                <button class="btn-outline-small danger" (click)="disableMacro()">Entfernen</button>
-              }
-            </div>
+            <h3>Aktions-Skript</h3>
           </div>
-
-          @if (!embeddedMacro && !showMacroEditor) {
-            <p class="empty-hint">Kein Makro. Wird beim Wirken automatisch ausgeführt.</p>
-          }
-
-          @if (embeddedMacro && !showMacroEditor) {
-            <div class="macro-summary">
-              <span class="macro-icon" [style.color]="embeddedMacro.color || '#f59e0b'">
-                {{ embeddedMacro.icon || '✦' }}
-              </span>
-              <span class="macro-name">{{ embeddedMacro.name }}</span>
-              <span class="macro-meta">
-                {{ embeddedMacro.conditions.length }} Bed. · {{ embeddedMacro.consequences.length }} Akt.
-              </span>
-            </div>
-          }
-
-          @if (showMacroEditor) {
-            <div class="macro-editor-wrap">
-              <app-embedded-macro-editor
-                [macro]="embeddedMacro"
-                (save)="onMacroSave($event)"
-                (cancel)="onMacroCancel()">
-              </app-embedded-macro-editor>
-            </div>
-          }
+          <p class="empty-hint">Skript, das beim Wirken ausgeführt wird (z.B. <code>loseResource(mana, costMana)</code>).</p>
+          <div class="spell-script-host">
+            <app-script-editor
+              [value]="spellScript"
+              (valueChange)="spellScript = $event">
+            </app-script-editor>
+          </div>
         </section>
 
       </div>

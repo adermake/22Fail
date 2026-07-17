@@ -120,6 +120,7 @@ export const BUILTINS: FnInfo[] = [
   { name: 'gainResource', signature: 'gainResource(resource, amount)', description: 'Gewinnt dauerhaft Ressource', minArgs: 2, maxArgs: 2, resourceFirstArg: true },
   { name: 'applyStatus', signature: 'applyStatus(id, stacks?)', description: 'Wendet einen Status-Effekt an', minArgs: 1, maxArgs: 2 },
   { name: 'removeStatus', signature: 'removeStatus(id)', description: 'Entfernt einen Status-Effekt', minArgs: 1, maxArgs: 1 },
+  { name: 'hasSkill', signature: 'hasSkill(name)', description: 'Ob eine Fähigkeit vorhanden ist (true/false)', minArgs: 1, maxArgs: 1 },
   { name: 'min', signature: 'min(a, b, …)', description: 'Kleinster Wert', minArgs: 1, maxArgs: 99 },
   { name: 'max', signature: 'max(a, b, …)', description: 'Größter Wert', minArgs: 1, maxArgs: 99 },
   { name: 'floor', signature: 'floor(x)', description: 'Abrunden', minArgs: 1, maxArgs: 1 },
