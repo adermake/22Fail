@@ -26,6 +26,7 @@ export interface ScriptRuntime {
   inCombat: boolean;
   stacks: number;
   turn: number;
+  duration: number;
   effectStrength: number;
   rng?: () => number;
 }
@@ -79,6 +80,7 @@ export function createPlayerContext(
     // Runtime context of the current effect/execution
     stacks: () => runtime.stacks,
     turn: () => runtime.turn,
+    duration: () => runtime.duration,
     effectStrength: () => runtime.effectStrength,
   };
 

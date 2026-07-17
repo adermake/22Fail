@@ -82,7 +82,7 @@ export class UnifiedMacroExecutorService {
     src: string,
     sheet: CharacterSheet,
     opts: {
-      inCombat?: boolean; stacks?: number; turn?: number; effectStrength?: number;
+      inCombat?: boolean; stacks?: number; turn?: number; duration?: number; effectStrength?: number;
       name?: string; icon?: string; color?: string;
     } = {},
   ): ScriptExecution {
@@ -90,6 +90,7 @@ export class UnifiedMacroExecutorService {
       inCombat: opts.inCombat ?? false,
       stacks: opts.stacks ?? 1,
       turn: opts.turn ?? 0,
+      duration: opts.duration ?? 0,
       effectStrength: opts.effectStrength ?? 0,
     });
     const script = runScript(src, ctx);

@@ -34,6 +34,9 @@ export const ATTRIBUTE_MEMBERS: Record<string, string> = {
 
 /** Resource names accepted by loseResource/gainResource and as the resource selector. */
 export const RESOURCE_NAMES = new Set(['health', 'energy', 'mana', 'fokus']);
+export const RESOURCE_INFO: Record<string, string> = {
+  health: 'Leben', energy: 'Ausdauer', mana: 'Mana', fokus: 'Fokus',
+};
 
 const A = (name: string, target: StatusModifierTarget, description: string): SymbolInfo =>
   ({ name, category: 'attribute', type: 'number', description, assignable: true, modifierTarget: target });
@@ -85,6 +88,7 @@ export const SYMBOLS: SymbolInfo[] = [
   // Runtime context (of the current effect/execution)
   { name: 'stacks', category: 'runtime', type: 'number', description: 'Stapelanzahl des aktuellen Effekts (Code verarbeitet Stapel selbst)' },
   { name: 'turn', category: 'runtime', type: 'number', description: 'Aktuelle Zugnummer (0 außerhalb des Kampfes)' },
+  { name: 'duration', category: 'runtime', type: 'number', description: 'Verbleibende Dauer des Effekts in Runden' },
   { name: 'effectStrength', category: 'runtime', type: 'number', description: 'Stärke des aktuellen Status-Effekts' },
 
   // Namespace
@@ -113,8 +117,9 @@ export interface FnInfo {
 
 export const BUILTINS: FnInfo[] = [
   { name: 'display', signature: 'display(text, style?)', description: 'Zeigt Text an (style: good/bad/neutral/info)', minArgs: 1, maxArgs: 2, styleArgIndex: 1 },
-  { name: 'stat', signature: 'stat(label, value, style?)', description: 'Zeigt einen Wert als Chip an', minArgs: 2, maxArgs: 3, styleArgIndex: 2 },
+  { name: 'stat', signature: 'stat(label, value, style?)', description: 'Zeigt einen Wert als Chip: label | value', minArgs: 2, maxArgs: 3, styleArgIndex: 2 },
   { name: 'banner', signature: 'banner(text, style?)', description: 'Große Überschrift', minArgs: 1, maxArgs: 2, styleArgIndex: 1 },
+  { name: 'box', signature: 'box(text, style?)', description: 'Wert als Kasten: [text]', minArgs: 1, maxArgs: 2, styleArgIndex: 1 },
   { name: 'roll', signature: 'roll(dice) oder roll(count, sides)', description: 'Würfelt und liefert das Ergebnis', minArgs: 1, maxArgs: 2 },
   { name: 'loseResource', signature: 'loseResource(resource, amount)', description: 'Verliert dauerhaft Ressource (health/energy/mana/fokus)', minArgs: 2, maxArgs: 2, resourceFirstArg: true },
   { name: 'gainResource', signature: 'gainResource(resource, amount)', description: 'Gewinnt dauerhaft Ressource', minArgs: 2, maxArgs: 2, resourceFirstArg: true },

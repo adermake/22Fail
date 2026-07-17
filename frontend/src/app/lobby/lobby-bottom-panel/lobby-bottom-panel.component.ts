@@ -501,7 +501,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     const allResults: UnifiedMacroResult[] = [];
     this.triggeringEffects.add(fx.id);
     this.cdr.markForCheck();
-    for (const result of this.runEffectResults(effect, sheet, stacks)) {
+    for (const result of this.runEffectResults(effect, sheet, stacks, fx.duration ?? 0)) {
       allResults.push(result);
       this.applyMacroResourceChanges(result);
     }
@@ -559,7 +559,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       const allResults: UnifiedMacroResult[] = [];
       const sheet = this.sheetForMacros;
       if (sheet) {
-        for (const result of this.runEffectResults(effect, sheet, stacks)) {
+        for (const result of this.runEffectResults(effect, sheet, stacks, fx.duration ?? 0)) {
           allResults.push(result);
           this.applyMacroResourceChanges(result);
         }
@@ -766,10 +766,10 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
    * Run a status effect once. A FailScript runs a SINGLE time with `stacks`/`effectStrength`
    * exposed — the code decides how to apply the stack count. Legacy macros still repeat per stack.
    */
-  private runEffectResults(effect: StatusEffect, sheet: CharacterSheet, stacks: number): UnifiedMacroResult[] {
+  private runEffectResults(effect: StatusEffect, sheet: CharacterSheet, stacks: number, duration = 0): UnifiedMacroResult[] {
     if (effect.script && effect.script.trim()) {
       const exec = this.macroExecutor.executeScript(effect.script, sheet, {
-        inCombat: true, stacks, turn: 0, effectStrength: effect.strength ?? 0,
+        inCombat: true, stacks, turn: 0, duration, effectStrength: effect.strength ?? 0,
         name: effect.name, icon: effect.icon, color: effect.color,
       });
       this.applyScriptExtras(exec);

@@ -119,6 +119,7 @@
                       @switch (d.type) {
                         @case ('banner') { <div class="ds-banner" [ngClass]="'ds-' + d.style">{{ d.text }}</div> }
                         @case ('stat') { <div class="ds-stat" [ngClass]="'ds-' + d.style"><span class="ds-lbl">{{ d.label }}</span><span class="ds-val">{{ d.value }}</span></div> }
+                        @case ('box') { <div class="ds-boxrow"><span class="ds-box" [ngClass]="'ds-' + d.style">{{ d.text }}</span></div> }
                         @default { <div class="ds-text" [ngClass]="'ds-' + d.style">{{ d.text }}</div> }
                       }
                     }

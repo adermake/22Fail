@@ -8,14 +8,15 @@ import { Extension } from '@codemirror/state';
 import { EditorView, hoverTooltip } from '@codemirror/view';
 import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language';
 import {
-  autocompletion, CompletionContext, CompletionResult, snippetCompletion,
+  autocompletion, CompletionContext, CompletionResult, snippetCompletion, startCompletion,
 } from '@codemirror/autocomplete';
 import { linter, Diagnostic as CmDiagnostic } from '@codemirror/lint';
 import { tags as t } from '@lezer/highlight';
 
 import { compileScript } from '../checker';
 import {
-  ATTRIBUTE_MEMBERS, BUILTINS, KEYWORD_INFO, STYLE_NAMES, SYMBOLS, SYMBOL_MAP, TALENT_INFO,
+  ATTRIBUTE_MEMBERS, BUILTINS, BUILTIN_MAP, KEYWORD_INFO, RESOURCE_INFO, RESOURCE_NAMES,
+  STYLE_NAMES, SYMBOLS, SYMBOL_MAP, TALENT_INFO,
 } from '../symbols';
 import { KEYWORDS } from '../lexer';
 
@@ -84,19 +85,38 @@ const STYLE_INFO: Record<string, string> = {
   info: 'Blau — Info',
 };
 
-/** Name of the call whose parentheses directly enclose the cursor, if any. */
-function enclosingCallName(text: string): string | null {
+/**
+ * The call whose parentheses directly enclose the cursor, plus which argument index the
+ * cursor is in (commas at depth 0 since the opening paren). Best-effort (ignores strings).
+ */
+function enclosingCall(text: string): { name: string; argIndex: number } | null {
   let depth = 0;
+  let commas = 0;
   for (let i = text.length - 1; i >= 0; i--) {
     const c = text[i];
     if (c === ')') depth++;
     else if (c === '(') {
       if (depth === 0) {
         const m = text.slice(0, i).match(/([A-Za-z_]\w*)\s*$/);
-        return m ? m[1] : null;
+        return m ? { name: m[1], argIndex: commas } : null;
       }
       depth--;
+    } else if (c === ',' && depth === 0) {
+      commas++;
     }
+  }
+  return null;
+}
+
+/** Choices for an argument that expects a fixed keyword set (resource / style). */
+function argChoiceOptions(call: { name: string; argIndex: number }) {
+  const fn = BUILTIN_MAP.get(call.name);
+  if (!fn) return null;
+  if (fn.resourceFirstArg && call.argIndex === 0) {
+    return [...RESOURCE_NAMES].map(r => ({ label: r, type: 'enum', detail: 'Ressource', info: RESOURCE_INFO[r], boost: 80 }));
+  }
+  if (fn.styleArgIndex === call.argIndex) {
+    return [...STYLE_NAMES].map(s => ({ label: s, type: 'enum', detail: 'Stil', info: STYLE_INFO[s], boost: 80 }));
   }
   return null;
 }
@@ -109,23 +129,19 @@ function localVarNames(doc: string): string[] {
   return [...names];
 }
 
-function styleCompletionOptions() {
-  return [...STYLE_NAMES].map(s => ({ label: s, type: 'enum', detail: 'Stil', info: STYLE_INFO[s], boost: 50 }));
-}
-
 function completions(context: CompletionContext): CompletionResult | null {
   const before = context.matchBefore(/[A-Za-z_][\w.]*/);
   const textBefore = context.state.doc.sliceString(0, context.pos);
-  const enclosing = enclosingCallName(textBefore);
-  const inStyleFn = enclosing === 'display' || enclosing === 'stat' || enclosing === 'banner';
+  const call = enclosingCall(textBefore);
+  const argChoices = call ? argChoiceOptions(call) : null;
 
-  if (!before) {
-    // Right after a comma inside display()/stat()/banner() → offer the styles immediately.
-    if (inStyleFn && /,\s*$/.test(textBefore)) {
-      return { from: context.pos, options: styleCompletionOptions() };
-    }
-    if (!context.explicit) return null;
+  // Inside an argument that expects a fixed keyword set (resource / style): offer ONLY
+  // those — this is the inline assist for loseResource(mana|health|energy|fokus), etc.
+  if (argChoices && (before || /[(,]\s*$/.test(textBefore) || context.explicit)) {
+    return { from: before ? before.from : context.pos, options: argChoices, validFor: /^\w*$/ };
   }
+
+  if (!before && !context.explicit) return null;
 
   const text = before ? before.text : '';
   const dot = text.lastIndexOf('.');
@@ -145,11 +161,7 @@ function completions(context: CompletionContext): CompletionResult | null {
 
   const from = before ? before.from : context.pos;
 
-  // Inside display()/stat()/banner(): offer the style presets first.
-  const styleOptions = inStyleFn ? styleCompletionOptions() : [];
-
   const options = [
-    ...styleOptions,
     ...KEYWORD_INFO.map(k => k.snippet
       ? snippetCompletion(k.snippet, { label: k.name, type: 'keyword', info: k.description })
       : { label: k.name, type: 'keyword', info: k.description }),
@@ -243,12 +255,29 @@ export function formatFailScript(src: string): string {
   return out.join('\n');
 }
 
+/** Auto-open the completion popup right after typing '(' or ',' inside a keyword-arg call. */
+const autoOpenArgChoices = EditorView.updateListener.of(update => {
+  if (!update.docChanged) return;
+  let trigger = false;
+  update.changes.iterChanges((_fa, _ta, _fb, _tb, inserted) => {
+    const t = inserted.toString();
+    if (t === '(' || t === ',') trigger = true;
+  });
+  if (!trigger) return;
+  const pos = update.state.selection.main.head;
+  const call = enclosingCall(update.state.doc.sliceString(0, pos));
+  if (call && argChoiceOptions(call)) {
+    setTimeout(() => startCompletion(update.view), 0);
+  }
+});
+
 /** All FailScript editor extensions. */
 export function failscriptExtensions(): Extension[] {
   return [
     failscriptStream,
     syntaxHighlighting(highlightStyle),
     autocompletion({ override: [completions], activateOnTyping: true }),
+    autoOpenArgChoices,
     failscriptLinter,
     failscriptHover,
     editorTheme,

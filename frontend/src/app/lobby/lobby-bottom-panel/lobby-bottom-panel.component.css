@@ -1267,3 +1267,7 @@
 /* FailScript display() messages */
 .exec-sb-messages { margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
 .exec-sb-message { font-size: 0.66rem; color: #cbd5e1; background: rgba(148,163,184,0.1); border-radius: 5px; padding: 3px 6px; }
+
+/* box() display — a bordered value pill [text] */
+.ds-boxrow { display: flex; }
+.ds-box { display: inline-block; font-weight: 800; padding: 3px 12px; border-radius: 6px; border: 2px solid; }

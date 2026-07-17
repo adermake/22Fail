@@ -18,7 +18,8 @@ export type DisplayStyle = 'good' | 'bad' | 'neutral' | 'info';
 export type DisplayItem =
   | { type: 'text'; text: string; style: DisplayStyle }
   | { type: 'stat'; label: string; value: string; style: DisplayStyle }
-  | { type: 'banner'; text: string; style: DisplayStyle };
+  | { type: 'banner'; text: string; style: DisplayStyle }
+  | { type: 'box'; text: string; style: DisplayStyle };
 
 export interface ScriptRoll { name: string; formula: string; rolls: number[]; total: number; }
 export interface ScriptResourceChange { resource: string; amount: number; } // negative = lose
@@ -288,6 +289,9 @@ class Interpreter {
         return 0;
       case 'banner':
         this.result.displays.push({ type: 'banner', text: String(this.evalExpr(args[0], frame)), style: styleOf(args[1]) });
+        return 0;
+      case 'box':
+        this.result.displays.push({ type: 'box', text: String(this.evalExpr(args[0], frame)), style: styleOf(args[1]) });
         return 0;
       case 'roll': {
         if (args.length === 1 && args[0].kind === 'Dice') {
