@@ -15,11 +15,11 @@ import {
   ForgingData, ForgedMaterialRecord, ForgedTraitRecord,
   computeForgedStats, formatTraitEffect,
   nextForgeCost, totalForgeSPSpent,
-  WeaponStatKey, WEAPON_STAT_KEYS,
+  WeaponStatKey, WEAPON_STAT_KEYS, WEAPON_STAT_TO_REQUIREMENT,
   WeaponType, WEAPON_TYPES, WeaponCategory, WEAPON_CATEGORY_LABELS,
   ForgingArmorType, ARMOR_TYPES, ArmorWeight, ARMOR_WEIGHT_MULT,
 } from '../../model/forging.model';
-import { ItemBlock } from '../../model/item-block.model';
+import { ItemBlock, ItemRequirements } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 
@@ -239,12 +239,15 @@ export class ForgingComponent implements OnInit {
     return Math.round(((this.primaryPreview?.effektivitaet ?? 0) + (this.secondaryPreview?.effektivitaet ?? 0)) * this.weightMultiplier);
   }
 
+  /** Weight from Primär + Sekundär only — Zusatz contributes no weight. */
   get finalWeight(): number {
-    return Math.round(((this.primaryPreview?.weight ?? 0) + (this.secondaryPreview?.weight ?? 0) + (this.bonusPreview?.weight ?? 0)) * this.weightMultiplier * 10) / 10;
+    return Math.round(((this.primaryPreview?.weight ?? 0) + (this.secondaryPreview?.weight ?? 0)) * this.weightMultiplier * 10) / 10;
   }
 
+  /** Malus from Primär + Sekundär, scaled by armor type; fractional part truncated. */
   get finalRuestungsmalus(): number {
-    return (this.primaryPreview?.ruestungsmalus ?? 0) + (this.secondaryPreview?.ruestungsmalus ?? 0) + (this.bonusPreview?.ruestungsmalus ?? 0);
+    const raw = (this.primaryPreview?.ruestungsmalus ?? 0) + (this.secondaryPreview?.ruestungsmalus ?? 0);
+    return Math.trunc(raw * this.weightMultiplier);
   }
 
   /** Summed stat requirement from primary + secondary slots, multiplied by weight multiplier. */
@@ -476,7 +479,8 @@ export class ForgingComponent implements OnInit {
       item.armorType = 'weapon';
       item.efficiency = this.finalEffektivitaet;
       if (this.finalStatRequirement > 0) {
-        item.requirements = { [this.statRequirement.toLowerCase()]: this.finalStatRequirement };
+        const reqKey = WEAPON_STAT_TO_REQUIREMENT[this.statRequirement];
+        item.requirements = { [reqKey]: this.finalStatRequirement } as ItemRequirements;
       }
       if (this.selectedWeaponType) {
         item.weaponTypeName = this.selectedWeaponType.name;

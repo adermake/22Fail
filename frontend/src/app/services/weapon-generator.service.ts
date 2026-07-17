@@ -208,7 +208,7 @@ export class WeaponGeneratorService {
     const finalHaltbarkeit   = Math.round(((pri?.haltbarkeit   ?? 0) + (sec?.haltbarkeit   ?? 0)) * sizeMult);
     const finalEffektivitaet = Math.round(((pri?.effektivitaet ?? 0) + (sec?.effektivitaet ?? 0)) * sizeMult);
     const finalWeight = Math.round(
-      ((pri?.weight ?? 0) + (sec?.weight ?? 0) + (bon?.weight ?? 0)) * sizeMult * 10
+      ((pri?.weight ?? 0) + (sec?.weight ?? 0)) * sizeMult * 10
     ) / 10;
     // Secondary stat requirement is NOT halved (same as forging component)
     const finalStatRequirement = (pri?.statRequirement ?? 0) + (secRaw?.statRequirement ?? 0);
@@ -317,6 +317,9 @@ export class WeaponGeneratorService {
     item.broken = false;
     item.isIdentified = true;
     item.requirements = {};
+    if (result.finalStatRequirement > 0) {
+      item.requirements = { strength: result.finalStatRequirement };
+    }
     item.primaryEffect = result.allExtraEffects.join(' | ') || undefined;
     item.secondaryEffect = result.allTraitEffects.join('\n') || undefined;
 

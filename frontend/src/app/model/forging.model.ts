@@ -12,6 +12,8 @@
  * Forging a material costs 1 Schmiedepunkt (SP) and increases its stats by its scaling values.
  */
 
+import { ItemRequirements } from './item-block.model';
+
 export interface MaterialStats {
   haltbarkeit: number;             // Base durability
   haltbarkeitSkalierung: number;   // Durability added per forge
@@ -50,6 +52,16 @@ export interface MaterialBlock {
 
 export type WeaponStatKey = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'SPD';
 export const WEAPON_STAT_KEYS: WeaponStatKey[] = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'SPD'];
+
+/** Maps forge UI stat keys to ItemBlock.requirements property names. */
+export const WEAPON_STAT_TO_REQUIREMENT: Record<WeaponStatKey, keyof ItemRequirements> = {
+  STR: 'strength',
+  DEX: 'dexterity',
+  CON: 'constitution',
+  INT: 'intelligence',
+  WIS: 'chill',
+  SPD: 'speed',
+};
 
 // ── Weapon types ──────────────────────────────────────────────────────────────
 
