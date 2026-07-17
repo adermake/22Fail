@@ -221,14 +221,26 @@ export class BrewingComponent implements OnInit {
   }
 
   removeIngredient(instanceId: string): void {
-    // Clear potion slots owned by this instance
+    this.brewIngredients = this.brewIngredients.filter(e => e.instanceId !== instanceId);
+    // Recompute / clear any slot whose owning ingredient no longer contributes.
     for (const slot of this.slots) {
-      if (this.potionSlots[slot]?.instanceId === instanceId) {
+      const a = this.potionSlots[slot];
+      if (!a) continue;
+      const total = this.slotBrewCount(slot, a.ingredientId);
+      if (total <= 0) {
         this.potionSlots[slot] = null;
+      } else {
+        this.potionSlots[slot] = { ...a, brewCount: total };
       }
     }
-    this.brewIngredients = this.brewIngredients.filter(e => e.instanceId !== instanceId);
     this.cdr.markForCheck();
+  }
+
+  /** Total brew clicks for a slot across every instance of the given ingredient. */
+  private slotBrewCount(slot: BrewEffectSlot, ingredientId: string): number {
+    return this.brewIngredients
+      .filter(e => e.ingredient.id === ingredientId)
+      .reduce((sum, e) => sum + brewCountOf(e, slot), 0);
   }
 
   removeExtractor(instanceId: string): void {
@@ -236,12 +248,17 @@ export class BrewingComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  /** Whether this entry may brew into the given potion slot. */
+  /**
+   * Whether this entry may brew into the given potion slot.
+   * A slot is locked to an ingredient identity — any instance of the SAME
+   * ingredient may feed it, so adding extra copies lets you keep clicking
+   * at the cheaper per-instance base cost.
+   */
   canBrewSlot(entry: BrewIngredientEntry, slot: BrewEffectSlot): boolean {
     const effect = effectOf(entry.ingredient, slot);
     if (!effect.statusEffectId) return false;
     const assignment = this.potionSlots[slot];
-    if (assignment && assignment.instanceId !== entry.instanceId) return false;
+    if (assignment && assignment.ingredientId !== entry.ingredient.id) return false;
     return true;
   }
 
@@ -267,12 +284,12 @@ export class BrewingComponent implements OnInit {
       ...this.brewIngredients.slice(idx + 1),
     ];
 
-    const count = brewCountOf(updated, slot);
+    const total = this.slotBrewCount(slot, updated.ingredient.id);
     this.potionSlots[slot] = {
       instanceId: updated.instanceId,
       ingredientId: updated.ingredient.id,
       ingredientName: updated.ingredient.name,
-      brewCount: count,
+      brewCount: total,
     };
     this.cdr.markForCheck();
   }
@@ -280,18 +297,19 @@ export class BrewingComponent implements OnInit {
   slotPreview(slot: BrewEffectSlot): PotionEffectInstance | null {
     const a = this.potionSlots[slot];
     if (!a) return null;
-    const entry = this.brewIngredients.find(e => e.instanceId === a.instanceId);
+    const entry = this.brewIngredients.find(e => e.ingredient.id === a.ingredientId);
     if (!entry) return null;
     const effect = effectOf(entry.ingredient, slot);
+    const total = this.slotBrewCount(slot, a.ingredientId);
     return {
       slot,
       statusEffectId: effect.statusEffectId,
       statusEffectName: effect.statusEffectName,
       sourceLibraryId: effect.sourceLibraryId ?? entry.ingredient.libraryOrigin,
       mode: effect.mode,
-      amount: intensifiedAmount(effect.amount, a.brewCount),
+      amount: intensifiedAmount(effect.amount, total),
       ingredientName: entry.ingredient.name,
-      brewCount: a.brewCount,
+      brewCount: total,
     };
   }
 
