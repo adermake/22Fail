@@ -2029,7 +2029,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Bedroher',
     class: 'Omen',
     type: 'passive',
-    description: 'Vorteil auf Bedrohung',
+    description: 'Vorteil auf Einschüchterungswürfe',
     enlightened: true
   },
   {
@@ -2037,7 +2037,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Finstere Aura',
     class: 'Omen',
     type: 'passive',
-    description: 'Gegner, die ihm Schaden zufügen, werden mit geringer Wahrscheinlichkeit verängstigt.',
+    description: 'Gegner, die ihm Schaden zufügen, werden mit geringer Wahrscheinlichkeit verängstigt (gegnerischer Angriffswurf + 10 als Willenswurf)',
     enlightened: true
   },
   {
@@ -2046,6 +2046,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Omen',
     type: 'active',
     description: 'Kann eine bereits bekannte Person verfluchen, nach einem Tag wird diese Person von Pech verfolgt. Dieser Effekt wird stärker, je näher der Nutzer zum verfluchten Ziel ist. Kostet 1/4 der gegn. HP',
+    cost: { type: 'energy', amount: 0 },
     actionType: 'Aktion'
   },
   {
@@ -2053,7 +2054,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Kraftraub',
     class: 'Omen',
     type: 'active',
-    description: 'Stiehlt die Ausdauer (D20) einer anderen Person in unmittelbarer Nähe und regeneriert den selben Betrag beim Nutzer. Bonusaktion',
+    description: 'Stiehlt die Ausdauer (D20) einer anderen Person in unmittelbarer Nähe und regeneriert den selben Betrag beim Nutzer',
     enlightened: true,
     cost: { type: 'energy', amount: 0 },
     actionType: 'Bonusaktion'
@@ -2064,7 +2065,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Omen',
     type: 'active',
     description: 'Solange die Fähigkeit aktiv ist, wird der Schaden gegen den Anwender gespeichert. Wenn er einen Gegner tötet, wird der gespeicherte Schaden wieder geheilt',
-    cost: { type: 'energy', amount: 10, perRound: true },
+    cost: { type: 'energy', amount: 20, perRound: true },
     actionType: 'Bonusaktion'
   },
   {
@@ -2072,7 +2073,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Unheilvoller Auftritt',
     class: 'Omen',
     type: 'active',
-    description: 'Bereitet für 3 Runden ein finsteres Ritual an einem Ort in seinem Sichtfeld vor, während denen der Nutzer nichts anderes tun kann. Danach hüllt er diesen Ort in Finsternis und fliegt in sein Zentrum. Alle Gegner im Umkreis werden entweder gelähmt, verängstigt, oder verstummt',
+    description: 'Bereitet für 3 Runden ein finsteres Ritual an einem Ort in seinem Sichtfeld vor, während denen der Nutzer nichts anderes tun kann. Danach hüllt er diesen Ort in Finsternis und fliegt in sein Zentrum. Alle Gegner im Umkreis von 10m werden entweder gelähmt, verängstigt, oder verstummt (Einschüchterungswurf gegen Willenswurf: schwacher Treffer = gelähmt, normaler Treffer = verängstigt, starker Treffer = verstummt)',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -2081,7 +2082,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Fluchrüstung',
     class: 'Omen',
     type: 'active',
-    description: 'Absorbiert alle negativen Effekte aller Personen im Umkreis. Erhält Rüstung mit Stabilität abhängig von der Anzahl und Stärke der absorbierten Effekte für 3 Runden',
+    description: 'Übernimmt alle negativen Effekte aller Personen im Umkreis von 10m. Erhält Rüstung mit Stabilität abhängig von der Anzahl und Stärke der absorbierten Effekte für 3 Runden',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
@@ -2116,7 +2117,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Vorreiter',
     class: 'Kriegsherr',
     type: 'passive',
-    description: 'Wenn du den ersten Treffer austeilst oder einsteckst, erhalten alle Verbündeten eine Extra-Aktion für ihren nächsten Zug'
+    description: 'Wenn du den ersten Treffer im Kampf austeilst oder einsteckst, erhalten alle Verbündeten eine Extra-Aktion für ihren nächsten Zug'
   },
   {
     id: 'kriegsherr_lebensmuede',
@@ -2133,7 +2134,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Todeswirbel',
     class: 'Kriegsherr',
     type: 'active',
-    description: 'Greife jeden Gegner um dich herum an, -1 für jeden Gegner in Reichweite',
+    description: 'Greife jeden Gegner in einem Feld um dich herum an, -1 für jeden Gegner in Reichweite',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
