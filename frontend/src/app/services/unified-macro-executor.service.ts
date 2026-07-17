@@ -111,7 +111,8 @@ export class UnifiedMacroExecutorService {
       displays: script.displays,
     };
 
-    if (script.ok) this.broadcastToWorld(unified, sheet);
+    // Note: scripts do NOT broadcast to the world dice feed — status/skill rolls are
+    // internal (viewable via the roll breakdown), not the normal on-token dice popup.
     return { unified, script };
   }
 

@@ -101,7 +101,7 @@
           <!-- Exec sidebar -->
           <div class="lbp-exec-sidebar"
                [class.anchored]="resultAnchor"
-               [style.left.px]="resultAnchor?.x"
+               [style.left.px]="resultAnchor?.panelX"
                [style.bottom.px]="resultAnchor?.bottom"
                [style.--conn]="resultAnchor?.color">
             @if (chainEffects.length > 0) {
@@ -157,7 +157,7 @@
           <!-- Colored connector from the floating panel down to the triggering card -->
           @if (resultAnchor) {
             <div class="exec-connector"
-                 [style.left.px]="resultAnchor.x"
+                 [style.left.px]="resultAnchor.cardX"
                  [style.bottom.px]="resultAnchor.bottom - 12"
                  [style.--conn]="resultAnchor.color"></div>
           }

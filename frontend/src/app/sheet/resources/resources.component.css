@@ -78,16 +78,22 @@
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 .res-picker {
   width: 100%;
   max-width: 480px;
+  height: min(80vh, 640px);
   max-height: 80vh;
+  min-height: 0;
   background: var(--bg, #1e293b);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  touch-action: auto;
 }
 .res-picker-header {
   display: flex;
@@ -96,6 +102,7 @@
   padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--border, #4a5568);
   font-weight: 800;
+  flex-shrink: 0;
 }
 .res-picker-header button {
   background: none; border: none; color: var(--text-muted, #9ca3af); cursor: pointer; font-size: 1.1rem;
@@ -107,9 +114,14 @@
   border: 1px solid var(--border, #4a5568);
   background: var(--card, #2d3748);
   color: var(--text, #e5e7eb);
+  flex-shrink: 0;
 }
 .res-picker-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0.65rem;
   display: flex;
   flex-direction: column;

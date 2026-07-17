@@ -36,7 +36,7 @@
 </div>
 
 @if (showAdd) {
-  <div class="res-picker-backdrop" (click)="closeAdd()">
+  <div class="res-picker-backdrop" (click)="closeAdd()" (wheel)="$event.preventDefault()">
     <div class="res-picker" (click)="$event.stopPropagation()">
       <div class="res-picker-header">
         <span>{{ kindLabel(addKind) }} hinzuf&#xFC;gen</span>
@@ -46,7 +46,7 @@
       @if (isLoading()) {
         <div class="res-empty">Laden...</div>
       } @else {
-        <div class="res-picker-list">
+        <div class="res-picker-list" (wheel)="$event.stopPropagation()">
           @for (opt of addOptions; track opt.id) {
             <button type="button" class="res-picker-item" (click)="addUnit(opt.id, opt.name)">
               {{ opt.name }}

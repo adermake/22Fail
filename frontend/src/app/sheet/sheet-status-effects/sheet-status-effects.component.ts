@@ -405,10 +405,8 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
             currentValue + change.amount,
             this.getStatusMax(status)
           );
-          const statusIndex = this.sheet.statuses?.indexOf(status);
-          if (statusIndex !== undefined && statusIndex !== -1) {
-            this.patch.emit({ path: '/statuses/' + statusIndex + '/statusCurrent', value: newValue });
-          }
+          status.statusCurrent = newValue; // reflect immediately
+          this.patch.emit({ path: 'statuses', value: this.sheet.statuses });
         }
       }
     }

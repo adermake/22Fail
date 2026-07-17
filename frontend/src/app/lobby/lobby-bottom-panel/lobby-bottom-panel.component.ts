@@ -77,8 +77,12 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   private chainResourceLog: { resource: string; displayName: string; amount: number; source: string }[] = [];
   /** Breakdown popup shown when a summarised number is clicked. */
   breakdownPopup: { title: string; color: string; rows: { label: string; value: string; positive: boolean }[] } | null = null;
-  /** Anchors the floating results panel above the effect card that triggered it. */
-  resultAnchor: { x: number; bottom: number; color: string } | null = null;
+  /**
+   * Anchors the floating results popup above the effect card that triggered it.
+   * `cardX` is the card centre (connector target); `panelX` is clamped to keep the popup
+   * on screen (so the leftmost effect's popup isn't cut off).
+   */
+  resultAnchor: { cardX: number; panelX: number; bottom: number; color: string } | null = null;
   triggeringEffects = new Set<string>();
   expiringEffects = new Set<string>();
   lastRollResults = new Map<string, UnifiedMacroResult>();
@@ -683,9 +687,13 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       const el = document.querySelector<HTMLElement>(`.lbp-sfx-card[data-fx-id="${fx.id}"]`);
       if (!el) { this.resultAnchor = null; this.cdr.markForCheck(); return; }
       const r = el.getBoundingClientRect();
+      const cardX = Math.round(r.left + r.width / 2);
+      const halfW = 170; // half of the 340px popup
+      const panelX = Math.round(Math.min(Math.max(cardX, halfW + 8), window.innerWidth - halfW - 8));
       this.resultAnchor = {
-        x: Math.round(r.left + r.width / 2),
-        bottom: Math.round(window.innerHeight - r.top + 12), // panel sits 12px above the card
+        cardX,
+        panelX,
+        bottom: Math.round(window.innerHeight - r.top + 12), // popup sits 12px above the card
         color: this.getEffectColor(fx),
       };
       this.cdr.markForCheck();
@@ -761,7 +769,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   private runEffectResults(effect: StatusEffect, sheet: CharacterSheet, stacks: number): UnifiedMacroResult[] {
     if (effect.script && effect.script.trim()) {
       const exec = this.macroExecutor.executeScript(effect.script, sheet, {
-        inCombat: false, stacks, turn: 0, effectStrength: effect.strength ?? 0,
+        inCombat: true, stacks, turn: 0, effectStrength: effect.strength ?? 0,
         name: effect.name, icon: effect.icon, color: effect.color,
       });
       this.applyScriptExtras(exec);
@@ -775,10 +783,83 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     return results;
   }
 
-  /** Apply the non-resource side effects of a script run. Temp mods (M5) / grants (M6). */
-  private applyScriptExtras(_exec: ScriptExecution): void {
-    // Placeholder — temporary modifiers, granted skills and status ops are wired in later
-    // milestones. Resource changes are applied by the caller via applyMacroResourceChanges.
+  /**
+   * Apply a script run's non-resource effects: applyStatus/removeStatus, untilNextTurn
+   * temporary modifiers, and granted skills. (Resource changes are applied separately by
+   * applyMacroResourceChanges.)
+   */
+  private applyScriptExtras(exec: ScriptExecution): void {
+    const s = exec.script;
+    let effects = [...this.statusEffects];
+    let changed = false;
+
+    // applyStatus(id) / removeStatus(id)
+    for (const op of s.statusOps) {
+      if (op.op === 'remove') {
+        const before = effects.length;
+        effects = effects.filter(e => e.statusEffectId !== op.id);
+        if (effects.length !== before) changed = true;
+      } else {
+        const def = this.resolveLibraryEffect(op.id);
+        if (!def) continue;
+        const existing = effects.find(e => e.statusEffectId === op.id);
+        if (existing) {
+          existing.stacks = (existing.stacks || 1) + (op.stacks ?? 1);
+        } else {
+          effects.push({
+            id: `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            statusEffectId: def.id, name: def.name, icon: def.icon, color: def.color,
+            stacks: op.stacks ?? 1, duration: def.defaultDuration, isDebuff: def.isDebuff ?? false,
+          });
+        }
+        changed = true;
+      }
+    }
+
+    // untilNextTurn → a short-lived status effect that carries the temporary modifiers
+    // (duration 1 = removed at the next "Alle Ausführen" round). Its statModifiers fold
+    // into TrueStatsService via the character's activeStatusEffects.
+    if (s.tempModifiers.length > 0) {
+      const now = Date.now();
+      const custom: StatusEffect = {
+        id: `temp_${now}`,
+        name: 'Bis nächster Zug',
+        description: 'Temporärer Modifikator',
+        icon: '⏳',
+        color: '#38bdf8',
+        statModifiers: s.tempModifiers.map(m => ({ stat: m.target, amount: m.amount })),
+        isDebuff: false,
+      };
+      effects.push({
+        id: `fx_temp_${now}`, statusEffectId: custom.id, customEffect: custom,
+        name: custom.name, icon: custom.icon, color: custom.color, stacks: 1, duration: 1, isDebuff: false,
+      });
+      changed = true;
+    }
+
+    if (changed) this.saveStatusEffects(effects);
+
+    // grantSkill(name, mana, energy, life){…} → add a temporary active skill with its script
+    if (s.grantedSkills.length > 0 && this.character) {
+      const skills = [...(this.character.skills || [])];
+      for (const g of s.grantedSkills) {
+        skills.push({
+          name: g.name, class: 'Temporär', description: 'Gewährte Fähigkeit',
+          type: 'active', enlightened: false, script: g.script,
+          cost: g.manaCost ? { type: 'mana', amount: g.manaCost }
+            : g.energyCost ? { type: 'energy', amount: g.energyCost }
+            : g.lifeCost ? { type: 'life', amount: g.lifeCost }
+            : undefined,
+        });
+      }
+      this.character.skills = skills;
+      const charId = this.characterId;
+      if (charId) {
+        const patch = { path: 'skills', value: skills };
+        this.sheetPatched.emit({ characterId: charId, patch });
+        this.charSocket.sendPatch(charId, patch);
+      }
+    }
   }
 
   private applyMacroResourceChanges(result: UnifiedMacroResult): void {
@@ -799,8 +880,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
           );
           status.statusCurrent = newVal;
           const charId = this.characterId;
-          const idx = this.character.statuses?.indexOf(status) ?? -1;
-          if (charId && idx !== -1) this.charSocket.sendPatch(charId, { path: `statuses/${idx}/statusCurrent`, value: newVal });
+          if (charId) this.charSocket.sendPatch(charId, { path: 'statuses', value: this.character.statuses });
         }
       } else {
         if (formulaType === FormulaType.LIFE) {

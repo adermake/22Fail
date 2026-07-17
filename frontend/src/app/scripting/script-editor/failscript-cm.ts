@@ -109,9 +109,24 @@ function localVarNames(doc: string): string[] {
   return [...names];
 }
 
+function styleCompletionOptions() {
+  return [...STYLE_NAMES].map(s => ({ label: s, type: 'enum', detail: 'Stil', info: STYLE_INFO[s], boost: 50 }));
+}
+
 function completions(context: CompletionContext): CompletionResult | null {
   const before = context.matchBefore(/[A-Za-z_][\w.]*/);
-  if (!before && !context.explicit) return null;
+  const textBefore = context.state.doc.sliceString(0, context.pos);
+  const enclosing = enclosingCallName(textBefore);
+  const inStyleFn = enclosing === 'display' || enclosing === 'stat' || enclosing === 'banner';
+
+  if (!before) {
+    // Right after a comma inside display()/stat()/banner() → offer the styles immediately.
+    if (inStyleFn && /,\s*$/.test(textBefore)) {
+      return { from: context.pos, options: styleCompletionOptions() };
+    }
+    if (!context.explicit) return null;
+  }
+
   const text = before ? before.text : '';
   const dot = text.lastIndexOf('.');
 
@@ -131,10 +146,7 @@ function completions(context: CompletionContext): CompletionResult | null {
   const from = before ? before.from : context.pos;
 
   // Inside display()/stat()/banner(): offer the style presets first.
-  const enclosing = enclosingCallName(context.state.doc.sliceString(0, context.pos));
-  const styleOptions = (enclosing === 'display' || enclosing === 'stat' || enclosing === 'banner')
-    ? [...STYLE_NAMES].map(s => ({ label: s, type: 'enum', detail: 'Stil', info: STYLE_INFO[s], boost: 50 }))
-    : [];
+  const styleOptions = inStyleFn ? styleCompletionOptions() : [];
 
   const options = [
     ...styleOptions,

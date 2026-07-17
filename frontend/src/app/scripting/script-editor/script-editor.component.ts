@@ -26,8 +26,11 @@ interface RefGroup { title: string; items: RefItem[]; }
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="se-wrap">
-      <div class="se-editor" #host></div>
+    <div class="se-wrap" (keydown)="$event.stopPropagation()" (copy)="$event.stopPropagation()" (cut)="$event.stopPropagation()" (paste)="$event.stopPropagation()">
+      <div class="se-main">
+        <div class="se-editor" #host></div>
+        <div class="se-hint">💡 Stile: <b>good</b> · <b>bad</b> · <b>neutral</b> · <b>info</b> — z.B. <code>display("Text", bad)</code> · Formatieren: Strg+Shift+F</div>
+      </div>
       <div class="se-ref" [class.collapsed]="!refOpen()">
         <button class="se-ref-toggle" (click)="refOpen.set(!refOpen())" type="button">
           {{ refOpen() ? '›' : '‹' }} Hilfe
@@ -55,7 +58,11 @@ interface RefGroup { title: string; items: RefItem[]; }
   `,
   styles: [`
     .se-wrap { display: flex; height: 100%; min-height: 260px; border: 1px solid var(--border, #374151); border-radius: 8px; overflow: hidden; background: #0f172a; }
+    .se-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .se-editor { flex: 1; min-width: 0; overflow: hidden; }
+    .se-hint { flex-shrink: 0; padding: 4px 8px; font-size: 0.68rem; color: #94a3b8; background: #0b1220; border-top: 1px solid #1f2937; }
+    .se-hint b { color: #cbd5e1; }
+    .se-hint code { color: #82aaff; }
     .se-ref { width: 240px; flex-shrink: 0; border-left: 1px solid var(--border, #374151); background: #111827; display: flex; flex-direction: column; }
     .se-ref.collapsed { width: 64px; }
     .se-ref-toggle { background: #1f2937; color: #e5e7eb; border: none; border-bottom: 1px solid #374151; padding: 6px 8px; cursor: pointer; text-align: left; font-size: 0.75rem; }
