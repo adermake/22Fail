@@ -40,7 +40,7 @@ export class MacroExecutorService {
   /** Run a FailScript against a sheet and apply its resource/status effects in place. */
   runScriptOnSheet(script: string, character: CharacterSheet): MacroExecutionResult {
     const ctx = createPlayerContext(character, this.trueStats, {
-      inCombat: false, stacks: 1, turn: 0, effectStrength: 0,
+      inCombat: false, stacks: 1, turn: 0, duration: 0, effectStrength: 0,
     });
     const result = runScript(script, ctx);
 

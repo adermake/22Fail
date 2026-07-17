@@ -1199,3 +1199,7 @@
 .ds-neutral { background: rgba(148,163,184,0.12); border-color: #94a3b8; color: #e5e7eb; }
 .exec-rolls-toggle { margin-top: 6px; width: 100%; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.35); color: #fbbf24; font-size: 0.72rem; font-weight: 600; padding: 5px 9px; border-radius: 6px; cursor: pointer; }
 .exec-rolls-toggle:hover { background: rgba(245,158,11,0.2); }
+
+/* box() display — a bordered value pill [text] */
+.ds-boxrow { display: flex; }
+.ds-box { display: inline-block; font-weight: 800; padding: 3px 12px; border-radius: 6px; border: 2px solid; }

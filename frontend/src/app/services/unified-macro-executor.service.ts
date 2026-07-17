@@ -82,7 +82,7 @@ export class UnifiedMacroExecutorService {
     src: string,
     sheet: CharacterSheet,
     opts: {
-      inCombat?: boolean; stacks?: number; turn?: number; effectStrength?: number;
+      inCombat?: boolean; stacks?: number; turn?: number; duration?: number; effectStrength?: number;
       name?: string; icon?: string; color?: string;
     } = {},
   ): ScriptExecution {
@@ -90,6 +90,7 @@ export class UnifiedMacroExecutorService {
       inCombat: opts.inCombat ?? false,
       stacks: opts.stacks ?? 1,
       turn: opts.turn ?? 0,
+      duration: opts.duration ?? 0,
       effectStrength: opts.effectStrength ?? 0,
     });
     const script = runScript(src, ctx);
@@ -111,7 +112,8 @@ export class UnifiedMacroExecutorService {
       displays: script.displays,
     };
 
-    if (script.ok) this.broadcastToWorld(unified, sheet);
+    // Note: scripts do NOT broadcast to the world dice feed — status/skill rolls are
+    // internal (viewable via the roll breakdown), not the normal on-token dice popup.
     return { unified, script };
   }
 
