@@ -1,0 +1,61 @@
+<div class="resources-root">
+  <div class="res-header">
+    <div class="res-filters">
+      <button type="button" [class.active]="filter === 'all'" (click)="setFilter('all')">Alle</button>
+      <button type="button" [class.active]="filter === 'raw-material'" (click)="setFilter('raw-material')">Materialien</button>
+      <button type="button" [class.active]="filter === 'ingredient'" (click)="setFilter('ingredient')">Wirkstoffe</button>
+      <button type="button" [class.active]="filter === 'extractor'" (click)="setFilter('extractor')">Extraktoren</button>
+    </div>
+    <div class="res-add-btns">
+      <button type="button" (click)="openAdd('raw-material')">+ Material</button>
+      <button type="button" (click)="openAdd('ingredient')">+ Wirkstoff</button>
+      <button type="button" (click)="openAdd('extractor')">+ Extraktor</button>
+    </div>
+  </div>
+
+  @if (filtered.length === 0) {
+    <div class="res-empty">Keine Ressourcen. F&#xFC;ge Einheiten aus der Bibliothek hinzu.</div>
+  } @else {
+    <div class="res-grid">
+      @for (r of filtered; track r.id; let i = $index) {
+        <div class="res-card" [attr.data-kind]="r.itemType">
+          <div class="res-card-top">
+            <span class="res-kind">{{ kindLabel(r.itemType) }}</span>
+            <button type="button" class="res-del" (click)="remove(i)">&#x2715;</button>
+          </div>
+          <div class="res-name">{{ r.name }}</div>
+          <div class="res-amount-row">
+            <button type="button" (click)="adjustAmount(i, -1)">−</button>
+            <span class="res-amt">{{ r.amount ?? 1 }}</span>
+            <button type="button" (click)="adjustAmount(i, 1)">+</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+@if (showAdd) {
+  <div class="res-picker-backdrop" (click)="closeAdd()">
+    <div class="res-picker" (click)="$event.stopPropagation()">
+      <div class="res-picker-header">
+        <span>{{ kindLabel(addKind) }} hinzuf&#xFC;gen</span>
+        <button type="button" (click)="closeAdd()">&#x2715;</button>
+      </div>
+      <input type="text" [(ngModel)]="addFilter" placeholder="Suchen..." class="res-picker-search" />
+      @if (isLoading()) {
+        <div class="res-empty">Laden...</div>
+      } @else {
+        <div class="res-picker-list">
+          @for (opt of addOptions; track opt.id) {
+            <button type="button" class="res-picker-item" (click)="addUnit(opt.id, opt.name)">
+              {{ opt.name }}
+            </button>
+          } @empty {
+            <div class="res-empty">Keine Eintr&#xE4;ge in der Bibliothek.</div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}

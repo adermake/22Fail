@@ -11,6 +11,12 @@
     <button class="wissen-tab" [class.active]="activeTab === 'traits'" (click)="setTab('traits')">
       &#x2692; Merkmale @if (!isLoading()) { ({{ knownTraits.length }}) }
     </button>
+    <button class="wissen-tab" [class.active]="activeTab === 'ingredients'" (click)="setTab('ingredients')">
+      &#x1F33F; Wirkstoffe @if (!isLoading()) { ({{ knownIngredients.length }}) }
+    </button>
+    <button class="wissen-tab" [class.active]="activeTab === 'extractors'" (click)="setTab('extractors')">
+      &#x1F9EA; Extraktoren @if (!isLoading()) { ({{ knownExtractors.length }}) }
+    </button>
   </div>
 
   <!-- Runen sub-tab -->
@@ -189,6 +195,68 @@
                 <p class="mat-desc">{{ trait.description }}</p>
               }
 
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  @if (activeTab === 'ingredients') {
+    <div class="materials-tab">
+      @if (knownIngredients.length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">&#x1F33F;</span>
+          <p>Keine Wirkstoffe bekannt.</p>
+        </div>
+      } @else {
+        <div class="materials-grid">
+          @for (ing of knownIngredients; track ing.id) {
+            <div class="mat-card card-both">
+              <div class="mat-header">
+                <span class="mat-name">{{ ing.name }}</span>
+                <span class="mat-badge" [class.badge-public]="ing.isPublic">
+                  {{ ing.isPublic ? 'Allgemein' : 'Spezial' }}
+                </span>
+              </div>
+              <div class="stat-rows">
+                <div class="sr"><span class="sr-icon">P</span><span class="sr-val">{{ ing.primary.statusEffectName || '–' }} ({{ ing.primary.cost }} BP)</span></div>
+                <div class="sr"><span class="sr-icon">S</span><span class="sr-val">{{ ing.secondary.statusEffectName || '–' }} ({{ ing.secondary.cost }} BP)</span></div>
+                <div class="sr"><span class="sr-icon">T</span><span class="sr-val">{{ ing.tertiary.statusEffectName || '–' }} ({{ ing.tertiary.cost }} BP)</span></div>
+              </div>
+              @if (ing.description) {
+                <p class="mat-desc">{{ ing.description }}</p>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  @if (activeTab === 'extractors') {
+    <div class="materials-tab">
+      @if (knownExtractors.length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">&#x1F9EA;</span>
+          <p>Keine Extraktoren bekannt.</p>
+        </div>
+      } @else {
+        <div class="materials-grid">
+          @for (ext of knownExtractors; track ext.id) {
+            <div class="mat-card card-both">
+              <div class="mat-header">
+                <span class="mat-name">{{ ext.name }}</span>
+                <span class="mat-badge" [class.badge-public]="ext.isPublic">
+                  {{ ext.isPublic ? 'Allgemein' : 'Spezial' }}
+                </span>
+              </div>
+              <div class="stat-rows">
+                <div class="sr"><span class="sr-val">Kostensenkung P/S/T: {{ ext.primaryReductionPercent }}/{{ ext.secondaryReductionPercent }}/{{ ext.tertiaryReductionPercent }}%</span></div>
+              </div>
+              @if (ext.description) {
+                <p class="mat-desc">{{ ext.description }}</p>
+              }
             </div>
           }
         </div>

@@ -14,6 +14,7 @@ import { WorldSocketService } from '../../services/world-socket.service';
 import { NotificationService } from '../../services/notification.service';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { CurrentEvent, ShopEvent, LootBundleEvent, formatCurrency } from '../../model/current-events.model';
+import { ActiveStatusEffect } from '../../model/status-effect.model';
 
 @Component({
   selector: 'app-inventory',
@@ -40,6 +41,8 @@ export class InventoryComponent {
   @Output() rollWeaponDamage = new EventEmitter<number>();
   /** Requests parent to open the forging overlay */
   @Output() openForge = new EventEmitter<void>();
+  /** Requests parent to open the brewing overlay */
+  @Output() openBrew = new EventEmitter<void>();
   
   private worldSocket = inject(WorldSocketService);
   private notification = inject(NotificationService);
@@ -255,6 +258,76 @@ getCurrencyWeight(): number {
 
     this.patch.emit({ path: 'inventory', value: newInv });
     this.patch.emit({ path: 'trash', value: trash });
+  }
+
+  /** Apply potion effects to the sheet and consume one unit. */
+  usePotion(index: number): void {
+    const item = this.sheet.inventory[index];
+    if (!item || item.itemType !== 'potion' || !item.potionEffects?.length) return;
+
+    let effects = [...(this.sheet.activeStatusEffects ?? [])];
+    const seen = new Set(this.sheet.seenStatusEffectIds ?? []);
+
+    for (const pe of item.potionEffects) {
+      if (!pe.statusEffectId) continue;
+      seen.add(pe.statusEffectId);
+      const existingIdx = effects.findIndex(e => e.statusEffectId === pe.statusEffectId);
+
+      if (pe.mode === 'STACK') {
+        if (existingIdx >= 0) {
+          const existing = effects[existingIdx];
+          effects[existingIdx] = {
+            ...existing,
+            stacks: (existing.stacks || 1) + pe.amount,
+          };
+        } else {
+          const neu: ActiveStatusEffect = {
+            statusEffectId: pe.statusEffectId,
+            sourceLibraryId: pe.sourceLibraryId ?? '',
+            appliedAt: Date.now(),
+            stacks: pe.amount,
+            customName: pe.statusEffectName,
+          };
+          effects = [...effects, neu];
+        }
+      } else {
+        // DURATION
+        if (existingIdx >= 0) {
+          const existing = effects[existingIdx];
+          effects[existingIdx] = {
+            ...existing,
+            duration: (existing.duration ?? 0) + pe.amount,
+          };
+        } else {
+          const neu: ActiveStatusEffect = {
+            statusEffectId: pe.statusEffectId,
+            sourceLibraryId: pe.sourceLibraryId ?? '',
+            appliedAt: Date.now(),
+            stacks: 1,
+            duration: pe.amount,
+            customName: pe.statusEffectName,
+          };
+          effects = [...effects, neu];
+        }
+      }
+    }
+
+    this.patch.emit({ path: '/activeStatusEffects', value: effects });
+    this.patch.emit({ path: '/seenStatusEffectIds', value: Array.from(seen) });
+
+    const amt = item.amount ?? 1;
+    if (amt <= 1) {
+      // Consume without sending to trash
+      const newInv = [...this.sheet.inventory] as (ItemBlock | null)[];
+      newInv[index] = null;
+      while (newInv.length > 0 && newInv[newInv.length - 1] === null) newInv.pop();
+      this.sheet.inventory = newInv;
+      this.editingItems.delete(index);
+      this.unfoldedItems.delete(index);
+      this.patch.emit({ path: 'inventory', value: newInv });
+    } else {
+      this.updateItem(index, { path: 'amount', value: amt - 1 });
+    }
   }
 
   updateItem(index: number, patch: JsonPatch) {

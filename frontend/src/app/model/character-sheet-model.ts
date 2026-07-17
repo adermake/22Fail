@@ -51,6 +51,8 @@ export interface CharacterSheet {
   statuses: StatusBlock[];
   inventory: (ItemBlock | null)[];
   equipment: ItemBlock[];
+  /** Physical crafting resources (raw materials, ingredients, extractors) — separate from inventory. */
+  resources?: ItemBlock[];
   carryCapacityMultiplier: number;
   carryCapacityBonus: number;
   speedPenaltyNegation?: number; // Reduces speed penalties from armor/encumbrance
@@ -80,9 +82,11 @@ export interface CharacterSheet {
   activeSkillEntries?: ActiveSkillEntry[]; // Active skill instances (supports multiple; bottom-panel activation)
   castingSpells?: CastingSpellEntry[]; // Spells actively being cast (cast-level tracking)
   spellCastBonus?: number;        // Saved bonus added to every d20 cast roll
-  // Material Knowledge System
+  // Material / Brewing Knowledge System
   knownMaterialIds?: string[];     // IDs of materials the player has knowledge of
   knownForgeTraitIds?: string[];   // IDs of forge traits the player has knowledge of
+  knownIngredientIds?: string[];   // IDs of brew ingredients (Wirkstoffe)
+  knownExtractorIds?: string[];    // IDs of extractors
 }
 
 export function createEmptySheet(): CharacterSheet {
@@ -106,6 +110,7 @@ export function createEmptySheet(): CharacterSheet {
     skills: [],
     inventory: [],
     equipment: [],
+    resources: [],
     carryCapacityMultiplier: 1,
     carryCapacityBonus: 0,
     speedPenaltyNegation: 0,
@@ -136,6 +141,8 @@ export function createEmptySheet(): CharacterSheet {
     backstory: '',
     knownMaterialIds: [],
     knownForgeTraitIds: [],
+    knownIngredientIds: [],
+    knownExtractorIds: [],
   };
 }
 

@@ -5,7 +5,7 @@ import * as path from 'path';
 /**
  * Asset types supported by the browser
  */
-export type AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle' | 'material' | 'forge-trait';
+export type AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle' | 'material' | 'forge-trait' | 'ingredient' | 'extractor';
 
 /**
  * Folder structure
@@ -990,6 +990,10 @@ export class AssetBrowserService {
       case 'status-effect': return '🎭';
       case 'shop': return '🏪';
       case 'loot-bundle': return '🎁';
+      case 'material': return '⚙️';
+      case 'forge-trait': return '🔥';
+      case 'ingredient': return '🌿';
+      case 'extractor': return '🧪';
       default: return '📄';
     }
   }

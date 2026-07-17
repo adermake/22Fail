@@ -19,6 +19,13 @@
           <button [class.active]="itemType === 'armor'" (click)="itemType='armor'; onItemTypeChange()">&#x1F6E1; Rustung</button>
         </div>
       </div>
+      <div class="config-field mode-field">
+        <label>Modus</label>
+        <div class="type-toggle">
+          <button type="button" [class.active]="accessMode === 'enforced'" (click)="setAccessMode('enforced')">&#x1F512; Erzwungen</button>
+          <button type="button" [class.active]="accessMode === 'free'" (click)="setAccessMode('free')">&#x1F513; Frei</button>
+        </div>
+      </div>
       @if (itemType === 'weapon') {
         <div class="config-field stat-req-field">
           <label>Stat-Anforderung</label>
@@ -268,7 +275,7 @@
       <div class="picker-modal-header">
         <div class="picker-title-block">
           <span class="picker-title">Material w&#xE4;hlen</span>
-          <span class="picker-subtitle">f&#xFC;r {{ pickingSlotLabel }}</span>
+          <span class="picker-subtitle">{{ accessMode === 'enforced' ? 'Nur Ressourcen' : 'Alles bekannte Wissen' }} · {{ pickingSlotLabel }}</span>
         </div>
         <button class="picker-close-btn" (click)="closePicker()">&#x2715;</button>
       </div>

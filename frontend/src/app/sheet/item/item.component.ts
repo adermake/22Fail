@@ -36,6 +36,8 @@ export class ItemComponent implements OnChanges {
   @Output() editingChange = new EventEmitter<boolean>();
   @Output() openEditor = new EventEmitter<void>();
   @Output() breakTest = new EventEmitter<void>();
+  /** Potion: request parent to apply effects and consume. */
+  @Output() useOnSelf = new EventEmitter<void>();
 
   isFolded = true; // Start items as folded to save space
   readonly Math = Math;
@@ -120,6 +122,10 @@ export class ItemComponent implements OnChanges {
     switch (this.item.itemType) {
       case 'weapon': return '⚔';
       case 'armor': return '🛡';
+      case 'potion': return '🧪';
+      case 'raw-material': return '⚙️';
+      case 'ingredient': return '🌿';
+      case 'extractor': return '⚗️';
       default: return '📦';
     }
   }
@@ -128,6 +134,10 @@ export class ItemComponent implements OnChanges {
     switch (this.item.itemType) {
       case 'weapon': return 'Waffe';
       case 'armor': return 'Rüstung';
+      case 'potion': return 'Trank';
+      case 'raw-material': return 'Rohmaterial';
+      case 'ingredient': return 'Wirkstoff';
+      case 'extractor': return 'Extraktor';
       default: return 'Gegenstand';
     }
   }
@@ -153,6 +163,11 @@ export class ItemComponent implements OnChanges {
   openEditorFromMenu() {
     this.showContextMenu = false;
     this.openEditor.emit();
+  }
+
+  usePotionFromMenu() {
+    this.showContextMenu = false;
+    this.useOnSelf.emit();
   }
 
   toggleLostFromMenu() {

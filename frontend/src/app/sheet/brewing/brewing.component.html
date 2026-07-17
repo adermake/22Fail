@@ -1,0 +1,183 @@
+<div class="brewing-root">
+  @if (isLoading()) {
+    <div class="brew-loading">
+      <span class="spinner"></span>
+      <span>Bibliothek wird geladen...</span>
+    </div>
+  } @else {
+    <div class="brew-config-bar">
+      <div class="config-field name-field">
+        <label>Trankname</label>
+        <input type="text" [(ngModel)]="potionName" placeholder="z.B. Feuerblumen-Elixier" />
+      </div>
+      <div class="config-field mode-field">
+        <label>Modus</label>
+        <div class="mode-toggle">
+          <button type="button" [class.active]="accessMode === 'enforced'" (click)="setAccessMode('enforced')">
+            &#x1F512; Erzwungen
+          </button>
+          <button type="button" [class.active]="accessMode === 'free'" (click)="setAccessMode('free')">
+            &#x1F513; Frei
+          </button>
+        </div>
+      </div>
+      <div class="config-field bp-field">
+        <label>Braupunkte</label>
+        <div class="bp-row">
+          <input type="number" [(ngModel)]="brewPoints" min="0" />
+          <span class="bp-status"><strong>{{ spentBP }}</strong> / {{ brewPoints }} BP</span>
+          <span class="bp-remaining" [class.warning]="remainingBP < 5">{{ remainingBP }} verbl.</span>
+        </div>
+        <div class="bp-track"><div class="bp-fill" [style.width.%]="bpProgress"></div></div>
+      </div>
+      <div class="config-field">
+        <label>Max. Extraktoren</label>
+        <input type="number" [(ngModel)]="maxExtractors" min="0" max="10" />
+      </div>
+    </div>
+
+    <div class="brew-main">
+      <div class="brew-col">
+        <div class="brew-section">
+          <div class="section-header">
+            <span class="section-title">&#x1F33F; Wirkstoffe</span>
+            <button type="button" class="add-btn" (click)="openIngredientPicker()">+ Hinzuf&#xFC;gen</button>
+          </div>
+          @if (brewIngredients.length === 0) {
+            <p class="empty-hint">Noch keine Wirkstoffe. Im Erzwungen-Modus nur aus Ressourcen.</p>
+          }
+          @for (entry of brewIngredients; track entry.instanceId) {
+            <div class="ing-card">
+              <div class="ing-card-header">
+                <span class="ing-name">{{ entry.ingredient.name }}</span>
+                <button type="button" class="rm-btn" (click)="removeIngredient(entry.instanceId)">&#x2715;</button>
+              </div>
+              <div class="brew-slot-btns">
+                @for (slot of slots; track slot) {
+                  <button
+                    type="button"
+                    class="brew-slot-btn"
+                    [attr.data-slot]="slot"
+                    [disabled]="!canBrewSlot(entry, slot) || brewCost(entry, slot) > remainingBP"
+                    (click)="brew(entry, slot)"
+                    [title]="slotLabels[slot] + ' &#xD7;' + slotMult[slot]">
+                    <span class="bsb-label">{{ slotLabels[slot] }}</span>
+                    <span class="bsb-effect">
+                      @if (effectOf(entry.ingredient, slot).statusEffectId) {
+                        {{ effectOf(entry.ingredient, slot).statusEffectName || effectOf(entry.ingredient, slot).statusEffectId }}
+                        ({{ effectOf(entry.ingredient, slot).mode === 'STACK' ? 'S' : 'D' }}{{ effectOf(entry.ingredient, slot).amount }})
+                      } @else {
+                        –
+                      }
+                    </span>
+                    <span class="bsb-meta">
+                      &#xD7;{{ brewCountOf(entry, slot) || 0 }}
+                      · {{ brewCost(entry, slot) | number:'1.0-0' }} BP
+                    </span>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="brew-section">
+          <div class="section-header">
+            <span class="section-title">&#x1F9EA; Extraktoren</span>
+            <button type="button" class="add-btn"
+              [disabled]="brewExtractors.length >= maxExtractors"
+              (click)="openExtractorPicker()">+ Hinzuf&#xFC;gen</button>
+          </div>
+          @if (brewExtractors.length === 0) {
+            <p class="empty-hint">Optional — senkt Braukosten (max. {{ maxExtractors }}).</p>
+          }
+          @for (entry of brewExtractors; track entry.instanceId) {
+            <div class="ext-card">
+              <span class="ext-name">{{ entry.extractor.name }}</span>
+              <span class="ext-reduce">
+                −{{ entry.extractor.primaryReductionPercent }}/{{ entry.extractor.secondaryReductionPercent }}/{{ entry.extractor.tertiaryReductionPercent }}%
+              </span>
+              <button type="button" class="rm-btn" (click)="removeExtractor(entry.instanceId)">&#x2715;</button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="brew-col">
+        <div class="brew-section">
+          <div class="section-header">
+            <span class="section-title">&#x1F4CA; Trank-Effekte</span>
+          </div>
+          <div class="potion-slots">
+            @for (slot of slots; track slot) {
+              <div class="potion-slot" [attr.data-slot]="slot">
+                <div class="ps-label">{{ slotLabels[slot] }} <span class="ps-mult">&#xD7;{{ slotMult[slot] }}</span></div>
+                @if (slotPreview(slot); as prev) {
+                  <div class="ps-effect">{{ prev.statusEffectName || prev.statusEffectId }}</div>
+                  <div class="ps-meta">
+                    {{ prev.mode === 'STACK' ? prev.amount + ' Stacks' : prev.amount + ' Runden' }}
+                    · {{ prev.ingredientName }}
+                    · &#xD7;{{ prev.brewCount }}
+                  </div>
+                } @else {
+                  <div class="ps-empty">Leer</div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="brew-finish">
+          <button type="button" class="finish-btn" (click)="finishBrewing()" [disabled]="!canFinish()">
+            &#x1F9EA; Brauen abschlie&#xDF;en &amp; zum Inventar
+          </button>
+          @if (!canFinish()) {
+            <span class="finish-hint">
+              {{ !potionName.trim() ? 'Bitte einen Namen eingeben' : 'Mindestens einen Effekt brauen' }}
+            </span>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>
+
+@if (pickingKind) {
+  <div class="picker-backdrop" (click)="closePicker()">
+    <div class="picker-modal" (click)="$event.stopPropagation()">
+      <div class="picker-modal-header">
+        <div>
+          <span class="picker-title">{{ pickingKind === 'ingredient' ? 'Wirkstoff w&#xE4;hlen' : 'Extraktor w&#xE4;hlen' }}</span>
+          <span class="picker-subtitle">{{ accessMode === 'enforced' ? 'Nur Ressourcen' : 'Alles bekannte Wissen' }}</span>
+        </div>
+        <button type="button" class="picker-close-btn" (click)="closePicker()">&#x2715;</button>
+      </div>
+      <div class="picker-filters-bar">
+        <input class="picker-search" type="text" [(ngModel)]="pickerFilter" placeholder="Suchen..." />
+      </div>
+      <div class="picker-grid">
+        @if (pickingKind === 'ingredient') {
+          @for (ing of pickerIngredients; track ing.id) {
+            <button type="button" class="picker-card" (click)="addIngredient(ing)">
+              <span class="pc-name">{{ ing.name }}</span>
+              <span class="pc-line">P: {{ ing.primary.statusEffectName || '–' }} ({{ ing.primary.cost }})</span>
+              <span class="pc-line">S: {{ ing.secondary.statusEffectName || '–' }} ({{ ing.secondary.cost }})</span>
+              <span class="pc-line">T: {{ ing.tertiary.statusEffectName || '–' }} ({{ ing.tertiary.cost }})</span>
+            </button>
+          } @empty {
+            <div class="picker-empty">Keine Wirkstoffe verf&#xFC;gbar.</div>
+          }
+        } @else {
+          @for (ext of pickerExtractors; track ext.id) {
+            <button type="button" class="picker-card" (click)="addExtractor(ext)">
+              <span class="pc-name">{{ ext.name }}</span>
+              <span class="pc-line">Senkung P/S/T: {{ ext.primaryReductionPercent }}/{{ ext.secondaryReductionPercent }}/{{ ext.tertiaryReductionPercent }}%</span>
+            </button>
+          } @empty {
+            <div class="picker-empty">Keine Extraktoren verf&#xFC;gbar.</div>
+          }
+        }
+      </div>
+    </div>
+  </div>
+}

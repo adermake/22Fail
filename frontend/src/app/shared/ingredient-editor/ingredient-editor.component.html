@@ -1,0 +1,55 @@
+<div class="ing-editor">
+  <div class="ie-top-row">
+    <div class="ie-field ie-name-field">
+      <label>Name</label>
+      <input type="text" [(ngModel)]="edit.name" placeholder="Wirkstoffname" />
+    </div>
+    <div class="ie-field">
+      <label>Rarit&#xE4;t</label>
+      <select [(ngModel)]="edit.rarity">
+        <option value="COMMON">Gew&#xF6;hnlich</option>
+        <option value="RARE">Selten</option>
+        <option value="LEGENDARY">Legend&#xE4;r</option>
+      </select>
+    </div>
+    <div class="ie-field">
+      <label>Kosten</label>
+      <input type="number" [(ngModel)]="edit.cost" min="0" />
+    </div>
+    <label class="ie-toggle"><input type="checkbox" [(ngModel)]="edit.isPublic" /> &#xD6;ffentlich</label>
+  </div>
+
+  <textarea class="ie-desc" [(ngModel)]="edit.description" rows="2" placeholder="Beschreibung..."></textarea>
+
+  @for (slot of slots; track slot) {
+    <div class="ie-effect-block" [attr.data-slot]="slot">
+      <div class="ie-effect-ttl">{{ slotLabels[slot] }}-Effekt</div>
+      <div class="ie-effect-grid">
+        <label>Status-Effekt</label>
+        <select [ngModel]="effect(slot).statusEffectId" (ngModelChange)="onStatusPick(slot, $event)">
+          <option value="">– Keiner –</option>
+          @for (se of statusEffects; track se.id) {
+            <option [value]="se.id">{{ se.name }}</option>
+          }
+        </select>
+
+        <label>Stapelung</label>
+        <select [(ngModel)]="effect(slot).mode">
+          <option value="STACK">Stacks</option>
+          <option value="DURATION">Dauer</option>
+        </select>
+
+        <label>{{ effect(slot).mode === 'STACK' ? 'Stacks' : 'Dauer (Runden)' }}</label>
+        <input type="number" [(ngModel)]="effect(slot).amount" min="1" />
+
+        <label>Braukosten</label>
+        <input type="number" [(ngModel)]="effect(slot).cost" min="1" />
+      </div>
+    </div>
+  }
+
+  <div class="ie-actions">
+    <button class="ie-cancel" type="button" (click)="cancel.emit()">Abbrechen</button>
+    <button class="ie-save" type="button" (click)="onSave()" [disabled]="!edit.name?.trim()">Speichern</button>
+  </div>
+</div>

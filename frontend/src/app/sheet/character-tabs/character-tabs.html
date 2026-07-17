@@ -8,6 +8,12 @@
     </button>
     <button
       class="tab-button"
+      [class.active]="activeTab === 'resources'"
+      (click)="setActiveTab('resources')">
+      Ressourcen ({{ (sheet.resources || []).length }})
+    </button>
+    <button
+      class="tab-button"
       [class.active]="activeTab === 'spells'"
       (click)="setActiveTab('spells')">
       Zauber ({{ (sheet.spells || []).length }})
@@ -34,17 +40,23 @@
   </div>
 
   <div class="tab-content">
-    <!-- Inventory Tab - Always rendered but hidden when not active for CDK drag-drop -->
     <div [style.display]="activeTab === 'inventory' ? 'block' : 'none'">
       <app-inventory
         [sheet]="sheet"
         (patch)="onPatch($event)"
         (rollWeaponDamage)="rollWeaponDamage.emit($event)"
-        (openForge)="openForgingOverlay()">
+        (openForge)="openForgingOverlay()"
+        (openBrew)="openBrewingOverlay()">
       </app-inventory>
     </div>
 
-    <!-- Spells Tab -->
+    @if (activeTab === 'resources') {
+      <app-resources
+        [sheet]="sheet"
+        (patch)="onPatch($event)">
+      </app-resources>
+    }
+
     @if (activeTab === 'spells') {
       <app-spells
         [sheet]="sheet"
@@ -55,7 +67,6 @@
       </app-spells>
     }
 
-    <!-- Skills Tab -->
     @if (activeTab === 'skills') {
       <app-skills
         [sheet]="sheet"
@@ -66,7 +77,6 @@
       </app-skills>
     }
 
-    <!-- Wissen Tab (Runen + Bekannte Materialien) -->
     @if (activeTab === 'wissen') {
       <app-wissen
         [sheet]="sheet"
@@ -76,7 +86,6 @@
   </div>
 </div>
 
-<!-- Forging Overlay -->
 @if (showForgingOverlay) {
   <div class="forging-overlay-backdrop" (click)="closeForgingOverlay()">
     <div class="forging-overlay-panel" (click)="$event.stopPropagation()">
@@ -86,6 +95,20 @@
       </div>
       <div class="forging-overlay-body">
         <app-forging [sheet]="sheet" (patch)="onPatch($event)" (closeOverlay)="closeForgingOverlay()"></app-forging>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showBrewingOverlay) {
+  <div class="forging-overlay-backdrop" (click)="closeBrewingOverlay()">
+    <div class="forging-overlay-panel" (click)="$event.stopPropagation()">
+      <div class="forging-overlay-header">
+        <span class="forging-overlay-title">🧪 Braukessel</span>
+        <button class="forging-overlay-close" (click)="closeBrewingOverlay()">✕</button>
+      </div>
+      <div class="forging-overlay-body">
+        <app-brewing [sheet]="sheet" (patch)="onPatch($event)" (closeOverlay)="closeBrewingOverlay()"></app-brewing>
       </div>
     </div>
   </div>

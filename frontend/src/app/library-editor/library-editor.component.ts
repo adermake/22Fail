@@ -53,6 +53,8 @@ import { StatusEffectEditorComponent } from '../shared/status-effect-editor/stat
 import { MacroEditorComponent } from '../shared/macro-editor/macro-editor.component';
 import { MaterialEditorComponent } from '../shared/material-editor/material-editor.component';
 import { ForgeTraitEditorComponent } from '../shared/forge-trait-editor/forge-trait-editor.component';
+import { IngredientEditorComponent } from '../shared/ingredient-editor/ingredient-editor.component';
+import { ExtractorEditorComponent } from '../shared/extractor-editor/extractor-editor.component';
 import { WeaponGeneratorComponent } from '../shared/weapon-generator/weapon-generator.component';
 import { NpcEditorComponent } from '../shared/npc-editor/npc-editor.component';
 import { createEmptyNpcStatblock } from '../model/npc-statblock.model';
@@ -60,6 +62,9 @@ import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model
 import { ImageUrlPipe } from '../shared/image-url.pipe';
 import { RuneTableComponent } from './rune-table/rune-table.component';
 import { MaterialTableComponent } from './material-table/material-table.component';
+import {
+  createEmptyIngredientBlock, createEmptyExtractorBlock,
+} from '../model/brewing.model';
 
 /**
  * Library Editor Component
@@ -90,6 +95,8 @@ import { MaterialTableComponent } from './material-table/material-table.componen
     MacroEditorComponent,
     MaterialEditorComponent,
     ForgeTraitEditorComponent,
+    IngredientEditorComponent,
+    ExtractorEditorComponent,
     MaterialTableComponent,
     WeaponGeneratorComponent,
     NpcEditorComponent,
@@ -694,6 +701,10 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
         return { ...createEmptyMaterialBlock(), name };
       case 'forge-trait':
         return { ...createEmptyForgeTrait(), name };
+      case 'ingredient':
+        return { ...createEmptyIngredientBlock(name), name };
+      case 'extractor':
+        return { ...createEmptyExtractorBlock(name), name };
       case 'shop':
         return {
           id: `shop_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
@@ -862,10 +873,11 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
     if (!file) return;
 
     try {
+      const payload = { ...data, id: data?.id || file.id };
       await firstValueFrom(
         this.api.updateFile(this.libraryId(), file.id, {
-          data,
-          name: data.name || file.name,
+          data: payload,
+          name: payload.name || file.name,
         })
       );
       await this.loadFolderContents();

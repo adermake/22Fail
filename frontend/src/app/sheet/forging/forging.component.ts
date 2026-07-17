@@ -19,6 +19,7 @@ import {
   WeaponType, WEAPON_TYPES, WeaponCategory, WEAPON_CATEGORY_LABELS,
   ForgingArmorType, ARMOR_TYPES, ArmorWeight, ARMOR_WEIGHT_MULT,
 } from '../../model/forging.model';
+import { CraftAccessMode } from '../../model/brewing.model';
 import { ItemBlock, ItemRequirements } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -66,6 +67,8 @@ export class ForgingComponent implements OnInit {
   readonly WEIGHT_MULT = { LIGHT: 0.8, MEDIUM: 1.0, HEAVY: 1.2 } as const;
   /** Session-level SP discount for traits (0–100 %). Applied during forging only. */
   traitDiscount = 0;
+  /** Enforced = only owned resources; Free = all known materials. */
+  accessMode: CraftAccessMode = 'enforced';
   /** Selected weapon type — cosmetic, stored in produced ItemBlock. */
   selectedWeaponType: WeaponType | null = null;
   readonly weaponTypes = WEAPON_TYPES;
@@ -97,15 +100,24 @@ export class ForgingComponent implements OnInit {
   showTraitPicker = false;
   traitFilter = '';
 
-  // ── Available materials filtered by knowledge ─────────────────────────────────
+  // ── Available materials filtered by knowledge (+ resources in enforced mode) ─
   get availableMaterials(): MaterialBlock[] {
     const knownIds = new Set(this.sheet?.knownMaterialIds ?? []);
     const isWeapon = this.itemType === 'weapon';
-    return this.allMaterials.filter(m => {
+    let list = this.allMaterials.filter(m => {
       const compatible = isWeapon ? m.canBeWeaponMaterial : m.canBeArmorMaterial;
       if (!compatible) return false;
       return m.isPublic || knownIds.has(m.id);
     });
+    if (this.accessMode === 'enforced') {
+      const owned = new Set(
+        (this.sheet?.resources ?? [])
+          .filter(r => r?.itemType === 'raw-material' && r.libraryAssetId && (r.amount ?? 1) > 0)
+          .map(r => r!.libraryAssetId!),
+      );
+      list = list.filter(m => owned.has(m.id));
+    }
+    return list;
   }
 
   get filteredMaterials(): MaterialBlock[] {
@@ -353,8 +365,25 @@ export class ForgingComponent implements OnInit {
       this.cdr.markForCheck();
       return;
     }
-    slot.entries.push({ material: mat, forgeCount: 0 });
+    let resourceItemId: string | undefined;
+    if (this.accessMode === 'enforced') {
+      const res = (this.sheet?.resources ?? []).find(
+        r => r?.itemType === 'raw-material' && r.libraryAssetId === mat.id && (r.amount ?? 1) > 0,
+      );
+      if (!res) {
+        this.pickingSlot = null;
+        this.cdr.markForCheck();
+        return;
+      }
+      resourceItemId = res.id;
+    }
+    slot.entries.push({ material: mat, forgeCount: 0, resourceItemId });
     this.pickingSlot = null;
+    this.cdr.markForCheck();
+  }
+
+  setAccessMode(mode: CraftAccessMode): void {
+    this.accessMode = mode;
     this.cdr.markForCheck();
   }
 
@@ -515,8 +544,34 @@ export class ForgingComponent implements OnInit {
     (item as any)['forgingData'] = forgingData;
 
     this.patch.emit({ path: '/inventory/-', value: item });
+    if (this.accessMode === 'enforced') {
+      this.consumeRawMaterials();
+    }
     this.resetSession();
     this.closeOverlay.emit();
+  }
+
+  private consumeRawMaterials(): void {
+    const resources = [...(this.sheet?.resources ?? [])];
+    const consumeOne = (entry: SlotMaterialEntry) => {
+      let idx = entry.resourceItemId
+        ? resources.findIndex(r => r?.id === entry.resourceItemId)
+        : -1;
+      if (idx < 0) {
+        idx = resources.findIndex(
+          r => r?.itemType === 'raw-material' && r.libraryAssetId === entry.material.id && (r.amount ?? 1) > 0,
+        );
+      }
+      if (idx < 0) return;
+      const r = resources[idx]!;
+      const amt = r.amount ?? 1;
+      if (amt <= 1) resources.splice(idx, 1);
+      else resources[idx] = { ...r, amount: amt - 1 };
+    };
+    for (const slot of [this.primarySlot, this.secondarySlot, this.bonusSlot]) {
+      for (const entry of slot.entries) consumeOne(entry);
+    }
+    this.patch.emit({ path: '/resources', value: resources });
   }
 
   private buildDescription(): string {

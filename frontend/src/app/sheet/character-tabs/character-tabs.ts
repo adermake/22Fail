@@ -6,9 +6,11 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { InventoryComponent } from '../inventory/inventory.component';
 import { ActionMacro } from '../../model/action-macro.model';
 import { ForgingComponent } from '../forging/forging.component';
+import { BrewingComponent } from '../brewing/brewing.component';
 import { WissenComponent } from '../wissen/wissen.component';
 import { SpellsComponent } from '../spells/spells.component';
 import { SkillsComponent } from '../skills/skills.component';
+import { ResourcesComponent } from '../resources/resources.component';
 
 @Component({
   selector: 'app-character-tabs',
@@ -18,9 +20,11 @@ import { SkillsComponent } from '../skills/skills.component';
     FormsModule,
     InventoryComponent,
     ForgingComponent,
+    BrewingComponent,
     WissenComponent,
     SpellsComponent,
     SkillsComponent,
+    ResourcesComponent,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './character-tabs.html',
@@ -41,10 +45,11 @@ export class CharacterTabsComponent {
   @Output() requestCastWindow = new EventEmitter<void>();
   @Output() rollWeaponDamage = new EventEmitter<number>();
 
-  activeTab: 'inventory' | 'spells' | 'wissen' | 'skills' = 'inventory';
+  activeTab: 'inventory' | 'resources' | 'spells' | 'wissen' | 'skills' = 'inventory';
   showForgingOverlay = false;
+  showBrewingOverlay = false;
 
-  setActiveTab(tab: 'inventory' | 'spells' | 'wissen' | 'skills') {
+  setActiveTab(tab: 'inventory' | 'resources' | 'spells' | 'wissen' | 'skills') {
     this.activeTab = tab;
   }
 
@@ -54,6 +59,14 @@ export class CharacterTabsComponent {
 
   closeForgingOverlay(): void {
     this.showForgingOverlay = false;
+  }
+
+  openBrewingOverlay(): void {
+    this.showBrewingOverlay = true;
+  }
+
+  closeBrewingOverlay(): void {
+    this.showBrewingOverlay = false;
   }
 
   onRuneEditingChange(data: {index: number, isEditing: boolean}) {

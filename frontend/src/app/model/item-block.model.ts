@@ -44,7 +44,21 @@ export interface AttachedSpell {
 }
 
 // Item type enumeration
-export type ItemType = 'weapon' | 'armor' | 'other';
+export type ItemType =
+  | 'weapon'
+  | 'armor'
+  | 'other'
+  | 'potion'
+  | 'raw-material'
+  | 'ingredient'
+  | 'extractor';
+
+/** Resource kinds stored on the Resources tab (not normal inventory). */
+export type ResourceItemType = 'raw-material' | 'ingredient' | 'extractor';
+
+export function isResourceItemType(t: ItemType | undefined): t is ResourceItemType {
+  return t === 'raw-material' || t === 'ingredient' || t === 'extractor';
+}
 
 // Armor type enumeration
 export type ArmorType = 'helmet' | 'chestplate' | 'armschienen' | 'leggings' | 'boots' | 'weapon' | 'extra';
@@ -109,6 +123,27 @@ export class ItemBlock {
   // Library origin tracking
   libraryOrigin?: string; // Library ID if this item came from a library (undefined for custom items)
   libraryOriginName?: string; // Human-readable library name
+
+  /** Links a resource/potion unit to its library recipe asset id (Material / Ingredient / Extractor). */
+  libraryAssetId?: string;
+
+  /**
+   * Potion effects applied on use (right-click → Auf sich anwenden).
+   * Stored as plain data so inventory items stay JSON-serializable.
+   */
+  potionEffects?: {
+    slot: 'primary' | 'secondary' | 'tertiary';
+    statusEffectId: string;
+    statusEffectName?: string;
+    sourceLibraryId?: string;
+    mode: 'STACK' | 'DURATION';
+    amount: number;
+    ingredientName: string;
+    brewCount: number;
+  }[];
+
+  /** Optional brew session snapshot embedded on finished potions. */
+  brewingData?: unknown;
 
   // Source tracking (for display purposes)
   isItemBased?: boolean; // Flag for skills/spells from this item

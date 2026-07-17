@@ -29,6 +29,7 @@
         ⚙️
       </button>
       <button class="forge-btn" (click)="openForge.emit()" title="Schmiede öffnen">⚒ Schmieden</button>
+      <button class="forge-btn" (click)="openBrew.emit()" title="Braukessel öffnen">🧪 Brauen</button>
       <button class="add-btn" (click)="openNewItemEditor()">+ Gegenstand</button>
     </div>
   </div>
@@ -85,6 +86,7 @@
               (breakTest)="performBreakTest(i)"
               (foldChange)="onFoldChange(i, $event)"
               (rollDamage)="rollWeaponDamage.emit($event)"
+              (useOnSelf)="usePotion(i)"
             ></app-item>
           }
 
@@ -133,6 +135,7 @@
           (breakTest)="performBreakTest(exp.activeIdx)"
           (foldChange)="onFoldChange(exp.activeIdx, $event)"
           (rollDamage)="rollWeaponDamage.emit($event)"
+          (useOnSelf)="usePotion(exp.activeIdx)"
         ></app-item>
       </div>
     }

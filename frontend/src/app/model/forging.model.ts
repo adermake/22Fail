@@ -173,6 +173,8 @@ export interface SlotMaterialEntry {
   material: MaterialBlock;
   /** Number of times this material has been forged. Cost of the n-th forge = n SP. */
   forgeCount: number;
+  /** Resource item id when taken from sheet.resources (enforced mode). */
+  resourceItemId?: string;
 }
 
 export interface MaterialSlotState {

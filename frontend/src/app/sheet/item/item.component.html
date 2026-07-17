@@ -17,6 +17,9 @@
         <button class="ctx-item ctx-identify" (click)="identifyFromMenu()">🔍 Identifizieren</button>
       }
       @if (showDetails) {
+        @if (item.itemType === 'potion' && item.potionEffects?.length) {
+          <button class="ctx-item ctx-use" (click)="usePotionFromMenu()">🧪 Auf sich anwenden</button>
+        }
         <button class="ctx-item" (click)="openEditorFromMenu()">✏️ Bearbeiten</button>
         <button class="ctx-item ctx-lost" (click)="toggleLostFromMenu()">
           {{ item.lost ? '✓ Nicht verloren' : '✕ Verloren markieren' }}
