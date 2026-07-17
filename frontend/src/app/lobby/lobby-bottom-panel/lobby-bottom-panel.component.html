@@ -41,22 +41,22 @@
 
         <!-- Toolbar -->
         <div class="lbp-status-toolbar">
-          @if (chainEffects.length > 0) {
-            <button class="lbp-exec-all-btn" (click)="executeNextInChain()" [disabled]="!chainStepDone">
-              @if (chainIndex < chainEffects.length - 1) { Nächster ▸ } @else { Fertig ✓ }
-            </button>
-            <span class="lbp-chain-progress">{{ chainIndex + 1 }}/{{ chainEffects.length }}</span>
-          } @else {
-            @if (statusEffects.length > 0) {
-              <button class="lbp-exec-all-btn" (click)="startExecuteAllChain()" [disabled]="executeAllInProgress">
-                ▶ Alle Ausführen
-              </button>
-            }
-          }
           <span class="lbp-status-count">
             {{ statusEffects.length }} {{ statusEffects.length === 1 ? 'Effekt' : 'Effekte' }}
           </span>
-          <button class="lbp-add-status-btn" (click)="togglePicker(); $event.stopPropagation()" title="Status hinzufügen">+</button>
+          <div class="lbp-toolbar-right">
+            <button class="lbp-add-status-btn" (click)="togglePicker(); $event.stopPropagation()" title="Status hinzufügen">+</button>
+            @if (chainEffects.length > 0) {
+              <span class="lbp-chain-progress">{{ chainIndex + 1 }}/{{ chainEffects.length }}</span>
+              <button class="lbp-exec-all-btn lbp-exec-big" (click)="executeNextInChain()" [disabled]="!chainStepDone">
+                @if (chainIndex < chainEffects.length - 1) { Nächster ▸ } @else { Fertig ✓ }
+              </button>
+            } @else if (statusEffects.length > 0) {
+              <button class="lbp-exec-all-btn lbp-exec-big" (click)="startExecuteAllChain()" [disabled]="executeAllInProgress">
+                ▶ Alle Ausführen
+              </button>
+            }
+          </div>
         </div>
 
         <!-- Body: cards area + exec sidebar -->
@@ -70,6 +70,7 @@
 
             @for (fx of statusEffects; track trackByFx($index, fx)) {
               <div class="lbp-sfx-card"
+                   [attr.data-fx-id]="fx.id"
                    [class.lbp-sfx-card--debuff]="fx.isDebuff"
                    [class.lbp-sfx-card--selected]="expandedFx?.id === fx.id"
                    [class.is-chain-active]="chainEffects.length > 0 && chainEffects[chainIndex]?.id === fx.id"
@@ -98,7 +99,11 @@
           </div>
 
           <!-- Exec sidebar -->
-          <div class="lbp-exec-sidebar">
+          <div class="lbp-exec-sidebar"
+               [class.anchored]="resultAnchor"
+               [style.left.px]="resultAnchor?.x"
+               [style.bottom.px]="resultAnchor?.bottom"
+               [style.--conn]="resultAnchor?.color">
             @if (chainEffects.length > 0) {
               @let currentFx = chainEffects[chainIndex];
               <div class="exec-sb-current" [style.--ec]="getEffectColor(currentFx)">
@@ -124,7 +129,7 @@
                   <div class="exec-sb-summary">
                     @for (res of summarizeStepResources(chainResult); track res.resource) {
                       <button class="exec-sb-chip" [class.gain]="res.total > 0" [class.loss]="res.total < 0"
-                              (click)="openResourceBreakdown(res.resource, res.displayName, chainResult.actionColor)"
+                              (click)="openStepResourceBreakdown(chainResult, res.resource, res.displayName)"
                               title="Aufschlüsselung anzeigen">
                         {{ res.displayName }}
                         <span class="exec-sb-chip-val">{{ res.total > 0 ? '+' : '' }}{{ res.total }}</span>
@@ -141,33 +146,6 @@
                   <div class="exec-sb-no-roll">Kein Ergebnis</div>
                 }
               }
-
-              <!-- Running grand total across the whole run -->
-              @if (chainResourceTotals.length > 0) {
-                <div class="exec-sb-section-label">Gesamt</div>
-                <div class="exec-sb-summary">
-                  @for (res of chainResourceTotals; track res.resource) {
-                    <button class="exec-sb-chip total" [class.gain]="res.total > 0" [class.loss]="res.total < 0"
-                            (click)="openResourceBreakdown(res.resource, res.displayName, '#f59e0b')"
-                            title="Aufschlüsselung anzeigen">
-                      {{ res.displayName }}
-                      <span class="exec-sb-chip-val">{{ res.total > 0 ? '+' : '' }}{{ res.total }}</span>
-                    </button>
-                  }
-                </div>
-              }
-            } @else if (chainResourceTotals.length > 0) {
-              <!-- Post-run summary -->
-              <div class="exec-sb-section-label">Letzter Durchlauf – Gesamt</div>
-              <div class="exec-sb-summary">
-                @for (res of chainResourceTotals; track res.resource) {
-                  <button class="exec-sb-chip total" [class.gain]="res.total > 0" [class.loss]="res.total < 0"
-                          (click)="openResourceBreakdown(res.resource, res.displayName, '#f59e0b')">
-                    {{ res.displayName }}
-                    <span class="exec-sb-chip-val">{{ res.total > 0 ? '+' : '' }}{{ res.total }}</span>
-                  </button>
-                }
-              </div>
             } @else {
               <div class="exec-sb-idle">
                 <span class="exec-sb-idle-icon">⚔</span>
@@ -175,6 +153,14 @@
               </div>
             }
           </div>
+
+          <!-- Colored connector from the floating panel down to the triggering card -->
+          @if (resultAnchor) {
+            <div class="exec-connector"
+                 [style.left.px]="resultAnchor.x"
+                 [style.bottom.px]="resultAnchor.bottom - 12"
+                 [style.--conn]="resultAnchor.color"></div>
+          }
 
         </div>
 

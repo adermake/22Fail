@@ -77,6 +77,8 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   private chainResourceLog: { resource: string; displayName: string; amount: number; source: string }[] = [];
   /** Breakdown popup shown when a summarised number is clicked. */
   breakdownPopup: { title: string; color: string; rows: { label: string; value: string; positive: boolean }[] } | null = null;
+  /** Anchors the floating results panel above the effect card that triggered it. */
+  resultAnchor: { x: number; bottom: number; color: string } | null = null;
   triggeringEffects = new Set<string>();
   expiringEffects = new Set<string>();
   lastRollResults = new Map<string, UnifiedMacroResult>();
@@ -569,6 +571,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     } else {
       this.chainResult = this.emptyResult(fx);
     }
+    this.updateResultAnchor();
     setTimeout(() => {
       this.triggeringEffects.delete(fx.id);
       this.chainStepDone = true;
@@ -577,6 +580,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private finalizeChain(): void {
+    this.resultAnchor = null;
     const expiring = this.chainEffects.filter(e => e.duration !== undefined && e.duration !== null && e.duration === 0);
     for (const expired of expiring) this.expiringEffects.add(expired.id);
     this.cdr.markForCheck();
@@ -668,6 +672,32 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
         positive: false,
       }));
     this.breakdownPopup = { title: name, color, rows };
+    this.cdr.markForCheck();
+  }
+
+  /** Position the floating results panel above the currently-triggering effect card. */
+  private updateResultAnchor(): void {
+    const fx = this.chainEffects[this.chainIndex];
+    if (!fx) { this.resultAnchor = null; return; }
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(`.lbp-sfx-card[data-fx-id="${fx.id}"]`);
+      if (!el) { this.resultAnchor = null; this.cdr.markForCheck(); return; }
+      const r = el.getBoundingClientRect();
+      this.resultAnchor = {
+        x: Math.round(r.left + r.width / 2),
+        bottom: Math.round(window.innerHeight - r.top + 12), // panel sits 12px above the card
+        color: this.getEffectColor(fx),
+      };
+      this.cdr.markForCheck();
+    });
+  }
+
+  /** Breakdown for one resource of THIS effect only (not the whole run). */
+  openStepResourceBreakdown(result: UnifiedMacroResult, resource: string, displayName: string): void {
+    const rows = result.resourceChanges
+      .filter(rc => rc.resource === resource && rc.amount !== 0)
+      .map(rc => ({ label: rc.displayName, value: `${rc.amount > 0 ? '+' : ''}${rc.amount}`, positive: rc.amount > 0 }));
+    this.breakdownPopup = { title: displayName, color: result.actionColor, rows };
     this.cdr.markForCheck();
   }
 

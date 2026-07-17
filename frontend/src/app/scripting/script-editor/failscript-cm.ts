@@ -15,7 +15,7 @@ import { tags as t } from '@lezer/highlight';
 
 import { compileScript } from '../checker';
 import {
-  ATTRIBUTE_MEMBERS, BUILTINS, KEYWORD_INFO, SYMBOLS, SYMBOL_MAP, TALENT_INFO,
+  ATTRIBUTE_MEMBERS, BUILTINS, KEYWORD_INFO, STYLE_NAMES, SYMBOLS, SYMBOL_MAP, TALENT_INFO,
 } from '../symbols';
 import { KEYWORDS } from '../lexer';
 
@@ -77,6 +77,30 @@ const highlightStyle = HighlightStyle.define([
 
 // ── Autocomplete ──
 
+const STYLE_INFO: Record<string, string> = {
+  good: 'Grün — positiv',
+  bad: 'Rot — negativ',
+  neutral: 'Grau — neutral',
+  info: 'Blau — Info',
+};
+
+/** Name of the call whose parentheses directly enclose the cursor, if any. */
+function enclosingCallName(text: string): string | null {
+  let depth = 0;
+  for (let i = text.length - 1; i >= 0; i--) {
+    const c = text[i];
+    if (c === ')') depth++;
+    else if (c === '(') {
+      if (depth === 0) {
+        const m = text.slice(0, i).match(/([A-Za-z_]\w*)\s*$/);
+        return m ? m[1] : null;
+      }
+      depth--;
+    }
+  }
+  return null;
+}
+
 function localVarNames(doc: string): string[] {
   const names = new Set<string>();
   const re = /\bvar\s+([A-Za-z_]\w*)/g;
@@ -105,7 +129,15 @@ function completions(context: CompletionContext): CompletionResult | null {
   }
 
   const from = before ? before.from : context.pos;
+
+  // Inside display()/stat()/banner(): offer the style presets first.
+  const enclosing = enclosingCallName(context.state.doc.sliceString(0, context.pos));
+  const styleOptions = (enclosing === 'display' || enclosing === 'stat' || enclosing === 'banner')
+    ? [...STYLE_NAMES].map(s => ({ label: s, type: 'enum', detail: 'Stil', info: STYLE_INFO[s], boost: 50 }))
+    : [];
+
   const options = [
+    ...styleOptions,
     ...KEYWORD_INFO.map(k => k.snippet
       ? snippetCompletion(k.snippet, { label: k.name, type: 'keyword', info: k.description })
       : { label: k.name, type: 'keyword', info: k.description }),
@@ -164,6 +196,7 @@ function describeSymbol(word: string): string | null {
   if (fn) return `${fn.signature} — ${fn.description}`;
   const kw = KEYWORD_INFO.find(k => k.name === word);
   if (kw) return `${word} — ${kw.description}`;
+  if (STYLE_INFO[word]) return `${word} (Stil) — ${STYLE_INFO[word]}`;
   return null;
 }
 

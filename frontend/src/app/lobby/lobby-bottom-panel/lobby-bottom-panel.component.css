@@ -161,7 +161,18 @@
 .lbp-status-count {
   font-size: 0.62rem;
   color: var(--text-muted, #9ca3af);
+}
+.lbp-toolbar-right {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Bigger, prominent execute button (there's room now the panel floats) */
+.lbp-exec-all-btn.lbp-exec-big {
+  font-size: 0.82rem;
+  padding: 5px 18px;
+  border-radius: 6px;
 }
 
 /* Cards scrollable row */
@@ -814,20 +825,49 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Active run: float the results panel up from the bottom-right, over the map. */
+/* Active run: float the results panel up over the map. It anchors above the effect
+   card that triggered it (see .anchored); otherwise falls back to bottom-right. */
 .lbp-exec-active .lbp-exec-sidebar {
   position: fixed;
   right: 0;
   bottom: 0;
-  width: 340px;
-  max-height: 65vh;
+  width: 320px;
+  max-height: 55vh;
   z-index: 200;
   background: #0f172a;
-  border: 1px solid #374151;
-  border-radius: 10px 0 0 0;
-  box-shadow: -8px -8px 24px rgba(0,0,0,0.5);
+  border: 1px solid var(--conn, #374151);
+  border-top: 3px solid var(--conn, #374151);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.55);
   overflow-y: auto;
   padding: 8px 10px;
+}
+.lbp-exec-active .lbp-exec-sidebar.anchored {
+  right: auto;
+  transform: translateX(-50%);
+}
+
+/* Colored line + dot connecting the floating panel down to the triggering effect card.
+   Fixed (not inside the scrolling panel) so it isn't clipped. */
+.exec-connector {
+  position: fixed;
+  width: 2px;
+  height: 12px;
+  transform: translateX(-50%);
+  background: var(--conn, #f59e0b);
+  z-index: 201;
+  pointer-events: none;
+}
+.exec-connector::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -3px;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--conn, #f59e0b);
 }
 
 /* Coded displays (styled) */

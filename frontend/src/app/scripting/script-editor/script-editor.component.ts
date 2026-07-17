@@ -161,7 +161,18 @@ export class ScriptEditorComponent implements AfterViewInit, OnChanges, OnDestro
       { title: 'Stufe/Klasse', items: [...byCat('level'), ...byCat('class')] },
       { title: 'Währung', items: byCat('currency') },
       { title: 'Talente', items: TALENT_INFO.map(t => ({ label: `talent.${t.id}`, detail: t.statLabel, info: `${t.name} — ${t.description}`, insert: `talent.${t.id}` })) },
-      { title: 'Funktionen', items: BUILTINS.map(f => ({ label: f.name, detail: undefined, info: `${f.signature} — ${f.description}`, insert: `${f.name}(` })) },
+      { title: 'Anzeige', items: [
+        { label: 'display', detail: 'text, style?', info: 'Textzeile. Stil optional: good/bad/neutral/info', insert: 'display("Text", bad)' },
+        { label: 'banner', detail: 'text, style?', info: 'Große Überschrift', insert: 'banner("Titel", good)' },
+        { label: 'stat', detail: 'label, value, style?', info: 'Wert als Chip, z.B. stat("HP", health, bad)', insert: 'stat("HP", health, bad)' },
+      ] },
+      { title: 'Stile', items: [
+        { label: 'good', detail: 'grün', info: 'Positiv (grün)', insert: 'good' },
+        { label: 'bad', detail: 'rot', info: 'Negativ (rot)', insert: 'bad' },
+        { label: 'neutral', detail: 'grau', info: 'Neutral (grau)', insert: 'neutral' },
+        { label: 'info', detail: 'blau', info: 'Info (blau)', insert: 'info' },
+      ] },
+      { title: 'Funktionen', items: BUILTINS.filter(f => f.name !== 'display' && f.name !== 'stat' && f.name !== 'banner').map(f => ({ label: f.name, detail: undefined, info: `${f.signature} — ${f.description}`, insert: `${f.name}(` })) },
       { title: 'Schlüsselwörter', items: KEYWORD_INFO.map(k => ({ label: k.name, info: k.description, insert: k.snippet ? k.snippet.replace(/\$\{?\}?/g, '').replace(/\t/g, '  ') : k.name })) },
       { title: 'Würfel', items: [{ label: '2d8', info: 'Würfel-Literal: Anzahl d Seiten', insert: '2d8' }, { label: 'roll(count, sides)', info: 'Dynamischer Wurf', insert: 'roll(' }] },
     ];
