@@ -679,3 +679,72 @@
   min-width: 28px;
   text-align: right;
 }
+
+/* ── Wound-severity ruler ─────────────────────────────────────────────── */
+.dmg-ruler {
+  margin-top: 4px;
+}
+.dmg-ruler-track {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 6px 4px;
+  overflow-x: auto;
+}
+.dmg-ruler-cell {
+  --tc: #9ca3af;
+  position: relative;
+  flex: 1 1 0;
+  min-width: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 2px;
+  border-radius: 6px;
+  transition: background 0.15s, transform 0.15s;
+}
+/* connector line between nodes */
+.dmg-ruler-cell:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 13px;
+  right: -50%;
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  z-index: 0;
+}
+.dmg-ruler-icon {
+  position: relative;
+  z-index: 1;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--tc);
+  filter: grayscale(0.35);
+  opacity: 0.7;
+  transition: all 0.15s;
+}
+.dmg-ruler-range {
+  font-size: 0.6rem;
+  color: var(--text-muted, #9ca3af);
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.dmg-ruler-cell.active {
+  background: color-mix(in srgb, var(--tc) 18%, transparent);
+  transform: translateY(-1px);
+}
+.dmg-ruler-cell.active .dmg-ruler-icon {
+  filter: none;
+  opacity: 1;
+  font-size: 1.3rem;
+  text-shadow: 0 0 8px var(--tc);
+}
+.dmg-ruler-cell.active .dmg-ruler-range {
+  color: var(--tc);
+  font-weight: 700;
+}

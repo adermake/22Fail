@@ -50,20 +50,7 @@ export class SkillsComponent implements OnInit {
 
   /** Effect-granted (effectActive) skills — read-only, appear/vanish with their source effect. */
   get derivedSkills(): SkillBlock[] {
-    return this.trueStats.getDerivedSkills(this.sheet).map(g => ({
-      name: g.name,
-      class: `Effekt: ${g.source}`,
-      description: g.description || 'Effektgebundene Fähigkeit',
-      type: 'active' as const,
-      enlightened: false,
-      script: g.script,
-      derived: true,
-      actionType: g.actionType,
-      cost: g.manaCost ? { type: 'mana' as const, amount: g.manaCost }
-        : g.energyCost ? { type: 'energy' as const, amount: g.energyCost }
-        : g.lifeCost ? { type: 'life' as const, amount: g.lifeCost }
-        : undefined,
-    }));
+    return this.trueStats.getDerivedSkillBlocks(this.sheet);
   }
 
   showFilters = false;

@@ -6,6 +6,7 @@ import { StatusEffect, StatusModifierTarget } from '../model/status-effect.model
 import { FormulaType } from '../model/formula-type.enum';
 import { createPlayerContext } from '../scripting/character-context';
 import { ModifierOp, runScript, ScriptGrantedSkill } from '../scripting/interpreter';
+import { SkillBlock } from '../model/skill-block.model';
 
 /** A modifier derived from an active effect's `effectActive` block, tagged for the pipeline. */
 export interface DerivedModifier {
@@ -117,6 +118,24 @@ export class TrueStatsService {
     return this.getDerived(sheet).skills;
   }
 
+  /** Derived skills as usable SkillBlocks (read-only, effect-bound). Shared by all skill lists. */
+  getDerivedSkillBlocks(sheet: CharacterSheet): SkillBlock[] {
+    return this.getDerivedSkills(sheet).map(g => ({
+      name: g.name,
+      class: `Effekt: ${g.source}`,
+      description: g.description || 'Effektgebundene Fähigkeit',
+      type: 'active' as const,
+      enlightened: false,
+      script: g.script,
+      derived: true,
+      actionType: g.actionType,
+      cost: g.manaCost ? { type: 'mana' as const, amount: g.manaCost }
+        : g.energyCost ? { type: 'energy' as const, amount: g.energyCost }
+        : g.lifeCost ? { type: 'life' as const, amount: g.lifeCost }
+        : undefined,
+    }));
+  }
+
   private getDerived(sheet: CharacterSheet): DerivedEntry {
     if (this.collectingEffectActive) return EMPTY_DERIVED;
     const fp = this.effectFingerprint(sheet);
@@ -128,13 +147,14 @@ export class TrueStatsService {
     return entry;
   }
 
-  /** Cheap invalidation key: which effects are active, their stacks/duration, level, and any
-   * per-instance (customEffect) script/priority so local edits re-derive immediately. */
+  /** Invalidation key: which effects are active, their stacks/duration/level, and the RESOLVED
+   * script + priority of each (so library effects, per-instance overrides, and effects whose
+   * definition resolves only after the library finishes loading all re-derive correctly). */
   private effectFingerprint(sheet: CharacterSheet): string {
     let s = `V${this.cacheVersion}L${sheet.level ?? 1}`;
     for (const e of sheet.activeStatusEffects ?? []) {
-      s += `|${e.statusEffectId}:${e.stacks ?? 1}:${e.duration ?? ''}`;
-      if (e.customEffect) s += `#${e.customEffect.priority ?? 0}#${e.customEffect.script ?? ''}`;
+      const eff = this.resolveStatusEffect(e.statusEffectId, e.customEffect);
+      s += `|${e.statusEffectId}:${e.stacks ?? 1}:${e.duration ?? ''}#${eff?.priority ?? 0}#${eff?.script ?? ''}`;
     }
     return s;
   }
@@ -479,13 +499,13 @@ export class TrueStatsService {
 
   /**
    * Calculate the D&D-style modifier for a stat.
-   * Formula: (-5 + total / 2) | 0
-   * 
+   * Formula: (total − 10) / 4 | 0  (neutral at 10)
+   *
    * This gives:
    * - Stat 10 = +0 modifier
-   * - Stat 12 = +1 modifier
-   * - Stat 8 = -1 modifier
-   * 
+   * - Stat 14 = +1 modifier
+   * - Stat 6  = −1 modifier
+   *
    * @param sheet The character sheet
    * @param statKey The stat to calculate modifier for
    * @returns The dice roll modifier
@@ -493,27 +513,27 @@ export class TrueStatsService {
   calculateStatModifier(sheet: CharacterSheet, statKey: StatKey): number {
     const statBlock = sheet[statKey] as StatBlock;
     const total = this.calculateStat(sheet, statBlock, statKey);
-    return (-5 + total / 2) | 0;
+    return ((total - 10) / 4) | 0;
   }
 
   /** Dice roll modifier (inverted — lower is better). Matches stat card display. */
   calculateStatDiceModifier(sheet: CharacterSheet, statKey: StatKey): number {
     const statBlock = sheet[statKey] as StatBlock;
     const total = this.calculateStat(sheet, statBlock, statKey);
-    return (5 - total / 2) | 0;
+    return ((10 - total) / 4) | 0;
   }
 
-  /** ⌊Level / 5⌋ — base portion that shifts from Reaktion to Grundbonus. */
+  /** ⌊Level / 8⌋ — base portion that shifts from Reaktion to Grundbonus. */
   calculateGrundbonusBaseFromLevel(sheet: CharacterSheet): number {
-    return Math.floor((sheet.level || 1) / 5);
+    return Math.floor((sheet.level || 1) / 8);
   }
 
-  /** ⌊Wille / 5⌋ — Wille bonus added to Grundbonus. */
+  /** ⌊Wille / 8⌋ — Wille bonus added to Grundbonus. */
   calculateWilleBonus(sheet: CharacterSheet): number {
-    return Math.floor(this.calculateWille(sheet) / 5);
+    return Math.floor(this.calculateWille(sheet) / 8);
   }
 
-  /** Grundbonus = ⌊Level/5⌋ + ⌊Wille/5⌋ + Bonus (+ status effects). */
+  /** Grundbonus = ⌊Level/8⌋ + ⌊Wille/8⌋ + Bonus (+ status effects). */
   calculateGrundbonus(sheet: CharacterSheet): number {
     return this.calculateGrundbonusBaseFromLevel(sheet)
       + this.calculateWilleBonus(sheet)
@@ -521,9 +541,9 @@ export class TrueStatsService {
       + this.statusTargetTotal(sheet, 'grundbonus');
   }
 
-  /** Reaktion = 10 − ⌊Wille/5⌋ − ⌊Level/5⌋ + Bonus (+ status effects). */
+  /** Reaktion = 5 − ⌊Wille/8⌋ − ⌊Level/8⌋ + Bonus (+ status effects). */
   calculateReaktionswert(sheet: CharacterSheet): number {
-    return 10
+    return 5
       - this.calculateWilleBonus(sheet)
       - this.calculateGrundbonusBaseFromLevel(sheet)
       + (sheet.reaktionswertBonus || 0)
@@ -550,24 +570,24 @@ export class TrueStatsService {
     let line = `= ${levelBase} + ${willeBonus}`;
     if (extra) line += ` + ${extra}`;
     line += ` = ${this.calculateGrundbonus(sheet)}`;
-    return `⌊Level / 5⌋ + ⌊Wille / 5⌋ + Bonus\n${line}`;
+    return `⌊Level / 8⌋ + ⌊Wille / 8⌋ + Bonus\n${line}`;
   }
 
   getReaktionswertFormulaTooltip(sheet: CharacterSheet): string {
     const levelBase = this.calculateGrundbonusBaseFromLevel(sheet);
     const willeBonus = this.calculateWilleBonus(sheet);
     const extra = sheet.reaktionswertBonus || 0;
-    let line = `= 10 − ${willeBonus} − ${levelBase}`;
+    let line = `= 5 − ${willeBonus} − ${levelBase}`;
     if (extra) line += ` + ${extra}`;
     line += ` = ${this.calculateReaktionswert(sheet)}`;
-    return `10 − ⌊Wille / 5⌋ − ⌊Level / 5⌋ + Bonus\n${line}`;
+    return `5 − ⌊Wille / 8⌋ − ⌊Level / 8⌋ + Bonus\n${line}`;
   }
 
   getMovementFormulaTooltip(sheet: CharacterSheet): string {
     const eff = this.calculateEffectiveSpeed(sheet);
     const mov = this.calculateMovementSpeed(sheet);
     const bewegung = this.getStatusModifierTotal(sheet, 'bewegung');
-    const base = `⌊5 + Effektive Geschw. / 4⌋\nEffektive Geschw.: ${eff}\n= ⌊5 + ${eff} / 4⌋`;
+    const base = `⌊8 + Effektive Geschw. / 4⌋\nEffektive Geschw.: ${eff}\n= ⌊8 + ${eff} / 4⌋`;
     if (bewegung) {
       const sign = bewegung > 0 ? '+' : '−';
       return `${base} ${sign} ${Math.abs(bewegung)} (Bewegung) = ${mov}`;
@@ -657,7 +677,7 @@ export class TrueStatsService {
   calculateMovementSpeed(sheet: CharacterSheet): number {
     const spd = this.calculateEffectiveSpeed(sheet);
     const bewegung = this.statusTargetTotal(sheet, 'bewegung');
-    return Math.max(0, Math.floor(5 + spd / 4) + bewegung);
+    return Math.max(0, Math.floor(8 + spd / 4) + bewegung);
   }
 
   /**

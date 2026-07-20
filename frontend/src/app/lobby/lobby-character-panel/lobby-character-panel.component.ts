@@ -1762,8 +1762,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   // ---- Formulas ----
 
   diceBonus(val: number): number {
-    // Inverted: lower stat value = higher bonus (worse roll) = bad
-    return (5 - val / 2) | 0;
+    // Inverted: lower stat value = higher bonus (worse roll) = bad. (10 − val) / 4, neutral at 10.
+    return ((10 - val) / 4) | 0;
   }
 
   healthPct(): number  { const m = this.maxHealth;  return m > 0 ? Math.max(0, Math.min(100, (this.currentHealth  / m) * 100)) : 0; }

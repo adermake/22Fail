@@ -690,9 +690,11 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
 
   // ── Skill support ─────────────────────────────────────────────────────────
 
-  /** Active skills (type === 'active') available on the sheet */
+  /** Active skills (type === 'active') available on the sheet, plus effect-granted temporary
+   * skills derived from active effectActive blocks (they appear/vanish with their source effect). */
   get availableSkills(): SkillBlock[] {
-    return (this.sheet.skills || []).filter(s => s.type === 'active' && !s.disabled);
+    const own = (this.sheet.skills || []).filter(s => s.type === 'active' && !s.disabled);
+    return [...own, ...this._trueStats.getDerivedSkillBlocks(this.sheet)];
   }
 
   /** Active skills filtered by search text */

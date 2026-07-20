@@ -41,6 +41,17 @@ const SEVERITY_OPTIONS: DamageSeverity[] = [
   { label: 'T\u00F6dlicher Treffer',   multiplier: 3, color: '#dc2626', icon: '\u2726' },
 ];
 
+/** Wound-severity brackets by final damage — shown as a ruler under the calculator. */
+export interface DamageThreshold { icon: string; min: number; max: number; label: string; color: string; }
+const DAMAGE_THRESHOLDS: DamageThreshold[] = [
+  { icon: '○',       min: 0,  max: 2,        label: '0–2',   color: '#9ca3af' },
+  { icon: '●',       min: 3,  max: 6,        label: '3–6',   color: '#eab308' },
+  { icon: '◆',       min: 7,  max: 10,       label: '7–10',  color: '#f59e0b' },
+  { icon: '✸',       min: 11, max: 17,       label: '11–17', color: '#f97316' },
+  { icon: '☠',       min: 18, max: 21,       label: '18–21', color: '#ef4444' },
+  { icon: '☠🏹', min: 22, max: Infinity, label: '22+',  color: '#dc2626' },
+];
+
 const STORAGE_KEY_STAB = 'dmg-calc-last-stab';
 const STORAGE_KEY_HISTORY = 'dmg-calc-history';
 const MAX_HISTORY = 20;
@@ -66,6 +77,20 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
 
   readonly severityOptions = SEVERITY_OPTIONS;
+  readonly damageThresholds = DAMAGE_THRESHOLDS;
+
+  /** The damage value to place on the ruler (after Stabilität when applied), or null. */
+  get rulerDamage(): number | null {
+    if (!this.lastResult) return null;
+    return this.lastResult.stabilitaet > 0 ? this.lastResult.finalDamage : this.lastResult.total;
+  }
+
+  /** Index of the threshold bracket the current damage falls into (−1 if none). */
+  get activeThresholdIndex(): number {
+    const v = this.rulerDamage;
+    if (v === null) return -1;
+    return DAMAGE_THRESHOLDS.findIndex(t => v >= t.min && v <= t.max);
+  }
 
   effektivitaet: number = 6;
   stabilitaet: number = 0;

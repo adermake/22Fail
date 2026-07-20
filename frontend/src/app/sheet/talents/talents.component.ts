@@ -61,6 +61,11 @@ export class TalentsComponent {
     return this.trueStats.calculateStatModifier(this.sheet, talent.stat as any);
   }
 
+  /** Stat contribution shown in the MOD column, in the dice convention (minus = good, plus = bad). */
+  getStatModDisplay(talent: TalentDefinition): number {
+    return this.trueStats.calculateStatDiceModifier(this.sheet, talent.stat as any);
+  }
+
   /** Virtual ranks from learned Fähigkeiten (type: talent_bonus). */
   getSkillTalentBonus(talentId: string): number {
     return computeSkillTalentBonusBreakdown(this.sheet).get(talentId as any)?.total ?? 0;

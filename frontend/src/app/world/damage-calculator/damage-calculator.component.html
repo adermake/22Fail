@@ -55,6 +55,19 @@
         Schaden würfeln
       </button>
 
+      <!-- Wound-severity ruler: which bracket the (final) damage falls into -->
+      <div class="dmg-ruler">
+        <div class="dmg-ruler-track">
+          @for (t of damageThresholds; track t.label; let i = $index) {
+            <div class="dmg-ruler-cell" [class.active]="i === activeThresholdIndex"
+                 [style.--tc]="t.color" [title]="t.label + ' Schaden'">
+              <span class="dmg-ruler-icon">{{ t.icon }}</span>
+              <span class="dmg-ruler-range">{{ t.label }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
       <!-- Last result panel -->
       @if (lastResult) {
         <div class="dmg-result-panel">

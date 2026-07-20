@@ -16,7 +16,7 @@ import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
 import { CharacterSocketService } from '../../services/character-socket.service';
-import { DerivedGrantedSkill, TrueStatsService } from '../../services/true-stats.service';
+import { TrueStatsService } from '../../services/true-stats.service';
 import { ActiveStatusEffect, StatusEffect } from '../../model/status-effect.model';
 import { ActionMacro } from '../../model/action-macro.model';
 import { LibraryStoreService } from '../../services/library-store.service';
@@ -145,27 +145,9 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       // Effect-bound skills granted by active effectActive blocks — derived on demand, so
       // they appear while the source effect is active and vanish when it is removed. Never
       // persisted to character.skills (that was the old "skill leak").
-      const derived = this.trueStats.getDerivedSkills(this.character).map(g => this.derivedToSkillBlock(g));
-      return [...own, ...derived];
+      return [...own, ...this.trueStats.getDerivedSkillBlocks(this.character)];
     }
     return (this.npc?.customSkills ?? []).filter(s => s.type === 'active');
-  }
-
-  private derivedToSkillBlock(g: DerivedGrantedSkill): SkillBlock {
-    return {
-      name: g.name,
-      class: `Effekt: ${g.source}`,
-      description: g.description || 'Effektgebundene Fähigkeit',
-      type: 'active',
-      enlightened: false,
-      script: g.script,
-      derived: true,
-      actionType: g.actionType,
-      cost: g.manaCost ? { type: 'mana', amount: g.manaCost }
-        : g.energyCost ? { type: 'energy', amount: g.energyCost }
-        : g.lifeCost ? { type: 'life', amount: g.lifeCost }
-        : undefined,
-    } as SkillBlock;
   }
 
   get availableSpells(): SpellBlock[] {

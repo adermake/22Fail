@@ -188,9 +188,9 @@ export class StatComponent {
   }
 
   get bonusNumeric(): number {
-    // Inverted formula: high stat gives negative modifier (helps roll lower)
-    // Lower is better in this system!
-    return (5 - this.total / 2) | 0;
+    // Inverted formula: high stat gives negative modifier (helps roll lower).
+    // Lower is better in this system! (total − 10) / 4, neutral at 10.
+    return ((10 - this.total) / 4) | 0;
   }
 
   get bonusValue(): string {

@@ -41,8 +41,8 @@
         <div class="talent-row" [title]="talent.description">
           <span class="col-name talent-name">{{ talent.name }}</span>
           <span class="col-stat stat-label">{{ talent.statLabel }}</span>
-          <span class="col-mod" [class.mod-pos]="getStatModifier(talent) > 0" [class.mod-neg]="getStatModifier(talent) < 0">
-            {{ getStatModifier(talent) >= 0 ? '+' : '' }}{{ getStatModifier(talent) }}
+          <span class="col-mod" [class.dice-bonus]="getStatModDisplay(talent) < 0" [class.dice-penalty]="getStatModDisplay(talent) > 0">
+            {{ getStatModDisplay(talent) > 0 ? '+' : '' }}{{ getStatModDisplay(talent) }}
           </span>
           <span class="col-ranks">
             <div class="rank-controls">
