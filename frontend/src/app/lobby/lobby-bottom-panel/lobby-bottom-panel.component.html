@@ -77,7 +77,8 @@
                    [class.is-triggering]="isFxTriggering(fx)"
                    [class.is-expiring]="isFxExpiring(fx)"
                    [style.--ec]="getEffectColor(fx)"
-                   (click)="onFxClick(fx, $event)">
+                   (click)="onFxClick(fx, $event)"
+                   (contextmenu)="onRightClickFx(fx, $event)">
 
                 <!-- Duration badge top-left -->
                 <span class="lbp-sfx-dur">
@@ -323,12 +324,23 @@
 
     <!-- ═════════ STATUS: Context Menu ═════════ -->
     @if (showContextMenu) {
-      <div class="lbp-ctx-overlay" (click)="closeContextMenu()">
+      <div class="lbp-ctx-overlay" (click)="closeContextMenu()" (contextmenu)="$event.preventDefault(); closeContextMenu()">
         <div class="lbp-ctx-menu" [style.left.px]="contextMenuX" [style.top.px]="contextMenuY"
              (click)="$event.stopPropagation()">
-          <button class="lbp-ctx-item" (click)="openPickerFromContextMenu()">
-            <span>✦</span><span>Status hinzufügen</span>
-          </button>
+          @if (contextMenuFx) {
+            <button class="lbp-ctx-item" (click)="editFxFromContextMenu()">
+              <span>✏</span><span>Bearbeiten</span>
+            </button>
+            @if (hasMacro(contextMenuFx)) {
+              <button class="lbp-ctx-item" (click)="executeFxFromContextMenu($event)">
+                <span>▶</span><span>Auslösen</span>
+              </button>
+            }
+          } @else {
+            <button class="lbp-ctx-item" (click)="openPickerFromContextMenu()">
+              <span>✦</span><span>Status hinzufügen</span>
+            </button>
+          }
         </div>
       </div>
     }
@@ -343,7 +355,9 @@
           </div>
           <app-status-effect-editor
             [statusEffect]="editedStatusEffect"
+            [allowGlobalSave]="isGM && !!editingFx.statusEffectId"
             (save)="saveEditedFx($event)"
+            (saveGlobal)="saveEditedFxGlobally($event)"
             (cancel)="cancelEditFx()"
             (delete)="removeStatusEffect(editingFx!.id); cancelEditFx()">
           </app-status-effect-editor>

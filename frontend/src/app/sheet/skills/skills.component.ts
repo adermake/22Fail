@@ -10,6 +10,8 @@ import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.com
 import { SKILL_DEFINITIONS, CLASS_DEFINITIONS } from '../../data/skill-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
 import { ActionMacro } from '../../model/action-macro.model';
+import { inject } from '@angular/core';
+import { TrueStatsService } from '../../services/true-stats.service';
 
 export type FilterState = 'include' | 'exclude' | 'off';
 
@@ -37,11 +39,32 @@ export class SkillsComponent implements OnInit {
   filterTiers:   Record<string, FilterState> = {};
   filterSources: Record<string, FilterState> = {};
 
+  private trueStats = inject(TrueStatsService);
+
   readonly sourceOptions = [
     { value: 'class',  label: '⚔️ Klasse' },
     { value: 'race',   label: '🧬 Rasse' },
     { value: 'custom', label: '✨ Eigen' },
+    { value: 'temporary', label: '⏳ Temporär' },
   ];
+
+  /** Effect-granted (effectActive) skills — read-only, appear/vanish with their source effect. */
+  get derivedSkills(): SkillBlock[] {
+    return this.trueStats.getDerivedSkills(this.sheet).map(g => ({
+      name: g.name,
+      class: `Effekt: ${g.source}`,
+      description: g.description || 'Effektgebundene Fähigkeit',
+      type: 'active' as const,
+      enlightened: false,
+      script: g.script,
+      derived: true,
+      actionType: g.actionType,
+      cost: g.manaCost ? { type: 'mana' as const, amount: g.manaCost }
+        : g.energyCost ? { type: 'energy' as const, amount: g.energyCost }
+        : g.lifeCost ? { type: 'life' as const, amount: g.lifeCost }
+        : undefined,
+    }));
+  }
 
   showFilters = false;
 
@@ -159,6 +182,7 @@ export class SkillsComponent implements OnInit {
   }
 
   private getSkillSource(s: SkillBlock): string {
+    if (s.derived) return 'temporary';
     return s.skillSource ?? (s.sourceRaceId ? 'race' : 'class');
   }
 
@@ -188,7 +212,7 @@ export class SkillsComponent implements OnInit {
   }
 
   get filteredSkills(): SkillBlock[] {
-    let skills = [...(this.sheet.skills || [])];
+    let skills = [...(this.sheet.skills || []), ...this.derivedSkills];
 
     if (this.searchText) {
       const q = this.searchText.toLowerCase();
@@ -303,6 +327,7 @@ export class SkillsComponent implements OnInit {
   // --- Editor ---
 
   openEditor(index: number) {
+    if (index < 0) return; // derived (temporary) skills are read-only
     this.editorSkillIndex = index;
     this.showSkillEditor = true;
   }
@@ -341,6 +366,7 @@ export class SkillsComponent implements OnInit {
   // --- CRUD ---
 
   deleteSkill(index: number) {
+    if (index < 0) return; // derived (temporary) skills are not persisted → nothing to delete
     const skill = this.sheet.skills[index];
     this.sheet.skills = this.sheet.skills.filter((_, i) => i !== index);
     const trash = this.sheet.trash || [];

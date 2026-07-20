@@ -101,6 +101,11 @@ export class TrueStatsService {
   private collectingEffectActive = false;
   /** Per-sheet memo of derived modifiers/skills, keyed by a cheap fingerprint of the effects. */
   private derivedCache = new WeakMap<CharacterSheet, DerivedEntry>();
+  /** Bumped to force all derived caches to recompute (e.g. after a library effect is edited). */
+  private cacheVersion = 0;
+
+  /** Invalidate every sheet's effectActive cache — call after a library effect definition changes. */
+  bumpDerivedCache(): void { this.cacheVersion++; }
 
   /** Ordered stat modifiers derived from all active `effectActive` blocks (cached). */
   getEffectActiveModifiers(sheet: CharacterSheet): DerivedModifier[] {
@@ -123,11 +128,13 @@ export class TrueStatsService {
     return entry;
   }
 
-  /** Cheap invalidation key: which effects are active, their stacks/duration, and level. */
+  /** Cheap invalidation key: which effects are active, their stacks/duration, level, and any
+   * per-instance (customEffect) script/priority so local edits re-derive immediately. */
   private effectFingerprint(sheet: CharacterSheet): string {
-    let s = `L${sheet.level ?? 1}`;
+    let s = `V${this.cacheVersion}L${sheet.level ?? 1}`;
     for (const e of sheet.activeStatusEffects ?? []) {
       s += `|${e.statusEffectId}:${e.stacks ?? 1}:${e.duration ?? ''}`;
+      if (e.customEffect) s += `#${e.customEffect.priority ?? 0}#${e.customEffect.script ?? ''}`;
     }
     return s;
   }

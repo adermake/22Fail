@@ -55,13 +55,17 @@
 @if (showContextMenu) {
   <div class="sc-ctx" [style.left.px]="menuX" [style.top.px]="menuY"
        (click)="$event.stopPropagation()">
-    <button class="sc-ctx-btn" (click)="editSkill()">&#x270F; Bearbeiten</button>
-    @if (isEditing) {
-      <button class="sc-ctx-btn" (click)="toggleDisabled()">
-        {{ skill.disabled ? '\u2705 Aktivieren' : '\uD83D\uDEAB Deaktivieren' }}
-      </button>
+    @if (readOnly) {
+      <span class="sc-ctx-note">&#x23F3; Tempor&auml;r &mdash; durch Effekt gew&auml;hrt</span>
+    } @else {
+      <button class="sc-ctx-btn" (click)="editSkill()">&#x270F; Bearbeiten</button>
+      @if (isEditing) {
+        <button class="sc-ctx-btn" (click)="toggleDisabled()">
+          {{ skill.disabled ? '\u2705 Aktivieren' : '\uD83D\uDEAB Deaktivieren' }}
+        </button>
+      }
+      <button class="sc-ctx-btn sc-ctx-del" (click)="deleteSkill()">&#x2715; L&ouml;schen</button>
     }
-    <button class="sc-ctx-btn sc-ctx-del" (click)="deleteSkill()">&#x2715; L&ouml;schen</button>
   </div>
 }
 

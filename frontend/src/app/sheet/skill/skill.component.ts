@@ -27,6 +27,8 @@ export class SkillComponent {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Input({ required: true }) index!: number;
   @Input() isEditing = false;
+  /** Read-only (e.g. effect-granted temporary skills): no edit/disable/delete. */
+  @Input() readOnly = false;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
@@ -111,11 +113,13 @@ export class SkillComponent {
 
   editSkill() {
     this.showContextMenu = false;
+    if (this.readOnly) return;
     this.openEditor.emit();
   }
 
   deleteSkill() {
     this.showContextMenu = false;
+    if (this.readOnly) return;
     this.delete.emit();
   }
 

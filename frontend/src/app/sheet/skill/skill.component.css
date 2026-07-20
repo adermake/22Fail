@@ -210,6 +210,7 @@
 
 .sc-ctx-btn:hover  { background: rgba(255,255,255,0.08); }
 .sc-ctx-del:hover  { background: rgba(239,68,68,0.18); color: #fca5a5; }
+.sc-ctx-note { display: block; padding: 0.5rem 0.85rem; font-size: 0.78rem; color: #93c5fd; white-space: nowrap; }
 
 /* ----- Clickable card ----- */
 .sc-clickable { cursor: pointer; }

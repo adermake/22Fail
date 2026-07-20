@@ -20,7 +20,11 @@ export class StatusEffectEditorComponent implements OnInit {
   @Input() statusEffect: StatusEffect | null = null;
   /** ActionMacros from the library to allow 'copy from template' */
   @Input() availableMacros: ActionMacro[] = [];
+  /** When true (GM), offer a second "Global ändern" save that writes back to the library. */
+  @Input() allowGlobalSave = false;
   @Output() save = new EventEmitter<StatusEffect>();
+  /** GM-only: persist the change to the library definition (affects everyone). */
+  @Output() saveGlobal = new EventEmitter<StatusEffect>();
   @Output() cancel = new EventEmitter<void>();
   @Output() delete = new EventEmitter<void>();
 
@@ -114,6 +118,10 @@ export class StatusEffectEditorComponent implements OnInit {
   // Save/Cancel/Delete
   saveEffect() {
     this.save.emit(this.editEffect);
+  }
+
+  saveEffectGlobally() {
+    this.saveGlobal.emit(this.editEffect);
   }
 
   cancelEdit() {

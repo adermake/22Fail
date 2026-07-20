@@ -113,78 +113,8 @@
       </div>
     </section>
 
-    <!-- Dice Bonuses -->
-    <section class="section">
-      <h3>Würfel-Boni</h3>
-      <p class="section-hint">Bonus/Malus auf Würfelwürfe</p>
-      
-      @if (editEffect.diceBonuses && editEffect.diceBonuses.length > 0) {
-        <div class="bonus-list">
-          @for (bonus of editEffect.diceBonuses; track $index) {
-            <div class="bonus-row">
-              <input type="text" [(ngModel)]="bonus.name" placeholder="Name">
-              <input type="number" [(ngModel)]="bonus.value" class="value-input">
-              <input type="text" [(ngModel)]="bonus.context" placeholder="Kontext (optional)">
-              <button class="remove-btn" (click)="removeDiceBonus($index)">✕</button>
-            </div>
-          }
-        </div>
-      }
-      
-      <button class="add-btn" (click)="addDiceBonus()">+ Würfel-Bonus hinzufügen</button>
-    </section>
-
-    <!-- Stat Modifiers -->
-    <section class="section">
-      <h3>Attributs-Modifikatoren</h3>
-      <p class="section-hint">Direkte Änderungen an Attributen</p>
-      
-      @if (editEffect.statModifiers && editEffect.statModifiers.length > 0) {
-        <div class="modifier-list">
-          @for (mod of editEffect.statModifiers; track $index) {
-            <div class="modifier-row">
-              <select [(ngModel)]="mod.stat">
-                @for (stat of stats; track stat) {
-                  <option [value]="stat">{{ statLabels[stat] }}</option>
-                }
-              </select>
-              <input type="number" [(ngModel)]="mod.amount" class="value-input">
-              <label class="checkbox-label small">
-                <input type="checkbox" [(ngModel)]="mod.isPercentage">
-                <span>%</span>
-              </label>
-              <button class="remove-btn" (click)="removeStatModifier($index)">✕</button>
-            </div>
-          }
-        </div>
-      }
-      
-      <button class="add-btn" (click)="addStatModifier()">+ Modifikator hinzufügen</button>
-    </section>
-
-    <!-- Talent Modifiers -->
-    <section class="section">
-      <h3>Talent-Modifikatoren</h3>
-      <p class="section-hint">Ändert den Würfelbonus eines Talents (positiv = leichter)</p>
-
-      @if (editEffect.talentModifiers && editEffect.talentModifiers.length > 0) {
-        <div class="modifier-list">
-          @for (mod of editEffect.talentModifiers; track $index) {
-            <div class="modifier-row">
-              <select [(ngModel)]="mod.talentId">
-                @for (talent of talentOptions; track talent.id) {
-                  <option [value]="talent.id">{{ talent.name }} ({{ talent.statLabel }})</option>
-                }
-              </select>
-              <input type="number" [(ngModel)]="mod.amount" class="value-input">
-              <button class="remove-btn" (click)="removeTalentModifier($index)">✕</button>
-            </div>
-          }
-        </div>
-      }
-
-      <button class="add-btn" (click)="addTalentModifier()">+ Talent-Modifikator hinzufügen</button>
-    </section>
+    <!-- Würfel-Boni, Attributs- und Talent-Modifikatoren werden jetzt im Skript (effectActive)
+         gehandhabt und wurden hier entfernt. -->
 
     <!-- Tags -->
     <section class="section">
@@ -228,6 +158,12 @@
   <!-- Footer -->
   <div class="editor-footer">
     <button class="cancel-btn" (click)="cancelEdit()">Abbrechen</button>
-    <button class="save-btn" (click)="saveEffect()">Speichern</button>
+    @if (allowGlobalSave) {
+      <button class="save-btn global" (click)="saveEffectGlobally()"
+              title="Ändert die Bibliotheks-Definition — betrifft alle">Global ändern</button>
+      <button class="save-btn" (click)="saveEffect()">Lokal ändern</button>
+    } @else {
+      <button class="save-btn" (click)="saveEffect()">Speichern</button>
+    }
   </div>
 </div>

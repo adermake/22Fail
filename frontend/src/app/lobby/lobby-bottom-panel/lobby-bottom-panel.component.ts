@@ -65,6 +65,8 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   showContextMenu = false;
   contextMenuX = 0;
   contextMenuY = 0;
+  /** When set, the context menu targets this effect (Bearbeiten/Auslösen); else the add menu. */
+  contextMenuFx: TokenStatusEffect | null = null;
   executeAllInProgress = false;
   chainEffects: TokenStatusEffect[] = [];
   chainIndex = 0;
@@ -287,6 +289,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       return {
         id: ae.statusEffectId + '_' + ae.appliedAt,
         statusEffectId: ae.statusEffectId,
+        appliedAt: ae.appliedAt,
         customEffect: ae.customEffect,
         name: ae.customName ?? ae.customEffect.name,
         icon: ae.customEffect.icon,
@@ -300,6 +303,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     return {
       id: ae.statusEffectId + '_' + ae.appliedAt,
       statusEffectId: ae.statusEffectId,
+      appliedAt: ae.appliedAt,
       name: ae.customName ?? resolved?.name ?? ae.statusEffectId,
       icon: resolved?.icon,
       color: resolved?.color,
@@ -319,32 +323,27 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private tokenToActiveEffect(fx: TokenStatusEffect): ActiveStatusEffect {
-    if (fx.statusEffectId) {
-      return {
-        statusEffectId: fx.statusEffectId,
-        sourceLibraryId: '',
-        appliedAt: Date.now(),
-        duration: fx.duration,
-        stacks: fx.stacks ?? 1,
-        customName: fx.name,
-      } as ActiveStatusEffect;
-    }
-    return {
-      statusEffectId: fx.id,
+    // Keep appliedAt stable across saves so the instance id (statusEffectId_appliedAt) does
+    // not churn — otherwise expandedFx loses its reference and the panel closes on each click.
+    const active: ActiveStatusEffect = {
+      statusEffectId: fx.statusEffectId ?? fx.id,
       sourceLibraryId: '',
-      appliedAt: Date.now(),
+      appliedAt: fx.appliedAt ?? Date.now(),
       duration: fx.duration,
       stacks: fx.stacks ?? 1,
       customName: fx.name,
-      customEffect: {
-        id: fx.id,
-        name: fx.name,
-        description: '',
-        icon: fx.icon,
-        color: fx.color,
-        isDebuff: fx.isDebuff ?? false,
-      } as ActiveStatusEffect['customEffect'],
     } as ActiveStatusEffect;
+    // Preserve the per-instance override (local edit) so it round-trips instead of reverting
+    // to the library definition.
+    if (fx.customEffect) {
+      active.customEffect = fx.customEffect;
+    } else if (!fx.statusEffectId) {
+      active.customEffect = {
+        id: fx.id, name: fx.name, description: '', icon: fx.icon, color: fx.color,
+        isDebuff: fx.isDebuff ?? false,
+      } as ActiveStatusEffect['customEffect'];
+    }
+    return active;
   }
 
   /** Build Map<id, StatusEffect> from all library entries */
@@ -953,9 +952,34 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     event.stopPropagation();
     this.contextMenuX = event.clientX;
     this.contextMenuY = event.clientY;
+    this.contextMenuFx = null;
     this.showContextMenu = true;
     this.expandedFx = null;
     this.cdr.markForCheck();
+  }
+
+  /** Right-click on a specific effect card → menu with Bearbeiten + Auslösen. */
+  onRightClickFx(fx: TokenStatusEffect, event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuX = event.clientX;
+    this.contextMenuY = event.clientY;
+    this.contextMenuFx = fx;
+    this.showContextMenu = true;
+    this.expandedFx = null;
+    this.cdr.markForCheck();
+  }
+
+  editFxFromContextMenu(): void {
+    const fx = this.contextMenuFx;
+    this.closeContextMenu();
+    if (fx) this.editFx(fx);
+  }
+
+  executeFxFromContextMenu(event: MouseEvent): void {
+    const fx = this.contextMenuFx;
+    this.closeContextMenu();
+    if (fx) this.executeSingleEffect(fx, event);
   }
 
   openPickerFromContextMenu(): void {
@@ -966,6 +990,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   closeContextMenu(): void {
     if (!this.showContextMenu) return;
     this.showContextMenu = false;
+    this.contextMenuFx = null;
     this.cdr.markForCheck();
   }
 
@@ -980,10 +1005,35 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  /** Save an edit as a LOCAL per-instance override (does not touch the library). */
   saveEditedFx(updated: StatusEffect): void {
-    if (!this.editingFx || !this.token) return;
+    if (!this.editingFx) return;
     const effects = this.statusEffects.map(e =>
-      e.id === this.editingFx!.id ? { ...e, customEffect: updated } : e
+      e.id === this.editingFx!.id
+        ? { ...e, customEffect: updated, name: updated.name, icon: updated.icon, color: updated.color, isDebuff: updated.isDebuff ?? false }
+        : e
+    );
+    this.saveStatusEffects(effects);
+    this.editingFx = null;
+    this.editedStatusEffect = null;
+    this.cdr.markForCheck();
+  }
+
+  /** GM: persist the edit to the library definition (affects everyone), then close. */
+  async saveEditedFxGlobally(updated: StatusEffect): Promise<void> {
+    const fx = this.editingFx;
+    if (!fx?.statusEffectId) { this.saveEditedFx(updated); return; }
+    const saved = await this.libraryStore.updateStatusEffectGlobally({ ...updated, id: fx.statusEffectId })
+      .catch(() => false);
+    if (!saved) {
+      // Fall back to a local override if the library write didn't land.
+      this.saveEditedFx(updated);
+      return;
+    }
+    this.trueStats.bumpDerivedCache(); // library script changed → recompute derived stats/skills
+    // Global edit means this instance should follow the library again → drop any local override.
+    const effects = this.statusEffects.map(e =>
+      e.id === fx.id ? { ...e, customEffect: undefined, name: updated.name, icon: updated.icon, color: updated.color, isDebuff: updated.isDebuff ?? false } : e
     );
     this.saveStatusEffects(effects);
     this.editingFx = null;

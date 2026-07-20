@@ -450,6 +450,13 @@
   background: #1084d8;
 }
 
+.save-btn.global {
+  background: #b91c1c;
+}
+.save-btn.global:hover {
+  background: #dc2626;
+}
+
 /* Scrollbar */
 .editor-content::-webkit-scrollbar {
   width: 8px;

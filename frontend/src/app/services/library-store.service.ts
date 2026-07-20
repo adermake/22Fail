@@ -126,6 +126,29 @@ export class LibraryStoreService {
   }
 
   /**
+   * Update a status effect in whichever library owns it and persist that library (GM "global"
+   * edit). Returns true if the effect was found and saved.
+   */
+  updateStatusEffectGlobally(effect: StatusEffect): Promise<boolean> {
+    const all = this.allLibrariesSubject.value;
+    const lib = all.find(l => (l.statusEffects ?? []).some(e => e.id === effect.id));
+    if (!lib) return Promise.resolve(false);
+    const idx = lib.statusEffects!.findIndex(e => e.id === effect.id);
+    lib.statusEffects![idx] = { ...effect };
+    return new Promise((resolve, reject) => {
+      this.api.updateLibrary(lib.id, lib).subscribe({
+        next: (updated) => {
+          const list = this.allLibrariesSubject.value;
+          const i = list.findIndex(l => l.id === updated.id);
+          if (i >= 0) { list[i] = updated; this.allLibrariesSubject.next([...list]); }
+          resolve(true);
+        },
+        error: (err) => reject(err),
+      });
+    });
+  }
+
+  /**
    * Save current library to backend
    */
   async saveLibrary(): Promise<void> {

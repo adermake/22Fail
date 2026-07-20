@@ -135,6 +135,7 @@ export interface Token {
 export interface TokenStatusEffect {
   id: string; // Local ID for this instance
   statusEffectId?: string; // Library StatusEffect ID (for macro lookup)
+  appliedAt?: number; // Original apply timestamp — kept stable so the instance id doesn't churn
   customEffect?: import('./status-effect.model').StatusEffect; // Per-instance overrides
   name: string;
   icon?: string; // Emoji icon
