@@ -84,6 +84,8 @@ export class UnifiedMacroExecutorService {
     opts: {
       inCombat?: boolean; stacks?: number; turn?: number; duration?: number; effectStrength?: number;
       name?: string; icon?: string; color?: string;
+      /** Run only this named onTrigger block instead of the base script. */
+      trigger?: string;
     } = {},
   ): ScriptExecution {
     const ctx = createPlayerContext(sheet, this.trueStats, {
@@ -93,7 +95,7 @@ export class UnifiedMacroExecutorService {
       duration: opts.duration ?? 0,
       effectStrength: opts.effectStrength ?? 0,
     });
-    const script = runScript(src, ctx);
+    const script = runScript(src, ctx, { trigger: opts.trigger });
 
     const unified: UnifiedMacroResult = {
       success: script.ok,

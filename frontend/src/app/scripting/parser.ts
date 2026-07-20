@@ -71,6 +71,8 @@ class Parser {
     if (this.isKeyword('while')) return this.parseWhile();
     if (this.isKeyword('effectActive') || this.isKeyword('untilNextTurn')) return this.parseLifecycle();
     if (this.isKeyword('grantSkill')) return this.parseGrantSkill();
+    if (this.isKeyword('giveStatus')) return this.parseGiveStatus();
+    if (this.isKeyword('onTrigger')) return this.parseTrigger();
     if (this.isKeyword('action')) return this.parseActionDecl();
     if (this.isPunct('{')) return this.parseBlock();
     return this.parseAssignOrExpr();
@@ -138,6 +140,30 @@ class Parser {
     this.expectPunct(')');
     const body = this.parseBlock();
     return { kind: 'GrantSkill', keywordSpan: { from: kw.from, to: kw.to }, args, body, from: kw.from, to: body.to };
+  }
+
+  private parseGiveStatus(): Stmt {
+    const kw = this.next(); // 'giveStatus'
+    this.expectPunct('(');
+    const args = this.parseArgList();
+    this.expectPunct(')');
+    const body = this.parseBlock();
+    return { kind: 'GiveStatus', keywordSpan: { from: kw.from, to: kw.to }, args, body, from: kw.from, to: body.to };
+  }
+
+  private parseTrigger(): Stmt {
+    const kw = this.next(); // 'onTrigger'
+    this.expectPunct('(');
+    const nameTok = this.peek();
+    let name = '';
+    if (nameTok.type === 'string' || nameTok.type === 'identifier') { name = nameTok.value; this.next(); }
+    else this.error(nameTok, 'Trigger-Name erwartet (Text oder Bezeichner)');
+    this.expectPunct(')');
+    const body = this.parseBlock();
+    return {
+      kind: 'TriggerDecl', name, nameSpan: { from: nameTok.from, to: nameTok.to },
+      keywordSpan: { from: kw.from, to: kw.to }, body, from: kw.from, to: body.to,
+    };
   }
 
   private parseActionDecl(): Stmt {

@@ -37,6 +37,8 @@ export interface ScriptGrantedSkill {
   script: string;
 }
 export interface ScriptStatusOp { op: 'apply' | 'remove'; id: string; stacks?: number; }
+/** A status effect created + applied on the fly via giveStatus(...) { …body… }. */
+export interface ScriptGivenStatus { name: string; description: string; stacks: number; duration?: number; script: string; }
 
 export interface ScriptResult {
   ok: boolean;
@@ -50,11 +52,17 @@ export interface ScriptResult {
   modifiers: ScriptModifier[];
   grantedSkills: ScriptGrantedSkill[];
   statusOps: ScriptStatusOp[];
+  givenStatuses: ScriptGivenStatus[];
   errors: string[];
 }
 
-/** Run options. `collect` = derive continuous effectActive modifiers/skills (no side effects). */
-export interface RunOptions { collect?: boolean; }
+/**
+ * Run options:
+ *  - collect: derive continuous effectActive modifiers/skills (no side effects).
+ *  - trigger: run ONLY the named onTrigger block's body (a manual, event-based action).
+ * With neither, it's a "base" run: top-level statements execute; onTrigger blocks are skipped.
+ */
+export interface RunOptions { collect?: boolean; trigger?: string; }
 
 function opFromAssign(op: AssignOp): ModifierOp {
   switch (op) {
@@ -82,7 +90,7 @@ class ScriptError extends Error {}
 export function runScript(src: string, ctx: CharacterContext, opts: RunOptions = {}): ScriptResult {
   const result: ScriptResult = {
     ok: false, displays: [], rolls: [], resourceChanges: [],
-    modifiers: [], grantedSkills: [], statusOps: [], errors: [],
+    modifiers: [], grantedSkills: [], statusOps: [], givenStatuses: [], errors: [],
   };
   const compiled = compileScript(src);
   if (!compiled.ok) {
@@ -90,12 +98,29 @@ export function runScript(src: string, ctx: CharacterContext, opts: RunOptions =
     return result;
   }
   try {
-    new Interpreter(src, ctx, result, !!opts.collect).runProgram(compiled.program);
+    new Interpreter(src, ctx, result, !!opts.collect, opts.trigger ?? null).runProgram(compiled.program);
     result.ok = true;
   } catch (e) {
     result.errors.push(e instanceof Error ? e.message : String(e));
   }
   return result;
+}
+
+/** List the named onTrigger blocks in a script (for the manual-trigger UI). Tolerant of errors. */
+export function listTriggers(src: string): { name: string }[] {
+  const out: { name: string }[] = [];
+  for (const s of compileScript(src).program.body) {
+    if (s.kind === 'TriggerDecl' && s.name) out.push({ name: s.name });
+  }
+  return out;
+}
+
+/**
+ * Does a base run of this script do anything observable? True when there is any top-level
+ * statement that is neither an onTrigger block (manual) nor an effectActive block (passive).
+ */
+export function hasBaseAction(src: string): boolean {
+  return compileScript(src).program.body.some(s => s.kind !== 'TriggerDecl' && s.kind !== 'Lifecycle');
 }
 
 interface Frame { vars: Map<string, ScriptValue>; parent: Frame | null; }
@@ -120,7 +145,7 @@ class Interpreter {
    */
   constructor(
     private src: string, private ctx: CharacterContext, private result: ScriptResult,
-    private collect: boolean,
+    private collect: boolean, private triggerName: string | null,
   ) {
     this.rng = ctx.rng ?? Math.random;
   }
@@ -133,6 +158,14 @@ class Interpreter {
 
   runProgram(program: Program): void {
     const frame: Frame = { vars: new Map(), parent: null };
+    // Trigger run: execute ONLY the matching onTrigger block's body.
+    if (this.triggerName !== null) {
+      for (const s of program.body) {
+        if (s.kind === 'TriggerDecl' && s.name === this.triggerName) this.execBlock(s.body, frame);
+      }
+      return;
+    }
+    // Base / collect run: execute top-level statements (onTrigger blocks are skipped here).
     for (const s of program.body) this.execStmt(s, frame);
   }
 
@@ -179,6 +212,12 @@ class Interpreter {
       case 'GrantSkill':
         this.execGrantSkill(stmt, frame);
         break;
+      case 'GiveStatus':
+        this.execGiveStatus(stmt, frame);
+        break;
+      case 'TriggerDecl':
+        // Named manual action — never runs during a base/collect pass (only via a trigger run).
+        break;
       case 'ActionDecl':
         // Declaration only; body runs when invoked. (Invocation reserved for M6.)
         break;
@@ -216,6 +255,19 @@ class Interpreter {
     // Capture the action body as source so the granted skill can run it later.
     const script = this.src.slice(stmt.body.from + 1, stmt.body.to - 1).trim();
     this.result.grantedSkills.push({ name, description, actionType, manaCost, energyCost, lifeCost, script });
+  }
+
+  private execGiveStatus(stmt: Extract<Stmt, { kind: 'GiveStatus' }>, frame: Frame): void {
+    // A side effect: create + apply a new status. Suppressed during a collect pass.
+    if (this.collect) return;
+    const a = stmt.args;
+    const name = String(this.evalExpr(a[0], frame));
+    const description = a[1] ? String(this.evalExpr(a[1], frame)) : '';
+    const stacks = a[2] ? Math.max(1, Math.floor(toNum(this.evalExpr(a[2], frame)))) : 1;
+    const duration = a[3] ? toNum(this.evalExpr(a[3], frame)) : undefined;
+    // The body is a full effect script (can contain effectActive) — captured as source.
+    const script = this.src.slice(stmt.body.from + 1, stmt.body.to - 1).trim();
+    this.result.givenStatuses.push({ name, description, stacks, duration, script });
   }
 
   private execAssign(stmt: Extract<Stmt, { kind: 'Assign' }>, frame: Frame): void {

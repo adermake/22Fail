@@ -64,6 +64,8 @@ export type Stmt =
   | Block
   | Lifecycle
   | GrantSkill
+  | GiveStatus
+  | TriggerDecl
   | ActionDecl
   | RepeatStmt
   | WhileStmt;
@@ -98,6 +100,29 @@ export interface GrantSkill extends Span {
   kind: 'GrantSkill';
   keywordSpan: Span;
   args: Expr[];
+  body: Block;
+}
+
+/**
+ * `giveStatus(name, description, stacks, duration) { …effect body (can hold effectActive)… }`
+ * — creates and applies a new status effect on the fly (used from onTrigger blocks).
+ */
+export interface GiveStatus extends Span {
+  kind: 'GiveStatus';
+  keywordSpan: Span;
+  args: Expr[];
+  body: Block;
+}
+
+/**
+ * `onTrigger("Label") { …trigger body… }` — a named, manually-fired action. Not run by the
+ * periodic/base execution; listed in the UI so a player can trigger the moment it applies.
+ */
+export interface TriggerDecl extends Span {
+  kind: 'TriggerDecl';
+  name: string;
+  nameSpan: Span;
+  keywordSpan: Span;
   body: Block;
 }
 

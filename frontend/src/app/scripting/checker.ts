@@ -46,6 +46,8 @@ const IMPURE_IN_EFFECT_ACTIVE = new Set([
 class Checker {
   /** Depth of enclosing effectActive blocks (a grantSkill body resets it to 0). */
   private lifecycleDepth = 0;
+  /** True only while checking statements directly at program top level. */
+  private atTopLevel = false;
 
   constructor(private diagnostics: Diagnostic[]) {}
 
@@ -60,16 +62,21 @@ class Checker {
     const scope = new Scope(null);
     // Hoist action declarations so they can be referenced before their textual position.
     for (const s of program.body) if (s.kind === 'ActionDecl') scope.actions.add(s.name);
+    this.atTopLevel = true;
     for (const s of program.body) this.checkStmt(s, scope);
+    this.atTopLevel = false;
   }
 
   private checkBlock(block: Block, parent: Scope, freshLifecycle?: number): void {
     const scope = new Scope(parent);
     for (const s of block.body) if (s.kind === 'ActionDecl') scope.actions.add(s.name);
     const savedLifecycle = this.lifecycleDepth;
+    const savedTop = this.atTopLevel;
+    this.atTopLevel = false;
     if (freshLifecycle !== undefined) this.lifecycleDepth = freshLifecycle;
     for (const s of block.body) this.checkStmt(s, scope);
     this.lifecycleDepth = savedLifecycle;
+    this.atTopLevel = savedTop;
   }
 
   private checkStmt(stmt: Stmt, scope: Scope): void {
@@ -138,6 +145,30 @@ class Checker {
           this.checkExpr(arg, scope);
         });
         // The granted skill's action runs in its own future context → reset lifecycle scope.
+        this.checkBlock(stmt.body, scope, 0);
+        break;
+
+      case 'GiveStatus':
+        // Creates + applies a new status effect; its body is a full effect script
+        // (effectActive allowed), so reset the lifecycle scope for the body.
+        if (stmt.args.length < 1) {
+          this.err(stmt.keywordSpan.from, stmt.keywordSpan.to,
+            'giveStatus(Name, Beschreibung?, Stapel?, Dauer?) { … }');
+        }
+        for (const a of stmt.args) this.checkExpr(a, scope);
+        this.checkBlock(stmt.body, scope, 0);
+        break;
+
+      case 'TriggerDecl':
+        // A named, manually-fired action. Only valid at the top level; its body is a normal
+        // trigger context (side effects allowed; bare stat assignment is still a leak).
+        if (!this.atTopLevel) {
+          this.err(stmt.keywordSpan.from, stmt.keywordSpan.to,
+            "'onTrigger' ist nur auf oberster Ebene erlaubt (nicht verschachtelt).");
+        }
+        if (!stmt.name) {
+          this.err(stmt.keywordSpan.from, stmt.keywordSpan.to, 'onTrigger braucht einen Namen.');
+        }
         this.checkBlock(stmt.body, scope, 0);
         break;
 

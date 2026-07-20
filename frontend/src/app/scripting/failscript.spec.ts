@@ -1,6 +1,6 @@
 import { compileScript } from './checker';
 import { rollDice } from './dice';
-import { CharacterContext, runScript } from './interpreter';
+import { CharacterContext, listTriggers, runScript } from './interpreter';
 
 function errs(src: string): string[] {
   return compileScript(src).diagnostics.filter(d => d.severity === 'error').map(d => d.message);
@@ -103,6 +103,33 @@ describe('FailScript execution modes', () => {
     expect(g[0].description).toBe('Feuerball');
     expect(g[0].actionType).toBe('Bonusaktion');
     expect(g[0].manaCost).toBe(3);
+  });
+});
+
+describe('FailScript onTrigger / giveStatus', () => {
+  const src =
+    'loseResource(health, 1)\n' +
+    'onTrigger("Frost") { loseResource(health, 5) giveStatus("Slow", "verlangsamt", 1, 2) { effectActive { speed /= 2 } } }';
+
+  it('rejects nested onTrigger and stat-leak in a trigger body', () => {
+    expect(errs('if (level > 1) { onTrigger("x") { } }').some(m => m.includes('oberster Ebene'))).toBe(true);
+    expect(errs('onTrigger("x") { speed += 2 }').some(m => m.includes('Stat-Leak'))).toBe(true);
+  });
+
+  it('lists triggers and runs only the base on a normal run', () => {
+    expect(listTriggers(src).map(t => t.name)).toEqual(['Frost']);
+    const base = runScript(src, dummyCtx);
+    expect(base.resourceChanges).toEqual([{ resource: 'health', amount: -1 }]);
+    expect(base.givenStatuses.length).toBe(0);
+  });
+
+  it('runs only the named trigger body and yields the given status', () => {
+    const t = runScript(src, dummyCtx, { trigger: 'Frost' });
+    expect(t.resourceChanges).toEqual([{ resource: 'health', amount: -5 }]);
+    expect(t.givenStatuses.length).toBe(1);
+    expect(t.givenStatuses[0].name).toBe('Slow');
+    expect(t.givenStatuses[0].duration).toBe(2);
+    expect(t.givenStatuses[0].script).toContain('effectActive');
   });
 });
 

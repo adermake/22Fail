@@ -153,6 +153,8 @@ export const KEYWORD_INFO: { name: string; description: string; snippet?: string
   { name: 'effectActive', description: 'Wirkt, solange der Effekt aktiv ist: Stat-Modifikatoren (speed += 2, speed *= 2 …) und grantSkill. Wird beim Entfernen des Effekts automatisch rückgängig gemacht.', snippet: 'effectActive {\n\t\n}' },
   { name: 'untilNextTurn', description: 'Veraltet — Alias für effectActive.', snippet: 'effectActive {\n\t\n}' },
   { name: 'grantSkill', description: 'Effektgebundene Fähigkeit (nur in effectActive): grantSkill(Name, Beschreibung, Aktionstyp, Mana, Ausdauer, Leben)', snippet: 'grantSkill("Name", "Beschreibung", Aktion, 0, 0, 0) {\n\t\n}' },
+  { name: 'onTrigger', description: 'Manuell auslösbare Aktion (kein periodischer Effekt). Wird im Effekt-Menü als Knopf gelistet.', snippet: 'onTrigger("Auslöser-Name") {\n\t\n}' },
+  { name: 'giveStatus', description: 'Erzeugt und wendet einen neuen Status-Effekt an: giveStatus(Name, Beschreibung, Stapel, Dauer) { effectActive { … } }', snippet: 'giveStatus("Name", "Beschreibung", 1, 1) {\n\teffectActive {\n\t\t\n\t}\n}' },
   { name: 'action', description: 'Benannter Aktionsblock', snippet: 'action name {\n\t\n}' },
   { name: 'repeat', description: 'Wiederhole n-mal', snippet: 'repeat(n) {\n\t\n}' },
   { name: 'while', description: 'Solange Bedingung wahr', snippet: 'while (bedingung) {\n\t\n}' },

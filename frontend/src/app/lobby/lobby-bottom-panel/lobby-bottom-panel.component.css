@@ -1114,6 +1114,20 @@
   gap: 5px;
 }
 .lbp-fx-execute-btn:hover { background: rgba(139,92,246,0.3); color: #c4b5fd; }
+.lbp-fx-triggers { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.lbp-fx-triggers-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-right: 2px; }
+.lbp-fx-trigger-btn {
+  background: rgba(245,158,11,0.14);
+  border: 1px solid rgba(245,158,11,0.4);
+  color: #fbbf24;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+.lbp-fx-trigger-btn:hover { background: rgba(245,158,11,0.28); color: #fcd34d; }
 .lbp-fx-last-result { display: flex; flex-wrap: wrap; gap: 4px; }
 .lbp-fx-last-roll { font-size: 0.65rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: rgba(245,158,11,0.12); }
 .lbp-fx-last-change.gain { color: #22c55e; font-size: 0.65rem; font-weight: 600; }

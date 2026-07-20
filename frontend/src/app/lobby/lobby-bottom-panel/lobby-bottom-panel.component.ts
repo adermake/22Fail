@@ -21,6 +21,7 @@ import { ActiveStatusEffect, StatusEffect } from '../../model/status-effect.mode
 import { ActionMacro } from '../../model/action-macro.model';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { UnifiedMacroExecutorService, UnifiedMacroResult, ScriptExecution } from '../../services/unified-macro-executor.service';
+import { hasBaseAction, listTriggers } from '../../scripting/interpreter';
 import { StatusEffectEditorComponent } from '../../shared/status-effect-editor/status-effect-editor.component';
 
 @Component({
@@ -787,21 +788,61 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
    * Run a status effect once. A FailScript runs a SINGLE time with `stacks`/`effectStrength`
    * exposed — the code decides how to apply the stack count. Legacy macros still repeat per stack.
    */
-  private runEffectResults(effect: StatusEffect, sheet: CharacterSheet, stacks: number, duration = 0): UnifiedMacroResult[] {
+  private runEffectResults(effect: StatusEffect, sheet: CharacterSheet, stacks: number, duration = 0, trigger?: string): UnifiedMacroResult[] {
     if (effect.script && effect.script.trim()) {
       const exec = this.macroExecutor.executeScript(effect.script, sheet, {
         inCombat: true, stacks, turn: 0, duration, effectStrength: effect.strength ?? 0,
-        name: effect.name, icon: effect.icon, color: effect.color,
+        name: effect.name, icon: effect.icon, color: effect.color, trigger,
       });
       this.applyScriptExtras(exec);
       return [exec.unified];
     }
+    // Legacy macros have no named triggers; a trigger run does nothing for them.
+    if (trigger) return [];
     const results: UnifiedMacroResult[] = [];
     const macros = this.getAllMacros(effect);
     for (let s = 0; s < stacks; s++) {
       for (const m of macros) results.push(this.macroExecutor.executeActionMacro(m, sheet));
     }
     return results;
+  }
+
+  /** Whether the effect has a base (non-trigger) action to run — legacy macro or script content. */
+  hasBaseAction(fx: TokenStatusEffect): boolean {
+    if (this.hasMacro(fx)) return true;
+    const script = this.getEffect(fx)?.script;
+    if (!script || !script.trim()) return false;
+    try { return hasBaseAction(script); } catch { return false; }
+  }
+
+  /** Named onTrigger actions declared in this effect's script (for the manual-trigger menu). */
+  getEffectTriggers(fx: TokenStatusEffect): string[] {
+    const script = this.getEffect(fx)?.script;
+    if (!script || !script.trim()) return [];
+    try { return listTriggers(script).map(t => t.name); } catch { return []; }
+  }
+
+  /** Fire a single named onTrigger action (manual, event-based) on an effect. */
+  executeTrigger(fx: TokenStatusEffect, trigger: string, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    const effect = this.getEffect(fx);
+    const sheet = this.sheetForMacros;
+    if (!effect || !sheet) return;
+    const stacks = fx.stacks || 1;
+    const allResults: UnifiedMacroResult[] = [];
+    this.triggeringEffects.add(fx.id);
+    this.cdr.markForCheck();
+    for (const result of this.runEffectResults(effect, sheet, stacks, fx.duration ?? 0, trigger)) {
+      allResults.push(result);
+      this.applyMacroResourceChanges(result);
+    }
+    if (allResults.length > 0) {
+      this.lastRollResults.set(fx.id, this.mergeResults(allResults, stacks));
+    }
+    setTimeout(() => {
+      this.triggeringEffects.delete(fx.id);
+      this.cdr.markForCheck();
+    }, 800);
   }
 
   /**
@@ -835,6 +876,22 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
         }
         changed = true;
       }
+    }
+
+    // giveStatus(name, description, stacks, duration) { …body… } → create + apply a new
+    // per-instance status effect carrying its own script (which may hold effectActive).
+    for (const g of s.givenStatuses) {
+      const now = Date.now();
+      const custom: StatusEffect = {
+        id: `given_${now}_${Math.random().toString(36).slice(2, 7)}`,
+        name: g.name, description: g.description, script: g.script, isDebuff: true,
+      };
+      effects.push({
+        id: `fx_${now}_${Math.random().toString(36).slice(2, 7)}`,
+        statusEffectId: custom.id, customEffect: custom, name: g.name,
+        stacks: g.stacks, duration: g.duration, isDebuff: true,
+      });
+      changed = true;
     }
 
     // NOTE: effectActive stat modifiers and granted skills are NOT applied here. They are

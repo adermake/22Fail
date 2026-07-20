@@ -26,8 +26,8 @@ export interface Token {
 }
 
 export const KEYWORDS = new Set([
-  'var', 'if', 'else', 'true', 'false', 'effectActive', 'untilNextTurn', 'grantSkill', 'action',
-  'repeat', 'while',
+  'var', 'if', 'else', 'true', 'false', 'effectActive', 'untilNextTurn', 'grantSkill', 'giveStatus',
+  'onTrigger', 'action', 'repeat', 'while',
 ]);
 
 // Multi-char punctuation first so longest-match wins.

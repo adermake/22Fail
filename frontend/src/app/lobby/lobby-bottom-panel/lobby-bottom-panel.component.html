@@ -264,12 +264,24 @@
               </div>
             }
           </div>
-          @if (hasMacro(expandedFx)) {
+          @if (hasBaseAction(expandedFx) || getEffectTriggers(expandedFx).length) {
             <div class="lbp-fx-panel-execute-row">
-              <button class="lbp-fx-execute-btn" (click)="executeSingleEffect(expandedFx, $event)">
-                ▶ Effekt Auslösen
-                @if (expandedFx.stacks > 1) { <span>(×{{ expandedFx.stacks }})</span> }
-              </button>
+              @if (hasBaseAction(expandedFx)) {
+                <button class="lbp-fx-execute-btn" (click)="executeSingleEffect(expandedFx, $event)">
+                  ▶ Basis-Effekt auslösen
+                  @if (expandedFx.stacks > 1) { <span>(×{{ expandedFx.stacks }})</span> }
+                </button>
+              }
+              @if (getEffectTriggers(expandedFx).length) {
+                <div class="lbp-fx-triggers">
+                  <span class="lbp-fx-triggers-label">Auslöser</span>
+                  @for (trig of getEffectTriggers(expandedFx); track trig) {
+                    <button class="lbp-fx-trigger-btn" (click)="executeTrigger(expandedFx, trig, $event)">
+                      ⚡ {{ trig }}
+                    </button>
+                  }
+                </div>
+              }
               @if (getLastResult(expandedFx); as lastResult) {
                 <div class="lbp-fx-last-result">
                   @for (roll of lastResult.rolls; track roll.id) {
@@ -331,7 +343,7 @@
             <button class="lbp-ctx-item" (click)="editFxFromContextMenu()">
               <span>✏</span><span>Bearbeiten</span>
             </button>
-            @if (hasMacro(contextMenuFx)) {
+            @if (hasBaseAction(contextMenuFx)) {
               <button class="lbp-ctx-item" (click)="executeFxFromContextMenu($event)">
                 <span>▶</span><span>Auslösen</span>
               </button>
