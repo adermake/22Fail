@@ -68,10 +68,14 @@ describe('FailScript checker', () => {
     expect(errs('display(talent.nope)').some(m => m.includes('Talent'))).toBe(true);
   });
 
-  it('parses and checks grantSkill with an action body inside effectActive', () => {
+  it('parses and checks grantSkill with description, action type and an action body', () => {
     expect(compileScript(
-      'effectActive { grantSkill("Teleport", 5, 0, 0) { loseResource(mana, 5) display("Teleported") } }',
+      'effectActive { grantSkill("Teleport", "Kurzer Sprung", Aktion, 5, 0, 0) { loseResource(mana, 5) display("Teleported") } }',
     ).ok).toBe(true);
+  });
+
+  it('rejects an invalid grantSkill action type', () => {
+    expect(errs('effectActive { grantSkill("X", "d", Foo, 0, 0, 0) { } }').some(m => m.includes('Aktionstyp'))).toBe(true);
   });
 });
 
@@ -90,10 +94,15 @@ describe('FailScript execution modes', () => {
     expect(r.resourceChanges).toEqual([{ resource: 'health', amount: -5 }]);
   });
 
-  it('derives granted skills only during collect', () => {
-    const src = 'effectActive { grantSkill("Fireball", 3, 0, 0) { display("boom") } }';
+  it('derives granted skills only during collect, with description + action type', () => {
+    const src = 'effectActive { grantSkill("Fireball", "Feuerball", Bonusaktion, 3, 0, 0) { display("boom") } }';
     expect(runScript(src, dummyCtx).grantedSkills.length).toBe(0);
-    expect(runScript(src, dummyCtx, { collect: true }).grantedSkills.map(g => g.name)).toEqual(['Fireball']);
+    const g = runScript(src, dummyCtx, { collect: true }).grantedSkills;
+    expect(g.length).toBe(1);
+    expect(g[0].name).toBe('Fireball');
+    expect(g[0].description).toBe('Feuerball');
+    expect(g[0].actionType).toBe('Bonusaktion');
+    expect(g[0].manaCost).toBe(3);
   });
 });
 

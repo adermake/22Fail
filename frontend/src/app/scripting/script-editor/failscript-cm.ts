@@ -15,8 +15,8 @@ import { tags as t } from '@lezer/highlight';
 
 import { compileScript } from '../checker';
 import {
-  ATTRIBUTE_MEMBERS, BUILTINS, BUILTIN_MAP, KEYWORD_INFO, RESOURCE_INFO, RESOURCE_NAMES,
-  STYLE_NAMES, SYMBOLS, SYMBOL_MAP, TALENT_INFO,
+  ACTION_TYPE_INFO, ACTION_TYPE_NAMES, ATTRIBUTE_MEMBERS, BUILTINS, BUILTIN_MAP, KEYWORD_INFO,
+  RESOURCE_INFO, RESOURCE_NAMES, STYLE_NAMES, SYMBOLS, SYMBOL_MAP, TALENT_INFO,
 } from '../symbols';
 import { KEYWORDS } from '../lexer';
 
@@ -108,8 +108,15 @@ function enclosingCall(text: string): { name: string; argIndex: number } | null 
   return null;
 }
 
-/** Choices for an argument that expects a fixed keyword set (resource / style). */
+/** Choices for an argument that expects a fixed keyword set (resource / style / action type). */
 function argChoiceOptions(call: { name: string; argIndex: number }) {
+  // grantSkill(name, description, actionType, …) — the 3rd arg is a bare action-type keyword.
+  if (call.name === 'grantSkill') {
+    if (call.argIndex === 2) {
+      return [...ACTION_TYPE_NAMES].map(a => ({ label: a, type: 'enum', detail: 'Aktionstyp', info: ACTION_TYPE_INFO[a], boost: 80 }));
+    }
+    return null;
+  }
   const fn = BUILTIN_MAP.get(call.name);
   if (!fn) return null;
   if (fn.resourceFirstArg && call.argIndex === 0) {

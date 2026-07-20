@@ -38,6 +38,16 @@ export const RESOURCE_INFO: Record<string, string> = {
   health: 'Leben', energy: 'Ausdauer', mana: 'Mana', fokus: 'Fokus',
 };
 
+/** Action-type selector for grantSkill (bare identifiers → SkillBlock.actionType). */
+export const ACTION_TYPE_NAMES = new Set(['Aktion', 'Bonusaktion', 'KeineAktion', 'Reaktion']);
+export const ACTION_TYPE_MAP: Record<string, 'Aktion' | 'Bonusaktion' | 'Keine Aktion' | 'Reaktion'> = {
+  Aktion: 'Aktion', Bonusaktion: 'Bonusaktion', KeineAktion: 'Keine Aktion', Reaktion: 'Reaktion',
+};
+export const ACTION_TYPE_INFO: Record<string, string> = {
+  Aktion: 'Kostet eine Aktion', Bonusaktion: 'Kostet eine Bonusaktion',
+  KeineAktion: 'Keine Aktion nötig', Reaktion: 'Reaktion',
+};
+
 const A = (name: string, target: StatusModifierTarget, description: string): SymbolInfo =>
   ({ name, category: 'attribute', type: 'number', description, assignable: true, modifierTarget: target });
 
@@ -142,7 +152,7 @@ export const KEYWORD_INFO: { name: string; description: string; snippet?: string
   { name: 'else', description: 'Sonst-Zweig' },
   { name: 'effectActive', description: 'Wirkt, solange der Effekt aktiv ist: Stat-Modifikatoren (speed += 2, speed *= 2 …) und grantSkill. Wird beim Entfernen des Effekts automatisch rückgängig gemacht.', snippet: 'effectActive {\n\t\n}' },
   { name: 'untilNextTurn', description: 'Veraltet — Alias für effectActive.', snippet: 'effectActive {\n\t\n}' },
-  { name: 'grantSkill', description: 'Effektgebundene Fähigkeit (nur in effectActive)', snippet: 'grantSkill("Name", 0, 0, 0) {\n\t\n}' },
+  { name: 'grantSkill', description: 'Effektgebundene Fähigkeit (nur in effectActive): grantSkill(Name, Beschreibung, Aktionstyp, Mana, Ausdauer, Leben)', snippet: 'grantSkill("Name", "Beschreibung", Aktion, 0, 0, 0) {\n\t\n}' },
   { name: 'action', description: 'Benannter Aktionsblock', snippet: 'action name {\n\t\n}' },
   { name: 'repeat', description: 'Wiederhole n-mal', snippet: 'repeat(n) {\n\t\n}' },
   { name: 'while', description: 'Solange Bedingung wahr', snippet: 'while (bedingung) {\n\t\n}' },

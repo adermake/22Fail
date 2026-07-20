@@ -152,11 +152,12 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     return {
       name: g.name,
       class: `Effekt: ${g.source}`,
-      description: 'Effektgebundene Fähigkeit',
+      description: g.description || 'Effektgebundene Fähigkeit',
       type: 'active',
       enlightened: false,
       script: g.script,
       derived: true,
+      actionType: g.actionType,
       cost: g.manaCost ? { type: 'mana', amount: g.manaCost }
         : g.energyCost ? { type: 'energy', amount: g.energyCost }
         : g.lifeCost ? { type: 'life', amount: g.lifeCost }

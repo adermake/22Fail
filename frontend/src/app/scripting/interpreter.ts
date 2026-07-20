@@ -10,7 +10,7 @@ import {
 } from './ast';
 import { compileScript } from './checker';
 import { rollDice } from './dice';
-import { RESOURCE_NAMES, SYMBOL_MAP } from './symbols';
+import { ACTION_TYPE_MAP, RESOURCE_NAMES, SYMBOL_MAP } from './symbols';
 
 export type ScriptValue = number | string | boolean;
 
@@ -29,7 +29,13 @@ export type ModifierOp = 'add' | 'sub' | 'mul' | 'div' | 'set';
 /** A stat modifier produced by an `effectActive` block. Priority/source added by the collector. */
 export interface ScriptModifier { target: StatusModifierTarget; op: ModifierOp; amount: number; }
 
-export interface ScriptGrantedSkill { name: string; manaCost: number; energyCost: number; lifeCost: number; script: string; }
+export interface ScriptGrantedSkill {
+  name: string;
+  description: string;
+  actionType?: 'Aktion' | 'Bonusaktion' | 'Keine Aktion' | 'Reaktion';
+  manaCost: number; energyCost: number; lifeCost: number;
+  script: string;
+}
 export interface ScriptStatusOp { op: 'apply' | 'remove'; id: string; stacks?: number; }
 
 export interface ScriptResult {
@@ -198,13 +204,18 @@ class Interpreter {
   private execGrantSkill(stmt: Extract<Stmt, { kind: 'GrantSkill' }>, frame: Frame): void {
     // Granted skills are effect-bound: derived only during collection, inside effectActive.
     if (!this.collect || !this.inEffectActive) return;
-    const name = String(this.evalExpr(stmt.args[0], frame));
-    const manaCost = stmt.args[1] ? toNum(this.evalExpr(stmt.args[1], frame)) : 0;
-    const energyCost = stmt.args[2] ? toNum(this.evalExpr(stmt.args[2], frame)) : 0;
-    const lifeCost = stmt.args[3] ? toNum(this.evalExpr(stmt.args[3], frame)) : 0;
+    const a = stmt.args;
+    // grantSkill(name, description?, actionType?, manaCost?, energyCost?, lifeCost?)
+    const name = String(this.evalExpr(a[0], frame));
+    const description = a[1] ? String(this.evalExpr(a[1], frame)) : '';
+    // actionType is a bare identifier (Aktion/Bonusaktion/…) — read structurally, not eval'd.
+    const actionType = a[2]?.kind === 'Identifier' ? ACTION_TYPE_MAP[a[2].name] : undefined;
+    const manaCost = a[3] ? toNum(this.evalExpr(a[3], frame)) : 0;
+    const energyCost = a[4] ? toNum(this.evalExpr(a[4], frame)) : 0;
+    const lifeCost = a[5] ? toNum(this.evalExpr(a[5], frame)) : 0;
     // Capture the action body as source so the granted skill can run it later.
     const script = this.src.slice(stmt.body.from + 1, stmt.body.to - 1).trim();
-    this.result.grantedSkills.push({ name, manaCost, energyCost, lifeCost, script });
+    this.result.grantedSkills.push({ name, description, actionType, manaCost, energyCost, lifeCost, script });
   }
 
   private execAssign(stmt: Extract<Stmt, { kind: 'Assign' }>, frame: Frame): void {

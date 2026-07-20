@@ -7,7 +7,7 @@
  */
 
 import {
-  ATTRIBUTE_MEMBERS, BUILTIN_MAP, RESOURCE_NAMES, STYLE_NAMES, SYMBOL_MAP, TALENT_IDS,
+  ACTION_TYPE_NAMES, ATTRIBUTE_MEMBERS, BUILTIN_MAP, RESOURCE_NAMES, STYLE_NAMES, SYMBOL_MAP, TALENT_IDS,
 } from './symbols';
 import { parse } from './parser';
 import { Block, Diagnostic, Expr, Program, Stmt } from './ast';
@@ -122,7 +122,21 @@ class Checker {
             "'grantSkill' ist nur in 'effectActive { … }' erlaubt (sonst Skill-Leak). " +
             'So verschwindet die Fähigkeit, sobald der Effekt endet.');
         }
-        for (const a of stmt.args) this.checkExpr(a, scope);
+        if (stmt.args.length === 0) {
+          this.err(stmt.keywordSpan.from, stmt.keywordSpan.to,
+            'grantSkill(Name, Beschreibung?, Aktionstyp?, Mana?, Ausdauer?, Leben?) { … }');
+        }
+        // grantSkill(name, description?, actionType?, manaCost?, energyCost?, lifeCost?):
+        // the actionType (index 2) is a bare keyword — validate it, don't resolve as a symbol.
+        stmt.args.forEach((arg, i) => {
+          if (i === 2) {
+            if (arg.kind !== 'Identifier' || !ACTION_TYPE_NAMES.has(arg.name)) {
+              this.err(arg.from, arg.to, `Aktionstyp erwartet: ${[...ACTION_TYPE_NAMES].join(', ')}`);
+            }
+            return;
+          }
+          this.checkExpr(arg, scope);
+        });
         // The granted skill's action runs in its own future context → reset lifecycle scope.
         this.checkBlock(stmt.body, scope, 0);
         break;
