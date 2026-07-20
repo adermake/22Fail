@@ -689,7 +689,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Unsterblicher Krieger',
     class: 'Berserker',
     type: 'passive',
-    description: 'Heilt Leben um 2 D20, wenn Gegner getötet wird'
+    description: 'Stellt Leben her, wenn Gegner getötet wird (3 x Würfel in Höhe des gegnerischen Levels)'
   },
   {
     id: 'berserker_adrenalin',
@@ -907,7 +907,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     description: 'Fernkampfprojektile können in der Luft die Richtung ändern'
   },
   {
-    id: 'jaeger_tragisches_schicksal',
+    id: 'jaeger_beute_markieren',
     name: 'Beute markieren',
     class: 'Jäger',
     type: 'active',
@@ -1023,6 +1023,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Arkanist',
     type: 'active',
     description: 'Annulliert einen Zauber im Zauberradius, Ausdauerkosten entsprechen den halben Manakosten des Zaubers und kann Ausdauer ins Negative bringen. Erhält Möglichkeit, diese Fähigkeit zu nutzen, wenn ein Zauber den Zauberradius betritt',
+    cost: { type: 'energy', amount: 0 },
     actionType: 'Aktion'
   },
   {
@@ -1516,7 +1517,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Nachternte',
     class: 'Phantom',
     type: 'passive',
-    description: 'Stellt 2 D20 Mana her, wenn Gegner getötet wird'
+    description: 'Stellt Mana her, wenn Gegner getötet wird (4 x Würfel in Höhe des gegnerischen Levels)'
   },
   {
     id: 'phantom_hoehenvorteil',
@@ -2169,33 +2170,35 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     infiniteLevel: true
   },
   {
-    id: 'duellant_duell',
-    name: 'Duell',
-    class: 'Duellant',
-    type: 'passive',
-    description: '-2 in einem Duell'
-  },
-  {
     id: 'duellant_perfektion',
     name: 'Perfektion',
     class: 'Duellant',
-    type: 'passive',
+    type: 'dice_bonus',
     description: 'Wenn Leben voll, -2 im Kampf'
   },
   {
     id: 'duellant_furie',
     name: 'Furie',
     class: 'Duellant',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '-1 auf diesen Gegner mit jedem kontinuierlichen Treffer, maximal -5',
     enlightened: true
+  },
+  {
+    id: 'duellant_herausfordern',
+    name: 'Duell',
+    class: 'Herausfordern',
+    type: 'active',
+    description: 'Markiere einen Gegner in Sichtweite für diese Runde. Erhalte doppelte Bewegung auf ihn zu',
+    cost: { type: 'energy', amount: 10 },
+    actionType: 'Bonusaktion'
   },
   {
     id: 'duellant_uebertakten',
     name: 'Übertakten',
     class: 'Duellant',
     type: 'active',
-    description: 'Greift Gegner an, kann nach einem Treffer eine Extra-Aktion ausführen',
+    description: 'Greift Gegner an, kann nach einem Treffer eine Extra-Aktion ausführen, Kosten erhöhen sich um 15 mit jeder Wiederholung',
     enlightened: true,
     cost: { type: 'energy', amount: 15 },
     actionType: 'Aktion'
@@ -2205,7 +2208,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Konter',
     class: 'Duellant',
     type: 'active',
-    description: 'Blockt und reflektiert physischen Angriff mit doppelter Stärke. Reaktion',
+    description: 'Blockt und reflektiert physischen Angriff mit doppelter Stärke, gekonterte Angriffe sind immer normale Treffer',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Reaktion'
   },
@@ -2214,7 +2217,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schwachstellen aufdecken',
     class: 'Duellant',
     type: 'active',
-    description: 'Kann Rüstung mit nächstem Angriff ignorieren. Bonusaktion',
+    description: 'Kann Rüstung mit nächstem Angriff ignorieren',
     enlightened: true,
     cost: { type: 'energy', amount: 15 },
     actionType: 'Bonusaktion'
@@ -2235,7 +2238,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Waffenmeister',
     class: 'Waffenmeister',
     type: 'passive',
-    description: 'Waffenvorraussetzungen werden aufgehoben, benötigt "Waffenwissen","Waffenkenner" und "Waffengelehter"',
+    description: 'Waffenvorraussetzungen werden aufgehoben, benötigt "Waffenwissen","Waffenkenner" und "Waffengelehrter"',
     enlightened: true,
     requiresSkill: ['schutze_waffenwissen', 'erzritter_waffenkenner', 'klingentaenzer_waffengelehrter']
   },
@@ -2243,8 +2246,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     id: 'waffenmeister_wandelndes_arsenal',
     name: 'Wandelndes Arsenal',
     class: 'Waffenmeister',
-    type: 'passive',
-    description: '-2 auf jeden Angriff nach Waffenwechsel',
+    type: 'dice_bonus',
+    description: '-2 auf jeden Angriff nach Waffenwechsel, Waffenwechsel kosten keine Bonusaktion',
     enlightened: true
   },
   {
@@ -2259,8 +2262,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Ultimativer Stoß',
     class: 'Waffenmeister',
     type: 'active',
-    description: 'Getroffener Gegner wird zurückgeworfen, maximal 200m, nur für Wuchtwaffen',
-    cost: { type: 'energy', amount: 30 },
+    description: 'Getroffener Gegner wird zurückgeworfen, Distanz in Metern entspricht Schaden, nur für Wuchtwaffen',
+    cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
   {
@@ -2268,8 +2271,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Sturmschnitt',
     class: 'Waffenmeister',
     type: 'active',
-    description: 'Erzeugt Schockwelle, die getroffenen Gegnern Schnittwunden zufügt, maximal 50m, nur für Schnittwaffen',
-    cost: { type: 'energy', amount: 30 },
+    description: 'Erzeugt Schockwelle in einer geraden Linie, die getroffenen Gegnern Schnittwunden zufügt und bei schweren oder stärkeren Treffern Gegner durchdringt, maximale Distanz entspricht Stärke+Geschicklichkeit, nur für Schnittwaffen',
+    cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
   {
@@ -2277,8 +2280,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Panzerbrecher',
     class: 'Waffenmeister',
     type: 'active',
-    description: 'Stich, der gegnerische Verteidigung durchbricht, nur für Stichwaffen',
-    cost: { type: 'energy', amount: 30 },
+    description: 'Stich, der gegnerische Stabilität für 5 Runden halbiert, nur für Stichwaffen',
+    cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
 
@@ -2300,6 +2303,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     description: 'Reichweite+50m für Fernkampfwaffen'
   },
   {
+    id: 'attentaeter_verstecken_5',
+    name: 'Verstecken+5',
+    class: 'Attentäter',
+    type: 'talent_bonus',
+    description: 'Verstecken+5',
+    talentBonus: { talent: 'verstecken', amount: -5 },
+  },
+  {
     id: 'attentaeter_schattenlaeufer',
     name: 'Schattenläufer',
     class: 'Attentäter',
@@ -2313,22 +2324,22 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Verstümmeln',
     class: 'Attentäter',
     type: 'passive',
-    description: 'Wird ein Kampf mit einem Überraschungsangriff gestartet, erhält das Ziel des Angriffs +1 auf alle Aktionen bis zum Ende des Kampfes'
+    description: 'Wird ein Gegner von einem Überraschungsangriff getroffen, erhält er +1 auf alle Aktionen bis zum Ende des Kampfes, nicht stapelbar'
   },
   {
     id: 'attentaeter_erfrischender_mord',
     name: 'Erfrischender Mord',
     class: 'Attentäter',
     type: 'passive',
-    description: 'Stellt 3 D20 Ausdauer her, wenn Gegner getötet wird'
+    description: 'Stellt Ausdauer her, wenn Gegner getötet wird (5 x Würfel in Höhe des gegnerischen Levels)'
   },
   {
     id: 'attentaeter_ueberwachung',
     name: 'Überwachung',
     class: 'Attentäter',
     type: 'active',
-    description: 'Kann bei Körperkontakt andere Person markieren. Der Anwender kann die Markierung orten, solange sie aktiv ist. Die Markierung kann leicht zerstört werden',
-    cost: { type: 'energy', amount: 5, perRound: true },
+    description: 'Kann bei Körperkontakt andere Person markieren. Der Anwender kann die Markierung orten, solange sie aktiv ist. Die Markierung kann leicht zerstört werden und ist auf eine gleichzeitig limitiert',
+    cost: { type: 'energy', amount: 10},
     actionType: 'Aktion'
   },
   {
@@ -2336,19 +2347,11 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Blitzschritt',
     class: 'Attentäter',
     type: 'active',
-    description: 'Verdoppelt Bewegung. Keine Aktion',
-    cost: { type: 'energy', amount: 45, perRound: true },
+    description: 'Verdoppelt Bewegung und ignoriert Gelegenheitsangriffe. Keine Aktion',
+    cost: { type: 'energy', amount: 45 },
     actionType: 'Keine Aktion'
   },
-  {
-    id: 'attentaeter_tragisches_schicksal',
-    name: 'Tragisches Schicksal',
-    class: 'Attentäter',
-    type: 'active',
-    description: 'Markiere vor dem Kampf einen Gegner in Sichtweite. +5 auf ersten Angriff gegen ihn als einzelnes Ziel',
-    cost: { type: 'energy', amount: 50 },
-    actionType: 'Aktion'
-  },
+
 
   // ==================== TÜFTLER ====================
   {
@@ -2361,12 +2364,19 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     infiniteLevel: true
   },
   {
+    id: 'tueftler_fingerfertigkeit_5',
+    name: 'Fingerfertigkeit+5',
+    class: 'Tüftler',
+    type: 'talent_bonus',
+    description: 'Fingerfertigkeit+5',
+    talentBonus: { talent: 'fingerfertigkeit', amount: -5 },
+  },
+  {
     id: 'tueftler_mechaniker',
     name: 'Mechaniker',
     class: 'Tüftler',
     type: 'passive',
-    description: '-3 auf Bauen & Verständnis von Mechanik',
-    enlightened: true
+    description: 'Verdreifacht erwürfelte Schmiedepunkte beim Schmieden von Konstrukten',
   },
   {
     id: 'tueftler_kalibrierte_geschosse',
@@ -2387,7 +2397,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Raffiniert',
     class: 'Tüftler',
     type: 'passive',
-    description: 'Vorteil auf Zerstörungswurf von eigener Ausrüstung und Zauber und setzt Haltbarkeit nach Kämpfen auf 100 (Ausrüstung) und 10 (Zauber) zurück, wenn es im Kampf unter diesen Wert gefallen ist',
+    description: 'Vorteil auf Zerstörungswurf von eigener Ausrüstung und Zauber und setzt Haltbarkeit von beiden nach Kämpfen auf 100 zurück, wenn es im Kampf unter diesen Wert gefallen ist',
     enlightened: true
   },
   {
@@ -2405,8 +2415,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Zauberschmiede',
     class: 'Tüftler',
     type: 'active',
-    description: 'Verarbeite Materialien in eine gewünschte Form',
-    cost: { type: 'energy', amount: 10, perRound: true },
+    description: 'Verarbeite Materialien in eine gewünschte Form, kann zum Schmieden benutzt werden',
+    cost: { type: 'energy', amount: 10 },
     actionType: 'Aktion'
   },
 
@@ -2442,7 +2452,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Energiewandler',
     class: 'Manafürst',
     type: 'passive',
-    description: '10% der verwendeten Mana werden in latente Energie umgewandelt, die entweder zu Leben, Ausdauer oder Mana für einen Verbündeten konvertiert werden kann',
+    description: '10% der verwendeten Mana werden in latente Energie umgewandelt, die entweder zu Leben, Ausdauer oder Mana für einen Verbündeten konvertiert werden kann. Kann über mehrere Runden gespeichert werden aber verfällt nach dem Kampf',
     enlightened: true
   },
   {
@@ -2457,15 +2467,16 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Magieherrschaft',
     class: 'Manafürst',
     type: 'passive',
-    description: 'Gegner im Zauberradius erhalten den Malus für Zauber zusätzlich auf ihre Fähigkeiten'
+    description: 'Gegner im Zauberradius erhalten den Nachteil für Zauber zusätzlich auf ihre Fähigkeiten'
   },
   {
     id: 'manafuerst_zauberautoritaet',
     name: 'Zauberauthorität',
     class: 'Manafürst',
     type: 'active',
-    description: 'Erweitert "Zauberbrecher", sodass schwache Zauber absorbiert werden und deine Mana um die Hälfte der Manakosten aufgefüllt wird. Halbiert zusätzlich Ausdauerkosten',
+    description: 'Erweitert "Zauberbrecher", sodass schwache Zauber (Effizienz < Intelligenz/2) absorbiert werden und deine Mana um die Hälfte der Manakosten aufgefüllt wird. Halbiert zusätzlich Ausdauerkosten',
     requiresSkill: 'arkanist_zauberbrecher',
+    cost: { type: 'energy', amount: 0 },
     actionType: 'Aktion'
   },
   {
@@ -2473,7 +2484,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Herrschaftsgebiet',
     class: 'Manafürst',
     type: 'active',
-    description: 'Verdreifacht Zauberradius. Bonusaktion',
+    description: 'Verdreifacht Zauberradius',
     cost: { type: 'energy', amount: 30, perRound: true },
     actionType: 'Bonusaktion'
   },
@@ -2487,6 +2498,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     description: 'Fokus+5',
     statBonus: { stat: 'focus', amount: 5 },
     infiniteLevel: true
+  },
+  {
+    id: 'nekromant_geschichte_5',
+    name: 'Geschichte+5',
+    class: 'Nekromant',
+    type: 'talent_bonus',
+    description: 'Geschichte+5',
+    talentBonus: { talent: 'geschichte', amount: -5 },
   },
   {
     id: 'nekromant_totenbeschworer',
@@ -2508,14 +2527,15 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Seelenfusion',
     class: 'Nekromant',
     type: 'passive',
-    description: 'Entfernt Nachteil und -5 bei Infusion einer Seele in einen lebendigen Körper.'
+    description: 'Entfernt Nachteil und -5 bei Infusion einer Seele in einen lebendigen Körper'
   },
   {
     id: 'nekromant_gestohlene_macht',
     name: 'Gestohlene Macht',
     class: 'Nekromant',
     type: 'passive',
-    description: 'Solange eine Leiche beschworen ist, wird die Hälfte ihres Fokus dem Anwender gutgeschrieben (kann maximal den Fokuskosten der Seelenrune entsprechen)'
+    description: 'Solange eine Seele mit "Totenbeschwörer" beschworen ist, wird die Hälfte ihres Fokus dem Anwender gutgeschrieben (kann maximal den Fokuskosten der Seelenrune entsprechen), benötigt Totenbeschwörer',
+    requiresSkill: 'nekromant_totenbeschworer'
   },
   {
     id: 'nekromant_unheiliges_ritual',
@@ -2532,8 +2552,8 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Märtyrer',
     class: 'Nekromant',
     type: 'active',
-    description: 'Solange die Fähigkeit aktiv ist, werden Verletzungen auf beschworene Leichenseelen in bis zu 10m Entfernung transferiert',
-    cost: { type: 'energy', amount: 30, perRound: true },
+    description: 'Solange die Fähigkeit aktiv ist, werden Verletzungen auf Beschwörungen in bis zu 10m Entfernung transferiert',
+    cost: { type: 'energy', amount: 20, perRound: true },
     actionType: 'Bonusaktion'
   },
 
@@ -2556,14 +2576,6 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     enlightened: true
   },
   {
-    id: 'orakel_ueberreaktion',
-    name: 'Überreaktion',
-    class: 'Orakel',
-    type: 'passive',
-    description: '-2 bei Reaktionen',
-    enlightened: true
-  },
-  {
     id: 'orakel_vorschuss',
     name: 'Vorschuss',
     class: 'Orakel',
@@ -2579,12 +2591,22 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     enlightened: true
   },
   {
+    id: 'orakel_ueberreaktion',
+    name: 'Überreaktion',
+    class: 'Orakel',
+    type: 'active',
+    description: '-5 auf Reaktionswert und -2 auf alle volle Reaktionen. +5 auf alle Panikreaktionen',
+    cost: { type: 'energy', amount: 10, perRound: true },
+    actionType: 'Bonusaktion',
+    enlightened: true
+  },
+  {
     id: 'orakel_glueckstraehne',
     name: 'Glückssträhne',
     class: 'Orakel',
     type: 'active',
-    description: 'Wähle eine Zahl zwischen 1 und 20. Wenn du im Verlauf diesen Kampfes diese Zahl würfelst(ohne Boni), erhalte Vorteil für die nächsten Runden, abhängig davon wie viel du gesetzt hast',
-    cost: { type: 'energy', amount: 20, perRound: true },
+    description: 'Wähle eine Zahl zwischen 1 und 20. Wenn du im Verlauf diesen Kampfes diese Zahl würfelst(ohne Boni), erhalte Vorteil auf alle Aktionen für eine zusätzliche Runde pro 20 Ausdauer investiert',
+    cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
   {
@@ -2592,9 +2614,9 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schicksal',
     class: 'Orakel',
     type: 'active',
-    description: 'Kann ein Würfelergebnis für Verbündete zurücksetzen und neu würfeln lassen oder das eigene Würfelergebnis zurücksetzen und den Zug neu starten',
-    cost: { type: 'energy', amount: 20 },
-    actionType: 'Aktion'
+    description: 'Kann ein Würfelergebnis für Verbündete zurücksetzen und neu würfeln lassen oder das eigene Würfelergebnis zurücksetzen und den Zug neu starten (Ausdauerkosten dieser Fähigkeit bleiben bestehen)',
+    cost: { type: 'energy', amount: 30 },
+    actionType: 'Keine Aktion'
   },
   {
     id: 'orakel_prophezeiung',
@@ -2621,14 +2643,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Absolute Dunkelheit',
     class: 'Dunkler Ritter',
     type: 'passive',
-    description: 'Halbiert Manakosten von Schattenrunen',
+    description: 'Halbiert Manakosten und Vorausssetzung von Schattenrunen',
     enlightened: true
   },
   {
     id: 'dunkler_ritter_nachtaktiv',
     name: 'Nachtaktiv',
     class: 'Dunkler Ritter',
-    type: 'passive',
+    type: 'dice_bonus',
     description: '-2, wenn es dunkel ist',
     enlightened: true
   },
@@ -2637,14 +2659,21 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Arkane Ausstattung',
     class: 'Dunkler Ritter',
     type: 'passive',
-    description: 'Effizienz x2 auf Zauber, die über Ausrüstung oder Waffen als Medium genutzt werden'
+    description: 'Erhöht Effizienz von Zaubern, die über Ausrüstung oder Waffen als Medium genutzt werden, um 50%'
+  },
+  {
+    id: 'dunkler_ritter_konzentration',
+    name: 'Konzentration',
+    class: 'Dunkler Ritter',
+    type: 'passive',
+    description: 'Kann Fähigkeiten ohne Ausdauerkosten benutzen, indem die Hälfte seines Fokus für 3 Runden besetzt wird'
   },
   {
     id: 'dunkler_ritter_schattenruestung',
     name: 'Schattenrüstung',
     class: 'Dunkler Ritter',
     type: 'active',
-    description: 'Alle Geschwindgkeitsmali von Rüstungen werden aufgehoben, addiert die Hälfte des Geschwindigkeitsmalus auf den Geschwindigkeitswert',
+    description: 'Alle Geschwindgkeitsmali von Rüstungen werden aufgehoben, addiert die Hälfte der Rüstungsnegation auf den Geschwindigkeitswert',
     cost: { type: 'energy', amount: 15, perRound: true },
     actionType: 'Bonusaktion'
   },
@@ -2653,7 +2682,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Dunkler Schnitt',
     class: 'Dunkler Ritter',
     type: 'active',
-    description: 'Schnitt, der fast alle Waffen und Rüstungen ignoriert, verbraucht 50 Waffenhaltbarkeit',
+    description: 'Schnitt, der fast alle Waffen und Rüstungen ignoriert, verbraucht 300 Waffenhaltbarkeit',
     enlightened: true,
     cost: { type: 'energy', amount: 0 },
     actionType: 'Aktion'
@@ -2663,7 +2692,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Tiefer Fokus',
     class: 'Dunkler Ritter',
     type: 'active',
-    description: 'Verdoppelt Fokus. Bonusaktion',
+    description: 'Verdoppelt Fokus',
     cost: { type: 'life', amount: 20, perRound: true },
     actionType: 'Bonusaktion'
   },
