@@ -34,4 +34,6 @@ export class SkillBlock {
   sourceRaceId?: string;
   // Configurable counter bars shown while skill is active
   counters?: SpellCounter[];
+  // Effect-bound: derived from an active effect's effectActive grantSkill (not persisted).
+  derived?: boolean;
 }

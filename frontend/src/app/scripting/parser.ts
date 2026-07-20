@@ -69,7 +69,7 @@ class Parser {
     if (this.isKeyword('if')) return this.parseIf();
     if (this.isKeyword('repeat')) return this.parseRepeat();
     if (this.isKeyword('while')) return this.parseWhile();
-    if (this.isKeyword('untilNextTurn')) return this.parseLifecycle();
+    if (this.isKeyword('effectActive') || this.isKeyword('untilNextTurn')) return this.parseLifecycle();
     if (this.isKeyword('grantSkill')) return this.parseGrantSkill();
     if (this.isKeyword('action')) return this.parseActionDecl();
     if (this.isPunct('{')) return this.parseBlock();
@@ -123,10 +123,10 @@ class Parser {
   }
 
   private parseLifecycle(): Stmt {
-    const kw = this.next(); // 'untilNextTurn'
+    const kw = this.next(); // 'effectActive' | 'untilNextTurn'
     const body = this.parseBlock();
     return {
-      kind: 'Lifecycle', lifecycle: 'untilNextTurn',
+      kind: 'Lifecycle', lifecycle: kw.value === 'untilNextTurn' ? 'untilNextTurn' : 'effectActive',
       keywordSpan: { from: kw.from, to: kw.to }, body, from: kw.from, to: body.to,
     };
   }

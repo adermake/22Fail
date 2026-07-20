@@ -85,8 +85,13 @@ export interface WhileStmt extends Span { kind: 'While'; keywordSpan: Span; test
 
 export interface Block extends Span { kind: 'Block'; body: Stmt[]; }
 
-/** A lifecycle scope such as `untilNextTurn { … }`. */
-export interface Lifecycle extends Span { kind: 'Lifecycle'; lifecycle: 'untilNextTurn'; keywordSpan: Span; body: Block; }
+/**
+ * A lifecycle scope. `effectActive { … }` is the primary form: while the source effect is
+ * active, the block's stat assignments become auto-derived modifiers (never mutating real
+ * data) and its `grantSkill`s become derived skills — all vanish when the effect is gone.
+ * `untilNextTurn` is a deprecated alias kept so old scripts still parse; it behaves the same.
+ */
+export interface Lifecycle extends Span { kind: 'Lifecycle'; lifecycle: 'untilNextTurn' | 'effectActive'; keywordSpan: Span; body: Block; }
 
 /** `grantSkill(name, manaCost, energyCost, lifeCost) { …action body… }`. */
 export interface GrantSkill extends Span {

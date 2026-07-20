@@ -1,9 +1,19 @@
 import { compileScript } from './checker';
 import { rollDice } from './dice';
+import { CharacterContext, runScript } from './interpreter';
 
 function errs(src: string): string[] {
   return compileScript(src).diagnostics.filter(d => d.severity === 'error').map(d => d.message);
 }
+
+const dummyCtx: CharacterContext = {
+  readScalar: () => 10,
+  readAttributeMember: () => 0,
+  readTalent: () => 0,
+  hasSkill: () => false,
+  inCombat: () => true,
+  rng: () => 0.5,
+};
 
 describe('FailScript checker', () => {
   it('rejects a top-level stat assignment (stat leak)', () => {
@@ -11,8 +21,26 @@ describe('FailScript checker', () => {
     expect(e.some(m => m.includes('Stat-Leak'))).toBe(true);
   });
 
-  it('allows a stat assignment inside untilNextTurn', () => {
+  it('allows a stat assignment inside effectActive', () => {
+    expect(compileScript('effectActive { speed += 5 }').ok).toBe(true);
+  });
+
+  it('accepts all assignment ops inside effectActive', () => {
+    expect(compileScript('effectActive { speed += 2 speed *= 2 speed -= 1 speed /= 2 speed = 0 }').ok).toBe(true);
+  });
+
+  it('keeps untilNextTurn as an alias for effectActive', () => {
     expect(compileScript('untilNextTurn { speed += 5 }').ok).toBe(true);
+  });
+
+  it('rejects grantSkill outside effectActive (skill leak)', () => {
+    expect(errs('grantSkill("X", 0, 0, 0) { }').some(m => m.includes('Skill-Leak'))).toBe(true);
+  });
+
+  it('rejects impure calls and dice inside effectActive', () => {
+    expect(errs('effectActive { display("x") }').some(m => m.includes('effectActive'))).toBe(true);
+    expect(errs('effectActive { loseResource(health, 5) }').some(m => m.includes('effectActive'))).toBe(true);
+    expect(errs('effectActive { if (2d6 > 3) { speed += 1 } }').some(m => m.includes('effectActive'))).toBe(true);
   });
 
   it('rejects assigning a read-only resource', () => {
@@ -40,10 +68,32 @@ describe('FailScript checker', () => {
     expect(errs('display(talent.nope)').some(m => m.includes('Talent'))).toBe(true);
   });
 
-  it('parses and checks grantSkill with an action body', () => {
+  it('parses and checks grantSkill with an action body inside effectActive', () => {
     expect(compileScript(
-      'untilNextTurn { grantSkill("Teleport", 5, 0, 0) { loseResource(mana, 5) display("Teleported") } }',
+      'effectActive { grantSkill("Teleport", 5, 0, 0) { loseResource(mana, 5) display("Teleported") } }',
     ).ok).toBe(true);
+  });
+});
+
+describe('FailScript execution modes', () => {
+  it('collect run yields ordered modifiers with ops, no side effects', () => {
+    const r = runScript('effectActive { speed += 2 speed *= 3 } display("hi")', dummyCtx, { collect: true });
+    expect(r.ok).toBe(true);
+    expect(r.modifiers.map(m => `${m.target}:${m.op}:${m.amount}`)).toEqual(['speed:add:2', 'speed:mul:3']);
+    expect(r.displays.length).toBe(0);         // side effects suppressed during collect
+  });
+
+  it('trigger run applies side effects but no effectActive modifiers', () => {
+    const r = runScript('effectActive { speed += 2 } loseResource(health, 5)', dummyCtx);
+    expect(r.ok).toBe(true);
+    expect(r.modifiers.length).toBe(0);        // effectActive skipped on trigger
+    expect(r.resourceChanges).toEqual([{ resource: 'health', amount: -5 }]);
+  });
+
+  it('derives granted skills only during collect', () => {
+    const src = 'effectActive { grantSkill("Fireball", 3, 0, 0) { display("boom") } }';
+    expect(runScript(src, dummyCtx).grantedSkills.length).toBe(0);
+    expect(runScript(src, dummyCtx, { collect: true }).grantedSkills.map(g => g.name)).toEqual(['Fireball']);
   });
 });
 

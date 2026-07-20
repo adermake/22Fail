@@ -18,7 +18,7 @@ import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { LibraryStoreService } from '../../services/library-store.service';
-import { StatusEffect } from '../../model/status-effect.model';
+import { StatusEffect, StatusModifierTarget } from '../../model/status-effect.model';
 
 @Component({
   selector: 'app-stat',
@@ -170,8 +170,21 @@ export class StatComponent {
   get total(): number {
     const effectBonus = this.effectBonus;
     const freePoints = this.stat.free || 0;
-    this.stat.current = (this.stat.base + this.stat.bonus + freePoints + effectBonus + this.stat.gain * this.sheet.level) | 0;
+    const core = this.stat.base + this.stat.bonus + freePoints + effectBonus + this.stat.gain * this.sheet.level;
+    // Apply the ordered effectActive pipeline (×, ÷, set …) on top of the additive core.
+    const statKey = this.getStatKey();
+    const piped = statKey ? this.trueStats.applyEffectActivePipeline(this.sheet, statKey as StatusModifierTarget, core) : core;
+    this.stat.current = piped | 0;
     return this.stat.current;
+  }
+
+  /** effectActive pipeline steps for this stat, e.g. "Segen: ×2" — for the breakdown display. */
+  get effectPipeline(): { source: string; label: string }[] {
+    const statKey = this.getStatKey();
+    if (!statKey) return [];
+    const opSym: Record<string, string> = { add: '+', sub: '−', mul: '×', div: '÷', set: '=' };
+    return this.trueStats.getEffectPipelineFor(this.sheet, statKey as StatusModifierTarget)
+      .map(m => ({ source: m.source, label: `${opSym[m.op]}${m.amount}` }));
   }
 
   get bonusNumeric(): number {

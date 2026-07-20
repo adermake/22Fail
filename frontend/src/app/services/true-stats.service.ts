@@ -4,6 +4,33 @@ import { StatBlock } from '../model/stat-block.model';
 import { LibraryStoreService } from './library-store.service';
 import { StatusEffect, StatusModifierTarget } from '../model/status-effect.model';
 import { FormulaType } from '../model/formula-type.enum';
+import { createPlayerContext } from '../scripting/character-context';
+import { ModifierOp, runScript, ScriptGrantedSkill } from '../scripting/interpreter';
+
+/** A modifier derived from an active effect's `effectActive` block, tagged for the pipeline. */
+export interface DerivedModifier {
+  target: StatusModifierTarget;
+  op: ModifierOp;
+  amount: number;
+  priority: number;
+  source: string;
+}
+/** A skill derived (effect-bound) from an active effect's `effectActive` block. */
+export interface DerivedGrantedSkill extends ScriptGrantedSkill { source: string; }
+
+interface DerivedEntry { fp: string; mods: DerivedModifier[]; skills: DerivedGrantedSkill[]; }
+const EMPTY_DERIVED: DerivedEntry = { fp: '', mods: [], skills: [] };
+
+/** Combine a modifier with the running value in the ordered stat pipeline. */
+function applyOp(acc: number, op: ModifierOp, amount: number): number {
+  switch (op) {
+    case 'add': return acc + amount;
+    case 'sub': return acc - amount;
+    case 'mul': return acc * amount;
+    case 'div': return amount === 0 ? acc : acc / amount;
+    case 'set': return amount;
+  }
+}
 
 /**
  * All calculated stat values for a character.
@@ -62,7 +89,112 @@ type StatKeyDisplay = 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'con
 })
 export class TrueStatsService {
   private libraryStore = inject(LibraryStoreService);
-  
+
+  // ── effectActive pipeline ──────────────────────────────────────────────────
+  // Active effects can carry an `effectActive { … }` script whose stat assignments become
+  // ordered modifiers (add/sub/mul/div/set) applied on top of the core value, and whose
+  // grantSkill(s) become effect-bound derived skills. Nothing is ever mutated: stats are
+  // recomputed from the core + the currently-active effects, so removing an effect makes its
+  // contribution vanish automatically. Modifiers are applied in ascending effect `priority`.
+
+  /** Guards against recursion: while collecting, calculators return their pre-pipeline value. */
+  private collectingEffectActive = false;
+  /** Per-sheet memo of derived modifiers/skills, keyed by a cheap fingerprint of the effects. */
+  private derivedCache = new WeakMap<CharacterSheet, DerivedEntry>();
+
+  /** Ordered stat modifiers derived from all active `effectActive` blocks (cached). */
+  getEffectActiveModifiers(sheet: CharacterSheet): DerivedModifier[] {
+    return this.getDerived(sheet).mods;
+  }
+
+  /** Effect-bound skills granted by active `effectActive` blocks (cached). */
+  getDerivedSkills(sheet: CharacterSheet): DerivedGrantedSkill[] {
+    return this.getDerived(sheet).skills;
+  }
+
+  private getDerived(sheet: CharacterSheet): DerivedEntry {
+    if (this.collectingEffectActive) return EMPTY_DERIVED;
+    const fp = this.effectFingerprint(sheet);
+    const cached = this.derivedCache.get(sheet);
+    if (cached && cached.fp === fp) return cached;
+    const { mods, skills } = this.collectEffectActive(sheet);
+    const entry: DerivedEntry = { fp, mods, skills };
+    this.derivedCache.set(sheet, entry);
+    return entry;
+  }
+
+  /** Cheap invalidation key: which effects are active, their stacks/duration, and level. */
+  private effectFingerprint(sheet: CharacterSheet): string {
+    let s = `L${sheet.level ?? 1}`;
+    for (const e of sheet.activeStatusEffects ?? []) {
+      s += `|${e.statusEffectId}:${e.stacks ?? 1}:${e.duration ?? ''}`;
+    }
+    return s;
+  }
+
+  private collectEffectActive(sheet: CharacterSheet): { mods: DerivedModifier[]; skills: DerivedGrantedSkill[] } {
+    const mods: DerivedModifier[] = [];
+    const skills: DerivedGrantedSkill[] = [];
+    this.collectingEffectActive = true;
+    try {
+      for (const active of sheet.activeStatusEffects ?? []) {
+        const effect = this.resolveStatusEffect(active.statusEffectId, active.customEffect);
+        const src = effect?.script;
+        if (!src || (!src.includes('effectActive') && !src.includes('untilNextTurn'))) continue;
+        const ctx = createPlayerContext(sheet, this, {
+          inCombat: true,
+          stacks: active.stacks || 1,
+          turn: 0,
+          duration: active.duration ?? 0,
+          effectStrength: effect?.strength ?? 0,
+          rng: Math.random,
+        });
+        const res = runScript(src, ctx, { collect: true });
+        const priority = effect?.priority ?? 0;
+        const source = active.customName ?? effect?.name ?? active.statusEffectId;
+        for (const m of res.modifiers) mods.push({ ...m, priority, source });
+        for (const g of res.grantedSkills) skills.push({ ...g, source });
+      }
+    } finally {
+      this.collectingEffectActive = false;
+    }
+    return { mods, skills };
+  }
+
+  /** Apply the derived modifiers for `target` (sorted by priority) on top of `base`. */
+  private applyEffectPipeline(sheet: CharacterSheet, target: StatusModifierTarget, base: number): number {
+    if (this.collectingEffectActive) return base;
+    const mods = this.getEffectActiveModifiers(sheet);
+    if (mods.length === 0) return base;
+    const relevant = mods
+      .map((m, i) => ({ m, i }))
+      .filter(x => x.m.target === target)
+      .sort((a, b) => (a.m.priority - b.m.priority) || (a.i - b.i));
+    let acc = base;
+    for (const { m } of relevant) acc = applyOp(acc, m.op, m.amount);
+    return acc;
+  }
+
+  /** Static status modifiers for a derived target, then the effectActive pipeline on top. */
+  private statusTargetTotal(sheet: CharacterSheet, target: StatusModifierTarget): number {
+    return this.applyEffectPipeline(sheet, target, this.getStatusModifierTotal(sheet, target));
+  }
+
+  /** Public: apply the effectActive pipeline for `target` on top of a caller-computed core. */
+  applyEffectActivePipeline(sheet: CharacterSheet, target: StatusModifierTarget, core: number): number {
+    return this.applyEffectPipeline(sheet, target, core);
+  }
+
+  /** Public: derived modifiers for one target, in applied order (for a core → … → total view). */
+  getEffectPipelineFor(sheet: CharacterSheet, target: StatusModifierTarget): DerivedModifier[] {
+    return this.getEffectActiveModifiers(sheet)
+      .map((m, i) => ({ m, i }))
+      .filter(x => x.m.target === target)
+      .sort((a, b) => (a.m.priority - b.m.priority) || (a.i - b.i))
+      .map(x => x.m);
+  }
+
+
   /**
    * Calculate the effect bonus for a specific stat from skills and equipment.
    * This matches the logic in stat.component.ts effectBonus getter.
@@ -245,8 +377,10 @@ export class TrueStatsService {
     const gain = stat.gain || 0;
     const level = sheet.level || 1;
     const effectBonus = this.calculateEffectBonus(sheet, statKey);
-    
-    return (base + bonus + free + effectBonus + (gain * level)) | 0;
+
+    // Core (base + additive bonuses), then the ordered effectActive pipeline (*, /, set …).
+    const core = base + bonus + free + effectBonus + (gain * level);
+    return this.applyEffectPipeline(sheet, statKey as StatusModifierTarget, core) | 0;
   }
 
   /**
@@ -377,7 +511,7 @@ export class TrueStatsService {
     return this.calculateGrundbonusBaseFromLevel(sheet)
       + this.calculateWilleBonus(sheet)
       + (sheet.grundbonusBonus || 0)
-      + this.getStatusModifierTotal(sheet, 'grundbonus');
+      + this.statusTargetTotal(sheet, 'grundbonus');
   }
 
   /** Reaktion = 10 − ⌊Wille/5⌋ − ⌊Level/5⌋ + Bonus (+ status effects). */
@@ -386,12 +520,12 @@ export class TrueStatsService {
       - this.calculateWilleBonus(sheet)
       - this.calculateGrundbonusBaseFromLevel(sheet)
       + (sheet.reaktionswertBonus || 0)
-      + this.getStatusModifierTotal(sheet, 'reaktion');
+      + this.statusTargetTotal(sheet, 'reaktion');
   }
 
   /** Speed-penalty negation from the sheet plus any status effects (Rüstungsnegation). */
   calculateSpeedPenaltyNegation(sheet: CharacterSheet): number {
-    return (sheet.speedPenaltyNegation || 0) + this.getStatusModifierTotal(sheet, 'armorNegation');
+    return (sheet.speedPenaltyNegation || 0) + this.statusTargetTotal(sheet, 'armorNegation');
   }
 
   /** Total speed malus before negation (armor + encumbrance + status Rüstungsmalus). */
@@ -399,7 +533,7 @@ export class TrueStatsService {
     const baseSpeed = this.calculateSpeed(sheet);
     return this.calculateTotalArmorDebuff(sheet)
       + this.calculateEncumbrancePenalty(sheet, baseSpeed)
-      + this.getStatusModifierTotal(sheet, 'armorMalus');
+      + this.statusTargetTotal(sheet, 'armorMalus');
   }
 
   getGrundbonusFormulaTooltip(sheet: CharacterSheet): string {
@@ -495,7 +629,7 @@ export class TrueStatsService {
     // Armor penalty (items) + encumbrance + status Rüstungsmalus
     const armorDebuff = this.calculateTotalArmorDebuff(sheet);
     const encumbrancePenalty = this.calculateEncumbrancePenalty(sheet, baseSpeed);
-    const statusMalus = this.getStatusModifierTotal(sheet, 'armorMalus');
+    const statusMalus = this.statusTargetTotal(sheet, 'armorMalus');
 
     // Total penalty before negation
     const totalPenalty = armorDebuff + encumbrancePenalty + statusMalus;
@@ -515,7 +649,7 @@ export class TrueStatsService {
    */
   calculateMovementSpeed(sheet: CharacterSheet): number {
     const spd = this.calculateEffectiveSpeed(sheet);
-    const bewegung = this.getStatusModifierTotal(sheet, 'bewegung');
+    const bewegung = this.statusTargetTotal(sheet, 'bewegung');
     return Math.max(0, Math.floor(5 + spd / 4) + bewegung);
   }
 

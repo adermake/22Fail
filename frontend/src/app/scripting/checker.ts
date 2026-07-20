@@ -34,7 +34,17 @@ class Scope {
   hasAction(name: string): boolean { return this.actions.has(name) || (this.parent?.hasAction(name) ?? false); }
 }
 
+/**
+ * Built-ins that are NOT allowed directly inside an `effectActive` block: they have side
+ * effects or are non-deterministic. effectActive is re-evaluated continuously to derive the
+ * effect's contribution, so it must be pure (reads + math + stat assignments + grantSkill).
+ */
+const IMPURE_IN_EFFECT_ACTIVE = new Set([
+  'display', 'stat', 'banner', 'box', 'loseResource', 'gainResource', 'applyStatus', 'removeStatus', 'roll',
+]);
+
 class Checker {
+  /** Depth of enclosing effectActive blocks (a grantSkill body resets it to 0). */
   private lifecycleDepth = 0;
 
   constructor(private diagnostics: Diagnostic[]) {}
@@ -105,6 +115,13 @@ class Checker {
         break;
 
       case 'GrantSkill':
+        // Granted skills are effect-bound: only legal inside effectActive, so the skill
+        // exists exactly as long as the source effect. Anywhere else is a skill leak.
+        if (this.lifecycleDepth === 0) {
+          this.err(stmt.keywordSpan.from, stmt.keywordSpan.to,
+            "'grantSkill' ist nur in 'effectActive { … }' erlaubt (sonst Skill-Leak). " +
+            'So verschwindet die Fähigkeit, sobald der Effekt endet.');
+        }
         for (const a of stmt.args) this.checkExpr(a, scope);
         // The granted skill's action runs in its own future context → reset lifecycle scope.
         this.checkBlock(stmt.body, scope, 0);
@@ -146,11 +163,11 @@ class Checker {
       return;
     }
 
-    // Assignable game stat — only inside a lifecycle block.
+    // Assignable game stat — only inside an effectActive block.
     if (this.lifecycleDepth === 0) {
       this.err(stmt.from, stmt.to,
         `Direkte Änderung von '${name}' ist nicht erlaubt (Stat-Leak). ` +
-        `Verwende 'untilNextTurn { ${name} += … }' für temporäre Änderungen.`);
+        `Verwende 'effectActive { ${name} += … }' — der Modifikator gilt, solange der Effekt aktiv ist.`);
     }
   }
 
@@ -161,6 +178,9 @@ class Checker {
 
       case 'Dice':
         if (expr.count <= 0 || expr.sides <= 0) this.warn(expr.from, expr.to, 'Würfel ohne Wirkung');
+        if (this.lifecycleDepth > 0) {
+          this.err(expr.from, expr.to, 'Würfel sind in effectActive nicht erlaubt (muss deterministisch sein).');
+        }
         break;
 
       case 'Identifier': {
@@ -236,6 +256,12 @@ class Checker {
       this.err(expr.callee.from, expr.callee.to, `Unbekannte Funktion '${name}'`);
       for (const a of expr.args) this.checkExpr(a, scope);
       return;
+    }
+
+    if (this.lifecycleDepth > 0 && IMPURE_IN_EFFECT_ACTIVE.has(name)) {
+      this.err(expr.callee.from, expr.callee.to,
+        `'${name}' ist in effectActive nicht erlaubt. Hier sind nur Stat-Zuweisungen ` +
+        '(speed += 2, speed *= 2, …), grantSkill und reine Berechnungen erlaubt.');
     }
 
     if (expr.args.length < fn.minArgs || expr.args.length > fn.maxArgs) {

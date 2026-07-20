@@ -23,7 +23,12 @@ export type DisplayItem =
 
 export interface ScriptRoll { name: string; formula: string; rolls: number[]; total: number; }
 export interface ScriptResourceChange { resource: string; amount: number; } // negative = lose
-export interface ScriptTempModifier { target: StatusModifierTarget; amount: number; }
+
+/** How a modifier combines with the running value in the stat pipeline. */
+export type ModifierOp = 'add' | 'sub' | 'mul' | 'div' | 'set';
+/** A stat modifier produced by an `effectActive` block. Priority/source added by the collector. */
+export interface ScriptModifier { target: StatusModifierTarget; op: ModifierOp; amount: number; }
+
 export interface ScriptGrantedSkill { name: string; manaCost: number; energyCost: number; lifeCost: number; script: string; }
 export interface ScriptStatusOp { op: 'apply' | 'remove'; id: string; stacks?: number; }
 
@@ -32,11 +37,27 @@ export interface ScriptResult {
   displays: DisplayItem[];
   rolls: ScriptRoll[];
   resourceChanges: ScriptResourceChange[];
-  /** From untilNextTurn (only persisted by the caller when combat is active). */
-  tempModifiers: ScriptTempModifier[];
+  /**
+   * Stat modifiers from `effectActive` blocks. Only populated in "collect" runs (used by
+   * TrueStatsService to derive stats while the effect is active). Empty on trigger runs.
+   */
+  modifiers: ScriptModifier[];
   grantedSkills: ScriptGrantedSkill[];
   statusOps: ScriptStatusOp[];
   errors: string[];
+}
+
+/** Run options. `collect` = derive continuous effectActive modifiers/skills (no side effects). */
+export interface RunOptions { collect?: boolean; }
+
+function opFromAssign(op: AssignOp): ModifierOp {
+  switch (op) {
+    case '=': return 'set';
+    case '+=': return 'add';
+    case '-=': return 'sub';
+    case '*=': return 'mul';
+    case '/=': return 'div';
+  }
 }
 
 /** Read-side of a character, resolved by the host (player→TrueStatsService, NPC→statblock). */
@@ -52,10 +73,10 @@ export interface CharacterContext {
 class ScriptError extends Error {}
 
 /** Compile then run. Refuses to run scripts with checker errors. */
-export function runScript(src: string, ctx: CharacterContext): ScriptResult {
+export function runScript(src: string, ctx: CharacterContext, opts: RunOptions = {}): ScriptResult {
   const result: ScriptResult = {
     ok: false, displays: [], rolls: [], resourceChanges: [],
-    tempModifiers: [], grantedSkills: [], statusOps: [], errors: [],
+    modifiers: [], grantedSkills: [], statusOps: [], errors: [],
   };
   const compiled = compileScript(src);
   if (!compiled.ok) {
@@ -63,7 +84,7 @@ export function runScript(src: string, ctx: CharacterContext): ScriptResult {
     return result;
   }
   try {
-    new Interpreter(src, ctx, result).runProgram(compiled.program);
+    new Interpreter(src, ctx, result, !!opts.collect).runProgram(compiled.program);
     result.ok = true;
   } catch (e) {
     result.errors.push(e instanceof Error ? e.message : String(e));
@@ -75,14 +96,26 @@ interface Frame { vars: Map<string, ScriptValue>; parent: Frame | null; }
 
 class Interpreter {
   private rng: () => number;
-  /** Accumulated temp-modifier deltas per target, while inside a lifecycle block. */
-  private tempDeltas: Map<StatusModifierTarget, number> | null = null;
+  /** True while executing an effectActive block (so stat assignments become modifiers). */
+  private inEffectActive = false;
   /** Per-loop cap and a global iteration budget to prevent runaway scripts. */
   private readonly LOOP_CAP = 10000;
   private readonly TOTAL_BUDGET = 200000;
   private totalIterations = 0;
 
-  constructor(private src: string, private ctx: CharacterContext, private result: ScriptResult) {
+  /**
+   * Two execution modes:
+   *  - trigger (collect=false): the effect just fired. Run top-level side effects (dice,
+   *    display, resource changes). `effectActive` blocks are skipped — they are continuous,
+   *    not one-shot.
+   *  - collect (collect=true): derive the effect's continuous contribution. Side-effect
+   *    built-ins are no-ops and dice are deterministic; only `effectActive` blocks do work,
+   *    yielding stat modifiers + granted skills.
+   */
+  constructor(
+    private src: string, private ctx: CharacterContext, private result: ScriptResult,
+    private collect: boolean,
+  ) {
     this.rng = ctx.rng ?? Math.random;
   }
 
@@ -152,21 +185,19 @@ class Interpreter {
   }
 
   private execLifecycle(stmt: Extract<Stmt, { kind: 'Lifecycle' }>, parent: Frame): void {
-    const outer = this.tempDeltas;
-    this.tempDeltas = new Map();
+    // effectActive is continuous: it only does work during a collect run (deriving the
+    // effect's modifiers/skills). On a trigger run it is skipped entirely.
+    if (!this.collect) return;
+    const outer = this.inEffectActive;
+    this.inEffectActive = true;
     const frame: Frame = { vars: new Map(), parent };
     for (const s of stmt.body.body) this.execStmt(s, frame);
-
-    // Persist temp modifiers only when combat is active (out of combat = instant/no-op).
-    if (this.ctx.inCombat()) {
-      for (const [target, amount] of this.tempDeltas) {
-        if (amount !== 0) this.result.tempModifiers.push({ target, amount });
-      }
-    }
-    this.tempDeltas = outer;
+    this.inEffectActive = outer;
   }
 
   private execGrantSkill(stmt: Extract<Stmt, { kind: 'GrantSkill' }>, frame: Frame): void {
+    // Granted skills are effect-bound: derived only during collection, inside effectActive.
+    if (!this.collect || !this.inEffectActive) return;
     const name = String(this.evalExpr(stmt.args[0], frame));
     const manaCost = stmt.args[1] ? toNum(this.evalExpr(stmt.args[1], frame)) : 0;
     const energyCost = stmt.args[2] ? toNum(this.evalExpr(stmt.args[2], frame)) : 0;
@@ -189,13 +220,12 @@ class Interpreter {
       return;
     }
 
-    // Game stat inside a lifecycle block → temp modifier delta.
+    // Game stat inside an effectActive block → a derived modifier carrying its operation.
+    // The RHS value becomes the modifier amount; the assignment operator becomes the op,
+    // so `speed += 2`, `speed *= 2`, `speed = 0` all feed the stat pipeline in order.
     const sym = SYMBOL_MAP.get(name);
-    if (sym?.assignable && sym.modifierTarget && this.tempDeltas) {
-      const current = toNum(this.ctx.readScalar(name));
-      const newValue = toNum(this.applyAssignOp(stmt.op, current, rhs));
-      const delta = newValue - current;
-      this.tempDeltas.set(sym.modifierTarget, (this.tempDeltas.get(sym.modifierTarget) ?? 0) + delta);
+    if (sym?.assignable && sym.modifierTarget && this.inEffectActive) {
+      this.result.modifiers.push({ target: sym.modifierTarget, op: opFromAssign(stmt.op), amount: toNum(rhs) });
       return;
     }
     // Should be unreachable (checker forbids), but guard anyway.
@@ -276,9 +306,21 @@ class Interpreter {
     }
   }
 
+  /** Side-effect built-ins do nothing during a collect run (only effectActive matters then). */
+  private static readonly SIDE_EFFECTS = new Set([
+    'display', 'stat', 'banner', 'box', 'loseResource', 'gainResource', 'applyStatus', 'removeStatus',
+  ]);
+
   private evalCall(expr: Extract<Expr, { kind: 'Call' }>, frame: Frame): ScriptValue {
     const name = expr.callee.name;
     const args = expr.args;
+
+    // During collection we still evaluate arguments (they may have no side effects) but
+    // suppress the observable effect, so continuous derivation stays pure.
+    if (this.collect && Interpreter.SIDE_EFFECTS.has(name)) {
+      for (const a of args) if (a.kind !== 'Identifier') this.evalExpr(a, frame);
+      return 0;
+    }
 
     switch (name) {
       case 'display':
@@ -329,6 +371,12 @@ class Interpreter {
   }
 
   private doRoll(count: number, sides: number, formula: string): number {
+    // During collection, dice must be deterministic (the block re-evaluates on every stat
+    // read) — use the average so a dice-gated effectActive stays stable rather than flickering.
+    if (this.collect) {
+      const c = Math.max(0, Math.floor(count)), s = Math.max(0, Math.floor(sides));
+      return Math.round(c * (s + 1) / 2);
+    }
     const roll = rollDice(count, sides, this.rng);
     this.result.rolls.push({ name: formula, formula: roll.formula, rolls: roll.rolls, total: roll.total });
     return roll.total;

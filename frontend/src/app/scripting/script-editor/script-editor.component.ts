@@ -63,9 +63,9 @@ interface RefGroup { title: string; items: RefItem[]; }
               @if (testResult.rolls.length) {
                 <div class="se-test-rolls">🎲 @for (r of testResult.rolls; track $index) { <span>{{ r.formula }}=<b>{{ r.total }}</b></span> }</div>
               }
-              @if (testResult.tempModifiers.length || testResult.grantedSkills.length || testResult.statusOps.length) {
+              @if (testResult.modifiers.length || testResult.grantedSkills.length || testResult.statusOps.length) {
                 <div class="se-test-extra">
-                  @for (m of testResult.tempModifiers; track $index) { <span>⏳ {{ m.target }} {{ m.amount > 0 ? '+' : '' }}{{ m.amount }}</span> }
+                  @for (m of testResult.modifiers; track $index) { <span title="Wirkt, solange der Effekt aktiv ist">⟳ {{ m.target }} {{ opSign(m.op) }} {{ m.amount }}</span> }
                   @for (g of testResult.grantedSkills; track $index) { <span>✚ {{ g.name }}</span> }
                   @for (o of testResult.statusOps; track $index) { <span>{{ o.op === 'apply' ? '＋' : '－' }} {{ o.id }}</span> }
                 </div>
@@ -178,7 +178,17 @@ export class ScriptEditorComponent implements AfterViewInit, OnChanges, OnDestro
       inCombat: () => true,
       rng: Math.random,
     };
-    this.testResult = runScript(src, ctx);
+    // Trigger run = the one-shot output (dice/display/resources). Then a collect run to
+    // preview the continuous effectActive contribution (stat modifiers + granted skills).
+    const trigger = runScript(src, ctx);
+    const collected = runScript(src, ctx, { collect: true });
+    trigger.modifiers = collected.modifiers;
+    trigger.grantedSkills = collected.grantedSkills;
+    this.testResult = trigger;
+  }
+
+  opSign(op: string): string {
+    return op === 'add' ? '+' : op === 'sub' ? '−' : op === 'mul' ? '×' : op === 'div' ? '÷' : '=';
   }
 
   private readonly groups: RefGroup[] = this.buildGroups();

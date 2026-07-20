@@ -32,6 +32,13 @@ export interface StatusEffect {
   embeddedMacros?: ActionMacro[]; // Multiple macros that all trigger when the effect fires
   script?: string;             // FailScript action (new); takes precedence over embeddedMacro(s)
 
+  /**
+   * Ordering priority for this effect's `effectActive` stat modifiers in the stat pipeline.
+   * Lower runs first, higher last — so e.g. a `speed *= 2` on a high-priority effect applies
+   * after additive `speed += 2` from a low-priority one. Defaults to 0.
+   */
+  priority?: number;
+
   // Duration & stacking
   defaultDuration?: number; // Default duration in turns/rounds
   maxStacks?: number; // Maximum number of times this effect can stack

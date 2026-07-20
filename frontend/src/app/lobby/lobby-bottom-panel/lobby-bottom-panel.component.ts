@@ -16,7 +16,7 @@ import { SKILL_DEFINITIONS } from '../../data/skill-definitions';
 import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
 import { SkillDefinition } from '../../model/skill-definition.model';
 import { CharacterSocketService } from '../../services/character-socket.service';
-import { TrueStatsService } from '../../services/true-stats.service';
+import { DerivedGrantedSkill, TrueStatsService } from '../../services/true-stats.service';
 import { ActiveStatusEffect, StatusEffect } from '../../model/status-effect.model';
 import { ActionMacro } from '../../model/action-macro.model';
 import { LibraryStoreService } from '../../services/library-store.service';
@@ -135,12 +135,33 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   get availableSkills(): SkillBlock[] {
     if (this.character) {
-      return (this.character.skills ?? []).filter(s => {
+      const own = (this.character.skills ?? []).filter(s => {
         const effectiveType = this.getSkillDefinition(s)?.type ?? s.type;
         return effectiveType === 'active' && !s.disabled;
       });
+      // Effect-bound skills granted by active effectActive blocks — derived on demand, so
+      // they appear while the source effect is active and vanish when it is removed. Never
+      // persisted to character.skills (that was the old "skill leak").
+      const derived = this.trueStats.getDerivedSkills(this.character).map(g => this.derivedToSkillBlock(g));
+      return [...own, ...derived];
     }
     return (this.npc?.customSkills ?? []).filter(s => s.type === 'active');
+  }
+
+  private derivedToSkillBlock(g: DerivedGrantedSkill): SkillBlock {
+    return {
+      name: g.name,
+      class: `Effekt: ${g.source}`,
+      description: 'Effektgebundene Fähigkeit',
+      type: 'active',
+      enlightened: false,
+      script: g.script,
+      derived: true,
+      cost: g.manaCost ? { type: 'mana', amount: g.manaCost }
+        : g.energyCost ? { type: 'energy', amount: g.energyCost }
+        : g.lifeCost ? { type: 'life', amount: g.lifeCost }
+        : undefined,
+    } as SkillBlock;
   }
 
   get availableSpells(): SpellBlock[] {
@@ -816,80 +837,56 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       }
     }
 
-    // untilNextTurn → a short-lived status effect that carries the temporary modifiers
-    // (duration 1 = removed at the next "Alle Ausführen" round). Its statModifiers fold
-    // into TrueStatsService via the character's activeStatusEffects.
-    if (s.tempModifiers.length > 0) {
-      const now = Date.now();
-      const custom: StatusEffect = {
-        id: `temp_${now}`,
-        name: 'Bis nächster Zug',
-        description: 'Temporärer Modifikator',
-        icon: '⏳',
-        color: '#38bdf8',
-        statModifiers: s.tempModifiers.map(m => ({ stat: m.target, amount: m.amount })),
-        isDebuff: false,
-      };
-      effects.push({
-        id: `fx_temp_${now}`, statusEffectId: custom.id, customEffect: custom,
-        name: custom.name, icon: custom.icon, color: custom.color, stacks: 1, duration: 1, isDebuff: false,
-      });
-      changed = true;
-    }
-
+    // NOTE: effectActive stat modifiers and granted skills are NOT applied here. They are
+    // continuous, effect-bound contributions derived on demand by TrueStatsService from the
+    // active effects (never mutating real data, and gone the moment the effect is removed),
+    // so a trigger run leaves result.modifiers / result.grantedSkills empty by design.
     if (changed) this.saveStatusEffects(effects);
-
-    // grantSkill(name, mana, energy, life){…} → add a temporary active skill with its script
-    if (s.grantedSkills.length > 0 && this.character) {
-      const skills = [...(this.character.skills || [])];
-      for (const g of s.grantedSkills) {
-        skills.push({
-          name: g.name, class: 'Temporär', description: 'Gewährte Fähigkeit',
-          type: 'active', enlightened: false, script: g.script,
-          cost: g.manaCost ? { type: 'mana', amount: g.manaCost }
-            : g.energyCost ? { type: 'energy', amount: g.energyCost }
-            : g.lifeCost ? { type: 'life', amount: g.lifeCost }
-            : undefined,
-        });
-      }
-      this.character.skills = skills;
-      const charId = this.characterId;
-      if (charId) {
-        const patch = { path: 'skills', value: skills };
-        this.sheetPatched.emit({ characterId: charId, patch });
-        this.charSocket.sendPatch(charId, patch);
-      }
-    }
   }
 
   private applyMacroResourceChanges(result: UnifiedMacroResult): void {
     const resourceMap: Record<string, FormulaType> = {
       health: FormulaType.LIFE, mana: FormulaType.MANA, energy: FormulaType.ENERGY,
     };
+
+    if (this.character) {
+      // Rebuild the statuses array (new reference) so OnPush children re-render, and
+      // persist the SAME way as saveStatusEffects (sheetPatched + socket) — the previous
+      // in-place mutation + socket-only patch didn't reach the lobby's character copy.
+      let statuses = [...(this.character.statuses ?? [])];
+      let changed = false;
+      for (const change of result.resourceChanges) {
+        const ft = resourceMap[change.resource];
+        if (ft === undefined || !change.amount) continue;
+        const idx = statuses.findIndex(s => s.formulaType === ft);
+        if (idx < 0) continue;
+        const max = this.trueStats.calculateResourceMax(this.character, ft);
+        const newVal = this.trueStats.clampResourceCurrent(ft, (statuses[idx].statusCurrent || 0) + change.amount, max);
+        statuses = statuses.map((s, i) => (i === idx ? { ...s, statusCurrent: newVal } : s));
+        changed = true;
+      }
+      if (changed) {
+        this.character.statuses = statuses;
+        const charId = this.characterId;
+        if (charId) {
+          const patch = { path: 'statuses', value: statuses };
+          this.sheetPatched.emit({ characterId: charId, patch });
+          this.charSocket.sendPatch(charId, patch);
+        }
+        this.cdr.markForCheck();
+      }
+      return;
+    }
+
+    // NPC token: adjust the token's current-resource fields.
     for (const change of result.resourceChanges) {
-      const formulaType = resourceMap[change.resource];
-      if (formulaType === undefined) continue;
-      if (this.character) {
-        const status = this.character.statuses?.find(s => s.formulaType === formulaType);
-        if (status) {
-          const max = this.trueStats.calculateResourceMax(this.character!, formulaType);
-          const newVal = this.trueStats.clampResourceCurrent(
-            formulaType,
-            (status.statusCurrent || 0) + change.amount,
-            max
-          );
-          status.statusCurrent = newVal;
-          const charId = this.characterId;
-          if (charId) this.charSocket.sendPatch(charId, { path: 'statuses', value: this.character.statuses });
-        }
-      } else {
-        if (formulaType === FormulaType.LIFE) {
-          this.tokenUpdate.emit({ currentHealth: (this.token?.currentHealth ?? 0) + change.amount });
-        } else if (formulaType === FormulaType.MANA) {
-          this.tokenUpdate.emit({ currentMana: Math.max(0, (this.token?.currentMana ?? 0) + change.amount) });
-        } else if (formulaType === FormulaType.ENERGY) {
-          this.tokenUpdate.emit({ currentEnergy: Math.max(0, (this.token?.currentEnergy ?? 0) + change.amount) });
-        }
+      const ft = resourceMap[change.resource];
+      if (ft === FormulaType.LIFE) {
+        this.tokenUpdate.emit({ currentHealth: (this.token?.currentHealth ?? 0) + change.amount });
+      } else if (ft === FormulaType.MANA) {
+        this.tokenUpdate.emit({ currentMana: Math.max(0, (this.token?.currentMana ?? 0) + change.amount) });
+      } else if (ft === FormulaType.ENERGY) {
+        this.tokenUpdate.emit({ currentEnergy: Math.max(0, (this.token?.currentEnergy ?? 0) + change.amount) });
       }
     }
   }

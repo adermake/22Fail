@@ -26,7 +26,7 @@ export interface Token {
 }
 
 export const KEYWORDS = new Set([
-  'var', 'if', 'else', 'true', 'false', 'untilNextTurn', 'grantSkill', 'action',
+  'var', 'if', 'else', 'true', 'false', 'effectActive', 'untilNextTurn', 'grantSkill', 'action',
   'repeat', 'while',
 ]);
 

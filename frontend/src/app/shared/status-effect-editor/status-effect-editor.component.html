@@ -104,6 +104,12 @@
           <input type="number" [(ngModel)]="editEffect.strength" min="0" placeholder="–">
           <span class="hint">Schwierigkeit zu entfernen</span>
         </div>
+
+        <div class="inline-field">
+          <label>Priorität</label>
+          <input type="number" [(ngModel)]="editEffect.priority" placeholder="0">
+          <span class="hint">effectActive-Reihenfolge (klein zuerst; z.B. ×2 nach +2)</span>
+        </div>
       </div>
     </section>
 

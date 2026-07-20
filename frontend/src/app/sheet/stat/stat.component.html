@@ -42,5 +42,13 @@
         <div class="value bonus" [ngClass]="bonusClass">{{ bonusValue }}</div>
       </div>
     </div>
+
+    @if (effectPipeline.length) {
+      <div class="effect-pipeline" title="effectActive-Modifikatoren (in Reihenfolge angewendet)">
+        @for (step of effectPipeline; track $index) {
+          <span class="ep-chip">{{ step.label }}<span class="ep-src">{{ step.source }}</span></span>
+        }
+      </div>
+    }
   </app-card>
 </div>
