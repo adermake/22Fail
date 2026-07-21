@@ -29,9 +29,9 @@ export class WorldMapToolbarComponent {
   @Input() hasMacroTileSelected = false;
 
   tools: { id: WorldMapTool; icon: string; label: string; shortcut: string }[] = [
-    { id: 'cursor', icon: '↖️', label: 'Token bewegen', shortcut: 'S' },
-    { id: 'draw', icon: '✏️', label: 'Zeichnen', shortcut: 'B' },
-    { id: 'measure', icon: '📏', label: 'Messen', shortcut: 'M' },
+    { id: 'cursor', icon: 'i-token-drag', label: 'Token bewegen', shortcut: 'S' },
+    { id: 'draw', icon: 'i-draw', label: 'Zeichnen', shortcut: 'B' },
+    { id: 'measure', icon: 'i-ruler', label: 'Messen', shortcut: 'M' },
   ];
 
   presetColors = [

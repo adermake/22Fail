@@ -120,13 +120,13 @@ export class ItemComponent implements OnChanges {
 
   get itemTypeIcon(): string {
     switch (this.item.itemType) {
-      case 'weapon': return '⚔';
-      case 'armor': return '🛡';
-      case 'potion': return '🧪';
-      case 'raw-material': return '⚙️';
-      case 'ingredient': return '🌿';
-      case 'extractor': return '⚗️';
-      default: return '📦';
+      case 'weapon': return 'i-effektivity';
+      case 'armor': return 'i-stability';
+      case 'potion': return 'i-brewing';
+      case 'raw-material': return 'i-item';
+      case 'ingredient': return 'i-item';
+      case 'extractor': return 'i-brewing';
+      default: return 'i-item';
     }
   }
 

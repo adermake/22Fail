@@ -7,19 +7,19 @@
           class="add-layer-btn" 
           (click)="onAddImageLayer()"
           title="Add Image Layer">
-          🖼️
+          <span class="app-icon i-image"></span>
         </button>
         <button 
           class="add-layer-btn" 
           (click)="onAddTextureLayer()"
           title="Add Texture Layer">
-          🎨
+          <span class="app-icon i-texture"></span>
         </button>
         <button 
           class="add-layer-btn" 
           (click)="onAddDrawLayer()"
           title="Add Draw Layer">
-          ✏️
+          <span class="app-icon i-draw"></span>
         </button>
       </div>
     }
@@ -41,7 +41,7 @@
         
         <div class="layer-drag-handle" cdkDragHandle>⋮⋮</div>
         
-        <div class="layer-icon">{{ getLayerIcon(layer.type) }}</div>
+        <div class="layer-icon app-icon {{ getLayerIcon(layer.type) }}"></div>
         
         @if (editingLayerId === layer.id) {
           <input 
@@ -65,7 +65,7 @@
             [class.active]="layer.visible"
             (click)="onToggleVisible($event, layer.id)"
             title="Toggle Visibility">
-            {{ layer.visible ? '👁️' : '👁️‍🗨️' }}
+            <span class="app-icon" [class.i-visibility-on]="layer.visible" [class.i-visibility-off]="!layer.visible"></span>
           </button>
           
           <button 
@@ -81,7 +81,7 @@
               class="layer-control-btn delete"
               (click)="onDeleteLayer($event, layer.id)"
               title="Delete Layer">
-              🗑️
+              <span class="app-icon i-restore-trash"></span>
             </button>
           }
         </div>
@@ -92,7 +92,7 @@
       <div class="empty-state">
         <p>No layers yet</p>
         @if (isGM) {
-          <p class="hint">Click 🖼️, 🎨 or ✏️ to add a layer</p>
+          <p class="hint">Click <span class="app-icon i-image"></span>, <span class="app-icon i-texture"></span> or <span class="app-icon i-draw"></span> to add a layer</p>
         }
       </div>
     }

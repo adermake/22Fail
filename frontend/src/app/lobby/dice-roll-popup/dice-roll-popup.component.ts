@@ -39,7 +39,7 @@ const DICE_BASE_LEVEL = 0.3;
             <span class="character-name">{{ popup.characterName }}</span>
             @if (popup.actionName) {
               <span class="action-name" [style.color]="popup.actionColor">
-                ⚡ {{ popup.actionName }}
+                <span class="app-icon i-ability"></span> {{ popup.actionName }}
               </span>
             }
           </div>
@@ -77,7 +77,7 @@ const DICE_BASE_LEVEL = 0.3;
           
           <!-- Total Result -->
           <div class="popup-total" [style.background-color]="popup.actionColor || '#f59e0b'">
-            🎲 {{ popup.total }}
+            <span class="app-icon i-dice"></span> {{ popup.total }}
           </div>
         </div>
       </div>

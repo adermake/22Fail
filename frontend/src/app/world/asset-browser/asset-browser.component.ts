@@ -400,13 +400,13 @@ export class AssetBrowserComponent implements OnChanges {
 
   getLootTypeIcon(type: string): string {
     switch (type) {
-      case 'item': return '⚔️';
-      case 'rune': return '🔮';
-      case 'spell': return '✨';
-      case 'skill': return '🎯';
-      case 'status-effect': return '💫';
-      case 'currency': return '💰';
-      default: return '❓';
+      case 'item': return 'i-item';
+      case 'rune': return 'i-spell';
+      case 'spell': return 'i-spell';
+      case 'skill': return 'i-ability';
+      case 'status-effect': return 'i-status-effect';
+      case 'currency': return 'i-stat';
+      default: return 'i-item';
     }
   }
 

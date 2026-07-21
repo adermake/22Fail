@@ -93,11 +93,11 @@ export class RaceSelectorComponent implements OnInit {
 
   getTypeIcon(type: string): string {
     switch (type) {
-      case 'active':     return '⚡';
-      case 'passive':    return '◆';
-      case 'dice_bonus': return '🎲';
-      case 'stat_bonus': return '📈';
-      default:           return '◆';
+      case 'active':     return 'i-active';
+      case 'passive':    return 'i-passive';
+      case 'dice_bonus': return 'i-dice';
+      case 'stat_bonus': return 'i-stat';
+      default:           return 'i-ability';
     }
   }
 

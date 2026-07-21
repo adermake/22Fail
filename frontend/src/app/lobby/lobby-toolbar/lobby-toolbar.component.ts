@@ -71,14 +71,14 @@ export class LobbyToolbarComponent {
 
   // Tool definitions
   tools: { id: ToolType; icon: string; label: string; shortcut: string }[] = [
-    { id: 'cursor', icon: '↖️', label: 'Select/Move', shortcut: 'S' },
-    { id: 'lasso', icon: '⭕', label: 'Lasso', shortcut: 'F' },
-    { id: 'draw', icon: '✏️', label: 'Zeichnen', shortcut: 'B' },
-    { id: 'walls', icon: '🧱', label: 'Wände', shortcut: 'W' },
-    { id: 'measure', icon: '📏', label: 'Messen', shortcut: 'R' },
-    { id: 'image', icon: '🖼️', label: 'Bilder', shortcut: 'I' },
-    { id: 'texture', icon: '🎨', label: 'Textur Pinsel', shortcut: 'T' },
-    { id: 'fog', icon: '🌫️', label: 'Kriegsnebel', shortcut: 'V' },
+    { id: 'cursor', icon: 'i-token-drag', label: 'Select/Move', shortcut: 'S' },
+    { id: 'lasso', icon: 'i-lasso', label: 'Lasso', shortcut: 'F' },
+    { id: 'draw', icon: 'i-draw', label: 'Zeichnen', shortcut: 'B' },
+    { id: 'walls', icon: 'i-wall', label: 'Wände', shortcut: 'W' },
+    { id: 'measure', icon: 'i-ruler', label: 'Messen', shortcut: 'R' },
+    { id: 'image', icon: 'i-image', label: 'Bilder', shortcut: 'I' },
+    { id: 'texture', icon: 'i-texture', label: 'Textur Pinsel', shortcut: 'T' },
+    { id: 'fog', icon: 'i-fog', label: 'Kriegsnebel', shortcut: 'V' },
   ];
 
   // Brush sizes

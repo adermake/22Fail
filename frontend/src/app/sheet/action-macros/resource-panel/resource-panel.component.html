@@ -8,7 +8,7 @@
       @if (status.formulaType === 'LIFE' || status.formulaType === 'ENERGY' || status.formulaType === 'MANA') {
         <div class="resource-bar-container">
           <div class="resource-label">
-            <span class="resource-icon">{{ getResourceIcon(status.formulaType) }}</span>
+            <span class="resource-icon app-icon {{ getResourceIcon(status.formulaType) }}"></span>
             <span>{{ status.statusName }}</span>
           </div>
           <div class="resource-bar">

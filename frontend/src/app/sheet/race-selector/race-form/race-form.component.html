@@ -188,7 +188,7 @@
             @for (rs of race.skills; track $index) {
               <div class="rf-skill-item">
                 <span class="rf-skill-lvl" title="Ab Level {{ rs.levelRequired }}">Lvl {{ rs.levelRequired }}</span>
-                <span class="rf-skill-type-icon">{{ getTypeIcon(rs.skills[0].type) }}</span>
+                <span class="rf-skill-type-icon app-icon {{ getTypeIcon(rs.skills[0].type) }}"></span>
                 <span class="rf-skill-name">{{ rs.skills[0].name }}</span>
                 <span class="rf-skill-type-badge">{{ getTypeLabel(rs.skills[0].type) }}</span>
                 <button class="rf-skill-edit" (click)="openEditSkillEditor($index)" title="Bearbeiten">&#x270F;</button>

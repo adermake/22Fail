@@ -116,9 +116,9 @@ export class LobbyLayerPanelComponent implements OnChanges {
 
   getLayerIcon(type: LayerType): string {
     switch (type) {
-      case 'image': return '🖼️';
-      case 'texture': return '🎨';
-      case 'draw': return '✏️';
+      case 'image': return 'i-image';
+      case 'texture': return 'i-texture';
+      case 'draw': return 'i-draw';
     }
   }
 }

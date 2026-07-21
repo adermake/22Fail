@@ -87,10 +87,10 @@ export class RaceFormComponent {
 
   getTypeIcon(type: string): string {
     const icons: Record<string, string> = {
-      active: '\u26A1', passive: '\uD83D\uDD2E',
-      dice_bonus: '\uD83C\uDFB2', stat_bonus: '\uD83D\uDCC8',
+      active: 'i-active', passive: 'i-passive',
+      dice_bonus: 'i-dice', stat_bonus: 'i-stat',
     };
-    return icons[type] ?? '\u2726';
+    return icons[type] ?? 'i-ability';
   }
 
   getTypeLabel(type: string): string {

@@ -104,19 +104,19 @@
 <!-- Sticky Action Buttons - Horizontal Layout -->
 <div class="sticky-actions horizontal">
   <button class="action-btn cast-btn" [class.active]="showCastWindow" (click)="toggleCastWindow()" title="Zauber und Fähigkeiten (C)">
-    ✦
+    <span class="app-icon i-spell"></span>
   </button>
   <button class="action-btn dice-btn" [class.active]="showDiceRoller" (click)="toggleDiceRoller()" title="Würfeln (D)">
-    🎲
+    <span class="app-icon i-dice"></span>
   </button>
   <button class="action-btn damage-btn" [class.active]="showDamageCalc" (click)="toggleDamageCalc()" title="Schadensrechner (F)">
-    ⚔
+    <span class="app-icon i-effektivity"></span>
   </button>
   <button class="action-btn resource-btn" [class.active]="showResourcePanel" (click)="toggleResourcePanel()" title="Ressourcen (R)">
     💎
   </button>
   <button class="action-btn info-btn" [class.active]="showGameInfo" (click)="toggleGameInfo()" title="Game Guide (H)">
-    📚
+    <span class="app-icon i-folder"></span>
   </button>
 </div>
 
@@ -172,7 +172,7 @@
           class="resource-option health"
           [class.selected]="resourceType === 'health'"
           (click)="resourceType = 'health'">
-          <span class="resource-icon">❤️</span>
+          <span class="resource-icon"><span class="app-icon i-life"></span></span>
           <span>Health</span>
           <span class="resource-value">{{ getResourceCurrent('health') }}</span>
         </button>
@@ -180,7 +180,7 @@
           class="resource-option energy"
           [class.selected]="resourceType === 'energy'"
           (click)="resourceType = 'energy'">
-          <span class="resource-icon">⚡</span>
+          <span class="resource-icon"><span class="app-icon i-energy"></span></span>
           <span style="color: #22c55e;">Energy</span>
           <span class="resource-value" style="color: #22c55e;">{{ getResourceCurrent('energy') }}</span>
         </button>
@@ -188,7 +188,7 @@
           class="resource-option mana"
           [class.selected]="resourceType === 'mana'"
           (click)="resourceType = 'mana'">
-          <span class="resource-icon">💧</span>
+          <span class="resource-icon"><span class="app-icon i-mana"></span></span>
           <span style="color: #3b82f6;">Mana</span>
           <span class="resource-value" style="color: #3b82f6;">{{ getResourceCurrent('mana') }}</span>
         </button>
@@ -206,9 +206,9 @@
                 [class.mana-spending]="spending.type === 'mana'"
                 (click)="useRecentSpending(spending)"
                 title="Change {{ spending.amount }} {{ spending.type }}">
-                @if (spending.type === 'health') {<span>❤️</span>}
-                @if (spending.type === 'energy') {<span>⚡</span>}
-                @if (spending.type === 'mana') {<span>💧</span>}
+                @if (spending.type === 'health') {<span><span class="app-icon i-life"></span></span>}
+                @if (spending.type === 'energy') {<span><span class="app-icon i-energy"></span></span>}
+                @if (spending.type === 'mana') {<span><span class="app-icon i-mana"></span></span>}
                 <span class="spending-amount">{{ spending.amount >= 0 ? '+' : '' }}{{ spending.amount }}</span>
               </button>
             }
@@ -256,7 +256,7 @@
   <div class="dialog-overlay" (click)="closeTrash()">
     <div class="dialog-content trash-dialog" (click)="$event.stopPropagation()" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <h2>🗑️ Trash</h2>
+        <h2><span class="app-icon i-restore-trash"></span> Trash</h2>
         <div style="display: flex; gap: 0.5rem;">
           <button (click)="emptyTrash()" [disabled]="!sheet.trash || sheet.trash.length === 0" style="background: #d32f2f; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;">
             Empty Trash

@@ -2,7 +2,7 @@
   <div class="dice-roller-fullscreen" [class.secret-mode]="isSecretRoll()">
     <!-- Header -->
     <div class="dialog-header">
-      <h2>🎲 Würfel Werfen</h2>
+      <h2><span class="app-icon i-dice"></span> Würfel Werfen</h2>
       <div class="header-controls">
         <label class="secret-toggle" [class.active]="isSecretRoll()">
           <input type="checkbox" [checked]="isSecretRoll()" (change)="isSecretRoll.set($any($event.target).checked)" />
@@ -81,7 +81,7 @@
           [class.secret]="isSecretRoll()"
           [disabled]="isRolling()"
           (click)="roll()">
-          <span class="roll-text">{{isRolling() ? '🎲...' : '🎲 Würfeln'}}</span>
+          <span class="roll-text"><span class="app-icon i-dice"></span> {{isRolling() ? '...' : 'Würfeln'}}</span>
         </button>
 
         <!-- Result Display -->

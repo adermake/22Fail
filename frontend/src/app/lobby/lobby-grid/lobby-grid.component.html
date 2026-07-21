@@ -52,7 +52,7 @@
           (click)="onLoadPalettePreset()"
           title="Load saved palette preset"
           [disabled]="getPalettePresetNames().length === 0">
-          📂
+          <span class="app-icon i-folder"></span>
         </button>
       </div>
     </div>
@@ -167,12 +167,12 @@
         <button class="danger" (click)="onDeleteSelectedImage()">Delete Image</button>
       } @else if (contextMenuTokenId()) {
         <!-- Token context menu -->
-        <button (click)="onAddTokenToCombat('red')">⚔️ Als Feind beitreten</button>
+        <button (click)="onAddTokenToCombat('red')"><span class="app-icon i-effektivity"></span> Als Feind beitreten</button>
         <button (click)="onAddTokenToCombat('yellow')">⚖️ Als Neutral beitreten</button>
-        <button (click)="onAddTokenToCombat('blue')">🛡️ Als Verbündeter beitreten</button>
+        <button (click)="onAddTokenToCombat('blue')"><span class="app-icon i-stability"></span> Als Verbündeter beitreten</button>
         <button (click)="onRemoveTokenFromCombat()">🚪 Aus Kampf entfernen</button>
         <div class="menu-divider"></div>
-        <button class="danger" (click)="onRemoveToken()">🗑️ Token entfernen</button>
+        <button class="danger" (click)="onRemoveToken()"><span class="app-icon i-restore-trash"></span> Token entfernen</button>
       } @else if (contextMenuHex()) {
         <!-- Quick token creation menu -->
         <div class="quick-token-form">

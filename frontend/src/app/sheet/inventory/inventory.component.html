@@ -29,7 +29,7 @@
         ⚙️
       </button>
       <button class="forge-btn" (click)="openForge.emit()" title="Schmiede öffnen">⚒ Schmieden</button>
-      <button class="forge-btn" (click)="openBrew.emit()" title="Braukessel öffnen">🧪 Brauen</button>
+      <button class="forge-btn" (click)="openBrew.emit()" title="Braukessel öffnen"><span class="app-icon i-brewing"></span> Brauen</button>
       <button class="add-btn" (click)="openNewItemEditor()">+ Gegenstand</button>
     </div>
   </div>
@@ -69,7 +69,7 @@
                  (click)="setActiveTab(getVisualRow(i), i); $event.stopPropagation()"
                  (dblclick)="onFoldChange(i, true); $event.stopPropagation()">
               <button class="chip-fold-btn" (click)="onFoldChange(i, true); $event.stopPropagation()" title="Einklappen">▲</button>
-              <span class="origin-chip-icon">{{ slot.itemType === 'weapon' ? '⚔' : slot.itemType === 'armor' ? '🛡' : '📦' }}</span>
+              <span class="origin-chip-icon"><span class="app-icon" [class.i-effektivity]="slot.itemType === 'weapon'" [class.i-stability]="slot.itemType === 'armor'" [class.i-item]="slot.itemType !== 'weapon' && slot.itemType !== 'armor'"></span></span>
               <span class="origin-chip-name">{{ slot.name }}</span>
             </div>
           } @else {
@@ -93,7 +93,7 @@
           <!-- Drag preview chip -->
           <ng-template cdkDragPreview>
             <div class="drag-chip">
-              <span class="drag-chip-icon">{{ slot.itemType === 'weapon' ? '⚔' : slot.itemType === 'armor' ? '🛡' : '📦' }}</span>
+              <span class="drag-chip-icon"><span class="app-icon" [class.i-effektivity]="slot.itemType === 'weapon'" [class.i-stability]="slot.itemType === 'armor'" [class.i-item]="slot.itemType !== 'weapon' && slot.itemType !== 'armor'"></span></span>
               <span class="drag-chip-name">{{ slot.name }}</span>
             </div>
           </ng-template>

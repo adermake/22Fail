@@ -27,14 +27,14 @@ type PanelTab = 'layers' | 'rolls';
           [class.gm-locked]="!isGM"
           (click)="activeTab.set('layers')"
         >
-          📐 Ebenen
+          <span class="app-icon i-layers"></span> Ebenen
         </button>
         <button 
           class="tab-button"
           [class.active]="!isGM || activeTab() === 'rolls'"
           (click)="activeTab.set('rolls')"
         >
-          🎲 Würfe
+          <span class="app-icon i-dice"></span> Würfe
         </button>
       </div>
 
@@ -61,7 +61,7 @@ type PanelTab = 'layers' | 'rolls';
           <div class="roll-timeline">
             @if (rolls.length === 0) {
               <div class="empty-state">
-                <div class="empty-icon">🎲</div>
+                <div class="empty-icon"><span class="app-icon i-dice"></span></div>
                 <div class="empty-text">No rolls yet</div>
               </div>
             } @else {
@@ -124,7 +124,7 @@ type PanelTab = 'layers' | 'rolls';
                                 [class.gain]="change.amount > 0"
                                 [class.spend]="change.amount < 0"
                               >
-                                {{ getResourceIcon(change.resource) }} {{ change.amount > 0 ? '+' : '' }}{{ change.amount }} {{ getResourceName(change.resource) }}
+                                <span class="app-icon {{ getResourceIcon(change.resource) }}"></span> {{ change.amount > 0 ? '+' : '' }}{{ change.amount }} {{ getResourceName(change.resource) }}
                               </span>
                             }
                           </div>
@@ -501,11 +501,11 @@ export class LobbySidePanelComponent {
 
   getResourceIcon(resource: string): string {
     const icons: Record<string, string> = {
-      'health': '❤️',
-      'energy': '⚡',
-      'mana': '🔮'
+      'health': 'i-life',
+      'energy': 'i-energy',
+      'mana': 'i-mana'
     };
-    return icons[resource] || '📊';
+    return icons[resource] || 'i-stat';
   }
 
   getResourceName(resource: string): string {

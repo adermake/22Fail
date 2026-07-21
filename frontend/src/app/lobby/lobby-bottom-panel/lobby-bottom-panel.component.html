@@ -11,10 +11,10 @@
     @if (!collapsed) {
       <div class="lbp-tabs">
         <button class="lbp-tab" [class.active]="activeTab === 'status'" (click)="activeTab = 'status'">
-          ✨ Status
+          <span class="app-icon i-status-effect"></span> Status
         </button>
         <button class="lbp-tab" [class.active]="activeTab === 'aktiv'" (click)="activeTab = 'aktiv'">
-          ✦ Aktiv
+          <span class="app-icon i-active"></span> Aktiv
         </button>
       </div>
     }
@@ -161,7 +161,7 @@
                 }
                 @if (chainResult.rolls.length > 0) {
                   <button class="exec-sb-rolls-btn" (click)="openAllRollsBreakdown(chainResult)">
-                    🎲 Würfel-Details ({{ chainResult.rolls.length }})
+                    <span class="app-icon i-dice"></span> Würfel-Details ({{ chainResult.rolls.length }})
                   </button>
                 }
                 @if (!chainResult.displays?.length && summarizeStepResources(chainResult).length === 0 && chainResult.rolls.length === 0) {
@@ -170,7 +170,7 @@
               }
             } @else {
               <div class="exec-sb-idle">
-                <span class="exec-sb-idle-icon">⚔</span>
+                <span class="exec-sb-idle-icon"><span class="app-icon i-effektivity"></span></span>
                 <span class="exec-sb-idle-text">Alle Ausführen starten</span>
               </div>
             }
@@ -243,7 +243,7 @@
               </span>
             </div>
             <div class="lbp-fx-detail">
-              <span class="lbp-fx-detail-icon">📚</span>
+              <span class="lbp-fx-detail-icon"><span class="app-icon i-layers"></span></span>
               <span class="lbp-fx-detail-label">Stapel</span>
               <span class="lbp-fx-detail-value">
                 <button class="lbp-fx-btn" (click)="changeStacks(expandedFx, -1)">−</button>
@@ -253,7 +253,7 @@
             </div>
             @if (getEffect(expandedFx)?.strength !== undefined && getEffect(expandedFx)?.strength !== null) {
               <div class="lbp-fx-detail">
-                <span class="lbp-fx-detail-icon">🛡</span>
+                <span class="lbp-fx-detail-icon"><span class="app-icon i-stability"></span></span>
                 <span class="lbp-fx-detail-label">Stärke</span>
                 <span class="lbp-fx-detail-value"><span class="lbp-fx-num">{{ getEffect(expandedFx)?.strength }}</span></span>
               </div>
@@ -272,7 +272,7 @@
             }
             @if (getEffect(expandedFx)?.statModifiers?.length) {
               <div class="lbp-fx-detail">
-                <span class="lbp-fx-detail-icon">📊</span>
+                <span class="lbp-fx-detail-icon"><span class="app-icon i-stat"></span></span>
                 <span class="lbp-fx-detail-label">Modifikatoren</span>
                 <span class="lbp-fx-mods">
                   @for (mod of getEffect(expandedFx)!.statModifiers!; track $index) {
@@ -297,7 +297,7 @@
                   <span class="lbp-fx-triggers-label">Auslöser</span>
                   @for (trig of getEffectTriggers(expandedFx); track trig) {
                     <button class="lbp-fx-trigger-btn" (click)="executeTrigger(expandedFx, trig, $event)">
-                      ⚡ {{ trig }}
+                      <span class="app-icon i-ability"></span> {{ trig }}
                     </button>
                   }
                 </div>
@@ -318,9 +318,9 @@
           }
           <div class="lbp-fx-panel-footer">
             @if (getEffect(expandedFx)) {
-              <button class="lbp-fx-panel-btn edit" (click)="editFx(expandedFx)">✏ Bearbeiten</button>
+              <button class="lbp-fx-panel-btn edit" (click)="editFx(expandedFx)"><span class="app-icon i-draw"></span> Bearbeiten</button>
             }
-            <button class="lbp-fx-panel-btn delete" (click)="removeStatusEffect(expandedFx.id)">🗑 Entfernen</button>
+            <button class="lbp-fx-panel-btn delete" (click)="removeStatusEffect(expandedFx.id)"><span class="app-icon i-restore-trash"></span> Entfernen</button>
           </div>
         </div>
       </div>
@@ -361,7 +361,7 @@
              (click)="$event.stopPropagation()">
           @if (contextMenuFx) {
             <button class="lbp-ctx-item" (click)="editFxFromContextMenu()">
-              <span>✏</span><span>Bearbeiten</span>
+              <span><span class="app-icon i-draw"></span></span><span>Bearbeiten</span>
             </button>
             @if (hasBaseAction(contextMenuFx)) {
               <button class="lbp-ctx-item" (click)="executeFxFromContextMenu($event)">
@@ -370,7 +370,7 @@
             }
           } @else {
             <button class="lbp-ctx-item" (click)="openPickerFromContextMenu()">
-              <span>✦</span><span>Status hinzufügen</span>
+              <span><span class="app-icon i-status-effect"></span></span><span>Status hinzufügen</span>
             </button>
           }
         </div>
@@ -532,7 +532,7 @@
                 <div class="lbp-ac-meta-row">
                   <span class="lbp-ac-cost lbp-ac-cost--skill">{{ skillCostLabel(skill) }}</span>
                   @if (effectiveCost(skill)!.perRound) {
-                    <button class="lbp-ac-pay-btn" (click)="paySkillRoundCost(skill)">⚡ Zahlen</button>
+                    <button class="lbp-ac-pay-btn" (click)="paySkillRoundCost(skill)"><span class="app-icon i-energy"></span> Zahlen</button>
                   }
                 </div>
               }

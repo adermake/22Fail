@@ -100,7 +100,7 @@
                   <span class="sms-icon">&#x2390;</span>
                   <span class="mini-val halt">{{ preview.haltbarkeit }}</span>
                   <span class="mini-sep"> / </span>
-                  <span class="sms-icon">{{ itemType === 'weapon' ? '⚔︎' : '⛊' }}</span>
+                  <span class="sms-icon"><span class="app-icon" [class.i-effektivity]="itemType === 'weapon'" [class.i-stability]="itemType !== 'weapon'"></span></span>
                   <span class="mini-val effk">{{ preview.effektivitaet }}</span>
                 </div>
               }

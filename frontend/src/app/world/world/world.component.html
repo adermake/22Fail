@@ -3,8 +3,8 @@
   <div class="world-header">
     <h1>{{ worldName }} - GM Ansicht</h1>
     <div class="world-header-links">
-      <a [href]="'/lobby/' + worldName + '?gm=true'" target="_blank" rel="noopener">🌍 Lobby</a>
-      <a [href]="'/world-map/' + worldName + '?gm=true'" target="_blank" rel="noopener">🗺 Weltkarte</a>
+      <a [href]="'/lobby/' + worldName + '?gm=true'" target="_blank" rel="noopener"><span class="app-icon i-lobby"></span> Lobby</a>
+      <a [href]="'/world-map/' + worldName + '?gm=true'" target="_blank" rel="noopener"><span class="app-icon i-map"></span> Weltkarte</a>
       <!-- Sound effects volume (persisted per browser, shared with the lobby) -->
       <app-sound-volume-control></app-sound-volume-control>
     </div>
@@ -31,7 +31,7 @@
         />
         <button (click)="addCharacter()">Charakter hinzufügen</button>
         <button (click)="openCharacterGenerator()" class="generate-character-btn">
-          ⚔️ Generate Character
+          <span class="app-icon i-effektivity"></span> Generate Character
         </button>
       </div>
     </app-card>
@@ -193,10 +193,10 @@
         <h2>Bibliothek</h2>
         <div class="library-header-actions">
           <button (click)="openLibrarySelector()" class="header-btn" title="Verknüpfte Bibliotheken verwalten">
-            📚 Bibliotheken
+            <span class="app-icon i-folder"></span> Bibliotheken
           </button>
           <button (click)="openTrash()" class="header-btn secondary" title="Papierkorb öffnen">
-            🗑️ Papierkorb ({{ (world.trash || []).length }})
+            <span class="app-icon i-restore-trash"></span> Papierkorb ({{ (world.trash || []).length }})
           </button>
         </div>
       </div>
@@ -299,7 +299,7 @@
   <div class="dialog-overlay" (click)="closeTrash()">
     <div class="dialog-content trash-dialog" (click)="$event.stopPropagation()" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <h2>🗑️ Papierkorb</h2>
+        <h2><span class="app-icon i-restore-trash"></span> Papierkorb</h2>
         <div style="display: flex; gap: 0.5rem;">
           <button (click)="emptyTrash()" [disabled]="!world.trash || world.trash.length === 0" style="background: #d32f2f; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; border: none;">
             Papierkorb leeren
@@ -384,7 +384,7 @@
   <div class="sm-overlay" (click)="closeStatusManager()">
     <div class="sm-panel" (click)="$event.stopPropagation()">
       <div class="sm-header">
-        <span class="sm-title">✨ Status verwalten</span>
+        <span class="sm-title"><span class="app-icon i-status-effect"></span> Status verwalten</span>
         <span class="sm-subtitle">{{ partyCharacters.get(statusManagerFor)?.name || statusManagerFor }}</span>
         <button class="sm-close" (click)="closeStatusManager()">✕</button>
       </div>

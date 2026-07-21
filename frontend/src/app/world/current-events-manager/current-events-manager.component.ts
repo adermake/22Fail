@@ -80,7 +80,7 @@ import { Library } from '../../model/library.model';
               <div class="event-actions-inline">
                 @if (event.sourceRef) {
                   <button class="icon-btn library" (click)="editInLibrary(event)" title="In Bibliothek bearbeiten">
-                    📚
+                    <span class="app-icon i-folder"></span>
                   </button>
                 }
                 <button class="icon-btn" (click)="toggleEventExpanded(event.id)" title="Details">
@@ -157,7 +157,7 @@ import { Library } from '../../model/library.model';
           <div class="loot-items">
             @for (item of loot.items; track item.id) {
               <div class="loot-item" [class.claimed]="item.claimedBy">
-                <span class="loot-type-icon">{{ getLootTypeIcon(item.type) }}</span>
+                <span class="loot-type-icon app-icon {{ getLootTypeIcon(item.type) }}"></span>
                 <span class="loot-name">{{ getLootName(item) }}</span>
                 @if (item.claimedBy) {
                   <span class="claimed-by">Beansprucht</span>
@@ -705,13 +705,13 @@ export class CurrentEventsManagerComponent {
 
   getLootTypeIcon(type: string): string {
     switch (type) {
-      case 'item': return '📦';
-      case 'rune': return '🔮';
-      case 'spell': return '✨';
-      case 'skill': return '⚔️';
-      case 'status-effect': return '💫';
-      case 'currency': return '💰';
-      default: return '❓';
+      case 'item': return 'i-item';
+      case 'rune': return 'i-spell';
+      case 'spell': return 'i-spell';
+      case 'skill': return 'i-ability';
+      case 'status-effect': return 'i-status-effect';
+      case 'currency': return 'i-stat';
+      default: return 'i-item';
     }
   }
 

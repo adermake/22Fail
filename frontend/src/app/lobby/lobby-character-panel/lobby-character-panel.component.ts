@@ -56,7 +56,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
   @if (!token) {
     <!-- No token selected: show dice + roll history -->
     <div class="panel-header">
-      <span class="panel-title">🎲 Würfelverlauf</span>
+      <span class="panel-title"><span class="app-icon i-dice"></span> Würfelverlauf</span>
     </div>
 
     <!-- No "Würfelansicht öffnen" here: with no token selected diceSheet is null, so the
@@ -86,7 +86,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
               </span>
             }
             @if (getRollRawResult(roll) !== null) {
-              <span class="roll-eq">{{ getRollRawResult(roll) }} → <strong>{{ getRollDisplayResult(roll) }}</strong> <span class="roll-stab">(🛡{{ roll.stabilitaet }})</span></span>
+              <span class="roll-eq">{{ getRollRawResult(roll) }} → <strong>{{ getRollDisplayResult(roll) }}</strong> <span class="roll-stab">(<span class="app-icon i-stability"></span>{{ roll.stabilitaet }})</span></span>
             } @else {
               <span class="roll-eq">= <strong>{{ getRollDisplayResult(roll) }}</strong></span>
             }
@@ -120,7 +120,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
     <div class="resources">
       <!-- LP -->
       <div class="res-row">
-        <span class="res-icon">❤️</span>
+        <span class="res-icon"><span class="app-icon i-life"></span></span>
         <span class="res-label">LP</span>
         <div class="res-controls">
           <button class="res-btn minus" (click)="adjustResource('health', -1)">−</button>
@@ -136,7 +136,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
 
       @if (maxMana > 0) {
         <div class="res-row">
-          <span class="res-icon">🔮</span>
+          <span class="res-icon"><span class="app-icon i-mana"></span></span>
           <span class="res-label">Mana</span>
           <div class="res-controls">
             <button class="res-btn minus" (click)="adjustResource('mana', -1)">−</button>
@@ -153,7 +153,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
 
       @if (maxEnergy > 0) {
         <div class="res-row">
-          <span class="res-icon">⚡</span>
+          <span class="res-icon"><span class="app-icon i-energy"></span></span>
           <span class="res-label">Energie</span>
           <div class="res-controls">
             <button class="res-btn minus" (click)="adjustResource('energy', -1)">−</button>
@@ -173,13 +173,13 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
     <div class="key-stats-row">
       @if (weaponEfficiency > 0) {
         <div class="key-stat-item" title="Waffeneffizienz – höchster Wert der geführten Waffe">
-          <span class="key-stat-label">⚔️ Effizienz</span>
+          <span class="key-stat-label"><span class="app-icon i-effektivity"></span> Effizienz</span>
           <span class="key-stat-val">{{ weaponEfficiency }}</span>
         </div>
       }
       @if (totalStability > 0) {
         <div class="key-stat-item" title="Gesamtverteidigung (Summe Stabilität ÷ 5)">
-          <span class="key-stat-label">🛡️ Verteidigung</span>
+          <span class="key-stat-label"><span class="app-icon i-stability"></span> Verteidigung</span>
           <span class="key-stat-val">{{ totalStability }}</span>
         </div>
       }
@@ -199,12 +199,12 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
 
     <!-- Panel Tabs -->
     <div class="panel-tabs">
-      <button class="ptab" [class.active]="activeTab() === 'actions'" (click)="activeTab.set('actions')" title="Aktionen">⚔️</button>
-      <button class="ptab" [class.active]="activeTab() === 'rolls'" (click)="activeTab.set('rolls')" title="Würfelverlauf">🎲</button>
-      <button class="ptab" [class.active]="activeTab() === 'status'" (click)="activeTab.set('status')" title="Status-Effekte">✨</button>
-      <button class="ptab" [class.active]="activeTab() === 'equipment'" (click)="activeTab.set('equipment')" title="Ausrüstung">🎒</button>
-      <button class="ptab" [class.active]="activeTab() === 'aussehen'" (click)="activeTab.set('aussehen')" title="Aussehen & Transform">🎨</button>
-      <button class="ptab" [class.active]="activeTab() === 'linked'" (click)="activeTab.set('linked')" title="Verknüpfte Token">🔗</button>
+      <button class="ptab" [class.active]="activeTab() === 'actions'" (click)="activeTab.set('actions')" title="Aktionen"><span class="app-icon i-effektivity"></span></button>
+      <button class="ptab" [class.active]="activeTab() === 'rolls'" (click)="activeTab.set('rolls')" title="Würfelverlauf"><span class="app-icon i-dice"></span></button>
+      <button class="ptab" [class.active]="activeTab() === 'status'" (click)="activeTab.set('status')" title="Status-Effekte"><span class="app-icon i-status-effect"></span></button>
+      <button class="ptab" [class.active]="activeTab() === 'equipment'" (click)="activeTab.set('equipment')" title="Ausrüstung"><span class="app-icon i-equipment"></span></button>
+      <button class="ptab" [class.active]="activeTab() === 'aussehen'" (click)="activeTab.set('aussehen')" title="Aussehen & Transform"><span class="app-icon i-appearance"></span></button>
+      <button class="ptab" [class.active]="activeTab() === 'linked'" (click)="activeTab.set('linked')" title="Verknüpfte Token"><span class="app-icon i-tokenlink"></span></button>
     </div>
 
     <div class="panel-body">
@@ -212,7 +212,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       @if (activeTab() === 'actions') {
 
         <!-- Schnellwürfe -->
-        <div class="section-header">⚔️ Schnellwürfe</div>
+        <div class="section-header"><span class="app-icon i-effektivity"></span> Schnellwürfe</div>
         <div class="stats-grid">
           @for (stat of stats; track stat.label) {
             <button class="stat-roll-btn" (click)="rollStat(stat)"
@@ -227,23 +227,23 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
         </div>
 
         <!-- Freier Wurf -->
-        <div class="section-header">🎲 Freier Wurf</div>
+        <div class="section-header"><span class="app-icon i-dice"></span> Freier Wurf</div>
         <div class="free-roll-section">
-          <button class="open-dice-btn" (click)="openDiceRoller()">🎲 Würfelansicht öffnen</button>
+          <button class="open-dice-btn" (click)="openDiceRoller()"><span class="app-icon i-dice"></span> Würfelansicht öffnen</button>
           <!-- Always available: unarmed attacks are valid, the GM just fills in Effektivität. -->
-          <button class="open-dice-btn dmg-btn" (click)="openDamageRoller()">⚔️ Schaden würfeln</button>
+          <button class="open-dice-btn dmg-btn" (click)="openDamageRoller()"><span class="app-icon i-effektivity"></span> Schaden würfeln</button>
         </div>
 
         <!-- Alle Fertigkeiten & Zauber Vollansicht -->
         @if (allSkills.length > 0 || spells.length > 0) {
           <div class="free-roll-section">
-            <button class="open-dice-btn abilities-btn" (click)="openAbilitiesOverlay()">✦ Fertigkeiten &amp; Zauber (Vollansicht)</button>
+            <button class="open-dice-btn abilities-btn" (click)="openAbilitiesOverlay()"><span class="app-icon i-spell"></span> Fertigkeiten &amp; Zauber (Vollansicht)</button>
           </div>
         }
 
         <!-- Fertigkeiten -->
         @if (allSkills.length > 0) {
-          <div class="section-header">✨ Fertigkeiten</div>
+          <div class="section-header"><span class="app-icon i-ability"></span> Fertigkeiten</div>
           <div class="skill-cards-list">
             @for (skill of allSkills; track skill.name) {
               <div class="lsc"
@@ -252,7 +252,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                 [class.lsc--active]="skill.type === 'active' && isSkillActive(skill)"
                 (click)="onSkillCardClick(skill)">
                 <div class="lsc-bar">
-                  <span class="lsc-type-icon">{{ getSkillTypeIcon(skill.type) }}</span>
+                  <span class="lsc-type-icon app-icon {{ getSkillTypeIcon(skill.type) }}"></span>
                   <span class="lsc-type-lbl">{{ getSkillTypeLabel(skill.type) }}</span>
                   <span class="lsc-name">{{ skill.name }}</span>
                   @if (skill.actionType) {
@@ -274,7 +274,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                   }
                   @if (skill.cost) {
                     <span class="lsc-cost" [attr.data-resource]="skill.cost.type">
-                      {{ skill.cost.type === 'mana' ? '�' : skill.cost.type === 'energy' ? '⚡' : '❤️' }} {{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}
+                      <span class="app-icon" [class.i-mana]="skill.cost.type === 'mana'" [class.i-energy]="skill.cost.type === 'energy'" [class.i-life]="skill.cost.type !== 'mana' && skill.cost.type !== 'energy'"></span> {{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}
                     </span>
                   }
                 </div>
@@ -285,7 +285,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
 
         <!-- Zauber -->
         @if (spells.length > 0) {
-          <div class="section-header">🔮 Zauber</div>
+          <div class="section-header"><span class="app-icon i-spell"></span> Zauber</div>
           <div class="spell-list">
             @for (spell of spells; track spell.name) {
               <div class="spell-entry">
@@ -293,7 +293,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                   <span class="spell-icon">{{ spell.icon || '✨' }}</span>
                   <span class="spell-name">{{ spell.name }}</span>
                   @if (spell.costMana) {
-                    <span class="skill-tag cost-tag">{{ spell.costMana }}🔮</span>
+                    <span class="skill-tag cost-tag">{{ spell.costMana }}<span class="app-icon i-mana"></span></span>
                   }
                 </div>
                 <button class="action-btn spell-btn" [class.action-btn--active]="isSpellActive(spell)" (click)="activateSpell(spell)">Aktivieren</button>
@@ -331,7 +331,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                   </span>
                 }
                 @if (getRollRawResult(roll) !== null) {
-                  <span class="roll-eq">{{ getRollRawResult(roll) }} → <strong>{{ getRollDisplayResult(roll) }}</strong> <span class="roll-stab">(🛡{{ roll.stabilitaet }})</span></span>
+                  <span class="roll-eq">{{ getRollRawResult(roll) }} → <strong>{{ getRollDisplayResult(roll) }}</strong> <span class="roll-stab">(<span class="app-icon i-stability"></span>{{ roll.stabilitaet }})</span></span>
                 } @else {
                   <span class="roll-eq">= <strong>{{ getRollDisplayResult(roll) }}</strong></span>
                 }
@@ -370,7 +370,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
 
           <!-- Library picker -->
           <button class="add-fx-btn" (click)="openLibraryPicker()">
-            📚 Aus Bibliothek wählen
+            <span class="app-icon i-folder"></span> Aus Bibliothek wählen
           </button>
           @if (showLibraryPicker()) {
             <div class="lib-picker">
@@ -431,7 +431,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
           </div>
 
           <!-- Scale -->
-          <div class="section-header">📐 Skalierung</div>
+          <div class="section-header"><span class="app-icon i-ruler"></span> Skalierung</div>
           <div class="aussehen-row uniform-row">
             <label class="fx-check">
               <input type="checkbox" [(ngModel)]="uniformScale" /> Einheitlich
@@ -482,14 +482,14 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
           </div>
 
           <!-- Image mode -->
-          <div class="section-header">🖼️ Bildmodus</div>
+          <div class="section-header"><span class="app-icon i-image"></span> Bildmodus</div>
           <div class="imagemode-row">
             <button class="mode-btn" [class.active]="localImageMode === 'fill'" (click)="localImageMode = 'fill'; applyCosmetic()">Füllen</button>
             <button class="mode-btn" [class.active]="localImageMode === 'stretch'" (click)="localImageMode = 'stretch'; applyCosmetic()">Strecken</button>
           </div>
 
           <!-- Custom portrait -->
-          <div class="section-header">🖼️ Portrait</div>
+          <div class="section-header"><span class="app-icon i-image"></span> Portrait</div>
           @if (token.customPortraitData) {
             <div class="portrait-preview-row">
               <img [src]="token.customPortraitData" class="portrait-preview" alt="Portrait" />
@@ -499,14 +499,14 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
           <!-- Upload portrait -->
           <div class="aussehen-row">
             <label class="add-fx-btn upload-portrait-label" style="cursor:pointer;">
-              📁 Bild hochladen
+              <span class="app-icon i-folder"></span> Bild hochladen
               <input type="file" accept="image/*" style="display:none" (change)="uploadPortrait($event)" />
             </label>
           </div>
           <!-- Draw portrait -->
           @if (!showDrawCanvas()) {
             <button class="add-fx-btn draw-btn" (click)="openDrawCanvas()">
-              ✏️ Auf Token zeichnen
+              <span class="app-icon i-draw"></span> Auf Token zeichnen
             </button>
           } @else {
             <div class="draw-canvas-container">
@@ -519,7 +519,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                   <input type="range" min="2" max="40" step="1" [(ngModel)]="drawBrushSize" class="slider" style="width:60px" />
                   <span class="slider-val">{{ drawBrushSize }}</span>
                 </label>
-                <button class="quick-btn" (click)="clearDrawCanvas()" title="Leinwand leeren">🗑️</button>
+                <button class="quick-btn" (click)="clearDrawCanvas()" title="Leinwand leeren"><span class="app-icon i-restore-trash"></span></button>
               </div>
               <canvas #tokenDrawCanvas
                 class="draw-canvas"
@@ -546,7 +546,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
           <!-- Parent info -->
           @if (token.parentTokenId) {
             <div class="linked-parent-info">
-              <span class="fx-icon">🔗</span>
+              <span class="fx-icon"><span class="app-icon i-tokenlink"></span></span>
               <span>Verknüpft mit: <strong>{{ getParentName() }}</strong></span>
               <span class="linked-type-badge">{{ getLinkedTypeLabel(token!.linkedTokenType) }}</span>
               <button class="fx-remove-btn" (click)="detachFromParent()" title="Trennen">Trennen</button>
@@ -558,7 +558,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
             <div class="section-header">Verknüpfte Token</div>
             @for (child of linkedChildren; track child.id) {
               <div class="fx-entry">
-                <span class="fx-icon">🔗</span>
+                <span class="fx-icon"><span class="app-icon i-tokenlink"></span></span>
                 <span class="fx-name">{{ child.name }}</span>
                 <span class="linked-type-badge">{{ getLinkedTypeLabel(child.linkedTokenType) }}</span>
                 <button class="fx-remove-btn" (click)="detachChild(child.id)" title="Trennen">Trennen</button>
@@ -573,7 +573,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                  draggable="true"
                  (dragstart)="onLinkedDragStart($event, 'free')"
                  title="Frei – Folgt dem Eltern-Token nicht automatisch">
-              <span class="linked-drag-icon">🔗</span>
+              <span class="linked-drag-icon"><span class="app-icon i-tokenlink"></span></span>
               <div class="linked-drag-info">
                 <span class="linked-drag-label">Frei</span>
                 <span class="linked-drag-sub">Freie Platzierung</span>
@@ -584,7 +584,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                  draggable="true"
                  (dragstart)="onLinkedDragStart($event, 'keepDistance')"
                  title="Abstand – Hält denselben Abstand zum Eltern-Token">
-              <span class="linked-drag-icon">📏</span>
+              <span class="linked-drag-icon"><span class="app-icon i-ruler"></span></span>
               <div class="linked-drag-info">
                 <span class="linked-drag-label">Abstand</span>
                 <span class="linked-drag-sub">Gleicher Abstand</span>
@@ -618,19 +618,19 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
                 [class.equip-entry--weapon]="item.itemType === 'weapon'"
                 [class.equip-entry--armor]="item.itemType === 'armor'">
                 <div class="equip-top">
-                  <span class="equip-type-icon">{{ item.itemType === 'weapon' ? '⚔️' : item.itemType === 'armor' ? '🛡️' : '🎒' }}</span>
+                  <span class="equip-type-icon"><span class="app-icon" [class.i-effektivity]="item.itemType === 'weapon'" [class.i-stability]="item.itemType === 'armor'" [class.i-equipment]="item.itemType !== 'weapon' && item.itemType !== 'armor'"></span></span>
                   <span class="equip-name">{{ item.lost ? '[Verloren] ' : '' }}{{ item.name }}</span>
                   @if (item.broken) { <span class="equip-broken-badge">💔 Kaputt</span> }
                 </div>
                 @if (item.itemType === 'weapon' && item.efficiency !== undefined) {
                   <div class="equip-stat-row">
-                    <span class="equip-stat-label">⚔️ Effizienz</span>
+                    <span class="equip-stat-label"><span class="app-icon i-effektivity"></span> Effizienz</span>
                     <span class="equip-stat-val">{{ item.efficiency }}</span>
                   </div>
                 }
                 @if (item.itemType === 'armor' && item.stability !== undefined) {
                   <div class="equip-stat-row">
-                    <span class="equip-stat-label">🛡️ Stabilität</span>
+                    <span class="equip-stat-label"><span class="app-icon i-stability"></span> Stabilität</span>
                     <span class="equip-stat-val">{{ item.stability }}</span>
                   </div>
                 }
@@ -1802,9 +1802,9 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   getSkillTypeIcon(type: string): string {
     const icons: Record<string, string> = {
-      'active': '⚡', 'passive': '🌿', 'stat_bonus': '📊', 'dice_bonus': '🎲',
+      'active': 'i-active', 'passive': 'i-passive', 'stat_bonus': 'i-stat', 'dice_bonus': 'i-dice',
     };
-    return icons[type] ?? '✨';
+    return icons[type] ?? 'i-ability';
   }
 
   getSkillTypeLabel(type: string): string {

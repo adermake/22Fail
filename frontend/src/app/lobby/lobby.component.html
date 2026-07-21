@@ -111,7 +111,7 @@
   <!-- Kampfrunde top bar (compact, shown when GM enables Kampfrunde mode) -->
   @if (kampfrundeMode()) {
     <div class="kampfrunde-bar">
-      <span class="kampfrunde-label">⚔️ Kampfrunde</span>
+      <span class="kampfrunde-label"><span class="app-icon i-effektivity"></span> Kampfrunde</span>
       <app-battle-tracker
         [engine]="battleEngine"
         [readOnly]="true"
@@ -325,14 +325,14 @@
                   <div class="map-actions">
                     @if (currentMapId() !== map.id) {
                       <button class="btn-switch" (click)="onSwitchMap(map.id)" title="Switch only this view">
-                        👁 View
+                        <span class="app-icon i-visibility-on"></span> View
                       </button>
                     }
                     <button class="btn-broadcast" (click)="onBroadcastMapToAll(map.id)" title="Switch all viewers to this map">
                       📡 Send to All
                     </button>
                     @if (mapList().length > 1) {
-                      <button class="btn-delete" (click)="onDeleteMap(map.id)" title="Delete map">🗑</button>
+                      <button class="btn-delete" (click)="onDeleteMap(map.id)" title="Delete map"><span class="app-icon i-restore-trash"></span></button>
                     }
                   </div>
                 </div>

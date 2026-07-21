@@ -69,10 +69,10 @@
       <div class="field world-link">
         <label>Welt</label>
         <button class="world-button" (click)="openWorldLobby()" title="Lobby in neuem Tab öffnen">
-          🌍 {{ sheet.worldName }} (Lobby)
+          <span class="app-icon i-lobby"></span> {{ sheet.worldName }} (Lobby)
         </button>
         <button class="world-button" (click)="openWorldMap()" title="Weltkarte in neuem Tab öffnen">
-          🗺 {{ sheet.worldName }} (Karte)
+          <span class="app-icon i-map"></span> {{ sheet.worldName }} (Karte)
         </button>
       </div>
     }

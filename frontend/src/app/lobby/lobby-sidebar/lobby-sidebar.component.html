@@ -7,7 +7,7 @@
       (click)="switchTab('characters')"
       title="Charaktere"
     >
-      👤
+      <span class="app-icon i-character"></span>
     </button>
     <button 
       class="tab-btn" 
@@ -15,7 +15,7 @@
       (click)="switchTab('images')"
       title="Bilder"
     >
-      🖼️
+      <span class="app-icon i-image"></span>
     </button>
     <button 
       class="tab-btn" 
@@ -23,7 +23,7 @@
       (click)="switchTab('textures')"
       title="Texturen"
     >
-      🎨
+      <span class="app-icon i-texture"></span>
     </button>
     @if (isGM) {
       <button 
@@ -32,7 +32,7 @@
         (click)="switchTab('layers')"
         title="Schichten"
       >
-        📐
+        <span class="app-icon i-layers"></span>
       </button>
     }
   </div>
@@ -162,7 +162,7 @@
               (change)="onFileSelect($event)"
               hidden
             />
-            <span>📁 Upload Images</span>
+            <span><span class="app-icon i-folder"></span> Upload Images</span>
           </label>
 
         <!-- Image grid -->
@@ -199,14 +199,14 @@
                     (click)="startRename(image, $event)"
                     title="Rename"
                   >
-                    ✏️
+                    <span class="app-icon i-draw"></span>
                   </button>
                   <button 
                     class="action-btn danger" 
                     (click)="confirmDelete(image.id, image.name)"
                     title="Delete"
                   >
-                    🗑️
+                    <span class="app-icon i-restore-trash"></span>
                   </button>
                 </div>
             </div>
@@ -240,7 +240,7 @@
               (change)="onTextureFileSelect($event)"
               hidden
             />
-            <span>📁 Upload Textures</span>
+            <span><span class="app-icon i-folder"></span> Upload Textures</span>
           </label>
 
         <!-- Texture grid -->

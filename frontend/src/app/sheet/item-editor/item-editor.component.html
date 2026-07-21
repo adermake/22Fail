@@ -86,17 +86,17 @@
             <button 
               [class.active]="editItem.itemType === 'weapon'"
               (click)="setItemType('weapon')">
-              ⚔ Waffe
+              <span class="app-icon i-effektivity"></span> Waffe
             </button>
             <button 
               [class.active]="editItem.itemType === 'armor'"
               (click)="setItemType('armor')">
-              🛡 Rüstung
+              <span class="app-icon i-stability"></span> Rüstung
             </button>
             <button 
               [class.active]="editItem.itemType === 'other'"
               (click)="setItemType('other')">
-              📦 Sonstiges
+              <span class="app-icon i-item"></span> Sonstiges
             </button>
           </div>
 
@@ -371,7 +371,7 @@
                     <span class="attached-type">{{ skill.type }}</span>
                   </div>
                   <div class="attached-actions">
-                    <button class="edit-btn" (click)="openSkillEditor(i)" title="Bearbeiten">✎</button>
+                    <button class="edit-btn" (click)="openSkillEditor(i)" title="Bearbeiten"><span class="app-icon i-draw"></span></button>
                     <button class="remove-btn" (click)="deleteEmbeddedSkill(i)" title="Entfernen">×</button>
                   </div>
                 </div>
@@ -416,7 +416,7 @@
                     }
                   </div>
                   <div class="attached-actions">
-                    <button class="edit-btn" (click)="openSpellEditor(i)" title="Bearbeiten">✎</button>
+                    <button class="edit-btn" (click)="openSpellEditor(i)" title="Bearbeiten"><span class="app-icon i-draw"></span></button>
                     <button class="remove-btn" (click)="deleteEmbeddedSpell(i)" title="Entfernen">×</button>
                   </div>
                 </div>

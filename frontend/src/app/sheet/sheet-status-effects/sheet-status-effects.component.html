@@ -1,6 +1,6 @@
 <div class="sse-section">
   <div class="sse-section-header">
-    <span class="sse-section-title">⚔ Aktive Effekte</span>
+    <span class="sse-section-title"><span class="app-icon i-status-effect"></span> Aktive Effekte</span>
     @if (activeEffects.length > 0) {
       <span class="sse-section-count">{{ activeEffects.length }}</span>
       <button 
@@ -126,7 +126,7 @@
       } @else {
         <!-- Idle state -->
         <div class="exec-sb-idle">
-          <span class="exec-sb-idle-icon">⚔</span>
+          <span class="exec-sb-idle-icon"><span class="app-icon i-effektivity"></span></span>
           <span class="exec-sb-idle-text">Drücke "Alle Ausführen" um die Effektkette zu starten</span>
         </div>
       }
@@ -201,7 +201,7 @@
         </div>
         @if (expandedEffect.stacks && expandedEffect.stacks > 0) {
           <div class="sse-panel-detail">
-            <span class="detail-icon">📚</span>
+            <span class="detail-icon"><span class="app-icon i-layers"></span></span>
             <span class="detail-label">Stapel</span>
             <span class="detail-value detail-editable">
               <button class="detail-btn" (click)="changeStacks(expandedEffect, -1)">−</button>
@@ -212,14 +212,14 @@
         }
         @if (getEffect(expandedEffect)?.strength !== undefined && getEffect(expandedEffect)?.strength !== null) {
           <div class="sse-panel-detail">
-            <span class="detail-icon">🛡</span>
+            <span class="detail-icon"><span class="app-icon i-stability"></span></span>
             <span class="detail-label">Stärke</span>
             <span class="detail-value">{{ getEffect(expandedEffect)?.strength }}</span>
           </div>
         }
         @if (getEffect(expandedEffect)?.statModifiers?.length) {
           <div class="sse-panel-detail">
-            <span class="detail-icon">📊</span>
+            <span class="detail-icon"><span class="app-icon i-stat"></span></span>
             <span class="detail-label">Modifikatoren</span>
             <span class="detail-value mod-chips">
               @for (mod of getEffect(expandedEffect)!.statModifiers!; track $index) {
@@ -241,7 +241,7 @@
         }
         @if (getEffect(expandedEffect)?.diceBonuses?.length) {
           <div class="sse-panel-detail">
-            <span class="detail-icon">🎲</span>
+            <span class="detail-icon"><span class="app-icon i-dice"></span></span>
             <span class="detail-label">Würfel-Boni</span>
             <span class="detail-value mod-chips">
               @for (bonus of getEffect(expandedEffect)!.diceBonuses!; track $index) {
@@ -265,8 +265,8 @@
       }
 
       <div class="sse-panel-footer">
-        <button class="sse-panel-btn edit" (click)="editEffect(expandedEffect)">✏ Bearbeiten</button>
-        <button class="sse-panel-btn delete" (click)="removeEffect(expandedEffect)">🗑 Entfernen</button>
+        <button class="sse-panel-btn edit" (click)="editEffect(expandedEffect)"><span class="app-icon i-draw"></span> Bearbeiten</button>
+        <button class="sse-panel-btn delete" (click)="removeEffect(expandedEffect)"><span class="app-icon i-restore-trash"></span> Entfernen</button>
       </div>
     </div>
   </div>
@@ -338,7 +338,7 @@
 
       @if (executionPopupResult.rolls.length > 0) {
         <button class="exec-rolls-toggle" (click)="toggleExecRolls()">
-          🎲 Würfel-Details ({{ executionPopupResult.rolls.length }}) {{ showExecRolls ? '▲' : '▼' }}
+          <span class="app-icon i-dice"></span> Würfel-Details ({{ executionPopupResult.rolls.length }}) {{ showExecRolls ? '▲' : '▼' }}
         </button>
         @if (showExecRolls) {
           <div class="exec-rolls">
@@ -394,11 +394,11 @@
          [style.top.px]="contextMenuY"
          (click)="$event.stopPropagation()">
       <button class="sse-context-item" (click)="contextEdit($event)">
-        <span class="context-icon">✏️</span>
+        <span class="context-icon"><span class="app-icon i-draw"></span></span>
         <span>Bearbeiten</span>
       </button>
       <button class="sse-context-item delete" (click)="contextDelete($event)">
-        <span class="context-icon">🗑️</span>
+        <span class="context-icon"><span class="app-icon i-restore-trash"></span></span>
         <span>Entfernen</span>
       </button>
     </div>

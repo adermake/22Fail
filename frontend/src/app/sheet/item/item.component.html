@@ -18,14 +18,14 @@
       }
       @if (showDetails) {
         @if (item.itemType === 'potion' && item.potionEffects?.length) {
-          <button class="ctx-item ctx-use" (click)="usePotionFromMenu()">🧪 Auf sich anwenden</button>
+          <button class="ctx-item ctx-use" (click)="usePotionFromMenu()"><span class="app-icon i-brewing"></span> Auf sich anwenden</button>
         }
-        <button class="ctx-item" (click)="openEditorFromMenu()">✏️ Bearbeiten</button>
+        <button class="ctx-item" (click)="openEditorFromMenu()"><span class="app-icon i-draw"></span> Bearbeiten</button>
         <button class="ctx-item ctx-lost" (click)="toggleLostFromMenu()">
           {{ item.lost ? '✓ Nicht verloren' : '✕ Verloren markieren' }}
         </button>
       }
-      <button class="ctx-item ctx-delete" (click)="deleteFromContextMenu()">🗑 Löschen</button>
+      <button class="ctx-item ctx-delete" (click)="deleteFromContextMenu()"><span class="app-icon i-restore-trash"></span> Löschen</button>
     </div>
   }
 
@@ -33,7 +33,7 @@
     <!-- Always-visible header row -->
     <div class="item-header">
       @if (showDetails && item.itemType) {
-        <span class="item-type-icon">{{ itemTypeIcon }}</span>
+        <span class="item-type-icon app-icon {{ itemTypeIcon }}"></span>
       }
       @if (!showDetails) {
         <span class="item-type-icon">❓</span>
@@ -60,10 +60,10 @@
             <span class="tag tag-weight" [class.tag-big]="!isFolded">{{ totalWeight }} kg</span>
           }
           @if (showDetails && item.itemType === 'weapon' && item.efficiency) {
-            <span class="tag tag-eff" [class.tag-big]="!isFolded">⚔ {{ item.efficiency }}</span>
+            <span class="tag tag-eff" [class.tag-big]="!isFolded"><span class="app-icon i-effektivity"></span> {{ item.efficiency }}</span>
           }
           @if (showDetails && item.itemType === 'armor' && item.stability) {
-            <span class="tag tag-stab" [class.tag-big]="!isFolded">🛡 {{ item.stability }}</span>
+            <span class="tag tag-stab" [class.tag-big]="!isFolded"><span class="app-icon i-stability"></span> {{ item.stability }}</span>
           }
           @if (showDetails && item.armorDebuff) {
             <span class="tag tag-debuff">-{{ item.armorDebuff }} SPD</span>
@@ -72,7 +72,7 @@
             <span class="tag tag-unusable">Unbrauchbar</span>
           }
           @if (showDetails && item.libraryOriginName) {
-            <span class="tag tag-lib" [title]="'Aus Bibliothek: ' + item.libraryOriginName">📚 {{ item.libraryOriginName }}</span>
+            <span class="tag tag-lib" [title]="'Aus Bibliothek: ' + item.libraryOriginName"><span class="app-icon i-folder"></span> {{ item.libraryOriginName }}</span>
           }
         </div>
       </div>
@@ -83,7 +83,7 @@
                   (click)="rollDamage.emit(item.efficiency!); $event.stopPropagation()"
                   (mousedown)="$event.stopPropagation()"
                   title="Schaden würfeln (Eff: {{ item.efficiency }})">
-            ⚔
+            <span class="app-icon i-effektivity"></span>
           </button>
         }
         @if (!hideFoldControls) {
@@ -231,7 +231,7 @@
           </div>
           @if (!item.broken && (item.durability || 0) === 0) {
             <button class="break-test-btn" (click)="requestBreakTest(); $event.stopPropagation()">
-              🎲 Bruchtest
+              <span class="app-icon i-dice"></span> Bruchtest
             </button>
           }
         </div>

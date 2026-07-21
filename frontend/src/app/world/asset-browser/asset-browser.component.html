@@ -1,16 +1,16 @@
 ﻿<div class="asset-browser-container">
   <div class="tabs-header">
     <button class="tab-button" [class.active]="activeTab === 'items'" (click)="setActiveTab('items')">
-      ⚔️ Items ({{ items.length }})
+      <span class="app-icon i-item"></span> Items ({{ items.length }})
     </button>
     <button class="tab-button" [class.active]="activeTab === 'spells'" (click)="setActiveTab('spells')">
-      🔮 Zauber ({{ spells.length }})
+      <span class="app-icon i-spell"></span> Zauber ({{ spells.length }})
     </button>
     <button class="tab-button" [class.active]="activeTab === 'skills'" (click)="setActiveTab('skills')">
-      📖 Talente ({{ skills.length }})
+      <span class="app-icon i-ability"></span> Talente ({{ skills.length }})
     </button>
     <button class="tab-button" [class.active]="activeTab === 'status-effects'" (click)="setActiveTab('status-effects')">
-      💫 Effekte ({{ statusEffects.length || 0 }})
+      <span class="app-icon i-status-effect"></span> Effekte ({{ statusEffects.length || 0 }})
     </button>
     <button class="tab-button" [class.active]="activeTab === 'shops'" (click)="setActiveTab('shops')">
       🏪 Handel ({{ shops.length || 0 }})
@@ -19,7 +19,7 @@
       💰 Beute ({{ lootBundles.length || 0 }})
     </button>
     <button class="tab-button" [class.active]="activeTab === 'knowledge'" (click)="setActiveTab('knowledge')">
-      🧪 Wissen
+      <span class="app-icon i-brewing"></span> Wissen
     </button>
   </div>
 
@@ -164,8 +164,8 @@
               }
               @if (!readonly) {
                 <div class="effect-actions">
-                  <button class="edit-btn" (click)="openStatusEffectEditor.emit(getOriginalIndex(effect, 'status-effects'))">✏️</button>
-                  <button class="delete-btn" (click)="removeStatusEffect.emit(getOriginalIndex(effect, 'status-effects'))">🗑️</button>
+                  <button class="edit-btn" (click)="openStatusEffectEditor.emit(getOriginalIndex(effect, 'status-effects'))"><span class="app-icon i-draw"></span></button>
+                  <button class="delete-btn" (click)="removeStatusEffect.emit(getOriginalIndex(effect, 'status-effects'))"><span class="app-icon i-restore-trash"></span></button>
                 </div>
               }
             </div>
@@ -246,7 +246,7 @@
                 <div class="loot-preview">
                   @for (item of bundle.items.slice(0, 3); track item.id) {
                     <div class="loot-preview-item">
-                      <span class="loot-type">{{ getLootTypeIcon(item.type) }}</span>
+                      <span class="loot-type app-icon {{ getLootTypeIcon(item.type) }}"></span>
                       <span class="loot-name">{{ getLootItemName(item) }}</span>
                     </div>
                   }
@@ -268,7 +268,7 @@
     @if (activeTab === 'knowledge') {
       <div class="knowledge-sub-tabs">
         <button class="sub-tab-btn" [class.active]="activeKnowledgeTab === 'rune'" (click)="setActiveKnowledgeTab('rune')">
-          ✨ Runen ({{ filteredRunes.length }})
+          <span class="app-icon i-spell"></span> Runen ({{ filteredRunes.length }})
         </button>
         <button class="sub-tab-btn" [class.active]="activeKnowledgeTab === 'material'" (click)="setActiveKnowledgeTab('material')">
           🪨 Materialien ({{ filteredMaterials.length }})
@@ -328,7 +328,7 @@
                 </div>
               </div>
               @if (!readonly) {
-                <button class="edit-btn-sm" (click)="openRuneEditor.emit(getOriginalIndex(rune, 'runes'))">✏️</button>
+                <button class="edit-btn-sm" (click)="openRuneEditor.emit(getOriginalIndex(rune, 'runes'))"><span class="app-icon i-draw"></span></button>
               }
             </div>
           }

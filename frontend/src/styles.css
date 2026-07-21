@@ -167,3 +167,54 @@ label {
 .inline-eff   { color: #fcd34d; font-weight: 700; }
 .inline-stab  { color: #86efac; font-weight: 700; }
 .inline-range { color: #34d399; font-weight: 700; }
+
+/* ── SVG icon system (replaces legacy emoji icons) ──
+   Icons live in /public/icons and are drawn as CSS masks so they inherit
+   the surrounding text color (currentColor) and font-size (1em). */
+.app-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  background-color: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  vertical-align: -0.15em;
+}
+.i-token-drag    { -webkit-mask-image: url('/icons/token_drag_tool.svg');   mask-image: url('/icons/token_drag_tool.svg'); }
+.i-visibility-on { -webkit-mask-image: url('/icons/visibility_on.svg');     mask-image: url('/icons/visibility_on.svg'); }
+.i-visibility-off{ -webkit-mask-image: url('/icons/visibility_off.svg');    mask-image: url('/icons/visibility_off.svg'); }
+.i-lobby         { -webkit-mask-image: url('/icons/lobby.svg');             mask-image: url('/icons/lobby.svg'); }
+.i-equipment     { -webkit-mask-image: url('/icons/equipment.svg');         mask-image: url('/icons/equipment.svg'); }
+.i-mana          { -webkit-mask-image: url('/icons/mana.svg');              mask-image: url('/icons/mana.svg'); }
+.i-map           { -webkit-mask-image: url('/icons/map.svg');               mask-image: url('/icons/map.svg'); }
+.i-draw          { -webkit-mask-image: url('/icons/draw_tool.svg');         mask-image: url('/icons/draw_tool.svg'); }
+.i-wall          { -webkit-mask-image: url('/icons/wall_tool.svg');         mask-image: url('/icons/wall_tool.svg'); }
+.i-lasso         { -webkit-mask-image: url('/icons/lasso_select_tool.svg'); mask-image: url('/icons/lasso_select_tool.svg'); }
+.i-effektivity   { -webkit-mask-image: url('/icons/effektivity.svg');       mask-image: url('/icons/effektivity.svg'); }
+.i-dice          { -webkit-mask-image: url('/icons/dice.svg');              mask-image: url('/icons/dice.svg'); }
+.i-restore-trash { -webkit-mask-image: url('/icons/restore_from_trash.svg');mask-image: url('/icons/restore_from_trash.svg'); }
+.i-stat          { -webkit-mask-image: url('/icons/stat_icon.svg');         mask-image: url('/icons/stat_icon.svg'); }
+.i-status-effect { -webkit-mask-image: url('/icons/status_effect.svg');     mask-image: url('/icons/status_effect.svg'); }
+.i-ability       { -webkit-mask-image: url('/icons/ability.svg');           mask-image: url('/icons/ability.svg'); }
+.i-brewing       { -webkit-mask-image: url('/icons/brewing.svg');           mask-image: url('/icons/brewing.svg'); }
+.i-image         { -webkit-mask-image: url('/icons/image_tool.svg');        mask-image: url('/icons/image_tool.svg'); }
+.i-ruler         { -webkit-mask-image: url('/icons/ruler_tool.svg');        mask-image: url('/icons/ruler_tool.svg'); }
+.i-character     { -webkit-mask-image: url('/icons/character_icon.svg');    mask-image: url('/icons/character_icon.svg'); }
+.i-fog           { -webkit-mask-image: url('/icons/fog_tool.svg');          mask-image: url('/icons/fog_tool.svg'); }
+.i-active        { -webkit-mask-image: url('/icons/active_icon.svg');       mask-image: url('/icons/active_icon.svg'); }
+.i-texture       { -webkit-mask-image: url('/icons/texture_tool.svg');      mask-image: url('/icons/texture_tool.svg'); }
+.i-life          { -webkit-mask-image: url('/icons/life.svg');              mask-image: url('/icons/life.svg'); }
+.i-spell         { -webkit-mask-image: url('/icons/spell.svg');             mask-image: url('/icons/spell.svg'); }
+.i-folder        { -webkit-mask-image: url('/icons/folder.svg');            mask-image: url('/icons/folder.svg'); }
+.i-energy        { -webkit-mask-image: url('/icons/energy.svg');            mask-image: url('/icons/energy.svg'); }
+.i-layers        { -webkit-mask-image: url('/icons/layers.svg');            mask-image: url('/icons/layers.svg'); }
+.i-passive       { -webkit-mask-image: url('/icons/passive_icon.svg');      mask-image: url('/icons/passive_icon.svg'); }
+.i-appearance    { -webkit-mask-image: url('/icons/apperance.svg');         mask-image: url('/icons/apperance.svg'); }
+.i-item          { -webkit-mask-image: url('/icons/item_generic.svg');      mask-image: url('/icons/item_generic.svg'); }
+.i-tokenlink     { -webkit-mask-image: url('/icons/tokenlink.svg');         mask-image: url('/icons/tokenlink.svg'); }
+.i-stability     { -webkit-mask-image: url('/icons/stability.svg');         mask-image: url('/icons/stability.svg'); }

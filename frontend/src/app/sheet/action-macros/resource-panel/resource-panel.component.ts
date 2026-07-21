@@ -20,10 +20,10 @@ export class ResourcePanelComponent {
 
   getResourceIcon(formulaType: string): string {
     switch (formulaType) {
-      case 'LIFE': return '❤️';
-      case 'ENERGY': return '⚡';
-      case 'MANA': return '✨';
-      default: return '📊';
+      case 'LIFE': return 'i-life';
+      case 'ENERGY': return 'i-energy';
+      case 'MANA': return 'i-mana';
+      default: return 'i-stat';
     }
   }
 

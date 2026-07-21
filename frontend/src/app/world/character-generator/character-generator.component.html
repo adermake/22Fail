@@ -1,7 +1,7 @@
 <div class="generator-overlay" (click)="closeModal()">
   <div class="generator-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h2>⚔️ Character Generator</h2>
+      <h2><span class="app-icon i-effektivity"></span> Character Generator</h2>
       <button class="close-btn" (click)="closeModal()">✕</button>
     </div>
 
@@ -21,7 +21,7 @@
               class="name-input"
             />
             <button (click)="generateRandomName()" class="random-btn" title="Random Name">
-              🎲
+              <span class="app-icon i-dice"></span>
             </button>
           </div>
         </div>
@@ -63,7 +63,7 @@
                 <option [value]="race.id">{{ race.name }}</option>
               }
             </select>
-            <button (click)="randomizeRace()" class="random-btn">🎲</button>
+            <button (click)="randomizeRace()" class="random-btn"><span class="app-icon i-dice"></span></button>
           </div>
         </div>
 
@@ -94,7 +94,7 @@
 
         <!-- Generate Button -->
         <button (click)="generateCharacter()" class="generate-btn">
-          🎲 Generate Character
+          <span class="app-icon i-dice"></span> Generate Character
         </button>
       </div>
 

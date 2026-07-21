@@ -74,7 +74,7 @@
         (mousedown)="$event.stopPropagation()"
       >
         @if (contextMenuTokenId()) {
-          <button type="button" (click)="removeContextToken()">🗑️ Token entfernen</button>
+          <button type="button" (click)="removeContextToken()"><span class="app-icon i-restore-trash"></span> Token entfernen</button>
         } @else if (contextMenuHex() && isGM()) {
           <div class="quick-token-form">
             <input

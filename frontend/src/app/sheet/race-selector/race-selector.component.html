@@ -82,7 +82,7 @@
 
                     <!-- Topbar (matches app-skill design) -->
                     <div class="rso-sk-bar">
-                      <span class="rso-sk-ti">{{ getTypeIcon(skill.type) }}</span>
+                      <span class="rso-sk-ti app-icon {{ getTypeIcon(skill.type) }}"></span>
                       <span class="rso-sk-tl">{{ getTypeLabel(skill.type) }}</span>
                       <span class="rso-sk-name">{{ skill.name }}</span>
                       @if (isSkillSelected(skill, selectedRace.id)) {

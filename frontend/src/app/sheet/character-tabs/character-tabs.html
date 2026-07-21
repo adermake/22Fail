@@ -35,7 +35,7 @@
       (click)="openTrash.emit()"
       title="Open Trash"
       [attr.data-count]="(sheet.trash || []).length">
-      🗑️
+      <span class="app-icon i-restore-trash"></span>
     </button>
   </div>
 
@@ -104,7 +104,7 @@
   <div class="forging-overlay-backdrop" (click)="closeBrewingOverlay()">
     <div class="forging-overlay-panel" (click)="$event.stopPropagation()">
       <div class="forging-overlay-header">
-        <span class="forging-overlay-title">🧪 Braukessel</span>
+        <span class="forging-overlay-title"><span class="app-icon i-brewing"></span> Braukessel</span>
         <button class="forging-overlay-close" (click)="closeBrewingOverlay()">✕</button>
       </div>
       <div class="forging-overlay-body">

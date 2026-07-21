@@ -17,7 +17,7 @@
   <!-- Header -->
   <div class="scw-header">
     <div class="scw-header-left">
-      <span class="scw-title">✦ Zauber und Fähigkeiten</span>
+      <span class="scw-title"><span class="app-icon i-spell"></span> Zauber und Fähigkeiten</span>
       @if (sheet.name) {
         <span class="scw-char-name">{{ sheet.name }}</span>
       }
@@ -67,10 +67,10 @@
       <!-- Tab bar -->
       <div class="scw-left-tabs">
         <button class="scw-left-tab" [class.active]="leftTab === 'spells'" (click)="setLeftTab('spells')">
-          ✦ Zauber <span class="scw-left-tab-count">{{ availableSpells.length }}</span>
+          <span class="app-icon i-spell"></span> Zauber <span class="scw-left-tab-count">{{ availableSpells.length }}</span>
         </button>
         <button class="scw-left-tab" [class.active]="leftTab === 'skills'" (click)="setLeftTab('skills')">
-          ⚡ Fähigkeiten <span class="scw-left-tab-count">{{ availableSkills.length }}</span>
+          <span class="app-icon i-ability"></span> Fähigkeiten <span class="scw-left-tab-count">{{ availableSkills.length }}</span>
         </button>
       </div>
 
@@ -193,9 +193,9 @@
                       @if (skill.cost.type === 'mana') {
                         <span class="scw-cost-chip scw-cost-chip--mana">◆&nbsp;{{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}</span>
                       } @else if (skill.cost.type === 'energy') {
-                        <span class="scw-cost-chip scw-cost-chip--energy">⚡&nbsp;{{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}</span>
+                        <span class="scw-cost-chip scw-cost-chip--energy"><span class="app-icon i-energy"></span>&nbsp;{{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}</span>
                       } @else {
-                        <span class="scw-cost-chip scw-cost-chip--life">❤&nbsp;{{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}</span>
+                        <span class="scw-cost-chip scw-cost-chip--life"><span class="app-icon i-life"></span>&nbsp;{{ skill.cost.amount }}{{ skill.cost.perRound ? '/Rd' : '' }}</span>
                       }
                     } @else {
                       <span class="scw-cost-chip scw-cost-chip--free">Kostenlos</span>
@@ -262,7 +262,7 @@
                     <div class="scw-active-desc" [innerHTML]="enhancedSpellDesc(spell)"></div>
                   }
                   @if (costLabel(spell); as cl) {
-                    <div class="scw-active-startcost">⚡ Einmalig: {{ cl }}</div>
+                    <div class="scw-active-startcost"><span class="app-icon i-energy"></span> Einmalig: {{ cl }}</div>
                   }
                   @if (perTurnLabel(spell); as ptl) {
                     <div class="scw-active-cost">{{ ptl }}</div>
@@ -310,7 +310,7 @@
                     @if (reductionLabel(entry.castLevel); as red) {
                       <div class="scw-reduction">{{ red }}</div>
                     }
-                    <button class="scw-roll-btn" (click)="rollCast(entry)">🎲 W20 Würfeln</button>
+                    <button class="scw-roll-btn" (click)="rollCast(entry)"><span class="app-icon i-dice"></span> W20 Würfeln</button>
                   </div>
                 }
 
@@ -368,7 +368,7 @@
                   <div class="scw-active-meta-row">
                     <span class="scw-active-startcost">{{ skillCostLabel(skill) }}{{ cost.perRound ? '/Runde' : '' }}</span>
                     @if (cost.perRound) {
-                      <button class="scw-pay-cost-btn" (click)="paySkillRoundCost(skill)" title="Rundenkosten zahlen">⚡ Zahlen</button>
+                      <button class="scw-pay-cost-btn" (click)="paySkillRoundCost(skill)" title="Rundenkosten zahlen"><span class="app-icon i-energy"></span> Zahlen</button>
                     }
                   </div>
                 }
@@ -548,7 +548,7 @@
             @if (castPreview.scaledEffektivitaet > 0 || castPreview.scaledHaltbarkeit > 0) {
               <div class="cast-skal-stats">
                 @if (castPreview.scaledEffektivitaet > 0) {
-                  <span class="cast-skal-stat">⚡ Eff. {{ castPreview.scaledEffektivitaet | number:'1.0-1' }}</span>
+                  <span class="cast-skal-stat"><span class="app-icon i-effektivity"></span> Eff. {{ castPreview.scaledEffektivitaet | number:'1.0-1' }}</span>
                 }
                 @if (castPreview.scaledHaltbarkeit > 0) {
                   <span class="cast-skal-stat">⧗ {{ castPreview.scaledHaltbarkeit | number:'1.0-1' }} Rd</span>
@@ -644,7 +644,7 @@
                   <span class="cast-perturn-chip cast-perturn-chip--dur">⧗&nbsp;{{ castPreview.scaledHaltbarkeit | number:'1.0-1' }}Rd</span>
                 }
                 @if (castPreview.scaledEffektivitaet > 0) {
-                  <span class="cast-perturn-chip cast-perturn-chip--eff">⚡&nbsp;{{ castPreview.scaledEffektivitaet | number:'1.0-1' }}</span>
+                  <span class="cast-perturn-chip cast-perturn-chip--eff"><span class="app-icon i-effektivity"></span>&nbsp;{{ castPreview.scaledEffektivitaet | number:'1.0-1' }}</span>
                 }
               </div>
             }
@@ -655,7 +655,7 @@
         <div class="cast-footer">
           <button class="cast-cancel-btn" (click)="cancelCast()">Abbrechen</button>
           <button class="cast-confirm-btn" [style.--sc]="spellColor(pendingCastSpell)" (click)="confirmCast()" [disabled]="!canCast" [title]="!canCast ? 'Fehlende Ressourcen oder Stats' : ''">
-            ✦ AKTIVIEREN
+            <span class="app-icon i-spell"></span> AKTIVIEREN
           </button>
         </div>
       </div><!-- /cast-card -->

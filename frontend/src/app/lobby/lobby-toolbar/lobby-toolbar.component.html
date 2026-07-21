@@ -20,7 +20,7 @@
         (click)="selectTool(tool.id)"
         [title]="tool.label + ' (' + tool.shortcut + ')'"
       >
-        {{ tool.icon }}
+        <span class="app-icon {{ tool.icon }}"></span>
       </button>
     }
   </div>
@@ -108,7 +108,7 @@
         (click)="clearDrawings.emit()"
         title="Clear All Drawings"
       >
-        🗑️
+        <span class="app-icon i-restore-trash"></span>
       </button>
     </div>
   }
@@ -217,7 +217,7 @@
         (click)="clearTextures.emit()"
         title="Clear All Textures"
       >
-        🗑️ Textures
+        <span class="app-icon i-restore-trash"></span> Textures
       </button>
     </div>
   }
@@ -239,7 +239,7 @@
         (click)="setDragMode('enforced')"
         title="Enforced Movement (pathfinding + speed limits)"
       >
-        🛡️
+        <span class="app-icon i-stability"></span>
       </button>
     </div>
   }
@@ -253,7 +253,7 @@
         (click)="clearWalls.emit()"
         title="Alle Wände entfernen"
       >
-        🗑️ Wände
+        <span class="app-icon i-restore-trash"></span> Wände
       </button>
     </div>
   }
@@ -294,7 +294,7 @@
         (click)="clearFog.emit()"
         title="Gesamten Kriegsnebel entfernen"
       >
-        🗑️ Nebel
+        <span class="app-icon i-restore-trash"></span> Nebel
       </button>
     </div>
   }
@@ -333,7 +333,7 @@
       (click)="drawLayerVisibleChange.emit(!drawLayerVisible)"
       [title]="drawLayerVisible ? 'Hide Drawing Layer' : 'Show Drawing Layer'"
     >
-      <span class="layer-icon">{{ drawLayerVisible ? '👁️' : '🚫' }}</span>
+      <span class="layer-icon app-icon" [class.i-visibility-on]="drawLayerVisible" [class.i-visibility-off]="!drawLayerVisible"></span>
       <span class="layer-label">Draw</span>
     </button>
 
@@ -353,7 +353,7 @@
       [class.active]="kampfrundeMode"
       (click)="kampfrundeToggle.emit()"
       title="Kampfrunde anzeigen{{ isGM ? '/starten' : '' }}">
-      ⚔️
+      <span class="app-icon i-effektivity"></span>
     </button>
   </div>
 </div>

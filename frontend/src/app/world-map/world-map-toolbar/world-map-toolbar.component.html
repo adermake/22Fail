@@ -12,7 +12,7 @@
         (click)="selectTool(tool.id)"
         [title]="tool.label + ' (' + tool.shortcut + ')'"
       >
-        {{ tool.icon }}
+        <span class="app-icon {{ tool.icon }}"></span>
       </button>
     }
   </div>
@@ -48,7 +48,7 @@
           </button>
         }
       </div>
-      <button class="tool-btn danger" (click)="clearDrawings.emit()" title="Zeichnungen löschen">🗑️</button>
+      <button class="tool-btn danger" (click)="clearDrawings.emit()" title="Zeichnungen löschen"><span class="app-icon i-restore-trash"></span></button>
     </div>
   }
 
@@ -56,7 +56,7 @@
 
   @if (isGM) {
     <div class="tool-group gm-group">
-      <button class="tool-btn" (click)="uploadTiles.emit()" title="Kacheln laden">📁</button>
+      <button class="tool-btn" (click)="uploadTiles.emit()" title="Kacheln laden"><span class="app-icon i-folder"></span></button>
       @if (hasMacroTileSelected) {
         <button class="tool-btn danger" (click)="removeMacroTile.emit()" title="Kachel entfernen">✕</button>
       }
