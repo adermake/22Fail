@@ -16,7 +16,7 @@ import { ImageUrlPipe } from '../../shared/image-url.pipe';
 import { DiceRollEvent } from '../../services/world-socket.service';
 import { LobbyLayerPanelComponent } from '../lobby-layer-panel/lobby-layer-panel.component';
 
-type SidebarTab = 'characters' | 'images' | 'textures' | 'layers' | 'rolls';
+type SidebarTab = 'characters' | 'images' | 'textures' | 'layers';
 
 @Component({
   selector: 'app-lobby-sidebar',

@@ -38,7 +38,10 @@ export interface ScriptGrantedSkill {
 }
 export interface ScriptStatusOp { op: 'apply' | 'remove'; id: string; stacks?: number; }
 /** A status effect created + applied on the fly via giveStatus(...) { …body… }. */
-export interface ScriptGivenStatus { name: string; description: string; stacks: number; duration?: number; script: string; }
+export interface ScriptGivenStatus {
+  name: string; description: string; stacks: number; duration?: number;
+  icon?: string; isDebuff: boolean; script: string;
+}
 
 export interface ScriptResult {
   ok: boolean;
@@ -261,13 +264,17 @@ class Interpreter {
     // A side effect: create + apply a new status. Suppressed during a collect pass.
     if (this.collect) return;
     const a = stmt.args;
+    // giveStatus(name, description?, stacks?, duration?, icon?, buff|debuff?)
     const name = String(this.evalExpr(a[0], frame));
     const description = a[1] ? String(this.evalExpr(a[1], frame)) : '';
     const stacks = a[2] ? Math.max(1, Math.floor(toNum(this.evalExpr(a[2], frame)))) : 1;
     const duration = a[3] ? toNum(this.evalExpr(a[3], frame)) : undefined;
+    const icon = a[4] ? String(this.evalExpr(a[4], frame)) : undefined;
+    // Polarity is a bare identifier (buff/debuff) — read structurally, not eval'd.
+    const isDebuff = a[5]?.kind === 'Identifier' ? a[5].name === 'debuff' : true;
     // The body is a full effect script (can contain effectActive) — captured as source.
     const script = this.src.slice(stmt.body.from + 1, stmt.body.to - 1).trim();
-    this.result.givenStatuses.push({ name, description, stacks, duration, script });
+    this.result.givenStatuses.push({ name, description, stacks, duration, icon, isDebuff, script });
   }
 
   private execAssign(stmt: Extract<Stmt, { kind: 'Assign' }>, frame: Frame): void {

@@ -71,6 +71,20 @@ export class TalentsComponent {
     return computeSkillTalentBonusBreakdown(this.sheet).get(talentId as any)?.total ?? 0;
   }
 
+  /**
+   * Punkte column for the "Fähigkeiten" row: virtual ranks granted by skills, shown as a plain
+   * count. Ranks are never negative in that column, so it carries no sign (a hardcoded '+' in
+   * front of a negative value used to render as "+-1").
+   */
+  skillTalentPoints(talentId: string): number {
+    return Math.abs(this.getSkillTalentBonus(talentId));
+  }
+
+  /** Würfel column for that row: those ranks as a dice modifier (negative = helpful). */
+  skillTalentDice(talentId: string): number {
+    return -this.getSkillTalentBonus(talentId);
+  }
+
   /** Bonus from active status effects targeting this talent. */
   getStatusTalentBonus(talentId: string): number {
     return this.trueStats.getStatusTalentBonus(this.sheet, talentId);

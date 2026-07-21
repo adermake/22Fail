@@ -7,7 +7,8 @@
  */
 
 import {
-  ACTION_TYPE_NAMES, ATTRIBUTE_MEMBERS, BUILTIN_MAP, RESOURCE_NAMES, STYLE_NAMES, SYMBOL_MAP, TALENT_IDS,
+  ACTION_TYPE_NAMES, ATTRIBUTE_MEMBERS, BUILTIN_MAP, POLARITY_NAMES, RESOURCE_NAMES, STYLE_NAMES,
+  SYMBOL_MAP, TALENT_IDS,
 } from './symbols';
 import { parse } from './parser';
 import { Block, Diagnostic, Expr, Program, Stmt } from './ast';
@@ -153,9 +154,18 @@ class Checker {
         // (effectActive allowed), so reset the lifecycle scope for the body.
         if (stmt.args.length < 1) {
           this.err(stmt.keywordSpan.from, stmt.keywordSpan.to,
-            'giveStatus(Name, Beschreibung?, Stapel?, Dauer?) { … }');
+            'giveStatus(Name, Beschreibung?, Stapel?, Dauer?, Icon?, buff/debuff?) { … }');
         }
-        for (const a of stmt.args) this.checkExpr(a, scope);
+        // Arg 5 is a bare polarity keyword (buff/debuff) — validate, don't resolve as a symbol.
+        stmt.args.forEach((arg, i) => {
+          if (i === 5) {
+            if (arg.kind !== 'Identifier' || !POLARITY_NAMES.has(arg.name)) {
+              this.err(arg.from, arg.to, `Erwartet: ${[...POLARITY_NAMES].join(' oder ')}`);
+            }
+            return;
+          }
+          this.checkExpr(arg, scope);
+        });
         this.checkBlock(stmt.body, scope, 0);
         break;
 

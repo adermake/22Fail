@@ -22,6 +22,8 @@ import { ActionMacro } from '../../model/action-macro.model';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { UnifiedMacroExecutorService, UnifiedMacroResult, ScriptExecution } from '../../services/unified-macro-executor.service';
 import { hasBaseAction, listTriggers } from '../../scripting/interpreter';
+import { applyStacking } from '../../utils/status-stacking.utils';
+import { lockBodyScroll, unlockBodyScroll } from '../../utils/scroll-lock.util';
 import { StatusEffectEditorComponent } from '../../shared/status-effect-editor/status-effect-editor.component';
 
 @Component({
@@ -846,34 +848,35 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       } else {
         const def = this.resolveLibraryEffect(op.id);
         if (!def) continue;
-        const existing = effects.find(e => e.statusEffectId === op.id);
-        if (existing) {
-          existing.stacks = (existing.stacks || 1) + (op.stacks ?? 1);
-        } else {
-          effects.push({
-            id: `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            statusEffectId: def.id, name: def.name, icon: def.icon, color: def.color,
-            stacks: op.stacks ?? 1, duration: def.defaultDuration, isDebuff: def.isDebuff ?? false,
-          });
-        }
-        changed = true;
+        const incoming: TokenStatusEffect = {
+          id: `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          statusEffectId: def.id, name: def.name, icon: def.icon, color: def.color,
+          stacks: op.stacks ?? 1, duration: def.defaultDuration, isDebuff: def.isDebuff ?? false,
+        };
+        const res = applyStacking(effects, incoming, def.maxStacks || 1);
+        effects = res.list;
+        changed = changed || res.changed;
       }
     }
 
-    // giveStatus(name, description, stacks, duration) { …body… } → create + apply a new
-    // per-instance status effect carrying its own script (which may hold effectActive).
+    // giveStatus(name, description, stacks, duration, icon, buff|debuff) { …body… } →
+    // create + apply a per-instance status effect carrying its own script (may hold
+    // effectActive). The id is derived from the NAME (not a timestamp) so re-applying the
+    // same status can stack instead of piling up separate identical entries.
     for (const g of s.givenStatuses) {
-      const now = Date.now();
+      const id = `given_${g.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
       const custom: StatusEffect = {
-        id: `given_${now}_${Math.random().toString(36).slice(2, 7)}`,
-        name: g.name, description: g.description, script: g.script, isDebuff: true,
+        id, name: g.name, description: g.description, script: g.script,
+        icon: g.icon, isDebuff: g.isDebuff,
       };
-      effects.push({
-        id: `fx_${now}_${Math.random().toString(36).slice(2, 7)}`,
-        statusEffectId: custom.id, customEffect: custom, name: g.name,
-        stacks: g.stacks, duration: g.duration, isDebuff: true,
-      });
-      changed = true;
+      const incoming: TokenStatusEffect = {
+        id: `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        statusEffectId: id, customEffect: custom, name: g.name, icon: g.icon,
+        stacks: g.stacks, duration: g.duration, isDebuff: g.isDebuff,
+      };
+      const res = applyStacking(effects, incoming, 99);
+      effects = res.list;
+      changed = changed || res.changed;
     }
 
     // NOTE: effectActive stat modifiers and granted skills are NOT applied here. They are
@@ -963,24 +966,19 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   applyEffect(effect: StatusEffect): void {
     if (!this.token) return;
-    const currentEffects = this.statusEffects;
-    const existing = currentEffects.find(e => e.statusEffectId === effect.id);
-    if (existing) {
-      this.changeStacks(existing, 1);
-    } else {
-      const newFx: TokenStatusEffect = {
-        id: `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        statusEffectId: effect.id,
-        name: effect.name,
-        icon: effect.icon,
-        color: effect.color,
-        stacks: 1,
-        duration: effect.defaultDuration,
-        isDebuff: effect.isDebuff,
-      };
-      const effects = [...currentEffects, newFx];
-      this.saveStatusEffects(effects);
-    }
+    // Same effect + same duration stacks; a different duration becomes its own instance.
+    const newFx: TokenStatusEffect = {
+      id: `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      statusEffectId: effect.id,
+      name: effect.name,
+      icon: effect.icon,
+      color: effect.color,
+      stacks: 1,
+      duration: effect.defaultDuration,
+      isDebuff: effect.isDebuff,
+    };
+    const { list, changed } = applyStacking(this.statusEffects, newFx, effect.maxStacks || 1);
+    if (changed) this.saveStatusEffects(list);
     this.closePicker();
   }
 
@@ -1041,6 +1039,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.editedStatusEffect = JSON.parse(JSON.stringify(effect));
     this.editingFx = fx;
     this.expandedFx = null;
+    lockBodyScroll(); // fullscreen editor: no background scrolling
     this.cdr.markForCheck();
   }
 
@@ -1053,9 +1052,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
         : e
     );
     this.saveStatusEffects(effects);
-    this.editingFx = null;
-    this.editedStatusEffect = null;
-    this.cdr.markForCheck();
+    this.closeEditor();
   }
 
   /** GM: persist the edit to the library definition (affects everyone), then close. */
@@ -1075,12 +1072,15 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       e.id === fx.id ? { ...e, customEffect: undefined, name: updated.name, icon: updated.icon, color: updated.color, isDebuff: updated.isDebuff ?? false } : e
     );
     this.saveStatusEffects(effects);
-    this.editingFx = null;
-    this.editedStatusEffect = null;
-    this.cdr.markForCheck();
+    this.closeEditor();
   }
 
   cancelEditFx(): void {
+    this.closeEditor();
+  }
+
+  private closeEditor(): void {
+    if (this.editingFx) unlockBodyScroll();
     this.editingFx = null;
     this.editedStatusEffect = null;
     this.cdr.markForCheck();

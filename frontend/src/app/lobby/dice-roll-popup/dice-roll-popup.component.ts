@@ -1,4 +1,5 @@
 import { Component, Input, ChangeDetectionStrategy, OnInit, OnDestroy, OnChanges } from '@angular/core';
+import { scaledVolume } from '../../shared/sound/sound-settings';
 import { CommonModule } from '@angular/common';
 import { Point } from '../../model/lobby.model';
 
@@ -17,6 +18,9 @@ export interface DiceRollPopup {
   actionColor?: string;
   timestamp: Date;
 }
+
+/** Baseline level for dice sounds; scaled by the user's master SFX volume. */
+const DICE_BASE_LEVEL = 0.3;
 
 @Component({
   selector: 'app-dice-roll-popup',
@@ -329,7 +333,9 @@ export class DiceRollPopupComponent implements OnInit, OnDestroy, OnChanges {
   private playRollSound() {
     if (this.rollSound) {
       this.rollSound.currentTime = 0;
-      this.rollSound.volume = 0.3; // Gentle volume
+      const v = scaledVolume(DICE_BASE_LEVEL);
+      if (v <= 0) return; // muted via the SFX volume setting
+      this.rollSound.volume = v;
       this.rollSound.play().catch(e => {
         console.warn('Could not play dice roll sound:', e);
       });

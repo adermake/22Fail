@@ -94,6 +94,13 @@ interface FloatingSelection {
 
 type LassoHandle = 'rotate' | 'tl' | 'tm' | 'tr' | 'ml' | 'mr' | 'bl' | 'bm' | 'br';
 
+/**
+ * Ruler scale: one hex is one metre. Shared by the local measurement and the remote/synced
+ * ruler render — they previously disagreed (1.5 vs 1), so your own ruler read 1.5m per hex
+ * while every other client showed the correct distance.
+ */
+const METERS_PER_HEX = 1;
+
 @Component({
   selector: 'app-lobby-grid',
   standalone: true,
@@ -3672,7 +3679,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
       const startHex = HexMath.pixelToHex(m.start);
       const endHex = HexMath.pixelToHex(m.end);
       const hexDist = HexMath.hexDistance(startHex, endHex);
-      const meters = hexDist * 1;
+      const meters = hexDist * METERS_PER_HEX;
       const midX = (startScreen.x + endScreen.x) / 2;
       const midY = (startScreen.y + endScreen.y) / 2;
       ctx.font = 'bold 14px sans-serif';
@@ -4549,7 +4556,8 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     const startHex = HexMath.pixelToHex(start);
     const endHex = HexMath.pixelToHex(hexCenter);
     const hexDistance = HexMath.hexDistance(startHex, endHex);
-    const meters = hexDistance * 1.5;
+    // 1 m per hex — must match the remote/synced ruler render (which already used ×1).
+    const meters = hexDistance * METERS_PER_HEX;
     this.measureDistance.set(meters);
     this.scheduleRender();
 

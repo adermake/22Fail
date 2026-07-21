@@ -35,14 +35,6 @@
         📐
       </button>
     }
-    <button 
-      class="tab-btn" 
-      [class.active]="activeTab() === 'rolls'"
-      (click)="switchTab('rolls')"
-      title="Würfe"
-    >
-      🎲
-    </button>
   </div>
 
   <!-- Tab label -->
@@ -51,7 +43,6 @@
     @else if (activeTab() === 'images') { Bilder }
     @else if (activeTab() === 'textures') { Texturen }
     @else if (activeTab() === 'layers') { Schichten }
-    @else if (activeTab() === 'rolls') { Würfelverlauf }
   </div>
 
   <!-- Search bar (only for character/image/texture tabs) -->
@@ -307,44 +298,8 @@
       </div>
     }
 
-    <!-- Würfelverlauf Tab -->
-    @if (activeTab() === 'rolls') {
-      <div class="rolls-tab">
-        @if (rolls.length === 0) {
-          <div class="empty-state">
-            <p>Noch keine Würfe in dieser Sitzung</p>
-          </div>
-        }
-        @for (roll of displayRolls; track roll.id) {
-          <div class="roll-entry" [class.secret]="roll.isSecret">
-            <div class="roll-meta">
-              <span class="roll-char">{{ roll.characterName }}</span>
-              @if (roll.actionName) {
-                <span class="roll-action">{{ roll.actionName }}</span>
-              }
-              <span class="roll-time">{{ formatTime(roll.timestamp) }}</span>
-            </div>
-            <div class="roll-dice-row">
-              @for (d of roll.rolls; track $index) {
-                <span class="die-val"
-                  [class.crit-low]="d === 1 && roll.diceType === 20"
-                  [class.crit-high]="d === roll.diceType && roll.diceType === 20">{{ d }}</span>
-              }
-              @if (getTotalBonus(roll) !== 0) {
-                <span class="roll-bonus" [class.pos]="getTotalBonus(roll) < 0" [class.neg]="getTotalBonus(roll) > 0">
-                  {{ getTotalBonus(roll) > 0 ? '+' : '' }}{{ getTotalBonus(roll) }}
-                </span>
-              }
-              @if (getRollRawResult(roll) !== null) {
-                <span class="roll-eq">{{ getRollRawResult(roll) }} → <strong>{{ getRollDisplayResult(roll) }}</strong> <span class="roll-stab">(🛡{{ roll.stabilitaet }})</span></span>
-              } @else {
-                <span class="roll-eq">= <strong>{{ getRollDisplayResult(roll) }}</strong></span>
-              }
-            </div>
-          </div>
-        }
-      </div>
-    }
+    <!-- Würfelverlauf lives in the right-hand character panel only (it used to be duplicated
+         here, which is why there were two dice tabs). -->
 
   </div>
 </div>

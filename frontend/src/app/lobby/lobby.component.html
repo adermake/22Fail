@@ -134,8 +134,9 @@
 
   <!-- Main content area -->
   <div class="lobby-main">
-    <!-- Sidebar -->
-    @if (showLobbyPanels()) {
+    <!-- Sidebar: GM-only (characters/images/textures/layers are all GM tooling). The dice
+         history players need lives in the right-hand character panel. -->
+    @if (showLobbyPanels() && isGM()) {
       <app-lobby-sidebar
         class="lobby-sidebar"
         [characters]="worldCharacters()"

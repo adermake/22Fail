@@ -16,6 +16,8 @@ import { TrueStatsService } from '../../services/true-stats.service';
 import { UnifiedMacroExecutorService, UnifiedMacroResult } from '../../services/unified-macro-executor.service';
 import { StatusEffectEditorComponent } from '../../shared/status-effect-editor/status-effect-editor.component';
 import { TALENT_DEFINITIONS } from '../../data/talent-definitions';
+import { applyStacking } from '../../utils/status-stacking.utils';
+import { lockBodyScroll, unlockBodyScroll } from '../../utils/scroll-lock.util';
 
 @Component({
   selector: 'app-sheet-status-effects',
@@ -451,9 +453,11 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     this.editedStatusEffect = JSON.parse(JSON.stringify(effect));
     this.editingEffect = active;
     this.expandedEffect = null;
+    lockBodyScroll(); // fullscreen editor: no background scrolling
     this.cdr.markForCheck();
   }
 
+  /** Local per-instance edit (does not touch the library). */
   saveEditedEffect(updatedEffect: StatusEffect) {
     if (!this.editingEffect) return;
     const effectsArray = this.sheet.activeStatusEffects || [];
@@ -463,12 +467,15 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
       effectsArray[index] = updated;
       this.patch.emit({ path: '/activeStatusEffects', value: effectsArray });
     }
-    this.editingEffect = null;
-    this.editedStatusEffect = null;
-    this.cdr.markForCheck();
+    this.closeEditor();
   }
 
   cancelEditEffect() {
+    this.closeEditor();
+  }
+
+  private closeEditor() {
+    if (this.editingEffect) unlockBodyScroll();
     this.editingEffect = null;
     this.editedStatusEffect = null;
     this.cdr.markForCheck();
@@ -661,33 +668,18 @@ export class SheetStatusEffectsComponent implements OnInit, OnChanges, OnDestroy
     const libs = this.libraryStore.allLibraries;
     const sourceLib = libs.find(lib => lib.statusEffects?.some(e => e.id === effect.id));
 
-    const existingIndex = (this.sheet.activeStatusEffects ?? []).findIndex(
-      e => e.statusEffectId === effect.id
+    // Same effect + same duration stacks; a different duration becomes its own instance.
+    const incoming: ActiveStatusEffect = {
+      statusEffectId: effect.id,
+      sourceLibraryId: sourceLib?.id ?? '',
+      appliedAt: Date.now(),
+      stacks: 1,
+      duration: effect.defaultDuration,
+    };
+    const { list: updatedActive, changed } = applyStacking(
+      this.sheet.activeStatusEffects ?? [], incoming, effect.maxStacks || 1,
     );
-
-    let updatedActive: ActiveStatusEffect[];
-
-    if (existingIndex !== -1 && (effect.maxStacks || 1) > 1) {
-      updatedActive = [...(this.sheet.activeStatusEffects ?? [])];
-      const existing = updatedActive[existingIndex];
-      const currentStacks = existing.stacks || 1;
-      if (currentStacks < (effect.maxStacks || 1)) {
-        updatedActive[existingIndex] = { ...existing, stacks: currentStacks + 1 };
-      } else {
-        this.showPicker = false;
-        this.cdr.markForCheck();
-        return;
-      }
-    } else if (existingIndex === -1) {
-      const newActive: ActiveStatusEffect = {
-        statusEffectId: effect.id,
-        sourceLibraryId: sourceLib?.id ?? '',
-        appliedAt: Date.now(),
-        stacks: 1,
-        duration: effect.defaultDuration,
-      };
-      updatedActive = [...(this.sheet.activeStatusEffects ?? []), newActive];
-    } else {
+    if (!changed) { // already at its stack cap
       this.showPicker = false;
       this.cdr.markForCheck();
       return;

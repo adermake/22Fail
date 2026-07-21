@@ -17,6 +17,67 @@
       "Bash(npx tsc:*)",
       "Bash(powershell -Command \"\\(Get-Item ''c:\\\\Users\\\\adermake\\\\Documents\\\\22FailApp\\\\frontend\\\\src\\\\app\\\\sheet\\\\race-selector\\\\race-selector.component.css''\\).Length\")",
       "Bash(powershell:*)"
+    ],
+    "deny": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git reset:*)",
+      "Bash(git revert:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git restore:*)",
+      "Bash(git clean:*)",
+      "Bash(git rm:*)",
+      "Bash(git mv:*)",
+      "Bash(git apply:*)",
+      "Bash(git am:*)",
+      "Bash(git init:*)",
+      "Bash(git clone:*)",
+      "Bash(git submodule:*)",
+      "Bash(git worktree:*)",
+      "Bash(git filter-branch:*)",
+      "Bash(git update-ref:*)",
+      "Bash(git reflog:*)",
+      "Bash(git gc:*)",
+      "Read(~/.ssh/**)",
+      "Edit(~/.ssh/**)",
+      "Write(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Edit(~/.aws/**)",
+      "Read(~/.gnupg/**)",
+      "Read(~/.azure/**)",
+      "Read(~/.kube/**)",
+      "Read(~/.npmrc)",
+      "Edit(~/.npmrc)",
+      "Read(~/.git-credentials)",
+      "Edit(~/.git-credentials)",
+      "Edit(~/.gitconfig)",
+      "Read(//c/Windows/**)",
+      "Edit(//c/Windows/**)",
+      "Write(//c/Windows/**)",
+      "Edit(//c/Program Files/**)",
+      "Edit(//c/Program Files (x86)/**)"
+    ],
+    "additionalDirectories": []
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Edit|Write|NotebookEdit|Glob|Grep|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"c:/Users/adermake/Documents/22FailApp/.claude/guard.sh\"",
+            "timeout": 15
+          }
+        ]
+      }
     ]
   }
 }

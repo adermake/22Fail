@@ -8,11 +8,12 @@ import { Component, Input, Output, EventEmitter, signal, ChangeDetectionStrategy
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToolType, DragMode } from '../lobby.component';
+import { SoundVolumeControlComponent } from '../../shared/sound/sound-volume-control.component';
 
 @Component({
   selector: 'app-lobby-toolbar',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SoundVolumeControlComponent],
   templateUrl: './lobby-toolbar.component.html',
   styleUrls: ['./lobby-toolbar.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -77,7 +78,7 @@ export class LobbyToolbarComponent {
     { id: 'measure', icon: '📏', label: 'Messen', shortcut: 'R' },
     { id: 'image', icon: '🖼️', label: 'Bilder', shortcut: 'I' },
     { id: 'texture', icon: '🎨', label: 'Textur Pinsel', shortcut: 'T' },
-    { id: 'fog', icon: '🌫️', label: 'Kriegsnebel', shortcut: 'G' },
+    { id: 'fog', icon: '🌫️', label: 'Kriegsnebel', shortcut: 'V' },
   ];
 
   // Brush sizes

@@ -60,8 +60,12 @@
             <span class="col-name talent-name skill-bonus-label">Fähigkeiten</span>
             <span class="col-stat"></span>
             <span class="col-mod"></span>
-            <span class="col-ranks skill-bonus-value">+{{ getSkillTalentBonus(talent.id) }}</span>
-            <span class="col-total dice-bonus">−{{ getSkillTalentBonus(talent.id) }}</span>
+            <span class="col-ranks skill-bonus-value">{{ skillTalentPoints(talent.id) }}</span>
+            <span class="col-total"
+                  [class.dice-bonus]="skillTalentDice(talent.id) < 0"
+                  [class.dice-penalty]="skillTalentDice(talent.id) > 0">
+              {{ skillTalentDice(talent.id) > 0 ? '+' : '' }}{{ skillTalentDice(talent.id) }}
+            </span>
           </div>
         }
       }

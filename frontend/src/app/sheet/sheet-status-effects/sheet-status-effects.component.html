@@ -407,8 +407,9 @@
 
 <!-- Effect Editor Modal -->
 @if (editingEffect && editedStatusEffect) {
-  <div class="sse-editor-overlay" (click)="cancelEditEffect()">
-    <div class="sse-editor-container" (click)="$event.stopPropagation()">
+  <!-- Fullscreen modal: closes only via Speichern or Abbrechen (no click-outside). -->
+  <div class="sse-editor-overlay">
+    <div class="sse-editor-container">
       <div class="sse-editor-header">
         <h3>Status-Effekt bearbeiten</h3>
         <p class="sse-editor-note">⚠️ Änderungen lösen die Verknüpfung zur Bibliothek</p>

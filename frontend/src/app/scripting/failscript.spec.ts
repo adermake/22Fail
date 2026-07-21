@@ -131,6 +131,21 @@ describe('FailScript onTrigger / giveStatus', () => {
     expect(t.givenStatuses[0].duration).toBe(2);
     expect(t.givenStatuses[0].script).toContain('effectActive');
   });
+
+  it('reads icon and buff/debuff from giveStatus', () => {
+    const s = 'onTrigger("t") { giveStatus("Slow", "d", 2, 3, "🐌", debuff) { } }';
+    const g = runScript(s, dummyCtx, { trigger: 't' }).givenStatuses[0];
+    expect(g.icon).toBe('🐌');
+    expect(g.isDebuff).toBe(true);
+    expect(g.stacks).toBe(2);
+
+    const b = runScript('onTrigger("t") { giveStatus("Bless", "d", 1, 1, "✨", buff) { } }', dummyCtx, { trigger: 't' });
+    expect(b.givenStatuses[0].isDebuff).toBe(false);
+  });
+
+  it('rejects an invalid giveStatus polarity', () => {
+    expect(errs('onTrigger("t") { giveStatus("s","d",1,1,"x",nope) { } }').some(m => m.includes('buff'))).toBe(true);
+  });
 });
 
 describe('FailScript dice', () => {

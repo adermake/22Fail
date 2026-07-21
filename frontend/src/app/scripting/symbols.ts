@@ -38,6 +38,37 @@ export const RESOURCE_INFO: Record<string, string> = {
   health: 'Leben', energy: 'Ausdauer', mana: 'Mana', fokus: 'Fokus',
 };
 
+/** Buff/debuff selector for giveStatus (bare identifiers → StatusEffect.isDebuff). */
+export const POLARITY_NAMES = new Set(['buff', 'debuff']);
+export const POLARITY_INFO: Record<string, string> = {
+  buff: 'Positiver Effekt (isDebuff = false)',
+  debuff: 'Negativer Effekt (isDebuff = true)',
+};
+
+/** Icon choices offered for giveStatus. Inserted as a quoted string by the editor. */
+export const ICON_CHOICES: { icon: string; label: string }[] = [
+  { icon: '🐌', label: 'Verlangsamt' },
+  { icon: '❄️', label: 'Kälte / Gefroren' },
+  { icon: '🔥', label: 'Feuer / Brennen' },
+  { icon: '☠️', label: 'Gift' },
+  { icon: '🩸', label: 'Blutung' },
+  { icon: '💤', label: 'Schlaf / Betäubt' },
+  { icon: '🕸️', label: 'Gefangen' },
+  { icon: '💫', label: 'Benommen' },
+  { icon: '🛡️', label: 'Schutz' },
+  { icon: '⚔️', label: 'Angriffsbonus' },
+  { icon: '⚡', label: 'Hast / Blitz' },
+  { icon: '✨', label: 'Segen' },
+  { icon: '🌑', label: 'Fluch' },
+  { icon: '💪', label: 'Stärke' },
+  { icon: '🧠', label: 'Geist' },
+  { icon: '👁️', label: 'Sicht' },
+  { icon: '🦶', label: 'Bewegung' },
+  { icon: '💚', label: 'Regeneration' },
+  { icon: '💀', label: 'Todesnah' },
+  { icon: '⭐', label: 'Allgemein' },
+];
+
 /** Action-type selector for grantSkill (bare identifiers → SkillBlock.actionType). */
 export const ACTION_TYPE_NAMES = new Set(['Aktion', 'Bonusaktion', 'KeineAktion', 'Reaktion']);
 export const ACTION_TYPE_MAP: Record<string, 'Aktion' | 'Bonusaktion' | 'Keine Aktion' | 'Reaktion'> = {
@@ -154,7 +185,7 @@ export const KEYWORD_INFO: { name: string; description: string; snippet?: string
   { name: 'untilNextTurn', description: 'Veraltet — Alias für effectActive.', snippet: 'effectActive {\n\t\n}' },
   { name: 'grantSkill', description: 'Effektgebundene Fähigkeit (nur in effectActive): grantSkill(Name, Beschreibung, Aktionstyp, Mana, Ausdauer, Leben)', snippet: 'grantSkill("Name", "Beschreibung", Aktion, 0, 0, 0) {\n\t\n}' },
   { name: 'onTrigger', description: 'Manuell auslösbare Aktion (kein periodischer Effekt). Wird im Effekt-Menü als Knopf gelistet.', snippet: 'onTrigger("Auslöser-Name") {\n\t\n}' },
-  { name: 'giveStatus', description: 'Erzeugt und wendet einen neuen Status-Effekt an: giveStatus(Name, Beschreibung, Stapel, Dauer) { effectActive { … } }', snippet: 'giveStatus("Name", "Beschreibung", 1, 1) {\n\teffectActive {\n\t\t\n\t}\n}' },
+  { name: 'giveStatus', description: 'Erzeugt und wendet einen neuen Status-Effekt an: giveStatus(Name, Beschreibung, Stapel, Dauer, Icon, buff/debuff) { effectActive { … } }', snippet: 'giveStatus("Name", "Beschreibung", 1, 1, "⭐", debuff) {\n\teffectActive {\n\t\t\n\t}\n}' },
   { name: 'action', description: 'Benannter Aktionsblock', snippet: 'action name {\n\t\n}' },
   { name: 'repeat', description: 'Wiederhole n-mal', snippet: 'repeat(n) {\n\t\n}' },
   { name: 'while', description: 'Solange Bedingung wahr', snippet: 'while (bedingung) {\n\t\n}' },

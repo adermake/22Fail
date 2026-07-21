@@ -40,6 +40,9 @@ import { BattleTrackerEngine } from '../world/battle-tracker/battle-tracker-engi
 export type ToolType = 'cursor' | 'draw' | 'erase' | 'walls' | 'measure' | 'image' | 'texture' | 'fog' | 'lasso';
 export type DragMode = 'free' | 'enforced';
 
+/** Dice-history cap. Newest rolls are prepended, so this drops the OLDEST entries. */
+const ROLL_HISTORY_LIMIT = 100;
+
 @Component({
   selector: 'app-lobby',
   standalone: true,
@@ -261,6 +264,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
       this.route.paramMap.subscribe(async (params) => {
         const worldName = params.get('worldName') || 'default';
         this.worldName.set(worldName);
+        this.loadRollHistory(worldName);
 
         // Check for GM mode
         this.route.queryParamMap.subscribe((queryParams) => {
@@ -316,11 +320,12 @@ export class LobbyComponent implements OnInit, OnDestroy {
       this.worldSocket.diceRoll$.subscribe((roll) => {
         console.log('[Lobby] Received dice roll:', roll);
         
-        // Add to history (keep last 100 rolls)
+        // Add to history (newest first, keep last 100 — the cap drops the OLDEST entries).
         this.rollHistory.update(history => {
           const updated = [roll, ...history];
-          return updated.slice(0, 100);
+          return updated.slice(0, ROLL_HISTORY_LIMIT);
         });
+        this.saveRollHistory();
 
         // Show popup over token if visible on current map
         if (this.gridComponent) {
@@ -360,6 +365,9 @@ export class LobbyComponent implements OnInit, OnDestroy {
           this.applyJsonPatch(sheet, data.patch);
           characters[characterIndex] = { ...characters[characterIndex], sheet };
           this.worldCharacters.set(characters);
+          // A patch can change effective speed (status effect, equipment) — re-push speeds so
+          // the battle tracker actually re-orders instead of keeping the speed from load time.
+          this.pushSpeedsToBattleEngine();
           this.cdr.markForCheck();
         }
       })
@@ -415,12 +423,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.worldCharacters.set(characters);
     
     // Update battle engine with character data including proper speeds
-    this.battleEngine.setAvailableCharacters(characters.map(c => ({
-      id: c.id,
-      name: c.sheet.name,
-      portrait: c.sheet.portrait,
-      speed: this.trueStats.calculateEffectiveSpeed(c.sheet) // Use effective speed including armor/encumbrance penalties
-    })));
+    this.pushSpeedsToBattleEngine();
 
     // Keep lobby tracker grouping/turns faithful to persisted world state after character refresh.
     this.battleEngine.syncFromWorldStore();
@@ -670,6 +673,58 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.subscriptions.forEach(s => s.unsubscribe());
   }
 
+  /**
+   * Push each character's current effective speed into the battle engine. Called on load AND
+   * whenever a character patch arrives, so speed changes (status effects, equipment) actually
+   * re-order the turn timeline instead of being frozen at load-time values.
+   */
+  private pushSpeedsToBattleEngine(): void {
+    this.battleEngine.setAvailableCharacters(this.worldCharacters().map(c => ({
+      id: c.id,
+      name: c.sheet.name,
+      portrait: c.sheet.portrait,
+      // Effective speed includes armor/encumbrance penalties and effectActive modifiers.
+      speed: this.trueStats.calculateEffectiveSpeed(c.sheet),
+    })));
+  }
+
+  // ============================================
+  // Roll history persistence (per world)
+  // ============================================
+
+  private rollHistoryKey(world: string): string {
+    return `lobby-roll-history:${world}`;
+  }
+
+  /** Restore this world's dice history so a page reload doesn't start empty. */
+  private loadRollHistory(world: string): void {
+    try {
+      const raw = localStorage.getItem(this.rollHistoryKey(world));
+      const parsed = raw ? JSON.parse(raw) : null;
+      this.rollHistory.set(Array.isArray(parsed) ? parsed.slice(0, ROLL_HISTORY_LIMIT) : []);
+    } catch {
+      this.rollHistory.set([]); // corrupt entry: start clean rather than break the lobby
+    }
+    this.cdr.markForCheck();
+  }
+
+  private saveRollHistory(): void {
+    const world = this.worldName();
+    if (!world) return;
+    try {
+      localStorage.setItem(this.rollHistoryKey(world), JSON.stringify(this.rollHistory()));
+    } catch {
+      // Quota exceeded or storage unavailable — history stays in memory for this session.
+    }
+  }
+
+  /** Clear the stored dice history for this world. */
+  clearRollHistory(): void {
+    this.rollHistory.set([]);
+    try { localStorage.removeItem(this.rollHistoryKey(this.worldName())); } catch { /* ignore */ }
+    this.cdr.markForCheck();
+  }
+
   // ============================================
   // Keyboard Shortcuts
   // ============================================
@@ -699,7 +754,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
         this.sidebarTab.set('textures' as any);
         event.preventDefault();
         break;
-      case 'g':
+      // V (not G — G is held to arm the radial ping wheel in lobby-grid).
+      case 'v':
         this.currentTool.set('fog');
         this.isEraserMode.set(false);
         event.preventDefault();

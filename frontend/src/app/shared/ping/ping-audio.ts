@@ -5,8 +5,10 @@
  */
 
 import { PingType, PING_TYPES } from './ping.model';
+import { scaledVolume } from '../sound/sound-settings';
 
-const PING_VOLUME = 0.25;
+/** This sound's baseline level; scaled at play time by the user's master SFX volume. */
+const PING_BASE_LEVEL = 0.25;
 const cache = new Map<PingType, HTMLAudioElement>();
 
 function getBase(type: PingType): HTMLAudioElement {
@@ -14,7 +16,6 @@ function getBase(type: PingType): HTMLAudioElement {
   if (!base) {
     base = new Audio(PING_TYPES[type].sound);
     base.preload = 'auto';
-    base.volume = PING_VOLUME;
     cache.set(type, base);
   }
   return base;
@@ -22,8 +23,10 @@ function getBase(type: PingType): HTMLAudioElement {
 
 export function playPingSound(type: PingType): void {
   try {
+    const volume = scaledVolume(PING_BASE_LEVEL);
+    if (volume <= 0) return; // muted
     const el = getBase(type).cloneNode(true) as HTMLAudioElement;
-    el.volume = PING_VOLUME;
+    el.volume = volume;
     void el.play().catch(() => {});
   } catch {
     /* ignore */

@@ -5,6 +5,8 @@
     <div class="world-header-links">
       <a [href]="'/lobby/' + worldName + '?gm=true'" target="_blank" rel="noopener">🌍 Lobby</a>
       <a [href]="'/world-map/' + worldName + '?gm=true'" target="_blank" rel="noopener">🗺 Weltkarte</a>
+      <!-- Sound effects volume (persisted per browser, shared with the lobby) -->
+      <app-sound-volume-control></app-sound-volume-control>
     </div>
   </div>
 

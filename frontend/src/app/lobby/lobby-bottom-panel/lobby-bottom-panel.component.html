@@ -359,8 +359,9 @@
 
     <!-- ═════════ STATUS: Effect Editor ═════════ -->
     @if (editingFx && editedStatusEffect) {
-      <div class="lbp-editor-overlay" (click)="cancelEditFx()">
-        <div class="lbp-editor-container" (click)="$event.stopPropagation()">
+      <!-- Fullscreen modal: closes only via Speichern/Lokal ändern or Abbrechen. -->
+      <div class="lbp-editor-overlay">
+        <div class="lbp-editor-container">
           <div class="lbp-editor-header">
             <h3>Status-Effekt bearbeiten</h3>
             <p class="lbp-editor-note">⚠ Änderungen lösen die Verknüpfung zur Bibliothek</p>

@@ -206,9 +206,12 @@ export class BattleTrackerEngine {
       return;
     }
 
-    // Rebuild participants
-    // IMPORTANT: Prioritize saved speed (bp.speed) over allCharacters speed
-    // because lobby sets allCharacters speed to 10 as default
+    // Rebuild participants.
+    // Prefer the LIVE character speed over the persisted bp.speed: the saved value is a
+    // snapshot from when the participant was added, so preferring it froze the turn order
+    // and speed changes (status effects, equipment) never sped anyone up. Both callers
+    // (lobby + world) now supply a properly computed effective speed; bp.speed is only a
+    // fallback for participants with no matching character (e.g. NPC-only entries).
     this.participants.clear();
     for (const bp of saved) {
       const char = this.allCharacters.get(bp.characterId);
@@ -216,7 +219,7 @@ export class BattleTrackerEngine {
         characterId: bp.characterId,
         name: char?.name || bp.name,
         portrait: char?.portrait,
-        speed: bp.speed || char?.speed || 10,
+        speed: char?.speed ?? bp.speed ?? 10,
         team: bp.team || 'blue',
         turnMeter: bp.turnFrequency ?? 0,
       });

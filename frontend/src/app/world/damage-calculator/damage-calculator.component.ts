@@ -2,6 +2,7 @@
   Component, Input, Output, EventEmitter, OnChanges, OnInit, OnDestroy, SimpleChanges,
   ChangeDetectionStrategy, ChangeDetectorRef, inject,
 } from '@angular/core';
+import { scaledVolume } from '../../shared/sound/sound-settings';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DiceRollEvent, WorldSocketService } from '../../services/world-socket.service';
@@ -55,6 +56,9 @@ const DAMAGE_THRESHOLDS: DamageThreshold[] = [
 const STORAGE_KEY_STAB = 'dmg-calc-last-stab';
 const STORAGE_KEY_HISTORY = 'dmg-calc-history';
 const MAX_HISTORY = 20;
+
+/** Baseline level for dice sounds; scaled by the user's master SFX volume. */
+const DICE_BASE_LEVEL = 0.3;
 
 @Component({
   selector: 'app-damage-calculator',
@@ -283,7 +287,9 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
   private playRollSound(): void {
     if (this.rollSound) {
       this.rollSound.currentTime = 0;
-      this.rollSound.volume = 0.3;
+      const v = scaledVolume(DICE_BASE_LEVEL);
+      if (v <= 0) return; // muted via the SFX volume setting
+      this.rollSound.volume = v;
       this.rollSound.play().catch(() => {});
     }
   }

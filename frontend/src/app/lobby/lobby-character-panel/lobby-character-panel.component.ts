@@ -59,9 +59,9 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       <span class="panel-title">🎲 Würfelverlauf</span>
     </div>
 
-    <div class="quick-dice-section">
-      <button class="open-dice-btn" (click)="openDiceRoller()">🎲 Würfelansicht öffnen</button>
-    </div>
+    <!-- No "Würfelansicht öffnen" here: with no token selected diceSheet is null, so the
+         overlay could never open. The working button lives under "Freier Wurf" once a
+         token is selected. -->
 
     <div class="roll-history">
       @if (rolls.length === 0) {

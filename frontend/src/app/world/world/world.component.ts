@@ -37,6 +37,7 @@ import { BattleTrackerEngine } from '../battle-tracker/battle-tracker-engine';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 import { CharacterGeneratorComponent } from '../character-generator/character-generator.component';
 import { DamageCalculatorComponent } from '../damage-calculator/damage-calculator.component';
+import { SoundVolumeControlComponent } from '../../shared/sound/sound-volume-control.component';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
 import { firstValueFrom } from 'rxjs';
@@ -47,7 +48,7 @@ export type { SimulatedTurn, BattleGroup };
 @Component({
   selector: 'app-world',
   standalone: true,
-  imports: [CommonModule, CardComponent, FormsModule, ItemEditorComponent, SkillEditorComponent, SpellEditorOverlayComponent, RuneEditorComponent, AssetBrowserComponent, LibrarySelectorComponent, ContextMenuComponent, BattleTracker, CurrentEventsManagerComponent, ImageUrlPipe, CharacterGeneratorComponent, DamageCalculatorComponent],
+  imports: [CommonModule, CardComponent, FormsModule, ItemEditorComponent, SkillEditorComponent, SpellEditorOverlayComponent, RuneEditorComponent, AssetBrowserComponent, LibrarySelectorComponent, ContextMenuComponent, BattleTracker, CurrentEventsManagerComponent, ImageUrlPipe, CharacterGeneratorComponent, DamageCalculatorComponent, SoundVolumeControlComponent],
   templateUrl: './world.component.html',
   styleUrl: './world.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

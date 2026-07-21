@@ -1,4 +1,5 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
+import { scaledVolume } from '../../shared/sound/sound-settings';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -47,6 +48,9 @@ export interface DiceConfig {
 export interface RollHistory {
   rolls: DiceRoll[];
 }
+
+/** Baseline level for dice sounds; scaled by the user's master SFX volume. */
+const DICE_BASE_LEVEL = 0.3;
 
 @Component({
   selector: 'app-dice-roller',
@@ -351,7 +355,9 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
   private playRollSound() {
     if (this.rollSound) {
       this.rollSound.currentTime = 0;
-      this.rollSound.volume = 0.3;
+      const v = scaledVolume(DICE_BASE_LEVEL);
+      if (v <= 0) return; // muted via the SFX volume setting
+      this.rollSound.volume = v;
       this.rollSound.play().catch(() => {}); // Ignore autoplay restrictions
     }
   }

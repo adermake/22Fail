@@ -15,8 +15,9 @@ import { tags as t } from '@lezer/highlight';
 
 import { compileScript } from '../checker';
 import {
-  ACTION_TYPE_INFO, ACTION_TYPE_NAMES, ATTRIBUTE_MEMBERS, BUILTINS, BUILTIN_MAP, KEYWORD_INFO,
-  RESOURCE_INFO, RESOURCE_NAMES, STYLE_NAMES, SYMBOLS, SYMBOL_MAP, TALENT_INFO,
+  ACTION_TYPE_INFO, ACTION_TYPE_NAMES, ATTRIBUTE_MEMBERS, BUILTINS, BUILTIN_MAP, ICON_CHOICES,
+  KEYWORD_INFO, POLARITY_INFO, POLARITY_NAMES, RESOURCE_INFO, RESOURCE_NAMES, STYLE_NAMES,
+  SYMBOLS, SYMBOL_MAP, TALENT_INFO,
 } from '../symbols';
 import { KEYWORDS } from '../lexer';
 
@@ -114,6 +115,20 @@ function argChoiceOptions(call: { name: string; argIndex: number }) {
   if (call.name === 'grantSkill') {
     if (call.argIndex === 2) {
       return [...ACTION_TYPE_NAMES].map(a => ({ label: a, type: 'enum', detail: 'Aktionstyp', info: ACTION_TYPE_INFO[a], boost: 80 }));
+    }
+    return null;
+  }
+  // giveStatus(name, description, stacks, duration, icon, buff|debuff)
+  if (call.name === 'giveStatus') {
+    if (call.argIndex === 4) {
+      // Icon is a string argument: insert it already quoted.
+      return ICON_CHOICES.map(c => ({
+        label: `${c.icon} ${c.label}`, type: 'enum', detail: 'Icon',
+        apply: `"${c.icon}"`, boost: 80,
+      }));
+    }
+    if (call.argIndex === 5) {
+      return [...POLARITY_NAMES].map(p => ({ label: p, type: 'enum', detail: 'Art', info: POLARITY_INFO[p], boost: 80 }));
     }
     return null;
   }
