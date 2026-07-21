@@ -15,14 +15,19 @@ export interface StackableEffect {
   stacks: number;
 }
 
-/** Same effect and same remaining duration → the two instances may merge. */
-function sameBucket(a: StackableEffect, b: StackableEffect): boolean {
-  return a.statusEffectId === b.statusEffectId && (a.duration ?? null) === (b.duration ?? null);
-}
-
 /**
- * Add `incoming` to `list`, merging into a matching instance when the stacking rule allows.
- * Returns a new array; `changed` is false when the effect was already at its stack cap.
+ * Add `incoming` to `list`, merging per the stacking rule. Returns a new array; `changed` is
+ * false when the application had no effect (e.g. already at the stack cap).
+ *
+ * Two behaviours, chosen by whether the effect is stackable (maxStacks > 1):
+ *
+ *  - **Stackable:** merges only with an instance that has the SAME remaining duration. Stacks
+ *    add (capped); the duration is left alone. A different duration becomes its own tile, so a
+ *    fresh 3-round application never inherits a 1-round timer.
+ *
+ *  - **Non-stackable:** re-applying cannot add a stack, so it EXTENDS the existing instance's
+ *    duration instead (durations add). Matching ignores duration — there is only ever one tile.
+ *    A permanent instance (no duration) stays permanent.
  */
 export function applyStacking<T extends StackableEffect>(
   list: T[],
@@ -30,10 +35,29 @@ export function applyStacking<T extends StackableEffect>(
   maxStacks = 1,
 ): { list: T[]; changed: boolean; merged: boolean } {
   const cap = Math.max(1, maxStacks || 1);
-  const idx = list.findIndex(e => sameBucket(e, incoming));
+
+  if (cap <= 1) {
+    // ── Non-stackable: extend the timer of the single existing instance ──
+    const idx = list.findIndex(e => e.statusEffectId === incoming.statusEffectId);
+    if (idx < 0) {
+      return { list: [...list, { ...incoming, stacks: 1 }], changed: true, merged: false };
+    }
+    const existing = list[idx];
+    // Permanent on either side means "already unlimited" — nothing to extend.
+    if (existing.duration == null || incoming.duration == null) {
+      return { list, changed: false, merged: true };
+    }
+    const out = [...list];
+    out[idx] = { ...existing, duration: existing.duration + incoming.duration };
+    return { list: out, changed: true, merged: true };
+  }
+
+  // ── Stackable: same effect AND same duration merge; stacks add, duration untouched ──
+  const idx = list.findIndex(
+    e => e.statusEffectId === incoming.statusEffectId && (e.duration ?? null) === (incoming.duration ?? null),
+  );
 
   if (idx < 0) {
-    // No instance with this duration yet — a separate instance, clamped to the cap.
     return {
       list: [...list, { ...incoming, stacks: Math.min(Math.max(1, incoming.stacks || 1), cap) }],
       changed: true,

@@ -193,7 +193,9 @@
 
 /* â”€â”€ Status Effect Card (sse-card style) â”€â”€ */
 .lbp-sfx-card {
-  flex-shrink: 0;
+  /* Allowed to shrink so a long list compresses instead of scrolling out of reach. */
+  flex: 0 1 88px;
+  min-width: 54px;
   width: 88px;
   min-height: 100px;
   background: color-mix(in srgb, var(--ec, #22c55e) 14%, var(--bg, #0f172a));
@@ -1290,3 +1292,76 @@
 /* box() display — a bordered value pill [text] */
 .ds-boxrow { display: flex; }
 .ds-box { display: inline-block; font-weight: 800; padding: 3px 12px; border-radius: 6px; border: 2px solid; }
+
+/* ── Permanent execute tile (last slot in the card row) ─────────────────── */
+/* Sticky so it stays reachable when the row scrolls, and so the travelling
+   result popup can never leave the controls covered. */
+.lbp-exec-tile {
+  position: sticky;
+  right: 0;
+  flex: 0 0 auto;
+  width: 96px;
+  min-width: 96px;
+  justify-content: center;
+  gap: 6px;
+  cursor: default;
+  background: linear-gradient(180deg, rgba(139,92,246,0.16), rgba(15,23,42,0.96));
+  border: 1px solid rgba(139,92,246,0.45);
+  box-shadow: -10px 0 14px -8px rgba(0,0,0,0.75);
+}
+.lbp-exec-tile:hover { transform: none; }
+.lbp-exec-tile-btn {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.68rem;
+  padding: 6px 4px;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.lbp-exec-tile-btn.primary {
+  background: rgba(139,92,246,0.24);
+  border-color: rgba(139,92,246,0.55);
+  color: #c4b5fd;
+}
+.lbp-exec-tile-btn.primary:hover:not(:disabled) { background: rgba(139,92,246,0.4); color: #fff; }
+.lbp-exec-tile-btn.rush {
+  background: rgba(245,158,11,0.16);
+  border-color: rgba(245,158,11,0.45);
+  color: #fbbf24;
+}
+.lbp-exec-tile-btn.rush:hover:not(:disabled) { background: rgba(245,158,11,0.3); color: #fde68a; }
+.lbp-exec-tile-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Density: shrink cards as the list grows ────────────────────────────── */
+.lbp-status-cards-area.dense .lbp-sfx-card {
+  flex-basis: 68px;
+  width: 68px;
+  min-height: 82px;
+  padding: 4px 3px 4px;
+}
+.lbp-status-cards-area.dense .lbp-sfx-icon { font-size: 1.35rem; }
+.lbp-status-cards-area.dense .lbp-sfx-name { font-size: 0.56rem; }
+.lbp-status-cards-area.dense .lbp-sfx-dur,
+.lbp-status-cards-area.dense .lbp-sfx-stacks { font-size: 0.52rem; }
+
+.lbp-status-cards-area.ultra-dense .lbp-sfx-card {
+  flex-basis: 54px;
+  width: 54px;
+  min-height: 68px;
+  padding: 3px 2px;
+}
+.lbp-status-cards-area.ultra-dense .lbp-sfx-icon { font-size: 1.1rem; }
+.lbp-status-cards-area.ultra-dense .lbp-sfx-name { font-size: 0.5rem; line-height: 1.1; }
+.lbp-status-cards-area.ultra-dense .lbp-sfx-dur,
+.lbp-status-cards-area.ultra-dense .lbp-sfx-stacks { font-size: 0.48rem; }
+
+/* The execute tile keeps its footprint so the buttons stay legible. */
+.lbp-status-cards-area.dense .lbp-exec-tile,
+.lbp-status-cards-area.ultra-dense .lbp-exec-tile {
+  width: 88px;
+  min-width: 88px;
+  min-height: 68px;
+}

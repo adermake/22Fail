@@ -26,6 +26,9 @@ import { applyStacking } from '../../utils/status-stacking.utils';
 import { lockBodyScroll, unlockBodyScroll } from '../../utils/scroll-lock.util';
 import { StatusEffectEditorComponent } from '../../shared/status-effect-editor/status-effect-editor.component';
 
+/** Stack cap for statuses created by giveStatus(...) — effectively "always stackable". */
+const GIVEN_STATUS_MAX_STACKS = 99;
+
 @Component({
   selector: 'app-lobby-bottom-panel',
   standalone: true,
@@ -265,6 +268,10 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       this.charSocket.sendPatch(charId, patch);
       this.cdr.markForCheck();
     } else {
+      // Optimistically update the local token too. Without this the parent's round-trip is the
+      // only source of truth, so two applications in quick succession both read the pre-save
+      // list and each append a fresh instance instead of stacking into the existing one.
+      if (this.token) this.token.activeStatusEffects = effects;
       this.tokenUpdate.emit({ activeStatusEffects: effects });
     }
   }
@@ -539,7 +546,9 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   executeNextInChain(): void {
-    if (!this.chainStepDone) return;
+    // Deliberately NOT gated on chainStepDone: the 800 ms flourish is cosmetic, and blocking
+    // on it made stepping through a long list painfully slow. Clicking ahead just advances.
+    if (this.chainEffects.length === 0) return;
     if (this.chainIndex >= this.chainEffects.length - 1) {
       this.finalizeChain();
       return;
@@ -587,6 +596,62 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       this.chainStepDone = true;
       this.cdr.markForCheck();
     }, 800);
+  }
+
+  /**
+   * Run every effect at once, with no per-step animation. Same bookkeeping as the stepped
+   * chain (duration tick-down, resource application, run totals) — just without the wait.
+   */
+  executeAllInstantly(): void {
+    if (this.executeAllInProgress || this.statusEffects.length === 0) return;
+    this.chainEffects = [...this.statusEffects];
+    this.chainIndex = this.chainEffects.length - 1;
+    this.chainResult = null;
+    this.executeAllInProgress = true;
+    this.expandedFx = null;
+    this.chainResourceTotals = [];
+    this.chainResourceLog = [];
+    this.breakdownPopup = null;
+    this.resultAnchor = null;
+    this.runChainStepsFrom(0);
+    this.chainStepDone = true;
+    this.finalizeChain();
+  }
+
+  /** Skip the remaining animation and resolve the rest of an in-progress chain immediately. */
+  finishChainInstantly(): void {
+    if (this.chainEffects.length === 0) return;
+    this.runChainStepsFrom(this.chainIndex + 1);
+    this.chainIndex = this.chainEffects.length - 1;
+    this.chainStepDone = true;
+    this.resultAnchor = null;
+    this.finalizeChain();
+  }
+
+  /** Execute chain entries [from..end] synchronously (no animation, no timers). */
+  private runChainStepsFrom(from: number): void {
+    const sheet = this.sheetForMacros;
+    for (let i = Math.max(0, from); i < this.chainEffects.length; i++) {
+      const fx = this.chainEffects[i];
+      if (!fx) continue;
+      if (fx.duration !== undefined && fx.duration !== null && fx.duration > 0) fx.duration -= 1;
+      const effect = this.getEffect(fx);
+      if (!effect || !sheet) continue;
+      const stacks = fx.stacks || 1;
+      const results: UnifiedMacroResult[] = [];
+      for (const result of this.runEffectResults(effect, sheet, stacks, fx.duration ?? 0)) {
+        results.push(result);
+        this.applyMacroResourceChanges(result);
+      }
+      if (results.length > 0) {
+        const merged = this.mergeResults(results, stacks);
+        this.lastRollResults.set(fx.id, merged);
+        this.chainResult = merged;
+        this.accumulateChainTotals(merged, fx.name);
+      }
+    }
+    this.triggeringEffects.clear();
+    this.cdr.markForCheck();
   }
 
   private finalizeChain(): void {
@@ -865,16 +930,18 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     // same status can stack instead of piling up separate identical entries.
     for (const g of s.givenStatuses) {
       const id = `given_${g.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+      // Script-created statuses are stackable, so repeat applications with the same duration
+      // add stacks rather than piling up identical tiles.
       const custom: StatusEffect = {
         id, name: g.name, description: g.description, script: g.script,
-        icon: g.icon, isDebuff: g.isDebuff,
+        icon: g.icon, isDebuff: g.isDebuff, maxStacks: GIVEN_STATUS_MAX_STACKS,
       };
       const incoming: TokenStatusEffect = {
         id: `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         statusEffectId: id, customEffect: custom, name: g.name, icon: g.icon,
         stacks: g.stacks, duration: g.duration, isDebuff: g.isDebuff,
       };
-      const res = applyStacking(effects, incoming, 99);
+      const res = applyStacking(effects, incoming, GIVEN_STATUS_MAX_STACKS);
       effects = res.list;
       changed = changed || res.changed;
     }

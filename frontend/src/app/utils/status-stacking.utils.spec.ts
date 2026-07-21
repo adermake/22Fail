@@ -55,4 +55,33 @@ describe('status stacking', () => {
     const { list } = applyStacking([fx('poison', 3, 1)], fx('burn', 3, 1), 5);
     expect(list.length).toBe(2);
   });
+
+  describe('non-stackable effects (maxStacks <= 1)', () => {
+    it('extends duration instead of adding a tile or a stack', () => {
+      const { list, changed, merged } = applyStacking([fx('slow', 2, 1)], fx('slow', 3, 1), 1);
+      expect(changed).toBe(true);
+      expect(merged).toBe(true);
+      expect(list.length).toBe(1);
+      expect(list[0].duration).toBe(5); // 2 + 3
+      expect(list[0].stacks).toBe(1);   // never stacks
+    });
+
+    it('extends even when the durations differ (no second tile)', () => {
+      const { list } = applyStacking([fx('slow', 10, 1)], fx('slow', 1, 1), 1);
+      expect(list.length).toBe(1);
+      expect(list[0].duration).toBe(11);
+    });
+
+    it('adds the first instance normally', () => {
+      const { list, merged } = applyStacking([], fx('slow', 3, 1), 1);
+      expect(merged).toBe(false);
+      expect(list.length).toBe(1);
+    });
+
+    it('leaves a permanent instance permanent', () => {
+      const { list, changed } = applyStacking([fx('slow', undefined, 1)], fx('slow', 3, 1), 1);
+      expect(changed).toBe(false);
+      expect(list[0].duration).toBeUndefined();
+    });
+  });
 });
