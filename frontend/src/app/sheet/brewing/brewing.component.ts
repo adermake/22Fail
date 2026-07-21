@@ -14,6 +14,7 @@ import {
   BrewEffectSlot, BREW_SLOT_LABELS, BREW_SLOT_MULT,
   CraftAccessMode, PotionSlotAssignment, PotionEffectInstance, BrewingData,
   nextBrewCost, brewCountOf, effectOf, intensifiedAmount, newInstanceId, totalBrewBPSpent,
+  BrewTrait, AppliedBrewTraitState, BrewedTraitRecord, brewTraitCost, formatBrewTraitEffect,
 } from '../../model/brewing.model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
@@ -42,6 +43,12 @@ export class BrewingComponent implements OnInit {
   potionName = '';
 
   allIngredients: IngredientBlock[] = [];
+  allBrewTraits: BrewTrait[] = [];
+
+  /** Braumerkmale applied to the potion currently being brewed. */
+  appliedTraits: AppliedBrewTraitState[] = [];
+  showTraitPicker = false;
+  traitFilter = '';
   allExtractors: ExtractorBlock[] = [];
 
   brewIngredients: BrewIngredientEntry[] = [];
@@ -78,10 +85,12 @@ export class BrewingComponent implements OnInit {
       const libraries = await firstValueFrom(this.api.getAllLibraries());
       const ings: IngredientBlock[] = [];
       const exts: ExtractorBlock[] = [];
+      const traits: BrewTrait[] = [];
       for (const lib of libraries) {
-        const [ingFiles, extFiles] = await Promise.all([
+        const [ingFiles, extFiles, traitFiles] = await Promise.all([
           firstValueFrom(this.api.searchFiles(lib.id, '', ['ingredient'])),
           firstValueFrom(this.api.searchFiles(lib.id, '', ['extractor'])),
+          firstValueFrom(this.api.searchFiles(lib.id, '', ['brew-trait'])),
         ]);
         for (const f of ingFiles) {
           const d = f.data as IngredientBlock;
@@ -91,9 +100,14 @@ export class BrewingComponent implements OnInit {
           const d = f.data as ExtractorBlock;
           if (d) exts.push({ ...d, id: d.id || f.id, libraryOrigin: lib.id, libraryOriginName: lib.name });
         }
+        for (const f of traitFiles) {
+          const d = f.data as BrewTrait;
+          if (d) traits.push({ ...d, id: d.id || f.id, libraryOrigin: lib.id, libraryOriginName: lib.name });
+        }
       }
       this.allIngredients = ings;
       this.allExtractors = exts;
+      this.allBrewTraits = traits;
     } catch (e) {
       console.error('Brewing: library load failed', e);
     } finally {
@@ -109,7 +123,57 @@ export class BrewingComponent implements OnInit {
         spent += totalBrewBPSpent(entry, slot, this.brewExtractors);
       }
     }
+    // Braumerkmale draw from the same pool, at a flat cost per application.
+    spent += this.appliedTraits.reduce((acc, t) => acc + brewTraitCost(t.trait, t.level), 0);
     return spent;
+  }
+
+  // ── Braumerkmale ───────────────────────────────────────────────────────────
+
+  openTraitPicker(): void { this.showTraitPicker = true; this.traitFilter = ''; this.cdr.markForCheck(); }
+  closeTraitPicker(): void { this.showTraitPicker = false; this.cdr.markForCheck(); }
+
+  /** Traits the character may use: public ones, plus any they know. */
+  get filteredBrewTraits(): BrewTrait[] {
+    const q = this.traitFilter.trim().toLowerCase();
+    const known = new Set(this.sheet?.knownBrewTraitIds ?? []);
+    return this.allBrewTraits
+      .filter(t => t.isPublic || known.has(t.id))
+      .filter(t => !q || t.name.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q));
+  }
+
+  getAppliedTraitLevel(trait: BrewTrait): number {
+    return this.appliedTraits.find(t => t.trait.id === trait.id)?.level ?? 0;
+  }
+
+  /** Flat cost of adding one more application of this trait. */
+  traitCost(trait: BrewTrait): number {
+    return brewTraitCost(trait, 1);
+  }
+
+  canAddTrait(trait: BrewTrait): boolean {
+    if (this.getAppliedTraitLevel(trait) >= Math.max(1, trait.maxLevel)) return false;
+    return this.remainingBP >= this.traitCost(trait);
+  }
+
+  addTrait(trait: BrewTrait): void {
+    if (!this.canAddTrait(trait)) return;
+    const existing = this.appliedTraits.find(t => t.trait.id === trait.id);
+    if (existing) existing.level++;
+    else this.appliedTraits.push({ trait, level: 1 });
+    this.cdr.markForCheck();
+  }
+
+  removeTrait(trait: BrewTrait): void {
+    const idx = this.appliedTraits.findIndex(t => t.trait.id === trait.id);
+    if (idx === -1) return;
+    if (this.appliedTraits[idx].level <= 1) this.appliedTraits.splice(idx, 1);
+    else this.appliedTraits[idx].level--;
+    this.cdr.markForCheck();
+  }
+
+  formatTraitEffect(applied: AppliedBrewTraitState): string {
+    return formatBrewTraitEffect(applied.trait, applied.level);
   }
 
   get remainingBP(): number {
@@ -317,8 +381,17 @@ export class BrewingComponent implements OnInit {
     return this.slots.map(s => this.slotPreview(s)).filter((e): e is PotionEffectInstance => !!e);
   }
 
+  /** Tiers that still need an effect. Every potion must carry one effect per tier. */
+  get missingTiers(): BrewEffectSlot[] {
+    return this.slots.filter(s => !this.slotPreview(s));
+  }
+
+  get missingTierLabels(): string {
+    return this.missingTiers.map(s => BREW_SLOT_LABELS[s]).join(', ');
+  }
+
   canFinish(): boolean {
-    return !!this.potionName.trim() && this.allPotionEffects.length > 0;
+    return !!this.potionName.trim() && this.missingTiers.length === 0;
   }
 
   finishBrewing(): void {
@@ -341,11 +414,23 @@ export class BrewingComponent implements OnInit {
     item.stackable = true;
     item.amount = 1;
 
+    const traitRecords: BrewedTraitRecord[] = this.appliedTraits.map(t => ({
+      traitId: t.trait.id,
+      name: t.trait.name,
+      level: t.level,
+      effect: formatBrewTraitEffect(t.trait, t.level),
+    }));
+    if (traitRecords.length) {
+      item.description += '\nBraumerkmale:\n'
+        + traitRecords.map(t => `• ${t.name}${t.level > 1 ? ` (${t.level})` : ''}: ${t.effect}`).join('\n');
+    }
+
     const brewingData: BrewingData = {
       createdAt: Date.now(),
       ingredients: this.brewIngredients.map(e => ({ name: e.ingredient.name, ingredientId: e.ingredient.id })),
       extractors: this.brewExtractors.map(e => ({ name: e.extractor.name, extractorId: e.extractor.id })),
       effects,
+      appliedTraits: traitRecords,
       totalBP: this.brewPoints,
       spentBP: this.spentBP,
     };

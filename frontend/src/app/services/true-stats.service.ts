@@ -202,9 +202,37 @@ export class TrueStatsService {
     return acc;
   }
 
-  /** Static status modifiers for a derived target, then the effectActive pipeline on top. */
+  /**
+   * Additive modifiers for a DERIVED target (bewegung/grundbonus/reaktion/armor*) from skills
+   * (× skill level) and equipped items. Base attributes are handled by calculateEffectBonus;
+   * without this, a skill or item could only ever buff a base stat, never movement et al.
+   *
+   * Skill/item modifiers spell some targets differently than StatusModifierTarget
+   * ('movement' → 'bewegung', 'focus' → 'fokus'), so they are normalised here.
+   */
+  private getSkillItemModifierTotal(sheet: CharacterSheet, target: StatusModifierTarget): number {
+    const normalise = (stat: string): string =>
+      stat === 'movement' ? 'bewegung' : stat === 'focus' ? 'fokus' : stat;
+
+    let total = 0;
+    for (const skill of sheet.skills ?? []) {
+      for (const mod of skill.statModifiers ?? []) {
+        if (normalise(mod.stat) === target) total += mod.amount * (skill.level || 1);
+      }
+    }
+    for (const item of sheet.equipment ?? []) {
+      for (const mod of item.statModifiers ?? []) {
+        if (normalise(mod.stat) === target) total += mod.amount;
+      }
+    }
+    return total;
+  }
+
+  /** Static modifiers for a derived target (status + skills + items), then the effectActive pipeline. */
   private statusTargetTotal(sheet: CharacterSheet, target: StatusModifierTarget): number {
-    return this.applyEffectPipeline(sheet, target, this.getStatusModifierTotal(sheet, target));
+    const base = this.getStatusModifierTotal(sheet, target)
+      + this.getSkillItemModifierTotal(sheet, target);
+    return this.applyEffectPipeline(sheet, target, base);
   }
 
   /** Public: apply the effectActive pipeline for `target` on top of a caller-computed core. */

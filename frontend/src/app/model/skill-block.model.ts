@@ -2,7 +2,12 @@ import { FormulaType } from "./formula-type.enum";
 import { SpellCounter } from "./spell-block-model";
 
 export interface StatModifier {
-  stat: 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill' | 'mana' | 'life' | 'energy';
+  stat:
+    | 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill'
+    | 'mana' | 'life' | 'energy' | 'focus'
+    // Derived targets — folded into the derived calculations by TrueStatsService.
+    // 'movement' is flat Bewegung (hex steps), NOT a speed buff.
+    | 'movement' | 'grundbonus' | 'reaktion' | 'armorMalus' | 'armorNegation';
   amount: number;
 }
 

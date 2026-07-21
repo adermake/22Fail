@@ -39,10 +39,15 @@ export class PingController {
     this.activePings = [];
   }
 
+  /**
+   * Track the G key. Once the wheel is OPEN it deliberately survives a G release — letting go
+   * a moment early while aiming used to dismiss the wheel mid-drag. The wheel then closes
+   * either by firing a ping (endWheel) or by tapping G again, which acts as a cancel.
+   */
   setGDown(v: boolean): void {
     if (this.gDown === v) return;
     this.gDown = v;
-    if (!v && this.wheelOpen) this.cancelWheel();
+    if (v && this.wheelOpen) this.cancelWheel(); // fresh G press = dismiss the open wheel
   }
 
   /** Arm the wheel on mousedown. Returns true if it consumed the event. */

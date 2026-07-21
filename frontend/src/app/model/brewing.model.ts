@@ -80,6 +80,65 @@ export interface ExtractorBlock {
   libraryOriginName?: string;
 }
 
+/**
+ * Brau-Merkmal — a special property applied to a potion while brewing. Mirrors ForgeTrait,
+ * with one deliberate difference: the cost is FLAT. Applying a trait a second time costs the
+ * same brew points as the first (forge traits are the model here, not the cost curve).
+ */
+export interface BrewTrait {
+  id: string;
+  name: string;
+  description?: string;
+  /** Effect text. Use [L] as a placeholder replaced by the current level (application count). */
+  effect: string;
+  /** Brew-point cost per application — flat, not scaling. */
+  braupunktKosten: number;
+  /** Maximum times this trait may be added. undefined or 1 = not scalable. */
+  maxLevel: number;
+  scalable: boolean;
+  /** If true, all players can see this trait in their knowledge tab. */
+  isPublic: boolean;
+  libraryOrigin?: string;
+  libraryOriginName?: string;
+}
+
+export interface AppliedBrewTraitState {
+  trait: BrewTrait;
+  /** How many times this trait has been applied (capped by maxLevel). */
+  level: number;
+}
+
+/** Record of an applied trait stored on the finished potion. */
+export interface BrewedTraitRecord {
+  traitId: string;
+  name: string;
+  level: number;
+  effect: string;
+}
+
+export function createEmptyBrewTrait(): BrewTrait {
+  return {
+    id: `brewtrait_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    name: 'Neues Merkmal',
+    description: '',
+    effect: '',
+    braupunktKosten: 1,
+    maxLevel: 1,
+    scalable: false,
+    isPublic: false,
+  };
+}
+
+export function formatBrewTraitEffect(trait: BrewTrait, level: number): string {
+  if (trait.scalable) return trait.effect.replace(/\[L\]/g, String(level));
+  return trait.effect;
+}
+
+/** Flat cost: N applications cost N × the trait's cost. */
+export function brewTraitCost(trait: BrewTrait, level = 1): number {
+  return Math.max(0, trait.braupunktKosten) * Math.max(0, level);
+}
+
 export function createEmptyIngredientEffect(): IngredientEffect {
   return {
     statusEffectId: '',
@@ -160,6 +219,8 @@ export interface BrewingData {
   ingredients: { name: string; ingredientId: string }[];
   extractors: { name: string; extractorId: string }[];
   effects: PotionEffectInstance[];
+  /** Brau-Merkmale applied during this brew. */
+  appliedTraits?: BrewedTraitRecord[];
   totalBP: number;
   spentBP: number;
 }
@@ -190,9 +251,24 @@ export function combinedExtractorReduction(
   return Math.min(95, Math.max(0, sum)) / 100;
 }
 
+/** Effective base cost of one brew on (entry, slot): base × slot multiplier − extractor reduction. */
+export function brewBaseCost(
+  entry: BrewIngredientEntry,
+  slot: BrewEffectSlot,
+  extractors: BrewExtractorEntry[],
+): number {
+  const effect = effectOf(entry.ingredient, slot);
+  return Math.max(1, Math.round(
+    effect.cost * BREW_SLOT_MULT[slot] * (1 - combinedExtractorReduction(extractors, slot)),
+  ));
+}
+
 /**
  * Cost of the next brew click on (entry, slot).
- * first = round(base × slotMult × (1 − reduction)); each further click +1.
+ *
+ * The FIRST effect in each tier is free — every potion must carry one effect per tier, so you
+ * are not charged for the mandatory pick. Intensifying from there scales by the base cost
+ * rather than by +1: with base 4 the clicks cost 0, 4, 8, 12, …
  */
 export function nextBrewCost(
   entry: BrewIngredientEntry,
@@ -201,10 +277,7 @@ export function nextBrewCost(
 ): number {
   const effect = effectOf(entry.ingredient, slot);
   if (!effect.statusEffectId) return Infinity;
-  const base = Math.max(1, Math.round(
-    effect.cost * BREW_SLOT_MULT[slot] * (1 - combinedExtractorReduction(extractors, slot)),
-  ));
-  return base + brewCountOf(entry, slot);
+  return brewBaseCost(entry, slot, extractors) * brewCountOf(entry, slot);
 }
 
 export function totalBrewBPSpent(
@@ -213,13 +286,10 @@ export function totalBrewBPSpent(
   extractors: BrewExtractorEntry[],
 ): number {
   const count = brewCountOf(entry, slot);
-  if (count <= 0) return 0;
-  const effect = effectOf(entry.ingredient, slot);
-  const base = Math.max(1, Math.round(
-    effect.cost * BREW_SLOT_MULT[slot] * (1 - combinedExtractorReduction(extractors, slot)),
-  ));
-  // base + (base+1) + … + (base+count-1) = count*base + (0+…+count-1)
-  return count * base + (count * (count - 1)) / 2;
+  if (count <= 1) return 0; // the first brew in a tier is free
+  const base = brewBaseCost(entry, slot, extractors);
+  // 0 + base + 2·base + … + (count−1)·base
+  return base * (count * (count - 1)) / 2;
 }
 
 /** Final effect amount after N intensify clicks. */

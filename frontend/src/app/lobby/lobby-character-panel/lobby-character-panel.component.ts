@@ -230,9 +230,8 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
         <div class="section-header">🎲 Freier Wurf</div>
         <div class="free-roll-section">
           <button class="open-dice-btn" (click)="openDiceRoller()">🎲 Würfelansicht öffnen</button>
-          @if (weaponEfficiency > 0) {
-            <button class="open-dice-btn dmg-btn" (click)="openDamageRoller()">⚔️ Schaden würfeln</button>
-          }
+          <!-- Always available: unarmed attacks are valid, the GM just fills in Effektivität. -->
+          <button class="open-dice-btn dmg-btn" (click)="openDamageRoller()">⚔️ Schaden würfeln</button>
         </div>
 
         <!-- Alle Fertigkeiten & Zauber Vollansicht -->

@@ -1,0 +1,70 @@
+<div class="trait-editor">
+  <!-- Name -->
+  <div class="form-row">
+    <label>Name</label>
+    <input type="text" [(ngModel)]="edit.name" placeholder="z.B. Langanhaltend" />
+  </div>
+
+  <!-- Description -->
+  <div class="form-row">
+    <label>Beschreibung</label>
+    <textarea [(ngModel)]="edit.description" rows="2" placeholder="Optionale Beschreibung..."></textarea>
+  </div>
+
+  <!-- BP cost (flat per application) -->
+  <div class="form-row">
+    <label>
+      Braupunkte-Kosten
+      <span class="hint"> — pro Anwendung, steigt nicht an</span>
+    </label>
+    <input type="number" [(ngModel)]="edit.braupunktKosten" min="0" />
+  </div>
+
+  <!-- Public -->
+  <div class="toggle-row">
+    <label class="toggle-label">
+      <input type="checkbox" [(ngModel)]="edit.isPublic" />
+      Öffentlich (für alle Spieler im Wissen-Tab sichtbar)
+    </label>
+  </div>
+
+  <!-- Scalable toggle -->
+  <div class="toggle-row">
+    <label class="toggle-label">
+      <input type="checkbox" [(ngModel)]="edit.scalable" (ngModelChange)="onScalableChange()" />
+      Skalierbar (mehrfach hinzufügbar)
+    </label>
+    @if (edit.scalable) {
+      <div class="inline-field">
+        <label>Max. Stufe</label>
+        <input type="number" [(ngModel)]="edit.maxLevel" min="2" max="99" class="small-input" />
+      </div>
+    }
+  </div>
+
+  <!-- Effect -->
+  <div class="form-row">
+    <label>
+      Effekttext
+      @if (edit.scalable) {
+        <span class="hint"> — Nutze <code>[L]</code> als Platzhalter für die Stufe</span>
+      }
+    </label>
+    <input type="text" [(ngModel)]="edit.effect"
+           [placeholder]="edit.scalable ? 'z.B. Wirkungsdauer + [L] Runden' : 'z.B. Wirkungsdauer + 1 Runde'" />
+  </div>
+
+  <!-- Live preview -->
+  @if (edit.scalable && edit.effect) {
+    <div class="preview-box">
+      <span class="preview-label">Vorschau (Stufe 1):</span>
+      <span class="preview-text">{{ previewEffect }}</span>
+    </div>
+  }
+
+  <!-- Actions -->
+  <div class="editor-actions">
+    <button class="btn-cancel" (click)="onCancel()">Abbrechen</button>
+    <button class="btn-save" (click)="onSave()" [disabled]="!edit.name.trim()">Speichern</button>
+  </div>
+</div>

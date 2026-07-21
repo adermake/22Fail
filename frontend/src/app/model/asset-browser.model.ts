@@ -3,7 +3,7 @@
  * Unity-like asset management system for library content
  */
 
-export type AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle' | 'material' | 'forge-trait' | 'statblock' | 'ingredient' | 'extractor';
+export type AssetType = 'item' | 'spell' | 'rune' | 'skill' | 'macro' | 'status-effect' | 'shop' | 'loot-bundle' | 'material' | 'forge-trait' | 'statblock' | 'ingredient' | 'extractor' | 'brew-trait';
 
 /**
  * Represents a folder in the asset browser
@@ -102,6 +102,7 @@ export function getAssetTypeIcon(type: AssetType): string {
     case 'statblock': return '👤';
     case 'ingredient': return '🌿';
     case 'extractor': return '🧪';
+    case 'brew-trait': return '⚗️';
     default: return '📄';
   }
 }
@@ -124,6 +125,7 @@ export function getAssetTypeName(type: AssetType): string {
     case 'statblock': return 'NSC-Statblock';
     case 'ingredient': return 'Wirkstoff';
     case 'extractor': return 'Extraktor';
+    case 'brew-trait': return 'Braumerkmal';
     default: return 'Unbekannt';
   }
 }

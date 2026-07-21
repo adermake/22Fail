@@ -87,6 +87,7 @@ export interface CharacterSheet {
   knownForgeTraitIds?: string[];   // IDs of forge traits the player has knowledge of
   knownIngredientIds?: string[];   // IDs of brew ingredients (Wirkstoffe)
   knownExtractorIds?: string[];    // IDs of extractors
+  knownBrewTraitIds?: string[];    // IDs of brew traits (Braumerkmale)
 }
 
 export function createEmptySheet(): CharacterSheet {
@@ -143,6 +144,7 @@ export function createEmptySheet(): CharacterSheet {
     knownForgeTraitIds: [],
     knownIngredientIds: [],
     knownExtractorIds: [],
+    knownBrewTraitIds: [],
   };
 }
 

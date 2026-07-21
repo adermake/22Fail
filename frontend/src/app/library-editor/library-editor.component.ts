@@ -53,6 +53,8 @@ import { StatusEffectEditorComponent } from '../shared/status-effect-editor/stat
 import { MacroEditorComponent } from '../shared/macro-editor/macro-editor.component';
 import { MaterialEditorComponent } from '../shared/material-editor/material-editor.component';
 import { ForgeTraitEditorComponent } from '../shared/forge-trait-editor/forge-trait-editor.component';
+import { BrewTraitEditorComponent } from '../shared/brew-trait-editor/brew-trait-editor.component';
+import { createEmptyBrewTrait } from '../model/brewing.model';
 import { IngredientEditorComponent } from '../shared/ingredient-editor/ingredient-editor.component';
 import { ExtractorEditorComponent } from '../shared/extractor-editor/extractor-editor.component';
 import { WeaponGeneratorComponent } from '../shared/weapon-generator/weapon-generator.component';
@@ -95,6 +97,7 @@ import {
     MacroEditorComponent,
     MaterialEditorComponent,
     ForgeTraitEditorComponent,
+    BrewTraitEditorComponent,
     IngredientEditorComponent,
     ExtractorEditorComponent,
     MaterialTableComponent,
@@ -701,6 +704,8 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
         return { ...createEmptyMaterialBlock(), name };
       case 'forge-trait':
         return { ...createEmptyForgeTrait(), name };
+      case 'brew-trait':
+        return { ...createEmptyBrewTrait(), name };
       case 'ingredient':
         return { ...createEmptyIngredientBlock(name), name };
       case 'extractor':

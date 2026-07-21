@@ -1,8 +1,16 @@
 import { TalentId } from '../data/talent-definitions';
 
 export type SkillStatType =
+  // Base attributes
   'intelligence' | 'strength' | 'dexterity' | 'speed' | 'constitution' | 'chill' |
-  'mana' | 'life' | 'energy' | 'focus' | 'maxCastValue' | 'spellRadius';
+  // Resources
+  'mana' | 'life' | 'energy' | 'focus' |
+  // Derived values (folded in by TrueStatsService alongside status effects).
+  // NOTE: 'movement' is flat Bewegung (hex steps), applied AFTER the speed→movement
+  // conversion — it is not the same as buffing 'speed'.
+  'movement' | 'grundbonus' | 'reaktion' | 'armorMalus' | 'armorNegation' |
+  // Spellcasting
+  'maxCastValue' | 'spellRadius';
 
 export interface SkillTalentBonus {
   talent: TalentId;

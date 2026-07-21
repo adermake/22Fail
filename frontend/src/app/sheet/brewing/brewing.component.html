@@ -127,13 +127,55 @@
           </div>
         </div>
 
+        <!-- Braumerkmale: same brew-point pool, flat cost per application -->
+        <div class="brew-section brew-traits-section">
+          <div class="section-header">
+            <span class="section-title">&#x2697; Braumerkmale</span>
+            <span class="section-hint">{{ appliedTraits.length }} aktiv</span>
+          </div>
+
+          @if (appliedTraits.length > 0) {
+            <div class="applied-traits">
+              @for (applied of appliedTraits; track applied.trait.id) {
+                <div class="applied-trait">
+                  <div class="at-info">
+                    <div class="at-top-row">
+                      <span class="at-name">{{ applied.trait.name }}</span>
+                      @if (applied.level > 1) {
+                        <span class="at-level">Stufe {{ applied.level }}</span>
+                      }
+                      <span class="at-cost">{{ applied.trait.braupunktKosten * applied.level }} BP</span>
+                    </div>
+                    <span class="at-effect">{{ formatTraitEffect(applied) }}</span>
+                  </div>
+                  <div class="at-actions">
+                    @if (applied.trait.scalable && applied.level < applied.trait.maxLevel) {
+                      <button class="at-btn at-plus" (click)="addTrait(applied.trait)"
+                              [disabled]="!canAddTrait(applied.trait)">+</button>
+                    }
+                    <button class="at-btn at-minus" (click)="removeTrait(applied.trait)">&#x2212;</button>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="no-traits">Noch keine Merkmale hinzugef&#xFC;gt.</p>
+          }
+
+          <button class="open-trait-btn" (click)="openTraitPicker()">+ Merkmal hinzuf&#xFC;gen</button>
+        </div>
+
         <div class="brew-finish">
           <button type="button" class="finish-btn" (click)="finishBrewing()" [disabled]="!canFinish()">
             &#x1F9EA; Brauen abschlie&#xDF;en &amp; zum Inventar
           </button>
           @if (!canFinish()) {
             <span class="finish-hint">
-              {{ !potionName.trim() ? 'Bitte einen Namen eingeben' : 'Mindestens einen Effekt brauen' }}
+              @if (!potionName.trim()) {
+                Bitte einen Namen eingeben
+              } @else {
+                Jede Stufe braucht einen Effekt — fehlt noch: {{ missingTierLabels }}
+              }
             </span>
           }
         </div>
@@ -176,6 +218,45 @@
           } @empty {
             <div class="picker-empty">Keine Extraktoren verf&#xFC;gbar.</div>
           }
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Braumerkmal picker ─────────────────────────────────────────────────── -->
+@if (showTraitPicker) {
+  <div class="picker-overlay" (click)="closeTraitPicker()">
+    <div class="picker-panel" (click)="$event.stopPropagation()">
+      <div class="picker-head">
+        <span class="picker-title">&#x2697; Braumerkmal hinzuf&#xFC;gen</span>
+        <button class="picker-close" (click)="closeTraitPicker()">&#x2715;</button>
+      </div>
+
+      <input class="picker-search" type="text" [(ngModel)]="traitFilter" placeholder="Suchen..." />
+
+      <div class="picker-hint">Verbleibend: {{ remainingBP }} BP</div>
+
+      <div class="picker-grid">
+        @for (trait of filteredBrewTraits; track trait.id) {
+          <button type="button" class="picker-card"
+                  (click)="addTrait(trait)"
+                  [disabled]="!canAddTrait(trait)"
+                  [title]="trait.description || trait.name">
+            <span class="pc-name">
+              {{ trait.name }}
+              @if (getAppliedTraitLevel(trait) > 0) {
+                <span class="pc-applied">&times;{{ getAppliedTraitLevel(trait) }}</span>
+              }
+            </span>
+            <span class="pc-line">{{ trait.effect }}</span>
+            <span class="pc-line">
+              {{ traitCost(trait) }} BP
+              @if (trait.scalable) { &middot; max. Stufe {{ trait.maxLevel }} }
+            </span>
+          </button>
+        } @empty {
+          <div class="picker-empty">Keine Braumerkmale verf&#xFC;gbar.</div>
         }
       </div>
     </div>

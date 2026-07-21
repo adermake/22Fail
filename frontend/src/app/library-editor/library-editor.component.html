@@ -160,6 +160,7 @@
                 <button (click)="createFile('macro')">⚡ Neues Makro</button>
                 <button (click)="createFile('material')">⚙️ Neues Material</button>
                 <button (click)="createFile('forge-trait')">🔥 Neues Schmiedemerkmal</button>
+                <button (click)="createFile('brew-trait')">⚗️ Neues Braumerkmal</button>
                 <button (click)="createFile('ingredient')">🌿 Neuer Wirkstoff</button>
                 <button (click)="createFile('extractor')">🧪 Neuer Extraktor</button>
                 <button (click)="createFile('statblock')">👤 Neues NSC-Statblock</button>
@@ -377,6 +378,7 @@
         <button (click)="createFile('macro'); closeContextMenu()">⚡ Neues Makro</button>
         <button (click)="createFile('material'); closeContextMenu()">⚙️ Neues Material</button>
         <button (click)="createFile('forge-trait'); closeContextMenu()">🔥 Neues Schmiedemerkmal</button>
+        <button (click)="createFile('brew-trait'); closeContextMenu()">⚗️ Neues Braumerkmal</button>
         <button (click)="createFile('ingredient'); closeContextMenu()">🌿 Neuer Wirkstoff</button>
         <button (click)="createFile('extractor'); closeContextMenu()">🧪 Neuer Extraktor</button>
         <button (click)="createFile('shop'); closeContextMenu()">🏪 Neuer Handel</button>
@@ -454,6 +456,13 @@
             }
             @case ('forge-trait') {
               <app-forge-trait-editor
+                [trait]="editingFile()!.data"
+                (save)="saveEditor($event)"
+                (cancel)="closeEditor()"
+              />
+            }
+            @case ('brew-trait') {
+              <app-brew-trait-editor
                 [trait]="editingFile()!.data"
                 (save)="saveEditor($event)"
                 (cancel)="closeEditor()"
