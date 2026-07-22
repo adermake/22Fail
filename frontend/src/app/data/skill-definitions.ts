@@ -2512,14 +2512,14 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Totenbeschwörer',
     class: 'Nekromant',
     type: 'passive',
-    description: 'Tote Gegner hinterlassen Seelenrunen, die einmalig beschworen werden können. Fähigkeiten, Zauber und 50% der Leben, Ausdauer und Mana der Seele entsprechen denen des Opfers'
+    description: 'Tote Lebewesen hinterlassen eine Wahre Seelenrunen, die einmalig beschworen werden können.'
   },
   {
     id: 'nekromant_seelenverbindung',
     name: 'Seelenverbindung',
     class: 'Nekromant',
     type: 'passive',
-    description: 'Kann beschworene Kreaturen in 50m Radius als Startpunkt für Zauber benutzen, kann über mehrere beschworene Kreaturen verkettet werden, um Reichweite zu erhöhen',
+    description: 'Von dir beschworene Kreaturen in 50m Radius kopieren deinen Zauberradius und zählen als Teil von deinem Zauberradius, kann über mehrere beschworene Kreaturen verkettet werden, um Reichweite zu erhöhen',
     enlightened: true
   },
   {
