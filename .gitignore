@@ -22,3 +22,7 @@ Thumbs.db
 # Data folder - all data files (root-level only)
 /data/
 
+
+# graphify knowledge graph (regenerable locally)
+graphify-out/
+

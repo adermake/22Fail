@@ -1,0 +1,20 @@
+# Scope: app source + root utility scripts only (not deps, build, data dumps).
+backend/node_modules/
+backend/dist/
+backend/frontend-dist/
+frontend/node_modules/
+frontend/dist/
+frontend/frontend-dist/
+frontend/.angular/
+temp-races/
+temp-status-effects/
+characters/
+deploy/
+.claude/
+.github/
+.vscode/
+**/package.json
+**/package-lock.json
+**/eslint.config.mjs
+backend/test/
+*.json
