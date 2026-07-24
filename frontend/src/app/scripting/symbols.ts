@@ -110,6 +110,7 @@ export const SYMBOLS: SymbolInfo[] = [
   { name: 'movement', category: 'derived', type: 'number', description: 'Bewegung in Hex-Schritten', assignable: true, modifierTarget: 'bewegung' },
   { name: 'grundbonus', category: 'derived', type: 'number', description: 'Grundbonus', assignable: true, modifierTarget: 'grundbonus' },
   { name: 'reaktion', category: 'derived', type: 'number', description: 'Reaktionswert', assignable: true, modifierTarget: 'reaktion' },
+  { name: 'stability', category: 'derived', type: 'number', description: 'Stabilität (Verteidigung gegen Schaden)', assignable: true, modifierTarget: 'stability' },
   { name: 'armorMalus', category: 'derived', type: 'number', description: 'Rüstungsmalus (Geschw.)', assignable: true, modifierTarget: 'armorMalus' },
   { name: 'armorNegation', category: 'derived', type: 'number', description: 'Rüstungsnegation', assignable: true, modifierTarget: 'armorNegation' },
   { name: 'effectiveSpeed', category: 'derived', type: 'number', description: 'Effektive Geschwindigkeit (nach Malus)' },

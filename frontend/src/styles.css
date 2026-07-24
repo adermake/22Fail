@@ -218,3 +218,6 @@ label {
 .i-item          { -webkit-mask-image: url('/icons/item_generic.svg');      mask-image: url('/icons/item_generic.svg'); }
 .i-tokenlink     { -webkit-mask-image: url('/icons/tokenlink.svg');         mask-image: url('/icons/tokenlink.svg'); }
 .i-stability     { -webkit-mask-image: url('/icons/stability.svg');         mask-image: url('/icons/stability.svg'); }
+.i-grundbonus    { -webkit-mask-image: url('/icons/grundbonus.svg');        mask-image: url('/icons/grundbonus.svg'); }
+.i-movement      { -webkit-mask-image: url('/icons/movement.svg');          mask-image: url('/icons/movement.svg'); }
+.i-reaction      { -webkit-mask-image: url('/icons/reaction.svg');          mask-image: url('/icons/reaction.svg'); }

@@ -226,6 +226,22 @@
         <span class="max-hint">Current: {{ getResourceCurrent(resourceType) }}</span>
       </div>
 
+      <!-- Stability applies to incoming health damage (negative health). Prefilled from the
+           true stat value (macros/effects included), editable if the situation differs. -->
+      @if (resourceType === 'health') {
+        <div class="amount-input stability-input">
+          <label><span class="app-icon i-stability"></span> Stabilität</label>
+          <input type="number" min="0" [(ngModel)]="resourceStability" />
+          <span class="max-hint">Reduziert erlittenen Schaden</span>
+        </div>
+        @if (resourceIsDamage && resourceStability > 0) {
+          <div class="damage-preview">
+            Eingegeben: <strong>{{ Math.abs(resourceAmount) }}</strong>
+            → tatsächlicher Schaden: <strong>{{ Math.abs(mitigatedResourceAmount) }}</strong>
+          </div>
+        }
+      }
+
       <div class="dialog-actions">
         <button
           class="use-btn"
@@ -236,6 +252,8 @@
           (click)="changeResource()">
           @if (resourceAmount > 0) {
             <span>Gain {{ resourceAmount }} {{ resourceType | titlecase }}</span>
+          } @else if (resourceIsDamage) {
+            <span>{{ Math.abs(mitigatedResourceAmount) }} Schaden nehmen</span>
           } @else if (resourceAmount < 0) {
             <span>Spend {{ Math.abs(resourceAmount) }} {{ resourceType | titlecase }}</span>
           } @else {

@@ -294,6 +294,24 @@ export class DataService {
     }
   }
 
+  /** Lightweight character listing for the homepage (id, name, portrait, world, controllers). */
+  getAllCharacterSummaries(): { id: string; name?: string; portrait?: string; worldName?: string; controllerUserIds?: string[] }[] {
+    const out: { id: string; name?: string; portrait?: string; worldName?: string; controllerUserIds?: string[] }[] = [];
+    try {
+      for (const file of fs.readdirSync(this.charactersDir)) {
+        if (!file.endsWith('.json')) continue;
+        const id = file.replace('.json', '');
+        try {
+          const c = JSON.parse(fs.readFileSync(path.join(this.charactersDir, file), 'utf-8'));
+          out.push({ id, name: c?.name, portrait: c?.portrait, worldName: c?.worldName, controllerUserIds: c?.controllerUserIds });
+        } catch { out.push({ id }); }
+      }
+    } catch (e) {
+      console.error('Error reading characters directory:', e);
+    }
+    return out;
+  }
+
   saveCharacter(id: string, sheetJson: string): void {
     try {
       const filePath = this.getCharacterFilePath(id);
@@ -465,6 +483,30 @@ export class DataService {
       console.error('Error reading worlds directory:', error);
       return [];
     }
+  }
+
+  /** Lightweight world listing for the homepage: name, owner, and character ids only. */
+  getAllWorldSummaries(): { name: string; ownerUserId?: string; characterIds: string[] }[] {
+    const out: { name: string; ownerUserId?: string; characterIds: string[] }[] = [];
+    try {
+      for (const dir of fs.readdirSync(this.worldsDir)) {
+        const worldFilePath = path.join(this.worldsDir, dir, 'world.json');
+        if (!fs.existsSync(worldFilePath)) continue;
+        try {
+          const world = JSON.parse(fs.readFileSync(worldFilePath, 'utf-8'));
+          if (world?.name) {
+            out.push({
+              name: world.name,
+              ownerUserId: world.ownerUserId,
+              characterIds: Array.isArray(world.characterIds) ? world.characterIds : [],
+            });
+          }
+        } catch { /* skip unreadable world */ }
+      }
+    } catch (e) {
+      console.error('Error reading worlds directory:', e);
+    }
+    return out;
   }
 
   // Global texture library methods

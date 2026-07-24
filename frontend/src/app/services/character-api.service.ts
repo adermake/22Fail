@@ -2,6 +2,14 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+export interface CharacterSummary {
+  id: string;
+  name?: string;
+  portrait?: string;
+  worldName?: string;
+  controllerUserIds?: string[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class CharacterApiService {
   constructor(private http: HttpClient) {}
@@ -14,6 +22,15 @@ export class CharacterApiService {
   async getAllCharacterIds(): Promise<string[]> {
     const observable = this.http.get<string[]>(`/api/characters`);
     return await firstValueFrom(observable);
+  }
+
+  async getCharacterSummaries(): Promise<CharacterSummary[]> {
+    return await firstValueFrom(this.http.get<CharacterSummary[]>(`/api/character-summaries`));
+  }
+
+  /** Admin: set exactly which users control a character. */
+  async setControllers(id: string, controllerUserIds: string[]): Promise<any> {
+    return await firstValueFrom(this.http.put(`/api/characters/${id}/controllers`, { controllerUserIds }));
   }
 
   async saveCharacter(id: string, sheet: any): Promise<any> {

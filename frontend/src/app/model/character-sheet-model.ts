@@ -34,6 +34,8 @@ export interface CharacterSheet {
   extrainfo: string;
   portrait?: string;
   worldName?: string; // The world this character belongs to
+  /** User ids that fully control this character (creator auto-added; admin can reassign). */
+  controllerUserIds?: string[];
   // Klassen
   primary_class: string;
   secondary_class: string;

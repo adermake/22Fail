@@ -62,7 +62,8 @@ export interface StatusEffect {
 export type StatusModifierTarget =
   | 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'chill'
   | 'life' | 'energy' | 'mana'
-  | 'fokus' | 'armorMalus' | 'armorNegation' | 'grundbonus' | 'reaktion' | 'bewegung';
+  | 'fokus' | 'armorMalus' | 'armorNegation' | 'grundbonus' | 'reaktion' | 'bewegung'
+  | 'stability';
 
 /**
  * Stat modifier applied by a status effect

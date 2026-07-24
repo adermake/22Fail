@@ -3,6 +3,12 @@ import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { WorldData } from '../model/world.model';
 
+export interface WorldSummary {
+  name: string;
+  ownerUserId?: string;
+  characterIds: string[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class WorldApiService {
   constructor(private http: HttpClient) {}
@@ -10,6 +16,10 @@ export class WorldApiService {
   async loadWorld(name: string): Promise<WorldData | null> {
     const observable = this.http.get(`/api/worlds/${name}`);
     return await firstValueFrom(observable) as WorldData | null;
+  }
+
+  async listWorlds(): Promise<WorldSummary[]> {
+    return await firstValueFrom(this.http.get<WorldSummary[]>('/api/worlds'));
   }
 
   async saveWorld(name: string, world: WorldData): Promise<any> {

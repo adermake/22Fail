@@ -63,6 +63,7 @@ export function createPlayerContext(
     movement: () => trueStats.calculateMovementSpeed(sheet),
     grundbonus: () => trueStats.calculateGrundbonus(sheet),
     reaktion: () => trueStats.calculateReaktionswert(sheet),
+    stability: () => trueStats.calculateTotalStability(sheet),
     armorMalus: () => trueStats.calculateTotalSpeedMalus(sheet),
     armorNegation: () => trueStats.calculateSpeedPenaltyNegation(sheet),
     effectiveSpeed: () => trueStats.calculateEffectiveSpeed(sheet),

@@ -34,6 +34,7 @@ import { createEmptySheet } from '../../model/character-sheet-model';
 import { StatusEffect, ActiveStatusEffect } from '../../model/status-effect.model';
 import { ItemBlock } from '../../model/item-block.model';
 import { isWieldedWeapon } from '../../utils/equip-slot.utils';
+import { applyStability } from '../../utils/stability.util';
 import { StatBlock } from '../../model/stat-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 
@@ -123,16 +124,48 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
         <span class="res-icon"><span class="app-icon i-life"></span></span>
         <span class="res-label">LP</span>
         <div class="res-controls">
-          <button class="res-btn minus" (click)="adjustResource('health', -1)">−</button>
+          <button class="res-btn minus" (click)="openHealthPopup('damage')" title="Schaden nehmen">−</button>
           <input class="res-input" type="number"
             [value]="currentHealth"
             (input)="setResource('health', $event)"
             [max]="maxHealth" />
-          <button class="res-btn plus" (click)="adjustResource('health', 1)">+</button>
+          <button class="res-btn plus" (click)="openHealthPopup('gain')" title="Leben gewinnen">+</button>
         </div>
         <span class="res-max">/ {{ maxHealth }}</span>
       </div>
       <div class="res-bar-wrap"><div class="res-bar hp" [style.width.%]="healthPct()"></div></div>
+
+      @if (healthPopup) {
+        <div class="hp-popup" [class.damage]="healthPopup === 'damage'">
+          @if (healthPopup === 'gain') {
+            <div class="hp-popup-title"><span class="app-icon i-life"></span> Leben gewinnen</div>
+            <div class="hp-popup-row">
+              <input class="hp-popup-input" type="number" min="0" placeholder="Menge"
+                     [(ngModel)]="healthPopupValue"
+                     (keydown.enter)="confirmHealthPopup()" (keydown.escape)="closeHealthPopup()" />
+              <button class="hp-popup-go gain" (click)="confirmHealthPopup()">+{{ healthPopupValue || 0 }}</button>
+            </div>
+          } @else {
+            <div class="hp-popup-title"><span class="app-icon i-stability"></span> Schaden nehmen</div>
+            <div class="hp-popup-row">
+              <label class="hp-popup-lbl">Schaden</label>
+              <input class="hp-popup-input" type="number" min="0" placeholder="roher Schaden"
+                     [(ngModel)]="healthPopupValue"
+                     (keydown.enter)="confirmHealthPopup()" (keydown.escape)="closeHealthPopup()" />
+            </div>
+            <div class="hp-popup-row">
+              <label class="hp-popup-lbl"><span class="app-icon i-stability"></span> Stabilität</label>
+              <input class="hp-popup-input" type="number" min="0" [(ngModel)]="healthPopupStability"
+                     (keydown.enter)="confirmHealthPopup()" />
+            </div>
+            <div class="hp-popup-result">
+              Tatsächlicher Schaden: <strong>{{ healthPopupDamage }}</strong>
+            </div>
+            <button class="hp-popup-go damage" (click)="confirmHealthPopup()">−{{ healthPopupDamage }} LP</button>
+          }
+          <button class="hp-popup-close" (click)="closeHealthPopup()">✕</button>
+        </div>
+      }
 
       @if (maxMana > 0) {
         <div class="res-row">
@@ -169,30 +202,30 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       }
     </div>
 
-    <!-- Key Stats -->
+    <!-- Key Stats: icon-only so all fit in the narrow panel (tooltip has the full label). -->
     <div class="key-stats-row">
       @if (weaponEfficiency > 0) {
         <div class="key-stat-item" title="Waffeneffizienz – höchster Wert der geführten Waffe">
-          <span class="key-stat-label"><span class="app-icon i-effektivity"></span> Effizienz</span>
+          <span class="app-icon i-effektivity key-stat-ico"></span>
           <span class="key-stat-val">{{ weaponEfficiency }}</span>
         </div>
       }
       @if (totalStability > 0) {
-        <div class="key-stat-item" title="Gesamtverteidigung (Summe Stabilität ÷ 5)">
-          <span class="key-stat-label"><span class="app-icon i-stability"></span> Verteidigung</span>
+        <div class="key-stat-item" title="Verteidigung (Summe Stabilität ÷ 5)">
+          <span class="app-icon i-stability key-stat-ico"></span>
           <span class="key-stat-val">{{ totalStability }}</span>
         </div>
       }
       <div class="key-stat-item" title="Grundbonus">
-        <span class="key-stat-label">Grundbonus</span>
+        <span class="app-icon i-grundbonus key-stat-ico"></span>
         <span class="key-stat-val">{{ panelGrundbonus }}</span>
       </div>
       <div class="key-stat-item" title="Reaktionswert">
-        <span class="key-stat-label">Reaktion</span>
+        <span class="app-icon i-reaction key-stat-ico"></span>
         <span class="key-stat-val">{{ panelReaktion }}</span>
       </div>
       <div class="key-stat-item" title="Bewegungsgeschwindigkeit">
-        <span class="key-stat-label">Bewegung</span>
+        <span class="app-icon i-movement key-stat-ico"></span>
         <span class="key-stat-val">{{ panelMovement }}</span>
       </div>
     </div>
@@ -826,6 +859,48 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
     }
     .res-btn.minus:hover { background: #7f1d1d; border-color: #ef4444; }
     .res-btn.plus:hover { background: #14532d; border-color: #22c55e; }
+
+    /* Health gain / damage popup */
+    .hp-popup {
+      position: relative;
+      margin: 6px 0 2px;
+      padding: 8px 10px 10px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .hp-popup.damage { border-color: #7f1d1d; }
+    .hp-popup-title {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 800; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .hp-popup.damage .hp-popup-title { color: #fca5a5; }
+    .hp-popup-row { display: flex; align-items: center; gap: 6px; }
+    .hp-popup-lbl { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #9ca3af; min-width: 62px; }
+    .hp-popup-input {
+      flex: 1; min-width: 0; width: 100%;
+      background: #1e293b; border: 1px solid #334155; border-radius: 5px;
+      color: #f1f5f9; font-size: 14px; font-weight: 700; padding: 4px 7px;
+    }
+    .hp-popup-input:focus { outline: none; border-color: #60a5fa; }
+    .hp-popup-result { font-size: 12px; color: #cbd5e1; text-align: center; }
+    .hp-popup-result strong { color: #fca5a5; font-size: 15px; }
+    .hp-popup-go {
+      border: none; border-radius: 6px; cursor: pointer;
+      font-size: 13px; font-weight: 800; padding: 6px 10px; color: #fff;
+    }
+    .hp-popup-go.gain { background: #15803d; }
+    .hp-popup-go.gain:hover { background: #16a34a; }
+    .hp-popup-go.damage { background: #b91c1c; }
+    .hp-popup-go.damage:hover { background: #dc2626; }
+    .hp-popup-close {
+      position: absolute; top: 5px; right: 6px;
+      background: none; border: none; color: #64748b; cursor: pointer; font-size: 12px; line-height: 1;
+    }
+    .hp-popup-close:hover { color: #e5e7eb; }
     .res-input {
       width: 46px;
       background: #0f172a;
@@ -1315,6 +1390,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
       background: #1a2130; border: 1px solid #2d3748; border-radius: 6px; padding: 5px 8px;
     }
     .key-stat-label { font-size: 10px; font-weight: 700; color: #9ca3af; }
+    .key-stat-ico { font-size: 16px; color: #9ca3af; }
     .key-stat-val { font-size: 15px; font-weight: 800; color: #f1f5f9; margin-left: auto; }
 
     /* ---- Open Dice Button ---- */
@@ -1682,8 +1758,8 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
 
   /** Combined defense value: sum of all stability / 5 (matches sheet formula) */
   get totalStability(): number {
-    const total = this.equipment.filter(i => !i.lost).reduce((sum, i) => sum + (i.stability ?? 0), 0);
-    return Math.floor(total / 5);
+    const sheet = this.diceSheet;
+    return sheet ? this.trueStats.calculateTotalStability(sheet) : 0;
   }
 
   /** CharacterSheet for the dice roller / spellcast window.
@@ -1779,6 +1855,52 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       ? Math.min(max, cur + delta)
       : Math.max(0, Math.min(max, cur + delta));
     this.emitResource(resource, newVal);
+  }
+
+  // ---- Health gain / damage popups ----
+  // The bare ±1 buttons were useless (nothing moves HP by one). + opens a gain-by-number
+  // entry; − opens a damage entry with the defender's stability autofilled, showing the
+  // computed damage before it's applied (and the resulting HP syncs to everyone).
+  healthPopup: 'gain' | 'damage' | null = null;
+  healthPopupValue: number | null = null;
+  healthPopupStability = 0;
+
+  openHealthPopup(mode: 'gain' | 'damage'): void {
+    if (!this.token) return;
+    this.healthPopup = mode;
+    this.healthPopupValue = null;
+    if (mode === 'damage') {
+      const sheet = this.diceSheet;
+      this.healthPopupStability = sheet ? this.trueStats.calculateTotalStability(sheet) : 0;
+    }
+    this.cdr.markForCheck();
+    // Focus the input once it renders.
+    setTimeout(() => document.querySelector<HTMLInputElement>('.hp-popup-input')?.focus(), 0);
+  }
+
+  closeHealthPopup(): void {
+    this.healthPopup = null;
+    this.healthPopupValue = null;
+    this.cdr.markForCheck();
+  }
+
+  /** Damage actually taken after stability mitigation (for the live preview). */
+  get healthPopupDamage(): number {
+    const v = Math.max(0, this.healthPopupValue ?? 0);
+    return applyStability(v, this.healthPopupStability);
+  }
+
+  confirmHealthPopup(): void {
+    if (!this.token || this.healthPopup === null) return;
+    const raw = Math.max(0, this.healthPopupValue ?? 0);
+    if (raw <= 0) { this.closeHealthPopup(); return; }
+    if (this.healthPopup === 'gain') {
+      this.emitResource('health', Math.min(this.maxHealth, this.currentHealth + raw));
+    } else {
+      // Health may go below 0 (down/dying is tracked elsewhere); do not clamp at 0 here.
+      this.emitResource('health', Math.min(this.maxHealth, this.currentHealth - this.healthPopupDamage));
+    }
+    this.closeHealthPopup();
   }
 
   setResource(resource: 'health' | 'mana' | 'energy', event: Event): void {

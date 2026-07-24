@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
+import { identityAuth } from './identity';
 import { JsonPatch } from '../model/json-patch.model';
 import { Point } from '../model/lobby.model';
 import { PingBroadcast } from '../shared/ping/ping.model';
@@ -42,6 +43,7 @@ export class WorldMapSocketService {
 
     this.socket = io(window.location.origin, {
       path: '/socket.io',
+      auth: identityAuth(),
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 10,

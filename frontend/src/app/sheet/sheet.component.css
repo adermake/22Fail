@@ -477,6 +477,21 @@
   color: var(--text-muted);
 }
 
+.stability-input label { display: inline-flex; align-items: center; gap: 0.35rem; }
+.stability-input .app-icon { font-size: 1.05em; color: #60a5fa; }
+
+.damage-preview {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+}
+.damage-preview strong { color: #f1f5f9; }
+
 .dialog-actions {
   display: flex;
   gap: 0.75rem;

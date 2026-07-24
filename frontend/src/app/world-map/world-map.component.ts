@@ -13,6 +13,7 @@ import {
   inject,
   signal,
   computed,
+  effect,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
 } from '@angular/core';
@@ -24,6 +25,7 @@ import { Subscription } from 'rxjs';
 import { WorldMapStoreService } from '../services/world-map-store.service';
 import { WorldMapSocketService, WorldMapMeasurement } from '../services/world-map-socket.service';
 import { ImageService } from '../services/image.service';
+import { AuthService } from '../services/auth.service';
 import {
   WorldMapData,
   WorldMapTool,
@@ -78,7 +80,13 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
   store = inject(WorldMapStoreService);
   private socket = inject(WorldMapSocketService);
   private imageService = inject(ImageService);
+  private auth = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
+
+  constructor() {
+    // GM = signed-in admin (replaces the old ?gm URL param).
+    effect(() => this.isGM.set(this.auth.isAdmin()));
+  }
 
   @ViewChild('viewerHost') viewerHost?: ElementRef<HTMLDivElement>;
   @ViewChild('viewerWrap') viewerWrap?: ElementRef<HTMLDivElement>;
@@ -187,9 +195,8 @@ export class WorldMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     const worldName = this.route.snapshot.paramMap.get('worldName') ?? '';
-    const gmParam = this.route.snapshot.queryParamMap.get('gm');
     this.worldName.set(worldName);
-    this.isGM.set(gmParam === 'true' || gmParam === '1');
+    // isGM is driven by the signed-in identity (see the effect in the constructor).
 
     // The data$ subscription below handles the initial emission (tiles, fog, render);
     // load() resolves after it fires, so we only need a change-detection nudge here.

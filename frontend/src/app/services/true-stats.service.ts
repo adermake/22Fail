@@ -235,6 +235,21 @@ export class TrueStatsService {
     return this.applyEffectPipeline(sheet, target, base);
   }
 
+  /**
+   * Defensive stability (used to mitigate incoming damage on the DEFENDER). Base is the sum of
+   * equipped items' stability ÷ 5; status effects, skills and effectActive scripts can modify
+   * the 'stability' target on top, so macros affect it. Never negative.
+   */
+  calculateTotalStability(sheet: CharacterSheet): number {
+    const equip = (sheet.equipment ?? [])
+      .filter(i => !i.lost)
+      .reduce((sum, i) => sum + (i.stability ?? 0), 0);
+    const core = Math.floor(equip / 5)
+      + this.getStatusModifierTotal(sheet, 'stability')
+      + this.getSkillItemModifierTotal(sheet, 'stability');
+    return Math.max(0, Math.round(this.applyEffectPipeline(sheet, 'stability', core)));
+  }
+
   /** Public: apply the effectActive pipeline for `target` on top of a caller-computed core. */
   applyEffectActivePipeline(sheet: CharacterSheet, target: StatusModifierTarget, core: number): number {
     return this.applyEffectPipeline(sheet, target, core);

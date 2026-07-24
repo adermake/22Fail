@@ -224,19 +224,20 @@
   </div>
 }
 
-<!-- ── Braumerkmal picker ─────────────────────────────────────────────────── -->
+<!-- ── Braumerkmal picker (same shell as the Wirkstoff/Extraktor picker) ────── -->
 @if (showTraitPicker) {
-  <div class="picker-overlay" (click)="closeTraitPicker()">
-    <div class="picker-panel" (click)="$event.stopPropagation()">
-      <div class="picker-head">
-        <span class="picker-title">&#x2697; Braumerkmal hinzuf&#xFC;gen</span>
-        <button class="picker-close" (click)="closeTraitPicker()">&#x2715;</button>
+  <div class="picker-backdrop" (click)="closeTraitPicker()">
+    <div class="picker-modal" (click)="$event.stopPropagation()">
+      <div class="picker-modal-header">
+        <div>
+          <span class="picker-title">Braumerkmal w&#xE4;hlen</span>
+          <span class="picker-subtitle">Verbleibend: {{ remainingBP }} BP</span>
+        </div>
+        <button type="button" class="picker-close-btn" (click)="closeTraitPicker()">&#x2715;</button>
       </div>
-
-      <input class="picker-search" type="text" [(ngModel)]="traitFilter" placeholder="Suchen..." />
-
-      <div class="picker-hint">Verbleibend: {{ remainingBP }} BP</div>
-
+      <div class="picker-filters-bar">
+        <input class="picker-search" type="text" [(ngModel)]="traitFilter" placeholder="Suchen..." />
+      </div>
       <div class="picker-grid">
         @for (trait of filteredBrewTraits; track trait.id) {
           <button type="button" class="picker-card"
@@ -249,7 +250,7 @@
                 <span class="pc-applied">&times;{{ getAppliedTraitLevel(trait) }}</span>
               }
             </span>
-            <span class="pc-line">{{ trait.effect }}</span>
+            <span class="pc-line">{{ trait.effect || 'Kein Effekttext' }}</span>
             <span class="pc-line">
               {{ traitCost(trait) }} BP
               @if (trait.scalable) { &middot; max. Stufe {{ trait.maxLevel }} }

@@ -1,10 +1,10 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-    { 
-        path: '', 
-        redirectTo: 'stress-test', 
-        pathMatch: 'full' 
+    {
+        path: '',
+        loadComponent: () => import('./home/home.component').then(m => m.HomeComponent),
+        pathMatch: 'full'
     },
     { 
         path: 'characters/:id', 

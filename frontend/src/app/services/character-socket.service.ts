@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
+import { identityAuth } from './identity';
 import { JsonPatch } from '../model/json-patch.model';
 import { LootItem } from '../model/world.model';
 
@@ -34,6 +35,7 @@ export class CharacterSocketService {
     if (this.socket) return;
     this.socket = io(window.location.origin, {
       path: '/socket.io',
+      auth: identityAuth(),
       transports: ['websocket'],
     });
 

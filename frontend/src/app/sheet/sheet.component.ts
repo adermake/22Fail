@@ -11,6 +11,8 @@ import { CharacterSocketService, BattleLootEvent } from '../services/character-s
 import { WorldSocketService } from '../services/world-socket.service';
 import { WorldApiService } from '../services/world-api.service';
 import { LibraryStoreService } from '../services/library-store.service';
+import { TrueStatsService } from '../services/true-stats.service';
+import { applyStabilityToDelta } from '../utils/stability.util';
 import { CommonModule } from '@angular/common';
 import { SkillsComponent } from './skills/skills.component';
 import { ClassTree } from './class-tree-model';
@@ -83,6 +85,7 @@ export class SheetComponent implements OnInit {
   private worldSocket = inject(WorldSocketService);
   private worldApi = inject(WorldApiService);
   private libraryStore = inject(LibraryStoreService);
+  private trueStats = inject(TrueStatsService);
   cdr = inject(ChangeDetectorRef);
   private ngZone = inject(NgZone);
 
@@ -666,7 +669,20 @@ export class SheetComponent implements OnInit {
   // Use Resource
   resourceType: 'health' | 'energy' | 'mana' = 'health';
   resourceAmount = 0;
+  /** Defender's stability, prefilled from TrueStatsService; filters incoming health damage. */
+  resourceStability = 0;
   recentSpendings: Array<{ type: 'health' | 'energy' | 'mana', amount: number }> = [];
+
+  /** True when the entered change is negative health — i.e. incoming damage stability applies to. */
+  get resourceIsDamage(): boolean {
+    return this.resourceType === 'health' && this.resourceAmount < 0;
+  }
+
+  /** The health delta actually applied after stability mitigation (signed). */
+  get mitigatedResourceAmount(): number {
+    if (!this.resourceIsDamage) return this.resourceAmount;
+    return applyStabilityToDelta(this.resourceAmount, this.resourceStability);
+  }
 
   // Toggle methods for keyboard shortcuts and buttons
   toggleDiceRoller() {
@@ -679,6 +695,8 @@ export class SheetComponent implements OnInit {
       this.loadRecentSpendings();
       this.resourceType = 'health';
       this.resourceAmount = 0;
+      const sheet = this.store.sheetValue;
+      this.resourceStability = sheet ? this.trueStats.calculateTotalStability(sheet) : 0;
     }
     this.showResourcePanel = !this.showResourcePanel;
     this.cdr.detectChanges();
@@ -974,10 +992,13 @@ export class SheetComponent implements OnInit {
     if (statusIndex === -1) return;
     
     const currentValue = sheet.statuses[statusIndex].statusCurrent;
-    const newValue = currentValue + this.resourceAmount; // Add (can be negative)
+    // Incoming health damage is reduced by the defender's stability; gains and other
+    // resources pass through unchanged.
+    const applied = this.mitigatedResourceAmount;
+    const newValue = currentValue + applied; // Add (can be negative)
 
-    // Store change in recent history
-    this.addRecentSpending(this.resourceType, this.resourceAmount);
+    // Store change in recent history (the actual applied delta)
+    this.addRecentSpending(this.resourceType, applied);
 
     this.store.applyPatch({
       path: `statuses.${statusIndex}.statusCurrent`,

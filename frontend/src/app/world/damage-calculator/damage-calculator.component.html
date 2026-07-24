@@ -13,21 +13,14 @@
     <!-- Left column: Controls -->
     <div class="dmg-controls">
 
-      <!-- Inputs: Effektivität + Stabilität -->
+      <!-- Effektivität only. Stability now lives on the DEFENDER: the attacker rolls raw
+           damage, the defender applies their own stability when taking it. -->
       <div class="dmg-inputs-row">
         <div class="dmg-field">
           <label class="dmg-label">Effektivität (Würfelgröße)</label>
           <div class="dmg-effekt-row">
             <span class="dmg-dice-prefix">&#x2694;</span>
             <input class="dmg-effekt-input" type="number" min="2" [(ngModel)]="effektivitaet" />
-          </div>
-        </div>
-        <div class="dmg-field">
-          <label class="dmg-label">Stabilität</label>
-          <div class="dmg-effekt-row">
-            <span class="dmg-stab-prefix">&#x1F6E1;</span>
-            <input class="dmg-effekt-input dmg-stab-input" type="number" min="0"
-                   [(ngModel)]="stabilitaet" (ngModelChange)="onStabChange()" />
           </div>
         </div>
       </div>
@@ -91,12 +84,6 @@
             <span class="dmg-total-label">Gesamtschaden</span>
             <span class="dmg-total-value" [style.color]="lastResult.severity.color">{{ lastResult.total }}</span>
           </div>
-          @if (lastResult.stabilitaet > 0) {
-            <div class="dmg-final-row">
-              <span class="dmg-final-label">Nach Stabilität ({{ lastResult.stabilitaet }})</span>
-              <span class="dmg-final-value" [style.color]="lastResult.severity.color">{{ lastResult.finalDamage }}</span>
-            </div>
-          }
         </div>
       }
     </div>
@@ -117,18 +104,11 @@
         <div class="dmg-history-list">
           @for (entry of rollHistory; track trackByTimestamp($index, entry)) {
             <button class="dmg-history-entry" (click)="useHistoryEntry(entry)"
-                    [title]="'d' + entry.effektivitaet + ' / Stab ' + entry.stabilitaet + ' laden'">
+                    [title]="'d' + entry.effektivitaet + ' laden'">
               <span class="dmg-hist-sev-icon" [style.color]="entry.severity.color">{{ entry.severity.icon }}</span>
               <span class="dmg-hist-formula">{{ entry.formula }}</span>
-              <span class="dmg-hist-stab" title="Stabilität">&#x1F6E1;{{ entry.stabilitaet }}</span>
               <span class="dmg-hist-result">
-                @if (entry.stabilitaet > 0) {
-                  <span class="dmg-hist-raw">{{ entry.total }}</span>
-                  <span class="dmg-hist-arrow">→</span>
-                  <span class="dmg-hist-final" [style.color]="entry.severity.color">{{ entry.finalDamage }}</span>
-                } @else {
-                  <span class="dmg-hist-final" [style.color]="entry.severity.color">{{ entry.total }}</span>
-                }
+                <span class="dmg-hist-final" [style.color]="entry.severity.color">{{ entry.total }}</span>
               </span>
             </button>
           }

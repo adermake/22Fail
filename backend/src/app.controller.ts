@@ -4,11 +4,14 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
   Res,
   StreamableFile,
@@ -18,6 +21,8 @@ import { DataService } from './data.service';
 import { ImageService } from './image.service';
 import { TextureService } from './texture.service';
 import { StressTestService } from './stress-test.service';
+import { UsersService } from './users.service';
+import { AdminGuard } from './admin.guard';
 import type { JsonPatch } from './data.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CharacterGateway } from './character.gateway';
@@ -38,6 +43,7 @@ export class AppController {
     private readonly textureService: TextureService,
     private readonly stressTestService: StressTestService,
     private readonly characterGateway: CharacterGateway, // Add this
+    private readonly usersService: UsersService,
   ) {}
 
   /** Helps debug 413 upload errors (compare with nginx client_max_body_size). */
@@ -241,14 +247,42 @@ export class AppController {
     return this.dataService.getAllCharacterIds();
   }
 
+  /** Character summaries for the homepage (id, name, portrait, world, controllers). */
+  @Get('character-summaries')
+  getCharacterSummaries(): any {
+    return this.dataService.getAllCharacterSummaries();
+  }
+
   // POST /characters/:id
   @Post('characters/:id')
-  saveCharacter(@Param('id') id:string, @Body() body: any): any {
-    // body is already an object, convert to JSON string
+  saveCharacter(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Headers('x-user-id') userId?: string,
+    @Headers('x-user-code') userCode?: string,
+  ): any {
+    // Stamp the creator as a controller so a self-made character is theirs to control.
+    const caller = this.usersService.resolve(userId, userCode);
+    if (caller && body && typeof body === 'object') {
+      const controllers: string[] = Array.isArray(body.controllerUserIds) ? body.controllerUserIds : [];
+      if (!controllers.includes(caller.id)) body.controllerUserIds = [...controllers, caller.id];
+    }
     console.log('SAVED ' + id);
-    const sheetJson = JSON.stringify(body);
-    this.dataService.saveCharacter(id, sheetJson);
+    this.dataService.saveCharacter(id, JSON.stringify(body));
     return { success: true };
+  }
+
+  /** Admin: set exactly which users control a character. */
+  @Put('characters/:id/controllers')
+  @UseGuards(AdminGuard)
+  setCharacterControllers(@Param('id') id: string, @Body() body: { controllerUserIds: string[] }): any {
+    const json = this.dataService.getCharacter(id);
+    if (!json) throw new BadRequestException('Character not found');
+    const sheet = JSON.parse(json);
+    sheet.controllerUserIds = Array.isArray(body?.controllerUserIds) ? body.controllerUserIds : [];
+    this.dataService.saveCharacter(id, JSON.stringify(sheet, null, 2));
+    this.characterGateway.broadcastPatch(id, { path: 'controllerUserIds', value: sheet.controllerUserIds });
+    return { success: true, controllerUserIds: sheet.controllerUserIds };
   }
 
   @Patch('characters/:id')
@@ -498,6 +532,12 @@ export class AppController {
   }
 
   // World endpoints
+  /** Homepage world listing (name, owner, character ids). */
+  @Get('worlds')
+  listWorlds(): any {
+    return this.dataService.getAllWorldSummaries();
+  }
+
   @Get('worlds/:name')
   getWorld(@Param('name') name: string): any {
     const worldJson = this.dataService.getWorld(name);
@@ -511,10 +551,19 @@ export class AppController {
   }
 
   @Post('worlds/:name')
-  saveWorld(@Param('name') name: string, @Body() body: any): any {
+  saveWorld(
+    @Param('name') name: string,
+    @Body() body: any,
+    @Headers('x-user-id') userId?: string,
+    @Headers('x-user-code') userCode?: string,
+  ): any {
+    // Record the creator as the world owner (first save wins) for the homepage "your worlds".
+    const caller = this.usersService.resolve(userId, userCode);
+    if (caller && body && typeof body === 'object' && !body.ownerUserId) {
+      body.ownerUserId = caller.id;
+    }
     console.log('SAVING WORLD ' + name);
-    const worldJson = JSON.stringify(body);
-    this.dataService.saveWorld(name, worldJson);
+    this.dataService.saveWorld(name, JSON.stringify(body));
     return { success: true };
   }
 

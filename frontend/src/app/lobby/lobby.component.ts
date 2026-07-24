@@ -7,7 +7,7 @@
  * URL: /lobby/:worldName
  */
 
-import { Component, OnInit, OnDestroy, HostListener, ViewChild, inject, signal, computed, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ViewChild, inject, signal, computed, effect, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -23,7 +23,7 @@ import { TextureService } from '../services/texture.service';
 import { TrueStatsService } from '../services/true-stats.service';
 import { AssetBrowserApiService } from '../services/asset-browser-api.service';
 import { prepareImageForUpload, formatBytes } from '../shared/image-upload.utils';
-import { mergeControlledCharacterIds } from '../shared/lobby-character-access.utils';
+import { AuthService } from '../services/auth.service';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { NpcStatblock } from '../model/npc-statblock.model';
 import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType } from '../model/lobby.model';
@@ -73,7 +73,25 @@ export class LobbyComponent implements OnInit, OnDestroy {
   private textureService = inject(TextureService);
   private trueStats = inject(TrueStatsService);
   private assetBrowserApi = inject(AssetBrowserApiService);
+  private auth = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
+
+  constructor() {
+    // Identity replaces the old ?gm / ?characterId URL params: GM = admin, and the characters
+    // you may see/control are those whose controllerUserIds include you (recomputed as the
+    // character list or your identity changes).
+    effect(() => this.isGM.set(this.auth.isAdmin()));
+    effect(() => {
+      const uid = this.auth.userId();
+      const set = new Set<string>();
+      if (uid) {
+        for (const c of this.worldCharacters()) {
+          if ((c.sheet.controllerUserIds ?? []).includes(uid)) set.add(c.id);
+        }
+      }
+      this.viewingCharacterIds.set(set);
+    });
+  }
 
   @ViewChild(LobbyGridComponent) gridComponent?: LobbyGridComponent;
 
@@ -266,12 +284,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
         this.worldName.set(worldName);
         this.loadRollHistory(worldName);
 
-        // Check for GM mode
-        this.route.queryParamMap.subscribe((queryParams) => {
-          this.isGM.set(queryParams.get('gm') === 'true');
-          const ids = mergeControlledCharacterIds(worldName, queryParams.get('characterId'));
-          this.viewingCharacterIds.set(ids);
-        });
+        // GM/control now come from the signed-in identity (see the effects in the constructor),
+        // not from ?gm / ?characterId URL params.
 
         // Load lobby
         await this.loadLobby(worldName);

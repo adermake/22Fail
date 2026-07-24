@@ -15,6 +15,9 @@ import { join } from 'path';
 import { CharacterGateway } from './character.gateway';
 import { WorldGateway } from './world.gateway';
 import { BattleMapGateway } from './battlemap.gateway';
+import { UsersService } from './users.service';
+import { UsersController } from './users.controller';
+import { AdminGuard } from './admin.guard';
 
 @Module({
   imports: [
@@ -23,7 +26,7 @@ import { BattleMapGateway } from './battlemap.gateway';
       exclude: ['api/*path'],
     }),
   ],
-  controllers: [AppController, MapStorageController, LibraryController, AssetBrowserController],
-  providers: [CharacterGateway, WorldGateway, BattleMapGateway, DataService, ImageService, TextureService, StressTestService, MapStorageService, LibraryService, AssetBrowserService],
+  controllers: [AppController, MapStorageController, LibraryController, AssetBrowserController, UsersController],
+  providers: [CharacterGateway, WorldGateway, BattleMapGateway, DataService, ImageService, TextureService, StressTestService, MapStorageService, LibraryService, AssetBrowserService, UsersService, AdminGuard],
 })
 export class AppModule {}

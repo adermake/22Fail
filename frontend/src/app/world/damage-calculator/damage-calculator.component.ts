@@ -53,7 +53,6 @@ const DAMAGE_THRESHOLDS: DamageThreshold[] = [
   { icon: '☠🏹', min: 22, max: Infinity, label: '22+',  color: '#dc2626' },
 ];
 
-const STORAGE_KEY_STAB = 'dmg-calc-last-stab';
 const STORAGE_KEY_HISTORY = 'dmg-calc-history';
 const MAX_HISTORY = 20;
 
@@ -83,10 +82,9 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
   readonly severityOptions = SEVERITY_OPTIONS;
   readonly damageThresholds = DAMAGE_THRESHOLDS;
 
-  /** The damage value to place on the ruler (after Stabilität when applied), or null. */
+  /** The (raw) damage value to place on the ruler, or null. */
   get rulerDamage(): number | null {
-    if (!this.lastResult) return null;
-    return this.lastResult.stabilitaet > 0 ? this.lastResult.finalDamage : this.lastResult.total;
+    return this.lastResult ? this.lastResult.total : null;
   }
 
   /** Index of the threshold bracket the current damage falls into (−1 if none). */
@@ -97,7 +95,6 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   effektivitaet: number = 6;
-  stabilitaet: number = 0;
   selectedSeverity: DamageSeverity = SEVERITY_OPTIONS[1]; // Normaler Treffer default
 
   lastResult: DamageRollResult | null = null;
@@ -148,14 +145,6 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
 
     this.initRollSound();
 
-    const savedStab = localStorage.getItem(STORAGE_KEY_STAB);
-    if (savedStab !== null) {
-      const val = parseInt(savedStab, 10);
-      if (!isNaN(val) && val >= 0) {
-        this.stabilitaet = val;
-      }
-    }
-
     const savedHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
     if (savedHistory) {
       try {
@@ -186,10 +175,6 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  onStabChange(): void {
-    localStorage.setItem(STORAGE_KEY_STAB, String(this.stabilitaet || 0));
-  }
-
   rollDamage(): void {
     if (this.isRolling) return;
     if (!this.effektivitaet || this.effektivitaet < 2) return;
@@ -210,9 +195,7 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
     const diceSum = rolls.reduce((a, b) => a + b, 0);
     const total = plan.flatBonus + diceSum;
     const formula = plan.formula;
-    const stab = Math.max(0, this.stabilitaet || 0);
-    const finalDmg = stab > 0 ? Math.round(total * (100 / (100 + stab))) : total;
-
+    // Raw damage only — the defender applies their own stability when taking it.
     const result: DamageRollResult = {
       formula,
       individualRolls: rolls,
@@ -220,8 +203,8 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
       total,
       severity: this.selectedSeverity,
       effektivitaet: sides,
-      stabilitaet: stab,
-      finalDamage: finalDmg,
+      stabilitaet: 0,
+      finalDamage: total,
       timestamp: new Date(),
     };
 
@@ -238,10 +221,10 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
         diceType: sides,
         diceCount: count,
         rolls,
-        result: finalDmg,
+        result: total,
         rawResult: total,
-        stabilitaet: stab,
-        finalDamage: finalDmg,
+        stabilitaet: 0,
+        finalDamage: total,
         bonuses: [],
         timestamp: result.timestamp,
         isSecret: false,
@@ -265,10 +248,8 @@ export class DamageCalculatorComponent implements OnChanges, OnInit, OnDestroy {
   /** Load a history entry's values back into the inputs */
   useHistoryEntry(entry: DamageRollResult): void {
     this.effektivitaet = entry.effektivitaet;
-    this.stabilitaet = entry.stabilitaet;
     const sev = SEVERITY_OPTIONS.find(s => s.label === entry.severity.label);
     if (sev) this.selectedSeverity = sev;
-    localStorage.setItem(STORAGE_KEY_STAB, String(entry.stabilitaet));
     this.cdr.markForCheck();
   }
 

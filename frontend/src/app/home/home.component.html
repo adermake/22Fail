@@ -1,0 +1,179 @@
+<div class="home">
+  <!-- ── Loading ── -->
+  @if (loading()) {
+    <div class="center-card"><span class="spinner"></span> Lade…</div>
+  }
+
+  <!-- ── Identify (signed out) ── -->
+  @else if (!user()) {
+    <div class="identify">
+      <h1 class="brand">⚔️ 22Fail</h1>
+
+      @if (needsBootstrap()) {
+        <div class="auth-card">
+          <h2>Ersten Admin erstellen</h2>
+          <p class="muted">Es gibt noch keine Nutzer. Der erste Nutzer wird zum Admin.</p>
+          <input class="fld" [(ngModel)]="bootstrapName" placeholder="Dein Name"
+                 (keydown.enter)="doBootstrap()" />
+          <button class="btn primary" [disabled]="busy() || !bootstrapName.trim()" (click)="doBootstrap()">
+            Admin werden
+          </button>
+        </div>
+      } @else {
+        <div class="auth-card">
+          <h2>Anmelden</h2>
+          <p class="muted">Name und Beitritts-Code (vom Admin erhalten).</p>
+          <input class="fld" [(ngModel)]="loginName" placeholder="Name" (keydown.enter)="doLogin()" />
+          <input class="fld" [(ngModel)]="loginCode" placeholder="Code, z. B. swift-fox-72"
+                 (keydown.enter)="doLogin()" />
+          <button class="btn primary" [disabled]="busy() || !loginName.trim() || !loginCode.trim()" (click)="doLogin()">
+            Anmelden
+          </button>
+        </div>
+      }
+
+      @if (authError()) { <div class="auth-error">{{ authError() }}</div> }
+    </div>
+  }
+
+  <!-- ── Dashboard (signed in) ── -->
+  @else {
+    <header class="top">
+      <div class="who">
+        <span class="hi">Hallo, <strong>{{ user()!.name }}</strong></span>
+        @if (isAdmin()) { <span class="badge admin">Admin</span> }
+      </div>
+      <button class="btn ghost" (click)="switchUser()">Nutzer wechseln</button>
+    </header>
+
+    <!-- Your characters -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Deine Charaktere</h2>
+      </div>
+      <div class="grid">
+        @for (c of myCharacters(); track c.id) {
+          <div class="card char">
+            <button class="card-main" (click)="openSheet(c.id)">
+              @if (c.portrait) { <img class="pic" [src]="c.portrait" alt="" /> }
+              @else { <span class="pic ph">🧑</span> }
+              <span class="card-name">{{ c.name || c.id }}</span>
+            </button>
+            @if (c.worldName) {
+              <div class="jump">
+                <span class="jump-lbl">🌍 {{ c.worldName }}</span>
+                <button class="chip" (click)="openLobby(c.worldName!)">Lobby</button>
+                <button class="chip" (click)="openMap(c.worldName!)">Karte</button>
+              </div>
+            }
+          </div>
+        }
+        <div class="card create">
+          <input class="fld" [(ngModel)]="newCharName" placeholder="Neuer Charakter…"
+                 (keydown.enter)="createCharacter()" />
+          <button class="btn primary sm" [disabled]="!newCharName.trim()" (click)="createCharacter()">
+            + Erstellen
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Your worlds -->
+    <section class="panel">
+      <div class="panel-head"><h2>{{ isAdmin() ? 'Welten' : 'Deine Welten' }}</h2></div>
+      @if (myWorlds().length === 0) {
+        <p class="muted">Noch keine Welten{{ isAdmin() ? '' : ' — dein GM muss deinen Charakter einer Welt hinzufügen.' }}</p>
+      }
+      <div class="grid">
+        @for (w of myWorlds(); track w.name) {
+          <div class="card world">
+            <span class="card-name">🌍 {{ w.name }}</span>
+            <div class="jump">
+              <button class="chip" (click)="openLobby(w.name)">Lobby</button>
+              <button class="chip" (click)="openMap(w.name)">Karte</button>
+              @if (isAdmin()) { <button class="chip gm" (click)="openWorld(w.name)">GM</button> }
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+
+    <!-- ── Admin section ── -->
+    @if (isAdmin()) {
+      <section class="panel admin-panel">
+        <div class="panel-head"><h2>⚙️ Admin</h2></div>
+
+        <div class="admin-row">
+          <label>Neue Welt</label>
+          <input class="fld" [(ngModel)]="newWorldName" placeholder="Weltname…" (keydown.enter)="createWorld()" />
+          <button class="btn" [disabled]="!newWorldName.trim()" (click)="createWorld()">Welt erstellen</button>
+        </div>
+
+        <div class="admin-row">
+          <button class="btn" (click)="showUserManager.set(!showUserManager())">
+            {{ showUserManager() ? '▾' : '▸' }} Nutzer verwalten ({{ users().length }})
+          </button>
+        </div>
+
+        @if (showUserManager()) {
+          <div class="user-manager">
+            <div class="admin-row">
+              <label>Neuer Nutzer</label>
+              <input class="fld" [(ngModel)]="newUserName" placeholder="Name…" (keydown.enter)="createUser()" />
+              <button class="btn primary" [disabled]="busy() || !newUserName.trim()" (click)="createUser()">Erstellen</button>
+            </div>
+            <table class="users">
+              <thead><tr><th>Name</th><th>Beitritts-Code</th><th>Rolle</th><th></th></tr></thead>
+              <tbody>
+                @for (u of users(); track u.id) {
+                  <tr>
+                    <td>{{ u.name }}</td>
+                    <td><code class="code">{{ u.joinCode }}</code>
+                        <button class="mini" (click)="regenerateCode(u)" title="Neuen Code erzeugen">↻</button></td>
+                    <td>
+                      @if (u.id === user()!.id) { <span class="badge admin">Du</span> }
+                      @else {
+                        <button class="mini" (click)="toggleAdmin(u)">{{ u.isAdmin ? 'Admin ✓' : 'Spieler' }}</button>
+                      }
+                    </td>
+                    <td>
+                      @if (u.id !== user()!.id) {
+                        <button class="mini danger" (click)="deleteUser(u)">✕</button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <!-- Assign character control -->
+        <div class="admin-row col">
+          <label>Charakter-Kontrolle zuweisen</label>
+          <div class="assign">
+            <div class="assign-list">
+              @for (c of allCharacters(); track c.id) {
+                <button class="assign-item" [class.active]="assignTarget()?.id === c.id"
+                        (click)="assignTarget.set(assignTarget()?.id === c.id ? null : c)">
+                  {{ c.name || c.id }}
+                </button>
+              }
+            </div>
+            @if (assignTarget(); as t) {
+              <div class="assign-users">
+                <div class="assign-title">Wer kontrolliert „{{ t.name || t.id }}“?</div>
+                @for (u of users(); track u.id) {
+                  <label class="assign-user">
+                    <input type="checkbox" [checked]="userControls(t, u)" (change)="toggleControl(t, u)" />
+                    {{ u.name }}
+                  </label>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+    }
+  }
+</div>

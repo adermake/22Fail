@@ -5,7 +5,6 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
-import { mergeControlledCharacterIds, formatCharacterIdParam } from '../../shared/lobby-character-access.utils';
 import { RaceSelectorComponent } from '../race-selector/race-selector.component';
 
 @Component({
@@ -39,12 +38,8 @@ export class CharacterComponent {
 
   openWorldLobby() {
     if (this.sheet.worldName) {
-      const ids = mergeControlledCharacterIds(this.sheet.worldName, null, this.characterId);
-      const param = formatCharacterIdParam(ids);
-      window.open(
-        `/lobby/${this.sheet.worldName}?characterId=${encodeURIComponent(param)}`,
-        '_blank',
-      );
+      // Control comes from the signed-in identity now — no ?characterId URL needed.
+      window.open(`/lobby/${this.sheet.worldName}`, '_blank');
     }
   }
 

@@ -34,8 +34,11 @@ chk "project file"      "$(pf Write 'C:\Users\adermake\Documents\22FailApp\front
 chk "relative path"     "$(pf Read 'frontend/src/x.ts')" ALLOW
 chk "memory dir"        "$(pf Write 'C:\Users\adermake\.claude\projects\foo\memory\a.md')" ALLOW
 chk "scratchpad"        "$(pf Write 'C:\Users\adermake\AppData\Local\Temp\claude\x\y.txt')" ALLOW
+chk "plans dir"         "$(pf Write 'C:\Users\adermake\.claude\plans\feature.md')" ALLOW
 chk "build in project"  "$(pc 'cd c:/Users/adermake/Documents/22FailApp/frontend && npx ng build')" ALLOW
 chk "npm run build"     "$(pc 'npm run build')" ALLOW
+chk "curl localhost"    "$(pc 'curl -s http://localhost:3999/api/users/status')" ALLOW
+chk "curl https api"    "$(pc 'curl https://api.example.com/v1/x')" ALLOW
 chk "vcs status"        "$(pc "$G_ status")" ALLOW
 chk "vcs log and diff"  "$(pc "$G_ log --oneline -5 && $G_ diff HEAD")" ALLOW
 chk "vcs branch list"   "$(pc "$G_ branch -a")" ALLOW

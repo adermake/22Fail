@@ -60,10 +60,11 @@ tool=$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null) \
 PROJECT=$(canon "${CLAUDE_PROJECT_DIR:-$PWD}")
 MEMORY=$(canon "${HOME:-${USERPROFILE:-}}/.claude/projects")
 SCRATCH=$(canon "${TEMP:-${TMP:-/tmp}}/claude")
+PLANS=$(canon "${HOME:-${USERPROFILE:-}}/.claude/plans")
 
 in_scope() {
   local p="$1" root
-  for root in "$PROJECT" "$MEMORY" "$SCRATCH"; do
+  for root in "$PROJECT" "$MEMORY" "$SCRATCH" "$PLANS"; do
     [ -z "$root" ] && continue
     case "$p" in "$root"|"$root"/*) return 0 ;; esac
   done
@@ -174,6 +175,10 @@ if printf '%s' "$flat" | grep -qE '(^|[[:space:]/\\=])\.git([/\\]|[[:space:]]|$)
 fi
 
 # --- paths: nothing outside the allowed roots -----------------------------------
+# Strip network URLs first: http(s)/ws(s) are NOT filesystem paths, but their "p://" tail
+# otherwise matches the drive-letter pattern (e.g. httP://host → "p://host"). file:// is left
+# in so a genuine file:///c:/… path is still checked.
+flat_paths=$(printf '%s' "$flat" | sed -E 's#(https?|wss?)://[^[:space:]]*# #g')
 while IFS= read -r cand; do
   [ -z "$cand" ] && continue
   case "$cand" in
@@ -192,7 +197,7 @@ while IFS= read -r cand; do
   in_scope "$cp" \
     || deny "this command references '$cand', which is outside the project folder. The user does not want you reading or writing anything outside this project."
 done <<EOF
-$(printf '%s' "$flat" | grep -oE '([A-Za-z]:[\\/][^[:space:],;|&)]*|~/[^[:space:],;|&)]*)' || true)
+$(printf '%s' "$flat_paths" | grep -oE '([A-Za-z]:[\\/][^[:space:],;|&)]*|~/[^[:space:],;|&)]*)' || true)
 EOF
 
 exit 0

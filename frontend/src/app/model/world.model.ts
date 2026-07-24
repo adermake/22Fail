@@ -46,6 +46,8 @@ export interface EncounterTimerSettings {
 
 export interface WorldData {
   name: string;
+  /** Admin who created this world (for the homepage "your worlds" listing). */
+  ownerUserId?: string;
   worldClockMinutes?: number; // Unix timestamp in minutes for synced world clock
   worldClock?: FantasyClock;
   encounterTimer?: EncounterTimerSettings;
