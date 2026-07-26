@@ -12,16 +12,18 @@
 
 .se-modal {
   background: var(--card, #2d3748);
-  border-radius: 12px;
-  width: 92vw;
-  max-width: 900px;
-  height: 86vh;
+  border-radius: 0;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.55);
-  border: 1px solid var(--border, #4a5568);
+  box-shadow: none;
+  border: none;
   overflow: hidden;
 }
+
+/* Widen the two columns on a full-screen canvas but keep content readable. */
+.se-body { max-width: 1400px; width: 100%; margin: 0 auto; }
 
 .se-header {
   display: flex;
@@ -141,3 +143,26 @@
 
 /* FailScript editor host */
 .se-script-host { height: 300px; margin-top: 6px; }
+
+/* Perpetual toggle */
+.se-perpetual { align-items: flex-start; padding: 8px 10px; background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.3); border-radius: 6px; }
+.se-perpetual input[type="checkbox"] { margin-top: 2px; }
+
+/* Custom counter bars */
+.se-counter-list { display: flex; flex-direction: column; gap: 5px; }
+.se-counter-row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: rgba(255,255,255,0.04); border-radius: 6px; }
+.se-counter-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.se-counter-name { flex: 1; color: var(--text, #e5e7eb); font-size: 0.85rem; font-weight: 600; }
+.se-counter-range { color: var(--text-muted, #9ca3af); font-size: 0.75rem; }
+.se-counter-del { background: none; border: none; color: #ef4444; font-size: 1.15rem; line-height: 1; cursor: pointer; padding: 0 4px; }
+.se-counter-del:hover { color: #f87171; }
+
+.se-counter-add { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.se-counter-field { width: 100%; }
+.se-counter-nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.se-counter-num { display: flex; flex-direction: column; gap: 3px; }
+.se-counter-num > span { font-size: 0.68rem; color: var(--text-muted, #9ca3af); text-transform: uppercase; letter-spacing: 0.04em; }
+.se-counter-num .se-input, .se-counter-num .se-select { padding: 5px 7px; font-size: 0.82rem; width: 100%; }
+.se-btn-add-counter { align-self: flex-start; padding: 6px 14px; background: rgba(139,92,246,0.18); border: 1px solid var(--accent, #8b5cf6); border-radius: 6px; color: var(--accent, #8b5cf6); font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.se-btn-add-counter:hover { background: rgba(139,92,246,0.3); }
+.se-btn-add-counter:disabled { opacity: 0.4; cursor: not-allowed; }

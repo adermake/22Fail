@@ -156,6 +156,13 @@ export class TrueStatsService {
       const eff = this.resolveStatusEffect(e.statusEffectId, e.customEffect);
       s += `|${e.statusEffectId}:${e.stacks ?? 1}:${e.duration ?? ''}#${eff?.priority ?? 0}#${eff?.script ?? ''}`;
     }
+    // Active perpetual skills also feed effectActive — toggling one must recompute.
+    const activeNames = sheet.activeSkillNames ?? [];
+    for (const skill of sheet.skills ?? []) {
+      if (skill.perpetual && skill.script && activeNames.includes(skill.name)) {
+        s += `|SK:${skill.name}#${skill.script}`;
+      }
+    }
     return s;
   }
 
@@ -181,6 +188,21 @@ export class TrueStatsService {
         const source = active.customName ?? effect?.name ?? active.statusEffectId;
         for (const m of res.modifiers) mods.push({ ...m, priority, source });
         for (const g of res.grantedSkills) skills.push({ ...g, source });
+      }
+
+      // Perpetual skills: while toggled active, their effectActive block contributes just like
+      // a status effect (same collect run). Gated on activeSkillNames so it only applies while on.
+      const activeNames = sheet.activeSkillNames ?? [];
+      for (const skill of sheet.skills ?? []) {
+        if (!skill.perpetual || !skill.script || !activeNames.includes(skill.name)) continue;
+        const src = skill.script;
+        if (!src.includes('effectActive') && !src.includes('untilNextTurn')) continue;
+        const ctx = createPlayerContext(sheet, this, {
+          inCombat: true, stacks: 1, turn: 0, duration: 0, effectStrength: 0, rng: Math.random,
+        });
+        const res = runScript(src, ctx, { collect: true });
+        for (const m of res.modifiers) mods.push({ ...m, priority: 0, source: skill.name });
+        for (const g of res.grantedSkills) skills.push({ ...g, source: skill.name });
       }
     } finally {
       this.collectingEffectActive = false;

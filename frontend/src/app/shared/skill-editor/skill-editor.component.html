@@ -133,6 +133,12 @@
             @if (macroMode) {
               <div class="se-macro-block">
                 <p class="se-hint">Skript, das beim Aktivieren der Fähigkeit läuft (z.B. <code>loseResource(mana, 5)</code>).</p>
+                <label class="se-check-label se-perpetual">
+                  <input type="checkbox" [(ngModel)]="editSkill.perpetual">
+                  <span>&#x267E; Perpetuierend
+                    <span class="se-hint">&mdash; <code>effectActive {{ '{' }} … {{ '}' }}</code> gilt durchgehend, solange die F&auml;higkeit aktiv ist (wie ein Status).</span>
+                  </span>
+                </label>
                 <div class="se-script-host">
                   <app-script-editor
                     [value]="editSkill.script || ''"
@@ -200,6 +206,42 @@
             <span>W&uuml;rfelbonus &mdash; wird beim W&uuml;rfeln automatisch angewendet.</span>
           </div>
         }
+
+        <!-- Custom counter bars (identical to items) -->
+        <div class="se-section">
+          <span class="se-section-title">&#x1F4CA; Eigene Leisten</span>
+          <p class="se-hint">Beliebige Z&auml;hler/Balken, die angezeigt werden, solange die F&auml;higkeit aktiv ist (z.B. Ladungen).</p>
+
+          @if (editSkill.counters && editSkill.counters.length > 0) {
+            <div class="se-counter-list">
+              @for (counter of editSkill.counters; track counter.id; let i = $index) {
+                <div class="se-counter-row">
+                  <span class="se-counter-dot" [style.background]="counter.color"></span>
+                  <span class="se-counter-name">{{ counter.name }}</span>
+                  <span class="se-counter-range">{{ counter.min }}&ndash;{{ counter.max }}</span>
+                  <button class="se-counter-del" (click)="removeCounter(i)">&times;</button>
+                </div>
+              }
+            </div>
+          }
+
+          <div class="se-counter-add">
+            <input class="se-input se-counter-field" type="text" [(ngModel)]="newCounter.name" placeholder="Name, z.B. Ladungen">
+            <div class="se-counter-nums">
+              <label class="se-counter-num"><span>Min</span><input class="se-input" type="number" [(ngModel)]="newCounter.min"></label>
+              <label class="se-counter-num"><span>Max</span><input class="se-input" type="number" [(ngModel)]="newCounter.max"></label>
+              <label class="se-counter-num"><span>Start</span><input class="se-input" type="number" [(ngModel)]="newCounter.current"></label>
+              <label class="se-counter-num se-counter-color"><span>Farbe</span>
+                <select class="se-select" [(ngModel)]="newCounter.color">
+                  @for (color of counterColors; track color) {
+                    <option [value]="color">{{ color }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+            <button class="se-btn-add-counter" (click)="addCounter()" [disabled]="!newCounter.name.trim()">+ Leiste</button>
+          </div>
+        </div>
 
       </div>
     </div>

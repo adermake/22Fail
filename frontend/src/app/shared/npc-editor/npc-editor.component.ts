@@ -3,21 +3,24 @@ import {
   EventEmitter,
   inject,
   Input,
+  OnDestroy,
   OnInit,
   Output,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
 
 import {
   NpcStatblock,
-  NpcArchetype,
-  NPC_ARCHETYPES,
-  NpcArchetypeDefinition,
+  NpcSoul,
+  createEmptyNpcSoul,
+  createEmptyNpcBody,
+  createEmptyEstimateSplits,
+  soulBonusRemaining,
+  computeSoulDerived,
+  applyNpcEstimation,
 } from '../../model/npc-statblock.model';
 import { AssetFile } from '../../model/asset-browser.model';
-import { Race } from '../../model/race.model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
 import { ItemBlock } from '../../model/item-block.model';
@@ -26,413 +29,275 @@ import {
   SKILL_DEFINITIONS,
 } from '../../data/skill-definitions';
 import { NpcGeneratorService } from '../../services/npc-generator.service';
-import { WeaponGeneratorService } from '../../services/weapon-generator.service';
-import { MaterialBlock, ForgeTrait } from '../../model/forging.model';
+import { ImageService } from '../../services/image.service';
+import { SkillEditorComponent } from '../skill-editor/skill-editor.component';
+import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
+
+type SoulKey = 'leben' | 'energie' | 'geschwindigkeit' | 'angriff';
+type OverrideKey = 'maxHealth' | 'maxEnergy' | 'maxMana' | 'reaktion' | 'turnSpeed' | 'angriff';
 
 @Component({
   selector: 'app-npc-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent],
   templateUrl: './npc-editor.component.html',
   styleUrl: './npc-editor.component.css',
 })
-export class NpcEditorComponent implements OnInit {
+export class NpcEditorComponent implements OnInit, OnDestroy {
   @Input() statblock!: NpcStatblock;
   @Input() availableSpells: AssetFile[] = [];
   @Input() availableItems: AssetFile[] = [];
+  @Input() availableSkills: AssetFile[] = [];
+  // Kept for backward-compatible parent bindings (weapon-gen removed from the UI).
   @Input() availableMaterials: AssetFile[] = [];
   @Input() availableForgeTraits: AssetFile[] = [];
 
   @Output() save = new EventEmitter<NpcStatblock>();
   @Output() cancel = new EventEmitter<void>();
 
-  private http = inject(HttpClient);
   private npcGen = inject(NpcGeneratorService);
-  private weaponGen = inject(WeaponGeneratorService);
+  private imageService = inject(ImageService);
 
   draft!: NpcStatblock;
-  races: Race[] = [];
 
-  readonly archetypes = NPC_ARCHETYPES;
-  readonly allClasses = Object.keys(CLASS_DEFINITIONS).sort();
-  readonly tier1Classes = Object.entries(CLASS_DEFINITIONS)
-    .filter(([, v]) => v.tier === 1)
-    .map(([k]) => k)
-    .sort();
+  // ─── Static metadata ────────────────────────────────────────────────────────
+  readonly soulCats: { key: SoulKey; label: string; icon: string; hint: string }[] = [
+    { key: 'leben',           label: 'Leben',          icon: '❤️', hint: 'Trefferpunkte' },
+    { key: 'energie',         label: 'Energie',        icon: '⚡',       hint: 'Ausdauer + Mana' },
+    { key: 'geschwindigkeit', label: 'Geschwindigkeit', icon: '💨', hint: 'Zugreihenfolge / Reaktion' },
+    { key: 'angriff',         label: 'Angriff',        icon: '⚔️', hint: 'Angriffsbonus' },
+  ];
 
-  // Skill search state
-  showSkillSearch = false;
-  skillSearchQuery = '';
+  readonly skillClasses = Object.keys(CLASS_DEFINITIONS).sort(
+    (a, b) => (CLASS_DEFINITIONS[a].tier - CLASS_DEFINITIONS[b].tier) || a.localeCompare(b),
+  );
 
-  // Picker state
-  showSpellPicker = false;
-  showItemPicker = false;
+  readonly overrideFields: { key: OverrideKey; label: string }[] = [
+    { key: 'maxHealth', label: '❤️ Leben' },
+    { key: 'maxEnergy', label: '⚡ Ausdauer' },
+    { key: 'maxMana',   label: '💧 Mana' },
+    { key: 'reaktion',  label: '💨 Reaktion' },
+    { key: 'turnSpeed', label: '⏱ Zug-Tempo' },
+    { key: 'angriff',   label: '⚔️ Angriff' },
+  ];
 
-  // ─── Lifecycle ─────────────────────────────────────────────────────────────
+  // ─── UI state ───────────────────────────────────────────────────────────────
+  skillTab: 'tree' | 'library' = 'tree';
+  itemTab: 'library' | 'create' = 'library';
+  expandedClass: string | null = null;
+  treeQuery = '';
 
+  // Fullscreen nested editors (open flags — editingSkill/Item are null when creating new)
+  skillEditorOpen = false;
+  editingSkill: SkillBlock | null = null;
+  editingSkillIndex: number | null = null;
+  itemEditorOpen = false;
+  editingItem: ItemBlock | null = null;
+  editingItemIndex: number | null = null;
+
+  imageUploading = false;
+  private prevBodyOverflow = '';
+
+  // ─── Lifecycle ──────────────────────────────────────────────────────────────
   ngOnInit(): void {
     this.draft = JSON.parse(JSON.stringify(this.statblock));
-    this.loadRaces();
+    // Ensure the new soul/body/estimate structures exist for legacy statblocks.
+    if (!this.draft.soul) {
+      this.draft.soul = createEmptyNpcSoul();
+      this.draft.soul.level = this.draft.level || 1;
+    }
+    if (!this.draft.body) this.draft.body = createEmptyNpcBody();
+    if (!this.draft.estimate) this.draft.estimate = createEmptyEstimateSplits();
+    if (!this.draft.body.overrides) this.draft.body.overrides = {};
+
+    this.prevBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
   }
 
-  private loadRaces(): void {
-    this.http.get<Race[]>('/api/races').subscribe({
-      next: (races) => {
-        this.races = races;
-        if (this.draft.raceId && !this.draft.raceName) {
-          const race = races.find(r => r.id === this.draft.raceId);
-          if (race) this.draft.raceName = race.name;
-        }
-      },
-      error: () => {
-        this.races = [];
-      },
-    });
+  ngOnDestroy(): void {
+    document.body.style.overflow = this.prevBodyOverflow;
   }
 
-  // ─── Computed Getters ──────────────────────────────────────────────────────
+  // ─── Soul ───────────────────────────────────────────────────────────────────
+  get soul(): NpcSoul { return this.draft.soul!; }
+  get remaining(): number { return soulBonusRemaining(this.soul); }
+  get derived() { return computeSoulDerived(this.soul, this.draft.body, this.draft.estimate!); }
 
-  get selectedRace(): Race | null {
-    return this.races.find(r => r.id === this.draft.raceId) ?? null;
+  setLevel(v: number): void {
+    this.soul.level = Math.max(1, Math.floor(v) || 1);
+    // Trim over-allocated bonus points down to the new budget.
+    let over = -this.remaining;
+    if (over > 0) {
+      for (const c of this.soulCats) {
+        if (over <= 0) break;
+        const take = Math.min(over, this.soul.bonus[c.key]);
+        this.soul.bonus[c.key] -= take;
+        over -= take;
+      }
+    }
+    this.recalc();
   }
 
-  get selectedArchetype(): NpcArchetypeDefinition | null {
-    return NPC_ARCHETYPES.find(a => a.id === this.draft.archetype) ?? null;
+  addBonus(key: SoulKey): void {
+    if (this.remaining <= 0) return;
+    this.soul.bonus[key]++;
+    this.recalc();
   }
 
-  get totalTP(): number {
-    return this.npcGen.calcTalentPoints(this.draft.level);
+  subBonus(key: SoulKey): void {
+    if (this.soul.bonus[key] <= 0) return;
+    this.soul.bonus[key]--;
+    this.recalc();
   }
 
-  get spentTP(): number {
-    return this.npcGen.calcSpentTP(this.draft.learnedSkillIds);
+  /** Re-run the prefill from soul/body/sliders into the flat gameplay fields. */
+  recalc(): void {
+    applyNpcEstimation(this.draft);
+    this.draft.fokus = this.npcGen.calcFokus(this.draft.intelligence, this.draft.learnedSkillIds);
   }
 
-  get computedFokus(): number {
-    if (this.draft.fokusOverride) return this.draft.fokus;
-    return this.npcGen.calcFokus(this.draft.intelligence, this.draft.learnedSkillIds);
+  // ─── Body overrides ───────────────────────────────────────────────────────
+  get overrides() { return this.draft.body!.overrides; }
+
+  toggleOverride(key: OverrideKey): void {
+    const ov = this.overrides;
+    if (ov[key] === undefined) {
+      // Seed with the current soul-derived value so the number field starts sensibly.
+      const d = computeSoulDerived(this.soul, undefined, this.draft.estimate!);
+      ov[key] = d[key];
+    } else {
+      ov[key] = undefined;
+    }
+    this.recalc();
   }
 
-  get computedReaktionswert(): number {
-    if (this.draft.reaktionswertOverride) return this.draft.reaktionswert;
-    return this.npcGen.calcReaktionswert(this.draft.wille, this.draft.level);
+  // ─── Skills: class tree ───────────────────────────────────────────────────
+  classTier(cls: string): number { return CLASS_DEFINITIONS[cls]?.tier ?? 1; }
+
+  skillsForClass(cls: string) {
+    const q = this.treeQuery.trim().toLowerCase();
+    return SKILL_DEFINITIONS
+      .filter(s => s.class === cls && (!q || s.name.toLowerCase().includes(q)))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  get computedGrundbonus(): number {
-    if (this.draft.grundbonusOverride) return this.draft.grundbonus;
-    return this.npcGen.calcGrundbonus(this.draft.level, this.draft.wille);
+  toggleClass(cls: string): void {
+    this.expandedClass = this.expandedClass === cls ? null : cls;
   }
 
-  get freeStatPoints(): number {
-    return this.npcGen.calcFreeStatPoints(this.draft.level);
-  }
+  hasSkill(id: string): boolean { return this.draft.learnedSkillIds.includes(id); }
 
-  /** Wie viele freie Statpunkte über den Rassen-Basiswerten verteilt wurden. */
-  get allocatedStatPoints(): number {
-    const race = this.selectedRace;
-    if (!race) return 0;
-    const base = this.npcGen.calcRaceBaseStats(race, this.draft.level);
-    return (
-      (this.draft.strength - base.str) +
-      (this.draft.dexterity - base.dex) +
-      (this.draft.speed - base.spd) +
-      (this.draft.intelligence - base.int) +
-      (this.draft.constitution - base.con) +
-      (this.draft.wille - base.wil)
-    );
-  }
-
-  get filteredSkillSearch() {
-    if (this.skillSearchQuery.length < 2) return [];
-    const q = this.skillSearchQuery.toLowerCase();
-    return SKILL_DEFINITIONS.filter(
-      s =>
-        !this.draft.learnedSkillIds.includes(s.id) &&
-        (s.name.toLowerCase().includes(q) || s.class.toLowerCase().includes(q)),
-    ).slice(0, 25);
+  toggleLearnedSkill(id: string): void {
+    if (this.hasSkill(id)) {
+      this.draft.learnedSkillIds = this.draft.learnedSkillIds.filter(x => x !== id);
+    } else {
+      this.draft.learnedSkillIds = [...this.draft.learnedSkillIds, id];
+    }
+    this.draft.fokus = this.npcGen.calcFokus(this.draft.intelligence, this.draft.learnedSkillIds);
   }
 
   get learnedSkillDetails() {
     return this.draft.learnedSkillIds.map(id => {
       const def = SKILL_DEFINITIONS.find(s => s.id === id);
-      return {
-        id,
-        name: def?.name ?? id,
-        class: def?.class ?? '?',
-        tier: CLASS_DEFINITIONS[def?.class ?? '']?.tier ?? 1,
-      };
+      return { id, name: def?.name ?? id, class: def?.class ?? '?', tier: CLASS_DEFINITIONS[def?.class ?? '']?.tier ?? 1 };
     });
   }
 
-  get canGenerateGear(): boolean {
-    return this.availableMaterials.length > 0;
-  }
-
-  get spreadTotal(): number {
-    return this.draft.gearSpreadWeapon + this.draft.gearSpreadArmor + this.draft.gearSpreadAccessory;
-  }
-
-  // ─── Race / Archetype Handlers ────────────────────────────────────────────
-
-  onRaceChange(raceId: string): void {
-    this.draft.raceId = raceId || undefined;
-    const race = this.races.find(r => r.id === raceId);
-    this.draft.raceName = race?.name ?? '';
-    if (race) {
-      this.autoCalcResources();
-    }
-  }
-
-  onArchetypeChange(archetypeId: string): void {
-    this.draft.archetype = archetypeId as NpcArchetype;
-    const arch = NPC_ARCHETYPES.find(a => a.id === archetypeId);
-    if (arch) {
-      this.draft.primaryClassTarget = arch.primaryClass;
-      this.draft.secondaryClassTarget = arch.secondaryClass;
-      this.draft.gearSpreadWeapon = arch.gearSpread.weapon;
-      this.draft.gearSpreadArmor = arch.gearSpread.armor;
-      this.draft.gearSpreadAccessory = arch.gearSpread.accessory;
-    }
-  }
-
-  // ─── Auto-Kalkulationen ───────────────────────────────────────────────────
-
-  autoCalcResources(): void {
-    const race = this.selectedRace;
-    if (!race) return;
-    const res = this.npcGen.calcResources(race, this.draft.level);
-    this.draft.maxHealth = res.health;
-    this.draft.maxMana = res.mana;
-    this.draft.maxEnergy = res.energy;
-  }
-
-  autoAllocateStats(): void {
-    const race = this.selectedRace;
-    const arch = this.selectedArchetype;
-    if (!race || !arch) return;
-    const base = this.npcGen.calcRaceBaseStats(race, this.draft.level);
-    const free = this.npcGen.calcFreeStatPoints(this.draft.level);
-    const result = this.npcGen.autoAllocateStats(arch, base, free);
-    this.draft.strength = result.str;
-    this.draft.dexterity = result.dex;
-    this.draft.speed = result.spd;
-    this.draft.intelligence = result.int;
-    this.draft.constitution = result.con;
-    this.draft.wille = result.wil;
-    this.recalcDerived();
-  }
-
-  autoGenSkills(): void {
-    this.draft.learnedSkillIds = this.npcGen.autoSkillTree(
-      this.draft.primaryClassTarget,
-      this.draft.secondaryClassTarget,
-      this.draft.classWeight,
-      this.totalTP,
-    );
-    this.recalcDerived();
-  }
-
-  recalcDerived(): void {
-    if (!this.draft.fokusOverride) {
-      this.draft.fokus = this.npcGen.calcFokus(this.draft.intelligence, this.draft.learnedSkillIds);
-    }
-    if (!this.draft.reaktionswertOverride) {
-      this.draft.reaktionswert = this.npcGen.calcReaktionswert(this.draft.wille, this.draft.level);
-    }
-    if (!this.draft.grundbonusOverride) {
-      this.draft.grundbonus = this.npcGen.calcGrundbonus(this.draft.level, this.draft.wille);
-    }
-  }
-
-  /** Einmaliger Klick: Rasse anwenden, Stats + Fertigkeiten generieren */
-  generateAll(): void {
-    this.autoCalcResources();
-    if (this.draft.mode === 'humanoid' && this.selectedArchetype) {
-      this.autoAllocateStats();
-      this.autoGenSkills();
-    }
-    this.recalcDerived();
-  }
-
-  // ─── Skill Management ─────────────────────────────────────────────────────
-
-  removeLearnedSkill(skillId: string): void {
-    this.draft.learnedSkillIds = this.draft.learnedSkillIds.filter(id => id !== skillId);
-    this.recalcDerived();
-  }
-
-  addLearnedSkillById(skillId: string): void {
-    if (!this.draft.learnedSkillIds.includes(skillId)) {
-      this.draft.learnedSkillIds.push(skillId);
-    }
-    this.skillSearchQuery = '';
-    this.showSkillSearch = false;
-    this.recalcDerived();
-  }
-
-  removeCustomSkill(index: number): void {
-    this.draft.customSkills.splice(index, 1);
-  }
-
-  addCustomSkill(): void {
-    const skill: SkillBlock = {
-      name: 'Neue Fertigkeit',
-      class: 'Benutzerdefiniert',
-      description: '',
-      type: 'active',
-      enlightened: false,
-    };
+  // ─── Skills: library + custom ─────────────────────────────────────────────
+  addSkillFromLibrary(file: AssetFile): void {
+    const skill = JSON.parse(JSON.stringify(file.data)) as SkillBlock;
     this.draft.customSkills.push(skill);
   }
 
-  // ─── Spell Management ─────────────────────────────────────────────────────
-
-  addSpellFromLibrary(file: AssetFile): void {
-    const spell = file.data as SpellBlock;
-    this.draft.spells.push(JSON.parse(JSON.stringify(spell)));
-    this.showSpellPicker = false;
+  openSkillEditor(index: number | null): void {
+    this.editingSkillIndex = index;
+    this.editingSkill = index === null ? null : JSON.parse(JSON.stringify(this.draft.customSkills[index]));
+    this.skillEditorOpen = true;
   }
 
-  removeSpell(index: number): void {
-    this.draft.spells.splice(index, 1);
+  onSkillSave(skill: SkillBlock): void {
+    if (this.editingSkillIndex === null) this.draft.customSkills.push(skill);
+    else this.draft.customSkills[this.editingSkillIndex] = skill;
+    this.closeSkillEditor();
   }
 
-  // ─── Equipment Management ─────────────────────────────────────────────────
+  closeSkillEditor(): void {
+    this.skillEditorOpen = false;
+    this.editingSkill = null;
+    this.editingSkillIndex = null;
+  }
 
+  removeCustomSkill(index: number): void { this.draft.customSkills.splice(index, 1); }
+
+  // ─── Items: library + custom ──────────────────────────────────────────────
   addItemFromLibrary(file: AssetFile): void {
-    const item = file.data as ItemBlock;
-    this.draft.equipment.push(JSON.parse(JSON.stringify(item)));
-    this.showItemPicker = false;
+    const item = JSON.parse(JSON.stringify(file.data)) as ItemBlock;
+    this.draft.equipment.push(item);
   }
 
-  removeEquipment(index: number): void {
-    this.draft.equipment.splice(index, 1);
+  openItemEditor(index: number | null): void {
+    this.editingItemIndex = index;
+    this.editingItem = index === null ? null : JSON.parse(JSON.stringify(this.draft.equipment[index]));
+    this.itemEditorOpen = true;
   }
 
-  generateWeapon(): void {
-    const materials = this.availableMaterials.map(f => f.data as MaterialBlock);
-    const traits = this.availableForgeTraits.map(f => f.data as ForgeTrait);
-
-    if (materials.length === 0) {
-      alert('Keine Materialien in der Bibliothek verfügbar. Füge zuerst Materialien hinzu.');
-      return;
-    }
-
-    const weaponBudget = Math.max(
-      10,
-      Math.floor(this.draft.gearBudget * this.draft.gearSpreadWeapon / 100),
-    );
-
-    const result = this.weaponGen.generate(
-      {
-        maxSP: Math.floor(weaponBudget / 5),
-        costPerSP: 5,
-        minBudget: 0,
-        budget: weaponBudget,
-        forgingRatio: 50,
-        weaponTypeName: null,
-        weaponSize: null,
-        minHaltbarkeit: null,
-        minEffektivitaet: null,
-        maxWeight: null,
-      },
-      materials,
-      traits,
-      {},
-      {},
-    );
-
-    if (!result) {
-      alert('Waffe konnte nicht generiert werden. Überprüfe Budget und verfügbare Materialien.');
-      return;
-    }
-
-    const effects = [...result.allTraitEffects, ...result.allExtraEffects].filter(Boolean);
-
-    const weapon = new ItemBlock();
-    weapon.name = result.weaponType.name;
-    weapon.description = `Geschmiedete Waffe (${result.weaponSize})`;
-    weapon.weight = result.finalWeight;
-    weapon.lost = false;
-    weapon.broken = false;
-    weapon.itemType = 'weapon';
-    weapon.armorType = 'weapon';
-    weapon.requirements = { strength: result.finalStatRequirement };
-    weapon.efficiency = result.finalEffektivitaet;
-    weapon.hasDurability = true;
-    weapon.durability = result.finalHaltbarkeit;
-    weapon.maxDurability = result.finalHaltbarkeit;
-    weapon.weaponTypeName = result.weaponType.name;
-    weapon.damageType = result.weaponType.damageType;
-    weapon.range = result.weaponType.range;
-    weapon.value = result.totalCost;
-    weapon.isIdentified = true;
-    if (effects.length > 0) {
-      weapon.primaryEffect = effects.join('; ');
-    }
-
-    this.draft.equipment.push(weapon);
+  onItemSave(item: ItemBlock): void {
+    if (this.editingItemIndex === null) this.draft.equipment.push(item);
+    else this.draft.equipment[this.editingItemIndex] = item;
+    this.closeItemEditor();
   }
 
-  // ─── Derived Override Toggles ─────────────────────────────────────────────
+  closeItemEditor(): void {
+    this.itemEditorOpen = false;
+    this.editingItem = null;
+    this.editingItemIndex = null;
+  }
 
-  toggleFokusOverride(): void {
-    this.draft.fokusOverride = !this.draft.fokusOverride;
-    if (!this.draft.fokusOverride) {
-      this.draft.fokus = this.computedFokus;
+  removeEquipment(index: number): void { this.draft.equipment.splice(index, 1); }
+
+  // ─── Spells (library only) ────────────────────────────────────────────────
+  addSpellFromLibrary(file: AssetFile): void {
+    this.draft.spells.push(JSON.parse(JSON.stringify(file.data)) as SpellBlock);
+  }
+  removeSpell(index: number): void { this.draft.spells.splice(index, 1); }
+  getSpellName(spell: SpellBlock): string { return (spell as any).name ?? 'Zauber'; }
+
+  // ─── Image ────────────────────────────────────────────────────────────────
+  get imageUrl(): string | null {
+    return this.draft.image ? this.imageService.getImageUrl(this.draft.image) : null;
+  }
+
+  async onImagePick(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.imageUploading = true;
+    try {
+      const id = await this.imageService.uploadImageFile(file, file.name);
+      this.draft.image = id;
+      this.draft.defaultPortrait = id; // also use as token head
+    } catch {
+      alert('Bild konnte nicht hochgeladen werden.');
+    } finally {
+      this.imageUploading = false;
+      input.value = '';
     }
   }
 
-  toggleReaktionswertOverride(): void {
-    this.draft.reaktionswertOverride = !this.draft.reaktionswertOverride;
-    if (!this.draft.reaktionswertOverride) {
-      this.draft.reaktionswert = this.computedReaktionswert;
-    }
+  clearImage(): void {
+    this.draft.image = undefined;
+    this.draft.defaultPortrait = undefined;
   }
 
-  toggleGrundbonusOverride(): void {
-    this.draft.grundbonusOverride = !this.draft.grundbonusOverride;
-    if (!this.draft.grundbonusOverride) {
-      this.draft.grundbonus = this.computedGrundbonus;
-    }
-  }
-
-  // ─── Save / Cancel ────────────────────────────────────────────────────────
-
+  // ─── Save / cancel ────────────────────────────────────────────────────────
   onSave(): void {
     if (!this.draft.name?.trim()) this.draft.name = 'NSC';
-    this.recalcDerived();
+    this.draft.fokus = this.npcGen.calcFokus(this.draft.intelligence, this.draft.learnedSkillIds);
     this.save.emit(this.draft);
   }
 
-  onCancel(): void {
-    this.cancel.emit();
-  }
+  onCancel(): void { this.cancel.emit(); }
 
-  // ─── Template Helpers ─────────────────────────────────────────────────────
-
-  getSkillName(skillId: string): string {
-    return SKILL_DEFINITIONS.find(s => s.id === skillId)?.name ?? skillId;
-  }
-
-  getSkillClass(skillId: string): string {
-    return SKILL_DEFINITIONS.find(s => s.id === skillId)?.class ?? '?';
-  }
-
-  getSkillTier(skillId: string): number {
-    const cls = SKILL_DEFINITIONS.find(s => s.id === skillId)?.class;
-    return CLASS_DEFINITIONS[cls ?? '']?.tier ?? 1;
-  }
-
-  getSpellName(spell: SpellBlock): string {
-    return (spell as any).name ?? 'Unbekannter Zauber';
-  }
-
-  tierClass(tier: number): string {
-    return `tier-${Math.min(tier, 5)}`;
-  }
-
-  trackById(_: number, item: { id: string }): string {
-    return item.id;
-  }
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  tierClass(tier: number): string { return `tier-${Math.min(tier, 5)}`; }
 }

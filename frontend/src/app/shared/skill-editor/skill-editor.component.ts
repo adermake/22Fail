@@ -1,7 +1,8 @@
-import { Component, EventEmitter, Input, Output, OnInit } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SkillBlock, StatModifier } from '../../model/skill-block.model';
+import { SpellCounter } from '../../model/spell-block-model';
 import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
 import { actionMacroToScript, macroActionToScript } from '../../scripting/decompiler';
 
@@ -12,7 +13,7 @@ import { actionMacroToScript, macroActionToScript } from '../../scripting/decomp
   templateUrl: './skill-editor.component.html',
   styleUrl: './skill-editor.component.css',
 })
-export class SkillEditorComponent implements OnInit {
+export class SkillEditorComponent implements OnInit, OnDestroy {
   @Input() skill: SkillBlock | null = null;
   @Output() save = new EventEmitter<SkillBlock>();
   @Output() cancel = new EventEmitter<void>();
@@ -28,6 +29,15 @@ export class SkillEditorComponent implements OnInit {
 
   // Script mode (active skills): the "Aktionsmakro" toggle now edits a FailScript.
   macroMode = false;
+
+  // Custom counter bars (same as items). New counter being composed.
+  newCounter: SpellCounter = { id: '', name: '', min: 0, max: 10, current: 0, color: '#22c55e' };
+  readonly counterColors = [
+    '#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#6b7280',
+  ];
+
+  /** Restores background scroll on close (locked while the fullscreen editor is open). */
+  private prevBodyOverflow = '';
 
   statModifiers: { [key: string]: number } = {
     strength: 0, dexterity: 0, speed: 0, intelligence: 0,
@@ -48,6 +58,9 @@ export class SkillEditorComponent implements OnInit {
   ];
 
   ngOnInit() {
+    // Lock the page behind the fullscreen editor so it can't scroll while editing.
+    this.prevBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     if (this.skill) {
       this.editSkill = JSON.parse(JSON.stringify(this.skill));
       this.isNewSkill = false;
@@ -88,8 +101,31 @@ export class SkillEditorComponent implements OnInit {
     }
   }
 
+  ngOnDestroy() {
+    document.body.style.overflow = this.prevBodyOverflow;
+  }
+
   get skillSource(): 'class' | 'race' | 'custom' {
     return this.editSkill.skillSource ?? 'class';
+  }
+
+  // === Counter (custom bar) methods — same behaviour as the item editor ===
+  addCounter() {
+    if (!this.newCounter.name.trim()) return;
+    if (!this.editSkill.counters) this.editSkill.counters = [];
+    this.editSkill.counters.push({
+      id: 'counter_' + Date.now(),
+      name: this.newCounter.name.trim(),
+      min: this.newCounter.min,
+      max: this.newCounter.max,
+      current: this.newCounter.current,
+      color: this.newCounter.color,
+    });
+    this.newCounter = { id: '', name: '', min: 0, max: 10, current: 0, color: '#22c55e' };
+  }
+
+  removeCounter(index: number) {
+    this.editSkill.counters?.splice(index, 1);
   }
 
   setSource(src: 'class' | 'race' | 'custom') {
@@ -131,6 +167,11 @@ export class SkillEditorComponent implements OnInit {
       this.editSkill.statModifiers = statOnly.length > 0 ? statOnly : undefined;
     }
 
+    // Custom bars: drop an empty array so it doesn't clutter the sheet.
+    if (this.editSkill.counters && this.editSkill.counters.length === 0) {
+      this.editSkill.counters = undefined;
+    }
+
     if (this.editSkill.type === 'active') {
       if (this.macroMode) {
         // Script mode — clear legacy macros (migrated) and the simple cost.
@@ -158,6 +199,11 @@ export class SkillEditorComponent implements OnInit {
       this.editSkill.script = undefined;
       this.editSkill.embeddedMacroAction = undefined;
       this.editSkill.embeddedMacro = undefined;
+    }
+
+    // Perpetual only makes sense for an active skill with a script (effectActive lives there).
+    if (!(this.editSkill.type === 'active' && this.macroMode && this.editSkill.script?.trim())) {
+      this.editSkill.perpetual = undefined;
     }
 
     this.save.emit(this.editSkill);

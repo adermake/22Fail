@@ -35,6 +35,9 @@ export class SkillBlock {
   embeddedMacroAction?: import('./macro-action.model').MacroAction;
   // FailScript action (new); takes precedence over the legacy macros above
   script?: string;
+  // Perpetual: while this skill is active, its script's effectActive block is collected
+  // continuously (like a status effect) instead of running once on activation.
+  perpetual?: boolean;
   // Set when this skill was granted by a race (holds race id) - used for cleanup on race change
   sourceRaceId?: string;
   // Configurable counter bars shown while skill is active
