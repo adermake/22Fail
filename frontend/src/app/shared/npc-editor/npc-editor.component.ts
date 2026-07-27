@@ -61,29 +61,29 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   draft!: NpcStatblock;
 
   // ─── Static metadata ────────────────────────────────────────────────────────
-  readonly soulCats: { key: SoulKey; label: string; icon: string; hint: string }[] = [
-    { key: 'leben',           label: 'Leben',          icon: '❤️', hint: 'Trefferpunkte' },
-    { key: 'energie',         label: 'Energie',        icon: '⚡',       hint: 'Ausdauer + Mana' },
-    { key: 'geschwindigkeit', label: 'Geschwindigkeit', icon: '💨', hint: 'Zugreihenfolge / Reaktion' },
-    { key: 'angriff',         label: 'Angriff',        icon: '⚔️', hint: 'Angriffsbonus' },
+  readonly soulCats: { key: SoulKey; label: string; ico: string; hint: string }[] = [
+    { key: 'leben',           label: 'Leben',           ico: 'ico-life',     hint: 'Trefferpunkte' },
+    { key: 'energie',         label: 'Energie',         ico: 'ico-energy',   hint: 'Ausdauer + Mana' },
+    { key: 'geschwindigkeit', label: 'Geschwindigkeit', ico: 'ico-reaction', hint: 'Zugreihenfolge / Reaktion' },
+    { key: 'angriff',         label: 'Angriff',         ico: 'ico-attack',   hint: 'Angriffsbonus' },
   ];
 
   readonly skillClasses = Object.keys(CLASS_DEFINITIONS).sort(
     (a, b) => (CLASS_DEFINITIONS[a].tier - CLASS_DEFINITIONS[b].tier) || a.localeCompare(b),
   );
 
-  readonly overrideFields: { key: OverrideKey; label: string }[] = [
-    { key: 'maxHealth', label: '❤️ Leben' },
-    { key: 'maxEnergy', label: '⚡ Ausdauer' },
-    { key: 'maxMana',   label: '💧 Mana' },
-    { key: 'reaktion',  label: '💨 Reaktion' },
-    { key: 'turnSpeed', label: '⏱ Zug-Tempo' },
-    { key: 'angriff',   label: '⚔️ Angriff' },
+  readonly overrideFields: { key: OverrideKey; label: string; ico: string }[] = [
+    { key: 'maxHealth', label: 'Leben',     ico: 'ico-life' },
+    { key: 'maxEnergy', label: 'Ausdauer',  ico: 'ico-energy' },
+    { key: 'maxMana',   label: 'Mana',      ico: 'ico-mana' },
+    { key: 'reaktion',  label: 'Reaktion',  ico: 'ico-reaction' },
+    { key: 'turnSpeed', label: 'Zug-Tempo', ico: 'ico-turnspeed' },
+    { key: 'angriff',   label: 'Angriff',   ico: 'ico-attack' },
   ];
 
   // ─── UI state ───────────────────────────────────────────────────────────────
+  browseCategory: 'skills' | 'items' | 'spells' = 'skills';
   skillTab: 'tree' | 'library' = 'tree';
-  itemTab: 'library' | 'create' = 'library';
   expandedClass: string | null = null;
   treeQuery = '';
 
@@ -300,4 +300,10 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
   tierClass(tier: number): string { return `tier-${Math.min(tier, 5)}`; }
+
+  /** Double-slider track: left share in accent, right share in orange, split at the thumb. */
+  sliderBg(share: number): string {
+    const pct = Math.round(Math.max(0, Math.min(1, share)) * 100);
+    return `linear-gradient(to right, var(--accent, #8b5cf6) 0 ${pct}%, #f97316 ${pct}% 100%)`;
+  }
 }

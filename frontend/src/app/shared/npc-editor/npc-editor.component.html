@@ -21,18 +21,18 @@
       </div>
     </div>
 
-    <!-- ── Body: two panels ──────────────────────────────────────────── -->
+    <!-- ── Body: three panels ────────────────────────────────────────── -->
     <div class="npc-body">
 
-      <!-- LEFT: Soul / Body / Estimated stats -->
-      <div class="npc-col npc-col-left">
+      <!-- ══ COL 1 — WERTE ═══════════════════════════════════════════ -->
+      <div class="npc-col npc-col-values">
 
         <!-- SEELE -->
         <section class="npc-card">
           <div class="npc-card-head">
-            <span class="npc-card-title">🜂 Seele</span>
+            <span class="npc-card-title">Seele</span>
             <span class="npc-budget" [class.npc-budget-full]="remaining === 0">
-              {{ remaining }} / {{ soul.level }} Bonuspunkte frei
+              {{ remaining }} / {{ soul.level }} frei
             </span>
           </div>
 
@@ -43,54 +43,57 @@
 
           <div class="npc-soul-list">
             @for (cat of soulCats; track cat.key) {
-              <div class="npc-soul-row">
-                <span class="npc-soul-label">{{ cat.icon }} {{ cat.label }}</span>
+              <div class="npc-soul-row" [title]="cat.label + ' — ' + cat.hint">
+                <span class="npc-soul-label"><i class="ico" [ngClass]="cat.ico"></i> {{ cat.label }}</span>
                 <div class="npc-soul-ctrl">
                   <button (click)="subBonus(cat.key)" [disabled]="soul.bonus[cat.key] === 0">−</button>
                   <span class="npc-soul-val">{{ soul.bonus[cat.key] }}</span>
                   <button (click)="addBonus(cat.key)" [disabled]="remaining === 0">+</button>
                 </div>
-                <span class="npc-soul-hint">{{ cat.hint }}</span>
               </div>
             }
           </div>
 
-          <div class="npc-derived-grid">
-            <div class="npc-derived"><span>❤️ Leben</span><b>{{ derived.maxHealth }}</b></div>
-            <div class="npc-derived"><span>⚡ Ausdauer</span><b>{{ derived.maxEnergy }}</b></div>
-            <div class="npc-derived"><span>💧 Mana</span><b>{{ derived.maxMana }}</b></div>
-            <div class="npc-derived"><span>⚔️ Angriff</span><b>+{{ derived.angriff }}</b></div>
-            <div class="npc-derived"><span>💨 Reaktion</span><b>{{ derived.reaktion }}</b></div>
-            <div class="npc-derived"><span>⏱ Zug-Tempo</span><b>{{ derived.turnSpeed }}</b></div>
+          <!-- Derived readout (icons, hover for names) -->
+          <div class="npc-derived-row">
+            <span class="npc-dv" title="Leben"><i class="ico ico-life"></i>{{ derived.maxHealth }}</span>
+            <span class="npc-dv" title="Ausdauer"><i class="ico ico-energy"></i>{{ derived.maxEnergy }}</span>
+            <span class="npc-dv" title="Mana"><i class="ico ico-mana"></i>{{ derived.maxMana }}</span>
+            <span class="npc-dv" title="Angriffsbonus"><i class="ico ico-attack"></i>+{{ derived.angriff }}</span>
+            <span class="npc-dv" title="Reaktion"><i class="ico ico-reaction"></i>{{ derived.reaktion }}</span>
+            <span class="npc-dv" title="Zug-Tempo (Zugreihenfolge)"><i class="ico ico-turnspeed"></i>{{ derived.turnSpeed }}</span>
           </div>
         </section>
 
         <!-- KÖRPER -->
         <section class="npc-card">
-          <div class="npc-card-head"><span class="npc-card-title">🜃 Körper</span></div>
+          <div class="npc-card-head"><span class="npc-card-title">Körper</span></div>
           <div class="npc-body-grid">
-            <label class="npc-field"><span>Bewegung</span>
+            <label class="npc-field" title="Bewegung">
+              <i class="ico ico-movement"></i>
               <input type="number" [(ngModel)]="draft.body!.bewegung"></label>
-            <label class="npc-field"><span>Stabilität</span>
+            <label class="npc-field" title="Stabilität">
+              <i class="ico ico-stability"></i>
               <input type="number" [(ngModel)]="draft.body!.stabilitaet"></label>
-            <label class="npc-field"><span>Effizienz</span>
+            <label class="npc-field" title="Effizienz">
+              <i class="ico ico-effektivity"></i>
               <input type="number" [(ngModel)]="draft.body!.effizienz" [disabled]="draft.body!.useWeaponEffizienz"></label>
           </div>
-          <label class="npc-check">
+          <label class="npc-check" title="Nutzt die Effizienz der ausgerüsteten Waffe statt des festen Werts">
             <input type="checkbox" [(ngModel)]="draft.body!.useWeaponEffizienz">
-            <span>Waffen-Effizienz verwenden (statt fester Effizienz)</span>
+            <span>Waffen-Effizienz verwenden</span>
           </label>
 
-          <!-- Overrides -->
           <details class="npc-overrides">
             <summary>Seele überschreiben (optional)</summary>
-            <p class="npc-hint">Ein gesetzter Wert ersetzt den Seelen-Wert. Deaktiviert = Seele bestimmt ihn.</p>
+            <p class="npc-hint">Gesetzter Wert ersetzt den Seelen-Wert.</p>
             @for (ov of overrideFields; track ov.key) {
               <div class="npc-override-row">
-                <label class="npc-check">
+                <label class="npc-check" [title]="ov.label">
                   <input type="checkbox"
                          [checked]="overrides[ov.key] !== undefined"
                          (change)="toggleOverride(ov.key)">
+                  <i class="ico" [ngClass]="ov.ico"></i>
                   <span>{{ ov.label }}</span>
                 </label>
                 @if (overrides[ov.key] !== undefined) {
@@ -101,58 +104,66 @@
           </details>
         </section>
 
-        <!-- GESCHÄTZTE STATS -->
+        <!-- BASISWERTE -->
         <section class="npc-card">
           <div class="npc-card-head">
-            <span class="npc-card-title">📊 Geschätzte Basiswerte</span>
+            <span class="npc-card-title">Basiswerte</span>
             <span class="npc-hint">Prefill — nudgebar</span>
           </div>
 
           <div class="npc-stat-grid">
             <label class="npc-field"><span>Stärke</span><input type="number" [(ngModel)]="draft.strength"></label>
-            <label class="npc-field"><span>Geschick</span><input type="number" [(ngModel)]="draft.dexterity"></label>
+            <label class="npc-field"><span>Konst.</span><input type="number" [(ngModel)]="draft.constitution"></label>
             <label class="npc-field"><span>Tempo</span><input type="number" [(ngModel)]="draft.speed"></label>
-            <label class="npc-field"><span>Intelligenz</span><input type="number" [(ngModel)]="draft.intelligence"></label>
-            <label class="npc-field"><span>Konstitution</span><input type="number" [(ngModel)]="draft.constitution"></label>
+            <label class="npc-field"><span>Geschick</span><input type="number" [(ngModel)]="draft.dexterity"></label>
+            <label class="npc-field"><span>Intell.</span><input type="number" [(ngModel)]="draft.intelligence"></label>
             <label class="npc-field"><span>Wille</span><input type="number" [(ngModel)]="draft.wille"></label>
-            <label class="npc-field"><span>Grundbonus</span><input type="number" [(ngModel)]="draft.grundbonus"></label>
+          </div>
+
+          <div class="npc-derived-extra">
+            <label class="npc-field"><span><i class="ico ico-grundbonus"></i> Grundbonus</span><input type="number" [(ngModel)]="draft.grundbonus"></label>
             <label class="npc-field"><span>Fokus</span><input type="number" [(ngModel)]="draft.fokus"></label>
           </div>
 
+          <!-- Double sliders -->
           <div class="npc-sliders">
             <div class="npc-slider">
-              <span>Energie: Geschick ↔ Intelligenz</span>
+              <span class="npc-slider-l">Geschick {{ draft.estimate!.ausdauerShare * 100 | number:'1.0-0' }}%</span>
               <input type="range" min="0" max="1" step="0.05"
-                     [(ngModel)]="draft.estimate!.ausdauerShare" (ngModelChange)="recalc()">
-              <small>{{ (draft.estimate!.ausdauerShare * 100 | number:'1.0-0') }}% Geschick</small>
+                     [(ngModel)]="draft.estimate!.ausdauerShare" (ngModelChange)="recalc()"
+                     [style.background]="sliderBg(draft.estimate!.ausdauerShare)">
+              <span class="npc-slider-r">{{ (1 - draft.estimate!.ausdauerShare) * 100 | number:'1.0-0' }}% Intell.</span>
             </div>
             <div class="npc-slider">
-              <span>Geschw.: Tempo ↔ Wille</span>
+              <span class="npc-slider-l">Tempo {{ draft.estimate!.speedShare * 100 | number:'1.0-0' }}%</span>
               <input type="range" min="0" max="1" step="0.05"
-                     [(ngModel)]="draft.estimate!.speedShare" (ngModelChange)="recalc()">
-              <small>{{ (draft.estimate!.speedShare * 100 | number:'1.0-0') }}% Tempo</small>
+                     [(ngModel)]="draft.estimate!.speedShare" (ngModelChange)="recalc()"
+                     [style.background]="sliderBg(draft.estimate!.speedShare)">
+              <span class="npc-slider-r">{{ (1 - draft.estimate!.speedShare) * 100 | number:'1.0-0' }}% Wille</span>
             </div>
             <div class="npc-slider">
-              <span>Angriff: Stärke ↔ Geschick</span>
+              <span class="npc-slider-l">Stärke {{ draft.estimate!.strShare * 100 | number:'1.0-0' }}%</span>
               <input type="range" min="0" max="1" step="0.05"
-                     [(ngModel)]="draft.estimate!.strShare" (ngModelChange)="recalc()">
-              <small>{{ (draft.estimate!.strShare * 100 | number:'1.0-0') }}% Stärke</small>
+                     [(ngModel)]="draft.estimate!.strShare" (ngModelChange)="recalc()"
+                     [style.background]="sliderBg(draft.estimate!.strShare)">
+              <span class="npc-slider-r">{{ (1 - draft.estimate!.strShare) * 100 | number:'1.0-0' }}% Geschick</span>
             </div>
           </div>
           <button class="npc-btn-ghost" (click)="recalc()">↻ Neu schätzen (überschreibt Nudges)</button>
         </section>
       </div>
 
-      <!-- RIGHT: Skills / Items / Spells -->
-      <div class="npc-col npc-col-right">
+      <!-- ══ COL 2 — AKTUELL (current selections) ════════════════════ -->
+      <div class="npc-col npc-col-current">
 
-        <!-- SKILLS -->
         <section class="npc-card">
           <div class="npc-card-head">
-            <span class="npc-card-title">✦ Fertigkeiten</span>
+            <span class="npc-card-title">Fertigkeiten</span>
             <button class="npc-btn-add" (click)="openSkillEditor(null)">＋ Erstellen</button>
           </div>
-
+          @if (!learnedSkillDetails.length && !draft.customSkills.length) {
+            <p class="npc-empty">Noch keine — im Browser rechts auswählen.</p>
+          }
           @if (learnedSkillDetails.length) {
             <div class="npc-chip-list">
               @for (s of learnedSkillDetails; track s.id) {
@@ -175,56 +186,16 @@
               }
             </div>
           }
-
-          <div class="npc-tabs">
-            <button [class.active]="skillTab === 'tree'" (click)="skillTab = 'tree'">Klassenbaum</button>
-            <button [class.active]="skillTab === 'library'" (click)="skillTab = 'library'">Bibliothek</button>
-          </div>
-
-          @if (skillTab === 'tree') {
-            <input class="npc-search" type="text" [(ngModel)]="treeQuery" placeholder="Fertigkeit suchen…">
-            <div class="npc-tree">
-              @for (cls of skillClasses; track cls) {
-                <div class="npc-tree-class">
-                  <button class="npc-tree-head" [ngClass]="tierClass(classTier(cls))" (click)="toggleClass(cls)">
-                    <span>{{ expandedClass === cls ? '▾' : '▸' }} {{ cls }}</span>
-                    <small>T{{ classTier(cls) }}</small>
-                  </button>
-                  @if (expandedClass === cls || treeQuery) {
-                    <div class="npc-tree-skills">
-                      @for (s of skillsForClass(cls); track s.id) {
-                        <button class="npc-tree-skill" [class.picked]="hasSkill(s.id)" (click)="toggleLearnedSkill(s.id)">
-                          <span>{{ hasSkill(s.id) ? '✓' : '＋' }} {{ s.name }}</span>
-                        </button>
-                      }
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-          }
-
-          @if (skillTab === 'library') {
-            @if (availableSkills.length) {
-              <div class="npc-lib-list">
-                @for (f of availableSkills; track f.id) {
-                  <button class="npc-lib-item" (click)="addSkillFromLibrary(f)">＋ {{ f.name }}</button>
-                }
-              </div>
-            } @else {
-              <p class="npc-empty">Keine Fertigkeiten in der Bibliothek.</p>
-            }
-          }
         </section>
 
-        <!-- ITEMS -->
         <section class="npc-card">
           <div class="npc-card-head">
-            <span class="npc-card-title">🎒 Ausrüstung</span>
+            <span class="npc-card-title">Ausrüstung</span>
             <button class="npc-btn-add" (click)="openItemEditor(null)">＋ Erstellen</button>
           </div>
-
-          @if (draft.equipment.length) {
+          @if (!draft.equipment.length) {
+            <p class="npc-empty">Noch keine — im Browser rechts auswählen.</p>
+          } @else {
             <div class="npc-item-list">
               @for (it of draft.equipment; track $index) {
                 <div class="npc-item-row">
@@ -236,22 +207,13 @@
               }
             </div>
           }
-
-          @if (availableItems.length) {
-            <div class="npc-lib-list">
-              @for (f of availableItems; track f.id) {
-                <button class="npc-lib-item" (click)="addItemFromLibrary(f)">＋ {{ f.name }}</button>
-              }
-            </div>
-          } @else {
-            <p class="npc-empty">Keine Items in der Bibliothek — nutze „Erstellen".</p>
-          }
         </section>
 
-        <!-- SPELLS -->
         <section class="npc-card">
-          <div class="npc-card-head"><span class="npc-card-title">✨ Zauber</span></div>
-          @if (draft.spells.length) {
+          <div class="npc-card-head"><span class="npc-card-title">Zauber</span></div>
+          @if (!draft.spells.length) {
+            <p class="npc-empty">Noch keine — im Browser rechts auswählen.</p>
+          } @else {
             <div class="npc-item-list">
               @for (sp of draft.spells; track $index) {
                 <div class="npc-item-row">
@@ -261,21 +223,84 @@
               }
             </div>
           }
-          @if (availableSpells.length) {
-            <div class="npc-lib-list">
-              @for (f of availableSpells; track f.id) {
-                <button class="npc-lib-item" (click)="addSpellFromLibrary(f)">＋ {{ f.name }}</button>
-              }
-            </div>
-          } @else {
-            <p class="npc-empty">Keine Zauber in der Bibliothek.</p>
-          }
         </section>
 
-        <!-- NOTES -->
         <section class="npc-card">
-          <div class="npc-card-head"><span class="npc-card-title">📝 Notizen</span></div>
+          <div class="npc-card-head"><span class="npc-card-title">Notizen</span></div>
           <textarea class="npc-notes" [(ngModel)]="draft.notes" placeholder="GM-Notizen…"></textarea>
+        </section>
+      </div>
+
+      <!-- ══ COL 3 — BROWSER ═════════════════════════════════════════ -->
+      <div class="npc-col npc-col-browser">
+        <section class="npc-card npc-browser-card">
+          <div class="npc-tabs">
+            <button [class.active]="browseCategory === 'skills'" (click)="browseCategory = 'skills'">Fertigkeiten</button>
+            <button [class.active]="browseCategory === 'items'" (click)="browseCategory = 'items'">Ausrüstung</button>
+            <button [class.active]="browseCategory === 'spells'" (click)="browseCategory = 'spells'">Zauber</button>
+          </div>
+
+          <!-- SKILLS -->
+          @if (browseCategory === 'skills') {
+            <div class="npc-subtabs">
+              <button [class.active]="skillTab === 'tree'" (click)="skillTab = 'tree'">Klassenbaum</button>
+              <button [class.active]="skillTab === 'library'" (click)="skillTab = 'library'">Bibliothek</button>
+            </div>
+
+            @if (skillTab === 'tree') {
+              <input class="npc-search" type="text" [(ngModel)]="treeQuery" placeholder="Fertigkeit suchen…">
+              <div class="npc-scroll">
+                @for (cls of skillClasses; track cls) {
+                  <div class="npc-tree-class">
+                    <button class="npc-tree-head" [ngClass]="tierClass(classTier(cls))" (click)="toggleClass(cls)">
+                      <span>{{ expandedClass === cls ? '▾' : '▸' }} {{ cls }}</span>
+                      <small>T{{ classTier(cls) }}</small>
+                    </button>
+                    @if (expandedClass === cls || treeQuery) {
+                      <div class="npc-tree-skills">
+                        @for (s of skillsForClass(cls); track s.id) {
+                          <button class="npc-tree-skill" [class.picked]="hasSkill(s.id)" (click)="toggleLearnedSkill(s.id)">
+                            <span>{{ hasSkill(s.id) ? '✓' : '＋' }} {{ s.name }}</span>
+                          </button>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+            @if (skillTab === 'library') {
+              @if (availableSkills.length) {
+                <div class="npc-scroll npc-lib-list">
+                  @for (f of availableSkills; track f.id) {
+                    <button class="npc-lib-item" (click)="addSkillFromLibrary(f)">＋ {{ f.name }}</button>
+                  }
+                </div>
+              } @else { <p class="npc-empty">Keine Fertigkeiten in der Bibliothek.</p> }
+            }
+          }
+
+          <!-- ITEMS -->
+          @if (browseCategory === 'items') {
+            @if (availableItems.length) {
+              <div class="npc-scroll npc-lib-list">
+                @for (f of availableItems; track f.id) {
+                  <button class="npc-lib-item" (click)="addItemFromLibrary(f)">＋ {{ f.name }}</button>
+                }
+              </div>
+            } @else { <p class="npc-empty">Keine Items in der Bibliothek — nutze „Erstellen".</p> }
+          }
+
+          <!-- SPELLS -->
+          @if (browseCategory === 'spells') {
+            @if (availableSpells.length) {
+              <div class="npc-scroll npc-lib-list">
+                @for (f of availableSpells; track f.id) {
+                  <button class="npc-lib-item" (click)="addSpellFromLibrary(f)">＋ {{ f.name }}</button>
+                }
+              </div>
+            } @else { <p class="npc-empty">Keine Zauber in der Bibliothek.</p> }
+          }
         </section>
       </div>
     </div>
