@@ -193,6 +193,13 @@ export class SkillEditorComponent implements OnInit, OnDestroy {
         this.editSkill.embeddedMacroAction = undefined;
         this.editSkill.embeddedMacro = undefined;
       }
+    } else if (this.editSkill.type === 'passive') {
+      // Passive skills keep an optional always-on script (effectActive), but never cost/action.
+      this.editSkill.cost = undefined;
+      this.editSkill.actionType = undefined;
+      this.editSkill.embeddedMacroAction = undefined;
+      this.editSkill.embeddedMacro = undefined;
+      if (!this.editSkill.script?.trim()) this.editSkill.script = undefined;
     } else {
       this.editSkill.cost = undefined;
       this.editSkill.actionType = undefined;
@@ -201,10 +208,9 @@ export class SkillEditorComponent implements OnInit, OnDestroy {
       this.editSkill.embeddedMacro = undefined;
     }
 
-    // Perpetual only makes sense for an active skill with a script (effectActive lives there).
-    if (!(this.editSkill.type === 'active' && this.macroMode && this.editSkill.script?.trim())) {
-      this.editSkill.perpetual = undefined;
-    }
+    // Activation is now type-based (passive = always, active = while in the active tab), so the old
+    // per-skill "perpetual" flag is obsolete.
+    this.editSkill.perpetual = undefined;
 
     this.save.emit(this.editSkill);
   }

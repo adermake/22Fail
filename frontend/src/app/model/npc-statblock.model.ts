@@ -226,12 +226,34 @@ export function estimateNpcBaseStats(soul: NpcSoul, splits: NpcEstimateSplits): 
   const speedShare = clamp01(splits.speedShare);
   const strShare = clamp01(splits.strShare);
 
-  const constitution = Math.round(10 + L * b.leben);
-  const intelligence = Math.round(10 + L * b.energie * (1 - ausdauerShare));
-  const dexterity = Math.round(10 + L * (b.energie * ausdauerShare + b.angriff * (1 - strShare)));
-  const strength = Math.round(10 + L * b.angriff * strShare);
-  const speed = Math.round(10 + L * b.geschwindigkeit * speedShare);
-  const wille = Math.round(10 + L * b.geschwindigkeit * (1 - speedShare));
+  // Match real player scaling, so the 6 stats stay in a believable band:
+  //   • every stat starts at 10 and grows a uniform ~0.25 per level (base scaling)
+  //   • plus one free stat point per 3 levels (Level/3 total), distributed toward the stats the
+  //     soul actually invested in. The soul points only *weight* that small free pool — they don't
+  //     scale the stat directly (that's what produced the absurd Konsti-40).
+  const BASE = 10;
+  const baseGrowth = 0.25 * L;
+  const freePool = L / 3;
+
+  const w = {
+    strength:     b.angriff * strShare,
+    dexterity:    b.energie * ausdauerShare + b.angriff * (1 - strShare),
+    speed:        b.geschwindigkeit * speedShare,
+    intelligence: b.energie * (1 - ausdauerShare),
+    constitution: b.leben,
+    wille:        b.geschwindigkeit * (1 - speedShare),
+  };
+  const totalW = w.strength + w.dexterity + w.speed + w.intelligence + w.constitution + w.wille;
+  // No investment → spread the free pool evenly across all six.
+  const share = (weight: number) => (totalW > 0 ? (weight / totalW) : 1 / 6) * freePool;
+  const mk = (weight: number) => Math.round(BASE + baseGrowth + share(weight));
+
+  const strength = mk(w.strength);
+  const dexterity = mk(w.dexterity);
+  const speed = mk(w.speed);
+  const intelligence = mk(w.intelligence);
+  const constitution = mk(w.constitution);
+  const wille = mk(w.wille);
   const grundbonus = Math.floor(wille / 8) + Math.floor(L / 8);
 
   return { strength, dexterity, speed, intelligence, constitution, wille, grundbonus };

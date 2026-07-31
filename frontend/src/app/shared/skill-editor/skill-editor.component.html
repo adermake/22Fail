@@ -132,13 +132,10 @@
 
             @if (macroMode) {
               <div class="se-macro-block">
-                <p class="se-hint">Skript, das beim Aktivieren der Fähigkeit läuft (z.B. <code>loseResource(mana, 5)</code>).</p>
-                <label class="se-check-label se-perpetual">
-                  <input type="checkbox" [(ngModel)]="editSkill.perpetual">
-                  <span>&#x267E; Perpetuierend
-                    <span class="se-hint">&mdash; <code>effectActive {{ '{' }} … {{ '}' }}</code> gilt durchgehend, solange die F&auml;higkeit aktiv ist (wie ein Status).</span>
-                  </span>
-                </label>
+                <p class="se-hint">
+                  Aktionsmakro. <code>onTrigger</code>-Code läuft beim Aktivieren;
+                  <code>effectActive {{ '{' }} … {{ '}' }}</code> gilt, solange die Fähigkeit im Aktiv-Tab aktiv ist (wie ein Status).
+                </p>
                 <div class="se-script-host">
                   <app-script-editor
                     [value]="editSkill.script || ''"
@@ -193,11 +190,20 @@
           </div>
         }
 
-        <!-- Passive / Dice info -->
+        <!-- Passive: always-on action macro (effectActive runs permanently) -->
         @if (editSkill.type === 'passive') {
-          <div class="se-info">
-            <span class="se-info-icon">&#x1F52E;</span>
-            <span>Passive F&auml;higkeit &mdash; immer aktiv, keine Kosten.</span>
+          <div class="se-section">
+            <span class="se-section-title">Aktionsmakro / Skript</span>
+            <p class="se-hint">
+              Passiv &mdash; immer aktiv. <code>effectActive {{ '{' }} … {{ '}' }}</code> gilt dauerhaft,
+              solange die Fähigkeit vorhanden ist. (Optional)
+            </p>
+            <div class="se-script-host">
+              <app-script-editor
+                [value]="editSkill.script || ''"
+                (valueChange)="editSkill.script = $event">
+              </app-script-editor>
+            </div>
           </div>
         }
         @if (editSkill.type === 'dice_bonus') {

@@ -305,6 +305,8 @@ export class ForgingComponent implements OnInit {
 
   // ── Lifecycle ────────────────────────────────────────────────────────────────
   async ngOnInit(): Promise<void> {
+    // Unlocked (GM/NPC) forging is free-mode by definition: reflect it in the toggle.
+    if (this.unlockAll) this.accessMode = 'free';
     await this.loadLibraryData();
   }
 

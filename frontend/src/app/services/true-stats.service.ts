@@ -156,12 +156,16 @@ export class TrueStatsService {
       const eff = this.resolveStatusEffect(e.statusEffectId, e.customEffect);
       s += `|${e.statusEffectId}:${e.stacks ?? 1}:${e.duration ?? ''}#${eff?.priority ?? 0}#${eff?.script ?? ''}`;
     }
-    // Active perpetual skills also feed effectActive — toggling one must recompute.
+    // Skills/spells that feed effectActive also change the derived result — toggling one must recompute.
     const activeNames = sheet.activeSkillNames ?? [];
     for (const skill of sheet.skills ?? []) {
-      if (skill.perpetual && skill.script && activeNames.includes(skill.name)) {
+      if (skill.script && (skill.type === 'passive' || activeNames.includes(skill.name))) {
         s += `|SK:${skill.name}#${skill.script}`;
       }
+    }
+    const activeSpells = (sheet.castingSpells ?? []).filter(c => (c.remainingCast ?? 1) <= 0).map(c => c.spellName);
+    for (const spell of sheet.spells ?? []) {
+      if (spell.script && activeSpells.includes(spell.name)) s += `|SP:${spell.name}#${spell.script}`;
     }
     return s;
   }
@@ -190,19 +194,31 @@ export class TrueStatsService {
         for (const g of res.grantedSkills) skills.push({ ...g, source });
       }
 
-      // Perpetual skills: while toggled active, their effectActive block contributes just like
-      // a status effect (same collect run). Gated on activeSkillNames so it only applies while on.
-      const activeNames = sheet.activeSkillNames ?? [];
-      for (const skill of sheet.skills ?? []) {
-        if (!skill.perpetual || !skill.script || !activeNames.includes(skill.name)) continue;
-        const src = skill.script;
-        if (!src.includes('effectActive') && !src.includes('untilNextTurn')) continue;
+      // Skills/spells with an effectActive block contribute like a status effect (same collect run):
+      //  • passive skills are always on
+      //  • active skills only while toggled into the active-skills tab (activeSkillNames)
+      //  • spells only while the spell is active (fully cast: remainingCast ≤ 0)
+      const runCollect = (src: string, source: string) => {
+        if (!src.includes('effectActive') && !src.includes('untilNextTurn')) return;
         const ctx = createPlayerContext(sheet, this, {
           inCombat: true, stacks: 1, turn: 0, duration: 0, effectStrength: 0, rng: Math.random,
         });
         const res = runScript(src, ctx, { collect: true });
-        for (const m of res.modifiers) mods.push({ ...m, priority: 0, source: skill.name });
-        for (const g of res.grantedSkills) skills.push({ ...g, source: skill.name });
+        for (const m of res.modifiers) mods.push({ ...m, priority: 0, source });
+        for (const g of res.grantedSkills) skills.push({ ...g, source });
+      };
+
+      const activeNames = sheet.activeSkillNames ?? [];
+      for (const skill of sheet.skills ?? []) {
+        if (!skill.script) continue;
+        if (skill.type === 'passive' || activeNames.includes(skill.name)) runCollect(skill.script, skill.name);
+      }
+
+      const activeSpells = new Set(
+        (sheet.castingSpells ?? []).filter(c => (c.remainingCast ?? 1) <= 0).map(c => c.spellName),
+      );
+      for (const spell of sheet.spells ?? []) {
+        if (spell.script && activeSpells.has(spell.name)) runCollect(spell.script, spell.name);
       }
     } finally {
       this.collectingEffectActive = false;
