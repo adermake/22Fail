@@ -185,10 +185,11 @@ export function soulBonusRemaining(soul: NpcSoul): number {
 
 /**
  * Resolve the raw soul-derived resources/values from level + point allocation, then let the body
- * overrides win where present. `angriff`/`reaktion`/`turnSpeed` are rounded; the Ausdauer/Mana
- * split of the Energie pool uses the same slider as the Geschick/Int estimation.
+ * overrides win where present. The soul has ONE merged "Energie" pool — Ausdauer vs Mana is only a
+ * base-value-estimation concept and must NOT feed back into the soul, so maxEnergy/maxMana both
+ * default to the merged pool (independent of the estimation sliders).
  */
-export function computeSoulDerived(soul: NpcSoul, body: NpcBody | undefined, splits: NpcEstimateSplits): NpcSoulDerived {
+export function computeSoulDerived(soul: NpcSoul, body: NpcBody | undefined): NpcSoulDerived {
   const L = Math.max(1, soul.level || 1);
   const b = soul.bonus;
   const ov = body?.overrides ?? {};
@@ -199,15 +200,11 @@ export function computeSoulDerived(soul: NpcSoul, body: NpcBody | undefined, spl
   const turnSpeed = Math.round(L / 5 + (L / 2) * b.geschwindigkeit);
   const angriff = Math.round(L / 15 + (L / 6) * b.angriff);
 
-  const ausdauerShare = clamp01(splits.ausdauerShare);
-  const maxEnergy = Math.round(energie * ausdauerShare);
-  const maxMana = energie - maxEnergy;
-
   return {
     maxHealth: ov.maxHealth ?? maxHealth,
     energie,
-    maxEnergy: ov.maxEnergy ?? maxEnergy,
-    maxMana: ov.maxMana ?? maxMana,
+    maxEnergy: ov.maxEnergy ?? energie,
+    maxMana: ov.maxMana ?? energie,
     reaktion: ov.reaktion ?? reaktion,
     turnSpeed: ov.turnSpeed ?? turnSpeed,
     angriff: ov.angriff ?? angriff,
@@ -248,7 +245,7 @@ export function estimateNpcBaseStats(soul: NpcSoul, splits: NpcEstimateSplits): 
 export function applyNpcEstimation(sb: NpcStatblock): void {
   const soul = sb.soul ?? createEmptyNpcSoul();
   const splits = sb.estimate ?? createEmptyEstimateSplits();
-  const d = computeSoulDerived(soul, sb.body, splits);
+  const d = computeSoulDerived(soul, sb.body);
 
   sb.level = soul.level;
   sb.maxHealth = d.maxHealth;

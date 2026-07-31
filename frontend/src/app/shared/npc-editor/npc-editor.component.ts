@@ -32,6 +32,11 @@ import { NpcGeneratorService } from '../../services/npc-generator.service';
 import { ImageService } from '../../services/image.service';
 import { SkillEditorComponent } from '../skill-editor/skill-editor.component';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
+import { SpellEditorComponent } from '../spell-editor/spell-editor.component';
+import { ItemComponent } from '../../sheet/item/item.component';
+import { SpellComponent } from '../../sheet/spell/spell.component';
+import { CharacterSheet } from '../../model/character-sheet-model';
+import { SpellCounter } from '../../model/spell-block-model';
 
 type SoulKey = 'leben' | 'energie' | 'geschwindigkeit' | 'angriff';
 type OverrideKey = 'maxHealth' | 'maxEnergy' | 'maxMana' | 'reaktion' | 'turnSpeed' | 'angriff';
@@ -39,7 +44,7 @@ type OverrideKey = 'maxHealth' | 'maxEnergy' | 'maxMana' | 'reaktion' | 'turnSpe
 @Component({
   selector: 'app-npc-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent],
+  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent, SpellEditorComponent, ItemComponent, SpellComponent],
   templateUrl: './npc-editor.component.html',
   styleUrl: './npc-editor.component.css',
 })
@@ -94,6 +99,21 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   itemEditorOpen = false;
   editingItem: ItemBlock | null = null;
   editingItemIndex: number | null = null;
+  spellEditorOpen = false;
+  editingSpell: SpellBlock | null = null;
+  editingSpellIndex: number | null = null;
+
+  /** Stub sheet so read-only display components (app-item/app-spell) can render NPC previews.
+   * Stats are set high so item requirement badges always read as "met" (never a false red). */
+  readonly previewSheet = (() => {
+    const stat = () => ({ current: 999, base: 999, bonus: 0, free: 0, gain: 0 });
+    return {
+      statuses: [], skills: [], equipment: [], inventory: [],
+      primary_class: '', secondary_class: '', level: 1,
+      strength: stat(), dexterity: stat(), speed: stat(),
+      intelligence: stat(), constitution: stat(), chill: stat(),
+    } as unknown as CharacterSheet;
+  })();
 
   imageUploading = false;
   private prevBodyOverflow = '';
@@ -121,7 +141,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   // ─── Soul ───────────────────────────────────────────────────────────────────
   get soul(): NpcSoul { return this.draft.soul!; }
   get remaining(): number { return soulBonusRemaining(this.soul); }
-  get derived() { return computeSoulDerived(this.soul, this.draft.body, this.draft.estimate!); }
+  get derived() { return computeSoulDerived(this.soul, this.draft.body); }
 
   setLevel(v: number): void {
     this.soul.level = Math.max(1, Math.floor(v) || 1);
@@ -163,7 +183,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     const ov = this.overrides;
     if (ov[key] === undefined) {
       // Seed with the current soul-derived value so the number field starts sensibly.
-      const d = computeSoulDerived(this.soul, undefined, this.draft.estimate!);
+      const d = computeSoulDerived(this.soul, undefined);
       ov[key] = d[key];
     } else {
       ov[key] = undefined;
@@ -255,12 +275,46 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   removeEquipment(index: number): void { this.draft.equipment.splice(index, 1); }
 
-  // ─── Spells (library only) ────────────────────────────────────────────────
+  // ─── Spells: library + custom ─────────────────────────────────────────────
   addSpellFromLibrary(file: AssetFile): void {
     this.draft.spells.push(JSON.parse(JSON.stringify(file.data)) as SpellBlock);
   }
+
+  openSpellEditor(index: number | null): void {
+    this.editingSpellIndex = index;
+    this.editingSpell = index === null ? null : JSON.parse(JSON.stringify(this.draft.spells[index]));
+    this.spellEditorOpen = true;
+  }
+
+  onSpellSave(spell: SpellBlock): void {
+    if (this.editingSpellIndex === null) this.draft.spells.push(spell);
+    else this.draft.spells[this.editingSpellIndex] = spell;
+    this.closeSpellEditor();
+  }
+
+  closeSpellEditor(): void {
+    this.spellEditorOpen = false;
+    this.editingSpell = null;
+    this.editingSpellIndex = null;
+  }
+
   removeSpell(index: number): void { this.draft.spells.splice(index, 1); }
   getSpellName(spell: SpellBlock): string { return (spell as any).name ?? 'Zauber'; }
+
+  // ─── Skill preview helpers (show how a skill will read in play) ────────────
+  skillCostLabel(sk: SkillBlock): string {
+    if (!sk.cost) return '';
+    const res = sk.cost.type === 'mana' ? 'Mana' : sk.cost.type === 'energy' ? 'Ausdauer' : 'Leben';
+    return `${sk.cost.amount} ${res}${sk.cost.perRound ? '/Runde' : ''}`;
+  }
+  skillTypeLabel(t: SkillBlock['type']): string {
+    return ({ active: 'Aktiv', passive: 'Passiv', dice_bonus: 'Würfelbonus', stat_bonus: 'Stat-Bonus', talent_bonus: 'Talent' } as Record<string, string>)[t] ?? t;
+  }
+  barPct(c: SpellCounter): number {
+    const span = (c.max ?? 0) - (c.min ?? 0);
+    if (span <= 0) return 0;
+    return Math.max(0, Math.min(100, ((c.current - c.min) / span) * 100));
+  }
 
   // ─── Image ────────────────────────────────────────────────────────────────
   get imageUrl(): string | null {

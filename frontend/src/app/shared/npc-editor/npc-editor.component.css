@@ -89,10 +89,12 @@
 .npc-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .npc-derived-extra { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .npc-field { display: flex; flex-direction: column; gap: 3px; }
-.npc-field > span { display: flex; align-items: center; gap: 4px; font-size: 0.66rem; color: var(--text-muted, #9ca3af); text-transform: uppercase; letter-spacing: 0.02em; }
-.npc-body-grid .npc-field { align-items: center; }
-.npc-body-grid .npc-field > .ico { margin-bottom: 1px; }
-.npc-field input { width: 100%; padding: 5px 8px; background: var(--bg, #1e293b); border: 1px solid var(--border, #4a5568); border-radius: 6px; color: var(--text, #e5e7eb); font-size: 0.9rem; text-align: center; }
+.npc-field > span { display: flex; align-items: center; gap: 4px; font-size: 0.66rem; color: var(--text-muted, #9ca3af); text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
+/* Body fields: bigger icon sitting in front of the input */
+.npc-body-grid .npc-field { flex-direction: row; align-items: center; gap: 7px; }
+.npc-body-grid .ico { width: 26px; height: 26px; }
+.npc-stat-grid, .npc-derived-extra { align-items: end; }
+.npc-field input { width: 100%; min-width: 0; box-sizing: border-box; padding: 5px 8px; background: var(--bg, #1e293b); border: 1px solid var(--border, #4a5568); border-radius: 6px; color: var(--text, #e5e7eb); font-size: 0.9rem; text-align: center; }
 .npc-field input:focus { outline: none; border-color: var(--accent, #8b5cf6); }
 .npc-field input:disabled { opacity: 0.4; }
 
@@ -106,8 +108,9 @@
 
 /* ── Double sliders ─────────────────────────────────────────────────────── */
 .npc-sliders { display: flex; flex-direction: column; gap: 9px; }
-.npc-slider { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
-.npc-slider-l, .npc-slider-r { font-size: 0.7rem; color: var(--text-muted, #cbd5e1); white-space: nowrap; }
+.npc-slider { display: grid; grid-template-columns: 110px 1fr 110px; align-items: center; gap: 8px; }
+.npc-slider-l, .npc-slider-r { font-size: 0.7rem; color: var(--text-muted, #cbd5e1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.npc-slider-l { text-align: left; }
 .npc-slider-r { text-align: right; }
 .npc-slider input[type="range"] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; outline: none; cursor: pointer; }
 .npc-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid #1e293b; cursor: pointer; }
@@ -133,6 +136,27 @@
 .npc-row-del { color: #ef4444; opacity: 0.75; }
 .npc-row-del:hover { opacity: 1; }
 .npc-empty { font-size: 0.75rem; color: var(--text-muted, #9ca3af); font-style: italic; }
+
+/* Preview cards (skills/items/spells shown as they'll read in play) */
+.npc-preview-list { display: flex; flex-direction: column; gap: 8px; }
+.npc-preview { background: var(--bg, #1e293b); border: 1px solid var(--border, #4a5568); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.npc-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.npc-preview-name { font-size: 0.88rem; font-weight: 700; }
+.npc-preview-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.npc-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.npc-badge { font-size: 0.66rem; font-weight: 600; padding: 2px 7px; border-radius: 10px; background: rgba(255,255,255,0.07); color: var(--text-muted, #cbd5e1); }
+.npc-badge-cost { background: rgba(59,130,246,0.16); color: #60a5fa; }
+.npc-badge-perp { background: rgba(139,92,246,0.18); color: #a78bfa; }
+.npc-badge-script { background: rgba(52,211,153,0.16); color: #34d399; }
+.npc-preview-desc { font-size: 0.78rem; color: var(--text-muted, #cbd5e1); line-height: 1.4; margin: 0; white-space: pre-wrap; }
+.npc-bars { display: flex; flex-direction: column; gap: 4px; }
+.npc-bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 7px; }
+.npc-bar-label { font-size: 0.7rem; color: var(--text-muted, #9ca3af); }
+.npc-bar-track { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.npc-bar-fill { height: 100%; border-radius: 4px; }
+.npc-bar-val { font-size: 0.7rem; font-weight: 600; }
+/* Embedded real display components render on their own dark bg already */
+.npc-embed { margin: -2px; }
 .npc-notes { min-height: 64px; padding: 8px 10px; background: var(--bg, #1e293b); border: 1px solid var(--border, #4a5568); border-radius: 6px; color: var(--text, #e5e7eb); font-family: inherit; font-size: 0.85rem; resize: vertical; }
 .npc-notes:focus { outline: none; border-color: var(--accent, #8b5cf6); }
 
