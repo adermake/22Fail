@@ -36,17 +36,20 @@ import { SpellEditorOverlayComponent } from '../../sheet/spell-editor-overlay/sp
 import { ItemComponent } from '../../sheet/item/item.component';
 import { SpellComponent } from '../../sheet/spell/spell.component';
 import { SkillComponent } from '../../sheet/skill/skill.component';
+import { ForgingComponent } from '../../sheet/forging/forging.component';
 import { CharacterSheet } from '../../model/character-sheet-model';
+import { JsonPatch } from '../../model/json-patch.model';
 import { SpellCounter } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
 
 type SoulKey = 'leben' | 'energie' | 'geschwindigkeit' | 'angriff';
 type OverrideKey = 'maxHealth' | 'maxEnergy' | 'maxMana' | 'reaktion' | 'turnSpeed' | 'angriff';
+interface LibFolder { path: string; label: string; files: AssetFile[]; }
 
 @Component({
   selector: 'app-npc-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent, SpellEditorOverlayComponent, ItemComponent, SpellComponent, SkillComponent],
+  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent, SpellEditorOverlayComponent, ItemComponent, SpellComponent, SkillComponent, ForgingComponent],
   templateUrl: './npc-editor.component.html',
   styleUrl: './npc-editor.component.css',
 })
@@ -98,6 +101,12 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   /** Class-tree: the skill currently highlighted for preview (not yet added). */
   selectedTreeSkillId: string | null = null;
 
+  /** Library browser: folder groups per category + which folder is open (keyed "cat|path"). */
+  itemFolders: LibFolder[] = [];
+  spellFolders: LibFolder[] = [];
+  skillFolders: LibFolder[] = [];
+  expandedFolder: string | null = null;
+
   // Fullscreen nested editors (open flags — editingSkill/Item are null when creating new)
   skillEditorOpen = false;
   editingSkill: SkillBlock | null = null;
@@ -108,6 +117,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   spellEditorOpen = false;
   editingSpell: SpellBlock | null = null;
   editingSpellIndex: number | null = null;
+  forgeOpen = false;
 
   /** Stub sheet so read-only display components (app-item/app-spell) can render NPC previews.
    * Stats are set high so item requirement badges always read as "met" (never a false red). */
@@ -146,8 +156,46 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     }
     this.draft.learnedSkillIds = [];
 
+    // Group the library lists by their folder (like the class-tree dropdowns).
+    this.itemFolders = this.groupByFolder(this.availableItems);
+    this.spellFolders = this.groupByFolder(this.availableSpells);
+    this.skillFolders = this.groupByFolder(this.availableSkills);
+
     this.prevBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+  }
+
+  // ─── Library folder grouping ────────────────────────────────────────────────
+  private groupByFolder(files: AssetFile[]): LibFolder[] {
+    const map = new Map<string, AssetFile[]>();
+    for (const f of files ?? []) {
+      const dir = this.folderPath(f.path);
+      (map.get(dir) ?? map.set(dir, []).get(dir)!).push(f);
+    }
+    return [...map.entries()]
+      .map(([path, list]) => ({
+        path,
+        label: this.folderLabel(path),
+        files: list.sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  private folderPath(p: string): string {
+    const i = (p || '').lastIndexOf('/');
+    return i <= 0 ? '/' : p.slice(0, i);
+  }
+  private folderLabel(dir: string): string {
+    return !dir || dir === '/' ? 'Wurzel' : dir.replace(/^\//, '');
+  }
+
+  /** Toggle a library folder open (one at a time, keyed by category so lists don't collide). */
+  toggleFolder(cat: string, path: string): void {
+    const key = cat + '|' + path;
+    this.expandedFolder = this.expandedFolder === key ? null : key;
+  }
+  isFolderOpen(cat: string, path: string): boolean {
+    return this.expandedFolder === cat + '|' + path;
   }
 
   /** Build a full editable SkillBlock from a class-tree definition id (same mapping the lobby uses). */
@@ -310,6 +358,18 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   }
 
   removeEquipment(index: number): void { this.draft.equipment.splice(index, 1); }
+
+  // ─── Forge (all materials unlocked) ───────────────────────────────────────
+  openForge(): void { this.forgeOpen = true; }
+  closeForge(): void { this.forgeOpen = false; }
+
+  /** The forge emits the finished item via a patch to /inventory/-; add it to NPC equipment. */
+  onForgePatch(p: JsonPatch): void {
+    if (p.path === '/inventory/-' && p.value) {
+      this.draft.equipment.push(p.value as ItemBlock);
+    }
+    // Other patches (e.g. resource consumption) are irrelevant for an NPC — ignored.
+  }
 
   // ─── Spells: library + custom ─────────────────────────────────────────────
   addSpellFromLibrary(file: AssetFile): void {

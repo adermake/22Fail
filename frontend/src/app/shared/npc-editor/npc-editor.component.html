@@ -179,6 +179,17 @@
                     <button (click)="removeCustomSkill($index)" title="Entfernen">×</button>
                   </div>
                   <app-skill [skill]="sk" [sheet]="previewSheet" [index]="$index" [readOnly]="true"></app-skill>
+                  @if (sk.counters?.length) {
+                    <div class="npc-bars npc-embed-bars">
+                      @for (c of sk.counters; track c.id) {
+                        <div class="npc-bar">
+                          <span class="npc-bar-label">{{ c.name }}</span>
+                          <div class="npc-bar-track"><div class="npc-bar-fill" [style.width.%]="barPct(c)" [style.background]="c.color"></div></div>
+                          <span class="npc-bar-val">{{ c.current }}/{{ c.max }}</span>
+                        </div>
+                      }
+                    </div>
+                  }
                 </div>
               }
             </div>
@@ -210,7 +221,10 @@
           @if (aktuellTab === 'equipment') {
             <div class="npc-tab-head">
               <span class="npc-hint">{{ draft.equipment.length }} Gegenstand/-stände</span>
-              <button class="npc-btn-add" (click)="openItemEditor(null)">＋ Erstellen</button>
+              <span class="npc-tab-head-actions">
+                <button class="npc-btn-add npc-btn-forge" (click)="openForge()">Schmieden</button>
+                <button class="npc-btn-add" (click)="openItemEditor(null)">＋ Erstellen</button>
+              </span>
             </div>
             @if (!draft.equipment.length) {
               <p class="npc-empty">Noch keine — im Browser rechts auswählen oder erstellen.</p>
@@ -291,10 +305,22 @@
               }
             }
             @if (skillTab === 'library') {
-              @if (availableSkills.length) {
-                <div class="npc-scroll npc-lib-list">
-                  @for (f of availableSkills; track f.id) {
-                    <button class="npc-lib-item" (click)="addSkillFromLibrary(f)">＋ {{ f.name }}</button>
+              @if (skillFolders.length) {
+                <div class="npc-scroll">
+                  @for (fol of skillFolders; track fol.path) {
+                    <div class="npc-tree-class">
+                      <button class="npc-tree-head npc-folder-head" (click)="toggleFolder('skill', fol.path)">
+                        <span>{{ isFolderOpen('skill', fol.path) ? '▾' : '▸' }} <i class="ico ico-folder"></i> {{ fol.label }}</span>
+                        <small>{{ fol.files.length }}</small>
+                      </button>
+                      @if (isFolderOpen('skill', fol.path)) {
+                        <div class="npc-tree-skills">
+                          @for (f of fol.files; track f.id) {
+                            <button class="npc-tree-skill" (click)="addSkillFromLibrary(f)"><span>＋ {{ f.name }}</span></button>
+                          }
+                        </div>
+                      }
+                    </div>
                   }
                 </div>
               } @else { <p class="npc-empty">Keine Fertigkeiten in der Bibliothek.</p> }
@@ -303,10 +329,22 @@
 
           <!-- ITEMS -->
           @if (browseCategory === 'items') {
-            @if (availableItems.length) {
-              <div class="npc-scroll npc-lib-list">
-                @for (f of availableItems; track f.id) {
-                  <button class="npc-lib-item" (click)="addItemFromLibrary(f)">＋ {{ f.name }}</button>
+            @if (itemFolders.length) {
+              <div class="npc-scroll">
+                @for (fol of itemFolders; track fol.path) {
+                  <div class="npc-tree-class">
+                    <button class="npc-tree-head npc-folder-head" (click)="toggleFolder('item', fol.path)">
+                      <span>{{ isFolderOpen('item', fol.path) ? '▾' : '▸' }} <i class="ico ico-folder"></i> {{ fol.label }}</span>
+                      <small>{{ fol.files.length }}</small>
+                    </button>
+                    @if (isFolderOpen('item', fol.path)) {
+                      <div class="npc-tree-skills">
+                        @for (f of fol.files; track f.id) {
+                          <button class="npc-tree-skill" (click)="addItemFromLibrary(f)"><span>＋ {{ f.name }}</span></button>
+                        }
+                      </div>
+                    }
+                  </div>
                 }
               </div>
             } @else { <p class="npc-empty">Keine Items in der Bibliothek — nutze „Erstellen".</p> }
@@ -314,10 +352,22 @@
 
           <!-- SPELLS -->
           @if (browseCategory === 'spells') {
-            @if (availableSpells.length) {
-              <div class="npc-scroll npc-lib-list">
-                @for (f of availableSpells; track f.id) {
-                  <button class="npc-lib-item" (click)="addSpellFromLibrary(f)">＋ {{ f.name }}</button>
+            @if (spellFolders.length) {
+              <div class="npc-scroll">
+                @for (fol of spellFolders; track fol.path) {
+                  <div class="npc-tree-class">
+                    <button class="npc-tree-head npc-folder-head" (click)="toggleFolder('spell', fol.path)">
+                      <span>{{ isFolderOpen('spell', fol.path) ? '▾' : '▸' }} <i class="ico ico-folder"></i> {{ fol.label }}</span>
+                      <small>{{ fol.files.length }}</small>
+                    </button>
+                    @if (isFolderOpen('spell', fol.path)) {
+                      <div class="npc-tree-skills">
+                        @for (f of fol.files; track f.id) {
+                          <button class="npc-tree-skill" (click)="addSpellFromLibrary(f)"><span>＋ {{ f.name }}</span></button>
+                        }
+                      </div>
+                    }
+                  </div>
                 }
               </div>
             } @else { <p class="npc-empty">Keine Zauber in der Bibliothek.</p> }
@@ -338,4 +388,10 @@
 @if (spellEditorOpen) {
   <app-spell-editor-overlay [spell]="editingSpell" [availableRunes]="availableRunes"
     (save)="onSpellSave($event)" (cancel)="closeSpellEditor()"></app-spell-editor-overlay>
+}
+@if (forgeOpen) {
+  <div class="npc-forge-overlay">
+    <app-forging [sheet]="previewSheet" [unlockAll]="true"
+      (patch)="onForgePatch($event)" (closeOverlay)="closeForge()"></app-forging>
+  </div>
 }

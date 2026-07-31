@@ -42,6 +42,8 @@ interface SlotConfig {
 })
 export class ForgingComponent implements OnInit {
   @Input() sheet: CharacterSheet | null = null;
+  /** GM/NPC forging: every material available and no resource consumption (all unlocked). */
+  @Input() unlockAll = false;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() closeOverlay = new EventEmitter<void>();
 
@@ -107,9 +109,9 @@ export class ForgingComponent implements OnInit {
     let list = this.allMaterials.filter(m => {
       const compatible = isWeapon ? m.canBeWeaponMaterial : m.canBeArmorMaterial;
       if (!compatible) return false;
-      return m.isPublic || knownIds.has(m.id);
+      return this.unlockAll || m.isPublic || knownIds.has(m.id);
     });
-    if (this.accessMode === 'enforced') {
+    if (this.accessMode === 'enforced' && !this.unlockAll) {
       const owned = new Set(
         (this.sheet?.resources ?? [])
           .filter(r => r?.itemType === 'raw-material' && r.libraryAssetId && (r.amount ?? 1) > 0)
@@ -544,7 +546,7 @@ export class ForgingComponent implements OnInit {
     (item as any)['forgingData'] = forgingData;
 
     this.patch.emit({ path: '/inventory/-', value: item });
-    if (this.accessMode === 'enforced') {
+    if (this.accessMode === 'enforced' && !this.unlockAll) {
       this.consumeRawMaterials();
     }
     this.resetSession();

@@ -35,6 +35,7 @@
 .ico-stability  { --m: url(/icons/stability.svg);  color: #94a3b8; }
 .ico-effektivity{ --m: url(/icons/effektivity.svg);color: #fbbf24; }
 .ico-grundbonus { --m: url(/icons/grundbonus.svg); color: #cbd5e1; }
+.ico-folder     { --m: url(/icons/folder.svg);     color: #eab308; }
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
 .npc-header {
@@ -161,6 +162,12 @@
 /* Aktuell column: tabbed, embedded full renders */
 .npc-current-card, .npc-browser-card { flex: 1; min-height: 0; }
 .npc-tab-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.npc-tab-head-actions { display: flex; gap: 6px; }
+.npc-btn-forge { background: rgba(234,179,8,0.16); border-color: #eab308; color: #eab308; }
+.npc-btn-forge:hover { background: rgba(234,179,8,0.28); }
+
+/* Forge overlay — covers the NPC editor while forging */
+.npc-forge-overlay { position: fixed; inset: 0; z-index: 1600; background: var(--bg, #1e293b); }
 .npc-embed-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; flex: 1; }
 .npc-embed-card { position: relative; border: 1px solid var(--border, #4a5568); border-radius: 8px; padding: 4px; background: var(--bg, #1e293b); }
 .npc-embed-actions { position: absolute; top: 4px; right: 4px; z-index: 2; display: flex; gap: 3px; }
@@ -172,6 +179,7 @@
 .npc-tree-skill.selected { background: rgba(139,92,246,0.2); border-color: var(--accent, #8b5cf6); color: var(--text, #e5e7eb); }
 .npc-info-box { border: 1px solid var(--accent, #8b5cf6); border-radius: 8px; padding: 8px; background: rgba(139,92,246,0.06); display: flex; flex-direction: column; gap: 6px; }
 .npc-info-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.npc-embed-bars { padding: 6px 8px 4px; }
 .npc-notes { min-height: 64px; padding: 8px 10px; background: var(--bg, #1e293b); border: 1px solid var(--border, #4a5568); border-radius: 6px; color: var(--text, #e5e7eb); font-family: inherit; font-size: 0.85rem; resize: vertical; }
 .npc-notes:focus { outline: none; border-color: var(--accent, #8b5cf6); }
 
@@ -187,6 +195,8 @@
 
 .npc-tree-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 6px 10px; background: var(--bg, #1e293b); border: 1px solid var(--border, #4a5568); border-left-width: 3px; border-radius: 6px; color: var(--text, #e5e7eb); font-size: 0.8rem; font-weight: 600; cursor: pointer; }
 .npc-tree-head small { opacity: 0.6; font-size: 0.64rem; }
+.npc-folder-head { border-left-color: #eab308; }
+.npc-folder-head span { display: inline-flex; align-items: center; gap: 5px; }
 .npc-tree-skills { display: flex; flex-direction: column; gap: 3px; padding: 4px 0 6px 12px; }
 .npc-tree-skill { display: flex; align-items: center; justify-content: space-between; padding: 4px 9px; background: transparent; border: 1px solid transparent; border-radius: 5px; color: var(--text-muted, #cbd5e1); font-size: 0.79rem; cursor: pointer; text-align: left; }
 .npc-tree-skill:hover { background: var(--card, #2d3748); }
