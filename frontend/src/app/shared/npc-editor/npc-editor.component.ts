@@ -32,11 +32,13 @@ import { NpcGeneratorService } from '../../services/npc-generator.service';
 import { ImageService } from '../../services/image.service';
 import { SkillEditorComponent } from '../skill-editor/skill-editor.component';
 import { ItemEditorComponent } from '../../sheet/item-editor/item-editor.component';
-import { SpellEditorComponent } from '../spell-editor/spell-editor.component';
+import { SpellEditorOverlayComponent } from '../../sheet/spell-editor-overlay/spell-editor-overlay.component';
 import { ItemComponent } from '../../sheet/item/item.component';
 import { SpellComponent } from '../../sheet/spell/spell.component';
+import { SkillComponent } from '../../sheet/skill/skill.component';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SpellCounter } from '../../model/spell-block-model';
+import { RuneBlock } from '../../model/rune-block.model';
 
 type SoulKey = 'leben' | 'energie' | 'geschwindigkeit' | 'angriff';
 type OverrideKey = 'maxHealth' | 'maxEnergy' | 'maxMana' | 'reaktion' | 'turnSpeed' | 'angriff';
@@ -44,7 +46,7 @@ type OverrideKey = 'maxHealth' | 'maxEnergy' | 'maxMana' | 'reaktion' | 'turnSpe
 @Component({
   selector: 'app-npc-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent, SpellEditorComponent, ItemComponent, SpellComponent],
+  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent, SpellEditorOverlayComponent, ItemComponent, SpellComponent, SkillComponent],
   templateUrl: './npc-editor.component.html',
   styleUrl: './npc-editor.component.css',
 })
@@ -53,6 +55,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   @Input() availableSpells: AssetFile[] = [];
   @Input() availableItems: AssetFile[] = [];
   @Input() availableSkills: AssetFile[] = [];
+  @Input() availableRunes: RuneBlock[] = [];
   // Kept for backward-compatible parent bindings (weapon-gen removed from the UI).
   @Input() availableMaterials: AssetFile[] = [];
   @Input() availableForgeTraits: AssetFile[] = [];
@@ -87,10 +90,13 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   ];
 
   // ─── UI state ───────────────────────────────────────────────────────────────
+  aktuellTab: 'skills' | 'spells' | 'equipment' | 'notes' = 'skills';
   browseCategory: 'skills' | 'items' | 'spells' = 'skills';
   skillTab: 'tree' | 'library' = 'tree';
   expandedClass: string | null = null;
   treeQuery = '';
+  /** Class-tree: the skill currently highlighted for preview (not yet added). */
+  selectedTreeSkillId: string | null = null;
 
   // Fullscreen nested editors (open flags — editingSkill/Item are null when creating new)
   skillEditorOpen = false;
@@ -129,9 +135,30 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     if (!this.draft.body) this.draft.body = createEmptyNpcBody();
     if (!this.draft.estimate) this.draft.estimate = createEmptyEstimateSplits();
     if (!this.draft.body.overrides) this.draft.body.overrides = {};
+    if (!this.draft.customSkills) this.draft.customSkills = [];
+
+    // Unify: materialize any class-tree learnedSkillIds into editable SkillBlocks, so every skill
+    // renders the same and can be tweaked locally (without touching the class-tree definitions).
+    for (const id of this.draft.learnedSkillIds ?? []) {
+      if (this.draft.customSkills.some(s => s.skillId === id)) continue;
+      const sk = this.materializeSkill(id);
+      if (sk) this.draft.customSkills.push(sk);
+    }
+    this.draft.learnedSkillIds = [];
 
     this.prevBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+  }
+
+  /** Build a full editable SkillBlock from a class-tree definition id (same mapping the lobby uses). */
+  private materializeSkill(id: string): SkillBlock | null {
+    const def = SKILL_DEFINITIONS.find(s => s.id === id);
+    if (!def) return null;
+    return {
+      name: def.name, class: def.class, description: def.description,
+      type: def.type as SkillBlock['type'], enlightened: (def as any).enlightened ?? false,
+      skillId: def.id, cost: (def as any).cost, actionType: (def as any).actionType,
+    } as SkillBlock;
   }
 
   ngOnDestroy(): void {
@@ -173,7 +200,13 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   /** Re-run the prefill from soul/body/sliders into the flat gameplay fields. */
   recalc(): void {
     applyNpcEstimation(this.draft);
-    this.draft.fokus = this.npcGen.calcFokus(this.draft.intelligence, this.draft.learnedSkillIds);
+    this.recalcFokus();
+  }
+
+  /** Fokus depends on Intelligenz + any fokus-granting learned skills (kept via their skillId). */
+  private recalcFokus(): void {
+    const ids = this.draft.customSkills.filter(s => s.skillId).map(s => s.skillId!);
+    this.draft.fokus = this.npcGen.calcFokus(this.draft.intelligence, ids);
   }
 
   // ─── Body overrides ───────────────────────────────────────────────────────
@@ -205,22 +238,25 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     this.expandedClass = this.expandedClass === cls ? null : cls;
   }
 
-  hasSkill(id: string): boolean { return this.draft.learnedSkillIds.includes(id); }
-
-  toggleLearnedSkill(id: string): void {
-    if (this.hasSkill(id)) {
-      this.draft.learnedSkillIds = this.draft.learnedSkillIds.filter(x => x !== id);
-    } else {
-      this.draft.learnedSkillIds = [...this.draft.learnedSkillIds, id];
-    }
-    this.draft.fokus = this.npcGen.calcFokus(this.draft.intelligence, this.draft.learnedSkillIds);
+  /** Class-tree click just SELECTS a skill for preview — you read it, then press Hinzufügen. */
+  selectTreeSkill(id: string): void {
+    this.selectedTreeSkillId = this.selectedTreeSkillId === id ? null : id;
   }
 
-  get learnedSkillDetails() {
-    return this.draft.learnedSkillIds.map(id => {
-      const def = SKILL_DEFINITIONS.find(s => s.id === id);
-      return { id, name: def?.name ?? id, class: def?.class ?? '?', tier: CLASS_DEFINITIONS[def?.class ?? '']?.tier ?? 1 };
-    });
+  /** The selected class-tree skill materialised for the full app-skill preview. */
+  get selectedTreeSkill(): SkillBlock | null {
+    return this.selectedTreeSkillId ? this.materializeSkill(this.selectedTreeSkillId) : null;
+  }
+
+  /** True once a class-tree skill has been added to this NPC (by its definition id). */
+  isAdded(id: string): boolean { return this.draft.customSkills.some(s => s.skillId === id); }
+
+  addSelectedTreeSkill(): void {
+    const sk = this.selectedTreeSkill;
+    if (!sk) return;
+    this.draft.customSkills.push(sk);
+    this.recalcFokus();
+    this.selectedTreeSkillId = null;
   }
 
   // ─── Skills: library + custom ─────────────────────────────────────────────
@@ -247,7 +283,7 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     this.editingSkillIndex = null;
   }
 
-  removeCustomSkill(index: number): void { this.draft.customSkills.splice(index, 1); }
+  removeCustomSkill(index: number): void { this.draft.customSkills.splice(index, 1); this.recalcFokus(); }
 
   // ─── Items: library + custom ──────────────────────────────────────────────
   addItemFromLibrary(file: AssetFile): void {

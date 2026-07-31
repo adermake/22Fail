@@ -6,7 +6,7 @@
   display: flex;
   align-items: stretch;
   justify-content: stretch;
-  z-index: 1000;
+  z-index: 1600;
   animation: fadeIn 0.2s ease;
   overflow: hidden;
 }

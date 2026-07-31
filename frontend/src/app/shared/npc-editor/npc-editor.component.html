@@ -152,121 +152,87 @@
         </section>
       </div>
 
-      <!-- ══ COL 2 — AKTUELL (current selections) ════════════════════ -->
+      <!-- ══ COL 2 — AKTUELL (current selections, tabbed) ════════════ -->
       <div class="npc-col npc-col-current">
-
-        <section class="npc-card">
-          <div class="npc-card-head">
-            <span class="npc-card-title">Fertigkeiten</span>
-            <button class="npc-btn-add" (click)="openSkillEditor(null)">＋ Erstellen</button>
+        <section class="npc-card npc-current-card">
+          <div class="npc-tabs">
+            <button [class.active]="aktuellTab === 'skills'" (click)="aktuellTab = 'skills'">Fertigkeiten</button>
+            <button [class.active]="aktuellTab === 'spells'" (click)="aktuellTab = 'spells'">Zauber</button>
+            <button [class.active]="aktuellTab === 'equipment'" (click)="aktuellTab = 'equipment'">Ausrüstung</button>
+            <button [class.active]="aktuellTab === 'notes'" (click)="aktuellTab = 'notes'">Notizen</button>
           </div>
-          @if (!learnedSkillDetails.length && !draft.customSkills.length) {
-            <p class="npc-empty">Noch keine — im Browser rechts auswählen.</p>
-          }
-          @if (learnedSkillDetails.length) {
-            <div class="npc-chip-list">
-              @for (s of learnedSkillDetails; track s.id) {
-                <span class="npc-chip" [ngClass]="tierClass(s.tier)">
-                  {{ s.name }} <small>{{ s.class }}</small>
-                  <button (click)="toggleLearnedSkill(s.id)">×</button>
-                </span>
-              }
+
+          <!-- SKILLS — rendered exactly like the sheet (app-skill) -->
+          @if (aktuellTab === 'skills') {
+            <div class="npc-tab-head">
+              <span class="npc-hint">{{ draft.customSkills.length }} Fertigkeit(en)</span>
+              <button class="npc-btn-add" (click)="openSkillEditor(null)">＋ Erstellen</button>
             </div>
-          }
-          @if (draft.customSkills.length) {
-            <div class="npc-preview-list">
+            @if (!draft.customSkills.length) {
+              <p class="npc-empty">Noch keine — im Browser rechts auswählen oder erstellen.</p>
+            }
+            <div class="npc-embed-list">
               @for (sk of draft.customSkills; track $index) {
-                <div class="npc-preview">
-                  <div class="npc-preview-head">
-                    <span class="npc-preview-name">{{ sk.name }}</span>
-                    <span class="npc-preview-actions">
-                      <button class="npc-row-edit" (click)="openSkillEditor($index)">✎</button>
-                      <button class="npc-row-del" (click)="removeCustomSkill($index)">×</button>
-                    </span>
+                <div class="npc-embed-card">
+                  <div class="npc-embed-actions">
+                    <button (click)="openSkillEditor($index)" title="Bearbeiten">✎</button>
+                    <button (click)="removeCustomSkill($index)" title="Entfernen">×</button>
                   </div>
-                  <div class="npc-badges">
-                    <span class="npc-badge">{{ skillTypeLabel(sk.type) }}</span>
-                    @if (sk.actionType) { <span class="npc-badge">{{ sk.actionType }}</span> }
-                    @if (skillCostLabel(sk)) { <span class="npc-badge npc-badge-cost">{{ skillCostLabel(sk) }}</span> }
-                    @if (sk.perpetual) { <span class="npc-badge npc-badge-perp">Perpetuierend</span> }
-                    @if (sk.script) { <span class="npc-badge npc-badge-script">Skript</span> }
-                  </div>
-                  @if (sk.description) { <p class="npc-preview-desc">{{ sk.description }}</p> }
-                  @if (sk.counters?.length) {
-                    <div class="npc-bars">
-                      @for (c of sk.counters; track c.id) {
-                        <div class="npc-bar">
-                          <span class="npc-bar-label">{{ c.name }}</span>
-                          <div class="npc-bar-track"><div class="npc-bar-fill" [style.width.%]="barPct(c)" [style.background]="c.color"></div></div>
-                          <span class="npc-bar-val">{{ c.current }}/{{ c.max }}</span>
-                        </div>
-                      }
-                    </div>
-                  }
+                  <app-skill [skill]="sk" [sheet]="previewSheet" [index]="$index" [readOnly]="true"></app-skill>
                 </div>
               }
             </div>
           }
-        </section>
 
-        <section class="npc-card">
-          <div class="npc-card-head">
-            <span class="npc-card-title">Ausrüstung</span>
-            <button class="npc-btn-add" (click)="openItemEditor(null)">＋ Erstellen</button>
-          </div>
-          @if (!draft.equipment.length) {
-            <p class="npc-empty">Noch keine — im Browser rechts auswählen.</p>
-          } @else {
-            <div class="npc-preview-list">
-              @for (it of draft.equipment; track $index) {
-                <div class="npc-preview">
-                  <div class="npc-preview-head">
-                    <span class="npc-preview-name">{{ it.name }}</span>
-                    <span class="npc-preview-actions">
-                      <button class="npc-row-edit" (click)="openItemEditor($index)">✎</button>
-                      <button class="npc-row-del" (click)="removeEquipment($index)">×</button>
-                    </span>
-                  </div>
-                  <div class="npc-embed">
-                    <app-item [item]="it" [sheet]="previewSheet" [index]="$index"
-                              [startUnfolded]="true" [hideFoldControls]="true"></app-item>
-                  </div>
-                </div>
-              }
+          <!-- SPELLS -->
+          @if (aktuellTab === 'spells') {
+            <div class="npc-tab-head">
+              <span class="npc-hint">{{ draft.spells.length }} Zauber</span>
+              <button class="npc-btn-add" (click)="openSpellEditor(null)">＋ Erstellen</button>
             </div>
-          }
-        </section>
-
-        <section class="npc-card">
-          <div class="npc-card-head">
-            <span class="npc-card-title">Zauber</span>
-            <button class="npc-btn-add" (click)="openSpellEditor(null)">＋ Erstellen</button>
-          </div>
-          @if (!draft.spells.length) {
-            <p class="npc-empty">Noch keine — im Browser rechts auswählen.</p>
-          } @else {
-            <div class="npc-preview-list">
+            @if (!draft.spells.length) {
+              <p class="npc-empty">Noch keine — im Browser rechts auswählen oder erstellen.</p>
+            }
+            <div class="npc-embed-list">
               @for (sp of draft.spells; track $index) {
-                <div class="npc-preview">
-                  <div class="npc-preview-head">
-                    <span class="npc-preview-name">{{ getSpellName(sp) }}</span>
-                    <span class="npc-preview-actions">
-                      <button class="npc-row-edit" (click)="openSpellEditor($index)">✎</button>
-                      <button class="npc-row-del" (click)="removeSpell($index)">×</button>
-                    </span>
+                <div class="npc-embed-card">
+                  <div class="npc-embed-actions">
+                    <button (click)="openSpellEditor($index)" title="Bearbeiten">✎</button>
+                    <button (click)="removeSpell($index)" title="Entfernen">×</button>
                   </div>
-                  <div class="npc-embed">
-                    <app-spell [spell]="sp" [sheet]="previewSheet" [index]="$index"></app-spell>
-                  </div>
+                  <app-spell [spell]="sp" [sheet]="previewSheet" [index]="$index"></app-spell>
                 </div>
               }
             </div>
           }
-        </section>
 
-        <section class="npc-card">
-          <div class="npc-card-head"><span class="npc-card-title">Notizen</span></div>
-          <textarea class="npc-notes" [(ngModel)]="draft.notes" placeholder="GM-Notizen…"></textarea>
+          <!-- EQUIPMENT -->
+          @if (aktuellTab === 'equipment') {
+            <div class="npc-tab-head">
+              <span class="npc-hint">{{ draft.equipment.length }} Gegenstand/-stände</span>
+              <button class="npc-btn-add" (click)="openItemEditor(null)">＋ Erstellen</button>
+            </div>
+            @if (!draft.equipment.length) {
+              <p class="npc-empty">Noch keine — im Browser rechts auswählen oder erstellen.</p>
+            }
+            <div class="npc-embed-list">
+              @for (it of draft.equipment; track $index) {
+                <div class="npc-embed-card">
+                  <div class="npc-embed-actions">
+                    <button (click)="openItemEditor($index)" title="Bearbeiten">✎</button>
+                    <button (click)="removeEquipment($index)" title="Entfernen">×</button>
+                  </div>
+                  <app-item [item]="it" [sheet]="previewSheet" [index]="$index"
+                            [startUnfolded]="true" [hideFoldControls]="true"></app-item>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- NOTES -->
+          @if (aktuellTab === 'notes') {
+            <textarea class="npc-notes" [(ngModel)]="draft.notes" placeholder="GM-Notizen…"></textarea>
+          }
         </section>
       </div>
 
@@ -298,8 +264,11 @@
                     @if (expandedClass === cls || treeQuery) {
                       <div class="npc-tree-skills">
                         @for (s of skillsForClass(cls); track s.id) {
-                          <button class="npc-tree-skill" [class.picked]="hasSkill(s.id)" (click)="toggleLearnedSkill(s.id)">
-                            <span>{{ hasSkill(s.id) ? '✓' : '＋' }} {{ s.name }}</span>
+                          <button class="npc-tree-skill"
+                                  [class.picked]="isAdded(s.id)"
+                                  [class.selected]="selectedTreeSkillId === s.id"
+                                  (click)="selectTreeSkill(s.id)">
+                            <span>{{ isAdded(s.id) ? '✓' : '' }} {{ s.name }}</span>
                           </button>
                         }
                       </div>
@@ -307,6 +276,19 @@
                   </div>
                 }
               </div>
+
+              <!-- Info box: read the selected skill in full, then add it -->
+              @if (selectedTreeSkill; as sel) {
+                <div class="npc-info-box">
+                  <div class="npc-info-head">
+                    <span class="npc-hint">Vorschau</span>
+                    <button class="npc-btn-add" (click)="addSelectedTreeSkill()">
+                      {{ isAdded(selectedTreeSkillId!) ? '＋ Nochmal hinzufügen' : '＋ Hinzufügen' }}
+                    </button>
+                  </div>
+                  <app-skill [skill]="sel" [sheet]="previewSheet" [index]="0" [readOnly]="true"></app-skill>
+                </div>
+              }
             }
             @if (skillTab === 'library') {
               @if (availableSkills.length) {
@@ -354,5 +336,6 @@
   <app-item-editor [item]="editingItem" (save)="onItemSave($event)" (cancel)="closeItemEditor()"></app-item-editor>
 }
 @if (spellEditorOpen) {
-  <app-spell-editor [spell]="editingSpell" (save)="onSpellSave($event)" (cancel)="closeSpellEditor()"></app-spell-editor>
+  <app-spell-editor-overlay [spell]="editingSpell" [availableRunes]="availableRunes"
+    (save)="onSpellSave($event)" (cancel)="closeSpellEditor()"></app-spell-editor-overlay>
 }

@@ -157,6 +157,21 @@
 .npc-bar-val { font-size: 0.7rem; font-weight: 600; }
 /* Embedded real display components render on their own dark bg already */
 .npc-embed { margin: -2px; }
+
+/* Aktuell column: tabbed, embedded full renders */
+.npc-current-card, .npc-browser-card { flex: 1; min-height: 0; }
+.npc-tab-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.npc-embed-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; flex: 1; }
+.npc-embed-card { position: relative; border: 1px solid var(--border, #4a5568); border-radius: 8px; padding: 4px; background: var(--bg, #1e293b); }
+.npc-embed-actions { position: absolute; top: 4px; right: 4px; z-index: 2; display: flex; gap: 3px; }
+.npc-embed-actions button { width: 24px; height: 24px; border-radius: 5px; border: 1px solid var(--border, #4a5568); background: var(--card, #2d3748); color: var(--text-muted, #cbd5e1); cursor: pointer; font-size: 0.85rem; line-height: 1; }
+.npc-embed-actions button:hover { color: #fff; border-color: var(--accent, #8b5cf6); }
+.npc-embed-actions button:last-child:hover { color: #ef4444; border-color: #ef4444; }
+
+/* Class-tree preview info box */
+.npc-tree-skill.selected { background: rgba(139,92,246,0.2); border-color: var(--accent, #8b5cf6); color: var(--text, #e5e7eb); }
+.npc-info-box { border: 1px solid var(--accent, #8b5cf6); border-radius: 8px; padding: 8px; background: rgba(139,92,246,0.06); display: flex; flex-direction: column; gap: 6px; }
+.npc-info-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .npc-notes { min-height: 64px; padding: 8px 10px; background: var(--bg, #1e293b); border: 1px solid var(--border, #4a5568); border-radius: 6px; color: var(--text, #e5e7eb); font-family: inherit; font-size: 0.85rem; resize: vertical; }
 .npc-notes:focus { outline: none; border-color: var(--accent, #8b5cf6); }
 
