@@ -13,12 +13,15 @@ import { FormsModule } from '@angular/forms';
 import {
   NpcStatblock,
   NpcSoul,
+  NpcStatKey,
+  NPC_STAT_KEYS,
+  NpcBodyStatMod,
   createEmptyNpcSoul,
   createEmptyNpcBody,
-  createEmptyEstimateSplits,
-  soulBonusRemaining,
-  computeSoulDerived,
-  applyNpcEstimation,
+  effectiveNpcStats,
+  soulPointBudget,
+  soulPointsSpent,
+  soulPointsRemaining,
 } from '../../model/npc-statblock.model';
 import { AssetFile } from '../../model/asset-browser.model';
 import { SkillBlock } from '../../model/skill-block.model';
@@ -42,8 +45,6 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { SpellCounter } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
 
-type SoulKey = 'leben' | 'energie' | 'geschwindigkeit' | 'angriff';
-type OverrideKey = 'maxHealth' | 'maxEnergy' | 'maxMana' | 'reaktion' | 'turnSpeed' | 'angriff';
 interface LibFolder { path: string; label: string; files: AssetFile[]; }
 
 @Component({
@@ -72,25 +73,22 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   draft!: NpcStatblock;
 
   // ─── Static metadata ────────────────────────────────────────────────────────
-  readonly soulCats: { key: SoulKey; label: string; ico: string; hint: string }[] = [
-    { key: 'leben',           label: 'Leben',           ico: 'ico-life',     hint: 'Trefferpunkte' },
-    { key: 'energie',         label: 'Energie',         ico: 'ico-energy',   hint: 'Ausdauer + Mana' },
-    { key: 'geschwindigkeit', label: 'Geschwindigkeit', ico: 'ico-reaction', hint: 'Zugreihenfolge / Reaktion' },
-    { key: 'angriff',         label: 'Angriff',         ico: 'ico-attack',   hint: 'Angriffsbonus' },
-  ];
+  readonly statKeys = NPC_STAT_KEYS;
+  readonly statMeta: Record<NpcStatKey, { label: string }> = {
+    strength:     { label: 'Stärke' },
+    dexterity:    { label: 'Geschick' },
+    speed:        { label: 'Tempo' },
+    intelligence: { label: 'Intelligenz' },
+    constitution: { label: 'Konstitution' },
+    wille:        { label: 'Wille' },
+  };
 
   readonly skillClasses = Object.keys(CLASS_DEFINITIONS).sort(
     (a, b) => (CLASS_DEFINITIONS[a].tier - CLASS_DEFINITIONS[b].tier) || a.localeCompare(b),
   );
 
-  readonly overrideFields: { key: OverrideKey; label: string; ico: string }[] = [
-    { key: 'maxHealth', label: 'Leben',     ico: 'ico-life' },
-    { key: 'maxEnergy', label: 'Ausdauer',  ico: 'ico-energy' },
-    { key: 'maxMana',   label: 'Mana',      ico: 'ico-mana' },
-    { key: 'reaktion',  label: 'Reaktion',  ico: 'ico-reaction' },
-    { key: 'turnSpeed', label: 'Zug-Tempo', ico: 'ico-turnspeed' },
-    { key: 'angriff',   label: 'Angriff',   ico: 'ico-attack' },
-  ];
+  /** New body-mod being composed in the UI. */
+  newMod: NpcBodyStatMod = { stat: 'constitution', value: 1, mode: 'add' };
 
   // ─── UI state ───────────────────────────────────────────────────────────────
   aktuellTab: 'skills' | 'spells' | 'equipment' | 'notes' = 'skills';
@@ -137,14 +135,16 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   // ─── Lifecycle ──────────────────────────────────────────────────────────────
   ngOnInit(): void {
     this.draft = JSON.parse(JSON.stringify(this.statblock));
-    // Ensure the new soul/body/estimate structures exist for legacy statblocks.
+    // Ensure the soul/body structures exist for legacy statblocks (seed the soul from current stats).
     if (!this.draft.soul) {
       this.draft.soul = createEmptyNpcSoul();
       this.draft.soul.level = this.draft.level || 1;
+      for (const k of this.statKeys) {
+        this.draft.soul.stats[k] = Math.max(1, (this.draft as any)[k] || 1);
+      }
     }
     if (!this.draft.body) this.draft.body = createEmptyNpcBody();
-    if (!this.draft.estimate) this.draft.estimate = createEmptyEstimateSplits();
-    if (!this.draft.body.overrides) this.draft.body.overrides = {};
+    if (!this.draft.body.mods) this.draft.body.mods = [];
     if (!this.draft.customSkills) this.draft.customSkills = [];
 
     // Unify: materialize any class-tree learnedSkillIds into editable SkillBlocks, so every skill
@@ -160,6 +160,9 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     this.itemFolders = this.groupByFolder(this.availableItems);
     this.spellFolders = this.groupByFolder(this.availableSpells);
     this.skillFolders = this.groupByFolder(this.availableSkills);
+
+    // Sync the flat gameplay fields with the soul/body up front.
+    this.recalc();
 
     this.prevBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -213,63 +216,88 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     document.body.style.overflow = this.prevBodyOverflow;
   }
 
-  // ─── Soul ───────────────────────────────────────────────────────────────────
+  // ─── Soul: level → point budget → distribute over the 6 base stats ──────────
   get soul(): NpcSoul { return this.draft.soul!; }
-  get remaining(): number { return soulBonusRemaining(this.soul); }
-  get derived() { return computeSoulDerived(this.soul, this.draft.body); }
+  get budget(): number { return soulPointBudget(this.soul.level); }
+  get spent(): number { return soulPointsSpent(this.soul); }
+  get remaining(): number { return soulPointsRemaining(this.soul); }
+
+  /** Effective stats (soul + body mods) — what actually feeds the derived readout & gameplay. */
+  get effective(): Record<NpcStatKey, number> { return effectiveNpcStats(this.soul, this.draft.body); }
 
   setLevel(v: number): void {
     this.soul.level = Math.max(1, Math.floor(v) || 1);
-    // Trim over-allocated bonus points down to the new budget.
-    let over = -this.remaining;
-    if (over > 0) {
-      for (const c of this.soulCats) {
-        if (over <= 0) break;
-        const take = Math.min(over, this.soul.bonus[c.key]);
-        this.soul.bonus[c.key] -= take;
-        over -= take;
-      }
-    }
     this.recalc();
   }
 
-  addBonus(key: SoulKey): void {
+  incStat(key: NpcStatKey): void {
     if (this.remaining <= 0) return;
-    this.soul.bonus[key]++;
+    this.soul.stats[key]++;
+    this.recalc();
+  }
+  decStat(key: NpcStatKey): void {
+    if (this.soul.stats[key] <= 1) return; // min 1 in every stat
+    this.soul.stats[key]--;
+    this.recalc();
+  }
+  setStat(key: NpcStatKey, v: number): void {
+    let n = Math.max(1, Math.floor(v) || 1);
+    // Clamp so the total never exceeds the budget.
+    const others = this.spent - this.soul.stats[key];
+    n = Math.min(n, this.budget - others);
+    this.soul.stats[key] = Math.max(1, n);
     this.recalc();
   }
 
-  subBonus(key: SoulKey): void {
-    if (this.soul.bonus[key] <= 0) return;
-    this.soul.bonus[key]--;
+  // ─── Body: Stabilität / Effizienz + per-stat add/override mods ──────────────
+  addBodyMod(): void {
+    this.draft.body!.mods.push({ ...this.newMod });
+    this.newMod = { stat: 'constitution', value: 1, mode: 'add' };
+    this.recalc();
+  }
+  removeBodyMod(i: number): void {
+    this.draft.body!.mods.splice(i, 1);
     this.recalc();
   }
 
-  /** Re-run the prefill from soul/body/sliders into the flat gameplay fields. */
+  // ─── Derived (all from the effective 6 stats, standard player formulas) ─────
+  get derived() {
+    const e = this.effective;
+    const L = this.soul.level;
+    return {
+      maxHealth: e.constitution * 5,
+      maxEnergy: e.dexterity * 5,
+      maxMana: e.intelligence * 5,
+      fokus: this.draft.fokus,
+      reaktion: this.npcGen.calcReaktionswert(e.wille, L),
+      grundbonus: this.npcGen.calcGrundbonus(L, e.wille),
+      bewegung: Math.floor(8 + e.speed / 4),
+    };
+  }
+
+  /** Write the effective stats + all derived values into the flat gameplay fields consumers read. */
   recalc(): void {
-    applyNpcEstimation(this.draft);
+    const e = this.effective;
+    const L = this.soul.level;
+    this.draft.level = L;
+    this.draft.strength = e.strength;
+    this.draft.dexterity = e.dexterity;
+    this.draft.speed = e.speed;
+    this.draft.intelligence = e.intelligence;
+    this.draft.constitution = e.constitution;
+    this.draft.wille = e.wille;
+    this.draft.maxHealth = e.constitution * 5;
+    this.draft.maxEnergy = e.dexterity * 5;
+    this.draft.maxMana = e.intelligence * 5;
+    this.draft.reaktionswert = this.npcGen.calcReaktionswert(e.wille, L);
+    this.draft.grundbonus = this.npcGen.calcGrundbonus(L, e.wille);
     this.recalcFokus();
   }
 
   /** Fokus depends on Intelligenz + any fokus-granting learned skills (kept via their skillId). */
   private recalcFokus(): void {
     const ids = this.draft.customSkills.filter(s => s.skillId).map(s => s.skillId!);
-    this.draft.fokus = this.npcGen.calcFokus(this.draft.intelligence, ids);
-  }
-
-  // ─── Body overrides ───────────────────────────────────────────────────────
-  get overrides() { return this.draft.body!.overrides; }
-
-  toggleOverride(key: OverrideKey): void {
-    const ov = this.overrides;
-    if (ov[key] === undefined) {
-      // Seed with the current soul-derived value so the number field starts sensibly.
-      const d = computeSoulDerived(this.soul, undefined);
-      ov[key] = d[key];
-    } else {
-      ov[key] = undefined;
-    }
-    this.recalc();
+    this.draft.fokus = this.npcGen.calcFokus(this.effective.intelligence, ids);
   }
 
   // ─── Skills: class tree ───────────────────────────────────────────────────
@@ -450,10 +478,4 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
   tierClass(tier: number): string { return `tier-${Math.min(tier, 5)}`; }
-
-  /** Double-slider track: left share in accent, right share in orange, split at the thumb. */
-  sliderBg(share: number): string {
-    const pct = Math.round(Math.max(0, Math.min(1, share)) * 100);
-    return `linear-gradient(to right, var(--accent, #8b5cf6) 0 ${pct}%, #f97316 ${pct}% 100%)`;
-  }
 }

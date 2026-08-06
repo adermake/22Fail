@@ -105,190 +105,69 @@ export const NPC_ARCHETYPES: NpcArchetypeDefinition[] = [
 ];
 
 // ─── Seele / Körper (soul & body model) ───────────────────────────────────────
+// Summons, NPCs and players share ONE stat system. The soul is just a Level (= efficiency of the
+// soul rune) that grants a pool of points, distributed directly across the 6 base stats. All
+// resources/derived values come from those 6 stats via the standard player formulas.
 
-/**
- * The soul: a level plus bonus points distributed across four categories. You have `level`
- * bonus points to spend in total. Each category has a per-level base and a per-point bonus:
- *   Leben          base L×1,        +5×L  per point
- *   Energie        base L×1,        +5×L  per point   (pool = Ausdauer + Mana)
- *   Geschwindigkeit → Reaktion  base L/10, +L/4 per point
- *                   → Zug-Tempo  base L/5,  +L/2 per point   (turn-order speed, NOT movement)
- *   Angriff (Angriffsbonus) base L/15, +L/6 per point
- */
+export type NpcStatKey =
+  | 'strength' | 'dexterity' | 'speed' | 'intelligence' | 'constitution' | 'wille';
+
+export const NPC_STAT_KEYS: NpcStatKey[] =
+  ['strength', 'dexterity', 'speed', 'intelligence', 'constitution', 'wille'];
+
+/** The soul: a level plus the 6 base stats it spent its points on (min 1 each). */
 export interface NpcSoul {
   level: number;
-  bonus: { leben: number; energie: number; geschwindigkeit: number; angriff: number };
+  stats: Record<NpcStatKey, number>;
 }
 
-/**
- * The body: freely assigned by the creator. Any override left `undefined` falls through to the
- * soul-derived value; a number here replaces the soul value for that stat.
- */
+/** A body stat modifier: either added on top of, or overriding, the matching soul stat. */
+export interface NpcBodyStatMod {
+  stat: NpcStatKey;
+  value: number;
+  mode: 'add' | 'override';
+}
+
+/** The body: its own Stabilität/Effizienz, plus optional per-stat modifiers to the soul's stats. */
 export interface NpcBody {
-  bewegung: number;
   stabilitaet: number;
   effizienz: number;
   /** Use the equipped weapon's efficiency instead of the flat `effizienz` above. */
   useWeaponEffizienz: boolean;
-  /** Optional overrides — the body can overwrite parts of the soul. */
-  overrides: {
-    maxHealth?: number;
-    maxEnergy?: number;
-    maxMana?: number;
-    reaktion?: number;
-    turnSpeed?: number;
-    angriff?: number;
-  };
+  mods: NpcBodyStatMod[];
 }
 
-/**
- * Slider shares (0..1) that split each dual-mapped soul stat between two player attributes when
- * estimating the 6 base stats. Defaults 0.5 each.
- */
-export interface NpcEstimateSplits {
-  /** Energie → Geschick (this share) vs Intelligenz (1 − this). */
-  ausdauerShare: number;
-  /** Geschwindigkeit → Speed (this share) vs Wille (1 − this). */
-  speedShare: number;
-  /** Angriff → Stärke (this share) vs Geschick (1 − this). */
-  strShare: number;
+/** Point budget = 30 at level 1, +1 per level. */
+export function soulPointBudget(level: number): number {
+  return 29 + Math.max(1, Math.floor(level) || 1);
 }
-
-export interface NpcSoulDerived {
-  maxHealth: number;
-  /** Combined Energie pool before the Ausdauer/Mana split. */
-  energie: number;
-  maxEnergy: number;
-  maxMana: number;
-  reaktion: number;
-  turnSpeed: number;
-  angriff: number;
+export function soulPointsSpent(soul: NpcSoul): number {
+  return NPC_STAT_KEYS.reduce((sum, k) => sum + (soul.stats[k] || 0), 0);
+}
+export function soulPointsRemaining(soul: NpcSoul): number {
+  return soulPointBudget(soul.level) - soulPointsSpent(soul);
 }
 
 export function createEmptyNpcSoul(): NpcSoul {
-  return { level: 1, bonus: { leben: 0, energie: 0, geschwindigkeit: 0, angriff: 0 } };
+  // 30 points at level 1 spread evenly (5 each), respecting the "≥1 in every stat" rule.
+  return {
+    level: 1,
+    stats: { strength: 5, dexterity: 5, speed: 5, intelligence: 5, constitution: 5, wille: 5 },
+  };
 }
 
 export function createEmptyNpcBody(): NpcBody {
-  return { bewegung: 8, stabilitaet: 0, effizienz: 10, useWeaponEffizienz: false, overrides: {} };
+  return { stabilitaet: 0, effizienz: 10, useWeaponEffizienz: false, mods: [] };
 }
 
-export function createEmptyEstimateSplits(): NpcEstimateSplits {
-  return { ausdauerShare: 0.5, speedShare: 0.5, strShare: 0.5 };
-}
-
-/** How many bonus points are still free to distribute (level total minus spent). */
-export function soulBonusRemaining(soul: NpcSoul): number {
-  const b = soul.bonus;
-  return soul.level - (b.leben + b.energie + b.geschwindigkeit + b.angriff);
-}
-
-/**
- * Resolve the raw soul-derived resources/values from level + point allocation, then let the body
- * overrides win where present. The soul has ONE merged "Energie" pool — Ausdauer vs Mana is only a
- * base-value-estimation concept and must NOT feed back into the soul, so maxEnergy/maxMana both
- * default to the merged pool (independent of the estimation sliders).
- */
-export function computeSoulDerived(soul: NpcSoul, body: NpcBody | undefined): NpcSoulDerived {
-  const L = Math.max(1, soul.level || 1);
-  const b = soul.bonus;
-  const ov = body?.overrides ?? {};
-
-  const maxHealth = Math.round(L * 1 + 5 * L * b.leben);
-  const energie = Math.round(L * 1 + 5 * L * b.energie);
-  const reaktion = Math.round(L / 10 + (L / 4) * b.geschwindigkeit);
-  const turnSpeed = Math.round(L / 5 + (L / 2) * b.geschwindigkeit);
-  const angriff = Math.round(L / 15 + (L / 6) * b.angriff);
-
-  return {
-    maxHealth: ov.maxHealth ?? maxHealth,
-    energie,
-    maxEnergy: ov.maxEnergy ?? energie,
-    maxMana: ov.maxMana ?? energie,
-    reaktion: ov.reaktion ?? reaktion,
-    turnSpeed: ov.turnSpeed ?? turnSpeed,
-    angriff: ov.angriff ?? angriff,
-  };
-}
-
-/**
- * Estimate the 6 player base stats (+ grundbonus) from how the soul points were spent, so edge-case
- * saves have plausible values. Each stat = 10 baseline + Level × (points × slider share). These are a
- * prefill — the creator can nudge any value afterwards. Grundbonus mirrors the player formula.
- */
-export function estimateNpcBaseStats(soul: NpcSoul, splits: NpcEstimateSplits): {
-  strength: number; dexterity: number; speed: number;
-  intelligence: number; constitution: number; wille: number; grundbonus: number;
-} {
-  const L = Math.max(1, soul.level || 1);
-  const b = soul.bonus;
-  const ausdauerShare = clamp01(splits.ausdauerShare);
-  const speedShare = clamp01(splits.speedShare);
-  const strShare = clamp01(splits.strShare);
-
-  // Match real player scaling, so the 6 stats stay in a believable band:
-  //   • every stat starts at 10 and grows a uniform ~0.25 per level (base scaling)
-  //   • plus one free stat point per 3 levels (Level/3 total), distributed toward the stats the
-  //     soul actually invested in. The soul points only *weight* that small free pool — they don't
-  //     scale the stat directly (that's what produced the absurd Konsti-40).
-  const BASE = 10;
-  const baseGrowth = 0.25 * L;
-  const freePool = L / 3;
-
-  const w = {
-    strength:     b.angriff * strShare,
-    dexterity:    b.energie * ausdauerShare + b.angriff * (1 - strShare),
-    speed:        b.geschwindigkeit * speedShare,
-    intelligence: b.energie * (1 - ausdauerShare),
-    constitution: b.leben,
-    wille:        b.geschwindigkeit * (1 - speedShare),
-  };
-  const totalW = w.strength + w.dexterity + w.speed + w.intelligence + w.constitution + w.wille;
-  // No investment → spread the free pool evenly across all six.
-  const share = (weight: number) => (totalW > 0 ? (weight / totalW) : 1 / 6) * freePool;
-  const mk = (weight: number) => Math.round(BASE + baseGrowth + share(weight));
-
-  const strength = mk(w.strength);
-  const dexterity = mk(w.dexterity);
-  const speed = mk(w.speed);
-  const intelligence = mk(w.intelligence);
-  const constitution = mk(w.constitution);
-  const wille = mk(w.wille);
-  const grundbonus = Math.floor(wille / 8) + Math.floor(L / 8);
-
-  return { strength, dexterity, speed, intelligence, constitution, wille, grundbonus };
-}
-
-/**
- * Recompute every flat gameplay field from the soul/body/estimate inputs. This is the "prefill":
- * call it whenever the soul allocation or sliders change. Manual nudges to the flat fields survive
- * until the next call (i.e. until the creator touches the soul again or hits re-estimate).
- */
-export function applyNpcEstimation(sb: NpcStatblock): void {
-  const soul = sb.soul ?? createEmptyNpcSoul();
-  const splits = sb.estimate ?? createEmptyEstimateSplits();
-  const d = computeSoulDerived(soul, sb.body);
-
-  sb.level = soul.level;
-  sb.maxHealth = d.maxHealth;
-  sb.maxEnergy = d.maxEnergy;
-  sb.maxMana = d.maxMana;
-  sb.reaktionswert = d.reaktion;
-  sb.turnSpeed = d.turnSpeed;
-  sb.attackBonus = d.angriff;
-
-  const est = estimateNpcBaseStats(soul, splits);
-  sb.strength = est.strength;
-  sb.dexterity = est.dexterity;
-  sb.speed = est.speed;
-  sb.intelligence = est.intelligence;
-  sb.constitution = est.constitution;
-  sb.wille = est.wille;
-  sb.grundbonus = est.grundbonus;
-}
-
-function clamp01(n: number): number {
-  return Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0.5));
+/** The effective 6 stats after applying the body's add/override modifiers to the soul distribution. */
+export function effectiveNpcStats(soul: NpcSoul, body: NpcBody | undefined): Record<NpcStatKey, number> {
+  const out = { ...soul.stats };
+  for (const m of body?.mods ?? []) {
+    if (m.mode === 'override') out[m.stat] = m.value;
+    else out[m.stat] = (out[m.stat] || 0) + m.value;
+  }
+  return out;
 }
 
 // ─── Statblock ────────────────────────────────────────────────────────────────
@@ -337,16 +216,12 @@ export interface NpcStatblock {
   // Ausrüstung
   equipment: ItemBlock[];
 
-  // ─── Seele / Körper (new authoring model) ──────────────────────────────────
-  // The soul + body drive the flat stats/resources above via the estimation; those flat fields
-  // stay populated so all existing consumers (lobby tokens, scripting, tracker) keep working.
+  // ─── Seele / Körper (authoring model) ──────────────────────────────────────
+  // The soul (level + 6-stat distribution) and body (Stabilität/Effizienz + per-stat mods) drive the
+  // flat stats/resources above via `effectiveNpcStats` + the standard player formulas; those flat
+  // fields stay populated so existing consumers (lobby tokens, scripting, tracker) keep working.
   soul?: NpcSoul;
   body?: NpcBody;
-  estimate?: NpcEstimateSplits;
-  /** Attack bonus (Angriffsbonus) — normally used in combat instead of raw strength/dex. */
-  attackBonus?: number;
-  /** Turn-order speed (Zug-Tempo) for the battle tracker; NOT movement. */
-  turnSpeed?: number;
 
   // Token-Bild / Portrait
   defaultPortrait?: string; // Image ID used as token head when dragging onto map
@@ -395,9 +270,6 @@ export function createEmptyNpcStatblock(): NpcStatblock {
     equipment: [],
     soul: createEmptyNpcSoul(),
     body: createEmptyNpcBody(),
-    estimate: createEmptyEstimateSplits(),
-    attackBonus: 0,
-    turnSpeed: 0,
     primaryClassTarget: 'Kämpfer',
     secondaryClassTarget: '',
     classWeight: 80,

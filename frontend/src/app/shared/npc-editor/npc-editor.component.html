@@ -27,50 +27,45 @@
       <!-- ══ COL 1 — WERTE ═══════════════════════════════════════════ -->
       <div class="npc-col npc-col-values">
 
-        <!-- SEELE -->
+        <!-- SEELE: Level → Punkte → auf die 6 Grundstats verteilen -->
         <section class="npc-card">
           <div class="npc-card-head">
             <span class="npc-card-title">Seele</span>
-            <span class="npc-budget" [class.npc-budget-full]="remaining === 0">
-              {{ remaining }} / {{ soul.level }} frei
+            <span class="npc-budget" [class.npc-budget-full]="remaining === 0" [class.npc-budget-over]="remaining < 0">
+              {{ spent }} / {{ budget }} Punkte
             </span>
           </div>
 
           <div class="npc-level-row">
             <label>Level</label>
             <input type="number" min="1" [ngModel]="soul.level" (ngModelChange)="setLevel($event)">
+            <span class="npc-hint">Effizienz der Seelenrune — je Level +1 Punkt</span>
           </div>
 
           <div class="npc-soul-list">
-            @for (cat of soulCats; track cat.key) {
-              <div class="npc-soul-row" [title]="cat.label + ' — ' + cat.hint">
-                <span class="npc-soul-label"><i class="ico" [ngClass]="cat.ico"></i> {{ cat.label }}</span>
+            @for (k of statKeys; track k) {
+              <div class="npc-soul-row">
+                <span class="npc-soul-label">{{ statMeta[k].label }}</span>
                 <div class="npc-soul-ctrl">
-                  <button (click)="subBonus(cat.key)" [disabled]="soul.bonus[cat.key] === 0">−</button>
-                  <span class="npc-soul-val">{{ soul.bonus[cat.key] }}</span>
-                  <button (click)="addBonus(cat.key)" [disabled]="remaining === 0">+</button>
+                  <button (click)="decStat(k)" [disabled]="soul.stats[k] <= 1">−</button>
+                  <input class="npc-soul-input" type="number" min="1"
+                         [ngModel]="soul.stats[k]" (ngModelChange)="setStat(k, $event)">
+                  <button (click)="incStat(k)" [disabled]="remaining <= 0">+</button>
                 </div>
               </div>
             }
           </div>
-
-          <!-- Derived readout — one merged Energie (Ausdauer/Mana split lives only in estimation) -->
-          <div class="npc-derived-row">
-            <span class="npc-dv" title="Leben"><i class="ico ico-life"></i>{{ derived.maxHealth }}</span>
-            <span class="npc-dv" title="Energie (merged)"><i class="ico ico-energy"></i>{{ derived.energie }}</span>
-            <span class="npc-dv" title="Angriffsbonus"><i class="ico ico-attack"></i>+{{ derived.angriff }}</span>
-            <span class="npc-dv" title="Reaktion"><i class="ico ico-reaction"></i>{{ derived.reaktion }}</span>
-            <span class="npc-dv" title="Zug-Tempo (Zugreihenfolge)"><i class="ico ico-turnspeed"></i>{{ derived.turnSpeed }}</span>
-          </div>
+          @if (remaining !== 0) {
+            <p class="npc-hint" [class.npc-warn]="remaining < 0">
+              {{ remaining > 0 ? remaining + ' Punkt(e) übrig' : 'Budget um ' + (-remaining) + ' überschritten' }}
+            </p>
+          }
         </section>
 
-        <!-- KÖRPER -->
+        <!-- KÖRPER: Stabilität / Effizienz + per-stat Modifikatoren -->
         <section class="npc-card">
           <div class="npc-card-head"><span class="npc-card-title">Körper</span></div>
-          <div class="npc-body-grid">
-            <label class="npc-field" title="Bewegung">
-              <i class="ico ico-movement"></i>
-              <input type="number" [(ngModel)]="draft.body!.bewegung"></label>
+          <div class="npc-body-grid npc-body-grid-2">
             <label class="npc-field" title="Stabilität">
               <i class="ico ico-stability"></i>
               <input type="number" [(ngModel)]="draft.body!.stabilitaet"></label>
@@ -83,72 +78,46 @@
             <span>Waffen-Effizienz verwenden</span>
           </label>
 
-          <details class="npc-overrides">
-            <summary>Seele überschreiben (optional)</summary>
-            <p class="npc-hint">Gesetzter Wert ersetzt den Seelen-Wert.</p>
-            @for (ov of overrideFields; track ov.key) {
-              <div class="npc-override-row">
-                <label class="npc-check" [title]="ov.label">
-                  <input type="checkbox"
-                         [checked]="overrides[ov.key] !== undefined"
-                         (change)="toggleOverride(ov.key)">
-                  <i class="ico" [ngClass]="ov.ico"></i>
-                  <span>{{ ov.label }}</span>
-                </label>
-                @if (overrides[ov.key] !== undefined) {
-                  <input type="number" [(ngModel)]="overrides[ov.key]" (ngModelChange)="recalc()">
-                }
+          <div class="npc-modblock">
+            <span class="npc-section-label">Körper-Modifikatoren</span>
+            <p class="npc-hint">Addieren zum oder überschreiben den Seelen-Stat.</p>
+            @for (m of draft.body!.mods; track $index) {
+              <div class="npc-mod-row">
+                <span class="npc-mod-stat">{{ statMeta[m.stat].label }}</span>
+                <span class="npc-mod-op">{{ m.mode === 'override' ? '=' : '+' }} {{ m.value }}</span>
+                <span class="npc-mod-eff">→ {{ effective[m.stat] }}</span>
+                <button class="npc-row-del" (click)="removeBodyMod($index)">×</button>
               </div>
             }
-          </details>
+            <div class="npc-mod-add">
+              <select [(ngModel)]="newMod.stat">
+                @for (k of statKeys; track k) { <option [value]="k">{{ statMeta[k].label }}</option> }
+              </select>
+              <select [(ngModel)]="newMod.mode">
+                <option value="add">Addieren (+)</option>
+                <option value="override">Überschreiben (=)</option>
+              </select>
+              <input type="number" [(ngModel)]="newMod.value">
+              <button class="npc-btn-add" (click)="addBodyMod()">＋</button>
+            </div>
+          </div>
         </section>
 
-        <!-- BASISWERTE -->
+        <!-- ABGELEITET (aus den 6 Stats, Spieler-Formeln) -->
         <section class="npc-card">
           <div class="npc-card-head">
-            <span class="npc-card-title">Basiswerte</span>
-            <span class="npc-hint">Prefill — nudgebar</span>
+            <span class="npc-card-title">Abgeleitet</span>
+            <span class="npc-hint">aus den Stats</span>
           </div>
-
-          <div class="npc-stat-grid">
-            <label class="npc-field"><span>Stärke</span><input type="number" [(ngModel)]="draft.strength"></label>
-            <label class="npc-field"><span>Konst.</span><input type="number" [(ngModel)]="draft.constitution"></label>
-            <label class="npc-field"><span>Tempo</span><input type="number" [(ngModel)]="draft.speed"></label>
-            <label class="npc-field"><span>Geschick</span><input type="number" [(ngModel)]="draft.dexterity"></label>
-            <label class="npc-field"><span>Intell.</span><input type="number" [(ngModel)]="draft.intelligence"></label>
-            <label class="npc-field"><span>Wille</span><input type="number" [(ngModel)]="draft.wille"></label>
+          <div class="npc-derived-row">
+            <span class="npc-dv" title="Leben"><i class="ico ico-life"></i>{{ derived.maxHealth }}</span>
+            <span class="npc-dv" title="Ausdauer"><i class="ico ico-energy"></i>{{ derived.maxEnergy }}</span>
+            <span class="npc-dv" title="Mana"><i class="ico ico-mana"></i>{{ derived.maxMana }}</span>
+            <span class="npc-dv" title="Fokus">Fk {{ derived.fokus }}</span>
+            <span class="npc-dv" title="Reaktion"><i class="ico ico-reaction"></i>{{ derived.reaktion }}</span>
+            <span class="npc-dv" title="Grundbonus"><i class="ico ico-grundbonus"></i>{{ derived.grundbonus }}</span>
+            <span class="npc-dv" title="Bewegung"><i class="ico ico-movement"></i>{{ derived.bewegung }}</span>
           </div>
-
-          <div class="npc-derived-extra">
-            <label class="npc-field"><span><i class="ico ico-grundbonus"></i> Grundbonus</span><input type="number" [(ngModel)]="draft.grundbonus"></label>
-            <label class="npc-field"><span>Fokus</span><input type="number" [(ngModel)]="draft.fokus"></label>
-          </div>
-
-          <!-- Double sliders -->
-          <div class="npc-sliders">
-            <div class="npc-slider">
-              <span class="npc-slider-l">Geschick {{ draft.estimate!.ausdauerShare * 100 | number:'1.0-0' }}%</span>
-              <input type="range" min="0" max="1" step="0.05"
-                     [(ngModel)]="draft.estimate!.ausdauerShare" (ngModelChange)="recalc()"
-                     [style.background]="sliderBg(draft.estimate!.ausdauerShare)">
-              <span class="npc-slider-r">{{ (1 - draft.estimate!.ausdauerShare) * 100 | number:'1.0-0' }}% Intell.</span>
-            </div>
-            <div class="npc-slider">
-              <span class="npc-slider-l">Tempo {{ draft.estimate!.speedShare * 100 | number:'1.0-0' }}%</span>
-              <input type="range" min="0" max="1" step="0.05"
-                     [(ngModel)]="draft.estimate!.speedShare" (ngModelChange)="recalc()"
-                     [style.background]="sliderBg(draft.estimate!.speedShare)">
-              <span class="npc-slider-r">{{ (1 - draft.estimate!.speedShare) * 100 | number:'1.0-0' }}% Wille</span>
-            </div>
-            <div class="npc-slider">
-              <span class="npc-slider-l">Stärke {{ draft.estimate!.strShare * 100 | number:'1.0-0' }}%</span>
-              <input type="range" min="0" max="1" step="0.05"
-                     [(ngModel)]="draft.estimate!.strShare" (ngModelChange)="recalc()"
-                     [style.background]="sliderBg(draft.estimate!.strShare)">
-              <span class="npc-slider-r">{{ (1 - draft.estimate!.strShare) * 100 | number:'1.0-0' }}% Geschick</span>
-            </div>
-          </div>
-          <button class="npc-btn-ghost" (click)="recalc()">↻ Neu schätzen (überschreibt Nudges)</button>
         </section>
       </div>
 

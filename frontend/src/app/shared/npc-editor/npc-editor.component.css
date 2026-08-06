@@ -81,6 +81,22 @@
 .npc-soul-ctrl button:hover:not(:disabled) { background: var(--accent, #8b5cf6); border-color: var(--accent, #8b5cf6); }
 .npc-soul-ctrl button:disabled { opacity: 0.3; cursor: not-allowed; }
 .npc-soul-val { min-width: 20px; text-align: center; font-weight: 700; }
+.npc-soul-input { width: 46px; text-align: center; padding: 4px 4px; background: var(--card, #2d3748); border: 1px solid var(--border, #4a5568); border-radius: 5px; color: var(--text, #e5e7eb); font-weight: 700; font-size: 0.85rem; }
+.npc-soul-input:focus { outline: none; border-color: var(--accent, #8b5cf6); }
+.npc-budget-over { color: #ef4444 !important; background: rgba(239,68,68,0.14) !important; }
+.npc-warn { color: #ef4444; font-weight: 600; }
+.npc-body-grid-2 { grid-template-columns: 1fr 1fr; }
+
+/* Körper modifiers */
+.npc-modblock { display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--border, #4a5568); padding-top: 8px; }
+.npc-section-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted, #9ca3af); text-transform: uppercase; letter-spacing: 0.03em; }
+.npc-mod-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 8px; padding: 4px 8px; background: var(--bg, #1e293b); border-radius: 6px; font-size: 0.82rem; }
+.npc-mod-stat { font-weight: 600; }
+.npc-mod-op { color: #a78bfa; font-weight: 700; }
+.npc-mod-eff { color: var(--text-muted, #9ca3af); font-size: 0.75rem; }
+.npc-mod-add { display: grid; grid-template-columns: 1fr 1fr 64px auto; gap: 5px; align-items: center; }
+.npc-mod-add select, .npc-mod-add input { padding: 5px 6px; background: var(--bg, #1e293b); border: 1px solid var(--border, #4a5568); border-radius: 6px; color: var(--text, #e5e7eb); font-size: 0.8rem; min-width: 0; }
+.npc-mod-add .npc-btn-add { padding: 5px 10px; }
 
 .npc-derived-row { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
 .npc-dv { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: var(--bg, #1e293b); border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
