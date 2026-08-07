@@ -158,6 +158,7 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Output() quickTokenDrop = new EventEmitter<{ name: string; portrait: string; position: HexCoord }>();
   @Output() tokenCombatAdd = new EventEmitter<{ tokenId: string; team?: string }>();
   @Output() tokenCombatRemove = new EventEmitter<string>(); // Emits tokenId
+  @Output() extractSoul = new EventEmitter<string>(); // Emits tokenId (GM: capture an NPC's soul)
   @Output() tokenClick = new EventEmitter<string>(); // Emits tokenId for quick view
   @Output() hexClick = new EventEmitter<HexCoord>(); // Emits hex coord when empty hex clicked in cursor mode
   @Output() npcStatblockDrop = new EventEmitter<{ statblockId: string; name: string; portrait: string; position: HexCoord }>();
@@ -5796,6 +5797,18 @@ export class LobbyGridComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (tokenId) {
       this.tokenCombatRemove.emit(tokenId);
     }
+    this.showContextMenu.set(false);
+  }
+
+  /** The context-menu token, if it's an NPC (linked to a statblock) — gates "Seele extrahieren". */
+  contextMenuTokenIsNpc(): boolean {
+    const id = this.contextMenuTokenId();
+    return !!this.tokens.find(t => t.id === id)?.statblockId;
+  }
+
+  onExtractSoul(): void {
+    const tokenId = this.contextMenuTokenId();
+    if (tokenId) this.extractSoul.emit(tokenId);
     this.showContextMenu.set(false);
   }
 

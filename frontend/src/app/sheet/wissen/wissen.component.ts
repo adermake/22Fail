@@ -12,6 +12,8 @@ import { AssetBrowserApiService } from '../../services/asset-browser-api.service
 import { AssetFile } from '../../model/asset-browser.model';
 import { MaterialBlock, ForgeTrait } from '../../model/forging.model';
 import { IngredientBlock, ExtractorBlock, BREW_SLOT_LABELS } from '../../model/brewing.model';
+import { SoulBlock, effectiveSoulStats } from '../../model/soul-block.model';
+import { NPC_STAT_KEYS, NpcStatKey } from '../../model/npc-statblock.model';
 
 @Component({
   selector: 'app-wissen',
@@ -28,13 +30,19 @@ export class WissenComponent implements OnInit {
   private api = inject(AssetBrowserApiService);
   private cdr = inject(ChangeDetectorRef);
 
-  activeTab: 'runes' | 'materials' | 'traits' | 'ingredients' | 'extractors' = 'runes';
+  activeTab: 'runes' | 'souls' | 'materials' | 'traits' | 'ingredients' | 'extractors' = 'runes';
   isLoading = signal(false);
   knownMaterials: MaterialBlock[] = [];
   knownTraits: ForgeTrait[] = [];
   knownIngredients: IngredientBlock[] = [];
   knownExtractors: ExtractorBlock[] = [];
   slotLabels = BREW_SLOT_LABELS;
+
+  readonly statKeys = NPC_STAT_KEYS;
+  readonly statLabels: Record<NpcStatKey, string> = {
+    strength: 'STR', dexterity: 'GES', speed: 'SPD',
+    intelligence: 'INT', constitution: 'KON', wille: 'WIL',
+  };
 
   async ngOnInit(): Promise<void> {
     await Promise.all([
@@ -43,6 +51,18 @@ export class WissenComponent implements OnInit {
       this.loadIngredients(),
       this.loadExtractors(),
     ]);
+  }
+
+  // ─── Souls ──────────────────────────────────────────────────────────────────
+  get souls(): SoulBlock[] { return this.sheet.souls ?? []; }
+  soulStat(soul: SoulBlock, k: NpcStatKey): number { return effectiveSoulStats(soul)[k]; }
+
+  removeSoul(id: string): void {
+    if (!confirm('Diese Seele wirklich verwerfen?')) return;
+    const next = this.souls.filter(s => s.id !== id);
+    this.sheet.souls = next;
+    this.patch.emit({ path: 'souls', value: next });
+    this.cdr.markForCheck();
   }
 
   private async loadMaterials(): Promise<void> {
@@ -121,7 +141,7 @@ export class WissenComponent implements OnInit {
     }
   }
 
-  setTab(tab: 'runes' | 'materials' | 'traits' | 'ingredients' | 'extractors'): void {
+  setTab(tab: 'runes' | 'souls' | 'materials' | 'traits' | 'ingredients' | 'extractors'): void {
     this.activeTab = tab;
   }
 

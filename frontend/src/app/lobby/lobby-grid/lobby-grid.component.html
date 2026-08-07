@@ -171,6 +171,10 @@
         <button (click)="onAddTokenToCombat('yellow')">⚖️ Als Neutral beitreten</button>
         <button (click)="onAddTokenToCombat('blue')"><span class="app-icon i-stability"></span> Als Verbündeter beitreten</button>
         <button (click)="onRemoveTokenFromCombat()">🚪 Aus Kampf entfernen</button>
+        @if (isGM && contextMenuTokenIsNpc()) {
+          <div class="menu-divider"></div>
+          <button (click)="onExtractSoul()"><span class="app-icon i-status-effect"></span> Seele extrahieren…</button>
+        }
         <div class="menu-divider"></div>
         <button class="danger" (click)="onRemoveToken()"><span class="app-icon i-restore-trash"></span> Token entfernen</button>
       } @else if (contextMenuHex()) {

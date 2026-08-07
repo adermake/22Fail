@@ -1382,16 +1382,21 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
 
     /* ---- Key Stats Row (Weapon Efficiency + Defense) ---- */
     .key-stats-row {
-      display: flex; gap: 8px; padding: 6px 10px;
+      display: flex; flex-wrap: wrap; gap: 5px; padding: 6px 8px;
       background: #0f172a; border-bottom: 1px solid #1e293b; flex-shrink: 0;
     }
     .key-stat-item {
-      display: flex; align-items: center; gap: 6px; flex: 1;
-      background: #1a2130; border: 1px solid #2d3748; border-radius: 6px; padding: 5px 8px;
+      display: flex; align-items: center; gap: 4px; flex: 1 1 auto; min-width: 0;
+      background: #1a2130; border: 1px solid #2d3748; border-radius: 6px; padding: 4px 7px;
     }
     .key-stat-label { font-size: 10px; font-weight: 700; color: #9ca3af; }
-    .key-stat-ico { font-size: 16px; color: #9ca3af; }
-    .key-stat-val { font-size: 15px; font-weight: 800; color: #f1f5f9; margin-left: auto; }
+    .key-stat-ico { font-size: 15px; color: #9ca3af; }
+    /* Colour-coded so each stat reads at a glance */
+    .key-stat-ico.i-stability, .key-stat-ico.i-effektivity { color: #3b82f6; }
+    .key-stat-ico.i-grundbonus { color: #eab308; }
+    .key-stat-ico.i-reaction { color: #a78bfa; }
+    .key-stat-ico.i-movement { color: #34d399; }
+    .key-stat-val { font-size: 14px; font-weight: 800; color: #f1f5f9; margin-left: auto; }
 
     /* ---- Open Dice Button ---- */
     .open-dice-btn {
@@ -1595,6 +1600,13 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       if (tokenId !== this._cachedNpcSheetId || changes['npc']) {
         this._cachedNpcSheetId = tokenId;
         this._cachedNpcSheet = this.npc ? this._buildNpcSheet() : null;
+      } else if (this._cachedNpcSheet && this.npc) {
+        // Same token, but its dynamic state (active skills / casting spells) may have changed —
+        // refresh those on the cached sheet so effectActive re-collects (active skill / cast spell).
+        this._cachedNpcSheet.activeSkillNames = this.token?.activeSkillNames ?? [];
+        this._cachedNpcSheet.castingSpells = this.token?.castingSpells ?? [];
+        this._cachedNpcSheet.skills = this.allSkills;
+        this._cachedNpcSheet.spells = this.npc.spells ?? [];
       }
     }
   }
@@ -1675,13 +1687,19 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
       ];
     }
     if (this.npc) {
+      // Route through the synthetic sheet so active/passive skill & spell effectActive blocks apply.
+      const sheet = this.diceSheet;
+      const s = sheet ? this.trueStats.getAllStats(sheet) : {
+        strength: this.npc.strength, dexterity: this.npc.dexterity, speed: this.npc.speed,
+        intelligence: this.npc.intelligence, constitution: this.npc.constitution, wille: this.npc.wille,
+      };
       return [
-        { label: 'STR', value: this.npc.strength,     bonus: this.diceBonus(this.npc.strength) },
-        { label: 'GES', value: this.npc.dexterity,    bonus: this.diceBonus(this.npc.dexterity) },
-        { label: 'SPD', value: this.npc.speed,         bonus: this.diceBonus(this.npc.speed) },
-        { label: 'INT', value: this.npc.intelligence,  bonus: this.diceBonus(this.npc.intelligence) },
-        { label: 'KON', value: this.npc.constitution,  bonus: this.diceBonus(this.npc.constitution) },
-        { label: 'WIL', value: this.npc.wille,         bonus: this.diceBonus(this.npc.wille) },
+        { label: 'STR', value: s.strength,     bonus: this.diceBonus(s.strength) },
+        { label: 'GES', value: s.dexterity,    bonus: this.diceBonus(s.dexterity) },
+        { label: 'SPD', value: s.speed,         bonus: this.diceBonus(s.speed) },
+        { label: 'INT', value: s.intelligence,  bonus: this.diceBonus(s.intelligence) },
+        { label: 'KON', value: s.constitution,  bonus: this.diceBonus(s.constitution) },
+        { label: 'WIL', value: s.wille,         bonus: this.diceBonus(s.wille) },
       ];
     }
     return [];
@@ -1749,17 +1767,22 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return this.character?.equipment ?? this.npc?.equipment ?? [];
   }
 
-  /** Highest efficiency among wielded (non-stowed) weapons */
+  /** Highest efficiency among wielded (non-stowed) weapons. NPCs use their body Effizienz
+   *  unless the body opts to use the weapon's efficiency instead. */
   get weaponEfficiency(): number {
     const weapons = this.equipment.filter(i => isWieldedWeapon(i) && i.efficiency !== undefined);
-    if (weapons.length === 0) return 0;
-    return Math.max(...weapons.map(w => w.efficiency!));
+    const weaponEff = weapons.length ? Math.max(...weapons.map(w => w.efficiency!)) : 0;
+    if (this.npc) {
+      return this.npc.body?.useWeaponEffizienz ? weaponEff : (this.npc.body?.effizienz ?? 0);
+    }
+    return weaponEff;
   }
 
-  /** Combined defense value: sum of all stability / 5 (matches sheet formula) */
+  /** Combined defense value: equipment stability ÷5 (+ modifiers), plus the NPC's body Stabilität. */
   get totalStability(): number {
     const sheet = this.diceSheet;
-    return sheet ? this.trueStats.calculateTotalStability(sheet) : 0;
+    const base = sheet ? this.trueStats.calculateTotalStability(sheet) : 0;
+    return base + (this.npc?.body?.stabilitaet ?? 0);
   }
 
   /** CharacterSheet for the dice roller / spellcast window.
@@ -1789,9 +1812,12 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     sheet.intelligence = makeStatBlock('Intelligenz', npc.intelligence);
     sheet.constitution = makeStatBlock('Konstitution', npc.constitution);
     sheet.chill = makeStatBlock('Wille', npc.wille);
-    // Include skills so dice_bonus skills appear in the dice roller
+    sheet.level = npc.level;
+    // Include skills so dice_bonus skills appear in the dice roller AND passive/active effectActive
+    // blocks are collected (via TrueStatsService) into this NPC's stats.
     sheet.skills = this.allSkills;
-    // Include spells for the spellcast window
+    sheet.activeSkillNames = this.token?.activeSkillNames ?? [];
+    // Include spells for the spellcast window + spell effectActive while cast.
     sheet.spells = npc.spells ?? [];
     sheet.castingSpells = this.token?.castingSpells ?? [];
     sheet.fokusBonus = 0;
@@ -1820,17 +1846,20 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
   }
 
   get panelGrundbonus(): number {
-    if (this.character) return this.trueStats.calculateGrundbonus(this.character);
+    const sheet = this.diceSheet;
+    if (sheet) return this.trueStats.calculateGrundbonus(sheet);
     return this.npc?.grundbonus ?? 0;
   }
 
   get panelReaktion(): number {
-    if (this.character) return this.trueStats.calculateReaktionswert(this.character);
+    const sheet = this.diceSheet;
+    if (sheet) return this.trueStats.calculateReaktionswert(sheet);
     return this.npc?.reaktionswert ?? 0;
   }
 
   get panelMovement(): number {
-    if (this.character) return this.trueStats.calculateMovementSpeed(this.character);
+    const sheet = this.diceSheet;
+    if (sheet) return this.trueStats.calculateMovementSpeed(sheet);
     return this.token?.movementSpeed ?? 0;
   }
 

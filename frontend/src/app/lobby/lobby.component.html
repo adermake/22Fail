@@ -218,6 +218,7 @@
         (hexClick)="onHexClick($event)"
         [selectedTokenId]="selectedTokenId()"
         (npcStatblockDrop)="onNpcStatblockDrop($event)"
+        (extractSoul)="onExtractSoul($event)"
         (linkedTokenDrop)="onLinkedTokenDrop($event)"
         />
       </div>
@@ -340,6 +341,50 @@
             }
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+}
+<!-- ── Soul extraction dialog (GM) ─────────────────────────────────────────── -->
+@if (soulExtractStatblock(); as sb) {
+  <div class="soul-extract-overlay" (click)="cancelSoulExtract()">
+    <div class="soul-extract-modal" (click)="$event.stopPropagation()">
+      <div class="sx-head">
+        <span class="sx-title">👻 Seele extrahieren — {{ sb.name }}</span>
+        <button class="sx-close" (click)="cancelSoulExtract()">×</button>
+      </div>
+
+      <label class="sx-field">
+        <span>An Spieler</span>
+        <select [ngModel]="soulExtractTarget()" (ngModelChange)="soulExtractTarget.set($event)">
+          @for (c of worldCharacters(); track c.id) {
+            <option [value]="c.id">{{ c.sheet.name || 'Unbenannt' }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="sx-field">
+        <span>Qualität-Multiplikator</span>
+        <input type="number" min="0.1" step="0.1"
+               [ngModel]="soulExtractMultiplier()" (ngModelChange)="soulExtractMultiplier.set($event)">
+      </label>
+
+      <div class="sx-preview">
+        <span class="sx-preview-lbl">Seelen-Werte (× {{ soulExtractMultiplier() }}):</span>
+        <div class="sx-stats">
+          <span><b>STR</b> {{ sb.strength * soulExtractMultiplier() | number:'1.0-0' }}</span>
+          <span><b>GES</b> {{ sb.dexterity * soulExtractMultiplier() | number:'1.0-0' }}</span>
+          <span><b>SPD</b> {{ sb.speed * soulExtractMultiplier() | number:'1.0-0' }}</span>
+          <span><b>INT</b> {{ sb.intelligence * soulExtractMultiplier() | number:'1.0-0' }}</span>
+          <span><b>KON</b> {{ sb.constitution * soulExtractMultiplier() | number:'1.0-0' }}</span>
+          <span><b>WIL</b> {{ sb.wille * soulExtractMultiplier() | number:'1.0-0' }}</span>
+        </div>
+        <span class="sx-preview-lbl">{{ (sb.customSkills?.length || 0) }} Fähigkeit(en) werden mit übertragen.</span>
+      </div>
+
+      <div class="sx-actions">
+        <button class="sx-cancel" (click)="cancelSoulExtract()">Abbrechen</button>
+        <button class="sx-confirm" [disabled]="!soulExtractTarget()" (click)="confirmSoulExtract()">Extrahieren</button>
       </div>
     </div>
   </div>

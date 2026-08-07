@@ -7,6 +7,7 @@ import { StatBlock } from './stat-block.model';
 import { StatusBlock } from './status-block.model';
 import { RuneBlock } from './rune-block.model';
 import { ActiveStatusEffect } from './status-effect.model';
+import { SoulBlock } from './soul-block.model';
 
 export interface SheetTrashItem {
   type: 'item' | 'equipment' | 'rune' | 'spell' | 'skill';
@@ -90,6 +91,8 @@ export interface CharacterSheet {
   knownIngredientIds?: string[];   // IDs of brew ingredients (Wirkstoffe)
   knownExtractorIds?: string[];    // IDs of extractors
   knownBrewTraitIds?: string[];    // IDs of brew traits (Braumerkmale)
+  // Souls captured from beings (Wissen → Seelen), usable as summoning-rune material
+  souls?: SoulBlock[];
 }
 
 export function createEmptySheet(): CharacterSheet {

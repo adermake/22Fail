@@ -609,3 +609,21 @@
 .si-wt-c      { color: #94a3b8; }
 .si-scale-c   { color: #4ade80; }
 .si-malus-c   { color: #f87171; }
+
+/* ── Seelen (souls) tab ─────────────────────────────────────────────────── */
+.souls-tab { padding: 12px; }
+.souls-empty { color: var(--text-muted, #9ca3af); font-size: 0.85rem; font-style: italic; line-height: 1.5; }
+.souls-list { display: flex; flex-direction: column; gap: 10px; }
+.soul-card { background: var(--card, #2d3748); border: 1px solid var(--border, #4a5568); border-left: 3px solid #a78bfa; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.soul-head { display: flex; align-items: center; gap: 10px; }
+.soul-name { font-weight: 700; font-size: 0.95rem; color: var(--text, #e5e7eb); }
+.soul-quality { font-weight: 700; font-size: 0.8rem; color: #a78bfa; background: rgba(167,139,250,0.15); padding: 1px 8px; border-radius: 10px; }
+.soul-level { font-size: 0.75rem; color: var(--text-muted, #9ca3af); }
+.soul-del { margin-left: auto; background: none; border: none; color: #ef4444; font-size: 1.15rem; line-height: 1; cursor: pointer; opacity: 0.75; }
+.soul-del:hover { opacity: 1; }
+.soul-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.soul-stat { font-size: 0.78rem; text-align: center; padding: 4px 2px; background: var(--bg, #1e293b); border-radius: 6px; color: var(--text, #e5e7eb); }
+.soul-stat b { display: block; font-size: 0.62rem; color: var(--text-muted, #9ca3af); font-weight: 700; }
+.soul-skills { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.soul-skills-lbl { font-size: 0.72rem; color: var(--text-muted, #9ca3af); }
+.soul-skill-chip { font-size: 0.72rem; padding: 2px 8px; background: rgba(139,92,246,0.14); border: 1px solid rgba(139,92,246,0.35); border-radius: 10px; color: #c4b5fd; }

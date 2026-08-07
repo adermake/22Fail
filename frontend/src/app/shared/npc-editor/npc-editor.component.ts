@@ -82,6 +82,13 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     constitution: { label: 'Konstitution' },
     wille:        { label: 'Wille' },
   };
+  /** Same 2×3 arrangement as the character sheet: STR/KON/SPD then GES/INT/WIL. */
+  readonly statGrid: NpcStatKey[] = ['strength', 'constitution', 'speed', 'dexterity', 'intelligence', 'wille'];
+
+  /** Roll bonus for a stat = ⌊(stat − 10) / 4⌋ (same as players), using the effective value. */
+  rollBonus(k: NpcStatKey): number {
+    return Math.trunc((this.effective[k] - 10) / 4);
+  }
 
   readonly skillClasses = Object.keys(CLASS_DEFINITIONS).sort(
     (a, b) => (CLASS_DEFINITIONS[a].tier - CLASS_DEFINITIONS[b].tier) || a.localeCompare(b),

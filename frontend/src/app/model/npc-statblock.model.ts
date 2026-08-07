@@ -149,10 +149,10 @@ export function soulPointsRemaining(soul: NpcSoul): number {
 }
 
 export function createEmptyNpcSoul(): NpcSoul {
-  // 30 points at level 1 spread evenly (5 each), respecting the "≥1 in every stat" rule.
+  // Start with the minimum 1 in each stat; the remaining points are the creator's to distribute.
   return {
     level: 1,
-    stats: { strength: 5, dexterity: 5, speed: 5, intelligence: 5, constitution: 5, wille: 5 },
+    stats: { strength: 1, dexterity: 1, speed: 1, intelligence: 1, constitution: 1, wille: 1 },
   };
 }
 

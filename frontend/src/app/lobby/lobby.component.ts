@@ -26,6 +26,7 @@ import { prepareImageForUpload, formatBytes } from '../shared/image-upload.utils
 import { AuthService } from '../services/auth.service';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { NpcStatblock } from '../model/npc-statblock.model';
+import { soulFromNpc } from '../model/soul-block.model';
 import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType } from '../model/lobby.model';
 
 import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
@@ -108,6 +109,11 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // World state
   worldCharacters = signal<{ id: string; sheet: CharacterSheet }[]>([]);
   npcStatblocks = signal<{ id: string; name: string; statblock: NpcStatblock }[]>([]);
+
+  // Soul extraction (GM): target NPC statblock + chosen player + quality multiplier
+  soulExtractStatblock = signal<NpcStatblock | null>(null);
+  soulExtractTarget = signal<string>('');
+  soulExtractMultiplier = signal<number>(1);
 
   // Dice roll history
   rollHistory = signal<DiceRollEvent[]>([]);
@@ -1098,6 +1104,40 @@ export class LobbyComponent implements OnInit, OnDestroy {
       statblockId: data.statblockId,
     });
     this.currentTool.set('cursor');
+  }
+
+  // ─── Soul extraction (GM captures an NPC's soul for a player) ───────────────
+  onExtractSoul(tokenId: string): void {
+    if (!this.isGM()) return;
+    const token = this.currentMap()?.tokens.find(t => t.id === tokenId);
+    const sb = token?.statblockId
+      ? this.npcStatblocks().find(n => n.id === token.statblockId)?.statblock
+      : null;
+    if (!sb) return;
+    this.soulExtractStatblock.set(sb);
+    this.soulExtractMultiplier.set(1);
+    this.soulExtractTarget.set(this.worldCharacters()[0]?.id ?? '');
+  }
+
+  confirmSoulExtract(): void {
+    const sb = this.soulExtractStatblock();
+    const targetId = this.soulExtractTarget();
+    if (!sb || !targetId) return;
+    const target = this.worldCharacters().find(c => c.id === targetId);
+    if (!target) return;
+    const soul = soulFromNpc(sb, this.soulExtractMultiplier() || 1, 'npc');
+    const souls = [...(target.sheet.souls ?? []), soul];
+    target.sheet.souls = souls;
+    // Reflect locally + persist to that player's character.
+    this.worldCharacters.set([...this.worldCharacters()]);
+    this.characterSocket.sendPatch(targetId, { path: 'souls', value: souls });
+    this.cancelSoulExtract();
+  }
+
+  cancelSoulExtract(): void {
+    this.soulExtractStatblock.set(null);
+    this.soulExtractTarget.set('');
+    this.soulExtractMultiplier.set(1);
   }
 
   onLinkedTokenDrop(data: { parentId: string; linkedType: LinkedTokenType; name: string; position: HexCoord }): void {

@@ -791,3 +791,22 @@
   background: rgba(239, 68, 68, 0.35);
 }
 
+
+/* ── Soul extraction dialog ─────────────────────────────────────────────── */
+.soul-extract-overlay { position: fixed; inset: 0; z-index: 1400; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; }
+.soul-extract-modal { width: 92vw; max-width: 420px; background: #1e293b; border: 1px solid #4a5568; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; color: #e5e7eb; box-shadow: 0 24px 64px rgba(0,0,0,0.55); }
+.sx-head { display: flex; align-items: center; justify-content: space-between; }
+.sx-title { font-weight: 700; font-size: 1rem; }
+.sx-close { background: none; border: none; color: #9ca3af; font-size: 1.4rem; line-height: 1; cursor: pointer; }
+.sx-close:hover { color: #e5e7eb; }
+.sx-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; }
+.sx-field select, .sx-field input { padding: 7px 9px; background: #0f172a; border: 1px solid #4a5568; border-radius: 6px; color: #e5e7eb; font-size: 0.9rem; }
+.sx-preview { background: #0f172a; border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.sx-preview-lbl { font-size: 0.72rem; color: #9ca3af; }
+.sx-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.sx-stats span { text-align: center; font-size: 0.8rem; padding: 4px 2px; background: #1a2130; border-radius: 6px; }
+.sx-stats b { display: block; font-size: 0.6rem; color: #9ca3af; }
+.sx-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.sx-cancel { padding: 8px 16px; background: transparent; border: 1px solid #4a5568; border-radius: 6px; color: #9ca3af; cursor: pointer; }
+.sx-confirm { padding: 8px 20px; background: #8b5cf6; border: none; border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer; }
+.sx-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
