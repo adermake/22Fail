@@ -8,8 +8,10 @@ import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock, SPELL_TAG_OPTIONS, SpellStatRequirements } from '../../model/spell-block-model';
 import {
   SpellGraph, SpellNode, SpellConnection, SpellPort, PendingConnection, PortPosition,
-  buildRunePorts, FLOW_COLOR, FLOW_TYPE, NEUTRAL_RUNE_ID,
+  buildRunePorts, FLOW_COLOR, FLOW_TYPE, NEUTRAL_RUNE_ID, SUMMON_RUNE_ID,
 } from './spell-node.model';
+import { SoulBlock } from '../../model/soul-block.model';
+import { NpcStatblock } from '../../model/npc-statblock.model';
 import { ImageUrlPipe } from '../image-url.pipe';
 import { SimpleSpellCost } from './spell-cost.model';
 import { calculateSpellCost } from './spell-cost-calculator';
@@ -32,9 +34,15 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   @Input() spell: SpellBlock | null = null;
   @Input({ required: true }) availableRunes: RuneBlock[] = [];
+  /** Souls the caster owns — usable as summoning-rune material. */
+  @Input() availableSouls: SoulBlock[] = [];
   @Output() save        = new EventEmitter<SpellBlock>();
   @Output() cancel      = new EventEmitter<void>();
   @Output() deleteSpell = new EventEmitter<void>();
+  /** Ask the host to open the NPC editor for a summoning-rune node (recursion-safe: host owns it). */
+  @Output() editSummon  = new EventEmitter<{ nodeId: string }>();
+
+  readonly SUMMON_RUNE_ID = SUMMON_RUNE_ID;
   @Output() estimatedCostResult = new EventEmitter<SimpleSpellCost | null>();
 
   get isNewSpell(): boolean { return this.spell === null; }
@@ -65,16 +73,14 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       (r.tags || []).some(t => t.toLowerCase().includes(q))
     );
     // Neutral node is always pinned at the top; matches search on 'neutral' / empty query
-    const neutralMatches = !q || 'neutral'.includes(q);
-    if (neutralMatches) {
-      const neutralRune: RuneBlock = {
-        name: NEUTRAL_RUNE_ID,
-        glowColor: '#6b7280',
-        tags: ['neutral'],
-      } as RuneBlock;
-      return [neutralRune, ...filtered];
+    const specials: RuneBlock[] = [];
+    if (!q || 'neutral'.includes(q)) {
+      specials.push({ name: NEUTRAL_RUNE_ID, glowColor: '#6b7280', tags: ['neutral'] } as RuneBlock);
     }
-    return filtered;
+    if (!q || 'beschwörung'.includes(q) || 'summon'.includes(q) || 'seele'.includes(q)) {
+      specials.push({ name: SUMMON_RUNE_ID, glowColor: '#a78bfa', tags: ['beschwörung'] } as RuneBlock);
+    }
+    return [...specials, ...filtered];
   }
 
   // ── Graph state ────────────────────────────────────────────────────────────
@@ -221,6 +227,32 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     setTimeout(() => (document.querySelector('.qs-input') as HTMLInputElement | null)?.focus(), 0);
   }
 
+  // ── Summoning-rune config ──────────────────────────────────────────────────
+  /** The single selected node, iff it's a summoning rune — drives the config panel. */
+  get selectedSummonNode(): SpellNode | null {
+    if (this.selectedNodeIds.size !== 1) return null;
+    const id = [...this.selectedNodeIds][0];
+    const n = this.graph.nodes.find(x => x.id === id);
+    return n && n.runeId === SUMMON_RUNE_ID ? n : null;
+  }
+
+  assignSummonSoul(node: SpellNode, soulId: string): void {
+    const soul = this.availableSouls.find(s => s.id === soulId);
+    if (!soul) { node.summon = undefined; this.graphNodesSig.set([...this.graph.nodes]); return; }
+    node.summon = { soulId: soul.id, soulName: soul.sourceName, statblock: node.summon?.statblock ?? null };
+    this.graphNodesSig.set([...this.graph.nodes]);
+  }
+
+  requestEditSummon(node: SpellNode): void {
+    if (node.summon?.soulId) this.editSummon.emit({ nodeId: node.id });
+  }
+
+  /** Called by the host after the NPC editor built/updated a summon for a node. */
+  setSummonStatblock(nodeId: string, statblock: NpcStatblock): void {
+    const n = this.graph.nodes.find(x => x.id === nodeId);
+    if (n?.summon) { n.summon.statblock = statblock; this.graphNodesSig.set([...this.graph.nodes]); }
+  }
+
   closeQuickSearch() {
     this.qsOpen    = false;
     this.qsQuery   = '';
@@ -346,8 +378,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     const newMap = new Map<string, NodeState>();
     for (const node of this.graph.nodes) {
       const existing = this.nodeStates.get(node.id);
-      const isNeutral = node.runeId === NEUTRAL_RUNE_ID;
-      const rune = isNeutral ? { name: NEUTRAL_RUNE_ID } : this.availableRunes.find(r => r.name === node.runeId);
+      const isSpecial = node.runeId === NEUTRAL_RUNE_ID || node.runeId === SUMMON_RUNE_ID;
+      const rune = isSpecial ? { name: node.runeId } : this.availableRunes.find(r => r.name === node.runeId);
       const ports = rune ? buildRunePorts(rune as any) : [
         { id: 'flow-in',  kind: 'flow-in'  as const, name: 'Fluss' },
         { id: 'flow-out', kind: 'flow-out' as const, name: 'Fluss' },

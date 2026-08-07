@@ -396,6 +396,33 @@
     </div>
   }
 
+  <!-- ── SUMMONING-RUNE CONFIG (shown when a single summon node is selected) ── -->
+  @if (selectedSummonNode; as sn) {
+    <div class="summon-config" (mousedown)="$event.stopPropagation()">
+      <div class="summon-config-head">👻 Beschwörung</div>
+      <label class="summon-field">
+        <span>Seele</span>
+        <select [ngModel]="sn.summon?.soulId ?? ''" (ngModelChange)="assignSummonSoul(sn, $event)">
+          <option value="">— Seele wählen —</option>
+          @for (soul of availableSouls; track soul.id) {
+            <option [value]="soul.id">{{ soul.sourceName }} (×{{ soul.qualityMultiplier }})</option>
+          }
+        </select>
+      </label>
+      @if (!availableSouls.length) {
+        <p class="summon-hint">Keine Seelen vorhanden. Ein GM muss dir eine Seele geben.</p>
+      }
+      @if (sn.summon?.soulId) {
+        <button class="summon-edit-btn" (click)="requestEditSummon(sn)">
+          {{ sn.summon?.statblock ? '✎ Beschwörung bearbeiten' : '＋ Beschwörung erstellen' }}
+        </button>
+        @if (sn.summon?.statblock) {
+          <span class="summon-ok">✓ {{ sn.summon?.statblock?.name }}</span>
+        }
+      }
+    </div>
+  }
+
   <!-- ── QUICK SEARCH POPUP (drop connection into void) ─────────────────────── -->
   @if (qsOpen) {
     <div class="qs-backdrop" (mousedown)="closeQuickSearch()"></div>

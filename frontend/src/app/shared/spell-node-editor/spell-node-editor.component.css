@@ -1839,3 +1839,15 @@
   color: var(--dlc, #6b7280);
   background: color-mix(in srgb, var(--dlc, #6b7280) 10%, transparent);
 }
+
+/* ── Summoning-rune config panel ────────────────────────────────────────── */
+.summon-config { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 30;
+  background: #1e293b; border: 1px solid #a78bfa; border-radius: 10px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px; min-width: 260px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); }
+.summon-config-head { font-weight: 700; font-size: 0.85rem; color: #c4b5fd; }
+.summon-field { display: flex; flex-direction: column; gap: 3px; font-size: 0.75rem; color: #9ca3af; }
+.summon-field select { padding: 6px 8px; background: #0f172a; border: 1px solid #4a5568; border-radius: 6px; color: #e5e7eb; font-size: 0.85rem; }
+.summon-hint { font-size: 0.72rem; color: #9ca3af; font-style: italic; margin: 0; }
+.summon-edit-btn { padding: 7px 12px; background: rgba(167,139,250,0.18); border: 1px solid #a78bfa; border-radius: 6px; color: #c4b5fd; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
+.summon-edit-btn:hover { background: rgba(167,139,250,0.3); }
+.summon-ok { font-size: 0.75rem; color: #34d399; text-align: center; }

@@ -8,12 +8,22 @@ export interface SpellPort {
   name: string;
 }
 
+/** A summon bound to a summoning-rune node: which soul it uses + the built summon statblock. */
+export interface SummonRef {
+  soulId: string;
+  soulName: string;
+  /** The summon's NpcStatblock (built in the NPC editor with the soul's stats locked in). */
+  statblock: import('../../model/npc-statblock.model').NpcStatblock | null;
+}
+
 /** One rune node placed in the canvas */
 export interface SpellNode {
   id: string;     // unique in graph
   runeId: string; // reference to RuneBlock (by name)
   x: number;
   y: number;
+  /** Only on summoning-rune nodes (runeId === SUMMON_RUNE_ID). */
+  summon?: SummonRef;
 }
 
 /** A connection between two ports (flow only) */
@@ -31,6 +41,9 @@ export interface SpellConnection {
 
 /** Neutral pass-through node — hardcoded, no rune reference */
 export const NEUTRAL_RUNE_ID = '__neutral__';
+
+/** Summoning rune — hardcoded special node that binds a soul + a built summon statblock. */
+export const SUMMON_RUNE_ID = '__summon__';
 
 /** The start node (special, not a rune) */
 export interface SpellStartNode {
@@ -76,6 +89,7 @@ export function buildRunePorts(_rune: { name?: string }): SpellPort[] {
       { id: 'neutral-out', kind: 'flow-out', name: 'Ausgang' },
     ];
   }
+  // Summoning rune uses the same single flow-in/flow-out as a normal rune.
   return [
     { id: 'flow-in',  kind: 'flow-in',  name: 'Fluss' },
     { id: 'flow-out', kind: 'flow-out', name: 'Fluss' },

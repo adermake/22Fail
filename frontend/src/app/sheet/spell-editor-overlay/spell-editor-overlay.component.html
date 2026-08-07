@@ -260,9 +260,11 @@
   <app-spell-node-editor
     [spell]="buildSpellForNodeEditor()"
     [availableRunes]="availableRunes"
+    [availableSouls]="availableSouls"
     (save)="onNodeEditorSave($event)"
     (cancel)="closeNodeEditor()"
     (estimatedCostResult)="onNodeEditorCostResult($event)"
+    (editSummon)="editSummon.emit($event)"
     (deleteSpell)="closeNodeEditor()">
   </app-spell-node-editor>
 }

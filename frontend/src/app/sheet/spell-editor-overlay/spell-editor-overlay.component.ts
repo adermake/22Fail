@@ -28,9 +28,11 @@ import { actionMacroToScript } from '../../scripting/decompiler';
 export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
   @Input() spell: SpellBlock | null = null;
   @Input() availableRunes: RuneBlock[] = [];
+  @Input() availableSouls: import('../../model/soul-block.model').SoulBlock[] = [];
   @Output() save        = new EventEmitter<SpellBlock>();
   @Output() cancel      = new EventEmitter<void>();
   @Output() deleteSpell = new EventEmitter<void>();
+  @Output() editSummon  = new EventEmitter<{ nodeId: string }>();
 
   private cdr = inject(ChangeDetectorRef);
 
