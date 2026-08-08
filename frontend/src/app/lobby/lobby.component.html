@@ -347,8 +347,8 @@
 }
 <!-- ── Soul extraction dialog (GM) ─────────────────────────────────────────── -->
 @if (soulExtractStatblock(); as sb) {
-  <div class="soul-extract-overlay" (click)="cancelSoulExtract()">
-    <div class="soul-extract-modal" (click)="$event.stopPropagation()">
+  <div class="soul-extract-overlay">
+    <div class="soul-extract-modal">
       <div class="sx-head">
         <span class="sx-title">👻 Seele extrahieren — {{ sb.name }}</span>
         <button class="sx-close" (click)="cancelSoulExtract()">×</button>
@@ -372,12 +372,13 @@
       <div class="sx-preview">
         <span class="sx-preview-lbl">Seelen-Werte (× {{ soulExtractMultiplier() }}):</span>
         <div class="sx-stats">
-          <span><b>STR</b> {{ sb.strength * soulExtractMultiplier() | number:'1.0-0' }}</span>
-          <span><b>GES</b> {{ sb.dexterity * soulExtractMultiplier() | number:'1.0-0' }}</span>
-          <span><b>SPD</b> {{ sb.speed * soulExtractMultiplier() | number:'1.0-0' }}</span>
-          <span><b>INT</b> {{ sb.intelligence * soulExtractMultiplier() | number:'1.0-0' }}</span>
-          <span><b>KON</b> {{ sb.constitution * soulExtractMultiplier() | number:'1.0-0' }}</span>
-          <span><b>WIL</b> {{ sb.wille * soulExtractMultiplier() | number:'1.0-0' }}</span>
+          @for (s of soulExtractStats; track s.label) {
+            <div class="sx-stat">
+              <b>{{ s.label }}</b>
+              <span class="sx-stat-v">{{ s.value }}</span>
+              <span class="sx-stat-m">{{ s.mod >= 0 ? '+' : '' }}{{ s.mod }}</span>
+            </div>
+          }
         </div>
         <span class="sx-preview-lbl">{{ (sb.customSkills?.length || 0) }} Fähigkeit(en) werden mit übertragen.</span>
       </div>

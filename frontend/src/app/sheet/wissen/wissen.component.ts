@@ -43,6 +43,11 @@ export class WissenComponent implements OnInit {
     strength: 'STR', dexterity: 'GES', speed: 'SPD',
     intelligence: 'INT', constitution: 'KON', wille: 'WIL',
   };
+  /** Sheet's 3×2 order: STR/KON/SPD then GES/INT/WIL. */
+  readonly statGrid: NpcStatKey[] = ['strength', 'constitution', 'speed', 'dexterity', 'intelligence', 'wille'];
+  soulMod(soul: SoulBlock, k: NpcStatKey): number {
+    return Math.trunc((this.soulStat(soul, k) - 10) / 4);
+  }
 
   async ngOnInit(): Promise<void> {
     await Promise.all([

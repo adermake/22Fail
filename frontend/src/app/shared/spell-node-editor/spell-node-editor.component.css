@@ -6,7 +6,7 @@
 .sne-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 1700; /* above the spell-editor-overlay (1600) it opens from */
   background: #050811;
   display: flex;
   flex-direction: column;

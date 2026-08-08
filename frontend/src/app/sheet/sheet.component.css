@@ -621,3 +621,14 @@
   font-weight: 600;
   color: white;
 }
+/* ── New-soul loot pop ──────────────────────────────────────────────────── */
+.soul-pop-overlay { position: fixed; inset: 0; z-index: 2200; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; }
+.soul-pop { width: 90vw; max-width: 340px; background: linear-gradient(160deg, #241b3a, #1a1730); border: 1px solid #a78bfa; border-radius: 16px; padding: 22px 20px; text-align: center; box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 40px rgba(167,139,250,0.25); animation: soul-pop-in 0.28s ease; }
+@keyframes soul-pop-in { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.soul-pop-glyph { font-size: 3rem; filter: drop-shadow(0 0 12px rgba(167,139,250,0.7)); }
+.soul-pop-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #c4b5fd; margin-top: 6px; font-weight: 700; }
+.soul-pop-name { font-size: 1.35rem; font-weight: 800; color: #f1f5f9; margin: 4px 0; }
+.soul-pop-meta { font-size: 0.78rem; color: #9ca3af; }
+.soul-pop-hint { font-size: 0.78rem; color: #cbd5e1; margin-top: 10px; }
+.soul-pop-ok { margin-top: 16px; padding: 9px 26px; background: #8b5cf6; border: none; border-radius: 8px; color: #fff; font-weight: 700; cursor: pointer; }
+.soul-pop-ok:hover { filter: brightness(1.12); }

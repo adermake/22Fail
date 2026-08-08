@@ -43,8 +43,12 @@
                 <button class="soul-del" (click)="removeSoul(soul.id)" title="Verwerfen">&times;</button>
               </div>
               <div class="soul-stats">
-                @for (k of statKeys; track k) {
-                  <span class="soul-stat"><b>{{ statLabels[k] }}</b> {{ soulStat(soul, k) }}</span>
+                @for (k of statGrid; track k) {
+                  <div class="soul-stat">
+                    <b>{{ statLabels[k] }}</b>
+                    <span class="soul-stat-v">{{ soulStat(soul, k) }}</span>
+                    <span class="soul-stat-m">{{ soulMod(soul, k) >= 0 ? '+' : '' }}{{ soulMod(soul, k) }}</span>
+                  </div>
                 }
               </div>
               @if (soul.skills.length) {

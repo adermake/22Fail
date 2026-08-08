@@ -23,6 +23,7 @@ import { RunesComponent } from '../shared/runes/runes.component';
 import { CurrencyComponent } from "./currency/currency.component";
 import { LootPopupComponent } from '../shared/loot-popup/loot-popup.component';
 import { LootItem } from '../model/world.model';
+import { SoulBlock } from '../model/soul-block.model';
 import { FormsModule } from '@angular/forms';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import { ItemComponent } from './item/item.component';
@@ -363,11 +364,29 @@ export class SheetComponent implements OnInit {
     this.socket.patches$.subscribe((data) => {
       this.ngZone.run(() => {
         if (data.characterId === id) {
+          this.checkNewSouls();
           this.cdr.detectChanges();
         }
       });
     });
   }
+
+  /** Loot-pop: notice the player when a new soul lands in their sheet (e.g. GM extraction). */
+  newSoulPopup: SoulBlock | null = null;
+  private seenSoulIds: Set<string> | null = null;
+
+  private checkNewSouls(): void {
+    const souls = this.store.sheetValue?.souls ?? [];
+    if (this.seenSoulIds === null) {
+      this.seenSoulIds = new Set(souls.map(s => s.id));
+      return;
+    }
+    const fresh = souls.filter(s => !this.seenSoulIds!.has(s.id));
+    for (const s of souls) this.seenSoulIds.add(s.id);
+    if (fresh.length) this.newSoulPopup = fresh[fresh.length - 1];
+  }
+
+  dismissNewSoulPopup(): void { this.newSoulPopup = null; }
 
   onRuneEditingChange(index: number, isEditing: boolean) {
     const newSet = new Set(this.editingRunes);

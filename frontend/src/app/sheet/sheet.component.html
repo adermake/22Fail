@@ -92,6 +92,19 @@
   </app-loot-popup>
 }
 
+@if (newSoulPopup; as soul) {
+  <div class="soul-pop-overlay" (click)="dismissNewSoulPopup()">
+    <div class="soul-pop" (click)="$event.stopPropagation()">
+      <div class="soul-pop-glyph">👻</div>
+      <div class="soul-pop-title">Neue Seele erhalten</div>
+      <div class="soul-pop-name">{{ soul.sourceName }}</div>
+      <div class="soul-pop-meta">Level {{ soul.level }} · Qualität ×{{ soul.qualityMultiplier }} · {{ soul.skills.length }} Fähigkeit(en)</div>
+      <div class="soul-pop-hint">Zu finden unter <b>Wissen → Seelen</b>.</div>
+      <button class="soul-pop-ok" (click)="dismissNewSoulPopup()">Verstanden</button>
+    </div>
+  </div>
+}
+
 <!-- Skill Tree Modal -->
 @if (showSkillTree) {
   <app-skill-tree

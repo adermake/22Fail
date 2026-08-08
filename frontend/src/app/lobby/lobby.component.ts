@@ -1140,6 +1140,21 @@ export class LobbyComponent implements OnInit, OnDestroy {
     this.soulExtractMultiplier.set(1);
   }
 
+  /** Preview stats in the sheet's 3×2 order (STR/KON/SPD · GES/INT/WIL) with the roll modifier. */
+  get soulExtractStats(): { label: string; value: number; mod: number }[] {
+    const sb = this.soulExtractStatblock();
+    if (!sb) return [];
+    const mult = this.soulExtractMultiplier() || 1;
+    const mk = (label: string, raw: number) => {
+      const value = Math.round(raw * mult);
+      return { label, value, mod: Math.trunc((value - 10) / 4) };
+    };
+    return [
+      mk('STR', sb.strength), mk('KON', sb.constitution), mk('SPD', sb.speed),
+      mk('GES', sb.dexterity), mk('INT', sb.intelligence), mk('WIL', sb.wille),
+    ];
+  }
+
   onLinkedTokenDrop(data: { parentId: string; linkedType: LinkedTokenType; name: string; position: HexCoord }): void {
     const parent = this.currentMap()?.tokens.find(t => t.id === data.parentId);
     const linkedOffset = parent
