@@ -49,6 +49,7 @@
   <app-spell-editor-overlay
     [spell]="nodeEditorSpell"
     [availableRunes]="learnedRunes"
+    [availableSouls]="sheet.souls || []"
     (save)="saveFromNodeEditor($event)"
     (cancel)="closeNodeEditor()"
     (deleteSpell)="deleteSpellFromEditor()">

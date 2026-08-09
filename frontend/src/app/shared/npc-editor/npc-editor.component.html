@@ -31,15 +31,19 @@
         <section class="npc-card">
           <div class="npc-card-head">
             <span class="npc-card-title">Seele</span>
-            <span class="npc-budget" [class.npc-budget-full]="remaining === 0" [class.npc-budget-over]="remaining < 0">
-              {{ spent }} / {{ budget }} Punkte
-            </span>
+            @if (soulLocked) {
+              <span class="npc-budget npc-budget-locked" title="Seelenwerte durch die Seele festgelegt">🔒 Seele gesperrt</span>
+            } @else {
+              <span class="npc-budget" [class.npc-budget-full]="remaining === 0" [class.npc-budget-over]="remaining < 0">
+                {{ spent }} / {{ budget }} Punkte
+              </span>
+            }
           </div>
 
           <div class="npc-level-row">
             <label>Level</label>
-            <input type="number" min="1" [ngModel]="soul.level" (ngModelChange)="setLevel($event)">
-            <span class="npc-hint">Effizienz der Seelenrune — je Level +1 Punkt</span>
+            <input type="number" min="1" [ngModel]="soul.level" (ngModelChange)="setLevel($event)" [disabled]="soulLocked">
+            <span class="npc-hint">{{ soulLocked ? 'Von der Seele festgelegt' : 'Effizienz der Seelenrune — je Level +1 Punkt' }}</span>
           </div>
 
           <div class="npc-soul-grid">
@@ -52,15 +56,15 @@
                   </span>
                 </div>
                 <div class="npc-soul-ctrl">
-                  <button (click)="decStat(k)" [disabled]="soul.stats[k] <= 1">−</button>
+                  <button (click)="decStat(k)" [disabled]="soulLocked || soul.stats[k] <= 1">−</button>
                   <input class="npc-soul-input" type="number" min="1"
-                         [ngModel]="soul.stats[k]" (ngModelChange)="setStat(k, $event)">
-                  <button (click)="incStat(k)" [disabled]="remaining <= 0">+</button>
+                         [ngModel]="soul.stats[k]" (ngModelChange)="setStat(k, $event)" [disabled]="soulLocked">
+                  <button (click)="incStat(k)" [disabled]="soulLocked || remaining <= 0">+</button>
                 </div>
               </div>
             }
           </div>
-          @if (remaining !== 0) {
+          @if (!soulLocked && remaining !== 0) {
             <p class="npc-hint" [class.npc-warn]="remaining < 0">
               {{ remaining > 0 ? remaining + ' Punkt(e) übrig' : 'Budget um ' + (-remaining) + ' überschritten' }}
             </p>

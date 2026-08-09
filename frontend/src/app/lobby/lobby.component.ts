@@ -27,6 +27,7 @@ import { AuthService } from '../services/auth.service';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { NpcStatblock } from '../model/npc-statblock.model';
 import { soulFromNpc } from '../model/soul-block.model';
+import { SUMMON_RUNE_ID } from '../shared/spell-node-editor/spell-node.model';
 import { LobbyData, LobbyMap, Token, HexCoord, LibraryImage, LibraryTexture, LinkedTokenType } from '../model/lobby.model';
 
 import { LobbyGridComponent } from './lobby-grid/lobby-grid.component';
@@ -220,6 +221,45 @@ export class LobbyComponent implements OnInit, OnDestroy {
   selectedTokenId = signal<string | null>(null);
   pendingLinkedToken = signal<{ parentId: string; type: LinkedTokenType; name: string } | null>(null);
 
+  /** Summons the current player can field: from their controlled characters' ACTIVE spells that
+   *  contain a built Beschwörungsrune. Draggable onto the map like an NPC statblock. */
+  playerSummons = computed(() => {
+    const controlled = this.viewingCharacterIds();
+    const out: { id: string; name: string; portrait: string; statblock: NpcStatblock }[] = [];
+    for (const c of this.worldCharacters()) {
+      if (!controlled.has(c.id)) continue;
+      const active = (c.sheet.castingSpells ?? []).filter(cs => (cs.remainingCast ?? 1) <= 0);
+      for (const cs of active) {
+        const spell = (c.sheet.spells ?? []).find(s => s.id === cs.spellId || s.name === cs.spellName);
+        for (const n of spell?.graph?.nodes ?? []) {
+          if (n.runeId === SUMMON_RUNE_ID && n.summon?.statblock) {
+            out.push({
+              id: 'summon-' + c.id + '-' + n.id,
+              name: n.summon.statblock.name,
+              portrait: n.summon.statblock.image || n.summon.statblock.defaultPortrait || '',
+              statblock: n.summon.statblock,
+            });
+          }
+        }
+      }
+    }
+    return out;
+  });
+
+  /** Resolve a token's statblock from the library OR the player's active summons. */
+  private resolveStatblock(id: string): NpcStatblock | null {
+    return this.npcStatblocks().find(n => n.id === id)?.statblock
+      ?? this.playerSummons().find(s => s.id === id)?.statblock
+      ?? null;
+  }
+
+  onSummonDragStart(event: DragEvent, summon: { id: string; name: string; portrait: string }): void {
+    event.dataTransfer?.setData('text/plain', JSON.stringify({
+      type: 'npc-statblock', statblockId: summon.id, name: summon.name, portrait: summon.portrait,
+    }));
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+  }
+
   // Computed: selected token quick view data
   selectedTokenInfo = computed(() => {
     const tokenId = this.selectedTokenId();
@@ -228,8 +268,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
     if (!token) return null;
 
     if (token.statblockId) {
-      const npc = this.npcStatblocks().find(n => n.id === token.statblockId);
-      return { token, type: 'npc' as const, npc: npc?.statblock ?? null, character: null };
+      const npc = this.resolveStatblock(token.statblockId);
+      return { token, type: 'npc' as const, npc, character: null };
     }
 
     const character = this.worldCharacters().find(c => c.id === token.characterId);

@@ -1,4 +1,4 @@
-import { NpcStatKey, NPC_STAT_KEYS, NpcStatblock, effectiveNpcStats } from './npc-statblock.model';
+import { NpcStatKey, NPC_STAT_KEYS, NpcStatblock, effectiveNpcStats, createEmptyNpcStatblock } from './npc-statblock.model';
 import { SkillBlock } from './skill-block.model';
 
 /**
@@ -43,4 +43,16 @@ export function soulFromNpc(npc: NpcStatblock, multiplier: number, sourceType: '
     qualityMultiplier: multiplier,
     createdAt: Date.now(),
   };
+}
+
+/**
+ * Seed an NpcStatblock for a summon built from a soul: the soul's stats (× quality) + level are locked
+ * in, the soul's skills are pre-loaded, and the body is empty for the summoner to shape.
+ */
+export function createSummonStatblock(soul: SoulBlock): NpcStatblock {
+  const sb = createEmptyNpcStatblock();
+  sb.name = soul.sourceName + ' (Beschwörung)';
+  sb.soul = { level: soul.level, stats: { ...effectiveSoulStats(soul) } };
+  sb.customSkills = JSON.parse(JSON.stringify(soul.skills ?? [])) as SkillBlock[];
+  return sb;
 }

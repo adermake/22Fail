@@ -812,3 +812,13 @@
 .sx-cancel { padding: 8px 16px; background: transparent; border: 1px solid #4a5568; border-radius: 6px; color: #9ca3af; cursor: pointer; }
 .sx-confirm { padding: 8px 20px; background: #8b5cf6; border: none; border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer; }
 .sx-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Player summon panel ────────────────────────────────────────────────── */
+.summon-panel { flex-shrink: 0; width: 128px; background: #0f172a; border-right: 1px solid #1e293b; padding: 8px 6px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+.summon-panel-title { font-size: 0.72rem; font-weight: 700; color: #c4b5fd; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 4px; }
+.summon-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px; background: #1a2130; border: 1px solid #a78bfa; border-radius: 8px; cursor: grab; }
+.summon-card:active { cursor: grabbing; }
+.summon-card:hover { background: #241b3a; }
+.summon-card-img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; }
+.summon-card-glyph { font-size: 2rem; line-height: 1; }
+.summon-card-name { font-size: 0.7rem; color: #e5e7eb; text-align: center; line-height: 1.1; }

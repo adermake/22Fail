@@ -20,9 +20,11 @@ import {
   castLevelForStatRequirement,
   effectiveStatRequirement,
   scaledBySkalierung,
+  scaledBySkalierungSoul,
   scaledManaCost,
 } from '../../shared/spell-cast-formulas';
 import { RuneBlock } from '../../model/rune-block.model';
+import { SUMMON_RUNE_ID } from '../../shared/spell-node-editor/spell-node.model';
 
 interface CastCostPreview {
   manaCost: number;
@@ -348,8 +350,16 @@ export class SpellcastWindowComponent implements OnInit, OnChanges, OnDestroy {
     return Math.round(base * 100) / 100;
   }
 
+  /** A "soul spell" contains a Beschwörungsrune — its effectivity scales at the nerfed ¼ rate. */
+  isSoulSpell(spell: SpellBlock): boolean {
+    return (spell.graph?.nodes ?? []).some(n => n.runeId === SUMMON_RUNE_ID);
+  }
+
   computeScaledEffektivitaet(spell: SpellBlock, skalierung: number): number {
-    return scaledBySkalierung(this.spellBaseValues(spell).effektivitaet, skalierung);
+    const baseEff = this.spellBaseValues(spell).effektivitaet;
+    return this.isSoulSpell(spell)
+      ? scaledBySkalierungSoul(baseEff, skalierung)
+      : scaledBySkalierung(baseEff, skalierung);
   }
 
   computeScaledHaltbarkeit(spell: SpellBlock, skalierung: number): number {

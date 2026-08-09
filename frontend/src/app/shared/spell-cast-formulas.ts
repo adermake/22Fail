@@ -30,3 +30,12 @@ export function scaledManaCost(baseMana: number, castLevel: number, skalierung: 
 export function scaledBySkalierung(base: number, skalierung: number): number {
   return Math.round(base * skalierung * 100) / 100;
 }
+
+/**
+ * Soul-spell effectivity scaling (balance): every scaling step above 1 yields only ¼ of the
+ * effectivity. Below/at 1× it behaves normally. factor = 1 + 0.25·(skalierung − 1) for skalierung > 1.
+ */
+export function scaledBySkalierungSoul(base: number, skalierung: number): number {
+  const factor = skalierung > 1 ? 1 + 0.25 * (skalierung - 1) : skalierung;
+  return Math.round(base * factor * 100) / 100;
+}

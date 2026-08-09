@@ -12,6 +12,7 @@ import {
 } from './spell-node.model';
 import { SoulBlock } from '../../model/soul-block.model';
 import { NpcStatblock } from '../../model/npc-statblock.model';
+import { SummonEditorService } from '../../services/summon-editor.service';
 import { ImageUrlPipe } from '../image-url.pipe';
 import { SimpleSpellCost } from './spell-cost.model';
 import { calculateSpellCost } from './spell-cost-calculator';
@@ -243,8 +244,14 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     this.graphNodesSig.set([...this.graph.nodes]);
   }
 
-  requestEditSummon(node: SpellNode): void {
-    if (node.summon?.soulId) this.editSummon.emit({ nodeId: node.id });
+  async requestEditSummon(node: SpellNode): Promise<void> {
+    if (!node.summon?.soulId) return;
+    const soul = this.availableSouls.find(s => s.id === node.summon!.soulId);
+    if (!soul) return;
+    this.editSummon.emit({ nodeId: node.id }); // notify host (optional)
+    // Open the summon (NPC) editor via the app-root outlet — no import cycle, recursion-safe.
+    const result = await this.summonEditor.open(soul, node.summon.statblock);
+    if (result) this.setSummonStatblock(node.id, result);
   }
 
   /** Called by the host after the NPC editor built/updated a summon for a node. */
@@ -315,7 +322,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   private boundMouseMove!: (e: MouseEvent) => void;
   private boundMouseUp!:   (e: MouseEvent) => void;
 
-  constructor(private cdr: ChangeDetectorRef) {}
+  constructor(private cdr: ChangeDetectorRef, private summonEditor: SummonEditorService) {}
 
   // ────────────────────────────────────────────────────────────────────────────
   ngOnInit() {

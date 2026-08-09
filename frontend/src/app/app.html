@@ -1,2 +1,20 @@
 <router-outlet></router-outlet>
 <app-notification></app-notification>
+
+<!-- Summon (NPC) editor outlet — stacks for summon-inside-summon recursion.
+     @defer keeps the heavy NPC editor out of the initial bundle (loaded only when a summon opens).
+     The wrapper's z-index gives its fixed overlay a stacking context ABOVE the rune-flow editor (1700). -->
+@if (summonEditor.requests().length) {
+  <div class="summon-editor-host">
+    @for (req of summonEditor.requests(); track req.id) {
+      @defer (on immediate) {
+        <app-npc-editor
+          [statblock]="req.statblock"
+          [soulLocked]="true"
+          (save)="summonEditor.finish(req.id, $event)"
+          (cancel)="summonEditor.finish(req.id, null)">
+        </app-npc-editor>
+      }
+    }
+  </div>
+}

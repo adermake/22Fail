@@ -165,6 +165,20 @@
       />
     }
 
+    <!-- Player summon panel: drag an active-spell summon onto the field -->
+    @if (playerSummons().length) {
+      <div class="summon-panel">
+        <div class="summon-panel-title">👻 Beschwörungen</div>
+        @for (s of playerSummons(); track s.id) {
+          <div class="summon-card" draggable="true" (dragstart)="onSummonDragStart($event, s)" title="Auf die Karte ziehen">
+            @if (s.portrait) { <img class="summon-card-img" [src]="'/api/images/' + s.portrait" alt=""> }
+            @else { <span class="summon-card-glyph">👻</span> }
+            <span class="summon-card-name">{{ s.name }}</span>
+          </div>
+        }
+      </div>
+    }
+
     <!-- Grid and side panel container -->
     <div class="lobby-content-wrapper">
       <!-- Grid canvas area -->

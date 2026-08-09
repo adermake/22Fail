@@ -60,6 +60,8 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   @Input() availableItems: AssetFile[] = [];
   @Input() availableSkills: AssetFile[] = [];
   @Input() availableRunes: RuneBlock[] = [];
+  /** Summon mode: the soul's stats + level are fixed (read-only); only body/skills are editable. */
+  @Input() soulLocked = false;
   // Kept for backward-compatible parent bindings (weapon-gen removed from the UI).
   @Input() availableMaterials: AssetFile[] = [];
   @Input() availableForgeTraits: AssetFile[] = [];
