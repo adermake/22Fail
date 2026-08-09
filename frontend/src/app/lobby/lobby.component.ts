@@ -221,43 +221,37 @@ export class LobbyComponent implements OnInit, OnDestroy {
   selectedTokenId = signal<string | null>(null);
   pendingLinkedToken = signal<{ parentId: string; type: LinkedTokenType; name: string } | null>(null);
 
-  /** Summons the current player can field: from their controlled characters' ACTIVE spells that
-   *  contain a built Beschwörungsrune. Draggable onto the map like an NPC statblock. */
-  playerSummons = computed(() => {
-    const controlled = this.viewingCharacterIds();
-    const out: { id: string; name: string; portrait: string; statblock: NpcStatblock }[] = [];
-    for (const c of this.worldCharacters()) {
-      if (!controlled.has(c.id)) continue;
-      const active = (c.sheet.castingSpells ?? []).filter(cs => (cs.remainingCast ?? 1) <= 0);
+  /** All built summons from every character's ACTIVE spells (Beschwörungsrune nodes). Used to resolve
+   *  a dropped summon token's statblock — the drag/display lives in the bottom panel's "Tokens" tab.
+   *  Id scheme `summon-<characterId>-<nodeId>` matches the bottom panel's cards. */
+  allSummons = computed(() => {
+    const out: { id: string; statblock: NpcStatblock }[] = [];
+    const collect = (ownerId: string, spells: any[], casting: any[]) => {
+      const active = (casting ?? []).filter(cs => (cs.remainingCast ?? 1) <= 0);
       for (const cs of active) {
-        const spell = (c.sheet.spells ?? []).find(s => s.id === cs.spellId || s.name === cs.spellName);
+        const spell = (spells ?? []).find(s => s.id === cs.spellId || s.name === cs.spellName);
         for (const n of spell?.graph?.nodes ?? []) {
           if (n.runeId === SUMMON_RUNE_ID && n.summon?.statblock) {
-            out.push({
-              id: 'summon-' + c.id + '-' + n.id,
-              name: n.summon.statblock.name,
-              portrait: n.summon.statblock.image || n.summon.statblock.defaultPortrait || '',
-              statblock: n.summon.statblock,
-            });
+            out.push({ id: 'summon-' + ownerId + '-' + n.id, statblock: n.summon.statblock });
           }
         }
       }
+    };
+    for (const c of this.worldCharacters()) collect(c.id, c.sheet.spells ?? [], c.sheet.castingSpells ?? []);
+    // NPC tokens can summon too (recursion).
+    for (const t of this.currentMap()?.tokens ?? []) {
+      if (!t.statblockId) continue;
+      const npc = this.npcStatblocks().find(n => n.id === t.statblockId)?.statblock;
+      if (npc) collect(t.id, npc.spells ?? [], (t as any).castingSpells ?? []);
     }
     return out;
   });
 
-  /** Resolve a token's statblock from the library OR the player's active summons. */
+  /** Resolve a token's statblock from the library OR an active summon. */
   private resolveStatblock(id: string): NpcStatblock | null {
     return this.npcStatblocks().find(n => n.id === id)?.statblock
-      ?? this.playerSummons().find(s => s.id === id)?.statblock
+      ?? this.allSummons().find(s => s.id === id)?.statblock
       ?? null;
-  }
-
-  onSummonDragStart(event: DragEvent, summon: { id: string; name: string; portrait: string }): void {
-    event.dataTransfer?.setData('text/plain', JSON.stringify({
-      type: 'npc-statblock', statblockId: summon.id, name: summon.name, portrait: summon.portrait,
-    }));
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
   }
 
   // Computed: selected token quick view data

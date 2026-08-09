@@ -16,6 +16,11 @@
         <button class="lbp-tab" [class.active]="activeTab === 'aktiv'" (click)="activeTab = 'aktiv'">
           <span class="app-icon i-active"></span> Aktiv
         </button>
+        @if (summonTokens.length) {
+          <button class="lbp-tab" [class.active]="activeTab === 'tokens'" (click)="activeTab = 'tokens'">
+            👻 Tokens ({{ summonTokens.length }})
+          </button>
+        }
       </div>
     }
 
@@ -395,6 +400,26 @@
             (delete)="removeStatusEffect(editingFx!.id); cancelEditFx()">
           </app-status-effect-editor>
         </div>
+      </div>
+    }
+
+    <!-- ═════════ TOKENS TAB (fieldable summons from active spells) ═════════ -->
+    @if (hasSelection && canViewStats && activeTab === 'tokens') {
+      <div class="lbp-tokens">
+        @if (!summonTokens.length) {
+          <p class="lbp-tokens-empty">Keine beschwörbaren Tokens. Wirke einen Zauber mit Beschwörungsrune.</p>
+        } @else {
+          <p class="lbp-tokens-hint">Auf die Karte ziehen, um zu beschwören.</p>
+          <div class="lbp-tokens-grid">
+            @for (s of summonTokens; track s.id) {
+              <div class="lbp-token-card" draggable="true" (dragstart)="onSummonDragStart($event, s)" [title]="s.name">
+                @if (s.portrait) { <img class="lbp-token-img" [src]="'/api/images/' + s.portrait" alt=""> }
+                @else { <span class="lbp-token-glyph">👻</span> }
+                <span class="lbp-token-name">{{ s.name }}</span>
+              </div>
+            }
+          </div>
+        }
       </div>
     }
 

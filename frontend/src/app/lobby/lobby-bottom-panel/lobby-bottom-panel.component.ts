@@ -9,6 +9,7 @@ import { Subscription } from 'rxjs';
 import { Token, TokenStatusEffect } from '../../model/lobby.model';
 import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
 import { NpcStatblock } from '../../model/npc-statblock.model';
+import { SUMMON_RUNE_ID } from '../../shared/spell-node-editor/spell-node.model';
 import { SpellBlock, CastingSpellEntry, ActiveSkillEntry } from '../../model/spell-block-model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { FormulaType } from '../../model/formula-type.enum';
@@ -55,7 +56,7 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   private libraryStore = inject(LibraryStoreService);
   private macroExecutor = inject(UnifiedMacroExecutorService);
 
-  activeTab: 'status' | 'aktiv' = 'aktiv';
+  activeTab: 'status' | 'aktiv' | 'tokens' = 'aktiv';
   collapsed = false;
 
   // ── Status effect state ───────────────────────────────────────────────────
@@ -186,6 +187,31 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   get hasActiveContent(): boolean {
     return this.castingSpells.length > 0 || this.activeSkillEntries.length > 0;
+  }
+
+  // ── Summon tokens: fieldable summons from this character/NPC's active spells ──
+  get summonTokens(): { id: string; name: string; portrait: string }[] {
+    const ownerId = this.character?.id ?? this.token?.id ?? '';
+    if (!ownerId) return [];
+    const active = this.castingSpells.filter(cs => (cs.remainingCast ?? 1) <= 0);
+    const out: { id: string; name: string; portrait: string }[] = [];
+    for (const cs of active) {
+      const spell = this.availableSpells.find(s => s.id === cs.spellId || s.name === cs.spellName);
+      for (const n of spell?.graph?.nodes ?? []) {
+        if (n.runeId === SUMMON_RUNE_ID && n.summon?.statblock) {
+          const sb = n.summon.statblock;
+          out.push({ id: 'summon-' + ownerId + '-' + n.id, name: sb.name, portrait: sb.image || sb.defaultPortrait || '' });
+        }
+      }
+    }
+    return out;
+  }
+
+  onSummonDragStart(event: DragEvent, s: { id: string; name: string; portrait: string }): void {
+    event.dataTransfer?.setData('text/plain', JSON.stringify({
+      type: 'npc-statblock', statblockId: s.id, name: s.name, portrait: s.portrait,
+    }));
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
   }
 
   // ── Skill definition lookup ───────────────────────────────────────────────
