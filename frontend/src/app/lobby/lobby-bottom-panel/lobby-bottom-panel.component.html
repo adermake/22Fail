@@ -18,7 +18,7 @@
         </button>
         @if (summonTokens.length) {
           <button class="lbp-tab" [class.active]="activeTab === 'tokens'" (click)="activeTab = 'tokens'">
-            👻 Tokens ({{ summonTokens.length }})
+            <img class="lbp-tab-ico" src="/icons/soul.svg" alt=""> Tokens ({{ summonTokens.length }})
           </button>
         }
       </div>
@@ -414,7 +414,7 @@
             @for (s of summonTokens; track s.id) {
               <div class="lbp-token-card" draggable="true" (dragstart)="onSummonDragStart($event, s)" [title]="s.name">
                 @if (s.portrait) { <img class="lbp-token-img" [src]="'/api/images/' + s.portrait" alt=""> }
-                @else { <span class="lbp-token-glyph">👻</span> }
+                @else { <img class="lbp-token-img lbp-token-icon" src="/icons/soul.svg" alt=""> }
                 <span class="lbp-token-name">{{ s.name }}</span>
               </div>
             }

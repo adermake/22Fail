@@ -629,3 +629,7 @@
 .soul-skills { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .soul-skills-lbl { font-size: 0.72rem; color: var(--text-muted, #9ca3af); }
 .soul-skill-chip { font-size: 0.72rem; padding: 2px 8px; background: rgba(139,92,246,0.14); border: 1px solid rgba(139,92,246,0.35); border-radius: 10px; color: #c4b5fd; }
+
+.wissen-tab-ico { width: 14px; height: 14px; vertical-align: -2px; }
+.soul-thumb { width: 34px; height: 34px; object-fit: cover; border-radius: 7px; flex-shrink: 0; }
+.soul-thumb-icon { padding: 6px; background: rgba(167,139,250,0.14); }

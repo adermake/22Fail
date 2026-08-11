@@ -42,8 +42,8 @@
 
           <div class="npc-level-row">
             <label>Level</label>
-            <input type="number" min="1" [ngModel]="soul.level" (ngModelChange)="setLevel($event)" [disabled]="soulLocked">
-            <span class="npc-hint">{{ soulLocked ? 'Von der Seele festgelegt' : 'Effizienz der Seelenrune — je Level +1 Punkt' }}</span>
+            <input type="number" min="1" [ngModel]="soul.level" (ngModelChange)="setLevel($event)">
+            <span class="npc-hint">{{ soulLocked ? 'Skaliert die Seele über das Wachstum/Level' : 'Effizienz der Seelenrune — je Level +1 Punkt' }}</span>
           </div>
 
           <div class="npc-soul-grid">
@@ -61,6 +61,7 @@
                          [ngModel]="soul.stats[k]" (ngModelChange)="setStat(k, $event)" [disabled]="soulLocked">
                   <button (click)="incStat(k)" [disabled]="soulLocked || remaining <= 0">+</button>
                 </div>
+                <span class="npc-soul-growth" title="Wachstum pro Level">{{ growthOf(k) }}/Lv</span>
               </div>
             }
           </div>
@@ -77,11 +78,15 @@
           <div class="npc-body-grid npc-body-grid-2">
             <label class="npc-field" title="Stabilität">
               <i class="ico ico-stability"></i>
-              <input type="number" [(ngModel)]="draft.body!.stabilitaet"></label>
+              <input type="number" [(ngModel)]="draft.body!.stabilitaet" [disabled]="draft.body!.useArmorStabilitaet"></label>
             <label class="npc-field" title="Effizienz">
               <i class="ico ico-effektivity"></i>
               <input type="number" [(ngModel)]="draft.body!.effizienz" [disabled]="draft.body!.useWeaponEffizienz"></label>
           </div>
+          <label class="npc-check" title="Nutzt die Stabilität der ausgerüsteten Rüstung statt des festen Werts">
+            <input type="checkbox" [(ngModel)]="draft.body!.useArmorStabilitaet">
+            <span>Rüstungs-Stabilität verwenden</span>
+          </label>
           <label class="npc-check" title="Nutzt die Effizienz der ausgerüsteten Waffe statt des festen Werts">
             <input type="checkbox" [(ngModel)]="draft.body!.useWeaponEffizienz">
             <span>Waffen-Effizienz verwenden</span>

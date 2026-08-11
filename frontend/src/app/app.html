@@ -11,6 +11,10 @@
         <app-npc-editor
           [statblock]="req.statblock"
           [soulLocked]="true"
+          [availableItems]="req.assets.items"
+          [availableSkills]="req.assets.skills"
+          [availableSpells]="req.assets.spells"
+          [availableRunes]="req.assets.runes"
           (save)="summonEditor.finish(req.id, $event)"
           (cancel)="summonEditor.finish(req.id, null)">
         </app-npc-editor>

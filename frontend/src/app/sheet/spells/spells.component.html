@@ -50,6 +50,7 @@
     [spell]="nodeEditorSpell"
     [availableRunes]="learnedRunes"
     [availableSouls]="sheet.souls || []"
+    [summonAssets]="summonAssets"
     (save)="saveFromNodeEditor($event)"
     (cancel)="closeNodeEditor()"
     (deleteSpell)="deleteSpellFromEditor()">

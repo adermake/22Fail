@@ -195,12 +195,16 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     if (!ownerId) return [];
     const active = this.castingSpells.filter(cs => (cs.remainingCast ?? 1) <= 0);
     const out: { id: string; name: string; portrait: string }[] = [];
+    const seen = new Set<string>();
     for (const cs of active) {
       const spell = this.availableSpells.find(s => s.id === cs.spellId || s.name === cs.spellName);
       for (const n of spell?.graph?.nodes ?? []) {
         if (n.runeId === SUMMON_RUNE_ID && n.summon?.statblock) {
+          const id = 'summon-' + ownerId + '-' + n.id;
+          if (seen.has(id)) continue; // same spell cast twice → one card is enough
+          seen.add(id);
           const sb = n.summon.statblock;
-          out.push({ id: 'summon-' + ownerId + '-' + n.id, name: sb.name, portrait: sb.image || sb.defaultPortrait || '' });
+          out.push({ id, name: sb.name, portrait: sb.image || sb.defaultPortrait || '' });
         }
       }
     }

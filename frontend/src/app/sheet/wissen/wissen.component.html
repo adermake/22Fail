@@ -6,7 +6,7 @@
       &#x2726; Runen ({{ runeCount }})
     </button>
     <button class="wissen-tab" [class.active]="activeTab === 'souls'" (click)="setTab('souls')">
-      &#x1F47B; Seelen ({{ souls.length }})
+      <img class="wissen-tab-ico" src="/icons/soul.svg" alt=""> Seelen ({{ souls.length }})
     </button>
     <button class="wissen-tab" [class.active]="activeTab === 'materials'" (click)="setTab('materials')">
       &#x2692; Materialien @if (!isLoading()) { ({{ knownMaterials.length }}) }
@@ -37,9 +37,13 @@
           @for (soul of souls; track soul.id) {
             <div class="soul-card">
               <div class="soul-head">
-                <span class="soul-name">&#x1F47B; {{ soul.sourceName }}</span>
-                <span class="soul-quality" [title]="'Qualität-Multiplikator'">×{{ soul.qualityMultiplier }}</span>
-                <span class="soul-level">Lv {{ soul.level }}</span>
+                @if (soul.image) {
+                  <img class="soul-thumb" [src]="'/api/images/' + soul.image" alt="">
+                } @else {
+                  <img class="soul-thumb soul-thumb-icon" src="/icons/soul.svg" alt="">
+                }
+                <span class="soul-name">{{ soul.sourceName }}</span>
+                <span class="soul-level">Level {{ soul.level }}</span>
                 <button class="soul-del" (click)="removeSoul(soul.id)" title="Verwerfen">&times;</button>
               </div>
               <div class="soul-stats">

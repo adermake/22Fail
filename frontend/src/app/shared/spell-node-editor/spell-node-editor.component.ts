@@ -12,7 +12,7 @@ import {
 } from './spell-node.model';
 import { SoulBlock } from '../../model/soul-block.model';
 import { NpcStatblock } from '../../model/npc-statblock.model';
-import { SummonEditorService } from '../../services/summon-editor.service';
+import { SummonEditorService, SummonAssets } from '../../services/summon-editor.service';
 import { ImageUrlPipe } from '../image-url.pipe';
 import { SimpleSpellCost } from './spell-cost.model';
 import { calculateSpellCost } from './spell-cost-calculator';
@@ -37,6 +37,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   @Input({ required: true }) availableRunes: RuneBlock[] = [];
   /** Souls the caster owns — usable as summoning-rune material. */
   @Input() availableSouls: SoulBlock[] = [];
+  /** The caster's assets (inventory/skills/spells/runes), passed into a summon's NPC editor. */
+  @Input() summonAssets: SummonAssets | null = null;
   @Output() save        = new EventEmitter<SpellBlock>();
   @Output() cancel      = new EventEmitter<void>();
   @Output() deleteSpell = new EventEmitter<void>();
@@ -250,7 +252,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     if (!soul) return;
     this.editSummon.emit({ nodeId: node.id }); // notify host (optional)
     // Open the summon (NPC) editor via the app-root outlet — no import cycle, recursion-safe.
-    const result = await this.summonEditor.open(soul, node.summon.statblock);
+    const result = await this.summonEditor.open(soul, node.summon.statblock, this.summonAssets ?? undefined);
     if (result) this.setSummonStatblock(node.id, result);
   }
 

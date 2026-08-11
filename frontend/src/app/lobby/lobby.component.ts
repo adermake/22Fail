@@ -114,7 +114,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
   // Soul extraction (GM): target NPC statblock + chosen player + quality multiplier
   soulExtractStatblock = signal<NpcStatblock | null>(null);
   soulExtractTarget = signal<string>('');
-  soulExtractMultiplier = signal<number>(1);
+  soulExtractLevel = signal<number>(1);
 
   // Dice roll history
   rollHistory = signal<DiceRollEvent[]>([]);
@@ -1149,7 +1149,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
       : null;
     if (!sb) return;
     this.soulExtractStatblock.set(sb);
-    this.soulExtractMultiplier.set(1);
+    this.soulExtractLevel.set(Math.max(1, sb.soul?.level ?? sb.level ?? 1));
     this.soulExtractTarget.set(this.worldCharacters()[0]?.id ?? '');
   }
 
@@ -1159,7 +1159,7 @@ export class LobbyComponent implements OnInit, OnDestroy {
     if (!sb || !targetId) return;
     const target = this.worldCharacters().find(c => c.id === targetId);
     if (!target) return;
-    const soul = soulFromNpc(sb, this.soulExtractMultiplier() || 1, 'npc');
+    const soul = soulFromNpc(sb, this.soulExtractLevel() || 1, 'npc');
     const souls = [...(target.sheet.souls ?? []), soul];
     target.sheet.souls = souls;
     // Reflect locally + persist to that player's character.
@@ -1171,17 +1171,20 @@ export class LobbyComponent implements OnInit, OnDestroy {
   cancelSoulExtract(): void {
     this.soulExtractStatblock.set(null);
     this.soulExtractTarget.set('');
-    this.soulExtractMultiplier.set(1);
+    this.soulExtractLevel.set(1);
   }
 
-  /** Preview stats in the sheet's 3×2 order (STR/KON/SPD · GES/INT/WIL) with the roll modifier. */
-  get soulExtractStats(): { label: string; value: number; mod: number }[] {
+  /** Preview stats at the chosen extraction level (scaled by the NPC's per-level growth), 3×2 order,
+   *  with the roll modifier and the per-level growth value. */
+  get soulExtractStats(): { label: string; value: number; mod: number; growth: number }[] {
     const sb = this.soulExtractStatblock();
     if (!sb) return [];
-    const mult = this.soulExtractMultiplier() || 1;
+    const npcLevel = Math.max(1, sb.soul?.level ?? sb.level ?? 1);
+    const L = Math.max(1, this.soulExtractLevel() || 1);
     const mk = (label: string, raw: number) => {
-      const value = Math.round(raw * mult);
-      return { label, value, mod: Math.trunc((value - 10) / 4) };
+      const growth = raw / npcLevel;
+      const value = Math.max(1, Math.round(growth * L));
+      return { label, value, mod: Math.trunc((value - 10) / 4), growth: Math.round(growth * 100) / 100 };
     };
     return [
       mk('STR', sb.strength), mk('KON', sb.constitution), mk('SPD', sb.speed),

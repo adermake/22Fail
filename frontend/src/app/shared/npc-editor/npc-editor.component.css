@@ -246,3 +246,4 @@
   .npc-browser-card { flex: none; }
   .npc-scroll { max-height: 340px; }
 }
+.npc-soul-growth { display: block; text-align: center; font-size: 0.6rem; color: #93c5fd; margin-top: 2px; }

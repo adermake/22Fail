@@ -822,3 +822,5 @@
 .summon-card-img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; }
 .summon-card-glyph { font-size: 2rem; line-height: 1; }
 .summon-card-name { font-size: 0.7rem; color: #e5e7eb; text-align: center; line-height: 1.1; }
+.sx-title-ico { width: 16px; height: 16px; vertical-align: -3px; }
+.sx-stat-g { font-size: 0.62rem; color: #93c5fd; }

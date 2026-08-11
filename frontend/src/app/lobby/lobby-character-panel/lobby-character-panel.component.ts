@@ -1778,11 +1778,15 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return weaponEff;
   }
 
-  /** Combined defense value: equipment stability ÷5 (+ modifiers), plus the NPC's body Stabilität. */
+  /** Defense value: NPCs use their body Stabilität unless the body opts to use the armor's stability
+   *  (equipment stability ÷5 + modifiers) instead. Players always use the armor-derived value. */
   get totalStability(): number {
     const sheet = this.diceSheet;
-    const base = sheet ? this.trueStats.calculateTotalStability(sheet) : 0;
-    return base + (this.npc?.body?.stabilitaet ?? 0);
+    const armorBased = sheet ? this.trueStats.calculateTotalStability(sheet) : 0;
+    if (this.npc) {
+      return this.npc.body?.useArmorStabilitaet ? armorBased : (this.npc.body?.stabilitaet ?? 0);
+    }
+    return armorBased;
   }
 
   /** CharacterSheet for the dice roller / spellcast window.

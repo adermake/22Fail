@@ -399,13 +399,13 @@
   <!-- ── SUMMONING-RUNE CONFIG (shown when a single summon node is selected) ── -->
   @if (selectedSummonNode; as sn) {
     <div class="summon-config" (mousedown)="$event.stopPropagation()">
-      <div class="summon-config-head">👻 Beschwörung</div>
+      <div class="summon-config-head"><img class="summon-config-ico" src="/icons/soul.svg" alt=""> Beschwörung</div>
       <label class="summon-field">
         <span>Seele</span>
         <select [ngModel]="sn.summon?.soulId ?? ''" (ngModelChange)="assignSummonSoul(sn, $event)">
           <option value="">— Seele wählen —</option>
           @for (soul of availableSouls; track soul.id) {
-            <option [value]="soul.id">{{ soul.sourceName }} (×{{ soul.qualityMultiplier }})</option>
+            <option [value]="soul.id">{{ soul.sourceName }} (Lv {{ soul.level }})</option>
           }
         </select>
       </label>

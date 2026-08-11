@@ -119,6 +119,9 @@ export const NPC_STAT_KEYS: NpcStatKey[] =
 export interface NpcSoul {
   level: number;
   stats: Record<NpcStatKey, number>;
+  /** Set for soul-locked summons: per-level growth. When present, stats = round(growth × level),
+   *  and changing the level rescales the stats (the soul "moving" to another level). */
+  growth?: Record<NpcStatKey, number>;
 }
 
 /** A body stat modifier: either added on top of, or overriding, the matching soul stat. */
@@ -134,6 +137,8 @@ export interface NpcBody {
   effizienz: number;
   /** Use the equipped weapon's efficiency instead of the flat `effizienz` above. */
   useWeaponEffizienz: boolean;
+  /** Use the equipped armor's stability instead of the flat `stabilitaet` above. */
+  useArmorStabilitaet: boolean;
   mods: NpcBodyStatMod[];
 }
 
@@ -157,7 +162,7 @@ export function createEmptyNpcSoul(): NpcSoul {
 }
 
 export function createEmptyNpcBody(): NpcBody {
-  return { stabilitaet: 0, effizienz: 10, useWeaponEffizienz: false, mods: [] };
+  return { stabilitaet: 0, effizienz: 10, useWeaponEffizienz: false, useArmorStabilitaet: false, mods: [] };
 }
 
 /** The effective 6 stats after applying the body's add/override modifiers to the soul distribution. */

@@ -350,7 +350,7 @@
   <div class="soul-extract-overlay">
     <div class="soul-extract-modal">
       <div class="sx-head">
-        <span class="sx-title">👻 Seele extrahieren — {{ sb.name }}</span>
+        <span class="sx-title"><img class="sx-title-ico" src="/icons/soul.svg" alt=""> Seele extrahieren — {{ sb.name }}</span>
         <button class="sx-close" (click)="cancelSoulExtract()">×</button>
       </div>
 
@@ -364,19 +364,20 @@
       </label>
 
       <label class="sx-field">
-        <span>Qualität-Multiplikator</span>
-        <input type="number" min="0.1" step="0.1"
-               [ngModel]="soulExtractMultiplier()" (ngModelChange)="soulExtractMultiplier.set($event)">
+        <span>Level (= Qualität)</span>
+        <input type="number" min="1" step="1"
+               [ngModel]="soulExtractLevel()" (ngModelChange)="soulExtractLevel.set($event)">
       </label>
 
       <div class="sx-preview">
-        <span class="sx-preview-lbl">Seelen-Werte (× {{ soulExtractMultiplier() }}):</span>
+        <span class="sx-preview-lbl">Seelen-Werte auf Level {{ soulExtractLevel() }} (Wachstum/Level):</span>
         <div class="sx-stats">
           @for (s of soulExtractStats; track s.label) {
             <div class="sx-stat">
               <b>{{ s.label }}</b>
               <span class="sx-stat-v">{{ s.value }}</span>
               <span class="sx-stat-m">{{ s.mod >= 0 ? '+' : '' }}{{ s.mod }}</span>
+              <span class="sx-stat-g">{{ s.growth }}/Lv</span>
             </div>
           }
         </div>

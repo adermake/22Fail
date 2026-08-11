@@ -1851,3 +1851,4 @@
 .summon-edit-btn { padding: 7px 12px; background: rgba(167,139,250,0.18); border: 1px solid #a78bfa; border-radius: 6px; color: #c4b5fd; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
 .summon-edit-btn:hover { background: rgba(167,139,250,0.3); }
 .summon-ok { font-size: 0.75rem; color: #34d399; text-align: center; }
+.summon-config-ico { width: 15px; height: 15px; vertical-align: -3px; }

@@ -236,7 +236,18 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   setLevel(v: number): void {
     this.soul.level = Math.max(1, Math.floor(v) || 1);
+    // Soul-locked summons scale their stats by the per-level growth when the level moves.
+    const g = this.soul.growth;
+    if (g) {
+      for (const k of this.statKeys) this.soul.stats[k] = Math.max(1, Math.round((g[k] || 0) * this.soul.level));
+    }
     this.recalc();
+  }
+
+  /** Per-level growth shown in the stat pad: the soul's stored growth, else stat ÷ level. */
+  growthOf(k: NpcStatKey): number {
+    const g = this.soul.growth?.[k] ?? (this.soul.stats[k] / Math.max(1, this.soul.level));
+    return Math.round(g * 100) / 100;
   }
 
   incStat(key: NpcStatKey): void {
