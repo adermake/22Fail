@@ -1,0 +1,128 @@
+.map-editor-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: #16161a;
+  color: #e6e6ea;
+}
+
+/* ── toolbar ── */
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #1f1f25;
+  border-bottom: 1px solid #2e2e37;
+  flex: 0 0 auto;
+  user-select: none;
+}
+
+.editor-toolbar button {
+  background: #2a2a33;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.editor-toolbar button:hover {
+  background: #343440;
+}
+
+.editor-toolbar button.active {
+  background: #3d5a80;
+  border-color: #4f7fb0;
+}
+
+.world-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.zoom-readout {
+  min-width: 52px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.sep {
+  width: 1px;
+  height: 20px;
+  background: #33333d;
+  margin: 0 4px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2a2a33;
+  border: 1px solid #3a3a46;
+}
+
+.badge.gm {
+  background: #4a3a6b;
+  border-color: #6b5696;
+}
+
+/* ── viewer ── */
+
+.viewer-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.pixi-host {
+  position: absolute;
+  inset: 0;
+  /* The canvas handles its own gestures; browser panning would fight the camera. */
+  touch-action: none;
+  cursor: grab;
+}
+
+.pixi-host:active {
+  cursor: grabbing;
+}
+
+.pixi-host canvas {
+  display: block;
+}
+
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(22, 22, 26, 0.85);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.status-bar {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 14px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(20, 20, 24, 0.72);
+  border: 1px solid #2e2e37;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+  pointer-events: none;
+}

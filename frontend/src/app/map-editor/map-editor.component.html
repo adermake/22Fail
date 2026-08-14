@@ -1,0 +1,40 @@
+<div class="map-editor-page">
+  <div class="editor-toolbar">
+    <span class="world-name">{{ worldName() }}</span>
+
+    <span class="sep"></span>
+
+    <button type="button" (click)="zoomBy(1 / 1.4)" title="Herauszoomen">−</button>
+    <span class="zoom-readout">{{ zoomPct() }}%</span>
+    <button type="button" (click)="zoomBy(1.4)" title="Hineinzoomen">+</button>
+    <button type="button" (click)="resetView()" title="Ansicht zurücksetzen">Ansicht</button>
+
+    <span class="sep"></span>
+
+    <button type="button" [class.active]="showGrid()" (click)="toggleGrid()">
+      Hexgitter
+    </button>
+
+    <span class="spacer"></span>
+
+    @if (isGM()) {
+      <span class="badge gm">GM</span>
+    } @else {
+      <span class="badge">Spieler</span>
+    }
+  </div>
+
+  <div class="viewer-wrap">
+    <div #pixiHost class="pixi-host"></div>
+
+    @if (!ready()) {
+      <div class="loading-overlay">Karte wird geladen …</div>
+    }
+
+    <div class="status-bar">
+      <span>x {{ cursorWorld().x }} · y {{ cursorWorld().y }}</span>
+      <span>Hex {{ cursorHex().q }},{{ cursorHex().r }}</span>
+      <span>{{ kmPerHex }} km / Hex</span>
+    </div>
+  </div>
+</div>

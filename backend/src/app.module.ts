@@ -10,6 +10,9 @@ import { LibraryController } from './library.controller';
 import { LibraryService } from './library.service';
 import { AssetBrowserController } from './asset-browser.controller';
 import { AssetBrowserService } from './asset-browser.service';
+import { MapEditorController } from './map-editor.controller';
+import { MapEditorService } from './map-editor.service';
+import { MapEditorGateway } from './map-editor.gateway';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { CharacterGateway } from './character.gateway';
@@ -26,7 +29,7 @@ import { AdminGuard } from './admin.guard';
       exclude: ['api/*path'],
     }),
   ],
-  controllers: [AppController, MapStorageController, LibraryController, AssetBrowserController, UsersController],
-  providers: [CharacterGateway, WorldGateway, BattleMapGateway, DataService, ImageService, TextureService, StressTestService, MapStorageService, LibraryService, AssetBrowserService, UsersService, AdminGuard],
+  controllers: [AppController, MapStorageController, LibraryController, AssetBrowserController, UsersController, MapEditorController],
+  providers: [CharacterGateway, WorldGateway, BattleMapGateway, DataService, ImageService, TextureService, StressTestService, MapStorageService, LibraryService, AssetBrowserService, UsersService, AdminGuard, MapEditorService, MapEditorGateway],
 })
 export class AppModule {}

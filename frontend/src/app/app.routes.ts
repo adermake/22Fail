@@ -27,6 +27,11 @@ export const routes: Routes = [
         loadComponent: () => import('./world-map/world-map.component').then(m => m.WorldMapComponent)
     },
     {
+        // Map editor (format v2). Takes over 'world-map' once it reaches parity in Phase 3.
+        path: 'map-editor/:worldName',
+        loadComponent: () => import('./map-editor/map-editor.component').then(m => m.MapEditorComponent)
+    },
+    {
         path: 'library/:libraryId',
         loadComponent: () => import('./library-editor/library-editor.component').then(m => m.LibraryEditorComponent)
     },
