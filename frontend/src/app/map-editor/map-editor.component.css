@@ -243,6 +243,45 @@
   overflow: hidden;
 }
 
+.mode-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.mode-tabs button {
+  flex: 1;
+  background: #2a2a33;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 5px;
+  padding: 5px 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mode-tabs button:hover:not(:disabled) {
+  background: #343440;
+}
+
+.mode-tabs button.active {
+  background: #3d5a80;
+  border-color: #6d9fd0;
+}
+
+.mode-tabs button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-top: 6px;
+  cursor: pointer;
+}
+
 .paper-select {
   width: 100%;
   background: #2a2a33;

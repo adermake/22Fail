@@ -51,6 +51,16 @@ export class MapEditorStoreService {
   /** Chunks changed by *other* clients; the chunk manager refetches these. */
   chunkInvalidations$ = this.chunkInvalidationSubject.asObservable();
 
+  private objectOpSubject = new Subject<MapOp>();
+  /**
+   * Object ops after they have been applied, local and remote alike.
+   *
+   * Views keep their own indexes and sprite pools, so they need the individual change —
+   * re-deriving from the whole collection on every edit is exactly what the op protocol
+   * exists to avoid.
+   */
+  objectOps$ = this.objectOpSubject.asObservable();
+
   private opSub?: { unsubscribe(): void };
 
   async load(worldName: string): Promise<MapEditorData> {
@@ -83,6 +93,7 @@ export class MapEditorStoreService {
     if (!data) return;
     applyMapOp(data, op);
     this.revision.update(n => n + 1);
+    if (op.t === 'add' || op.t === 'upd' || op.t === 'del') this.objectOpSubject.next(op);
   }
 
   /** Apply optimistically, then broadcast. */
@@ -102,6 +113,11 @@ export class MapEditorStoreService {
 
     applyMapOp(data, op);
     this.revision.update(n => n + 1);
+
+    if (op.t === 'add' || op.t === 'upd' || op.t === 'del') {
+      this.objectOpSubject.next(op);
+      return;
+    }
 
     if (op.t === 'chunk') {
       const key = chunkKey(op.layer, op.cx, op.cy);

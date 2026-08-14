@@ -19,7 +19,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { Graphics } from 'pixi.js';
+import { Graphics, Sprite } from 'pixi.js';
 import { Subscription } from 'rxjs';
 
 import { MapEditorStoreService } from '../services/map-editor-store.service';
@@ -30,7 +30,10 @@ import { ChunkManager } from './chunk-manager';
 import { TerrainView, hexToRgb } from './terrain-view';
 import { BrushEngine, BrushSettings, TerrainTool, defaultBrush } from './brush-engine';
 import { UndoStack } from './undo-stack';
-import { MapAssets, PaperTextureMeta } from './map-assets';
+import { GroupMeta, MapAssets, PaperTextureMeta, SymbolCategory } from './map-assets';
+import { SymbolView } from './symbol-view';
+import { MapSymbol } from './map-editor.model';
+import { generateId } from '../model/lobby.model';
 import { MIN_ZOOM, MAX_ZOOM } from './map-camera';
 import { KM_PER_HEX, worldToHex } from './map-hex';
 
@@ -63,6 +66,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private brushes?: BrushEngine;
   private undoStack?: UndoStack;
   private assets = new MapAssets();
+  private symbols?: SymbolView;
   private subs: Subscription[] = [];
   private resizeObserver?: ResizeObserver;
 
@@ -90,7 +94,29 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     { tool: 'waterPaint', label: 'Wasserfarbe', title: 'Wasserfarbe malen' },
   ];
 
+  /** Editor mode: terrain brushes, symbol placement, or symbol selection. */
+  readonly mode = signal<'terrain' | 'symbols' | 'select'>('terrain');
+
   readonly activeTool = signal<TerrainTool>('landBrush');
+
+  // ── symbols ──
+
+  readonly categories: { id: SymbolCategory; label: string }[] = [
+    { id: 'trees', label: 'Bäume' },
+    { id: 'mountains', label: 'Berge' },
+    { id: 'misc', label: 'Sonstiges' },
+  ];
+
+  readonly activeCategory = signal<SymbolCategory>('trees');
+  readonly groups = signal<GroupMeta[]>([]);
+  readonly activeGroup = signal<string>('');
+  readonly symbolScale = signal(1);
+  readonly placeSecret = signal(false);
+  readonly selectedIds = signal<string[]>([]);
+  readonly assetsReady = signal(false);
+
+  /** The variation the next click will place. Re-rolled after each placement. */
+  private nextAsset: string | null = null;
   readonly brushSize = signal(120);
   readonly brushSoftness = signal(0.35);
   readonly brushStrength = signal(1);
@@ -132,11 +158,15 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
    */
   private brushResize: { x: number; initialSize: number; world: { x: number; y: number } } | null =
     null;
+  /** Active drag of the current symbol selection. */
+  private dragSymbols: { startWorld: { x: number; y: number }; moved: boolean } | null = null;
   private streamScheduled = false;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   /** Re-rolled after each lake placement so consecutive lakes differ. */
   private lakeSeed = Math.floor(Math.random() * 1e9);
   private cursorGraphic = new Graphics();
+  /** Faded preview of the next symbol to be placed. */
+  private previewSprite = new Sprite();
   /** Last pointer position in world space, so the cursor can be redrawn in place. */
   private lastWorld: { x: number; y: number } | null = null;
 
@@ -148,7 +178,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.worldName.set(world);
 
     await this.renderer.init(host);
-    this.renderer.cursorLayer.addChild(this.cursorGraphic);
+    this.previewSprite.anchor.set(0.5);
+    this.previewSprite.visible = false;
+    this.renderer.cursorLayer.addChild(this.previewSprite, this.cursorGraphic);
 
     const data = await this.store.load(world);
 
@@ -170,6 +202,14 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     // The asset library is optional — a checkout without the Wonderdraft extract still runs.
     if (await this.assets.load()) {
       this.paperOptions.set(this.assets.paperTextures);
+      this.assetsReady.set(true);
+
+      this.symbols = new SymbolView(this.assets);
+      this.renderer.objectLayer.addChild(this.symbols.container);
+      this.symbols.rebuild(data.symbols);
+      this.symbols.setLandColor(parseHexColor(this.landBase(), 0x7a8f5a));
+
+      this.selectCategory('trees');
     }
     this.paperOpacity.set(data.settings.paperOpacity ?? 0.35);
     await this.applyPaper(data.settings.paperTexture ?? '');
@@ -180,6 +220,22 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.store.chunkInvalidations$.subscribe(inv =>
         this.chunks?.invalidate(inv.layer, inv.cx, inv.cy),
       ),
+      // Keep the symbol index in step with local *and* remote edits.
+      this.store.objectOps$.subscribe(op => {
+        if (op.t !== 'add' && op.t !== 'upd' && op.t !== 'del') return;
+        if (op.c !== 'symbols') return;
+
+        if (op.t === 'add') {
+          this.symbols?.add(op.v as MapSymbol);
+        } else if (op.t === 'del') {
+          this.symbols?.remove(op.id);
+        } else {
+          // The op carries only the changed fields; re-index from the merged object.
+          const sym = this.store.data()?.symbols.find(s => s.id === op.id);
+          if (sym) this.symbols?.update(sym);
+        }
+        this.scheduleStream();
+      }),
     );
 
     this.attachInput(host);
@@ -207,6 +263,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     // Persist anything painted but not yet uploaded before tearing GPU state down.
     void this.chunks?.flushDirty().finally(() => {
       this.undoStack?.destroy();
+      this.symbols?.destroy();
       this.assets.destroy();
       this.brushes?.destroy();
       this.terrain?.destroy();
@@ -233,6 +290,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.chunks?.update(bounds);
       // Terrain follows the streamed set, so meshes never reference an evicted texture.
       this.terrain?.update(this.renderer.camera.visibleBounds(0));
+      this.symbols?.render(
+        this.renderer.camera.visibleBounds(0),
+        this.renderer.camera.zoom,
+        this.isGM(),
+      );
     });
   }
 
@@ -321,6 +383,99 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.canRedo.set(this.undoStack?.canRedo() ?? false);
   }
 
+  // ── symbols ──
+
+  selectCategory(cat: SymbolCategory): void {
+    this.activeCategory.set(cat);
+    const groups = this.assets.groupsIn(cat);
+    this.groups.set(groups);
+    if (groups.length) this.selectGroup(groups[0].id);
+  }
+
+  selectGroup(id: string): void {
+    this.activeGroup.set(id);
+    this.rollNextAsset();
+  }
+
+  /** Pick the variation the next click will place, so the preview can show it. */
+  private rollNextAsset(): void {
+    this.nextAsset = this.assets.randomInGroup(this.activeGroup());
+    this.redrawCursor();
+  }
+
+  private placeSymbol(world: { x: number; y: number }): void {
+    if (!this.nextAsset) return;
+
+    const symbol: MapSymbol = {
+      id: generateId(),
+      x: world.x,
+      y: world.y,
+      vis: this.placeSecret() ? 'secret' : 'public',
+      asset: this.nextAsset,
+      group: this.activeGroup(),
+      scale: this.symbolScale(),
+      rotation: 0,
+    };
+
+    this.store.addObject('symbols', symbol);
+    // Re-roll so repeated clicks lay down varied symbols rather than a row of clones.
+    this.rollNextAsset();
+  }
+
+  private eraseSymbolAt(world: { x: number; y: number }): void {
+    const hit = this.symbols?.hitTest(world.x, world.y);
+    if (hit) this.store.deleteObject('symbols', hit.id);
+  }
+
+  private selectSymbolAt(world: { x: number; y: number }, additive: boolean): void {
+    const hit = this.symbols?.hitTest(world.x, world.y);
+    if (!hit) {
+      if (!additive) this.setSelection([]);
+      return;
+    }
+    const current = this.selectedIds();
+    if (additive) {
+      this.setSelection(
+        current.includes(hit.id) ? current.filter(i => i !== hit.id) : [...current, hit.id],
+      );
+    } else {
+      this.setSelection([hit.id]);
+    }
+  }
+
+  private setSelection(ids: string[]): void {
+    this.selectedIds.set(ids);
+    this.symbols?.setSelection(ids);
+    this.scheduleStream();
+  }
+
+  deleteSelected(): void {
+    for (const id of this.selectedIds()) this.store.deleteObject('symbols', id);
+    this.setSelection([]);
+  }
+
+  /** Flip the selected symbols between GM-only and visible to players. */
+  toggleSelectedSecret(): void {
+    const data = this.store.data();
+    if (!data) return;
+    for (const id of this.selectedIds()) {
+      const sym = data.symbols.find(s => s.id === id);
+      if (!sym) continue;
+      this.store.updateObject('symbols', id, { vis: sym.vis === 'secret' ? 'public' : 'secret' });
+    }
+  }
+
+  setSymbolScale(value: string | number): void {
+    this.symbolScale.set(Number(value));
+    this.redrawCursor();
+  }
+
+  setMode(mode: 'terrain' | 'symbols' | 'select'): void {
+    this.mode.set(mode);
+    if (mode !== 'select') this.setSelection([]);
+    this.redrawCursor();
+  }
+
   // ── brush cursor ──
 
   /** Redraw the brush cursor where the pointer last was (after a tool or size change). */
@@ -332,9 +487,22 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private drawCursor(world: { x: number; y: number }): void {
     const g = this.cursorGraphic;
     g.clear();
-    if (!this.isGM()) return;
+    if (!this.isGM()) {
+      this.previewSprite.visible = false;
+      return;
+    }
 
     const zoom = this.renderer.camera.zoom;
+
+    // Symbol mode previews the actual next variation, faded, so you can see what a click
+    // will drop and where it will sit before committing to it.
+    if (this.mode() === 'symbols') {
+      this.updateSymbolPreview(world);
+      return;
+    }
+    this.previewSprite.visible = false;
+
+    if (this.mode() === 'select') return;
 
     if (this.activeTool() === 'lakeStamp') {
       // The exact shape the next click will carve, at the current seed. Outline only —
@@ -355,6 +523,26 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       g.circle(world.x, world.y, solid);
       g.stroke({ width: 1 / zoom, color: 0xffffff, alpha: 0.3 });
     }
+  }
+
+  private updateSymbolPreview(world: { x: number; y: number }): void {
+    const sprite = this.previewSprite;
+    const meta = this.nextAsset ? this.assets.meta(this.nextAsset) : null;
+    const texture = this.nextAsset ? this.assets.sprite(this.nextAsset) : null;
+
+    if (!meta || !texture) {
+      sprite.visible = false;
+      return;
+    }
+
+    const scale = this.symbolScale();
+    sprite.texture = texture;
+    // Same base-anchored placement the real symbol will use, so the preview is truthful.
+    sprite.position.set(world.x + meta.offsetX * scale, world.y + meta.offsetY * scale);
+    sprite.scale.set(scale);
+    sprite.tint = meta.colorable ? parseHexColor(this.landBase(), 0x7a8f5a) : 0xffffff;
+    sprite.alpha = 0.8;
+    sprite.visible = true;
   }
 
   // ── input ──
@@ -395,8 +583,10 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    if (!this.isGM()) return;
+
     // Shift-drag resizes instead of painting — the lobby's brush gesture.
-    if (e.shiftKey && this.isGM()) {
+    if (e.shiftKey && this.mode() === 'terrain') {
       e.preventDefault();
       this.brushResize = { x: e.clientX, initialSize: this.brushSize(), world };
       this.lastWorld = world;
@@ -404,7 +594,24 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    this.beginPaint(world);
+    switch (this.mode()) {
+      case 'symbols':
+        // Alt turns the placement tool into an eraser, so switching modes is not needed
+        // just to remove a symbol that landed wrong.
+        if (e.altKey) this.eraseSymbolAt(world);
+        else this.placeSymbol(world);
+        return;
+
+      case 'select':
+        this.selectSymbolAt(world, e.shiftKey);
+        this.dragSymbols = this.selectedIds().length
+          ? { startWorld: world, moved: false }
+          : null;
+        return;
+
+      default:
+        this.beginPaint(world);
+    }
   };
 
   private onPointerMove = (e: PointerEvent): void => {
@@ -427,6 +634,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.lastWorld = world;
     this.drawCursor(world);
 
+    if (this.dragSymbols) {
+      this.dragSelection(world);
+      return;
+    }
+
     if (this.isPanning) {
       this.renderer.camera.panByScreen(
         e.clientX - this.lastPointer.x,
@@ -447,8 +659,46 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.redrawCursor();
       return;
     }
+    if (this.dragSymbols) {
+      // Positions were only moved locally during the drag; commit them once on release
+      // rather than emitting an op per pointer move.
+      if (this.dragSymbols.moved) this.commitSelectionMove();
+      this.dragSymbols = null;
+      return;
+    }
     this.endPaint();
   };
+
+  /** Move the selection locally while dragging, without touching the network. */
+  private dragSelection(world: { x: number; y: number }): void {
+    const drag = this.dragSymbols;
+    const data = this.store.data();
+    if (!drag || !data) return;
+
+    const dx = world.x - drag.startWorld.x;
+    const dy = world.y - drag.startWorld.y;
+    if (dx === 0 && dy === 0) return;
+    drag.moved = true;
+    drag.startWorld = world;
+
+    for (const id of this.selectedIds()) {
+      const sym = data.symbols.find(s => s.id === id);
+      if (!sym) continue;
+      sym.x += dx;
+      sym.y += dy;
+      this.symbols?.update(sym);
+    }
+    this.scheduleStream();
+  }
+
+  private commitSelectionMove(): void {
+    const data = this.store.data();
+    if (!data) return;
+    for (const id of this.selectedIds()) {
+      const sym = data.symbols.find(s => s.id === id);
+      if (sym) this.store.updateObject('symbols', id, { x: sym.x, y: sym.y });
+    }
+  }
 
   private onWheel = (e: WheelEvent): void => {
     e.preventDefault();
@@ -475,6 +725,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       e.preventDefault();
       if (e.shiftKey) this.redo();
       else this.undo();
+      return;
+    }
+
+    if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedIds().length) {
+      e.preventDefault();
+      this.deleteSelected();
     }
   };
 
@@ -537,6 +793,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.landBase.set(color);
     this.store.setPath('settings.landBase', color);
     this.applyBaseColors();
+    // Colourable symbols are drawn in the land colour, so they follow it.
+    this.symbols?.setLandColor(parseHexColor(color, 0x7a8f5a));
+    this.scheduleStream();
   }
 
   setWaterBase(color: string): void {
@@ -622,5 +881,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   readonly minZoomPct = Math.round(MIN_ZOOM * 100);
   readonly maxZoomPct = Math.round(MAX_ZOOM * 100);
+}
+
+/** '#rrggbb' → 0xrrggbb, falling back rather than producing NaN tints. */
+function parseHexColor(hex: string, fallback: number): number {
+  const n = Number.parseInt((hex || '').replace('#', ''), 16);
+  return Number.isNaN(n) ? fallback : n;
 }
 
