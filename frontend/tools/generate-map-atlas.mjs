@@ -31,7 +31,17 @@ import { PNG } from 'pngjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = join(HERE, 'DraftExtract', 'sprites');
+const TEXTURE_SRC = join(HERE, 'DraftExtract', 'textures', 'ground');
 const OUT = join(HERE, '..', 'public', 'mapassets');
+
+/**
+ * Paper textures are shipped at half resolution and as pure luminance.
+ *
+ * They are multiplied over the palette colour, so only their brightness matters — dropping
+ * the colour channels turns a 6 MB RGB source into a few hundred KB of greyscale, which is
+ * the difference between shipping six of them and shipping none.
+ */
+const PAPER_SIZE = 1024;
 
 /** Top-level source folders → the editor's three symbol categories. */
 const CATEGORIES = { trees: 'trees', mountains: 'mountains', symbols: 'misc' };
@@ -250,10 +260,90 @@ async function newestMtime(dir) {
 async function isUpToDate() {
   try {
     const manifest = await stat(join(OUT, 'manifest.json'));
-    return (await newestMtime(SRC)) <= manifest.mtimeMs;
+    let newest = await newestMtime(SRC);
+    if (existsSync(TEXTURE_SRC)) newest = Math.max(newest, await newestMtime(TEXTURE_SRC));
+    return newest <= manifest.mtimeMs;
   } catch {
     return false; // no manifest yet
   }
+}
+
+/**
+ * Convert a ground texture to a tiling greyscale paper texture.
+ *
+ * Box-filtered rather than point-sampled: these are noisy grain textures, and dropping
+ * every other pixel would alias the grain into visible artefacts once it tiles across a map.
+ */
+function toPaperTexture(src) {
+  const factor = Math.max(1, Math.round(src.width / PAPER_SIZE));
+  const size = Math.floor(src.width / factor);
+  const out = new PNG({ width: size, height: size, colorType: 0 });
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let sum = 0;
+      let n = 0;
+      for (let dy = 0; dy < factor; dy++) {
+        for (let dx = 0; dx < factor; dx++) {
+          const sx = x * factor + dx;
+          const sy = y * factor + dy;
+          if (sx >= src.width || sy >= src.height) continue;
+          const i = (sy * src.width + sx) * 4;
+          // Rec. 601 luma — the texture only contributes brightness to the multiply.
+          sum += 0.299 * src.data[i] + 0.587 * src.data[i + 1] + 0.114 * src.data[i + 2];
+          n++;
+        }
+      }
+      const v = n ? Math.round(sum / n) : 255;
+      const o = (y * size + x) * 4;
+      out.data[o] = out.data[o + 1] = out.data[o + 2] = v;
+      out.data[o + 3] = 255;
+    }
+  }
+  return { png: out, size };
+}
+
+async function buildPaperTextures() {
+  if (!existsSync(TEXTURE_SRC)) return [];
+
+  const files = (await readdir(TEXTURE_SRC)).filter(f => f.endsWith('.wonderdraft_image')).sort();
+  const out = [];
+
+  for (const file of files) {
+    const name = file.replace(/\.wonderdraft_image$/, '');
+    let src;
+    try {
+      // Despite the extension these are ordinary PNGs.
+      src = PNG.sync.read(await readFile(join(TEXTURE_SRC, file)));
+    } catch (err) {
+      console.warn(`  ! skipped paper texture ${name}: ${err.message}`);
+      continue;
+    }
+
+    const { png, size } = toPaperTexture(src);
+
+    // Some themes ship a flat placeholder (Wonderdraft's Black & White has no grain).
+    // Multiplying by a constant does nothing, so offering it would be a no-op option.
+    let min = 255;
+    let max = 0;
+    for (let i = 0; i < png.data.length; i += 4) {
+      const v = png.data[i];
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    if (max - min < 4) {
+      console.log(`[map-atlas]   (skipped ${name} — flat, no grain to multiply)`);
+      continue;
+    }
+
+    const outFile = `paper-${name.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}.png`;
+    await writeFile(join(OUT, outFile), PNG.sync.write(png, { colorType: 0 }));
+
+    out.push({ id: outFile.replace(/^paper-|\.png$/g, ''), name, file: outFile, size });
+    console.log(`[map-atlas]   ${outFile}  ${size}x${size}`);
+  }
+
+  return out;
 }
 
 async function main() {
@@ -293,9 +383,13 @@ async function main() {
     console.log(`[map-atlas]   ${file}  ${PAGE_SIZE}x${height}  (${page.sprites.length} sprites)`);
   }
 
+  console.log('[map-atlas] building paper textures …');
+  const paperTextures = await buildPaperTextures();
+
   const manifest = {
     generatedAt: new Date().toISOString(),
     pages: pageFiles,
+    paperTextures,
     categories: {},
     groups: {},
     sprites: {},

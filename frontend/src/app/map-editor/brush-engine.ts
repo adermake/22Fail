@@ -305,6 +305,11 @@ export class BrushEngine {
   }
 }
 
+/** Vertices around a lake outline. Low counts read as a visibly faceted polygon. */
+const LAKE_STEPS = 192;
+/** Octaves of radial wobble. One or two look like a wavy circle, not like a lake. */
+const LAKE_OCTAVES = 5;
+
 /**
  * Outline of the lake a given seed produces, as a flat x,y point list.
  *
@@ -312,21 +317,33 @@ export class BrushEngine {
  * shape you get — previewing a plain circle would be a lie, since the whole point of the
  * tool is that every lake comes out different.
  *
- * Two octaves of radial wobble: a lopsided outline plus a finer ragged edge.
+ * The radius is modulated by several octaves of sine noise with independently randomised
+ * frequency, phase and amplitude. An earlier two-octave version with a frequency picked from
+ * three values produced shapes so alike they looked like the same lake toggling between a
+ * couple of states, and at 48 vertices the facets were visible as straight edges.
  */
 export function lakeOutline(cx: number, cy: number, radius: number, seed: number): number[] {
   const rand = seeded(seed);
+
+  // Low frequencies give the overall lopsided body, higher ones the ragged shoreline.
+  const octaves: { freq: number; phase: number; amp: number }[] = [];
+  let amp = 0.28;
+  for (let o = 0; o < LAKE_OCTAVES; o++) {
+    octaves.push({
+      freq: Math.max(1, Math.round(1 + rand() * 2) + o * 2),
+      phase: rand() * Math.PI * 2,
+      amp: amp * (0.6 + rand() * 0.8),
+    });
+    amp *= 0.55;
+  }
+
   const points: number[] = [];
-  const steps = 48;
-
-  const phase1 = rand() * Math.PI * 2;
-  const phase2 = rand() * Math.PI * 2;
-  const lobes = 2 + Math.floor(rand() * 3);
-
-  for (let i = 0; i < steps; i++) {
-    const a = (i / steps) * Math.PI * 2;
-    const wobble =
-      1 + 0.25 * Math.sin(a * lobes + phase1) + 0.1 * Math.sin(a * (lobes * 3 + 1) + phase2);
+  for (let i = 0; i < LAKE_STEPS; i++) {
+    const a = (i / LAKE_STEPS) * Math.PI * 2;
+    let wobble = 1;
+    for (const o of octaves) wobble += o.amp * Math.sin(a * o.freq + o.phase);
+    // Keep the outline inside the region `stampLake` dirties, and stop it collapsing.
+    wobble = Math.min(1.35, Math.max(0.35, wobble));
     points.push(cx + Math.cos(a) * radius * wobble, cy + Math.sin(a) * radius * wobble);
   }
   return points;

@@ -30,6 +30,7 @@ import { ChunkManager } from './chunk-manager';
 import { TerrainView, hexToRgb } from './terrain-view';
 import { BrushEngine, BrushSettings, TerrainTool, defaultBrush } from './brush-engine';
 import { UndoStack } from './undo-stack';
+import { MapAssets, PaperTextureMeta } from './map-assets';
 import { MIN_ZOOM, MAX_ZOOM } from './map-camera';
 import { KM_PER_HEX, worldToHex } from './map-hex';
 
@@ -61,6 +62,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private terrain?: TerrainView;
   private brushes?: BrushEngine;
   private undoStack?: UndoStack;
+  private assets = new MapAssets();
   private subs: Subscription[] = [];
   private resizeObserver?: ResizeObserver;
 
@@ -93,11 +95,23 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly brushSoftness = signal(0.35);
   readonly brushStrength = signal(1);
 
-  /** Selected palette entries. Colours are chosen from the stored lists, never free-form. */
+  /**
+   * Brush colours, chosen from the stored lists rather than free-form while drawing.
+   * Selecting one only loads the brush — it does not recolour terrain already on the map.
+   */
   readonly landPalette = signal<string[]>([]);
   readonly waterPalette = signal<string[]>([]);
   readonly selectedLand = signal(0);
   readonly selectedWater = signal(0);
+
+  /** Base colours for *unpainted* terrain. Changing these is what recolours the map. */
+  readonly landBase = signal('#7a8f5a');
+  readonly waterBase = signal('#3f6d8c');
+
+  /** Paper grain multiplied over the whole terrain stack. */
+  readonly paperOptions = signal<PaperTextureMeta[]>([]);
+  readonly paperTexture = signal('');
+  readonly paperOpacity = signal(0.35);
 
   readonly canUndo = signal(false);
   readonly canRedo = signal(false);
@@ -111,6 +125,13 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private isPanning = false;
   private isPainting = false;
   private lastPointer = { x: 0, y: 0 };
+  /**
+   * Shift-drag brush resize, same gesture and feel as the lobby draw tools
+   * (`world-map.component.ts`): the ring stays anchored where the drag began while
+   * horizontal movement scales it.
+   */
+  private brushResize: { x: number; initialSize: number; world: { x: number; y: number } } | null =
+    null;
   private streamScheduled = false;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   /** Re-rolled after each lake placement so consecutive lakes differ. */
@@ -142,7 +163,16 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     this.landPalette.set(data.landPalette);
     this.waterPalette.set(data.waterPalette);
-    this.applyPaletteToTerrain();
+    this.landBase.set(data.settings.landBase ?? '#7a8f5a');
+    this.waterBase.set(data.settings.waterBase ?? '#3f6d8c');
+    this.applyBaseColors();
+
+    // The asset library is optional — a checkout without the Wonderdraft extract still runs.
+    if (await this.assets.load()) {
+      this.paperOptions.set(this.assets.paperTextures);
+    }
+    this.paperOpacity.set(data.settings.paperOpacity ?? 0.35);
+    await this.applyPaper(data.settings.paperTexture ?? '');
     this.renderer.setShowGrid(data.settings.showGrid);
     this.showGrid.set(data.settings.showGrid);
 
@@ -177,6 +207,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     // Persist anything painted but not yet uploaded before tearing GPU state down.
     void this.chunks?.flushDirty().finally(() => {
       this.undoStack?.destroy();
+      this.assets.destroy();
       this.brushes?.destroy();
       this.terrain?.destroy();
       this.chunks?.destroy();
@@ -205,11 +236,10 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  private applyPaletteToTerrain(): void {
-    const land = this.landPalette()[this.selectedLand()] ?? '#7a8f5a';
-    const water = this.waterPalette()[this.selectedWater()] ?? '#3f6d8c';
-    this.terrain?.setLandDefault(hexToRgb(land, [0.48, 0.56, 0.35]));
-    this.terrain?.setWaterDefault(hexToRgb(water, [0.25, 0.43, 0.55]));
+  /** Push the *base* colours to the shader. Palette selection deliberately does not. */
+  private applyBaseColors(): void {
+    this.terrain?.setLandDefault(hexToRgb(this.landBase(), [0.48, 0.56, 0.35]));
+    this.terrain?.setWaterDefault(hexToRgb(this.waterBase(), [0.25, 0.43, 0.55]));
   }
 
   private brush(): BrushSettings {
@@ -239,9 +269,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     if (this.activeTool() === 'lakeStamp') {
       this.brushes?.stampLake(world.x, world.y, this.brushSize(), this.lakeSeed);
-      // A fresh seed means the next lake — and its preview — is a different shape.
+      // A fresh seed means the next lake is a different shape. Redraw immediately so the
+      // preview shows that next shape without waiting for the pointer to move.
       this.lakeSeed = Math.floor(Math.random() * 1e9);
+      this.lastWorld = world;
       this.endPaint();
+      this.redrawCursor();
       return;
     }
 
@@ -362,6 +395,15 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    // Shift-drag resizes instead of painting — the lobby's brush gesture.
+    if (e.shiftKey && this.isGM()) {
+      e.preventDefault();
+      this.brushResize = { x: e.clientX, initialSize: this.brushSize(), world };
+      this.lastWorld = world;
+      this.redrawCursor();
+      return;
+    }
+
     this.beginPaint(world);
   };
 
@@ -369,9 +411,20 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const p = this.localPoint(e);
     const world = this.renderer.camera.screenToWorld(p.x, p.y);
 
-    this.lastWorld = world;
     this.cursorWorld.set({ x: Math.round(world.x), y: Math.round(world.y) });
     this.cursorHex.set(worldToHex(world.x, world.y));
+
+    if (this.brushResize) {
+      // Scale in *world* units so the gesture feels the same at any zoom.
+      const dx = e.clientX - this.brushResize.x;
+      const next = this.brushResize.initialSize + (dx * 0.3) / this.renderer.camera.zoom;
+      this.brushSize.set(Math.round(Math.min(2000, Math.max(4, next))));
+      // Ring stays where the drag started, so it scales around a fixed point.
+      this.drawCursor(this.brushResize.world);
+      return;
+    }
+
+    this.lastWorld = world;
     this.drawCursor(world);
 
     if (this.isPanning) {
@@ -389,6 +442,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   private onPointerUp = (): void => {
     this.isPanning = false;
+    if (this.brushResize) {
+      this.brushResize = null;
+      this.redrawCursor();
+      return;
+    }
     this.endPaint();
   };
 
@@ -441,25 +499,76 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.brushStrength.set(Number(value));
   }
 
+  /** Selecting a swatch only loads the brush — terrain already on the map is untouched. */
   selectLandColor(i: number): void {
     this.selectedLand.set(i);
-    this.applyPaletteToTerrain();
   }
 
   selectWaterColor(i: number): void {
     this.selectedWater.set(i);
-    this.applyPaletteToTerrain();
+  }
+
+  /**
+   * Apply a paper texture by id ('' = none).
+   *
+   * `paperScale` is the world span of one tile. Wonderdraft's grain reads at roughly map
+   * scale rather than pixel scale, so one tile covers a chunk-ish span instead of being
+   * stretched over the whole world or repeating into moiré.
+   */
+  private async applyPaper(id: string): Promise<void> {
+    this.paperTexture.set(id);
+    const texture = id ? await this.assets.paper(id) : null;
+    this.terrain?.setPaper(texture, this.paperOpacity(), 2048);
+  }
+
+  async selectPaper(id: string): Promise<void> {
+    await this.applyPaper(id);
+    this.store.setPath('settings.paperTexture', id);
+  }
+
+  async setPaperOpacity(value: string | number): Promise<void> {
+    this.paperOpacity.set(Number(value));
+    await this.applyPaper(this.paperTexture());
+    this.store.setPath('settings.paperOpacity', this.paperOpacity());
+  }
+
+  /** Base colour of unpainted land. This *is* the setting that recolours the map. */
+  setLandBase(color: string): void {
+    this.landBase.set(color);
+    this.store.setPath('settings.landBase', color);
+    this.applyBaseColors();
+  }
+
+  setWaterBase(color: string): void {
+    this.waterBase.set(color);
+    this.store.setPath('settings.waterBase', color);
+    this.applyBaseColors();
   }
 
   /** Palettes are shared map state, so additions sync to everyone. */
-  addLandColor(): void {
-    const next = [...this.landPalette(), randomEarthTone()];
+  addLandColor(color: string): void {
+    const next = [...this.landPalette(), color];
+    this.landPalette.set(next);
+    this.selectedLand.set(next.length - 1);
+    this.store.setPath('landPalette', next);
+  }
+
+  addWaterColor(color: string): void {
+    const next = [...this.waterPalette(), color];
+    this.waterPalette.set(next);
+    this.selectedWater.set(next.length - 1);
+    this.store.setPath('waterPalette', next);
+  }
+
+  /** Recolour an existing swatch in place, keeping its position in the palette. */
+  editLandColor(i: number, color: string): void {
+    const next = this.landPalette().map((c, idx) => (idx === i ? color : c));
     this.landPalette.set(next);
     this.store.setPath('landPalette', next);
   }
 
-  addWaterColor(): void {
-    const next = [...this.waterPalette(), randomWaterTone()];
+  editWaterColor(i: number, color: string): void {
+    const next = this.waterPalette().map((c, idx) => (idx === i ? color : c));
     this.waterPalette.set(next);
     this.store.setPath('waterPalette', next);
   }
@@ -469,7 +578,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.landPalette.set(next);
     this.selectedLand.set(Math.max(0, Math.min(this.selectedLand(), next.length - 1)));
     this.store.setPath('landPalette', next);
-    this.applyPaletteToTerrain();
   }
 
   removeWaterColor(i: number): void {
@@ -477,7 +585,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.waterPalette.set(next);
     this.selectedWater.set(Math.max(0, Math.min(this.selectedWater(), next.length - 1)));
     this.store.setPath('waterPalette', next);
-    this.applyPaletteToTerrain();
   }
 
   undo(): void {
@@ -517,28 +624,3 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly maxZoomPct = Math.round(MAX_ZOOM * 100);
 }
 
-function randomEarthTone(): string {
-  const h = 60 + Math.random() * 60; // yellow-green through green
-  const s = 20 + Math.random() * 25;
-  const l = 35 + Math.random() * 25;
-  return hslToHex(h, s, l);
-}
-
-function randomWaterTone(): string {
-  const h = 185 + Math.random() * 40; // cyan through blue
-  const s = 30 + Math.random() * 30;
-  const l = 30 + Math.random() * 25;
-  return hslToHex(h, s, l);
-}
-
-function hslToHex(h: number, s: number, l: number): string {
-  const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    const c = l / 100 - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
-    return Math.round(255 * c)
-      .toString(16)
-      .padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}

@@ -165,8 +165,15 @@ export type AnyMapObject = MapSymbol | MapLabel | MapRegion | MapMarker;
 // ============================================
 
 export interface MapSettings {
-  /** Base colour of open water, before any water-colour painting. */
-  oceanColor: string;
+  /**
+   * Base colours for unpainted terrain.
+   *
+   * Deliberately separate from the palettes: the palettes are *brush* colours, so selecting
+   * a swatch loads the brush without repainting the whole map. Changing a base here is the
+   * only thing that recolours untouched terrain.
+   */
+  landBase: string;
+  waterBase: string;
   /** Paper texture asset key, multiplied over the whole terrain stack. */
   paperTexture: string;
   paperOpacity: number;
@@ -176,7 +183,8 @@ export interface MapSettings {
 
 export function defaultSettings(): MapSettings {
   return {
-    oceanColor: '#3f6d8c',
+    landBase: '#7a8f5a',
+    waterBase: '#3f6d8c',
     paperTexture: '',
     paperOpacity: 0.35,
     showGrid: true,
