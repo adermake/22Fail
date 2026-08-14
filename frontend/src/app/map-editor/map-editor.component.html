@@ -37,6 +37,7 @@
               type="button"
               [class.active]="mode() === 'symbols'"
               [disabled]="!assetsReady()"
+              [title]="assetsError() ?? 'Symbole platzieren'"
               (click)="setMode('symbols')"
             >
               Symbole
@@ -46,6 +47,12 @@
             </button>
           </div>
         </div>
+
+        @if (assetsError()) {
+          <div class="panel-section">
+            <p class="asset-error">{{ assetsError() }}</p>
+          </div>
+        }
 
         @if (mode() === 'symbols') {
           <div class="panel-section">

@@ -114,6 +114,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly placeSecret = signal(false);
   readonly selectedIds = signal<string[]>([]);
   readonly assetsReady = signal(false);
+  /** Shown in place of the symbol panel when the atlas could not be loaded. */
+  readonly assetsError = signal<string | null>(null);
 
   /** The variation the next click will place. Re-rolled after each placement. */
   private nextAsset: string | null = null;
@@ -210,6 +212,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.symbols.setLandColor(parseHexColor(this.landBase(), 0x7a8f5a));
 
       this.selectCategory('trees');
+    } else {
+      this.assetsError.set(this.assets.lastError);
     }
     this.paperOpacity.set(data.settings.paperOpacity ?? 0.35);
     await this.applyPaper(data.settings.paperTexture ?? '');

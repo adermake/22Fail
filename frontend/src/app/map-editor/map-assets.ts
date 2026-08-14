@@ -71,13 +71,29 @@ export class MapAssets {
     return !!this.manifest && this.pages.length > 0;
   }
 
+  /** Why loading failed, surfaced in the UI so the cause is not left to guesswork. */
+  lastError: string | null = null;
+
   /** Fetch the manifest and atlas pages. Safe to call when the library is not built. */
   async load(): Promise<boolean> {
+    this.lastError = null;
+
     try {
       const res = await fetch(`${BASE}/manifest.json`);
-      if (!res.ok) return false;
+      if (!res.ok) {
+        // The overwhelmingly common cause is a dev server started before the atlases were
+        // generated: `public/` is copied at startup, so a newly created folder is missed.
+        this.lastError =
+          res.status === 404
+            ? 'Symbol-Atlas nicht gefunden. "npm run map:atlas" ausführen und den Dev-Server neu starten.'
+            : `Manifest konnte nicht geladen werden (HTTP ${res.status}).`;
+        console.warn('[MapAssets]', this.lastError);
+        return false;
+      }
       this.manifest = (await res.json()) as AssetManifest;
-    } catch {
+    } catch (err) {
+      this.lastError = 'Symbol-Atlas nicht erreichbar.';
+      console.warn('[MapAssets] Manifest fetch failed:', err);
       return false;
     }
 
@@ -86,8 +102,14 @@ export class MapAssets {
         this.manifest.pages.map(p => Assets.load<Texture>(`${BASE}/${p.file}`)),
       );
     } catch (err) {
+      this.lastError = 'Atlas-Seiten konnten nicht geladen werden.';
       console.error('[MapAssets] Failed to load atlas pages:', err);
       this.manifest = null;
+      return false;
+    }
+
+    if (this.pages.length === 0) {
+      this.lastError = 'Atlas enthält keine Seiten.';
       return false;
     }
     return true;
