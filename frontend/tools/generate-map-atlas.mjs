@@ -386,8 +386,11 @@ async function main() {
   console.log('[map-atlas] building paper textures …');
   const paperTextures = await buildPaperTextures();
 
+  // Deliberately no timestamp: the manifest is committed, and a generation time would make
+  // every rebuild a diff even when nothing about the sprite library changed. Packing is
+  // deterministic (sorted input, stable shelf packer), so identical sources produce
+  // identical bytes.
   const manifest = {
-    generatedAt: new Date().toISOString(),
     pages: pageFiles,
     paperTextures,
     categories: {},

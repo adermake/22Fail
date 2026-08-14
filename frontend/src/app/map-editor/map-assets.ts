@@ -52,7 +52,6 @@ export interface PaperTextureMeta {
 }
 
 export interface AssetManifest {
-  generatedAt: string;
   pages: { file: string; width: number; height: number }[];
   paperTextures: PaperTextureMeta[];
   categories: Record<string, string[]>;
