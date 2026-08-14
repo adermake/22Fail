@@ -11,12 +11,13 @@
 
     <span class="sep"></span>
 
-    <button type="button" [class.active]="showGrid()" (click)="toggleGrid()">
-      Hexgitter
-    </button>
+    <button type="button" [class.active]="showGrid()" (click)="toggleGrid()">Hexgitter</button>
 
     <span class="spacer"></span>
 
+    @if (saving()) {
+      <span class="badge saving">Speichert …</span>
+    }
     @if (isGM()) {
       <span class="badge gm">GM</span>
     } @else {
@@ -24,17 +25,142 @@
     }
   </div>
 
-  <div class="viewer-wrap">
-    <div #pixiHost class="pixi-host"></div>
+  <div class="editor-body">
+    @if (isGM()) {
+      <aside class="tool-panel">
+        <div class="panel-section">
+          <div class="panel-title">Werkzeug</div>
+          <div class="tool-grid">
+            @for (t of tools; track t.tool) {
+              <button
+                type="button"
+                class="tool-btn"
+                [class.active]="activeTool() === t.tool"
+                [title]="t.title"
+                (click)="selectTool(t.tool)"
+              >
+                {{ t.label }}
+              </button>
+            }
+          </div>
+        </div>
 
-    @if (!ready()) {
-      <div class="loading-overlay">Karte wird geladen …</div>
+        <div class="panel-section">
+          <div class="panel-title">Pinsel</div>
+
+          <label class="slider-row">
+            <span>Größe</span>
+            <input
+              type="range"
+              min="4"
+              max="800"
+              step="1"
+              [value]="brushSize()"
+              (input)="setBrushSize($any($event.target).value)"
+            />
+            <em>{{ brushSize() }}</em>
+          </label>
+
+          @if (activeTool() !== 'lakeStamp') {
+            <label class="slider-row">
+              <span>Weichheit</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                [value]="brushSoftness()"
+                (input)="setSoftness($any($event.target).value)"
+              />
+              <em>{{ (brushSoftness() * 100).toFixed(0) }}%</em>
+            </label>
+
+            <label class="slider-row">
+              <span>Stärke</span>
+              <input
+                type="range"
+                min="0.05"
+                max="1"
+                step="0.05"
+                [value]="brushStrength()"
+                (input)="setStrength($any($event.target).value)"
+              />
+              <em>{{ (brushStrength() * 100).toFixed(0) }}%</em>
+            </label>
+          }
+
+          <p class="hint">Strg + Mausrad ändert die Größe.</p>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-title">Landfarben</div>
+          <div class="swatches">
+            @for (c of landPalette(); track $index) {
+              <button
+                type="button"
+                class="swatch"
+                [class.active]="selectedLand() === $index"
+                [style.background]="c"
+                [title]="c + ' — Rechtsklick zum Entfernen'"
+                (click)="selectLandColor($index)"
+                (contextmenu)="removeLandColor($index); $event.preventDefault()"
+              ></button>
+            }
+            <button type="button" class="swatch add" title="Farbe hinzufügen" (click)="addLandColor()">
+              +
+            </button>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-title">Wasserfarben</div>
+          <div class="swatches">
+            @for (c of waterPalette(); track $index) {
+              <button
+                type="button"
+                class="swatch"
+                [class.active]="selectedWater() === $index"
+                [style.background]="c"
+                [title]="c + ' — Rechtsklick zum Entfernen'"
+                (click)="selectWaterColor($index)"
+                (contextmenu)="removeWaterColor($index); $event.preventDefault()"
+              ></button>
+            }
+            <button type="button" class="swatch add" title="Farbe hinzufügen" (click)="addWaterColor()">
+              +
+            </button>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-title">Verlauf</div>
+          <div class="history-row">
+            <button type="button" [disabled]="!canUndo()" (click)="undo()" title="Strg+Z">
+              Rückgängig
+            </button>
+            <button type="button" [disabled]="!canRedo()" (click)="redo()" title="Strg+Shift+Z">
+              Wiederholen
+            </button>
+          </div>
+        </div>
+      </aside>
     }
 
-    <div class="status-bar">
-      <span>x {{ cursorWorld().x }} · y {{ cursorWorld().y }}</span>
-      <span>Hex {{ cursorHex().q }},{{ cursorHex().r }}</span>
-      <span>{{ kmPerHex }} km / Hex</span>
+    <div class="viewer-wrap">
+      <div #pixiHost class="pixi-host" [class.painting]="isGM()"></div>
+
+      @if (!ready()) {
+        <div class="loading-overlay">Karte wird geladen …</div>
+      }
+
+      <div class="status-bar">
+        <span>x {{ cursorWorld().x }} · y {{ cursorWorld().y }}</span>
+        <span>Hex {{ cursorHex().q }},{{ cursorHex().r }}</span>
+        <span>{{ kmPerHex }} km / Hex</span>
+        @if (isGM()) {
+          <span class="dim">Mittlere/rechte Maustaste: bewegen</span>
+        }
+      </div>
     </div>
   </div>
 </div>

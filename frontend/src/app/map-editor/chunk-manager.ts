@@ -16,16 +16,13 @@
  *
  * Painting erases by rendering with the `erase` blend mode, which is why height and coverage
  * both live in alpha rather than in a colour channel.
+ *
+ * This class owns *textures only* — it draws nothing. `TerrainView` composites the three
+ * layers into the visible map, because land colour has to be resolved against the height
+ * field rather than stacked over it.
  */
 
-import {
-  Container,
-  Matrix,
-  Renderer,
-  RenderTexture,
-  Sprite,
-  Texture,
-} from 'pixi.js';
+import { Container, Matrix, Renderer, RenderTexture, Sprite, Texture } from 'pixi.js';
 import {
   CHUNK_WORLD_SIZE,
   LAYER_TEXELS,
@@ -38,12 +35,11 @@ import { Bounds } from './map-camera';
 import { MapEditorApiService } from '../services/map-editor-api.service';
 import { MapEditorStoreService } from '../services/map-editor-store.service';
 
-interface ChunkRecord {
+export interface ChunkRecord {
   layer: RasterLayer;
   cx: number;
   cy: number;
   texture: RenderTexture;
-  sprite: Sprite;
   /** Pixels fetched, or confirmed never painted. */
   loaded: boolean;
   /** Painted since the last successful upload. */
@@ -71,13 +67,21 @@ export class ChunkManager {
   /** Scratch container reused for every stamp, so painting allocates nothing per stroke. */
   private stampHost = new Container();
 
+  /** Raised when a chunk's pixels change from a fetch, so the view can refresh. */
+  onChunkUpdated?: (rec: ChunkRecord) => void;
+  /** Raised when a chunk is evicted, so the view can drop anything referencing it. */
+  onChunkDisposed?: (layer: RasterLayer, cx: number, cy: number) => void;
+  /**
+   * Raised immediately before a chunk is painted into. The undo stack hangs off this — a
+   * brush destroys the pixels it covers, so they have to be captured while they still exist.
+   */
+  onBeforePaint?: (rec: ChunkRecord) => void;
+
   constructor(
     private renderer: Renderer,
     private api: MapEditorApiService,
     private store: MapEditorStoreService,
     private worldName: string,
-    /** World-space container per layer; chunk sprites are parented here. */
-    private layerContainers: Record<RasterLayer, Container>,
   ) {}
 
   // ── residency ──
@@ -94,18 +98,11 @@ export class ChunkManager {
       clearColor: [0, 0, 0, 0],
     });
 
-    const sprite = new Sprite(texture);
-    sprite.position.set(cx * CHUNK_WORLD_SIZE, cy * CHUNK_WORLD_SIZE);
-    // Texels are coarser than world pixels; scale up to cover the chunk's world square.
-    sprite.scale.set(layerScale(layer));
-    this.layerContainers[layer].addChild(sprite);
-
     const rec: ChunkRecord = {
       layer,
       cx,
       cy,
       texture,
-      sprite,
       loaded: false,
       dirty: false,
       uploading: false,
@@ -138,7 +135,7 @@ export class ChunkManager {
     }
 
     // The chunk may have been evicted while the fetch was in flight.
-    if (!this.chunks.has(chunkKey(rec.layer, rec.cx, rec.cy))) return;
+    if (this.chunks.get(chunkKey(rec.layer, rec.cx, rec.cy)) !== rec) return;
 
     try {
       const bitmap = await createImageBitmap(blob);
@@ -158,6 +155,7 @@ export class ChunkManager {
       sprite.destroy();
       tex.destroy(true);
       rec.loaded = true;
+      this.onChunkUpdated?.(rec);
     } catch (err) {
       console.error('[ChunkManager] Failed to decode chunk', rec.layer, rec.cx, rec.cy, err);
       rec.loaded = true;
@@ -210,10 +208,9 @@ export class ChunkManager {
   }
 
   private dispose(rec: ChunkRecord): void {
-    rec.sprite.parent?.removeChild(rec.sprite);
-    rec.sprite.destroy();
-    rec.texture.destroy(true);
     this.chunks.delete(chunkKey(rec.layer, rec.cx, rec.cy));
+    this.onChunkDisposed?.(rec.layer, rec.cx, rec.cy);
+    rec.texture.destroy(true);
   }
 
   // ── painting ──
@@ -225,14 +222,14 @@ export class ChunkManager {
    * chunk-local texel space, so callers never deal with chunk math. Set `node.blendMode` to
    * `'erase'` to subtract instead of add.
    */
-  paintWorld(layer: RasterLayer, node: Container, bounds: Bounds): string[] {
+  paintWorld(layer: RasterLayer, node: Container, bounds: Bounds): ChunkRecord[] {
     const minCx = Math.floor(bounds.minX / CHUNK_WORLD_SIZE);
     const maxCx = Math.floor(bounds.maxX / CHUNK_WORLD_SIZE);
     const minCy = Math.floor(bounds.minY / CHUNK_WORLD_SIZE);
     const maxCy = Math.floor(bounds.maxY / CHUNK_WORLD_SIZE);
 
     const s = 1 / layerScale(layer); // world px → texels
-    const touched: string[] = [];
+    const touched: ChunkRecord[] = [];
 
     this.stampHost.removeChildren();
     this.stampHost.addChild(node);
@@ -240,6 +237,7 @@ export class ChunkManager {
     for (let cy = minCy; cy <= maxCy; cy++) {
       for (let cx = minCx; cx <= maxCx; cx++) {
         const rec = this.get(layer, cx, cy);
+        this.onBeforePaint?.(rec);
 
         // World → this chunk's texel space: translate to the chunk origin, then scale.
         const m = new Matrix(s, 0, 0, s, -cx * CHUNK_WORLD_SIZE * s, -cy * CHUNK_WORLD_SIZE * s);
@@ -252,12 +250,42 @@ export class ChunkManager {
         });
 
         rec.dirty = true;
-        touched.push(chunkKey(layer, cx, cy));
+        touched.push(rec);
       }
     }
 
     this.stampHost.removeChildren();
     return touched;
+  }
+
+  /** Snapshot a chunk's pixels, for the undo stack. */
+  snapshot(rec: ChunkRecord): Texture | null {
+    try {
+      return this.renderer.extract.texture({ target: rec.texture });
+    } catch (err) {
+      console.error('[ChunkManager] snapshot failed', err);
+      return null;
+    }
+  }
+
+  /** Restore a snapshot taken by `snapshot`, marking the chunk dirty for re-upload. */
+  restore(layer: RasterLayer, cx: number, cy: number, snap: Texture): void {
+    const rec = this.get(layer, cx, cy);
+    const sprite = new Sprite(snap);
+
+    this.stampHost.removeChildren();
+    this.stampHost.addChild(sprite);
+    this.renderer.render({
+      container: this.stampHost,
+      target: rec.texture,
+      clear: true,
+      clearColor: [0, 0, 0, 0],
+    });
+    this.stampHost.removeChildren();
+    sprite.destroy();
+
+    rec.dirty = true;
+    this.onChunkUpdated?.(rec);
   }
 
   // ── persistence ──
@@ -281,13 +309,7 @@ export class ChunkManager {
         try {
           const blob = await this.toBlob(rec);
           if (!blob) return;
-          const ver = await this.api.putChunk(
-            this.worldName,
-            rec.layer,
-            rec.cx,
-            rec.cy,
-            blob,
-          );
+          const ver = await this.api.putChunk(this.worldName, rec.layer, rec.cx, rec.cy, blob);
           if (ver == null) {
             rec.dirty = true; // upload failed — try again on the next flush
             return;

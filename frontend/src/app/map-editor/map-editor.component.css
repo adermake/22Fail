@@ -76,6 +76,143 @@
   border-color: #6b5696;
 }
 
+.badge.saving {
+  background: #3d5a80;
+  border-color: #4f7fb0;
+}
+
+/* ── layout ── */
+
+.editor-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ── tool panel ── */
+
+.tool-panel {
+  flex: 0 0 214px;
+  overflow-y: auto;
+  background: #1c1c22;
+  border-right: 1px solid #2e2e37;
+  padding: 10px;
+  user-select: none;
+}
+
+.panel-section {
+  margin-bottom: 16px;
+}
+
+.panel-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.55;
+  margin-bottom: 6px;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.tool-btn {
+  background: #2a2a33;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 5px;
+  padding: 6px 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tool-btn:hover {
+  background: #343440;
+}
+
+.tool-btn.active {
+  background: #3d5a80;
+  border-color: #6d9fd0;
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: 58px 1fr 40px;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.slider-row input {
+  width: 100%;
+}
+
+.slider-row em {
+  font-style: normal;
+  opacity: 0.7;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.hint {
+  font-size: 11px;
+  opacity: 0.45;
+  margin: 6px 0 0;
+}
+
+/* ── palettes ── */
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  border: 2px solid #3a3a46;
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18);
+}
+
+.swatch.add {
+  background: #2a2a33;
+  color: #9a9aa8;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.history-row {
+  display: flex;
+  gap: 5px;
+}
+
+.history-row button {
+  flex: 1;
+  background: #2a2a33;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 5px;
+  padding: 5px 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.history-row button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 /* ── viewer ── */
 
 .viewer-wrap {
@@ -94,6 +231,12 @@
 
 .pixi-host:active {
   cursor: grabbing;
+}
+
+/* While editing, the brush ring is the cursor — a system arrow on top just gets in the way. */
+.pixi-host.painting,
+.pixi-host.painting:active {
+  cursor: none;
 }
 
 .pixi-host canvas {

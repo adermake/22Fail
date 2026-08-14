@@ -9,9 +9,8 @@
  * and Phase 5 with the noise-warped coastline shader.
  */
 
-import { Application, Container, Graphics, Renderer, Sprite, Texture } from 'pixi.js';
+import { Application, Container, Graphics, Renderer } from 'pixi.js';
 import { MapCamera } from './map-camera';
-import { RASTER_LAYERS, RasterLayer } from './map-editor.model';
 import {
   HEX_RADIUS,
   HEX_X_SPACING,
@@ -34,13 +33,14 @@ export class MapRenderer {
   /** Camera transform applied here; children are all in world coordinates. */
   worldRoot = new Container();
 
-  private oceanBg = new Sprite(Texture.WHITE);
-  layerContainers = {} as Record<RasterLayer, Container>;
+  /** Terrain meshes are parented here by `TerrainView`. */
+  terrainLayer = new Container();
   /** Vector content (regions, symbols, labels) lands here in later phases. */
   objectLayer = new Container();
   private gridLayer = new Graphics();
+  /** Brush outline / lake preview, drawn in world space above everything. */
+  cursorLayer = new Container();
 
-  private oceanColor = 0x3f6d8c;
   private showGrid = true;
   /** Grid rebuild key — avoids regenerating thousands of paths on every pan frame. */
   private gridKey = '';
@@ -60,34 +60,18 @@ export class MapRenderer {
 
     this.app.stage.addChild(this.worldRoot);
 
-    this.oceanBg.tint = this.oceanColor;
-    this.worldRoot.addChild(this.oceanBg);
-
-    for (const layer of RASTER_LAYERS) {
-      this.layerContainers[layer] = new Container();
-    }
-
-    // Order matters: water colour sits under land, land colour over it.
-    this.worldRoot.addChild(this.layerContainers.waterColor);
-    this.worldRoot.addChild(this.layerContainers.height);
-    this.worldRoot.addChild(this.layerContainers.landColor);
+    // Terrain is composited per chunk by TerrainView; ocean is the shader's fallback for
+    // unpainted height, so no separate background sprite is needed.
+    this.worldRoot.addChild(this.terrainLayer);
     this.worldRoot.addChild(this.objectLayer);
     this.worldRoot.addChild(this.gridLayer);
-
-    // Placeholder land readout: height chunks are white with alpha = height, so tinting
-    // the container makes painted terrain legible before Phase 1's real compositing.
-    this.layerContainers.height.tint = 0x7a8f5a;
+    this.worldRoot.addChild(this.cursorLayer);
 
     this.camera.setViewport(this.app.screen.width, this.app.screen.height);
   }
 
   get renderer(): Renderer {
     return this.app.renderer as Renderer;
-  }
-
-  setOceanColor(color: string): void {
-    this.oceanColor = parseColor(color, 0x3f6d8c);
-    this.oceanBg.tint = this.oceanColor;
   }
 
   setShowGrid(show: boolean): void {
@@ -108,11 +92,6 @@ export class MapRenderer {
       this.camera.viewWidth / 2 - this.camera.x * zoom,
       this.camera.viewHeight / 2 - this.camera.y * zoom,
     );
-
-    const b = this.camera.visibleBounds(0);
-    this.oceanBg.position.set(b.minX, b.minY);
-    this.oceanBg.width = b.maxX - b.minX;
-    this.oceanBg.height = b.maxY - b.minY;
 
     this.updateGrid();
   }
@@ -158,7 +137,7 @@ export class MapRenderer {
 
   destroy(): void {
     this.gridLayer.destroy();
-    this.oceanBg.destroy();
+    this.cursorLayer.destroy({ children: true });
     this.app.destroy(true, { children: true });
   }
 }
