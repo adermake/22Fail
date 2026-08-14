@@ -221,3 +221,7 @@ label {
 .i-grundbonus    { -webkit-mask-image: url('/icons/grundbonus.svg');        mask-image: url('/icons/grundbonus.svg'); }
 .i-movement      { -webkit-mask-image: url('/icons/movement.svg');          mask-image: url('/icons/movement.svg'); }
 .i-reaction      { -webkit-mask-image: url('/icons/reaction.svg');          mask-image: url('/icons/reaction.svg'); }
+.i-attack        { -webkit-mask-image: url('/icons/attack.svg');            mask-image: url('/icons/attack.svg'); }
+.i-focus         { -webkit-mask-image: url('/icons/focus.svg');             mask-image: url('/icons/focus.svg'); }
+.i-soul          { -webkit-mask-image: url('/icons/soul.svg');              mask-image: url('/icons/soul.svg'); }
+.i-turnspeed     { -webkit-mask-image: url('/icons/turnspeed.svg');         mask-image: url('/icons/turnspeed.svg'); }

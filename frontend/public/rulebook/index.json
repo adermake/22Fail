@@ -1,0 +1,50 @@
+{
+  "generatedAt": "2026-08-14T11:07:45.776Z",
+  "pages": [
+    {
+      "id": "grundlagen",
+      "file": "grundlagen.md",
+      "title": "Grundlagen",
+      "tab": "Grundlagen",
+      "icon": "dice",
+      "order": 10,
+      "hash": "e7d89f90"
+    },
+    {
+      "id": "stats",
+      "file": "stats.md",
+      "title": "Stats",
+      "tab": "Stats",
+      "icon": "stat",
+      "order": 20,
+      "hash": "92d8eceb"
+    },
+    {
+      "id": "sonstige-stats",
+      "file": "sonstige-stats.md",
+      "title": "Sonstige Stats",
+      "tab": "Sonstige Stats",
+      "icon": "grundbonus",
+      "order": 30,
+      "hash": "9c3ec291"
+    },
+    {
+      "id": "talente",
+      "file": "talente.md",
+      "title": "Talente",
+      "tab": "Talente",
+      "icon": "ability",
+      "order": 40,
+      "hash": "dab023e9"
+    },
+    {
+      "id": "kampf",
+      "file": "kampf.md",
+      "title": "Kampf",
+      "tab": "Kampf",
+      "icon": "effektivity",
+      "order": 50,
+      "hash": "5831cad7"
+    }
+  ]
+}

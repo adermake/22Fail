@@ -41,7 +41,7 @@ import { DiceRollerComponent } from './dice-roller/dice-roller.component';
 import { RollResult } from './action-macros/action-macros.component';
 import { ActionMacro } from '../model/action-macro.model';
 import { ActionExecution } from './action-macros/action-macros.component';
-import { GameInfoComponent } from '../shared/game-info/game-info.component';
+import { RulebookComponent } from '../rulebook/rulebook.component';
 import { CurrentEventsViewComponent } from './current-events-view';
 import type { BuyItemEvent, ClaimLootEvent } from './current-events-view';
 import { TransactionPopupComponent, Transaction } from './transaction-popup/transaction-popup.component';
@@ -67,7 +67,7 @@ import { DamageCalculatorComponent } from '../world/damage-calculator/damage-cal
     SkillTreeComponent,
     BackstoryComponent,
     DiceRollerComponent,
-    GameInfoComponent,
+    RulebookComponent,
     CurrentEventsViewComponent,
     TransactionPopupComponent,
     EventPortalComponent,

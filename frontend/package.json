@@ -3,7 +3,10 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
+    "rulebook:manifest": "node tools/generate-rulebook-manifest.mjs",
+    "prestart": "npm run rulebook:manifest",
     "start": "ng serve",
+    "prebuild": "npm run rulebook:manifest",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
@@ -38,6 +41,8 @@
     "@codemirror/view": "^6.43.6",
     "@lezer/highlight": "^1.2.3",
     "@nestjs/platform-express": "^11.1.9",
+    "markdown-it": "^15.0.0",
+    "markdown-it-container": "^4.0.0",
     "multer": "^2.0.2",
     "openseadragon": "^6.0.2",
     "rxjs": "~7.8.0",

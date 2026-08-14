@@ -1,0 +1,292 @@
+----------------------
+GRUNDLAGEN
+----------------------
+
+Würfelsystem
+Jede wichtige Entscheidung wird durch den Wurf eines Würfels besiegelt. Das Resultat unterscheidet sich je nach Würfelergebnis:
+
+Je niedriger die Zahl, desto besser - Ein niedriger Wurf sorgt für Erfolg
+D20 ist die Norm - Der 20-seitige Würfel wird standardmäßig verwendet
+Andere Würfel - In bestimmten Situationen können auch andere Würfel verwendet werden
+Die 1 ist optimal - Außer es wird für bestimmte Zahlen gewürfelt
+
+---
+Würfelboni und -mali
+Aktionen können Würfelboni oder -mali erhalten durch:
+
+- Stats
+- Talente
+- Fähigkeiten
+- Status Effekte
+- Ausrüstung
+- Situationsabhängige Umstände (z.B Höhenvorteil, Wetter etc.)
+- Kreative Problemlösungen (Bonus vom Spielleiter)
+
+Neben Würfelboni und Mali kann man auch Würfelvorteil oder Nachteil erhalten.
+In dem Fall würfelt man mit 2 Würfeln und nimmt das jeweils bessere oder schlechtere Ergebnis.
+
+---
+Charaktere & Rollenspiel
+
+Jeder Spieler wird von einem Charakter in dieser Welt repräsentiert, den er selbst kreieren kann. Alle Aktionen und Entscheidungen des Spielers werden durch ihn umgesetzt.
+Der Spielleiter kümmert sich um alle anderen Charaktere und kontrolliert, welche Auswirkungen ihre Aktionen sowie die Aktionen der Spieler-Charaktere auf ihr Umfeld haben.
+Spieler können auch eigene Vorschläge machen, wie die Geschichte weitergehen könnte, diese werden dann vom Spielleiter abgenickt.
+
+[Obwohl es nicht erforderlich ist, dass Spieler versuchen, ihre Aktionen der Persönlichkeit und den Verhaltensweisen des Charakters anzupassen, ist es erwünscht, dies so gut wie möglich umzusetzen, damit alle Interaktionen so realistisch wie möglich dargestellt werden können.]
+
+
+Spielziel
+ 
+Das Ziel des Spiels kann sich unterscheiden, je nachdem, was sich der Spielleiter (und die Spieler zu gewissem Grad) wünschen. Der Fortschritt kann demnach unterschiedlich schnell voranschreiten.
+Nebenmissionen oder persönliche Ziele sind ein wichtiger Teil des Spiels. Es liegt im Interesse aller Spieler, das Spielerlebnis aller im Hinterkopf zu behalten, damit jede Session unvergesslich wird.
+
+-------
+
+
+----------------------
+STATS
+----------------------
+
+
+Jeder Charakter besitzt Stats, die über ihre Stärken in allen möglichen Bereichen des Lebens entscheiden.
+
+Kategorien: Grundstats, Konditionsstats, Modifikatoren, Extrastats
+
+Stats wirken sich auf Würfelboni aus, auf Talente, auf Voraussetzungen für Waffen und Zauber.
+Zusätzlich wirken sich die Grundstats auch auf alle anderen Stats zu unterschiedlichen graden aus.
+
+
+
+Level System
+Level sind ein wichtiger Indikator der Stärke. Das Startlevel ist in der Regel 1
+Das Level der Spieler steigt durch den Verlauf des Spiels an.
+
+
+Grundstat-Erhöhungen
+Stats erhöhen sich unterschiedlich schnell (Level * Skalierung)
+Alle 3 Level erhält man einen frei verteilbaren Stat
+
+Talentpunkte (TP)
+Start: 5
++1 alle drei Level
+
+Fähigkeitspunkte (FP)
+Start: +2 FP pro Level inklusive Level 1
+Alle 10 Level: +1 FP für jedes weitere Level
+(z.B. Level 23→24: 2+2=4 FP)
+
+
+
+Rassenfähigkeiten
+Man erhält drei mal die Wahl zwischen zwei Rassenfähigkeiten auf unterschiedlichen Leveln zwischen 1 und 30.
+
+Grundbonus und Reaktion
+Grundbonus: Level/8 + Wille/8
+Reaktion: 5 - Grundbonus
+
+
+---
+Grundstats:
+
+STÄRKE
+[Würfelbonus: Stärke / 5 
+Inventarkapazität: 50 + Stärke×2 + Konstitution×3]
+
+Viele Waffen setzen einen bestimmten Stärkewert voraus.
+Der Würfelbonus hilft bei allen Aktionen die Stärke voraussetzen.
+----
+
+KONSTITUTION
+[Leben: Basis + 5 × Konstitution
+Inventarkapazität: 50 + Stärke×2 + Konstitution×3
+Würfelbonus: Konstitution/5]
+Der Würfelbonus hilft bei allen Aktionen die Konstitution voraussetzen.
+
+----
+
+GESCHICKLICHKEIT
+[Ausdauer: Basis + 5 × Geschicklichkeit
+Würfelbonus: Geschicklichkeit / 5]
+Viele Waffen setzen einen bestimmten Geschicklichkeit voraus.
+Der Würfelbonus hilft bei allen Aktionen die Geschicklichkeit voraussetzen.
+
+---
+
+Intelligenz
+[Mana: 50 + 5 × Intelligenz
+Fokus: 5 + Intelligenz / 2
+Würfelbonus: Intelligenz / 5]
+Viele magische Waffen und Zauber setzen Intelligenz voraus.
+Der Würfelbonus hilft bei allen Aktionen die Intelligenz voraussetzen.
+
+---
+
+Geschwindigkeit
+[Bewegung: 8 + Geschwindigkeit / 4
+Würfelbonus: Geschwindigkeit / 5]
+Geschwindigkeit erhöht die Anzahl der Züge im Kampf
+Der Würfelbonus hilft bei allen Aktionen die Geschwindigkeit voraussetzen.
+
+Wille
+[Grundbonus: Level/8 + Wille/8
+Reaktion: 5 - Grundbonus
+Würfelbonus: Wille / 5]
+Der Würfelbonus hilft bei allen Aktionen die Wille voraussetzen.
+
+-------
+
+Konditionsstats
+Konditionsstats messen die momentane Verfassung. Sie werden hauptsächlich durch Schlaf wiederhergestellt(25%). 
+Vor dem Schlafen etwas zu essen erhöht den wiederhergestellten Wert abhängig vom Essen.
+Sie errechnen sich aus einem Basiswert, dem entsprechenden Grundstats und sonstige Boni, z.B Fähigkeiten, Waffen, Zauber, Statuseffekte, etc
+
+
+Leben
+Bestimmt die körperliche Gesundheit. Wird durch Verletzungen und negative Statuseffekte reduziert.
+
+[Basis  + 5* Konstitution]
+
+Fallen die Leben auf 0, ist der Charakter im kritischen Zustand und verliert das Bewusstsein. Im kritischen Zustand können die Leben unter 0 fallen, 
+gegnerische Angriffe machen allerdings nur einen Viertel des normalen Schadens, inklusive dem Angriff, der die Leben unter 0 gebracht hat.
+In diesem Zustand verliert er jede Runde Leben, angefangen mit D10 pro Runde. Jede Runde, in der ein Charakter in kritischem Zustand 
+nicht geheilt wird, erhöht sich die Würfelzahl permanent um 2, bis der kritische Zustand geheilt wurde.
+Der Charakter muss auf über 0 Leben geheilt werden, bevor er unter -300 Leben fällt und damit permanent stirbt.
+
+
+Ausdauer
+Bestimmt das Durchhaltevermögen. Wird durch körperlich anstrengende Aktionen reduziert.
+[Basis + 5* Geschicklichkeit]
+
+Fällt die Ausdauer auf 0, verliert der Charakter das Bewusstsein. Der Spieler kann dann jeden Zug würfeln (D20),
+um Ausdauer zu gewinnen. Sobald dieser Wert 20% der maximalen Ausdauer übersteigt, kommt er wieder
+zu Bewusstsein. Aktive Fähigkeiten und Zauber, die vom Charakter aktiviert wurden, bleiben aktiv, 
+können aber nicht gesteuert werden und behalten ihr vorheriges Verhalten bei.
+
+Mana
+Bestimmt die Kapazität für Magie. Wird durch Zauber verbraucht.
+[Basis + 5* Intelligenz]
+
+
+---------
+SONSTIGE STATS
+---------
+
+Grundbonus
+Bestimmt die Reaktionsfähigkeit gegen unerwartete Angriffe oder Situationen
+Grundbonus: Level/8 + Wille/8
+Reaktion: 5 - Grundbonus
+
+Bewegung
+Bestimmt die Bewegungsdistanz die ein Charakter in einem Zug zurücklegen kann.
+Bewegung: 8 + Geschwindigkeit / 4
+
+Fokus
+Mentale Kapazität für Zauber. Bestimmt, wie viele Zauber man gleichzeitig aufrechterhalten kann. 
+Fokus: 5 + Int / 2 
+
+Zauberradius:
+Der Zauberradius bestimmt von wo aus ein Zauber beginnen kann. 
+Start: 1m um den Anwender herum
+Wenn Zauber im gegnerischen Zauberradius erschaffen werden, erhalten sie einen Nachteil.
+
+Inventarkapazität
+Bestimmt das Maximalgewicht, das getragen werden kann. 
+Bei über 80% Auslastung wird die Geschwindigkeit halbiert und bei 100% wird sie auf 0 gesetzt.
+Inventarkapazität: 50 + Stärke×2 + Konstitution×3
+
+Effektivität
+Siehe Combat
+
+Stabilität
+Siehe Combat
+
+Rüstungsmalus
+Siehe Combat
+
+Rüstungsnegation
+Siehe Combat
+
+
+
+---------
+TALENTE
+---------
+
+Talente sind Spezialisierungen der Grundstats, die hauptsächlich außerhalb vom Kampf verwendet werden.
+Der Würfelbonus der Talente entspricht dem Würfelbonus des dazugehörigen Grundstats. 
+Er lässt sich zusätzlich mit Talentpunkten und Fähigkeiten erhöhen.
+Es gibt zusätzliche Talente die hier nicht aufgelisted sind, für besonderes Wissen oder Talent, was je nach Charakter variieren kann.
+
+Athletik
+STR
+Aktionen, die körperliche Fitness voraussetzen.
+
+Einschüchtern
+STR
+Aktionen, die den Gegenüber einschüchtern.
+
+Überleben
+KON
+Reaktionen, die die Belastbarkeit des Körpers fordern.
+
+Verstecken
+GSW
+Aktionen, um vor anderen Personen unentdeckt zu bleiben.
+
+Akrobatik
+GSK
+Aktionen, die hohe Körperkontrolle und Balance voraussetzen.
+
+Fingerfertigkeit
+GSK
+Aktionen, die präzise und geschickte Fingerarbeit voraussetzen.
+
+Runenkunde
+INT
+Wissen über Runen und Zauber.
+
+Geschichte
+INT
+Wissen über die Vergangenheit.
+
+Untersuchen
+INT
+Aktionen, die Informationen aus bestimmten Objekten extrahieren.
+
+Naturwissen
+INT
+Wissen über Tiere, Pflanzen etc.
+
+Unterhaltung
+WIL
+Aktionen, die die Aufmerksamkeit von Leuten auf dich ziehen.
+
+Heilkunde
+WIL
+Aktionen, die andere verarzten und diagnostizieren.
+
+Mit Tieren umgehen
+WIL
+Aktionen, die mit Tieren agieren.
+
+Durchschauen
+WIL
+Aktionen, die versteckte Absichten und Emotionen von anderen erkennen.
+
+Täuschen
+WIL
+Aktionen, die die Wahrheit vor anderen verhüllen.
+
+Überzeugen
+WIL
+Aktionen, um andere von der Wahrheit zu überzeugen und zu motivieren.
+
+Wahrnehmung
+WIL
+Aktionen, um schwer Erkennbares wahrzunehmen.
+
+
+
+
+
+

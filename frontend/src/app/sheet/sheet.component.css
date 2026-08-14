@@ -633,3 +633,17 @@
 .soul-pop-hint { font-size: 0.78rem; color: #cbd5e1; margin-top: 10px; }
 .soul-pop-ok { margin-top: 16px; padding: 9px 26px; background: #8b5cf6; border: none; border-radius: 8px; color: #fff; font-weight: 700; cursor: pointer; }
 .soul-pop-ok:hover { filter: brightness(1.12); }
+
+/* Placeholder while the deferred Regelwerk chunk loads */
+.rulebook-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(5px);
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.95rem;
+}

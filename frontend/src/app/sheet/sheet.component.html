@@ -163,11 +163,13 @@
   </div>
 }
 
-<!-- Game Info Dialog -->
+<!-- Regelwerk (markdown-driven; @defer keeps markdown-it out of the eager bundle) -->
 @if (showGameInfo) {
-  <app-game-info
-    (close)="closeGameInfo()">
-  </app-game-info>
+  @defer (on immediate) {
+    <app-rulebook (close)="closeGameInfo()"></app-rulebook>
+  } @placeholder {
+    <div class="rulebook-loading-overlay">Regelwerk wird geladen …</div>
+  }
 }
 
 <!-- Dice Roller Dialog -->
