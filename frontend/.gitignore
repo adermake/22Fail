@@ -41,3 +41,10 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Map editor assets
+# Wonderdraft's extracted sprite library (~160 MB). Licensed for use in Wonderdraft, so it
+# is kept local and never committed or redistributed.
+/tools/DraftExtract/
+# Symbol atlases built from it by `npm run map:atlas` (regenerated on prestart/prebuild).
+/public/mapassets/
