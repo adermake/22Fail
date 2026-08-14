@@ -798,7 +798,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Kampfakrobat',
     type: 'stat_bonus',
     description: 'Bewegung+3',
-    statBonus: { stat: 'speed', amount: 3 }
+    statBonus: { stat: 'movement', amount: 3 }
   },
   {
     id: 'kampfakrobat_akrobatik_talent_3',
@@ -923,7 +923,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Schnellschütze',
     type: 'stat_bonus',
     description: 'Bewegung+3',
-    statBonus: { stat: 'speed', amount: 3 }
+    statBonus: { stat: 'movement', amount: 3 }
   },
   {
     id: 'schnellschuetze_dynamisches_schiessen',
