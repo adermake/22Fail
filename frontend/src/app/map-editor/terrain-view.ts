@@ -179,6 +179,14 @@ export function defaultCoast(): CoastSettings {
   };
 }
 
+/**
+ * Ceiling on terrain meshes.
+ *
+ * Kept just under the chunk manager's resident-cell budget, so the view never asks for
+ * terrain the streamer has already evicted.
+ */
+const MAX_TERRAIN_CELLS = 80;
+
 /** Program is compiled once and shared; only the per-cell resources differ. */
 let sharedProgram: GlProgram | null = null;
 function program(): GlProgram {
@@ -362,33 +370,56 @@ export class TerrainView {
     this.cells.delete(this.key(cx, cy));
   }
 
-  /** Rebuild the visible set of cells. Call once per frame with the camera bounds. */
+  /**
+   * Rebuild the visible set of cells. Call once per frame with the camera bounds.
+   *
+   * Every cell is a mesh with its own shader binding four textures, so the count has to be
+   * bounded: zoomed far out the view can span hundreds of cells, and building all of them
+   * is what made a wide zoom crawl. Past the cap only the cells nearest the middle of the
+   * screen are drawn, which is where the eye is, and the ocean backdrop covers the rest.
+   */
   update(bounds: Bounds): void {
     const minCx = Math.floor(bounds.minX / CHUNK_WORLD_SIZE);
     const maxCx = Math.floor(bounds.maxX / CHUNK_WORLD_SIZE);
     const minCy = Math.floor(bounds.minY / CHUNK_WORLD_SIZE);
     const maxCy = Math.floor(bounds.maxY / CHUNK_WORLD_SIZE);
 
+    const spanX = maxCx - minCx + 1;
+    const spanY = maxCy - minCy + 1;
+
+    let wanted: { cx: number; cy: number }[] = [];
+    for (let cy = minCy; cy <= maxCy; cy++) {
+      for (let cx = minCx; cx <= maxCx; cx++) wanted.push({ cx, cy });
+    }
+
+    if (spanX * spanY > MAX_TERRAIN_CELLS) {
+      const midX = (minCx + maxCx) / 2;
+      const midY = (minCy + maxCy) / 2;
+      wanted.sort(
+        (a, b) =>
+          (a.cx - midX) ** 2 + (a.cy - midY) ** 2 - ((b.cx - midX) ** 2 + (b.cy - midY) ** 2),
+      );
+      wanted = wanted.slice(0, MAX_TERRAIN_CELLS);
+    }
+
     const live = new Set<string>();
 
-    for (let cy = minCy; cy <= maxCy; cy++) {
-      for (let cx = minCx; cx <= maxCx; cx++) {
-        const key = this.key(cx, cy);
-        live.add(key);
+    for (const { cx, cy } of wanted) {
+      const key = this.key(cx, cy);
+      live.add(key);
 
-        const cell = this.cells.get(key);
-        if (!cell) {
-          this.build(cx, cy);
-          continue;
-        }
+      const cell = this.cells.get(key);
+      if (!cell) {
+        this.build(cx, cy);
+        continue;
+      }
 
-        // If eviction handed back a different RenderTexture, the shader is stale.
-        const h = this.chunks.get('height', cx, cy).texture;
-        if (cell.bound.height !== h) {
-          this.destroyCell(cell);
-          this.cells.delete(key);
-          this.build(cx, cy);
-        }
+      // If eviction handed back a different RenderTexture, the shader is stale.
+      const h = this.chunks.get('height', cx, cy).texture;
+      if (cell.bound.height !== h) {
+        this.destroyCell(cell);
+        this.cells.delete(key);
+        this.build(cx, cy);
       }
     }
 
