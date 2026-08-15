@@ -302,6 +302,18 @@ export class ChunkManager {
     this.evict();
   }
 
+  /**
+   * Cells painted recently, and the frame they were last touched.
+   *
+   * Painting creates full-resolution chunks even when the view is showing the overview, and
+   * nothing else marks those as visible. Once a stroke flushed they lost their dirty pin,
+   * were evicted immediately, and the next stroke had to re-fetch every one of them — which
+   * is exactly the stutter, and the chunks vanishing and coming back, that appears when
+   * drawing zoomed out. Keeping them hot for a while means working in one area stays
+   * resident regardless of which level is on screen.
+   */
+  private hotCells = new Map<string, number>();
+
   /** Detail level the last `update` settled on. */
   get detailLevel(): DetailLevel {
     return this.level;
@@ -421,6 +433,7 @@ export class ChunkManager {
         this.stamp(rec, cx, cy);
         rec.dirty = true;
         touched.push(rec);
+        this.hotCells.set(`${cx}/${cy}`, this.frame);
 
         /*
          * Mirror the stroke into the overview copy when one is resident.
@@ -585,34 +598,50 @@ export class ChunkManager {
    * do per pointer move.
    */
   async flushDirty(): Promise<void> {
-    const dirty = [...this.chunks.values()].filter(r => r.dirty && !r.uploading);
+    const dirty = [...this.chunks.values()].filter(
+      r => r.dirty && !r.uploading && r.level === 0,
+    );
     if (dirty.length === 0) return;
 
-    await Promise.all(
-      dirty.map(async rec => {
-        rec.uploading = true;
-        // Cleared before the upload: a stroke landing mid-flight must re-dirty the chunk,
-        // otherwise the newer paint would never be saved.
-        rec.dirty = false;
-        try {
-          const blob = await this.toBlob(rec);
-          if (!blob) return;
-          const ver = await this.api.putChunk(this.worldName, rec.layer, rec.cx, rec.cy, blob);
-          if (ver == null) {
-            rec.dirty = true; // upload failed — try again on the next flush
-            return;
-          }
-          this.store.announceChunk(rec.layer, rec.cx, rec.cy, ver);
-          // The overview copy of this cell is now stale; reload it from the new PNG.
-          this.refreshLow(rec.layer, rec.cx, rec.cy);
-        } catch (err) {
-          console.error('[ChunkManager] Chunk flush failed', rec.layer, rec.cx, rec.cy, err);
-          rec.dirty = true;
-        } finally {
-          rec.uploading = false;
-        }
-      }),
-    );
+    /*
+     * Uploaded a few at a time rather than all at once.
+     *
+     * Each chunk means a GPU readback plus a PNG encode of a 512² texture. Firing every
+     * dirty chunk in parallel put all of those readbacks in one frame, which is the hitch
+     * that shows up after a broad stroke — worst when zoomed out, where one stroke covers
+     * many chunks. Working through them in small batches spreads the cost over a few frames
+     * and leaves the editor responsive while it saves.
+     */
+    const BATCH = 3;
+    for (let i = 0; i < dirty.length; i += BATCH) {
+      await Promise.all(dirty.slice(i, i + BATCH).map(rec => this.uploadChunk(rec)));
+      // Yield between batches so input and rendering get a turn.
+      if (i + BATCH < dirty.length) await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  private async uploadChunk(rec: ChunkRecord): Promise<void> {
+    rec.uploading = true;
+    // Cleared before the upload: a stroke landing mid-flight must re-dirty the chunk,
+    // otherwise the newer paint would never be saved.
+    rec.dirty = false;
+    try {
+      const blob = await this.toBlob(rec);
+      if (!blob) return;
+      const ver = await this.api.putChunk(this.worldName, rec.layer, rec.cx, rec.cy, blob);
+      if (ver == null) {
+        rec.dirty = true; // upload failed — try again on the next flush
+        return;
+      }
+      this.store.announceChunk(rec.layer, rec.cx, rec.cy, ver);
+      // The overview copy of this cell is now stale; reload it from the new PNG.
+      this.refreshLow(rec.layer, rec.cx, rec.cy);
+    } catch (err) {
+      console.error('[ChunkManager] Chunk flush failed', rec.layer, rec.cx, rec.cy, err);
+      rec.dirty = true;
+    } finally {
+      rec.uploading = false;
+    }
   }
 
   private async toBlob(rec: ChunkRecord): Promise<Blob | null> {
