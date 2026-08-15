@@ -305,6 +305,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       remove: (c, id) => this.store.deleteObject(c, id),
     });
     this.chunks.onBeforePaint = rec => this.undoStack?.capture(rec);
+    // Terrain only draws cells whose layers have all arrived, so a finished load is what
+    // tells the view there is something new it can show.
+    this.chunks.onChunkUpdated = () => this.scheduleStream();
 
     this.landPalette.set(data.landPalette);
     this.waterPalette.set(data.waterPalette);

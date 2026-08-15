@@ -417,18 +417,33 @@ export class TerrainView {
       live.add(key);
 
       const cell = this.cells.get(key);
+
+      /*
+       * Only move a cell to the requested level once that level has *all* its layers.
+       *
+       * The streamer starts loading the new level as soon as the zoom crosses, but the
+       * fetches take a moment. Swapping immediately meant showing empty textures until they
+       * landed — chunks flashing white and blocks of colour disappearing mid-zoom. Holding
+       * the level already on screen until its replacement is genuinely ready makes the
+       * transition invisible instead.
+       */
+      const ready = this.chunks.isCellReady(cx, cy, level);
+      const useLevel: DetailLevel = ready ? level : (cell?.level ?? level);
+
       if (!cell) {
-        this.build(cx, cy, level);
+        // A cell that has never been drawn waits until it is complete. Ocean briefly, then
+        // finished terrain, beats a white block that fills in its colour a moment later.
+        if (ready) this.build(cx, cy, useLevel);
         continue;
       }
 
       // Rebuild when the level changed, or when eviction handed back a different
       // RenderTexture — either way the shader is pointing at the wrong pixels.
-      const h = this.chunks.get('height', cx, cy, level).texture;
-      if (cell.level !== level || cell.bound.height !== h) {
+      const h = this.chunks.get('height', cx, cy, useLevel).texture;
+      if (cell.level !== useLevel || cell.bound.height !== h) {
         this.destroyCell(cell);
         this.cells.delete(key);
-        this.build(cx, cy, level);
+        this.build(cx, cy, useLevel);
       }
     }
 

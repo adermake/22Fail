@@ -186,11 +186,26 @@ export class ChunkManager {
     return !!rec && rec.loaded && this.isUsable(rec);
   }
 
+  /**
+   * Whether *every* layer of a cell is loaded at a level.
+   *
+   * Layers are fetched independently, so a cell can have its height while its land colour
+   * is still in flight — and the terrain shader will happily draw that as correctly-shaped
+   * land with no colour on it. Showing a cell only once all three are in is what stops
+   * blocks of the map flashing white as they stream.
+   */
+  isCellReady(cx: number, cy: number, level: DetailLevel): boolean {
+    return RASTER_LAYERS.every(layer => this.isReady(layer, cx, cy, level));
+  }
+
   private async fetchInto(rec: ChunkRecord): Promise<void> {
     const ver = this.store.chunkVersion(rec.layer, rec.cx, rec.cy);
     const blob = await this.api.fetchChunk(this.worldName, rec.layer, rec.cx, rec.cy, ver);
     if (!blob) {
+      // Nothing stored: the cleared texture is already correct, but the view still needs
+      // telling, since it holds cells back until every layer reports in.
       rec.loaded = true;
+      this.onChunkUpdated?.(rec);
       return;
     }
 
@@ -225,6 +240,7 @@ export class ChunkManager {
     } catch (err) {
       console.error('[ChunkManager] Failed to decode chunk', rec.layer, rec.cx, rec.cy, err);
       rec.loaded = true;
+      this.onChunkUpdated?.(rec);
     }
   }
 
@@ -247,7 +263,15 @@ export class ChunkManager {
      * view streams real chunks; past it the overview copies take over, which cost 1/64th
      * the memory and so can cover a view that full-resolution chunks never could.
      */
-    this.level = wantedCells <= MAX_STREAM_CELLS ? 0 : 1;
+    /*
+     * Hysteresis on the switch. With a single threshold, a zoom that hovers near it flips
+     * level every few frames, and each flip rebuilds every mesh on screen — which is what
+     * made zooming choppy. Coming back down to full detail needs a clearly smaller view
+     * than going up to the overview did.
+     */
+    if (this.level === 0 && wantedCells > MAX_STREAM_CELLS) this.level = 1;
+    else if (this.level === 1 && wantedCells < MAX_STREAM_CELLS * 0.65) this.level = 0;
+
     const cap = this.level === 0 ? MAX_STREAM_CELLS : MAX_LOW_CELLS;
     const streaming = wantedCells <= cap;
 
