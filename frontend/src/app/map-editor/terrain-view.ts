@@ -14,7 +14,7 @@
 import { Container, Geometry, GlProgram, Mesh, Shader, Texture, UniformGroup } from 'pixi.js';
 import { CHUNK_WORLD_SIZE, RasterLayer } from './map-editor.model';
 import { Bounds } from './map-camera';
-import { ChunkManager } from './chunk-manager';
+import { ChunkManager, DetailLevel } from './chunk-manager';
 
 const vertex = /* glsl */ `
 in vec2 aPosition;
@@ -179,6 +179,15 @@ export function defaultCoast(): CoastSettings {
  */
 const MAX_TERRAIN_CELLS = 100;
 
+/**
+ * Ceiling on overview meshes.
+ *
+ * Overview cells cost almost nothing in memory (~47 KB each) but every one is still a draw
+ * call, so this is the real limit on how wide a view can be — not the residency budget.
+ * Sized to cover roughly a hundred hexes across, which is a whole-map view at this scale.
+ */
+const MAX_OVERVIEW_CELLS = 900;
+
 
 /** Program is compiled once and shared; only the per-cell resources differ. */
 let sharedProgram: GlProgram | null = null;
@@ -204,6 +213,8 @@ type TerrainMesh = Mesh<Geometry, Shader>;
 interface Cell {
   cx: number;
   cy: number;
+  /** Level the shader's textures came from, so a level switch rebuilds the mesh. */
+  level: DetailLevel;
   mesh: TerrainMesh;
   uniforms: UniformGroup;
   /** Texture identity last bound, so eviction and refetches can be detected. */
@@ -295,7 +306,7 @@ export class TerrainView {
     return `${cx}/${cy}`;
   }
 
-  private build(cx: number, cy: number): Cell {
+  private build(cx: number, cy: number, level: DetailLevel): Cell {
     const uniforms = new UniformGroup({
       uLandDefault: { value: this.landDefault, type: 'vec3<f32>' },
       uWaterDefault: { value: this.waterDefault, type: 'vec3<f32>' },
@@ -314,9 +325,9 @@ export class TerrainView {
       uShadowStrength: { value: this.coast.shadowStrength, type: 'f32' },
     });
 
-    const height = this.chunks.get('height', cx, cy).texture;
-    const landColor = this.chunks.get('landColor', cx, cy).texture;
-    const waterColor = this.chunks.get('waterColor', cx, cy).texture;
+    const height = this.chunks.get('height', cx, cy, level).texture;
+    const landColor = this.chunks.get('landColor', cx, cy, level).texture;
+    const waterColor = this.chunks.get('waterColor', cx, cy, level).texture;
 
     const shader = new Shader({
       glProgram: program(),
@@ -340,6 +351,7 @@ export class TerrainView {
     const cell: Cell = {
       cx,
       cy,
+      level,
       mesh,
       uniforms,
       bound: { height, landColor, waterColor },
@@ -373,7 +385,7 @@ export class TerrainView {
    * is what made a wide zoom crawl. Past the cap only the cells nearest the middle of the
    * screen are drawn, which is where the eye is, and the ocean backdrop covers the rest.
    */
-  update(bounds: Bounds): void {
+  update(bounds: Bounds, level: DetailLevel = 0): void {
     const minCx = Math.floor(bounds.minX / CHUNK_WORLD_SIZE);
     const maxCx = Math.floor(bounds.maxX / CHUNK_WORLD_SIZE);
     const minCy = Math.floor(bounds.minY / CHUNK_WORLD_SIZE);
@@ -381,20 +393,21 @@ export class TerrainView {
 
     const spanX = maxCx - minCx + 1;
     const spanY = maxCy - minCy + 1;
+    const cap = level === 0 ? MAX_TERRAIN_CELLS : MAX_OVERVIEW_CELLS;
 
     let wanted: { cx: number; cy: number }[] = [];
     for (let cy = minCy; cy <= maxCy; cy++) {
       for (let cx = minCx; cx <= maxCx; cx++) wanted.push({ cx, cy });
     }
 
-    if (spanX * spanY > MAX_TERRAIN_CELLS) {
+    if (spanX * spanY > cap) {
       const midX = (minCx + maxCx) / 2;
       const midY = (minCy + maxCy) / 2;
       wanted.sort(
         (a, b) =>
           (a.cx - midX) ** 2 + (a.cy - midY) ** 2 - ((b.cx - midX) ** 2 + (b.cy - midY) ** 2),
       );
-      wanted = wanted.slice(0, MAX_TERRAIN_CELLS);
+      wanted = wanted.slice(0, cap);
     }
 
     const live = new Set<string>();
@@ -405,16 +418,17 @@ export class TerrainView {
 
       const cell = this.cells.get(key);
       if (!cell) {
-        this.build(cx, cy);
+        this.build(cx, cy, level);
         continue;
       }
 
-      // If eviction handed back a different RenderTexture, the shader is stale.
-      const h = this.chunks.get('height', cx, cy).texture;
-      if (cell.bound.height !== h) {
+      // Rebuild when the level changed, or when eviction handed back a different
+      // RenderTexture — either way the shader is pointing at the wrong pixels.
+      const h = this.chunks.get('height', cx, cy, level).texture;
+      if (cell.level !== level || cell.bound.height !== h) {
         this.destroyCell(cell);
         this.cells.delete(key);
-        this.build(cx, cy);
+        this.build(cx, cy, level);
       }
     }
 

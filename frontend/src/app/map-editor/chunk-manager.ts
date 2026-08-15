@@ -39,6 +39,8 @@ export interface ChunkRecord {
   layer: RasterLayer;
   cx: number;
   cy: number;
+  /** Detail level: 0 = full resolution, 1 = the low-memory overview copy. */
+  level: DetailLevel;
   texture: RenderTexture;
   /** Pixels fetched, or confirmed never painted. */
   loaded: boolean;
@@ -64,8 +66,24 @@ export interface ChunkRecord {
  * At 512² RGBA per layer a cell costs ~3 MB, so the resident cap is roughly 190 MB.
  */
 const BYTES_PER_CELL_MB = 3;
-/** Cells kept on the GPU (~310 MB). Must comfortably exceed what a wide view streams. */
+/** Full-detail cells kept on the GPU (~310 MB). Must exceed what a working view streams. */
 const MAX_RESIDENT_CELLS = 104;
+
+/**
+ * Detail levels.
+ *
+ * A wide view needs hundreds of cells, and at full resolution that is over a gigabyte of
+ * texture — not a budget that can be raised, it is off by an order of magnitude. So chunks
+ * also exist at 1/8 scale, which is 1/64th the memory: the same view costs tens of
+ * megabytes instead, and the map is visible to its edges rather than through a porthole.
+ *
+ * The server side needs no changes at all. A chunk is one PNG; the low level simply renders
+ * it into a smaller texture, and the downscale happens on upload to the GPU.
+ */
+export type DetailLevel = 0 | 1;
+const LOW_TEXELS = 64;
+/** Overview cells resident (~66 MB at 3 layers × 16 KB). */
+const MAX_LOW_CELLS = 1400;
 /**
  * Above this many cells in view, stop streaming *new* ones and render what is resident.
  * Kept below the resident cap so the evictor always has slack to work with.
@@ -100,8 +118,17 @@ export class ChunkManager {
 
   // ── residency ──
 
-  private create(layer: RasterLayer, cx: number, cy: number): ChunkRecord {
-    const texels = LAYER_TEXELS[layer];
+  /** Records are keyed by level too, so a cell can hold both resolutions at once. */
+  private recKey(layer: RasterLayer, cx: number, cy: number, level: DetailLevel): string {
+    return level === 0 ? chunkKey(layer, cx, cy) : `${chunkKey(layer, cx, cy)}@${level}`;
+  }
+
+  private texelsFor(layer: RasterLayer, level: DetailLevel): number {
+    return level === 0 ? LAYER_TEXELS[layer] : LOW_TEXELS;
+  }
+
+  private create(layer: RasterLayer, cx: number, cy: number, level: DetailLevel): ChunkRecord {
+    const texels = this.texelsFor(layer, level);
     /*
      * Linear filtering is essential: with nearest, every texel edge shows as a hard block
      * and the map reads as pixel art however high the resolution goes.
@@ -128,13 +155,14 @@ export class ChunkManager {
       layer,
       cx,
       cy,
+      level,
       texture,
       loaded: false,
       dirty: false,
       uploading: false,
       lastSeen: this.frame,
     };
-    this.chunks.set(chunkKey(layer, cx, cy), rec);
+    this.chunks.set(this.recKey(layer, cx, cy, level), rec);
 
     if (this.store.chunkExists(layer, cx, cy)) void this.fetchInto(rec);
     else rec.loaded = true; // never painted — the cleared texture is already correct
@@ -142,14 +170,20 @@ export class ChunkManager {
     return rec;
   }
 
-  /** Resident record for a chunk, creating and queueing a load if absent. */
-  get(layer: RasterLayer, cx: number, cy: number): ChunkRecord {
-    const rec = this.chunks.get(chunkKey(layer, cx, cy));
+  /** Resident record for a chunk at a level, creating and queueing a load if absent. */
+  get(layer: RasterLayer, cx: number, cy: number, level: DetailLevel = 0): ChunkRecord {
+    const rec = this.chunks.get(this.recKey(layer, cx, cy, level));
     if (rec) {
       rec.lastSeen = this.frame;
       return rec;
     }
-    return this.create(layer, cx, cy);
+    return this.create(layer, cx, cy, level);
+  }
+
+  /** Whether a level's copy of a chunk exists and has its pixels. */
+  isReady(layer: RasterLayer, cx: number, cy: number, level: DetailLevel): boolean {
+    const rec = this.chunks.get(this.recKey(layer, cx, cy, level));
+    return !!rec && rec.loaded && this.isUsable(rec);
   }
 
   private async fetchInto(rec: ChunkRecord): Promise<void> {
@@ -161,7 +195,7 @@ export class ChunkManager {
     }
 
     // The chunk may have been evicted while the fetch was in flight.
-    if (this.chunks.get(chunkKey(rec.layer, rec.cx, rec.cy)) !== rec) return;
+    if (this.chunks.get(this.recKey(rec.layer, rec.cx, rec.cy, rec.level)) !== rec) return;
     if (!this.isUsable(rec)) return;
 
     try {
@@ -170,7 +204,8 @@ export class ChunkManager {
       const sprite = new Sprite(tex);
       // Stored chunks may predate a resolution change, so scale to the current size rather
       // than assuming the PNG matches — otherwise old terrain would load into a corner.
-      sprite.setSize(LAYER_TEXELS[rec.layer], LAYER_TEXELS[rec.layer]);
+      const size = this.texelsFor(rec.layer, rec.level);
+      sprite.setSize(size, size);
 
       this.stampHost.removeChildren();
       this.stampHost.blendMode = 'normal';
@@ -206,26 +241,32 @@ export class ChunkManager {
     const maxCy = Math.floor(bounds.maxY / CHUNK_WORLD_SIZE);
 
     const wantedCells = (maxCx - minCx + 1) * (maxCy - minCy + 1);
-    // Zoomed far enough out that streaming detail is pointless; coast on what we have.
-    const streaming = wantedCells <= MAX_STREAM_CELLS;
+
+    /*
+     * Pick the detail level from how much is on screen. Under the full-detail budget the
+     * view streams real chunks; past it the overview copies take over, which cost 1/64th
+     * the memory and so can cover a view that full-resolution chunks never could.
+     */
+    this.level = wantedCells <= MAX_STREAM_CELLS ? 0 : 1;
+    const cap = this.level === 0 ? MAX_STREAM_CELLS : MAX_LOW_CELLS;
+    const streaming = wantedCells <= cap;
 
     if (streaming) {
       for (const layer of RASTER_LAYERS) {
         for (let cy = minCy; cy <= maxCy; cy++) {
           for (let cx = minCx; cx <= maxCx; cx++) {
-            const key = chunkKey(layer, cx, cy);
-            const rec = this.chunks.get(key);
+            const rec = this.chunks.get(this.recKey(layer, cx, cy, this.level));
             if (rec) rec.lastSeen = this.frame;
-            else this.create(layer, cx, cy);
+            else this.create(layer, cx, cy, this.level);
           }
         }
       }
     } else {
       /*
-       * Zoomed out, the cell range can be thousands of positions while residency is capped
-       * in the low hundreds. Sweeping the range to mark what is visible then costs far more
-       * than sweeping what actually exists — and it was pure waste, since nothing new can be
-       * created here anyway. Walk the resident set instead, which is bounded by the budget.
+       * Beyond even the overview budget the cell range can be tens of thousands of
+       * positions while residency is capped in the low thousands. Sweeping the range to
+       * mark visibility then costs far more than sweeping what actually exists — and it was
+       * pure waste, since nothing new can be created here anyway.
        */
       for (const rec of this.chunks.values()) {
         if (rec.cx >= minCx && rec.cx <= maxCx && rec.cy >= minCy && rec.cy <= maxCy) {
@@ -237,19 +278,60 @@ export class ChunkManager {
     this.evict();
   }
 
-  /** Drop the least recently seen chunks once over budget. Never drops unsaved work. */
-  private evict(): void {
-    const budget = MAX_RESIDENT_CELLS * RASTER_LAYERS.length;
-    if (this.chunks.size <= budget) return;
+  /** Detail level the last `update` settled on. */
+  get detailLevel(): DetailLevel {
+    return this.level;
+  }
 
-    const candidates = [...this.chunks.values()]
-      .filter(r => !r.dirty && !r.uploading && r.lastSeen !== this.frame)
+  private level: DetailLevel = 0;
+
+  /**
+   * Drop the least recently seen *cells* once over budget. Never drops unsaved work.
+   *
+   * Eviction is per cell rather than per texture because the terrain shader needs all three
+   * layers of a position together. Ranking individual textures let a cell lose, say, its
+   * land colour while keeping its height — painting height refreshes only that layer's
+   * recency, so the colour aged out first — and the map then showed correctly-shaped land
+   * with its colour cut off along a dead-straight chunk border.
+   */
+  private evict(): void {
+    this.evictLevel(0, MAX_RESIDENT_CELLS);
+    this.evictLevel(1, MAX_LOW_CELLS);
+  }
+
+  /** Enforce one level's cell budget without disturbing the other's. */
+  private evictLevel(level: DetailLevel, maxCells: number): void {
+    const budget = maxCells * RASTER_LAYERS.length;
+    const ofLevel = [...this.chunks.values()].filter(r => r.level === level);
+    if (ofLevel.length <= budget) return;
+
+    // Group by cell, ranking each by its *most* recently seen layer.
+    const cells = new Map<string, { recs: ChunkRecord[]; lastSeen: number; pinned: boolean }>();
+    for (const rec of ofLevel) {
+      const key = `${rec.cx}/${rec.cy}`;
+      const cell = cells.get(key);
+      const pinned = rec.dirty || rec.uploading || rec.lastSeen === this.frame;
+      if (cell) {
+        cell.recs.push(rec);
+        cell.lastSeen = Math.max(cell.lastSeen, rec.lastSeen);
+        cell.pinned ||= pinned;
+      } else {
+        cells.set(key, { recs: [rec], lastSeen: rec.lastSeen, pinned });
+      }
+    }
+
+    const candidates = [...cells.values()]
+      .filter(c => !c.pinned)
       .sort((a, b) => a.lastSeen - b.lastSeen);
 
-    let excess = this.chunks.size - budget;
-    for (const rec of candidates) {
-      if (excess-- <= 0) break;
-      this.dispose(rec);
+    let excess = ofLevel.length - budget;
+    for (const cell of candidates) {
+      if (excess <= 0) break;
+      // All layers of the cell go together, so a partial cell can never be rendered.
+      for (const rec of cell.recs) {
+        this.dispose(rec);
+        excess--;
+      }
     }
 
     /*
@@ -257,11 +339,11 @@ export class ChunkManager {
      * that previously grew until the GPU context was lost. Say so once rather than
      * silently allocating into a crash; the stream cap should normally prevent it.
      */
-    if (excess > 0 && !this.warnedOverBudget) {
+    if (excess > 0 && level === 0 && !this.warnedOverBudget) {
       this.warnedOverBudget = true;
       console.warn(
-        `[ChunkManager] over residency budget: ${this.chunks.size} chunks ` +
-          `(~${Math.round((this.chunks.size / RASTER_LAYERS.length) * BYTES_PER_CELL_MB)} MB) ` +
+        `[ChunkManager] over residency budget at level ${level}: ${ofLevel.length} chunks ` +
+          `(~${Math.round((ofLevel.length / RASTER_LAYERS.length) * BYTES_PER_CELL_MB)} MB) ` +
           'and none evictable. Lower MAX_STREAM_CELLS or the layer resolution.',
       );
     }
@@ -270,7 +352,7 @@ export class ChunkManager {
   private warnedOverBudget = false;
 
   private dispose(rec: ChunkRecord): void {
-    this.chunks.delete(chunkKey(rec.layer, rec.cx, rec.cy));
+    this.chunks.delete(this.recKey(rec.layer, rec.cx, rec.cy, rec.level));
     this.onChunkDisposed?.(rec.layer, rec.cx, rec.cy);
     rec.destroyed = true;
     rec.texture.destroy(true);
@@ -302,7 +384,6 @@ export class ChunkManager {
     const minCy = Math.floor(bounds.minY / CHUNK_WORLD_SIZE);
     const maxCy = Math.floor(bounds.maxY / CHUNK_WORLD_SIZE);
 
-    const s = 1 / layerScale(layer); // world px → texels
     const touched: ChunkRecord[] = [];
 
     this.stampHost.removeChildren();
@@ -310,26 +391,41 @@ export class ChunkManager {
 
     for (let cy = minCy; cy <= maxCy; cy++) {
       for (let cx = minCx; cx <= maxCx; cx++) {
+        // Full detail is where the stroke actually lives and what gets uploaded.
         const rec = this.get(layer, cx, cy);
         this.onBeforePaint?.(rec);
-
-        // World → this chunk's texel space: translate to the chunk origin, then scale.
-        const m = new Matrix(s, 0, 0, s, -cx * CHUNK_WORLD_SIZE * s, -cy * CHUNK_WORLD_SIZE * s);
-
-        this.renderer.render({
-          container: this.stampHost,
-          target: rec.texture,
-          clear: false,
-          transform: m,
-        });
-
+        this.stamp(rec, cx, cy);
         rec.dirty = true;
         touched.push(rec);
+
+        /*
+         * Mirror the stroke into the overview copy when one is resident.
+         *
+         * Both levels come from the same PNG, but only on the next flush — so while zoomed
+         * out, where the overview is what is actually on screen, painting would otherwise
+         * appear to do nothing until the upload landed a second later.
+         */
+        const low = this.chunks.get(this.recKey(layer, cx, cy, 1));
+        if (low && this.isUsable(low)) this.stamp(low, cx, cy);
       }
     }
 
     this.stampHost.removeChildren();
     return touched;
+  }
+
+  /** Render the current stamp host into one chunk, in that chunk's texel space. */
+  private stamp(rec: ChunkRecord, cx: number, cy: number): void {
+    const s = this.texelsFor(rec.layer, rec.level) / CHUNK_WORLD_SIZE; // world px → texels
+    // World → this chunk's texel space: translate to the chunk origin, then scale.
+    const m = new Matrix(s, 0, 0, s, -cx * CHUNK_WORLD_SIZE * s, -cy * CHUNK_WORLD_SIZE * s);
+
+    this.renderer.render({
+      container: this.stampHost,
+      target: rec.texture,
+      clear: false,
+      transform: m,
+    });
   }
 
   /**
@@ -483,6 +579,8 @@ export class ChunkManager {
             return;
           }
           this.store.announceChunk(rec.layer, rec.cx, rec.cy, ver);
+          // The overview copy of this cell is now stale; reload it from the new PNG.
+          this.refreshLow(rec.layer, rec.cx, rec.cy);
         } catch (err) {
           console.error('[ChunkManager] Chunk flush failed', rec.layer, rec.cx, rec.cy, err);
           rec.dirty = true;
@@ -505,13 +603,27 @@ export class ChunkManager {
     return new Promise(resolve => canvas.toBlob(b => resolve(b), 'image/png'));
   }
 
+  /**
+   * Re-pull the low-detail copy after the full one changed.
+   *
+   * Both levels come from the same stored PNG, so the overview only needs refetching once
+   * the new pixels have actually been uploaded — hence this runs after a successful flush
+   * rather than at stroke end.
+   */
+  private refreshLow(layer: RasterLayer, cx: number, cy: number): void {
+    const low = this.chunks.get(this.recKey(layer, cx, cy, 1));
+    if (low && this.isUsable(low)) void this.fetchInto(low);
+  }
+
   /** Another client changed this chunk — refetch it if we have it resident. */
   invalidate(layer: RasterLayer, cx: number, cy: number): void {
-    const rec = this.chunks.get(chunkKey(layer, cx, cy));
-    if (!rec) return;
-    // Local unsaved paint wins; our own flush will publish it shortly.
-    if (rec.dirty || rec.uploading) return;
-    void this.fetchInto(rec);
+    for (const level of [0, 1] as const) {
+      const rec = this.chunks.get(this.recKey(layer, cx, cy, level));
+      if (!rec) continue;
+      // Local unsaved paint wins; our own flush will publish it shortly.
+      if (rec.dirty || rec.uploading) continue;
+      void this.fetchInto(rec);
+    }
   }
 
   hasPendingWork(): boolean {

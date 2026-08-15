@@ -438,8 +438,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       // without inflating the streamed set to the point of exhausting the GPU.
       this.chunks?.update(this.renderer.camera.visibleBounds(256));
       // Build terrain slightly beyond the view so a cell exists before it scrolls in;
-      // without the lead, the edge of a pan or zoom trails behind the camera.
-      this.terrain?.update(this.renderer.camera.visibleBounds(256));
+      // without the lead, the edge of a pan or zoom trails behind the camera. The level is
+      // whatever the streamer settled on, so the two never disagree about what is loaded.
+      this.terrain?.update(
+        this.renderer.camera.visibleBounds(256),
+        this.chunks?.detailLevel ?? 0,
+      );
       const view = this.renderer.camera.visibleBounds(0);
       const zoom = this.renderer.camera.zoom;
       this.symbols?.render(view, zoom, this.isGM());
