@@ -309,7 +309,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.landPalette.set(data.landPalette);
     this.waterPalette.set(data.waterPalette);
     this.waterBase.set(data.settings.waterBase ?? '#3f6d8c');
-    this.terrain.setWaterDefault(hexToRgb(this.waterBase(), [0.25, 0.43, 0.55]));
+    const waterRgb = hexToRgb(this.waterBase(), [0.25, 0.43, 0.55]);
+    this.terrain.setWaterDefault(waterRgb);
+    this.renderer.setOceanColor(waterRgb);
 
     const s = data.settings;
     const coast: CoastSettings = {
@@ -435,7 +437,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       // A quarter-chunk of margin: enough to load terrain just before it scrolls in,
       // without inflating the streamed set to the point of exhausting the GPU.
       this.chunks?.update(this.renderer.camera.visibleBounds(256));
-      this.terrain?.update(this.renderer.camera.visibleBounds(0));
+      // Build terrain slightly beyond the view so a cell exists before it scrolls in;
+      // without the lead, the edge of a pan or zoom trails behind the camera.
+      this.terrain?.update(this.renderer.camera.visibleBounds(256));
       const view = this.renderer.camera.visibleBounds(0);
       const zoom = this.renderer.camera.zoom;
       this.symbols?.render(view, zoom, this.isGM());
@@ -1812,7 +1816,10 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   setWaterBase(color: string): void {
     this.waterBase.set(color);
     this.store.setPath('settings.waterBase', color);
-    this.terrain?.setWaterDefault(hexToRgb(color, [0.25, 0.43, 0.55]));
+    const rgb = hexToRgb(color, [0.25, 0.43, 0.55]);
+    this.terrain?.setWaterDefault(rgb);
+    // The backdrop is the same water, so it has to follow or the seam becomes visible.
+    this.renderer.setOceanColor(rgb);
   }
 
   private async applyPaper(id: string): Promise<void> {

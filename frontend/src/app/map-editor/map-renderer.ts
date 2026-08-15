@@ -9,7 +9,7 @@
  * and Phase 5 with the noise-warped coastline shader.
  */
 
-import { Application, Container, Graphics, Renderer } from 'pixi.js';
+import { Application, Container, Graphics, Renderer, Sprite, Texture } from 'pixi.js';
 import { MapCamera } from './map-camera';
 import {
   HEX_RADIUS,
@@ -32,6 +32,16 @@ export class MapRenderer {
 
   /** Camera transform applied here; children are all in world coordinates. */
   worldRoot = new Container();
+
+  /**
+   * Open sea behind everything.
+   *
+   * Terrain only exists where a chunk mesh does, so any area without one showed the page
+   * background instead — which is why zooming out flashed grey at the edges before the new
+   * cells caught up. A backdrop in the water colour means uncovered map reads as ocean,
+   * which is what it actually is, and the catch-up becomes invisible.
+   */
+  private oceanBackdrop = new Sprite(Texture.WHITE);
 
   /** Terrain meshes are parented here by `TerrainView`. */
   terrainLayer = new Container();
@@ -83,8 +93,7 @@ export class MapRenderer {
 
     this.app.stage.addChild(this.worldRoot);
 
-    // Terrain is composited per chunk by TerrainView; ocean is the shader's fallback for
-    // unpainted height, so no separate background sprite is needed.
+    this.worldRoot.addChild(this.oceanBackdrop);
     this.worldRoot.addChild(this.terrainLayer);
     this.worldRoot.addChild(this.objectLayer);
     this.worldRoot.addChild(this.gridLayer);
@@ -116,7 +125,19 @@ export class MapRenderer {
       this.camera.viewHeight / 2 - this.camera.y * zoom,
     );
 
+    // Cover the view generously, so a fast pan cannot outrun the backdrop either.
+    const b = this.camera.visibleBounds(this.camera.viewWidth / zoom);
+    this.oceanBackdrop.position.set(b.minX, b.minY);
+    this.oceanBackdrop.width = b.maxX - b.minX;
+    this.oceanBackdrop.height = b.maxY - b.minY;
+
     this.updateGrid();
+  }
+
+  /** Keep the backdrop in step with the map's open-water colour. */
+  setOceanColor(rgb: [number, number, number]): void {
+    this.oceanBackdrop.tint =
+      (Math.round(rgb[0] * 255) << 16) | (Math.round(rgb[1] * 255) << 8) | Math.round(rgb[2] * 255);
   }
 
   /**
@@ -159,6 +180,7 @@ export class MapRenderer {
   }
 
   destroy(): void {
+    this.oceanBackdrop.destroy();
     this.gridLayer.destroy();
     this.cursorLayer.destroy({ children: true });
     this.app.destroy(true, { children: true });

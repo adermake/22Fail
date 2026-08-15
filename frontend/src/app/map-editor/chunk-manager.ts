@@ -209,13 +209,27 @@ export class ChunkManager {
     // Zoomed far enough out that streaming detail is pointless; coast on what we have.
     const streaming = wantedCells <= MAX_STREAM_CELLS;
 
-    for (const layer of RASTER_LAYERS) {
-      for (let cy = minCy; cy <= maxCy; cy++) {
-        for (let cx = minCx; cx <= maxCx; cx++) {
-          const key = chunkKey(layer, cx, cy);
-          const rec = this.chunks.get(key);
-          if (rec) rec.lastSeen = this.frame;
-          else if (streaming) this.create(layer, cx, cy);
+    if (streaming) {
+      for (const layer of RASTER_LAYERS) {
+        for (let cy = minCy; cy <= maxCy; cy++) {
+          for (let cx = minCx; cx <= maxCx; cx++) {
+            const key = chunkKey(layer, cx, cy);
+            const rec = this.chunks.get(key);
+            if (rec) rec.lastSeen = this.frame;
+            else this.create(layer, cx, cy);
+          }
+        }
+      }
+    } else {
+      /*
+       * Zoomed out, the cell range can be thousands of positions while residency is capped
+       * in the low hundreds. Sweeping the range to mark what is visible then costs far more
+       * than sweeping what actually exists — and it was pure waste, since nothing new can be
+       * created here anyway. Walk the resident set instead, which is bounded by the budget.
+       */
+      for (const rec of this.chunks.values()) {
+        if (rec.cx >= minCx && rec.cx <= maxCx && rec.cy >= minCy && rec.cy <= maxCy) {
+          rec.lastSeen = this.frame;
         }
       }
     }
