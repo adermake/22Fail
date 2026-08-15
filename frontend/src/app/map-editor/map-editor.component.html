@@ -31,50 +31,80 @@
     @if (isGM()) {
       <!-- LEFT: tabs and their tools, as icons only. -->
       <aside class="tool-rail">
+        <!-- Categories as text; the tools inside them are the icons. -->
         <div class="tab-strip">
           @for (t of tabs; track t.id) {
             <button
               type="button"
-              class="rail-btn tab"
+              class="tab-btn"
               [class.active]="tab() === t.id"
-              [title]="t.label"
               (click)="selectTab(t.id)"
             >
-              <img [src]="icon(t.icon)" [alt]="t.label" />
+              {{ t.label }}
             </button>
           }
         </div>
 
         <div class="rail-divider"></div>
 
-        @if (tab() === 'terrain') {
-          @for (t of terrainTools; track t.id) {
-            <button
-              type="button"
-              class="rail-btn"
-              [class.active]="terrainTool() === t.id"
-              [title]="t.label"
-              (click)="selectTerrainTool(t.id)"
-            >
-              <img [src]="icon(t.icon)" [alt]="t.label" />
-            </button>
+        <div class="tool-icons">
+          @if (isTerrainTab()) {
+            @for (t of terrainTools(); track t.id) {
+              <button
+                type="button"
+                class="rail-btn"
+                [class.active]="terrainTool() === t.id"
+                [title]="t.label"
+                (click)="selectTerrainTool(t.id)"
+              >
+                <img [src]="icon(t.icon)" [alt]="t.label" />
+              </button>
+            }
           }
-        }
 
-        @if (tab() === 'symbols') {
-          @for (t of symbolTools; track t.id) {
-            <button
-              type="button"
-              class="rail-btn"
-              [class.active]="symbolTool() === t.id"
-              [disabled]="!assetsReady()"
-              [title]="t.label"
-              (click)="selectSymbolTool(t.id)"
-            >
-              <img [src]="icon(t.icon)" [alt]="t.label" />
-            </button>
+          @if (tab() === 'symbols') {
+            @for (t of symbolTools; track t.id) {
+              <button
+                type="button"
+                class="rail-btn"
+                [class.active]="symbolTool() === t.id"
+                [disabled]="!assetsReady()"
+                [title]="t.label"
+                (click)="selectSymbolTool(t.id)"
+              >
+                <img [src]="icon(t.icon)" [alt]="t.label" />
+              </button>
+            }
           }
-        }
+
+          @if (tab() === 'regions') {
+            @for (t of regionTools; track t.id) {
+              <button
+                type="button"
+                class="rail-btn"
+                [class.active]="regionTool() === t.id"
+                [title]="t.label"
+                (click)="selectRegionTool(t.id)"
+              >
+                <img [src]="icon(t.icon)" [alt]="t.label" />
+              </button>
+            }
+          }
+
+          @if (tab() === 'labels') {
+            @for (t of labelTools; track t.id) {
+              <button
+                type="button"
+                class="rail-btn"
+                [class.active]="labelTool() === t.id"
+                [title]="t.label"
+                (click)="selectLabelTool(t.id)"
+              >
+                <img [src]="icon(t.icon)" [alt]="t.label" />
+              </button>
+            }
+          }
+        </div>
       </aside>
     }
 
@@ -82,7 +112,7 @@
       <div
         #pixiHost
         class="pixi-host"
-        [class.brush-cursor]="isGM() && tab() === 'terrain'"
+        [class.brush-cursor]="isGM() && isTerrainTab()"
         [class.place-cursor]="isPlacingSymbols()"
       ></div>
 
@@ -162,7 +192,7 @@
           </div>
         }
 
-        @if (tab() === 'terrain' && terrainTool() === 'lakeStamp') {
+        @if (isTerrainTab() && terrainTool() === 'lakeStamp') {
           <div class="panel-section">
             <label class="slider-row">
               <span>Größe</span>
@@ -258,26 +288,11 @@
         }
 
         @if (isPlacingSymbols()) {
+          <!-- The whole category at once: browsing group names to find one mountain was
+               guesswork through a list of words. -->
           <div class="panel-section">
-            <div class="panel-title">Gruppe</div>
-            <div class="group-list">
-              @for (g of groups(); track g.id) {
-                <button
-                  type="button"
-                  class="group-btn"
-                  [class.active]="activeGroup() === g.id"
-                  (click)="selectGroup(g.id)"
-                >
-                  {{ g.name }}
-                </button>
-              }
-            </div>
-          </div>
-
-          <div class="panel-section">
-            <div class="panel-title">Symbol</div>
             <div class="sprite-grid">
-              @for (s of groupSprites(); track s) {
+              @for (s of categorySprites(); track s) {
                 <button
                   type="button"
                   class="sprite-cell"
@@ -306,13 +321,37 @@
               <em>{{ symbolScale().toFixed(2) }}×</em>
             </label>
 
-            <label class="check-row">
+            <label class="slider-row" title="Zufällige Drehung pro Platzierung">
+              <span>Drehung</span>
+              <input
+                type="range"
+                min="0"
+                max="180"
+                step="5"
+                [value]="rotationJitter()"
+                (input)="rotationJitter.set(+$any($event.target).value)"
+              />
+              <em>±{{ rotationJitter() }}°</em>
+            </label>
+
+            @if (symbolVaries()) {
+              <label class="check-row">
+                <input
+                  type="checkbox"
+                  [checked]="autoVary()"
+                  (change)="autoVary.set($any($event.target).checked)"
+                />
+                <span>Nach dem Setzen variieren</span>
+              </label>
+            }
+
+            <label class="check-row" title="Zufällig gespiegelt platzieren">
               <input
                 type="checkbox"
-                [checked]="autoVary()"
-                (change)="autoVary.set($any($event.target).checked)"
+                [checked]="flipJitter()"
+                (change)="flipJitter.set($any($event.target).checked)"
               />
-              <span>Nach dem Setzen variieren</span>
+              <span>Zufällig spiegeln</span>
             </label>
 
             <label class="check-row" title="Nur für den GM sichtbar, bis aufgedeckt">
@@ -337,6 +376,11 @@
                 <button type="button" (click)="scaleSelected(1.2)">Größer</button>
               </div>
               <div class="history-row">
+                <button type="button" (click)="rotateSelected(-0.2618)">↺</button>
+                <button type="button" (click)="rotateSelected(0.2618)">↻</button>
+                <button type="button" (click)="flipSelected()">Spiegeln</button>
+              </div>
+              <div class="history-row">
                 <button type="button" (click)="toggleSelectedSecret()">Geheim umschalten</button>
               </div>
               <div class="history-row">
@@ -347,6 +391,251 @@
                 Symbol anklicken oder Rahmen ziehen · Shift für Mehrfachauswahl · ziehen zum
                 Verschieben
               </p>
+            }
+          </div>
+        }
+
+        @if (tab() === 'regions') {
+          <div class="panel-section">
+            <div class="panel-title">Stil</div>
+
+            <label class="base-row">
+              <span>Linie</span>
+              <input
+                type="color"
+                [value]="regionColor()"
+                (input)="regionColor.set($any($event.target).value); applyRegionStyle()"
+              />
+            </label>
+
+            <label class="slider-row">
+              <span>Dicke</span>
+              <input
+                type="range"
+                min="1"
+                max="40"
+                step="1"
+                [value]="regionThickness()"
+                (input)="regionThickness.set(+$any($event.target).value); applyRegionStyle()"
+              />
+              <em>{{ regionThickness() }}</em>
+            </label>
+
+            <label class="slider-row">
+              <span>Strich</span>
+              <input
+                type="range"
+                min="2"
+                max="120"
+                step="1"
+                [value]="regionDash()"
+                (input)="regionDash.set(+$any($event.target).value); applyRegionStyle()"
+              />
+              <em>{{ regionDash() }}</em>
+            </label>
+
+            <label class="slider-row">
+              <span>Lücke</span>
+              <input
+                type="range"
+                min="0"
+                max="120"
+                step="1"
+                [value]="regionGap()"
+                (input)="regionGap.set(+$any($event.target).value); applyRegionStyle()"
+              />
+              <em>{{ regionGap() }}</em>
+            </label>
+
+            <label class="base-row">
+              <span>Füllung</span>
+              <input
+                type="color"
+                [value]="regionFill()"
+                (input)="regionFill.set($any($event.target).value); applyRegionStyle()"
+              />
+            </label>
+
+            <label class="slider-row">
+              <span>Deckkraft</span>
+              <input
+                type="range"
+                min="0"
+                max="0.8"
+                step="0.02"
+                [value]="regionFillAlpha()"
+                (input)="regionFillAlpha.set(+$any($event.target).value); applyRegionStyle()"
+              />
+              <em>{{ (regionFillAlpha() * 100).toFixed(0) }}%</em>
+            </label>
+          </div>
+
+          @if (regionTool() === 'draw') {
+            <div class="panel-section">
+              <p class="hint">
+                Klicken setzt Punkte · Enter schließt die Region · Rücktaste nimmt den letzten
+                Punkt zurück · Esc bricht ab
+              </p>
+              @if (draftPoints().length) {
+                <div class="history-row">
+                  <button type="button" (click)="finishRegion()">Schließen</button>
+                  <button type="button" (click)="cancelDraft()">Abbrechen</button>
+                </div>
+              }
+
+              <label class="check-row" title="Nur für den GM sichtbar, bis aufgedeckt">
+                <input
+                  type="checkbox"
+                  [checked]="placeSecret()"
+                  (change)="placeSecret.set($any($event.target).checked)"
+                />
+                <span>Als Geheimnis</span>
+              </label>
+            </div>
+          } @else {
+            <div class="panel-section">
+              @if (selectedRegionId()) {
+                <p class="hint">Punkte ziehen zum Bearbeiten.</p>
+                <div class="history-row">
+                  <button type="button" (click)="deleteSelectedRegion()">Löschen (Entf)</button>
+                </div>
+              } @else {
+                <p class="hint">Auf eine Regionslinie klicken.</p>
+              }
+            </div>
+          }
+        }
+
+        @if (tab() === 'labels') {
+          <div class="panel-section">
+            <div class="panel-title">Text</div>
+            <input
+              type="text"
+              class="text-input"
+              [value]="labelText()"
+              (input)="labelText.set($any($event.target).value)"
+              (change)="applyLabelEdits()"
+            />
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-title">Stil</div>
+
+            <label class="slider-row">
+              <span>Größe</span>
+              <input
+                type="range"
+                min="8"
+                max="300"
+                step="1"
+                [value]="labelStyle().fontSize"
+                (input)="setLabelStyle('fontSize', +$any($event.target).value)"
+              />
+              <em>{{ labelStyle().fontSize }}</em>
+            </label>
+
+            <label class="slider-row" title="Biegung des Textes">
+              <span>Krümmung</span>
+              <input
+                type="range"
+                min="-1"
+                max="1"
+                step="0.02"
+                [value]="labelStyle().curvature"
+                (input)="setLabelStyle('curvature', +$any($event.target).value)"
+              />
+              <em>{{ labelStyle().curvature.toFixed(2) }}</em>
+            </label>
+
+            <label class="slider-row">
+              <span>Abstand</span>
+              <input
+                type="range"
+                min="-10"
+                max="40"
+                step="1"
+                [value]="labelStyle().letterSpacing"
+                (input)="setLabelStyle('letterSpacing', +$any($event.target).value)"
+              />
+              <em>{{ labelStyle().letterSpacing }}</em>
+            </label>
+
+            <label class="base-row">
+              <span>Füllfarbe</span>
+              <input
+                type="color"
+                [value]="labelStyle().fill"
+                (input)="setLabelStyle('fill', $any($event.target).value)"
+              />
+            </label>
+
+            <label class="base-row">
+              <span>Kontur</span>
+              <input
+                type="color"
+                [value]="labelStyle().outline"
+                (input)="setLabelStyle('outline', $any($event.target).value)"
+              />
+            </label>
+
+            <label class="slider-row">
+              <span>Konturbr.</span>
+              <input
+                type="range"
+                min="0"
+                max="24"
+                step="1"
+                [value]="labelStyle().outlineWidth"
+                (input)="setLabelStyle('outlineWidth', +$any($event.target).value)"
+              />
+              <em>{{ labelStyle().outlineWidth }}</em>
+            </label>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-title">Vorlagen</div>
+            @for (p of labelPresets(); track p.id) {
+              <div class="history-row">
+                <button type="button" (click)="applyLabelPreset(p.id)">{{ p.name }}</button>
+                <button type="button" class="narrow" (click)="removeLabelPreset(p.id)">×</button>
+              </div>
+            }
+            <div class="history-row">
+              <input
+                #presetName
+                type="text"
+                class="text-input"
+                placeholder="z. B. Stadtname"
+                (keydown.enter)="saveLabelPreset(presetName.value); presetName.value = ''"
+              />
+              <button
+                type="button"
+                class="narrow"
+                (click)="saveLabelPreset(presetName.value); presetName.value = ''"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            @if (labelTool() === 'place') {
+              <label class="check-row" title="Nur für den GM sichtbar, bis aufgedeckt">
+                <input
+                  type="checkbox"
+                  [checked]="placeSecret()"
+                  (change)="placeSecret.set($any($event.target).checked)"
+                />
+                <span>Als Geheimnis</span>
+              </label>
+              <p class="hint">Klicken setzt die Beschriftung.</p>
+            } @else if (selectedLabelId()) {
+              <p class="hint">Ziehen zum Verschieben.</p>
+              <div class="history-row">
+                <button type="button" (click)="deleteSelectedLabel()">Löschen (Entf)</button>
+              </div>
+            } @else {
+              <p class="hint">Auf eine Beschriftung klicken.</p>
             }
           </div>
         }
@@ -362,6 +651,98 @@
                 (input)="setWaterBase($any($event.target).value)"
               />
             </label>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-title">Küstenlinie</div>
+
+            <label class="slider-row" title="Große Werte geben weite Buchten, kleine feine Zacken">
+              <span>Grobheit</span>
+              <input
+                type="range"
+                min="40"
+                max="900"
+                step="10"
+                [value]="coast().noiseScale"
+                (input)="setCoast('noiseScale', +$any($event.target).value)"
+                (change)="commitCoast()"
+              />
+              <em>{{ coast().noiseScale }}</em>
+            </label>
+
+            <label class="slider-row" title="Wie stark die Küste vom gemalten Rand abweicht">
+              <span>Zerfranst</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.02"
+                [value]="coast().noiseAmount"
+                (input)="setCoast('noiseAmount', +$any($event.target).value)"
+                (change)="commitCoast()"
+              />
+              <em>{{ (coast().noiseAmount * 100).toFixed(0) }}%</em>
+            </label>
+
+            <label class="slider-row">
+              <span>Uferband</span>
+              <input
+                type="range"
+                min="0"
+                max="0.5"
+                step="0.01"
+                [value]="coast().shoreWidth"
+                (input)="setCoast('shoreWidth', +$any($event.target).value)"
+                (change)="commitCoast()"
+              />
+              <em>{{ (coast().shoreWidth * 100).toFixed(0) }}</em>
+            </label>
+
+            <label class="slider-row">
+              <span>Ufer hell</span>
+              <input
+                type="range"
+                min="0"
+                max="0.6"
+                step="0.02"
+                [value]="coast().shoreLight"
+                (input)="setCoast('shoreLight', +$any($event.target).value)"
+                (change)="commitCoast()"
+              />
+              <em>{{ (coast().shoreLight * 100).toFixed(0) }}%</em>
+            </label>
+
+            <label class="slider-row">
+              <span>Schatten</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.02"
+                [value]="coast().shadowStrength"
+                (input)="setCoast('shadowStrength', +$any($event.target).value)"
+                (change)="commitCoast()"
+              />
+              <em>{{ (coast().shadowStrength * 100).toFixed(0) }}%</em>
+            </label>
+
+            <label class="slider-row">
+              <span>Sch.-breite</span>
+              <input
+                type="range"
+                min="0.02"
+                max="0.5"
+                step="0.01"
+                [value]="coast().shadowWidth"
+                (input)="setCoast('shadowWidth', +$any($event.target).value)"
+                (change)="commitCoast()"
+              />
+              <em>{{ (coast().shadowWidth * 100).toFixed(0) }}</em>
+            </label>
+
+            <div class="history-row">
+              <button type="button" (click)="resetCoast()">Zurücksetzen</button>
+            </div>
           </div>
 
           @if (paperOptions().length) {

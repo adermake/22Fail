@@ -180,6 +180,26 @@ export class MapAssets {
     return ids.map(id => this.manifest!.groups[id]).filter(Boolean);
   }
 
+  /**
+   * Every sprite in a category, flattened in group order.
+   *
+   * The picker shows the whole category at once rather than making you choose a group name
+   * first: browsing thirteen "Inked Mountains" and then backing out to try "Penned
+   * Mountains" is guesswork through a list of words. Groups still exist — they drive which
+   * sprites auto-variation may pick from — they are just not something you navigate.
+   */
+  spritesInCategory(category: SymbolCategory): string[] {
+    const out: string[] = [];
+    for (const group of this.groupsIn(category)) out.push(...group.sprites);
+    return out;
+  }
+
+  /** The group a sprite belongs to, so selecting one also selects its variation set. */
+  groupOf(spriteId: string): string {
+    const slash = spriteId.lastIndexOf('/');
+    return slash < 0 ? '' : spriteId.slice(0, slash);
+  }
+
   /** A random member of a group — placing a symbol rolls the next variation. */
   randomInGroup(groupId: string): string | null {
     const g = this.group(groupId);

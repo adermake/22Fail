@@ -15,7 +15,7 @@
  */
 
 import { Texture } from 'pixi.js';
-import { LAYER_TEXELS, RasterLayer } from './map-editor.model';
+import { AnyMapObject, LAYER_TEXELS, ObjectCollection, RasterLayer } from './map-editor.model';
 import { ChunkManager, ChunkRecord } from './chunk-manager';
 
 interface ChunkSnapshot {
@@ -26,11 +26,37 @@ interface ChunkSnapshot {
   bytes: number;
 }
 
+/**
+ * One object's state either side of an edit. `null` means "did not exist", which lets a
+ * single shape describe adds, updates and deletes without a separate kind tag.
+ */
+export interface ObjectChange {
+  c: ObjectCollection;
+  id: string;
+  before: AnyMapObject | null;
+  after: AnyMapObject | null;
+}
+
+/**
+ * How the stack replays object changes.
+ *
+ * Undo routes back through the store rather than mutating state directly, so undoing a
+ * symbol placement emits a real delete op and disappears for everyone else too — an undo
+ * that only took effect locally would silently desync a shared map.
+ */
+export interface ObjectApplier {
+  add(c: ObjectCollection, obj: AnyMapObject): void;
+  update(c: ObjectCollection, id: string, patch: Record<string, unknown>): void;
+  remove(c: ObjectCollection, id: string): void;
+}
+
 interface UndoEntry {
   label: string;
   before: ChunkSnapshot[];
   /** Captured lazily on first undo, so redo can step forward again. */
   after?: ChunkSnapshot[];
+  /** Object edits in this step, in the order they were made. */
+  objects: ObjectChange[];
 }
 
 /** ~256 MB of snapshots. Generous enough for a long session, far short of exhausting VRAM. */
@@ -44,8 +70,17 @@ export class UndoStack {
   /** Chunks captured for the stroke currently in progress. */
   private pending: ChunkSnapshot[] = [];
   private pendingKeys = new Set<string>();
+  /** Object edits recorded for the step currently in progress. */
+  private pendingObjects: ObjectChange[] = [];
 
-  constructor(private chunks: ChunkManager) {}
+  constructor(
+    private chunks: ChunkManager,
+    private objects?: ObjectApplier,
+  ) {}
+
+  setObjectApplier(applier: ObjectApplier): void {
+    this.objects = applier;
+  }
 
   private key(layer: RasterLayer, cx: number, cy: number): string {
     return `${layer}/${cx}/${cy}`;
@@ -56,11 +91,21 @@ export class UndoStack {
     return t * t * 4;
   }
 
-  /** Begin recording a stroke. */
+  /** Begin recording a step (a brush stroke, or a batch of object edits). */
   begin(): void {
     this.releaseAll(this.pending);
     this.pending = [];
     this.pendingKeys.clear();
+    this.pendingObjects = [];
+  }
+
+  /**
+   * Record an object edit. Pass deep copies — the live objects are mutated in place while
+   * dragging, so a stored reference would quietly become the *current* state and undo to
+   * nothing.
+   */
+  recordObject(change: ObjectChange): void {
+    this.pendingObjects.push(change);
   }
 
   /**
@@ -86,15 +131,16 @@ export class UndoStack {
     });
   }
 
-  /** Commit the recorded stroke as one undoable step. */
+  /** Commit the recorded step. Raster and object edits share one history. */
   commit(label: string): void {
-    if (this.pending.length === 0) return;
+    if (this.pending.length === 0 && this.pendingObjects.length === 0) return;
 
-    this.undoEntries.push({ label, before: this.pending });
+    this.undoEntries.push({ label, before: this.pending, objects: this.pendingObjects });
     this.bytes += this.pending.reduce((a, s) => a + s.bytes, 0);
 
     this.pending = [];
     this.pendingKeys.clear();
+    this.pendingObjects = [];
 
     // A new edit invalidates any forward history.
     this.releaseEntries(this.redoEntries);
@@ -103,11 +149,12 @@ export class UndoStack {
     this.trim();
   }
 
-  /** Discard an in-progress recording (stroke cancelled). */
+  /** Discard an in-progress recording (step cancelled). */
   abort(): void {
     this.releaseAll(this.pending);
     this.pending = [];
     this.pendingKeys.clear();
+    this.pendingObjects = [];
   }
 
   canUndo(): boolean {
@@ -127,6 +174,8 @@ export class UndoStack {
     entry.after ??= entry.before.map(s => this.captureCurrent(s));
 
     for (const s of entry.before) this.chunks.restore(s.layer, s.cx, s.cy, s.texture);
+    // Reverse order, so edits that touched the same object unwind correctly.
+    for (let i = entry.objects.length - 1; i >= 0; i--) this.applyChange(entry.objects[i], true);
 
     this.redoEntries.push(entry);
     return entry.before;
@@ -134,12 +183,31 @@ export class UndoStack {
 
   redo(): ChunkSnapshot[] {
     const entry = this.redoEntries.pop();
-    if (!entry || !entry.after) return [];
+    if (!entry) return [];
 
-    for (const s of entry.after) this.chunks.restore(s.layer, s.cx, s.cy, s.texture);
+    for (const s of entry.after ?? []) this.chunks.restore(s.layer, s.cx, s.cy, s.texture);
+    for (const change of entry.objects) this.applyChange(change, false);
 
     this.undoEntries.push(entry);
-    return entry.after;
+    return entry.after ?? [];
+  }
+
+  /** Replay one object change in either direction. */
+  private applyChange(change: ObjectChange, backwards: boolean): void {
+    if (!this.objects) return;
+    const target = backwards ? change.before : change.after;
+    const other = backwards ? change.after : change.before;
+
+    if (target === null) {
+      // It should not exist in this direction.
+      if (other !== null) this.objects.remove(change.c, change.id);
+      return;
+    }
+    if (other === null) {
+      this.objects.add(change.c, clone(target));
+      return;
+    }
+    this.objects.update(change.c, change.id, clone(target) as unknown as Record<string, unknown>);
   }
 
   private captureCurrent(ref: ChunkSnapshot): ChunkSnapshot {
@@ -187,7 +255,13 @@ export class UndoStack {
     this.undoEntries = [];
     this.redoEntries = [];
     this.pending = [];
+    this.pendingObjects = [];
     this.pendingKeys.clear();
     this.bytes = 0;
   }
+}
+
+/** Deep copy of a map object, so history never aliases live, mutated state. */
+export function clone<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj)) as T;
 }

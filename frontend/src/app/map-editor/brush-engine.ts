@@ -22,11 +22,15 @@ import { RasterLayer } from './map-editor.model';
 import { Bounds } from './map-camera';
 import { ChunkManager, ChunkRecord } from './chunk-manager';
 
+/**
+ * There is deliberately no water eraser. Height is one field, so "remove water" and "add
+ * land" are the same operation — offering both invites the state that is neither, where a
+ * region has had its water taken away without any land put back.
+ */
 export type TerrainTool =
   | 'landBrush'
   | 'landEraser'
   | 'waterBrush'
-  | 'waterEraser'
   | 'heighten'
   | 'lower'
   | 'lakeStamp'
@@ -37,7 +41,6 @@ export const TERRAIN_TOOLS: readonly TerrainTool[] = [
   'landBrush',
   'landEraser',
   'waterBrush',
-  'waterEraser',
   'heighten',
   'lower',
   'lakeStamp',
@@ -56,6 +59,9 @@ export function toolLayer(tool: TerrainTool): RasterLayer {
 function toolErases(tool: TerrainTool): boolean {
   return tool === 'landEraser' || tool === 'waterBrush' || tool === 'lower' || tool === 'lakeStamp';
 }
+
+/** Mirror a stamp horizontally — bound to Alt while placing. */
+export type StampMirror = boolean;
 
 export interface PaintPass {
   layer: RasterLayer;
@@ -89,11 +95,6 @@ export function paintPasses(tool: TerrainTool, color: number): PaintPass[] {
       return [
         { layer: 'height', erase: true, tint: 0xffffff },
         { layer: 'waterColor', erase: false, tint: color },
-      ];
-    case 'waterEraser':
-      return [
-        { layer: 'height', erase: false, tint: 0xffffff },
-        { layer: 'waterColor', erase: true, tint: 0xffffff },
       ];
     case 'lakeStamp':
       return [

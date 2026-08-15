@@ -15,7 +15,6 @@ describe('terrain tools', () => {
     expect(toolLayer('landBrush')).toBe('height');
     expect(toolLayer('landEraser')).toBe('height');
     expect(toolLayer('waterBrush')).toBe('height');
-    expect(toolLayer('waterEraser')).toBe('height');
     expect(toolLayer('heighten')).toBe('height');
     expect(toolLayer('lower')).toBe('height');
     expect(toolLayer('lakeStamp')).toBe('height');
@@ -28,6 +27,12 @@ describe('terrain tools', () => {
     for (const tool of TERRAIN_TOOLS) {
       expect(['height', 'landColor', 'waterColor']).toContain(toolLayer(tool));
     }
+  });
+
+  it('offers no water eraser', () => {
+    // Height is one field, so "remove water" and "add land" are the same operation.
+    // Shipping both invites the state that is neither: water gone, no land put back.
+    expect(TERRAIN_TOOLS).not.toContain('waterEraser' as never);
   });
 
   it('starts on a land brush painting white, not a preset colour', () => {

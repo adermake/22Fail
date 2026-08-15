@@ -28,25 +28,32 @@ import { MapEditorApiService } from '../services/map-editor-api.service';
 import { AuthService } from '../services/auth.service';
 import { MapRenderer } from './map-renderer';
 import { ChunkManager } from './chunk-manager';
-import { TerrainView, hexToRgb } from './terrain-view';
+import { CoastSettings, TerrainView, defaultCoast, hexToRgb } from './terrain-view';
 import { BrushEngine, BrushSettings, TerrainTool, defaultBrush } from './brush-engine';
-import { UndoStack } from './undo-stack';
+import { UndoStack, clone } from './undo-stack';
 import { GroupMeta, MapAssets, PaperTextureMeta } from './map-assets';
 import { SymbolView } from './symbol-view';
 import { MapSymbol } from './map-editor.model';
 import { generateId } from '../model/lobby.model';
 import {
   EditorTab,
+  LABEL_TOOL_DEFS,
+  LabelTool,
+  REGION_TOOL_DEFS,
+  RegionTool,
   SYMBOL_TOOL_DEFS,
   SymbolTool,
   TAB_DEFS,
-  TERRAIN_TOOL_DEFS,
-  ToolDef,
+  autoVaries,
   iconUrl,
   isBrushTool,
+  terrainToolsFor,
   usesLandPalette,
   usesWaterPalette,
 } from './editor-tools';
+import { RegionView, centroid, distanceToPath } from './region-view';
+import { LabelView, defaultLabelStyle } from './label-view';
+import { LabelPreset, LabelStyle, MapLabel, MapRegion, Point } from './map-editor.model';
 import { MIN_ZOOM, MAX_ZOOM } from './map-camera';
 import { KM_PER_HEX, worldToHex } from './map-hex';
 
@@ -73,6 +80,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private undoStack?: UndoStack;
   private assets = new MapAssets();
   private symbols?: SymbolView;
+  private regionView = new RegionView();
+  private labelView = new LabelView();
+  /** Vertex of the selected region currently being dragged. */
+  private dragHandle: { index: number; before: MapRegion } | null = null;
+  /** Label currently being dragged. */
+  private dragLabel: { startWorld: Point; before: MapLabel; moved: boolean } | null = null;
   private subs: Subscription[] = [];
   private resizeObserver?: ResizeObserver;
 
@@ -89,32 +102,39 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   // ── tabs & tools ──
 
   readonly tabs = TAB_DEFS;
-  readonly terrainTools = TERRAIN_TOOL_DEFS;
   readonly symbolTools = SYMBOL_TOOL_DEFS;
+  readonly regionTools = REGION_TOOL_DEFS;
+  readonly labelTools = LABEL_TOOL_DEFS;
 
-  readonly tab = signal<EditorTab>('terrain');
+  readonly tab = signal<EditorTab>('land');
   readonly terrainTool = signal<TerrainTool>('landBrush');
   readonly symbolTool = signal<SymbolTool>('trees');
+  readonly regionTool = signal<RegionTool>('draw');
+  readonly labelTool = signal<LabelTool>('place');
 
   readonly icon = iconUrl;
+
+  /** Icon tools shown under the active category. */
+  readonly terrainTools = computed(() => terrainToolsFor(this.tab()));
+  readonly isTerrainTab = computed(() => this.tab() === 'water' || this.tab() === 'land');
 
   /** The tool actually driving the pointer, derived from the active tab. */
   readonly activeToolLabel = computed(() => {
     if (this.tab() === 'symbols') {
       return this.symbolTools.find(t => t.id === this.symbolTool())?.label ?? '';
     }
-    return this.terrainTools.find(t => t.id === this.terrainTool())?.label ?? '';
+    return this.terrainTools().find(t => t.id === this.terrainTool())?.label ?? '';
   });
 
   // Settings visibility, derived so no irrelevant control is ever shown.
   readonly showBrushSettings = computed(
-    () => this.tab() === 'terrain' && isBrushTool(this.terrainTool()),
+    () => this.isTerrainTab() && isBrushTool(this.terrainTool()),
   );
   readonly showLandPalette = computed(
-    () => this.tab() === 'terrain' && usesLandPalette(this.terrainTool()),
+    () => this.isTerrainTab() && usesLandPalette(this.terrainTool()),
   );
   readonly showWaterPalette = computed(
-    () => this.tab() === 'terrain' && usesWaterPalette(this.terrainTool()),
+    () => this.isTerrainTab() && usesWaterPalette(this.terrainTool()),
   );
   readonly isPlacingSymbols = computed(
     () => this.tab() === 'symbols' && this.symbolTool() !== 'select',
@@ -122,6 +142,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly isSelecting = computed(
     () => this.tab() === 'symbols' && this.symbolTool() === 'select',
   );
+  /** Only bulk categories offer auto-variation; misc symbols stay as picked. */
+  readonly symbolVaries = computed(() => {
+    const t = this.symbolTool();
+    return t !== 'select' && autoVaries(t);
+  });
 
   readonly brushSize = signal(120);
   readonly brushSoftness = signal(0.35);
@@ -139,13 +164,22 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly paperTexture = signal('');
   readonly paperOpacity = signal(0.35);
 
+  /** Coastline look — taste settings, tuned live and shared with everyone. */
+  readonly coast = signal<CoastSettings>(defaultCoast());
+
   // ── symbols ──
 
-  readonly groups = signal<GroupMeta[]>([]);
   readonly activeGroup = signal<string>('');
-  readonly groupSprites = signal<string[]>([]);
+  /** Every sprite in the active category, shown flat — no group navigation. */
+  readonly categorySprites = signal<string[]>([]);
   readonly currentSprite = signal<string>('');
+  /** Alt mirrors the stamp while held. */
+  readonly mirrorStamp = signal(false);
   readonly symbolScale = signal(1);
+  /** Random rotation spread, in degrees, applied per placement. */
+  readonly rotationJitter = signal(0);
+  /** Randomly mirror half the placements, so repeated symbols read less like clones. */
+  readonly flipJitter = signal(false);
   readonly placeSecret = signal(false);
   /** Auto-advance to another variation after each placement. */
   readonly autoVary = signal(true);
@@ -160,11 +194,35 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   /** Rubber-band rectangle in screen space while box-selecting. */
   readonly marquee = signal<{ x: number; y: number; w: number; h: number } | null>(null);
 
+  // ── regions ──
+
+  /** Vertices of the region being drawn; empty when not drawing. */
+  readonly draftPoints = signal<Point[]>([]);
+  readonly regionColor = signal('#c0392b');
+  readonly regionThickness = signal(6);
+  readonly regionDash = signal(28);
+  readonly regionGap = signal(20);
+  readonly regionFill = signal('#c0392b');
+  readonly regionFillAlpha = signal(0.12);
+  readonly selectedRegionId = signal<string | null>(null);
+
+  // ── labels ──
+
+  readonly labelStyle = signal<LabelStyle>(defaultLabelStyle());
+  readonly labelText = signal('Neuer Name');
+  readonly labelPresets = signal<LabelPreset[]>([]);
+  readonly selectedLabelId = signal<string | null>(null);
+
   private isPanning = false;
   private isPainting = false;
   private lastPointer = { x: 0, y: 0 };
   private brushResize: { x: number; initial: number; scaling: 'brush' | 'symbol' } | null = null;
-  private dragSymbols: { startWorld: { x: number; y: number }; moved: boolean } | null = null;
+  private dragSymbols: {
+    startWorld: { x: number; y: number };
+    moved: boolean;
+    /** Pre-drag copies, for the undo entry committed on release. */
+    origins: Map<string, MapSymbol>;
+  } | null = null;
   private boxSelect: { startWorld: { x: number; y: number }; startScreen: { x: number; y: number } } | null =
     null;
   private streamScheduled = false;
@@ -192,15 +250,39 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.terrain = new TerrainView(this.chunks);
     this.renderer.terrainLayer.addChild(this.terrain.container);
     this.brushes = new BrushEngine(this.chunks, this.renderer.renderer);
-    this.undoStack = new UndoStack(this.chunks);
+    this.undoStack = new UndoStack(this.chunks, {
+      // Undo replays through the store, so undoing a placement syncs as a real delete
+      // rather than only vanishing on this screen.
+      add: (c, obj) => this.store.addObject(c, obj),
+      update: (c, id, patch) => this.store.updateObject(c, id, patch),
+      remove: (c, id) => this.store.deleteObject(c, id),
+    });
     this.chunks.onBeforePaint = rec => this.undoStack?.capture(rec);
 
     this.landPalette.set(data.landPalette);
     this.waterPalette.set(data.waterPalette);
     this.waterBase.set(data.settings.waterBase ?? '#3f6d8c');
     this.terrain.setWaterDefault(hexToRgb(this.waterBase(), [0.25, 0.43, 0.55]));
+
+    const s = data.settings;
+    const coast: CoastSettings = {
+      noiseScale: s.coastNoiseScale ?? 260,
+      noiseAmount: s.coastNoiseAmount ?? 0.35,
+      shoreWidth: s.coastShoreWidth ?? 0.12,
+      shoreLight: s.coastShoreLight ?? 0.18,
+      shadowWidth: s.coastShadowWidth ?? 0.22,
+      shadowStrength: s.coastShadowStrength ?? 0.35,
+    };
+    this.coast.set(coast);
+    this.terrain.setCoast(coast);
     this.renderer.setShowGrid(data.settings.showGrid);
     this.showGrid.set(data.settings.showGrid);
+
+    // Regions sit under symbols; labels sit on top of everything on the map.
+    this.renderer.objectLayer.addChild(this.regionView.container);
+    this.regionView.rebuild(data.regions);
+    this.labelView.rebuild(data.labels);
+    this.labelPresets.set(data.labelPresets ?? []);
 
     if (await this.assets.load()) {
       this.paperOptions.set(this.assets.paperTextures);
@@ -215,6 +297,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.assetsError.set(this.assets.lastError);
     }
 
+    // Added last so labels draw above symbols regardless of asset availability.
+    this.renderer.objectLayer.addChild(this.labelView.container);
+
     this.paperOpacity.set(data.settings.paperOpacity ?? 0.35);
     await this.applyPaper(data.settings.paperTexture ?? '');
 
@@ -224,13 +309,29 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       ),
       this.store.objectOps$.subscribe(op => {
         if (op.t !== 'add' && op.t !== 'upd' && op.t !== 'del') return;
-        if (op.c !== 'symbols') return;
+        const data = this.store.data();
 
-        if (op.t === 'add') this.symbols?.add(op.v as MapSymbol);
-        else if (op.t === 'del') this.symbols?.remove(op.id);
-        else {
-          const sym = this.store.data()?.symbols.find(s => s.id === op.id);
-          if (sym) this.symbols?.update(sym);
+        if (op.c === 'symbols') {
+          if (op.t === 'add') this.symbols?.add(op.v as MapSymbol);
+          else if (op.t === 'del') this.symbols?.remove(op.id);
+          else {
+            const sym = data?.symbols.find(s => s.id === op.id);
+            if (sym) this.symbols?.update(sym);
+          }
+        } else if (op.c === 'regions') {
+          if (op.t === 'add') this.regionView.add(op.v as MapRegion);
+          else if (op.t === 'del') this.regionView.remove(op.id);
+          else {
+            const r = data?.regions.find(x => x.id === op.id);
+            if (r) this.regionView.update(r);
+          }
+        } else if (op.c === 'labels') {
+          if (op.t === 'add') this.labelView.add(op.v as MapLabel);
+          else if (op.t === 'del') this.labelView.remove(op.id);
+          else {
+            const l = data?.labels.find(x => x.id === op.id);
+            if (l) this.labelView.update(l);
+          }
         }
         this.scheduleStream();
       }),
@@ -260,6 +361,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     void this.chunks?.flushDirty().finally(() => {
       this.undoStack?.destroy();
       this.symbols?.destroy();
+      this.regionView.destroy();
+      this.labelView.destroy();
       this.assets.destroy();
       this.brushes?.destroy();
       this.terrain?.destroy();
@@ -284,11 +387,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.streamScheduled = false;
       this.chunks?.update(this.renderer.camera.visibleBounds(2048));
       this.terrain?.update(this.renderer.camera.visibleBounds(0));
-      this.symbols?.render(
-        this.renderer.camera.visibleBounds(0),
-        this.renderer.camera.zoom,
-        this.isGM(),
-      );
+      const view = this.renderer.camera.visibleBounds(0);
+      const zoom = this.renderer.camera.zoom;
+      this.symbols?.render(view, zoom, this.isGM());
+      // Dash spacing and handle size are zoom-dependent, so regions redraw on view change.
+      this.regionView.render(view, zoom, this.isGM(), true);
+      this.labelView.render(view, this.isGM());
     });
   }
 
@@ -317,6 +421,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   selectTab(tab: EditorTab): void {
     this.tab.set(tab);
     if (tab !== 'symbols') this.setSelection([]);
+
+    // Land and water own different tools, so entering a tab selects its first one.
+    const tools = terrainToolsFor(tab);
+    if (tools.length && !tools.some(t => t.id === this.terrainTool())) {
+      this.terrainTool.set(tools[0].id);
+    }
     this.redrawCursor();
   }
 
@@ -330,24 +440,25 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (tool === 'select') {
       this.previewSprite.visible = false;
     } else {
-      const groups = this.assets.groupsIn(tool);
-      this.groups.set(groups);
-      if (groups.length) this.selectGroup(groups[0].id);
+      // Whole category at once; groups still exist but are not navigated.
+      const sprites = this.assets.spritesInCategory(tool);
+      this.categorySprites.set(sprites);
+      if (sprites.length) this.selectSprite(sprites[0]);
       this.setSelection([]);
     }
     this.redrawCursor();
   }
 
-  selectGroup(id: string): void {
-    this.activeGroup.set(id);
-    const group = this.assets.group(id);
-    this.groupSprites.set(group?.sprites ?? []);
-    this.rollNextSprite();
-  }
-
-  /** Choose the sprite the next click places. */
+  /**
+   * Choose the sprite the next click places.
+   *
+   * Picking a sprite also moves you into its group, which is what auto-variation draws
+   * from — so choosing Inked Mountain 5 means later placements vary among inked mountains,
+   * not across every mountain style on the map.
+   */
   selectSprite(id: string): void {
     this.currentSprite.set(id);
+    this.activeGroup.set(this.assets.groupOf(id));
     this.redrawCursor();
   }
 
@@ -362,18 +473,17 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   private rollNextSprite(): void {
     const next = this.assets.randomInGroup(this.activeGroup());
-    this.currentSprite.set(next ?? '');
+    if (next) this.currentSprite.set(next);
     this.redrawCursor();
   }
 
-  /** Step through the current group's sprites — bound to Shift+wheel. */
+  /** Step through the whole category — bound to Shift+wheel. */
   private cycleSprite(delta: number): void {
-    const list = this.groupSprites();
+    const list = this.categorySprites();
     if (list.length === 0) return;
     const i = list.indexOf(this.currentSprite());
     const next = (((i < 0 ? 0 : i + delta) % list.length) + list.length) % list.length;
-    this.currentSprite.set(list[next]);
-    this.redrawCursor();
+    this.selectSprite(list[next]);
   }
 
   // ── symbol placement ──
@@ -391,7 +501,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       asset,
       group: this.activeGroup(),
       scale: this.symbolScale(),
-      rotation: 0,
+      // Jitter keeps a forest from looking like one tree stamped in a grid.
+      rotation: this.rotationJitter()
+        ? ((Math.random() - 0.5) * this.rotationJitter() * Math.PI) / 180
+        : 0,
+      // Alt held mirrors deliberately; otherwise jitter may mirror at random.
+      flipX: this.mirrorStamp() || (this.flipJitter() ? Math.random() < 0.5 : false),
     };
 
     // Colourable symbols take the colour of the ground actually beneath them, matching
@@ -401,13 +516,26 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       if (ground) symbol.tint = rgbToHex(ground.r, ground.g, ground.b);
     }
 
+    this.undoStack?.begin();
+    this.undoStack?.recordObject({ c: 'symbols', id: symbol.id, before: null, after: clone(symbol) });
     this.store.addObject('symbols', symbol);
-    if (this.autoVary()) this.rollNextSprite();
+    this.undoStack?.commit('Symbol setzen');
+    this.refreshHistoryState();
+
+    // Only bulk categories re-roll; a town or castle stays exactly what was chosen.
+    const cat = this.symbolTool();
+    if (cat !== 'select' && autoVaries(cat) && this.autoVary()) this.rollNextSprite();
   }
 
   private eraseSymbolAt(world: { x: number; y: number }): void {
     const hit = this.symbols?.hitTest(world.x, world.y);
-    if (hit) this.store.deleteObject('symbols', hit.id);
+    if (!hit) return;
+
+    this.undoStack?.begin();
+    this.undoStack?.recordObject({ c: 'symbols', id: hit.id, before: clone(hit), after: null });
+    this.store.deleteObject('symbols', hit.id);
+    this.undoStack?.commit('Symbol entfernen');
+    this.refreshHistoryState();
   }
 
   private selectSymbolAt(world: { x: number; y: number }, additive: boolean): boolean {
@@ -434,35 +562,289 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   deleteSelected(): void {
-    for (const id of this.selectedIds()) this.store.deleteObject('symbols', id);
+    const data = this.store.data();
+    if (!data) return;
+
+    this.undoStack?.begin();
+    for (const id of this.selectedIds()) {
+      const sym = data.symbols.find(s => s.id === id);
+      if (!sym) continue;
+      this.undoStack?.recordObject({ c: 'symbols', id, before: clone(sym), after: null });
+      this.store.deleteObject('symbols', id);
+    }
+    // One history step for the whole batch, so undo restores the lot.
+    this.undoStack?.commit('Symbole löschen');
+    this.refreshHistoryState();
     this.setSelection([]);
   }
 
   toggleSelectedSecret(): void {
-    const data = this.store.data();
-    if (!data) return;
-    for (const id of this.selectedIds()) {
-      const sym = data.symbols.find(s => s.id === id);
-      if (!sym) continue;
-      this.store.updateObject('symbols', id, { vis: sym.vis === 'secret' ? 'public' : 'secret' });
-    }
+    this.editSelected('Sichtbarkeit', sym => ({
+      vis: sym.vis === 'secret' ? 'public' : 'secret',
+    }));
   }
 
   /** Rescale every selected symbol by a factor. */
   scaleSelected(factor: number): void {
+    this.editSelected('Symbolgröße', sym => ({
+      scale: Math.max(0.05, Math.min(8, (sym.scale || 1) * factor)),
+    }));
+  }
+
+  /** Rotate every selected symbol. */
+  rotateSelected(radians: number): void {
+    this.editSelected('Symbol drehen', sym => ({ rotation: (sym.rotation || 0) + radians }));
+  }
+
+  /** Mirror every selected symbol horizontally. */
+  flipSelected(): void {
+    this.editSelected('Symbol spiegeln', sym => ({ flipX: !sym.flipX }));
+  }
+
+  /** Apply a patch to the whole selection as a single undoable step. */
+  private editSelected(
+    label: string,
+    patchFor: (sym: MapSymbol) => Record<string, unknown>,
+  ): void {
     const data = this.store.data();
     if (!data) return;
+
+    this.undoStack?.begin();
     for (const id of this.selectedIds()) {
       const sym = data.symbols.find(s => s.id === id);
       if (!sym) continue;
-      const scale = Math.max(0.05, Math.min(8, (sym.scale || 1) * factor));
-      this.store.updateObject('symbols', id, { scale });
+      const patch = patchFor(sym);
+      this.undoStack?.recordObject({
+        c: 'symbols',
+        id,
+        before: clone(sym),
+        after: clone({ ...sym, ...patch }),
+      });
+      this.store.updateObject('symbols', id, patch);
     }
+    this.undoStack?.commit(label);
+    this.refreshHistoryState();
   }
 
   setSymbolScale(value: string | number): void {
     this.symbolScale.set(Number(value));
     this.redrawCursor();
+  }
+
+  // ── regions ──
+
+  selectRegionTool(tool: RegionTool): void {
+    this.regionTool.set(tool);
+    if (tool !== 'draw') this.cancelDraft();
+    this.redrawCursor();
+  }
+
+  /** Add a vertex to the region being drawn. */
+  private addDraftPoint(world: Point): void {
+    this.draftPoints.update(pts => [...pts, { x: world.x, y: world.y }]);
+    this.redrawCursor();
+  }
+
+  /** Close the draft into a real region. */
+  finishRegion(): void {
+    const points = this.draftPoints();
+    // Fewer than three vertices cannot enclose anything.
+    if (points.length < 3) {
+      this.cancelDraft();
+      return;
+    }
+
+    const c = centroid(points);
+    const region: MapRegion = {
+      id: generateId(),
+      x: c.x,
+      y: c.y,
+      vis: this.placeSecret() ? 'secret' : 'public',
+      points,
+      color: this.regionColor(),
+      thickness: this.regionThickness(),
+      dash: this.regionDash(),
+      gap: this.regionGap(),
+      fill: this.regionFill(),
+      fillAlpha: this.regionFillAlpha(),
+    };
+
+    this.undoStack?.begin();
+    this.undoStack?.recordObject({ c: 'regions', id: region.id, before: null, after: clone(region) });
+    this.store.addObject('regions', region);
+    this.undoStack?.commit('Region');
+    this.refreshHistoryState();
+
+    this.draftPoints.set([]);
+    this.redrawCursor();
+  }
+
+  cancelDraft(): void {
+    if (this.draftPoints().length === 0) return;
+    this.draftPoints.set([]);
+    this.redrawCursor();
+  }
+
+  /** Remove the last placed vertex, for fixing a misclick mid-draw. */
+  undoDraftPoint(): void {
+    this.draftPoints.update(pts => pts.slice(0, -1));
+    this.redrawCursor();
+  }
+
+  private selectRegionAt(world: Point): void {
+    // Tolerance in world units, so clicking is equally forgiving at any zoom.
+    const tol = 12 / this.renderer.camera.zoom;
+    const hit = this.regionView.hitTest(world.x, world.y, tol);
+    this.selectedRegionId.set(hit?.id ?? null);
+    this.regionView.setSelected(hit?.id ?? null);
+    this.scheduleStream();
+  }
+
+  deleteSelectedRegion(): void {
+    const id = this.selectedRegionId();
+    const region = id ? this.regionView.get(id) : undefined;
+    if (!id || !region) return;
+
+    this.undoStack?.begin();
+    this.undoStack?.recordObject({ c: 'regions', id, before: clone(region), after: null });
+    this.store.deleteObject('regions', id);
+    this.undoStack?.commit('Region löschen');
+    this.refreshHistoryState();
+
+    this.selectedRegionId.set(null);
+    this.regionView.setSelected(null);
+  }
+
+  /** Apply the panel's styling to the selected region. */
+  applyRegionStyle(): void {
+    const id = this.selectedRegionId();
+    const region = id ? this.regionView.get(id) : undefined;
+    if (!id || !region) return;
+
+    const patch = {
+      color: this.regionColor(),
+      thickness: this.regionThickness(),
+      dash: this.regionDash(),
+      gap: this.regionGap(),
+      fill: this.regionFill(),
+      fillAlpha: this.regionFillAlpha(),
+    };
+    this.undoStack?.begin();
+    this.undoStack?.recordObject({
+      c: 'regions',
+      id,
+      before: clone(region),
+      after: clone({ ...region, ...patch }),
+    });
+    this.store.updateObject('regions', id, patch);
+    this.undoStack?.commit('Regionstil');
+    this.refreshHistoryState();
+  }
+
+  // ── labels ──
+
+  selectLabelTool(tool: LabelTool): void {
+    this.labelTool.set(tool);
+    this.redrawCursor();
+  }
+
+  private placeLabel(world: Point): void {
+    const label: MapLabel = {
+      id: generateId(),
+      x: world.x,
+      y: world.y,
+      vis: this.placeSecret() ? 'secret' : 'public',
+      text: this.labelText() || 'Name',
+      rotation: 0,
+      style: { ...this.labelStyle() },
+    };
+
+    this.undoStack?.begin();
+    this.undoStack?.recordObject({ c: 'labels', id: label.id, before: null, after: clone(label) });
+    this.store.addObject('labels', label);
+    this.undoStack?.commit('Beschriftung');
+    this.refreshHistoryState();
+
+    this.selectedLabelId.set(label.id);
+  }
+
+  private selectLabelAt(world: Point): boolean {
+    const hit = this.labelView.hitTest(world.x, world.y);
+    this.selectedLabelId.set(hit?.id ?? null);
+    this.labelView.setSelection(hit ? [hit.id] : []);
+
+    // Load the selection's style into the panel so edits start from what is on screen.
+    if (hit) {
+      this.labelStyle.set({ ...hit.style });
+      this.labelText.set(hit.text);
+    }
+    this.scheduleStream();
+    return !!hit;
+  }
+
+  /** Push the panel's text and style onto the selected label. */
+  applyLabelEdits(): void {
+    const id = this.selectedLabelId();
+    const label = id ? this.labelView.get(id) : undefined;
+    if (!id || !label) return;
+
+    const patch = { text: this.labelText(), style: { ...this.labelStyle() } };
+    this.undoStack?.begin();
+    this.undoStack?.recordObject({
+      c: 'labels',
+      id,
+      before: clone(label),
+      after: clone({ ...label, ...patch }),
+    });
+    this.store.updateObject('labels', id, patch);
+    this.undoStack?.commit('Beschriftung ändern');
+    this.refreshHistoryState();
+  }
+
+  deleteSelectedLabel(): void {
+    const id = this.selectedLabelId();
+    const label = id ? this.labelView.get(id) : undefined;
+    if (!id || !label) return;
+
+    this.undoStack?.begin();
+    this.undoStack?.recordObject({ c: 'labels', id, before: clone(label), after: null });
+    this.store.deleteObject('labels', id);
+    this.undoStack?.commit('Beschriftung löschen');
+    this.refreshHistoryState();
+
+    this.selectedLabelId.set(null);
+  }
+
+  setLabelStyle<K extends keyof LabelStyle>(key: K, value: LabelStyle[K]): void {
+    this.labelStyle.update(s => ({ ...s, [key]: value }));
+    // Live-apply while a label is selected, so the curvature slider shows its effect.
+    if (this.selectedLabelId()) this.applyLabelEdits();
+  }
+
+  /** Save the current style so "city name" or "secret name" can be reapplied later. */
+  saveLabelPreset(name: string): void {
+    if (!name.trim()) return;
+    const preset: LabelPreset = {
+      id: generateId(),
+      name: name.trim(),
+      style: { ...this.labelStyle() },
+    };
+    const next = [...this.labelPresets(), preset];
+    this.labelPresets.set(next);
+    this.store.setPath('labelPresets', next);
+  }
+
+  applyLabelPreset(id: string): void {
+    const preset = this.labelPresets().find(p => p.id === id);
+    if (!preset) return;
+    this.labelStyle.set({ ...preset.style });
+    if (this.selectedLabelId()) this.applyLabelEdits();
+  }
+
+  removeLabelPreset(id: string): void {
+    const next = this.labelPresets().filter(p => p.id !== id);
+    this.labelPresets.set(next);
+    this.store.setPath('labelPresets', next);
   }
 
   // ── cursor ──
@@ -488,8 +870,24 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
     this.previewSprite.visible = false;
 
-    // The selector uses the OS cursor, so no ring is drawn for it.
-    if (this.tab() !== 'terrain') return;
+    // Show the region taking shape, including the closing segment back to the start.
+    if (this.tab() === 'regions' && this.regionTool() === 'draw') {
+      const pts = this.draftPoints();
+      if (pts.length > 0) {
+        g.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+        g.lineTo(world.x, world.y);
+        if (pts.length > 1) g.lineTo(pts[0].x, pts[0].y);
+        g.stroke({ width: 2 / zoom, color: 0x8fd0ff, alpha: 0.9 });
+
+        for (const p of pts) g.circle(p.x, p.y, 5 / zoom);
+        g.fill({ color: 0x8fd0ff, alpha: 0.9 });
+      }
+      return;
+    }
+
+    // The selectors use the OS cursor, so no ring is drawn for them.
+    if (!this.isTerrainTab()) return;
 
     if (this.terrainTool() === 'lakeStamp') {
       const outline = this.brushes?.lakeOutline(world.x, world.y, this.brushSize(), this.lakeSeed);
@@ -509,6 +907,26 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Ground colour under a point, throttled.
+   *
+   * Sampling is a GPU readback and stalls the pipeline, so the live preview must not do it
+   * on every pointer move. Re-reading only when the pointer has travelled a little, or
+   * enough time has passed, keeps the preview honest without the stall showing up as lag.
+   */
+  private groundTintAt(x: number, y: number): number {
+    const now = performance.now();
+    const moved = Math.hypot(x - this.tintCache.x, y - this.tintCache.y);
+    if (moved < 24 && now - this.tintCache.at < 120) return this.tintCache.tint;
+
+    const ground = this.chunks?.sampleWorld('landColor', x, y);
+    const tint = ground ? (ground.r << 16) | (ground.g << 8) | ground.b : 0xffffff;
+    this.tintCache = { x, y, at: now, tint };
+    return tint;
+  }
+
+  private tintCache = { x: NaN, y: NaN, at: 0, tint: 0xffffff };
+
   private updateSymbolPreview(world: { x: number; y: number }): void {
     const sprite = this.previewSprite;
     const asset = this.currentSprite();
@@ -523,8 +941,11 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const scale = this.symbolScale();
     sprite.texture = texture;
     sprite.position.set(world.x + meta.offsetX * scale, world.y + meta.offsetY * scale);
-    sprite.scale.set(scale);
-    sprite.tint = 0xffffff;
+    // Negative x scale mirrors, so the preview shows the Alt state before committing.
+    sprite.scale.set(this.mirrorStamp() ? -scale : scale, scale);
+
+    sprite.tint = meta.colorable ? this.groundTintAt(world.x, world.y) : 0xffffff;
+
     sprite.alpha = 0.8;
     sprite.visible = true;
   }
@@ -596,6 +1017,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     host.addEventListener('wheel', this.onWheel, { passive: false });
     host.addEventListener('contextmenu', this.onContextMenu);
     window.addEventListener('keydown', this.onKeyDown);
+    // Alt is a held modifier, so its release matters as much as its press.
+    window.addEventListener('keyup', this.onKeyUp);
   }
 
   private detachInput(host: HTMLElement): void {
@@ -605,6 +1028,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     host.removeEventListener('wheel', this.onWheel);
     host.removeEventListener('contextmenu', this.onContextMenu);
     window.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('keyup', this.onKeyUp);
   }
 
   private localPoint(e: PointerEvent | WheelEvent): { x: number; y: number } {
@@ -618,6 +1042,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const p = this.localPoint(e);
     const world = this.renderer.camera.screenToWorld(p.x, p.y);
 
+    // Right-click erases while placing symbols; Alt is reserved for mirroring the stamp.
+    if (e.button === 2 && this.isGM() && this.isPlacingSymbols()) {
+      this.eraseSymbolAt(world);
+      return;
+    }
+
     if (e.button === 1 || e.button === 2) {
       this.isPanning = true;
       this.lastPointer = { x: e.clientX, y: e.clientY };
@@ -626,7 +1056,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (!this.isGM()) return;
 
     // Shift-drag rescales, for brushes and symbols alike.
-    if (e.shiftKey && (this.tab() === 'terrain' || this.isPlacingSymbols())) {
+    if (e.shiftKey && (this.isTerrainTab() || this.isPlacingSymbols())) {
       e.preventDefault();
       this.brushResize = this.isPlacingSymbols()
         ? { x: e.clientX, initial: this.symbolScale(), scaling: 'symbol' }
@@ -634,16 +1064,49 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    if (this.tab() === 'regions') {
+      if (this.regionTool() === 'draw') {
+        this.addDraftPoint(world);
+      } else {
+        // Grab an existing vertex first; only fall through to picking a region if none.
+        const tol = 10 / this.renderer.camera.zoom;
+        const idx = this.regionView.hitHandle(world.x, world.y, tol);
+        const current = this.regionView.selected;
+        if (idx >= 0 && current) this.dragHandle = { index: idx, before: clone(current) };
+        else this.selectRegionAt(world);
+      }
+      return;
+    }
+
+    if (this.tab() === 'labels') {
+      if (this.labelTool() === 'place') {
+        this.placeLabel(world);
+      } else if (this.selectLabelAt(world)) {
+        const label = this.labelView.get(this.selectedLabelId()!);
+        if (label) {
+          this.dragLabel = { startWorld: world, before: clone(label), moved: false };
+        }
+      }
+      return;
+    }
+
     if (this.isPlacingSymbols()) {
-      if (e.altKey) this.eraseSymbolAt(world);
-      else this.placeSymbol(world);
+      this.placeSymbol(world);
       return;
     }
 
     if (this.isSelecting()) {
       const hit = this.selectSymbolAt(world, e.shiftKey);
       if (hit) {
-        this.dragSymbols = { startWorld: world, moved: false };
+        // Snapshot positions now: the drag mutates them in place, so capturing later
+        // would record the already-moved state and undo to nothing.
+        const data = this.store.data();
+        const origins = new Map<string, MapSymbol>();
+        for (const id of this.selectedIds()) {
+          const sym = data?.symbols.find(s => s.id === id);
+          if (sym) origins.set(id, clone(sym));
+        }
+        this.dragSymbols = { startWorld: world, moved: false, origins };
       } else {
         // Empty space starts a rubber band rather than doing nothing.
         this.boxSelect = { startWorld: world, startScreen: p };
@@ -680,6 +1143,32 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     this.drawCursor(world);
 
+    if (this.dragHandle) {
+      const region = this.regionView.selected;
+      if (region) {
+        region.points[this.dragHandle.index] = { x: world.x, y: world.y };
+        const c = centroid(region.points);
+        region.x = c.x;
+        region.y = c.y;
+        this.regionView.update(region);
+        this.scheduleStream();
+      }
+      return;
+    }
+
+    if (this.dragLabel) {
+      const label = this.labelView.get(this.dragLabel.before.id);
+      if (label) {
+        label.x += world.x - this.dragLabel.startWorld.x;
+        label.y += world.y - this.dragLabel.startWorld.y;
+        this.dragLabel.startWorld = world;
+        this.dragLabel.moved = true;
+        this.labelView.update(label);
+        this.scheduleStream();
+      }
+      return;
+    }
+
     if (this.boxSelect) {
       const s = this.boxSelect.startScreen;
       this.marquee.set({
@@ -711,6 +1200,46 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   private onPointerUp = (): void => {
     this.isPanning = false;
+
+    if (this.dragHandle) {
+      const region = this.regionView.selected;
+      if (region) {
+        this.undoStack?.begin();
+        this.undoStack?.recordObject({
+          c: 'regions',
+          id: region.id,
+          before: this.dragHandle.before,
+          after: clone(region),
+        });
+        this.store.updateObject('regions', region.id, {
+          points: region.points,
+          x: region.x,
+          y: region.y,
+        });
+        this.undoStack?.commit('Regionpunkt');
+        this.refreshHistoryState();
+      }
+      this.dragHandle = null;
+      return;
+    }
+
+    if (this.dragLabel) {
+      const label = this.labelView.get(this.dragLabel.before.id);
+      if (label && this.dragLabel.moved) {
+        this.undoStack?.begin();
+        this.undoStack?.recordObject({
+          c: 'labels',
+          id: label.id,
+          before: this.dragLabel.before,
+          after: clone(label),
+        });
+        this.store.updateObject('labels', label.id, { x: label.x, y: label.y });
+        this.undoStack?.commit('Beschriftung verschieben');
+        this.refreshHistoryState();
+      }
+      this.dragLabel = null;
+      return;
+    }
 
     if (this.brushResize) {
       this.brushResize = null;
@@ -766,11 +1295,19 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   private commitSelectionMove(): void {
     const data = this.store.data();
-    if (!data) return;
+    const origins = this.dragSymbols?.origins;
+    if (!data || !origins) return;
+
+    this.undoStack?.begin();
     for (const id of this.selectedIds()) {
       const sym = data.symbols.find(s => s.id === id);
-      if (sym) this.store.updateObject('symbols', id, { x: sym.x, y: sym.y });
+      const before = origins.get(id);
+      if (!sym || !before) continue;
+      this.undoStack?.recordObject({ c: 'symbols', id, before, after: clone(sym) });
+      this.store.updateObject('symbols', id, { x: sym.x, y: sym.y });
     }
+    this.undoStack?.commit('Symbole verschieben');
+    this.refreshHistoryState();
   }
 
   private onWheel = (e: WheelEvent): void => {
@@ -800,9 +1337,26 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.applyView();
   };
 
+  private onKeyUp = (e: KeyboardEvent): void => {
+    if (e.key === 'Alt' && this.mirrorStamp()) {
+      this.mirrorStamp.set(false);
+      this.redrawCursor();
+    }
+  };
+
   private onKeyDown = (e: KeyboardEvent): void => {
     const target = e.target as HTMLElement;
     if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return;
+
+    if (e.key === 'Alt' && this.isPlacingSymbols()) {
+      // Stop the browser stealing Alt for its menu bar while the stamp is mirrored.
+      e.preventDefault();
+      if (!this.mirrorStamp()) {
+        this.mirrorStamp.set(true);
+        this.redrawCursor();
+      }
+      return;
+    }
 
     if (e.ctrlKey && e.key.toLowerCase() === 'z') {
       e.preventDefault();
@@ -811,9 +1365,36 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedIds().length) {
-      e.preventDefault();
-      this.deleteSelected();
+    // Region drawing is modal, so it owns Enter/Escape/Backspace while a draft is open.
+    if (this.tab() === 'regions' && this.regionTool() === 'draw' && this.draftPoints().length) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.finishRegion();
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.cancelDraft();
+        return;
+      }
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        this.undoDraftPoint();
+        return;
+      }
+    }
+
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (this.selectedIds().length) {
+        e.preventDefault();
+        this.deleteSelected();
+      } else if (this.selectedRegionId()) {
+        e.preventDefault();
+        this.deleteSelectedRegion();
+      } else if (this.selectedLabelId()) {
+        e.preventDefault();
+        this.deleteSelectedLabel();
+      }
     }
   };
 
@@ -865,6 +1446,38 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.waterPalette.set(next);
     this.selectedWater.set(Math.max(0, Math.min(this.selectedWater(), next.length - 1)));
     this.store.setPath('waterPalette', next);
+  }
+
+  /**
+   * Tune one coastline parameter.
+   *
+   * Applied to the shader immediately for live feedback, but only synced on release —
+   * dragging a slider would otherwise emit an op per pixel of travel.
+   */
+  setCoast<K extends keyof CoastSettings>(key: K, value: CoastSettings[K]): void {
+    const next = { ...this.coast(), [key]: value };
+    this.coast.set(next);
+    this.terrain?.setCoast(next);
+    this.scheduleStream();
+  }
+
+  /** Persist the coastline settings once a slider is released. */
+  commitCoast(): void {
+    const c = this.coast();
+    this.store.setPath('settings.coastNoiseScale', c.noiseScale);
+    this.store.setPath('settings.coastNoiseAmount', c.noiseAmount);
+    this.store.setPath('settings.coastShoreWidth', c.shoreWidth);
+    this.store.setPath('settings.coastShoreLight', c.shoreLight);
+    this.store.setPath('settings.coastShadowWidth', c.shadowWidth);
+    this.store.setPath('settings.coastShadowStrength', c.shadowStrength);
+  }
+
+  resetCoast(): void {
+    const d = defaultCoast();
+    this.coast.set(d);
+    this.terrain?.setCoast(d);
+    this.commitCoast();
+    this.scheduleStream();
   }
 
   setWaterBase(color: string): void {

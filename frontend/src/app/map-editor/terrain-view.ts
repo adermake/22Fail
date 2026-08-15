@@ -57,12 +57,61 @@ uniform float uPaperOpacity;
 uniform float uPaperScale;    // world px covered by one paper tile
 uniform vec2 uChunkOrigin;    // world position of this chunk's top-left corner
 
+uniform float uNoiseScale;    // world px per noise cell
+uniform float uNoiseAmount;   // how far the coastline wanders
+uniform float uShoreWidth;    // inland band lightened along the coast
+uniform float uShoreLight;    // strength of that lightening
+uniform float uShadowWidth;   // offshore band darkened beneath land
+uniform float uShadowStrength;
+
+float hash21(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+/** Value noise with a smooth (cubic) interpolant — cheap and adequate for a coastline. */
+float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash21(i);
+    float b = hash21(i + vec2(1.0, 0.0));
+    float c = hash21(i + vec2(0.0, 1.0));
+    float d = hash21(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+/** Four octaves: big bays from the low ones, fine crenulation from the high ones. */
+float fbm(vec2 p) {
+    float v = 0.0;
+    float a = 0.5;
+    for (int i = 0; i < 4; i++) {
+        v += a * vnoise(p);
+        p *= 2.0;
+        a *= 0.5;
+    }
+    return v;
+}
+
 /**
- * Land/water mix factor. Phase 5 swaps this for noise-warped sampling to get the drippy
- * Wonderdraft coastline; the rest of the shader is agnostic to how the edge is decided.
+ * Land/water mix.
+ *
+ * The drippy Wonderdraft edge comes from perturbing the *threshold* with world-space noise
+ * rather than warping the sample position. Warping the lookup would push reads outside the
+ * chunk's own texture near its borders, where clamping would straighten the coast into a
+ * visible seam every 2048px. Evaluating the noise in world space instead is continuous
+ * across chunks by construction, so the coastline wanders freely with no seams at all.
+ *
+ * Because h has a gradient near the shore, shifting the threshold displaces the edge — the
+ * visual result is close to domain warping, without its boundary problem.
  */
-float coastline(float h) {
-    return smoothstep(0.5 - uEdge, 0.5 + uEdge, h);
+float coastline(float h, vec2 worldPos, out float shore) {
+    float n = fbm(worldPos / max(1.0, uNoiseScale)) - 0.5;
+    float th = 0.5 + n * uNoiseAmount;
+
+    shore = smoothstep(th, th + uShoreWidth, h);
+    return smoothstep(th - uEdge, th + uEdge, h);
 }
 
 void main() {
@@ -78,16 +127,57 @@ void main() {
     vec3 land  = mix(uLandDefault,  lc.rgb, lc.a);
     vec3 water = mix(uWaterDefault, wc.rgb, wc.a);
 
-    vec3 col = mix(water, land, coastline(h));
+    vec2 worldPos = uChunkOrigin + vUV * ${CHUNK_WORLD_SIZE.toFixed(1)};
+
+    float shore;
+    float isLand = coastline(h, worldPos, shore);
+
+    // A lighter rim just inland reads as the sand/shelf line along the coast.
+    land = mix(land * (1.0 + uShoreLight), land, shore);
+
+    // Land casts a soft shadow onto the water it sits in.
+    float shadow = smoothstep(0.5 - uShadowWidth, 0.5, h) * (1.0 - isLand);
+    water *= 1.0 - shadow * uShadowStrength;
+
+    vec3 col = mix(water, land, isLand);
 
     // Paper grain is sampled in world space so it stays seamless across chunk borders.
-    vec2 worldPos = uChunkOrigin + vUV * ${CHUNK_WORLD_SIZE.toFixed(1)};
     vec3 paper = texture(uPaper, worldPos / uPaperScale).rgb;
     col *= mix(vec3(1.0), paper, uPaperOpacity);
 
     finalColor = vec4(col, 1.0);
 }
 `;
+
+/**
+ * Coastline appearance.
+ *
+ * These are taste settings, not derived constants — the point of exposing them is that the
+ * Wonderdraft look is reached by dialling, not by computing.
+ */
+export interface CoastSettings {
+  /** World px per noise cell. Small = fine crenulation, large = big sweeping bays. */
+  noiseScale: number;
+  /** How far the coastline wanders from the painted edge. 0 = clean outline. */
+  noiseAmount: number;
+  /** Width of the lightened band just inland. */
+  shoreWidth: number;
+  shoreLight: number;
+  /** Width and strength of the shadow land casts onto adjacent water. */
+  shadowWidth: number;
+  shadowStrength: number;
+}
+
+export function defaultCoast(): CoastSettings {
+  return {
+    noiseScale: 260,
+    noiseAmount: 0.35,
+    shoreWidth: 0.12,
+    shoreLight: 0.18,
+    shadowWidth: 0.22,
+    shadowStrength: 0.35,
+  };
+}
 
 /** Program is compiled once and shared; only the per-cell resources differ. */
 let sharedProgram: GlProgram | null = null;
@@ -135,6 +225,9 @@ export class TerrainView {
   private paperScale = 1024;
   private edge = 0.08;
 
+  /** Coastline character. Defaults are a starting point; the Karte tab tunes them. */
+  private coast: CoastSettings = defaultCoast();
+
   constructor(private chunks: ChunkManager) {
     // A refetched or restored chunk keeps its RenderTexture identity, so the mesh already
     // points at the right pixels — but an evicted one does not, hence the drop below.
@@ -170,6 +263,15 @@ export class TerrainView {
     this.refreshUniforms();
   }
 
+  setCoast(coast: Partial<CoastSettings>): void {
+    this.coast = { ...this.coast, ...coast };
+    this.refreshUniforms();
+  }
+
+  get coastSettings(): CoastSettings {
+    return { ...this.coast };
+  }
+
   private refreshUniforms(): void {
     for (const cell of this.cells.values()) {
       const u = cell.uniforms.uniforms;
@@ -178,6 +280,12 @@ export class TerrainView {
       u['uEdge'] = this.edge;
       u['uPaperOpacity'] = this.paperOpacity;
       u['uPaperScale'] = this.paperScale;
+      u['uNoiseScale'] = this.coast.noiseScale;
+      u['uNoiseAmount'] = this.coast.noiseAmount;
+      u['uShoreWidth'] = this.coast.shoreWidth;
+      u['uShoreLight'] = this.coast.shoreLight;
+      u['uShadowWidth'] = this.coast.shadowWidth;
+      u['uShadowStrength'] = this.coast.shadowStrength;
     }
   }
 
@@ -198,6 +306,12 @@ export class TerrainView {
         value: [cx * CHUNK_WORLD_SIZE, cy * CHUNK_WORLD_SIZE],
         type: 'vec2<f32>',
       },
+      uNoiseScale: { value: this.coast.noiseScale, type: 'f32' },
+      uNoiseAmount: { value: this.coast.noiseAmount, type: 'f32' },
+      uShoreWidth: { value: this.coast.shoreWidth, type: 'f32' },
+      uShoreLight: { value: this.coast.shoreLight, type: 'f32' },
+      uShadowWidth: { value: this.coast.shadowWidth, type: 'f32' },
+      uShadowStrength: { value: this.coast.shadowStrength, type: 'f32' },
     });
 
     const height = this.chunks.get('height', cx, cy).texture;

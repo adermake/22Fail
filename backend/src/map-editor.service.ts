@@ -90,6 +90,13 @@ export class MapEditorService {
         waterBase: '#3f6d8c',
         paperTexture: '',
         paperOpacity: 0.35,
+        // Coastline look is part of the map, so it is shared rather than per-viewer.
+        coastNoiseScale: 260,
+        coastNoiseAmount: 0.35,
+        coastShoreWidth: 0.12,
+        coastShoreLight: 0.18,
+        coastShadowWidth: 0.22,
+        coastShadowStrength: 0.35,
         showGrid: true,
       },
       fog: { revealed: [] },

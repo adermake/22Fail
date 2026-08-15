@@ -176,6 +176,17 @@ export interface MapSettings {
   /** Paper texture asset key, multiplied over the whole terrain stack. */
   paperTexture: string;
   paperOpacity: number;
+
+  /**
+   * Coastline appearance. Shared map state rather than a local preference — the look of the
+   * coast is part of the map, so every viewer must see the same shoreline.
+   */
+  coastNoiseScale: number;
+  coastNoiseAmount: number;
+  coastShoreWidth: number;
+  coastShoreLight: number;
+  coastShadowWidth: number;
+  coastShadowStrength: number;
   /** Sub-hex grid overlay visibility (GM preference, shared). */
   showGrid: boolean;
 }
@@ -185,6 +196,12 @@ export function defaultSettings(): MapSettings {
     waterBase: '#3f6d8c',
     paperTexture: '',
     paperOpacity: 0.35,
+    coastNoiseScale: 260,
+    coastNoiseAmount: 0.35,
+    coastShoreWidth: 0.12,
+    coastShoreLight: 0.18,
+    coastShadowWidth: 0.22,
+    coastShadowStrength: 0.35,
     showGrid: true,
   };
 }

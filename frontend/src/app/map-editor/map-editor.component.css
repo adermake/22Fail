@@ -97,12 +97,11 @@
 /* ── left tool rail ── */
 
 .tool-rail {
-  flex: 0 0 52px;
+  flex: 0 0 104px;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 4px;
-  padding: 6px 0;
+  padding: 8px 6px;
   background: #1c1c22;
   border-right: 1px solid #2e2e37;
   overflow-y: auto;
@@ -112,15 +111,47 @@
 .tab-strip {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
+/* Categories are text, tools are icons — so nothing is identified by artwork twice. */
+.tab-btn {
+  background: #24242c;
+  color: #d6d6de;
+  border: 1px solid #3a3a46;
+  border-radius: 5px;
+  padding: 7px 8px;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tab-btn:hover {
+  background: #303039;
+}
+
+.tab-btn.active {
+  background: #4a3a6b;
+  border-color: #8a6fc0;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* A full-width inset rule, not a short hairline that read as an accident. */
 .rail-divider {
-  width: 32px;
-  height: 1px;
-  background: #33333d;
-  margin: 4px 0;
   flex: 0 0 auto;
+  height: 2px;
+  margin: 8px -6px;
+  background: #0f0f13;
+  border-top: 1px solid #2e2e37;
+  border-bottom: 1px solid #26262e;
+}
+
+.tool-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-content: flex-start;
 }
 
 .rail-btn {
@@ -154,15 +185,6 @@
   border-color: #6d9fd0;
 }
 
-.rail-btn.tab {
-  background: #24242c;
-}
-
-.rail-btn.tab.active {
-  background: #4a3a6b;
-  border-color: #8a6fc0;
-}
-
 .rail-btn:disabled {
   opacity: 0.3;
   cursor: default;
@@ -171,7 +193,9 @@
 /* ── right settings panel ── */
 
 .settings-panel {
-  flex: 0 0 232px;
+  /* Wide enough for six symbols per row: the picker shows a whole category, and
+     scrolling a two-wide column through hundreds of sprites defeats the point. */
+  flex: 0 0 300px;
   overflow-y: auto;
   background: #1c1c22;
   border-left: 1px solid #2e2e37;
@@ -320,40 +344,14 @@
 
 /* ── symbol picker ── */
 
-.group-list {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  max-height: 168px;
-  overflow-y: auto;
-}
-
-.group-btn {
-  background: #2a2a33;
-  color: #e6e6ea;
-  border: 1px solid #3a3a46;
-  border-radius: 5px;
-  padding: 5px 7px;
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.group-btn:hover {
-  background: #343440;
-}
-
-.group-btn.active {
-  background: #3d5a80;
-  border-color: #6d9fd0;
-}
-
 .sprite-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
   gap: 4px;
-  max-height: 260px;
+  /* Tall on purpose: the whole category is here, and seeing many at once is the point. */
+  max-height: 52vh;
   overflow-y: auto;
+  padding-right: 2px;
 }
 
 .sprite-cell {
@@ -403,6 +401,21 @@
 
 .history-row button:hover {
   background: #343440;
+}
+
+.text-input {
+  flex: 1;
+  min-width: 0;
+  background: #2a2a33;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 5px;
+  padding: 5px 7px;
+  font-size: 12px;
+}
+
+.history-row button.narrow {
+  flex: 0 0 30px;
 }
 
 .paper-select {

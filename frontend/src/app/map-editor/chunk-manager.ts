@@ -283,13 +283,27 @@ export class ChunkManager {
     if (tx < 0 || ty < 0 || tx >= texels || ty >= texels) return null;
 
     try {
-      const { pixels } = this.renderer.extract.pixels({
+      const out = this.renderer.extract.pixels({
         target: rec.texture,
         frame: new Rectangle(tx, ty, 1, 1),
       });
-      // Alpha is coverage; zero means unpainted, which is not a colour.
-      if (!pixels || pixels[3] === 0) return null;
-      return { r: pixels[0], g: pixels[1], b: pixels[2] };
+      const pixels = out?.pixels;
+      if (!pixels) return null;
+
+      /*
+       * Do not assume the frame was honoured. When it is, we get a single texel back and
+       * the value is at index 0; when it is not, we get the whole chunk and index 0 is its
+       * top-left corner — which is unpainted almost everywhere, so every sample came back
+       * "unpainted" and symbols fell through to white. Derive the index from the returned
+       * width instead of trusting either behaviour.
+       */
+      const w = out.width || 1;
+      const i = w === 1 ? 0 : (ty * w + tx) * 4;
+      if (i + 3 >= pixels.length) return null;
+
+      // Alpha is coverage; nothing painted here is not a colour.
+      if (pixels[i + 3] < 8) return null;
+      return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2] };
     } catch (err) {
       console.error('[ChunkManager] sampleWorld failed', err);
       return null;
