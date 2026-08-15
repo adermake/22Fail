@@ -110,3 +110,29 @@ export function autoVaries(category: SymbolCategory): boolean {
 export function iconUrl(name: string): string {
   return `/mapassets/icons/${name}.png`;
 }
+
+/**
+ * Brush profiles.
+ *
+ * Blending land colours needs a very soft, very low-flow brush, while drawing a coastline
+ * needs a hard one — and reaching for three sliders every time you switch between those two
+ * jobs is most of the time spent in the tool. These are the presets Wonderdraft offers,
+ * plus a couple that cover the cases its three do not.
+ */
+export interface BrushProfile {
+  id: string;
+  label: string;
+  softness: number;
+  strength: number;
+  /** Raggedness, used by the raise/lower brushes. */
+  noise: number;
+}
+
+export const BRUSH_PROFILES: BrushProfile[] = [
+  // The blending workhorse: maximum feather, minimum flow, so colour builds up gradually.
+  { id: 'blend', label: 'Verlauf', softness: 1, strength: 0.1, noise: 0 },
+  { id: 'soft', label: 'Weich', softness: 0.7, strength: 0.4, noise: 0 },
+  { id: 'hard', label: 'Hart', softness: 0.05, strength: 1, noise: 0 },
+  { id: 'noisy', label: 'Rau', softness: 0.8, strength: 0.5, noise: 0.85 },
+  { id: 'grain', label: 'Körnig', softness: 0.35, strength: 0.25, noise: 1 },
+];

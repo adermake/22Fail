@@ -13,7 +13,7 @@
 import { Bounds } from './map-camera';
 
 /** World span of one bucket. Large enough that a viewport spans few cells. */
-export const CELL_SIZE = 2048;
+export const CELL_SIZE = 4096;
 
 export interface IndexedObject {
   id: string;

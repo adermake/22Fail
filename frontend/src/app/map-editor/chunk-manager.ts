@@ -64,8 +64,8 @@ export interface ChunkRecord {
  * At 512² RGBA per layer a cell costs ~3 MB, so the resident cap is roughly 190 MB.
  */
 const BYTES_PER_CELL_MB = 3;
-/** Cells kept on the GPU (~240 MB). Must comfortably exceed what a wide view streams. */
-const MAX_RESIDENT_CELLS = 80;
+/** Cells kept on the GPU (~250 MB). Must comfortably exceed what a wide view streams. */
+const MAX_RESIDENT_CELLS = 84;
 /**
  * Above this many cells in view, stop streaming *new* ones and render what is resident.
  * Kept below the resident cap so the evictor always has slack to work with.
@@ -173,6 +173,7 @@ export class ChunkManager {
       sprite.setSize(LAYER_TEXELS[rec.layer], LAYER_TEXELS[rec.layer]);
 
       this.stampHost.removeChildren();
+      this.stampHost.blendMode = 'normal';
       this.stampHost.addChild(sprite);
       this.renderer.render({
         container: this.stampHost,
@@ -369,13 +370,45 @@ export class ChunkManager {
     }
   }
 
-  /** Snapshot a chunk's pixels, for the undo stack. */
+  /**
+   * Copy a chunk's pixels into an independent texture, for the undo stack.
+   *
+   * Deliberately not `extract.texture()`: given a Texture that returns *the same object*
+   * back rather than a copy. The undo stack then held the live chunk, so restoring blitted
+   * a texture into itself — the "feedback loop between framebuffer and active texture" GL
+   * error — and its memory trim destroyed live map chunks, cutting holes in the map.
+   *
+   * Rendering through a fresh RenderTexture is the only way to be sure the pixels are
+   * genuinely detached from the chunk they came from.
+   */
   snapshot(rec: ChunkRecord): Texture | null {
     if (!this.isUsable(rec)) return null;
+
+    const texels = LAYER_TEXELS[rec.layer];
+    let copy: RenderTexture | null = null;
+
     try {
-      return this.renderer.extract.texture({ target: rec.texture });
+      copy = RenderTexture.create({ width: texels, height: texels, scaleMode: 'linear' });
+
+      const sprite = new Sprite(rec.texture);
+      sprite.setSize(texels, texels);
+
+      this.stampHost.removeChildren();
+      this.stampHost.blendMode = 'normal';
+      this.stampHost.addChild(sprite);
+      this.renderer.render({
+        container: this.stampHost,
+        target: copy,
+        clear: true,
+        clearColor: [0, 0, 0, 0],
+      });
+      this.stampHost.removeChildren();
+      sprite.destroy();
+
+      return copy;
     } catch (err) {
       console.error('[ChunkManager] snapshot failed', err);
+      copy?.destroy(true);
       return null;
     }
   }
@@ -385,10 +418,16 @@ export class ChunkManager {
     const rec = this.get(layer, cx, cy);
     // The snapshot may have been freed by the history budget, or the chunk re-created.
     if (!this.isUsable(rec) || !snap?.source) return;
+    // Never draw a texture into itself; that is the feedback loop this class must not create.
+    if (snap.source === rec.texture.source) return;
 
     const sprite = new Sprite(snap);
+    sprite.setSize(LAYER_TEXELS[layer], LAYER_TEXELS[layer]);
 
     this.stampHost.removeChildren();
+    // The host carries whatever blend the last dab used; erasing here would wipe the chunk
+    // instead of restoring it.
+    this.stampHost.blendMode = 'normal';
     this.stampHost.addChild(sprite);
     this.renderer.render({
       container: this.stampHost,

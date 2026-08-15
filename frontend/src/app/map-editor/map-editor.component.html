@@ -158,12 +158,28 @@
 
         @if (showBrushSettings()) {
           <div class="panel-section">
+            <div class="panel-title">Profil</div>
+            <div class="profile-row">
+              @for (p of brushProfiles; track p.id) {
+                <button
+                  type="button"
+                  class="profile-btn"
+                  [class.active]="activeProfile() === p.id"
+                  (click)="applyBrushProfile(p.id)"
+                >
+                  {{ p.label }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="panel-section">
             <label class="slider-row">
               <span>Größe</span>
               <input
                 type="range"
-                min="4"
-                max="800"
+                min="16"
+                max="3000"
                 step="1"
                 [value]="brushSize()"
                 (input)="setBrushSize($any($event.target).value)"
@@ -222,8 +238,8 @@
               <span>Größe</span>
               <input
                 type="range"
-                min="20"
-                max="1200"
+                min="80"
+                max="4000"
                 step="1"
                 [value]="brushSize()"
                 (input)="setBrushSize($any($event.target).value)"
@@ -315,8 +331,19 @@
           <!-- The whole category at once: browsing group names to find one mountain was
                guesswork through a list of words. -->
           <div class="panel-section">
+            <input
+              type="search"
+              class="text-input search-input"
+              placeholder="Symbole suchen …"
+              [value]="symbolQuery()"
+              (input)="symbolQuery.set($any($event.target).value)"
+            />
+            @if (symbolQuery()) {
+              <p class="hint">{{ visibleSprites().length }} Treffer</p>
+            }
+
             <div class="sprite-grid">
-              @for (s of categorySprites(); track s) {
+              @for (s of visibleSprites(); track s) {
                 <button
                   type="button"
                   class="sprite-cell"
@@ -436,8 +463,8 @@
               <span>Dicke</span>
               <input
                 type="range"
-                min="1"
-                max="40"
+                min="2"
+                max="160"
                 step="1"
                 [value]="regionThickness()"
                 (input)="regionThickness.set(+$any($event.target).value); applyRegionStyle()"
@@ -449,8 +476,8 @@
               <span>Strich</span>
               <input
                 type="range"
-                min="2"
-                max="120"
+                min="8"
+                max="500"
                 step="1"
                 [value]="regionDash()"
                 (input)="regionDash.set(+$any($event.target).value); applyRegionStyle()"
@@ -463,7 +490,7 @@
               <input
                 type="range"
                 min="0"
-                max="120"
+                max="500"
                 step="1"
                 [value]="regionGap()"
                 (input)="regionGap.set(+$any($event.target).value); applyRegionStyle()"
@@ -539,12 +566,12 @@
         @if (tab() === 'labels') {
           <div class="panel-section">
             <div class="panel-title">Text</div>
+            <!-- Applies as you type; waiting for Enter made the map feel unresponsive. -->
             <input
               type="text"
               class="text-input"
               [value]="labelText()"
-              (input)="labelText.set($any($event.target).value)"
-              (change)="applyLabelEdits()"
+              (input)="onLabelTextInput($any($event.target).value)"
             />
           </div>
 
@@ -555,8 +582,8 @@
               <span>Größe</span>
               <input
                 type="range"
-                min="8"
-                max="300"
+                min="24"
+                max="1200"
                 step="1"
                 [value]="labelStyle().fontSize"
                 (input)="setLabelStyle('fontSize', +$any($event.target).value)"
@@ -581,8 +608,8 @@
               <span>Abstand</span>
               <input
                 type="range"
-                min="-10"
-                max="40"
+                min="-40"
+                max="160"
                 step="1"
                 [value]="labelStyle().letterSpacing"
                 (input)="setLabelStyle('letterSpacing', +$any($event.target).value)"
@@ -613,7 +640,7 @@
               <input
                 type="range"
                 min="0"
-                max="24"
+                max="90"
                 step="1"
                 [value]="labelStyle().outlineWidth"
                 (input)="setLabelStyle('outlineWidth', +$any($event.target).value)"
@@ -709,8 +736,8 @@
               <span>Grobheit</span>
               <input
                 type="range"
-                min="40"
-                max="900"
+                min="200"
+                max="6000"
                 step="10"
                 [value]="coast().noiseScale"
                 (input)="setCoast('noiseScale', +$any($event.target).value)"

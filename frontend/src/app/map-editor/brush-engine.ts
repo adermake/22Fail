@@ -177,7 +177,7 @@ export function defaultBrush(): BrushSettings {
   // White: freshly drawn land is blank, not a preset green.
   return {
     tool: 'landBrush',
-    size: 120,
+    size: 400,
     softness: 0.35,
     strength: 1,
     color: '#ffffff',
@@ -302,17 +302,25 @@ export class BrushEngine {
     const rand = seeded((Math.round(p.x) * 73856093) ^ (Math.round(p.y) * 19349663));
     const texture = this.dabs.get(Math.max(0.4, brush.softness));
 
-    // More noise means more, smaller, further-flung blobs — the knob runs from a nearly
-    // round dab to a torn, scattered one.
+    /*
+     * The knob runs from a nearly round dab to a genuinely torn one.
+     *
+     * The first attempt kept every blob centred within half a radius and never smaller than
+     * 40% of the brush, so the union was always a slightly lumpy circle — at maximum noise
+     * it still read as a circular brush. Blobs now scatter past the nominal radius and
+     * shrink much further, so the silhouette actually breaks up, and a few outliers are
+     * flung clear to leave detached specks along the edge.
+     */
     const noise = Math.max(0, Math.min(1, brush.noise ?? 0.6));
-    const blobs = Math.max(1, Math.round(3 + noise * 9));
-    const scatter = 0.15 + noise * 0.75;
-    const sizeSpread = 0.15 + noise * 0.6;
+    const blobs = Math.max(1, Math.round(4 + noise * 14));
+    const scatter = 0.2 + noise * 1.15;
+    const minSize = 0.75 - noise * 0.6;
 
     for (let i = 0; i < blobs; i++) {
       const angle = rand() * Math.PI * 2;
-      const dist = rand() * brush.size * scatter;
-      const size = brush.size * (1 - sizeSpread * rand());
+      // Square-rooted so blobs spread over the area rather than clumping at the centre.
+      const dist = Math.sqrt(rand()) * brush.size * scatter;
+      const size = brush.size * (minSize + rand() * (1 - minSize));
 
       const s = this.take(i, texture);
       s.position.set(p.x + Math.cos(angle) * dist, p.y + Math.sin(angle) * dist);
@@ -328,28 +336,88 @@ export class BrushEngine {
     return lakeOutline(cx, cy, radius, seed);
   }
 
-  /** Carve a lake into the height field and colour its water. */
-  stampLake(cx: number, cy: number, radius: number, seed: number, color: string): ChunkRecord[] {
-    const outline = this.lakeOutline(cx, cy, radius, seed);
-    const r = radius * 1.4; // the wobble can push past the nominal radius
-    const bounds: Bounds = { minX: cx - r, minY: cy - r, maxX: cx + r, maxY: cy + r };
-    const touched: ChunkRecord[] = [];
+  /**
+   * Carve a lake into the height field.
+   *
+   * Two things make this read as water rather than as a cut-out shape:
+   *
+   * The edge is *feathered*. A single filled polygon lands as a hard alpha step, which the
+   * coastline shader then renders as a suspiciously exact, smoothed-voxel border — nothing
+   * like the soft edge a brush produces, so lakes clashed with everything drawn by hand.
+   * Filling the outline repeatedly at shrinking scales with low alpha builds a gradient
+   * instead, so a lake meets its shore the way a painted one does.
+   *
+   * And a lake is not one body. Real water leaves ponds and cut-off arms nearby, so a few
+   * smaller satellites are scattered around the main outline.
+   */
+  stampLake(cx: number, cy: number, radius: number, seed: number, _color: string): ChunkRecord[] {
+    const rand = seeded(seed ^ 0x9e3779b9);
+    const reach = radius * 2.2; // satellites and feathering push well past the main body
+    const bounds: Bounds = {
+      minX: cx - reach,
+      minY: cy - reach,
+      maxX: cx + reach,
+      maxY: cy + reach,
+    };
 
-    for (const pass of paintPasses('lakeStamp', parseHex(color))) {
-      const g = new Graphics().poly(outline).fill({ color: pass.tint, alpha: 1 });
+    const g = new Graphics();
 
-      this.host.removeChildren();
-      this.host.blendMode = pass.erase ? 'erase' : 'normal';
-      this.host.addChild(g);
+    // Main body, feathered from the outside in.
+    this.appendFeathered(g, this.lakeOutline(cx, cy, radius, seed));
 
-      touched.push(...this.chunks.paintWorld(pass.layer, this.host, bounds));
-
-      this.host.removeChildren();
-      g.destroy();
+    // Satellites: smaller pools offset from the main body, a few of them just detached.
+    const satellites = 1 + Math.floor(rand() * 4);
+    for (let i = 0; i < satellites; i++) {
+      const a = rand() * Math.PI * 2;
+      const dist = radius * (0.75 + rand() * 0.9);
+      const sr = radius * (0.12 + rand() * 0.28);
+      this.appendFeathered(
+        g,
+        this.lakeOutline(cx + Math.cos(a) * dist, cy + Math.sin(a) * dist, sr, seed + i * 7717),
+      );
     }
+
+    this.host.removeChildren();
+    this.host.blendMode = 'erase';
+    this.host.addChild(g);
+
+    const touched = this.chunks.paintWorld('height', this.host, bounds);
+
+    this.host.removeChildren();
+    g.destroy();
 
     for (const rec of touched) this.strokeTouched.add(rec);
     return touched;
+  }
+
+  /**
+   * Fill an outline as a soft-edged blob.
+   *
+   * Concentric fills from slightly outside the outline down to its core; the overlapping
+   * low-alpha layers accumulate into a ramp, which is the closest Pixi's flat fills get to
+   * a feathered edge.
+   */
+  private appendFeathered(g: Graphics, outline: number[]): void {
+    const steps = 10;
+    let cx = 0;
+    let cy = 0;
+    for (let i = 0; i < outline.length; i += 2) {
+      cx += outline[i];
+      cy += outline[i + 1];
+    }
+    const n = outline.length / 2;
+    cx /= n;
+    cy /= n;
+
+    for (let s = 0; s < steps; s++) {
+      // 1.12 → 0.55 of the outline, so the softest ring sits outside the nominal edge.
+      const t = 1.12 - (s / (steps - 1)) * 0.57;
+      const pts: number[] = [];
+      for (let i = 0; i < outline.length; i += 2) {
+        pts.push(cx + (outline[i] - cx) * t, cy + (outline[i + 1] - cy) * t);
+      }
+      g.poly(pts).fill({ color: 0xffffff, alpha: 0.16 });
+    }
   }
 
   destroy(): void {

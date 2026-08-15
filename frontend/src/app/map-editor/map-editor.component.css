@@ -403,6 +403,38 @@
   background: #343440;
 }
 
+.profile-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.profile-btn {
+  flex: 1 1 auto;
+  min-width: 56px;
+  background: #2a2a33;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 5px;
+  padding: 5px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.profile-btn:hover {
+  background: #343440;
+}
+
+.profile-btn.active {
+  background: #3d5a80;
+  border-color: #6d9fd0;
+}
+
+.search-input {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
 .preset-current {
   text-transform: none;
   letter-spacing: 0;

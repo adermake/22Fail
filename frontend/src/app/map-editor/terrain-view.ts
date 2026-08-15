@@ -170,7 +170,7 @@ export interface CoastSettings {
 
 export function defaultCoast(): CoastSettings {
   return {
-    noiseScale: 260,
+    noiseScale: 1600,
     noiseAmount: 0.35,
     shoreWidth: 0.12,
     shoreLight: 0.18,

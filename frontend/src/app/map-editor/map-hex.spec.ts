@@ -1,5 +1,6 @@
 import {
   HEX_RADIUS,
+  HEX_WIDTH,
   HEX_X_SPACING,
   HEX_Y_SPACING,
   hexDistance,
@@ -134,6 +135,25 @@ describe('chunk coordinates', () => {
     // tracking and eviction could not share a single cx,cy.
     for (const layer of ['height', 'landColor', 'waterColor'] as const) {
       expect(layerScale(layer) * LAYER_TEXELS[layer]).toBe(CHUNK_WORLD_SIZE);
+    }
+  });
+});
+
+describe('map working scale', () => {
+  it('gives a hex enough texels to draw inside', () => {
+    // The reason fine brushwork was impossible: at HEX_RADIUS 30 a hex spanned 60 world px,
+    // which is ~15 texels at any affordable chunk density — no stroke finer than a blob
+    // could survive. This pins the scale that makes detail possible.
+    const worldPxPerTexel = CHUNK_WORLD_SIZE / LAYER_TEXELS.height;
+    const texelsAcrossAHex = HEX_WIDTH / worldPxPerTexel;
+    expect(texelsAcrossAHex).toBeGreaterThanOrEqual(200);
+  });
+
+  it('keeps a chunk affordable', () => {
+    // 1 MB per layer. Density comes from smaller chunks, never bigger textures — a 1024²
+    // layer is what exhausted the GPU and lost the WebGL context mid-stroke.
+    for (const texels of Object.values(LAYER_TEXELS)) {
+      expect(texels * texels * 4).toBeLessThanOrEqual(1024 * 1024);
     }
   });
 });

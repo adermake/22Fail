@@ -13,8 +13,22 @@
 
 import { HexCoord, Point } from '../model/lobby.model';
 
-/** Circumradius (centre → vertex) in world px. */
-export const HEX_RADIUS = 30;
+/**
+ * Circumradius (centre → vertex) in world px.
+ *
+ * This is the map's working scale, and it is the number that decides how much detail can
+ * exist *inside* a hex. At the original 30 a hex spanned 60 world px, which at any
+ * affordable raster density left it a dozen texels across — no brushwork finer than a blob
+ * could survive there, however the chunk resolution was tuned.
+ *
+ * At 240 a hex spans 480 world px, or 240 texels at the current 2 px/texel, which is enough
+ * to draw inside one. A hex still means the same 4 km; only the pixel scale changed.
+ *
+ * The cost is that a fixed viewport covers fewer hexes' worth of chunks before the streamer
+ * hits its cap, which is the intended trade: detail where you are working, coarser LOD when
+ * zoomed far out.
+ */
+export const HEX_RADIUS = 240;
 export const HEX_WIDTH = 2 * HEX_RADIUS;
 export const HEX_HEIGHT = Math.sqrt(3) * HEX_RADIUS;
 /** Column pitch: flat-top hexes interlock at 3/4 of their width. */

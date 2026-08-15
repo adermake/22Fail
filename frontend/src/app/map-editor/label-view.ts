@@ -16,12 +16,12 @@ import { SpatialIndex } from './spatial-index';
 export function defaultLabelStyle(): LabelStyle {
   return {
     fontFamily: 'Georgia, serif',
-    fontSize: 64,
+    fontSize: 220,
     fill: '#2b2b2b',
     outline: '#f5f0e6',
-    outlineWidth: 6,
+    outlineWidth: 20,
     curvature: 0,
-    letterSpacing: 2,
+    letterSpacing: 8,
   };
 }
 
@@ -29,6 +29,8 @@ interface LabelNode {
   container: Container;
   /** What the node was built from, so it is only rebuilt on real change. */
   signature: string;
+  /** Oversampling factor used for the bake, so a big zoom change can trigger a re-bake. */
+  bakedAt: number;
 }
 
 /** Everything that affects the baked glyphs. Position and visibility are applied live. */
@@ -166,15 +168,25 @@ export class LabelView {
     this.dirty = true;
   }
 
-  private build(label: MapLabel): LabelNode {
+  private build(label: MapLabel, zoom: number): LabelNode {
     const holder = new Container();
     const s = label.style;
 
+    /*
+     * Glyphs are rasterised at the size they will occupy *on screen*, then scaled back down
+     * into world units. Baking at world size and letting the camera magnify the result is
+     * what made labels look soft and pixelated — the texture was rendered once at, say, 64px
+     * and then blown up. Clamped so a deep zoom cannot ask for a 4000px glyph atlas.
+     */
+    const target = Math.max(1, Math.min(6, zoom));
     const style = new TextStyle({
       fontFamily: s.fontFamily,
-      fontSize: s.fontSize,
+      fontSize: s.fontSize * target,
       fill: s.fill,
-      stroke: s.outlineWidth > 0 ? { color: s.outline, width: s.outlineWidth, join: 'round' } : undefined,
+      stroke:
+        s.outlineWidth > 0
+          ? { color: s.outline, width: s.outlineWidth * target, join: 'round' }
+          : undefined,
     });
 
     const glyphs: { text: Text; width: number }[] = [];
@@ -183,7 +195,7 @@ export class LabelView {
     for (const ch of [...label.text]) {
       const t = new Text({ text: ch, style });
       t.anchor.set(0.5);
-      const w = (ch === ' ' ? s.fontSize * 0.3 : t.width) + s.letterSpacing;
+      const w = (ch === ' ' ? s.fontSize * target * 0.3 : t.width) + s.letterSpacing * target;
       glyphs.push({ text: t, width: w });
       total += w;
       holder.addChild(t);
@@ -194,7 +206,12 @@ export class LabelView {
     // Bake to a single texture; the glyph containers behind it never render again.
     holder.cacheAsTexture(true);
 
-    return { container: holder, signature: signatureOf(label) };
+    // Scale the oversampled bake back into world units.
+    const wrapper = new Container();
+    wrapper.addChild(holder);
+    wrapper.scale.set(1 / target);
+
+    return { container: wrapper, signature: signatureOf(label), bakedAt: target };
   }
 
   /** Sync visible labels. Only rebuilds nodes whose text or style changed. */
@@ -214,9 +231,20 @@ export class LabelView {
       wanted.add(label.id);
 
       let node = this.nodes.get(label.id);
-      if (!node || node.signature !== signatureOf(label)) {
+
+      // Re-bake when the text or style changed, or when the zoom has moved far enough that
+      // the existing bake would visibly soften. The threshold keeps this off the hot path
+      // during ordinary panning and small zoom steps.
+      const wantScale = Math.max(1, Math.min(6, zoom));
+      const stale =
+        !node ||
+        node.signature !== signatureOf(label) ||
+        wantScale > node.bakedAt * 1.6 ||
+        wantScale < node.bakedAt / 2.5;
+
+      if (stale || !node) {
         node?.container.destroy({ children: true });
-        node = this.build(label);
+        node = this.build(label, zoom);
         this.nodes.set(label.id, node);
         this.container.addChild(node.container);
       }

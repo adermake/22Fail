@@ -32,21 +32,18 @@ export const RASTER_LAYERS: readonly RasterLayer[] = ['height', 'landColor', 'wa
  * one chunk grid, so dirty-tracking, streaming and eviction work off a single `cx,cy` —
  * layers just differ in how many texels they pack into that square.
  */
-export const CHUNK_WORLD_SIZE = 2048;
+export const CHUNK_WORLD_SIZE = 1024;
 
 /**
- * Texels per chunk side, per layer — all 512, i.e. 4 world px per texel.
+ * Texels per chunk side, per layer — all 512, i.e. **2 world px per texel** across a
+ * 1024-world-px chunk.
  *
- * Every layer costs 1 MB of VRAM here, so a cell is 3 MB and a wide view stays affordable.
- * An attempt at 1024 for height put a cell at 6 MB, which combined with a broken residency
- * cap to exhaust the GPU and lose the WebGL context mid-stroke. Resolution is only worth
- * having if the map keeps rendering.
+ * Every layer stays 1 MB of VRAM, so a cell is 3 MB and the residency budget is unchanged.
+ * Density was doubled by shrinking the chunk rather than by enlarging the texture: a 1024²
+ * texture would have put a cell at 6 MB, which is what exhausted the GPU and lost the WebGL
+ * context mid-stroke. Same memory, four times the detail per unit area.
  *
- * The colour layers still doubled in density (they were 8 world px per texel), which is
- * where the visible blockiness in fine brushwork actually came from. Height keeps its
- * previous density because the coastline shader smooths it in any case.
- *
- * Existing chunks are unaffected: stored PNGs are rescaled to the current size on load.
+ * Combined with the larger `HEX_RADIUS`, a hex is now ~240 texels across instead of ~15.
  */
 export const LAYER_TEXELS: Record<RasterLayer, number> = {
   height: 512,

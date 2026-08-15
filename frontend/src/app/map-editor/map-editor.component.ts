@@ -37,6 +37,7 @@ import { SymbolView } from './symbol-view';
 import { MapSymbol } from './map-editor.model';
 import { generateId } from '../model/lobby.model';
 import {
+  BRUSH_PROFILES,
   EditorTab,
   LABEL_TOOL_DEFS,
   LabelTool,
@@ -153,7 +154,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     return t !== 'select' && autoVaries(t);
   });
 
-  readonly brushSize = signal(120);
+  readonly brushSize = signal(400);
   readonly brushSoftness = signal(0.35);
   readonly brushStrength = signal(1);
   /** Raggedness of the raise/lower brushes. */
@@ -163,6 +164,20 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly showNoiseSetting = computed(
     () => this.terrainTool() === 'heighten' || this.terrainTool() === 'lower',
   );
+
+  readonly brushProfiles = BRUSH_PROFILES;
+  readonly activeProfile = signal<string>('soft');
+
+  /** Load a brush profile; the sliders stay available for fine-tuning afterwards. */
+  applyBrushProfile(id: string): void {
+    const p = this.brushProfiles.find(x => x.id === id);
+    if (!p) return;
+    this.activeProfile.set(id);
+    this.brushSoftness.set(p.softness);
+    this.brushStrength.set(p.strength);
+    this.brushNoise.set(p.noise);
+    this.redrawCursor();
+  }
 
   readonly landPalette = signal<string[]>([]);
   readonly waterPalette = signal<string[]>([]);
@@ -184,10 +199,15 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly activeGroup = signal<string>('');
   /** Every sprite in the active category, shown flat — no group navigation. */
   readonly categorySprites = signal<string[]>([]);
+  readonly symbolQuery = signal('');
+  /** What the picker shows: the category, narrowed by the search box. */
+  readonly visibleSprites = computed(() =>
+    this.assets.search(this.categorySprites(), this.symbolQuery()),
+  );
   readonly currentSprite = signal<string>('');
   /** Alt mirrors the stamp while held. */
   readonly mirrorStamp = signal(false);
-  readonly symbolScale = signal(1);
+  readonly symbolScale = signal(2);
   /** Random rotation spread, in degrees, applied per placement. */
   readonly rotationJitter = signal(0);
   /** Randomly mirror half the placements, so repeated symbols read less like clones. */
@@ -213,9 +233,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   /** Vertices of the region being drawn; empty when not drawing. */
   readonly draftPoints = signal<Point[]>([]);
   readonly regionColor = signal('#c0392b');
-  readonly regionThickness = signal(6);
-  readonly regionDash = signal(28);
-  readonly regionGap = signal(20);
+  readonly regionThickness = signal(24);
+  readonly regionDash = signal(110);
+  readonly regionGap = signal(80);
   readonly regionFill = signal('#c0392b');
   readonly regionFillAlpha = signal(0.12);
   readonly selectedRegionId = signal<string | null>(null);
@@ -412,9 +432,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.streamScheduled = true;
     requestAnimationFrame(() => {
       this.streamScheduled = false;
-      // One half-chunk of margin: enough to load terrain just before it scrolls in,
+      // A quarter-chunk of margin: enough to load terrain just before it scrolls in,
       // without inflating the streamed set to the point of exhausting the GPU.
-      this.chunks?.update(this.renderer.camera.visibleBounds(1024));
+      this.chunks?.update(this.renderer.camera.visibleBounds(256));
       this.terrain?.update(this.renderer.camera.visibleBounds(0));
       const view = this.renderer.camera.visibleBounds(0);
       const zoom = this.renderer.camera.zoom;
@@ -508,9 +528,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.redrawCursor();
   }
 
-  /** Step through the whole category — bound to Shift+wheel. */
+  /** Step through what the picker is showing — bound to Shift+wheel. */
   private cycleSprite(delta: number): void {
-    const list = this.categorySprites();
+    const list = this.visibleSprites();
     if (list.length === 0) return;
     const i = list.indexOf(this.currentSprite());
     const next = (((i < 0 ? 0 : i + delta) % list.length) + list.length) % list.length;
@@ -848,6 +868,33 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.scheduleStream();
   }
 
+  /**
+   * Live text editing.
+   *
+   * The label follows every keystroke locally so the map reads as a direct preview, but the
+   * synced op is debounced — one op per typed character would flood the channel and fill
+   * the undo history with single letters.
+   */
+  onLabelTextInput(text: string): void {
+    this.labelText.set(text);
+
+    const id = this.selectedLabelId();
+    const label = id ? this.labelView.get(id) : undefined;
+    if (!id || !label) return;
+
+    label.text = text;
+    this.labelView.update(label);
+    this.scheduleStream();
+
+    if (this.labelTextTimer) clearTimeout(this.labelTextTimer);
+    this.labelTextTimer = setTimeout(() => {
+      this.labelTextTimer = null;
+      this.store.updateObject('labels', id, { text });
+    }, 400);
+  }
+
+  private labelTextTimer: ReturnType<typeof setTimeout> | null = null;
+
   /** Push the panel's text and style onto the selected label. */
   applyLabelEdits(): void {
     const id = this.selectedLabelId();
@@ -1021,6 +1068,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       const outline = this.brushes?.lakeOutline(world.x, world.y, this.brushSize(), this.lakeSeed);
       if (outline?.length) {
         g.poly(outline).stroke({ width: 1.5 / zoom, color: 0x8fd0ff, alpha: 0.9 });
+        // The satellites are seeded separately, so the preview shows the body only.
+        g.circle(world.x, world.y, this.brushSize() * 1.9);
+        g.stroke({ width: 1 / zoom, color: 0x8fd0ff, alpha: 0.25 });
       }
       return;
     }
@@ -1123,7 +1173,50 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (!this.isPainting || this.terrainTool() === 'lakeStamp') return;
     this.noteStrokeExtent(world);
     this.brushes?.stroke(world, this.brush());
+
+    /*
+     * Re-tint symbols as the colour goes down, not only when the stroke ends.
+     *
+     * Watching symbols snap to their new colour on mouse-up is jarring — you cannot judge
+     * a colour while the thing standing on it still shows the old one. Throttled, because
+     * each symbol costs a GPU readback, and applied locally during the drag: the ops are
+     * emitted once at stroke end so the network sees one update per symbol, not one per
+     * pointer move.
+     */
+    if (toolLayer(this.terrainTool()) === 'landColor') this.livePreviewSymbolTints();
   }
+
+  /** Locally re-tint symbols under the brush while painting. No ops, no undo entries. */
+  private livePreviewSymbolTints(): void {
+    const now = performance.now();
+    if (now - this.lastLiveTintAt < 90) return;
+    this.lastLiveTintAt = now;
+
+    const b = this.brushSize() * 1.5;
+    const world = this.lastWorld;
+    if (!world || !this.symbols || !this.chunks) return;
+
+    const near = this.symbols.index.query({
+      minX: world.x - b,
+      minY: world.y - b,
+      maxX: world.x + b,
+      maxY: world.y + b,
+    });
+
+    let touched = false;
+    for (const sym of near) {
+      if (!this.assets.meta(sym.asset)?.colorable) continue;
+      const ground = this.chunks.sampleWorld('landColor', sym.x, sym.y);
+      const tint = ground ? rgbToHex(ground.r, ground.g, ground.b) : undefined;
+      if (tint === sym.tint) continue;
+      sym.tint = tint;
+      this.symbols.update(sym);
+      touched = true;
+    }
+    if (touched) this.scheduleStream();
+  }
+
+  private lastLiveTintAt = 0;
 
   private endPaint(): void {
     if (!this.isPainting) return;

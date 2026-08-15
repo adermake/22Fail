@@ -200,6 +200,25 @@ export class MapAssets {
     return slash < 0 ? '' : spriteId.slice(0, slash);
   }
 
+  /**
+   * Filter a sprite list by a free-text query.
+   *
+   * Matches the sprite's own name, its id, and its group's name, so "burg" finds castles
+   * whether the word is on the sprite or only on the group it lives in. Terms are ANDed,
+   * which makes narrowing ("inked oak") work the way people expect from a search box.
+   */
+  search(ids: string[], query: string): string[] {
+    const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return ids;
+
+    return ids.filter(id => {
+      const meta = this.manifest?.sprites[id];
+      const group = this.manifest?.groups[this.groupOf(id)];
+      const haystack = `${id} ${meta?.name ?? ''} ${group?.name ?? ''}`.toLowerCase();
+      return terms.every(t => haystack.includes(t));
+    });
+  }
+
   /** A random member of a group — placing a symbol rolls the next variation. */
   randomInGroup(groupId: string): string | null {
     const g = this.group(groupId);
