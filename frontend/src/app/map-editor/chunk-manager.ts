@@ -66,8 +66,8 @@ export interface ChunkRecord {
  * At 512² RGBA per layer a cell costs ~3 MB, so the resident cap is roughly 190 MB.
  */
 const BYTES_PER_CELL_MB = 3;
-/** Full-detail cells kept on the GPU (~310 MB). Must exceed what a working view streams. */
-const MAX_RESIDENT_CELLS = 104;
+/** Full-detail cells kept on the GPU (~370 MB). Must exceed what a working view streams. */
+const MAX_RESIDENT_CELLS = 124;
 
 /**
  * Detail levels.
@@ -91,7 +91,7 @@ const MAX_LOW_CELLS = 1700;
  * Sized so ordinary working zooms stream fully and only a far zoom-out is capped, where
  * incomplete terrain is the intended trade rather than a bug.
  */
-const MAX_STREAM_CELLS = 84;
+const MAX_STREAM_CELLS = 100;
 
 export class ChunkManager {
   private chunks = new Map<string, ChunkRecord>();
@@ -627,7 +627,18 @@ export class ChunkManager {
     rec.dirty = false;
     try {
       const blob = await this.toBlob(rec);
-      if (!blob) return;
+      if (!blob) {
+        /*
+         * Encoding failed — usually because the texture went away mid-flush. `dirty` was
+         * already cleared to catch strokes landing during the upload, so returning here
+         * silently discarded the paint and never retried it: a chunk would keep its colour
+         * on screen until it was evicted, then reload from the server without it, leaving
+         * one square of unpainted land with a hard border. Put the flag back so the next
+         * flush tries again.
+         */
+        rec.dirty = true;
+        return;
+      }
       const ver = await this.api.putChunk(this.worldName, rec.layer, rec.cx, rec.cy, blob);
       if (ver == null) {
         rec.dirty = true; // upload failed — try again on the next flush

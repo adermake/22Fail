@@ -119,6 +119,16 @@ export class UndoStack {
     if (this.pendingKeys.has(key)) return;
     this.pendingKeys.add(key);
 
+    /*
+     * Never snapshot a chunk whose pixels have not arrived.
+     *
+     * Painting over a chunk that is still fetching would capture the empty texture as its
+     * "before" state, and undoing later would then blit that emptiness over terrain that
+     * had since loaded — wiping real work permanently. Skipping the capture means undo
+     * leaves this chunk as it is, which loses a step of history but never data.
+     */
+    if (!rec.loaded) return;
+
     const texture = this.chunks.snapshot(rec);
     if (!texture) return;
 
