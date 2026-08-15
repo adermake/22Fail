@@ -64,8 +64,8 @@ export interface ChunkRecord {
  * At 512² RGBA per layer a cell costs ~3 MB, so the resident cap is roughly 190 MB.
  */
 const BYTES_PER_CELL_MB = 3;
-/** Cells kept on the GPU (~250 MB). Must comfortably exceed what a wide view streams. */
-const MAX_RESIDENT_CELLS = 84;
+/** Cells kept on the GPU (~310 MB). Must comfortably exceed what a wide view streams. */
+const MAX_RESIDENT_CELLS = 104;
 /**
  * Above this many cells in view, stop streaming *new* ones and render what is resident.
  * Kept below the resident cap so the evictor always has slack to work with.
@@ -73,7 +73,7 @@ const MAX_RESIDENT_CELLS = 84;
  * Sized so ordinary working zooms stream fully and only a far zoom-out is capped, where
  * incomplete terrain is the intended trade rather than a bug.
  */
-const MAX_STREAM_CELLS = 64;
+const MAX_STREAM_CELLS = 84;
 
 export class ChunkManager {
   private chunks = new Map<string, ChunkRecord>();

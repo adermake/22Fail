@@ -294,7 +294,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const data = await this.store.load(world);
 
     this.chunks = new ChunkManager(this.renderer.renderer, this.api, this.store, world);
-    this.terrain = new TerrainView(this.chunks, this.renderer.renderer);
+    this.terrain = new TerrainView(this.chunks);
     this.renderer.terrainLayer.addChild(this.terrain.container);
     this.brushes = new BrushEngine(this.chunks, this.renderer.renderer);
     this.undoStack = new UndoStack(this.chunks, {
@@ -1236,9 +1236,6 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
     this.undoStack?.commit(this.terrainTool());
-
-    // Keep the zoomed-out overview in step with what was just painted.
-    if (this.strokeBounds) this.terrain?.refreshThumbs(this.strokeBounds);
 
     // Colourable symbols take the colour of the ground beneath them, so recolouring that
     // ground has to carry through to the symbols standing on it.
