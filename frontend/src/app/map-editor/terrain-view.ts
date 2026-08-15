@@ -11,18 +11,10 @@
  * produces Wonderdraft's drippy look; nothing outside that function needs to change.
  */
 
-import {
-  Container,
-  Geometry,
-  GlProgram,
-  Mesh,
-  Shader,
-  Texture,
-  UniformGroup,
-} from 'pixi.js';
+import { Container, Geometry, GlProgram, Mesh, Shader, Texture, UniformGroup } from 'pixi.js';
 import { CHUNK_WORLD_SIZE, RasterLayer } from './map-editor.model';
 import { Bounds } from './map-camera';
-import { ChunkManager } from './chunk-manager';
+import { ChunkManager, DetailLevel } from './chunk-manager';
 
 const vertex = /* glsl */ `
 in vec2 aPosition;
@@ -180,12 +172,23 @@ export function defaultCoast(): CoastSettings {
 }
 
 /**
- * Ceiling on terrain meshes.
+ * Ceiling on full-detail terrain meshes.
  *
  * Kept just under the chunk manager's resident-cell budget, so the view never asks for
  * terrain the streamer has already evicted.
  */
-const MAX_TERRAIN_CELLS = 80;
+const MAX_TERRAIN_CELLS = 100;
+
+/**
+ * Ceiling on overview meshes.
+ *
+ * Overview cells cost almost nothing in memory (~47 KB each) but every one is still a draw
+ * call, so this is the real limit on how wide a view can be — not the residency budget.
+ * Sized to reach ~4% zoom (about 130 hexes across). Below that the draw calls, not the
+ * memory, are what give out.
+ */
+const MAX_OVERVIEW_CELLS = 1400;
+
 
 /** Program is compiled once and shared; only the per-cell resources differ. */
 let sharedProgram: GlProgram | null = null;
@@ -211,6 +214,8 @@ type TerrainMesh = Mesh<Geometry, Shader>;
 interface Cell {
   cx: number;
   cy: number;
+  /** Level the shader's textures came from, so a level switch rebuilds the mesh. */
+  level: DetailLevel;
   mesh: TerrainMesh;
   uniforms: UniformGroup;
   /** Texture identity last bound, so eviction and refetches can be detected. */
@@ -220,7 +225,6 @@ interface Cell {
 export class TerrainView {
   /** Parent this in the camera-transformed world container. */
   readonly container = new Container();
-
   private cells = new Map<string, Cell>();
   private geometry = quad();
 
@@ -303,7 +307,7 @@ export class TerrainView {
     return `${cx}/${cy}`;
   }
 
-  private build(cx: number, cy: number): Cell {
+  private build(cx: number, cy: number, level: DetailLevel): Cell {
     const uniforms = new UniformGroup({
       uLandDefault: { value: this.landDefault, type: 'vec3<f32>' },
       uWaterDefault: { value: this.waterDefault, type: 'vec3<f32>' },
@@ -322,9 +326,9 @@ export class TerrainView {
       uShadowStrength: { value: this.coast.shadowStrength, type: 'f32' },
     });
 
-    const height = this.chunks.get('height', cx, cy).texture;
-    const landColor = this.chunks.get('landColor', cx, cy).texture;
-    const waterColor = this.chunks.get('waterColor', cx, cy).texture;
+    const height = this.chunks.get('height', cx, cy, level).texture;
+    const landColor = this.chunks.get('landColor', cx, cy, level).texture;
+    const waterColor = this.chunks.get('waterColor', cx, cy, level).texture;
 
     const shader = new Shader({
       glProgram: program(),
@@ -344,30 +348,45 @@ export class TerrainView {
     const mesh: TerrainMesh = new Mesh<Geometry, Shader>({ geometry: this.geometry, shader });
     mesh.position.set(cx * CHUNK_WORLD_SIZE, cy * CHUNK_WORLD_SIZE);
     mesh.scale.set(CHUNK_WORLD_SIZE);
-    this.container.addChild(mesh);
 
     const cell: Cell = {
       cx,
       cy,
+      level,
       mesh,
       uniforms,
       bound: { height, landColor, waterColor },
     };
+
+    this.container.addChild(mesh);
     this.cells.set(this.key(cx, cy), cell);
     return cell;
   }
 
   private destroyCell(cell: Cell): void {
     this.container.removeChild(cell.mesh);
+
+    /*
+     * `Mesh.destroy` only nulls its shader reference — it does not free it. Every cell owns
+     * a Shader (with its own uniform group and bind groups), and cells are created and torn
+     * down constantly while panning, so leaving them to the collector leaked GL resources by
+     * the hundred and eventually produced garbage geometry on screen.
+     *
+     * `false` keeps the GlProgram: that one *is* shared across every cell.
+     */
+    const shader = cell.mesh.shader;
     // The geometry is shared across every cell, so it must outlive them.
     cell.mesh.destroy({ children: true });
+    shader?.destroy(false);
   }
 
+  /** Forget a cell whose chunk textures were evicted; its shader now points at nothing. */
   private drop(cx: number, cy: number): void {
-    const cell = this.cells.get(this.key(cx, cy));
+    const key = this.key(cx, cy);
+    const cell = this.cells.get(key);
     if (!cell) return;
     this.destroyCell(cell);
-    this.cells.delete(this.key(cx, cy));
+    this.cells.delete(key);
   }
 
   /**
@@ -378,7 +397,7 @@ export class TerrainView {
    * is what made a wide zoom crawl. Past the cap only the cells nearest the middle of the
    * screen are drawn, which is where the eye is, and the ocean backdrop covers the rest.
    */
-  update(bounds: Bounds): void {
+  update(bounds: Bounds, level: DetailLevel = 0): void {
     const minCx = Math.floor(bounds.minX / CHUNK_WORLD_SIZE);
     const maxCx = Math.floor(bounds.maxX / CHUNK_WORLD_SIZE);
     const minCy = Math.floor(bounds.minY / CHUNK_WORLD_SIZE);
@@ -386,20 +405,21 @@ export class TerrainView {
 
     const spanX = maxCx - minCx + 1;
     const spanY = maxCy - minCy + 1;
+    const cap = level === 0 ? MAX_TERRAIN_CELLS : MAX_OVERVIEW_CELLS;
 
     let wanted: { cx: number; cy: number }[] = [];
     for (let cy = minCy; cy <= maxCy; cy++) {
       for (let cx = minCx; cx <= maxCx; cx++) wanted.push({ cx, cy });
     }
 
-    if (spanX * spanY > MAX_TERRAIN_CELLS) {
+    if (spanX * spanY > cap) {
       const midX = (minCx + maxCx) / 2;
       const midY = (minCy + maxCy) / 2;
       wanted.sort(
         (a, b) =>
           (a.cx - midX) ** 2 + (a.cy - midY) ** 2 - ((b.cx - midX) ** 2 + (b.cy - midY) ** 2),
       );
-      wanted = wanted.slice(0, MAX_TERRAIN_CELLS);
+      wanted = wanted.slice(0, cap);
     }
 
     const live = new Set<string>();
@@ -409,17 +429,33 @@ export class TerrainView {
       live.add(key);
 
       const cell = this.cells.get(key);
+
+      /*
+       * Only move a cell to the requested level once that level has *all* its layers.
+       *
+       * The streamer starts loading the new level as soon as the zoom crosses, but the
+       * fetches take a moment. Swapping immediately meant showing empty textures until they
+       * landed — chunks flashing white and blocks of colour disappearing mid-zoom. Holding
+       * the level already on screen until its replacement is genuinely ready makes the
+       * transition invisible instead.
+       */
+      const ready = this.chunks.isCellReady(cx, cy, level);
+      const useLevel: DetailLevel = ready ? level : (cell?.level ?? level);
+
       if (!cell) {
-        this.build(cx, cy);
+        // A cell that has never been drawn waits until it is complete. Ocean briefly, then
+        // finished terrain, beats a white block that fills in its colour a moment later.
+        if (ready) this.build(cx, cy, useLevel);
         continue;
       }
 
-      // If eviction handed back a different RenderTexture, the shader is stale.
-      const h = this.chunks.get('height', cx, cy).texture;
-      if (cell.bound.height !== h) {
+      // Rebuild when the level changed, or when eviction handed back a different
+      // RenderTexture — either way the shader is pointing at the wrong pixels.
+      const h = this.chunks.get('height', cx, cy, useLevel).texture;
+      if (cell.level !== useLevel || cell.bound.height !== h) {
         this.destroyCell(cell);
         this.cells.delete(key);
-        this.build(cx, cy);
+        this.build(cx, cy, useLevel);
       }
     }
 
@@ -428,11 +464,13 @@ export class TerrainView {
       this.destroyCell(cell);
       this.cells.delete(key);
     }
+
   }
 
   destroy(): void {
     for (const cell of this.cells.values()) this.destroyCell(cell);
     this.cells.clear();
+
     this.geometry.destroy();
     this.container.destroy();
   }

@@ -34,7 +34,7 @@ import { Bounds } from './map-camera';
 import { UndoStack, clone } from './undo-stack';
 import { GroupMeta, MapAssets, PaperTextureMeta } from './map-assets';
 import { SymbolView } from './symbol-view';
-import { MapSymbol } from './map-editor.model';
+import { CHUNK_WORLD_SIZE, MapSymbol } from './map-editor.model';
 import { generateId } from '../model/lobby.model';
 import {
   BRUSH_PROFILES,
@@ -305,6 +305,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       remove: (c, id) => this.store.deleteObject(c, id),
     });
     this.chunks.onBeforePaint = rec => this.undoStack?.capture(rec);
+    // Terrain only draws cells whose layers have all arrived, so a finished load is what
+    // tells the view there is something new it can show.
+    this.chunks.onChunkUpdated = () => this.scheduleStream();
 
     this.landPalette.set(data.landPalette);
     this.waterPalette.set(data.waterPalette);
@@ -434,12 +437,21 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.streamScheduled = true;
     requestAnimationFrame(() => {
       this.streamScheduled = false;
-      // A quarter-chunk of margin: enough to load terrain just before it scrolls in,
-      // without inflating the streamed set to the point of exhausting the GPU.
-      this.chunks?.update(this.renderer.camera.visibleBounds(256));
+      /*
+       * A full chunk of lead in every direction.
+       *
+       * A quarter-chunk was not enough: a chunk only started loading once its edge was
+       * nearly on screen, so an ordinary pan outran it and terrain visibly popped in. One
+       * whole chunk of margin means the next row is already resident before it is needed.
+       */
+      this.chunks?.update(this.renderer.camera.visibleBounds(CHUNK_WORLD_SIZE));
       // Build terrain slightly beyond the view so a cell exists before it scrolls in;
-      // without the lead, the edge of a pan or zoom trails behind the camera.
-      this.terrain?.update(this.renderer.camera.visibleBounds(256));
+      // without the lead, the edge of a pan or zoom trails behind the camera. The level is
+      // whatever the streamer settled on, so the two never disagree about what is loaded.
+      this.terrain?.update(
+        this.renderer.camera.visibleBounds(CHUNK_WORLD_SIZE * 0.5),
+        this.chunks?.detailLevel ?? 0,
+      );
       const view = this.renderer.camera.visibleBounds(0);
       const zoom = this.renderer.camera.zoom;
       this.symbols?.render(view, zoom, this.isGM());
@@ -1165,6 +1177,10 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       );
       this.lakeSeed = Math.floor(Math.random() * 1e9);
       this.lastWorld = world;
+      // The stamp reaches well past the brush radius; cover it all for the overview.
+      const r = this.brushSize() * 2.4;
+      this.noteStrokeExtent({ x: world.x - r, y: world.y - r });
+      this.noteStrokeExtent({ x: world.x + r, y: world.y + r });
       this.endPaint();
       this.redrawCursor();
       return;

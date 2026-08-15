@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T13:00:32.710Z",
+  "generatedAt": "2026-08-15T20:44:33.053Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -49,7 +49,7 @@
       "tab": "Stats",
       "icon": "stat",
       "order": 20,
-      "hash": "43855927",
+      "hash": "877b578d",
       "outline": [
         {
           "id": "stats",
@@ -120,6 +120,48 @@
         {
           "id": "mana",
           "text": "Mana",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "sonstige-stats",
+          "text": "Sonstige Stats",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "grundbonus",
+          "text": "Grundbonus",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "bewegung",
+          "text": "Bewegung",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "fokus",
+          "text": "Fokus",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "zauberradius",
+          "text": "Zauberradius",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "inventarkapazitaet",
+          "text": "Inventarkapazität",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "kampfwerte",
+          "text": "Kampfwerte",
           "level": 3,
           "kind": "section"
         }

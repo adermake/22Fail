@@ -26,10 +26,13 @@ export const iconSpan = (name: string | undefined): string =>
 /** Sections are collapsible (native <details>); `collapsed` starts them closed. */
 const section: ContainerDirective = {
   name: 'section',
-  render: (attrs) => {
+  render: (attrs, env) => {
     const title = attrs['title'] ?? '';
     const id = attrs['id'] || (title ? slugify(title) : '');
     const collapsed = 'collapsed' in attrs || attrs['open'] === 'false';
+    // Register as a jump point so the live outline (tab dropdown / search) includes sections,
+    // not just markdown headings.
+    if (id && title) env.headings?.push({ id, level: 3, text: title, kind: 'section' });
     return {
       open:
         `<details class="rb-section"${collapsed ? '' : ' open'}${id ? ` id="${esc(id)}"` : ''}>` +

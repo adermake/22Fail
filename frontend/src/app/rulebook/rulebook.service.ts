@@ -56,7 +56,28 @@ export class RulebookService {
       console.warn(`[rulebook] ${id}:`, result.warnings);
     }
     this.pageCache.set(id, result); // only successes are cached
+    this.refreshOutline(id, result);
     return result;
+  }
+
+  /**
+   * Replace a page's manifest outline with the one derived from the content we just rendered.
+   *
+   * The manifest is generated at build time, so a heading added since the last
+   * `npm run rulebook:manifest` would be missing from the tab dropdown even though it is visibly
+   * on the page. Once a page has been rendered we know its real jump points — trust those.
+   */
+  private refreshOutline(id: string, result: RenderResult): void {
+    if (!result.headings.length) return;
+    const live = result.headings.map((h) => ({
+      id: h.id,
+      text: h.text,
+      level: h.level,
+      kind: h.kind ?? ('heading' as const),
+    }));
+    this.pages.update((pages) =>
+      pages.map((p) => (p.id === id ? { ...p, outline: live } : p)),
+    );
   }
 
   // ── Search ────────────────────────────────────────────────────────────────────

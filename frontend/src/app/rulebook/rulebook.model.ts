@@ -42,6 +42,7 @@ export interface RulebookHeading {
   id: string;
   level: number;
   text: string;
+  kind?: 'heading' | 'section';
 }
 
 /** Per-render state handed to markdown-it as its `env`. */
