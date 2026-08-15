@@ -1,4 +1,11 @@
-import { defaultBrush, lakeOutline, parseHex, toolLayer, TERRAIN_TOOLS } from './brush-engine';
+import {
+  defaultBrush,
+  lakeOutline,
+  paintPasses,
+  parseHex,
+  toolLayer,
+  TERRAIN_TOOLS,
+} from './brush-engine';
 import { hexToRgb } from './terrain-view';
 
 describe('terrain tools', () => {
@@ -23,11 +30,59 @@ describe('terrain tools', () => {
     }
   });
 
-  it('starts on a land brush with a usable default size', () => {
+  it('starts on a land brush painting white, not a preset colour', () => {
     const b = defaultBrush();
     expect(b.tool).toBe('landBrush');
     expect(b.size).toBeGreaterThan(0);
     expect(b.strength).toBeGreaterThan(0);
+    // Fresh land is blank paper to colour in.
+    expect(b.color).toBe('#ffffff');
+  });
+});
+
+describe('paint passes (colour baked at draw time)', () => {
+  it('writes both height and land colour when drawing land', () => {
+    // The whole point of baking: what you draw keeps the colour you drew it with, so no
+    // later setting can retroactively repaint it.
+    const passes = paintPasses('landBrush', 0x336699);
+    expect(passes.map(p => p.layer)).toEqual(['height', 'landColor']);
+    expect(passes[0].erase).toBe(false);
+    expect(passes[1].tint).toBe(0x336699);
+  });
+
+  it('takes the colour away with the land when erasing', () => {
+    const passes = paintPasses('landEraser', 0x336699);
+    expect(passes.every(p => p.erase)).toBe(true);
+    expect(passes.map(p => p.layer)).toEqual(['height', 'landColor']);
+  });
+
+  it('lowers height and colours water when drawing water', () => {
+    const passes = paintPasses('waterBrush', 0x112233);
+    expect(passes[0]).toEqual({ layer: 'height', erase: true, tint: 0xffffff });
+    expect(passes[1]).toEqual({ layer: 'waterColor', erase: false, tint: 0x112233 });
+  });
+
+  it('reshapes the coastline without disturbing colour already laid down', () => {
+    for (const tool of ['heighten', 'lower'] as const) {
+      const passes = paintPasses(tool, 0x336699);
+      expect(passes).toHaveLength(1);
+      expect(passes[0].layer).toBe('height');
+    }
+  });
+
+  it('always writes white into the height field', () => {
+    // Height reads alpha only; a coloured tint there would be silently meaningless.
+    for (const tool of TERRAIN_TOOLS) {
+      for (const pass of paintPasses(tool, 0x336699)) {
+        if (pass.layer === 'height') expect(pass.tint).toBe(0xffffff);
+      }
+    }
+  });
+
+  it('covers every tool', () => {
+    for (const tool of TERRAIN_TOOLS) {
+      expect(paintPasses(tool, 0xffffff).length).toBeGreaterThan(0);
+    }
   });
 });
 

@@ -45,7 +45,7 @@ export const TERRAIN_TOOLS: readonly TerrainTool[] = [
   'waterPaint',
 ];
 
-/** Which raster a tool writes into. */
+/** Which raster a tool writes into. For multi-pass tools this is the primary one. */
 export function toolLayer(tool: TerrainTool): RasterLayer {
   if (tool === 'landPaint') return 'landColor';
   if (tool === 'waterPaint') return 'waterColor';
@@ -55,6 +55,61 @@ export function toolLayer(tool: TerrainTool): RasterLayer {
 /** Whether a tool subtracts (erase blend) rather than adds. */
 function toolErases(tool: TerrainTool): boolean {
   return tool === 'landEraser' || tool === 'waterBrush' || tool === 'lower' || tool === 'lakeStamp';
+}
+
+export interface PaintPass {
+  layer: RasterLayer;
+  erase: boolean;
+  /** Tint for this pass; height passes are always white since only alpha is read. */
+  tint: number;
+}
+
+/**
+ * The raster passes a tool performs.
+ *
+ * Colour is committed *as terrain is drawn* rather than resolved later against an
+ * adjustable base. Drawing land also writes its colour, so what you drew keeps the colour
+ * you drew it with, and no later setting can retroactively repaint it. A fresh landmass
+ * defaults to white — blank paper to colour in, not a preset green.
+ */
+export function paintPasses(tool: TerrainTool, color: number): PaintPass[] {
+  switch (tool) {
+    case 'landBrush':
+      return [
+        { layer: 'height', erase: false, tint: 0xffffff },
+        { layer: 'landColor', erase: false, tint: color },
+      ];
+    case 'landEraser':
+      // Removing land takes its colour with it, so re-drawing there starts blank again.
+      return [
+        { layer: 'height', erase: true, tint: 0xffffff },
+        { layer: 'landColor', erase: true, tint: 0xffffff },
+      ];
+    case 'waterBrush':
+      return [
+        { layer: 'height', erase: true, tint: 0xffffff },
+        { layer: 'waterColor', erase: false, tint: color },
+      ];
+    case 'waterEraser':
+      return [
+        { layer: 'height', erase: false, tint: 0xffffff },
+        { layer: 'waterColor', erase: true, tint: 0xffffff },
+      ];
+    case 'lakeStamp':
+      return [
+        { layer: 'height', erase: true, tint: 0xffffff },
+        { layer: 'waterColor', erase: false, tint: color },
+      ];
+    // Raise/lower reshape the coastline without touching colour already laid down.
+    case 'heighten':
+      return [{ layer: 'height', erase: false, tint: 0xffffff }];
+    case 'lower':
+      return [{ layer: 'height', erase: true, tint: 0xffffff }];
+    case 'landPaint':
+      return [{ layer: 'landColor', erase: false, tint: color }];
+    case 'waterPaint':
+      return [{ layer: 'waterColor', erase: false, tint: color }];
+  }
 }
 
 /** Whether a tool's falloff is broken up by noise. */
@@ -124,7 +179,8 @@ export interface BrushSettings {
 }
 
 export function defaultBrush(): BrushSettings {
-  return { tool: 'landBrush', size: 120, softness: 0.35, strength: 1, color: '#7a8f5a' };
+  // White: freshly drawn land is blank, not a preset green.
+  return { tool: 'landBrush', size: 120, softness: 0.35, strength: 1, color: '#ffffff' };
 }
 
 /** Deterministic value noise, so a lake shape is reproducible from its seed. */
@@ -203,38 +259,30 @@ export class BrushEngine {
     this.lastPoint = p;
   }
 
-  /** Single stamp at a point. */
+  /** Single stamp at a point, applying every raster pass the tool performs. */
   dab(p: { x: number; y: number }, brush: BrushSettings): void {
-    const layer = toolLayer(brush.tool);
-    const erase = toolErases(brush.tool);
-
-    this.host.removeChildren();
-
-    // Paint tools carry colour; height tools only ever write alpha, so white is right.
-    const tint = layer === 'height' ? 0xffffff : parseHex(brush.color);
-
-    if (toolIsNoisy(brush.tool)) {
-      this.buildNoisyDab(p, brush, tint);
-    } else {
-      const s = this.take(0, this.dabs.get(brush.softness));
-      s.position.set(p.x, p.y);
-      s.scale.set((brush.size * 2) / DAB_TEXELS);
-      s.alpha = brush.strength;
-      s.tint = tint;
-    }
-
-    this.host.blendMode = erase ? 'erase' : 'normal';
-
+    const color = parseHex(brush.color);
     const r = brush.size;
-    const bounds: Bounds = {
-      minX: p.x - r,
-      minY: p.y - r,
-      maxX: p.x + r,
-      maxY: p.y + r,
-    };
+    const bounds: Bounds = { minX: p.x - r, minY: p.y - r, maxX: p.x + r, maxY: p.y + r };
 
-    for (const rec of this.chunks.paintWorld(layer, this.host, bounds)) {
-      this.strokeTouched.add(rec);
+    for (const pass of paintPasses(brush.tool, color)) {
+      this.host.removeChildren();
+
+      if (toolIsNoisy(brush.tool)) {
+        this.buildNoisyDab(p, brush, pass.tint);
+      } else {
+        const s = this.take(0, this.dabs.get(brush.softness));
+        s.position.set(p.x, p.y);
+        s.scale.set((brush.size * 2) / DAB_TEXELS);
+        s.alpha = brush.strength;
+        s.tint = pass.tint;
+      }
+
+      this.host.blendMode = pass.erase ? 'erase' : 'normal';
+
+      for (const rec of this.chunks.paintWorld(pass.layer, this.host, bounds)) {
+        this.strokeTouched.add(rec);
+      }
     }
 
     this.host.removeChildren();
@@ -271,26 +319,25 @@ export class BrushEngine {
     return lakeOutline(cx, cy, radius, seed);
   }
 
-  /** Carve a lake into the height field. Returns the chunks it touched. */
-  stampLake(cx: number, cy: number, radius: number, seed: number): ChunkRecord[] {
-    const g = new Graphics()
-      .poly(this.lakeOutline(cx, cy, radius, seed))
-      .fill({ color: 0xffffff, alpha: 1 });
-
-    this.host.removeChildren();
-    this.host.blendMode = 'erase';
-    this.host.addChild(g);
-
+  /** Carve a lake into the height field and colour its water. */
+  stampLake(cx: number, cy: number, radius: number, seed: number, color: string): ChunkRecord[] {
+    const outline = this.lakeOutline(cx, cy, radius, seed);
     const r = radius * 1.4; // the wobble can push past the nominal radius
-    const touched = this.chunks.paintWorld('height', this.host, {
-      minX: cx - r,
-      minY: cy - r,
-      maxX: cx + r,
-      maxY: cy + r,
-    });
+    const bounds: Bounds = { minX: cx - r, minY: cy - r, maxX: cx + r, maxY: cy + r };
+    const touched: ChunkRecord[] = [];
 
-    this.host.removeChildren();
-    g.destroy();
+    for (const pass of paintPasses('lakeStamp', parseHex(color))) {
+      const g = new Graphics().poly(outline).fill({ color: pass.tint, alpha: 1 });
+
+      this.host.removeChildren();
+      this.host.blendMode = pass.erase ? 'erase' : 'normal';
+      this.host.addChild(g);
+
+      touched.push(...this.chunks.paintWorld(pass.layer, this.host, bounds));
+
+      this.host.removeChildren();
+      g.destroy();
+    }
 
     for (const rec of touched) this.strokeTouched.add(rec);
     return touched;

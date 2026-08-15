@@ -166,13 +166,12 @@ export type AnyMapObject = MapSymbol | MapLabel | MapRegion | MapMarker;
 
 export interface MapSettings {
   /**
-   * Base colours for unpainted terrain.
+   * Colour of open sea — the canvas nothing has been drawn on yet.
    *
-   * Deliberately separate from the palettes: the palettes are *brush* colours, so selecting
-   * a swatch loads the brush without repainting the whole map. Changing a base here is the
-   * only thing that recolours untouched terrain.
+   * There is deliberately no land equivalent. Land colour is baked as terrain is drawn, so
+   * what you drew keeps the colour you drew it with; a global "land base" would let a later
+   * setting retroactively repaint ground you had already coloured on purpose.
    */
-  landBase: string;
   waterBase: string;
   /** Paper texture asset key, multiplied over the whole terrain stack. */
   paperTexture: string;
@@ -183,7 +182,6 @@ export interface MapSettings {
 
 export function defaultSettings(): MapSettings {
   return {
-    landBase: '#7a8f5a',
     waterBase: '#3f6d8c',
     paperTexture: '',
     paperOpacity: 0.35,

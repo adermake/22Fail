@@ -303,6 +303,59 @@ function toPaperTexture(src) {
   return { png: out, size };
 }
 
+/**
+ * Extract Wonderdraft's UI icons.
+ *
+ * The extract keeps icons only as Godot `.stex` containers plus `.import` stubs — the
+ * plain PNGs are gone. A `.stex` in lossless mode is a short header followed by a complete
+ * embedded PNG, so slicing from the PNG signature to the end recovers the original file
+ * (PNG decoders stop at IEND and ignore any trailing bytes).
+ *
+ * Using the real icons matters: a toolbar of German words is unreadable at a glance next to
+ * the tool shapes the user already knows from Wonderdraft.
+ */
+async function buildIcons() {
+  const iconDir = join(HERE, 'DraftExtract', 'icons');
+  const importDir = join(HERE, 'DraftExtract', '.import');
+  if (!existsSync(iconDir) || !existsSync(importDir)) return [];
+
+  const outDir = join(OUT, 'icons');
+  await mkdir(outDir, { recursive: true });
+
+  const stubs = (await readdir(iconDir)).filter(f => f.endsWith('.png.import')).sort();
+  const names = [];
+
+  for (const stub of stubs) {
+    const name = stub.replace(/\.png\.import$/, '');
+
+    // The stub names the container, which carries a content hash we cannot guess.
+    const text = await readFile(join(iconDir, stub), 'utf-8');
+    const m = /path="res:\/\/\.import\/([^"]+)"/.exec(text);
+    if (!m) continue;
+
+    let raw;
+    try {
+      raw = await readFile(join(importDir, m[1]));
+    } catch {
+      continue; // container missing from the extract
+    }
+
+    const start = raw.indexOf(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    if (start < 0) continue; // not a lossless PNG payload (raw or compressed format)
+
+    // Some containers pad after the payload. Cut at the IEND chunk (4-byte type plus its
+    // 4-byte CRC) rather than at end-of-file, or strict decoders reject the trailing bytes.
+    const iend = raw.indexOf('IEND', start, 'ascii');
+    const end = iend < 0 ? raw.length : iend + 8;
+
+    await writeFile(join(outDir, `${name}.png`), raw.subarray(start, end));
+    names.push(name);
+  }
+
+  console.log(`[map-atlas] extracted ${names.length} icons`);
+  return names;
+}
+
 async function buildPaperTextures() {
   if (!existsSync(TEXTURE_SRC)) return [];
 
@@ -385,6 +438,7 @@ async function main() {
 
   console.log('[map-atlas] building paper textures …');
   const paperTextures = await buildPaperTextures();
+  const icons = await buildIcons();
 
   // Deliberately no timestamp: the manifest is committed, and a generation time would make
   // every rebuild a diff even when nothing about the sprite library changed. Packing is
@@ -393,6 +447,7 @@ async function main() {
   const manifest = {
     pages: pageFiles,
     paperTextures,
+    icons,
     categories: {},
     groups: {},
     sprites: {},

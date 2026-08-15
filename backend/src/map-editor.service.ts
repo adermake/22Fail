@@ -85,8 +85,8 @@ export class MapEditorService {
       landPalette: ['#7a8f5a', '#8fa06b', '#a8b581', '#c2c79a', '#6b7d4e'],
       waterPalette: ['#3f6d8c', '#4f7f9e', '#6394b0', '#2e5670'],
       settings: {
-        // Base colours for unpainted terrain — distinct from the brush palettes below.
-        landBase: '#7a8f5a',
+        // Colour of open sea. There is no land equivalent: land colour is baked as terrain
+        // is drawn, so nothing can retroactively repaint ground the user already coloured.
         waterBase: '#3f6d8c',
         paperTexture: '',
         paperOpacity: 0.35,

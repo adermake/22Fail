@@ -12,6 +12,8 @@
     <span class="sep"></span>
 
     <button type="button" [class.active]="showGrid()" (click)="toggleGrid()">Hexgitter</button>
+    <button type="button" [disabled]="!canUndo()" (click)="undo()" title="Strg+Z">↶</button>
+    <button type="button" [disabled]="!canRedo()" (click)="redo()" title="Strg+Shift+Z">↷</button>
 
     <span class="spacer"></span>
 
@@ -27,139 +29,109 @@
 
   <div class="editor-body">
     @if (isGM()) {
-      <aside class="tool-panel">
-        <div class="panel-section">
-          <div class="mode-tabs">
-            <button type="button" [class.active]="mode() === 'terrain'" (click)="setMode('terrain')">
-              Gelände
-            </button>
+      <!-- LEFT: tabs and their tools, as icons only. -->
+      <aside class="tool-rail">
+        <div class="tab-strip">
+          @for (t of tabs; track t.id) {
             <button
               type="button"
-              [class.active]="mode() === 'symbols'"
-              [disabled]="!assetsReady()"
-              [title]="assetsError() ?? 'Symbole platzieren'"
-              (click)="setMode('symbols')"
+              class="rail-btn tab"
+              [class.active]="tab() === t.id"
+              [title]="t.label"
+              (click)="selectTab(t.id)"
             >
-              Symbole
+              <img [src]="icon(t.icon)" [alt]="t.label" />
             </button>
-            <button type="button" [class.active]="mode() === 'select'" (click)="setMode('select')">
-              Auswahl
-            </button>
-          </div>
+          }
         </div>
 
-        @if (assetsError()) {
-          <div class="panel-section">
-            <p class="asset-error">{{ assetsError() }}</p>
-          </div>
+        <div class="rail-divider"></div>
+
+        @if (tab() === 'terrain') {
+          @for (t of terrainTools; track t.id) {
+            <button
+              type="button"
+              class="rail-btn"
+              [class.active]="terrainTool() === t.id"
+              [title]="t.label"
+              (click)="selectTerrainTool(t.id)"
+            >
+              <img [src]="icon(t.icon)" [alt]="t.label" />
+            </button>
+          }
         }
 
-        @if (mode() === 'symbols') {
-          <div class="panel-section">
-            <div class="panel-title">Kategorie</div>
-            <div class="mode-tabs">
-              @for (c of categories; track c.id) {
-                <button
-                  type="button"
-                  [class.active]="activeCategory() === c.id"
-                  (click)="selectCategory(c.id)"
-                >
-                  {{ c.label }}
-                </button>
-              }
-            </div>
-          </div>
-
-          <div class="panel-section">
-            <div class="panel-title">Gruppe</div>
-            <select
-              class="paper-select"
-              [value]="activeGroup()"
-              (change)="selectGroup($any($event.target).value)"
+        @if (tab() === 'symbols') {
+          @for (t of symbolTools; track t.id) {
+            <button
+              type="button"
+              class="rail-btn"
+              [class.active]="symbolTool() === t.id"
+              [disabled]="!assetsReady()"
+              [title]="t.label"
+              (click)="selectSymbolTool(t.id)"
             >
-              @for (g of groups(); track g.id) {
-                <option [value]="g.id">{{ g.name }}</option>
-              }
-            </select>
+              <img [src]="icon(t.icon)" [alt]="t.label" />
+            </button>
+          }
+        }
+      </aside>
+    }
 
+    <div class="viewer-wrap">
+      <div
+        #pixiHost
+        class="pixi-host"
+        [class.brush-cursor]="isGM() && tab() === 'terrain'"
+        [class.place-cursor]="isPlacingSymbols()"
+      ></div>
+
+      @if (marquee(); as m) {
+        <div
+          class="marquee"
+          [style.left.px]="m.x"
+          [style.top.px]="m.y"
+          [style.width.px]="m.w"
+          [style.height.px]="m.h"
+        ></div>
+      }
+
+      @if (!ready()) {
+        <div class="loading-overlay">Karte wird geladen …</div>
+      }
+
+      <div class="status-bar">
+        <span>{{ activeToolLabel() }}</span>
+        <span>x {{ cursorWorld().x }} · y {{ cursorWorld().y }}</span>
+        <span>Hex {{ cursorHex().q }},{{ cursorHex().r }}</span>
+        <span>{{ kmPerHex }} km / Hex</span>
+      </div>
+    </div>
+
+    @if (isGM()) {
+      <!-- RIGHT: settings for the active tool only. -->
+      <aside class="settings-panel">
+        <div class="settings-title">{{ activeToolLabel() }}</div>
+
+        @if (assetsError()) {
+          <p class="asset-error">{{ assetsError() }}</p>
+        }
+
+        @if (showBrushSettings()) {
+          <div class="panel-section">
             <label class="slider-row">
               <span>Größe</span>
               <input
                 type="range"
-                min="0.1"
-                max="4"
-                step="0.05"
-                [value]="symbolScale()"
-                (input)="setSymbolScale($any($event.target).value)"
+                min="4"
+                max="800"
+                step="1"
+                [value]="brushSize()"
+                (input)="setBrushSize($any($event.target).value)"
               />
-              <em>{{ symbolScale().toFixed(2) }}×</em>
+              <em>{{ brushSize() }}</em>
             </label>
 
-            <label class="check-row" title="Nur für den GM sichtbar, bis aufgedeckt">
-              <input
-                type="checkbox"
-                [checked]="placeSecret()"
-                (change)="placeSecret.set($any($event.target).checked)"
-              />
-              <span>Als Geheimnis platzieren</span>
-            </label>
-
-            <p class="hint">Klick platziert · Alt+Klick entfernt</p>
-          </div>
-        }
-
-        @if (mode() === 'select') {
-          <div class="panel-section">
-            <div class="panel-title">Auswahl</div>
-            @if (selectedIds().length) {
-              <p class="hint">{{ selectedIds().length }} ausgewählt · ziehen zum Verschieben</p>
-              <div class="history-row">
-                <button type="button" (click)="toggleSelectedSecret()">Geheim umschalten</button>
-              </div>
-              <div class="history-row">
-                <button type="button" (click)="deleteSelected()">Löschen (Entf)</button>
-              </div>
-            } @else {
-              <p class="hint">Symbol anklicken · Shift für Mehrfachauswahl</p>
-            }
-          </div>
-        }
-
-        @if (mode() === 'terrain') {
-          <div class="panel-section">
-            <div class="panel-title">Werkzeug</div>
-            <div class="tool-grid">
-              @for (t of tools; track t.tool) {
-                <button
-                  type="button"
-                  class="tool-btn"
-                  [class.active]="activeTool() === t.tool"
-                  [title]="t.title"
-                  (click)="selectTool(t.tool)"
-                >
-                  {{ t.label }}
-                </button>
-              }
-            </div>
-          </div>
-
-        <div class="panel-section">
-          <div class="panel-title">Pinsel</div>
-
-          <label class="slider-row">
-            <span>Größe</span>
-            <input
-              type="range"
-              min="4"
-              max="800"
-              step="1"
-              [value]="brushSize()"
-              (input)="setBrushSize($any($event.target).value)"
-            />
-            <em>{{ brushSize() }}</em>
-          </label>
-
-          @if (activeTool() !== 'lakeStamp') {
             <label class="slider-row">
               <span>Weichheit</span>
               <input
@@ -185,170 +157,245 @@
               />
               <em>{{ (brushStrength() * 100).toFixed(0) }}%</em>
             </label>
-          }
 
-          <p class="hint">Shift + ziehen oder Strg + Mausrad ändert die Größe.</p>
-        </div>
+            <p class="hint">Shift + ziehen oder Strg + Mausrad ändert die Größe.</p>
+          </div>
         }
 
-        <!-- Colours and paper are map-wide appearance, so they stay visible in every mode:
-             the land colour also tints every colourable symbol. -->
-        <div class="panel-section">
-          <div class="panel-title">Land</div>
-
-          <label class="base-row" title="Grundfarbe von unbemaltem Land">
-            <span>Grundfarbe</span>
-            <input
-              type="color"
-              [value]="landBase()"
-              (input)="setLandBase($any($event.target).value)"
-            />
-          </label>
-
-          <div class="panel-subtitle">Palette (Pinselfarbe)</div>
-          <div class="swatches">
-            @for (c of landPalette(); track $index) {
-              <span class="swatch-wrap">
-                <button
-                  type="button"
-                  class="swatch"
-                  [class.active]="selectedLand() === $index"
-                  [style.background]="c"
-                  [title]="c + ' — Rechtsklick entfernt, Doppelklick ändert'"
-                  (click)="selectLandColor($index)"
-                  (dblclick)="landEdit.click()"
-                  (contextmenu)="removeLandColor($index); $event.preventDefault()"
-                ></button>
-                <input
-                  #landEdit
-                  type="color"
-                  class="hidden-color"
-                  [value]="c"
-                  (input)="editLandColor($index, $any($event.target).value)"
-                />
-              </span>
-            }
-            <label class="swatch add" title="Farbe wählen und hinzufügen">
-              +
-              <input
-                type="color"
-                class="hidden-color"
-                value="#7a8f5a"
-                (change)="addLandColor($any($event.target).value)"
-              />
-            </label>
-          </div>
-        </div>
-
-        <div class="panel-section">
-          <div class="panel-title">Wasser</div>
-
-          <label class="base-row" title="Grundfarbe von offenem Wasser">
-            <span>Grundfarbe</span>
-            <input
-              type="color"
-              [value]="waterBase()"
-              (input)="setWaterBase($any($event.target).value)"
-            />
-          </label>
-
-          <div class="panel-subtitle">Palette (Pinselfarbe)</div>
-          <div class="swatches">
-            @for (c of waterPalette(); track $index) {
-              <span class="swatch-wrap">
-                <button
-                  type="button"
-                  class="swatch"
-                  [class.active]="selectedWater() === $index"
-                  [style.background]="c"
-                  [title]="c + ' — Rechtsklick entfernt, Doppelklick ändert'"
-                  (click)="selectWaterColor($index)"
-                  (dblclick)="waterEdit.click()"
-                  (contextmenu)="removeWaterColor($index); $event.preventDefault()"
-                ></button>
-                <input
-                  #waterEdit
-                  type="color"
-                  class="hidden-color"
-                  [value]="c"
-                  (input)="editWaterColor($index, $any($event.target).value)"
-                />
-              </span>
-            }
-            <label class="swatch add" title="Farbe wählen und hinzufügen">
-              +
-              <input
-                type="color"
-                class="hidden-color"
-                value="#3f6d8c"
-                (change)="addWaterColor($any($event.target).value)"
-              />
-            </label>
-          </div>
-        </div>
-
-        @if (paperOptions().length) {
+        @if (tab() === 'terrain' && terrainTool() === 'lakeStamp') {
           <div class="panel-section">
-            <div class="panel-title">Papierstruktur</div>
+            <label class="slider-row">
+              <span>Größe</span>
+              <input
+                type="range"
+                min="20"
+                max="1200"
+                step="1"
+                [value]="brushSize()"
+                (input)="setBrushSize($any($event.target).value)"
+              />
+              <em>{{ brushSize() }}</em>
+            </label>
+            <p class="hint">Jeder Klick erzeugt eine neue Form.</p>
+          </div>
+        }
 
-            <select
-              class="paper-select"
-              [value]="paperTexture()"
-              (change)="selectPaper($any($event.target).value)"
-            >
-              <option value="">Keine</option>
-              @for (p of paperOptions(); track p.id) {
-                <option [value]="p.id">{{ p.name }}</option>
+        @if (showLandPalette()) {
+          <div class="panel-section">
+            <div class="panel-title">Landfarbe</div>
+            <div class="swatches">
+              @for (c of landPalette(); track $index) {
+                <span class="swatch-wrap">
+                  <button
+                    type="button"
+                    class="swatch"
+                    [class.active]="selectedLand() === $index"
+                    [style.background]="c"
+                    [title]="c + ' — Rechtsklick entfernt, Doppelklick ändert'"
+                    (click)="selectLandColor($index)"
+                    (dblclick)="landEdit.click()"
+                    (contextmenu)="removeLandColor($index); $event.preventDefault()"
+                  ></button>
+                  <input
+                    #landEdit
+                    type="color"
+                    class="hidden-color"
+                    [value]="c"
+                    (input)="editLandColor($index, $any($event.target).value)"
+                  />
+                </span>
               }
-            </select>
-
-            @if (paperTexture()) {
-              <label class="slider-row">
-                <span>Stärke</span>
+              <label class="swatch add" title="Farbe wählen und hinzufügen">
+                +
                 <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  [value]="paperOpacity()"
-                  (input)="setPaperOpacity($any($event.target).value)"
+                  type="color"
+                  class="hidden-color"
+                  value="#7a8f5a"
+                  (change)="addLandColor($any($event.target).value)"
                 />
-                <em>{{ (paperOpacity() * 100).toFixed(0) }}%</em>
               </label>
+            </div>
+            <p class="hint">Ohne Auswahl wird neues Land weiß gezeichnet.</p>
+          </div>
+        }
+
+        @if (showWaterPalette()) {
+          <div class="panel-section">
+            <div class="panel-title">Wasserfarbe</div>
+            <div class="swatches">
+              @for (c of waterPalette(); track $index) {
+                <span class="swatch-wrap">
+                  <button
+                    type="button"
+                    class="swatch"
+                    [class.active]="selectedWater() === $index"
+                    [style.background]="c"
+                    [title]="c + ' — Rechtsklick entfernt, Doppelklick ändert'"
+                    (click)="selectWaterColor($index)"
+                    (dblclick)="waterEdit.click()"
+                    (contextmenu)="removeWaterColor($index); $event.preventDefault()"
+                  ></button>
+                  <input
+                    #waterEdit
+                    type="color"
+                    class="hidden-color"
+                    [value]="c"
+                    (input)="editWaterColor($index, $any($event.target).value)"
+                  />
+                </span>
+              }
+              <label class="swatch add" title="Farbe wählen und hinzufügen">
+                +
+                <input
+                  type="color"
+                  class="hidden-color"
+                  value="#3f6d8c"
+                  (change)="addWaterColor($any($event.target).value)"
+                />
+              </label>
+            </div>
+          </div>
+        }
+
+        @if (isPlacingSymbols()) {
+          <div class="panel-section">
+            <div class="panel-title">Gruppe</div>
+            <div class="group-list">
+              @for (g of groups(); track g.id) {
+                <button
+                  type="button"
+                  class="group-btn"
+                  [class.active]="activeGroup() === g.id"
+                  (click)="selectGroup(g.id)"
+                >
+                  {{ g.name }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-title">Symbol</div>
+            <div class="sprite-grid">
+              @for (s of groupSprites(); track s) {
+                <button
+                  type="button"
+                  class="sprite-cell"
+                  [class.active]="currentSprite() === s"
+                  [title]="spriteName(s)"
+                  (click)="selectSprite(s)"
+                >
+                  <span class="sprite-thumb" [ngStyle]="spriteThumb(s)"></span>
+                </button>
+              }
+            </div>
+            <p class="hint">Shift + Mausrad wechselt zum nächsten Symbol.</p>
+          </div>
+
+          <div class="panel-section">
+            <label class="slider-row">
+              <span>Größe</span>
+              <input
+                type="range"
+                min="0.05"
+                max="8"
+                step="0.05"
+                [value]="symbolScale()"
+                (input)="setSymbolScale($any($event.target).value)"
+              />
+              <em>{{ symbolScale().toFixed(2) }}×</em>
+            </label>
+
+            <label class="check-row">
+              <input
+                type="checkbox"
+                [checked]="autoVary()"
+                (change)="autoVary.set($any($event.target).checked)"
+              />
+              <span>Nach dem Setzen variieren</span>
+            </label>
+
+            <label class="check-row" title="Nur für den GM sichtbar, bis aufgedeckt">
+              <input
+                type="checkbox"
+                [checked]="placeSecret()"
+                (change)="placeSecret.set($any($event.target).checked)"
+              />
+              <span>Als Geheimnis platzieren</span>
+            </label>
+
+            <p class="hint">Shift + ziehen skaliert · Alt + Klick entfernt</p>
+          </div>
+        }
+
+        @if (isSelecting()) {
+          <div class="panel-section">
+            @if (selectedIds().length) {
+              <p class="hint">{{ selectedIds().length }} ausgewählt</p>
+              <div class="history-row">
+                <button type="button" (click)="scaleSelected(1 / 1.2)">Kleiner</button>
+                <button type="button" (click)="scaleSelected(1.2)">Größer</button>
+              </div>
+              <div class="history-row">
+                <button type="button" (click)="toggleSelectedSecret()">Geheim umschalten</button>
+              </div>
+              <div class="history-row">
+                <button type="button" (click)="deleteSelected()">Löschen (Entf)</button>
+              </div>
+            } @else {
+              <p class="hint">
+                Symbol anklicken oder Rahmen ziehen · Shift für Mehrfachauswahl · ziehen zum
+                Verschieben
+              </p>
             }
           </div>
         }
 
-        <div class="panel-section">
-          <div class="panel-title">Verlauf</div>
-          <div class="history-row">
-            <button type="button" [disabled]="!canUndo()" (click)="undo()" title="Strg+Z">
-              Rückgängig
-            </button>
-            <button type="button" [disabled]="!canRedo()" (click)="redo()" title="Strg+Shift+Z">
-              Wiederholen
-            </button>
+        @if (tab() === 'map') {
+          <div class="panel-section">
+            <div class="panel-title">Meerfarbe</div>
+            <label class="base-row" title="Farbe von offenem Wasser">
+              <span>Offenes Wasser</span>
+              <input
+                type="color"
+                [value]="waterBase()"
+                (input)="setWaterBase($any($event.target).value)"
+              />
+            </label>
           </div>
-          <p class="hint">Gilt für Geländemalerei.</p>
-        </div>
+
+          @if (paperOptions().length) {
+            <div class="panel-section">
+              <div class="panel-title">Papierstruktur</div>
+              <select
+                class="paper-select"
+                [value]="paperTexture()"
+                (change)="selectPaper($any($event.target).value)"
+              >
+                <option value="">Keine</option>
+                @for (p of paperOptions(); track p.id) {
+                  <option [value]="p.id">{{ p.name }}</option>
+                }
+              </select>
+
+              @if (paperTexture()) {
+                <label class="slider-row">
+                  <span>Stärke</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    [value]="paperOpacity()"
+                    (input)="setPaperOpacity($any($event.target).value)"
+                  />
+                  <em>{{ (paperOpacity() * 100).toFixed(0) }}%</em>
+                </label>
+              }
+            </div>
+          }
+        }
       </aside>
     }
-
-    <div class="viewer-wrap">
-      <div #pixiHost class="pixi-host" [class.painting]="isGM()"></div>
-
-      @if (!ready()) {
-        <div class="loading-overlay">Karte wird geladen …</div>
-      }
-
-      <div class="status-bar">
-        <span>x {{ cursorWorld().x }} · y {{ cursorWorld().y }}</span>
-        <span>Hex {{ cursorHex().q }},{{ cursorHex().r }}</span>
-        <span>{{ kmPerHex }} km / Hex</span>
-        @if (isGM()) {
-          <span class="dim">Mittlere/rechte Maustaste: bewegen</span>
-        }
-      </div>
-    </div>
   </div>
 </div>

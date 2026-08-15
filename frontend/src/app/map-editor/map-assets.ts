@@ -142,6 +142,35 @@ export class MapAssets {
     return this.manifest?.sprites[id] ?? null;
   }
 
+  /**
+   * CSS for a sprite thumbnail, cut from its atlas page with background-position.
+   *
+   * The picker has to show the actual artwork — a list of names like `house_small` is
+   * unusable for choosing a symbol. Slicing the atlas in CSS means no second set of
+   * thumbnail files to generate, ship or keep in sync.
+   */
+  thumbStyle(id: string, box: number): Record<string, string> {
+    const meta = this.manifest?.sprites[id];
+    const page = meta ? this.manifest?.pages[meta.page] : null;
+    if (!meta || !page) return {};
+
+    // Fit the longest side into the box; small sprites are not blown up past 1:1.
+    const scale = Math.min(box / Math.max(meta.w, meta.h), 1);
+    const w = meta.w * scale;
+    const h = meta.h * scale;
+
+    return {
+      'background-image': `url(${BASE}/${page.file})`,
+      'background-size': `${page.width * scale}px ${page.height * scale}px`,
+      'background-position': `${-meta.x * scale}px ${-meta.y * scale}px`,
+      'background-repeat': 'no-repeat',
+      width: `${w}px`,
+      height: `${h}px`,
+      // Centre the (usually smaller) sprite inside its cell.
+      margin: `${(box - h) / 2}px ${(box - w) / 2}px`,
+    };
+  }
+
   group(id: string): GroupMeta | null {
     return this.manifest?.groups[id] ?? null;
   }

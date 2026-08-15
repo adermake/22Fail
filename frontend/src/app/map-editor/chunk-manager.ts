@@ -22,7 +22,7 @@
  * field rather than stacked over it.
  */
 
-import { Container, Matrix, Renderer, RenderTexture, Sprite, Texture } from 'pixi.js';
+import { Container, Matrix, Rectangle, Renderer, RenderTexture, Sprite, Texture } from 'pixi.js';
 import {
   CHUNK_WORLD_SIZE,
   LAYER_TEXELS,
@@ -256,6 +256,44 @@ export class ChunkManager {
 
     this.stampHost.removeChildren();
     return touched;
+  }
+
+  /**
+   * Read a single texel of a layer at a world position.
+   *
+   * Used to colour `sample_color` symbols from the ground actually beneath them, which is
+   * what Wonderdraft does — taking a global land colour instead would be visibly wrong
+   * wherever the map has been painted more than one shade.
+   *
+   * This is a GPU readback and therefore a stall, so it must stay on discrete actions
+   * (placing or moving a symbol), never anything per-frame.
+   *
+   * Returns null where nothing has been painted, so callers can fall back.
+   */
+  sampleWorld(layer: RasterLayer, x: number, y: number): { r: number; g: number; b: number } | null {
+    const cx = Math.floor(x / CHUNK_WORLD_SIZE);
+    const cy = Math.floor(y / CHUNK_WORLD_SIZE);
+    const rec = this.chunks.get(chunkKey(layer, cx, cy));
+    if (!rec || !rec.loaded) return null;
+
+    const s = 1 / layerScale(layer);
+    const tx = Math.floor((x - cx * CHUNK_WORLD_SIZE) * s);
+    const ty = Math.floor((y - cy * CHUNK_WORLD_SIZE) * s);
+    const texels = LAYER_TEXELS[layer];
+    if (tx < 0 || ty < 0 || tx >= texels || ty >= texels) return null;
+
+    try {
+      const { pixels } = this.renderer.extract.pixels({
+        target: rec.texture,
+        frame: new Rectangle(tx, ty, 1, 1),
+      });
+      // Alpha is coverage; zero means unpainted, which is not a colour.
+      if (!pixels || pixels[3] === 0) return null;
+      return { r: pixels[0], g: pixels[1], b: pixels[2] };
+    } catch (err) {
+      console.error('[ChunkManager] sampleWorld failed', err);
+      return null;
+    }
   }
 
   /** Snapshot a chunk's pixels, for the undo stack. */

@@ -38,8 +38,13 @@ export class SymbolView {
   private active = new Map<string, Sprite>();
   private pool: Sprite[] = [];
 
-  /** Colour applied to `sample_color` symbols — Wonderdraft draws them in the land colour. */
-  private landColor = 0x7a8f5a;
+  /**
+   * Fallback for `sample_color` symbols placed where no land colour was painted.
+   *
+   * White, matching blank land — each symbol otherwise carries a `tint` sampled from the
+   * ground beneath it at placement, so this is only the unpainted case.
+   */
+  private landColor = 0xffffff;
   private selected = new Set<string>();
 
   constructor(private assets: MapAssets) {

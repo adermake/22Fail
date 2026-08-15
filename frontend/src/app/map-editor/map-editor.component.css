@@ -7,7 +7,7 @@
   color: #e6e6ea;
 }
 
-/* ── toolbar ── */
+/* ── top bar ── */
 
 .editor-toolbar {
   display: flex;
@@ -30,13 +30,18 @@
   cursor: pointer;
 }
 
-.editor-toolbar button:hover {
+.editor-toolbar button:hover:not(:disabled) {
   background: #343440;
 }
 
 .editor-toolbar button.active {
   background: #3d5a80;
   border-color: #4f7fb0;
+}
+
+.editor-toolbar button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .world-name {
@@ -89,15 +94,97 @@
   min-height: 0;
 }
 
-/* ── tool panel ── */
+/* ── left tool rail ── */
 
-.tool-panel {
-  flex: 0 0 214px;
-  overflow-y: auto;
+.tool-rail {
+  flex: 0 0 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
   background: #1c1c22;
   border-right: 1px solid #2e2e37;
+  overflow-y: auto;
+  user-select: none;
+}
+
+.tab-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rail-divider {
+  width: 32px;
+  height: 1px;
+  background: #33333d;
+  margin: 4px 0;
+  flex: 0 0 auto;
+}
+
+.rail-btn {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2a2a33;
+  border: 1px solid #3a3a46;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.rail-btn img {
+  width: 28px;
+  height: 28px;
+  /* Wonderdraft's icons are light-on-transparent, which suits this dark panel as-is. */
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.rail-btn:hover:not(:disabled) {
+  background: #343440;
+}
+
+.rail-btn.active {
+  background: #3d5a80;
+  border-color: #6d9fd0;
+}
+
+.rail-btn.tab {
+  background: #24242c;
+}
+
+.rail-btn.tab.active {
+  background: #4a3a6b;
+  border-color: #8a6fc0;
+}
+
+.rail-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ── right settings panel ── */
+
+.settings-panel {
+  flex: 0 0 232px;
+  overflow-y: auto;
+  background: #1c1c22;
+  border-left: 1px solid #2e2e37;
   padding: 10px;
   user-select: none;
+}
+
+.settings-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #2e2e37;
 }
 
 .panel-section {
@@ -112,34 +199,9 @@
   margin-bottom: 6px;
 }
 
-.tool-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-}
-
-.tool-btn {
-  background: #2a2a33;
-  color: #e6e6ea;
-  border: 1px solid #3a3a46;
-  border-radius: 5px;
-  padding: 6px 4px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.tool-btn:hover {
-  background: #343440;
-}
-
-.tool-btn.active {
-  background: #3d5a80;
-  border-color: #6d9fd0;
-}
-
 .slider-row {
   display: grid;
-  grid-template-columns: 58px 1fr 40px;
+  grid-template-columns: 58px 1fr 44px;
   align-items: center;
   gap: 6px;
   font-size: 12px;
@@ -157,19 +219,33 @@
   font-variant-numeric: tabular-nums;
 }
 
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-top: 6px;
+  cursor: pointer;
+}
+
 .hint {
   font-size: 11px;
   opacity: 0.45;
   margin: 6px 0 0;
+  line-height: 1.4;
+}
+
+.asset-error {
+  margin: 0 0 12px;
+  padding: 7px 8px;
+  border-radius: 5px;
+  background: #4a2a2a;
+  border: 1px solid #7a4444;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 /* ── palettes ── */
-
-.panel-subtitle {
-  font-size: 11px;
-  opacity: 0.45;
-  margin: 8px 0 5px;
-}
 
 .base-row {
   display: flex;
@@ -200,7 +276,6 @@
   display: inline-flex;
 }
 
-/* The native picker is triggered from the swatch itself, so the input stays out of view. */
 .hidden-color {
   position: absolute;
   width: 100%;
@@ -210,11 +285,6 @@
   pointer-events: none;
   border: 0;
   padding: 0;
-}
-
-.swatch.add .hidden-color {
-  pointer-events: auto;
-  cursor: pointer;
 }
 
 .swatch {
@@ -243,69 +313,81 @@
   overflow: hidden;
 }
 
-.asset-error {
-  margin: 0;
-  padding: 7px 8px;
-  border-radius: 5px;
-  background: #4a2a2a;
-  border: 1px solid #7a4444;
-  font-size: 11px;
-  line-height: 1.4;
+.swatch.add .hidden-color {
+  pointer-events: auto;
+  cursor: pointer;
 }
 
-.mode-tabs {
+/* ── symbol picker ── */
+
+.group-list {
   display: flex;
-  gap: 4px;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 168px;
+  overflow-y: auto;
 }
 
-.mode-tabs button {
-  flex: 1;
+.group-btn {
   background: #2a2a33;
   color: #e6e6ea;
   border: 1px solid #3a3a46;
   border-radius: 5px;
-  padding: 5px 4px;
+  padding: 5px 7px;
   font-size: 12px;
+  text-align: left;
   cursor: pointer;
 }
 
-.mode-tabs button:hover:not(:disabled) {
+.group-btn:hover {
   background: #343440;
 }
 
-.mode-tabs button.active {
+.group-btn.active {
   background: #3d5a80;
   border-color: #6d9fd0;
 }
 
-.mode-tabs button:disabled {
-  opacity: 0.35;
-  cursor: default;
+.sprite-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
 }
 
-.check-row {
+.sprite-cell {
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  margin-top: 6px;
-  cursor: pointer;
-}
-
-.paper-select {
-  width: 100%;
-  background: #2a2a33;
-  color: #e6e6ea;
+  justify-content: center;
+  background: #24242c;
   border: 1px solid #3a3a46;
   border-radius: 5px;
-  padding: 5px;
-  font-size: 12px;
-  margin-bottom: 6px;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+}
+
+.sprite-cell:hover {
+  background: #343440;
+}
+
+.sprite-cell.active {
+  border-color: #6d9fd0;
+  background: #3d5a80;
+}
+
+/* Sized and positioned inline: the thumbnail is a slice of the shared atlas page. */
+.sprite-thumb {
+  display: block;
 }
 
 .history-row {
   display: flex;
   gap: 5px;
+  margin-bottom: 5px;
 }
 
 .history-row button {
@@ -319,9 +401,19 @@
   cursor: pointer;
 }
 
-.history-row button:disabled {
-  opacity: 0.35;
-  cursor: default;
+.history-row button:hover {
+  background: #343440;
+}
+
+.paper-select {
+  width: 100%;
+  background: #2a2a33;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 5px;
+  padding: 5px;
+  font-size: 12px;
+  margin-bottom: 6px;
 }
 
 /* ── viewer ── */
@@ -329,29 +421,32 @@
 .viewer-wrap {
   position: relative;
   flex: 1 1 auto;
-  min-height: 0;
+  min-width: 0;
 }
 
 .pixi-host {
   position: absolute;
   inset: 0;
-  /* The canvas handles its own gestures; browser panning would fight the camera. */
   touch-action: none;
-  cursor: grab;
+  cursor: default;
 }
 
-.pixi-host:active {
-  cursor: grabbing;
-}
-
-/* While editing, the brush ring is the cursor — a system arrow on top just gets in the way. */
-.pixi-host.painting,
-.pixi-host.painting:active {
+/* The brush ring stands in for the pointer while painting; the selector keeps a real
+   cursor, since there is no ring to show where you are. */
+.pixi-host.brush-cursor,
+.pixi-host.place-cursor {
   cursor: none;
 }
 
 .pixi-host canvas {
   display: block;
+}
+
+.marquee {
+  position: absolute;
+  border: 1px solid #8fd0ff;
+  background: rgba(143, 208, 255, 0.14);
+  pointer-events: none;
 }
 
 .loading-overlay {
