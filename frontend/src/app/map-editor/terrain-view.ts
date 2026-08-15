@@ -184,9 +184,10 @@ const MAX_TERRAIN_CELLS = 100;
  *
  * Overview cells cost almost nothing in memory (~47 KB each) but every one is still a draw
  * call, so this is the real limit on how wide a view can be — not the residency budget.
- * Sized to cover roughly a hundred hexes across, which is a whole-map view at this scale.
+ * Sized to reach ~4% zoom (about 130 hexes across). Below that the draw calls, not the
+ * memory, are what give out.
  */
-const MAX_OVERVIEW_CELLS = 900;
+const MAX_OVERVIEW_CELLS = 1400;
 
 
 /** Program is compiled once and shared; only the per-cell resources differ. */
@@ -364,8 +365,19 @@ export class TerrainView {
 
   private destroyCell(cell: Cell): void {
     this.container.removeChild(cell.mesh);
+
+    /*
+     * `Mesh.destroy` only nulls its shader reference — it does not free it. Every cell owns
+     * a Shader (with its own uniform group and bind groups), and cells are created and torn
+     * down constantly while panning, so leaving them to the collector leaked GL resources by
+     * the hundred and eventually produced garbage geometry on screen.
+     *
+     * `false` keeps the GlProgram: that one *is* shared across every cell.
+     */
+    const shader = cell.mesh.shader;
     // The geometry is shared across every cell, so it must outlive them.
     cell.mesh.destroy({ children: true });
+    shader?.destroy(false);
   }
 
   /** Forget a cell whose chunk textures were evicted; its shader now points at nothing. */

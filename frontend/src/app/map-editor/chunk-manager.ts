@@ -82,8 +82,8 @@ const MAX_RESIDENT_CELLS = 104;
  */
 export type DetailLevel = 0 | 1;
 const LOW_TEXELS = 64;
-/** Overview cells resident (~66 MB at 3 layers × 16 KB). */
-const MAX_LOW_CELLS = 1400;
+/** Overview cells resident (~80 MB at 3 layers × 16 KB). */
+const MAX_LOW_CELLS = 1700;
 /**
  * Above this many cells in view, stop streaming *new* ones and render what is resident.
  * Kept below the resident cap so the evictor always has slack to work with.
