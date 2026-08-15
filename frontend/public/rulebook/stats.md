@@ -47,7 +47,7 @@ Reaktion: 5 - Grundbonus
 
 ## Grundstats
 
-::::grid{min=300}
+:::grid{min=300}
 :::card{title="Stärke" icon=attack accent=health}
 :::formula
 Würfelbonus: Stärke / 5
@@ -102,7 +102,7 @@ Würfelbonus: Wille / 5
 :::
 Der Würfelbonus hilft bei allen Aktionen, die Wille voraussetzen.
 :::
-::::
+:::
 
 ## Konditionsstats
 

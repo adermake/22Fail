@@ -4,6 +4,41 @@
     <!-- Header -->
     <div class="rb-header">
       <h1 class="rb-title"><span class="app-icon i-ability"></span> Regelwerk</h1>
+
+      <div class="rb-searchbox">
+        <span class="app-icon i-lasso rb-search-ico"></span>
+        <input
+          class="rb-search"
+          type="text"
+          placeholder="Suchen … (Sprungmarken zuerst)"
+          [value]="query()"
+          (input)="onQueryChange($any($event.target).value)"
+          (keydown.escape)="clearSearch()" />
+        @if (query()) {
+          <button class="rb-search-clear" (click)="clearSearch()" title="Suche leeren">&times;</button>
+        }
+
+        @if (query().length > 1) {
+          <div class="rb-results">
+            @if (searching()) {
+              <div class="rb-results-empty">Suche läuft …</div>
+            } @else if (!results().length) {
+              <div class="rb-results-empty">Nichts gefunden für „{{ query() }}"</div>
+            } @else {
+              @for (hit of results(); track $index) {
+                <button class="rb-result" [class.rb-result--text]="hit.kind === 'text'"
+                        (click)="openHit(hit)">
+                  <span class="rb-result-kind">{{ hit.kind === 'jump' ? 'Sprungmarke' : 'Text' }}</span>
+                  <span class="rb-result-title">{{ hit.title }}</span>
+                  <span class="rb-result-page">{{ hit.pageTab }}</span>
+                  @if (hit.excerpt) { <span class="rb-result-excerpt">{{ hit.excerpt }}</span> }
+                </button>
+              }
+            }
+          </div>
+        }
+      </div>
+
       @if (mode === 'overlay') {
         <button class="rb-close" (click)="close.emit()" title="Schließen (Esc)">&times;</button>
       }
@@ -15,10 +50,24 @@
               title="Zurück (Alt+←)">&#8592;</button>
       <div class="rb-tabs">
         @for (p of pages(); track p.id) {
-          <button class="rb-tab" [class.active]="p.id === activeId()" (click)="onTabClick(p.id)">
-            @if (p.icon) { <span [class]="'app-icon i-' + p.icon"></span> }
-            {{ p.tab }}
-          </button>
+          <div class="rb-tabwrap" (mouseenter)="onTabEnter(p.id)" (mouseleave)="onTabLeave()">
+            <button class="rb-tab" [class.active]="p.id === activeId()" (click)="onTabClick(p.id)">
+              @if (p.icon) { <span [class]="'app-icon i-' + p.icon"></span> }
+              {{ p.tab }}
+            </button>
+
+            <!-- Hover dropdown: jump straight to any section of that page -->
+            @if (openMenu() === p.id && outlineOf(p.id).length) {
+              <div class="rb-menu" (mouseenter)="onTabEnter(p.id)" (mouseleave)="onTabLeave()">
+                @for (entry of outlineOf(p.id); track entry.id) {
+                  <button class="rb-menu-item" [attr.data-level]="entry.level"
+                          (click)="jumpFromMenu(p.id, entry.id)">
+                    {{ entry.text }}
+                  </button>
+                }
+              </div>
+            }
+          </div>
         }
       </div>
     </div>

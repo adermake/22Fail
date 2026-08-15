@@ -3,6 +3,8 @@ import { parseAttrs, esc, splitTarget } from './markdown/attrs';
 import { slugify, uniqueSlug } from './markdown/slug';
 import { renderMarkdown, stripFrontMatter } from './markdown/rulebook-markdown';
 
+const md = (...lines: string[]) => lines.join('\n') + '\n';
+
 describe('slugify', () => {
   it('transliterates German umlauts rather than stripping them', () => {
     expect(slugify('Stärke')).toBe('staerke');
@@ -68,25 +70,27 @@ describe('renderMarkdown', () => {
     expect(html).not.toContain('{#str}');
   });
 
-  it('renders the section directive as a box with a title', async () => {
-    const { html } = await renderMarkdown(':::section{title="Würfelsystem"}\nText\n:::\n', 'g');
+  it('renders the section directive with a slugged id', async () => {
+    const { html } = await renderMarkdown(md(':::section{title="Würfelsystem"}', 'Text', ':::'), 'g');
     expect(html).toContain('class="rb-section"');
     expect(html).toContain('id="wuerfelsystem"');
     expect(html).toContain('Würfelsystem');
   });
 
   it('supports note types and the formula/warning shorthands', async () => {
-    const note = await renderMarkdown(':::note{type=tip}\nHinweis\n:::\n', 'g');
+    const note = await renderMarkdown(md(':::note{type=tip}', 'Hinweis', ':::'), 'g');
     expect(note.html).toContain('rb-note--tip');
-    const formula = await renderMarkdown(':::formula\nLeben = 5 x KON\n:::\n', 'g');
+    const formula = await renderMarkdown(md(':::formula', 'Leben = 5 x KON', ':::'), 'g');
     expect(formula.html).toContain('rb-note--formula');
-    const warning = await renderMarkdown(':::warning\nAchtung\n:::\n', 'g');
+    const warning = await renderMarkdown(md(':::warning', 'Achtung', ':::'), 'g');
     expect(warning.html).toContain('rb-note--warning');
   });
 
   it('nests cards inside a grid', async () => {
-    const src = '::::grid{cols=3}\n:::card{title="Stärke" accent=health}\nText\n:::\n::::\n';
-    const { html } = await renderMarkdown(src, 'g');
+    const { html } = await renderMarkdown(
+      md(':::grid{cols=3}', ':::card{title="Stärke" accent=health}', 'Text', ':::', ':::'),
+      'g',
+    );
     expect(html).toContain('class="rb-grid"');
     expect(html).toContain('rb-card--health');
     expect(html).toContain('Stärke');
@@ -106,7 +110,7 @@ describe('renderMarkdown', () => {
 
   it('renders inline icon, highlight and jump directives', async () => {
     const { html } = await renderMarkdown(
-      'Ein :icon[dice] Wurf ist :hl[wichtig].\n\n:jump[Zum Kampf]{to=kampf#effektivitaet}\n',
+      md('Ein :icon[dice] Wurf ist :hl[wichtig].', '', ':jump[Zum Kampf]{to=kampf#effektivitaet}'),
       'g',
     );
     expect(html).toContain('app-icon i-dice');
@@ -116,13 +120,13 @@ describe('renderMarkdown', () => {
   });
 
   it('renders live talent data from the app data module', async () => {
-    const { html } = await renderMarkdown(':::data{source=talents}\n:::\n', 'talente');
+    const { html } = await renderMarkdown(md(':::data{source=talents}', ':::'), 'talente');
     expect(html).toContain('Athletik');
     expect(html).toContain('rb-card');
   });
 
   it('warns (visibly) about an unknown directive instead of breaking the page', async () => {
-    const { html, warnings } = await renderMarkdown(':::bogus\nText\n:::\n', 'g');
+    const { html, warnings } = await renderMarkdown(md(':::bogus', 'Text', ':::'), 'g');
     expect(html).toContain('Unbekannte Direktive');
     expect(warnings.join()).toContain('bogus');
   });
@@ -135,33 +139,74 @@ describe('renderMarkdown', () => {
 
   it('escapes attribute values coming from the author', async () => {
     const { html } = await renderMarkdown(
-      ':::card{title="<img src=x onerror=alert(1)>"}\nText\n:::\n',
+      md(':::card{title="<img src=x onerror=alert(1)>"}', 'Text', ':::'),
       'g',
     );
     expect(html).not.toContain('<img src=x');
     expect(html).toContain('&lt;img');
   });
 
-  it('keeps formula inside card inside grid (the real stats.md pattern)', async () => {
-    const src = [
-      '::::grid{min=300}',
-      ':::card{title="Stärke" icon=attack accent=health}',
-      ':::formula',
-      'Würfelbonus: Stärke / 5',
-      ':::',
-      'Viele Waffen setzen einen Stärkewert voraus.',
-      ':::',
-      '',
-      ':::card{title="Konstitution" accent=health}',
-      'Zweite Karte.',
-      ':::',
-      '::::',
-      '',
-    ].join('\n');
-    const { html } = await renderMarkdown(src, 'stats');
+  // ── Regression: same-depth nesting used to close the outer container early, leaving an
+  //    orphan ::: that rendered as a phantom "Unbekannte Direktive". ──────────────────────
+  it('nests same-depth ::: containers without orphan closers', async () => {
+    const { html, warnings } = await renderMarkdown(
+      md(
+        ':::section{title="Stats"}',
+        ':::card{title="Stärke"}',
+        ':::formula',
+        'Würfelbonus: Stärke / 5',
+        ':::',
+        'Viele Waffen setzen einen Stärkewert voraus.',
+        ':::',
+        'Text nach der Karte.',
+        ':::',
+      ),
+      'stats',
+    );
+    expect(warnings).toEqual([]);
+    expect(html).not.toContain('Unbekannte Direktive');
+    expect(html).toContain('rb-note--formula');
+    expect(html).toContain('Viele Waffen');
+    expect(html).toContain('Text nach der Karte.');
+    // the formula must sit INSIDE the card
+    expect(html.indexOf('rb-note--formula')).toBeGreaterThan(html.indexOf('rb-card'));
+    expect(html.indexOf('rb-note--formula')).toBeLessThan(html.indexOf('</article>'));
+  });
+
+  it('ignores a stray closing ::: instead of inventing a directive', async () => {
+    const { html, warnings } = await renderMarkdown(md('Text', '', ':::'), 'g');
+    expect(warnings).toEqual([]);
+    expect(html).not.toContain('Unbekannte Direktive');
+  });
+
+  it('renders sections as collapsible details, closed with {collapsed}', async () => {
+    const open = await renderMarkdown(md(':::section{title="A"}', 'X', ':::'), 'g');
+    expect(open.html).toContain('<details class="rb-section" open');
+    const closed = await renderMarkdown(md(':::section{title="A" collapsed}', 'X', ':::'), 'g');
+    expect(closed.html).toContain('<details class="rb-section"');
+    expect(closed.html).not.toContain('<details class="rb-section" open');
+  });
+
+  it('renders the whole real stats.md grid pattern cleanly', async () => {
+    const { html, warnings } = await renderMarkdown(
+      md(
+        ':::grid{min=300}',
+        ':::card{title="Stärke" icon=attack accent=health}',
+        ':::formula',
+        'Würfelbonus: Stärke / 5',
+        ':::',
+        'Viele Waffen setzen einen Stärkewert voraus.',
+        ':::',
+        ':::card{title="Konstitution" accent=health}',
+        'Zweite Karte.',
+        ':::',
+        ':::',
+      ),
+      'stats',
+    );
+    expect(warnings).toEqual([]);
     expect((html.match(/class="rb-card /g) ?? []).length).toBe(2);
     expect((html.match(/rb-note--formula/g) ?? []).length).toBe(1);
-    expect(html).toContain('Viele Waffen');
     expect(html.indexOf('rb-grid')).toBeLessThan(html.indexOf('Konstitution'));
   });
 });

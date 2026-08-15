@@ -37,12 +37,8 @@ function interop<T>(mod: unknown): T {
 }
 
 async function buildMarkdown(): Promise<MarkdownIt> {
-  const [mdMod, containerMod] = await Promise.all([
-    import('markdown-it'),
-    import('markdown-it-container'),
-  ]);
+  const mdMod = await import('markdown-it');
   const MarkdownItCtor = interop<new (opts: unknown) => MarkdownIt>(mdMod);
-  const container = interop<unknown>(containerMod);
 
   const md = new MarkdownItCtor({
     html: false, // ← load-bearing: see SECURITY above
@@ -51,7 +47,7 @@ async function buildMarkdown(): Promise<MarkdownIt> {
     breaks: true, // single newline = <br>; matches how the raw guide is written
   });
 
-  registerContainers(md, container);
+  registerContainers(md);
   registerInlineDirectives(md, INLINE_DIRECTIVES);
   registerRenderers(md);
   return md;

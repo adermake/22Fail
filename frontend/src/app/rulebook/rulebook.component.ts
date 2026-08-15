@@ -18,7 +18,7 @@ import {
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { RulebookService } from './rulebook.service';
-import type { RulebookHeading } from './rulebook.model';
+import type { RulebookHeading, RulebookPage, RulebookSearchHit } from './rulebook.model';
 
 interface HistoryEntry {
   pageId: string;
@@ -56,6 +56,16 @@ export class RulebookComponent implements OnInit {
 
   private history = signal<HistoryEntry[]>([]);
   readonly canGoBack = computed(() => this.history().length > 0);
+
+  /** Tab whose section dropdown is currently open (hover/focus). */
+  readonly openMenu = signal<string | null>(null);
+  private menuTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Search
+  readonly query = signal('');
+  readonly results = signal<readonly RulebookSearchHit[]>([]);
+  readonly searching = signal(false);
+  private searchSeq = 0;
 
   private scroller = viewChild<ElementRef<HTMLElement>>('scroller');
 
@@ -150,11 +160,69 @@ export class RulebookComponent implements OnInit {
     this.goBack();
   }
 
+  // ── Tab section dropdowns ────────────────────────────────────────────────────
+  onTabEnter(id: string): void {
+    if (this.menuTimer) clearTimeout(this.menuTimer);
+    this.openMenu.set(id);
+  }
+
+  /** Small delay so moving the pointer from the tab into the dropdown doesn't close it. */
+  onTabLeave(): void {
+    if (this.menuTimer) clearTimeout(this.menuTimer);
+    this.menuTimer = setTimeout(() => this.openMenu.set(null), 180);
+  }
+
+  outlineOf(id: string): RulebookPage['outline'] {
+    return this.pages().find((p) => p.id === id)?.outline ?? [];
+  }
+
+  jumpFromMenu(pageId: string, anchor: string): void {
+    this.openMenu.set(null);
+    void this.openPage(pageId, anchor);
+  }
+
+  // ── Search ───────────────────────────────────────────────────────────────────
+  async onQueryChange(value: string): Promise<void> {
+    this.query.set(value);
+    const seq = ++this.searchSeq;
+    if (value.trim().length < 2) {
+      this.results.set([]);
+      this.searching.set(false);
+      return;
+    }
+    this.searching.set(true);
+    const hits = await this.service.search(value);
+    if (seq !== this.searchSeq) return; // a newer query already ran
+    this.results.set(hits);
+    this.searching.set(false);
+  }
+
+  openHit(hit: RulebookSearchHit): void {
+    this.clearSearch();
+    void this.openPage(hit.pageId, hit.anchor);
+  }
+
+  clearSearch(): void {
+    this.query.set('');
+    this.results.set([]);
+    this.searching.set(false);
+    this.searchSeq++;
+  }
+
   private scrollToAnchor(anchor?: string): void {
     if (!anchor) return;
     const host = this.scroller()?.nativeElement;
     const target = host?.querySelector<HTMLElement>(`#${CSS.escape(anchor)}`);
-    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!target) return;
+    // A jump target may live inside a collapsed section — open the whole <details> chain.
+    let node: HTMLElement | null = target;
+    while (node) {
+      const details: HTMLDetailsElement | null = node.closest('details');
+      if (!details) break;
+      details.open = true;
+      node = details.parentElement;
+    }
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   /** The [innerHTML] DOM only exists after the next render — not when the signal is set. */
