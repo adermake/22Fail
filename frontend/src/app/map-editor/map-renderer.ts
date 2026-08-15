@@ -45,6 +45,10 @@ export class MapRenderer {
   /** Grid rebuild key — avoids regenerating thousands of paths on every pan frame. */
   private gridKey = '';
 
+  /** True once the GPU context is gone; nothing will render again until a reload. */
+  contextLost = false;
+  onContextLost?: () => void;
+
   async init(host: HTMLElement, background = 0x1b1b1f): Promise<void> {
     await this.app.init({
       resizeTo: host,
@@ -57,6 +61,25 @@ export class MapRenderer {
       resolution: window.devicePixelRatio || 1,
     });
     host.appendChild(this.app.canvas);
+
+    /*
+     * A lost context is what a blank grey canvas that stops responding actually is: every
+     * GPU resource is gone and nothing will draw again without a full rebuild. It is
+     * otherwise indistinguishable from a hang, so report it loudly and tell the user the
+     * one thing that helps.
+     */
+    this.app.canvas.addEventListener('webglcontextlost', (e: Event) => {
+      e.preventDefault();
+      this.contextLost = true;
+      console.error(
+        '[MapRenderer] WebGL context lost — the map cannot render until the page is reloaded.',
+      );
+      this.onContextLost?.();
+    });
+
+    this.app.canvas.addEventListener('webglcontextrestored', () => {
+      console.warn('[MapRenderer] WebGL context restored; reload for a clean state.');
+    });
 
     this.app.stage.addChild(this.worldRoot);
 

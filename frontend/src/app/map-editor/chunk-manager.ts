@@ -45,22 +45,35 @@ export interface ChunkRecord {
   /** Painted since the last successful upload. */
   dirty: boolean;
   uploading: boolean;
+  /** Set on eviction; guards the read paths against a freed texture. */
+  destroyed?: boolean;
   /** Frame counter at last visibility, for LRU eviction. */
   lastSeen: number;
 }
 
-/**
- * Resident-chunk ceiling across all layers. At the current resolution a height chunk is
- * 1024² RGBA (4 MB) and a colour chunk 512² (1 MB), so a cell costs ~6 MB across the three
- * layers. This holds GPU residency to roughly 300 MB worst case.
+/*
+ * Residency budget.
+ *
+ * These two limits are counted in *cells* — one cx,cy position, which owns one texture per
+ * layer. Mixing units here was a real bug: the stream limit counted cells while the
+ * resident limit counted individual textures, so the streamer was allowed three times more
+ * than the evictor would ever tolerate. Worse, every chunk in view is marked seen on the
+ * same frame, so eviction had no eligible candidates and freed nothing while allocation
+ * carried on — VRAM climbed until the WebGL context was lost and the map went grey.
+ *
+ * At 512² RGBA per layer a cell costs ~3 MB, so the resident cap is roughly 190 MB.
  */
-const MAX_RESIDENT_CHUNKS = 72;
-
+const BYTES_PER_CELL_MB = 3;
+/** Cells kept on the GPU (~240 MB). Must comfortably exceed what a wide view streams. */
+const MAX_RESIDENT_CELLS = 80;
 /**
- * Above this many chunks in view, stop streaming *new* ones and render whatever is already
- * resident. Without it, zooming all the way out would queue thousands of fetches at once.
+ * Above this many cells in view, stop streaming *new* ones and render what is resident.
+ * Kept below the resident cap so the evictor always has slack to work with.
+ *
+ * Sized so ordinary working zooms stream fully and only a far zoom-out is capped, where
+ * incomplete terrain is the intended trade rather than a bug.
  */
-const MAX_STREAM_CHUNKS = 96;
+const MAX_STREAM_CELLS = 64;
 
 export class ChunkManager {
   private chunks = new Map<string, ChunkRecord>();
@@ -89,13 +102,18 @@ export class ChunkManager {
 
   private create(layer: RasterLayer, cx: number, cy: number): ChunkRecord {
     const texels = LAYER_TEXELS[layer];
-    // Linear filtering is essential: with nearest, every texel edge shows as a hard block
-    // and the whole map reads as pixel art however high the resolution goes.
+    /*
+     * Linear filtering is essential: with nearest, every texel edge shows as a hard block
+     * and the map reads as pixel art however high the resolution goes.
+     *
+     * Deliberately *not* antialiased. A multisampled render target cannot be read back by
+     * `extract`, which broke every chunk upload with a null-source error, and it multiplies
+     * the memory of a target that is only ever sampled as a texture.
+     */
     const texture = RenderTexture.create({
       width: texels,
       height: texels,
       scaleMode: 'linear',
-      antialias: true,
     });
 
     // A fresh RenderTexture's contents are undefined; clear so unpainted reads as empty.
@@ -144,6 +162,7 @@ export class ChunkManager {
 
     // The chunk may have been evicted while the fetch was in flight.
     if (this.chunks.get(chunkKey(rec.layer, rec.cx, rec.cy)) !== rec) return;
+    if (!this.isUsable(rec)) return;
 
     try {
       const bitmap = await createImageBitmap(blob);
@@ -185,9 +204,9 @@ export class ChunkManager {
     const minCy = Math.floor(bounds.minY / CHUNK_WORLD_SIZE);
     const maxCy = Math.floor(bounds.maxY / CHUNK_WORLD_SIZE);
 
-    const wanted = (maxCx - minCx + 1) * (maxCy - minCy + 1);
+    const wantedCells = (maxCx - minCx + 1) * (maxCy - minCy + 1);
     // Zoomed far enough out that streaming detail is pointless; coast on what we have.
-    const streaming = wanted <= MAX_STREAM_CHUNKS;
+    const streaming = wantedCells <= MAX_STREAM_CELLS;
 
     for (const layer of RASTER_LAYERS) {
       for (let cy = minCy; cy <= maxCy; cy++) {
@@ -205,23 +224,52 @@ export class ChunkManager {
 
   /** Drop the least recently seen chunks once over budget. Never drops unsaved work. */
   private evict(): void {
-    if (this.chunks.size <= MAX_RESIDENT_CHUNKS) return;
+    const budget = MAX_RESIDENT_CELLS * RASTER_LAYERS.length;
+    if (this.chunks.size <= budget) return;
 
     const candidates = [...this.chunks.values()]
       .filter(r => !r.dirty && !r.uploading && r.lastSeen !== this.frame)
       .sort((a, b) => a.lastSeen - b.lastSeen);
 
-    let excess = this.chunks.size - MAX_RESIDENT_CHUNKS;
+    let excess = this.chunks.size - budget;
     for (const rec of candidates) {
       if (excess-- <= 0) break;
       this.dispose(rec);
     }
+
+    /*
+     * If nothing could be freed we are over budget with everything in view — the state
+     * that previously grew until the GPU context was lost. Say so once rather than
+     * silently allocating into a crash; the stream cap should normally prevent it.
+     */
+    if (excess > 0 && !this.warnedOverBudget) {
+      this.warnedOverBudget = true;
+      console.warn(
+        `[ChunkManager] over residency budget: ${this.chunks.size} chunks ` +
+          `(~${Math.round((this.chunks.size / RASTER_LAYERS.length) * BYTES_PER_CELL_MB)} MB) ` +
+          'and none evictable. Lower MAX_STREAM_CELLS or the layer resolution.',
+      );
+    }
   }
+
+  private warnedOverBudget = false;
 
   private dispose(rec: ChunkRecord): void {
     this.chunks.delete(chunkKey(rec.layer, rec.cx, rec.cy));
     this.onChunkDisposed?.(rec.layer, rec.cx, rec.cy);
+    rec.destroyed = true;
     rec.texture.destroy(true);
+  }
+
+  /**
+   * Whether a chunk's texture can still be read.
+   *
+   * A destroyed texture — or one whose backing source vanished with a lost WebGL context —
+   * leaves `source` null, and every read path then throws deep inside the renderer. Checking
+   * here turns that into a skipped operation instead of a crash that takes the editor down.
+   */
+  private isUsable(rec: ChunkRecord): boolean {
+    return !rec.destroyed && !!rec.texture?.source;
   }
 
   // ── painting ──
@@ -285,7 +333,7 @@ export class ChunkManager {
     const cx = Math.floor(x / CHUNK_WORLD_SIZE);
     const cy = Math.floor(y / CHUNK_WORLD_SIZE);
     const rec = this.chunks.get(chunkKey(layer, cx, cy));
-    if (!rec || !rec.loaded) return null;
+    if (!rec || !rec.loaded || !this.isUsable(rec)) return null;
 
     const s = 1 / layerScale(layer);
     const tx = Math.floor((x - cx * CHUNK_WORLD_SIZE) * s);
@@ -323,6 +371,7 @@ export class ChunkManager {
 
   /** Snapshot a chunk's pixels, for the undo stack. */
   snapshot(rec: ChunkRecord): Texture | null {
+    if (!this.isUsable(rec)) return null;
     try {
       return this.renderer.extract.texture({ target: rec.texture });
     } catch (err) {
@@ -334,6 +383,9 @@ export class ChunkManager {
   /** Restore a snapshot taken by `snapshot`, marking the chunk dirty for re-upload. */
   restore(layer: RasterLayer, cx: number, cy: number, snap: Texture): void {
     const rec = this.get(layer, cx, cy);
+    // The snapshot may have been freed by the history budget, or the chunk re-created.
+    if (!this.isUsable(rec) || !snap?.source) return;
+
     const sprite = new Sprite(snap);
 
     this.stampHost.removeChildren();
@@ -389,6 +441,8 @@ export class ChunkManager {
   }
 
   private async toBlob(rec: ChunkRecord): Promise<Blob | null> {
+    if (!this.isUsable(rec)) return null;
+
     const canvas = this.renderer.extract.canvas({ target: rec.texture }) as HTMLCanvasElement &
       Partial<OffscreenCanvas>;
 

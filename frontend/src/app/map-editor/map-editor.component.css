@@ -485,6 +485,13 @@
   pointer-events: none;
 }
 
+.loading-overlay.context-lost {
+  background: rgba(60, 22, 22, 0.92);
+  text-align: center;
+  line-height: 1.5;
+  pointer-events: auto;
+}
+
 .status-bar {
   position: absolute;
   left: 10px;

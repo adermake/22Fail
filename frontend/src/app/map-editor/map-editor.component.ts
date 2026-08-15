@@ -202,6 +202,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly canUndo = signal(false);
   readonly canRedo = signal(false);
   readonly saving = signal(false);
+  /** Set when the GPU context is lost — the map is blank until the page reloads. */
+  readonly contextLost = signal(false);
 
   /** Rubber-band rectangle in screen space while box-selecting. */
   readonly marquee = signal<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -264,6 +266,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.worldName.set(world);
 
     await this.renderer.init(host);
+    this.renderer.onContextLost = () => this.contextLost.set(true);
     this.previewSprite.anchor.set(0.5);
     this.previewSprite.visible = false;
     this.renderer.cursorLayer.addChild(this.previewSprite, this.cursorGraphic);
@@ -409,7 +412,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.streamScheduled = true;
     requestAnimationFrame(() => {
       this.streamScheduled = false;
-      this.chunks?.update(this.renderer.camera.visibleBounds(2048));
+      // One half-chunk of margin: enough to load terrain just before it scrolls in,
+      // without inflating the streamed set to the point of exhausting the GPU.
+      this.chunks?.update(this.renderer.camera.visibleBounds(1024));
       this.terrain?.update(this.renderer.camera.visibleBounds(0));
       const view = this.renderer.camera.visibleBounds(0);
       const zoom = this.renderer.camera.zoom;

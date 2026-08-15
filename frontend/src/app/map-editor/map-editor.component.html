@@ -130,6 +130,15 @@
         <div class="loading-overlay">Karte wird geladen …</div>
       }
 
+      @if (contextLost()) {
+        <div class="loading-overlay context-lost">
+          <div>
+            <strong>Grafikkontext verloren.</strong>
+            <p>Die Karte kann nicht mehr gezeichnet werden. Bitte die Seite neu laden.</p>
+          </div>
+        </div>
+      }
+
       <div class="status-bar">
         <span>{{ activeToolLabel() }}</span>
         <span>x {{ cursorWorld().x }} · y {{ cursorWorld().y }}</span>

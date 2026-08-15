@@ -35,19 +35,22 @@ export const RASTER_LAYERS: readonly RasterLayer[] = ['height', 'landColor', 'wa
 export const CHUNK_WORLD_SIZE = 2048;
 
 /**
- * Texels per chunk side, per layer.
+ * Texels per chunk side, per layer — all 512, i.e. 4 world px per texel.
  *
- * Resolution is what decides whether fine work — a path threading between hexes, a narrow
- * river — reads as a drawn line or as visible blocks. The first pass at 4 and 8 world px
- * per texel was far too coarse for that, so height is now 2 px/texel and the colour layers
- * 4 px/texel. Colour stays a step below height because it holds broad washes, while height
- * carries the coastline the eye actually inspects.
+ * Every layer costs 1 MB of VRAM here, so a cell is 3 MB and a wide view stays affordable.
+ * An attempt at 1024 for height put a cell at 6 MB, which combined with a broken residency
+ * cap to exhaust the GPU and lose the WebGL context mid-stroke. Resolution is only worth
+ * having if the map keeps rendering.
+ *
+ * The colour layers still doubled in density (they were 8 world px per texel), which is
+ * where the visible blockiness in fine brushwork actually came from. Height keeps its
+ * previous density because the coastline shader smooths it in any case.
  *
  * Existing chunks are unaffected: stored PNGs are rescaled to the current size on load.
  */
 export const LAYER_TEXELS: Record<RasterLayer, number> = {
-  height: 1024, // 2 world px per texel
-  landColor: 512, // 4 world px per texel
+  height: 512,
+  landColor: 512,
   waterColor: 512,
 };
 
