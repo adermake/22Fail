@@ -42,16 +42,19 @@ Die Hauptaktion, mit der alles Wichtige in einem Zug gemacht werden kann.
 Z.B. Angriffe, Zauber, Fähigkeiten
 :::
 
+
 :::card{title="Bonusaktion" accent=mana}
 Die Bonusaktion ist für kleinere und meist schnelle Manöver verantwortlich.
 Z.B. Items benutzen, Ausrüstung wechseln, bestimmte Fähigkeiten
 Komplexere Bewegungen wie Springen, Schleichen oder Klettern sind ebenfalls Bonusaktionen.
 :::
 
+
 :::card{title="Bewegung" accent=energy}
 In jedem Zug kann man sich eine bestimmte Distanz fortbewegen, abhängig von der [Bewegung](stats#bewegung).
 Beim Schleichen im Kampf wird die Bewegungsdistanz halbiert und ohne gutes Versteck wird man leicht entdeckt.
 :::
+
 
 :::card{title="Reaktion" accent=accent}
 Die Reaktion kann nur **außerhalb des eigenen Zuges** verwendet werden, wenn man von gegnerischen Aktionen beeinflusst wird.
@@ -81,7 +84,7 @@ Fernkampfangriffe landen immer in der jeweils schwächeren Schadenskategorie
 Würfelt der Verteidiger höher als der Angreifer, kann er den Angriff garantiert blocken oder ausweichen. Allerdings kann
 er auch mit einer offensiven Reaktion selbst Schaden zufügen, kann dadurch aber eventuell nicht dem Schaden entgehen.
 Sollte der Verteidiger allerdings deutlich höher würfeln als der Angreifer, entgeht er jeglichem Schaden und erhält sofort eine
-zusätzliche [Aktion](aktion).
+zusätzliche [Aktion](kampf#aktion).
 
 :::section{title="Effektivität" icon=effektivity id=effektivitaet}
 Die Grundstärke eines Angriffs o.Ä. Je Stärker der Treffer, desto mehr wirkt sich die Effektivität auf den Schaden aus.
