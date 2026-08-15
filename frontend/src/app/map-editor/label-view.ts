@@ -8,7 +8,7 @@
  * hundred cached sprites rather than a thousand live glyphs.
  */
 
-import { Container, Text, TextStyle } from 'pixi.js';
+import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { LabelStyle, MapLabel } from './map-editor.model';
 import { Bounds } from './map-camera';
 import { SpatialIndex } from './spatial-index';
@@ -103,6 +103,23 @@ export class LabelView {
   private labels = new Map<string, MapLabel>();
   private selected = new Set<string>();
   private dirty = true;
+  /** Selection outlines. Without one, a selected label is indistinguishable from any other. */
+  private highlight = new Graphics();
+
+  constructor() {
+    this.container.addChild(this.highlight);
+  }
+
+  /** Bounding box of a rendered label, for the selection outline and box-select. */
+  boundsOf(id: string): { x: number; y: number; w: number; h: number } | null {
+    const label = this.labels.get(id);
+    const node = this.nodes.get(id);
+    if (!label) return null;
+
+    const w = node ? node.container.width : label.text.length * label.style.fontSize * 0.6;
+    const h = node ? node.container.height : label.style.fontSize;
+    return { x: label.x - w / 2, y: label.y - h / 2, w, h };
+  }
 
   rebuild(labels: MapLabel[]): void {
     for (const node of this.nodes.values()) node.container.destroy({ children: true });
@@ -181,7 +198,7 @@ export class LabelView {
   }
 
   /** Sync visible labels. Only rebuilds nodes whose text or style changed. */
-  render(bounds: Bounds, showSecrets: boolean): void {
+  render(bounds: Bounds, showSecrets: boolean, zoom = 1): void {
     const visible = this.index.query({
       minX: bounds.minX - 2048,
       minY: bounds.minY - 2048,
@@ -206,7 +223,7 @@ export class LabelView {
 
       node.container.position.set(label.x, label.y);
       node.container.rotation = label.rotation || 0;
-      node.container.alpha = this.selected.has(label.id) ? 0.6 : label.vis === 'secret' ? 0.85 : 1;
+      node.container.alpha = label.vis === 'secret' ? 0.85 : 1;
       node.container.visible = true;
     }
 
@@ -216,7 +233,25 @@ export class LabelView {
       this.nodes.delete(id);
     }
 
+    this.drawHighlight(zoom);
     this.dirty = false;
+  }
+
+  private drawHighlight(zoom: number): void {
+    const g = this.highlight;
+    g.clear();
+    if (this.selected.size === 0) return;
+
+    const pad = 6 / zoom;
+    for (const id of this.selected) {
+      const b = this.boundsOf(id);
+      if (!b) continue;
+      g.rect(b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2);
+    }
+    g.stroke({ width: 1.5 / zoom, color: 0x8fd0ff, alpha: 0.95 });
+
+    // Keep the outline above the glyphs it frames.
+    this.container.setChildIndex(g, this.container.children.length - 1);
   }
 
   get needsRefresh(): boolean {

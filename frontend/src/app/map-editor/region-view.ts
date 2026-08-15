@@ -125,6 +125,8 @@ export class RegionView {
   private handles = new Graphics();
   private regions = new Map<string, MapRegion>();
   private selectedId: string | null = null;
+  /** Vertices of the selected region that are picked, so several can move together. */
+  private picked = new Set<number>();
   private dirty = true;
 
   constructor() {
@@ -163,7 +165,17 @@ export class RegionView {
 
   setSelected(id: string | null): void {
     this.selectedId = id;
+    this.picked.clear();
     this.dirty = true;
+  }
+
+  setSelectedPoints(indices: Iterable<number>): void {
+    this.picked = new Set(indices);
+    this.dirty = true;
+  }
+
+  get selectedPoints(): Set<number> {
+    return this.picked;
   }
 
   get selected(): MapRegion | undefined {
@@ -226,11 +238,38 @@ export class RegionView {
     if (!region) return;
 
     const r = HANDLE_SCREEN_PX / zoom;
-    for (const p of region.points) {
-      h.circle(p.x, p.y, r);
+
+    // Unpicked vertices first, then picked ones in a different colour, so it is obvious
+    // which points a drag is about to move.
+    for (let i = 0; i < region.points.length; i++) {
+      if (this.picked.has(i)) continue;
+      h.circle(region.points[i].x, region.points[i].y, r);
     }
     h.fill({ color: 0x8fd0ff, alpha: 0.9 });
     h.stroke({ width: 1 / zoom, color: 0x102030, alpha: 0.8 });
+
+    if (this.picked.size === 0) return;
+    for (const i of this.picked) {
+      const p = region.points[i];
+      if (p) h.circle(p.x, p.y, r * 1.25);
+    }
+    h.fill({ color: 0xffd479, alpha: 0.95 });
+    h.stroke({ width: 1.5 / zoom, color: 0x3a2a00, alpha: 0.9 });
+  }
+
+  /** Indices of the selected region's vertices inside a world rectangle. */
+  pointsInRect(rect: Bounds): number[] {
+    const region = this.selected;
+    if (!region) return [];
+
+    const out: number[] = [];
+    for (let i = 0; i < region.points.length; i++) {
+      const p = region.points[i];
+      if (p.x >= rect.minX && p.x <= rect.maxX && p.y >= rect.minY && p.y <= rect.maxY) {
+        out.push(i);
+      }
+    }
+    return out;
   }
 
   /** Region whose outline passes near a world point. */

@@ -149,6 +149,14 @@ export interface MapLabel extends MapObjectBase {
   text: string;
   rotation: number;
   style: LabelStyle;
+  /**
+   * Preset this label follows, if any.
+   *
+   * Kept so that re-saving a preset under the same name can restyle every label using it —
+   * which is the point of a preset. The style is still stored inline, so a label keeps
+   * working if its preset is deleted.
+   */
+  presetId?: string;
 }
 
 export interface MapRegion extends MapObjectBase {

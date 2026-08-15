@@ -403,6 +403,18 @@
   background: #343440;
 }
 
+.preset-current {
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.9;
+  color: #8fd0ff;
+}
+
+.history-row button.active-preset {
+  background: #3d5a80;
+  border-color: #6d9fd0;
+}
+
 .text-input {
   flex: 1;
   min-width: 0;

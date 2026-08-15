@@ -510,7 +510,13 @@
           } @else {
             <div class="panel-section">
               @if (selectedRegionId()) {
-                <p class="hint">Punkte ziehen zum Bearbeiten.</p>
+                <p class="hint">
+                  Punkte ziehen zum Bearbeiten · Rahmen im leeren Bereich wählt mehrere Punkte ·
+                  einen gewählten Punkt ziehen verschiebt alle
+                </p>
+                <div class="history-row">
+                  <button type="button" (click)="selectAllRegionPoints()">Alle Punkte</button>
+                </div>
                 <div class="history-row">
                   <button type="button" (click)="deleteSelectedRegion()">Löschen (Entf)</button>
                 </div>
@@ -608,13 +614,28 @@
           </div>
 
           <div class="panel-section">
-            <div class="panel-title">Vorlagen</div>
+            <div class="panel-title">
+              Vorlagen
+              @if (activePresetName(); as n) {
+                <span class="preset-current">· {{ n }}</span>
+              }
+            </div>
             @for (p of labelPresets(); track p.id) {
               <div class="history-row">
-                <button type="button" (click)="applyLabelPreset(p.id)">{{ p.name }}</button>
+                <button
+                  type="button"
+                  [class.active-preset]="activePresetId() === p.id"
+                  (click)="applyLabelPreset(p.id)"
+                >
+                  {{ p.name }}
+                </button>
                 <button type="button" class="narrow" (click)="removeLabelPreset(p.id)">×</button>
               </div>
             }
+            <p class="hint">
+              Gleicher Name überschreibt die Vorlage und ändert alle Beschriftungen, die sie
+              nutzen.
+            </p>
             <div class="history-row">
               <input
                 #presetName
@@ -644,13 +665,17 @@
                 <span>Als Geheimnis</span>
               </label>
               <p class="hint">Klicken setzt die Beschriftung.</p>
-            } @else if (selectedLabelId()) {
-              <p class="hint">Ziehen zum Verschieben.</p>
+            } @else if (selectedLabelIds().length) {
+              <p class="hint">
+                {{ selectedLabelIds().length }} ausgewählt · ziehen zum Verschieben
+              </p>
               <div class="history-row">
                 <button type="button" (click)="deleteSelectedLabel()">Löschen (Entf)</button>
               </div>
             } @else {
-              <p class="hint">Auf eine Beschriftung klicken.</p>
+              <p class="hint">
+                Auf eine Beschriftung klicken · Shift für Mehrfachauswahl · Rahmen ziehen
+              </p>
             }
           </div>
         }

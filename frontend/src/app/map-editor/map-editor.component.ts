@@ -85,8 +85,12 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private labelView = new LabelView();
   /** Vertex of the selected region currently being dragged. */
   private dragHandle: { index: number; before: MapRegion } | null = null;
-  /** Label currently being dragged. */
-  private dragLabel: { startWorld: Point; before: MapLabel; moved: boolean } | null = null;
+  /** Labels currently being dragged, with their pre-drag copies for undo. */
+  private dragLabel: {
+    startWorld: Point;
+    origins: Map<string, MapLabel>;
+    moved: boolean;
+  } | null = null;
   private subs: Subscription[] = [];
   private resizeObserver?: ResizeObserver;
 
@@ -219,7 +223,17 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly labelStyle = signal<LabelStyle>(defaultLabelStyle());
   readonly labelText = signal('Neuer Name');
   readonly labelPresets = signal<LabelPreset[]>([]);
-  readonly selectedLabelId = signal<string | null>(null);
+  readonly selectedLabelIds = signal<string[]>([]);
+  /** Preset the panel is currently following, so it is visible which one is in use. */
+  readonly activePresetId = signal<string | null>(null);
+
+  readonly activePresetName = computed(
+    () => this.labelPresets().find(p => p.id === this.activePresetId())?.name ?? null,
+  );
+  /** Single selection drives the text/style editors; multi-selection only moves. */
+  readonly selectedLabelId = computed(() =>
+    this.selectedLabelIds().length === 1 ? this.selectedLabelIds()[0] : null,
+  );
 
   private isPanning = false;
   private isPainting = false;
@@ -402,7 +416,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.symbols?.render(view, zoom, this.isGM());
       // Dash spacing and handle size are zoom-dependent, so regions redraw on view change.
       this.regionView.render(view, zoom, this.isGM(), true);
-      this.labelView.render(view, this.isGM());
+      // Zoom drives the selection outline's width, so it stays one screen pixel.
+      this.labelView.render(view, this.isGM(), zoom);
     });
   }
 
@@ -711,6 +726,20 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.scheduleStream();
   }
 
+  /** Pick the selected region's vertices inside a rubber band. */
+  private selectRegionPointsIn(rect: Bounds): void {
+    this.regionView.setSelectedPoints(this.regionView.pointsInRect(rect));
+    this.scheduleStream();
+  }
+
+  /** Pick every vertex, so dragging any one moves the whole region. */
+  selectAllRegionPoints(): void {
+    const region = this.regionView.selected;
+    if (!region) return;
+    this.regionView.setSelectedPoints(region.points.map((_, i) => i));
+    this.scheduleStream();
+  }
+
   deleteSelectedRegion(): void {
     const id = this.selectedRegionId();
     const region = id ? this.regionView.get(id) : undefined;
@@ -768,6 +797,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       text: this.labelText() || 'Name',
       rotation: 0,
       style: { ...this.labelStyle() },
+      presetId: this.activePresetId() ?? undefined,
     };
 
     this.undoStack?.begin();
@@ -776,21 +806,41 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.undoStack?.commit('Beschriftung');
     this.refreshHistoryState();
 
-    this.selectedLabelId.set(label.id);
+    this.setLabelSelection([label.id]);
   }
 
-  private selectLabelAt(world: Point): boolean {
+  private selectLabelAt(world: Point, additive: boolean): boolean {
     const hit = this.labelView.hitTest(world.x, world.y);
-    this.selectedLabelId.set(hit?.id ?? null);
-    this.labelView.setSelection(hit ? [hit.id] : []);
+    if (!hit) {
+      if (!additive) this.setLabelSelection([]);
+      return false;
+    }
 
-    // Load the selection's style into the panel so edits start from what is on screen.
-    if (hit) {
-      this.labelStyle.set({ ...hit.style });
-      this.labelText.set(hit.text);
+    const current = this.selectedLabelIds();
+    if (additive) {
+      this.setLabelSelection(
+        current.includes(hit.id) ? current.filter(i => i !== hit.id) : [...current, hit.id],
+      );
+    } else if (!current.includes(hit.id)) {
+      this.setLabelSelection([hit.id]);
+    }
+    return true;
+  }
+
+  private setLabelSelection(ids: string[]): void {
+    this.selectedLabelIds.set(ids);
+    this.labelView.setSelection(ids);
+
+    // A single selection loads into the editors so edits start from what is on screen.
+    if (ids.length === 1) {
+      const label = this.labelView.get(ids[0]);
+      if (label) {
+        this.labelStyle.set({ ...label.style });
+        this.labelText.set(label.text);
+        this.activePresetId.set(label.presetId ?? null);
+      }
     }
     this.scheduleStream();
-    return !!hit;
   }
 
   /** Push the panel's text and style onto the selected label. */
@@ -812,18 +862,22 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.refreshHistoryState();
   }
 
+  /** Delete every selected label as one undoable step. */
   deleteSelectedLabel(): void {
-    const id = this.selectedLabelId();
-    const label = id ? this.labelView.get(id) : undefined;
-    if (!id || !label) return;
+    const ids = this.selectedLabelIds();
+    if (ids.length === 0) return;
 
     this.undoStack?.begin();
-    this.undoStack?.recordObject({ c: 'labels', id, before: clone(label), after: null });
-    this.store.deleteObject('labels', id);
+    for (const id of ids) {
+      const label = this.labelView.get(id);
+      if (!label) continue;
+      this.undoStack?.recordObject({ c: 'labels', id, before: clone(label), after: null });
+      this.store.deleteObject('labels', id);
+    }
     this.undoStack?.commit('Beschriftung löschen');
     this.refreshHistoryState();
 
-    this.selectedLabelId.set(null);
+    this.setLabelSelection([]);
   }
 
   setLabelStyle<K extends keyof LabelStyle>(key: K, value: LabelStyle[K]): void {
@@ -832,30 +886,88 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (this.selectedLabelId()) this.applyLabelEdits();
   }
 
-  /** Save the current style so "city name" or "secret name" can be reapplied later. */
+  /**
+   * Save the current style as a named preset.
+   *
+   * Re-saving under an existing name *overwrites* that preset and restyles every label
+   * following it. That is the point of a preset: change "Stadtname" once and every city on
+   * the map follows, rather than accumulating near-identical presets with the same name.
+   */
   saveLabelPreset(name: string): void {
-    if (!name.trim()) return;
-    const preset: LabelPreset = {
-      id: generateId(),
-      name: name.trim(),
-      style: { ...this.labelStyle() },
-    };
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    const style = { ...this.labelStyle() };
+    const existing = this.labelPresets().find(
+      p => p.name.toLowerCase() === trimmed.toLowerCase(),
+    );
+
+    if (existing) {
+      const next = this.labelPresets().map(p => (p.id === existing.id ? { ...p, style } : p));
+      this.labelPresets.set(next);
+      this.store.setPath('labelPresets', next);
+      this.activePresetId.set(existing.id);
+      this.restyleLabelsUsingPreset(existing.id, style);
+      return;
+    }
+
+    const preset: LabelPreset = { id: generateId(), name: trimmed, style };
     const next = [...this.labelPresets(), preset];
     this.labelPresets.set(next);
     this.store.setPath('labelPresets', next);
+    this.activePresetId.set(preset.id);
+
+    // Adopt it for the current selection, so the label now follows this preset.
+    const selected = this.selectedLabelId();
+    if (selected) this.store.updateObject('labels', selected, { presetId: preset.id });
+  }
+
+  /** Push a preset's style onto every label that follows it. */
+  private restyleLabelsUsingPreset(presetId: string, style: LabelStyle): void {
+    const data = this.store.data();
+    if (!data) return;
+
+    const affected = data.labels.filter(l => l.presetId === presetId);
+    if (affected.length === 0) return;
+
+    this.undoStack?.begin();
+    for (const label of affected) {
+      this.undoStack?.recordObject({
+        c: 'labels',
+        id: label.id,
+        before: clone(label),
+        after: clone({ ...label, style }),
+      });
+      this.store.updateObject('labels', label.id, { style: { ...style } });
+    }
+    this.undoStack?.commit('Vorlage aktualisieren');
+    this.refreshHistoryState();
   }
 
   applyLabelPreset(id: string): void {
     const preset = this.labelPresets().find(p => p.id === id);
     if (!preset) return;
+
     this.labelStyle.set({ ...preset.style });
-    if (this.selectedLabelId()) this.applyLabelEdits();
+    this.activePresetId.set(id);
+
+    // Applying to a selection also binds it to the preset, so later edits carry through.
+    const selected = this.selectedLabelId();
+    if (selected) {
+      this.store.updateObject('labels', selected, {
+        style: { ...preset.style },
+        presetId: id,
+      });
+      this.scheduleStream();
+    }
   }
 
   removeLabelPreset(id: string): void {
     const next = this.labelPresets().filter(p => p.id !== id);
     this.labelPresets.set(next);
     this.store.setPath('labelPresets', next);
+    if (this.activePresetId() === id) this.activePresetId.set(null);
+    // Labels keep their inline style, so deleting a preset never changes the map.
   }
 
   // ── cursor ──
@@ -1149,8 +1261,22 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         const tol = 10 / this.renderer.camera.zoom;
         const idx = this.regionView.hitHandle(world.x, world.y, tol);
         const current = this.regionView.selected;
-        if (idx >= 0 && current) this.dragHandle = { index: idx, before: clone(current) };
-        else this.selectRegionAt(world);
+
+        if (idx >= 0 && current) {
+          // Dragging a vertex that is part of a multi-point selection moves the whole
+          // selection, which is how a region gets repositioned or an edge nudged.
+          const picked = this.regionView.selectedPoints;
+          if (!picked.has(idx)) this.regionView.setSelectedPoints([idx]);
+          this.dragHandle = { index: idx, before: clone(current) };
+        } else if (this.regionView.hitTest(world.x, world.y, 12 / this.renderer.camera.zoom)) {
+          this.selectRegionAt(world);
+        } else if (this.regionView.selected) {
+          // Empty space with a region already selected: rubber-band its vertices.
+          this.boxSelect = { startWorld: world, startScreen: p };
+          this.marquee.set({ x: p.x, y: p.y, w: 0, h: 0 });
+        } else {
+          this.selectRegionAt(world);
+        }
       }
       return;
     }
@@ -1158,11 +1284,17 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (this.tab() === 'labels') {
       if (this.labelTool() === 'place') {
         this.placeLabel(world);
-      } else if (this.selectLabelAt(world)) {
-        const label = this.labelView.get(this.selectedLabelId()!);
-        if (label) {
-          this.dragLabel = { startWorld: world, before: clone(label), moved: false };
+      } else if (this.selectLabelAt(world, e.shiftKey)) {
+        const origins = new Map<string, MapLabel>();
+        for (const id of this.selectedLabelIds()) {
+          const l = this.labelView.get(id);
+          if (l) origins.set(id, clone(l));
         }
+        this.dragLabel = { startWorld: world, origins, moved: false };
+      } else {
+        // Empty space starts a rubber band, matching the symbol selector.
+        this.boxSelect = { startWorld: world, startScreen: p };
+        this.marquee.set({ x: p.x, y: p.y, w: 0, h: 0 });
       }
       return;
     }
@@ -1223,7 +1355,20 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     if (this.dragHandle) {
       const region = this.regionView.selected;
       if (region) {
-        region.points[this.dragHandle.index] = { x: world.x, y: world.y };
+        const anchor = region.points[this.dragHandle.index];
+        const dx = world.x - anchor.x;
+        const dy = world.y - anchor.y;
+
+        // Move every picked vertex by the same delta, so a boxed-up edge — or the whole
+        // region — travels together instead of one point stretching away from the rest.
+        for (const i of this.regionView.selectedPoints) {
+          const p = region.points[i];
+          if (p) {
+            p.x += dx;
+            p.y += dy;
+          }
+        }
+
         const c = centroid(region.points);
         region.x = c.x;
         region.y = c.y;
@@ -1234,15 +1379,19 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
 
     if (this.dragLabel) {
-      const label = this.labelView.get(this.dragLabel.before.id);
-      if (label) {
-        label.x += world.x - this.dragLabel.startWorld.x;
-        label.y += world.y - this.dragLabel.startWorld.y;
-        this.dragLabel.startWorld = world;
-        this.dragLabel.moved = true;
+      const dx = world.x - this.dragLabel.startWorld.x;
+      const dy = world.y - this.dragLabel.startWorld.y;
+      this.dragLabel.startWorld = world;
+      this.dragLabel.moved = true;
+
+      for (const id of this.selectedLabelIds()) {
+        const label = this.labelView.get(id);
+        if (!label) continue;
+        label.x += dx;
+        label.y += dy;
         this.labelView.update(label);
-        this.scheduleStream();
       }
+      this.scheduleStream();
       return;
     }
 
@@ -1301,16 +1450,14 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     }
 
     if (this.dragLabel) {
-      const label = this.labelView.get(this.dragLabel.before.id);
-      if (label && this.dragLabel.moved) {
+      if (this.dragLabel.moved) {
         this.undoStack?.begin();
-        this.undoStack?.recordObject({
-          c: 'labels',
-          id: label.id,
-          before: this.dragLabel.before,
-          after: clone(label),
-        });
-        this.store.updateObject('labels', label.id, { x: label.x, y: label.y });
+        for (const [id, before] of this.dragLabel.origins) {
+          const label = this.labelView.get(id);
+          if (!label) continue;
+          this.undoStack?.recordObject({ c: 'labels', id, before, after: clone(label) });
+          this.store.updateObject('labels', id, { x: label.x, y: label.y });
+        }
         this.undoStack?.commit('Beschriftung verschieben');
         this.refreshHistoryState();
       }
@@ -1333,8 +1480,15 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         maxX: Math.max(start.x, end.x),
         maxY: Math.max(start.y, end.y),
       };
-      const hits = this.symbols?.inRect(rect) ?? [];
-      this.setSelection(hits.map(s => s.id));
+      if (this.tab() === 'labels') {
+        this.setLabelSelection(this.labelView.inRect(rect).map(l => l.id));
+      } else if (this.tab() === 'regions') {
+        // Select the region's vertices inside the box, so a whole edge can be dragged.
+        this.selectRegionPointsIn(rect);
+      } else {
+        this.setSelection(this.symbols?.inRect(rect).map(s => s.id) ?? []);
+      }
+
       this.boxSelect = null;
       this.marquee.set(null);
       return;
