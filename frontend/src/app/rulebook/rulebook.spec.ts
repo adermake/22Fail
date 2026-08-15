@@ -187,6 +187,32 @@ describe('renderMarkdown', () => {
     expect(closed.html).not.toContain('<details class="rb-section" open');
   });
 
+  it('reports headings AND section titles as live jump points, in document order', async () => {
+    const { headings } = await renderMarkdown(
+      md(
+        '# Stats',
+        ':::section{title="Level System"}',
+        'Text',
+        ':::',
+        '## Konditionsstats',
+        ':::section{title="Leben"}',
+        'Text',
+        ':::',
+        '## Sonstige Stats',
+      ),
+      'stats',
+    );
+    expect(headings.map((h) => h.text)).toEqual([
+      'Stats',
+      'Level System',
+      'Konditionsstats',
+      'Leben',
+      'Sonstige Stats',
+    ]);
+    expect(headings.find((h) => h.text === 'Level System')?.kind).toBe('section');
+    expect(headings.find((h) => h.text === 'Sonstige Stats')?.id).toBe('sonstige-stats');
+  });
+
   it('renders the whole real stats.md grid pattern cleanly', async () => {
     const { html, warnings } = await renderMarkdown(
       md(

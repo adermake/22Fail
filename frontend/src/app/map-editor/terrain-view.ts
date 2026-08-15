@@ -15,8 +15,13 @@ import {
   Container,
   Geometry,
   GlProgram,
+  Matrix,
   Mesh,
+  Rectangle,
+  Renderer,
+  RenderTexture,
   Shader,
+  Sprite,
   Texture,
   UniformGroup,
 } from 'pixi.js';
@@ -180,12 +185,30 @@ export function defaultCoast(): CoastSettings {
 }
 
 /**
- * Ceiling on terrain meshes.
+ * Ceiling on full-detail terrain meshes.
  *
  * Kept just under the chunk manager's resident-cell budget, so the view never asks for
- * terrain the streamer has already evicted.
+ * terrain the streamer has already evicted. Everything past this is drawn from the
+ * thumbnail atlas instead.
  */
 const MAX_TERRAIN_CELLS = 80;
+
+/**
+ * Low-resolution overview of terrain already seen.
+ *
+ * Chunk textures are evicted under a VRAM budget, so zoomed out, land simply stopped
+ * existing past the resident set and vanished in chunk-sized squares as you panned. Raising
+ * the budget only moves that edge further out.
+ *
+ * Instead every cell is baked once into a slot of a single atlas at 32×32. A slot is 4 KB,
+ * the whole atlas is a fixed 16 MB, and — because every thumbnail shares one texture — the
+ * hundreds of sprites needed for a wide view batch into a draw call or two. The baked copy
+ * outlives the full-resolution chunk, so panning while zoomed out shows the map rather than
+ * holes.
+ */
+const THUMB_TEXELS = 32;
+const THUMB_ATLAS_TEXELS = 2048;
+const THUMB_COLS = THUMB_ATLAS_TEXELS / THUMB_TEXELS; // 64 → 4096 slots
 
 /** Program is compiled once and shared; only the per-cell resources differ. */
 let sharedProgram: GlProgram | null = null;
@@ -220,9 +243,21 @@ interface Cell {
 export class TerrainView {
   /** Parent this in the camera-transformed world container. */
   readonly container = new Container();
+  /** Thumbnails draw beneath the full-detail meshes, so detail always wins where present. */
+  private thumbLayer = new Container();
+  private meshLayer = new Container();
 
   private cells = new Map<string, Cell>();
   private geometry = quad();
+
+  /** Baked overview: one atlas, one slot per cell, plus the sprites that show it. */
+  private thumbAtlas: RenderTexture | null = null;
+  private thumbSlots = new Map<string, number>();
+  private thumbTextures = new Map<string, Texture>();
+  private thumbSprites = new Map<string, Sprite>();
+  private thumbPool: Sprite[] = [];
+  private thumbLru: string[] = [];
+  private thumbHost = new Container();
 
   /** Freshly drawn land is white; the land brush bakes real colour as it paints. */
   private landDefault: [number, number, number] = [1, 1, 1];
@@ -236,10 +271,133 @@ export class TerrainView {
   /** Coastline character. Defaults are a starting point; the Karte tab tunes them. */
   private coast: CoastSettings = defaultCoast();
 
-  constructor(private chunks: ChunkManager) {
+  constructor(
+    private chunks: ChunkManager,
+    private renderer?: Renderer,
+  ) {
+    this.container.addChild(this.thumbLayer, this.meshLayer);
+
     // A refetched or restored chunk keeps its RenderTexture identity, so the mesh already
     // points at the right pixels — but an evicted one does not, hence the drop below.
-    this.chunks.onChunkDisposed = (_layer, cx, cy) => this.drop(cx, cy);
+    // The cell is re-baked first, so the overview keeps what the full chunk is losing.
+    this.chunks.onChunkDisposed = (_layer, cx, cy) => {
+      this.bakeThumb(cx, cy);
+      this.drop(cx, cy);
+    };
+    this.chunks.onChunkUpdated = rec => this.invalidateThumb(rec.cx, rec.cy);
+  }
+
+  /** Atlas rectangle for a cell, allocating (and recycling) a slot on demand. */
+  private slotFor(key: string): { index: number; x: number; y: number } | null {
+    let index = this.thumbSlots.get(key);
+
+    if (index === undefined) {
+      if (this.thumbSlots.size < THUMB_COLS * THUMB_COLS) {
+        index = this.thumbSlots.size;
+      } else {
+        // Full: recycle the least recently baked cell's slot.
+        const victim = this.thumbLru.shift();
+        if (victim === undefined) return null;
+        index = this.thumbSlots.get(victim)!;
+        this.thumbSlots.delete(victim);
+        this.thumbTextures.get(victim)?.destroy();
+        this.thumbTextures.delete(victim);
+      }
+      this.thumbSlots.set(key, index);
+    }
+
+    // Refresh recency.
+    const at = this.thumbLru.indexOf(key);
+    if (at >= 0) this.thumbLru.splice(at, 1);
+    this.thumbLru.push(key);
+
+    return {
+      index,
+      x: (index % THUMB_COLS) * THUMB_TEXELS,
+      y: Math.floor(index / THUMB_COLS) * THUMB_TEXELS,
+    };
+  }
+
+  /**
+   * Render a cell's composited terrain into its atlas slot.
+   *
+   * Uses the same shader as the full-detail mesh, so the overview matches what it stands in
+   * for rather than being a separate approximation that drifts.
+   */
+  private bakeThumb(cx: number, cy: number): void {
+    if (!this.renderer) return;
+
+    const key = this.key(cx, cy);
+    const slot = this.slotFor(key);
+    if (!slot) return;
+
+    this.thumbAtlas ??= RenderTexture.create({
+      width: THUMB_ATLAS_TEXELS,
+      height: THUMB_ATLAS_TEXELS,
+      scaleMode: 'linear',
+    });
+
+    // Reuse the live cell's shader when it exists, otherwise build a throwaway one.
+    const existing = this.cells.get(key);
+    const cell = existing ?? this.build(cx, cy, false);
+
+    const m = new Matrix(THUMB_TEXELS, 0, 0, THUMB_TEXELS, slot.x, slot.y);
+
+    this.thumbHost.removeChildren();
+    this.thumbHost.addChild(cell.mesh);
+    // The mesh carries a world transform; the unit quad is what maps onto the slot.
+    const px = cell.mesh.x;
+    const py = cell.mesh.y;
+    const ps = cell.mesh.scale.x;
+    cell.mesh.position.set(0, 0);
+    cell.mesh.scale.set(1);
+
+    this.renderer.render({
+      container: this.thumbHost,
+      target: this.thumbAtlas,
+      clear: false,
+      transform: m,
+    });
+
+    cell.mesh.position.set(px, py);
+    cell.mesh.scale.set(ps);
+    this.thumbHost.removeChildren();
+
+    if (existing) this.meshLayer.addChild(cell.mesh);
+    else this.destroyCell(cell);
+
+    // Point the thumbnail sprite at the freshly baked slot.
+    this.thumbTextures.get(key)?.destroy();
+    this.thumbTextures.set(
+      key,
+      new Texture({
+        source: this.thumbAtlas.source,
+        frame: new Rectangle(slot.x, slot.y, THUMB_TEXELS, THUMB_TEXELS),
+      }),
+    );
+  }
+
+  /** Re-bake a cell whose pixels changed. */
+  private invalidateThumb(cx: number, cy: number): void {
+    if (this.cells.has(this.key(cx, cy))) this.bakeThumb(cx, cy);
+  }
+
+  /**
+   * Re-bake the overview across a world region.
+   *
+   * Painting writes straight into chunk textures without going through the chunk manager's
+   * update hooks, so the overview would otherwise keep showing the terrain as it was before
+   * the stroke. Called once when a stroke settles, not per dab.
+   */
+  refreshThumbs(bounds: Bounds): void {
+    const minCx = Math.floor(bounds.minX / CHUNK_WORLD_SIZE);
+    const maxCx = Math.floor(bounds.maxX / CHUNK_WORLD_SIZE);
+    const minCy = Math.floor(bounds.minY / CHUNK_WORLD_SIZE);
+    const maxCy = Math.floor(bounds.maxY / CHUNK_WORLD_SIZE);
+
+    for (let cy = minCy; cy <= maxCy; cy++) {
+      for (let cx = minCx; cx <= maxCx; cx++) this.invalidateThumb(cx, cy);
+    }
   }
 
   // ── appearance ──
@@ -303,7 +461,7 @@ export class TerrainView {
     return `${cx}/${cy}`;
   }
 
-  private build(cx: number, cy: number): Cell {
+  private build(cx: number, cy: number, register = true): Cell {
     const uniforms = new UniformGroup({
       uLandDefault: { value: this.landDefault, type: 'vec3<f32>' },
       uWaterDefault: { value: this.waterDefault, type: 'vec3<f32>' },
@@ -344,7 +502,6 @@ export class TerrainView {
     const mesh: TerrainMesh = new Mesh<Geometry, Shader>({ geometry: this.geometry, shader });
     mesh.position.set(cx * CHUNK_WORLD_SIZE, cy * CHUNK_WORLD_SIZE);
     mesh.scale.set(CHUNK_WORLD_SIZE);
-    this.container.addChild(mesh);
 
     const cell: Cell = {
       cx,
@@ -353,14 +510,50 @@ export class TerrainView {
       uniforms,
       bound: { height, landColor, waterColor },
     };
-    this.cells.set(this.key(cx, cy), cell);
+
+    // A throwaway cell built only to bake a thumbnail must not join the scene or the map.
+    if (register) {
+      this.meshLayer.addChild(mesh);
+      this.cells.set(this.key(cx, cy), cell);
+      this.bakeThumb(cx, cy);
+    }
     return cell;
   }
 
   private destroyCell(cell: Cell): void {
-    this.container.removeChild(cell.mesh);
+    this.meshLayer.removeChild(cell.mesh);
     // The geometry is shared across every cell, so it must outlive them.
     cell.mesh.destroy({ children: true });
+  }
+
+  /** Show or hide the baked thumbnail for a cell. */
+  private setThumbVisible(cx: number, cy: number, visible: boolean): void {
+    const key = this.key(cx, cy);
+    const existing = this.thumbSprites.get(key);
+
+    if (!visible) {
+      if (existing) {
+        this.thumbLayer.removeChild(existing);
+        existing.visible = false;
+        this.thumbSprites.delete(key);
+        this.thumbPool.push(existing);
+      }
+      return;
+    }
+
+    const texture = this.thumbTextures.get(key);
+    if (!texture) return;
+
+    const sprite = existing ?? this.thumbPool.pop() ?? new Sprite();
+    sprite.texture = texture;
+    sprite.position.set(cx * CHUNK_WORLD_SIZE, cy * CHUNK_WORLD_SIZE);
+    sprite.setSize(CHUNK_WORLD_SIZE, CHUNK_WORLD_SIZE);
+    sprite.visible = true;
+
+    if (!existing) {
+      this.thumbLayer.addChild(sprite);
+      this.thumbSprites.set(key, sprite);
+    }
   }
 
   private drop(cx: number, cy: number): void {
@@ -403,10 +596,12 @@ export class TerrainView {
     }
 
     const live = new Set<string>();
+    const detailed = new Set<string>();
 
     for (const { cx, cy } of wanted) {
       const key = this.key(cx, cy);
       live.add(key);
+      detailed.add(key);
 
       const cell = this.cells.get(key);
       if (!cell) {
@@ -428,11 +623,47 @@ export class TerrainView {
       this.destroyCell(cell);
       this.cells.delete(key);
     }
+
+    /*
+     * Fill everything else in view from the baked overview. This is the difference between
+     * land ending in a hard square at the edge of the resident set and the map simply
+     * continuing, softer, as far as it has ever been visited.
+     */
+    const shown = new Set<string>();
+    for (let cy = minCy; cy <= maxCy; cy++) {
+      for (let cx = minCx; cx <= maxCx; cx++) {
+        const key = this.key(cx, cy);
+        // Detail wins where it exists; a thumbnail underneath it would only be overdraw.
+        if (detailed.has(key)) continue;
+        if (!this.thumbTextures.has(key)) continue;
+        shown.add(key);
+        this.setThumbVisible(cx, cy, true);
+      }
+    }
+
+    for (const key of [...this.thumbSprites.keys()]) {
+      if (shown.has(key)) continue;
+      const [cx, cy] = key.split('/').map(Number);
+      this.setThumbVisible(cx, cy, false);
+    }
   }
 
   destroy(): void {
     for (const cell of this.cells.values()) this.destroyCell(cell);
     this.cells.clear();
+
+    for (const t of this.thumbTextures.values()) t.destroy();
+    this.thumbTextures.clear();
+    this.thumbSlots.clear();
+    this.thumbLru = [];
+    for (const s of this.thumbSprites.values()) s.destroy();
+    for (const s of this.thumbPool) s.destroy();
+    this.thumbSprites.clear();
+    this.thumbPool = [];
+    this.thumbHost.destroy();
+    this.thumbAtlas?.destroy(true);
+    this.thumbAtlas = null;
+
     this.geometry.destroy();
     this.container.destroy();
   }

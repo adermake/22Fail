@@ -294,7 +294,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     const data = await this.store.load(world);
 
     this.chunks = new ChunkManager(this.renderer.renderer, this.api, this.store, world);
-    this.terrain = new TerrainView(this.chunks);
+    this.terrain = new TerrainView(this.chunks, this.renderer.renderer);
     this.renderer.terrainLayer.addChild(this.terrain.container);
     this.brushes = new BrushEngine(this.chunks, this.renderer.renderer);
     this.undoStack = new UndoStack(this.chunks, {
@@ -1165,6 +1165,10 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       );
       this.lakeSeed = Math.floor(Math.random() * 1e9);
       this.lastWorld = world;
+      // The stamp reaches well past the brush radius; cover it all for the overview.
+      const r = this.brushSize() * 2.4;
+      this.noteStrokeExtent({ x: world.x - r, y: world.y - r });
+      this.noteStrokeExtent({ x: world.x + r, y: world.y + r });
       this.endPaint();
       this.redrawCursor();
       return;
@@ -1232,6 +1236,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
     this.undoStack?.commit(this.terrainTool());
+
+    // Keep the zoomed-out overview in step with what was just painted.
+    if (this.strokeBounds) this.terrain?.refreshThumbs(this.strokeBounds);
 
     // Colourable symbols take the colour of the ground beneath them, so recolouring that
     // ground has to carry through to the symbols standing on it.
