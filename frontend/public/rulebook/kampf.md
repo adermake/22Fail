@@ -39,9 +39,9 @@ Während einem Zug hat man jeweils eine der 3 Aktionsarten zur Verfügung, sowie
 
 :::card{title="Aktion" accent=health id=aktion}
 Die Hauptaktion, mit der alles Wichtige in einem Zug gemacht werden kann.
+Eine Aktion kann außerdem verwendet werden, um entweder eine zusätzliche Bonusaktion oder Bewegungsaktion auszuführen.
 Z.B. Angriffe, Zauber, Fähigkeiten
 :::
-
 
 :::card{title="Bonusaktion" accent=mana}
 Die Bonusaktion ist für kleinere und meist schnelle Manöver verantwortlich.
@@ -49,12 +49,10 @@ Z.B. Items benutzen, Ausrüstung wechseln, bestimmte Fähigkeiten
 Komplexere Bewegungen wie Springen, Schleichen oder Klettern sind ebenfalls Bonusaktionen.
 :::
 
-
 :::card{title="Bewegung" accent=energy}
 In jedem Zug kann man sich eine bestimmte Distanz fortbewegen, abhängig von der [Bewegung](stats#bewegung).
-Beim Schleichen im Kampf wird die Bewegungsdistanz halbiert und ohne gutes Versteck wird man leicht entdeckt.
+Die Bewegung kann ebenfalls für einen Zug aufgegeben werden, um eine zusätzliche Bonusaktion zu erhalten.
 :::
-
 
 :::card{title="Reaktion" accent=accent}
 Die Reaktion kann nur **außerhalb des eigenen Zuges** verwendet werden, wenn man von gegnerischen Aktionen beeinflusst wird.
@@ -114,3 +112,5 @@ Flair
 :::section{title="Rüstungsnegation" icon=equipment id=ruestungsnegation}
 *Noch zu schreiben.*
 :::
+
+Beim Schleichen im Kampf wird die Bewegungsdistanz halbiert und ohne gutes Versteck wird man leicht entdeckt.
