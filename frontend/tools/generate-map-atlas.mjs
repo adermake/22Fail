@@ -74,6 +74,7 @@ function metaFor(sidecar, stem) {
 async function collectSprites() {
   const sprites = [];
   const groups = new Map();
+  let skippedCustomColor = 0;
 
   for (const [folder, category] of Object.entries(CATEGORIES)) {
     const catDir = join(SRC, folder);
@@ -106,6 +107,20 @@ async function collectSprites() {
 
         const meta = metaFor(sidecar, stem) ?? {};
         const drawMode = meta.draw_mode ?? 'normal';
+
+        /*
+         * Skip Wonderdraft's multi-slot recolour sprites.
+         *
+         * Their RGB channels hold per-slot coverage masks rather than literal colours, so
+         * drawing one as an ordinary image produces a garish, over-saturated mess. Until
+         * the slot palettes are implemented they cannot be rendered correctly, and an
+         * unusable entry in the picker is worse than no entry at all.
+         */
+        if (drawMode === 'custom_colors' || drawMode === 'custom_colors_2') {
+          skippedCustomColor++;
+          continue;
+        }
+
         const id = `${groupId}/${stem}`;
 
         sprites.push({
@@ -140,6 +155,11 @@ async function collectSprites() {
     }
   }
 
+  if (skippedCustomColor) {
+    console.log(
+      `[map-atlas] skipped ${skippedCustomColor} multi-slot recolour sprites (unsupported)`,
+    );
+  }
   return { sprites, groups };
 }
 

@@ -34,11 +34,21 @@ export const RASTER_LAYERS: readonly RasterLayer[] = ['height', 'landColor', 'wa
  */
 export const CHUNK_WORLD_SIZE = 2048;
 
-/** Texels per chunk side, per layer. Colour layers are coarse — they hold broad washes. */
+/**
+ * Texels per chunk side, per layer.
+ *
+ * Resolution is what decides whether fine work — a path threading between hexes, a narrow
+ * river — reads as a drawn line or as visible blocks. The first pass at 4 and 8 world px
+ * per texel was far too coarse for that, so height is now 2 px/texel and the colour layers
+ * 4 px/texel. Colour stays a step below height because it holds broad washes, while height
+ * carries the coastline the eye actually inspects.
+ *
+ * Existing chunks are unaffected: stored PNGs are rescaled to the current size on load.
+ */
 export const LAYER_TEXELS: Record<RasterLayer, number> = {
-  height: 512, // 4 world px per texel — coastline detail comes from the shader, not texels
-  landColor: 256, // 8 world px per texel
-  waterColor: 256,
+  height: 1024, // 2 world px per texel
+  landColor: 512, // 4 world px per texel
+  waterColor: 512,
 };
 
 /** World pixels per texel, per layer. */

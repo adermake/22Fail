@@ -45,14 +45,13 @@ describe('terrain tools', () => {
   });
 });
 
-describe('paint passes (colour baked at draw time)', () => {
-  it('writes both height and land colour when drawing land', () => {
-    // The whole point of baking: what you draw keeps the colour you drew it with, so no
-    // later setting can retroactively repaint it.
+describe('paint passes (shape and colour are separate)', () => {
+  it('changes only the landmass shape when drawing land', () => {
+    // New land must come out blank rather than inheriting whichever swatch happens to be
+    // selected — colouring it is the colour brush's job.
     const passes = paintPasses('landBrush', 0x336699);
-    expect(passes.map(p => p.layer)).toEqual(['height', 'landColor']);
+    expect(passes.map(p => p.layer)).toEqual(['height']);
     expect(passes[0].erase).toBe(false);
-    expect(passes[1].tint).toBe(0x336699);
   });
 
   it('takes the colour away with the land when erasing', () => {
@@ -61,10 +60,22 @@ describe('paint passes (colour baked at draw time)', () => {
     expect(passes.map(p => p.layer)).toEqual(['height', 'landColor']);
   });
 
-  it('lowers height and colours water when drawing water', () => {
-    const passes = paintPasses('waterBrush', 0x112233);
-    expect(passes[0]).toEqual({ layer: 'height', erase: true, tint: 0xffffff });
-    expect(passes[1]).toEqual({ layer: 'waterColor', erase: false, tint: 0x112233 });
+  it('does not tint water when drawing water or stamping a lake', () => {
+    // Laying a differently-coloured patch over existing water is what produced the hard
+    // blue outline around every water stroke and lake.
+    for (const tool of ['waterBrush', 'lakeStamp'] as const) {
+      const passes = paintPasses(tool, 0x112233);
+      expect(passes).toEqual([{ layer: 'height', erase: true, tint: 0xffffff }]);
+    }
+  });
+
+  it('still paints colour with the dedicated colour brushes', () => {
+    expect(paintPasses('landPaint', 0x336699)).toEqual([
+      { layer: 'landColor', erase: false, tint: 0x336699 },
+    ]);
+    expect(paintPasses('waterPaint', 0x112233)).toEqual([
+      { layer: 'waterColor', erase: false, tint: 0x112233 },
+    ]);
   });
 
   it('reshapes the coastline without disturbing colour already laid down', () => {
@@ -111,13 +122,36 @@ describe('lake stamp geometry', () => {
   });
 
   it('stays within the bounds the stamp dirties', () => {
-    // stampLake dirties radius * 1.4; if the wobble could exceed that, a lake would be
-    // clipped at the edge of the region actually painted.
-    const r = 80;
-    const pts = lakeOutline(0, 0, r, 4242);
-    for (let i = 0; i < pts.length; i += 2) {
-      expect(Math.hypot(pts[i], pts[i + 1])).toBeLessThanOrEqual(r * 1.4);
+    // stampLake dirties radius * 1.4; anything beyond that would be clipped at the edge of
+    // the region actually painted.
+    for (const seed of [1, 42, 4242, 999999]) {
+      const r = 80;
+      const pts = lakeOutline(0, 0, r, seed);
+      for (let i = 0; i < pts.length; i += 2) {
+        expect(Math.hypot(pts[i], pts[i + 1])).toBeLessThanOrEqual(r * 1.4 + 0.001);
+      }
     }
+  });
+
+  it('is elongated rather than round', () => {
+    // A lake built by wobbling one radius is always roughly circular. Measuring the spread
+    // of the outline along its two principal directions catches a regression to blobs.
+    let elongated = 0;
+    const samples = 12;
+
+    for (let seed = 1; seed <= samples; seed++) {
+      const pts = lakeOutline(0, 0, 100, seed * 7919);
+      let maxR = 0;
+      let minR = Infinity;
+      for (let i = 0; i < pts.length; i += 2) {
+        const d = Math.hypot(pts[i], pts[i + 1]);
+        maxR = Math.max(maxR, d);
+        minR = Math.min(minR, d);
+      }
+      if (maxR / Math.max(1e-6, minR) > 1.6) elongated++;
+    }
+    // Most shapes should be clearly non-circular.
+    expect(elongated).toBeGreaterThan(samples / 2);
   });
 
   it('translates with its centre', () => {

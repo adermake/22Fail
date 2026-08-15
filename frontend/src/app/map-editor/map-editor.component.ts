@@ -29,7 +29,8 @@ import { AuthService } from '../services/auth.service';
 import { MapRenderer } from './map-renderer';
 import { ChunkManager } from './chunk-manager';
 import { CoastSettings, TerrainView, defaultCoast, hexToRgb } from './terrain-view';
-import { BrushEngine, BrushSettings, TerrainTool, defaultBrush } from './brush-engine';
+import { BrushEngine, BrushSettings, TerrainTool, defaultBrush, toolLayer } from './brush-engine';
+import { Bounds } from './map-camera';
 import { UndoStack, clone } from './undo-stack';
 import { GroupMeta, MapAssets, PaperTextureMeta } from './map-assets';
 import { SymbolView } from './symbol-view';
@@ -151,6 +152,13 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly brushSize = signal(120);
   readonly brushSoftness = signal(0.35);
   readonly brushStrength = signal(1);
+  /** Raggedness of the raise/lower brushes. */
+  readonly brushNoise = signal(0.6);
+
+  /** Only the terrain-reshaping brushes are noisy. */
+  readonly showNoiseSetting = computed(
+    () => this.terrainTool() === 'heighten' || this.terrainTool() === 'lower',
+  );
 
   readonly landPalette = signal<string[]>([]);
   readonly waterPalette = signal<string[]>([]);
@@ -228,6 +236,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private streamScheduled = false;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private lakeSeed = Math.floor(Math.random() * 1e9);
+  /** World-space extent of the stroke in progress, for bounded post-stroke work. */
+  private strokeBounds: Bounds | null = null;
   private cursorGraphic = new Graphics();
   private previewSprite = new Sprite();
   private lastWorld: { x: number; y: number } | null = null;
@@ -404,6 +414,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       softness: this.brushSoftness(),
       strength: this.brushStrength(),
       color: this.activeBrushColor(),
+      noise: this.brushNoise(),
     };
   }
 
@@ -952,8 +963,24 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   // ── painting ──
 
+  /** Grow the stroke's recorded extent to include a dab at `world`. */
+  private noteStrokeExtent(world: { x: number; y: number }): void {
+    const r = this.brushSize() * 1.5;
+    const b = this.strokeBounds;
+    this.strokeBounds = b
+      ? {
+          minX: Math.min(b.minX, world.x - r),
+          minY: Math.min(b.minY, world.y - r),
+          maxX: Math.max(b.maxX, world.x + r),
+          maxY: Math.max(b.maxY, world.y + r),
+        }
+      : { minX: world.x - r, minY: world.y - r, maxX: world.x + r, maxY: world.y + r };
+  }
+
   private beginPaint(world: { x: number; y: number }): void {
     this.isPainting = true;
+    this.strokeBounds = null;
+    this.noteStrokeExtent(world);
     this.undoStack?.begin();
     this.brushes?.beginStroke();
 
@@ -977,6 +1004,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   private continuePaint(world: { x: number; y: number }): void {
     if (!this.isPainting || this.terrainTool() === 'lakeStamp') return;
+    this.noteStrokeExtent(world);
     this.brushes?.stroke(world, this.brush());
   }
 
@@ -990,8 +1018,57 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       return;
     }
     this.undoStack?.commit(this.terrainTool());
+
+    // Colourable symbols take the colour of the ground beneath them, so recolouring that
+    // ground has to carry through to the symbols standing on it.
+    if (toolLayer(this.terrainTool()) === 'landColor') this.resampleSymbolTints();
+
     this.refreshHistoryState();
     this.scheduleFlush();
+  }
+
+  /**
+   * Re-read ground colour for colourable symbols the current stroke passed under.
+   *
+   * Bounded to the stroke's own area and run once at stroke end, because each sample is a
+   * GPU readback. Symbols whose colour has not actually changed emit no op, so repainting
+   * the same shade does not flood the network.
+   */
+  private resampleSymbolTints(): void {
+    const data = this.store.data();
+    if (!data || !this.symbols || !this.chunks) return;
+
+    const bounds = this.strokeBounds;
+    if (!bounds) return;
+
+    const changed: { id: string; tint: string }[] = [];
+
+    for (const sym of this.symbols.index.query(bounds)) {
+      const meta = this.assets.meta(sym.asset);
+      if (!meta?.colorable) continue;
+
+      const ground = this.chunks.sampleWorld('landColor', sym.x, sym.y);
+      const tint = ground ? rgbToHex(ground.r, ground.g, ground.b) : undefined;
+      if (tint === sym.tint) continue;
+      changed.push({ id: sym.id, tint: tint ?? '' });
+    }
+
+    if (changed.length === 0) return;
+
+    this.undoStack?.begin();
+    for (const c of changed) {
+      const sym = data.symbols.find(s => s.id === c.id);
+      if (!sym) continue;
+      const patch = { tint: c.tint || undefined };
+      this.undoStack?.recordObject({
+        c: 'symbols',
+        id: c.id,
+        before: clone(sym),
+        after: clone({ ...sym, ...patch }),
+      });
+      this.store.updateObject('symbols', c.id, patch);
+    }
+    this.undoStack?.commit('Symbolfarbe');
   }
 
   private scheduleFlush(): void {

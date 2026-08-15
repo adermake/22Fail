@@ -72,18 +72,25 @@ function layoutGlyphs(
   }
 
   // Total sweep grows with curvature; radius follows from arc length = radius × angle.
-  const sweep = bend * Math.PI * 0.9;
-  const radius = totalWidth / Math.abs(sweep);
+  const sweepMag = Math.abs(bend) * Math.PI * 0.9;
+  const radius = totalWidth / sweepMag;
+  const up = bend < 0;
 
   let travelled = 0;
   for (const g of glyphs) {
     const centre = travelled + g.width / 2;
-    const angle = (centre / totalWidth - 0.5) * sweep;
+    const angle = (centre / totalWidth - 0.5) * sweepMag;
 
-    // Bowing up puts the arc centre below the text, and vice versa.
-    const dir = Math.sign(sweep);
-    g.text.position.set(Math.sin(angle) * radius, dir * (radius - Math.cos(angle) * radius));
-    g.text.rotation = angle;
+    /*
+     * The arc centre sits on the opposite side from the bow, and *both* the offset and the
+     * glyph rotation have to flip with it. Flipping only the offset — as the first version
+     * did — left every glyph tilted the wrong way on an upward bow, so the text appeared to
+     * twist as it rose.
+     */
+    const sag = radius - Math.cos(angle) * radius;
+    g.text.position.set(Math.sin(angle) * radius, up ? -sag : sag);
+    g.text.rotation = up ? -angle : angle;
+
     travelled += g.width;
   }
 }

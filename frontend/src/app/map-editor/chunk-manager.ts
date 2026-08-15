@@ -50,10 +50,11 @@ export interface ChunkRecord {
 }
 
 /**
- * Resident-chunk ceiling across all layers. A height chunk is 512² RGBA (1 MB) and a colour
- * chunk 256² (0.25 MB), so this caps GPU residency at roughly 200 MB worst case.
+ * Resident-chunk ceiling across all layers. At the current resolution a height chunk is
+ * 1024² RGBA (4 MB) and a colour chunk 512² (1 MB), so a cell costs ~6 MB across the three
+ * layers. This holds GPU residency to roughly 300 MB worst case.
  */
-const MAX_RESIDENT_CHUNKS = 192;
+const MAX_RESIDENT_CHUNKS = 72;
 
 /**
  * Above this many chunks in view, stop streaming *new* ones and render whatever is already
@@ -88,7 +89,14 @@ export class ChunkManager {
 
   private create(layer: RasterLayer, cx: number, cy: number): ChunkRecord {
     const texels = LAYER_TEXELS[layer];
-    const texture = RenderTexture.create({ width: texels, height: texels });
+    // Linear filtering is essential: with nearest, every texel edge shows as a hard block
+    // and the whole map reads as pixel art however high the resolution goes.
+    const texture = RenderTexture.create({
+      width: texels,
+      height: texels,
+      scaleMode: 'linear',
+      antialias: true,
+    });
 
     // A fresh RenderTexture's contents are undefined; clear so unpainted reads as empty.
     this.renderer.render({
@@ -141,6 +149,9 @@ export class ChunkManager {
       const bitmap = await createImageBitmap(blob);
       const tex = Texture.from(bitmap);
       const sprite = new Sprite(tex);
+      // Stored chunks may predate a resolution change, so scale to the current size rather
+      // than assuming the PNG matches — otherwise old terrain would load into a corner.
+      sprite.setSize(LAYER_TEXELS[rec.layer], LAYER_TEXELS[rec.layer]);
 
       this.stampHost.removeChildren();
       this.stampHost.addChild(sprite);

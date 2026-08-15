@@ -188,6 +188,21 @@
               <em>{{ (brushStrength() * 100).toFixed(0) }}%</em>
             </label>
 
+            @if (showNoiseSetting()) {
+              <label class="slider-row" title="Wie zerrissen der Rand des Pinsels ist">
+                <span>Rauschen</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  [value]="brushNoise()"
+                  (input)="brushNoise.set(+$any($event.target).value)"
+                />
+                <em>{{ (brushNoise() * 100).toFixed(0) }}%</em>
+              </label>
+            }
+
             <p class="hint">Shift + ziehen oder Strg + Mausrad ändert die Größe.</p>
           </div>
         }

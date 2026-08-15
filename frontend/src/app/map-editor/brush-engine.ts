@@ -73,18 +73,16 @@ export interface PaintPass {
 /**
  * The raster passes a tool performs.
  *
- * Colour is committed *as terrain is drawn* rather than resolved later against an
- * adjustable base. Drawing land also writes its colour, so what you drew keeps the colour
- * you drew it with, and no later setting can retroactively repaint it. A fresh landmass
- * defaults to white — blank paper to colour in, not a preset green.
+ * Shape and colour are separate responsibilities. Drawing land only changes the *shape* of
+ * the landmass and leaves it white — colouring it is the colour brush's job. Two reasons
+ * this matters: new land should not silently inherit whatever swatch happens to be
+ * selected, and painting water over water used to lay a differently-coloured patch down,
+ * which showed up as a hard blue outline around every stroke and lake.
  */
 export function paintPasses(tool: TerrainTool, color: number): PaintPass[] {
   switch (tool) {
     case 'landBrush':
-      return [
-        { layer: 'height', erase: false, tint: 0xffffff },
-        { layer: 'landColor', erase: false, tint: color },
-      ];
+      return [{ layer: 'height', erase: false, tint: 0xffffff }];
     case 'landEraser':
       // Removing land takes its colour with it, so re-drawing there starts blank again.
       return [
@@ -92,15 +90,9 @@ export function paintPasses(tool: TerrainTool, color: number): PaintPass[] {
         { layer: 'landColor', erase: true, tint: 0xffffff },
       ];
     case 'waterBrush':
-      return [
-        { layer: 'height', erase: true, tint: 0xffffff },
-        { layer: 'waterColor', erase: false, tint: color },
-      ];
+      return [{ layer: 'height', erase: true, tint: 0xffffff }];
     case 'lakeStamp':
-      return [
-        { layer: 'height', erase: true, tint: 0xffffff },
-        { layer: 'waterColor', erase: false, tint: color },
-      ];
+      return [{ layer: 'height', erase: true, tint: 0xffffff }];
     // Raise/lower reshape the coastline without touching colour already laid down.
     case 'heighten':
       return [{ layer: 'height', erase: false, tint: 0xffffff }];
@@ -177,11 +169,20 @@ export interface BrushSettings {
   strength: number;
   /** Colour for the paint tools. */
   color: string;
+  /** How ragged the raise/lower brushes are. 0 = a clean round dab. */
+  noise: number;
 }
 
 export function defaultBrush(): BrushSettings {
   // White: freshly drawn land is blank, not a preset green.
-  return { tool: 'landBrush', size: 120, softness: 0.35, strength: 1, color: '#ffffff' };
+  return {
+    tool: 'landBrush',
+    size: 120,
+    softness: 0.35,
+    strength: 1,
+    color: '#ffffff',
+    noise: 0.6,
+  };
 }
 
 /** Deterministic value noise, so a lake shape is reproducible from its seed. */
@@ -300,17 +301,24 @@ export class BrushEngine {
     // ragged edge instead of accumulating a different blob each pass.
     const rand = seeded((Math.round(p.x) * 73856093) ^ (Math.round(p.y) * 19349663));
     const texture = this.dabs.get(Math.max(0.4, brush.softness));
-    const blobs = 7;
+
+    // More noise means more, smaller, further-flung blobs — the knob runs from a nearly
+    // round dab to a torn, scattered one.
+    const noise = Math.max(0, Math.min(1, brush.noise ?? 0.6));
+    const blobs = Math.max(1, Math.round(3 + noise * 9));
+    const scatter = 0.15 + noise * 0.75;
+    const sizeSpread = 0.15 + noise * 0.6;
 
     for (let i = 0; i < blobs; i++) {
       const angle = rand() * Math.PI * 2;
-      const dist = rand() * brush.size * 0.5;
-      const size = brush.size * (0.4 + rand() * 0.45);
+      const dist = rand() * brush.size * scatter;
+      const size = brush.size * (1 - sizeSpread * rand());
 
       const s = this.take(i, texture);
       s.position.set(p.x + Math.cos(angle) * dist, p.y + Math.sin(angle) * dist);
       s.scale.set((size * 2) / DAB_TEXELS);
-      s.alpha = brush.strength * 0.5;
+      // Split the flow across the blobs so total coverage stays near the set strength.
+      s.alpha = (brush.strength * 0.9) / Math.sqrt(blobs);
       s.tint = tint;
     }
   }
@@ -354,9 +362,7 @@ export class BrushEngine {
 }
 
 /** Vertices around a lake outline. Low counts read as a visibly faceted polygon. */
-const LAKE_STEPS = 192;
-/** Octaves of radial wobble. One or two look like a wavy circle, not like a lake. */
-const LAKE_OCTAVES = 5;
+const LAKE_STEPS = 256;
 
 /**
  * Outline of the lake a given seed produces, as a flat x,y point list.
@@ -365,34 +371,89 @@ const LAKE_OCTAVES = 5;
  * shape you get — previewing a plain circle would be a lie, since the whole point of the
  * tool is that every lake comes out different.
  *
- * The radius is modulated by several octaves of sine noise with independently randomised
- * frequency, phase and amplitude. An earlier two-octave version with a frequency picked from
- * three values produced shapes so alike they looked like the same lake toggling between a
- * couple of states, and at 48 vertices the facets were visible as straight edges.
+ * Real lakes are not wobbled circles. They sit in valleys, so they are elongated, bent, and
+ * lobed, with arms reaching off the main body. Modulating one radius — however many noise
+ * octaves are stacked on it — can only ever produce a blob, because every outline point is
+ * still measured from a single centre.
+ *
+ * So the shape is built from a *spine*: a short wandering path with several overlapping
+ * lobes of varying size along it. The outline is then the furthest lobe surface in each
+ * direction, which naturally yields inlets where two lobes meet and a long axis that
+ * follows the spine.
  */
 export function lakeOutline(cx: number, cy: number, radius: number, seed: number): number[] {
   const rand = seeded(seed);
 
-  // Low frequencies give the overall lopsided body, higher ones the ragged shoreline.
-  const octaves: { freq: number; phase: number; amp: number }[] = [];
-  let amp = 0.28;
-  for (let o = 0; o < LAKE_OCTAVES; o++) {
-    octaves.push({
-      freq: Math.max(1, Math.round(1 + rand() * 2) + o * 2),
-      phase: rand() * Math.PI * 2,
-      amp: amp * (0.6 + rand() * 0.8),
-    });
-    amp *= 0.55;
+  // Spine: a gently curving walk, so the lake has a long axis instead of a centre.
+  const lobeCount = 3 + Math.floor(rand() * 4);
+  const heading = rand() * Math.PI * 2;
+  const bend = (rand() - 0.5) * 1.4;
+  const spread = 0.35 + rand() * 0.45;
+
+  const lobes: { x: number; y: number; r: number }[] = [];
+  let px = 0;
+  let py = 0;
+  let dir = heading;
+
+  for (let i = 0; i < lobeCount; i++) {
+    // Lobes shrink towards the ends, giving a fat middle and tapered arms.
+    const t = i / Math.max(1, lobeCount - 1);
+    const taper = 0.55 + 0.45 * Math.sin(Math.PI * t);
+    lobes.push({ x: px, y: py, r: radius * taper * (0.55 + rand() * 0.3) });
+
+    dir += bend * (0.4 + rand() * 0.6);
+    const step = radius * spread * (0.7 + rand() * 0.6);
+    px += Math.cos(dir) * step;
+    py += Math.sin(dir) * step;
   }
 
+  // Recentre so the lake lands where the user clicked rather than drifting off the cursor.
+  let ax = 0;
+  let ay = 0;
+  for (const l of lobes) {
+    ax += l.x;
+    ay += l.y;
+  }
+  ax /= lobes.length;
+  ay /= lobes.length;
+
+  // Fine shoreline crenulation on top of the lobe silhouette.
+  const crenFreq = 5 + Math.floor(rand() * 7);
+  const crenPhase = rand() * Math.PI * 2;
+  const crenAmp = 0.04 + rand() * 0.05;
+
   const points: number[] = [];
+  let maxReach = 0;
+
   for (let i = 0; i < LAKE_STEPS; i++) {
     const a = (i / LAKE_STEPS) * Math.PI * 2;
-    let wobble = 1;
-    for (const o of octaves) wobble += o.amp * Math.sin(a * o.freq + o.phase);
-    // Keep the outline inside the region `stampLake` dirties, and stop it collapsing.
-    wobble = Math.min(1.35, Math.max(0.35, wobble));
-    points.push(cx + Math.cos(a) * radius * wobble, cy + Math.sin(a) * radius * wobble);
+    const ux = Math.cos(a);
+    const uy = Math.sin(a);
+
+    // Furthest lobe surface along this ray, measured from the recentred origin.
+    let reach = 0;
+    for (const l of lobes) {
+      const ox = l.x - ax;
+      const oy = l.y - ay;
+      // Distance from origin to where the ray exits this lobe's circle.
+      const proj = ox * ux + oy * uy;
+      const perpSq = ox * ox + oy * oy - proj * proj;
+      if (perpSq > l.r * l.r) continue; // ray misses this lobe entirely
+      reach = Math.max(reach, proj + Math.sqrt(l.r * l.r - perpSq));
+    }
+    if (reach <= 0) reach = radius * 0.25;
+
+    reach *= 1 + crenAmp * Math.sin(a * crenFreq + crenPhase);
+    maxReach = Math.max(maxReach, reach);
+    points.push(reach * ux, reach * uy);
+  }
+
+  // Normalise so `radius` means the same thing whatever shape came out, and keep the
+  // outline inside the region `stampLake` dirties.
+  const scale = maxReach > 0 ? Math.min(1, (radius * 1.3) / maxReach) : 1;
+  for (let i = 0; i < points.length; i += 2) {
+    points[i] = cx + points[i] * scale;
+    points[i + 1] = cy + points[i + 1] * scale;
   }
   return points;
 }
