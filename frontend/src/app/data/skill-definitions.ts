@@ -351,7 +351,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Schleichen',
     class: 'Dieb',
     type: 'active',
-    description: 'Bewegung, die von Gegnern schwerer entdeckt werden kann. Wird bei Angriff abgebrochen',
+    description: 'Fange an, zu schleichen. Deine Bewegung wird nicht mehr halbiert und dein Verstecken-Talent kann als Würfelbonus verwendet werden',
     enlightened: true,
     cost: { type: 'energy', amount: 10, perRound: true },
     actionType: 'Bonusaktion'

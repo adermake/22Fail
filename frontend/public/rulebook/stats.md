@@ -149,16 +149,14 @@ Basis + 5 × Intelligenz
 
 ## Sonstige Stats
 
-:::section{title="Grundbonus" icon=grundbonus}
+:::section{title="Grundbonus" icon=grundbonus id=reaktion}
 Bestimmt die Reaktionsfähigkeit gegen unerwartete Angriffe oder Situationen.
-
 :::formula
 Grundbonus: Level/8 + Wille/8
 Reaktion: 5 - Grundbonus
 :::
 :::
-
-:::section{title="Bewegung" icon=movement}
+:::section{title="Bewegung" icon=movement id=bewegung}
 Bestimmt die Bewegungsdistanz, die ein Charakter in einem Zug zurücklegen kann.
 
 :::formula
@@ -209,8 +207,27 @@ Diese Werte werden im Kampf-Kapitel erklärt:
 :::
 :::
 
+# Talente
+
+Talente sind Spezialisierungen der [Grundstats](stats#grundstats), die hauptsächlich außerhalb vom Kampf verwendet werden.
+
+Der Würfelbonus der Talente entspricht dem Würfelbonus des dazugehörigen Grundstats.
+Er lässt sich zusätzlich mit **Talentpunkten** und **Fähigkeiten** erhöhen.
+
+:::note{type=info}
+Es gibt zusätzliche Talente, die hier nicht aufgelistet sind — für besonderes Wissen oder Talent, was je nach Charakter variieren kann.
+:::
+
+## Talentliste
+
+:::note{type=tip title="Immer aktuell"}
+Diese Liste wird direkt aus den Spieldaten erzeugt. Sie kann also nie veralten — ändert sich ein Talent im Spiel, ändert sich diese Seite mit.
+:::
+
+:::data{source=talents}
+:::
 
 :::actions
-:jump[Sonstige Stats]{to=sonstige-stats}
+:jump[Kampf]{to=kampf}
 :jump[Zurück zu den Grundlagen]{to=grundlagen}
 :::
