@@ -54,6 +54,40 @@ export class MapEditorController {
     return this.mapEditor.saveMap(worldName, body);
   }
 
+  /**
+   * A tile from the pyramid.
+   *
+   * Level 0 is what the editor paints; higher levels are derived by downscaling four
+   * children and are built on first request. Because each level covers four times the world
+   * area, the client fetches roughly the same number of tiles at any zoom — which is what
+   * makes panning and zooming seamless however far out the map goes.
+   */
+  @Get('tiles/:layer/:level/:cx/:cy')
+  getTile(
+    @Param('worldName') worldName: string,
+    @Param('layer') layer: RasterLayer,
+    @Param('level', ParseIntPipe) level: number,
+    @Param('cx', ParseIntPipe) cx: number,
+    @Param('cy', ParseIntPipe) cy: number,
+    @Res() res: Response,
+  ): void {
+    const data = this.mapEditor.readTile(worldName, layer, cx, cy, level);
+    if (!data) {
+      // Nothing painted beneath this tile — the normal case over most of a map.
+      res.status(404).end();
+      return;
+    }
+    res.setHeader('Content-Type', 'image/png');
+    /*
+     * Derived tiles are rebuilt in place whenever a chunk beneath them changes, and the
+     * client has no per-tile version to bust a cache with. Caching them as immutable would
+     * pin stale terrain in the browser for a year. Level 0 keeps the versioned immutable
+     * treatment on its own route.
+     */
+    res.setHeader('Cache-Control', level === 0 ? 'public, max-age=31536000, immutable' : 'no-store');
+    res.end(data);
+  }
+
   @Get('chunks/:layer/:cx/:cy')
   getChunk(
     @Param('worldName') worldName: string,

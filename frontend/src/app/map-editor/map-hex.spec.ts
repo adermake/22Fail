@@ -14,6 +14,8 @@ import {
 import {
   CHUNK_WORLD_SIZE,
   LAYER_TEXELS,
+  tileWorldSize,
+  worldToTile,
   chunkKey,
   layerScale,
   parseChunkKey,
@@ -154,6 +156,58 @@ describe('map working scale', () => {
     // layer is what exhausted the GPU and lost the WebGL context mid-stroke.
     for (const texels of Object.values(LAYER_TEXELS)) {
       expect(texels * texels * 4).toBeLessThanOrEqual(1024 * 1024);
+    }
+  });
+});
+
+describe('tile pyramid', () => {
+  it('quadruples the area each level', () => {
+    for (let l = 0; l < 8; l++) {
+      expect(tileWorldSize(l + 1)).toBe(tileWorldSize(l) * 2);
+    }
+    expect(tileWorldSize(0)).toBe(CHUNK_WORLD_SIZE);
+  });
+
+  it('keeps tiles-per-screen near constant at every zoom', () => {
+    /*
+     * This is the property the whole pyramid exists for. The previous two-level scheme
+     * needed 88 tiles at 25% zoom and over 5000 at 2%, which is why far zoom kept breaking
+     * however the budgets were tuned. Here the count must stay bounded from a close-up to a
+     * thousand-hex overview.
+     */
+    const TARGET = 64;
+    const pick = (w: number, h: number) => {
+      for (let level = 0; level < 11; level++) {
+        const span = tileWorldSize(level);
+        const n = (Math.ceil(w / span) + 1) * (Math.ceil(h / span) + 1);
+        if (n <= TARGET) return { level, n };
+      }
+      return { level: 11, n: 0 };
+    };
+
+    for (const zoom of [1, 0.5, 0.25, 0.1, 0.04, 0.02, 0.005, 0.001]) {
+      const { n } = pick(1920 / zoom, 1080 / zoom);
+      expect(n).toBeLessThanOrEqual(TARGET);
+      expect(n).toBeGreaterThan(4);
+    }
+  });
+
+  it('maps a world point to the containing tile at any level', () => {
+    // Floor division, so a point just left of the origin belongs to tile -1, not 0.
+    expect(worldToTile(0, 0, 0)).toEqual({ cx: 0, cy: 0 });
+    expect(worldToTile(-1, -1, 0)).toEqual({ cx: -1, cy: -1 });
+    expect(worldToTile(CHUNK_WORLD_SIZE * 3, 0, 1)).toEqual({ cx: 1, cy: 0 });
+    expect(worldToTile(CHUNK_WORLD_SIZE * 3, 0, 2)).toEqual({ cx: 0, cy: 0 });
+  });
+
+  it('nests tiles: a point stays inside its parent at every level', () => {
+    const x = 12345.6;
+    const y = -98765.4;
+    for (let level = 0; level < 10; level++) {
+      const child = worldToTile(x, y, level);
+      const parent = worldToTile(x, y, level + 1);
+      // Halving a child's coordinates must land on its parent, negatives included.
+      expect({ cx: Math.floor(child.cx / 2), cy: Math.floor(child.cy / 2) }).toEqual(parent);
     }
   });
 });

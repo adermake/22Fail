@@ -35,6 +35,27 @@ export const RASTER_LAYERS: readonly RasterLayer[] = ['height', 'landColor', 'wa
 export const CHUNK_WORLD_SIZE = 1024;
 
 /**
+ * Tile pyramid.
+ *
+ * A level-L tile covers `CHUNK_WORLD_SIZE << L` world pixels at the same texel count, so
+ * each level up holds four times the area. That is the property that matters: the number of
+ * tiles needed to fill the screen stays roughly constant at *every* zoom, instead of growing
+ * with the square of how far out you go. Level 0 is what the brushes paint; every level
+ * above it is derived on the server by downscaling four children.
+ */
+export const MAX_TILE_LEVEL = 11;
+
+export function tileWorldSize(level: number): number {
+  return CHUNK_WORLD_SIZE * 2 ** level;
+}
+
+/** Tile coordinate containing a world point at a level. */
+export function worldToTile(x: number, y: number, level: number): ChunkCoord {
+  const span = tileWorldSize(level);
+  return { cx: Math.floor(x / span), cy: Math.floor(y / span) };
+}
+
+/**
  * Texels per chunk side, per layer — all 512, i.e. **2 world px per texel** across a
  * 1024-world-px chunk.
  *

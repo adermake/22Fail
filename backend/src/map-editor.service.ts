@@ -1,4 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+import {
+  MAX_TILE_LEVEL,
+  childrenOf,
+  composeParent,
+  parentOf,
+} from './tile-pyramid';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -63,12 +69,28 @@ export class MapEditorService {
     return path.join(this.mapDir(worldName), 'map.json');
   }
 
-  private chunkFile(worldName: string, layer: RasterLayer, cx: number, cy: number): string | null {
+  /**
+   * Path of a tile.
+   *
+   * Level 0 keeps the original flat layout so existing maps load unchanged; the derived
+   * levels live in sibling folders. Coordinates are the only path-derived input and are
+   * proven integers, so no traversal is reachable.
+   */
+  private chunkFile(
+    worldName: string,
+    layer: RasterLayer,
+    cx: number,
+    cy: number,
+    level = 0,
+  ): string | null {
     if (!RASTER_LAYERS.includes(layer)) return null;
     if (!Number.isInteger(cx) || !Number.isInteger(cy)) return null;
-    // Coordinates are the only path-derived input here, and they are proven integers above,
-    // so no traversal is reachable.
-    return path.join(this.mapDir(worldName), 'chunks', layer, `${cx}_${cy}.png`);
+    if (!Number.isInteger(level) || level < 0 || level > MAX_TILE_LEVEL) return null;
+
+    const dir = path.join(this.mapDir(worldName), 'chunks', layer);
+    return level === 0
+      ? path.join(dir, `${cx}_${cy}.png`)
+      : path.join(dir, `L${level}`, `${cx}_${cy}.png`);
   }
 
   // ── document ──
@@ -296,12 +318,73 @@ export class MapEditorService {
   // ── chunks ──
 
   readChunk(worldName: string, layer: RasterLayer, cx: number, cy: number): Buffer | null {
-    const file = this.chunkFile(worldName, layer, cx, cy);
+    return this.readTile(worldName, layer, cx, cy, 0);
+  }
+
+  /**
+   * Read a tile, building it from its children if it does not exist yet.
+   *
+   * Parents are derived, never authored, so they are generated on demand and cached to disk
+   * rather than rebuilt eagerly on every paint stroke — a broad stroke would otherwise cost
+   * a rebuild of eleven ancestors before the editor could carry on.
+   *
+   * Returns null when nothing beneath this tile has ever been painted, which the client
+   * treats as open sea.
+   */
+  readTile(
+    worldName: string,
+    layer: RasterLayer,
+    cx: number,
+    cy: number,
+    level: number,
+  ): Buffer | null {
+    const file = this.chunkFile(worldName, layer, cx, cy, level);
     if (!file) return null;
+
     try {
       return fs.readFileSync(file);
     } catch {
-      return null;
+      /* not built yet — fall through */
+    }
+
+    // Level 0 is authored; if its file is absent, that ground is simply unpainted.
+    if (level === 0) return null;
+
+    const children = childrenOf(cx, cy).map(c =>
+      this.readTile(worldName, layer, c.cx, c.cy, level - 1),
+    );
+
+    const composed = composeParent(children);
+    if (!composed) return null;
+
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, composed);
+    } catch (err) {
+      // Serving it uncached is still correct, just slower next time.
+      this.logger.warn(`Failed to cache tile ${layer}/L${level}/${cx}_${cy}: ${err}`);
+    }
+    return composed;
+  }
+
+  /**
+   * Drop every cached ancestor of a level-0 chunk.
+   *
+   * Deleting rather than rebuilding keeps the write path cheap: the next reader rebuilds
+   * exactly the levels it actually asks for, and a region nobody views never costs anything.
+   */
+  private invalidateAncestors(worldName: string, layer: RasterLayer, cx: number, cy: number): void {
+    let p = parentOf(cx, cy);
+    for (let level = 1; level <= MAX_TILE_LEVEL; level++) {
+      const file = this.chunkFile(worldName, layer, p.cx, p.cy, level);
+      if (file) {
+        try {
+          fs.unlinkSync(file);
+        } catch {
+          /* already absent */
+        }
+      }
+      p = parentOf(p.cx, p.cy);
     }
   }
 
@@ -322,6 +405,9 @@ export class MapEditorService {
       this.logger.error(`Failed to write chunk ${layer}/${cx}_${cy}:`, err as Error);
       return null;
     }
+
+    // Every derived tile above this one is now out of date.
+    this.invalidateAncestors(worldName, layer, cx, cy);
 
     const doc = this.getMap(worldName);
     const key = `${layer}/${cx}/${cy}`;

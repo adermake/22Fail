@@ -66,6 +66,31 @@ export class MapEditorApiService {
     }
   }
 
+  /**
+   * Fetch a tile from the pyramid.
+   *
+   * Level 0 is the painted chunk; higher levels are derived server-side by downscaling four
+   * children, so one request covers four times the world area per level. `null` means
+   * nothing beneath that tile has ever been painted — the common case over open sea.
+   */
+  async fetchTile(
+    worldName: string,
+    layer: RasterLayer,
+    cx: number,
+    cy: number,
+    level: number,
+    ver: number,
+  ): Promise<Blob | null> {
+    const url = `${this.base(worldName)}/tiles/${layer}/${level}/${cx}/${cy}?v=${ver}`;
+    try {
+      const res = await fetch(url, { headers: identityHeaders() });
+      if (!res.ok) return null;
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  }
+
   /** Upload a painted chunk; resolves the new server-side version. */
   async putChunk(
     worldName: string,

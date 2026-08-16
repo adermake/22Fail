@@ -12,9 +12,9 @@
  */
 
 import { Container, Geometry, GlProgram, Mesh, Shader, Texture, UniformGroup } from 'pixi.js';
-import { CHUNK_WORLD_SIZE, RasterLayer } from './map-editor.model';
+import { RasterLayer, tileWorldSize } from './map-editor.model';
 import { Bounds } from './map-camera';
-import { ChunkManager, DetailLevel } from './chunk-manager';
+import { ChunkManager } from './chunk-manager';
 
 const vertex = /* glsl */ `
 in vec2 aPosition;
@@ -47,7 +47,8 @@ uniform vec3 uWaterDefault;
 uniform float uEdge;          // half-width of the coastline band, in height units
 uniform float uPaperOpacity;
 uniform float uPaperScale;    // world px covered by one paper tile
-uniform vec2 uChunkOrigin;    // world position of this chunk's top-left corner
+uniform vec2 uChunkOrigin;    // world position of this tile's top-left corner
+uniform float uTileSpan;      // world px this tile covers; varies by pyramid level
 
 uniform float uNoiseScale;    // world px per noise cell
 uniform float uNoiseAmount;   // how far the coastline wanders
@@ -119,7 +120,7 @@ void main() {
     vec3 land  = mix(uLandDefault,  lc.rgb, lc.a);
     vec3 water = mix(uWaterDefault, wc.rgb, wc.a);
 
-    vec2 worldPos = uChunkOrigin + vUV * ${CHUNK_WORLD_SIZE.toFixed(1)};
+    vec2 worldPos = uChunkOrigin + vUV * uTileSpan;
 
     float shore;
     float isLand = coastline(h, worldPos, shore);
@@ -172,22 +173,14 @@ export function defaultCoast(): CoastSettings {
 }
 
 /**
- * Ceiling on full-detail terrain meshes.
+ * Ceiling on terrain meshes at any level.
  *
- * Kept just under the chunk manager's resident-cell budget, so the view never asks for
- * terrain the streamer has already evicted.
+ * With the pyramid this is a safety net rather than a working limit: the level is chosen so
+ * a screenful is always roughly the same number of tiles, whatever the zoom. Previously this
+ * was the thing that cut the map off at the edges, because tile count grew as zoom⁻².
  */
-const MAX_TERRAIN_CELLS = 100;
+const MAX_TERRAIN_CELLS = 160;
 
-/**
- * Ceiling on overview meshes.
- *
- * Overview cells cost almost nothing in memory (~47 KB each) but every one is still a draw
- * call, so this is the real limit on how wide a view can be — not the residency budget.
- * Sized to reach ~4% zoom (about 130 hexes across). Below that the draw calls, not the
- * memory, are what give out.
- */
-const MAX_OVERVIEW_CELLS = 1400;
 
 
 /** Program is compiled once and shared; only the per-cell resources differ. */
@@ -214,8 +207,8 @@ type TerrainMesh = Mesh<Geometry, Shader>;
 interface Cell {
   cx: number;
   cy: number;
-  /** Level the shader's textures came from, so a level switch rebuilds the mesh. */
-  level: DetailLevel;
+  /** Pyramid level the mesh was built at; a level change rebuilds it. */
+  level: number;
   mesh: TerrainMesh;
   uniforms: UniformGroup;
   /** Texture identity last bound, so eviction and refetches can be detected. */
@@ -303,11 +296,11 @@ export class TerrainView {
 
   // ── cells ──
 
-  private key(cx: number, cy: number): string {
-    return `${cx}/${cy}`;
+  private key(cx: number, cy: number, level = 0): string {
+    return `${level}/${cx}/${cy}`;
   }
 
-  private build(cx: number, cy: number, level: DetailLevel): Cell {
+  private build(cx: number, cy: number, level: number): Cell {
     const uniforms = new UniformGroup({
       uLandDefault: { value: this.landDefault, type: 'vec3<f32>' },
       uWaterDefault: { value: this.waterDefault, type: 'vec3<f32>' },
@@ -315,9 +308,10 @@ export class TerrainView {
       uPaperOpacity: { value: this.paperOpacity, type: 'f32' },
       uPaperScale: { value: this.paperScale, type: 'f32' },
       uChunkOrigin: {
-        value: [cx * CHUNK_WORLD_SIZE, cy * CHUNK_WORLD_SIZE],
+        value: [cx * tileWorldSize(level), cy * tileWorldSize(level)],
         type: 'vec2<f32>',
       },
+      uTileSpan: { value: tileWorldSize(level), type: 'f32' },
       uNoiseScale: { value: this.coast.noiseScale, type: 'f32' },
       uNoiseAmount: { value: this.coast.noiseAmount, type: 'f32' },
       uShoreWidth: { value: this.coast.shoreWidth, type: 'f32' },
@@ -346,8 +340,9 @@ export class TerrainView {
     });
 
     const mesh: TerrainMesh = new Mesh<Geometry, Shader>({ geometry: this.geometry, shader });
-    mesh.position.set(cx * CHUNK_WORLD_SIZE, cy * CHUNK_WORLD_SIZE);
-    mesh.scale.set(CHUNK_WORLD_SIZE);
+    const span = tileWorldSize(level);
+    mesh.position.set(cx * span, cy * span);
+    mesh.scale.set(span);
 
     const cell: Cell = {
       cx,
@@ -359,7 +354,7 @@ export class TerrainView {
     };
 
     this.container.addChild(mesh);
-    this.cells.set(this.key(cx, cy), cell);
+    this.cells.set(this.key(cx, cy, level), cell);
     return cell;
   }
 
@@ -382,7 +377,8 @@ export class TerrainView {
 
   /** Forget a cell whose chunk textures were evicted; its shader now points at nothing. */
   private drop(cx: number, cy: number): void {
-    const key = this.key(cx, cy);
+    // A disposed chunk is level 0; higher levels have their own textures.
+    const key = this.key(cx, cy, 0);
     const cell = this.cells.get(key);
     if (!cell) return;
     this.destroyCell(cell);
@@ -397,15 +393,16 @@ export class TerrainView {
    * is what made a wide zoom crawl. Past the cap only the cells nearest the middle of the
    * screen are drawn, which is where the eye is, and the ocean backdrop covers the rest.
    */
-  update(bounds: Bounds, level: DetailLevel = 0): void {
-    const minCx = Math.floor(bounds.minX / CHUNK_WORLD_SIZE);
-    const maxCx = Math.floor(bounds.maxX / CHUNK_WORLD_SIZE);
-    const minCy = Math.floor(bounds.minY / CHUNK_WORLD_SIZE);
-    const maxCy = Math.floor(bounds.maxY / CHUNK_WORLD_SIZE);
+  update(bounds: Bounds, level = 0): void {
+    const span = tileWorldSize(level);
+    const minCx = Math.floor(bounds.minX / span);
+    const maxCx = Math.floor(bounds.maxX / span);
+    const minCy = Math.floor(bounds.minY / span);
+    const maxCy = Math.floor(bounds.maxY / span);
 
     const spanX = maxCx - minCx + 1;
     const spanY = maxCy - minCy + 1;
-    const cap = level === 0 ? MAX_TERRAIN_CELLS : MAX_OVERVIEW_CELLS;
+    const cap = MAX_TERRAIN_CELLS;
 
     let wanted: { cx: number; cy: number }[] = [];
     for (let cy = minCy; cy <= maxCy; cy++) {
@@ -425,7 +422,7 @@ export class TerrainView {
     const live = new Set<string>();
 
     for (const { cx, cy } of wanted) {
-      const key = this.key(cx, cy);
+      const key = this.key(cx, cy, level);
       live.add(key);
 
       const cell = this.cells.get(key);
@@ -440,7 +437,7 @@ export class TerrainView {
        * transition invisible instead.
        */
       const ready = this.chunks.isCellReady(cx, cy, level);
-      const useLevel: DetailLevel = ready ? level : (cell?.level ?? level);
+      const useLevel: number = ready ? level : (cell?.level ?? level);
 
       if (!cell) {
         // A cell that has never been drawn waits until it is complete. Ocean briefly, then
