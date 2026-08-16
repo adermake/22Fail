@@ -12,7 +12,7 @@
  */
 
 import { Container, Geometry, GlProgram, Mesh, Shader, Texture, UniformGroup } from 'pixi.js';
-import { RasterLayer, tileWorldSize, worldToTile } from './map-editor.model';
+import { MAX_TILE_LEVEL, RasterLayer, tileWorldSize } from './map-editor.model';
 import { Bounds } from './map-camera';
 import { ChunkManager } from './chunk-manager';
 
@@ -49,6 +49,17 @@ uniform float uPaperOpacity;
 uniform float uPaperScale;    // world px covered by one paper tile
 uniform vec2 uChunkOrigin;    // world position of this tile's top-left corner
 uniform float uTileSpan;      // world px this tile covers; varies by pyramid level
+
+/*
+ * Sub-rect of the bound textures this tile should sample.
+ *
+ * When a tile's own pyramid level has not loaded, it borrows a coarser ancestor that has,
+ * and reads just the part of it covering this tile's footprint. That is what removes
+ * loading as a visible event: there is always *something* to draw, so a fetch resolves as
+ * the map sharpening rather than as a square appearing.
+ */
+uniform vec2 uUVOffset;
+uniform float uUVScale;
 
 uniform float uNoiseScale;    // world px per noise cell
 uniform float uNoiseAmount;   // how far the coastline wanders
@@ -108,10 +119,13 @@ float coastline(float h, vec2 worldPos, out float shore) {
 }
 
 void main() {
-    float h = texture(uHeight, vUV).a;
+    // Position within whichever level actually supplied the pixels.
+    vec2 uv = uUVOffset + vUV * uUVScale;
 
-    vec4 lc = texture(uLandColor, vUV);
-    vec4 wc = texture(uWaterColor, vUV);
+    float h = texture(uHeight, uv).a;
+
+    vec4 lc = texture(uLandColor, uv);
+    vec4 wc = texture(uWaterColor, uv);
 
     // Colour is baked when terrain is drawn, so these fallbacks are constants rather than
     // adjustable "theme" colours: changing a global default would retroactively repaint
@@ -201,14 +215,23 @@ function quad(): Geometry {
   });
 }
 
+/** A tile address in the pyramid. */
+interface TileRef {
+  level: number;
+  cx: number;
+  cy: number;
+}
+
 /** Mesh carrying our own geometry and shader rather than Pixi's textured-mesh defaults. */
 type TerrainMesh = Mesh<Geometry, Shader>;
 
 interface Cell {
   cx: number;
   cy: number;
-  /** Pyramid level the mesh was built at; a level change rebuilds it. */
+  /** Pyramid level this tile represents on the map. */
   level: number;
+  /** Level the textures actually came from — coarser while the exact one loads. */
+  sourceLevel: number;
   mesh: TerrainMesh;
   uniforms: UniformGroup;
   /** Texture identity last bound, so eviction and refetches can be detected. */
@@ -300,7 +323,36 @@ export class TerrainView {
     return `${level}/${cx}/${cy}`;
   }
 
-  private build(cx: number, cy: number, level: number): Cell {
+  /**
+   * Nearest level at or above `level` whose tile is loaded for this footprint.
+   *
+   * Walking upward means a tile can always borrow a coarser ancestor while its own level
+   * is in flight. Returns null only when nothing in the chain is resident, which is the one
+   * case where the ocean backdrop shows through.
+   */
+  private sourceFor(cx: number, cy: number, level: number): TileRef | null {
+    for (let a = level; a <= MAX_TILE_LEVEL; a++) {
+      const shift = a - level;
+      const ax = Math.floor(cx / 2 ** shift);
+      const ay = Math.floor(cy / 2 ** shift);
+      if (this.chunks.isCellReady(ax, ay, a)) return { level: a, cx: ax, cy: ay };
+    }
+    return null;
+  }
+
+  /** Where this tile sits inside its source tile's texture, in UV units. */
+  private uvRect(cx: number, cy: number, level: number, src: TileRef): { off: number[]; scale: number } {
+    const span = tileWorldSize(level);
+    const srcSpan = tileWorldSize(src.level);
+    return {
+      off: [(cx * span - src.cx * srcSpan) / srcSpan, (cy * span - src.cy * srcSpan) / srcSpan],
+      scale: span / srcSpan,
+    };
+  }
+
+  private build(cx: number, cy: number, level: number, src: TileRef): Cell {
+    const uv = this.uvRect(cx, cy, level, src);
+
     const uniforms = new UniformGroup({
       uLandDefault: { value: this.landDefault, type: 'vec3<f32>' },
       uWaterDefault: { value: this.waterDefault, type: 'vec3<f32>' },
@@ -312,6 +364,8 @@ export class TerrainView {
         type: 'vec2<f32>',
       },
       uTileSpan: { value: tileWorldSize(level), type: 'f32' },
+      uUVOffset: { value: uv.off, type: 'vec2<f32>' },
+      uUVScale: { value: uv.scale, type: 'f32' },
       uNoiseScale: { value: this.coast.noiseScale, type: 'f32' },
       uNoiseAmount: { value: this.coast.noiseAmount, type: 'f32' },
       uShoreWidth: { value: this.coast.shoreWidth, type: 'f32' },
@@ -320,9 +374,10 @@ export class TerrainView {
       uShadowStrength: { value: this.coast.shadowStrength, type: 'f32' },
     });
 
-    const height = this.chunks.get('height', cx, cy, level).texture;
-    const landColor = this.chunks.get('landColor', cx, cy, level).texture;
-    const waterColor = this.chunks.get('waterColor', cx, cy, level).texture;
+    // Textures come from the source tile, which may be a coarser ancestor.
+    const height = this.chunks.get('height', src.cx, src.cy, src.level).texture;
+    const landColor = this.chunks.get('landColor', src.cx, src.cy, src.level).texture;
+    const waterColor = this.chunks.get('waterColor', src.cx, src.cy, src.level).texture;
 
     const shader = new Shader({
       glProgram: program(),
@@ -348,6 +403,7 @@ export class TerrainView {
       cx,
       cy,
       level,
+      sourceLevel: src.level,
       mesh,
       uniforms,
       bound: { height, landColor, waterColor },
@@ -428,58 +484,44 @@ export class TerrainView {
       const cell = this.cells.get(key);
 
       /*
-       * Only move a cell to the requested level once that level has *all* its layers.
+       * Draw this tile from the best source available right now.
        *
-       * The streamer starts loading the new level as soon as the zoom crosses, but the
-       * fetches take a moment. Swapping immediately meant showing empty textures until they
-       * landed — chunks flashing white and blocks of colour disappearing mid-zoom. Holding
-       * the level already on screen until its replacement is genuinely ready makes the
-       * transition invisible instead.
+       * `sourceFor` returns the tile's own level once it has loaded, and a coarser ancestor
+       * until then. That is the whole trick: there is no state where a tile has nothing to
+       * show, so a fetch completing looks like the map sharpening rather than a square
+       * blinking into existence. Loading stops being a visible event.
        */
-      const ready = this.chunks.isCellReady(cx, cy, level);
-      const useLevel: number = ready ? level : (cell?.level ?? level);
-
-      if (!cell) {
-        // A cell that has never been drawn waits until it is complete. Ocean briefly, then
-        // finished terrain, beats a white block that fills in its colour a moment later.
-        if (ready) this.build(cx, cy, useLevel);
+      const src = this.sourceFor(cx, cy, level);
+      if (!src) {
+        // Nothing in the chain is resident yet — the ocean backdrop covers it.
         continue;
       }
 
-      // Rebuild when the level changed, or when eviction handed back a different
+      if (!cell) {
+        this.build(cx, cy, level, src);
+        continue;
+      }
+
+      // Rebuild when a sharper source arrived, or when eviction handed back a different
       // RenderTexture — either way the shader is pointing at the wrong pixels.
-      const h = this.chunks.get('height', cx, cy, useLevel).texture;
-      if (cell.level !== useLevel || cell.bound.height !== h) {
+      const h = this.chunks.get('height', src.cx, src.cy, src.level).texture;
+      if (cell.level !== level || cell.sourceLevel !== src.level || cell.bound.height !== h) {
         this.destroyCell(cell);
         this.cells.delete(key);
-        this.build(cx, cy, useLevel);
+        this.build(cx, cy, level, src);
       }
     }
 
     /*
-     * Retire cells, but hold onto ones from a *different* level while they still cover
-     * ground the new level has not finished loading.
+     * Retire anything no longer wanted.
      *
-     * Changing zoom switches the whole screen to another level at once, and those tiles all
-     * start empty. Dropping the old ones immediately left bare ocean everywhere until the
-     * fetches landed — squares of water blinking in and filling back up. Keeping the
-     * outgoing level underneath means the change is a sharpening rather than a gap.
+     * No special case for a level change any more: hierarchical fallback means the incoming
+     * level always has something to draw, so holding the outgoing one back would just stack
+     * two tiles over the same ground — and the newer, coarser one would paint over the
+     * sharper one it was meant to be covering for.
      */
     for (const [key, cell] of [...this.cells]) {
       if (live.has(key)) continue;
-
-      if (cell.level !== level) {
-        const span = tileWorldSize(cell.level);
-        const midX = (cell.cx + 0.5) * span;
-        const midY = (cell.cy + 0.5) * span;
-
-        const onScreen =
-          midX >= bounds.minX && midX <= bounds.maxX && midY >= bounds.minY && midY <= bounds.maxY;
-        // Its replacement at the new level is what supersedes it.
-        const cover = worldToTile(midX, midY, level);
-        if (onScreen && !this.chunks.isCellReady(cover.cx, cover.cy, level)) continue;
-      }
-
       this.destroyCell(cell);
       this.cells.delete(key);
     }

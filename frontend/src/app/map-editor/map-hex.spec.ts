@@ -211,3 +211,46 @@ describe('tile pyramid', () => {
     }
   });
 });
+
+describe('hierarchical fallback', () => {
+  /** Where a tile sits inside an ancestor's texture, in UV units. */
+  const uvRect = (cx: number, cy: number, level: number, srcLevel: number) => {
+    const span = tileWorldSize(level);
+    const srcSpan = tileWorldSize(srcLevel);
+    const shift = srcLevel - level;
+    const sx = Math.floor(cx / 2 ** shift);
+    const sy = Math.floor(cy / 2 ** shift);
+    return {
+      off: [(cx * span - sx * srcSpan) / srcSpan, (cy * span - sy * srcSpan) / srcSpan],
+      scale: span / srcSpan,
+    };
+  };
+
+  it('maps a tile onto its own texture unchanged', () => {
+    const r = uvRect(5, -3, 2, 2);
+    expect(r.off).toEqual([0, 0]);
+    expect(r.scale).toBe(1);
+  });
+
+  it('maps a tile into the right quadrant of its parent', () => {
+    // Tile (0,0) is its parent's top-left quarter; (1,1) is the bottom-right.
+    expect(uvRect(0, 0, 0, 1)).toEqual({ off: [0, 0], scale: 0.5 });
+    expect(uvRect(1, 1, 0, 1)).toEqual({ off: [0.5, 0.5], scale: 0.5 });
+    expect(uvRect(1, 0, 0, 1)).toEqual({ off: [0.5, 0], scale: 0.5 });
+  });
+
+  it('keeps the sub-rect inside the source at any depth, including negatives', () => {
+    for (const [cx, cy] of [[0, 0], [7, 3], [-1, -1], [-9, 12], [123, -456]]) {
+      for (let gap = 0; gap <= 5; gap++) {
+        const r = uvRect(cx, cy, 1, 1 + gap);
+        expect(r.scale).toBeCloseTo(1 / 2 ** gap, 10);
+        // Negative coordinates are where floor-vs-truncate would push a tile outside its
+        // parent and sample a neighbour's pixels.
+        expect(r.off[0]).toBeGreaterThanOrEqual(0);
+        expect(r.off[1]).toBeGreaterThanOrEqual(0);
+        expect(r.off[0] + r.scale).toBeLessThanOrEqual(1 + 1e-9);
+        expect(r.off[1] + r.scale).toBeLessThanOrEqual(1 + 1e-9);
+      }
+    }
+  });
+});

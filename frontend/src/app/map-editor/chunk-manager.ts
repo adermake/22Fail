@@ -82,6 +82,14 @@ export type DetailLevel = number;
  * while their number still grew as zoom⁻², which no budget could absorb.
  */
 const TARGET_TILES = 64;
+
+/**
+ * How far above the viewing level to keep a fallback resident.
+ *
+ * Two levels is sixteen times the area per tile — cheap to hold, and coarse enough that one
+ * tile covers a whole screenful of the level being viewed.
+ */
+const FALLBACK_LEVEL_GAP = 2;
 /** Safety valve only — the level choice already keeps the count near `TARGET_TILES`. */
 const MAX_STREAM_CELLS = 100;
 
@@ -645,25 +653,17 @@ export class ChunkManager {
     }
 
     /*
-     * Refresh derived tiles once, after *every* child has landed.
+     * Deliberately no parent refetch here.
      *
-     * Doing it per upload meant the server rebuilt each parent from whichever children had
-     * finished so far, cached that half-done result, then had it invalidated by the next
-     * upload — so a flush of a dozen chunks produced a dozen successive partial rebuilds.
-     * That is the flicker of white and ocean squares that gradually resolve: each refetch
-     * was a snapshot of an incomplete upload.
+     * Painting already stamps every resident ancestor with the same brush, so those tiles
+     * are correct the instant the stroke lands. Asking the server for them again could only
+     * ever replace known-good pixels with a rebuild — and since the rebuild races the
+     * uploads that feed it, what came back was often *less* complete than what was already
+     * on screen. That round trip was the flicker, not a cure for it.
+     *
+     * The server has deleted its cached ancestors, so anyone who loads that ground later
+     * gets a freshly built tile. Only remote edits need `refreshParents`.
      */
-    const layers = new Set(dirty.map(r => r.layer));
-    for (const layer of layers) {
-      const seen = new Set<string>();
-      for (const rec of dirty) {
-        if (rec.layer !== layer) continue;
-        const key = `${rec.cx}/${rec.cy}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        this.refreshParents(layer, rec.cx, rec.cy);
-      }
-    }
   }
 
   private async uploadChunk(rec: ChunkRecord): Promise<void> {
