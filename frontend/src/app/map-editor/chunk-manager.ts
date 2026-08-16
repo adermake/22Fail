@@ -643,6 +643,27 @@ export class ChunkManager {
       // Yield between batches so input and rendering get a turn.
       if (i + BATCH < dirty.length) await new Promise(r => setTimeout(r, 0));
     }
+
+    /*
+     * Refresh derived tiles once, after *every* child has landed.
+     *
+     * Doing it per upload meant the server rebuilt each parent from whichever children had
+     * finished so far, cached that half-done result, then had it invalidated by the next
+     * upload — so a flush of a dozen chunks produced a dozen successive partial rebuilds.
+     * That is the flicker of white and ocean squares that gradually resolve: each refetch
+     * was a snapshot of an incomplete upload.
+     */
+    const layers = new Set(dirty.map(r => r.layer));
+    for (const layer of layers) {
+      const seen = new Set<string>();
+      for (const rec of dirty) {
+        if (rec.layer !== layer) continue;
+        const key = `${rec.cx}/${rec.cy}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        this.refreshParents(layer, rec.cx, rec.cy);
+      }
+    }
   }
 
   private async uploadChunk(rec: ChunkRecord): Promise<void> {
@@ -670,8 +691,6 @@ export class ChunkManager {
         return;
       }
       this.store.announceChunk(rec.layer, rec.cx, rec.cy, ver);
-      // Every derived tile above this chunk is now stale; pull the rebuilt ones.
-      this.refreshParents(rec.layer, rec.cx, rec.cy);
     } catch (err) {
       console.error('[ChunkManager] Chunk flush failed', rec.layer, rec.cx, rec.cy, err);
       rec.dirty = true;

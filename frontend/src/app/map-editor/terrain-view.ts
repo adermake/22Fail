@@ -12,7 +12,7 @@
  */
 
 import { Container, Geometry, GlProgram, Mesh, Shader, Texture, UniformGroup } from 'pixi.js';
-import { RasterLayer, tileWorldSize } from './map-editor.model';
+import { RasterLayer, tileWorldSize, worldToTile } from './map-editor.model';
 import { Bounds } from './map-camera';
 import { ChunkManager } from './chunk-manager';
 
@@ -456,12 +456,33 @@ export class TerrainView {
       }
     }
 
+    /*
+     * Retire cells, but hold onto ones from a *different* level while they still cover
+     * ground the new level has not finished loading.
+     *
+     * Changing zoom switches the whole screen to another level at once, and those tiles all
+     * start empty. Dropping the old ones immediately left bare ocean everywhere until the
+     * fetches landed — squares of water blinking in and filling back up. Keeping the
+     * outgoing level underneath means the change is a sharpening rather than a gap.
+     */
     for (const [key, cell] of [...this.cells]) {
       if (live.has(key)) continue;
+
+      if (cell.level !== level) {
+        const span = tileWorldSize(cell.level);
+        const midX = (cell.cx + 0.5) * span;
+        const midY = (cell.cy + 0.5) * span;
+
+        const onScreen =
+          midX >= bounds.minX && midX <= bounds.maxX && midY >= bounds.minY && midY <= bounds.maxY;
+        // Its replacement at the new level is what supersedes it.
+        const cover = worldToTile(midX, midY, level);
+        if (onScreen && !this.chunks.isCellReady(cover.cx, cover.cy, level)) continue;
+      }
+
       this.destroyCell(cell);
       this.cells.delete(key);
     }
-
   }
 
   destroy(): void {
