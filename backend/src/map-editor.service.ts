@@ -1,10 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  MAX_TILE_LEVEL,
-  childrenOf,
-  composeParent,
-  parentOf,
-} from './tile-pyramid';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -13,13 +7,19 @@ import * as path from 'path';
  *
  * Layout, per world:
  *   data/worlds/{world}/map-editor/
- *     map.json                       document: vector objects, palettes, settings, fog
- *     chunks/{layer}/{cx}_{cy}.png   painted raster chunks
+ *     map.json                              document: vector objects, palettes, settings, fog
+ *     chunks/{layer}/{tier}/{cx}_{cy}.png   painted raster chunks
  *
  * Chunks live as individual files rather than inside `map.json` for the reason the whole
  * rebuild exists: edits must be cheap and incremental. A brush stroke rewrites the two or
  * three chunk files it touched, and other clients refetch exactly those — no megabyte
  * document round-trip, and the map can grow far past what one JSON blob can hold.
+ *
+ * **The server derives nothing.** All three detail tiers are authored by the client, which
+ * writes the tier it is drawing at and every coarser one in the same stroke. The previous
+ * design had the server downscale a pyramid on demand, and writing one chunk invalidated a
+ * chain that had to be rebuilt from up to 256 children — measured at three to ten seconds
+ * per tile, and obsolete again before it finished. Here a write is a file write.
  *
  * v1's `world-map.json` is left untouched; v2 is a parallel document so the old viewer keeps
  * working until it is removed in Phase 3.
@@ -28,6 +28,16 @@ import * as path from 'path';
 export type RasterLayer = 'height' | 'landColor' | 'waterColor';
 const RASTER_LAYERS: RasterLayer[] = ['height', 'landColor', 'waterColor'];
 
+/**
+ * Authored detail tiers, finest first. Mirrors the client's `TIERS`.
+ *
+ * Storage treats them identically — same path shape, same versioning, no special case for
+ * any of them. That uniformity is the point: nothing here has to know that a `low` chunk
+ * covers 4096× the area of a `high` one.
+ */
+export type DetailTier = 'high' | 'med' | 'low';
+const TIERS: DetailTier[] = ['high', 'med', 'low'];
+
 export type ObjectCollection = 'symbols' | 'labels' | 'regions' | 'markers';
 const OBJECT_COLLECTIONS: ObjectCollection[] = ['symbols', 'labels', 'regions', 'markers'];
 
@@ -35,7 +45,7 @@ export type MapOp =
   | { t: 'add'; c: ObjectCollection; v: any }
   | { t: 'upd'; c: ObjectCollection; id: string; v: Record<string, unknown> }
   | { t: 'del'; c: ObjectCollection; id: string }
-  | { t: 'chunk'; layer: RasterLayer; cx: number; cy: number; ver: number }
+  | { t: 'chunk'; layer: RasterLayer; tier: DetailTier; cx: number; cy: number; ver: number }
   | { t: 'set'; path: string; value: unknown };
 
 const MAP_FORMAT_VERSION = 2;
@@ -70,27 +80,27 @@ export class MapEditorService {
   }
 
   /**
-   * Path of a tile.
+   * Path of a chunk.
    *
-   * Level 0 keeps the original flat layout so existing maps load unchanged; the derived
-   * levels live in sibling folders. Coordinates are the only path-derived input and are
-   * proven integers, so no traversal is reachable.
+   * One shape for every tier — no legacy flat layout for `high`. Existing map data is
+   * disposable and was deliberately not migrated, so old un-tiered files are simply ignored;
+   * tolerating them would have been the only irregularity left in the storage layer.
+   *
+   * `layer` and `tier` are checked against their fixed sets and the coordinates are proven
+   * integers, so no traversal is reachable through any path-derived input.
    */
   private chunkFile(
     worldName: string,
     layer: RasterLayer,
+    tier: DetailTier,
     cx: number,
     cy: number,
-    level = 0,
   ): string | null {
     if (!RASTER_LAYERS.includes(layer)) return null;
+    if (!TIERS.includes(tier)) return null;
     if (!Number.isInteger(cx) || !Number.isInteger(cy)) return null;
-    if (!Number.isInteger(level) || level < 0 || level > MAX_TILE_LEVEL) return null;
 
-    const dir = path.join(this.mapDir(worldName), 'chunks', layer);
-    return level === 0
-      ? path.join(dir, `${cx}_${cy}.png`)
-      : path.join(dir, `L${level}`, `${cx}_${cy}.png`);
+    return path.join(this.mapDir(worldName), 'chunks', layer, tier, `${cx}_${cy}.png`);
   }
 
   // ── document ──
@@ -146,7 +156,26 @@ export class MapEditorService {
 
     // The chunk files on disk are the ground truth for what has been painted; reconcile so
     // a document that predates them cannot hide terrain that actually exists.
-    doc.chunkVersions = { ...this.scanChunkVersions(worldName), ...(doc.chunkVersions ?? {}) };
+    const versions = { ...this.scanChunkVersions(worldName), ...(doc.chunkVersions ?? {}) };
+
+    /*
+     * Drop keys that are not `{layer}/{tier}/{cx}/{cy}`.
+     *
+     * Documents written before the detail tiers keyed chunks as `{layer}/{cx}/{cy}`, and
+     * those entries now name nothing at all — the files they referred to are ignored. Left
+     * in, they would ride along in every payload to every client forever, growing the
+     * document with records no lookup can ever match.
+     */
+    doc.chunkVersions = Object.fromEntries(
+      Object.entries(versions).filter(([key]) => {
+        const parts = key.split('/');
+        return (
+          parts.length === 4 &&
+          RASTER_LAYERS.includes(parts[0] as RasterLayer) &&
+          TIERS.includes(parts[1] as DetailTier)
+        );
+      }),
+    );
 
     this.cache.set(worldName, doc);
     return doc;
@@ -162,16 +191,18 @@ export class MapEditorService {
   private scanChunkVersions(worldName: string): Record<string, number> {
     const out: Record<string, number> = {};
     for (const layer of RASTER_LAYERS) {
-      const dir = path.join(this.mapDir(worldName), 'chunks', layer);
-      let names: string[];
-      try {
-        names = fs.readdirSync(dir);
-      } catch {
-        continue; // layer never painted
-      }
-      for (const name of names) {
-        const m = /^(-?\d+)_(-?\d+)\.png$/.exec(name);
-        if (m) out[`${layer}/${m[1]}/${m[2]}`] = 1;
+      for (const tier of TIERS) {
+        const dir = path.join(this.mapDir(worldName), 'chunks', layer, tier);
+        let names: string[];
+        try {
+          names = fs.readdirSync(dir);
+        } catch {
+          continue; // this layer/tier never painted
+        }
+        for (const name of names) {
+          const m = /^(-?\d+)_(-?\d+)\.png$/.exec(name);
+          if (m) out[`${layer}/${tier}/${m[1]}/${m[2]}`] = 1;
+        }
       }
     }
     return out;
@@ -252,7 +283,8 @@ export class MapEditorService {
         break;
       }
       case 'chunk': {
-        doc.chunkVersions[`${op.layer}/${op.cx}/${op.cy}`] = op.ver;
+        if (!TIERS.includes(op.tier)) return;
+        doc.chunkVersions[`${op.layer}/${op.tier}/${op.cx}/${op.cy}`] = op.ver;
         break;
       }
       case 'set': {
@@ -317,117 +349,21 @@ export class MapEditorService {
 
   // ── chunks ──
 
-  readChunk(worldName: string, layer: RasterLayer, cx: number, cy: number): Buffer | null {
-    return this.readTile(worldName, layer, cx, cy, 0);
-  }
-
   /**
-   * Read a tile, building it from its children if it does not exist yet.
+   * Read a chunk. Returns null when that ground has never been painted at this tier, which
+   * is the normal case over most of a map and not an error.
    *
-   * Parents are derived, never authored, so they are generated on demand and cached to disk
-   * rather than rebuilt eagerly on every paint stroke — a broad stroke would otherwise cost
-   * a rebuild of eleven ancestors before the editor could carry on.
-   *
-   * Returns null when nothing beneath this tile has ever been painted, which the client
-   * treats as open sea.
+   * Nothing is built here. Every tier is authored, so a chunk either exists on disk or that
+   * ground is empty at that tier and the client's composite falls through to a coarser one.
    */
-  readTile(
+  readChunk(
     worldName: string,
     layer: RasterLayer,
+    tier: DetailTier,
     cx: number,
     cy: number,
-    level: number,
   ): Buffer | null {
-    const file = this.chunkFile(worldName, layer, cx, cy, level);
-    if (!file) return null;
-
-    try {
-      return fs.readFileSync(file);
-    } catch {
-      /* not built yet — fall through */
-    }
-
-    // Level 0 is authored; if its file is absent, that ground is simply unpainted.
-    if (level === 0) return null;
-
-    const children = childrenOf(cx, cy).map(c =>
-      this.readTile(worldName, layer, c.cx, c.cy, level - 1),
-    );
-
-    const composed = composeParent(children);
-    if (!composed) return null;
-
-    try {
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, composed);
-    } catch (err) {
-      // Serving it uncached is still correct, just slower next time.
-      this.logger.warn(`Failed to cache tile ${layer}/L${level}/${cx}_${cy}: ${err}`);
-    }
-    return composed;
-  }
-
-  /**
-   * Drop every cached ancestor of a level-0 chunk.
-   *
-   * Deleting rather than rebuilding keeps the write path cheap: the next reader rebuilds
-   * exactly the levels it actually asks for, and a region nobody views never costs anything.
-   */
-  private invalidateAncestors(worldName: string, layer: RasterLayer, cx: number, cy: number): void {
-    /*
-     * Rebuild each ancestor from its *immediate* children instead of deleting the chain.
-     *
-     * Deleting everything meant the next reader had to rebuild from the bottom: a level-4
-     * tile is 4 level-3s, which are 16 level-2s, and so on down to 256 level-0 chunks. That
-     * measured at three to ten seconds per tile, repeated for every chunk a stroke touched.
-     *
-     * Going bottom-up costs four decodes per level — about forty PNG operations for the
-     * whole chain, once — and leaves every level present, so reads are a file send. The
-     * expensive descent only ever happens for ground that has never been built at all.
-     */
-    let child = { cx, cy };
-    for (let level = 1; level <= MAX_TILE_LEVEL; level++) {
-      const parent = parentOf(child.cx, child.cy);
-      const file = this.chunkFile(worldName, layer, parent.cx, parent.cy, level);
-      if (!file) break;
-
-      // Only rebuild a level that already existed; nothing else has asked for the rest.
-      const existed = fs.existsSync(file);
-      if (!existed) {
-        // Nothing cached above here either, so there is nothing left to invalidate.
-        break;
-      }
-
-      const children = childrenOf(parent.cx, parent.cy).map(c =>
-        this.readExisting(worldName, layer, c.cx, c.cy, level - 1),
-      );
-      const composed = composeParent(children);
-
-      try {
-        if (composed) fs.writeFileSync(file, composed);
-        else fs.unlinkSync(file);
-      } catch (err) {
-        this.logger.warn(`Failed to refresh tile ${layer}/L${level}/${parent.cx}_${parent.cy}`);
-        try {
-          fs.unlinkSync(file);
-        } catch {
-          /* leave it */
-        }
-      }
-
-      child = parent;
-    }
-  }
-
-  /** Read a tile only if it is already on disk — never triggers a build. */
-  private readExisting(
-    worldName: string,
-    layer: RasterLayer,
-    cx: number,
-    cy: number,
-    level: number,
-  ): Buffer | null {
-    const file = this.chunkFile(worldName, layer, cx, cy, level);
+    const file = this.chunkFile(worldName, layer, tier, cx, cy);
     if (!file) return null;
     try {
       return fs.readFileSync(file);
@@ -440,25 +376,30 @@ export class MapEditorService {
   writeChunk(
     worldName: string,
     layer: RasterLayer,
+    tier: DetailTier,
     cx: number,
     cy: number,
     data: Buffer,
   ): number | null {
-    const file = this.chunkFile(worldName, layer, cx, cy);
+    const file = this.chunkFile(worldName, layer, tier, cx, cy);
     if (!file) return null;
     try {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, data);
     } catch (err) {
-      this.logger.error(`Failed to write chunk ${layer}/${cx}_${cy}:`, err as Error);
+      this.logger.error(`Failed to write chunk ${layer}/${tier}/${cx}_${cy}:`, err as Error);
       return null;
     }
 
-    // Every derived tile above this one is now out of date.
-    this.invalidateAncestors(worldName, layer, cx, cy);
-
+    /*
+     * Nothing to invalidate.
+     *
+     * The client wrote the coarser tiers itself, in the same stroke, and PUTs each of them
+     * through this same method. No derived state exists anywhere that could now be stale —
+     * which is the whole reason the tiers are authored rather than computed.
+     */
     const doc = this.getMap(worldName);
-    const key = `${layer}/${cx}/${cy}`;
+    const key = `${layer}/${tier}/${cx}/${cy}`;
     const ver = (doc.chunkVersions[key] ?? 0) + 1;
     doc.chunkVersions[key] = ver;
     doc.updatedAt = Date.now();

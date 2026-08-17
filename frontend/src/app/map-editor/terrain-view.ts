@@ -1,18 +1,45 @@
 /**
- * Terrain compositing — one quad per chunk cell, shaded from the three raster layers.
+ * Terrain compositing — one quad per chunk cell, shaded from the three raster layers across
+ * the three detail tiers.
  *
  * Land colour cannot simply be stacked over the height field: the coastline is a *threshold*
  * on height, and both colour layers have to be resolved against it in one pass. So instead
- * of three stacked sprite layers, each visible chunk cell gets a single mesh whose shader
- * samples height, land colour and water colour together and decides the final pixel.
+ * of stacked sprite layers, each visible chunk cell gets a single mesh whose shader samples
+ * height, land colour and water colour together and decides the final pixel.
+ *
+ * Each of those three layers is itself the alpha-over composite of the tiers, coarse under
+ * fine. That is the whole read side of the authored-tier design: a fine stroke has already
+ * written its blurred coarse version, so a coarse tier *is* the work rather than a stand-in
+ * for it, and zooming out needs no finer chunks at all. Where a finer tier has nothing —
+ * because it was never drawn, or is not resident, or is not sampled at this zoom — the
+ * coarser one shows through, so there is no state where a cell has nothing to draw.
  *
  * Phase 1 keeps the coastline to a tunable smoothstep band — clean anti-aliased edges, as
  * agreed. Phase 5 replaces `coastline()` below with the noise-warped domain distortion that
  * produces Wonderdraft's drippy look; nothing outside that function needs to change.
  */
 
-import { Container, Geometry, GlProgram, Graphics, Mesh, Shader, Text, Texture, UniformGroup } from 'pixi.js';
-import { MAX_TILE_LEVEL, RasterLayer, tileWorldSize } from './map-editor.model';
+import {
+  Container,
+  Geometry,
+  GlProgram,
+  Graphics,
+  Mesh,
+  Shader,
+  Text,
+  Texture,
+  UniformData,
+  UniformGroup,
+} from 'pixi.js';
+import {
+  ChunkCoord,
+  DetailTier,
+  RASTER_LAYERS,
+  RasterLayer,
+  TIERS,
+  TIER_WORLD_SIZE,
+  coarserTiers,
+} from './map-editor.model';
 import { Bounds } from './map-camera';
 import { ChunkManager } from './chunk-manager';
 import { mapDiag, tileLabel } from './map-diagnostics';
@@ -38,9 +65,23 @@ const fragment = /* glsl */ `
 in vec2 vUV;
 out vec4 finalColor;
 
-uniform sampler2D uHeight;
-uniform sampler2D uLandColor;
-uniform sampler2D uWaterColor;
+/*
+ * Three tiers × three layers.
+ *
+ * A tier this cell does not sample — one finer than the cell's own — is bound to a 1×1
+ * transparent texture and contributes nothing to the composite, so the shader needs no
+ * branch for "how many tiers are live".
+ */
+uniform sampler2D uHeightHigh;
+uniform sampler2D uHeightMed;
+uniform sampler2D uHeightLow;
+uniform sampler2D uLandHigh;
+uniform sampler2D uLandMed;
+uniform sampler2D uLandLow;
+uniform sampler2D uWaterHigh;
+uniform sampler2D uWaterMed;
+uniform sampler2D uWaterLow;
+
 uniform sampler2D uPaper;
 
 uniform vec3 uLandDefault;
@@ -48,19 +89,18 @@ uniform vec3 uWaterDefault;
 uniform float uEdge;          // half-width of the coastline band, in height units
 uniform float uPaperOpacity;
 uniform float uPaperScale;    // world px covered by one paper tile
-uniform vec2 uChunkOrigin;    // world position of this tile's top-left corner
-uniform float uTileSpan;      // world px this tile covers; varies by pyramid level
+uniform vec2 uChunkOrigin;    // world position of this cell's top-left corner
+uniform float uTileSpan;      // world px this cell covers; varies by tier
 
 /*
- * Sub-rect of the bound textures this tile should sample.
+ * Where this cell sits inside each tier's chunk texture: (offsetX, offsetY, scale).
  *
- * When a tile's own pyramid level has not loaded, it borrows a coarser ancestor that has,
- * and reads just the part of it covering this tile's footprint. That is what removes
- * loading as a visible event: there is always *something* to draw, so a fetch resolves as
- * the map sharpening rather than as a square appearing.
+ * A coarser chunk covers 8× or 64× this cell's span, so the cell reads a sub-rect of it.
+ * The cell's own tier is always (0, 0, 1).
  */
-uniform vec2 uUVOffset;
-uniform float uUVScale;
+uniform vec3 uUVHigh;
+uniform vec3 uUVMed;
+uniform vec3 uUVLow;
 
 uniform float uNoiseScale;    // world px per noise cell
 uniform float uNoiseAmount;   // how far the coastline wanders
@@ -99,13 +139,33 @@ float fbm(vec2 p) {
     return v;
 }
 
+/** Position inside one tier's chunk texture. */
+vec2 tierUV(vec3 rect) {
+    return rect.xy + vUV * rect.z;
+}
+
+/**
+ * Straight-alpha "over": the top layer composited onto the one under it.
+ *
+ * Alpha is coverage on every layer — and on the height layer it is the terrain height
+ * itself — so one operator serves all three. RGB is weighted by coverage and taken in
+ * premultiplied space, because mixing a transparent texel's stale colour in unweighted would
+ * drag fringes of arbitrary colour along every coastline.
+ */
+vec4 over(vec4 under, vec4 top) {
+    float a = top.a + under.a * (1.0 - top.a);
+    if (a <= 0.0) return vec4(0.0);
+    vec3 rgb = (top.rgb * top.a + under.rgb * under.a * (1.0 - top.a)) / a;
+    return vec4(rgb, a);
+}
+
 /**
  * Land/water mix.
  *
  * The drippy Wonderdraft edge comes from perturbing the *threshold* with world-space noise
  * rather than warping the sample position. Warping the lookup would push reads outside the
  * chunk's own texture near its borders, where clamping would straighten the coast into a
- * visible seam every 2048px. Evaluating the noise in world space instead is continuous
+ * visible seam every chunk. Evaluating the noise in world space instead is continuous
  * across chunks by construction, so the coastline wanders freely with no seams at all.
  *
  * Because h has a gradient near the shore, shifting the threshold displaces the edge — the
@@ -120,13 +180,20 @@ float coastline(float h, vec2 worldPos, out float shore) {
 }
 
 void main() {
-    // Position within whichever level actually supplied the pixels.
-    vec2 uv = uUVOffset + vUV * uUVScale;
+    vec2 uvHigh = tierUV(uUVHigh);
+    vec2 uvMed  = tierUV(uUVMed);
+    vec2 uvLow  = tierUV(uUVLow);
 
-    float h = texture(uHeight, uv).a;
+    // Coarse under, fine on top — the read rule of the authored tiers. This runs *before*
+    // the coastline logic, so everything below sees one resolved height and colour.
+    vec4 hc = over(over(texture(uHeightLow, uvLow), texture(uHeightMed, uvMed)),
+                   texture(uHeightHigh, uvHigh));
+    vec4 lc = over(over(texture(uLandLow, uvLow), texture(uLandMed, uvMed)),
+                   texture(uLandHigh, uvHigh));
+    vec4 wc = over(over(texture(uWaterLow, uvLow), texture(uWaterMed, uvMed)),
+                   texture(uWaterHigh, uvHigh));
 
-    vec4 lc = texture(uLandColor, uv);
-    vec4 wc = texture(uWaterColor, uv);
+    float h = hc.a;
 
     // Colour is baked when terrain is drawn, so these fallbacks are constants rather than
     // adjustable "theme" colours: changing a global default would retroactively repaint
@@ -188,21 +255,38 @@ export function defaultCoast(): CoastSettings {
 }
 
 /**
- * Ceiling on terrain meshes at any level.
+ * Ceiling on terrain meshes at any tier.
  *
- * With the pyramid this is a safety net rather than a working limit: the level is chosen so
- * a screenful is always roughly the same number of tiles, whatever the zoom. Previously this
- * was the thing that cut the map off at the edges, because tile count grew as zoom⁻².
+ * With tiers this is a safety net rather than a working limit: the tier is chosen so a
+ * screenful is always roughly the same number of chunks, whatever the zoom. Previously this
+ * was the thing that cut the map off at the edges, because chunk count grew as zoom⁻².
  */
 const MAX_TERRAIN_CELLS = 160;
-
-
 
 /** Program is compiled once and shared; only the per-cell resources differ. */
 let sharedProgram: GlProgram | null = null;
 function program(): GlProgram {
   sharedProgram ??= GlProgram.from({ vertex, fragment, name: 'map-terrain' });
   return sharedProgram;
+}
+
+/**
+ * A 1×1 fully transparent texture, for tiers a cell does not sample.
+ *
+ * Every sampler must be bound to something, and this contributes nothing under `over()` —
+ * which is what lets the shader treat "three tiers" as unconditional.
+ */
+let sharedEmpty: Texture | null = null;
+function emptyTexture(): Texture {
+  if (!sharedEmpty) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    // A fresh 2D canvas is transparent black, which is exactly the identity for `over`.
+    canvas.getContext('2d');
+    sharedEmpty = Texture.from(canvas);
+  }
+  return sharedEmpty;
 }
 
 /** Unit quad; the mesh's own transform scales and positions it into world space. */
@@ -216,33 +300,46 @@ function quad(): Geometry {
   });
 }
 
-/** A tile address in the pyramid. */
-interface TileRef {
-  level: number;
-  cx: number;
-  cy: number;
-}
-
 /** Mesh carrying our own geometry and shader rather than Pixi's textured-mesh defaults. */
 type TerrainMesh = Mesh<Geometry, Shader>;
+
+/** Sampler name suffix per layer, matching the uniforms above. */
+const LAYER_UNIFORM: Record<RasterLayer, string> = {
+  height: 'uHeight',
+  landColor: 'uLand',
+  waterColor: 'uWater',
+};
+
+/** Uniform name suffix per tier. */
+const TIER_UNIFORM: Record<DetailTier, string> = {
+  high: 'High',
+  med: 'Med',
+  low: 'Low',
+};
 
 interface Cell {
   cx: number;
   cy: number;
-  /** Pyramid level this tile represents on the map. */
-  level: number;
-  /** Level the textures actually came from — coarser while the exact one loads. */
-  sourceLevel: number;
+  /** Tier this cell represents on the map; also the finest tier it samples. */
+  tier: DetailTier;
+  /**
+   * Chunk this cell reads from, per sampled tier.
+   *
+   * Kept so an eviction anywhere in the stack can be matched back to the cells that were
+   * drawing from it — a coarse chunk is shared by many cells, and a shader left pointing at
+   * a freed texture crashes the renderer rather than merely looking wrong.
+   */
+  refs: Partial<Record<DetailTier, ChunkCoord>>;
   mesh: TerrainMesh;
   uniforms: UniformGroup;
-  /** Texture identity last bound, so eviction and refetches can be detected. */
-  bound: Record<RasterLayer, Texture | null>;
+  /** Texture identity last bound per tier, so eviction and refetches can be detected. */
+  bound: Partial<Record<DetailTier, Texture>>;
 }
 
 export class TerrainView {
   /** Parent this in the camera-transformed world container. */
   readonly container = new Container();
-  /** Debug overlay: tile bounds and which level each cell is actually drawing from. */
+  /** Debug overlay: cell bounds and which tier each one is drawing at. */
   private debugLayer = new Container();
   private debugGraphics = new Graphics();
   private debugLabels: Text[] = [];
@@ -268,18 +365,16 @@ export class TerrainView {
     this.container.addChild(this.debugLayer);
     this.debugLayer.visible = false;
 
-    // A refetched or restored chunk keeps its RenderTexture identity, so the mesh already
-    // points at the right pixels — but an evicted one does not, hence the drop below.
     /*
-     * Drop only the cell that actually lost its texture.
+     * A refetched or restored chunk keeps its RenderTexture identity, so the mesh already
+     * points at the right pixels — but an evicted one does not.
      *
-     * `cx,cy` names a different patch of world at every level — level 2 tile (3,5) is
-     * sixteen times further out than level 0 tile (3,5) — so ignoring the level meant
-     * evicting one tile deleted an unrelated cell somewhere else on the map. That cell then
-     * rebuilt on the next frame: terrain blinking out and back while drawing, nowhere near
-     * whatever was actually evicted.
+     * The tier is part of the identity: `cx,cy` names a different patch of world at every
+     * tier, so ignoring it meant evicting one chunk deleted an unrelated cell somewhere else
+     * on the map, which then rebuilt on the next frame — terrain blinking out and back while
+     * drawing, nowhere near whatever was actually evicted.
      */
-    this.chunks.onChunkDisposed = (_layer, cx, cy, level) => this.drop(cx, cy, level);
+    this.chunks.onChunkDisposed = (_layer, tier, cx, cy) => this.dropReferencing(tier, cx, cy);
   }
 
   // ── appearance ──
@@ -339,104 +434,106 @@ export class TerrainView {
 
   // ── cells ──
 
-  private key(cx: number, cy: number, level = 0): string {
-    return `${level}/${cx}/${cy}`;
+  private key(tier: DetailTier, cx: number, cy: number): string {
+    return `${tier}/${cx}/${cy}`;
   }
 
-  /**
-   * Nearest level at or above `level` whose tile is loaded for this footprint.
-   *
-   * Walking upward means a tile can always borrow a coarser ancestor while its own level
-   * is in flight. Returns null only when nothing in the chain is resident, which is the one
-   * case where the ocean backdrop shows through.
-   */
-  private sourceFor(cx: number, cy: number, level: number): TileRef | null {
-    for (let a = level; a <= MAX_TILE_LEVEL; a++) {
-      const shift = a - level;
-      const ax = Math.floor(cx / 2 ** shift);
-      const ay = Math.floor(cy / 2 ** shift);
-      if (this.chunks.isCellReady(ax, ay, a)) return { level: a, cx: ax, cy: ay };
-    }
-    return null;
-  }
-
-  /** Where this tile sits inside its source tile's texture, in UV units. */
-  private uvRect(cx: number, cy: number, level: number, src: TileRef): { off: number[]; scale: number } {
-    const span = tileWorldSize(level);
-    const srcSpan = tileWorldSize(src.level);
+  /** Chunk of `tier` containing this cell, and where the cell sits inside its texture. */
+  private placement(
+    cx: number,
+    cy: number,
+    tier: DetailTier,
+    source: DetailTier,
+  ): { ref: ChunkCoord; uv: [number, number, number] } {
+    const span = TIER_WORLD_SIZE[tier];
+    const srcSpan = TIER_WORLD_SIZE[source];
+    // Floor division, so a cell left of the origin lands in chunk -1 rather than sampling
+    // its neighbour's pixels.
+    const ref = {
+      cx: Math.floor((cx * span) / srcSpan),
+      cy: Math.floor((cy * span) / srcSpan),
+    };
     return {
-      off: [(cx * span - src.cx * srcSpan) / srcSpan, (cy * span - src.cy * srcSpan) / srcSpan],
-      scale: span / srcSpan,
+      ref,
+      uv: [
+        (cx * span - ref.cx * srcSpan) / srcSpan,
+        (cy * span - ref.cy * srcSpan) / srcSpan,
+        span / srcSpan,
+      ],
     };
   }
 
-  private build(cx: number, cy: number, level: number, src: TileRef): Cell {
-    const uv = this.uvRect(cx, cy, level, src);
+  private build(cx: number, cy: number, tier: DetailTier): Cell {
+    const span = TIER_WORLD_SIZE[tier];
+    const sampled = [tier, ...coarserTiers(tier)];
 
-    const uniforms = new UniformGroup({
+    const uniformValues: Record<string, UniformData> = {
       uLandDefault: { value: this.landDefault, type: 'vec3<f32>' },
       uWaterDefault: { value: this.waterDefault, type: 'vec3<f32>' },
       uEdge: { value: this.edge, type: 'f32' },
       uPaperOpacity: { value: this.paperOpacity, type: 'f32' },
       uPaperScale: { value: this.paperScale, type: 'f32' },
-      uChunkOrigin: {
-        value: [cx * tileWorldSize(level), cy * tileWorldSize(level)],
-        type: 'vec2<f32>',
-      },
-      uTileSpan: { value: tileWorldSize(level), type: 'f32' },
-      uUVOffset: { value: uv.off, type: 'vec2<f32>' },
-      uUVScale: { value: uv.scale, type: 'f32' },
+      uChunkOrigin: { value: [cx * span, cy * span], type: 'vec2<f32>' },
+      uTileSpan: { value: span, type: 'f32' },
       uNoiseScale: { value: this.coast.noiseScale, type: 'f32' },
       uNoiseAmount: { value: this.coast.noiseAmount, type: 'f32' },
       uShoreWidth: { value: this.coast.shoreWidth, type: 'f32' },
       uShoreLight: { value: this.coast.shoreLight, type: 'f32' },
       uShadowWidth: { value: this.coast.shadowWidth, type: 'f32' },
       uShadowStrength: { value: this.coast.shadowStrength, type: 'f32' },
-    });
+    };
 
-    // Textures come from the source tile, which may be a coarser ancestor.
-    const height = this.chunks.get('height', src.cx, src.cy, src.level).texture;
-    const landColor = this.chunks.get('landColor', src.cx, src.cy, src.level).texture;
-    const waterColor = this.chunks.get('waterColor', src.cx, src.cy, src.level).texture;
+    const resources: Record<string, unknown> = {
+      uPaper: this.paper.source,
+      uPaperSampler: this.paper.source.style,
+    };
 
-    const shader = new Shader({
-      glProgram: program(),
-      resources: {
-        uHeight: height.source,
-        uHeightSampler: height.source.style,
-        uLandColor: landColor.source,
-        uLandColorSampler: landColor.source.style,
-        uWaterColor: waterColor.source,
-        uWaterColorSampler: waterColor.source.style,
-        uPaper: this.paper.source,
-        uPaperSampler: this.paper.source.style,
-        terrainUniforms: uniforms,
-      },
-    });
+    const refs: Partial<Record<DetailTier, ChunkCoord>> = {};
+    const bound: Partial<Record<DetailTier, Texture>> = {};
+
+    for (const source of TIERS) {
+      const suffix = TIER_UNIFORM[source];
+
+      if (!sampled.includes(source)) {
+        // Finer than this cell — nothing to read, and nothing that needs reading: the stroke
+        // that made it also wrote this cell's own tier.
+        uniformValues[`uUV${suffix}`] = { value: [0, 0, 1], type: 'vec3<f32>' };
+        for (const layer of RASTER_LAYERS) {
+          const empty = emptyTexture();
+          resources[`${LAYER_UNIFORM[layer]}${suffix}`] = empty.source;
+          resources[`${LAYER_UNIFORM[layer]}${suffix}Sampler`] = empty.source.style;
+        }
+        continue;
+      }
+
+      const { ref, uv } = this.placement(cx, cy, tier, source);
+      uniformValues[`uUV${suffix}`] = { value: uv, type: 'vec3<f32>' };
+      refs[source] = ref;
+
+      for (const layer of RASTER_LAYERS) {
+        const texture = this.chunks.get(layer, source, ref.cx, ref.cy).texture;
+        resources[`${LAYER_UNIFORM[layer]}${suffix}`] = texture.source;
+        resources[`${LAYER_UNIFORM[layer]}${suffix}Sampler`] = texture.source.style;
+        // Height stands for the cell: eviction frees all three layers of a position together.
+        if (layer === 'height') bound[source] = texture;
+      }
+    }
+
+    const uniforms = new UniformGroup(uniformValues);
+    resources['terrainUniforms'] = uniforms;
+
+    const shader = new Shader({ glProgram: program(), resources });
 
     const mesh: TerrainMesh = new Mesh<Geometry, Shader>({ geometry: this.geometry, shader });
-    const span = tileWorldSize(level);
     mesh.position.set(cx * span, cy * span);
     mesh.scale.set(span);
 
-    const cell: Cell = {
-      cx,
-      cy,
-      level,
-      sourceLevel: src.level,
-      mesh,
-      uniforms,
-      bound: { height, landColor, waterColor },
-    };
+    const cell: Cell = { cx, cy, tier, refs, mesh, uniforms, bound };
 
     this.container.addChild(mesh);
-    this.cells.set(this.key(cx, cy, level), cell);
+    this.cells.set(this.key(tier, cx, cy), cell);
 
-    mapDiag.log(
-      src.level === level ? 'cell:build' : 'cell:fallback',
-      tileLabel('terrain', cx, cy, level),
-      src.level === level ? '' : `drawing from L${src.level} ${src.cx},${src.cy}`,
-    );
+    mapDiag.log('cell:build', tileLabel('terrain', tier, cx, cy));
     return cell;
   }
 
@@ -457,30 +554,42 @@ export class TerrainView {
     shader?.destroy(false);
   }
 
-  /** Forget a cell whose chunk textures were evicted; its shader now points at nothing. */
-  private drop(cx: number, cy: number, level: number): void {
-    mapDiag.log('cell:drop', tileLabel('terrain', cx, cy, level));
-    const key = this.key(cx, cy, level);
-    const cell = this.cells.get(key);
-    if (!cell) return;
-    this.destroyCell(cell);
-    this.cells.delete(key);
+  /**
+   * Forget every cell drawing from a chunk that was just evicted.
+   *
+   * A coarse chunk backs many cells at once — one `low` chunk covers 4096 `high` cells — so
+   * this cannot simply address the cell of the same coordinates. Each cell records which
+   * chunk it reads at each tier, and all the matches go.
+   */
+  private dropReferencing(tier: DetailTier, cx: number, cy: number): void {
+    for (const [key, cell] of [...this.cells]) {
+      const ref = cell.refs[tier];
+      if (!ref || ref.cx !== cx || ref.cy !== cy) continue;
+      mapDiag.log('cell:drop', tileLabel('terrain', cell.tier, cell.cx, cell.cy));
+      this.destroyCell(cell);
+      this.cells.delete(key);
+    }
   }
 
   /**
    * Rebuild the visible set of cells. Call once per frame with the camera bounds.
    *
-   * Every cell is a mesh with its own shader binding four textures, so the count has to be
+   * Every cell is a mesh with its own shader binding ten textures, so the count has to be
    * bounded: zoomed far out the view can span hundreds of cells, and building all of them
    * is what made a wide zoom crawl. Past the cap only the cells nearest the middle of the
    * screen are drawn, which is where the eye is, and the ocean backdrop covers the rest.
+   *
+   * Takes the camera's *unmargined* bounds and adds half a chunk of lead itself, so a cell
+   * exists just before it scrolls into view. Half, deliberately: the streamer's lead is a
+   * whole chunk, and drawing must never reach past what has been streamed.
    */
-  update(bounds: Bounds, level = 0, zoom = 1): void {
-    const span = tileWorldSize(level);
-    const minCx = Math.floor(bounds.minX / span);
-    const maxCx = Math.floor(bounds.maxX / span);
-    const minCy = Math.floor(bounds.minY / span);
-    const maxCy = Math.floor(bounds.maxY / span);
+  update(view: Bounds, tier: DetailTier = 'high', zoom = 1): void {
+    const span = TIER_WORLD_SIZE[tier];
+    const lead = span * 0.5;
+    const minCx = Math.floor((view.minX - lead) / span);
+    const maxCx = Math.floor((view.maxX + lead) / span);
+    const minCy = Math.floor((view.minY - lead) / span);
+    const maxCy = Math.floor((view.maxY + lead) / span);
 
     const spanX = maxCx - minCx + 1;
     const spanY = maxCy - minCy + 1;
@@ -504,47 +613,50 @@ export class TerrainView {
     const live = new Set<string>();
 
     for (const { cx, cy } of wanted) {
-      const key = this.key(cx, cy, level);
+      /*
+       * Skip ground nothing has ever been drawn on.
+       *
+       * Over open sea — most of a map — a cell would composite three transparent tiers into
+       * the ocean colour the backdrop already shows, so building a mesh and shader for it is
+       * pure cost. Anything painted at *any* sampled tier, including a stroke that has not
+       * been uploaded yet, counts as content.
+       */
+      if (!this.chunks.hasContentUnder(tier, cx, cy)) continue;
+
+      const key = this.key(tier, cx, cy);
       live.add(key);
 
       const cell = this.cells.get(key);
+      if (!cell) {
+        this.build(cx, cy, tier);
+        continue;
+      }
 
       /*
-       * Draw this tile from the best source available right now.
+       * Rebuild when eviction handed back a different RenderTexture at any sampled tier —
+       * the shader would otherwise be pointing at freed pixels.
        *
-       * `sourceFor` returns the tile's own level once it has loaded, and a coarser ancestor
-       * until then. That is the whole trick: there is no state where a tile has nothing to
-       * show, so a fetch completing looks like the map sharpening rather than a square
-       * blinking into existence. Loading stops being a visible event.
+       * `get` is what marks these chunks as still in use, so this doubles as the thing that
+       * keeps a cell's coarse tiers from being evicted out from under it.
        */
-      const src = this.sourceFor(cx, cy, level);
-      if (!src) {
-        // Nothing in the chain is resident yet — the ocean backdrop covers it.
-        continue;
+      let stale = false;
+      for (const [source, ref] of Object.entries(cell.refs) as [DetailTier, ChunkCoord][]) {
+        const texture = this.chunks.get('height', source, ref.cx, ref.cy).texture;
+        if (cell.bound[source] !== texture) stale = true;
       }
-
-      if (!cell) {
-        this.build(cx, cy, level, src);
-        continue;
-      }
-
-      // Rebuild when a sharper source arrived, or when eviction handed back a different
-      // RenderTexture — either way the shader is pointing at the wrong pixels.
-      const h = this.chunks.get('height', src.cx, src.cy, src.level).texture;
-      if (cell.level !== level || cell.sourceLevel !== src.level || cell.bound.height !== h) {
+      if (stale) {
         this.destroyCell(cell);
         this.cells.delete(key);
-        this.build(cx, cy, level, src);
+        this.build(cx, cy, tier);
       }
     }
 
     /*
      * Retire anything no longer wanted.
      *
-     * No special case for a level change any more: hierarchical fallback means the incoming
-     * level always has something to draw, so holding the outgoing one back would just stack
-     * two tiles over the same ground — and the newer, coarser one would paint over the
-     * sharper one it was meant to be covering for.
+     * No special case for a tier change: the coarse tiers are composited into every cell, so
+     * an incoming tier always has something to draw, and holding the outgoing one back would
+     * just stack two meshes over the same ground.
      */
     for (const [key, cell] of [...this.cells]) {
       if (live.has(key)) continue;
@@ -556,12 +668,11 @@ export class TerrainView {
   }
 
   /**
-   * Outline every live cell and label what it is drawing from.
+   * Outline every live cell and label the tier it is drawing at.
    *
-   * Green means the cell has its own level's pixels; amber means it is borrowing a coarser
-   * ancestor. Seeing that directly is the difference between "a square looked wrong" and
-   * "that tile is still on a level-4 fallback after nine seconds" — the second is a bug
-   * report, the first is a guess.
+   * Seeing the active tier directly is the difference between "a square looked wrong" and
+   * "that stroke went into `med` while the view is on `high`" — the second is a bug report,
+   * the first is a guess.
    */
   private drawDebug(zoom: number): void {
     const g = this.debugGraphics;
@@ -569,20 +680,17 @@ export class TerrainView {
 
     let i = 0;
     for (const cell of this.cells.values()) {
-      const span = tileWorldSize(cell.level);
+      const span = TIER_WORLD_SIZE[cell.tier];
       const x = cell.cx * span;
       const y = cell.cy * span;
-      const fallback = cell.sourceLevel !== cell.level;
 
       g.rect(x, y, span, span);
-      g.stroke({ width: 2 / zoom, color: fallback ? 0xffb020 : 0x40d060, alpha: 0.9 });
+      g.stroke({ width: 2 / zoom, color: 0x40d060, alpha: 0.9 });
 
       const label = this.debugLabels[i] ?? this.makeLabel();
       this.debugLabels[i] = label;
-      label.text = fallback
-        ? `L${cell.level}←${cell.sourceLevel}  ${cell.cx},${cell.cy}`
-        : `L${cell.level}  ${cell.cx},${cell.cy}`;
-      label.style.fill = fallback ? '#ffb020' : '#40d060';
+      label.text = `${cell.tier}  ${cell.cx},${cell.cy}`;
+      label.style.fill = '#40d060';
       label.position.set(x + 8 / zoom, y + 8 / zoom);
       // Text is authored at a fixed size, so undo the camera to keep it readable.
       label.scale.set(1 / zoom);

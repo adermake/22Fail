@@ -13,7 +13,7 @@ import {
 import type { Request, Response } from 'express';
 import { MapEditorService } from './map-editor.service';
 // Type-only: `emitDecoratorMetadata` + `isolatedModules` forbids value imports in decorated signatures.
-import type { RasterLayer } from './map-editor.service';
+import type { DetailTier, RasterLayer } from './map-editor.service';
 import { UsersService } from './users.service';
 
 /**
@@ -55,55 +55,35 @@ export class MapEditorController {
   }
 
   /**
-   * A tile from the pyramid.
+   * A painted chunk, at one of the three authored detail tiers.
    *
-   * Level 0 is what the editor paints; higher levels are derived by downscaling four
-   * children and are built on first request. Because each level covers four times the world
-   * area, the client fetches roughly the same number of tiles at any zoom — which is what
-   * makes panning and zooming seamless however far out the map goes.
+   * One route for all three: no tier is derived from another, so `low` is served exactly the
+   * way `high` is. The client picks a tier from how much world is on screen, which is what
+   * keeps the number of chunks it fetches roughly constant however far out the map goes.
    */
-  @Get('tiles/:layer/:level/:cx/:cy')
-  getTile(
-    @Param('worldName') worldName: string,
-    @Param('layer') layer: RasterLayer,
-    @Param('level', ParseIntPipe) level: number,
-    @Param('cx', ParseIntPipe) cx: number,
-    @Param('cy', ParseIntPipe) cy: number,
-    @Res() res: Response,
-  ): void {
-    const data = this.mapEditor.readTile(worldName, layer, cx, cy, level);
-    if (!data) {
-      // Nothing painted beneath this tile — the normal case over most of a map.
-      res.status(404).end();
-      return;
-    }
-    res.setHeader('Content-Type', 'image/png');
-    /*
-     * Derived tiles are rebuilt in place whenever a chunk beneath them changes, and the
-     * client has no per-tile version to bust a cache with. Caching them as immutable would
-     * pin stale terrain in the browser for a year. Level 0 keeps the versioned immutable
-     * treatment on its own route.
-     */
-    res.setHeader('Cache-Control', level === 0 ? 'public, max-age=31536000, immutable' : 'no-store');
-    res.end(data);
-  }
-
-  @Get('chunks/:layer/:cx/:cy')
+  @Get('chunks/:layer/:tier/:cx/:cy')
   getChunk(
     @Param('worldName') worldName: string,
     @Param('layer') layer: RasterLayer,
+    @Param('tier') tier: DetailTier,
     @Param('cx', ParseIntPipe) cx: number,
     @Param('cy', ParseIntPipe) cy: number,
     @Res() res: Response,
   ): void {
-    const data = this.mapEditor.readChunk(worldName, layer, cx, cy);
+    const data = this.mapEditor.readChunk(worldName, layer, tier, cx, cy);
     if (!data) {
       // A missing chunk is the normal case for unpainted map, not an error worth logging.
       res.status(404).end();
       return;
     }
     res.setHeader('Content-Type', 'image/png');
-    // Versioned by query string on the client, so the bytes themselves are immutable.
+    /*
+     * Versioned by query string on the client, so the bytes themselves are immutable.
+     *
+     * Every tier can be cached this way now. The derived tiles this replaced had to be
+     * served `no-store`, because they were rebuilt in place whenever a chunk beneath them
+     * changed and had no version of their own to bust a cache with.
+     */
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.end(data);
   }
@@ -111,11 +91,15 @@ export class MapEditorController {
   /**
    * Upload a painted chunk as a raw PNG body. Returns the new version, which the client
    * broadcasts so other sessions know to refetch exactly this chunk.
+   *
+   * A stroke sends one of these per tier it wrote — its own and every coarser one — so the
+   * coarse views are published as authored data rather than rebuilt from the fine ones.
    */
-  @Put('chunks/:layer/:cx/:cy')
+  @Put('chunks/:layer/:tier/:cx/:cy')
   async putChunk(
     @Param('worldName') worldName: string,
     @Param('layer') layer: RasterLayer,
+    @Param('tier') tier: DetailTier,
     @Param('cx', ParseIntPipe) cx: number,
     @Param('cy', ParseIntPipe) cy: number,
     @Req() req: Request,
@@ -123,7 +107,7 @@ export class MapEditorController {
     const body = await readRawBody(req);
     if (!body?.length) return { success: false };
 
-    const ver = this.mapEditor.writeChunk(worldName, layer, cx, cy, body);
+    const ver = this.mapEditor.writeChunk(worldName, layer, tier, cx, cy, body);
     return ver == null ? { success: false } : { success: true, ver };
   }
 }

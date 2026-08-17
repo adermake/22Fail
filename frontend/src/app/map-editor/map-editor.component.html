@@ -15,7 +15,7 @@
     <button
       type="button"
       [class.active]="diagOn()"
-      title="Kachel-Diagnose: zeigt Ebene, Rückfall-Ebene und Streaming-Ereignisse"
+      title="Kachel-Diagnose: zeigt Detailstufe, Chunk-Raster und Streaming-Ereignisse"
       (click)="toggleDiagnostics()"
     >
       Diagnose
@@ -174,12 +174,11 @@
         </div>
       }
 
-      @if (zoomHint()) {
-        <div class="zoom-hint">Zum Zeichnen näher heranzoomen</div>
-      }
-
       <div class="status-bar">
         <span>{{ activeToolLabel() }}</span>
+        <span class="status-tier" [class.coarse]="detailTier() !== 'high'"
+          >Detail: {{ detailTierLabel() }}</span
+        >
         <span>x {{ cursorWorld().x }} · y {{ cursorWorld().y }}</span>
         <span>Hex {{ cursorHex().q }},{{ cursorHex().r }}</span>
         <span>{{ kmPerHex }} km / Hex</span>

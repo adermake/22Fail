@@ -1,11 +1,17 @@
 /**
  * Chunked raster layers — GPU residency, streaming, painting and upload.
  *
- * The map is far too large to hold as one texture, so each layer is a grid of
- * `CHUNK_WORLD_SIZE`-square chunks backed by a Pixi `RenderTexture`. Only chunks near the
- * viewport are resident; the rest live as PNGs on the server. This is what makes both
- * "the map is huge" and "edits sync live" possible at once: a brush stroke rewrites the two
- * or three chunks it touched, and other clients refetch exactly those.
+ * The map is far too large to hold as one texture, so each layer is a grid of square chunks
+ * backed by a Pixi `RenderTexture`. Only chunks near the viewport are resident; the rest live
+ * as PNGs on the server. This is what makes both "the map is huge" and "edits sync live"
+ * possible at once: a brush stroke rewrites the two or three chunks it touched, and other
+ * clients refetch exactly those.
+ *
+ * There are three such grids — the detail tiers (`high`/`med`/`low`), 8× apart in world size
+ * and identical in texel count. They are **authored, not derived**: painting writes the
+ * active tier and every coarser one in the same stroke, so what a zoomed-out view reads is
+ * the work itself, blurred, rather than something the server had to rebuild. Nothing here
+ * downscales anything, and no tier is ever invalidated by an edit to another.
  *
  * Channel convention, shared by every layer:
  *   alpha = coverage, RGB = value.
@@ -17,21 +23,22 @@
  * Painting erases by rendering with the `erase` blend mode, which is why height and coverage
  * both live in alpha rather than in a colour channel.
  *
- * This class owns *textures only* — it draws nothing. `TerrainView` composites the three
- * layers into the visible map, because land colour has to be resolved against the height
- * field rather than stacked over it.
+ * This class owns *textures only* — it draws nothing. `TerrainView` composites the tiers and
+ * the three layers into the visible map, because land colour has to be resolved against the
+ * height field rather than stacked over it.
  */
 
 import { Container, Matrix, Rectangle, Renderer, RenderTexture, Sprite, Texture } from 'pixi.js';
 import {
-  CHUNK_WORLD_SIZE,
+  DetailTier,
   LAYER_TEXELS,
-  MAX_TILE_LEVEL,
-  tileWorldSize,
   RASTER_LAYERS,
   RasterLayer,
+  TIERS,
+  TIER_WORLD_SIZE,
+  chooseTier,
   chunkKey,
-  layerScale,
+  coarserTiers,
 } from './map-editor.model';
 import { Bounds } from './map-camera';
 import { MapEditorApiService } from '../services/map-editor-api.service';
@@ -42,8 +49,8 @@ export interface ChunkRecord {
   layer: RasterLayer;
   cx: number;
   cy: number;
-  /** Pyramid level: 0 is the painted chunk, higher levels are derived on the server. */
-  level: DetailLevel;
+  /** Which authored grid this chunk belongs to. Part of its identity, not a quality knob. */
+  tier: DetailTier;
   texture: RenderTexture;
   /** Pixels fetched, or confirmed never painted. */
   loaded: boolean;
@@ -59,39 +66,20 @@ export interface ChunkRecord {
 /*
  * Residency budget.
  *
- * These two limits are counted in *cells* — one cx,cy position, which owns one texture per
- * layer. Mixing units here was a real bug: the stream limit counted cells while the
- * resident limit counted individual textures, so the streamer was allowed three times more
- * than the evictor would ever tolerate. Worse, every chunk in view is marked seen on the
+ * These two limits are counted in *cells* — one cx,cy position at one tier, which owns one
+ * texture per layer. Mixing units here was a real bug: the stream limit counted cells while
+ * the resident limit counted individual textures, so the streamer was allowed three times
+ * more than the evictor would ever tolerate. Worse, every chunk in view is marked seen on the
  * same frame, so eviction had no eligible candidates and freed nothing while allocation
  * carried on — VRAM climbed until the WebGL context was lost and the map went grey.
  *
- * At 512² RGBA per layer a tile costs ~3 MB at every level.
+ * At 512² RGBA per layer a chunk costs ~3 MB at every tier.
  */
 const BYTES_PER_CELL_MB = 3;
-/** Full-detail cells kept on the GPU (~370 MB). Must exceed what a working view streams. */
+/** Cells kept on the GPU per tier (~370 MB each). Must exceed what a working view streams. */
 const MAX_RESIDENT_CELLS = 124;
 
-/** Pyramid level. 0 is what the brushes paint; higher levels are derived on the server. */
-export type DetailLevel = number;
-
-/**
- * Tiles a screenful should need.
- *
- * The level is chosen to keep the count near this at *any* zoom — that constant is the
- * whole point of a pyramid. The previous two-level scheme only made distant tiles cheaper
- * while their number still grew as zoom⁻², which no budget could absorb.
- */
-const TARGET_TILES = 64;
-
-/**
- * How far above the viewing level to keep a fallback resident.
- *
- * Two levels is sixteen times the area per tile — cheap to hold, and coarse enough that one
- * tile covers a whole screenful of the level being viewed.
- */
-const FALLBACK_LEVEL_GAP = 2;
-/** Safety valve only — the level choice already keeps the count near `TARGET_TILES`. */
+/** Safety valve only — the tier choice already bounds the count per tier. */
 const MAX_STREAM_CELLS = 100;
 
 export class ChunkManager {
@@ -102,14 +90,13 @@ export class ChunkManager {
 
   /** Raised when a chunk's pixels change from a fetch, so the view can refresh. */
   onChunkUpdated?: (rec: ChunkRecord) => void;
-  /** Raised when a chunk is evicted, so the view can drop anything referencing it. */
   /**
-   * Raised when a tile is evicted, so the view can drop anything referencing it.
+   * Raised when a chunk is evicted, so the view can drop anything referencing it.
    *
-   * The level is part of the identity: `cx,cy` alone names a different patch of world at
-   * every level, so a listener without it cannot tell which tile actually went away.
+   * The tier is part of the identity: `cx,cy` alone names a different patch of world at
+   * every tier, so a listener without it cannot tell which chunk actually went away.
    */
-  onChunkDisposed?: (layer: RasterLayer, cx: number, cy: number, level: DetailLevel) => void;
+  onChunkDisposed?: (layer: RasterLayer, tier: DetailTier, cx: number, cy: number) => void;
   /**
    * Raised immediately before a chunk is painted into. The undo stack hangs off this — a
    * brush destroys the pixels it covers, so they have to be captured while they still exist.
@@ -125,56 +112,29 @@ export class ChunkManager {
 
   // ── residency ──
 
-  /** Records are keyed by level too, so a cell can hold both resolutions at once. */
-  private recKey(layer: RasterLayer, cx: number, cy: number, level: DetailLevel): string {
-    return level === 0 ? chunkKey(layer, cx, cy) : `${chunkKey(layer, cx, cy)}@${level}`;
+  /** Records are keyed by tier too, so one position can hold every tier at once. */
+  private recKey(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): string {
+    return chunkKey(layer, tier, cx, cy);
   }
 
-  /** Every level is the same texture size; only the world area it covers changes. */
-  private texelsFor(layer: RasterLayer, _level: DetailLevel): number {
+  /** Every tier is the same texture size; only the world area it covers changes. */
+  private texelsFor(layer: RasterLayer): number {
     return LAYER_TEXELS[layer];
   }
 
   /**
-   * Coarsest level that still fills the screen with roughly `TARGET_TILES`.
+   * Finest tier that still fills the screen with roughly `TARGET_CHUNKS_ON_SCREEN` chunks.
    *
-   * Walking up from 0 means the sharpest level that fits wins, so working zooms stay at
-   * level 0 where painting happens and only genuinely wide views climb the pyramid.
+   * The choice — including its hysteresis, which is what stops the tier flipping on a hair
+   * of zoom and rebuilding every cell — lives in the model as a pure function, so it can be
+   * swept across a range of zooms in a unit test without a GPU.
    */
-  levelFor(bounds: Bounds): DetailLevel {
-    const w = bounds.maxX - bounds.minX;
-    const h = bounds.maxY - bounds.minY;
-    const tilesAt = (level: number) => {
-      const span = tileWorldSize(level);
-      return (Math.ceil(w / span) + 1) * (Math.ceil(h / span) + 1);
-    };
-
-    /*
-     * Hysteresis, and it matters more here than anywhere else.
-     *
-     * Every level change rebuilds every cell on screen, so a boundary that flips on a hair
-     * of zoom makes the whole map tear down and reassemble — which is exactly what a log of
-     * `3 -> 4` then `4 -> 3` within a second, with fifty rebuilds each way, was showing.
-     *
-     * Going coarser happens as soon as the current level no longer fits, because staying
-     * would blow the budget. Coming back to a sharper level waits until it fits with room
-     * to spare, so drifting across the threshold cannot ping-pong.
-     */
-    if (tilesAt(this.level) > TARGET_TILES) {
-      for (let level = this.level + 1; level <= MAX_TILE_LEVEL; level++) {
-        if (tilesAt(level) <= TARGET_TILES) return level;
-      }
-      return MAX_TILE_LEVEL;
-    }
-
-    for (let level = 0; level < this.level; level++) {
-      if (tilesAt(level) <= TARGET_TILES * 0.6) return level;
-    }
-    return this.level;
+  tierFor(bounds: Bounds): DetailTier {
+    return chooseTier(this.tier, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
   }
 
-  private create(layer: RasterLayer, cx: number, cy: number, level: DetailLevel): ChunkRecord {
-    const texels = this.texelsFor(layer, level);
+  private create(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): ChunkRecord {
+    const texels = this.texelsFor(layer);
     /*
      * Linear filtering is essential: with nearest, every texel edge shows as a hard block
      * and the map reads as pixel art however high the resolution goes.
@@ -201,66 +161,69 @@ export class ChunkManager {
       layer,
       cx,
       cy,
-      level,
+      tier,
       texture,
       loaded: false,
       dirty: false,
       uploading: false,
       lastSeen: this.frame,
     };
-    this.chunks.set(this.recKey(layer, cx, cy, level), rec);
-    mapDiag.log('tile:create', tileLabel(layer, cx, cy, level));
+    this.chunks.set(this.recKey(layer, tier, cx, cy), rec);
+    mapDiag.log('tile:create', tileLabel(layer, tier, cx, cy));
 
-    // Ask only when something beneath this tile has actually been painted. A derived tile
-    // covers 2^level chunks per side, so its footprint is what has to be checked.
-    const span = 2 ** level;
-    const painted =
-      level === 0
-        ? this.store.chunkExists(layer, cx, cy)
-        : this.store.hasPaintedChunkIn(
-            layer,
-            cx * span,
-            cy * span,
-            (cx + 1) * span - 1,
-            (cy + 1) * span - 1,
-          );
-
-    if (painted) void this.fetchInto(rec);
-    else rec.loaded = true; // nothing under it — the cleared texture is already correct
+    /*
+     * Ask only for chunks that were actually painted.
+     *
+     * Every tier is authored, so the document's version record answers this exactly — no
+     * footprint search, and no request at all over the vast majority of a map that has
+     * never been drawn on. Fetching unconditionally meant a 404 per layer per chunk on every
+     * pan, which for an untouched layer is every chunk on screen.
+     */
+    if (this.store.chunkExists(layer, tier, cx, cy)) void this.fetchInto(rec);
+    else rec.loaded = true; // never painted — the cleared texture is already correct
 
     return rec;
   }
 
-  /** Resident record for a chunk at a level, creating and queueing a load if absent. */
-  get(layer: RasterLayer, cx: number, cy: number, level: DetailLevel = 0): ChunkRecord {
-    const rec = this.chunks.get(this.recKey(layer, cx, cy, level));
+  /** Resident record for a chunk, creating and queueing a load if absent. */
+  get(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): ChunkRecord {
+    const rec = this.chunks.get(this.recKey(layer, tier, cx, cy));
     if (rec) {
       rec.lastSeen = this.frame;
       return rec;
     }
-    return this.create(layer, cx, cy, level);
-  }
-
-  /** Whether a level's copy of a chunk exists and has its pixels. */
-  isReady(layer: RasterLayer, cx: number, cy: number, level: DetailLevel): boolean {
-    const rec = this.chunks.get(this.recKey(layer, cx, cy, level));
-    return !!rec && rec.loaded && this.isUsable(rec);
+    return this.create(layer, tier, cx, cy);
   }
 
   /**
-   * Whether *every* layer of a cell is loaded at a level.
+   * Whether anything has ever been drawn in the stack of tiers a cell at `tier` composites.
    *
-   * Layers are fetched independently, so a cell can have its height while its land colour
-   * is still in flight — and the terrain shader will happily draw that as correctly-shaped
-   * land with no colour on it. Showing a cell only once all three are in is what stops
-   * blocks of the map flashing white as they stream.
+   * The terrain view uses this to skip open sea, which is most of a map: a cell there would
+   * composite three transparent tiers into the ocean colour the backdrop already draws.
+   *
+   * Unsaved local paint counts. Checking only the document's version record would leave a
+   * stroke on virgin ground invisible until its upload landed — the brush would appear to do
+   * nothing for a second, on exactly the ground where you can least afford to doubt it.
    */
-  isCellReady(cx: number, cy: number, level: DetailLevel): boolean {
-    return RASTER_LAYERS.every(layer => this.isReady(layer, cx, cy, level));
+  hasContentUnder(tier: DetailTier, cx: number, cy: number): boolean {
+    const span = TIER_WORLD_SIZE[tier];
+
+    for (const source of [tier, ...coarserTiers(tier)]) {
+      const srcSpan = TIER_WORLD_SIZE[source];
+      const sx = Math.floor((cx * span) / srcSpan);
+      const sy = Math.floor((cy * span) / srcSpan);
+
+      for (const layer of RASTER_LAYERS) {
+        if (this.store.chunkExists(layer, source, sx, sy)) return true;
+        const rec = this.chunks.get(this.recKey(layer, source, sx, sy));
+        if (rec && (rec.dirty || rec.uploading)) return true;
+      }
+    }
+    return false;
   }
 
   private async fetchInto(rec: ChunkRecord): Promise<void> {
-    const inflightKey = this.recKey(rec.layer, rec.cx, rec.cy, rec.level);
+    const inflightKey = this.recKey(rec.layer, rec.tier, rec.cx, rec.cy);
     if (this.fetching.has(inflightKey)) return;
     this.fetching.add(inflightKey);
     try {
@@ -271,17 +234,17 @@ export class ChunkManager {
   }
 
   private async fetchIntoInner(rec: ChunkRecord): Promise<void> {
-    const label = tileLabel(rec.layer, rec.cx, rec.cy, rec.level);
+    const label = tileLabel(rec.layer, rec.tier, rec.cx, rec.cy);
     const startedAt = performance.now();
-    mapDiag.log('fetch:start', label, `v${this.store.chunkVersion(rec.layer, rec.cx, rec.cy)}`);
+    const ver = this.store.chunkVersion(rec.layer, rec.tier, rec.cx, rec.cy);
+    mapDiag.log('fetch:start', label, `v${ver}`);
 
-    const ver = rec.level === 0 ? this.store.chunkVersion(rec.layer, rec.cx, rec.cy) : 0;
-    const blob = await this.api.fetchTile(
+    const blob = await this.api.fetchChunk(
       this.worldName,
       rec.layer,
+      rec.tier,
       rec.cx,
       rec.cy,
-      rec.level,
       ver,
     );
     /*
@@ -310,14 +273,8 @@ export class ChunkManager {
     }
 
     // The chunk may have been evicted while the fetch was in flight.
-    if (this.chunks.get(this.recKey(rec.layer, rec.cx, rec.cy, rec.level)) !== rec) return;
+    if (this.chunks.get(this.recKey(rec.layer, rec.tier, rec.cx, rec.cy)) !== rec) return;
     if (!this.isUsable(rec)) return;
-
-    // Built by the server while our own uploads were still landing: it may be missing the
-    // newest children, so mark it for one refresh after things settle.
-    if (rec.level > 0 && [...this.chunks.values()].some(r => r.uploading)) {
-      this.staleTiles.add(this.recKey(rec.layer, rec.cx, rec.cy, rec.level));
-    }
 
     try {
       const bitmap = await createImageBitmap(blob);
@@ -325,7 +282,7 @@ export class ChunkManager {
       const sprite = new Sprite(tex);
       // Stored chunks may predate a resolution change, so scale to the current size rather
       // than assuming the PNG matches — otherwise old terrain would load into a corner.
-      const size = this.texelsFor(rec.layer, rec.level);
+      const size = this.texelsFor(rec.layer);
       sprite.setSize(size, size);
 
       this.stampHost.removeChildren();
@@ -346,26 +303,62 @@ export class ChunkManager {
       this.onChunkUpdated?.(rec);
     } catch (err) {
       mapDiag.log('fetch:error', label, String(err));
-      console.error('[ChunkManager] Failed to decode chunk', rec.layer, rec.cx, rec.cy, err);
+      console.error('[ChunkManager] Failed to decode chunk', rec.layer, rec.tier, rec.cx, rec.cy, err);
       rec.loaded = true;
       this.onChunkUpdated?.(rec);
     }
   }
 
   /**
-   * Ensure chunks covering `bounds` are resident and evict distant ones.
-   * Call once per frame with the camera's visible bounds plus a margin.
+   * Ensure chunks covering the view are resident and evict distant ones.
+   * Call once per frame with the camera's *unmargined* visible bounds.
+   *
+   * The lead is added here rather than by the caller because it has to be measured in chunks
+   * of the tier this call chooses, and only this call knows which that is — the terrain view
+   * then takes half as much, so what it draws is always a subset of what is streamed.
    */
-  update(bounds: Bounds): void {
+  update(view: Bounds): void {
     this.frame++;
 
-    const prevLevel = this.level;
-    this.level = this.levelFor(bounds);
-    if (prevLevel !== this.level) {
-      mapDiag.log('level:change', '', `${prevLevel} -> ${this.level}`);
+    const prevTier = this.tier;
+    // Chosen from the screen itself, not the padded rectangle: the lead is loading policy,
+    // and letting it feed back into the tier choice would coarsen the view for no reason.
+    this.tier = this.tierFor(view);
+    if (prevTier !== this.tier) {
+      mapDiag.log('tier:change', '', `${prevTier} -> ${this.tier}`);
     }
-    const span = tileWorldSize(this.level);
 
+    /*
+     * A full chunk of lead in every direction.
+     *
+     * A quarter-chunk was not enough: a chunk only started loading once its edge was nearly
+     * on screen, so an ordinary pan outran it and terrain visibly popped in.
+     */
+    const margin = TIER_WORLD_SIZE[this.tier];
+    const bounds: Bounds = {
+      minX: view.minX - margin,
+      minY: view.minY - margin,
+      maxX: view.maxX + margin,
+      maxY: view.maxY + margin,
+    };
+
+    /*
+     * Stream the viewing tier *and every coarser one*.
+     *
+     * The renderer composites them, so a view on `high` is also reading the `med` and `low`
+     * chunks underneath it — and those must be resident and marked visible, or eviction
+     * would free the ground the visible cells are drawing from. A coarser tier covers 64×
+     * the area per chunk, so this adds a handful of chunks, not a second screenful.
+     */
+    for (const tier of [this.tier, ...coarserTiers(this.tier)]) {
+      this.streamTier(tier, bounds);
+    }
+
+    this.evict();
+  }
+
+  private streamTier(tier: DetailTier, bounds: Bounds): void {
+    const span = TIER_WORLD_SIZE[tier];
     const minCx = Math.floor(bounds.minX / span);
     const maxCx = Math.floor(bounds.maxX / span);
     const minCy = Math.floor(bounds.minY / span);
@@ -373,78 +366,72 @@ export class ChunkManager {
 
     const wantedCells = (maxCx - minCx + 1) * (maxCy - minCy + 1);
 
-    /*
-     * Pick the detail level from how much is on screen. Under the full-detail budget the
-     * view streams real chunks; past it the overview copies take over, which cost 1/64th
-     * the memory and so can cover a view that full-resolution chunks never could.
-     */
-    // The level already sized the view, so this only guards against a pathological case.
-    const streaming = wantedCells <= MAX_STREAM_CELLS;
-
-    if (streaming) {
-      for (const layer of RASTER_LAYERS) {
-        for (let cy = minCy; cy <= maxCy; cy++) {
-          for (let cx = minCx; cx <= maxCx; cx++) {
-            const rec = this.chunks.get(this.recKey(layer, cx, cy, this.level));
-            if (rec) rec.lastSeen = this.frame;
-            else this.create(layer, cx, cy, this.level);
-          }
-        }
-      }
-    } else {
+    // The tier choice already sized the view, so this only guards a pathological case.
+    if (wantedCells > MAX_STREAM_CELLS) {
       /*
-       * Beyond even the overview budget the cell range can be tens of thousands of
-       * positions while residency is capped in the low thousands. Sweeping the range to
-       * mark visibility then costs far more than sweeping what actually exists — and it was
-       * pure waste, since nothing new can be created here anyway.
+       * Beyond even the coarsest budget the cell range can be tens of thousands of positions
+       * while residency is capped in the low hundreds. Sweeping the range to mark visibility
+       * then costs far more than sweeping what actually exists — and it was pure waste, since
+       * nothing new can be created here anyway.
        */
       for (const rec of this.chunks.values()) {
-        if (rec.cx >= minCx && rec.cx <= maxCx && rec.cy >= minCy && rec.cy <= maxCy) {
+        if (
+          rec.tier === tier &&
+          rec.cx >= minCx &&
+          rec.cx <= maxCx &&
+          rec.cy >= minCy &&
+          rec.cy <= maxCy
+        ) {
           rec.lastSeen = this.frame;
         }
       }
+      return;
     }
 
-    this.evict();
+    for (const layer of RASTER_LAYERS) {
+      for (let cy = minCy; cy <= maxCy; cy++) {
+        for (let cx = minCx; cx <= maxCx; cx++) {
+          const rec = this.chunks.get(this.recKey(layer, tier, cx, cy));
+          if (rec) rec.lastSeen = this.frame;
+          else this.create(layer, tier, cx, cy);
+        }
+      }
+    }
   }
 
   /**
    * Cells painted recently, and the frame they were last touched.
    *
-   * Painting creates full-resolution chunks even when the view is showing the overview, and
-   * nothing else marks those as visible. Once a stroke flushed they lost their dirty pin,
-   * were evicted immediately, and the next stroke had to re-fetch every one of them — which
-   * is exactly the stutter, and the chunks vanishing and coming back, that appears when
-   * drawing zoomed out. Keeping them hot for a while means working in one area stays
-   * resident regardless of which level is on screen.
+   * A stroke can create chunks the view is not currently showing — the coarse copies it
+   * writes on the way — and nothing else marks those as visible. Once a stroke flushed they
+   * lost their dirty pin, were evicted immediately, and the next stroke had to re-fetch every
+   * one of them, which is exactly the stutter and the chunks vanishing and coming back that
+   * appears when drawing. Keeping them hot for a while means working in one area stays
+   * resident regardless of what is on screen.
+   *
+   * The entries expire. A pin that never lifted would make every chunk ever painted in a
+   * session permanently unevictable, which is the same unbounded growth the budget exists to
+   * stop — just with a nicer name.
    */
   private hotCells = new Map<string, number>();
 
-  /**
-   * Ancestor tiles the brush corrected directly during the current stroke.
-   *
-   * These need no server round trip: they already show the stroke. Refetching them would
-   * replace known-good pixels with a rebuild that costs the server a recursive descent
-   * through every child — which is why a single stroke made the whole map dissolve and
-   * slowly reassemble.
-   */
-  private stampedParents = new Set<string>();
+  /** How long a painted cell stays pinned, in streamed frames. */
+  private static readonly HOT_FRAMES = 600;
 
   /**
-   * Tiles with a fetch already in flight.
+   * Chunks with a fetch already in flight.
    *
-   * Overlapping flushes were each walking the same ancestor chain, so one tile could be
-   * requested several times in the same millisecond — and every one of those requests makes
-   * the server rebuild it from scratch.
+   * Overlapping flushes were each requesting the same chunk, so one could be pulled several
+   * times in the same millisecond.
    */
   private fetching = new Set<string>();
 
-  /** Detail level the last `update` settled on. */
-  get detailLevel(): DetailLevel {
-    return this.level;
+  /** Detail tier the last `update` settled on. */
+  get detailTier(): DetailTier {
+    return this.tier;
   }
 
-  private level: DetailLevel = 0;
+  private tier: DetailTier = 'high';
 
   /**
    * Drop the least recently seen *cells* once over budget. Never drops unsaved work.
@@ -456,24 +443,32 @@ export class ChunkManager {
    * with its colour cut off along a dead-straight chunk border.
    */
   private evict(): void {
-    // One budget per level: a level being viewed must not evict the one you paint on.
-    const levels = new Set<DetailLevel>([0, this.level]);
-    for (const rec of this.chunks.values()) levels.add(rec.level);
-    for (const level of levels) this.evictLevel(level, MAX_RESIDENT_CELLS);
+    // One budget per tier: the tier being viewed must not evict the one you paint on.
+    const tiers = new Set<DetailTier>([this.tier]);
+    for (const rec of this.chunks.values()) tiers.add(rec.tier);
+    for (const tier of tiers) this.evictTier(tier, MAX_RESIDENT_CELLS);
   }
 
-  /** Enforce one level's cell budget without disturbing the other's. */
-  private evictLevel(level: DetailLevel, maxCells: number): void {
+  /** Enforce one tier's cell budget without disturbing the others'. */
+  private evictTier(tier: DetailTier, maxCells: number): void {
     const budget = maxCells * RASTER_LAYERS.length;
-    const ofLevel = [...this.chunks.values()].filter(r => r.level === level);
-    if (ofLevel.length <= budget) return;
+    const ofTier = [...this.chunks.values()].filter(r => r.tier === tier);
+    if (ofTier.length <= budget) return;
 
     // Group by cell, ranking each by its *most* recently seen layer.
     const cells = new Map<string, { recs: ChunkRecord[]; lastSeen: number; pinned: boolean }>();
-    for (const rec of ofLevel) {
+    for (const rec of ofTier) {
       const key = `${rec.cx}/${rec.cy}`;
       const cell = cells.get(key);
-      const pinned = rec.dirty || rec.uploading || rec.lastSeen === this.frame;
+      /*
+       * Recently painted chunks are pinned outright.
+       *
+       * A continent-scale stroke touches far more chunks than a screenful, and they must not
+       * be evicted to make room for chunks the streamer can simply fetch again. Losing a
+       * viewing chunk costs a request; losing a painted one costs the stroke.
+       */
+      const hot = this.isHot(rec.tier, rec.cx, rec.cy);
+      const pinned = hot || rec.dirty || rec.uploading || rec.lastSeen === this.frame;
       if (cell) {
         cell.recs.push(rec);
         cell.lastSeen = Math.max(cell.lastSeen, rec.lastSeen);
@@ -487,7 +482,7 @@ export class ChunkManager {
       .filter(c => !c.pinned)
       .sort((a, b) => a.lastSeen - b.lastSeen);
 
-    let excess = ofLevel.length - budget;
+    let excess = ofTier.length - budget;
     for (const cell of candidates) {
       if (excess <= 0) break;
       // All layers of the cell go together, so a partial cell can never be rendered.
@@ -502,11 +497,11 @@ export class ChunkManager {
      * that previously grew until the GPU context was lost. Say so once rather than
      * silently allocating into a crash; the stream cap should normally prevent it.
      */
-    if (excess > 0 && level === 0 && !this.warnedOverBudget) {
+    if (excess > 0 && !this.warnedOverBudget) {
       this.warnedOverBudget = true;
       console.warn(
-        `[ChunkManager] over residency budget at level ${level}: ${ofLevel.length} chunks ` +
-          `(~${Math.round((ofLevel.length / RASTER_LAYERS.length) * BYTES_PER_CELL_MB)} MB) ` +
+        `[ChunkManager] over residency budget at tier ${tier}: ${ofTier.length} chunks ` +
+          `(~${Math.round((ofTier.length / RASTER_LAYERS.length) * BYTES_PER_CELL_MB)} MB) ` +
           'and none evictable. Lower MAX_STREAM_CELLS or the layer resolution.',
       );
     }
@@ -514,10 +509,24 @@ export class ChunkManager {
 
   private warnedOverBudget = false;
 
+  private hotKey(tier: DetailTier, cx: number, cy: number): string {
+    return `${tier}/${cx}/${cy}`;
+  }
+
+  /** Whether a cell was painted recently enough to still be pinned; forgets it if not. */
+  private isHot(tier: DetailTier, cx: number, cy: number): boolean {
+    const key = this.hotKey(tier, cx, cy);
+    const at = this.hotCells.get(key);
+    if (at === undefined) return false;
+    if (this.frame - at <= ChunkManager.HOT_FRAMES) return true;
+    this.hotCells.delete(key);
+    return false;
+  }
+
   private dispose(rec: ChunkRecord): void {
-    this.chunks.delete(this.recKey(rec.layer, rec.cx, rec.cy, rec.level));
-    mapDiag.log('tile:evict', tileLabel(rec.layer, rec.cx, rec.cy, rec.level));
-    this.onChunkDisposed?.(rec.layer, rec.cx, rec.cy, rec.level);
+    this.chunks.delete(this.recKey(rec.layer, rec.tier, rec.cx, rec.cy));
+    mapDiag.log('tile:evict', tileLabel(rec.layer, rec.tier, rec.cx, rec.cy));
+    this.onChunkDisposed?.(rec.layer, rec.tier, rec.cx, rec.cy);
     rec.destroyed = true;
     rec.texture.destroy(true);
   }
@@ -536,58 +545,39 @@ export class ChunkManager {
   // ── painting ──
 
   /**
-   * Stamp a world-positioned display object into every chunk of `layer` it covers.
+   * Stamp a world-positioned display object into `tier` and every coarser tier it covers.
    *
-   * `node` is expressed in world coordinates; this applies the per-chunk transform into
-   * chunk-local texel space, so callers never deal with chunk math. Set `node.blendMode` to
-   * `'erase'` to subtract instead of add.
+   * `node` is expressed in world coordinates; `stamp` applies each target chunk's own
+   * transform into its texel space, so the same brush lands correctly at every tier and
+   * callers never deal with chunk math. Set `node.blendMode` to `'erase'` to subtract.
+   *
+   * Writing the coarse copies here, in the stroke, is the whole design: it is what makes the
+   * tiers consistent by construction, so zooming out needs no derived tiles and the server
+   * never rebuilds anything. Finer tiers are deliberately *not* touched — see `coarserTiers`.
    */
-  paintWorld(layer: RasterLayer, node: Container, bounds: Bounds): ChunkRecord[] {
-    const minCx = Math.floor(bounds.minX / CHUNK_WORLD_SIZE);
-    const maxCx = Math.floor(bounds.maxX / CHUNK_WORLD_SIZE);
-    const minCy = Math.floor(bounds.minY / CHUNK_WORLD_SIZE);
-    const maxCy = Math.floor(bounds.maxY / CHUNK_WORLD_SIZE);
-
+  paintWorld(layer: RasterLayer, node: Container, bounds: Bounds, tier: DetailTier): ChunkRecord[] {
     const touched: ChunkRecord[] = [];
 
     this.stampHost.removeChildren();
     this.stampHost.addChild(node);
 
-    for (let cy = minCy; cy <= maxCy; cy++) {
-      for (let cx = minCx; cx <= maxCx; cx++) {
-        // Full detail is where the stroke actually lives and what gets uploaded.
-        const rec = this.get(layer, cx, cy);
-        this.onBeforePaint?.(rec);
-        this.stamp(rec);
-        rec.dirty = true;
-        touched.push(rec);
-        this.hotCells.set(`${cx}/${cy}`, this.frame);
-        mapDiag.log('paint:chunk', tileLabel(layer, cx, cy, 0));
+    for (const target of [tier, ...coarserTiers(tier)]) {
+      const span = TIER_WORLD_SIZE[target];
+      const minCx = Math.floor(bounds.minX / span);
+      const maxCx = Math.floor(bounds.maxX / span);
+      const minCy = Math.floor(bounds.minY / span);
+      const maxCy = Math.floor(bounds.maxY / span);
 
-        /*
-         * Mirror the stroke into any resident ancestor.
-         *
-         * The view may be showing a coarser level than the one being painted — at ordinary
-         * working zooms it usually is. Those tiles are only rebuilt server-side after the
-         * upload, so without this a stroke would appear to do nothing for a second. Each
-         * level halves the coordinates, and `stamp` derives its transform from the record,
-         * so the same world-space brush lands correctly at every scale.
-         */
-        let px = cx;
-        let py = cy;
-        for (let level = 1; level <= MAX_TILE_LEVEL; level++) {
-          px = Math.floor(px / 2);
-          py = Math.floor(py / 2);
-          const pKey = this.recKey(layer, px, py, level);
-          const parent = this.chunks.get(pKey);
-          if (parent && this.isUsable(parent)) {
-            this.stamp(parent);
-            // Already correct locally — it must not be refetched after the flush.
-            this.stampedParents.add(pKey);
-            mapDiag.log('paint:parent', tileLabel(layer, px, py, level));
-          }
+      for (let cy = minCy; cy <= maxCy; cy++) {
+        for (let cx = minCx; cx <= maxCx; cx++) {
+          const rec = this.get(layer, target, cx, cy);
+          this.onBeforePaint?.(rec);
+          this.stamp(rec);
+          rec.dirty = true;
+          touched.push(rec);
+          this.hotCells.set(this.hotKey(target, cx, cy), this.frame);
+          mapDiag.log(target === tier ? 'paint:chunk' : 'paint:coarse', tileLabel(layer, target, cx, cy));
         }
-
       }
     }
 
@@ -595,11 +585,11 @@ export class ChunkManager {
     return touched;
   }
 
-  /** Render the current stamp host into one tile, in that tile's own texel space. */
+  /** Render the current stamp host into one chunk, in that chunk's own texel space. */
   private stamp(rec: ChunkRecord): void {
-    const span = tileWorldSize(rec.level);
-    const s = this.texelsFor(rec.layer, rec.level) / span; // world px → texels
-    // World → this tile's texel space: translate to the tile origin, then scale.
+    const span = TIER_WORLD_SIZE[rec.tier];
+    const s = this.texelsFor(rec.layer) / span; // world px → texels
+    // World → this chunk's texel space: translate to the chunk origin, then scale.
     const m = new Matrix(s, 0, 0, s, -rec.cx * span * s, -rec.cy * span * s);
 
     this.renderer.render({
@@ -617,21 +607,43 @@ export class ChunkManager {
    * what Wonderdraft does — taking a global land colour instead would be visibly wrong
    * wherever the map has been painted more than one shade.
    *
+   * Takes the finest tier that is actually resident here, which is normally `high`. The
+   * fallback matters now that terrain can be *drawn* zoomed out: a continent painted at
+   * `low` has no `high` chunks at all, and without this every symbol placed on it would come
+   * back unpainted and fall through to white.
+   *
    * This is a GPU readback and therefore a stall, so it must stay on discrete actions
    * (placing or moving a symbol), never anything per-frame.
    *
    * Returns null where nothing has been painted, so callers can fall back.
    */
   sampleWorld(layer: RasterLayer, x: number, y: number): { r: number; g: number; b: number } | null {
-    const cx = Math.floor(x / CHUNK_WORLD_SIZE);
-    const cy = Math.floor(y / CHUNK_WORLD_SIZE);
-    const rec = this.chunks.get(chunkKey(layer, cx, cy));
+    // Finest first, and an unpainted answer at one tier falls through to the next rather
+    // than ending the search: a `high` chunk over ground drawn only at `low` exists and is
+    // legitimately empty, and stopping there would report open sea over solid land.
+    for (const tier of TIERS) {
+      const hit = this.sampleTier(layer, tier, x, y);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  private sampleTier(
+    layer: RasterLayer,
+    tier: DetailTier,
+    x: number,
+    y: number,
+  ): { r: number; g: number; b: number } | null {
+    const span = TIER_WORLD_SIZE[tier];
+    const cx = Math.floor(x / span);
+    const cy = Math.floor(y / span);
+    const rec = this.chunks.get(this.recKey(layer, tier, cx, cy));
     if (!rec || !rec.loaded || !this.isUsable(rec)) return null;
 
-    const s = 1 / layerScale(layer);
-    const tx = Math.floor((x - cx * CHUNK_WORLD_SIZE) * s);
-    const ty = Math.floor((y - cy * CHUNK_WORLD_SIZE) * s);
     const texels = LAYER_TEXELS[layer];
+    const s = texels / span;
+    const tx = Math.floor((x - cx * span) * s);
+    const ty = Math.floor((y - cy * span) * s);
     if (tx < 0 || ty < 0 || tx >= texels || ty >= texels) return null;
 
     try {
@@ -706,8 +718,8 @@ export class ChunkManager {
   }
 
   /** Restore a snapshot taken by `snapshot`, marking the chunk dirty for re-upload. */
-  restore(layer: RasterLayer, cx: number, cy: number, snap: Texture): void {
-    const rec = this.get(layer, cx, cy);
+  restore(layer: RasterLayer, tier: DetailTier, cx: number, cy: number, snap: Texture): void {
+    const rec = this.get(layer, tier, cx, cy);
     // The snapshot may have been freed by the history budget, or the chunk re-created.
     if (!this.isUsable(rec) || !snap?.source) return;
     // Never draw a texture into itself; that is the feedback loop this class must not create.
@@ -751,7 +763,7 @@ export class ChunkManager {
      * first had not reached yet and uploaded them too — so the same chunk went up three or
      * four times, each bumping its version. That version churn then made our own broadcast
      * echoes look like edits from another client, which triggered refetches of chunks that
-     * had just been painted, and the resulting tile pressure evicted them. That is the
+     * had just been painted, and the resulting chunk pressure evicted them. That is the
      * disappearing: a self-inflicted stampede starting from a duplicated upload.
      */
     if (this.flushing) {
@@ -776,9 +788,8 @@ export class ChunkManager {
   private flushAgain = false;
 
   private async flushOnce(): Promise<void> {
-    const dirty = [...this.chunks.values()].filter(
-      r => r.dirty && !r.uploading && r.level === 0,
-    );
+    // Every tier is authored, so every tier's dirty chunks are real work to save.
+    const dirty = [...this.chunks.values()].filter(r => r.dirty && !r.uploading);
     if (dirty.length === 0) return;
 
     /*
@@ -786,9 +797,8 @@ export class ChunkManager {
      *
      * Each chunk means a GPU readback plus a PNG encode of a 512² texture. Firing every
      * dirty chunk in parallel put all of those readbacks in one frame, which is the hitch
-     * that shows up after a broad stroke — worst when zoomed out, where one stroke covers
-     * many chunks. Working through them in small batches spreads the cost over a few frames
-     * and leaves the editor responsive while it saves.
+     * that shows up after a broad stroke. Working through them in small batches spreads the
+     * cost over a few frames and leaves the editor responsive while it saves.
      */
     const BATCH = 3;
     for (let i = 0; i < dirty.length; i += BATCH) {
@@ -796,69 +806,14 @@ export class ChunkManager {
       // Yield between batches so input and rendering get a turn.
       if (i + BATCH < dirty.length) await new Promise(r => setTimeout(r, 0));
     }
-
-    /*
-     * Correct any ancestor that was built from a half-uploaded set — once, at the end.
-     *
-     * Painting stamps ancestors that were already resident, so those are right immediately.
-     * The gap is a tile *created during* the flush: the fallback streamer asks the server
-     * for it while some of its children are still uploading, so it comes back built from
-     * whatever had landed. Refreshing per upload made that worse (a rebuild per child, each
-     * a different partial state); refreshing not at all left those tiles stale forever,
-     * which is the blocky patches that never resolved. Once, after everything has landed,
-     * is the only version that is both correct and quiet.
-     */
-    /*
-     * Do NOT pull ancestors here.
-     *
-     * The log made the cost plain: a level-4 tile took between three and ten seconds to
-     * come back, because the server had to rebuild it by descending through 256 level-0
-     * chunks — and every chunk written during a stroke deletes that whole chain again. So
-     * each flush kicked off rebuilds that were obsolete before they finished, while the map
-     * sat on fallbacks waiting. That is the "dissolves and slowly reassembles".
-     *
-     * It is also unnecessary: painting already stamps every resident ancestor with the same
-     * brush, so what is on screen is correct. The server's copies stay deleted and get
-     * rebuilt lazily, once, whenever somebody actually asks for that ground later.
-     *
-     * Tiles that appeared *during* the flush are the one gap, and `staleTiles` collects
-     * those for a single refresh once drawing has settled.
-     */
-    this.stampedParents.clear();
-    this.scheduleStaleRefresh();
   }
-
-  /**
-   * Refresh tiles that loaded while an upload was in flight, once things go quiet.
-   *
-   * These are the only ones that can hold a half-built copy. Deferring rather than doing it
-   * per flush means a burst of strokes costs one round of rebuilds at the end, not one per
-   * stroke.
-   */
-  private scheduleStaleRefresh(): void {
-    if (this.staleTimer) clearTimeout(this.staleTimer);
-    this.staleTimer = setTimeout(() => {
-      this.staleTimer = null;
-      for (const key of [...this.staleTiles]) {
-        const tile = this.chunks.get(key);
-        if (tile && this.isUsable(tile) && !tile.dirty && !tile.uploading) {
-          mapDiag.log('note', key, 'refresh after quiet');
-          void this.fetchInto(tile);
-        }
-      }
-      this.staleTiles.clear();
-    }, 2000);
-  }
-
-  private staleTimer: ReturnType<typeof setTimeout> | null = null;
-  private staleTiles = new Set<string>();
 
   private async uploadChunk(rec: ChunkRecord): Promise<void> {
     // The list was snapshotted before the first batch; by now this chunk may already be
     // saved or in flight, and re-sending it would only bump its version for nothing.
     if (!rec.dirty || rec.uploading || !this.isUsable(rec)) return;
 
-    const label = tileLabel(rec.layer, rec.cx, rec.cy, rec.level);
+    const label = tileLabel(rec.layer, rec.tier, rec.cx, rec.cy);
     mapDiag.log('upload:start', label);
     rec.uploading = true;
     // Cleared before the upload: a stroke landing mid-flight must re-dirty the chunk,
@@ -878,16 +833,23 @@ export class ChunkManager {
         rec.dirty = true;
         return;
       }
-      const ver = await this.api.putChunk(this.worldName, rec.layer, rec.cx, rec.cy, blob);
+      const ver = await this.api.putChunk(
+        this.worldName,
+        rec.layer,
+        rec.tier,
+        rec.cx,
+        rec.cy,
+        blob,
+      );
       if (ver == null) {
         rec.dirty = true; // upload failed — try again on the next flush
         return;
       }
       mapDiag.log('upload:done', label, `v${ver}`);
-      this.store.announceChunk(rec.layer, rec.cx, rec.cy, ver);
+      this.store.announceChunk(rec.layer, rec.tier, rec.cx, rec.cy, ver);
     } catch (err) {
       mapDiag.log('upload:fail', label, String(err));
-      console.error('[ChunkManager] Chunk flush failed', rec.layer, rec.cx, rec.cy, err);
+      console.error('[ChunkManager] Chunk flush failed', rec.layer, rec.tier, rec.cx, rec.cy, err);
       rec.dirty = true;
     } finally {
       rec.uploading = false;
@@ -907,30 +869,16 @@ export class ChunkManager {
   }
 
   /**
-   * Refetch every resident ancestor of a chunk that just changed.
+   * Another client changed this chunk — refetch it if we have it resident.
    *
-   * The server deletes derived tiles when their child is written and rebuilds them on the
-   * next request, so this only has to ask again. Walking the ancestry rather than guessing
-   * matters because each level halves the coordinates — a level-3 tile covers eight chunks
-   * per side, so the same chunk maps to a different `cx,cy` at every level.
+   * Exactly one chunk, at one tier. There is no ancestry to walk: the other client's stroke
+   * wrote its own coarse copies and announced each of them separately, so every affected
+   * chunk arrives here on its own.
    */
-  private refreshParents(layer: RasterLayer, cx: number, cy: number): void {
-    let px = cx;
-    let py = cy;
-    for (let level = 1; level <= MAX_TILE_LEVEL; level++) {
-      px = Math.floor(px / 2);
-      py = Math.floor(py / 2);
-      const rec = this.chunks.get(this.recKey(layer, px, py, level));
-      if (rec && this.isUsable(rec) && !rec.dirty && !rec.uploading) void this.fetchInto(rec);
-    }
-  }
-
-  /** Another client changed this chunk — refetch it if we have it resident. */
-  invalidate(layer: RasterLayer, cx: number, cy: number): void {
-    const rec = this.chunks.get(this.recKey(layer, cx, cy, 0));
+  invalidate(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): void {
+    const rec = this.chunks.get(this.recKey(layer, tier, cx, cy));
     // Local unsaved paint wins; our own flush will publish it shortly.
     if (rec && !rec.dirty && !rec.uploading) void this.fetchInto(rec);
-    this.refreshParents(layer, cx, cy);
   }
 
   hasPendingWork(): boolean {
@@ -940,6 +888,7 @@ export class ChunkManager {
   destroy(): void {
     for (const rec of [...this.chunks.values()]) this.dispose(rec);
     this.chunks.clear();
+    this.hotCells.clear();
     this.stampHost.destroy();
   }
 }

@@ -13,13 +13,19 @@ import {
 } from './map-hex';
 import {
   CHUNK_WORLD_SIZE,
+  DetailTier,
   LAYER_TEXELS,
-  tileWorldSize,
-  worldToTile,
+  TARGET_CHUNKS_ON_SCREEN,
+  TIERS,
+  TIER_WORLD_SIZE,
+  chooseTier,
   chunkKey,
+  chunksOnScreen,
+  coarserTiers,
   layerScale,
   parseChunkKey,
   worldToChunk,
+  worldToTierChunk,
 } from './map-editor.model';
 
 describe('global hex grid', () => {
@@ -124,12 +130,23 @@ describe('chunk coordinates', () => {
   });
 
   it('round-trips chunk keys including negatives', () => {
-    expect(parseChunkKey(chunkKey('height', -3, 5))).toEqual({
+    expect(parseChunkKey(chunkKey('height', 'med', -3, 5))).toEqual({
       layer: 'height',
+      tier: 'med',
       cx: -3,
       cy: 5,
     });
-    expect(parseChunkKey('bogus/1/2')).toBeNull();
+    expect(parseChunkKey('bogus/med/1/2')).toBeNull();
+    // The tier is part of the identity; a key without one names nothing.
+    expect(parseChunkKey('height/1/2')).toBeNull();
+    expect(parseChunkKey('height/huge/1/2')).toBeNull();
+  });
+
+  it('keeps the tiers apart in the key space', () => {
+    // Same cx,cy at two tiers is two entirely different patches of world, so their keys
+    // must never collide — a collision would have one tier's version invalidate another's.
+    const keys = TIERS.map(tier => chunkKey('height', tier, 4, 4));
+    expect(new Set(keys).size).toBe(TIERS.length);
   });
 
   it('keeps every layer on one chunk grid', () => {
@@ -160,97 +177,127 @@ describe('map working scale', () => {
   });
 });
 
-describe('tile pyramid', () => {
-  it('quadruples the area each level', () => {
-    for (let l = 0; l < 8; l++) {
-      expect(tileWorldSize(l + 1)).toBe(tileWorldSize(l) * 2);
-    }
-    expect(tileWorldSize(0)).toBe(CHUNK_WORLD_SIZE);
-  });
-
-  it('keeps tiles-per-screen near constant at every zoom', () => {
-    /*
-     * This is the property the whole pyramid exists for. The previous two-level scheme
-     * needed 88 tiles at 25% zoom and over 5000 at 2%, which is why far zoom kept breaking
-     * however the budgets were tuned. Here the count must stay bounded from a close-up to a
-     * thousand-hex overview.
-     */
-    const TARGET = 64;
-    const pick = (w: number, h: number) => {
-      for (let level = 0; level < 11; level++) {
-        const span = tileWorldSize(level);
-        const n = (Math.ceil(w / span) + 1) * (Math.ceil(h / span) + 1);
-        if (n <= TARGET) return { level, n };
-      }
-      return { level: 11, n: 0 };
-    };
-
-    for (const zoom of [1, 0.5, 0.25, 0.1, 0.04, 0.02, 0.005, 0.001]) {
-      const { n } = pick(1920 / zoom, 1080 / zoom);
-      expect(n).toBeLessThanOrEqual(TARGET);
-      expect(n).toBeGreaterThan(4);
+describe('detail tiers', () => {
+  it('steps the world size by 8x, finest first', () => {
+    expect(TIERS).toEqual(['high', 'med', 'low']);
+    expect(TIER_WORLD_SIZE.high).toBe(CHUNK_WORLD_SIZE);
+    for (let i = 1; i < TIERS.length; i++) {
+      expect(TIER_WORLD_SIZE[TIERS[i]]).toBe(TIER_WORLD_SIZE[TIERS[i - 1]] * 8);
     }
   });
 
-  it('maps a world point to the containing tile at any level', () => {
-    // Floor division, so a point just left of the origin belongs to tile -1, not 0.
-    expect(worldToTile(0, 0, 0)).toEqual({ cx: 0, cy: 0 });
-    expect(worldToTile(-1, -1, 0)).toEqual({ cx: -1, cy: -1 });
-    expect(worldToTile(CHUNK_WORLD_SIZE * 3, 0, 1)).toEqual({ cx: 1, cy: 0 });
-    expect(worldToTile(CHUNK_WORLD_SIZE * 3, 0, 2)).toEqual({ cx: 0, cy: 0 });
+  it('lists the coarser tiers a stroke must also write, and never a finer one', () => {
+    // The write rule the whole design rests on: painting at a tier writes it and everything
+    // coarser, so the tiers are consistent by construction. A finer tier appearing in this
+    // list would mean a continent stroke touching hundreds of chunks — the exact cost the
+    // tiers exist to avoid.
+    expect(coarserTiers('high')).toEqual(['med', 'low']);
+    expect(coarserTiers('med')).toEqual(['low']);
+    expect(coarserTiers('low')).toEqual([]);
   });
 
-  it('nests tiles: a point stays inside its parent at every level', () => {
-    const x = 12345.6;
+  it('maps a world point to the containing chunk at every tier', () => {
+    expect(worldToTierChunk(0, 0, 'high')).toEqual({ cx: 0, cy: 0 });
+    expect(worldToTierChunk(TIER_WORLD_SIZE.high * 3, 0, 'high')).toEqual({ cx: 3, cy: 0 });
+    expect(worldToTierChunk(TIER_WORLD_SIZE.high * 3, 0, 'med')).toEqual({ cx: 0, cy: 0 });
+    expect(worldToTierChunk(TIER_WORLD_SIZE.med * 2, 0, 'med')).toEqual({ cx: 2, cy: 0 });
+  });
+
+  it('floors toward negative infinity at every tier', () => {
+    // Truncation instead of flooring would put a point just left of the origin in chunk 0
+    // alongside +1, so a coarse stroke would land one chunk to the right across the axis.
+    for (const tier of TIERS) {
+      expect(worldToTierChunk(-1, -1, tier)).toEqual({ cx: -1, cy: -1 });
+      expect(worldToTierChunk(-TIER_WORLD_SIZE[tier], 0, tier)).toEqual({ cx: -1, cy: 0 });
+      expect(worldToTierChunk(-TIER_WORLD_SIZE[tier] - 1, 0, tier)).toEqual({ cx: -2, cy: 0 });
+    }
+  });
+
+  it('nests the tiers: a point stays inside its coarser chunk', () => {
+    const x = 123456.7;
     const y = -98765.4;
-    for (let level = 0; level < 10; level++) {
-      const child = worldToTile(x, y, level);
-      const parent = worldToTile(x, y, level + 1);
-      // Halving a child's coordinates must land on its parent, negatives included.
-      expect({ cx: Math.floor(child.cx / 2), cy: Math.floor(child.cy / 2) }).toEqual(parent);
+    for (let i = 1; i < TIERS.length; i++) {
+      const fine = worldToTierChunk(x, y, TIERS[i - 1]);
+      const coarse = worldToTierChunk(x, y, TIERS[i]);
+      const ratio = TIER_WORLD_SIZE[TIERS[i]] / TIER_WORLD_SIZE[TIERS[i - 1]];
+      expect({
+        cx: Math.floor(fine.cx / ratio),
+        cy: Math.floor(fine.cy / ratio),
+      }).toEqual(coarse);
     }
   });
 });
 
-describe('hierarchical fallback', () => {
-  /** Where a tile sits inside an ancestor's texture, in UV units. */
-  const uvRect = (cx: number, cy: number, level: number, srcLevel: number) => {
-    const span = tileWorldSize(level);
-    const srcSpan = tileWorldSize(srcLevel);
-    const shift = srcLevel - level;
-    const sx = Math.floor(cx / 2 ** shift);
-    const sy = Math.floor(cy / 2 ** shift);
-    return {
-      off: [(cx * span - sx * srcSpan) / srcSpan, (cy * span - sy * srcSpan) / srcSpan],
-      scale: span / srcSpan,
-    };
-  };
+describe('tier chooser', () => {
+  const view = (zoom: number) => [1920 / zoom, 1080 / zoom] as const;
 
-  it('maps a tile onto its own texture unchanged', () => {
-    const r = uvRect(5, -3, 2, 2);
-    expect(r.off).toEqual([0, 0]);
-    expect(r.scale).toBe(1);
-  });
-
-  it('maps a tile into the right quadrant of its parent', () => {
-    // Tile (0,0) is its parent's top-left quarter; (1,1) is the bottom-right.
-    expect(uvRect(0, 0, 0, 1)).toEqual({ off: [0, 0], scale: 0.5 });
-    expect(uvRect(1, 1, 0, 1)).toEqual({ off: [0.5, 0.5], scale: 0.5 });
-    expect(uvRect(1, 0, 0, 1)).toEqual({ off: [0.5, 0], scale: 0.5 });
-  });
-
-  it('keeps the sub-rect inside the source at any depth, including negatives', () => {
-    for (const [cx, cy] of [[0, 0], [7, 3], [-1, -1], [-9, 12], [123, -456]]) {
-      for (let gap = 0; gap <= 5; gap++) {
-        const r = uvRect(cx, cy, 1, 1 + gap);
-        expect(r.scale).toBeCloseTo(1 / 2 ** gap, 10);
-        // Negative coordinates are where floor-vs-truncate would push a tile outside its
-        // parent and sample a neighbour's pixels.
-        expect(r.off[0]).toBeGreaterThanOrEqual(0);
-        expect(r.off[1]).toBeGreaterThanOrEqual(0);
-        expect(r.off[0] + r.scale).toBeLessThanOrEqual(1 + 1e-9);
-        expect(r.off[1] + r.scale).toBeLessThanOrEqual(1 + 1e-9);
-      }
+  it('keeps chunks-per-screen bounded at every zoom', () => {
+    /*
+     * This is the property the tiers exist for. The old two-level scheme needed 88 chunks at
+     * 25% zoom and over 5000 at 2%, which is why far zoom kept breaking however the budgets
+     * were tuned. Here the count must stay bounded from a close-up to a whole-world view.
+     */
+    let tier: DetailTier = 'high';
+    for (const zoom of [1, 0.5, 0.25, 0.1, 0.04, 0.02, 0.008]) {
+      const [w, h] = view(zoom);
+      tier = chooseTier(tier, w, h);
+      expect(chunksOnScreen(w, h, tier)).toBeLessThanOrEqual(TARGET_CHUNKS_ON_SCREEN);
     }
+  });
+
+  it('stays on high at working zooms, where the detail is', () => {
+    const [w, h] = view(1);
+    expect(chooseTier('high', w, h)).toBe('high');
+  });
+
+  it('does not oscillate over a zoom-out-and-back sweep', () => {
+    /*
+     * Without hysteresis the tier flips on a hair of zoom and every cell on screen is torn
+     * down and rebuilt — a real bug, seen as `high -> med` then `med -> high` inside a second
+     * with fifty rebuilds each way. Sweeping out and back may change tier at most once per
+     * direction per boundary, so the total for a two-tier sweep is bounded well under the
+     * number of steps.
+     */
+    const zooms: number[] = [];
+    for (let z = 1; z > 0.005; z *= 0.93) zooms.push(z);
+    const sweep = [...zooms, ...[...zooms].reverse()];
+
+    let tier: DetailTier = 'high';
+    let changes = 0;
+    for (const zoom of sweep) {
+      const [w, h] = view(zoom);
+      const next = chooseTier(tier, w, h);
+      if (next !== tier) changes++;
+      tier = next;
+    }
+
+    // Two boundaries, crossed once each way: four changes is the honest ceiling. Anything
+    // more means a threshold is being straddled.
+    expect(changes).toBeLessThanOrEqual(4);
+    expect(tier).toBe('high');
+  });
+
+  it('drops to a coarser tier immediately, but climbs back only with headroom', () => {
+    // Asymmetric on purpose: staying too fine blows the budget now, while returning too
+    // eagerly is what lets drift across the threshold ping-pong.
+    const justOver = TIER_WORLD_SIZE.high * 9;
+    expect(chooseTier('high', justOver, justOver)).not.toBe('high');
+
+    // A view that fits high exactly at the target must not pull us back off med yet.
+    const atTarget = TIER_WORLD_SIZE.high * 7;
+    expect(chunksOnScreen(atTarget, atTarget, 'high')).toBeLessThanOrEqual(
+      TARGET_CHUNKS_ON_SCREEN,
+    );
+    expect(chunksOnScreen(atTarget, atTarget, 'high')).toBeGreaterThan(
+      TARGET_CHUNKS_ON_SCREEN * 0.6,
+    );
+    expect(chooseTier('med', atTarget, atTarget)).toBe('med');
+  });
+
+  it('never returns a tier finer than the one asked to hold when nothing fits', () => {
+    // Zoomed past even the coarsest tier's budget, the answer is the coarsest tier rather
+    // than something finer that would ask for thousands of chunks.
+    const huge = TIER_WORLD_SIZE.low * 200;
+    expect(chooseTier('high', huge, huge)).toBe(TIERS[TIERS.length - 1]);
   });
 });

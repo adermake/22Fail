@@ -1,7 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { MapEditorData, RasterLayer, createEmptyMapEditorData } from '../map-editor/map-editor.model';
+import {
+  DetailTier,
+  MapEditorData,
+  RasterLayer,
+  createEmptyMapEditorData,
+} from '../map-editor/map-editor.model';
 import { identityHeaders } from './identity';
 
 /**
@@ -37,8 +42,18 @@ export class MapEditorApiService {
     await firstValueFrom(this.http.post(this.base(worldName), data));
   }
 
-  private chunkUrl(worldName: string, layer: RasterLayer, cx: number, cy: number): string {
-    return `${this.base(worldName)}/chunks/${layer}/${cx}/${cy}`;
+  /**
+   * One URL shape for every tier. All three are authored the same way and stored the same
+   * way, so nothing here needs to know which is which.
+   */
+  private chunkUrl(
+    worldName: string,
+    layer: RasterLayer,
+    tier: DetailTier,
+    cx: number,
+    cy: number,
+  ): string {
+    return `${this.base(worldName)}/chunks/${layer}/${tier}/${cx}/${cy}`;
   }
 
   /**
@@ -51,38 +66,14 @@ export class MapEditorApiService {
   async fetchChunk(
     worldName: string,
     layer: RasterLayer,
+    tier: DetailTier,
     cx: number,
     cy: number,
     ver: number,
   ): Promise<Blob | null> {
-    const url = `${this.chunkUrl(worldName, layer, cx, cy)}?v=${ver}`;
+    const url = `${this.chunkUrl(worldName, layer, tier, cx, cy)}?v=${ver}`;
     try {
       // Raw fetch bypasses Angular's identity interceptor, so attach the headers by hand.
-      const res = await fetch(url, { headers: identityHeaders() });
-      if (!res.ok) return null;
-      return await res.blob();
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Fetch a tile from the pyramid.
-   *
-   * Level 0 is the painted chunk; higher levels are derived server-side by downscaling four
-   * children, so one request covers four times the world area per level. `null` means
-   * nothing beneath that tile has ever been painted — the common case over open sea.
-   */
-  async fetchTile(
-    worldName: string,
-    layer: RasterLayer,
-    cx: number,
-    cy: number,
-    level: number,
-    ver: number,
-  ): Promise<Blob | null> {
-    const url = `${this.base(worldName)}/tiles/${layer}/${level}/${cx}/${cy}?v=${ver}`;
-    try {
       const res = await fetch(url, { headers: identityHeaders() });
       if (!res.ok) return null;
       return await res.blob();
@@ -95,12 +86,13 @@ export class MapEditorApiService {
   async putChunk(
     worldName: string,
     layer: RasterLayer,
+    tier: DetailTier,
     cx: number,
     cy: number,
     blob: Blob,
   ): Promise<number | null> {
     try {
-      const res = await fetch(this.chunkUrl(worldName, layer, cx, cy), {
+      const res = await fetch(this.chunkUrl(worldName, layer, tier, cx, cy), {
         method: 'PUT',
         headers: { 'Content-Type': 'image/png', ...identityHeaders() },
         body: blob,

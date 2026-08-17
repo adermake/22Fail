@@ -4,6 +4,7 @@ import { MapEditorApiService } from './map-editor-api.service';
 import { MapEditorSocketService } from './map-editor-socket.service';
 import {
   AnyMapObject,
+  DetailTier,
   MapEditorData,
   MapOp,
   ObjectCollection,
@@ -15,6 +16,7 @@ import {
 
 export interface ChunkInvalidation {
   layer: RasterLayer;
+  tier: DetailTier;
   cx: number;
   cy: number;
   ver: number;
@@ -120,7 +122,7 @@ export class MapEditorStoreService {
     }
 
     if (op.t === 'chunk') {
-      const key = chunkKey(op.layer, op.cx, op.cy);
+      const key = chunkKey(op.layer, op.tier, op.cx, op.cy);
       /*
        * Our own upload echoing back — the pixels are already on screen.
        *
@@ -132,6 +134,7 @@ export class MapEditorStoreService {
       if (own !== undefined && op.ver <= own) return;
       this.chunkInvalidationSubject.next({
         layer: op.layer,
+        tier: op.tier,
         cx: op.cx,
         cy: op.cy,
         ver: op.ver,
@@ -170,48 +173,31 @@ export class MapEditorStoreService {
    * Announce a chunk we just uploaded. Records the version first so the echo of our own
    * broadcast does not trigger a pointless refetch of pixels we already have.
    */
-  announceChunk(layer: RasterLayer, cx: number, cy: number, ver: number): void {
-    this.ownChunkVersions.set(chunkKey(layer, cx, cy), ver);
-    this.emit({ t: 'chunk', layer, cx, cy, ver });
+  announceChunk(
+    layer: RasterLayer,
+    tier: DetailTier,
+    cx: number,
+    cy: number,
+    ver: number,
+  ): void {
+    this.ownChunkVersions.set(chunkKey(layer, tier, cx, cy), ver);
+    this.emit({ t: 'chunk', layer, tier, cx, cy, ver });
   }
 
-  chunkVersion(layer: RasterLayer, cx: number, cy: number): number {
-    return this.data()?.chunkVersions[chunkKey(layer, cx, cy)] ?? 0;
-  }
-
-  /** Whether a chunk has ever been painted — unpainted chunks need no fetch at all. */
-  chunkExists(layer: RasterLayer, cx: number, cy: number): boolean {
-    return this.chunkVersion(layer, cx, cy) > 0;
+  chunkVersion(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): number {
+    return this.data()?.chunkVersions[chunkKey(layer, tier, cx, cy)] ?? 0;
   }
 
   /**
-   * Whether any painted chunk falls inside a level-0 coordinate range.
+   * Whether a chunk has ever been painted — unpainted chunks need no fetch at all.
    *
-   * Derived tiles have no version record of their own, so they were fetched unconditionally
-   * and answered 404 whenever nothing beneath them existed. For a layer nobody has painted
-   * — water colour usually, since the water brushes stopped tinting automatically — that is
-   * every tile, at every level, on every pan. The document already knows which chunks exist,
-   * so the request can simply not be made.
+   * Every tier is authored and versioned in its own right, so this is an exact answer at any
+   * tier. That matters more than it sounds: fetching unconditionally meant a 404 per layer
+   * per chunk on every pan, and for a layer nobody has painted — water colour usually — that
+   * is every chunk on screen.
    */
-  hasPaintedChunkIn(
-    layer: RasterLayer,
-    minCx: number,
-    minCy: number,
-    maxCx: number,
-    maxCy: number,
-  ): boolean {
-    const versions = this.data()?.chunkVersions;
-    if (!versions) return false;
-
-    const prefix = `${layer}/`;
-    for (const key of Object.keys(versions)) {
-      if (!key.startsWith(prefix)) continue;
-      const parts = key.slice(prefix.length).split('/');
-      const cx = Number(parts[0]);
-      const cy = Number(parts[1]);
-      if (cx >= minCx && cx <= maxCx && cy >= minCy && cy <= maxCy) return true;
-    }
-    return false;
+  chunkExists(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): boolean {
+    return this.chunkVersion(layer, tier, cx, cy) > 0;
   }
 
   /** Full-document save. For imports and recovery; ops cover ordinary editing. */

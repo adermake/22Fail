@@ -26,33 +26,109 @@ export type RasterLayer = 'height' | 'landColor' | 'waterColor';
 export const RASTER_LAYERS: readonly RasterLayer[] = ['height', 'landColor', 'waterColor'];
 
 /**
- * World-pixel span of one chunk, identical for every layer.
+ * Authored detail tiers.
+ *
+ * Not a pyramid: no tier is derived from another. Each is its own sparse chunk grid that
+ * the brushes write directly, and a stroke writes its own tier *and every coarser one* in
+ * the same pass (see `coarserTiers`). That is what keeps the tiers consistent — a fine
+ * stroke has already published its blurred coarse version by the time anybody zooms out, so
+ * nothing ever has to be derived after the fact.
+ *
+ * The reason this exists at all is authoring, not viewing. A brush that always wrote the
+ * finest raster spanned ~300 chunks for one continent-scale stroke; each is a 3 MB texture
+ * to create, paint, upload and hold resident, which no budget survives. Painting at the tier
+ * you are actually looking at makes that stroke one or two chunks.
+ *
+ * Every tier keeps the same 512² textures and the same three layers, so a chunk costs the
+ * same wherever it sits and the residency budget is untouched. Only the world area a chunk
+ * covers changes.
+ */
+export type DetailTier = 'high' | 'med' | 'low';
+
+/** Finest → coarsest. Order is load-bearing: `coarserTiers` and the tier chooser walk it. */
+export const TIERS: readonly DetailTier[] = ['high', 'med', 'low'];
+
+/**
+ * World pixels one chunk covers, per tier — 8× apart, so `low` is 4096× the area of `high`.
+ *
+ * The steps are wide on purpose. Narrow steps would need many tiers to reach a whole-world
+ * view, and every extra tier is another copy every fine stroke has to write.
+ */
+export const TIER_WORLD_SIZE: Record<DetailTier, number> = {
+  high: 1024,
+  med: 8192,
+  low: 65536,
+};
+
+/**
+ * World-pixel span of one `high` chunk, identical for every layer.
  *
  * Keeping the *world* size constant (rather than the texel count) means all layers share
  * one chunk grid, so dirty-tracking, streaming and eviction work off a single `cx,cy` —
  * layers just differ in how many texels they pack into that square.
  */
-export const CHUNK_WORLD_SIZE = 1024;
+export const CHUNK_WORLD_SIZE = TIER_WORLD_SIZE.high;
 
 /**
- * Tile pyramid.
+ * The tiers a stroke at `tier` must also write, coarsest last.
  *
- * A level-L tile covers `CHUNK_WORLD_SIZE << L` world pixels at the same texel count, so
- * each level up holds four times the area. That is the property that matters: the number of
- * tiles needed to fill the screen stays roughly constant at *every* zoom, instead of growing
- * with the square of how far out you go. Level 0 is what the brushes paint; every level
- * above it is derived on the server by downscaling four children.
+ * Deliberately one-directional. Coarse edits never touch finer tiers: clearing the detail
+ * under a `low` stroke would mean rewriting hundreds of `high` chunks, which is the exact
+ * cost this design exists to avoid. The consequence — erasing at `low` leaves `high` detail
+ * intact underneath, and it reappears when you zoom in — is the accepted trade.
  */
-export const MAX_TILE_LEVEL = 11;
-
-export function tileWorldSize(level: number): number {
-  return CHUNK_WORLD_SIZE * 2 ** level;
+export function coarserTiers(tier: DetailTier): DetailTier[] {
+  return TIERS.slice(TIERS.indexOf(tier) + 1);
 }
 
-/** Tile coordinate containing a world point at a level. */
-export function worldToTile(x: number, y: number, level: number): ChunkCoord {
-  const span = tileWorldSize(level);
+/** Chunk coordinate containing a world point, at a tier. Floors, so negatives work. */
+export function worldToTierChunk(x: number, y: number, tier: DetailTier): ChunkCoord {
+  const span = TIER_WORLD_SIZE[tier];
   return { cx: Math.floor(x / span), cy: Math.floor(y / span) };
+}
+
+/**
+ * Chunks a screenful should need.
+ *
+ * The tier is chosen to keep the count near this at *any* zoom — that constant is the whole
+ * point of having tiers. A single grid only ever made distant chunks cheaper while their
+ * number still grew as zoom⁻², which no budget could absorb.
+ */
+export const TARGET_CHUNKS_ON_SCREEN = 64;
+
+/** Chunks of `tier` needed to cover a `w`×`h` world-space view, with a row of margin. */
+export function chunksOnScreen(w: number, h: number, tier: DetailTier): number {
+  const span = TIER_WORLD_SIZE[tier];
+  return (Math.ceil(w / span) + 1) * (Math.ceil(h / span) + 1);
+}
+
+/**
+ * Finest tier that still fills a `w`×`h` view with roughly `TARGET_CHUNKS_ON_SCREEN` chunks.
+ *
+ * **Hysteresis, and it matters more here than anywhere else.** Every tier change rebuilds
+ * every cell on screen, so a boundary that flips on a hair of zoom makes the whole map tear
+ * down and reassemble — which is exactly what a log of `high -> med` then `med -> high`
+ * within a second, with fifty rebuilds each way, was showing.
+ *
+ * So the two directions are deliberately asymmetric. Going coarser happens as soon as
+ * `current` no longer fits, because staying would blow the budget. Coming back to a finer
+ * tier waits until it fits with room to spare, so drifting across the threshold cannot
+ * ping-pong.
+ */
+export function chooseTier(current: DetailTier, w: number, h: number): DetailTier {
+  const index = TIERS.indexOf(current);
+
+  if (chunksOnScreen(w, h, current) > TARGET_CHUNKS_ON_SCREEN) {
+    for (let i = index + 1; i < TIERS.length; i++) {
+      if (chunksOnScreen(w, h, TIERS[i]) <= TARGET_CHUNKS_ON_SCREEN) return TIERS[i];
+    }
+    return TIERS[TIERS.length - 1];
+  }
+
+  for (let i = 0; i < index; i++) {
+    if (chunksOnScreen(w, h, TIERS[i]) <= TARGET_CHUNKS_ON_SCREEN * 0.6) return TIERS[i];
+  }
+  return current;
 }
 
 /**
@@ -82,32 +158,38 @@ export interface ChunkCoord {
   cy: number;
 }
 
-export function chunkKey(layer: RasterLayer, cx: number, cy: number): string {
-  return `${layer}/${cx}/${cy}`;
+/**
+ * Identity of a stored chunk. The tier is part of it — `2,3` names a different patch of
+ * world at every tier, so a key without it would collide across tiers.
+ */
+export function chunkKey(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): string {
+  return `${layer}/${tier}/${cx}/${cy}`;
 }
 
-export function parseChunkKey(key: string): { layer: RasterLayer; cx: number; cy: number } | null {
+export function parseChunkKey(
+  key: string,
+): { layer: RasterLayer; tier: DetailTier; cx: number; cy: number } | null {
   const parts = key.split('/');
-  if (parts.length !== 3) return null;
+  if (parts.length !== 4) return null;
   const layer = parts[0] as RasterLayer;
   if (!RASTER_LAYERS.includes(layer)) return null;
-  const cx = Number(parts[1]);
-  const cy = Number(parts[2]);
+  const tier = parts[1] as DetailTier;
+  if (!TIERS.includes(tier)) return null;
+  const cx = Number(parts[2]);
+  const cy = Number(parts[3]);
   if (Number.isNaN(cx) || Number.isNaN(cy)) return null;
-  return { layer, cx, cy };
+  return { layer, tier, cx, cy };
 }
 
-/** Chunk containing a world point (floor division — correct for negative coords). */
+/** `high` chunk containing a world point (floor division — correct for negative coords). */
 export function worldToChunk(x: number, y: number): ChunkCoord {
-  return {
-    cx: Math.floor(x / CHUNK_WORLD_SIZE),
-    cy: Math.floor(y / CHUNK_WORLD_SIZE),
-  };
+  return worldToTierChunk(x, y, 'high');
 }
 
-/** Top-left world position of a chunk. */
-export function chunkOrigin(cx: number, cy: number): Point {
-  return { x: cx * CHUNK_WORLD_SIZE, y: cy * CHUNK_WORLD_SIZE };
+/** Top-left world position of a chunk, at a tier. */
+export function chunkOrigin(cx: number, cy: number, tier: DetailTier = 'high'): Point {
+  const span = TIER_WORLD_SIZE[tier];
+  return { x: cx * span, y: cy * span };
 }
 
 // ============================================
@@ -306,7 +388,7 @@ export type MapOp =
   | { t: 'add'; c: ObjectCollection; v: AnyMapObject }
   | { t: 'upd'; c: ObjectCollection; id: string; v: Record<string, unknown> }
   | { t: 'del'; c: ObjectCollection; id: string }
-  | { t: 'chunk'; layer: RasterLayer; cx: number; cy: number; ver: number }
+  | { t: 'chunk'; layer: RasterLayer; tier: DetailTier; cx: number; cy: number; ver: number }
   /** Small scalar state: palettes, settings, fog, presets. Dot path into `MapEditorData`. */
   | { t: 'set'; path: string; value: unknown };
 
@@ -331,7 +413,7 @@ export function applyMapOp(data: MapEditorData, op: MapOp): void {
       break;
     }
     case 'chunk': {
-      data.chunkVersions[chunkKey(op.layer, op.cx, op.cy)] = op.ver;
+      data.chunkVersions[chunkKey(op.layer, op.tier, op.cx, op.cy)] = op.ver;
       break;
     }
     case 'set': {

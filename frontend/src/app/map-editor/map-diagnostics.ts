@@ -25,18 +25,18 @@ export type DiagKind =
   | 'upload:done'
   | 'upload:fail'
   | 'paint:chunk'
-  | 'paint:parent'
+  /** The same stroke landing in a coarser tier, which is how tiers stay consistent. */
+  | 'paint:coarse'
   | 'cell:build'
-  | 'cell:fallback'
   | 'cell:drop'
-  | 'level:change'
+  | 'tier:change'
   | 'note';
 
 export interface DiagEvent {
   /** ms since the recorder started, so sequences read as a timeline. */
   t: number;
   kind: DiagKind;
-  /** Tile identity, where the event has one: `layer L{level} cx,cy`. */
+  /** Chunk identity, where the event has one: `layer {tier} cx,cy`. */
   tile: string;
   detail: string;
 }
@@ -94,11 +94,11 @@ export class MapDiagnostics {
       { label: 'skipped (dirty)', value: String(c('fetch:skip-dirty')) },
       { label: 'errors', value: String(c('fetch:error')) },
       { label: 'uploads', value: `${c('upload:done')} ok / ${c('upload:fail')} fail` },
-      { label: 'tiles made', value: String(c('tile:create')) },
+      { label: 'chunks made', value: String(c('tile:create')) },
       { label: 'evictions', value: String(c('tile:evict')) },
+      { label: 'painted', value: `${c('paint:chunk')} + ${c('paint:coarse')} coarse` },
       { label: 'cells built', value: String(c('cell:build')) },
-      { label: 'on fallback', value: String(c('cell:fallback')) },
-      { label: 'level changes', value: String(c('level:change')) },
+      { label: 'tier changes', value: String(c('tier:change')) },
       { label: 'most-fetched', value: worstCount > 1 ? `${worstTile} ×${worstCount}` : '—' },
     ];
   }
@@ -122,7 +122,7 @@ export class MapDiagnostics {
 /** Shared recorder — the streamer and the view both write to the same timeline. */
 export const mapDiag = new MapDiagnostics();
 
-/** Canonical tile label, so events and the overlay agree on naming. */
-export function tileLabel(layer: string, cx: number, cy: number, level: number): string {
-  return `${layer} L${level} ${cx},${cy}`;
+/** Canonical chunk label, so events and the overlay agree on naming. */
+export function tileLabel(layer: string, tier: string, cx: number, cy: number): string {
+  return `${layer} ${tier} ${cx},${cy}`;
 }

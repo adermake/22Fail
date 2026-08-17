@@ -15,11 +15,19 @@
  */
 
 import { Texture } from 'pixi.js';
-import { AnyMapObject, LAYER_TEXELS, ObjectCollection, RasterLayer } from './map-editor.model';
+import {
+  AnyMapObject,
+  DetailTier,
+  LAYER_TEXELS,
+  ObjectCollection,
+  RasterLayer,
+} from './map-editor.model';
 import { ChunkManager, ChunkRecord } from './chunk-manager';
 
 interface ChunkSnapshot {
   layer: RasterLayer;
+  /** Part of the identity: one stroke snapshots chunks across several tiers at once. */
+  tier: DetailTier;
   cx: number;
   cy: number;
   texture: Texture;
@@ -82,8 +90,8 @@ export class UndoStack {
     this.objects = applier;
   }
 
-  private key(layer: RasterLayer, cx: number, cy: number): string {
-    return `${layer}/${cx}/${cy}`;
+  private key(layer: RasterLayer, tier: DetailTier, cx: number, cy: number): string {
+    return `${layer}/${tier}/${cx}/${cy}`;
   }
 
   private snapshotBytes(layer: RasterLayer): number {
@@ -115,7 +123,7 @@ export class UndoStack {
    * dab will cover, and this records each the first time it appears.
    */
   capture(rec: ChunkRecord): void {
-    const key = this.key(rec.layer, rec.cx, rec.cy);
+    const key = this.key(rec.layer, rec.tier, rec.cx, rec.cy);
     if (this.pendingKeys.has(key)) return;
     this.pendingKeys.add(key);
 
@@ -134,6 +142,7 @@ export class UndoStack {
 
     this.pending.push({
       layer: rec.layer,
+      tier: rec.tier,
       cx: rec.cx,
       cy: rec.cy,
       texture,
@@ -183,7 +192,7 @@ export class UndoStack {
     // Capture the current state first, or there would be nothing to redo forward into.
     entry.after ??= entry.before.map(s => this.captureCurrent(s));
 
-    for (const s of entry.before) this.chunks.restore(s.layer, s.cx, s.cy, s.texture);
+    for (const s of entry.before) this.chunks.restore(s.layer, s.tier, s.cx, s.cy, s.texture);
     // Reverse order, so edits that touched the same object unwind correctly.
     for (let i = entry.objects.length - 1; i >= 0; i--) this.applyChange(entry.objects[i], true);
 
@@ -195,7 +204,7 @@ export class UndoStack {
     const entry = this.redoEntries.pop();
     if (!entry) return [];
 
-    for (const s of entry.after ?? []) this.chunks.restore(s.layer, s.cx, s.cy, s.texture);
+    for (const s of entry.after ?? []) this.chunks.restore(s.layer, s.tier, s.cx, s.cy, s.texture);
     for (const change of entry.objects) this.applyChange(change, false);
 
     this.undoEntries.push(entry);
@@ -221,11 +230,18 @@ export class UndoStack {
   }
 
   private captureCurrent(ref: ChunkSnapshot): ChunkSnapshot {
-    const rec = this.chunks.get(ref.layer, ref.cx, ref.cy);
+    const rec = this.chunks.get(ref.layer, ref.tier, ref.cx, ref.cy);
     const texture = this.chunks.snapshot(rec);
     const bytes = this.snapshotBytes(ref.layer);
     this.bytes += bytes;
-    return { layer: ref.layer, cx: ref.cx, cy: ref.cy, texture: texture ?? ref.texture, bytes };
+    return {
+      layer: ref.layer,
+      tier: ref.tier,
+      cx: ref.cx,
+      cy: ref.cy,
+      texture: texture ?? ref.texture,
+      bytes,
+    };
   }
 
   /** Drop the oldest history until back inside the memory budget. */

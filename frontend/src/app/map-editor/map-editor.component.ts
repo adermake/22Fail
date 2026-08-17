@@ -34,7 +34,7 @@ import { Bounds } from './map-camera';
 import { UndoStack, clone } from './undo-stack';
 import { GroupMeta, MapAssets, PaperTextureMeta } from './map-assets';
 import { SymbolView } from './symbol-view';
-import { CHUNK_WORLD_SIZE, MapSymbol } from './map-editor.model';
+import { DetailTier, MapSymbol } from './map-editor.model';
 import { DiagEvent, mapDiag } from './map-diagnostics';
 import { generateId } from '../model/lobby.model';
 import {
@@ -225,8 +225,18 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly saving = signal(false);
   /** Set when the GPU context is lost — the map is blank until the page reloads. */
   readonly contextLost = signal(false);
-  /** Shown briefly when a stroke is refused because the view is zoomed too far out. */
-  readonly zoomHint = signal(false);
+  /**
+   * Detail tier the next stroke will land on.
+   *
+   * Shown in the status bar because it is now the single most important thing to know before
+   * drawing: a stroke writes this tier and every coarser one, and never a finer one, so which
+   * tier is active decides what the stroke can later be refined against.
+   */
+  readonly detailTier = signal<DetailTier>('high');
+
+  readonly detailTierLabel = computed(
+    () => ({ high: 'Hoch', med: 'Mittel', low: 'Grob' })[this.detailTier()],
+  );
 
   // ── diagnostics ──
 
@@ -325,6 +335,13 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   private lakeSeed = Math.floor(Math.random() * 1e9);
   /** World-space extent of the stroke in progress, for bounded post-stroke work. */
   private strokeBounds: Bounds | null = null;
+  /**
+   * Detail tier the stroke in progress writes to.
+   *
+   * Fixed at stroke start rather than read per dab: a tier switch halfway through would
+   * leave the first half of one stroke in a different grid from the second.
+   */
+  private strokeTier: DetailTier = 'high';
   private cursorGraphic = new Graphics();
   private previewSprite = new Sprite();
   private lastWorld: { x: number; y: number } | null = null;
@@ -408,7 +425,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
     this.subs.push(
       this.store.chunkInvalidations$.subscribe(inv =>
-        this.chunks?.invalidate(inv.layer, inv.cx, inv.cy),
+        this.chunks?.invalidate(inv.layer, inv.tier, inv.cx, inv.cy),
       ),
       this.store.objectOps$.subscribe(op => {
         if (op.t !== 'add' && op.t !== 'upd' && op.t !== 'del') return;
@@ -490,24 +507,23 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
     this.streamScheduled = true;
     requestAnimationFrame(() => {
       this.streamScheduled = false;
-      /*
-       * A full chunk of lead in every direction.
-       *
-       * A quarter-chunk was not enough: a chunk only started loading once its edge was
-       * nearly on screen, so an ordinary pan outran it and terrain visibly popped in. One
-       * whole chunk of margin means the next row is already resident before it is needed.
-       */
       const zoom = this.renderer.camera.zoom;
-      this.chunks?.update(this.renderer.camera.visibleBounds(CHUNK_WORLD_SIZE));
-      // Build terrain slightly beyond the view so a cell exists before it scrolls in;
-      // without the lead, the edge of a pan or zoom trails behind the camera. The level is
-      // whatever the streamer settled on, so the two never disagree about what is loaded.
-      this.terrain?.update(
-        this.renderer.camera.visibleBounds(CHUNK_WORLD_SIZE * 0.5),
-        this.chunks?.detailLevel ?? 0,
-        zoom,
-      );
       const view = this.renderer.camera.visibleBounds(0);
+
+      /*
+       * Everything gets the plain visible rectangle and adds its own lead.
+       *
+       * The lead has to be measured in chunks of whichever tier the streamer picks, and only
+       * the streamer knows that — so passing a pre-padded rectangle in meant one margin
+       * (a `high` chunk) being applied at every zoom, which at `low` is a rounding error.
+       */
+      this.chunks?.update(view);
+      const tier = this.chunks?.detailTier ?? 'high';
+      if (tier !== this.detailTier()) this.detailTier.set(tier);
+      // The tier is whatever the streamer settled on, so the two never disagree about what
+      // is loaded, and the view's shorter lead stays inside the streamer's.
+      this.terrain?.update(view, tier, zoom);
+
       this.symbols?.render(view, zoom, this.isGM());
       // Dash spacing and handle size are zoom-dependent, so regions redraw on view change.
       this.regionView.render(view, zoom, this.isGM(), true);
@@ -1215,25 +1231,18 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private beginPaint(world: { x: number; y: number }): void {
-    /*
-     * Painting only at full detail.
-     *
-     * Brushes always write level-0 chunks, whatever the view is showing. Zoomed out, a
-     * single stroke spans dozens of them — each a 3 MB texture to create, paint, upload and
-     * hold resident — which is far more than the budget can carry. The result was a
-     * stampede: paint, blow the budget, evict the chunks just painted, refetch them, repeat.
-     * The log showed a chunk uploaded and then evicted 41 ms later.
-     *
-     * There is no tuning that makes this fit, so the tool says so instead of thrashing.
-     */
-    if ((this.chunks?.detailLevel ?? 0) > 0) {
-      this.zoomHint.set(true);
-      setTimeout(() => this.zoomHint.set(false), 2600);
-      return;
-    }
-
     this.isPainting = true;
     this.strokeBounds = null;
+    /*
+     * The stroke lands on whatever tier the view settled on.
+     *
+     * This is what makes continent-scale drawing possible at all: a brush that always wrote
+     * the finest grid spanned ~300 chunks for one wide stroke, each a 3 MB texture to create,
+     * paint, upload and hold resident. The streamer thrashed — a chunk was measured uploaded
+     * and evicted 41 ms later. Painting the tier you are actually looking at makes the same
+     * stroke one or two chunks, plus its coarse copies.
+     */
+    this.strokeTier = this.chunks?.detailTier ?? 'high';
     this.noteStrokeExtent(world);
     this.undoStack?.begin();
     this.brushes?.beginStroke();
@@ -1245,6 +1254,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
         this.brushSize(),
         this.lakeSeed,
         this.activeBrushColor(),
+        this.strokeTier,
       );
       this.lakeSeed = Math.floor(Math.random() * 1e9);
       this.lastWorld = world;
@@ -1254,16 +1264,28 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.noteStrokeExtent({ x: world.x + r, y: world.y + r });
       this.endPaint();
       this.redrawCursor();
+      this.scheduleStream();
       return;
     }
 
-    this.brushes?.stroke(world, this.brush());
+    this.brushes?.stroke(world, this.brush(), this.strokeTier);
+    this.scheduleStream();
   }
 
   private continuePaint(world: { x: number; y: number }): void {
     if (!this.isPainting || this.terrainTool() === 'lakeStamp') return;
     this.noteStrokeExtent(world);
-    this.brushes?.stroke(world, this.brush());
+    this.brushes?.stroke(world, this.brush(), this.strokeTier);
+
+    /*
+     * A stroke can create ground that had no terrain cell at all.
+     *
+     * The view skips cells over ground nothing has been drawn on — most of a map — so the
+     * first dab on virgin ocean has no mesh to show up in until the streamer runs again.
+     * Rate-limited to one pass per frame by `scheduleStream` itself, so this costs nothing
+     * per dab.
+     */
+    this.scheduleStream();
 
     /*
      * Re-tint symbols as the colour goes down, not only when the stroke ends.

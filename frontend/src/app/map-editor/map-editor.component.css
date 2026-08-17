@@ -637,15 +637,8 @@
   text-overflow: ellipsis;
 }
 
-.zoom-hint {
-  position: absolute;
-  left: 50%;
-  top: 24px;
-  transform: translateX(-50%);
-  padding: 7px 14px;
-  border-radius: 6px;
-  background: rgba(61, 90, 128, 0.94);
-  border: 1px solid #6d9fd0;
-  font-size: 13px;
-  pointer-events: none;
+/* Which tier a stroke lands on decides what it can later be refined against, so anything
+   other than full detail is called out rather than merely stated. */
+.status-tier.coarse {
+  color: #ffc46b;
 }

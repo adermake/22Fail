@@ -18,7 +18,7 @@
  */
 
 import { Container, Graphics, Renderer, Sprite, Texture } from 'pixi.js';
-import { RasterLayer } from './map-editor.model';
+import { DetailTier, RasterLayer } from './map-editor.model';
 import { Bounds } from './map-camera';
 import { ChunkManager, ChunkRecord } from './chunk-manager';
 
@@ -243,8 +243,12 @@ export class BrushEngine {
    *
    * Spacing is a quarter of the brush radius: dense enough that overlapping dabs read as a
    * continuous stroke, sparse enough not to stack alpha into a hard-edged blob.
+   *
+   * `tier` is the detail tier the stroke lands on — normally whatever the view settled on,
+   * so a continent drawn zoomed out costs one or two chunks instead of three hundred. The
+   * chunk manager writes the coarser tiers from the same node; nothing here has to know.
    */
-  stroke(p: { x: number; y: number }, brush: BrushSettings): void {
+  stroke(p: { x: number; y: number }, brush: BrushSettings, tier: DetailTier): void {
     const from = this.lastPoint ?? p;
     const dx = p.x - from.x;
     const dy = p.y - from.y;
@@ -255,14 +259,14 @@ export class BrushEngine {
 
     for (let i = 1; i <= steps; i++) {
       const t = steps === 0 ? 1 : i / steps;
-      this.dab({ x: from.x + dx * t, y: from.y + dy * t }, brush);
+      this.dab({ x: from.x + dx * t, y: from.y + dy * t }, brush, tier);
     }
 
     this.lastPoint = p;
   }
 
   /** Single stamp at a point, applying every raster pass the tool performs. */
-  dab(p: { x: number; y: number }, brush: BrushSettings): void {
+  dab(p: { x: number; y: number }, brush: BrushSettings, tier: DetailTier): void {
     const color = parseHex(brush.color);
     const r = brush.size;
     const bounds: Bounds = { minX: p.x - r, minY: p.y - r, maxX: p.x + r, maxY: p.y + r };
@@ -282,7 +286,7 @@ export class BrushEngine {
 
       this.host.blendMode = pass.erase ? 'erase' : 'normal';
 
-      for (const rec of this.chunks.paintWorld(pass.layer, this.host, bounds)) {
+      for (const rec of this.chunks.paintWorld(pass.layer, this.host, bounds, tier)) {
         this.strokeTouched.add(rec);
       }
     }
@@ -350,7 +354,14 @@ export class BrushEngine {
    * And a lake is not one body. Real water leaves ponds and cut-off arms nearby, so a few
    * smaller satellites are scattered around the main outline.
    */
-  stampLake(cx: number, cy: number, radius: number, seed: number, _color: string): ChunkRecord[] {
+  stampLake(
+    cx: number,
+    cy: number,
+    radius: number,
+    seed: number,
+    _color: string,
+    tier: DetailTier,
+  ): ChunkRecord[] {
     const rand = seeded(seed ^ 0x9e3779b9);
     const reach = radius * 2.2; // satellites and feathering push well past the main body
     const bounds: Bounds = {
@@ -381,7 +392,7 @@ export class BrushEngine {
     this.host.blendMode = 'erase';
     this.host.addChild(g);
 
-    const touched = this.chunks.paintWorld('height', this.host, bounds);
+    const touched = this.chunks.paintWorld('height', this.host, bounds, tier);
 
     this.host.removeChildren();
     g.destroy();
