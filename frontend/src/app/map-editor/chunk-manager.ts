@@ -190,10 +190,22 @@ export class ChunkManager {
     this.chunks.set(this.recKey(layer, cx, cy, level), rec);
     mapDiag.log('tile:create', tileLabel(layer, cx, cy, level));
 
-    // Level 0 knows from the document whether anything was ever painted here; derived
-    // levels have no such record, so they always ask and treat 404 as empty ocean.
-    if (level > 0 || this.store.chunkExists(layer, cx, cy)) void this.fetchInto(rec);
-    else rec.loaded = true; // never painted — the cleared texture is already correct
+    // Ask only when something beneath this tile has actually been painted. A derived tile
+    // covers 2^level chunks per side, so its footprint is what has to be checked.
+    const span = 2 ** level;
+    const painted =
+      level === 0
+        ? this.store.chunkExists(layer, cx, cy)
+        : this.store.hasPaintedChunkIn(
+            layer,
+            cx * span,
+            cy * span,
+            (cx + 1) * span - 1,
+            (cy + 1) * span - 1,
+          );
+
+    if (painted) void this.fetchInto(rec);
+    else rec.loaded = true; // nothing under it — the cleared texture is already correct
 
     return rec;
   }
@@ -710,6 +722,39 @@ export class ChunkManager {
    * do per pointer move.
    */
   async flushDirty(): Promise<void> {
+    /*
+     * One flush at a time.
+     *
+     * A flush snapshots the dirty list and then works through it in batches, awaiting
+     * between them. A second flush starting during those awaits picked up the chunks the
+     * first had not reached yet and uploaded them too — so the same chunk went up three or
+     * four times, each bumping its version. That version churn then made our own broadcast
+     * echoes look like edits from another client, which triggered refetches of chunks that
+     * had just been painted, and the resulting tile pressure evicted them. That is the
+     * disappearing: a self-inflicted stampede starting from a duplicated upload.
+     */
+    if (this.flushing) {
+      this.flushAgain = true;
+      return;
+    }
+    this.flushing = true;
+    try {
+      await this.flushOnce();
+    } finally {
+      this.flushing = false;
+    }
+
+    // Work that arrived mid-flush still needs saving.
+    if (this.flushAgain) {
+      this.flushAgain = false;
+      await this.flushDirty();
+    }
+  }
+
+  private flushing = false;
+  private flushAgain = false;
+
+  private async flushOnce(): Promise<void> {
     const dirty = [...this.chunks.values()].filter(
       r => r.dirty && !r.uploading && r.level === 0,
     );
@@ -788,6 +833,10 @@ export class ChunkManager {
   private staleTiles = new Set<string>();
 
   private async uploadChunk(rec: ChunkRecord): Promise<void> {
+    // The list was snapshotted before the first batch; by now this chunk may already be
+    // saved or in flight, and re-sending it would only bump its version for nothing.
+    if (!rec.dirty || rec.uploading || !this.isUsable(rec)) return;
+
     const label = tileLabel(rec.layer, rec.cx, rec.cy, rec.level);
     mapDiag.log('upload:start', label);
     rec.uploading = true;

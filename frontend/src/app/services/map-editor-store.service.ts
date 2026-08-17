@@ -121,11 +121,15 @@ export class MapEditorStoreService {
 
     if (op.t === 'chunk') {
       const key = chunkKey(op.layer, op.cx, op.cy);
-      // Our own upload echoing back — the pixels are already on screen.
-      if (this.ownChunkVersions.get(key) === op.ver) {
-        this.ownChunkVersions.delete(key);
-        return;
-      }
+      /*
+       * Our own upload echoing back — the pixels are already on screen.
+       *
+       * Compared with `<=` rather than `===` because echoes can arrive out of order, or
+       * late, after we have already published a newer version. An exact match treated those
+       * stragglers as somebody else's edit and refetched a chunk we had just painted.
+       */
+      const own = this.ownChunkVersions.get(key);
+      if (own !== undefined && op.ver <= own) return;
       this.chunkInvalidationSubject.next({
         layer: op.layer,
         cx: op.cx,
@@ -178,6 +182,36 @@ export class MapEditorStoreService {
   /** Whether a chunk has ever been painted — unpainted chunks need no fetch at all. */
   chunkExists(layer: RasterLayer, cx: number, cy: number): boolean {
     return this.chunkVersion(layer, cx, cy) > 0;
+  }
+
+  /**
+   * Whether any painted chunk falls inside a level-0 coordinate range.
+   *
+   * Derived tiles have no version record of their own, so they were fetched unconditionally
+   * and answered 404 whenever nothing beneath them existed. For a layer nobody has painted
+   * — water colour usually, since the water brushes stopped tinting automatically — that is
+   * every tile, at every level, on every pan. The document already knows which chunks exist,
+   * so the request can simply not be made.
+   */
+  hasPaintedChunkIn(
+    layer: RasterLayer,
+    minCx: number,
+    minCy: number,
+    maxCx: number,
+    maxCy: number,
+  ): boolean {
+    const versions = this.data()?.chunkVersions;
+    if (!versions) return false;
+
+    const prefix = `${layer}/`;
+    for (const key of Object.keys(versions)) {
+      if (!key.startsWith(prefix)) continue;
+      const parts = key.slice(prefix.length).split('/');
+      const cx = Number(parts[0]);
+      const cy = Number(parts[1]);
+      if (cx >= minCx && cx <= maxCx && cy >= minCy && cy <= maxCy) return true;
+    }
+    return false;
   }
 
   /** Full-document save. For imports and recovery; ops cover ordinary editing. */
