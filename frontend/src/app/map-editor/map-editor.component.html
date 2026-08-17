@@ -12,6 +12,14 @@
     <span class="sep"></span>
 
     <button type="button" [class.active]="showGrid()" (click)="toggleGrid()">Hexgitter</button>
+    <button
+      type="button"
+      [class.active]="diagOn()"
+      title="Kachel-Diagnose: zeigt Ebene, Rückfall-Ebene und Streaming-Ereignisse"
+      (click)="toggleDiagnostics()"
+    >
+      Diagnose
+    </button>
     <button type="button" [disabled]="!canUndo()" (click)="undo()" title="Strg+Z">↶</button>
     <button type="button" [disabled]="!canRedo()" (click)="redo()" title="Strg+Shift+Z">↷</button>
 
@@ -135,6 +143,33 @@
           <div>
             <strong>Grafikkontext verloren.</strong>
             <p>Die Karte kann nicht mehr gezeichnet werden. Bitte die Seite neu laden.</p>
+          </div>
+        </div>
+      }
+
+      @if (diagOn()) {
+        <div class="diag-panel">
+          <div class="diag-head">
+            <strong>Streaming</strong>
+            <button type="button" (click)="resetDiagnostics()">Reset</button>
+            <button type="button" (click)="dumpDiagnostics()">Konsole</button>
+          </div>
+
+          <div class="diag-stats">
+            @for (s of diagSummary(); track s.label) {
+              <span class="diag-stat"><em>{{ s.label }}</em>{{ s.value }}</span>
+            }
+          </div>
+
+          <div class="diag-events">
+            @for (e of diagEvents(); track $index) {
+              <div class="diag-event" [class.warn]="e.kind.startsWith('fetch:err') || e.kind === 'upload:fail'">
+                <span class="diag-t">{{ e.t }}</span>
+                <span class="diag-kind">{{ e.kind }}</span>
+                <span class="diag-tile">{{ e.tile }}</span>
+                <span class="diag-detail">{{ e.detail }}</span>
+              </div>
+            }
           </div>
         </div>
       }

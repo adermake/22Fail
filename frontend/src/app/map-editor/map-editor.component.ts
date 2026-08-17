@@ -35,6 +35,7 @@ import { UndoStack, clone } from './undo-stack';
 import { GroupMeta, MapAssets, PaperTextureMeta } from './map-assets';
 import { SymbolView } from './symbol-view';
 import { CHUNK_WORLD_SIZE, MapSymbol } from './map-editor.model';
+import { DiagEvent, mapDiag } from './map-diagnostics';
 import { generateId } from '../model/lobby.model';
 import {
   BRUSH_PROFILES,
@@ -225,6 +226,54 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   /** Set when the GPU context is lost — the map is blank until the page reloads. */
   readonly contextLost = signal(false);
 
+  // ── diagnostics ──
+
+  readonly diagOn = signal(false);
+  readonly diagSummary = signal<{ label: string; value: string }[]>([]);
+  readonly diagEvents = signal<DiagEvent[]>([]);
+  private diagTimer: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * Turn the streaming instrumentation on.
+   *
+   * Off by default and inert when off: the instrumented paths are the hot ones, and a
+   * diagnostic that costs frames changes the thing it is meant to measure.
+   */
+  toggleDiagnostics(): void {
+    const on = !this.diagOn();
+    this.diagOn.set(on);
+    mapDiag.enabled = on;
+    this.terrain?.setDebug(on);
+
+    if (this.diagTimer) clearInterval(this.diagTimer);
+    this.diagTimer = null;
+
+    if (on) {
+      mapDiag.reset();
+      // Polled rather than pushed: an event-driven panel would re-render mid-stroke and
+      // add its own cost to exactly the frames under investigation.
+      this.diagTimer = setInterval(() => {
+        this.diagSummary.set(mapDiag.summary);
+        this.diagEvents.set(mapDiag.recent(26).reverse());
+      }, 400);
+    } else {
+      this.diagSummary.set([]);
+      this.diagEvents.set([]);
+    }
+    this.scheduleStream();
+  }
+
+  resetDiagnostics(): void {
+    mapDiag.reset();
+    this.diagSummary.set(mapDiag.summary);
+    this.diagEvents.set([]);
+  }
+
+  /** Print the full timeline to the console, for pasting into a bug report. */
+  dumpDiagnostics(): void {
+    mapDiag.dump();
+  }
+
   /** Rubber-band rectangle in screen space while box-selecting. */
   readonly marquee = signal<{ x: number; y: number; w: number; h: number } | null>(null);
 
@@ -404,6 +453,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subs.forEach(s => s.unsubscribe());
+    if (this.diagTimer) clearInterval(this.diagTimer);
+    mapDiag.enabled = false;
     this.resizeObserver?.disconnect();
     if (this.flushTimer) clearTimeout(this.flushTimer);
 
@@ -444,6 +495,7 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
        * nearly on screen, so an ordinary pan outran it and terrain visibly popped in. One
        * whole chunk of margin means the next row is already resident before it is needed.
        */
+      const zoom = this.renderer.camera.zoom;
       this.chunks?.update(this.renderer.camera.visibleBounds(CHUNK_WORLD_SIZE));
       // Build terrain slightly beyond the view so a cell exists before it scrolls in;
       // without the lead, the edge of a pan or zoom trails behind the camera. The level is
@@ -451,9 +503,9 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
       this.terrain?.update(
         this.renderer.camera.visibleBounds(CHUNK_WORLD_SIZE * 0.5),
         this.chunks?.detailLevel ?? 0,
+        zoom,
       );
       const view = this.renderer.camera.visibleBounds(0);
-      const zoom = this.renderer.camera.zoom;
       this.symbols?.render(view, zoom, this.isGM());
       // Dash spacing and handle size are zoom-dependent, so regions redraw on view change.
       this.regionView.render(view, zoom, this.isGM(), true);

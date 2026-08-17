@@ -36,6 +36,7 @@ import {
 import { Bounds } from './map-camera';
 import { MapEditorApiService } from '../services/map-editor-api.service';
 import { MapEditorStoreService } from '../services/map-editor-store.service';
+import { mapDiag, tileLabel } from './map-diagnostics';
 
 export interface ChunkRecord {
   layer: RasterLayer;
@@ -187,6 +188,7 @@ export class ChunkManager {
       lastSeen: this.frame,
     };
     this.chunks.set(this.recKey(layer, cx, cy, level), rec);
+    mapDiag.log('tile:create', tileLabel(layer, cx, cy, level));
 
     // Level 0 knows from the document whether anything was ever painted here; derived
     // levels have no such record, so they always ask and treat 404 as empty ocean.
@@ -225,6 +227,10 @@ export class ChunkManager {
   }
 
   private async fetchInto(rec: ChunkRecord): Promise<void> {
+    const label = tileLabel(rec.layer, rec.cx, rec.cy, rec.level);
+    const startedAt = performance.now();
+    mapDiag.log('fetch:start', label, `v${this.store.chunkVersion(rec.layer, rec.cx, rec.cy)}`);
+
     const ver = rec.level === 0 ? this.store.chunkVersion(rec.layer, rec.cx, rec.cy) : 0;
     const blob = await this.api.fetchTile(
       this.worldName,
@@ -244,6 +250,7 @@ export class ChunkManager {
      * each late response lands. Local paint always wins; the upload will publish it.
      */
     if (rec.dirty || rec.uploading) {
+      mapDiag.log('fetch:skip-dirty', label, rec.dirty ? 'painted mid-flight' : 'uploading');
       rec.loaded = true;
       this.onChunkUpdated?.(rec);
       return;
@@ -252,6 +259,7 @@ export class ChunkManager {
     if (!blob) {
       // Nothing stored: the cleared texture is already correct, but the view still needs
       // telling, since it holds cells back until every layer reports in.
+      mapDiag.log('fetch:empty', label, `${Math.round(performance.now() - startedAt)}ms`);
       rec.loaded = true;
       this.onChunkUpdated?.(rec);
       return;
@@ -284,8 +292,10 @@ export class ChunkManager {
       sprite.destroy();
       tex.destroy(true);
       rec.loaded = true;
+      mapDiag.log('fetch:done', label, `${Math.round(performance.now() - startedAt)}ms`);
       this.onChunkUpdated?.(rec);
     } catch (err) {
+      mapDiag.log('fetch:error', label, String(err));
       console.error('[ChunkManager] Failed to decode chunk', rec.layer, rec.cx, rec.cy, err);
       rec.loaded = true;
       this.onChunkUpdated?.(rec);
@@ -299,7 +309,11 @@ export class ChunkManager {
   update(bounds: Bounds): void {
     this.frame++;
 
+    const prevLevel = this.level;
     this.level = this.levelFor(bounds);
+    if (prevLevel !== this.level) {
+      mapDiag.log('level:change', '', `${prevLevel} -> ${this.level}`);
+    }
     const span = tileWorldSize(this.level);
 
     const minCx = Math.floor(bounds.minX / span);
@@ -355,6 +369,16 @@ export class ChunkManager {
    * resident regardless of which level is on screen.
    */
   private hotCells = new Map<string, number>();
+
+  /**
+   * Ancestor tiles the brush corrected directly during the current stroke.
+   *
+   * These need no server round trip: they already show the stroke. Refetching them would
+   * replace known-good pixels with a rebuild that costs the server a recursive descent
+   * through every child — which is why a single stroke made the whole map dissolve and
+   * slowly reassemble.
+   */
+  private stampedParents = new Set<string>();
 
   /** Detail level the last `update` settled on. */
   get detailLevel(): DetailLevel {
@@ -433,6 +457,7 @@ export class ChunkManager {
 
   private dispose(rec: ChunkRecord): void {
     this.chunks.delete(this.recKey(rec.layer, rec.cx, rec.cy, rec.level));
+    mapDiag.log('tile:evict', tileLabel(rec.layer, rec.cx, rec.cy, rec.level));
     this.onChunkDisposed?.(rec.layer, rec.cx, rec.cy, rec.level);
     rec.destroyed = true;
     rec.texture.destroy(true);
@@ -478,6 +503,7 @@ export class ChunkManager {
         rec.dirty = true;
         touched.push(rec);
         this.hotCells.set(`${cx}/${cy}`, this.frame);
+        mapDiag.log('paint:chunk', tileLabel(layer, cx, cy, 0));
 
         /*
          * Mirror the stroke into any resident ancestor.
@@ -493,8 +519,14 @@ export class ChunkManager {
         for (let level = 1; level <= MAX_TILE_LEVEL; level++) {
           px = Math.floor(px / 2);
           py = Math.floor(py / 2);
-          const parent = this.chunks.get(this.recKey(layer, px, py, level));
-          if (parent && this.isUsable(parent)) this.stamp(parent);
+          const pKey = this.recKey(layer, px, py, level);
+          const parent = this.chunks.get(pKey);
+          if (parent && this.isUsable(parent)) {
+            this.stamp(parent);
+            // Already correct locally — it must not be refetched after the flush.
+            this.stampedParents.add(pKey);
+            mapDiag.log('paint:parent', tileLabel(layer, px, py, level));
+          }
         }
 
       }
@@ -686,14 +718,34 @@ export class ChunkManager {
      */
     const seen = new Set<string>();
     for (const rec of dirty) {
-      const key = `${rec.layer}/${rec.cx}/${rec.cy}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      this.refreshParents(rec.layer, rec.cx, rec.cy);
+      let px = rec.cx;
+      let py = rec.cy;
+      for (let level = 1; level <= MAX_TILE_LEVEL; level++) {
+        px = Math.floor(px / 2);
+        py = Math.floor(py / 2);
+
+        const key = this.recKey(rec.layer, px, py, level);
+        // Dedupe by *tile*, not by chunk: many chunks share one ancestor, and asking for
+        // the same rebuild a dozen times over is pure cost — concurrent rebuilds of one
+        // file, on top of a descent through all of its children.
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        // Skip anything the brush already fixed in place.
+        if (this.stampedParents.has(key)) continue;
+
+        const tile = this.chunks.get(key);
+        if (tile && this.isUsable(tile) && !tile.dirty && !tile.uploading) {
+          void this.fetchInto(tile);
+        }
+      }
     }
+    this.stampedParents.clear();
   }
 
   private async uploadChunk(rec: ChunkRecord): Promise<void> {
+    const label = tileLabel(rec.layer, rec.cx, rec.cy, rec.level);
+    mapDiag.log('upload:start', label);
     rec.uploading = true;
     // Cleared before the upload: a stroke landing mid-flight must re-dirty the chunk,
     // otherwise the newer paint would never be saved.
@@ -717,8 +769,10 @@ export class ChunkManager {
         rec.dirty = true; // upload failed — try again on the next flush
         return;
       }
+      mapDiag.log('upload:done', label, `v${ver}`);
       this.store.announceChunk(rec.layer, rec.cx, rec.cy, ver);
     } catch (err) {
+      mapDiag.log('upload:fail', label, String(err));
       console.error('[ChunkManager] Chunk flush failed', rec.layer, rec.cx, rec.cy, err);
       rec.dirty = true;
     } finally {

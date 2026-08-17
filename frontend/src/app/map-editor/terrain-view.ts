@@ -11,10 +11,11 @@
  * produces Wonderdraft's drippy look; nothing outside that function needs to change.
  */
 
-import { Container, Geometry, GlProgram, Mesh, Shader, Texture, UniformGroup } from 'pixi.js';
+import { Container, Geometry, GlProgram, Graphics, Mesh, Shader, Text, Texture, UniformGroup } from 'pixi.js';
 import { MAX_TILE_LEVEL, RasterLayer, tileWorldSize } from './map-editor.model';
 import { Bounds } from './map-camera';
 import { ChunkManager } from './chunk-manager';
+import { mapDiag, tileLabel } from './map-diagnostics';
 
 const vertex = /* glsl */ `
 in vec2 aPosition;
@@ -241,6 +242,12 @@ interface Cell {
 export class TerrainView {
   /** Parent this in the camera-transformed world container. */
   readonly container = new Container();
+  /** Debug overlay: tile bounds and which level each cell is actually drawing from. */
+  private debugLayer = new Container();
+  private debugGraphics = new Graphics();
+  private debugLabels: Text[] = [];
+  debug = false;
+
   private cells = new Map<string, Cell>();
   private geometry = quad();
 
@@ -257,6 +264,10 @@ export class TerrainView {
   private coast: CoastSettings = defaultCoast();
 
   constructor(private chunks: ChunkManager) {
+    this.debugLayer.addChild(this.debugGraphics);
+    this.container.addChild(this.debugLayer);
+    this.debugLayer.visible = false;
+
     // A refetched or restored chunk keeps its RenderTexture identity, so the mesh already
     // points at the right pixels — but an evicted one does not, hence the drop below.
     /*
@@ -420,6 +431,12 @@ export class TerrainView {
 
     this.container.addChild(mesh);
     this.cells.set(this.key(cx, cy, level), cell);
+
+    mapDiag.log(
+      src.level === level ? 'cell:build' : 'cell:fallback',
+      tileLabel('terrain', cx, cy, level),
+      src.level === level ? '' : `drawing from L${src.level} ${src.cx},${src.cy}`,
+    );
     return cell;
   }
 
@@ -442,6 +459,7 @@ export class TerrainView {
 
   /** Forget a cell whose chunk textures were evicted; its shader now points at nothing. */
   private drop(cx: number, cy: number, level: number): void {
+    mapDiag.log('cell:drop', tileLabel('terrain', cx, cy, level));
     const key = this.key(cx, cy, level);
     const cell = this.cells.get(key);
     if (!cell) return;
@@ -457,7 +475,7 @@ export class TerrainView {
    * is what made a wide zoom crawl. Past the cap only the cells nearest the middle of the
    * screen are drawn, which is where the eye is, and the ocean backdrop covers the rest.
    */
-  update(bounds: Bounds, level = 0): void {
+  update(bounds: Bounds, level = 0, zoom = 1): void {
     const span = tileWorldSize(level);
     const minCx = Math.floor(bounds.minX / span);
     const maxCx = Math.floor(bounds.maxX / span);
@@ -533,12 +551,69 @@ export class TerrainView {
       this.destroyCell(cell);
       this.cells.delete(key);
     }
+
+    if (this.debug) this.drawDebug(zoom);
+  }
+
+  /**
+   * Outline every live cell and label what it is drawing from.
+   *
+   * Green means the cell has its own level's pixels; amber means it is borrowing a coarser
+   * ancestor. Seeing that directly is the difference between "a square looked wrong" and
+   * "that tile is still on a level-4 fallback after nine seconds" — the second is a bug
+   * report, the first is a guess.
+   */
+  private drawDebug(zoom: number): void {
+    const g = this.debugGraphics;
+    g.clear();
+
+    let i = 0;
+    for (const cell of this.cells.values()) {
+      const span = tileWorldSize(cell.level);
+      const x = cell.cx * span;
+      const y = cell.cy * span;
+      const fallback = cell.sourceLevel !== cell.level;
+
+      g.rect(x, y, span, span);
+      g.stroke({ width: 2 / zoom, color: fallback ? 0xffb020 : 0x40d060, alpha: 0.9 });
+
+      const label = this.debugLabels[i] ?? this.makeLabel();
+      this.debugLabels[i] = label;
+      label.text = fallback
+        ? `L${cell.level}←${cell.sourceLevel}  ${cell.cx},${cell.cy}`
+        : `L${cell.level}  ${cell.cx},${cell.cy}`;
+      label.style.fill = fallback ? '#ffb020' : '#40d060';
+      label.position.set(x + 8 / zoom, y + 8 / zoom);
+      // Text is authored at a fixed size, so undo the camera to keep it readable.
+      label.scale.set(1 / zoom);
+      label.visible = true;
+      i++;
+    }
+
+    for (let k = i; k < this.debugLabels.length; k++) this.debugLabels[k].visible = false;
+  }
+
+  private makeLabel(): Text {
+    const t = new Text({ text: '', style: { fontFamily: 'monospace', fontSize: 16, fill: '#fff' } });
+    this.debugLayer.addChild(t);
+    return t;
+  }
+
+  setDebug(on: boolean): void {
+    this.debug = on;
+    this.debugLayer.visible = on;
+    if (!on) {
+      this.debugGraphics.clear();
+      for (const l of this.debugLabels) l.visible = false;
+    }
   }
 
   destroy(): void {
     for (const cell of this.cells.values()) this.destroyCell(cell);
     this.cells.clear();
 
+    for (const l of this.debugLabels) l.destroy();
+    this.debugLabels = [];
     this.geometry.destroy();
     this.container.destroy();
   }

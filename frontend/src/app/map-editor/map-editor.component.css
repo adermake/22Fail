@@ -539,3 +539,100 @@
   opacity: 0.9;
   pointer-events: none;
 }
+
+/* ── streaming diagnostics ── */
+
+.diag-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 430px;
+  max-height: 72vh;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(14, 14, 18, 0.92);
+  border: 1px solid #3a3a46;
+  font-size: 11px;
+  font-family: monospace;
+  /* Clicks belong to the map underneath; only the buttons take input. */
+  pointer-events: none;
+}
+
+.diag-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.diag-head strong {
+  flex: 1;
+  font-family: inherit;
+}
+
+.diag-head button {
+  background: #2a2a33;
+  color: #e6e6ea;
+  border: 1px solid #3a3a46;
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.diag-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px 10px;
+}
+
+.diag-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.diag-stat em {
+  font-style: normal;
+  opacity: 0.5;
+}
+
+.diag-events {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid #2e2e37;
+  padding-top: 4px;
+  pointer-events: auto;
+}
+
+.diag-event {
+  display: grid;
+  grid-template-columns: 46px 96px 1fr;
+  gap: 6px;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.diag-event.warn {
+  color: #ff8f8f;
+  opacity: 1;
+}
+
+.diag-t {
+  text-align: right;
+  opacity: 0.45;
+}
+
+.diag-kind {
+  color: #8fd0ff;
+}
+
+.diag-detail {
+  opacity: 0.55;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
