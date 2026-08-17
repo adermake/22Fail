@@ -107,7 +107,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Kämpfer',
     type: 'talent_bonus',
     description: 'Athletik+1',
-    talentBonus: { talent: 'athletik', amount: -1 },
+    talentBonus: { talent: 'athletik', amount: 1 },
   },
 
   // ==================== TECHNIKER ====================
@@ -141,7 +141,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Techniker',
     type: 'talent_bonus',
     description: 'Akrobatik+1',
-    talentBonus: { talent: 'akrobatik', amount: -1 },
+    talentBonus: { talent: 'akrobatik', amount: 1 },
   },
   {
     id: 'techniker_leichte_waffen_werfen',
@@ -312,7 +312,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Dieb',
     type: 'talent_bonus',
     description: 'Fingerfertigkeit+2',
-    talentBonus: { talent: 'fingerfertigkeit', amount: -2 },
+    talentBonus: { talent: 'fingerfertigkeit', amount: 2 },
   },
   {
     id: 'dieb_verstecken_talent_2',
@@ -320,7 +320,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Dieb',
     type: 'talent_bonus',
     description: 'Verstecken+2',
-    talentBonus: { talent: 'verstecken', amount: -2 },
+    talentBonus: { talent: 'verstecken', amount: 2 },
   },
   {
     id: 'dieb_feinmotoriker',
@@ -430,7 +430,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
   class: 'Kampfzauberer',
   type: 'talent_bonus',
   description: 'Runenkunde+2',
-  talentBonus: { talent: 'runenkunde', amount: -2 },
+  talentBonus: { talent: 'runenkunde', amount: 2 },
 },
   {
     id: 'kampfzauberer_zauberladung',
@@ -490,7 +490,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Heilkunde',
     type: 'talent_bonus',
     description: 'Heilkunde+2',
-    talentBonus: { talent: 'heilkunde', amount: -2 },
+    talentBonus: { talent: 'heilkunde', amount: 2 },
   },
   {
     id: 'heiler_notarzt',
@@ -549,7 +549,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Ritter',
     type: 'talent_bonus',
     description: 'Mit Tieren umgehen+3',
-    talentBonus: { talent: 'tiere', amount: -3 },
+    talentBonus: { talent: 'tiere', amount: 3 },
   },
   {
     id: 'ritter_parieren',
@@ -741,7 +741,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Plünderer',
     type: 'talent_bonus',
     description: 'Überleben+3',
-    talentBonus: { talent: 'ueberleben', amount: -3 },
+    talentBonus: { talent: 'ueberleben', amount: 3 },
   },
   {
     id: 'pluenderer_horter',
@@ -806,7 +806,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Kampfakrobat',
     type: 'talent_bonus',
     description: 'Akrobatik+3',
-    talentBonus: { talent: 'akrobatik', amount: -3 },
+    talentBonus: { talent: 'akrobatik', amount: 3 },
   },
   {
     id: 'kampfakrobat_bonusaktion',
@@ -873,7 +873,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Jäger',
     type: 'talent_bonus',
     description: 'Naturwissen+3',
-    talentBonus: { talent: 'naturwissen', amount: -3 },
+    talentBonus: { talent: 'naturwissen', amount: 3 },
   },
   {
     id: 'jaeger_wahrnehmung_3',
@@ -881,7 +881,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Jäger',
     type: 'talent_bonus',
     description: 'Wahrnehmung+3',
-    talentBonus: { talent: 'wahrnehmung', amount: -3 },
+    talentBonus: { talent: 'wahrnehmung', amount: 3 },
   },
   {
     id: 'jaeger_basteln',
@@ -1316,7 +1316,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'General',
     type: 'talent_bonus',
     description: 'Überzeugen+4',
-    talentBonus: { talent: 'ueberzeugen', amount: -4 },
+    talentBonus: { talent: 'ueberzeugen', amount: 4 },
   },
   {
     id: 'general_meisterstratege',
@@ -1452,7 +1452,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Assassine',
     type: 'talent_bonus',
     description: 'Täuschen+4',
-    talentBonus: { talent: 'taeuschen', amount: -4 },
+    talentBonus: { talent: 'taeuschen', amount: 4 },
   },
   {
     id: 'assassine_gnadenstoss',
@@ -1697,7 +1697,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Mentalist',
     type: 'talent_bonus',
     description: 'Durchschauen+4',
-    talentBonus: { talent: 'durchschauen', amount: -4 },
+    talentBonus: { talent: 'durchschauen', amount: 4 },
   },
   {
     id: 'mentalist_traumcaster',
@@ -1958,7 +1958,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Koloss',
     type: 'talent_bonus',
     description: 'Athletik+5',
-    talentBonus: { talent: 'athletik', amount: -5 },
+    talentBonus: { talent: 'athletik', amount: 5 },
   },
   {
     id: 'koloss_weg_des_eroberers',
@@ -2308,7 +2308,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Attentäter',
     type: 'talent_bonus',
     description: 'Verstecken+5',
-    talentBonus: { talent: 'verstecken', amount: -5 },
+    talentBonus: { talent: 'verstecken', amount: 5 },
   },
   {
     id: 'attentaeter_schattenlaeufer',
@@ -2369,7 +2369,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Tüftler',
     type: 'talent_bonus',
     description: 'Fingerfertigkeit+5',
-    talentBonus: { talent: 'fingerfertigkeit', amount: -5 },
+    talentBonus: { talent: 'fingerfertigkeit', amount: 5 },
   },
   {
     id: 'tueftler_mechaniker',
@@ -2505,7 +2505,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     class: 'Nekromant',
     type: 'talent_bonus',
     description: 'Geschichte+5',
-    talentBonus: { talent: 'geschichte', amount: -5 },
+    talentBonus: { talent: 'geschichte', amount: 5 },
   },
   {
     id: 'nekromant_totenbeschworer',
