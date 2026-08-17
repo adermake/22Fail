@@ -50,7 +50,7 @@ Reaktion: 5 - Grundbonus
 :::grid{min=300}
 :::card{title="Stärke" icon=attack accent=health}
 :::formula
-Würfelbonus: Stärke / 5
+Würfelbonus: (Stärke - 10) / 4
 Inventarkapazität: 50 + Stärke×2 + Konstitution×3
 :::
 Viele Waffen setzen einen bestimmten Stärkewert voraus.
@@ -61,7 +61,7 @@ Der Würfelbonus hilft bei allen Aktionen, die Stärke voraussetzen.
 :::formula
 Leben: Basis + 5 × Konstitution
 Inventarkapazität: 50 + Stärke×2 + Konstitution×3
-Würfelbonus: Konstitution / 5
+Würfelbonus: (Konstitution - 10) / 4
 :::
 Der Würfelbonus hilft bei allen Aktionen, die Konstitution voraussetzen.
 :::
@@ -69,7 +69,7 @@ Der Würfelbonus hilft bei allen Aktionen, die Konstitution voraussetzen.
 :::card{title="Geschicklichkeit" icon=energy accent=energy}
 :::formula
 Ausdauer: Basis + 5 × Geschicklichkeit
-Würfelbonus: Geschicklichkeit / 5
+Würfelbonus: (Geschicklichkeit - 10) / 4
 :::
 Viele Waffen setzen eine bestimmte Geschicklichkeit voraus.
 Der Würfelbonus hilft bei allen Aktionen, die Geschicklichkeit voraussetzen.
@@ -79,7 +79,7 @@ Der Würfelbonus hilft bei allen Aktionen, die Geschicklichkeit voraussetzen.
 :::formula
 Mana: 50 + 5 × Intelligenz
 Fokus: 5 + Intelligenz / 2
-Würfelbonus: Intelligenz / 5
+Würfelbonus: (Intelligenz - 10) / 4
 :::
 Viele magische Waffen und Zauber setzen Intelligenz voraus.
 Der Würfelbonus hilft bei allen Aktionen, die Intelligenz voraussetzen.
@@ -88,7 +88,7 @@ Der Würfelbonus hilft bei allen Aktionen, die Intelligenz voraussetzen.
 :::card{title="Geschwindigkeit" icon=movement accent=energy}
 :::formula
 Bewegung: 8 + Geschwindigkeit / 4
-Würfelbonus: Geschwindigkeit / 5
+Würfelbonus: (Geschwindigkeit - 10) / 4
 :::
 Geschwindigkeit erhöht die Anzahl der Züge im Kampf.
 Der Würfelbonus hilft bei allen Aktionen, die Geschwindigkeit voraussetzen.
@@ -98,7 +98,7 @@ Der Würfelbonus hilft bei allen Aktionen, die Geschwindigkeit voraussetzen.
 :::formula
 Grundbonus: Level/8 + Wille/8
 Reaktion: 5 - Grundbonus
-Würfelbonus: Wille / 5
+Würfelbonus: (Wille - 10) / 4
 :::
 Der Würfelbonus hilft bei allen Aktionen, die Wille voraussetzen.
 :::

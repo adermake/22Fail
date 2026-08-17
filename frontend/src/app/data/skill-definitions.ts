@@ -2083,7 +2083,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Fluchrüstung',
     class: 'Omen',
     type: 'active',
-    description: 'Übernimmt alle negativen Effekte aller Personen im Umkreis von 10m. Erhält Rüstung mit Stabilität abhängig von der Anzahl und Stärke der absorbierten Effekte für 3 Runden',
+    description: 'Übernimmt alle gewählten negative Effekte aller Personen im Umkreis von 10m. Erhält Rüstung mit Stabilität abhängig von der Anzahl und Stärke der absorbierten Effekte für 3 Runden',
     cost: { type: 'energy', amount: 20 },
     actionType: 'Aktion'
   },
