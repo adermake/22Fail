@@ -87,9 +87,9 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   /** Same 2×3 arrangement as the character sheet: STR/KON/SPD then GES/INT/WIL. */
   readonly statGrid: NpcStatKey[] = ['strength', 'constitution', 'speed', 'dexterity', 'intelligence', 'wille'];
 
-  /** Roll bonus for a stat = ⌊(stat − 10) / 4⌋ (same as players), using the effective value. */
+  /** Würfelmodifikator = ⌊(10 − stat) / 4⌋ (same as players: negative helps, positive hurts). */
   rollBonus(k: NpcStatKey): number {
-    return Math.trunc((this.effective[k] - 10) / 4);
+    return Math.trunc((10 - this.effective[k]) / 4);
   }
 
   readonly skillClasses = Object.keys(CLASS_DEFINITIONS).sort(

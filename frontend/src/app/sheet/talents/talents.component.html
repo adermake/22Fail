@@ -31,6 +31,7 @@
     <div class="talent-table">
       <div class="talent-table-head">
         <span class="col-name">Talent</span>
+        <span class="col-effect">Effekt</span>
         <span class="col-stat">Stat</span>
         <span class="col-mod">Mod</span>
         <span class="col-ranks">Punkte</span>
@@ -40,8 +41,20 @@
       @for (talent of talents; track talent.id) {
         <div class="talent-row" [title]="talent.description">
           <span class="col-name talent-name">{{ talent.name }}</span>
+          <!-- Aggregate of every effect touching this talent (Fähigkeiten, Statuseffekte …) -->
+          <span class="col-effect"
+                [class.dice-good]="getEffectDice(talent) < 0"
+                [class.dice-bad]="getEffectDice(talent) > 0"
+                [class.dice-zero]="getEffectDice(talent) === 0"
+                [class.has-effect]="getEffectDice(talent) !== 0"
+                [title]="getEffectTooltip(talent)">
+            {{ getEffectDice(talent) > 0 ? '+' : '' }}{{ getEffectDice(talent) }}
+          </span>
           <span class="col-stat stat-label">{{ talent.statLabel }}</span>
-          <span class="col-mod" [class.dice-bonus]="getStatModDisplay(talent) < 0" [class.dice-penalty]="getStatModDisplay(talent) > 0">
+          <span class="col-mod"
+                [class.dice-good]="getStatModDisplay(talent) < 0"
+                [class.dice-bad]="getStatModDisplay(talent) > 0"
+                [class.dice-zero]="getStatModDisplay(talent) === 0">
             {{ getStatModDisplay(talent) > 0 ? '+' : '' }}{{ getStatModDisplay(talent) }}
           </span>
           <span class="col-ranks">
@@ -51,23 +64,13 @@
               <button class="rank-btn plus" (click)="incrementRank(talent.id)" [disabled]="!canIncrement(talent.id)">+</button>
             </div>
           </span>
-          <span class="col-total" [class.dice-bonus]="getTotalDiceBonus(talent) < 0" [class.dice-neutral]="getTotalDiceBonus(talent) === 0" [class.dice-penalty]="getTotalDiceBonus(talent) > 0">
+          <span class="col-total"
+                [class.dice-good]="getTotalDiceBonus(talent) < 0"
+                [class.dice-bad]="getTotalDiceBonus(talent) > 0"
+                [class.dice-zero]="getTotalDiceBonus(talent) === 0">
             {{ getTotalDiceBonus(talent) > 0 ? '+' : '' }}{{ getTotalDiceBonus(talent) }}
           </span>
         </div>
-        @if (getSkillTalentBonus(talent.id) !== 0) {
-          <div class="talent-row talent-row-skill-bonus" [title]="getSkillTalentBonusTooltip(talent.id)">
-            <span class="col-name talent-name skill-bonus-label">Fähigkeiten</span>
-            <span class="col-stat"></span>
-            <span class="col-mod"></span>
-            <span class="col-ranks skill-bonus-value">{{ skillTalentPoints(talent.id) }}</span>
-            <span class="col-total"
-                  [class.dice-bonus]="skillTalentDice(talent.id) < 0"
-                  [class.dice-penalty]="skillTalentDice(talent.id) > 0">
-              {{ skillTalentDice(talent.id) > 0 ? '+' : '' }}{{ skillTalentDice(talent.id) }}
-            </span>
-          </div>
-        }
       }
     </div>
 
@@ -98,10 +101,13 @@
             <span class="rank-value">{{ entry.rank || 0 }}</span>
             <button class="rank-btn plus" (click)="incrementHerstellenRank(entry.id)" [disabled]="!canIncrementHerstellen(entry)">+</button>
           </div>
-          <span class="col-total" [class.dice-bonus]="getHerstellenDiceBonus(entry) < 0" [class.dice-neutral]="getHerstellenDiceBonus(entry) === 0">
+          <span class="col-total"
+                [class.dice-good]="getHerstellenDiceBonus(entry) < 0"
+                [class.dice-bad]="getHerstellenDiceBonus(entry) > 0"
+                [class.dice-zero]="getHerstellenDiceBonus(entry) === 0">
             {{ getHerstellenDiceBonus(entry) > 0 ? '+' : '' }}{{ getHerstellenDiceBonus(entry) }}
           </span>
-          <button class="remove-herstellen-btn" (click)="removeHerstellen(entry.id)" title="Entfernen">✕</button>
+          <button class="remove-herstellen-btn" (click)="removeHerstellen(entry.id)" title="Entfernen">&times;</button>
         </div>
       }
     </div>

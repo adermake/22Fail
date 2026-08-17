@@ -51,8 +51,11 @@
               <div class="npc-soul-cell">
                 <div class="npc-soul-cell-head">
                   <span class="npc-soul-label">{{ statMeta[k].label }}</span>
-                  <span class="npc-soul-bonus" title="Würfelbonus (1d20 {{ rollBonus(k) >= 0 ? '+' : '' }}{{ rollBonus(k) }})">
-                    {{ rollBonus(k) >= 0 ? '+' : '' }}{{ rollBonus(k) }}
+                  <span class="npc-soul-bonus"
+                        [class.dice-good]="rollBonus(k) < 0" [class.dice-bad]="rollBonus(k) > 0"
+                        [class.dice-zero]="rollBonus(k) === 0"
+                        title="Würfelmodifikator (1d20 {{ rollBonus(k) > 0 ? '+' : '' }}{{ rollBonus(k) }}) — negativ ist gut">
+                    {{ rollBonus(k) > 0 ? '+' : '' }}{{ rollBonus(k) }}
                   </span>
                 </div>
                 <div class="npc-soul-ctrl">

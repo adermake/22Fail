@@ -389,6 +389,23 @@ export class TrueStatsService {
     return total;
   }
 
+  /** Per-source breakdown of the status effects modifying a talent (for tooltips). */
+  getStatusTalentBonusSources(sheet: CharacterSheet, talentId: string): { name: string; amount: number }[] {
+    const sources: { name: string; amount: number }[] = [];
+    for (const active of sheet.activeStatusEffects || []) {
+      const effect = this.resolveStatusEffect(active.statusEffectId, active.customEffect);
+      if (!effect?.talentModifiers) continue;
+      for (const mod of effect.talentModifiers) {
+        if (mod.talentId !== talentId) continue;
+        sources.push({
+          name: active.customName ?? effect.name ?? active.statusEffectId,
+          amount: mod.amount * (active.stacks || 1),
+        });
+      }
+    }
+    return sources;
+  }
+
   private resolveStatusEffect(statusEffectId: string, customEffect?: StatusEffect): StatusEffect | undefined {
     if (customEffect) return customEffect;
     for (const lib of this.libraryStore.allLibraries) {

@@ -1190,7 +1190,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
     const mk = (label: string, raw: number) => {
       const growth = raw / npcLevel;
       const value = Math.max(1, Math.round(growth * L));
-      return { label, value, mod: Math.trunc((value - 10) / 4), growth: Math.round(growth * 100) / 100 };
+      // Dice convention: negative modifier helps the roll, positive hurts it.
+      return { label, value, mod: Math.trunc((10 - value) / 4), growth: Math.round(growth * 100) / 100 };
     };
     return [
       mk('STR', sb.strength), mk('KON', sb.constitution), mk('SPD', sb.speed),

@@ -71,29 +71,33 @@ export class TalentsComponent {
     return computeSkillTalentBonusBreakdown(this.sheet).get(talentId as any)?.total ?? 0;
   }
 
-  /**
-   * Punkte column for the "Fähigkeiten" row: virtual ranks granted by skills, shown as a plain
-   * count. Ranks are never negative in that column, so it carries no sign (a hardcoded '+' in
-   * front of a negative value used to render as "+-1").
-   */
-  skillTalentPoints(talentId: string): number {
-    return Math.abs(this.getSkillTalentBonus(talentId));
-  }
-
-  /** Würfel column for that row: those ranks as a dice modifier (negative = helpful). */
-  skillTalentDice(talentId: string): number {
-    return -this.getSkillTalentBonus(talentId);
-  }
-
   /** Bonus from active status effects targeting this talent. */
   getStatusTalentBonus(talentId: string): number {
     return this.trueStats.getStatusTalentBonus(this.sheet, talentId);
   }
 
-  getSkillTalentBonusTooltip(talentId: string): string {
-    const breakdown = computeSkillTalentBonusBreakdown(this.sheet).get(talentId as any);
-    if (!breakdown?.sources.length) return '';
-    return breakdown.sources.map(s => `${s.skillName}: +${s.amount}`).join('\n');
+  /**
+   * EFFEKT column: everything that modifies this talent besides the stat and the invested points —
+   * Fähigkeiten (talent_bonus), Statuseffekte, … — aggregated in the dice convention
+   * (negative = helps the roll). Hovering the cell lists every contributing source.
+   */
+  getEffectDice(talent: TalentDefinition): number {
+    return -(this.getSkillTalentBonus(talent.id) + this.getStatusTalentBonus(talent.id));
+  }
+
+  /** Tooltip for the EFFEKT column: one line per source, each in the dice convention. */
+  getEffectTooltip(talent: TalentDefinition): string {
+    const lines: string[] = [];
+    const fmt = (n: number) => (n > 0 ? '+' : '') + n;
+    for (const s of computeSkillTalentBonusBreakdown(this.sheet).get(talent.id as any)?.sources ?? []) {
+      lines.push(`${s.skillName} (Fähigkeit): ${fmt(-s.amount)}`);
+    }
+    for (const s of this.trueStats.getStatusTalentBonusSources(this.sheet, talent.id)) {
+      lines.push(`${s.name} (Statuseffekt): ${fmt(-s.amount)}`);
+    }
+    if (!lines.length) return 'Keine Effekte auf ' + talent.name;
+    lines.push('─────', `Gesamt: ${fmt(this.getEffectDice(talent))}`);
+    return lines.join('\n');
   }
 
   /** Würfelbonus including invested ranks, skill bonuses and status effects. Negative = helpful. */

@@ -51,7 +51,11 @@
                   <div class="soul-stat">
                     <b>{{ statLabels[k] }}</b>
                     <span class="soul-stat-v">{{ soulStat(soul, k) }}</span>
-                    <span class="soul-stat-m">{{ soulMod(soul, k) >= 0 ? '+' : '' }}{{ soulMod(soul, k) }}</span>
+                    <span class="soul-stat-m"
+                          [class.dice-good]="soulMod(soul, k) < 0" [class.dice-bad]="soulMod(soul, k) > 0"
+                          [class.dice-zero]="soulMod(soul, k) === 0">
+                      {{ soulMod(soul, k) > 0 ? '+' : '' }}{{ soulMod(soul, k) }}
+                    </span>
                   </div>
                 }
               </div>

@@ -376,7 +376,10 @@
             <div class="sx-stat">
               <b>{{ s.label }}</b>
               <span class="sx-stat-v">{{ s.value }}</span>
-              <span class="sx-stat-m">{{ s.mod >= 0 ? '+' : '' }}{{ s.mod }}</span>
+              <span class="sx-stat-m"
+                    [class.dice-good]="s.mod < 0" [class.dice-bad]="s.mod > 0" [class.dice-zero]="s.mod === 0">
+                {{ s.mod > 0 ? '+' : '' }}{{ s.mod }}
+              </span>
               <span class="sx-stat-g">{{ s.growth }}/Lv</span>
             </div>
           }

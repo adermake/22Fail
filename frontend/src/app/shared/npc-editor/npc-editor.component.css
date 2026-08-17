@@ -85,7 +85,7 @@
 .npc-soul-cell { display: flex; flex-direction: column; gap: 4px; padding: 6px 7px; background: var(--bg, #1e293b); border-radius: 7px; }
 .npc-soul-cell-head { display: flex; align-items: baseline; justify-content: space-between; gap: 5px; }
 .npc-soul-cell .npc-soul-label { font-size: 0.72rem; }
-.npc-soul-bonus { font-size: 0.74rem; font-weight: 700; color: #34d399; }
+.npc-soul-bonus { font-size: 0.74rem; font-weight: 700; } /* color via global .dice-good/.dice-bad */
 .npc-soul-cell .npc-soul-ctrl { justify-content: space-between; }
 .npc-soul-input { width: 46px; text-align: center; padding: 4px 4px; background: var(--card, #2d3748); border: 1px solid var(--border, #4a5568); border-radius: 5px; color: var(--text, #e5e7eb); font-weight: 700; font-size: 0.85rem; }
 .npc-soul-input:focus { outline: none; border-color: var(--accent, #8b5cf6); }

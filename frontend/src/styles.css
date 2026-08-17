@@ -225,3 +225,10 @@ label {
 .i-focus         { -webkit-mask-image: url('/icons/focus.svg');             mask-image: url('/icons/focus.svg'); }
 .i-soul          { -webkit-mask-image: url('/icons/soul.svg');              mask-image: url('/icons/soul.svg'); }
 .i-turnspeed     { -webkit-mask-image: url('/icons/turnspeed.svg');         mask-image: url('/icons/turnspeed.svg'); }
+
+/* ── Dice modifier convention (lower is better) ──
+   Every displayed d20 modifier follows one rule: a NEGATIVE value helps the roll (green),
+   a POSITIVE value hurts it (red). Use these classes wherever a modifier is rendered. */
+.dice-good { color: #4ade80; }
+.dice-bad  { color: #f87171; }
+.dice-zero { color: var(--text-muted, #9ca3af); }

@@ -807,7 +807,7 @@
 .sx-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 2px; background: #1a2130; border-radius: 6px; }
 .sx-stat b { font-size: 0.6rem; color: #9ca3af; font-weight: 700; }
 .sx-stat-v { font-size: 1rem; font-weight: 800; color: #f1f5f9; }
-.sx-stat-m { font-size: 0.68rem; font-weight: 700; color: #34d399; }
+.sx-stat-m { font-size: 0.68rem; font-weight: 700; } /* color via global .dice-good/.dice-bad */
 .sx-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .sx-cancel { padding: 8px 16px; background: transparent; border: 1px solid #4a5568; border-radius: 6px; color: #9ca3af; cursor: pointer; }
 .sx-confirm { padding: 8px 20px; background: #8b5cf6; border: none; border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer; }

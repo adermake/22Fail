@@ -64,8 +64,9 @@ export class CompanionsComponent {
     return (sb as any)[k] ?? 0;
   }
 
+  /** Würfelmodifikator, same convention as the player stat card: negative helps, positive hurts. */
   companionMod(c: CompanionBlock, k: NpcStatKey): number {
-    return Math.trunc((this.companionStat(c, k) - 10) / 4);
+    return Math.trunc((10 - this.companionStat(c, k)) / 4);
   }
 
   companionPortrait(c: CompanionBlock): string {

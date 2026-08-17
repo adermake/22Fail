@@ -45,8 +45,9 @@ export class WissenComponent implements OnInit {
   };
   /** Sheet's 3×2 order: STR/KON/SPD then GES/INT/WIL. */
   readonly statGrid: NpcStatKey[] = ['strength', 'constitution', 'speed', 'dexterity', 'intelligence', 'wille'];
+  /** Würfelmodifikator, same convention as the player stat card: negative helps, positive hurts. */
   soulMod(soul: SoulBlock, k: NpcStatKey): number {
-    return Math.trunc((this.soulStat(soul, k) - 10) / 4);
+    return Math.trunc((10 - this.soulStat(soul, k)) / 4);
   }
 
   async ngOnInit(): Promise<void> {

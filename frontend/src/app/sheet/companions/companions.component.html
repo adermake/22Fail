@@ -2,7 +2,9 @@
 
   <!-- ── Toolbar: create a Begleiter, free-form or from a captured soul ── -->
   <div class="comp-toolbar">
-    <button class="comp-add" (click)="addBlank()">&#x271A; Eigener Begleiter</button>
+    <button class="comp-add" (click)="addBlank()">
+      <span class="app-icon i-character"></span> Eigener Begleiter
+    </button>
 
     <div class="comp-soul-add">
       <select class="comp-soul-select" [(ngModel)]="soulPick" [disabled]="!souls.length">
@@ -12,7 +14,7 @@
         }
       </select>
       <button class="comp-add comp-add-soul" [disabled]="!soulPick" (click)="addFromSoul()">
-        <img class="comp-soul-ico" src="/icons/soul.svg" alt=""> Aus Seele
+        <span class="app-icon i-soul"></span> Aus Seele
       </button>
     </div>
 
@@ -22,7 +24,7 @@
   <!-- ── List ── -->
   @if (!companions.length) {
     <div class="comp-empty">
-      <span class="comp-empty-icon">&#x1F43E;</span>
+      <span class="app-icon i-character comp-empty-icon"></span>
       <p>Noch keine Begleiter.</p>
       <p class="comp-empty-hint">
         Lege Beschwörungen, Vertraute und dauerhafte Begleiter hier ab — sie stehen in der Lobby
@@ -61,22 +63,26 @@
               <div class="comp-stat">
                 <b>{{ statLabels[k] }}</b>
                 <span class="comp-stat-v">{{ companionStat(c, k) }}</span>
-                <span class="comp-stat-m">{{ companionMod(c, k) >= 0 ? '+' : '' }}{{ companionMod(c, k) }}</span>
+                <span class="comp-stat-m"
+                      [class.dice-good]="companionMod(c, k) < 0" [class.dice-bad]="companionMod(c, k) > 0"
+                      [class.dice-zero]="companionMod(c, k) === 0">
+                  {{ companionMod(c, k) > 0 ? '+' : '' }}{{ companionMod(c, k) }}
+                </span>
               </div>
             }
           </div>
 
           <div class="comp-meta">
-            <span>&#x2665; {{ c.statblock.maxHealth }}</span>
-            <span>&#x25C6; {{ c.statblock.maxMana }}</span>
-            <span>&#x26A1; {{ c.statblock.maxEnergy }}</span>
-            @if (skillCount(c)) { <span>&#x2726; {{ skillCount(c) }} Fähigkeiten</span> }
-            @if (spellCount(c)) { <span>&#x2727; {{ spellCount(c) }} Zauber</span> }
+            <span class="comp-meta-life"><span class="app-icon i-life"></span> {{ c.statblock.maxHealth }}</span>
+            <span class="comp-meta-mana"><span class="app-icon i-mana"></span> {{ c.statblock.maxMana }}</span>
+            <span class="comp-meta-energy"><span class="app-icon i-energy"></span> {{ c.statblock.maxEnergy }}</span>
+            @if (skillCount(c)) { <span><span class="app-icon i-ability"></span> {{ skillCount(c) }} Fähigkeiten</span> }
+            @if (spellCount(c)) { <span><span class="app-icon i-spell"></span> {{ spellCount(c) }} Zauber</span> }
           </div>
 
           <div class="comp-actions">
-            <button class="comp-btn comp-btn-edit" (click)="edit(c)">&#x270E; Bearbeiten</button>
-            <button class="comp-btn" (click)="duplicate(c)" title="Kopie anlegen">&#x29C9; Kopieren</button>
+            <button class="comp-btn comp-btn-edit" (click)="edit(c)">Bearbeiten</button>
+            <button class="comp-btn" (click)="duplicate(c)" title="Kopie anlegen">Kopieren</button>
           </div>
         </div>
       }

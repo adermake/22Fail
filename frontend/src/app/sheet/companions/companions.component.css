@@ -41,7 +41,6 @@
   font-size: 0.8rem;
   max-width: 220px;
 }
-.comp-soul-ico { width: 13px; height: 13px; vertical-align: -2px; }
 .comp-count { margin-left: auto; font-size: 0.75rem; color: var(--text-muted, #9ca3af); }
 
 /* ── Empty state ──────────────────────────────────────────────────────────── */
@@ -55,6 +54,9 @@
   color: var(--text-muted, #9ca3af);
 }
 .comp-empty-icon { font-size: 2.2rem; opacity: 0.4; }
+.comp-meta-life   { color: #fca5a5; }
+.comp-meta-mana   { color: #93c5fd; }
+.comp-meta-energy { color: #fcd34d; }
 .comp-empty p { margin: 0; font-size: 0.92rem; }
 .comp-empty-hint { font-size: 0.78rem; opacity: 0.75; max-width: 420px; line-height: 1.5; }
 
@@ -132,7 +134,7 @@
 }
 .comp-stat b { font-size: 0.62rem; color: var(--text-muted, #9ca3af); font-weight: 700; }
 .comp-stat-v { font-size: 1rem; font-weight: 800; }
-.comp-stat-m { font-size: 0.68rem; font-weight: 700; color: #34d399; }
+.comp-stat-m { font-size: 0.68rem; font-weight: 700; } /* color via global .dice-good/.dice-bad */
 
 .comp-meta {
   display: flex; flex-wrap: wrap; gap: 8px;

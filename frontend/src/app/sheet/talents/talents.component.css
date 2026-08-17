@@ -139,7 +139,7 @@
 .talent-table-head,
 .talent-row {
   display: grid;
-  grid-template-columns: 1fr 48px 44px 110px 52px;
+  grid-template-columns: 1fr 52px 48px 44px 110px 52px;
   align-items: center;
   gap: 0;
 }
@@ -168,31 +168,19 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
-.talent-row-skill-bonus {
-  background: rgba(251, 191, 36, 0.04);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  padding-top: 0.15rem;
-  padding-bottom: 0.15rem;
-}
-
-.skill-bonus-label {
-  font-size: 0.72rem;
-  font-style: italic;
-  color: #fbbf24;
-  padding-left: 0.75rem;
-}
-
-.skill-bonus-value {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #fbbf24;
-}
-
 .col-name { padding-right: 0.5rem; }
+.col-effect,
 .col-stat,
 .col-mod,
 .col-total { text-align: center; }
 .col-ranks { text-align: center; }
+
+/* EFFEKT column — aggregate of skills/status effects; hover shows the source breakdown. */
+.col-effect {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.col-effect.has-effect { cursor: help; text-decoration: underline dotted rgba(255, 255, 255, 0.35); }
 
 .talent-name {
   font-size: 0.85rem;
@@ -213,10 +201,7 @@
 .col-mod {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-muted, #9ca3af);
 }
-.mod-pos { color: #4ade80; }
-.mod-neg { color: #f87171; }
 
 /* ─── Rank controls ─────────────────────────────────────────────────────────────── */
 .rank-controls {
@@ -272,16 +257,10 @@
 .col-total {
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--text-muted, #9ca3af);
 }
-.total-pos { color: #4ade80; }
-.total-neg { color: #f87171; }
-.total-zero { color: var(--text-muted, #9ca3af); }
 
-/* Dice bonus: negative = helpful (green), positive = penalty (red) */
-.dice-bonus   { color: #4ade80; }   /* negative value = good */
-.dice-neutral { color: var(--text-muted, #9ca3af); }
-.dice-penalty { color: #f87171; }   /* positive value = bad */
+/* Dice modifier colors come from the global .dice-good / .dice-bad / .dice-zero (styles.css):
+   negative helps the roll (green), positive hurts it (red). */
 
 /* ─── Header right side (max rank hint + bonus) ─────────────────────────────── */
 .header-right {
