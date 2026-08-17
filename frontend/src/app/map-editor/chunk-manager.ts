@@ -102,7 +102,13 @@ export class ChunkManager {
   /** Raised when a chunk's pixels change from a fetch, so the view can refresh. */
   onChunkUpdated?: (rec: ChunkRecord) => void;
   /** Raised when a chunk is evicted, so the view can drop anything referencing it. */
-  onChunkDisposed?: (layer: RasterLayer, cx: number, cy: number) => void;
+  /**
+   * Raised when a tile is evicted, so the view can drop anything referencing it.
+   *
+   * The level is part of the identity: `cx,cy` alone names a different patch of world at
+   * every level, so a listener without it cannot tell which tile actually went away.
+   */
+  onChunkDisposed?: (layer: RasterLayer, cx: number, cy: number, level: DetailLevel) => void;
   /**
    * Raised immediately before a chunk is painted into. The undo stack hangs off this — a
    * brush destroys the pixels it covers, so they have to be captured while they still exist.
@@ -228,6 +234,21 @@ export class ChunkManager {
       rec.level,
       ver,
     );
+    /*
+     * A fetch takes a moment, and the brush does not wait for it.
+     *
+     * If this chunk was painted while its download was in flight, applying the response now
+     * would blit the server's older copy over the stroke with `clear: true` and erase it —
+     * permanently, since the pixels are gone before the upload ever reads them. That is a
+     * square of terrain reverting with hard chunk edges, appearing seconds after drawing as
+     * each late response lands. Local paint always wins; the upload will publish it.
+     */
+    if (rec.dirty || rec.uploading) {
+      rec.loaded = true;
+      this.onChunkUpdated?.(rec);
+      return;
+    }
+
     if (!blob) {
       // Nothing stored: the cleared texture is already correct, but the view still needs
       // telling, since it holds cells back until every layer reports in.
@@ -412,7 +433,7 @@ export class ChunkManager {
 
   private dispose(rec: ChunkRecord): void {
     this.chunks.delete(this.recKey(rec.layer, rec.cx, rec.cy, rec.level));
-    this.onChunkDisposed?.(rec.layer, rec.cx, rec.cy);
+    this.onChunkDisposed?.(rec.layer, rec.cx, rec.cy, rec.level);
     rec.destroyed = true;
     rec.texture.destroy(true);
   }

@@ -259,7 +259,16 @@ export class TerrainView {
   constructor(private chunks: ChunkManager) {
     // A refetched or restored chunk keeps its RenderTexture identity, so the mesh already
     // points at the right pixels — but an evicted one does not, hence the drop below.
-    this.chunks.onChunkDisposed = (_layer, cx, cy) => this.drop(cx, cy);
+    /*
+     * Drop only the cell that actually lost its texture.
+     *
+     * `cx,cy` names a different patch of world at every level — level 2 tile (3,5) is
+     * sixteen times further out than level 0 tile (3,5) — so ignoring the level meant
+     * evicting one tile deleted an unrelated cell somewhere else on the map. That cell then
+     * rebuilt on the next frame: terrain blinking out and back while drawing, nowhere near
+     * whatever was actually evicted.
+     */
+    this.chunks.onChunkDisposed = (_layer, cx, cy, level) => this.drop(cx, cy, level);
   }
 
   // ── appearance ──
@@ -432,9 +441,8 @@ export class TerrainView {
   }
 
   /** Forget a cell whose chunk textures were evicted; its shader now points at nothing. */
-  private drop(cx: number, cy: number): void {
-    // A disposed chunk is level 0; higher levels have their own textures.
-    const key = this.key(cx, cy, 0);
+  private drop(cx: number, cy: number, level: number): void {
+    const key = this.key(cx, cy, level);
     const cell = this.cells.get(key);
     if (!cell) return;
     this.destroyCell(cell);
