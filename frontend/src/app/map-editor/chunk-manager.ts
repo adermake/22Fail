@@ -144,12 +144,33 @@ export class ChunkManager {
   levelFor(bounds: Bounds): DetailLevel {
     const w = bounds.maxX - bounds.minX;
     const h = bounds.maxY - bounds.minY;
-
-    for (let level = 0; level < MAX_TILE_LEVEL; level++) {
+    const tilesAt = (level: number) => {
       const span = tileWorldSize(level);
-      if ((Math.ceil(w / span) + 1) * (Math.ceil(h / span) + 1) <= TARGET_TILES) return level;
+      return (Math.ceil(w / span) + 1) * (Math.ceil(h / span) + 1);
+    };
+
+    /*
+     * Hysteresis, and it matters more here than anywhere else.
+     *
+     * Every level change rebuilds every cell on screen, so a boundary that flips on a hair
+     * of zoom makes the whole map tear down and reassemble — which is exactly what a log of
+     * `3 -> 4` then `4 -> 3` within a second, with fifty rebuilds each way, was showing.
+     *
+     * Going coarser happens as soon as the current level no longer fits, because staying
+     * would blow the budget. Coming back to a sharper level waits until it fits with room
+     * to spare, so drifting across the threshold cannot ping-pong.
+     */
+    if (tilesAt(this.level) > TARGET_TILES) {
+      for (let level = this.level + 1; level <= MAX_TILE_LEVEL; level++) {
+        if (tilesAt(level) <= TARGET_TILES) return level;
+      }
+      return MAX_TILE_LEVEL;
     }
-    return MAX_TILE_LEVEL;
+
+    for (let level = 0; level < this.level; level++) {
+      if (tilesAt(level) <= TARGET_TILES * 0.6) return level;
+    }
+    return this.level;
   }
 
   private create(layer: RasterLayer, cx: number, cy: number, level: DetailLevel): ChunkRecord {

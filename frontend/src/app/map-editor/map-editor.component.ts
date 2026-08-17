@@ -225,6 +225,8 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   readonly saving = signal(false);
   /** Set when the GPU context is lost — the map is blank until the page reloads. */
   readonly contextLost = signal(false);
+  /** Shown briefly when a stroke is refused because the view is zoomed too far out. */
+  readonly zoomHint = signal(false);
 
   // ── diagnostics ──
 
@@ -1213,6 +1215,23 @@ export class MapEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   private beginPaint(world: { x: number; y: number }): void {
+    /*
+     * Painting only at full detail.
+     *
+     * Brushes always write level-0 chunks, whatever the view is showing. Zoomed out, a
+     * single stroke spans dozens of them — each a 3 MB texture to create, paint, upload and
+     * hold resident — which is far more than the budget can carry. The result was a
+     * stampede: paint, blow the budget, evict the chunks just painted, refetch them, repeat.
+     * The log showed a chunk uploaded and then evicted 41 ms later.
+     *
+     * There is no tuning that makes this fit, so the tool says so instead of thrashing.
+     */
+    if ((this.chunks?.detailLevel ?? 0) > 0) {
+      this.zoomHint.set(true);
+      setTimeout(() => this.zoomHint.set(false), 2600);
+      return;
+    }
+
     this.isPainting = true;
     this.strokeBounds = null;
     this.noteStrokeExtent(world);
