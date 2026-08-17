@@ -189,23 +189,28 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     return this.castingSpells.length > 0 || this.activeSkillEntries.length > 0;
   }
 
-  // ── Summon tokens: fieldable summons from this character/NPC's active spells ──
+  // ── Summon tokens: every Begleiter of this character, always fieldable ────────
+  /** No spell/active check on purpose — whether a summon is "really" out is the table's call. */
   get summonTokens(): { id: string; name: string; portrait: string }[] {
     const ownerId = this.character?.id ?? this.token?.id ?? '';
     if (!ownerId) return [];
-    const active = this.castingSpells.filter(cs => (cs.remainingCast ?? 1) <= 0);
     const out: { id: string; name: string; portrait: string }[] = [];
     const seen = new Set<string>();
-    for (const cs of active) {
+    for (const c of this.character?.companions ?? []) {
+      const id = 'companion-' + ownerId + '-' + c.id;
+      seen.add(id);
+      out.push({ id, name: c.name, portrait: c.statblock.image || c.statblock.defaultPortrait || '' });
+    }
+    // Legacy: NPC/imported spells that still carry an inline summon statblock (never migrated).
+    for (const cs of this.castingSpells.filter(cs => (cs.remainingCast ?? 1) <= 0)) {
       const spell = this.availableSpells.find(s => s.id === cs.spellId || s.name === cs.spellName);
       for (const n of spell?.graph?.nodes ?? []) {
-        if (n.runeId === SUMMON_RUNE_ID && n.summon?.statblock) {
-          const id = 'summon-' + ownerId + '-' + n.id;
-          if (seen.has(id)) continue; // same spell cast twice → one card is enough
-          seen.add(id);
-          const sb = n.summon.statblock;
-          out.push({ id, name: sb.name, portrait: sb.image || sb.defaultPortrait || '' });
-        }
+        if (n.runeId !== SUMMON_RUNE_ID || !n.summon?.statblock) continue;
+        const id = 'summon-' + ownerId + '-' + n.id;
+        if (seen.has(id)) continue; // same spell cast twice → one card is enough
+        seen.add(id);
+        const sb = n.summon.statblock;
+        out.push({ id, name: sb.name, portrait: sb.image || sb.defaultPortrait || '' });
       }
     }
     return out;

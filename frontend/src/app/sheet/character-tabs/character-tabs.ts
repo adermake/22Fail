@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -11,6 +11,8 @@ import { WissenComponent } from '../wissen/wissen.component';
 import { SpellsComponent } from '../spells/spells.component';
 import { SkillsComponent } from '../skills/skills.component';
 import { ResourcesComponent } from '../resources/resources.component';
+import { CompanionsComponent } from '../companions/companions.component';
+import { migrateSpellSummonsToCompanions } from '../../model/companion-block.model';
 
 @Component({
   selector: 'app-character-tabs',
@@ -25,12 +27,13 @@ import { ResourcesComponent } from '../resources/resources.component';
     SpellsComponent,
     SkillsComponent,
     ResourcesComponent,
+    CompanionsComponent,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './character-tabs.html',
   styleUrl: './character-tabs.css',
 })
-export class CharacterTabsComponent {
+export class CharacterTabsComponent implements OnInit {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Input() editingRunes = new Set<number>();
   @Input() editingSpells = new Set<number>();
@@ -45,11 +48,22 @@ export class CharacterTabsComponent {
   @Output() requestCastWindow = new EventEmitter<void>();
   @Output() rollWeaponDamage = new EventEmitter<number>();
 
-  activeTab: 'inventory' | 'resources' | 'spells' | 'wissen' | 'skills' = 'inventory';
+  activeTab: 'inventory' | 'resources' | 'spells' | 'wissen' | 'skills' | 'companions' = 'inventory';
   showForgingOverlay = false;
   showBrewingOverlay = false;
 
-  setActiveTab(tab: 'inventory' | 'resources' | 'spells' | 'wissen' | 'skills') {
+  ngOnInit(): void {
+    // One-time move of legacy in-spell summons into the Begleiter list; the rune keeps a reference.
+    // Deferred: the patch re-emits the sheet, which must not happen inside the ongoing CD pass.
+    if (this.sheet && migrateSpellSummonsToCompanions(this.sheet)) {
+      setTimeout(() => {
+        this.patch.emit({ path: 'companions', value: this.sheet.companions });
+        this.patch.emit({ path: 'spells', value: this.sheet.spells });
+      });
+    }
+  }
+
+  setActiveTab(tab: 'inventory' | 'resources' | 'spells' | 'wissen' | 'skills' | 'companions') {
     this.activeTab = tab;
   }
 

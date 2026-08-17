@@ -9,8 +9,6 @@ import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@ang
 import { SpellBlock, generateSpellId, CastingSpellEntry } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellEditorOverlayComponent } from '../spell-editor-overlay/spell-editor-overlay.component';
-import { AssetFile } from '../../model/asset-browser.model';
-import { SummonAssets } from '../../services/summon-editor.service';
 
 @Component({
   selector: 'app-spells',
@@ -81,26 +79,6 @@ export class SpellsComponent {
   }
   get learnedRunes(): RuneBlock[] {
     return ((this.sheet.runes || []).filter(r => r !== null)) as RuneBlock[];
-  }
-
-  /** The caster's assets passed into a summon's NPC editor (inventory + known skills/spells + runes). */
-  get summonAssets(): SummonAssets {
-    const wrap = (list: any[] | undefined, type: string, folder: string): AssetFile[] =>
-      (list ?? []).filter(x => x).map((x, i) => ({
-        id: 'caster_' + type + '_' + i,
-        name: x?.name ?? `${type} ${i + 1}`,
-        type: type as any,
-        folderId: folder,
-        path: `${folder}/${x?.name ?? i}`,
-        data: x,
-        createdAt: 0, updatedAt: 0,
-      } as AssetFile));
-    return {
-      items: wrap(this.sheet.inventory, 'item', '/Inventar'),
-      skills: wrap(this.sheet.skills, 'skill', '/Fähigkeiten'),
-      spells: wrap(this.sheet.spells, 'spell', '/Zauber'),
-      runes: this.learnedRunes,
-    };
   }
 
   constructor(private cd: ChangeDetectorRef) {}

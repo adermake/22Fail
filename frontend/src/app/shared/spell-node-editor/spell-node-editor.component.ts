@@ -10,9 +10,7 @@ import {
   SpellGraph, SpellNode, SpellConnection, SpellPort, PendingConnection, PortPosition,
   buildRunePorts, FLOW_COLOR, FLOW_TYPE, NEUTRAL_RUNE_ID, SUMMON_RUNE_ID,
 } from './spell-node.model';
-import { SoulBlock } from '../../model/soul-block.model';
-import { NpcStatblock } from '../../model/npc-statblock.model';
-import { SummonEditorService, SummonAssets } from '../../services/summon-editor.service';
+import { CompanionBlock } from '../../model/companion-block.model';
 import { ImageUrlPipe } from '../image-url.pipe';
 import { SimpleSpellCost } from './spell-cost.model';
 import { calculateSpellCost } from './spell-cost-calculator';
@@ -35,15 +33,11 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   @Input() spell: SpellBlock | null = null;
   @Input({ required: true }) availableRunes: RuneBlock[] = [];
-  /** Souls the caster owns — usable as summoning-rune material. */
-  @Input() availableSouls: SoulBlock[] = [];
-  /** The caster's assets (inventory/skills/spells/runes), passed into a summon's NPC editor. */
-  @Input() summonAssets: SummonAssets | null = null;
+  /** The caster's Begleiter (sheet → Begleiter tab) — a summoning rune just references one. */
+  @Input() availableCompanions: CompanionBlock[] = [];
   @Output() save        = new EventEmitter<SpellBlock>();
   @Output() cancel      = new EventEmitter<void>();
   @Output() deleteSpell = new EventEmitter<void>();
-  /** Ask the host to open the NPC editor for a summoning-rune node (recursion-safe: host owns it). */
-  @Output() editSummon  = new EventEmitter<{ nodeId: string }>();
 
   readonly SUMMON_RUNE_ID = SUMMON_RUNE_ID;
   @Output() estimatedCostResult = new EventEmitter<SimpleSpellCost | null>();
@@ -239,27 +233,16 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return n && n.runeId === SUMMON_RUNE_ID ? n : null;
   }
 
-  assignSummonSoul(node: SpellNode, soulId: string): void {
-    const soul = this.availableSouls.find(s => s.id === soulId);
-    if (!soul) { node.summon = undefined; this.graphNodesSig.set([...this.graph.nodes]); return; }
-    node.summon = { soulId: soul.id, soulName: soul.sourceName, statblock: node.summon?.statblock ?? null };
+  /** Bind the node to one of the caster's Begleiter (built and edited in the Begleiter tab). */
+  assignSummonCompanion(node: SpellNode, companionId: string): void {
+    const companion = this.availableCompanions.find(c => c.id === companionId);
+    if (!companion) { node.summon = undefined; this.graphNodesSig.set([...this.graph.nodes]); return; }
+    node.summon = { companionId: companion.id, companionName: companion.name };
     this.graphNodesSig.set([...this.graph.nodes]);
   }
 
-  async requestEditSummon(node: SpellNode): Promise<void> {
-    if (!node.summon?.soulId) return;
-    const soul = this.availableSouls.find(s => s.id === node.summon!.soulId);
-    if (!soul) return;
-    this.editSummon.emit({ nodeId: node.id }); // notify host (optional)
-    // Open the summon (NPC) editor via the app-root outlet — no import cycle, recursion-safe.
-    const result = await this.summonEditor.open(soul, node.summon.statblock, this.summonAssets ?? undefined);
-    if (result) this.setSummonStatblock(node.id, result);
-  }
-
-  /** Called by the host after the NPC editor built/updated a summon for a node. */
-  setSummonStatblock(nodeId: string, statblock: NpcStatblock): void {
-    const n = this.graph.nodes.find(x => x.id === nodeId);
-    if (n?.summon) { n.summon.statblock = statblock; this.graphNodesSig.set([...this.graph.nodes]); }
+  summonCompanion(node: SpellNode): CompanionBlock | undefined {
+    return this.availableCompanions.find(c => c.id === node.summon?.companionId);
   }
 
   closeQuickSearch() {
@@ -324,7 +307,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   private boundMouseMove!: (e: MouseEvent) => void;
   private boundMouseUp!:   (e: MouseEvent) => void;
 
-  constructor(private cdr: ChangeDetectorRef, private summonEditor: SummonEditorService) {}
+  constructor(private cdr: ChangeDetectorRef) {}
 
   // ────────────────────────────────────────────────────────────────────────────
   ngOnInit() {

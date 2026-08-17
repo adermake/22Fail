@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { NpcStatblock } from '../model/npc-statblock.model';
+import { NpcStatblock, createEmptyNpcStatblock } from '../model/npc-statblock.model';
 import { SoulBlock, createSummonStatblock } from '../model/soul-block.model';
 import { AssetFile } from '../model/asset-browser.model';
 import { RuneBlock } from '../model/rune-block.model';
@@ -14,15 +14,18 @@ export interface SummonAssets {
 
 export interface SummonEditRequest {
   id: string;
-  soul: SoulBlock;
+  /** The soul the summon is bound to — null for a free-form Begleiter the player authors himself. */
+  soul: SoulBlock | null;
   statblock: NpcStatblock; // seeded (soul stats locked) or a clone of the existing summon
+  /** Soul-bound summons have fixed stats; free-form Begleiter distribute their soul points by hand. */
+  soulLocked: boolean;
   assets: SummonAssets;
 }
 
 /**
- * Opens the NPC editor for a summon from anywhere (the spell/rune builder) WITHOUT creating an import
- * cycle: callers just await `open(...)`; the app root renders the editor(s) from `requests` and calls
- * `finish(...)`. A stack is kept, so summon-inside-summon (recursion) stacks editors naturally.
+ * Opens the NPC editor for a summon/Begleiter from anywhere (Begleiter tab, rune builder) WITHOUT
+ * creating an import cycle: callers just await `open(...)`; the app root renders the editor(s) from
+ * `requests` and calls `finish(...)`. A stack is kept, so nested edits stack editors naturally.
  */
 @Injectable({ providedIn: 'root' })
 export class SummonEditorService {
@@ -30,15 +33,15 @@ export class SummonEditorService {
   private resolvers = new Map<string, (sb: NpcStatblock | null) => void>();
 
   /** Open the summon editor; resolves with the built statblock, or null if cancelled. */
-  open(soul: SoulBlock, existing: NpcStatblock | null, assets?: SummonAssets): Promise<NpcStatblock | null> {
+  open(soul: SoulBlock | null, existing: NpcStatblock | null, assets?: SummonAssets): Promise<NpcStatblock | null> {
     const id = 'sum_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const statblock = existing
       ? (JSON.parse(JSON.stringify(existing)) as NpcStatblock)
-      : createSummonStatblock(soul);
+      : soul ? createSummonStatblock(soul) : createEmptyNpcStatblock();
     const a: SummonAssets = assets ?? { items: [], skills: [], spells: [], runes: [] };
     return new Promise<NpcStatblock | null>(resolve => {
       this.resolvers.set(id, resolve);
-      this.requests.update(r => [...r, { id, soul, statblock, assets: a }]);
+      this.requests.update(r => [...r, { id, soul, statblock, soulLocked: !!soul, assets: a }]);
     });
   }
 

@@ -401,24 +401,23 @@
     <div class="summon-config" (mousedown)="$event.stopPropagation()">
       <div class="summon-config-head"><img class="summon-config-ico" src="/icons/soul.svg" alt=""> Beschwörung</div>
       <label class="summon-field">
-        <span>Seele</span>
-        <select [ngModel]="sn.summon?.soulId ?? ''" (ngModelChange)="assignSummonSoul(sn, $event)">
-          <option value="">— Seele wählen —</option>
-          @for (soul of availableSouls; track soul.id) {
-            <option [value]="soul.id">{{ soul.sourceName }} (Lv {{ soul.level }})</option>
+        <span>Begleiter</span>
+        <select [ngModel]="sn.summon?.companionId ?? ''" (ngModelChange)="assignSummonCompanion(sn, $event)">
+          <option value="">— Begleiter wählen —</option>
+          @for (c of availableCompanions; track c.id) {
+            <option [value]="c.id">{{ c.name }}</option>
           }
         </select>
       </label>
-      @if (!availableSouls.length) {
-        <p class="summon-hint">Keine Seelen vorhanden. Ein GM muss dir eine Seele geben.</p>
+      @if (!availableCompanions.length) {
+        <p class="summon-hint">Keine Begleiter vorhanden. Lege sie im Begleiter-Tab des Charakterbogens an.</p>
+      } @else {
+        <p class="summon-hint">Begleiter werden im Begleiter-Tab erstellt und bearbeitet.</p>
       }
-      @if (sn.summon?.soulId) {
-        <button class="summon-edit-btn" (click)="requestEditSummon(sn)">
-          {{ sn.summon?.statblock ? '✎ Beschwörung bearbeiten' : '＋ Beschwörung erstellen' }}
-        </button>
-        @if (sn.summon?.statblock) {
-          <span class="summon-ok">✓ {{ sn.summon?.statblock?.name }}</span>
-        }
+      @if (summonCompanion(sn); as comp) {
+        <span class="summon-ok">✓ {{ comp.name }} (Lv {{ comp.statblock.soul?.level ?? comp.statblock.level }})</span>
+      } @else if (sn.summon?.companionId) {
+        <span class="summon-hint">⚠ „{{ sn.summon?.companionName }}" existiert nicht mehr.</span>
       }
     </div>
   }

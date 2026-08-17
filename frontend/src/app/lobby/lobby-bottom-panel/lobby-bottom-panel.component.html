@@ -403,11 +403,11 @@
       </div>
     }
 
-    <!-- ═════════ TOKENS TAB (fieldable summons from active spells) ═════════ -->
+    <!-- ═════════ TOKENS TAB (Begleiter — always fieldable) ═════════ -->
     @if (hasSelection && canViewStats && activeTab === 'tokens') {
       <div class="lbp-tokens">
         @if (!summonTokens.length) {
-          <p class="lbp-tokens-empty">Keine beschwörbaren Tokens. Wirke einen Zauber mit Beschwörungsrune.</p>
+          <p class="lbp-tokens-empty">Keine Begleiter. Lege sie im Begleiter-Tab des Charakterbogens an.</p>
         } @else {
           <p class="lbp-tokens-hint">Auf die Karte ziehen, um zu beschwören.</p>
           <div class="lbp-tokens-grid">

@@ -8,6 +8,7 @@ import { StatusBlock } from './status-block.model';
 import { RuneBlock } from './rune-block.model';
 import { ActiveStatusEffect } from './status-effect.model';
 import { SoulBlock } from './soul-block.model';
+import { CompanionBlock } from './companion-block.model';
 
 export interface SheetTrashItem {
   type: 'item' | 'equipment' | 'rune' | 'spell' | 'skill';
@@ -91,8 +92,10 @@ export interface CharacterSheet {
   knownIngredientIds?: string[];   // IDs of brew ingredients (Wirkstoffe)
   knownExtractorIds?: string[];    // IDs of extractors
   knownBrewTraitIds?: string[];    // IDs of brew traits (Braumerkmale)
-  // Souls captured from beings (Wissen → Seelen), usable as summoning-rune material
+  // Souls captured from beings (Wissen → Seelen), usable as Begleiter material
   souls?: SoulBlock[];
+  // Begleiter: summons/familiars the character keeps ready (Begleiter tab); summoning runes point here
+  companions?: CompanionBlock[];
 }
 
 export function createEmptySheet(): CharacterSheet {

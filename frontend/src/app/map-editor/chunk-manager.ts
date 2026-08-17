@@ -653,17 +653,23 @@ export class ChunkManager {
     }
 
     /*
-     * Deliberately no parent refetch here.
+     * Correct any ancestor that was built from a half-uploaded set — once, at the end.
      *
-     * Painting already stamps every resident ancestor with the same brush, so those tiles
-     * are correct the instant the stroke lands. Asking the server for them again could only
-     * ever replace known-good pixels with a rebuild — and since the rebuild races the
-     * uploads that feed it, what came back was often *less* complete than what was already
-     * on screen. That round trip was the flicker, not a cure for it.
-     *
-     * The server has deleted its cached ancestors, so anyone who loads that ground later
-     * gets a freshly built tile. Only remote edits need `refreshParents`.
+     * Painting stamps ancestors that were already resident, so those are right immediately.
+     * The gap is a tile *created during* the flush: the fallback streamer asks the server
+     * for it while some of its children are still uploading, so it comes back built from
+     * whatever had landed. Refreshing per upload made that worse (a rebuild per child, each
+     * a different partial state); refreshing not at all left those tiles stale forever,
+     * which is the blocky patches that never resolved. Once, after everything has landed,
+     * is the only version that is both correct and quiet.
      */
+    const seen = new Set<string>();
+    for (const rec of dirty) {
+      const key = `${rec.layer}/${rec.cx}/${rec.cy}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      this.refreshParents(rec.layer, rec.cx, rec.cy);
+    }
   }
 
   private async uploadChunk(rec: ChunkRecord): Promise<void> {

@@ -221,12 +221,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
   selectedTokenId = signal<string | null>(null);
   pendingLinkedToken = signal<{ parentId: string; type: LinkedTokenType; name: string } | null>(null);
 
-  /** All built summons from every character's ACTIVE spells (Beschwörungsrune nodes). Used to resolve
-   *  a dropped summon token's statblock — the drag/display lives in the bottom panel's "Tokens" tab.
-   *  Id scheme `summon-<characterId>-<nodeId>` matches the bottom panel's cards. */
+  /** Every fieldable summon: each character's Begleiter (always available — no spell check) plus any
+   *  legacy inline summons still sitting in active spells. Used to resolve a dropped token's
+   *  statblock; the drag/display lives in the bottom panel's "Tokens" tab and uses the same ids
+   *  (`companion-<characterId>-<companionId>` / legacy `summon-<ownerId>-<nodeId>`). */
   allSummons = computed(() => {
     const out: { id: string; statblock: NpcStatblock }[] = [];
-    const collect = (ownerId: string, spells: any[], casting: any[]) => {
+    const collectLegacy = (ownerId: string, spells: any[], casting: any[]) => {
       const active = (casting ?? []).filter(cs => (cs.remainingCast ?? 1) <= 0);
       for (const cs of active) {
         const spell = (spells ?? []).find(s => s.id === cs.spellId || s.name === cs.spellName);
@@ -237,12 +238,17 @@ export class LobbyComponent implements OnInit, OnDestroy {
         }
       }
     };
-    for (const c of this.worldCharacters()) collect(c.id, c.sheet.spells ?? [], c.sheet.castingSpells ?? []);
-    // NPC tokens can summon too (recursion).
+    for (const c of this.worldCharacters()) {
+      for (const comp of c.sheet.companions ?? []) {
+        out.push({ id: 'companion-' + c.id + '-' + comp.id, statblock: comp.statblock });
+      }
+      collectLegacy(c.id, c.sheet.spells ?? [], c.sheet.castingSpells ?? []);
+    }
+    // NPC tokens can summon too (recursion) — they have no Begleiter list, only legacy spell summons.
     for (const t of this.currentMap()?.tokens ?? []) {
       if (!t.statblockId) continue;
       const npc = this.npcStatblocks().find(n => n.id === t.statblockId)?.statblock;
-      if (npc) collect(t.id, npc.spells ?? [], (t as any).castingSpells ?? []);
+      if (npc) collectLegacy(t.id, npc.spells ?? [], (t as any).castingSpells ?? []);
     }
     return out;
   });
@@ -1003,8 +1009,8 @@ export class LobbyComponent implements OnInit, OnDestroy {
     // For NPC quick-tokens, register them in the battle engine first
     // (they aren't added via setAvailableCharacters which only covers player characters)
     if (token.isQuickToken && token.statblockId) {
-      const npcEntry = this.npcStatblocks().find(n => n.id === token.statblockId);
-      const speed = npcEntry?.statblock?.speed ?? 10;
+      // resolveStatblock also covers Begleiter tokens, whose ids aren't in the NPC library.
+      const speed = this.resolveStatblock(token.statblockId)?.speed ?? 10;
       this.battleEngine.registerCharacter(token.characterId, {
         name: token.name,
         portrait: token.portrait,

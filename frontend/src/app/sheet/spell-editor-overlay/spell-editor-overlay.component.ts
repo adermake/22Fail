@@ -28,12 +28,11 @@ import { actionMacroToScript } from '../../scripting/decompiler';
 export class SpellEditorOverlayComponent implements OnInit, OnDestroy {
   @Input() spell: SpellBlock | null = null;
   @Input() availableRunes: RuneBlock[] = [];
-  @Input() availableSouls: import('../../model/soul-block.model').SoulBlock[] = [];
-  @Input() summonAssets: import('../../services/summon-editor.service').SummonAssets | null = null;
+  /** The caster's Begleiter — a summoning rune in the graph just picks one of them. */
+  @Input() availableCompanions: import('../../model/companion-block.model').CompanionBlock[] = [];
   @Output() save        = new EventEmitter<SpellBlock>();
   @Output() cancel      = new EventEmitter<void>();
   @Output() deleteSpell = new EventEmitter<void>();
-  @Output() editSummon  = new EventEmitter<{ nodeId: string }>();
 
   private cdr = inject(ChangeDetectorRef);
 

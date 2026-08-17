@@ -1,0 +1,85 @@
+<div class="comp-container">
+
+  <!-- ── Toolbar: create a Begleiter, free-form or from a captured soul ── -->
+  <div class="comp-toolbar">
+    <button class="comp-add" (click)="addBlank()">&#x271A; Eigener Begleiter</button>
+
+    <div class="comp-soul-add">
+      <select class="comp-soul-select" [(ngModel)]="soulPick" [disabled]="!souls.length">
+        <option value="">{{ souls.length ? '— Seele wählen —' : 'Keine Seelen vorhanden' }}</option>
+        @for (soul of souls; track soul.id) {
+          <option [value]="soul.id">{{ soul.sourceName }} (Lv {{ soul.level }})</option>
+        }
+      </select>
+      <button class="comp-add comp-add-soul" [disabled]="!soulPick" (click)="addFromSoul()">
+        <img class="comp-soul-ico" src="/icons/soul.svg" alt=""> Aus Seele
+      </button>
+    </div>
+
+    <span class="comp-count">{{ companions.length }} Begleiter</span>
+  </div>
+
+  <!-- ── List ── -->
+  @if (!companions.length) {
+    <div class="comp-empty">
+      <span class="comp-empty-icon">&#x1F43E;</span>
+      <p>Noch keine Begleiter.</p>
+      <p class="comp-empty-hint">
+        Lege Beschwörungen, Vertraute und dauerhafte Begleiter hier ab — sie stehen in der Lobby
+        jederzeit als Token zum Herausziehen bereit.
+      </p>
+    </div>
+  } @else {
+    <div class="comp-grid">
+      @for (c of companions; track c.id) {
+        <div class="comp-card" [class.comp-card-soul]="c.soulId">
+
+          <div class="comp-head">
+            @if (companionPortrait(c)) {
+              <img class="comp-thumb" [src]="'/api/images/' + companionPortrait(c)" alt="">
+            } @else {
+              <img class="comp-thumb comp-thumb-icon" src="/icons/soul.svg" alt="">
+            }
+            <div class="comp-title">
+              <input class="comp-name" [value]="c.name"
+                     (change)="rename(c, $any($event.target).value)"
+                     title="Name ändern">
+              <div class="comp-sub">
+                <span class="comp-level">Level {{ companionLevel(c) }}</span>
+                @if (c.soulId) {
+                  <span class="comp-badge comp-badge-soul" [title]="'Seele: ' + (c.soulName || '')">Seele</span>
+                } @else {
+                  <span class="comp-badge">Eigen</span>
+                }
+              </div>
+            </div>
+            <button class="comp-del" (click)="remove(c)" title="Löschen">&times;</button>
+          </div>
+
+          <div class="comp-stats">
+            @for (k of statGrid; track k) {
+              <div class="comp-stat">
+                <b>{{ statLabels[k] }}</b>
+                <span class="comp-stat-v">{{ companionStat(c, k) }}</span>
+                <span class="comp-stat-m">{{ companionMod(c, k) >= 0 ? '+' : '' }}{{ companionMod(c, k) }}</span>
+              </div>
+            }
+          </div>
+
+          <div class="comp-meta">
+            <span>&#x2665; {{ c.statblock.maxHealth }}</span>
+            <span>&#x25C6; {{ c.statblock.maxMana }}</span>
+            <span>&#x26A1; {{ c.statblock.maxEnergy }}</span>
+            @if (skillCount(c)) { <span>&#x2726; {{ skillCount(c) }} Fähigkeiten</span> }
+            @if (spellCount(c)) { <span>&#x2727; {{ spellCount(c) }} Zauber</span> }
+          </div>
+
+          <div class="comp-actions">
+            <button class="comp-btn comp-btn-edit" (click)="edit(c)">&#x270E; Bearbeiten</button>
+            <button class="comp-btn" (click)="duplicate(c)" title="Kopie anlegen">&#x29C9; Kopieren</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

@@ -26,6 +26,12 @@
     </button>
     <button
       class="tab-button"
+      [class.active]="activeTab === 'companions'"
+      (click)="setActiveTab('companions')">
+      Begleiter ({{ (sheet.companions || []).length }})
+    </button>
+    <button
+      class="tab-button"
       [class.active]="activeTab === 'wissen'"
       (click)="setActiveTab('wissen')">
       Wissen
@@ -75,6 +81,13 @@
         (editingChange)="onSkillEditingChange($event)"
         (triggerMacro)="triggerMacro.emit($event)">
       </app-skills>
+    }
+
+    @if (activeTab === 'companions') {
+      <app-companions
+        [sheet]="sheet"
+        (patch)="onPatch($event)">
+      </app-companions>
     }
 
     @if (activeTab === 'wissen') {

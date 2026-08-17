@@ -8,12 +8,17 @@ export interface SpellPort {
   name: string;
 }
 
-/** A summon bound to a summoning-rune node: which soul it uses + the built summon statblock. */
+/** A summoning-rune node's reference to one of the caster's Begleiter (sheet → Begleiter tab). */
 export interface SummonRef {
-  soulId: string;
-  soulName: string;
-  /** The summon's NpcStatblock (built in the NPC editor with the soul's stats locked in). */
-  statblock: import('../../model/npc-statblock.model').NpcStatblock | null;
+  /** The referenced CompanionBlock's id — the summon itself is built and edited in the Begleiter tab. */
+  companionId?: string;
+  /** Cached name, so the node still reads sensibly if the Begleiter was deleted. */
+  companionName?: string;
+  // ── Legacy (pre-Begleiter) fields: summons used to be built inside the node ──
+  soulId?: string;
+  soulName?: string;
+  /** Legacy inline statblock; migrated into a CompanionBlock on the character sheet. */
+  statblock?: import('../../model/npc-statblock.model').NpcStatblock | null;
 }
 
 /** One rune node placed in the canvas */
@@ -42,7 +47,7 @@ export interface SpellConnection {
 /** Neutral pass-through node — hardcoded, no rune reference */
 export const NEUTRAL_RUNE_ID = '__neutral__';
 
-/** Summoning rune — hardcoded special node that binds a soul + a built summon statblock. */
+/** Summoning rune — hardcoded special node that binds one of the caster's Begleiter. */
 export const SUMMON_RUNE_ID = '__summon__';
 
 /** The start node (special, not a rune) */
