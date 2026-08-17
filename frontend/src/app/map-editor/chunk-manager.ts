@@ -227,6 +227,17 @@ export class ChunkManager {
   }
 
   private async fetchInto(rec: ChunkRecord): Promise<void> {
+    const inflightKey = this.recKey(rec.layer, rec.cx, rec.cy, rec.level);
+    if (this.fetching.has(inflightKey)) return;
+    this.fetching.add(inflightKey);
+    try {
+      await this.fetchIntoInner(rec);
+    } finally {
+      this.fetching.delete(inflightKey);
+    }
+  }
+
+  private async fetchIntoInner(rec: ChunkRecord): Promise<void> {
     const label = tileLabel(rec.layer, rec.cx, rec.cy, rec.level);
     const startedAt = performance.now();
     mapDiag.log('fetch:start', label, `v${this.store.chunkVersion(rec.layer, rec.cx, rec.cy)}`);
@@ -268,6 +279,12 @@ export class ChunkManager {
     // The chunk may have been evicted while the fetch was in flight.
     if (this.chunks.get(this.recKey(rec.layer, rec.cx, rec.cy, rec.level)) !== rec) return;
     if (!this.isUsable(rec)) return;
+
+    // Built by the server while our own uploads were still landing: it may be missing the
+    // newest children, so mark it for one refresh after things settle.
+    if (rec.level > 0 && [...this.chunks.values()].some(r => r.uploading)) {
+      this.staleTiles.add(this.recKey(rec.layer, rec.cx, rec.cy, rec.level));
+    }
 
     try {
       const bitmap = await createImageBitmap(blob);
@@ -379,6 +396,15 @@ export class ChunkManager {
    * slowly reassemble.
    */
   private stampedParents = new Set<string>();
+
+  /**
+   * Tiles with a fetch already in flight.
+   *
+   * Overlapping flushes were each walking the same ancestor chain, so one tile could be
+   * requested several times in the same millisecond — and every one of those requests makes
+   * the server rebuild it from scratch.
+   */
+  private fetching = new Set<string>();
 
   /** Detail level the last `update` settled on. */
   get detailLevel(): DetailLevel {
@@ -716,32 +742,50 @@ export class ChunkManager {
      * which is the blocky patches that never resolved. Once, after everything has landed,
      * is the only version that is both correct and quiet.
      */
-    const seen = new Set<string>();
-    for (const rec of dirty) {
-      let px = rec.cx;
-      let py = rec.cy;
-      for (let level = 1; level <= MAX_TILE_LEVEL; level++) {
-        px = Math.floor(px / 2);
-        py = Math.floor(py / 2);
+    /*
+     * Do NOT pull ancestors here.
+     *
+     * The log made the cost plain: a level-4 tile took between three and ten seconds to
+     * come back, because the server had to rebuild it by descending through 256 level-0
+     * chunks — and every chunk written during a stroke deletes that whole chain again. So
+     * each flush kicked off rebuilds that were obsolete before they finished, while the map
+     * sat on fallbacks waiting. That is the "dissolves and slowly reassembles".
+     *
+     * It is also unnecessary: painting already stamps every resident ancestor with the same
+     * brush, so what is on screen is correct. The server's copies stay deleted and get
+     * rebuilt lazily, once, whenever somebody actually asks for that ground later.
+     *
+     * Tiles that appeared *during* the flush are the one gap, and `staleTiles` collects
+     * those for a single refresh once drawing has settled.
+     */
+    this.stampedParents.clear();
+    this.scheduleStaleRefresh();
+  }
 
-        const key = this.recKey(rec.layer, px, py, level);
-        // Dedupe by *tile*, not by chunk: many chunks share one ancestor, and asking for
-        // the same rebuild a dozen times over is pure cost — concurrent rebuilds of one
-        // file, on top of a descent through all of its children.
-        if (seen.has(key)) continue;
-        seen.add(key);
-
-        // Skip anything the brush already fixed in place.
-        if (this.stampedParents.has(key)) continue;
-
+  /**
+   * Refresh tiles that loaded while an upload was in flight, once things go quiet.
+   *
+   * These are the only ones that can hold a half-built copy. Deferring rather than doing it
+   * per flush means a burst of strokes costs one round of rebuilds at the end, not one per
+   * stroke.
+   */
+  private scheduleStaleRefresh(): void {
+    if (this.staleTimer) clearTimeout(this.staleTimer);
+    this.staleTimer = setTimeout(() => {
+      this.staleTimer = null;
+      for (const key of [...this.staleTiles]) {
         const tile = this.chunks.get(key);
         if (tile && this.isUsable(tile) && !tile.dirty && !tile.uploading) {
+          mapDiag.log('note', key, 'refresh after quiet');
           void this.fetchInto(tile);
         }
       }
-    }
-    this.stampedParents.clear();
+      this.staleTiles.clear();
+    }, 2000);
   }
+
+  private staleTimer: ReturnType<typeof setTimeout> | null = null;
+  private staleTiles = new Set<string>();
 
   private async uploadChunk(rec: ChunkRecord): Promise<void> {
     const label = tileLabel(rec.layer, rec.cx, rec.cy, rec.level);

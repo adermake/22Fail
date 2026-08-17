@@ -374,17 +374,65 @@ export class MapEditorService {
    * exactly the levels it actually asks for, and a region nobody views never costs anything.
    */
   private invalidateAncestors(worldName: string, layer: RasterLayer, cx: number, cy: number): void {
-    let p = parentOf(cx, cy);
+    /*
+     * Rebuild each ancestor from its *immediate* children instead of deleting the chain.
+     *
+     * Deleting everything meant the next reader had to rebuild from the bottom: a level-4
+     * tile is 4 level-3s, which are 16 level-2s, and so on down to 256 level-0 chunks. That
+     * measured at three to ten seconds per tile, repeated for every chunk a stroke touched.
+     *
+     * Going bottom-up costs four decodes per level — about forty PNG operations for the
+     * whole chain, once — and leaves every level present, so reads are a file send. The
+     * expensive descent only ever happens for ground that has never been built at all.
+     */
+    let child = { cx, cy };
     for (let level = 1; level <= MAX_TILE_LEVEL; level++) {
-      const file = this.chunkFile(worldName, layer, p.cx, p.cy, level);
-      if (file) {
+      const parent = parentOf(child.cx, child.cy);
+      const file = this.chunkFile(worldName, layer, parent.cx, parent.cy, level);
+      if (!file) break;
+
+      // Only rebuild a level that already existed; nothing else has asked for the rest.
+      const existed = fs.existsSync(file);
+      if (!existed) {
+        // Nothing cached above here either, so there is nothing left to invalidate.
+        break;
+      }
+
+      const children = childrenOf(parent.cx, parent.cy).map(c =>
+        this.readExisting(worldName, layer, c.cx, c.cy, level - 1),
+      );
+      const composed = composeParent(children);
+
+      try {
+        if (composed) fs.writeFileSync(file, composed);
+        else fs.unlinkSync(file);
+      } catch (err) {
+        this.logger.warn(`Failed to refresh tile ${layer}/L${level}/${parent.cx}_${parent.cy}`);
         try {
           fs.unlinkSync(file);
         } catch {
-          /* already absent */
+          /* leave it */
         }
       }
-      p = parentOf(p.cx, p.cy);
+
+      child = parent;
+    }
+  }
+
+  /** Read a tile only if it is already on disk — never triggers a build. */
+  private readExisting(
+    worldName: string,
+    layer: RasterLayer,
+    cx: number,
+    cy: number,
+    level: number,
+  ): Buffer | null {
+    const file = this.chunkFile(worldName, layer, cx, cy, level);
+    if (!file) return null;
+    try {
+      return fs.readFileSync(file);
+    } catch {
+      return null;
     }
   }
 
