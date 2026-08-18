@@ -61,7 +61,8 @@ muss dieser ohne Statboni seine Reaktion würfeln und kriegt stattdessen den [Gr
 und kann zusätzlich keine Fähigkeiten oder Zauber als defensive Aktion benutzen. (Panikreaktion)
 Ansonsten kann er bei seiner Reaktion den Statmodifier und die Aktion frei wählen. (Volle Reaktion)
 :::
-
+ ### Extra-Aktion 
+Durch bestimmte Fähigkeiten können Spieler eine **Extra-Aktion** erhalten. Diese verhält sich identisch zu einer regulären Aktion, kann also auch als Bonusaktion oder Bewegungsaktion verwendet werden. Die Extra-Aktion ist nicht zu verwechseln mit einem Extrazug, der als ein voller Zug mit Aktion, Bonusaktion und Bewegung zählt.
 
 ## Schadensberechnung
 
@@ -70,6 +71,12 @@ die Qualität derer Waffen und Rüstung.
 
 :::section{title="Schadenswürfe" icon=dice id=schadenswuerfe}
 Wenn der Angreifer und der Verteidiger würfeln, bestimmt die Differenz der beiden Würfe die Stärke des Angriffs. 
+
+Stats beeinflussen den Würfelbonus, den jeder Angriff und jede defensive Aktion erhalten. Welcher Stat dafür gewählt wird,
+bestimmt die Voraussetzung der Waffe oder des Zaubers. Sollte keine Voraussetzung gegeben sein, kann der Stat vom Spieler gewählt werden,
+solange er im Kontext Sinn ergibt. Defensive Aktionen verwenden ebenfalls unterschiedliche Stats je nach Situation, 
+z.B. Geschwindigkeit zum Ausweichen, Konstitution zum Blocken, Angriffsstats wie oben beschrieben für Gegenangriffe. Manche Angriffe erzwingen allerdings bestimmte Reaktionswürfe und können nicht frei gewählt werden.
+
 Bei Treffern wird diese in folgende Gruppen unterteilt:
 - Schwacher Treffer
 - Normaler Treffer
@@ -77,7 +84,7 @@ Bei Treffern wird diese in folgende Gruppen unterteilt:
 - Kritischer Treffer
 - Tödlicher Treffer
 :::
-Fernkampfangriffe landen immer in der jeweils schwächeren Schadenskategorie
+[Fernkampfangriffe](kampf#fernkampf) landen immer in der jeweils schwächeren Schadenskategorie
 
 Würfelt der Verteidiger höher als der Angreifer, kann er den Angriff garantiert blocken oder ausweichen. Allerdings kann
 er auch mit einer offensiven Reaktion selbst Schaden zufügen, kann dadurch aber eventuell nicht dem Schaden entgehen.
@@ -99,18 +106,43 @@ Die Stabilität errechnet sich aus der Stabilität aller getragenen Rüstungstei
 
 ## Sonstige Regeln
 
-Opportunity Attack
-Sync Attack
-Überraschungangriffe
-Fernkampf
-Flair
+:::section{title="Gelegenheitsangriffe" icon=reaction id="gelegenheit"}
+Wenn sich ein Gegner innerhalb eines Zuges in den Nahkampfradius eines Spielers bewegt und ihn im selben Zug wieder verlässt,
+erhält dieser Spieler eine Extra-Aktion, in der er den Gegner angreifen kann.
+:::
+:::section{title="Synchronangriffe" icon=sync id="sync"}
+Wenn zwei oder mehr Charaktere aus derselben Gruppe nacheinander am Zug sind, können sie ihre Züge synchron ausführen.
+Ein Angriff, der von diesen Charakteren auf den selben Gegner ausgeführt wird, nennt sich Synchronangriff. 
+Der getroffene Gegner erhält für alle Angriffe nur eine Reaktion, kann aber Teile des Angriffs bewusst ignorieren, um sich auf bestimmte Angriffe zu fokussieren. Diese Angriffe werden behandelt, als hätte der Gegner eine 15 als Reaktionswurf gewürfelt.
+:::
+:::section{title="Besondere Bewegungsarten" icon=movement id="bewegungsarten"}
+### Schleichen
+Beim Schleichen im Kampf wird die Bewegungsdistanz halbiert und ohne gutes Versteck wird man leicht entdeckt.
+Aufmerksamkeit der Gegner spielt ebenfalls eine Rolle dabei, wie leicht man erwischt wird. Sollte man sich erfolgreich an einen
+Gegner heranschleichen, kann man einen [Überraschungsangriff](kampf#ueberraschung) ausführen.
+:::
+:::section{title="Überraschungsangriffe" icon=problem id="ueberraschung"}
+Einen Gegner anzugreifen, bevor er den Angreifer bemerkt, gilt als Überraschungsangriff. Überraschungsangriffe erhalten einen Vorteil,
+können aber nur einmal pro Person benutzt werden.
+:::
+:::section{title="Fernkampf" icon=range id="fernkampf"}
+-Bei der Schadensberechnung landen Fernkampfangriffe immer in der jeweils schwächeren Schadenskategorie.
+-Fernkampfwaffen und -magie können keine Gelegenheitsangriffe ausführen und erhalten Nachteil, wenn sie einen Nahkämpfer in deren Reichweite angreifen
+-Geworfene Nahkampfwaffen fügen auf gleiche Weise reduzierten Schaden zu und erhalten einen +1 Malus, erhöht um 1 für alle 5 Meter, die die Waffe geworfen wird.	
+-Werfbare Fernkampfwaffen erhalten auch die Schadenreduktion, aber keinen Würfelmalus
+:::
+:::section{title="Statuseffekte" icon=status_effect id="status-attacks"}
+Bestimmte Waffen oder Angriffsweisen können [Statuseffekte](status) auslösen. Normale Angriffe können aber ebenfalls bestimmte Statuseffekte auslösen, wenn der Spieler seinen Angriff explizit dafür nutzt. Die Erfolgschance und der Schaden von solch einem Angriff wird aber reduziert, kann aber je nach Situation stark variieren.
+:::
+:::section{title="Flair" icon=flair id="flair"}
+Kreative oder unterhaltsame Angriffe, die zum Charakter und zur Situation passen, können zusätzliche Boni oder Mali erhalten.
+Je unkonventioneller, desto besser.
+:::
 
 :::section{title="Rüstungsmalus" icon=equipment id=ruestungsmalus}
-*Noch zu schreiben.*
+Jedes Rüstungsteil besitzt einen Rüstungsmalus. Der Durchschnitt der Rüstungsmali aller Ausrüstungsslots (inkl. leerer Slots) wird als Rüstungsmalus der gesamten Rüstung gewertet und der Geschwindigkeit abgezogen.
 :::
 
-:::section{title="Rüstungsnegation" icon=equipment id=ruestungsnegation}
-*Noch zu schreiben.*
+:::section{title="Rüstungsnegation" icon=weightless id=ruestungsnegation}
+Rüstungsnegation reduziert den Rüstungsmalus. Sollte er den Rüstungsmalus überschreiten, bleibt dieser auf 0.
 :::
-
-Beim Schleichen im Kampf wird die Bewegungsdistanz halbiert und ohne gutes Versteck wird man leicht entdeckt.
