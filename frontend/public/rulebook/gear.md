@@ -1,4 +1,9 @@
-
+---
+title: Ausrüstung
+tab: Ausrüstung
+icon: equipment
+order: 100
+---
 ## Waffen
 
 :::note{type=tip title="Immer aktuell"}

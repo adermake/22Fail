@@ -228,6 +228,6 @@ Diese Liste wird direkt aus den Spieldaten erzeugt. Sie kann also nie veralten ‚
 :::
 
 :::actions
-:jump[Kampf]{to=kampf}
+:jump[Weiter zu Kampf]{to=kampf}
 :jump[Zur√ºck zu den Grundlagen]{to=grundlagen}
 :::

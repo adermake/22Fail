@@ -53,5 +53,4 @@ Nebenmissionen oder persönliche Ziele sind ein wichtiger Teil des Spiels. Es li
 
 :::actions
 :jump[Weiter zu den Stats]{to=stats}
-:jump[Talente ansehen]{to=talente}
 :::
