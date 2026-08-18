@@ -65,7 +65,7 @@ const KNOWN_DIRECTIVES = new Set([
  * Checks fence balance and directive names. Unbalanced `:::` used to surface in the app as
  * phantom "Unbekannte Direktive" boxes — catching it here means the author sees it at build time.
  */
-function lintFences(body, file) {
+function lintFences(body, file, lineOffset = 0) {
   const problems = [];
   const stack = [];
   let inCode = false;
@@ -82,15 +82,15 @@ function lintFences(body, file) {
     if (params) {
       const name = params.split(/[\s{]/)[0];
       if (!KNOWN_DIRECTIVES.has(name)) {
-        problems.push(`${file}:${lineNo} unbekannte Direktive ":::${name}"`);
+        problems.push(`${file}:${lineNo + lineOffset} unbekannte Direktive ":::${name}"`);
       }
       stack.push({ name, lineNo });
     } else if (!stack.pop()) {
-      problems.push(`${file}:${lineNo} überzähliges ":::" ohne offenen Block`);
+      problems.push(`${file}:${lineNo + lineOffset} überzähliges ":::" ohne offenen Block`);
     }
   }
   for (const open of stack) {
-    problems.push(`${file}:${open.lineNo} ":::${open.name}" wurde nie geschlossen`);
+    problems.push(`${file}:${open.lineNo + lineOffset} ":::${open.name}" wurde nie geschlossen`);
   }
   return problems;
 }
@@ -151,7 +151,9 @@ for (const file of files) {
     hash: createHash('sha256').update(raw).digest('hex').slice(0, 8),
     outline: buildOutline(stripFrontMatter(raw)),
   });
-  problems.push(...lintFences(stripFrontMatter(raw), file));
+  const body = stripFrontMatter(raw);
+  const frontMatterLines = raw.slice(0, raw.length - body.length).split(/\r?\n/).length - 1;
+  problems.push(...lintFences(body, file, frontMatterLines));
 }
 
 pages.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id, 'de'));

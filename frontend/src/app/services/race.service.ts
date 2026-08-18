@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
-import { Race } from '../model/race.model';
+import { Race, normalizeRace } from '../model/race.model';
 
 @Injectable({ providedIn: 'root' })
 export class RaceService {
@@ -12,12 +12,18 @@ export class RaceService {
 
   constructor(private http: HttpClient) {}
 
-  /** Load all races from server */
+  /** Load all races from server, repaired and alphabetically sorted. */
   async loadRaces(): Promise<Race[]> {
     const races = await firstValueFrom(this.http.get<Race[]>('/api/races'));
-    this.racesSubject.next(races || []);
+    const prepared = this.prepare(races || []);
+    this.racesSubject.next(prepared);
     this.loaded = true;
-    return races || [];
+    return prepared;
+  }
+
+  /** Normalize every race (merges same-level skill groups, fills categories) and sort by name. */
+  private prepare(races: Race[]): Race[] {
+    return races.map(normalizeRace).sort((a, b) => a.name.localeCompare(b.name, 'de'));
   }
 
   /** Get all races (loads from server if not already loaded) */
@@ -41,16 +47,17 @@ export class RaceService {
     );
 
     // Update local cache
-    const races = this.racesSubject.value;
+    const races = [...this.racesSubject.value];
+    const saved = normalizeRace(response.race);
     const existingIndex = races.findIndex(r => r.id === race.id);
     if (existingIndex >= 0) {
-      races[existingIndex] = response.race;
+      races[existingIndex] = saved;
     } else {
-      races.push(response.race);
+      races.push(saved);
     }
-    this.racesSubject.next([...races]);
+    this.racesSubject.next(this.prepare(races));
 
-    return response.race;
+    return saved;
   }
 
   /** Delete a race */

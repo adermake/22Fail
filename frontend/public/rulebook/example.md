@@ -156,6 +156,36 @@ Mit `min=` steuerst du die Mindestbreite statt der Spaltenzahl: `:::grid{min=200
 - Icon: `:icon[dice]` ergibt :icon[dice] — jeder Name aus `public/icons` ohne `.svg`.
 - Hervorhebung: `:hl[+8/-8]` ergibt :hl[+8/-8].
 - Taste: `:kbd[H]` ergibt :kbd[H].
+- Eigene Farbe (fett): `:hl[Text]{color=rot}` ergibt :hl[Text]{color=rot}
+- Eigene Farbe (normal): `:c[Text]{color=#38bdf8}` ergibt :c[Text]{color=#38bdf8}
+
+Farben kannst du als **Name** oder als **Hex-Wert** angeben:
+
+:::grid{cols=2}
+:::card{title="Namen"}
+`rot` :c[rot]{color=rot} ·
+`gruen` :c[gruen]{color=gruen} ·
+`blau` :c[blau]{color=blau} ·
+`gelb` :c[gelb]{color=gelb} ·
+`orange` :c[orange]{color=orange} ·
+`lila` :c[lila]{color=lila} ·
+`tuerkis` :c[tuerkis]{color=tuerkis} ·
+`pink` :c[pink]{color=pink} ·
+`grau` :c[grau]{color=grau} ·
+`weiss` :c[weiss]{color=weiss}
+
+Dazu passend zum App-Theme: `leben`, `ausdauer`, `mana`, `akzent`.
+:::
+:::card{title="Hex"}
+Jeder Hex-Wert funktioniert:
+
+`:c[Text]{color=#ff8800}` → :c[Text]{color=#ff8800}
+`:hl[Wichtig]{color=#f43f5e}` → :hl[Wichtig]{color=#f43f5e}
+
+Alles andere wird ignoriert (und beim Erzeugen des Manifests gemeldet), damit nichts
+Unerwartetes ins Layout gelangt.
+:::
+:::
 
 Beispiel im Fließtext: Drücke :kbd[H], um das Regelwerk zu öffnen. Ein :icon[dice] Wurf
 von :hl[1] ist immer optimal.

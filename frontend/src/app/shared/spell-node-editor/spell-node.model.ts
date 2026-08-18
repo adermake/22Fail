@@ -84,7 +84,6 @@ export interface PendingConnection {
 }
 
 export const FLOW_COLOR = '#ffffff';
-export const FLOW_TYPE: string[] = [];
 
 /** Build flow ports for a rune — always 1 flow-in + 1 flow-out */
 export function buildRunePorts(_rune: { name?: string }): SpellPort[] {

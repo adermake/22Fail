@@ -64,6 +64,8 @@ Ansonsten kann er bei seiner Reaktion den Statmodifier und die Aktion frei wähl
  ### Extra-Aktion 
 Durch bestimmte Fähigkeiten können Spieler eine **Extra-Aktion** erhalten. Diese verhält sich identisch zu einer regulären Aktion, kann also auch als Bonusaktion oder Bewegungsaktion verwendet werden. Die Extra-Aktion ist nicht zu verwechseln mit einem Extrazug, der als ein voller Zug mit Aktion, Bonusaktion und Bewegung zählt.
 
+:::
+
 ## Schadensberechnung
 
 Der Schaden berechnet sich aus vielen Faktoren, unter anderem der Würfelzahl des Angreifers und des Verteidigers, sowie

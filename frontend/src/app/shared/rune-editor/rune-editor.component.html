@@ -216,85 +216,19 @@
           </div>
         </section>
 
-        <!-- Datenlinien -->
+        <!-- Runentyp -->
         <section class="ed-section">
-          <h3 class="section-title">Datenlinien</h3>
-
-          <!-- Runentyp Schnellauswahl -->
+          <h3 class="section-title">Runentyp</h3>
           <div class="rt-type-row">
-            <span class="rt-type-label">Runentyp:</span>
             <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'medium'"
-                    (click)="setRuneType('medium')" title="Medium: Fluss-Ein/Aus + Mana-Eingang + Medium-Ausgang">M</button>
+                    (click)="setRuneType('medium')" title="Medium">M</button>
             <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'formung'"
-                    (click)="setRuneType('formung')" title="Formung: Fluss+Medium Ein/Aus">F</button>
+                    (click)="setRuneType('formung')" title="Formung">F</button>
             <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'selektor'"
-                    (click)="setRuneType('selektor')" title="Selektor: MediumTyp→Medium">S</button>
+                    (click)="setRuneType('selektor')" title="Selektor">S</button>
             <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'custom' || !editRune.runeType"
                     (click)="setRuneType('custom')" title="Benutzerdefiniert">?</button>
           </div>
-
-          <!-- Quick data type presets -->
-          <div class="dl-presets">
-            <span class="dl-preset-label">Schnell-Typ:</span>
-            @for (p of dataTypePresets; track p.name) {
-              <button class="dl-preset-btn"
-                      [style.border-color]="p.color"
-                      [style.color]="p.color"
-                      title="Eingang: {{ p.name }}"
-                      (click)="addPresetDataLine('inputs', p)">↓ {{ p.name }}</button>
-              <button class="dl-preset-btn dl-preset-out"
-                      [style.border-color]="p.color"
-                      [style.color]="p.color"
-                      title="Ausgang: {{ p.name }}"
-                      (click)="addPresetDataLine('outputs', p)">↑ {{ p.name }}</button>
-            }
-          </div>
-
-          <div class="dl-subheader">
-            <span class="dl-dir-label dl-in">↓ Eingänge</span>
-            <button class="dl-add-btn" (click)="addDataLine('inputs')">+ Eingang</button>
-          </div>
-          @for (line of editRune.inputs; track $index; let i = $index) {
-            <div class="dl-row">
-              <input type="color" [value]="line.color"
-                     (input)="line.color = $any($event.target).value"
-                     class="dl-color-pick">
-              <input type="text" [(ngModel)]="line.name" placeholder="Name…" class="dl-name-input">
-              <div class="dl-types">
-                @for (t of line.types; track $index; let ti = $index) {
-                  <span class="dl-type-tag" [style.border-color]="line.color">
-                    {{ t }}<button class="dl-type-rm" (click)="removeType(line, ti)">×</button>
-                  </span>
-                }
-                <input type="text" placeholder="Typ…" class="dl-type-add-input"
-                       (keydown.enter)="addType(line, $event)">
-              </div>
-              <button class="dl-rm-btn" (click)="removeDataLine('inputs', i)">×</button>
-            </div>
-          }
-
-          <div class="dl-subheader">
-            <span class="dl-dir-label dl-out">↑ Ausgänge</span>
-            <button class="dl-add-btn" (click)="addDataLine('outputs')">+ Ausgang</button>
-          </div>
-          @for (line of editRune.outputs; track $index; let i = $index) {
-            <div class="dl-row">
-              <input type="color" [value]="line.color"
-                     (input)="line.color = $any($event.target).value"
-                     class="dl-color-pick">
-              <input type="text" [(ngModel)]="line.name" placeholder="Name…" class="dl-name-input">
-              <div class="dl-types">
-                @for (t of line.types; track $index; let ti = $index) {
-                  <span class="dl-type-tag" [style.border-color]="line.color">
-                    {{ t }}<button class="dl-type-rm" (click)="removeType(line, ti)">×</button>
-                  </span>
-                }
-                <input type="text" placeholder="Typ…" class="dl-type-add-input"
-                       (keydown.enter)="addType(line, $event)">
-              </div>
-              <button class="dl-rm-btn" (click)="removeDataLine('outputs', i)">×</button>
-            </div>
-          }
         </section>
 
       </div><!-- /right col -->

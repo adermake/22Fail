@@ -9,6 +9,41 @@ import type { MarkdownIt } from 'markdown-it';
 import { esc, parseAttrs, splitTarget, type DirectiveAttrs } from './attrs';
 import type { RulebookEnv } from '../rulebook.model';
 
+/**
+ * Named colours for `:hl[…]{color=…}` / `:c[…]{color=…}`.
+ * Only these names or a literal hex value ever reach the style attribute — author text is
+ * never interpolated raw.
+ */
+const NAMED_COLORS: Record<string, string> = {
+  rot: '#ef4444', red: '#ef4444',
+  gruen: '#22c55e', 'grün': '#22c55e', green: '#22c55e',
+  blau: '#3b82f6', blue: '#3b82f6',
+  gelb: '#eab308', yellow: '#eab308',
+  orange: '#f59e0b',
+  lila: '#a78bfa', violett: '#a78bfa', purple: '#a78bfa',
+  tuerkis: '#06b6d4', 'türkis': '#06b6d4', cyan: '#06b6d4',
+  pink: '#ec4899', magenta: '#ec4899',
+  grau: '#9ca3af', gray: '#9ca3af', grey: '#9ca3af',
+  weiss: '#ffffff', 'weiß': '#ffffff', white: '#ffffff',
+  schwarz: '#111827', black: '#111827',
+  // semantic aliases that follow the app theme
+  leben: 'var(--health-color, #ef4444)',
+  ausdauer: 'var(--energy-color, #22c55e)',
+  mana: 'var(--mana-color, #3b82f6)',
+  akzent: 'var(--accent, #8b5cf6)', accent: 'var(--accent, #8b5cf6)',
+};
+
+/** Returns a safe CSS colour, or null if the author wrote something unsupported. */
+export function safeColor(value: string | undefined): string | null {
+  if (!value) return null;
+  const key = value.trim().toLowerCase();
+  if (NAMED_COLORS[key]) return NAMED_COLORS[key];
+  if (/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(key)) return key;
+  return null;
+}
+
+export const COLOR_NAMES = Object.keys(NAMED_COLORS);
+
 export interface InlineDirective {
   name: string;
   render(label: string, attrs: DirectiveAttrs, env: RulebookEnv): string;
@@ -32,7 +67,29 @@ export const INLINE_DIRECTIVES: InlineDirective[] = [
       return `<span class="app-icon i-${esc(name)}" aria-hidden="true"></span>`;
     },
   },
-  { name: 'hl', render: (label) => `<span class="rb-hl">${esc(label)}</span>` },
+  {
+    // :hl[Text]              → amber highlight (unchanged)
+    // :hl[Text]{color=rot}   → coloured + bold
+    name: 'hl',
+    render: (label, attrs, env) => {
+      const raw = attrs['color'];
+      const colour = safeColor(raw);
+      if (raw && !colour) env.warnings.push(`Unbekannte Farbe ":hl{color=${raw}}"`);
+      const style = colour ? ` style="color:${colour}"` : '';
+      return `<span class="rb-hl"${style}>${esc(label)}</span>`;
+    },
+  },
+  {
+    // :c[Text]{color=#ff8800} → coloured text WITHOUT the bold highlight styling
+    name: 'c',
+    render: (label, attrs, env) => {
+      const raw = attrs['color'];
+      const colour = safeColor(raw);
+      if (raw && !colour) env.warnings.push(`Unbekannte Farbe ":c{color=${raw}}"`);
+      const style = colour ? ` style="color:${colour}"` : '';
+      return `<span class="rb-c"${style}>${esc(label)}</span>`;
+    },
+  },
   { name: 'kbd', render: (label) => `<kbd class="rb-kbd">${esc(label)}</kbd>` },
   {
     name: 'jump',

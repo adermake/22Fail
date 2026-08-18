@@ -119,6 +119,24 @@ describe('renderMarkdown', () => {
     expect(html).toContain('data-rb-anchor="effektivitaet"');
   });
 
+  it('supports custom text colours by name and hex, ignoring bad values', async () => {
+    const named = await renderMarkdown(md('Ein :hl[Treffer]{color=rot} Wort.'), 'g');
+    expect(named.html).toContain('style="color:#ef4444"');
+    expect(named.warnings).toEqual([]);
+
+    const hex = await renderMarkdown(md('Ein :c[Wert]{color=#ff8800} Wort.'), 'g');
+    expect(hex.html).toContain('class="rb-c" style="color:#ff8800"');
+
+    const themed = await renderMarkdown(md(':c[Leben]{color=leben}'), 'g');
+    expect(themed.html).toContain('var(--health-color');
+
+    // anything not whitelisted / not hex must NOT reach the style attribute
+    const bad = await renderMarkdown(md(':hl[X]{color=javascript:alert(1)}'), 'g');
+    expect(bad.html).not.toContain('javascript');
+    expect(bad.html).toContain('<span class="rb-hl">X</span>');
+    expect(bad.warnings.join()).toContain('Unbekannte Farbe');
+  });
+
   it('renders live talent data from the app data module', async () => {
     const { html } = await renderMarkdown(md(':::data{source=talents}', ':::'), 'talente');
     expect(html).toContain('Athletik');

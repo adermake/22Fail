@@ -734,17 +734,3 @@
   white-space: nowrap;
   transition: color 0.15s;
 }
-.dmg-ruler-cell.active {
-  background: color-mix(in srgb, var(--tc) 18%, transparent);
-  transform: translateY(-1px);
-}
-.dmg-ruler-cell.active .dmg-ruler-icon {
-  filter: none;
-  opacity: 1;
-  font-size: 1.3rem;
-  text-shadow: 0 0 8px var(--tc);
-}
-.dmg-ruler-cell.active .dmg-ruler-range {
-  color: var(--tc);
-  font-weight: 700;
-}

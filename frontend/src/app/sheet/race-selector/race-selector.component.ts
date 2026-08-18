@@ -1,21 +1,24 @@
 import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Race, createEmptyRace, RaceSkill, SkillBlock } from '../../model/race.model';
+import { FormsModule } from '@angular/forms';
+import {
+  Race, createEmptyRace, RaceSkill, SkillBlock, grantedRaceSkills, unarmedEffectiveness,
+} from '../../model/race.model';
 import { RaceService } from '../../services/race.service';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
-import { RaceCardComponent } from './race-card/race-card.component';
 import { RaceFormComponent } from './race-form/race-form.component';
+import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
-/** 'skills' = skill picker for the selected race (default when race set).
- *  'select'  = race selection grid.
+/** 'skills' = ability tree for the chosen race (default when a race is set).
+ *  'select'  = browse races: list on the left, one full race on the right.
  *  'create'/'edit' = race form. */
 type ViewMode = 'skills' | 'select' | 'create' | 'edit';
 
 @Component({
   selector: 'app-race-selector',
   standalone: true,
-  imports: [CommonModule, RaceCardComponent, RaceFormComponent],
+  imports: [CommonModule, FormsModule, RaceFormComponent, ImageUrlPipe],
   templateUrl: './race-selector.component.html',
   styleUrl: './race-selector.component.css'
 })
@@ -28,6 +31,10 @@ export class RaceSelectorComponent implements OnInit {
   viewMode: ViewMode = 'select';
   selectedRace: Race | null = null;
   editingRace: Race = createEmptyRace();
+
+  /** The race currently being READ in the browse view — selecting it is a separate, explicit step. */
+  previewRace: Race | null = null;
+  raceFilter = '';
 
   loreExpanded = false;
 
@@ -55,10 +62,33 @@ export class RaceSelectorComponent implements OnInit {
       if (this.selectedRace) {
         this.viewMode = 'skills';
         this.syncSelectedSkillKeys();
+        // Races edited after this character was created may have gained Vor-/Nachteile.
+        this.grantAlwaysOnSkills(this.selectedRace);
       }
     }
+    this.previewRace = this.selectedRace ?? this.filteredRaces[0] ?? null;
     this.cd.detectChanges();
   }
+
+  // ── Browse view ─────────────────────────────────────────────────────────────
+
+  get filteredRaces(): Race[] {
+    const q = this.raceFilter.trim().toLowerCase();
+    if (!q) return this.races;
+    return this.races.filter(r => r.name.toLowerCase().includes(q));
+  }
+
+  showRace(race: Race) {
+    this.previewRace = race;
+    this.loreExpanded = false;
+  }
+
+  /** Waffenlose Effektivität — the race's BASE strength halved. */
+  unarmedEff(race: Race): number {
+    return unarmedEffectiveness(race.baseStrength);
+  }
+
+  // ── Ability tree helpers ────────────────────────────────────────────────────
 
   private syncSelectedSkillKeys() {
     this.selectedSkillKeys = new Set(
@@ -74,6 +104,12 @@ export class RaceSelectorComponent implements OnInit {
 
   isLevelUnlocked(levelRequired: number): boolean {
     return levelRequired <= (this.sheet.level || 1);
+  }
+
+  advantagesOf(race: Race): SkillBlock[] { return race.advantages ?? []; }
+  disadvantagesOf(race: Race): SkillBlock[] { return race.disadvantages ?? []; }
+  hasAlwaysOn(race: Race): boolean {
+    return this.advantagesOf(race).length > 0 || this.disadvantagesOf(race).length > 0;
   }
 
   toggleSkill(skill: SkillBlock, raceId: string) {
@@ -111,13 +147,20 @@ export class RaceSelectorComponent implements OnInit {
     }
   }
 
+  // ── Selection ───────────────────────────────────────────────────────────────
+
+  /** Dedicated confirm step — browsing a race no longer applies it. */
+  confirmPreviewRace() {
+    if (this.previewRace) this.selectRace(this.previewRace);
+  }
+
   selectRace(race: Race) {
     const oldRaceId = this.sheet.raceId;
+    let skills = [...(this.sheet.skills || [])];
 
     if (oldRaceId && oldRaceId !== race.id) {
       // Remove skills from the previously selected race
-      const filteredSkills = (this.sheet.skills || []).filter(s => s.sourceRaceId !== oldRaceId);
-      this.patch.emit({ path: 'skills', value: filteredSkills });
+      skills = skills.filter(s => s.sourceRaceId !== oldRaceId);
       this.selectedSkillKeys.clear();
     }
 
@@ -142,7 +185,33 @@ export class RaceSelectorComponent implements OnInit {
     this.patch.emit({ path: 'statuses.1.statusBase', value: race.baseEnergy });
     this.patch.emit({ path: 'statuses.2.statusBase', value: race.baseMana });
 
+    // Vor- und Nachteile are not chosen — they come with the race.
+    this.patch.emit({ path: 'skills', value: this.withAlwaysOnSkills(race, skills) });
+    this.syncSelectedSkillKeys();
+
     this.viewMode = 'skills';
+  }
+
+  /** Append the race's always-on abilities to a skill list, skipping ones already there. */
+  private withAlwaysOnSkills(race: Race, skills: SkillBlock[]): SkillBlock[] {
+    const out = [...skills];
+    for (const skill of grantedRaceSkills(race)) {
+      const exists = out.some(s => s.sourceRaceId === race.id && s.name === skill.name);
+      if (!exists) out.push({ ...skill, sourceRaceId: race.id });
+    }
+    return out;
+  }
+
+  /** Patch in any always-on ability the sheet is missing (race edited after character creation). */
+  private grantAlwaysOnSkills(race: Race): void {
+    const current = this.sheet.skills || [];
+    const next = this.withAlwaysOnSkills(race, current);
+    if (next.length !== current.length) {
+      this.patch.emit({ path: 'skills', value: next });
+      this.selectedSkillKeys = new Set(
+        next.filter(s => s.sourceRaceId).map(s => `${s.sourceRaceId}::${s.name}`)
+      );
+    }
   }
 
   clearRace() {
@@ -157,6 +226,7 @@ export class RaceSelectorComponent implements OnInit {
   }
 
   startRaceChange() {
+    this.previewRace = this.selectedRace ?? this.filteredRaces[0] ?? null;
     this.viewMode = 'select';
   }
 
@@ -168,7 +238,6 @@ export class RaceSelectorComponent implements OnInit {
     this.viewMode = 'create';
   }
 
-  // Double click opens edit mode
   startEdit(race: Race) {
     this.editingRace = JSON.parse(JSON.stringify(race));
     this.pendingImageFile = null;
@@ -192,9 +261,12 @@ export class RaceSelectorComponent implements OnInit {
       }
 
       this.races = await this.raceService.loadRaces();
+      const saved = this.races.find(r => r.id === this.editingRace.id) ?? null;
+      this.previewRace = saved ?? this.previewRace;
       // If we just saved the race we're editing and it's also the selected race, refresh selectedRace
       if (this.selectedRace?.id === this.editingRace.id) {
-        this.selectedRace = this.races.find(r => r.id === this.editingRace.id) ?? null;
+        this.selectedRace = saved;
+        if (this.selectedRace) this.grantAlwaysOnSkills(this.selectedRace);
         this.viewMode = 'skills';
       } else {
         this.viewMode = this.selectedRace ? 'skills' : 'select';
@@ -214,6 +286,9 @@ export class RaceSelectorComponent implements OnInit {
         this.selectedSkillKeys.clear();
         this.patch.emit({ path: 'raceId', value: '' });
         this.patch.emit({ path: 'race', value: '' });
+      }
+      if (this.previewRace?.id === this.editingRace.id) {
+        this.previewRace = this.filteredRaces[0] ?? null;
       }
       this.viewMode = this.selectedRace ? 'skills' : 'select';
     }

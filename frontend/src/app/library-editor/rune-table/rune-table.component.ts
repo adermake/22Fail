@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
 import { AssetFile, createAssetFile } from '../../model/asset-browser.model';
-import { RuneBlock, RuneDataLine, RuneStatRequirements, DATA_TYPE_PRESETS, RUNE_TYPE_CONFIGS, RuneType } from '../../model/rune-block.model';
+import { RuneBlock, RuneStatRequirements, RuneType } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
@@ -36,7 +36,6 @@ export class RuneTableComponent implements OnInit, OnDestroy {
   isLoading = signal(false);
   uploading = signal(false);
   savingIds = signal(new Set<string>());
-  readonly presets = DATA_TYPE_PRESETS;
   /** Per-file save timer ids */
   private saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -163,12 +162,6 @@ export class RuneTableComponent implements OnInit, OnDestroy {
           else if (tag === 's') detectedType = 'selektor';
         }
 
-        const portConfig = detectedType
-          ? RUNE_TYPE_CONFIGS[detectedType]
-          : null;
-        const inputs  = portConfig ? JSON.parse(JSON.stringify(portConfig.inputs))  : [{ name: 'Medium', color: '#ec4899', types: ['Medium'] }];
-        const outputs = portConfig ? JSON.parse(JSON.stringify(portConfig.outputs)) : [{ name: 'Medium', color: '#ec4899', types: ['Medium'] }];
-
         const newRune: RuneBlock = {
           name: runeName,
           description: '',
@@ -182,8 +175,6 @@ export class RuneTableComponent implements OnInit, OnDestroy {
           identified: true,
           learned: false,
           runeType: detectedType,
-          inputs,
-          outputs,
         };
         const assetFile = await firstValueFrom(
           this.api.createFile(this.libraryId, runeName, 'rune', this.folderId, newRune)
@@ -223,49 +214,14 @@ export class RuneTableComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ─── Port helpers ─────────────────────────────────────────────────────────
-
-  getPorts(file: AssetFile, dir: 'inputs' | 'outputs'): RuneDataLine[] {
-    return (file.data as RuneBlock)[dir] ?? [];
-  }
-
-  addPresetPort(file: AssetFile, dir: 'inputs' | 'outputs', presetName: string) {
-    const preset = this.presets.find(p => p.name === presetName);
-    if (!preset) return;
-    const rune = file.data as RuneBlock;
-    if (!rune[dir]) rune[dir] = [];
-    rune[dir]!.push({ name: preset.name, color: preset.color, types: [preset.type] });
-    this.onFieldChange(file);
-  }
-
-  removePort(file: AssetFile, dir: 'inputs' | 'outputs', idx: number) {
-    const rune = file.data as RuneBlock;
-    if (!rune[dir]) return;
-    rune[dir] = rune[dir]!.filter((_, i) => i !== idx);
-    this.onFieldChange(file);
-  }
-
-  onAddPortSelect(event: Event, file: AssetFile, dir: 'inputs' | 'outputs') {
-    const sel = event.target as HTMLSelectElement;
-    const val = sel.value;
-    sel.value = '';
-    this.addPresetPort(file, dir, val);
-  }
-
-  // ─── Rune type ────────────────────────────────────────────────────────────
+  // ─── Rune type ─────────────────────────────────────────────────
 
   getRuneType(file: AssetFile): RuneType | undefined {
     return (file.data as RuneBlock).runeType;
   }
 
   setRuneType(file: AssetFile, type: RuneType) {
-    const rune = file.data as RuneBlock;
-    rune.runeType = type;
-    if (type !== 'custom') {
-      const config = RUNE_TYPE_CONFIGS[type as 'medium' | 'formung' | 'selektor'];
-      rune.inputs  = JSON.parse(JSON.stringify(config.inputs));
-      rune.outputs = JSON.parse(JSON.stringify(config.outputs));
-    }
+    (file.data as RuneBlock).runeType = type;
     this.onFieldChange(file);
   }
 }

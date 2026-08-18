@@ -21,6 +21,12 @@
             <div class="palette-rune-glyph">
               @if (rune.name === NEUTRAL_RUNE_ID) {
                 <div class="palette-neutral-icon"></div>
+              } @else if (rune.name === SUMMON_RUNE_ID) {
+                <div class="summon-glyph summon-glyph-mini">
+                  @for (i of SUMMON_SQUARES; track i) {
+                    <span class="summon-sq"></span>
+                  }
+                </div>
               } @else if (rune.drawing) {
                 <img [src]="rune.drawing | imageUrl" class="palette-rune-img" [alt]="rune.name"/>
               } @else {
@@ -28,7 +34,7 @@
               }
             </div>
             <div class="palette-rune-info">
-              <div class="palette-rune-name">{{ rune.name === NEUTRAL_RUNE_ID ? 'Neutral' : rune.name }}</div>
+              <div class="palette-rune-name">{{ paletteRuneName(rune) }}</div>
               @if (rune.name !== NEUTRAL_RUNE_ID && rune.tags.length) {
                 <div class="palette-rune-tags">{{ rune.tags!.join(' · ') }}</div>
               }
@@ -96,6 +102,7 @@
 
           <!-- ── START NODE ──────────────────────────────────────────── -->
           <div class="start-node"
+               [class.start-node-selected]="startNodeSelected"
                [style.left.px]="graph.startNode.x - 34"
                [style.top.px]="graph.startNode.y - 34"
                (mousedown)="onStartNodeMouseDown($event)">
@@ -118,6 +125,7 @@
           @for (node of graphNodesSig(); track trackById($index, node)) {
             @let rune = getNodeRune(node.id);
             @let isNeutral = node.runeId === NEUTRAL_RUNE_ID;
+            @let isSummon  = node.runeId === SUMMON_RUNE_ID;
             <div class="rune-node"
                  [class.rune-node-drag]="draggingNodeId === node.id"
                  [class.rune-node-selected]="isNodeSelected(node.id)"
@@ -156,6 +164,14 @@
                 <div class="neutral-node-wrap">
                   <div class="neutral-node-body"></div>
                 </div>
+              } @else if (isSummon) {
+                <div class="summon-node-wrap">
+                  <div class="summon-glyph">
+                    @for (i of SUMMON_SQUARES; track i) {
+                      <span class="summon-sq"></span>
+                    }
+                  </div>
+                </div>
               } @else if (rune?.drawing) {
                 <img class="rune-node-img" [src]="rune!.drawing | imageUrl" [alt]="rune!.name"/>
               } @else if (rune) {
@@ -169,7 +185,9 @@
               }
 
               <!-- Name label (hidden for neutral) -->
-              @if (!isNeutral) {
+              @if (isSummon) {
+                <div class="rune-node-name rune-node-name-summon">{{ summonNodeLabel(node) }}</div>
+              } @else if (!isNeutral) {
                 <div class="rune-node-name">{{ rune?.name ?? node.runeId }}</div>
               }
 
@@ -329,26 +347,6 @@
               @if (inspectedRune.fokus)         { <div class="ri-cost"><span class="ri-cost-lbl">Fokus</span><span class="ri-cost-val">{{ inspectedRune.fokus }}</span></div> }
               @if (inspectedRune.effektivitaet) { <div class="ri-cost"><span class="ri-cost-lbl">Effekt.</span><span class="ri-cost-val">{{ inspectedRune.effektivitaet }}</span></div> }
             </div>
-          }
-          @if (inspectedRune.inputs?.length) {
-            <div class="ri-section-lbl">↓ Eingänge</div>
-            @for (dl of inspectedRune.inputs; track $index) {
-              <div class="ri-dl" [style.--dlc]="dl.color">
-                <span class="ri-dl-dot"></span>
-                <span class="ri-dl-name">{{ dl.name }}</span>
-                @for (t of dl.types; track t) { <span class="ri-dl-type">{{ t }}</span> }
-              </div>
-            }
-          }
-          @if (inspectedRune.outputs?.length) {
-            <div class="ri-section-lbl ri-section-lbl-out">↑ Ausgänge</div>
-            @for (dl of inspectedRune.outputs; track $index) {
-              <div class="ri-dl" [style.--dlc]="dl.color">
-                <span class="ri-dl-dot"></span>
-                <span class="ri-dl-name">{{ dl.name }}</span>
-                @for (t of dl.types; track t) { <span class="ri-dl-type">{{ t }}</span> }
-              </div>
-            }
           }
           <!-- ── Conn-inspector ── -->
         </div>

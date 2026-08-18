@@ -154,6 +154,56 @@
 
 /* Add skill row */
 .rf-add-skill-row { display: flex; align-items: flex-end; gap: 8px; padding-top: 6px; border-top: 1px solid var(--border, #4a5568); margin-top: 2px; flex-shrink: 0; }
+
+/* ── Ability categories: Vorteile / Nachteile / Stufen-Faehigkeiten ─────────── */
+.rf-section-hint { margin: 2px 0 8px; font-size: 0.72rem; color: var(--text-muted, #9ca3af); line-height: 1.5; }
+
+.rf-cat { margin-bottom: 12px; padding: 8px; border-radius: 8px; background: rgba(0,0,0,0.22); border: 1px solid var(--border, #2d3748); }
+.rf-cat[data-cat="advantage"]    { border-left: 3px solid #4ade80; }
+.rf-cat[data-cat="disadvantage"] { border-left: 3px solid #f87171; }
+.rf-cat[data-cat="skill"]        { border-left: 3px solid var(--accent, #8b5cf6); }
+
+.rf-cat-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.rf-cat-title { font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text, #e5e7eb); }
+.rf-cat[data-cat="advantage"] .rf-cat-title    { color: #4ade80; }
+.rf-cat[data-cat="disadvantage"] .rf-cat-title { color: #f87171; }
+.rf-cat[data-cat="skill"] .rf-cat-title        { color: #a78bfa; }
+.rf-cat-count { font-size: 0.7rem; color: var(--text-muted, #9ca3af); }
+.rf-add-inline { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.rf-add-inline .rf-label { margin: 0; font-size: 0.66rem; }
+.rf-btn-add-sm { margin-left: auto; padding: 3px 10px; font-size: 0.72rem; }
+.rf-add-inline .rf-btn-add-sm { margin-left: 0; }
+.rf-btn-add-xs { margin-left: auto; padding: 2px 8px; font-size: 0.68rem; }
+
+/* Skill rows inside a category: darker plate, matching the skill cards elsewhere */
+.rf-cat .rf-skill-item { background: #0f1829; border-color: var(--border, #2d3748); }
+.rf-cat-select {
+  flex-shrink: 0;
+  background: var(--bg, #1e293b);
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 5px;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.7rem;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.rf-cat-select:hover { color: var(--text, #e5e7eb); border-color: var(--accent, #8b5cf6); }
+.rf-skill-del { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 4px; opacity: 0.7; flex-shrink: 0; }
+.rf-skill-del:hover { opacity: 1; }
+
+/* Level groups — one row per level, several skills = a choice row */
+.rf-lvl-groups { display: flex; flex-direction: column; gap: 8px; }
+.rf-lvl-group { padding: 6px; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); }
+.rf-lvl-head { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.rf-lvl-head .rf-label { margin: 0; font-size: 0.66rem; }
+.rf-lvl-head .rf-input-num { width: 58px; }
+.rf-choice-badge { font-size: 0.66rem; font-weight: 700; color: #a78bfa; background: rgba(139,92,246,0.14); border: 1px solid rgba(139,92,246,0.3); border-radius: 10px; padding: 1px 8px; }
+
+/* Derived readout (Waffenlose Effektivitaet) */
+.rf-derived-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.25); }
+.rf-derived-name { flex: 1; font-size: 0.76rem; color: var(--text-muted, #9ca3af); }
+.rf-derived-val { font-size: 0.95rem; font-weight: 800; color: #38bdf8; }
+.rf-derived-row .app-icon { color: #38bdf8; }
 .rf-btn-add { padding: 6px 14px; background: rgba(139,92,246,0.1); border: 1px solid var(--accent, #8b5cf6); border-radius: 6px; color: var(--accent, #8b5cf6); font-size: 0.8rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
 .rf-btn-add:hover { background: rgba(139,92,246,0.22); }
 
