@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, Output, OnChanges, SimpleChanges } from
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ItemBlock } from '../../model/item-block.model';
-import { RuneBlock } from '../../model/rune-block.model';
+import { RuneBlock, RuneType, RUNE_TYPE_LABELS } from '../../model/rune-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { StatusEffect } from '../../model/status-effect.model';
@@ -283,14 +283,8 @@ export class AssetBrowserComponent implements OnChanges {
     this.filteredRunes = this.filterRunes(this.runes, this._searchTerm);
   }
 
-  getRuneTypeLabel(runeType?: string): string {
-    const labels: Record<string, string> = {
-      medium: 'Medium',
-      formung: 'Formung',
-      selektor: 'Selektor',
-      custom: 'Custom',
-    };
-    return runeType ? (labels[runeType] ?? runeType) : 'Legacy';
+  getRuneTypeLabel(runeType?: RuneType): string {
+    return runeType ? (RUNE_TYPE_LABELS[runeType] ?? runeType) : 'Legacy';
   }
 
   getMaterialCategoryLabel(m: MaterialBlock): string {

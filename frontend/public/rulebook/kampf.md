@@ -63,6 +63,8 @@ Ansonsten kann er bei seiner Reaktion den Statmodifier und die Aktion frei wähl
 :::
 
 
+:::
+
 ## Schadensberechnung
 
 Der Schaden berechnet sich aus vielen Faktoren, unter anderem der Würfelzahl des Angreifers und des Verteidigers, sowie

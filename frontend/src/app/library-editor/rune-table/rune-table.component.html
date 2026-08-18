@@ -128,15 +128,15 @@
                        placeholder="Beschreibung…">
               </td>
 
-              <!-- Eingänge/Ausgänge → ersetzt durch Typ-Auswahl -->
+              <!-- Runentyp -->
               <td class="c-type">
                 <div class="rt-type-btns">
                   <button class="rt-tb" [class.rtb-active]="getRuneType(file) === 'medium'"
-                          (click)="setRuneType(file, 'medium')" title="Medium: MediumTyp-Ausgang">M</button>
+                          (click)="setRuneType(file, 'medium')" title="Medium">M</button>
                   <button class="rt-tb" [class.rtb-active]="getRuneType(file) === 'formung'"
-                          (click)="setRuneType(file, 'formung')" title="Formung: Fluss+Medium">F</button>
+                          (click)="setRuneType(file, 'formung')" title="Formung">F</button>
                   <button class="rt-tb" [class.rtb-active]="getRuneType(file) === 'selektor'"
-                          (click)="setRuneType(file, 'selektor')" title="Selektor: MediumTyp→Medium">S</button>
+                          (click)="setRuneType(file, 'selektor')" title="Selektor">S</button>
                   <button class="rt-tb" [class.rtb-active]="!getRuneType(file) || getRuneType(file) === 'custom'"
                           (click)="setRuneType(file, 'custom')" title="Benutzerdefiniert">?</button>
                 </div>

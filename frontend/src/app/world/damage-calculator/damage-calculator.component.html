@@ -48,12 +48,12 @@
         Schaden würfeln
       </button>
 
-      <!-- Wound-severity ruler: which bracket the (final) damage falls into -->
+      <!-- Static cheat sheet: Würfeldifferenz → Trefferstärke. Purely a reminder for the
+           GM — it is NOT tied to the rolled damage and never highlights. -->
       <div class="dmg-ruler">
         <div class="dmg-ruler-track">
-          @for (t of damageThresholds; track t.label; let i = $index) {
-            <div class="dmg-ruler-cell" [class.active]="i === activeThresholdIndex"
-                 [style.--tc]="t.color" [title]="t.label + ' Schaden'">
+          @for (t of damageThresholds; track t.label) {
+            <div class="dmg-ruler-cell" [style.--tc]="t.color" [title]="t.label + ' Differenz'">
               <span class="dmg-ruler-icon">{{ t.icon }}</span>
               <span class="dmg-ruler-range">{{ t.label }}</span>
             </div>

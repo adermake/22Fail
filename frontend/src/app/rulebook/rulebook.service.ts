@@ -51,6 +51,12 @@ export class RulebookService {
     const url = isDevMode() ? `/rulebook/${page.file}` : `/rulebook/${page.file}?v=${page.hash}`;
     const source = await firstValueFrom(this.http.get(url, { responseType: 'text' }));
 
+    // A deleted/renamed page 404s, and the SPA fallback returns index.html with status 200.
+    // Detect that instead of rendering the app's own HTML as if it were rules text.
+    if (/^\s*(?:<!doctype html|<html)/i.test(source)) {
+      throw new Error(`Regelwerk-Seite "${id}" existiert nicht mehr (${page.file}).`);
+    }
+
     const result = await renderMarkdown(source, id); // ← markdown-it lazy chunk loads here
     if (result.warnings.length && isDevMode()) {
       console.warn(`[rulebook] ${id}:`, result.warnings);

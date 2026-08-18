@@ -17,7 +17,7 @@
   }
 
   <!-- ══════════════════════════════════════════════════════════
-       SKILLS VIEW — primary view when a race is selected
+       ABILITY TREE — primary view when a race is selected
   ══════════════════════════════════════════════════════════ -->
   @if (!loading && viewMode === 'skills' && selectedRace) {
     <div class="rso-wrap">
@@ -31,9 +31,9 @@
           </span>
         </div>
         <div class="rso-hdr-right">
-          <button class="rso-btn rso-btn-outline" (click)="startEdit(selectedRace)">&#x270F; Bearbeiten</button>
-          <button class="rso-btn rso-btn-change" (click)="startRaceChange()">&#x21C4; Rasse wechseln</button>
-          <button class="rso-close-btn" (click)="onClose()" title="Schlie&szlig;en">&#x2715;</button>
+          <button class="rso-btn rso-btn-outline" (click)="startEdit(selectedRace)">Bearbeiten</button>
+          <button class="rso-btn rso-btn-change" (click)="startRaceChange()">Rasse wechseln</button>
+          <button class="rso-close-btn" (click)="onClose()" title="Schlie&szlig;en">&times;</button>
         </div>
       </div>
 
@@ -45,12 +45,67 @@
           <div class="rso-lore" [class.rso-lore-open]="loreExpanded">
             <p class="rso-lore-text">{{ selectedRace.lore }}</p>
             <button class="rso-lore-toggle" (click)="loreExpanded = !loreExpanded">
-              {{ loreExpanded ? 'Weniger \u25B2' : 'Mehr \u25BC' }}
+              {{ loreExpanded ? 'Weniger' : 'Mehr lesen' }}
             </button>
           </div>
         }
 
-        <!-- Skill groups -->
+        <!-- Always-on abilities: granted with the race, never chosen -->
+        @if (hasAlwaysOn(selectedRace)) {
+          <div class="rso-groups rso-groups-fixed">
+            @if (advantagesOf(selectedRace).length) {
+              <section class="rso-group">
+                <div class="rso-group-hdr">
+                  <span class="rso-group-tag rso-tag-adv">Vorteile</span>
+                  <span class="rso-group-tip">Gelten automatisch</span>
+                </div>
+                <div class="rso-cards">
+                  @for (skill of advantagesOf(selectedRace); track skill.name) {
+                    <div class="rso-sk rso-sk-fixed rso-sk-adv" [attr.data-type]="skill.type">
+                      <div class="rso-sk-bar">
+                        <span class="rso-sk-ti app-icon {{ getTypeIcon(skill.type) }}"></span>
+                        <span class="rso-sk-tl">{{ getTypeLabel(skill.type) }}</span>
+                        <span class="rso-sk-name">{{ skill.name }}</span>
+                      </div>
+                      <div class="rso-sk-desc">{{ skill.description }}</div>
+                      <div class="rso-sk-foot">
+                        <span class="rso-sk-class">{{ selectedRace.name }}</span>
+                        <span class="rso-sk-req rso-req-adv">Vorteil</span>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </section>
+            }
+
+            @if (disadvantagesOf(selectedRace).length) {
+              <section class="rso-group">
+                <div class="rso-group-hdr">
+                  <span class="rso-group-tag rso-tag-dis">Nachteile</span>
+                  <span class="rso-group-tip">Gelten automatisch</span>
+                </div>
+                <div class="rso-cards">
+                  @for (skill of disadvantagesOf(selectedRace); track skill.name) {
+                    <div class="rso-sk rso-sk-fixed rso-sk-dis" [attr.data-type]="skill.type">
+                      <div class="rso-sk-bar">
+                        <span class="rso-sk-ti app-icon {{ getTypeIcon(skill.type) }}"></span>
+                        <span class="rso-sk-tl">{{ getTypeLabel(skill.type) }}</span>
+                        <span class="rso-sk-name">{{ skill.name }}</span>
+                      </div>
+                      <div class="rso-sk-desc">{{ skill.description }}</div>
+                      <div class="rso-sk-foot">
+                        <span class="rso-sk-class">{{ selectedRace.name }}</span>
+                        <span class="rso-sk-req rso-req-dis">Nachteil</span>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </section>
+            }
+          </div>
+        }
+
+        <!-- Level-gated skill groups -->
         <div class="rso-groups">
           @for (group of selectedRace.skills; track group.levelRequired) {
             <section class="rso-group">
@@ -59,10 +114,10 @@
               <div class="rso-group-hdr">
                 <span class="rso-group-lvl">Stufe {{ group.levelRequired }}</span>
                 @if (!isLevelUnlocked(group.levelRequired)) {
-                  <span class="rso-group-lock">&#x1F512; Nicht freigeschaltet</span>
+                  <span class="rso-group-lock">Nicht freigeschaltet</span>
                 }
-                @if (group.isChoice) {
-                  <span class="rso-group-tip">Empfehlung: 1 w&auml;hlen</span>
+                @if (group.skills.length > 1) {
+                  <span class="rso-group-tip">Eine w&auml;hlen</span>
                 }
                 @if (countSelectedForGroup(selectedRace.id, group) > 0) {
                   <span class="rso-group-sel-count">
@@ -97,7 +152,7 @@
                     <div class="rso-sk-foot">
                       <span class="rso-sk-class">{{ selectedRace.name }}</span>
                       @if (!isLevelUnlocked(group.levelRequired)) {
-                        <span class="rso-sk-req">&#x1F512; Stufe {{ group.levelRequired }}</span>
+                        <span class="rso-sk-req">Ab Stufe {{ group.levelRequired }}</span>
                       }
                     </div>
 
@@ -114,7 +169,7 @@
   }
 
   <!-- ══════════════════════════════════════════════════════════
-       RACE SELECTION GRID — shown when no race or switching
+       BROWSE — race list on the left, one full race on the right
   ══════════════════════════════════════════════════════════ -->
   @if (loading || viewMode === 'select') {
     <div class="rso-wrap">
@@ -122,40 +177,253 @@
       <div class="rso-hdr">
         <div class="rso-hdr-left">
           @if (selectedRace) {
-            <button class="rso-btn rso-btn-back" (click)="cancelEdit()">&#x2190; Zur&uuml;ck</button>
+            <button class="rso-btn rso-btn-back" (click)="cancelEdit()">&larr; Zur&uuml;ck</button>
           }
           <h1 class="rso-select-title">Rasse ausw&auml;hlen</h1>
         </div>
-        <button class="rso-close-btn" (click)="onClose()" title="Schlie&szlig;en">&#x2715;</button>
+        <button class="rso-close-btn" (click)="onClose()" title="Schlie&szlig;en">&times;</button>
       </div>
 
-      <div class="rso-body">
-        @if (loading) {
-          <div class="rso-loading">Lade Rassen&hellip;</div>
-        } @else {
-          @if (selectedRace) {
-            <p class="rso-change-hint">
-              &#x26A0; Das Ausw&auml;hlen einer anderen Rasse &uuml;bernimmt deren Basisstats und entfernt alle bisher ausgew&auml;hlten Rassenskills.
-            </p>
-          }
-          <p class="rso-hint">Klicken zum Ausw&auml;hlen &middot; Doppelklick zum Bearbeiten</p>
+      @if (loading) {
+        <div class="rso-loading">Lade Rassen&hellip;</div>
+      } @else {
+        <div class="rso-browse">
 
-          <div class="rso-race-list">
-            @for (race of races; track race.id) {
-              <app-race-card
-                [race]="race"
-                [isSelected]="isCurrentRace(race)"
-                (select)="selectRace($event)"
-                (edit)="startEdit($event)">
-              </app-race-card>
-            }
-            <div class="rso-create-card" (click)="startCreate()">
-              <span class="rso-create-icon">+</span>
-              <span class="rso-create-txt">Neue Rasse erstellen</span>
+          <!-- ── Left: race list ── -->
+          <aside class="rso-list">
+            <div class="rso-list-search">
+              <input class="rso-search-input" type="text" [(ngModel)]="raceFilter" placeholder="Rasse suchen...">
             </div>
-          </div>
-        }
-      </div>
+            <div class="rso-list-scroll">
+              @for (race of filteredRaces; track race.id) {
+                <button class="rso-list-item"
+                        [class.rso-list-item-active]="previewRace?.id === race.id"
+                        [class.rso-list-item-current]="isCurrentRace(race)"
+                        (click)="showRace(race)">
+                  <span class="rso-list-thumb">
+                    @if (race.baseImage) {
+                      <img [src]="race.baseImage | imageUrl" [alt]="race.name">
+                    } @else {
+                      <span class="app-icon i-character"></span>
+                    }
+                  </span>
+                  <span class="rso-list-text">
+                    <span class="rso-list-name">{{ race.name }}</span>
+                    <span class="rso-list-sub">{{ race.size }} &middot; {{ race.ageRange }} Jahre</span>
+                  </span>
+                  @if (isCurrentRace(race)) {
+                    <span class="rso-list-badge">Aktuell</span>
+                  }
+                </button>
+              }
+              @if (!filteredRaces.length) {
+                <div class="rso-list-empty">Keine Rasse gefunden.</div>
+              }
+            </div>
+            <button class="rso-list-create" (click)="startCreate()">+ Neue Rasse</button>
+          </aside>
+
+          <!-- ── Right: the selected race, in full ── -->
+          <div class="rso-detail">
+            @if (!previewRace) {
+              <div class="rso-detail-empty">W&auml;hle links eine Rasse aus.</div>
+            } @else {
+              <div class="rso-detail-scroll">
+
+                <!-- Hero -->
+                <div class="rso-hero">
+                  <div class="rso-hero-img">
+                    @if (previewRace.baseImage) {
+                      <img [src]="previewRace.baseImage | imageUrl" [alt]="previewRace.name">
+                    } @else {
+                      <span class="app-icon i-character"></span>
+                    }
+                  </div>
+                  <div class="rso-hero-info">
+                    <h2 class="rso-hero-name">{{ previewRace.name }}</h2>
+                    <div class="rso-chips">
+                      <span class="rso-chip"><span class="rso-chip-k">Gr&ouml;&szlig;e</span>{{ previewRace.size }}</span>
+                      <span class="rso-chip"><span class="rso-chip-k">Alter</span>{{ previewRace.ageRange }} Jahre</span>
+                      <span class="rso-chip"><span class="rso-chip-k">Gewicht</span>{{ previewRace.weight }}</span>
+                    </div>
+                    <div class="rso-hero-actions">
+                      @if (isCurrentRace(previewRace)) {
+                        <span class="rso-current-note">Diese Rasse ist ausgew&auml;hlt.</span>
+                      } @else {
+                        <button class="rso-select-btn" (click)="confirmPreviewRace()">
+                          {{ selectedRace ? 'Diese Rasse wählen' : 'Rasse wählen' }}
+                        </button>
+                      }
+                      <button class="rso-btn rso-btn-outline" (click)="startEdit(previewRace)">Bearbeiten</button>
+                    </div>
+                    @if (selectedRace && !isCurrentRace(previewRace)) {
+                      <p class="rso-change-hint">
+                        Ein Wechsel &uuml;bernimmt die Basiswerte dieser Rasse und entfernt alle Rassenf&auml;higkeiten der bisherigen Rasse.
+                      </p>
+                    }
+                  </div>
+                </div>
+
+                <!-- Lore -->
+                @if (previewRace.lore) {
+                  <section class="rso-panel">
+                    <h3 class="rso-panel-title">Hintergrund</h3>
+                    <p class="rso-panel-lore">{{ previewRace.lore }}</p>
+                  </section>
+                }
+
+                <!-- Werte -->
+                <section class="rso-panel">
+                  <h3 class="rso-panel-title">Werte</h3>
+
+                  <div class="rso-res-row">
+                    <div class="rso-res" data-res="health">
+                      <span class="app-icon i-life"></span>
+                      <span class="rso-res-v">{{ previewRace.baseHealth }}</span>
+                      <span class="rso-res-l">Leben</span>
+                    </div>
+                    <div class="rso-res" data-res="energy">
+                      <span class="app-icon i-energy"></span>
+                      <span class="rso-res-v">{{ previewRace.baseEnergy }}</span>
+                      <span class="rso-res-l">Ausdauer</span>
+                    </div>
+                    <div class="rso-res" data-res="mana">
+                      <span class="app-icon i-mana"></span>
+                      <span class="rso-res-v">{{ previewRace.baseMana }}</span>
+                      <span class="rso-res-l">Mana</span>
+                    </div>
+                    <div class="rso-res" data-res="unarmed" title="Basis-St&auml;rke geteilt durch 2">
+                      <span class="app-icon i-effektivity"></span>
+                      <span class="rso-res-v">{{ unarmedEff(previewRace) }}</span>
+                      <span class="rso-res-l">Waffenlose Eff.</span>
+                    </div>
+                  </div>
+
+                  <div class="rso-stat-grid">
+                    <div class="rso-stat">
+                      <span class="rso-stat-k">St&auml;rke</span>
+                      <span class="rso-stat-v">{{ previewRace.baseStrength }}</span>
+                      <span class="rso-stat-g">+{{ previewRace.strengthPerLevel }}/Stufe</span>
+                    </div>
+                    <div class="rso-stat">
+                      <span class="rso-stat-k">Geschick</span>
+                      <span class="rso-stat-v">{{ previewRace.baseDexterity }}</span>
+                      <span class="rso-stat-g">+{{ previewRace.dexterityPerLevel }}/Stufe</span>
+                    </div>
+                    <div class="rso-stat">
+                      <span class="rso-stat-k">Tempo</span>
+                      <span class="rso-stat-v">{{ previewRace.baseSpeed }}</span>
+                      <span class="rso-stat-g">+{{ previewRace.speedPerLevel }}/Stufe</span>
+                    </div>
+                    <div class="rso-stat">
+                      <span class="rso-stat-k">Intelligenz</span>
+                      <span class="rso-stat-v">{{ previewRace.baseIntelligence }}</span>
+                      <span class="rso-stat-g">+{{ previewRace.intelligencePerLevel }}/Stufe</span>
+                    </div>
+                    <div class="rso-stat">
+                      <span class="rso-stat-k">Konstitution</span>
+                      <span class="rso-stat-v">{{ previewRace.baseConstitution }}</span>
+                      <span class="rso-stat-g">+{{ previewRace.constitutionPerLevel }}/Stufe</span>
+                    </div>
+                    <div class="rso-stat">
+                      <span class="rso-stat-k">Wille</span>
+                      <span class="rso-stat-v">{{ previewRace.baseChill }}</span>
+                      <span class="rso-stat-g">+{{ previewRace.chillPerLevel }}/Stufe</span>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- Vorteile / Nachteile -->
+                @if (hasAlwaysOn(previewRace)) {
+                  <section class="rso-panel">
+                    <h3 class="rso-panel-title">Vor- &amp; Nachteile</h3>
+
+                    @if (advantagesOf(previewRace).length) {
+                      <div class="rso-group-hdr">
+                        <span class="rso-group-tag rso-tag-adv">Vorteile</span>
+                      </div>
+                      <div class="rso-cards">
+                        @for (skill of advantagesOf(previewRace); track skill.name) {
+                          <div class="rso-sk rso-sk-fixed rso-sk-adv" [attr.data-type]="skill.type">
+                            <div class="rso-sk-bar">
+                              <span class="rso-sk-ti app-icon {{ getTypeIcon(skill.type) }}"></span>
+                              <span class="rso-sk-tl">{{ getTypeLabel(skill.type) }}</span>
+                              <span class="rso-sk-name">{{ skill.name }}</span>
+                            </div>
+                            <div class="rso-sk-desc">{{ skill.description }}</div>
+                          </div>
+                        }
+                      </div>
+                    }
+
+                    @if (disadvantagesOf(previewRace).length) {
+                      <div class="rso-group-hdr rso-group-hdr-gap">
+                        <span class="rso-group-tag rso-tag-dis">Nachteile</span>
+                      </div>
+                      <div class="rso-cards">
+                        @for (skill of disadvantagesOf(previewRace); track skill.name) {
+                          <div class="rso-sk rso-sk-fixed rso-sk-dis" [attr.data-type]="skill.type">
+                            <div class="rso-sk-bar">
+                              <span class="rso-sk-ti app-icon {{ getTypeIcon(skill.type) }}"></span>
+                              <span class="rso-sk-tl">{{ getTypeLabel(skill.type) }}</span>
+                              <span class="rso-sk-name">{{ skill.name }}</span>
+                            </div>
+                            <div class="rso-sk-desc">{{ skill.description }}</div>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </section>
+                }
+
+                <!-- Stufen-Fähigkeiten -->
+                @if (previewRace.skills.length) {
+                  <section class="rso-panel">
+                    <h3 class="rso-panel-title">Rassenf&auml;higkeiten</h3>
+                    <div class="rso-groups">
+                      @for (group of previewRace.skills; track group.levelRequired) {
+                        <div class="rso-group">
+                          <div class="rso-group-hdr">
+                            <span class="rso-group-lvl">Stufe {{ group.levelRequired }}</span>
+                            @if (group.skills.length > 1) {
+                              <span class="rso-group-tip">Eine w&auml;hlen</span>
+                            }
+                          </div>
+                          <div class="rso-cards">
+                            @for (skill of group.skills; track skill.name) {
+                              <div class="rso-sk rso-sk-fixed" [attr.data-type]="skill.type">
+                                <div class="rso-sk-bar">
+                                  <span class="rso-sk-ti app-icon {{ getTypeIcon(skill.type) }}"></span>
+                                  <span class="rso-sk-tl">{{ getTypeLabel(skill.type) }}</span>
+                                  <span class="rso-sk-name">{{ skill.name }}</span>
+                                </div>
+                                <div class="rso-sk-desc">{{ skill.description }}</div>
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </section>
+                }
+
+              </div><!-- /rso-detail-scroll -->
+
+              <!-- Sticky confirm bar -->
+              <div class="rso-detail-foot">
+                @if (isCurrentRace(previewRace)) {
+                  <span class="rso-current-note">{{ previewRace.name }} ist deine aktuelle Rasse.</span>
+                } @else {
+                  <button class="rso-select-btn rso-select-btn-lg" (click)="confirmPreviewRace()">
+                    {{ previewRace.name }} w&auml;hlen
+                  </button>
+                }
+              </div>
+            }
+          </div><!-- /rso-detail -->
+
+        </div><!-- /rso-browse -->
+      }
 
     </div>
   }

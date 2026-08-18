@@ -649,6 +649,20 @@
   user-select: none;
 }
 
+/* Selected (clicked or box-selected) — makes it obvious what a drag will move */
+.start-node.start-node-selected .start-node-core {
+  border-color: #fff;
+  box-shadow:
+    0 0 26px rgba(255,255,255,0.6),
+    0 0 55px rgba(180,160,255,0.45),
+    inset 0 0 22px rgba(255,255,255,0.14);
+  animation: none;
+}
+.start-node.start-node-selected .start-node-ring {
+  border-color: rgba(255,255,255,0.85);
+  opacity: 1;
+}
+
 /* Start node flow-out port */
 .start-port-out {
   position: absolute;
@@ -1191,6 +1205,120 @@
 }
 
 .palette-rune-neutral { border-color: rgba(107,114,128,0.25) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SUMMONING RUNE — 8 nested squares, each spinning at its own speed while breathing
+   in and out on a staggered delay. rotate/scale are animated as *individual* transform
+   properties so the two animations can run on the same element without clobbering.
+   ═══════════════════════════════════════════════════════════════════════════ */
+/* Fixed-size wrapper so port positions (computed for the 110px node) stay aligned */
+.summon-node-wrap {
+  width: 110px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.summon-glyph {
+  --sc: var(--glow, #a78bfa);
+  --sw: 2px;
+  position: relative;
+  width: 92px;
+  height: 92px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--sc) 55%, transparent));
+}
+/* soft haze in the middle so the stack reads as one glyph */
+.summon-glyph::before {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--sc) 38%, transparent) 0%, transparent 70%);
+  animation: summon-haze 3.4s ease-in-out infinite alternate;
+}
+
+.summon-sq {
+  position: absolute;
+  inset: 0;
+  border: var(--sw) solid var(--sc);
+  border-radius: 3px;
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  transform-origin: 50% 50%;
+  animation:
+    summon-spin    8s   linear             infinite,
+    summon-breathe 3.6s ease-in-out        infinite;
+}
+
+/* Per-square speeds, spin direction and breathe stagger — the negative spin delays
+   also give every square a different resting angle. */
+.summon-sq:nth-child(1) { animation-duration:  6.0s, 3.2s; animation-delay: -0.0s, -0.0s; }
+.summon-sq:nth-child(2) { animation-duration:  9.0s, 4.1s; animation-delay: -1.1s, -0.5s; animation-direction: reverse, normal; }
+.summon-sq:nth-child(3) { animation-duration:  4.5s, 2.7s; animation-delay: -2.2s, -1.0s; }
+.summon-sq:nth-child(4) { animation-duration: 11.0s, 5.3s; animation-delay: -3.3s, -1.5s; animation-direction: reverse, normal; }
+.summon-sq:nth-child(5) { animation-duration:  7.5s, 3.7s; animation-delay: -4.4s, -2.0s; }
+.summon-sq:nth-child(6) { animation-duration: 13.0s, 4.7s; animation-delay: -5.5s, -2.5s; animation-direction: reverse, normal; }
+.summon-sq:nth-child(7) { animation-duration:  5.5s, 2.9s; animation-delay: -6.6s, -3.0s; }
+.summon-sq:nth-child(8) { animation-duration:  8.5s, 6.1s; animation-delay: -7.7s, -3.5s; animation-direction: reverse, normal; }
+
+/* Colour drift across the stack keeps it from reading as a flat outline */
+.summon-sq:nth-child(3n)   { border-color: color-mix(in srgb, var(--sc) 45%, #22d3ee); }
+.summon-sq:nth-child(3n+1) { border-color: color-mix(in srgb, var(--sc) 70%, #f0abfc); }
+.summon-sq:nth-child(4n)   { border-style: dashed; }
+
+@keyframes summon-spin {
+  to { rotate: 360deg; }
+}
+@keyframes summon-breathe {
+  0%   { scale: 0.34; opacity: 0.28; }
+  50%  { scale: 1.00; opacity: 0.72; }
+  100% { scale: 0.34; opacity: 0.28; }
+}
+@keyframes summon-haze {
+  from { opacity: 0.35; scale: 0.8; }
+  to   { opacity: 0.8;  scale: 1.15; }
+}
+
+/* Brighter while the node is selected */
+.rune-node.rune-node-selected .summon-glyph {
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--sc) 90%, transparent))
+          drop-shadow(0 0 34px color-mix(in srgb, var(--sc) 50%, transparent))
+          brightness(1.25);
+}
+/* Freeze the churn while dragging so the node stays readable */
+.rune-node.rune-node-drag .summon-sq,
+.rune-node.rune-node-drag .summon-glyph::before { animation-play-state: paused; }
+
+.rune-node-name-summon {
+  color: #e9d5ff;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Palette preview — same glyph, shrunk down */
+.summon-glyph-mini {
+  --sc: var(--glow, #a78bfa);
+  --sw: 1px;
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--sc) 60%, transparent));
+}
+.summon-glyph-mini .summon-sq { border-radius: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .summon-sq,
+  .summon-glyph::before { animation: none; }
+  .summon-sq { scale: 0.34; opacity: 0.5; }
+  .summon-sq:nth-child(2) { scale: 0.5;  rotate: 12deg; }
+  .summon-sq:nth-child(3) { scale: 0.62; rotate: 24deg; }
+  .summon-sq:nth-child(4) { scale: 0.72; rotate: 36deg; }
+  .summon-sq:nth-child(5) { scale: 0.8;  rotate: 48deg; }
+  .summon-sq:nth-child(6) { scale: 0.87; rotate: 60deg; }
+  .summon-sq:nth-child(7) { scale: 0.94; rotate: 72deg; }
+  .summon-sq:nth-child(8) { scale: 1;    rotate: 84deg; }
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
    CONNECTION SETTINGS BADGES (SVG, shown at line midpoint)
@@ -1797,47 +1925,6 @@
   font-weight: 700;
   color: #e2e8f0;
   margin-top: 1px;
-}
-
-.ri-section-lbl {
-  font-size: 0.63rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #4b96f0;
-  margin: 10px 0 5px;
-}
-.ri-section-lbl-out { color: #f59e0b; }
-
-.ri-dl {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 0;
-  flex-wrap: wrap;
-}
-.ri-dl-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--dlc, #6b7280);
-  box-shadow: 0 0 6px var(--dlc, #6b7280);
-  flex-shrink: 0;
-}
-.ri-dl-name {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #e2e8f0;
-  flex: 1;
-  min-width: 0;
-}
-.ri-dl-type {
-  font-size: 0.6rem;
-  padding: 1px 6px;
-  border-radius: 99px;
-  border: 1px solid var(--dlc, #6b7280);
-  color: var(--dlc, #6b7280);
-  background: color-mix(in srgb, var(--dlc, #6b7280) 10%, transparent);
 }
 
 /* ── Summoning-rune config panel ────────────────────────────────────────── */

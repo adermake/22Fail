@@ -272,6 +272,8 @@
 .rb-note p { margin: 0.35rem 0; }
 
 /* ── Grid + cards ───────────────────────────────────────────────────────── */
+.rb-grid > .rb-card { margin: 0; }
+
 .rb-grid {
   display: grid;
   gap: 1rem;
@@ -279,6 +281,9 @@
   grid-template-columns: repeat(auto-fit, minmax(var(--rb-grid-min, 280px), 1fr));
 }
 .rb-card {
+  /* Cards are usually inside .rb-grid (which supplies `gap`), but they are also valid on
+     their own — then they need their own spacing or consecutive cards render flush. */
+  margin: 1rem 0;
   --rb-card-color: var(--accent, #8b5cf6);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid color-mix(in srgb, var(--rb-card-color) 35%, var(--border, #374151));
@@ -380,7 +385,7 @@
 .rb-tabwrap { position: relative; display: flex; }
 .rb-menu {
   position: absolute;
-  top: 100%;
+  top: calc(100% - 1px);
   left: 0;
   z-index: 40;
   min-width: 240px;
@@ -394,6 +399,16 @@
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
   animation: rb-menu-in 0.14s ease;
 }
+.rb-menu::before {
+  /* invisible bridge above the menu — keeps :hover continuous across the seam */
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 0;
+  right: 0;
+  height: 10px;
+}
+
 @keyframes rb-menu-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 .rb-menu-item {
   display: block;
@@ -483,3 +498,6 @@
   color: var(--text-muted, #9ca3af);
   line-height: 1.4;
 }
+
+/* Custom coloured text — :c[…]{color=…} (plain) and :hl[…]{color=…} (bold highlight) */
+.rb-c { font-weight: inherit; }

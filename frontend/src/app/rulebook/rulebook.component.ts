@@ -169,7 +169,7 @@ export class RulebookComponent implements OnInit {
   /** Small delay so moving the pointer from the tab into the dropdown doesn't close it. */
   onTabLeave(): void {
     if (this.menuTimer) clearTimeout(this.menuTimer);
-    this.menuTimer = setTimeout(() => this.openMenu.set(null), 180);
+    this.menuTimer = setTimeout(() => this.openMenu.set(null), 320);
   }
 
   outlineOf(id: string): RulebookPage['outline'] {

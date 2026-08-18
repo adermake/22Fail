@@ -8,7 +8,7 @@ import { RuneBlock } from '../../model/rune-block.model';
 import { SpellBlock, SPELL_TAG_OPTIONS, SpellStatRequirements } from '../../model/spell-block-model';
 import {
   SpellGraph, SpellNode, SpellConnection, SpellPort, PendingConnection, PortPosition,
-  buildRunePorts, FLOW_COLOR, FLOW_TYPE, NEUTRAL_RUNE_ID, SUMMON_RUNE_ID,
+  buildRunePorts, FLOW_COLOR, NEUTRAL_RUNE_ID, SUMMON_RUNE_ID,
 } from './spell-node.model';
 import { CompanionBlock } from '../../model/companion-block.model';
 import { ImageUrlPipe } from '../image-url.pipe';
@@ -243,6 +243,24 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
 
   summonCompanion(node: SpellNode): CompanionBlock | undefined {
     return this.availableCompanions.find(c => c.id === node.summon?.companionId);
+  }
+
+  /** The 8 offset squares of the summoning-rune glyph — index drives the CSS animation stagger. */
+  readonly SUMMON_SQUARES = [0, 1, 2, 3, 4, 5, 6, 7];
+
+  /** Node caption for a summoning rune — „Beschwöre: <Begleiter>“ once one is bound. */
+  summonNodeLabel(node: SpellNode): string {
+    const name = this.summonCompanion(node)?.name
+      ?? node.summon?.companionName
+      ?? node.summon?.soulName;
+    return name ? `Beschwöre: ${name}` : 'Beschwöre:';
+  }
+
+  /** Palette caption — the special nodes carry internal ids as their name. */
+  paletteRuneName(rune: RuneBlock): string {
+    if (rune.name === NEUTRAL_RUNE_ID) return 'Neutral';
+    if (rune.name === SUMMON_RUNE_ID)  return 'Beschwörung';
+    return rune.name;
   }
 
   closeQuickSearch() {
@@ -625,6 +643,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
       // Left click: marquee selection only — NO panning
       this.selectedConnectionId = null;
       this.selectedNodeIds = new Set();
+      this.startNodeSelected = false;
       const rect = this.canvasEl().getBoundingClientRect();
       this.marqueeActive = true;
       this.marqueeStartX = e.clientX - rect.left;
@@ -1095,7 +1114,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     this.selectedConnectionId = null;
     // If clicking a selected node, ensure it stays selected (don't clear)
     if (!this.selectedNodeIds.has(nodeId)) {
-      this.selectedNodeIds = new Set([nodeId]);
+      this.selectedNodeIds   = new Set([nodeId]);
+      this.startNodeSelected = false;
     }
     const node = this.graph.nodes.find(n => n.id === nodeId)!;
     const world = this.clientToWorld(e.clientX, e.clientY);
@@ -1115,6 +1135,14 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     e.stopPropagation();
     if ((e.target as Element).closest('.rune-port, .port-circle')) return;
     this.pushUndo();
+    // Clicking the start node selects ONLY the start node — unless it is already part of
+    // a multi-selection, in which case the whole selection is dragged together.
+    if (!this.startNodeSelected) {
+      this.selectedNodeIds      = new Set();
+      this.selectedWaypoints    = new Map();
+      this.selectedConnectionId = null;
+      this.startNodeSelected    = true;
+    }
     const world = this.clientToWorld(e.clientX, e.clientY);
     this.isDraggingStartNode = true;
     this.startNodeDragOffX = world.x - this.graph.startNode.x;
@@ -1207,11 +1235,6 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     return true;
   }
 
-  /** Raw port↔port type compatibility (always true for flow-only) */
-  private portsRawCompatible(_a: unknown, _b: unknown): boolean {
-    return true;
-  }
-
   // ────────────────────────────────────────────────────────────────────────────
   // Connection creation + loop detection
   createConnection(pending: PendingConnection, target: PortPosition) {
@@ -1242,12 +1265,8 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
     );
     if (duplicate) return;
 
-    // Replace any existing connection into the same input port
-    const old = this.graph.connections.find(
-      c => c.toNodeId === toNodeId && c.toPortId === toPortId
-    );
-    if (old) this.removeConnection(old.id);
-
+    // NOTE: input ports accept MULTIPLE incoming connections — several flows may
+    // converge on the same rune, so nothing is removed here.
     const conn: SpellConnection = { id: `conn-${this.nextId++}`, fromNodeId, fromPortId, toNodeId, toPortId };
     // Check for cycle — auto-set arch+passthrough
     if (this.createsCycle(conn)) {
@@ -1519,6 +1538,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   nodeGlowColor(nodeId: string): string {
     const node = this.graph.nodes.find(n => n.id === nodeId);
     if (node?.runeId === NEUTRAL_RUNE_ID) return '#6b7280';
+    if (node?.runeId === SUMMON_RUNE_ID)  return '#a78bfa';
     const rune = this.getNodeRune(nodeId);
     return rune?.glowColor || '#8b5cf6';
   }
@@ -1771,7 +1791,7 @@ export class SpellNodeEditorComponent implements OnInit, OnDestroy {
   }
 
   inspectPaletteRune(rune: RuneBlock) {
-    if (rune.name === NEUTRAL_RUNE_ID) return;
+    if (rune.name === NEUTRAL_RUNE_ID || rune.name === SUMMON_RUNE_ID) return;
     this.selectedConnectionId = null; // close connection inspector
     this.inspectedRune = rune;
   }

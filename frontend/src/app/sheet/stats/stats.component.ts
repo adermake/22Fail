@@ -2,6 +2,7 @@ import { Component, EventEmitter, inject, Input, Output } from '@angular/core';
 import { CardComponent } from '../../shared/card/card.component';
 import { StatComponent } from '../stat/stat.component';
 import { CharacterSheet } from '../../model/character-sheet-model';
+import { unarmedEffectiveness } from '../../model/race.model';
 import { FormsModule } from '@angular/forms';
 import { JsonPatch } from '../../model/json-patch.model';
 import { TrueStatsService } from '../../services/true-stats.service';
@@ -50,6 +51,11 @@ export class StatsComponent {
 
   get reaktionswert(): number {
     return this.trueStats.calculateReaktionswert(this.sheet);
+  }
+
+  /** Waffenlose Effektivitaet: the race's BASE strength halved (the value the race was created with). */
+  get unarmedEffectiveness(): number {
+    return unarmedEffectiveness(this.sheet.strength?.base ?? 0);
   }
 
   get grundbonusTooltip(): string {

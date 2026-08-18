@@ -4,14 +4,18 @@ import { SkillBlock } from './skill-block.model';
 export { SkillBlock } from './skill-block.model';
 
 /**
- * A skill that unlocks at a certain level for a race
- * Can have multiple skill options to choose from (dual paths)
+ * A rack of racial skills that unlock at one level. Every skill sharing a level lives in ONE group
+ * and is rendered as a single row — with more than one entry the player picks exactly one of them
+ * (`isChoice` is derived from the count by `normalizeRace`, never authored by hand).
  */
 export interface RaceSkill {
   levelRequired: number;
   skills: SkillBlock[];    // Array of skill options to choose from
-  isChoice: boolean;       // Whether this is a choice or all skills are granted
+  isChoice: boolean;       // Derived: skills.length > 1
 }
+
+/** Where a racial ability sits: always-on boon, always-on drawback, or a level-gated pick. */
+export type RaceAbilityCategory = 'advantage' | 'disadvantage' | 'skill';
 
 /**
  * Race definition - shared globally across all character sheets
@@ -47,7 +51,12 @@ export interface Race {
   constitutionPerLevel: number;
   chillPerLevel: number;
 
-  // Skills that unlock at certain levels
+  /** Always-on boons: granted the moment the race is chosen, never selectable. */
+  advantages?: SkillBlock[];
+  /** Always-on drawbacks: granted the moment the race is chosen, never selectable. */
+  disadvantages?: SkillBlock[];
+
+  // Skills that unlock at certain levels (one group per level)
   skills: RaceSkill[];
 }
 
@@ -81,6 +90,55 @@ export function createEmptyRace(): Race {
     intelligencePerLevel: 0,
     constitutionPerLevel: 0,
     chillPerLevel: 0,
+    advantages: [],
+    disadvantages: [],
     skills: [],
   };
+}
+
+/**
+ * Repair whatever shape a race arrives in — old files, hand-written JSON, importer output —
+ * without losing anything:
+ *  - `advantages` / `disadvantages` always exist as arrays;
+ *  - skill groups sharing a level are MERGED into one group (they used to render as separate
+ *    "Level 1 …" rows instead of one choice row);
+ *  - `isChoice` is derived from the group size, so it can never contradict the content;
+ *  - groups are sorted by level, empty ones dropped.
+ * Returns a new object; the input is left untouched.
+ */
+export function normalizeRace(race: Race): Race {
+  const byLevel = new Map<number, SkillBlock[]>();
+  for (const group of race.skills ?? []) {
+    const level = Number(group?.levelRequired) || 0;
+    const bucket = byLevel.get(level) ?? [];
+    for (const skill of group?.skills ?? []) {
+      if (!skill) continue;
+      // Guard against the same skill being listed twice after a merge.
+      if (bucket.some(s => s.name === skill.name)) continue;
+      bucket.push(skill);
+    }
+    byLevel.set(level, bucket);
+  }
+
+  const skills: RaceSkill[] = [...byLevel.entries()]
+    .filter(([, list]) => list.length > 0)
+    .sort((a, b) => a[0] - b[0])
+    .map(([levelRequired, list]) => ({ levelRequired, skills: list, isChoice: list.length > 1 }));
+
+  return {
+    ...race,
+    advantages: [...(race.advantages ?? [])],
+    disadvantages: [...(race.disadvantages ?? [])],
+    skills,
+  };
+}
+
+/** Every always-on ability of a race (advantages + disadvantages), granted on selection. */
+export function grantedRaceSkills(race: Race): SkillBlock[] {
+  return [...(race.advantages ?? []), ...(race.disadvantages ?? [])];
+}
+
+/** Waffenlose Effektivität — the race's BASE strength halved. */
+export function unarmedEffectiveness(baseStrength: number): number {
+  return Math.round(((baseStrength || 0) / 2) * 10) / 10;
 }

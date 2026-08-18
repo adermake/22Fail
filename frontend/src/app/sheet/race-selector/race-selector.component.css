@@ -342,285 +342,175 @@ app-race-form {
   opacity: 0.7;
 }
 
-/* ─── Race selection grid ────────────────────────────────────────────────────── */
-.rso-loading {
-  text-align: center;
-  padding: 4rem;
-  color: var(--text-muted, #9ca3af);
-  font-size: 1.1rem;
-}
 
+/* --- Browse view: race list + one full race ------------------------------- */
+.rso-loading { text-align: center; padding: 4rem; color: var(--text-muted, #9ca3af); font-size: 1.1rem; }
+
+.rso-browse { flex: 1; min-height: 0; display: grid; grid-template-columns: 260px 1fr; }
+
+/* Left rail */
+.rso-list {
+  display: flex; flex-direction: column; min-height: 0;
+  border-right: 1px solid var(--border, #2d3748);
+  background: rgba(0, 0, 0, 0.25);
+}
+.rso-list-search { padding: 0.6rem; border-bottom: 1px solid var(--border, #2d3748); }
+.rso-search-input {
+  width: 100%; box-sizing: border-box; padding: 0.45rem 0.6rem;
+  background: #0f1829; border: 1px solid var(--border, #4a5568);
+  border-radius: 6px; color: var(--text, #e5e7eb); font-size: 0.82rem;
+}
+.rso-search-input:focus { outline: none; border-color: var(--accent, #8b5cf6); }
+.rso-list-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0.4rem; }
+.rso-list-scroll::-webkit-scrollbar { width: 6px; }
+.rso-list-scroll::-webkit-scrollbar-track { background: transparent; }
+.rso-list-scroll::-webkit-scrollbar-thumb { background: var(--border, #4a5568); border-radius: 3px; }
+
+.rso-list-item {
+  width: 100%; display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.45rem 0.5rem; margin-bottom: 2px;
+  background: transparent; border: 1px solid transparent; border-radius: 8px;
+  cursor: pointer; text-align: left; transition: background 0.12s, border-color 0.12s;
+}
+.rso-list-item:hover { background: rgba(255, 255, 255, 0.04); }
+.rso-list-item-active { background: rgba(139, 92, 246, 0.14); border-color: rgba(139, 92, 246, 0.45); }
+.rso-list-item-current .rso-list-name { color: #4ade80; }
+.rso-list-thumb {
+  width: 34px; height: 34px; flex-shrink: 0; border-radius: 7px; overflow: hidden;
+  background: #0f1829; border: 1px solid var(--border, #2d3748);
+  display: flex; align-items: center; justify-content: center; color: var(--text-muted, #9ca3af);
+}
+.rso-list-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.rso-list-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rso-list-name {
+  font-size: 0.85rem; font-weight: 600; color: var(--text, #e5e7eb);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rso-list-sub {
+  font-size: 0.68rem; color: var(--text-muted, #9ca3af);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rso-list-badge {
+  flex-shrink: 0; font-size: 0.6rem; font-weight: 700; color: #4ade80;
+  background: rgba(74, 222, 128, 0.12); border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 10px; padding: 1px 6px;
+}
+.rso-list-empty { padding: 1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted, #9ca3af); }
+.rso-list-create {
+  margin: 0.5rem; padding: 0.5rem; background: transparent;
+  border: 1px dashed var(--border, #4a5568); border-radius: 8px;
+  color: var(--text-muted, #9ca3af); font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; transition: border-color 0.15s, color 0.15s;
+}
+.rso-list-create:hover { border-color: var(--accent, #8b5cf6); color: #a78bfa; }
+
+/* Right pane */
+.rso-detail { display: flex; flex-direction: column; min-height: 0; }
+.rso-detail-empty {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted, #9ca3af); font-size: 0.95rem;
+}
+.rso-detail-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 1.5rem 1.75rem 1rem; }
+.rso-detail-scroll::-webkit-scrollbar { width: 8px; }
+.rso-detail-scroll::-webkit-scrollbar-track { background: transparent; }
+.rso-detail-scroll::-webkit-scrollbar-thumb { background: var(--border, #4a5568); border-radius: 4px; }
+
+/* Hero */
+.rso-hero { display: flex; gap: 1.25rem; margin-bottom: 1.25rem; }
+.rso-hero-img {
+  width: 168px; height: 168px; flex-shrink: 0; border-radius: 12px; overflow: hidden;
+  background: #0f1829; border: 1px solid var(--border, #2d3748);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted, #9ca3af); font-size: 2.5rem;
+}
+.rso-hero-img img { width: 100%; height: 100%; object-fit: cover; }
+.rso-hero-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.rso-hero-name { margin: 0; font-size: 1.7rem; font-weight: 800; color: var(--text, #e5e7eb); }
+.rso-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.rso-chip {
+  display: inline-flex; align-items: baseline; gap: 0.35rem;
+  background: #0f1829; border: 1px solid var(--border, #2d3748);
+  border-radius: 999px; padding: 0.22rem 0.7rem; font-size: 0.78rem; color: var(--text, #e5e7eb);
+}
+.rso-chip-k { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted, #9ca3af); }
+.rso-hero-actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.rso-current-note { font-size: 0.82rem; color: #4ade80; font-weight: 600; }
+.rso-select-btn {
+  background: var(--accent, #8b5cf6); border: none; border-radius: 8px; color: #fff;
+  font-size: 0.88rem; font-weight: 700; padding: 0.5rem 1.1rem; cursor: pointer; transition: filter 0.15s;
+}
+.rso-select-btn:hover { filter: brightness(1.12); }
+.rso-select-btn-lg { padding: 0.6rem 1.6rem; font-size: 0.95rem; }
 .rso-change-hint {
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  border-radius: 8px;
-  padding: 0.65rem 1rem;
-  font-size: 0.83rem;
-  color: #fcd34d;
-  margin-bottom: 1rem;
+  background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 0.78rem; color: #fcd34d; margin: 0;
 }
 
-.rso-hint {
-  color: var(--text-muted, #9ca3af);
-  font-size: 0.82rem;
-  margin: 0 0 1.25rem;
+/* Panels - dark plates, matching the skill cards */
+.rso-panel {
+  background: rgba(0, 0, 0, 0.28); border: 1px solid var(--border, #2d3748);
+  border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 1rem;
+}
+.rso-panel-title {
+  margin: 0 0 0.7rem; font-size: 0.68rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-muted, #9ca3af);
+}
+.rso-panel-lore { margin: 0; font-size: 0.86rem; line-height: 1.7; color: var(--text, #e5e7eb); opacity: 0.9; }
+
+/* Resources + derived */
+.rso-res-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; margin-bottom: 0.75rem; }
+.rso-res {
+  display: flex; align-items: center; gap: 0.45rem;
+  background: #0f1829; border: 1px solid var(--border, #2d3748);
+  border-radius: 8px; padding: 0.5rem 0.7rem;
+}
+.rso-res[data-res="health"]  { border-left: 3px solid #ef4444; }
+.rso-res[data-res="energy"]  { border-left: 3px solid #22c55e; }
+.rso-res[data-res="mana"]    { border-left: 3px solid #60a5fa; }
+.rso-res[data-res="unarmed"] { border-left: 3px solid #38bdf8; }
+.rso-res[data-res="health"] .app-icon  { color: #ef4444; }
+.rso-res[data-res="energy"] .app-icon  { color: #22c55e; }
+.rso-res[data-res="mana"] .app-icon    { color: #60a5fa; }
+.rso-res[data-res="unarmed"] .app-icon { color: #38bdf8; }
+.rso-res-v { font-size: 1.05rem; font-weight: 800; color: var(--text, #e5e7eb); }
+.rso-res-l { font-size: 0.68rem; color: var(--text-muted, #9ca3af); margin-left: auto; text-align: right; }
+
+/* Attributes */
+.rso-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem; }
+.rso-stat {
+  display: flex; align-items: baseline; gap: 0.4rem;
+  background: #0f1829; border: 1px solid var(--border, #2d3748);
+  border-radius: 8px; padding: 0.45rem 0.65rem;
+}
+.rso-stat-k { font-size: 0.7rem; color: var(--text-muted, #9ca3af); flex: 1; }
+.rso-stat-v { font-size: 1.05rem; font-weight: 800; color: var(--text, #e5e7eb); }
+.rso-stat-g { font-size: 0.66rem; color: #a78bfa; }
+
+/* Sticky confirm bar under the detail pane */
+.rso-detail-foot {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem;
+  padding: 0.75rem 1.75rem; border-top: 1px solid var(--border, #2d3748); background: rgba(0, 0, 0, 0.3);
 }
 
-.rso-race-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+/* Always-on ability cards (Vorteil / Nachteil) */
+.rso-groups-fixed { margin-bottom: 1.5rem; }
+.rso-sk-fixed { cursor: default; }
+.rso-sk-fixed:hover { box-shadow: none; transform: none; }
+.rso-sk-adv { --tc: #4ade80; --tc-bg: rgba(74, 222, 128, 0.10); }
+.rso-sk-dis { --tc: #f87171; --tc-bg: rgba(248, 113, 113, 0.10); }
+.rso-group-hdr-gap { margin-top: 0.9rem; }
+.rso-group-tag {
+  font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.08em; border-radius: 4px; padding: 2px 7px;
 }
+.rso-tag-adv { color: #4ade80; background: rgba(74, 222, 128, 0.12); border: 1px solid rgba(74, 222, 128, 0.3); }
+.rso-tag-dis { color: #f87171; background: rgba(248, 113, 113, 0.12); border: 1px solid rgba(248, 113, 113, 0.3); }
+.rso-req-adv { color: #4ade80; opacity: 0.9; }
+.rso-req-dis { color: #f87171; opacity: 0.9; }
 
-/* Create card */
-.rso-create-card {
-  background: transparent;
-  border: 2px dashed var(--border, #4a5568);
-  border-radius: 12px;
-  padding: 2rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  transition: border-color 0.2s;
-}
-.rso-create-card:hover { border-color: var(--accent, #8b5cf6); }
-
-.rso-create-icon {
-  font-size: 2rem;
-  color: var(--accent, #8b5cf6);
-  line-height: 1;
-}
-
-.rso-create-txt {
-  font-size: 1rem;
-  color: var(--text-muted, #9ca3af);
-  font-weight: 500;
-}
-
-
-/* When in create/edit mode the race-form fills the overlay */
-app-race-form {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.race-selector-container {
-  flex: 1;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border, #333);
-  position: sticky;
-  top: 0;
-  background: var(--bg, #0f0f1a);
-  z-index: 10;
-  padding-top: 1rem;
-}
-
-.header h1 {
-  margin: 0;
-  color: var(--accent, #4a9eff);
-  font-size: 2rem;
-}
-
-.close-button, .back-button {
-  background: none;
-  border: 1px solid var(--border, #333);
-  color: var(--text-muted, #888);
-  cursor: pointer;
-  border-radius: 8px;
-}
-
-.close-button {
-  font-size: 1.5rem;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.back-button {
-  color: var(--accent, #4a9eff);
-  padding: 0.5rem 1rem;
-}
-
-.loading {
-  text-align: center;
-  padding: 5rem;
-  color: var(--text-muted, #888);
-}
-
-.current-race {
-  background: rgba(74, 158, 255, 0.1);
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.hint {
-  color: var(--text-muted, #888);
-  font-size: 0.9rem;
-  margin: 0 0 1.5rem;
-}
-
-.race-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.create-card {
-  background: var(--bg-secondary);
-  border: 2px dashed var(--border);
-  border-radius: 12px;
-  padding: 2rem;
-  cursor: pointer;
-  text-align: center;
-}
-
-.create-card:hover {
-  border-color: var(--accent);
-}
-
-.create-card .icon {
-  font-size: 3rem;
-  color: var(--accent);
-}
-
-.create-card .text {
-  color: var(--text-muted);
-  font-size: 1.1rem;
-  margin-top: 0.5rem;
-}
-
-.btn {
-  padding: 0.875rem 2rem;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.btn-small {
-  padding: 0.35rem 1rem;
-  border-radius: 6px;
-}
-
-.btn-danger {
-  background: #ef4444;
-  color: #fff;
-}
-
-/* Skill Choice Screen */
-.skill-choice-screen {
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-.skill-choice-group {
-  background: var(--bg-secondary, #1a1a2e);
-  border: 1px solid var(--border, #333);
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.skill-choice-group h3 {
-  color: var(--accent, #4a9eff);
-  margin: 0 0 0.5rem;
-  font-size: 1.3rem;
-}
-
-.choice-hint {
-  color: var(--text-muted, #888);
-  margin: 0 0 1rem;
-  font-size: 0.9rem;
-}
-
-.skill-options {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.skill-option {
-  background: var(--bg, #0f0f1a);
-  border: 2px solid var(--border, #333);
-  border-radius: 8px;
-  padding: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.skill-option:hover {
-  border-color: var(--accent, #4a9eff);
-  background: rgba(74, 158, 255, 0.1);
-  transform: translateX(5px);
-}
-
-.skill-option .skill-name {
-  color: var(--text, #e0e0e0);
-  font-weight: 600;
-  font-size: 1.1rem;
-  margin-bottom: 0.3rem;
-}
-
-.skill-option .skill-type {
-  color: var(--accent, #4a9eff);
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 0.5rem;
-}
-
-.skill-option .skill-desc {
-  color: var(--text-muted, #888);
-  font-size: 0.95rem;
-  line-height: 1.4;
-}
-
-/* Styles for race-detail clickable skills */
-.skill-item.clickable {
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.2s;
-}
-
-.skill-item.clickable:hover {
-  border-color: var(--accent, #4a9eff);
-  background: rgba(74, 158, 255, 0.05);
-}
-
-.skill-item.clickable.selected {
-  border-color: var(--accent, #4a9eff);
-  background: rgba(74, 158, 255, 0.15);
-}
-
-.skill-choice-or {
-  text-align: center;
-  font-weight: bold;
-  color: var(--accent, #4a9eff);
-  padding: 0.5rem;
-  font-size: 1.1rem;
-  letter-spacing: 1px;
+@media (max-width: 860px) {
+  .rso-browse { grid-template-columns: 1fr; }
+  .rso-list { border-right: none; border-bottom: 1px solid var(--border, #2d3748); max-height: 30vh; }
+  .rso-hero { flex-direction: column; }
+  .rso-hero-img { width: 100%; height: 200px; }
 }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T20:44:33.053Z",
+  "generatedAt": "2026-08-18T11:26:11.466Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -49,7 +49,7 @@
       "tab": "Stats",
       "icon": "stat",
       "order": 20,
-      "hash": "877b578d",
+      "hash": "9d97c874",
       "outline": [
         {
           "id": "stats",
@@ -130,7 +130,7 @@
           "kind": "heading"
         },
         {
-          "id": "grundbonus",
+          "id": "reaktion",
           "text": "Grundbonus",
           "level": 3,
           "kind": "section"
@@ -164,71 +164,7 @@
           "text": "Kampfwerte",
           "level": 3,
           "kind": "section"
-        }
-      ]
-    },
-    {
-      "id": "sonstige-stats",
-      "file": "sonstige-stats.md",
-      "title": "Sonstige Stats",
-      "tab": "Sonstige Stats",
-      "icon": "grundbonus",
-      "order": 30,
-      "hash": "9c3ec291",
-      "outline": [
-        {
-          "id": "sonstige-stats",
-          "text": "Sonstige Stats",
-          "level": 1,
-          "kind": "heading"
         },
-        {
-          "id": "grundbonus",
-          "text": "Grundbonus",
-          "level": 3,
-          "kind": "section"
-        },
-        {
-          "id": "bewegung",
-          "text": "Bewegung",
-          "level": 3,
-          "kind": "section"
-        },
-        {
-          "id": "fokus",
-          "text": "Fokus",
-          "level": 3,
-          "kind": "section"
-        },
-        {
-          "id": "zauberradius",
-          "text": "Zauberradius",
-          "level": 3,
-          "kind": "section"
-        },
-        {
-          "id": "inventarkapazitaet",
-          "text": "Inventarkapazität",
-          "level": 3,
-          "kind": "section"
-        },
-        {
-          "id": "kampfwerte",
-          "text": "Kampfwerte",
-          "level": 3,
-          "kind": "section"
-        }
-      ]
-    },
-    {
-      "id": "talente",
-      "file": "talente.md",
-      "title": "Talente",
-      "tab": "Talente",
-      "icon": "ability",
-      "order": 40,
-      "hash": "dab023e9",
-      "outline": [
         {
           "id": "talente",
           "text": "Talente",
@@ -249,14 +185,44 @@
       "title": "Kampf",
       "tab": "Kampf",
       "icon": "effektivity",
-      "order": 50,
-      "hash": "5831cad7",
+      "order": 30,
+      "hash": "39000c5d",
       "outline": [
         {
           "id": "kampf",
           "text": "Kampf",
           "level": 1,
           "kind": "heading"
+        },
+        {
+          "id": "kampfablauf",
+          "text": "Kampfablauf",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "zugreihenfolge",
+          "text": "Zugreihenfolge",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "aktionen",
+          "text": "Aktionsarten",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "schadensberechnung",
+          "text": "Schadensberechnung",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "schadenswuerfe",
+          "text": "Schadenswürfe",
+          "level": 3,
+          "kind": "section"
         },
         {
           "id": "effektivitaet",
@@ -271,6 +237,12 @@
           "kind": "section"
         },
         {
+          "id": "sonstige-regeln",
+          "text": "Sonstige Regeln",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
           "id": "ruestungsmalus",
           "text": "Rüstungsmalus",
           "level": 3,
@@ -281,30 +253,6 @@
           "text": "Rüstungsnegation",
           "level": 3,
           "kind": "section"
-        },
-        {
-          "id": "waffen",
-          "text": "Waffen",
-          "level": 2,
-          "kind": "heading"
-        },
-        {
-          "id": "materialien",
-          "text": "Materialien",
-          "level": 2,
-          "kind": "heading"
-        },
-        {
-          "id": "waffenmaterialien",
-          "text": "Waffenmaterialien",
-          "level": 3,
-          "kind": "heading"
-        },
-        {
-          "id": "ruestungsmaterialien",
-          "text": "Rüstungsmaterialien",
-          "level": 3,
-          "kind": "heading"
         }
       ]
     },
@@ -424,6 +372,40 @@
           "text": "Neue Seite anlegen",
           "level": 3,
           "kind": "section"
+        }
+      ]
+    },
+    {
+      "id": "gear",
+      "file": "gear.md",
+      "title": "gear",
+      "tab": "gear",
+      "order": 999,
+      "hash": "8e3a88b0",
+      "outline": [
+        {
+          "id": "waffen",
+          "text": "Waffen",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "materialien",
+          "text": "Materialien",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "waffenmaterialien",
+          "text": "Waffenmaterialien",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "ruestungsmaterialien",
+          "text": "Rüstungsmaterialien",
+          "level": 3,
+          "kind": "heading"
         }
       ]
     }
