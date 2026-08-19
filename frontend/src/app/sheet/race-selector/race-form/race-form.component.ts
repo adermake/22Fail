@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { Race, RaceAbilityCategory, normalizeRace, unarmedEffectiveness } from '../../../model/race.model';
 import { SkillBlock } from '../../../model/skill-block.model';
 import { ImageUrlPipe } from '../../../shared/image-url.pipe';
@@ -17,7 +18,7 @@ interface AbilityEntry {
 @Component({
   selector: 'app-race-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, ImageUrlPipe, SkillEditorComponent],
+  imports: [CommonModule, FormsModule, DragDropModule, ImageUrlPipe, SkillEditorComponent],
   templateUrl: './race-form.component.html',
   styleUrl: './race-form.component.css'
 })
@@ -31,12 +32,6 @@ export class RaceFormComponent {
   @Output() delete = new EventEmitter<void>();
   @Output() imageSelect = new EventEmitter<Event>();
 
-  readonly categories: { value: RaceAbilityCategory; label: string }[] = [
-    { value: 'advantage',    label: 'Vorteil' },
-    { value: 'disadvantage', label: 'Nachteil' },
-    { value: 'skill',        label: 'Rassenfähigkeit' },
-  ];
-
   // ── Skill editor state ──────────────────────────────────────────────────────
   showSkillEditor = false;
   skillEditorSkill: SkillBlock | null = null;
@@ -49,62 +44,78 @@ export class RaceFormComponent {
   // ── Reading the race ────────────────────────────────────────────────────────
 
   get advantages(): SkillBlock[] { return this.race.advantages ??= []; }
-
-  /** Waffenlose Effektivitaet — base strength halved. */
-  get unarmedEffectiveness(): number { return unarmedEffectiveness(this.race.baseStrength); }
   get disadvantages(): SkillBlock[] { return this.race.disadvantages ??= []; }
+
+  /** Waffenlose Effektivität — base strength halved, decimals stripped. */
+  get unarmedEffectiveness(): number { return unarmedEffectiveness(this.race.baseStrength); }
 
   entryOf(skill: SkillBlock, category: RaceAbilityCategory, level = 0): AbilityEntry {
     return { skill, category, level };
   }
 
-  // ── Mutations ───────────────────────────────────────────────────────────────
+  // ── Drag & drop ─────────────────────────────────────────────────────────────
 
-  /** Write back through the SAME race object (the parent holds this reference) and re-normalize. */
-  private commit(advantages: SkillBlock[], disadvantages: SkillBlock[], skills: Race['skills']): void {
-    const normalized = normalizeRace({ ...this.race, advantages, disadvantages, skills });
-    this.race.advantages = normalized.advantages;
-    this.race.disadvantages = normalized.disadvantages;
-    this.race.skills = normalized.skills;
-  }
-
-  /** Remove an ability from wherever it currently lives; returns the remaining buckets. */
-  private withoutEntry(entry: AbilityEntry) {
-    const advantages = this.advantages.filter(s => s !== entry.skill);
-    const disadvantages = this.disadvantages.filter(s => s !== entry.skill);
-    const skills = this.race.skills
-      .map(g => ({ ...g, skills: g.skills.filter(s => s !== entry.skill) }))
-      .filter(g => g.skills.length > 0);
-    return { advantages, disadvantages, skills };
-  }
-
-  /** Move an ability between Vorteil / Nachteil / Rassenfähigkeit without losing its content. */
-  moveTo(entry: AbilityEntry, raw: string): void {
-    const category = raw as RaceAbilityCategory;
-    if (category === entry.category) return;
-    const { advantages, disadvantages, skills } = this.withoutEntry(entry);
-
-    if (category === 'advantage') advantages.push(entry.skill);
-    else if (category === 'disadvantage') disadvantages.push(entry.skill);
-    else {
-      // Land on the level it had (or 1) — normalizeRace merges it into an existing row.
-      const level = entry.level || 1;
-      skills.push({ levelRequired: level, skills: [entry.skill], isChoice: false });
+  /** Moving a card is the ONLY way categories/Stufen change — no dropdowns involved. */
+  onDrop(event: CdkDragDrop<SkillBlock[]>): void {
+    if (event.previousContainer === event.container) {
+      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+    } else {
+      transferArrayItem(
+        event.previousContainer.data, event.container.data,
+        event.previousIndex, event.currentIndex,
+      );
     }
-    this.commit(advantages, disadvantages, skills);
+    this.refreshChoiceFlags();
   }
 
-  /** Retarget a whole level row; colliding rows merge into one choice row. */
+  /** A Stufe with more than one ability is a choice row — keep the flag honest after every move. */
+  private refreshChoiceFlags(): void {
+    for (const group of this.race.skills) group.isChoice = group.skills.length > 1;
+  }
+
+  // ── Stufen ──────────────────────────────────────────────────────────────────
+
+  addLevelGroup(): void {
+    const highest = this.race.skills.reduce((max, g) => Math.max(max, g.levelRequired), 0);
+    const level = this.race.skills.length ? highest + 5 : 1;
+    this.race.skills = [...this.race.skills, { levelRequired: level, skills: [], isChoice: false }];
+  }
+
+  removeLevelGroup(index: number): void {
+    const group = this.race.skills[index];
+    if (!group) return;
+    if (group.skills.length && !confirm(
+      `Stufe ${group.levelRequired} mit ${group.skills.length} Fähigkeit(en) löschen?`
+    )) return;
+    this.race.skills = this.race.skills.filter((_, i) => i !== index);
+  }
+
+  /** Retarget a whole Stufe; colliding Stufen merge into one choice row. */
   setGroupLevel(groupIndex: number, rawLevel: unknown): void {
     const level = Math.max(0, Math.floor(Number(rawLevel) || 0));
     const skills = this.race.skills.map((g, i) => (i === groupIndex ? { ...g, levelRequired: level } : g));
     this.commit([...this.advantages], [...this.disadvantages], skills);
   }
 
-  removeEntry(entry: AbilityEntry): void {
-    if (!confirm(`„${entry.skill.name}" wirklich entfernen?`)) return;
-    const { advantages, disadvantages, skills } = this.withoutEntry(entry);
-    this.commit(advantages, disadvantages, skills);
+  // ── Mutations ───────────────────────────────────────────────────────────────
+
+  /** Write back through the SAME race object (the parent holds this reference) and re-normalize.
+   *  Empty Stufen are kept while editing — they are drop targets, and only dropped on save. */
+  private commit(advantages: SkillBlock[], disadvantages: SkillBlock[], skills: Race['skills']): void {
+    const normalized = normalizeRace({ ...this.race, advantages, disadvantages, skills }, { keepEmptyGroups: true });
+    this.race.advantages = normalized.advantages;
+    this.race.disadvantages = normalized.disadvantages;
+    this.race.skills = normalized.skills;
+  }
+
+  removeSkill(skill: SkillBlock): void {
+    if (!confirm(`„${skill.name}" wirklich entfernen?`)) return;
+    this.race.advantages = this.advantages.filter(s => s !== skill);
+    this.race.disadvantages = this.disadvantages.filter(s => s !== skill);
+    for (const group of this.race.skills) {
+      group.skills = group.skills.filter(s => s !== skill);
+    }
+    this.refreshChoiceFlags();
   }
 
   // ── Skill editor plumbing ───────────────────────────────────────────────────
@@ -133,31 +144,33 @@ export class RaceFormComponent {
       // Swap the edited ability in place, so it keeps its slot in a choice row.
       const old = this.editingEntry.skill;
       const swap = (list: SkillBlock[]) => list.map(s => (s === old ? skill : s));
-      this.commit(
-        swap(this.advantages),
-        swap(this.disadvantages),
-        this.race.skills.map(g => ({ ...g, skills: swap(g.skills) })),
-      );
+      this.race.advantages = swap(this.advantages);
+      this.race.disadvantages = swap(this.disadvantages);
+      for (const group of this.race.skills) group.skills = swap(group.skills);
+    } else if (this.pendingCategory === 'advantage') {
+      this.race.advantages = [...this.advantages, skill];
+    } else if (this.pendingCategory === 'disadvantage') {
+      this.race.disadvantages = [...this.disadvantages, skill];
     } else {
-      const advantages = [...this.advantages];
-      const disadvantages = [...this.disadvantages];
-      const skills = this.race.skills.map(g => ({ ...g, skills: [...g.skills] }));
-
-      if (this.pendingCategory === 'advantage') advantages.push(skill);
-      else if (this.pendingCategory === 'disadvantage') disadvantages.push(skill);
-      else skills.push({ levelRequired: this.pendingSkillLevel || 0, skills: [skill], isChoice: false });
-
-      this.commit(advantages, disadvantages, skills);
+      const level = this.pendingSkillLevel || 0;
+      const group = this.race.skills.find(g => g.levelRequired === level);
+      if (group) group.skills = [...group.skills, skill];
+      else this.commit([...this.advantages], [...this.disadvantages],
+                       [...this.race.skills, { levelRequired: level, skills: [skill], isChoice: false }]);
     }
 
+    this.refreshChoiceFlags();
     this.showSkillEditor = false;
     this.editingEntry = null;
   }
 
   onSkillEditorDelete(): void {
     if (this.editingEntry) {
-      const { advantages, disadvantages, skills } = this.withoutEntry(this.editingEntry);
-      this.commit(advantages, disadvantages, skills);
+      const old = this.editingEntry.skill;
+      this.race.advantages = this.advantages.filter(s => s !== old);
+      this.race.disadvantages = this.disadvantages.filter(s => s !== old);
+      for (const group of this.race.skills) group.skills = group.skills.filter(s => s !== old);
+      this.refreshChoiceFlags();
     }
     this.showSkillEditor = false;
     this.editingEntry = null;
@@ -166,6 +179,22 @@ export class RaceFormComponent {
   closeSkillEditor(): void {
     this.showSkillEditor = false;
     this.editingEntry = null;
+  }
+
+  // ── Card display helpers (mirrors the sheet's skill card) ───────────────────
+
+  costIcon(skill: SkillBlock): string {
+    switch (skill.cost?.type) {
+      case 'mana':   return 'i-mana';
+      case 'energy': return 'i-energy';
+      default:       return 'i-life';
+    }
+  }
+
+  statSummary(skill: SkillBlock): string {
+    return (skill.statModifiers ?? [])
+      .map(m => `${m.stat} ${m.amount > 0 ? '+' : ''}${m.amount}`)
+      .join(', ');
   }
 
   // ── Misc ────────────────────────────────────────────────────────────────────
@@ -186,7 +215,7 @@ export class RaceFormComponent {
   getTypeLabel(type: string): string {
     const labels: Record<string, string> = {
       active: 'Aktiv', passive: 'Passiv',
-      dice_bonus: 'W\u00FCrfelbonus', stat_bonus: 'Stat-Bonus',
+      dice_bonus: 'Würfelbonus', stat_bonus: 'Stat-Bonus',
     };
     return labels[type] ?? type;
   }

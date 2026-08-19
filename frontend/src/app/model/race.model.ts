@@ -103,10 +103,10 @@ export function createEmptyRace(): Race {
  *  - skill groups sharing a level are MERGED into one group (they used to render as separate
  *    "Level 1 …" rows instead of one choice row);
  *  - `isChoice` is derived from the group size, so it can never contradict the content;
- *  - groups are sorted by level, empty ones dropped.
+ *  - groups are sorted by level; empty ones are dropped unless `keepEmptyGroups` is set.
  * Returns a new object; the input is left untouched.
  */
-export function normalizeRace(race: Race): Race {
+export function normalizeRace(race: Race, opts?: { keepEmptyGroups?: boolean }): Race {
   const byLevel = new Map<number, SkillBlock[]>();
   for (const group of race.skills ?? []) {
     const level = Number(group?.levelRequired) || 0;
@@ -121,7 +121,8 @@ export function normalizeRace(race: Race): Race {
   }
 
   const skills: RaceSkill[] = [...byLevel.entries()]
-    .filter(([, list]) => list.length > 0)
+    // The editor keeps empty Stufen alive so a freshly added one can be dragged into.
+    .filter(([, list]) => opts?.keepEmptyGroups || list.length > 0)
     .sort((a, b) => a[0] - b[0])
     .map(([levelRequired, list]) => ({ levelRequired, skills: list, isChoice: list.length > 1 }));
 
@@ -138,7 +139,7 @@ export function grantedRaceSkills(race: Race): SkillBlock[] {
   return [...(race.advantages ?? []), ...(race.disadvantages ?? [])];
 }
 
-/** Waffenlose Effektivität — the race's BASE strength halved. */
+/** Waffenlose Effektivität — the race's BASE strength minus 5. */
 export function unarmedEffectiveness(baseStrength: number): number {
-  return Math.round(((baseStrength || 0) / 2) * 10) / 10;
+  return (baseStrength || 0) - 5;
 }

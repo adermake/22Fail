@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet, createEmptySheet } from '../../model/character-sheet-model';
 import { CLASS_DEFINITIONS, SKILL_DEFINITIONS, getSkillsForClass, getSkillById } from '../../data/skill-definitions';
+import { talentPointCostForSkill, totalTalentPointsAtLevel } from '../../utils/skill-tree-rules.util';
 import { SkillDefinition } from '../../model/skill-definition.model';
 import { HttpClient } from '@angular/common/http';
 import { FormulaType } from '../../model/formula-type.enum';
@@ -326,16 +327,9 @@ export class CharacterGeneratorComponent implements OnInit {
     return angle;
   }
 
-  /**
-   * Calculate total talent points earned at a given level.
-   * Formula: 1 TP per level + 1 additional per 10 levels
-   */
+  /** Total Fähigkeitspunkte at a level — shared with the skill tree. */
   calculateTotalTalentPoints(level: number): number {
-    let total = 0;
-    for (let l = 1; l <= level; l++) {
-      total += 1 + Math.floor((l - 1) / 10);
-    }
-    return total;
+    return totalTalentPointsAtLevel(level);
   }
 
   /**
@@ -343,13 +337,7 @@ export class CharacterGeneratorComponent implements OnInit {
    * Tier 1-2: 1 TP, Tier 3-4: 2 TP, Tier 5: 3 TP
    */
   private getSkillTPCost(skill: SkillDefinition): number {
-    const classInfo = CLASS_DEFINITIONS[skill.class];
-    if (!classInfo) return 1;
-    
-    const tier = classInfo.tier;
-    if (tier <= 2) return 1;
-    if (tier <= 4) return 2;
-    return 3; // Tier 5
+    return talentPointCostForSkill(skill);
   }
 
   // Determine top 2 classes based on learned skills

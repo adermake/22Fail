@@ -137,6 +137,23 @@ describe('renderMarkdown', () => {
     expect(bad.warnings.join()).toContain('Unbekannte Farbe');
   });
 
+  it('supports custom colours on notes, formula boxes and sections', async () => {
+    const f = await renderMarkdown(md(':::formula{color=#38bdf8}', 'x', ':::'), 'g');
+    expect(f.html).toContain('rb-note--formula');
+    expect(f.html).toContain('--rb-note-color:#38bdf8');
+
+    const n = await renderMarkdown(md(':::note{color=orange}', 'x', ':::'), 'g');
+    expect(n.html).toContain('--rb-note-color:#f59e0b');
+
+    const sec = await renderMarkdown(md(':::section{title="A" color=tuerkis}', 'x', ':::'), 'g');
+    expect(sec.html).toContain('--rb-section-color:#06b6d4');
+
+    // legacy `color=<typename>` still selects the variant rather than a custom colour
+    const legacy = await renderMarkdown(md(':::note{color=warning}', 'x', ':::'), 'g');
+    expect(legacy.html).toContain('rb-note--warning');
+    expect(legacy.warnings).toEqual([]);
+  });
+
   it('renders live talent data from the app data module', async () => {
     const { html } = await renderMarkdown(md(':::data{source=talents}', ':::'), 'talente');
     expect(html).toContain('Athletik');

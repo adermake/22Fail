@@ -69,6 +69,12 @@ export interface CharacterSheet {
   talentPoints: number;           // Fähigkeitspunkte zum Ausgeben
   talentPointsBonus: number;      // GM-zugewiesene Bonus-Fähigkeitspunkte
   learnedSkillIds: string[];      // IDs of skills learned from the skill tree
+  /** Skill-tree PLANNING: skills the player intends to take later. Never grants anything. */
+  plannedSkillIds?: string[];
+  /** Classes whose skills are all learned AND the player ticked "Veredelung abgeschlossen". */
+  masteredClassesConfirmed?: string[];
+  /** Classes a GM force-unlocked, bypassing the tree's progression rules. */
+  gmUnlockedClasses?: string[];
   // Talente System (DnD-style stat proficiencies)
   talentRanks?: { [talentId: string]: number }; // Invested ranks per talent
   talentRankBonus?: number;       // GM-assigned bonus talent points for the talent system

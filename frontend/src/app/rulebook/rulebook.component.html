@@ -48,9 +48,9 @@
     <div class="rb-tabbar">
       <button class="rb-back" (click)="goBack()" [disabled]="!canGoBack()"
               title="Zurück (Alt+←)">&#8592;</button>
-      <div class="rb-tabs">
+      <div class="rb-tabs" (mouseleave)="onTabLeave()">
         @for (p of pages(); track p.id) {
-          <div class="rb-tabwrap" (mouseenter)="onTabEnter(p.id)" (mouseleave)="onTabLeave()">
+          <div class="rb-tabwrap" (mouseenter)="onTabEnter(p.id)">
             <button class="rb-tab" [class.active]="p.id === activeId()" (click)="onTabClick(p.id)">
               @if (p.icon) { <span [class]="'app-icon i-' + p.icon"></span> }
               {{ p.tab }}
@@ -58,7 +58,7 @@
 
             <!-- Hover dropdown: jump straight to any section of that page -->
             @if (openMenu() === p.id && outlineOf(p.id).length) {
-              <div class="rb-menu" (mouseenter)="onTabEnter(p.id)" (mouseleave)="onTabLeave()">
+              <div class="rb-menu">
                 @for (entry of outlineOf(p.id); track entry.id) {
                   <button class="rb-menu-item" [attr.data-level]="entry.level"
                           (click)="jumpFromMenu(p.id, entry.id)">

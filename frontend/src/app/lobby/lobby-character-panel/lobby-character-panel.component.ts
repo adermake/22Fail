@@ -205,7 +205,7 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
     <!-- Key Stats: icon-only so all fit in the narrow panel (tooltip has the full label). -->
     <div class="key-stats-row">
       @if (weaponEfficiency > 0) {
-        <div class="key-stat-item" title="Waffeneffizienz – höchster Wert der geführten Waffe">
+        <div class="key-stat-item" title="Waffeneffizienz der gewählten Waffe">
           <span class="app-icon i-effektivity key-stat-ico"></span>
           <span class="key-stat-val">{{ weaponEfficiency }}</span>
         </div>
@@ -229,6 +229,22 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
         <span class="key-stat-val">{{ panelMovement }}</span>
       </div>
     </div>
+
+    <!-- Weapon picker: the weapon slot stacks, so choose which blade the Effektivität refers to. -->
+    @if (wieldedWeapons.length > 1) {
+      <div class="weapon-choice">
+        @for (w of wieldedWeapons; track $index) {
+          <button class="wc-btn" [class.active]="isWeaponChoice($index)"
+                  (click)="setWeaponChoice($index)" [title]="w.name + ' — Effektivität ' + w.efficiency">
+            {{ w.name }} <span class="wc-eff">{{ w.efficiency }}</span>
+          </button>
+        }
+        <button class="wc-btn wc-both" [class.active]="isWeaponChoice('both')"
+                (click)="setWeaponChoice('both')" title="Beide Waffen zusammen">
+          Beide <span class="wc-eff">{{ chosenWeaponEfficiency }}</span>
+        </button>
+      </div>
+    }
 
     <!-- Panel Tabs -->
     <div class="panel-tabs">
@@ -721,6 +737,29 @@ type PanelTab = 'actions' | 'rolls' | 'status' | 'aussehen' | 'linked' | 'equipm
 </div>
   `,
   styles: [`
+    /* Weapon picker (weapon slot stacks: first / second / both) */
+    .weapon-choice {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      padding: 4px 8px 6px;
+    }
+    .wc-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      max-width: 100%;
+      padding: 2px 8px;
+      background: #0f1829;
+      border: 1px solid var(--border, #2d3748);
+      border-radius: 999px;
+      color: var(--text-muted, #9ca3af);
+      font-size: 0.68rem;
+      cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .wc-btn:hover { color: var(--text, #e5e7eb); border-color: #f59e0b; }
+    .wc-btn.active { border-color: #f59e0b; color: #fbbf24; background: rgba(245, 158, 11, 0.12); }
+    .wc-eff { font-weight: 800; color: #fbbf24; }
+    .wc-btn.wc-both.active { background: rgba(245, 158, 11, 0.2); }
+
     .char-panel {
       height: 100%;
       width: 100%;
@@ -1767,11 +1806,35 @@ export class LobbyCharacterPanelComponent implements OnChanges, AfterViewInit {
     return this.character?.equipment ?? this.npc?.equipment ?? [];
   }
 
-  /** Highest efficiency among wielded (non-stowed) weapons. NPCs use their body Effizienz
+  /** Every wielded (non-stowed) weapon, in slot order — the weapon slot stacks. */
+  get wieldedWeapons(): ItemBlock[] {
+    return this.equipment.filter(i => isWieldedWeapon(i) && i.efficiency !== undefined);
+  }
+
+  /** Which wielded weapon the effectivity refers to: an index, or 'both' to add them up. */
+  weaponChoice = signal<number | 'both'>(0);
+
+  setWeaponChoice(choice: number | 'both'): void {
+    this.weaponChoice.set(choice);
+  }
+
+  isWeaponChoice(choice: number | 'both'): boolean {
+    return this.weaponChoice() === choice;
+  }
+
+  /** Effectivity of the chosen weapon — or the sum of all of them when 'both' is picked. */
+  get chosenWeaponEfficiency(): number {
+    const weapons = this.wieldedWeapons;
+    if (!weapons.length) return 0;
+    const choice = this.weaponChoice();
+    if (choice === 'both') return weapons.reduce((sum, w) => sum + (w.efficiency ?? 0), 0);
+    return weapons[Math.min(choice, weapons.length - 1)]?.efficiency ?? 0;
+  }
+
+  /** Effectivity used by the panel and the damage calculator. NPCs use their body Effizienz
    *  unless the body opts to use the weapon's efficiency instead. */
   get weaponEfficiency(): number {
-    const weapons = this.equipment.filter(i => isWieldedWeapon(i) && i.efficiency !== undefined);
-    const weaponEff = weapons.length ? Math.max(...weapons.map(w => w.efficiency!)) : 0;
+    const weaponEff = this.chosenWeaponEfficiency;
     if (this.npc) {
       return this.npc.body?.useWeaponEffizienz ? weaponEff : (this.npc.body?.effizienz ?? 0);
     }

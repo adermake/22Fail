@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SkillDefinition } from '../../../model/skill-definition.model';
 import { TALENT_DEFINITIONS } from '../../../data/talent-definitions';
+import { talentPointCostForTier } from '../../../utils/skill-tree-rules.util';
 
 @Component({
   selector: 'app-skill-detail',
@@ -27,10 +28,21 @@ export class SkillDetailComponent {
   @Input() isSecondaryClass: boolean = false;
   @Input() isTier1Class: boolean = false;  // Only tier 1 classes can be selected as primary/secondary
   @Input() classTier: number = 1;  // Tier of the class for TP cost calculation
+  @Input() lockedReason: string = '';
+  /** Planning mode: picks are free, grant nothing and only leave markers. */
+  @Input() planMode: boolean = false;
+  @Input() plannedSkillIds: string[] = [];
+  @Input() isMastered: boolean = false;
+  @Input() masteryConfirmed: boolean = false;
+  @Input() isGM: boolean = false;
+  @Input() gmUnlocked: boolean = false;
 
   @Output() learnSkill = new EventEmitter<SkillDefinition>();
   @Output() unlearnSkill = new EventEmitter<SkillDefinition>();
   @Output() close = new EventEmitter<void>();
+  @Output() togglePlanned = new EventEmitter<SkillDefinition>();
+  @Output() toggleMasteryConfirmed = new EventEmitter<void>();
+  @Output() toggleGmUnlock = new EventEmitter<void>();
   @Output() setPrimary = new EventEmitter<void>();
   @Output() setSecondary = new EventEmitter<void>();
 
@@ -67,6 +79,18 @@ export class SkillDetailComponent {
   isLearned(skill: SkillDefinition): boolean {
     return this.learnedSkillIds.includes(skill.id);
   }
+
+  isPlanned(skill: SkillDefinition): boolean {
+    return this.plannedSkillIds.includes(skill.id);
+  }
+
+  /** In plan mode anything can be picked — it is an assist tool, not a second rules engine. */
+  onPlanClick(skill: SkillDefinition): void {
+    this.togglePlanned.emit(skill);
+  }
+
+  onToggleMastery(): void { this.toggleMasteryConfirmed.emit(); }
+  onToggleGmUnlock(): void { this.toggleGmUnlock.emit(); }
 
   getSkillLevel(skill: SkillDefinition): number {
     return this.learnedSkillIds.filter(id => id === skill.id).length;
@@ -205,16 +229,12 @@ export class SkillDetailComponent {
   }
 
   getLockedReason(): string {
-    if (!this.canLearnFromClass) {
-      return 'Benötigt 3 Skills von einer Vorgängerklasse';
-    }
-    return '';
+    if (this.canLearnFromClass) return '';
+    return this.lockedReason || 'Benötigt die Hälfte der Fähigkeiten einer Vorgängerklasse';
   }
 
-  // Get TP cost based on class tier: tier 1-2 = 1 TP, tier 3-4 = 2 TP, tier 5 = 3 TP
+  /** TP cost by class tier (1 · 2 · 2 · 3 · 3). */
   getSkillTPCost(): number {
-    if (this.classTier <= 2) return 1;
-    if (this.classTier <= 4) return 2;
-    return 3;
+    return talentPointCostForTier(this.classTier);
   }
 }

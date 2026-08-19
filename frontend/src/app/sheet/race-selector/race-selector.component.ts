@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -22,7 +22,7 @@ type ViewMode = 'skills' | 'select' | 'create' | 'edit';
   templateUrl: './race-selector.component.html',
   styleUrl: './race-selector.component.css'
 })
-export class RaceSelectorComponent implements OnInit {
+export class RaceSelectorComponent implements OnInit, OnDestroy {
   @Input() sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() close = new EventEmitter<void>();
@@ -51,6 +51,8 @@ export class RaceSelectorComponent implements OnInit {
   constructor(private raceService: RaceService, private cd: ChangeDetectorRef) {}
 
   async ngOnInit() {
+    // The overlay covers the viewport; without this the sheet keeps its own scrollbar behind it.
+    document.body.style.overflow = 'hidden';
     this.loading = true;
     this.cd.detectChanges();
 
@@ -68,6 +70,10 @@ export class RaceSelectorComponent implements OnInit {
     }
     this.previewRace = this.selectedRace ?? this.filteredRaces[0] ?? null;
     this.cd.detectChanges();
+  }
+
+  ngOnDestroy(): void {
+    document.body.style.overflow = '';
   }
 
   // ── Browse view ─────────────────────────────────────────────────────────────

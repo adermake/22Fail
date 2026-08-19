@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-18T11:26:11.466Z",
+  "generatedAt": "2026-08-18T12:48:01.014Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -263,7 +263,7 @@
       "tab": "Beispiel",
       "icon": "spell",
       "order": 99,
-      "hash": "34438ebb",
+      "hash": "51707dc7",
       "outline": [
         {
           "id": "syntax-beispiel",
@@ -317,6 +317,12 @@
           "id": "5-hinweis-kaesten",
           "text": "5. Hinweis-Kästen",
           "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "eigene-farben-fuer-kaesten",
+          "text": "Eigene Farben für Kästen",
+          "level": 3,
           "kind": "heading"
         },
         {

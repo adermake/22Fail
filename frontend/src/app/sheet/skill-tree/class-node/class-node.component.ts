@@ -31,6 +31,14 @@ export class ClassNodeComponent {
   @Input() isPrimary: boolean = false;
   @Input() isSecondary: boolean = false;
   @Input() onPath: 'primary' | 'secondary' | null = null;
+  /** All skills of the class are learned. */
+  @Input() mastered: boolean = false;
+  /** Mastered AND the player ticked "Veredelung abgeschlossen" — stops the green glow. */
+  @Input() masteryConfirmed: boolean = false;
+  /** Planned-but-not-learned skills in this class (skill-tree plan mode). */
+  @Input() plannedCount: number = 0;
+  /** GM force-unlocked this class for the character. */
+  @Input() gmUnlocked: boolean = false;
 
   @Output() select = new EventEmitter<void>();
   @Output() dragStart = new EventEmitter<MouseEvent>();
@@ -56,6 +64,11 @@ export class ClassNodeComponent {
 
   get isComplete(): boolean {
     return this.totalCount > 0 && this.learnedCount >= this.totalCount;
+  }
+
+  /** Mastered but unconfirmed — glows green as a reminder that the Veredelung is still open. */
+  get masteryPending(): boolean {
+    return this.mastered && !this.masteryConfirmed;
   }
 
   get tierClass(): string {
