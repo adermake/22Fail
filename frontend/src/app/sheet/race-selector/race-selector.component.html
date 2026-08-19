@@ -299,38 +299,40 @@
                     </div>
                   </div>
 
+                  <!-- Same 3x2 order as the sheet: STR/KON/SPD then GES/INT/WIL -->
                   <div class="rso-stat-grid">
                     <div class="rso-stat">
                       <span class="rso-stat-k">St&auml;rke</span>
                       <span class="rso-stat-v">{{ previewRace.baseStrength }}</span>
-                      <span class="rso-stat-g">+{{ previewRace.strengthPerLevel }}/Stufe</span>
-                    </div>
-                    <div class="rso-stat">
-                      <span class="rso-stat-k">Geschick</span>
-                      <span class="rso-stat-v">{{ previewRace.baseDexterity }}</span>
-                      <span class="rso-stat-g">+{{ previewRace.dexterityPerLevel }}/Stufe</span>
-                    </div>
-                    <div class="rso-stat">
-                      <span class="rso-stat-k">Tempo</span>
-                      <span class="rso-stat-v">{{ previewRace.baseSpeed }}</span>
-                      <span class="rso-stat-g">+{{ previewRace.speedPerLevel }}/Stufe</span>
-                    </div>
-                    <div class="rso-stat">
-                      <span class="rso-stat-k">Intelligenz</span>
-                      <span class="rso-stat-v">{{ previewRace.baseIntelligence }}</span>
-                      <span class="rso-stat-g">+{{ previewRace.intelligencePerLevel }}/Stufe</span>
+                      <span class="rso-stat-g">+{{ previewRace.strengthPerLevel }}</span>
                     </div>
                     <div class="rso-stat">
                       <span class="rso-stat-k">Konstitution</span>
                       <span class="rso-stat-v">{{ previewRace.baseConstitution }}</span>
-                      <span class="rso-stat-g">+{{ previewRace.constitutionPerLevel }}/Stufe</span>
+                      <span class="rso-stat-g">+{{ previewRace.constitutionPerLevel }}</span>
+                    </div>
+                    <div class="rso-stat">
+                      <span class="rso-stat-k">Tempo</span>
+                      <span class="rso-stat-v">{{ previewRace.baseSpeed }}</span>
+                      <span class="rso-stat-g">+{{ previewRace.speedPerLevel }}</span>
+                    </div>
+                    <div class="rso-stat">
+                      <span class="rso-stat-k">Geschick</span>
+                      <span class="rso-stat-v">{{ previewRace.baseDexterity }}</span>
+                      <span class="rso-stat-g">+{{ previewRace.dexterityPerLevel }}</span>
+                    </div>
+                    <div class="rso-stat">
+                      <span class="rso-stat-k">Intelligenz</span>
+                      <span class="rso-stat-v">{{ previewRace.baseIntelligence }}</span>
+                      <span class="rso-stat-g">+{{ previewRace.intelligencePerLevel }}</span>
                     </div>
                     <div class="rso-stat">
                       <span class="rso-stat-k">Wille</span>
                       <span class="rso-stat-v">{{ previewRace.baseChill }}</span>
-                      <span class="rso-stat-g">+{{ previewRace.chillPerLevel }}/Stufe</span>
+                      <span class="rso-stat-g">+{{ previewRace.chillPerLevel }}</span>
                     </div>
                   </div>
+                  <p class="rso-stat-note">Zuwachs pro Stufe in Violett.</p>
                 </section>
 
                 <!-- Vorteile / Nachteile -->

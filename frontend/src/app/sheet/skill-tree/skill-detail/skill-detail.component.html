@@ -35,9 +35,31 @@
       </button>
     </div>
 
+    @if (isMastered) {
+      <label class="mastery-notice" [class.confirmed]="masteryConfirmed">
+        <input type="checkbox" [checked]="masteryConfirmed" (change)="onToggleMastery()">
+        <span class="mastery-text">Veredelung abgeschlossen</span>
+        <span class="mastery-sub">
+          {{ masteryConfirmed ? 'Klasse gemeistert.' : 'Alle Fähigkeiten gelernt — Veredelung noch offen.' }}
+        </span>
+      </label>
+    }
+
+    @if (isGM) {
+      <button class="gm-unlock-btn" [class.active]="gmUnlocked" (click)="onToggleGmUnlock()">
+        {{ gmUnlocked ? 'GM-Freigabe aufheben' : 'GM: Klasse freischalten' }}
+      </button>
+    }
+
     @if (!canLearnFromClass) {
       <div class="locked-notice">
         {{ getLockedReason() }}
+      </div>
+    }
+
+    @if (planMode) {
+      <div class="plan-notice">
+        Planungsmodus: Fähigkeiten markieren, ohne Punkte auszugeben.
       </div>
     }
 
@@ -57,6 +79,7 @@
             [class.can-learn]="canLearn(skill)"
             [class.enlightened]="skill.enlightened"
             [class.infinite-level]="skill.infiniteLevel"
+            [class.planned]="isPlanned(skill)"
           >
             <div class="skill-header">
               <div class="skill-title">
@@ -73,9 +96,17 @@
                 @if (skill.infiniteLevel) {
                   <span class="infinite-badge" title="Unendlich steigerbar">∞</span>
                 }
+                @if (isPlanned(skill) && !isLearned(skill)) {
+                  <span class="planned-badge" title="Eingeplant">Geplant</span>
+                }
               </div>
 
-              @if (isLearned(skill)) {
+              @if (planMode) {
+                <button class="plan-btn" [class.active]="isPlanned(skill)" (click)="onPlanClick(skill)"
+                        [title]="isPlanned(skill) ? 'Aus der Planung nehmen' : 'Für später einplanen'">
+                  {{ isPlanned(skill) ? 'Geplant' : 'Einplanen' }}
+                </button>
+              } @else if (isLearned(skill)) {
                 <div class="learned-actions">
                   @if (skill.infiniteLevel) {
                     <span class="learned-badge">Stufe {{ getSkillLevel(skill) }}</span>

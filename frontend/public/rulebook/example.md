@@ -116,7 +116,25 @@ Bewegung: 8 + Geschwindigkeit / 4
 `:::tip` — für Empfehlungen und Kniffe.
 :::
 
-Alternativ kannst du die Farbe direkt angeben: `:::note{color=green}`.
+### Eigene Farben für Kästen
+
+Jeder Kasten (und jeder Abschnitt) nimmt `color=` — Name oder Hex:
+
+:::formula{color=#38bdf8}
+`:::formula{color=#38bdf8}` — eine Formel in eigener Farbe.
+
+Schaden = Effektivität × Trefferstärke
+:::
+
+:::note{color=orange title="Eigene Farbe"}
+`:::note{color=orange title="…"}`
+:::
+
+:::formula{color=lila}
+`:::formula{color=lila}` — Farbnamen funktionieren genauso.
+:::
+
+Auch Abschnitte: `:::section{title="…" color=tuerkis}`.
 
 ## 6. Raster und Karten
 

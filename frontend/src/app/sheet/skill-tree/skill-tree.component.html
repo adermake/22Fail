@@ -6,6 +6,18 @@
         <span class="points-label">Fähigkeitspunkte (FP):</span>
         <span class="points-value">{{ getAvailableTalentPoints() }}</span>
       </div>
+      <button class="plan-btn-toggle" [class.active]="planMode" (click)="togglePlanMode()"
+              title="Zukünftige Fähigkeiten planen, ohne Punkte auszugeben">
+        {{ planMode ? 'Planung beenden' : 'Planen' }}
+      </button>
+      @if (getPlannedOpenCount() > 0) {
+        <div class="plan-summary" [class.plan-over]="getPlannedTotalCost() > getAvailableTalentPoints()">
+          <span class="plan-summary-label">Geplant:</span>
+          <span class="plan-summary-value">{{ getPlannedOpenCount() }}</span>
+          <span class="plan-summary-cost">({{ getPlannedTotalCost() }} FP)</span>
+          <button class="plan-clear" (click)="clearPlan()" title="Planung verwerfen">&times;</button>
+        </div>
+      }
       <div class="zoom-controls">
         <button class="zoom-btn" (click)="zoomOut()" title="Verkleinern">-</button>
         <button class="zoom-btn" (click)="resetView()" title="Zurücksetzen">⟲</button>
@@ -94,6 +106,10 @@
             [isPrimary]="isPrimaryClass(classPos.name)"
             [isSecondary]="isSecondaryClass(classPos.name)"
             [onPath]="isClassOnPath(classPos.name)"
+            [mastered]="isClassMastered(classPos.name)"
+            [masteryConfirmed]="isMasteryConfirmed(classPos.name)"
+            [plannedCount]="getPlannedCountForClass(classPos.name)"
+            [gmUnlocked]="isGmUnlocked(classPos.name)"
             (select)="selectClass(classPos.name)"
             (dragStart)="startNodeDrag(classPos.name, $event)"
             (setPrimary)="setPrimaryClass(classPos.name)"
@@ -116,6 +132,16 @@
           [isSecondaryClass]="isSecondaryClass(selectedClass)"
           [isTier1Class]="isClassTier1(selectedClass)"
           [classTier]="getClassTier(selectedClass)"
+          [lockedReason]="getClassLockReason(selectedClass)"
+          [planMode]="planMode"
+          [plannedSkillIds]="sheet.plannedSkillIds || []"
+          [isMastered]="isClassMastered(selectedClass)"
+          [masteryConfirmed]="isMasteryConfirmed(selectedClass)"
+          [isGM]="isGM()"
+          [gmUnlocked]="isGmUnlocked(selectedClass)"
+          (togglePlanned)="togglePlannedSkill($event)"
+          (toggleMasteryConfirmed)="toggleMasteryConfirmed(selectedClass)"
+          (toggleGmUnlock)="toggleGmUnlock(selectedClass)"
           (learnSkill)="learnSkill($event)"
           (unlearnSkill)="unlearnSkill($event)"
           (setPrimary)="setPrimaryClass(selectedClass)"

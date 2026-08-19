@@ -23,7 +23,7 @@ export class RaceService {
 
   /** Normalize every race (merges same-level skill groups, fills categories) and sort by name. */
   private prepare(races: Race[]): Race[] {
-    return races.map(normalizeRace).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    return races.map(r => normalizeRace(r)).sort((a, b) => a.name.localeCompare(b.name, 'de'));
   }
 
   /** Get all races (loads from server if not already loaded) */
@@ -42,8 +42,11 @@ export class RaceService {
 
   /** Save a race (create or update) */
   async saveRace(race: Race): Promise<Race> {
+    // Normalize before persisting: merges same-level Stufen and drops the empty ones the
+    // editor keeps around as drop targets.
+    const payload = normalizeRace(race);
     const response = await firstValueFrom(
-      this.http.post<{ success: boolean; race: Race }>('/api/races', race)
+      this.http.post<{ success: boolean; race: Race }>('/api/races', payload)
     );
 
     // Update local cache

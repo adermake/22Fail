@@ -17,295 +17,279 @@
     </div>
   </div>
 
-  <!-- Body: 2 columns -->
   <div class="rf-body">
 
-    <!-- LEFT: Identity -->
-    <div class="rf-col rf-col-left">
+    <!-- ═══ Compact top band: identity + values, kept small so the abilities get the room ═══ -->
+    <div class="rf-band">
 
-      <div class="rf-field">
-        <label class="rf-label">Name *</label>
-        <input class="rf-input" type="text" [(ngModel)]="race.name"
-               [class.rf-invalid]="!race.name.trim()"
-               placeholder="Rassenname...">
-      </div>
-
-      <!-- Meta row: Age / Size / Weight -->
-      <div class="rf-meta-row">
-        <div class="rf-field">
-          <label class="rf-label">Altersbereich</label>
-          <input class="rf-input" type="text" [(ngModel)]="race.ageRange" placeholder="z.B. 60-80">
-        </div>
-        <div class="rf-field">
-          <label class="rf-label">Gr&ouml;&szlig;e</label>
-          <input class="rf-input" type="text" [(ngModel)]="race.size" placeholder="z.B. 1.7m">
-        </div>
-        <div class="rf-field">
-          <label class="rf-label">Gewicht</label>
-          <input class="rf-input" type="text" [(ngModel)]="race.weight" placeholder="mittel">
-        </div>
-      </div>
-
-      <!-- Image -->
-      <div class="rf-field">
-        <label class="rf-label">Bild</label>
-        <div class="rf-img-row">
-          @if (pendingImagePreview) {
-            <img [src]="pendingImagePreview" class="rf-preview">
-          } @else if (race.baseImage) {
-            <img [src]="race.baseImage | imageUrl" class="rf-preview">
-          } @else {
-            <div class="rf-preview rf-preview-empty"><span class="app-icon i-appearance"></span></div>
-          }
-          <label class="rf-file-btn">
-            Bild w&auml;hlen
+      <!-- Identity -->
+      <div class="rf-band-col rf-band-identity">
+        <div class="rf-id-row">
+          <label class="rf-img-slot">
+            @if (pendingImagePreview) {
+              <img [src]="pendingImagePreview" class="rf-preview">
+            } @else if (race.baseImage) {
+              <img [src]="race.baseImage | imageUrl" class="rf-preview">
+            } @else {
+              <span class="app-icon i-appearance rf-preview-empty"></span>
+            }
             <input type="file" accept="image/*" (change)="onImageSelect($event)" style="display:none">
+            <span class="rf-img-hint">Bild</span>
           </label>
+
+          <div class="rf-id-fields">
+            <div class="rf-field">
+              <label class="rf-label">Name *</label>
+              <input class="rf-input" type="text" [(ngModel)]="race.name"
+                     [class.rf-invalid]="!race.name.trim()" placeholder="Rassenname...">
+            </div>
+            <div class="rf-meta-row">
+              <div class="rf-field">
+                <label class="rf-label">Alter</label>
+                <input class="rf-input rf-input-sm" type="text" [(ngModel)]="race.ageRange" placeholder="60-80">
+              </div>
+              <div class="rf-field">
+                <label class="rf-label">Gr&ouml;&szlig;e</label>
+                <input class="rf-input rf-input-sm" type="text" [(ngModel)]="race.size" placeholder="1.7m">
+              </div>
+              <div class="rf-field">
+                <label class="rf-label">Gewicht</label>
+                <input class="rf-input rf-input-sm" type="text" [(ngModel)]="race.weight" placeholder="mittel">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rf-field rf-field-lore">
+          <label class="rf-label">Hintergrund / Lore</label>
+          <textarea class="rf-textarea" [(ngModel)]="race.lore" rows="3"
+                    placeholder="Beschreibung der Rasse..."></textarea>
         </div>
       </div>
 
-      <!-- Lore -->
-      <div class="rf-field rf-field-flex">
-        <label class="rf-label">Hintergrund / Lore</label>
-        <textarea class="rf-textarea" [(ngModel)]="race.lore"
-                  placeholder="Beschreibung der Rasse..."></textarea>
-      </div>
-
-    </div>
-
-    <!-- RIGHT: Stats + Abilities -->
-    <div class="rf-col rf-col-right">
-
-      <!-- Resources — base only: Leben/Ausdauer/Mana scale from the attributes, not per level -->
-      <div class="rf-section">
-        <span class="rf-section-title">Ressourcen</span>
-        <p class="rf-section-hint">
-          Nur Basiswerte &mdash; Leben, Ausdauer und Mana skalieren &uuml;ber die Attribute, nicht pro Stufe.
-        </p>
-        <div class="rf-res-grid">
-
-          <div class="rf-res-row" data-res="health">
-            <span class="rf-res-icon app-icon i-life"></span>
+      <!-- Values -->
+      <div class="rf-band-col rf-band-values">
+        <div class="rf-res-row">
+          <div class="rf-res" data-res="health">
+            <span class="app-icon i-life"></span>
             <span class="rf-res-name">Leben</span>
-            <div class="rf-field rf-field-num">
-              <label class="rf-label">Basis</label>
-              <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseHealth">
-            </div>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseHealth">
           </div>
-
-          <div class="rf-res-row" data-res="energy">
-            <span class="rf-res-icon app-icon i-energy"></span>
+          <div class="rf-res" data-res="energy">
+            <span class="app-icon i-energy"></span>
             <span class="rf-res-name">Ausdauer</span>
-            <div class="rf-field rf-field-num">
-              <label class="rf-label">Basis</label>
-              <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseEnergy">
-            </div>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseEnergy">
           </div>
-
-          <div class="rf-res-row" data-res="mana">
-            <span class="rf-res-icon app-icon i-mana"></span>
+          <div class="rf-res" data-res="mana">
+            <span class="app-icon i-mana"></span>
             <span class="rf-res-name">Mana</span>
-            <div class="rf-field rf-field-num">
-              <label class="rf-label">Basis</label>
-              <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseMana">
-            </div>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseMana">
           </div>
-
-        </div>
-      </div>
-
-      <!-- Attributes -->
-      <div class="rf-section">
-        <span class="rf-section-title">Attribute</span>
-        <div class="rf-stat-grid">
-
-          <div class="rf-stat-row">
-            <span class="rf-stat-name">St&auml;rke</span>
-            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseStrength">
-            <span class="rf-sep">+</span>
-            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.strengthPerLevel">
-            <span class="rf-lvl">/Lvl</span>
-          </div>
-          <div class="rf-stat-row">
-            <span class="rf-stat-name">Geschick</span>
-            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseDexterity">
-            <span class="rf-sep">+</span>
-            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.dexterityPerLevel">
-            <span class="rf-lvl">/Lvl</span>
-          </div>
-          <div class="rf-stat-row">
-            <span class="rf-stat-name">Tempo</span>
-            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseSpeed">
-            <span class="rf-sep">+</span>
-            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.speedPerLevel">
-            <span class="rf-lvl">/Lvl</span>
-          </div>
-          <div class="rf-stat-row">
-            <span class="rf-stat-name">Intelligenz</span>
-            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseIntelligence">
-            <span class="rf-sep">+</span>
-            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.intelligencePerLevel">
-            <span class="rf-lvl">/Lvl</span>
-          </div>
-          <div class="rf-stat-row">
-            <span class="rf-stat-name">Konstitution</span>
-            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseConstitution">
-            <span class="rf-sep">+</span>
-            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.constitutionPerLevel">
-            <span class="rf-lvl">/Lvl</span>
-          </div>
-          <div class="rf-stat-row">
-            <span class="rf-stat-name">Wille</span>
-            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseChill">
-            <span class="rf-sep">+</span>
-            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.chillPerLevel">
-            <span class="rf-lvl">/Lvl</span>
-          </div>
-
-          <!-- Derived from base strength; shown here so the author sees it while tuning STR -->
-          <div class="rf-derived-row" title="Basis-St&auml;rke geteilt durch 2">
+          <div class="rf-res" data-res="unarmed" title="Basis-St&auml;rke geteilt durch 2, abgerundet">
             <span class="app-icon i-effektivity"></span>
-            <span class="rf-derived-name">Waffenlose Effektivit&auml;t</span>
-            <span class="rf-derived-val">{{ unarmedEffectiveness }}</span>
+            <span class="rf-res-name">Waffenlos</span>
+            <span class="rf-res-derived">{{ unarmedEffectiveness }}</span>
           </div>
-
         </div>
-      </div>
 
-      <!-- ═══ Racial abilities: Vorteile / Nachteile / Stufen-Fähigkeiten ═══ -->
-      <div class="rf-section rf-skills-section">
-        <div class="rf-section-header">
-          <span class="rf-section-title">Rassenf&auml;higkeiten</span>
+        <!-- Same 3x2 order as the sheet: STR/KON/SPD then GES/INT/WIL -->
+        <div class="rf-stat-grid">
+          <div class="rf-stat">
+            <span class="rf-stat-name">St&auml;rke</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseStrength" title="Basis">
+            <input class="rf-input rf-input-num rf-input-gain" type="number" step="0.05"
+                   [(ngModel)]="race.strengthPerLevel" title="Zuwachs pro Stufe">
+          </div>
+          <div class="rf-stat">
+            <span class="rf-stat-name">Konstitution</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseConstitution" title="Basis">
+            <input class="rf-input rf-input-num rf-input-gain" type="number" step="0.05"
+                   [(ngModel)]="race.constitutionPerLevel" title="Zuwachs pro Stufe">
+          </div>
+          <div class="rf-stat">
+            <span class="rf-stat-name">Tempo</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseSpeed" title="Basis">
+            <input class="rf-input rf-input-num rf-input-gain" type="number" step="0.05"
+                   [(ngModel)]="race.speedPerLevel" title="Zuwachs pro Stufe">
+          </div>
+          <div class="rf-stat">
+            <span class="rf-stat-name">Geschick</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseDexterity" title="Basis">
+            <input class="rf-input rf-input-num rf-input-gain" type="number" step="0.05"
+                   [(ngModel)]="race.dexterityPerLevel" title="Zuwachs pro Stufe">
+          </div>
+          <div class="rf-stat">
+            <span class="rf-stat-name">Intelligenz</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseIntelligence" title="Basis">
+            <input class="rf-input rf-input-num rf-input-gain" type="number" step="0.05"
+                   [(ngModel)]="race.intelligencePerLevel" title="Zuwachs pro Stufe">
+          </div>
+          <div class="rf-stat">
+            <span class="rf-stat-name">Wille</span>
+            <input class="rf-input rf-input-num" type="number" [(ngModel)]="race.baseChill" title="Basis">
+            <input class="rf-input rf-input-num rf-input-gain" type="number" step="0.05"
+                   [(ngModel)]="race.chillPerLevel" title="Zuwachs pro Stufe">
+          </div>
         </div>
-        <p class="rf-section-hint">
-          Vor- und Nachteile gelten ab Beginn automatisch. Stufen-F&auml;higkeiten schalten sich ab ihrer
-          Stufe frei &mdash; mehrere auf derselben Stufe bilden eine Wahl-Zeile.
+        <p class="rf-band-note">
+          Basis &middot; Zuwachs/Stufe. Leben, Ausdauer und Mana skalieren &uuml;ber die Attribute.
         </p>
+      </div>
+    </div>
 
-        <!-- ── Vorteile ── -->
-        <div class="rf-cat" data-cat="advantage">
-          <div class="rf-cat-hdr">
-            <span class="rf-cat-title">Vorteile</span>
-            <span class="rf-cat-count">{{ advantages.length }}</span>
-            <button class="rf-btn-add rf-btn-add-sm" (click)="openNewSkillEditor('advantage')">+ Vorteil</button>
-          </div>
-          @if (!advantages.length) {
-            <div class="rf-empty-hint">Keine Vorteile.</div>
-          } @else {
-            <div class="rf-skill-list">
-              @for (sk of advantages; track sk) {
-                <div class="rf-skill-item">
-                  <span class="rf-skill-type-icon app-icon {{ getTypeIcon(sk.type) }}"></span>
-                  <span class="rf-skill-name">{{ sk.name }}</span>
-                  <span class="rf-skill-type-badge">{{ getTypeLabel(sk.type) }}</span>
-                  <select class="rf-cat-select" [ngModel]="'advantage'"
-                          (ngModelChange)="moveTo(entryOf(sk, 'advantage'), $event)"
-                          title="Kategorie wechseln">
-                    @for (c of categories; track c.value) {
-                      <option [value]="c.value">{{ c.label }}</option>
-                    }
-                  </select>
-                  <button class="rf-skill-edit" (click)="openEditSkillEditor(entryOf(sk, 'advantage'))">Bearbeiten</button>
-                  <button class="rf-skill-del" (click)="removeEntry(entryOf(sk, 'advantage'))" title="Entfernen">&times;</button>
-                </div>
-              }
-            </div>
-          }
-        </div>
-
-        <!-- ── Nachteile ── -->
-        <div class="rf-cat" data-cat="disadvantage">
-          <div class="rf-cat-hdr">
-            <span class="rf-cat-title">Nachteile</span>
-            <span class="rf-cat-count">{{ disadvantages.length }}</span>
-            <button class="rf-btn-add rf-btn-add-sm" (click)="openNewSkillEditor('disadvantage')">+ Nachteil</button>
-          </div>
-          @if (!disadvantages.length) {
-            <div class="rf-empty-hint">Keine Nachteile.</div>
-          } @else {
-            <div class="rf-skill-list">
-              @for (sk of disadvantages; track sk) {
-                <div class="rf-skill-item">
-                  <span class="rf-skill-type-icon app-icon {{ getTypeIcon(sk.type) }}"></span>
-                  <span class="rf-skill-name">{{ sk.name }}</span>
-                  <span class="rf-skill-type-badge">{{ getTypeLabel(sk.type) }}</span>
-                  <select class="rf-cat-select" [ngModel]="'disadvantage'"
-                          (ngModelChange)="moveTo(entryOf(sk, 'disadvantage'), $event)"
-                          title="Kategorie wechseln">
-                    @for (c of categories; track c.value) {
-                      <option [value]="c.value">{{ c.label }}</option>
-                    }
-                  </select>
-                  <button class="rf-skill-edit" (click)="openEditSkillEditor(entryOf(sk, 'disadvantage'))">Bearbeiten</button>
-                  <button class="rf-skill-del" (click)="removeEntry(entryOf(sk, 'disadvantage'))" title="Entfernen">&times;</button>
-                </div>
-              }
-            </div>
-          }
-        </div>
-
-        <!-- ── Stufen-Fähigkeiten, gruppiert nach Stufe ── -->
-        <div class="rf-cat" data-cat="skill">
-          <div class="rf-cat-hdr">
-            <span class="rf-cat-title">Stufen-F&auml;higkeiten</span>
-            <span class="rf-cat-count">{{ race.skills.length }} Stufen</span>
-            <div class="rf-add-inline">
-              <label class="rf-label">Ab Stufe</label>
-              <input class="rf-input rf-input-num" type="number" min="0" [(ngModel)]="pendingSkillLevel">
-              <button class="rf-btn-add rf-btn-add-sm" (click)="openNewSkillEditor('skill', pendingSkillLevel)">+ F&auml;higkeit</button>
-            </div>
-          </div>
-
-          @if (!race.skills.length) {
-            <div class="rf-empty-hint">Noch keine Stufen-F&auml;higkeiten.</div>
-          } @else {
-            <div class="rf-lvl-groups">
-              @for (group of race.skills; track $index) {
-                <div class="rf-lvl-group">
-                  <div class="rf-lvl-head">
-                    <label class="rf-label">Ab Stufe</label>
-                    <input class="rf-input rf-input-num" type="number" min="0"
-                           [ngModel]="group.levelRequired"
-                           (ngModelChange)="setGroupLevel($index, $event)"
-                           title="Stufe &auml;ndern &ndash; gleiche Stufen werden zu einer Wahl-Zeile zusammengefasst">
-                    @if (group.skills.length > 1) {
-                      <span class="rf-choice-badge">Wahl aus {{ group.skills.length }}</span>
-                    }
-                    <button class="rf-btn-add rf-btn-add-xs"
-                            (click)="openNewSkillEditor('skill', group.levelRequired)"
-                            title="Weitere Option auf dieser Stufe">+ Option</button>
-                  </div>
-                  <div class="rf-skill-list">
-                    @for (sk of group.skills; track sk) {
-                      <div class="rf-skill-item">
-                        <span class="rf-skill-type-icon app-icon {{ getTypeIcon(sk.type) }}"></span>
-                        <span class="rf-skill-name">{{ sk.name }}</span>
-                        <span class="rf-skill-type-badge">{{ getTypeLabel(sk.type) }}</span>
-                        <select class="rf-cat-select" [ngModel]="'skill'"
-                                (ngModelChange)="moveTo(entryOf(sk, 'skill', group.levelRequired), $event)"
-                                title="Kategorie wechseln">
-                          @for (c of categories; track c.value) {
-                            <option [value]="c.value">{{ c.label }}</option>
-                          }
-                        </select>
-                        <button class="rf-skill-edit"
-                                (click)="openEditSkillEditor(entryOf(sk, 'skill', group.levelRequired))">Bearbeiten</button>
-                        <button class="rf-skill-del"
-                                (click)="removeEntry(entryOf(sk, 'skill', group.levelRequired))" title="Entfernen">&times;</button>
-                      </div>
-                    }
-                  </div>
-                </div>
-              }
-            </div>
-          }
-        </div>
-
+    <!-- ═══ Abilities board — the main working area ═══ -->
+    <div class="rf-board" cdkDropListGroup>
+      <div class="rf-board-hdr">
+        <span class="rf-board-title">F&auml;higkeiten</span>
+        <span class="rf-board-hint">Karten per Drag &amp; Drop zwischen Vorteilen, Nachteilen und Stufen ziehen.</span>
+        <button class="rf-btn-add rf-btn-add-sm" (click)="addLevelGroup()">+ Stufe</button>
       </div>
 
-    </div>
-  </div>
+      <div class="rf-board-scroll">
 
+        <!-- Vorteile / Nachteile side by side -->
+        <div class="rf-fixed-cols">
+          <section class="rf-cat" data-cat="advantage">
+            <div class="rf-cat-hdr">
+              <span class="rf-cat-title">Vorteile</span>
+              <span class="rf-cat-count">{{ advantages.length }}</span>
+              <button class="rf-btn-add rf-btn-add-xs" (click)="openNewSkillEditor('advantage')">+</button>
+            </div>
+            <div class="rf-drop" id="rf-adv"
+                 cdkDropList [cdkDropListData]="advantages" (cdkDropListDropped)="onDrop($event)">
+              @for (sk of advantages; track sk) {
+                <div class="rf-ab" [attr.data-type]="sk.type" cdkDrag>
+                  <div class="rf-ab-ghost" *cdkDragPlaceholder></div>
+                  <div class="rf-ab-bar">
+                    <span class="app-icon {{ getTypeIcon(sk.type) }}"></span>
+                    <span class="rf-ab-type">{{ getTypeLabel(sk.type) }}</span>
+                    <span class="rf-ab-name">{{ sk.name }}</span>
+                    @if (sk.actionType) {
+                      <span class="rf-ab-action" [attr.data-action]="sk.actionType">{{ sk.actionType }}</span>
+                    }
+                  </div>
+                  @if (statSummary(sk)) { <div class="rf-ab-stats">{{ statSummary(sk) }}</div> }
+                  <div class="rf-ab-desc">{{ sk.description }}</div>
+                  <div class="rf-ab-foot">
+                    <span class="rf-ab-class">{{ sk.class }}</span>
+                    @if (sk.cost) {
+                      <span class="rf-ab-cost" [attr.data-resource]="sk.cost.type">
+                        <span class="app-icon {{ costIcon(sk) }}"></span>
+                        {{ sk.cost.amount }}{{ sk.cost.perRound ? '/Rd' : '' }}
+                      </span>
+                    }
+                    <button class="rf-ab-btn" (click)="openEditSkillEditor(entryOf(sk, 'advantage'))">Bearbeiten</button>
+                    <button class="rf-ab-del" (click)="removeSkill(sk)" title="Entfernen">&times;</button>
+                  </div>
+                </div>
+              }
+              @if (!advantages.length) {
+                <div class="rf-drop-empty">Hierher ziehen</div>
+              }
+            </div>
+          </section>
+
+          <section class="rf-cat" data-cat="disadvantage">
+            <div class="rf-cat-hdr">
+              <span class="rf-cat-title">Nachteile</span>
+              <span class="rf-cat-count">{{ disadvantages.length }}</span>
+              <button class="rf-btn-add rf-btn-add-xs" (click)="openNewSkillEditor('disadvantage')">+</button>
+            </div>
+            <div class="rf-drop" id="rf-dis"
+                 cdkDropList [cdkDropListData]="disadvantages" (cdkDropListDropped)="onDrop($event)">
+              @for (sk of disadvantages; track sk) {
+                <div class="rf-ab" [attr.data-type]="sk.type" cdkDrag>
+                  <div class="rf-ab-ghost" *cdkDragPlaceholder></div>
+                  <div class="rf-ab-bar">
+                    <span class="app-icon {{ getTypeIcon(sk.type) }}"></span>
+                    <span class="rf-ab-type">{{ getTypeLabel(sk.type) }}</span>
+                    <span class="rf-ab-name">{{ sk.name }}</span>
+                    @if (sk.actionType) {
+                      <span class="rf-ab-action" [attr.data-action]="sk.actionType">{{ sk.actionType }}</span>
+                    }
+                  </div>
+                  @if (statSummary(sk)) { <div class="rf-ab-stats">{{ statSummary(sk) }}</div> }
+                  <div class="rf-ab-desc">{{ sk.description }}</div>
+                  <div class="rf-ab-foot">
+                    <span class="rf-ab-class">{{ sk.class }}</span>
+                    @if (sk.cost) {
+                      <span class="rf-ab-cost" [attr.data-resource]="sk.cost.type">
+                        <span class="app-icon {{ costIcon(sk) }}"></span>
+                        {{ sk.cost.amount }}{{ sk.cost.perRound ? '/Rd' : '' }}
+                      </span>
+                    }
+                    <button class="rf-ab-btn" (click)="openEditSkillEditor(entryOf(sk, 'disadvantage'))">Bearbeiten</button>
+                    <button class="rf-ab-del" (click)="removeSkill(sk)" title="Entfernen">&times;</button>
+                  </div>
+                </div>
+              }
+              @if (!disadvantages.length) {
+                <div class="rf-drop-empty">Hierher ziehen</div>
+              }
+            </div>
+          </section>
+        </div>
+
+        <!-- One section per Stufe -->
+        @for (group of race.skills; track $index) {
+          <section class="rf-cat rf-cat-lvl" data-cat="skill">
+            <div class="rf-cat-hdr">
+              <span class="rf-cat-title">Stufe</span>
+              <input class="rf-input rf-input-num rf-lvl-input" type="number" min="0"
+                     [ngModel]="group.levelRequired"
+                     (ngModelChange)="setGroupLevel($index, $event)"
+                     title="Stufe &auml;ndern &ndash; gleiche Stufen werden zusammengefasst">
+              @if (group.skills.length > 1) {
+                <span class="rf-choice-badge">Wahl aus {{ group.skills.length }}</span>
+              }
+              <button class="rf-btn-add rf-btn-add-xs" (click)="openNewSkillEditor('skill', group.levelRequired)">+</button>
+              <button class="rf-lvl-del" (click)="removeLevelGroup($index)" title="Stufe entfernen">&times;</button>
+            </div>
+            <!-- 'mixed' so cards that wrap onto a second line still sort correctly -->
+            <div class="rf-drop rf-drop-row" [id]="'rf-lvl-' + $index"
+                 cdkDropList cdkDropListOrientation="mixed"
+                 [cdkDropListData]="group.skills" (cdkDropListDropped)="onDrop($event)">
+              @for (sk of group.skills; track sk) {
+                <div class="rf-ab" [attr.data-type]="sk.type" cdkDrag>
+                  <div class="rf-ab-ghost" *cdkDragPlaceholder></div>
+                  <div class="rf-ab-bar">
+                    <span class="app-icon {{ getTypeIcon(sk.type) }}"></span>
+                    <span class="rf-ab-type">{{ getTypeLabel(sk.type) }}</span>
+                    <span class="rf-ab-name">{{ sk.name }}</span>
+                    @if (sk.actionType) {
+                      <span class="rf-ab-action" [attr.data-action]="sk.actionType">{{ sk.actionType }}</span>
+                    }
+                  </div>
+                  @if (statSummary(sk)) { <div class="rf-ab-stats">{{ statSummary(sk) }}</div> }
+                  <div class="rf-ab-desc">{{ sk.description }}</div>
+                  <div class="rf-ab-foot">
+                    <span class="rf-ab-class">{{ sk.class }}</span>
+                    @if (sk.cost) {
+                      <span class="rf-ab-cost" [attr.data-resource]="sk.cost.type">
+                        <span class="app-icon {{ costIcon(sk) }}"></span>
+                        {{ sk.cost.amount }}{{ sk.cost.perRound ? '/Rd' : '' }}
+                      </span>
+                    }
+                    <button class="rf-ab-btn" (click)="openEditSkillEditor(entryOf(sk, 'skill', group.levelRequired))">Bearbeiten</button>
+                    <button class="rf-ab-del" (click)="removeSkill(sk)" title="Entfernen">&times;</button>
+                  </div>
+                </div>
+              }
+              @if (!group.skills.length) {
+                <div class="rf-drop-empty">Hierher ziehen</div>
+              }
+            </div>
+          </section>
+        }
+
+        @if (!race.skills.length) {
+          <div class="rf-empty-hint">Noch keine Stufen &mdash; lege eine mit &bdquo;+ Stufe&ldquo; an.</div>
+        }
+
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <!-- Skill Editor Overlay -->

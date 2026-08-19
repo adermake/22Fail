@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, ElementRef, ViewChild, AfterViewInit, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, ElementRef, ViewChild, AfterViewInit, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -8,6 +8,8 @@ import { SKILL_DEFINITIONS, getSkillById, getSkillsForClass, CLASS_DEFINITIONS }
 import { ClassNodeComponent } from './class-node/class-node.component';
 import { SkillDetailComponent } from './skill-detail/skill-detail.component';
 import { SkillBlock } from '../../model/skill-block.model';
+import { AuthService } from '../../services/auth.service';
+import { talentPointCostForSkill, totalTalentPointsAtLevel } from '../../utils/skill-tree-rules.util';
 
 interface ClassPosition {
   name: string;
@@ -61,6 +63,8 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
   isDraggingNode = false;
   draggedClassName: string | null = null;
   editMode = false; // Toggle for edit mode
+  /** Planning mode: pick freely, nothing is spent — the picks show up as markers afterwards. */
+  planMode = false;
 
   // Center of the tree
   centerX = 600;
@@ -74,6 +78,10 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
   classParents: Map<string, string[]> = new Map();
   classTiers: Map<string, number> = new Map();
   classManualAngles: Map<string, number> = new Map(); // Manual angle overrides
+
+  private auth = inject(AuthService);
+  /** GM tooling (force-unlock a class) is admin-only. */
+  readonly isGM = computed(() => this.auth.isAdmin());
 
   constructor(private http: HttpClient) {}
 
@@ -530,40 +538,14 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
     return getSkillsForClass(className).length;
   }
 
-  /**
-   * Calculate total talent points earned at current level.
-   * Formula: 1 TP per level + 1 additional per 10 levels
-   * Level 1-10: 1 per level, Level 11-20: 2 per level, etc.
-   */
+  /** Total Fähigkeitspunkte earned at the current level (2/level up to 10, 3 up to 20, …). */
   getTotalTalentPointsEarned(): number {
-    const level = this.sheet.level || 1;
-    // 1 TP per level, plus fractional bonus for every 10 levels
-    // At level 1: 1 + floor(1/10) = 1
-    // At level 10: 10 + floor(10/10) = 11
-    // At level 11: 11 + floor(11/10) = 12, but we want different scaling
-    // Correct: level + floor((level - 1) / 10) for the bonus
-    // Level 1-10: earn 1/level = 10 points by level 10
-    // Level 11-20: earn 2/level = 20 more points by level 20
-    // Total at level 20 = 10 + 20 = 30
-    let total = 0;
-    for (let l = 1; l <= level; l++) {
-      total += 1 + Math.floor((l - 1) / 10);
-    }
-    return total;
+    return totalTalentPointsAtLevel(this.sheet.level || 1);
   }
 
-  /**
-   * Get the talent point cost to learn a skill based on its class tier.
-   * Tier 1-2: 1 TP, Tier 3-4: 2 TP, Tier 5: 3 TP
-   */
+  /** Cost to learn a skill, by its class tier (1 · 2 · 2 · 3 · 3). */
   getSkillTPCost(skill: SkillDefinition): number {
-    const classInfo = CLASS_DEFINITIONS[skill.class];
-    if (!classInfo) return 1;
-    
-    const tier = classInfo.tier;
-    if (tier <= 2) return 1;
-    if (tier <= 4) return 2;
-    return 3; // Tier 5
+    return talentPointCostForSkill(skill);
   }
 
   /**
@@ -592,20 +574,153 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
     return earned + bonusPoints - spent;
   }
 
+  // ── Class mastery ───────────────────────────────────────────────────────────
+
+  /** Every skill of the class is learned. */
+  isClassMastered(className: string): boolean {
+    const total = this.getTotalSkillsForClass(className);
+    return total > 0 && this.getLearnedCountForClass(className) >= total;
+  }
+
+  /** The player ticked "Veredelung abgeschlossen" — the class stops glowing. */
+  isMasteryConfirmed(className: string): boolean {
+    return (this.sheet.masteredClassesConfirmed || []).includes(className);
+  }
+
+  /** Mastered but not yet confirmed — this is what makes a class glow green. */
+  isMasteryPending(className: string): boolean {
+    return this.isClassMastered(className) && !this.isMasteryConfirmed(className);
+  }
+
+  toggleMasteryConfirmed(className: string): void {
+    const current = this.sheet.masteredClassesConfirmed || [];
+    const next = current.includes(className)
+      ? current.filter(c => c !== className)
+      : [...current, className];
+    this.sheet.masteredClassesConfirmed = next;
+    this.patch.emit({ path: 'masteredClassesConfirmed', value: next });
+  }
+
+  // ── GM force-unlock ─────────────────────────────────────────────────────────
+
+  toggleGmUnlock(className: string): void {
+    if (!this.isGM()) return;
+    const current = this.sheet.gmUnlockedClasses || [];
+    const next = current.includes(className)
+      ? current.filter(c => c !== className)
+      : [...current, className];
+    this.sheet.gmUnlockedClasses = next;
+    this.patch.emit({ path: 'gmUnlockedClasses', value: next });
+  }
+
+  // ── Plan mode ───────────────────────────────────────────────────────────────
+  // Purely an assist tool: planned skills grant nothing, cost nothing and can be re-planned
+  // at any time. They only draw markers on the normal view.
+
+  get plannedSkillIds(): string[] {
+    return this.sheet.plannedSkillIds || [];
+  }
+
+  isSkillPlanned(skillId: string): boolean {
+    return this.plannedSkillIds.includes(skillId);
+  }
+
+  togglePlannedSkill(skill: SkillDefinition): void {
+    const current = this.plannedSkillIds;
+    const next = current.includes(skill.id)
+      ? current.filter(id => id !== skill.id)
+      : [...current, skill.id];
+    this.setPlanned(next);
+  }
+
+  /** Planned skills of a class that are not learned yet — drives the node marker. */
+  getPlannedCountForClass(className: string): number {
+    return getSkillsForClass(className)
+      .filter(s => this.isSkillPlanned(s.id) && !this.isSkillLearned(s.id))
+      .length;
+  }
+
+  /** Total FP the open plan would cost on top of what is already learned. */
+  getPlannedTotalCost(): number {
+    return this.plannedSkillIds
+      .filter(id => !this.isSkillLearned(id))
+      .reduce((sum, id) => {
+        const skill = getSkillById(id);
+        return sum + (skill ? this.getSkillTPCost(skill) : 1);
+      }, 0);
+  }
+
+  /** Planned picks still outstanding (learned ones drop out of the plan on their own). */
+  getPlannedOpenCount(): number {
+    return this.plannedSkillIds.filter(id => !this.isSkillLearned(id)).length;
+  }
+
+  clearPlan(): void {
+    if (!this.plannedSkillIds.length) return;
+    if (!confirm('Die gesamte Planung verwerfen?')) return;
+    this.setPlanned([]);
+  }
+
+  togglePlanMode(): void {
+    this.planMode = !this.planMode;
+  }
+
+  private setPlanned(next: string[]): void {
+    this.sheet.plannedSkillIds = next;
+    this.patch.emit({ path: 'plannedSkillIds', value: next });
+  }
+
+  /** A class counts as "had" once half of its skills are learned — the bar the tree already used
+   *  to unlock children, reused for the tier rule below. */
+  hasClass(className: string): boolean {
+    const total = this.getTotalSkillsForClass(className);
+    if (total === 0) return false;
+    return this.getLearnedCountForClass(className) >= Math.ceil(total / 2);
+  }
+
+  /** Some class of that tier is "had" — connections may skip a tier, progression may not. */
+  hasAnyClassOfTier(tier: number): boolean {
+    return this.classPositions.some(p => p.tier === tier && this.hasClass(p.name));
+  }
+
+  /** GM override: the class was force-unlocked for this character. */
+  isGmUnlocked(className: string): boolean {
+    return (this.sheet.gmUnlockedClasses || []).includes(className);
+  }
+
   canLearnFromClass(className: string): boolean {
     const classPos = this.classPositions.find(p => p.name === className);
     if (!classPos || classPos.tier === 1) return true;
+    if (this.isGmUnlocked(className)) return true;
+
+    // A connected parent must be "had" …
+    const parents = this.classParents.get(className) || [];
+    const hasQualifyingParent = parents.some(parent => this.hasClass(parent));
+    if (!hasQualifyingParent) return false;
+
+    // … AND every tier below must be covered. A tier-3 class wired straight to a tier-5 one does
+    // not let you skip tier 4: you need SOME tier-4 class somewhere in the tree first.
+    for (let tier = 2; tier < classPos.tier; tier++) {
+      if (!this.hasAnyClassOfTier(tier)) return false;
+    }
+    return true;
+  }
+
+  /** Why a class is locked — shown in the detail panel. */
+  getClassLockReason(className: string): string {
+    const classPos = this.classPositions.find(p => p.name === className);
+    if (!classPos || classPos.tier === 1 || this.canLearnFromClass(className)) return '';
 
     const parents = this.classParents.get(className) || [];
-    for (const parent of parents) {
-      const parentLearnedCount = this.getLearnedCountForClass(parent);
-      const parentTotalSkills = this.getTotalSkillsForClass(parent);
-      const required = Math.ceil(parentTotalSkills / 2);
-      if (parentLearnedCount >= required) {
-        return true;
+    if (!parents.some(parent => this.hasClass(parent))) {
+      return 'Benötigt die Hälfte der Fähigkeiten einer Vorgängerklasse';
+    }
+    for (let tier = 2; tier < classPos.tier; tier++) {
+      if (!this.hasAnyClassOfTier(tier)) {
+        return `Benötigt zuerst eine Klasse der Stufe ${tier}`;
       }
     }
-    return false;
+    return '';
   }
 
   /**

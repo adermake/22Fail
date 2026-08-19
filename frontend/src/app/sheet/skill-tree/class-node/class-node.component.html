@@ -9,6 +9,9 @@
   [class.is-secondary]="isSecondary"
   [class.on-primary-path]="onPath === 'primary'"
   [class.on-secondary-path]="onPath === 'secondary'"
+  [class.mastery-pending]="masteryPending"
+  [class.mastered]="mastered"
+  [class.gm-unlocked]="gmUnlocked"
   [class]="tierClass"
   [style.left.px]="x"
   [style.top.px]="y"
@@ -21,6 +24,16 @@
   }
   @if (isSecondary) {
     <div class="class-badge secondary">S</div>
+  }
+  @if (mastered) {
+    <div class="class-badge mastery" [class.confirmed]="masteryConfirmed"
+         [title]="masteryConfirmed ? 'Veredelung abgeschlossen' : 'Gemeistert — Veredelung offen'">V</div>
+  }
+  @if (plannedCount > 0) {
+    <div class="class-badge planned" [title]="plannedCount + ' geplante Fähigkeit(en)'">{{ plannedCount }}</div>
+  }
+  @if (gmUnlocked) {
+    <div class="class-badge gm" title="Vom GM freigeschaltet">GM</div>
   }
   <div class="node-content">
     <span class="class-name">{{ className }}</span>

@@ -146,20 +146,19 @@ export class EquipmentComponent {
   // Handle drop into armor slots with validation
   onSlotDrop(event: CdkDragDrop<ItemBlock[]>, targetSlot: string) {
     if (event.previousContainer === event.container) {
-      // Same slot - ignore for all slots except extra
-      if (targetSlot !== 'extra') {
-        return; // Single-item slots: don't allow reordering
-      }
-      // For extra slot, allow reordering within the slot
+      // Every slot stacks now (several armour pieces, several weapons), so reordering is allowed
+      // everywhere — the order decides which weapon counts as first/second in the lobby.
       const item = event.previousContainer.data[event.previousIndex];
-      
+      if (!item) return;
+
       // Remove and re-add to equipment in new position
       const equipmentIndex = this.sheet.equipment.indexOf(item);
+      if (equipmentIndex === -1) return;
       this.sheet.equipment.splice(equipmentIndex, 1);
-      
-      // Find new position among extra items
-      const extraItems = this.getArmorSlot('extra');
-      const beforeItem = extraItems[event.currentIndex];
+
+      // Find new position among the items of this slot
+      const slotItems = this.getArmorSlot(targetSlot as any);
+      const beforeItem = slotItems[event.currentIndex];
       if (beforeItem) {
         const beforeIndex = this.sheet.equipment.indexOf(beforeItem);
         this.sheet.equipment.splice(beforeIndex, 0, item);
@@ -184,39 +183,14 @@ export class EquipmentComponent {
       item.armorType = targetSlot as any;
       
       if (isFromInventory) {
-        // Check if target slot already has an item → swap
-        const existingInSlot = this.getArmorSlot(targetSlot as any);
-        const existingItem = existingInSlot.length > 0 && targetSlot !== 'extra' ? existingInSlot[0] : null;
-
-        if (existingItem) {
-          // SWAP: find item's actual position in inventory by object reference
-          const invCopy = [...(this.sheet.inventory || [])] as (ItemBlock | null)[];
-          const realIdx = invCopy.indexOf(item);
-          if (realIdx !== -1) {
-            invCopy[realIdx] = existingItem;
-          } else {
-            // Fallback: append to inventory
-            invCopy.push(existingItem);
-          }
-          this.sheet.inventory = invCopy;
-
-          // Replace in equipment array
-          const equipIdx = this.sheet.equipment.indexOf(existingItem);
-          if (equipIdx !== -1) {
-            this.sheet.equipment[equipIdx] = item;
-          } else {
-            this.sheet.equipment.push(item);
-          }
-          this.sheet.equipment = [...this.sheet.equipment];
-        } else {
-          // Empty slot: remove item from inventory by reference, add to equipment
-          const invCopy = [...(this.sheet.inventory || [])] as (ItemBlock | null)[];
-          const realIdx = invCopy.indexOf(item);
-          if (realIdx !== -1) invCopy[realIdx] = null;
-          while (invCopy.length > 0 && invCopy[invCopy.length - 1] === null) invCopy.pop();
-          this.sheet.inventory = invCopy as typeof this.sheet.inventory;
-          this.sheet.equipment.push(item);
-        }
+        // Slots STACK: an item already sitting here stays put, the new one joins it. (This used to
+        // swap the occupant back into the inventory, which capped every slot at one item.)
+        const invCopy = [...(this.sheet.inventory || [])] as (ItemBlock | null)[];
+        const realIdx = invCopy.indexOf(item);
+        if (realIdx !== -1) invCopy[realIdx] = null;
+        while (invCopy.length > 0 && invCopy[invCopy.length - 1] === null) invCopy.pop();
+        this.sheet.inventory = invCopy as typeof this.sheet.inventory;
+        this.sheet.equipment.push(item);
 
         this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
         this.patch.emit({ path: 'equipment', value: this.sheet.equipment });

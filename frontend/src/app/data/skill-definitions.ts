@@ -23,7 +23,7 @@ export const CLASS_DEFINITIONS: ClassHierarchy = {
   'Kampfzauberer': { tier: 2, angle: 114, children: [{ className: 'Arkanist', angle: 123 }, { className: 'Hämomant', angle: 90 }] },
   'Heiler': { tier: 2, angle: 67, children: [{ className: 'Seelenformer', angle: 65 }, { className: 'Paladin', angle: 26 }] },
   'Schütze': { tier: 2, angle: -165, children: [{ className: 'Jäger', angle: -160 }, { className: 'Schnellschütze', angle: -179 }] },
-  'Dieb': { tier: 2, angle: -125, children: [{ className: 'Kampfakrobat', angle: -131 }, { className: 'Assassine', angle: -151 }] },
+  'Dieb': { tier: 2, angle: -125, children: [{ className: 'Kampfakrobat', angle: -131 }, { className: 'Assassine', angle: -151 }, { className: 'Plünderer', angle: -96 }] },
   'Krieger': { tier: 2, angle: -14, children: [{ className: 'Ritter', angle: -1 }, { className: 'Mönch', angle: -35 }] },
   'Barbar': { tier: 2, angle: -58, children: [{ className: 'Berserker', angle: -68 }, { className: 'Plünderer', angle: -96 }] },
   
@@ -37,7 +37,7 @@ export const CLASS_DEFINITIONS: ClassHierarchy = {
   'Berserker': { tier: 3, angle: -68, children: [{ className: 'Kriegsherr', angle: -92 }, { className: 'Omen', angle: -51 }] },
   'Plünderer': { tier: 3, angle: -96, children: [{ className: 'General', angle: -94 }] },
   'Mönch': { tier: 3, angle: -35, children: [{ className: 'Templer', angle: -42 }] },
-  'Schnellschütze': { tier: 3, angle: -179, children: [{ className: 'Tüftler', angle: 157 }] },
+  'Schnellschütze': { tier: 3, angle: -179, children: [{ className: 'Tüftler', angle: 157 }, { className: 'Assassine', angle: -151 }] },
   
   // Tier 4
   'Phantom': { tier: 4, angle: -174, children: [] },

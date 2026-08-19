@@ -11,6 +11,7 @@
  */
 import type { MarkdownIt } from 'markdown-it';
 import { esc, oneOf, parseAttrs, type DirectiveAttrs } from './attrs';
+import { safeColor } from './inline-directives';
 import { slugify } from './slug';
 import type { RulebookEnv } from '../rulebook.model';
 import { renderDataDirective } from '../rulebook-data-sources';
@@ -33,9 +34,12 @@ const section: ContainerDirective = {
     // Register as a jump point so the live outline (tab dropdown / search) includes sections,
     // not just markdown headings.
     if (id && title) env.headings?.push({ id, level: 3, text: title, kind: 'section' });
+    const sectionColor = safeColor(attrs['color']);
+    if (attrs['color'] && !sectionColor) env.warnings.push(`Unbekannte Farbe "{color=${attrs['color']}}"`);
+    const sectionStyle = sectionColor ? ` style="--rb-section-color:${sectionColor}"` : '';
     return {
       open:
-        `<details class="rb-section"${collapsed ? '' : ' open'}${id ? ` id="${esc(id)}"` : ''}>` +
+        `<details class="rb-section"${collapsed ? '' : ' open'}${id ? ` id="${esc(id)}"` : ''}${sectionStyle}>` +
         `<summary class="rb-section-title">${iconSpan(attrs['icon'])}` +
         `<span class="rb-section-titletext">${esc(title)}</span>` +
         `<span class="rb-section-chev" aria-hidden="true"></span></summary>` +
@@ -49,13 +53,19 @@ const NOTE_TYPES = ['info', 'formula', 'warning', 'tip'] as const;
 
 const note: ContainerDirective = {
   name: 'note',
-  render: (attrs) => {
-    // `color` is accepted as an alias for `type` so both spellings work for authors.
-    const type = oneOf(attrs['type'] ?? attrs['color'], NOTE_TYPES, 'info');
+  render: (attrs, env) => {
+    const rawColor = attrs['color'];
+    // `color` may name a note TYPE (legacy spelling) or be a real custom colour.
+    const type = oneOf(attrs['type'] ?? rawColor, NOTE_TYPES, 'info');
+    const custom = attrs['type'] || !NOTE_TYPES.includes(rawColor as never) ? safeColor(rawColor) : null;
+    if (rawColor && !custom && !NOTE_TYPES.includes(rawColor as never)) {
+      env.warnings.push(`Unbekannte Farbe "{color=${rawColor}}"`);
+    }
+    const style = custom ? ` style="--rb-note-color:${custom}"` : '';
     const title = attrs['title'];
     return {
       open:
-        `<aside class="rb-note rb-note--${type}">` +
+        `<aside class="rb-note rb-note--${type}"${style}>` +
         (title ? `<div class="rb-note-title">${iconSpan(attrs['icon'])}${esc(title)}</div>` : ''),
       close: `</aside>`,
     };
