@@ -1489,7 +1489,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Gift mischen',
     class: 'Assassine',
     type: 'passive',
-    description: 'Verdreifacht erwürfelte Braupunkte beim Brauen von Tränken mit ausschließlich positivem Effekt',
+    description: 'Verdreifacht erwürfelte Braupunkte beim Brauen von Tränken mit ausschließlich negativem Effekt',
     enlightened: true
   },
   {
