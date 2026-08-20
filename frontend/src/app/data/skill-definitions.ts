@@ -661,12 +661,12 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
 
   // ==================== BERSERKER ====================
   {
-    id: 'berserker_staerke_2',
-    name: 'Stärke+2',
+    id: 'berserker_staerke_3',
+    name: 'Stärke+3',
     class: 'Berserker',
     type: 'stat_bonus',
-    description: 'Stärke+2',
-    statBonus: { stat: 'strength', amount: 2 }
+    description: 'Stärke+3',
+    statBonus: { stat: 'strength', amount: 3 }
   },
   {
     id: 'berserker_notfallstaerke',
@@ -793,12 +793,12 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
 
   // ==================== KAMPFAKROBAT ====================
   {
-    id: 'kampfakrobat_bewegung_3',
-    name: 'Bewegung+3',
+    id: 'kampfakrobat_bewegung_2',
+    name: 'Bewegung+2',
     class: 'Kampfakrobat',
     type: 'stat_bonus',
-    description: 'Bewegung+3',
-    statBonus: { stat: 'movement', amount: 3 }
+    description: 'Bewegung+2',
+    statBonus: { stat: 'movement', amount: 2 }
   },
   {
     id: 'kampfakrobat_akrobatik_talent_3',
@@ -918,12 +918,12 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
 
   // ==================== SCHNELLSCHÜTZE ====================
   {
-    id: 'schnellschuetze_bewegung_3',
-    name: 'Bewegung+3',
+    id: 'schnellschuetze_bewegung_2',
+    name: 'Bewegung+2',
     class: 'Schnellschütze',
     type: 'stat_bonus',
-    description: 'Bewegung+3',
-    statBonus: { stat: 'movement', amount: 3 }
+    description: 'Bewegung+2',
+    statBonus: { stat: 'movement', amount: 2 }
   },
   {
     id: 'schnellschuetze_dynamisches_schiessen',
@@ -945,7 +945,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Unberührt',
     class: 'Schnellschütze',
     type: 'passive',
-    description: '+3 Bewegung, wenn du diese und letzte Runde keinen Schaden genommen hast',
+    description: '+4 Bewegung, wenn du diese und letzte Runde keinen Schaden genommen hast',
     enlightened: true
   },
   {
@@ -1407,7 +1407,7 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
     name: 'Blitzgriff',
     class: 'Klingentänzer',
     type: 'passive',
-    description: '+3 Bewegung auf Waffen zu, die momentan niemand hält'
+    description: '+5 Bewegung auf Waffen zu, die momentan niemand hält'
   },
   {
     id: 'klingentaenzer_unantastbar',
@@ -2090,12 +2090,12 @@ export const SKILL_DEFINITIONS: SkillDefinition[] = [
 
   // ==================== KRIEGSHERR ====================
   {
-    id: 'kriegsherr_staerke_4',
-    name: 'Stärke+4',
+    id: 'kriegsherr_wille_4',
+    name: 'Wille+4',
     class: 'Kriegsherr',
     type: 'stat_bonus',
-    description: 'Stärke+4',
-    statBonus: { stat: 'strength', amount: 4 },
+    description: 'Wille+4',
+    statBonus: { stat: 'chill', amount: 4 },
     infiniteLevel: true
   },
   {
