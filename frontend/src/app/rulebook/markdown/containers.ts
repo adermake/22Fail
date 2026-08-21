@@ -21,8 +21,22 @@ export interface ContainerDirective {
   render(attrs: DirectiveAttrs, env: RulebookEnv): { open: string; close: string };
 }
 
-export const iconSpan = (name: string | undefined): string =>
-  name ? `<span class="app-icon i-${esc(name)}" aria-hidden="true"></span>` : '';
+/**
+ * Renders an icon by FILE NAME from /icons, e.g. `flair` -> /icons/flair.svg.
+ *
+ * Deliberately does NOT use the global `.app-icon .i-<name>` classes: those require a
+ * hand-written CSS rule per icon, and a rulebook author naming an icon that has no rule got a
+ * silent solid square (the mask never applied). Emitting the mask URL inline means every file in
+ * public/icons works with no CSS edit.
+ *
+ * The name is restricted to [a-z0-9_-] so it can never break out of the url().
+ */
+export const iconSpan = (name: string | undefined): string => {
+  if (!name) return '';
+  const safe = name.trim().toLowerCase();
+  if (!/^[a-z0-9_-]+$/.test(safe)) return '';
+  return `<span class="rb-icon" style="--rb-icon:url(/icons/${safe}.svg)" aria-hidden="true"></span>`;
+};
 
 /** Sections are collapsible (native <details>); `collapsed` starts them closed. */
 const section: ContainerDirective = {

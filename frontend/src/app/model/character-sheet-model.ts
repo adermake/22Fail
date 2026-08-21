@@ -71,6 +71,10 @@ export interface CharacterSheet {
   learnedSkillIds: string[];      // IDs of skills learned from the skill tree
   /** Skill-tree PLANNING: skills the player intends to take later. Never grants anything. */
   plannedSkillIds?: string[];
+  /** What each learned skill actually COST when bought (per single instance). Skills without an
+   *  entry predate this bookkeeping and are charged at the legacy tier price, so a change to the
+   *  price table never retroactively drains an existing character. */
+  skillCostsPaid?: { [skillId: string]: number };
   /** Classes whose skills are all learned AND the player ticked "Veredelung abgeschlossen". */
   masteredClassesConfirmed?: string[];
   /** Classes a GM force-unlocked, bypassing the tree's progression rules. */

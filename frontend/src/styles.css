@@ -232,3 +232,18 @@ label {
 .dice-good { color: #4ade80; }
 .dice-bad  { color: #f87171; }
 .dice-zero { color: var(--text-muted, #9ca3af); }
+
+/* ── Knowledge tier selector (Geheim / Unbekannt / Bekannt) ──
+   Used by every craft-knowledge editor (material, forge trait, ingredient, extractor, brew trait). */
+.kt-field { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.kt-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted, #9ca3af); text-transform: uppercase; letter-spacing: 0.05em; }
+.kt-select {
+  padding: 4px 8px;
+  background: #0f1829;
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 6px;
+  color: var(--text, #e5e7eb);
+  font-size: 0.82rem;
+}
+.kt-select:focus { outline: none; border-color: var(--accent, #8b5cf6); }
+.kt-hint { font-size: 0.68rem; color: var(--text-muted, #9ca3af); opacity: 0.85; }

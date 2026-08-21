@@ -22,7 +22,15 @@
 
   <!-- Row 2: Flags -->
   <div class="me-flags-row">
-    <label class="me-toggle"><input type="checkbox" [(ngModel)]="edit.isPublic" /> &#xD6;ffentlich</label>
+    <label class="kt-field">
+      <span class="kt-label">Wissensstufe</span>
+      <select class="kt-select" [ngModel]="tier" (ngModelChange)="setTier($event)">
+        @for (t of knowledgeTiers; track t.value) {
+          <option [value]="t.value">{{ t.label }}</option>
+        }
+      </select>
+      <span class="kt-hint">{{ tierHint }}</span>
+    </label>
     <label class="me-toggle"><input type="checkbox" [(ngModel)]="edit.canBeWeaponMaterial" (ngModelChange)="onWeaponToggle()" /> Waffe</label>
     <label class="me-toggle"><input type="checkbox" [(ngModel)]="edit.canBeArmorMaterial" (ngModelChange)="onArmorToggle()" /> R&#xFC;stung</label>
     <label class="me-toggle"><input type="checkbox" [(ngModel)]="edit.stackable" (ngModelChange)="onStackableChange()" /> Stapelbar</label>

@@ -10,7 +10,9 @@
     "prebuild": "npm run rulebook:manifest && npm run map:atlas",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "stage": "node tools/stage-to-backend.mjs",
+    "deploy:stage": "npm run build && node tools/stage-to-backend.mjs"
   },
   "prettier": {
     "printWidth": 100,

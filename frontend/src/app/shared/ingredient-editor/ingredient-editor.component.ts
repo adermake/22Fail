@@ -8,6 +8,9 @@ import {
 } from '../../model/brewing.model';
 import { StatusEffect } from '../../model/status-effect.model';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
+import {
+  KNOWLEDGE_TIERS, KnowledgeTier, knowledgeTierOf, setKnowledgeTier,
+} from '../../utils/knowledge-tier.util';
 
 @Component({
   selector: 'app-ingredient-editor',
@@ -17,6 +20,15 @@ import { AssetBrowserApiService } from '../../services/asset-browser-api.service
   styleUrl: './ingredient-editor.component.css',
 })
 export class IngredientEditorComponent implements OnInit {
+  // ── Wissensstufe (geheim | unbekannt | bekannt) ──────────────────────────────
+  readonly knowledgeTiers = KNOWLEDGE_TIERS;
+
+  get tier(): KnowledgeTier { return knowledgeTierOf(this.edit); }
+  get tierHint(): string {
+    return KNOWLEDGE_TIERS.find(t => t.value === this.tier)?.hint ?? '';
+  }
+  setTier(tier: KnowledgeTier): void { setKnowledgeTier(this.edit, tier); }
+
   @Input() ingredient: IngredientBlock = createEmptyIngredientBlock();
   @Output() save = new EventEmitter<IngredientBlock>();
   @Output() cancel = new EventEmitter<void>();

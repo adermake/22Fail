@@ -49,22 +49,17 @@ export interface InlineDirective {
   render(label: string, attrs: DirectiveAttrs, env: RulebookEnv): string;
 }
 
-/** Icon names that exist as `.i-*` mask classes in styles.css (dev-time warning only). */
-const KNOWN_ICONS = new Set([
-  'token-drag', 'visibility-on', 'visibility-off', 'lobby', 'equipment', 'mana', 'map', 'draw',
-  'wall', 'lasso', 'effektivity', 'dice', 'restore-trash', 'stat', 'status-effect', 'ability',
-  'brewing', 'image', 'ruler', 'character', 'fog', 'active', 'texture', 'life', 'spell', 'folder',
-  'energy', 'layers', 'passive', 'appearance', 'item', 'tokenlink', 'stability', 'grundbonus',
-  'movement', 'reaction', 'attack', 'focus', 'soul', 'turnspeed',
-]);
-
 export const INLINE_DIRECTIVES: InlineDirective[] = [
   {
+    // Any file in public/icons works: `:icon[flair]` -> /icons/flair.svg
     name: 'icon',
     render: (label, attrs, env) => {
-      const name = (attrs['name'] ?? label).trim();
-      if (name && !KNOWN_ICONS.has(name)) env.warnings.push(`Unbekanntes Icon ":icon[${name}]"`);
-      return `<span class="app-icon i-${esc(name)}" aria-hidden="true"></span>`;
+      const name = (attrs['name'] ?? label).trim().toLowerCase();
+      if (!/^[a-z0-9_-]+$/.test(name)) {
+        env.warnings.push(`Ungueltiger Icon-Name ":icon[${name}]"`);
+        return '';
+      }
+      return `<span class="rb-icon" style="--rb-icon:url(/icons/${name}.svg)" aria-hidden="true"></span>`;
     },
   },
   {

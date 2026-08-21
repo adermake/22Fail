@@ -505,3 +505,17 @@
 
 /* Custom coloured text — :c[…]{color=…} (plain) and :hl[…]{color=…} (bold highlight) */
 .rb-c { font-weight: inherit; }
+
+/* Data-driven icon: the mask URL comes from the markdown (--rb-icon), so any file in
+   public/icons works without adding a class to styles.css. A missing FILE shows nothing
+   (mask resolves to none) rather than the old solid square. */
+.rb-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  vertical-align: -0.15em;
+  background-color: currentColor;
+  -webkit-mask: var(--rb-icon) center / contain no-repeat;
+  mask: var(--rb-icon) center / contain no-repeat;
+}

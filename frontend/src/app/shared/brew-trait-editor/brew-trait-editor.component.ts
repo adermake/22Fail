@@ -2,6 +2,9 @@ import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BrewTrait, createEmptyBrewTrait } from '../../model/brewing.model';
+import {
+  KNOWLEDGE_TIERS, KnowledgeTier, knowledgeTierOf, setKnowledgeTier,
+} from '../../utils/knowledge-tier.util';
 
 /**
  * Editor for Braumerkmale — the brewing counterpart to ForgeTraitEditor. Same shape, except
@@ -15,6 +18,15 @@ import { BrewTrait, createEmptyBrewTrait } from '../../model/brewing.model';
   styleUrl: './brew-trait-editor.component.css',
 })
 export class BrewTraitEditorComponent implements OnInit {
+  // ── Wissensstufe (geheim | unbekannt | bekannt) ──────────────────────────────
+  readonly knowledgeTiers = KNOWLEDGE_TIERS;
+
+  get tier(): KnowledgeTier { return knowledgeTierOf(this.edit); }
+  get tierHint(): string {
+    return KNOWLEDGE_TIERS.find(t => t.value === this.tier)?.hint ?? '';
+  }
+  setTier(tier: KnowledgeTier): void { setKnowledgeTier(this.edit, tier); }
+
   @Input() trait: BrewTrait = createEmptyBrewTrait();
   @Output() save = new EventEmitter<BrewTrait>();
   @Output() cancel = new EventEmitter<void>();

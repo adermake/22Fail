@@ -2,6 +2,9 @@ import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ForgeTrait, createEmptyForgeTrait } from '../../model/forging.model';
+import {
+  KNOWLEDGE_TIERS, KnowledgeTier, knowledgeTierOf, setKnowledgeTier,
+} from '../../utils/knowledge-tier.util';
 
 @Component({
   selector: 'app-forge-trait-editor',
@@ -11,6 +14,15 @@ import { ForgeTrait, createEmptyForgeTrait } from '../../model/forging.model';
   styleUrl: './forge-trait-editor.component.css',
 })
 export class ForgeTraitEditorComponent implements OnInit {
+  // ── Wissensstufe (geheim | unbekannt | bekannt) ──────────────────────────────
+  readonly knowledgeTiers = KNOWLEDGE_TIERS;
+
+  get tier(): KnowledgeTier { return knowledgeTierOf(this.edit); }
+  get tierHint(): string {
+    return KNOWLEDGE_TIERS.find(t => t.value === this.tier)?.hint ?? '';
+  }
+  setTier(tier: KnowledgeTier): void { setKnowledgeTier(this.edit, tier); }
+
   @Input() trait: ForgeTrait = createEmptyForgeTrait();
   @Output() save = new EventEmitter<ForgeTrait>();
   @Output() cancel = new EventEmitter<void>();

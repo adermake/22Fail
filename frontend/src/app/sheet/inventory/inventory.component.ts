@@ -589,6 +589,26 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
     this.showItemEditor = true;
   }
 
+  /** Copy an inventory item into the next free slot and open the editor on the copy. */
+  duplicateItem(index: number) {
+    const source = this.sheet.inventory[index];
+    if (!source) return;
+    const copy = JSON.parse(JSON.stringify(source)) as ItemBlock;
+    copy.name = `${source.name} (Kopie)`;
+
+    const inventory = [...(this.sheet.inventory || [])];
+    let target = inventory.findIndex(slot => slot === null);
+    if (target === -1) {
+      inventory.push(copy);
+      target = inventory.length - 1;
+    } else {
+      inventory[target] = copy;
+    }
+    this.sheet.inventory = inventory;
+    this.patch.emit({ path: 'inventory', value: inventory });
+    this.openItemEditor(target);
+  }
+
   // Create new item via full-screen editor
   openNewItemEditor() {
     this.editingItemIndex = null;

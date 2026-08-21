@@ -14,6 +14,9 @@ import { MaterialBlock, ForgeTrait } from '../../model/forging.model';
 import { IngredientBlock, ExtractorBlock, BREW_SLOT_LABELS } from '../../model/brewing.model';
 import { SoulBlock, effectiveSoulStats } from '../../model/soul-block.model';
 import { NPC_STAT_KEYS, NpcStatKey } from '../../model/npc-statblock.model';
+import {
+  KNOWLEDGE_TIERS, KnowledgeTier, knowledgeTierOf, isKnowledgeVisible,
+} from '../../utils/knowledge-tier.util';
 
 @Component({
   selector: 'app-wissen',
@@ -24,6 +27,14 @@ import { NPC_STAT_KEYS, NpcStatKey } from '../../model/npc-statblock.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WissenComponent implements OnInit {
+  // ── Wissensstufe helpers for the badges ──────────────────────────────────────
+  tierOf(entry: { knowledgeTier?: KnowledgeTier; isPublic?: boolean }): KnowledgeTier {
+    return knowledgeTierOf(entry);
+  }
+  tierLabel(entry: { knowledgeTier?: KnowledgeTier; isPublic?: boolean }): string {
+    return KNOWLEDGE_TIERS.find(t => t.value === this.tierOf(entry))?.label ?? 'Geheim';
+  }
+
   @Input({ required: true }) sheet!: CharacterSheet;
   @Output() patch = new EventEmitter<JsonPatch>();
 
@@ -83,7 +94,7 @@ export class WissenComponent implements OnInit {
       const knownIds = new Set(this.sheet.knownMaterialIds ?? []);
       this.knownMaterials = materialFiles
         .map(f => ({ ...(f.data as MaterialBlock), id: (f.data as MaterialBlock).id || f.id }))
-        .filter(m => m.isPublic || knownIds.has(m.id));
+        .filter(m => isKnowledgeVisible(m, { known: knownIds.has(m.id) }));
     } catch (e) {
       console.error('Wissen: Fehler beim Laden der Materialien', e);
     } finally {
@@ -103,7 +114,7 @@ export class WissenComponent implements OnInit {
       const knownIds = new Set(this.sheet.knownForgeTraitIds ?? []);
       this.knownTraits = traitFiles
         .map(f => ({ ...(f.data as ForgeTrait), id: (f.data as ForgeTrait).id || f.id }))
-        .filter(t => t.isPublic || knownIds.has(t.id));
+        .filter(t => isKnowledgeVisible(t, { known: knownIds.has(t.id) }));
     } catch (e) {
       console.error('Wissen: Fehler beim Laden der Schmiedemerkmale', e);
     } finally {
@@ -121,7 +132,7 @@ export class WissenComponent implements OnInit {
       const knownIds = new Set(this.sheet.knownIngredientIds ?? []);
       this.knownIngredients = files
         .map(f => ({ ...(f.data as IngredientBlock), id: (f.data as IngredientBlock).id || f.id }))
-        .filter(i => i.isPublic || knownIds.has(i.id));
+        .filter(i => isKnowledgeVisible(i, { known: knownIds.has(i.id) }));
     } catch (e) {
       console.error('Wissen: Fehler beim Laden der Wirkstoffe', e);
     } finally {
@@ -139,7 +150,7 @@ export class WissenComponent implements OnInit {
       const knownIds = new Set(this.sheet.knownExtractorIds ?? []);
       this.knownExtractors = files
         .map(f => ({ ...(f.data as ExtractorBlock), id: (f.data as ExtractorBlock).id || f.id }))
-        .filter(e => e.isPublic || knownIds.has(e.id));
+        .filter(e => isKnowledgeVisible(e, { known: knownIds.has(e.id) }));
     } catch (e) {
       console.error('Wissen: Fehler beim Laden der Extraktoren', e);
     } finally {

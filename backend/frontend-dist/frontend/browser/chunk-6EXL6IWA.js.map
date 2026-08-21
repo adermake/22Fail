@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/shared/image-url.pipe.ts"],
+  "sourcesContent": ["import { Pipe, PipeTransform } from '@angular/core';\r\nimport { ImageService } from '../services/image.service';\r\n\r\n@Pipe({\r\n  name: 'imageUrl',\r\n  standalone: true\r\n})\r\nexport class ImageUrlPipe implements PipeTransform {\r\n  constructor(private imageService: ImageService) {}\r\n\r\n  transform(imageIdOrData: string | null | undefined): string | null {\r\n    return this.imageService.getImageUrl(imageIdOrData);\r\n  }\r\n}\r\n"],
+  "mappings": ";;;;;;;;;;;AAOM,IAAO,eAAP,MAAO,cAAY;EACH;EAApB,YAAoB,cAA0B;AAA1B,SAAA,eAAA;EAA6B;EAEjD,UAAU,eAAwC;AAChD,WAAO,KAAK,aAAa,YAAY,aAAa;EACpD;;qCALW,eAAY,4BAAA,cAAA,EAAA,CAAA;EAAA;uFAAZ,eAAY,MAAA,KAAA,CAAA;;;sEAAZ,cAAY,CAAA;UAJxB;WAAK;MACJ,MAAM;MACN,YAAY;KACb;;;",
+  "names": []
+}

@@ -391,3 +391,17 @@
   18%  { background: #166534; color: #bbf7d0; filter: none; }
   100% { background: #166534; color: #bbf7d0; }
 }
+
+/* "Veredelt" — a plain player-set marker, no mechanical effect */
+.sc-refined {
+  flex-shrink: 0;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 9px;
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+}

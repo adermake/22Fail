@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;97273d4c3866b5a99eaa99f861cd08abfcb382a59410472b3f0f3eebc109f088;C:/Users/adermake/Documents/22FailApp/frontend/src/app/world/character-generator/compass-selector.component.ts"],
+  "sourcesContent": ["\n    .compass-container {\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      gap: 8px;\n    }\n\n    svg {\n      border-radius: 50%;\n      background: #0f0f0f;\n    }\n\n    .arrow {\n      transition: transform 0.05s ease-out;\n    }\n\n    .arrow:active {\n      cursor: grabbing;\n    }\n\n    .angle-display {\n      font-size: 14px;\n      font-weight: 600;\n      color: #4CAF50;\n      background: #1a1a1a;\n      padding: 4px 12px;\n      border-radius: 4px;\n      border: 1px solid #333;\n    }\n  "],
+  "mappings": ";AACI,CAAC;AACC,WAAS;AACT,kBAAgB;AAChB,eAAa;AACb,OAAK;AACP;AAEA;AACE,iBAAe;AACf,cAAY;AACd;AAEA,CAAC;AACC,cAAY,UAAU,MAAM;AAC9B;AAEA,CAJC,KAIK;AACJ,UAAQ;AACV;AAEA,CAAC;AACC,aAAW;AACX,eAAa;AACb,SAAO;AACP,cAAY;AACZ,WAAS,IAAI;AACb,iBAAe;AACf,UAAQ,IAAI,MAAM;AACpB;",
+  "names": []
+}

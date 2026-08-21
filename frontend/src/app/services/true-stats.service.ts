@@ -7,6 +7,7 @@ import { FormulaType } from '../model/formula-type.enum';
 import { createPlayerContext } from '../scripting/character-context';
 import { ModifierOp, runScript, ScriptGrantedSkill } from '../scripting/interpreter';
 import { SkillBlock } from '../model/skill-block.model';
+import { SpellBlock } from '../model/spell-block-model';
 
 /** A modifier derived from an active effect's `effectActive` block, tagged for the pipeline. */
 export interface DerivedModifier {
@@ -21,6 +22,9 @@ export interface DerivedGrantedSkill extends ScriptGrantedSkill { source: string
 
 interface DerivedEntry { fp: string; mods: DerivedModifier[]; skills: DerivedGrantedSkill[]; }
 const EMPTY_DERIVED: DerivedEntry = { fp: '', mods: [], skills: [] };
+
+/** Flat Leben every character gains per level, on top of Konstitution ×5. */
+export const HEALTH_PER_LEVEL = 2;
 
 /** Combine a modifier with the running value in the ordered stat pipeline. */
 function applyOp(acc: number, op: ModifierOp, amount: number): number {
@@ -134,6 +138,45 @@ export class TrueStatsService {
         : g.lifeCost ? { type: 'life' as const, amount: g.lifeCost }
         : undefined,
     }));
+  }
+
+  // ── Item-granted abilities ──────────────────────────────────────────────────
+  // Items can carry embedded skills/spells (item editor). They were stored but never surfaced
+  // anywhere, so an enchanted sword's ability never reached the Fähigkeiten/Zauber tabs. Like
+  // effect-granted skills these are DERIVED (never written into sheet.skills): unequip the item
+  // and they vanish on their own.
+
+  /** Equipped, non-lost items — the only ones whose abilities count. */
+  private grantingItems(sheet: CharacterSheet) {
+    return (sheet.equipment ?? []).filter(i => i && !i.lost);
+  }
+
+  /** Skills granted by equipped items, tagged read-only and labelled with the item name. */
+  getItemSkillBlocks(sheet: CharacterSheet): SkillBlock[] {
+    const out: SkillBlock[] = [];
+    for (const item of this.grantingItems(sheet)) {
+      for (const skill of item.embeddedSkills ?? []) {
+        out.push({
+          ...skill,
+          class: skill.class || `Gegenstand: ${item.name}`,
+          skillSource: skill.skillSource ?? 'custom',
+          isItemBased: true,
+          derived: true,
+        } as SkillBlock);
+      }
+    }
+    return out;
+  }
+
+  /** Spells granted by equipped items, tagged read-only and labelled with the item name. */
+  getItemSpellBlocks(sheet: CharacterSheet): SpellBlock[] {
+    const out: SpellBlock[] = [];
+    for (const item of this.grantingItems(sheet)) {
+      for (const spell of item.embeddedSpells ?? []) {
+        out.push({ ...spell, itemOrigin: item.name, derived: true } as SpellBlock);
+      }
+    }
+    return out;
   }
 
   private getDerived(sheet: CharacterSheet): DerivedEntry {
@@ -267,10 +310,22 @@ export class TrueStatsService {
   }
 
   /** Static modifiers for a derived target (status + skills + items), then the effectActive pipeline. */
+  /** Additive modifiers for a derived target (status effects + skills + items). NO pipeline. */
   private statusTargetTotal(sheet: CharacterSheet, target: StatusModifierTarget): number {
-    const base = this.getStatusModifierTotal(sheet, target)
+    return this.getStatusModifierTotal(sheet, target)
       + this.getSkillItemModifierTotal(sheet, target);
-    return this.applyEffectPipeline(sheet, target, base);
+  }
+
+  /**
+   * Final value of a derived stat: the caller's own base, plus the additive modifiers, and THEN the
+   * ordered effectActive pipeline (`=`, `*=`, `/=` …) on the complete number.
+   *
+   * The pipeline used to run on the modifier subtotal alone, which was then added to the base —
+   * so `effectActive { movespeed = 30 }` set the *modifier* to 30 and yielded base + 30 instead of
+   * 30, and `*= 2` doubled a subtotal that is usually 0, doing nothing at all.
+   */
+  private derivedTotal(sheet: CharacterSheet, target: StatusModifierTarget, base: number): number {
+    return this.applyEffectPipeline(sheet, target, base + this.statusTargetTotal(sheet, target));
   }
 
   /**
@@ -633,32 +688,32 @@ export class TrueStatsService {
 
   /** Grundbonus = ⌊Level/8⌋ + ⌊Wille/8⌋ + Bonus (+ status effects). */
   calculateGrundbonus(sheet: CharacterSheet): number {
-    return this.calculateGrundbonusBaseFromLevel(sheet)
+    const base = this.calculateGrundbonusBaseFromLevel(sheet)
       + this.calculateWilleBonus(sheet)
-      + (sheet.grundbonusBonus || 0)
-      + this.statusTargetTotal(sheet, 'grundbonus');
+      + (sheet.grundbonusBonus || 0);
+    return this.derivedTotal(sheet, 'grundbonus', base);
   }
 
   /** Reaktion = 5 − ⌊Wille/8⌋ − ⌊Level/8⌋ + Bonus (+ status effects). */
   calculateReaktionswert(sheet: CharacterSheet): number {
-    return 5
+    const base = 5
       - this.calculateWilleBonus(sheet)
       - this.calculateGrundbonusBaseFromLevel(sheet)
-      + (sheet.reaktionswertBonus || 0)
-      + this.statusTargetTotal(sheet, 'reaktion');
+      + (sheet.reaktionswertBonus || 0);
+    return this.derivedTotal(sheet, 'reaktion', base);
   }
 
   /** Speed-penalty negation from the sheet plus any status effects (Rüstungsnegation). */
   calculateSpeedPenaltyNegation(sheet: CharacterSheet): number {
-    return (sheet.speedPenaltyNegation || 0) + this.statusTargetTotal(sheet, 'armorNegation');
+    return this.derivedTotal(sheet, 'armorNegation', sheet.speedPenaltyNegation || 0);
   }
 
   /** Total speed malus before negation (armor + encumbrance + status Rüstungsmalus). */
   calculateTotalSpeedMalus(sheet: CharacterSheet): number {
     const baseSpeed = this.calculateSpeed(sheet);
-    return this.calculateTotalArmorDebuff(sheet)
-      + this.calculateEncumbrancePenalty(sheet, baseSpeed)
-      + this.statusTargetTotal(sheet, 'armorMalus');
+    const base = this.calculateTotalArmorDebuff(sheet)
+      + this.calculateEncumbrancePenalty(sheet, baseSpeed);
+    return this.derivedTotal(sheet, 'armorMalus', base);
   }
 
   getGrundbonusFormulaTooltip(sheet: CharacterSheet): string {
@@ -754,10 +809,9 @@ export class TrueStatsService {
     // Armor penalty (items) + encumbrance + status Rüstungsmalus
     const armorDebuff = this.calculateTotalArmorDebuff(sheet);
     const encumbrancePenalty = this.calculateEncumbrancePenalty(sheet, baseSpeed);
-    const statusMalus = this.statusTargetTotal(sheet, 'armorMalus');
 
-    // Total penalty before negation
-    const totalPenalty = armorDebuff + encumbrancePenalty + statusMalus;
+    // Total penalty before negation (pipeline applies to the whole malus, not just its modifiers)
+    const totalPenalty = this.derivedTotal(sheet, 'armorMalus', armorDebuff + encumbrancePenalty);
 
     // Apply speed penalty negation (can reduce penalty but not create bonus speed)
     const negation = this.calculateSpeedPenaltyNegation(sheet);
@@ -774,8 +828,7 @@ export class TrueStatsService {
    */
   calculateMovementSpeed(sheet: CharacterSheet): number {
     const spd = this.calculateEffectiveSpeed(sheet);
-    const bewegung = this.statusTargetTotal(sheet, 'bewegung');
-    return Math.max(0, Math.floor(8 + spd / 4) + bewegung);
+    return Math.max(0, this.derivedTotal(sheet, 'bewegung', Math.floor(8 + spd / 4)));
   }
 
   /**
@@ -978,7 +1031,7 @@ export class TrueStatsService {
   /**
    * Calculate the maximum value of a resource (life/energy/mana).
    * Mirrors the formula in currentstat.component.ts:
-   *   max = statusBase + statusBonus + effectBonus + stat * 5
+   *   max = statusBase + statusBonus + effectBonus + stat * 5 (+ 2 × Level for Leben)
    */
   calculateResourceMax(sheet: CharacterSheet, formulaType: FormulaType): number {
     const status = sheet.statuses?.find(s => s.formulaType === formulaType);
@@ -991,7 +1044,8 @@ export class TrueStatsService {
     let statBonus = 0;
     switch (formulaType) {
       case FormulaType.LIFE:
-        statBonus = this.calculateConstitution(sheet) * 5;
+        // Konstitution ×5, plus a flat +2 Leben per character level that everyone gets.
+        statBonus = this.calculateConstitution(sheet) * 5 + (sheet.level || 1) * HEALTH_PER_LEVEL;
         break;
       case FormulaType.ENERGY:
         statBonus = this.calculateDexterity(sheet) * 5;

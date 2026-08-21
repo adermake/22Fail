@@ -21,6 +21,7 @@
           <button class="ctx-item ctx-use" (click)="usePotionFromMenu()"><span class="app-icon i-brewing"></span> Auf sich anwenden</button>
         }
         <button class="ctx-item" (click)="openEditorFromMenu()"><span class="app-icon i-draw"></span> Bearbeiten</button>
+        <button class="ctx-item" (click)="duplicateFromMenu()"><span class="app-icon i-item"></span> Duplizieren</button>
         <button class="ctx-item ctx-lost" (click)="toggleLostFromMenu()">
           {{ item.lost ? '✓ Nicht verloren' : '✕ Verloren markieren' }}
         </button>

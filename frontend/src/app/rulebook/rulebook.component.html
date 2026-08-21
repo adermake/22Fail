@@ -52,7 +52,7 @@
         @for (p of pages(); track p.id) {
           <div class="rb-tabwrap" (mouseenter)="onTabEnter(p.id)">
             <button class="rb-tab" [class.active]="p.id === activeId()" (click)="onTabClick(p.id)">
-              @if (p.icon) { <span [class]="'app-icon i-' + p.icon"></span> }
+              @if (p.icon) { <span class="rb-icon" [style]="iconStyle(p.icon)"></span> }
               {{ p.tab }}
             </button>
 

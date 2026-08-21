@@ -9,7 +9,10 @@ import { ClassNodeComponent } from './class-node/class-node.component';
 import { SkillDetailComponent } from './skill-detail/skill-detail.component';
 import { SkillBlock } from '../../model/skill-block.model';
 import { AuthService } from '../../services/auth.service';
-import { talentPointCostForSkill, totalTalentPointsAtLevel } from '../../utils/skill-tree-rules.util';
+import {
+  talentPointCostForSkill, totalTalentPointsAtLevel, canLearnFromClass, classIsHad,
+  classLockReason, ClassGateInput, spentTalentPoints,
+} from '../../utils/skill-tree-rules.util';
 
 interface ClassPosition {
   name: string;
@@ -548,23 +551,18 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
     return talentPointCostForSkill(skill);
   }
 
-  /**
-   * Calculate total spent talent points accounting for tier-based costs.
-   */
+  /** Points spent, charging each skill what it actually cost when it was bought. */
   getSpentTalentPoints(): number {
-    let spent = 0;
-    const learnedIds = this.sheet.learnedSkillIds || [];
-    
-    for (const skillId of learnedIds) {
-      const skill = getSkillById(skillId);
-      if (skill) {
-        spent += this.getSkillTPCost(skill);
-      } else {
-        spent += 1; // Fallback
-      }
-    }
-    
-    return spent;
+    return spentTalentPoints(this.sheet.learnedSkillIds || [], this.sheet.skillCostsPaid, getSkillById);
+  }
+
+  /** Remember the price of a freshly bought skill so a later price change can't re-charge it. */
+  private recordSkillCost(skill: SkillDefinition): void {
+    const paid = { ...(this.sheet.skillCostsPaid || {}) };
+    if (paid[skill.id] !== undefined) return; // already priced (infinite skills buy repeatedly)
+    paid[skill.id] = this.getSkillTPCost(skill);
+    this.sheet.skillCostsPaid = paid;
+    this.patch.emit({ path: 'skillCostsPaid', value: paid });
   }
 
   getAvailableTalentPoints(): number {
@@ -670,17 +668,18 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
     this.patch.emit({ path: 'plannedSkillIds', value: next });
   }
 
-  /** A class counts as "had" once half of its skills are learned — the bar the tree already used
-   *  to unlock children, reused for the tier rule below. */
-  hasClass(className: string): boolean {
-    const total = this.getTotalSkillsForClass(className);
-    if (total === 0) return false;
-    return this.getLearnedCountForClass(className) >= Math.ceil(total / 2);
+  /** Everything the shared gating rules need to judge this character. */
+  private get gateInput(): ClassGateInput {
+    return {
+      learnedSkillIds: this.sheet.learnedSkillIds || [],
+      gmUnlockedClasses: this.sheet.gmUnlockedClasses || [],
+      skillsOfClass: getSkillsForClass,
+    };
   }
 
-  /** Some class of that tier is "had" — connections may skip a tier, progression may not. */
-  hasAnyClassOfTier(tier: number): boolean {
-    return this.classPositions.some(p => p.tier === tier && this.hasClass(p.name));
+  /** A class counts as "had" once half of its skills are learned. */
+  hasClass(className: string): boolean {
+    return classIsHad(className, this.sheet.learnedSkillIds || [], getSkillsForClass);
   }
 
   /** GM override: the class was force-unlocked for this character. */
@@ -689,38 +688,12 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
   }
 
   canLearnFromClass(className: string): boolean {
-    const classPos = this.classPositions.find(p => p.name === className);
-    if (!classPos || classPos.tier === 1) return true;
-    if (this.isGmUnlocked(className)) return true;
-
-    // A connected parent must be "had" …
-    const parents = this.classParents.get(className) || [];
-    const hasQualifyingParent = parents.some(parent => this.hasClass(parent));
-    if (!hasQualifyingParent) return false;
-
-    // … AND every tier below must be covered. A tier-3 class wired straight to a tier-5 one does
-    // not let you skip tier 4: you need SOME tier-4 class somewhere in the tree first.
-    for (let tier = 2; tier < classPos.tier; tier++) {
-      if (!this.hasAnyClassOfTier(tier)) return false;
-    }
-    return true;
+    return canLearnFromClass(className, this.gateInput);
   }
 
   /** Why a class is locked — shown in the detail panel. */
   getClassLockReason(className: string): string {
-    const classPos = this.classPositions.find(p => p.name === className);
-    if (!classPos || classPos.tier === 1 || this.canLearnFromClass(className)) return '';
-
-    const parents = this.classParents.get(className) || [];
-    if (!parents.some(parent => this.hasClass(parent))) {
-      return 'Benötigt die Hälfte der Fähigkeiten einer Vorgängerklasse';
-    }
-    for (let tier = 2; tier < classPos.tier; tier++) {
-      if (!this.hasAnyClassOfTier(tier)) {
-        return `Benötigt zuerst eine Klasse der Stufe ${tier}`;
-      }
-    }
-    return '';
+    return classLockReason(className, this.gateInput);
   }
 
   /**
@@ -758,8 +731,33 @@ export class SkillTreeComponent implements OnInit, AfterViewInit {
     return true;
   }
 
+  /**
+   * Out-of-rule copy: drop a tree skill straight into the character's own skill list without
+   * touching learnedSkillIds, so it costs nothing and follows no prerequisite.
+   */
+  copySkillToCharacter(skill: SkillDefinition): void {
+    const block: SkillBlock = {
+      name: skill.name,
+      class: skill.class,
+      description: skill.description ?? '',
+      type: skill.type,
+      enlightened: skill.enlightened ?? false,
+      skillId: skill.id,
+      skillSource: 'custom',
+      statModifiers: skill.statBonus
+        ? [{ stat: skill.statBonus.stat as any, amount: skill.statBonus.amount }]
+        : undefined,
+      cost: skill.cost ? { ...skill.cost } : undefined,
+      actionType: skill.actionType as SkillBlock['actionType'],
+    };
+    const skills = [...(this.sheet.skills || []), block];
+    this.sheet.skills = skills;
+    this.patch.emit({ path: 'skills', value: skills });
+  }
+
   learnSkill(skill: SkillDefinition) {
     if (!this.canLearnSkill(skill)) return;
+    this.recordSkillCost(skill);
 
     // Handle infinite level skills differently
     if (skill.infiniteLevel) {

@@ -89,6 +89,14 @@
           </div>
         }
 
+        <!-- Veredelt: a plain marker the player manages, independent of the class rank rules -->
+        <div class="se-field se-field-check">
+          <label class="se-check-label">
+            <input type="checkbox" [(ngModel)]="editSkill.refined">
+            <span>Veredelt <span class="se-hint">(reine Markierung)</span></span>
+          </label>
+        </div>
+
         <!-- Active: Cost vs Macro -->
         @if (editSkill.type === 'active') {
           <div class="se-section">

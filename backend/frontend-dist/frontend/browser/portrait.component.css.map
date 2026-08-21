@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/sheet/portrait/portrait.component.css"],
+  "sourcesContent": [".drop-zone {\n  border: 2px dashed var(--border);\n  border-radius: 12px;\n  padding: 1rem;\n  text-align: center;\n  cursor: pointer;\n  transition: border-color 0.2s, background-color 0.2s;\n  min-height: 80px;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n}\n\n.drop-zone.dragging {\n  border-color: var(--accent);\n  background-color: rgba(107, 70, 193, 0.1);\n}\n\n.drop-zone p {\n  margin: 0;\n  font-size: 16px;\n  color: var(--text);\n}\n\n.drop-zone span {\n  font-size: 13px;\n  color: var(--muted);\n}\n\n.drop-zone img {\n  max-width: 100%;\n  max-height: 200px;\n  border-radius: 8px;\n  object-fit: cover;\n}\n"],
+  "mappings": ";AAAA,CAAC;AACC,UAAQ,IAAI,OAAO,IAAI;AACvB,iBAAe;AACf,WAAS;AACT,cAAY;AACZ,UAAQ;AACR,cAAY,aAAa,IAAI,EAAE,iBAAiB;AAChD,cAAY;AACZ,WAAS;AACT,eAAa;AACb,mBAAiB;AACnB;AAEA,CAbC,SAaS,CAAC;AACT,gBAAc,IAAI;AAClB,oBAAkB,KAAK,GAAG,EAAE,EAAE,EAAE,GAAG,EAAE;AACvC;AAEA,CAlBC,UAkBU;AACT,UAAQ;AACR,aAAW;AACX,SAAO,IAAI;AACb;AAEA,CAxBC,UAwBU;AACT,aAAW;AACX,SAAO,IAAI;AACb;AAEA,CA7BC,UA6BU;AACT,aAAW;AACX,cAAY;AACZ,iBAAe;AACf,cAAY;AACd;",
+  "names": []
+}

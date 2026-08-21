@@ -35,6 +35,8 @@ export class ItemComponent implements OnChanges {
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
   @Output() openEditor = new EventEmitter<void>();
+  /** Copy this item; the host inserts the copy and opens its editor. */
+  @Output() duplicate = new EventEmitter<void>();
   @Output() breakTest = new EventEmitter<void>();
   /** Potion: request parent to apply effects and consume. */
   @Output() useOnSelf = new EventEmitter<void>();
@@ -163,6 +165,11 @@ export class ItemComponent implements OnChanges {
   openEditorFromMenu() {
     this.showContextMenu = false;
     this.openEditor.emit();
+  }
+
+  duplicateFromMenu() {
+    this.showContextMenu = false;
+    this.duplicate.emit();
   }
 
   usePotionFromMenu() {

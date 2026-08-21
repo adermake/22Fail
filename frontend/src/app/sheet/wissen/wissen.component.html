@@ -99,8 +99,9 @@
               <!-- Header: name + badge -->
               <div class="mat-header">
                 <span class="mat-name">{{ mat.name }}</span>
-                <span class="mat-badge" [class.badge-public]="mat.isPublic">
-                  {{ mat.isPublic ? 'Allgemein' : 'Spezial' }}
+                <span class="mat-badge" [class.badge-public]="tierOf(mat) === 'bekannt'"
+                      [class.badge-hidden]="tierOf(mat) === 'geheim'">
+                  {{ tierLabel(mat) }}
                 </span>
               </div>
 
@@ -217,8 +218,9 @@
               <!-- Header: name + badge -->
               <div class="mat-header">
                 <span class="mat-name">{{ trait.name }}</span>
-                <span class="mat-badge" [class.badge-public]="trait.isPublic">
-                  {{ trait.isPublic ? 'Allgemein' : 'Spezial' }}
+                <span class="mat-badge" [class.badge-public]="tierOf(trait) === 'bekannt'"
+                      [class.badge-hidden]="tierOf(trait) === 'geheim'">
+                  {{ tierLabel(trait) }}
                 </span>
               </div>
 
@@ -263,8 +265,9 @@
             <div class="mat-card card-both">
               <div class="mat-header">
                 <span class="mat-name">{{ ing.name }}</span>
-                <span class="mat-badge" [class.badge-public]="ing.isPublic">
-                  {{ ing.isPublic ? 'Allgemein' : 'Spezial' }}
+                <span class="mat-badge" [class.badge-public]="tierOf(ing) === 'bekannt'"
+                      [class.badge-hidden]="tierOf(ing) === 'geheim'">
+                  {{ tierLabel(ing) }}
                 </span>
               </div>
               <div class="stat-rows">
@@ -295,8 +298,9 @@
             <div class="mat-card card-both">
               <div class="mat-header">
                 <span class="mat-name">{{ ext.name }}</span>
-                <span class="mat-badge" [class.badge-public]="ext.isPublic">
-                  {{ ext.isPublic ? 'Allgemein' : 'Spezial' }}
+                <span class="mat-badge" [class.badge-public]="tierOf(ext) === 'bekannt'"
+                      [class.badge-hidden]="tierOf(ext) === 'geheim'">
+                  {{ tierLabel(ext) }}
                 </span>
               </div>
               <div class="stat-rows">

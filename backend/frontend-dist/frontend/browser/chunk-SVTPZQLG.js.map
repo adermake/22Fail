@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/model/formula-type.enum.ts"],
+  "sourcesContent": ["export enum FormulaType {\r\n  LIFE = 'LIFE',\r\n  ENERGY = 'ENERGY',\r\n  MANA = 'MANA',\r\n}"],
+  "mappings": ";AAAA,IAAY;CAAZ,SAAYA,cAAW;AACrB,EAAAA,aAAA,MAAA,IAAA;AACA,EAAAA,aAAA,QAAA,IAAA;AACA,EAAAA,aAAA,MAAA,IAAA;AACF,GAJY,gBAAA,cAAW,CAAA,EAAA;",
+  "names": ["FormulaType"]
+}

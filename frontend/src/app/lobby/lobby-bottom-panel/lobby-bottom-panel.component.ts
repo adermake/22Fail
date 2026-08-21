@@ -151,13 +151,20 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
       // Effect-bound skills granted by active effectActive blocks — derived on demand, so
       // they appear while the source effect is active and vanish when it is removed. Never
       // persisted to character.skills (that was the old "skill leak").
-      return [...own, ...this.trueStats.getDerivedSkillBlocks(this.character)];
+      return [
+        ...own,
+        ...this.trueStats.getDerivedSkillBlocks(this.character),
+        // Abilities embedded in equipped items are usable in play too.
+        ...this.trueStats.getItemSkillBlocks(this.character).filter(s => s.type === 'active'),
+      ];
     }
     return (this.npc?.customSkills ?? []).filter(s => s.type === 'active');
   }
 
   get availableSpells(): SpellBlock[] {
-    if (this.character) return this.character.spells ?? [];
+    if (this.character) {
+      return [...(this.character.spells ?? []), ...this.trueStats.getItemSpellBlocks(this.character)];
+    }
     return this.npc?.spells ?? [];
   }
 

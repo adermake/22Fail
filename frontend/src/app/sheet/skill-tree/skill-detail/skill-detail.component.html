@@ -80,6 +80,7 @@
             [class.enlightened]="skill.enlightened"
             [class.infinite-level]="skill.infiniteLevel"
             [class.planned]="isPlanned(skill)"
+            (contextmenu)="onSkillRightClick($event, skill)"
           >
             <div class="skill-header">
               <div class="skill-title">
@@ -130,15 +131,9 @@
                   Lernen ({{ getSkillTPCost() }} {{ getSkillTPCost() === 1 ? 'Punkt' : 'Punkte' }})
                 </button>
               } @else {
-                <span class="locked-badge">
-                  @if (!canLearnFromClass) {
-                    Gesperrt
-                  } @else if (availablePoints <= 0) {
-                    Keine Punkte
-                  } @else if (skill.requiresSkill) {
-                    Voraussetzung fehlt
-                  }
-                </span>
+                <!-- Always say WHY. "availablePoints > 0 but < cost" used to render an empty badge,
+                     which looked like the class was silently refusing to co-operate. -->
+                <span class="locked-badge" [title]="lockedHint(skill)">{{ lockedHint(skill) }}</span>
               }
             </div>
 
@@ -175,3 +170,13 @@
     }
   </div>
 </div>
+
+<!-- Out-of-rule copy: right-click any skill in the tree to hand it to the character. -->
+@if (ctxSkill) {
+  <div class="skill-ctx" [style.left.px]="ctxX" [style.top.px]="ctxY" (click)="$event.stopPropagation()">
+    <button class="skill-ctx-btn" (click)="copyToCharacter()">
+      „{{ ctxSkill.name }}" zum Charakter kopieren
+    </button>
+    <span class="skill-ctx-hint">Ohne Punkte &amp; Voraussetzungen</span>
+  </div>
+}

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/sheet/currentstats/currentstats.component.css"],
+  "sourcesContent": [".currentstat-row {\n  display: flex;\n  gap: 12px;\n  flex-wrap: nowrap;\n  overflow-x: auto;\n}\n"],
+  "mappings": ";AAAA,CAAC;AACC,WAAS;AACT,OAAK;AACL,aAAW;AACX,cAAY;AACd;",
+  "names": []
+}

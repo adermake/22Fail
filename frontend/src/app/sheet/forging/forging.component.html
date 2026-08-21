@@ -301,8 +301,9 @@
               <!-- Header: name + badge -->
               <div class="mat-header">
                 <span class="mat-name">{{ mat.name }}</span>
-                <span class="mat-badge" [class.badge-public]="mat.isPublic">
-                  {{ mat.isPublic ? 'Allgemein' : 'Spezial' }}
+                <span class="mat-badge" [class.badge-public]="tierOf(mat) === 'bekannt'"
+                      [class.badge-hidden]="tierOf(mat) === 'geheim'">
+                  {{ tierLabel(mat) }}
                 </span>
               </div>
 

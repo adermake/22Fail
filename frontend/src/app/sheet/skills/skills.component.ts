@@ -53,6 +53,11 @@ export class SkillsComponent implements OnInit {
     return this.trueStats.getDerivedSkillBlocks(this.sheet);
   }
 
+  /** Skills embedded in EQUIPPED items — read-only, vanish when the item is unequipped. */
+  get itemSkills(): SkillBlock[] {
+    return this.trueStats.getItemSkillBlocks(this.sheet);
+  }
+
   showFilters = false;
 
   // Sort
@@ -199,7 +204,7 @@ export class SkillsComponent implements OnInit {
   }
 
   get filteredSkills(): SkillBlock[] {
-    let skills = [...(this.sheet.skills || []), ...this.derivedSkills];
+    let skills = [...(this.sheet.skills || []), ...this.derivedSkills, ...this.itemSkills];
 
     if (this.searchText) {
       const q = this.searchText.toLowerCase();
@@ -360,6 +365,20 @@ export class SkillsComponent implements OnInit {
     trash.push({ type: 'skill', data: skill, deletedAt: Date.now() });
     this.patch.emit({ path: 'skills', value: this.sheet.skills });
     this.patch.emit({ path: 'trash', value: trash });
+  }
+
+  /** Copy a skill and open the editor on the copy (right-click → Duplizieren). */
+  duplicateSkill(index: number) {
+    if (index < 0) return; // derived / item-granted skills are not persisted
+    const source = this.sheet.skills[index];
+    if (!source) return;
+    const copy = JSON.parse(JSON.stringify(source)) as SkillBlock;
+    copy.name = `${source.name} (Kopie)`;
+    this.sheet.skills = [
+      ...this.sheet.skills.slice(0, index + 1), copy, ...this.sheet.skills.slice(index + 1),
+    ];
+    this.patch.emit({ path: 'skills', value: this.sheet.skills });
+    this.openEditor(index + 1);
   }
 
   getOriginalIndex(skill: SkillBlock): number {

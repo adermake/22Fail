@@ -33,6 +33,8 @@ export class SkillComponent {
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
   @Output() openEditor = new EventEmitter<void>();
+  /** Copy this skill; the host inserts the copy and opens its editor. */
+  @Output() duplicate = new EventEmitter<void>();
   @Output() triggerMacro = new EventEmitter<ActionMacro>();
 
   showContextMenu = false;
@@ -109,6 +111,11 @@ export class SkillComponent {
   closePayPopup() {
     this.showPayPopup = false;
     this.payFeedback = { active: false, amount: 0, label: '' };
+  }
+
+  duplicateSkill() {
+    this.showContextMenu = false;
+    this.duplicate.emit();
   }
 
   editSkill() {

@@ -108,6 +108,7 @@ export const SYMBOLS: SymbolInfo[] = [
 
   // Derived values
   { name: 'movement', category: 'derived', type: 'number', description: 'Bewegung in Hex-Schritten', assignable: true, modifierTarget: 'bewegung' },
+  { name: 'movespeed', category: 'derived', type: 'number', description: 'Alias für movement (Bewegung in Hex-Schritten)', assignable: true, modifierTarget: 'bewegung' },
   { name: 'grundbonus', category: 'derived', type: 'number', description: 'Grundbonus', assignable: true, modifierTarget: 'grundbonus' },
   { name: 'reaktion', category: 'derived', type: 'number', description: 'Reaktionswert', assignable: true, modifierTarget: 'reaktion' },
   { name: 'stability', category: 'derived', type: 'number', description: 'Stabilität (Verteidigung gegen Schaden)', assignable: true, modifierTarget: 'stability' },

@@ -16,7 +16,15 @@
       <label>Kosten</label>
       <input type="number" [(ngModel)]="edit.cost" min="0" />
     </div>
-    <label class="ie-toggle"><input type="checkbox" [(ngModel)]="edit.isPublic" /> &#xD6;ffentlich</label>
+    <label class="kt-field">
+      <span class="kt-label">Wissensstufe</span>
+      <select class="kt-select" [ngModel]="tier" (ngModelChange)="setTier($event)">
+        @for (t of knowledgeTiers; track t.value) {
+          <option [value]="t.value">{{ t.label }}</option>
+        }
+      </select>
+      <span class="kt-hint">{{ tierHint }}</span>
+    </label>
   </div>
 
   <textarea class="ie-desc" [(ngModel)]="edit.description" rows="2" placeholder="Beschreibung..."></textarea>

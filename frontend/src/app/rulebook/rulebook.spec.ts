@@ -113,10 +113,25 @@ describe('renderMarkdown', () => {
       md('Ein :icon[dice] Wurf ist :hl[wichtig].', '', ':jump[Zum Kampf]{to=kampf#effektivitaet}'),
       'g',
     );
-    expect(html).toContain('app-icon i-dice');
+    expect(html).toContain('url(/icons/dice.svg)');
     expect(html).toContain('<span class="rb-hl">wichtig</span>');
     expect(html).toContain('class="rb-jump"');
     expect(html).toContain('data-rb-anchor="effektivitaet"');
+  });
+
+  it('renders ANY icon file without needing a CSS class (the squares bug)', async () => {
+    // `flair` has an SVG but no .i-flair class in styles.css — used to render a solid square.
+    const inline = await renderMarkdown(md('Ein :icon[flair] Symbol.'), 'g');
+    expect(inline.html).toContain('class="rb-icon"');
+    expect(inline.html).toContain('url(/icons/flair.svg)');
+    expect(inline.html).not.toContain('app-icon');
+
+    const onCard = await renderMarkdown(md(':::card{title="X" icon=weightless}', 'y', ':::'), 'g');
+    expect(onCard.html).toContain('url(/icons/weightless.svg)');
+
+    // a name that could break out of url(...) is refused
+    const bad = await renderMarkdown(md('Ein :icon[../../evil) ;x] Symbol.'), 'g');
+    expect(bad.html).not.toContain('url(/icons/..');
   });
 
   it('supports custom text colours by name and hex, ignoring bad values', async () => {

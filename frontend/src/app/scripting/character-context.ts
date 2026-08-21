@@ -61,6 +61,7 @@ export function createPlayerContext(
     fokusMax: () => trueStats.calculateFokusMax(sheet),
     // Derived
     movement: () => trueStats.calculateMovementSpeed(sheet),
+    movespeed: () => trueStats.calculateMovementSpeed(sheet),
     grundbonus: () => trueStats.calculateGrundbonus(sheet),
     reaktion: () => trueStats.calculateReaktionswert(sheet),
     stability: () => trueStats.calculateTotalStability(sheet),

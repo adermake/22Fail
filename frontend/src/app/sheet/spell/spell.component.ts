@@ -33,6 +33,8 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Input({ required: true }) index!: number;
   @Input() isEditing = false;
+  /** Item-granted spells are shown for reference only — no edit, delete or context menu. */
+  @Input() readOnly = false;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
@@ -215,10 +217,12 @@ export class SpellComponent implements AfterViewInit, OnInit, OnDestroy {
   onRightClick(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
+    if (this.readOnly) return; // item-granted: nothing here can be edited or deleted
     this.contextMenuRequest.emit({ x: event.clientX, y: event.clientY, index: this.index });
   }
 
   async toggleEdit() {
+    if (this.readOnly) return;
     const newEditingState = !this.isEditing;
     this.editingChange.emit(newEditingState);
 

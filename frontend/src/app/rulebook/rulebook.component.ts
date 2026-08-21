@@ -172,6 +172,12 @@ export class RulebookComponent implements OnInit {
     this.menuTimer = setTimeout(() => this.openMenu.set(null), 320);
   }
 
+  /** Inline mask for a tab icon — any file in public/icons works, no CSS class needed. */
+  iconStyle(name: string): string {
+    const safe = (name ?? '').trim().toLowerCase();
+    return /^[a-z0-9_-]+$/.test(safe) ? `--rb-icon:url(/icons/${safe}.svg)` : '';
+  }
+
   outlineOf(id: string): RulebookPage['outline'] {
     return this.pages().find((p) => p.id === id)?.outline ?? [];
   }

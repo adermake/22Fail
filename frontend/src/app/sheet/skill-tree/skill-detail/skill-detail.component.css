@@ -436,3 +436,30 @@
   color: #7dd3fc;
 }
 .skill-item.planned { border-color: rgba(56, 189, 248, 0.5); }
+
+/* Right-click menu on a skill row (out-of-rule copy to the character) */
+.skill-ctx {
+  position: fixed;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: #0f1829;
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 8px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55);
+}
+.skill-ctx-btn {
+  background: none;
+  border: none;
+  color: var(--text, #e5e7eb);
+  font-size: 0.82rem;
+  text-align: left;
+  padding: 5px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.skill-ctx-btn:hover { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; }
+.skill-ctx-hint { padding: 0 9px 3px; font-size: 0.66rem; color: var(--text-muted, #9ca3af); }

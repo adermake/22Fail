@@ -2,6 +2,9 @@ import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MaterialBlock, MaterialStats, createEmptyMaterialBlock } from '../../model/forging.model';
+import {
+  KNOWLEDGE_TIERS, KnowledgeTier, knowledgeTierOf, setKnowledgeTier,
+} from '../../utils/knowledge-tier.util';
 
 @Component({
   selector: 'app-material-editor',
@@ -11,6 +14,15 @@ import { MaterialBlock, MaterialStats, createEmptyMaterialBlock } from '../../mo
   styleUrl: './material-editor.component.css',
 })
 export class MaterialEditorComponent implements OnInit {
+  // ── Wissensstufe (geheim | unbekannt | bekannt) ──────────────────────────────
+  readonly knowledgeTiers = KNOWLEDGE_TIERS;
+
+  get tier(): KnowledgeTier { return knowledgeTierOf(this.edit); }
+  get tierHint(): string {
+    return KNOWLEDGE_TIERS.find(t => t.value === this.tier)?.hint ?? '';
+  }
+  setTier(tier: KnowledgeTier): void { setKnowledgeTier(this.edit, tier); }
+
   @Input() material: MaterialBlock = createEmptyMaterialBlock();
   @Output() save = new EventEmitter<MaterialBlock>();
   @Output() cancel = new EventEmitter<void>();

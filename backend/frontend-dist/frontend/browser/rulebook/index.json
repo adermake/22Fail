@@ -1,0 +1,419 @@
+{
+  "generatedAt": "2026-08-18T12:48:01.014Z",
+  "pages": [
+    {
+      "id": "grundlagen",
+      "file": "grundlagen.md",
+      "title": "Grundlagen",
+      "tab": "Grundlagen",
+      "icon": "dice",
+      "order": 10,
+      "hash": "e7d89f90",
+      "outline": [
+        {
+          "id": "grundlagen",
+          "text": "Grundlagen",
+          "level": 1,
+          "kind": "heading"
+        },
+        {
+          "id": "wuerfelsystem",
+          "text": "Würfelsystem",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "wuerfelboni-und-mali",
+          "text": "Würfelboni und -mali",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "charaktere-rollenspiel",
+          "text": "Charaktere & Rollenspiel",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "spielziel",
+          "text": "Spielziel",
+          "level": 3,
+          "kind": "section"
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "file": "stats.md",
+      "title": "Stats",
+      "tab": "Stats",
+      "icon": "stat",
+      "order": 20,
+      "hash": "9d97c874",
+      "outline": [
+        {
+          "id": "stats",
+          "text": "Stats",
+          "level": 1,
+          "kind": "heading"
+        },
+        {
+          "id": "level-system",
+          "text": "Level System",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "grundstat-erhoehungen",
+          "text": "Grundstat-Erhöhungen",
+          "level": 4,
+          "kind": "heading"
+        },
+        {
+          "id": "talentpunkte-tp",
+          "text": "Talentpunkte (TP)",
+          "level": 4,
+          "kind": "heading"
+        },
+        {
+          "id": "faehigkeitspunkte-fp",
+          "text": "Fähigkeitspunkte (FP)",
+          "level": 4,
+          "kind": "heading"
+        },
+        {
+          "id": "rassenfaehigkeiten",
+          "text": "Rassenfähigkeiten",
+          "level": 4,
+          "kind": "heading"
+        },
+        {
+          "id": "grundbonus-und-reaktion",
+          "text": "Grundbonus und Reaktion",
+          "level": 4,
+          "kind": "heading"
+        },
+        {
+          "id": "grundstats",
+          "text": "Grundstats",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "konditionsstats",
+          "text": "Konditionsstats",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "leben",
+          "text": "Leben",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "ausdauer",
+          "text": "Ausdauer",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "mana",
+          "text": "Mana",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "sonstige-stats",
+          "text": "Sonstige Stats",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "reaktion",
+          "text": "Grundbonus",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "bewegung",
+          "text": "Bewegung",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "fokus",
+          "text": "Fokus",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "zauberradius",
+          "text": "Zauberradius",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "inventarkapazitaet",
+          "text": "Inventarkapazität",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "kampfwerte",
+          "text": "Kampfwerte",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "talente",
+          "text": "Talente",
+          "level": 1,
+          "kind": "heading"
+        },
+        {
+          "id": "talentliste",
+          "text": "Talentliste",
+          "level": 2,
+          "kind": "heading"
+        }
+      ]
+    },
+    {
+      "id": "kampf",
+      "file": "kampf.md",
+      "title": "Kampf",
+      "tab": "Kampf",
+      "icon": "effektivity",
+      "order": 30,
+      "hash": "39000c5d",
+      "outline": [
+        {
+          "id": "kampf",
+          "text": "Kampf",
+          "level": 1,
+          "kind": "heading"
+        },
+        {
+          "id": "kampfablauf",
+          "text": "Kampfablauf",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "zugreihenfolge",
+          "text": "Zugreihenfolge",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "aktionen",
+          "text": "Aktionsarten",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "schadensberechnung",
+          "text": "Schadensberechnung",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "schadenswuerfe",
+          "text": "Schadenswürfe",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "effektivitaet",
+          "text": "Effektivität",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "stabilitaet",
+          "text": "Stabilität",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "sonstige-regeln",
+          "text": "Sonstige Regeln",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "ruestungsmalus",
+          "text": "Rüstungsmalus",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "ruestungsnegation",
+          "text": "Rüstungsnegation",
+          "level": 3,
+          "kind": "section"
+        }
+      ]
+    },
+    {
+      "id": "example",
+      "file": "example.md",
+      "title": "Syntax-Beispiel",
+      "tab": "Beispiel",
+      "icon": "spell",
+      "order": 99,
+      "hash": "51707dc7",
+      "outline": [
+        {
+          "id": "syntax-beispiel",
+          "text": "Syntax-Beispiel",
+          "level": 1,
+          "kind": "heading"
+        },
+        {
+          "id": "1-front-matter",
+          "text": "1. Front-Matter",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "2-normales-markdown",
+          "text": "2. Normales Markdown",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "3-ueberschriften-und-sprungmarken",
+          "text": "3. Überschriften und Sprungmarken",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "meine-id",
+          "text": "Beispielüberschrift mit eigener ID",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "4-abschnitte-sections",
+          "text": "4. Abschnitte (Sections)",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "ein-normaler-abschnitt",
+          "text": "Ein normaler Abschnitt",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "ein-abschnitt-der-zugeklappt-startet",
+          "text": "Ein Abschnitt, der zugeklappt startet",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "5-hinweis-kaesten",
+          "text": "5. Hinweis-Kästen",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "eigene-farben-fuer-kaesten",
+          "text": "Eigene Farben für Kästen",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "6-raster-und-karten",
+          "text": "6. Raster und Karten",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "7-inline-elemente",
+          "text": "7. Inline-Elemente",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "8-verlinkung-und-spruenge",
+          "text": "8. Verlinkung und Sprünge",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "9-lebende-daten",
+          "text": "9. Lebende Daten",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "talente-data-source-talents",
+          "text": "Talente — `:::data{source=talents}`",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "waffen-data-source-weapons",
+          "text": "Waffen — `:::data{source=weapons}`",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "materialien-data-source-materials",
+          "text": "Materialien — `:::data{source=materials}`",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "10-wenn-etwas-schiefgeht",
+          "text": "10. Wenn etwas schiefgeht",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "neue-seite-anlegen",
+          "text": "Neue Seite anlegen",
+          "level": 3,
+          "kind": "section"
+        }
+      ]
+    },
+    {
+      "id": "gear",
+      "file": "gear.md",
+      "title": "gear",
+      "tab": "gear",
+      "order": 999,
+      "hash": "8e3a88b0",
+      "outline": [
+        {
+          "id": "waffen",
+          "text": "Waffen",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "materialien",
+          "text": "Materialien",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "waffenmaterialien",
+          "text": "Waffenmaterialien",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "ruestungsmaterialien",
+          "text": "Rüstungsmaterialien",
+          "level": 3,
+          "kind": "heading"
+        }
+      ]
+    }
+  ]
+}

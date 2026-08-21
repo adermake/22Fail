@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/shared/card/card.component.ts", "src/app/shared/card/card.component.html"],
+  "sourcesContent": ["import { Component } from '@angular/core';\r\nimport { CommonModule } from '@angular/common';\r\n\r\n@Component({\r\n  selector: 'app-card',\r\n  standalone: true,\r\n  imports: [CommonModule],\r\n  templateUrl: './card.component.html',\r\n  styleUrl: './card.component.css',\r\n})\r\nexport class CardComponent {}\r\n\r\n", "<div class=\"card\">\r\n    <ng-content />\r\n</div>"],
+  "mappings": ";;;;;;;;;;;;;;;;AAUM,IAAO,gBAAP,MAAO,eAAa;;qCAAb,gBAAa;EAAA;yEAAb,gBAAa,WAAA,CAAA,CAAA,UAAA,CAAA,GAAA,oBAAA,KAAA,OAAA,GAAA,MAAA,GAAA,QAAA,CAAA,CAAA,GAAA,MAAA,CAAA,GAAA,UAAA,SAAA,uBAAA,IAAA,KAAA;AAAA,QAAA,KAAA,GAAA;;ACV1B,MAAA,4BAAA,GAAA,OAAA,CAAA;AACI,MAAA,uBAAA,CAAA;AACJ,MAAA,0BAAA;;oBDIY,YAAY,GAAA,QAAA,CAAA,+PAAA,EAAA,CAAA;;;sEAIX,eAAa,CAAA;UAPzB;uBACW,YAAU,YACR,MAAI,SACP,CAAC,YAAY,GAAC,UAAA,sDAAA,QAAA,CAAA,wRAAA,EAAA,CAAA;;;;6EAIZ,eAAa,EAAA,WAAA,iBAAA,UAAA,qCAAA,YAAA,GAAA,CAAA;AAAA,GAAA;",
+  "names": []
+}

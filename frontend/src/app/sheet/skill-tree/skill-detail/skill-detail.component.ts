@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, HostListener, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SkillDefinition } from '../../../model/skill-definition.model';
 import { TALENT_DEFINITIONS } from '../../../data/talent-definitions';
@@ -43,6 +43,8 @@ export class SkillDetailComponent {
   @Output() togglePlanned = new EventEmitter<SkillDefinition>();
   @Output() toggleMasteryConfirmed = new EventEmitter<void>();
   @Output() toggleGmUnlock = new EventEmitter<void>();
+  /** GM/out-of-rule: copy the skill straight onto the character, free of cost and prerequisites. */
+  @Output() copySkillToCharacter = new EventEmitter<SkillDefinition>();
   @Output() setPrimary = new EventEmitter<void>();
   @Output() setSecondary = new EventEmitter<void>();
 
@@ -87,6 +89,26 @@ export class SkillDetailComponent {
   /** In plan mode anything can be picked — it is an assist tool, not a second rules engine. */
   onPlanClick(skill: SkillDefinition): void {
     this.togglePlanned.emit(skill);
+  }
+
+  // Right-click menu on a skill row (out-of-rule copy).
+  ctxSkill: SkillDefinition | null = null;
+  ctxX = 0;
+  ctxY = 0;
+
+  onSkillRightClick(event: MouseEvent, skill: SkillDefinition): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.ctxSkill = skill;
+    this.ctxX = event.clientX;
+    this.ctxY = event.clientY;
+  }
+
+  closeSkillCtx(): void { this.ctxSkill = null; }
+
+  copyToCharacter(): void {
+    if (this.ctxSkill) this.copySkillToCharacter.emit(this.ctxSkill);
+    this.closeSkillCtx();
   }
 
   onToggleMastery(): void { this.toggleMasteryConfirmed.emit(); }
@@ -135,6 +157,22 @@ export class SkillDetailComponent {
     return true;
   }
 
+  /** Why this particular skill cannot be bought right now — never empty. */
+  lockedHint(skill: SkillDefinition): string {
+    if (!this.canLearnFromClass) return this.getLockedReason() || 'Gesperrt';
+    const cost = this.getSkillTPCost();
+    if (this.availablePoints < cost) {
+      return `Braucht ${cost} FP (${this.availablePoints} übrig)`;
+    }
+    if (skill.requiresSkill) {
+      const required = Array.isArray(skill.requiresSkill) ? skill.requiresSkill : [skill.requiresSkill];
+      const missing = required.filter(id => !this.learnedSkillIds.includes(id));
+      if (missing.length) return 'Voraussetzung fehlt';
+    }
+    if (this.isLearned(skill)) return 'Gelernt';
+    return 'Nicht verfügbar';
+  }
+
   onLearn(skill: SkillDefinition) {
     if (this.canLearn(skill)) {
       this.learnSkill.emit(skill);
@@ -150,6 +188,9 @@ export class SkillDetailComponent {
   onClose() {
     this.close.emit();
   }
+
+  @HostListener('document:click')
+  onDocumentClick(): void { this.closeSkillCtx(); }
 
   getTypeLabel(type: string): string {
     switch (type) {

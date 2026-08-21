@@ -14,6 +14,7 @@
  */
 
 import { ItemBlock } from './item-block.model';
+import { KnowledgeTier } from '../utils/knowledge-tier.util';
 
 export type BrewEffectSlot = 'primary' | 'secondary' | 'tertiary';
 export type EffectStackMode = 'STACK' | 'DURATION';
@@ -52,6 +53,8 @@ export interface IngredientBlock {
   icon?: string;
   color?: string;
   isPublic: boolean;
+  /** Wissensstufe: geheim | unbekannt | bekannt (fällt auf isPublic zurück). */
+  knowledgeTier?: KnowledgeTier;
   primary: IngredientEffect;
   secondary: IngredientEffect;
   tertiary: IngredientEffect;
@@ -70,6 +73,8 @@ export interface ExtractorBlock {
   icon?: string;
   color?: string;
   isPublic: boolean;
+  /** Wissensstufe: geheim | unbekannt | bekannt (fällt auf isPublic zurück). */
+  knowledgeTier?: KnowledgeTier;
   /** Cost reduction 0–100 applied to primary-slot brews. */
   primaryReductionPercent: number;
   secondaryReductionPercent: number;
@@ -98,6 +103,8 @@ export interface BrewTrait {
   scalable: boolean;
   /** If true, all players can see this trait in their knowledge tab. */
   isPublic: boolean;
+  /** Wissensstufe: geheim | unbekannt | bekannt (fällt auf isPublic zurück). */
+  knowledgeTier?: KnowledgeTier;
   libraryOrigin?: string;
   libraryOriginName?: string;
 }

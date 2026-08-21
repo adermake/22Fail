@@ -13,6 +13,7 @@
  */
 
 import { ItemRequirements } from './item-block.model';
+import { KnowledgeTier } from '../utils/knowledge-tier.util';
 
 export interface MaterialStats {
   haltbarkeit: number;             // Base durability
@@ -34,6 +35,8 @@ export interface MaterialBlock {
   color?: string;
   /** If true, all players can see and use this material without GM permission. */
   isPublic: boolean;
+  /** Wissensstufe: geheim | unbekannt | bekannt (fällt auf isPublic zurück). */
+  knowledgeTier?: KnowledgeTier;
   canBeWeaponMaterial: boolean;
   canBeArmorMaterial: boolean;
   weaponStats?: MaterialStats;
@@ -160,6 +163,8 @@ export interface ForgeTrait {
   scalable: boolean;
   /** If true, all players can see this trait in their knowledge tab. */
   isPublic: boolean;
+  /** Wissensstufe: geheim | unbekannt | bekannt (fällt auf isPublic zurück). */
+  knowledgeTier?: KnowledgeTier;
   /** What type of equipment this trait can be applied to. */
   appliesTo?: 'weapon' | 'armor' | 'all';
   libraryOrigin?: string;

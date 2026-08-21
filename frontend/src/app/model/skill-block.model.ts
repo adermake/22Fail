@@ -17,6 +17,8 @@ export class SkillBlock {
   description!: string;
   type!: 'active' | 'passive' | 'dice_bonus' | 'stat_bonus' | 'talent_bonus';
   enlightened!: boolean;
+  /** "Veredelt" — a pure tag the player sets to mark a refined skill. Affects nothing. */
+  refined?: boolean;
   level?: number;
   skillId?: string;
   statModifiers?: StatModifier[];
@@ -44,4 +46,6 @@ export class SkillBlock {
   counters?: SpellCounter[];
   // Effect-bound: derived from an active effect's effectActive grantSkill (not persisted).
   derived?: boolean;
+  /** Granted by an equipped item (derived, not persisted). */
+  isItemBased?: boolean;
 }

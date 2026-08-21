@@ -183,3 +183,13 @@
 .cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
   transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
 }
+/* Item-granted spells (read-only section) */
+.item-spells { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border, #4a5568); }
+.item-spells-hdr {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 8px;
+  font-size: 0.7rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--text-muted, #9ca3af);
+}
+.item-spells app-spell { opacity: 0.95; }

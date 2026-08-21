@@ -19,6 +19,7 @@ import {
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
+import { isKnowledgeVisible } from '../../utils/knowledge-tier.util';
 
 @Component({
   selector: 'app-brewing',
@@ -133,12 +134,15 @@ export class BrewingComponent implements OnInit {
   openTraitPicker(): void { this.showTraitPicker = true; this.traitFilter = ''; this.cdr.markForCheck(); }
   closeTraitPicker(): void { this.showTraitPicker = false; this.cdr.markForCheck(); }
 
-  /** Traits the character may use: public ones, plus any they know. */
+  /** True while the sandbox ("freier Modus") is on — `unbekannt` knowledge is browsable there. */
+  private get freeMode(): boolean { return this.accessMode === 'free'; }
+
+  /** Traits the character may use: `bekannt` ones, `unbekannt` in free mode, plus any they know. */
   get filteredBrewTraits(): BrewTrait[] {
     const q = this.traitFilter.trim().toLowerCase();
     const known = new Set(this.sheet?.knownBrewTraitIds ?? []);
     return this.allBrewTraits
-      .filter(t => t.isPublic || known.has(t.id))
+      .filter(t => isKnowledgeVisible(t, { known: known.has(t.id), freeMode: this.freeMode }))
       .filter(t => !q || t.name.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q));
   }
 
@@ -189,7 +193,8 @@ export class BrewingComponent implements OnInit {
   get pickerIngredients(): IngredientBlock[] {
     const q = this.pickerFilter.toLowerCase();
     const known = new Set(this.sheet?.knownIngredientIds ?? []);
-    let list = this.allIngredients.filter(i => i.isPublic || known.has(i.id));
+    let list = this.allIngredients
+      .filter(i => isKnowledgeVisible(i, { known: known.has(i.id), freeMode: this.freeMode }));
     if (this.accessMode === 'enforced') {
       const owned = this.ownedAssetIds('ingredient');
       list = list.filter(i => owned.has(i.id));
@@ -201,7 +206,8 @@ export class BrewingComponent implements OnInit {
   get pickerExtractors(): ExtractorBlock[] {
     const q = this.pickerFilter.toLowerCase();
     const known = new Set(this.sheet?.knownExtractorIds ?? []);
-    let list = this.allExtractors.filter(e => e.isPublic || known.has(e.id));
+    let list = this.allExtractors
+      .filter(e => isKnowledgeVisible(e, { known: known.has(e.id), freeMode: this.freeMode }));
     if (this.accessMode === 'enforced') {
       const owned = this.ownedAssetIds('extractor');
       list = list.filter(e => owned.has(e.id));

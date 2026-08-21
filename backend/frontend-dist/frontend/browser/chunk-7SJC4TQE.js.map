@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/session/session.component.ts", "src/app/session/session.component.html"],
+  "sourcesContent": ["import { Component } from '@angular/core';\r\n\r\n@Component({\r\n  selector: 'app-session',\r\n  imports: [],\r\n  templateUrl: './session.component.html',\r\n  styleUrl: './session.component.css',\r\n})\r\nexport class SessionComponent {\r\n\r\n}\r\n", "<p>session works!</p>\r\n"],
+  "mappings": ";;;;;;;;;;;;AAQM,IAAO,mBAAP,MAAO,kBAAgB;;qCAAhB,mBAAgB;EAAA;yEAAhB,mBAAgB,WAAA,CAAA,CAAA,aAAA,CAAA,GAAA,OAAA,GAAA,MAAA,GAAA,UAAA,SAAA,0BAAA,IAAA,KAAA;AAAA,QAAA,KAAA,GAAA;ACR7B,MAAA,4BAAA,GAAA,GAAA;AAAG,MAAA,iBAAA,GAAA,gBAAA;AAAc,MAAA,0BAAA;;;;;sEDQJ,kBAAgB,CAAA;UAN5B;uBACW,eAAa,SACd,CAAA,GAAE,UAAA,4BAAA,CAAA;;;;6EAIA,kBAAgB,EAAA,WAAA,oBAAA,UAAA,oCAAA,YAAA,EAAA,CAAA;AAAA,GAAA;",
+  "names": []
+}

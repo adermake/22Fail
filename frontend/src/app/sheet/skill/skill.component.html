@@ -16,6 +16,9 @@
     @if (skill.enlightened) {
       <span class="sc-enl" title="Erkenntnis">&#x2726;</span>
     }
+    @if (skill.refined) {
+      <span class="sc-refined" title="Veredelt">Veredelt</span>
+    }
     @if (skill.disabled) {
       <span class="sc-disabled-badge" title="Deaktiviert">🚫</span>
     }
@@ -59,6 +62,7 @@
       <span class="sc-ctx-note">&#x23F3; Tempor&auml;r &mdash; durch Effekt gew&auml;hrt</span>
     } @else {
       <button class="sc-ctx-btn" (click)="editSkill()">&#x270F; Bearbeiten</button>
+      <button class="sc-ctx-btn" (click)="duplicateSkill()">Duplizieren</button>
       @if (isEditing) {
         <button class="sc-ctx-btn" (click)="toggleDisabled()">
           {{ skill.disabled ? '\u2705 Aktivieren' : '\uD83D\uDEAB Deaktivieren' }}

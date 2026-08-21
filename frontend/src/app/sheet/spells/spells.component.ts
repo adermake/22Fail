@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
@@ -9,6 +9,7 @@ import { CdkDragDrop, CdkDragStart, DragDropModule, moveItemInArray } from '@ang
 import { SpellBlock, generateSpellId, CastingSpellEntry } from '../../model/spell-block-model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SpellEditorOverlayComponent } from '../spell-editor-overlay/spell-editor-overlay.component';
+import { TrueStatsService } from '../../services/true-stats.service';
 
 @Component({
   selector: 'app-spells',
@@ -55,6 +56,21 @@ export class SpellsComponent {
     this.closeContextMenu();
   }
 
+  /** Copy the spell and open the editor on the copy, ready to be renamed. */
+  duplicateFromMenu() {
+    const index = this.contextMenuIndex;
+    this.closeContextMenu();
+    if (index < 0) return;
+    const source = this.sheet.spells[index];
+    if (!source) return;
+    const copy: SpellBlock = JSON.parse(JSON.stringify(source));
+    copy.id = generateSpellId();
+    copy.name = `${source.name} (Kopie)`;
+    this.sheet.spells = [...this.sheet.spells.slice(0, index + 1), copy, ...this.sheet.spells.slice(index + 1)];
+    this.patch.emit({ path: 'spells', value: this.sheet.spells });
+    this.openNodeEditor(index + 1);
+  }
+
   deleteFromMenu() {
     if (this.contextMenuIndex >= 0) this.deleteSpell(this.contextMenuIndex);
     this.closeContextMenu();
@@ -77,9 +93,16 @@ export class SpellsComponent {
     if (this.nodeEditorSpellIndex === null) return null;
     return this.sheet.spells[this.nodeEditorSpellIndex] ?? null;
   }
+  /** Spells embedded in EQUIPPED items — read-only, vanish when the item is unequipped. */
+  get itemSpells(): SpellBlock[] {
+    return this.trueStats.getItemSpellBlocks(this.sheet);
+  }
+
   get learnedRunes(): RuneBlock[] {
     return ((this.sheet.runes || []).filter(r => r !== null)) as RuneBlock[];
   }
+
+  private trueStats = inject(TrueStatsService);
 
   constructor(private cd: ChangeDetectorRef) {}
 

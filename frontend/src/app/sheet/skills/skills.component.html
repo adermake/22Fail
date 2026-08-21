@@ -148,6 +148,7 @@
         (patch)="patch.emit($event)"
         (delete)="deleteSkill(getOriginalIndex(skill))"
         (openEditor)="openEditor(getOriginalIndex(skill))"
+        (duplicate)="duplicateSkill(getOriginalIndex(skill))"
         (triggerMacro)="triggerMacro.emit($event)">
       </app-skill>
     }

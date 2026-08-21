@@ -107,6 +107,10 @@ export class SpellBlock {
   embeddedMacro?: ActionMacro;          // Legacy action macro to execute on cast
   script?: string;                      // FailScript action (new); takes precedence over embeddedMacro
   counters?: SpellCounter[];            // Configurable bars shown while casting
+  /** Granted by an equipped item — derived, read-only, never written into sheet.spells. */
+  derived?: boolean;
+  /** Name of the item that grants this spell (set together with `derived`). */
+  itemOrigin?: string;
 }
 
 export const SPELL_GLOW_COLORS = [

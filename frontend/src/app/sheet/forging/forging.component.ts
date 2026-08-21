@@ -23,6 +23,9 @@ import { CraftAccessMode } from '../../model/brewing.model';
 import { ItemBlock, ItemRequirements } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
+import {
+  KNOWLEDGE_TIERS, KnowledgeTier, knowledgeTierOf, isKnowledgeVisible,
+} from '../../utils/knowledge-tier.util';
 
 export type SlotType = 'primary' | 'secondary' | 'bonus';
 
@@ -41,6 +44,14 @@ interface SlotConfig {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ForgingComponent implements OnInit {
+  // ── Wissensstufe helpers for the badges ──────────────────────────────────────
+  tierOf(entry: { knowledgeTier?: KnowledgeTier; isPublic?: boolean }): KnowledgeTier {
+    return knowledgeTierOf(entry);
+  }
+  tierLabel(entry: { knowledgeTier?: KnowledgeTier; isPublic?: boolean }): string {
+    return KNOWLEDGE_TIERS.find(t => t.value === this.tierOf(entry))?.label ?? 'Geheim';
+  }
+
   @Input() sheet: CharacterSheet | null = null;
   /** GM/NPC forging: every material available and no resource consumption (all unlocked). */
   @Input() unlockAll = false;
@@ -109,7 +120,9 @@ export class ForgingComponent implements OnInit {
     let list = this.allMaterials.filter(m => {
       const compatible = isWeapon ? m.canBeWeaponMaterial : m.canBeArmorMaterial;
       if (!compatible) return false;
-      return this.unlockAll || m.isPublic || knownIds.has(m.id);
+      return isKnowledgeVisible(m, {
+        known: knownIds.has(m.id), freeMode: this.accessMode === 'free', unlockAll: this.unlockAll,
+      });
     });
     if (this.accessMode === 'enforced' && !this.unlockAll) {
       const owned = new Set(

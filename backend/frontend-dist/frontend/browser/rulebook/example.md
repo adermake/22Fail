@@ -1,0 +1,276 @@
+---
+title: Syntax-Beispiel
+tab: Beispiel
+icon: spell
+order: 99
+---
+
+# Syntax-Beispiel
+
+Diese Seite zeigt **jede** Funktion der Regelwerk-Syntax. Sie ist als Nachschlagewerk für
+Autoren gedacht — schau dir `public/rulebook/example.md` an, um zu sehen, wie etwas gemacht wurde.
+
+:::note{type=info title="Zwei Grundregeln"}
+1. Alles Normale ist ganz normales **Markdown**.
+2. Alles Besondere ist ein Block `:::name{optionen}` … `:::` oder inline `:name[text]`.
+:::
+
+## 1. Front-Matter
+
+Jede Seite beginnt mit einem Kopf. Er bestimmt Tab-Name, Icon und Reihenfolge:
+
+```
+---
+title: Syntax-Beispiel
+tab: Beispiel
+icon: spell
+order: 99
+---
+```
+
+| Feld | Bedeutung |
+| --- | --- |
+| `title` | Überschrift / Name der Seite |
+| `tab` | Beschriftung im Tab-Balken (Standard: `title`) |
+| `icon` | Icon-Name aus `public/icons` ohne `.svg` |
+| `order` | Sortierung der Tabs (kleiner = weiter links) |
+
+## 2. Normales Markdown
+
+**Fett**, *kursiv*, ***beides***, ~~durchgestrichen~~ und `Code im Text`.
+
+- Aufzählung
+- Zweiter Punkt
+  - Eingerückt
+  - Noch einer
+- Dritter Punkt
+
+1. Nummeriert
+2. Zweitens
+3. Drittens
+
+> Ein Zitat. Nützlich für Regeltexte, die wörtlich zitiert werden.
+
+| Waffe | Schaden | Reichweite |
+| --- | --- | --- |
+| Messer | Schnitt | 0,5 m |
+| Stab | Wucht | 1 m |
+
+Ein Trennstrich:
+
+---
+
+```
+Ein Codeblock.
+Hier wird nichts interpretiert — auch ::: nicht.
+```
+
+## 3. Überschriften und Sprungmarken
+
+Jede Überschrift wird automatisch zu einer Sprungmarke. Umlaute werden umgeschrieben:
+`## Stärke` wird zu `#staerke`, `## Würfelsystem` zu `#wuerfelsystem`.
+
+Eine eigene ID vergibst du mit `{#eigene-id}`:
+
+### Beispielüberschrift mit eigener ID {#meine-id}
+
+Diese Überschrift erreichst du über `example#meine-id`.
+
+## 4. Abschnitte (Sections)
+
+Abschnitte sind die großen Kästen. Sie lassen sich **auf- und zuklappen** — klicke auf den Titel.
+
+:::section{title="Ein normaler Abschnitt" icon=dice}
+Standardmäßig ist ein Abschnitt **offen**.
+
+Er kann alles enthalten: Text, Listen, Notizen, Karten …
+:::
+
+:::section{title="Ein Abschnitt, der zugeklappt startet" icon=folder collapsed}
+Mit `collapsed` startet der Abschnitt geschlossen. Praktisch für Details, die nicht
+jeden interessieren.
+
+Wenn jemand per Sprungmarke hierher springt, klappt der Abschnitt automatisch auf.
+:::
+
+## 5. Hinweis-Kästen
+
+Vier Sorten, alle nach demselben Muster:
+
+:::note{type=info title="Info"}
+`:::note{type=info}` — der Standard. Für Erklärungen und Hintergrund.
+:::
+
+:::formula
+`:::formula` — für Formeln. Nutzt Schreibmaschinenschrift.
+
+Leben: Basis + 5 × Konstitution
+Bewegung: 8 + Geschwindigkeit / 4
+:::
+
+:::warning{title="Achtung"}
+`:::warning` — für Fallstricke und harte Grenzen.
+:::
+
+:::tip{title="Tipp"}
+`:::tip` — für Empfehlungen und Kniffe.
+:::
+
+### Eigene Farben für Kästen
+
+Jeder Kasten (und jeder Abschnitt) nimmt `color=` — Name oder Hex:
+
+:::formula{color=#38bdf8}
+`:::formula{color=#38bdf8}` — eine Formel in eigener Farbe.
+
+Schaden = Effektivität × Trefferstärke
+:::
+
+:::note{color=orange title="Eigene Farbe"}
+`:::note{color=orange title="…"}`
+:::
+
+:::formula{color=lila}
+`:::formula{color=lila}` — Farbnamen funktionieren genauso.
+:::
+
+Auch Abschnitte: `:::section{title="…" color=tuerkis}`.
+
+## 6. Raster und Karten
+
+:::grid{cols=3}
+:::card{title="Standardkarte" icon=stat}
+Karten liegen in einem `:::grid`. Das Raster bricht auf schmalen Bildschirmen automatisch um.
+:::
+:::card{title="Rote Karte" icon=life accent=health}
+Mit `accent=health` wird die Karte rot.
+:::
+:::card{title="Blaue Karte" icon=mana accent=mana}
+`accent` kennt: `accent` (lila), `health` (rot), `energy` (grün), `mana` (blau).
+:::
+:::
+
+Karten dürfen alles enthalten — auch Formeln:
+
+:::grid{cols=2}
+:::card{title="Stärke" icon=attack accent=health}
+:::formula
+Würfelbonus: Stärke / 5
+:::
+Verschachtelung funktioniert ohne zusätzliche Doppelpunkte.
+:::
+:::card{title="Intelligenz" icon=mana accent=mana}
+:::formula
+Mana: 50 + 5 × Intelligenz
+:::
+Ein `:::` schließt immer den innersten offenen Block.
+:::
+:::
+
+Mit `min=` steuerst du die Mindestbreite statt der Spaltenzahl: `:::grid{min=200}`.
+
+## 7. Inline-Elemente
+
+- Icon: `:icon[dice]` ergibt :icon[dice] — jeder Name aus `public/icons` ohne `.svg`.
+- Hervorhebung: `:hl[+8/-8]` ergibt :hl[+8/-8].
+- Taste: `:kbd[H]` ergibt :kbd[H].
+- Eigene Farbe (fett): `:hl[Text]{color=rot}` ergibt :hl[Text]{color=rot}
+- Eigene Farbe (normal): `:c[Text]{color=#38bdf8}` ergibt :c[Text]{color=#38bdf8}
+
+Farben kannst du als **Name** oder als **Hex-Wert** angeben:
+
+:::grid{cols=2}
+:::card{title="Namen"}
+`rot` :c[rot]{color=rot} ·
+`gruen` :c[gruen]{color=gruen} ·
+`blau` :c[blau]{color=blau} ·
+`gelb` :c[gelb]{color=gelb} ·
+`orange` :c[orange]{color=orange} ·
+`lila` :c[lila]{color=lila} ·
+`tuerkis` :c[tuerkis]{color=tuerkis} ·
+`pink` :c[pink]{color=pink} ·
+`grau` :c[grau]{color=grau} ·
+`weiss` :c[weiss]{color=weiss}
+
+Dazu passend zum App-Theme: `leben`, `ausdauer`, `mana`, `akzent`.
+:::
+:::card{title="Hex"}
+Jeder Hex-Wert funktioniert:
+
+`:c[Text]{color=#ff8800}` → :c[Text]{color=#ff8800}
+`:hl[Wichtig]{color=#f43f5e}` → :hl[Wichtig]{color=#f43f5e}
+
+Alles andere wird ignoriert (und beim Erzeugen des Manifests gemeldet), damit nichts
+Unerwartetes ins Layout gelangt.
+:::
+:::
+
+Beispiel im Fließtext: Drücke :kbd[H], um das Regelwerk zu öffnen. Ein :icon[dice] Wurf
+von :hl[1] ist immer optimal.
+
+## 8. Verlinkung und Sprünge
+
+Normale Markdown-Links springen innerhalb des Regelwerks:
+
+- Zu einer anderen Seite: `[Stats](stats)` → [Stats](stats)
+- Zu einem Abschnitt: `[Stärke](stats#staerke)` → [Stärke](stats#staerke)
+- Innerhalb dieser Seite: `[nach oben](#syntax-beispiel)` → [nach oben](#syntax-beispiel)
+- Nach außen: `[Externer Link](https://example.com)` → [Externer Link](https://example.com)
+
+Als Knopf — einzeln oder in einer Reihe:
+
+:jump[Einzelner Sprungknopf]{to=stats#staerke}
+
+:::actions
+:jump[Zu den Grundlagen]{to=grundlagen}
+:jump[Zu den Talenten]{to=talente}
+:jump[Zum Kampf]{to=kampf#effektivitaet}
+:::
+
+## 9. Lebende Daten
+
+Diese Tabellen kommen **direkt aus den Spieldaten** und können deshalb nie veralten.
+
+:::note{type=tip title="Warum das wichtig ist"}
+Ändert sich ein Talent oder eine Waffe im Spiel, ändert sich diese Seite automatisch mit.
+Nichts muss von Hand nachgepflegt werden.
+:::
+
+### Talente — `:::data{source=talents}`
+
+:::data{source=talents stat=STR}
+:::
+
+Mit `stat=STR` wurden hier nur die Stärke-Talente gezeigt. Ohne `stat` kommen alle.
+
+### Waffen — `:::data{source=weapons}`
+
+:::data{source=weapons category=leicht}
+:::
+
+Ohne `category` werden alle Waffen nach Kategorie gruppiert.
+
+### Materialien — `:::data{source=materials}`
+
+:::data{source=materials kind=weapon}
+:::
+
+`kind=weapon` oder `kind=armor`.
+
+## 10. Wenn etwas schiefgeht
+
+Ein unbekannter Block wird sichtbar angemeckert, statt die Seite zu zerstören:
+
+:::quatsch
+Dieser Block existiert nicht.
+:::
+
+Genauso bei einer unbekannten Datenquelle — du siehst sofort, was erlaubt gewesen wäre.
+
+:::section{title="Neue Seite anlegen" icon=folder collapsed}
+1. Neue Datei in `frontend/public/rulebook/` anlegen, z.B. `zauberei.md`.
+2. Front-Matter mit `title`, `tab`, `icon` und `order` setzen.
+3. `npm run rulebook:manifest` ausführen (passiert bei `npm start` / `npm run build` automatisch).
+
+Der Tab erscheint dann von selbst — es muss kein Code angefasst werden.
+:::
