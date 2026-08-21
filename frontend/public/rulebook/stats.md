@@ -22,6 +22,9 @@ Das Level der Spieler steigt durch den Verlauf des Spiels an.
 Stats erhöhen sich unterschiedlich schnell (Level × Skalierung).
 Alle **3 Level** erhält man einen frei verteilbaren Stat.
 
+#### Leben
+Jedes Level erhöht sich der Basiswert der Leben um 2.
+
 #### Talentpunkte (TP)
 :::formula
 Start: 5
