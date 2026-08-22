@@ -647,3 +647,63 @@
   color: var(--text-muted, #9ca3af);
   font-size: 0.95rem;
 }
+
+/* ── Rast dialog ───────────────────────────────────────────────────────────── */
+.rest-btn { position: relative; }
+.rest-btn[data-count]::after {
+  content: attr(data-count);
+  position: absolute; top: -4px; right: -4px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  display: flex; align-items: center; justify-content: center;
+  background: #f59e0b; color: #431407;
+  border-radius: 9px; font-size: 0.62rem; font-weight: 800;
+}
+.rest-backdrop {
+  position: fixed; inset: 0; z-index: 1600;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  padding: 6vh 5vw;
+}
+.rest-panel {
+  width: min(560px, 100%); max-height: 100%;
+  display: flex; flex-direction: column;
+  background: var(--card, #2d3748);
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 12px; overflow: hidden;
+}
+.rest-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--border, #4a5568);
+}
+.rest-title { font-weight: 700; color: var(--text, #e5e7eb); }
+.rest-close {
+  width: 28px; height: 28px; background: none;
+  border: 1px solid var(--border, #4a5568); border-radius: 6px;
+  color: var(--text-muted, #9ca3af); font-size: 1.05rem; cursor: pointer;
+}
+.rest-close:hover { color: #fff; border-color: #ef4444; }
+.rest-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
+.rest-summary { margin: 0; font-size: 0.86rem; color: var(--text, #e5e7eb); }
+.rest-note { margin: 0; font-size: 0.76rem; color: var(--text-muted, #9ca3af); }
+.rest-list { display: flex; flex-direction: column; gap: 5px; }
+.rest-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 9px; background: #0f1829;
+  border: 1px solid var(--border, #2d3748); border-radius: 7px;
+}
+.rest-kind {
+  font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 1px 7px; border-radius: 9px;
+  color: #fcd34d; background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.4);
+}
+.rest-kind[data-kind="skill"] { color: #c4b5fd; background: rgba(139,92,246,0.14); border-color: rgba(139,92,246,0.4); }
+.rest-kind[data-kind="spell"] { color: #7dd3fc; background: rgba(56,189,248,0.14); border-color: rgba(56,189,248,0.4); }
+.rest-name { flex: 1; min-width: 0; font-size: 0.84rem; color: var(--text, #e5e7eb); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rest-msg { font-size: 0.72rem; color: var(--text-muted, #9ca3af); }
+.rest-confirm {
+  align-self: flex-end;
+  padding: 7px 18px; background: var(--accent, #8b5cf6);
+  border: none; border-radius: 8px; color: #fff;
+  font-size: 0.88rem; font-weight: 700; cursor: pointer;
+}
+.rest-confirm:hover { filter: brightness(1.12); }

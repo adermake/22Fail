@@ -208,6 +208,8 @@
             <div class="npc-tab-head">
               <span class="npc-hint">{{ draft.equipment.length }} Gegenstand/-stände</span>
               <span class="npc-tab-head-actions">
+                <button class="npc-btn-add npc-btn-forge" (click)="openGearGen()"
+                        title="Komplette Ausrüstung in einem Rutsch würfeln">Ausr&uuml;stung generieren</button>
                 <button class="npc-btn-add npc-btn-forge" (click)="openForge()">Schmieden</button>
                 <button class="npc-btn-add" (click)="openItemEditor(null)">＋ Erstellen</button>
               </span>
@@ -375,9 +377,26 @@
   <app-spell-editor-overlay [spell]="editingSpell" [availableRunes]="availableRunes"
     (save)="onSpellSave($event)" (cancel)="closeSpellEditor()"></app-spell-editor-overlay>
 }
+@if (gearGenOpen) {
+  <div class="npc-forge-overlay">
+    <app-gear-generator
+      [level]="soul.level"
+      [targetName]="draft.name"
+      (equip)="onGeneratedGear($event)"
+      (close)="closeGearGen()">
+    </app-gear-generator>
+  </div>
+}
 @if (forgeOpen) {
   <div class="npc-forge-overlay">
-    <app-forging [sheet]="previewSheet" [unlockAll]="true"
-      (patch)="onForgePatch($event)" (closeOverlay)="closeForge()"></app-forging>
+    <!-- The sheet's forge sits in a titled panel with a close button; this one had neither. -->
+    <div class="npc-forge-header">
+      <span class="npc-forge-title"><span class="app-icon i-effektivity"></span> Schmiede</span>
+      <button class="npc-forge-close" (click)="closeForge()" title="Schließen (Esc)">&times;</button>
+    </div>
+    <div class="npc-forge-body">
+      <app-forging [sheet]="previewSheet" [unlockAll]="true"
+        (patch)="onForgePatch($event)" (closeOverlay)="closeForge()"></app-forging>
+    </div>
   </div>
 }

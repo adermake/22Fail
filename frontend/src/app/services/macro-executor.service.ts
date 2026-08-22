@@ -37,12 +37,17 @@ export class MacroExecutorService {
     return this.runScriptOnSheet(macroActionToScript(macro), character);
   }
 
-  /** Run a FailScript against a sheet and apply its resource/status effects in place. */
-  runScriptOnSheet(script: string, character: CharacterSheet): MacroExecutionResult {
+  /** Run a FailScript against a sheet and apply its resource/status effects in place.
+   *  `opts.trigger` runs only that named block (e.g. the Rast's `onRest`). */
+  runScriptOnSheet(
+    script: string,
+    character: CharacterSheet,
+    opts: { trigger?: string } = {},
+  ): MacroExecutionResult {
     const ctx = createPlayerContext(character, this.trueStats, {
       inCombat: false, stacks: 1, turn: 0, duration: 0, effectStrength: 0,
     });
-    const result = runScript(script, ctx);
+    const result = runScript(script, ctx, { trigger: opts.trigger });
 
     const resourceChanges: { resource: string; amount: number }[] = [];
     for (const rc of result.resourceChanges) {

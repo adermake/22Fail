@@ -40,6 +40,7 @@ import { ItemComponent } from '../../sheet/item/item.component';
 import { SpellComponent } from '../../sheet/spell/spell.component';
 import { SkillComponent } from '../../sheet/skill/skill.component';
 import { ForgingComponent } from '../../sheet/forging/forging.component';
+import { GearGeneratorComponent } from '../gear-generator/gear-generator.component';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { SpellCounter } from '../../model/spell-block-model';
@@ -50,7 +51,7 @@ interface LibFolder { path: string; label: string; files: AssetFile[]; }
 @Component({
   selector: 'app-npc-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent, SpellEditorOverlayComponent, ItemComponent, SpellComponent, SkillComponent, ForgingComponent],
+  imports: [CommonModule, FormsModule, SkillEditorComponent, ItemEditorComponent, SpellEditorOverlayComponent, ItemComponent, SpellComponent, SkillComponent, ForgingComponent, GearGeneratorComponent],
   templateUrl: './npc-editor.component.html',
   styleUrl: './npc-editor.component.css',
 })
@@ -125,6 +126,8 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   editingSpell: SpellBlock | null = null;
   editingSpellIndex: number | null = null;
   forgeOpen = false;
+  /** Fast path: roll a whole set of gear instead of forging each piece by hand. */
+  gearGenOpen = false;
 
   /** Stub sheet so read-only display components (app-item/app-spell) can render NPC previews.
    * Stats are set high so item requirement badges always read as "met" (never a false red). */
@@ -409,6 +412,13 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
 
   // ─── Forge (all materials unlocked) ───────────────────────────────────────
   openForge(): void { this.forgeOpen = true; }
+  openGearGen(): void { this.gearGenOpen = true; }
+  closeGearGen(): void { this.gearGenOpen = false; }
+
+  /** Take everything the generator rolled straight into the NSC's gear. */
+  onGeneratedGear(items: ItemBlock[]): void {
+    this.draft.equipment.push(...items);
+  }
   closeForge(): void { this.forgeOpen = false; }
 
   /** The forge emits the finished item via a patch to /inventory/-; add it to NPC equipment. */

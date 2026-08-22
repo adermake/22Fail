@@ -132,10 +132,71 @@
   <button class="action-btn resource-btn" [class.active]="showResourcePanel" (click)="toggleResourcePanel()" title="Ressourcen (R)">
     💎
   </button>
+  <button class="action-btn rest-btn" (click)="openRest()"
+          [attr.data-count]="(sheet.consumedItems || []).length || null"
+          title="Rast — löst alle onRest-Effekte aus und leert die Verbraucht-Liste">
+    <span class="app-icon i-passive"></span>
+  </button>
   <button class="action-btn info-btn" [class.active]="showGameInfo" (click)="toggleGameInfo()" title="Game Guide (H)">
     <span class="app-icon i-folder"></span>
   </button>
 </div>
+
+<!-- Rast: confirm what will fire, then resolve it -->
+@if (showRestDialog) {
+  <div class="rest-backdrop" (click)="closeRest()">
+    <div class="rest-panel" (click)="$event.stopPropagation()">
+      <div class="rest-hdr">
+        <span class="rest-title">Rast</span>
+        <button class="rest-close" (click)="closeRest()" title="Schließen">&times;</button>
+      </div>
+
+      @if (restResult) {
+        <div class="rest-body">
+          <p class="rest-summary">
+            {{ restResult.clearedItems }} verbrauchte(r) Gegenstand/Gegenst&auml;nde aufgel&ouml;st,
+            {{ restResult.fired.length }} Effekt(e) ausgel&ouml;st.
+          </p>
+          @if (restResult.fired.length) {
+            <div class="rest-list">
+              @for (f of restResult.fired; track $index) {
+                <div class="rest-row">
+                  <span class="rest-kind" [attr.data-kind]="f.kind">{{ restKindLabel(f.kind) }}</span>
+                  <span class="rest-name">{{ f.name }}</span>
+                  <span class="rest-msg">{{ f.message }}</span>
+                </div>
+              }
+            </div>
+          }
+          <button class="rest-confirm" (click)="closeRest()">Fertig</button>
+        </div>
+      } @else {
+        <div class="rest-body">
+          @if (restPreview.length) {
+            <p class="rest-summary">Beim Rasten l&ouml;st aus:</p>
+            <div class="rest-list">
+              @for (s of restPreview; track $index) {
+                <div class="rest-row">
+                  <span class="rest-kind" [attr.data-kind]="s.kind">{{ restKindLabel(s.kind) }}</span>
+                  <span class="rest-name">{{ s.name }}</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="rest-summary">Nichts l&ouml;st aus.</p>
+          }
+          @if ((sheet.consumedItems || []).length) {
+            <p class="rest-note">
+              {{ (sheet.consumedItems || []).length }} verbrauchte(r) Gegenstand/Gegenst&auml;nde
+              werden dabei aus der Liste entfernt.
+            </p>
+          }
+          <button class="rest-confirm" (click)="performRest(sheet)">Rasten</button>
+        </div>
+      }
+    </div>
+  </div>
+}
 
 <!-- Cast Window -->
 @if (showCastWindow) {

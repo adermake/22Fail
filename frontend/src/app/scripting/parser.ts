@@ -6,7 +6,7 @@
 import { lex, Token } from './lexer';
 import {
   AssignOp, BinaryOp, Block, Call, Diagnostic, Expr, Identifier, IfStmt, LogicalOp,
-  Member, Program, Stmt,
+  Member, Program, REST_TRIGGER, Stmt,
 } from './ast';
 
 const ASSIGN_OPS = new Set(['=', '+=', '-=', '*=', '/=']);
@@ -73,6 +73,7 @@ class Parser {
     if (this.isKeyword('grantSkill')) return this.parseGrantSkill();
     if (this.isKeyword('giveStatus')) return this.parseGiveStatus();
     if (this.isKeyword('onTrigger')) return this.parseTrigger();
+    if (this.isKeyword('onRest')) return this.parseRest();
     if (this.isKeyword('action')) return this.parseActionDecl();
     if (this.isPunct('{')) return this.parseBlock();
     return this.parseAssignOrExpr();
@@ -162,6 +163,16 @@ class Parser {
     const body = this.parseBlock();
     return {
       kind: 'TriggerDecl', name, nameSpan: { from: nameTok.from, to: nameTok.to },
+      keywordSpan: { from: kw.from, to: kw.to }, body, from: kw.from, to: body.to,
+    };
+  }
+
+  /** `onRest { … }` — fired by the Rest button, never manually. A TriggerDecl with a fixed name. */
+  private parseRest(): Stmt {
+    const kw = this.next(); // 'onRest'
+    const body = this.parseBlock();
+    return {
+      kind: 'TriggerDecl', name: REST_TRIGGER, nameSpan: { from: kw.from, to: kw.to },
       keywordSpan: { from: kw.from, to: kw.to }, body, from: kw.from, to: body.to,
     };
   }

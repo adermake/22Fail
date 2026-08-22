@@ -32,6 +32,13 @@
     </button>
     <button
       class="tab-button"
+      [class.active]="activeTab === 'consumed'"
+      (click)="setActiveTab('consumed')"
+      title="Verbrauchte Gegenstände — werden bei der nächsten Rast aufgelöst">
+      Verbraucht ({{ (sheet.consumedItems || []).length }})
+    </button>
+    <button
+      class="tab-button"
       [class.active]="activeTab === 'wissen'"
       (click)="setActiveTab('wissen')">
       Wissen
@@ -90,6 +97,32 @@
       </app-companions>
     }
 
+    @if (activeTab === 'consumed') {
+      <div class="consumed-tab">
+        <p class="consumed-hint">
+          Diese Gegenst&auml;nde sind aufgebraucht. Bei der n&auml;chsten <b>Rast</b> l&ouml;st ihr
+          <code>onRest</code>-Block aus und die Liste wird geleert.
+        </p>
+        @if (!consumedItems.length) {
+          <p class="consumed-empty">Nichts verbraucht.</p>
+        } @else {
+          <div class="consumed-list">
+            @for (entry of consumedItems; track $index) {
+              <div class="consumed-row">
+                <span class="app-icon i-brewing"></span>
+                <span class="consumed-name">{{ entry.item.name }}</span>
+                @if (entry.item.script) {
+                  <span class="consumed-badge" title="Löst bei der Rast aus">onRest</span>
+                }
+                <button class="consumed-undo" (click)="restoreConsumed($index)"
+                        title="Zurück ins Inventar legen">Zur&uuml;cklegen</button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
     @if (activeTab === 'wissen') {
       <app-wissen
         [sheet]="sheet"
@@ -103,8 +136,8 @@
   <div class="forging-overlay-backdrop" (click)="closeForgingOverlay()">
     <div class="forging-overlay-panel" (click)="$event.stopPropagation()">
       <div class="forging-overlay-header">
-        <span class="forging-overlay-title">⚒ Schmiede</span>
-        <button class="forging-overlay-close" (click)="closeForgingOverlay()">✕</button>
+        <span class="forging-overlay-title"><span class="app-icon i-effektivity"></span> Schmiede</span>
+        <button class="forging-overlay-close" (click)="closeForgingOverlay()">&times;</button>
       </div>
       <div class="forging-overlay-body">
         <app-forging [sheet]="sheet" (patch)="onPatch($event)" (closeOverlay)="closeForgingOverlay()"></app-forging>
@@ -118,7 +151,7 @@
     <div class="forging-overlay-panel" (click)="$event.stopPropagation()">
       <div class="forging-overlay-header">
         <span class="forging-overlay-title"><span class="app-icon i-brewing"></span> Braukessel</span>
-        <button class="forging-overlay-close" (click)="closeBrewingOverlay()">✕</button>
+        <button class="forging-overlay-close" (click)="closeBrewingOverlay()">&times;</button>
       </div>
       <div class="forging-overlay-body">
         <app-brewing [sheet]="sheet" (patch)="onPatch($event)" (closeOverlay)="closeBrewingOverlay()"></app-brewing>

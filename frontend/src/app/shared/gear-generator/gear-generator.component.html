@@ -1,0 +1,222 @@
+<div class="gg-wrap">
+
+  <!-- ── Header ── -->
+  <div class="gg-topbar">
+    <div class="gg-topbar-left">
+      <span class="gg-title"><span class="app-icon i-effektivity"></span> Ausr&uuml;stung generieren</span>
+      @if (targetName) { <span class="gg-target">f&uuml;r {{ targetName }}</span> }
+    </div>
+    <div class="gg-topbar-right">
+      <button class="gg-btn" (click)="onClose()">Abbrechen</button>
+      <button class="gg-btn gg-btn-primary" [disabled]="!allPieces.length" (click)="applyAll()">
+        Alles &uuml;bernehmen ({{ allPieces.length }})
+      </button>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="gg-loading">Bibliothek wird geladen&hellip;</div>
+  } @else {
+    <div class="gg-body">
+
+      <!-- ══ Left: settings ══ -->
+      <aside class="gg-settings">
+
+        <!-- Material pool -->
+        <section class="gg-card">
+          <div class="gg-card-hdr">
+            <span class="gg-card-title">Materialpool</span>
+            <span class="gg-count">{{ settings.poolIds.length }} gew&auml;hlt</span>
+            @if (settings.poolIds.length) {
+              <button class="gg-mini" (click)="clearPool()">Leeren</button>
+            }
+          </div>
+          <p class="gg-hint">Leerer Pool = alle passenden Materialien.</p>
+
+          <input class="gg-input" type="text" [(ngModel)]="materialFilter" placeholder="Material suchen...">
+          <div class="gg-mat-list">
+            @for (m of filteredMaterials; track m.id) {
+              <button class="gg-mat" [class.on]="inPool(m)" (click)="togglePool(m)">
+                <span class="gg-mat-name">{{ m.name }}</span>
+                <span class="gg-mat-kind">
+                  @if (m.canBeWeaponMaterial) { <span class="app-icon i-effektivity"></span> }
+                  @if (m.canBeArmorMaterial) { <span class="app-icon i-stability"></span> }
+                </span>
+              </button>
+            }
+            @if (!filteredMaterials.length) {
+              <p class="gg-empty">Keine Materialien gefunden.</p>
+            }
+          </div>
+
+          <!-- Save / load pools -->
+          <div class="gg-pool-save">
+            <input class="gg-input gg-input-sm" type="text" [(ngModel)]="poolName" placeholder="Pool benennen...">
+            <button class="gg-mini" [disabled]="!poolName.trim() || !settings.poolIds.length" (click)="savePool()">
+              Speichern
+            </button>
+          </div>
+          @if (savedPools.length) {
+            <div class="gg-pool-list">
+              @for (p of savedPools; track p.name) {
+                <div class="gg-pool-row">
+                  <button class="gg-pool-load" (click)="loadPool(p)" title="Pool laden">
+                    {{ p.name }} <span class="gg-count">({{ p.materialIds.length }})</span>
+                  </button>
+                  <button class="gg-pool-del" (click)="deletePool(p)" title="L&ouml;schen">&times;</button>
+                </div>
+              }
+            </div>
+          }
+        </section>
+
+        <!-- Budget + sliders -->
+        <section class="gg-card">
+          <div class="gg-card-hdr"><span class="gg-card-title">Einstellungen</span></div>
+
+          <label class="gg-field">
+            <span class="gg-label">Schmiedepunkte je Teil</span>
+            <span class="gg-field-row">
+              <input class="gg-input gg-input-num" type="number" min="1"
+                     [(ngModel)]="settings.budget" (ngModelChange)="regenerate()">
+              <button class="gg-mini" (click)="resetBudget()" title="Stufe × 2 + 10">Auto</button>
+            </span>
+          </label>
+
+          <label class="gg-field">
+            <span class="gg-label">Streuung <b>{{ settings.variation }}%</b></span>
+            <input class="gg-slider" type="range" min="0" max="100" step="5"
+                   [(ngModel)]="settings.variation" (ngModelChange)="regenerate()">
+            <span class="gg-hint">Wie stark einzelne Teile vom Budget abweichen d&uuml;rfen.</span>
+          </label>
+
+          <label class="gg-field">
+            <span class="gg-label">Mutation <b>{{ settings.mutation }}%</b></span>
+            <input class="gg-slider" type="range" min="0" max="100" step="5"
+                   [(ngModel)]="settings.mutation" (ngModelChange)="regenerate()">
+            <span class="gg-hint">Zweit-/Zusatzmaterialien (auch von au&szlig;erhalb des Pools) und Merkmale.</span>
+          </label>
+
+          <div class="gg-seed-row">
+            <span class="gg-label">Seed</span>
+            <input class="gg-input gg-input-num" type="number"
+                   [(ngModel)]="settings.seed" (ngModelChange)="regenerate()">
+            <button class="gg-mini gg-mini-accent" (click)="rerollSeed()" title="Neu würfeln">Neu w&uuml;rfeln</button>
+          </div>
+          <p class="gg-hint">Gleicher Seed = gleiche Ausr&uuml;stung. Regler &auml;ndern w&uuml;rfelt nicht neu.</p>
+        </section>
+      </aside>
+
+      <!-- ══ Right: results ══ -->
+      <div class="gg-results">
+        <div class="gg-tabs">
+          <button class="gg-tab" [class.active]="activeTab === 'armor'" (click)="activeTab = 'armor'">
+            R&uuml;stung ({{ armorPieces.length }})
+          </button>
+          <button class="gg-tab" [class.active]="activeTab === 'weapons'" (click)="activeTab = 'weapons'">
+            Waffen ({{ weaponPieces.length }})
+          </button>
+          <span class="gg-total">{{ totalSpent }} SP verbraucht</span>
+        </div>
+
+        <!-- Armour -->
+        @if (activeTab === 'armor') {
+          <div class="gg-list">
+            @if (!armorPieces.length) {
+              <p class="gg-empty">Keine passenden R&uuml;stungsmaterialien im Pool.</p>
+            }
+            @for (piece of armorPieces; track piece.key) {
+              <div class="gg-piece" [class.mutated]="piece.mutated">
+                <div class="gg-piece-hdr">
+                  <span class="gg-piece-slot">{{ piece.label }}</span>
+                  <span class="gg-piece-name">{{ piece.item.name }}</span>
+                  @if (piece.mutated) { <span class="gg-badge gg-badge-mut">Mutation</span> }
+                  <span class="gg-piece-sp">{{ piece.spent }}/{{ piece.budget }} SP</span>
+                </div>
+                <div class="gg-piece-stats">
+                  <span class="gg-stat" title="Stabilität">
+                    <span class="app-icon i-stability"></span>{{ piece.item.stability }}
+                  </span>
+                  <span class="gg-stat" title="Haltbarkeit">&#x2390; {{ piece.item.durability }}</span>
+                  <span class="gg-stat" title="Gewicht">{{ piece.item.weight }} kg</span>
+                  @if (piece.item.armorDebuff) {
+                    <span class="gg-stat gg-stat-bad" title="R&uuml;stungsmalus">&minus;{{ piece.item.armorDebuff }}</span>
+                  }
+                </div>
+                <div class="gg-piece-mats">{{ materialLine(piece) }}</div>
+                @if (piece.traitNames.length) {
+                  <div class="gg-piece-traits">{{ traitLine(piece) }}</div>
+                }
+                @if (piece.item.primaryEffect) {
+                  <div class="gg-piece-effect">{{ piece.item.primaryEffect }}</div>
+                }
+              </div>
+            }
+          </div>
+          @if (armorPieces.length) {
+            <button class="gg-btn gg-btn-ghost" (click)="applyArmorOnly()">Nur R&uuml;stung &uuml;bernehmen</button>
+          }
+        }
+
+        <!-- Weapons -->
+        @if (activeTab === 'weapons') {
+          <div class="gg-weapon-add">
+            <button class="gg-btn gg-btn-primary" (click)="addWeapon()">+ Waffe hinzuf&uuml;gen</button>
+          </div>
+
+          <div class="gg-list">
+            @if (!weaponRequests.length) {
+              <p class="gg-empty">Noch keine Waffen. F&uuml;ge eine hinzu und w&auml;hle den Typ.</p>
+            }
+            @for (req of weaponRequests; track req.id) {
+              @let piece = weaponPieceFor(req);
+              <div class="gg-piece" [class.mutated]="piece?.mutated">
+                <div class="gg-piece-hdr">
+                  <select class="gg-select" [ngModel]="req.weaponTypeName"
+                          (ngModelChange)="setWeaponType(req, $event)">
+                    @for (cat of weaponCategories; track cat) {
+                      <optgroup [label]="categoryLabels[cat]">
+                        @for (wt of weaponTypes; track wt.name) {
+                          @if (wt.category === cat) {
+                            <option [value]="wt.name">{{ wt.name }}</option>
+                          }
+                        }
+                      </optgroup>
+                    }
+                  </select>
+                  <select class="gg-select gg-select-sm" [ngModel]="req.statRequirementKey"
+                          (ngModelChange)="setWeaponStat(req, $event)" title="Statvoraussetzung">
+                    @for (key of statKeys; track key) { <option [value]="key">{{ key }}</option> }
+                  </select>
+                  @if (piece) { <span class="gg-piece-sp">{{ piece.spent }}/{{ piece.budget }} SP</span> }
+                  <button class="gg-piece-del" (click)="removeWeapon(req.id)" title="Entfernen">&times;</button>
+                </div>
+
+                @if (piece) {
+                  <div class="gg-piece-stats">
+                    <span class="gg-stat" title="Effektivit&auml;t">
+                      <span class="app-icon i-effektivity"></span>{{ piece.item.efficiency }}
+                    </span>
+                    <span class="gg-stat" title="Haltbarkeit">&#x2390; {{ piece.item.durability }}</span>
+                    <span class="gg-stat" title="Gewicht">{{ piece.item.weight }} kg</span>
+                    @if (piece.item.damageType) { <span class="gg-stat">{{ piece.item.damageType }}</span> }
+                    @if (piece.item.range) { <span class="gg-stat">{{ piece.item.range }}</span> }
+                  </div>
+                  <div class="gg-piece-mats">{{ materialLine(piece) }}</div>
+                  @if (piece.traitNames.length) {
+                    <div class="gg-piece-traits">{{ traitLine(piece) }}</div>
+                  }
+                  @if (piece.item.primaryEffect) {
+                    <div class="gg-piece-effect">{{ piece.item.primaryEffect }}</div>
+                  }
+                } @else {
+                  <p class="gg-empty">Kein passendes Waffenmaterial im Pool.</p>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

@@ -6,7 +6,7 @@
 
 import { StatusModifierTarget } from '../model/status-effect.model';
 import {
-  AssignOp, Block, Expr, Program, Stmt,
+  AssignOp, Block, Expr, Program, REST_TRIGGER, Stmt,
 } from './ast';
 import { compileScript } from './checker';
 import { rollDice } from './dice';
@@ -67,6 +67,9 @@ export interface ScriptResult {
  */
 export interface RunOptions { collect?: boolean; trigger?: string; }
 
+/** Re-exported so callers can fire the Rest block without importing the AST module. */
+export { REST_TRIGGER };
+
 function opFromAssign(op: AssignOp): ModifierOp {
   switch (op) {
     case '=': return 'set';
@@ -109,13 +112,21 @@ export function runScript(src: string, ctx: CharacterContext, opts: RunOptions =
   return result;
 }
 
-/** List the named onTrigger blocks in a script (for the manual-trigger UI). Tolerant of errors. */
+/** List the named onTrigger blocks in a script (for the manual-trigger UI). Tolerant of errors.
+ *  `onRest` is excluded: it is fired by the Rest button, not by hand. */
 export function listTriggers(src: string): { name: string }[] {
   const out: { name: string }[] = [];
   for (const s of compileScript(src).program.body) {
-    if (s.kind === 'TriggerDecl' && s.name) out.push({ name: s.name });
+    if (s.kind === 'TriggerDecl' && s.name && s.name !== REST_TRIGGER) out.push({ name: s.name });
   }
   return out;
+}
+
+/** True when the script has an `onRest { … }` block. */
+export function hasRestBlock(src: string): boolean {
+  if (!src || !src.includes('onRest')) return false;
+  return compileScript(src).program.body
+    .some(s => s.kind === 'TriggerDecl' && s.name === REST_TRIGGER);
 }
 
 /**

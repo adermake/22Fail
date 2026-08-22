@@ -37,6 +37,8 @@ export class ItemComponent implements OnChanges {
   @Output() openEditor = new EventEmitter<void>();
   /** Copy this item; the host inserts the copy and opens its editor. */
   @Output() duplicate = new EventEmitter<void>();
+  /** Verbrauchsgegenstand used up: runs its action and moves it into the Verbraucht queue. */
+  @Output() consume = new EventEmitter<void>();
   @Output() breakTest = new EventEmitter<void>();
   /** Potion: request parent to apply effects and consume. */
   @Output() useOnSelf = new EventEmitter<void>();
@@ -125,6 +127,7 @@ export class ItemComponent implements OnChanges {
       case 'weapon': return 'i-effektivity';
       case 'armor': return 'i-stability';
       case 'potion': return 'i-brewing';
+      case 'consumable': return 'i-brewing';
       case 'raw-material': return 'i-item';
       case 'ingredient': return 'i-item';
       case 'extractor': return 'i-brewing';
@@ -137,6 +140,7 @@ export class ItemComponent implements OnChanges {
       case 'weapon': return 'Waffe';
       case 'armor': return 'Rüstung';
       case 'potion': return 'Trank';
+      case 'consumable': return 'Verbrauchsgegenstand';
       case 'raw-material': return 'Rohmaterial';
       case 'ingredient': return 'Wirkstoff';
       case 'extractor': return 'Extraktor';
@@ -170,6 +174,11 @@ export class ItemComponent implements OnChanges {
   duplicateFromMenu() {
     this.showContextMenu = false;
     this.duplicate.emit();
+  }
+
+  consumeFromMenu() {
+    this.showContextMenu = false;
+    this.consume.emit();
   }
 
   usePotionFromMenu() {

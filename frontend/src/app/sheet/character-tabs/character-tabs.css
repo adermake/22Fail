@@ -171,3 +171,30 @@
 .tab-content::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
 }
+
+/* ── Verbraucht tab ────────────────────────────────────────────────────────── */
+.consumed-tab { padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
+.consumed-hint { margin: 0; font-size: 0.78rem; line-height: 1.5; color: var(--text-muted, #9ca3af); }
+.consumed-hint code { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px; }
+.consumed-empty { margin: 0; font-size: 0.82rem; font-style: italic; color: var(--text-muted, #9ca3af); }
+.consumed-list { display: flex; flex-direction: column; gap: 5px; }
+.consumed-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  background: #0f1829;
+  border: 1px solid var(--border, #2d3748);
+  border-left: 3px solid #f59e0b;
+  border-radius: 8px;
+}
+.consumed-name { flex: 1; min-width: 0; color: var(--text, #e5e7eb); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.consumed-badge {
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.05em;
+  padding: 1px 7px; border-radius: 9px;
+  color: #7dd3fc; background: rgba(56,189,248,0.14); border: 1px solid rgba(56,189,248,0.4);
+}
+.consumed-undo {
+  padding: 3px 9px;
+  background: transparent; border: 1px solid var(--border, #4a5568); border-radius: 6px;
+  color: var(--text-muted, #9ca3af); font-size: 0.74rem; cursor: pointer;
+}
+.consumed-undo:hover { color: var(--text, #e5e7eb); border-color: var(--accent, #8b5cf6); }

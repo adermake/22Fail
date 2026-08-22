@@ -49,6 +49,8 @@ import { EventPortalComponent } from './event-portal/event-portal.component';
 import { SheetStatusEffectsComponent } from './sheet-status-effects/sheet-status-effects.component';
 import { SpellcastWindowComponent } from './spellcast-window/spellcast-window.component';
 import { DamageCalculatorComponent } from '../world/damage-calculator/damage-calculator.component';
+import { RestService, RestSource, RestOutcome } from '../services/rest.service';
+import { CharacterSheet } from '../model/character-sheet-model';
 
 @Component({
   selector: 'app-sheet',
@@ -87,6 +89,7 @@ export class SheetComponent implements OnInit {
   private worldApi = inject(WorldApiService);
   private libraryStore = inject(LibraryStoreService);
   private trueStats = inject(TrueStatsService);
+  private restService = inject(RestService);
   cdr = inject(ChangeDetectorRef);
   private ngZone = inject(NgZone);
 
@@ -105,6 +108,13 @@ export class SheetComponent implements OnInit {
   showGameInfo = false;
   showCastWindow = false;
   showDamageCalc = false;
+
+  // ── Rast ───────────────────────────────────────────────────────────────────
+  showRestDialog = false;
+  /** What would fire, shown before committing. */
+  restPreview: RestSource[] = [];
+  /** Filled once the rest ran, so the dialog turns into a report. */
+  restResult: RestOutcome | null = null;
   damageCalcEffektivitaet?: number;
   currentEvents: CurrentEvent[] = [];
   transactions: Transaction[] = [];
@@ -750,6 +760,32 @@ export class SheetComponent implements OnInit {
   closeDamageCalc() {
     this.showDamageCalc = false;
     document.body.style.overflow = '';
+    this.cdr.detectChanges();
+  }
+
+  /** Open the Rast dialog with a preview of everything that will fire. */
+  openRest(): void {
+    const sheet = this.store.sheetValue;
+    this.restResult = null;
+    this.restPreview = sheet ? this.restService.collectRestSources(sheet) : [];
+    this.showRestDialog = true;
+  }
+
+  closeRest(): void {
+    this.showRestDialog = false;
+    this.restResult = null;
+  }
+
+  restKindLabel(kind: 'item' | 'skill' | 'spell'): string {
+    return kind === 'item' ? 'Gegenstand' : kind === 'skill' ? 'Fähigkeit' : 'Zauber';
+  }
+
+  /** Fire every onRest block, empty the Verbraucht queue and persist what changed. */
+  performRest(sheet: CharacterSheet): void {
+    this.restResult = this.restService.performRest(sheet);
+    this.store.applyPatch({ path: 'statuses', value: sheet.statuses });
+    this.store.applyPatch({ path: 'activeStatusEffects', value: sheet.activeStatusEffects ?? [] });
+    this.store.applyPatch({ path: 'consumedItems', value: [] });
     this.cdr.detectChanges();
   }
 

@@ -17,6 +17,11 @@
         <button class="ctx-item ctx-identify" (click)="identifyFromMenu()">🔍 Identifizieren</button>
       }
       @if (showDetails) {
+        @if (item.itemType === 'consumable') {
+          <button class="ctx-item ctx-use" (click)="consumeFromMenu()">
+            <span class="app-icon i-brewing"></span> Verbrauchen
+          </button>
+        }
         @if (item.itemType === 'potion' && item.potionEffects?.length) {
           <button class="ctx-item ctx-use" (click)="usePotionFromMenu()"><span class="app-icon i-brewing"></span> Auf sich anwenden</button>
         }

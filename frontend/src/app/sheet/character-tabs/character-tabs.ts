@@ -48,7 +48,7 @@ export class CharacterTabsComponent implements OnInit {
   @Output() requestCastWindow = new EventEmitter<void>();
   @Output() rollWeaponDamage = new EventEmitter<number>();
 
-  activeTab: 'inventory' | 'resources' | 'spells' | 'wissen' | 'skills' | 'companions' = 'inventory';
+  activeTab: 'inventory' | 'resources' | 'spells' | 'wissen' | 'skills' | 'companions' | 'consumed' = 'inventory';
   showForgingOverlay = false;
   showBrewingOverlay = false;
 
@@ -63,7 +63,7 @@ export class CharacterTabsComponent implements OnInit {
     }
   }
 
-  setActiveTab(tab: 'inventory' | 'resources' | 'spells' | 'wissen' | 'skills' | 'companions') {
+  setActiveTab(tab: 'inventory' | 'resources' | 'spells' | 'wissen' | 'skills' | 'companions' | 'consumed') {
     this.activeTab = tab;
   }
 
@@ -93,6 +93,24 @@ export class CharacterTabsComponent implements OnInit {
 
   onSkillEditingChange(data: {index: number, isEditing: boolean}) {
     this.skillEditingChange.emit(data);
+  }
+
+  /** Verbrauchte Gegenstände waiting for the next Rast. */
+  get consumedItems() { return this.sheet.consumedItems ?? []; }
+
+  /** Put a queued item back into the inventory (mis-click undo, before resting). */
+  restoreConsumed(index: number): void {
+    const queue = [...this.consumedItems];
+    const [entry] = queue.splice(index, 1);
+    if (!entry) return;
+
+    const inventory = [...(this.sheet.inventory ?? [])];
+    const free = inventory.findIndex(slot => slot === null);
+    if (free === -1) inventory.push(entry.item); else inventory[free] = entry.item;
+    this.sheet.inventory = inventory as typeof this.sheet.inventory;
+    this.sheet.consumedItems = queue;
+    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+    this.patch.emit({ path: 'consumedItems', value: queue });
   }
 
   onPatch(patch: JsonPatch) {

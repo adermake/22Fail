@@ -118,6 +118,9 @@ export interface GiveStatus extends Span {
  * `onTrigger("Label") { …trigger body… }` — a named, manually-fired action. Not run by the
  * periodic/base execution; listed in the UI so a player can trigger the moment it applies.
  */
+/** Reserved trigger name behind `onRest { … }` — fired by the sheet's Rest button. */
+export const REST_TRIGGER = '__rest__';
+
 export interface TriggerDecl extends Span {
   kind: 'TriggerDecl';
   name: string;

@@ -98,6 +98,12 @@
               (click)="setItemType('other')">
               <span class="app-icon i-item"></span> Sonstiges
             </button>
+            <button
+              [class.active]="editItem.itemType === 'consumable'"
+              (click)="setItemType('consumable')"
+              title="Wird beim Benutzen verbraucht und landet in der Verbraucht-Liste bis zur nächsten Rast">
+              <span class="app-icon i-brewing"></span> Verbrauchsgegenstand
+            </button>
           </div>
 
           <!-- Weapon-specific options -->

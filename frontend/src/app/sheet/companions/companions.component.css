@@ -158,3 +158,57 @@
 .comp-btn:hover { border-color: #8b5cf6; color: #c4b5fd; }
 .comp-btn-edit { background: rgba(139, 92, 246, 0.14); border-color: rgba(139, 92, 246, 0.4); color: #c4b5fd; }
 .comp-btn-edit:hover { background: rgba(139, 92, 246, 0.26); }
+
+/* ── Item transfer: character ⇄ Begleiter ─────────────────────────────────── */
+.comp-transfer-backdrop {
+  position: fixed; inset: 0; z-index: 1500;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  padding: 5vh 4vw;
+}
+.comp-transfer {
+  width: min(720px, 100%);
+  max-height: 100%;
+  display: flex; flex-direction: column;
+  background: var(--card, #2d3748);
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.comp-transfer-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border, #4a5568);
+}
+.comp-transfer-title { font-weight: 700; color: var(--text, #e5e7eb); }
+.comp-transfer-close {
+  width: 28px; height: 28px;
+  background: none; border: 1px solid var(--border, #4a5568); border-radius: 6px;
+  color: var(--text-muted, #9ca3af); font-size: 1.05rem; cursor: pointer;
+}
+.comp-transfer-close:hover { color: #fff; border-color: #ef4444; }
+.comp-transfer-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; min-height: 0; overflow: hidden; }
+.comp-transfer-col { display: flex; flex-direction: column; min-height: 0; }
+.comp-transfer-sub {
+  margin: 0 0 6px; font-size: 0.68rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted, #9ca3af);
+}
+.comp-transfer-list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; min-height: 0; }
+.comp-transfer-empty { margin: 0; font-size: 0.78rem; color: var(--text-muted, #9ca3af); font-style: italic; }
+.comp-transfer-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 9px;
+  background: #0f1829;
+  border: 1px solid var(--border, #2d3748);
+  border-radius: 7px;
+  color: var(--text, #e5e7eb);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+}
+.comp-transfer-row:hover { border-color: var(--accent, #8b5cf6); }
+.comp-transfer-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.comp-transfer-arrow { color: #a78bfa; font-weight: 800; }
+.comp-transfer-back .comp-transfer-name { text-align: right; }
+
+@media (max-width: 640px) { .comp-transfer-cols { grid-template-columns: 1fr; } }

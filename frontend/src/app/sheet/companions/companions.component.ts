@@ -8,6 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { AssetFile } from '../../model/asset-browser.model';
+import { ItemBlock } from '../../model/item-block.model';
 import { RuneBlock } from '../../model/rune-block.model';
 import { SoulBlock } from '../../model/soul-block.model';
 import {
@@ -96,6 +97,60 @@ export class CompanionsComponent {
       spells: wrap(this.sheet.spells, 'spell', '/Zauber'),
       runes: ((this.sheet.runes ?? []).filter(r => r !== null)) as RuneBlock[],
     };
+  }
+
+  // ── Item transfer: character ⇄ Begleiter ────────────────────────────────────
+  /** The Begleiter whose pack is open, or null. */
+  transferFor: CompanionBlock | null = null;
+
+  openTransfer(companion: CompanionBlock): void { this.transferFor = companion; }
+  closeTransfer(): void { this.transferFor = null; }
+
+  /** Items the character can hand over (inventory slots can be null — skip those). */
+  get ownItems(): { item: ItemBlock; index: number }[] {
+    return (this.sheet.inventory ?? [])
+      .map((item, index) => ({ item: item as ItemBlock, index }))
+      .filter(entry => !!entry.item);
+  }
+
+  /** What the Begleiter is carrying. */
+  companionItems(companion: CompanionBlock): ItemBlock[] {
+    return companion.statblock.equipment ?? [];
+  }
+
+  /** Hand an item to the Begleiter: out of the character's inventory, into the companion's gear. */
+  giveToCompanion(companion: CompanionBlock, index: number): void {
+    const inventory = [...(this.sheet.inventory ?? [])];
+    const item = inventory[index];
+    if (!item) return;
+    inventory[index] = null;
+    while (inventory.length > 0 && inventory[inventory.length - 1] === null) inventory.pop();
+    this.sheet.inventory = inventory as typeof this.sheet.inventory;
+    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+
+    this.save(this.companions.map(c => c.id === companion.id
+      ? { ...c, statblock: { ...c.statblock, equipment: [...(c.statblock.equipment ?? []), item] } }
+      : c));
+    this.transferFor = this.companions.find(c => c.id === companion.id) ?? null;
+  }
+
+  /** Take an item back off the Begleiter into the first free inventory slot. */
+  takeFromCompanion(companion: CompanionBlock, itemIndex: number): void {
+    const carried = [...(companion.statblock.equipment ?? [])];
+    const item = carried[itemIndex];
+    if (!item) return;
+    carried.splice(itemIndex, 1);
+
+    const inventory = [...(this.sheet.inventory ?? [])];
+    const free = inventory.findIndex(slot => slot === null);
+    if (free === -1) inventory.push(item); else inventory[free] = item;
+    this.sheet.inventory = inventory as typeof this.sheet.inventory;
+    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+
+    this.save(this.companions.map(c => c.id === companion.id
+      ? { ...c, statblock: { ...c.statblock, equipment: carried } }
+      : c));
+    this.transferFor = this.companions.find(c => c.id === companion.id) ?? null;
   }
 
   // ── Create / edit / remove ──────────────────────────────────────────────────

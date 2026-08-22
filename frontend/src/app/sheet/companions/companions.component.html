@@ -82,6 +82,9 @@
 
           <div class="comp-actions">
             <button class="comp-btn comp-btn-edit" (click)="edit(c)">Bearbeiten</button>
+            <button class="comp-btn" (click)="openTransfer(c)" title="Gegenstände übergeben">
+              Gegenst&auml;nde ({{ companionItems(c).length }})
+            </button>
             <button class="comp-btn" (click)="duplicate(c)" title="Kopie anlegen">Kopieren</button>
           </div>
         </div>
@@ -89,3 +92,51 @@
     </div>
   }
 </div>
+
+<!-- Gegenstände an den Begleiter übergeben und zurückholen -->
+@if (transferFor; as comp) {
+  <div class="comp-transfer-backdrop" (click)="closeTransfer()">
+    <div class="comp-transfer" (click)="$event.stopPropagation()">
+      <div class="comp-transfer-hdr">
+        <span class="comp-transfer-title">Gegenst&auml;nde &middot; {{ comp.name }}</span>
+        <button class="comp-transfer-close" (click)="closeTransfer()" title="Schlie&szlig;en">&times;</button>
+      </div>
+
+      <div class="comp-transfer-cols">
+        <section class="comp-transfer-col">
+          <h4 class="comp-transfer-sub">Dein Inventar</h4>
+          @if (!ownItems.length) {
+            <p class="comp-transfer-empty">Keine Gegenst&auml;nde.</p>
+          } @else {
+            <div class="comp-transfer-list">
+              @for (entry of ownItems; track entry.index) {
+                <button class="comp-transfer-row" (click)="giveToCompanion(comp, entry.index)"
+                        title="An {{ comp.name }} geben">
+                  <span class="comp-transfer-name">{{ entry.item.name }}</span>
+                  <span class="comp-transfer-arrow">&rarr;</span>
+                </button>
+              }
+            </div>
+          }
+        </section>
+
+        <section class="comp-transfer-col">
+          <h4 class="comp-transfer-sub">{{ comp.name }} tr&auml;gt</h4>
+          @if (!companionItems(comp).length) {
+            <p class="comp-transfer-empty">Tr&auml;gt nichts.</p>
+          } @else {
+            <div class="comp-transfer-list">
+              @for (it of companionItems(comp); track $index) {
+                <button class="comp-transfer-row comp-transfer-back" (click)="takeFromCompanion(comp, $index)"
+                        title="Zur&uuml;cknehmen">
+                  <span class="comp-transfer-arrow">&larr;</span>
+                  <span class="comp-transfer-name">{{ it.name }}</span>
+                </button>
+              }
+            </div>
+          }
+        </section>
+      </div>
+    </div>
+  </div>
+}

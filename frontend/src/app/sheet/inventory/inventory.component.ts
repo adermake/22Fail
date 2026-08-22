@@ -15,6 +15,7 @@ import { NotificationService } from '../../services/notification.service';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { CurrentEvent, ShopEvent, LootBundleEvent, formatCurrency } from '../../model/current-events.model';
 import { ActiveStatusEffect } from '../../model/status-effect.model';
+import { MacroExecutorService } from '../../services/macro-executor.service';
 
 @Component({
   selector: 'app-inventory',
@@ -48,6 +49,7 @@ export class InventoryComponent {
   private notification = inject(NotificationService);
   private trueStats = inject(TrueStatsService);
   private elRef = inject(ElementRef);
+  private macroExecutor = inject(MacroExecutorService);
 
   Math = Math; // Expose Math to template
   formatCurrency = formatCurrency;
@@ -608,6 +610,42 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
     this.patch.emit({ path: 'inventory', value: inventory });
     this.openItemEditor(target);
   }
+
+  /**
+   * Use up a Verbrauchsgegenstand: run its action script against the sheet, take one off the
+   * stack (or remove it), and park it in the Verbraucht queue until the next Rast.
+   */
+  consumeItem(index: number) {
+    const item = this.sheet.inventory[index];
+    if (!item || item.itemType !== 'consumable') return;
+
+    if (item.script) {
+      const result = this.macroExecutor.runScriptOnSheet(item.script, this.sheet);
+      this.patch.emit({ path: 'statuses', value: this.sheet.statuses });
+      this.patch.emit({ path: 'activeStatusEffects', value: this.sheet.activeStatusEffects ?? [] });
+      this.consumeFeedback = `${item.name}: ${result.message}`;
+      setTimeout(() => (this.consumeFeedback = ''), 4000);
+    }
+
+    // Stackables lose one unit; everything else leaves the inventory entirely.
+    const inventory = [...(this.sheet.inventory || [])];
+    const consumedUnit = { ...item, amount: 1 };
+    if (item.stackable && (item.amount ?? 1) > 1) {
+      inventory[index] = { ...item, amount: (item.amount ?? 1) - 1 };
+    } else {
+      inventory[index] = null;
+      while (inventory.length > 0 && inventory[inventory.length - 1] === null) inventory.pop();
+    }
+    this.sheet.inventory = inventory as typeof this.sheet.inventory;
+    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+
+    const queue = [...(this.sheet.consumedItems ?? []), { item: consumedUnit, consumedAt: Date.now() }];
+    this.sheet.consumedItems = queue;
+    this.patch.emit({ path: 'consumedItems', value: queue });
+  }
+
+  /** Short-lived line under the inventory header after consuming something. */
+  consumeFeedback = '';
 
   // Create new item via full-screen editor
   openNewItemEditor() {

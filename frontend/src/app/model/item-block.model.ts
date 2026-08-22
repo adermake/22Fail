@@ -54,6 +54,8 @@ export type ItemType =
   | 'armor'
   | 'other'
   | 'potion'
+  /** Verbrauchsgegenstand: used up on use; lands in the Verbraucht queue until the next Rast. */
+  | 'consumable'
   | 'raw-material'
   | 'ingredient'
   | 'extractor';
@@ -149,6 +151,10 @@ export class ItemBlock {
 
   /** Optional brew session snapshot embedded on finished potions. */
   brewingData?: unknown;
+
+  /** FailScript action code. For Verbrauchsgegenstände this holds the effect on use and the
+   *  `onRest { … }` block that resolves once the character rests. */
+  script?: string;
 
   // Source tracking (for display purposes)
   isItemBased?: boolean; // Flag for skills/spells from this item

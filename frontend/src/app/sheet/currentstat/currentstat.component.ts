@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { required } from '@angular/forms/signals';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { FormulaType } from '../../model/formula-type.enum';
+import { HEALTH_PER_LEVEL } from '../../services/true-stats.service';
 import { JsonPatch } from '../../model/json-patch.model';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { StatusEffect } from '../../model/status-effect.model';
@@ -156,6 +157,34 @@ export class CurrentstatComponent {
     }
 
     return sources;
+  }
+
+  /** Flat Leben granted purely by character level (+2 per level). Only Leben has this. */
+  get levelBonus(): number {
+    if (this.formula !== FormulaType.LIFE) return 0;
+    return (this.sheet.level || 1) * HEALTH_PER_LEVEL;
+  }
+
+  /** Stat contribution of this resource: KON/GES/INT × 5 — the other half of the total. */
+  get statBonus(): number {
+    switch (this.formula) {
+      case FormulaType.LIFE:   return this.trueStats.calculateConstitution(this.sheet) * 5;
+      case FormulaType.ENERGY: return this.trueStats.calculateDexterity(this.sheet) * 5;
+      case FormulaType.MANA:   return this.trueStats.calculateIntelligence(this.sheet) * 5;
+      default: return 0;
+    }
+  }
+
+  /** Spelled-out sum behind the maximum, for the tooltip. */
+  get maxBreakdown(): string {
+    const parts = [
+      `Basis ${this.base}`,
+      `Bonus ${this.bonus}`,
+      `Effekt ${this.effectBonus}`,
+      `Attribut ${this.statBonus}`,
+    ];
+    if (this.levelBonus) parts.push(`Level ${this.levelBonus} (${HEALTH_PER_LEVEL}/Stufe)`);
+    return parts.join(' + ') + ` = ${this.statusMax}`;
   }
 
   get statusMax(): number {

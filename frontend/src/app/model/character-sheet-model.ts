@@ -16,6 +16,12 @@ export interface SheetTrashItem {
   deletedAt: number; // Timestamp
 }
 
+/** One used-up Verbrauchsgegenstand, kept until the next Rast resolves it. */
+export interface ConsumedItemEntry {
+  item: ItemBlock;
+  consumedAt: number;
+}
+
 export interface HerstellenEntry {
   id: string;   // Unique identifier (uuid-style)
   label: string; // What is being crafted, e.g. "Schwerter"
@@ -102,6 +108,9 @@ export interface CharacterSheet {
   knownIngredientIds?: string[];   // IDs of brew ingredients (Wirkstoffe)
   knownExtractorIds?: string[];    // IDs of extractors
   knownBrewTraitIds?: string[];    // IDs of brew traits (Braumerkmale)
+  /** Verbrauchte Gegenstände: consumed items waiting for the next Rast (sheet tab "Verbraucht").
+   *  On Rest each entry's `onRest` block fires and the queue is emptied. */
+  consumedItems?: ConsumedItemEntry[];
   // Souls captured from beings (Wissen → Seelen), usable as Begleiter material
   souls?: SoulBlock[];
   // Begleiter: summons/familiars the character keeps ready (Begleiter tab); summoning runes point here
