@@ -198,6 +198,7 @@ label {
 .i-effektivity   { -webkit-mask-image: url('/icons/effektivity.svg');       mask-image: url('/icons/effektivity.svg'); }
 .i-dice          { -webkit-mask-image: url('/icons/dice.svg');              mask-image: url('/icons/dice.svg'); }
 .i-restore-trash { -webkit-mask-image: url('/icons/restore_from_trash.svg');mask-image: url('/icons/restore_from_trash.svg'); }
+.i-rest          { -webkit-mask-image: url('/icons/rest.svg');              mask-image: url('/icons/rest.svg'); }
 .i-stat          { -webkit-mask-image: url('/icons/stat_icon.svg');         mask-image: url('/icons/stat_icon.svg'); }
 .i-status-effect { -webkit-mask-image: url('/icons/status_effect.svg');     mask-image: url('/icons/status_effect.svg'); }
 .i-ability       { -webkit-mask-image: url('/icons/ability.svg');           mask-image: url('/icons/ability.svg'); }

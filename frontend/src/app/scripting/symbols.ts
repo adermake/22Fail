@@ -169,6 +169,7 @@ export const BUILTINS: FnInfo[] = [
   { name: 'roll', signature: 'roll(dice) oder roll(count, sides)', description: 'Würfelt und liefert das Ergebnis', minArgs: 1, maxArgs: 2 },
   { name: 'loseResource', signature: 'loseResource(resource, amount)', description: 'Verliert dauerhaft Ressource (health/energy/mana/fokus)', minArgs: 2, maxArgs: 2, resourceFirstArg: true },
   { name: 'gainResource', signature: 'gainResource(resource, amount)', description: 'Gewinnt dauerhaft Ressource', minArgs: 2, maxArgs: 2, resourceFirstArg: true },
+  { name: 'diceBonus', signature: 'diceBonus(name, wert)', description: 'Würfelmodifikator, solange die Quelle aktiv ist (− ist gut, + ist schlecht). Erscheint in den Würfel-Ansichten.', minArgs: 2, maxArgs: 2 },
   { name: 'counter', signature: 'counter(name)', description: 'Wert einer Zähler-Leiste des Gegenstands, dessen Skript läuft', minArgs: 1, maxArgs: 1 },
   { name: 'applyStatus', signature: 'applyStatus(id, stacks?, dauer?)', description: 'Wendet einen Status-Effekt an — mit Stapeln und optionaler Dauer in Runden', minArgs: 1, maxArgs: 3 },
   { name: 'removeStatus', signature: 'removeStatus(id)', description: 'Entfernt einen Status-Effekt', minArgs: 1, maxArgs: 1 },

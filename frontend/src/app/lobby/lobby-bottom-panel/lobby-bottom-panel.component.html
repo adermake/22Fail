@@ -307,15 +307,33 @@
                   }
                 </div>
               }
+              <!-- Only what the script chose to display(). Raw roll() results stay behind the
+                   Würfel-Details breakdown — a script rolls constantly, and printing every one
+                   buried the line the author actually wanted shown. -->
               @if (getLastResult(expandedFx); as lastResult) {
                 <div class="lbp-fx-last-result">
-                  @for (roll of lastResult.rolls; track roll.id) {
-                    <span class="lbp-fx-last-roll" [style.color]="roll.color">{{ roll.name }}: {{ roll.total }}</span>
+                  @for (d of lastResult.displays ?? []; track $index) {
+                    @switch (d.type) {
+                      @case ('banner') { <span class="ds-banner" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                      @case ('stat') {
+                        <span class="ds-stat" [ngClass]="'ds-' + d.style">
+                          <span class="ds-lbl">{{ d.label }}</span><span class="ds-val">{{ d.value }}</span>
+                        </span>
+                      }
+                      @case ('box') { <span class="ds-box" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                      @default { <span class="ds-text" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                    }
                   }
                   @for (change of lastResult.resourceChanges; track $index) {
                     <span class="lbp-fx-last-change" [class.gain]="change.amount > 0" [class.loss]="change.amount < 0">
                       {{ change.displayName }}: {{ change.amount > 0 ? '+' : '' }}{{ change.amount }}
                     </span>
+                  }
+                  @if (lastResult.rolls.length) {
+                    <button class="lbp-fx-last-rolls" (click)="openAllRollsBreakdown(lastResult)"
+                            title="Würfel anzeigen">
+                      <span class="app-icon i-dice"></span> {{ lastResult.rolls.length }}
+                    </button>
                   }
                 </div>
               }

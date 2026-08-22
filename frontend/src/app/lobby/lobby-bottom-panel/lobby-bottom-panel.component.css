@@ -1379,3 +1379,16 @@
 .lbp-token-name { font-size: 0.68rem; color: #e5e7eb; text-align: center; line-height: 1.1; word-break: break-word; }
 .lbp-tab-ico { width: 14px; height: 14px; vertical-align: -2px; }
 .lbp-token-icon { padding: 8px; background: rgba(167,139,250,0.12); }
+
+/* Roll count on an effect card — the numbers themselves live in the breakdown popup. */
+.lbp-fx-last-rolls {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 7px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 9px;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+.lbp-fx-last-rolls:hover { color: var(--text, #e5e7eb); border-color: var(--accent, #8b5cf6); }

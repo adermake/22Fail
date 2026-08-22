@@ -5,7 +5,7 @@ import { LibraryStoreService } from './library-store.service';
 import { StatusEffect, StatusModifierTarget } from '../model/status-effect.model';
 import { FormulaType } from '../model/formula-type.enum';
 import { createPlayerContext } from '../scripting/character-context';
-import { ModifierOp, runScript, ScriptGrantedSkill } from '../scripting/interpreter';
+import { ModifierOp, runScript, ScriptDiceBonus, ScriptGrantedSkill } from '../scripting/interpreter';
 import { SkillBlock } from '../model/skill-block.model';
 import { SpellBlock } from '../model/spell-block-model';
 import { isItemEquipped } from '../utils/equip-slot.utils';
@@ -20,9 +20,16 @@ export interface DerivedModifier {
 }
 /** A skill derived (effect-bound) from an active effect's `effectActive` block. */
 export interface DerivedGrantedSkill extends ScriptGrantedSkill { source: string; }
+/** A dice bonus declared by an active effect/skill/item script, tagged with where it came from. */
+export interface DerivedDiceBonus extends ScriptDiceBonus { source: string; }
 
-interface DerivedEntry { fp: string; mods: DerivedModifier[]; skills: DerivedGrantedSkill[]; }
-const EMPTY_DERIVED: DerivedEntry = { fp: '', mods: [], skills: [] };
+interface DerivedEntry {
+  fp: string;
+  mods: DerivedModifier[];
+  skills: DerivedGrantedSkill[];
+  diceBonuses: DerivedDiceBonus[];
+}
+const EMPTY_DERIVED: DerivedEntry = { fp: '', mods: [], skills: [], diceBonuses: [] };
 
 /** Flat Leben every character gains per level, on top of Konstitution ×5. */
 export const HEALTH_PER_LEVEL = 2;
@@ -123,6 +130,11 @@ export class TrueStatsService {
     return this.getDerived(sheet).skills;
   }
 
+  /** Dice bonuses declared by any active script (status effect, skill, spell or worn item). */
+  getDerivedDiceBonuses(sheet: CharacterSheet): DerivedDiceBonus[] {
+    return this.getDerived(sheet).diceBonuses;
+  }
+
   /** Derived skills as usable SkillBlocks (read-only, effect-bound). Shared by all skill lists. */
   getDerivedSkillBlocks(sheet: CharacterSheet): SkillBlock[] {
     return this.getDerivedSkills(sheet).map(g => ({
@@ -185,8 +197,8 @@ export class TrueStatsService {
     const fp = this.effectFingerprint(sheet);
     const cached = this.derivedCache.get(sheet);
     if (cached && cached.fp === fp) return cached;
-    const { mods, skills } = this.collectEffectActive(sheet);
-    const entry: DerivedEntry = { fp, mods, skills };
+    const { mods, skills, diceBonuses } = this.collectEffectActive(sheet);
+    const entry: DerivedEntry = { fp, mods, skills, diceBonuses };
     this.derivedCache.set(sheet, entry);
     return entry;
   }
@@ -220,9 +232,12 @@ export class TrueStatsService {
     return s;
   }
 
-  private collectEffectActive(sheet: CharacterSheet): { mods: DerivedModifier[]; skills: DerivedGrantedSkill[] } {
+  private collectEffectActive(sheet: CharacterSheet): {
+    mods: DerivedModifier[]; skills: DerivedGrantedSkill[]; diceBonuses: DerivedDiceBonus[];
+  } {
     const mods: DerivedModifier[] = [];
     const skills: DerivedGrantedSkill[] = [];
+    const diceBonuses: DerivedDiceBonus[] = [];
     this.collectingEffectActive = true;
     try {
       for (const active of sheet.activeStatusEffects ?? []) {
@@ -242,6 +257,7 @@ export class TrueStatsService {
         const source = active.customName ?? effect?.name ?? active.statusEffectId;
         for (const m of res.modifiers) mods.push({ ...m, priority, source });
         for (const g of res.grantedSkills) skills.push({ ...g, source });
+        for (const d of res.diceBonuses) diceBonuses.push({ ...d, source });
       }
 
       // Skills/spells with an effectActive block contribute like a status effect (same collect run):
@@ -256,6 +272,7 @@ export class TrueStatsService {
         const res = runScript(src, ctx, { collect: true });
         for (const m of res.modifiers) mods.push({ ...m, priority: 0, source });
         for (const g of res.grantedSkills) skills.push({ ...g, source });
+        for (const d of res.diceBonuses) diceBonuses.push({ ...d, source });
       };
 
       const activeNames = sheet.activeSkillNames ?? [];
@@ -284,11 +301,12 @@ export class TrueStatsService {
         const res = runScript(src, ctx, { collect: true });
         for (const m of res.modifiers) mods.push({ ...m, priority: 0, source: item.name });
         for (const g of res.grantedSkills) skills.push({ ...g, source: item.name });
+        for (const d of res.diceBonuses) diceBonuses.push({ ...d, source: item.name });
       }
     } finally {
       this.collectingEffectActive = false;
     }
-    return { mods, skills };
+    return { mods, skills, diceBonuses };
   }
 
   /** Apply the derived modifiers for `target` (sorted by priority) on top of `base`. */

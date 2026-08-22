@@ -36,6 +36,9 @@ export interface ScriptGrantedSkill {
   manaCost: number; energyCost: number; lifeCost: number;
   script: string;
 }
+/** `diceBonus("Athletik", -3)` — a modifier the dice views list while the source is active. */
+export interface ScriptDiceBonus { name: string; value: number; }
+
 export interface ScriptStatusOp {
   op: 'apply' | 'remove';
   id: string;
@@ -60,6 +63,8 @@ export interface ScriptResult {
    */
   modifiers: ScriptModifier[];
   grantedSkills: ScriptGrantedSkill[];
+  /** Dice bonuses declared inside `effectActive` — collected, never "executed". */
+  diceBonuses: ScriptDiceBonus[];
   statusOps: ScriptStatusOp[];
   givenStatuses: ScriptGivenStatus[];
   errors: string[];
@@ -103,7 +108,7 @@ class ScriptError extends Error {}
 /** Compile then run. Refuses to run scripts with checker errors. */
 export function runScript(src: string, ctx: CharacterContext, opts: RunOptions = {}): ScriptResult {
   const result: ScriptResult = {
-    ok: false, displays: [], rolls: [], resourceChanges: [],
+    ok: false, displays: [], rolls: [], resourceChanges: [], diceBonuses: [],
     modifiers: [], grantedSkills: [], statusOps: [], givenStatuses: [], errors: [],
   };
   const compiled = compileScript(src);
@@ -448,6 +453,14 @@ class Interpreter {
           duration: args[2] ? toNum(this.evalExpr(args[2], frame)) : undefined,
         });
         return 0;
+      case 'diceBonus': {
+        // Only meaningful while collecting an effectActive block; a plain run has no "later" to
+        // apply it to.
+        const label = String(this.evalExpr(args[0], frame));
+        const value = toNum(this.evalExpr(args[1], frame));
+        this.result.diceBonuses.push({ name: label, value });
+        return 0;
+      }
       case 'counter':
         return this.ctx.readCounter?.(String(this.evalExpr(args[0], frame))) ?? 0;
       case 'removeStatus':

@@ -187,6 +187,17 @@ export class DiceRollerComponent implements OnInit, OnDestroy {
       });
     }
     
+    // Script-declared bonuses: `effectActive { diceBonus("Athletik", -3) }` on any active status
+    // effect, skill, spell or worn item. Derived on demand, so they vanish with their source.
+    for (const derived of this.trueStats.getDerivedDiceBonuses(this.sheet)) {
+      bonuses.push({
+        name: `${derived.source}: ${derived.name}`,
+        value: derived.value,
+        source: 'skill',
+        context: `von ${derived.source}`,
+      });
+    }
+
     return bonuses;
   });
 

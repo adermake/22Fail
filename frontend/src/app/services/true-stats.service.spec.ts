@@ -394,6 +394,49 @@ describe('TrueStatsService', () => {
     });
   });
 
+  // ── Script-declared dice bonuses ──────────────────────────────────────────
+
+  describe('diceBonus() in effectActive', () => {
+    it('is collected from a worn item and tagged with the item name', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [item({
+        name: 'Kletterhaken', itemType: 'other', armorType: 'extra',
+        script: 'effectActive { diceBonus("Klettern", -3) }',
+      })];
+      const bonuses = svc.getDerivedDiceBonuses(sheet);
+      expect(bonuses.length).toBe(1);
+      expect(bonuses[0]).toEqual({ name: 'Klettern', value: -3, source: 'Kletterhaken' });
+    });
+
+    it('is collected from an active status effect', () => {
+      const sheet = withEffect(makeSheet(), 'effectActive { diceBonus("Athletik", 2) }');
+      expect(svc.getDerivedDiceBonuses(sheet).map(b => b.value)).toEqual([2]);
+    });
+
+    it('is collected from a passive skill', () => {
+      const sheet = makeSheet();
+      sheet.skills = [skill({ name: 'Trittsicher', type: 'passive', script: 'effectActive { diceBonus("Balance", -1) }' })];
+      expect(svc.getDerivedDiceBonuses(sheet)[0].source).toBe('Trittsicher');
+    });
+
+    it('disappears with its source', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [item({
+        name: 'Haken', itemType: 'other', armorType: 'extra',
+        script: 'effectActive { diceBonus("Klettern", -3) }',
+      })];
+      expect(svc.getDerivedDiceBonuses(sheet).length).toBe(1);
+      sheet.equipment = [];
+      expect(svc.getDerivedDiceBonuses(sheet).length).toBe(0);
+    });
+
+    it('collects several bonuses from one script', () => {
+      const sheet = withEffect(makeSheet(),
+        'effectActive { diceBonus("Athletik", -2) diceBonus("Heimlichkeit", 3) }');
+      expect(svc.getDerivedDiceBonuses(sheet).map(b => b.name)).toEqual(['Athletik', 'Heimlichkeit']);
+    });
+  });
+
   // ── Talents ───────────────────────────────────────────────────────────────
 
   describe('talents', () => {

@@ -649,7 +649,18 @@
 }
 
 /* ── Rast dialog ───────────────────────────────────────────────────────────── */
-.rest-btn { position: relative; }
+/* Every sticky action button carries its own gradient; without one the white icon sat on white. */
+.action-btn.rest-btn {
+  position: relative;
+  background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+.action-btn.rest-btn:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+  border-color: white;
+}
 .rest-btn[data-count]::after {
   content: attr(data-count);
   position: absolute; top: -4px; right: -4px;

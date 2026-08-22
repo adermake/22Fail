@@ -82,7 +82,22 @@ export class TalentsComponent {
    * (negative = helps the roll). Hovering the cell lists every contributing source.
    */
   getEffectDice(talent: TalentDefinition): number {
-    return -(this.getSkillTalentBonus(talent.id) + this.getStatusTalentBonus(talent.id));
+    return -(this.getSkillTalentBonus(talent.id) + this.getStatusTalentBonus(talent.id))
+      + this.getScriptDiceBonus(talent);
+  }
+
+  /**
+   * `diceBonus("Athletik", -3)` from any active script (status effect, skill, spell or worn item)
+   * whose label matches this talent. Already written in the dice convention, so it is added as-is.
+   */
+  private scriptDiceEntries(talent: TalentDefinition) {
+    const wanted = talent.name.toLowerCase();
+    return this.trueStats.getDerivedDiceBonuses(this.sheet)
+      .filter(b => b.name.toLowerCase() === wanted);
+  }
+
+  getScriptDiceBonus(talent: TalentDefinition): number {
+    return this.scriptDiceEntries(talent).reduce((sum, b) => sum + b.value, 0);
   }
 
   /** Tooltip for the EFFEKT column: one line per source, each in the dice convention. */
@@ -95,19 +110,23 @@ export class TalentsComponent {
     for (const s of this.trueStats.getStatusTalentBonusSources(this.sheet, talent.id)) {
       lines.push(`${s.name} (Statuseffekt): ${fmt(-s.amount)}`);
     }
+    for (const b of this.scriptDiceEntries(talent)) {
+      lines.push(`${b.source} (Skript): ${fmt(b.value)}`);
+    }
     if (!lines.length) return 'Keine Effekte auf ' + talent.name;
     lines.push('─────', `Gesamt: ${fmt(this.getEffectDice(talent))}`);
     return lines.join('\n');
   }
 
-  /** Würfelbonus including invested ranks, skill bonuses and status effects. Negative = helpful. */
+  /** Würfelbonus incl. ranks, skill/status bonuses and script diceBonus(). Negative = helpful.
+   *  Keeps the row readable as a sum: Effekt + Mod − Punkte = Würfel. */
   getTotalDiceBonus(talent: TalentDefinition): number {
     return -(
       this.getStatModifier(talent) +
       this.getRank(talent.id) +
       this.getSkillTalentBonus(talent.id) +
       this.getStatusTalentBonus(talent.id)
-    );
+    ) + this.getScriptDiceBonus(talent);
   }
 
   /** Würfelbonus: negative = helpful. Each rank = -1 (base only, without skill bonuses). */

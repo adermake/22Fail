@@ -795,3 +795,10 @@
 .ie-script-hint { margin: 0 0 8px; font-size: 0.76rem; line-height: 1.5; color: var(--text-muted, #9ca3af); }
 .ie-script-hint code { background: rgba(255, 255, 255, 0.06); padding: 1px 5px; border-radius: 4px; }
 .ie-script-host { height: 300px; }
+
+/* Aktionscode sits above the two columns and spans the full width — it is the heart of an item. */
+.editor-column-script {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+.editor-column-script .ie-script-host { height: 260px; }
