@@ -166,7 +166,7 @@ export const BUILTINS: FnInfo[] = [
   { name: 'roll', signature: 'roll(dice) oder roll(count, sides)', description: 'Würfelt und liefert das Ergebnis', minArgs: 1, maxArgs: 2 },
   { name: 'loseResource', signature: 'loseResource(resource, amount)', description: 'Verliert dauerhaft Ressource (health/energy/mana/fokus)', minArgs: 2, maxArgs: 2, resourceFirstArg: true },
   { name: 'gainResource', signature: 'gainResource(resource, amount)', description: 'Gewinnt dauerhaft Ressource', minArgs: 2, maxArgs: 2, resourceFirstArg: true },
-  { name: 'applyStatus', signature: 'applyStatus(id, stacks?)', description: 'Wendet einen Status-Effekt an', minArgs: 1, maxArgs: 2 },
+  { name: 'applyStatus', signature: 'applyStatus(id, stacks?, dauer?)', description: 'Wendet einen Status-Effekt an — mit Stapeln und optionaler Dauer in Runden', minArgs: 1, maxArgs: 3 },
   { name: 'removeStatus', signature: 'removeStatus(id)', description: 'Entfernt einen Status-Effekt', minArgs: 1, maxArgs: 1 },
   { name: 'hasSkill', signature: 'hasSkill(name)', description: 'Ob eine Fähigkeit vorhanden ist (true/false)', minArgs: 1, maxArgs: 1 },
   { name: 'min', signature: 'min(a, b, …)', description: 'Kleinster Wert', minArgs: 1, maxArgs: 99 },

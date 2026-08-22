@@ -3,6 +3,9 @@ import { MacroAction } from '../model/macro-action.model';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { FormulaType } from '../model/formula-type.enum';
 import { TrueStatsService } from './true-stats.service';
+import { LibraryStoreService } from './library-store.service';
+import { ActiveStatusEffect, StatusEffect } from '../model/status-effect.model';
+import { applyStacking } from '../utils/status-stacking.utils';
 import { runScript } from '../scripting/interpreter';
 import { createPlayerContext } from '../scripting/character-context';
 import { macroActionToScript } from '../scripting/decompiler';
@@ -28,6 +31,7 @@ const RESOURCE_FORMULA: Record<string, FormulaType> = {
 @Injectable({ providedIn: 'root' })
 export class MacroExecutorService {
   private trueStats = inject(TrueStatsService);
+  private libraryStore = inject(LibraryStoreService);
 
   async executeMacro(
     macro: MacroAction,
@@ -57,6 +61,7 @@ export class MacroExecutorService {
     }
     for (const op of result.statusOps) {
       if (op.op === 'remove') this.removeStatusFromSheet(character, op.id);
+      else this.applyStatusToSheet(character, op.id, op.stacks ?? 1, op.duration);
     }
 
     const message = result.displays
@@ -79,6 +84,43 @@ export class MacroExecutorService {
     const max = this.trueStats.calculateResourceMax(character, ft);
     status.statusCurrent = this.trueStats.clampResourceCurrent(ft, (status.statusCurrent || 0) + amount, max);
     return true;
+  }
+
+  /**
+   * Apply a status effect to the sheet, stacking onto an existing instance the same way the lobby
+   * does. Until now only `removeStatus` reached the sheet, so `applyStatus` from a skill or a
+   * consumable's script silently did nothing outside the lobby.
+   */
+  private applyStatusToSheet(
+    character: CharacterSheet,
+    id: string,
+    stacks: number,
+    duration: number | undefined,
+  ): void {
+    const def = this.resolveLibraryEffect(id);
+    const incoming: ActiveStatusEffect = {
+      statusEffectId: id,
+      sourceLibraryId: '',
+      appliedAt: Date.now(),
+      stacks: Math.max(1, Math.floor(stacks) || 1),
+      duration: duration ?? def?.defaultDuration,
+      customName: def?.name,
+    };
+    const current = character.activeStatusEffects ?? [];
+    character.activeStatusEffects =
+      applyStacking<ActiveStatusEffect>(current, incoming, def?.maxStacks || 1).list;
+
+    const seen = new Set(character.seenStatusEffectIds ?? []);
+    seen.add(id);
+    character.seenStatusEffectIds = [...seen];
+  }
+
+  private resolveLibraryEffect(id: string): StatusEffect | undefined {
+    for (const lib of this.libraryStore.allLibraries) {
+      const found = lib.statusEffects?.find((se: StatusEffect) => se.id === id);
+      if (found) return found;
+    }
+    return undefined;
   }
 
   private removeStatusFromSheet(character: CharacterSheet, id: string): void {

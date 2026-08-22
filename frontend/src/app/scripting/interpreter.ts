@@ -36,7 +36,13 @@ export interface ScriptGrantedSkill {
   manaCost: number; energyCost: number; lifeCost: number;
   script: string;
 }
-export interface ScriptStatusOp { op: 'apply' | 'remove'; id: string; stacks?: number; }
+export interface ScriptStatusOp {
+  op: 'apply' | 'remove';
+  id: string;
+  stacks?: number;
+  /** Turns the effect should last — the DURATION half of the potion/status model. */
+  duration?: number;
+}
 /** A status effect created + applied on the fly via giveStatus(...) { …body… }. */
 export interface ScriptGivenStatus {
   name: string; description: string; stacks: number; duration?: number;
@@ -433,7 +439,12 @@ class Interpreter {
         return 0;
       }
       case 'applyStatus':
-        this.result.statusOps.push({ op: 'apply', id: String(this.evalExpr(args[0], frame)), stacks: args[1] ? toNum(this.evalExpr(args[1], frame)) : 1 });
+        this.result.statusOps.push({
+          op: 'apply',
+          id: String(this.evalExpr(args[0], frame)),
+          stacks: args[1] ? toNum(this.evalExpr(args[1], frame)) : 1,
+          duration: args[2] ? toNum(this.evalExpr(args[2], frame)) : undefined,
+        });
         return 0;
       case 'removeStatus':
         this.result.statusOps.push({ op: 'remove', id: String(this.evalExpr(args[0], frame)) });

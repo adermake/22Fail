@@ -363,6 +363,27 @@
           </div>
         </section>
 
+        <!-- Aktionscode: the effect on use, and what a Rast does with it afterwards -->
+        <section class="editor-section">
+          <h3>
+            Aktionscode
+            @if (editItem.itemType === 'consumable') {
+              <span class="ie-section-tag">Verbrauchsgegenstand</span>
+            }
+          </h3>
+          <p class="ie-script-hint">
+            L&auml;uft beim Benutzen des Gegenstands. Ein <code>onRest {{ '{' }} &hellip; {{ '}' }}</code>-Block
+            l&ouml;st stattdessen erst bei der n&auml;chsten <b>Rast</b> aus &mdash; f&uuml;r
+            Verbrauchsgegenst&auml;nde, solange sie in der Verbraucht-Liste liegen.
+          </p>
+          <div class="ie-script-host">
+            <app-script-editor
+              [value]="editItem.script || ''"
+              (valueChange)="editItem.script = $event">
+            </app-script-editor>
+          </div>
+        </section>
+
         <!-- Embedded Skills Section -->
         <section class="editor-section">
           <h3>Fähigkeiten</h3>

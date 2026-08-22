@@ -13,9 +13,9 @@ import { COIN_WEIGHT } from '../../model/currency-model';
 import { WorldSocketService } from '../../services/world-socket.service';
 import { NotificationService } from '../../services/notification.service';
 import { TrueStatsService } from '../../services/true-stats.service';
+import { ConsumptionService, isConsumable } from '../../services/consumption.service';
 import { CurrentEvent, ShopEvent, LootBundleEvent, formatCurrency } from '../../model/current-events.model';
 import { ActiveStatusEffect } from '../../model/status-effect.model';
-import { MacroExecutorService } from '../../services/macro-executor.service';
 
 @Component({
   selector: 'app-inventory',
@@ -48,8 +48,8 @@ export class InventoryComponent {
   private worldSocket = inject(WorldSocketService);
   private notification = inject(NotificationService);
   private trueStats = inject(TrueStatsService);
+  private consumption = inject(ConsumptionService);
   private elRef = inject(ElementRef);
-  private macroExecutor = inject(MacroExecutorService);
 
   Math = Math; // Expose Math to template
   formatCurrency = formatCurrency;
@@ -262,74 +262,56 @@ getCurrencyWeight(): number {
     this.patch.emit({ path: 'trash', value: trash });
   }
 
-  /** Apply potion effects to the sheet and consume one unit. */
-  usePotion(index: number): void {
+  /**
+   * Use up a consumable — potion or Verbrauchsgegenstand, same path. Effects apply immediately,
+   * the unit leaves the inventory and lands under Verbraucht for the next Rast.
+   * All of it lives in ConsumptionService so the two kinds cannot drift apart.
+   */
+  consumeItem(index: number): void {
     const item = this.sheet.inventory[index];
-    if (!item || item.itemType !== 'potion' || !item.potionEffects?.length) return;
+    if (!item || !isConsumable(item)) return;
 
-    let effects = [...(this.sheet.activeStatusEffects ?? [])];
-    const seen = new Set(this.sheet.seenStatusEffectIds ?? []);
+    const result = this.consumption.consume(this.sheet, item, index);
+    if (!result.consumed) return;
 
-    for (const pe of item.potionEffects) {
-      if (!pe.statusEffectId) continue;
-      seen.add(pe.statusEffectId);
-      const existingIdx = effects.findIndex(e => e.statusEffectId === pe.statusEffectId);
+    this.patch.emit({ path: 'statuses', value: this.sheet.statuses });
+    this.patch.emit({ path: 'activeStatusEffects', value: this.sheet.activeStatusEffects ?? [] });
+    this.patch.emit({ path: 'seenStatusEffectIds', value: this.sheet.seenStatusEffectIds ?? [] });
+    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+    this.patch.emit({ path: 'consumedItems', value: this.sheet.consumedItems ?? [] });
 
-      if (pe.mode === 'STACK') {
-        if (existingIdx >= 0) {
-          const existing = effects[existingIdx];
-          effects[existingIdx] = {
-            ...existing,
-            stacks: (existing.stacks || 1) + pe.amount,
-          };
-        } else {
-          const neu: ActiveStatusEffect = {
-            statusEffectId: pe.statusEffectId,
-            sourceLibraryId: pe.sourceLibraryId ?? '',
-            appliedAt: Date.now(),
-            stacks: pe.amount,
-            customName: pe.statusEffectName,
-          };
-          effects = [...effects, neu];
-        }
-      } else {
-        // DURATION
-        if (existingIdx >= 0) {
-          const existing = effects[existingIdx];
-          effects[existingIdx] = {
-            ...existing,
-            duration: (existing.duration ?? 0) + pe.amount,
-          };
-        } else {
-          const neu: ActiveStatusEffect = {
-            statusEffectId: pe.statusEffectId,
-            sourceLibraryId: pe.sourceLibraryId ?? '',
-            appliedAt: Date.now(),
-            stacks: 1,
-            duration: pe.amount,
-            customName: pe.statusEffectName,
-          };
-          effects = [...effects, neu];
-        }
-      }
-    }
+    this.editingItems.delete(index);
+    this.unfoldedItems.delete(index);
+    this.consumeFeedback = `${item.name}: ${result.message}`;
+    setTimeout(() => (this.consumeFeedback = ''), 4000);
+  }
 
-    this.patch.emit({ path: '/activeStatusEffects', value: effects });
-    this.patch.emit({ path: '/seenStatusEffectIds', value: Array.from(seen) });
+  /** Kept for the potion menu entry — drinking is just consuming. */
+  usePotion(index: number): void {
+    this.consumeItem(index);
+  }
 
-    const amt = item.amount ?? 1;
-    if (amt <= 1) {
-      // Consume without sending to trash
-      const newInv = [...this.sheet.inventory] as (ItemBlock | null)[];
-      newInv[index] = null;
-      while (newInv.length > 0 && newInv[newInv.length - 1] === null) newInv.pop();
-      this.sheet.inventory = newInv;
-      this.editingItems.delete(index);
-      this.unfoldedItems.delete(index);
-      this.patch.emit({ path: 'inventory', value: newInv });
+  /** Short-lived line under the inventory header after consuming something. */
+  consumeFeedback = '';
+
+  /** Copy an inventory item into the next free slot and open the editor on the copy. */
+  duplicateItem(index: number): void {
+    const source = this.sheet.inventory[index];
+    if (!source) return;
+    const copy = JSON.parse(JSON.stringify(source)) as ItemBlock;
+    copy.name = `${source.name} (Kopie)`;
+
+    const inventory = [...(this.sheet.inventory || [])];
+    let target = inventory.findIndex(slot => slot === null);
+    if (target === -1) {
+      inventory.push(copy);
+      target = inventory.length - 1;
     } else {
-      this.updateItem(index, { path: 'amount', value: amt - 1 });
+      inventory[target] = copy;
     }
+    this.sheet.inventory = inventory;
+    this.patch.emit({ path: 'inventory', value: inventory });
+    this.openItemEditor(target);
   }
 
   updateItem(index: number, patch: JsonPatch) {
@@ -590,62 +572,6 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
     this.editingItem = this.sheet.inventory[index];
     this.showItemEditor = true;
   }
-
-  /** Copy an inventory item into the next free slot and open the editor on the copy. */
-  duplicateItem(index: number) {
-    const source = this.sheet.inventory[index];
-    if (!source) return;
-    const copy = JSON.parse(JSON.stringify(source)) as ItemBlock;
-    copy.name = `${source.name} (Kopie)`;
-
-    const inventory = [...(this.sheet.inventory || [])];
-    let target = inventory.findIndex(slot => slot === null);
-    if (target === -1) {
-      inventory.push(copy);
-      target = inventory.length - 1;
-    } else {
-      inventory[target] = copy;
-    }
-    this.sheet.inventory = inventory;
-    this.patch.emit({ path: 'inventory', value: inventory });
-    this.openItemEditor(target);
-  }
-
-  /**
-   * Use up a Verbrauchsgegenstand: run its action script against the sheet, take one off the
-   * stack (or remove it), and park it in the Verbraucht queue until the next Rast.
-   */
-  consumeItem(index: number) {
-    const item = this.sheet.inventory[index];
-    if (!item || item.itemType !== 'consumable') return;
-
-    if (item.script) {
-      const result = this.macroExecutor.runScriptOnSheet(item.script, this.sheet);
-      this.patch.emit({ path: 'statuses', value: this.sheet.statuses });
-      this.patch.emit({ path: 'activeStatusEffects', value: this.sheet.activeStatusEffects ?? [] });
-      this.consumeFeedback = `${item.name}: ${result.message}`;
-      setTimeout(() => (this.consumeFeedback = ''), 4000);
-    }
-
-    // Stackables lose one unit; everything else leaves the inventory entirely.
-    const inventory = [...(this.sheet.inventory || [])];
-    const consumedUnit = { ...item, amount: 1 };
-    if (item.stackable && (item.amount ?? 1) > 1) {
-      inventory[index] = { ...item, amount: (item.amount ?? 1) - 1 };
-    } else {
-      inventory[index] = null;
-      while (inventory.length > 0 && inventory[inventory.length - 1] === null) inventory.pop();
-    }
-    this.sheet.inventory = inventory as typeof this.sheet.inventory;
-    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
-
-    const queue = [...(this.sheet.consumedItems ?? []), { item: consumedUnit, consumedAt: Date.now() }];
-    this.sheet.consumedItems = queue;
-    this.patch.emit({ path: 'consumedItems', value: queue });
-  }
-
-  /** Short-lived line under the inventory header after consuming something. */
-  consumeFeedback = '';
 
   // Create new item via full-screen editor
   openNewItemEditor() {

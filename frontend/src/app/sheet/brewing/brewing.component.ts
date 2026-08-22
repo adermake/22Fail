@@ -15,6 +15,7 @@ import {
   CraftAccessMode, PotionSlotAssignment, PotionEffectInstance, BrewingData,
   nextBrewCost, brewCountOf, effectOf, intensifiedAmount, newInstanceId, totalBrewBPSpent,
   BrewTrait, AppliedBrewTraitState, BrewedTraitRecord, brewTraitCost, formatBrewTraitEffect,
+  potionEffectsToScript,
 } from '../../model/brewing.model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
@@ -416,7 +417,10 @@ export class BrewingComponent implements OnInit {
     item.broken = false;
     item.isIdentified = true;
     item.requirements = {};
+    // The effects ARE the script now — potions run through the same consume path as every other
+    // Verbrauchsgegenstand. `potionEffects` stays for display and for older clients.
     item.potionEffects = effects;
+    item.script = potionEffectsToScript(effects);
     item.stackable = true;
     item.amount = 1;
 

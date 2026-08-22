@@ -13,13 +13,14 @@ import {
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { SkillBlock } from '../../model/skill-block.model';
 import { SpellBlock } from '../../model/spell-block-model';
+import { ScriptEditorComponent } from '../../scripting/script-editor/script-editor.component';
 import { SkillEditorComponent } from '../../shared/skill-editor/skill-editor.component';
 import { SpellEditorOverlayComponent } from '../spell-editor-overlay/spell-editor-overlay.component';
 
 @Component({
   selector: 'app-item-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, SkillEditorComponent, SpellEditorOverlayComponent],
+  imports: [CommonModule, FormsModule, SkillEditorComponent, SpellEditorOverlayComponent, ScriptEditorComponent],
   templateUrl: './item-editor.component.html',
   styleUrl: './item-editor.component.css',
 })

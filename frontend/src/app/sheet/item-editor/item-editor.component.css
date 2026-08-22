@@ -782,3 +782,14 @@
     gap: 0;
   }
 }
+
+/* Aktionscode section (FailScript, incl. the onRest block) */
+.ie-section-tag {
+  margin-left: 8px;
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 1px 7px; border-radius: 9px;
+  color: #fcd34d; background: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245, 158, 11, 0.4);
+}
+.ie-script-hint { margin: 0 0 8px; font-size: 0.76rem; line-height: 1.5; color: var(--text-muted, #9ca3af); }
+.ie-script-hint code { background: rgba(255, 255, 255, 0.06); padding: 1px 5px; border-radius: 4px; }
+.ie-script-host { height: 300px; }

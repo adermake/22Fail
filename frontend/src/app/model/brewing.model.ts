@@ -299,6 +299,21 @@ export function totalBrewBPSpent(
   return base * (count * (count - 1)) / 2;
 }
 
+/**
+ * Turn a brew's effects into the item's action script. A potion is just a Verbrauchsgegenstand
+ * whose script was written by the Braukessel instead of by hand — one system, one consume path.
+ * STACK → `applyStatus(id, stacks)`, DURATION → `applyStatus(id, 1, turns)`.
+ */
+export function potionEffectsToScript(effects: readonly PotionEffectInstance[]): string {
+  const quote = (raw: string) => JSON.stringify(String(raw));
+  const lines = effects
+    .filter(e => !!e.statusEffectId)
+    .map(e => e.mode === 'STACK'
+      ? `applyStatus(${quote(e.statusEffectId)}, ${Math.max(1, e.amount)})`
+      : `applyStatus(${quote(e.statusEffectId)}, 1, ${Math.max(1, e.amount)})`);
+  return lines.join('\n');
+}
+
 /** Final effect amount after N intensify clicks. */
 export function intensifiedAmount(baseAmount: number, brewCount: number): number {
   return baseAmount * Math.max(1, brewCount);

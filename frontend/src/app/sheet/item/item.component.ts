@@ -7,6 +7,7 @@ import { getEquipSlot } from '../../utils/equip-slot.utils';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { KeywordEnhancer } from '../keyword-enhancer';
+import { isConsumable } from '../../services/consumption.service';
 
 @Component({
   selector: 'app-item',
@@ -169,6 +170,11 @@ export class ItemComponent implements OnChanges {
   openEditorFromMenu() {
     this.showContextMenu = false;
     this.openEditor.emit();
+  }
+
+  /** Anything with effects to spend: potion, Verbrauchsgegenstand or a scripted item. */
+  get isConsumable(): boolean {
+    return isConsumable(this.item);
   }
 
   duplicateFromMenu() {
