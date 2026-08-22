@@ -7,6 +7,7 @@
  */
 
 import { CharacterSheet } from '../model/character-sheet-model';
+import { ItemBlock } from '../model/item-block.model';
 import { StatBlock } from '../model/stat-block.model';
 import { FormulaType } from '../model/formula-type.enum';
 import { TrueStatsService } from '../services/true-stats.service';
@@ -29,6 +30,8 @@ export interface ScriptRuntime {
   duration: number;
   effectStrength: number;
   rng?: () => number;
+  /** The item whose script is running — exposes its durability and counter bars. */
+  item?: ItemBlock;
 }
 
 export function createPlayerContext(
@@ -79,6 +82,10 @@ export function createPlayerContext(
     silver: () => sheet.currency?.silver ?? 0,
     gold: () => sheet.currency?.gold ?? 0,
     platinum: () => sheet.currency?.platinum ?? 0,
+    // Item scope — only meaningful while an item's own script runs
+    durability: () => runtime.item?.durability ?? 0,
+    maxDurability: () => runtime.item?.maxDurability ?? 0,
+    itemWeight: () => runtime.item?.weight ?? 0,
     // Runtime context of the current effect/execution
     stacks: () => runtime.stacks,
     turn: () => runtime.turn,
@@ -90,6 +97,13 @@ export function createPlayerContext(
     rng: runtime.rng ?? Math.random,
     inCombat: () => runtime.inCombat,
     readScalar: (name) => scalars[name]?.() ?? 0,
+    /** counter("Name") → the current value of that bar on the running item (0 when absent). */
+    readCounter: (name) => {
+      const counters = runtime.item?.counters ?? [];
+      const wanted = String(name).toLowerCase();
+      const hit = counters.find(c => c.name?.toLowerCase() === wanted || c.id === name);
+      return hit?.current ?? 0;
+    },
     readAttributeMember: (attr, prop) => {
       const key = ATTR_TO_STATKEY[attr];
       if (!key) return 0;

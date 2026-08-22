@@ -135,15 +135,16 @@
 
 .gg-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 2px; }
 
-.gg-piece {
-  padding: 9px 11px;
-  background: #0f1829;
-  border: 1px solid var(--border, #2d3748);
-  border-left: 3px solid #60a5fa;
-  border-radius: 9px;
-  display: flex; flex-direction: column; gap: 5px;
+/* The piece wrapper is only a frame — the item itself renders as the normal app-item card. */
+.gg-piece { display: flex; flex-direction: column; gap: 5px; }
+.gg-piece app-item { display: block; }
+
+/* Thin strip above the card: which slot, what went in, what it cost. */
+.gg-roll-strip {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 0 2px;
 }
-.gg-piece.mutated { border-left-color: #a78bfa; }
+.gg-piece.mutated .gg-piece-slot { color: #c4b5fd; background: rgba(139,92,246,0.14); border-color: rgba(139,92,246,0.4); }
 .gg-piece-hdr { display: flex; align-items: center; gap: 8px; }
 .gg-piece-slot {
   font-size: 0.64rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;

@@ -417,9 +417,8 @@ export class BrewingComponent implements OnInit {
     item.broken = false;
     item.isIdentified = true;
     item.requirements = {};
-    // The effects ARE the script now — potions run through the same consume path as every other
-    // Verbrauchsgegenstand. `potionEffects` stays for display and for older clients.
-    item.potionEffects = effects;
+    // The effects ARE the script: potions run through the same consume path as every other
+    // Verbrauchsgegenstand. The structured record lives on in `brewingData` for display/audit.
     item.script = potionEffectsToScript(effects);
     item.stackable = true;
     item.amount = 1;

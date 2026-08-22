@@ -1,9 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { ItemBlock } from '../model/item-block.model';
-import { PotionEffectInstance } from '../model/brewing.model';
-import { ActiveStatusEffect } from '../model/status-effect.model';
-import { applyStacking } from '../utils/status-stacking.utils';
 import { MacroExecutorService } from './macro-executor.service';
 
 /**
@@ -12,9 +9,8 @@ import { MacroExecutorService } from './macro-executor.service';
  *
  * Using an item:
  *  1. runs its `script` (immediate effects — that is what a potion is),
- *  2. or, for potions brewed before the merge, applies their stored `potionEffects`,
- *  3. takes one unit off the stack (or removes the item),
- *  4. parks the used unit in `sheet.consumedItems` so the next Rast can resolve its `onRest`.
+ *  2. takes one unit off the stack (or removes the item),
+ *  3. parks the used unit in `sheet.consumedItems` so the next Rast can resolve its `onRest`.
  */
 export interface ConsumeResult {
   ok: boolean;
@@ -27,10 +23,7 @@ export interface ConsumeResult {
 /** Both item types are consumed the same way; 'potion' is kept as its own type for icons/brewing. */
 export function isConsumable(item: ItemBlock | null | undefined): boolean {
   if (!item) return false;
-  return item.itemType === 'consumable'
-    || item.itemType === 'potion'
-    || !!item.script
-    || !!item.potionEffects?.length;
+  return item.itemType === 'consumable' || item.itemType === 'potion' || !!item.script;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -46,12 +39,7 @@ export class ConsumptionService {
 
     let message = 'Verbraucht';
     if (item.script) {
-      const result = this.macros.runScriptOnSheet(item.script, sheet);
-      message = result.message;
-    } else if (item.potionEffects?.length) {
-      // Legacy: potions brewed before brewing started emitting a script.
-      this.applyPotionEffects(sheet, item.potionEffects);
-      message = item.potionEffects.map(e => e.statusEffectName || e.statusEffectId).join(', ');
+      message = this.macros.runScriptOnSheet(item.script, sheet).message;
     }
 
     this.takeOneUnit(sheet, item, index);
@@ -71,33 +59,5 @@ export class ConsumptionService {
     }
     sheet.inventory = inventory as typeof sheet.inventory;
     sheet.consumedItems = [...(sheet.consumedItems ?? []), { item: usedUnit, consumedAt: Date.now() }];
-  }
-
-  /**
-   * Pre-merge potions: STACK adds stacks, DURATION extends the timer, both merging onto an
-   * existing instance of the same effect.
-   */
-  private applyPotionEffects(sheet: CharacterSheet, effects: readonly PotionEffectInstance[]): void {
-    let list = [...(sheet.activeStatusEffects ?? [])];
-    const seen = new Set(sheet.seenStatusEffectIds ?? []);
-
-    for (const effect of effects) {
-      if (!effect.statusEffectId) continue;
-      seen.add(effect.statusEffectId);
-      const incoming: ActiveStatusEffect = {
-        statusEffectId: effect.statusEffectId,
-        sourceLibraryId: effect.sourceLibraryId ?? '',
-        appliedAt: Date.now(),
-        stacks: effect.mode === 'STACK' ? effect.amount : 1,
-        duration: effect.mode === 'DURATION' ? effect.amount : undefined,
-        customName: effect.statusEffectName,
-      };
-      // STACK mode is stackable by definition; DURATION merges by extending the timer.
-      const cap = effect.mode === 'STACK' ? Number.MAX_SAFE_INTEGER : 1;
-      list = applyStacking<ActiveStatusEffect>(list, incoming, cap).list;
-    }
-
-    sheet.activeStatusEffects = list;
-    sheet.seenStatusEffectIds = [...seen];
   }
 }

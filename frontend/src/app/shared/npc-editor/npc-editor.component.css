@@ -266,3 +266,6 @@
   .npc-scroll { max-height: 340px; }
 }
 .npc-soul-growth { display: block; text-align: center; font-size: 0.6rem; color: #93c5fd; margin-top: 2px; }
+
+/* Value taken from the worn equipment (shown next to the Körper toggles) */
+.npc-from-gear { margin-left: auto; font-size: 0.7rem; font-weight: 700; color: #38bdf8; }

@@ -127,29 +127,15 @@
             }
             @for (piece of armorPieces; track piece.key) {
               <div class="gg-piece" [class.mutated]="piece.mutated">
-                <div class="gg-piece-hdr">
+                <div class="gg-roll-strip">
                   <span class="gg-piece-slot">{{ piece.label }}</span>
-                  <span class="gg-piece-name">{{ piece.item.name }}</span>
+                  <span class="gg-piece-mats">{{ materialLine(piece) }}</span>
                   @if (piece.mutated) { <span class="gg-badge gg-badge-mut">Mutation</span> }
                   <span class="gg-piece-sp">{{ piece.spent }}/{{ piece.budget }} SP</span>
                 </div>
-                <div class="gg-piece-stats">
-                  <span class="gg-stat" title="Stabilität">
-                    <span class="app-icon i-stability"></span>{{ piece.item.stability }}
-                  </span>
-                  <span class="gg-stat" title="Haltbarkeit">&#x2390; {{ piece.item.durability }}</span>
-                  <span class="gg-stat" title="Gewicht">{{ piece.item.weight }} kg</span>
-                  @if (piece.item.armorDebuff) {
-                    <span class="gg-stat gg-stat-bad" title="R&uuml;stungsmalus">&minus;{{ piece.item.armorDebuff }}</span>
-                  }
-                </div>
-                <div class="gg-piece-mats">{{ materialLine(piece) }}</div>
-                @if (piece.traitNames.length) {
-                  <div class="gg-piece-traits">{{ traitLine(piece) }}</div>
-                }
-                @if (piece.item.primaryEffect) {
-                  <div class="gg-piece-effect">{{ piece.item.primaryEffect }}</div>
-                }
+                <!-- The real item card, so a rolled piece reads exactly like one in the Ausrüstung tab -->
+                <app-item [item]="piece.item" [sheet]="previewSheet" [index]="$index"
+                          [startUnfolded]="true" [hideFoldControls]="true"></app-item>
               </div>
             }
           </div>
@@ -193,22 +179,12 @@
                 </div>
 
                 @if (piece) {
-                  <div class="gg-piece-stats">
-                    <span class="gg-stat" title="Effektivit&auml;t">
-                      <span class="app-icon i-effektivity"></span>{{ piece.item.efficiency }}
-                    </span>
-                    <span class="gg-stat" title="Haltbarkeit">&#x2390; {{ piece.item.durability }}</span>
-                    <span class="gg-stat" title="Gewicht">{{ piece.item.weight }} kg</span>
-                    @if (piece.item.damageType) { <span class="gg-stat">{{ piece.item.damageType }}</span> }
-                    @if (piece.item.range) { <span class="gg-stat">{{ piece.item.range }}</span> }
+                  <div class="gg-roll-strip">
+                    <span class="gg-piece-mats">{{ materialLine(piece) }}</span>
+                    @if (piece.mutated) { <span class="gg-badge gg-badge-mut">Mutation</span> }
                   </div>
-                  <div class="gg-piece-mats">{{ materialLine(piece) }}</div>
-                  @if (piece.traitNames.length) {
-                    <div class="gg-piece-traits">{{ traitLine(piece) }}</div>
-                  }
-                  @if (piece.item.primaryEffect) {
-                    <div class="gg-piece-effect">{{ piece.item.primaryEffect }}</div>
-                  }
+                  <app-item [item]="piece.item" [sheet]="previewSheet" [index]="$index"
+                            [startUnfolded]="true" [hideFoldControls]="true"></app-item>
                 } @else {
                   <p class="gg-empty">Kein passendes Waffenmaterial im Pool.</p>
                 }

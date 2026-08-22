@@ -134,21 +134,6 @@ export class ItemBlock {
   /** Links a resource/potion unit to its library recipe asset id (Material / Ingredient / Extractor). */
   libraryAssetId?: string;
 
-  /**
-   * Potion effects applied on use (right-click → Auf sich anwenden).
-   * Stored as plain data so inventory items stay JSON-serializable.
-   */
-  potionEffects?: {
-    slot: 'primary' | 'secondary' | 'tertiary';
-    statusEffectId: string;
-    statusEffectName?: string;
-    sourceLibraryId?: string;
-    mode: 'STACK' | 'DURATION';
-    amount: number;
-    ingredientName: string;
-    brewCount: number;
-  }[];
-
   /** Optional brew session snapshot embedded on finished potions. */
   brewingData?: unknown;
 

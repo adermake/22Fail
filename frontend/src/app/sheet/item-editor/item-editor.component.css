@@ -123,8 +123,10 @@
   box-sizing: border-box;
 }
 
-.form-group input.invalid,
-.form-group input:invalid:not(:placeholder-shown) {
+/* Only an explicit .invalid marks a field red. The old `:invalid:not(:placeholder-shown)` matched
+   every half-typed number — these inputs have no placeholder, so the guard never held — which is
+   why Wert (Gold) flashed red while typing. */
+.form-group input.invalid {
   border-color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
 }

@@ -8,6 +8,7 @@ import { createPlayerContext } from '../scripting/character-context';
 import { ModifierOp, runScript, ScriptGrantedSkill } from '../scripting/interpreter';
 import { SkillBlock } from '../model/skill-block.model';
 import { SpellBlock } from '../model/spell-block-model';
+import { isItemEquipped } from '../utils/equip-slot.utils';
 
 /** A modifier derived from an active effect's `effectActive` block, tagged for the pipeline. */
 export interface DerivedModifier {
@@ -210,6 +211,12 @@ export class TrueStatsService {
     for (const spell of sheet.spells ?? []) {
       if (spell.script && activeSpells.includes(spell.name)) s += `|SP:${spell.name}#${spell.script}`;
     }
+    // Equipped items carry scripts too — swapping or losing gear must recompute.
+    for (const item of sheet.equipment ?? []) {
+      if (item?.script && isItemEquipped(item)) {
+        s += `|IT:${item.name}#${item.durability ?? ''}#${item.script}`;
+      }
+    }
     return s;
   }
 
@@ -262,6 +269,21 @@ export class TrueStatsService {
       );
       for (const spell of sheet.spells ?? []) {
         if (spell.script && activeSpells.has(spell.name)) runCollect(spell.script, spell.name);
+      }
+
+      // Items apply while actually worn: weapon in the weapon slot, armour in an armour slot,
+      // anything else in Extra. The item itself is in scope, so its script can read
+      // `durability` and `counter("…")`.
+      for (const item of sheet.equipment ?? []) {
+        if (!item?.script || !isItemEquipped(item)) continue;
+        const src = item.script;
+        if (!src.includes('effectActive') && !src.includes('untilNextTurn')) continue;
+        const ctx = createPlayerContext(sheet, this, {
+          inCombat: true, stacks: 1, turn: 0, duration: 0, effectStrength: 0, item,
+        });
+        const res = runScript(src, ctx, { collect: true });
+        for (const m of res.modifiers) mods.push({ ...m, priority: 0, source: item.name });
+        for (const g of res.grantedSkills) skills.push({ ...g, source: item.name });
       }
     } finally {
       this.collectingEffectActive = false;

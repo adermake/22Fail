@@ -107,6 +107,9 @@ export const SYMBOLS: SymbolInfo[] = [
   { name: 'fokusMax', category: 'resource', type: 'number', description: 'Maximaler Fokus' },
 
   // Derived values
+  { name: 'durability', category: 'derived', type: 'number', description: 'Haltbarkeit des Gegenstands (nur im Item-Skript)' },
+  { name: 'maxDurability', category: 'derived', type: 'number', description: 'Maximale Haltbarkeit des Gegenstands (nur im Item-Skript)' },
+  { name: 'itemWeight', category: 'derived', type: 'number', description: 'Gewicht des Gegenstands (nur im Item-Skript)' },
   { name: 'movement', category: 'derived', type: 'number', description: 'Bewegung in Hex-Schritten', assignable: true, modifierTarget: 'bewegung' },
   { name: 'movespeed', category: 'derived', type: 'number', description: 'Alias für movement (Bewegung in Hex-Schritten)', assignable: true, modifierTarget: 'bewegung' },
   { name: 'grundbonus', category: 'derived', type: 'number', description: 'Grundbonus', assignable: true, modifierTarget: 'grundbonus' },
@@ -166,6 +169,7 @@ export const BUILTINS: FnInfo[] = [
   { name: 'roll', signature: 'roll(dice) oder roll(count, sides)', description: 'Würfelt und liefert das Ergebnis', minArgs: 1, maxArgs: 2 },
   { name: 'loseResource', signature: 'loseResource(resource, amount)', description: 'Verliert dauerhaft Ressource (health/energy/mana/fokus)', minArgs: 2, maxArgs: 2, resourceFirstArg: true },
   { name: 'gainResource', signature: 'gainResource(resource, amount)', description: 'Gewinnt dauerhaft Ressource', minArgs: 2, maxArgs: 2, resourceFirstArg: true },
+  { name: 'counter', signature: 'counter(name)', description: 'Wert einer Zähler-Leiste des Gegenstands, dessen Skript läuft', minArgs: 1, maxArgs: 1 },
   { name: 'applyStatus', signature: 'applyStatus(id, stacks?, dauer?)', description: 'Wendet einen Status-Effekt an — mit Stapeln und optionaler Dauer in Runden', minArgs: 1, maxArgs: 3 },
   { name: 'removeStatus', signature: 'removeStatus(id)', description: 'Entfernt einen Status-Effekt', minArgs: 1, maxArgs: 1 },
   { name: 'hasSkill', signature: 'hasSkill(name)', description: 'Ob eine Fähigkeit vorhanden ist (true/false)', minArgs: 1, maxArgs: 1 },

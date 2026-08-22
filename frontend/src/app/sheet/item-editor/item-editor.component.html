@@ -57,6 +57,14 @@
             </label>
           </div>
 
+          <div class="form-group toggle-group">
+            <label class="toggle-label">
+              <input type="checkbox" [(ngModel)]="editItem.lost">
+              <span class="toggle-text">Verloren</span>
+              <span class="toggle-hint">Z&auml;hlt nicht mehr zu Werten, Gewicht oder Skripten</span>
+            </label>
+          </div>
+
           <div class="form-group">
             <label>Beschreibung</label>
             <textarea [(ngModel)]="editItem.description" rows="4" placeholder="Beschreibung..."></textarea>
@@ -192,7 +200,13 @@
           </div>
         </section>
 
-        <!-- Requirements Section -->
+      </div>
+
+      <!-- Right Column: Advanced Features -->
+      <div class="editor-column">
+        <!-- Attributmodifikatoren are gone: an item's effect is written as a script now
+             (effectActive applies while the item is worn). Stat requirements take this spot. -->
+        <!-- Requirements — top right, where the modifiers used to be -->
         <section class="editor-section">
           <h3>Anforderungen</h3>
           
@@ -220,53 +234,6 @@
             <div class="req-item">
               <label>WIL</label>
               <input type="number" [(ngModel)]="editItem.requirements!.chill" min="0">
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <!-- Right Column: Advanced Features -->
-      <div class="editor-column">
-        <!-- Stat Modifiers Section -->
-        <section class="editor-section">
-          <h3>Attributmodifikatoren</h3>
-          
-          <div class="stat-modifiers-grid">
-            <div class="stat-mod-item">
-              <label>Stärke</label>
-              <input type="number" [(ngModel)]="statModifiers['strength']">
-            </div>
-            <div class="stat-mod-item">
-              <label>Geschick</label>
-              <input type="number" [(ngModel)]="statModifiers['dexterity']">
-            </div>
-            <div class="stat-mod-item">
-              <label>Tempo</label>
-              <input type="number" [(ngModel)]="statModifiers['speed']">
-            </div>
-            <div class="stat-mod-item">
-              <label>Intelligenz</label>
-              <input type="number" [(ngModel)]="statModifiers['intelligence']">
-            </div>
-            <div class="stat-mod-item">
-              <label>Kondition</label>
-              <input type="number" [(ngModel)]="statModifiers['constitution']">
-            </div>
-            <div class="stat-mod-item">
-              <label>Ausstrahlung</label>
-              <input type="number" [(ngModel)]="statModifiers['chill']">
-            </div>
-            <div class="stat-mod-item">
-              <label>Mana</label>
-              <input type="number" [(ngModel)]="statModifiers['mana']">
-            </div>
-            <div class="stat-mod-item">
-              <label>Leben</label>
-              <input type="number" [(ngModel)]="statModifiers['life']">
-            </div>
-            <div class="stat-mod-item">
-              <label>Energie</label>
-              <input type="number" [(ngModel)]="statModifiers['energy']">
             </div>
           </div>
         </section>
@@ -476,12 +443,6 @@
 
     <!-- Footer -->
     <div class="editor-footer">
-      <div class="toggle-row">
-        <label class="toggle-label">
-          <input type="checkbox" [(ngModel)]="editItem.lost">
-          <span>Verloren</span>
-        </label>
-      </div>
       <div class="footer-buttons">
         @if (!isNewItem) {
           <button class="delete-btn" (click)="deleteItem()">Löschen</button>

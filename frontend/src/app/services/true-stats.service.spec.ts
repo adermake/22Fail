@@ -310,6 +310,90 @@ describe('TrueStatsService', () => {
     });
   });
 
+  // ── Equipped item scripts ─────────────────────────────────────────────────
+
+  describe('item scripts (effectActive while worn)', () => {
+    const buffSword = (extra: Partial<ItemBlock> = {}) => item({
+      name: 'Klinge der Stärke', itemType: 'weapon', armorType: 'weapon',
+      script: 'effectActive { strength += 4 }', ...extra,
+    });
+
+    it('applies while the weapon sits in the weapon slot', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [buffSword()];
+      expect(svc.calculateStrength(sheet)).toBe(14);
+    });
+
+    it('does NOT apply while the weapon is stowed in Extra', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [buffSword({ armorType: 'extra' })];
+      expect(svc.calculateStrength(sheet)).toBe(10);
+    });
+
+    it('does NOT apply when the item is lost', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [buffSword({ lost: true })];
+      expect(svc.calculateStrength(sheet)).toBe(10);
+    });
+
+    it('applies for armour worn in an armour slot', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [item({
+        name: 'Panzer', itemType: 'armor', armorType: 'chestplate',
+        script: 'effectActive { constitution += 3 }',
+      })];
+      expect(svc.calculateConstitution(sheet)).toBe(13);
+    });
+
+    it('applies for a "Sonstiges" item in the Extra slot', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [item({
+        name: 'Talisman', itemType: 'other', armorType: 'extra',
+        script: 'effectActive { speed += 2 }',
+      })];
+      expect(svc.calculateSpeed(sheet)).toBe(12);
+    });
+
+    it('stops applying the moment the item is unequipped', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [buffSword()];
+      expect(svc.calculateStrength(sheet)).toBe(14);
+      sheet.equipment = [];
+      expect(svc.calculateStrength(sheet)).toBe(10);
+    });
+
+    it('can set a derived stat from an item, like any other effect', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [item({
+        name: 'Stiefel der Eile', itemType: 'armor', armorType: 'boots',
+        script: 'effectActive { movespeed = 30 }',
+      })];
+      expect(svc.calculateMovementSpeed(sheet)).toBe(30);
+    });
+
+    it('reads the running item durability and counter bars', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [item({
+        name: 'Ladungsstab', itemType: 'other', armorType: 'extra',
+        durability: 7, maxDurability: 10,
+        counters: [{ id: 'c1', name: 'Ladungen', min: 0, max: 5, current: 3, color: '#fff' }],
+        script: 'effectActive { intelligence += counter("Ladungen") strength += durability }',
+      })];
+      expect(svc.calculateIntelligence(sheet)).toBe(13);
+      expect(svc.calculateStrength(sheet)).toBe(17);
+    });
+
+    it('grants a skill from an equipped item', () => {
+      const sheet = makeSheet();
+      sheet.equipment = [item({
+        name: 'Flammenklinge', itemType: 'weapon', armorType: 'weapon',
+        script: 'effectActive { grantSkill("Flammenstoß", "Speit Feuer") { } }',
+      })];
+      const derived = svc.getDerivedSkillBlocks(sheet);
+      expect(derived.map(d => d.name)).toEqual(['Flammenstoß']);
+    });
+  });
+
   // ── Talents ───────────────────────────────────────────────────────────────
 
   describe('talents', () => {

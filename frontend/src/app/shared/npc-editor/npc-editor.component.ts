@@ -88,6 +88,30 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
   /** Same 2×3 arrangement as the character sheet: STR/KON/SPD then GES/INT/WIL. */
   readonly statGrid: NpcStatKey[] = ['strength', 'constitution', 'speed', 'dexterity', 'intelligence', 'wille'];
 
+  /** Stabilität the worn armour actually provides: Σ stability ÷ 5, same rule as the sheet. */
+  get equipmentStability(): number {
+    const sum = (this.draft?.equipment ?? [])
+      .filter(i => i && !i.lost)
+      .reduce((acc, i) => acc + (i.stability ?? 0), 0);
+    return Math.floor(sum / 5);
+  }
+
+  /** Effizienz of the wielded weapon(s) — the best one, mirroring the lobby's default. */
+  get equipmentEfficiency(): number {
+    const weapons = (this.draft?.equipment ?? [])
+      .filter(i => i && !i.lost && i.itemType === 'weapon' && i.efficiency !== undefined);
+    return weapons.length ? Math.max(...weapons.map(w => w.efficiency!)) : 0;
+  }
+
+  /** What the Körper card should SHOW for these two, given the "use equipment" toggles. */
+  get shownStabilitaet(): number {
+    return this.draft?.body?.useArmorStabilitaet ? this.equipmentStability : (this.draft?.body?.stabilitaet ?? 0);
+  }
+
+  get shownEffizienz(): number {
+    return this.draft?.body?.useWeaponEffizienz ? this.equipmentEfficiency : (this.draft?.body?.effizienz ?? 0);
+  }
+
   /** Würfelmodifikator = ⌊(10 − stat) / 4⌋ (same as players: negative helps, positive hurts). */
   rollBonus(k: NpcStatKey): number {
     return Math.trunc((10 - this.effective[k]) / 4);

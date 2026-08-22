@@ -10,8 +10,8 @@ import { PotionEffectInstance, potionEffectsToScript } from '../model/brewing.mo
 import { FormulaType } from '../model/formula-type.enum';
 
 /**
- * Potions and Verbrauchsgegenstände run through ONE path. These tests pin that down, including the
- * legacy shape (potions brewed before brewing emitted a script), which must keep working.
+ * Potions and Verbrauchsgegenstände run through ONE path: brewing writes the script, the item
+ * editor writes it by hand, and consuming is identical for both.
  */
 
 function sheet(): CharacterSheet {
@@ -69,7 +69,7 @@ describe('ConsumptionService', () => {
   });
 
   it('recognises potions, consumables and scripted items alike', () => {
-    expect(isConsumable(item({ itemType: 'potion', potionEffects: [STACK_EFFECT] }))).toBe(true);
+    expect(isConsumable(item({ itemType: 'potion', script: 'applyStatus("fx_kraft", 6)' }))).toBe(true);
     expect(isConsumable(item({ itemType: 'consumable' }))).toBe(true);
     expect(isConsumable(item({ itemType: 'other', script: 'gainResource(health, 1)' }))).toBe(true);
     expect(isConsumable(item({ itemType: 'weapon' }))).toBe(false);
@@ -83,9 +83,9 @@ describe('ConsumptionService', () => {
     expect(s.statuses.find(x => x.formulaType === FormulaType.LIFE)!.statusCurrent).toBe(57);
   });
 
-  it('applies a legacy potion through its stored potionEffects', () => {
+  it('applies a brewed potion script: stacks and duration land on the sheet', () => {
     const s = sheet();
-    s.inventory = [item({ potionEffects: [STACK_EFFECT, DURATION_EFFECT] })];
+    s.inventory = [item({ script: potionEffectsToScript([STACK_EFFECT, DURATION_EFFECT]) })];
     svc.consume(s, s.inventory[0]!, 0);
 
     const kraft = s.activeStatusEffects.find(e => e.statusEffectId === 'fx_kraft');
@@ -93,14 +93,6 @@ describe('ConsumptionService', () => {
     expect(kraft?.stacks).toBe(6);
     expect(benommen?.duration).toBe(3);
     expect(s.seenStatusEffectIds).toContain('fx_kraft');
-  });
-
-  it('prefers the script when an item has both (script is authoritative)', () => {
-    const s = sheet();
-    s.inventory = [item({ script: 'gainResource(health, 7)', potionEffects: [STACK_EFFECT] })];
-    svc.consume(s, s.inventory[0]!, 0);
-    expect(s.statuses.find(x => x.formulaType === FormulaType.LIFE)!.statusCurrent).toBe(57);
-    expect(s.activeStatusEffects.length).toBe(0);
   });
 
   it('takes one unit off a stack and leaves the rest', () => {
@@ -128,7 +120,7 @@ describe('ConsumptionService', () => {
 
   it('refuses items that are not consumable', () => {
     const s = sheet();
-    s.inventory = [item({ itemType: 'weapon', potionEffects: undefined })];
+    s.inventory = [item({ itemType: 'weapon' })];
     const result = svc.consume(s, s.inventory[0]!, 0);
     expect(result.consumed).toBe(false);
     expect(s.inventory.length).toBe(1);
@@ -153,16 +145,5 @@ describe('ConsumptionService', () => {
     expect(outcome.fired.map(f => f.name)).toEqual(['Rauschtrank']);
     expect(life()).toBe(53);           // the hangover
     expect(s.consumedItems).toEqual([]);
-  });
-
-  it('a legacy potion still lands in the queue and is cleared by a Rast', () => {
-    const s = sheet();
-    s.inventory = [item({ name: 'Alter Trank', potionEffects: [STACK_EFFECT] })];
-    svc.consume(s, s.inventory[0]!, 0);
-    expect(s.consumedItems?.length).toBe(1);
-
-    const outcome = rest.performRest(s);
-    expect(outcome.fired).toEqual([]);   // no onRest block
-    expect(outcome.clearedItems).toBe(1);
   });
 });

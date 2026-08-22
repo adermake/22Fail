@@ -12,6 +12,8 @@ import {
   WEAPON_STAT_KEYS, WeaponStatKey,
 } from '../../model/forging.model';
 import { ItemBlock } from '../../model/item-block.model';
+import { CharacterSheet } from '../../model/character-sheet-model';
+import { ItemComponent } from '../../sheet/item/item.component';
 import {
   DEFAULT_GEAR_SETTINGS, GearGenSettings, GeneratedPiece, WeaponRequest,
   defaultBudgetForLevel, generateArmorSet, generateWeapons,
@@ -33,7 +35,7 @@ const POOL_STORAGE_KEY = 'gear-generator-pools';
 @Component({
   selector: 'app-gear-generator',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ItemComponent],
   templateUrl: './gear-generator.component.html',
   styleUrl: './gear-generator.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -65,6 +67,17 @@ export class GearGeneratorComponent implements OnInit {
   materialFilter = '';
   poolName = '';
   savedPools: SavedPool[] = [];
+
+  /** Stub sheet so app-item renders like anywhere else; stats are high so no false red badges. */
+  readonly previewSheet = (() => {
+    const stat = () => ({ current: 999, base: 999, bonus: 0, free: 0, gain: 0 });
+    return {
+      statuses: [], skills: [], equipment: [], inventory: [],
+      primary_class: '', secondary_class: '', level: 1,
+      strength: stat(), dexterity: stat(), speed: stat(),
+      intelligence: stat(), constitution: stat(), chill: stat(),
+    } as unknown as CharacterSheet;
+  })();
 
   readonly weaponTypes = WEAPON_TYPES;
   readonly weaponCategories: WeaponCategory[] = ['LEICHT', 'FERNKAMPF', 'SCHWER'];

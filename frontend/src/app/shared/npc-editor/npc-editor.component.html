@@ -79,20 +79,39 @@
         <section class="npc-card">
           <div class="npc-card-head"><span class="npc-card-title">Körper</span></div>
           <div class="npc-body-grid npc-body-grid-2">
+            <!-- With the toggle on, show what the equipment actually provides instead of a dead field. -->
             <label class="npc-field" title="Stabilität">
               <i class="ico ico-stability"></i>
-              <input type="number" [(ngModel)]="draft.body!.stabilitaet" [disabled]="draft.body!.useArmorStabilitaet"></label>
+              @if (draft.body!.useArmorStabilitaet) {
+                <input type="number" [ngModel]="equipmentStability" disabled
+                       title="Aus der Rüstung: Summe Stabilität ÷ 5">
+              } @else {
+                <input type="number" [(ngModel)]="draft.body!.stabilitaet">
+              }
+            </label>
             <label class="npc-field" title="Effizienz">
               <i class="ico ico-effektivity"></i>
-              <input type="number" [(ngModel)]="draft.body!.effizienz" [disabled]="draft.body!.useWeaponEffizienz"></label>
+              @if (draft.body!.useWeaponEffizienz) {
+                <input type="number" [ngModel]="equipmentEfficiency" disabled
+                       title="Aus der geführten Waffe">
+              } @else {
+                <input type="number" [(ngModel)]="draft.body!.effizienz">
+              }
+            </label>
           </div>
           <label class="npc-check" title="Nutzt die Stabilität der ausgerüsteten Rüstung statt des festen Werts">
             <input type="checkbox" [(ngModel)]="draft.body!.useArmorStabilitaet">
             <span>Rüstungs-Stabilität verwenden</span>
+            @if (draft.body!.useArmorStabilitaet) {
+              <span class="npc-from-gear">aus Ausrüstung: {{ equipmentStability }}</span>
+            }
           </label>
           <label class="npc-check" title="Nutzt die Effizienz der ausgerüsteten Waffe statt des festen Werts">
             <input type="checkbox" [(ngModel)]="draft.body!.useWeaponEffizienz">
             <span>Waffen-Effizienz verwenden</span>
+            @if (draft.body!.useWeaponEffizienz) {
+              <span class="npc-from-gear">aus Ausrüstung: {{ equipmentEfficiency }}</span>
+            }
           </label>
 
           <div class="npc-modblock">

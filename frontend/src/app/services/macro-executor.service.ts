@@ -106,9 +106,11 @@ export class MacroExecutorService {
       duration: duration ?? def?.defaultDuration,
       customName: def?.name,
     };
+    // Cap: the definition decides when we know it. For an effect the library has not (yet) loaded,
+    // honour what the script asked for instead of silently clamping every application to one stack.
+    const cap = def?.maxStacks || Math.max(1, incoming.stacks ?? 1);
     const current = character.activeStatusEffects ?? [];
-    character.activeStatusEffects =
-      applyStacking<ActiveStatusEffect>(current, incoming, def?.maxStacks || 1).list;
+    character.activeStatusEffects = applyStacking<ActiveStatusEffect>(current, incoming, cap).list;
 
     const seen = new Set(character.seenStatusEffectIds ?? []);
     seen.add(id);

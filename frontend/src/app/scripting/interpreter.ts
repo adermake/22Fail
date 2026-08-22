@@ -89,6 +89,8 @@ function opFromAssign(op: AssignOp): ModifierOp {
 /** Read-side of a character, resolved by the host (player→TrueStatsService, NPC→statblock). */
 export interface CharacterContext {
   readScalar(name: string): number | string;
+  /** Value of a counter bar on the item whose script is running. */
+  readCounter?(name: string): number;
   readAttributeMember(attr: string, prop: string): number;
   readTalent(id: string): number;
   hasSkill(name: string): boolean;
@@ -446,6 +448,8 @@ class Interpreter {
           duration: args[2] ? toNum(this.evalExpr(args[2], frame)) : undefined,
         });
         return 0;
+      case 'counter':
+        return this.ctx.readCounter?.(String(this.evalExpr(args[0], frame))) ?? 0;
       case 'removeStatus':
         this.result.statusOps.push({ op: 'remove', id: String(this.evalExpr(args[0], frame)) });
         return 0;
