@@ -180,7 +180,7 @@
 .c-num    { width: 50px; text-align: center; }
 .c-rarity { width: 80px; text-align: center; }
 .c-eff    { width: 130px; min-width: 100px; }
-.c-del    { width: 30px; text-align: center; }
+.c-del    { width: 92px; text-align: center; white-space: nowrap; }
 
 /* Rarity select styling */
 .mt-rarity-sel {
@@ -263,3 +263,25 @@
   transition: color 0.1s, background 0.1s;
 }
 .mt-del-btn:hover { color: #f87171; background: rgba(248,113,113,0.12); }
+
+/* Wissensstufe column + jump-to-editor button */
+.c-tier { width: 122px; }
+.mt-select {
+  width: 100%; box-sizing: border-box;
+  padding: 3px 6px;
+  background: #0f1829;
+  border: 1px solid var(--border, #2d3748);
+  border-radius: 5px;
+  color: var(--text, #e5e7eb);
+  font-size: 0.76rem; cursor: pointer;
+}
+.mt-select:focus { outline: none; border-color: var(--accent, #8b5cf6); }
+.mt-jump {
+  padding: 3px 9px; margin-right: 4px;
+  background: transparent;
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 5px;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.72rem; cursor: pointer;
+}
+.mt-jump:hover { color: var(--text, #e5e7eb); border-color: var(--accent, #8b5cf6); }

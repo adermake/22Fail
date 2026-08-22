@@ -58,7 +58,7 @@
 
             <!-- Hover dropdown: jump straight to any section of that page -->
             @if (openMenu() === p.id && outlineOf(p.id).length) {
-              <div class="rb-menu">
+              <div class="rb-menu" (mouseenter)="onTabEnter(p.id)">
                 @for (entry of outlineOf(p.id); track entry.id) {
                   <button class="rb-menu-item" [attr.data-level]="entry.level"
                           (click)="jumpFromMenu(p.id, entry.id)">

@@ -7,6 +7,7 @@ import { InventoryComponent } from '../inventory/inventory.component';
 import { ActionMacro } from '../../model/action-macro.model';
 import { ForgingComponent } from '../forging/forging.component';
 import { BrewingComponent } from '../brewing/brewing.component';
+import { CookingComponent } from '../cooking/cooking.component';
 import { WissenComponent } from '../wissen/wissen.component';
 import { SpellsComponent } from '../spells/spells.component';
 import { SkillsComponent } from '../skills/skills.component';
@@ -23,6 +24,7 @@ import { migrateSpellSummonsToCompanions } from '../../model/companion-block.mod
     InventoryComponent,
     ForgingComponent,
     BrewingComponent,
+    CookingComponent,
     WissenComponent,
     SpellsComponent,
     SkillsComponent,
@@ -51,6 +53,7 @@ export class CharacterTabsComponent implements OnInit {
   activeTab: 'inventory' | 'resources' | 'spells' | 'wissen' | 'skills' | 'companions' | 'consumed' = 'inventory';
   showForgingOverlay = false;
   showBrewingOverlay = false;
+  showCookingOverlay = false;
 
   ngOnInit(): void {
     // One-time move of legacy in-spell summons into the Begleiter list; the rune keeps a reference.
@@ -82,6 +85,9 @@ export class CharacterTabsComponent implements OnInit {
   closeBrewingOverlay(): void {
     this.showBrewingOverlay = false;
   }
+
+  openCookingOverlay(): void { this.showCookingOverlay = true; }
+  closeCookingOverlay(): void { this.showCookingOverlay = false; }
 
   onRuneEditingChange(data: {index: number, isEditing: boolean}) {
     this.runeEditingChange.emit(data);

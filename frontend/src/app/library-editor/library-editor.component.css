@@ -1333,3 +1333,10 @@
   font-size: 12px;
   color: #999;
 }
+
+/* Table buttons fade in with the asset kinds present in the open folder */
+.table-btn-fade { animation: table-btn-in 0.18s ease-out; }
+@keyframes table-btn-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: none; }
+}

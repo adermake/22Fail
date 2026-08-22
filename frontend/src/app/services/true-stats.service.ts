@@ -6,6 +6,7 @@ import { StatusEffect, StatusModifierTarget } from '../model/status-effect.model
 import { FormulaType } from '../model/formula-type.enum';
 import { createPlayerContext } from '../scripting/character-context';
 import { ModifierOp, runScript, ScriptDiceBonus, ScriptGrantedSkill } from '../scripting/interpreter';
+import { hashSeed } from '../scripting/dice';
 import { SkillBlock } from '../model/skill-block.model';
 import { SpellBlock } from '../model/spell-block-model';
 import { isItemEquipped } from '../utils/equip-slot.utils';
@@ -210,7 +211,7 @@ export class TrueStatsService {
     let s = `V${this.cacheVersion}L${sheet.level ?? 1}`;
     for (const e of sheet.activeStatusEffects ?? []) {
       const eff = this.resolveStatusEffect(e.statusEffectId, e.customEffect);
-      s += `|${e.statusEffectId}:${e.stacks ?? 1}:${e.duration ?? ''}#${eff?.priority ?? 0}#${eff?.script ?? ''}`;
+      s += `|${e.statusEffectId}@${e.appliedAt ?? 0}:${e.stacks ?? 1}:${e.duration ?? ''}#${eff?.priority ?? 0}#${eff?.script ?? ''}`;
     }
     // Skills/spells that feed effectActive also change the derived result — toggling one must recompute.
     const activeNames = sheet.activeSkillNames ?? [];
@@ -251,6 +252,8 @@ export class TrueStatsService {
           duration: active.duration ?? 0,
           effectStrength: effect?.strength ?? 0,
           rng: Math.random,
+          // One seed per instance: dice inside effectActive roll once, when the effect landed.
+          seed: hashSeed(`${active.statusEffectId}@${active.appliedAt ?? 0}`),
         });
         const res = runScript(src, ctx, { collect: true });
         const priority = effect?.priority ?? 0;
@@ -268,6 +271,9 @@ export class TrueStatsService {
         if (!src.includes('effectActive') && !src.includes('untilNextTurn')) return;
         const ctx = createPlayerContext(sheet, this, {
           inCombat: true, stacks: 1, turn: 0, duration: 0, effectStrength: 0, rng: Math.random,
+          // Skills and spells have no "applied at" — seed by name, so their roll is at least
+          // stable and differs per source.
+          seed: hashSeed(source),
         });
         const res = runScript(src, ctx, { collect: true });
         for (const m of res.modifiers) mods.push({ ...m, priority: 0, source });
@@ -297,6 +303,7 @@ export class TrueStatsService {
         if (!src.includes('effectActive') && !src.includes('untilNextTurn')) continue;
         const ctx = createPlayerContext(sheet, this, {
           inCombat: true, stacks: 1, turn: 0, duration: 0, effectStrength: 0, item,
+          seed: hashSeed(item.id || item.name),
         });
         const res = runScript(src, ctx, { collect: true });
         for (const m of res.modifiers) mods.push({ ...m, priority: 0, source: item.name });

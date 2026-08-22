@@ -347,7 +347,12 @@
                     @if (isFolderOpen('item', fol.path)) {
                       <div class="npc-tree-skills">
                         @for (f of fol.files; track f.id) {
-                          <button class="npc-tree-skill" (click)="addItemFromLibrary(f)"><span>＋ {{ f.name }}</span></button>
+                          <button class="npc-tree-skill" (click)="addItemFromLibrary(f)">
+                            <span>＋ {{ f.name }}</span>
+                            @if (itemValue(f); as gold) {
+                              <span class="npc-item-value" title="Goldwert">{{ gold }} G</span>
+                            }
+                          </button>
                         }
                       </div>
                     }

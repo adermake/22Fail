@@ -204,6 +204,12 @@ export class NpcEditorComponent implements OnInit, OnDestroy {
     document.body.style.overflow = 'hidden';
   }
 
+  /** Gold value of a library item, for the browser list. 0/undefined shows nothing. */
+  itemValue(file: AssetFile): number {
+    const value = (file.data as ItemBlock | undefined)?.value;
+    return typeof value === 'number' && value > 0 ? value : 0;
+  }
+
   // ─── Library folder grouping ────────────────────────────────────────────────
   private groupByFolder(files: AssetFile[]): LibFolder[] {
     const map = new Map<string, AssetFile[]>();

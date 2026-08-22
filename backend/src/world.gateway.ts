@@ -174,6 +174,74 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  // ── Gemeinsamer Beutel (shared party stash) ──────────────────────────────
+  // The stash is server-authoritative on purpose. Two players grabbing the same item at the
+  // same moment must not both get it, and an item must never vanish because two clients wrote
+  // the whole array at once — so clients never patch `partyStash` directly. They ask, the
+  // server decides, and everyone (the asker included) learns the result from one broadcast.
+
+  private readStash(worldName: string): { world: any; stash: any[] } | null {
+    const worldJson = this.dataService.getWorld(worldName);
+    if (!worldJson) return null;
+    const world = JSON.parse(worldJson);
+    return { world, stash: Array.isArray(world.partyStash) ? world.partyStash : [] };
+  }
+
+  private commitStash(worldName: string, stash: any[]): void {
+    this.dataService.applyPatchToWorld(worldName, { path: 'partyStash', value: stash });
+    this.server.to(worldName).emit('worldPatched', { path: 'partyStash', value: stash });
+  }
+
+  /** Put an item in. Idempotent: re-sending the same entryId (a retry) never duplicates it. */
+  @SubscribeMessage('partyStashDeposit')
+  handleStashDeposit(
+    @MessageBody() data: { worldName: string; entry: any },
+  ): { ok: boolean; stash: any[]; reason?: string } {
+    const { worldName, entry } = data ?? ({} as any);
+    if (!worldName || !entry?.entryId) return { ok: false, stash: [], reason: 'bad-request' };
+
+    const read = this.readStash(worldName);
+    if (!read) return { ok: false, stash: [], reason: 'no-world' };
+
+    if (read.stash.some((e: any) => e.entryId === entry.entryId)) {
+      return { ok: true, stash: read.stash };
+    }
+    const stash = [...read.stash, entry];
+    this.commitStash(worldName, stash);
+    return { ok: true, stash };
+  }
+
+  /**
+   * Take an item out. The item is returned ONLY to the client whose request actually removed
+   * it; everyone else gets `ok: false` and keeps nothing. That is the whole anti-duplication
+   * rule — the taker adds it to their sheet only after this ack says it was theirs to take.
+   */
+  @SubscribeMessage('partyStashWithdraw')
+  handleStashWithdraw(
+    @MessageBody() data: { worldName: string; entryId: string },
+  ): { ok: boolean; entry?: any; stash: any[]; reason?: string } {
+    const { worldName, entryId } = data ?? ({} as any);
+    if (!worldName || !entryId) return { ok: false, stash: [], reason: 'bad-request' };
+
+    const read = this.readStash(worldName);
+    if (!read) return { ok: false, stash: [], reason: 'no-world' };
+
+    const idx = read.stash.findIndex((e: any) => e.entryId === entryId);
+    if (idx < 0) return { ok: false, stash: read.stash, reason: 'gone' };
+
+    const entry = read.stash[idx];
+    const stash = read.stash.filter((_: any, i: number) => i !== idx);
+    this.commitStash(worldName, stash);
+    return { ok: true, entry, stash };
+  }
+
+  /** Current contents — used when a sheet opens, before any change has been broadcast. */
+  @SubscribeMessage('partyStashRead')
+  handleStashRead(@MessageBody() data: { worldName: string }): { ok: boolean; stash: any[] } {
+    const read = data?.worldName ? this.readStash(data.worldName) : null;
+    return { ok: !!read, stash: read?.stash ?? [] };
+  }
+
   // Handle dice roll events - broadcast to all players in the world
   @SubscribeMessage('diceRoll')
   handleDiceRoll(

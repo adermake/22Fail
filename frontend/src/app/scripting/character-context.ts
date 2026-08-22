@@ -30,6 +30,8 @@ export interface ScriptRuntime {
   duration: number;
   effectStrength: number;
   rng?: () => number;
+  /** Seeds dice inside `effectActive` — one seed per effect instance, fixed when it was applied. */
+  seed?: number;
   /** The item whose script is running — exposes its durability and counter bars. */
   item?: ItemBlock;
 }
@@ -95,6 +97,7 @@ export function createPlayerContext(
 
   return {
     rng: runtime.rng ?? Math.random,
+    seed: runtime.seed,
     inCombat: () => runtime.inCombat,
     readScalar: (name) => scalars[name]?.() ?? 0,
     /** counter("Name") → the current value of that bar on the running item (0 when absent). */

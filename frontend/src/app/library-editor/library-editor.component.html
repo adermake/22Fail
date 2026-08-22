@@ -132,16 +132,27 @@
           </nav>
         </div>
         <div class="toolbar-right">
-          <!-- Rune Table Button -->
-          <button class="rune-table-btn" (click)="showRuneTable.set(true)"
-                  title="Alle Runen in Tabellenansicht bearbeiten">
-            ✨ Rune-Tabelle
-          </button>
-          <!-- Material Table Button -->
-          <button class="rune-table-btn material-table-btn" (click)="showMaterialTable.set(true)"
-                  title="Alle Materialien in Tabellenansicht bearbeiten">
-            ⚙️ Material-Tabelle
-          </button>
+          <!-- Table buttons appear only for the asset kinds this folder actually holds. -->
+          @if (hasType('rune')) {
+            <button class="rune-table-btn table-btn-fade" (click)="showRuneTable.set(true)"
+                    title="Alle Runen in Tabellenansicht bearbeiten">
+              Runen-Tabelle
+            </button>
+          }
+          @if (hasType('material')) {
+            <button class="rune-table-btn material-table-btn table-btn-fade" (click)="showMaterialTable.set(true)"
+                    title="Alle Materialien in Tabellenansicht bearbeiten">
+              Material-Tabelle
+            </button>
+          }
+          @for (t of craftTables; track t.type) {
+            @if (hasType(t.type)) {
+              <button class="rune-table-btn table-btn-fade" (click)="openCraftTable.set(t.type)"
+                      [title]="'Alle ' + t.label + ' in Tabellenansicht bearbeiten'">
+                {{ t.label }}-Tabelle
+              </button>
+            }
+          }
 
           <!-- Create Button -->
           <div class="create-dropdown">
@@ -866,6 +877,7 @@
     [libraryId]="libraryId()"
     [folderId]="currentFolderId()"
     (close)="showRuneTable.set(false)"
+    (openFile)="openEditor($event)"
     (filesChanged)="loadFolderContents(); loadDependencyItems()">
   </app-rune-table>
 }
@@ -876,8 +888,21 @@
     [libraryId]="libraryId()"
     [folderId]="currentFolderId()"
     (close)="showMaterialTable.set(false)"
+    (openFile)="openEditor($event)"
     (filesChanged)="loadFolderContents(); loadDependencyItems()">
   </app-material-table>
+}
+
+<!-- Craft asset tables: Merkmale, Wirkstoffe, Extraktoren, Braumerkmale -->
+@if (openCraftTable(); as craftType) {
+  <app-craft-table
+    [libraryId]="libraryId()"
+    [folderId]="currentFolderId()"
+    [type]="craftType"
+    (close)="openCraftTable.set(null)"
+    (openFile)="openEditor($event)"
+    (filesChanged)="loadFolderContents(); loadDependencyItems()">
+  </app-craft-table>
 }
 
 <!-- Folder Tree Node Template -->

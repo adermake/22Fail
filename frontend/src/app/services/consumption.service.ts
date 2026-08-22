@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { CharacterSheet } from '../model/character-sheet-model';
 import { ItemBlock } from '../model/item-block.model';
 import { MacroExecutorService } from './macro-executor.service';
+import { hasRestBlock } from '../scripting/interpreter';
 
 /**
  * ONE path for using something up — potions and Verbrauchsgegenstände are the same thing with
@@ -10,7 +11,9 @@ import { MacroExecutorService } from './macro-executor.service';
  * Using an item:
  *  1. runs its `script` (immediate effects — that is what a potion is),
  *  2. takes one unit off the stack (or removes the item),
- *  3. parks the used unit in `sheet.consumedItems` so the next Rast can resolve its `onRest`.
+ *  3. parks the used unit in `sheet.consumedItems` — but ONLY when its script actually has an
+ *     `onRest { … }` block. A potion that is done the moment it is drunk has nothing left for the
+ *     Rast to resolve, so it never shows up under Verbraucht.
  */
 export interface ConsumeResult {
   ok: boolean;
@@ -18,6 +21,8 @@ export interface ConsumeResult {
   message: string;
   /** The item was recognised as consumable at all. */
   consumed: boolean;
+  /** The used unit was parked under Verbraucht (it has an onRest block). */
+  queued: boolean;
 }
 
 /** Both item types are consumed the same way; 'potion' is kept as its own type for icons/brewing. */
@@ -35,19 +40,26 @@ export class ConsumptionService {
    * persists (inventory, statuses, activeStatusEffects, consumedItems).
    */
   consume(sheet: CharacterSheet, item: ItemBlock, index: number): ConsumeResult {
-    if (!isConsumable(item)) return { ok: false, message: 'Nicht verbrauchbar', consumed: false };
+    if (!isConsumable(item)) {
+      return { ok: false, message: 'Nicht verbrauchbar', consumed: false, queued: false };
+    }
 
     let message = 'Verbraucht';
     if (item.script) {
       message = this.macros.runScriptOnSheet(item.script, sheet).message;
     }
 
-    this.takeOneUnit(sheet, item, index);
-    return { ok: true, message, consumed: true };
+    const queued = this.takeOneUnit(sheet, item, index);
+    return { ok: true, message, consumed: true, queued };
   }
 
-  /** Remove one unit from the inventory and remember it under Verbraucht. */
-  private takeOneUnit(sheet: CharacterSheet, item: ItemBlock, index: number): void {
+  /** Does anything of this item survive being used — i.e. is there an onRest block to resolve? */
+  outlastsUse(item: ItemBlock | null | undefined): boolean {
+    return hasRestBlock(item?.script ?? '');
+  }
+
+  /** Remove one unit from the inventory; remember it under Verbraucht only if it has an onRest. */
+  private takeOneUnit(sheet: CharacterSheet, item: ItemBlock, index: number): boolean {
     const inventory = [...(sheet.inventory ?? [])];
     const usedUnit: ItemBlock = { ...item, amount: 1 };
 
@@ -58,6 +70,9 @@ export class ConsumptionService {
       while (inventory.length > 0 && inventory[inventory.length - 1] === null) inventory.pop();
     }
     sheet.inventory = inventory as typeof sheet.inventory;
+
+    if (!this.outlastsUse(item)) return false;
     sheet.consumedItems = [...(sheet.consumedItems ?? []), { item: usedUnit, consumedAt: Date.now() }];
+    return true;
   }
 }

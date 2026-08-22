@@ -14,6 +14,9 @@ import { WorldSocketService } from '../../services/world-socket.service';
 import { NotificationService } from '../../services/notification.service';
 import { TrueStatsService } from '../../services/true-stats.service';
 import { ConsumptionService, isConsumable } from '../../services/consumption.service';
+import { MacroExecutorService } from '../../services/macro-executor.service';
+import { PartyStashService } from '../../services/party-stash.service';
+import { PartyStashEntry } from '../../model/world.model';
 import { CurrentEvent, ShopEvent, LootBundleEvent, formatCurrency } from '../../model/current-events.model';
 import { ActiveStatusEffect } from '../../model/status-effect.model';
 
@@ -44,11 +47,14 @@ export class InventoryComponent {
   @Output() openForge = new EventEmitter<void>();
   /** Requests parent to open the brewing overlay */
   @Output() openBrew = new EventEmitter<void>();
+  @Output() openCook = new EventEmitter<void>();
   
   private worldSocket = inject(WorldSocketService);
   private notification = inject(NotificationService);
   private trueStats = inject(TrueStatsService);
   private consumption = inject(ConsumptionService);
+  private macroExecutor = inject(MacroExecutorService);
+  private partyStash = inject(PartyStashService);
   private elRef = inject(ElementRef);
 
   Math = Math; // Expose Math to template
@@ -107,14 +113,12 @@ export class InventoryComponent {
       .sort((a, b) => a.row - b.row);
   }
 
-  // Connected drop lists - only connect to equipment if it exists
+  // Connected drop lists - equipment slots plus the shared party bag
   get connectedDropLists(): string[] {
-    // Try to connect to equipment slots, but handle if they don't exist
-    try {
-      return ['helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot', 'weaponSlot', 'extraSlot'];
-    } catch {
-      return [];
-    }
+    return [
+      'helmetSlot', 'chestplateSlot', 'armschienenSlot', 'leggingsSlot', 'bootsSlot',
+      'weaponSlot', 'extraSlot', 'partyStashList',
+    ];
   }
 
   ngOnInit() {
@@ -286,6 +290,24 @@ getCurrencyWeight(): number {
     setTimeout(() => (this.consumeFeedback = ''), 4000);
   }
 
+  /**
+   * Fire one named `onTrigger` block of an item's script by hand (right-click → the trigger's
+   * name). Nothing is used up: a trigger is an action the item offers, not a consumption.
+   */
+  runItemTrigger(index: number, trigger: string): void {
+    const item = this.sheet.inventory[index];
+    if (!item?.script) return;
+
+    const result = this.macroExecutor.runScriptOnSheet(item.script, this.sheet, { trigger });
+
+    this.patch.emit({ path: 'statuses', value: this.sheet.statuses });
+    this.patch.emit({ path: 'activeStatusEffects', value: this.sheet.activeStatusEffects ?? [] });
+    this.patch.emit({ path: 'seenStatusEffectIds', value: this.sheet.seenStatusEffectIds ?? [] });
+
+    this.consumeFeedback = `${item.name} · ${trigger}: ${result.message}`;
+    setTimeout(() => (this.consumeFeedback = ''), 4000);
+  }
+
   /** Kept for the potion menu entry — drinking is just consuming. */
   usePotion(index: number): void {
     this.consumeItem(index);
@@ -415,6 +437,14 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
 
   this.crossContainerDropHandled = true;
 
+  // Coming out of the shared party bag: the server decides whether we actually get it, so this
+  // goes through the stash service and lands in the sheet only once it acks.
+  if (event.previousContainer.id === 'partyStashList') {
+    const entry = event.item.data as PartyStashEntry | null;
+    if (entry?.entryId) void this.takeFromPartyStash(entry, this.dropTargetSlotIdx ?? event.currentIndex);
+    return;
+  }
+
   // Equipment → inventory cross-container drop
   const rawItem = event.previousContainer.data[event.previousIndex];
   if (!rawItem) return; // null-safe guard (equipment data should never be null)
@@ -454,6 +484,26 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
   this.activeTabPerRow.clear();
   this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
 }
+
+  /** Pull one entry out of the shared bag into a specific slot (drag target). */
+  private async takeFromPartyStash(entry: PartyStashEntry, targetSlot: number): Promise<void> {
+    const item = await this.partyStash.withdraw(entry.entryId);
+    if (!item) return; // someone else got it — nothing changes here
+
+    const newInv = [...(this.sheet.inventory || [])] as (ItemBlock | null)[];
+    const slot = Math.max(0, targetSlot);
+    if (newInv[slot]) {
+      const free = newInv.findIndex(s => s === null || s === undefined);
+      if (free >= 0) newInv[free] = item;
+      else newInv.push(item);
+    } else {
+      while (newInv.length <= slot) newInv.push(null);
+      newInv[slot] = item;
+    }
+    while (newInv.length > 0 && newInv[newInv.length - 1] === null) newInv.pop();
+    this.sheet.inventory = newInv as typeof this.sheet.inventory;
+    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+  }
 
   onEditingChange(index: number, isEditing: boolean) {
     const newSet = new Set(this.editingItems);

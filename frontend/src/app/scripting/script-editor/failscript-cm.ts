@@ -143,6 +143,74 @@ function argChoiceOptions(call: { name: string; argIndex: number }) {
   return null;
 }
 
+// ── Status effects known to the app ──
+// Scripts reference status effects by ID (`applyStatus("fx_a3f9…")`), which nobody can guess or
+// remember. The app fills this registry from the loaded libraries so the editor can offer the
+// effects by NAME and insert the ID.
+
+export interface StatusEffectChoice {
+  id: string;
+  name: string;
+  icon?: string;
+  description?: string;
+  library?: string;
+}
+
+let statusEffectChoices: StatusEffectChoice[] = [];
+
+/** Publish the status effects the editor should offer (called by the script editor component). */
+export function setStatusEffectChoices(choices: StatusEffectChoice[]): void {
+  statusEffectChoices = choices;
+}
+
+export function getStatusEffectChoices(): StatusEffectChoice[] {
+  return statusEffectChoices;
+}
+
+/** The functions whose FIRST argument is a status effect ID. */
+const STATUS_ID_CALLS = new Set(['applyStatus', 'removeStatus']);
+
+/**
+ * Completion for `applyStatus("…")` / `removeStatus("…")`: list the library's effects by name and
+ * insert the quoted ID. Handles being invoked inside the quotes as well as before them, so the
+ * replacement never ends up as `""fx_x""`.
+ */
+function statusIdCompletions(
+  call: { name: string; argIndex: number },
+  context: CompletionContext,
+  textBefore: string,
+): CompletionResult | null {
+  if (!STATUS_ID_CALLS.has(call.name) || call.argIndex !== 0) return null;
+  if (!statusEffectChoices.length) return null;
+
+  // Inside a string literal? Then replace the whole literal, opening quote included.
+  const inString = /"([^"]*)$/.exec(textBefore);
+  const word = context.matchBefore(/[A-Za-z_]\w*/);
+  const typed = (inString ? inString[1] : word?.text ?? '').toLowerCase();
+  const from = inString
+    ? context.pos - inString[1].length - 1
+    : (word ? word.from : context.pos);
+
+  const options = statusEffectChoices
+    .filter(c => !typed || c.name.toLowerCase().includes(typed) || c.id.toLowerCase().includes(typed))
+    .slice(0, 200)
+    .map(c => ({
+      label: c.icon ? `${c.icon} ${c.name}` : c.name,
+      type: 'enum',
+      detail: c.library ? `${c.library}` : 'Statuseffekt',
+      info: c.description ? `${c.description}
+
+ID: ${c.id}` : `ID: ${c.id}`,
+      apply: `"${c.id}"`,
+      boost: 90,
+    }));
+
+  if (!options.length) return null;
+  // filter:false — we matched on the effect NAME above; CodeMirror would re-filter against the
+  // raw text (which may start with a quote) and throw everything away.
+  return { from, to: context.pos, options, filter: false };
+}
+
 function localVarNames(doc: string): string[] {
   const names = new Set<string>();
   const re = /\bvar\s+([A-Za-z_]\w*)/g;
@@ -155,6 +223,11 @@ function completions(context: CompletionContext): CompletionResult | null {
   const before = context.matchBefore(/[A-Za-z_][\w.]*/);
   const textBefore = context.state.doc.sliceString(0, context.pos);
   const call = enclosingCall(textBefore);
+
+  // Status effect IDs come first: they are the one argument nobody can type from memory.
+  const statusOptions = call ? statusIdCompletions(call, context, textBefore) : null;
+  if (statusOptions) return statusOptions;
+
   const argChoices = call ? argChoiceOptions(call) : null;
 
   // Inside an argument that expects a fixed keyword set (resource / style): offer ONLY
@@ -288,7 +361,7 @@ const autoOpenArgChoices = EditorView.updateListener.of(update => {
   if (!trigger) return;
   const pos = update.state.selection.main.head;
   const call = enclosingCall(update.state.doc.sliceString(0, pos));
-  if (call && argChoiceOptions(call)) {
+  if (call && (argChoiceOptions(call) || (STATUS_ID_CALLS.has(call.name) && call.argIndex === 0))) {
     setTimeout(() => startCompletion(update.view), 0);
   }
 });

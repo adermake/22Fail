@@ -64,6 +64,7 @@ import { CharacterSheet, createEmptySheet } from '../model/character-sheet-model
 import { ImageUrlPipe } from '../shared/image-url.pipe';
 import { RuneTableComponent } from './rune-table/rune-table.component';
 import { MaterialTableComponent } from './material-table/material-table.component';
+import { CraftTableComponent, CraftTableType, CRAFT_TABLE_LABELS } from './craft-table/craft-table.component';
 import {
   createEmptyIngredientBlock, createEmptyExtractorBlock,
 } from '../model/brewing.model';
@@ -101,6 +102,7 @@ import {
     IngredientEditorComponent,
     ExtractorEditorComponent,
     MaterialTableComponent,
+    CraftTableComponent,
     WeaponGeneratorComponent,
     NpcEditorComponent,
   ],
@@ -159,6 +161,22 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   editingType = signal<AssetType | null>(null);
   showRuneTable = signal(false);
   showMaterialTable = signal(false);
+  /** Which craft-asset table is open ('forge-trait' | 'ingredient' | 'extractor' | 'brew-trait'). */
+  openCraftTable = signal<CraftTableType | null>(null);
+
+  /** Asset kinds present in the folder being viewed — the table buttons fade in from this. */
+  private folderTypes = computed(() => new Set(this.files().map(f => f.type)));
+
+  /** Show a table button only when the current folder actually holds that kind of asset. */
+  hasType(type: string): boolean { return this.folderTypes().has(type as never); }
+
+  /** Table buttons for the craft assets, in a stable order. */
+  readonly craftTables: { type: CraftTableType; label: string }[] = [
+    { type: 'forge-trait', label: CRAFT_TABLE_LABELS['forge-trait'] },
+    { type: 'ingredient',  label: CRAFT_TABLE_LABELS['ingredient'] },
+    { type: 'extractor',   label: CRAFT_TABLE_LABELS['extractor'] },
+    { type: 'brew-trait',  label: CRAFT_TABLE_LABELS['brew-trait'] },
+  ];
   showWeaponGenerator = signal(false);
 
   // Library settings state

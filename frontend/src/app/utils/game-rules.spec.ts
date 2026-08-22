@@ -11,6 +11,7 @@ import {
   knowledgeTierOf, setKnowledgeTier, isKnowledgeVisible, isKnowledgeUsable,
 } from './knowledge-tier.util';
 import { spentTalentPoints, legacyTalentPointCostForTier } from './skill-tree-rules.util';
+import { FORGE_BASE_COST, nextForgeCost, totalForgeSPSpent } from '../model/forging.model';
 
 /**
  * Rules that live in pure functions: the Fähigkeitenbaum economy, race normalisation and the
@@ -252,5 +253,31 @@ describe('Fähigkeitspunkt-Buchhaltung', () => {
 
   it('counts an infinite skill once per instance', () => {
     expect(spentTalentPoints(['neu', 'neu', 'neu'], { neu: 2 }, byId)).toBe(6);
+  });
+});
+
+describe('Schmiedekosten', () => {
+  it('starts at 3 SP per forge', () => {
+    expect(FORGE_BASE_COST).toBe(3);
+    expect(nextForgeCost(0)).toBe(3);
+  });
+
+  it('climbs by one per forge', () => {
+    expect([0, 1, 2, 3].map(nextForgeCost)).toEqual([3, 4, 5, 6]);
+  });
+
+  it('totals the costs already paid', () => {
+    expect(totalForgeSPSpent(0)).toBe(0);
+    expect(totalForgeSPSpent(1)).toBe(3);
+    expect(totalForgeSPSpent(2)).toBe(7);
+    expect(totalForgeSPSpent(3)).toBe(12);
+  });
+
+  it('agrees with summing the per-forge costs', () => {
+    for (let n = 0; n <= 8; n++) {
+      let sum = 0;
+      for (let i = 0; i < n; i++) sum += nextForgeCost(i);
+      expect(totalForgeSPSpent(n)).toBe(sum);
+    }
   });
 });

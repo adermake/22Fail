@@ -123,13 +123,14 @@ Einen Gegner anzugreifen, bevor er den Angreifer bemerkt, gilt als Überraschung
 - Fernkampfwaffen und -magie können keine Gelegenheitsangriffe ausführen und erhalten Nachteil, wenn sie einen Nahkämpfer in deren Reichweite angreifen
 - Geworfene Nahkampfwaffen fügen auf gleiche Weise reduzierten Schaden zu und erhalten einen +1 Malus, erhöht um 1 für alle 5 Meter, die die Waffe geworfen wird.	
 - Werfbare Fernkampfwaffen erhalten auch die Schadenreduktion, aber keinen Würfelmalus
+- Manche Fernkampfwaffen müssen erst geladen oder gespannt werden, was je nach Waffenart eine Aktion oder Bonusaktion kostet
 :::
 :::section{title="Statuseffekte" icon=status_effect id="status-attacks"}
 Bestimmte Waffen oder Angriffsweisen können [Statuseffekte](status) auslösen. Normale Angriffe können aber ebenfalls bestimmte Statuseffekte auslösen, wenn der Spieler seinen Angriff explizit dafür nutzt. Die Erfolgschance und der Schaden von solch einem Angriff wird aber reduziert, kann aber je nach Situation stark variieren.
 :::
 :::section{title="Flair" icon=flair id="flair"}
 Kreative oder unterhaltsame Angriffe, die zum Charakter und zur Situation passen, können zusätzliche Boni oder Mali erhalten.
-Je unkonventioneller, desto besser.
+Es können auch besonders riskante Angriffe angekündigt werden, die bei Erfolg effektiver sind als normale Angriffe, aber bei einem Fehlschlag verheerende Folgen haben können. Gegenteilig können auch schwächere Angriffe angekündigt werden, die dafür weniger Risiko bieten.
 :::
 
 :::section{title="Rüstungsmalus" icon=equipment id=ruestungsmalus}

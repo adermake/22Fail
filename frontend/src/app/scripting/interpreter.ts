@@ -9,7 +9,7 @@ import {
   AssignOp, Block, Expr, Program, REST_TRIGGER, Stmt,
 } from './ast';
 import { compileScript } from './checker';
-import { rollDice } from './dice';
+import { rollDice, seededRng } from './dice';
 import { ACTION_TYPE_MAP, RESOURCE_NAMES, SYMBOL_MAP } from './symbols';
 
 export type ScriptValue = number | string | boolean;
@@ -101,6 +101,12 @@ export interface CharacterContext {
   hasSkill(name: string): boolean;
   inCombat(): boolean;
   rng?: () => number;
+  /**
+   * Seed for dice inside `effectActive`. Set once per effect INSTANCE (when it is applied), so a
+   * block that rolls keeps the same result for as long as the effect lasts instead of flickering
+   * on every stat read. Without a seed, collected dice fall back to their average.
+   */
+  seed?: number;
 }
 
 class ScriptError extends Error {}
@@ -170,11 +176,15 @@ class Interpreter {
    *    built-ins are no-ops and dice are deterministic; only `effectActive` blocks do work,
    *    yielding stat modifiers + granted skills.
    */
+  /** Deterministic dice for a collect run, seeded from the effect instance. */
+  private collectRng: (() => number) | null;
+
   constructor(
     private src: string, private ctx: CharacterContext, private result: ScriptResult,
     private collect: boolean, private triggerName: string | null,
   ) {
     this.rng = ctx.rng ?? Math.random;
+    this.collectRng = ctx.seed != null ? seededRng(ctx.seed) : null;
   }
 
   private tick(): void {
@@ -480,9 +490,17 @@ class Interpreter {
   }
 
   private doRoll(count: number, sides: number, formula: string): number {
-    // During collection, dice must be deterministic (the block re-evaluates on every stat
-    // read) — use the average so a dice-gated effectActive stays stable rather than flickering.
+    // During collection dice must be REPRODUCIBLE — the block re-evaluates on every stat read.
+    // With a per-instance seed the roll is real but happens conceptually once, when the effect was
+    // applied; without one (a preview, a source with no instance) fall back to the average.
     if (this.collect) {
+      if (this.collectRng) {
+        const seeded = rollDice(count, sides, this.collectRng);
+        this.result.rolls.push({
+          name: formula, formula: seeded.formula, rolls: seeded.rolls, total: seeded.total,
+        });
+        return seeded.total;
+      }
       const c = Math.max(0, Math.floor(count)), s = Math.max(0, Math.floor(sides));
       return Math.round(c * (s + 1) / 2);
     }

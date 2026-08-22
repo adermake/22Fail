@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/shared/card/card.component.css"],
-  "sourcesContent": [".card {\n  background: var(--card);\n  border: 1px solid var(--border);\n  border-radius: 10px;\n  padding: 14px;\n  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);\n  /* Allow drag preview to escape card bounds */\n  overflow: visible;\n}\n"],
-  "mappings": ";AAAA,CAAC;AACC,cAAY,IAAI;AAChB,UAAQ,IAAI,MAAM,IAAI;AACtB,iBAAe;AACf,WAAS;AACT,cAAY,EAAE,IAAI,EAAE,KAAK,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE;AAElC,YAAU;AACZ;",
-  "names": []
-}

@@ -59,7 +59,8 @@
         (patch)="onPatch($event)"
         (rollWeaponDamage)="rollWeaponDamage.emit($event)"
         (openForge)="openForgingOverlay()"
-        (openBrew)="openBrewingOverlay()">
+        (openBrew)="openBrewingOverlay()"
+        (openCook)="openCookingOverlay()">
       </app-inventory>
     </div>
 
@@ -155,6 +156,20 @@
       </div>
       <div class="forging-overlay-body">
         <app-brewing [sheet]="sheet" (patch)="onPatch($event)" (closeOverlay)="closeBrewingOverlay()"></app-brewing>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showCookingOverlay) {
+  <div class="forging-overlay-backdrop" (click)="closeCookingOverlay()">
+    <div class="forging-overlay-panel" (click)="$event.stopPropagation()">
+      <div class="forging-overlay-header">
+        <span class="forging-overlay-title"><span class="app-icon i-item"></span> Kochtopf</span>
+        <button class="forging-overlay-close" (click)="closeCookingOverlay()">&times;</button>
+      </div>
+      <div class="forging-overlay-body">
+        <app-cooking [sheet]="sheet" (patch)="onPatch($event)" (closeOverlay)="closeCookingOverlay()"></app-cooking>
       </div>
     </div>
   </div>

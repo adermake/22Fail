@@ -30,6 +30,7 @@
       </button>
       <button class="forge-btn" (click)="openForge.emit()" title="Schmiede öffnen">⚒ Schmieden</button>
       <button class="forge-btn" (click)="openBrew.emit()" title="Braukessel öffnen"><span class="app-icon i-brewing"></span> Brauen</button>
+      <button class="forge-btn" (click)="openCook.emit()" title="Kochtopf öffnen"><span class="app-icon i-item"></span> Kochen</button>
       <button class="add-btn" (click)="openNewItemEditor()">+ Gegenstand</button>
     </div>
   </div>
@@ -83,11 +84,9 @@
               (delete)="deleteItem(i)"
               (editingChange)="onEditingChange(i, $event)"
               (openEditor)="openItemEditor(i)"
-          (duplicate)="duplicateItem(i)"
-          (consume)="consumeItem(i)"
               (duplicate)="duplicateItem(i)"
-          (consume)="consumeItem(i)"
               (consume)="consumeItem(i)"
+              (runTrigger)="runItemTrigger(i, $event)"
               (breakTest)="performBreakTest(i)"
               (foldChange)="onFoldChange(i, $event)"
               (rollDamage)="rollWeaponDamage.emit($event)"
@@ -137,6 +136,9 @@
           (delete)="deleteItem(exp.activeIdx)"
           (editingChange)="onEditingChange(exp.activeIdx, $event)"
           (openEditor)="openItemEditor(exp.activeIdx)"
+          (duplicate)="duplicateItem(exp.activeIdx)"
+          (consume)="consumeItem(exp.activeIdx)"
+          (runTrigger)="runItemTrigger(exp.activeIdx, $event)"
           (breakTest)="performBreakTest(exp.activeIdx)"
           (foldChange)="onFoldChange(exp.activeIdx, $event)"
           (rollDamage)="rollWeaponDamage.emit($event)"

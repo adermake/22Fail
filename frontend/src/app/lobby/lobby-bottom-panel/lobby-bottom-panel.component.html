@@ -546,6 +546,35 @@
                 }
               }
 
+              @if (getSpellTriggers(entry).length) {
+                <div class="lbp-ac-triggers">
+                  <span class="lbp-ac-triggers-label">Auslöser</span>
+                  @for (trig of getSpellTriggers(entry); track trig) {
+                    <button class="lbp-ac-trigger-btn"
+                            [class.is-triggering]="isCardTriggering(entry.entryId ?? entry.spellId)"
+                            (click)="executeSpellTrigger(entry, trig, $event)">
+                      <span class="app-icon i-ability"></span> {{ trig }}
+                    </button>
+                  }
+                </div>
+                @if (getLastCardResult(entry.entryId ?? entry.spellId); as res) {
+                  <div class="lbp-ac-trigger-result">
+                    @for (d of res.displays ?? []; track $index) {
+                      @switch (d.type) {
+                        @case ('banner') { <span class="ds-banner" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                        @case ('stat') {
+                          <span class="ds-stat" [ngClass]="'ds-' + d.style">
+                            <span class="ds-lbl">{{ d.label }}</span><span class="ds-val">{{ d.value }}</span>
+                          </span>
+                        }
+                        @case ('box') { <span class="ds-box" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                        @default { <span class="ds-text" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                      }
+                    }
+                  </div>
+                }
+              }
+
             </div>
           }
 
@@ -629,6 +658,35 @@
                            [style.background]="counter.color">
                       </div>
                     </div>
+                  </div>
+                }
+              }
+
+              @if (getSkillTriggers(entry).length) {
+                <div class="lbp-ac-triggers">
+                  <span class="lbp-ac-triggers-label">Auslöser</span>
+                  @for (trig of getSkillTriggers(entry); track trig) {
+                    <button class="lbp-ac-trigger-btn"
+                            [class.is-triggering]="isCardTriggering(entry.entryId)"
+                            (click)="executeSkillTrigger(entry, trig, $event)">
+                      <span class="app-icon i-ability"></span> {{ trig }}
+                    </button>
+                  }
+                </div>
+                @if (getLastCardResult(entry.entryId); as res) {
+                  <div class="lbp-ac-trigger-result">
+                    @for (d of res.displays ?? []; track $index) {
+                      @switch (d.type) {
+                        @case ('banner') { <span class="ds-banner" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                        @case ('stat') {
+                          <span class="ds-stat" [ngClass]="'ds-' + d.style">
+                            <span class="ds-lbl">{{ d.label }}</span><span class="ds-val">{{ d.value }}</span>
+                          </span>
+                        }
+                        @case ('box') { <span class="ds-box" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                        @default { <span class="ds-text" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                      }
+                    }
                   </div>
                 }
               }

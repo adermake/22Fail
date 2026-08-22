@@ -187,14 +187,20 @@ export interface MaterialSlotState {
   entries: SlotMaterialEntry[];
 }
 
+/**
+ * Schmieden starts at FORGE_BASE_COST SP and climbs by one per forge: 3, 4, 5, 6…
+ * (it used to start at 1, which made deep forging far too cheap).
+ */
+export const FORGE_BASE_COST = 3;
+
 /** SP cost of the NEXT forge for an entry that has already been forged forgeCount times. */
 export function nextForgeCost(forgeCount: number): number {
-  return forgeCount + 1;
+  return forgeCount + FORGE_BASE_COST;
 }
 
-/** Total SP already spent forging an entry (sum 1+2+…+forgeCount). */
+/** Total SP already spent forging an entry (sum of the first forgeCount costs). */
 export function totalForgeSPSpent(forgeCount: number): number {
-  return (forgeCount * (forgeCount + 1)) / 2;
+  return (forgeCount * (forgeCount + 1)) / 2 + (FORGE_BASE_COST - 1) * forgeCount;
 }
 
 export interface AppliedTraitState {

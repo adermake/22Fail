@@ -1,0 +1,75 @@
+<div class="ck-wrap">
+
+  <div class="ck-topbar">
+    <span class="ck-title"><span class="app-icon i-brewing"></span> Kochen</span>
+    <span class="ck-hint">Verbrauchsgegenst&auml;nde zusammenwerfen &mdash; die Wirkung teilt sich auf die Portionen.</span>
+  </div>
+
+  <div class="ck-body">
+
+    <!-- Zutaten -->
+    <section class="ck-card">
+      <div class="ck-card-hdr">
+        <span class="ck-card-title">Zutaten</span>
+        <span class="ck-count">{{ pot.length }} im Topf</span>
+      </div>
+      @if (!availableItems.length) {
+        <p class="ck-empty">Keine essbaren Gegenst&auml;nde im Inventar.</p>
+      } @else {
+        <div class="ck-list">
+          @for (entry of availableItems; track entry.index) {
+            <button class="ck-item" [class.on]="isPicked(entry.index)" (click)="toggle(entry.index)">
+              <span class="app-icon i-brewing"></span>
+              <span class="ck-item-name">{{ entry.item.name }}</span>
+              @if (entry.item.stackable && (entry.item.amount ?? 1) > 1) {
+                <span class="ck-item-amount">×{{ entry.item.amount }}</span>
+              }
+              @if (!entry.item.script) {
+                <span class="ck-item-note" title="Ohne Wirkung — nur Füllstoff">ohne Wirkung</span>
+              }
+            </button>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- Das Gericht -->
+    <section class="ck-card">
+      <div class="ck-card-hdr"><span class="ck-card-title">Gericht</span></div>
+
+      <label class="ck-field">
+        <span class="ck-label">Name</span>
+        <input class="ck-input" type="text" [(ngModel)]="mealName" placeholder="Eintopf, Reiseproviant...">
+      </label>
+
+      <label class="ck-field">
+        <span class="ck-label">Portionen</span>
+        <span class="ck-field-row">
+          <input class="ck-input ck-input-num" type="number" min="1"
+                 [ngModel]="portions" (ngModelChange)="setPortions($event)">
+          <span class="ck-hint">Die Wirkung wird durch die Portionen geteilt.</span>
+        </span>
+      </label>
+
+      @if (pot.length) {
+        <div class="ck-preview">
+          <span class="ck-label">Wirkung je Portion</span>
+          @if (resultScript.trim()) {
+            <pre class="ck-script">{{ resultScript }}</pre>
+          } @else {
+            <p class="ck-empty">Die Zutaten haben keine Wirkung &mdash; das Gericht s&auml;ttigt nur.</p>
+          }
+        </div>
+      } @else {
+        <p class="ck-empty">W&auml;hle links Zutaten aus.</p>
+      }
+
+      <div class="ck-actions">
+        <button class="ck-btn" (click)="onClose()">Abbrechen</button>
+        <button class="ck-btn ck-btn-primary" [disabled]="!canCook" (click)="cook()">
+          Kochen ({{ portions }} Portion{{ portions === 1 ? '' : 'en' }})
+        </button>
+      </div>
+    </section>
+  </div>
+</div>

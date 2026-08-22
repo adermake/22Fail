@@ -1,0 +1,132 @@
+import {
+  ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, Output, inject,
+} from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+
+import { CharacterSheet } from '../../model/character-sheet-model';
+import { ItemBlock } from '../../model/item-block.model';
+import { JsonPatch } from '../../model/json-patch.model';
+import { isConsumable } from '../../services/consumption.service';
+import { dividePortions, mergeConsumableScripts } from '../../utils/cooking.util';
+
+/** One ingredient picked for the pot, with the inventory slot it came from. */
+interface CookEntry {
+  index: number;
+  item: ItemBlock;
+}
+
+/**
+ * Kochen — the third crafting station next to Schmiede and Braukessel, and the simplest one:
+ * throw consumables in the pot, say how many portions come out, and the combined effect is split
+ * across them. The ingredients are used up; the meal lands in the inventory as a stackable
+ * Verbrauchsgegenstand.
+ */
+@Component({
+  selector: 'app-cooking',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  templateUrl: './cooking.component.html',
+  styleUrl: './cooking.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class CookingComponent {
+  @Input({ required: true }) sheet!: CharacterSheet;
+  @Output() patch = new EventEmitter<JsonPatch>();
+  @Output() closeOverlay = new EventEmitter<void>();
+
+  private cdr = inject(ChangeDetectorRef);
+
+  mealName = '';
+  portions = 1;
+  /** Inventory slots currently in the pot. */
+  picked: number[] = [];
+
+  // ── Reading the inventory ──────────────────────────────────────────────────
+
+  /** Everything edible: potions and Verbrauchsgegenstände carry the effects we can merge. */
+  get availableItems(): CookEntry[] {
+    return (this.sheet.inventory ?? [])
+      .map((item, index) => ({ item: item as ItemBlock, index }))
+      .filter(entry => !!entry.item && isConsumable(entry.item) && !entry.item.lost);
+  }
+
+  get pot(): CookEntry[] {
+    return this.picked
+      .map(index => ({ index, item: this.sheet.inventory?.[index] as ItemBlock }))
+      .filter(entry => !!entry.item);
+  }
+
+  isPicked(index: number): boolean { return this.picked.includes(index); }
+
+  toggle(index: number): void {
+    this.picked = this.isPicked(index)
+      ? this.picked.filter(i => i !== index)
+      : [...this.picked, index];
+    this.cdr.markForCheck();
+  }
+
+  // ── The meal ───────────────────────────────────────────────────────────────
+
+  /** Combined script of everything in the pot, divided by the portion count. */
+  get resultScript(): string {
+    return dividePortions(mergeConsumableScripts(this.pot.map(e => e.item)), this.portions);
+  }
+
+  get canCook(): boolean {
+    return this.pot.length > 0 && this.portions >= 1 && !!this.mealName.trim();
+  }
+
+  setPortions(value: number): void {
+    this.portions = Math.max(1, Math.floor(Number(value) || 1));
+    this.cdr.markForCheck();
+  }
+
+  /** Use up the ingredients and put the finished meal in the inventory. */
+  cook(): void {
+    if (!this.canCook) return;
+
+    const ingredients = this.pot;
+    const meal = new ItemBlock();
+    meal.id = `meal_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    meal.name = this.mealName.trim();
+    meal.itemType = 'consumable';
+    meal.description = `Gekocht aus: ${ingredients.map(e => e.item.name).join(', ')}\n`
+      + `${this.portions} Portion(en) — Wirkung je Portion geteilt.`;
+    meal.script = this.resultScript;
+    meal.stackable = true;
+    meal.amount = this.portions;
+    meal.weight = Math.round(
+      ingredients.reduce((sum, e) => sum + (e.item.weight ?? 0), 0) * 10) / 10;
+    meal.isIdentified = true;
+    meal.lost = false;
+    meal.broken = false;
+
+    // Ingredients are used up: one unit each, stacks lose a single portion.
+    const inventory = [...(this.sheet.inventory ?? [])];
+    for (const entry of ingredients) {
+      const item = inventory[entry.index];
+      if (!item) continue;
+      if (item.stackable && (item.amount ?? 1) > 1) {
+        inventory[entry.index] = { ...item, amount: (item.amount ?? 1) - 1 };
+      } else {
+        inventory[entry.index] = null;
+      }
+    }
+
+    const free = inventory.findIndex(slot => slot === null);
+    if (free === -1) inventory.push(meal);
+    else inventory[free] = meal;
+    while (inventory.length > 0 && inventory[inventory.length - 1] === null) inventory.pop();
+
+    this.sheet.inventory = inventory as typeof this.sheet.inventory;
+    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+
+    this.picked = [];
+    this.mealName = '';
+    this.portions = 1;
+    this.closeOverlay.emit();
+  }
+
+  onClose(): void { this.closeOverlay.emit(); }
+}

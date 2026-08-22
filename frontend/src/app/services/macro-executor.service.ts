@@ -46,16 +46,23 @@ export class MacroExecutorService {
   runScriptOnSheet(
     script: string,
     character: CharacterSheet,
-    opts: { trigger?: string } = {},
+    opts: {
+      trigger?: string;
+      /** false → report resource changes but do NOT apply them (the Rast sums them first). */
+      applyResources?: boolean;
+    } = {},
   ): MacroExecutionResult {
     const ctx = createPlayerContext(character, this.trueStats, {
       inCombat: false, stacks: 1, turn: 0, duration: 0, effectStrength: 0,
     });
     const result = runScript(script, ctx, { trigger: opts.trigger });
 
+    const applyResources = opts.applyResources !== false;
     const resourceChanges: { resource: string; amount: number }[] = [];
     for (const rc of result.resourceChanges) {
-      if (this.applyResourceToSheet(character, rc.resource, rc.amount)) {
+      if (!applyResources) {
+        resourceChanges.push({ resource: rc.resource, amount: rc.amount });
+      } else if (this.applyResourceToSheet(character, rc.resource, rc.amount)) {
         resourceChanges.push({ resource: rc.resource, amount: rc.amount });
       }
     }
@@ -76,7 +83,7 @@ export class MacroExecutorService {
     };
   }
 
-  private applyResourceToSheet(character: CharacterSheet, resource: string, amount: number): boolean {
+  applyResourceToSheet(character: CharacterSheet, resource: string, amount: number): boolean {
     const ft = RESOURCE_FORMULA[resource];
     if (ft === undefined) return false; // fokus is a derived pool, not a stored status
     const status = character.statuses?.find(s => s.formulaType === ft);

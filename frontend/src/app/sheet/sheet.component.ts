@@ -14,6 +14,7 @@ import { LibraryStoreService } from '../services/library-store.service';
 import { TrueStatsService } from '../services/true-stats.service';
 import { applyStabilityToDelta } from '../utils/stability.util';
 import { CommonModule } from '@angular/common';
+import { PartyStashComponent } from './party-stash/party-stash.component';
 import { SkillsComponent } from './skills/skills.component';
 import { ClassTree } from './class-tree-model';
 import { InventoryComponent } from "./inventory/inventory.component";
@@ -49,7 +50,7 @@ import { EventPortalComponent } from './event-portal/event-portal.component';
 import { SheetStatusEffectsComponent } from './sheet-status-effects/sheet-status-effects.component';
 import { SpellcastWindowComponent } from './spellcast-window/spellcast-window.component';
 import { DamageCalculatorComponent } from '../world/damage-calculator/damage-calculator.component';
-import { RestService, RestSource, RestOutcome } from '../services/rest.service';
+import { RestService, RestSource, RestOutcome, REST_RESOURCES } from '../services/rest.service';
 import { CharacterSheet } from '../model/character-sheet-model';
 
 @Component({
@@ -76,6 +77,7 @@ import { CharacterSheet } from '../model/character-sheet-model';
     SheetStatusEffectsComponent,
     SpellcastWindowComponent,
     DamageCalculatorComponent,
+    PartyStashComponent,
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
@@ -115,6 +117,9 @@ export class SheetComponent implements OnInit {
   restPreview: RestSource[] = [];
   /** Filled once the rest ran, so the dialog turns into a report. */
   restResult: RestOutcome | null = null;
+  /** What a plain Rast would give back before scripts and the water rule. */
+  restBase: Record<'health' | 'energy' | 'mana', number> = { health: 0, energy: 0, mana: 0 };
+  readonly restResources = REST_RESOURCES;
   damageCalcEffektivitaet?: number;
   currentEvents: CurrentEvent[] = [];
   transactions: Transaction[] = [];
@@ -768,6 +773,7 @@ export class SheetComponent implements OnInit {
     const sheet = this.store.sheetValue;
     this.restResult = null;
     this.restPreview = sheet ? this.restService.collectRestSources(sheet) : [];
+    this.restBase = sheet ? this.restService.baseRestore(sheet) : { health: 0, energy: 0, mana: 0 };
     this.showRestDialog = true;
   }
 
@@ -780,9 +786,10 @@ export class SheetComponent implements OnInit {
     return kind === 'item' ? 'Gegenstand' : kind === 'skill' ? 'Fähigkeit' : 'Zauber';
   }
 
-  /** Fire every onRest block, empty the Verbraucht queue and persist what changed. */
-  performRest(sheet: CharacterSheet): void {
-    this.restResult = this.restService.performRest(sheet);
+  /** Fire every onRest block, empty the Verbraucht queue and persist what changed.
+   *  `drankWater: false` halves the gains (the litre-of-water rule). */
+  performRest(sheet: CharacterSheet, drankWater: boolean): void {
+    this.restResult = this.restService.performRest(sheet, { drankWater });
     this.store.applyPatch({ path: 'statuses', value: sheet.statuses });
     this.store.applyPatch({ path: 'activeStatusEffects', value: sheet.activeStatusEffects ?? [] });
     this.store.applyPatch({ path: 'consumedItems', value: [] });

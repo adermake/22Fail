@@ -91,15 +91,17 @@ describe('spending forge points', () => {
       { material: MATERIALS[0], forgeCount: 0 },
       { material: MATERIALS[1], forgeCount: 0 },
     ];
-    // 1+1 = 2, then 2+2 = 4 → 6 total, the 7th point cannot buy a 3-cost forge.
+    // Each first forge costs 3, so 6 buys one forge per material; the next would cost 4.
     const spent = spendOnForges(entries, 6);
     expect(spent).toBe(6);
-    expect(entries.map(e => e.forgeCount)).toEqual([2, 2]);
+    expect(entries.map(e => e.forgeCount)).toEqual([1, 1]);
   });
 
   it('never overspends', () => {
     const entries: SlotMaterialEntry[] = [{ material: MATERIALS[0], forgeCount: 0 }];
-    expect(spendOnForges(entries, 2)).toBe(1); // 1 SP buys one forge; the next costs 2
+    expect(spendOnForges(entries, 2)).toBe(0); // a forge costs 3 — 2 SP buys nothing
+    expect(entries[0].forgeCount).toBe(0);
+    expect(spendOnForges(entries, 4)).toBe(3); // 3 for the first, the second would cost 4
     expect(entries[0].forgeCount).toBe(1);
   });
 
@@ -236,10 +238,10 @@ describe('forge maths shared with the manual Schmiede', () => {
     expect(halved.effektivitaet).toBe(Math.floor(raw.effektivitaet / 2));
   });
 
-  it('counts SP as 1+2+…+n per entry plus trait costs', () => {
+  it('counts SP as 3+4+…+(n+2) per entry plus trait costs', () => {
     const entries: SlotMaterialEntry[] = [{ material: MATERIALS[0], forgeCount: 3 }];
     const traits = [{ trait: trait('t1', 5), level: 2 }];
-    expect(spentForgePoints([entries], traits)).toBe(6 + 10);
+    expect(spentForgePoints([entries], traits)).toBe(12 + 10);
   });
 
   it('builds an armour item with durability, stability and malus', () => {

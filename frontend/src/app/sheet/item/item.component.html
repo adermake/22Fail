@@ -23,6 +23,12 @@
             <span class="app-icon i-brewing"></span> Verbrauchen
           </button>
         }
+        <!-- Named onTrigger blocks of the item's script, fired by hand. -->
+        @for (trig of itemTriggers; track trig) {
+          <button class="ctx-item ctx-trigger" (click)="triggerFromMenu(trig)">
+            <span class="app-icon i-ability"></span> {{ trig }}
+          </button>
+        }
         <button class="ctx-item" (click)="openEditorFromMenu()"><span class="app-icon i-draw"></span> Bearbeiten</button>
         <button class="ctx-item" (click)="duplicateFromMenu()"><span class="app-icon i-item"></span> Duplizieren</button>
         <button class="ctx-item ctx-lost" (click)="toggleLostFromMenu()">
@@ -31,6 +37,17 @@
       }
       <button class="ctx-item ctx-delete" (click)="deleteFromContextMenu()"><span class="app-icon i-restore-trash"></span> Löschen</button>
     </div>
+  }
+
+  @if (askingConsume) {
+    <app-confirm-dialog
+      [title]="item.name + ' verbrauchen?'"
+      message="Sicher? Das lässt sich nicht rückgängig machen."
+      [detail]="consumeDetail"
+      confirmLabel="Verbrauchen"
+      (confirmed)="confirmConsume()"
+      (cancelled)="cancelConsume()">
+    </app-confirm-dialog>
   }
 
   <div class="item-view">

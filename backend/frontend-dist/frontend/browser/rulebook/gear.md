@@ -2,7 +2,7 @@
 title: Ausrüstung
 tab: Ausrüstung
 icon: equipment
-order: 100
+order: 90
 ---
 ## Waffen
 

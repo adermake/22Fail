@@ -913,6 +913,72 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     try { return listTriggers(script).map(t => t.name); } catch { return []; }
   }
 
+  // ── Manual triggers on active spells and skills ───────────────────────────
+  // Status effects have offered this for a while; an active spell or ability is just as much a
+  // thing that "does something when you say so", and its script can already declare onTrigger.
+
+  /** Named onTrigger blocks declared by a script (empty when it has none or does not compile). */
+  private triggersOf(script: string | undefined): string[] {
+    if (!script || !script.trim()) return [];
+    try { return listTriggers(script).map(t => t.name); } catch { return []; }
+  }
+
+  getSpellTriggers(entry: CastingSpellEntry): string[] {
+    return this.triggersOf(this.getSpell(entry.spellId)?.script);
+  }
+
+  getSkillTriggers(entry: ActiveSkillEntry): string[] {
+    return this.triggersOf(this.getSkillBlock(entry)?.script);
+  }
+
+  /** Run one named trigger of a script and apply everything it produced. */
+  private fireScriptTrigger(
+    script: string, trigger: string, key: string, name: string, icon: string, color: string,
+  ): void {
+    const sheet = this.sheetForMacros;
+    if (!sheet) return;
+    const exec = this.macroExecutor.executeScript(script, sheet, {
+      inCombat: true, trigger, name, icon, color,
+    });
+    this.applyScriptExtras(exec);
+    this.applyMacroResourceChanges(exec.unified);
+    this.lastRollResults.set(key, exec.unified);
+    this.triggeringEffects.add(key);
+    this.cdr.markForCheck();
+    setTimeout(() => {
+      this.triggeringEffects.delete(key);
+      this.cdr.markForCheck();
+    }, 800);
+  }
+
+  executeSpellTrigger(entry: CastingSpellEntry, trigger: string, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    const spell = this.getSpell(entry.spellId);
+    if (!spell?.script) return;
+    this.fireScriptTrigger(
+      spell.script, trigger, entry.entryId ?? entry.spellId,
+      entry.spellName, spell.icon || '✦', this.spellColor(spell),
+    );
+  }
+
+  executeSkillTrigger(entry: ActiveSkillEntry, trigger: string, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    const skill = this.getSkillBlock(entry);
+    if (!skill?.script) return;
+    this.fireScriptTrigger(
+      skill.script, trigger, entry.entryId, entry.skillName, '✦', '#22d3ee',
+    );
+  }
+
+  /** Result of the last manual trigger on an active card (spell or skill). */
+  getLastCardResult(key: string): UnifiedMacroResult | null {
+    return this.lastRollResults.get(key) ?? null;
+  }
+
+  isCardTriggering(key: string): boolean {
+    return this.triggeringEffects.has(key);
+  }
+
   /** Fire a single named onTrigger action (manual, event-based) on an effect. */
   executeTrigger(fx: TokenStatusEffect, trigger: string, event?: MouseEvent): void {
     if (event) event.stopPropagation();

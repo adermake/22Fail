@@ -3,6 +3,7 @@ import { Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 import { identityAuth } from './identity';
 import { JsonPatch } from '../model/json-patch.model';
+import { PartyStashEntry } from '../model/world.model';
 
 export interface DiceRollEvent {
   id: string;
@@ -136,6 +137,38 @@ export class WorldSocketService {
   sendDirectLoot(characterId: string, loot: any) {
     console.log('Sending direct loot to:', characterId, loot);
     this.socket?.emit('sendDirectLoot', { characterId, loot });
+  }
+
+  // ── Shared party stash ──────────────────────────────────────────────────
+  // Every change goes through the server and comes back as an ack, so a client only ever acts
+  // on what the server actually did. `emitWithAck` rejects if we are not connected.
+
+  private async ask<T>(event: string, payload: unknown, fallback: T): Promise<T> {
+    if (!this.socket || !this.isConnected) return fallback;
+    try {
+      return (await this.socket.timeout(8000).emitWithAck(event, payload)) as T;
+    } catch (e) {
+      console.error(`[WORLD SOCKET] ${event} failed`, e);
+      return fallback;
+    }
+  }
+
+  depositToPartyStash(worldName: string, entry: PartyStashEntry) {
+    return this.ask<{ ok: boolean; stash: PartyStashEntry[]; reason?: string }>(
+      'partyStashDeposit', { worldName, entry }, { ok: false, stash: [], reason: 'offline' },
+    );
+  }
+
+  withdrawFromPartyStash(worldName: string, entryId: string) {
+    return this.ask<{ ok: boolean; entry?: PartyStashEntry; stash: PartyStashEntry[]; reason?: string }>(
+      'partyStashWithdraw', { worldName, entryId }, { ok: false, stash: [], reason: 'offline' },
+    );
+  }
+
+  readPartyStash(worldName: string) {
+    return this.ask<{ ok: boolean; stash: PartyStashEntry[] }>(
+      'partyStashRead', { worldName }, { ok: false, stash: [] },
+    );
   }
 
   sendDiceRoll(roll: DiceRollEvent) {

@@ -12,6 +12,15 @@
     <app-stats [sheet]="sheet" (patch)="store.applyPatch($any($event))"></app-stats>
   </div>
   
+  <!-- Shared party bag — fills the gap under the stats block -->
+  <div class="grid-party">
+    <app-party-stash
+      [sheet]="sheet"
+      [characterId]="store.characterId"
+      (patch)="store.applyPatch($any($event))">
+    </app-party-stash>
+  </div>
+
   <div class="grid-levelclass">
     <app-levelclass [sheet]="sheet" (patch)="store.applyPatch($any($event))" (openSkillTree)="showSkillTree = true"></app-levelclass>
   </div>
@@ -157,6 +166,17 @@
             {{ restResult.clearedItems }} verbrauchte(r) Gegenstand/Gegenst&auml;nde aufgel&ouml;st,
             {{ restResult.fired.length }} Effekt(e) ausgel&ouml;st.
           </p>
+          @if (restResult.halved) {
+            <p class="rest-note rest-note-warn">Zu wenig getrunken &mdash; alle Gewinne halbiert.</p>
+          }
+          <div class="rest-base">
+            <span class="rest-base-label">Erholt</span>
+            @for (res of restResources; track res.key) {
+              <span class="rest-base-chip" [attr.data-res]="res.key">
+                {{ res.label }} {{ restResult.restored[res.key] > 0 ? '+' : '' }}{{ restResult.restored[res.key] }}
+              </span>
+            }
+          </div>
           @if (restResult.fired.length) {
             <div class="rest-list">
               @for (f of restResult.fired; track $index) {
@@ -191,7 +211,27 @@
               werden dabei aus der Liste entfernt.
             </p>
           }
-          <button class="rest-confirm" (click)="performRest(sheet)">Rasten</button>
+
+          <div class="rest-base">
+            <span class="rest-base-label">Grunderholung (25&nbsp;%)</span>
+            @for (res of restResources; track res.key) {
+              <span class="rest-base-chip" [attr.data-res]="res.key">
+                {{ res.label }} +{{ restBase[res.key] }}
+              </span>
+            }
+          </div>
+
+          <!-- The water rule: a litre over the day, or every gain is halved. -->
+          <div class="rest-water">
+            <p class="rest-water-q">Hast du heute genug getrunken? (1&nbsp;Liter)</p>
+            <div class="rest-water-actions">
+              <button class="rest-confirm" (click)="performRest(sheet, true)">Ja &mdash; rasten</button>
+              <button class="rest-confirm rest-confirm-half" (click)="performRest(sheet, false)">
+                Nein &mdash; rasten (halbe Erholung)
+              </button>
+              <button class="rest-cancel" (click)="closeRest()">Abbrechen &mdash; erst trinken</button>
+            </div>
+          </div>
         </div>
       }
     </div>

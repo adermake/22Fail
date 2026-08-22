@@ -37,10 +37,14 @@ describe('FailScript checker', () => {
     expect(errs('grantSkill("X", 0, 0, 0) { }').some(m => m.includes('Skill-Leak'))).toBe(true);
   });
 
-  it('rejects impure calls and dice inside effectActive', () => {
+  it('rejects impure calls inside effectActive', () => {
     expect(errs('effectActive { display("x") }').some(m => m.includes('effectActive'))).toBe(true);
     expect(errs('effectActive { loseResource(health, 5) }').some(m => m.includes('effectActive'))).toBe(true);
-    expect(errs('effectActive { if (2d6 > 3) { speed += 1 } }').some(m => m.includes('effectActive'))).toBe(true);
+  });
+
+  it('allows dice inside effectActive (seeded once per effect instance)', () => {
+    expect(compileScript('effectActive { if (2d6 > 3) { speed += 1 } }').ok).toBe(true);
+    expect(compileScript('effectActive { speed += roll(1, 6) }').ok).toBe(true);
   });
 
   it('rejects assigning a read-only resource', () => {
@@ -159,5 +163,42 @@ describe('FailScript dice', () => {
   it('clamps invalid input', () => {
     expect(rollDice(-2, 6).rolls.length).toBe(0);
     expect(rollDice(1, 0).total).toBe(1); // sides clamped to >=1
+  });
+});
+
+describe('seeded dice in effectActive', () => {
+  const seeded = (seed?: number): CharacterContext => ({
+    ...dummyCtx,
+    seed,
+  });
+
+  const collectSpeed = (src: string, seed?: number): number => {
+    const res = runScript(src, seeded(seed), { collect: true });
+    return res.modifiers.find(m => m.target === 'bewegung')?.amount ?? NaN;
+  };
+
+  it('rolls once per seed and repeats that roll on every re-evaluation', () => {
+    const src = 'effectActive { movement += roll(1, 20) }';
+    const first = collectSpeed(src, 12345);
+    for (let i = 0; i < 5; i++) expect(collectSpeed(src, 12345)).toBe(first);
+    expect(first).toBeGreaterThanOrEqual(1);
+    expect(first).toBeLessThanOrEqual(20);
+  });
+
+  it('gives different effect instances different rolls', () => {
+    const src = 'effectActive { movement += roll(1, 20) }';
+    const values = new Set([1, 2, 3, 4, 5, 6, 7, 8].map(seed => collectSpeed(src, seed)));
+    expect(values.size).toBeGreaterThan(1);
+  });
+
+  it('falls back to the dice average when there is no instance seed', () => {
+    expect(collectSpeed('effectActive { movement += roll(2, 6) }')).toBe(7);
+  });
+
+  it('keeps several rolls in one block independent but stable', () => {
+    const src = 'effectActive { movement += roll(1, 20) armorNegation += roll(1, 20) }';
+    const run = () => runScript(src, seeded(999), { collect: true }).modifiers.map(m => m.amount);
+    const a = run();
+    expect(run()).toEqual(a);
   });
 });

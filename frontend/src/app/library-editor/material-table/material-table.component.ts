@@ -8,6 +8,9 @@ import { firstValueFrom } from 'rxjs';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
 import { AssetFile } from '../../model/asset-browser.model';
 import { MaterialBlock, MaterialStats, createEmptyMaterialBlock } from '../../model/forging.model';
+import {
+  KNOWLEDGE_TIERS, KnowledgeTier, knowledgeTierOf, setKnowledgeTier,
+} from '../../utils/knowledge-tier.util';
 
 @Component({
   selector: 'app-material-table',
@@ -22,6 +25,10 @@ export class MaterialTableComponent implements OnInit, OnDestroy {
   @Input() folderId!: string;
   @Output() close = new EventEmitter<void>();
   @Output() filesChanged = new EventEmitter<void>();
+  /** "Jump into the thing": open this material in its normal editor. */
+  @Output() openFile = new EventEmitter<AssetFile>();
+
+  readonly knowledgeTiers = KNOWLEDGE_TIERS;
 
   private api = inject(AssetBrowserApiService);
   private cdr = inject(ChangeDetectorRef);
@@ -158,6 +165,18 @@ export class MaterialTableComponent implements OnInit, OnDestroy {
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   mat(file: AssetFile): MaterialBlock { return file.data as MaterialBlock; }
+
+  tierOf(file: AssetFile): KnowledgeTier { return knowledgeTierOf(this.mat(file)); }
+
+  setTier(file: AssetFile, tier: KnowledgeTier): void {
+    setKnowledgeTier(this.mat(file), tier);
+    this.onFieldChange(file);
+  }
+
+  jump(file: AssetFile): void {
+    this.openFile.emit(file);
+    this.close.emit();
+  }
 
   ws(file: AssetFile): MaterialStats { return (file.data as MaterialBlock).weaponStats!; }
   aStats(file: AssetFile): MaterialStats { return (file.data as MaterialBlock).armorStats!; }

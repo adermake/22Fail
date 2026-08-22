@@ -8,11 +8,13 @@ import { JsonPatch } from '../../model/json-patch.model';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { KeywordEnhancer } from '../keyword-enhancer';
 import { isConsumable } from '../../services/consumption.service';
+import { hasRestBlock, listTriggers } from '../../scripting/interpreter';
+import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 
 @Component({
   selector: 'app-item',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ConfirmDialogComponent],
   templateUrl: './item.component.html',
   styleUrl: './item.component.css',
 })
@@ -43,6 +45,8 @@ export class ItemComponent implements OnChanges {
   @Output() breakTest = new EventEmitter<void>();
   /** Potion: request parent to apply effects and consume. */
   @Output() useOnSelf = new EventEmitter<void>();
+  /** Fire one named `onTrigger` block of this item's script by hand. */
+  @Output() runTrigger = new EventEmitter<string>();
 
   isFolded = true; // Start items as folded to save space
   readonly Math = Math;
@@ -50,6 +54,8 @@ export class ItemComponent implements OnChanges {
   showContextMenu = false;
   contextMenuX = 0;
   contextMenuY = 0;
+  /** Using something up is irreversible — ask first, in our own dialog. */
+  askingConsume = false;
 
   @Output() foldChange = new EventEmitter<boolean>();
   /** Emits the weapon's efficiency when the roll-damage button is clicked */
@@ -184,7 +190,43 @@ export class ItemComponent implements OnChanges {
 
   consumeFromMenu() {
     this.showContextMenu = false;
+    this.askingConsume = true;
+  }
+
+  /** The confirm dialog said yes. */
+  confirmConsume(): void {
+    this.askingConsume = false;
     this.consume.emit();
+  }
+
+  cancelConsume(): void { this.askingConsume = false; }
+
+  /** What happens to the item once it is used — shown as small print in the confirm dialog. */
+  get consumeDetail(): string {
+    const left = this.item.stackable ? (this.item.amount ?? 1) : 1;
+    const stackNote = this.item.stackable && left > 1
+      ? `Eine von ${left} Einheiten wird verbraucht.`
+      : 'Der Gegenstand wird dabei aufgebraucht.';
+    return this.hasRestEffect
+      ? `${stackNote} Er wandert in die Verbraucht-Liste und wirkt bei der nächsten Rast nach.`
+      : stackNote;
+  }
+
+  /** True when the item keeps working after it is used (it has an onRest block). */
+  get hasRestEffect(): boolean {
+    try { return hasRestBlock(this.item.script ?? ''); } catch { return false; }
+  }
+
+  /** Named onTrigger blocks in this item's script — offered in the right-click menu. */
+  get itemTriggers(): string[] {
+    const script = this.item.script;
+    if (!script || !script.trim()) return [];
+    try { return listTriggers(script).map(t => t.name); } catch { return []; }
+  }
+
+  triggerFromMenu(name: string): void {
+    this.showContextMenu = false;
+    this.runTrigger.emit(name);
   }
 
   usePotionFromMenu() {

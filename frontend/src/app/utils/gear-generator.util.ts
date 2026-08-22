@@ -91,8 +91,8 @@ export function budgetFor(rng: () => number, settings: GearGenSettings): number 
 }
 
 /**
- * Spend points forging the entries. The n-th forge of one entry costs n SP, so the cheapest next
- * forge always wins — that spreads the budget over the materials rather than dumping it on one.
+ * Spend points forging the entries. The n-th forge of one entry costs n + 2 SP (the first is 3), so
+ * the cheapest next forge always wins — that spreads the budget over the materials rather than dumping it on one.
  */
 export function spendOnForges(entries: SlotMaterialEntry[], budget: number): number {
   if (!entries.length) return 0;

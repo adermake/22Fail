@@ -37,11 +37,14 @@ class Scope {
 
 /**
  * Built-ins that are NOT allowed directly inside an `effectActive` block: they have side
- * effects or are non-deterministic. effectActive is re-evaluated continuously to derive the
- * effect's contribution, so it must be pure (reads + math + stat assignments + grantSkill).
+ * effects, and effectActive is re-evaluated continuously to derive the effect's contribution.
+ *
+ * Dice ARE allowed: they are seeded per effect instance, so the block rolls conceptually once —
+ * when the effect is applied — and returns that same result on every re-evaluation. That is what
+ * a one-shot random effect (scrambled stats, a random resistance) needs.
  */
 const IMPURE_IN_EFFECT_ACTIVE = new Set([
-  'display', 'stat', 'banner', 'box', 'loseResource', 'gainResource', 'applyStatus', 'removeStatus', 'roll',
+  'display', 'stat', 'banner', 'box', 'loseResource', 'gainResource', 'applyStatus', 'removeStatus',
 ]);
 
 class Checker {
@@ -234,7 +237,9 @@ class Checker {
       case 'Dice':
         if (expr.count <= 0 || expr.sides <= 0) this.warn(expr.from, expr.to, 'Würfel ohne Wirkung');
         if (this.lifecycleDepth > 0) {
-          this.err(expr.from, expr.to, 'Würfel sind in effectActive nicht erlaubt (muss deterministisch sein).');
+          this.warn(expr.from, expr.to,
+            'Würfel in effectActive werden einmalig gewürfelt (beim Anwenden des Effekts) und ' +
+            'bleiben danach gleich.');
         }
         break;
 

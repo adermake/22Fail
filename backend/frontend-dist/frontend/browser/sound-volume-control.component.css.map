@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["angular:styles/component:css;dc9d9c07311798d43f39be0052af7bff61f6a6be61a1d62496c4968e1850bc38;C:/Users/adermake/Documents/22FailApp/frontend/src/app/shared/sound/sound-volume-control.component.ts"],
-  "sourcesContent": ["\n    .svc { display: inline-flex; align-items: center; gap: 6px; }\n    .svc-btn {\n      background: none; border: none; cursor: pointer; font-size: 1rem;\n      line-height: 1; padding: 2px; color: inherit; opacity: 0.85;\n    }\n    .svc-btn:hover { opacity: 1; }\n    .svc-range { width: 88px; accent-color: #8b5cf6; cursor: pointer; }\n  "],
-  "mappings": ";AACI,CAAC;AAAM,WAAS;AAAa,eAAa;AAAQ,OAAK;AAAK;AAC5D,CAAC;AACC,cAAY;AAAM,UAAQ;AAAM,UAAQ;AAAS,aAAW;AAC5D,eAAa;AAAG,WAAS;AAAK,SAAO;AAAS,WAAS;AACzD;AACA,CAJC,OAIO;AAAS,WAAS;AAAG;AAC7B,CAAC;AAAY,SAAO;AAAM,gBAAc;AAAS,UAAQ;AAAS;",
-  "names": []
-}

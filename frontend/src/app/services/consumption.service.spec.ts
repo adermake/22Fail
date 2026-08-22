@@ -109,13 +109,33 @@ describe('ConsumptionService', () => {
     expect(s.inventory.length).toBe(0);
   });
 
-  it('queues the used unit under Verbraucht with amount 1', () => {
+  it('queues the used unit under Verbraucht with amount 1 — when it has an onRest block', () => {
     const s = sheet();
-    s.inventory = [item({ name: 'Heiltrank', stackable: true, amount: 5 })];
-    svc.consume(s, s.inventory[0]!, 0);
+    s.inventory = [item({
+      name: 'Heiltrank', stackable: true, amount: 5,
+      script: 'gainResource(health, 5) onRest { gainResource(health, 2) }',
+    })];
+    const result = svc.consume(s, s.inventory[0]!, 0);
+    expect(result.queued).toBe(true);
     expect(s.consumedItems?.length).toBe(1);
     expect(s.consumedItems![0].item.name).toBe('Heiltrank');
     expect(s.consumedItems![0].item.amount).toBe(1);
+  });
+
+  it('does NOT queue an item whose effect is over the moment it is used', () => {
+    const s = sheet();
+    s.inventory = [item({ name: 'Heiltrank', script: 'gainResource(health, 5)' })];
+    const result = svc.consume(s, s.inventory[0]!, 0);
+    expect(result.consumed).toBe(true);
+    expect(result.queued).toBe(false);
+    expect(s.consumedItems ?? []).toEqual([]);
+  });
+
+  it('does not queue a consumable with no script at all', () => {
+    const s = sheet();
+    s.inventory = [item({ name: 'Brot', itemType: 'consumable' })];
+    svc.consume(s, s.inventory[0]!, 0);
+    expect(s.consumedItems ?? []).toEqual([]);
   });
 
   it('refuses items that are not consumable', () => {
@@ -141,9 +161,12 @@ describe('ConsumptionService', () => {
     expect(life()).toBe(55);           // immediate effect
     expect(s.consumedItems?.length).toBe(1);
 
-    const outcome = rest.performRest(s);
+    const before = life();
+    const outcome = rest.performRest(s, { drankWater: true });
     expect(outcome.fired.map(f => f.name)).toEqual(['Rauschtrank']);
-    expect(life()).toBe(53);           // the hangover
+    // base restore (25 % of max) minus the 2-point hangover
+    expect(life()).toBe(before + outcome.restored.health);
+    expect(outcome.restored.health).toBe(rest.baseRestore(s).health - 2);
     expect(s.consumedItems).toEqual([]);
   });
 });

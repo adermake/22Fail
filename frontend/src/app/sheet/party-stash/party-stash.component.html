@@ -1,0 +1,62 @@
+<div class="ps-card">
+
+  <div class="ps-head">
+    <span class="ps-title"><span class="app-icon i-item"></span> Gemeinsamer Beutel</span>
+    <span class="ps-count">{{ entries.length }}</span>
+    @if (stash.busy()) { <span class="ps-busy">…</span> }
+  </div>
+
+  @if (!hasWorld) {
+    <p class="ps-empty">Dieser Charakter geh&ouml;rt zu keiner Welt &mdash; kein gemeinsamer Beutel.</p>
+  } @else {
+
+    @if (stash.notice(); as note) {
+      <p class="ps-notice">{{ note }}</p>
+    }
+
+    <div class="ps-list"
+         cdkDropList
+         id="partyStashList"
+         [cdkDropListData]="entries"
+         [cdkDropListConnectedTo]="['inventoryList']"
+         (cdkDropListDropped)="onDrop($event)">
+
+      @if (!entries.length) {
+        <p class="ps-empty">Leer. Zieh etwas aus dem Inventar hier hinein.</p>
+      }
+
+      @for (entry of entries; track entry.entryId) {
+        <div class="ps-entry"
+             cdkDrag
+             [cdkDragData]="entry"
+             [class.open]="expandedEntry === entry.entryId">
+
+          <div class="ps-row" (click)="toggleExpanded(entry.entryId)">
+            <span class="ps-name">{{ entry.item.name }}</span>
+            @if (entry.item.stackable && (entry.item.amount ?? 1) > 1) {
+              <span class="ps-amount">&times;{{ entry.item.amount }}</span>
+            }
+            @if (entry.item.value) {
+              <span class="ps-value" title="Goldwert">{{ entry.item.value }} G</span>
+            }
+            @if (entry.fromName) {
+              <span class="ps-from" title="Abgelegt von">von {{ entry.fromName }}</span>
+            }
+            <button class="ps-take"
+                    [disabled]="stash.busy()"
+                    (click)="take(entry); $event.stopPropagation()">Nehmen</button>
+          </div>
+
+          @if (expandedEntry === entry.entryId) {
+            <div class="ps-detail">
+              <app-item [item]="entry.item" [sheet]="sheet" [index]="-1"
+                        [hideFoldControls]="true" [startUnfolded]="true"></app-item>
+            </div>
+          }
+
+          <div class="ps-drag-preview" *cdkDragPreview>{{ entry.item.name }}</div>
+        </div>
+      }
+    </div>
+  }
+</div>

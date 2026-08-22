@@ -8,6 +8,7 @@ import { SkillBlock } from '../model/skill-block.model';
 import { SpellBlock } from '../model/spell-block-model';
 import { ItemBlock } from '../model/item-block.model';
 import { FormulaType } from '../model/formula-type.enum';
+import { TrueStatsService } from './true-stats.service';
 
 /** Heals 5 Leben when the character rests, and nothing otherwise. */
 const REST_HEAL = 'onRest { gainResource(health, 5) }';
@@ -34,12 +35,15 @@ function spell(partial: Partial<SpellBlock>): SpellBlock {
 
 describe('RestService', () => {
   let svc: RestService;
+  let stats: TrueStatsService;
+  const svcMax = (sheet: CharacterSheet, ft: FormulaType) => stats.calculateResourceMax(sheet, ft);
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     svc = TestBed.inject(RestService);
+    stats = TestBed.inject(TrueStatsService);
   });
 
   // ── What qualifies ────────────────────────────────────────────────────────
@@ -96,12 +100,55 @@ describe('RestService', () => {
 
   // ── Performing the rest ───────────────────────────────────────────────────
 
-  it('applies each onRest effect to the sheet', () => {
-    const sheet = sheetWithHealth(50);
+  it('restores a quarter of every maximum on its own', () => {
+    const sheet = sheetWithHealth(0);
+    const base = svc.baseRestore(sheet);
+    expect(base.health).toBe(Math.floor(svcMax(sheet, FormulaType.LIFE) * 0.25));
+
+    svc.performRest(sheet);
+    expect(sheet.statuses.find(s => s.formulaType === FormulaType.LIFE)!.statusCurrent).toBe(base.health);
+  });
+
+  it('adds onRest effects on top of the base restore', () => {
+    const sheet = sheetWithHealth(0);
+    const base = svc.baseRestore(sheet).health;
     sheet.consumedItems = [{ item: consumable('Kraftrune', REST_HEAL), consumedAt: 0 }];
     svc.performRest(sheet);
-    const life = sheet.statuses.find(s => s.formulaType === FormulaType.LIFE)!;
-    expect(life.statusCurrent).toBe(55);
+    expect(sheet.statuses.find(s => s.formulaType === FormulaType.LIFE)!.statusCurrent).toBe(base + 5);
+  });
+
+  it('halves the SUMMED gains when the character drank too little', () => {
+    const sheet = sheetWithHealth(0);
+    const base = svc.baseRestore(sheet).health;
+    sheet.consumedItems = [{ item: consumable('Kraftrune', REST_HEAL), consumedAt: 0 }];
+    const outcome = svc.performRest(sheet, { drankWater: false });
+    expect(outcome.halved).toBe(true);
+    // summed first, then halved — not each contribution halved on its own
+    expect(outcome.restored.health).toBe(Math.floor((base + 5) / 2));
+  });
+
+  it('does not halve anything when the character drank enough', () => {
+    const sheet = sheetWithHealth(0);
+    const base = svc.baseRestore(sheet).health;
+    const outcome = svc.performRest(sheet, { drankWater: true });
+    expect(outcome.halved).toBe(false);
+    expect(outcome.restored.health).toBe(base);
+  });
+
+  it('never softens a net loss through dehydration', () => {
+    const sheet = sheetWithHealth(50);
+    sheet.consumedItems = [{
+      item: consumable('Rausch', 'onRest { loseResource(health, 500) }'), consumedAt: 0,
+    }];
+    const outcome = svc.performRest(sheet, { drankWater: false });
+    expect(outcome.restored.health).toBeLessThan(0);
+  });
+
+  it('restores energy and mana too', () => {
+    const sheet = sheetWithHealth(0);
+    const outcome = svc.performRest(sheet);
+    expect(outcome.restored.energy).toBe(svc.baseRestore(sheet).energy);
+    expect(outcome.restored.mana).toBeGreaterThanOrEqual(0);
   });
 
   it('empties the consumed queue, including items without an onRest block', () => {
@@ -117,27 +164,28 @@ describe('RestService', () => {
   });
 
   it('stacks several sources in one rest', () => {
-    const sheet = sheetWithHealth(50);
+    const sheet = sheetWithHealth(0);
+    const base = svc.baseRestore(sheet).health;
     sheet.consumedItems = [{ item: consumable('Rune', REST_HEAL), consumedAt: 0 }];
     sheet.skills = [skill({ name: 'Passiv', type: 'passive', script: REST_HEAL })];
     svc.performRest(sheet);
-    const life = sheet.statuses.find(s => s.formulaType === FormulaType.LIFE)!;
-    expect(life.statusCurrent).toBe(60);
+    expect(sheet.statuses.find(s => s.formulaType === FormulaType.LIFE)!.statusCurrent).toBe(base + 10);
   });
 
   it('does not run the base script — only the onRest block', () => {
-    const sheet = sheetWithHealth(50);
+    const sheet = sheetWithHealth(0);
     // The base action would heal 100; only the onRest part may fire on a rest.
     sheet.consumedItems = [{
       item: consumable('Doppelt', 'gainResource(health, 100) onRest { gainResource(health, 5) }'),
       consumedAt: 0,
     }];
+    const base = svc.baseRestore(sheet).health;
     svc.performRest(sheet);
     const life = sheet.statuses.find(s => s.formulaType === FormulaType.LIFE)!;
-    expect(life.statusCurrent).toBe(55);
+    expect(life.statusCurrent).toBe(base + 5);
   });
 
-  it('resting twice does nothing the second time (queue is gone)', () => {
+  it('resting twice still gives the base restore, but fires nothing', () => {
     const sheet = sheetWithHealth(50);
     sheet.consumedItems = [{ item: consumable('Rune', REST_HEAL), consumedAt: 0 }];
     svc.performRest(sheet);
@@ -146,12 +194,13 @@ describe('RestService', () => {
     expect(second.clearedItems).toBe(0);
   });
 
-  it('a rest with nothing queued and nothing active is a no-op', () => {
+  it('a rest with nothing queued still gives the base restore', () => {
     const sheet = sheetWithHealth(50);
     const outcome = svc.performRest(sheet);
     expect(outcome.fired).toEqual([]);
     expect(outcome.clearedItems).toBe(0);
-    expect(sheet.statuses.find(s => s.formulaType === FormulaType.LIFE)!.statusCurrent).toBe(50);
+    expect(sheet.statuses.find(s => s.formulaType === FormulaType.LIFE)!.statusCurrent)
+      .toBe(50 + outcome.restored.health);
   });
 
   it('never heals past the maximum', () => {

@@ -25,6 +25,8 @@ export class RuneTableComponent implements OnInit, OnDestroy {
   @Input() folderId!: string;
   @Output() close = new EventEmitter<void>();
   @Output() filesChanged = new EventEmitter<void>();
+  /** "Jump into the thing": open this rune in the normal rune editor. */
+  @Output() openFile = new EventEmitter<AssetFile>();
 
   @ViewChild('uploadInput') uploadInput!: ElementRef<HTMLInputElement>;
 
@@ -201,6 +203,11 @@ export class RuneTableComponent implements OnInit, OnDestroy {
   }
 
   // ─── Delete ───────────────────────────────────────────────────────────────
+
+  jump(file: AssetFile): void {
+    this.openFile.emit(file);
+    this.close.emit();
+  }
 
   async deleteRune(file: AssetFile): Promise<void> {
     if (!confirm(`Rune "${(file.data as RuneBlock).name || file.name}" wirklich löschen?`)) return;

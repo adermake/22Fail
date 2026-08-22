@@ -44,6 +44,19 @@ export interface EncounterTimerSettings {
   nextTriggerAtHour: number;
 }
 
+/**
+ * One item lying in the shared party stash. The `entryId` is the unit of ownership: the server
+ * hands an entry to exactly one taker, so an item can never be duplicated or lost in a race.
+ */
+export interface PartyStashEntry {
+  entryId: string;
+  item: ItemBlock;
+  /** Who put it in (for the "von …" line). */
+  fromCharacterId?: string;
+  fromName?: string;
+  addedAt: number;
+}
+
 export interface WorldData {
   name: string;
   /** Admin who created this world (for the homepage "your worlds" listing). */
@@ -54,6 +67,8 @@ export interface WorldData {
   kampfrundeActive?: boolean;
   characterIds: string[]; // All characters in this world
   partyIds: string[]; // Characters currently in the active party
+  /** Shared party stash — server-authoritative, see WorldGateway.partyStash* handlers. */
+  partyStash?: PartyStashEntry[];
   
   // Library system - new approach
   linkedLibraries?: string[]; // IDs of linked library files

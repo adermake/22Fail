@@ -39,7 +39,7 @@
           </tr>
           <tr>
             <th class="c-name">Name</th>
-            <th class="c-cb" title="Öffentlich">Öff</th>
+            <th class="c-tier" title="Wissensstufe: Geheim / Unbekannt / Bekannt">Wissen</th>
             <th class="c-cb" title="Kann als Waffen-Material genutzt werden">Waffe</th>
             <th class="c-cb" title="Kann als Rüstungs-Material genutzt werden">Rüst</th>
             <th class="c-num" title="Kosten">💰</th>
@@ -77,11 +77,14 @@
                        (ngModelChange)="mat(file).name = $event; onFieldChange(file)"
                        placeholder="Name…" />
               </td>
-              <!-- Öffentlich -->
-              <td class="c-cb">
-                <input type="checkbox"
-                       [ngModel]="mat(file).isPublic"
-                       (ngModelChange)="mat(file).isPublic = $event; onFieldChange(file)" />
+              <!-- Wissensstufe -->
+              <td class="c-tier">
+                <select class="mt-select" [ngModel]="tierOf(file)" (ngModelChange)="setTier(file, $event)"
+                        title="Wissensstufe">
+                  @for (t of knowledgeTiers; track t.value) {
+                    <option [value]="t.value" [title]="t.hint">{{ t.label }}</option>
+                  }
+                </select>
               </td>
               <!-- Waffe toggle -->
               <td class="c-cb">
@@ -226,7 +229,8 @@
 
               <!-- Delete -->
               <td class="c-del">
-                <button class="mt-del-btn" (click)="deleteMaterial(file)" title="Löschen">✕</button>
+                <button class="mt-jump" (click)="jump(file)" title="Im Editor öffnen">öffnen</button>
+                <button class="mt-del-btn" (click)="deleteMaterial(file)" title="Löschen">&times;</button>
               </td>
             </tr>
           }

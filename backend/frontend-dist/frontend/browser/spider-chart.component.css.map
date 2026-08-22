@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["angular:styles/component:css;9767e34d04b3e3833b52d1c662c2e7827d8b36622391486e86f0784fd8f3529d;C:/Users/adermake/Documents/22FailApp/frontend/src/app/world/character-generator/spider-chart.component.ts"],
-  "sourcesContent": ["\n    .spider-chart-container {\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      gap: 12px;\n    }\n\n    svg {\n      border-radius: 8px;\n      background: #0f0f0f;\n    }\n\n    .data-points circle:hover {\n      r: 10;\n      filter: brightness(1.2);\n    }\n\n    .data-points circle:active {\n      cursor: grabbing;\n    }\n\n    .stat-summary {\n      display: flex;\n      gap: 16px;\n      font-size: 13px;\n      color: #888;\n    }\n\n    .stat-info {\n      background: #1a1a1a;\n      padding: 6px 12px;\n      border-radius: 4px;\n      border: 1px solid #333;\n    }\n\n    .highlight {\n      color: #4CAF50;\n      font-weight: 600;\n    }\n  "],
-  "mappings": ";AACI,CAAC;AACC,WAAS;AACT,kBAAgB;AAChB,eAAa;AACb,OAAK;AACP;AAEA;AACE,iBAAe;AACf,cAAY;AACd;AAEA,CAAC,YAAY,MAAM;AACjB,KAAG;AACH,UAAQ,WAAW;AACrB;AAEA,CALC,YAKY,MAAM;AACjB,UAAQ;AACV;AAEA,CAAC;AACC,WAAS;AACT,OAAK;AACL,aAAW;AACX,SAAO;AACT;AAEA,CAAC;AACC,cAAY;AACZ,WAAS,IAAI;AACb,iBAAe;AACf,UAAQ,IAAI,MAAM;AACpB;AAEA,CAAC;AACC,SAAO;AACP,eAAa;AACf;",
-  "names": []
-}

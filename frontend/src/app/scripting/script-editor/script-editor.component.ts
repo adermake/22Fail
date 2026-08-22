@@ -1,6 +1,6 @@
 import {
   AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, EventEmitter, Input,
-  OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, signal,
+  OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, inject, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,7 +10,8 @@ import { history, historyKeymap, defaultKeymap, indentWithTab } from '@codemirro
 import { acceptCompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { bracketMatching, indentOnInput } from '@codemirror/language';
 
-import { failscriptExtensions, formatFailScript } from './failscript-cm';
+import { failscriptExtensions, formatFailScript, setStatusEffectChoices } from './failscript-cm';
+import { LibraryStoreService } from '../../services/library-store.service';
 import { BUILTINS, KEYWORD_INFO, SYMBOLS, TALENT_INFO } from '../symbols';
 import { runScript, ScriptResult, CharacterContext } from '../interpreter';
 
@@ -150,6 +151,7 @@ export class ScriptEditorComponent implements AfterViewInit, OnChanges, OnDestro
   @ViewChild('host', { static: true }) host!: ElementRef<HTMLDivElement>;
 
   private view?: EditorView;
+  private libraryStore = inject(LibraryStoreService);
   refOpen = signal(true);
   search = signal('');
 
@@ -157,6 +159,27 @@ export class ScriptEditorComponent implements AfterViewInit, OnChanges, OnDestro
   testStacks = 1;
   testDuration = 3;
   testResult: ScriptResult | null = null;
+
+  /**
+   * Feed the autocomplete with every status effect the loaded libraries know about, so
+   * `applyStatus("…")` offers them by name and inserts the ID.
+   */
+  private publishStatusEffectChoices(): void {
+    const seen = new Set<string>();
+    const choices = [];
+    for (const lib of this.libraryStore.allLibraries ?? []) {
+      for (const fx of lib.statusEffects ?? []) {
+        if (!fx?.id || seen.has(fx.id)) continue;
+        seen.add(fx.id);
+        choices.push({
+          id: fx.id, name: fx.name || fx.id, icon: fx.icon,
+          description: fx.description, library: lib.name,
+        });
+      }
+    }
+    choices.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    setStatusEffectChoices(choices);
+  }
 
   /** Run the current script against a dummy character to preview behaviour + look. */
   runTest(): void {
@@ -194,6 +217,7 @@ export class ScriptEditorComponent implements AfterViewInit, OnChanges, OnDestro
   private readonly groups: RefGroup[] = this.buildGroups();
 
   ngAfterViewInit(): void {
+    this.publishStatusEffectChoices();
     const extensions: Extension[] = [
       lineNumbers(),
       highlightActiveLineGutter(),
