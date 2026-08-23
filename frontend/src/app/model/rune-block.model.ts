@@ -22,6 +22,7 @@ export class RuneBlock {
   mana?: number;              // Base Mana cost
   manaMult?: number;          // Mana cost multiplier
   effektivitaet?: number;     // Effektivität value
+  cost?: number;              // Gold / shop value of the rune
   statRequirements?: RuneStatRequirements;
   identified?: boolean;       // false = show only image, hide all text info
   learned?: boolean;          // character sheet: has the character learned this rune

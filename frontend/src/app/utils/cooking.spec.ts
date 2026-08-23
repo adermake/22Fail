@@ -1,4 +1,6 @@
-import { dividePortions, mergeConsumableScripts, splitAmount } from './cooking.util';
+import {
+  COOKED_MARK, dividePortions, isCookable, isCookedMeal, mergeConsumableScripts, splitAmount,
+} from './cooking.util';
 import { ItemBlock } from '../model/item-block.model';
 
 function item(name: string, script?: string): ItemBlock {
@@ -88,6 +90,42 @@ describe('Kochen', () => {
       expect(out).toContain('gainResource(health, 15)');
       expect(out).toContain('applyStatus("fx_rausch", 2)');
       expect(out).toContain('loseResource(health, 3)');
+    });
+  });
+
+  describe('was in den Topf darf', () => {
+    const REST = 'onRest { gainResource(health, 4) }';
+
+    it('accepts a consumable with an onRest effect', () => {
+      expect(isCookable(item('Kräutersud', REST))).toBe(true);
+    });
+
+    it('rejects an instant potion — nothing of it survives the meal', () => {
+      expect(isCookable(item('Heiltrank', 'gainResource(health, 20)'))).toBe(false);
+    });
+
+    it('rejects an item with no script at all', () => {
+      expect(isCookable(item('Stein'))).toBe(false);
+    });
+
+    it('rejects a lost item', () => {
+      const lost = item('Kräutersud', REST);
+      lost.lost = true;
+      expect(isCookable(lost)).toBe(false);
+    });
+
+    it('rejects a meal that came out of the pot — no infinite portion loop', () => {
+      const meal = item('Eintopf', REST) as ItemBlock & { origin?: string };
+      meal.origin = COOKED_MARK;
+      expect(isCookedMeal(meal)).toBe(true);
+      expect(isCookable(meal)).toBe(false);
+    });
+
+    it('never throws on a script that does not compile', () => {
+      // The parser is error-tolerant: a malformed `onRest {` still declares the block, so the
+      // item stays cookable and the author fixes it in the editor's lint panel.
+      expect(() => isCookable(item('Kaputt', 'onRest { ('))).not.toThrow();
+      expect(isCookable(item('Kaputt', 'gainResource(health,'))).toBe(false);
     });
   });
 });

@@ -1,3 +1,6 @@
+<!-- The pile currently in hand, floating under the cursor -->
+<app-held-stack-cursor />
+
 @if (store.sheet$ | async; as sheet) {
 <div class="character-grid" [class.current-turn]="isCurrentTurn" [class.group-turn]="isGroupTurn">
   <div class="grid-character">
@@ -183,6 +186,12 @@
                 <div class="rest-row">
                   <span class="rest-kind" [attr.data-kind]="f.kind">{{ restKindLabel(f.kind) }}</span>
                   <span class="rest-name">{{ f.name }}</span>
+                  @for (chip of restContributionChips(f.contributes); track chip.key) {
+                    <span class="rest-contrib" [attr.data-res]="chip.key"
+                          [class.rest-contrib-loss]="chip.amount < 0">
+                      {{ chip.amount > 0 ? '+' : '' }}{{ chip.amount }} {{ chip.label }}
+                    </span>
+                  }
                   <span class="rest-msg">{{ f.message }}</span>
                 </div>
               }
@@ -199,6 +208,13 @@
                 <div class="rest-row">
                   <span class="rest-kind" [attr.data-kind]="s.kind">{{ restKindLabel(s.kind) }}</span>
                   <span class="rest-name">{{ s.name }}</span>
+                  <!-- What this one contributes to the pools, before the water rule. -->
+                  @for (chip of restContributionChips(s.contributes); track chip.key) {
+                    <span class="rest-contrib" [attr.data-res]="chip.key"
+                          [class.rest-contrib-loss]="chip.amount < 0">
+                      {{ chip.amount > 0 ? '+' : '' }}{{ chip.amount }} {{ chip.label }}
+                    </span>
+                  }
                 </div>
               }
             </div>

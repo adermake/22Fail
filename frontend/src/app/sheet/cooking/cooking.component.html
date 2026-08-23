@@ -2,7 +2,7 @@
 
   <div class="ck-topbar">
     <span class="ck-title"><span class="app-icon i-brewing"></span> Kochen</span>
-    <span class="ck-hint">Verbrauchsgegenst&auml;nde zusammenwerfen &mdash; die Wirkung teilt sich auf die Portionen.</span>
+    <span class="ck-hint">Zutaten mit <code>onRest</code>-Wirkung zusammenwerfen &mdash; die Wirkung teilt sich auf die Portionen.</span>
   </div>
 
   <div class="ck-body">
@@ -14,7 +14,11 @@
         <span class="ck-count">{{ pot.length }} im Topf</span>
       </div>
       @if (!availableItems.length) {
-        <p class="ck-empty">Keine essbaren Gegenst&auml;nde im Inventar.</p>
+        <p class="ck-empty">
+          Nichts Kochbares im Inventar. In den Topf darf nur, was einen <code>onRest</code>-Effekt
+          hat &mdash; ein Sofort-Trank hat nichts, was sich auf Portionen verteilen lie&szlig;e.
+          Fertige Gerichte lassen sich nicht erneut kochen.
+        </p>
       } @else {
         <div class="ck-list">
           @for (entry of availableItems; track entry.index) {
@@ -24,9 +28,7 @@
               @if (entry.item.stackable && (entry.item.amount ?? 1) > 1) {
                 <span class="ck-item-amount">×{{ entry.item.amount }}</span>
               }
-              @if (!entry.item.script) {
-                <span class="ck-item-note" title="Ohne Wirkung — nur Füllstoff">ohne Wirkung</span>
-              }
+              <span class="ck-item-note" title="Wirkt bei der nächsten Rast">onRest</span>
             </button>
           }
         </div>

@@ -10,7 +10,9 @@ import { history, historyKeymap, defaultKeymap, indentWithTab } from '@codemirro
 import { acceptCompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { bracketMatching, indentOnInput } from '@codemirror/language';
 
-import { failscriptExtensions, formatFailScript, setStatusEffectChoices } from './failscript-cm';
+import {
+  failscriptExtensions, formatFailScript, registerStatusEffectChoices, StatusEffectChoice,
+} from './failscript-cm';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { BUILTINS, KEYWORD_INFO, SYMBOLS, TALENT_INFO } from '../symbols';
 import { runScript, ScriptResult, CharacterContext } from '../interpreter';
@@ -146,6 +148,11 @@ interface RefGroup { title: string; items: RefItem[]; }
 export class ScriptEditorComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() value = '';
   @Input() placeholder = '// Skript … Tippe für Autovervollständigung';
+  /**
+   * Status effects this editor should offer for applyStatus/removeStatus, when the host knows
+   * them better than LibraryStoreService does (the library editor works on asset files).
+   */
+  @Input() statusChoices: StatusEffectChoice[] | null = null;
   @Output() valueChange = new EventEmitter<string>();
 
   @ViewChild('host', { static: true }) host!: ElementRef<HTMLDivElement>;
@@ -165,20 +172,19 @@ export class ScriptEditorComponent implements AfterViewInit, OnChanges, OnDestro
    * `applyStatus("…")` offers them by name and inserts the ID.
    */
   private publishStatusEffectChoices(): void {
-    const seen = new Set<string>();
-    const choices = [];
+    const choices: StatusEffectChoice[] = [];
     for (const lib of this.libraryStore.allLibraries ?? []) {
       for (const fx of lib.statusEffects ?? []) {
-        if (!fx?.id || seen.has(fx.id)) continue;
-        seen.add(fx.id);
+        if (!fx?.id) continue;
         choices.push({
           id: fx.id, name: fx.name || fx.id, icon: fx.icon,
           description: fx.description, library: lib.name,
         });
       }
     }
-    choices.sort((a, b) => a.name.localeCompare(b.name, 'de'));
-    setStatusEffectChoices(choices);
+    // Whatever the host handed us wins — in the library editor the effects are asset files that
+    // never pass through LibraryStoreService, so that list is the only source there.
+    registerStatusEffectChoices([...choices, ...(this.statusChoices ?? [])]);
   }
 
   /** Run the current script against a dummy character to preview behaviour + look. */

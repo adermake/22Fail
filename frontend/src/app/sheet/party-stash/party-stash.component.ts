@@ -10,6 +10,8 @@ import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { PartyStashEntry } from '../../model/world.model';
 import { PartyStashService } from '../../services/party-stash.service';
+import { HeldStackService } from '../../services/held-stack.service';
+import { splitHalf, stackAmount, withAmount } from '../../utils/item-stack.util';
 import { ItemComponent } from '../item/item.component';
 
 /**
@@ -33,6 +35,7 @@ export class PartyStashComponent implements OnInit {
   @Output() patch = new EventEmitter<JsonPatch>();
 
   readonly stash = inject(PartyStashService);
+  readonly heldStack = inject(HeldStackService);
   private cdr = inject(ChangeDetectorRef);
 
   /** Which entry is being previewed in full (click on the row). */
@@ -83,6 +86,68 @@ export class PartyStashComponent implements OnInit {
     }
     this.sheet.inventory = inventory as typeof this.sheet.inventory;
     this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+    this.cdr.markForCheck();
+  }
+
+  // ── Stapel: aufnehmen und ablegen ────────────────────────────────────────
+  // Same gestures as the inventory grid, but every move is a server move: the hand is only
+  // filled once the server confirms the units left the bag, and only emptied once it confirms
+  // they arrived. A refused move leaves both sides exactly as they were.
+
+  /** Left click on an entry: take the whole pile into the hand — or drop everything held. */
+  async onEntryClick(entry: PartyStashEntry, event: MouseEvent): Promise<void> {
+    if (this.isInteractive(event)) return;
+    event.preventDefault();
+    if (this.heldStack.isHolding()) { await this.depositHeld(this.heldStack.heldAmount()); return; }
+    await this.takeToHand(entry);
+  }
+
+  /** Right click on an entry: take half — or drop a single unit. */
+  async onEntryRightClick(entry: PartyStashEntry, event: MouseEvent): Promise<void> {
+    if (this.isInteractive(event)) return;
+    event.preventDefault();
+    if (this.heldStack.isHolding()) { await this.depositHeld(1); return; }
+
+    const total = stackAmount(entry.item);
+    if (!entry.item.stackable || total <= 1) { await this.takeToHand(entry); return; }
+    await this.takeToHand(entry, splitHalf(total).taken);
+  }
+
+  /** Clicking the empty area of the bag puts the held stack in. */
+  async onBagClick(event: MouseEvent): Promise<void> {
+    if (this.isInteractive(event) || !this.heldStack.isHolding()) return;
+    event.preventDefault();
+    await this.depositHeld(this.heldStack.heldAmount());
+  }
+
+  async onBagRightClick(event: MouseEvent): Promise<void> {
+    if (this.isInteractive(event) || !this.heldStack.isHolding()) return;
+    event.preventDefault();
+    await this.depositHeld(1);
+  }
+
+  private isInteractive(event: Event): boolean {
+    const el = event.target as HTMLElement | null;
+    return !!el?.closest('button, input, select, textarea, a');
+  }
+
+  /** Move units out of the bag into the hand. Nothing enters the hand unless the server agreed. */
+  private async takeToHand(entry: PartyStashEntry, amount?: number): Promise<void> {
+    if (this.heldStack.isHolding()) return;
+    const item = await this.stash.withdraw(entry.entryId, amount);
+    if (item) this.heldStack.pickUpAll(item, 'stash');
+    this.cdr.markForCheck();
+  }
+
+  /** Move units from the hand into the bag. The hand keeps them until the server has them. */
+  private async depositHeld(count: number): Promise<void> {
+    const item = this.heldStack.heldItem();
+    if (!item) return;
+    const amount = Math.max(1, Math.min(count, stackAmount(item)));
+    const ok = await this.stash.deposit(
+      withAmount(item, amount), { id: this.characterId, name: this.sheet.name },
+    );
+    if (ok) this.heldStack.takeHeld(amount);
     this.cdr.markForCheck();
   }
 

@@ -8,8 +8,16 @@
 node_modules/
 
 # Build outputs
+# NOTE: "dist/" matches a directory named exactly "dist" - it does NOT match
+# "frontend-dist", which is why the staged bundle was tracked for so long.
 dist/
 build/
+
+# Staged frontend bundle served by the backend (ServeStatic in app.module.ts).
+# Written locally by "npm run deploy:stage"; on the server the deploy script does
+# "rm -rf backend/frontend-dist" and copies in the build it made itself, so a
+# committed copy is never read by anything.
+backend/frontend-dist/
 
 # Environment files
 .env

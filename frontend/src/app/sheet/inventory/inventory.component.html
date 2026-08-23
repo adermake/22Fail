@@ -31,9 +31,21 @@
       <button class="forge-btn" (click)="openForge.emit()" title="Schmiede öffnen">⚒ Schmieden</button>
       <button class="forge-btn" (click)="openBrew.emit()" title="Braukessel öffnen"><span class="app-icon i-brewing"></span> Brauen</button>
       <button class="forge-btn" (click)="openCook.emit()" title="Kochtopf öffnen"><span class="app-icon i-item"></span> Kochen</button>
+      <button class="forge-btn" (click)="mergeStacks()"
+              title="Gleiche Gegenstände zu einem Stapel zusammenlegen">Stapeln</button>
       <button class="add-btn" (click)="openNewItemEditor()">+ Gegenstand</button>
     </div>
   </div>
+
+  @if (heldStack.isHolding()) {
+    <div class="held-banner">
+      <span class="held-banner-text">
+        {{ heldStack.heldAmount() }}&times; {{ heldStack.heldItem()?.name }} in der Hand &mdash;
+        Linksklick legt alles ab, Rechtsklick einzeln.
+      </span>
+      <button class="held-banner-btn" (click)="returnHeldStack()">Zur&uuml;cklegen</button>
+    </div>
+  }
 
   <div
     class="inventory-grid"
@@ -60,7 +72,9 @@
              [cdkDragDisabled]="isItemEditing(i)"
              (cdkDragStarted)="onDragStarted($event, i)"
              (cdkDragMoved)="onDragMoved($event)"
-             (cdkDragEnded)="onDragEnded($event)">
+             (cdkDragEnded)="onDragEnded($event)"
+             (click)="onSlotClick(i, $event)"
+             (contextmenu)="onSlotRightClick(i, $event)">
 
           @if (isItemUnfolded(i)) {
             <!-- Origin chip: click = switch expansion tab; double-click = fold; cdkDragHandle = only drag from chip -->
@@ -78,6 +92,7 @@
               [item]="slot"
               [sheet]="sheet"
               [index]="i"
+              [stackMode]="true"
               [isEditing]="isItemEditing(i)"
               [compact]="draggedIndex === i"
               (patch)="updateItem(i, $event)"
@@ -109,9 +124,12 @@
         <!-- Empty slot: always visible as a slot background -->
         <div class="item-slot item-slot-empty"
              [class.drag-target]="dropTargetSlotIdx === i && dragSourceSlotIdx !== i"
+             [class.slot-droppable]="heldStack.isHolding()"
              [attr.data-slot-idx]="i"
              [style.grid-column]="(i % 4) + 1"
-             [style.grid-row]="getItemGridRow(i)">
+             [style.grid-row]="getItemGridRow(i)"
+             (click)="onSlotClick(i, $event)"
+             (contextmenu)="onSlotRightClick(i, $event)">
         </div>
       }
     }

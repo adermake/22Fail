@@ -16,16 +16,38 @@ import {
 import {
   KNOWLEDGE_TIERS, KnowledgeTier, knowledgeTierOf, setKnowledgeTier,
 } from '../../utils/knowledge-tier.util';
+import { ItemBlock } from '../../model/item-block.model';
+import { SpellBlock } from '../../model/spell-block-model';
+import { StatusEffect, createEmptyStatusEffect } from '../../model/status-effect.model';
 
-/** The craft asset kinds this one table can edit. */
-export type CraftTableType = 'forge-trait' | 'ingredient' | 'extractor' | 'brew-trait';
+/** Item kinds offered in the Gegenstände table's type column. */
+export const ITEM_TYPE_OPTIONS = [
+  { value: 'weapon', label: 'Waffe' },
+  { value: 'armor', label: 'Rüstung' },
+  { value: 'consumable', label: 'Verbrauch' },
+  { value: 'potion', label: 'Trank' },
+  { value: 'other', label: 'Sonstiges' },
+];
+
+/** The asset kinds this one table can edit. */
+export type CraftTableType =
+  | 'forge-trait' | 'ingredient' | 'extractor' | 'brew-trait'
+  | 'item' | 'spell' | 'status-effect';
 
 export const CRAFT_TABLE_LABELS: Record<CraftTableType, string> = {
   'forge-trait': 'Schmiedemerkmale',
   'ingredient': 'Wirkstoffe',
   'extractor': 'Extraktoren',
   'brew-trait': 'Braumerkmale',
+  'item': 'Gegenstände',
+  'spell': 'Zauber',
+  'status-effect': 'Statuseffekte',
 };
+
+/** Only craft knowledge is graded — an item or a spell has no Wissensstufe. */
+const GRADED_TYPES = new Set<CraftTableType>([
+  'forge-trait', 'ingredient', 'extractor', 'brew-trait',
+]);
 
 /**
  * One table for every small craft asset — Merkmale, Wirkstoffe, Extraktoren, Braumerkmale. They
@@ -61,6 +83,12 @@ export class CraftTableComponent implements OnInit, OnDestroy {
   newName = '';
 
   readonly knowledgeTiers = KNOWLEDGE_TIERS;
+  readonly itemTypes = ITEM_TYPE_OPTIONS;
+  readonly rarities = [
+    { value: 'COMMON', label: 'Gewöhnlich' },
+    { value: 'RARE', label: 'Selten' },
+    { value: 'LEGENDARY', label: 'Legendär' },
+  ];
   readonly slotLabels = BREW_SLOT_LABELS;
 
   private saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -89,6 +117,12 @@ export class CraftTableComponent implements OnInit, OnDestroy {
   // ── Typed accessors ────────────────────────────────────────────────────────
 
   forgeTrait(file: AssetFile): ForgeTrait { return file.data as ForgeTrait; }
+  item(file: AssetFile): ItemBlock { return file.data as ItemBlock; }
+  spell(file: AssetFile): SpellBlock { return file.data as SpellBlock; }
+  statusEffect(file: AssetFile): StatusEffect { return file.data as StatusEffect; }
+
+  /** Does this asset kind carry a Wissensstufe at all? */
+  get isGraded(): boolean { return GRADED_TYPES.has(this.type); }
   brewTrait(file: AssetFile): BrewTrait { return file.data as BrewTrait; }
   ingredient(file: AssetFile): IngredientBlock { return file.data as IngredientBlock; }
   extractor(file: AssetFile): ExtractorBlock { return file.data as ExtractorBlock; }
@@ -146,6 +180,9 @@ export class CraftTableComponent implements OnInit, OnDestroy {
       case 'brew-trait':  return { ...createEmptyBrewTrait(), name };
       case 'ingredient':  return createEmptyIngredientBlock(name);
       case 'extractor':   return createEmptyExtractorBlock(name);
+      case 'item':        return { ...new ItemBlock(), name };
+      case 'spell':       return { ...new SpellBlock(), name, description: '', tags: [] };
+      case 'status-effect': return { ...createEmptyStatusEffect(), name };
     }
   }
 

@@ -65,6 +65,7 @@ import { ImageUrlPipe } from '../shared/image-url.pipe';
 import { RuneTableComponent } from './rune-table/rune-table.component';
 import { MaterialTableComponent } from './material-table/material-table.component';
 import { CraftTableComponent, CraftTableType, CRAFT_TABLE_LABELS } from './craft-table/craft-table.component';
+import { registerStatusEffectChoices } from '../scripting/script-editor/failscript-cm';
 import {
   createEmptyIngredientBlock, createEmptyExtractorBlock,
 } from '../model/brewing.model';
@@ -171,11 +172,15 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
   hasType(type: string): boolean { return this.folderTypes().has(type as never); }
 
   /** Table buttons for the craft assets, in a stable order. */
+  /** Every asset kind that has a table view. The buttons appear per folder contents. */
   readonly craftTables: { type: CraftTableType; label: string }[] = [
-    { type: 'forge-trait', label: CRAFT_TABLE_LABELS['forge-trait'] },
-    { type: 'ingredient',  label: CRAFT_TABLE_LABELS['ingredient'] },
-    { type: 'extractor',   label: CRAFT_TABLE_LABELS['extractor'] },
-    { type: 'brew-trait',  label: CRAFT_TABLE_LABELS['brew-trait'] },
+    { type: 'item',          label: CRAFT_TABLE_LABELS['item'] },
+    { type: 'spell',         label: CRAFT_TABLE_LABELS['spell'] },
+    { type: 'status-effect', label: CRAFT_TABLE_LABELS['status-effect'] },
+    { type: 'forge-trait',   label: CRAFT_TABLE_LABELS['forge-trait'] },
+    { type: 'ingredient',    label: CRAFT_TABLE_LABELS['ingredient'] },
+    { type: 'extractor',     label: CRAFT_TABLE_LABELS['extractor'] },
+    { type: 'brew-trait',    label: CRAFT_TABLE_LABELS['brew-trait'] },
   ];
   showWeaponGenerator = signal(false);
 
@@ -382,6 +387,23 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
     return this.availableRunes().map(f => f.data as import('../model/rune-block.model').RuneBlock);
   }
 
+  /**
+   * Feed the script editor's applyStatus/removeStatus autocomplete. In here the effects are asset
+   * files, so they never reach LibraryStoreService — without this the completion list is empty
+   * in the library view.
+   */
+  private publishStatusEffectChoices(files: AssetFile[]): void {
+    registerStatusEffectChoices(
+      (files ?? [])
+        .map(f => f.data as { id?: string; name?: string; icon?: string; description?: string })
+        .filter(fx => !!fx?.id)
+        .map(fx => ({
+          id: fx.id!, name: fx.name || fx.id!, icon: fx.icon,
+          description: fx.description, library: 'Bibliothek',
+        })),
+    );
+  }
+
   async loadDependencyItems(): Promise<void> {
     const lib = this.library();
     if (!lib) return;
@@ -405,6 +427,7 @@ export class LibraryEditorComponent implements OnInit, OnDestroy {
       this.availableSpells.set(spells);
       this.availableSkills.set(skills);
       this.availableStatusEffects.set(statusEffects);
+      this.publishStatusEffectChoices(statusEffects);
       this.availableMaterials.set(materials);
       this.availableForgeTraits.set(forgeTraits);
     } catch (error) {

@@ -1,4 +1,5 @@
 import { ItemBlock } from '../model/item-block.model';
+import { hasRestBlock } from '../scripting/interpreter';
 
 /**
  * Kochen merges the action code of several consumables into one meal and splits it across the
@@ -55,4 +56,29 @@ export function dividePortions(script: string, portions: number): string {
   );
 
   return out;
+}
+
+/**
+ * A cooked meal is marked so it can never go back in the pot. Cooking merges and DIVIDES
+ * effects; cooking a meal again would let a stack of one portion be split into ten, so the loop
+ * has to be closed at the ingredient level.
+ */
+export const COOKED_MARK = 'cooked';
+
+export function isCookedMeal(item: ItemBlock | null | undefined): boolean {
+  return !!item && (item as { origin?: string }).origin === COOKED_MARK;
+}
+
+/**
+ * What may go in the pot: something whose effect actually outlasts the meal, i.e. it has an
+ * `onRest { … }` block. An instant potion has nothing left to carry into a stew, and a meal that
+ * came out of the pot is barred outright.
+ */
+export function isCookable(item: ItemBlock | null | undefined): boolean {
+  if (!item || item.lost || isCookedMeal(item)) return false;
+  try {
+    return hasRestBlock(item.script ?? '');
+  } catch {
+    return false;
+  }
 }

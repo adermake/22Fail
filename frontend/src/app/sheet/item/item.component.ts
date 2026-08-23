@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, HostListener, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -10,6 +10,7 @@ import { KeywordEnhancer } from '../keyword-enhancer';
 import { isConsumable } from '../../services/consumption.service';
 import { hasRestBlock, listTriggers } from '../../scripting/interpreter';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
+import { HeldStackService } from '../../services/held-stack.service';
 
 @Component({
   selector: 'app-item',
@@ -19,6 +20,7 @@ import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dial
   styleUrl: './item.component.css',
 })
 export class ItemComponent implements OnChanges {
+  private heldStack = inject(HeldStackService);
   /** Tracks the last opened context menu instance so others can close themselves */
   private static activeContextMenu: ItemComponent | null = null;
 
@@ -34,6 +36,8 @@ export class ItemComponent implements OnChanges {
   }
   /** When true, hides the fold button and disables dblclick-to-fold (expansion row) */
   @Input() hideFoldControls = false;
+  /** True inside the inventory grid, where left/right click move stacks around. */
+  @Input() stackMode = false;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
@@ -161,6 +165,13 @@ export class ItemComponent implements OnChanges {
   }
 
   onRightClick(event: MouseEvent) {
+    // In a stack-managed grid, right-click belongs to the stack cursor: it splits a pile or puts
+    // down a single unit. The slot around us handles that, so we must not eat the event or open
+    // a menu on top of it. Only piles are ambiguous — a single item still gets its menu.
+    if (this.stackMode) {
+      const isStack = !!this.item.stackable && (this.item.amount ?? 1) > 1;
+      if (this.heldStack.isHolding() || isStack) return;
+    }
     event.preventDefault();
     event.stopPropagation();
     // Close any other open context menu

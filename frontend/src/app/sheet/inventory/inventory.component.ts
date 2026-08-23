@@ -16,6 +16,8 @@ import { TrueStatsService } from '../../services/true-stats.service';
 import { ConsumptionService, isConsumable } from '../../services/consumption.service';
 import { MacroExecutorService } from '../../services/macro-executor.service';
 import { PartyStashService } from '../../services/party-stash.service';
+import { HeldStackService } from '../../services/held-stack.service';
+import { canMerge, mergeAllStacks, stackAmount } from '../../utils/item-stack.util';
 import { PartyStashEntry } from '../../model/world.model';
 import { CurrentEvent, ShopEvent, LootBundleEvent, formatCurrency } from '../../model/current-events.model';
 import { ActiveStatusEffect } from '../../model/status-effect.model';
@@ -55,6 +57,7 @@ export class InventoryComponent {
   private consumption = inject(ConsumptionService);
   private macroExecutor = inject(MacroExecutorService);
   private partyStash = inject(PartyStashService);
+  readonly heldStack = inject(HeldStackService);
   private elRef = inject(ElementRef);
 
   Math = Math; // Expose Math to template
@@ -502,6 +505,80 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
     }
     while (newInv.length > 0 && newInv[newInv.length - 1] === null) newInv.pop();
     this.sheet.inventory = newInv as typeof this.sheet.inventory;
+    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+  }
+
+  // ── Stapel aufnehmen und ablegen (Minecraft-Prinzip) ──────────────────────
+  // Linksklick nimmt den ganzen Stapel auf bzw. legt alles ab, Rechtsklick nimmt die Hälfte auf
+  // bzw. legt genau eines ab. Klicks auf Bedienelemente im Item (Knöpfe, Eingabefelder) bleiben
+  // dem Item überlassen — sonst könnte man ein Item nicht mehr bearbeiten.
+
+  private isInteractiveTarget(event: Event): boolean {
+    const el = event.target as HTMLElement | null;
+    return !!el?.closest('button, input, select, textarea, a, [contenteditable="true"], .context-menu');
+  }
+
+  /** Left click: take the whole stack, or put down everything held. */
+  onSlotClick(index: number, event: MouseEvent): void {
+    if (this.isInteractiveTarget(event) || this.isItemEditing(index)) return;
+    const slot = this.paddedSlots[index] ?? null;
+
+    if (!this.heldStack.isHolding()) {
+      if (!slot) return;
+      // An unfolded item is being read, not moved — leave it be.
+      if (this.isItemUnfolded(index)) return;
+      event.preventDefault();
+      this.writeSlot(index, this.heldStack.pickUpAll(slot, 'inventory'));
+      return;
+    }
+
+    event.preventDefault();
+    this.writeSlot(index, this.heldStack.dropAll(slot));
+  }
+
+  /** Right click: take half, or put down a single unit. */
+  onSlotRightClick(index: number, event: MouseEvent): void {
+    if (this.isInteractiveTarget(event)) return;
+    const slot = this.paddedSlots[index] ?? null;
+
+    if (this.heldStack.isHolding()) {
+      event.preventDefault();
+      this.writeSlot(index, this.heldStack.dropOne(slot));
+      return;
+    }
+    // Only a real stack splits; for everything else the item's own context menu opens.
+    if (!slot || !slot.stackable || stackAmount(slot) <= 1) return;
+    event.preventDefault();
+    this.writeSlot(index, this.heldStack.pickUpHalf(slot, 'inventory'));
+  }
+
+  /** Put the held stack back into the first slot that will take it. */
+  returnHeldStack(): void {
+    const item = this.heldStack.heldItem();
+    if (!item) return;
+    const slots = [...this.paddedSlots];
+    const mergeInto = slots.findIndex(s => canMerge(s, item));
+    const target = mergeInto >= 0 ? mergeInto : slots.findIndex(s => s === null);
+    const index = target >= 0 ? target : slots.length;
+    this.writeSlot(index, this.heldStack.dropAll(slots[index] ?? null));
+  }
+
+  /** Fold every mergeable pile together. */
+  mergeStacks(): void {
+    const merged = mergeAllStacks(this.paddedSlots);
+    while (merged.length > 0 && merged[merged.length - 1] === null) merged.pop();
+    this.sheet.inventory = merged as typeof this.sheet.inventory;
+    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
+  }
+
+  /** Write one slot and persist, trimming the trailing empties. */
+  private writeSlot(index: number, value: ItemBlock | null): void {
+    const next = [...this.paddedSlots] as (ItemBlock | null)[];
+    while (next.length <= index) next.push(null);
+    next[index] = value;
+    while (next.length > 0 && next[next.length - 1] === null) next.pop();
+    this.sheet.inventory = next as typeof this.sheet.inventory;
+    this.unfoldedItems.delete(index);
     this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
   }
 

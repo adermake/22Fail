@@ -6,6 +6,7 @@ import { TrueStatsService } from './true-stats.service';
 import { LibraryStoreService } from './library-store.service';
 import { ActiveStatusEffect, StatusEffect } from '../model/status-effect.model';
 import { applyStacking } from '../utils/status-stacking.utils';
+import { cleanseFromList } from '../utils/status-cleanse.util';
 import { runScript } from '../scripting/interpreter';
 import { createPlayerContext } from '../scripting/character-context';
 import { macroActionToScript } from '../scripting/decompiler';
@@ -67,7 +68,7 @@ export class MacroExecutorService {
       }
     }
     for (const op of result.statusOps) {
-      if (op.op === 'remove') this.removeStatusFromSheet(character, op.id);
+      if (op.op === 'remove') this.removeStatusFromSheet(character, op.id, op.stacks);
       else this.applyStatusToSheet(character, op.id, op.stacks ?? 1, op.duration);
     }
 
@@ -132,9 +133,12 @@ export class MacroExecutorService {
     return undefined;
   }
 
-  private removeStatusFromSheet(character: CharacterSheet, id: string): void {
+  /** `removeStatus(id)` drops the effect; `removeStatus(id, X)` cleanses X stacks (or turns). */
+  private removeStatusFromSheet(character: CharacterSheet, id: string, amount?: number): void {
     if (!character.activeStatusEffects) return;
-    const i = character.activeStatusEffects.findIndex(se => se.statusEffectId === id);
-    if (i >= 0) character.activeStatusEffects.splice(i, 1);
+    const result = cleanseFromList(
+      character.activeStatusEffects, se => se.statusEffectId === id, amount,
+    );
+    if (result.changed) character.activeStatusEffects = result.list;
   }
 }

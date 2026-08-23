@@ -323,3 +323,6 @@
   font-size: 0.72rem; cursor: pointer;
 }
 .rt-jump-btn:hover { color: var(--text, #e5e7eb); border-color: var(--accent, #8b5cf6); }
+
+/* Goldwert column */
+.rt-cost { color: #fbbf24; }

@@ -26,9 +26,20 @@ export const REST_RESOURCES: { key: RestResource; formula: FormulaType; label: s
 /** Share of the maximum a plain Rast gives back. */
 export const REST_RESTORE_SHARE = 0.25;
 
+/** What one onRest source contributes to the pools, per resource. */
+export type RestContribution = Partial<Record<RestResource, number>>;
+
+/** One source's dry-run: what it would give (or take) at the next Rast. */
+export interface RestPreviewEntry {
+  kind: RestSource['kind'];
+  name: string;
+  message: string;
+  contributes: RestContribution;
+}
+
 export interface RestOutcome {
-  /** What fired, with whatever its script reported. */
-  fired: { kind: RestSource['kind']; name: string; message: string }[];
+  /** What fired, with whatever its script reported and what it contributed. */
+  fired: { kind: RestSource['kind']; name: string; message: string; contributes: RestContribution }[];
   /** Consumed items removed from the queue (they are gone after a Rast, fired or not). */
   clearedItems: number;
   /** Net change actually applied per pool, after the water rule. */
@@ -104,6 +115,43 @@ export class RestService {
   }
 
   /**
+   * What each queued item / active ability would contribute, WITHOUT resting.
+   *
+   * This is a dry run in every sense: resources are only reported, and the scripts run against a
+   * throwaway copy of the sheet so a preview can never apply a status effect or move a counter.
+   * The Rast window uses it to show "Heiltrank +12 Leben" before anyone commits.
+   */
+  previewRest(sheet: CharacterSheet): RestPreviewEntry[] {
+    const out: RestPreviewEntry[] = [];
+    for (const source of this.collectRestSources(sheet)) {
+      const scratch = this.scratchCopy(sheet);
+      const result = this.macros.runScriptOnSheet(source.script, scratch, {
+        trigger: REST_TRIGGER,
+        applyResources: false,
+      });
+      const contributes: RestContribution = {};
+      for (const change of result.resourceChanges ?? []) {
+        const key = change.resource as RestResource;
+        if (REST_RESOURCES.some(r => r.key === key)) {
+          contributes[key] = (contributes[key] ?? 0) + change.amount;
+        }
+      }
+      out.push({ kind: source.kind, name: source.name, message: result.message, contributes });
+    }
+    return out;
+  }
+
+  /** A copy deep enough that a preview run cannot leave a mark on the real sheet. */
+  private scratchCopy(sheet: CharacterSheet): CharacterSheet {
+    return {
+      ...sheet,
+      statuses: (sheet.statuses ?? []).map(s => ({ ...s })),
+      activeStatusEffects: (sheet.activeStatusEffects ?? []).map(e => ({ ...e })),
+      seenStatusEffectIds: [...(sheet.seenStatusEffectIds ?? [])],
+    } as CharacterSheet;
+  }
+
+  /**
    * Perform the Rast. `drankWater: false` halves the summed gains. Mutates `sheet`; the caller
    * persists (statuses, activeStatusEffects, consumedItems).
    */
@@ -119,12 +167,15 @@ export class RestService {
         trigger: REST_TRIGGER,
         applyResources: false,
       });
+      const contributes: RestContribution = {};
       for (const change of result.resourceChanges ?? []) {
         if (change.resource in totals) {
-          totals[change.resource as RestResource] += change.amount;
+          const key = change.resource as RestResource;
+          totals[key] += change.amount;
+          contributes[key] = (contributes[key] ?? 0) + change.amount;
         }
       }
-      fired.push({ kind: source.kind, name: source.name, message: result.message });
+      fired.push({ kind: source.kind, name: source.name, message: result.message, contributes });
     }
 
     // 2. Too little water halves what the character GAINS. A net loss stands as it is.

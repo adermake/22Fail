@@ -23,6 +23,9 @@ import { ActionMacro } from '../../model/action-macro.model';
 import { LibraryStoreService } from '../../services/library-store.service';
 import { UnifiedMacroExecutorService, UnifiedMacroResult, ScriptExecution } from '../../services/unified-macro-executor.service';
 import { hasBaseAction, listTriggers } from '../../scripting/interpreter';
+import { cleanseFromList } from '../../utils/status-cleanse.util';
+import { isItemEquipped } from '../../utils/equip-slot.utils';
+import { ItemBlock } from '../../model/item-block.model';
 import { applyStacking } from '../../utils/status-stacking.utils';
 import { lockBodyScroll, unlockBodyScroll } from '../../utils/scroll-lock.util';
 import { StatusEffectEditorComponent } from '../../shared/status-effect-editor/status-effect-editor.component';
@@ -193,7 +196,8 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   get hasActiveContent(): boolean {
-    return this.castingSpells.length > 0 || this.activeSkillEntries.length > 0;
+    return this.castingSpells.length > 0 || this.activeSkillEntries.length > 0
+      || this.activeEquipment.length > 0;
   }
 
   // ── Summon tokens: every Begleiter of this character, always fieldable ────────
@@ -970,6 +974,53 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     );
   }
 
+  // ── Equipped items with effects ───────────────────────────────────────────
+  // Gear that carries an effectActive block or a named trigger is as "active" as a sustained
+  // spell — it belongs on the Aktiv tab next to them, and its triggers must be firable here.
+
+  private get equipmentList(): ItemBlock[] {
+    return (this.character?.equipment ?? this.npc?.equipment ?? []).filter(Boolean) as ItemBlock[];
+  }
+
+  /** Worn items whose script does something: a continuous effect, or a trigger you can fire. */
+  get activeEquipment(): ItemBlock[] {
+    return this.equipmentList.filter(item => {
+      if (!item?.script?.trim() || !isItemEquipped(item)) return false;
+      return this.itemHasContinuousEffect(item) || this.getItemTriggers(item).length > 0;
+    });
+  }
+
+  itemHasContinuousEffect(item: ItemBlock): boolean {
+    const src = item.script ?? '';
+    return src.includes('effectActive') || src.includes('untilNextTurn');
+  }
+
+  getItemTriggers(item: ItemBlock): string[] {
+    return this.triggersOf(item.script);
+  }
+
+  /** Stable key for the per-card trigger animation / last result. */
+  itemKey(item: ItemBlock): string { return item.id || item.name; }
+
+  executeItemTrigger(item: ItemBlock, trigger: string, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    const sheet = this.sheetForMacros;
+    if (!item.script || !sheet) return;
+    const key = this.itemKey(item);
+    const exec = this.macroExecutor.executeScript(item.script, sheet, {
+      inCombat: true, trigger, name: item.name, icon: '⚔', color: '#f59e0b', item,
+    });
+    this.applyScriptExtras(exec);
+    this.applyMacroResourceChanges(exec.unified);
+    this.lastRollResults.set(key, exec.unified);
+    this.triggeringEffects.add(key);
+    this.cdr.markForCheck();
+    setTimeout(() => {
+      this.triggeringEffects.delete(key);
+      this.cdr.markForCheck();
+    }, 800);
+  }
+
   /** Result of the last manual trigger on an active card (spell or skill). */
   getLastCardResult(key: string): UnifiedMacroResult | null {
     return this.lastRollResults.get(key) ?? null;
@@ -1015,9 +1066,11 @@ export class LobbyBottomPanelComponent implements OnChanges, OnInit, OnDestroy {
     // applyStatus(id) / removeStatus(id)
     for (const op of s.statusOps) {
       if (op.op === 'remove') {
-        const before = effects.length;
-        effects = effects.filter(e => e.statusEffectId !== op.id);
-        if (effects.length !== before) changed = true;
+        // removeStatus(id) clears it; removeStatus(id, X) cleanses X stacks (or X turns of
+        // duration when the effect does not stack).
+        const cleansed = cleanseFromList(effects, e => e.statusEffectId === op.id, op.stacks);
+        effects = cleansed.list;
+        if (cleansed.changed) changed = true;
       } else {
         const def = this.resolveLibraryEffect(op.id);
         if (!def) continue;

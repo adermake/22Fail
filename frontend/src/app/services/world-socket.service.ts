@@ -159,9 +159,9 @@ export class WorldSocketService {
     );
   }
 
-  withdrawFromPartyStash(worldName: string, entryId: string) {
+  withdrawFromPartyStash(worldName: string, entryId: string, amount?: number) {
     return this.ask<{ ok: boolean; entry?: PartyStashEntry; stash: PartyStashEntry[]; reason?: string }>(
-      'partyStashWithdraw', { worldName, entryId }, { ok: false, stash: [], reason: 'offline' },
+      'partyStashWithdraw', { worldName, entryId, amount }, { ok: false, stash: [], reason: 'offline' },
     );
   }
 

@@ -172,7 +172,7 @@ export const BUILTINS: FnInfo[] = [
   { name: 'diceBonus', signature: 'diceBonus(name, wert)', description: 'Würfelmodifikator, solange die Quelle aktiv ist (− ist gut, + ist schlecht). Erscheint in den Würfel-Ansichten.', minArgs: 2, maxArgs: 2 },
   { name: 'counter', signature: 'counter(name)', description: 'Wert einer Zähler-Leiste des Gegenstands, dessen Skript läuft', minArgs: 1, maxArgs: 1 },
   { name: 'applyStatus', signature: 'applyStatus(id, stacks?, dauer?)', description: 'Wendet einen Status-Effekt an — mit Stapeln und optionaler Dauer in Runden', minArgs: 1, maxArgs: 3 },
-  { name: 'removeStatus', signature: 'removeStatus(id)', description: 'Entfernt einen Status-Effekt', minArgs: 1, maxArgs: 1 },
+  { name: 'removeStatus', signature: 'removeStatus(id, menge?)', description: 'Entfernt einen Status-Effekt. Mit Menge werden nur so viele Stapel gereinigt (bzw. so viele Runden Dauer bei nicht stapelbaren Effekten).', minArgs: 1, maxArgs: 2 },
   { name: 'hasSkill', signature: 'hasSkill(name)', description: 'Ob eine Fähigkeit vorhanden ist (true/false)', minArgs: 1, maxArgs: 1 },
   { name: 'min', signature: 'min(a, b, …)', description: 'Kleinster Wert', minArgs: 1, maxArgs: 99 },
   { name: 'max', signature: 'max(a, b, …)', description: 'Größter Wert', minArgs: 1, maxArgs: 99 },

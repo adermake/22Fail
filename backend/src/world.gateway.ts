@@ -180,6 +180,13 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // the whole array at once — so clients never patch `partyStash` directly. They ask, the
   // server decides, and everyone (the asker included) learns the result from one broadcast.
 
+  /** Units in one stash entry — an unstackable item is always exactly one. */
+  private static amountOf(entry: any): number {
+    if (!entry?.item) return 0;
+    if (!entry.item.stackable) return 1;
+    return Math.max(1, Math.floor(entry.item.amount ?? 1));
+  }
+
   private readStash(worldName: string): { world: any; stash: any[] } | null {
     const worldJson = this.dataService.getWorld(worldName);
     if (!worldJson) return null;
@@ -192,7 +199,13 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(worldName).emit('worldPatched', { path: 'partyStash', value: stash });
   }
 
-  /** Put an item in. Idempotent: re-sending the same entryId (a retry) never duplicates it. */
+  /**
+   * Put an item in. Idempotent: re-sending the same entryId (a retry) never duplicates it.
+   *
+   * Identical stackable items merge into one pile. What counts as "identical" is decided by the
+   * client and sent along as `stackKey` — that rule lives in item-stack.util.ts, and duplicating
+   * it here in a second language is exactly how the two would drift apart.
+   */
   @SubscribeMessage('partyStashDeposit')
   handleStashDeposit(
     @MessageBody() data: { worldName: string; entry: any },
@@ -206,7 +219,23 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (read.stash.some((e: any) => e.entryId === entry.entryId)) {
       return { ok: true, stash: read.stash };
     }
-    const stash = [...read.stash, entry];
+
+    const amount = WorldGateway.amountOf(entry);
+    const mergeIdx = entry.stackKey
+      ? read.stash.findIndex((e: any) => e.stackKey === entry.stackKey && e.item?.stackable)
+      : -1;
+
+    let stash: any[];
+    if (mergeIdx >= 0) {
+      stash = [...read.stash];
+      const target = stash[mergeIdx];
+      stash[mergeIdx] = {
+        ...target,
+        item: { ...target.item, amount: WorldGateway.amountOf(target) + amount },
+      };
+    } else {
+      stash = [...read.stash, entry];
+    }
     this.commitStash(worldName, stash);
     return { ok: true, stash };
   }
@@ -218,9 +247,9 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   @SubscribeMessage('partyStashWithdraw')
   handleStashWithdraw(
-    @MessageBody() data: { worldName: string; entryId: string },
+    @MessageBody() data: { worldName: string; entryId: string; amount?: number },
   ): { ok: boolean; entry?: any; stash: any[]; reason?: string } {
-    const { worldName, entryId } = data ?? ({} as any);
+    const { worldName, entryId, amount } = data ?? ({} as any);
     if (!worldName || !entryId) return { ok: false, stash: [], reason: 'bad-request' };
 
     const read = this.readStash(worldName);
@@ -230,6 +259,20 @@ export class WorldGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (idx < 0) return { ok: false, stash: read.stash, reason: 'gone' };
 
     const entry = read.stash[idx];
+    const have = WorldGateway.amountOf(entry);
+    const wanted = amount === undefined ? have : Math.max(0, Math.floor(amount));
+    if (wanted <= 0) return { ok: false, stash: read.stash, reason: 'bad-request' };
+
+    // Taking part of a pile splits it here, in one step, so two takers can never both get the
+    // same unit and a failed split can never leave the bag short.
+    if (wanted < have && entry.item?.stackable) {
+      const stash = [...read.stash];
+      stash[idx] = { ...entry, item: { ...entry.item, amount: have - wanted } };
+      this.commitStash(worldName, stash);
+      const taken = { ...entry, item: { ...entry.item, amount: wanted } };
+      return { ok: true, entry: taken, stash };
+    }
+
     const stash = read.stash.filter((_: any, i: number) => i !== idx);
     this.commitStash(worldName, stash);
     return { ok: true, entry, stash };

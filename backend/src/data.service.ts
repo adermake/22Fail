@@ -430,20 +430,23 @@ export class DataService {
         fs.writeFileSync(lobbyPath, JSON.stringify(world.lobby, null, 2), 'utf-8');
       }
 
-      // Save core world data (without the entity collections and lobby)
-      const coreWorld = {
-        name: world.name,
-        characterIds: world.characterIds || [],
-        partyIds: world.partyIds || [],
-        battleLoot: world.battleLoot || [],
-        battleParticipants: world.battleParticipants || [],
-        currentTurnIndex: world.currentTurnIndex || 0,
-        trash: world.trash || [],
-        battleMaps: world.battleMaps || [],
-        battleTimeline: world.battleTimeline,
-        linkedLibraries: world.linkedLibraries || [],
-        currentEvents: world.currentEvents || [],
-      };
+      // Save core world data (without the entity collections and lobby, which live in their own
+      // files and are re-attached by getWorld).
+      //
+      // This used to be a WHITELIST of known fields, which silently deleted everything not on it
+      // on every single save — that is how `partyStash` vanished the moment it was written, and
+      // why `ownerUserId`, the world clock and the encounter timer never survived a save either.
+      // A blocklist is the only shape that is correct here: strip what is stored elsewhere, keep
+      // the rest, and adding a world field never needs a change in this function again.
+      const SEPARATELY_STORED = [
+        'itemLibrary', 'spellLibrary', 'runeLibrary', 'skillLibrary',
+        'lootBundles', 'statusEffectLibrary', 'lobby',
+      ];
+      const coreWorld = { ...world };
+      for (const key of SEPARATELY_STORED) delete coreWorld[key];
+      coreWorld.name = world.name;
+      coreWorld.characterIds = world.characterIds || [];
+      coreWorld.partyIds = world.partyIds || [];
 
       const worldFilePath = this.getWorldFilePath(name);
       fs.writeFileSync(worldFilePath, JSON.stringify(coreWorld, null, 2), 'utf-8');

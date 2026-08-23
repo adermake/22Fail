@@ -446,7 +446,7 @@
       <div class="lbp-aktiv-content">
 
         @if (!hasActiveContent) {
-          <div class="lbp-empty">Keine aktiven Zauber oder Fähigkeiten.</div>
+          <div class="lbp-empty">Keine aktiven Zauber, F&auml;higkeiten oder Ausr&uuml;stung.</div>
         }
 
         <div class="lbp-aktiv-row">
@@ -689,6 +689,74 @@
                     }
                   </div>
                 }
+              }
+
+            </div>
+          }
+
+          <!-- ── Equipped gear with effects/triggers ── -->
+          @for (item of activeEquipment; track itemKey(item)) {
+            <div class="lbp-active-card lbp-active-card--item">
+
+              <div class="lbp-ac-header">
+                <span class="lbp-ac-badge lbp-ac-badge--item">Ausr&uuml;stung</span>
+                <span class="lbp-ac-icon lbp-ac-icon--item"><span class="app-icon i-item"></span></span>
+                <span class="lbp-ac-name">{{ item.name }}</span>
+              </div>
+
+              @if (item.primaryEffect) {
+                <div class="lbp-ac-desc">{{ item.primaryEffect }}</div>
+              }
+
+              @if (itemHasContinuousEffect(item)) {
+                <div class="lbp-ac-passive" title="Wirkt, solange der Gegenstand getragen wird">
+                  dauerhaft aktiv
+                </div>
+              }
+
+              @if (item.hasDurability) {
+                <div class="lbp-ac-counter">
+                  <div class="lbp-ac-cnt-header">
+                    <span class="lbp-ac-cnt-name">Haltbarkeit</span>
+                    <span class="lbp-ac-cnt-name">{{ item.durability }} / {{ item.maxDurability }}</span>
+                  </div>
+                  <div class="lbp-ac-cnt-track" style="background: rgba(148,163,184,0.15)">
+                    <div class="lbp-ac-cnt-fill"
+                         [style.width.%]="item.maxDurability ? (item.durability ?? 0) / item.maxDurability * 100 : 0"
+                         style="background: #94a3b8">
+                    </div>
+                  </div>
+                </div>
+              }
+
+              @if (getItemTriggers(item).length) {
+                <div class="lbp-ac-triggers">
+                  <span class="lbp-ac-triggers-label">Ausl&ouml;ser</span>
+                  @for (trig of getItemTriggers(item); track trig) {
+                    <button class="lbp-ac-trigger-btn"
+                            [class.is-triggering]="isCardTriggering(itemKey(item))"
+                            (click)="executeItemTrigger(item, trig, $event)">
+                      <span class="app-icon i-ability"></span> {{ trig }}
+                    </button>
+                  }
+                </div>
+              }
+
+              @if (getLastCardResult(itemKey(item)); as res) {
+                <div class="lbp-ac-trigger-result">
+                  @for (d of res.displays ?? []; track $index) {
+                    @switch (d.type) {
+                      @case ('banner') { <span class="ds-banner" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                      @case ('stat') {
+                        <span class="ds-stat" [ngClass]="'ds-' + d.style">
+                          <span class="ds-lbl">{{ d.label }}</span><span class="ds-val">{{ d.value }}</span>
+                        </span>
+                      }
+                      @case ('box') { <span class="ds-box" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                      @default { <span class="ds-text" [ngClass]="'ds-' + d.style">{{ d.text }}</span> }
+                    }
+                  }
+                </div>
               }
 
             </div>

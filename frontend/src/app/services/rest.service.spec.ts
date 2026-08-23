@@ -212,4 +212,53 @@ describe('RestService', () => {
     expect(life.statusCurrent).toBeLessThanOrEqual(
       sheet.statuses.find(s => s.formulaType === FormulaType.LIFE)!.statusCurrent);
   });
+
+  describe('Vorschau (previewRest)', () => {
+    it('reports what each source contributes, per pool', () => {
+      const s = sheetWithHealth(1);
+      s.consumedItems = [
+        { item: consumable('Heiltrank', 'onRest { gainResource(health, 12) }'), consumedAt: 1 },
+        { item: consumable('Kater', 'onRest { loseResource(energy, 4) }'), consumedAt: 2 },
+      ];
+
+      const preview = svc.previewRest(s);
+      expect(preview.length).toBe(2);
+      expect(preview[0].name).toBe('Heiltrank');
+      expect(preview[0].contributes.health).toBe(12);
+      expect(preview[1].contributes.energy).toBe(-4);
+    });
+
+    it('changes nothing on the sheet — it is a dry run', () => {
+      const s = sheetWithHealth(1);
+      s.consumedItems = [
+        { item: consumable('Heiltrank', 'onRest { gainResource(health, 12) }'), consumedAt: 1 },
+      ];
+      const before = s.statuses.map(st => st.statusCurrent);
+
+      svc.previewRest(s);
+
+      expect(s.statuses.map(st => st.statusCurrent)).toEqual(before);
+      expect(s.consumedItems.length).toBe(1);
+    });
+
+    it('leaves out sources that touch no pool', () => {
+      const s = sheetWithHealth(1);
+      s.consumedItems = [
+        { item: consumable('Leuchtstein', 'onRest { display("Es leuchtet") }'), consumedAt: 1 },
+      ];
+      const preview = svc.previewRest(s);
+      expect(preview.length).toBe(1);
+      expect(preview[0].contributes).toEqual({});
+    });
+
+    it('matches what the Rast then actually applies', () => {
+      const s = sheetWithHealth(1);
+      s.consumedItems = [
+        { item: consumable('Heiltrank', 'onRest { gainResource(health, 9) }'), consumedAt: 1 },
+      ];
+      const previewed = svc.previewRest(s)[0].contributes.health;
+      const outcome = svc.performRest(s, { drankWater: true });
+      expect(outcome.fired[0].contributes.health).toBe(previewed);
+    });
+  });
 });

@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { CharacterSheet } from '../model/character-sheet-model';
+import { ItemBlock } from '../model/item-block.model';
 import { ActionMacro, ActionCondition, ActionConsequence } from '../model/action-macro.model';
 import { MacroAction } from '../model/macro-action.model';
 import { FormulaType } from '../model/formula-type.enum';
@@ -86,6 +87,8 @@ export class UnifiedMacroExecutorService {
       name?: string; icon?: string; color?: string;
       /** Run only this named onTrigger block instead of the base script. */
       trigger?: string;
+      /** The item whose script this is — puts durability and counter("…") in scope. */
+      item?: ItemBlock;
     } = {},
   ): ScriptExecution {
     const ctx = createPlayerContext(sheet, this.trueStats, {
@@ -94,6 +97,7 @@ export class UnifiedMacroExecutorService {
       turn: opts.turn ?? 0,
       duration: opts.duration ?? 0,
       effectStrength: opts.effectStrength ?? 0,
+      item: opts.item,
     });
     const script = runScript(src, ctx, { trigger: opts.trigger });
 

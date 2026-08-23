@@ -51,6 +51,8 @@ export interface EncounterTimerSettings {
 export interface PartyStashEntry {
   entryId: string;
   item: ItemBlock;
+  /** identityKey() of the item — the server merges identical stackable deposits by this. */
+  stackKey?: string;
   /** Who put it in (for the "von …" line). */
   fromCharacterId?: string;
   fromName?: string;

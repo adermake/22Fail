@@ -7,8 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
-import { isConsumable } from '../../services/consumption.service';
-import { dividePortions, mergeConsumableScripts } from '../../utils/cooking.util';
+import { COOKED_MARK, dividePortions, isCookable, mergeConsumableScripts } from '../../utils/cooking.util';
 
 /** One ingredient picked for the pot, with the inventory slot it came from. */
 interface CookEntry {
@@ -48,7 +47,7 @@ export class CookingComponent {
   get availableItems(): CookEntry[] {
     return (this.sheet.inventory ?? [])
       .map((item, index) => ({ item: item as ItemBlock, index }))
-      .filter(entry => !!entry.item && isConsumable(entry.item) && !entry.item.lost);
+      .filter(entry => isCookable(entry.item));
   }
 
   get pot(): CookEntry[] {
@@ -99,6 +98,9 @@ export class CookingComponent {
     meal.weight = Math.round(
       ingredients.reduce((sum, e) => sum + (e.item.weight ?? 0), 0) * 10) / 10;
     meal.isIdentified = true;
+    // Marks the meal as pot output — isCookable() refuses it as an ingredient, closing the
+    // "cook the stew again into more portions" loop.
+    (meal as unknown as { origin: string }).origin = COOKED_MARK;
     meal.lost = false;
     meal.broken = false;
 

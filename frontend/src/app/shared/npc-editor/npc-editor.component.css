@@ -35,6 +35,7 @@
 .ico-stability  { --m: url(/icons/stability.svg);  color: #94a3b8; }
 .ico-effektivity{ --m: url(/icons/effektivity.svg);color: #fbbf24; }
 .ico-grundbonus { --m: url(/icons/grundbonus.svg); color: #cbd5e1; }
+.ico-focus      { --m: url(/icons/focus.svg);      color: #c084fc; }
 .ico-folder     { --m: url(/icons/folder.svg);     color: #eab308; }
 
 /* ── Header ─────────────────────────────────────────────────────────────── */

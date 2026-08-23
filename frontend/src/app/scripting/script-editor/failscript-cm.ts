@@ -4,8 +4,10 @@
  * the checker, and hover docs. Built to actively teach the language as the user types.
  */
 
-import { Extension } from '@codemirror/state';
-import { EditorView, hoverTooltip } from '@codemirror/view';
+import { Extension, RangeSetBuilder } from '@codemirror/state';
+import {
+  Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType, hoverTooltip,
+} from '@codemirror/view';
 import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language';
 import {
   autocompletion, CompletionContext, CompletionResult, snippetCompletion, startCompletion,
@@ -156,15 +158,30 @@ export interface StatusEffectChoice {
   library?: string;
 }
 
+const statusEffectRegistry = new Map<string, StatusEffectChoice>();
 let statusEffectChoices: StatusEffectChoice[] = [];
 
-/** Publish the status effects the editor should offer (called by the script editor component). */
-export function setStatusEffectChoices(choices: StatusEffectChoice[]): void {
-  statusEffectChoices = choices;
+/**
+ * Publish status effects for the editor to offer. Additive on purpose: effects reach the editor
+ * from different places depending on where it is opened (the character's libraries on the sheet,
+ * the asset browser's files in the library editor), and an editor opened in one context must not
+ * blank out what another already registered.
+ */
+export function registerStatusEffectChoices(choices: readonly StatusEffectChoice[]): void {
+  for (const choice of choices) {
+    if (choice?.id) statusEffectRegistry.set(choice.id, choice);
+  }
+  statusEffectChoices = [...statusEffectRegistry.values()]
+    .sort((a, b) => a.name.localeCompare(b.name, 'de'));
 }
 
 export function getStatusEffectChoices(): StatusEffectChoice[] {
   return statusEffectChoices;
+}
+
+/** The effect behind an ID, for the inline name pills. */
+export function statusEffectById(id: string): StatusEffectChoice | undefined {
+  return statusEffectRegistry.get(id);
 }
 
 /** The functions whose FIRST argument is a status effect ID. */
@@ -268,6 +285,67 @@ function completions(context: CompletionContext): CompletionResult | null {
   return { from, options, validFor: /^[\w]*$/ };
 }
 
+// ── Inline status-effect names ──
+// `removeStatus("status_1784420857878_exbhpj4")` is unreadable. The ID stays in the document
+// (it is what the runtime needs), but the editor DISPLAYS the effect's name in its place —
+// unless the cursor is inside that string, where you get the raw text back to edit it.
+
+class StatusNameWidget extends WidgetType {
+  constructor(private readonly choice: StatusEffectChoice) { super(); }
+
+  override eq(other: StatusNameWidget): boolean { return other.choice.id === this.choice.id; }
+
+  override toDOM(): HTMLElement {
+    const pill = document.createElement('span');
+    pill.className = 'fs-status-pill';
+    pill.textContent = this.choice.icon ? `${this.choice.icon} ${this.choice.name}` : this.choice.name;
+    pill.title = this.choice.id;
+    return pill;
+  }
+
+  override ignoreEvent(): boolean { return false; }
+}
+
+const STATUS_ARG_RE = /(?:applyStatus|removeStatus)\s*\(\s*"([^"]*)"/g;
+
+function buildStatusPills(view: EditorView): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  if (!statusEffectChoices.length) return builder.finish();
+
+  const cursor = view.state.selection.main;
+  for (const { from, to } of view.visibleRanges) {
+    const text = view.state.doc.sliceString(from, to);
+    STATUS_ARG_RE.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = STATUS_ARG_RE.exec(text))) {
+      const id = m[1];
+      const choice = statusEffectById(id);
+      if (!choice) continue; // unknown IDs stay visible — that is the bug you want to see
+
+      // The quoted literal, quotes included, is what gets replaced.
+      const end = from + m.index + m[0].length;
+      const start = end - (id.length + 2);
+      // Editing beats prettiness: show the raw text whenever the cursor is in range.
+      if (cursor.from <= end && cursor.to >= start) continue;
+      builder.add(start, end, Decoration.replace({ widget: new StatusNameWidget(choice) }));
+    }
+  }
+  return builder.finish();
+}
+
+const statusPills = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) { this.decorations = buildStatusPills(view); }
+    update(update: ViewUpdate): void {
+      if (update.docChanged || update.viewportChanged || update.selectionSet) {
+        this.decorations = buildStatusPills(update.view);
+      }
+    }
+  },
+  { decorations: v => v.decorations },
+);
+
 // ── Lint ──
 
 const failscriptLinter = linter(view => {
@@ -330,6 +408,11 @@ const editorTheme = EditorView.theme({
   '.cm-tooltip': { backgroundColor: '#1f2937', border: '1px solid #374151', color: '#e5e7eb', borderRadius: '6px' },
   '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: '#3b82f6', color: '#fff' },
   '.fs-hover': { padding: '4px 8px', maxWidth: '320px', font: '12px/1.4 sans-serif' },
+  '.fs-status-pill': {
+    padding: '0 6px', borderRadius: '10px',
+    backgroundColor: 'rgba(139,92,246,0.22)', border: '1px solid rgba(139,92,246,0.5)',
+    color: '#ddd6fe', fontFamily: 'inherit', fontSize: '0.92em', cursor: 'default',
+  },
 }, { dark: true });
 
 /** Re-indent a FailScript by brace depth (best-effort; ignores braces inside strings). */
@@ -372,6 +455,7 @@ export function failscriptExtensions(): Extension[] {
     failscriptStream,
     syntaxHighlighting(highlightStyle),
     autocompletion({ override: [completions], activateOnTyping: true }),
+    statusPills,
     autoOpenArgChoices,
     failscriptLinter,
     failscriptHover,

@@ -15,6 +15,7 @@ import { TrueStatsService } from '../services/true-stats.service';
 import { applyStabilityToDelta } from '../utils/stability.util';
 import { CommonModule } from '@angular/common';
 import { PartyStashComponent } from './party-stash/party-stash.component';
+import { HeldStackCursorComponent } from '../shared/held-stack-cursor/held-stack-cursor.component';
 import { SkillsComponent } from './skills/skills.component';
 import { ClassTree } from './class-tree-model';
 import { InventoryComponent } from "./inventory/inventory.component";
@@ -50,7 +51,7 @@ import { EventPortalComponent } from './event-portal/event-portal.component';
 import { SheetStatusEffectsComponent } from './sheet-status-effects/sheet-status-effects.component';
 import { SpellcastWindowComponent } from './spellcast-window/spellcast-window.component';
 import { DamageCalculatorComponent } from '../world/damage-calculator/damage-calculator.component';
-import { RestService, RestSource, RestOutcome, REST_RESOURCES } from '../services/rest.service';
+import { RestService, RestSource, RestOutcome, REST_RESOURCES, RestPreviewEntry } from '../services/rest.service';
 import { CharacterSheet } from '../model/character-sheet-model';
 
 @Component({
@@ -78,6 +79,7 @@ import { CharacterSheet } from '../model/character-sheet-model';
     SpellcastWindowComponent,
     DamageCalculatorComponent,
     PartyStashComponent,
+    HeldStackCursorComponent,
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',
@@ -114,7 +116,7 @@ export class SheetComponent implements OnInit {
   // ── Rast ───────────────────────────────────────────────────────────────────
   showRestDialog = false;
   /** What would fire, shown before committing. */
-  restPreview: RestSource[] = [];
+  restPreview: RestPreviewEntry[] = [];
   /** Filled once the rest ran, so the dialog turns into a report. */
   restResult: RestOutcome | null = null;
   /** What a plain Rast would give back before scripts and the water rule. */
@@ -772,7 +774,7 @@ export class SheetComponent implements OnInit {
   openRest(): void {
     const sheet = this.store.sheetValue;
     this.restResult = null;
-    this.restPreview = sheet ? this.restService.collectRestSources(sheet) : [];
+    this.restPreview = sheet ? this.restService.previewRest(sheet) : [];
     this.restBase = sheet ? this.restService.baseRestore(sheet) : { health: 0, energy: 0, mana: 0 };
     this.showRestDialog = true;
   }
@@ -784,6 +786,14 @@ export class SheetComponent implements OnInit {
 
   restKindLabel(kind: 'item' | 'skill' | 'spell'): string {
     return kind === 'item' ? 'Gegenstand' : kind === 'skill' ? 'Fähigkeit' : 'Zauber';
+  }
+
+  /** The pools one Rast source touches, as chips: [{ label: 'Leben', amount: +12 }, …]. */
+  restContributionChips(contributes: Partial<Record<'health' | 'energy' | 'mana', number>>):
+    { key: string; label: string; amount: number }[] {
+    return REST_RESOURCES
+      .filter(res => !!contributes[res.key])
+      .map(res => ({ key: res.key, label: res.label, amount: contributes[res.key]! }));
   }
 
   /** Fire every onRest block, empty the Verbraucht queue and persist what changed.

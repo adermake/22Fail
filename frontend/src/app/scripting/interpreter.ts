@@ -42,6 +42,7 @@ export interface ScriptDiceBonus { name: string; value: number; }
 export interface ScriptStatusOp {
   op: 'apply' | 'remove';
   id: string;
+  /** apply: how many stacks to add. remove: how much to cleanse (undefined = all of it). */
   stacks?: number;
   /** Turns the effect should last — the DURATION half of the potion/status model. */
   duration?: number;
@@ -474,7 +475,13 @@ class Interpreter {
       case 'counter':
         return this.ctx.readCounter?.(String(this.evalExpr(args[0], frame))) ?? 0;
       case 'removeStatus':
-        this.result.statusOps.push({ op: 'remove', id: String(this.evalExpr(args[0], frame)) });
+        // Second argument = how much to cleanse: stacks, or turns of duration for an effect
+        // that does not stack. Absent means "remove the whole thing".
+        this.result.statusOps.push({
+          op: 'remove',
+          id: String(this.evalExpr(args[0], frame)),
+          stacks: args[1] ? toNum(this.evalExpr(args[1], frame)) : undefined,
+        });
         return 0;
       case 'hasSkill':
         return this.ctx.hasSkill(String(this.evalExpr(args[0], frame)));

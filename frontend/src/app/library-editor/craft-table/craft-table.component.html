@@ -1,134 +1,368 @@
-<div class="ct-backdrop" (click)="onClose()">
-  <div class="ct-panel" (click)="$event.stopPropagation()">
+<div class="ct-overlay">
 
-    <div class="ct-hdr">
-      <span class="ct-title">{{ title }}</span>
-      <span class="ct-count">{{ files.length }}</span>
-      <button class="ct-add" (click)="startAdding()">+ Neu</button>
-      <button class="ct-close" (click)="onClose()" title="Schlie&szlig;en">&times;</button>
-    </div>
-
+  <!-- Header -->
+  <div class="ct-header">
+    <span class="ct-title">{{ title }}-Tabelle</span>
+    <span class="ct-count">{{ files.length }} {{ title }}</span>
+    <div class="ct-spacer"></div>
     @if (addingNew()) {
-      <div class="ct-addrow">
-        <input class="ct-input" type="text" [(ngModel)]="newName" placeholder="Name..."
-               (keydown.enter)="confirmAdd()" (keydown.escape)="cancelAdding()">
-        <button class="ct-add" (click)="confirmAdd()">Anlegen</button>
-        <button class="ct-mini" (click)="cancelAdding()">Abbrechen</button>
-      </div>
-    }
-
-    @if (isLoading()) {
-      <div class="ct-empty">Wird geladen&hellip;</div>
-    } @else if (!files.length) {
-      <div class="ct-empty">Nichts in diesem Ordner.</div>
+      <input class="ct-new-input"
+             type="text"
+             [(ngModel)]="newName"
+             placeholder="Name…"
+             (keyup.enter)="confirmAdd()"
+             (keyup.escape)="cancelAdding()"
+             autofocus />
+      <button class="ct-confirm-btn" (click)="confirmAdd()">Hinzuf&uuml;gen</button>
+      <button class="ct-cancel-btn" (click)="cancelAdding()">&times;</button>
     } @else {
-      <div class="ct-scroll">
-        <table class="ct-table">
-          <thead>
-            <tr>
-              <th class="ct-col-name">Name</th>
-              <th class="ct-col-tier">Wissensstufe</th>
+      <button class="ct-add-btn" (click)="startAdding()">+ Neu</button>
+    }
+    <button class="ct-close-btn" (click)="onClose()">&times; Schlie&szlig;en</button>
+  </div>
 
-              @switch (type) {
-                @case ('forge-trait') {
-                  <th>Effekt</th><th class="ct-col-num">SP</th>
-                  <th class="ct-col-num">Max</th><th class="ct-col-num">Stufig</th><th>Gilt f&uuml;r</th>
-                }
-                @case ('brew-trait') {
-                  <th>Effekt</th><th class="ct-col-num">BP</th>
-                  <th class="ct-col-num">Max</th><th class="ct-col-num">Stufig</th>
-                }
-                @case ('ingredient') {
-                  <th>Prim&auml;r</th><th class="ct-col-num">BP</th>
-                  <th>Sekund&auml;r</th><th class="ct-col-num">BP</th>
-                  <th>Terti&auml;r</th><th class="ct-col-num">BP</th>
-                }
-                @case ('extractor') {
-                  <th class="ct-col-num">P&nbsp;%</th><th class="ct-col-num">S&nbsp;%</th><th class="ct-col-num">T&nbsp;%</th>
-                }
+  <!-- Table -->
+  <div class="ct-scroll">
+    @if (isLoading()) {
+      <div class="ct-loading">Wird geladen&hellip;</div>
+    } @else if (!files.length) {
+      <div class="ct-empty">Nichts in diesem Ordner. Klicke auf &bdquo;+ Neu&ldquo; um anzufangen.</div>
+    } @else {
+      <table class="ct-table">
+        <thead>
+          <tr>
+            <th class="c-name">Name</th>
+            @if (isGraded) {
+              <th class="c-tier" title="Wissensstufe: Geheim / Unbekannt / Bekannt">Wissen</th>
+            }
+
+            @switch (type) {
+              @case ('forge-trait') {
+                <th class="c-text">Effekt</th>
+                <th class="c-num" title="Schmiedepunkte">SP</th>
+                <th class="c-num" title="Maximale Stufe">Max</th>
+                <th class="c-num" title="Stufig steigerbar">Stufig</th>
+                <th class="c-sel">Gilt f&uuml;r</th>
               }
+              @case ('brew-trait') {
+                <th class="c-text">Effekt</th>
+                <th class="c-num" title="Braupunkte">BP</th>
+                <th class="c-num" title="Maximale Stufe">Max</th>
+                <th class="c-num" title="Stufig steigerbar">Stufig</th>
+              }
+              @case ('ingredient') {
+                <th class="c-text">Prim&auml;r</th>
+                <th class="c-num" title="Braupunkte">BP</th>
+                <th class="c-text">Sekund&auml;r</th>
+                <th class="c-num" title="Braupunkte">BP</th>
+                <th class="c-text">Terti&auml;r</th>
+                <th class="c-num" title="Braupunkte">BP</th>
+                <th class="c-cost" title="Gold pro Einheit">Preis</th>
+                <th class="c-sel">Seltenheit</th>
+              }
+              @case ('item') {
+                <th class="c-sel">Typ</th>
+                <th class="c-text">Haupteffekt</th>
+                <th class="c-num" title="Gewicht">Gew</th>
+                <th class="c-cost" title="Goldwert">Preis</th>
+                <th class="c-num" title="Stapelbar">Stapel</th>
+                <th class="c-num" title="Haltbarkeit">Halt</th>
+              }
+              @case ('spell') {
+                <th class="c-num" title="Manakosten">Mana</th>
+                <th class="c-num" title="Fokuskosten">Fokus</th>
+                <th class="c-num" title="Mana pro Runde">M/Rd</th>
+                <th class="c-num" title="Fokus pro Runde">F/Rd</th>
+                <th class="c-num" title="Dauer in Runden">Dauer</th>
+                <th class="c-text">Beschreibung</th>
+              }
+              @case ('status-effect') {
+                <th class="c-num">Icon</th>
+                <th class="c-num" title="Standarddauer in Runden">Dauer</th>
+                <th class="c-num" title="Maximale Stapel">Stapel</th>
+                <th class="c-num" title="Reihenfolge in der Stat-Pipeline">Prio</th>
+                <th class="c-num" title="Reinigungsschwierigkeit">St&auml;rke</th>
+                <th class="c-text">Beschreibung</th>
+              }
+              @case ('extractor') {
+                <th class="c-num" title="Kostenreduktion Primärslot">P&nbsp;%</th>
+                <th class="c-num" title="Kostenreduktion Sekundärslot">S&nbsp;%</th>
+                <th class="c-num" title="Kostenreduktion Tertiärslot">T&nbsp;%</th>
+                <th class="c-cost" title="Gold pro Einheit">Preis</th>
+                <th class="c-sel">Seltenheit</th>
+              }
+            }
 
-              <th class="ct-col-actions"></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (file of files; track file.id) {
-              <tr [class.saving]="isSaving(file)">
-                <td class="ct-col-name">
-                  <input class="ct-input" type="text" [(ngModel)]="named(file).name"
-                         (ngModelChange)="onFieldChange(file)">
-                </td>
+            <th class="c-act"></th>
+          </tr>
+        </thead>
 
-                <td class="ct-col-tier">
+        <tbody>
+          @for (file of files; track file.id) {
+            <tr [class.ct-saving]="isSaving(file)">
+              <td class="c-name">
+                <input class="ct-input" type="text"
+                       [ngModel]="named(file).name"
+                       (ngModelChange)="named(file).name = $event; onFieldChange(file)" />
+              </td>
+
+              @if (isGraded) {
+                <td class="c-tier">
                   <select class="ct-select" [ngModel]="tierOf(file)" (ngModelChange)="setTier(file, $event)">
                     @for (t of knowledgeTiers; track t.value) {
                       <option [value]="t.value" [title]="t.hint">{{ t.label }}</option>
                     }
                   </select>
                 </td>
+              }
 
-                @switch (type) {
-                  @case ('forge-trait') {
-                    <td><input class="ct-input" type="text" [(ngModel)]="forgeTrait(file).effect"
-                               (ngModelChange)="onFieldChange(file)"></td>
-                    <td class="ct-col-num"><input class="ct-input ct-num" type="number"
-                               [(ngModel)]="forgeTrait(file).schmiedepunktKosten" (ngModelChange)="onFieldChange(file)"></td>
-                    <td class="ct-col-num"><input class="ct-input ct-num" type="number"
-                               [(ngModel)]="forgeTrait(file).maxLevel" (ngModelChange)="onFieldChange(file)"></td>
-                    <td class="ct-col-num"><input type="checkbox"
-                               [(ngModel)]="forgeTrait(file).scalable" (ngModelChange)="onFieldChange(file)"></td>
-                    <td>
-                      <select class="ct-select" [(ngModel)]="forgeTrait(file).appliesTo"
-                              (ngModelChange)="onFieldChange(file)">
-                        <option value="all">Alles</option>
-                        <option value="weapon">Waffe</option>
-                        <option value="armor">R&uuml;stung</option>
-                      </select>
-                    </td>
-                  }
-                  @case ('brew-trait') {
-                    <td><input class="ct-input" type="text" [(ngModel)]="brewTrait(file).effect"
-                               (ngModelChange)="onFieldChange(file)"></td>
-                    <td class="ct-col-num"><input class="ct-input ct-num" type="number"
-                               [(ngModel)]="brewTrait(file).braupunktKosten" (ngModelChange)="onFieldChange(file)"></td>
-                    <td class="ct-col-num"><input class="ct-input ct-num" type="number"
-                               [(ngModel)]="brewTrait(file).maxLevel" (ngModelChange)="onFieldChange(file)"></td>
-                    <td class="ct-col-num"><input type="checkbox"
-                               [(ngModel)]="brewTrait(file).scalable" (ngModelChange)="onFieldChange(file)"></td>
-                  }
-                  @case ('ingredient') {
-                    <td><input class="ct-input" type="text" [(ngModel)]="ingredient(file).primary.statusEffectName"
-                               (ngModelChange)="onFieldChange(file)" placeholder="Status..."></td>
-                    <td class="ct-col-num"><input class="ct-input ct-num" type="number"
-                               [(ngModel)]="ingredient(file).primary.cost" (ngModelChange)="onFieldChange(file)"></td>
-                    <td><input class="ct-input" type="text" [(ngModel)]="ingredient(file).secondary.statusEffectName"
-                               (ngModelChange)="onFieldChange(file)" placeholder="Status..."></td>
-                    <td class="ct-col-num"><input class="ct-input ct-num" type="number"
-                               [(ngModel)]="ingredient(file).secondary.cost" (ngModelChange)="onFieldChange(file)"></td>
-                    <td><input class="ct-input" type="text" [(ngModel)]="ingredient(file).tertiary.statusEffectName"
-                               (ngModelChange)="onFieldChange(file)" placeholder="Status..."></td>
-                    <td class="ct-col-num"><input class="ct-input ct-num" type="number"
-                               [(ngModel)]="ingredient(file).tertiary.cost" (ngModelChange)="onFieldChange(file)"></td>
-                  }
-                  @case ('extractor') {
-                    <td class="ct-col-num"><input class="ct-input ct-num" type="number"
-                               [(ngModel)]="extractor(file).primaryReductionPercent" (ngModelChange)="onFieldChange(file)"></td>
-                    <td class="ct-col-num"><input class="ct-input ct-num" type="number"
-                               [(ngModel)]="extractor(file).secondaryReductionPercent" (ngModelChange)="onFieldChange(file)"></td>
-                    <td class="ct-col-num"><input class="ct-input ct-num" type="number"
-                               [(ngModel)]="extractor(file).tertiaryReductionPercent" (ngModelChange)="onFieldChange(file)"></td>
-                  }
+              @switch (type) {
+                @case ('forge-trait') {
+                  <td class="c-text">
+                    <input class="ct-input" type="text"
+                           [ngModel]="forgeTrait(file).effect"
+                           (ngModelChange)="forgeTrait(file).effect = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="forgeTrait(file).schmiedepunktKosten"
+                           (ngModelChange)="forgeTrait(file).schmiedepunktKosten = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="forgeTrait(file).maxLevel"
+                           (ngModelChange)="forgeTrait(file).maxLevel = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input type="checkbox"
+                           [ngModel]="forgeTrait(file).scalable"
+                           (ngModelChange)="forgeTrait(file).scalable = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-sel">
+                    <select class="ct-select"
+                            [ngModel]="forgeTrait(file).appliesTo"
+                            (ngModelChange)="forgeTrait(file).appliesTo = $event; onFieldChange(file)">
+                      <option value="all">Alles</option>
+                      <option value="weapon">Waffe</option>
+                      <option value="armor">R&uuml;stung</option>
+                    </select>
+                  </td>
                 }
 
-                <td class="ct-col-actions">
-                  <button class="ct-mini" (click)="jump(file)" title="Im Editor &ouml;ffnen">&ouml;ffnen</button>
-                  <button class="ct-del" (click)="remove(file)" title="L&ouml;schen">&times;</button>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+                @case ('brew-trait') {
+                  <td class="c-text">
+                    <input class="ct-input" type="text"
+                           [ngModel]="brewTrait(file).effect"
+                           (ngModelChange)="brewTrait(file).effect = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="brewTrait(file).braupunktKosten"
+                           (ngModelChange)="brewTrait(file).braupunktKosten = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="brewTrait(file).maxLevel"
+                           (ngModelChange)="brewTrait(file).maxLevel = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input type="checkbox"
+                           [ngModel]="brewTrait(file).scalable"
+                           (ngModelChange)="brewTrait(file).scalable = $event; onFieldChange(file)" />
+                  </td>
+                }
+
+                @case ('ingredient') {
+                  <td class="c-text">
+                    <input class="ct-input" type="text" placeholder="Status…"
+                           [ngModel]="ingredient(file).primary.statusEffectName"
+                           (ngModelChange)="ingredient(file).primary.statusEffectName = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="ingredient(file).primary.cost"
+                           (ngModelChange)="ingredient(file).primary.cost = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-text">
+                    <input class="ct-input" type="text" placeholder="Status…"
+                           [ngModel]="ingredient(file).secondary.statusEffectName"
+                           (ngModelChange)="ingredient(file).secondary.statusEffectName = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="ingredient(file).secondary.cost"
+                           (ngModelChange)="ingredient(file).secondary.cost = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-text">
+                    <input class="ct-input" type="text" placeholder="Status…"
+                           [ngModel]="ingredient(file).tertiary.statusEffectName"
+                           (ngModelChange)="ingredient(file).tertiary.statusEffectName = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="ingredient(file).tertiary.cost"
+                           (ngModelChange)="ingredient(file).tertiary.cost = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-cost">
+                    <input class="ct-input ct-num ct-cost" type="number"
+                           [ngModel]="ingredient(file).cost"
+                           (ngModelChange)="ingredient(file).cost = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-sel">
+                    <select class="ct-select"
+                            [ngModel]="ingredient(file).rarity"
+                            (ngModelChange)="ingredient(file).rarity = $event; onFieldChange(file)">
+                      @for (r of rarities; track r.value) {
+                        <option [value]="r.value">{{ r.label }}</option>
+                      }
+                    </select>
+                  </td>
+                }
+
+                @case ('item') {
+                  <td class="c-sel">
+                    <select class="ct-select"
+                            [ngModel]="item(file).itemType"
+                            (ngModelChange)="item(file).itemType = $event; onFieldChange(file)">
+                      @for (t of itemTypes; track t.value) {
+                        <option [value]="t.value">{{ t.label }}</option>
+                      }
+                    </select>
+                  </td>
+                  <td class="c-text">
+                    <input class="ct-input" type="text"
+                           [ngModel]="item(file).primaryEffect"
+                           (ngModelChange)="item(file).primaryEffect = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="item(file).weight"
+                           (ngModelChange)="item(file).weight = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-cost">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="item(file).value"
+                           (ngModelChange)="item(file).value = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input type="checkbox"
+                           [ngModel]="item(file).stackable"
+                           (ngModelChange)="item(file).stackable = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="item(file).maxDurability"
+                           (ngModelChange)="item(file).maxDurability = $event; onFieldChange(file)" />
+                  </td>
+                }
+
+                @case ('spell') {
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="spell(file).costMana"
+                           (ngModelChange)="spell(file).costMana = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="spell(file).costFokus"
+                           (ngModelChange)="spell(file).costFokus = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="spell(file).perTurnMana"
+                           (ngModelChange)="spell(file).perTurnMana = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="spell(file).perTurnFokus"
+                           (ngModelChange)="spell(file).perTurnFokus = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="spell(file).durationTurns"
+                           (ngModelChange)="spell(file).durationTurns = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-text">
+                    <input class="ct-input" type="text"
+                           [ngModel]="spell(file).description"
+                           (ngModelChange)="spell(file).description = $event; onFieldChange(file)" />
+                  </td>
+                }
+
+                @case ('status-effect') {
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="text"
+                           [ngModel]="statusEffect(file).icon"
+                           (ngModelChange)="statusEffect(file).icon = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="statusEffect(file).defaultDuration"
+                           (ngModelChange)="statusEffect(file).defaultDuration = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="statusEffect(file).maxStacks"
+                           (ngModelChange)="statusEffect(file).maxStacks = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="statusEffect(file).priority"
+                           (ngModelChange)="statusEffect(file).priority = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="statusEffect(file).strength"
+                           (ngModelChange)="statusEffect(file).strength = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-text">
+                    <input class="ct-input" type="text"
+                           [ngModel]="statusEffect(file).description"
+                           (ngModelChange)="statusEffect(file).description = $event; onFieldChange(file)" />
+                  </td>
+                }
+
+                @case ('extractor') {
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="extractor(file).primaryReductionPercent"
+                           (ngModelChange)="extractor(file).primaryReductionPercent = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="extractor(file).secondaryReductionPercent"
+                           (ngModelChange)="extractor(file).secondaryReductionPercent = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-num">
+                    <input class="ct-input ct-num" type="number"
+                           [ngModel]="extractor(file).tertiaryReductionPercent"
+                           (ngModelChange)="extractor(file).tertiaryReductionPercent = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-cost">
+                    <input class="ct-input ct-num ct-cost" type="number"
+                           [ngModel]="extractor(file).cost"
+                           (ngModelChange)="extractor(file).cost = $event; onFieldChange(file)" />
+                  </td>
+                  <td class="c-sel">
+                    <select class="ct-select"
+                            [ngModel]="extractor(file).rarity"
+                            (ngModelChange)="extractor(file).rarity = $event; onFieldChange(file)">
+                      @for (r of rarities; track r.value) {
+                        <option [value]="r.value">{{ r.label }}</option>
+                      }
+                    </select>
+                  </td>
+                }
+              }
+
+              <td class="c-act">
+                <button class="ct-jump" (click)="jump(file)" title="Im Editor &ouml;ffnen">&ouml;ffnen</button>
+                <button class="ct-del-btn" (click)="remove(file)" title="L&ouml;schen">&times;</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
     }
   </div>
 </div>

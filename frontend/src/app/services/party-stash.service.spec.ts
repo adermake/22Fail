@@ -19,16 +19,42 @@ class FakeServer {
 
   async depositToPartyStash(_world: string, entry: PartyStashEntry) {
     if (this.offline) return { ok: false, stash: [], reason: 'offline' };
-    if (!this.stash.some(e => e.entryId === entry.entryId)) this.stash = [...this.stash, entry];
+    if (this.stash.some(e => e.entryId === entry.entryId)) return { ok: true, stash: this.stash };
+
+    const mergeIdx = entry.stackKey
+      ? this.stash.findIndex(e => e.stackKey === entry.stackKey && e.item?.stackable)
+      : -1;
+    if (mergeIdx >= 0) {
+      const target = this.stash[mergeIdx];
+      this.stash = this.stash.map((e, i) => i === mergeIdx
+        ? { ...e, item: { ...e.item, amount: amountOf(target) + amountOf(entry) } as ItemBlock }
+        : e);
+    } else {
+      this.stash = [...this.stash, entry];
+    }
     this.broadcast();
     return { ok: true, stash: this.stash };
   }
 
-  async withdrawFromPartyStash(_world: string, entryId: string) {
+  async withdrawFromPartyStash(_world: string, entryId: string, amount?: number) {
     if (this.offline) return { ok: false, stash: [], reason: 'offline' };
     const idx = this.stash.findIndex(e => e.entryId === entryId);
     if (idx < 0) return { ok: false, stash: this.stash, reason: 'gone' };
+
     const entry = this.stash[idx];
+    const have = amountOf(entry);
+    const wanted = amount === undefined ? have : Math.max(0, Math.floor(amount));
+    if (wanted <= 0) return { ok: false, stash: this.stash, reason: 'bad-request' };
+
+    if (wanted < have && entry.item.stackable) {
+      this.stash = this.stash.map((e, i) => i === idx
+        ? { ...e, item: { ...e.item, amount: have - wanted } as ItemBlock }
+        : e);
+      this.broadcast();
+      const taken = { ...entry, item: { ...entry.item, amount: wanted } as ItemBlock };
+      return { ok: true, entry: taken, stash: this.stash };
+    }
+
     this.stash = this.stash.filter((_, i) => i !== idx);
     this.broadcast();
     return { ok: true, entry, stash: this.stash };
@@ -45,6 +71,17 @@ class FakeServer {
 
 function item(name: string, extra: Partial<ItemBlock> = {}): ItemBlock {
   return { name, itemType: 'other', weight: 1, ...extra } as ItemBlock;
+}
+
+function stack(name: string, amount: number): ItemBlock {
+  return item(name, { stackable: true, amount });
+}
+
+/** Units in an entry, mirroring the server's own rule. */
+function amountOf(entry: PartyStashEntry): number {
+  if (!entry?.item) return 0;
+  if (!entry.item.stackable) return 1;
+  return Math.max(1, Math.floor(entry.item.amount ?? 1));
 }
 
 describe('Gemeinsamer Beutel', () => {
@@ -150,5 +187,60 @@ describe('Gemeinsamer Beutel', () => {
     const lone = TestBed.inject(PartyStashService); // never attached to a world
     expect(await lone.deposit(item('Seil'))).toBe(false);
     expect(lone.notice()).toContain('Welt');
+  });
+
+  describe('Stapel im Beutel', () => {
+    it('merges an identical stackable deposit into the pile already there', async () => {
+      await svc.deposit(stack('Pfeil', 10));
+      await svc.deposit(stack('Pfeil', 5));
+      expect(svc.entries().length).toBe(1);
+      expect(svc.entries()[0].item.amount).toBe(15);
+    });
+
+    it('keeps different items apart', async () => {
+      await svc.deposit(stack('Pfeil', 10));
+      await svc.deposit(stack('Bolzen', 5));
+      expect(svc.entries().length).toBe(2);
+    });
+
+    it('never merges unstackable items', async () => {
+      await svc.deposit(item('Schwert'));
+      await svc.deposit(item('Schwert'));
+      expect(svc.entries().length).toBe(2);
+    });
+
+    it('takes part of a pile and leaves the rest', async () => {
+      await svc.deposit(stack('Pfeil', 10));
+      const entryId = svc.entries()[0].entryId;
+
+      const taken = await svc.withdraw(entryId, 4);
+      expect(taken?.amount).toBe(4);
+      expect(svc.entries()[0].item.amount).toBe(6);
+    });
+
+    it('empties the entry when the last units are taken', async () => {
+      await svc.deposit(stack('Pfeil', 3));
+      const entryId = svc.entries()[0].entryId;
+      const taken = await svc.withdraw(entryId, 3);
+      expect(taken?.amount).toBe(3);
+      expect(svc.entries()).toEqual([]);
+    });
+
+    it('conserves units when two people split the same pile at once', async () => {
+      await svc.deposit(stack('Pfeil', 10));
+      const entryId = svc.entries()[0].entryId;
+
+      const [a, b] = await Promise.all([svc.withdraw(entryId, 6), svc.withdraw(entryId, 6)]);
+      const got = [a, b].filter(Boolean).reduce((sum, i) => sum + (i!.amount ?? 1), 0);
+      const left = server.stash.reduce((sum, e) => sum + amountOf(e), 0);
+      expect(got + left).toBe(10);
+    });
+
+    it('refuses to take zero', async () => {
+      await svc.deposit(stack('Pfeil', 5));
+      const entryId = svc.entries()[0].entryId;
+      expect(await svc.withdraw(entryId, 0)).toBeNull();
+      expect(server.stash[0].item.amount).toBe(5);
+    });
   });
 });

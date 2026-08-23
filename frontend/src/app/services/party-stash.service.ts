@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { ItemBlock } from '../model/item-block.model';
 import { PartyStashEntry } from '../model/world.model';
 import { WorldSocketService } from './world-socket.service';
+import { identityKey } from '../utils/item-stack.util';
 
 /**
  * The shared party stash ("Gemeinsamer Beutel"): one bag every character in the world can put
@@ -55,9 +56,13 @@ export class PartyStashService {
    */
   async deposit(item: ItemBlock, from?: { id?: string; name?: string }): Promise<boolean> {
     if (!this.worldName) { this.notice.set('Kein Party-Beutel — dieser Charakter hat keine Welt.'); return false; }
+    const copy = structuredCloneSafe(item);
     const entry: PartyStashEntry = {
       entryId: newEntryId(),
-      item: structuredCloneSafe(item),
+      item: copy,
+      // Lets the server merge this into an identical pile already in the bag. The rule for
+      // "identical" lives in item-stack.util so the bag and the inventory agree.
+      stackKey: copy.stackable ? identityKey(copy) : undefined,
       fromCharacterId: from?.id,
       fromName: from?.name,
       addedAt: Date.now(),
@@ -77,12 +82,15 @@ export class PartyStashService {
     }
   }
 
-  /** Take an item out. Returns the item only if this client is the one that got it. */
-  async withdraw(entryId: string): Promise<ItemBlock | null> {
+  /**
+   * Take an item out. Returns the item only if this client is the one that got it.
+   * `amount` takes part of a pile; the server splits it in the same step that reserves it.
+   */
+  async withdraw(entryId: string, amount?: number): Promise<ItemBlock | null> {
     if (!this.worldName) return null;
     this.busy.set(true);
     try {
-      const res = await this.socket.withdrawFromPartyStash(this.worldName, entryId);
+      const res = await this.socket.withdrawFromPartyStash(this.worldName, entryId, amount);
       if (res.stash) this.entries.set(res.stash);
       if (res.ok && res.entry) {
         this.notice.set('');

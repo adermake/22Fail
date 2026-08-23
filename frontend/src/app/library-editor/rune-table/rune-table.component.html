@@ -34,6 +34,7 @@
             <th class="c-num" title="Mana-Basis">Man</th>
             <th class="c-num" title="Mana-Multiplikator">×M</th>
             <th class="c-num" title="Effektivität">Eff</th>
+            <th class="c-num" title="Goldwert">Preis</th>
             <th class="c-stat" title="Stärke">STR</th>
             <th class="c-stat" title="Geschick">GES</th>
             <th class="c-stat" title="Intelligenz">INT</th>
@@ -93,6 +94,11 @@
               <!-- Effektivität -->
               <td><input type="number" class="rt-num"
                          [(ngModel)]="file.data.effektivitaet"
+                         (ngModelChange)="onFieldChange(file)" min="0"></td>
+
+              <!-- Goldwert -->
+              <td><input type="number" class="rt-num rt-cost"
+                         [(ngModel)]="file.data.cost"
                          (ngModelChange)="onFieldChange(file)" min="0"></td>
 
               <!-- Stat-Anforderungen -->

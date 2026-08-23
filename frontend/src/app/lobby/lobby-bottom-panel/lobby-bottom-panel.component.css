@@ -1422,3 +1422,13 @@
   margin-top: 0.3rem;
   font-size: 0.72rem; color: var(--text, #e5e7eb);
 }
+
+/* Equipped gear cards on the Aktiv tab */
+.lbp-active-card--item { border-color: rgba(245, 158, 11, 0.45); }
+.lbp-ac-badge--item { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+.lbp-ac-icon--item { display: inline-flex; align-items: center; color: #fcd34d; }
+.lbp-ac-passive {
+  margin-top: 0.3rem;
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em;
+  color: #86efac;
+}
