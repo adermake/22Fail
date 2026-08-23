@@ -40,6 +40,8 @@ export class PartyStashComponent implements OnInit {
 
   /** Which entry is being previewed in full (click on the row). */
   expandedEntry: string | null = null;
+  /** True while a deposit is waiting on the server — blocks a second, duplicating hand-over. */
+  private depositing = false;
 
   async ngOnInit(): Promise<void> {
     if (this.sheet?.worldName) await this.stash.attach(this.sheet.worldName);
@@ -98,6 +100,9 @@ export class PartyStashComponent implements OnInit {
   async onEntryClick(entry: PartyStashEntry, event: MouseEvent): Promise<void> {
     if (this.isInteractive(event)) return;
     event.preventDefault();
+    // An entry sits INSIDE the bag, so without this the click also reaches onBagClick and the
+    // stack is handed over twice — the server merges both and the pile doubles.
+    event.stopPropagation();
     if (this.heldStack.isHolding()) { await this.depositHeld(this.heldStack.heldAmount()); return; }
     await this.takeToHand(entry);
   }
@@ -106,6 +111,7 @@ export class PartyStashComponent implements OnInit {
   async onEntryRightClick(entry: PartyStashEntry, event: MouseEvent): Promise<void> {
     if (this.isInteractive(event)) return;
     event.preventDefault();
+    event.stopPropagation();
     if (this.heldStack.isHolding()) { await this.depositHeld(1); return; }
 
     const total = stackAmount(entry.item);
@@ -139,16 +145,26 @@ export class PartyStashComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  /** Move units from the hand into the bag. The hand keeps them until the server has them. */
+  /**
+   * Move units from the hand into the bag. The hand keeps them until the server has them —
+   * which is also why a second call must not start while the first is still in flight: it would
+   * see the same full hand and hand the same units over twice.
+   */
   private async depositHeld(count: number): Promise<void> {
     const item = this.heldStack.heldItem();
-    if (!item) return;
+    if (!item || this.depositing) return;
+    this.depositing = true;
     const amount = Math.max(1, Math.min(count, stackAmount(item)));
-    const ok = await this.stash.deposit(
-      withAmount(item, amount), { id: this.characterId, name: this.sheet.name },
-    );
-    if (ok) this.heldStack.takeHeld(amount);
-    this.cdr.markForCheck();
+    try {
+      const ok = await this.stash.deposit(
+        withAmount(item, amount), { id: this.characterId, name: this.sheet.name },
+      );
+      if (ok) this.heldStack.takeHeld(amount);
+    } finally {
+      // Always release the guard — a thrown request must not leave the bag permanently locked.
+      this.depositing = false;
+      this.cdr.markForCheck();
+    }
   }
 
   // ── Out ───────────────────────────────────────────────────────────────────

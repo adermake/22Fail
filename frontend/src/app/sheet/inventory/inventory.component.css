@@ -556,23 +556,6 @@ app-card > *,
   border-radius: 4px;
 }
 /* ── Stapel in der Hand ──────────────────────────────────────────────────── */
-.held-banner {
-  display: flex; align-items: center; gap: 10px;
-  margin: 0 0 8px;
-  padding: 6px 12px;
-  background: rgba(139, 92, 246, 0.14);
-  border: 1px solid rgba(139, 92, 246, 0.45);
-  border-radius: 8px;
-}
-.held-banner-text { flex: 1; font-size: 0.78rem; color: #ddd6fe; }
-.held-banner-btn {
-  padding: 3px 10px;
-  background: transparent;
-  border: 1px solid rgba(139, 92, 246, 0.6);
-  border-radius: 6px;
-  color: #ddd6fe; font-size: 0.72rem; cursor: pointer;
-}
-.held-banner-btn:hover { background: rgba(139, 92, 246, 0.25); }
 
 /* An empty slot invites the held stack in */
 .item-slot-empty.slot-droppable {

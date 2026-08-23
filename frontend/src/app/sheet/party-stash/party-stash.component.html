@@ -14,13 +14,6 @@
       <p class="ps-notice">{{ note }}</p>
     }
 
-    @if (heldStack.isHolding()) {
-      <p class="ps-hint">
-        {{ heldStack.heldAmount() }}&times; {{ heldStack.heldItem()?.name }} in der Hand &mdash;
-        Linksklick legt alles hier ab, Rechtsklick eines.
-      </p>
-    }
-
     <div class="ps-list"
          cdkDropList
          id="partyStashList"

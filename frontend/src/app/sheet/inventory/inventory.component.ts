@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, Input, Output, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
@@ -17,7 +17,7 @@ import { ConsumptionService, isConsumable } from '../../services/consumption.ser
 import { MacroExecutorService } from '../../services/macro-executor.service';
 import { PartyStashService } from '../../services/party-stash.service';
 import { HeldStackService } from '../../services/held-stack.service';
-import { canMerge, mergeAllStacks, stackAmount } from '../../utils/item-stack.util';
+import { canMerge, stackAmount } from '../../utils/item-stack.util';
 import { PartyStashEntry } from '../../model/world.model';
 import { CurrentEvent, ShopEvent, LootBundleEvent, formatCurrency } from '../../model/current-events.model';
 import { ActiveStatusEffect } from '../../model/status-effect.model';
@@ -515,7 +515,7 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
 
   private isInteractiveTarget(event: Event): boolean {
     const el = event.target as HTMLElement | null;
-    return !!el?.closest('button, input, select, textarea, a, [contenteditable="true"], .context-menu');
+    return !!el?.closest('button, input, select, textarea, a, [contenteditable="true"], .iam-panel');
   }
 
   /** Left click: take the whole stack, or put down everything held. */
@@ -552,6 +552,15 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
     this.writeSlot(index, this.heldStack.pickUpHalf(slot, 'inventory'));
   }
 
+  /**
+   * Esc drops the held stack back into the inventory. Without this a picked-up pile could get
+   * stuck in hand with no way to put it down except finding a free slot.
+   */
+  @HostListener('document:keydown.escape')
+  onEscapeWhileHolding(): void {
+    if (this.heldStack.isHolding()) this.returnHeldStack();
+  }
+
   /** Put the held stack back into the first slot that will take it. */
   returnHeldStack(): void {
     const item = this.heldStack.heldItem();
@@ -561,14 +570,6 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
     const target = mergeInto >= 0 ? mergeInto : slots.findIndex(s => s === null);
     const index = target >= 0 ? target : slots.length;
     this.writeSlot(index, this.heldStack.dropAll(slots[index] ?? null));
-  }
-
-  /** Fold every mergeable pile together. */
-  mergeStacks(): void {
-    const merged = mergeAllStacks(this.paddedSlots);
-    while (merged.length > 0 && merged[merged.length - 1] === null) merged.pop();
-    this.sheet.inventory = merged as typeof this.sheet.inventory;
-    this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
   }
 
   /** Write one slot and persist, trimming the trailing empties. */

@@ -28,13 +28,6 @@ export class HeldStackService {
   readonly heldItem = computed(() => this._held()?.item ?? null);
   readonly heldAmount = computed(() => stackAmount(this._held()?.item));
 
-  /** Pointer position, so the floating preview can follow the cursor. */
-  readonly pointer = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  trackPointer(event: MouseEvent): void {
-    if (this._held()) this.pointer.set({ x: event.clientX, y: event.clientY });
-  }
-
   // ── Picking up ────────────────────────────────────────────────────────────
 
   /** Take everything in the slot. Returns what stays behind (always null). */

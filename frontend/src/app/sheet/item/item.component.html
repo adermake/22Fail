@@ -10,35 +10,6 @@
      (contextmenu)="onRightClick($event)"
      (dblclick)="onCardDblClick($event)">
 
-  <!-- Context menu -->
-  @if (showContextMenu) {
-    <div class="context-menu" [style.top.px]="contextMenuY" [style.left.px]="contextMenuX" (click)="$event.stopPropagation()">
-      @if (!showDetails) {
-        <button class="ctx-item ctx-identify" (click)="identifyFromMenu()">🔍 Identifizieren</button>
-      }
-      @if (showDetails) {
-        <!-- Potions and Verbrauchsgegenstände are consumed through the same path. -->
-        @if (isConsumable) {
-          <button class="ctx-item ctx-use" (click)="consumeFromMenu()">
-            <span class="app-icon i-brewing"></span> Verbrauchen
-          </button>
-        }
-        <!-- Named onTrigger blocks of the item's script, fired by hand. -->
-        @for (trig of itemTriggers; track trig) {
-          <button class="ctx-item ctx-trigger" (click)="triggerFromMenu(trig)">
-            <span class="app-icon i-ability"></span> {{ trig }}
-          </button>
-        }
-        <button class="ctx-item" (click)="openEditorFromMenu()"><span class="app-icon i-draw"></span> Bearbeiten</button>
-        <button class="ctx-item" (click)="duplicateFromMenu()"><span class="app-icon i-item"></span> Duplizieren</button>
-        <button class="ctx-item ctx-lost" (click)="toggleLostFromMenu()">
-          {{ item.lost ? '✓ Nicht verloren' : '✕ Verloren markieren' }}
-        </button>
-      }
-      <button class="ctx-item ctx-delete" (click)="deleteFromContextMenu()"><span class="app-icon i-restore-trash"></span> Löschen</button>
-    </div>
-  }
-
   @if (askingConsume) {
     <app-confirm-dialog
       [title]="item.name + ' verbrauchen?'"
@@ -50,271 +21,332 @@
     </app-confirm-dialog>
   }
 
-  <div class="item-view">
-    <!-- Always-visible header row -->
-    <div class="item-header">
-      @if (showDetails && item.itemType) {
-        <span class="item-type-icon app-icon {{ itemTypeIcon }}"></span>
-      }
-      @if (!showDetails) {
-        <span class="item-type-icon">❓</span>
-      }
+  <!-- Hold W to charge up the action menu -->
+  @if (charging) {
+    <div class="iam-charge"><div class="iam-charge-fill"></div></div>
+  }
 
-      <div class="item-name-block">
-        <div class="item-title-row">
-          <h4>{{ displayName }}</h4>
-          @if (!showDetails) {
-            <span class="unidentified-badge">Unidentifiziert</span>
-          }
-          @if (showDetails && item.broken) {
-            <span class="broken-badge">⚠ Zerbrochen</span>
-          }
-          @if (showDetails && item.lost) {
-            <span class="lost-badge">Verloren</span>
-          }
-        </div>
-        <div class="item-tags-row">
-          @if (showDetails && slotLabel) {
-            <span class="tag tag-slot">{{ slotLabel }}</span>
-          }
-          @if (showDetails) {
-            <span class="tag tag-weight" [class.tag-big]="!isFolded">{{ totalWeight }} kg</span>
-          }
-          @if (showDetails && item.itemType === 'weapon' && item.efficiency) {
-            <span class="tag tag-eff" [class.tag-big]="!isFolded"><span class="app-icon i-effektivity"></span> {{ item.efficiency }}</span>
-          }
-          @if (showDetails && item.itemType === 'armor' && item.stability) {
-            <span class="tag tag-stab" [class.tag-big]="!isFolded"><span class="app-icon i-stability"></span> {{ item.stability }}</span>
-          }
-          @if (showDetails && item.armorDebuff) {
-            <span class="tag tag-debuff">-{{ item.armorDebuff }} SPD</span>
-          }
-          @if (showDetails && !canUseItem && !item.broken && !item.lost) {
-            <span class="tag tag-unusable">Unbrauchbar</span>
-          }
-          @if (showDetails && item.libraryOriginName) {
-            <span class="tag tag-lib" [title]="'Aus Bibliothek: ' + item.libraryOriginName"><span class="app-icon i-folder"></span> {{ item.libraryOriginName }}</span>
-          }
-        </div>
+  <ng-container *ngTemplateOutlet="itemView; context: { full: false }"></ng-container>
+</div>
+
+@if (showActionMenu) {
+  <div class="iam-backdrop" (click)="closeActionMenu()" (contextmenu)="closeActionMenu(); $event.preventDefault()">
+    <div class="iam-panel" (click)="$event.stopPropagation()">
+
+      <!-- The whole item, exactly as the card draws it -->
+      <div class="iam-item">
+        <ng-container *ngTemplateOutlet="itemView; context: { full: true }"></ng-container>
       </div>
 
-      <div class="item-controls">
-        @if (showDetails && item.itemType === 'weapon' && item.efficiency) {
-          <button class="roll-damage-btn"
-                  (click)="rollDamage.emit(item.efficiency!); $event.stopPropagation()"
-                  (mousedown)="$event.stopPropagation()"
-                  title="Schaden würfeln (Eff: {{ item.efficiency }})">
-            <span class="app-icon i-effektivity"></span>
+      <!-- Actions -->
+      <div class="iam-actions">
+        <span class="iam-actions-title">{{ item.name }}</span>
+
+        @if (!showDetails) {
+          <button class="iam-btn" (click)="identifyFromMenu()">Identifizieren</button>
+        }
+
+        @if (showDetails) {
+          @if (isConsumable) {
+            <button class="iam-btn iam-btn-use" (click)="consumeFromMenu()">
+              <span class="app-icon i-brewing"></span> Verbrauchen
+            </button>
+          }
+          @for (trig of itemTriggers; track trig) {
+            <button class="iam-btn iam-btn-trigger" (click)="triggerFromMenu(trig)">
+              <span class="app-icon i-ability"></span> {{ trig }}
+            </button>
+          }
+          <button class="iam-btn" (click)="openEditorFromMenu()">
+            <span class="app-icon i-draw"></span> Bearbeiten
+          </button>
+          <button class="iam-btn" (click)="duplicateFromMenu()">
+            <span class="app-icon i-item"></span> Duplizieren
+          </button>
+          <button class="iam-btn" (click)="toggleLostFromMenu()">
+            {{ item.lost ? 'Nicht verloren' : 'Als verloren markieren' }}
           </button>
         }
-        @if (!hideFoldControls) {
-          <button class="fold-btn"
-                  (click)="toggleFold(); $event.stopPropagation()"
-                  (mousedown)="$event.stopPropagation()"
-                  (touchstart)="$event.stopPropagation()"
-                  [title]="isFolded ? 'Ausklappen' : 'Einklappen'">
-            {{ isFolded ? '▼' : '▲' }}
-          </button>
-        }
+
+        <div class="iam-spacer"></div>
+        <button class="iam-btn iam-btn-delete" (click)="deleteFromContextMenu()">
+          <span class="app-icon i-restore-trash"></span> L&ouml;schen
+        </button>
+        <button class="iam-btn iam-btn-close" (click)="closeActionMenu()">Schlie&szlig;en (Esc)</button>
       </div>
     </div>
+  </div>
+}
 
-    @if (!isFolded && showDetails) {
-
-      <!-- 0. Amount (stackable items only) -->
-      @if (item.stackable) {
-        <div class="amount-row" (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()">
-          <span class="amount-label">Anzahl</span>
-          <div class="amount-controls">
-            <button class="amount-btn" (click)="updateField('amount', Math.max(1, (item.amount ?? 1) - 1)); $event.stopPropagation()">−</button>
-            <input
-              type="number"
-              class="amount-input"
-              [value]="item.amount ?? 1"
-              min="1"
-              (change)="updateField('amount', Math.max(1, +$any($event.target).value))"
-              (click)="$event.stopPropagation()" />
-            <button class="amount-btn" (click)="updateField('amount', (item.amount ?? 1) + 1); $event.stopPropagation()">+</button>
+<!-- One markup source for the item, rendered twice: in the grid card, and whole inside
+     the hold-W action menu. Sharing the template is the point — a second copy of this
+     markup would drift from the first within a week. -->
+<ng-template #itemView let-full="full">
+  <div class="item-view" [class.item-view-full]="full">
+      <!-- Always-visible header row -->
+      <div class="item-header">
+        @if (showDetails && item.itemType) {
+          <span class="item-type-icon app-icon {{ itemTypeIcon }}"></span>
+        }
+        @if (!showDetails) {
+          <span class="item-type-icon">❓</span>
+        }
+  
+        <div class="item-name-block">
+          <div class="item-title-row">
+            <h4>{{ displayName }}</h4>
+            @if (!showDetails) {
+              <span class="unidentified-badge">Unidentifiziert</span>
+            }
+            @if (showDetails && item.broken) {
+              <span class="broken-badge">⚠ Zerbrochen</span>
+            }
+            @if (showDetails && item.lost) {
+              <span class="lost-badge">Verloren</span>
+            }
+          </div>
+          <div class="item-tags-row">
+            @if (showDetails && slotLabel) {
+              <span class="tag tag-slot">{{ slotLabel }}</span>
+            }
+            @if (showDetails) {
+              <span class="tag tag-weight" [class.tag-big]="(full || !isFolded)">{{ totalWeight }} kg</span>
+            }
+            @if (showDetails && item.itemType === 'weapon' && item.efficiency) {
+              <span class="tag tag-eff" [class.tag-big]="(full || !isFolded)"><span class="app-icon i-effektivity"></span> {{ item.efficiency }}</span>
+            }
+            @if (showDetails && item.itemType === 'armor' && item.stability) {
+              <span class="tag tag-stab" [class.tag-big]="(full || !isFolded)"><span class="app-icon i-stability"></span> {{ item.stability }}</span>
+            }
+            @if (showDetails && item.armorDebuff) {
+              <span class="tag tag-debuff">-{{ item.armorDebuff }} SPD</span>
+            }
+            @if (showDetails && !canUseItem && !item.broken && !item.lost) {
+              <span class="tag tag-unusable">Unbrauchbar</span>
+            }
+            @if (showDetails && item.libraryOriginName) {
+              <span class="tag tag-lib" [title]="'Aus Bibliothek: ' + item.libraryOriginName"><span class="app-icon i-folder"></span> {{ item.libraryOriginName }}</span>
+            }
           </div>
         </div>
-      }
-
-      <!-- 1. Description -->
-      @if (item.description) {
-        <p class="item-description" [innerHTML]="enhancedDescription"></p>
-      }
-
-      <!-- 2. Effects -->
-      @if (item.primaryEffect || item.secondaryEffect || item.specialEffect) {
-        <div class="effects-section">
-          @if (item.primaryEffect) {
-            <div class="effect-item primary">
-              <span class="effect-label">Primäreffekt</span>
-              <span class="effect-text">{{ item.primaryEffect }}</span>
-            </div>
+  
+        <div class="item-controls">
+          @if (showDetails && item.itemType === 'weapon' && item.efficiency) {
+            <button class="roll-damage-btn"
+                    (click)="rollDamage.emit(item.efficiency!); $event.stopPropagation()"
+                    (mousedown)="$event.stopPropagation()"
+                    title="Schaden würfeln (Eff: {{ item.efficiency }})">
+              <span class="app-icon i-effektivity"></span>
+            </button>
           }
-          @if (item.secondaryEffect) {
-            <div class="effect-item secondary">
-              <span class="effect-label">Sekundäreffekt</span>
-              <span class="effect-text">{{ item.secondaryEffect }}</span>
-            </div>
-          }
-          @if (item.specialEffect) {
-            <div class="effect-item special">
-              <span class="effect-label">Spezialeffekt</span>
-              <span class="effect-text">{{ item.specialEffect }}</span>
-            </div>
-          }
-        </div>
-      }
-
-      <!-- 3. Stat Modifiers -->
-      @if (item.statModifiers && item.statModifiers.length > 0) {
-        <div class="stat-modifiers-section">
-          @for (modifier of item.statModifiers; track modifier.stat) {
-            <span class="stat-modifier" [class.positive]="modifier.amount > 0" [class.negative]="modifier.amount < 0">
-              {{ getStatLabel(modifier.stat) }}: {{ modifier.amount > 0 ? '+' : '' }}{{ modifier.amount }}
-            </span>
-          }
-        </div>
-      }
-
-      <!-- 4. Dice Bonuses -->
-      @if (item.diceBonuses && item.diceBonuses.length > 0) {
-        <div class="dice-bonuses-section">
-          @for (bonus of item.diceBonuses; track bonus.name) {
-            <span class="dice-bonus" [class.good]="bonus.value < 0" [class.bad]="bonus.value > 0">
-              {{ bonus.name }}: {{ bonus.value > 0 ? '+' : '' }}{{ bonus.value }}
-            </span>
-          }
-        </div>
-      }
-
-      <!-- 5. Custom Counters -->
-      @if (item.counters && item.counters.length > 0) {
-        <div class="counters-section">
-          @for (counter of item.counters; track counter.id) {
-            <div class="bar-row" (mousedown)="$event.stopPropagation()">
-              <span class="bar-label">{{ counter.name }}</span>
-              <div class="bar-with-input">
-                <div class="bar-track">
-                  <div class="bar-fill"
-                       [style.width.%]="getCounterPercent(counter)"
-                       [style.backgroundColor]="counter.color">
-                  </div>
-                  <input
-                    type="range"
-                    class="bar-slider"
-                    [min]="counter.min"
-                    [max]="counter.max"
-                    [value]="counter.current"
-                    [style]="'--bar-color:' + counter.color"
-                    (input)="updateCounter(counter, +$any($event.target).value); $event.stopPropagation()"
-                    (click)="$event.stopPropagation()" />
-                </div>
-                <input
-                  type="number"
-                  class="bar-number-input"
-                  [min]="counter.min"
-                  [max]="counter.max"
-                  [value]="counter.current"
-                  (input)="updateCounter(counter, +$any($event.target).value); $event.stopPropagation()"
-                  (click)="$event.stopPropagation()" />
-              </div>
-            </div>
-          }
-        </div>
-      }
-
-      <!-- 6. Durability -->
-      @if (item.hasDurability && item.maxDurability) {
-        <div class="bar-row" (mousedown)="$event.stopPropagation()">
-          <span class="bar-label">Haltbarkeit</span>
-          <div class="bar-with-input">
-            <div class="bar-track">
-              <div class="bar-fill" [class]="durabilityClass" [style.width.%]="durabilityPercent"></div>
-              <input
-                type="range"
-                class="bar-slider"
-                [min]="0"
-                [max]="item.maxDurability"
-                [value]="item.durability || 0"
-                (input)="updateDurability(+$any($event.target).value); $event.stopPropagation()" />
-            </div>
-            <input
-              type="number"
-              class="bar-number-input"
-              [min]="0"
-              [max]="item.maxDurability"
-              [value]="item.durability || 0"
-              (input)="updateDurability(+$any($event.target).value); $event.stopPropagation()"
-              (click)="$event.stopPropagation()" />
-          </div>
-          @if (!item.broken && (item.durability || 0) === 0) {
-            <button class="break-test-btn" (click)="requestBreakTest(); $event.stopPropagation()">
-              <span class="app-icon i-dice"></span> Bruchtest
+          @if (!hideFoldControls) {
+            <button class="fold-btn"
+                    (click)="toggleFold(); $event.stopPropagation()"
+                    (mousedown)="$event.stopPropagation()"
+                    (touchstart)="$event.stopPropagation()"
+                    [title]="(full ? false : isFolded) ? 'Ausklappen' : 'Einklappen'">
+              {{ (full ? false : isFolded) ? '▼' : '▲' }}
             </button>
           }
         </div>
-      }
-
-      <!-- 7. Requirements -->
-      @if (item.requirements && (item.requirements.strength || item.requirements.dexterity || item.requirements.speed || item.requirements.intelligence || item.requirements.constitution || item.requirements.chill)) {
-        <div class="item-requirements">
-          <span class="req-label">Anforderungen:</span>
-          @if (item.requirements.strength) {
-            <span class="req-stat" [class.unmet]="sheet.strength.current < item.requirements.strength">STR {{ item.requirements.strength }}</span>
-          }
-          @if (item.requirements.dexterity) {
-            <span class="req-stat" [class.unmet]="sheet.dexterity.current < item.requirements.dexterity">DEX {{ item.requirements.dexterity }}</span>
-          }
-          @if (item.requirements.speed) {
-            <span class="req-stat" [class.unmet]="sheet.speed.current < item.requirements.speed">SPD {{ item.requirements.speed }}</span>
-          }
-          @if (item.requirements.intelligence) {
-            <span class="req-stat" [class.unmet]="sheet.intelligence.current < item.requirements.intelligence">INT {{ item.requirements.intelligence }}</span>
-          }
-          @if (item.requirements.constitution) {
-            <span class="req-stat" [class.unmet]="sheet.constitution.current < item.requirements.constitution">CON {{ item.requirements.constitution }}</span>
-          }
-          @if (item.requirements.chill) {
-            <span class="req-stat" [class.unmet]="sheet.chill.current < item.requirements.chill">WIL {{ item.requirements.chill }}</span>
-          }
-        </div>
-      }
-
-      <!-- 8. Attached Skills/Spells -->
-      @if ((item.attachedSkills && item.attachedSkills.length > 0) || (item.attachedSpells && item.attachedSpells.length > 0)) {
-        <div class="attached-section">
-          @if (item.attachedSkills && item.attachedSkills.length > 0) {
-            <div class="attached-row">
-              <span class="attached-label">Fähigkeiten:</span>
-              @for (skill of item.attachedSkills; track skill.skillId) {
-                <span class="attached-skill">{{ skill.skillName }}</span>
-              }
-            </div>
-          }
-          @if (item.attachedSpells && item.attachedSpells.length > 0) {
-            <div class="attached-row">
-              <span class="attached-label">Zauber:</span>
-              @for (spell of item.attachedSpells; track spell.spellId) {
-                <span class="attached-spell">{{ spell.spellName }}</span>
-              }
-            </div>
-          }
-        </div>
-      }
-
-    } <!-- end unfolded+identified -->
-
-    @if (!isFolded && !showDetails) {
-      <div class="identify-section">
-        <button class="identify-btn"
-                (click)="requestIdentify(); $event.stopPropagation()"
-                (mousedown)="$event.stopPropagation()">
-          🔍 Identifizieren
-        </button>
       </div>
-    }
+  
+      @if ((full || !isFolded) && showDetails) {
+  
+        <!-- 0. Amount (stackable items only) -->
+        @if (item.stackable) {
+          <div class="amount-row" (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()">
+            <span class="amount-label">Anzahl</span>
+            <div class="amount-controls">
+              <button class="amount-btn" (click)="updateField('amount', Math.max(1, (item.amount ?? 1) - 1)); $event.stopPropagation()">−</button>
+              <input
+                type="number"
+                class="amount-input"
+                [value]="item.amount ?? 1"
+                min="1"
+                (change)="updateField('amount', Math.max(1, +$any($event.target).value))"
+                (click)="$event.stopPropagation()" />
+              <button class="amount-btn" (click)="updateField('amount', (item.amount ?? 1) + 1); $event.stopPropagation()">+</button>
+            </div>
+          </div>
+        }
+  
+        <!-- 1. Description -->
+        @if (item.description) {
+          <p class="item-description" [innerHTML]="enhancedDescription"></p>
+        }
+  
+        <!-- 2. Effects -->
+        @if (item.primaryEffect || item.secondaryEffect || item.specialEffect) {
+          <div class="effects-section">
+            @if (item.primaryEffect) {
+              <div class="effect-item primary">
+                <span class="effect-label">Primäreffekt</span>
+                <span class="effect-text">{{ item.primaryEffect }}</span>
+              </div>
+            }
+            @if (item.secondaryEffect) {
+              <div class="effect-item secondary">
+                <span class="effect-label">Sekundäreffekt</span>
+                <span class="effect-text">{{ item.secondaryEffect }}</span>
+              </div>
+            }
+            @if (item.specialEffect) {
+              <div class="effect-item special">
+                <span class="effect-label">Spezialeffekt</span>
+                <span class="effect-text">{{ item.specialEffect }}</span>
+              </div>
+            }
+          </div>
+        }
+  
+        <!-- 3. Stat Modifiers -->
+        @if (item.statModifiers && item.statModifiers.length > 0) {
+          <div class="stat-modifiers-section">
+            @for (modifier of item.statModifiers; track modifier.stat) {
+              <span class="stat-modifier" [class.positive]="modifier.amount > 0" [class.negative]="modifier.amount < 0">
+                {{ getStatLabel(modifier.stat) }}: {{ modifier.amount > 0 ? '+' : '' }}{{ modifier.amount }}
+              </span>
+            }
+          </div>
+        }
+  
+        <!-- 4. Dice Bonuses -->
+        @if (item.diceBonuses && item.diceBonuses.length > 0) {
+          <div class="dice-bonuses-section">
+            @for (bonus of item.diceBonuses; track bonus.name) {
+              <span class="dice-bonus" [class.good]="bonus.value < 0" [class.bad]="bonus.value > 0">
+                {{ bonus.name }}: {{ bonus.value > 0 ? '+' : '' }}{{ bonus.value }}
+              </span>
+            }
+          </div>
+        }
+  
+        <!-- 5. Custom Counters -->
+        @if (item.counters && item.counters.length > 0) {
+          <div class="counters-section">
+            @for (counter of item.counters; track counter.id) {
+              <div class="bar-row" (mousedown)="$event.stopPropagation()">
+                <span class="bar-label">{{ counter.name }}</span>
+                <div class="bar-with-input">
+                  <div class="bar-track">
+                    <div class="bar-fill"
+                         [style.width.%]="getCounterPercent(counter)"
+                         [style.backgroundColor]="counter.color">
+                    </div>
+                    <input
+                      type="range"
+                      class="bar-slider"
+                      [min]="counter.min"
+                      [max]="counter.max"
+                      [value]="counter.current"
+                      [style]="'--bar-color:' + counter.color"
+                      (input)="updateCounter(counter, +$any($event.target).value); $event.stopPropagation()"
+                      (click)="$event.stopPropagation()" />
+                  </div>
+                  <input
+                    type="number"
+                    class="bar-number-input"
+                    [min]="counter.min"
+                    [max]="counter.max"
+                    [value]="counter.current"
+                    (input)="updateCounter(counter, +$any($event.target).value); $event.stopPropagation()"
+                    (click)="$event.stopPropagation()" />
+                </div>
+              </div>
+            }
+          </div>
+        }
+  
+        <!-- 6. Durability -->
+        @if (item.hasDurability && item.maxDurability) {
+          <div class="bar-row" (mousedown)="$event.stopPropagation()">
+            <span class="bar-label">Haltbarkeit</span>
+            <div class="bar-with-input">
+              <div class="bar-track">
+                <div class="bar-fill" [class]="durabilityClass" [style.width.%]="durabilityPercent"></div>
+                <input
+                  type="range"
+                  class="bar-slider"
+                  [min]="0"
+                  [max]="item.maxDurability"
+                  [value]="item.durability || 0"
+                  (input)="updateDurability(+$any($event.target).value); $event.stopPropagation()" />
+              </div>
+              <input
+                type="number"
+                class="bar-number-input"
+                [min]="0"
+                [max]="item.maxDurability"
+                [value]="item.durability || 0"
+                (input)="updateDurability(+$any($event.target).value); $event.stopPropagation()"
+                (click)="$event.stopPropagation()" />
+            </div>
+            @if (!item.broken && (item.durability || 0) === 0) {
+              <button class="break-test-btn" (click)="requestBreakTest(); $event.stopPropagation()">
+                <span class="app-icon i-dice"></span> Bruchtest
+              </button>
+            }
+          </div>
+        }
+  
+        <!-- 7. Requirements -->
+        @if (item.requirements && (item.requirements.strength || item.requirements.dexterity || item.requirements.speed || item.requirements.intelligence || item.requirements.constitution || item.requirements.chill)) {
+          <div class="item-requirements">
+            <span class="req-label">Anforderungen:</span>
+            @if (item.requirements.strength) {
+              <span class="req-stat" [class.unmet]="sheet.strength.current < item.requirements.strength">STR {{ item.requirements.strength }}</span>
+            }
+            @if (item.requirements.dexterity) {
+              <span class="req-stat" [class.unmet]="sheet.dexterity.current < item.requirements.dexterity">DEX {{ item.requirements.dexterity }}</span>
+            }
+            @if (item.requirements.speed) {
+              <span class="req-stat" [class.unmet]="sheet.speed.current < item.requirements.speed">SPD {{ item.requirements.speed }}</span>
+            }
+            @if (item.requirements.intelligence) {
+              <span class="req-stat" [class.unmet]="sheet.intelligence.current < item.requirements.intelligence">INT {{ item.requirements.intelligence }}</span>
+            }
+            @if (item.requirements.constitution) {
+              <span class="req-stat" [class.unmet]="sheet.constitution.current < item.requirements.constitution">CON {{ item.requirements.constitution }}</span>
+            }
+            @if (item.requirements.chill) {
+              <span class="req-stat" [class.unmet]="sheet.chill.current < item.requirements.chill">WIL {{ item.requirements.chill }}</span>
+            }
+          </div>
+        }
+  
+        <!-- 8. Attached Skills/Spells -->
+        @if ((item.attachedSkills && item.attachedSkills.length > 0) || (item.attachedSpells && item.attachedSpells.length > 0)) {
+          <div class="attached-section">
+            @if (item.attachedSkills && item.attachedSkills.length > 0) {
+              <div class="attached-row">
+                <span class="attached-label">Fähigkeiten:</span>
+                @for (skill of item.attachedSkills; track skill.skillId) {
+                  <span class="attached-skill">{{ skill.skillName }}</span>
+                }
+              </div>
+            }
+            @if (item.attachedSpells && item.attachedSpells.length > 0) {
+              <div class="attached-row">
+                <span class="attached-label">Zauber:</span>
+                @for (spell of item.attachedSpells; track spell.spellId) {
+                  <span class="attached-spell">{{ spell.spellName }}</span>
+                }
+              </div>
+            }
+          </div>
+        }
+  
+      } <!-- end unfolded+identified -->
+  
+      @if ((full || !isFolded) && !showDetails) {
+        <div class="identify-section">
+          <button class="identify-btn"
+                  (click)="requestIdentify(); $event.stopPropagation()"
+                  (mousedown)="$event.stopPropagation()">
+            🔍 Identifizieren
+          </button>
+        </div>
+      }
   </div>
-</div>
+</ng-template>

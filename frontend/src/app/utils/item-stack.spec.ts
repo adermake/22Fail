@@ -1,5 +1,5 @@
 import {
-  canMerge, identityKey, mergeAllStacks, mergeStacks, splitHalf, stackAmount, takeFrom, withAmount,
+  canMerge, identityKey, mergeStacks, splitHalf, stackAmount, takeFrom, withAmount,
 } from './item-stack.util';
 import { ItemBlock } from '../model/item-block.model';
 
@@ -107,42 +107,6 @@ describe('Stapel', () => {
       const { merged, leftover } = mergeStacks(item({ amount: 2 }), source);
       expect(merged.amount).toBe(2);
       expect(leftover).toBe(source);
-    });
-  });
-
-  describe('mergeAllStacks', () => {
-    it('folds identical piles into the first slot that holds them', () => {
-      const slots = [item({ amount: 2 }), null, item({ amount: 3 }), item({ name: 'Seil' })];
-      const out = mergeAllStacks(slots);
-      expect(stackAmount(out[0])).toBe(5);
-      expect(out[2]).toBeNull();
-      expect(out[3]!.name).toBe('Seil');
-    });
-
-    it('keeps surviving stacks in their original slots', () => {
-      const slots = [null, item({ amount: 1 }), null, item({ amount: 1 })];
-      const out = mergeAllStacks(slots);
-      expect(out[0]).toBeNull();
-      expect(stackAmount(out[1])).toBe(2);
-      expect(out[3]).toBeNull();
-    });
-
-    it('never merges unstackable items', () => {
-      const slots = [item({ stackable: false }), item({ stackable: false })];
-      const out = mergeAllStacks(slots);
-      expect(out.filter(Boolean).length).toBe(2);
-    });
-
-    it('leaves a list with nothing to merge alone', () => {
-      const slots = [item({ name: 'A' }), item({ name: 'B' })];
-      expect(mergeAllStacks(slots).filter(Boolean).length).toBe(2);
-    });
-
-    it('does not mutate the input', () => {
-      const slots = [item({ amount: 2 }), item({ amount: 3 })];
-      mergeAllStacks(slots);
-      expect(slots[1]).not.toBeNull();
-      expect(slots[0]!.amount).toBe(2);
     });
   });
 

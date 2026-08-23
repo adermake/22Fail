@@ -527,34 +527,6 @@
 }
 .identify-btn:hover { background: #5b52e8; border-color: #818cf8; }
 
-/* ── Context Menu ────────────────────────────────────────── */
-.context-menu {
-  position: fixed;
-  z-index: 99999;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.55);
-  min-width: 145px;
-  overflow: hidden;
-  padding: 0.2rem 0;
-}
-.ctx-item {
-  display: flex; align-items: center; gap: 0.45rem;
-  width: 100%; padding: 0.5rem 0.85rem;
-  background: none; border: none;
-  color: var(--text); cursor: pointer;
-  font-size: 0.88rem; text-align: left;
-  transition: background 0.15s;
-}
-.ctx-item:hover { background: var(--bg); }
-.ctx-item.ctx-delete { color: #f87171; }
-.ctx-item.ctx-delete:hover { background: rgba(239, 68, 68, 0.12); }
-.ctx-item.ctx-lost { color: #9ca3af; }
-.ctx-item.ctx-lost:hover { background: rgba(156, 163, 175, 0.12); }
-.ctx-item.ctx-identify { color: #eab308; }
-.ctx-item.ctx-identify:hover { background: rgba(234, 179, 8, 0.12); }
-
 /* ── Editing/form styles (kept minimal) ──────────────────── */
 .field { margin-bottom: 0.8rem; }
 .field label { display: block; margin-bottom: 0.2rem; font-weight: 500; font-size: 0.85rem; color: var(--text); }
@@ -569,6 +541,99 @@
 .checkbox-field label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0; }
 .checkbox-field input[type="checkbox"] { width: auto; cursor: pointer; }
 
-/* Manual script trigger entries in the right-click menu */
-.ctx-item.ctx-trigger { color: #c4b5fd; }
-.ctx-item.ctx-trigger:hover { background: rgba(139, 92, 246, 0.18); }
+/* ── Aktionsmenü (W gedrückt halten) ──────────────────────────────────────── */
+/* Replaces the old right-click menu: right-click now belongs to the stack cursor. */
+
+.iam-charge {
+  position: absolute;
+  left: 6px; right: 6px; bottom: 4px;
+  height: 3px;
+  background: rgba(139, 92, 246, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+  z-index: 5;
+  pointer-events: none;
+}
+.iam-charge-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #8b5cf6, #c4b5fd);
+  animation: iam-charge 420ms linear forwards;
+}
+@keyframes iam-charge { from { width: 0; } to { width: 100%; } }
+
+.iam-backdrop {
+  position: fixed; inset: 0; z-index: 12500;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.66);
+  backdrop-filter: blur(3px);
+  animation: iam-fade 0.12s ease-out;
+}
+@keyframes iam-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.iam-panel {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  width: min(900px, calc(100vw - 3rem));
+  max-height: calc(100vh - 4rem);
+  padding: 16px;
+  background: var(--card, #1a1f2e);
+  border: 1px solid var(--border, #2d3748);
+  border-radius: 14px;
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.6);
+  animation: iam-pop 0.14s ease-out;
+}
+@keyframes iam-pop { from { transform: scale(0.97); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.iam-item {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.iam-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 210px;
+  flex-shrink: 0;
+  padding-left: 16px;
+  border-left: 1px solid var(--border, #2d3748);
+}
+.iam-actions-title {
+  margin-bottom: 4px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text, #e5e7eb);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.iam-spacer { flex: 1; min-height: 8px; }
+
+.iam-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg, #131826);
+  border: 1px solid var(--border, #2d3748);
+  border-radius: 8px;
+  color: var(--text, #e5e7eb);
+  font-size: 0.84rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.iam-btn:hover { border-color: var(--accent, #8b5cf6); background: rgba(139, 92, 246, 0.12); }
+.iam-btn-use { color: #86efac; }
+.iam-btn-trigger { color: #c4b5fd; }
+.iam-btn-delete { color: #fca5a5; }
+.iam-btn-delete:hover { border-color: #ef4444; background: rgba(239, 68, 68, 0.12); }
+.iam-btn-close { justify-content: center; color: var(--muted, #9ca3af); font-size: 0.78rem; }
+
+/* The item drawn whole inside the menu never collapses */
+.item-view-full { padding: 4px; }
+
+@media (max-width: 720px) {
+  .iam-panel { flex-direction: column; }
+  .iam-actions { width: auto; padding-left: 0; padding-top: 12px; border-left: none; border-top: 1px solid var(--border, #2d3748); }
+}

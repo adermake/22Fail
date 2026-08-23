@@ -70,29 +70,6 @@ export function mergeStacks(
   };
 }
 
-/**
- * Fold every mergeable pile in a slot list into the first slot that holds its kind, leaving the
- * emptied slots as null. Slot positions of the surviving stacks never move.
- */
-export function mergeAllStacks(slots: readonly (ItemBlock | null)[]): (ItemBlock | null)[] {
-  const out = [...slots];
-  const firstOfKind = new Map<string, number>();
-
-  for (let i = 0; i < out.length; i++) {
-    const item = out[i];
-    if (!item || !item.stackable) continue;
-    const key = identityKey(item);
-    const target = firstOfKind.get(key);
-    if (target === undefined) {
-      firstOfKind.set(key, i);
-      continue;
-    }
-    out[target] = withAmount(out[target]!, stackAmount(out[target]) + stackAmount(item));
-    out[i] = null;
-  }
-  return out;
-}
-
 /** Take `count` units off a pile. Returns what was taken and what is left (null when emptied). */
 export function takeFrom(
   item: ItemBlock, count: number,

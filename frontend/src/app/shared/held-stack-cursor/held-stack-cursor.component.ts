@@ -1,10 +1,17 @@
-import { ChangeDetectionStrategy, Component, HostListener, inject } from '@angular/core';
+import {
+  AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, NgZone, OnDestroy, ViewChild,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeldStackService } from '../../services/held-stack.service';
 
 /**
- * The pile you are carrying, drawn under the cursor. Rendered once at the page level so it can
- * float over the inventory, the equipment slots and the shared bag alike.
+ * The pile you are carrying, drawn under the cursor, with its count right there on it — that is
+ * the only place the amount belongs while you are moving it.
+ *
+ * The pointer is followed OUTSIDE Angular and written straight to the element's transform. Going
+ * through a signal meant a change-detection pass on every mousemove across the whole sheet, which
+ * is what made picking things up feel sticky.
  */
 @Component({
   selector: 'app-held-stack-cursor',
@@ -13,7 +20,7 @@ import { HeldStackService } from '../../services/held-stack.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (held.heldItem(); as item) {
-      <div class="hsc" [style.left.px]="held.pointer().x" [style.top.px]="held.pointer().y">
+      <div class="hsc" #chip>
         <span class="hsc-icon app-icon i-item"></span>
         <span class="hsc-name">{{ item.name }}</span>
         @if (held.heldAmount() > 1) {
@@ -25,8 +32,9 @@ import { HeldStackService } from '../../services/held-stack.service';
   styles: [`
     .hsc {
       position: fixed;
+      top: 0;
+      left: 0;
       z-index: 13000;
-      transform: translate(12px, 12px);
       display: flex; align-items: center; gap: 7px;
       padding: 5px 11px;
       background: var(--card, #1a1f2e);
@@ -37,14 +45,46 @@ import { HeldStackService } from '../../services/held-stack.service';
       font-size: 0.82rem;
       pointer-events: none;
       white-space: nowrap;
+      will-change: transform;
     }
     .hsc-icon { width: 15px; height: 15px; color: #c4b5fd; }
-    .hsc-amount { color: #93c5fd; font-weight: 700; }
+    .hsc-amount {
+      padding: 0 6px;
+      border-radius: 8px;
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd; font-weight: 700;
+    }
   `],
 })
-export class HeldStackCursorComponent {
+export class HeldStackCursorComponent implements AfterViewInit, OnDestroy {
   readonly held = inject(HeldStackService);
+  private zone = inject(NgZone);
+  private hostEl: ElementRef<HTMLElement> = inject(ElementRef);
 
-  @HostListener('document:mousemove', ['$event'])
-  onMove(event: MouseEvent): void { this.held.trackPointer(event); }
+  @ViewChild('chip') chip?: ElementRef<HTMLElement>;
+
+  private lastX = 0;
+  private lastY = 0;
+  private frame = 0;
+
+  private readonly onMove = (event: MouseEvent): void => {
+    this.lastX = event.clientX;
+    this.lastY = event.clientY;
+    if (this.frame || !this.held.isHolding()) return;
+    this.frame = requestAnimationFrame(() => {
+      this.frame = 0;
+      const el = this.chip?.nativeElement
+        ?? (this.hostEl.nativeElement.querySelector('.hsc') as HTMLElement | null);
+      if (el) el.style.transform = `translate3d(${this.lastX + 12}px, ${this.lastY + 12}px, 0)`;
+    });
+  };
+
+  ngAfterViewInit(): void {
+    this.zone.runOutsideAngular(() => document.addEventListener('mousemove', this.onMove, { passive: true }));
+  }
+
+  ngOnDestroy(): void {
+    document.removeEventListener('mousemove', this.onMove);
+    if (this.frame) cancelAnimationFrame(this.frame);
+  }
 }

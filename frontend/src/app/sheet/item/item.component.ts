@@ -55,9 +55,14 @@ export class ItemComponent implements OnChanges {
   isFolded = true; // Start items as folded to save space
   readonly Math = Math;
 
+  /** Kept so the old menu's handlers can still close "the menu" from one place. */
   showContextMenu = false;
-  contextMenuX = 0;
-  contextMenuY = 0;
+  /** True while W is held over this item and the menu is charging up. */
+  charging = false;
+  /** The full action menu, opened by holding W over the item. */
+  showActionMenu = false;
+  private hovered = false;
+  private chargeTimer: ReturnType<typeof setTimeout> | null = null;
   /** Using something up is irreversible — ask first, in our own dialog. */
   askingConsume = false;
 
@@ -73,6 +78,62 @@ export class ItemComponent implements OnChanges {
       leggings: 'BEINE', boots: 'STIEFEL', weapon: 'WAFFE', extra: 'EXTRA',
     };
     return map[slot] ?? null;
+  }
+
+  /** How long W must be held before the menu pops. Long enough not to fire by accident. */
+  private static readonly CHARGE_MS = 420;
+
+  @HostListener('mouseenter')
+  onMouseEnter(): void { this.hovered = true; }
+
+  @HostListener('mouseleave')
+  onMouseLeave(): void {
+    this.hovered = false;
+    this.cancelCharge();
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    if (this.showActionMenu && event.key === 'Escape') { this.closeActionMenu(); return; }
+    if (event.key !== 'w' && event.key !== 'W') return;
+    if (!this.hovered || this.showActionMenu || this.chargeTimer) return;
+    // Never steal the key from someone typing.
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+
+    event.preventDefault();
+    this.charging = true;
+    this.chargeTimer = setTimeout(() => {
+      this.chargeTimer = null;
+      this.charging = false;
+      this.openActionMenu();
+    }, ItemComponent.CHARGE_MS);
+  }
+
+  @HostListener('document:keyup', ['$event'])
+  onKeyUp(event: KeyboardEvent): void {
+    if (event.key === 'w' || event.key === 'W') this.cancelCharge();
+  }
+
+  private cancelCharge(): void {
+    if (this.chargeTimer) clearTimeout(this.chargeTimer);
+    this.chargeTimer = null;
+    this.charging = false;
+  }
+
+  private openActionMenu(): void {
+    if (ItemComponent.activeContextMenu && ItemComponent.activeContextMenu !== this) {
+      ItemComponent.activeContextMenu.showActionMenu = false;
+    }
+    ItemComponent.activeContextMenu = this;
+    this.showActionMenu = true;
+    this.cd.markForCheck();
+  }
+
+  closeActionMenu(): void {
+    this.showActionMenu = false;
+    this.cancelCharge();
+    this.cd.markForCheck();
   }
 
   @HostListener('document:click')
@@ -164,28 +225,14 @@ export class ItemComponent implements OnChanges {
     this.openEditor.emit();
   }
 
-  onRightClick(event: MouseEvent) {
-    // In a stack-managed grid, right-click belongs to the stack cursor: it splits a pile or puts
-    // down a single unit. The slot around us handles that, so we must not eat the event or open
-    // a menu on top of it. Only piles are ambiguous — a single item still gets its menu.
-    if (this.stackMode) {
-      const isStack = !!this.item.stackable && (this.item.amount ?? 1) > 1;
-      if (this.heldStack.isHolding() || isStack) return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    // Close any other open context menu
-    if (ItemComponent.activeContextMenu && ItemComponent.activeContextMenu !== this) {
-      ItemComponent.activeContextMenu.showContextMenu = false;
-    }
-    ItemComponent.activeContextMenu = this;
-    this.contextMenuX = event.clientX;
-    this.contextMenuY = event.clientY;
-    this.showContextMenu = true;
-  }
+  /**
+   * Right-click belongs to the stack cursor now (split a pile / put one down); the item's own
+   * actions live in the hold-W menu. Nothing to do here but stay out of the way.
+   */
+  onRightClick(_event: MouseEvent): void { /* handled by the surrounding slot */ }
 
   openEditorFromMenu() {
-    this.showContextMenu = false;
+    this.closeActionMenu();
     this.openEditor.emit();
   }
 
@@ -195,12 +242,12 @@ export class ItemComponent implements OnChanges {
   }
 
   duplicateFromMenu() {
-    this.showContextMenu = false;
+    this.closeActionMenu();
     this.duplicate.emit();
   }
 
   consumeFromMenu() {
-    this.showContextMenu = false;
+    this.closeActionMenu();
     this.askingConsume = true;
   }
 
@@ -236,27 +283,27 @@ export class ItemComponent implements OnChanges {
   }
 
   triggerFromMenu(name: string): void {
-    this.showContextMenu = false;
+    this.closeActionMenu();
     this.runTrigger.emit(name);
   }
 
   usePotionFromMenu() {
-    this.showContextMenu = false;
+    this.closeActionMenu();
     this.useOnSelf.emit();
   }
 
   toggleLostFromMenu() {
-    this.showContextMenu = false;
+    this.closeActionMenu();
     this.patch.emit({ path: 'lost', value: !this.item.lost });
   }
 
   deleteFromContextMenu() {
-    this.showContextMenu = false;
+    this.closeActionMenu();
     this.delete.emit();
   }
 
   identifyFromMenu() {
-    this.showContextMenu = false;
+    this.closeActionMenu();
     this.patch.emit({ path: 'identified', value: true });
   }
 
