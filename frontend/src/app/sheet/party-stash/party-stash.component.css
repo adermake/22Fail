@@ -77,16 +77,4 @@
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
 }
 
-/* Stack gestures */
-.ps-list-droppable { border-color: var(--accent, #8b5cf6); background: rgba(139, 92, 246, 0.07); }
 .ps-entry { cursor: pointer; }
-.ps-peek {
-  flex-shrink: 0;
-  width: 22px; height: 22px;
-  background: transparent;
-  border: 1px solid var(--border, #4a5568);
-  border-radius: 6px;
-  color: var(--muted, #9ca3af);
-  font-size: 0.7rem; font-weight: 700; cursor: pointer;
-}
-.ps-peek:hover { color: var(--text, #e5e7eb); border-color: var(--accent, #8b5cf6); }

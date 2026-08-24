@@ -555,10 +555,16 @@ app-card > *,
   background: var(--bg);
   border-radius: 4px;
 }
-/* ── Stapel in der Hand ──────────────────────────────────────────────────── */
 
-/* An empty slot invites the held stack in */
-.item-slot-empty.slot-droppable {
-  border-color: rgba(139, 92, 246, 0.55);
-  background: rgba(139, 92, 246, 0.07);
+
+/* Unit count on the drag chip — turns purple once the pile has been split */
+.drag-chip-amount {
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.22);
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
+.drag-chip-amount.split { background: rgba(139, 92, 246, 0.3); color: #ddd6fe; }

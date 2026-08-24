@@ -60,9 +60,7 @@
              [cdkDragDisabled]="isItemEditing(i)"
              (cdkDragStarted)="onDragStarted($event, i)"
              (cdkDragMoved)="onDragMoved($event)"
-             (cdkDragEnded)="onDragEnded($event)"
-             (click)="onSlotClick(i, $event)"
-             (contextmenu)="onSlotRightClick(i, $event)">
+             (cdkDragEnded)="onDragEnded($event)">
 
           @if (isItemUnfolded(i)) {
             <!-- Origin chip: click = switch expansion tab; double-click = fold; cdkDragHandle = only drag from chip -->
@@ -80,7 +78,6 @@
               [item]="slot"
               [sheet]="sheet"
               [index]="i"
-              [stackMode]="true"
               [isEditing]="isItemEditing(i)"
               [compact]="draggedIndex === i"
               (patch)="updateItem(i, $event)"
@@ -102,6 +99,12 @@
             <div class="drag-chip">
               <span class="drag-chip-icon"><span class="app-icon" [class.i-effektivity]="slot.itemType === 'weapon'" [class.i-stability]="slot.itemType === 'armor'" [class.i-item]="slot.itemType !== 'weapon' && slot.itemType !== 'armor'"></span></span>
               <span class="drag-chip-name">{{ slot.name }}</span>
+              <!-- How many units are actually on the cursor right now. -->
+              @if (dragSplit.total() > 1) {
+                <span class="drag-chip-amount" [class.split]="dragSplit.isSplit()">
+                  &times;{{ dragSplit.taken() }}
+                </span>
+              }
             </div>
           </ng-template>
 
@@ -112,12 +115,9 @@
         <!-- Empty slot: always visible as a slot background -->
         <div class="item-slot item-slot-empty"
              [class.drag-target]="dropTargetSlotIdx === i && dragSourceSlotIdx !== i"
-             [class.slot-droppable]="heldStack.isHolding()"
              [attr.data-slot-idx]="i"
              [style.grid-column]="(i % 4) + 1"
-             [style.grid-row]="getItemGridRow(i)"
-             (click)="onSlotClick(i, $event)"
-             (contextmenu)="onSlotRightClick(i, $event)">
+             [style.grid-row]="getItemGridRow(i)">
         </div>
       }
     }

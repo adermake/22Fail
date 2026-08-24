@@ -541,26 +541,7 @@
 .checkbox-field label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0; }
 .checkbox-field input[type="checkbox"] { width: auto; cursor: pointer; }
 
-/* ── Aktionsmenü (W gedrückt halten) ──────────────────────────────────────── */
-/* Replaces the old right-click menu: right-click now belongs to the stack cursor. */
-
-.iam-charge {
-  position: absolute;
-  left: 6px; right: 6px; bottom: 4px;
-  height: 3px;
-  background: rgba(139, 92, 246, 0.2);
-  border-radius: 2px;
-  overflow: hidden;
-  z-index: 5;
-  pointer-events: none;
-}
-.iam-charge-fill {
-  height: 100%;
-  width: 0;
-  background: linear-gradient(90deg, #8b5cf6, #c4b5fd);
-  animation: iam-charge 420ms linear forwards;
-}
-@keyframes iam-charge { from { width: 0; } to { width: 100%; } }
+/* ── Aktionsfenster (Rechtsklick) ─────────────────────────────────────────── */
 
 .iam-backdrop {
   position: fixed; inset: 0; z-index: 12500;

@@ -10,7 +10,7 @@ import { KeywordEnhancer } from '../keyword-enhancer';
 import { isConsumable } from '../../services/consumption.service';
 import { hasRestBlock, listTriggers } from '../../scripting/interpreter';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
-import { HeldStackService } from '../../services/held-stack.service';
+import { DragSplitService } from '../../services/drag-split.service';
 
 @Component({
   selector: 'app-item',
@@ -20,7 +20,7 @@ import { HeldStackService } from '../../services/held-stack.service';
   styleUrl: './item.component.css',
 })
 export class ItemComponent implements OnChanges {
-  private heldStack = inject(HeldStackService);
+  private dragSplit = inject(DragSplitService);
   /** Tracks the last opened context menu instance so others can close themselves */
   private static activeContextMenu: ItemComponent | null = null;
 
@@ -36,8 +36,6 @@ export class ItemComponent implements OnChanges {
   }
   /** When true, hides the fold button and disables dblclick-to-fold (expansion row) */
   @Input() hideFoldControls = false;
-  /** True inside the inventory grid, where left/right click move stacks around. */
-  @Input() stackMode = false;
   @Output() patch = new EventEmitter<JsonPatch>();
   @Output() delete = new EventEmitter<void>();
   @Output() editingChange = new EventEmitter<boolean>();
@@ -55,14 +53,8 @@ export class ItemComponent implements OnChanges {
   isFolded = true; // Start items as folded to save space
   readonly Math = Math;
 
-  /** Kept so the old menu's handlers can still close "the menu" from one place. */
-  showContextMenu = false;
-  /** True while W is held over this item and the menu is charging up. */
-  charging = false;
-  /** The full action menu, opened by holding W over the item. */
+  /** The full action window, opened by right-clicking the item. */
   showActionMenu = false;
-  private hovered = false;
-  private chargeTimer: ReturnType<typeof setTimeout> | null = null;
   /** Using something up is irreversible — ask first, in our own dialog. */
   askingConsume = false;
 
@@ -80,47 +72,6 @@ export class ItemComponent implements OnChanges {
     return map[slot] ?? null;
   }
 
-  /** How long W must be held before the menu pops. Long enough not to fire by accident. */
-  private static readonly CHARGE_MS = 420;
-
-  @HostListener('mouseenter')
-  onMouseEnter(): void { this.hovered = true; }
-
-  @HostListener('mouseleave')
-  onMouseLeave(): void {
-    this.hovered = false;
-    this.cancelCharge();
-  }
-
-  @HostListener('document:keydown', ['$event'])
-  onKeyDown(event: KeyboardEvent): void {
-    if (this.showActionMenu && event.key === 'Escape') { this.closeActionMenu(); return; }
-    if (event.key !== 'w' && event.key !== 'W') return;
-    if (!this.hovered || this.showActionMenu || this.chargeTimer) return;
-    // Never steal the key from someone typing.
-    const target = event.target as HTMLElement | null;
-    if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
-
-    event.preventDefault();
-    this.charging = true;
-    this.chargeTimer = setTimeout(() => {
-      this.chargeTimer = null;
-      this.charging = false;
-      this.openActionMenu();
-    }, ItemComponent.CHARGE_MS);
-  }
-
-  @HostListener('document:keyup', ['$event'])
-  onKeyUp(event: KeyboardEvent): void {
-    if (event.key === 'w' || event.key === 'W') this.cancelCharge();
-  }
-
-  private cancelCharge(): void {
-    if (this.chargeTimer) clearTimeout(this.chargeTimer);
-    this.chargeTimer = null;
-    this.charging = false;
-  }
-
   private openActionMenu(): void {
     if (ItemComponent.activeContextMenu && ItemComponent.activeContextMenu !== this) {
       ItemComponent.activeContextMenu.showActionMenu = false;
@@ -132,19 +83,12 @@ export class ItemComponent implements OnChanges {
 
   closeActionMenu(): void {
     this.showActionMenu = false;
-    this.cancelCharge();
     this.cd.markForCheck();
-  }
-
-  @HostListener('document:click')
-  onDocumentClick() {
-    this.showContextMenu = false;
-    if (ItemComponent.activeContextMenu === this) ItemComponent.activeContextMenu = null;
   }
 
   @HostListener('document:keydown.escape')
   onEscape() {
-    this.showContextMenu = false;
+    this.closeActionMenu();
     if (ItemComponent.activeContextMenu === this) ItemComponent.activeContextMenu = null;
   }
 
@@ -225,11 +169,15 @@ export class ItemComponent implements OnChanges {
     this.openEditor.emit();
   }
 
-  /**
-   * Right-click belongs to the stack cursor now (split a pile / put one down); the item's own
-   * actions live in the hold-W menu. Nothing to do here but stay out of the way.
-   */
-  onRightClick(_event: MouseEvent): void { /* handled by the surrounding slot */ }
+  /** Right-click opens the item's action window. */
+  onRightClick(event: MouseEvent): void {
+    // Mid-drag the right button means "split this pile", and the radial menu handles it.
+    // Opening the action window on top of a drag would be nonsense.
+    if (this.dragSplit.isDragging()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.openActionMenu();
+  }
 
   openEditorFromMenu() {
     this.closeActionMenu();

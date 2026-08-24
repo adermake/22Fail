@@ -17,12 +17,9 @@
     <div class="ps-list"
          cdkDropList
          id="partyStashList"
-         [class.ps-list-droppable]="heldStack.isHolding()"
          [cdkDropListData]="entries"
          [cdkDropListConnectedTo]="['inventoryList']"
-         (cdkDropListDropped)="onDrop($event)"
-         (click)="onBagClick($event)"
-         (contextmenu)="onBagRightClick($event)">
+         (cdkDropListDropped)="onDrop($event)">
 
       @if (!entries.length) {
         <p class="ps-empty">Leer. Zieh etwas aus dem Inventar hier hinein.</p>
@@ -32,11 +29,11 @@
         <div class="ps-entry"
              cdkDrag
              [cdkDragData]="entry"
-             [class.open]="expandedEntry === entry.entryId"
-             (click)="onEntryClick(entry, $event)"
-             (contextmenu)="onEntryRightClick(entry, $event)">
+             (cdkDragStarted)="onEntryDragStarted(entry)"
+             (cdkDragEnded)="onEntryDragEnded()"
+             [class.open]="expandedEntry === entry.entryId">
 
-          <div class="ps-row">
+          <div class="ps-row" (click)="toggleExpanded(entry.entryId)">
             <span class="ps-name">{{ entry.item.name }}</span>
             @if (entry.item.stackable && (entry.item.amount ?? 1) > 1) {
               <span class="ps-amount">&times;{{ entry.item.amount }}</span>
@@ -48,12 +45,9 @@
               <span class="ps-from" title="Abgelegt von">von {{ entry.fromName }}</span>
             }
             <button class="ps-take"
-                    [disabled]="stash.busy() || heldStack.isHolding()"
+                    [disabled]="stash.busy()"
                     (click)="take(entry); $event.stopPropagation()"
                     title="Direkt ins Inventar legen">Nehmen</button>
-            <button class="ps-peek"
-                    (click)="toggleExpanded(entry.entryId); $event.stopPropagation()"
-                    title="Details">i</button>
           </div>
 
           @if (expandedEntry === entry.entryId) {

@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
@@ -16,8 +16,8 @@ import { TrueStatsService } from '../../services/true-stats.service';
 import { ConsumptionService, isConsumable } from '../../services/consumption.service';
 import { MacroExecutorService } from '../../services/macro-executor.service';
 import { PartyStashService } from '../../services/party-stash.service';
-import { HeldStackService } from '../../services/held-stack.service';
-import { canMerge, stackAmount } from '../../utils/item-stack.util';
+import { DragSplitService } from '../../services/drag-split.service';
+import { canMerge, stackAmount, withAmount } from '../../utils/item-stack.util';
 import { PartyStashEntry } from '../../model/world.model';
 import { CurrentEvent, ShopEvent, LootBundleEvent, formatCurrency } from '../../model/current-events.model';
 import { ActiveStatusEffect } from '../../model/status-effect.model';
@@ -57,7 +57,7 @@ export class InventoryComponent {
   private consumption = inject(ConsumptionService);
   private macroExecutor = inject(MacroExecutorService);
   private partyStash = inject(PartyStashService);
-  readonly heldStack = inject(HeldStackService);
+  readonly dragSplit = inject(DragSplitService);
   private elRef = inject(ElementRef);
 
   Math = Math; // Expose Math to template
@@ -370,6 +370,8 @@ getCurrencyWeight(): number {
     this.draggedIndex = slotIdx;
     this.dragSourceSlotIdx = slotIdx;
     this.dropTargetSlotIdx = slotIdx; // start at self
+    // Hold the right button during the drag to split this pile.
+    this.dragSplit.begin(this.paddedSlots[slotIdx]);
 
 
   }
@@ -402,6 +404,9 @@ getCurrencyWeight(): number {
     this.dragSourceSlotIdx = null;
     this.dropTargetSlotIdx = null;
 
+    const total = this.dragSplit.total();
+    const carried = this.dragSplit.end();
+
     if (this.crossContainerDropHandled) {
       this.crossContainerDropHandled = false;
       return;
@@ -409,8 +414,25 @@ getCurrencyWeight(): number {
 
     if (src === null || tgt === null || src === tgt) return;
 
-    // Sparse swap: swap directly at their slot positions, no compaction
     const padded = [...this.paddedSlots];
+
+    // A split drop moves only part of the pile; the rest stays where it came from.
+    if (carried > 0 && carried < total) {
+      if (!this.placeSplit(padded, src, tgt, carried, total)) return;
+      this.commitSlots(padded);
+      return;
+    }
+
+    // Whole-pile drop onto the same kind of item: the two become one stack.
+    if (canMerge(padded[src], padded[tgt])) {
+      padded[tgt] = withAmount(padded[tgt]!, stackAmount(padded[tgt]) + stackAmount(padded[src]));
+      padded[src] = null;
+      this.unfoldedItems.delete(src);
+      this.commitSlots(padded);
+      return;
+    }
+
+    // Sparse swap: swap directly at their slot positions, no compaction
     [padded[src], padded[tgt]] = [padded[tgt], padded[src]];
 
     // Directly swap unfoldedItems indices (no reference tracking needed)
@@ -444,7 +466,12 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
   // goes through the stash service and lands in the sheet only once it acks.
   if (event.previousContainer.id === 'partyStashList') {
     const entry = event.item.data as PartyStashEntry | null;
-    if (entry?.entryId) void this.takeFromPartyStash(entry, this.dropTargetSlotIdx ?? event.currentIndex);
+    // The split menu may have reduced how much of the pile is being taken. Read it here:
+    // onDragEnded clears the split state right after this runs.
+    const carried = this.dragSplit.isSplit() ? this.dragSplit.taken() : undefined;
+    if (entry?.entryId) {
+      void this.takeFromPartyStash(entry, this.dropTargetSlotIdx ?? event.currentIndex, carried);
+    }
     return;
   }
 
@@ -489,13 +516,18 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
 }
 
   /** Pull one entry out of the shared bag into a specific slot (drag target). */
-  private async takeFromPartyStash(entry: PartyStashEntry, targetSlot: number): Promise<void> {
-    const item = await this.partyStash.withdraw(entry.entryId);
+  private async takeFromPartyStash(
+    entry: PartyStashEntry, targetSlot: number, amount?: number,
+  ): Promise<void> {
+    const item = await this.partyStash.withdraw(entry.entryId, amount);
     if (!item) return; // someone else got it — nothing changes here
 
     const newInv = [...(this.sheet.inventory || [])] as (ItemBlock | null)[];
     const slot = Math.max(0, targetSlot);
-    if (newInv[slot]) {
+    // Landing on the same kind of item stacks with it.
+    if (canMerge(newInv[slot], item)) {
+      newInv[slot] = withAmount(newInv[slot]!, stackAmount(newInv[slot]) + stackAmount(item));
+    } else if (newInv[slot]) {
       const free = newInv.findIndex(s => s === null || s === undefined);
       if (free >= 0) newInv[free] = item;
       else newInv.push(item);
@@ -508,78 +540,32 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
     this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
   }
 
-  // ── Stapel aufnehmen und ablegen (Minecraft-Prinzip) ──────────────────────
-  // Linksklick nimmt den ganzen Stapel auf bzw. legt alles ab, Rechtsklick nimmt die Hälfte auf
-  // bzw. legt genau eines ab. Klicks auf Bedienelemente im Item (Knöpfe, Eingabefelder) bleiben
-  // dem Item überlassen — sonst könnte man ein Item nicht mehr bearbeiten.
-
-  private isInteractiveTarget(event: Event): boolean {
-    const el = event.target as HTMLElement | null;
-    return !!el?.closest('button, input, select, textarea, a, [contenteditable="true"], .iam-panel');
-  }
-
-  /** Left click: take the whole stack, or put down everything held. */
-  onSlotClick(index: number, event: MouseEvent): void {
-    if (this.isInteractiveTarget(event) || this.isItemEditing(index)) return;
-    const slot = this.paddedSlots[index] ?? null;
-
-    if (!this.heldStack.isHolding()) {
-      if (!slot) return;
-      // An unfolded item is being read, not moved — leave it be.
-      if (this.isItemUnfolded(index)) return;
-      event.preventDefault();
-      this.writeSlot(index, this.heldStack.pickUpAll(slot, 'inventory'));
-      return;
-    }
-
-    event.preventDefault();
-    this.writeSlot(index, this.heldStack.dropAll(slot));
-  }
-
-  /** Right click: take half, or put down a single unit. */
-  onSlotRightClick(index: number, event: MouseEvent): void {
-    if (this.isInteractiveTarget(event)) return;
-    const slot = this.paddedSlots[index] ?? null;
-
-    if (this.heldStack.isHolding()) {
-      event.preventDefault();
-      this.writeSlot(index, this.heldStack.dropOne(slot));
-      return;
-    }
-    // Only a real stack splits; for everything else the item's own context menu opens.
-    if (!slot || !slot.stackable || stackAmount(slot) <= 1) return;
-    event.preventDefault();
-    this.writeSlot(index, this.heldStack.pickUpHalf(slot, 'inventory'));
-  }
-
   /**
-   * Esc drops the held stack back into the inventory. Without this a picked-up pile could get
-   * stuck in hand with no way to put it down except finding a free slot.
+   * Move `carried` units from `src` to `tgt`, leaving the remainder behind. Returns false when
+   * the target cannot take them (something else is sitting there), in which case nothing moves —
+   * dropping half a stack onto an unrelated item has no sensible meaning.
    */
-  @HostListener('document:keydown.escape')
-  onEscapeWhileHolding(): void {
-    if (this.heldStack.isHolding()) this.returnHeldStack();
+  private placeSplit(
+    padded: (ItemBlock | null)[], src: number, tgt: number, carried: number, total: number,
+  ): boolean {
+    const source = padded[src];
+    if (!source) return false;
+
+    const target = padded[tgt];
+    if (target && !canMerge(target, source)) return false;
+
+    padded[tgt] = target
+      ? withAmount(target, stackAmount(target) + carried)
+      : withAmount(source, carried);
+    padded[src] = withAmount(source, total - carried);
+    return true;
   }
 
-  /** Put the held stack back into the first slot that will take it. */
-  returnHeldStack(): void {
-    const item = this.heldStack.heldItem();
-    if (!item) return;
-    const slots = [...this.paddedSlots];
-    const mergeInto = slots.findIndex(s => canMerge(s, item));
-    const target = mergeInto >= 0 ? mergeInto : slots.findIndex(s => s === null);
-    const index = target >= 0 ? target : slots.length;
-    this.writeSlot(index, this.heldStack.dropAll(slots[index] ?? null));
-  }
-
-  /** Write one slot and persist, trimming the trailing empties. */
-  private writeSlot(index: number, value: ItemBlock | null): void {
-    const next = [...this.paddedSlots] as (ItemBlock | null)[];
-    while (next.length <= index) next.push(null);
-    next[index] = value;
+  /** Persist a slot array, trimming the trailing empties. */
+  private commitSlots(slots: (ItemBlock | null)[]): void {
+    const next = [...slots];
     while (next.length > 0 && next[next.length - 1] === null) next.pop();
     this.sheet.inventory = next as typeof this.sheet.inventory;
-    this.unfoldedItems.delete(index);
     this.patch.emit({ path: 'inventory', value: this.sheet.inventory });
   }
 

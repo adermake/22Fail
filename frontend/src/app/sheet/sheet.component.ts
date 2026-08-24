@@ -15,7 +15,7 @@ import { TrueStatsService } from '../services/true-stats.service';
 import { applyStabilityToDelta } from '../utils/stability.util';
 import { CommonModule } from '@angular/common';
 import { PartyStashComponent } from './party-stash/party-stash.component';
-import { HeldStackCursorComponent } from '../shared/held-stack-cursor/held-stack-cursor.component';
+import { DragSplitMenuComponent } from '../shared/drag-split-menu/drag-split-menu.component';
 import { SkillsComponent } from './skills/skills.component';
 import { ClassTree } from './class-tree-model';
 import { InventoryComponent } from "./inventory/inventory.component";
@@ -79,7 +79,7 @@ import { CharacterSheet } from '../model/character-sheet-model';
     SpellcastWindowComponent,
     DamageCalculatorComponent,
     PartyStashComponent,
-    HeldStackCursorComponent,
+    DragSplitMenuComponent,
   ],
   templateUrl: './sheet.component.html',
   styleUrl: './sheet.component.css',

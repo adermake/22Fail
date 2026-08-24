@@ -21,11 +21,6 @@
     </app-confirm-dialog>
   }
 
-  <!-- Hold W to charge up the action menu -->
-  @if (charging) {
-    <div class="iam-charge"><div class="iam-charge-fill"></div></div>
-  }
-
   <ng-container *ngTemplateOutlet="itemView; context: { full: false }"></ng-container>
 </div>
 

@@ -1,5 +1,5 @@
-<!-- The pile currently in hand, floating under the cursor -->
-<app-held-stack-cursor />
+<!-- Radial split menu: right button held during a drag -->
+<app-drag-split-menu />
 
 @if (store.sheet$ | async; as sheet) {
 <div class="character-grid" [class.current-turn]="isCurrentTurn" [class.group-turn]="isGroupTurn">
