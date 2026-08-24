@@ -15,15 +15,19 @@ import { splitHalf, stackAmount } from '../utils/item-stack.util';
  */
 export interface DragSplitOperation {
   id: 'half' | 'double' | 'plus' | 'minus';
+  /** The big symbol in the ring. */
   label: string;
+  /** The small word under it. */
+  name: string;
   hint: string;
 }
 
+/** Clockwise from the top: +1, ×2, −1, ½ — adding on the right, taking away on the left. */
 export const DRAG_SPLIT_OPERATIONS: DragSplitOperation[] = [
-  { id: 'minus',  label: '−1', hint: 'Eines weniger mitnehmen' },
-  { id: 'half',   label: '½',  hint: 'Die Hälfte mitnehmen' },
-  { id: 'double', label: '×2', hint: 'Doppelt so viele mitnehmen' },
-  { id: 'plus',   label: '+1', hint: 'Eines mehr mitnehmen' },
+  { id: 'plus',   label: '+1', name: 'Eins',   hint: 'Eines mehr mitnehmen (Shift: schnell)' },
+  { id: 'double', label: '×2', name: 'Doppelt', hint: 'Doppelt so viele mitnehmen (Shift: schnell)' },
+  { id: 'minus',  label: '−1', name: 'Eins',   hint: 'Eines weniger mitnehmen (Shift: schnell)' },
+  { id: 'half',   label: '½',  name: 'Hälfte', hint: 'Die Hälfte mitnehmen (Shift: schnell)' },
 ];
 
 @Injectable({ providedIn: 'root' })
@@ -70,9 +74,22 @@ export class DragSplitService {
     return carried;
   }
 
+  /**
+   * Radius the ring needs around the cursor, so the menu can be kept fully on screen. Opening
+   * it near an edge otherwise pushed half the options out of view.
+   */
+  static readonly RING_MARGIN = 220;
+
   openMenu(x: number, y: number): void {
     if (!this.isDragging()) return;
-    this.menuPosition.set({ x, y });
+    const margin = DragSplitService.RING_MARGIN;
+    const clamp = (value: number, size: number) => size < margin * 2
+      ? size / 2
+      : Math.max(margin, Math.min(size - margin, value));
+    this.menuPosition.set({
+      x: clamp(x, window.innerWidth),
+      y: clamp(y, window.innerHeight),
+    });
     this.menuOpen.set(true);
   }
 

@@ -156,7 +156,7 @@ describe('Teilen beim Ziehen', () => {
       svc.begin(item({ amount: 4 }));
       svc.openMenu(10, 20);
       expect(svc.menuOpen()).toBe(true);
-      expect(svc.menuPosition()).toEqual({ x: 10, y: 20 });
+      // The exact spot is clamped so the ring fits — see "keeping the ring on screen".
     });
 
     it('closes when the drag ends', () => {
@@ -164,6 +164,73 @@ describe('Teilen beim Ziehen', () => {
       svc.openMenu(0, 0);
       svc.end();
       expect(svc.menuOpen()).toBe(false);
+    });
+  });
+
+  describe('keeping the ring on screen', () => {
+    const withWindow = (w: number, h: number, fn: () => void) => {
+      const realW = window.innerWidth, realH = window.innerHeight;
+      Object.defineProperty(window, 'innerWidth', { value: w, configurable: true });
+      Object.defineProperty(window, 'innerHeight', { value: h, configurable: true });
+      try { fn(); } finally {
+        Object.defineProperty(window, 'innerWidth', { value: realW, configurable: true });
+        Object.defineProperty(window, 'innerHeight', { value: realH, configurable: true });
+      }
+    };
+
+    it('leaves a central click where it is', () => {
+      withWindow(1600, 1000, () => {
+        svc.begin(item({ amount: 4 }));
+        svc.openMenu(800, 500);
+        expect(svc.menuPosition()).toEqual({ x: 800, y: 500 });
+      });
+    });
+
+    it('pushes a corner click inward so the whole ring fits', () => {
+      withWindow(1600, 1000, () => {
+        svc.begin(item({ amount: 4 }));
+        svc.openMenu(5, 5);
+        const pos = svc.menuPosition();
+        expect(pos.x).toBeGreaterThanOrEqual(DragSplitService.RING_MARGIN);
+        expect(pos.y).toBeGreaterThanOrEqual(DragSplitService.RING_MARGIN);
+      });
+    });
+
+    it('pulls a click near the far edge back in', () => {
+      withWindow(1600, 1000, () => {
+        svc.begin(item({ amount: 4 }));
+        svc.openMenu(1595, 995);
+        const pos = svc.menuPosition();
+        expect(pos.x).toBeLessThanOrEqual(1600 - DragSplitService.RING_MARGIN);
+        expect(pos.y).toBeLessThanOrEqual(1000 - DragSplitService.RING_MARGIN);
+      });
+    });
+
+    it('centres the ring on a window too small to hold it', () => {
+      withWindow(300, 300, () => {
+        svc.begin(item({ amount: 4 }));
+        svc.openMenu(10, 290);
+        expect(svc.menuPosition()).toEqual({ x: 150, y: 150 });
+      });
+    });
+  });
+
+  describe('repeating an operation (Shift)', () => {
+    it('walks a big pile down one step at a time and stops at the floor', () => {
+      svc.begin(item({ amount: 5 }));
+      let guard = 0;
+      while (svc.apply('minus') && ++guard < 50) { /* as Shift-repeat does */ }
+      expect(svc.taken()).toBe(1);
+      expect(svc.apply('minus')).toBe(false);
+    });
+
+    it('walks back up and stops at the ceiling', () => {
+      svc.begin(item({ amount: 5 }));
+      svc.setTaken(1);
+      let guard = 0;
+      while (svc.apply('plus') && ++guard < 50) { /* as Shift-repeat does */ }
+      expect(svc.taken()).toBe(5);
+      expect(svc.apply('plus')).toBe(false);
     });
   });
 });

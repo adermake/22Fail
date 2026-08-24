@@ -248,3 +248,6 @@ label {
 }
 .kt-select:focus { outline: none; border-color: var(--accent, #8b5cf6); }
 .kt-hint { font-size: 0.68rem; color: var(--text-muted, #9ca3af); opacity: 0.85; }
+
+/* The dragged item must stay visible above the split menu's scrim (CDK ships z-index: 1000). */
+.cdk-drag-preview { z-index: 13450 !important; }
