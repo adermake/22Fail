@@ -7,29 +7,30 @@ order: 40
 
 
 
-# Zaubersystem
 
 
+:::section{title="Zaubersystem"}
 Die Welt ist voller Magie, dennoch ist es nicht leicht, diese Energie zu verwenden. Das führt dazu, dass Mana für Magier hauptsächlich aus dem Inneren kommt.
 
 Zauber bestehen hauptsächlich aus Runen. Diese können immer einer von drei Kategorien untergeordnet werden:
+:::grid{min=300}
+:::card{title="Element" icon=attack accent=health}
+:::
+:::card{title="Formung" icon=attack accent=mana}
+:::
+:::card{title="Seele" icon=attack accent=energy}
+:::
+:::
+:::
 
-- Element  
-- Formung  
-- Seele  
 
 
-
-## Elementar-Runen
-
+:::section{title="Elementar-Runen"}
 Elementar-Runen können alles symbolisieren, was materiell ist. Damit können allgemeine Materialien gemeint sein, wie z. B. Wasser, Feuer, Eisen, Licht, Holz, Luft oder Stoff. Aber auch spezifischere Dinge wie Mensch, Elf, Drache, Stock, Schwert, Seil, ein 1980er Honda Civic usw.
 
 Mit Elementar-Runen allein kann man jedoch nicht viel machen. Man muss sie mit Formungs-Runen oder Seelen-Runen kombinieren, damit ein Zauber überhaupt etwas bewirkt.
-
-
+:::
 :::section{title="Formungs-Runen"}
-## Formungs-Runen
-
 Formungs-Runen  sind die Grundoperatoren der Zauberei. Man kann sie grob in drei Unterkategorien einteilen:
 
 ### Manipulation  
@@ -62,12 +63,8 @@ Beispiele sind:
 - Wiederhole  
 - Stapel  
 - Zahlen  
-
-
 :::
 :::section{title="Seelen-Runen"}
-## Seelen-Runen
-
 Seelen-Runen werden vor allem für Beschwörungen verwendet.  
 Im Allgemeinen sind sie wesentlich komplexer in ihrem Aussehen als Elementar- oder Formungs-Runen.
 
