@@ -159,3 +159,12 @@ Erreicht oder überschreitet man den festgelegten Cast-Wert, wird der Zauber akt
 
 Ein Cast kann jederzeit freiwillig abgebrochen werden.
 :::
+
+
+:::section{title="Wie mache ich einen neunen Zauber?"}
+Damit dein Charakter einen neune Zauber zusammenbauen benötigst du Kenntniss von Runen die du für den Zauber verwenden willst.
+Diese werden dann je nach gewünschten Effekt angeordnet.
+Ein Beispiel:
+Start - Erzeuge - Feuer - Bewege 
+
+:::
