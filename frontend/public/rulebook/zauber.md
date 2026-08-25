@@ -35,7 +35,7 @@ Formungs-Runen  sind die Grundoperatoren der Zauberei. Man kann sie grob in drei
 
 ### Manipulation  
 Darunter fallen Runen, die sich direkt auf ein Element auswirken, z. B.:
-:::grid{min=50}
+:::grid{min=30}
 :::card{title="Erzeuge" accent=mana}
 :::
 :::card{title="Wähle aus " accent=mana}
@@ -58,19 +58,27 @@ Darunter fallen Runen, die sich direkt auf ein Element auswirken, z. B.:
 ### Selektoren  
 Runen, die beim Auswählen oder Spezifizieren abstrakter Dinge helfen.  
 Beispiele sind:
-:::grid{min=50}
-Selbst  
-Gegner  
-Verbündete  
-Ort  
+:::grid{min=30}
+:::card{title="Selbst" accent=mana}
+:::
+:::card{title="Gegner" accent=mana}
+:::
+:::card{title="Verbündete" accent=mana}
+:::
+:::card{title="Ort" accent=mana}
+:::
 :::
 ### Ausführung  
 Noch abstraktere Runen, die bei der Ausführung eines Zaubers eine Rolle spielen.  
 Beispiele sind:
-
-- Wiederhole  
-- Stapel  
-- Zahlen  
+:::grid{min=30}
+:::card{title="Wiederhole" accent=mana}
+:::
+:::card{title="Stapel" accent=mana}
+:::
+:::card{title="Zahlen" accent=mana}
+:::
+:::
 :::
 :::section{title="Seelen-Runen"}
 Seelen-Runen werden vor allem für Beschwörungen verwendet.  
@@ -110,7 +118,9 @@ Wir gehen später noch auf ein paar Beispiele ein.
 Fokus ist ein Stat, der darüber aussagt, auf wie viele Dinge sich ein Charakter gleichzeitig konzentrieren kann. Er ist ein limitierender Faktor dafür, wie viele anhaltende Zauber ein Magier gleichzeitig aufrechterhalten kann.
 
 Fokus erhält man aus Intelligenz mit folgender Formel:  
+:::formula
 bonusFokus + Intelligenz
+:::
 
 Da Zauber sehr unterschiedlich aufgebaut sein können, wirkt sich Fokus auch unterschiedlich aus.  
 Es kann sein, dass ein Zauber nur beim Wirken Fokus benötigt und dieser danach sofort wieder frei wird.  
