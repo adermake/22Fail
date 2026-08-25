@@ -1,15 +1,15 @@
 ---
-title: Zauber
-tab: Zauber
+title: Magie
+tab: Magie
 icon: spell
-order: 40
+order: 60
 ---
 
 
 
 
 
-:::section{title="Zaubersystem"}
+:::section{title="Magiesystem"}
 Die Welt ist voller Magie, dennoch ist es nicht leicht, diese Energie zu verwenden. Das führt dazu, dass Mana für Magier hauptsächlich aus dem Inneren kommt.
 
 Zauber bestehen hauptsächlich aus Runen. Diese können immer einer von drei Kategorien untergeordnet werden:
@@ -97,7 +97,7 @@ Ein Magier schafft dies nur, wenn er im Besitz der Seele ist, die ihn beim Zeich
 Das bedeutet, dass ein Beschwörer nicht gleichzeitig zwei Beschwörungen mit derselben wahren Seelen-Rune aufrechterhalten kann.
 
 :::
-:::section{title="Allgemeines-Runen"}
+:::section{title="Allgemeines"}
 Damit Zauber etwas bewirken können, müssen die Runen in deiner Nähe sein. Für Magie-Einsteiger bedeutet das, dass sie Hilfsmittel benötigen, auf denen die Runen angebracht sind, wenn sie unterwegs zaubern möchten.
 
 Beliebte Optionen sind Schriftrollen oder Zauberstäbe mit gezeichneten oder eingravierten Runen.
@@ -119,7 +119,7 @@ Fokus ist ein Stat, der darüber aussagt, auf wie viele Dinge sich ein Charakter
 
 Fokus erhält man aus Intelligenz mit folgender Formel:  
 :::formula
-bonusFokus + Intelligenz
+5 + Intelligenz / 2
 :::
 
 Da Zauber sehr unterschiedlich aufgebaut sein können, wirkt sich Fokus auch unterschiedlich aus.  
@@ -134,13 +134,13 @@ Zauber benötigen Nähe zum Zaubernden, damit sie geformt werden können.
 Der Zauberradius ist ein Stat, der angibt, wie weit vom Caster entfernt ein Zauber entstehen kann.  
 Dieser Stat kann man beispielsweise durch Talente im Talentbaum erhöhen.
 
-Zauber direkt in Lebewesen oder festen Objekten zu erzeugen, ist jedoch sehr schwierig bis nahezu unmöglich.
+Zauber im Zauberradius einer anderen Person zu erzeugen ist deutlich schwieriger, weshalb der Zauber mit Nachteil ausgeführt wird.
+Zauber direkt in Lebewesen oder festen Objekten zu erzeugen ist jedoch noch schwieriger bis nahezu unmöglich.
 :::
 
-:::section{title="Scalierung"}
+:::section{title="Skalierung"}
 
-Runen haben eine Größe und können skaliert werden. Macht man eine Rune doppelt so groß, ist ihr Effekt doppelt so stark – allerdings verdoppeln sich auch die Mana-Kosten.
-Die Haltbarkeit leidet bei der Skalierung entsprechend mehr oder weniger je nach Skalierung im selben Verhältnis. 
+Runen haben eine Größe und können skaliert werden. Macht man eine Rune doppelt so groß, ist ihr Effekt doppelt so stark – allerdings verdoppeln sich auch die Manakosten und der Verbrauch der Haltbarkeit.
 
 Dieser Effekt gilt ebenso in die andere Richtung: Skaliert man eine Rune herunter, wird der Effekt schwächer und die Kosten sinken entsprechend.
 :::
@@ -148,24 +148,33 @@ Dieser Effekt gilt ebenso in die andere Richtung: Skaliert man eine Rune herunte
 :::section{title="Casten"}
 
 Da manche Zauber zu komplex sind, um sie sofort auszulösen, lässt sich ihre Aktivierung zeitlich verzögern.  
-Dazu wählt man einen beliebigen **Cast-Wert™**.
+Dazu wählt man einen beliebigen **Cast-Wert**.
 
-Die Mana-Kosten und Zaubervoraussetzungen werden dann mit dem Ergebnis folgender Formel multipliziert:
+Die Manakosten und Zaubervoraussetzungen werden dann mit dem Ergebnis folgender Formel multipliziert:
 :::formula
 100 / (Cast + 100)
 :::
-Um den Cast erfolgreich abzuschließen, würfelt man jede Runde einen W20, dessen Ergebnis fortlaufend addiert wird.  
+Um den Cast erfolgreich abzuschließen, würfelt man jede Runde einen D20, dessen Ergebnis fortlaufend addiert wird.  
 Erreicht oder überschreitet man den festgelegten Cast-Wert, wird der Zauber aktiviert.
 
 Ein Cast kann jederzeit freiwillig abgebrochen werden.
 :::
 
 
-:::section{title="Wie mache ich einen neunen Zauber?"}
-Damit dein Charakter einen neune Zauber zusammenbauen benötigst du Kenntniss von Runen die du für den Zauber verwenden willst.
-Diese werden dann je nach gewünschten Effekt angeordnet.
-Ein Beispiel:
+:::section{title="Wie mache ich einen neuen Zauber?"}
+Damit dein Charakter einen neuen Zauber zusammenbauen benötigst du Kenntnis von Runen die du für den Zauber verwenden willst.
+Diese werden dann je nach gewünschtem Effekt angeordnet.
+
+:::card{title=Ein Beispiel:}
 Start - Erzeuge - Feuer - Bewege 
+:::
+
+Runen alleine reichen aber nicht aus, um zu bestimmen, was ein Zauber machen kann und wieviel er kostet. Letztendlich schaut sich der Ersteller den Zauber zusammen mit dem Spielleiter an und definiert, was er genau macht und wieviel er kostet. Der Ersteller muss dem Spielleiter argumentieren können, warum die arrangierten Runen das tun würden, was die Beschreibung sagt. Auch wenn der Prozess viel Interpretationsspielraum bietet, haben Runen immernoch eine Stärke und Kosten, die als Grundrahmen dienen. Es wird z.B. durchaus Feuerrunen geben, die stärker als andere Feuerrunen sind.
 
 
+:::
+
+:::actions
+:jump[Weiter zur Ausrüstung]{to=zauber}
+:jump[Zurück zu den Rassen]{to=klassen}
 :::
