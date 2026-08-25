@@ -118,6 +118,9 @@ Zauber im Zauberradius einer anderen Person zu erzeugen ist deutlich schwieriger
 Zauber direkt in Lebewesen oder festen Objekten zu erzeugen ist jedoch noch schwieriger bis nahezu unmöglich.
 :::
 
+## Zauber
+TBD
+
 :::section{title="Skalierung", id="skalierung"}
 
 Runen haben eine Größe und können skaliert werden. Macht man eine Rune doppelt so groß, ist ihr Effekt doppelt so stark – allerdings verdoppeln sich auch die Manakosten und der Verbrauch der Haltbarkeit.
