@@ -43,6 +43,8 @@ export class DragSplitService {
   /** Where the menu was opened, in viewport coordinates. */
   readonly menuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  private clearTimer: ReturnType<typeof setTimeout> | null = null;
+
   /** A drag is in progress (whether or not the menu is open). */
   readonly isDragging = computed(() => this.total() > 0);
   /** True once the carried amount is less than the whole pile. */
@@ -57,6 +59,7 @@ export class DragSplitService {
 
   /** Start tracking a drag. */
   begin(item: ItemBlock | null | undefined): void {
+    this.reset(); // cancels any pending cleanup from the previous drag
     const units = stackAmount(item);
     this.total.set(units);
     this.taken.set(units);
@@ -64,14 +67,29 @@ export class DragSplitService {
     this.menuOpen.set(false);
   }
 
-  /** The drag finished (or was cancelled). Returns the count that was carried. */
-  end(): number {
+  /**
+   * The drag finished. Returns the count that was carried, and clears the state on the next
+   * macrotask rather than immediately.
+   *
+   * The delay is not cosmetic. Angular CDK emits `ended` BEFORE `dropped`, so the drop handler —
+   * the code that actually moves the units — runs after this. Clearing here made every drop read
+   * a count of zero and fall back to "the whole pile", which is how dragging a split stack into
+   * the shared bag handed over all of it.
+   */
+  finishDrag(): number {
     const carried = this.taken();
+    this.menuOpen.set(false);
+    this.clearTimer ??= setTimeout(() => this.reset(), 0);
+    return carried;
+  }
+
+  /** Wipe the state now. Used when a new drag starts, and by the deferred cleanup. */
+  reset(): void {
+    if (this.clearTimer) { clearTimeout(this.clearTimer); this.clearTimer = null; }
     this.total.set(0);
     this.taken.set(0);
     this.splittable.set(false);
     this.menuOpen.set(false);
-    return carried;
   }
 
   /**

@@ -59,7 +59,7 @@ export class PartyStashComponent implements OnInit {
   /** Dragging out of the bag: the same split menu applies to the pile being taken. */
   onEntryDragStarted(entry: PartyStashEntry): void { this.dragSplit.begin(entry.item); }
 
-  onEntryDragEnded(): void { this.dragSplit.end(); }
+  onEntryDragEnded(): void { this.dragSplit.finishDrag(); }
 
   /** An inventory item was dropped on the bag. */
   async onDrop(event: CdkDragDrop<PartyStashEntry[]>): Promise<void> {

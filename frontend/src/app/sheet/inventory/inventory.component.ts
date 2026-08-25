@@ -72,8 +72,6 @@ export class InventoryComponent {
   private unfoldedItems = new Set<number>();
   /** Which item index is the active tab per visual row (row = Math.floor(i/4)) */
   private activeTabPerRow = new Map<number, number>();
-  /** Set when a cross-container drop was handled by onDrop, so onDragEnded skips same-container swap */
-  private crossContainerDropHandled = false;
   /** Index of the item currently being dragged (for compact ghost rendering) */
   draggedIndex: number | null = null;
   /** Height in px of the item element at drag start, used to size the placeholder */
@@ -405,13 +403,10 @@ getCurrencyWeight(): number {
     this.dropTargetSlotIdx = null;
 
     const total = this.dragSplit.total();
-    const carried = this.dragSplit.end();
+    const carried = this.dragSplit.finishDrag();
 
-    if (this.crossContainerDropHandled) {
-      this.crossContainerDropHandled = false;
-      return;
-    }
-
+    // A drop outside our own grid (equipment, the shared bag) leaves no slot under the pointer,
+    // and that is the only guard needed: the receiving container does its own work.
     if (src === null || tgt === null || src === tgt) return;
 
     const padded = [...this.paddedSlots];
@@ -459,8 +454,6 @@ getCurrencyWeight(): number {
 onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
   // Same-container drops are handled by onDragEnded — skip here
   if (event.previousContainer === event.container) return;
-
-  this.crossContainerDropHandled = true;
 
   // Coming out of the shared party bag: the server decides whether we actually get it, so this
   // goes through the stash service and lands in the sheet only once it acks.

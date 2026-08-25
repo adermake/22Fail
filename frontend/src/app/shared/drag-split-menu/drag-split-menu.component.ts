@@ -6,7 +6,10 @@ import { DRAG_SPLIT_OPERATIONS, DragSplitOperation, DragSplitService } from '../
 import { playSplitTick } from '../sound/split-audio';
 
 /**
- * The radial split menu, shown while the right button is held during a drag.
+ * The radial split menu, toggled with the right button during a drag.
+ *
+ * Tap right to enter split mode, tap right again to leave it — holding the button down the whole
+ * time was tiring, and there is nothing about the interaction that needs a held button.
  *
  * Design notes, all of them learned the hard way:
  *  - While it is open the rest of the page is behind a scrim and cannot be hovered or clicked.
@@ -16,6 +19,8 @@ import { playSplitTick } from '../sound/split-audio';
  *    the browser's own context menu never appears.
  *  - Sweeping onto an option runs it once and locks it until the pointer leaves. Holding Shift
  *    repeats it instead, for getting from 200 to 12 without sixty separate sweeps.
+ *  - Dropping the item while the menu is still open just works: the slot under the pointer is
+ *    found beneath the scrim, and the drag ending closes the menu.
  *  - Just type. Digits go into the count wherever the pointer happens to be.
  */
 @Component({
@@ -54,7 +59,7 @@ import { playSplitTick } from '../sound/split-audio';
           </button>
         }
 
-        <span class="dsm-hint">Zahl tippen · Shift = schnell · Rechtsklick loslassen</span>
+        <span class="dsm-hint">Zahl tippen · Shift = schnell · Rechtsklick = fertig</span>
       </div>
     }
   `,
@@ -195,6 +200,7 @@ export class DragSplitMenuComponent implements OnInit, OnDestroy {
   repeatOp: DragSplitOperation['id'] | null = null;
 
   private repeatTimer: ReturnType<typeof setInterval> | null = null;
+  private fadeTimer: ReturnType<typeof setTimeout> | null = null;
   private flashTimer: ReturnType<typeof setTimeout> | null = null;
   private typedDigits = '';
   private shiftDown = false;
@@ -203,6 +209,7 @@ export class DragSplitMenuComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopRepeat();
+    this.cancelFade();
     window.removeEventListener('mousedown', this.onRightMouseDown, true);
     window.removeEventListener('mouseup', this.onRightMouseUp, true);
     window.removeEventListener('contextmenu', this.onAnyContextMenu, true);
@@ -216,10 +223,17 @@ export class DragSplitMenuComponent implements OnInit, OnDestroy {
   // sees a right-button event while a drag is running — and the browser's own menu never opens,
   // including the contextmenu that fires AFTER the button is released.
 
+  /** Right button TAPS toggle split mode; the button is never held. */
   private readonly onRightMouseDown = (event: MouseEvent): void => {
     if (event.button !== 2 || !this.split.isDragging()) return;
     this.swallow(event);
     this.zone.run(() => {
+      // Mid-fade counts as closed, so a quick double tap reopens instead of doing nothing.
+      if (this.split.menuOpen() && !this.closing()) {
+        this.fadeOut();
+        return;
+      }
+      this.cancelFade();
       this.closing.set(false);
       this.used.set(null);
       this.typedDigits = '';
@@ -228,11 +242,14 @@ export class DragSplitMenuComponent implements OnInit, OnDestroy {
     });
   };
 
+  /**
+   * The release of a toggling tap. It changes nothing — but it still has to be swallowed, or the
+   * card underneath sees a right-click and the browser opens its own menu.
+   */
   private readonly onRightMouseUp = (event: MouseEvent): void => {
     if (event.button !== 2) return;
-    if (!this.split.menuOpen()) return;
+    if (!this.split.isDragging() && !this.split.menuOpen()) return;
     this.swallow(event);
-    this.zone.run(() => this.fadeOut());
   };
 
   private readonly onAnyContextMenu = (event: MouseEvent): void => {
@@ -361,10 +378,16 @@ export class DragSplitMenuComponent implements OnInit, OnDestroy {
     setTimeout(() => this.bump.set(false), 240);
   }
 
+  private cancelFade(): void {
+    if (this.fadeTimer) { clearTimeout(this.fadeTimer); this.fadeTimer = null; }
+  }
+
   private fadeOut(): void {
     this.stopRepeat();
+    this.cancelFade();
     this.closing.set(true);
-    setTimeout(() => {
+    this.fadeTimer = setTimeout(() => {
+      this.fadeTimer = null;
       this.split.closeMenu();
       this.closing.set(false);
       this.used.set(null);

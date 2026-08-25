@@ -40,7 +40,8 @@ describe('Teilen beim Ziehen', () => {
     it('is not dragging before it begins, or after it ends', () => {
       expect(svc.isDragging()).toBe(false);
       svc.begin(item({ amount: 4 }));
-      expect(svc.end()).toBe(4);
+      expect(svc.finishDrag()).toBe(4);
+      svc.reset();
       expect(svc.isDragging()).toBe(false);
     });
   });
@@ -142,7 +143,8 @@ describe('Teilen beim Ziehen', () => {
     });
 
     it('does nothing when no drag is running', () => {
-      svc.end();
+      svc.finishDrag();
+      svc.reset();
       svc.setTaken(5);
       expect(svc.taken()).toBe(0);
     });
@@ -162,7 +164,7 @@ describe('Teilen beim Ziehen', () => {
     it('closes when the drag ends', () => {
       svc.begin(item({ amount: 4 }));
       svc.openMenu(0, 0);
-      svc.end();
+      svc.finishDrag();
       expect(svc.menuOpen()).toBe(false);
     });
   });
@@ -231,6 +233,62 @@ describe('Teilen beim Ziehen', () => {
       while (svc.apply('plus') && ++guard < 50) { /* as Shift-repeat does */ }
       expect(svc.taken()).toBe(5);
       expect(svc.apply('plus')).toBe(false);
+    });
+  });
+
+  describe('surviving the drop handler', () => {
+    // Angular CDK emits `ended` BEFORE `dropped`. Everything that moves units runs in the drop
+    // handler, so the count has to still be readable after the drag has "finished".
+    it('still reports the split count synchronously after finishDrag', () => {
+      svc.begin(item({ amount: 10 }));
+      svc.setTaken(3);
+
+      expect(svc.finishDrag()).toBe(3);
+
+      // This is the drop handler's turn — same tick.
+      expect(svc.isSplit()).toBe(true);
+      expect(svc.taken()).toBe(3);
+      expect(svc.total()).toBe(10);
+    });
+
+    it('clears itself once the tick is over', async () => {
+      svc.begin(item({ amount: 10 }));
+      svc.setTaken(3);
+      svc.finishDrag();
+
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(svc.isDragging()).toBe(false);
+      expect(svc.taken()).toBe(0);
+    });
+
+    it('a new drag starts clean even if the cleanup has not run yet', () => {
+      svc.begin(item({ amount: 10 }));
+      svc.setTaken(3);
+      svc.finishDrag();
+
+      svc.begin(item({ amount: 4 }));
+      expect(svc.total()).toBe(4);
+      expect(svc.taken()).toBe(4);
+      expect(svc.isSplit()).toBe(false);
+    });
+
+    it('does not wipe the fresh drag when the old cleanup fires', async () => {
+      svc.begin(item({ amount: 10 }));
+      svc.finishDrag();
+      svc.begin(item({ amount: 6 }));
+
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(svc.total()).toBe(6);
+      expect(svc.isDragging()).toBe(true);
+    });
+
+    it('closes the menu immediately, not on the deferred tick', () => {
+      svc.begin(item({ amount: 10 }));
+      svc.openMenu(500, 500);
+      svc.finishDrag();
+      expect(svc.menuOpen()).toBe(false);
     });
   });
 });
