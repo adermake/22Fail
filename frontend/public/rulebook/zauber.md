@@ -36,16 +36,15 @@ Formungs-Runen  sind die Grundoperatoren der Zauberei. Man kann sie grob in drei
 ### Manipulation  
 Darunter fallen Runen, die sich direkt auf ein Element auswirken, z. B.:
 :::grid{min=50}
-Erzeuge  
-Wähle aus  
-Detektiere  
-Erhöhe  
-Verringere  
-Bewege  
-Infusioniere  
-Komprimiere  
-Verschärfe  
-Teile auf  
+:::card{title="Erzeuge" accent=mana}:::
+:::card{title="Wähle aus " accent=mana}:::
+:::card{title="Detektiere" accent=mana}:::
+:::card{title="Erhöhe" accent=mana}:::
+:::card{title="Verringere" accent=mana}:::
+:::card{title="Infusioniere" accent=mana}:::
+:::card{title="Komprimiere" accent=mana}:::
+:::card{title="Verschärfe" accent=mana}:::
+:::card{title="Teile auf" accent=mana}:::
 :::
 ### Selektoren  
 Runen, die beim Auswählen oder Spezifizieren abstrakter Dinge helfen.  
