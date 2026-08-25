@@ -257,6 +257,39 @@ Ohne `category` werden alle Waffen nach Kategorie gruppiert.
 
 `kind=weapon` oder `kind=armor`.
 
+### Runen — `:::data{source=runes}`
+
+Runen kommen aus den **Bibliotheken** (nicht aus dem Code), werden aber genauso live geladen.
+Ohne `type` werden sie nach Kategorie gruppiert; mit `type=` zeigst du genau eine Kategorie:
+
+:::data{source=runes type=elemental}
+:::
+
+Kategorien: `elemental`, `formung`, `seele`, `sonstiges`.
+
+### Einzelne Rune — `:rune[Name]`
+
+Mitten im Text: die Rune :rune[Feuer] verstaerkt den Zauber.
+Der Name muss der Rune in der Bibliothek entsprechen (Gross-/Kleinschreibung egal).
+Gibt es die Rune nicht, siehst du den Namen mit einem `?` — nie stillschweigend nichts.
+
+### Runen verbinden — `:::runeflow`
+
+Eine Kette pro Zeile. `->` verbindet, ein Label geht mit `-[Text]->`:
+
+:::runeflow{title="Beispiel: einfacher Angriffszauber"}
+Feuer -> Kreis -> Ziel
+:::
+
+Mehrere Zeilen ergeben mehrere Ketten untereinander:
+
+:::runeflow
+Feuer -[verstaerkt]-> Kreis
+Wasser -> Kreis
+:::
+
+Der Inhalt wird **nicht** als Markdown gelesen — schreib die Namen einfach so hin.
+
 ## 10. Wenn etwas schiefgeht
 
 Ein unbekannter Block wird sichtbar angemeckert, statt die Seite zu zerstören:

@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
 import { AssetFile, createAssetFile } from '../../model/asset-browser.model';
-import { RuneBlock, RuneStatRequirements, RuneType } from '../../model/rune-block.model';
+import { RuneBlock, RuneStatRequirements, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, normalizeRuneType } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
@@ -151,17 +151,18 @@ export class RuneTableComponent implements OnInit, OnDestroy {
         const base64 = await this.readFileAsBase64(file);
         const imageId = await this.imageService.uploadImage(base64);
 
-        // Detect rune type from filename suffix: -m → medium, -f → formung, -s → selektor
+        // Detect rune type from filename suffix: -e elemental, -f formung, -s seele.
+        // -m is still accepted from older batches and maps to elemental.
         const extStripped = file.name.replace(/\.[^.]+$/, '');
         let runeName = extStripped;
-        let detectedType: 'medium' | 'formung' | 'selektor' | undefined;
-        const typeMatch = extStripped.match(/^(.+)-([mfsaMFSA])$/);
+        let detectedType: RuneType | undefined;
+        const typeMatch = extStripped.match(/^(.+)-([efsmEFSM])$/);
         if (typeMatch) {
           runeName = typeMatch[1].trim();
           const tag = typeMatch[2].toLowerCase();
-          if (tag === 'm') detectedType = 'medium';
+          if (tag === 'e' || tag === 'm') detectedType = 'elemental';
           else if (tag === 'f') detectedType = 'formung';
-          else if (tag === 's') detectedType = 'selektor';
+          else if (tag === 's') detectedType = 'seele';
         }
 
         const newRune: RuneBlock = {
@@ -223,8 +224,11 @@ export class RuneTableComponent implements OnInit, OnDestroy {
 
   // ─── Rune type ─────────────────────────────────────────────────
 
-  getRuneType(file: AssetFile): RuneType | undefined {
-    return (file.data as RuneBlock).runeType;
+  readonly runeTypes = RUNE_TYPES;
+  readonly runeTypeLabels = RUNE_TYPE_LABELS;
+
+  getRuneType(file: AssetFile): RuneType {
+    return normalizeRuneType((file.data as RuneBlock).runeType);
   }
 
   setRuneType(file: AssetFile, type: RuneType) {

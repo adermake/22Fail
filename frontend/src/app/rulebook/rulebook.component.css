@@ -535,3 +535,128 @@
   -webkit-mask: var(--rb-icon) center / contain no-repeat;
   mask: var(--rb-icon) center / contain no-repeat;
 }
+
+/* ── Rune gallery (:::data{source=runes}) ───────────────────────────────── */
+.rb-runegrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 0.75rem;
+}
+.rb-rune {
+  --rb-rune-glow: var(--accent, #8b5cf6);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.35rem;
+  background: var(--bg, #111827);
+  border: 1px solid var(--border, #374151);
+  border-radius: 10px;
+  transition: transform 0.16s, border-color 0.16s, box-shadow 0.16s;
+}
+.rb-rune:hover {
+  transform: translateY(-3px);
+  border-color: var(--rb-rune-glow);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--rb-rune-glow) 35%, transparent);
+}
+.rb-rune-img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--rb-rune-glow) 55%, transparent));
+}
+.rb-rune-img--empty {
+  border: 1px dashed var(--border, #374151);
+  border-radius: 8px;
+}
+.rb-rune-name {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text, #e5e7eb);
+  text-align: center;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+/* ── Single rune inline (:rune[Name]) ───────────────────────────────────── */
+.rb-runechip {
+  --rb-rune-glow: var(--accent, #8b5cf6);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.05rem 0.45rem 0.05rem 0.25rem;
+  border: 1px solid color-mix(in srgb, var(--rb-rune-glow) 45%, var(--border, #374151));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--rb-rune-glow) 10%, transparent);
+  vertical-align: -0.35em;
+}
+.rb-runechip-img {
+  width: 1.5em;
+  height: 1.5em;
+  object-fit: contain;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--rb-rune-glow) 60%, transparent));
+}
+.rb-runechip-name { font-size: 0.85em; font-weight: 600; }
+.rb-runechip--missing { border-style: dashed; color: var(--health-color, #ef4444); }
+
+/* ── Rune connection widget (:::runeflow) ───────────────────────────────── */
+.rb-flow {
+  margin: 1.3rem 0;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border, #374151);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+.rb-flow-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #9ca3af);
+  margin-bottom: 0.7rem;
+}
+.rb-flow-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: nowrap;
+  min-width: min-content;
+}
+.rb-flow-row + .rb-flow-row { margin-top: 0.9rem; }
+.rb-flow-row .rb-rune { flex: 0 0 auto; width: 92px; }
+
+/* the connector: a line with an arrow head, optionally carrying a label */
+.rb-flow-arrow {
+  position: relative;
+  flex: 0 0 auto;
+  align-self: center;
+  min-width: 2.4rem;
+  height: 2px;
+  background: var(--text-muted, #9ca3af);
+  opacity: 0.65;
+  margin-top: 0.6rem;
+}
+.rb-flow-arrow::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-left: 7px solid var(--text-muted, #9ca3af);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.rb-flow-label {
+  position: absolute;
+  bottom: 0.35rem;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: var(--accent, #8b5cf6);
+}
+.rb-rune--missing { border-style: dashed; border-color: var(--health-color, #ef4444); }
+.rb-rune--missing .rb-rune-name { color: var(--health-color, #ef4444); }

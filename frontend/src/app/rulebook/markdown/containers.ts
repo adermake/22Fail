@@ -15,10 +15,18 @@ import { safeColor } from './inline-directives';
 import { slugify } from './slug';
 import type { RulebookEnv } from '../rulebook.model';
 import { renderDataDirective } from '../rulebook-data-sources';
+import { renderRuneFlow } from '../rune-render';
 
 export interface ContainerDirective {
   name: string;
   render(attrs: DirectiveAttrs, env: RulebookEnv): { open: string; close: string };
+  /**
+   * When true the body is taken VERBATIM instead of being parsed as markdown, and handed to
+   * `renderRaw`. Needed for directives with their own mini-syntax (e.g. `Feuer -> Kreis`),
+   * which markdown would otherwise mangle into paragraphs.
+   */
+  raw?: boolean;
+  renderRaw?(body: string, attrs: DirectiveAttrs, env: RulebookEnv): string;
 }
 
 /**
@@ -136,6 +144,14 @@ const data: ContainerDirective = {
   render: (attrs, env) => ({ open: renderDataDirective(attrs, env), close: '' }),
 };
 
+/** Rune chains: one per line, `Feuer -> Kreis -> Ziel`. Body is raw (own mini-syntax). */
+const runeflow: ContainerDirective = {
+  name: 'runeflow',
+  raw: true,
+  render: () => ({ open: '', close: '' }),
+  renderRaw: (body, attrs, env) => renderRuneFlow(body, attrs, env),
+};
+
 export const CONTAINER_DIRECTIVES: ContainerDirective[] = [
   section,
   note,
@@ -146,6 +162,7 @@ export const CONTAINER_DIRECTIVES: ContainerDirective[] = [
   card,
   actions,
   data,
+  runeflow,
 ];
 
 const COLON = 0x3a;
@@ -197,6 +214,19 @@ export function registerContainers(md: MarkdownIt): void {
       }
 
       const contentEnd = closed ? line : endLine;
+
+      // Raw directives keep their body verbatim — markdown must not touch it.
+      const name = params.split(/[\s{]/)[0];
+      const def = byName.get(name);
+      if (def?.raw) {
+        const rawToken = state.push('rb_container_raw', '', 0);
+        rawToken.info = params;
+        rawToken.content = state.getLines(startLine + 1, contentEnd, 0, false);
+        rawToken.block = true;
+        state.line = closed ? contentEnd + 1 : contentEnd;
+        return true;
+      }
+
       const openToken = state.push('rb_container_open', 'div', 1);
       openToken.info = params;
       openToken.markup = ':'.repeat(markerLen);
@@ -235,6 +265,15 @@ export function registerContainers(md: MarkdownIt): void {
     const { open, close } = def.render(parseAttrs(info.slice(name.length)), env);
     env.closeStack.push(close);
     return open;
+  };
+
+  md.renderer.rules['rb_container_raw'] = (tokens, idx, _o, e) => {
+    const env = e as unknown as RulebookEnv;
+    const info = String(tokens[idx].info);
+    const name = info.split(/[\s{]/)[0];
+    const def = byName.get(name);
+    if (!def?.renderRaw) return '';
+    return def.renderRaw(String(tokens[idx].content ?? ''), parseAttrs(info.slice(name.length)), env);
   };
 
   md.renderer.rules['rb_container_close'] = (_tokens, _idx, _o, e) =>

@@ -1,8 +1,11 @@
 import { Injectable, inject, isDevMode, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { AssetBrowserApiService } from '../services/asset-browser-api.service';
+import type { RuneBlock } from '../model/rune-block.model';
 import { firstValueFrom } from 'rxjs';
 import { renderMarkdown } from './markdown/rulebook-markdown';
 import type {
+  RulebookRenderContext,
   RenderResult,
   RulebookManifest,
   RulebookPage,
@@ -16,6 +19,7 @@ import type {
 @Injectable({ providedIn: 'root' })
 export class RulebookService {
   private http = inject(HttpClient);
+  private assets = inject(AssetBrowserApiService);
   private manifestPromise: Promise<RulebookManifest> | null = null;
   private pageCache = new Map<string, RenderResult>();
 
@@ -57,7 +61,14 @@ export class RulebookService {
       throw new Error(`Regelwerk-Seite "${id}" existiert nicht mehr (${page.file}).`);
     }
 
-    const result = await renderMarkdown(source, id); // ← markdown-it lazy chunk loads here
+    // Runes live in the LIBRARY, not a TS module, so they must be fetched. Only pay for that
+    // on pages that actually ask for them.
+    const context: RulebookRenderContext = {};
+    if (/source\s*=\s*["']?run(?:es|en)|:rune\[|runeflow/i.test(source)) {
+      context.runes = await this.loadRunes();
+    }
+
+    const result = await renderMarkdown(source, id, context); // ← markdown-it lazy chunk loads here
     if (result.warnings.length && isDevMode()) {
       console.warn(`[rulebook] ${id}:`, result.warnings);
     }
@@ -84,6 +95,40 @@ export class RulebookService {
     this.pages.update((pages) =>
       pages.map((p) => (p.id === id ? { ...p, outline: live } : p)),
     );
+  }
+
+  // ── Runes (library assets) ────────────────────────────────────────────────────
+  private runesPromise: Promise<RuneBlock[]> | null = null;
+
+  /** Every rune across all libraries, fetched once per session. */
+  private loadRunes(): Promise<RuneBlock[]> {
+    this.runesPromise ??= (async () => {
+      try {
+        const libraries = await firstValueFrom(this.assets.getAllLibraries());
+        const perLibrary = await Promise.all(
+          libraries.map(async (lib) => {
+            try {
+              const files = await firstValueFrom(this.assets.searchFiles(lib.id, '', ['rune']));
+              return files.map((f) => f.data as RuneBlock);
+            } catch {
+              return [] as RuneBlock[];
+            }
+          }),
+        );
+        // De-duplicate by name: the same rune can appear via library dependencies.
+        const seen = new Set<string>();
+        return perLibrary.flat().filter((r) => {
+          const key = (r?.name ?? '').toLowerCase();
+          if (!r?.name || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      } catch {
+        this.runesPromise = null; // allow a retry on the next page view
+        return [];
+      }
+    })();
+    return this.runesPromise;
   }
 
   // ── Search ────────────────────────────────────────────────────────────────────

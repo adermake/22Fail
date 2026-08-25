@@ -45,6 +45,14 @@ export interface RulebookHeading {
   kind?: 'heading' | 'section';
 }
 
+/**
+ * Data that has to be fetched before rendering (unlike talents/weapons/materials, which are
+ * static TS modules). Loaded by RulebookService only when a page actually asks for it.
+ */
+export interface RulebookRenderContext {
+  runes?: import('./../model/rune-block.model').RuneBlock[];
+}
+
 /** Per-render state handed to markdown-it as its `env`. */
 export interface RulebookEnv {
   pageId: string;
@@ -54,6 +62,8 @@ export interface RulebookEnv {
   headings: RulebookHeading[];
   /** Author mistakes (unknown directive/icon/data source), surfaced in dev. */
   warnings: string[];
+  /** Async data available to :::data directives. */
+  context: RulebookRenderContext;
 }
 
 export interface RenderResult {

@@ -8,6 +8,7 @@
 import type { MarkdownIt } from 'markdown-it';
 import { esc, parseAttrs, splitTarget, type DirectiveAttrs } from './attrs';
 import type { RulebookEnv } from '../rulebook.model';
+import { runeChip } from '../rune-render';
 
 /**
  * Named colours for `:hl[…]{color=…}` / `:c[…]{color=…}`.
@@ -86,6 +87,11 @@ export const INLINE_DIRECTIVES: InlineDirective[] = [
     },
   },
   { name: 'kbd', render: (label) => `<kbd class="rb-kbd">${esc(label)}</kbd>` },
+  {
+    // :rune[Feuer] — the rune's drawing + name, inline in running text.
+    name: 'rune',
+    render: (label, attrs, env) => runeChip(env, (attrs['name'] ?? label).trim()),
+  },
   {
     name: 'jump',
     render: (label, attrs) => {

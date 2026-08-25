@@ -10,14 +10,22 @@ import { esc, type DirectiveAttrs } from './markdown/attrs';
 import { iconSpan } from './markdown/containers';
 import { slugify } from './markdown/slug';
 import type { RulebookEnv } from './rulebook.model';
+import { runeTile } from './rune-render';
 
 import { TALENT_DEFINITIONS } from '../data/talent-definitions';
 import { BASE_WEAPON_TYPES } from '../data/weapons.data';
 import { WEAPON_MATERIALS } from '../data/materials.data';
 import { ARMOR_MATERIALS } from '../data/armor-materials.data';
 import { WeaponType, type Material } from '../model/weapon.model';
+import {
+  RUNE_TYPES,
+  RUNE_TYPE_LABELS,
+  normalizeRuneType,
+  type RuneBlock,
+  type RuneType,
+} from '../model/rune-block.model';
 
-type DataRenderer = (attrs: DirectiveAttrs) => string;
+type DataRenderer = (attrs: DirectiveAttrs, env: RulebookEnv) => string;
 
 const cell = (v: unknown) => esc(String(v ?? ''));
 
@@ -99,6 +107,49 @@ function renderMaterials(attrs: DirectiveAttrs): string {
   );
 }
 
+
+/**
+ * Runes, grouped by type. These come from the LIBRARY (not a TS module), so RulebookService
+ * fetches them and hands them over via the render context.
+ */
+function renderRunes(attrs: DirectiveAttrs, env: RulebookEnv): string {
+  const all = env.context?.runes;
+  if (!all) return emptyNote('Runen konnten nicht geladen werden.');
+  if (!all.length) return emptyNote('Keine Runen in den Bibliotheken gefunden.');
+
+  const wanted = (attrs['type'] ?? attrs['category'] ?? '').trim().toLowerCase();
+  if (wanted && !RUNE_TYPES.includes(wanted as RuneType)) {
+    env.warnings.push(`Unbekannter Runentyp ":::data{source=runes type=${wanted}}"`);
+    return emptyNote(
+      `Unbekannter Runentyp: <code>${esc(wanted)}</code>. Verfügbar: ` + RUNE_TYPES.join(', '),
+    );
+  }
+
+  const byType = new Map<RuneType, RuneBlock[]>();
+  for (const rune of all) {
+    const type = normalizeRuneType(rune.runeType);
+    if (wanted && type !== wanted) continue;
+    const list = byType.get(type) ?? [];
+    list.push(rune);
+    byType.set(type, list);
+  }
+  if (!byType.size) return emptyNote('Keine Runen in dieser Kategorie.');
+
+  // Fixed display order, and each group sorted by name.
+  return RUNE_TYPES.filter((t) => byType.has(t))
+    .map((type) => {
+      const list = byType.get(type)!.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+      const heading = wanted
+        ? ''
+        : `<div class="rb-datagroup-title">${cell(RUNE_TYPE_LABELS[type])} (${list.length})</div>`;
+      return (
+        `<div class="rb-datagroup">${heading}` +
+        `<div class="rb-runegrid">${list.map(runeTile).join('')}</div></div>`
+      );
+    })
+    .join('');
+}
+
 const emptyNote = (msg: string) =>
   `<aside class="rb-note rb-note--warning"><div class="rb-note-title">${msg}</div></aside>`;
 
@@ -109,6 +160,8 @@ export const DATA_SOURCES: Record<string, DataRenderer> = {
   waffen: renderWeapons,
   materials: renderMaterials,
   materialien: renderMaterials,
+  runes: renderRunes,
+  runen: renderRunes,
 };
 
 export function renderDataDirective(attrs: DirectiveAttrs, env: RulebookEnv): string {
@@ -121,5 +174,5 @@ export function renderDataDirective(attrs: DirectiveAttrs, env: RulebookEnv): st
         Object.keys(DATA_SOURCES).join(', '),
     );
   }
-  return renderer(attrs);
+  return renderer(attrs, env);
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseAttrs, esc, splitTarget } from './markdown/attrs';
 import { slugify, uniqueSlug } from './markdown/slug';
 import { renderMarkdown, stripFrontMatter } from './markdown/rulebook-markdown';
+import type { RuneBlock } from '../model/rune-block.model';
 
 const md = (...lines: string[]) => lines.join('\n') + '\n';
 
@@ -173,6 +174,71 @@ describe('renderMarkdown', () => {
     const { html } = await renderMarkdown(md(':::data{source=talents}', ':::'), 'talente');
     expect(html).toContain('Athletik');
     expect(html).toContain('rb-card');
+  });
+
+  it('renders runes from the library context, grouped by type', async () => {
+    const runes = [
+      { name: 'Feuer', drawing: 'img1', glowColor: '#ff0000', tags: ['Feuer'], runeType: 'elemental' },
+      { name: 'Kreis', drawing: '', tags: [], runeType: 'formung' },
+      // legacy values must still land somewhere sensible
+      { name: 'Alt-Medium', drawing: '', tags: [], runeType: 'medium' },
+      { name: 'Alt-Custom', drawing: '', tags: [], runeType: 'custom' },
+    ] as unknown as RuneBlock[];
+
+    const all = await renderMarkdown(md(':::data{source=runes}', ':::'), 'runen', { runes });
+    expect(all.html).toContain('rb-runegrid');
+    expect(all.html).toContain('/api/images/img1');
+    expect(all.html).toContain('Feuer');
+    // legacy medium -> Elemental, legacy custom -> Sonstiges
+    expect(all.html).toContain('Elemental (2)');
+    expect(all.html).toContain('Sonstiges (1)');
+    expect(all.warnings).toEqual([]);
+
+    const one = await renderMarkdown(md(':::data{source=runes type=formung}', ':::'), 'runen', { runes });
+    expect(one.html).toContain('Kreis');
+    expect(one.html).not.toContain('Feuer');
+
+    const bad = await renderMarkdown(md(':::data{source=runes type=selektor}', ':::'), 'runen', { runes });
+    expect(bad.html).toContain('Unbekannter Runentyp');
+  });
+
+  it('draws a single rune inline by name', async () => {
+    const runes = [
+      { name: 'Feuer', drawing: 'img1', glowColor: '#ff0000', tags: [] },
+    ] as unknown as RuneBlock[];
+
+    const ok = await renderMarkdown(md('Die :rune[feuer] Rune.'), 'z', { runes });
+    expect(ok.html).toContain('rb-runechip');
+    expect(ok.html).toContain('/api/images/img1');
+    expect(ok.warnings).toEqual([]); // name match is case-insensitive
+
+    const missing = await renderMarkdown(md('Die :rune[Nixda] Rune.'), 'z', { runes });
+    expect(missing.html).toContain('rb-runechip--missing');
+    expect(missing.warnings.join()).toContain('Unbekannte Rune');
+  });
+
+  it('renders a runeflow chain with arrows and labels, body kept raw', async () => {
+    const runes = [
+      { name: 'Feuer', drawing: 'a', tags: [] },
+      { name: 'Kreis', drawing: 'b', tags: [] },
+    ] as unknown as RuneBlock[];
+
+    const { html, warnings } = await renderMarkdown(
+      md(':::runeflow{title="Beispiel"}', 'Feuer -[verstaerkt]-> Kreis', 'Kreis -> Feuer', ':::'),
+      'z',
+      { runes },
+    );
+    expect(warnings).toEqual([]);
+    expect(html).toContain('rb-flow-title');
+    expect((html.match(/rb-flow-row/g) ?? []).length).toBe(2);
+    expect((html.match(/rb-flow-arrow/g) ?? []).length).toBe(2);
+    expect(html).toContain('verstaerkt');
+    // the raw body must NOT have been turned into markdown paragraphs
+    expect(html).not.toContain('<p>Feuer');
+
+    const typo = await renderMarkdown(md(':::runeflow', 'Feuer -> Nixda', ':::'), 'z', { runes });
+    expect(typo.html).toContain('rb-rune--missing');
+    expect(typo.warnings.join()).toContain('Unbekannte Rune');
   });
 
   it('warns (visibly) about an unknown directive instead of breaking the page', async () => {

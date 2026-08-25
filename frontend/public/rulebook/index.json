@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-18T12:48:01.014Z",
+  "generatedAt": "2026-08-25T19:50:53.798Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -8,7 +8,7 @@
       "tab": "Grundlagen",
       "icon": "dice",
       "order": 10,
-      "hash": "e7d89f90",
+      "hash": "1e0087cc",
       "outline": [
         {
           "id": "grundlagen",
@@ -49,7 +49,7 @@
       "tab": "Stats",
       "icon": "stat",
       "order": 20,
-      "hash": "9d97c874",
+      "hash": "d30f86c8",
       "outline": [
         {
           "id": "stats",
@@ -66,6 +66,12 @@
         {
           "id": "grundstat-erhoehungen",
           "text": "Grundstat-Erhöhungen",
+          "level": 4,
+          "kind": "heading"
+        },
+        {
+          "id": "leben",
+          "text": "Leben",
           "level": 4,
           "kind": "heading"
         },
@@ -106,7 +112,7 @@
           "kind": "heading"
         },
         {
-          "id": "leben",
+          "id": "leben-2",
           "text": "Leben",
           "level": 3,
           "kind": "section"
@@ -186,7 +192,7 @@
       "tab": "Kampf",
       "icon": "effektivity",
       "order": 30,
-      "hash": "39000c5d",
+      "hash": "db85d407",
       "outline": [
         {
           "id": "kampf",
@@ -211,6 +217,12 @@
           "text": "Aktionsarten",
           "level": 3,
           "kind": "section"
+        },
+        {
+          "id": "extra-aktion",
+          "text": "Extra-Aktion",
+          "level": 3,
+          "kind": "heading"
         },
         {
           "id": "schadensberechnung",
@@ -243,6 +255,54 @@
           "kind": "heading"
         },
         {
+          "id": "gelegenheit",
+          "text": "Gelegenheitsangriffe",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "sync",
+          "text": "Synchronangriffe",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "bewegungsarten",
+          "text": "Besondere Bewegungsarten",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "schleichen",
+          "text": "Schleichen",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "ueberraschung",
+          "text": "Überraschungsangriffe",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "fernkampf",
+          "text": "Fernkampf",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "status-attacks",
+          "text": "Statuseffekte",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "flair",
+          "text": "Flair",
+          "level": 3,
+          "kind": "section"
+        },
+        {
           "id": "ruestungsmalus",
           "text": "Rüstungsmalus",
           "level": 3,
@@ -257,13 +317,219 @@
       ]
     },
     {
+      "id": "klassen",
+      "file": "klassen.md",
+      "title": "Klassen",
+      "tab": "Klassen",
+      "icon": "ability",
+      "order": 40,
+      "hash": "6af3118b",
+      "outline": [
+        {
+          "id": "klassen",
+          "text": "Klassen",
+          "level": 1,
+          "kind": "heading"
+        },
+        {
+          "id": "faehigkeiten",
+          "text": "Fähigkeiten",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "erkenntnisse",
+          "text": "Erkenntnisse",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "voraussetzungen",
+          "text": "Voraussetzungen",
+          "level": 2,
+          "kind": "heading"
+        }
+      ]
+    },
+    {
+      "id": "zauber",
+      "file": "zauber.md",
+      "title": "Zauber",
+      "tab": "Zauber",
+      "icon": "spell",
+      "order": 40,
+      "hash": "6136247d",
+      "outline": [
+        {
+          "id": "zaubersystem",
+          "text": "Zaubersystem",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "elementar-runen",
+          "text": "Elementar-Runen",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "formungs-runen",
+          "text": "Formungs-Runen",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "manipulation",
+          "text": "Manipulation",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "selektoren",
+          "text": "Selektoren",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "ausfuehrung",
+          "text": "Ausführung",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "seelen-runen",
+          "text": "Seelen-Runen",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "studierte-seelen-runen",
+          "text": "Studierte Seelen-Runen",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "wahre-seelen-runen",
+          "text": "Wahre Seelen-Runen",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "allgemeines-runen",
+          "text": "Allgemeines-Runen",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "fokus",
+          "text": "Fokus",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "zauberradius",
+          "text": "Zauberradius",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "scalierung",
+          "text": "Scalierung",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "casten",
+          "text": "Casten",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "wie-mache-ich-einen-neunen-zauber",
+          "text": "Wie mache ich einen neunen Zauber?",
+          "level": 3,
+          "kind": "section"
+        }
+      ]
+    },
+    {
+      "id": "rassen",
+      "file": "rassen.md",
+      "title": "Rassen",
+      "tab": "Rassen",
+      "icon": "races",
+      "order": 50,
+      "hash": "1b84596a",
+      "outline": [
+        {
+          "id": "rassen",
+          "text": "Rassen",
+          "level": 1,
+          "kind": "heading"
+        },
+        {
+          "id": "race_stats",
+          "text": "Stats",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "race_abilities",
+          "text": "Rassenfähigkeiten",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "vor-und-nachteile",
+          "text": "Vor- und Nachteile",
+          "level": 2,
+          "kind": "heading"
+        }
+      ]
+    },
+    {
+      "id": "gear",
+      "file": "gear.md",
+      "title": "Ausrüstung",
+      "tab": "Ausrüstung",
+      "icon": "equipment",
+      "order": 90,
+      "hash": "94737c14",
+      "outline": [
+        {
+          "id": "waffen",
+          "text": "Waffen",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "materialien",
+          "text": "Materialien",
+          "level": 2,
+          "kind": "heading"
+        },
+        {
+          "id": "waffenmaterialien",
+          "text": "Waffenmaterialien",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "ruestungsmaterialien",
+          "text": "Rüstungsmaterialien",
+          "level": 3,
+          "kind": "heading"
+        }
+      ]
+    },
+    {
       "id": "example",
       "file": "example.md",
       "title": "Syntax-Beispiel",
       "tab": "Beispiel",
       "icon": "spell",
       "order": 99,
-      "hash": "51707dc7",
+      "hash": "de26053a",
       "outline": [
         {
           "id": "syntax-beispiel",
@@ -368,6 +634,24 @@
           "kind": "heading"
         },
         {
+          "id": "runen-data-source-runes",
+          "text": "Runen — `:::data{source=runes}`",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "einzelne-rune-rune-name",
+          "text": "Einzelne Rune — `:rune[Name]`",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "runen-verbinden-runeflow",
+          "text": "Runen verbinden — `:::runeflow`",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
           "id": "10-wenn-etwas-schiefgeht",
           "text": "10. Wenn etwas schiefgeht",
           "level": 2,
@@ -378,40 +662,6 @@
           "text": "Neue Seite anlegen",
           "level": 3,
           "kind": "section"
-        }
-      ]
-    },
-    {
-      "id": "gear",
-      "file": "gear.md",
-      "title": "gear",
-      "tab": "gear",
-      "order": 999,
-      "hash": "8e3a88b0",
-      "outline": [
-        {
-          "id": "waffen",
-          "text": "Waffen",
-          "level": 2,
-          "kind": "heading"
-        },
-        {
-          "id": "materialien",
-          "text": "Materialien",
-          "level": 2,
-          "kind": "heading"
-        },
-        {
-          "id": "waffenmaterialien",
-          "text": "Waffenmaterialien",
-          "level": 3,
-          "kind": "heading"
-        },
-        {
-          "id": "ruestungsmaterialien",
-          "text": "Rüstungsmaterialien",
-          "level": 3,
-          "kind": "heading"
         }
       ]
     }
