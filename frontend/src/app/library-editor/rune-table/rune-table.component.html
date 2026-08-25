@@ -137,11 +137,17 @@
               <!-- Runentyp -->
               <td class="c-type">
                 <div class="rt-type-btns">
-                  @for (t of runeTypes; track t) {
-                    <button class="rt-tb"
-                            [class.rtb-active]="getRuneType(file) === t"
-                            (click)="setRuneType(file, t)"
-                            [title]="runeTypeLabels[t]">{{ runeTypeShort[t] }}</button>
+                  @for (g of runeGroups; track g) {
+                    <span class="rt-tb-group"
+                          [class.rt-tb-group--split]="isGroupedRuneType(g)"
+                          [title]="runeGroupLabels[g]">
+                      @for (t of runeGroupMembers[g]; track t) {
+                        <button class="rt-tb"
+                                [class.rtb-active]="getRuneType(file) === t"
+                                (click)="setRuneType(file, t)"
+                                [title]="runeTypeLabels[t]">{{ runeTypeShort[t] }}</button>
+                      }
+                    </span>
                   }
                 </div>
               </td>
