@@ -52,5 +52,6 @@ Fähigkeiten mit Voraussetzungen benötigen eine angegebene Fähigkeit in einer 
 
 :::actions
 :jump[Weiter zu den Rassen]{to=rassen}
+
 :jump[Zurück zum Kampf]{to=kampf}
 :::

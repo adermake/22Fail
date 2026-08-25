@@ -9,7 +9,7 @@ order: 60
 
 
 
-:::section{title="Magiesystem"}
+## Magiesystem
 Die Welt ist voller Magie, dennoch ist es nicht leicht, diese Energie zu verwenden. Das führt dazu, dass Mana für Magier hauptsächlich aus dem Inneren kommt.
 
 Zauber bestehen hauptsächlich aus Runen. Diese können immer einer von drei Kategorien untergeordnet werden:
@@ -21,19 +21,18 @@ Zauber bestehen hauptsächlich aus Runen. Diese können immer einer von drei Kat
 :::card{title="Seele" accent=energy}
 :::
 :::
-:::
 
+## Runen
 
+:::section{title="Elementarrunen"}
+Elementarrunen können alles symbolisieren, was materiell ist. Damit können allgemeine Materialien gemeint sein, wie z. B. Wasser, Feuer, Eisen, Licht, Holz, Luft oder Stoff. Aber auch spezifischere Dinge wie Mensch, Elf, Drache, Stock, Schwert, Seil, ein 1980er Honda Civic usw.
 
-:::section{title="Elementar-Runen"}
-Elementar-Runen können alles symbolisieren, was materiell ist. Damit können allgemeine Materialien gemeint sein, wie z. B. Wasser, Feuer, Eisen, Licht, Holz, Luft oder Stoff. Aber auch spezifischere Dinge wie Mensch, Elf, Drache, Stock, Schwert, Seil, ein 1980er Honda Civic usw.
-
-Mit Elementar-Runen allein kann man jedoch nicht viel machen. Man muss sie mit Formungs-Runen oder Seelen-Runen kombinieren, damit ein Zauber überhaupt etwas bewirkt.
+Mit Elementarrunen allein kann man jedoch nicht viel machen. Man muss sie mit Formungsrunen oder Seelenrunen kombinieren, damit ein Zauber überhaupt etwas bewirkt.
 :::data{source=runes type=elemental}
 :::
 :::
-:::section{title="Formungs-Runen"}
-Formungs-Runen  sind die Grundoperatoren der Zauberei. Man kann sie grob in drei Unterkategorien einteilen:
+:::section{title="Formungsrunen"}
+Formungsrunen  sind die Grundoperatoren der Zauberei. Man kann sie grob in drei Unterkategorien einteilen:
 
 ### Manipulation  
 Darunter fallen Runen, die sich direkt auf ein Element auswirken, z. B.:
@@ -50,21 +49,21 @@ Wiederhole, Stapel oder Zahlen:
 :::data{source=runes type=ausfuehrung}
 :::
 :::
-:::section{title="Seelen-Runen"}
-Seelen-Runen werden vor allem für Beschwörungen verwendet.  
-Im Allgemeinen sind sie wesentlich komplexer in ihrem Aussehen als Elementar- oder Formungs-Runen.
+:::section{title="Seelenrunen"}
+Seelenrunen werden vor allem für Beschwörungen verwendet.  
+Im Allgemeinen sind sie wesentlich komplexer in ihrem Aussehen als Elementar- oder Formungsrunen.
 
-Es gibt zwei Arten von Seelen-Runen:
+Es gibt zwei Arten von Seelenrunen:
 
-### Studierte Seelen-Runen  
-Studiert ein gelehrter Magier lange genug ein bestimmtes Lebewesen, lässt sich dessen Kernessenz auf eine Seelen-Rune herunterbrechen.  
-Solange er fähig ist, die Rune akkurat nachzuzeichnen, lässt sie sich wie andere Runen benutzen. Der Magier kann diese imitierte Seelen-Rune dann so oft verwenden, wie er Fokus, Mana und Lust hat.
+### Studierte Seelenrunen  
+Studiert ein gelehrter Magier lange genug ein bestimmtes Lebewesen, lässt sich dessen Kernessenz auf eine Seelenrune herunterbrechen.  
+Solange er fähig ist, die Rune akkurat nachzuzeichnen, lässt sie sich wie andere Runen benutzen. Der Magier kann diese imitierte Seelenrune dann so oft verwenden, wie er Fokus, Mana und Lust hat.
 
-### Wahre Seelen-Runen  
-Wahre Seelen-Runen sind so komplex, dass sie sich unter normalen Umständen nicht zeichnen lassen.  
+### Wahre Seelenrunen  
+Wahre Seelenrunen sind so komplex, dass sie sich unter normalen Umständen nicht zeichnen lassen.  
 Ein Magier schafft dies nur, wenn er im Besitz der Seele ist, die ihn beim Zeichnen leitet und nach dem Prozess in der Rune innewohnt.
 
-Das bedeutet, dass ein Beschwörer nicht gleichzeitig zwei Beschwörungen mit derselben wahren Seelen-Rune aufrechterhalten kann.
+Das bedeutet, dass ein Beschwörer nicht gleichzeitig zwei Beschwörungen mit derselben wahren Seelenrune aufrechterhalten kann.
 
 ### Die Seelenrune  
 Im Zauber-Editor ist die Seelenrune fest eingebaut — sie wird nicht gezeichnet, sondern beim
@@ -161,5 +160,6 @@ Erzeuge -> Feuer -> Bewege
 
 :::actions
 :jump[Weiter zur Ausrüstung]{to=gear}
+
 :jump[Zurück zu den Rassen]{to=klassen}
 :::
