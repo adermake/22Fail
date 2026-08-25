@@ -151,7 +151,7 @@ Ein Cast kann jederzeit freiwillig abgebrochen werden.
 Damit dein Charakter einen neuen Zauber zusammenbauen benötigst du Kenntnis von Runen die du für den Zauber verwenden willst.
 Diese werden dann je nach gewünschtem Effekt angeordnet.
 
-:::card{title=Ein Beispiel:}
+:::card{title="Ein Beispiel:"}
 Start - Erzeuge - Feuer - Bewege 
 :::
 
@@ -164,6 +164,6 @@ Wasser -> Kreis
 :::
 
 :::actions
-:jump[Weiter zur Ausrüstung]{to=zauber}
+:jump[Weiter zur Ausrüstung]{to=gear}
 :jump[Zurück zu den Rassen]{to=klassen}
 :::
