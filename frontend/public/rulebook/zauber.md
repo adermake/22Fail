@@ -37,33 +37,17 @@ Formungs-Runen  sind die Grundoperatoren der Zauberei. Man kann sie grob in drei
 
 ### Manipulation  
 Darunter fallen Runen, die sich direkt auf ein Element auswirken, z. B.:
-:::grid{min=30}
-:::data{source=runes type=formung}
-:::
+:::data{source=runes type=manipulation}
 :::
 ### Selektoren  
-Runen, die beim Auswählen oder Spezifizieren abstrakter Dinge helfen.  
-Beispiele sind:
-:::grid{min=30}
-:::card{title="Selbst" accent=mana}
-:::
-:::card{title="Gegner" accent=mana}
-:::
-:::card{title="Verbündete" accent=mana}
-:::
-:::card{title="Ort" accent=mana}
-:::
+Runen, die beim Auswählen oder Spezifizieren abstrakter Dinge helfen — etwa Selbst, Gegner,
+Verbündete oder Ort:
+:::data{source=runes type=selektor}
 :::
 ### Ausführung  
-Noch abstraktere Runen, die bei der Ausführung eines Zaubers eine Rolle spielen.  
-Beispiele sind:
-:::grid{min=30}
-:::card{title="Wiederhole" accent=mana}
-:::
-:::card{title="Stapel" accent=mana}
-:::
-:::card{title="Zahlen" accent=mana}
-:::
+Noch abstraktere Runen, die bei der Ausführung eines Zaubers eine Rolle spielen — etwa
+Wiederhole, Stapel oder Zahlen:
+:::data{source=runes type=ausfuehrung}
 :::
 :::
 :::section{title="Seelen-Runen"}
@@ -81,6 +65,12 @@ Wahre Seelen-Runen sind so komplex, dass sie sich unter normalen Umständen nich
 Ein Magier schafft dies nur, wenn er im Besitz der Seele ist, die ihn beim Zeichnen leitet und nach dem Prozess in der Rune innewohnt.
 
 Das bedeutet, dass ein Beschwörer nicht gleichzeitig zwei Beschwörungen mit derselben wahren Seelen-Rune aufrechterhalten kann.
+
+### Die Seelenrune  
+Im Zauber-Editor ist die Seelenrune fest eingebaut — sie wird nicht gezeichnet, sondern beim
+Beschwören aus der Seele selbst geformt. Du erkennst sie an ihrer Form:
+:::data{source=runes type=seele}
+:::
 
 :::
 
@@ -161,8 +151,7 @@ Start - Erzeuge - Feuer - Bewege
 
 Runen alleine reichen aber nicht aus, um zu bestimmen, was ein Zauber machen kann und wieviel er kostet. Letztendlich schaut sich der Ersteller den Zauber zusammen mit dem Spielleiter an und definiert, was er genau macht und wieviel er kostet. Der Ersteller muss dem Spielleiter argumentieren können, warum die arrangierten Runen das tun würden, was die Beschreibung sagt. Auch wenn der Prozess viel Interpretationsspielraum bietet, haben Runen immernoch eine Stärke und Kosten, die als Grundrahmen dienen. Es wird z.B. durchaus Feuerrunen geben, die stärker als andere Feuerrunen sind.
 :::runeflow{title="Beispiel: einfacher Angriffszauber"}
-Erzeuge - Feuer -[verstaerkt]-> Kreis -> Ziel
-Wasser -> Kreis
+Erzeuge -> Feuer -> Bewege 
 :::
 
 :::

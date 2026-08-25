@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-25T19:50:53.798Z",
+  "generatedAt": "2026-08-25T20:23:03.047Z",
   "pages": [
     {
       "id": "grundlagen",
@@ -47,9 +47,9 @@
       "file": "stats.md",
       "title": "Stats",
       "tab": "Stats",
-      "icon": "stat",
+      "icon": "stat_icon",
       "order": 20,
-      "hash": "d30f86c8",
+      "hash": "1b843a2b",
       "outline": [
         {
           "id": "stats",
@@ -352,17 +352,52 @@
       ]
     },
     {
-      "id": "zauber",
-      "file": "zauber.md",
-      "title": "Zauber",
-      "tab": "Zauber",
-      "icon": "spell",
-      "order": 40,
-      "hash": "6136247d",
+      "id": "rassen",
+      "file": "rassen.md",
+      "title": "Rassen",
+      "tab": "Rassen",
+      "icon": "races",
+      "order": 50,
+      "hash": "f82fc2d0",
       "outline": [
         {
-          "id": "zaubersystem",
-          "text": "Zaubersystem",
+          "id": "rassen",
+          "text": "Rassen",
+          "level": 1,
+          "kind": "heading"
+        },
+        {
+          "id": "race_stats",
+          "text": "Stats",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "race_abilities",
+          "text": "Rassenfähigkeiten",
+          "level": 3,
+          "kind": "section"
+        },
+        {
+          "id": "vor-und-nachteile",
+          "text": "Vor- und Nachteile",
+          "level": 2,
+          "kind": "heading"
+        }
+      ]
+    },
+    {
+      "id": "zauber",
+      "file": "zauber.md",
+      "title": "Magie",
+      "tab": "Magie",
+      "icon": "spell",
+      "order": 60,
+      "hash": "9f25e580",
+      "outline": [
+        {
+          "id": "magiesystem",
+          "text": "Magiesystem",
           "level": 3,
           "kind": "section"
         },
@@ -415,8 +450,20 @@
           "kind": "heading"
         },
         {
-          "id": "allgemeines-runen",
-          "text": "Allgemeines-Runen",
+          "id": "die-seelenrune",
+          "text": "Die Seelenrune",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "zauber-zeichnen",
+          "text": "Zauber zeichnen",
+          "level": 3,
+          "kind": "heading"
+        },
+        {
+          "id": "allgemeines",
+          "text": "Allgemeines",
           "level": 3,
           "kind": "section"
         },
@@ -433,8 +480,8 @@
           "kind": "section"
         },
         {
-          "id": "scalierung",
-          "text": "Scalierung",
+          "id": "skalierung",
+          "text": "Skalierung",
           "level": 3,
           "kind": "section"
         },
@@ -445,45 +492,10 @@
           "kind": "section"
         },
         {
-          "id": "wie-mache-ich-einen-neunen-zauber",
-          "text": "Wie mache ich einen neunen Zauber?",
+          "id": "wie-mache-ich-einen-neuen-zauber",
+          "text": "Wie mache ich einen neuen Zauber?",
           "level": 3,
           "kind": "section"
-        }
-      ]
-    },
-    {
-      "id": "rassen",
-      "file": "rassen.md",
-      "title": "Rassen",
-      "tab": "Rassen",
-      "icon": "races",
-      "order": 50,
-      "hash": "1b84596a",
-      "outline": [
-        {
-          "id": "rassen",
-          "text": "Rassen",
-          "level": 1,
-          "kind": "heading"
-        },
-        {
-          "id": "race_stats",
-          "text": "Stats",
-          "level": 3,
-          "kind": "section"
-        },
-        {
-          "id": "race_abilities",
-          "text": "Rassenfähigkeiten",
-          "level": 3,
-          "kind": "section"
-        },
-        {
-          "id": "vor-und-nachteile",
-          "text": "Vor- und Nachteile",
-          "level": 2,
-          "kind": "heading"
         }
       ]
     },
@@ -493,8 +505,8 @@
       "title": "Ausrüstung",
       "tab": "Ausrüstung",
       "icon": "equipment",
-      "order": 90,
-      "hash": "94737c14",
+      "order": 70,
+      "hash": "2ec61e05",
       "outline": [
         {
           "id": "waffen",
@@ -529,7 +541,7 @@
       "tab": "Beispiel",
       "icon": "spell",
       "order": 99,
-      "hash": "de26053a",
+      "hash": "7b09a590",
       "outline": [
         {
           "id": "syntax-beispiel",

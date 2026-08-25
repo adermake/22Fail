@@ -141,7 +141,7 @@
                     <button class="rt-tb"
                             [class.rtb-active]="getRuneType(file) === t"
                             (click)="setRuneType(file, t)"
-                            [title]="runeTypeLabels[t]">{{ runeTypeLabels[t].charAt(0) }}</button>
+                            [title]="runeTypeLabels[t]">{{ runeTypeShort[t] }}</button>
                   }
                 </div>
               </td>

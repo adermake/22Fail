@@ -176,30 +176,68 @@ describe('renderMarkdown', () => {
     expect(html).toContain('rb-card');
   });
 
-  it('renders runes from the library context, grouped by type', async () => {
+  it('renders runes grouped by category, with Formung split into its sub-types', async () => {
     const runes = [
       { name: 'Feuer', drawing: 'img1', glowColor: '#ff0000', tags: ['Feuer'], runeType: 'elemental' },
-      { name: 'Kreis', drawing: '', tags: [], runeType: 'formung' },
+      { name: 'Kreis', drawing: '', tags: [], runeType: 'manipulation' },
+      { name: 'Naechster', drawing: '', tags: [], runeType: 'selektor' },
+      { name: 'Wurf', drawing: '', tags: [], runeType: 'ausfuehrung' },
       // legacy values must still land somewhere sensible
       { name: 'Alt-Medium', drawing: '', tags: [], runeType: 'medium' },
+      { name: 'Alt-Formung', drawing: '', tags: [], runeType: 'formung' },
       { name: 'Alt-Custom', drawing: '', tags: [], runeType: 'custom' },
     ] as unknown as RuneBlock[];
 
     const all = await renderMarkdown(md(':::data{source=runes}', ':::'), 'runen', { runes });
     expect(all.html).toContain('rb-runegrid');
     expect(all.html).toContain('/api/images/img1');
-    expect(all.html).toContain('Feuer');
-    // legacy medium -> Elemental, legacy custom -> Sonstiges
+    // legacy medium -> Elemental, legacy formung -> Manipulation, legacy custom -> Sonstiges
     expect(all.html).toContain('Elemental (2)');
+    expect(all.html).toContain('Formung (4)');
+    expect(all.html).toContain('Manipulation (2)');
+    expect(all.html).toContain('Selektor (1)');
     expect(all.html).toContain('Sonstiges (1)');
     expect(all.warnings).toEqual([]);
 
-    const one = await renderMarkdown(md(':::data{source=runes type=formung}', ':::'), 'runen', { runes });
-    expect(one.html).toContain('Kreis');
-    expect(one.html).not.toContain('Feuer');
+    // A whole group narrows to that group, still sub-divided.
+    const group = await renderMarkdown(md(':::data{source=runes type=formung}', ':::'), 'runen', { runes });
+    expect(group.html).toContain('Kreis');
+    expect(group.html).toContain('Ausführung (1)');
+    expect(group.html).not.toContain('Feuer');
+    expect(group.warnings).toEqual([]);
 
-    const bad = await renderMarkdown(md(':::data{source=runes type=selektor}', ':::'), 'runen', { runes });
+    // A single leaf renders bare — no redundant heading.
+    const leaf = await renderMarkdown(md(':::data{source=runes type=selektor}', ':::'), 'runen', { runes });
+    expect(leaf.html).toContain('Naechster');
+    expect(leaf.html).not.toContain('Kreis');
+    expect(leaf.warnings).toEqual([]);
+
+    const bad = await renderMarkdown(md(':::data{source=runes type=quatsch}', ':::'), 'runen', { runes });
     expect(bad.html).toContain('Unbekannter Runentyp');
+  });
+
+  it('includes the hardcoded Seelenrune in the Seele category and by name', async () => {
+    const runes = [
+      { name: 'Feuer', drawing: 'img1', tags: [], runeType: 'elemental' },
+    ] as unknown as RuneBlock[];
+
+    // It has no library asset, so it must be injected or the category looks empty.
+    const seele = await renderMarkdown(md(':::data{source=runes type=seele}', ':::'), 'runen', { runes });
+    expect(seele.html).toContain('Seelenrune');
+    expect(seele.html).toContain('rb-soulglyph');
+    expect(seele.warnings).toEqual([]);
+
+    // …and it is reachable inline, including by alias.
+    const inline = await renderMarkdown(md('Die :rune[Seelenrune] und :rune[summon].'), 'z', { runes });
+    expect((inline.html.match(/rb-soulglyph--chip/g) ?? []).length).toBe(2);
+    expect(inline.warnings).toEqual([]);
+
+    // A real library rune of the same name wins over the hardcoded one.
+    const shadowed = await renderMarkdown(md('Die :rune[Seelenrune].'), 'z', {
+      runes: [{ name: 'Seelenrune', drawing: 'real', tags: [] }] as unknown as RuneBlock[],
+    });
+    expect(shadowed.html).toContain('/api/images/real');
+    expect(shadowed.html).not.toContain('rb-soulglyph');
   });
 
   it('draws a single rune inline by name', async () => {

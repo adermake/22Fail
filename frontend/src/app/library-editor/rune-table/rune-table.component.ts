@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
 import { AssetFile, createAssetFile } from '../../model/asset-browser.model';
-import { RuneBlock, RuneStatRequirements, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, normalizeRuneType } from '../../model/rune-block.model';
+import { RuneBlock, RuneStatRequirements, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, RUNE_TYPE_SHORT, normalizeRuneType } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
@@ -151,18 +151,26 @@ export class RuneTableComponent implements OnInit, OnDestroy {
         const base64 = await this.readFileAsBase64(file);
         const imageId = await this.imageService.uploadImage(base64);
 
-        // Detect rune type from filename suffix: -e elemental, -f formung, -s seele.
-        // -m is still accepted from older batches and maps to elemental.
+        // Detect rune type from the filename suffix:
+        //   -e elemental · -m manipulation · -k selektor · -a ausführung · -s seele
+        // -f (the retired flat "Formung" type) still parses and lands on manipulation, same as
+        // the model's legacy mapping. An unrecognised suffix is left as part of the name.
         const extStripped = file.name.replace(/\.[^.]+$/, '');
         let runeName = extStripped;
         let detectedType: RuneType | undefined;
-        const typeMatch = extStripped.match(/^(.+)-([efsmEFSM])$/);
+        const typeMatch = extStripped.match(/^(.+)-([a-zA-Z])$/);
         if (typeMatch) {
-          runeName = typeMatch[1].trim();
           const tag = typeMatch[2].toLowerCase();
-          if (tag === 'e' || tag === 'm') detectedType = 'elemental';
-          else if (tag === 'f') detectedType = 'formung';
-          else if (tag === 's') detectedType = 'seele';
+          const bySuffix: Record<string, RuneType> = {
+            e: 'elemental',
+            m: 'manipulation',
+            f: 'manipulation',
+            k: 'selektor',
+            a: 'ausfuehrung',
+            s: 'seele',
+          };
+          detectedType = bySuffix[tag];
+          if (detectedType) runeName = typeMatch[1].trim();
         }
 
         const newRune: RuneBlock = {
@@ -226,6 +234,7 @@ export class RuneTableComponent implements OnInit, OnDestroy {
 
   readonly runeTypes = RUNE_TYPES;
   readonly runeTypeLabels = RUNE_TYPE_LABELS;
+  readonly runeTypeShort = RUNE_TYPE_SHORT;
 
   getRuneType(file: AssetFile): RuneType {
     return normalizeRuneType((file.data as RuneBlock).runeType);

@@ -1,7 +1,7 @@
 ---
 title: Stats
 tab: Stats
-icon: stat
+icon: stat_icon
 order: 20
 ---
 

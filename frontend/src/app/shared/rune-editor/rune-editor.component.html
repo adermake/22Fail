@@ -219,12 +219,21 @@
         <!-- Runentyp -->
         <section class="ed-section">
           <h3 class="section-title">Runentyp</h3>
-          <div class="rt-type-row">
-            @for (t of runeTypes; track t) {
-              <button class="rt-type-btn"
-                      [class.rtb-active]="currentRuneType === t"
-                      (click)="setRuneType(t)"
-                      [title]="runeTypeLabels[t]">{{ runeTypeLabels[t] }}</button>
+          <div class="rt-type-groups">
+            @for (g of runeGroups; track g) {
+              <div class="rt-type-group" [class.rt-type-group--split]="isGroupedRuneType(g)">
+                @if (isGroupedRuneType(g)) {
+                  <div class="rt-group-label">{{ runeGroupLabels[g] }}</div>
+                }
+                <div class="rt-type-row">
+                  @for (t of runeGroupMembers[g]; track t) {
+                    <button class="rt-type-btn"
+                            [class.rtb-active]="currentRuneType === t"
+                            (click)="setRuneType(t)"
+                            [title]="runeTypeLabels[t]">{{ runeTypeLabels[t] }}</button>
+                  }
+                </div>
+              </div>
             }
           </div>
         </section>

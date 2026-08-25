@@ -265,7 +265,12 @@ Ohne `type` werden sie nach Kategorie gruppiert; mit `type=` zeigst du genau ein
 :::data{source=runes type=elemental}
 :::
 
-Kategorien: `elemental`, `formung`, `seele`, `sonstiges`.
+`type=` nimmt entweder eine **Oberkategorie** — `elemental`, `formung`, `seele`, `sonstiges` —
+oder einen einzelnen **Untertyp**. `formung` ist die einzige Oberkategorie mit Untertypen:
+`manipulation`, `selektor`, `ausfuehrung`. Ohne `type=` kommt alles, nach Kategorie gruppiert.
+
+Die **Seelenrune** ist im Zauber-Editor fest eingebaut und liegt in keiner Bibliothek — sie wird
+trotzdem mit angezeigt (`type=seele`), gezeichnet als der animierte Stapel aus dem Editor.
 
 ### Einzelne Rune — `:rune[Name]`
 

@@ -10,7 +10,7 @@ import { esc, type DirectiveAttrs } from './markdown/attrs';
 import { iconSpan } from './markdown/containers';
 import { slugify } from './markdown/slug';
 import type { RulebookEnv } from './rulebook.model';
-import { runeTile } from './rune-render';
+import { runeTile, specialRunesOfType, type RulebookRune } from './rune-render';
 
 import { TALENT_DEFINITIONS } from '../data/talent-definitions';
 import { BASE_WEAPON_TYPES } from '../data/weapons.data';
@@ -18,10 +18,14 @@ import { WEAPON_MATERIALS } from '../data/materials.data';
 import { ARMOR_MATERIALS } from '../data/armor-materials.data';
 import { WeaponType, type Material } from '../model/weapon.model';
 import {
+  RUNE_GROUPS,
+  RUNE_GROUP_LABELS,
+  RUNE_GROUP_MEMBERS,
   RUNE_TYPES,
   RUNE_TYPE_LABELS,
   normalizeRuneType,
-  type RuneBlock,
+  runeGroupOf,
+  type RuneGroup,
   type RuneType,
 } from '../model/rune-block.model';
 
@@ -109,45 +113,76 @@ function renderMaterials(attrs: DirectiveAttrs): string {
 
 
 /**
- * Runes, grouped by type. These come from the LIBRARY (not a TS module), so RulebookService
- * fetches them and hands them over via the render context.
+ * Runes, grouped by category. Formung is a parent category, so its three leaf types render as
+ * sub-groups inside it. `type=` narrows to either a whole group (`formung`) or a single leaf
+ * (`selektor`).
+ *
+ * Library runes come from RulebookService via the render context; the node editor's hardcoded
+ * runes (the Seelenrune) are merged in, since nothing fetches those.
  */
 function renderRunes(attrs: DirectiveAttrs, env: RulebookEnv): string {
   const all = env.context?.runes;
   if (!all) return emptyNote('Runen konnten nicht geladen werden.');
-  if (!all.length) return emptyNote('Keine Runen in den Bibliotheken gefunden.');
 
   const wanted = (attrs['type'] ?? attrs['category'] ?? '').trim().toLowerCase();
-  if (wanted && !RUNE_TYPES.includes(wanted as RuneType)) {
+  const isGroup = RUNE_GROUPS.includes(wanted as RuneGroup);
+  const isLeaf = RUNE_TYPES.includes(wanted as RuneType);
+  if (wanted && !isGroup && !isLeaf) {
     env.warnings.push(`Unbekannter Runentyp ":::data{source=runes type=${wanted}}"`);
     return emptyNote(
-      `Unbekannter Runentyp: <code>${esc(wanted)}</code>. Verfügbar: ` + RUNE_TYPES.join(', '),
+      `Unbekannter Runentyp: <code>${esc(wanted)}</code>. Verfügbar: ` +
+        [...new Set([...RUNE_GROUPS, ...RUNE_TYPES])].join(', '),
     );
   }
 
-  const byType = new Map<RuneType, RuneBlock[]>();
-  for (const rune of all) {
-    const type = normalizeRuneType(rune.runeType);
-    if (wanted && type !== wanted) continue;
+  // Bucket every rune (library + hardcoded) by its leaf type.
+  const byType = new Map<RuneType, RulebookRune[]>();
+  const add = (rune: RulebookRune, type: RuneType) => {
     const list = byType.get(type) ?? [];
     list.push(rune);
     byType.set(type, list);
-  }
-  if (!byType.size) return emptyNote('Keine Runen in dieser Kategorie.');
+  };
+  for (const rune of all) add(rune as RulebookRune, normalizeRuneType(rune.runeType));
+  for (const type of RUNE_TYPES) for (const rune of specialRunesOfType(type)) add(rune, type);
 
-  // Fixed display order, and each group sorted by name.
-  return RUNE_TYPES.filter((t) => byType.has(t))
-    .map((type) => {
-      const list = byType.get(type)!.sort((a, b) => a.name.localeCompare(b.name, 'de'));
-      const heading = wanted
-        ? ''
-        : `<div class="rb-datagroup-title">${cell(RUNE_TYPE_LABELS[type])} (${list.length})</div>`;
-      return (
-        `<div class="rb-datagroup">${heading}` +
-        `<div class="rb-runegrid">${list.map(runeTile).join('')}</div></div>`
-      );
-    })
-    .join('');
+  const wantsType = (type: RuneType): boolean =>
+    !wanted || (isLeaf ? type === wanted : runeGroupOf(type) === wanted);
+
+  const tiles = (type: RuneType): string => {
+    const list = (byType.get(type) ?? []).slice().sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    return `<div class="rb-runegrid">${list.map(runeTile).join('')}</div>`;
+  };
+
+  // A group renders one block; a multi-leaf group (Formung) gets a sub-heading per leaf.
+  const blocks = RUNE_GROUPS.map((group) => {
+    const leaves = RUNE_GROUP_MEMBERS[group].filter(
+      (type) => wantsType(type) && (byType.get(type)?.length ?? 0) > 0,
+    );
+    if (!leaves.length) return '';
+
+    const total = leaves.reduce((n, type) => n + (byType.get(type)?.length ?? 0), 0);
+    // The heading is redundant when the author already asked for exactly this one thing.
+    const showGroupTitle = !(isLeaf && leaves.length === 1) && !(isGroup && leaves.length === 1);
+    const head = showGroupTitle
+      ? `<div class="rb-datagroup-title">${cell(RUNE_GROUP_LABELS[group])} (${total})</div>`
+      : '';
+
+    const body =
+      leaves.length === 1 && RUNE_GROUP_MEMBERS[group].length === 1
+        ? tiles(leaves[0])
+        : leaves
+            .map(
+              (type) =>
+                `<div class="rb-datasubgroup">` +
+                `<div class="rb-datasubgroup-title">${cell(RUNE_TYPE_LABELS[type])} ` +
+                `(${byType.get(type)?.length ?? 0})</div>${tiles(type)}</div>`,
+            )
+            .join('');
+
+    return `<div class="rb-datagroup">${head}${body}</div>`;
+  }).join('');
+
+  return blocks || emptyNote('Keine Runen in dieser Kategorie.');
 }
 
 const emptyNote = (msg: string) =>

@@ -660,3 +660,81 @@
 }
 .rb-rune--missing { border-style: dashed; border-color: var(--health-color, #ef4444); }
 .rb-rune--missing .rb-rune-name { color: var(--health-color, #ef4444); }
+
+/* ── Sub-categories inside a grouped data listing (Formung) ─────────────── */
+.rb-datasubgroup {
+  margin: 0.7rem 0 0 0;
+  padding-left: 0.7rem;
+  border-left: 2px solid color-mix(in srgb, var(--accent, #8b5cf6) 40%, transparent);
+}
+.rb-datasubgroup-title {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent, #8b5cf6) 70%, var(--text-muted, #9ca3af));
+  margin-bottom: 0.4rem;
+}
+
+/* ── Hardcoded soul rune ────────────────────────────────────────────────────
+   It has no drawing — the spell node editor draws it as eight stacked squares
+   drifting at their own speeds. Mirrored here so the guide shows the same thing. */
+.rb-rune--special { border-style: dashed; }
+.rb-soulglyph {
+  --sc: var(--rb-rune-glow, #a78bfa);
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--sc) 55%, transparent));
+}
+.rb-soulglyph--tile { width: 56px; height: 56px; }
+.rb-soulglyph--chip { width: 1.5em; height: 1.5em; vertical-align: -0.25em; }
+.rb-soulglyph::before {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--sc) 38%, transparent) 0%, transparent 70%);
+  animation: rb-soul-haze 3.4s ease-in-out infinite alternate;
+}
+.rb-soulglyph > span {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--sc);
+  border-radius: 3px;
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  transform-origin: 50% 50%;
+  animation: rb-soul-spin 8s linear infinite, rb-soul-breathe 3.6s ease-in-out infinite;
+}
+.rb-soulglyph--chip > span { border-width: 1px; }
+/* Per-square speeds and directions; negative spin delays also give each a resting angle. */
+.rb-soulglyph > span:nth-child(1) { animation-duration:  6.0s, 3.2s; animation-delay: -0.0s, -0.0s; }
+.rb-soulglyph > span:nth-child(2) { animation-duration:  9.0s, 4.1s; animation-delay: -1.1s, -0.5s; animation-direction: reverse, normal; }
+.rb-soulglyph > span:nth-child(3) { animation-duration:  4.5s, 2.7s; animation-delay: -2.2s, -1.0s; }
+.rb-soulglyph > span:nth-child(4) { animation-duration: 11.0s, 5.3s; animation-delay: -3.3s, -1.5s; animation-direction: reverse, normal; }
+.rb-soulglyph > span:nth-child(5) { animation-duration:  7.5s, 3.7s; animation-delay: -4.4s, -2.0s; }
+.rb-soulglyph > span:nth-child(6) { animation-duration: 13.0s, 4.7s; animation-delay: -5.5s, -2.5s; animation-direction: reverse, normal; }
+.rb-soulglyph > span:nth-child(7) { animation-duration:  5.5s, 2.9s; animation-delay: -6.6s, -3.0s; }
+.rb-soulglyph > span:nth-child(8) { animation-duration:  8.5s, 6.1s; animation-delay: -7.7s, -3.5s; animation-direction: reverse, normal; }
+/* Colour drift keeps the stack from reading as one flat outline */
+.rb-soulglyph > span:nth-child(3n)   { border-color: color-mix(in srgb, var(--sc) 45%, #22d3ee); }
+.rb-soulglyph > span:nth-child(3n+1) { border-color: color-mix(in srgb, var(--sc) 70%, #f0abfc); }
+.rb-soulglyph > span:nth-child(4n)   { border-style: dashed; }
+
+@keyframes rb-soul-spin { to { rotate: 360deg; } }
+@keyframes rb-soul-breathe {
+  0%   { scale: 0.34; opacity: 0.28; }
+  50%  { scale: 1.00; opacity: 0.72; }
+  100% { scale: 0.34; opacity: 0.28; }
+}
+@keyframes rb-soul-haze {
+  from { opacity: 0.35; scale: 0.8; }
+  to   { opacity: 0.8;  scale: 1.15; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rb-soulglyph > span,
+  .rb-soulglyph::before { animation: none; }
+  .rb-soulglyph > span:nth-child(2n) { scale: 0.7; }
+  .rb-soulglyph > span:nth-child(3n) { scale: 0.45; }
+}

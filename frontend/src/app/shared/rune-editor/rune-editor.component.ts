@@ -4,7 +4,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RuneBlock, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, normalizeRuneType } from '../../model/rune-block.model';
+import { RuneBlock, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, RUNE_GROUPS, RUNE_GROUP_LABELS, RUNE_GROUP_MEMBERS, isGroupedRuneType, normalizeRuneType } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../image-url.pipe';
 
@@ -335,6 +335,10 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   readonly runeTypes = RUNE_TYPES;
   readonly runeTypeLabels = RUNE_TYPE_LABELS;
+  readonly runeGroups = RUNE_GROUPS;
+  readonly runeGroupLabels = RUNE_GROUP_LABELS;
+  readonly runeGroupMembers = RUNE_GROUP_MEMBERS;
+  readonly isGroupedRuneType = isGroupedRuneType;
 
   /** Legacy values (medium/selektor/custom) show up as their current equivalent. */
   get currentRuneType(): RuneType {

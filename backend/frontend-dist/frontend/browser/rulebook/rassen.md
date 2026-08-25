@@ -22,4 +22,8 @@ Zusätzlich lernt jede Rasse auf bestimmten Leveln (meist zwischen 1 und 30) spe
 
 ## Vor- und Nachteile
 Einige Rassen besitzen außerdem bestimmte Vor- oder Nachteile, die für alle Mitglieder der Rasse gelten. Sie wirken von Geburt an und können auch nicht gelernt oder verlernt werden. 
+
+:::actions
+:jump[Weiter zur Magie]{to=zauber}
+:jump[Zurück zu den Klassen]{to=klassen}
 :::
