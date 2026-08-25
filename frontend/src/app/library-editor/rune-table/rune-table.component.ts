@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { AssetBrowserApiService } from '../../services/asset-browser-api.service';
 import { AssetFile, createAssetFile } from '../../model/asset-browser.model';
-import { RuneBlock, RuneStatRequirements, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, RUNE_TYPE_SHORT, normalizeRuneType } from '../../model/rune-block.model';
+import { RuneBlock, RuneStatRequirements, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, RUNE_TYPE_SHORT, RUNE_GROUPS, RUNE_GROUP_LABELS, RUNE_GROUP_MEMBERS, isGroupedRuneType, normalizeRuneType } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../../shared/image-url.pipe';
 
@@ -235,6 +235,10 @@ export class RuneTableComponent implements OnInit, OnDestroy {
   readonly runeTypes = RUNE_TYPES;
   readonly runeTypeLabels = RUNE_TYPE_LABELS;
   readonly runeTypeShort = RUNE_TYPE_SHORT;
+  readonly runeGroups = RUNE_GROUPS;
+  readonly runeGroupLabels = RUNE_GROUP_LABELS;
+  readonly runeGroupMembers = RUNE_GROUP_MEMBERS;
+  readonly isGroupedRuneType = isGroupedRuneType;
 
   getRuneType(file: AssetFile): RuneType {
     return normalizeRuneType((file.data as RuneBlock).runeType);
