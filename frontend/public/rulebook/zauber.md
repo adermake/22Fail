@@ -29,6 +29,8 @@ Zauber bestehen hauptsächlich aus Runen. Diese können immer einer von drei Kat
 Elementar-Runen können alles symbolisieren, was materiell ist. Damit können allgemeine Materialien gemeint sein, wie z. B. Wasser, Feuer, Eisen, Licht, Holz, Luft oder Stoff. Aber auch spezifischere Dinge wie Mensch, Elf, Drache, Stock, Schwert, Seil, ein 1980er Honda Civic usw.
 
 Mit Elementar-Runen allein kann man jedoch nicht viel machen. Man muss sie mit Formungs-Runen oder Seelen-Runen kombinieren, damit ein Zauber überhaupt etwas bewirkt.
+:::data{source=runes type=elemental}
+:::
 :::
 :::section{title="Formungs-Runen"}
 Formungs-Runen  sind die Grundoperatoren der Zauberei. Man kann sie grob in drei Unterkategorien einteilen:
@@ -36,23 +38,7 @@ Formungs-Runen  sind die Grundoperatoren der Zauberei. Man kann sie grob in drei
 ### Manipulation  
 Darunter fallen Runen, die sich direkt auf ein Element auswirken, z. B.:
 :::grid{min=30}
-:::card{title="Erzeuge" accent=mana}
-:::
-:::card{title="Wähle aus " accent=mana}
-:::
-:::card{title="Detektiere" accent=mana}
-:::
-:::card{title="Erhöhe" accent=mana}
-:::
-:::card{title="Verringere" accent=mana}
-:::
-:::card{title="Infusioniere" accent=mana}
-:::
-:::card{title="Komprimiere" accent=mana}
-:::
-:::card{title="Verschärfe" accent=mana}
-:::
-:::card{title="Teile auf" accent=mana}
+:::data{source=runes type=formung}
 :::
 :::
 ### Selektoren  
@@ -170,7 +156,10 @@ Start - Erzeuge - Feuer - Bewege
 :::
 
 Runen alleine reichen aber nicht aus, um zu bestimmen, was ein Zauber machen kann und wieviel er kostet. Letztendlich schaut sich der Ersteller den Zauber zusammen mit dem Spielleiter an und definiert, was er genau macht und wieviel er kostet. Der Ersteller muss dem Spielleiter argumentieren können, warum die arrangierten Runen das tun würden, was die Beschreibung sagt. Auch wenn der Prozess viel Interpretationsspielraum bietet, haben Runen immernoch eine Stärke und Kosten, die als Grundrahmen dienen. Es wird z.B. durchaus Feuerrunen geben, die stärker als andere Feuerrunen sind.
-
+:::runeflow{title="Beispiel: einfacher Angriffszauber"}
+Erzeuge - Feuer -[verstaerkt]-> Kreis -> Ziel
+Wasser -> Kreis
+:::
 
 :::
 
