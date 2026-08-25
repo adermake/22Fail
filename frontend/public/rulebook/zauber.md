@@ -13,7 +13,7 @@ order: 40
 Die Welt ist voller Magie, dennoch ist es nicht leicht, diese Energie zu verwenden. Das führt dazu, dass Mana für Magier hauptsächlich aus dem Inneren kommt.
 
 Zauber bestehen hauptsächlich aus Runen. Diese können immer einer von drei Kategorien untergeordnet werden:
-:::grid{min=300}
+:::grid{min=200}
 :::card{title="Element" icon=attack accent=health}
 :::
 :::card{title="Formung" icon=attack accent=mana}
@@ -35,27 +35,27 @@ Formungs-Runen  sind die Grundoperatoren der Zauberei. Man kann sie grob in drei
 
 ### Manipulation  
 Darunter fallen Runen, die sich direkt auf ein Element auswirken, z. B.:
-
-- Erzeuge  
-- Wähle aus  
-- Detektiere  
-- Erhöhe  
-- Verringere  
-- Bewege  
-- Infusioniere  
-- Komprimiere  
-- Verschärfe  
-- Teile auf  
-
+:::grid{min=50}
+Erzeuge  
+Wähle aus  
+Detektiere  
+Erhöhe  
+Verringere  
+Bewege  
+Infusioniere  
+Komprimiere  
+Verschärfe  
+Teile auf  
+:::
 ### Selektoren  
 Runen, die beim Auswählen oder Spezifizieren abstrakter Dinge helfen.  
 Beispiele sind:
-
-- Selbst  
-- Gegner  
-- Verbündete  
-- Ort  
-
+:::grid{min=50}
+Selbst  
+Gegner  
+Verbündete  
+Ort  
+:::
 ### Ausführung  
 Noch abstraktere Runen, die bei der Ausführung eines Zaubers eine Rolle spielen.  
 Beispiele sind:
@@ -133,8 +133,9 @@ Da manche Zauber zu komplex sind, um sie sofort auszulösen, lässt sich ihre Ak
 Dazu wählt man einen beliebigen **Cast-Wert™**.
 
 Die Mana-Kosten und Zaubervoraussetzungen werden dann mit dem Ergebnis folgender Formel multipliziert:
-
+:::formula
 100 / (Cast + 100)
+:::
 Um den Cast erfolgreich abzuschließen, würfelt man jede Runde einen W20, dessen Ergebnis fortlaufend addiert wird.  
 Erreicht oder überschreitet man den festgelegten Cast-Wert, wird der Zauber aktiviert.
 
