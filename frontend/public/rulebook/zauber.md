@@ -14,11 +14,11 @@ Die Welt ist voller Magie, dennoch ist es nicht leicht, diese Energie zu verwend
 
 Zauber bestehen hauptsächlich aus Runen. Diese können immer einer von drei Kategorien untergeordnet werden:
 :::grid{min=200}
-:::card{title="Element" icon=attack accent=health}
+:::card{title="Element" accent=health}
 :::
-:::card{title="Formung" icon=attack accent=mana}
+:::card{title="Formung" accent=mana}
 :::
-:::card{title="Seele" icon=attack accent=energy}
+:::card{title="Seele" accent=energy}
 :::
 :::
 :::
@@ -83,6 +83,10 @@ Ein Magier schafft dies nur, wenn er im Besitz der Seele ist, die ihn beim Zeich
 Das bedeutet, dass ein Beschwörer nicht gleichzeitig zwei Beschwörungen mit derselben wahren Seelen-Rune aufrechterhalten kann.
 
 :::
+
+### Zauber zeichnen
+Normalerweise werden Zauber außerhalb des Kampfes vorberereitet. Manchmal erfordert die Lage allerdings die Kreation eines spontanen Zaubers. Solange dieser irgendwie in eine Oberfläche (z.B. in die Erde oder in eine Wand geritzt) gezeichnet werden kann, ist er auch als Zauber verwendbar, ist aber in den meisten Fällen nach einer Verwendung unbrauchbar. Jeden Zug kann man 4 Runen mit einer Aktion und 2 als Bonusaktion zeichnen. Je nach [Skalierung](zauber#skalierung) können Runen auch mehr oder weniger Aktionen benötigen. Eine viermal größere Rune verbraucht zum Beispiel gleichermaßen die selbe Zeit, die 4 normalgroße Runen beanspruchen würden.
+
 :::section{title="Allgemeines"}
 Damit Zauber etwas bewirken können, müssen die Runen in deiner Nähe sein. Für Magie-Einsteiger bedeutet das, dass sie Hilfsmittel benötigen, auf denen die Runen angebracht sind, wenn sie unterwegs zaubern möchten.
 
@@ -124,7 +128,7 @@ Zauber im Zauberradius einer anderen Person zu erzeugen ist deutlich schwieriger
 Zauber direkt in Lebewesen oder festen Objekten zu erzeugen ist jedoch noch schwieriger bis nahezu unmöglich.
 :::
 
-:::section{title="Skalierung"}
+:::section{title="Skalierung", id="skalierung"}
 
 Runen haben eine Größe und können skaliert werden. Macht man eine Rune doppelt so groß, ist ihr Effekt doppelt so stark – allerdings verdoppeln sich auch die Manakosten und der Verbrauch der Haltbarkeit.
 
