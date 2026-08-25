@@ -1,10 +1,16 @@
-import { Component, ElementRef, EventEmitter, Input, Output, inject } from '@angular/core';
+import {
+  ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, NgZone, OnDestroy, OnInit,
+  Output, inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CharacterSheet } from '../../model/character-sheet-model';
 import { ItemBlock } from '../../model/item-block.model';
 import { JsonPatch } from '../../model/json-patch.model';
 import { CardComponent } from '../../shared/card/card.component';
-import { CdkDragDrop, CdkDragEnd, CdkDragMove, CdkDragStart, DragDropModule } from '@angular/cdk/drag-drop';
+import {
+  CdkDragDrop, CdkDragEnd, CdkDragMove, CdkDragStart, DragDropModule, DragDropRegistry,
+} from '@angular/cdk/drag-drop';
+import { Subscription } from 'rxjs';
 import { ItemComponent } from '../item/item.component';
 import { ItemCreatorComponent } from '../item-creator/item-creator.component';
 import { ItemEditorComponent } from '../item-editor/item-editor.component';
@@ -37,7 +43,7 @@ import { ActiveStatusEffect } from '../../model/status-effect.model';
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.css',
 })
-export class InventoryComponent {
+export class InventoryComponent implements OnInit, OnDestroy {
   @Input({ required: true }) sheet!: CharacterSheet;
   @Input() currentEvents: CurrentEvent[] = [];
   @Output() patch = new EventEmitter<JsonPatch>();
@@ -59,6 +65,10 @@ export class InventoryComponent {
   private partyStash = inject(PartyStashService);
   readonly dragSplit = inject(DragSplitService);
   private elRef = inject(ElementRef);
+  private dragRegistry = inject(DragDropRegistry);
+  private zone = inject(NgZone);
+  private cdr = inject(ChangeDetectorRef);
+  private pointerSub?: Subscription;
 
   Math = Math; // Expose Math to template
   formatCurrency = formatCurrency;
@@ -123,6 +133,17 @@ export class InventoryComponent {
   }
 
   ngOnInit() {
+    // Track the hovered slot for EVERY drag, not just drags that started in this grid.
+    // (cdkDragMoved) only fires for our own items, so an item coming from the shared bag or an
+    // equipment slot left dropTargetSlotIdx null: no hover highlight, and the drop fell back to
+    // CDK's currentIndex — meaningless in a sparse padded grid, so the item landed anywhere.
+    this.zone.runOutsideAngular(() => {
+      this.pointerSub = this.dragRegistry.pointerMove.subscribe(event => {
+        const point = event instanceof MouseEvent ? event : event.touches[0] ?? event.changedTouches[0];
+        if (point) this.trackHoveredSlot(point.clientX, point.clientY);
+      });
+    });
+
     if (!this.sheet.inventory) {
       this.sheet.inventory = [];
     }
@@ -132,6 +153,29 @@ export class InventoryComponent {
     if (this.sheet.carryCapacityBonus === undefined) {
       this.sheet.carryCapacityBonus = 0;
     }
+  }
+
+  ngOnDestroy(): void {
+    this.pointerSub?.unsubscribe();
+  }
+
+  /**
+   * Which padded slot is under the pointer. Runs outside Angular; only a real change is pushed
+   * back in, so a drag across the grid costs one change detection per slot crossed.
+   */
+  private trackHoveredSlot(clientX: number, clientY: number): void {
+    const slotEl = document.elementsFromPoint(clientX, clientY)
+      .find(el => (el as HTMLElement).hasAttribute?.('data-slot-idx')) as HTMLElement | undefined;
+
+    const raw = slotEl?.getAttribute('data-slot-idx');
+    const idx = raw === null || raw === undefined ? null : parseInt(raw, 10);
+    const next = idx === null || isNaN(idx) ? null : idx;
+
+    if (next === this.dropTargetSlotIdx) return;
+    this.zone.run(() => {
+      this.dropTargetSlotIdx = next;
+      this.cdr.markForCheck();
+    });
   }
 
   openCreateDialog() {
@@ -375,20 +419,8 @@ getCurrencyWeight(): number {
   }
 
   onDragMoved(event: CdkDragMove) {
-    // Track which slot is currently under the pointer for visual highlight + drop target
-    const els = document.elementsFromPoint(
-      event.pointerPosition.x,
-      event.pointerPosition.y
-    );
-    const slotEl = els.find(
-      el => (el as HTMLElement).hasAttribute && (el as HTMLElement).hasAttribute('data-slot-idx')
-    ) as HTMLElement | undefined;
-    if (slotEl) {
-      const idx = parseInt(slotEl.getAttribute('data-slot-idx')!);
-      this.dropTargetSlotIdx = isNaN(idx) ? null : idx;
-    } else {
-      this.dropTargetSlotIdx = null;
-    }
+    // Kept for drags that start here; the global tracker handles the rest.
+    this.trackHoveredSlot(event.pointerPosition.x, event.pointerPosition.y);
   }
 
   /**
@@ -455,16 +487,19 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
   // Same-container drops are handled by onDragEnded — skip here
   if (event.previousContainer === event.container) return;
 
+  // The slot the pointer was actually over. CDK's currentIndex is not usable here: this grid is
+  // sparse and padded, so its index has nothing to do with the slot under the cursor.
+  const targetSlot = this.dropTargetSlotIdx ?? event.currentIndex;
+  this.dropTargetSlotIdx = null;
+
   // Coming out of the shared party bag: the server decides whether we actually get it, so this
   // goes through the stash service and lands in the sheet only once it acks.
   if (event.previousContainer.id === 'partyStashList') {
     const entry = event.item.data as PartyStashEntry | null;
     // The split menu may have reduced how much of the pile is being taken. Read it here:
-    // onDragEnded clears the split state right after this runs.
+    // the split state is cleared on the next tick.
     const carried = this.dragSplit.isSplit() ? this.dragSplit.taken() : undefined;
-    if (entry?.entryId) {
-      void this.takeFromPartyStash(entry, this.dropTargetSlotIdx ?? event.currentIndex, carried);
-    }
+    if (entry?.entryId) void this.takeFromPartyStash(entry, targetSlot, carried);
     return;
   }
 
@@ -472,7 +507,7 @@ onDrop(event: CdkDragDrop<(ItemBlock | null)[]>) {
   const rawItem = event.previousContainer.data[event.previousIndex];
   if (!rawItem) return; // null-safe guard (equipment data should never be null)
   const item = rawItem as ItemBlock;
-  const tgtSlot = this.dropTargetSlotIdx ?? event.currentIndex;
+  const tgtSlot = targetSlot;
 
   const padded = this.paddedSlots;
   const existingItem = tgtSlot < padded.length ? (padded[tgtSlot] ?? null) : null;
