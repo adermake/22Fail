@@ -15,7 +15,7 @@ Rang 4 & 5 = 3FP
 :::
 Zu Anfang kann jeder zwischen den drei Klassen auf Rang 1 auswählen (Kämpfer, Techniker, Magier). Schaltet ein Charakter über die Hälfte aller Fähigkeiten in einer Klasse frei, hat er diese Klasse gemeistert und kann in eine Folgeklasse des höheren Ranges wechseln. Einige Klassen machen einen Sprung von 2 Rängen bis zur nächsten Klasse. Um diese freizuschalten, muss sowohl die vorherige Klasse als auch eine andere Klasse mit einem Rang direkt unter der Zielklasse im entsprechenden Teilbaum gemeistert werden (z.B. wird für Duellant sowohl Kampfakrobat als auch eine Rang-4-Klasse wie Klingentänzer benötigt).
 
-Während des Schlafens können FP verteilt und Klassen gewechselt werden (Statuseffekt Schlaf zählt hierbei nicht). Sobald eine Klasse gewechselt wird, werden alle Fähigkeiten aus derr alten Klasse unbenutzbar, außer:
+Während des Schlafens können FP verteilt und Klassen gewechselt werden (Statuseffekt Schlaf zählt hierbei nicht). Sobald eine Klasse gewechselt wird, werden alle Fähigkeiten aus der alten Klasse unbenutzbar, außer:
 - Die neue Klasse ist eine Folgeklasse der alten (z.B. Techniker -> Schütze)
 - Die Fähigkeit eine [Erkenntnis](klassen#erkenntnisse) ist
 
@@ -27,19 +27,19 @@ Wenn ein Spieler alle Fähigkeiten einer Klasse gelernt hat, gilt die Klasse als
 
 Fähigkeiten werden hauptsächlich über Klassen freigeschalten, sind aber auch über Rassen, Charaktereigenschaften oder Storyevents erhältlich. Sie können grob in 4 Kategorien unterschieden werden:
 
-:::card{title=Aktive Fähigkeiten, icon=ability, id=active, accent=life}
+:::card{title=Aktive Fähigkeiten icon=ability id=active accent=health}
 Fähigkeiten, deren Effekt manuell aktiviert werden müssen. Sie besitzen im Normalfall Ausdauerkosten und benötigen eine Aktion, um ausgeführt zu werden.
 :::
 
-:::card{title=Passive Fähigkeiten, icon=passive_icon, id=passive accent=mana}
+:::card{title=Passive Fähigkeiten icon=passive_icon id=passive accent=mana}
 Fähigkeiten, deren Effekt nicht vom Spieler aktiviert/deaktiviert werden muss. Meistens sind sie an bestimmte Konditionen gebunden, um ihre Effekte auszulösen.
 :::
 
-:::card{title=Würfelboni, icon=dice, id=dice_bonus}
+:::card{title=Würfelboni icon=dice id=dice_bonus}
 Fähigkeiten, die meist einen simplen Würfelbonus geben, manchmal auch an bestimmte Konditionen gebunden.
 :::
 
-:::card{title=Statboni, icon=stat_icon, id=stat_bonus accent=energy}
+:::card{title=Statboni icon=stat_icon id=stat_bonus accent=energy}
 Fähigkeiten, die einen permanenten Statbonus geben. Jede Klasse hat mindestens einen und Endklassen (Klassen ohne Folgeklasse) können diesen Statbonus unendlich oft lernen.
 :::
 
@@ -48,7 +48,7 @@ Erkenntnisse beschreiben Fähigkeiten, die bestehen bleiben, selbst wenn die Kla
 
 ## Voraussetzungen
 
-Fähigkeiten mit Vorraussetzungen benötigen eine angegebene Fähigkeit in einer anderen Klasse, um freigeschaltet werden zu können, da sie meist eine verbesserte Form dieser Fähigkeit darstellen.
+Fähigkeiten mit Voraussetzungen benötigen eine angegebene Fähigkeit in einer anderen Klasse, um freigeschaltet werden zu können, da sie meist eine verbesserte Form dieser Fähigkeit darstellen.
 
 :::actions
 :jump[Weiter zu den Rassen]{to=rassen}
