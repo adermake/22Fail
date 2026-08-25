@@ -4,7 +4,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RuneBlock, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS, RuneType } from '../../model/rune-block.model';
+import { RuneBlock, RuneStatRequirements, RUNE_GLOW_COLORS, RUNE_DEFAULT_TAGS, RUNE_TAG_OPTIONS, RuneType, RUNE_TYPES, RUNE_TYPE_LABELS, normalizeRuneType } from '../../model/rune-block.model';
 import { ImageService } from '../../services/image.service';
 import { ImageUrlPipe } from '../image-url.pipe';
 
@@ -332,6 +332,14 @@ export class RuneEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   isTagActive(tag: string) { return (this.editRune.tags ?? []).includes(tag); }
 
   // ─── Runentyp ──────────────────────────────────────────────
+
+  readonly runeTypes = RUNE_TYPES;
+  readonly runeTypeLabels = RUNE_TYPE_LABELS;
+
+  /** Legacy values (medium/selektor/custom) show up as their current equivalent. */
+  get currentRuneType(): RuneType {
+    return normalizeRuneType(this.editRune.runeType);
+  }
 
   setRuneType(type: RuneType) {
     this.editRune.runeType = type;

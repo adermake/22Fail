@@ -137,14 +137,12 @@
               <!-- Runentyp -->
               <td class="c-type">
                 <div class="rt-type-btns">
-                  <button class="rt-tb" [class.rtb-active]="getRuneType(file) === 'medium'"
-                          (click)="setRuneType(file, 'medium')" title="Medium">M</button>
-                  <button class="rt-tb" [class.rtb-active]="getRuneType(file) === 'formung'"
-                          (click)="setRuneType(file, 'formung')" title="Formung">F</button>
-                  <button class="rt-tb" [class.rtb-active]="getRuneType(file) === 'selektor'"
-                          (click)="setRuneType(file, 'selektor')" title="Selektor">S</button>
-                  <button class="rt-tb" [class.rtb-active]="!getRuneType(file) || getRuneType(file) === 'custom'"
-                          (click)="setRuneType(file, 'custom')" title="Benutzerdefiniert">?</button>
+                  @for (t of runeTypes; track t) {
+                    <button class="rt-tb"
+                            [class.rtb-active]="getRuneType(file) === t"
+                            (click)="setRuneType(file, t)"
+                            [title]="runeTypeLabels[t]">{{ runeTypeLabels[t].charAt(0) }}</button>
+                  }
                 </div>
               </td>
 

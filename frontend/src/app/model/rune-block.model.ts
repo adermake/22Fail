@@ -1,6 +1,9 @@
 /** Coarse classification of a rune. Purely descriptive — every rune has the same
  *  single flow-in / flow-out pair in the spell node editor. */
-export type RuneType = 'medium' | 'formung' | 'selektor' | 'custom';
+export type RuneType = 'elemental' | 'formung' | 'seele' | 'sonstiges';
+
+/** Display order for pickers and the rulebook listing. */
+export const RUNE_TYPES: RuneType[] = ['elemental', 'formung', 'seele', 'sonstiges'];
 
 export interface RuneStatRequirements {
   strength?: number;
@@ -60,8 +63,28 @@ export const RUNE_TAG_OPTIONS = [
 ];
 
 export const RUNE_TYPE_LABELS: Record<RuneType, string> = {
-  medium:   'Medium',
-  formung:  'Formung',
-  selektor: 'Selektor',
-  custom:   'Custom',
+  elemental: 'Elemental',
+  formung:   'Formung',
+  seele:     'Seele',
+  sonstiges: 'Sonstiges',
 };
+
+/**
+ * Maps the retired classification (medium / selektor / custom) onto the current one, so runes
+ * saved under the old system keep a sensible type without a data migration pass.
+ * `medium` described the elemental substance, so it becomes `elemental`; the rest are
+ * unclassified and land in `sonstiges`. Re-tag anything that lands wrong in the rune editor.
+ */
+const LEGACY_RUNE_TYPES: Record<string, RuneType> = {
+  medium: 'elemental',
+  formung: 'formung',
+  selektor: 'sonstiges',
+  custom: 'sonstiges',
+};
+
+/** Current type of a rune, translating legacy values. Untyped runes fall back to `sonstiges`. */
+export function normalizeRuneType(value: string | undefined): RuneType {
+  if (!value) return 'sonstiges';
+  if (RUNE_TYPES.includes(value as RuneType)) return value as RuneType;
+  return LEGACY_RUNE_TYPES[value] ?? 'sonstiges';
+}

@@ -21,7 +21,7 @@ import type { MarkdownIt } from 'markdown-it';
 import { registerContainers } from './containers';
 import { INLINE_DIRECTIVES, registerInlineDirectives } from './inline-directives';
 import { registerRenderers } from './renderers';
-import type { RenderResult, RulebookEnv } from '../rulebook.model';
+import type { RenderResult, RulebookEnv, RulebookRenderContext } from '../rulebook.model';
 
 let mdPromise: Promise<MarkdownIt> | null = null;
 
@@ -58,7 +58,11 @@ export function stripFrontMatter(raw: string): string {
   return raw.replace(/^﻿/, '').replace(/^---\r?\n[\s\S]*?\r?\n---[ \t]*\r?\n?/, '');
 }
 
-export async function renderMarkdown(source: string, pageId: string): Promise<RenderResult> {
+export async function renderMarkdown(
+  source: string,
+  pageId: string,
+  context: RulebookRenderContext = {},
+): Promise<RenderResult> {
   const md = await getMarkdown();
   const env: RulebookEnv = {
     pageId,
@@ -66,6 +70,7 @@ export async function renderMarkdown(source: string, pageId: string): Promise<Re
     seenSlugs: new Map(),
     headings: [],
     warnings: [],
+    context,
   };
   const html = md.render(stripFrontMatter(source), env as unknown as Record<string, unknown>);
   return { html, headings: env.headings, warnings: env.warnings };

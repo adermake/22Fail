@@ -220,14 +220,12 @@
         <section class="ed-section">
           <h3 class="section-title">Runentyp</h3>
           <div class="rt-type-row">
-            <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'medium'"
-                    (click)="setRuneType('medium')" title="Medium">M</button>
-            <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'formung'"
-                    (click)="setRuneType('formung')" title="Formung">F</button>
-            <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'selektor'"
-                    (click)="setRuneType('selektor')" title="Selektor">S</button>
-            <button class="rt-type-btn" [class.rtb-active]="editRune.runeType === 'custom' || !editRune.runeType"
-                    (click)="setRuneType('custom')" title="Benutzerdefiniert">?</button>
+            @for (t of runeTypes; track t) {
+              <button class="rt-type-btn"
+                      [class.rtb-active]="currentRuneType === t"
+                      (click)="setRuneType(t)"
+                      [title]="runeTypeLabels[t]">{{ runeTypeLabels[t] }}</button>
+            }
           </div>
         </section>
 
