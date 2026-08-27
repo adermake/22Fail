@@ -96,10 +96,10 @@ Beschwören aus der Seele selbst geformt. Du erkennst sie an ihrer Form:
 
 Mithilfe dieser Runen ist es nun möglich, einen vollwertigen Zauber zusammenzusetzen. Um einen Zauber nutzen zu können, braucht man aber zusätzlich noch ein Medium, durch den der Zauber benutzt werden kann. Schriftrollen oder magische Waffen sind dafür am besten geeignet, manche Situationen erfordern jedoch andere Unterlagen, die für einen Zauber herhalten müssen, oft mit reduzierter Kapazität. Jeder Zauber besitzt diese Attribute:
 
-:::card{title="Effektivität" color=#ff0000}
+:::formula{title="Effektivität" color=#ff0000}
 Stärke des Zaubers, bestimmt wie bei Waffen den Angriffsschaden, kann aber auch für Dinge wie die Heilstärke stehen. Die Effektivität des Zaubers wird aus der Summe aller enthaltenen Runen bestimmt.
 :::
-:::card{title="Kosten" color=#0000ff}
+:::formula{title="Kosten" color=#0000ff}
 Sowohl Mana- als auch Fokuskosten werden aus der Summe aller enthaltenen Runen bestimmt.
 :::
 :::card{title="Voraussetzung" color=#00ff00}
@@ -108,6 +108,7 @@ Bestimmt die Mindestanforderung für den gewählten Stat (meist Intelligenz), um
 Die Haltbarkeit bestimmt, wie oft ein Zauber benutzt werden kann. Einen Zauber zu wirken verbraucht Haltbarkeit mit folgender Formel:
 :::formula
 Voraussetzung*10
+:::
 :::
 Die meisten magischen Zauberunterlagen sind allerdings spezifisch für Zauber gemacht und halten deutlich länger.
 :::note{type=warning}
