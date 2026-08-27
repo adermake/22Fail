@@ -27,13 +27,13 @@ Zauber bestehen hauptsächlich aus Runen. Diese können immer einer von drei Kat
 Runen sind Grundsteine der Magie. Durch präzise Zusammensetzung dieser Runen können Zauber mit einer zahllosen Anzahl an verschiedenen Effekten kreiert werden. Jede Rune besitzt folgende Stats:
 
 :::grid{min=200}
-:::card{title="Effektivität" color=#ff0000}
+:::card{title="Effektivität" color=#ef4444}
 :::
-:::card{title="Manakosten" color=#0000ff}
+:::card{title="Manakosten" color=#3b82f6}
 :::
-:::card{title="Fokuskosten" color=#ff00ff}
+:::card{title="Fokuskosten" color=#8b5cf6}
 :::
-:::card{title="Voraussetzung" color=#00ff00}
+:::card{title="Voraussetzung" color=#22c55e}
 :::
 :::
 
@@ -96,15 +96,16 @@ Beschwören aus der Seele selbst geformt. Du erkennst sie an ihrer Form:
 
 Mithilfe dieser Runen ist es nun möglich, einen vollwertigen Zauber zusammenzusetzen. Um einen Zauber nutzen zu können, braucht man aber zusätzlich noch ein Medium, durch den der Zauber benutzt werden kann. Schriftrollen oder magische Waffen sind dafür am besten geeignet, manche Situationen erfordern jedoch andere Unterlagen, die für einen Zauber herhalten müssen, oft mit reduzierter Kapazität. Jeder Zauber besitzt diese Attribute:
 
-:::formula{title="Effektivität" color=#ff0000}
+:::card{title="Effektivität" color=#ef4444}
 Stärke des Zaubers, bestimmt wie bei Waffen den Angriffsschaden, kann aber auch für Dinge wie die Heilstärke stehen. Die Effektivität des Zaubers wird aus der Summe aller enthaltenen Runen bestimmt.
 :::
-:::formula{title="Kosten" color=#0000ff}
+:::card{title="Kosten" color=##3b82f6}
 Sowohl Mana- als auch Fokuskosten werden aus der Summe aller enthaltenen Runen bestimmt.
 :::
 :::card{title="Voraussetzung" color=#00ff00}
 Bestimmt die Mindestanforderung für den gewählten Stat (meist Intelligenz), um den Zauber auszuführen. Die Voraussetzung wird ebenfalls aus der Summe aller enthaltenen Runen errechnet, die Rune mit der höchsten Voraussetzung zählt aber doppelt.
-:::card{title="Haltbarkeit" color=#ff5500}
+:::
+:::formula{title="Haltbarkeit" color=#ef9533}
 Die Haltbarkeit bestimmt, wie oft ein Zauber benutzt werden kann. Einen Zauber zu wirken verbraucht Haltbarkeit mit folgender Formel:
 :::formula
 Voraussetzung*10
