@@ -24,6 +24,25 @@ Zauber bestehen hauptsächlich aus Runen. Diese können immer einer von drei Kat
 
 ## Runen
 
+Runen sind Grundsteine der Magie. Durch präzise Zusammensetzung dieser Runen können Zauber mit einer zahllosen Anzahl an verschiedenen Effekten kreiert werden. Jede Rune besitzt folgende Stats:
+
+:::grid{min=200}
+:::card{title="Effektivität" color=#ff0000}
+:::
+:::card{title="Manakosten" color=#0000ff}
+:::
+:::card{title="Fokuskosten" color=#ff00ff}
+:::
+:::card{title="Voraussetzung" color=#00ff00}
+:::
+:::
+
+:::note{type=info}
+Zusätzlich können Runen besondere Effekte haben, die in der Beschreibung erklärt werden.
+:::
+
+Es gibt 3 Arten von Runen:
+
 :::section{title="Elementarrunen"}
 Elementarrunen können alles symbolisieren, was materiell ist. Damit können allgemeine Materialien gemeint sein, wie z. B. Wasser, Feuer, Eisen, Licht, Holz, Luft oder Stoff. Aber auch spezifischere Dinge wie Mensch, Elf, Drache, Stock, Schwert, Seil, ein 1980er Honda Civic usw.
 
@@ -73,6 +92,47 @@ Beschwören aus der Seele selbst geformt. Du erkennst sie an ihrer Form:
 
 :::
 
+## Zauber
+
+Mithilfe dieser Runen ist es nun möglich, einen vollwertigen Zauber zusammenzusetzen. Um einen Zauber nutzen zu können, braucht man aber zusätzlich noch ein Medium, durch den der Zauber benutzt werden kann. Schriftrollen oder magische Waffen sind dafür am besten geeignet, manche Situationen erfordern jedoch andere Unterlagen, die für einen Zauber herhalten müssen, oft mit reduzierter Kapazität. Jeder Zauber besitzt diese Attribute:
+
+:::card{title="Effektivität" color=#ff0000}
+Stärke des Zaubers, bestimmt wie bei Waffen den Angriffsschaden, kann aber auch für Dinge wie die Heilstärke stehen. Die Effektivität des Zaubers wird aus der Summe aller enthaltenen Runen bestimmt.
+:::
+:::card{title="Kosten" color=#0000ff}
+Sowohl Mana- als auch Fokuskosten werden aus der Summe aller enthaltenen Runen bestimmt.
+:::
+:::card{title="Voraussetzung" color=#00ff00}
+Bestimmt die Mindestanforderung für den gewählten Stat (meist Intelligenz), um den Zauber auszuführen. Die Voraussetzung wird ebenfalls aus der Summe aller enthaltenen Runen errechnet, die Rune mit der höchsten Voraussetzung zählt aber doppelt.
+:::card{title="Haltbarkeit" color=#ff5500}
+Die Haltbarkeit bestimmt, wie oft ein Zauber benutzt werden kann. Einen Zauber zu wirken verbraucht Haltbarkeit mit folgender Formel:
+:::formula
+Voraussetzung*10
+:::
+Die meisten magischen Zauberunterlagen sind allerdings spezifisch für Zauber gemacht und halten deutlich länger.
+:::note{type=warning}
+Sollte die Haltbarkeit eines Zaubers unter 100 fallen, muss beim Wirken von Zaubern gewürfelt werden, ob er zerstört wird. Je weiter die Haltbarkeit unter 100 fällt, desto höher ist der Würfelbonus für die Zerstörung der Rüstung.
+:::formula
+Würfelbonus: -5 + ⌊(100 - Rüstungshaltbarkeit)/10⌋
+:::
+:::
+:::
+
+:::section{title="Wie mache ich einen neuen Zauber?"}
+Damit dein Charakter einen neuen Zauber zusammenbauen benötigst du Kenntnis von Runen, die du für den Zauber verwenden willst.
+Diese werden dann je nach gewünschtem Effekt angeordnet.
+
+:::card{title="Ein Beispiel:"}
+Start - Erzeuge - Feuer - Bewege 
+:::
+
+Runen alleine reichen aber nicht aus, um zu bestimmen, was ein Zauber machen kann und wieviel er kostet. Letztendlich schaut sich der Ersteller den Zauber zusammen mit dem Spielleiter an und definiert, was er genau macht und wieviel er kostet. Der Ersteller muss dem Spielleiter argumentieren können, warum die arrangierten Runen das tun würden, was die Beschreibung sagt. Auch wenn der Prozess viel Interpretationsspielraum bietet, haben Runen immernoch eine Stärke und Kosten, die als Grundrahmen dienen. Es wird z.B. durchaus Feuerrunen geben, die stärker als andere Feuerrunen sind.
+:::runeflow{title="Beispiel: einfacher Angriffszauber"}
+Erzeuge -> Feuer -> Bewege 
+:::
+
+:::
+
 ### Zauber zeichnen
 Normalerweise werden Zauber außerhalb des Kampfes vorberereitet. Manchmal erfordert die Lage allerdings die Kreation eines spontanen Zaubers. Solange dieser irgendwie in eine Oberfläche (z.B. in die Erde oder in eine Wand geritzt) gezeichnet werden kann, ist er auch als Zauber verwendbar, ist aber in den meisten Fällen nach einer Verwendung unbrauchbar. Jeden Zug kann man 4 Runen mit einer Aktion und 2 als Bonusaktion zeichnen. Je nach [Skalierung](zauber#skalierung) können Runen auch mehr oder weniger Aktionen benötigen. Eine viermal größere Rune verbraucht zum Beispiel gleichermaßen die selbe Zeit, die 4 normalgroße Runen beanspruchen würden.
 
@@ -117,8 +177,6 @@ Zauber im Zauberradius einer anderen Person zu erzeugen ist deutlich schwieriger
 Zauber direkt in Lebewesen oder festen Objekten zu erzeugen ist jedoch noch schwieriger bis nahezu unmöglich.
 :::
 
-## Zauber
-TBD
 
 :::section{title="Skalierung", id="skalierung"}
 
@@ -139,24 +197,10 @@ Die Manakosten und Zaubervoraussetzungen werden dann mit dem Ergebnis folgender 
 Um den Cast erfolgreich abzuschließen, würfelt man jede Runde einen D20, dessen Ergebnis fortlaufend addiert wird.  
 Erreicht oder überschreitet man den festgelegten Cast-Wert, wird der Zauber aktiviert.
 
-Ein Cast kann jederzeit freiwillig abgebrochen werden.
+Ein Cast kann jederzeit freiwillig abgebrochen oder pausiert werden. Der bis dahin angesammelte Fortschritt des Zaubercasts bleibt bestehen, sinkt aber jede Runde um 10, wenn er nicht als *Aktion* gecastet wird.
 :::
 
 
-:::section{title="Wie mache ich einen neuen Zauber?"}
-Damit dein Charakter einen neuen Zauber zusammenbauen benötigst du Kenntnis von Runen die du für den Zauber verwenden willst.
-Diese werden dann je nach gewünschtem Effekt angeordnet.
-
-:::card{title="Ein Beispiel:"}
-Start - Erzeuge - Feuer - Bewege 
-:::
-
-Runen alleine reichen aber nicht aus, um zu bestimmen, was ein Zauber machen kann und wieviel er kostet. Letztendlich schaut sich der Ersteller den Zauber zusammen mit dem Spielleiter an und definiert, was er genau macht und wieviel er kostet. Der Ersteller muss dem Spielleiter argumentieren können, warum die arrangierten Runen das tun würden, was die Beschreibung sagt. Auch wenn der Prozess viel Interpretationsspielraum bietet, haben Runen immernoch eine Stärke und Kosten, die als Grundrahmen dienen. Es wird z.B. durchaus Feuerrunen geben, die stärker als andere Feuerrunen sind.
-:::runeflow{title="Beispiel: einfacher Angriffszauber"}
-Erzeuge -> Feuer -> Bewege 
-:::
-
-:::
 
 :::actions
 :jump[Weiter zur Ausrüstung]{to=gear}
