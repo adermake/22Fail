@@ -102,7 +102,7 @@ Stärke des Zaubers, bestimmt wie bei Waffen den Angriffsschaden, kann aber auch
 :::card{title="Kosten" color=##3b82f6}
 Sowohl Mana- als auch Fokuskosten werden aus der Summe aller enthaltenen Runen bestimmt. Ein Zauber kann nur gewirkt werden, wenn der Zaubernde ausreichend [Fokus](zauber#fokus) und Mana besitzt.
 :::
-:::card{title="Voraussetzung" color=#00ff00}
+:::card{title="Voraussetzung" color=#22c55e}
 Bestimmt die Mindestanforderung für den gewählten Stat (meist Intelligenz), um den Zauber auszuführen. Die Voraussetzung wird ebenfalls aus der Summe aller enthaltenen Runen errechnet, die Rune mit der höchsten Voraussetzung zählt aber doppelt.
 :::
 :::card{title="Haltbarkeit" color=#ef9533}
