@@ -3,6 +3,31 @@ import * as fs from 'fs';
 import * as path from 'path';
 type JsonObject = Record<string, any>;
 
+/** One soft-deleted character or world, as listed in data/trash/index.json. */
+export interface TrashEntry {
+  kind: 'character' | 'world';
+  /** Character id, or world name. */
+  id: string;
+  /** Display name at the time of deletion. */
+  name: string;
+  deletedAt: number;
+  deletedBy?: string;
+}
+
+/** What the homepage needs to render a character tile without loading the full sheet. */
+export interface CharacterSummary {
+  id: string;
+  name?: string;
+  portrait?: string;
+  worldName?: string;
+  controllerUserIds?: string[];
+  level?: number;
+  primaryClass?: string;
+  secondaryClass?: string;
+  race?: string;
+  updatedAt?: number;
+}
+
 @Injectable()
 export class DataService {
   private dataDir = path.join(__dirname, '../../../data');
@@ -10,6 +35,11 @@ export class DataService {
   private worldsDir = path.join(this.dataDir, 'worlds');
   private racesDir = path.join(this.dataDir, 'races');
   private globalTexturesFilePath = path.join(this.dataDir, 'textures.json');
+  /** Soft-delete area: nothing is unlinked until it is purged from here explicitly. */
+  private trashDir = path.join(this.dataDir, 'trash');
+  private trashCharactersDir = path.join(this.trashDir, 'characters');
+  private trashWorldsDir = path.join(this.trashDir, 'worlds');
+  private trashIndexFile = path.join(this.trashDir, 'index.json');
 
   constructor() {
     // Ensure data directory and subdirectories exist
@@ -17,6 +47,8 @@ export class DataService {
     this.ensureDirectory(this.charactersDir);
     this.ensureDirectory(this.worldsDir);
     this.ensureDirectory(this.racesDir);
+    this.ensureDirectory(this.trashCharactersDir);
+    this.ensureDirectory(this.trashWorldsDir);
   }
 
   private ensureDirectory(dirPath: string): void {
@@ -295,21 +327,136 @@ export class DataService {
   }
 
   /** Lightweight character listing for the homepage (id, name, portrait, world, controllers). */
-  getAllCharacterSummaries(): { id: string; name?: string; portrait?: string; worldName?: string; controllerUserIds?: string[] }[] {
-    const out: { id: string; name?: string; portrait?: string; worldName?: string; controllerUserIds?: string[] }[] = [];
+  getAllCharacterSummaries(): CharacterSummary[] {
+    const out: CharacterSummary[] = [];
     try {
       for (const file of fs.readdirSync(this.charactersDir)) {
         if (!file.endsWith('.json')) continue;
         const id = file.replace('.json', '');
+        const filePath = path.join(this.charactersDir, file);
         try {
-          const c = JSON.parse(fs.readFileSync(path.join(this.charactersDir, file), 'utf-8'));
-          out.push({ id, name: c?.name, portrait: c?.portrait, worldName: c?.worldName, controllerUserIds: c?.controllerUserIds });
+          const c = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+          out.push({
+            id, name: c?.name, portrait: c?.portrait, worldName: c?.worldName,
+            controllerUserIds: c?.controllerUserIds,
+            // Shown on the homepage tile, so a character is identifiable without opening it.
+            level: typeof c?.level === 'number' ? c.level : undefined,
+            primaryClass: c?.primary_class || undefined,
+            secondaryClass: c?.secondary_class || undefined,
+            race: c?.race || undefined,
+            updatedAt: this.fileMtime(filePath),
+          });
         } catch { out.push({ id }); }
       }
     } catch (e) {
       console.error('Error reading characters directory:', e);
     }
     return out;
+  }
+
+  private fileMtime(filePath: string): number | undefined {
+    try { return fs.statSync(filePath).mtimeMs; } catch { return undefined; }
+  }
+
+  // ── Trash: soft delete / restore / purge ──
+  // Characters and worlds move into data/trash/ instead of being unlinked, so a mis-click during
+  // a session is always recoverable. Only an explicit purge actually removes bytes.
+
+  private readTrashIndex(): TrashEntry[] {
+    try {
+      if (!fs.existsSync(this.trashIndexFile)) return [];
+      const parsed = JSON.parse(fs.readFileSync(this.trashIndexFile, 'utf-8'));
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private writeTrashIndex(entries: TrashEntry[]): void {
+    this.ensureDirectory(this.trashDir);
+    fs.writeFileSync(this.trashIndexFile, JSON.stringify(entries, null, 2), 'utf-8');
+  }
+
+  /** Newest deletions first. */
+  listTrash(): TrashEntry[] {
+    return this.readTrashIndex().sort((a, b) => b.deletedAt - a.deletedAt);
+  }
+
+  private putTrashEntry(entry: TrashEntry): void {
+    const rest = this.readTrashIndex().filter(e => !(e.kind === entry.kind && e.id === entry.id));
+    this.writeTrashIndex([entry, ...rest]);
+  }
+
+  private dropTrashEntry(kind: TrashEntry['kind'], id: string): void {
+    this.writeTrashIndex(this.readTrashIndex().filter(e => !(e.kind === kind && e.id === id)));
+  }
+
+  private trashCharacterPath(id: string): string {
+    return path.join(this.trashCharactersDir, this.getCharacterFileName(id));
+  }
+
+  private trashWorldPath(name: string): string {
+    return path.join(this.trashWorldsDir, this.sanitizeFileName(name));
+  }
+
+  /** Move a character into the trash. Returns the entry, or null if it does not exist. */
+  trashCharacter(id: string, deletedBy?: string): TrashEntry | null {
+    const src = this.getCharacterFilePath(id);
+    if (!fs.existsSync(src)) return null;
+    let name = id;
+    try { name = JSON.parse(fs.readFileSync(src, 'utf-8'))?.name || id; } catch { /* keep the id */ }
+    const dest = this.trashCharacterPath(id);
+    // A previous deletion of the same id would collide — the newer copy wins.
+    if (fs.existsSync(dest)) fs.rmSync(dest, { force: true });
+    fs.renameSync(src, dest);
+    const entry: TrashEntry = { kind: 'character', id, name, deletedAt: Date.now(), deletedBy };
+    this.putTrashEntry(entry);
+    return entry;
+  }
+
+  /** Move a whole world directory (lobby, maps, library, …) into the trash. */
+  trashWorld(worldName: string, deletedBy?: string): TrashEntry | null {
+    const src = this.getWorldDir(worldName);
+    if (!fs.existsSync(src)) return null;
+    const dest = this.trashWorldPath(worldName);
+    if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true });
+    fs.renameSync(src, dest);
+    const entry: TrashEntry = {
+      kind: 'world', id: worldName, name: worldName, deletedAt: Date.now(), deletedBy,
+    };
+    this.putTrashEntry(entry);
+    return entry;
+  }
+
+  /**
+   * Move an item back out of the trash. Fails (rather than overwriting) when something new was
+   * created under the same id/name in the meantime.
+   */
+  restoreFromTrash(kind: TrashEntry['kind'], id: string): { ok: boolean; error?: string } {
+    const entry = this.readTrashIndex().find(e => e.kind === kind && e.id === id);
+    if (!entry) return { ok: false, error: 'Nicht im Papierkorb gefunden.' };
+
+    const src = kind === 'character' ? this.trashCharacterPath(id) : this.trashWorldPath(id);
+    const dest = kind === 'character' ? this.getCharacterFilePath(id) : this.getWorldDir(id);
+    if (!fs.existsSync(src)) {
+      this.dropTrashEntry(kind, id);
+      return { ok: false, error: 'Die Daten fehlen — Eintrag wurde entfernt.' };
+    }
+    if (fs.existsSync(dest)) {
+      return { ok: false, error: 'Es existiert bereits wieder etwas unter diesem Namen.' };
+    }
+    fs.renameSync(src, dest);
+    this.dropTrashEntry(kind, id);
+    return { ok: true };
+  }
+
+  /** Permanently remove one trashed item. The only path that actually deletes bytes. */
+  purgeFromTrash(kind: TrashEntry['kind'], id: string): boolean {
+    const target = kind === 'character' ? this.trashCharacterPath(id) : this.trashWorldPath(id);
+    if (fs.existsSync(target)) fs.rmSync(target, { recursive: true, force: true });
+    const before = this.readTrashIndex().length;
+    this.dropTrashEntry(kind, id);
+    return this.readTrashIndex().length < before;
   }
 
   saveCharacter(id: string, sheetJson: string): void {

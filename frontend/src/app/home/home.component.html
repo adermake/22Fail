@@ -27,7 +27,7 @@
             <p class="muted">Gespeicherte Zugänge auf diesem Gerät.</p>
             <div class="acct-list">
               @for (a of knownAccounts(); track a.userId) {
-                <div class="acct" [class.disabled]="busy()">
+                <div class="acct">
                   <button class="acct-main" [disabled]="busy()" (click)="useAccount(a)">
                     <span class="acct-avatar"><i class="app-icon i-character"></i></span>
                     <span class="acct-name">{{ a.name }}</span>
@@ -44,7 +44,7 @@
             <h2 [class.sub]="knownAccounts().length > 0">Anmelden</h2>
             <p class="muted">Name und Beitritts-Code (vom Admin erhalten).</p>
             <input class="fld" [(ngModel)]="loginName" placeholder="Name" (keydown.enter)="doLogin()" />
-            <input class="fld" [(ngModel)]="loginCode" placeholder="Code, z. B. swift-fox-72"
+            <input class="fld" [(ngModel)]="loginCode" placeholder="Code, z. B. swift-fox-72"
                    (keydown.enter)="doLogin()" />
             <button class="btn primary" [disabled]="busy() || !loginName.trim() || !loginCode.trim()" (click)="doLogin()">
               Anmelden
@@ -93,140 +93,305 @@
   <!-- ── Dashboard (signed in) ── -->
   @else {
     <header class="top">
-      <div class="who">
-        <span class="hi">Hallo, <strong>{{ user()!.name }}</strong></span>
-        @if (isAdmin()) { <span class="badge admin">Admin</span> }
+      <div class="top-brand">
+        <span class="brand-mark">22Fail</span>
       </div>
-      <button class="btn ghost" (click)="switchUser()">Nutzer wechseln</button>
+      <div class="top-right">
+        <span class="hi">{{ user()!.name }}</span>
+        @if (isAdmin()) { <span class="badge admin">Admin</span> }
+        <button class="btn ghost" (click)="switchUser()">Nutzer wechseln</button>
+      </div>
     </header>
 
-    <!-- Your characters -->
+    <!-- ══ Deine Charaktere ══ -->
     <section class="panel">
       <div class="panel-head">
         <h2>Deine Charaktere</h2>
+        @if (myCharacters().length) {
+          <span class="count">{{ myCharacters().length }}</span>
+        }
       </div>
-      <div class="grid">
+
+      <div class="ctiles">
         @for (c of myCharacters(); track c.id) {
-          <div class="card char">
-            <button class="card-main" (click)="openSheet(c.id)">
-              @if (c.portrait) { <img class="pic" [src]="c.portrait" alt="" /> }
-              @else { <span class="pic ph"><i class="app-icon i-character"></i></span> }
-              <span class="card-name">{{ c.name || c.id }}</span>
-            </button>
-            @if (c.worldName) {
-              <div class="jump">
-                <span class="jump-lbl"><i class="app-icon i-map"></i>{{ c.worldName }}</span>
-                <button class="chip" (click)="openLobby(c.worldName!)">Lobby</button>
-                <button class="chip" (click)="openMap(c.worldName!)">Karte</button>
-              </div>
-            }
-          </div>
-        }
-        <div class="card create">
-          <input class="fld" [(ngModel)]="newCharName" placeholder="Neuer Charakter…"
-                 (keydown.enter)="createCharacter()" />
-          <button class="btn primary sm" [disabled]="!newCharName.trim()" (click)="createCharacter()">
-            + Erstellen
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Your worlds -->
-    <section class="panel">
-      <div class="panel-head"><h2>{{ isAdmin() ? 'Welten' : 'Deine Welten' }}</h2></div>
-      @if (myWorlds().length === 0) {
-        <p class="muted">Noch keine Welten{{ isAdmin() ? '' : ' — dein GM muss deinen Charakter einer Welt hinzufügen.' }}</p>
-      }
-      <div class="grid">
-        @for (w of myWorlds(); track w.name) {
-          <div class="card world">
-            <span class="card-name"><i class="app-icon i-map"></i>{{ w.name }}</span>
-            <div class="jump">
-              <button class="chip" (click)="openLobby(w.name)">Lobby</button>
-              <button class="chip" (click)="openMap(w.name)">Karte</button>
-              @if (isAdmin()) { <button class="chip gm" (click)="openWorld(w.name)">GM</button> }
-            </div>
-          </div>
-        }
-      </div>
-    </section>
-
-    <!-- ── Admin section ── -->
-    @if (isAdmin()) {
-      <section class="panel admin-panel">
-        <div class="panel-head"><h2>Admin</h2></div>
-
-        <div class="admin-row">
-          <label>Neue Welt</label>
-          <input class="fld" [(ngModel)]="newWorldName" placeholder="Weltname…" (keydown.enter)="createWorld()" />
-          <button class="btn" [disabled]="!newWorldName.trim()" (click)="createWorld()">Welt erstellen</button>
-        </div>
-
-        <div class="admin-row">
-          <button class="btn" (click)="showUserManager.set(!showUserManager())">
-            {{ showUserManager() ? '▾' : '▸' }} Nutzer verwalten ({{ users().length }})
-          </button>
-        </div>
-
-        @if (showUserManager()) {
-          <div class="user-manager">
-            <div class="admin-row">
-              <label>Neuer Nutzer</label>
-              <input class="fld" [(ngModel)]="newUserName" placeholder="Name…" (keydown.enter)="createUser()" />
-              <button class="btn primary" [disabled]="busy() || !newUserName.trim()" (click)="createUser()">Erstellen</button>
-            </div>
-            <table class="users">
-              <thead><tr><th>Name</th><th>Beitritts-Code</th><th>Rolle</th><th></th></tr></thead>
-              <tbody>
-                @for (u of users(); track u.id) {
-                  <tr>
-                    <td>{{ u.name }}</td>
-                    <td><code class="code">{{ u.joinCode }}</code>
-                        <button class="mini icon" (click)="regenerateCode(u)" title="Neuen Code erzeugen"><i class="app-icon i-sync"></i></button></td>
-                    <td>
-                      @if (u.id === user()!.id) { <span class="badge admin">Du</span> }
-                      @else {
-                        <button class="mini" (click)="toggleAdmin(u)">{{ u.isAdmin ? 'Admin ✓' : 'Spieler' }}</button>
-                      }
-                    </td>
-                    <td>
-                      @if (u.id !== user()!.id) {
-                        <button class="mini danger" (click)="deleteUser(u)" title="Nutzer löschen">×</button>
-                      }
-                    </td>
-                  </tr>
+          <div class="ctile-wrap">
+            <a class="ctile" [href]="sheetLink(c.id)" target="_blank" rel="noopener">
+              <span class="ctile-art">
+                @if (c.portrait) {
+                  <img [src]="c.portrait | imageUrl" [alt]="c.name || c.id" />
+                } @else {
+                  <span class="ctile-initial">{{ initial(c) }}</span>
                 }
-              </tbody>
-            </table>
-          </div>
-        }
-
-        <!-- Assign character control -->
-        <div class="admin-row col">
-          <label>Charakter-Kontrolle zuweisen</label>
-          <div class="assign">
-            <div class="assign-list">
-              @for (c of allCharacters(); track c.id) {
-                <button class="assign-item" [class.active]="assignTarget()?.id === c.id"
-                        (click)="assignTarget.set(assignTarget()?.id === c.id ? null : c)">
-                  {{ c.name || c.id }}
-                </button>
+                @if (c.level) { <span class="ctile-lvl">Stufe {{ c.level }}</span> }
+              </span>
+              <span class="ctile-body">
+                <span class="ctile-name">{{ c.name || c.id }}</span>
+                @if (charMeta(c)) {
+                  <span class="ctile-meta">{{ charMeta(c) }}</span>
+                } @else {
+                  <span class="ctile-meta faint">Noch nicht ausgefüllt</span>
+                }
+              </span>
+            </a>
+            <div class="ctile-foot">
+              @if (c.worldName) {
+                <a class="chip" [href]="lobbyLink(c.worldName)" target="_blank" rel="noopener">
+                  <i class="app-icon i-lobby"></i>Lobby
+                </a>
+                <a class="chip" [href]="mapLink(c.worldName)" target="_blank" rel="noopener">
+                  <i class="app-icon i-map"></i>Karte
+                </a>
+                <span class="ctile-world">{{ c.worldName }}</span>
+              } @else {
+                <span class="ctile-world faint">Keiner Welt zugeordnet</span>
               }
             </div>
-            @if (assignTarget(); as t) {
-              <div class="assign-users">
-                <div class="assign-title">Wer kontrolliert „{{ t.name || t.id }}“?</div>
-                @for (u of users(); track u.id) {
-                  <label class="assign-user">
-                    <input type="checkbox" [checked]="userControls(t, u)" (change)="toggleControl(t, u)" />
-                    {{ u.name }}
-                  </label>
-                }
+          </div>
+        }
+
+        <!-- New character -->
+        <div class="ctile-wrap">
+          <div class="ctile new">
+            <span class="ctile-art new"><i class="app-icon i-character"></i></span>
+            <span class="ctile-body">
+              <input class="fld" [(ngModel)]="newCharName" placeholder="Name des Charakters"
+                     (keydown.enter)="createCharacter()" />
+              <button class="btn primary sm" [disabled]="!newCharName.trim()" (click)="createCharacter()">
+                Charakter erstellen
+              </button>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ Welten ══ -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2>{{ isAdmin() ? 'Welten' : 'Deine Welten' }}</h2>
+        @if (myWorlds().length) { <span class="count">{{ myWorlds().length }}</span> }
+      </div>
+
+      @if (myWorlds().length === 0) {
+        <p class="empty">
+          Noch keine Welten{{ isAdmin() ? ' — lege im Admin-Bereich eine an.' : ' — dein GM muss deinen Charakter einer Welt hinzufügen.' }}
+        </p>
+      }
+
+      <div class="wtiles">
+        @for (w of myWorlds(); track w.name) {
+          <div class="wtile">
+            <div class="wtile-head">
+              <i class="app-icon i-map"></i>
+              <span class="wtile-name">{{ w.name }}</span>
+            </div>
+            <div class="wtile-foot">
+              <a class="chip" [href]="lobbyLink(w.name)" target="_blank" rel="noopener">
+                <i class="app-icon i-lobby"></i>Lobby
+              </a>
+              <a class="chip" [href]="mapLink(w.name)" target="_blank" rel="noopener">
+                <i class="app-icon i-map"></i>Karte
+              </a>
+              @if (isAdmin()) {
+                <a class="chip gm" [href]="worldLink(w.name)" target="_blank" rel="noopener">GM</a>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+
+    <!-- ══ Admin ══ -->
+    @if (isAdmin()) {
+      <section class="panel">
+        <button class="admin-toggle" (click)="adminOpen.set(!adminOpen())">
+          <span class="admin-toggle-caret">{{ adminOpen() ? '▾' : '▸' }}</span>
+          Admin-Bereich
+          @if (trashCount()) { <span class="count warn">{{ trashCount() }} im Papierkorb</span> }
+        </button>
+
+        @if (adminOpen()) {
+          <div class="admin-panel">
+            <nav class="tabs">
+              <button class="tab" [class.active]="adminTab() === 'charaktere'"
+                      (click)="adminTab.set('charaktere')">Charaktere</button>
+              <button class="tab" [class.active]="adminTab() === 'welten'"
+                      (click)="adminTab.set('welten')">Welten</button>
+              <button class="tab" [class.active]="adminTab() === 'nutzer'"
+                      (click)="adminTab.set('nutzer')">Nutzer</button>
+              <button class="tab" [class.active]="adminTab() === 'papierkorb'"
+                      (click)="adminTab.set('papierkorb')">Papierkorb ({{ trashCount() }})</button>
+            </nav>
+
+            @if (adminError()) { <div class="auth-error">{{ adminError() }}</div> }
+
+            <!-- ── Charaktere: find, assign, bulk-delete ── -->
+            @if (adminTab() === 'charaktere') {
+              <div class="tab-body">
+                <div class="toolbar">
+                  <input class="fld grow" [(ngModel)]="charFilter" placeholder="Charakter suchen…" />
+                  <button class="btn sm" (click)="selectAllFiltered()">Alle markieren</button>
+                  <button class="btn sm" [disabled]="!selectedCount()" (click)="clearSelection()">
+                    Auswahl aufheben
+                  </button>
+                  <button class="btn sm danger" [disabled]="busy() || !selectedCount()"
+                          (click)="deleteSelected()">
+                    {{ selectedCount() }} löschen
+                  </button>
+                </div>
+
+                <div class="rows">
+                  @for (c of adminCharacters(); track c.id) {
+                    <div class="row" [class.picked]="isSelected(c.id)">
+                      <label class="row-pick">
+                        <input type="checkbox" [checked]="isSelected(c.id)"
+                               (change)="toggleSelected(c.id)" />
+                      </label>
+                      <span class="row-thumb">
+                        @if (c.portrait) { <img [src]="c.portrait | imageUrl" alt="" /> }
+                        @else { <span class="row-initial">{{ initial(c) }}</span> }
+                      </span>
+                      <span class="row-text">
+                        <span class="row-name">{{ c.name || c.id }}</span>
+                        <span class="row-sub">
+                          @if (c.level) { Stufe {{ c.level }} · }
+                          {{ c.worldName || 'keine Welt' }} · Kontrolle: {{ controllerNames(c) }}
+                        </span>
+                      </span>
+                      <a class="mini" [href]="sheetLink(c.id)" target="_blank" rel="noopener">Öffnen</a>
+                      <button class="mini"
+                              (click)="assignTarget.set(assignTarget()?.id === c.id ? null : c)">
+                        Kontrolle
+                      </button>
+                      <button class="mini danger" [disabled]="busy()" (click)="deleteCharacter(c)">
+                        Löschen
+                      </button>
+                    </div>
+
+                    @if (assignTarget()?.id === c.id) {
+                      <div class="row-expand">
+                        <div class="assign-title">Wer kontrolliert „{{ c.name || c.id }}“?</div>
+                        @for (u of users(); track u.id) {
+                          <label class="assign-user">
+                            <input type="checkbox" [checked]="userControls(c, u)"
+                                   (change)="toggleControl(c, u)" />
+                            {{ u.name }}
+                          </label>
+                        }
+                      </div>
+                    }
+                  }
+                  @if (!adminCharacters().length) {
+                    <p class="empty">Keine Charaktere gefunden.</p>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- ── Welten ── -->
+            @if (adminTab() === 'welten') {
+              <div class="tab-body">
+                <div class="toolbar">
+                  <input class="fld grow" [(ngModel)]="newWorldName" placeholder="Name der neuen Welt…"
+                         (keydown.enter)="createWorld()" />
+                  <button class="btn primary sm" [disabled]="!newWorldName.trim()" (click)="createWorld()">
+                    Welt erstellen
+                  </button>
+                </div>
+                <div class="rows">
+                  @for (w of myWorlds(); track w.name) {
+                    <div class="row">
+                      <span class="row-thumb"><i class="app-icon i-map"></i></span>
+                      <span class="row-text">
+                        <span class="row-name">{{ w.name }}</span>
+                        <span class="row-sub">{{ w.characterIds.length }} Charakter(e)</span>
+                      </span>
+                      <a class="mini" [href]="worldLink(w.name)" target="_blank" rel="noopener">GM</a>
+                      <a class="mini" [href]="lobbyLink(w.name)" target="_blank" rel="noopener">Lobby</a>
+                      <button class="mini danger" [disabled]="busy()" (click)="deleteWorld(w)">Löschen</button>
+                    </div>
+                  }
+                  @if (!myWorlds().length) { <p class="empty">Noch keine Welten.</p> }
+                </div>
+              </div>
+            }
+
+            <!-- ── Nutzer ── -->
+            @if (adminTab() === 'nutzer') {
+              <div class="tab-body">
+                <div class="toolbar">
+                  <input class="fld grow" [(ngModel)]="newUserName" placeholder="Name des neuen Nutzers…"
+                         (keydown.enter)="createUser()" />
+                  <button class="btn primary sm" [disabled]="busy() || !newUserName.trim()"
+                          (click)="createUser()">Nutzer erstellen</button>
+                </div>
+                <table class="users">
+                  <thead><tr><th>Name</th><th>Beitritts-Code</th><th>Rolle</th><th></th></tr></thead>
+                  <tbody>
+                    @for (u of users(); track u.id) {
+                      <tr>
+                        <td>{{ u.name }}</td>
+                        <td>
+                          <code class="code">{{ u.joinCode }}</code>
+                          <button class="mini icon" (click)="regenerateCode(u)" title="Neuen Code erzeugen">
+                            <i class="app-icon i-sync"></i>
+                          </button>
+                        </td>
+                        <td>
+                          @if (u.id === user()!.id) { <span class="badge admin">Du</span> }
+                          @else {
+                            <button class="mini" (click)="toggleAdmin(u)">
+                              {{ u.isAdmin ? 'Admin' : 'Spieler' }}
+                            </button>
+                          }
+                        </td>
+                        <td>
+                          @if (u.id !== user()!.id) {
+                            <button class="mini danger" (click)="deleteUser(u)" title="Nutzer löschen">×</button>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+
+            <!-- ── Papierkorb ── -->
+            @if (adminTab() === 'papierkorb') {
+              <div class="tab-body">
+                <p class="muted">
+                  Gelöschtes bleibt hier liegen, bis du es endgültig entfernst. Wiederherstellen
+                  bringt alles zurück — bei Welten auch Lobby, Karten und Bibliothek.
+                </p>
+                <div class="rows">
+                  @for (e of trash(); track e.kind + e.id) {
+                    <div class="row">
+                      <span class="row-thumb">
+                        <i class="app-icon" [class.i-character]="e.kind === 'character'"
+                           [class.i-map]="e.kind === 'world'"></i>
+                      </span>
+                      <span class="row-text">
+                        <span class="row-name">{{ e.name }}</span>
+                        <span class="row-sub">
+                          {{ e.kind === 'character' ? 'Charakter' : 'Welt' }} ·
+                          gelöscht {{ e.deletedAt | date:'dd.MM.yyyy HH:mm' }}
+                        </span>
+                      </span>
+                      <button class="mini" [disabled]="busy()" (click)="restoreTrash(e)">
+                        Wiederherstellen
+                      </button>
+                      <button class="mini danger" [disabled]="busy()" (click)="purgeTrash(e)">
+                        Endgültig löschen
+                      </button>
+                    </div>
+                  }
+                  @if (!trash().length) { <p class="empty">Der Papierkorb ist leer.</p> }
+                </div>
               </div>
             }
           </div>
-        </div>
+        }
       </section>
     }
   }

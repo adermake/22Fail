@@ -5,21 +5,26 @@ import { Router } from '@angular/router';
 
 import { AuthService } from '../services/auth.service';
 import { UserApiService } from '../services/user-api.service';
-import { CharacterApiService, CharacterSummary } from '../services/character-api.service';
+import { CharacterApiService, CharacterSummary, TrashEntry } from '../services/character-api.service';
 import { WorldApiService, WorldSummary } from '../services/world-api.service';
+import { ImageUrlPipe } from '../shared/image-url.pipe';
 import { User } from '../model/user.model';
 import { KnownAccount } from '../services/identity';
 import { createEmptySheet } from '../model/character-sheet-model';
 import { createEmptyWorld } from '../model/world.model';
 
+/** Which admin tool is open. The admin area is one collapsed panel so the landing view stays calm. */
+type AdminTab = 'charaktere' | 'welten' | 'nutzer' | 'papierkorb';
+
 /**
- * The app's home. Replaces the old "type a URL" flow: you identify yourself once (name + join
- * code), then everything you can reach lives here. Admins additionally get creation/management.
+ * The app's home. Two layers: what a player wants (their characters and worlds, as large tiles
+ * that open in a new tab) and, behind one toggle, the admin tools (manage characters/worlds/users
+ * and the trash). Everything a player sees stays above the fold.
  */
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ImageUrlPipe],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,7 +41,7 @@ export class HomeComponent {
   readonly user = this.auth.currentUser;
   readonly isAdmin = this.auth.isAdmin;
 
-  // Identify screen
+  // ── Identify screen ──
   needsBootstrap = signal(false);
   loginName = '';
   loginCode = '';
@@ -55,22 +60,35 @@ export class HomeComponent {
   rootUsers = signal<User[]>([]);
   rootError = signal('');
 
-  // Dashboard data
+  // ── Dashboard data ──
   private characters = signal<CharacterSummary[]>([]);
   private worlds = signal<WorldSummary[]>([]);
   users = signal<User[]>([]);
+  trash = signal<TrashEntry[]>([]);
 
   // New-thing inputs
   newCharName = '';
   newWorldName = '';
   newUserName = '';
-  showUserManager = signal(false);
+
+  // Admin panel
+  adminOpen = signal(false);
+  adminTab = signal<AdminTab>('charaktere');
+  adminError = signal('');
+  /** Free-text filter over the admin character list — the way to find one among the test junk. */
+  charFilter = '';
+  /** Ids ticked for bulk deletion. */
+  selectedIds = signal<Set<string>>(new Set());
+  /** Which character's controller assignment is expanded. */
   assignTarget = signal<CharacterSummary | null>(null);
 
+  /** My characters, most recently played first. */
   readonly myCharacters = computed(() => {
     const uid = this.user()?.id;
     if (!uid) return [];
-    return this.characters().filter(c => (c.controllerUserIds ?? []).includes(uid));
+    return this.characters()
+      .filter(c => (c.controllerUserIds ?? []).includes(uid))
+      .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
   });
 
   /** Worlds to show: all for admin, else worlds where I control a character. */
@@ -82,8 +100,18 @@ export class HomeComponent {
       myWorldNames.has(w.name) || w.characterIds.some(id => myCharIds.has(id)));
   });
 
-  /** All characters (admin view — for assigning control). */
-  readonly allCharacters = computed(() => this.characters());
+  /** All characters for the admin list, filtered and alphabetical. */
+  readonly adminCharacters = computed(() => {
+    const q = this.charFilter.trim().toLowerCase();
+    const list = q
+      ? this.characters().filter(c =>
+          (c.name ?? '').toLowerCase().includes(q) || c.id.toLowerCase().includes(q))
+      : this.characters();
+    return [...list].sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+  });
+
+  readonly selectedCount = computed(() => this.selectedIds().size);
+  readonly trashCount = computed(() => this.trash().length);
 
   constructor() {
     // When identity resolves (or changes), (re)load the dashboard; when signed out, fetch status.
@@ -109,7 +137,10 @@ export class HomeComponent {
       ]);
       this.characters.set(chars);
       this.worlds.set(worlds);
-      if (this.isAdmin()) this.users.set(await this.userApi.list().catch(() => []));
+      if (this.isAdmin()) {
+        this.users.set(await this.userApi.list().catch(() => []));
+        this.trash.set(await this.characterApi.listTrash().catch(() => []));
+      }
     } catch { /* ignore */ }
   }
 
@@ -195,6 +226,7 @@ export class HomeComponent {
     this.characters.set([]);
     this.worlds.set([]);
     this.users.set([]);
+    this.trash.set([]);
     this.loginName = '';
     this.loginCode = '';
     this.authError.set('');
@@ -204,6 +236,26 @@ export class HomeComponent {
     // Remembered accounts survive the switch — that is the point of switching.
     this.showLoginForm.set(this.knownAccounts().length === 0);
     this.refreshStatus();
+  }
+
+  // ── Links (every tile opens in a new tab, so the homepage stays put) ──
+  sheetLink(id: string): string { return `/characters/${encodeURIComponent(id)}`; }
+  lobbyLink(world: string): string { return `/lobby/${encodeURIComponent(world)}`; }
+  mapLink(world: string): string { return `/world-map/${encodeURIComponent(world)}`; }
+  worldLink(world: string): string { return `/world/${encodeURIComponent(world)}`; }
+
+  /** "Stufe 4 · Kämpfer · Elf" — whichever parts the sheet actually has. */
+  charMeta(c: CharacterSummary): string {
+    const parts: string[] = [];
+    if (c.primaryClass) parts.push(c.primaryClass);
+    if (c.secondaryClass && c.secondaryClass !== c.primaryClass) parts.push(c.secondaryClass);
+    if (c.race) parts.push(c.race);
+    return parts.join(' · ');
+  }
+
+  /** First letter, for the placeholder tile when a character has no portrait. */
+  initial(c: CharacterSummary): string {
+    return (c.name || c.id || '?').charAt(0).toUpperCase();
   }
 
   // ── Characters ──
@@ -225,11 +277,6 @@ export class HomeComponent {
     this.router.navigate(['/characters', id]);
   }
 
-  openSheet(id: string): void { this.router.navigate(['/characters', id]); }
-  openLobby(world: string): void { this.router.navigate(['/lobby', world]); }
-  openMap(world: string): void { this.router.navigate(['/world-map', world]); }
-  openWorld(world: string): void { this.router.navigate(['/world', world]); }
-
   // ── Admin: worlds ──
   async createWorld(): Promise<void> {
     const name = this.newWorldName.trim();
@@ -238,7 +285,96 @@ export class HomeComponent {
     await this.worldApi.saveWorld(name, world);
     this.newWorldName = '';
     await this.loadDashboard();
-    this.openWorld(name);
+  }
+
+  // ── Admin: delete / restore ──
+  toggleSelected(id: string): void {
+    const next = new Set(this.selectedIds());
+    if (next.has(id)) next.delete(id); else next.add(id);
+    this.selectedIds.set(next);
+  }
+
+  isSelected(id: string): boolean { return this.selectedIds().has(id); }
+
+  /** Tick every character currently passing the filter — the fast way to clear out test junk. */
+  selectAllFiltered(): void {
+    this.selectedIds.set(new Set(this.adminCharacters().map(c => c.id)));
+  }
+
+  clearSelection(): void { this.selectedIds.set(new Set()); }
+
+  async deleteSelected(): Promise<void> {
+    const ids = [...this.selectedIds()];
+    if (!ids.length || !this.isAdmin()) return;
+    if (!confirm(`${ids.length} Charakter(e) in den Papierkorb verschieben?`)) return;
+    this.busy.set(true);
+    this.adminError.set('');
+    try {
+      for (const id of ids) await this.characterApi.deleteCharacter(id);
+      this.clearSelection();
+      await this.loadDashboard();
+    } catch {
+      this.adminError.set('Löschen fehlgeschlagen.');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async deleteCharacter(c: CharacterSummary): Promise<void> {
+    if (!this.isAdmin()) return;
+    if (!confirm(`„${c.name || c.id}“ in den Papierkorb verschieben?`)) return;
+    this.busy.set(true);
+    this.adminError.set('');
+    try {
+      await this.characterApi.deleteCharacter(c.id);
+      await this.loadDashboard();
+    } catch {
+      this.adminError.set('Löschen fehlgeschlagen.');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async deleteWorld(w: WorldSummary): Promise<void> {
+    if (!this.isAdmin()) return;
+    if (!confirm(`Welt „${w.name}“ in den Papierkorb verschieben? Karten, Lobby und Bibliothek wandern mit.`)) return;
+    this.busy.set(true);
+    this.adminError.set('');
+    try {
+      await this.worldApi.deleteWorld(w.name);
+      await this.loadDashboard();
+    } catch {
+      this.adminError.set('Löschen fehlgeschlagen.');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async restoreTrash(e: TrashEntry): Promise<void> {
+    this.adminError.set('');
+    this.busy.set(true);
+    try {
+      await this.characterApi.restoreFromTrash(e.kind, e.id);
+      await this.loadDashboard();
+    } catch (err: any) {
+      this.adminError.set(err?.error?.message ?? 'Wiederherstellen fehlgeschlagen.');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async purgeTrash(e: TrashEntry): Promise<void> {
+    if (!confirm(`„${e.name}“ endgültig löschen? Das kann nicht rückgängig gemacht werden.`)) return;
+    this.busy.set(true);
+    this.adminError.set('');
+    try {
+      await this.characterApi.purgeFromTrash(e.kind, e.id);
+      await this.loadDashboard();
+    } catch {
+      this.adminError.set('Endgültiges Löschen fehlgeschlagen.');
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   // ── Admin: users ──
@@ -269,7 +405,7 @@ export class HomeComponent {
 
   async deleteUser(u: User): Promise<void> {
     if (!this.isAdmin() || u.id === this.user()?.id) return;
-    if (!confirm(`Nutzer "${u.name}" löschen?`)) return;
+    if (!confirm(`Nutzer „${u.name}“ löschen?`)) return;
     await this.userApi.remove(u.id);
     this.users.set(await this.userApi.list());
   }
@@ -277,6 +413,12 @@ export class HomeComponent {
   // ── Admin: assign character control ──
   userControls(c: CharacterSummary, u: User): boolean {
     return (c.controllerUserIds ?? []).includes(u.id);
+  }
+
+  controllerNames(c: CharacterSummary): string {
+    const ids = new Set(c.controllerUserIds ?? []);
+    const names = this.users().filter(u => ids.has(u.id)).map(u => u.name);
+    return names.length ? names.join(', ') : 'niemand';
   }
 
   async toggleControl(c: CharacterSummary, u: User): Promise<void> {

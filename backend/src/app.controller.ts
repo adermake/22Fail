@@ -285,6 +285,53 @@ export class AppController {
     return { success: true, controllerUserIds: sheet.controllerUserIds };
   }
 
+  // ── Trash (admin): soft-delete characters and worlds, restore or purge them ──
+  // Nothing here unlinks data except the explicit purge; see DataService for the layout.
+
+  @Get('trash')
+  @UseGuards(AdminGuard)
+  listTrash(): any {
+    return this.dataService.listTrash();
+  }
+
+  @Delete('characters/:id')
+  @UseGuards(AdminGuard)
+  deleteCharacter(
+    @Param('id') id: string,
+    @Headers('x-user-id') userId?: string,
+  ): any {
+    const entry = this.dataService.trashCharacter(id, userId);
+    if (!entry) throw new BadRequestException('Character not found');
+    return { success: true, entry };
+  }
+
+  @Delete('worlds/:name')
+  @UseGuards(AdminGuard)
+  deleteWorld(
+    @Param('name') name: string,
+    @Headers('x-user-id') userId?: string,
+  ): any {
+    const entry = this.dataService.trashWorld(name, userId);
+    if (!entry) throw new BadRequestException('World not found');
+    return { success: true, entry };
+  }
+
+  @Post('trash/:kind/:id/restore')
+  @UseGuards(AdminGuard)
+  restoreFromTrash(@Param('kind') kind: string, @Param('id') id: string): any {
+    if (kind !== 'character' && kind !== 'world') throw new BadRequestException('Unknown kind');
+    const result = this.dataService.restoreFromTrash(kind, id);
+    if (!result.ok) throw new BadRequestException(result.error ?? 'Restore failed');
+    return { success: true };
+  }
+
+  @Delete('trash/:kind/:id')
+  @UseGuards(AdminGuard)
+  purgeFromTrash(@Param('kind') kind: string, @Param('id') id: string): any {
+    if (kind !== 'character' && kind !== 'world') throw new BadRequestException('Unknown kind');
+    return { success: this.dataService.purgeFromTrash(kind, id) };
+  }
+
   @Patch('characters/:id')
   applyPatch(@Param('id') id: string, @Body() patch: JsonPatch): any {
     console.log('PATCH', id, patch);

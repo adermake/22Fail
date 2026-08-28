@@ -27,6 +27,11 @@ export class WorldApiService {
     return await firstValueFrom(observable);
   }
 
+  /** Admin: move a whole world into the trash (recoverable). */
+  async deleteWorld(name: string): Promise<any> {
+    return await firstValueFrom(this.http.delete(`/api/worlds/${encodeURIComponent(name)}`));
+  }
+
   async migratePortraitsToImages(): Promise<{ success: boolean; migrated: number; skipped: number }> {
     const observable = this.http.post<{ success: boolean; migrated: number; skipped: number }>('/api/migrate/portraits-to-images', {});
     return await firstValueFrom(observable);

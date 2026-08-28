@@ -579,3 +579,35 @@ lobby-container
 
 ### Würfelformel (invertiert)
 - diceBonus = (5 - stat / 2) | 0 → hoher Stat = niedriger Bonus (besser im System, weil niedrig gut ist)
+
+## Homepage (`home/`) & Nutzer-Zugang
+
+Landing-Page unter `/`. Zwei Ebenen: oben die Spieler-Sicht (große Charakter-Kacheln mit
+Portrait, Stufe, Klasse/Rasse + Welt-Kacheln), darunter ein eingeklappter **Admin-Bereich** mit
+Tabs (Charaktere / Welten / Nutzer / Papierkorb).
+
+- **Alle Tiles öffnen in einem neuen Tab** (`<a target="_blank">` auf `/characters/:id`,
+  `/lobby/:world`, `/world-map/:world`, `/world/:world`) — die Homepage bleibt stehen.
+- Portraits sind Image-IDs → immer über die `imageUrl`-Pipe rendern, nie roh als `src`.
+- `CharacterSummary` (Backend `data.service.ts`) liefert zusätzlich `level`, `primaryClass`,
+  `secondaryClass`, `race`, `updatedAt` (File-mtime, sortiert "zuletzt gespielt").
+
+### Login / Konten (`services/identity.ts`, `services/auth.service.ts`)
+- `app:current-user` = aktive Identität; `app:known-users` = Liste aller je benutzten Konten
+  auf diesem Gerät. "Nutzer wechseln" löscht nur die aktive Identität, nie die Liste →
+  Ein-Klick-Wechsel zwischen Konten.
+- **Master-Passwort** (`ROOT_PASSWORD`, Default `rootroot`, `users.service.ts`): gilt anstelle
+  jedes Join-Codes in `login()` und `resolve()` und damit auch für den `AdminGuard`.
+  `POST /api/users/root/list` liefert damit alle Konten inkl. Join-Codes — Rettungsweg bei
+  verlorenem Code und Debug-Login als beliebiger Spieler.
+
+### Papierkorb (Soft Delete)
+Charaktere und Welten werden nie direkt gelöscht, sondern nach `data/trash/` verschoben:
+`trash/characters/<id>.json`, `trash/worlds/<name>/` (ganzes Verzeichnis inkl. Lobby, Karten,
+Bibliothek), Index in `trash/index.json`.
+
+- API (alle `AdminGuard`): `DELETE /api/characters/:id`, `DELETE /api/worlds/:name`,
+  `GET /api/trash`, `POST /api/trash/:kind/:id/restore`, `DELETE /api/trash/:kind/:id` (purge).
+- Restore bricht ab, statt zu überschreiben, wenn es den Namen wieder gibt.
+- Die `characterIds` der Welt bleiben beim Löschen stehen (Lobby/World prüfen auf `null`),
+  damit ein wiederhergestellter Charakter direkt wieder in der Party ist.
